@@ -160,24 +160,17 @@ TEST(MoAlgorithm, ConstructorsAllContainers)
   Distinct_Count_Mo<int> mo2(arr);
   EXPECT_EQ(mo2.size(), 3u);
 
-  // vector<T>
-  std::vector<int> vec = {1, 2, 3};
-  Distinct_Count_Mo<int> mo3(vec);
-  EXPECT_EQ(mo3.size(), 3u);
-
   // DynList<T>
   DynList<int> lst = {1, 2, 3};
-  Distinct_Count_Mo<int> mo4(lst);
-  EXPECT_EQ(mo4.size(), 3u);
+  Distinct_Count_Mo<int> mo3(lst);
+  EXPECT_EQ(mo3.size(), 3u);
 
   // All should give same answers
   auto a1 = mo1.solve({{0, 2}});
   auto a2 = mo2.solve({{0, 2}});
   auto a3 = mo3.solve({{0, 2}});
-  auto a4 = mo4.solve({{0, 2}});
   EXPECT_EQ(a1(0), a2(0));
   EXPECT_EQ(a2(0), a3(0));
-  EXPECT_EQ(a3(0), a4(0));
 }
 
 TEST(MoAlgorithm, CopyMoveSwap)
@@ -436,6 +429,40 @@ TEST(MoMode, ExhaustiveBruteForce)
       }
 }
 
+TEST(MoMode, StressRandom)
+{
+  const size_t N = 1000;
+  const size_t Q = 5000;
+  std::mt19937 rng(4242);
+  std::vector<int> vec(N);
+  for (auto & v : vec)
+    v = static_cast<int>(rng() % 200);
+
+  auto arr = Array<int>::create(N);
+  for (size_t i = 0; i < N; ++i)
+    arr(i) = vec[i];
+
+  Array<std::pair<size_t, size_t>> queries;
+  for (size_t i = 0; i < Q; ++i)
+    {
+      size_t a = rng() % N, b = rng() % N;
+      if (a > b) std::swap(a, b);
+      queries.append(std::make_pair(a, b));
+    }
+
+  Range_Mode_Mo<int> mo(arr);
+  auto ans = mo.solve(queries);
+
+  for (size_t i = 0; i < Q; ++i)
+    {
+      auto [l, r] = queries(i);
+      const auto [bf_freq, bf_val] = brute_mode(vec, l, r);
+      (void) bf_val; // Value can differ when there are ties.
+      EXPECT_EQ(ans(i).first, bf_freq)
+          << "query " << i << ": l=" << l << " r=" << r;
+    }
+}
+
 // =================================================================
 // Custom policy test
 // =================================================================
@@ -518,8 +545,8 @@ TEST(MoAlgorithm, LargeStress)
   Distinct_Count_Mo<int> mo(arr);
   auto ans = mo.solve(queries);
 
-  // Spot-check first 500 queries against brute force
-  for (size_t i = 0; i < 500; ++i)
+  // Verify all queries against brute force
+  for (size_t i = 0; i < Q; ++i)
     {
       auto [l, r] = queries(i);
       EXPECT_EQ(ans(i), brute_distinct(vec, l, r))

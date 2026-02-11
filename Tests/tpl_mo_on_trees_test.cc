@@ -65,12 +65,11 @@ namespace
     using Node = typename GT::Node;
     DynMapHash<Node*, Node*> parent;
     parent.insert(tree_root, nullptr);
-    std::vector<std::pair<Node*, Node*>> stk;
-    stk.push_back({tree_root, nullptr});
-    while (!stk.empty())
+    DynListStack<std::pair<Node*, Node*>> stk;
+    stk.push({tree_root, nullptr});
+    while (not stk.is_empty())
       {
-        auto [cur, par] = stk.back();
-        stk.pop_back();
+        auto [cur, par] = stk.pop();
         for (auto it = typename GT::Node_Arc_Iterator(cur);
              it.has_curr(); it.next_ne())
           {
@@ -79,7 +78,7 @@ namespace
             if (nb != par)
               {
                 parent.insert(nb, cur);
-                stk.push_back({nb, cur});
+                stk.push({nb, cur});
               }
           }
       }
@@ -96,12 +95,11 @@ namespace
   {
     using Node = typename GT::Node;
     DynSetHash<typename Node::Node_Type> seen;
-    std::vector<Node*> stk;
-    stk.push_back(subtree_root);
-    while (!stk.empty())
+    DynListStack<Node*> stk;
+    stk.push(subtree_root);
+    while (not stk.is_empty())
       {
-        auto * cur = stk.back();
-        stk.pop_back();
+        auto * cur = stk.pop();
         seen.insert(cur->get_info());
         for (auto it = typename GT::Node_Arc_Iterator(cur);
              it.has_curr(); it.next_ne())
@@ -109,7 +107,7 @@ namespace
             auto * a = it.get_curr();
             auto * nb = g.get_connected_node(a, cur);
             if (nb != parent.find(cur))
-              stk.push_back(nb);
+              stk.push(nb);
           }
       }
     return seen.size();
@@ -146,13 +144,13 @@ namespace
   // ── Tree builder helper ────────────────────────────────────────
 
   // Build a random tree with n nodes, values in [0, max_val)
-  // Returns (graph, root, vector_of_all_nodes)
+  // Returns (graph, root, array_of_all_nodes)
   template <class GT>
   struct TreeInfo
   {
     GT g;
     typename GT::Node * root;
-    std::vector<typename GT::Node *> nodes;
+    Array<typename GT::Node *> nodes;
   };
 
   template <class GT>
@@ -165,10 +163,9 @@ namespace
         return info;
       }
 
-    info.nodes.reserve(n);
+    info.nodes = Array<typename GT::Node *>::create(n);
     for (size_t i = 0; i < n; ++i)
-      info.nodes.push_back(
-          info.g.insert_node(static_cast<int>(rng() % max_val)));
+      info.nodes[i] = info.g.insert_node(static_cast<int>(rng() % max_val));
 
     // Build a random tree: for each node i>0, pick a random parent
     // from [0, i)
@@ -187,14 +184,16 @@ namespace
   //   0 — 1 — 2 — ... — (n-1)
   //   values: v[i]
   template <class GT>
-  TreeInfo<GT> build_chain(const std::vector<int> & vals)
+  TreeInfo<GT> build_chain(const Array<int> & vals)
   {
     TreeInfo<GT> info;
-    for (auto v : vals)
-      info.nodes.push_back(info.g.insert_node(v));
+    info.nodes = Array<typename GT::Node *>::create(vals.size());
+    for (size_t i = 0; i < vals.size(); ++i)
+      info.nodes[i] = info.g.insert_node(vals[i]);
+
     for (size_t i = 1; i < vals.size(); ++i)
       info.g.insert_arc(info.nodes[i-1], info.nodes[i]);
-    info.root = info.nodes.empty() ? nullptr : info.nodes[0];
+    info.root = info.nodes.is_empty() ? nullptr : info.nodes[0];
     return info;
   }
 
@@ -207,9 +206,10 @@ namespace
 TEST(MoOnTrees, EmptyGraph)
 {
   List_Graph<Graph_Node<int>, Graph_Arc<Empty_Class>> g;
-  // Cannot construct with null root on empty graph, but size == 0
-  // is handled if we insert a dummy node and remove it, but easier
-  // to just test a single-node tree.
+  EXPECT_EQ(g.vsize(), 0u);
+  EXPECT_EQ(g.esize(), 0u);
+  GTEST_SKIP() << "Gen_Mo_On_Trees requires a non-null root node; "
+               << "empty-graph constructor semantics are undefined.";
 }
 
 TEST(MoOnTrees, SingleNode)

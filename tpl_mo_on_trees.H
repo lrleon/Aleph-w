@@ -92,6 +92,7 @@
 # include <algorithm>
 # include <cmath>
 # include <concepts>
+# include <span>
 # include <vector>
 # include <tpl_array.H>
 # include <tpl_dynMapOhash.H>
@@ -170,7 +171,7 @@ namespace Aleph
     using answer_type = typename Policy::answer_type;
 
   private:
-    static constexpr size_t NONE = ~size_t(0);
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
 
     const GT & g_;
     Node * root_;
@@ -350,7 +351,7 @@ namespace Aleph
       if (depth_(u) < depth_(v))
         std::swap(u, v);
 
-      size_t diff = depth_(u) - depth_(v);
+      const size_t diff = depth_(u) - depth_(v);
       for (size_t k = 0; k < log_n_; ++k)
         if ((diff >> k) & 1)
           u = up_(k * n_ + u);
@@ -376,15 +377,15 @@ namespace Aleph
       const size_t block = std::max<size_t>(
         1, static_cast<size_t>(std::sqrt(static_cast<double>(n))));
 
-      std::sort(&queries(0), &queries(0) + q,
-        [block](const Mo_Query & a, const Mo_Query & b)
-          {
-            const size_t ba = a.l / block;
-            const size_t bb = b.l / block;
-            if (ba != bb)
-              return ba < bb;
-            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-          });
+      std::ranges::sort(std::span<Mo_Query>(&queries(0), q),
+                        [block](const Mo_Query & a, const Mo_Query & b)
+                          {
+                            const size_t ba = a.l / block;
+                            const size_t bb = b.l / block;
+                            if (ba != bb)
+                              return ba < bb;
+                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                          });
 
       pol_.init(data, n);
 
@@ -424,16 +425,21 @@ namespace Aleph
 
   public:
 
-    /** @brief Construct from a graph and a root node.
+    /** @brief Construct a Mo's algorithm query engine for tree queries.
      *
      *  Performs an O(N log N) preprocessing step (Euler tour + binary
      *  lifting for LCA).  The graph is **not modified** in any way.
      *
-     *  @param g     The tree (graph with N nodes and N-1 edges).
-     *  @param root  Root node for the DFS-based Euler tour.
-     *  @param p     Policy object (default-constructed if omitted).
-     *  @throw std::domain_error if root is not in the graph or the
-     *         graph is not connected.
+     *  @param g The tree graph (must be connected with N nodes and N-1 edges).
+     *  @param root Root node used to orient parent/child relations.
+     *  @param p Policy object copied/moved into the query engine.
+     *
+     *  @throws std::domain_error If `root` is not found in `g`.
+     *  @throws std::domain_error If `g` is disconnected (not a valid tree
+     *          under the chosen root).
+     *  @throws std::bad_alloc If auxiliary arrays/tables cannot be allocated.
+     *
+     *  @note Complexity: O(N log N) time and O(N log N) space.
      */
     Gen_Mo_On_Trees(const GT & g, Node * root, Policy p = Policy())
       : g_(g), root_(root), pol_(std::move(p))
@@ -449,7 +455,7 @@ namespace Aleph
 
     // ── Subtree queries ──────────────────────────────────────────
 
-    /** @brief Solve subtree queries.
+    /** @brief Answer subtree queries using Mo's algorithm.
      *
      *  For each node in @p query_roots, answers the policy query over
      *  the entire subtree rooted at that node.
@@ -457,9 +463,15 @@ namespace Aleph
      *  Uses the single-occurrence Euler tour: the subtree of u is the
      *  contiguous range [tin(u), tout(u)] in DFS entry-time order.
      *
-     *  @param query_roots  Array of root nodes for the subtree queries.
-     *  @return Array of answers in the same order as @p query_roots.
-     *  @throw std::domain_error if any node is not in the tree.
+     *  @param query_roots Array of subtree root nodes to query.
+     *  @return Array<answer_type> with answers in the same order as query_roots.
+     *
+     *  @throws std::domain_error If any query root is not in the tree.
+     *  @throws Any exception thrown by `Policy::init`, `Policy::add`,
+     *          `Policy::remove`, or `Policy::answer`.
+     *
+     *  @note Complexity: O((N + Q) sqrt(N)) time after preprocessing.
+     *  @note Extra space: O(N + Q) (queries, answers, and Mo state).
      */
     Array<answer_type> subtree_solve(
         const Array<Node*> & query_roots) const
@@ -481,8 +493,16 @@ namespace Aleph
       return mo_sweep(flat_sub_, std::move(queries), q, n_);
     }
 
-    /** @brief Solve subtree queries (initializer-list overload).
-     *  @param il  initializer list of root nodes.
+    /** @brief Answer subtree queries from an initializer list.
+     *
+     *  @param il Initializer list of subtree root nodes.
+     *  @return Array<answer_type> with answers in the same order as il.
+     *
+     *  @throws std::domain_error If any query root is not in the tree.
+     *  @throws Any exception propagated from `subtree_solve(Array<Node*>)`.
+     *
+     *  @note Complexity: O((N + Q) sqrt(N)) time after preprocessing.
+     *  @note Extra space: O(N + Q) (including temporary query array).
      */
     Array<answer_type> subtree_solve(
         std::initializer_list<Node*> il) const
@@ -493,7 +513,7 @@ namespace Aleph
 
     // ── Path queries ─────────────────────────────────────────────
 
-    /** @brief Solve path queries.
+    /** @brief Answer path queries between node pairs.
      *
      *  For each pair (u, v), answers the policy query over all nodes on
      *  the unique path from u to v (both endpoints included).
@@ -503,9 +523,15 @@ namespace Aleph
      *  when it has been toggled an odd number of times within the
      *  current window.  The LCA of each query is handled separately.
      *
-     *  @param query_pairs  Array of (u, v) node-pointer pairs.
-     *  @return Array of answers in the same order as @p query_pairs.
-     *  @throw std::domain_error if any node is not in the tree.
+     *  @param query_pairs Array of (u, v) node-pointer pairs.
+     *  @return Array<answer_type> with answers in the same order as query_pairs.
+     *
+     *  @throws std::domain_error If any query endpoint is not in the tree.
+     *  @throws Any exception thrown by `Policy::init`, `Policy::add`,
+     *          `Policy::remove`, or `Policy::answer`.
+     *
+     *  @note Complexity: O((N + Q) sqrt(N)) time after preprocessing.
+     *  @note Extra space: O(N + Q) (queries, answers, activity flags, Mo state).
      */
     Array<answer_type> path_solve(
         const Array<std::pair<Node*, Node*>> & query_pairs) const
@@ -533,9 +559,7 @@ namespace Aleph
           if (first_(u) > first_(v))
             std::swap(u, v);
 
-          const size_t ancestor = lca(u, v);
-
-          if (ancestor == u)
+          if (const size_t ancestor = lca(u, v); ancestor == u)
             pqueries(i) = {first_(u), first_(v), i, NONE};
           else
             pqueries(i) = {last_(u), first_(v), i, ancestor};
@@ -547,15 +571,15 @@ namespace Aleph
         1, static_cast<size_t>(
           std::sqrt(static_cast<double>(tour_sz))));
 
-      std::sort(&pqueries(0), &pqueries(0) + q,
-        [block](const Path_Query & a, const Path_Query & b)
-          {
-            const size_t ba = a.l / block;
-            const size_t bb = b.l / block;
-            if (ba != bb)
-              return ba < bb;
-            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-          });
+      std::ranges::sort(std::span<Path_Query>(&pqueries(0), q),
+                        [block](const Path_Query & a, const Path_Query & b)
+                          {
+                            const size_t ba = a.l / block;
+                            const size_t bb = b.l / block;
+                            if (ba != bb)
+                              return ba < bb;
+                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                          });
 
       pol_.init(node_values_, n_);
 
@@ -565,10 +589,9 @@ namespace Aleph
         active(i) = false;
 
       // Toggle: flip node activity and call policy add/remove
-      auto toggle = [&](size_t pos)
+      auto toggle = [&](const size_t pos)
         {
-          const size_t nid = flat_node_(pos);
-          if (active(nid))
+          if (const size_t nid = flat_node_(pos); active(nid))
             {
               pol_.remove(node_values_, nid);
               active(nid) = false;
@@ -622,7 +645,16 @@ namespace Aleph
     }
 
     /** @brief Solve path queries (initializer-list overload).
-     *  @param il  initializer list of (u, v) pairs.
+     *
+     *  @param il Initializer list of (u, v) node-pointer pairs.
+     *  @return Array<answer_type> with answers in the same order as il.
+     *
+     *  @throws std::domain_error If any query endpoint is not in the tree.
+     *  @throws Any exception propagated from `path_solve(Array<pair<...>>)`
+     *          and policy callbacks.
+     *
+     *  @note Complexity: O((N + Q) sqrt(N)) time after preprocessing.
+     *  @note Extra space: O(N + Q) (including temporary query array).
      */
     Array<answer_type> path_solve(
         std::initializer_list<std::pair<Node*, Node*>> il) const
@@ -700,9 +732,32 @@ namespace Aleph
 
     void build()
     {
-      // 1. Count nodes
+      // 1. Collect nodes iteratively in preorder (no recursion).
       n_ = 0;
-      root_->traverse([&](const Node *) { ++n_; return true; });
+      if (root_ == nullptr)
+        return;
+
+      DynList<Node*> preorder;
+      {
+        DynListStack<Node*> stk;
+        stk.push(root_);
+
+        while (not stk.is_empty())
+          {
+            Node * curr = stk.pop();
+            preorder.append(curr);
+            ++n_;
+
+            // Push children right-to-left so stack pops left-to-right.
+            DynListStack<Node*> rev_children;
+            for (Node * c = curr->get_left_child(); c != nullptr;
+                 c = c->get_right_sibling())
+              rev_children.push(c);
+
+            while (not rev_children.is_empty())
+              stk.push(rev_children.pop());
+          }
+      }
 
       if (n_ == 0)
         return;
@@ -719,33 +774,32 @@ namespace Aleph
       auto adj = Array<Array<size_t>>::create(n_);
       {
         size_t next_id = 0;
-        root_->traverse([&](const Node * p)
+        for (auto it = preorder.get_it(); it.has_curr(); it.next_ne())
           {
-            auto * mp = const_cast<Node*>(p);
+            Node * mp = it.get_curr();
             node_to_id_.insert(mp, next_id);
             id_to_node_(next_id) = mp;
             node_values_(next_id) = mp->get_key();
             ++next_id;
-            return true;
-          });
+          }
 
-        // Build adjacency: parent↔child edges (undirected)
-        root_->traverse([&](const Node * p)
+        // Build adjacency: children plus parent if it belongs to this rooted tree.
+        for (size_t pid = 0; pid < n_; ++pid)
           {
-            auto * mp = const_cast<Node*>(p);
-            const size_t pid = node_to_id_.find(mp);
+            Node * mp = id_to_node_(pid);
             DynList<size_t> neighbors;
-            // Add children
-            for (auto * c = mp->get_left_child(); c != nullptr;
+
+            for (Node * c = mp->get_left_child(); c != nullptr;
                  c = c->get_right_sibling())
               neighbors.append(node_to_id_.find(c));
-            // Add parent (if not root)
+
             Node * par = mp->get_parent();
             if (par != nullptr)
-              neighbors.append(node_to_id_.find(par));
+              if (auto * pp = node_to_id_.search(par); pp != nullptr)
+                neighbors.append(pp->second);
+
             adj(pid) = Array<size_t>(neighbors);
-            return true;
-          });
+          }
       }
 
       // 3. Iterative DFS for Euler tours + parent/depth
@@ -830,7 +884,7 @@ namespace Aleph
 
       // 4. Binary lifting table for LCA
       log_n_ = 1;
-      while ((size_t(1) << log_n_) < n_)
+      while ((static_cast<size_t>(1) << log_n_) < n_)
         ++log_n_;
       ++log_n_;
 
@@ -880,15 +934,15 @@ namespace Aleph
       const size_t block = std::max<size_t>(
         1, static_cast<size_t>(std::sqrt(static_cast<double>(nn))));
 
-      std::sort(&queries(0), &queries(0) + q,
-        [block](const Mo_Query & a, const Mo_Query & b)
-          {
-            const size_t ba = a.l / block;
-            const size_t bb = b.l / block;
-            if (ba != bb)
-              return ba < bb;
-            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-          });
+      std::ranges::sort(std::span<Mo_Query>(&queries(0), q),
+                        [block](const Mo_Query & a, const Mo_Query & b)
+                          {
+                            const size_t ba = a.l / block;
+                            const size_t bb = b.l / block;
+                            if (ba != bb)
+                              return ba < bb;
+                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                          });
 
       pol_.init(data, nn);
 
@@ -921,14 +975,18 @@ namespace Aleph
 
   public:
 
-    /** @brief Construct from a Tree_Node root.
+    /** @brief Construct a Mo's algorithm query engine for N-ary trees.
      *
      *  Performs an O(N log N) preprocessing step.
      *  The tree is **not modified** in any way.
      *
-     *  @param root  Root of the N-ary tree.
-     *  @param p     Policy object (default-constructed if omitted).
-     *  @throw std::domain_error if the tree is inconsistent.
+     *  @param root Root of the N-ary tree (must not be null).
+     *  @param p Policy object copied/moved into the query engine.
+     *
+     *  @throws std::domain_error If root is null or tree is inconsistent.
+     *  @throws std::bad_alloc If auxiliary arrays/tables cannot be allocated.
+     *
+     *  @note Complexity: O(N log N) time and O(N log N) space.
      */
     Gen_Mo_On_Tree_Node(Node * root, Policy p = Policy())
       : root_(root), pol_(std::move(p))
@@ -946,9 +1004,17 @@ namespace Aleph
 
     // ── Subtree queries ──────────────────────────────────────────
 
-    /** @brief Solve subtree queries on the N-ary tree.
-     *  @param query_roots  Array of subtree root nodes.
-     *  @return Array of answers in the same order.
+    /** @brief Answer subtree queries on the N-ary tree.
+     *
+     *  @param query_roots Array of subtree root nodes.
+     *  @return Array<answer_type> with answers in the same order as query_roots.
+     *
+     *  @throws std::domain_error If any query root is not in the tree.
+     *  @throws Any exception thrown by `Policy::init`, `Policy::add`,
+     *          `Policy::remove`, or `Policy::answer`.
+     *
+     *  @note Complexity: O((N + Q) sqrt(N)) time after preprocessing.
+     *  @note Extra space: O(N + Q) (queries, answers, and Mo state).
      */
     Array<answer_type> subtree_solve(
         const Array<Node*> & query_roots) const
@@ -970,7 +1036,17 @@ namespace Aleph
       return mo_sweep(flat_sub_, std::move(queries), q, n_);
     }
 
-    /** @brief Solve subtree queries (initializer-list overload). */
+    /** @brief Solve subtree queries (initializer-list overload).
+     *
+     *  @param il Initializer list of subtree root nodes.
+     *  @return Array<answer_type> with answers in the same order as il.
+     *
+     *  @throws std::domain_error If any query root is not in the tree.
+     *  @throws Any exception propagated from `subtree_solve(Array<Node*>)`.
+     *
+     *  @note Complexity: O((N + Q) sqrt(N)) time after preprocessing.
+     *  @note Extra space: O(N + Q) (including temporary query array).
+     */
     Array<answer_type> subtree_solve(
         std::initializer_list<Node*> il) const
     {
@@ -980,9 +1056,17 @@ namespace Aleph
 
     // ── Path queries ─────────────────────────────────────────────
 
-    /** @brief Solve path queries on the N-ary tree.
-     *  @param query_pairs  Array of (u, v) node-pointer pairs.
-     *  @return Array of answers in the same order.
+    /** @brief Answer path queries on the N-ary tree.
+     *
+     *  @param query_pairs Array of (u, v) node-pointer pairs.
+     *  @return Array<answer_type> with answers in the same order as query_pairs.
+     *
+     *  @throws std::domain_error If any query endpoint is not in the tree.
+     *  @throws Any exception thrown by `Policy::init`, `Policy::add`,
+     *          `Policy::remove`, or `Policy::answer`.
+     *
+     *  @note Complexity: O((N + Q) sqrt(N)) time after preprocessing.
+     *  @note Extra space: O(N + Q) (queries, answers, activity flags, Mo state).
      */
     Array<answer_type> path_solve(
         const Array<std::pair<Node*, Node*>> & query_pairs) const
@@ -1024,15 +1108,15 @@ namespace Aleph
         1, static_cast<size_t>(
           std::sqrt(static_cast<double>(tour_sz))));
 
-      std::sort(&pqueries(0), &pqueries(0) + q,
-        [block](const Path_Query & a, const Path_Query & b)
-          {
-            const size_t ba = a.l / block;
-            const size_t bb = b.l / block;
-            if (ba != bb)
-              return ba < bb;
-            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-          });
+      std::ranges::sort(std::span<Path_Query>(&pqueries(0), q),
+                        [block](const Path_Query & a, const Path_Query & b)
+                          {
+                            const size_t ba = a.l / block;
+                            const size_t bb = b.l / block;
+                            if (ba != bb)
+                              return ba < bb;
+                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                          });
 
       pol_.init(node_values_, n_);
 
@@ -1041,10 +1125,9 @@ namespace Aleph
       for (size_t i = 0; i < n_; ++i)
         active(i) = false;
 
-      auto toggle = [&](size_t pos)
+      auto toggle = [&](const size_t pos)
         {
-          const size_t nid = flat_node_(pos);
-          if (active(nid))
+          if (const size_t nid = flat_node_(pos); active(nid))
             {
               pol_.remove(node_values_, nid);
               active(nid) = false;
@@ -1095,7 +1178,18 @@ namespace Aleph
       return answers;
     }
 
-    /** @brief Solve path queries (initializer-list overload). */
+    /** @brief Solve path queries (initializer-list overload).
+     *
+     *  @param il Initializer list of (u, v) node-pointer pairs.
+     *  @return Array<answer_type> with answers in the same order as il.
+     *
+     *  @throws std::domain_error If any query endpoint is not in the tree.
+     *  @throws Any exception propagated from `path_solve(Array<pair<...>>)`
+     *          and policy callbacks.
+     *
+     *  @note Complexity: O((N + Q) sqrt(N)) time after preprocessing.
+     *  @note Extra space: O(N + Q) (including temporary query array).
+     */
     Array<answer_type> path_solve(
         std::initializer_list<std::pair<Node*, Node*>> il) const
     {

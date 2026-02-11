@@ -55,11 +55,12 @@
  */
 
 # include <tpl_mo_algorithm.H>
+# include <tpl_dynMapOhash.H>
+# include <tpl_dynSetHash.H>
 
+# include <algorithm>
 # include <cassert>
 # include <cstdio>
-# include <unordered_map>
-# include <unordered_set>
 
 using namespace Aleph;
 
@@ -103,17 +104,17 @@ static void biodiversity_survey()
   printf("%-20s  %zu\n", "[h9, h11] evening", ans(4));
 
   // Verify against brute force
-  auto brute = [&](size_t l, size_t r) -> size_t {
-    std::unordered_set<int> s;
+  auto brute_distinct = [&](size_t l, size_t r) -> size_t {
+    DynSetHash<int> s;
     for (size_t i = l; i <= r; ++i)
       s.insert(data[i]);
     return s.size();
   };
-  assert(ans(0) == brute(0, 3));
-  assert(ans(1) == brute(4, 8));
-  assert(ans(2) == brute(0, 11));
-  assert(ans(3) == brute(2, 5));
-  assert(ans(4) == brute(9, 11));
+  assert(ans(0) == brute_distinct(0, 3));
+  assert(ans(1) == brute_distinct(4, 8));
+  assert(ans(2) == brute_distinct(0, 11));
+  assert(ans(3) == brute_distinct(2, 5));
+  assert(ans(4) == brute_distinct(9, 11));
 
   printf("\nAll assertions passed!\n\n");
 }
@@ -129,7 +130,7 @@ static void powerful_array()
   printf("  sum over distinct x in a[l..r] of cnt(x)^2 * x\n\n");
 
   //                          0  1  2  3  4  5
-  Powerful_Array_Mo<int> mo = {1, 2, 1, 1, 2, 3};
+  const Powerful_Array_Mo<int> mo = {1, 2, 1, 1, 2, 3};
 
   printf("Array: [1, 2, 1, 1, 2, 3]\n\n");
 
@@ -195,12 +196,14 @@ static void election_polling()
 
   // Verify frequencies via brute force
   auto brute_freq = [&](size_t l, size_t r) -> size_t {
-    std::unordered_map<int, size_t> freq;
+    MapOLhash<int, size_t> freq;
     for (size_t i = l; i <= r; ++i)
       ++freq[data[i]];
+
     size_t mx = 0;
-    for (auto & [v, f] : freq)
-      mx = std::max(mx, f);
+    for (MapOLhash<int, size_t>::Iterator it(freq); it.has_curr(); it.next_ne())
+      mx = std::max(mx, it.get_curr().second);
+
     return mx;
   };
   assert(ans(0).first == brute_freq(0, 9));

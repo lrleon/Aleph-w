@@ -58,11 +58,11 @@
 # include <tpl_graph.H>
 # include <tpl_sgraph.H>
 # include <tpl_agraph.H>
+# include <tpl_dynListStack.H>
 # include <tpl_dynSetHash.H>
 
 # include <cassert>
 # include <cstdio>
-# include <vector>
 
 using namespace Aleph;
 
@@ -81,12 +81,11 @@ static size_t brute_subtree_distinct(const GT & g,
   // 1. Compute parent map via DFS from tree_root
   DynMapHash<Node*, Node*> parent;
   parent.insert(tree_root, nullptr);
-  std::vector<std::pair<Node*, Node*>> stk;
-  stk.push_back({tree_root, nullptr});
-  while (!stk.empty())
+  DynListStack<std::pair<Node*, Node*>> stk;
+  stk.push({tree_root, nullptr});
+  while (not stk.is_empty())
     {
-      auto [cur, par] = stk.back();
-      stk.pop_back();
+      auto [cur, par] = stk.pop();
       for (auto it = typename GT::Node_Arc_Iterator(cur);
            it.has_curr(); it.next_ne())
         {
@@ -95,18 +94,17 @@ static size_t brute_subtree_distinct(const GT & g,
           if (nb != par)
             {
               parent.insert(nb, cur);
-              stk.push_back({nb, cur});
+              stk.push({nb, cur});
             }
         }
     }
   // 2. DFS subtree_root following only children (not parent)
   DynSetHash<typename Node::Node_Type> seen;
-  std::vector<Node*> stk2;
-  stk2.push_back(subtree_root);
-  while (!stk2.empty())
+  DynListStack<Node*> stk2;
+  stk2.push(subtree_root);
+  while (not stk2.is_empty())
     {
-      auto * cur = stk2.back();
-      stk2.pop_back();
+      auto * cur = stk2.pop();
       seen.insert(cur->get_info());
       for (auto it = typename GT::Node_Arc_Iterator(cur);
            it.has_curr(); it.next_ne())
@@ -114,7 +112,7 @@ static size_t brute_subtree_distinct(const GT & g,
           auto * a = it.get_curr();
           auto * nb = g.get_connected_node(a, cur);
           if (nb != parent.find(cur))
-            stk2.push_back(nb);
+            stk2.push(nb);
         }
     }
   return seen.size();
@@ -131,12 +129,11 @@ static size_t brute_path_distinct(const GT & g,
   // Find path via DFS from root, then extract u→v
   DynMapHash<Node*, Node*> parent;
   parent.insert(root, nullptr);
-  std::vector<std::pair<Node*, Node*>> stk;
-  stk.push_back({root, nullptr});
-  while (!stk.empty())
+  DynListStack<std::pair<Node*, Node*>> stk;
+  stk.push({root, nullptr});
+  while (not stk.is_empty())
     {
-      auto [cur, par] = stk.back();
-      stk.pop_back();
+      auto [cur, par] = stk.pop();
       for (auto it = typename GT::Node_Arc_Iterator(cur);
            it.has_curr(); it.next_ne())
         {
@@ -145,7 +142,7 @@ static size_t brute_path_distinct(const GT & g,
           if (nb != par)
             {
               parent.insert(nb, cur);
-              stk.push_back({nb, cur});
+              stk.push({nb, cur});
             }
         }
     }

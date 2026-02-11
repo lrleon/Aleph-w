@@ -67,17 +67,17 @@
 # include <algorithm>
 # include <cmath>
 # include <concepts>
+# include <span>
 # include <type_traits>
-# include <unordered_map>
 # include <utility>
-# include <vector>
 # include <tpl_array.H>
+# include <tpl_dynMapOhash.H>
 # include <tpl_dynList.H>
 # include <ah-errors.H>
 
 namespace Aleph
 {
-  /** @brief A query for Mo's algorithm: closed range [l, r] with id.
+  /** @brief A query for Mo's algorithm: inclusive range [l, r] with id.
    *  @ingroup Sequences
    */
   struct Mo_Query
@@ -118,7 +118,7 @@ namespace Aleph
   /** @brief Offline range query engine using Mo's algorithm.
    *
    *  Given a static array of N elements and Q range queries [l, r],
-   *  `Gen_Mo_Algorithm` answers all queries in O((N+Q) sqrt(N)) time
+   *  `Gen_Mo_Algorithm` answers all queries in O((N+Q) sqrt (N)) time
    *  by sorting queries into blocks and sweeping a sliding window.
    *
    *  The user supplies a `Policy` object that maintains per-window
@@ -149,43 +149,60 @@ namespace Aleph
     using answer_type = typename Policy::answer_type;
 
     /** @brief Construct from an initializer list.
-     *  @param il   initializer list of elements.
-     *  @param p    policy object (default-constructed if omitted).
+     *
+     *  @param il Initializer list used to populate the internal array.
+     *  @param p Policy object copied/moved into the solver.
+     *
+     *  @throws std::bad_alloc If internal storage allocation fails.
+     *  @throws Any exception thrown by `T` copy/move construction or by
+     *          `Policy` move construction.
+     *
+     *  @note Complexity: O(n) time and O(n) space, where n = `il.size()`.
      */
     Gen_Mo_Algorithm(std::initializer_list<T> il, Policy p = Policy())
       : data_(il), pol_(std::move(p))
     {}
 
     /** @brief Construct from an Array\<T\>.
-     *  @param arr  source array.
-     *  @param p    policy object.
+     *
+     *  @param arr Source array copied into internal storage.
+     *  @param p Policy object copied/moved into the solver.
+     *
+     *  @throws std::bad_alloc If internal storage allocation fails.
+     *  @throws Any exception thrown by `T` copy construction or by
+     *          `Policy` move construction.
+     *
+     *  @note Complexity: O(n) time and O(n) space, where n = `arr.size()`.
      */
     Gen_Mo_Algorithm(const Array<T> & arr, Policy p = Policy())
       : data_(arr), pol_(std::move(p))
     {}
 
     /** @brief Construct from an Array\<T\> (move).
-     *  @param arr  source array (moved from).
-     *  @param p    policy object.
+     *
+     *  @param arr Source array moved into internal storage.
+     *  @param p Policy object copied/moved into the solver.
+     *
+     *  @throws Any exception thrown by `Array<T>` move construction or by
+     *          `Policy` move construction.
+     *
+     *  @note Complexity: O(1) time and O(1) extra space (amortized move).
+     *  @note noexcept when both `Array<T>` and `Policy` are nothrow-movable.
      */
     Gen_Mo_Algorithm(Array<T> and arr, Policy p = Policy())
       : data_(std::move(arr)), pol_(std::move(p))
     {}
 
-    /** @brief Construct from a std::vector\<T\>.
-     *  @param vec  source vector.
-     *  @param p    policy object.
-     */
-    Gen_Mo_Algorithm(const std::vector<T> & vec, Policy p = Policy())
-      : data_(Array<T>::create(vec.size())), pol_(std::move(p))
-    {
-      for (size_t i = 0; i < vec.size(); ++i)
-        data_(i) = vec[i];
-    }
-
     /** @brief Construct from a DynList\<T\>.
-     *  @param lst  source list.
-     *  @param p    policy object.
+     *
+     *  @param lst Source list copied into internal contiguous storage.
+     *  @param p Policy object copied/moved into the solver.
+     *
+     *  @throws std::bad_alloc If internal storage allocation fails.
+     *  @throws Any exception thrown by `T` copy construction or by
+     *          `Policy` move construction.
+     *
+     *  @note Complexity: O(n) time and O(n) space, where n = `lst.size()`.
      */
     Gen_Mo_Algorithm(const DynList<T> & lst, Policy p = Policy())
       : data_(Array<T>::create(lst.size())), pol_(std::move(p))
@@ -231,9 +248,20 @@ namespace Aleph
      *
      *  Convenience overload: assigns sequential ids 0, 1, 2, ...
      *
-     *  @param ranges  Array of (l, r) pairs (inclusive, 0-based).
-     *  @return Array of answers indexed by original query order.
-     *  @throw std::out_of_range if any query is out of bounds.
+     *  @param ranges Array of `(l, r)` closed ranges (0-based, inclusive).
+     *  @return `Array<answer_type>` indexed by original query order.
+     *
+     *  @throws std::bad_alloc If temporary query/answer arrays cannot be
+     *          allocated.
+     *  @throws std::out_of_range If any query has `r >= size()`,
+     *          `l > r`, or an invalid id (validated in core solve).
+     *  @throws Any exception thrown by `Policy::init`, `Policy::add`,
+     *          `Policy::remove`, or `Policy::answer`.
+     *
+     *  @note Complexity:
+     *  - Conversion to `Mo_Query`: O(q)
+     *  - Total including core solve: O(q log q + (n + q) sqrt(n))
+     *  @note Extra space: O(q) for converted queries and answers.
      */
     Array<answer_type> solve(const Array<std::pair<size_t, size_t>> & ranges) const
     {
@@ -245,8 +273,19 @@ namespace Aleph
 
     /** @brief Solve queries given as (l, r) pairs (initializer list).
      *
-     *  @param il  initializer list of (l, r) pairs.
-     *  @return Array of answers indexed by original query order.
+     *  @param il Initializer list of `(l, r)` closed ranges.
+     *  @return `Array<answer_type>` indexed by original query order.
+     *
+     *  @throws std::bad_alloc If temporary ranges/query/answer arrays cannot
+     *          be allocated.
+     *  @throws std::out_of_range Propagated from `solve(const Array<...>&)`
+     *          when query bounds are invalid.
+     *  @throws Any exception propagated from the underlying policy.
+     *
+     *  @note Complexity:
+     *  - Build temporary `Array` from initializer list: O(q)
+     *  - Total including core solve: O(q log q + (n + q) sqrt(n))
+     *  @note Extra space: O(q) for temporary ranges/queries and answers.
      */
     Array<answer_type> solve(const std::initializer_list<std::pair<size_t, size_t>> il) const
     {
@@ -259,9 +298,22 @@ namespace Aleph
      *  The queries are sorted by block (snake-optimized), swept with
      *  a sliding window, and the answers are returned in original order.
      *
-     *  @param queries  Array of Mo_Query (l, r, id).
-     *  @return Array of answers indexed by the original query id.
-     *  @throw std::out_of_range if any query is out of bounds.
+     *  @param queries Array of `Mo_Query{l, r, id}`.
+     *  @return `Array<answer_type>` indexed by original query id.
+     *
+     *  @throws std::bad_alloc If the answers array or policy-internal storage
+     *          allocation fails.
+     *  @throws std::out_of_range If any query has `r >= size()`,
+     *          `l > r`, or `id >= queries.size()`.
+     *  @throws Any exception thrown by `Policy::init`, `Policy::add`,
+     *          `Policy::remove`, or `Policy::answer`.
+     *
+     *  @note Complexity:
+     *  - Validation: O(q)
+     *  - Sorting: O(q log q)
+     *  - Sweep: O((n + q) sqrt(n)) amortized pointer moves
+     *  - Total: O(q log q + (n + q) sqrt(n))
+     *  @note Extra space: O(q) for sorted queries and answers.
      */
     Array<answer_type> solve(Array<Mo_Query> queries) const
     {
@@ -288,22 +340,22 @@ namespace Aleph
       const size_t block = std::max<size_t>(1, static_cast<size_t>(std::sqrt(static_cast<double>(n))));
 
       // Snake sort: primary by l/block, secondary alternating by r
-      std::sort(&queries(0), &queries(0) + q,
-                [block](const Mo_Query & a, const Mo_Query & b)
-                  {
-                    const size_t ba = a.l / block;
-                    const size_t bb = b.l / block;
-                    if (ba != bb)
-                      return ba < bb;
-                    // Even blocks: r ascending; odd blocks: r descending
-                    return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-                  });
+      std::ranges::sort(std::span<Mo_Query>(&queries(0), q),
+                        [block](const Mo_Query & a, const Mo_Query & b)
+                          {
+                            const size_t ba = a.l / block;
+                            const size_t bb = b.l / block;
+                            if (ba != bb)
+                              return ba < bb;
+                            // Even blocks: r ascending; odd blocks: r descending
+                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                          });
 
       pol_.init(data_, n);
 
       auto answers = Array<answer_type>::create(q);
 
-      // Initialise window to first query
+      // Initialise a window to the first query
       size_t cur_l = queries(0).l;
       size_t cur_r = queries(0).l;
       pol_.add(data_, cur_l);
@@ -361,12 +413,13 @@ namespace Aleph
   {
     using answer_type = size_t;
 
-    std::unordered_map<T, size_t> freq;
+    MapOLhash<T, size_t> freq;
     size_t distinct = 0;
 
     void init(const Array<T> &, size_t)
     {
-      freq.clear();
+      MapOLhash<T, size_t> tmp;
+      freq.swap(tmp);
       distinct = 0;
     }
 
@@ -401,12 +454,13 @@ namespace Aleph
   {
     using answer_type = long long;
 
-    std::unordered_map<T, long long> cnt;
+    MapOLhash<T, long long> cnt;
     long long sum = 0;
 
     void init(const Array<T> &, size_t)
     {
-      cnt.clear();
+      MapOLhash<T, long long> tmp;
+      cnt.swap(tmp);
       sum = 0;
     }
 
@@ -433,6 +487,11 @@ namespace Aleph
    *  mode maintenance.  Returns {frequency, value} of the mode.
    *  Ties are broken arbitrarily.
    *
+   *  @note When `max_freq` decreases after a removal, this implementation
+   *        linearly scans current distinct values to pick any valid mode
+   *        representative. Aggregate Mo complexity is preserved, but a single
+   *        `remove` may cost O(number of distinct values).
+   *
    *  @tparam T  Element type (must be hashable).
    *  @ingroup Sequences
    */
@@ -441,15 +500,17 @@ namespace Aleph
   {
     using answer_type = std::pair<size_t, T>;
 
-    std::unordered_map<T, size_t> freq;
-    std::unordered_map<size_t, size_t> cnt_of_cnt;
+    MapOLhash<T, size_t> freq;
+    MapOLhash<size_t, size_t> cnt_of_cnt;
     size_t max_freq = 0;
     T mode_val = T();
 
     void init(const Array<T> &, size_t)
     {
-      freq.clear();
-      cnt_of_cnt.clear();
+      MapOLhash<T, size_t> tmp_freq;
+      MapOLhash<size_t, size_t> tmp_cnt;
+      freq.swap(tmp_freq);
+      cnt_of_cnt.swap(tmp_cnt);
       max_freq = 0;
       mode_val = T();
     }
@@ -484,22 +545,24 @@ namespace Aleph
           // the window is empty.
           if (max_freq > 0)
             {
-              for (auto & [val, f]: freq)
-                if (f == max_freq)
+              for (typename MapOLhash<T, size_t>::Iterator it(freq);
+                   it.has_curr(); it.next_ne())
+                if (it.get_curr().second == max_freq)
                   {
-                    mode_val = val;
+                    mode_val = it.get_curr().first;
                     break;
                   }
             }
         }
       else if (old_f == max_freq and x == mode_val)
         {
-          // x was the mode but other elements still share max_freq;
+          // x was the mode, but other elements still share max_freq;
           // pick any one of them.
-          for (auto & [val, f]: freq)
-            if (f == max_freq)
+          for (typename MapOLhash<T, size_t>::Iterator it(freq);
+               it.has_curr(); it.next_ne())
+            if (it.get_curr().second == max_freq)
               {
-                mode_val = val;
+                mode_val = it.get_curr().first;
                 break;
               }
         }
