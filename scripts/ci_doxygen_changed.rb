@@ -27,6 +27,12 @@ end
 EXCLUDED_FILES = %w[README.md README.es.md].freeze
 
 
+##
+# Determine which files have changed on the current branch compared to the given base branch.
+# Returns an array of file paths (relative to the repository root) that differ between HEAD and the specified base branch,
+# excluding any entries listed in EXCLUDED_FILES. If `base` is nil or empty, returns an empty array.
+# @param [String] base - The name of the base branch to compare against (e.g., "main" or "origin/main").
+# @return [Array<String>] The list of changed file paths, excluding excluded files.
 def changed_files(base)
   return [] if base.nil? || base.empty?
 

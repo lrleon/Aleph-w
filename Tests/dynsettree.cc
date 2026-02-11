@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -1419,6 +1418,13 @@ public:
   Node *& getRoot() noexcept { return root; }
   Node * getRoot() const noexcept { return root; }
 
+  /**
+   * @brief Exchanges the contents of this tree with another tree.
+   *
+   * After the call, each tree holds the other's root node and comparator.
+   *
+   * @param other Tree to swap contents with.
+   */
   void swap(ThrowingSearchOrInsertTree & other) noexcept
   {
     std::swap(root, other.root);
@@ -1427,9 +1433,24 @@ public:
 
   // Stubs required by BSTPolicy concept. Only search_or_insert is exercised
   // by the exception-safety tests below; the rest are intentionally minimal
-  // and not functionally correct tree operations.
+  /**
+ * @brief Return the current root node of the tree without performing a key-based search.
+ *
+ * The key parameter is ignored; this method is a compatibility stub used by tests
+ * and simply returns the tree's root pointer.
+ *
+ * @param key Ignored.
+ * @return Node* Pointer to the root node, or `nullptr` if the tree is empty.
+ */
   Node * search(const Key &) noexcept { return root; }
 
+  /**
+   * Attempts to insert the given node as the tree root if the tree is empty, otherwise returns the current root.
+   *
+   * @param p Node pointer to install as the root when the tree is empty.
+   * @return Node* Pointer to the tree root after the operation: `p` if inserted as the new root, or the existing root otherwise.
+   * @throws std::runtime_error if the instance's `enabled` flag is set.
+   */
   Node * search_or_insert(Node * p)
   {
     if (enabled)
@@ -1441,6 +1462,12 @@ public:
     return root;
   }
 
+  /**
+   * @brief Inserts a node allowing duplicates; if the tree is empty, the node becomes the root.
+   *
+   * @param p Pointer to the node to insert.
+   * @return Node* The same pointer `p`; when the tree was empty, `p` is set as the tree root and returned.
+   */
   Node * insert_dup(Node * p) noexcept
   {
     if (root == Node::NullPtr)
@@ -1448,9 +1475,23 @@ public:
     return p;
   }
 
-  Node * remove(const Key &) noexcept { return nullptr; }
+  /**
+ * @brief No-op removal method kept for BSTPolicy interface compatibility.
+ *
+ * @param key Ignored; provided for interface compatibility and not used by this stub.
+ * @return Node* Always returns `nullptr`.
+ */
+Node * remove(const Key &) noexcept { return nullptr; }
 
-  bool verify() const { return true; }
+  /**
+ * @brief Checks the container's internal invariants for consistency.
+ *
+ * Performs a structural validation of the tree and its bookkeeping (ordering, parent/child links, sizes)
+ * and reports whether the data structure is internally consistent.
+ *
+ * @return `true` if the tree's invariants hold and the structure is consistent, `false` otherwise.
+ */
+bool verify() const { return true; }
 
 private:
 
@@ -2357,6 +2398,13 @@ TEST(DynSetTreeStress, AllTypesLargeScale)
   }
 }
 
+/**
+ * @brief Program entry point that initializes GoogleTest and runs all registered tests.
+ *
+ * @param argc Number of command-line arguments; forwarded to GoogleTest.
+ * @param argv Command-line arguments; forwarded to GoogleTest.
+ * @return int Exit code from the test runner: `0` if all tests passed, non-zero otherwise.
+ */
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
