@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -55,7 +54,7 @@
 # include <ahAssert.H>
 # include <ahUtils.H>
 # include <ah-errors.H>
-#include <utility>
+# include <utility>
 
 # include <gmpfrxx.h>
 
@@ -138,8 +137,6 @@ inline Geom_Number square_root(const Geom_Number & x)
 
 struct Geom_Object
 {
-  //  Geom_Object(const Geom_Object & ) { /* empty */ }
-
   Geom_Object() = default;
 
   virtual ~Geom_Object() = default;
@@ -147,7 +144,7 @@ struct Geom_Object
 
 /** Rectangular point in the plane.
 
-Fundamental class which defines a point in a cartesians coordinates
+Fundamental class which defines a point in a Cartesian coordinates
 plane.
 
 @ingroup Geometry
@@ -158,17 +155,17 @@ class Point : public Geom_Object
   friend class Triangle;
   friend class Polar_Point;
 
-  Geom_Number x;
-  Geom_Number y;
+  Geom_Number x_;
+  Geom_Number y_;
 
 public:
-  Point() : Geom_Object(), x(0), y(0)
+  Point() : Geom_Object(), x_(0), y_(0)
   { /* empty */
   }
 
   /// Builds a new point in coordinates (__x, __y)
-  Point(const Geom_Number & __x, const Geom_Number & __y)
-    : Geom_Object(), x(__x), y(__y)
+  Point(const Geom_Number & x, const Geom_Number & y)
+    : Geom_Object(), x_(x), y_(y)
   {
     // empty
   }
@@ -184,7 +181,7 @@ public:
 
   bool operator ==(const Point & point) const
   {
-    return x == point.x and y == point.y;
+    return x_ == point.x_ and y_ == point.y_;
   }
 
   bool operator !=(const Point & point) const
@@ -194,38 +191,38 @@ public:
 
   Point operator +(const Point & p) const
   {
-    return {x + p.x, y + p.y};
+    return {x_ + p.x_, y_ + p.y_};
   }
 
   Point &operator +=(const Point & p)
   {
-    x += p.x;
-    y += p.y;
+    x_ += p.x_;
+    y_ += p.y_;
 
     return *this;
   }
 
   Point operator -(const Point & p) const
   {
-    return {x - p.x, y - p.y};
+    return {x_ - p.x_, y_ - p.y_};
   }
 
   Point &operator -=(const Point & p)
   {
-    x -= p.x;
-    y -= p.y;
+    x_ -= p.x_;
+    y_ -= p.y_;
 
     return *this;
   }
 
   [[nodiscard]] const Geom_Number &get_x() const /// Returns x value
   {
-    return x;
+    return x_;
   }
 
   [[nodiscard]] const Geom_Number &get_y() const /// Returns y value
   {
-    return y;
+    return y_;
   }
 
   /// Returns true if this is colinear with p1 and p2.
@@ -234,10 +231,10 @@ public:
     return area_of_parallelogram(*this, p1, p2) == 0;
   }
 
-  /// Returns true if this is colinear with segment s.
+  /// Returns true if this is colinear with a segment s.
   [[nodiscard]] inline bool is_colinear_with(const Segment & s) const;
 
-  /// Return true if this is to left from points p1 and p2
+  /// Return true if this is to the left from points p1 and p2
   [[nodiscard]] bool is_to_left_from(const Point & p1, const Point & p2) const
   {
     return area_of_parallelogram(p1, p2, *this) > 0;
@@ -249,7 +246,7 @@ public:
     return area_of_parallelogram(p1, p2, *this) < 0;
   }
 
-  /// Return true if this is to left from (or on) points p1 and p2
+  /// Return true if this is to the left from (or on) points p1 and p2
   [[nodiscard]] bool is_to_left_on_from(const Point & p1, const Point & p2) const
   {
     return not is_to_right_from(p1, p2);
@@ -293,10 +290,10 @@ public:
     return this->distance_with(p1) < this->distance_with(p2) ? p1 : p2;
   }
 
-  /// Returns true if this is inside of segment s.
+  /// Returns true if this is inside a segment s.
   [[nodiscard]] inline bool is_inside(const Segment & s) const;
 
-  /// Returns true if this is inside of the ellipse e.
+  /// Returns true if this is inside the ellipse e.
   [[nodiscard]] inline bool is_inside(const Ellipse & e) const;
 
   /// Returns true if this intersects ellipse @p e.
@@ -305,8 +302,8 @@ public:
   /// Return a string representation of this.
   [[nodiscard]] std::string to_string() const
   {
-    return "(" + std::to_string(geom_number_to_double(x)) + "," +
-           std::to_string(geom_number_to_double(y)) + ")";
+    return "(" + std::to_string(geom_number_to_double(x_)) + "," +
+           std::to_string(geom_number_to_double(y_)) + ")";
   }
 
   /// String cast operator.
@@ -343,30 +340,30 @@ class Polar_Point : public Geom_Object
 {
   friend class Point;
 
-  Geom_Number r;
-  Geom_Number theta;
+  Geom_Number r_;
+  Geom_Number theta_;
 
 public:
   /// Returns the magnitude
-  [[nodiscard]] const Geom_Number &get_r() const { return r; }
+  [[nodiscard]] const Geom_Number &get_r() const { return r_; }
 
   /// Returns the angle.
-  [[nodiscard]] const Geom_Number &get_theta() const { return theta; }
+  [[nodiscard]] const Geom_Number &get_theta() const { return theta_; }
 
-  Polar_Point(const Geom_Number & __r, const Geom_Number & __theta)
-    : r(__r), theta(__theta)
+  Polar_Point(const Geom_Number & r, const Geom_Number & theta)
+    : r_(r), theta_(theta)
   {
     // empty
   }
 
   /// Construct from Cartesian coordinates (origin at (0,0)).
-  Polar_Point(const Point & p) : Geom_Object(p)
+  Polar_Point(const Point & p)
   {
-    const Geom_Number & x = p.x;
-    const Geom_Number & y = p.y;
+    const Geom_Number & x = p.x_;
+    const Geom_Number & y = p.y_;
 
-    r = pitag(x, y);
-    theta = arctan2(y, x);
+    r_ = pitag(x, y);
+    theta_ = arctan2(y, x);
   }
 
   /// Enumerate polar quadrants in counterclockwise order.
@@ -391,11 +388,11 @@ public:
   /// Convert to string representation "[r,theta]".
   [[nodiscard]] std::string to_string() const
   {
-    return "[" + std::to_string(geom_number_to_double(r)) + "," +
-           std::to_string(geom_number_to_double(theta)) + "]";
+    return "[" + std::to_string(geom_number_to_double(r_)) + "," +
+           std::to_string(geom_number_to_double(theta_)) + "]";
   }
 
-  Polar_Point() : r(0), theta(0)
+  Polar_Point() : r_(0), theta_(0)
   { /* empty */
   }
 };
@@ -403,7 +400,7 @@ public:
 
 inline
 Point::Point(const Polar_Point & pp)
-  : x(pp.r * cosinus(pp.theta)), y(pp.r * sinus(pp.theta))
+  : x_(pp.r_ * cosinus(pp.theta_)), y_(pp.r_ * sinus(pp.theta_))
 {
   // empty
 }
@@ -418,26 +415,26 @@ class Segment : public Geom_Object
   friend class Point;
   friend class Triangle;
 
-  Point src, tgt;
+  Point src_, tgt_;
 
   [[nodiscard]] double compute_slope() const
   {
-    if (tgt.x == src.x)
+    if (tgt_.x_ == src_.x_)
       {
-        if (src.y < tgt.y)
+        if (src_.y_ < tgt_.y_)
           return std::numeric_limits<double>::max();
         return -std::numeric_limits<double>::max();
       }
 
-    const Geom_Number __slope = (tgt.y - src.y) / (tgt.x - src.x);
+    const Geom_Number slope_ = (tgt_.y_ - src_.y_) / (tgt_.x_ - src_.x_);
 
-    return __slope.get_d();
+    return slope_.get_d();
   }
 
 public:
   bool operator ==(const Segment & s) const
   {
-    return src == s.src and tgt == s.tgt;
+    return src_ == s.src_ and tgt_ == s.tgt_;
   }
 
   bool operator !=(const Segment & s) const
@@ -447,38 +444,32 @@ public:
 
   [[nodiscard]] const Point &highest_point() const
   {
-    return src.y > tgt.y ? src : tgt;
+    return src_.y_ > tgt_.y_ ? src_ : tgt_;
   }
 
   [[nodiscard]] const Point &lowest_point() const
   {
-    return src.y < tgt.y ? src : tgt;
+    return src_.y_ < tgt_.y_ ? src_ : tgt_;
   }
 
   [[nodiscard]] const Point &leftmost_point() const
   {
-    return src.x < tgt.x ? src : tgt;
+    return src_.x_ < tgt_.x_ ? src_ : tgt_;
   }
 
   [[nodiscard]] const Point &rightmost_point() const
   {
-    return src.x > tgt.x ? src : tgt;
+    return src_.x_ > tgt_.x_ ? src_ : tgt_;
   }
 
-  [[nodiscard]] const Point &get_src_point() const { return src; }
+  [[nodiscard]] const Point &get_src_point() const { return src_; }
 
-  [[nodiscard]] const Point &get_tgt_point() const { return tgt; }
+  [[nodiscard]] const Point &get_tgt_point() const { return tgt_; }
 
   Segment() = default;
 
-  // Segment(const Segment & s)
-  //   : Geom_Object(), src(s.src), tgt(s.tgt)
-  // {
-  //   // empty
-  // }
-
-  Segment(Point  __src, const Point & __tgt)
-    : Geom_Object(), src(std::move(__src)), tgt(__tgt)
+  Segment(Point src, Point  tgt)
+    : Geom_Object(), src_(std::move(src)), tgt_(std::move(tgt))
   {
     // empty
   }
@@ -494,7 +485,7 @@ private:
       @return The point placed to the east (right).
   */
   static
-  Point compute_tgt_point(const Point & __src, // Point of origin
+  Point compute_tgt_point(const Point & src, // Point of origin
                           const Geom_Number & m, // slope
                           const Geom_Number & d) // segment length
   {
@@ -502,28 +493,28 @@ private:
 
     const Geom_Number den = square_root(den2);
 
-    const Geom_Number x = __src.x + d / den;
+    const Geom_Number x = src.x_ + d / den;
 
-    const Geom_Number y = __src.y + d * m / den;
+    const Geom_Number y = src.y_ + d * m / den;
 
     return {x, y};
   }
 
 public:
-  /** Builds a new segment given source point, slope and length.
+  /** Builds a new segment given source point, slope, and length.
 
-      It computes the source point by usen these equations:
+      It computes the source point by using these equations:
      -#\f$ d^2 = (x - x_1)^2 + (y - y_1)^2\f$ (Pythagoras)
      -#\f$ y - y_1 = m(x - x_1)\f$ (line equation given point and slope)
 
-     @param[in] __src Source point
+     @param[in] src Source point
      @param[in] m slope (rise over run, dimensionless)
      @param[in] l length
   */
-  Segment(Point  __src, // source point
+  Segment(Point src, // source point
           const Geom_Number & m, // slope
           const Geom_Number & l) // segment length
-    : Geom_Object(), src(std::move(__src)), tgt(compute_tgt_point(src, m, l))
+    : Geom_Object(), src_(std::move(src)), tgt_(compute_tgt_point(src, m, l))
   {
     // empty
   }
@@ -537,8 +528,8 @@ public:
 
     const Point diff_point = mid_point - perp.get_src_point();
 
-    src = sg.get_src_point() + diff_point;
-    tgt = sg.get_tgt_point() + diff_point;
+    src_ = sg.get_src_point() + diff_point;
+    tgt_ = sg.get_tgt_point() + diff_point;
   }
 
   [[nodiscard]] double slope() const
@@ -546,13 +537,13 @@ public:
     return compute_slope();
   }
 
-  /// Compute the counterclockwise wise angle respect another segment s.
+  /// Compute the counterclockwise wise angle respect to another segment s.
   [[nodiscard]] double counterclockwise_angle_with(const Segment & s) const
   {
-    const Geom_Number x1 = tgt.x - src.x;
-    const Geom_Number x2 = s.tgt.x - s.src.x;
-    const Geom_Number y1 = tgt.y - src.y;
-    const Geom_Number y2 = s.tgt.y - s.src.y;
+    const Geom_Number x1 = tgt_.x_ - src_.x_;
+    const Geom_Number x2 = s.tgt_.x_ - s.src_.x_;
+    const Geom_Number y1 = tgt_.y_ - src_.y_;
+    const Geom_Number y2 = s.tgt_.y_ - s.src_.y_;
     const Geom_Number dot = x1 * x2 + y1 * y2;
     const Geom_Number det = x1 * y2 - y1 * x2;
 
@@ -577,13 +568,13 @@ public:
   /// Return the Euclidean length of the segment (distance between endpoints).
   [[nodiscard]] Geom_Number size() const
   {
-    return pitag(tgt.x - src.x, tgt.y - src.y);
+    return pitag(tgt_.x_ - src_.x_, tgt_.y_ - src_.y_);
   }
 
   /// Return true if @p p is colinear with this segment.
   [[nodiscard]] bool is_colinear_with(const Point & p) const
   {
-    return p.is_colinear_with(src, tgt);
+    return p.is_colinear_with(src_, tgt_);
   }
 
   /// Return true if this segment is to the left of point @p p.
@@ -601,8 +592,8 @@ public:
   /// Return the midpoint of this segment.
   [[nodiscard]] Point mid_point() const
   {
-    const Geom_Number x = (src.get_x() + tgt.get_x()) / 2;
-    const Geom_Number y = (src.get_y() + tgt.get_y()) / 2;
+    const Geom_Number x = (src_.get_x() + tgt_.get_x()) / 2;
+    const Geom_Number y = (src_.get_y() + tgt_.get_y()) / 2;
 
     return {x, y};
   }
@@ -617,42 +608,41 @@ public:
   /// Construct the segment perpendicular to @c this passing through @p p.
   [[nodiscard]] Segment get_perpendicular(const Point & p) const
   {
-    if (src == tgt)
+    if (src_ == tgt_)
       return *this;
 
+    const Geom_Number dx = tgt_.x_ - src_.x_;
+    const Geom_Number dy = tgt_.y_ - src_.y_;
+
     // Special-case horizontal segments so we can return a vertical segment.
-    if (src.get_y() == tgt.get_y())
-      return {Point(p.get_x(), src.get_y()), p};
+    if (dy == 0)
+      return {Point(p.get_x(), src_.get_y()), p};
 
     // Likewise for vertical segments.
-    if (src.get_x() == tgt.get_x())
-      return {Point(src.get_x(), p.get_y()), p};
+    if (dx == 0)
+      return {Point(src_.get_x(), p.get_y()), p};
 
-    const auto m1 = Geom_Number(slope());
+    // Project p onto the line through src-tgt using dot product.
+    // t = dot(p - src, tgt - src) / dot(tgt - src, tgt - src)
+    const Geom_Number dot_num =
+        (p.x_ - src_.x_) * dx + (p.y_ - src_.y_) * dy;
+    const Geom_Number dot_den = dx * dx + dy * dy;
+    const Geom_Number t = dot_num / dot_den;
 
-    // calculate the slope of the new segment
-    const Geom_Number m2 = -Geom_Number(1.0) / m1;
+    const Geom_Number fx = src_.x_ + t * dx;
+    const Geom_Number fy = src_.y_ + t * dy;
 
-    // Find the intersection point between both lines.
-    const Geom_Number & x1 = src.get_x();
-    const Geom_Number & y1 = src.get_y();
-    const Geom_Number & x2 = p.get_x();
-    const Geom_Number & y2 = p.get_y();
-
-    const Geom_Number x = (y2 - y1 + m1 * x1 - m2 * x2) / (m1 - m2);
-    const Geom_Number y = m1 * (x - x1) + y1;
-
-    // The perpendicular segment goes from the intersection to p.
-    return {Point(x, y), p};
+    // The perpendicular segment goes from the foot to p.
+    return {Point(fx, fy), p};
   }
 
   /// Return the perpendicular chord of length @c 2*dist through the midpoint.
   [[nodiscard]] Segment mid_perpendicular(const Geom_Number & dist) const
   {
     // Translate target to the origin and convert to polar coordinates.
-    const Polar_Point tgt_polar(tgt - src);
+    const Polar_Point tgt_polar(tgt_ - src_);
 
-    const Geom_Number& arc_tgt_src = tgt_polar.get_theta();
+    const Geom_Number & arc_tgt_src = tgt_polar.get_theta();
 
     Geom_Number arc_perp_pt = arctan(dist / (tgt_polar.get_r() / 2));
 
@@ -674,8 +664,8 @@ public:
     const Polar_Point polar_perp_pt_r(perp_r, arc_tgt_src - arc_perp_pt);
 
     // Convert back to rectangular coordinates.
-    const Point p1(Point(polar_perp_pt_l) + src);
-    const Point p2(Point(polar_perp_pt_r) + src);
+    const Point p1(Point(polar_perp_pt_l) + src_);
+    const Point p2(Point(polar_perp_pt_r) + src_);
 
     // Return the segment in counterclockwise order with respect to @c this.
     if (p1.is_to_right_from(*this))
@@ -687,26 +677,26 @@ public:
   [[nodiscard]] bool intersects_properly_with(const Segment & s) const
   {
     // Reject degenerate colinear configurations first.
-    if (src.is_colinear_with(s) or tgt.is_colinear_with(s) or
-        s.src.is_colinear_with(*this) or s.tgt.is_colinear_with(*this))
+    if (src_.is_colinear_with(s) or tgt_.is_colinear_with(s) or
+        s.src_.is_colinear_with(*this) or s.tgt_.is_colinear_with(*this))
       return false;
 
     // There is a proper intersection when each segment straddles the other.
-    return (src.is_to_left_from(s) xor tgt.is_to_left_from(s)) and
-           s.src.is_to_left_from(*this) xor s.tgt.is_to_left_from(*this);
+    return (src_.is_to_left_from(s) xor tgt_.is_to_left_from(s)) and
+           s.src_.is_to_left_from(*this) xor s.tgt_.is_to_left_from(*this);
   }
 
   /// Return true if @p p lies on this segment.
   [[nodiscard]] bool contains_to(const Point & p) const
   {
-    return p.is_between(src, tgt);
+    return p.is_between(src_, tgt_);
   }
 
   /// Return true if @p s lies entirely inside this segment.
   [[nodiscard]] bool contains_to(const Segment & s) const
   {
-    return (s.get_src_point().is_between(src, tgt) and
-            s.get_tgt_point().is_between(src, tgt));
+    return (s.get_src_point().is_between(src_, tgt_) and
+            s.get_tgt_point().is_between(src_, tgt_));
   }
 
   /// Return true if @p s intersects this segment (including endpoints).
@@ -715,39 +705,36 @@ public:
     if (this->intersects_properly_with(s))
       return true;
 
-    return (this->contains_to(s.src) or this->contains_to(s.tgt) or
-            s.contains_to(this->src) or s.contains_to(this->tgt));
+    return (this->contains_to(s.src_) or this->contains_to(s.tgt_) or
+            s.contains_to(this->src_) or s.contains_to(this->tgt_));
   }
 
   [[nodiscard]] inline bool intersects_with(const Triangle & t) const;
 
   [[nodiscard]] inline bool intersects_with(const Ellipse & e) const;
 
-  /// Return true if @p s has the same slope.
+  /// Return true if @p s has the same direction (exact cross-product test).
   [[nodiscard]] bool is_parallel_with(const Segment & s) const
   {
-    return slope() == s.slope();
+    return (tgt_.x_ - src_.x_) * (s.tgt_.y_ - s.src_.y_) ==
+           (tgt_.y_ - src_.y_) * (s.tgt_.x_ - s.src_.x_);
   }
 
-  /// Compute intersection point solving point-slope equations for both lines.
+  /// Compute intersection point using exact determinant formula.
   [[nodiscard]] Point intersection_with(const Segment & s) const
   {
-    ah_domain_error_if(this->is_parallel_with(s)) << "Segments are parallels";
+    const Geom_Number denom = (tgt_.x_ - src_.x_) * (s.tgt_.y_ - s.src_.y_) -
+                              (tgt_.y_ - src_.y_) * (s.tgt_.x_ - s.src_.x_);
 
-    const Geom_Number & x1 = this->src.x;
-    const Geom_Number & y1 = this->src.y;
+    ah_domain_error_if(denom == 0) << "Segments are parallel";
 
-    const Geom_Number & x2 = s.src.x;
-    const Geom_Number & y2 = s.src.y;
+    const Geom_Number t = ((s.src_.x_ - src_.x_) * (s.tgt_.y_ - s.src_.y_) -
+                           (s.src_.y_ - src_.y_) * (s.tgt_.x_ - s.src_.x_)) / denom;
 
-    const Geom_Number & m1 = this->slope();
-    const Geom_Number & m2 = s.slope();
-
-    const Geom_Number x = (y2 - y1 + m1 * x1 - m2 * x2) / (m1 - m2);
-
-    const Geom_Number y = m1 * (x - x1) + y1;
-
-    return {x, y};
+    return {
+          src_.x_ + t * (tgt_.x_ - src_.x_),
+          src_.y_ + t * (tgt_.y_ - src_.y_)
+        };
   }
 
   // TODO: consider polar-based sense calculation to avoid branching.
@@ -757,58 +744,58 @@ public:
 
   [[nodiscard]] Sense sense() const
   {
-    if (src.x < tgt.x) // headed east?
+    if (src_.x_ < tgt_.x_) // headed east?
       {
-        if (src.y < tgt.y) // and north?
+        if (src_.y_ < tgt_.y_) // and north?
           return NE;
-        if (src.y > tgt.y) // and south?
+        if (src_.y_ > tgt_.y_) // and south?
           return SE;
         return E;
       }
 
-    if (src.x > tgt.x) // headed west?
+    if (src_.x_ > tgt_.x_) // headed west?
       {
-        if (src.y < tgt.y) // and north?
+        if (src_.y_ < tgt_.y_) // and north?
           return NW;
-        if (src.y > tgt.y) // and south?
+        if (src_.y_ > tgt_.y_) // and south?
           return SW;
         return W;
       }
 
-    // Vertical segment: if target is above source, heading north; else south.
-    return src.y < tgt.y ? N : S;
+    // Vertical segment: if the target is above the source, heading north; else south.
+    return src_.y_ < tgt_.y_ ? N : S;
   }
 
   /// Extend the segment by @p __dist from the source endpoint.
-  void enlarge_src(const Geom_Number & __dist)
+  void enlarge_src(const Geom_Number & dist)
   {
     const double m = slope();
 
-    Point p = compute_tgt_point(src, m, -__dist);
+    Point p = compute_tgt_point(src_, m, -dist);
 
-    if (const Segment s(p, src); s.size() < __dist) // fallback to extending forward
-      p = compute_tgt_point(src, m, __dist);
+    if (const Segment s(p, src_); s.size() < dist) // fallback to extending forward
+      p = compute_tgt_point(src_, m, dist);
 
-    src = p;
+    src_ = p;
   }
 
   /// Extend the segment by @p __dist from the target endpoint.
-  void enlarge_tgt(const Geom_Number & __dist)
+  void enlarge_tgt(const Geom_Number & dist)
   {
     const double m = slope();
 
-    Point p = compute_tgt_point(tgt, m, __dist);
+    Point p = compute_tgt_point(tgt_, m, dist);
 
-    if (const Segment s(tgt, p); s.size() < __dist)
-      p = compute_tgt_point(tgt, m, -__dist);
+    if (const Segment s(tgt_, p); s.size() < dist)
+      p = compute_tgt_point(tgt_, m, -dist);
 
-    tgt = p;
+    tgt_ = p;
   }
 
   /// Return "(src)(tgt)" textual form.
   [[nodiscard]] std::string to_string() const
   {
-    return src.to_string() + tgt.to_string();
+    return src_.to_string() + tgt_.to_string();
   }
 
   operator std::string() const
@@ -822,11 +809,11 @@ public:
     if (angle == 0)
       return;
 
-    const Polar_Point ptgt(tgt - src); // target in polar coordinates
+    const Polar_Point ptgt(tgt_ - src_); // target in polar coordinates
 
     // move by angle radians, convert back, and translate to source frame
-    tgt = Polar_Point(ptgt.get_r(), ptgt.get_theta() + angle);
-    tgt = tgt + src;
+    tgt_ = Polar_Point(ptgt.get_r(), ptgt.get_theta() + angle);
+    tgt_ = tgt_ + src_;
   }
 
   // Return the intersection segment with triangle t (if any).
@@ -845,33 +832,33 @@ inline bool Point::is_inside(const Segment & s) const
 // Return true if this point is colinear with segment s.
 inline bool Point::is_colinear_with(const Segment & s) const
 {
-  return this->is_colinear_with(s.src, s.tgt);
+  return this->is_colinear_with(s.src_, s.tgt_);
 }
 
-// Return true if this point is to the left of segment s.
+// Return true if this point is to the left of the segment s.
 inline bool Point::is_to_left_from(const Segment & s) const
 {
-  return this->is_to_left_from(s.src, s.tgt);
+  return this->is_to_left_from(s.src_, s.tgt_);
 }
 
-// Return true if this point is to the right of segment s.
+// Return true if this point is to the right of the segment s.
 inline bool Point::is_to_right_from(const Segment & s) const
 {
-  return this->is_to_right_from(s.src, s.tgt);
+  return this->is_to_right_from(s.src_, s.tgt_);
 }
 
 // Return true if the sequence (this, segment) is clockwise.
 inline bool Point::is_clockwise_with(const Segment & s) const
 {
-  return this->is_clockwise_with(s.src, s.tgt);
+  return this->is_clockwise_with(s.src_, s.tgt_);
 }
 
 
 // Return the squared Euclidean distance to that.
 inline Geom_Number Point::distance_squared_to(const Point & that) const
 {
-  const Geom_Number dx = this->x - that.x;
-  const Geom_Number dy = this->y - that.y;
+  const Geom_Number dx = this->x_ - that.x_;
+  const Geom_Number dy = this->y_ - that.y_;
   return dx * dx + dy * dy;
 }
 
@@ -896,92 +883,92 @@ class Triangle : public Geom_Object
   friend class Point;
   friend class Segment;
 
-  Point p1, p2, p3;
+  Point p1_, p2_, p3_;
 
-  Geom_Number __area;
+  Geom_Number area_;
 
 public:
-  Triangle(const Point & __p1, const Point & __p2, const Point & __p3)
-    : p1(__p1), p2(__p2), p3(__p3)
+  Triangle(Point  p1, Point  p2, Point  p3)
+    : p1_(std::move(p1)), p2_(std::move(p2)), p3_(std::move(p3))
   {
-    __area = area_of_parallelogram(p1, p2, p3) / 2;
+    area_ = area_of_parallelogram(p1_, p2_, p3_) / 2;
 
-    ah_domain_error_if(__area == 0)
-      << "The three points of triangle are colinears";
-  }
-
-  Triangle(Point  p, const Segment & s)
-    : p1(std::move(p)), p2(s.src), p3(s.tgt)
-  {
-    __area = area_of_parallelogram(p1, p2, p3) / 2;
-
-    ah_domain_error_if(__area == 0)
+    ah_domain_error_if(area_ == 0)
       << "The three points of triangle are collinear";
   }
 
-  Triangle(const Segment & s, const Point & p)
-    : p1(s.src), p2(s.tgt), p3(p)
+  Triangle(Point p, const Segment & s)
+    : p1_(std::move(p)), p2_(s.src_), p3_(s.tgt_)
   {
-    __area = area_of_parallelogram(p1, p2, p3) / 2;
+    area_ = area_of_parallelogram(p1_, p2_, p3_) / 2;
 
-    ah_domain_error_if(__area == 0)
+    ah_domain_error_if(area_ == 0)
       << "The three points of triangle are collinear";
   }
 
-  Geom_Number area() const
+  Triangle(const Segment & s, Point  p)
+    : p1_(s.src_), p2_(s.tgt_), p3_(std::move(p))
   {
-    return abs(__area);
+    area_ = area_of_parallelogram(p1_, p2_, p3_) / 2;
+
+    ah_domain_error_if(area_ == 0)
+      << "The three points of triangle are collinear";
+  }
+
+  [[nodiscard]] Geom_Number area() const
+  {
+    return abs(area_);
   }
 
   /// Returns true if the triangle vertices are ordered clockwise.
   [[nodiscard]] bool is_clockwise() const
   {
-    return __area >= 0;
+    return area_ >= 0;
   }
 
   [[nodiscard]] const Point &highest_point() const
   {
-    const Point & max = p1.y > p2.y ? p1 : p2;
+    const Point & max = p1_.y_ > p2_.y_ ? p1_ : p2_;
 
-    return p3.y > max.y ? p3 : max;
+    return p3_.y_ > max.y_ ? p3_ : max;
   }
 
   [[nodiscard]] const Point &lowest_point() const
   {
-    const Point & min = p1.y < p2.y ? p1 : p2;
+    const Point & min = p1_.y_ < p2_.y_ ? p1_ : p2_;
 
-    return p3.y < min.y ? p3 : min;
+    return p3_.y_ < min.y_ ? p3_ : min;
   }
 
   [[nodiscard]] const Point &leftmost_point() const
   {
-    const Point & min = p1.x < p2.x ? p1 : p2;
+    const Point & min = p1_.x_ < p2_.x_ ? p1_ : p2_;
 
-    return p3.x < min.x ? p3 : min;
+    return p3_.x_ < min.x_ ? p3_ : min;
   }
 
   [[nodiscard]] const Point &rightmost_point() const
   {
-    const Point & max = p1.x > p2.x ? p1 : p2;
+    const Point & max = p1_.x_ > p2_.x_ ? p1_ : p2_;
 
-    return p3.x > max.x ? p3 : max;
+    return p3_.x_ > max.x_ ? p3_ : max;
   }
 
-  [[nodiscard]] const Point &get_p1() const { return p1; }
+  [[nodiscard]] const Point &get_p1() const { return p1_; }
 
-  [[nodiscard]] const Point &get_p2() const { return p2; }
+  [[nodiscard]] const Point &get_p2() const { return p2_; }
 
-  [[nodiscard]] const Point &get_p3() const { return p3; }
+  [[nodiscard]] const Point &get_p3() const { return p3_; }
 
-  /// Returns true if point @p p lies inside this triangle.
+  /// Returns true if the point p lies inside this triangle.
   [[nodiscard]] bool contains_to(const Point & p) const
   {
-    const bool s = p.is_to_left_from(p1, p2);
+    const bool s = p.is_to_left_from(p1_, p2_);
 
-    if (p.is_to_left_from(p2, p3) != s)
+    if (p.is_to_left_from(p2_, p3_) != s)
       return false;
 
-    if (p.is_to_left_from(p3, p1) != s)
+    if (p.is_to_left_from(p3_, p1_) != s)
       return false;
 
     return true;
@@ -996,65 +983,65 @@ public:
 
 class Rectangle
 {
-  Geom_Number xmin, ymin;
-  Geom_Number xmax, ymax;
+  Geom_Number xmin_, ymin_;
+  Geom_Number xmax_, ymax_;
 
 public:
-  [[nodiscard]] const Geom_Number &get_xmin() const { return xmin; }
+  [[nodiscard]] const Geom_Number &get_xmin() const { return xmin_; }
 
-  [[nodiscard]] const Geom_Number &get_ymin() const { return ymin; }
+  [[nodiscard]] const Geom_Number &get_ymin() const { return ymin_; }
 
-  [[nodiscard]] const Geom_Number &get_xmax() const { return xmax; }
+  [[nodiscard]] const Geom_Number &get_xmax() const { return xmax_; }
 
-  [[nodiscard]] const Geom_Number &get_ymax() const { return ymax; }
+  [[nodiscard]] const Geom_Number &get_ymax() const { return ymax_; }
 
-  Rectangle() : xmin(0), ymin(0), xmax(0), ymax(0)
+  Rectangle() : xmin_(0), ymin_(0), xmax_(0), ymax_(0)
   {
     // empty
   }
 
-  Rectangle(const Geom_Number & __xmin, const Geom_Number & __ymin,
-            const Geom_Number & __xmax, const Geom_Number & __ymax)
-    : xmin(__xmin), ymin(__ymin), xmax(__xmax), ymax(__ymax)
+  Rectangle(const Geom_Number & xmin, const Geom_Number & ymin,
+            const Geom_Number & xmax, const Geom_Number & ymax)
+    : xmin_(xmin), ymin_(ymin), xmax_(xmax), ymax_(ymax)
   {
-    ah_range_error_if(xmax < xmin or ymax < ymin) << "Invalid rectangle";
+    ah_range_error_if(xmax_ < xmin_ or ymax_ < ymin_) << "Invalid rectangle";
   }
 
-  void set_rect(const Geom_Number & __xmin, const Geom_Number & __ymin,
-                const Geom_Number & __xmax, const Geom_Number & __ymax)
+  void set_rect(const Geom_Number & xmin, const Geom_Number & ymin,
+                const Geom_Number & xmax, const Geom_Number & ymax)
   {
-    ah_range_error_if(__xmax < __xmin or __ymax < __ymin)
+    ah_range_error_if(xmax < xmin or ymax < ymin)
       << "Invalid rectangle";
 
-    xmin = __xmin;
-    ymin = __ymin;
-    xmax = __xmax;
-    ymax = __ymax;
+    xmin_ = xmin;
+    ymin_ = ymin;
+    xmax_ = xmax;
+    ymax_ = ymax;
   }
 
-  [[nodiscard]] Geom_Number width() const { return xmax - xmin; }
+  [[nodiscard]] Geom_Number width() const { return xmax_ - xmin_; }
 
-  [[nodiscard]] Geom_Number height() const { return ymax - ymin; }
+  [[nodiscard]] Geom_Number height() const { return ymax_ - ymin_; }
 
   // does this axis-aligned rectangle intersect that one?
   [[nodiscard]] bool intersects(const Rectangle & that) const
   {
-    return this->xmax >= that.xmin and this->ymax >= that.ymin and
-           that.xmax >= this->xmin and that.ymax >= this->ymin;
+    return this->xmax_ >= that.xmin_ and this->ymax_ >= that.ymin_ and
+           that.xmax_ >= this->xmin_ and that.ymax_ >= this->ymin_;
   }
 
   [[nodiscard]] Geom_Number distance_squared_to(const Point & p) const
   {
     Geom_Number dx = 0.0, dy = 0.0;
-    if (p.get_x() < xmin)
-      dx = p.get_x() - xmin;
-    else if (p.get_x() > xmax)
-      dx = p.get_x() - xmax;
+    if (p.get_x() < xmin_)
+      dx = p.get_x() - xmin_;
+    else if (p.get_x() > xmax_)
+      dx = p.get_x() - xmax_;
 
-    if (p.get_y() < ymin)
-      dy = p.get_y() - ymin;
-    else if (p.get_y() > ymax)
-      dy = p.get_y() - ymax;
+    if (p.get_y() < ymin_)
+      dy = p.get_y() - ymin_;
+    else if (p.get_y() > ymax_)
+      dy = p.get_y() - ymax_;
 
     return dx * dx + dy * dy;
   }
@@ -1068,8 +1055,8 @@ public:
   // does this axis-aligned rectangle contain p?
   [[nodiscard]] bool contains(const Point & p) const
   {
-    return p.get_x() >= xmin and p.get_x() <= xmax and
-           p.get_y() >= ymin and p.get_y() <= ymax;
+    return p.get_x() >= xmin_ and p.get_x() <= xmax_ and
+           p.get_y() >= ymin_ and p.get_y() <= ymax_;
   }
 };
 
@@ -1139,7 +1126,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
 
                         Fundamental ellipse class
 
-  Represents an axis-aligned ellipse centered at @p center with horizontal
+  Represents an axis-aligned ellipse centered at p center with horizontal
   radius @p hr and vertical radius @p vr.
  */
 class Ellipse : public Geom_Object
@@ -1156,16 +1143,16 @@ class Ellipse : public Geom_Object
                                 vr          hr
   */
 
-  Point center; // ellipse center
+  Point center_; // ellipse center
 
-  Geom_Number hr; // horizontal radius (parameter a)
-  Geom_Number vr; // vertical radius (parameter b)
+  Geom_Number hr_; // horizontal radius (parameter a)
+  Geom_Number vr_; // vertical radius (parameter b)
 
 public:
-  Ellipse(Point  __center,
-          const Geom_Number & __hr,
-          const Geom_Number & __vr)
-    : center(std::move(__center)), hr(__hr), vr(__vr)
+  Ellipse(Point center,
+          const Geom_Number & hr,
+          const Geom_Number & vr)
+    : center_(std::move(center)), hr_(hr), vr_(vr)
   {
     // empty
   }
@@ -1175,32 +1162,32 @@ public:
 
   Ellipse() = default;
 
-  [[nodiscard]] const Point &get_center() const { return center; }
+  [[nodiscard]] const Point &get_center() const { return center_; }
 
-  [[nodiscard]] const Geom_Number &get_hradius() const { return hr; }
+  [[nodiscard]] const Geom_Number &get_hradius() const { return hr_; }
 
-  [[nodiscard]] const Geom_Number &get_vradius() const { return vr; }
+  [[nodiscard]] const Geom_Number &get_vradius() const { return vr_; }
 
   static bool is_clockwise() { return false; }
 
   [[nodiscard]] Point highest_point() const
   {
-    return {center.get_x(), center.get_y() + vr};
+    return {center_.get_x(), center_.get_y() + vr_};
   }
 
   [[nodiscard]] Point lowest_point() const
   {
-    return {center.get_x(), center.get_y() - vr};
+    return {center_.get_x(), center_.get_y() - vr_};
   }
 
   [[nodiscard]] Point leftmost_point() const
   {
-    return {center.get_x() - hr, center.get_y()};
+    return {center_.get_x() - hr_, center_.get_y()};
   }
 
   [[nodiscard]] Point rightmost_point() const
   {
-    return {center.get_x() + hr, center.get_y()};
+    return {center_.get_x() + hr_, center_.get_y()};
   }
 
   /* Computes the tangents to this ellipse with slope @p m.
@@ -1229,13 +1216,13 @@ public:
   {
     if (m == 0)
       {
-        s1 = Segment(center + Point(-hr, vr), center + Point(hr, vr));
-        s2 = Segment(center + Point(-hr, -vr), center + Point(hr, -vr));
+        s1 = Segment(center_ + Point(-hr_, vr_), center_ + Point(hr_, vr_));
+        s2 = Segment(center_ + Point(-hr_, -vr_), center_ + Point(hr_, -vr_));
 
         return;
       }
 
-    const Geom_Number product = hr * hr * m * m + vr * vr;
+    const Geom_Number product = hr_ * hr_ * m * m + vr_ * vr_;
 
     // intersection with the axis if the ellipse were centered at the origin
     const Geom_Number y1 = square_root(product);
@@ -1246,21 +1233,19 @@ public:
     // (0, y1) and (0, -y1). For an ellipse centered at @p center we
     // translate them along the line (0,0)--center.
 
-    const Segment t1 = Segment(center + Point(x1, 0), center + Point(0, y1));
+    const Segment t1 = Segment(center_ + Point(x1, 0), center_ + Point(0, y1));
 
-    const Segment t2 = Segment(center + Point(-x1, 0), center + Point(0, -y1));
+    const Segment t2 = Segment(center_ + Point(-x1, 0), center_ + Point(0, -y1));
 
     // tangent segments may be longer than required. For each one pick the
     // endpoint closest to the center.
 
     // decide tangent length using the largest radius.
-    const Geom_Number tangent_size = hr > vr ? hr : vr;
+    const Geom_Number tangent_size = hr_ > vr_ ? hr_ : vr_; { // compute distances from center to tangent endpoints
+      const Geom_Number dsrc = center_.distance_with(t1.get_src_point());
+      const Geom_Number dtgt = center_.distance_with(t1.get_tgt_point());
 
-    { // compute distances from center to tangent endpoints
-      const Geom_Number dsrc = center.distance_with(t1.get_src_point());
-      const Geom_Number dtgt = center.distance_with(t1.get_tgt_point());
-
-      if (dsrc < dtgt) // choose point nearest to center
+      if (dsrc < dtgt) // choose the point nearest to center
         {
           s1 = Segment(t1.get_src_point(), m, tangent_size);
           s1.enlarge_src(tangent_size);
@@ -1273,10 +1258,10 @@ public:
     }
 
     { // compute distances for the second tangent
-      const Geom_Number dsrc = center.distance_with(t2.get_src_point());
-      const Geom_Number dtgt = center.distance_with(t2.get_tgt_point());
+      const Geom_Number dsrc = center_.distance_with(t2.get_src_point());
+      const Geom_Number dtgt = center_.distance_with(t2.get_tgt_point());
 
-      if (dsrc < dtgt) // choose point nearest to center
+      if (dsrc < dtgt) // choose the point nearest to center
         {
           s2 = Segment(t2.get_src_point(), m, tangent_size);
           s2.enlarge_src(tangent_size);
@@ -1308,13 +1293,13 @@ private:
   // or outside (> 1).
   [[nodiscard]] Geom_Number compute_radius(const Point & p) const
   {
-    Geom_Number x2 = (p.get_x() - center.get_x());
+    Geom_Number x2 = (p.get_x() - center_.get_x());
     x2 = x2 * x2;
 
-    Geom_Number y2 = (p.get_y() - center.get_y());
+    Geom_Number y2 = (p.get_y() - center_.get_y());
     y2 = y2 * y2;
 
-    return x2 / (hr * hr) + y2 / (vr * vr);
+    return x2 / (hr_ * hr_) + y2 / (vr_ * vr_);
   }
 
 public:
@@ -1388,8 +1373,8 @@ y2 = ----------------------------------------------------------------------
   {
     ah_domain_error_if(not intersects_with(sg)) << "there is no intersection";
 
-    const Geom_Number & a = hr;
-    const Geom_Number & b = vr;
+    const Geom_Number & a = hr_;
+    const Geom_Number & b = vr_;
 
     const Geom_Number a2 = a * a;
     const Geom_Number b2 = b * b;
@@ -1397,10 +1382,10 @@ y2 = ----------------------------------------------------------------------
     const Geom_Number ab = a * b;
 
     // Segment translated to coordinate system with origin at (xc, yc).
-    const Segment sg_new(sg.get_src_point() - center,
-                         sg.get_tgt_point() - center);
+    const Segment sg_new(sg.get_src_point() - center_,
+                         sg.get_tgt_point() - center_);
 
-    const Point pr = sg_new.get_tgt_point();
+    const Point & pr = sg_new.get_tgt_point();
 
     const Geom_Number & xr = pr.get_x();
     const Geom_Number & yr = pr.get_y();
@@ -1443,10 +1428,10 @@ y2 = ----------------------------------------------------------------------
     // Since results are for the ellipse at (0,0), translate the intersection
     // points back to the actual ellipse center.
 
-    const Point src = Point(x1, y1) + center;
-    const Point tgt = Point(x2, y2) + center;
+    const Point src = Point(x1, y1) + center_;
+    const Point tgt = Point(x2, y2) + center_;
 
-    return Segment(src, tgt);
+    return {src, tgt};
   }
 };
 
@@ -1490,7 +1475,7 @@ inline size_t aproximate_string_size(const std::string & str)
 {
   const char *ptr = str.c_str();
 
-  size_t __len = 0;
+  size_t _len = 0;
   for (int i = 0; true; /* empty */)
     {
       switch (ptr[i])
@@ -1499,7 +1484,7 @@ inline size_t aproximate_string_size(const std::string & str)
           // Skip all characters that compose the LaTeX command.
           for (++i; isalnum(ptr[i]) and ptr[i] != '\0'; /* nothing */)
             ++i;
-          ++__len;
+          ++_len;
           break;
 
         case '$':
@@ -1510,10 +1495,10 @@ inline size_t aproximate_string_size(const std::string & str)
           break;
 
         case '\0':
-          return __len;
+          return _len;
 
         default:
-          ++__len;
+          ++_len;
           ++i;
           break;
         }
@@ -1522,54 +1507,52 @@ inline size_t aproximate_string_size(const std::string & str)
 
 class Text : public Geom_Object
 {
-  Point p;
+  Point p_;
 
-  std::string str;
+  std::string str_;
 
-  size_t __len;
+  size_t len_;
 
 public:
   static const double font_width_in_points;
 
   static const double font_height_in_points;
 
-  Text(const Point & __p, const std::string & __str)
-    : p(__p), str(__str), __len(aproximate_string_size(__str))
+  Text(Point p, const std::string & str)
+    : p_(std::move(p)), str_(str), len_(aproximate_string_size(str))
   {
     // empty
   }
 
-  Text()
-  { /* empty */
+  Text() = default;
+
+  [[nodiscard]] const size_t &len() const { return len_; }
+
+  [[nodiscard]] const Point &get_point() const
+  {
+    return p_;
   }
 
-  const size_t &len() const { return __len; }
+  [[nodiscard]] const std::string &get_str() const { return str_; }
 
-  const Point &get_point() const
+  [[nodiscard]] Point highest_point() const
   {
-    return p;
+    return p_;
   }
 
-  const std::string &get_str() const { return str; }
-
-  Point highest_point() const
+  [[nodiscard]] Point lowest_point() const
   {
-    return p;
+    return p_;
   }
 
-  Point lowest_point() const
+  [[nodiscard]] Point leftmost_point() const
   {
-    return p;
+    return p_;
   }
 
-  Point leftmost_point() const
+  [[nodiscard]] Point rightmost_point() const
   {
-    return p;
-  }
-
-  Point rightmost_point() const
-  {
-    return p;
+    return p_;
   }
 };
 
@@ -1578,6 +1561,58 @@ area_of_parallelogram(const Point & a, const Point & b, const Point & c)
 {
   return ((b.get_x() - a.get_x()) * (c.get_y() - a.get_y()) -
           (c.get_x() - a.get_x()) * (b.get_y() - a.get_y()));
+}
+
+
+/// Classification of three-point orientation.
+enum class Orientation { CCW, CW, COLLINEAR };
+
+/** Return the orientation of the triple (a, b, c).
+    Based on the sign of the cross product (b-a)x(c-a). */
+[[nodiscard]] inline Orientation
+orientation(const Point & a, const Point & b, const Point & c)
+{
+  const Geom_Number area = area_of_parallelogram(a, b, c);
+  if (area > 0) return Orientation::CCW;
+  if (area < 0) return Orientation::CW;
+  return Orientation::COLLINEAR;
+}
+
+/// Return true if @p p lies on segment @p s (exact).
+[[nodiscard]] inline bool
+on_segment(const Segment & s, const Point & p)
+{
+  return s.contains_to(p);
+}
+
+/// Return true if segments @p s1 and @p s2 intersect (including endpoints).
+[[nodiscard]] inline bool
+segments_intersect(const Segment & s1, const Segment & s2)
+{
+  return s1.intersects_with(s2);
+}
+
+/// Return true if segments (a,b) and (c,d) intersect (including endpoints).
+[[nodiscard]] inline bool
+segments_intersect(const Point & a, const Point & b,
+                   const Point & c, const Point & d)
+{
+  return Segment(a, b).intersects_with(Segment(c, d));
+}
+
+/** Compute the exact intersection point of segments @p s1 and @p s2.
+    @throws std::domain_error if the segments are parallel. */
+[[nodiscard]] inline Point
+segment_intersection_point(const Segment & s1, const Segment & s2)
+{
+  return s1.intersection_with(s2);
+}
+
+/// Return the (unsigned) area of triangle (a, b, c) as an exact rational.
+[[nodiscard]] inline Geom_Number
+area_of_triangle(const Point & a, const Point & b, const Point & c)
+{
+  return abs(area_of_parallelogram(a, b, c)) / 2;
 }
 
 

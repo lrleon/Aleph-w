@@ -112,6 +112,7 @@ set(EXAMPLE_PROGRAMS
     cartesian_tree_example
     mo_algorithm_example
     mo_on_trees_example
+    robust_predicates_example
 )
 
 # Function to get source file from program name

@@ -42,6 +42,7 @@ Language: English | [Español](README.es.md)
   - [Lists and Sequential Structures](#readme-lists-and-sequential-structures)
   - [Range Query Structures](#readme-range-query-structures)
   - [Graphs](#readme-graphs)
+  - [Computational Geometry](#readme-computational-geometry)
   - [Linear Algebra (Sparse Structures)](#readme-linear-algebra-sparse-structures)
 - [Algorithms](#readme-algorithms-main)
   - [Shortest Path Algorithms](#readme-shortest-path-algorithms)
@@ -221,6 +222,11 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Sparse Vector                                                          │
 │  ├─ Sparse Matrix                                                          │
 │  └─ Domain Indexing                                                        │
+│                                                                            │
+│  GEOMETRY                                                                  │
+│  ├─ Robust Predicates (orientation, intersection — exact arithmetic)       │
+│  ├─ Convex Hull (brute force, gift wrapping, QuickHull)                    │
+│  └─ Triangulation (ear-cutting)                                            │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -868,6 +874,52 @@ Gen_Mo_Algorithm<int, Sum_Policy> mo = {3, 1, 4, 1, 5};
 auto ans = mo.solve({{0, 4}, {1, 3}});
 // ans(0) == 14, ans(1) == 6
 ```
+
+<a id="readme-computational-geometry"></a>
+### Computational Geometry
+
+Aleph-w provides **exact geometric predicates** built on arbitrary-precision
+rationals (`Geom_Number` = `mpq_class`). All orientation and intersection
+tests are exact — no floating-point rounding errors.
+
+**Header:** `point.H`
+
+```cpp
+#include <point.H>
+
+// --- Orientation ---
+Point a(0, 0), b(4, 0), c(2, 3);
+Orientation o = orientation(a, b, c);  // Orientation::CCW
+
+// --- Segment intersection detection ---
+Segment s1(Point(0, 0), Point(2, 2));
+Segment s2(Point(0, 2), Point(2, 0));
+bool cross = segments_intersect(s1, s2);  // true
+
+// --- Exact intersection point (mpq_class, no rounding) ---
+Point p = segment_intersection_point(s1, s2);  // exactly (1, 1)
+
+// --- Works with vertical / horizontal / any configuration ---
+Segment v(Point(3, 0), Point(3, 6));
+Segment d(Point(0, 0), Point(6, 6));
+Point q = segment_intersection_point(v, d);  // exactly (3, 3)
+
+// --- Triangle area (exact rational) ---
+Geom_Number area = area_of_triangle(a, b, c);  // exact
+```
+
+| Function | Description |
+|----------|-------------|
+| `orientation(a, b, c)` | `CCW`, `CW`, or `COLLINEAR` via cross-product |
+| `on_segment(s, p)` | True if `p` lies on segment `s` |
+| `segments_intersect(s1, s2)` | True if segments intersect (any config) |
+| `segment_intersection_point(s1, s2)` | Exact intersection point; throws if parallel |
+| `area_of_triangle(a, b, c)` | Unsigned area as exact rational |
+| `area_of_parallelogram(a, b, c)` | Signed area (2x triangle area) |
+
+Higher-level algorithms in `geom_algorithms.H`:
+- **Convex Hull**: Brute-force, Gift Wrapping, QuickHull
+- **Triangulation**: Ear-cutting (CuttingEarsTriangulation)
 
 <a id="readme-linear-algebra-sparse-structures"></a>
 ### Linear Algebra (Sparse Structures)
@@ -2562,6 +2614,9 @@ cmake --build build
 | MST | `mst_example.C` | Kruskal, Prim |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
+| **Geometry** | | |
+| Robust predicates | `robust_predicates_example.cc` | Orientation, intersection, exact arithmetic |
+| Geometry algorithms | `geom_example.C` | Convex hull, triangulation |
 | **Parallel** | | |
 | Thread pool | `thread_pool_example.cc` | Concurrent tasks |
 | Parallel ops | `ah_parallel_example.cc` | pmap, pfilter |
