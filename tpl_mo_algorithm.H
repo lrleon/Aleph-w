@@ -67,7 +67,6 @@
 # include <algorithm>
 # include <cmath>
 # include <concepts>
-# include <span>
 # include <type_traits>
 # include <utility>
 # include <tpl_array.H>
@@ -340,16 +339,16 @@ namespace Aleph
       const size_t block = std::max<size_t>(1, static_cast<size_t>(std::sqrt(static_cast<double>(n))));
 
       // Snake sort: primary by l/block, secondary alternating by r
-      std::ranges::sort(std::span<Mo_Query>(&queries(0), q),
-                        [block](const Mo_Query & a, const Mo_Query & b)
-                          {
-                            const size_t ba = a.l / block;
-                            const size_t bb = b.l / block;
-                            if (ba != bb)
-                              return ba < bb;
-                            // Even blocks: r ascending; odd blocks: r descending
-                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-                          });
+      std::sort(&queries(0), &queries(0) + q,
+                [block](const Mo_Query & a, const Mo_Query & b)
+                  {
+                    const size_t ba = a.l / block;
+                    const size_t bb = b.l / block;
+                    if (ba != bb)
+                      return ba < bb;
+                    // Even blocks: r ascending; odd blocks: r descending
+                    return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                  });
 
       pol_.init(data_, n);
 

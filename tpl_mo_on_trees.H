@@ -92,7 +92,6 @@
 # include <algorithm>
 # include <cmath>
 # include <concepts>
-# include <span>
 # include <vector>
 # include <tpl_array.H>
 # include <tpl_dynMapOhash.H>
@@ -106,9 +105,9 @@ namespace Aleph
 {
   /** @brief Concept constraining a graph type usable for Mo on Trees.
    *
-   *  Requires node/arc types, an adjacency iterator constructible from
-   *  a node pointer, a method to query the number of nodes, and a
-   *  method to obtain the connected node of an arc.
+   *  Requires node/arc types, a method to query the number of nodes, a
+   *  method to obtain the connected node of an arc, and a node-iteration
+   *  facility via `for_each_node`.
    *
    *  @tparam GT  Graph type.
    *  @ingroup Graphs
@@ -121,8 +120,11 @@ namespace Aleph
       typename GT::Node;
       typename GT::Arc;
       typename GT::Node::Node_Type;
+      typename GT::Node_Arc_Iterator;
       { g.vsize() } -> std::convertible_to<size_t>;
       { g.get_connected_node(a, p) } -> std::same_as<typename GT::Node *>;
+      { typename GT::Node_Arc_Iterator(p) };
+      { g.for_each_node([](typename GT::Node *) {}) };
     };
 
   // ================================================================
@@ -372,20 +374,21 @@ namespace Aleph
     // Standard Mo sweep (used for subtree queries)
     Array<answer_type> mo_sweep(const Array<T> & data,
                                 Array<Mo_Query> queries,
-                                size_t q, size_t n) const
+                                size_t n) const
     {
+      const size_t q = queries.size();
       const size_t block = std::max<size_t>(
         1, static_cast<size_t>(std::sqrt(static_cast<double>(n))));
 
-      std::ranges::sort(std::span<Mo_Query>(&queries(0), q),
-                        [block](const Mo_Query & a, const Mo_Query & b)
-                          {
-                            const size_t ba = a.l / block;
-                            const size_t bb = b.l / block;
-                            if (ba != bb)
-                              return ba < bb;
-                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-                          });
+      std::sort(&queries(0), &queries(0) + q,
+                [block](const Mo_Query & a, const Mo_Query & b)
+                  {
+                    const size_t ba = a.l / block;
+                    const size_t bb = b.l / block;
+                    if (ba != bb)
+                      return ba < bb;
+                    return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                  });
 
       pol_.init(data, n);
 
@@ -490,7 +493,7 @@ namespace Aleph
           queries(i) = {tin_(id), tout_(id), i};
         }
 
-      return mo_sweep(flat_sub_, std::move(queries), q, n_);
+      return mo_sweep(flat_sub_, std::move(queries), n_);
     }
 
     /** @brief Answer subtree queries from an initializer list.
@@ -571,15 +574,15 @@ namespace Aleph
         1, static_cast<size_t>(
           std::sqrt(static_cast<double>(tour_sz))));
 
-      std::ranges::sort(std::span<Path_Query>(&pqueries(0), q),
-                        [block](const Path_Query & a, const Path_Query & b)
-                          {
-                            const size_t ba = a.l / block;
-                            const size_t bb = b.l / block;
-                            if (ba != bb)
-                              return ba < bb;
-                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-                          });
+      std::sort(&pqueries(0), &pqueries(0) + q,
+                [block](const Path_Query & a, const Path_Query & b)
+                  {
+                    const size_t ba = a.l / block;
+                    const size_t bb = b.l / block;
+                    if (ba != bb)
+                      return ba < bb;
+                    return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                  });
 
       pol_.init(node_values_, n_);
 
@@ -929,20 +932,21 @@ namespace Aleph
     // Standard Mo sweep
     Array<answer_type> mo_sweep(const Array<T> & data,
                                 Array<Mo_Query> queries,
-                                size_t q, size_t nn) const
+                                size_t nn) const
     {
+      const size_t q = queries.size();
       const size_t block = std::max<size_t>(
         1, static_cast<size_t>(std::sqrt(static_cast<double>(nn))));
 
-      std::ranges::sort(std::span<Mo_Query>(&queries(0), q),
-                        [block](const Mo_Query & a, const Mo_Query & b)
-                          {
-                            const size_t ba = a.l / block;
-                            const size_t bb = b.l / block;
-                            if (ba != bb)
-                              return ba < bb;
-                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-                          });
+      std::sort(&queries(0), &queries(0) + q,
+                [block](const Mo_Query & a, const Mo_Query & b)
+                  {
+                    const size_t ba = a.l / block;
+                    const size_t bb = b.l / block;
+                    if (ba != bb)
+                      return ba < bb;
+                    return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                  });
 
       pol_.init(data, nn);
 
@@ -1033,7 +1037,7 @@ namespace Aleph
           queries(i) = {tin_(id), tout_(id), i};
         }
 
-      return mo_sweep(flat_sub_, std::move(queries), q, n_);
+      return mo_sweep(flat_sub_, std::move(queries), n_);
     }
 
     /** @brief Solve subtree queries (initializer-list overload).
@@ -1108,15 +1112,15 @@ namespace Aleph
         1, static_cast<size_t>(
           std::sqrt(static_cast<double>(tour_sz))));
 
-      std::ranges::sort(std::span<Path_Query>(&pqueries(0), q),
-                        [block](const Path_Query & a, const Path_Query & b)
-                          {
-                            const size_t ba = a.l / block;
-                            const size_t bb = b.l / block;
-                            if (ba != bb)
-                              return ba < bb;
-                            return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-                          });
+      std::sort(&pqueries(0), &pqueries(0) + q,
+                [block](const Path_Query & a, const Path_Query & b)
+                  {
+                    const size_t ba = a.l / block;
+                    const size_t bb = b.l / block;
+                    if (ba != bb)
+                      return ba < bb;
+                    return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                  });
 
       pol_.init(node_values_, n_);
 
