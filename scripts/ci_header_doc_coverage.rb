@@ -78,7 +78,7 @@ def resolve_diff_range(opts)
   base = opts[:base_ref] || base_ref
   raise 'missing base branch (use --base-ref or set GITHUB_BASE_REF)' if base.nil? || base.empty?
 
-  run!(['git', 'fetch', '--no-tags', '--prune', 'origin', "#{base}:#{base}"])
+  run!(['git', 'fetch', '--no-tags', '--prune', 'origin', base])
   "origin/#{base}...HEAD"
 end
 
@@ -101,6 +101,7 @@ def parse_added_lines(diff_text)
 
     next if cur_new.nil?
     next if line.start_with?('+++', '---', 'diff --git', 'index ')
+    next if line.start_with?('\\ No newline')
 
     if line.start_with?('+')
       added << cur_new
@@ -174,8 +175,59 @@ def doxygen_comment_before?(lines, line_1_based)
 end
 
 
-def sanitize_for_braces(line)
-  line.gsub(/\/\/.*$/, '')
+def sanitize_for_braces(line, in_block_comment = false)
+  sanitized = +''
+  in_string = nil
+  escaped = false
+  i = 0
+
+  while i < line.length
+    ch = line[i]
+    nxt = i + 1 < line.length ? line[i + 1] : nil
+
+    if in_block_comment
+      if ch == '*' && nxt == '/'
+        in_block_comment = false
+        i += 2
+      else
+        i += 1
+      end
+      next
+    end
+
+    unless in_string.nil?
+      if escaped
+        escaped = false
+      elsif ch == '\\'
+        escaped = true
+      elsif ch == in_string
+        in_string = nil
+      end
+      i += 1
+      next
+    end
+
+    if ch == '/' && nxt == '/'
+      break
+    end
+
+    if ch == '/' && nxt == '*'
+      in_block_comment = true
+      i += 2
+      next
+    end
+
+    if ch == '"' || ch == "'"
+      in_string = ch
+      i += 1
+      next
+    end
+
+    sanitized << ch
+    i += 1
+  end
+
+  [sanitized, in_block_comment]
 end
 
 
@@ -225,6 +277,7 @@ def parse_changed_public_declarations(file, added_lines)
   brace_depth = 0
   class_stack = []
   pending_class = nil
+  in_block_comment = false
 
   lines.each_with_index do |raw_line, idx|
     line_no = idx + 1
@@ -260,7 +313,8 @@ def parse_changed_public_declarations(file, added_lines)
       end
     end
 
-    if class_stack.any? && (m = stripped.match(/^(public|private|protected)\s*:\s*$/))
+    if class_stack.any? &&
+       (m = stripped.match(/^(public|private|protected)\s*:\s*(?:(?:\/\/|\/\*).*)?$/))
       class_stack.last[:access] = m[1]
     end
 
@@ -297,7 +351,7 @@ def parse_changed_public_declarations(file, added_lines)
     end
 
     before_depth = brace_depth
-    sanitized = sanitize_for_braces(raw_line)
+    sanitized, in_block_comment = sanitize_for_braces(raw_line, in_block_comment)
     brace_depth += sanitized.count('{')
     brace_depth -= sanitized.count('}')
 

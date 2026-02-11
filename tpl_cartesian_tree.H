@@ -893,7 +893,12 @@ namespace Aleph
       return lca_.lca(l, r);
     }
 
-    /** @brief Retrieve the value at position @p i in O(1). */
+    /** @brief Retrieve the value at position @p i in O(1).
+     *
+     *  @param i 0-based index into the original array.
+     *  @return Copy of the value stored at index @p i.
+     *  @throw std::out_of_range if `i >= size()`.
+     */
     T get(const size_t i) const
     {
       return lca_.tree().data_at(i);

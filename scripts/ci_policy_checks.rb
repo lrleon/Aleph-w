@@ -27,7 +27,7 @@ end
 def changed_files(base)
   return [] if base.nil? || base.empty?
 
-  run!(['git', 'fetch', '--no-tags', '--prune', 'origin', "#{base}:#{base}"])
+  run!(['git', 'fetch', '--no-tags', '--prune', 'origin', base])
   out = run!(['git', 'diff', '--name-only', '--diff-filter=ACMR', "origin/#{base}...HEAD"])
   out.lines.map(&:strip).reject(&:empty?)
 end
