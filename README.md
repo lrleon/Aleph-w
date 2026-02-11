@@ -27,7 +27,7 @@ Language: English | [Español](README.es.md)
 ---
 
 <a id="readme-table-of-contents"></a>
-## Table of Contents {#readme-table-of-contents}
+## Table of Contents
 
 - [Overview](#readme-overview)
 - [History and Philosophy](#readme-history-and-philosophy)
@@ -66,7 +66,7 @@ Language: English | [Español](README.es.md)
 ---
 
 <a id="readme-overview"></a>
-## Overview {#readme-overview}
+## Overview
 
 **Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **238 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
 
@@ -95,7 +95,7 @@ Language: English | [Español](README.es.md)
 ---
 
 <a id="readme-history-and-philosophy"></a>
-## History and Philosophy {#readme-history-and-philosophy}
+## History and Philosophy
 
 ### Origins (2002)
 
@@ -178,10 +178,10 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 ---
 
 <a id="readme-features-at-a-glance"></a>
-## Features at a Glance {#readme-features-at-a-glance}
+## Features at a Glance
 
 <a id="readme-data-structures"></a>
-### Data Structures {#readme-data-structures}
+### Data Structures
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -225,7 +225,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 ```
 
 <a id="readme-algorithms"></a>
-### Algorithms {#readme-algorithms}
+### Algorithms
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -261,7 +261,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 ---
 
 <a id="readme-requirements"></a>
-## Requirements {#readme-requirements}
+## Requirements
 
 ### Compiler Support
 
@@ -309,7 +309,7 @@ sudo apt-get install -y libgtest-dev
 ---
 
 <a id="readme-installation"></a>
-## Installation {#readme-installation}
+## Installation
 
 For detailed, platform-specific instructions and troubleshooting, see `INSTALL.md`.
 
@@ -391,7 +391,7 @@ ctest --preset default
 ---
 
 <a id="readme-quick-start"></a>
-## Quick Start {#readme-quick-start}
+## Quick Start
 
 ### 5-Minute Examples
 
@@ -505,10 +505,10 @@ int main() {
 ---
 
 <a id="readme-data-structures-main"></a>
-## Data Structures {#readme-data-structures-main}
+## Data Structures
 
 <a id="readme-balanced-search-trees"></a>
-### Balanced Search Trees {#readme-balanced-search-trees}
+### Balanced Search Trees
 
 Aleph-w provides **8 different balanced tree implementations**, each optimized for specific use cases.
 
@@ -531,7 +531,6 @@ Aleph-w provides **8 different balanced tree implementations**, each optimized f
 │  Best For    │ Read-heavy   │  General     │  Locality    │   Simplicity   │
 │              │  workloads   │  purpose     │  patterns    │   randomized   │
 └──────────────┴──────────────┴──────────────┴──────────────┴────────────────┘
-  * Amortized    ** Expected (randomized)
 ```
 
 #### Usage Examples
@@ -775,7 +774,6 @@ Aleph-w implements the classic chain of reductions **RMQ ↔ LCA ↔ Cartesian T
 │ Gen_Euler_Tour_LCA   │ O(n log n)  │  O(1)    │  O(n log n)         │
 │ Gen_Cartesian_Tree_RMQ│ O(n log n) │  O(1)    │  O(n log n)         │
 └──────────────────────┴─────────────┴──────────┴─────────────────────┘
-  * Amortized    ** Expected (randomized)
 ```
 
 - **`Gen_Cartesian_Tree<T, Comp>`** — Explicit Cartesian Tree built in O(n) with a monotonic stack.  Satisfies heap property under `Comp` and inorder = original array.
@@ -812,7 +810,7 @@ int main() {
 ```
 
 <a id="readme-linear-algebra-sparse-structures"></a>
-### Linear Algebra (Sparse Structures) {#readme-linear-algebra-sparse-structures}
+### Linear Algebra (Sparse Structures)
 
 Aleph-w provides **sparse vector and matrix classes** with domain-based indexing, optimized for data with many zeros:
 
@@ -916,7 +914,7 @@ int total_laptops = laptop_sales.sum();
 ```
 
 <a id="readme-hash-tables"></a>
-### Hash Tables {#readme-hash-tables}
+### Hash Tables
 
 Aleph-w provides multiple hash table implementations optimized for different scenarios:
 
@@ -1008,7 +1006,7 @@ int main() {
 ```
 
 <a id="readme-heaps-and-priority-queues"></a>
-### Heaps and Priority Queues {#readme-heaps-and-priority-queues}
+### Heaps and Priority Queues
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1065,7 +1063,7 @@ int main() {
 ```
 
 <a id="readme-lists-and-sequential-structures"></a>
-### Lists and Sequential Structures {#readme-lists-and-sequential-structures}
+### Lists and Sequential Structures
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1128,7 +1126,7 @@ int main() {
 ```
 
 <a id="readme-range-query-structures"></a>
-### Range Query Structures {#readme-range-query-structures}
+### Range Query Structures
 
 #### Sparse Table — O(1) Range Queries on Static Arrays
 
@@ -1220,7 +1218,7 @@ ft.update(2, -3);          // a[2] -= 3
 ```
 
 <a id="readme-graphs"></a>
-### Graphs {#readme-graphs}
+### Graphs
 
 Aleph-w provides multiple graph representations optimized for different use cases:
 
@@ -1331,9 +1329,11 @@ int main() {
 
 ---
 
-## Algorithms {#readme-algorithms-main}
+<a id="readme-algorithms-main"></a>
+## Algorithms
 
-### Shortest Path Algorithms {#readme-shortest-path-algorithms}
+<a id="readme-shortest-path-algorithms"></a>
+### Shortest Path Algorithms
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1437,7 +1437,7 @@ int main() {
 ```
 
 <a id="readme-minimum-spanning-trees"></a>
-### Minimum Spanning Trees {#readme-minimum-spanning-trees}
+### Minimum Spanning Trees
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1500,7 +1500,7 @@ int main() {
 ```
 
 <a id="readme-network-flows"></a>
-### Network Flows {#readme-network-flows}
+### Network Flows
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1594,7 +1594,7 @@ int main() {
 ```
 
 <a id="readme-graph-connectivity"></a>
-### Graph Connectivity {#readme-graph-connectivity}
+### Graph Connectivity
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1665,7 +1665,7 @@ int main() {
 ```
 
 <a id="readme-matching"></a>
-### Matching {#readme-matching}
+### Matching
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1681,7 +1681,7 @@ int main() {
 ```
 
 <a id="readme-sorting-algorithms"></a>
-### Sorting Algorithms {#readme-sorting-algorithms}
+### Sorting Algorithms
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1727,9 +1727,11 @@ int main() {
 
 ---
 
-## Memory Management {#readme-memory-management}
+<a id="readme-memory-management"></a>
+## Memory Management
 
-### Arena Allocators {#readme-arena-allocators}
+<a id="readme-arena-allocators"></a>
+### Arena Allocators
 
 Arena allocation provides **ultra-fast memory management** for temporary data structures.
 
@@ -1861,7 +1863,8 @@ int main() {
 
 ---
 
-## Parallel Computing {#readme-parallel-computing}
+<a id="readme-parallel-computing"></a>
+## Parallel Computing
 
 ### Thread Pool
 
@@ -1933,7 +1936,8 @@ int main() {
 
 ---
 
-## Functional Programming {#readme-functional-programming}
+<a id="readme-functional-programming"></a>
+## Functional Programming
 
 All Aleph-w containers support a rich set of functional operations:
 
@@ -1955,7 +1959,7 @@ All Aleph-w containers support a rich set of functional operations:
 | `partition(p)` | Split by predicate | O(n) |
 
 <a id="readme-examples"></a>
-### Examples {#readme-examples}
+### Examples
 
 ```cpp
 #include <tpl_dynList.H>
@@ -2025,7 +2029,8 @@ int main() {
 
 ---
 
-## Tutorial {#readme-tutorial}
+<a id="readme-tutorial"></a>
+## Tutorial
 
 ### Complete Example: Building a Social Network Analysis Tool
 
@@ -2155,7 +2160,8 @@ int main() {
 
 ---
 
-## API Reference {#readme-api-reference}
+<a id="readme-api-reference"></a>
+## API Reference
 
 ### Quick Reference by Category
 
@@ -2255,7 +2261,8 @@ int main() {
 
 ---
 
-## Benchmarks {#readme-benchmarks}
+<a id="readme-benchmarks"></a>
+## Benchmarks
 
 ### Tree Performance (1 Million Operations)
 
@@ -2409,7 +2416,8 @@ cmake --build build
 
 ---
 
-## Testing {#readme-testing}
+<a id="readme-testing"></a>
+## Testing
 
 ### Running Tests
 
@@ -2463,7 +2471,8 @@ ctest --test-dir build-asan --output-on-failure
 
 ---
 
-## Contributing {#readme-contributing}
+<a id="readme-contributing"></a>
+## Contributing
 
 Contributions are welcome! Here's how to get started:
 
@@ -2525,7 +2534,8 @@ Together, we can build the most comprehensive C++ algorithm library in the world
 
 ---
 
-## License {#readme-license}
+<a id="readme-license"></a>
+## License
 
 Aleph-w is licensed under the **MIT License**.
 
@@ -2560,7 +2570,8 @@ SOFTWARE.
 
 ---
 
-## Acknowledgments {#readme-acknowledgments}
+<a id="readme-acknowledgments"></a>
+## Acknowledgments
 
 - **Universidad de Los Andes** (Mérida, Venezuela) - Birthplace of Aleph-w
 - **Thousands of students** who learned algorithms with this library
