@@ -110,6 +110,8 @@ set(HLIST
     q-consumer-threads.H ah-string-utils.H ah-comb.H geom_algorithms.H
     tpl_fenwick_tree.H
     tpl_segment_tree.H
+    tpl_cartesian_tree.H
+    ah-concepts.H
 )
 
 # C++ source files

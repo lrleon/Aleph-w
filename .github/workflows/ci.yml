@@ -38,6 +38,13 @@ jobs:
         run: |
           ruby scripts/ci_doxygen_changed.rb
 
+      - name: Header docstring coverage gate (changed public declarations)
+        env:
+          HEADER_DOC_COVERAGE_MIN: "80"
+        run: |
+          ruby scripts/ci_header_doc_coverage.rb \
+            --min "${HEADER_DOC_COVERAGE_MIN}"
+
   build-and-test:
     name: build-and-test (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}

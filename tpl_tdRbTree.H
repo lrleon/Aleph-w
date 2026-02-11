@@ -57,6 +57,7 @@
 # include <tpl_binNodeUtils.H>
 # include <tpl_arrayStack.H>
 # include <rbNode.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -85,15 +86,16 @@ namespace Aleph
     
     @tparam NodeType Node template (typically RbNode or RbNodeVtl).
     @tparam Key The type of keys stored in the tree.
-    @tparam Compare Comparison functor for ordering keys (default: std::less<Key>).
+    @tparam Compare Comparison functor for ordering keys (default: Aleph::less<Key>).
     
     @see Gen_Rb_Tree Bottom-up red-black tree implementation.
     @see Avl_Tree Alternative balanced tree with stricter balance.
     @ingroup Trees
  */
-template <template <class> class NodeType, typename Key, 
-          class Compare = std::less<Key>>
-class GenTdRbTree 
+template <template <class> class NodeType, typename Key,
+          class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
+class GenTdRbTree
 {
 public:
   using Node = NodeType<Key>;
@@ -885,9 +887,10 @@ public:
 /** @brief Top-down red-black tree without virtual destructor.
     
     @tparam Key The type of keys stored in the tree.
-    @tparam Compare Comparison functor (default: std::less<Key>).
+    @tparam Compare Comparison functor (default: Aleph::less<Key>).
  */
-template <typename Key, class Compare = std::less<Key>>
+template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 class TdRbTree : public GenTdRbTree<RbNode, Key, Compare>
 {
   using Base = GenTdRbTree<RbNode, Key, Compare>;
@@ -898,9 +901,10 @@ public:
 /** @brief Top-down red-black tree with virtual destructor.
     
     @tparam Key The type of keys stored in the tree.
-    @tparam Compare Comparison functor (default: std::less<Key>).
+    @tparam Compare Comparison functor (default: Aleph::less<Key>).
  */
-template <typename Key, class Compare = std::less<Key>>
+template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 class TdRbTreeVtl : public GenTdRbTree<RbNodeVtl, Key, Compare>
 {
   using Base = GenTdRbTree<RbNodeVtl, Key, Compare>;

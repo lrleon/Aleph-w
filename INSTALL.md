@@ -5,31 +5,29 @@ Language: English | [Español](INSTALL.es.md)
 This guide covers the installation of Aleph-w from source using CMake.
 
 ---
+## Table of Contents {#install-table-of-contents}
 
-## Table of Contents
-
-- [Prerequisites](#prerequisites)
-  - [Compiler Requirements](#compiler-requirements)
-  - [Build Tools](#build-tools)
-  - [Required Libraries](#required-libraries)
-  - [Optional Libraries](#optional-libraries)
-- [Installation on Linux](#installation-on-linux)
-  - [Ubuntu/Debian](#ubuntudebian)
-  - [Fedora/RHEL](#fedorarhel)
-  - [Arch Linux](#arch-linux)
-- [Building from Source](#building-from-source)
-  - [Basic Build](#basic-build)
-  - [Build Options](#build-options)
-  - [Build Types](#build-types)
-- [Advanced Configuration](#advanced-configuration)
-- [Verification](#verification)
-- [Troubleshooting](#troubleshooting)
+- [Prerequisites](#install-prerequisites)
+  - [Compiler Requirements](#install-compiler-requirements)
+  - [Build Tools](#install-build-tools)
+  - [Required Libraries](#install-required-libraries)
+  - [Optional Libraries](#install-optional-libraries)
+- [Installation on Linux](#install-installation-on-linux)
+  - [Ubuntu/Debian](#install-ubuntudebian)
+  - [Fedora/RHEL](#install-fedorarhel)
+  - [Arch Linux](#install-arch-linux)
+- [Building from Source](#install-building-from-source)
+  - [Basic Build](#install-basic-build)
+  - [Build Options](#install-build-options)
+  - [Build Types](#install-build-types)
+- [Advanced Configuration](#install-advanced-configuration)
+- [Verification](#install-verification)
+- [Troubleshooting](#install-troubleshooting)
 
 ---
+## Prerequisites {#install-prerequisites}
 
-## Prerequisites
-
-### Compiler Requirements
+### Compiler Requirements {#install-compiler-requirements}
 
 Aleph-w requires a modern C++ compiler with full C++20 support (C++17 and C++23 are also supported):
 
@@ -39,12 +37,12 @@ Aleph-w requires a modern C++ compiler with full C++20 support (C++17 and C++23 
 | **Clang** | 14.0 | 14, 15, 16 | ✅ Fully supported |
 | **MSVC** | - | - | ❌ Not supported |
 
-### Build Tools
+### Build Tools {#install-build-tools}
 
 - **CMake** 3.18 or later (3.21+ if using `CMakePresets.json`)
 - **Make** or **Ninja** (Ninja recommended for faster builds)
 
-### Required Libraries
+### Required Libraries {#install-required-libraries}
 
 The following libraries are **required** to build Aleph-w:
 
@@ -58,7 +56,7 @@ The following libraries are **required** to build Aleph-w:
 
 Threads (pthreads) are required and typically provided by the OS C library (no separate package needed on most Linux distros).
 
-### Optional Libraries
+### Optional Libraries {#install-optional-libraries}
 
 | Library | Package Name | Purpose |
 |---------|--------------|---------|
@@ -74,9 +72,9 @@ Auto-fetching GoogleTest requires network access; set `ALEPH_FETCH_GTEST=OFF` to
 
 ---
 
-## Installation on Linux
+## Installation on Linux {#install-installation-on-linux}
 
-### Ubuntu/Debian
+### Ubuntu/Debian {#install-ubuntudebian}
 
 ```bash
 # Update package lists
@@ -100,7 +98,7 @@ sudo apt-get install -y \
 sudo apt-get install -y libgtest-dev
 ```
 
-### Fedora/RHEL
+### Fedora/RHEL {#install-fedorarhel}
 
 ```bash
 # Install compiler
@@ -121,7 +119,7 @@ sudo dnf install -y \
 sudo dnf install -y gtest-devel
 ```
 
-### Arch Linux
+### Arch Linux {#install-arch-linux}
 
 ```bash
 # Install compiler (usually already installed)
@@ -144,9 +142,9 @@ sudo pacman -S gtest
 
 ---
 
-## Building from Source
+## Building from Source {#install-building-from-source}
 
-### Basic Build
+### Basic Build {#install-basic-build}
 
 ```bash
 # Clone the repository
@@ -182,10 +180,10 @@ If you prefer Make over Ninja:
 
 ```bash
 cmake -S . -B build            # Omit -G Ninja
-cmake --build build -j$(nproc)
+cmake --build build
 ```
 
-### Build Options
+### Build Options {#install-build-options}
 
 Aleph-w provides several CMake options to customize the build:
 
@@ -210,7 +208,7 @@ cmake -S . -B build \
 cmake --build build
 ```
 
-### Build Types
+### Build Types {#install-build-types}
 
 #### Debug Build (Default)
 
@@ -258,7 +256,7 @@ If you want `-Ofast`, pass it explicitly via `CMAKE_CXX_FLAGS_RELEASE` (use with
 
 ---
 
-## Advanced Configuration
+## Advanced Configuration {#install-advanced-configuration}
 
 ### Selecting a C++ Standard
 
@@ -328,7 +326,7 @@ cmake .
 
 ---
 
-## Verification
+## Verification {#install-verification}
 
 ### Running Tests
 
@@ -401,7 +399,7 @@ g++ -std=c++20 -I/usr/local/include/aleph test.cpp \
 
 ---
 
-## Troubleshooting
+## Troubleshooting {#install-troubleshooting}
 
 ### Common Issues
 

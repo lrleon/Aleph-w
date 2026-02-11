@@ -316,6 +316,8 @@ set(TEST_PROGRAMS
     uid_test
     fenwick_tree
     tpl_segment_tree_test
+    tpl_cartesian_tree_test
+    ah_concepts_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++

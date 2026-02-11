@@ -57,6 +57,7 @@
 # include <tpl_binTreeOps.H>
 # include <rbNodeRk.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 namespace Aleph {
 
@@ -104,6 +105,7 @@ namespace Aleph {
     @ingroup Trees
 */
 template <template <typename> class NodeType, typename Key, class Compare>
+    requires StrictWeakOrder<Compare, Key>
 class Gen_Rb_Tree_Rk
 {
 public:
@@ -1540,6 +1542,7 @@ public:
     @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct Rb_Tree_Rk : public Gen_Rb_Tree_Rk<RbNodeRk, Key, Compare>
 {
   using Base = Gen_Rb_Tree_Rk<RbNodeRk, Key, Compare>;
@@ -1556,6 +1559,7 @@ struct Rb_Tree_Rk : public Gen_Rb_Tree_Rk<RbNodeRk, Key, Compare>
     @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct Rb_Tree_Rk_Vtl : public Gen_Rb_Tree_Rk<RbNodeRkVtl, Key, Compare>
 {
   using Base = Gen_Rb_Tree_Rk<RbNodeRkVtl, Key, Compare>;

@@ -57,6 +57,7 @@
 # include <tpl_arrayStack.H>
 # include <tpl_binNodeUtils.H>
 # include <rbNode.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -115,6 +116,7 @@ namespace Aleph
     @ingroup Trees
  */
 template <template <typename> class NodeType, typename Key, class Compare>
+    requires StrictWeakOrder<Compare, Key>
 class Gen_Rb_Tree
 {
 public:
@@ -679,6 +681,7 @@ public:
    @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct Rb_Tree : public Gen_Rb_Tree<RbNode, Key, Compare>
 {
   using Base = Gen_Rb_Tree<RbNode, Key, Compare>;
@@ -693,6 +696,7 @@ struct Rb_Tree : public Gen_Rb_Tree<RbNode, Key, Compare>
    @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct Rb_Tree_Vtl : public Gen_Rb_Tree<RbNodeVtl, Key, Compare>
 {
   using Base = Gen_Rb_Tree<RbNodeVtl, Key, Compare>;

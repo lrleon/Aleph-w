@@ -112,6 +112,7 @@
 # include <tpl_dynArray.H>
 # include <hash-dry.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 # ifdef N
 # define NBACKUP N
@@ -147,6 +148,7 @@ namespace Aleph
       @ingroup Hash
   */
   template <typename Key, class BucketType, class Cmp>
+    requires EqualityComparator<Cmp, Key>
   class GenLhashTable : public HashStats<GenLhashTable<Key, BucketType, Cmp>>
   {
     friend class HashStats<GenLhashTable<Key, BucketType, Cmp>>;
@@ -805,6 +807,7 @@ namespace Aleph
       @ingroup Hash
   */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   struct LhashTable : public GenLhashTable<Key, LhashBucket<Key>, Cmp>
   {
     using Base = GenLhashTable<Key, LhashBucket<Key>, Cmp>;
@@ -824,6 +827,7 @@ namespace Aleph
       @ingroup Hash
   */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   struct LhashTableVtl : public GenLhashTable<Key, LhashBucketVtl<Key>, Cmp>
   {
     using Base = GenLhashTable<Key, LhashBucketVtl<Key>, Cmp>;

@@ -46,6 +46,7 @@
 
 # include <tpl_lhash.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -86,6 +87,7 @@ namespace Aleph
    *  @ingroup Hash
    */
   template <typename Key, typename Record, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   class DynLhashTable : public LhashTableVtl<Key>
   {
   private:

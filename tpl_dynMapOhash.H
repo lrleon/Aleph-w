@@ -46,6 +46,7 @@
 
 #include <tpl_olhash.H>
 #include <tpl_odhash.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -113,6 +114,7 @@ namespace Aleph
 template <typename Key, typename Data,
           class Cmp = Aleph::equal_to<Key>,
           template <typename, class> class HashTable = ODhashTable>
+    requires EqualityComparator<Cmp, Key>
 struct MapOpenHash :
     public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Data, Cmp>>
 {
@@ -587,6 +589,7 @@ struct MapOpenHash :
  *  @ingroup Hash
  */
 template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
 struct MapOLhash : public MapOpenHash<Key, Data, Cmp, OLhashTable>
 {
   using MapOpenHash<Key, Data, Cmp, OLhashTable>::MapOpenHash;
@@ -609,6 +612,7 @@ struct MapOLhash : public MapOpenHash<Key, Data, Cmp, OLhashTable>
  *  @ingroup Hash
  */
 template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
 struct MapODhash : public MapOpenHash<Key, Data, Cmp, ODhashTable>
 {
   using MapOpenHash<Key, Data, Cmp, ODhashTable>::MapOpenHash;

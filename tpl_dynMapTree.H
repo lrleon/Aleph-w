@@ -49,6 +49,7 @@
 # include <utility>
 
 # include <tpl_dynSetTree.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -82,6 +83,7 @@ namespace Aleph {
     typename Key, typename Data,
     template <typename, class> class Tree = Avl_Tree,
     class Compare                         = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   class DynMapTree :
     public DynSetTree<std::pair<Key, Data>, Tree,
                       Dft_Pair_Cmp<Key, Data, Compare>>

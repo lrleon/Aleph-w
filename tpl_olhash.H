@@ -107,6 +107,7 @@
 # include <hashDry.H>
 # include <hash-fct.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 using namespace Primes;
 
@@ -158,6 +159,7 @@ namespace Aleph
       @ingroup Hash
   */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   class OLhashTable
     : public OhashCommon<OLhashTable<Key, Cmp>, Key>,
       public GenericTraverse<OLhashTable<Key, Cmp>>,

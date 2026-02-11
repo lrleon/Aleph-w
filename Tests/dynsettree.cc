@@ -1425,6 +1425,11 @@ public:
     std::swap(cmp, other.cmp);
   }
 
+  // Stubs required by BSTPolicy concept. Only search_or_insert is exercised
+  // by the exception-safety tests below; the rest are intentionally minimal
+  // and not functionally correct tree operations.
+  Node * search(const Key &) noexcept { return root; }
+
   Node * search_or_insert(Node * p)
   {
     if (enabled)
@@ -1435,6 +1440,15 @@ public:
 
     return root;
   }
+
+  Node * insert_dup(Node * p) noexcept
+  {
+    if (root == Node::NullPtr)
+      return root = p;
+    return p;
+  }
+
+  Node * remove(const Key &) noexcept { return nullptr; }
 
   bool verify() const { return true; }
 
