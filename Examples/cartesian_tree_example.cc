@@ -68,7 +68,14 @@ using namespace Aleph;
 
 // ================================================================
 //  SCENARIO 1 — El Arbol Genealogico de los Datos
-// ================================================================
+/**
+ * @brief Demonstrates building and inspecting a min-heap Cartesian Tree from a small array.
+ *
+ * Prints the input array, the tree root and its value, a table of each node's index,
+ * value, parent, left/right child, and whether it is a leaf, the tree height, the
+ * inorder traversal of node indices, and a verification that the inorder sequence
+ * equals {0, 1, ..., n-1}.
+ */
 
 static void scenario_1()
 {
@@ -125,7 +132,13 @@ static void scenario_1()
 
 // ================================================================
 //  SCENARIO 2 — Ancestros Comunes en el Linaje
-// ================================================================
+/**
+ * @brief Demonstrates Euler-tour based LCA operations on a sample array.
+ *
+ * Prints the input array, the Euler tour and its size, each node's depth with its value,
+ * and several example LCA queries. For each query it prints the LCA index, the value
+ * at that index, and the distance between the queried nodes.
+ */
 
 static void scenario_2()
 {
@@ -171,7 +184,13 @@ static void scenario_2()
 
 // ================================================================
 //  SCENARIO 3 — RMQ sin Trucos: de Arbol a Respuestas O(1)
-// ================================================================
+/**
+ * @brief Compares RMQ results from a Cartesian Tree-based RMQ and a Sparse Table on a fixed example.
+ *
+ * Builds a Cartesian_Tree_RMQ and a Sparse_Table over a small sample array, runs several range-min queries,
+ * prints a formatted comparison table showing whether both structures agree for each range, and demonstrates
+ * index-based RMQ via `query_idx`.
+ */
 
 static void scenario_3()
 {
@@ -220,7 +239,13 @@ static void scenario_3()
 
 // ================================================================
 //  SCENARIO 4 — El Circulo Completo: RMQ <-> LCA
-// ================================================================
+/**
+ * @brief Demonstrates and benchmarks the equivalence between RMQ and LCA on large random data.
+ *
+ * Builds a Cartesian Tree RMQ and a Sparse Table over a large random array, measures and prints
+ * their build and query times, and verifies for a subset of queries that RMQ(l,r) equals the
+ * tree value at LCA(l,r). Prints formatted timing and verification results to stdout.
+ */
 
 static void scenario_4()
 {
@@ -316,6 +341,13 @@ static void scenario_4()
 }
 
 
+/**
+ * @brief Executes the four example scenarios demonstrating Cartesian Tree, LCA, and RMQ.
+ *
+ * Runs scenario_1 through scenario_4 in sequence, prints a completion message, and exits.
+ *
+ * @return int `0` on successful completion.
+ */
 int main()
 {
   scenario_1();
