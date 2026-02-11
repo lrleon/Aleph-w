@@ -259,8 +259,10 @@ namespace Aleph
       init_and_build();
     }
 
+    /** @brief Copy constructor. */
     Gen_Cartesian_Tree(const Gen_Cartesian_Tree &) = default;
 
+    /** @brief Copy assignment operator. */
     Gen_Cartesian_Tree &operator=(const Gen_Cartesian_Tree &) = default;
 
     Gen_Cartesian_Tree(Gen_Cartesian_Tree &&) noexcept(

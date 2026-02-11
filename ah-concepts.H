@@ -38,10 +38,10 @@
  *
  *  - **BinaryPredicate<F, T>** — base concept: `f(a, b)` returns
  *    something convertible to `bool`.
- *  - **StrictWeakOrder<F, T>** — semantic alias for BSTs: the functor
- *    must define a strict weak ordering.
- *  - **EqualityComparator<F, T>** — semantic alias for hash tables:
- *    the functor must define an equivalence relation.
+ *  - **StrictWeakOrder<F, T>** — wraps `std::strict_weak_order<F, T, T>`
+ *    for BST comparators.
+ *  - **EqualityComparator<F, T>** — wraps `std::equivalence_relation<F, T, T>`
+ *    for hash table equality comparators.
  *
  *  Using distinct concept names produces clear error messages:
  *  a BST constraint failure mentions "StrictWeakOrder", while a
@@ -69,27 +69,31 @@ namespace Aleph
           { f(a, b) } -> std::convertible_to<bool>;
         };
 
-  /** @brief Semantic alias of BinaryPredicate for strict weak orderings.
+  /** @brief Strict weak ordering constraint for BST comparators.
    *
    *  Used by BST classes (`Gen_Avl_Tree`, `Gen_Rb_Tree`, etc.) to
-   *  constrain the `Compare` template parameter.
+   *  constrain the `Compare` template parameter. Based on
+   *  `std::strict_weak_order`, which requires the functor to be a
+   *  regular invocable returning a boolean-testable result.
    *
    *  @tparam F functor type.
    *  @tparam T key type.
    */
   template <typename F, typename T>
-  concept StrictWeakOrder = BinaryPredicate<F, T>;
+  concept StrictWeakOrder = std::strict_weak_order<F, T, T>;
 
-  /** @brief Semantic alias of BinaryPredicate for equality comparisons.
+  /** @brief Equivalence relation constraint for equality comparators.
    *
    *  Used by hash table classes (`GenLhashTable`, `ODhashTable`, etc.)
-   *  to constrain the `Cmp` template parameter.
+   *  to constrain the `Cmp` template parameter. Based on
+   *  `std::equivalence_relation`, which requires the functor to be a
+   *  regular invocable returning a boolean-testable result.
    *
    *  @tparam F functor type.
    *  @tparam T key type.
    */
   template <typename F, typename T>
-  concept EqualityComparator = BinaryPredicate<F, T>;
+  concept EqualityComparator = std::equivalence_relation<F, T, T>;
 
   /** @brief Concept for BST tree policies used by `DynSetTree`.
    *
