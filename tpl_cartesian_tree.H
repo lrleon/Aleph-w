@@ -344,9 +344,12 @@ namespace Aleph
 
     /** @brief Height of the tree (longest root-to-leaf path).
      *
+     *  @param None.
      *  @return Height in number of nodes on the longest root-to-leaf path
-     *          (0 if empty, 1 for a single-node tree). Returned by value.
+     *          (0 if empty, 1 for a single-node tree), returned by value.
      *  @throw std::bad_alloc if temporary DFS stack allocation fails.
+     *  @note No bounds-related exceptions are thrown (this method receives no
+     *        indices).
      *  @note Complexity: O(n) time and O(n) auxiliary space (explicit stack).
      */
     [[nodiscard]] size_t height() const
@@ -382,13 +385,15 @@ namespace Aleph
 
     /** @brief Inorder traversal of the tree.
      *
-     *  @return A new `Array<size_t>` with node indices in inorder.
-     *          Ownership is transferred by value to the caller.
-     *          For a correctly built Cartesian Tree, this is
-     *          `{0, 1, ..., n-1}`. If the tree is empty, returns an empty
-     *          array.
+     *  @param None.
+     *  @return A new `Array<size_t>` with node indices in inorder, returned
+     *          by value (ownership transferred to the caller). For a correctly
+     *          built Cartesian Tree, this sequence is `{0, 1, ..., n-1}`.
+     *          If the tree is empty, returns an empty `Array<size_t>`.
      *  @throw std::bad_alloc if result/stack allocation fails.
-     *  @note Complexity: O(n) time and O(n) space
+     *  @note No bounds-related exceptions are thrown (this method receives no
+     *        indices).
+     *  @note Complexity: O(n) time and O(n) auxiliary space
      *        (result array + traversal stack).
      */
     [[nodiscard]] Array<size_t> inorder() const
@@ -421,12 +426,15 @@ namespace Aleph
 
     /** @brief Copy of the original data array.
      *
+     *  @param None.
      *  @return A new `Array<T>` with all stored values in original index
-     *          order. Ownership is transferred by value to the caller.
-     *          If the tree is empty, returns an empty array.
+     *          order, returned by value (ownership transferred to the caller).
+     *          If the tree is empty, returns an empty `Array<T>`.
      *  @throw std::bad_alloc if array allocation fails.
      *  @throw Any exception thrown by `T` copy assignment during element copy.
-     *  @note Complexity: O(n) time and O(n) space.
+     *  @note No bounds-related exceptions are thrown (this method receives no
+     *        indices).
+     *  @note Complexity: O(n) time and O(n) auxiliary space.
      */
     [[nodiscard]] Array<T> values() const
     {

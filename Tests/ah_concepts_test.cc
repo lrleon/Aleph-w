@@ -112,6 +112,9 @@ TEST(AhConceptsTest, AvlTreeInstantiates)
 TEST(AhConceptsTest, ODhashTableInstantiates)
 {
   ODhashTable<int> table;
+  EXPECT_EQ(table.search(42), nullptr); // empty table search
   table.insert(42);
   EXPECT_NE(table.search(42), nullptr);
+  EXPECT_NO_THROW(table.remove(42));
+  EXPECT_EQ(table.search(42), nullptr);
 }

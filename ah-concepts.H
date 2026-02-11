@@ -117,14 +117,24 @@ namespace Aleph
       requires(T & t, T & t2, const T & ct,
                typename T::Node * p, const Key & key)
         {
-          { t.getRoot() };
-          { t.search(key) };
-          { t.search_or_insert(p) };
-          { t.insert_dup(p) };
-          { t.remove(key) };
+          { t.getRoot() } -> std::convertible_to<typename T::Node *>;
+          { t.search(key) } -> std::convertible_to<typename T::Node *>;
+          { t.search_or_insert(p) } -> std::convertible_to<typename T::Node *>;
+          { t.insert_dup(p) } -> std::convertible_to<typename T::Node *>;
+          { t.remove(key) } -> std::convertible_to<typename T::Node *>;
           { ct.verify() } -> std::convertible_to<bool>;
           { t.swap(t2) };
           { t.get_compare() };
+          requires (!requires { ct.getRoot(); } ||
+                    requires
+                    {
+                      { ct.getRoot() } -> std::convertible_to<const typename T::Node *>;
+                    });
+          requires (!requires { ct.search(key); } ||
+                    requires
+                    {
+                      { ct.search(key) } -> std::convertible_to<const typename T::Node *>;
+                    });
         };
 
 } // namespace Aleph

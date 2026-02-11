@@ -93,7 +93,7 @@ namespace Aleph
     @ingroup Trees
  */
 template <template <class> class NodeType, typename Key, 
-          class Compare = std::less<Key>>
+          class Compare = Aleph::less<Key>>
     requires StrictWeakOrder<Compare, Key>
 class GenTdRbTreeRk
 {
@@ -980,7 +980,7 @@ public:
     @tparam Key Key type.
     @tparam Compare Comparison functor.
  */
-template <typename Key, class Compare = std::less<Key>>
+template <typename Key, class Compare = Aleph::less<Key>>
     requires StrictWeakOrder<Compare, Key>
 class TdRbTreeRk : public GenTdRbTreeRk<RbNodeRk, Key, Compare>
 {
@@ -993,7 +993,7 @@ public:
     @tparam Key Key type.
     @tparam Compare Comparison functor.
  */
-template <typename Key, class Compare = std::less<Key>>
+template <typename Key, class Compare = Aleph::less<Key>>
     requires StrictWeakOrder<Compare, Key>
 class TdRbTreeRkVtl : public GenTdRbTreeRk<RbNodeRkVtl, Key, Compare>
 {
@@ -1005,4 +1005,3 @@ public:
 } // namespace Aleph
 
 # endif /* TPL_TDRBTREERK_H */
-
