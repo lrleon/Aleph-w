@@ -110,6 +110,8 @@ set(EXAMPLE_PROGRAMS
     disjoint_sparse_table_test
     segment_tree_example
     cartesian_tree_example
+    mo_algorithm_example
+    mo_on_trees_example
 )
 
 # Function to get source file from program name

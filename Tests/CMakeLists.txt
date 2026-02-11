@@ -317,6 +317,8 @@ set(TEST_PROGRAMS
     fenwick_tree
     tpl_segment_tree_test
     tpl_cartesian_tree_test
+    tpl_mo_algorithm_test
+    tpl_mo_on_trees_test
     ah_concepts_test
 )
 
