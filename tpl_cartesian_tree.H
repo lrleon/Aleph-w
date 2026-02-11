@@ -344,7 +344,7 @@ namespace Aleph
 
     /** @brief Height of the tree (longest root-to-leaf path).
      *
-     *  @param None.
+     *  @note This function takes no parameters.
      *  @return Height in number of nodes on the longest root-to-leaf path
      *          (0 if empty, 1 for a single-node tree), returned by value.
      *  @throw std::bad_alloc if temporary DFS stack allocation fails.
@@ -385,7 +385,7 @@ namespace Aleph
 
     /** @brief Inorder traversal of the tree.
      *
-     *  @param None.
+     *  @note This function takes no parameters.
      *  @return A new `Array<size_t>` with node indices in inorder, returned
      *          by value (ownership transferred to the caller). For a correctly
      *          built Cartesian Tree, this sequence is `{0, 1, ..., n-1}`.
@@ -426,7 +426,7 @@ namespace Aleph
 
     /** @brief Copy of the original data array.
      *
-     *  @param None.
+     *  @note This function takes no parameters.
      *  @return A new `Array<T>` with all stored values in original index
      *          order, returned by value (ownership transferred to the caller).
      *          If the tree is empty, returns an empty `Array<T>`.
@@ -563,7 +563,7 @@ namespace Aleph
       for (size_t i = 0; i < n; ++i)
         first_(i) = NONE;
 
-      // Stack entries: (node, phase, depth)
+      // Stack entries: (node, phase, depth, cached children)
       // phase 0: first visit — record euler, push left child
       // phase 1: back from left — if left existed, record euler;
       //          push right child
@@ -574,12 +574,18 @@ namespace Aleph
         size_t node;
         int phase;
         size_t depth;
+        size_t left;
+        size_t right;
+      };
+      auto make_frame = [this](const size_t node, const size_t depth) -> Frame
+      {
+        return {node, 0, depth, tree_.left_child(node), tree_.right_child(node)};
       };
       auto stk = Array<Frame>::create(n);
       size_t top = 0;
       size_t eidx = 0;
 
-      stk(top++) = {tree_.root(), 0, 0};
+      stk(top++) = make_frame(tree_.root(), 0);
 
       while (top > 0)
         {
@@ -593,13 +599,13 @@ namespace Aleph
               ++eidx;
               frame.phase = 1;
 
-              if (size_t lc = tree_.left_child(frame.node); lc != NONE)
-                stk(top++) = {lc, 0, frame.depth + 1};
+              if (frame.left != NONE)
+                stk(top++) = make_frame(frame.left, frame.depth + 1);
             }
           else if (frame.phase == 1)
             {
               // Back from left subtree
-              if (const size_t lc = tree_.left_child(frame.node); lc != NONE)
+              if (frame.left != NONE)
                 {
                   // We actually returned from left child — record again
                   euler_(eidx) = frame.node;
@@ -608,13 +614,13 @@ namespace Aleph
                 }
               frame.phase = 2;
 
-              if (size_t rc = tree_.right_child(frame.node); rc != NONE)
-                stk(top++) = {rc, 0, frame.depth + 1};
+              if (frame.right != NONE)
+                stk(top++) = make_frame(frame.right, frame.depth + 1);
             }
           else
             {
               // Back from right subtree
-              if (const size_t rc = tree_.right_child(frame.node); rc != NONE)
+              if (frame.right != NONE)
                 {
                   // We actually returned from right child — record again
                   euler_(eidx) = frame.node;
@@ -625,6 +631,7 @@ namespace Aleph
             }
         }
 
+      // Euler tour length is exactly 2*n-1 for any non-empty binary tree.
       assert(eidx == euler_size_);
     }
 
@@ -647,7 +654,7 @@ namespace Aleph
      *  @param c      comparator.
      */
     Gen_Euler_Tour_LCA(const Array<T> & values, Comp c = Comp())
-      : tree_(values, c), sparse_({DepthEntry{0, 0}}), euler_size_(0)
+      : tree_(values, c), sparse_(0, DepthEntry{0, 0}), euler_size_(0)
     {
       build_euler_tour();
       build_sparse_table();
@@ -655,7 +662,7 @@ namespace Aleph
 
     /** @brief Construct from a std::vector\<T\>. */
     Gen_Euler_Tour_LCA(const std::vector<T> & values, Comp c = Comp())
-      : tree_(values, c), sparse_({DepthEntry{0, 0}}), euler_size_(0)
+      : tree_(values, c), sparse_(0, DepthEntry{0, 0}), euler_size_(0)
     {
       build_euler_tour();
       build_sparse_table();
@@ -663,7 +670,7 @@ namespace Aleph
 
     /** @brief Construct from an initializer_list\<T\>. */
     Gen_Euler_Tour_LCA(std::initializer_list<T> il, Comp c = Comp())
-      : tree_(il, c), sparse_({DepthEntry{0, 0}}), euler_size_(0)
+      : tree_(il, c), sparse_(0, DepthEntry{0, 0}), euler_size_(0)
     {
       build_euler_tour();
       build_sparse_table();
@@ -671,7 +678,7 @@ namespace Aleph
 
     /** @brief Construct from a DynList\<T\>. */
     Gen_Euler_Tour_LCA(const DynList<T> & values, Comp c = Comp())
-      : tree_(values, c), sparse_({DepthEntry{0, 0}}), euler_size_(0)
+      : tree_(values, c), sparse_(0, DepthEntry{0, 0}), euler_size_(0)
     {
       build_euler_tour();
       build_sparse_table();
@@ -679,7 +686,7 @@ namespace Aleph
 
     /** @brief Construct with @p num elements all equal to @p init. */
     Gen_Euler_Tour_LCA(const size_t num, const T & init, Comp c = Comp())
-      : tree_(num, init, c), sparse_({DepthEntry{0, 0}}), euler_size_(0)
+      : tree_(num, init, c), sparse_(0, DepthEntry{0, 0}), euler_size_(0)
     {
       build_euler_tour();
       build_sparse_table();
@@ -859,10 +866,10 @@ namespace Aleph
      */
     T query(const size_t l, const size_t r) const
     {
-      ah_out_of_range_error_if(r >= lca_.size())
-        << "Gen_Cartesian_Tree_RMQ::query: r=" << r << " >= n=" << lca_.size();
       ah_out_of_range_error_if(l > r)
         << "Gen_Cartesian_Tree_RMQ::query: l=" << l << " > r=" << r;
+      ah_out_of_range_error_if(r >= lca_.size())
+        << "Gen_Cartesian_Tree_RMQ::query: r=" << r << " >= n=" << lca_.size();
 
       return lca_.tree().data_at(lca_.lca(l, r));
     }
@@ -878,10 +885,10 @@ namespace Aleph
      */
     size_t query_idx(const size_t l, const size_t r) const
     {
-      ah_out_of_range_error_if(r >= lca_.size())
-        << "Gen_Cartesian_Tree_RMQ::query_idx: r=" << r << " >= n=" << lca_.size();
       ah_out_of_range_error_if(l > r)
         << "Gen_Cartesian_Tree_RMQ::query_idx: l=" << l << " > r=" << r;
+      ah_out_of_range_error_if(r >= lca_.size())
+        << "Gen_Cartesian_Tree_RMQ::query_idx: r=" << r << " >= n=" << lca_.size();
 
       return lca_.lca(l, r);
     }

@@ -51,6 +51,7 @@
 # define TPL_TDRBTREERK_H
 
 # include <functional>
+# include <limits>
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
 # include <tpl_binNodeXt.H>
@@ -101,6 +102,9 @@ public:
   using Node = NodeType<Key>;
   using key_type = Key;
   using compare_type = Compare;
+  static constexpr size_t PATH_STACK_CAPACITY = 128;
+  static_assert(PATH_STACK_CAPACITY >= 2 * std::numeric_limits<size_t>::digits,
+                "PATH_STACK_CAPACITY too small for red-black worst-case height");
 
 private:
   Node headNode;      ///< Sentinel header node (parent of root)
@@ -233,7 +237,7 @@ private:
     assert(COLOR(q) == RED);
 
     // Stack to track visited nodes for count updates
-    Node* stack[128];
+    Node* stack[PATH_STACK_CAPACITY];
     size_t stack_len = 0;
 
     Node *p    = root;
@@ -305,7 +309,7 @@ private:
     assert(root != Node::NullPtr);
     assert(COLOR(q) == RED);
 
-    Node* stack[128];
+    Node* stack[PATH_STACK_CAPACITY];
     size_t stack_len = 0;
 
     Node *p    = root;
@@ -835,7 +839,7 @@ public:
     if (root == Node::NullPtr)
       return nullptr;
     
-    Node* stack[128];
+    Node* stack[PATH_STACK_CAPACITY];
     size_t stack_len = 0;
       
     Node *fp;
@@ -981,7 +985,6 @@ public:
     @tparam Compare Comparison functor.
  */
 template <typename Key, class Compare = Aleph::less<Key>>
-    requires StrictWeakOrder<Compare, Key>
 class TdRbTreeRk : public GenTdRbTreeRk<RbNodeRk, Key, Compare>
 {
   using Base = GenTdRbTreeRk<RbNodeRk, Key, Compare>;
@@ -994,7 +997,6 @@ public:
     @tparam Compare Comparison functor.
  */
 template <typename Key, class Compare = Aleph::less<Key>>
-    requires StrictWeakOrder<Compare, Key>
 class TdRbTreeRkVtl : public GenTdRbTreeRk<RbNodeRkVtl, Key, Compare>
 {
   using Base = GenTdRbTreeRk<RbNodeRkVtl, Key, Compare>;

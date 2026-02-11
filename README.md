@@ -1923,8 +1923,8 @@ int main() {
     });
 
     // Parallel for_each: apply operation to all elements
-    pfor_each(items, [](Item& item) {
-        item.expensive_process();
+    pfor_each(numbers, [](int& x) {
+        x *= 2;
     });
 
     return 0;
