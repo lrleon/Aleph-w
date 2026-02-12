@@ -681,7 +681,7 @@ public:
 
     // There is a proper intersection when each segment straddles the other.
     return (src_.is_to_left_from(s) xor tgt_.is_to_left_from(s)) and
-           s.src_.is_to_left_from(*this) xor s.tgt_.is_to_left_from(*this);
+           (s.src_.is_to_left_from(*this) xor s.tgt_.is_to_left_from(*this));
   }
 
   /// Return true if @p p lies on this segment.
@@ -764,30 +764,28 @@ public:
     return src_.y_ < tgt_.y_ ? N : S;
   }
 
-  /// Extend the segment by @p __dist from the source endpoint.
+  /// Extend the segment by @p dist from the source endpoint (away from target).
   void enlarge_src(const Geom_Number & dist)
   {
-    const double m = slope();
-
-    Point p = compute_tgt_point(src_, m, -dist);
-
-    if (const Segment s(p, src_); s.size() < dist) // fallback to extending forward
-      p = compute_tgt_point(src_, m, dist);
-
-    src_ = p;
+    const Geom_Number dx = tgt_.x_ - src_.x_;
+    const Geom_Number dy = tgt_.y_ - src_.y_;
+    const Geom_Number len = pitag(dx, dy);
+    if (len == 0)
+      return;
+    src_.x_ -= dist * dx / len;
+    src_.y_ -= dist * dy / len;
   }
 
-  /// Extend the segment by @p __dist from the target endpoint.
+  /// Extend the segment by @p dist from the target endpoint (away from source).
   void enlarge_tgt(const Geom_Number & dist)
   {
-    const double m = slope();
-
-    Point p = compute_tgt_point(tgt_, m, dist);
-
-    if (const Segment s(tgt_, p); s.size() < dist)
-      p = compute_tgt_point(tgt_, m, -dist);
-
-    tgt_ = p;
+    const Geom_Number dx = tgt_.x_ - src_.x_;
+    const Geom_Number dy = tgt_.y_ - src_.y_;
+    const Geom_Number len = pitag(dx, dy);
+    if (len == 0)
+      return;
+    tgt_.x_ += dist * dx / len;
+    tgt_.y_ += dist * dy / len;
   }
 
   /// Return "(src)(tgt)" textual form.
@@ -802,7 +800,7 @@ public:
   }
 
   /// Rotate the segment by @p angle (radians) around the source point.
-  void rotate(const double & angle)
+  void rotate(const Geom_Number & angle)
   {
     if (angle == 0)
       return;
@@ -864,9 +862,7 @@ inline Geom_Number Point::distance_squared_to(const Point & that) const
 // Return the Euclidean distance to p.
 inline Geom_Number Point::distance_with(const Point & p) const
 {
-  const Segment seg(*this, p);
-
-  return seg.size();
+  return pitag(p.x_ - x_, p.y_ - y_);
 }
 
 
@@ -921,7 +917,7 @@ public:
   /// Returns true if the triangle vertices are ordered clockwise.
   [[nodiscard]] bool is_clockwise() const
   {
-    return area_ >= 0;
+    return area_ < 0;
   }
 
   [[nodiscard]] const Point &highest_point() const
@@ -1109,13 +1105,18 @@ inline Segment Segment::intersection_with(const Triangle & t) const
   try
     { // check intersection against edge p3-p1
       p[i] = this->intersection_with(Segment(t.get_p3(), t.get_p1()));
+
+      if (t.contains_to(p[i]))
+        ++i;
     }
   catch (std::domain_error &)
     {
-      throw; // should be unreachable because intersection was confirmed
+      // No intersection with this edge.
     }
 
-  // Result depends on the number of intersection points captured.
+  ah_domain_error_if(i == 0)
+    << "no intersection point found despite intersection confirmed";
+
   return i == 1 ? Segment(p[0], p[0]) : Segment(p[0], p[1]);
 }
 
@@ -1275,12 +1276,23 @@ public:
   // Returns true if segment @p s intersects the ellipse.
   [[nodiscard]] bool intersects_with(const Segment & s) const
   {
+    const Geom_Number dx = s.get_tgt_point().get_x() - s.get_src_point().get_x();
+
+    // Vertical segment: check if x-coordinate is within ellipse x-range.
+    if (dx == 0)
+      {
+        const Geom_Number sx = s.get_src_point().get_x();
+        return sx >= center_.get_x() - hr_ and sx <= center_.get_x() + hr_;
+      }
+
+    // Non-vertical: compute exact slope and use tangent-based test.
+    const Geom_Number m =
+        (s.get_tgt_point().get_y() - s.get_src_point().get_y()) / dx;
+
     Segment tg1;
     Segment tg2;
+    compute_tangents(tg1, tg2, m);
 
-    compute_tangents(tg1, tg2, s.slope()); // build both parallel tangents
-
-    // intersection exists if @p s lies between both tangents
     return (s.is_to_left_from(tg1.get_src_point()) xor
             s.is_to_left_from(tg2.get_tgt_point()));
   }
@@ -1377,59 +1389,59 @@ y2 = ----------------------------------------------------------------------
     const Geom_Number a2 = a * a;
     const Geom_Number b2 = b * b;
 
-    const Geom_Number ab = a * b;
-
     // Segment translated to coordinate system with origin at (xc, yc).
     const Segment sg_new(sg.get_src_point() - center_,
                          sg.get_tgt_point() - center_);
 
-    const Point & pr = sg_new.get_tgt_point();
+    const Geom_Number dx = sg_new.get_tgt_point().get_x() -
+                           sg_new.get_src_point().get_x();
 
+    // Vertical segment special case: x = constant, solve y from ellipse eq.
+    if (dx == 0)
+      {
+        const Geom_Number & xr = sg_new.get_src_point().get_x();
+        const Geom_Number xr2 = xr * xr;
+
+        ah_domain_error_if(xr2 > a2)
+          << "vertical segment outside ellipse x-range";
+
+        const Geom_Number y_sq = b2 * (Geom_Number(1) - xr2 / a2);
+        const Geom_Number y_val = square_root(y_sq);
+
+        return {Point(xr, -y_val) + center_, Point(xr, y_val) + center_};
+      }
+
+    // Non-vertical: compute exact slope as Geom_Number.
+    const Geom_Number m = (sg_new.get_tgt_point().get_y() -
+                           sg_new.get_src_point().get_y()) / dx;
+
+    const Geom_Number ab = a * b;
+    const Geom_Number m2 = m * m;
+
+    const Point & pr = sg_new.get_tgt_point();
     const Geom_Number & xr = pr.get_x();
     const Geom_Number & yr = pr.get_y();
 
-    const Geom_Number m = sg_new.slope();
-
-    assert(m == sg.slope());
-
-    const Geom_Number m2 = m * m;
-
-    const Geom_Number yr2 = yr * yr;
-
-    const Geom_Number xr2 = xr * xr;
-
-    assert(m2 >= 0 and yr2 >= 0 and xr2 >= 0);
-
     const Geom_Number a2m2_plus_b2 = a2 * m2 + b2;
 
-    Geom_Number ab_root = -yr2 + 2 * m * xr * yr - m2 * xr2 + a2m2_plus_b2;
+    const Geom_Number yr_minus_m_xr = yr - m * xr;
+
+    Geom_Number ab_root = a2m2_plus_b2 - yr_minus_m_xr * yr_minus_m_xr;
     ab_root = ab * square_root(ab_root);
 
     const Geom_Number ab_m_root = m * ab_root;
 
-    const Geom_Number yr_minus_m_xr = yr - m * xr;
-
     const Geom_Number sumx = a2 * m * yr_minus_m_xr;
-
     const Geom_Number sumy = b2 * yr_minus_m_xr;
 
-    // With the main calculations done, compute the final values.
-
     const Geom_Number x1 = -(ab_root + sumx) / a2m2_plus_b2;
-
     const Geom_Number y1 = -(ab_m_root - sumy) / a2m2_plus_b2;
 
     const Geom_Number x2 = (ab_root - sumx) / a2m2_plus_b2;
-
     const Geom_Number y2 = (ab_m_root + sumy) / a2m2_plus_b2;
 
-    // Since results are for the ellipse at (0,0), translate the intersection
-    // points back to the actual ellipse center.
-
-    const Point src = Point(x1, y1) + center_;
-    const Point tgt = Point(x2, y2) + center_;
-
-    return {src, tgt};
+    // Translate back from ellipse-centered coords to actual center.
+    return {Point(x1, y1) + center_, Point(x2, y2) + center_};
   }
 };
 
@@ -1576,6 +1588,51 @@ orientation(const Point & a, const Point & b, const Point & c)
   return Orientation::COLLINEAR;
 }
 
+/// Classification of a point with respect to a triangle circumcircle.
+enum class InCircleResult { INSIDE, ON_CIRCLE, OUTSIDE, DEGENERATE };
+
+/** Return exact in-circle determinant for (a,b,c,p).
+    The sign depends on triangle orientation (a,b,c). */
+[[nodiscard]] inline Geom_Number
+in_circle_determinant(const Point & a, const Point & b,
+                      const Point & c, const Point & p)
+{
+  const Geom_Number adx = a.get_x() - p.get_x();
+  const Geom_Number ady = a.get_y() - p.get_y();
+  const Geom_Number bdx = b.get_x() - p.get_x();
+  const Geom_Number bdy = b.get_y() - p.get_y();
+  const Geom_Number cdx = c.get_x() - p.get_x();
+  const Geom_Number cdy = c.get_y() - p.get_y();
+
+  const Geom_Number ad2 = adx * adx + ady * ady;
+  const Geom_Number bd2 = bdx * bdx + bdy * bdy;
+  const Geom_Number cd2 = cdx * cdx + cdy * cdy;
+
+  return ad2 * (bdx * cdy - bdy * cdx) -
+         bd2 * (adx * cdy - ady * cdx) +
+         cd2 * (adx * bdy - ady * bdx);
+}
+
+/** Classify point p against circumcircle of triangle (a,b,c), exactly.
+    @return INSIDE/ON_CIRCLE/OUTSIDE. If (a,b,c) is collinear, returns DEGENERATE. */
+[[nodiscard]] inline InCircleResult
+in_circle(const Point & a, const Point & b,
+          const Point & c, const Point & p)
+{
+  const Orientation o = orientation(a, b, c);
+  if (o == Orientation::COLLINEAR)
+    return InCircleResult::DEGENERATE;
+
+  const Geom_Number det = in_circle_determinant(a, b, c, p);
+  if (det == 0)
+    return InCircleResult::ON_CIRCLE;
+
+  if (o == Orientation::CCW)
+    return det > 0 ? InCircleResult::INSIDE : InCircleResult::OUTSIDE;
+
+  return det < 0 ? InCircleResult::INSIDE : InCircleResult::OUTSIDE;
+}
+
 /// Return true if @p p lies on segment @p s (exact).
 [[nodiscard]] inline bool
 on_segment(const Segment & s, const Point & p)
@@ -1600,14 +1657,63 @@ segments_intersect(const Point & a, const Point & b,
 
 /** Compute the exact intersection point of segments @p s1 and @p s2.
     @throws std::domain_error if segments do not intersect.
-    @throws std::domain_error if segments are parallel/collinear (no unique point). */
+    @throws std::domain_error if the intersection set is not a unique point. */
 [[nodiscard]] inline Point
 segment_intersection_point(const Segment & s1, const Segment & s2)
 {
   ah_domain_error_if(not segments_intersect(s1, s2))
     << "Segments do not intersect";
 
-  return s1.intersection_with(s2);
+  const Point & a = s1.get_src_point();
+  const Point & b = s1.get_tgt_point();
+  const Point & c = s2.get_src_point();
+  const Point & d = s2.get_tgt_point();
+
+  // Degenerate-point cases may still have a unique intersection point.
+  if (a == b and c == d)
+    {
+      ah_domain_error_if(a != c) << "Segments do not intersect";
+      return a;
+    }
+
+  if (a == b)
+    return a;
+
+  if (c == d)
+    return c;
+
+  if (not s1.is_parallel_with(s2))
+    return s1.intersection_with(s2);
+
+  // Collinear/parallel intersections can still be unique (touching endpoint).
+  Point unique_point;
+  bool has_unique_point = false;
+  auto accept_candidate = [&unique_point, &has_unique_point](const Point & p)
+  {
+      if (not has_unique_point)
+        {
+          unique_point = p;
+          has_unique_point = true;
+          return;
+        }
+
+      ah_domain_error_if(unique_point != p)
+        << "No unique intersection point";
+  };
+
+  if (on_segment(s2, a))
+    accept_candidate(a);
+  if (on_segment(s2, b))
+    accept_candidate(b);
+  if (on_segment(s1, c))
+    accept_candidate(c);
+  if (on_segment(s1, d))
+    accept_candidate(d);
+
+  ah_domain_error_if(not has_unique_point)
+    << "No unique intersection point";
+
+  return unique_point;
 }
 
 /// Return the (unsigned) area of triangle (a, b, c) as an exact rational.

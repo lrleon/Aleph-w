@@ -34,7 +34,7 @@
  * @file robust_predicates_test.cc
  * @brief Tests for robust geometry predicates in point.H
  *
- * Tests orientation(), on_segment(), segments_intersect(),
+ * Tests orientation(), in_circle(), on_segment(), segments_intersect(),
  * segment_intersection_point(), is_parallel_with(), and area_of_triangle().
  */
 
@@ -65,6 +65,55 @@ TEST(Orientation, DegenerateCoincident)
 {
   Point a(3, 5), b(3, 5), c(7, 2);
   EXPECT_EQ(orientation(a, b, c), Orientation::COLLINEAR);
+}
+
+// ===================== in_circle tests =====================
+
+TEST(InCircle, InsideCCW)
+{
+  Point a(0, 0), b(4, 0), c(0, 4);
+  Point p(1, 1);
+  EXPECT_EQ(in_circle(a, b, c, p), InCircleResult::INSIDE);
+}
+
+TEST(InCircle, InsideCW)
+{
+  Point a(0, 0), b(0, 4), c(4, 0);
+  Point p(1, 1);
+  EXPECT_EQ(in_circle(a, b, c, p), InCircleResult::INSIDE);
+}
+
+TEST(InCircle, OnCircle)
+{
+  Point a(0, 0), b(4, 0), c(0, 4);
+  Point p(4, 4);
+  EXPECT_EQ(in_circle(a, b, c, p), InCircleResult::ON_CIRCLE);
+}
+
+TEST(InCircle, Outside)
+{
+  Point a(0, 0), b(4, 0), c(0, 4);
+  Point p(5, 5);
+  EXPECT_EQ(in_circle(a, b, c, p), InCircleResult::OUTSIDE);
+}
+
+TEST(InCircle, DegenerateTriangleCollinear)
+{
+  Point a(0, 0), b(1, 1), c(2, 2);
+  Point p(0, 3);
+  EXPECT_EQ(in_circle(a, b, c, p), InCircleResult::DEGENERATE);
+}
+
+TEST(InCircleDeterminant, SignDependsOnTriangleOrientation)
+{
+  Point a(0, 0), b(4, 0), c(0, 4);
+  Point p(1, 1);
+
+  const Geom_Number det_ccw = in_circle_determinant(a, b, c, p);
+  const Geom_Number det_cw = in_circle_determinant(a, c, b, p);
+
+  EXPECT_GT(det_ccw, 0);
+  EXPECT_LT(det_cw, 0);
 }
 
 // ===================== on_segment tests =====================
@@ -231,6 +280,33 @@ TEST(IntersectionPoint, CollinearOverlapThrows)
   Segment s2(Point(2, 0), Point(5, 0));
   EXPECT_TRUE(segments_intersect(s1, s2));
   EXPECT_THROW(segment_intersection_point(s1, s2), std::domain_error);
+}
+
+TEST(IntersectionPoint, CollinearTouchingAtEndpointReturnsUniquePoint)
+{
+  Segment s1(Point(0, 0), Point(2, 0));
+  Segment s2(Point(2, 0), Point(5, 0));
+  Point p = segment_intersection_point(s1, s2);
+  EXPECT_EQ(p.get_x(), 2);
+  EXPECT_EQ(p.get_y(), 0);
+}
+
+TEST(IntersectionPoint, DegeneratePointOnSegmentReturnsThatPoint)
+{
+  Segment point_seg(Point(2, 2), Point(2, 2));
+  Segment diag(Point(0, 0), Point(4, 4));
+  Point p = segment_intersection_point(point_seg, diag);
+  EXPECT_EQ(p.get_x(), 2);
+  EXPECT_EQ(p.get_y(), 2);
+}
+
+TEST(IntersectionPoint, DegenerateIdenticalPointsReturnThatPoint)
+{
+  Segment s1(Point(3, -1), Point(3, -1));
+  Segment s2(Point(3, -1), Point(3, -1));
+  Point p = segment_intersection_point(s1, s2);
+  EXPECT_EQ(p.get_x(), 3);
+  EXPECT_EQ(p.get_y(), -1);
 }
 
 // ============== is_parallel_with tests ===================

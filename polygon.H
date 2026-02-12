@@ -87,9 +87,9 @@
 # include <point.H>
 # include <ah-errors.H>
 # include <string>
-#include <utility>
+# include <utility>
 
-using namespace Aleph;
+using Aleph::Dlink;
 
 /** @brief A vertex in a polygon's doubly linked vertex list.
  *
@@ -236,7 +236,7 @@ class Polygon : public Geom_Object
 {
   Dlink vertex_list; ///< Doubly linked list of vertices
   size_t num_vertex; ///< Number of vertices in the polygon
-  bool __is_closed; ///< True if the polygon has been closed
+  bool is_closed_; ///< True if the polygon has been closed
 
   Point lowest; ///< Vertex with minimum y-coordinate
   Point highest; ///< Vertex with maximum y-coordinate
@@ -273,7 +273,7 @@ class Polygon : public Geom_Object
       delete Vertex::dlink_to_vertex(vertex_list.remove_next());
 
     num_vertex = 0;
-    __is_closed = false;
+    is_closed_ = false;
   }
 
   /// @brief Copy all vertices from another polygon.
@@ -292,7 +292,7 @@ class Polygon : public Geom_Object
 
 public:
   /// @brief Default constructor. Creates an empty, open polygon.
-  Polygon() : num_vertex(0), __is_closed(false)
+  Polygon() : num_vertex(0), is_closed_(false)
   { /* empty */
   }
 
@@ -306,7 +306,7 @@ public:
   /// @param poly The polygon to copy.
   Polygon(const Polygon & poly)
     : Geom_Object(poly),
-      num_vertex(poly.num_vertex), __is_closed(poly.__is_closed),
+      num_vertex(poly.num_vertex), is_closed_(poly.is_closed_),
       lowest(poly.lowest), highest(poly.highest),
       leftmost(poly.leftmost), rightmost(poly.rightmost)
   {
@@ -320,7 +320,7 @@ public:
   {
     vertex_list.swap(poly.vertex_list);
     std::swap(num_vertex, poly.num_vertex);
-    std::swap(__is_closed, poly.__is_closed);
+    std::swap(is_closed_, poly.is_closed_);
     std::swap(lowest, poly.lowest);
     std::swap(highest, poly.highest);
     std::swap(leftmost, poly.leftmost);
@@ -331,7 +331,7 @@ public:
   /// @param poly The regular polygon to convert.
   /// @note The resulting polygon is automatically closed.
   Polygon(const Regular_Polygon & poly)
-    : num_vertex(0), __is_closed(false)
+    : num_vertex(0), is_closed_(false)
   {
     copy_regular_polygon(poly);
   }
@@ -347,7 +347,7 @@ public:
     delete_points();
 
     num_vertex = poly.num_vertex;
-    __is_closed = poly.__is_closed;
+    is_closed_ = poly.is_closed_;
     lowest = poly.lowest;
     highest = poly.highest;
     leftmost = poly.leftmost;
@@ -365,7 +365,7 @@ public:
   {
     vertex_list.swap(poly.vertex_list);
     std::swap(num_vertex, poly.num_vertex);
-    std::swap(__is_closed, poly.__is_closed);
+    std::swap(is_closed_, poly.is_closed_);
     std::swap(lowest, poly.lowest);
     std::swap(highest, poly.highest);
     std::swap(leftmost, poly.leftmost);
@@ -403,7 +403,7 @@ public:
 
   /// @brief Check if the polygon is closed.
   /// @return True if closed, false if still open.
-  [[nodiscard]] const bool &is_closed() const { return __is_closed; }
+  [[nodiscard]] const bool &is_closed() const { return is_closed_; }
 
   /// @brief Get the number of vertices.
   /// @return Number of vertices in the polygon.
@@ -426,7 +426,7 @@ public:
     Vertex_Iterator(const Polygon & poly) : Dlink::Iterator(poly.vertex_list)
     {
       ah_domain_error_if(poly.vertex_list.is_empty())
-	<< "Polygon has not any vertex";
+	      << "Polygon has not any vertex";
     }
 
     /// @brief Get the current vertex.
@@ -606,7 +606,7 @@ public:
    */
   void add_vertex(const Point & point)
   {
-    ah_domain_error_if(__is_closed) << "Polygon is already closed";
+    ah_domain_error_if(is_closed_) << "Polygon is already closed";
 
     // Check if the new point is colinear with the last segment
     if (num_vertex > 1)
@@ -702,7 +702,7 @@ public:
    */
   void close()
   {
-    ah_domain_error_if(__is_closed) << "Polygon is already closed";
+    ah_domain_error_if(is_closed_) << "Polygon is already closed";
 
     if (num_vertex >= 4)
       {
@@ -724,37 +724,49 @@ public:
           }
       }
 
-    __is_closed = true;
+    is_closed_ = true;
   }
 
-  /** @brief Check if a point is inside the polygon.
+  /** @brief Check if a point is inside the polygon (or on its boundary).
    *
-   *  Tests whether the given point lies inside this closed polygon.
-   *  The test works by checking if the point is consistently on the same
-   *  side (left or right) of all edges.
+   *  Tests whether the given point lies inside or on the boundary of this
+   *  closed simple polygon. Uses the winding number algorithm, which works
+   *  correctly for both convex and non-convex polygons.
    *
    *  @param p The point to test.
-   *  @return True if @p p is inside the polygon.
+   *  @return True if @p p is inside or on the boundary.
    *  @throws std::domain_error If the polygon is not closed.
-   *
-   *  @note This algorithm assumes a **convex** polygon. For non-convex
-   *        polygons, use a ray-casting or winding number algorithm.
    */
   [[nodiscard]] bool contains_to(const Point & p) const
   {
-    ah_domain_error_if(not __is_closed) << "Polygon is not closed";
+    ah_domain_error_if(not is_closed_) << "Polygon is not closed";
 
-    Segment_Iterator it(*this);
+    int winding = 0;
 
-    const bool test = p.is_to_left_from(it.get_current_segment());
+    for (Segment_Iterator it(*this); it.has_curr(); it.next_ne())
+      {
+        const Segment edge = it.get_current_segment();
+        const Point & a = edge.get_src_point();
+        const Point & b = edge.get_tgt_point();
 
-    it.next();
+        if (on_segment(edge, p))
+          return true;
 
-    for (/* nothing */ ; it.has_curr(); it.next_ne())
-      if (p.is_to_left_from(it.get_current_segment()) != test)
-        return false;
+        if (a.get_y() <= p.get_y())
+          {
+            if (b.get_y() > p.get_y() and
+                orientation(a, b, p) == Orientation::CCW)
+              ++winding;
+          }
+        else
+          {
+            if (b.get_y() <= p.get_y() and
+                orientation(a, b, p) == Orientation::CW)
+              --winding;
+          }
+      }
 
-    return true;
+    return winding != 0;
   }
 
   /** @brief Construct a polygon from a Triangle.
@@ -764,7 +776,7 @@ public:
    *  @param tr The triangle to convert.
    */
   Polygon(const Triangle & tr)
-    : num_vertex(0), __is_closed(false)
+    : num_vertex(0), is_closed_(false)
   {
     add_vertex(tr.get_p1());
     add_vertex(tr.get_p2());
@@ -1068,7 +1080,7 @@ public:
  */
 inline void Polygon::copy_regular_polygon(const Regular_Polygon & poly)
 {
-  assert(num_vertex == 0 and not __is_closed);
+  assert(num_vertex == 0 and not is_closed_);
 
   for (size_t i = 0; i < poly.size(); ++i)
     add_vertex(poly.get_vertex(i));

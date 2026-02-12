@@ -38,6 +38,7 @@
 
 #include <gtest/gtest.h>
 #include <tpl_2dtree.H>
+#include <tpl_array.H>
 #include <random>
 #include <algorithm>
 #include <vector>
@@ -62,9 +63,9 @@ TEST(K2TreeBasic, InsertSinglePoint)
 {
   K2TreeInt tree(0, 0, 100, 100);
   
-  Point * inserted = tree.insert(Point(50, 50));
+  bool inserted = tree.insert(Point(50, 50));
   
-  ASSERT_NE(inserted, nullptr);
+  EXPECT_TRUE(inserted);
   EXPECT_EQ(tree.size(), 1);
   EXPECT_FALSE(tree.is_empty());
 }
@@ -84,11 +85,11 @@ TEST(K2TreeBasic, InsertDuplicatePoint)
 {
   K2TreeInt tree(0, 0, 100, 100);
   
-  Point * first = tree.insert(Point(50, 50));
-  Point * second = tree.insert(Point(50, 50));
+  bool first = tree.insert(Point(50, 50));
+  bool second = tree.insert(Point(50, 50));
   
-  ASSERT_NE(first, nullptr);
-  EXPECT_EQ(second, nullptr); // Duplicates not allowed
+  EXPECT_TRUE(first);
+  EXPECT_FALSE(second); // Duplicates not allowed
   EXPECT_EQ(tree.size(), 1);
 }
 
@@ -598,7 +599,7 @@ TEST(K2TreeCorrectness, NearestIsActuallyNearest)
   for (const auto & p : points)
     {
       Geom_Number dist = p.distance_with(query);
-      EXPECT_GE(dist, min_dist - 1e-9); // Allow tiny floating point error
+      EXPECT_LE(min_dist, dist); // Exact arithmetic — no tolerance needed
     }
 }
 
@@ -667,8 +668,8 @@ TEST(K2TreeFuzz, RandomInsertionsAndQueries)
       if (op == 0) // Insert
         {
           Point p(coord_dis(gen), coord_dis(gen));
-          Point * result = tree.insert(p);
-          if (result != nullptr)
+          bool ok = tree.insert(p);
+          if (ok)
             {
               inserted.insert(std::make_pair(static_cast<double>(p.get_x().get_d()), 
                                              static_cast<double>(p.get_y().get_d())));
@@ -700,6 +701,267 @@ TEST(K2TreeFuzz, RandomInsertionsAndQueries)
     {
       EXPECT_TRUE(tree.contains(Point(x, y)));
     }
+}
+
+// ============================================================================
+// Insert Correctness Tests
+// ============================================================================
+
+TEST(K2TreeInsertCorrectness, ReturnsTrueOnSuccess)
+{
+  K2TreeInt tree(0, 0, 100, 100);
+
+  EXPECT_TRUE(tree.insert(Point(10, 20)));
+  EXPECT_TRUE(tree.insert(Point(30, 40)));
+  EXPECT_TRUE(tree.insert(Point(50, 60)));
+  EXPECT_EQ(tree.size(), 3);
+}
+
+TEST(K2TreeInsertCorrectness, ReturnsFalseOnDuplicate)
+{
+  K2TreeInt tree(0, 0, 100, 100);
+
+  EXPECT_TRUE(tree.insert(Point(42, 17)));
+  EXPECT_FALSE(tree.insert(Point(42, 17)));
+  EXPECT_EQ(tree.size(), 1);
+}
+
+TEST(K2TreeInsertCorrectness, AllInsertedPointsAreContained)
+{
+  K2TreeInt tree(0, 0, 1000, 1000);
+
+  std::mt19937 gen(55555);
+  std::uniform_real_distribution<> dis(0, 1000);
+
+  std::vector<Point> points;
+  for (int i = 0; i < 200; ++i)
+    {
+      Point p(dis(gen), dis(gen));
+      if (tree.insert(p))
+        points.push_back(p);
+    }
+
+  for (const auto & p : points)
+    EXPECT_TRUE(tree.contains(p));
+
+  EXPECT_EQ(tree.size(), points.size());
+}
+
+// ============================================================================
+// Move Semantics Tests
+// ============================================================================
+
+TEST(K2TreeMove, MoveConstructor)
+{
+  K2TreeInt src(0, 0, 100, 100);
+  src.insert(Point(10, 20));
+  src.insert(Point(30, 40));
+  src.insert(Point(50, 60));
+  ASSERT_EQ(src.size(), 3);
+
+  K2TreeInt dst(std::move(src));
+
+  // dst owns the nodes now
+  EXPECT_EQ(dst.size(), 3);
+  EXPECT_TRUE(dst.contains(Point(10, 20)));
+  EXPECT_TRUE(dst.contains(Point(30, 40)));
+  EXPECT_TRUE(dst.contains(Point(50, 60)));
+
+  // src is empty after move
+  EXPECT_EQ(src.size(), 0);
+  EXPECT_TRUE(src.is_empty());
+}
+
+TEST(K2TreeMove, MoveAssignment)
+{
+  K2TreeInt src(0, 0, 100, 100);
+  src.insert(Point(10, 20));
+  src.insert(Point(30, 40));
+
+  K2TreeInt dst(0, 0, 200, 200);
+  dst.insert(Point(99, 99));
+  ASSERT_EQ(dst.size(), 1);
+
+  dst = std::move(src);
+
+  EXPECT_EQ(dst.size(), 2);
+  EXPECT_TRUE(dst.contains(Point(10, 20)));
+  EXPECT_TRUE(dst.contains(Point(30, 40)));
+  EXPECT_FALSE(dst.contains(Point(99, 99))); // old node freed
+
+  EXPECT_EQ(src.size(), 0);
+  EXPECT_TRUE(src.is_empty());
+}
+
+TEST(K2TreeMove, MoveToSelf)
+{
+  K2TreeInt tree(0, 0, 100, 100);
+  tree.insert(Point(5, 5));
+
+  tree = std::move(tree);
+
+  // Self-move should be a no-op
+  EXPECT_EQ(tree.size(), 1);
+  EXPECT_TRUE(tree.contains(Point(5, 5)));
+}
+
+// ============================================================================
+// Balanced Build Tests
+// ============================================================================
+
+TEST(K2TreeBuild, EmptyArray)
+{
+  Array<Point> pts;
+  auto tree = K2TreeInt::build(pts, Point(0, 0), Point(100, 100));
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_EQ(tree.size(), 0);
+}
+
+TEST(K2TreeBuild, SinglePoint)
+{
+  Array<Point> pts;
+  pts.append(Point(42, 17));
+
+  auto tree = K2TreeInt::build(pts, Point(0, 0), Point(100, 100));
+
+  EXPECT_EQ(tree.size(), 1);
+  EXPECT_TRUE(tree.contains(Point(42, 17)));
+}
+
+TEST(K2TreeBuild, MultiplePoints)
+{
+  Array<Point> pts;
+  pts.append(Point(10, 10));
+  pts.append(Point(20, 20));
+  pts.append(Point(30, 30));
+  pts.append(Point(40, 40));
+  pts.append(Point(50, 50));
+
+  auto tree = K2TreeInt::build(pts, Point(0, 0), Point(100, 100));
+
+  EXPECT_EQ(tree.size(), 5);
+  for (size_t i = 0; i < pts.size(); ++i)
+    EXPECT_TRUE(tree.contains(pts(i)));
+}
+
+TEST(K2TreeBuild, DuplicatesRemoved)
+{
+  Array<Point> pts;
+  pts.append(Point(10, 10));
+  pts.append(Point(10, 10));
+  pts.append(Point(20, 20));
+  pts.append(Point(20, 20));
+  pts.append(Point(30, 30));
+
+  auto tree = K2TreeInt::build(pts, Point(0, 0), Point(100, 100));
+
+  EXPECT_EQ(tree.size(), 3);
+  EXPECT_TRUE(tree.contains(Point(10, 10)));
+  EXPECT_TRUE(tree.contains(Point(20, 20)));
+  EXPECT_TRUE(tree.contains(Point(30, 30)));
+}
+
+TEST(K2TreeBuild, NearestWorksOnBalancedTree)
+{
+  Array<Point> pts;
+  for (int i = 0; i <= 100; i += 10)
+    for (int j = 0; j <= 100; j += 10)
+      pts.append(Point(i, j));
+
+  auto tree = K2TreeInt::build(pts, Point(0, 0), Point(100, 100));
+
+  EXPECT_EQ(tree.size(), 121);
+
+  auto nearest = tree.nearest(Point(43, 57));
+  ASSERT_TRUE(nearest.has_value());
+
+  // Should find a grid point within one cell (distance < 10)
+  Geom_Number dist = nearest->distance_with(Point(43, 57));
+  EXPECT_LT(dist, 10);
+}
+
+TEST(K2TreeBuild, StressBuildVsInsert)
+{
+  std::mt19937 gen(12321);
+  std::uniform_real_distribution<> dis(0, 10000);
+
+  Array<Point> pts;
+  for (int i = 0; i < 5000; ++i)
+    pts.append(Point(dis(gen), dis(gen)));
+
+  auto balanced = K2TreeInt::build(pts, Point(0, 0), Point(10000, 10000));
+
+  // All unique points should be contained
+  for (size_t i = 0; i < pts.size(); ++i)
+    EXPECT_TRUE(balanced.contains(pts(i)));
+
+  // Nearest queries should give correct results
+  for (int i = 0; i < 100; ++i)
+    {
+      Point query(dis(gen), dis(gen));
+      auto near_bal = balanced.nearest(query);
+      ASSERT_TRUE(near_bal.has_value());
+
+      // Brute-force verification
+      Geom_Number best_d2 = near_bal->distance_squared_to(query);
+      for (size_t j = 0; j < pts.size(); ++j)
+        {
+          Geom_Number d2 = pts(j).distance_squared_to(query);
+          EXPECT_LE(best_d2, d2);
+        }
+    }
+}
+
+// ============================================================================
+// for_each Tests
+// ============================================================================
+
+TEST(K2TreeForEach, EmptyTree)
+{
+  K2TreeInt tree(0, 0, 100, 100);
+
+  size_t count = 0;
+  tree.for_each([&count](const Point &) { ++count; });
+
+  EXPECT_EQ(count, 0);
+}
+
+TEST(K2TreeForEach, VisitsAllPoints)
+{
+  K2TreeInt tree(0, 0, 100, 100);
+
+  std::set<std::pair<double, double>> expected;
+  for (int i = 0; i <= 50; i += 10)
+    for (int j = 0; j <= 50; j += 10)
+      {
+        tree.insert(Point(i, j));
+        expected.insert({static_cast<double>(i), static_cast<double>(j)});
+      }
+
+  std::set<std::pair<double, double>> visited;
+  tree.for_each([&visited](const Point & p)
+    {
+      visited.insert({p.get_x().get_d(), p.get_y().get_d()});
+    });
+
+  EXPECT_EQ(visited.size(), expected.size());
+  EXPECT_EQ(visited, expected);
+}
+
+TEST(K2TreeForEach, BalancedTreeVisitsAll)
+{
+  Array<Point> pts;
+  for (int i = 1; i <= 100; ++i)
+    pts.append(Point(i, i * 2));
+
+  auto tree = K2TreeInt::build(pts, Point(0, 0), Point(200, 200));
+
+  size_t count = 0;
+  tree.for_each([&count](const Point &) { ++count; });
+
+  EXPECT_EQ(count, tree.size());
+  EXPECT_EQ(count, 100);
 }
 
 // ============================================================================
