@@ -399,7 +399,11 @@ cmake --build build --parallel
 ./build/Examples/dijkstra_example
 ./build/Examples/mst_example
 ./build/Examples/network_flow_example
+./build/Examples/voronoi_clipped_cells_example /tmp/voronoi_clipped_cells.csv
 ```
+
+El ejemplo `voronoi_clipped_cells_example` genera celdas Voronoi recortadas
+e indexadas por sitio y las exporta en formato CSV/WKT.
 
 ---
 

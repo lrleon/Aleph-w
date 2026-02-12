@@ -209,50 +209,51 @@ TEST(K2TreeInsertion, ClusteredPoints)
 // Nearest Neighbor Tests
 // ============================================================================
 
-TEST(K2TreeNearest, SinglePoint)
+TEST(K2TreeNearest, BasicQueries)
 {
   K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(50, 50));
   
-  Point nearest = tree.nearest(Point(55, 55));
-  
-  EXPECT_EQ(nearest.get_x(), 50);
-  EXPECT_EQ(nearest.get_y(), 50);
+  auto nearest = tree.nearest(Point(55, 55));
+  ASSERT_TRUE(nearest.has_value());
+  EXPECT_EQ(nearest->get_x(), 50);
+  EXPECT_EQ(nearest->get_y(), 50);
 }
 
 TEST(K2TreeNearest, MultiplePoints)
 {
   K2TreeInt tree(0, 0, 100, 100);
   
-  tree.insert(Point(10, 10));
   tree.insert(Point(50, 50));
+  tree.insert(Point(10, 10));
   tree.insert(Point(90, 90));
   
   // Query near (50, 50)
-  Point nearest = tree.nearest(Point(52, 48));
-  EXPECT_EQ(nearest.get_x(), 50);
-  EXPECT_EQ(nearest.get_y(), 50);
+  auto nearest = tree.nearest(Point(52, 48));
+  ASSERT_TRUE(nearest.has_value());
+  EXPECT_EQ(nearest->get_x(), 50);
+  EXPECT_EQ(nearest->get_y(), 50);
   
   // Query near (10, 10)
   nearest = tree.nearest(Point(12, 12));
-  EXPECT_EQ(nearest.get_x(), 10);
-  EXPECT_EQ(nearest.get_y(), 10);
+  ASSERT_TRUE(nearest.has_value());
+  EXPECT_EQ(nearest->get_x(), 10);
+  EXPECT_EQ(nearest->get_y(), 10);
   
   // Query near (90, 90)
   nearest = tree.nearest(Point(88, 92));
-  EXPECT_EQ(nearest.get_x(), 90);
-  EXPECT_EQ(nearest.get_y(), 90);
+  ASSERT_TRUE(nearest.has_value());
+  EXPECT_EQ(nearest->get_x(), 90);
+  EXPECT_EQ(nearest->get_y(), 90);
 }
 
 TEST(K2TreeNearest, EmptyTree)
 {
   K2TreeInt tree(0, 0, 100, 100);
   
-  Point nearest = tree.nearest(Point(50, 50));
-  
-  // Should return NullPoint
-  EXPECT_EQ(nearest, NullPoint);
+  auto nearest = tree.nearest(Point(50, 50));
+  EXPECT_FALSE(nearest.has_value());
 }
 
 TEST(K2TreeNearest, ExactMatch)
@@ -262,10 +263,10 @@ TEST(K2TreeNearest, ExactMatch)
   tree.insert(Point(50, 50));
   tree.insert(Point(75, 75));
   
-  Point nearest = tree.nearest(Point(50, 50));
-  
-  EXPECT_EQ(nearest.get_x(), 50);
-  EXPECT_EQ(nearest.get_y(), 50);
+  auto nearest = tree.nearest(Point(50, 50));
+  ASSERT_TRUE(nearest.has_value());
+  EXPECT_EQ(nearest->get_x(), 50);
+  EXPECT_EQ(nearest->get_y(), 50);
 }
 
 TEST(K2TreeNearest, GridOfPoints)
@@ -282,10 +283,11 @@ TEST(K2TreeNearest, GridOfPoints)
     }
   
   // Query between grid points
-  Point nearest = tree.nearest(Point(43, 57));
+  auto nearest = tree.nearest(Point(43, 57));
+  ASSERT_TRUE(nearest.has_value());
   
   // Should find (40, 60) or (40, 50) or (50, 60) or (50, 50)
-  Geom_Number dist = nearest.distance_with(Point(43, 57));
+  Geom_Number dist = nearest->distance_with(Point(43, 57));
   EXPECT_LT(dist, 10); // Should be within one grid cell
 }
 
@@ -424,9 +426,8 @@ TEST(K2TreeStress, ManyNearestQueries)
   for (int i = 0; i < 1000; ++i)
     {
       Point query(dis(gen), dis(gen));
-      Point nearest = tree.nearest(query);
-      
-      EXPECT_NE(nearest, NullPoint);
+      auto nearest = tree.nearest(query);
+      EXPECT_TRUE(nearest.has_value());
     }
 }
 
@@ -589,10 +590,11 @@ TEST(K2TreeCorrectness, NearestIsActuallyNearest)
     tree.insert(p);
   
   Point query(45, 45);
-  Point nearest = tree.nearest(query);
+  auto nearest = tree.nearest(query);
+  ASSERT_TRUE(nearest.has_value());
   
   // Verify it's actually the nearest
-  Geom_Number min_dist = nearest.distance_with(query);
+  Geom_Number min_dist = nearest->distance_with(query);
   for (const auto & p : points)
     {
       Geom_Number dist = p.distance_with(query);
@@ -675,10 +677,10 @@ TEST(K2TreeFuzz, RandomInsertionsAndQueries)
       else if (op == 1) // Nearest
         {
           Point query(coord_dis(gen), coord_dis(gen));
-          Point nearest = tree.nearest(query);
+          auto nearest = tree.nearest(query);
           
           if (not tree.is_empty())
-            EXPECT_NE(nearest, NullPoint);
+            EXPECT_TRUE(nearest.has_value());
         }
       else // Range
         {

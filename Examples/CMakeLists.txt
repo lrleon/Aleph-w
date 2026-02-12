@@ -113,6 +113,7 @@ set(EXAMPLE_PROGRAMS
     mo_algorithm_example
     mo_on_trees_example
     robust_predicates_example
+    voronoi_clipped_cells_example
 )
 
 # Function to get source file from program name

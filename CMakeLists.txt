@@ -132,7 +132,6 @@ set(LIBCCCSRCS
     hash-dry.C
     aleph-graph.C
     ahNow.C
-    point.C
     euclidian-graph-common.C
 )
 

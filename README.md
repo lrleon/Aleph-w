@@ -913,13 +913,21 @@ Geom_Number area = area_of_triangle(a, b, c);  // exact
 | `orientation(a, b, c)` | `CCW`, `CW`, or `COLLINEAR` via cross-product |
 | `on_segment(s, p)` | True if `p` lies on segment `s` |
 | `segments_intersect(s1, s2)` | True if segments intersect (any config) |
-| `segment_intersection_point(s1, s2)` | Exact intersection point; throws if parallel |
+| `segment_intersection_point(s1, s2)` | Exact intersection point; throws if there is no unique intersection point |
 | `area_of_triangle(a, b, c)` | Unsigned area as exact rational |
 | `area_of_parallelogram(a, b, c)` | Signed area (2x triangle area) |
 
 Higher-level algorithms in `geom_algorithms.H`:
-- **Convex Hull**: Brute-force, Gift Wrapping, QuickHull
-- **Triangulation**: Ear-cutting (CuttingEarsTriangulation)
+- **Convex Hull**: Andrew, Graham, Brute-force, Gift Wrapping, QuickHull
+- **Closest Pair**: Divide & conquer (`O(n log n)`)
+- **Rotating Calipers**: Diameter and minimum width on convex polygons
+- **Point-in-Polygon**: Winding-based exact classification
+- **Convex Polygon Intersection**: Exact Sutherland-Hodgman clipping
+- **Half-Plane Intersection**: Exact bounded intersection
+- **Delaunay / Voronoi**: Bowyer-Watson triangulation and dual Voronoi
+
+See `Examples/voronoi_clipped_cells_example.cc` for clipped, site-indexed
+Voronoi cells exported as CSV/WKT.
 
 <a id="readme-linear-algebra-sparse-structures"></a>
 ### Linear Algebra (Sparse Structures)
@@ -2617,6 +2625,7 @@ cmake --build build
 | **Geometry** | | |
 | Robust predicates | `robust_predicates_example.cc` | Orientation, intersection, exact arithmetic |
 | Geometry algorithms | `geom_example.C` | Convex hull, triangulation |
+| Voronoi clipped cells | `voronoi_clipped_cells_example.cc` | Site-indexed clipped Voronoi cells with CSV/WKT export |
 | **Parallel** | | |
 | Thread pool | `thread_pool_example.cc` | Concurrent tasks |
 | Parallel ops | `ah_parallel_example.cc` | pmap, pfilter |

@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -88,23 +87,24 @@
 # include <point.H>
 # include <ah-errors.H>
 # include <string>
+#include <utility>
 
 using namespace Aleph;
 
-/** @brief A vertex in a polygon's doubly-linked vertex list.
+/** @brief A vertex in a polygon's doubly linked vertex list.
  *
- *  The Vertex class combines a 2D point with doubly-linked list capabilities.
+ *  The Vertex class combines a 2D point with doubly linked list capabilities.
  *  This allows polygons to store their vertices as an intrusive linked list
  *  while each vertex retains full Point functionality.
  *
  *  ## Design
  *
  *  - Inherits from Point for geometric coordinates.
- *  - Inherits from Dlink for doubly-linked list traversal.
+ *  - Inherits from Dlink for doubly linked list traversal.
  *  - Provides navigation to adjacent vertices in the polygon.
  *
  *  @note Vertex objects are typically managed by a Polygon and should not
- *        be manually linked/unlinked outside of Polygon's methods.
+ *        be manually linked/unlinked outside Polygon's methods.
  *
  *  @see Polygon
  *  @ingroup Geometry
@@ -113,9 +113,7 @@ class Vertex : public Point, public Dlink
 {
 public:
   /// @brief Default constructor. Creates a vertex at origin (0, 0).
-  Vertex()
-  { /* empty */
-  }
+  Vertex() = default;
 
   /// @brief Construct a vertex from a Point.
   /// @param point The point to copy coordinates from.
@@ -125,7 +123,7 @@ public:
 
   /// @brief Copy constructor.
   /// @param vertex The vertex to copy.
-  /// @note Only copies the Point coordinates; does not copy link state.
+  /// @note Only copies the Point coordinates; does not copy the link state.
   Vertex(const Vertex & vertex) : Point(vertex), Dlink()
   { /* empty */
   }
@@ -133,7 +131,7 @@ public:
   /// @brief Copy assignment operator.
   /// @param vertex The vertex to copy.
   /// @return Reference to this vertex.
-  /// @note Only copies Point coordinates; does not modify link state.
+  /// @note Only copies Point coordinates; does not modify the link state.
   Vertex &operator=(const Vertex & vertex)
   {
     if (this != &vertex)
@@ -141,10 +139,17 @@ public:
     return *this;
   }
 
+  /// @brief Return this vertex as a plain Point value.
+  /// @return Copy of the vertex coordinates as Point.
+  [[nodiscard]] Point to_point() const
+  {
+    return Point(*this);
+  }
+
   /// @brief Convert a Dlink pointer to a Vertex pointer.
   /// @param link Pointer to a Dlink that is actually a Vertex.
   /// @return Pointer to the Vertex.
-  /// @warning The caller must ensure that @p link actually points to a Vertex.
+  /// @warning The caller must ensure that @p the link actually points to a Vertex.
   [[nodiscard]] static Vertex * dlink_to_vertex(Dlink *link)
   {
     return static_cast<Vertex *>(link);
@@ -166,8 +171,7 @@ public:
   {
     assert(not this->is_empty());
 
-    ah_domain_error_if(this->is_unitarian())
-      << "There is an only vertex";
+    ah_domain_error_if(this->is_unitarian()) << "There is an only vertex";
 
     return *dlink_to_vertex(this->get_prev());
   }
@@ -180,8 +184,7 @@ public:
   {
     assert(not this->is_empty());
 
-    ah_domain_error_if(this->is_unitarian())
-      << "There is an only vertex";
+    ah_domain_error_if(this->is_unitarian()) << "There is an only vertex";
 
     return *dlink_to_vertex(this->get_next());
   }
@@ -195,7 +198,7 @@ class Regular_Polygon;
 /** @brief A general (irregular) 2D polygon defined by a sequence of vertices.
  *
  *  The Polygon class represents a 2D polygon as an ordered sequence of vertices
- *  stored in a doubly-linked list. The polygon can be open (a polyline) or
+ *  stored in a doubly linked list. The polygon can be open (a polyline) or
  *  closed (a proper polygon).
  *
  *  ## Key Features
@@ -231,7 +234,7 @@ class Regular_Polygon;
  */
 class Polygon : public Geom_Object
 {
-  Dlink vertex_list; ///< Doubly-linked list of vertices
+  Dlink vertex_list; ///< Doubly linked list of vertices
   size_t num_vertex; ///< Number of vertices in the polygon
   bool __is_closed; ///< True if the polygon has been closed
 
@@ -428,7 +431,7 @@ public:
 
     /// @brief Get the current vertex.
     /// @return Reference to the current vertex.
-    Vertex &get_current_vertex()
+    Vertex &get_current_vertex() const
     {
       return *Vertex::dlink_to_vertex(get_curr());
     }
@@ -449,16 +452,16 @@ public:
    */
   class Segment_Iterator : public Dlink::Iterator
   {
-    Polygon & poly; ///< Reference to the polygon being iterated
+    Polygon & poly_; ///< Reference to the polygon being iterated
 
   public:
-    /// @brief Construct segment iterator from a polygon.
-    /// @param __poly The polygon to iterate over.
+    /// @brief Construct a segment iterator from a polygon.
+    /// @param poly The polygon to iterate over.
     /// @throws std::domain_error If the polygon has fewer than 2 vertices.
-    Segment_Iterator(const Polygon & __poly)
-      : Dlink::Iterator(__poly.vertex_list), poly(const_cast<Polygon &>(__poly))
+    Segment_Iterator(const Polygon & poly)
+      : Dlink::Iterator(poly.vertex_list), poly_(const_cast<Polygon &>(poly))
     {
-      ah_domain_error_if(poly.vertex_list.is_unitarian_or_empty())
+      ah_domain_error_if(poly_.vertex_list.is_unitarian_or_empty())
 	<< "Polygon has less than two vertex";
     }
 
@@ -468,27 +471,26 @@ public:
     [[nodiscard]] bool has_curr() const
     {
       if (this->is_in_last())
-        return poly.is_closed() ? true : false;
+        return poly_.is_closed() ? true : false;
 
       return Dlink::Iterator::has_curr();
     }
 
     /// @brief Get the current segment (edge).
-    /// @return The segment from current vertex to the next.
+    /// @return The segment from the current vertex to the next.
     /// @throws std::domain_error If at last vertex of an open polygon.
     [[nodiscard]] Segment get_current_segment() const
     {
-      ah_domain_error_if(not poly.is_closed() and this->is_in_last())
-	<< "Segment iterator is in the last point and "
-	<< "it is not closed";
+      ah_domain_error_if(not poly_.is_closed() and this->is_in_last())
+	      << "Segment iterator is in the last point and it is not closed";
 
-      Vertex *src = Vertex::dlink_to_vertex(this->get_curr());
+      const Vertex *src = Vertex::dlink_to_vertex(this->get_curr());
 
       // Determine target: if at last vertex, wrap to first; otherwise, next
       const Vertex & tgt =
-          this->is_in_last() ? poly.get_first_vertex() : src->next_vertex();
+          this->is_in_last() ? poly_.get_first_vertex() : src->next_vertex();
 
-      return Segment(*src, tgt);
+      return {static_cast<Point>(*src), static_cast<Point>(tgt)};
     }
   };
 
@@ -509,8 +511,7 @@ public:
   /// @throws std::domain_error If the polygon has no vertices.
   [[nodiscard]] const Vertex &get_first_vertex() const
   {
-    ah_domain_error_if(vertex_list.is_empty())
-      << "Polygon has not any vertex";
+    ah_domain_error_if(vertex_list.is_empty()) << "Polygon has not any vertex";
 
     return *Vertex::dlink_to_vertex(vertex_list.get_next());
   }
@@ -520,8 +521,7 @@ public:
   /// @throws std::domain_error If the polygon has no vertices.
   [[nodiscard]] const Vertex &get_last_vertex() const
   {
-    ah_domain_error_if(vertex_list.is_empty())
-      << "Polygon has not any vertex";
+    ah_domain_error_if(vertex_list.is_empty()) << "Polygon has not any vertex";
 
     return *Vertex::dlink_to_vertex(vertex_list.get_prev());
   }
@@ -532,7 +532,7 @@ public:
   /// @note No validation is performed to check if @p v belongs to this polygon.
   [[nodiscard]] const Vertex &get_next_vertex(const Vertex & v) const
   {
-    // If v is the last vertex (next points to sentinel), wrap to first vertex
+    // If v is the last vertex (next points to sentinel), wrap to the first vertex
     return (v.get_next() == &vertex_list) ?
              *Vertex::dlink_to_vertex(vertex_list.get_next()) :
              v.next_vertex();
@@ -553,41 +553,38 @@ public:
   /// @brief Get the first edge (segment) of the polygon.
   /// @return Segment from first to second vertex.
   /// @throws std::domain_error If the polygon has fewer than 2 vertices.
-  [[nodiscard]] Segment get_first_segment()
+  [[nodiscard]] Segment get_first_segment() const
   {
     ah_domain_error_if(vertex_list.is_unitarian_or_empty())
       << "polygon has less than two vertex";
 
     const Vertex & first_vertex = get_first_vertex();
 
-    return Segment(first_vertex, first_vertex.next_vertex());
+    return {first_vertex.to_point(), first_vertex.next_vertex().to_point()};
   }
 
   /// @brief Get the last edge (segment) of the polygon.
   /// @return Segment from second-to-last to last vertex.
   /// @throws std::domain_error If the polygon has fewer than 2 vertices.
-  [[nodiscard]] Segment get_last_segment()
+  [[nodiscard]] Segment get_last_segment() const
   {
     ah_domain_error_if(vertex_list.is_unitarian_or_empty())
       << "polygon has less than two vertex";
 
     const Vertex & last_vertex = get_last_vertex();
 
-    return Segment(last_vertex.prev_vertex(), last_vertex);
+    return {last_vertex.prev_vertex().to_point(), last_vertex.to_point()};
   }
 
   /// @brief Check if a segment intersects with any edge of the polygon.
   /// @param sg The segment to test.
   /// @return True if @p sg intersects with any edge of the polygon.
-  [[nodiscard]] bool intersects_with(const Segment & sg)
+  [[nodiscard]] bool intersects_with(const Segment & sg) const
   {
     // Traverse all edges and check for intersection
     for (Segment_Iterator it(*this); it.has_curr(); it.next_ne())
-      {
-        const Segment & curr_side = it.get_current_segment();
-        if (curr_side.intersects_with(sg))
-          return true;
-      }
+      if (const Segment & curr_side = it.get_current_segment(); curr_side.intersects_with(sg))
+        return true;
 
     return false;
   }
@@ -609,20 +606,18 @@ public:
    */
   void add_vertex(const Point & point)
   {
-    ah_domain_error_if(__is_closed)
-      << "Polygon is already closed";
+    ah_domain_error_if(__is_closed) << "Polygon is already closed";
 
     // Check if the new point is colinear with the last segment
     if (num_vertex > 1)
       {
-        Segment last_sg = get_last_segment();
-        if (point.is_colinear_with(last_sg))
+        if (const Segment last_sg = get_last_segment(); point.is_colinear_with(last_sg))
           {
             ah_domain_error_if(point.is_inside(last_sg))
-	      << "new vertex is inside of last polygon's segment";
+	            << "new vertex is inside of last polygon's segment";
 
             // Colinear point: replace the last vertex with this new one
-            Vertex & last_vertex = const_cast<Vertex &>(get_last_vertex());
+            auto & last_vertex = const_cast<Vertex &>(get_last_vertex());
             Point & last_point = last_vertex;
             last_point = point;
 
@@ -636,7 +631,7 @@ public:
     if (num_vertex >= 3)
       {
         // New edge that would be formed by adding this point
-        const Segment new_side(get_last_vertex(), point);
+        const Segment new_side(get_last_vertex().to_point(), point);
 
         // Check for intersection with all edges except the last one
         // (which shares a vertex with the new edge)
@@ -647,8 +642,7 @@ public:
             if (curr_side == get_last_segment())
               break;
 
-            ah_domain_error_if(curr_side.intersects_with(new_side))
-	      << "new side intersects";
+            ah_domain_error_if(curr_side.intersects_with(new_side)) << "new side intersects";
           }
       }
 
@@ -687,8 +681,7 @@ public:
           break;
         }
 
-    ah_domain_error_if(victim == nullptr)
-      << "Vertex does not belong to polygon";
+    ah_domain_error_if(victim == nullptr) << "Vertex does not belong to polygon";
 
     // TODO: Handle colinearity cases
 
@@ -709,14 +702,13 @@ public:
    */
   void close()
   {
-    ah_domain_error_if(__is_closed)
-      << "Polygon is already closed";
+    ah_domain_error_if(__is_closed) << "Polygon is already closed";
 
     if (num_vertex >= 4)
       {
         // Check for intersection with all edges except the first
         // and last (which share endpoints with the closing edge)
-        const Segment last_side(get_first_vertex(), get_last_vertex());
+        const Segment last_side(get_first_vertex().to_point(), get_last_vertex().to_point());
 
         Segment_Iterator it(*this);
 
@@ -728,7 +720,7 @@ public:
               break;
 
             ah_domain_error_if(curr_side.intersects_with(last_side))
-	      << "closing causes an intersection";
+	            << "closing causes an intersection";
           }
       }
 
@@ -748,14 +740,13 @@ public:
    *  @note This algorithm assumes a **convex** polygon. For non-convex
    *        polygons, use a ray-casting or winding number algorithm.
    */
-  [[nodiscard]] bool contains_to(const Point & p)
+  [[nodiscard]] bool contains_to(const Point & p) const
   {
-    ah_domain_error_if(not __is_closed)
-      << "Polygon is not closed";
+    ah_domain_error_if(not __is_closed) << "Polygon is not closed";
 
     Segment_Iterator it(*this);
 
-    bool test = p.is_to_left_from(it.get_current_segment());
+    const bool test = p.is_to_left_from(it.get_current_segment());
 
     it.next();
 
@@ -773,7 +764,7 @@ public:
    *  @param tr The triangle to convert.
    */
   Polygon(const Triangle & tr)
-    : Geom_Object(tr), num_vertex(0), __is_closed(false)
+    : num_vertex(0), __is_closed(false)
   {
     add_vertex(tr.get_p1());
     add_vertex(tr.get_p2());
@@ -848,11 +839,11 @@ public:
    *  @param ang Rotation angle in radians (default 0).
    *  @throws std::domain_error If n < 3.
    */
-  Regular_Polygon(const Point & c,
+  Regular_Polygon(Point c,
                   const double & side_sz,
                   const size_t & n,
                   const double & ang = 0)
-    : center(c), side_size(side_sz), num_vertex(n), angle(ang), beta(2 * PI / n)
+    : center(std::move(c)), side_size(side_sz), num_vertex(n), angle(ang), beta(2 * PI / n)
   {
     ah_domain_error_if(n < 3)
       << "Polygon sides is less than 3";
@@ -881,7 +872,7 @@ public:
 
   /// @brief Check if the polygon is closed.
   /// @return Always true for regular polygons.
-  [[nodiscard]] bool is_closed() const { return true; }
+  static bool is_closed() { return true; }
 
   /** @brief Get the i-th vertex of the polygon.
    *
@@ -892,13 +883,13 @@ public:
    *  @return The vertex point.
    *  @throws std::out_of_range If i >= size().
    */
-  [[nodiscard]] const Point get_vertex(const size_t & i) const
+  [[nodiscard]] Point get_vertex(const size_t & i) const
   {
     ah_out_of_range_error_if(i >= num_vertex)
       << "vertex " << std::to_string(i) << " is greater than "
       << std::to_string(num_vertex);
 
-    // First segment is the negative vertical from center
+    // The first segment is the negative vertical from center
     // Initial point is the target of this segment with origin at center
     Segment sg(center, center - Point(0, r));
 
@@ -909,24 +900,24 @@ public:
 
   /// @brief Get the first vertex (index 0).
   /// @return The first vertex point.
-  [[nodiscard]] const Point get_first_vertex() const { return get_vertex(0); }
+  [[nodiscard]] Point get_first_vertex() const { return get_vertex(0); }
 
   /// @brief Get the last vertex (index size()-1).
   /// @return The last vertex point.
-  [[nodiscard]] const Point get_last_vertex() const { return get_vertex(num_vertex - 1); }
+  [[nodiscard]] Point get_last_vertex() const { return get_vertex(num_vertex - 1); }
 
   /// @brief Get the first segment (edge).
   /// @return Segment from vertex 0 to vertex 1.
   [[nodiscard]] Segment get_first_segment() const
   {
-    return Segment(get_vertex(0), get_vertex(1));
+    return {get_vertex(0), get_vertex(1)};
   }
 
   /// @brief Get the last segment (closing edge).
   /// @return Segment from vertex 0 to last vertex.
   [[nodiscard]] Segment get_last_segment() const
   {
-    return Segment(get_vertex(0), get_vertex(num_vertex - 1));
+    return {get_vertex(0), get_vertex(num_vertex - 1)};
   }
 
   /** @brief Iterator over the vertices of a regular polygon.
@@ -964,34 +955,31 @@ public:
     /// @throws std::overflow_error If no current vertex exists.
     Vertex &get_current_vertex()
     {
-      ah_overflow_error_if(not has_curr())
-	<< "Iterator has not current";
+      ah_overflow_error_if(not has_curr()) << "Iterator has not current";
 
       vertex = poly.get_vertex(curr);
 
       return vertex;
     }
 
-    /// @brief Advance to next vertex (no exception on overflow).
+    /// @brief Advance to the next vertex (no exception on overflow).
     void next_ne() noexcept { ++curr; }
 
-    /// @brief Advance to next vertex.
+    /// @brief Advance to the next vertex.
     /// @throws std::overflow_error If already at end.
     void next()
     {
-      ah_overflow_error_if(not has_curr())
-	<< "Iterator has not current";
+      ah_overflow_error_if(not has_curr()) << "Iterator has not current";
       next_ne();
     }
 
     /// @brief Move to previous vertex.
-    /// @throws std::underflow_error If already at beginning.
+    /// @throws std::underflow_error If already at the beginning.
     void prev()
     {
       --curr;
 
-      ah_underflow_error_if(not has_curr())
-	<< "Iterator has not current";
+      ah_underflow_error_if(not has_curr()) << "Iterator has not current";
     }
   };
 
@@ -1025,37 +1013,33 @@ public:
     [[nodiscard]] bool has_curr() const { return curr < poly.size(); }
 
     /// @brief Get the current segment (edge).
-    /// @return The segment from current vertex to the next.
+    /// @return The segment from the current vertex to the next.
     /// @throws std::overflow_error If no current segment exists.
-    [[nodiscard]] const Segment get_current_segment() const
+    [[nodiscard]] Segment get_current_segment() const
     {
-      ah_overflow_error_if(not has_curr())
-	<< "Iterator has not current";
+      ah_overflow_error_if(not has_curr()) << "Iterator has not current";
 
-      return Segment(poly.get_vertex(curr),
-                     poly.get_vertex((curr + 1) % poly.size()));
+      return {poly.get_vertex(curr), poly.get_vertex((curr + 1) % poly.size())};
     }
 
-    /// @brief Advance to next segment (no exception on overflow).
+    /// @brief Advance to the next segment (no exception on overflow).
     void next_ne() noexcept { ++curr; }
 
-    /// @brief Advance to next segment.
+    /// @brief Advance to the next segment.
     /// @throws std::overflow_error If already at end.
     void next()
     {
-      ah_overflow_error_if(not has_curr())
-	<< "Iterator has not current";
+      ah_overflow_error_if(not has_curr()) << "Iterator has not current";
       next_ne();
     }
 
-    /// @brief Move to previous segment.
-    /// @throws std::underflow_error If already at beginning.
+    /// @brief Move to the previous segment.
+    /// @throws std::underflow_error If already at the beginning.
     void prev()
     {
       --curr;
 
-      ah_underflow_error_if(not has_curr())
-	<< "Iterator has not current";
+      ah_underflow_error_if(not has_curr()) << "Iterator has not current";
     }
   };
 

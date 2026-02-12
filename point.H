@@ -324,8 +324,6 @@ public:
   [[nodiscard]] const Point &rightmost_point() const { return *this; }
 };
 
-extern const Point NullPoint;
-
 
 /** @brief Polar representation of a 2D point.
  *
@@ -1514,9 +1512,9 @@ class Text : public Geom_Object
   size_t len_;
 
 public:
-  static const double font_width_in_points;
+  static constexpr double font_width_in_points = 0.8;
 
-  static const double font_height_in_points;
+  static constexpr double font_height_in_points = 1.2;
 
   Text(Point p, const std::string & str)
     : p_(std::move(p)), str_(str), len_(aproximate_string_size(str))
@@ -1601,10 +1599,14 @@ segments_intersect(const Point & a, const Point & b,
 }
 
 /** Compute the exact intersection point of segments @p s1 and @p s2.
-    @throws std::domain_error if the segments are parallel. */
+    @throws std::domain_error if segments do not intersect.
+    @throws std::domain_error if segments are parallel/collinear (no unique point). */
 [[nodiscard]] inline Point
 segment_intersection_point(const Segment & s1, const Segment & s2)
 {
+  ah_domain_error_if(not segments_intersect(s1, s2))
+    << "Segments do not intersect";
+
   return s1.intersection_with(s2);
 }
 

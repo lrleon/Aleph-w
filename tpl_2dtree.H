@@ -45,6 +45,7 @@
 # define TPL_2DTREE_H
 
 # include <point.H>
+# include <optional>
 # include <htlist.H>
 # include <ahDefs.H> // For Empty_Class
 
@@ -107,9 +108,9 @@ using namespace Aleph;
       std::cout << "Point found!" << '\n';
 
     // Find nearest neighbor
-    Point nearest = tree.nearest(Point(30, 45));
-    std::cout << "Nearest: (" << nearest.get_x() << ", "
-              << nearest.get_y() << ")" << '\n';
+    if (auto nearest = tree.nearest(Point(30, 45)))
+      std::cout << "Nearest: (" << nearest->get_x() << ", "
+                << nearest->get_y() << ")" << '\n';
 
     // Range query
     Rectangle rect(20, 20, 80, 80);
@@ -518,12 +519,12 @@ public:
    *  Performs a nearest neighbor search using branch-and-bound pruning.
    *
    *  @param p Query point
-   *  @return The nearest point in the tree, or NullPoint if tree is empty
+   *  @return The nearest point in the tree; empty if tree is empty.
    */
-  [[nodiscard]] Point nearest(const Point & p) noexcept
+  [[nodiscard]] std::optional<Point> nearest(const Point & p) noexcept
   {
     if (N == 0)
-      return NullPoint;
+      return std::nullopt;
 
     // Initialize with distance to root (mpq_class doesn't have max())
     min_node = root;
@@ -531,7 +532,8 @@ public:
 
     lr_nearest(root, p);
 
-    return min_node != nullptr ? min_node->point : NullPoint;
+    return min_node != nullptr ? std::optional<Point>(min_node->point)
+                               : std::nullopt;
   }
 
 private:

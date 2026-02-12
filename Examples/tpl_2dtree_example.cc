@@ -233,18 +233,21 @@ int main()
     cout << "Finding nearest service...\n\n";
     
     // Manual nearest neighbor (simplified)
-    Point nearest = tree.nearest(emergency);
+    auto nearest = tree.nearest(emergency);
     
-    auto dist = emergency.distance_with(nearest);
+    ah_domain_error_if(not nearest.has_value())
+      << "Unexpected empty tree";
+
+    auto dist = emergency.distance_with(*nearest);
     
     cout << "NEAREST SERVICE:\n";
-    cout << "  Location: (" << nearest.get_x() << ", " << nearest.get_y() << ")\n";
+    cout << "  Location: (" << nearest->get_x() << ", " << nearest->get_y() << ")\n";
     cout << "  Distance: " << dist << " units\n";
     
     // Determine which service it is
-    if (nearest.get_x() == 70 && nearest.get_y() == 30)
+    if (nearest->get_x() == 70 && nearest->get_y() == 30)
       cout << "  Type: Fire Station\n";
-    else if (nearest.get_x() == 50 && nearest.get_y() == 50)
+    else if (nearest->get_x() == 50 && nearest->get_y() == 50)
       cout << "  Type: Police\n";
     
     cout << "\nALGORITHM:\n";

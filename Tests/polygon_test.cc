@@ -126,6 +126,15 @@ TEST_F(VertexTest, SelfAssignment)
   EXPECT_EQ(v.get_y(), p1.get_y());
 }
 
+TEST_F(VertexTest, ToPointReturnsCorrectPointValue)
+{
+  Vertex v(p1);
+  Point p = v.to_point();
+
+  EXPECT_EQ(p.get_x(), p1.get_x());
+  EXPECT_EQ(p.get_y(), p1.get_y());
+}
+
 TEST_F(VertexTest, DlinkToVertexConversion)
 {
   Vertex v(p1);

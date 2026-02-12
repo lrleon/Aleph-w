@@ -36,7 +36,7 @@ Idioma: Español | [English](README.md)
 - [Licencia](#readme-es-licencia)
 - [Agradecimientos](#readme-es-agradecimientos)
 
-> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos).
+> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo el flujo completo de Delaunay/Voronoi y el ejemplo `Examples/voronoi_clipped_cells_example.cc`.
 
 ---
 
@@ -279,6 +279,19 @@ int main() {
 
     return 0;
 }
+```
+
+### Ejemplo 5: Voronoi recortado (celdas indexadas por sitio)
+
+El ejemplo `Examples/voronoi_clipped_cells_example.cc` muestra cómo:
+
+- construir Voronoi desde un conjunto de puntos,
+- recortar todas las celdas contra un polígono convexo, y
+- exportar celdas `ClippedCell` a CSV/WKT.
+
+```bash
+cmake --build build --target voronoi_clipped_cells_example
+./build/Examples/voronoi_clipped_cells_example /tmp/voronoi_clipped_cells.csv
 ```
 
 ---

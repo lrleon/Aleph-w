@@ -990,17 +990,6 @@ TEST(GeomObjectTest, VirtualDestructor)
 }
 
 //============================================================================
-// NullPoint Tests
-//============================================================================
-
-TEST(NullPointTest, Exists)
-{
-  // NullPoint should be defined and accessible
-  EXPECT_EQ(NullPoint.get_x(), 0);
-  EXPECT_EQ(NullPoint.get_y(), 0);
-}
-
-//============================================================================
 // Edge Cases and Regression Tests
 //============================================================================
 
