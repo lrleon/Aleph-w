@@ -1251,7 +1251,7 @@ void process_tag_node(Eepic_Plane & plane, Graph::Node *p)
 
         case NORTH_EAST:
           {
-            tag_point += Polar_Point(pitag(HR(p), VR(p)), PI_4);
+            tag_point += Polar_Point(euclidean_distance(HR(p), VR(p)), PI_4);
 
             put_in_plane(plane, Left_Text(tag_point, tag_data.tag));
 
@@ -1260,7 +1260,7 @@ void process_tag_node(Eepic_Plane & plane, Graph::Node *p)
 
         case NORTH_WEST:
           {
-            tag_point += Polar_Point(-pitag(HR(p), VR(p)), -PI_4);
+            tag_point += Polar_Point(-euclidean_distance(HR(p), VR(p)), -PI_4);
 
             put_in_plane(plane, Right_Text(tag_point, tag_data.tag));
 
@@ -1269,7 +1269,7 @@ void process_tag_node(Eepic_Plane & plane, Graph::Node *p)
 
         case SOUTH_EAST:
           {
-            tag_point += Polar_Point(pitag(HR(p), VR(p)), -PI_4);
+            tag_point += Polar_Point(euclidean_distance(HR(p), VR(p)), -PI_4);
 
             put_in_plane(plane, Left_Text(tag_point, tag_data.tag));
 
@@ -1278,7 +1278,7 @@ void process_tag_node(Eepic_Plane & plane, Graph::Node *p)
 
         case SOUTH_WEST:
           {
-            tag_point += Polar_Point(-pitag(HR(p), VR(p)), PI_4);
+            tag_point += Polar_Point(-euclidean_distance(HR(p), VR(p)), PI_4);
 
             put_in_plane(plane, Right_Text(tag_point, tag_data.tag));
 
@@ -1390,7 +1390,7 @@ void process_text_arc(Eepic_Plane & plane, Graph::Arc *a, Polygon & trigon)
   // punto por donde debe pasar el segmento paralelo
   const Point & second_pt = first_vt.next_vertex();
 
-  const Geom_Number dist = second_pt.distance_with(arc_sg.mid_point());
+  const Geom_Number dist = second_pt.distance_to(arc_sg.mid_point());
 
   const Segment par_sg(arc_sg, dist); // segmento paralelo
 

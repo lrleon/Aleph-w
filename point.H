@@ -98,11 +98,18 @@ inline Geom_Number
 area_of_parallelogram(const Point & a, const Point & b, const Point & c);
 
 
-/// Return the Euclidean distance.
-/// \brief Euclidean distance of the vector (x, y).
-inline Geom_Number pitag(const Geom_Number & x, const Geom_Number & y)
+/// \brief Euclidean distance (hypotenuse) of the vector (x, y).
+inline Geom_Number euclidean_distance(const Geom_Number & x,
+                                       const Geom_Number & y)
 {
   return hypot(mpfr_class(x), mpfr_class(y));
+}
+
+/// @deprecated Use euclidean_distance() instead.
+[[deprecated("Use euclidean_distance() instead")]]
+inline Geom_Number pitag(const Geom_Number & x, const Geom_Number & y)
+{
+  return euclidean_distance(x, y);
 }
 
 /// \brief Arc tangent of @p m (wrapper over mpfr).
@@ -234,10 +241,17 @@ public:
   /// Returns true if this is colinear with a segment s.
   [[nodiscard]] inline bool is_colinear_with(const Segment & s) const;
 
-  /// Return true if this is to the left from points p1 and p2
-  [[nodiscard]] bool is_to_left_from(const Point & p1, const Point & p2) const
+  /// Return true if this is to the left of the line from p1 to p2.
+  [[nodiscard]] bool is_left_of(const Point & p1, const Point & p2) const
   {
     return area_of_parallelogram(p1, p2, *this) > 0;
+  }
+
+  /// @deprecated Use is_left_of() instead.
+  [[deprecated("Use is_left_of() instead")]]
+  [[nodiscard]] bool is_to_left_from(const Point & p1, const Point & p2) const
+  {
+    return is_left_of(p1, p2);
   }
 
   /// Return true if this is to right from points p1 and p2
@@ -252,10 +266,17 @@ public:
     return not is_to_right_from(p1, p2);
   }
 
-  /// Return true if this is to right from (or on) points p1 and p2
+  /// Return true if this is to right of (or on) the line from p1 to p2.
+  [[nodiscard]] bool is_right_on_of(const Point & p1, const Point & p2) const
+  {
+    return not is_left_of(p1, p2);
+  }
+
+  /// @deprecated Use is_right_on_of() instead.
+  [[deprecated("Use is_right_on_of() instead")]]
   [[nodiscard]] bool is_to_right_on_from(const Point & p1, const Point & p2) const
   {
-    return not is_to_left_from(p1, p2);
+    return is_right_on_of(p1, p2);
   }
 
   /// Returns true if the sequence this-p1-p2 is clockwise.
@@ -264,9 +285,23 @@ public:
     return area_of_parallelogram(*this, p1, p2) < 0;
   }
 
-  [[nodiscard]] inline bool is_to_left_from(const Segment & s) const;
+  [[nodiscard]] inline bool is_left_of(const Segment & s) const;
 
-  [[nodiscard]] inline bool is_to_right_from(const Segment & s) const;
+  [[nodiscard]] inline bool is_right_of(const Segment & s) const;
+
+  /// @deprecated Use is_left_of() instead.
+  [[deprecated("Use is_left_of() instead")]]
+  [[nodiscard]] bool is_to_left_from(const Segment & s) const
+  {
+    return is_left_of(s);
+  }
+
+  /// @deprecated Use is_right_of() instead.
+  [[deprecated("Use is_right_of() instead")]]
+  [[nodiscard]] bool is_to_right_from(const Segment & s) const
+  {
+    return is_right_of(s);
+  }
 
   [[nodiscard]] inline bool is_clockwise_with(const Segment & s) const;
 
@@ -287,7 +322,7 @@ public:
   /// Return the nearest point (to this) between p1 and p2.
   [[nodiscard]] const Point &nearest_point(const Point & p1, const Point & p2) const
   {
-    return this->distance_with(p1) < this->distance_with(p2) ? p1 : p2;
+    return this->distance_to(p1) < this->distance_to(p2) ? p1 : p2;
   }
 
   /// Returns true if this is inside a segment s.
@@ -313,7 +348,14 @@ public:
   [[nodiscard]] inline Geom_Number distance_squared_to(const Point & that) const;
 
   /// Returns the Euclidean distance between this and p.
-  [[nodiscard]] inline Geom_Number distance_with(const Point & p) const;
+  [[nodiscard]] inline Geom_Number distance_to(const Point & p) const;
+
+  /// @deprecated Use distance_to() instead.
+  [[deprecated("Use distance_to() instead")]]
+  [[nodiscard]] Geom_Number distance_with(const Point & p) const
+  {
+    return distance_to(p);
+  }
 
   [[nodiscard]] const Point &highest_point() const { return *this; }
 
@@ -360,7 +402,7 @@ public:
     const Geom_Number & x = p.x_;
     const Geom_Number & y = p.y_;
 
-    r_ = pitag(x, y);
+    r_ = euclidean_distance(x, y);
     theta_ = arctan2(y, x);
   }
 
@@ -564,7 +606,7 @@ public:
   /// Return the Euclidean length of the segment (distance between endpoints).
   [[nodiscard]] Geom_Number size() const
   {
-    return pitag(tgt_.x_ - src_.x_, tgt_.y_ - src_.y_);
+    return euclidean_distance(tgt_.x_ - src_.x_, tgt_.y_ - src_.y_);
   }
 
   /// Return true if @p p is colinear with this segment.
@@ -574,15 +616,29 @@ public:
   }
 
   /// Return true if this segment is to the left of point @p p.
-  [[nodiscard]] bool is_to_left_from(const Point & p) const
+  [[nodiscard]] bool is_left_of(const Point & p) const
   {
-    return p.is_to_right_from(*this);
+    return p.is_right_of(*this);
   }
 
   /// Return true if this segment is to the right of point @p p.
+  [[nodiscard]] bool is_right_of(const Point & p) const
+  {
+    return p.is_left_of(*this);
+  }
+
+  /// @deprecated Use is_left_of() instead.
+  [[deprecated("Use is_left_of() instead")]]
+  [[nodiscard]] bool is_to_left_from(const Point & p) const
+  {
+    return is_left_of(p);
+  }
+
+  /// @deprecated Use is_right_of() instead.
+  [[deprecated("Use is_right_of() instead")]]
   [[nodiscard]] bool is_to_right_from(const Point & p) const
   {
-    return p.is_to_left_from(*this);
+    return is_right_of(p);
   }
 
   /// Return the midpoint of this segment.
@@ -645,7 +701,7 @@ public:
     const Geom_Number mperp = dist / (tgt_polar.get_r() / 2);
 
     // Distance from src to the perpendicular point.
-    Geom_Number perp_r = pitag(dist, tgt_polar.get_r() / 2);
+    Geom_Number perp_r = euclidean_distance(dist, tgt_polar.get_r() / 2);
 
     if (tgt_polar.get_r() < 0)
       perp_r = -perp_r;
@@ -664,7 +720,7 @@ public:
     const Point p2(Point(polar_perp_pt_r) + src_);
 
     // Return the segment in counterclockwise order with respect to @c this.
-    if (p1.is_to_right_from(*this))
+    if (p1.is_right_of(*this))
       return {p1, p2};
     return {p2, p1};
   }
@@ -678,22 +734,30 @@ public:
       return false;
 
     // There is a proper intersection when each segment straddles the other.
-    return (src_.is_to_left_from(s) xor tgt_.is_to_left_from(s)) and
-           (s.src_.is_to_left_from(*this) xor s.tgt_.is_to_left_from(*this));
+    return (src_.is_left_of(s) xor tgt_.is_left_of(s)) and
+           (s.src_.is_left_of(*this) xor s.tgt_.is_left_of(*this));
   }
 
   /// Return true if @p p lies on this segment.
-  [[nodiscard]] bool contains_to(const Point & p) const
+  [[nodiscard]] bool contains(const Point & p) const
   {
     return p.is_between(src_, tgt_);
   }
 
+  /// @deprecated Use contains() instead.
+  [[deprecated("Use contains() instead")]]
+  [[nodiscard]] bool contains_to(const Point & p) const { return contains(p); }
+
   /// Return true if @p s lies entirely inside this segment.
-  [[nodiscard]] bool contains_to(const Segment & s) const
+  [[nodiscard]] bool contains(const Segment & s) const
   {
     return (s.get_src_point().is_between(src_, tgt_) and
             s.get_tgt_point().is_between(src_, tgt_));
   }
+
+  /// @deprecated Use contains() instead.
+  [[deprecated("Use contains() instead")]]
+  [[nodiscard]] bool contains_to(const Segment & s) const { return contains(s); }
 
   /// Return true if @p s intersects this segment (including endpoints).
   [[nodiscard]] bool intersects_with(const Segment & s) const
@@ -701,8 +765,8 @@ public:
     if (this->intersects_properly_with(s))
       return true;
 
-    return (this->contains_to(s.src_) or this->contains_to(s.tgt_) or
-            s.contains_to(this->src_) or s.contains_to(this->tgt_));
+    return (this->contains(s.src_) or this->contains(s.tgt_) or
+            s.contains(this->src_) or s.contains(this->tgt_));
   }
 
   [[nodiscard]] inline bool intersects_with(const Triangle & t) const;
@@ -767,7 +831,7 @@ public:
   {
     const Geom_Number dx = tgt_.x_ - src_.x_;
     const Geom_Number dy = tgt_.y_ - src_.y_;
-    const Geom_Number len = pitag(dx, dy);
+    const Geom_Number len = euclidean_distance(dx, dy);
     if (len == 0)
       return;
     src_.x_ -= dist * dx / len;
@@ -779,7 +843,7 @@ public:
   {
     const Geom_Number dx = tgt_.x_ - src_.x_;
     const Geom_Number dy = tgt_.y_ - src_.y_;
-    const Geom_Number len = pitag(dx, dy);
+    const Geom_Number len = euclidean_distance(dx, dy);
     if (len == 0)
       return;
     tgt_.x_ += dist * dx / len;
@@ -820,7 +884,7 @@ public:
 // Return true if this point lies inside segment s.
 inline bool Point::is_inside(const Segment & s) const
 {
-  return s.contains_to(*this);
+  return s.contains(*this);
 }
 
 // Return true if this point is colinear with segment s.
@@ -830,15 +894,15 @@ inline bool Point::is_colinear_with(const Segment & s) const
 }
 
 // Return true if this point is to the left of the segment s.
-inline bool Point::is_to_left_from(const Segment & s) const
+inline bool Point::is_left_of(const Segment & s) const
 {
-  return this->is_to_left_from(s.src_, s.tgt_);
+  return this->is_left_of(s.src_, s.tgt_);
 }
 
 // Return true if this point is to the right of the segment s.
-inline bool Point::is_to_right_from(const Segment & s) const
+inline bool Point::is_right_of(const Segment & s) const
 {
-  return this->is_to_right_from(s.src_, s.tgt_);
+  return area_of_parallelogram(s.src_, s.tgt_, *this) < 0;
 }
 
 // Return true if the sequence (this, segment) is clockwise.
@@ -858,9 +922,9 @@ inline Geom_Number Point::distance_squared_to(const Point & that) const
 
 
 // Return the Euclidean distance to p.
-inline Geom_Number Point::distance_with(const Point & p) const
+inline Geom_Number Point::distance_to(const Point & p) const
 {
-  return pitag(p.x_ - x_, p.y_ - y_);
+  return euclidean_distance(p.x_ - x_, p.y_ - y_);
 }
 
 
@@ -953,14 +1017,15 @@ public:
   [[nodiscard]] const Point &get_p3() const { return p3_; }
 
   /// Returns true if the point p lies inside this triangle.
-  [[nodiscard]] bool contains_to(const Point & p) const
+  [[nodiscard]] bool contains(const Point & p) const
   {
-    const bool s = p.is_to_left_from(p1_, p2_);
 
-    if (p.is_to_left_from(p2_, p3_) != s)
+    const bool s = p.is_left_of(p1_, p2_);
+
+    if (p.is_left_of(p2_, p3_) != s)
       return false;
 
-    if (p.is_to_left_from(p3_, p1_) != s)
+    if (p.is_left_of(p3_, p1_) != s)
       return false;
 
     return true;
@@ -1077,7 +1142,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
     { // check intersection against edge p1-p2
       p[i] = this->intersection_with(Segment(t.get_p1(), t.get_p2()));
 
-      if (t.contains_to(p[i]))
+      if (t.contains(p[i]))
         ++i; // intersection detected
     }
   catch (std::domain_error &)
@@ -1089,7 +1154,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
     { // check intersection against edge p2-p3
       p[i] = this->intersection_with(Segment(t.get_p2(), t.get_p3()));
 
-      if (t.contains_to(p[i]))
+      if (t.contains(p[i]))
         ++i; // intersection detected
     }
   catch (std::domain_error &)
@@ -1104,7 +1169,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
     { // check intersection against edge p3-p1
       p[i] = this->intersection_with(Segment(t.get_p3(), t.get_p1()));
 
-      if (t.contains_to(p[i]))
+      if (t.contains(p[i]))
         ++i;
     }
   catch (std::domain_error &)
@@ -1239,8 +1304,8 @@ public:
 
     // decide tangent length using the largest radius.
     const Geom_Number tangent_size = hr_ > vr_ ? hr_ : vr_; { // compute distances from center to tangent endpoints
-      const Geom_Number dsrc = center_.distance_with(t1.get_src_point());
-      const Geom_Number dtgt = center_.distance_with(t1.get_tgt_point());
+      const Geom_Number dsrc = center_.distance_to(t1.get_src_point());
+      const Geom_Number dtgt = center_.distance_to(t1.get_tgt_point());
 
       if (dsrc < dtgt) // choose the point nearest to center
         {
@@ -1253,8 +1318,8 @@ public:
           s1.enlarge_tgt(tangent_size);
         }
     } { // compute distances for the second tangent
-      const Geom_Number dsrc = center_.distance_with(t2.get_src_point());
-      const Geom_Number dtgt = center_.distance_with(t2.get_tgt_point());
+      const Geom_Number dsrc = center_.distance_to(t2.get_src_point());
+      const Geom_Number dtgt = center_.distance_to(t2.get_tgt_point());
 
       if (dsrc < dtgt) // choose the point nearest to center
         {
@@ -1289,8 +1354,8 @@ public:
     Segment tg2;
     compute_tangents(tg1, tg2, m);
 
-    return s.is_to_left_from(tg1.get_src_point()) xor
-           s.is_to_left_from(tg2.get_tgt_point());
+    return s.is_left_of(tg1.get_src_point()) xor
+           s.is_left_of(tg2.get_tgt_point());
   }
 
 private:
@@ -1310,10 +1375,14 @@ private:
 
 public:
   // Returns true if point @p p lies inside this ellipse.
-  [[nodiscard]] bool contains_to(const Point & p) const
+  [[nodiscard]] bool contains(const Point & p) const
   {
     return compute_radius(p) <= 1;
   }
+
+  /// @deprecated Use contains() instead.
+  [[deprecated("Use contains() instead")]]
+  [[nodiscard]] bool contains_to(const Point & p) const { return contains(p); }
 
   // Returns true if point @p p lies exactly on the ellipse curve.
   [[nodiscard]] bool intersects_with(const Point & p) const
@@ -1444,7 +1513,7 @@ y2 = ----------------------------------------------------------------------
 // Return true if this point lies inside ellipse e.
 inline bool Point::is_inside(const Ellipse & e) const
 {
-  return e.contains_to(*this);
+  return e.contains(*this);
 }
 
 // Return true if this point lies exactly on ellipse e.
@@ -1602,7 +1671,7 @@ public:
 /* Estimate the count of printable characters in a LaTeX string (skipping '\',
    '$', '{', '}', etc.).
 */
-inline size_t aproximate_string_size(const std::string & str)
+inline size_t approximate_string_size(const std::string & str)
 {
   const char *ptr = str.c_str();
 
@@ -1650,7 +1719,7 @@ public:
   static constexpr double font_height_in_points = 1.2;
 
   Text(Point p, const std::string & str)
-    : p_(std::move(p)), str_(str), len_(aproximate_string_size(str))
+    : p_(std::move(p)), str_(str), len_(approximate_string_size(str))
   {
     // empty
   }
@@ -1763,7 +1832,7 @@ in_circle(const Point & a, const Point & b,
 [[nodiscard]] inline bool
 on_segment(const Segment & s, const Point & p)
 {
-  return s.contains_to(p);
+  return s.contains(p);
 }
 
 /// Return true if segments @p s1 and @p s2 intersect (including endpoints).
@@ -2095,5 +2164,146 @@ public:
   }
 };
 
+// ============================================================================
+// Stream output operators for geometry classes
+// ============================================================================
+
+inline std::ostream & operator<<(std::ostream & o, const Point & p)
+{
+  o << "Point(" << p.get_x() << ", " << p.get_y() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Segment & s)
+{
+  o << "Segment(" << s.get_src_point() << " -> " << s.get_tgt_point() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Triangle & t)
+{
+  o << "Triangle(" << t.get_p1() << ", " << t.get_p2()
+    << ", " << t.get_p3() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Rectangle & r)
+{
+  o << "Rectangle(" << r.get_xmin() << ", " << r.get_ymin()
+    << " -- " << r.get_xmax() << ", " << r.get_ymax() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Ellipse & e)
+{
+  o << "Ellipse(center=" << e.get_center()
+    << ", hr=" << e.get_hradius() << ", vr=" << e.get_vradius() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const RotatedEllipse & e)
+{
+  o << "RotatedEllipse(center=" << e.get_center()
+    << ", a=" << e.get_a() << ", b=" << e.get_b()
+    << ", cos=" << e.get_cos() << ", sin=" << e.get_sin() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Point3D & p)
+{
+  o << "Point3D(" << p.get_x() << ", " << p.get_y()
+    << ", " << p.get_z() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Segment3D & s)
+{
+  o << "Segment3D(" << s.get_src() << " -> " << s.get_tgt() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Triangle3D & t)
+{
+  o << "Triangle3D(" << t.get_a() << ", " << t.get_b()
+    << ", " << t.get_c() << ")";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Tetrahedron & t)
+{
+  o << "Tetrahedron(" << t.get_a() << ", " << t.get_b()
+    << ", " << t.get_c() << ", " << t.get_d() << ")";
+  return o;
+}
+
+// ============================================================================
+// std::format support (C++20)
+// ============================================================================
+
+#if __cplusplus >= 202002L && __has_include(<format>)
+# include <format>
+
+template <>
+struct std::formatter<Point> : std::formatter<std::string>
+{
+  auto format(const Point & p, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+      std::format("Point({}, {})",
+                  geom_number_to_double(p.get_x()),
+                  geom_number_to_double(p.get_y())), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Segment> : std::formatter<std::string>
+{
+  auto format(const Segment & s, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+      std::format("Segment({} -> {})",
+                  s.get_src_point(), s.get_tgt_point()), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Triangle> : std::formatter<std::string>
+{
+  auto format(const Triangle & t, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+      std::format("Triangle({}, {}, {})",
+                  t.get_p1(), t.get_p2(), t.get_p3()), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Rectangle> : std::formatter<std::string>
+{
+  auto format(const Rectangle & r, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+      std::format("Rectangle({}, {} -- {}, {})",
+                  geom_number_to_double(r.get_xmin()),
+                  geom_number_to_double(r.get_ymin()),
+                  geom_number_to_double(r.get_xmax()),
+                  geom_number_to_double(r.get_ymax())), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Point3D> : std::formatter<std::string>
+{
+  auto format(const Point3D & p, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+      std::format("Point3D({}, {}, {})",
+                  geom_number_to_double(p.get_x()),
+                  geom_number_to_double(p.get_y()),
+                  geom_number_to_double(p.get_z())), ctx);
+  }
+};
+
+#endif // C++20 format
 
 # endif // POINT_H

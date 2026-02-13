@@ -288,7 +288,7 @@ TEST(K2TreeNearest, GridOfPoints)
   ASSERT_TRUE(nearest.has_value());
   
   // Should find (40, 60) or (40, 50) or (50, 60) or (50, 50)
-  Geom_Number dist = nearest->distance_with(Point(43, 57));
+  Geom_Number dist = nearest->distance_to(Point(43, 57));
   EXPECT_LT(dist, 10); // Should be within one grid cell
 }
 
@@ -595,10 +595,10 @@ TEST(K2TreeCorrectness, NearestIsActuallyNearest)
   ASSERT_TRUE(nearest.has_value());
   
   // Verify it's actually the nearest
-  Geom_Number min_dist = nearest->distance_with(query);
+  Geom_Number min_dist = nearest->distance_to(query);
   for (const auto & p : points)
     {
-      Geom_Number dist = p.distance_with(query);
+      Geom_Number dist = p.distance_to(query);
       EXPECT_LE(min_dist, dist); // Exact arithmetic — no tolerance needed
     }
 }
@@ -877,7 +877,7 @@ TEST(K2TreeBuild, NearestWorksOnBalancedTree)
   ASSERT_TRUE(nearest.has_value());
 
   // Should find a grid point within one cell (distance < 10)
-  Geom_Number dist = nearest->distance_with(Point(43, 57));
+  Geom_Number dist = nearest->distance_to(Point(43, 57));
   EXPECT_LT(dist, 10);
 }
 

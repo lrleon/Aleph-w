@@ -106,7 +106,7 @@ int main()
     {
       auto city = it.get_curr();
       auto city_pos = city->get_position();
-      auto dist = query_location.distance_with(city_pos);
+      auto dist = query_location.distance_to(city_pos);
       
       cout << "  Distance to " << city->get_info() << ": " << dist << "\n";
       
@@ -209,7 +209,7 @@ int main()
       {
         auto pi = locations[i]->get_position();
         auto pj = locations[j]->get_position();
-        auto dist = pi.distance_with(pj);
+        auto dist = pi.distance_to(pj);
         cout << " " << dist << "  ";
       }
       cout << "\n";

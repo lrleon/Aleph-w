@@ -701,19 +701,19 @@ protected:
 TEST_F(PolygonContainmentTest, PointInsidePolygon)
 {
   Point inside(50, 50);
-  EXPECT_TRUE(square.contains_to(inside));
+  EXPECT_TRUE(square.contains(inside));
 }
 
 TEST_F(PolygonContainmentTest, PointOutsidePolygon)
 {
   Point outside(200, 200);
-  EXPECT_FALSE(square.contains_to(outside));
+  EXPECT_FALSE(square.contains(outside));
 }
 
 TEST_F(PolygonContainmentTest, PointNearEdge)
 {
   Point near_edge(1, 50);  // Just inside left edge
-  EXPECT_TRUE(square.contains_to(near_edge));
+  EXPECT_TRUE(square.contains(near_edge));
 }
 
 TEST_F(PolygonContainmentTest, OpenPolygonContainmentThrows)
@@ -723,7 +723,7 @@ TEST_F(PolygonContainmentTest, OpenPolygonContainmentThrows)
   open.add_vertex(Point(100, 0));
   open.add_vertex(Point(100, 100));
   
-  EXPECT_THROW(open.contains_to(Point(50, 50)), std::domain_error);
+  EXPECT_THROW(open.contains(Point(50, 50)), std::domain_error);
 }
 
 //============================================================================
@@ -784,7 +784,7 @@ TEST_F(PolygonFromTriangleTest, CorrectVerticesFromTriangle)
   
   // Verify that the polygon contains the centroid of the triangle
   Point centroid(50, 29);  // Approximately (0+100+50)/3, (0+0+87)/3
-  EXPECT_TRUE(poly.contains_to(centroid));
+  EXPECT_TRUE(poly.contains(centroid));
 }
 
 //============================================================================
@@ -1234,8 +1234,8 @@ TEST(PolygonEdgeCases, PolygonWithManyVertices)
   EXPECT_TRUE(poly.is_closed());
   
   // Containment test should work
-  EXPECT_TRUE(poly.contains_to(Point(0, 0)));
-  EXPECT_FALSE(poly.contains_to(Point(2000, 2000)));
+  EXPECT_TRUE(poly.contains(Point(0, 0)));
+  EXPECT_FALSE(poly.contains(Point(2000, 2000)));
 }
 
 TEST(PolygonEdgeCases, RegularPolygonWithManyVertices)
@@ -1277,8 +1277,8 @@ TEST(PolygonEdgeCases, NegativeCoordinatesPolygon)
   poly.add_vertex(Point(-1000, -500));
   poly.close();
   
-  EXPECT_TRUE(poly.contains_to(Point(-750, -750)));
-  EXPECT_FALSE(poly.contains_to(Point(0, 0)));
+  EXPECT_TRUE(poly.contains(Point(-750, -750)));
+  EXPECT_FALSE(poly.contains(Point(0, 0)));
 }
 
 //============================================================================

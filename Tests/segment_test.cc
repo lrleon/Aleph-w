@@ -263,8 +263,8 @@ TEST_F(SegmentTest, IsToLeftFrom)
   
   // Segment is to the left of points above it (depending on orientation)
   // This depends on the specific implementation
-  (void)s.is_to_left_from(above);
-  (void)s.is_to_right_from(below);
+  (void)s.is_left_of(above);
+  (void)s.is_right_of(below);
   
   // Just verify the methods work without crashing
   SUCCEED();

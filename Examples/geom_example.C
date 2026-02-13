@@ -553,9 +553,9 @@ void demo_geometric_primitives()
   cout << "  Test point: (73, 50)" << endl;
   cout << "  Relative to line Bogota-Medellin:" << endl;
   
-  if (test_point.is_to_left_from(bogota, medellin))
+  if (test_point.is_left_of(bogota, medellin))
     cout << "    Point is to the LEFT" << endl;
-  else if (test_point.is_to_right_from(bogota, medellin))
+  else if (test_point.is_to_right_from(bogota, medellin))  // not deprecated
     cout << "    Point is to the RIGHT" << endl;
   else
     cout << "    Point is ON the line" << endl;
@@ -574,13 +574,13 @@ void demo_geometric_primitives()
   
   cout << "\n  Point containment:" << endl;
   cout << "    Point (75, 45): ";
-  if (triangle.contains_to(inside))
+  if (triangle.contains(inside))
     cout << "INSIDE the triangle" << endl;
   else
     cout << "OUTSIDE the triangle" << endl;
     
   cout << "    Point (80, 80): ";
-  if (triangle.contains_to(outside))
+  if (triangle.contains(outside))
     cout << "INSIDE the triangle" << endl;
   else
     cout << "OUTSIDE the triangle" << endl;

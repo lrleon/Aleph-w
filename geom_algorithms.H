@@ -134,6 +134,7 @@
 # ifndef GEOM_ALGORITHMS_H
 # define GEOM_ALGORITHMS_H
 
+# include <sstream>
 # include <polygon.H>
 # include <htlist.H>
 # include <tpl_dynDlist.H>
@@ -288,7 +289,7 @@ namespace Aleph
       const Vertex & a1 = p.get_next_vertex(a);
 
       if (a0.is_to_left_on_from(a, a1))
-        return a0.is_to_left_from(a, b) and a1.is_to_left_from(b, a);
+        return a0.is_left_of(a, b) and a1.is_left_of(b, a);
 
       return not (a1.is_to_left_on_from(a, b) and
                   a0.is_to_left_on_from(b, a));
@@ -3076,7 +3077,7 @@ namespace Aleph
     static bool are_all_points_on_left(const DynList<Point> & l, const Segment & s)
     {
       for (PointIt it(l); it.has_curr(); it.next_ne())
-        if (const Point & p = it.get_curr(); p.is_to_right_from(s))
+        if (const Point & p = it.get_curr(); p.is_right_of(s))
           return false;
 
       return true;
@@ -3345,13 +3346,13 @@ namespace Aleph
         {
           Point p = point_set.remove_first();
 
-          if (p != a and p != c and p.is_to_right_from(a, c))
+          if (p != a and p != c and area_of_parallelogram(a, c, p) < 0)
             {
               ret.first.append(p);
               continue;
             }
 
-          if (p != c and p != b and p.is_to_right_from(c, b))
+          if (p != c and p != b and area_of_parallelogram(c, b, p) < 0)
             ret.second.append(p);
         }
 
@@ -3403,7 +3404,7 @@ namespace Aleph
       std::pair<DynList<Point>, DynList<Point>> ret;
 
       for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
-        if (const Point & p = it.get_curr(); p.is_to_right_from(a, b))
+        if (const Point & p = it.get_curr(); area_of_parallelogram(a, b, p) < 0)
           ret.first.append(p);
         else
           ret.second.append(p);
@@ -4979,7 +4980,7 @@ namespace Aleph
     {
       const Geom_Number dx = b.get_x() - a.get_x();
       const Geom_Number dy = b.get_y() - a.get_y();
-      const Geom_Number len = pitag(dx, dy);
+      const Geom_Number len = euclidean_distance(dx, dy);
 
       // For CCW polygon: inward normal = (dy, -dx)/len, outward = (-dy, dx)/len
       Geom_Number nx, ny;
@@ -6800,6 +6801,446 @@ namespace Aleph
       return ret;
     }
   };
+
+  // ============================================================================
+  // Serialization — WKT and GeoJSON
+  // ============================================================================
+
+  /**
+   * @brief Serialization utilities for geometry objects.
+   *
+   * Provides conversion to standard text formats:
+   * - **WKT** (Well-Known Text): OGC standard for geometry representation.
+   * - **GeoJSON**: JSON-based format for geographic data structures.
+   *
+   * All numeric values are output as doubles (via `geom_number_to_double`).
+   *
+   * @ingroup Geometry
+   */
+  class GeomSerializer
+  {
+    static std::string dbl(const Geom_Number & n)
+    {
+      std::ostringstream os;
+      os << std::setprecision(15) << geom_number_to_double(n);
+      return os.str();
+    }
+
+  public:
+
+    // ---- WKT ----
+
+    /// Point → "POINT (x y)"
+    [[nodiscard]] static std::string to_wkt(const Point & p)
+    {
+      return "POINT (" + dbl(p.get_x()) + " " + dbl(p.get_y()) + ")";
+    }
+
+    /// Segment → "LINESTRING (x1 y1, x2 y2)"
+    [[nodiscard]] static std::string to_wkt(const Segment & s)
+    {
+      return "LINESTRING (" +
+        dbl(s.get_src_point().get_x()) + " " +
+        dbl(s.get_src_point().get_y()) + ", " +
+        dbl(s.get_tgt_point().get_x()) + " " +
+        dbl(s.get_tgt_point().get_y()) + ")";
+    }
+
+    /// Triangle → "POLYGON ((x1 y1, x2 y2, x3 y3, x1 y1))"
+    [[nodiscard]] static std::string to_wkt(const Triangle & t)
+    {
+      auto pt = [](const Point & p) {
+        return dbl(p.get_x()) + " " + dbl(p.get_y());
+      };
+      return "POLYGON ((" + pt(t.get_p1()) + ", " + pt(t.get_p2()) +
+             ", " + pt(t.get_p3()) + ", " + pt(t.get_p1()) + "))";
+    }
+
+    /// Rectangle → "POLYGON ((xmin ymin, xmax ymin, xmax ymax, xmin ymax, xmin ymin))"
+    [[nodiscard]] static std::string to_wkt(const Rectangle & r)
+    {
+      return "POLYGON ((" +
+        dbl(r.get_xmin()) + " " + dbl(r.get_ymin()) + ", " +
+        dbl(r.get_xmax()) + " " + dbl(r.get_ymin()) + ", " +
+        dbl(r.get_xmax()) + " " + dbl(r.get_ymax()) + ", " +
+        dbl(r.get_xmin()) + " " + dbl(r.get_ymax()) + ", " +
+        dbl(r.get_xmin()) + " " + dbl(r.get_ymin()) + "))";
+    }
+
+    /// Polygon → "POLYGON ((x1 y1, x2 y2, ..., x1 y1))"
+    [[nodiscard]] static std::string to_wkt(const Polygon & poly)
+    {
+      std::ostringstream os;
+      os << std::setprecision(15) << "POLYGON ((";
+      bool first = true;
+      Point first_pt;
+      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+        {
+          const Point & v = it.get_current_vertex();
+          if (first) { first_pt = v; first = false; }
+          else os << ", ";
+          os << geom_number_to_double(v.get_x()) << " "
+             << geom_number_to_double(v.get_y());
+        }
+      if (!first)
+        os << ", " << geom_number_to_double(first_pt.get_x()) << " "
+           << geom_number_to_double(first_pt.get_y());
+      os << "))";
+      return os.str();
+    }
+
+    /// Point3D → "POINT Z (x y z)"
+    [[nodiscard]] static std::string to_wkt(const Point3D & p)
+    {
+      return "POINT Z (" + dbl(p.get_x()) + " " + dbl(p.get_y()) +
+             " " + dbl(p.get_z()) + ")";
+    }
+
+    // ---- GeoJSON ----
+
+    /// Point → GeoJSON geometry object.
+    [[nodiscard]] static std::string to_geojson(const Point & p)
+    {
+      return R"({"type":"Point","coordinates":[)" +
+        dbl(p.get_x()) + "," + dbl(p.get_y()) + "]}";
+    }
+
+    /// Segment → GeoJSON LineString.
+    [[nodiscard]] static std::string to_geojson(const Segment & s)
+    {
+      return R"({"type":"LineString","coordinates":[[)" +
+        dbl(s.get_src_point().get_x()) + "," +
+        dbl(s.get_src_point().get_y()) + "],[" +
+        dbl(s.get_tgt_point().get_x()) + "," +
+        dbl(s.get_tgt_point().get_y()) + "]]}";
+    }
+
+    /// Triangle → GeoJSON Polygon.
+    [[nodiscard]] static std::string to_geojson(const Triangle & t)
+    {
+      auto pt = [](const Point & p) {
+        return "[" + dbl(p.get_x()) + "," + dbl(p.get_y()) + "]";
+      };
+      return R"({"type":"Polygon","coordinates":[[)" +
+        pt(t.get_p1()) + "," + pt(t.get_p2()) + "," +
+        pt(t.get_p3()) + "," + pt(t.get_p1()) + "]]}";
+    }
+
+    /// Polygon → GeoJSON Polygon.
+    [[nodiscard]] static std::string to_geojson(const Polygon & poly)
+    {
+      std::ostringstream os;
+      os << std::setprecision(15);
+      os << R"({"type":"Polygon","coordinates":[[)";
+      bool first = true;
+      Point first_pt;
+      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+        {
+          const Point & v = it.get_current_vertex();
+          if (first) { first_pt = v; first = false; }
+          else os << ",";
+          os << "[" << geom_number_to_double(v.get_x()) << ","
+             << geom_number_to_double(v.get_y()) << "]";
+        }
+      if (!first)
+        os << ",[" << geom_number_to_double(first_pt.get_x()) << ","
+           << geom_number_to_double(first_pt.get_y()) << "]";
+      os << "]]}";
+      return os.str();
+    }
+
+    /// Point3D → GeoJSON Point with Z.
+    [[nodiscard]] static std::string to_geojson(const Point3D & p)
+    {
+      return R"({"type":"Point","coordinates":[)" +
+        dbl(p.get_x()) + "," + dbl(p.get_y()) + "," +
+        dbl(p.get_z()) + "]}";
+    }
+  };
+
+  // ============================================================================
+  // AABB Tree — Axis-Aligned Bounding Box Tree
+  // ============================================================================
+
+  /**
+   * @brief Axis-aligned bounding box tree for spatial queries.
+   *
+   * An AABB tree organizes a collection of axis-aligned bounding boxes
+   * (rectangles) in a binary tree to accelerate spatial queries such as:
+   * - Point-in-box queries.
+   * - Box-box intersection queries.
+   * - Range queries (find all boxes overlapping a query box).
+   *
+   * ## Construction
+   *
+   * The tree is built top-down by splitting the input boxes along the
+   * longest axis of the enclosing bounding box. Each internal node stores
+   * the union bounding box of its children.
+   *
+   * ## Complexity
+   * - Build: O(n log n)
+   * - Query: O(log n + k) for k results, worst case O(n).
+   *
+   * @ingroup Geometry
+   */
+  class AABBTree
+  {
+  public:
+    /// An entry: bounding box + user-defined index.
+    struct Entry
+    {
+      Rectangle bbox;
+      size_t    index;  ///< user-defined identifier
+    };
+
+  private:
+    struct Node
+    {
+      Rectangle bbox;
+      size_t    left  = ~size_t(0);
+      size_t    right = ~size_t(0);
+      size_t    entry_idx = ~size_t(0); // valid only for leaves
+      [[nodiscard]] bool is_leaf() const { return entry_idx != ~size_t(0); }
+    };
+
+    Array<Node> nodes_;
+    Array<Entry> entries_;
+
+    static constexpr size_t NONE = ~size_t(0);
+
+    [[nodiscard]] static Rectangle union_bbox(const Rectangle & a,
+                                               const Rectangle & b)
+    {
+      Geom_Number xmin = a.get_xmin() < b.get_xmin() ? a.get_xmin() : b.get_xmin();
+      Geom_Number ymin = a.get_ymin() < b.get_ymin() ? a.get_ymin() : b.get_ymin();
+      Geom_Number xmax = a.get_xmax() > b.get_xmax() ? a.get_xmax() : b.get_xmax();
+      Geom_Number ymax = a.get_ymax() > b.get_ymax() ? a.get_ymax() : b.get_ymax();
+      return Rectangle(xmin, ymin, xmax, ymax);
+    }
+
+    [[nodiscard]] static bool boxes_overlap(const Rectangle & a,
+                                             const Rectangle & b)
+    {
+      return a.get_xmin() <= b.get_xmax() && a.get_xmax() >= b.get_xmin() &&
+             a.get_ymin() <= b.get_ymax() && a.get_ymax() >= b.get_ymin();
+    }
+
+    [[nodiscard]] static bool box_contains_point(const Rectangle & r,
+                                                  const Point & p)
+    {
+      return p.get_x() >= r.get_xmin() && p.get_x() <= r.get_xmax() &&
+             p.get_y() >= r.get_ymin() && p.get_y() <= r.get_ymax();
+    }
+
+    // Build a sub-tree for entries[lo..hi) and return its node index.
+    size_t build(Array<size_t> & idx, size_t lo, size_t hi)
+    {
+      if (hi - lo == 1)
+        {
+          Node n;
+          n.bbox = entries_(idx(lo)).bbox;
+          n.entry_idx = idx(lo);
+          size_t ni = nodes_.size();
+          nodes_.append(n);
+          return ni;
+        }
+
+      // Compute enclosing bbox.
+      Rectangle total = entries_(idx(lo)).bbox;
+      for (size_t i = lo + 1; i < hi; ++i)
+        total = union_bbox(total, entries_(idx(i)).bbox);
+
+      // Split along the longest axis.
+      const Geom_Number dx = total.get_xmax() - total.get_xmin();
+      const Geom_Number dy = total.get_ymax() - total.get_ymin();
+      const bool split_x = dx >= dy;
+
+      // Sort the sub-range idx[lo..hi) by center along the split axis.
+      // Simple insertion sort on the sub-range (sufficient for tree build).
+      for (size_t i = lo + 1; i < hi; ++i)
+        {
+          size_t key = idx(i);
+          auto center = [&](size_t e) {
+            return split_x
+              ? entries_(e).bbox.get_xmin() + entries_(e).bbox.get_xmax()
+              : entries_(e).bbox.get_ymin() + entries_(e).bbox.get_ymax();
+          };
+          Geom_Number key_val = center(key);
+          size_t j = i;
+          while (j > lo && center(idx(j - 1)) > key_val)
+            { idx(j) = idx(j - 1); --j; }
+          idx(j) = key;
+        }
+
+      const size_t mid = lo + (hi - lo) / 2;
+
+      size_t left = build(idx, lo, mid);
+      size_t right = build(idx, mid, hi);
+
+      Node n;
+      n.bbox = union_bbox(nodes_(left).bbox, nodes_(right).bbox);
+      n.left = left;
+      n.right = right;
+      size_t ni = nodes_.size();
+      nodes_.append(n);
+      return ni;
+    }
+
+    void query_impl(size_t ni, const Rectangle & q,
+                     Array<size_t> & results) const
+    {
+      if (ni == NONE) return;
+      const Node & n = nodes_(ni);
+      if (!boxes_overlap(n.bbox, q)) return;
+
+      if (n.is_leaf())
+        {
+          results.append(entries_(n.entry_idx).index);
+          return;
+        }
+
+      query_impl(n.left, q, results);
+      query_impl(n.right, q, results);
+    }
+
+    void query_point_impl(size_t ni, const Point & p,
+                           Array<size_t> & results) const
+    {
+      if (ni == NONE) return;
+      const Node & n = nodes_(ni);
+      if (!box_contains_point(n.bbox, p)) return;
+
+      if (n.is_leaf())
+        {
+          if (box_contains_point(entries_(n.entry_idx).bbox, p))
+            results.append(entries_(n.entry_idx).index);
+          return;
+        }
+
+      query_point_impl(n.left, p, results);
+      query_point_impl(n.right, p, results);
+    }
+
+    size_t root_ = NONE;
+
+  public:
+    AABBTree() = default;
+
+    /**
+     * @brief Build the AABB tree from an array of entries.
+     *
+     * @param entries Array of (bounding box, index) pairs.
+     */
+    void build(const Array<Entry> & entries)
+    {
+      entries_ = entries;
+      nodes_ = Array<Node>();
+      if (entries_.is_empty()) { root_ = NONE; return; }
+
+      Array<size_t> idx;
+      idx.reserve(entries_.size());
+      for (size_t i = 0; i < entries_.size(); ++i)
+        idx.append(i);
+
+      root_ = build(idx, 0, idx.size());
+    }
+
+    /**
+     * @brief Find all entries whose bounding box overlaps the query rectangle.
+     *
+     * @param query The query bounding box.
+     * @return Array of user-defined indices of overlapping entries.
+     */
+    [[nodiscard]] Array<size_t> query(const Rectangle & query) const
+    {
+      Array<size_t> results;
+      if (root_ != NONE)
+        query_impl(root_, query, results);
+      return results;
+    }
+
+    /**
+     * @brief Find all entries whose bounding box contains the query point.
+     *
+     * @param p The query point.
+     * @return Array of user-defined indices of entries containing p.
+     */
+    [[nodiscard]] Array<size_t> query_point(const Point & p) const
+    {
+      Array<size_t> results;
+      if (root_ != NONE)
+        query_point_impl(root_, p, results);
+      return results;
+    }
+
+    /// Return the root bounding box (union of all entries).
+    [[nodiscard]] Rectangle root_bbox() const
+    {
+      ah_domain_error_if(root_ == NONE) << "Empty tree";
+      return nodes_(root_).bbox;
+    }
+
+    /// Number of entries.
+    [[nodiscard]] size_t size() const { return entries_.size(); }
+
+    /// Whether the tree is empty.
+    [[nodiscard]] bool is_empty() const { return entries_.is_empty(); }
+  };
+
+  // ============================================================================
+  // GeomNumber Concept (C++20)
+  // ============================================================================
+
+#if __cplusplus >= 202002L
+
+# include <concepts>
+
+  /**
+   * @brief C++20 concept for types usable as geometry numeric types.
+   *
+   * A type satisfies `GeomNumberType` if it supports the basic arithmetic
+   * operations required by the geometry module: construction from int,
+   * comparison, and the four arithmetic operators.
+   *
+   * ## Satisfied by
+   * - `mpq_class` (GMP rational)
+   * - `double`, `float`
+   * - `long long`, `__int128`
+   *
+   * ## Usage
+   *
+   * ```cpp
+   * template <GeomNumberType N>
+   * N compute_area(N ax, N ay, N bx, N by, N cx, N cy);
+   * ```
+   *
+   * @ingroup Geometry
+   */
+  template <typename T>
+  concept GeomNumberType = requires(T a, T b, int i) {
+    { T(i) } -> std::convertible_to<T>;
+    { a + b } -> std::convertible_to<T>;
+    { a - b } -> std::convertible_to<T>;
+    { a * b } -> std::convertible_to<T>;
+    { a / b } -> std::convertible_to<T>;
+    { a == b } -> std::convertible_to<bool>;
+    { a != b } -> std::convertible_to<bool>;
+    { a < b } -> std::convertible_to<bool>;
+    { a <= b } -> std::convertible_to<bool>;
+    { a > b } -> std::convertible_to<bool>;
+    { a >= b } -> std::convertible_to<bool>;
+    { -a } -> std::convertible_to<T>;
+  };
+
+  // Verify that Geom_Number satisfies the concept.
+  static_assert(GeomNumberType<Geom_Number>,
+                "Geom_Number must satisfy GeomNumberType");
+  static_assert(GeomNumberType<double>,
+                "double must satisfy GeomNumberType");
+  static_assert(GeomNumberType<long long>,
+                "long long must satisfy GeomNumberType");
+
+#endif // C++20
 
 } // namespace Aleph
 

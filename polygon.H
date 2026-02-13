@@ -86,6 +86,9 @@
 # include <dlink.H>
 # include <point.H>
 # include <ah-errors.H>
+# include <ah-dry.H>
+# include <ahDry.H>
+# include <ah-iterator.H>
 # include <string>
 # include <utility>
 
@@ -232,7 +235,11 @@ class Regular_Polygon;
  *  @see Vertex, Regular_Polygon, Triangle
  *  @ingroup Geometry
  */
-class Polygon : public Geom_Object
+class Polygon : public Geom_Object,
+                public GenericTraverse<Polygon>,
+                public FunctionalMethods<Polygon, Point>,
+                public LocateFunctions<Polygon, Point>,
+                public StlAlephIterator<Polygon>
 {
   Dlink vertex_list_; ///< Doubly linked list of vertices
   size_t num_vertex_; ///< Number of vertices in the polygon
@@ -291,6 +298,64 @@ class Polygon : public Geom_Object
   void copy_regular_polygon(const Regular_Polygon & poly);
 
 public:
+
+  /// @brief The type of elements iterated over.
+  using Item_Type = Point;
+
+  /// @brief Alias for Item_Type.
+  using Key_Type = Point;
+
+  /** @brief STL/Aleph-compatible iterator over polygon vertices as Points.
+   *
+   *  Wraps the internal `Dlink::Iterator` and yields `const Point&`
+   *  via `get_curr()`. Compatible with `StlAlephIterator`,
+   *  `GenericTraverse`, and `FunctionalMethods`.
+   */
+  class Iterator
+  {
+    Dlink::Iterator dit_;
+
+  public:
+    Iterator() noexcept = default;
+
+    Iterator(const Polygon & poly) noexcept
+      : dit_(poly.vertex_list_) {}
+
+    [[nodiscard]] bool has_curr() const noexcept { return dit_.has_curr(); }
+
+    void next() { dit_.next(); }
+
+    void next_ne() noexcept { dit_.next_ne(); }
+
+    void prev() { dit_.prev(); }
+
+    void prev_ne() noexcept { dit_.prev_ne(); }
+
+    void reset_first() noexcept { dit_.reset_first(); }
+
+    void end() noexcept { dit_.end(); }
+
+    [[nodiscard]] const Point & get_curr() const
+    {
+      return *Vertex::dlink_to_vertex(dit_.get_curr());
+    }
+
+    [[nodiscard]] Dlink * get_pos() const noexcept
+    {
+      return dit_.get_curr_ne();
+    }
+
+    [[nodiscard]] bool operator==(const Iterator & o) const noexcept
+    {
+      return dit_ == o.dit_;
+    }
+
+    [[nodiscard]] bool operator!=(const Iterator & o) const noexcept
+    {
+      return dit_ != o.dit_;
+    }
+  };
+
   /// @brief Default constructor. Creates an empty, open polygon.
   Polygon() : num_vertex_(0), is_closed_(false)
   { /* empty */
@@ -661,6 +726,13 @@ public:
     add_vertex(Point(x, y));
   }
 
+  /// @brief Append a vertex (Aleph container protocol).
+  /// @param point The point to add as a vertex.
+  /// @see add_vertex(const Point &)
+  void append(const Point & point) { add_vertex(point); }
+
+  Special_Ctors(Polygon, Point);
+
   /** @brief Remove a vertex from the polygon.
    *
    *  Removes the specified vertex from the polygon.
@@ -736,7 +808,7 @@ public:
    *  @return True if @p p is inside or on the boundary.
    *  @throws std::domain_error If the polygon is not closed.
    */
-  [[nodiscard]] bool contains_to(const Point & p) const
+  [[nodiscard]] bool contains(const Point & p) const
   {
     ah_domain_error_if(not is_closed_) << "Polygon is not closed";
 
@@ -767,6 +839,10 @@ public:
 
     return winding != 0;
   }
+
+  /// @deprecated Use contains() instead.
+  [[deprecated("Use contains() instead")]]
+  [[nodiscard]] bool contains_to(const Point & p) const { return contains(p); }
 
   /** @brief Construct a polygon from a Triangle.
    *
@@ -1084,6 +1160,33 @@ inline void Polygon::copy_regular_polygon(const Regular_Polygon & poly)
     add_vertex(poly.get_vertex(i));
 
   close();
+}
+
+// ============================================================================
+// Stream output operators for polygon classes
+// ============================================================================
+
+inline std::ostream & operator<<(std::ostream & o, const Polygon & p)
+{
+  o << "Polygon(n=" << p.size() << ", "
+    << (p.is_closed() ? "closed" : "open") << ", [";
+  size_t count = 0;
+  for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
+    {
+      if (count > 0) o << ", ";
+      o << it.get_current_vertex();
+      ++count;
+    }
+  o << "])";
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, const Regular_Polygon & p)
+{
+  o << "Regular_Polygon(center=" << p.get_center()
+    << ", n=" << p.size()
+    << ", radius=" << p.radius() << ")";
+  return o;
 }
 
 #endif // POLYGON_H
