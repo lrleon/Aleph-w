@@ -91,8 +91,7 @@ inline std::string xml_escape(const std::string & s)
 
 inline std::filesystem::path golden_output_dir()
 {
-  const char * env_dir = std::getenv("ALEPH_TEST_GOLDEN_DIR");
-  if (env_dir != nullptr and env_dir[0] != '\0')
+  if (const char * env_dir = std::getenv("ALEPH_TEST_GOLDEN_DIR"); env_dir != nullptr and env_dir[0] != '\0')
     return std::filesystem::path(env_dir);
 
   return std::filesystem::path("test_artifacts/golden_svg");
@@ -212,8 +211,8 @@ inline std::filesystem::path emit_case_svg(const std::string & case_id,
   constexpr double width = 960.0;
   constexpr double height = 720.0;
   constexpr double margin = 32.0;
-  const double drawable_w = width - 2.0 * margin;
-  const double drawable_h = height - 2.0 * margin;
+  constexpr double drawable_w = width - 2.0 * margin;
+  constexpr double drawable_h = height - 2.0 * margin;
   const double scale = std::min(drawable_w / dx, drawable_h / dy);
   const double xoff = margin + (drawable_w - scale * dx) * 0.5;
   const double yoff = margin + (drawable_h - scale * dy) * 0.5;

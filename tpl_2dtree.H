@@ -479,7 +479,7 @@ private:
     Geom_Number dist2;
   };
 
-  /** @brief Recursively find nearest neighbor (X-split level).
+  /** @brief Recursively find the nearest neighbor (X-split level).
    *
    *  @param root Current node
    *  @param p Query point
@@ -512,7 +512,7 @@ private:
       }
   }
 
-  /** @brief Recursively find nearest neighbor (Y-split level).
+  /** @brief Recursively find the nearest neighbor (Y-split level).
    *
    *  @param root Current node
    *  @param p Query point
@@ -552,7 +552,7 @@ public:
    *  This method is const and thread-safe (no mutable members).
    *
    *  @param p Query point
-   *  @return The nearest point in the tree; empty if tree is empty.
+   *  @return The nearest point in the tree; empty if the tree is empty.
    */
   [[nodiscard]] std::optional<Point> nearest(const Point & p) const noexcept
   {
@@ -659,26 +659,23 @@ private:
                            return a.get_y() < b.get_y();
                          });
 
-    // Ensure left partition [lo, root_pos) has only elements with
+    // Ensure the left partition [lo, root_pos) has only elements with
     // split-coord strictly less than the median, matching the search
     // invariant (equal goes right).
     const Geom_Number mv = split_x ? pts(mid).get_x() : pts(mid).get_y();
 
     size_t strict_end = lo;
     for (size_t i = lo; i < mid; ++i)
-      {
-        const Geom_Number v = split_x ? pts(i).get_x() : pts(i).get_y();
-        if (v < mv)
-          {
-            if (i != strict_end)
-              {
-                const Point tmp = pts(i);
-                pts(i) = pts(strict_end);
-                pts(strict_end) = tmp;
-              }
-            ++strict_end;
-          }
-      }
+      if (const Geom_Number v = split_x ? pts(i).get_x() : pts(i).get_y(); v < mv)
+        {
+          if (i != strict_end)
+            {
+              const Point tmp = pts(i);
+              pts(i) = pts(strict_end);
+              pts(strict_end) = tmp;
+            }
+          ++strict_end;
+        }
 
     // If equal-valued elements were found in [strict_end, mid), move
     // the median to strict_end so that those elements fall into the

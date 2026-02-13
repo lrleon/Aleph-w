@@ -100,7 +100,7 @@ area_of_parallelogram(const Point & a, const Point & b, const Point & c);
 
 /// \brief Euclidean distance (hypotenuse) of the vector (x, y).
 inline Geom_Number euclidean_distance(const Geom_Number & x,
-                                       const Geom_Number & y)
+                                      const Geom_Number & y)
 {
   return hypot(mpfr_class(x), mpfr_class(y));
 }
@@ -765,8 +765,8 @@ public:
     if (this->intersects_properly_with(s))
       return true;
 
-    return (this->contains(s.src_) or this->contains(s.tgt_) or
-            s.contains(this->src_) or s.contains(this->tgt_));
+    return this->contains(s.src_) or this->contains(s.tgt_) or
+           s.contains(this->src_) or s.contains(this->tgt_);
   }
 
   [[nodiscard]] inline bool intersects_with(const Triangle & t) const;
@@ -949,8 +949,7 @@ public:
   {
     area_ = area_of_parallelogram(p1_, p2_, p3_) / 2;
 
-    ah_domain_error_if(area_ == 0)
-      << "The three points of triangle are collinear";
+    ah_domain_error_if(area_ == 0) << "The three points of triangle are collinear";
   }
 
   Triangle(Point p, const Segment & s)
@@ -958,8 +957,7 @@ public:
   {
     area_ = area_of_parallelogram(p1_, p2_, p3_) / 2;
 
-    ah_domain_error_if(area_ == 0)
-      << "The three points of triangle are collinear";
+    ah_domain_error_if(area_ == 0) << "The three points of triangle are collinear";
   }
 
   Triangle(const Segment & s, Point p)
@@ -967,8 +965,7 @@ public:
   {
     area_ = area_of_parallelogram(p1_, p2_, p3_) / 2;
 
-    ah_domain_error_if(area_ == 0)
-      << "The three points of triangle are collinear";
+    ah_domain_error_if(area_ == 0) << "The three points of triangle are collinear";
   }
 
   [[nodiscard]] Geom_Number area() const
@@ -1019,7 +1016,6 @@ public:
   /// Returns true if the point p lies inside this triangle.
   [[nodiscard]] bool contains(const Point & p) const
   {
-
     const bool s = p.is_left_of(p1_, p2_);
 
     if (p.is_left_of(p2_, p3_) != s)
@@ -1067,8 +1063,7 @@ public:
   void set_rect(const Geom_Number & xmin, const Geom_Number & ymin,
                 const Geom_Number & xmax, const Geom_Number & ymax)
   {
-    ah_range_error_if(xmax < xmin or ymax < ymin)
-      << "Invalid rectangle";
+    ah_range_error_if(xmax < xmin or ymax < ymin) << "Invalid rectangle";
 
     xmin_ = xmin;
     ymin_ = ymin;
@@ -1120,9 +1115,9 @@ public:
 // Returns true if this segment intersects one or two edges of triangle @p t.
 inline bool Segment::intersects_with(const Triangle & t) const
 {
-  return (this->intersects_with(Segment(t.get_p1(), t.get_p2())) or
-          this->intersects_with(Segment(t.get_p2(), t.get_p3())) or
-          this->intersects_with(Segment(t.get_p3(), t.get_p1())));
+  return this->intersects_with(Segment(t.get_p1(), t.get_p2())) or
+         this->intersects_with(Segment(t.get_p2(), t.get_p3())) or
+         this->intersects_with(Segment(t.get_p3(), t.get_p1()));
 }
 
 
@@ -1317,7 +1312,9 @@ public:
           s1 = Segment(t1.get_tgt_point(), m, tangent_size);
           s1.enlarge_tgt(tangent_size);
         }
-    } { // compute distances for the second tangent
+    }
+
+    { // compute distances for the second tangent
       const Geom_Number dsrc = center_.distance_to(t2.get_src_point());
       const Geom_Number dtgt = center_.distance_to(t2.get_tgt_point());
 
@@ -1467,8 +1464,7 @@ y2 = ----------------------------------------------------------------------
         const Geom_Number & xr = sg_new.get_src_point().get_x();
         const Geom_Number xr2 = xr * xr;
 
-        ah_domain_error_if(xr2 > a2)
-          << "vertical segment outside ellipse x-range";
+        ah_domain_error_if(xr2 > a2) << "vertical segment outside ellipse x-range";
 
         const Geom_Number y_sq = b2 * (Geom_Number(1) - xr2 / a2);
         const Geom_Number y_val = square_root(y_sq);
@@ -1476,7 +1472,7 @@ y2 = ----------------------------------------------------------------------
         return {Point(xr, -y_val) + center_, Point(xr, y_val) + center_};
       }
 
-    // Non-vertical: compute exact slope as Geom_Number.
+    // Non-vertical: compute the exact slope as Geom_Number.
     const Geom_Number m = (sg_new.get_tgt_point().get_y() -
                            sg_new.get_src_point().get_y()) / dx;
 
@@ -1557,8 +1553,8 @@ inline Segment Segment::intersection_with(const Ellipse & e) const
 class RotatedEllipse : public Geom_Object
 {
   Point center_;
-  Geom_Number a_;      // semi-axis along the local x (before rotation)
-  Geom_Number b_;      // semi-axis along the local y (before rotation)
+  Geom_Number a_; // semi-axis along the local x (before rotation)
+  Geom_Number b_; // semi-axis along the local y (before rotation)
   Geom_Number cos_th_; // cosine of the rotation angle
   Geom_Number sin_th_; // sine of the rotation angle
 
@@ -1567,15 +1563,19 @@ class RotatedEllipse : public Geom_Object
   {
     const Geom_Number dx = p.get_x() - center_.get_x();
     const Geom_Number dy = p.get_y() - center_.get_y();
-    return { cos_th_ * dx + sin_th_ * dy,
-            -sin_th_ * dx + cos_th_ * dy};
+    return {
+          cos_th_ * dx + sin_th_ * dy,
+          -sin_th_ * dx + cos_th_ * dy
+        };
   }
 
   // Transform a local-frame point back to world coordinates.
   [[nodiscard]] Point to_world(const Point & p) const
   {
-    return {cos_th_ * p.get_x() - sin_th_ * p.get_y() + center_.get_x(),
-            sin_th_ * p.get_x() + cos_th_ * p.get_y() + center_.get_y()};
+    return {
+          cos_th_ * p.get_x() - sin_th_ * p.get_y() + center_.get_x(),
+          sin_th_ * p.get_x() + cos_th_ * p.get_y() + center_.get_y()
+        };
   }
 
 public:
@@ -1599,14 +1599,16 @@ public:
   }
 
   RotatedEllipse() = default;
-  RotatedEllipse(const RotatedEllipse &) = default;
-  RotatedEllipse & operator=(const RotatedEllipse &) = default;
 
-  [[nodiscard]] const Point & get_center() const { return center_; }
-  [[nodiscard]] const Geom_Number & get_a() const { return a_; }
-  [[nodiscard]] const Geom_Number & get_b() const { return b_; }
-  [[nodiscard]] const Geom_Number & get_cos() const { return cos_th_; }
-  [[nodiscard]] const Geom_Number & get_sin() const { return sin_th_; }
+  RotatedEllipse(const RotatedEllipse &) = default;
+
+  RotatedEllipse &operator=(const RotatedEllipse &) = default;
+
+  [[nodiscard]] const Point &get_center() const { return center_; }
+  [[nodiscard]] const Geom_Number &get_a() const { return a_; }
+  [[nodiscard]] const Geom_Number &get_b() const { return b_; }
+  [[nodiscard]] const Geom_Number &get_cos() const { return cos_th_; }
+  [[nodiscard]] const Geom_Number &get_sin() const { return sin_th_; }
 
   /// Evaluate (x'/a)² + (y'/b)² for a point in local coords.
   [[nodiscard]] Geom_Number radius_value(const Point & p) const
@@ -1637,7 +1639,7 @@ public:
   /// Sample a point on the ellipse at parameter t ∈ [0, 1] mapping to [0, 2π).
   /// Uses rational approximations of cos/sin via the caller-provided functions.
   [[nodiscard]] Point sample(const Geom_Number & cos_t,
-                              const Geom_Number & sin_t) const
+                             const Geom_Number & sin_t) const
   {
     // Point on axis-aligned ellipse: (a cos t, b sin t).
     // Rotate and translate to world.
@@ -1653,10 +1655,12 @@ public:
   /// Compute the four axis-extremal points of the rotated ellipse.
   [[nodiscard]] ExtremalPoints extremal_points() const
   {
-    return {to_world(Point( a_, Geom_Number(0))),
-            to_world(Point(Geom_Number(0),  b_)),
-            to_world(Point(-a_, Geom_Number(0))),
-            to_world(Point(Geom_Number(0), -b_))};
+    return {
+          to_world(Point(a_, Geom_Number(0))),
+          to_world(Point(Geom_Number(0), b_)),
+          to_world(Point(-a_, Geom_Number(0))),
+          to_world(Point(Geom_Number(0), -b_))
+        };
   }
 };
 
@@ -1931,44 +1935,62 @@ class Point3D
 
 public:
   Point3D() : x_(0), y_(0), z_(0) {}
+
   Point3D(const Geom_Number & x, const Geom_Number & y, const Geom_Number & z)
     : x_(x), y_(y), z_(z) {}
 
   Point3D(const Point3D &) = default;
-  Point3D & operator=(const Point3D &) = default;
 
-  [[nodiscard]] const Geom_Number & get_x() const { return x_; }
-  [[nodiscard]] const Geom_Number & get_y() const { return y_; }
-  [[nodiscard]] const Geom_Number & get_z() const { return z_; }
+  Point3D &operator=(const Point3D &) = default;
+
+  [[nodiscard]] const Geom_Number &get_x() const { return x_; }
+  [[nodiscard]] const Geom_Number &get_y() const { return y_; }
+  [[nodiscard]] const Geom_Number &get_z() const { return z_; }
 
   [[nodiscard]] bool operator==(const Point3D & p) const
-  { return x_ == p.x_ && y_ == p.y_ && z_ == p.z_; }
+  {
+    return x_ == p.x_ and y_ == p.y_ and z_ == p.z_;
+  }
 
   [[nodiscard]] bool operator!=(const Point3D & p) const
-  { return !(*this == p); }
+  {
+    return ! (*this == p);
+  }
 
   [[nodiscard]] Point3D operator+(const Point3D & p) const
-  { return {x_ + p.x_, y_ + p.y_, z_ + p.z_}; }
+  {
+    return {x_ + p.x_, y_ + p.y_, z_ + p.z_};
+  }
 
   [[nodiscard]] Point3D operator-(const Point3D & p) const
-  { return {x_ - p.x_, y_ - p.y_, z_ - p.z_}; }
+  {
+    return {x_ - p.x_, y_ - p.y_, z_ - p.z_};
+  }
 
   [[nodiscard]] Point3D operator*(const Geom_Number & s) const
-  { return {x_ * s, y_ * s, z_ * s}; }
+  {
+    return {x_ * s, y_ * s, z_ * s};
+  }
 
   [[nodiscard]] Point3D operator/(const Geom_Number & s) const
-  { return {x_ / s, y_ / s, z_ / s}; }
+  {
+    return {x_ / s, y_ / s, z_ / s};
+  }
 
   /// Dot product.
   [[nodiscard]] Geom_Number dot(const Point3D & p) const
-  { return x_ * p.x_ + y_ * p.y_ + z_ * p.z_; }
+  {
+    return x_ * p.x_ + y_ * p.y_ + z_ * p.z_;
+  }
 
   /// Cross product.
   [[nodiscard]] Point3D cross(const Point3D & p) const
   {
-    return {y_ * p.z_ - z_ * p.y_,
-            z_ * p.x_ - x_ * p.z_,
-            x_ * p.y_ - y_ * p.x_};
+    return {
+          y_ * p.z_ - z_ * p.y_,
+          z_ * p.x_ - x_ * p.z_,
+          x_ * p.y_ - y_ * p.x_
+        };
   }
 
   /// Squared Euclidean distance.
@@ -1977,23 +1999,29 @@ public:
     const Geom_Number dx = x_ - p.x_;
     const Geom_Number dy = y_ - p.y_;
     const Geom_Number dz = z_ - p.z_;
-    return dx*dx + dy*dy + dz*dz;
+    return dx * dx + dy * dy + dz * dz;
   }
 
   /// Squared norm.
   [[nodiscard]] Geom_Number norm_squared() const
-  { return x_*x_ + y_*y_ + z_*z_; }
+  {
+    return x_ * x_ + y_ * y_ + z_ * z_;
+  }
 
   /// Project to 2D (drop z).
   [[nodiscard]] Point to_2d() const { return {x_, y_}; }
 
   /// Lift a 2D point to 3D with z = 0.
   [[nodiscard]] static Point3D from_2d(const Point & p)
-  { return {p.get_x(), p.get_y(), Geom_Number(0)}; }
+  {
+    return {p.get_x(), p.get_y(), Geom_Number(0)};
+  }
 
   /// Lift a 2D point to 3D with specified z.
   [[nodiscard]] static Point3D from_2d(const Point & p, const Geom_Number & z)
-  { return {p.get_x(), p.get_y(), z}; }
+  {
+    return {p.get_x(), p.get_y(), z};
+  }
 };
 
 /// Scalar triple product: a · (b × c).
@@ -2012,15 +2040,18 @@ class Segment3D
 
 public:
   Segment3D() = default;
+
   Segment3D(const Point3D & src, const Point3D & tgt) : src_(src), tgt_(tgt) {}
 
-  [[nodiscard]] const Point3D & get_src() const { return src_; }
-  [[nodiscard]] const Point3D & get_tgt() const { return tgt_; }
+  [[nodiscard]] const Point3D &get_src() const { return src_; }
+  [[nodiscard]] const Point3D &get_tgt() const { return tgt_; }
 
   [[nodiscard]] Point3D direction() const { return tgt_ - src_; }
 
   [[nodiscard]] Geom_Number length_squared() const
-  { return src_.distance_squared_to(tgt_); }
+  {
+    return src_.distance_squared_to(tgt_);
+  }
 
   /// Evaluate the segment at parameter t ∈ [0,1].
   [[nodiscard]] Point3D at(const Geom_Number & t) const
@@ -2031,10 +2062,14 @@ public:
 
   /// Midpoint.
   [[nodiscard]] Point3D midpoint() const
-  { return at(Geom_Number(1, 2)); }
+  {
+    return at(Geom_Number(1, 2));
+  }
 
   [[nodiscard]] bool operator==(const Segment3D & s) const
-  { return src_ == s.src_ && tgt_ == s.tgt_; }
+  {
+    return src_ == s.src_ and tgt_ == s.tgt_;
+  }
 };
 
 /**
@@ -2046,32 +2081,44 @@ class Triangle3D
 
 public:
   Triangle3D() = default;
+
   Triangle3D(const Point3D & a, const Point3D & b, const Point3D & c)
     : a_(a), b_(b), c_(c) {}
 
-  [[nodiscard]] const Point3D & get_a() const { return a_; }
-  [[nodiscard]] const Point3D & get_b() const { return b_; }
-  [[nodiscard]] const Point3D & get_c() const { return c_; }
+  [[nodiscard]] const Point3D &get_a() const { return a_; }
+  [[nodiscard]] const Point3D &get_b() const { return b_; }
+  [[nodiscard]] const Point3D &get_c() const { return c_; }
 
   /// Normal vector (not normalized): (b-a) × (c-a).
   [[nodiscard]] Point3D normal() const
-  { return (b_ - a_).cross(c_ - a_); }
+  {
+    return (b_ - a_).cross(c_ - a_);
+  }
 
   /// Twice the area squared = |normal|².
   [[nodiscard]] Geom_Number double_area_squared() const
-  { return normal().norm_squared(); }
+  {
+    return normal().norm_squared();
+  }
 
   /// Centroid.
   [[nodiscard]] Point3D centroid() const
-  { return (a_ + b_ + c_) / Geom_Number(3); }
+  {
+    return (a_ + b_ + c_) / Geom_Number(3);
+  }
 
   /// Check if three points are collinear (zero-area triangle).
   [[nodiscard]] bool is_degenerate() const
-  { return normal().norm_squared() == 0; }
+  {
+    return normal().norm_squared() == 0;
+  }
 
   /// Barycentric coordinates of point p.
   /// Returns (u, v, w) such that p = u*a + v*b + w*c, u+v+w = 1.
-  struct BaryCoords { Geom_Number u, v, w; };
+  struct BaryCoords
+  {
+    Geom_Number u, v, w;
+  };
 
   [[nodiscard]] BaryCoords barycentric(const Point3D & p) const
   {
@@ -2097,14 +2144,15 @@ class Tetrahedron
 
 public:
   Tetrahedron() = default;
+
   Tetrahedron(const Point3D & a, const Point3D & b,
               const Point3D & c, const Point3D & d)
     : a_(a), b_(b), c_(c), d_(d) {}
 
-  [[nodiscard]] const Point3D & get_a() const { return a_; }
-  [[nodiscard]] const Point3D & get_b() const { return b_; }
-  [[nodiscard]] const Point3D & get_c() const { return c_; }
-  [[nodiscard]] const Point3D & get_d() const { return d_; }
+  [[nodiscard]] const Point3D &get_a() const { return a_; }
+  [[nodiscard]] const Point3D &get_b() const { return b_; }
+  [[nodiscard]] const Point3D &get_c() const { return c_; }
+  [[nodiscard]] const Point3D &get_d() const { return d_; }
 
   /// Signed volume × 6 = (b-a) · ((c-a) × (d-a)).
   [[nodiscard]] Geom_Number signed_volume_x6() const
@@ -2122,11 +2170,15 @@ public:
 
   /// Returns true if the four points are coplanar (zero volume).
   [[nodiscard]] bool is_degenerate() const
-  { return signed_volume_x6() == 0; }
+  {
+    return signed_volume_x6() == 0;
+  }
 
   /// Centroid of the tetrahedron.
   [[nodiscard]] Point3D centroid() const
-  { return (a_ + b_ + c_ + d_) / Geom_Number(4); }
+  {
+    return (a_ + b_ + c_ + d_) / Geom_Number(4);
+  }
 
   /// Check if a point lies inside the tetrahedron (using sign of
   /// sub-tetrahedra volumes).
@@ -2141,11 +2193,9 @@ public:
     const Geom_Number d4 = scalar_triple_product(a_ - p, b_ - p, c_ - p);
 
     // Point is inside iff all sub-volumes have the same sign as d0.
-    const bool pos = d0 > 0;
-    if (pos)
-      return d1 >= 0 && d2 <= 0 && d3 >= 0 && d4 <= 0;
-    else
-      return d1 <= 0 && d2 >= 0 && d3 <= 0 && d4 >= 0;
+    if (const bool pos = d0 > 0)
+      return d1 >= 0 and d2 <= 0 and d3 >= 0 and d4 <= 0;
+    return d1 <= 0 and d2 >= 0 and d3 <= 0 and d4 >= 0;
   }
 
   /// Faces of the tetrahedron.
@@ -2157,10 +2207,14 @@ public:
   /// Get the four faces as Triangle3D objects.
   [[nodiscard]] Faces faces() const
   {
-    return {{Triangle3D(a_, b_, c_),
-             Triangle3D(a_, b_, d_),
-             Triangle3D(a_, c_, d_),
-             Triangle3D(b_, c_, d_)}};
+    return {
+          {
+            Triangle3D(a_, b_, c_),
+            Triangle3D(a_, b_, d_),
+            Triangle3D(a_, c_, d_),
+            Triangle3D(b_, c_, d_)
+          }
+        };
   }
 };
 
@@ -2168,71 +2222,71 @@ public:
 // Stream output operators for geometry classes
 // ============================================================================
 
-inline std::ostream & operator<<(std::ostream & o, const Point & p)
+inline std::ostream &operator<<(std::ostream & o, const Point & p)
 {
   o << "Point(" << p.get_x() << ", " << p.get_y() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Segment & s)
+inline std::ostream &operator<<(std::ostream & o, const Segment & s)
 {
   o << "Segment(" << s.get_src_point() << " -> " << s.get_tgt_point() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Triangle & t)
+inline std::ostream &operator<<(std::ostream & o, const Triangle & t)
 {
   o << "Triangle(" << t.get_p1() << ", " << t.get_p2()
-    << ", " << t.get_p3() << ")";
+      << ", " << t.get_p3() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Rectangle & r)
+inline std::ostream &operator<<(std::ostream & o, const Rectangle & r)
 {
   o << "Rectangle(" << r.get_xmin() << ", " << r.get_ymin()
-    << " -- " << r.get_xmax() << ", " << r.get_ymax() << ")";
+      << " -- " << r.get_xmax() << ", " << r.get_ymax() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Ellipse & e)
+inline std::ostream &operator<<(std::ostream & o, const Ellipse & e)
 {
   o << "Ellipse(center=" << e.get_center()
-    << ", hr=" << e.get_hradius() << ", vr=" << e.get_vradius() << ")";
+      << ", hr=" << e.get_hradius() << ", vr=" << e.get_vradius() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const RotatedEllipse & e)
+inline std::ostream &operator<<(std::ostream & o, const RotatedEllipse & e)
 {
   o << "RotatedEllipse(center=" << e.get_center()
-    << ", a=" << e.get_a() << ", b=" << e.get_b()
-    << ", cos=" << e.get_cos() << ", sin=" << e.get_sin() << ")";
+      << ", a=" << e.get_a() << ", b=" << e.get_b()
+      << ", cos=" << e.get_cos() << ", sin=" << e.get_sin() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Point3D & p)
+inline std::ostream &operator<<(std::ostream & o, const Point3D & p)
 {
   o << "Point3D(" << p.get_x() << ", " << p.get_y()
-    << ", " << p.get_z() << ")";
+      << ", " << p.get_z() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Segment3D & s)
+inline std::ostream &operator<<(std::ostream & o, const Segment3D & s)
 {
   o << "Segment3D(" << s.get_src() << " -> " << s.get_tgt() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Triangle3D & t)
+inline std::ostream &operator<<(std::ostream & o, const Triangle3D & t)
 {
   o << "Triangle3D(" << t.get_a() << ", " << t.get_b()
-    << ", " << t.get_c() << ")";
+      << ", " << t.get_c() << ")";
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Tetrahedron & t)
+inline std::ostream &operator<<(std::ostream & o, const Tetrahedron & t)
 {
   o << "Tetrahedron(" << t.get_a() << ", " << t.get_b()
-    << ", " << t.get_c() << ", " << t.get_d() << ")";
+      << ", " << t.get_c() << ", " << t.get_d() << ")";
   return o;
 }
 
@@ -2249,9 +2303,9 @@ struct std::formatter<Point> : std::formatter<std::string>
   auto format(const Point & p, std::format_context & ctx) const
   {
     return std::formatter<std::string>::format(
-      std::format("Point({}, {})",
-                  geom_number_to_double(p.get_x()),
-                  geom_number_to_double(p.get_y())), ctx);
+                                               std::format("Point({}, {})",
+                                                           geom_number_to_double(p.get_x()),
+                                                           geom_number_to_double(p.get_y())), ctx);
   }
 };
 
@@ -2261,8 +2315,8 @@ struct std::formatter<Segment> : std::formatter<std::string>
   auto format(const Segment & s, std::format_context & ctx) const
   {
     return std::formatter<std::string>::format(
-      std::format("Segment({} -> {})",
-                  s.get_src_point(), s.get_tgt_point()), ctx);
+                                               std::format("Segment({} -> {})",
+                                                           s.get_src_point(), s.get_tgt_point()), ctx);
   }
 };
 
@@ -2272,8 +2326,8 @@ struct std::formatter<Triangle> : std::formatter<std::string>
   auto format(const Triangle & t, std::format_context & ctx) const
   {
     return std::formatter<std::string>::format(
-      std::format("Triangle({}, {}, {})",
-                  t.get_p1(), t.get_p2(), t.get_p3()), ctx);
+                                               std::format("Triangle({}, {}, {})",
+                                                           t.get_p1(), t.get_p2(), t.get_p3()), ctx);
   }
 };
 
@@ -2283,11 +2337,11 @@ struct std::formatter<Rectangle> : std::formatter<std::string>
   auto format(const Rectangle & r, std::format_context & ctx) const
   {
     return std::formatter<std::string>::format(
-      std::format("Rectangle({}, {} -- {}, {})",
-                  geom_number_to_double(r.get_xmin()),
-                  geom_number_to_double(r.get_ymin()),
-                  geom_number_to_double(r.get_xmax()),
-                  geom_number_to_double(r.get_ymax())), ctx);
+                                               std::format("Rectangle({}, {} -- {}, {})",
+                                                           geom_number_to_double(r.get_xmin()),
+                                                           geom_number_to_double(r.get_ymin()),
+                                                           geom_number_to_double(r.get_xmax()),
+                                                           geom_number_to_double(r.get_ymax())), ctx);
   }
 };
 
@@ -2297,10 +2351,10 @@ struct std::formatter<Point3D> : std::formatter<std::string>
   auto format(const Point3D & p, std::format_context & ctx) const
   {
     return std::formatter<std::string>::format(
-      std::format("Point3D({}, {}, {})",
-                  geom_number_to_double(p.get_x()),
-                  geom_number_to_double(p.get_y()),
-                  geom_number_to_double(p.get_z())), ctx);
+                                               std::format("Point3D({}, {}, {})",
+                                                           geom_number_to_double(p.get_x()),
+                                                           geom_number_to_double(p.get_y()),
+                                                           geom_number_to_double(p.get_z())), ctx);
   }
 };
 

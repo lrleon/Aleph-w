@@ -3972,6 +3972,209 @@ TEST_F(GeomAlgorithmsTest, ShortestPathOpenThrows)
                std::domain_error);
 }
 
+// --- ShortestPathInPolygon regression tests (Lee-Preparata funnel) ---
+
+TEST_F(GeomAlgorithmsTest, ShortestPathLShapedExact)
+{
+  // L-shaped polygon; shortest path from bottom-right to top-left must
+  // pass through the reflex vertex (5,5).
+  //
+  //  (0,10)----(5,10)
+  //    |          |
+  //    |   (5,5)--(10,5)
+  //    |              |
+  //  (0,0)-------(10,0)
+  Polygon L;
+  L.add_vertex(Point(0, 0));
+  L.add_vertex(Point(10, 0));
+  L.add_vertex(Point(10, 5));
+  L.add_vertex(Point(5, 5));
+  L.add_vertex(Point(5, 10));
+  L.add_vertex(Point(0, 10));
+  L.close();
+
+  ShortestPathInPolygon sp;
+  // (9,2)→(2,9): line crosses edges (10,5)→(5,5) at (6,5) and (5,5)→(5,10) at (5,6)
+  auto path = sp(L, Point(9, 2), Point(2, 9));
+
+  // Must be at least: source → (5,5) → target.
+  ASSERT_GE(path.size(), 3u);
+  EXPECT_EQ(path.get_first(), Point(9, 2));
+  EXPECT_EQ(path.get_last(), Point(2, 9));
+
+  // The reflex vertex (5,5) must appear in the path.
+  bool has_5_5 = false;
+  for (DynList<Point>::Iterator it(path); it.has_curr(); it.next_ne())
+    if (it.get_curr() == Point(5, 5)) has_5_5 = true;
+  EXPECT_TRUE(has_5_5) << "Path must pass through reflex vertex (5,5)";
+}
+
+TEST_F(GeomAlgorithmsTest, ShortestPathUShaped)
+{
+  // U-shaped polygon.  Source at bottom-left, target at bottom-right.
+  // Shortest path must go up around the inner notch.
+  //
+  //  (0,10)--(3,10)--(3,4)--(7,4)--(7,10)--(10,10)
+  //    |                                        |
+  //  (0,0)---------------------------------(10,0)
+  Polygon U;
+  U.add_vertex(Point(0, 0));
+  U.add_vertex(Point(10, 0));
+  U.add_vertex(Point(10, 10));
+  U.add_vertex(Point(7, 10));
+  U.add_vertex(Point(7, 4));
+  U.add_vertex(Point(3, 4));
+  U.add_vertex(Point(3, 10));
+  U.add_vertex(Point(0, 10));
+  U.close();
+
+  ShortestPathInPolygon sp;
+  // (1,8)→(9,8): line at y=8 crosses edges x=3 and x=7
+  auto path = sp(U, Point(1, 8), Point(9, 8));
+
+  // The path must go around the bottom of the notch.
+  // It should include reflex vertices (3,4) and (7,4) as waypoints.
+  EXPECT_GE(path.size(), 4u); // at least source, (3,4), (7,4), target
+
+  EXPECT_EQ(path.get_first(), Point(1, 8));
+  EXPECT_EQ(path.get_last(), Point(9, 8));
+
+  // Verify (3,4) and (7,4) appear in the path.
+  bool has_3_4 = false, has_7_4 = false;
+  for (DynList<Point>::Iterator it(path); it.has_curr(); it.next_ne())
+    {
+      if (it.get_curr() == Point(3, 4)) has_3_4 = true;
+      if (it.get_curr() == Point(7, 4)) has_7_4 = true;
+    }
+  EXPECT_TRUE(has_3_4) << "Path must pass through reflex vertex (3,4)";
+  EXPECT_TRUE(has_7_4) << "Path must pass through reflex vertex (7,4)";
+
+  // All segments must stay inside the polygon.
+  DynList<Point>::Iterator uit(path);
+  Point uprev = uit.get_curr();
+  uit.next_ne();
+  for (; uit.has_curr(); uit.next_ne())
+    {
+      const Segment seg(uprev, uit.get_curr());
+      bool crosses = false;
+      for (Polygon::Segment_Iterator si(U); si.has_curr() and not crosses; si.next_ne())
+        if (seg.intersects_properly_with(si.get_current_segment()))
+          crosses = true;
+      EXPECT_FALSE(crosses) << "Path segment crosses polygon boundary";
+      uprev = uit.get_curr();
+    }
+}
+
+TEST_F(GeomAlgorithmsTest, ShortestPathTwoRooms)
+{
+  // Rectangle [0,10]×[0,10] with a notch [6,10]×[4,6] removed,
+  // creating two "rooms" connected on the left side.
+  //
+  //  (0,10)-----------(10,10)
+  //    |                  |
+  //    |         (6,6)--(10,6)
+  //    |           |          
+  //    |         (6,4)--(10,4)
+  //    |                  |
+  //  (0,0)-----------(10,0)
+  Polygon R;
+  R.add_vertex(Point(0, 0));
+  R.add_vertex(Point(10, 0));
+  R.add_vertex(Point(10, 4));
+  R.add_vertex(Point(6, 4));
+  R.add_vertex(Point(6, 6));
+  R.add_vertex(Point(10, 6));
+  R.add_vertex(Point(10, 10));
+  R.add_vertex(Point(0, 10));
+  R.close();
+
+  // Source in bottom room, target in top room.
+  // Line x=8 from (8,2) to (8,8) crosses edges y=4 and y=6.
+  ShortestPathInPolygon sp;
+  auto path = sp(R, Point(8, 2), Point(8, 8));
+
+  EXPECT_GE(path.size(), 3u);
+  EXPECT_EQ(path.get_first(), Point(8, 2));
+  EXPECT_EQ(path.get_last(), Point(8, 8));
+
+  // Must pass through reflex vertices (6,4) and (6,6).
+  bool has_6_4 = false, has_6_6 = false;
+  for (DynList<Point>::Iterator it(path); it.has_curr(); it.next_ne())
+    {
+      if (it.get_curr() == Point(6, 4)) has_6_4 = true;
+      if (it.get_curr() == Point(6, 6)) has_6_6 = true;
+    }
+  EXPECT_TRUE(has_6_4) << "Path must pass through reflex vertex (6,4)";
+  EXPECT_TRUE(has_6_6) << "Path must pass through reflex vertex (6,6)";
+
+  // All segments must stay inside.
+  DynList<Point>::Iterator it(path);
+  Point prev = it.get_curr();
+  it.next_ne();
+  for (; it.has_curr(); it.next_ne())
+    {
+      const Segment seg(prev, it.get_curr());
+      bool crosses = false;
+      for (Polygon::Segment_Iterator si(R); si.has_curr() and not crosses;
+           si.next_ne())
+        if (seg.intersects_properly_with(si.get_current_segment()))
+          crosses = true;
+      EXPECT_FALSE(crosses) << "Path segment crosses polygon boundary";
+      prev = it.get_curr();
+    }
+}
+
+TEST_F(GeomAlgorithmsTest, ShortestPathAllSegmentsInsidePolygon)
+{
+  // Generic property test: for ANY shortest path in a simple polygon,
+  // every segment of the path must not properly intersect any polygon edge.
+  // Use the L-shaped polygon with various source/target pairs.
+  Polygon L;
+  L.add_vertex(Point(0, 0));
+  L.add_vertex(Point(10, 0));
+  L.add_vertex(Point(10, 5));
+  L.add_vertex(Point(5, 5));
+  L.add_vertex(Point(5, 10));
+  L.add_vertex(Point(0, 10));
+  L.close();
+
+  ShortestPathInPolygon sp;
+
+  // Several test pairs.
+  Point pairs[][2] = {
+    {Point(1, 1), Point(1, 9)},
+    {Point(9, 1), Point(1, 9)},
+    {Point(9, 2), Point(3, 8)},
+    {Point(1, 8), Point(8, 1)},
+  };
+
+  for (auto & pair : pairs)
+    {
+      auto path = sp(L, pair[0], pair[1]);
+      ASSERT_GE(path.size(), 2u);
+      EXPECT_EQ(path.get_first(), pair[0]);
+      EXPECT_EQ(path.get_last(), pair[1]);
+
+      DynList<Point>::Iterator it(path);
+      Point prev = it.get_curr();
+      it.next_ne();
+      for (; it.has_curr(); it.next_ne())
+        {
+          const Point & curr = it.get_curr();
+          const Segment seg(prev, curr);
+          bool crosses = false;
+          for (Polygon::Segment_Iterator si(L); si.has_curr() and not crosses;
+               si.next_ne())
+            if (seg.intersects_properly_with(si.get_current_segment()))
+              crosses = true;
+          EXPECT_FALSE(crosses)
+            << "Path segment crosses polygon boundary for pair ("
+            << pair[0] << ", " << pair[1] << ")";
+          prev = curr;
+        }
+    }
+}
+
 // =========================================================================
 // SegmentArrangement tests
 // =========================================================================
@@ -4522,6 +4725,134 @@ TEST_F(GeomAlgorithmsTest, PowerDiagramSquare)
   EXPECT_EQ(result.cells.size(), 4u);
   // Should have at least 1 edge.
   EXPECT_GE(result.edges.size(), 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, RegularTriangulationEqualWeightsMatchesDelaunay)
+{
+  // With equal weights, regular triangulation == standard Delaunay.
+  Array<RegularTriangulationBowyerWatson::WeightedSite> sites;
+  sites.append({Point(0, 0), Geom_Number(0)});
+  sites.append({Point(6, 0), Geom_Number(0)});
+  sites.append({Point(2, 4), Geom_Number(0)});
+
+  constexpr RegularTriangulationBowyerWatson reg;
+  auto rr = reg(sites);
+
+  ASSERT_EQ(rr.sites.size(), 3u);
+  ASSERT_EQ(rr.triangles.size(), 1u);
+
+  // Compare against standard Delaunay.
+  DynList<Point> pts;
+  pts.append(Point(0, 0));
+  pts.append(Point(6, 0));
+  pts.append(Point(2, 4));
+
+  constexpr DelaunayTriangulationBowyerWatson del;
+  auto dr = del(pts);
+
+  ASSERT_EQ(dr.triangles.size(), 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, RegularTriangulationNonUniformWeights)
+{
+  // Five sites with non-uniform weights.  The regular triangulation must
+  // produce valid (non-degenerate) triangles.
+  Array<RegularTriangulationBowyerWatson::WeightedSite> sites;
+  sites.append({Point(0, 0), Geom_Number(0)});
+  sites.append({Point(10, 0), Geom_Number(0)});
+  sites.append({Point(10, 10), Geom_Number(0)});
+  sites.append({Point(0, 10), Geom_Number(0)});
+  sites.append({Point(5, 5), Geom_Number(50)});  // very large weight
+
+  constexpr RegularTriangulationBowyerWatson reg;
+  auto rr = reg(sites);
+
+  EXPECT_EQ(rr.sites.size(), 5u);
+  // With a large weight on the center point, the regular triangulation
+  // should still produce triangles (the center site dominates).
+  EXPECT_GE(rr.triangles.size(), 1u);
+
+  // Every output triangle must be non-degenerate.
+  for (size_t t = 0; t < rr.triangles.size(); ++t)
+    {
+      const auto & tri = rr.triangles(t);
+      EXPECT_NE(orientation(rr.sites(tri.i).position,
+                            rr.sites(tri.j).position,
+                            rr.sites(tri.k).position),
+                Orientation::COLLINEAR);
+    }
+}
+
+TEST_F(GeomAlgorithmsTest, PowerDiagramNonUniformWeightsCorrectness)
+{
+  // Triangle with one site having a very large weight.
+  // The power center of each triangle must be equidistant (in power
+  // distance) to all three vertices of that triangle.
+  Array<PowerDiagram::WeightedSite> sites;
+  sites.append({Point(0, 0), Geom_Number(0)});
+  sites.append({Point(10, 0), Geom_Number(0)});
+  sites.append({Point(5, 8), Geom_Number(30)});
+
+  PowerDiagram pd;
+  auto result = pd(sites);
+
+  EXPECT_EQ(result.sites.size(), 3u);
+  ASSERT_GE(result.vertices.size(), 1u);
+  EXPECT_EQ(result.cells.size(), 3u);
+
+  // For each power vertex (one per triangle in the regular triangulation),
+  // check that the power distance to all three sites of that triangle is
+  // equal.  This is the defining property of the power center.
+  // We don't have direct triangle→site mapping in the Result, but we can
+  // verify that each vertex is equidistant to at least one triple.
+  // Since we have 3 sites and at least 1 triangle, verify the first vertex.
+  const Point & pc = result.vertices(0);
+  const Geom_Number pd0 = pc.distance_squared_to(sites(0).position) - sites(0).weight;
+  const Geom_Number pd1 = pc.distance_squared_to(sites(1).position) - sites(1).weight;
+  const Geom_Number pd2 = pc.distance_squared_to(sites(2).position) - sites(2).weight;
+
+  EXPECT_EQ(pd0, pd1) << "Power distance to site 0 != site 1";
+  EXPECT_EQ(pd1, pd2) << "Power distance to site 1 != site 2";
+}
+
+TEST_F(GeomAlgorithmsTest, PowerDiagramFourSitesNonUniformWeights)
+{
+  // Four sites in a square, one corner with a large weight.
+  // The regular triangulation may differ from the standard Delaunay.
+  Array<PowerDiagram::WeightedSite> sites;
+  sites.append({Point(0, 0), Geom_Number(0)});
+  sites.append({Point(10, 0), Geom_Number(0)});
+  sites.append({Point(10, 10), Geom_Number(0)});
+  sites.append({Point(0, 10), Geom_Number(80)});  // large weight
+
+  PowerDiagram pd;
+  auto result = pd(sites);
+
+  EXPECT_EQ(result.sites.size(), 4u);
+  EXPECT_EQ(result.cells.size(), 4u);
+  EXPECT_GE(result.vertices.size(), 1u);
+
+  // Each power vertex must be equi-power-distant to its defining triple.
+  // Verify all vertices satisfy the power-center property for *some* triple.
+  for (size_t v = 0; v < result.vertices.size(); ++v)
+    {
+      const Point & pc = result.vertices(v);
+      Array<Geom_Number> pds;
+      for (size_t s = 0; s < result.sites.size(); ++s)
+        pds.append(pc.distance_squared_to(result.sites(s).position)
+                   - result.sites(s).weight);
+
+      // At least 3 power distances must be equal (those of the defining triple).
+      bool found_triple = false;
+      for (size_t a = 0; a < pds.size() and not found_triple; ++a)
+        for (size_t b = a + 1; b < pds.size() and not found_triple; ++b)
+          for (size_t c = b + 1; c < pds.size() and not found_triple; ++c)
+            if (pds(a) == pds(b) and pds(b) == pds(c))
+              found_triple = true;
+
+      EXPECT_TRUE(found_triple) << "Power vertex " << v
+                                << " is not equidistant to any site triple";
+    }
 }
 
 // ============================================================================

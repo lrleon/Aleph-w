@@ -298,7 +298,6 @@ class Polygon : public Geom_Object,
   void copy_regular_polygon(const Regular_Polygon & poly);
 
 public:
-
   /// @brief The type of elements iterated over.
   using Item_Type = Point;
 
@@ -335,7 +334,7 @@ public:
 
     void end() noexcept { dit_.end(); }
 
-    [[nodiscard]] const Point & get_curr() const
+    [[nodiscard]] const Point &get_curr() const
     {
       return *Vertex::dlink_to_vertex(dit_.get_curr());
     }
@@ -674,22 +673,20 @@ public:
 
     // Check if the new point is colinear with the last segment
     if (num_vertex_ > 1)
-      {
-        if (const Segment last_sg = get_last_segment(); point.is_colinear_with(last_sg))
-          {
-            ah_domain_error_if(point.is_inside(last_sg))
+      if (const Segment last_sg = get_last_segment(); point.is_colinear_with(last_sg))
+        {
+          ah_domain_error_if(point.is_inside(last_sg))
 	            << "new vertex is inside of last polygon's segment";
 
-            // Colinear point: replace the last vertex with this new one
-            auto & last_vertex = const_cast<Vertex &>(get_last_vertex());
-            Point & last_point = last_vertex;
-            last_point = point;
+          // Colinear point: replace the last vertex with this new one
+          auto & last_vertex = const_cast<Vertex &>(get_last_vertex());
+          Point & last_point = last_vertex;
+          last_point = point;
 
-            update_extreme_points(point);
+          update_extreme_points(point);
 
-            return;
-          }
-      }
+          return;
+        }
 
     // If we have at least 3 vertices, verify no self-intersection
     if (num_vertex_ >= 3)
@@ -932,8 +929,7 @@ public:
                   const double & ang = 0)
     : center_(std::move(c)), side_size_(side_sz), num_vertex_(n), angle_(ang), beta_(2 * PI / n)
   {
-    ah_domain_error_if(n < 3)
-      << "Polygon sides is less than 3";
+    ah_domain_error_if(n < 3) << "Polygon sides is less than 3";
 
     // Calculate radius using law of sines with angles between vertices
     // and the angle between radius and side
@@ -1166,10 +1162,10 @@ inline void Polygon::copy_regular_polygon(const Regular_Polygon & poly)
 // Stream output operators for polygon classes
 // ============================================================================
 
-inline std::ostream & operator<<(std::ostream & o, const Polygon & p)
+inline std::ostream &operator<<(std::ostream & o, const Polygon & p)
 {
   o << "Polygon(n=" << p.size() << ", "
-    << (p.is_closed() ? "closed" : "open") << ", [";
+      << (p.is_closed() ? "closed" : "open") << ", [";
   size_t count = 0;
   for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
     {
@@ -1181,11 +1177,11 @@ inline std::ostream & operator<<(std::ostream & o, const Polygon & p)
   return o;
 }
 
-inline std::ostream & operator<<(std::ostream & o, const Regular_Polygon & p)
+inline std::ostream &operator<<(std::ostream & o, const Regular_Polygon & p)
 {
   o << "Regular_Polygon(center=" << p.get_center()
-    << ", n=" << p.size()
-    << ", radius=" << p.radius() << ")";
+      << ", n=" << p.size()
+      << ", radius=" << p.radius() << ")";
   return o;
 }
 
