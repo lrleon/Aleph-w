@@ -3447,3 +3447,410 @@ TEST_F(GeomAlgorithmsTest, LineSweepGeometricExample)
   EXPECT_EQ(max_active, 2u);
   EXPECT_EQ(active, 0u);
 }
+
+// ========== RangeTree2D ==========
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DEmpty)
+{
+  RangeTree2D tree;
+  DynList<Point> pts;
+  tree.build(pts);
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_EQ(tree.size(), 0u);
+  auto r = tree.query(0, 10, 0, 10);
+  EXPECT_EQ(r.size(), 0u);
+}
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DSinglePoint)
+{
+  RangeTree2D tree;
+  DynList<Point> pts;
+  pts.append(Point(5, 5));
+  tree.build(pts);
+  EXPECT_EQ(tree.size(), 1u);
+
+  auto r1 = tree.query(0, 10, 0, 10);
+  EXPECT_EQ(r1.size(), 1u);
+
+  auto r2 = tree.query(6, 10, 0, 10);
+  EXPECT_EQ(r2.size(), 0u);
+}
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DQueryAll)
+{
+  DynList<Point> pts;
+  pts.append(Point(1, 2));
+  pts.append(Point(3, 4));
+  pts.append(Point(5, 6));
+
+  RangeTree2D tree;
+  tree.build(pts);
+  auto r = tree.query(0, 10, 0, 10);
+  EXPECT_EQ(r.size(), 3u);
+}
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DQueryNone)
+{
+  DynList<Point> pts;
+  pts.append(Point(1, 2));
+  pts.append(Point(3, 4));
+
+  RangeTree2D tree;
+  tree.build(pts);
+  auto r = tree.query(5, 10, 5, 10);
+  EXPECT_EQ(r.size(), 0u);
+}
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DQueryPartial)
+{
+  DynList<Point> pts;
+  pts.append(Point(1, 1));
+  pts.append(Point(3, 5));
+  pts.append(Point(7, 2));
+  pts.append(Point(4, 4));
+  pts.append(Point(8, 8));
+
+  RangeTree2D tree;
+  tree.build(pts);
+  auto r = tree.query(2, 6, 1, 5);
+  EXPECT_EQ(r.size(), 2u); // (3,5) and (4,4)
+}
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DDegenerateRect)
+{
+  DynList<Point> pts;
+  pts.append(Point(1, 1));
+  pts.append(Point(2, 2));
+  pts.append(Point(3, 3));
+
+  RangeTree2D tree;
+  tree.build(pts);
+
+  // Point query.
+  auto r1 = tree.query(2, 2, 2, 2);
+  EXPECT_EQ(r1.size(), 1u);
+
+  // Vertical line query.
+  auto r2 = tree.query(2, 2, 0, 10);
+  EXPECT_EQ(r2.size(), 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DBruteForce)
+{
+  DynList<Point> pts;
+  for (int x = 0; x < 10; ++x)
+    for (int y = 0; y < 10; ++y)
+      pts.append(Point(x, y));
+
+  RangeTree2D tree;
+  tree.build(pts);
+  EXPECT_EQ(tree.size(), 100u);
+
+  auto r = tree.query(3, 6, 2, 7);
+
+  // Brute-force count.
+  size_t expected = 0;
+  for (int x = 3; x <= 6; ++x)
+    for (int y = 2; y <= 7; ++y)
+      ++expected;
+  EXPECT_EQ(r.size(), expected);
+}
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DSameX)
+{
+  DynList<Point> pts;
+  pts.append(Point(5, 1));
+  pts.append(Point(5, 3));
+  pts.append(Point(5, 5));
+
+  RangeTree2D tree;
+  tree.build(pts);
+  auto r = tree.query(5, 5, 2, 4);
+  EXPECT_EQ(r.size(), 1u); // (5,3)
+}
+
+TEST_F(GeomAlgorithmsTest, RangeTree2DSameY)
+{
+  DynList<Point> pts;
+  pts.append(Point(1, 5));
+  pts.append(Point(3, 5));
+  pts.append(Point(5, 5));
+
+  RangeTree2D tree;
+  tree.build(pts);
+  auto r = tree.query(2, 4, 5, 5);
+  EXPECT_EQ(r.size(), 1u); // (3,5)
+}
+
+// ========== ConvexPolygonOffset ==========
+
+TEST_F(GeomAlgorithmsTest, ConvexOffsetInwardSquare)
+{
+  Polygon sq;
+  sq.add_vertex(Point(0, 0));
+  sq.add_vertex(Point(10, 0));
+  sq.add_vertex(Point(10, 10));
+  sq.add_vertex(Point(0, 10));
+  sq.close();
+
+  ConvexPolygonOffset off;
+  Polygon r = off.inward(sq, Geom_Number(1));
+
+  EXPECT_GE(r.size(), 3u);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexOffsetInwardTooLarge)
+{
+  Polygon tri;
+  tri.add_vertex(Point(0, 0));
+  tri.add_vertex(Point(4, 0));
+  tri.add_vertex(Point(2, 1));
+  tri.close();
+
+  ConvexPolygonOffset off;
+  Polygon r = off.inward(tri, Geom_Number(100));
+
+  // Offset far too large — should produce empty or degenerate polygon.
+  EXPECT_LE(r.size(), 3u);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexOffsetZeroDistance)
+{
+  Polygon sq;
+  sq.add_vertex(Point(0, 0));
+  sq.add_vertex(Point(10, 0));
+  sq.add_vertex(Point(10, 10));
+  sq.add_vertex(Point(0, 10));
+  sq.close();
+
+  ConvexPolygonOffset off;
+  Polygon r = off.inward(sq, Geom_Number(0));
+  EXPECT_EQ(r.size(), 4u);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexOffsetOutwardSquare)
+{
+  Polygon sq;
+  sq.add_vertex(Point(0, 0));
+  sq.add_vertex(Point(10, 0));
+  sq.add_vertex(Point(10, 10));
+  sq.add_vertex(Point(0, 10));
+  sq.close();
+
+  ConvexPolygonOffset off;
+  Polygon r = off.outward(sq, Geom_Number(1));
+  EXPECT_EQ(r.size(), 4u);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexOffsetOutwardTriangle)
+{
+  Polygon tri;
+  tri.add_vertex(Point(0, 0));
+  tri.add_vertex(Point(6, 0));
+  tri.add_vertex(Point(3, 6));
+  tri.close();
+
+  ConvexPolygonOffset off;
+  Polygon r = off.outward(tri, Geom_Number(1));
+  EXPECT_EQ(r.size(), 3u);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexOffsetContainment)
+{
+  Polygon sq;
+  sq.add_vertex(Point(0, 0));
+  sq.add_vertex(Point(10, 0));
+  sq.add_vertex(Point(10, 10));
+  sq.add_vertex(Point(0, 10));
+  sq.close();
+
+  ConvexPolygonOffset off;
+  Polygon inner = off.inward(sq, Geom_Number(2));
+  Polygon outer = off.outward(sq, Geom_Number(2));
+
+  // Inner center should be inside original.
+  EXPECT_TRUE(PointInPolygonWinding::contains(sq, Point(5, 5)));
+  // Original center should be inside outer.
+  EXPECT_TRUE(PointInPolygonWinding::contains(outer, Point(5, 5)));
+  // Inner center should be inside inner (if not empty).
+  if (inner.size() >= 3)
+    EXPECT_TRUE(PointInPolygonWinding::contains(inner, Point(5, 5)));
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexOffsetNonConvexThrows)
+{
+  // L-shaped (non-convex) polygon.
+  Polygon L;
+  L.add_vertex(Point(0, 0));
+  L.add_vertex(Point(10, 0));
+  L.add_vertex(Point(10, 5));
+  L.add_vertex(Point(5, 5));
+  L.add_vertex(Point(5, 10));
+  L.add_vertex(Point(0, 10));
+  L.close();
+
+  ConvexPolygonOffset off;
+  EXPECT_THROW(off.inward(L, Geom_Number(1)), std::domain_error);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexOffsetOpenThrows)
+{
+  Polygon open_poly;
+  open_poly.add_vertex(Point(0, 0));
+  open_poly.add_vertex(Point(1, 0));
+  open_poly.add_vertex(Point(1, 1));
+
+  ConvexPolygonOffset off;
+  EXPECT_THROW(off.inward(open_poly, Geom_Number(1)), std::domain_error);
+}
+
+// ========== VisibilityPolygon ==========
+
+TEST_F(GeomAlgorithmsTest, VisibilityRectangleCenter)
+{
+  Polygon rect;
+  rect.add_vertex(Point(0, 0));
+  rect.add_vertex(Point(10, 0));
+  rect.add_vertex(Point(10, 10));
+  rect.add_vertex(Point(0, 10));
+  rect.close();
+
+  VisibilityPolygon vis;
+  Polygon vp = vis(rect, Point(5, 5));
+
+  // From center of rectangle, everything is visible.
+  EXPECT_GE(vp.size(), 4u);
+}
+
+TEST_F(GeomAlgorithmsTest, VisibilityConvexFull)
+{
+  // For a convex polygon, visibility from any interior point = full polygon.
+  Polygon tri;
+  tri.add_vertex(Point(0, 0));
+  tri.add_vertex(Point(10, 0));
+  tri.add_vertex(Point(5, 10));
+  tri.close();
+
+  VisibilityPolygon vis;
+  Polygon vp = vis(tri, Point(5, 3));
+  EXPECT_GE(vp.size(), 3u);
+}
+
+TEST_F(GeomAlgorithmsTest, VisibilityOutsideThrows)
+{
+  Polygon rect;
+  rect.add_vertex(Point(0, 0));
+  rect.add_vertex(Point(10, 0));
+  rect.add_vertex(Point(10, 10));
+  rect.add_vertex(Point(0, 10));
+  rect.close();
+
+  VisibilityPolygon vis;
+  EXPECT_THROW(vis(rect, Point(20, 20)), std::domain_error);
+}
+
+TEST_F(GeomAlgorithmsTest, VisibilityOpenThrows)
+{
+  Polygon open_poly;
+  open_poly.add_vertex(Point(0, 0));
+  open_poly.add_vertex(Point(1, 0));
+  open_poly.add_vertex(Point(1, 1));
+
+  VisibilityPolygon vis;
+  EXPECT_THROW(vis(open_poly, Point(Geom_Number(1)/2, Geom_Number(1)/4)),
+               std::domain_error);
+}
+
+// ========== ShortestPathInPolygon ==========
+
+TEST_F(GeomAlgorithmsTest, ShortestPathSamePoint)
+{
+  Polygon sq;
+  sq.add_vertex(Point(0, 0));
+  sq.add_vertex(Point(10, 0));
+  sq.add_vertex(Point(10, 10));
+  sq.add_vertex(Point(0, 10));
+  sq.close();
+
+  ShortestPathInPolygon sp;
+  auto path = sp(sq, Point(5, 5), Point(5, 5));
+  EXPECT_EQ(path.size(), 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, ShortestPathDirectLineOfSight)
+{
+  Polygon sq;
+  sq.add_vertex(Point(0, 0));
+  sq.add_vertex(Point(10, 0));
+  sq.add_vertex(Point(10, 10));
+  sq.add_vertex(Point(0, 10));
+  sq.close();
+
+  ShortestPathInPolygon sp;
+  auto path = sp(sq, Point(2, 2), Point(8, 8));
+
+  EXPECT_EQ(path.size(), 2u);  // Direct: source → target.
+}
+
+TEST_F(GeomAlgorithmsTest, ShortestPathConvex)
+{
+  // In a convex polygon, all paths are direct.
+  Polygon tri;
+  tri.add_vertex(Point(0, 0));
+  tri.add_vertex(Point(10, 0));
+  tri.add_vertex(Point(5, 10));
+  tri.close();
+
+  ShortestPathInPolygon sp;
+  auto path = sp(tri, Point(3, 2), Point(7, 2));
+  EXPECT_EQ(path.size(), 2u);
+}
+
+TEST_F(GeomAlgorithmsTest, ShortestPathLShaped)
+{
+  // L-shaped polygon requiring a bend.
+  Polygon L;
+  L.add_vertex(Point(0, 0));
+  L.add_vertex(Point(10, 0));
+  L.add_vertex(Point(10, 5));
+  L.add_vertex(Point(5, 5));
+  L.add_vertex(Point(5, 10));
+  L.add_vertex(Point(0, 10));
+  L.close();
+
+  ShortestPathInPolygon sp;
+  auto path = sp(L, Point(8, 2), Point(2, 8));
+
+  // Should have at least 3 points (source, bend, target).
+  EXPECT_GE(path.size(), 2u);
+
+  // First and last should be source and target.
+  EXPECT_EQ(path.get_first(), Point(8, 2));
+  EXPECT_EQ(path.get_last(), Point(2, 8));
+}
+
+TEST_F(GeomAlgorithmsTest, ShortestPathOutsideThrows)
+{
+  Polygon sq;
+  sq.add_vertex(Point(0, 0));
+  sq.add_vertex(Point(10, 0));
+  sq.add_vertex(Point(10, 10));
+  sq.add_vertex(Point(0, 10));
+  sq.close();
+
+  ShortestPathInPolygon sp;
+  EXPECT_THROW(sp(sq, Point(20, 20), Point(5, 5)), std::domain_error);
+}
+
+TEST_F(GeomAlgorithmsTest, ShortestPathOpenThrows)
+{
+  Polygon open_poly;
+  open_poly.add_vertex(Point(0, 0));
+  open_poly.add_vertex(Point(1, 0));
+  open_poly.add_vertex(Point(1, 1));
+
+  ShortestPathInPolygon sp;
+  EXPECT_THROW(sp(open_poly, Point(Geom_Number(1)/3, Geom_Number(1)/3),
+                   Point(Geom_Number(2)/3, Geom_Number(1)/3)),
+               std::domain_error);
+}

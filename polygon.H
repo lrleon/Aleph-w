@@ -143,7 +143,7 @@ public:
   /// @return Copy of the vertex coordinates as Point.
   [[nodiscard]] Point to_point() const
   {
-    return Point(*this);
+    return static_cast<const Point>(*this);
   }
 
   /// @brief Convert a Dlink pointer to a Vertex pointer.
@@ -234,45 +234,45 @@ class Regular_Polygon;
  */
 class Polygon : public Geom_Object
 {
-  Dlink vertex_list; ///< Doubly linked list of vertices
-  size_t num_vertex; ///< Number of vertices in the polygon
+  Dlink vertex_list_; ///< Doubly linked list of vertices
+  size_t num_vertex_; ///< Number of vertices in the polygon
   bool is_closed_; ///< True if the polygon has been closed
 
-  Point lowest; ///< Vertex with minimum y-coordinate
-  Point highest; ///< Vertex with maximum y-coordinate
-  Point leftmost; ///< Vertex with minimum x-coordinate
-  Point rightmost; ///< Vertex with maximum x-coordinate
+  Point lowest_; ///< Vertex with minimum y-coordinate
+  Point highest_; ///< Vertex with maximum y-coordinate
+  Point leftmost_; ///< Vertex with minimum x-coordinate
+  Point rightmost_; ///< Vertex with maximum x-coordinate
 
   /// @brief Update extreme points after adding a new vertex.
   /// @param point The newly added point.
   void update_extreme_points(const Point & point)
   {
-    if (num_vertex == 0)
+    if (num_vertex_ == 0)
       {
-        leftmost = rightmost = lowest = highest = point;
+        leftmost_ = rightmost_ = lowest_ = highest_ = point;
         return;
       }
 
-    if (point.get_x() < leftmost.get_x())
-      leftmost = point;
+    if (point.get_x() < leftmost_.get_x())
+      leftmost_ = point;
 
-    if (point.get_x() > rightmost.get_x())
-      rightmost = point;
+    if (point.get_x() > rightmost_.get_x())
+      rightmost_ = point;
 
-    if (point.get_y() < lowest.get_y())
-      lowest = point;
+    if (point.get_y() < lowest_.get_y())
+      lowest_ = point;
 
-    if (point.get_y() > highest.get_y())
-      highest = point;
+    if (point.get_y() > highest_.get_y())
+      highest_ = point;
   }
 
   /// @brief Delete all vertices and reset the polygon state.
   void delete_points()
   {
-    while (not vertex_list.is_empty())
-      delete Vertex::dlink_to_vertex(vertex_list.remove_next());
+    while (not vertex_list_.is_empty())
+      delete Vertex::dlink_to_vertex(vertex_list_.remove_next());
 
-    num_vertex = 0;
+    num_vertex_ = 0;
     is_closed_ = false;
   }
 
@@ -280,10 +280,10 @@ class Polygon : public Geom_Object
   /// @param poly The polygon to copy vertices from.
   void copy_points(const Polygon & poly)
   {
-    Dlink *list = const_cast<Dlink *>(&poly.vertex_list);
+    auto *list = const_cast<Dlink *>(&poly.vertex_list_);
 
     for (Dlink::Iterator it(list); it.has_curr(); it.next_ne())
-      vertex_list.append(new Vertex(*Vertex::dlink_to_vertex(it.get_curr())));
+      vertex_list_.append(new Vertex(*Vertex::dlink_to_vertex(it.get_curr())));
   }
 
   /// @brief Copy vertices from a regular polygon.
@@ -292,7 +292,7 @@ class Polygon : public Geom_Object
 
 public:
   /// @brief Default constructor. Creates an empty, open polygon.
-  Polygon() : num_vertex(0), is_closed_(false)
+  Polygon() : num_vertex_(0), is_closed_(false)
   { /* empty */
   }
 
@@ -306,9 +306,9 @@ public:
   /// @param poly The polygon to copy.
   Polygon(const Polygon & poly)
     : Geom_Object(poly),
-      num_vertex(poly.num_vertex), is_closed_(poly.is_closed_),
-      lowest(poly.lowest), highest(poly.highest),
-      leftmost(poly.leftmost), rightmost(poly.rightmost)
+      num_vertex_(poly.num_vertex_), is_closed_(poly.is_closed_),
+      lowest_(poly.lowest_), highest_(poly.highest_),
+      leftmost_(poly.leftmost_), rightmost_(poly.rightmost_)
   {
     copy_points(poly);
   }
@@ -318,20 +318,20 @@ public:
   Polygon(Polygon && poly) noexcept
     : Polygon()
   {
-    vertex_list.swap(poly.vertex_list);
-    std::swap(num_vertex, poly.num_vertex);
+    vertex_list_.swap(poly.vertex_list_);
+    std::swap(num_vertex_, poly.num_vertex_);
     std::swap(is_closed_, poly.is_closed_);
-    std::swap(lowest, poly.lowest);
-    std::swap(highest, poly.highest);
-    std::swap(leftmost, poly.leftmost);
-    std::swap(rightmost, poly.rightmost);
+    std::swap(lowest_, poly.lowest_);
+    std::swap(highest_, poly.highest_);
+    std::swap(leftmost_, poly.leftmost_);
+    std::swap(rightmost_, poly.rightmost_);
   }
 
   /// @brief Construct from a Regular_Polygon.
   /// @param poly The regular polygon to convert.
   /// @note The resulting polygon is automatically closed.
   Polygon(const Regular_Polygon & poly)
-    : num_vertex(0), is_closed_(false)
+    : num_vertex_(0), is_closed_(false)
   {
     copy_regular_polygon(poly);
   }
@@ -346,12 +346,12 @@ public:
 
     delete_points();
 
-    num_vertex = poly.num_vertex;
+    num_vertex_ = poly.num_vertex_;
     is_closed_ = poly.is_closed_;
-    lowest = poly.lowest;
-    highest = poly.highest;
-    leftmost = poly.leftmost;
-    rightmost = poly.rightmost;
+    lowest_ = poly.lowest_;
+    highest_ = poly.highest_;
+    leftmost_ = poly.leftmost_;
+    rightmost_ = poly.rightmost_;
 
     copy_points(poly);
 
@@ -363,13 +363,13 @@ public:
   /// @return Reference to this polygon.
   Polygon &operator =(Polygon && poly) noexcept
   {
-    vertex_list.swap(poly.vertex_list);
-    std::swap(num_vertex, poly.num_vertex);
+    vertex_list_.swap(poly.vertex_list_);
+    std::swap(num_vertex_, poly.num_vertex_);
     std::swap(is_closed_, poly.is_closed_);
-    std::swap(lowest, poly.lowest);
-    std::swap(highest, poly.highest);
-    std::swap(leftmost, poly.leftmost);
-    std::swap(rightmost, poly.rightmost);
+    std::swap(lowest_, poly.lowest_);
+    std::swap(highest_, poly.highest_);
+    std::swap(leftmost_, poly.leftmost_);
+    std::swap(rightmost_, poly.rightmost_);
 
     return *this;
   }
@@ -387,19 +387,19 @@ public:
 
   /// @brief Get the vertex with the minimum y-coordinate.
   /// @return Reference to the lowest point.
-  [[nodiscard]] const Point &lowest_point() const { return lowest; }
+  [[nodiscard]] const Point &lowest_point() const { return lowest_; }
 
   /// @brief Get the vertex with the maximum y-coordinate.
   /// @return Reference to the highest point.
-  [[nodiscard]] const Point &highest_point() const { return highest; }
+  [[nodiscard]] const Point &highest_point() const { return highest_; }
 
   /// @brief Get the vertex with the minimum x-coordinate.
   /// @return Reference to the leftmost point.
-  [[nodiscard]] const Point &leftmost_point() const { return leftmost; }
+  [[nodiscard]] const Point &leftmost_point() const { return leftmost_; }
 
   /// @brief Get the vertex with the maximum x-coordinate.
   /// @return Reference to the rightmost point.
-  [[nodiscard]] const Point &rightmost_point() const { return rightmost; }
+  [[nodiscard]] const Point &rightmost_point() const { return rightmost_; }
 
   /// @brief Check if the polygon is closed.
   /// @return True if closed, false if still open.
@@ -407,7 +407,7 @@ public:
 
   /// @brief Get the number of vertices.
   /// @return Number of vertices in the polygon.
-  [[nodiscard]] const size_t &size() const { return num_vertex; }
+  [[nodiscard]] const size_t &size() const { return num_vertex_; }
 
   /** @brief Iterator over the vertices of a polygon.
    *
@@ -423,10 +423,9 @@ public:
     /// @brief Construct iterator from a polygon.
     /// @param poly The polygon to iterate over.
     /// @throws std::domain_error If the polygon has no vertices.
-    Vertex_Iterator(const Polygon & poly) : Dlink::Iterator(poly.vertex_list)
+    Vertex_Iterator(const Polygon & poly) : Dlink::Iterator(poly.vertex_list_)
     {
-      ah_domain_error_if(poly.vertex_list.is_empty())
-	      << "Polygon has not any vertex";
+      ah_domain_error_if(poly.vertex_list_.is_empty()) << "Polygon has not any vertex";
     }
 
     /// @brief Get the current vertex.
@@ -459,10 +458,10 @@ public:
     /// @param poly The polygon to iterate over.
     /// @throws std::domain_error If the polygon has fewer than 2 vertices.
     Segment_Iterator(const Polygon & poly)
-      : Dlink::Iterator(poly.vertex_list), poly_(const_cast<Polygon &>(poly))
+      : Dlink::Iterator(poly.vertex_list_), poly_(const_cast<Polygon &>(poly))
     {
-      ah_domain_error_if(poly_.vertex_list.is_unitarian_or_empty())
-	<< "Polygon has less than two vertex";
+      ah_domain_error_if(poly_.vertex_list_.is_unitarian_or_empty())
+	      << "Polygon has less than two vertex";
     }
 
     /// @brief Check if there is a current segment.
@@ -490,7 +489,7 @@ public:
       const Vertex & tgt =
           this->is_in_last() ? poly_.get_first_vertex() : src->next_vertex();
 
-      return {static_cast<Point>(*src), static_cast<Point>(tgt)};
+      return {src->to_point(), tgt.to_point()};
     }
   };
 
@@ -511,9 +510,9 @@ public:
   /// @throws std::domain_error If the polygon has no vertices.
   [[nodiscard]] const Vertex &get_first_vertex() const
   {
-    ah_domain_error_if(vertex_list.is_empty()) << "Polygon has not any vertex";
+    ah_domain_error_if(vertex_list_.is_empty()) << "Polygon has not any vertex";
 
-    return *Vertex::dlink_to_vertex(vertex_list.get_next());
+    return *Vertex::dlink_to_vertex(vertex_list_.get_next());
   }
 
   /// @brief Get the last vertex of the polygon.
@@ -521,9 +520,9 @@ public:
   /// @throws std::domain_error If the polygon has no vertices.
   [[nodiscard]] const Vertex &get_last_vertex() const
   {
-    ah_domain_error_if(vertex_list.is_empty()) << "Polygon has not any vertex";
+    ah_domain_error_if(vertex_list_.is_empty()) << "Polygon has not any vertex";
 
-    return *Vertex::dlink_to_vertex(vertex_list.get_prev());
+    return *Vertex::dlink_to_vertex(vertex_list_.get_prev());
   }
 
   /// @brief Get the vertex after the given vertex.
@@ -533,8 +532,8 @@ public:
   [[nodiscard]] const Vertex &get_next_vertex(const Vertex & v) const
   {
     // If v is the last vertex (next points to sentinel), wrap to the first vertex
-    return (v.get_next() == &vertex_list) ?
-             *Vertex::dlink_to_vertex(vertex_list.get_next()) :
+    return v.get_next() == &vertex_list_ ?
+             *Vertex::dlink_to_vertex(vertex_list_.get_next()) :
              v.next_vertex();
   }
 
@@ -545,8 +544,8 @@ public:
   [[nodiscard]] const Vertex &get_prev_vertex(const Vertex & v) const
   {
     // If v is the first vertex (prev points to sentinel), wrap to last vertex
-    return (v.get_prev() == &vertex_list) ?
-             *Vertex::dlink_to_vertex(vertex_list.get_prev()) :
+    return v.get_prev() == &vertex_list_ ?
+             *Vertex::dlink_to_vertex(vertex_list_.get_prev()) :
              v.prev_vertex();
   }
 
@@ -555,7 +554,7 @@ public:
   /// @throws std::domain_error If the polygon has fewer than 2 vertices.
   [[nodiscard]] Segment get_first_segment() const
   {
-    ah_domain_error_if(vertex_list.is_unitarian_or_empty())
+    ah_domain_error_if(vertex_list_.is_unitarian_or_empty())
       << "polygon has less than two vertex";
 
     const Vertex & first_vertex = get_first_vertex();
@@ -568,7 +567,7 @@ public:
   /// @throws std::domain_error If the polygon has fewer than 2 vertices.
   [[nodiscard]] Segment get_last_segment() const
   {
-    ah_domain_error_if(vertex_list.is_unitarian_or_empty())
+    ah_domain_error_if(vertex_list_.is_unitarian_or_empty())
       << "polygon has less than two vertex";
 
     const Vertex & last_vertex = get_last_vertex();
@@ -609,7 +608,7 @@ public:
     ah_domain_error_if(is_closed_) << "Polygon is already closed";
 
     // Check if the new point is colinear with the last segment
-    if (num_vertex > 1)
+    if (num_vertex_ > 1)
       {
         if (const Segment last_sg = get_last_segment(); point.is_colinear_with(last_sg))
           {
@@ -628,7 +627,7 @@ public:
       }
 
     // If we have at least 3 vertices, verify no self-intersection
-    if (num_vertex >= 3)
+    if (num_vertex_ >= 3)
       {
         // New edge that would be formed by adding this point
         const Segment new_side(get_last_vertex().to_point(), point);
@@ -647,9 +646,9 @@ public:
       }
 
     // Insert new vertex
-    vertex_list.append(new Vertex(point));
+    vertex_list_.append(new Vertex(point));
     update_extreme_points(point);
-    ++num_vertex;
+    ++num_vertex_;
   }
 
   /** @brief Add a vertex using coordinates.
@@ -686,7 +685,7 @@ public:
     // TODO: Handle colinearity cases
 
     victim->del();
-    --num_vertex;
+    --num_vertex_;
     delete victim;
   }
 
@@ -704,7 +703,7 @@ public:
   {
     ah_domain_error_if(is_closed_) << "Polygon is already closed";
 
-    if (num_vertex >= 4)
+    if (num_vertex_ >= 4)
       {
         // Check for intersection with all edges except the first
         // and last (which share endpoints with the closing edge)
@@ -776,7 +775,7 @@ public:
    *  @param tr The triangle to convert.
    */
   Polygon(const Triangle & tr)
-    : num_vertex(0), is_closed_(false)
+    : num_vertex_(0), is_closed_(false)
   {
     add_vertex(tr.get_p1());
     add_vertex(tr.get_p2());
@@ -830,16 +829,16 @@ public:
  */
 class Regular_Polygon : public Geom_Object
 {
-  Point center; ///< Center point of the polygon
-  double side_size; ///< Length of each side
-  size_t num_vertex; ///< Number of vertices (sides)
-  double angle; ///< Rotation angle in radians
-  double r; ///< Circumradius (distance from center to vertices)
-  double beta; ///< Central angle between adjacent vertices (2π/n)
+  Point center_; ///< Center point of the polygon
+  double side_size_; ///< Length of each side
+  size_t num_vertex_; ///< Number of vertices (sides)
+  double angle_; ///< Rotation angle in radians
+  double r_; ///< Circumradius (distance from center to vertices)
+  double beta_; ///< Central angle between adjacent vertices (2π/n)
 
 public:
   /// @brief Default constructor. Creates an invalid empty polygon.
-  Regular_Polygon() : side_size(0), num_vertex(0)
+  Regular_Polygon() : side_size_(0), num_vertex_(0)
   { /* empty */
   }
 
@@ -855,32 +854,32 @@ public:
                   const double & side_sz,
                   const size_t & n,
                   const double & ang = 0)
-    : center(std::move(c)), side_size(side_sz), num_vertex(n), angle(ang), beta(2 * PI / n)
+    : center_(std::move(c)), side_size_(side_sz), num_vertex_(n), angle_(ang), beta_(2 * PI / n)
   {
     ah_domain_error_if(n < 3)
       << "Polygon sides is less than 3";
 
     // Calculate radius using law of sines with angles between vertices
     // and the angle between radius and side
-    const double alpha = (PI - beta) / 2; // angle between radius and side
-    r = side_size * sin(alpha) / sin(beta);
+    const double alpha = (PI - beta_) / 2; // angle between radius and side
+    r_ = side_size_ * sin(alpha) / sin(beta_);
   }
 
   /// @brief Get the side length.
   /// @return Length of each side.
-  [[nodiscard]] const double &get_side_size() const { return side_size; }
+  [[nodiscard]] const double &get_side_size() const { return side_size_; }
 
   /// @brief Get the center point.
   /// @return Reference to the center point.
-  [[nodiscard]] const Point &get_center() const { return center; }
+  [[nodiscard]] const Point &get_center() const { return center_; }
 
   /// @brief Get the number of vertices.
   /// @return Number of vertices (and sides).
-  [[nodiscard]] const size_t &size() const { return num_vertex; }
+  [[nodiscard]] const size_t &size() const { return num_vertex_; }
 
   /// @brief Get the circumradius.
   /// @return Distance from center to each vertex.
-  [[nodiscard]] const double &radius() const { return r; }
+  [[nodiscard]] const double &radius() const { return r_; }
 
   /// @brief Check if the polygon is closed.
   /// @return Always true for regular polygons.
@@ -897,15 +896,14 @@ public:
    */
   [[nodiscard]] Point get_vertex(const size_t & i) const
   {
-    ah_out_of_range_error_if(i >= num_vertex)
-      << "vertex " << std::to_string(i) << " is greater than "
-      << std::to_string(num_vertex);
+    ah_out_of_range_error_if(i >= num_vertex_)
+      << "vertex " << i << " is greater than " << num_vertex_;
 
     // The first segment is the negative vertical from center
     // Initial point is the target of this segment with origin at center
-    Segment sg(center, center - Point(0, r));
+    Segment sg(center_, center_ - Point(0, r_));
 
-    sg.rotate(i * beta + angle);
+    sg.rotate(i * beta_ + angle_);
 
     return sg.get_tgt_point();
   }
@@ -916,7 +914,7 @@ public:
 
   /// @brief Get the last vertex (index size()-1).
   /// @return The last vertex point.
-  [[nodiscard]] Point get_last_vertex() const { return get_vertex(num_vertex - 1); }
+  [[nodiscard]] Point get_last_vertex() const { return get_vertex(num_vertex_ - 1); }
 
   /// @brief Get the first segment (edge).
   /// @return Segment from vertex 0 to vertex 1.
@@ -929,7 +927,7 @@ public:
   /// @return Segment from vertex 0 to last vertex.
   [[nodiscard]] Segment get_last_segment() const
   {
-    return {get_vertex(0), get_vertex(num_vertex - 1)};
+    return {get_vertex(0), get_vertex(num_vertex_ - 1)};
   }
 
   /** @brief Iterator over the vertices of a regular polygon.
@@ -945,22 +943,22 @@ public:
    */
   class Vertex_Iterator
   {
-    const Regular_Polygon & poly; ///< Reference to the polygon
-    size_t curr; ///< Current vertex index
-    Vertex vertex; ///< Cache for compatibility with Polygon::Vertex_Iterator
+    const Regular_Polygon & poly_; ///< Reference to the polygon
+    size_t curr_; ///< Current vertex index
+    Vertex vertex_; ///< Cache for compatibility with Polygon::Vertex_Iterator
 
   public:
     /// @brief Construct iterator from a regular polygon.
-    /// @param __poly The polygon to iterate over.
-    Vertex_Iterator(const Regular_Polygon & __poly)
-      : poly(__poly), curr(0)
+    /// @param poly The polygon to iterate over.
+    Vertex_Iterator(const Regular_Polygon & poly)
+      : poly_(poly), curr_(0)
     {
       // empty
     }
 
     /// @brief Check if there is a current vertex.
     /// @return True if a current vertex exists.
-    [[nodiscard]] bool has_curr() const { return curr < poly.size(); }
+    [[nodiscard]] bool has_curr() const { return curr_ < poly_.size(); }
 
     /// @brief Get the current vertex.
     /// @return Reference to the current vertex.
@@ -969,13 +967,13 @@ public:
     {
       ah_overflow_error_if(not has_curr()) << "Iterator has not current";
 
-      vertex = poly.get_vertex(curr);
+      vertex_ = poly_.get_vertex(curr_);
 
-      return vertex;
+      return vertex_;
     }
 
     /// @brief Advance to the next vertex (no exception on overflow).
-    void next_ne() noexcept { ++curr; }
+    void next_ne() noexcept { ++curr_; }
 
     /// @brief Advance to the next vertex.
     /// @throws std::overflow_error If already at end.
@@ -989,7 +987,7 @@ public:
     /// @throws std::underflow_error If already at the beginning.
     void prev()
     {
-      --curr;
+      --curr_;
 
       ah_underflow_error_if(not has_curr()) << "Iterator has not current";
     }
@@ -1008,21 +1006,21 @@ public:
    */
   class Segment_Iterator
   {
-    const Regular_Polygon & poly; ///< Reference to the polygon
-    size_t curr; ///< Current segment index
+    const Regular_Polygon & poly_; ///< Reference to the polygon
+    size_t curr_; ///< Current segment index
 
   public:
     /// @brief Construct segment iterator from a regular polygon.
-    /// @param __poly The polygon to iterate over.
-    Segment_Iterator(const Regular_Polygon & __poly)
-      : poly(__poly), curr(0)
+    /// @param poly The polygon to iterate over.
+    Segment_Iterator(const Regular_Polygon & poly)
+      : poly_(poly), curr_(0)
     {
       // empty
     }
 
     /// @brief Check if there is a current segment.
     /// @return True if a current segment exists.
-    [[nodiscard]] bool has_curr() const { return curr < poly.size(); }
+    [[nodiscard]] bool has_curr() const { return curr_ < poly_.size(); }
 
     /// @brief Get the current segment (edge).
     /// @return The segment from the current vertex to the next.
@@ -1031,11 +1029,11 @@ public:
     {
       ah_overflow_error_if(not has_curr()) << "Iterator has not current";
 
-      return {poly.get_vertex(curr), poly.get_vertex((curr + 1) % poly.size())};
+      return {poly_.get_vertex(curr_), poly_.get_vertex((curr_ + 1) % poly_.size())};
     }
 
     /// @brief Advance to the next segment (no exception on overflow).
-    void next_ne() noexcept { ++curr; }
+    void next_ne() noexcept { ++curr_; }
 
     /// @brief Advance to the next segment.
     /// @throws std::overflow_error If already at end.
@@ -1049,7 +1047,7 @@ public:
     /// @throws std::underflow_error If already at the beginning.
     void prev()
     {
-      --curr;
+      --curr_;
 
       ah_underflow_error_if(not has_curr()) << "Iterator has not current";
     }
@@ -1059,19 +1057,19 @@ public:
   /// @return Point at the bottom of the circumscribed circle.
   /// @note For simplicity, returns cardinal points of the circumcircle,
   ///       not the actual extreme vertices.
-  [[nodiscard]] Point lowest_point() const { return center + Point(0, -r); }
+  [[nodiscard]] Point lowest_point() const { return center_ + Point(0, -r_); }
 
   /// @brief Get the highest point of the bounding circle.
   /// @return Point at the top of the circumscribed circle.
-  [[nodiscard]] Point highest_point() const { return center + Point(0, r); }
+  [[nodiscard]] Point highest_point() const { return center_ + Point(0, r_); }
 
   /// @brief Get the leftmost point of the bounding circle.
   /// @return Point at the left of the circumscribed circle.
-  [[nodiscard]] Point leftmost_point() const { return center + Point(-r, 0); }
+  [[nodiscard]] Point leftmost_point() const { return center_ + Point(-r_, 0); }
 
   /// @brief Get the rightmost point of the bounding circle.
   /// @return Point at the right of the circumscribed circle.
-  [[nodiscard]] Point rightmost_point() const { return center + Point(r, 0); }
+  [[nodiscard]] Point rightmost_point() const { return center_ + Point(r_, 0); }
 };
 
 /** \overload
@@ -1080,7 +1078,7 @@ public:
  */
 inline void Polygon::copy_regular_polygon(const Regular_Polygon & poly)
 {
-  assert(num_vertex == 0 and not is_closed_);
+  assert(num_vertex_ == 0 and not is_closed_);
 
   for (size_t i = 0; i < poly.size(); ++i)
     add_vertex(poly.get_vertex(i));

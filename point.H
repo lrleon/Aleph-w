@@ -338,8 +338,8 @@ class Polar_Point : public Geom_Object
 {
   friend class Point;
 
-  Geom_Number r_;
-  Geom_Number theta_;
+  Geom_Number r_ = 0; // distance from origin
+  Geom_Number theta_ = 0; // angle in radians from positive x-axis
 
 public:
   /// Returns the magnitude
@@ -390,9 +390,7 @@ public:
            std::to_string(geom_number_to_double(theta_)) + "]";
   }
 
-  Polar_Point() : r_(0), theta_(0)
-  { /* empty */
-  }
+  Polar_Point() = default;
 };
 
 
@@ -466,7 +464,7 @@ public:
 
   Segment() = default;
 
-  Segment(Point src, Point  tgt)
+  Segment(Point src, Point tgt)
     : Geom_Object(), src_(std::move(src)), tgt_(std::move(tgt))
   {
     // empty
@@ -512,7 +510,7 @@ public:
   Segment(Point src, // source point
           const Geom_Number & m, // slope
           const Geom_Number & l) // segment length
-    : Geom_Object(), src_(std::move(src)), tgt_(compute_tgt_point(src, m, l))
+    : Geom_Object(), src_(std::move(src)), tgt_(compute_tgt_point(src_, m, l))
   {
     // empty
   }
@@ -882,7 +880,7 @@ class Triangle : public Geom_Object
   Geom_Number area_;
 
 public:
-  Triangle(Point  p1, Point  p2, Point  p3)
+  Triangle(Point p1, Point p2, Point p3)
     : p1_(std::move(p1)), p2_(std::move(p2)), p3_(std::move(p3))
   {
     area_ = area_of_parallelogram(p1_, p2_, p3_) / 2;
@@ -900,7 +898,7 @@ public:
       << "The three points of triangle are collinear";
   }
 
-  Triangle(const Segment & s, Point  p)
+  Triangle(const Segment & s, Point p)
     : p1_(s.src_), p2_(s.tgt_), p3_(std::move(p))
   {
     area_ = area_of_parallelogram(p1_, p2_, p3_) / 2;
@@ -1254,9 +1252,7 @@ public:
           s1 = Segment(t1.get_tgt_point(), m, tangent_size);
           s1.enlarge_tgt(tangent_size);
         }
-    }
-
-    { // compute distances for the second tangent
+    } { // compute distances for the second tangent
       const Geom_Number dsrc = center_.distance_with(t2.get_src_point());
       const Geom_Number dtgt = center_.distance_with(t2.get_tgt_point());
 
@@ -1285,7 +1281,7 @@ public:
         return sx >= center_.get_x() - hr_ and sx <= center_.get_x() + hr_;
       }
 
-    // Non-vertical: compute exact slope and use tangent-based test.
+    // Non-vertical: compute the exact slope and use tangent-based test.
     const Geom_Number m =
         (s.get_tgt_point().get_y() - s.get_src_point().get_y()) / dx;
 
@@ -1293,8 +1289,8 @@ public:
     Segment tg2;
     compute_tangents(tg1, tg2, m);
 
-    return (s.is_to_left_from(tg1.get_src_point()) xor
-            s.is_to_left_from(tg2.get_tgt_point()));
+    return s.is_to_left_from(tg1.get_src_point()) xor
+           s.is_to_left_from(tg2.get_tgt_point());
   }
 
 private:
@@ -1521,7 +1517,7 @@ class Text : public Geom_Object
 
   std::string str_;
 
-  size_t len_;
+  size_t len_ = 0;
 
 public:
   static constexpr double font_width_in_points = 0.8;
@@ -1575,7 +1571,12 @@ area_of_parallelogram(const Point & a, const Point & b, const Point & c)
 
 
 /// Classification of three-point orientation.
-enum class Orientation { CCW, CW, COLLINEAR };
+enum class Orientation
+{
+  CCW, // counter-clockwise
+  CW, // clockwise
+  COLLINEAR
+};
 
 /** Return the orientation of the triple (a, b, c).
     Based on the sign of the cross product (b-a)x(c-a). */
@@ -1591,7 +1592,7 @@ orientation(const Point & a, const Point & b, const Point & c)
 /// Classification of a point with respect to a triangle circumcircle.
 enum class InCircleResult { INSIDE, ON_CIRCLE, OUTSIDE, DEGENERATE };
 
-/** Return exact in-circle determinant for (a,b,c,p).
+/** Return the exact in-circle determinant for (a,b,c,p).
     The sign depends on triangle orientation (a,b,c). */
 [[nodiscard]] inline Geom_Number
 in_circle_determinant(const Point & a, const Point & b,
@@ -1661,8 +1662,7 @@ segments_intersect(const Point & a, const Point & b,
 [[nodiscard]] inline Point
 segment_intersection_point(const Segment & s1, const Segment & s2)
 {
-  ah_domain_error_if(not segments_intersect(s1, s2))
-    << "Segments do not intersect";
+  ah_domain_error_if(not segments_intersect(s1, s2)) << "Segments do not intersect";
 
   const Point & a = s1.get_src_point();
   const Point & b = s1.get_tgt_point();
@@ -1689,7 +1689,7 @@ segment_intersection_point(const Segment & s1, const Segment & s2)
   Point unique_point;
   bool has_unique_point = false;
   auto accept_candidate = [&unique_point, &has_unique_point](const Point & p)
-  {
+    {
       if (not has_unique_point)
         {
           unique_point = p;
@@ -1697,9 +1697,8 @@ segment_intersection_point(const Segment & s1, const Segment & s2)
           return;
         }
 
-      ah_domain_error_if(unique_point != p)
-        << "No unique intersection point";
-  };
+      ah_domain_error_if(unique_point != p) << "No unique intersection point";
+    };
 
   if (on_segment(s2, a))
     accept_candidate(a);
@@ -1710,8 +1709,7 @@ segment_intersection_point(const Segment & s1, const Segment & s2)
   if (on_segment(s1, d))
     accept_candidate(d);
 
-  ah_domain_error_if(not has_unique_point)
-    << "No unique intersection point";
+  ah_domain_error_if(not has_unique_point) << "No unique intersection point";
 
   return unique_point;
 }

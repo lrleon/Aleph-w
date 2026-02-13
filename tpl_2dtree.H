@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -48,9 +47,10 @@
 # include <optional>
 # include <algorithm>
 # include <htlist.H>
+# include <ahSort.H>
 # include <tpl_array.H>
 # include <ahDefs.H> // For Empty_Class
-#include <utility>
+# include <utility>
 
 using Aleph::Empty_Class;
 
@@ -143,7 +143,7 @@ class K2Tree
     Node *rt_; ///< Right/top subtree
 
     /// @brief Construct a node with a given point.
-    Node(Point  p) noexcept
+    Node(Point p) noexcept
       : point_(std::move(p)), lb_(nullptr), rt_(nullptr)
     {
       // empty
@@ -187,8 +187,8 @@ public:
    *  @param pmin Lower-left corner of the region
    *  @param pmax Upper-right corner of the region
    */
-  K2Tree(const Point & pmin, const Point & pmax)
-    : pmin_(pmin), pmax_(pmax), N_(0), root_(nullptr)
+  K2Tree(Point pmin, Point pmax)
+    : pmin_(std::move(pmin)), pmax_(std::move(pmax)), N_(0), root_(nullptr)
   {
     // empty
   }
@@ -213,14 +213,15 @@ public:
 
   /// @brief Move constructor — transfers ownership of all nodes.
   K2Tree(K2Tree && other) noexcept
-    : pmin_(other.pmin_), pmax_(other.pmax_), N_(other.N_), root_(other.root_)
+    : pmin_(std::move(other.pmin_)), pmax_(std::move(other.pmax_)),
+      N_(other.N_), root_(other.root_)
   {
     other.N_ = 0;
     other.root_ = nullptr;
   }
 
   /// @brief Move assignment operator — transfers ownership of all nodes.
-  K2Tree & operator =(K2Tree && other) noexcept
+  K2Tree &operator =(K2Tree && other) noexcept
   {
     if (this != &other)
       {
@@ -266,7 +267,7 @@ private:
           {
             root->rt_ = ret_val; // Node was inserted
             root->rt_->set_rect(root->x(), root->ymin(),
-                               root->xmax(), root->ymax());
+                                root->xmax(), root->ymax());
 
             return root;
           }
@@ -281,7 +282,7 @@ private:
           {
             root->lb_ = ret_val;
             root->lb_->set_rect(root->xmin(), root->ymin(),
-                               root->x(), root->ymax());
+                                root->x(), root->ymax());
 
             return root;
           }
@@ -293,7 +294,7 @@ private:
       {
         root->rt_ = ret_val;
         root->rt_->set_rect(root->x(), root->ymin(),
-                           root->xmax(), root->ymax());
+                            root->xmax(), root->ymax());
 
         return root;
       }
@@ -325,7 +326,7 @@ private:
           {
             root->rt_ = ret_val; // Node was inserted
             root->rt_->set_rect(root->xmin(), root->y(),
-                               root->xmax(), root->ymax());
+                                root->xmax(), root->ymax());
 
             return root;
           }
@@ -340,7 +341,7 @@ private:
           {
             root->lb_ = ret_val;
             root->lb_->set_rect(root->xmin(), root->ymin(),
-                               root->xmax(), root->y());
+                                root->xmax(), root->y());
             return root;
           }
         return nullptr;
@@ -351,7 +352,7 @@ private:
       {
         root->rt_ = ret_val;
         root->rt_->set_rect(root->xmin(), root->y(),
-                           root->xmax(), root->ymax());
+                            root->xmax(), root->ymax());
 
         return root;
       }
@@ -564,8 +565,7 @@ public:
 
     lr_nearest(root_, p, st);
 
-    return st.node != nullptr ? std::optional<Point>(st.node->point_)
-                              : std::nullopt;
+    return st.node != nullptr ? std::optional<Point>(st.node->point_) : std::nullopt;
   }
 
   /** @brief Apply an operation to every point in the tree (inorder).
@@ -603,13 +603,12 @@ public:
     // Sort lexicographically and remove duplicates
     if (points.size() > 1)
       {
-        std::sort(&points(0), &points(0) + points.size(),
-                  [](const Point & a, const Point & b)
-                    {
-                      if (a.get_x() < b.get_x()) return true;
-                      if (b.get_x() < a.get_x()) return false;
-                      return a.get_y() < b.get_y();
-                    });
+        Aleph::sort(points, [](const Point & a, const Point & b)
+                      {
+                        if (a.get_x() < b.get_x()) return true;
+                        if (b.get_x() < a.get_x()) return false;
+                        return a.get_y() < b.get_y();
+                      });
 
         size_t w = 1;
         for (size_t r = 1; r < points.size(); ++r)
@@ -625,7 +624,7 @@ public:
       return tree;
 
     tree.root_ = build_balanced(points, 0, points.size(), true,
-                               pmin, pmax);
+                                pmin, pmax);
     tree.N_ = points.size();
     return tree;
   }
@@ -650,11 +649,15 @@ private:
     if (split_x)
       std::nth_element(&pts(lo), &pts(mid), &pts(hi),
                        [](const Point & a, const Point & b)
-                         { return a.get_x() < b.get_x(); });
+                         {
+                           return a.get_x() < b.get_x();
+                         });
     else
       std::nth_element(&pts(lo), &pts(mid), &pts(hi),
                        [](const Point & a, const Point & b)
-                         { return a.get_y() < b.get_y(); });
+                         {
+                           return a.get_y() < b.get_y();
+                         });
 
     // Ensure left partition [lo, root_pos) has only elements with
     // split-coord strictly less than the median, matching the search
@@ -669,7 +672,7 @@ private:
           {
             if (i != strict_end)
               {
-                Point tmp = pts(i);
+                const Point tmp = pts(i);
                 pts(i) = pts(strict_end);
                 pts(strict_end) = tmp;
               }
