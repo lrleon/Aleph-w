@@ -3854,3 +3854,896 @@ TEST_F(GeomAlgorithmsTest, ShortestPathOpenThrows)
                    Point(Geom_Number(2)/3, Geom_Number(1)/3)),
                std::domain_error);
 }
+
+// =========================================================================
+// SegmentArrangement tests
+// =========================================================================
+
+TEST_F(GeomAlgorithmsTest, ArrangementEmpty)
+{
+  SegmentArrangement arr;
+  Array<Segment> segs;
+  auto r = arr(segs);
+  EXPECT_EQ(r.vertices.size(), 0u);
+  EXPECT_EQ(r.edges.size(), 0u);
+  ASSERT_EQ(r.faces.size(), 1u);
+  EXPECT_TRUE(r.faces(0).unbounded);
+}
+
+TEST_F(GeomAlgorithmsTest, ArrangementSingleSegment)
+{
+  SegmentArrangement arr;
+  Array<Segment> segs;
+  segs.append(Segment(Point(0, 0), Point(4, 0)));
+  auto r = arr(segs);
+  EXPECT_EQ(r.vertices.size(), 2u);
+  EXPECT_EQ(r.edges.size(), 1u);
+  // One unbounded face.
+  size_t ub_count = 0;
+  for (size_t i = 0; i < r.faces.size(); ++i)
+    if (r.faces(i).unbounded) ++ub_count;
+  EXPECT_EQ(ub_count, 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, ArrangementParallelNoIntersection)
+{
+  SegmentArrangement arr;
+  Array<Segment> segs;
+  segs.append(Segment(Point(0, 0), Point(4, 0)));
+  segs.append(Segment(Point(0, 2), Point(4, 2)));
+  auto r = arr(segs);
+  EXPECT_EQ(r.vertices.size(), 4u);
+  EXPECT_EQ(r.edges.size(), 2u);
+  // No bounded face — only unbounded.
+  size_t ub_count = 0;
+  for (size_t i = 0; i < r.faces.size(); ++i)
+    if (r.faces(i).unbounded) ++ub_count;
+  EXPECT_EQ(ub_count, 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, ArrangementSimpleCross)
+{
+  // Two crossing segments: (0,0)-(4,4) and (0,4)-(4,0)
+  // Intersection at (2,2).
+  SegmentArrangement arr;
+  Array<Segment> segs;
+  segs.append(Segment(Point(0, 0), Point(4, 4)));
+  segs.append(Segment(Point(0, 4), Point(4, 0)));
+  auto r = arr(segs);
+  EXPECT_EQ(r.vertices.size(), 5u);  // 4 endpoints + 1 intersection
+  EXPECT_EQ(r.edges.size(), 4u);     // each segment split into 2
+
+  // Check Euler formula: V - E + F = 1 + C
+  // V=5, E=4, C=1 (connected via center) → F = 1 + 1 - 5 + 4 = 1
+  // Wait: the arrangement has a cross, not a closed face.
+  // Actually with 4 edges meeting at center and open ends, there's no bounded face.
+  // So F = 1 (unbounded). V - E + F = 5 - 4 + 1 = 2 = 1 + C = 1 + 1. ✓
+  size_t ub_count = 0;
+  for (size_t i = 0; i < r.faces.size(); ++i)
+    if (r.faces(i).unbounded) ++ub_count;
+  EXPECT_GE(ub_count, 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, ArrangementTriangleFromSegments)
+{
+  // Three segments forming a triangle: (0,0)-(4,0), (4,0)-(2,4), (2,4)-(0,0).
+  SegmentArrangement arr;
+  Array<Segment> segs;
+  segs.append(Segment(Point(0, 0), Point(4, 0)));
+  segs.append(Segment(Point(4, 0), Point(2, 4)));
+  segs.append(Segment(Point(2, 4), Point(0, 0)));
+  auto r = arr(segs);
+  EXPECT_EQ(r.vertices.size(), 3u);
+  EXPECT_EQ(r.edges.size(), 3u);
+  // Euler: V - E + F = 1 + C → 3 - 3 + F = 2 → F = 2.
+  EXPECT_EQ(r.faces.size(), 2u);
+
+  // Exactly one bounded and one unbounded face.
+  size_t bounded = 0, unbounded = 0;
+  for (size_t i = 0; i < r.faces.size(); ++i)
+    {
+      if (r.faces(i).unbounded)
+        ++unbounded;
+      else
+        ++bounded;
+    }
+  EXPECT_EQ(bounded, 1u);
+  EXPECT_EQ(unbounded, 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, ArrangementStarPattern)
+{
+  // 4 segments through common center (0,0):
+  // horizontal, vertical, and two diagonals.
+  SegmentArrangement arr;
+  Array<Segment> segs;
+  segs.append(Segment(Point(-2, 0), Point(2, 0)));
+  segs.append(Segment(Point(0, -2), Point(0, 2)));
+  segs.append(Segment(Point(-2, -2), Point(2, 2)));
+  segs.append(Segment(Point(-2, 2), Point(2, -2)));
+  auto r = arr(segs);
+
+  // 8 endpoints + 1 center = 9 vertices.
+  // The center has 6 intersections (C(4,2)) but they all merge to one point.
+  EXPECT_EQ(r.vertices.size(), 9u);
+  // Each segment is split into 2 sub-edges → 8 edges.
+  EXPECT_EQ(r.edges.size(), 8u);
+
+  // Euler: V - E + F = 1 + C.  C=1 (all connected).
+  // 9 - 8 + F = 2 → F = 1.
+  // No bounded face (star is open at the tips).
+  size_t ub_count = 0;
+  for (size_t i = 0; i < r.faces.size(); ++i)
+    if (r.faces(i).unbounded) ++ub_count;
+  EXPECT_GE(ub_count, 1u);
+}
+
+TEST_F(GeomAlgorithmsTest, ArrangementEulerFormula)
+{
+  // Verify Euler's formula V - E + F = 1 + C on several arrangements.
+  SegmentArrangement arr;
+
+  auto check_euler = [](const SegmentArrangement::Result & r) {
+    const size_t V = r.vertices.size();
+    const size_t E = r.edges.size();
+    const size_t F = r.faces.size();
+
+    if (V == 0) return; // empty case: just the unbounded face
+
+    // Compute connected components via union-find.
+    Array<size_t> parent;
+    parent.reserve(V);
+    for (size_t i = 0; i < V; ++i)
+      parent.append(i);
+
+    std::function<size_t(size_t)> find = [&](size_t x) -> size_t {
+      while (parent(x) != x)
+        {
+          parent(x) = parent(parent(x));
+          x = parent(x);
+        }
+      return x;
+    };
+
+    for (size_t i = 0; i < E; ++i)
+      {
+        size_t a = find(r.edges(i).src);
+        size_t b = find(r.edges(i).tgt);
+        if (a != b)
+          parent(a) = b;
+      }
+
+    size_t C = 0;
+    for (size_t i = 0; i < V; ++i)
+      if (find(i) == i) ++C;
+
+    EXPECT_EQ(V - E + F, 1 + C)
+      << "V=" << V << " E=" << E << " F=" << F << " C=" << C;
+  };
+
+  // Case 1: Triangle.
+  {
+    Array<Segment> segs;
+    segs.append(Segment(Point(0, 0), Point(6, 0)));
+    segs.append(Segment(Point(6, 0), Point(3, 6)));
+    segs.append(Segment(Point(3, 6), Point(0, 0)));
+    check_euler(arr(segs));
+  }
+
+  // Case 2: Square.
+  {
+    Array<Segment> segs;
+    segs.append(Segment(Point(0, 0), Point(4, 0)));
+    segs.append(Segment(Point(4, 0), Point(4, 4)));
+    segs.append(Segment(Point(4, 4), Point(0, 4)));
+    segs.append(Segment(Point(0, 4), Point(0, 0)));
+    check_euler(arr(segs));
+  }
+
+  // Case 3: Two crossing segments.
+  {
+    Array<Segment> segs;
+    segs.append(Segment(Point(0, 0), Point(4, 4)));
+    segs.append(Segment(Point(0, 4), Point(4, 0)));
+    check_euler(arr(segs));
+  }
+
+  // Case 4: Star pattern.
+  {
+    Array<Segment> segs;
+    segs.append(Segment(Point(-2, 0), Point(2, 0)));
+    segs.append(Segment(Point(0, -2), Point(0, 2)));
+    segs.append(Segment(Point(-2, -2), Point(2, 2)));
+    segs.append(Segment(Point(-2, 2), Point(2, -2)));
+    check_euler(arr(segs));
+  }
+}
+
+TEST_F(GeomAlgorithmsTest, ArrangementHasUnboundedFace)
+{
+  // Any non-empty arrangement must have exactly one unbounded face.
+  // Test with a square arrangement.
+  SegmentArrangement arr;
+  Array<Segment> segs;
+  segs.append(Segment(Point(0, 0), Point(4, 0)));
+  segs.append(Segment(Point(4, 0), Point(4, 4)));
+  segs.append(Segment(Point(4, 4), Point(0, 4)));
+  segs.append(Segment(Point(0, 4), Point(0, 0)));
+  auto r = arr(segs);
+
+  EXPECT_EQ(r.vertices.size(), 4u);
+  EXPECT_EQ(r.edges.size(), 4u);
+
+  size_t ub_count = 0;
+  for (size_t i = 0; i < r.faces.size(); ++i)
+    if (r.faces(i).unbounded) ++ub_count;
+  EXPECT_EQ(ub_count, 1u);
+
+  // Should have 2 faces: 1 bounded (inside square) + 1 unbounded.
+  EXPECT_EQ(r.faces.size(), 2u);
+}
+
+TEST_F(GeomAlgorithmsTest, ArrangementBoundedFaceVertices)
+{
+  // Triangle: the bounded face should have exactly 3 boundary vertices.
+  SegmentArrangement arr;
+  Array<Segment> segs;
+  segs.append(Segment(Point(0, 0), Point(6, 0)));
+  segs.append(Segment(Point(6, 0), Point(3, 6)));
+  segs.append(Segment(Point(3, 6), Point(0, 0)));
+  auto r = arr(segs);
+
+  // Find the bounded face.
+  bool found_bounded = false;
+  for (size_t i = 0; i < r.faces.size(); ++i)
+    {
+      if (!r.faces(i).unbounded)
+        {
+          EXPECT_EQ(r.faces(i).boundary.size(), 3u);
+          found_bounded = true;
+        }
+    }
+  EXPECT_TRUE(found_bounded);
+}
+
+// ============================================================================
+// Rotated Ellipse Tests
+// ============================================================================
+
+TEST_F(GeomAlgorithmsTest, RotatedEllipseAxisAligned)
+{
+  // Axis-aligned ellipse (θ = 0): a=4, b=2
+  RotatedEllipse e(Point(0, 0), Geom_Number(4), Geom_Number(2));
+
+  // Center should be contained.
+  EXPECT_TRUE(e.contains(Point(0, 0)));
+
+  // Points on the semi-axes should be on the boundary.
+  EXPECT_TRUE(e.on_boundary(Point(4, 0)));
+  EXPECT_TRUE(e.on_boundary(Point(-4, 0)));
+  EXPECT_TRUE(e.on_boundary(Point(0, 2)));
+  EXPECT_TRUE(e.on_boundary(Point(0, -2)));
+
+  // A point well inside.
+  EXPECT_TRUE(e.strictly_contains(Point(1, 1)));
+
+  // A point well outside.
+  EXPECT_FALSE(e.contains(Point(5, 0)));
+  EXPECT_FALSE(e.contains(Point(0, 3)));
+}
+
+TEST_F(GeomAlgorithmsTest, RotatedEllipse90Degrees)
+{
+  // Rotated 90°: cos=0, sin=1.  a=4, b=2 → after rotation, the
+  // semi-axis of length 4 points along y and the one of length 2 along x.
+  RotatedEllipse e(Point(0, 0), Geom_Number(4), Geom_Number(2),
+                   Geom_Number(0), Geom_Number(1));
+
+  // After 90° rotation: (4,0) in local → (0,4) in world,
+  // (0,2) in local → (-2,0) in world.
+  EXPECT_TRUE(e.on_boundary(Point(0, 4)));
+  EXPECT_TRUE(e.on_boundary(Point(0, -4)));
+  EXPECT_TRUE(e.on_boundary(Point(-2, 0)));
+  EXPECT_TRUE(e.on_boundary(Point(2, 0)));
+
+  EXPECT_TRUE(e.contains(Point(0, 0)));
+  EXPECT_FALSE(e.contains(Point(3, 0)));
+  EXPECT_FALSE(e.contains(Point(0, 5)));
+}
+
+TEST_F(GeomAlgorithmsTest, RotatedEllipseExtremalPoints)
+{
+  RotatedEllipse e(Point(1, 2), Geom_Number(3), Geom_Number(1));
+  auto ext = e.extremal_points();
+
+  // Axis-aligned: right = center + (a, 0)
+  EXPECT_EQ(ext.right, Point(4, 2));
+  EXPECT_EQ(ext.left, Point(-2, 2));
+  EXPECT_EQ(ext.top, Point(1, 3));
+  EXPECT_EQ(ext.bottom, Point(1, 1));
+}
+
+TEST_F(GeomAlgorithmsTest, RotatedEllipseSample)
+{
+  RotatedEllipse e(Point(0, 0), Geom_Number(3), Geom_Number(2));
+
+  // Sample at cos=1, sin=0 → local (3, 0) → world (3, 0).
+  Point p = e.sample(Geom_Number(1), Geom_Number(0));
+  EXPECT_EQ(p, Point(3, 0));
+
+  // Sample at cos=0, sin=1 → local (0, 2) → world (0, 2).
+  p = e.sample(Geom_Number(0), Geom_Number(1));
+  EXPECT_EQ(p, Point(0, 2));
+}
+
+// ============================================================================
+// Bezier Curve Tests
+// ============================================================================
+
+TEST_F(GeomAlgorithmsTest, BezierQuadraticEndpoints)
+{
+  Point p0(0, 0), p1(1, 2), p2(2, 0);
+
+  // At t=0, should be p0.
+  EXPECT_EQ(BezierCurve::quadratic(p0, p1, p2, Geom_Number(0)), p0);
+
+  // At t=1, should be p2.
+  EXPECT_EQ(BezierCurve::quadratic(p0, p1, p2, Geom_Number(1)), p2);
+}
+
+TEST_F(GeomAlgorithmsTest, BezierQuadraticMidpoint)
+{
+  Point p0(0, 0), p1(1, 2), p2(2, 0);
+
+  // At t=1/2: (1-t)²p0 + 2t(1-t)p1 + t²p2
+  // = (1/4)(0,0) + (1/2)(1,2) + (1/4)(2,0)
+  // = (0,0) + (1/2, 1) + (1/2, 0) = (1, 1)
+  Point mid = BezierCurve::quadratic(p0, p1, p2, Geom_Number(1, 2));
+  EXPECT_EQ(mid, Point(1, 1));
+}
+
+TEST_F(GeomAlgorithmsTest, BezierCubicEndpoints)
+{
+  Point p0(0, 0), p1(1, 3), p2(3, 3), p3(4, 0);
+
+  EXPECT_EQ(BezierCurve::cubic(p0, p1, p2, p3, Geom_Number(0)), p0);
+  EXPECT_EQ(BezierCurve::cubic(p0, p1, p2, p3, Geom_Number(1)), p3);
+}
+
+TEST_F(GeomAlgorithmsTest, BezierCubicMidpoint)
+{
+  Point p0(0, 0), p1(0, 4), p2(4, 4), p3(4, 0);
+
+  // At t=1/2: (1/8)(0,0) + 3(1/8)(0,4) + 3(1/8)(4,4) + (1/8)(4,0)
+  // = (0,0) + (0, 3/2) + (3/2, 3/2) + (1/2, 0)
+  // = (2, 3)
+  Point mid = BezierCurve::cubic(p0, p1, p2, p3, Geom_Number(1, 2));
+  EXPECT_EQ(mid, Point(2, 3));
+}
+
+TEST_F(GeomAlgorithmsTest, BezierSampleQuadratic)
+{
+  Point p0(0, 0), p1(1, 2), p2(2, 0);
+  auto pts = BezierCurve::sample_quadratic(p0, p1, p2, 4);
+
+  EXPECT_EQ(pts.size(), 5u);
+  EXPECT_EQ(pts(0), p0);
+  EXPECT_EQ(pts(4), p2);
+}
+
+TEST_F(GeomAlgorithmsTest, BezierSampleCubic)
+{
+  Point p0(0, 0), p1(1, 3), p2(3, 3), p3(4, 0);
+  auto pts = BezierCurve::sample_cubic(p0, p1, p2, p3, 10);
+
+  EXPECT_EQ(pts.size(), 11u);
+  EXPECT_EQ(pts(0), p0);
+  EXPECT_EQ(pts(10), p3);
+}
+
+TEST_F(GeomAlgorithmsTest, BezierSplitCubic)
+{
+  Point p0(0, 0), p1(1, 3), p2(3, 3), p3(4, 0);
+
+  auto sr = BezierCurve::split_cubic(p0, p1, p2, p3, Geom_Number(1, 2));
+
+  // Left curve starts at p0.
+  EXPECT_EQ(sr.left[0], p0);
+
+  // Right curve ends at p3.
+  EXPECT_EQ(sr.right[3], p3);
+
+  // Both meet at the midpoint.
+  EXPECT_EQ(sr.left[3], sr.right[0]);
+
+  // The meeting point should equal cubic evaluation at t=1/2.
+  Point mid = BezierCurve::cubic(p0, p1, p2, p3, Geom_Number(1, 2));
+  EXPECT_EQ(sr.left[3], mid);
+}
+
+TEST_F(GeomAlgorithmsTest, BezierControlBbox)
+{
+  Point p0(0, 0), p1(1, 5), p2(3, -1), p3(4, 2);
+  auto bbox = BezierCurve::control_bbox(p0, p1, p2, p3);
+
+  EXPECT_EQ(bbox.get_xmin(), Geom_Number(0));
+  EXPECT_EQ(bbox.get_xmax(), Geom_Number(4));
+  EXPECT_EQ(bbox.get_ymin(), Geom_Number(-1));
+  EXPECT_EQ(bbox.get_ymax(), Geom_Number(5));
+}
+
+// ============================================================================
+// Alpha Shape Tests
+// ============================================================================
+
+TEST_F(GeomAlgorithmsTest, AlphaShapeLargeAlphaEqualsDelaunay)
+{
+  // With a very large alpha, all Delaunay triangles should pass.
+  DynList<Point> pts;
+  pts.append(Point(0, 0));
+  pts.append(Point(4, 0));
+  pts.append(Point(4, 4));
+  pts.append(Point(0, 4));
+  pts.append(Point(2, 2));
+
+  AlphaShape alpha;
+  auto result = alpha(pts, Geom_Number(100000));
+
+  // Should contain all Delaunay triangles.
+  DelaunayTriangulationBowyerWatson del;
+  auto dt = del(pts);
+
+  EXPECT_EQ(result.triangles.size(), dt.triangles.size());
+}
+
+TEST_F(GeomAlgorithmsTest, AlphaShapeSmallAlphaFilters)
+{
+  // With alpha very small, fewer (or no) triangles should pass.
+  DynList<Point> pts;
+  pts.append(Point(0, 0));
+  pts.append(Point(10, 0));
+  pts.append(Point(5, 10));
+
+  AlphaShape alpha;
+
+  // Large alpha: should keep the triangle.
+  auto r1 = alpha(pts, Geom_Number(10000));
+  EXPECT_EQ(r1.triangles.size(), 1u);
+
+  // Very small alpha: triangle's circumradius² > alpha², so it should be
+  // filtered out.
+  auto r2 = alpha(pts, Geom_Number(1, 100));
+  EXPECT_EQ(r2.triangles.size(), 0u);
+  EXPECT_EQ(r2.boundary_edges.size(), 0u);
+}
+
+TEST_F(GeomAlgorithmsTest, AlphaShapeBoundaryEdges)
+{
+  // Equilateral-like triangle: all edges should be boundary for large alpha.
+  DynList<Point> pts;
+  pts.append(Point(0, 0));
+  pts.append(Point(6, 0));
+  pts.append(Point(3, 5));
+
+  AlphaShape alpha;
+  auto r = alpha(pts, Geom_Number(100000));
+
+  EXPECT_EQ(r.triangles.size(), 1u);
+  // 1 triangle → all 3 edges are boundary.
+  EXPECT_EQ(r.boundary_edges.size(), 3u);
+}
+
+// ============================================================================
+// Power Diagram Tests
+// ============================================================================
+
+TEST_F(GeomAlgorithmsTest, PowerDiagramEqualWeights)
+{
+  // With equal weights, power diagram should be identical to Voronoi.
+  Array<PowerDiagram::WeightedSite> sites;
+  sites.append({Point(0, 0), Geom_Number(0)});
+  sites.append({Point(4, 0), Geom_Number(0)});
+  sites.append({Point(2, 4), Geom_Number(0)});
+
+  PowerDiagram pd;
+  auto result = pd(sites);
+
+  EXPECT_EQ(result.sites.size(), 3u);
+  // 1 Delaunay triangle → 1 power vertex (circumcenter).
+  EXPECT_EQ(result.vertices.size(), 1u);
+  // 1 cell per site.
+  EXPECT_EQ(result.cells.size(), 3u);
+}
+
+TEST_F(GeomAlgorithmsTest, PowerDiagramPowerCenter)
+{
+  // Three sites with equal weights at (0,0), (4,0), (2,4).
+  // Power center = circumcenter when weights are equal.
+  PowerDiagram::WeightedSite a{Point(0, 0), Geom_Number(0)};
+  PowerDiagram::WeightedSite b{Point(4, 0), Geom_Number(0)};
+  PowerDiagram::WeightedSite c{Point(2, 4), Geom_Number(0)};
+
+  Point pc = PowerDiagram::power_center(a, b, c);
+
+  // Circumcenter of (0,0), (4,0), (2,4): midpoint checks.
+  // Should be equidistant from all three.
+  Geom_Number da = pc.distance_squared_to(Point(0, 0));
+  Geom_Number db = pc.distance_squared_to(Point(4, 0));
+  Geom_Number dc = pc.distance_squared_to(Point(2, 4));
+  EXPECT_EQ(da, db);
+  EXPECT_EQ(db, dc);
+}
+
+TEST_F(GeomAlgorithmsTest, PowerDiagramWithWeights)
+{
+  // When weights differ, the power center shifts.
+  PowerDiagram::WeightedSite a{Point(0, 0), Geom_Number(1)};
+  PowerDiagram::WeightedSite b{Point(4, 0), Geom_Number(1)};
+  PowerDiagram::WeightedSite c{Point(2, 4), Geom_Number(1)};
+
+  // Equal weights should still give circumcenter.
+  Point pc = PowerDiagram::power_center(a, b, c);
+  Geom_Number da = pc.distance_squared_to(Point(0, 0)) - 1;
+  Geom_Number db = pc.distance_squared_to(Point(4, 0)) - 1;
+  Geom_Number dc = pc.distance_squared_to(Point(2, 4)) - 1;
+  EXPECT_EQ(da, db);
+  EXPECT_EQ(db, dc);
+}
+
+TEST_F(GeomAlgorithmsTest, PowerDiagramSquare)
+{
+  Array<PowerDiagram::WeightedSite> sites;
+  sites.append({Point(0, 0), Geom_Number(0)});
+  sites.append({Point(4, 0), Geom_Number(0)});
+  sites.append({Point(4, 4), Geom_Number(0)});
+  sites.append({Point(0, 4), Geom_Number(0)});
+
+  PowerDiagram pd;
+  auto result = pd(sites);
+
+  EXPECT_EQ(result.sites.size(), 4u);
+  EXPECT_EQ(result.cells.size(), 4u);
+  // Should have at least 1 edge.
+  EXPECT_GE(result.edges.size(), 1u);
+}
+
+// ============================================================================
+// Boolean Polygon Operations Tests
+// ============================================================================
+
+TEST_F(GeomAlgorithmsTest, BooleanIntersectionOverlappingSquares)
+{
+  // Two overlapping unit squares: one at (0,0)-(2,2) and another at (1,1)-(3,3).
+  Polygon sq1;
+  sq1.add_vertex(Point(0, 0));
+  sq1.add_vertex(Point(2, 0));
+  sq1.add_vertex(Point(2, 2));
+  sq1.add_vertex(Point(0, 2));
+  sq1.close();
+
+  Polygon sq2;
+  sq2.add_vertex(Point(1, 1));
+  sq2.add_vertex(Point(3, 1));
+  sq2.add_vertex(Point(3, 3));
+  sq2.add_vertex(Point(1, 3));
+  sq2.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.intersection(sq1, sq2);
+
+  // Should produce exactly one polygon.
+  EXPECT_EQ(result.size(), 1u);
+
+  // The intersection should be a square with vertices at (1,1), (2,1), (2,2), (1,2).
+  EXPECT_EQ(result(0).size(), 4u);
+}
+
+TEST_F(GeomAlgorithmsTest, BooleanIntersectionDisjoint)
+{
+  Polygon sq1;
+  sq1.add_vertex(Point(0, 0));
+  sq1.add_vertex(Point(1, 0));
+  sq1.add_vertex(Point(1, 1));
+  sq1.add_vertex(Point(0, 1));
+  sq1.close();
+
+  Polygon sq2;
+  sq2.add_vertex(Point(5, 5));
+  sq2.add_vertex(Point(6, 5));
+  sq2.add_vertex(Point(6, 6));
+  sq2.add_vertex(Point(5, 6));
+  sq2.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.intersection(sq1, sq2);
+
+  // Disjoint squares should have empty intersection.
+  EXPECT_EQ(result.size(), 0u);
+}
+
+TEST_F(GeomAlgorithmsTest, BooleanUnionDisjoint)
+{
+  Polygon sq1;
+  sq1.add_vertex(Point(0, 0));
+  sq1.add_vertex(Point(1, 0));
+  sq1.add_vertex(Point(1, 1));
+  sq1.add_vertex(Point(0, 1));
+  sq1.close();
+
+  Polygon sq2;
+  sq2.add_vertex(Point(5, 5));
+  sq2.add_vertex(Point(6, 5));
+  sq2.add_vertex(Point(6, 6));
+  sq2.add_vertex(Point(5, 6));
+  sq2.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.polygon_union(sq1, sq2);
+
+  // Disjoint: should return both polygons.
+  EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(GeomAlgorithmsTest, BooleanUnionOverlapping)
+{
+  Polygon sq1;
+  sq1.add_vertex(Point(0, 0));
+  sq1.add_vertex(Point(2, 0));
+  sq1.add_vertex(Point(2, 2));
+  sq1.add_vertex(Point(0, 2));
+  sq1.close();
+
+  Polygon sq2;
+  sq2.add_vertex(Point(1, 1));
+  sq2.add_vertex(Point(3, 1));
+  sq2.add_vertex(Point(3, 3));
+  sq2.add_vertex(Point(1, 3));
+  sq2.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.polygon_union(sq1, sq2);
+
+  // Overlapping: should return 1 merged polygon.
+  EXPECT_EQ(result.size(), 1u);
+  // The hull of the union should have vertices from both squares.
+  EXPECT_GE(result(0).size(), 4u);
+}
+
+TEST_F(GeomAlgorithmsTest, BooleanDifferenceNoOverlap)
+{
+  Polygon sq1;
+  sq1.add_vertex(Point(0, 0));
+  sq1.add_vertex(Point(1, 0));
+  sq1.add_vertex(Point(1, 1));
+  sq1.add_vertex(Point(0, 1));
+  sq1.close();
+
+  Polygon sq2;
+  sq2.add_vertex(Point(5, 5));
+  sq2.add_vertex(Point(6, 5));
+  sq2.add_vertex(Point(6, 6));
+  sq2.add_vertex(Point(5, 6));
+  sq2.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.difference(sq1, sq2);
+
+  // No overlap: a - b = a.
+  EXPECT_EQ(result.size(), 1u);
+  EXPECT_EQ(result(0).size(), 4u);
+}
+
+// ============================================================================
+// 3D Primitives Tests
+// ============================================================================
+
+TEST_F(GeomAlgorithmsTest, Point3DBasicOps)
+{
+  Point3D a(1, 2, 3);
+  Point3D b(4, 5, 6);
+
+  auto sum = a + b;
+  EXPECT_EQ(sum.get_x(), Geom_Number(5));
+  EXPECT_EQ(sum.get_y(), Geom_Number(7));
+  EXPECT_EQ(sum.get_z(), Geom_Number(9));
+
+  auto diff = b - a;
+  EXPECT_EQ(diff.get_x(), Geom_Number(3));
+  EXPECT_EQ(diff.get_y(), Geom_Number(3));
+  EXPECT_EQ(diff.get_z(), Geom_Number(3));
+
+  auto scaled = a * Geom_Number(2);
+  EXPECT_EQ(scaled.get_x(), Geom_Number(2));
+  EXPECT_EQ(scaled.get_y(), Geom_Number(4));
+  EXPECT_EQ(scaled.get_z(), Geom_Number(6));
+}
+
+TEST_F(GeomAlgorithmsTest, Point3DDotCross)
+{
+  Point3D i(1, 0, 0);
+  Point3D j(0, 1, 0);
+  Point3D k(0, 0, 1);
+
+  // i · j = 0
+  EXPECT_EQ(i.dot(j), Geom_Number(0));
+  // i · i = 1
+  EXPECT_EQ(i.dot(i), Geom_Number(1));
+
+  // i × j = k
+  auto ixj = i.cross(j);
+  EXPECT_EQ(ixj, k);
+
+  // j × k = i
+  auto jxk = j.cross(k);
+  EXPECT_EQ(jxk, i);
+
+  // k × i = j
+  auto kxi = k.cross(i);
+  EXPECT_EQ(kxi, j);
+}
+
+TEST_F(GeomAlgorithmsTest, Point3DDistanceAndNorm)
+{
+  Point3D a(0, 0, 0);
+  Point3D b(3, 4, 0);
+
+  EXPECT_EQ(a.distance_squared_to(b), Geom_Number(25));
+  EXPECT_EQ(b.norm_squared(), Geom_Number(25));
+}
+
+TEST_F(GeomAlgorithmsTest, Point3DProjectionAndLift)
+{
+  Point3D p(3, 4, 5);
+  Point p2d = p.to_2d();
+  EXPECT_EQ(p2d, Point(3, 4));
+
+  Point3D lifted = Point3D::from_2d(Point(1, 2));
+  EXPECT_EQ(lifted, Point3D(1, 2, 0));
+
+  Point3D lifted_z = Point3D::from_2d(Point(1, 2), Geom_Number(7));
+  EXPECT_EQ(lifted_z, Point3D(1, 2, 7));
+}
+
+TEST_F(GeomAlgorithmsTest, Segment3DBasic)
+{
+  Point3D a(0, 0, 0), b(3, 4, 0);
+  Segment3D s(a, b);
+
+  EXPECT_EQ(s.get_src(), a);
+  EXPECT_EQ(s.get_tgt(), b);
+  EXPECT_EQ(s.length_squared(), Geom_Number(25));
+
+  auto mid = s.midpoint();
+  EXPECT_EQ(mid, Point3D(Geom_Number(3, 2), Geom_Number(2), Geom_Number(0)));
+
+  EXPECT_EQ(s.at(Geom_Number(0)), a);
+  EXPECT_EQ(s.at(Geom_Number(1)), b);
+}
+
+TEST_F(GeomAlgorithmsTest, Triangle3DNormal)
+{
+  Triangle3D t(Point3D(0, 0, 0), Point3D(1, 0, 0), Point3D(0, 1, 0));
+
+  // Normal should be (0, 0, 1) (z-axis).
+  auto n = t.normal();
+  EXPECT_EQ(n, Point3D(0, 0, 1));
+
+  EXPECT_FALSE(t.is_degenerate());
+}
+
+TEST_F(GeomAlgorithmsTest, Triangle3DDegenerate)
+{
+  // Collinear points → degenerate triangle.
+  Triangle3D t(Point3D(0, 0, 0), Point3D(1, 0, 0), Point3D(2, 0, 0));
+  EXPECT_TRUE(t.is_degenerate());
+}
+
+TEST_F(GeomAlgorithmsTest, Triangle3DCentroid)
+{
+  Triangle3D t(Point3D(0, 0, 0), Point3D(3, 0, 0), Point3D(0, 3, 0));
+  auto c = t.centroid();
+  EXPECT_EQ(c, Point3D(1, 1, 0));
+}
+
+TEST_F(GeomAlgorithmsTest, Triangle3DBarycentric)
+{
+  Triangle3D t(Point3D(0, 0, 0), Point3D(4, 0, 0), Point3D(0, 4, 0));
+
+  // Centroid should have barycentric coords (1/3, 1/3, 1/3).
+  auto bc = t.barycentric(Point3D(Geom_Number(4, 3), Geom_Number(4, 3), 0));
+  EXPECT_EQ(bc.u, Geom_Number(1, 3));
+  EXPECT_EQ(bc.v, Geom_Number(1, 3));
+  EXPECT_EQ(bc.w, Geom_Number(1, 3));
+
+  // Vertex a should have (1, 0, 0).
+  auto bca = t.barycentric(Point3D(0, 0, 0));
+  EXPECT_EQ(bca.u, Geom_Number(1));
+  EXPECT_EQ(bca.v, Geom_Number(0));
+  EXPECT_EQ(bca.w, Geom_Number(0));
+}
+
+TEST_F(GeomAlgorithmsTest, TetrahedronVolume)
+{
+  // Regular tetrahedron with one vertex at origin.
+  Tetrahedron tet(Point3D(0, 0, 0),
+                  Point3D(6, 0, 0),
+                  Point3D(0, 6, 0),
+                  Point3D(0, 0, 6));
+
+  // Volume = |det| / 6 = 6*6*6 / 6 = 36.
+  EXPECT_EQ(tet.volume(), Geom_Number(36));
+
+  EXPECT_FALSE(tet.is_degenerate());
+}
+
+TEST_F(GeomAlgorithmsTest, TetrahedronDegenerate)
+{
+  // Four coplanar points.
+  Tetrahedron tet(Point3D(0, 0, 0),
+                  Point3D(1, 0, 0),
+                  Point3D(0, 1, 0),
+                  Point3D(1, 1, 0));
+
+  EXPECT_TRUE(tet.is_degenerate());
+  EXPECT_EQ(tet.volume(), Geom_Number(0));
+}
+
+TEST_F(GeomAlgorithmsTest, TetrahedronContains)
+{
+  Tetrahedron tet(Point3D(0, 0, 0),
+                  Point3D(4, 0, 0),
+                  Point3D(0, 4, 0),
+                  Point3D(0, 0, 4));
+
+  // Centroid should be inside.
+  EXPECT_TRUE(tet.contains(Point3D(1, 1, 1)));
+
+  // Origin vertex should be inside (on boundary).
+  EXPECT_TRUE(tet.contains(Point3D(0, 0, 0)));
+
+  // A point far outside.
+  EXPECT_FALSE(tet.contains(Point3D(10, 10, 10)));
+
+  // A point outside but close.
+  EXPECT_FALSE(tet.contains(Point3D(2, 2, 2)));
+}
+
+TEST_F(GeomAlgorithmsTest, TetrahedronCentroid)
+{
+  Tetrahedron tet(Point3D(0, 0, 0),
+                  Point3D(4, 0, 0),
+                  Point3D(0, 4, 0),
+                  Point3D(0, 0, 4));
+
+  auto c = tet.centroid();
+  EXPECT_EQ(c, Point3D(1, 1, 1));
+}
+
+TEST_F(GeomAlgorithmsTest, TetrahedronFaces)
+{
+  Tetrahedron tet(Point3D(0, 0, 0),
+                  Point3D(1, 0, 0),
+                  Point3D(0, 1, 0),
+                  Point3D(0, 0, 1));
+
+  auto f = tet.faces();
+  // Should have 4 faces.
+  for (int i = 0; i < 4; ++i)
+    EXPECT_FALSE(f.f[i].is_degenerate());
+}
+
+TEST_F(GeomAlgorithmsTest, ScalarTripleProduct)
+{
+  Point3D a(1, 0, 0);
+  Point3D b(0, 1, 0);
+  Point3D c(0, 0, 1);
+
+  // a · (b × c) = 1 · (1) = 1
+  EXPECT_EQ(scalar_triple_product(a, b, c), Geom_Number(1));
+
+  // Cyclic: b · (c × a) = 1
+  EXPECT_EQ(scalar_triple_product(b, c, a), Geom_Number(1));
+
+  // Anti-cyclic: a · (c × b) = -1
+  EXPECT_EQ(scalar_triple_product(a, c, b), Geom_Number(-1));
+}

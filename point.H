@@ -1466,6 +1466,131 @@ inline Segment Segment::intersection_with(const Ellipse & e) const
   return e.intersection_with(*this);
 }
 
+// ============================================================================
+// Rotated Ellipse
+// ============================================================================
+
+/**
+ * @brief Ellipse with arbitrary rotation.
+ *
+ * Extends the axis-aligned Ellipse by adding a rotation angle θ.
+ * The implicit equation in the rotated frame is:
+ *
+ *     ((x' - cx)² / a²) + ((y' - cy)² / b²) = 1
+ *
+ * where (x', y') are coordinates rotated by -θ around the center.
+ *
+ * Since exact trigonometry is not possible with rationals, the rotation
+ * is specified by its cosine and sine as exact Geom_Number values.
+ * For common angles (0, π/2, π, 3π/2) exact values are trivial.
+ * For other angles, the caller provides rational approximations.
+ */
+class RotatedEllipse : public Geom_Object
+{
+  Point center_;
+  Geom_Number a_;      // semi-axis along the local x (before rotation)
+  Geom_Number b_;      // semi-axis along the local y (before rotation)
+  Geom_Number cos_th_; // cosine of the rotation angle
+  Geom_Number sin_th_; // sine of the rotation angle
+
+  // Transform a world point to the ellipse's local frame.
+  [[nodiscard]] Point to_local(const Point & p) const
+  {
+    const Geom_Number dx = p.get_x() - center_.get_x();
+    const Geom_Number dy = p.get_y() - center_.get_y();
+    return { cos_th_ * dx + sin_th_ * dy,
+            -sin_th_ * dx + cos_th_ * dy};
+  }
+
+  // Transform a local-frame point back to world coordinates.
+  [[nodiscard]] Point to_world(const Point & p) const
+  {
+    return {cos_th_ * p.get_x() - sin_th_ * p.get_y() + center_.get_x(),
+            sin_th_ * p.get_x() + cos_th_ * p.get_y() + center_.get_y()};
+  }
+
+public:
+  /// Construct a rotated ellipse from center, semi-axes, and cos/sin of angle.
+  RotatedEllipse(Point center,
+                 const Geom_Number & a, const Geom_Number & b,
+                 const Geom_Number & cos_theta,
+                 const Geom_Number & sin_theta)
+    : center_(std::move(center)), a_(a), b_(b),
+      cos_th_(cos_theta), sin_th_(sin_theta)
+  {
+    // empty
+  }
+
+  /// Construct an axis-aligned ellipse (θ = 0).
+  RotatedEllipse(Point center,
+                 const Geom_Number & a, const Geom_Number & b)
+    : center_(std::move(center)), a_(a), b_(b), cos_th_(1), sin_th_(0)
+  {
+    // empty
+  }
+
+  RotatedEllipse() = default;
+  RotatedEllipse(const RotatedEllipse &) = default;
+  RotatedEllipse & operator=(const RotatedEllipse &) = default;
+
+  [[nodiscard]] const Point & get_center() const { return center_; }
+  [[nodiscard]] const Geom_Number & get_a() const { return a_; }
+  [[nodiscard]] const Geom_Number & get_b() const { return b_; }
+  [[nodiscard]] const Geom_Number & get_cos() const { return cos_th_; }
+  [[nodiscard]] const Geom_Number & get_sin() const { return sin_th_; }
+
+  /// Evaluate (x'/a)² + (y'/b)² for a point in local coords.
+  [[nodiscard]] Geom_Number radius_value(const Point & p) const
+  {
+    const Point lp = to_local(p);
+    return (lp.get_x() * lp.get_x()) / (a_ * a_) +
+           (lp.get_y() * lp.get_y()) / (b_ * b_);
+  }
+
+  /// Returns true if point p lies inside or on the ellipse.
+  [[nodiscard]] bool contains(const Point & p) const
+  {
+    return radius_value(p) <= 1;
+  }
+
+  /// Returns true if point p lies strictly inside the ellipse.
+  [[nodiscard]] bool strictly_contains(const Point & p) const
+  {
+    return radius_value(p) < 1;
+  }
+
+  /// Returns true if point p lies exactly on the ellipse boundary.
+  [[nodiscard]] bool on_boundary(const Point & p) const
+  {
+    return radius_value(p) == 1;
+  }
+
+  /// Sample a point on the ellipse at parameter t ∈ [0, 1] mapping to [0, 2π).
+  /// Uses rational approximations of cos/sin via the caller-provided functions.
+  [[nodiscard]] Point sample(const Geom_Number & cos_t,
+                              const Geom_Number & sin_t) const
+  {
+    // Point on axis-aligned ellipse: (a cos t, b sin t).
+    // Rotate and translate to world.
+    return to_world(Point(a_ * cos_t, b_ * sin_t));
+  }
+
+  /// Extremal points of the rotated ellipse.
+  struct ExtremalPoints
+  {
+    Point right, top, left, bottom;
+  };
+
+  /// Compute the four axis-extremal points of the rotated ellipse.
+  [[nodiscard]] ExtremalPoints extremal_points() const
+  {
+    return {to_world(Point( a_, Geom_Number(0))),
+            to_world(Point(Geom_Number(0),  b_)),
+            to_world(Point(-a_, Geom_Number(0))),
+            to_world(Point(Geom_Number(0), -b_))};
+  }
+};
+
 /*****************************************************************
 
                        Fundamental text primitive
@@ -1720,6 +1845,255 @@ area_of_triangle(const Point & a, const Point & b, const Point & c)
 {
   return abs(area_of_parallelogram(a, b, c)) / 2;
 }
+
+// ============================================================================
+// 3D Primitives
+// ============================================================================
+
+/**
+ * @brief 3D point with exact rational coordinates.
+ *
+ * Extends the 2D geometry module with a basic 3D point type.
+ * All operations use exact `Geom_Number` arithmetic.
+ */
+class Point3D
+{
+  Geom_Number x_, y_, z_;
+
+public:
+  Point3D() : x_(0), y_(0), z_(0) {}
+  Point3D(const Geom_Number & x, const Geom_Number & y, const Geom_Number & z)
+    : x_(x), y_(y), z_(z) {}
+
+  Point3D(const Point3D &) = default;
+  Point3D & operator=(const Point3D &) = default;
+
+  [[nodiscard]] const Geom_Number & get_x() const { return x_; }
+  [[nodiscard]] const Geom_Number & get_y() const { return y_; }
+  [[nodiscard]] const Geom_Number & get_z() const { return z_; }
+
+  [[nodiscard]] bool operator==(const Point3D & p) const
+  { return x_ == p.x_ && y_ == p.y_ && z_ == p.z_; }
+
+  [[nodiscard]] bool operator!=(const Point3D & p) const
+  { return !(*this == p); }
+
+  [[nodiscard]] Point3D operator+(const Point3D & p) const
+  { return {x_ + p.x_, y_ + p.y_, z_ + p.z_}; }
+
+  [[nodiscard]] Point3D operator-(const Point3D & p) const
+  { return {x_ - p.x_, y_ - p.y_, z_ - p.z_}; }
+
+  [[nodiscard]] Point3D operator*(const Geom_Number & s) const
+  { return {x_ * s, y_ * s, z_ * s}; }
+
+  [[nodiscard]] Point3D operator/(const Geom_Number & s) const
+  { return {x_ / s, y_ / s, z_ / s}; }
+
+  /// Dot product.
+  [[nodiscard]] Geom_Number dot(const Point3D & p) const
+  { return x_ * p.x_ + y_ * p.y_ + z_ * p.z_; }
+
+  /// Cross product.
+  [[nodiscard]] Point3D cross(const Point3D & p) const
+  {
+    return {y_ * p.z_ - z_ * p.y_,
+            z_ * p.x_ - x_ * p.z_,
+            x_ * p.y_ - y_ * p.x_};
+  }
+
+  /// Squared Euclidean distance.
+  [[nodiscard]] Geom_Number distance_squared_to(const Point3D & p) const
+  {
+    const Geom_Number dx = x_ - p.x_;
+    const Geom_Number dy = y_ - p.y_;
+    const Geom_Number dz = z_ - p.z_;
+    return dx*dx + dy*dy + dz*dz;
+  }
+
+  /// Squared norm.
+  [[nodiscard]] Geom_Number norm_squared() const
+  { return x_*x_ + y_*y_ + z_*z_; }
+
+  /// Project to 2D (drop z).
+  [[nodiscard]] Point to_2d() const { return {x_, y_}; }
+
+  /// Lift a 2D point to 3D with z = 0.
+  [[nodiscard]] static Point3D from_2d(const Point & p)
+  { return {p.get_x(), p.get_y(), Geom_Number(0)}; }
+
+  /// Lift a 2D point to 3D with specified z.
+  [[nodiscard]] static Point3D from_2d(const Point & p, const Geom_Number & z)
+  { return {p.get_x(), p.get_y(), z}; }
+};
+
+/// Scalar triple product: a · (b × c).
+[[nodiscard]] inline Geom_Number
+scalar_triple_product(const Point3D & a, const Point3D & b, const Point3D & c)
+{
+  return a.dot(b.cross(c));
+}
+
+/**
+ * @brief 3D line segment.
+ */
+class Segment3D
+{
+  Point3D src_, tgt_;
+
+public:
+  Segment3D() = default;
+  Segment3D(const Point3D & src, const Point3D & tgt) : src_(src), tgt_(tgt) {}
+
+  [[nodiscard]] const Point3D & get_src() const { return src_; }
+  [[nodiscard]] const Point3D & get_tgt() const { return tgt_; }
+
+  [[nodiscard]] Point3D direction() const { return tgt_ - src_; }
+
+  [[nodiscard]] Geom_Number length_squared() const
+  { return src_.distance_squared_to(tgt_); }
+
+  /// Evaluate the segment at parameter t ∈ [0,1].
+  [[nodiscard]] Point3D at(const Geom_Number & t) const
+  {
+    const Geom_Number s = Geom_Number(1) - t;
+    return src_ * s + tgt_ * t;
+  }
+
+  /// Midpoint.
+  [[nodiscard]] Point3D midpoint() const
+  { return at(Geom_Number(1, 2)); }
+
+  [[nodiscard]] bool operator==(const Segment3D & s) const
+  { return src_ == s.src_ && tgt_ == s.tgt_; }
+};
+
+/**
+ * @brief 3D triangle defined by three points.
+ */
+class Triangle3D
+{
+  Point3D a_, b_, c_;
+
+public:
+  Triangle3D() = default;
+  Triangle3D(const Point3D & a, const Point3D & b, const Point3D & c)
+    : a_(a), b_(b), c_(c) {}
+
+  [[nodiscard]] const Point3D & get_a() const { return a_; }
+  [[nodiscard]] const Point3D & get_b() const { return b_; }
+  [[nodiscard]] const Point3D & get_c() const { return c_; }
+
+  /// Normal vector (not normalized): (b-a) × (c-a).
+  [[nodiscard]] Point3D normal() const
+  { return (b_ - a_).cross(c_ - a_); }
+
+  /// Twice the area squared = |normal|².
+  [[nodiscard]] Geom_Number double_area_squared() const
+  { return normal().norm_squared(); }
+
+  /// Centroid.
+  [[nodiscard]] Point3D centroid() const
+  { return (a_ + b_ + c_) / Geom_Number(3); }
+
+  /// Check if three points are collinear (zero-area triangle).
+  [[nodiscard]] bool is_degenerate() const
+  { return normal().norm_squared() == 0; }
+
+  /// Barycentric coordinates of point p.
+  /// Returns (u, v, w) such that p = u*a + v*b + w*c, u+v+w = 1.
+  struct BaryCoords { Geom_Number u, v, w; };
+
+  [[nodiscard]] BaryCoords barycentric(const Point3D & p) const
+  {
+    const Point3D v0 = b_ - a_, v1 = c_ - a_, v2 = p - a_;
+    const Geom_Number d00 = v0.dot(v0);
+    const Geom_Number d01 = v0.dot(v1);
+    const Geom_Number d11 = v1.dot(v1);
+    const Geom_Number d20 = v2.dot(v0);
+    const Geom_Number d21 = v2.dot(v1);
+    const Geom_Number denom = d00 * d11 - d01 * d01;
+    const Geom_Number v = (d11 * d20 - d01 * d21) / denom;
+    const Geom_Number w = (d00 * d21 - d01 * d20) / denom;
+    return {Geom_Number(1) - v - w, v, w};
+  }
+};
+
+/**
+ * @brief Tetrahedron defined by four points in 3D.
+ */
+class Tetrahedron
+{
+  Point3D a_, b_, c_, d_;
+
+public:
+  Tetrahedron() = default;
+  Tetrahedron(const Point3D & a, const Point3D & b,
+              const Point3D & c, const Point3D & d)
+    : a_(a), b_(b), c_(c), d_(d) {}
+
+  [[nodiscard]] const Point3D & get_a() const { return a_; }
+  [[nodiscard]] const Point3D & get_b() const { return b_; }
+  [[nodiscard]] const Point3D & get_c() const { return c_; }
+  [[nodiscard]] const Point3D & get_d() const { return d_; }
+
+  /// Signed volume × 6 = (b-a) · ((c-a) × (d-a)).
+  [[nodiscard]] Geom_Number signed_volume_x6() const
+  {
+    return scalar_triple_product(b_ - a_, c_ - a_, d_ - a_);
+  }
+
+  /// Unsigned volume = |signed_volume_x6| / 6.
+  [[nodiscard]] Geom_Number volume() const
+  {
+    Geom_Number v = signed_volume_x6();
+    if (v < 0) v = -v;
+    return v / Geom_Number(6);
+  }
+
+  /// Returns true if the four points are coplanar (zero volume).
+  [[nodiscard]] bool is_degenerate() const
+  { return signed_volume_x6() == 0; }
+
+  /// Centroid of the tetrahedron.
+  [[nodiscard]] Point3D centroid() const
+  { return (a_ + b_ + c_ + d_) / Geom_Number(4); }
+
+  /// Check if a point lies inside the tetrahedron (using sign of
+  /// sub-tetrahedra volumes).
+  [[nodiscard]] bool contains(const Point3D & p) const
+  {
+    const Geom_Number d0 = signed_volume_x6();
+    if (d0 == 0) return false; // degenerate
+
+    const Geom_Number d1 = scalar_triple_product(b_ - p, c_ - p, d_ - p);
+    const Geom_Number d2 = scalar_triple_product(a_ - p, c_ - p, d_ - p);
+    const Geom_Number d3 = scalar_triple_product(a_ - p, b_ - p, d_ - p);
+    const Geom_Number d4 = scalar_triple_product(a_ - p, b_ - p, c_ - p);
+
+    // Point is inside iff all sub-volumes have the same sign as d0.
+    const bool pos = d0 > 0;
+    if (pos)
+      return d1 >= 0 && d2 <= 0 && d3 >= 0 && d4 <= 0;
+    else
+      return d1 <= 0 && d2 >= 0 && d3 <= 0 && d4 >= 0;
+  }
+
+  /// Faces of the tetrahedron.
+  struct Faces
+  {
+    Triangle3D f[4];
+  };
+
+  /// Get the four faces as Triangle3D objects.
+  [[nodiscard]] Faces faces() const
+  {
+    return {{Triangle3D(a_, b_, c_),
+             Triangle3D(a_, b_, d_),
+             Triangle3D(a_, c_, d_),
+             Triangle3D(b_, c_, d_)}};
+  }
+};
 
 
 # endif // POINT_H
