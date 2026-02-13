@@ -460,8 +460,8 @@ class Segment : public Geom_Object
     if (tgt_.x_ == src_.x_)
       {
         if (src_.y_ < tgt_.y_)
-          return std::numeric_limits<double>::max();
-        return -std::numeric_limits<double>::max();
+          return std::numeric_limits<double>::infinity();
+        return -std::numeric_limits<double>::infinity();
       }
 
     const Geom_Number slope_ = (tgt_.y_ - src_.y_) / (tgt_.x_ - src_.x_);
@@ -1013,18 +1013,21 @@ public:
 
   [[nodiscard]] const Point &get_p3() const { return p3_; }
 
-  /// Returns true if the point p lies inside this triangle.
+  /// Returns true if the point p lies strictly inside this triangle.
   [[nodiscard]] bool contains(const Point & p) const
   {
-    const bool s = p.is_left_of(p1_, p2_);
-
-    if (p.is_left_of(p2_, p3_) != s)
-      return false;
-
-    if (p.is_left_of(p3_, p1_) != s)
-      return false;
-
-    return true;
+    if (is_clockwise())
+      {
+        return p.is_to_right_from(p1_, p2_) and
+               p.is_to_right_from(p2_, p3_) and
+               p.is_to_right_from(p3_, p1_);
+      }
+    else
+      {
+        return p.is_left_of(p1_, p2_) and
+               p.is_left_of(p2_, p3_) and
+               p.is_left_of(p3_, p1_);
+      }
   }
 
   /// Returns the intersection segment between this triangle and segment @p s.
@@ -1137,8 +1140,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
     { // check intersection against edge p1-p2
       p[i] = this->intersection_with(Segment(t.get_p1(), t.get_p2()));
 
-      if (t.contains(p[i]))
-        ++i; // intersection detected
+      ++i; // intersection detected
     }
   catch (std::domain_error &)
     {
@@ -1149,8 +1151,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
     { // check intersection against edge p2-p3
       p[i] = this->intersection_with(Segment(t.get_p2(), t.get_p3()));
 
-      if (t.contains(p[i]))
-        ++i; // intersection detected
+      ++i; // intersection detected
     }
   catch (std::domain_error &)
     {
@@ -1164,8 +1165,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
     { // check intersection against edge p3-p1
       p[i] = this->intersection_with(Segment(t.get_p3(), t.get_p1()));
 
-      if (t.contains(p[i]))
-        ++i;
+      ++i;
     }
   catch (std::domain_error &)
     {
@@ -1225,6 +1225,15 @@ public:
 
   [[nodiscard]] const Geom_Number &get_vradius() const { return vr_; }
 
+private:
+  void validate_positive_radii() const
+  {
+    ah_domain_error_if(hr_ <= 0 or vr_ <= 0)
+      << "Ellipse radii must be > 0";
+  }
+
+public:
+
   static bool is_clockwise() { return false; }
 
   [[nodiscard]] Point highest_point() const
@@ -1271,6 +1280,8 @@ public:
   void
   compute_tangents(Segment & s1, Segment & s2, const Geom_Number & m) const
   {
+    validate_positive_radii();
+
     if (m == 0)
       {
         s1 = Segment(center_ + Point(-hr_, vr_), center_ + Point(hr_, vr_));
@@ -1334,6 +1345,8 @@ public:
   // Returns true if segment @p s intersects the ellipse.
   [[nodiscard]] bool intersects_with(const Segment & s) const
   {
+    validate_positive_radii();
+
     const Geom_Number dx = s.get_tgt_point().get_x() - s.get_src_point().get_x();
 
     // Vertical segment: check if x-coordinate is within ellipse x-range.
@@ -1361,6 +1374,8 @@ private:
   // or outside (> 1).
   [[nodiscard]] Geom_Number compute_radius(const Point & p) const
   {
+    validate_positive_radii();
+
     Geom_Number x2 = (p.get_x() - center_.get_x());
     x2 = x2 * x2;
 
@@ -1443,6 +1458,8 @@ y2 = ----------------------------------------------------------------------
   */
   [[nodiscard]] Segment intersection_with(const Segment & sg) const
   {
+    validate_positive_radii();
+
     ah_domain_error_if(not intersects_with(sg)) << "there is no intersection";
 
     const Geom_Number & a = hr_;
@@ -1578,6 +1595,12 @@ class RotatedEllipse : public Geom_Object
         };
   }
 
+  void validate_positive_radii() const
+  {
+    ah_domain_error_if(a_ <= 0 or b_ <= 0)
+      << "RotatedEllipse radii must be > 0";
+  }
+
 public:
   /// Construct a rotated ellipse from center, semi-axes, and cos/sin of angle.
   RotatedEllipse(Point center,
@@ -1613,6 +1636,8 @@ public:
   /// Evaluate (x'/a)² + (y'/b)² for a point in local coords.
   [[nodiscard]] Geom_Number radius_value(const Point & p) const
   {
+    validate_positive_radii();
+
     const Point lp = to_local(p);
     return (lp.get_x() * lp.get_x()) / (a_ * a_) +
            (lp.get_y() * lp.get_y()) / (b_ * b_);
@@ -2122,6 +2147,9 @@ public:
 
   [[nodiscard]] BaryCoords barycentric(const Point3D & p) const
   {
+    ah_domain_error_if(is_degenerate())
+      << "Barycentric coordinates undefined for degenerate triangle";
+
     const Point3D v0 = b_ - a_, v1 = c_ - a_, v2 = p - a_;
     const Geom_Number d00 = v0.dot(v0);
     const Geom_Number d01 = v0.dot(v1);
@@ -2129,6 +2157,8 @@ public:
     const Geom_Number d20 = v2.dot(v0);
     const Geom_Number d21 = v2.dot(v1);
     const Geom_Number denom = d00 * d11 - d01 * d01;
+    ah_domain_error_if(denom == 0)
+      << "Barycentric coordinates undefined for degenerate triangle";
     const Geom_Number v = (d11 * d20 - d01 * d21) / denom;
     const Geom_Number w = (d00 * d21 - d01 * d20) / denom;
     return {Geom_Number(1) - v - w, v, w};

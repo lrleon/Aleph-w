@@ -340,7 +340,17 @@ foreach(test_program ${TEST_PROGRAMS})
             set(test_exe tests_${test_exe})
         endif()
 
-        add_executable(${test_exe} ${test_program}.cc)
+        if(test_program STREQUAL "geom_algorithms_test")
+            add_executable(${test_exe}
+                ${test_program}.cc
+                geom_algorithms_test_triangulation_hulls_delaunay.cc
+                geom_algorithms_test_edgecases_sweepline_minkowski_kdtree.cc
+                geom_algorithms_test_decomp_rangetree_visibility_shortestpath_arrangement.cc
+                geom_algorithms_test_boolean_3d_serializer_aabb_misc.cc
+            )
+        else()
+            add_executable(${test_exe} ${test_program}.cc)
+        endif()
         list(APPEND _ALEPH_TEST_EXECUTABLE_TARGETS ${test_exe})
 
         # Link with Aleph library and system libraries

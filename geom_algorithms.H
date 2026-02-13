@@ -171,6 +171,7 @@
 # include <tpl_2dtree.H>
 # include <ah-errors.H>
 # include <utility>
+# include <random>
 
 namespace Aleph
 {
@@ -790,7 +791,8 @@ namespace Aleph
         };
 
       size_t j = 1;
-      while (edge_area(0, (j + 1) % n) > edge_area(0, j))
+      size_t safety = 0;
+      while (edge_area(0, (j + 1) % n) > edge_area(0, j) and safety++ < n)
         j = (j + 1) % n;
 
       DiameterResult best = make_diameter(verts(0), verts(j));
@@ -798,7 +800,8 @@ namespace Aleph
       for (size_t i = 0; i < n; ++i)
         {
           const size_t ni = (i + 1) % n;
-          while (edge_area(i, (j + 1) % n) > edge_area(i, j))
+          safety = 0;
+          while (edge_area(i, (j + 1) % n) > edge_area(i, j) and safety++ < n)
             j = (j + 1) % n;
 
           if (DiameterResult cand1 = make_diameter(verts(i), verts(j)); cand1.distance_squared > best.distance_squared)
@@ -2427,11 +2430,12 @@ namespace Aleph
         order.append(i);
       // Fisher-Yates shuffle.
       {
-        unsigned long seed = 42;
+        std::random_device rd;
+        std::mt19937 gen(rd());
         for (size_t i = n - 1; i > 0; --i)
           {
-            seed = seed * 6364136223846793005ULL + 1442695040888963407ULL;
-            const size_t j = seed % (i + 1);
+            std::uniform_int_distribution<size_t> dis(0, i);
+            const size_t j = dis(gen);
             const size_t tmp = order(i);
             order(i) = order(j);
             order(j) = tmp;
@@ -3584,7 +3588,8 @@ namespace Aleph
                                                      return s.get_src_point() == last_vertex;
                                                    });
 
-          assert(ptr != nullptr);
+          ah_domain_error_if(ptr == nullptr)
+            << "BruteForceConvexHull: broken chain (degenerate input?)";
 
           if (ptr->get_tgt_point() == ret.get_first_vertex())
             break;
@@ -5046,7 +5051,7 @@ namespace Aleph
    */
   class ConvexPolygonDecomposition
   {
-    static constexpr size_t NONE = ~size_t(0);
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
 
     [[nodiscard]] static size_t find_pos(const Array<size_t> & face, size_t v)
     {
@@ -5561,6 +5566,12 @@ namespace Aleph
       const Geom_Number dax = a2x - a1x, day = a2y - a1y;
       const Geom_Number dbx = b2x - b1x, dby = b2y - b1y;
       const Geom_Number denom = dax * dby - day * dbx;
+      if (denom == 0)
+        {
+          // Consecutive offset lines can be parallel when the input has a
+          // collinear triple. In that case, use the shared shifted vertex.
+          return a2;
+        }
 
       const Geom_Number t = ((b1x - a1x) * dby - (b1y - a1y) * dbx) / denom;
       return {a1x + t * dax, a1y + t * day};
@@ -5643,6 +5654,16 @@ namespace Aleph
       for (size_t i = 0; i < n; ++i)
         {
           const size_t j = (i + 1) % n;
+          const Geom_Number dax = ob(i).get_x() - oa(i).get_x();
+          const Geom_Number day = ob(i).get_y() - oa(i).get_y();
+          const Geom_Number dbx = ob(j).get_x() - oa(j).get_x();
+          const Geom_Number dby = ob(j).get_y() - oa(j).get_y();
+          const Geom_Number denom = dax * dby - day * dbx;
+          if (denom == 0)
+            // Collinear triples produce consecutive parallel offset lines:
+            // there is no corner vertex to add for that junction.
+            continue;
+
           result.add_vertex(line_intersect(oa(i), ob(i), oa(j), ob(j)));
         }
       result.close();
@@ -5792,7 +5813,9 @@ namespace Aleph
       // Build edge event tables: for each vertex, which edges start/end there.
       // Edge i goes from verts(i) to verts((i+1)%n).
       // "starts" at the vertex with the smaller angle.
-      Array<DynList<size_t>> starts(n), ends(n);
+      Array<DynList<size_t>> starts, ends;
+      starts.reserve(n);
+      ends.reserve(n);
       for (size_t i = 0; i < n; ++i)
         starts.append(DynList<size_t>());
       for (size_t i = 0; i < n; ++i)
@@ -6224,8 +6247,8 @@ namespace Aleph
             int sc = 0;
             bool found[3] = {false, false, false};
             for (int a = 0; a < 3; ++a)
-              for (int b = 0; b < 3; ++b)
-                if (tris(sleeve(i)).v[a] == tris(sleeve(i + 1)).v[b])
+              for (unsigned long b : tris(sleeve(i + 1)).v)
+                if (tris(sleeve(i)).v[a] == b)
                   { found[a] = true; break; }
 
             for (int a = 0; a < 3; ++a)
@@ -7190,27 +7213,34 @@ namespace Aleph
 
   /**
    * @brief Boolean operations on simple polygons (union, intersection,
-   *        difference).
+   *        difference) using the Greiner-Hormann algorithm.
    *
-   * Uses a simplified approach based on polygon decomposition:
+   * Implements general boolean operations on arbitrary simple polygons,
+   * including concave ones, via the Greiner-Hormann clipping algorithm:
    *
-   * 1. **Intersection**: Sutherland-Hodgman clipping generalized for
-   *    arbitrary simple polygons by decomposing into convex parts, clipping
-   *    each pair, and merging.
+   * 1. Find all proper intersection points between polygon edges.
+   * 2. Build augmented vertex lists with intersection nodes inserted.
+   * 3. Mark each intersection as entering or exiting the other polygon.
+   * 4. Traverse the augmented lists to extract result boundaries.
    *
-   * 2. **Union**: A ∪ B = A + B − (A ∩ B)  (via area decomposition).
-   *
-   * 3. **Difference**: A \ B = A − (A ∩ B)  (via clipping with complement).
+   * - **Intersection**: A ∩ B — regions inside both polygons.
+   * - **Union**: A ∪ B — outer boundary of both polygons.
+   * - **Difference**: A \ B = A ∩ complement(B) — regions in A outside B.
    *
    * ## Limitations
    *
    * - Both polygons must be *simple* (no self-intersections) and closed.
-   * - The result is returned as one or more simple polygons.
-   * - For convex inputs, the result is exact and single-polygon.
+   * - Degenerate cases (shared edges, vertex-on-edge tangencies) may
+   *   produce approximate results; the algorithm handles proper
+   *   (transversal) intersections exactly.
+   * - Results with holes (e.g. B entirely inside A for difference) are
+   *   not representable as a single simple polygon; in such cases the
+   *   outer boundary alone is returned.
    *
    * ## Complexity
    *
-   * O(n·m) where n, m are the vertex counts.
+   * O(n·m + k log k) where n, m are vertex counts and k is the number
+   * of intersection points.
    *
    * @ingroup Geometry
    */
@@ -7267,6 +7297,21 @@ namespace Aleph
     }
 
   private:
+
+    // ----- Greiner-Hormann node for augmented polygon vertex list -----
+
+    struct GHNode
+    {
+      Point pt;
+      bool intersect = false;
+      bool entering = false;
+      size_t neighbor = SIZE_MAX; // index in the other polygon's list
+      bool visited = false;
+      Geom_Number alpha = 0;     // parameter along the original edge
+    };
+
+    // ----- helpers -----
+
     /// Extract vertices from a polygon into an Array.
     [[nodiscard]] static Array<Point> extract(const Polygon & p)
     {
@@ -7275,74 +7320,6 @@ namespace Aleph
       for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
         v.append(it.get_current_vertex());
       return v;
-    }
-
-    /// Sutherland-Hodgman clipping of subject polygon by a single clip edge.
-    [[nodiscard]] static Array<Point>
-    clip_by_edge(const Array<Point> & subject,
-                 const Point & edge_a, const Point & edge_b)
-    {
-      Array<Point> output;
-      if (subject.size() == 0) return output;
-
-      for (size_t i = 0; i < subject.size(); ++i)
-        {
-          const Point & curr = subject(i);
-          const Point & prev = subject((i + subject.size() - 1) % subject.size());
-
-          const Geom_Number curr_side =
-              area_of_parallelogram(edge_a, edge_b, curr);
-          const Geom_Number prev_side =
-              area_of_parallelogram(edge_a, edge_b, prev);
-
-          if (curr_side >= 0)
-            {
-              if (prev_side < 0)
-                {
-                  // prev outside, curr inside → add intersection + curr.
-                  const Segment s1(prev, curr);
-                  const Segment s2(edge_a, edge_b);
-                  if (segments_intersect(s1, s2))
-                    output.append(segment_intersection_point(s1, s2));
-                }
-              output.append(curr);
-            }
-          else if (prev_side >= 0)
-            {
-              // prev inside, curr outside → add intersection.
-              const Segment s1(prev, curr);
-              const Segment s2(edge_a, edge_b);
-              if (segments_intersect(s1, s2))
-                output.append(segment_intersection_point(s1, s2));
-            }
-        }
-      return output;
-    }
-
-    /// Full Sutherland-Hodgman clipping of subject by clip polygon.
-    [[nodiscard]] static Array<Point>
-    sutherland_hodgman(const Array<Point> & subject, const Array<Point> & clip)
-    {
-      Array<Point> output = subject;
-      for (size_t i = 0; i < clip.size(); ++i)
-        {
-          if (output.size() == 0) break;
-          const Point & a = clip(i);
-          const Point & b = clip((i + 1) % clip.size());
-          output = clip_by_edge(output, a, b);
-        }
-      return output;
-    }
-
-    /// Build a polygon from a vertex array.
-    [[nodiscard]] static Polygon build_poly(const Array<Point> & pts)
-    {
-      Polygon p;
-      for (size_t i = 0; i < pts.size(); ++i)
-        p.add_vertex(pts(i));
-      if (pts.size() >= 3)
-        p.close();
-      return p;
     }
 
     /// Ensure vertices are in CCW order.
@@ -7356,7 +7333,6 @@ namespace Aleph
           area += v(i).get_x() * v(j).get_y() - v(j).get_x() * v(i).get_y();
         }
       if (area < 0)
-        // Reverse.
         for (size_t i = 0, j = v.size() - 1; i < j; ++i, --j)
           {
             const Point tmp = v(i);
@@ -7364,6 +7340,318 @@ namespace Aleph
             v(j) = tmp;
           }
     }
+
+    /// Reverse a vertex array in place.
+    static void reverse_array(Array<Point> & v)
+    {
+      for (size_t i = 0, j = v.size() - 1; i < j; ++i, --j)
+        {
+          const Point tmp = v(i);
+          v(i) = v(j);
+          v(j) = tmp;
+        }
+    }
+
+    /// Build a polygon from a vertex array (bypasses colinearity merge).
+    [[nodiscard]] static Polygon build_poly(const Array<Point> & pts)
+    {
+      Polygon p;
+      for (size_t i = 0; i < pts.size(); ++i)
+        p.add_vertex(pts(i));
+      if (pts.size() >= 3)
+        p.close();
+      return p;
+    }
+
+    /// Compute parameter t of point I along directed edge P→Q.
+    [[nodiscard]] static Geom_Number
+    edge_param(const Point & P, const Point & Q, const Point & I)
+    {
+      const Geom_Number dx = Q.get_x() - P.get_x();
+      if (dx != 0)
+        return (I.get_x() - P.get_x()) / dx;
+      return (I.get_y() - P.get_y()) / (Q.get_y() - P.get_y());
+    }
+
+    /// Point-in-polygon test on a CCW vertex array (winding number).
+    [[nodiscard]] static bool
+    point_inside_ccw(const Array<Point> & poly, const Point & p)
+    {
+      int winding = 0;
+      const size_t n = poly.size();
+      for (size_t i = 0; i < n; ++i)
+        {
+          const Point & a = poly(i);
+          const Point & b = poly((i + 1) % n);
+          const Segment edge(a, b);
+          if (edge.contains(p))
+            return true;
+          if (a.get_y() <= p.get_y())
+            {
+              if (b.get_y() > p.get_y() &&
+                  area_of_parallelogram(a, b, p) > 0)
+                ++winding;
+            }
+          else
+            {
+              if (b.get_y() <= p.get_y() &&
+                  area_of_parallelogram(a, b, p) < 0)
+                --winding;
+            }
+        }
+      return winding != 0;
+    }
+
+    /// Insertion-sort indices by a key array.
+    static void sort_indices_by_alpha(Array<size_t> & idx,
+                                      const Array<Geom_Number> & keys)
+    {
+      for (size_t i = 1; i < idx.size(); ++i)
+        {
+          const size_t val = idx(i);
+          const Geom_Number key = keys(val);
+          size_t j = i;
+          while (j > 0 && keys(idx(j - 1)) > key)
+            {
+              idx(j) = idx(j - 1);
+              --j;
+            }
+          idx(j) = val;
+        }
+    }
+
+    // ----- Core Greiner-Hormann algorithm -----
+
+    /// Intersection pair found between edge i of A and edge j of B.
+    struct IsectPair
+    {
+      Point pt;
+      size_t edge_a, edge_b;
+      Geom_Number alpha_a, alpha_b;
+    };
+
+    /// Run Greiner-Hormann and return result polygons.
+    /// @param va CCW vertices of A.
+    /// @param vb CCW vertices of B.
+    /// @param start_entering true → start at entering intersections
+    ///        (intersection op); false → start at exiting (union op).
+    [[nodiscard]] static Array<Polygon>
+    greiner_hormann(const Array<Point> & va, const Array<Point> & vb,
+                    bool start_entering)
+    {
+      const size_t na = va.size();
+      const size_t nb = vb.size();
+
+      // --- Phase 1: find all proper intersection pairs ---
+
+      Array<IsectPair> pairs;
+
+      for (size_t i = 0; i < na; ++i)
+        {
+          const Point & a0 = va(i);
+          const Point & a1 = va((i + 1) % na);
+          const Segment sa(a0, a1);
+
+          for (size_t j = 0; j < nb; ++j)
+            {
+              const Point & b0 = vb(j);
+              const Point & b1 = vb((j + 1) % nb);
+              const Segment sb(b0, b1);
+
+              if (!sa.intersects_properly_with(sb))
+                continue;
+
+              const Point ip = sa.intersection_with(sb);
+              const Geom_Number aa = edge_param(a0, a1, ip);
+              const Geom_Number ab = edge_param(b0, b1, ip);
+              pairs.append({ip, i, j, aa, ab});
+            }
+        }
+
+      // --- Phase 2: build augmented lists ---
+
+      Array<GHNode> list_a, list_b;
+      // pair_idx_a[k] / pair_idx_b[k] = position in list_a / list_b for
+      // intersection pair k.
+      Array<size_t> pair_idx_a, pair_idx_b;
+      pair_idx_a.reserve(pairs.size());
+      pair_idx_b.reserve(pairs.size());
+      for (size_t k = 0; k < pairs.size(); ++k)
+        {
+          pair_idx_a.append(0);
+          pair_idx_b.append(0);
+        }
+
+      // Build list_a: for each edge, add original vertex then sorted
+      // intersections.
+      for (size_t i = 0; i < na; ++i)
+        {
+          GHNode vn;
+          vn.pt = va(i);
+          list_a.append(vn);
+
+          // Collect pairs on this edge of A.
+          Array<size_t> edge_pairs;
+          Array<Geom_Number> edge_alphas;
+          for (size_t k = 0; k < pairs.size(); ++k)
+            if (pairs(k).edge_a == i)
+              {
+                edge_pairs.append(k);
+                edge_alphas.append(pairs(k).alpha_a);
+              }
+
+          // Sort by alpha.
+          Array<size_t> order;
+          for (size_t p = 0; p < edge_pairs.size(); ++p)
+            order.append(p);
+          sort_indices_by_alpha(order, edge_alphas);
+
+          for (size_t p = 0; p < order.size(); ++p)
+            {
+              const size_t k = edge_pairs(order(p));
+              pair_idx_a(k) = list_a.size();
+              GHNode in;
+              in.pt = pairs(k).pt;
+              in.intersect = true;
+              in.alpha = pairs(k).alpha_a;
+              list_a.append(in);
+            }
+        }
+
+      // Build list_b analogously.
+      for (size_t j = 0; j < nb; ++j)
+        {
+          GHNode vn;
+          vn.pt = vb(j);
+          list_b.append(vn);
+
+          Array<size_t> edge_pairs;
+          Array<Geom_Number> edge_alphas;
+          for (size_t k = 0; k < pairs.size(); ++k)
+            if (pairs(k).edge_b == j)
+              {
+                edge_pairs.append(k);
+                edge_alphas.append(pairs(k).alpha_b);
+              }
+
+          Array<size_t> order;
+          for (size_t p = 0; p < edge_pairs.size(); ++p)
+            order.append(p);
+          sort_indices_by_alpha(order, edge_alphas);
+
+          for (size_t p = 0; p < order.size(); ++p)
+            {
+              const size_t k = edge_pairs(order(p));
+              pair_idx_b(k) = list_b.size();
+              GHNode in;
+              in.pt = pairs(k).pt;
+              in.intersect = true;
+              in.alpha = pairs(k).alpha_b;
+              list_b.append(in);
+            }
+        }
+
+      // Set neighbor links.
+      for (size_t k = 0; k < pairs.size(); ++k)
+        {
+          list_a(pair_idx_a(k)).neighbor = pair_idx_b(k);
+          list_b(pair_idx_b(k)).neighbor = pair_idx_a(k);
+        }
+
+      // --- Phase 3: mark entry / exit ---
+
+      // Walk list_a; determine if the first original vertex of A is
+      // inside B.
+      {
+        bool inside = point_inside_ccw(vb, va(0));
+        for (size_t i = 0; i < list_a.size(); ++i)
+          if (list_a(i).intersect)
+            {
+              list_a(i).entering = !inside;
+              inside = !inside;
+            }
+      }
+
+      // Walk list_b similarly w.r.t. A.
+      {
+        bool inside = point_inside_ccw(va, vb(0));
+        for (size_t j = 0; j < list_b.size(); ++j)
+          if (list_b(j).intersect)
+            {
+              list_b(j).entering = !inside;
+              inside = !inside;
+            }
+      }
+
+      // --- Phase 4: traverse ---
+
+      Array<Polygon> result;
+      const size_t safety_limit = list_a.size() + list_b.size() + pairs.size() * 2;
+
+      for (size_t s = 0; s < list_a.size(); ++s)
+        {
+          if (!list_a(s).intersect)
+            continue;
+          if (list_a(s).visited)
+            continue;
+          if (list_a(s).entering != start_entering)
+            continue;
+
+          // Trace one result polygon.
+          Array<Point> boundary;
+          bool on_a = true;
+          size_t idx = s;
+          size_t steps = 0;
+
+          do
+            {
+              auto & cur_list = on_a ? list_a : list_b;
+
+              // Mark current intersection visited (and its partner).
+              cur_list(idx).visited = true;
+              if (cur_list(idx).neighbor != SIZE_MAX)
+                {
+                  auto & other = on_a ? list_b : list_a;
+                  other(cur_list(idx).neighbor).visited = true;
+                }
+
+              // Record this intersection point.
+              boundary.append(cur_list(idx).pt);
+
+              // Walk forward until the next intersection node.
+              idx = (idx + 1) % cur_list.size();
+              while (!cur_list(idx).intersect)
+                {
+                  boundary.append(cur_list(idx).pt);
+                  idx = (idx + 1) % cur_list.size();
+                  if (++steps > safety_limit)
+                    goto done_poly;
+                }
+
+              // idx is now at the next intersection — mark it and switch.
+              cur_list(idx).visited = true;
+              {
+                auto & other = on_a ? list_b : list_a;
+                const size_t nbr = cur_list(idx).neighbor;
+                other(nbr).visited = true;
+                on_a = !on_a;
+                idx = nbr;
+              }
+
+              if (++steps > safety_limit)
+                break;
+            }
+          while (!(on_a && idx == s));
+
+        done_poly:
+          if (boundary.size() >= 3)
+            result.append(build_poly(boundary));
+        }
+
+      return result;
+    }
+
+    // ----- Operation dispatchers -----
 
     static Array<Polygon>
     compute_intersection(const Polygon & a, const Polygon & b)
@@ -7373,78 +7661,91 @@ namespace Aleph
       ensure_ccw(va);
       ensure_ccw(vb);
 
-      const Array<Point> result = sutherland_hodgman(va, vb);
+      Array<Polygon> res = greiner_hormann(va, vb, /*start_entering=*/true);
 
-      Array<Polygon> ret;
-      if (result.size() >= 3)
-        ret.append(build_poly(result));
-      return ret;
+      if (!res.is_empty())
+        return res;
+
+      // No proper intersections — check containment.
+      if (point_inside_ccw(vb, va(0)))
+        {
+          // A entirely inside B → intersection is A.
+          res.append(a);
+          return res;
+        }
+      if (point_inside_ccw(va, vb(0)))
+        {
+          // B entirely inside A → intersection is B.
+          res.append(b);
+          return res;
+        }
+      // Disjoint.
+      return res;
     }
 
     static Array<Polygon>
     compute_union(const Polygon & a, const Polygon & b)
     {
-      // Simplified union: if the intersection is non-empty, return a merged hull.
-      // For a proper implementation, a Weiler-Atherton algorithm would be
-      // needed. This simplified version works correctly for convex inputs
-      // and provides a conservative approximation for concave ones.
-
-      if (const Array<Polygon> inter = compute_intersection(a, b); inter.size() == 0)
-        {
-          // Disjoint: return both polygons.
-          Array<Polygon> ret;
-          ret.append(a);
-          ret.append(b);
-          return ret;
-        }
-
-      // Overlapping: compute convex hull of all vertices as approximation.
-      DynList<Point> all_pts;
-      for (Polygon::Vertex_Iterator it(a); it.has_curr(); it.next_ne())
-        all_pts.append(it.get_current_vertex());
-      for (Polygon::Vertex_Iterator it(b); it.has_curr(); it.next_ne())
-        all_pts.append(it.get_current_vertex());
-
-      AndrewMonotonicChainConvexHull hull_algo;
-      const Polygon hull = hull_algo(all_pts);
-
-      Array<Polygon> ret;
-      ret.append(hull);
-      return ret;
-    }
-
-    static Array<Polygon>
-    compute_difference(const Polygon & a, const Polygon & b)
-    {
-      // Simplified: clip a by the complement of each edge of b.
-      // This works correctly when b is convex.
       Array<Point> va = extract(a);
       Array<Point> vb = extract(b);
       ensure_ccw(va);
       ensure_ccw(vb);
 
-      // Check if there's any intersection at all.
-      if (const Array<Point> inter = sutherland_hodgman(va, vb); inter.size() < 3)
+      Array<Polygon> res = greiner_hormann(va, vb, /*start_entering=*/false);
+
+      if (!res.is_empty())
+        return res;
+
+      // No proper intersections — check containment.
+      if (point_inside_ccw(vb, va(0)))
         {
-          // No overlap: a is unchanged.
-          Array<Polygon> ret;
-          ret.append(a);
-          return ret;
+          // A inside B → union is B.
+          res.append(b);
+          return res;
         }
+      if (point_inside_ccw(va, vb(0)))
+        {
+          // B inside A → union is A.
+          res.append(a);
+          return res;
+        }
+      // Disjoint → both.
+      res.append(a);
+      res.append(b);
+      return res;
+    }
 
-      // Clip a by the reverse of b (outside of b).
-      // For convex b, reverse the edge directions.
-      Array<Point> vb_rev;
-      vb_rev.reserve(vb.size());
-      for (size_t i = vb.size(); i > 0; --i)
-        vb_rev.append(vb(i - 1));
+    static Array<Polygon>
+    compute_difference(const Polygon & a, const Polygon & b)
+    {
+      Array<Point> va = extract(a);
+      Array<Point> vb = extract(b);
+      ensure_ccw(va);
+      ensure_ccw(vb);
 
-      const Array<Point> diff = sutherland_hodgman(va, vb_rev);
+      // A \ B = A ∩ complement(B).  Reversing B's winding makes
+      // "inside reversed-B" = "outside B", so intersection with
+      // reversed-B gives the difference.
+      reverse_array(vb);
 
-      Array<Polygon> ret;
-      if (diff.size() >= 3)
-        ret.append(build_poly(diff));
-      return ret;
+      Array<Polygon> res = greiner_hormann(va, vb, /*start_entering=*/true);
+
+      if (!res.is_empty())
+        return res;
+
+      // No proper intersections — check containment using ORIGINAL B.
+      // Reverse vb back to original orientation for the test.
+      reverse_array(vb);
+
+      if (point_inside_ccw(vb, va(0)))
+        {
+          // A entirely inside B → difference is empty.
+          return res;
+        }
+      // B inside A → difference has a hole (limitation: return A).
+      // Disjoint → difference is A.
+      res.append(a);
+      return res;
     }
   };
 
