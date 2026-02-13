@@ -114,6 +114,13 @@ set(EXAMPLE_PROGRAMS
     mo_on_trees_example
     robust_predicates_example
     voronoi_clipped_cells_example
+    delaunay_voronoi_example
+    point_in_polygon_example
+    polygon_intersection_example
+    halfplane_intersection_example
+    convex_hull_comparison_example
+    closest_pair_example
+    rotating_calipers_example
 )
 
 # Function to get source file from program name

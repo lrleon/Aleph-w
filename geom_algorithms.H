@@ -85,6 +85,21 @@
  *  - **VoronoiDiagramFromDelaunay**: Voronoi diagram derived as the dual of a
  *    Delaunay triangulation (bounded edges + unbounded rays).
  *
+ *  ## Serialization
+ *
+ *  - **GeomSerializer**: Convert basic geometry types to **WKT** and
+ *    **GeoJSON** strings.
+ *
+ *  ## Spatial Indexing
+ *
+ *  - **AABBTree**: Axis-aligned bounding box tree for accelerating rectangle
+ *    range queries and point queries.
+ *
+ *  ## C++20 Support
+ *
+ *  - **GeomNumberType**: Concept describing numeric types usable by geometry
+ *    routines.
+ *
  *  ## Dependencies
  *
  *  Requires `polygon.H` for geometric primitives:
@@ -125,6 +140,17 @@
  *
  *  @see polygon.H Geometric primitives
  *  @see Point, Segment, Polygon, Triangle
+ *  @see GeomSerializer
+ *  @see AABBTree
+ *
+ *  Example programs:
+ *  - `Examples/geom_example.C` (core + advanced demo selector)
+ *  - `Examples/delaunay_voronoi_example.cc`
+ *  - `Examples/point_in_polygon_example.cc`
+ *  - `Examples/halfplane_intersection_example.cc`
+ *  - `Examples/convex_hull_comparison_example.cc`
+ *  - `Examples/closest_pair_example.cc`
+ *  - `Examples/rotating_calipers_example.cc`
  *
  *  @ingroup Geometry
  *  @author Leandro Rabindranath León

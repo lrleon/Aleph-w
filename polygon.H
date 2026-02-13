@@ -63,7 +63,7 @@
  *
  *  // Check if point is inside
  *  Point p(50, 50);
- *  if (square.contains_to(p))
+ *  if (square.contains(p))
  *    std::cout << "Point is inside the square\n";
  *
  *  // Create a regular hexagon

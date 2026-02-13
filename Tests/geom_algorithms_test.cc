@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <geom_algorithms.H>
+#include "geometry_visual_golden.h"
 
 namespace
 {
@@ -372,6 +373,15 @@ TEST_F(GeomAlgorithmsTest, AndrewMonotonicChainCollinearKeepsEndpoints)
   AndrewMonotonicChainConvexHull andrew;
   Polygon hull = andrew(points);
 
+  Aleph::TestVisual::SvgScene scene;
+  for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+    scene.points.append(it.get_curr());
+  scene.polygons.append(hull);
+  Aleph::TestVisual::add_polygon_vertices(scene, hull, true);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_andrew_collinear_endpoints", scene,
+      "Andrew monotonic chain / collinear input");
+
   EXPECT_EQ(hull.size(), 2u);
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(0, 0)));
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(4, 0)));
@@ -412,6 +422,15 @@ TEST_F(GeomAlgorithmsTest, GrahamScanCollinearKeepsEndpoints)
 
   GrahamScanConvexHull graham;
   Polygon hull = graham(points);
+
+  Aleph::TestVisual::SvgScene scene;
+  for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+    scene.points.append(it.get_curr());
+  scene.polygons.append(hull);
+  Aleph::TestVisual::add_polygon_vertices(scene, hull, true);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_graham_collinear_endpoints", scene,
+      "Graham scan / collinear input");
 
   EXPECT_EQ(hull.size(), 2u);
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(0, 0)));
@@ -460,6 +479,16 @@ TEST_F(GeomAlgorithmsTest, ClosestPairDuplicatePointsDistanceZero)
 
   ClosestPairDivideAndConquer cp;
   ClosestPairDivideAndConquer::Result res = cp(points);
+
+  Aleph::TestVisual::SvgScene scene;
+  for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+    scene.points.append(it.get_curr());
+  scene.segments.append(Segment(res.first, res.second));
+  scene.highlighted_points.append(res.first);
+  scene.highlighted_points.append(res.second);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_closest_pair_duplicate_zero", scene,
+      "Closest pair / duplicate points");
 
   EXPECT_EQ(res.distance_squared, 0);
   EXPECT_EQ(res.first, res.second);
@@ -733,6 +762,15 @@ TEST_F(GeomAlgorithmsTest, ConvexPolygonIntersectionTouchingEdge)
   ConvexPolygonIntersectionBasic inter;
   Polygon r = inter(a, b);
 
+  Aleph::TestVisual::SvgScene scene;
+  scene.polygons.append(a);
+  scene.polygons.append(b);
+  scene.polygons.append(r);
+  Aleph::TestVisual::add_polygon_vertices(scene, r, true);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_convex_polygon_intersection_touching_edge", scene,
+      "Convex intersection / touching edge");
+
   EXPECT_EQ(r.size(), 2u);
   EXPECT_TRUE(r.is_closed());
   EXPECT_TRUE(polygon_contains_vertex(r, Point(2, 0)));
@@ -866,6 +904,15 @@ TEST_F(GeomAlgorithmsTest, HalfPlaneIntersectionInconsistent)
   hs.append(HalfPlaneIntersection::HalfPlane(Point(1, 1), Point(0, 1))); // y <= 1
 
   Polygon r = hpi(hs);
+
+  Aleph::TestVisual::SvgScene scene;
+  for (size_t i = 0; i < hs.size(); ++i)
+    scene.segments.append(Segment(hs(i).p, hs(i).q));
+  scene.polygons.append(r);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_halfplane_inconsistent_empty", scene,
+      "Half-plane intersection / inconsistent constraints");
+
   EXPECT_EQ(r.size(), 0u);
 }
 
@@ -943,6 +990,20 @@ TEST_F(GeomAlgorithmsTest, DelaunayCocircularDeterministicAcrossInputOrder)
   shuffled.append(Point(0, 0));
   shuffled.append(Point(1, 0));
   auto r2 = delaunay(shuffled);
+
+  Aleph::TestVisual::SvgScene scene;
+  for (size_t i = 0; i < r1.sites.size(); ++i)
+    scene.points.append(r1.sites(i));
+  for (size_t i = 0; i < r1.triangles.size(); ++i)
+    {
+      const auto & t = r1.triangles(i);
+      scene.segments.append(Segment(r1.sites(t.i), r1.sites(t.j)));
+      scene.segments.append(Segment(r1.sites(t.j), r1.sites(t.k)));
+      scene.segments.append(Segment(r1.sites(t.k), r1.sites(t.i)));
+    }
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_delaunay_cocircular_deterministic", scene,
+      "Delaunay cocircular tie-break");
 
   ASSERT_EQ(r1.sites.size(), r2.sites.size());
   ASSERT_EQ(r1.triangles.size(), r2.triangles.size());
@@ -1808,6 +1869,15 @@ TEST_F(GeomAlgorithmsTest, SweepLineMultipleIntersections)
 
   auto result = sweep(segs);
 
+  Aleph::TestVisual::SvgScene scene;
+  for (size_t i = 0; i < segs.size(); ++i)
+    scene.segments.append(segs(i));
+  for (size_t i = 0; i < result.size(); ++i)
+    scene.highlighted_points.append(result(i).point);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_sweepline_multiple_intersections", scene,
+      "Sweep-line / multi-intersection degeneracy");
+
   // s0 x s1 at (3,3), s0 x s2 at (3,3), s1 x s2 at (3,3)
   // Actually: s0 x s2 at (3,3), s1 x s2 at (3,3), s0 x s1 at (3,3)
   // All three intersect at (3,3).
@@ -2424,6 +2494,20 @@ TEST_F(GeomAlgorithmsTest, RobustnessNearCollinearDelaunay)
   DelaunayTriangulationBowyerWatson delaunay;
   auto r = delaunay(pts);
 
+  Aleph::TestVisual::SvgScene scene;
+  for (DynList<Point>::Iterator it(pts); it.has_curr(); it.next_ne())
+    scene.points.append(it.get_curr());
+  for (size_t i = 0; i < r.triangles.size(); ++i)
+    {
+      const auto & t = r.triangles(i);
+      scene.segments.append(Segment(r.sites(t.i), r.sites(t.j)));
+      scene.segments.append(Segment(r.sites(t.j), r.sites(t.k)));
+      scene.segments.append(Segment(r.sites(t.k), r.sites(t.i)));
+    }
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_robust_near_collinear_delaunay", scene,
+      "Delaunay robustness / near-collinear");
+
   // Should produce a valid triangulation.
   EXPECT_GE(r.triangles.size(), 1u);
 
@@ -2458,6 +2542,15 @@ TEST_F(GeomAlgorithmsTest, RobustnessNearCollinearConvexHull)
 
   AndrewMonotonicChainConvexHull andrew;
   Polygon hull = andrew(pts);
+
+  Aleph::TestVisual::SvgScene scene;
+  for (DynList<Point>::Iterator it(pts); it.has_curr(); it.next_ne())
+    scene.points.append(it.get_curr());
+  scene.polygons.append(hull);
+  Aleph::TestVisual::add_polygon_vertices(scene, hull, true);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_robust_near_collinear_hull", scene,
+      "Convex hull robustness / near-collinear");
 
   EXPECT_TRUE(hull.is_closed());
   EXPECT_GE(hull.size(), 3u);
@@ -2497,6 +2590,16 @@ TEST_F(GeomAlgorithmsTest, RobustnessNearParallelSegmentsConverging)
   segs.append(Segment(Point(0, tiny), Point(10, -tiny)));  // slight converge
 
   auto result = sweep(segs);
+
+  Aleph::TestVisual::SvgScene scene;
+  for (size_t i = 0; i < segs.size(); ++i)
+    scene.segments.append(segs(i));
+  for (size_t i = 0; i < result.size(); ++i)
+    scene.highlighted_points.append(result(i).point);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_robust_near_parallel_converging", scene,
+      "Near-parallel segments / converging intersection");
+
   ASSERT_EQ(result.size(), 1u);
   // Intersection must be exact.
   EXPECT_EQ(result(0).point.get_y(), Geom_Number(0));  // should be on y=0 plane
@@ -2578,6 +2681,20 @@ TEST_F(GeomAlgorithmsTest, RobustnessCocircularPoints)
 
   DelaunayTriangulationBowyerWatson delaunay;
   auto r = delaunay(pts);
+
+  Aleph::TestVisual::SvgScene scene;
+  for (DynList<Point>::Iterator it(pts); it.has_curr(); it.next_ne())
+    scene.points.append(it.get_curr());
+  for (size_t i = 0; i < r.triangles.size(); ++i)
+    {
+      const auto & t = r.triangles(i);
+      scene.segments.append(Segment(r.sites(t.i), r.sites(t.j)));
+      scene.segments.append(Segment(r.sites(t.j), r.sites(t.k)));
+      scene.segments.append(Segment(r.sites(t.k), r.sites(t.i)));
+    }
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_robust_cocircular_delaunay", scene,
+      "Delaunay robustness / cocircular points");
 
   // Must produce a triangulation.
   EXPECT_GE(r.triangles.size(), 6u);  // at least 6 triangles for 8 cocircular pts

@@ -25,7 +25,7 @@ Idioma: Español | [English](README.md)
 ---
 
 <a id="readme-es-contenido"></a>
-## Contenido {#readme-es-contenido}
+## Contenido
 
 - [Resumen](#readme-es-resumen)
 - [Requisitos](#readme-es-requisitos)
@@ -36,12 +36,21 @@ Idioma: Español | [English](README.md)
 - [Licencia](#readme-es-licencia)
 - [Agradecimientos](#readme-es-agradecimientos)
 
-> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo el flujo completo de Delaunay/Voronoi y el ejemplo `Examples/voronoi_clipped_cells_example.cc`.
+> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo el flujo completo de Delaunay/Voronoi y los ejemplos:
+> - `Examples/geom_example.C` (incluye selector `-s advanced`)
+> - `Examples/voronoi_clipped_cells_example.cc`
+> - `Examples/delaunay_voronoi_example.cc`
+> - `Examples/point_in_polygon_example.cc`
+> - `Examples/polygon_intersection_example.cc`
+> - `Examples/halfplane_intersection_example.cc`
+> - `Examples/convex_hull_comparison_example.cc`
+> - `Examples/closest_pair_example.cc`
+> - `Examples/rotating_calipers_example.cc`
 
 ---
 
 <a id="readme-es-resumen"></a>
-## Resumen {#readme-es-resumen}
+## Resumen
 
 **Aleph-w** es una librería C++ (C++20) orientada a enseñanza y uso práctico: incluye implementaciones de estructuras de datos, algoritmos clásicos (especialmente de grafos) y una suite de pruebas amplia.
 
@@ -51,7 +60,7 @@ Idioma: Español | [English](README.md)
 ---
 
 <a id="readme-es-requisitos"></a>
-## Requisitos {#readme-es-requisitos}
+## Requisitos
 
 ### Compiladores
 
@@ -91,7 +100,7 @@ sudo apt-get install -y libgtest-dev
 ---
 
 <a id="readme-es-instalacion"></a>
-## Instalación {#readme-es-instalacion}
+## Instalación
 
 Guía detallada: `INSTALL.es.md`.
 
@@ -143,7 +152,7 @@ target_link_libraries(your_target PRIVATE Aleph)
 ---
 
 <a id="readme-es-uso-rapido"></a>
-## Uso rápido {#readme-es-uso-rapido}
+## Uso rápido
 
 Los headers están en el raíz del repo (p.ej. `tpl_dynSetTree.H`, `tpl_graph.H`, etc.).
 
@@ -297,7 +306,7 @@ cmake --build build --target voronoi_clipped_cells_example
 ---
 
 <a id="readme-es-pruebas"></a>
-## Pruebas {#readme-es-pruebas}
+## Pruebas
 
 ```bash
 cmake -S . -B build -DBUILD_TESTS=ON
@@ -315,7 +324,7 @@ Nota: algunos tests largos/de performance están marcados `Disabled/Skipped` int
 ---
 
 <a id="readme-es-contribuir"></a>
-## Contribuir {#readme-es-contribuir}
+## Contribuir
 
 PRs son bienvenidos.
 
@@ -325,14 +334,14 @@ PRs son bienvenidos.
 ---
 
 <a id="readme-es-licencia"></a>
-## Licencia {#readme-es-licencia}
+## Licencia
 
 Aleph-w se distribuye bajo **licencia MIT**. Ver `LICENSE`.
 
 ---
 
 <a id="readme-es-agradecimientos"></a>
-## Agradecimientos {#readme-es-agradecimientos}
+## Agradecimientos
 
 - **Universidad de Los Andes** (Mérida, Venezuela) - Cuna de Aleph-w
 - **Miles de estudiantes** que aprendieron algoritmos con esta biblioteca

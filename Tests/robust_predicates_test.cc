@@ -40,6 +40,7 @@
 
 #include <gtest/gtest.h>
 #include <point.H>
+#include "geometry_visual_golden.h"
 
 // ===================== Orientation tests =====================
 
@@ -87,6 +88,19 @@ TEST(InCircle, OnCircle)
 {
   Point a(0, 0), b(4, 0), c(0, 4);
   Point p(4, 4);
+
+  Aleph::TestVisual::SvgScene scene;
+  scene.segments.append(Segment(a, b));
+  scene.segments.append(Segment(b, c));
+  scene.segments.append(Segment(c, a));
+  scene.points.append(a);
+  scene.points.append(b);
+  scene.points.append(c);
+  scene.highlighted_points.append(p);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_incircle_on_circle", scene,
+      "in_circle() / point on circumcircle");
+
   EXPECT_EQ(in_circle(a, b, c, p), InCircleResult::ON_CIRCLE);
 }
 
@@ -171,6 +185,16 @@ TEST(SegmentsIntersect, CollinearOverlap)
 {
   Segment s1(Point(0, 0), Point(3, 0));
   Segment s2(Point(2, 0), Point(5, 0));
+
+  Aleph::TestVisual::SvgScene scene;
+  scene.segments.append(s1);
+  scene.segments.append(s2);
+  scene.highlighted_points.append(Point(2, 0));
+  scene.highlighted_points.append(Point(3, 0));
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_segments_collinear_overlap", scene,
+      "segments_intersect() / collinear overlap");
+
   EXPECT_TRUE(segments_intersect(s1, s2));
 }
 
@@ -237,6 +261,15 @@ TEST(IntersectionPoint, ExactRationalNonTrivial)
   Segment s1(Point(0, 0), Point(7, 2));
   Segment s2(Point(0, 3), Point(3, 0));
   Point p = segment_intersection_point(s1, s2);
+
+  Aleph::TestVisual::SvgScene scene;
+  scene.segments.append(s1);
+  scene.segments.append(s2);
+  scene.highlighted_points.append(p);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_intersection_exact_rational_non_trivial", scene,
+      "segment_intersection_point() exact rational");
+
   EXPECT_EQ(p.get_x(), Geom_Number(7, 3));
   EXPECT_EQ(p.get_y(), Geom_Number(2, 3));
 }
@@ -287,6 +320,15 @@ TEST(IntersectionPoint, CollinearTouchingAtEndpointReturnsUniquePoint)
   Segment s1(Point(0, 0), Point(2, 0));
   Segment s2(Point(2, 0), Point(5, 0));
   Point p = segment_intersection_point(s1, s2);
+
+  Aleph::TestVisual::SvgScene scene;
+  scene.segments.append(s1);
+  scene.segments.append(s2);
+  scene.highlighted_points.append(p);
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_intersection_collinear_touch_endpoint", scene,
+      "segment_intersection_point() / endpoint touching");
+
   EXPECT_EQ(p.get_x(), 2);
   EXPECT_EQ(p.get_y(), 0);
 }

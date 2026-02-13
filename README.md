@@ -882,6 +882,11 @@ Aleph-w provides **exact geometric predicates** built on arbitrary-precision
 rationals (`Geom_Number` = `mpq_class`). All orientation and intersection
 tests are exact — no floating-point rounding errors.
 
+In addition to primitives (`point.H`, `polygon.H`), Aleph-w provides higher-level
+algorithms, serialization helpers (WKT/GeoJSON), a lightweight spatial index
+(AABB tree), and C++20 conveniences (`GeomNumberType`, `std::format` for basic
+geometry types).
+
 **Header:** `point.H`
 
 ```cpp
@@ -925,6 +930,11 @@ Higher-level algorithms in `geom_algorithms.H`:
 - **Convex Polygon Intersection**: Exact Sutherland-Hodgman clipping
 - **Half-Plane Intersection**: Exact bounded intersection
 - **Delaunay / Voronoi**: Bowyer-Watson triangulation and dual Voronoi
+
+Utilities in `geom_algorithms.H`:
+- **Serialization**: `GeomSerializer::to_wkt()` and `GeomSerializer::to_geojson()`
+- **Spatial Index**: `AABBTree` (rectangle overlap queries, point queries)
+- **C++20**: `GeomNumberType` concept
 
 See `Examples/voronoi_clipped_cells_example.cc` for clipped, site-indexed
 Voronoi cells exported as CSV/WKT.
@@ -2624,8 +2634,15 @@ cmake --build build
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |
 | Robust predicates | `robust_predicates_example.cc` | Orientation, intersection, exact arithmetic |
-| Geometry algorithms | `geom_example.C` | Convex hull, triangulation |
+| Geometry algorithms | `geom_example.C` | Convex hull, triangulation, and `-s advanced` (Delaunay/Voronoi/PIP/HPI) |
 | Voronoi clipped cells | `voronoi_clipped_cells_example.cc` | Site-indexed clipped Voronoi cells with CSV/WKT export |
+| Delaunay + Voronoi | `delaunay_voronoi_example.cc` | Delaunay triangulation, Voronoi dual, clipped cells |
+| Point-in-polygon | `point_in_polygon_example.cc` | Winding-number inside/boundary/outside |
+| Polygon intersection | `polygon_intersection_example.cc` | Convex-convex intersection (Sutherland-Hodgman) |
+| Half-plane intersection | `halfplane_intersection_example.cc` | Bounded feasible region for 2D linear constraints |
+| Hull comparison | `convex_hull_comparison_example.cc` | Compare 5 hull algorithms on the same dataset |
+| Closest pair | `closest_pair_example.cc` | Divide-and-conquer closest pair + verification |
+| Rotating calipers | `rotating_calipers_example.cc` | Diameter and minimum width of a convex polygon |
 | **Parallel** | | |
 | Thread pool | `thread_pool_example.cc` | Concurrent tasks |
 | Parallel ops | `ah_parallel_example.cc` | pmap, pfilter |

@@ -50,9 +50,16 @@
 
 #include <iostream>
 #include <cassert>
+#include <geom_algorithms.H>
 #include <point.H>
 
 using namespace std;
+
+static void print_banner(const char * title)
+{
+  cout << "[Aleph Geometry Example] " << title << "\n";
+  cout << "============================================================\n";
+}
 
 static const char * orientation_str(Orientation o)
 {
@@ -61,6 +68,18 @@ static const char * orientation_str(Orientation o)
     case Orientation::CCW:      return "Counter-Clockwise";
     case Orientation::CW:       return "Clockwise";
     case Orientation::COLLINEAR: return "Collinear";
+  }
+  return "?";
+}
+
+static const char * in_circle_str(InCircleResult r)
+{
+  switch (r)
+  {
+    case InCircleResult::INSIDE: return "INSIDE";
+    case InCircleResult::ON_CIRCLE: return "ON_CIRCLE";
+    case InCircleResult::OUTSIDE: return "OUTSIDE";
+    case InCircleResult::DEGENERATE: return "DEGENERATE";
   }
   return "?";
 }
@@ -207,13 +226,12 @@ void scenario_road_network()
     Segment seg;
   };
 
-  Road roads[] = {
-    {"Main St",    Segment(Point(0, 2), Point(10, 2))},
-    {"Broadway",   Segment(Point(3, 0), Point(3, 8))},
-    {"Diagonal Av", Segment(Point(0, 0), Point(8, 6))},
-    {"Park Rd",    Segment(Point(6, 0), Point(6, 8))},
-  };
-  constexpr size_t n = sizeof(roads) / sizeof(roads[0]);
+  Array<Road> roads;
+  roads.append({"Main St", Segment(Point(0, 2), Point(10, 2))});
+  roads.append({"Broadway", Segment(Point(3, 0), Point(3, 8))});
+  roads.append({"Diagonal Av", Segment(Point(0, 0), Point(8, 6))});
+  roads.append({"Park Rd", Segment(Point(6, 0), Point(6, 8))});
+  const size_t n = roads.size();
 
   for (size_t i = 0; i < n; ++i)
     for (size_t j = i + 1; j < n; ++j)
@@ -248,17 +266,56 @@ void scenario_road_network()
 }
 
 
+// ===================== Scenario 5 =====================
+
+void scenario_in_circle_in_delaunay_context()
+{
+  cout << "=== Scenario 5: in_circle() in a Delaunay Context ===" << endl;
+  cout << endl;
+  cout << "Checking local Delaunay legality using exact in-circle predicates." << endl;
+  cout << endl;
+
+  const Point a(0, 0), b(4, 0), c(0, 4);
+  const Point d_inside(1, 1);
+  const Point d_outside(5, 5);
+
+  const InCircleResult r1 = in_circle(a, b, c, d_inside);
+  const InCircleResult r2 = in_circle(a, b, c, d_outside);
+
+  cout << "  in_circle((0,0),(4,0),(0,4),(1,1)) = " << in_circle_str(r1) << endl;
+  cout << "  in_circle((0,0),(4,0),(0,4),(5,5)) = " << in_circle_str(r2) << endl;
+  assert(r1 == InCircleResult::INSIDE);
+  assert(r2 == InCircleResult::OUTSIDE);
+
+  DynList<Point> pts;
+  pts.append(a);
+  pts.append(b);
+  pts.append(c);
+  pts.append(Point(4, 4));
+  pts.append(Point(2, 1));
+
+  DelaunayTriangulationBowyerWatson delaunay;
+  const auto dt = delaunay(pts);
+
+  cout << "  Delaunay triangles built from the same predicate logic: "
+       << dt.triangles.size() << endl;
+  assert(not dt.triangles.is_empty());
+  cout << endl;
+}
+
+
 int main()
 {
-  cout << "Robust Geometry Predicates — Aleph-w Example" << endl;
-  cout << "=============================================" << endl;
+  print_banner("Robust Predicates");
   cout << endl;
 
   scenario_orientation();
   scenario_intersection_detection();
   scenario_exact_intersection();
   scenario_road_network();
+  scenario_in_circle_in_delaunay_context();
 
   cout << "All scenarios completed successfully." << endl;
+  cout << "STATUS: OK" << endl;
   return 0;
 }

@@ -185,6 +185,8 @@ jobs:
 
       - name: Test
         run: |
+          mkdir -p build/test_artifacts/golden_svg
+          export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
           ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
@@ -192,9 +194,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ctest-logs-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+          if-no-files-found: ignore
           path: |
             build/Testing/Temporary/LastTest.log
             build/CMakeCache.txt
+            build/test_artifacts/golden_svg
 
   coverage:
     name: coverage (ubuntu-24.04, gcc, Debug)
@@ -275,6 +279,8 @@ jobs:
 
       - name: Test
         run: |
+          mkdir -p build-coverage/test_artifacts/golden_svg
+          export ALEPH_TEST_GOLDEN_DIR="$PWD/build-coverage/test_artifacts/golden_svg"
           # Exclude this benchmark from coverage runs because instrumentation
           # changes timing characteristics and can make this test flaky.
           ctest --test-dir build-coverage --output-on-failure --parallel 2 --timeout 600 \
@@ -346,9 +352,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ctest-logs-coverage
+          if-no-files-found: ignore
           path: |
             build-coverage/Testing/Temporary/LastTest.log
             build-coverage/CMakeCache.txt
+            build-coverage/test_artifacts/golden_svg
 
   sanitizers:
     name: sanitizers (ubuntu-24.04, gcc, Debug)
@@ -399,7 +407,9 @@ jobs:
       - name: Test
         env:
           ASAN_OPTIONS: detect_leaks=1
+          ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-asan/test_artifacts/golden_svg
         run: |
+          mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
           ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
@@ -407,9 +417,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ctest-logs-sanitizers
+          if-no-files-found: ignore
           path: |
             build-asan/Testing/Temporary/LastTest.log
             build-asan/CMakeCache.txt
+            build-asan/test_artifacts/golden_svg
 
   tsan:
     name: tsan (ubuntu-24.04, clang, Debug)
@@ -465,7 +477,9 @@ jobs:
       - name: Test
         env:
           TSAN_OPTIONS: halt_on_error=1
+          ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-tsan/test_artifacts/golden_svg
         run: |
+          mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
           ctest --test-dir build-tsan --output-on-failure --parallel 2 --timeout 600
 
       - name: Upload test logs on failure
@@ -473,9 +487,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ctest-logs-tsan
+          if-no-files-found: ignore
           path: |
             build-tsan/Testing/Temporary/LastTest.log
             build-tsan/CMakeCache.txt
+            build-tsan/test_artifacts/golden_svg
 
   ci-success-push:
     name: CI Success
