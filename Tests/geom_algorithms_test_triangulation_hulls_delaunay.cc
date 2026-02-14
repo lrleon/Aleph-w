@@ -1,4 +1,6 @@
 #include "geom_algorithms_test_common.h"
+#include <random>
+#include <cmath>
 
 TEST_F(GeomAlgorithmsTest, TriangulateTriangle)
 {
@@ -1560,5 +1562,334 @@ TEST_F(GeomAlgorithmsTest, VoronoiCollinearPoints)
 
   EXPECT_EQ(r.sites.size(), 4u);
   EXPECT_EQ(r.edges.size(), 0u);  // Delaunay has 0 triangles for collinear.
+}
+
+
+// ---------- CuttingEarsTriangulation: new critical tests ----------
+
+TEST_F(GeomAlgorithmsTest, CuttingEarsCollinearEdges)
+{
+  // Rectangle with extra collinear points on the bottom edge.
+  // (0,0)-(2,0)-(4,0)-(6,0)-(6,4)-(0,4)  — 6 vertices, 3 collinear on bottom.
+  // Note: the ear-cutting algorithm merges collinear vertices internally,
+  // so the effective vertex count may be less than 6.
+  Polygon p;
+  p.add_vertex(Point(0, 0));
+  p.add_vertex(Point(2, 0));
+  p.add_vertex(Point(4, 0));
+  p.add_vertex(Point(6, 0));
+  p.add_vertex(Point(6, 4));
+  p.add_vertex(Point(0, 4));
+  p.close();
+
+  CuttingEarsTriangulation triangulator;
+  auto triangles = triangulator(p);
+
+  // At least 1 triangle must be produced.
+  EXPECT_GE(triangles.size(), 1u);
+
+  // Verify total area equals original polygon area (6*4 = 24).
+  Geom_Number total_area = 0;
+  for (auto it = triangles.get_it(); it.has_curr(); it.next_ne())
+    total_area += triangle_area(it.get_curr());
+
+  EXPECT_EQ(total_area, Geom_Number(24));
+}
+
+
+TEST_F(GeomAlgorithmsTest, CuttingEarsManyVertices)
+{
+  // 200-vertex circle polygon.
+  const size_t N = 200;
+  Polygon p;
+  for (size_t i = 0; i < N; ++i)
+    {
+      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
+                          / Geom_Number(N);
+      Geom_Number x = Geom_Number(100) * Geom_Number(cos(angle.get_d()));
+      Geom_Number y = Geom_Number(100) * Geom_Number(sin(angle.get_d()));
+      p.add_vertex(Point(x, y));
+    }
+  p.close();
+
+  CuttingEarsTriangulation triangulator;
+  auto triangles = triangulator(p);
+
+  // n-2 triangles.
+  EXPECT_EQ(triangles.size(), N - 2);
+
+  // All triangles must have positive area.
+  Geom_Number total_area = 0;
+  for (auto it = triangles.get_it(); it.has_curr(); it.next_ne())
+    {
+      Geom_Number a = triangle_area(it.get_curr());
+      EXPECT_GT(a, Geom_Number(0));
+      total_area += a;
+    }
+
+  // Triangulation area must exactly equal the polygon area.
+  Geom_Number poly_area = polygon_area(p);
+  EXPECT_EQ(total_area, poly_area)
+      << "Triangulation area (" << total_area.get_d()
+      << ") != polygon area (" << poly_area.get_d() << ")";
+}
+
+
+TEST_F(GeomAlgorithmsTest, CuttingEarsConsecutiveReflexVertices)
+{
+  // Star-shaped polygon with 5 consecutive reflex vertices.
+  // Outer vertices at radius 10, inner (reflex) at radius 4.
+  Polygon p;
+  const size_t spikes = 5;
+  for (size_t i = 0; i < spikes; ++i)
+    {
+      // Outer point.
+      Geom_Number angle_out = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
+                              / Geom_Number(spikes);
+      p.add_vertex(Point(Geom_Number(10) * Geom_Number(cos(angle_out.get_d())),
+                         Geom_Number(10) * Geom_Number(sin(angle_out.get_d()))));
+
+      // Inner (reflex) point.
+      Geom_Number angle_in = angle_out
+                             + Geom_Number(M_PI) / Geom_Number(spikes);
+      p.add_vertex(Point(Geom_Number(4) * Geom_Number(cos(angle_in.get_d())),
+                         Geom_Number(4) * Geom_Number(sin(angle_in.get_d()))));
+    }
+  p.close();
+
+  const size_t n = 2 * spikes;  // 10 vertices
+  CuttingEarsTriangulation triangulator;
+  auto triangles = triangulator(p);
+
+  EXPECT_EQ(triangles.size(), n - 2);
+
+  // Verify total area is positive and all triangles non-degenerate.
+  Geom_Number total_area = 0;
+  for (auto it = triangles.get_it(); it.has_curr(); it.next_ne())
+    {
+      Geom_Number a = triangle_area(it.get_curr());
+      EXPECT_GT(a, Geom_Number(0));
+      total_area += a;
+    }
+  EXPECT_GT(total_area, Geom_Number(0));
+}
+
+
+// ---------- Convex Hull: new critical tests ----------
+
+TEST_F(GeomAlgorithmsTest, ConvexHullPointsOnCircle)
+{
+  // 100 points on a circle — all should be on the hull.
+  const size_t N = 100;
+  DynList<Point> pts;
+  for (size_t i = 0; i < N; ++i)
+    {
+      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
+                          / Geom_Number(N);
+      pts.append(Point(Geom_Number(50) * Geom_Number(cos(angle.get_d())),
+                       Geom_Number(50) * Geom_Number(sin(angle.get_d()))));
+    }
+
+  QuickHull qh;
+  auto hull_qh = qh(pts);
+
+  AndrewMonotonicChainConvexHull andrew;
+  auto hull_andrew = andrew(pts);
+
+  GrahamScanConvexHull graham;
+  auto hull_graham = graham(pts);
+
+  // All algorithms should return all 100 points.
+  EXPECT_EQ(hull_qh.size(), N);
+  EXPECT_EQ(hull_andrew.size(), N);
+  EXPECT_EQ(hull_graham.size(), N);
+
+  // Hulls must be convex.
+  EXPECT_TRUE(polygon_is_convex(hull_qh));
+  EXPECT_TRUE(polygon_is_convex(hull_andrew));
+  EXPECT_TRUE(polygon_is_convex(hull_graham));
+
+  // Hulls must be in CCW orientation.
+  EXPECT_TRUE(is_ccw(hull_qh)) << "QuickHull result not CCW";
+  EXPECT_TRUE(is_ccw(hull_andrew)) << "Andrew result not CCW";
+  EXPECT_TRUE(is_ccw(hull_graham)) << "Graham result not CCW";
+}
+
+
+TEST_F(GeomAlgorithmsTest, ConvexHullClusteredDistribution)
+{
+  // 10K points in 5 clusters.
+  DynList<Point> pts;
+  const Geom_Number centers[][2] = {
+    {0, 0}, {100, 0}, {200, 0}, {50, 100}, {150, 100}
+  };
+
+  std::mt19937 rng(42);
+  std::uniform_real_distribution<double> offset(-5.0, 5.0);
+
+  for (size_t c = 0; c < 5; ++c)
+    for (size_t i = 0; i < 2000; ++i)
+      pts.append(Point(centers[c][0] + Geom_Number(offset(rng)),
+                       centers[c][1] + Geom_Number(offset(rng))));
+
+  QuickHull qh;
+  auto hull_qh = qh(pts);
+
+  AndrewMonotonicChainConvexHull andrew;
+  auto hull_andrew = andrew(pts);
+
+  // Both should produce convex hulls with consistent vertex count.
+  EXPECT_TRUE(polygon_is_convex(hull_qh));
+  EXPECT_TRUE(polygon_is_convex(hull_andrew));
+  EXPECT_EQ(hull_qh.size(), hull_andrew.size());
+
+  // All original points should be inside or on the hull.
+  EXPECT_TRUE(all_points_inside_or_on(pts, hull_qh));
+}
+
+
+TEST_F(GeomAlgorithmsTest, ConvexHullStress100K)
+{
+  // 100K random points.  Run QuickHull + Andrew only.
+  DynList<Point> pts;
+  std::mt19937 rng(123);
+  std::uniform_real_distribution<double> dist(-1000.0, 1000.0);
+
+  for (size_t i = 0; i < 100000; ++i)
+    pts.append(Point(Geom_Number(dist(rng)), Geom_Number(dist(rng))));
+
+  QuickHull qh;
+  auto hull_qh = qh(pts);
+
+  AndrewMonotonicChainConvexHull andrew;
+  auto hull_andrew = andrew(pts);
+
+  // Both should produce convex results with same vertex count.
+  EXPECT_TRUE(polygon_is_convex(hull_qh));
+  EXPECT_TRUE(polygon_is_convex(hull_andrew));
+  EXPECT_EQ(hull_qh.size(), hull_andrew.size());
+  EXPECT_GE(hull_qh.size(), 3u);
+}
+
+
+// ---------- Delaunay: new critical tests ----------
+
+TEST_F(GeomAlgorithmsTest, DelaunayCocircularPoints)
+{
+  // 8 points on a circle.  Delaunay must still produce valid triangulation.
+  const size_t N = 8;
+  DynList<Point> pts;
+  for (size_t i = 0; i < N; ++i)
+    {
+      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
+                          / Geom_Number(N);
+      pts.append(Point(Geom_Number(10) * Geom_Number(cos(angle.get_d())),
+                       Geom_Number(10) * Geom_Number(sin(angle.get_d()))));
+    }
+
+  DelaunayTriangulationBowyerWatson del;
+  auto r = del(pts);
+
+  EXPECT_EQ(r.sites.size(), N);
+  EXPECT_GE(r.triangles.size(), 1u);
+
+  // All triangles must be non-degenerate.
+  for (size_t t = 0; t < r.triangles.size(); ++t)
+    {
+      const auto & tri = r.triangles(t);
+      EXPECT_NE(orientation(r.sites(tri.i), r.sites(tri.j), r.sites(tri.k)),
+                Orientation::COLLINEAR);
+    }
+}
+
+
+TEST_F(GeomAlgorithmsTest, DelaunayNearDegenerateTriangles)
+{
+  // Points forming very thin triangles.
+  DynList<Point> pts;
+  pts.append(Point(0, 0));
+  pts.append(Point(1000, 0));
+  pts.append(Point(500, 1));    // nearly collinear
+  pts.append(Point(250, 0));
+  pts.append(Point(750, 0));
+
+  DelaunayTriangulationBowyerWatson del;
+  auto r = del(pts);
+
+  EXPECT_GE(r.triangles.size(), 1u);
+
+  // Verify Delaunay property: no point strictly inside circumcircle.
+  // Using exact rational arithmetic (GMP), so no tolerance needed.
+  for (size_t t = 0; t < r.triangles.size(); ++t)
+    {
+      const auto & tri = r.triangles(t);
+      const Point & a = r.sites(tri.i);
+      const Point & b = r.sites(tri.j);
+      const Point & c = r.sites(tri.k);
+
+      if (orientation(a, b, c) == Orientation::COLLINEAR)
+        continue;
+
+      Point cc = circumcenter_of(a, b, c);
+      Geom_Number r2 = cc.distance_squared_to(a);
+
+      for (size_t s = 0; s < r.sites.size(); ++s)
+        {
+          if (s == tri.i or s == tri.j or s == tri.k)
+            continue;
+          Geom_Number d2 = cc.distance_squared_to(r.sites(s));
+          // Exact: d2 must be >= r2 (on or outside circumcircle).
+          EXPECT_GE(d2, r2)
+              << "Site " << s << " is strictly inside circumcircle of triangle " << t;
+        }
+    }
+}
+
+
+TEST_F(GeomAlgorithmsTest, DelaunayLargeDataset)
+{
+  // 2K random points.  Verify Delaunay empty-circumcircle property
+  // for ALL triangles by checking against ALL sites.
+  DynList<Point> pts;
+  std::mt19937 rng(77);
+  std::uniform_real_distribution<double> dist(-500.0, 500.0);
+
+  const size_t N = 2000;
+  for (size_t i = 0; i < N; ++i)
+    pts.append(Point(Geom_Number(dist(rng)), Geom_Number(dist(rng))));
+
+  DelaunayTriangulationBowyerWatson del;
+  auto r = del(pts);
+
+  EXPECT_EQ(r.sites.size(), N);
+  EXPECT_GE(r.triangles.size(), 1u);
+
+  // Verify Delaunay property for every triangle.
+  size_t violations = 0;
+  for (size_t t = 0; t < r.triangles.size(); ++t)
+    {
+      const auto & tri = r.triangles(t);
+      const Point & a = r.sites(tri.i);
+      const Point & b = r.sites(tri.j);
+      const Point & c = r.sites(tri.k);
+
+      if (orientation(a, b, c) == Orientation::COLLINEAR)
+        continue;
+
+      Point cc = circumcenter_of(a, b, c);
+      Geom_Number r2 = cc.distance_squared_to(a);
+
+      for (size_t s = 0; s < r.sites.size(); ++s)
+        {
+          if (s == tri.i or s == tri.j or s == tri.k)
+            continue;
+          Geom_Number d2 = cc.distance_squared_to(r.sites(s));
+          if (d2 < r2 - Geom_Number(1, 1000000))
+            ++violations;
+        }
+    }
+
+  EXPECT_EQ(violations, 0u)
+      << violations << " Delaunay circumcircle violations found";
 }
 

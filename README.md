@@ -936,8 +936,14 @@ Utilities in `geom_algorithms.H`:
 - **Spatial Index**: `AABBTree` (rectangle overlap queries, point queries)
 - **C++20**: `GeomNumberType` concept
 
+Visualization headers:
+- **`eepicgeom.H`**: legacy EEPIC plane (`Eepic_Plane`) for LaTeX export.
+- **`tikzgeom.H`**: modern PGF/TikZ plane (`Tikz_Plane`) with styles/layers.
+- **`tikzgeom_algorithms.H`**: helpers to render algorithm outputs (hulls, intersections, Voronoi, power diagram).
+
 See `Examples/voronoi_clipped_cells_example.cc` for clipped, site-indexed
 Voronoi cells exported as CSV/WKT.
+See `docs/TIKZGEOM_GUIDE.md` for the full TikZ API and extension patterns.
 
 <a id="readme-linear-algebra-sparse-structures"></a>
 ### Linear Algebra (Sparse Structures)
@@ -2643,6 +2649,10 @@ cmake --build build
 | Hull comparison | `convex_hull_comparison_example.cc` | Compare 5 hull algorithms on the same dataset |
 | Closest pair | `closest_pair_example.cc` | Divide-and-conquer closest pair + verification |
 | Rotating calipers | `rotating_calipers_example.cc` | Diameter and minimum width of a convex polygon |
+| TikZ polygons | `tikz_polygons_example.cc` | Styled polygon visualization in PGF/TikZ |
+| TikZ convex hull | `tikz_convex_hull_example.cc` | Input cloud + hull overlay |
+| TikZ intersections | `tikz_intersection_example.cc` | Convex and boolean intersection overlays |
+| TikZ Voronoi/power | `tikz_voronoi_power_example.cc` | Voronoi+Delaunay overlay and power diagram |
 | **Parallel** | | |
 | Thread pool | `thread_pool_example.cc` | Concurrent tasks |
 | Parallel ops | `ah_parallel_example.cc` | pmap, pfilter |

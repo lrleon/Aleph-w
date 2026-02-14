@@ -46,6 +46,10 @@ Idioma: Español | [English](README.md)
 > - `Examples/convex_hull_comparison_example.cc`
 > - `Examples/closest_pair_example.cc`
 > - `Examples/rotating_calipers_example.cc`
+> - `Examples/tikz_polygons_example.cc`
+> - `Examples/tikz_convex_hull_example.cc`
+> - `Examples/tikz_intersection_example.cc`
+> - `Examples/tikz_voronoi_power_example.cc`
 
 ---
 
@@ -302,6 +306,23 @@ El ejemplo `Examples/voronoi_clipped_cells_example.cc` muestra cómo:
 cmake --build build --target voronoi_clipped_cells_example
 ./build/Examples/voronoi_clipped_cells_example /tmp/voronoi_clipped_cells.csv
 ```
+
+### Ejemplo 6: Visualización TikZ/LaTeX (PGF)
+
+Para generar figuras `.tex` con objetos geométricos y resultados de algoritmos:
+
+```bash
+cmake --build build --target tikz_polygons_example tikz_convex_hull_example tikz_intersection_example tikz_voronoi_power_example
+./build/Examples/tikz_polygons_example /tmp/tikz_polygons_example.tex
+./build/Examples/tikz_convex_hull_example /tmp/tikz_convex_hull_example.tex
+./build/Examples/tikz_intersection_example /tmp/tikz_intersection_example.tex
+./build/Examples/tikz_voronoi_power_example /tmp/tikz_voronoi_power_example.tex
+```
+
+Headers relevantes:
+- `tikzgeom.H`: `Tikz_Plane`, estilos y capas.
+- `tikzgeom_algorithms.H`: helpers para convex hull, intersecciones, Voronoi y power diagram.
+- `docs/TIKZGEOM_GUIDE.md`: guia completa de interfaz y extension.
 
 ---
 

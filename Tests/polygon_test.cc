@@ -945,7 +945,7 @@ TEST_F(RegularPolygonSegmentTest, AllSidesEqualLength)
     Point v2 = sq->get_vertex((i + 1) % sq->size());
     
     Segment s(v1, v2);
-    EXPECT_NEAR(s.size().get_d(), expected, 0.01);  // Larger tolerance for floating point
+    EXPECT_NEAR(s.length().get_d(), expected, 0.01);  // Larger tolerance for floating point
   }
 }
 

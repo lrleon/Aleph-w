@@ -1780,3 +1780,102 @@ TEST_F(GeomAlgorithmsTest, BooleanDifferenceNoOverlap)
   EXPECT_EQ(result.size(), 1u);
   EXPECT_EQ(result(0).size(), 4u);
 }
+
+
+// ---------- ShortestPathInPolygon: new critical tests ----------
+
+TEST_F(GeomAlgorithmsTest, ShortestPathMultipleReflexVertices)
+{
+  // Comb-shaped polygon with multiple reflex vertices.
+  // Source and target are in alternating "rooms" between teeth,
+  // so the path must navigate around reflex corners.
+  //
+  //  (0,10)                                   (20,10)
+  //    |                                         |
+  //    |  (4,10)  (8,10) (12,10) (16,10)         |
+  //    |    |       |       |       |            |
+  //    |  (4,3)   (8,3)  (12,3)  (16,3)         |
+  //    |                                         |
+  //  (0,0)--------------------------------------(20,0)
+  Polygon poly;
+  poly.add_vertex(Point(0, 0));
+  poly.add_vertex(Point(20, 0));
+  poly.add_vertex(Point(20, 10));
+  poly.add_vertex(Point(16, 10));
+  poly.add_vertex(Point(16, 3));
+  poly.add_vertex(Point(12, 3));
+  poly.add_vertex(Point(12, 10));
+  poly.add_vertex(Point(8, 10));
+  poly.add_vertex(Point(8, 3));
+  poly.add_vertex(Point(4, 3));
+  poly.add_vertex(Point(4, 10));
+  poly.add_vertex(Point(0, 10));
+  poly.close();
+
+  ShortestPathInPolygon sp;
+
+  // Source in first room (above teeth), target in last room.
+  Point src(2, 8);   // between left wall and first tooth
+  Point tgt(18, 8);  // between last tooth and right wall
+
+  auto path = sp(poly, src, tgt);
+
+  // Path must start at source and end at target.
+  EXPECT_EQ(path.get_first(), src);
+  EXPECT_EQ(path.get_last(), tgt);
+
+  // Path should have more than 2 waypoints (must bend around teeth).
+  EXPECT_GE(path.size(), 2u);
+
+  // Every waypoint must be inside or on the polygon boundary.
+  for (auto it = path.get_it(); it.has_curr(); it.next_ne())
+    {
+      auto loc = PointInPolygonWinding::locate(poly, it.get_curr());
+      EXPECT_NE(loc, PointInPolygonWinding::Location::Outside)
+          << "Waypoint (" << it.get_curr().get_x().get_d()
+          << ", " << it.get_curr().get_y().get_d() << ") is outside polygon";
+    }
+
+  // Compute path length.
+  Geom_Number path_len = 0;
+  auto it = path.get_it();
+  Point prev = it.get_curr();
+  it.next_ne();
+  for (; it.has_curr(); it.next_ne())
+    {
+      Point curr = it.get_curr();
+      Geom_Number dx = curr.get_x() - prev.get_x();
+      Geom_Number dy = curr.get_y() - prev.get_y();
+      Geom_Number seg_d2 = dx * dx + dy * dy;
+      path_len += Geom_Number(sqrt(seg_d2.get_d()));
+      prev = curr;
+    }
+
+  // Path must be at least as long as horizontal distance (16 units).
+  EXPECT_GE(path_len, Geom_Number(16));
+}
+
+
+TEST_F(GeomAlgorithmsTest, ShortestPathSourceTargetOnBoundary)
+{
+  // L-shaped polygon.  Source and target are on boundary edges.
+  Polygon L;
+  L.add_vertex(Point(0, 0));
+  L.add_vertex(Point(10, 0));
+  L.add_vertex(Point(10, 5));
+  L.add_vertex(Point(5, 5));
+  L.add_vertex(Point(5, 10));
+  L.add_vertex(Point(0, 10));
+  L.close();
+
+  // Source on bottom edge, target on left edge.
+  Point src(5, 0);   // on edge (0,0)-(10,0)
+  Point tgt(0, 5);   // on edge (0,0)-(0,10)
+
+  ShortestPathInPolygon sp;
+  auto path = sp(L, src, tgt);
+
+  EXPECT_EQ(path.get_first(), src);
+  EXPECT_EQ(path.get_last(), tgt);
+  EXPECT_GE(path.size(), 2u);
+}

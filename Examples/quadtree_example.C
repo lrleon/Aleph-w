@@ -191,14 +191,6 @@
 using namespace std;
 
 /**
- * @brief Print a point
- */
-ostream& operator<<(ostream& os, const Point& p)
-{
-  return os << "(" << p.get_x() << ", " << p.get_y() << ")";
-}
-
-/**
  * @brief Demonstrate basic QuadTree operations
  */
 void demo_basic_operations()

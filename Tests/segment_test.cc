@@ -44,6 +44,7 @@
 #include <cmath>
 
 using namespace std;
+using namespace Aleph;
 
 // =============================================================================
 // Test Fixture

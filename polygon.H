@@ -92,6 +92,9 @@
 # include <string>
 # include <utility>
 
+namespace Aleph
+{
+
 using Aleph::Dlink;
 
 /** @brief A vertex in a polygon's doubly linked vertex list.
@@ -1184,5 +1187,7 @@ inline std::ostream &operator<<(std::ostream & o, const Regular_Polygon & p)
       << ", radius=" << p.radius() << ")";
   return o;
 }
+
+} // namespace Aleph
 
 #endif // POLYGON_H

@@ -1015,7 +1015,7 @@ TEST(EdgeCaseTest, SegmentConstructionWithSlopeAndLength)
 
   Segment s{src, slope, length};
 
-  EXPECT_TRUE(approx_equal(s.size(), length, 1e-6));
+  EXPECT_TRUE(approx_equal(s.length(), length, 1e-6));
 }
 
 TEST(EdgeCaseTest, ParallelSegmentOffset)
@@ -1026,29 +1026,29 @@ TEST(EdgeCaseTest, ParallelSegmentOffset)
   Segment parallel{original, dist};
 
   // Parallel segment should have same length
-  EXPECT_TRUE(approx_equal(parallel.size(), original.size(), 1e-6));
+  EXPECT_TRUE(approx_equal(parallel.length(), original.length(), 1e-6));
 }
 
 TEST(EdgeCaseTest, SegmentEnlargeSrc)
 {
   Segment s{Point{1, 0}, Point{2, 0}};
-  Geom_Number original_size = s.size();
+  Geom_Number original_size = s.length();
 
   s.enlarge_src(1);
 
   // Segment should be longer now
-  EXPECT_GT(s.size(), original_size);
+  EXPECT_GT(s.length(), original_size);
 }
 
 TEST(EdgeCaseTest, SegmentEnlargeTgt)
 {
   Segment s{Point{0, 0}, Point{1, 0}};
-  Geom_Number original_size = s.size();
+  Geom_Number original_size = s.length();
 
   s.enlarge_tgt(1);
 
   // Segment should be longer now
-  EXPECT_GT(s.size(), original_size);
+  EXPECT_GT(s.length(), original_size);
 }
 
 TEST(EdgeCaseTest, ZeroAreaTriangleFails)

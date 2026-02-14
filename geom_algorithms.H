@@ -422,20 +422,20 @@ namespace Aleph
     /**
      * @brief Triangulate the polygon.
      *
-     * @param p The polygon to triangulate (will be modified).
+     * @param poly The polygon to triangulate.
      * @return List of triangles forming the triangulation.
      *
      * @throws domain_error if polygon is not closed.
      * @throws domain_error if the polygon has fewer than 3 vertices.
      * @throws domain_error if polygon is degenerate (zero area).
      * @throws domain_error if no valid ear can be found.
-     *
-     * @note The input polygon is consumed (vertices removed).
      */
-    DynList<Triangle> operator ()(Polygon & p) const
+    DynList<Triangle> operator ()(const Polygon & poly) const
     {
-      ah_domain_error_if(not p.is_closed()) << "Polygon must be closed";
-      ah_domain_error_if(p.size() < 3) << "Polygon has less than 3 vertices";
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(poly.size() < 3) << "Polygon has less than 3 vertices";
+
+      Polygon p = poly; // work on a copy
       normalize_to_ccw(p);
 
       EarsSet ears;
@@ -3074,14 +3074,12 @@ namespace Aleph
   /**
    * @brief O(n log n) Voronoi diagram construction.
    *
-   * Achieves the same asymptotic complexity as Fortune's sweep line
-   * through the composition:
+   * Computes the Voronoi diagram by composing:
    *
    *   1. O(n log n) randomized incremental Delaunay triangulation
    *   2. O(n)   dual construction (circumcenters → Voronoi vertices)
    *
-   * Unlike a classical Fortune sweep, this approach works entirely with
-   * exact rational arithmetic (`Geom_Number`) — no square roots needed.
+   * Uses exact rational arithmetic (`Geom_Number`) throughout.
    *
    * The output types are identical to `VoronoiDiagramFromDelaunay`.
    *
@@ -3089,9 +3087,16 @@ namespace Aleph
    * - Expected time:  O(n log n)
    * - Space: O(n)
    *
+   * @par Example
+   * @code
+   * VoronoiDiagram vd;
+   * auto res = vd({Point(0,0), Point(1,0), Point(0,1)});
+   * // res.cells / res.edges contain the diagram.
+   * @endcode
+   *
    * @ingroup Geometry
    */
-  class VoronoiDiagramFortune
+  class VoronoiDiagram
   {
     DelaunayTriangulationRandomizedIncremental delaunay_;
     VoronoiDiagramFromDelaunay voronoi_;
@@ -3126,6 +3131,12 @@ namespace Aleph
       return VoronoiDiagramFromDelaunay::clipped_cells_indexed(sites, clip);
     }
   };
+
+  /// @deprecated Use VoronoiDiagram instead.
+  /// This alias is kept for backward compatibility and despite its historical
+  /// name it does NOT implement Fortune's sweep-line algorithm.
+  using VoronoiDiagramFortune [[deprecated("Use VoronoiDiagram instead")]] =
+      VoronoiDiagram;
 
   // ============================================================================
   // Convex Hull Algorithms
@@ -5550,6 +5561,18 @@ namespace Aleph
    * - Time:  O(n + m)
    * - Space: O(n + m)
    *
+   * @par Example
+   * @code
+   * Polygon P;
+   * P.add_vertex(Point(0,0)); P.add_vertex(Point(1,0)); P.add_vertex(Point(0,1));
+   * P.close();
+   * Polygon Q;
+   * Q.add_vertex(Point(0,0)); Q.add_vertex(Point(2,0)); Q.add_vertex(Point(0,2));
+   * Q.close();
+   * MinkowskiSumConvex ms;
+   * Polygon R = ms(P, Q);
+   * @endcode
+   *
    * @ingroup Geometry
    */
   class MinkowskiSumConvex
@@ -5713,6 +5736,16 @@ namespace Aleph
    * - Range query:        O(√n + k) where k is output size
    * - Contains:           O(log n) average
    *
+   * @par Example
+   * @code
+   * Array<Point> pts;
+   * pts.append(Point(0,0));
+   * pts.append(Point(2,0));
+   * pts.append(Point(0,2));
+   * auto kd = KDTreePointSearch::build(pts, 0, 0, 2, 2);
+   * auto nn = kd.nearest(Point(1,1));
+   * @endcode
+   *
    * @ingroup Geometry
    */
   class KDTreePointSearch
@@ -5816,6 +5849,17 @@ namespace Aleph
    * - Time:  O(n log n) for triangulation + O(n²) for merging = O(n²)
    * - Space: O(n)
    * - The output has at most 4× the optimal number of convex parts.
+   *
+   * @par Example
+   * @code
+   * Polygon poly;
+   * poly.add_vertex(Point(0,0)); poly.add_vertex(Point(4,0));
+   * poly.add_vertex(Point(4,1)); poly.add_vertex(Point(1,1));
+   * poly.add_vertex(Point(1,4)); poly.add_vertex(Point(0,4));
+   * poly.close();
+   * ConvexPolygonDecomposition dec;
+   * auto parts = dec(poly);
+   * @endcode
    *
    * @ingroup Geometry
    */
@@ -6048,6 +6092,18 @@ namespace Aleph
    * ## Complexity
    * - Build:  O(n log n) time, O(n log n) space
    * - Query:  O(log² n + k) where k = output size
+   *
+   * @par Example
+   * @code
+   * Array<Point> pts;
+   * pts.append(Point(0,0));
+   * pts.append(Point(2,1));
+   * pts.append(Point(3,3));
+   * RangeTree2D rt;
+   * rt.build(pts);
+   * Array<Point> out;
+   * rt.query(0, 0, 2, 2, out);
+   * @endcode
    *
    * @ingroup Geometry
    */
@@ -6423,6 +6479,16 @@ namespace Aleph
    * - Time:  O(n² ) worst case (O(n log n) with BST status)
    * - Space: O(n)
    *
+   * @par Example
+   * @code
+   * Polygon poly;
+   * poly.add_vertex(Point(0,0)); poly.add_vertex(Point(4,0));
+   * poly.add_vertex(Point(4,4)); poly.add_vertex(Point(0,4));
+   * poly.close();
+   * VisibilityPolygon vp;
+   * auto vis = vp(poly, Point(2,2));
+   * @endcode
+   *
    * @ingroup Geometry
    */
   class VisibilityPolygon
@@ -6690,6 +6756,16 @@ namespace Aleph
    * - Time:  O(n²)  dominated by CuttingEarsTriangulation
    * - Space: O(n)
    *
+   * @par Example
+   * @code
+   * Polygon poly;
+   * poly.add_vertex(Point(0,0)); poly.add_vertex(Point(5,0));
+   * poly.add_vertex(Point(5,5)); poly.add_vertex(Point(0,5));
+   * poly.close();
+   * ShortestPathInPolygon sp;
+   * auto path = sp(poly, Point(1,1), Point(4,4));
+   * @endcode
+   *
    * @ingroup Geometry
    */
   class ShortestPathInPolygon
@@ -6932,8 +7008,7 @@ namespace Aleph
 
       // Triangulate.
       CuttingEarsTriangulation triangulator;
-      Polygon poly_copy = polygon;
-      DynList<Triangle> tri_list = triangulator(poly_copy);
+      DynList<Triangle> tri_list = triangulator(polygon);
 
       ah_domain_error_if(tri_list.is_empty()) << "Triangulation failed";
 
@@ -7082,6 +7157,16 @@ namespace Aleph
    * For n segments with k intersections:
    * - Time:  O((n + k) log(n + k))
    * - Space: O(n + k)
+   *
+   * @par Example
+   * @code
+   * Array<Segment> segs;
+   * segs.append(Segment(Point(0,0), Point(2,2)));
+   * segs.append(Segment(Point(0,2), Point(2,0)));
+   * SegmentArrangement arr;
+   * auto res = arr(segs);
+   * // res.vertices / res.edges / res.faces describe the subdivision.
+   * @endcode
    *
    * @ingroup Geometry
    */
@@ -7448,6 +7533,18 @@ namespace Aleph
    * O(n log n) for the Delaunay step + O(T) to filter, where T = number
    * of Delaunay triangles.
    *
+   * @par Example
+   * @code
+   * DynList<Point> pts;
+   * pts.append(Point(0,0));
+   * pts.append(Point(1,0));
+   * pts.append(Point(0,1));
+   * pts.append(Point(1,1));
+   * AlphaShape as;
+   * auto out = as(pts, Geom_Number(1));
+   * // out.boundary_edges is the alpha-shape boundary as segments.
+   * @endcode
+   *
    * @ingroup Geometry
    */
   class AlphaShape
@@ -7593,6 +7690,17 @@ namespace Aleph
    * - Additional processing (centers/cells): O(T + n).
    *
    * When all weights are equal this reduces to the standard Voronoi diagram.
+   *
+   * @par Example
+   * @code
+   * Array<PowerDiagram::WeightedSite> sites;
+   * sites.append({Point(0,0), Geom_Number(0)});
+   * sites.append({Point(2,0), Geom_Number(1)});
+   * sites.append({Point(0,2), Geom_Number(0)});
+   * PowerDiagram pd;
+   * auto res = pd(sites);
+   * // res.cells contains one cell per site (boundedness depends on input).
+   * @endcode
    *
    * @ingroup Geometry
    */
@@ -7825,6 +7933,13 @@ namespace Aleph
    *
    * Since the parameter t ∈ [0,1] is rational, evaluation is exact.
    *
+   * @par Example
+   * @code
+   * Point p = BezierCurve::cubic(Point(0,0), Point(1,2), Point(2,2), Point(3,0),
+   *                             Geom_Number(1) / Geom_Number(2));
+   * auto poly = BezierCurve::approximate_cubic(Point(0,0), Point(1,2), Point(2,2), Point(3,0), 32);
+   * @endcode
+   *
    * @ingroup Geometry
    */
   class BezierCurve
@@ -8014,6 +8129,18 @@ namespace Aleph
    *
    * O(n·m + k log k) where n, m are vertex counts and k is the number
    * of intersection points.
+   *
+   * @par Example
+   * @code
+   * Polygon A;
+   * A.add_vertex(Point(0,0)); A.add_vertex(Point(2,0)); A.add_vertex(Point(2,2)); A.add_vertex(Point(0,2));
+   * A.close();
+   * Polygon B;
+   * B.add_vertex(Point(1,1)); B.add_vertex(Point(3,1)); B.add_vertex(Point(3,3)); B.add_vertex(Point(1,3));
+   * B.close();
+   * BooleanPolygonOperations bop;
+   * auto res = bop(A, B, BooleanPolygonOperations::Op::INTERSECTION);
+   * @endcode
    *
    * @ingroup Geometry
    */
@@ -8692,6 +8819,16 @@ namespace Aleph
    * ## Complexity
    * - Build: O(n log n)
    * - Query: O(log n + k) for k results, worst case O(n).
+   *
+   * @par Example
+   * @code
+   * Array<AABBTree::Entry> entries;
+   * entries.append({Rectangle(0,0,1,1), 0});
+   * entries.append({Rectangle(2,2,3,3), 1});
+   * AABBTree tree;
+   * tree.build(entries);
+   * auto hits = tree.query(Rectangle(0,0,2,2));
+   * @endcode
    *
    * @ingroup Geometry
    */

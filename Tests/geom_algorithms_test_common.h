@@ -102,6 +102,50 @@ Point circumcenter_of(const Point & a, const Point & b, const Point & c)
   };
 }
 
+Geom_Number polygon_signed_area(const Polygon & poly)
+{
+  return GeomPolygonUtils::signed_double_area(poly) / 2;
+}
+
+Geom_Number polygon_area(const Polygon & poly)
+{
+  Geom_Number a = polygon_signed_area(poly);
+  if (a < 0) { a = -a; }
+  return a;
+}
+
+bool is_ccw(const Polygon & poly)
+{
+  return GeomPolygonUtils::signed_double_area(poly) > 0;
+}
+
+Geom_Number triangle_area(const Triangle & t)
+{
+  Geom_Number a = t.area();
+  if (a < 0) { a = -a; }
+  return a;
+}
+
+bool all_points_inside_or_on(const DynList<Point> & points, const Polygon & hull)
+{
+  for (auto it = points.get_it(); it.has_curr(); it.next_ne())
+    {
+      auto loc = PointInPolygonWinding::locate(hull, it.get_curr());
+      if (loc == PointInPolygonWinding::Location::Outside)
+        return false;
+    }
+  return true;
+}
+
+bool polygon_is_convex(const Polygon & poly)
+{
+  Array<Point> verts;
+  verts.reserve(poly.size());
+  for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+    verts.append(it.get_current_vertex());
+  return GeomPolygonUtils::is_convex(verts);
+}
+
 } // namespace
 
 class GeomAlgorithmsTest : public ::testing::Test

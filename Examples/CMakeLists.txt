@@ -117,6 +117,10 @@ set(EXAMPLE_PROGRAMS
     delaunay_voronoi_example
     point_in_polygon_example
     polygon_intersection_example
+    tikz_polygons_example
+    tikz_convex_hull_example
+    tikz_intersection_example
+    tikz_voronoi_power_example
     halfplane_intersection_example
     convex_hull_comparison_example
     closest_pair_example

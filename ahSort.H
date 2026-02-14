@@ -227,7 +227,7 @@ namespace Aleph
   DynArray<T> sort(const DynArray<T> & a, Cmp && cmp = Cmp())
   {
     DynArray<T> ret_val = a;
-    quicksort_op(ret_val, cmp);
+    introsort(ret_val, cmp);
     return ret_val;
   }
 
@@ -241,13 +241,13 @@ namespace Aleph
    *  @param cmp Comparison functor
    *  @return The sorted array (moved)
    *
-   *  @note Original container is left in valid but unspecified state
+   *  @note The original container is left in valid but unspecified state
    */
   template<typename T, class Cmp = Aleph::less<T>>
   [[nodiscard]] inline
   DynArray<T> sort(DynArray<T> && a, Cmp && cmp = Cmp())
   {
-    quicksort_op(a, cmp);
+    introsort(a, cmp);
     return std::move(a);
   }
 
@@ -259,7 +259,7 @@ namespace Aleph
   Array<T> sort(const Array<T> & a, Cmp && cmp = Cmp())
   {
     Array<T> ret_val = a;
-    quicksort_op(ret_val, cmp);
+    introsort(ret_val, cmp);
     return ret_val;
   }
 
@@ -270,7 +270,7 @@ namespace Aleph
   [[nodiscard]] inline
   Array<T> sort(Array<T> && a, Cmp && cmp = Cmp())
   {
-    quicksort_op(a, cmp);
+    introsort(a, cmp);
     return std::move(a);
   }
 
@@ -320,7 +320,7 @@ namespace Aleph
   inline
   DynArray<T> & in_place_sort(DynArray<T> & c, Cmp cmp = Cmp())
   {
-    quicksort_op(c, cmp);
+    introsort(c, cmp);
     return c;
   }
 
@@ -331,7 +331,7 @@ namespace Aleph
   inline
   Array<T> & in_place_sort(Array<T> & c, Cmp cmp = Cmp())
   {
-    quicksort_op(c, cmp);
+    introsort(c, cmp);
     return c;
   }
 
@@ -632,7 +632,7 @@ namespace Aleph
    *
    *  Uses stable sort, preserving relative order of equal elements.
    *
-   *  @tparam C Container type for first array (must have operator[], size())
+   *  @tparam C Container type for the first array (must have operator[], size())
    *  @tparam Args Container types for additional arrays
    *  @tparam Cmp Comparison functor type (default: std::less)
    *

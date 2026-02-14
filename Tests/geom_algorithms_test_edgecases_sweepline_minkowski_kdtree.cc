@@ -1,4 +1,6 @@
 #include "geom_algorithms_test_common.h"
+#include <random>
+#include <cmath>
 
 
 // ---------- Edge cases: ClosestPair ----------
@@ -1720,11 +1722,11 @@ TEST_F(GeomAlgorithmsTest, DelaunayIncrementalGrid)
 }
 
 
-// ---------- VoronoiDiagramFortune ----------
+// ---------- VoronoiDiagram ----------
 
 TEST_F(GeomAlgorithmsTest, VoronoiFortuneFourPoints)
 {
-  VoronoiDiagramFortune voronoi;
+  VoronoiDiagram voronoi;
   auto r = voronoi({Point(0, 0), Point(4, 0), Point(4, 4), Point(0, 4)});
 
   EXPECT_EQ(r.sites.size(), 4u);
@@ -1742,7 +1744,7 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneEquidistance)
   pts.append(Point(6, 5));
   pts.append(Point(0, 5));
 
-  VoronoiDiagramFortune voronoi;
+  VoronoiDiagram voronoi;
   auto r = voronoi(pts);
 
   for (size_t e = 0; e < r.edges.size(); ++e)
@@ -1771,7 +1773,7 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneClippedCells)
   clip.add_vertex(Point(0, 4));
   clip.close();
 
-  VoronoiDiagramFortune voronoi;
+  VoronoiDiagram voronoi;
   auto cells = voronoi.clipped_cells(pts, clip);
 
   EXPECT_EQ(cells.size(), 3u);
@@ -1795,5 +1797,109 @@ TEST_F(GeomAlgorithmsTest, ConvexDecompTriangle)
 
   EXPECT_EQ(parts.size(), 1u);
   EXPECT_TRUE(parts(0).is_closed());
+}
+
+
+// ---------- SweepLineSegmentIntersection: new critical tests ----------
+
+TEST_F(GeomAlgorithmsTest, SweepLineCollinearOverlapping)
+{
+  // Two collinear overlapping segments on the x-axis.
+  // Segments [0,4] and [2,6] overlap on [2,4].
+  SweepLineSegmentIntersection sweep;
+  Array<Segment> segs;
+  segs.append(Segment(Point(0, 0), Point(4, 0)));
+  segs.append(Segment(Point(2, 0), Point(6, 0)));
+
+  auto result = sweep(segs);
+
+  // BUG: the Bentley-Ottmann sweep line does not detect overlapping
+  // collinear segments.  Correct behavior: at least 1 intersection
+  // at the overlap boundary (e.g. endpoint (2,0) or (4,0)).
+  EXPECT_GE(result.size(), 1u)
+      << "Collinear overlapping segments not detected — sweep line limitation";
+}
+
+
+TEST_F(GeomAlgorithmsTest, SweepLineManySegmentsAtOnePoint)
+{
+  // 10 segments all sharing endpoint (5,5), fanning out.
+  SweepLineSegmentIntersection sweep;
+  Array<Segment> segs;
+  const size_t N = 10;
+  for (size_t i = 0; i < N; ++i)
+    {
+      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
+                          / Geom_Number(N);
+      Point far(Geom_Number(5) + Geom_Number(10) * Geom_Number(cos(angle.get_d())),
+                Geom_Number(5) + Geom_Number(10) * Geom_Number(sin(angle.get_d())));
+      segs.append(Segment(Point(5, 5), far));
+    }
+
+  auto result = sweep(segs);
+
+  // C(10,2) = 45 pairwise intersections, all at (5,5).
+  EXPECT_EQ(result.size(), N * (N - 1) / 2);
+  for (size_t i = 0; i < result.size(); ++i)
+    EXPECT_EQ(result(i).point, Point(5, 5));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SweepLineVerticalSegments)
+{
+  // Mix of vertical, horizontal, and diagonal segments.
+  SweepLineSegmentIntersection sweep;
+  Array<Segment> segs;
+
+  segs.append(Segment(Point(3, 0), Point(3, 6)));  // vertical
+  segs.append(Segment(Point(0, 3), Point(6, 3)));  // horizontal
+  segs.append(Segment(Point(0, 0), Point(6, 6)));  // diagonal
+
+  auto result = sweep(segs);
+
+  // vertical x horizontal at (3,3), vertical x diagonal at (3,3),
+  // horizontal x diagonal at (3,3).
+  EXPECT_EQ(result.size(), 3u);
+  for (size_t i = 0; i < result.size(); ++i)
+    EXPECT_EQ(result(i).point, Point(3, 3));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SweepLineStress10K)
+{
+  // 10K random short segments.  Verify each reported intersection is real.
+  SweepLineSegmentIntersection sweep;
+  Array<Segment> segs;
+
+  std::mt19937 rng(999);
+  std::uniform_real_distribution<double> coord(-100.0, 100.0);
+  std::uniform_real_distribution<double> delta(-5.0, 5.0);
+
+  const size_t N = 10000;
+  for (size_t i = 0; i < N; ++i)
+    {
+      double x = coord(rng), y = coord(rng);
+      double dx = delta(rng), dy = delta(rng);
+      if (dx == 0 and dy == 0) dx = 1;
+      segs.append(Segment(Point(Geom_Number(x), Geom_Number(y)),
+                          Point(Geom_Number(x + dx), Geom_Number(y + dy))));
+    }
+
+  auto result = sweep(segs);
+
+  // Spot-check first 100 intersections: the reported point must lie on
+  // both participating segments (within tolerance).
+  const size_t check = std::min(result.size(), (size_t) 100);
+  for (size_t i = 0; i < check; ++i)
+    {
+      const auto & ix = result(i);
+      const Segment & s1 = segs(ix.seg_i);
+      const Segment & s2 = segs(ix.seg_j);
+
+      // Verify the two segments actually intersect.
+      EXPECT_TRUE(s1.intersects_with(s2))
+          << "seg " << ix.seg_i << " and seg " << ix.seg_j
+          << " reported as intersecting but don't";
+    }
 }
 

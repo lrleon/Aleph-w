@@ -1271,3 +1271,284 @@ TEST_F(GeomAlgorithmsTest, RotatedEllipseDefaultInvalidRadiiThrow)
   EXPECT_THROW(e.strictly_contains(Point(0, 0)), std::domain_error);
   EXPECT_THROW(e.on_boundary(Point(0, 0)), std::domain_error);
 }
+
+
+// ---------- BooleanPolygonOperations: new critical tests ----------
+
+TEST_F(GeomAlgorithmsTest, BooleanConcaveIntersection)
+{
+  // L-shaped polygon intersected with a rectangle.
+  // L: (0,0)-(6,0)-(6,3)-(3,3)-(3,6)-(0,6), area = 27
+  // Rect: (1,1)-(5,1)-(5,5)-(1,5), area = 16
+  //
+  // Geometric intersection:
+  //   The rect clips to the L interior.  The rect's top-right corner (5,5)
+  //   is outside the L (the L only extends to x=3 above y=3).  So the
+  //   intersection is the rect minus the rectangle (3,3)-(5,3)-(5,5)-(3,5),
+  //   giving area = 16 - 4 = 12.
+  Polygon L;
+  L.add_vertex(Point(0, 0));
+  L.add_vertex(Point(6, 0));
+  L.add_vertex(Point(6, 3));
+  L.add_vertex(Point(3, 3));
+  L.add_vertex(Point(3, 6));
+  L.add_vertex(Point(0, 6));
+  L.close();
+
+  Polygon rect;
+  rect.add_vertex(Point(1, 1));
+  rect.add_vertex(Point(5, 1));
+  rect.add_vertex(Point(5, 5));
+  rect.add_vertex(Point(1, 5));
+  rect.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.intersection(L, rect);
+
+  EXPECT_GE(result.size(), 1u);
+
+  Geom_Number total_area = 0;
+  for (size_t i = 0; i < result.size(); ++i)
+    total_area += polygon_area(result(i));
+
+  // Must be strictly positive and less than both inputs.
+  EXPECT_GT(total_area, Geom_Number(0));
+  EXPECT_LT(total_area, Geom_Number(16));
+
+  // Correct intersection area should be exactly 12.
+  EXPECT_EQ(total_area, Geom_Number(12))
+      << "Intersection area = " << total_area.get_d()
+      << ", expected 12 (concave polygon intersection bug?)";
+}
+
+
+TEST_F(GeomAlgorithmsTest, BooleanConcaveUnion)
+{
+  // Two overlapping L-shapes.
+  // L1: (0,0)-(6,0)-(6,3)-(3,3)-(3,6)-(0,6), area = 27
+  // L2: (2,2)-(8,2)-(8,5)-(5,5)-(5,8)-(2,8), area = 27
+  // Union area = area(L1) + area(L2) - area(intersection).
+  Polygon L1;
+  L1.add_vertex(Point(0, 0));
+  L1.add_vertex(Point(6, 0));
+  L1.add_vertex(Point(6, 3));
+  L1.add_vertex(Point(3, 3));
+  L1.add_vertex(Point(3, 6));
+  L1.add_vertex(Point(0, 6));
+  L1.close();
+
+  Polygon L2;
+  L2.add_vertex(Point(2, 2));
+  L2.add_vertex(Point(8, 2));
+  L2.add_vertex(Point(8, 5));
+  L2.add_vertex(Point(5, 5));
+  L2.add_vertex(Point(5, 8));
+  L2.add_vertex(Point(2, 8));
+  L2.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.polygon_union(L1, L2);
+
+  EXPECT_GE(result.size(), 1u);
+
+  Geom_Number union_area = 0;
+  for (size_t i = 0; i < result.size(); ++i)
+    union_area += polygon_area(result(i));
+
+  // Union area must be >= max(area(L1), area(L2)) = 27 and <= area(L1)+area(L2) = 54.
+  EXPECT_GE(union_area, Geom_Number(27));
+  EXPECT_LE(union_area, Geom_Number(54));
+
+  // The result must NOT be the convex hull (which would have 4 vertices
+  // and area 64 = 8*8).  It must preserve concavity.
+  if (result.size() == 1)
+    EXPECT_GT(result(0).size(), 4u)
+        << "Union collapsed to convex hull — concave shape lost";
+}
+
+
+TEST_F(GeomAlgorithmsTest, BooleanDifference)
+{
+  // Rectangle minus overlapping rectangle at corner.
+  // big: (0,0)-(10,0)-(10,10)-(0,10), area = 100
+  // corner: (5,5)-(15,5)-(15,15)-(5,15), area = 100
+  // overlap area = 25, so difference area = 100 - 25 = 75.
+  Polygon big;
+  big.add_vertex(Point(0, 0));
+  big.add_vertex(Point(10, 0));
+  big.add_vertex(Point(10, 10));
+  big.add_vertex(Point(0, 10));
+  big.close();
+
+  Polygon corner;
+  corner.add_vertex(Point(5, 5));
+  corner.add_vertex(Point(15, 5));
+  corner.add_vertex(Point(15, 15));
+  corner.add_vertex(Point(5, 15));
+  corner.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.difference(big, corner);
+
+  EXPECT_GE(result.size(), 1u);
+
+  // Difference area = 100 - 25 = 75.
+  Geom_Number diff_area = 0;
+  for (size_t i = 0; i < result.size(); ++i)
+    diff_area += polygon_area(result(i));
+
+  EXPECT_EQ(diff_area, Geom_Number(75));
+}
+
+
+TEST_F(GeomAlgorithmsTest, BooleanDisjointIntersection)
+{
+  // Two non-overlapping polygons.
+  Polygon sq1;
+  sq1.add_vertex(Point(0, 0));
+  sq1.add_vertex(Point(1, 0));
+  sq1.add_vertex(Point(1, 1));
+  sq1.add_vertex(Point(0, 1));
+  sq1.close();
+
+  Polygon sq2;
+  sq2.add_vertex(Point(10, 10));
+  sq2.add_vertex(Point(11, 10));
+  sq2.add_vertex(Point(11, 11));
+  sq2.add_vertex(Point(10, 11));
+  sq2.close();
+
+  BooleanPolygonOperations bop;
+  auto result = bop.intersection(sq1, sq2);
+
+  // No overlap → empty result.
+  EXPECT_EQ(result.size(), 0u);
+}
+
+
+// ---------- PowerDiagram: new critical tests ----------
+
+TEST_F(GeomAlgorithmsTest, PowerDiagramNonUniformWeightsVaryingPower)
+{
+  // 4 sites with weights 0, 1, 4, 9.
+  Array<PowerDiagram::WeightedSite> sites;
+  sites.append({Point(0, 0), Geom_Number(0)});
+  sites.append({Point(10, 0), Geom_Number(1)});
+  sites.append({Point(10, 10), Geom_Number(4)});
+  sites.append({Point(0, 10), Geom_Number(9)});
+
+  PowerDiagram pd;
+  auto result = pd(sites);
+
+  EXPECT_EQ(result.sites.size(), 4u);
+  EXPECT_EQ(result.cells.size(), 4u);
+
+  // Each power vertex must satisfy the equi-power-distance property for
+  // at least one triple of sites.
+  for (size_t v = 0; v < result.vertices.size(); ++v)
+    {
+      const Point & pc = result.vertices(v);
+      Array<Geom_Number> pds;
+      for (size_t s = 0; s < result.sites.size(); ++s)
+        pds.append(pc.distance_squared_to(result.sites(s).position)
+                   - result.sites(s).weight);
+
+      bool found_triple = false;
+      for (size_t a = 0; a < pds.size() and not found_triple; ++a)
+        for (size_t b = a + 1; b < pds.size() and not found_triple; ++b)
+          for (size_t c = b + 1; c < pds.size() and not found_triple; ++c)
+            if (pds(a) == pds(b) and pds(b) == pds(c))
+              found_triple = true;
+
+      EXPECT_TRUE(found_triple)
+          << "Power vertex " << v << " is not equi-power-distant to any triple";
+    }
+}
+
+
+TEST_F(GeomAlgorithmsTest, PowerDiagramZeroWeightsFallbackToVoronoi)
+{
+  // All weights = 0 → result should match standard Voronoi.
+  Array<PowerDiagram::WeightedSite> wsites;
+  wsites.append({Point(0, 0), Geom_Number(0)});
+  wsites.append({Point(6, 0), Geom_Number(0)});
+  wsites.append({Point(3, 5), Geom_Number(0)});
+
+  PowerDiagram pd;
+  auto pr = pd(wsites);
+
+  // Standard Voronoi via Delaunay.
+  VoronoiDiagramFromDelaunay voronoi;
+  auto vr = voronoi({Point(0, 0), Point(6, 0), Point(3, 5)});
+
+  // Same number of sites and vertices.
+  EXPECT_EQ(pr.sites.size(), vr.sites.size());
+  EXPECT_EQ(pr.vertices.size(), vr.vertices.size());
+
+  // The power vertex should be the circumcenter (same as Voronoi vertex).
+  if (pr.vertices.size() >= 1 and vr.vertices.size() >= 1)
+    {
+      const Point & pv = pr.vertices(0);
+      const Point & vv = vr.vertices(0);
+      // They should be the same point (or very close).
+      Geom_Number d2 = pv.distance_squared_to(vv);
+      EXPECT_LT(d2, Geom_Number(1, 100))
+          << "Power vertex and Voronoi vertex differ";
+    }
+}
+
+
+// ---------- ConvexPolygonOffset: new critical tests ----------
+
+TEST_F(GeomAlgorithmsTest, ConvexPolygonOffsetCollinearConsecutiveVertices)
+{
+  // Square with extra collinear point on bottom edge.
+  // (0,0)-(5,0)-(10,0)-(10,10)-(0,10) — 5 vertices, 3 collinear on bottom.
+  // Original area = 100.  Inward offset by 1 should give (10-2)*(10-2) = 64.
+  Polygon p;
+  p.add_vertex(Point(0, 0));
+  p.add_vertex(Point(5, 0));
+  p.add_vertex(Point(10, 0));
+  p.add_vertex(Point(10, 10));
+  p.add_vertex(Point(0, 10));
+  p.close();
+
+  // Should not crash (this tests the collinear vertex handling path).
+  Polygon result = ConvexPolygonOffset::inward(p, Geom_Number(1));
+
+  EXPECT_TRUE(result.is_closed());
+  EXPECT_GE(result.size(), 3u);
+
+  Geom_Number orig_area = polygon_area(p);
+  Geom_Number offset_area = polygon_area(result);
+
+  // BUG: collinear consecutive vertices cause incorrect offset geometry.
+  // The offset area should be 64 (8x8) and strictly less than 100.
+  // Currently produces area > 100 due to the collinear vertex handling.
+  EXPECT_LT(offset_area, orig_area)
+      << "Inward offset area (" << offset_area.get_d()
+      << ") >= original area (" << orig_area.get_d()
+      << ") — collinear vertex bug in ConvexPolygonOffset";
+}
+
+
+TEST_F(GeomAlgorithmsTest, ConvexPolygonOffsetLargeInwardOffset)
+{
+  // Square 10x10.  Inward offset of 6 is larger than half the minimum
+  // dimension (5), so the offset polygon should be empty or degenerate.
+  Polygon sq;
+  sq.add_vertex(Point(0, 0));
+  sq.add_vertex(Point(10, 0));
+  sq.add_vertex(Point(10, 10));
+  sq.add_vertex(Point(0, 10));
+  sq.close();
+
+  Polygon result = ConvexPolygonOffset::inward(sq, Geom_Number(6));
+
+  // BUG: the half-plane intersection approach produces a non-degenerate
+  // polygon even when the offset exceeds half the minimum dimension.
+  // Correct behavior: result should be empty (0 vertices) or < 3 vertices.
+  EXPECT_LT(result.size(), 3u)
+      << "Inward offset of 6 on a 10x10 square should produce empty result, "
+      << "but got " << result.size() << " vertices";
+}
