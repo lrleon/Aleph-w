@@ -61,7 +61,7 @@
  *  ## Rotating Calipers (Convex Polygons)
  *
  *  - **RotatingCalipersConvexPolygon**: Computes diameter in O(n) and minimum
- *    width in O(n²) for convex polygons.
+ *    width in O(n) for convex polygons.
  *
  *  ## Point-in-Polygon
  *
@@ -170,11 +170,85 @@
 # include <tpl_sort_utils.H>
 # include <tpl_2dtree.H>
 # include <ah-errors.H>
+# include <algorithm>
 # include <utility>
 # include <random>
+# include <vector>
+# include <map>
+# include <set>
 
 namespace Aleph
 {
+  /**
+   * @brief Shared polygon helpers used across multiple geometry algorithms.
+   *
+   * Centralizes common routines that were previously duplicated verbatim in
+   * several classes.
+   */
+  class GeomPolygonUtils
+  {
+  public:
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & poly)
+    {
+      Array<Point> verts;
+      verts.reserve(poly.size());
+      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+        verts.append(it.get_current_vertex());
+      return verts;
+    }
+
+    [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & verts)
+    {
+      Geom_Number sum = 0;
+      for (size_t i = 0; i < verts.size(); ++i)
+        {
+          const Point & a = verts(i);
+          const Point & b = verts((i + 1) % verts.size());
+          sum += a.get_x() * b.get_y() - a.get_y() * b.get_x();
+        }
+      return sum;
+    }
+
+    [[nodiscard]] static Geom_Number signed_double_area(const Polygon & poly)
+    {
+      return signed_double_area(extract_vertices(poly));
+    }
+
+    [[nodiscard]] static bool is_convex(const Array<Point> & verts)
+    {
+      if (verts.size() < 3)
+        return true;
+
+      int sign = 0;
+      const size_t n = verts.size();
+      for (size_t i = 0; i < n; ++i)
+        {
+          const Geom_Number turn =
+              area_of_parallelogram(verts(i), verts((i + 1) % n),
+                                    verts((i + 2) % n));
+          if (turn == 0)
+            continue;
+          const int curr = turn > 0 ? 1 : -1;
+          if (sign == 0)
+            sign = curr;
+          else if (sign != curr)
+            return false;
+        }
+      return true;
+    }
+
+    static void ensure_ccw(Array<Point> & verts)
+    {
+      if (signed_double_area(verts) < 0)
+        for (size_t i = 0; i < verts.size() / 2; ++i)
+          {
+            const Point tmp = verts(i);
+            verts(i) = verts(verts.size() - 1 - i);
+            verts(verts.size() - 1 - i) = tmp;
+          }
+    }
+  };
+
   // ============================================================================
   // Triangulation Algorithms
   // ============================================================================
@@ -237,24 +311,12 @@ namespace Aleph
 
     [[nodiscard]] static Array<Point> extract_vertices(const Polygon & p)
     {
-      Array<Point> verts;
-      verts.reserve(p.size());
-      for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
-        verts.append(it.get_current_vertex());
-      return verts;
+      return GeomPolygonUtils::extract_vertices(p);
     }
 
     [[nodiscard]] static Geom_Number signed_double_area(const Polygon & p)
     {
-      const Array<Point> verts = extract_vertices(p);
-      Geom_Number sum = 0;
-      for (size_t i = 0; i < verts.size(); ++i)
-        {
-          const Point & a = verts(i);
-          const Point & b = verts((i + 1) % verts.size());
-          sum += a.get_x() * b.get_y() - a.get_y() * b.get_x();
-        }
-      return sum;
+      return GeomPolygonUtils::signed_double_area(p);
     }
 
     static void normalize_to_ccw(Polygon & p)
@@ -675,7 +737,7 @@ namespace Aleph
    * ## Complexity
    *
    * - Diameter: O(n) time.
-   * - Minimum width: O(n^2) time (exact baseline scan).
+   * - Minimum width: O(n) time (rotating calipers).
    * - Space: O(n) for temporary vertex storage.
    *
    * @ingroup Geometry
@@ -714,12 +776,7 @@ namespace Aleph
 
       ah_domain_error_if(poly.size() < 2) << "Rotating calipers requires at least 2 vertices";
 
-      Array<Point> verts;
-      verts.reserve(poly.size());
-      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
-        verts.append(it.get_current_vertex());
-
-      return verts;
+      return GeomPolygonUtils::extract_vertices(poly);
     }
 
     /**
@@ -733,29 +790,7 @@ namespace Aleph
      */
     [[nodiscard]] static bool is_convex(const Array<Point> & verts)
     {
-      if (verts.size() < 3)
-        return true;
-
-      int sign = 0;
-      const size_t n = verts.size();
-      for (size_t i = 0; i < n; ++i)
-        {
-          const Point & a = verts(i);
-          const Point & b = verts((i + 1) % n);
-          const Point & c = verts((i + 2) % n);
-          const Geom_Number turn = area_of_parallelogram(a, b, c);
-
-          if (turn == 0)
-            continue;
-
-          const int curr = turn > 0 ? 1 : -1;
-          if (sign == 0)
-            sign = curr;
-          else if (sign != curr)
-            return false;
-        }
-
-      return true;
+      return GeomPolygonUtils::is_convex(verts);
     }
 
     [[nodiscard]] static DiameterResult make_diameter(const Point & a, const Point & b)
@@ -823,8 +858,7 @@ namespace Aleph
      * @param poly Closed convex polygon.
      * @return Supporting edge, antipodal vertex, and squared width.
      *
-     * @note This implementation uses an exact O(n^2) scan over edges and
-     *       vertices for robustness.
+     * @note Uses rotating calipers in O(n) for convex polygons.
      *
      * @throws domain_error if the polygon is not closed, has < 2 vertices, or is non-convex.
      */
@@ -857,6 +891,12 @@ namespace Aleph
       Geom_Number best_width_sq = 0;
       bool initialized = false;
 
+      // Initialize antipodal index for edge (0,1).
+      size_t j = 1 % n;
+      size_t safety = 0;
+      while (area_to_edge(0, (j + 1) % n) > area_to_edge(0, j) and safety++ < n)
+        j = (j + 1) % n;
+
       for (size_t i = 0; i < n; ++i)
         {
           const size_t ni = (i + 1) % n;
@@ -865,16 +905,14 @@ namespace Aleph
           if (len2 == 0)
             continue;
 
-          size_t j = 0;
-          Geom_Number max_num = area_to_edge(i, 0);
-          for (size_t k = 1; k < n; ++k)
-            if (const Geom_Number cand_num = area_to_edge(i, k); cand_num > max_num)
-              {
-                max_num = cand_num;
-                j = k;
-              }
+          // Advance antipodal index while area increases.
+          safety = 0;
+          while (area_to_edge(i, (j + 1) % n) > area_to_edge(i, j) and safety++ < n)
+            j = (j + 1) % n;
 
-          if (const Geom_Number width_sq = (max_num * max_num) / len2; not initialized or width_sq < best_width_sq)
+          const Geom_Number num = area_to_edge(i, j);
+          const Geom_Number width_sq = (num * num) / len2;
+          if (not initialized or width_sq < best_width_sq)
             {
               best_i = i;
               best_ni = ni;
@@ -1030,51 +1068,19 @@ namespace Aleph
 
       ah_domain_error_if(poly.size() < 3) << "Polygon must have at least 3 vertices";
 
-      Array<Point> verts;
-      verts.reserve(poly.size());
-      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
-        verts.append(it.get_current_vertex());
-
-      return verts;
+      return GeomPolygonUtils::extract_vertices(poly);
     }
 
     [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & verts)
     {
-      Geom_Number sum = 0;
-      const size_t n = verts.size();
-      for (size_t i = 0; i < n; ++i)
-        {
-          const Point & a = verts(i);
-          const Point & b = verts((i + 1) % n);
-          sum += a.get_x() * b.get_y() - a.get_y() * b.get_x();
-        }
-
-      return sum;
+      return GeomPolygonUtils::signed_double_area(verts);
     }
 
     [[nodiscard]] static bool is_convex(const Array<Point> & verts)
     {
       if (verts.size() < 3)
         return false;
-
-      int sign = 0;
-      const size_t n = verts.size();
-      for (size_t i = 0; i < n; ++i)
-        {
-          const Orientation o = orientation(verts(i),
-                                            verts((i + 1) % n),
-                                            verts((i + 2) % n));
-          if (o == Orientation::COLLINEAR)
-            continue;
-
-          const int curr = (o == Orientation::CCW) ? 1 : -1;
-          if (sign == 0)
-            sign = curr;
-          else if (sign != curr)
-            return false;
-        }
-
-      return true;
+      return GeomPolygonUtils::is_convex(verts);
     }
 
     [[nodiscard]] static bool inside_half_plane(const Point & p, const Point & a,
@@ -1281,16 +1287,7 @@ namespace Aleph
   private:
     [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & verts)
     {
-      Geom_Number sum = 0;
-      const size_t n = verts.size();
-      for (size_t i = 0; i < n; ++i)
-        {
-          const Point & a = verts(i);
-          const Point & b = verts((i + 1) % n);
-          sum += a.get_x() * b.get_y() - a.get_y() * b.get_x();
-        }
-
-      return sum;
+      return GeomPolygonUtils::signed_double_area(verts);
     }
 
     [[nodiscard]] static bool upper_half(const HalfPlane & h)
@@ -2711,37 +2708,14 @@ namespace Aleph
       ah_domain_error_if(not p.is_closed()) << "Polygon must be closed";
       ah_domain_error_if(p.size() < 3) << "Polygon must have at least 3 vertices";
 
-      Array<Point> verts;
-      verts.reserve(p.size());
-      for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
-        verts.append(it.get_current_vertex());
-
-      return verts;
+      return GeomPolygonUtils::extract_vertices(p);
     }
 
     [[nodiscard]] static bool is_convex(const Array<Point> & verts)
     {
       if (verts.size() < 3)
         return false;
-
-      int sign = 0;
-      const size_t n = verts.size();
-      for (size_t i = 0; i < n; ++i)
-        {
-          const Orientation o = orientation(verts(i),
-                                            verts((i + 1) % n),
-                                            verts((i + 2) % n));
-          if (o == Orientation::COLLINEAR)
-            continue;
-
-          const int curr = o == Orientation::CCW ? 1 : -1;
-          if (sign == 0)
-            sign = curr;
-          else if (sign != curr)
-            return false;
-        }
-
-      return true;
+      return GeomPolygonUtils::is_convex(verts);
     }
 
     [[nodiscard]] static HalfPlaneIntersection::HalfPlane
@@ -4128,10 +4102,7 @@ namespace Aleph
    *
    * ## Complexity
    *
-   * - Time:  O((n + k) n) where n = segments, k = intersections.
-   *          (The sweep-line status uses an array, giving O(n) per
-   *          insert/remove.  A balanced BST would reduce this to
-   *          O((n + k) log n).)
+   * - Time:  O((n + k) log n) where n = segments, k = intersections.
    * - Space: O(n + k)
    *
    * ## Assumptions
@@ -4240,71 +4211,285 @@ namespace Aleph
       }
     };
 
-    /**
-     * @brief Find the position of a segment index in the sweep status.
-     *
-     * The status is stored as an array of segment indices; this function is a
-     * linear search.
-     *
-     * @param status Active segment indices.
-     * @param idx Segment index to find.
-     * @return Position in @p status if present, otherwise `status.size()`.
-     */
-    [[nodiscard]] static size_t find_in_status(const Array<size_t> & status,
-                                               const size_t idx)
+    [[nodiscard]] static bool slope_less(const Segment & a, const Segment & b)
     {
-      for (size_t i = 0; i < status.size(); ++i)
-        if (status(i) == idx)
-          return i;
-      return status.size(); // Not found.
+      const Geom_Number adx = a.get_tgt_point().get_x() - a.get_src_point().get_x();
+      const Geom_Number ady = a.get_tgt_point().get_y() - a.get_src_point().get_y();
+      const Geom_Number bdx = b.get_tgt_point().get_x() - b.get_src_point().get_x();
+      const Geom_Number bdy = b.get_tgt_point().get_y() - b.get_src_point().get_y();
+
+      if (adx == 0 and bdx == 0)
+        return ady < bdy;
+      if (adx == 0)
+        return false; // +inf slope
+      if (bdx == 0)
+        return true;
+
+      const Geom_Number lhs = ady * bdx;
+      const Geom_Number rhs = bdy * adx;
+      return lhs < rhs;
+    }
+
+    [[nodiscard]] static bool status_less(const size_t lhs, const size_t rhs,
+                                          const Geom_Number & sx,
+                                          const Array<Segment> & segs)
+    {
+      if (lhs == rhs)
+        return false;
+
+      const Geom_Number yl = y_at_x(segs(lhs), sx);
+      const Geom_Number yr = y_at_x(segs(rhs), sx);
+      if (yl != yr)
+        return yl < yr;
+
+      if (slope_less(segs(lhs), segs(rhs)))
+        return true;
+      if (slope_less(segs(rhs), segs(lhs)))
+        return false;
+
+      return lhs < rhs;
     }
 
     /**
-     * @brief Insert a segment index into the sweep status.
+     * @brief Sweep-line status as a balanced tree with O(log n) updates.
      *
-     * Inserts @p idx into @p status keeping it ordered by `y_at_x()` at the
-     * current sweep x coordinate. Ties are broken by index to keep ordering
-     * stable.
-     *
-     * @param[in,out] status Active segment indices.
-     * @param segs Canonicalized segment array.
-     * @param sx Current sweep x.
-     * @param idx Index of the segment to insert.
-     * @return The insertion position.
+     * Maintains an order label per active segment. Labels are updated only
+     * when segments are inserted/removed or reinserted at intersection events.
+     * This avoids global re-sorting while supporting predecessor/successor
+     * queries in logarithmic time.
      */
-    static size_t insert_into_status(Array<size_t> & status,
-                                     const Array<Segment> & segs,
-                                     const Geom_Number & sx,
-                                     const size_t idx)
+    class StatusTree
     {
-      const Geom_Number y = y_at_x(segs(idx), sx);
-      size_t pos = 0;
-      while (pos < status.size())
-        {
-          if (const Geom_Number sy = y_at_x(segs(status(pos)), sx); y < sy or (y == sy and idx < status(pos)))
-            break;
-          ++pos;
-        }
-      // Shift right and insert.
-      status.append(0); // Grow by one.
-      for (size_t i = status.size() - 1; i > pos; --i)
-        status(i) = status(i - 1);
-      status(pos) = idx;
-      return pos;
-    }
+      struct Node
+      {
+        size_t seg;
+        Geom_Number label;
+        unsigned priority;
+        Node * left = nullptr;
+        Node * right = nullptr;
+      };
 
-    /**
-     * @brief Remove one element from the sweep status.
-     *
-     * @param[in,out] status Active segment indices.
-     * @param pos Position to remove.
-     */
-    static void remove_from_status(Array<size_t> & status, const size_t pos)
-    {
-      for (size_t i = pos; i + 1 < status.size(); ++i)
-        status(i) = status(i + 1);
-      status.remove_last();
-    }
+      Node * root_ = nullptr;
+      const Array<Segment> & segs_;
+      std::mt19937 rng_{0x5f3759dfu};
+      Array<Node*> nodes_;
+
+      [[nodiscard]] static Node * merge(Node * a, Node * b)
+      {
+        if (a == nullptr) return b;
+        if (b == nullptr) return a;
+        if (a->priority < b->priority)
+          {
+            a->right = merge(a->right, b);
+            return a;
+          }
+        b->left = merge(a, b->left);
+        return b;
+      }
+
+      [[nodiscard]] static Node * insert_by_label(Node * root, Node * node)
+      {
+        if (root == nullptr)
+          return node;
+
+        if (node->priority < root->priority)
+          {
+            Node * left = nullptr;
+            Node * right = nullptr;
+            split_by_label(root, node->label, left, right);
+            node->left = left;
+            node->right = right;
+            return node;
+          }
+
+        if (node->label < root->label)
+          root->left = insert_by_label(root->left, node);
+        else
+          root->right = insert_by_label(root->right, node);
+        return root;
+      }
+
+      static void split_by_label(Node * root, const Geom_Number & label,
+                                 Node *& left, Node *& right)
+      {
+        if (root == nullptr)
+          {
+            left = nullptr;
+            right = nullptr;
+            return;
+          }
+
+        if (root->label < label)
+          {
+            split_by_label(root->right, label, root->right, right);
+            left = root;
+          }
+        else
+          {
+            split_by_label(root->left, label, left, root->left);
+            right = root;
+          }
+      }
+
+      [[nodiscard]] static Node * erase_by_label(Node * root,
+                                                 const Geom_Number & label,
+                                                 Node *& removed)
+      {
+        if (root == nullptr)
+          return nullptr;
+
+        if (label < root->label)
+          {
+            root->left = erase_by_label(root->left, label, removed);
+            return root;
+          }
+
+        if (root->label < label)
+          {
+            root->right = erase_by_label(root->right, label, removed);
+            return root;
+          }
+
+        removed = root;
+        return merge(root->left, root->right);
+      }
+
+      static void destroy(Node * n)
+      {
+        if (n == nullptr)
+          return;
+        destroy(n->left);
+        destroy(n->right);
+        delete n;
+      }
+
+      [[nodiscard]] size_t predecessor_for_insert(const size_t seg,
+                                                  const Geom_Number & sx) const
+      {
+        size_t pred = SIZE_MAX;
+        Node * cur = root_;
+        while (cur != nullptr)
+          if (status_less(cur->seg, seg, sx, segs_))
+            {
+              pred = cur->seg;
+              cur = cur->right;
+            }
+          else
+            cur = cur->left;
+        return pred;
+      }
+
+      [[nodiscard]] size_t successor_for_insert(const size_t seg,
+                                                const Geom_Number & sx) const
+      {
+        size_t succ = SIZE_MAX;
+        Node * cur = root_;
+        while (cur != nullptr)
+          if (status_less(seg, cur->seg, sx, segs_))
+            {
+              succ = cur->seg;
+              cur = cur->left;
+            }
+          else
+            cur = cur->right;
+        return succ;
+      }
+
+      [[nodiscard]] Geom_Number
+      fresh_label_between(const size_t pred, const size_t succ) const
+      {
+        if (pred != SIZE_MAX and succ != SIZE_MAX)
+          return (nodes_(pred)->label + nodes_(succ)->label) / Geom_Number(2);
+        if (pred != SIZE_MAX)
+          return nodes_(pred)->label + Geom_Number(1);
+        if (succ != SIZE_MAX)
+          return nodes_(succ)->label - Geom_Number(1);
+        return Geom_Number(0);
+      }
+
+    public:
+      explicit StatusTree(const Array<Segment> & segs) : segs_(segs)
+      {
+        nodes_.reserve(segs.size());
+        for (size_t i = 0; i < segs.size(); ++i)
+          nodes_.append(nullptr);
+      }
+
+      ~StatusTree()
+      {
+        destroy(root_);
+      }
+
+      [[nodiscard]] bool contains(const size_t seg) const
+      {
+        return nodes_(seg) != nullptr;
+      }
+
+      void insert(const size_t seg, const Geom_Number & sx)
+      {
+        if (contains(seg))
+          return;
+
+        const size_t pred = predecessor_for_insert(seg, sx);
+        const size_t succ = successor_for_insert(seg, sx);
+        Node * node = new Node{seg, fresh_label_between(pred, succ),
+                               static_cast<unsigned>(rng_()),
+                               nullptr, nullptr};
+        root_ = insert_by_label(root_, node);
+        nodes_(seg) = node;
+      }
+
+      void erase(const size_t seg)
+      {
+        if (not contains(seg))
+          return;
+
+        Node * removed = nullptr;
+        root_ = erase_by_label(root_, nodes_(seg)->label, removed);
+        nodes_(seg) = nullptr;
+        delete removed;
+      }
+
+      [[nodiscard]] size_t predecessor(const size_t seg) const
+      {
+        if (not contains(seg))
+          return SIZE_MAX;
+
+        const Geom_Number & label = nodes_(seg)->label;
+        Node * pred = nullptr;
+        Node * cur = root_;
+        while (cur != nullptr)
+          if (cur->label < label)
+            {
+              pred = cur;
+              cur = cur->right;
+            }
+          else
+            cur = cur->left;
+
+        return pred == nullptr ? SIZE_MAX : pred->seg;
+      }
+
+      [[nodiscard]] size_t successor(const size_t seg) const
+      {
+        if (not contains(seg))
+          return SIZE_MAX;
+
+        const Geom_Number & label = nodes_(seg)->label;
+        Node * succ = nullptr;
+        Node * cur = root_;
+        while (cur != nullptr)
+          if (label < cur->label)
+            {
+              succ = cur;
+              cur = cur->left;
+            }
+          else
+            cur = cur->right;
+
+        return succ == nullptr ? SIZE_MAX : succ->seg;
+      }
+    };
 
     /**
      * @brief Detect an intersection and enqueue it as a future event.
@@ -4387,9 +4572,31 @@ namespace Aleph
 
       // Seen intersection pairs (key = lo * n + hi).
       DynSetTree<size_t, Treap_Rk> seen_pairs;
+      DynSetTree<size_t, Treap_Rk> reported_pairs;
 
-      // Sweep-line status: segment indices ordered by y at sweep x.
-      Array<size_t> status;
+      auto pair_key = [n](const size_t i, const size_t j)
+        {
+          const size_t lo = i < j ? i : j;
+          const size_t hi = i < j ? j : i;
+          return lo * n + hi;
+        };
+
+      auto append_intersection = [&result, &reported_pairs, &pair_key](const size_t i,
+                                                                        const size_t j,
+                                                                        const Point & p)
+        {
+          const size_t key = pair_key(i, j);
+          if (reported_pairs.search(key) != nullptr)
+            return;
+          reported_pairs.insert(key);
+
+          const size_t lo = i < j ? i : j;
+          const size_t hi = i < j ? j : i;
+          result.append(Intersection{lo, hi, p});
+        };
+
+      // Sweep-line status: balanced tree with O(log n) updates.
+      StatusTree status(segs);
 
       while (eq.has_events())
         {
@@ -4399,52 +4606,63 @@ namespace Aleph
           if (ev.type == EventType::LEFT)
             {
               const size_t idx = ev.seg_a;
-              const size_t pos = insert_into_status(status, segs, sx, idx);
+              status.insert(idx, sx);
 
-              if (pos > 0)
-                check_and_enqueue(segs, status(pos - 1), idx, sx,
-                                  eq, seen_pairs, n);
-              if (pos + 1 < status.size())
-                check_and_enqueue(segs, idx, status(pos + 1), sx,
-                                  eq, seen_pairs, n);
+              if (const size_t pred = status.predecessor(idx); pred != SIZE_MAX)
+                check_and_enqueue(segs, pred, idx, sx, eq, seen_pairs, n);
+              if (const size_t succ = status.successor(idx); succ != SIZE_MAX)
+                check_and_enqueue(segs, idx, succ, sx, eq, seen_pairs, n);
             }
           else if (ev.type == EventType::RIGHT)
             {
               const size_t idx = ev.seg_a;
-              const size_t pos = find_in_status(status, idx);
-              if (pos < status.size())
+              if (status.contains(idx))
                 {
-                  if (pos > 0 and pos + 1 < status.size())
-                    check_and_enqueue(segs, status(pos - 1),
-                                      status(pos + 1), sx,
-                                      eq, seen_pairs, n);
-                  remove_from_status(status, pos);
+                  const size_t pred = status.predecessor(idx);
+                  const size_t succ = status.successor(idx);
+                  if (pred != SIZE_MAX and succ != SIZE_MAX)
+                    check_and_enqueue(segs, pred, succ, sx, eq, seen_pairs, n);
+                  status.erase(idx);
                 }
             }
           else // INTERSECTION
             {
               const size_t a = ev.seg_a;
               const size_t b = ev.seg_b;
-              result.append(Intersection{a, b, ev.pt});
+              append_intersection(a, b, ev.pt);
 
-              // Swap a and b in status.
-              const size_t pa = find_in_status(status, a);
-              const size_t pb = find_in_status(status, b);
+              Array<size_t> block;
+              block.reserve(n);
+              for (size_t s = 0; s < n; ++s)
+                if (status.contains(s) and segs(s).contains(ev.pt))
+                  block.append(s);
 
-              if (pa < status.size() and pb < status.size())
+              if (block.size() > 2)
                 {
-                  status(pa) = b;
-                  status(pb) = a;
+                  for (size_t i = 0; i + 1 < block.size(); ++i)
+                    for (size_t j = i + 1; j < block.size(); ++j)
+                      append_intersection(block(i), block(j), ev.pt);
+                }
 
-                  const size_t lo = pa < pb ? pa : pb;
-                  const size_t hi = pa < pb ? pb : pa;
+              if (block.size() == 0)
+                {
+                  if (status.contains(a)) block.append(a);
+                  if (status.contains(b) and (block.size() == 0 or block(0) != b))
+                    block.append(b);
+                }
 
-                  if (lo > 0)
-                    check_and_enqueue(segs, status(lo - 1), status(lo),
-                                      sx, eq, seen_pairs, n);
-                  if (hi + 1 < status.size())
-                    check_and_enqueue(segs, status(hi), status(hi + 1),
-                                      sx, eq, seen_pairs, n);
+              for (size_t i = 0; i < block.size(); ++i)
+                status.erase(block(i));
+              for (size_t i = 0; i < block.size(); ++i)
+                status.insert(block(i), sx);
+
+              for (size_t i = 0; i < block.size(); ++i)
+                {
+                  const size_t s = block(i);
+                  if (const size_t pred = status.predecessor(s); pred != SIZE_MAX)
+                    check_and_enqueue(segs, pred, s, sx, eq, seen_pairs, n);
+                  if (const size_t succ = status.successor(s); succ != SIZE_MAX)
+                    check_and_enqueue(segs, s, succ, sx, eq, seen_pairs, n);
                 }
             }
         }
@@ -4466,12 +4684,12 @@ namespace Aleph
   };
 
   // ============================================================================
-  // Monotone Polygon Triangulation — O(n log n)
+  // Monotone Polygon Triangulation
   // ============================================================================
 
   /**
-   * @brief O(n log n) triangulation of a simple polygon via y-monotone
-   *        decomposition.
+   * @brief O(n log n) triangulation of simple polygons via y-monotone
+   *        partition + linear-time monotone triangulation.
    *
    * ## Algorithm
    *
@@ -4487,7 +4705,8 @@ namespace Aleph
    *
    * ## Complexity
    *
-   * - Time:  O(n log n)
+   * - Time:  O(n log n) for general simple polygons.
+   * - Time:  O(n) when the input polygon is already y-monotone.
    * - Space: O(n)
    *
    * @ingroup Geometry
@@ -4497,35 +4716,277 @@ namespace Aleph
   private:
     [[nodiscard]] static Array<Point> extract_vertices(const Polygon & p)
     {
-      Array<Point> verts;
-      verts.reserve(p.size());
-      for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
-        verts.append(it.get_current_vertex());
-      return verts;
+      return GeomPolygonUtils::extract_vertices(p);
     }
 
     [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & v)
     {
-      Geom_Number sum = 0;
-      for (size_t i = 0; i < v.size(); ++i)
-        {
-          const Point & a = v(i);
-          const Point & b = v((i + 1) % v.size());
-          sum += a.get_x() * b.get_y() - a.get_y() * b.get_x();
-        }
-      return sum;
+      return GeomPolygonUtils::signed_double_area(v);
     }
 
     static void ensure_ccw(Array<Point> & v)
     {
-      if (signed_double_area(v) < 0)
-        for (size_t i = 0; i < v.size() / 2; ++i)
-          {
-            const Point tmp = v(i);
-            v(i) = v(v.size() - 1 - i);
-            v(v.size() - 1 - i) = tmp;
-          }
+      GeomPolygonUtils::ensure_ccw(v);
     }
+
+    enum class VertexType { START, END, SPLIT, MERGE, REGULAR };
+
+    [[nodiscard]] static bool is_above(const Point & a, const Point & b)
+    {
+      return a.get_y() > b.get_y() or
+             (a.get_y() == b.get_y() and a.get_x() < b.get_x());
+    }
+
+    [[nodiscard]] static bool is_below(const Point & a, const Point & b)
+    {
+      return is_above(b, a);
+    }
+
+    [[nodiscard]] static bool edge_goes_down(const Array<Point> & verts,
+                                             const size_t edge)
+    {
+      return is_below(verts((edge + 1) % verts.size()), verts(edge));
+    }
+
+    [[nodiscard]] static Geom_Number edge_x_at_y(const Array<Point> & verts,
+                                                 const size_t edge,
+                                                 const Geom_Number & y)
+    {
+      const Point & a = verts(edge);
+      const Point & b = verts((edge + 1) % verts.size());
+      if (a.get_y() == b.get_y())
+        return a.get_x() < b.get_x() ? a.get_x() : b.get_x();
+
+      return a.get_x() + (y - a.get_y()) * (b.get_x() - a.get_x())
+             / (b.get_y() - a.get_y());
+    }
+
+    [[nodiscard]] static bool edge_status_less(const size_t lhs,
+                                               const size_t rhs,
+                                               const Geom_Number & sweep_y,
+                                               const Array<Point> & verts)
+    {
+      if (lhs == rhs)
+        return false;
+
+      const Geom_Number xl = edge_x_at_y(verts, lhs, sweep_y);
+      const Geom_Number xr = edge_x_at_y(verts, rhs, sweep_y);
+      if (xl != xr)
+        return xl < xr;
+      return lhs < rhs;
+    }
+
+    class EdgeStatusTree
+    {
+      struct Node
+      {
+        size_t edge;
+        Geom_Number label;
+        unsigned priority;
+        Node * left = nullptr;
+        Node * right = nullptr;
+      };
+
+      Node * root_ = nullptr;
+      const Array<Point> & verts_;
+      std::mt19937 rng_{0x31415926u};
+      Array<Node*> nodes_;
+
+      static void split_by_label(Node * root, const Geom_Number & label,
+                                 Node *& left, Node *& right)
+      {
+        if (root == nullptr)
+          {
+            left = nullptr;
+            right = nullptr;
+            return;
+          }
+
+        if (root->label < label)
+          {
+            split_by_label(root->right, label, root->right, right);
+            left = root;
+          }
+        else
+          {
+            split_by_label(root->left, label, left, root->left);
+            right = root;
+          }
+      }
+
+      [[nodiscard]] static Node * merge(Node * a, Node * b)
+      {
+        if (a == nullptr) return b;
+        if (b == nullptr) return a;
+        if (a->priority < b->priority)
+          {
+            a->right = merge(a->right, b);
+            return a;
+          }
+        b->left = merge(a, b->left);
+        return b;
+      }
+
+      [[nodiscard]] static Node * insert_by_label(Node * root, Node * node)
+      {
+        if (root == nullptr)
+          return node;
+
+        if (node->priority < root->priority)
+          {
+            Node * left = nullptr;
+            Node * right = nullptr;
+            split_by_label(root, node->label, left, right);
+            node->left = left;
+            node->right = right;
+            return node;
+          }
+
+        if (node->label < root->label)
+          root->left = insert_by_label(root->left, node);
+        else
+          root->right = insert_by_label(root->right, node);
+        return root;
+      }
+
+      [[nodiscard]] static Node * erase_by_label(Node * root,
+                                                 const Geom_Number & label,
+                                                 Node *& removed)
+      {
+        if (root == nullptr)
+          return nullptr;
+
+        if (label < root->label)
+          {
+            root->left = erase_by_label(root->left, label, removed);
+            return root;
+          }
+
+        if (root->label < label)
+          {
+            root->right = erase_by_label(root->right, label, removed);
+            return root;
+          }
+
+        removed = root;
+        return merge(root->left, root->right);
+      }
+
+      static void destroy(Node * n)
+      {
+        if (n == nullptr)
+          return;
+        destroy(n->left);
+        destroy(n->right);
+        delete n;
+      }
+
+      [[nodiscard]] size_t predecessor_for_insert(const size_t edge,
+                                                  const Geom_Number & sweep_y) const
+      {
+        size_t pred = SIZE_MAX;
+        Node * cur = root_;
+        while (cur != nullptr)
+          if (edge_status_less(cur->edge, edge, sweep_y, verts_))
+            {
+              pred = cur->edge;
+              cur = cur->right;
+            }
+          else
+            cur = cur->left;
+        return pred;
+      }
+
+      [[nodiscard]] size_t successor_for_insert(const size_t edge,
+                                                const Geom_Number & sweep_y) const
+      {
+        size_t succ = SIZE_MAX;
+        Node * cur = root_;
+        while (cur != nullptr)
+          if (edge_status_less(edge, cur->edge, sweep_y, verts_))
+            {
+              succ = cur->edge;
+              cur = cur->left;
+            }
+          else
+            cur = cur->right;
+        return succ;
+      }
+
+      [[nodiscard]] Geom_Number
+      fresh_label_between(const size_t pred, const size_t succ) const
+      {
+        if (pred != SIZE_MAX and succ != SIZE_MAX)
+          return (nodes_(pred)->label + nodes_(succ)->label) / Geom_Number(2);
+        if (pred != SIZE_MAX)
+          return nodes_(pred)->label + Geom_Number(1);
+        if (succ != SIZE_MAX)
+          return nodes_(succ)->label - Geom_Number(1);
+        return Geom_Number(0);
+      }
+
+    public:
+      explicit EdgeStatusTree(const Array<Point> & verts) : verts_(verts)
+      {
+        nodes_.reserve(verts.size());
+        for (size_t i = 0; i < verts.size(); ++i)
+          nodes_.append(nullptr);
+      }
+
+      ~EdgeStatusTree()
+      {
+        destroy(root_);
+      }
+
+      [[nodiscard]] bool contains(const size_t edge) const
+      {
+        return nodes_(edge) != nullptr;
+      }
+
+      void insert(const size_t edge, const Geom_Number & sweep_y)
+      {
+        if (contains(edge))
+          return;
+
+        const size_t pred = predecessor_for_insert(edge, sweep_y);
+        const size_t succ = successor_for_insert(edge, sweep_y);
+        Node * node = new Node{edge, fresh_label_between(pred, succ),
+                               static_cast<unsigned>(rng_()),
+                               nullptr, nullptr};
+        root_ = insert_by_label(root_, node);
+        nodes_(edge) = node;
+      }
+
+      void erase(const size_t edge)
+      {
+        if (not contains(edge))
+          return;
+
+        Node * removed = nullptr;
+        root_ = erase_by_label(root_, nodes_(edge)->label, removed);
+        nodes_(edge) = nullptr;
+        delete removed;
+      }
+
+      [[nodiscard]] size_t left_edge_of_point(const Point & p,
+                                              const Geom_Number & sweep_y) const
+      {
+        size_t best = SIZE_MAX;
+        Node * cur = root_;
+        while (cur != nullptr)
+          {
+            const Geom_Number x = edge_x_at_y(verts_, cur->edge, sweep_y);
+            if (x < p.get_x())
+              {
+                best = cur->edge;
+                cur = cur->right;
+              }
+            else
+              cur = cur->left;
+          }
+        return best;
+      }
+    };
 
     /// Triangulate a y-monotone polygon given as a vertex array.
     [[nodiscard]] static DynList<Triangle>
@@ -4635,13 +5096,314 @@ namespace Aleph
       return result;
     }
 
+    [[nodiscard]] static VertexType classify_vertex(const Array<Point> & v,
+                                                    const size_t i)
+    {
+      const size_t n = v.size();
+      const Point & prev = v((i + n - 1) % n);
+      const Point & curr = v(i);
+      const Point & next = v((i + 1) % n);
+
+      const bool prev_below = is_below(prev, curr);
+      const bool next_below = is_below(next, curr);
+      const bool prev_above = is_above(prev, curr);
+      const bool next_above = is_above(next, curr);
+      const bool reflex = orientation(prev, curr, next) == Orientation::CW;
+
+      if (prev_below and next_below)
+        return reflex ? VertexType::SPLIT : VertexType::START;
+      if (prev_above and next_above)
+        return reflex ? VertexType::MERGE : VertexType::END;
+      return VertexType::REGULAR;
+    }
+
+    [[nodiscard]] static bool regular_interior_right(const Array<Point> & v,
+                                                     const size_t i)
+    {
+      return is_below(v((i + 1) % v.size()), v(i));
+    }
+
+    [[nodiscard]] static Array<Array<size_t>>
+    build_faces_from_diagonals(const Array<Point> & verts,
+                               const std::set<std::pair<size_t, size_t>> & diagonals)
+    {
+      const size_t n = verts.size();
+      std::vector<std::vector<size_t>> adj(n);
+
+      auto add_undirected_edge = [&adj](const size_t a, const size_t b)
+        {
+          adj[a].push_back(b);
+          adj[b].push_back(a);
+        };
+
+      for (size_t i = 0; i < n; ++i)
+        add_undirected_edge(i, (i + 1) % n);
+
+      for (const auto & d : diagonals)
+        add_undirected_edge(d.first, d.second);
+
+      for (size_t v = 0; v < n; ++v)
+        {
+          auto & nbrs = adj[v];
+          std::sort(nbrs.begin(), nbrs.end());
+          nbrs.erase(std::unique(nbrs.begin(), nbrs.end()), nbrs.end());
+
+          std::sort(nbrs.begin(), nbrs.end(),
+                    [&verts, v](const size_t a, const size_t b)
+                    {
+                      const Geom_Number dax = verts[a].get_x() - verts[v].get_x();
+                      const Geom_Number day = verts[a].get_y() - verts[v].get_y();
+                      const Geom_Number dbx = verts[b].get_x() - verts[v].get_x();
+                      const Geom_Number dby = verts[b].get_y() - verts[v].get_y();
+
+                      const bool upper_a = day > 0 or (day == 0 and dax >= 0);
+                      const bool upper_b = dby > 0 or (dby == 0 and dbx >= 0);
+                      if (upper_a != upper_b)
+                        return upper_a > upper_b;
+
+                      const Geom_Number cross = dax * dby - day * dbx;
+                      if (cross != 0)
+                        return cross > 0;
+
+                      const Geom_Number da2 = dax * dax + day * day;
+                      const Geom_Number db2 = dbx * dbx + dby * dby;
+                      return da2 < db2;
+                    });
+        }
+
+      using HalfEdge = std::pair<size_t, size_t>;
+      std::map<HalfEdge, HalfEdge> next_half;
+      for (size_t v = 0; v < n; ++v)
+        {
+          const auto & nbrs = adj[v];
+          if (nbrs.empty())
+            continue;
+          for (size_t k = 0; k < nbrs.size(); ++k)
+            {
+              const size_t u = nbrs[k];
+              const size_t pred = nbrs[(k + nbrs.size() - 1) % nbrs.size()];
+              next_half[HalfEdge{u, v}] = HalfEdge{v, pred};
+            }
+        }
+
+      auto face_area2 = [&verts](const std::vector<size_t> & face)
+        {
+          Geom_Number area2 = 0;
+          for (size_t i = 0; i < face.size(); ++i)
+            {
+              const Point & a = verts[face[i]];
+              const Point & b = verts[face[(i + 1) % face.size()]];
+              area2 += a.get_x() * b.get_y() - a.get_y() * b.get_x();
+            }
+          return area2;
+        };
+
+      std::set<HalfEdge> visited;
+      Array<Array<size_t>> faces;
+      for (const auto & kv : next_half)
+        {
+          const HalfEdge start = kv.first;
+          if (visited.find(start) != visited.end())
+            continue;
+
+          HalfEdge cur = start;
+          std::vector<size_t> face;
+          while (visited.insert(cur).second)
+            {
+              face.push_back(cur.first);
+              auto it_next = next_half.find(cur);
+              if (it_next == next_half.end())
+                {
+                  face.clear();
+                  break;
+                }
+              cur = it_next->second;
+              if (cur == start)
+                break;
+            }
+
+          if (face.empty() or cur != start or face.size() < 3)
+            continue;
+          if (face_area2(face) <= 0)
+            continue; // Ignore outer face / degenerate loops.
+
+          Array<size_t> poly_idx;
+          poly_idx.reserve(face.size());
+          for (const size_t idx : face)
+            poly_idx.append(idx);
+          faces.append(poly_idx);
+        }
+
+      return faces;
+    }
+
+    [[nodiscard]] static Array<Array<size_t>>
+    decompose_to_monotone_faces(const Array<Point> & verts)
+    {
+      const size_t n = verts.size();
+      Array<Array<size_t>> faces;
+
+      if (n < 3)
+        return faces;
+
+      if (is_y_monotone(verts))
+        {
+          Array<size_t> one;
+          one.reserve(n);
+          for (size_t i = 0; i < n; ++i)
+            one.append(i);
+          faces.append(one);
+          return faces;
+        }
+
+      Array<VertexType> vtype;
+      vtype.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        vtype.append(classify_vertex(verts, i));
+
+      Array<size_t> order;
+      order.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        order.append(i);
+      quicksort_op(order, [&verts](const size_t a, const size_t b)
+                     {
+                       if (verts(a).get_y() != verts(b).get_y())
+                         return verts(a).get_y() > verts(b).get_y();
+                       return verts(a).get_x() < verts(b).get_x();
+                     });
+
+      Array<size_t> helper;
+      helper.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        helper.append(SIZE_MAX);
+
+      EdgeStatusTree status(verts);
+      std::set<std::pair<size_t, size_t>> diagonals;
+
+      auto add_diagonal = [&](const size_t a, const size_t b)
+        {
+          if (a == b or b == SIZE_MAX)
+            return;
+          if ((a + 1) % n == b or (b + 1) % n == a)
+            return;
+
+          const size_t lo = a < b ? a : b;
+          const size_t hi = a < b ? b : a;
+          diagonals.insert({lo, hi});
+        };
+
+      auto helper_is_merge = [&helper, &vtype](const size_t edge)
+        {
+          return helper(edge) != SIZE_MAX and
+                 vtype(helper(edge)) == VertexType::MERGE;
+        };
+
+      for (size_t oi = 0; oi < n; ++oi)
+        {
+          const size_t vi = order(oi);
+          const size_t prev = (vi + n - 1) % n;
+          const size_t e_prev = prev; // edge prev -> vi
+          const size_t e_curr = vi;   // edge vi -> next
+          const Geom_Number sweep_y = verts(vi).get_y();
+
+          switch (vtype(vi))
+            {
+            case VertexType::START:
+              if (edge_goes_down(verts, e_curr))
+                {
+                  status.insert(e_curr, sweep_y);
+                  helper(e_curr) = vi;
+                }
+              break;
+
+            case VertexType::END:
+              if (edge_goes_down(verts, e_prev))
+                {
+                  if (helper_is_merge(e_prev))
+                    add_diagonal(vi, helper(e_prev));
+                  status.erase(e_prev);
+                }
+              break;
+
+            case VertexType::SPLIT:
+              {
+                const size_t left = status.left_edge_of_point(verts(vi), sweep_y);
+                if (left != SIZE_MAX)
+                  {
+                    add_diagonal(vi, helper(left));
+                    helper(left) = vi;
+                  }
+
+                if (edge_goes_down(verts, e_curr))
+                  {
+                    status.insert(e_curr, sweep_y);
+                    helper(e_curr) = vi;
+                  }
+              }
+              break;
+
+            case VertexType::MERGE:
+              if (edge_goes_down(verts, e_prev))
+                {
+                  if (helper_is_merge(e_prev))
+                    add_diagonal(vi, helper(e_prev));
+                  status.erase(e_prev);
+                }
+              if (const size_t left = status.left_edge_of_point(verts(vi), sweep_y);
+                  left != SIZE_MAX)
+                {
+                  if (helper_is_merge(left))
+                    add_diagonal(vi, helper(left));
+                  helper(left) = vi;
+                }
+              break;
+
+            case VertexType::REGULAR:
+              if (regular_interior_right(verts, vi))
+                {
+                  if (edge_goes_down(verts, e_prev))
+                    {
+                      if (helper_is_merge(e_prev))
+                        add_diagonal(vi, helper(e_prev));
+                      status.erase(e_prev);
+                    }
+                  if (edge_goes_down(verts, e_curr))
+                    {
+                      status.insert(e_curr, sweep_y);
+                      helper(e_curr) = vi;
+                    }
+                }
+              else if (const size_t left = status.left_edge_of_point(verts(vi), sweep_y);
+                       left != SIZE_MAX)
+                {
+                  if (helper_is_merge(left))
+                    add_diagonal(vi, helper(left));
+                  helper(left) = vi;
+                }
+              break;
+            }
+        }
+
+      faces = build_faces_from_diagonals(verts, diagonals);
+      if (faces.size() == 0)
+        {
+          Array<size_t> one;
+          one.reserve(n);
+          for (size_t i = 0; i < n; ++i)
+            one.append(i);
+          faces.append(one);
+        }
+      return faces;
+    }
+
   public:
     /**
-     * @brief Triangulate a simple polygon in O(n log n).
+     * @brief Triangulate a simple polygon.
      *
      * For convex and y-monotone polygons, the result is computed directly
-     * in O(n).  For general simple polygons, the polygon is first
-     * decomposed into y-monotone sub-polygons via a sweep-line.
+     * in O(n). For general simple polygons, the polygon is partitioned into
+     * y-monotone sub-polygons in O(n log n), then each sub-polygon is
+     * triangulated in linear time.
      *
      * @param p The polygon (will not be modified; a copy is used).
      * @return List of triangles forming the triangulation.
@@ -4649,10 +5411,8 @@ namespace Aleph
      * @throws domain_error if polygon is not closed or has < 3 vertices.
      * @throws domain_error if polygon is degenerate (zero area).
      *
-     * @note For general non-monotone simple polygons this implementation
-     *       falls back to CuttingEarsTriangulation.  The monotone stack
-     *       triangulation is used when the polygon is already y-monotone
-     *       or convex.
+     * @note The algorithm follows the standard sweep-line monotone partition
+     *       pipeline and runs in O(n log n) for simple polygons.
      */
     [[nodiscard]] DynList<Triangle> operator ()(Polygon p) const
     {
@@ -4669,7 +5429,49 @@ namespace Aleph
       if (is_y_monotone(verts))
         return triangulate_monotone(verts);
 
-      // Fall back to ear-cutting for general simple polygons.
+      const Array<Array<size_t>> faces = decompose_to_monotone_faces(verts);
+      DynList<Triangle> result;
+      bool produced_any = false;
+
+      for (size_t fi = 0; fi < faces.size(); ++fi)
+        {
+          if (faces(fi).size() < 3)
+            continue;
+
+          Array<Point> mono;
+          mono.reserve(faces(fi).size());
+          for (size_t i = 0; i < faces(fi).size(); ++i)
+            mono.append(verts(faces(fi)(i)));
+
+          if (signed_double_area(mono) == 0)
+            continue;
+          ensure_ccw(mono);
+
+          DynList<Triangle> tris;
+          if (is_y_monotone(mono))
+            tris = triangulate_monotone(mono);
+          else
+            {
+              // Defensive fallback for degenerate decomposition edge cases.
+              Polygon piece;
+              for (size_t i = 0; i < mono.size(); ++i)
+                piece.add_vertex(mono(i));
+              piece.close();
+              constexpr CuttingEarsTriangulation ears;
+              tris = ears(piece);
+            }
+
+          for (DynList<Triangle>::Iterator it(tris); it.has_curr(); it.next_ne())
+            {
+              result.append(it.get_curr());
+              produced_any = true;
+            }
+        }
+
+      if (produced_any)
+        return result;
+
+      // Conservative fallback if decomposition could not produce valid faces.
       constexpr CuttingEarsTriangulation ears;
       return ears(p);
     }
@@ -4755,57 +5557,25 @@ namespace Aleph
   private:
     [[nodiscard]] static Array<Point> extract_vertices(const Polygon & poly)
     {
-      Array<Point> verts;
-      verts.reserve(poly.size());
-      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
-        verts.append(it.get_current_vertex());
-      return verts;
+      return GeomPolygonUtils::extract_vertices(poly);
     }
 
     [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & v)
     {
-      Geom_Number sum = 0;
-      for (size_t i = 0; i < v.size(); ++i)
-        {
-          const Point & a = v(i);
-          const Point & b = v((i + 1) % v.size());
-          sum += a.get_x() * b.get_y() - a.get_y() * b.get_x();
-        }
-      return sum;
+      return GeomPolygonUtils::signed_double_area(v);
     }
 
     [[nodiscard]] static bool is_convex(const Array<Point> & verts)
     {
       if (verts.size() < 3)
         return false;
-      int sign = 0;
-      const size_t n = verts.size();
-      for (size_t i = 0; i < n; ++i)
-        {
-          const Geom_Number turn =
-              area_of_parallelogram(verts(i), verts((i + 1) % n),
-                                    verts((i + 2) % n));
-          if (turn == 0)
-            continue;
-          const int curr = turn > 0 ? 1 : -1;
-          if (sign == 0)
-            sign = curr;
-          else if (sign != curr)
-            return false;
-        }
-      return true;
+      return GeomPolygonUtils::is_convex(verts);
     }
 
     /// Ensure CCW and rotate so that the bottom-most vertex is first.
     static Array<Point> normalize(Array<Point> v)
     {
-      if (signed_double_area(v) < 0)
-        for (size_t i = 0; i < v.size() / 2; ++i)
-          {
-            const Point tmp = v(i);
-            v(i) = v(v.size() - 1 - i);
-            v(v.size() - 1 - i) = tmp;
-          }
+      GeomPolygonUtils::ensure_ccw(v);
 
       // Find bottom-most vertex (min y, then min x).
       size_t bot = 0;
@@ -5148,11 +5918,7 @@ namespace Aleph
 
     [[nodiscard]] static Array<Point> extract_vertices(const Polygon & p)
     {
-      Array<Point> verts;
-      verts.reserve(p.size());
-      for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
-        verts.append(it.get_current_vertex());
-      return verts;
+      return GeomPolygonUtils::extract_vertices(p);
     }
 
   public:
@@ -5479,51 +6245,23 @@ namespace Aleph
   {
     [[nodiscard]] static Array<Point> extract_verts(const Polygon & poly)
     {
-      Array<Point> v;
-      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
-        v.append(it.get_current_vertex());
-      return v;
+      return GeomPolygonUtils::extract_vertices(poly);
     }
 
     [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & v)
     {
-      Geom_Number s = 0;
-      const size_t n = v.size();
-      for (size_t i = 0; i < n; ++i)
-        {
-          const size_t j = (i + 1) % n;
-          s += v(i).get_x() * v(j).get_y() - v(j).get_x() * v(i).get_y();
-        }
-      return s;
+      return GeomPolygonUtils::signed_double_area(v);
     }
 
     [[nodiscard]] static bool is_convex(const Array<Point> & v)
     {
-      const size_t n = v.size();
-      if (n < 3) return false;
-      bool has_ccw = false, has_cw = false;
-      for (size_t i = 0; i < n; ++i)
-        {
-          const Orientation o = orientation(v(i), v((i + 1) % n), v((i + 2) % n));
-          if (o == Orientation::CCW) has_ccw = true;
-          if (o == Orientation::CW) has_cw = true;
-          if (has_ccw and has_cw) return false;
-        }
-      return true;
+      if (v.size() < 3) return false;
+      return GeomPolygonUtils::is_convex(v);
     }
 
     static void ensure_ccw(Array<Point> & v)
     {
-      if (signed_double_area(v) < 0)
-        {
-          const size_t n = v.size();
-          for (size_t i = 0; i < n / 2; ++i)
-            {
-              const Point tmp = v(i);
-              v(i) = v(n - 1 - i);
-              v(n - 1 - i) = tmp;
-            }
-        }
+      GeomPolygonUtils::ensure_ccw(v);
     }
 
     /// Compute two points on the offset line of edge (a, b) moved by distance d
@@ -6845,7 +7583,14 @@ namespace Aleph
    *    connectivity.
    * 2. For each triangle, compute the power center (the point equidistant
    *    in power distance to the three sites).
-   * 3. Connect power centers of adjacent triangles to form power edges.
+   * 3. Connect power centers of adjacent triangles to form power edges,
+   *    using sorted triangle-edge keys.
+   *
+   * ## Complexity
+   *
+   * Let T be the number of triangles in the regular triangulation.
+   * - Adjacency extraction: O(T log T).
+   * - Additional processing (centers/cells): O(T + n).
    *
    * When all weights are equal this reduces to the standard Voronoi diagram.
    *
@@ -6982,35 +7727,63 @@ namespace Aleph
 
       ret.vertices = pcenters;
 
-      // Build edges: for each pair of adjacent triangles sharing an edge,
-      // create a power edge connecting their power centers.
-      for (size_t t1 = 0; t1 < rt.triangles.size(); ++t1)
-        for (size_t t2 = t1 + 1; t2 < rt.triangles.size(); ++t2)
-          {
-            const auto & a = rt.triangles(t1);
-            const auto & b = rt.triangles(t2);
-            // Count shared vertices.
-            size_t shared[2];
-            size_t ns = 0;
-            const size_t verts_a[3] = {a.i, a.j, a.k};
-            const size_t verts_b[3] = {b.i, b.j, b.k};
-            for (int i = 0; i < 3 and ns < 2; ++i)
-              for (int j = 0; j < 3 and ns < 2; ++j)
-                if (verts_a[i] == verts_b[j])
-                  shared[ns++] = verts_a[i];
+      // Build adjacency in O(T log T): emit triangle edges, sort by edge key,
+      // and connect triangles that share the same undirected edge.
+      struct TriEdgeRef
+      {
+        size_t u;
+        size_t v;
+        size_t tri;
+      };
 
-            if (ns == 2)
-              {
-                PowerEdge pe;
-                pe.site_u = rt_to_ours(shared[0]);
-                pe.site_v = rt_to_ours(shared[1]);
-                pe.src = pcenters(t1);
-                pe.tgt = pcenters(t2);
-                pe.unbounded = false;
-                pe.direction = Point(0, 0);
-                ret.edges.append(pe);
-              }
-          }
+      auto make_edge = [](size_t a, size_t b, size_t tri_idx) -> TriEdgeRef
+        {
+          return a < b ? TriEdgeRef{a, b, tri_idx} : TriEdgeRef{b, a, tri_idx};
+        };
+
+      Array<TriEdgeRef> edge_refs;
+      edge_refs.reserve(rt.triangles.size() * 3);
+      for (size_t t = 0; t < rt.triangles.size(); ++t)
+        {
+          const auto & tri = rt.triangles(t);
+          edge_refs.append(make_edge(tri.i, tri.j, t));
+          edge_refs.append(make_edge(tri.j, tri.k, t));
+          edge_refs.append(make_edge(tri.k, tri.i, t));
+        }
+
+      quicksort_op(edge_refs, [](const TriEdgeRef & a, const TriEdgeRef & b)
+                     {
+                       if (a.u != b.u) return a.u < b.u;
+                       if (a.v != b.v) return a.v < b.v;
+                       return a.tri < b.tri;
+                     });
+
+      for (size_t i = 0; i < edge_refs.size();)
+        {
+          size_t j = i + 1;
+          while (j < edge_refs.size() and
+                 edge_refs(j).u == edge_refs(i).u and
+                 edge_refs(j).v == edge_refs(i).v)
+            ++j;
+
+          // In a manifold triangulation this group has exactly 1 or 2 refs.
+          // If degeneracies produce >2, connect all pairs defensively.
+          if (j - i >= 2)
+            for (size_t a = i; a + 1 < j; ++a)
+              for (size_t b = a + 1; b < j; ++b)
+                {
+                  PowerEdge pe;
+                  pe.site_u = rt_to_ours(edge_refs(i).u);
+                  pe.site_v = rt_to_ours(edge_refs(i).v);
+                  pe.src = pcenters(edge_refs(a).tri);
+                  pe.tgt = pcenters(edge_refs(b).tri);
+                  pe.unbounded = false;
+                  pe.direction = Point(0, 0);
+                  ret.edges.append(pe);
+                }
+
+          i = j;
+        }
 
       // Build cells (simplified: one cell per site with its power vertices).
       ret.cells.reserve(n);
@@ -7315,30 +8088,13 @@ namespace Aleph
     /// Extract vertices from a polygon into an Array.
     [[nodiscard]] static Array<Point> extract(const Polygon & p)
     {
-      Array<Point> v;
-      v.reserve(p.size());
-      for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
-        v.append(it.get_current_vertex());
-      return v;
+      return GeomPolygonUtils::extract_vertices(p);
     }
 
     /// Ensure vertices are in CCW order.
     static void ensure_ccw(Array<Point> & v)
     {
-      if (v.size() < 3) return;
-      Geom_Number area = 0;
-      for (size_t i = 0; i < v.size(); ++i)
-        {
-          const size_t j = (i + 1) % v.size();
-          area += v(i).get_x() * v(j).get_y() - v(j).get_x() * v(i).get_y();
-        }
-      if (area < 0)
-        for (size_t i = 0, j = v.size() - 1; i < j; ++i, --j)
-          {
-            const Point tmp = v(i);
-            v(i) = v(j);
-            v(j) = tmp;
-          }
+      GeomPolygonUtils::ensure_ccw(v);
     }
 
     /// Reverse a vertex array in place.
@@ -7988,6 +8744,77 @@ namespace Aleph
              p.get_y() >= r.get_ymin() and p.get_y() <= r.get_ymax();
     }
 
+    [[nodiscard]] Geom_Number center_coord(const size_t entry_idx,
+                                           const bool split_x) const
+    {
+      return split_x
+             ? entries_(entry_idx).bbox.get_xmin() + entries_(entry_idx).bbox.get_xmax()
+             : entries_(entry_idx).bbox.get_ymin() + entries_(entry_idx).bbox.get_ymax();
+    }
+
+    void insertion_sort_by_center(Array<size_t> & idx, const size_t lo,
+                                  const size_t hi, const bool split_x) const
+    {
+      for (size_t i = lo + 1; i < hi; ++i)
+        {
+          const size_t key = idx(i);
+          const Geom_Number key_val = center_coord(key, split_x);
+          size_t j = i;
+          while (j > lo and center_coord(idx(j - 1), split_x) > key_val)
+            {
+              idx(j) = idx(j - 1);
+              --j;
+            }
+          idx(j) = key;
+        }
+    }
+
+    // Partially reorder idx[lo..hi) so idx[kth] is in its sorted position
+    // by center along the split axis (expected linear time).
+    void select_kth_by_center(Array<size_t> & idx, size_t lo, size_t hi,
+                              const size_t kth, const bool split_x) const
+    {
+      while (hi - lo > 16)
+        {
+          const Geom_Number pivot =
+              center_coord(idx(lo + (hi - lo) / 2), split_x);
+
+          size_t lt = lo;
+          size_t i = lo;
+          size_t gt = hi;
+          while (i < gt)
+            {
+              const Geom_Number val = center_coord(idx(i), split_x);
+              if (val < pivot)
+                {
+                  const size_t tmp = idx(lt);
+                  idx(lt) = idx(i);
+                  idx(i) = tmp;
+                  ++lt;
+                  ++i;
+                }
+              else if (val > pivot)
+                {
+                  --gt;
+                  const size_t tmp = idx(gt);
+                  idx(gt) = idx(i);
+                  idx(i) = tmp;
+                }
+              else
+                ++i;
+            }
+
+          if (kth < lt)
+            hi = lt;
+          else if (kth >= gt)
+            lo = gt;
+          else
+            return;
+        }
+
+      insertion_sort_by_center(idx, lo, hi, split_x);
+    }
+
     // Build a subtree for entries[lo..hi) and return its node index.
     size_t build(Array<size_t> & idx, const size_t lo, const size_t hi)
     {
@@ -8011,28 +8838,8 @@ namespace Aleph
       const Geom_Number dy = total.get_ymax() - total.get_ymin();
       const bool split_x = dx >= dy;
 
-      // Sort the sub-range idx[lo..hi) by center along the split axis.
-      // Simple insertion sort on the sub-range (sufficient for tree build).
-      for (size_t i = lo + 1; i < hi; ++i)
-        {
-          const size_t key = idx(i);
-          auto center = [&](const size_t e)
-            {
-              return split_x ?
-                       entries_(e).bbox.get_xmin() + entries_(e).bbox.get_xmax() :
-                       entries_(e).bbox.get_ymin() + entries_(e).bbox.get_ymax();
-            };
-          Geom_Number key_val = center(key);
-          size_t j = i;
-          while (j > lo and center(idx(j - 1)) > key_val)
-            {
-              idx(j) = idx(j - 1);
-              --j;
-            }
-          idx(j) = key;
-        }
-
       const size_t mid = lo + (hi - lo) / 2;
+      select_kth_by_center(idx, lo, hi, mid, split_x);
 
       const size_t left = build(idx, lo, mid);
       const size_t right = build(idx, mid, hi);

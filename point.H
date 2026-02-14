@@ -222,12 +222,12 @@ public:
     return *this;
   }
 
-  [[nodiscard]] const Geom_Number &get_x() const /// Returns x value
+  [[nodiscard]] const Geom_Number &get_x() const noexcept /// Returns x value
   {
     return x_;
   }
 
-  [[nodiscard]] const Geom_Number &get_y() const /// Returns y value
+  [[nodiscard]] const Geom_Number &get_y() const noexcept /// Returns y value
   {
     return y_;
   }
@@ -266,7 +266,7 @@ public:
     return not is_to_right_from(p1, p2);
   }
 
-  /// Return true if this is to right of (or on) the line from p1 to p2.
+  /// Return true if this is to the right of (or on) the line from p1 to p2.
   [[nodiscard]] bool is_right_on_of(const Point & p1, const Point & p2) const
   {
     return not is_left_of(p1, p2);
