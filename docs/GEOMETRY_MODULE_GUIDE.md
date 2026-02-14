@@ -71,10 +71,18 @@ Aleph-w currently has two LaTeX-oriented geometry visualization backends:
 
 - `eepicgeom.H`: classic EEPIC output (`Eepic_Plane`).
 - `tikzgeom.H`: PGF/TikZ output (`Tikz_Plane`) with style and layer support.
+- `tikzgeom_scene.H`: scene-level composition (`Tikz_Scene`) to combine multiple visualizations in one export (standalone/beamer/handout).
 
 For algorithm-level visual output, use:
 
 - `tikzgeom_algorithms.H`: convenience helpers to draw convex hull, polygon intersections, Delaunay/Voronoi overlays, and power diagrams.
+- Additional helpers now include:
+  - `visualize_segment_arrangement(...)`
+  - `visualize_shortest_path_in_polygon(...)`
+  - `visualize_shortest_path_with_portals(...)`
+  - `compute_shortest_path_funnel_trace(...)` + `put_funnel_trace_step(...)`
+  - `visualize_convex_decomposition(...)`
+  - `visualize_alpha_shape(...)`
 
 ## Interface stability for more complex objects
 
@@ -82,6 +90,7 @@ The current TikZ API is intentionally layered:
 
 - **Object layer** (`tikzgeom.H`): `put_in_plane(plane, object[, style, layer])`
 - **Algorithm layer** (`tikzgeom_algorithms.H`): `visualize_*` helpers returning the algorithm result and drawing it.
+- **Scene layer** (`tikzgeom_scene.H`): `scene.add(...)`, `scene.visualize_*`, and `scene.draw_standalone(...)`/`scene.draw_beamer(...)`/`scene.draw_handout(...)`, plus multi-step decks via `Tikz_Scene::draw_beamer_overlays(...)` and `draw_handout_overlays(...)`.
 
 This keeps the interface stable even when complexity grows:
 

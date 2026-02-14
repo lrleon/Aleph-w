@@ -50,6 +50,14 @@ Idioma: Español | [English](README.md)
 > - `Examples/tikz_convex_hull_example.cc`
 > - `Examples/tikz_intersection_example.cc`
 > - `Examples/tikz_voronoi_power_example.cc`
+> - `Examples/tikz_advanced_algorithms_example.cc`
+> - `Examples/tikz_funnel_animation_example.cc`
+> - `Examples/tikz_funnel_beamer_example.cc`
+> - `Examples/tikz_funnel_beamer_twocol_example.cc`
+> - `Examples/tikz_funnel_beamer_handout_example.cc`
+> - `Examples/tikz_scene_example.cc`
+> - `Examples/tikz_scene_beamer_example.cc`
+> - `Examples/tikz_scene_overlays_example.cc`
 
 ---
 
@@ -312,16 +320,27 @@ cmake --build build --target voronoi_clipped_cells_example
 Para generar figuras `.tex` con objetos geométricos y resultados de algoritmos:
 
 ```bash
-cmake --build build --target tikz_polygons_example tikz_convex_hull_example tikz_intersection_example tikz_voronoi_power_example
+cmake --build build --target tikz_polygons_example tikz_convex_hull_example tikz_intersection_example tikz_voronoi_power_example tikz_advanced_algorithms_example tikz_funnel_animation_example tikz_funnel_beamer_example tikz_funnel_beamer_twocol_example tikz_funnel_beamer_handout_example tikz_scene_example tikz_scene_beamer_example tikz_scene_overlays_example
 ./build/Examples/tikz_polygons_example /tmp/tikz_polygons_example.tex
 ./build/Examples/tikz_convex_hull_example /tmp/tikz_convex_hull_example.tex
 ./build/Examples/tikz_intersection_example /tmp/tikz_intersection_example.tex
 ./build/Examples/tikz_voronoi_power_example /tmp/tikz_voronoi_power_example.tex
+./build/Examples/tikz_advanced_algorithms_example /tmp/tikz_advanced_algorithms_example.tex
+./build/Examples/tikz_funnel_animation_example /tmp/tikz_funnel_animation_example.tex
+./build/Examples/tikz_funnel_beamer_example /tmp/tikz_funnel_beamer_example.tex
+./build/Examples/tikz_funnel_beamer_twocol_example /tmp/tikz_funnel_beamer_twocol_example.tex
+./build/Examples/tikz_funnel_beamer_handout_example /tmp/tikz_funnel_beamer_handout_example.tex
+./build/Examples/tikz_scene_example /tmp/tikz_scene_example.tex
+./build/Examples/tikz_scene_beamer_example /tmp/tikz_scene_beamer_example.tex
+./build/Examples/tikz_scene_beamer_example /tmp/tikz_scene_handout_example.tex --handout
+./build/Examples/tikz_scene_overlays_example /tmp/tikz_scene_overlays_example.tex
+./build/Examples/tikz_scene_overlays_example /tmp/tikz_scene_overlays_handout.tex --handout
 ```
 
 Headers relevantes:
 - `tikzgeom.H`: `Tikz_Plane`, estilos y capas.
-- `tikzgeom_algorithms.H`: helpers para convex hull, intersecciones, Voronoi y power diagram.
+- `tikzgeom_scene.H`: `Tikz_Scene`, interfaz de composición para mezclar múltiples visualizaciones en una sola figura/export (standalone, beamer y handout), incluyendo secuencias multi-paso con overlays.
+- `tikzgeom_algorithms.H`: helpers para convex hull, intersecciones, Voronoi/power diagram, arrangement, shortest path (con portales), trazas/frames del funnel, versiones beamer (incluyendo layout en dos columnas y handout), descomposición convexa y alpha shape.
 - `docs/TIKZGEOM_GUIDE.md`: guia completa de interfaz y extension.
 
 ---

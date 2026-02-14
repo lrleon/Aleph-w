@@ -630,13 +630,15 @@ namespace Aleph
    *  The first array provides the sort keys, and all other arrays are
    *  rearranged to maintain the correspondence between elements.
    *
-   *  Uses stable sort, preserving relative order of equal elements.
+   *  By default this uses stable sort, preserving relative order of equal
+   *  elements. You can disable stability to reduce time and memory overhead.
    *
    *  @tparam C Container type for the first array (must have operator[], size())
    *  @tparam Args Container types for additional arrays
    *  @tparam Cmp Comparison functor type (default: std::less)
    *
    *  @param cmp Comparison functor for elements of the first array
+   *  @param stable If true, preserve the relative order of equal keys.
    *  @param first The array providing sort keys (modified in place)
    *  @param args Additional arrays to sort in sync (modified in place)
    *
@@ -665,7 +667,7 @@ namespace Aleph
   template<typename C, typename... Args,
            typename Cmp = std::less<typename C::value_type>>
   inline
-  void in_place_multisort_arrays(Cmp cmp, C & first, Args &... args)
+  void in_place_multisort_arrays(Cmp cmp, const bool stable, C & first, Args &... args)
   {
     const size_t n = first.size();
     if (n == 0)
@@ -678,33 +680,50 @@ namespace Aleph
     std::vector<size_t> indices(n);
     std::iota(indices.begin(), indices.end(), static_cast<size_t>(0));
 
-    std::stable_sort(indices.begin(), indices.end(), [&first, &cmp](size_t i1, size_t i2)
-    {
-      return cmp(first[i1], first[i2]);
-    });
+    const auto index_cmp_unstable = [&first, &cmp](const size_t i1, const size_t i2)
+      {
+        return cmp(first[i1], first[i2]);
+      };
 
-    // Apply permutation using cycle-chasing algorithm
-    // Mark visited positions by setting indices[i] = i after processing
+    const auto index_cmp_stable = [&first, &cmp](const size_t i1, const size_t i2)
+      {
+        if (cmp(first[i1], first[i2]))
+          return true;
+        if (cmp(first[i2], first[i1]))
+          return false;
+        return i1 < i2;
+      };
+
+    if (stable)
+      Aleph::mergesort(indices.data(), 0L,
+                       static_cast<long>(indices.size() - 1), index_cmp_stable);
+    else
+      Aleph::introsort(indices.data(), indices.size(), index_cmp_unstable);
+
+    // Apply permutation.
+    // After sorting, indices[new_pos] = old_pos. Build inverse permutation
+    // perm[old_pos] = new_pos and fix it in-place via swaps.
+    Array<size_t> perm = Array<size_t>::create(n);
+    for (size_t new_pos = 0; new_pos < n; ++new_pos)
+      perm[indices[new_pos]] = new_pos;
+
     using std::swap;  // Enable ADL for user-defined swap
     for (size_t i = 0; i < n; ++i)
-      {
-        // Skip if this position is already in its final place
-        // or if we've already processed this cycle
-        if (indices[i] == i)
-          continue;
+      while (perm[i] != i)
+        {
+          const size_t j = perm[i];
+          swap(first[i], first[j]);
+          (swap(args[i], args[j]), ...);
+          swap(perm[i], perm[j]);
+        }
+  }
 
-        // Follow the cycle starting at position i
-        size_t current = i;
-        while (indices[current] != i)
-          {
-            size_t next = indices[current];
-            swap(first[current], first[next]);
-            (swap(args[current], args[next]), ...);
-            indices[current] = current;  // Mark as processed
-            current = next;
-          }
-        indices[current] = current;  // Mark the last element of the cycle
-      }
+  template<typename C, typename... Args,
+           typename Cmp = std::less<typename C::value_type>>
+  inline
+  void in_place_multisort_arrays(Cmp cmp, C & first, Args &... args)
+  {
+    in_place_multisort_arrays(std::move(cmp), true, first, args...);
   }
 
 

@@ -121,6 +121,14 @@ set(EXAMPLE_PROGRAMS
     tikz_convex_hull_example
     tikz_intersection_example
     tikz_voronoi_power_example
+    tikz_advanced_algorithms_example
+    tikz_funnel_animation_example
+    tikz_funnel_beamer_example
+    tikz_funnel_beamer_twocol_example
+    tikz_funnel_beamer_handout_example
+    tikz_scene_example
+    tikz_scene_beamer_example
+    tikz_scene_overlays_example
     halfplane_intersection_example
     convex_hull_comparison_example
     closest_pair_example

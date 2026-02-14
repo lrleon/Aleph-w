@@ -695,6 +695,40 @@ TEST(MultiSortTest, AlephArrays)
   EXPECT_EQ(values(2), "c");
 }
 
+TEST(MultiSortTest, StableFlagTrue)
+{
+  std::vector<int> keys = {2, 1, 2, 1, 2};
+  std::vector<char> aux = {'a', 'b', 'c', 'd', 'e'};
+
+  in_place_multisort_arrays(std::less<int>(), true, keys, aux);
+
+  EXPECT_EQ(keys, (std::vector<int>{1, 1, 2, 2, 2}));
+  EXPECT_EQ(aux, (std::vector<char>{'b', 'd', 'a', 'c', 'e'}));
+}
+
+TEST(MultiSortTest, StableFlagFalse)
+{
+  std::vector<int> keys = {2, 1, 2, 1, 2};
+  std::vector<char> aux = {'a', 'b', 'c', 'd', 'e'};
+
+  in_place_multisort_arrays(std::less<int>(), false, keys, aux);
+
+  EXPECT_EQ(keys, (std::vector<int>{1, 1, 2, 2, 2}));
+  // Result order may differ from stable sort; only keys are guaranteed
+  EXPECT_EQ(keys.size(), aux.size());
+}
+
+TEST(MultiSortTest, StableFlagFalseWithCustomComparator)
+{
+  std::vector<std::string> keys = {"banana", "apple", "banana", "apple"};
+  std::vector<int> values = {2, 1, 3, 4};
+
+  in_place_multisort_arrays(std::greater<std::string>(), false, keys, values);
+
+  EXPECT_EQ(keys, (std::vector<std::string>{"banana", "banana", "apple", "apple"}));
+  EXPECT_EQ(values.size(), 4);
+}
+
 // ============================================================================
 // Type traits and compile-time checks
 // ============================================================================

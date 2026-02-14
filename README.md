@@ -940,6 +940,7 @@ Visualization headers:
 - **`eepicgeom.H`**: legacy EEPIC plane (`Eepic_Plane`) for LaTeX export.
 - **`tikzgeom.H`**: modern PGF/TikZ plane (`Tikz_Plane`) with styles/layers.
 - **`tikzgeom_algorithms.H`**: helpers to render algorithm outputs (hulls, intersections, Voronoi, power diagram).
+- **`tikzgeom_scene.H`**: high-level scene API (`Tikz_Scene`) to compose objects + multiple algorithms and export standalone/beamer/handout LaTeX, including multi-step beamer overlays.
 
 See `Examples/voronoi_clipped_cells_example.cc` for clipped, site-indexed
 Voronoi cells exported as CSV/WKT.
@@ -2653,6 +2654,14 @@ cmake --build build
 | TikZ convex hull | `tikz_convex_hull_example.cc` | Input cloud + hull overlay |
 | TikZ intersections | `tikz_intersection_example.cc` | Convex and boolean intersection overlays |
 | TikZ Voronoi/power | `tikz_voronoi_power_example.cc` | Voronoi+Delaunay overlay and power diagram |
+| TikZ advanced algorithms | `tikz_advanced_algorithms_example.cc` | Segment arrangement (colored faces), shortest path with funnel portals, convex decomposition, and alpha shape |
+| TikZ funnel animation | `tikz_funnel_animation_example.cc` | Multi-page funnel (SSFA) step-by-step frames for shortest path |
+| TikZ funnel beamer | `tikz_funnel_beamer_example.cc` | Single Beamer slide with SSFA overlays via `Tikz_Scene::draw_beamer_overlays()` |
+| TikZ funnel beamer (2-col) | `tikz_funnel_beamer_twocol_example.cc` | Beamer overlays with left visual frame + right state panel (`apex/left/right/event`) |
+| TikZ funnel handout | `tikz_funnel_beamer_handout_example.cc` | `beamer[handout]` output with one printable frame per funnel step (2-column layout) |
+| TikZ scene composer | `tikz_scene_example.cc` | `Tikz_Scene` composition of arrangement, hull, and shortest-path overlays in one export |
+| TikZ scene beamer/handout | `tikz_scene_beamer_example.cc` | `Tikz_Scene::draw_beamer()` and `draw_handout()` single-frame exports |
+| TikZ scene overlays | `tikz_scene_overlays_example.cc` | `Tikz_Scene::draw_beamer_overlays()` / `draw_handout_overlays()` for step-by-step polygon slides |
 | **Parallel** | | |
 | Thread pool | `thread_pool_example.cc` | Concurrent tasks |
 | Parallel ops | `ah_parallel_example.cc` | pmap, pfilter |
