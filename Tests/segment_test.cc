@@ -227,8 +227,7 @@ TEST_F(SegmentTest, EqualityReversedOrder)
 {
   Segment s1(origin, p3);
   Segment s2(p3, origin);
-  // Note: In point.H Segment, equality checks exact src/tgt match
-  EXPECT_FALSE(s1 == s2);  // Different src/tgt
+  EXPECT_TRUE(s1 == s2);  // Undirected semantics
 }
 
 TEST_F(SegmentTest, InequalityDifferentEndpoints)
@@ -290,8 +289,32 @@ TEST_F(SegmentTest, CounterclockwiseAngleWith)
   
   double angle = s1.counterclockwise_angle_with(s2);
   // 90 degrees counterclockwise from x to y
-  EXPECT_TRUE(near_equal(angle, PI_2, 0.1) || 
-              near_equal(angle, 2*PI - PI_2, 0.1));
+  EXPECT_TRUE(near_equal(angle, PI_2, 0.1));
+}
+
+TEST_F(SegmentTest, Reversed)
+{
+  Segment s(origin, p3);
+  Segment r = s.reversed();
+  EXPECT_EQ(r.get_src_point(), p3);
+  EXPECT_EQ(r.get_tgt_point(), origin);
+}
+
+TEST_F(SegmentTest, ProjectPoint)
+{
+  Segment s(Point(0, 0), Point(10, 0));
+  Point proj = s.project(Point(3, 4));
+  EXPECT_TRUE(near_equal(proj.get_x(), 3));
+  EXPECT_TRUE(near_equal(proj.get_y(), 0));
+
+  Point clamped = s.project(Point(-5, 2));
+  EXPECT_EQ(clamped, Point(0, 0));
+}
+
+TEST_F(SegmentTest, DistanceToPoint)
+{
+  Segment s(Point(0, 0), Point(10, 0));
+  EXPECT_TRUE(near_equal(s.distance_to(Point(3, 4)), Geom_Number(4), 0.01));
 }
 
 // =============================================================================

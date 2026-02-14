@@ -263,6 +263,17 @@ TEST_F(GeomAlgorithmsTest, Segment3DBasic)
   EXPECT_EQ(s.at(Geom_Number(1)), b);
 }
 
+TEST_F(GeomAlgorithmsTest, Segment3DContainsAndDistance)
+{
+  Segment3D s(Point3D(0, 0, 0), Point3D(10, 0, 0));
+  EXPECT_TRUE(s.contains(Point3D(4, 0, 0)));
+  EXPECT_FALSE(s.contains(Point3D(11, 0, 0)));
+  EXPECT_FALSE(s.contains(Point3D(4, 1, 0)));
+
+  EXPECT_EQ(s.length(), Geom_Number(10));
+  EXPECT_EQ(s.distance_to(Point3D(4, 3, 0)), Geom_Number(3));
+}
+
 
 TEST_F(GeomAlgorithmsTest, Triangle3DNormal)
 {
@@ -273,6 +284,13 @@ TEST_F(GeomAlgorithmsTest, Triangle3DNormal)
   EXPECT_EQ(n, Point3D(0, 0, 1));
 
   EXPECT_FALSE(t.is_degenerate());
+}
+
+TEST_F(GeomAlgorithmsTest, Triangle3DDoubleAreaSquared)
+{
+  // Right triangle with area = 1/2 -> 2 * area^2 = 1/2.
+  Triangle3D t(Point3D(0, 0, 0), Point3D(1, 0, 0), Point3D(0, 1, 0));
+  EXPECT_EQ(t.double_area_squared(), Geom_Number(1, 2));
 }
 
 
@@ -363,6 +381,17 @@ TEST_F(GeomAlgorithmsTest, TetrahedronContains)
 
   // A point outside but close.
   EXPECT_FALSE(tet.contains(Point3D(2, 2, 2)));
+}
+
+TEST_F(GeomAlgorithmsTest, TetrahedronContainsWithReversedOrientation)
+{
+  Tetrahedron tet(Point3D(0, 0, 0),
+                  Point3D(0, 4, 0),
+                  Point3D(4, 0, 0),
+                  Point3D(0, 0, 4));
+
+  EXPECT_TRUE(tet.contains(Point3D(1, 1, 1)));
+  EXPECT_FALSE(tet.contains(Point3D(5, 1, 1)));
 }
 
 
@@ -773,6 +802,47 @@ TEST_F(GeomAlgorithmsTest, StdFormatPoint3D)
 {
   auto s = std::format("{}", Point3D(1, 2, 3));
   EXPECT_NE(s.find("Point3D("), std::string::npos);
+}
+
+TEST_F(GeomAlgorithmsTest, StdFormatPolarPoint)
+{
+  auto s = std::format("{}", Polar_Point(Point(3, 4)));
+  EXPECT_NE(s.find("PolarPoint("), std::string::npos);
+}
+
+TEST_F(GeomAlgorithmsTest, StdFormatEllipse)
+{
+  auto s = std::format("{}", Ellipse(Point(0, 0), 3, 2));
+  EXPECT_NE(s.find("Ellipse("), std::string::npos);
+}
+
+TEST_F(GeomAlgorithmsTest, StdFormatRotatedEllipse)
+{
+  auto s = std::format("{}", RotatedEllipse(Point(0, 0), 3, 2));
+  EXPECT_NE(s.find("RotatedEllipse("), std::string::npos);
+}
+
+TEST_F(GeomAlgorithmsTest, StdFormatSegment3D)
+{
+  auto s = std::format("{}", Segment3D(Point3D(0, 0, 0), Point3D(1, 1, 1)));
+  EXPECT_NE(s.find("Segment3D("), std::string::npos);
+}
+
+TEST_F(GeomAlgorithmsTest, StdFormatTriangle3D)
+{
+  auto s = std::format("{}", Triangle3D(Point3D(0, 0, 0),
+                                         Point3D(1, 0, 0),
+                                         Point3D(0, 1, 0)));
+  EXPECT_NE(s.find("Triangle3D("), std::string::npos);
+}
+
+TEST_F(GeomAlgorithmsTest, StdFormatTetrahedron)
+{
+  auto s = std::format("{}", Tetrahedron(Point3D(0, 0, 0),
+                                         Point3D(1, 0, 0),
+                                         Point3D(0, 1, 0),
+                                         Point3D(0, 0, 1)));
+  EXPECT_NE(s.find("Tetrahedron("), std::string::npos);
 }
 
 
@@ -1252,24 +1322,24 @@ TEST_F(GeomAlgorithmsTest, EllipseContainsNewAPI)
 }
 
 
-TEST_F(GeomAlgorithmsTest, EllipseDefaultInvalidRadiiThrow)
+TEST_F(GeomAlgorithmsTest, EllipseDefaultConstructionIsValid)
 {
   Ellipse e;
-  Segment t1, t2;
-
-  EXPECT_THROW(e.contains(Point(0, 0)), std::domain_error);
-  EXPECT_THROW(e.intersects_with(Point(0, 0)), std::domain_error);
-  EXPECT_THROW(e.compute_tangents(t1, t2, Geom_Number(1)), std::domain_error);
+  EXPECT_TRUE(e.contains(Point(0, 0)));
+  EXPECT_TRUE(e.intersects_with(Point(1, 0)));
+  EXPECT_EQ(e.get_hradius(), Geom_Number(1));
+  EXPECT_EQ(e.get_vradius(), Geom_Number(1));
 }
 
 
-TEST_F(GeomAlgorithmsTest, RotatedEllipseDefaultInvalidRadiiThrow)
+TEST_F(GeomAlgorithmsTest, RotatedEllipseDefaultConstructionIsValid)
 {
   RotatedEllipse e;
 
-  EXPECT_THROW(e.contains(Point(0, 0)), std::domain_error);
-  EXPECT_THROW(e.strictly_contains(Point(0, 0)), std::domain_error);
-  EXPECT_THROW(e.on_boundary(Point(0, 0)), std::domain_error);
+  EXPECT_TRUE(e.contains(Point(0, 0)));
+  EXPECT_TRUE(e.on_boundary(Point(1, 0)));
+  EXPECT_EQ(e.get_cos(), Geom_Number(1));
+  EXPECT_EQ(e.get_sin(), Geom_Number(0));
 }
 
 

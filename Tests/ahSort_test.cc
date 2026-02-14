@@ -40,6 +40,7 @@
 #include <vector>
 #include <deque>
 #include <algorithm>
+#include <random>
 #include <string>
 
 #include <ahSort.H>
@@ -509,6 +510,37 @@ TEST(RanksTest, Reversed)
     EXPECT_EQ(r(i), 4 - i);
 }
 
+TEST(RanksTest, DuplicatesOrderingProperty)
+{
+  DynArray<int> arr;
+  arr.reserve(6);
+  arr(0) = 5;
+  arr(1) = 1;
+  arr(2) = 5;
+  arr(3) = 2;
+  arr(4) = 2;
+  arr(5) = 1;
+
+  auto r = ranks(arr);
+  ASSERT_EQ(r.size(), arr.size());
+
+  // ranks() must be a permutation of 0..n-1
+  std::vector<size_t> seen(r.size(), 0);
+  for (size_t i = 0; i < r.size(); ++i)
+    {
+      ASSERT_LT(r(i), r.size());
+      ++seen[r(i)];
+    }
+  for (size_t k = 0; k < seen.size(); ++k)
+    EXPECT_EQ(seen[k], 1u);
+
+  // Ordering property: if a[i] < a[j] then r[i] < r[j]
+  for (size_t i = 0; i < arr.size(); ++i)
+    for (size_t j = 0; j < arr.size(); ++j)
+      if (arr(i) < arr(j))
+        EXPECT_LT(r(i), r(j));
+}
+
 // ============================================================================
 // pair_ranks() tests
 // ============================================================================
@@ -655,6 +687,62 @@ TEST(MultiSortTest, AlreadySorted)
 
   EXPECT_EQ(keys, (std::vector<int>{1, 2, 3, 4, 5}));
   EXPECT_EQ(values, (std::vector<int>{10, 20, 30, 40, 50}));
+}
+
+TEST(MultiSortTest, StablePropertyRandom)
+{
+  std::mt19937 rng(123456u);
+  std::uniform_int_distribution<int> key_dist(0, 5);
+
+  for (size_t trial = 0; trial < 50; ++trial)
+    {
+      const size_t n = 100;
+      std::vector<int> keys(n);
+      std::vector<size_t> pos(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          keys[i] = key_dist(rng);
+          pos[i] = i;
+        }
+
+      in_place_multisort_arrays(std::less<int>(), true, keys, pos);
+
+      for (size_t i = 1; i < n; ++i)
+        {
+          ASSERT_LE(keys[i - 1], keys[i]);
+          if (keys[i - 1] == keys[i])
+            ASSERT_LT(pos[i - 1], pos[i]);
+        }
+    }
+}
+
+TEST(MultiSortTest, UnstablePropertyPermutation)
+{
+  std::mt19937 rng(78910u);
+  std::uniform_int_distribution<int> key_dist(0, 5);
+
+  const size_t n = 200;
+  std::vector<int> keys(n);
+  std::vector<size_t> pos(n);
+  for (size_t i = 0; i < n; ++i)
+    {
+      keys[i] = key_dist(rng);
+      pos[i] = i;
+    }
+
+  in_place_multisort_arrays(std::less<int>(), false, keys, pos);
+
+  for (size_t i = 1; i < n; ++i)
+    ASSERT_LE(keys[i - 1], keys[i]);
+
+  std::vector<size_t> seen(n, 0);
+  for (auto p : pos)
+    {
+      ASSERT_LT(p, n);
+      ++seen[p];
+    }
+  for (size_t k = 0; k < n; ++k)
+    ASSERT_EQ(seen[k], 1u);
 }
 
 TEST(MultiSortTest, ReverseSorted)

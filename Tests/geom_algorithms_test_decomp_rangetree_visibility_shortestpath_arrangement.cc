@@ -1270,6 +1270,31 @@ TEST_F(GeomAlgorithmsTest, RotatedEllipseSample)
   // Sample at cos=0, sin=1 → local (0, 2) → world (0, 2).
   p = e.sample(Geom_Number(0), Geom_Number(1));
   EXPECT_EQ(p, Point(0, 2));
+
+  // Parametric sampling with t in [0,1].
+  EXPECT_EQ(e.sample(Geom_Number(0)), Point(3, 0));
+}
+
+TEST_F(GeomAlgorithmsTest, RotatedEllipseSegmentIntersection)
+{
+  RotatedEllipse e(Point(0, 0), Geom_Number(3), Geom_Number(2));
+  Segment s(Point(-5, 0), Point(5, 0));
+
+  EXPECT_TRUE(e.intersects_with(s));
+  Segment inter = e.intersection_with(s);
+
+  const double x1 = geom_number_to_double(inter.get_src_point().get_x());
+  const double y1 = geom_number_to_double(inter.get_src_point().get_y());
+  const double x2 = geom_number_to_double(inter.get_tgt_point().get_x());
+  const double y2 = geom_number_to_double(inter.get_tgt_point().get_y());
+
+  EXPECT_NEAR(y1, 0.0, 1e-8);
+  EXPECT_NEAR(y2, 0.0, 1e-8);
+
+  const double xmin = x1 < x2 ? x1 : x2;
+  const double xmax = x1 > x2 ? x1 : x2;
+  EXPECT_NEAR(xmin, -3.0, 1e-8);
+  EXPECT_NEAR(xmax, 3.0, 1e-8);
 }
 
 

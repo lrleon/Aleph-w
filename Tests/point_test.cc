@@ -51,6 +51,7 @@
 
 #include <gtest/gtest.h>
 #include <cmath>
+#include <unordered_set>
 #include <point.H>
 
 using namespace Aleph;
@@ -241,6 +242,40 @@ TEST_F(PointTest, HighestLowestLeftmostRightmost)
   EXPECT_EQ(p1.lowest_point(), p1);
   EXPECT_EQ(p1.leftmost_point(), p1);
   EXPECT_EQ(p1.rightmost_point(), p1);
+}
+
+TEST_F(PointTest, NormNormalizeRotateAndLerp)
+{
+  Point v{3, 4};
+  EXPECT_EQ(v.norm_squared(), Geom_Number(25));
+  EXPECT_TRUE(approx_equal(v.norm(), Geom_Number(5), 1e-9));
+
+  Point unit = v.normalize();
+  EXPECT_TRUE(approx_equal(unit.norm(), Geom_Number(1), 1e-6));
+
+  Point rotated = Point(1, 0).rotate(Geom_Number(PI_2));
+  EXPECT_TRUE(approx_equal(rotated.get_x(), Geom_Number(0), 1e-6));
+  EXPECT_TRUE(approx_equal(rotated.get_y(), Geom_Number(1), 1e-6));
+
+  Point a{0, 0};
+  Point b{10, 10};
+  EXPECT_EQ(a.midpoint(b), Point(5, 5));
+  EXPECT_EQ(a.lerp(b, Geom_Number(1, 2)), Point(5, 5));
+  EXPECT_EQ(Geom_Number(2) * Point(3, 4), Point(6, 8));
+}
+
+TEST_F(PointTest, LexicographicOrder)
+{
+  EXPECT_TRUE(Point(0, 0) < Point(0, 1));
+  EXPECT_TRUE(Point(0, 1) < Point(1, 0));
+  EXPECT_FALSE(Point(1, 0) < Point(1, 0));
+}
+
+TEST_F(PointTest, HashSupport)
+{
+  std::unordered_set<Point> set;
+  set.insert(Point(1, 2));
+  EXPECT_EQ(set.count(Point(1, 2)), 1u);
 }
 
 //============================================================================
@@ -846,6 +881,34 @@ TEST_F(EllipseTest, PointIsInsideEllipse)
   EXPECT_TRUE(inside.is_inside(circle));
 }
 
+TEST_F(EllipseTest, VerticalSegmentOutsideYRangeDoesNotIntersect)
+{
+  Ellipse e(Point(0, 0), 5, 3);
+  Segment vertical_far(Point(0, 10), Point(0, 20));
+  EXPECT_FALSE(e.intersects_with(vertical_far));
+}
+
+TEST_F(EllipseTest, SegmentThroughCenterIntersectionStable)
+{
+  Ellipse e(Point(0, 0), 5, 3);
+  Segment horizontal(Point(-10, 0), Point(10, 0));
+  Segment inter = e.intersection_with(horizontal);
+
+  EXPECT_TRUE(approx_equal(inter.get_src_point().get_y(), Geom_Number(0), 1e-8));
+  EXPECT_TRUE(approx_equal(inter.get_tgt_point().get_y(), Geom_Number(0), 1e-8));
+  EXPECT_TRUE(approx_equal(inter.get_src_point().get_x(), Geom_Number(-5), 1e-8));
+  EXPECT_TRUE(approx_equal(inter.get_tgt_point().get_x(), Geom_Number(5), 1e-8));
+}
+
+TEST_F(EllipseTest, ExtraEllipseApis)
+{
+  EXPECT_TRUE(approx_equal(ellipse.area(), Geom_Number(2) * Geom_Number(PI), 1e-5));
+  EXPECT_GT(ellipse.perimeter(), Geom_Number(0));
+  EXPECT_EQ(ellipse.sample(Geom_Number(0)), Point(2, 0));
+  EXPECT_FALSE(ellipse.to_string().empty());
+  EXPECT_EQ(ellipse, Ellipse(center, 2, 1));
+}
+
 //============================================================================
 // Helper Function Tests
 //============================================================================
@@ -1075,6 +1138,12 @@ TEST(EdgeCaseTest, MidPerpendicular)
   Point perp_mid = perp.mid_point();
 
   EXPECT_TRUE(approx_equal(mid.distance_to(perp_mid), 0.0, 1e-6));
+}
+
+TEST(EdgeCaseTest, MidPerpendicularZeroLengthThrows)
+{
+  Segment s{Point{1, 1}, Point{1, 1}};
+  EXPECT_THROW(s.mid_perpendicular(1), std::domain_error);
 }
 
 //============================================================================

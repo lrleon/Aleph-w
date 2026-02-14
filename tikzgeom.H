@@ -159,8 +159,22 @@ private:
   [[nodiscard]] static std::string fmt_double(const double v)
   {
     std::ostringstream ss;
-    ss << std::fixed << std::setprecision(6) << v;
-    return ss.str();
+    ss << std::fixed << std::setprecision(3) << v;
+
+    std::string out = ss.str();
+    const auto dot_pos = out.find('.');
+    if (dot_pos != std::string::npos)
+      {
+        while (not out.empty() and out.back() == '0')
+          out.pop_back();
+        if (not out.empty() and out.back() == '.')
+          out.pop_back();
+      }
+
+    if (out == "-0")
+      out = "0";
+
+    return out;
   }
 
   static void append_option(std::string & opts, const std::string & opt)

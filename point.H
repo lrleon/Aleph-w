@@ -47,6 +47,8 @@
 
 # include <cstddef>
 # include <limits>
+# include <array>
+# include <functional>
 
 # include <iomanip>
 # include <string>
@@ -83,9 +85,17 @@ namespace Aleph
   // rotating the Cartesian axes instead of recomputing points from scratch.
 
 
+  // Legacy double-precision constants kept for backward compatibility.
   constexpr double PI = 3.1415926535897932384626433832795028841971693993751;
   constexpr double PI_2 = PI / 2.0;
   constexpr double PI_4 = PI / 4.0;
+
+  // High-precision pi value for computations that require Geom_Number.
+  inline const Geom_Number &geom_pi()
+  {
+    static const Geom_Number pi = acos(mpfr_class(-1));
+    return pi;
+  }
 
 
   class Point;
@@ -188,17 +198,22 @@ namespace Aleph
     /// Builds a new point from polar coordinates.
     inline Point(const Polar_Point & pp);
 
-    bool operator ==(const Point & point) const
+    [[nodiscard]] bool operator ==(const Point & point) const noexcept
     {
       return x_ == point.x_ and y_ == point.y_;
     }
 
-    bool operator !=(const Point & point) const
+    [[nodiscard]] bool operator !=(const Point & point) const noexcept
     {
       return not (*this == point);
     }
 
-    Point operator +(const Point & p) const
+    [[nodiscard]] bool operator <(const Point & point) const noexcept
+    {
+      return x_ < point.x_ or (x_ == point.x_ and y_ < point.y_);
+    }
+
+    [[nodiscard]] Point operator +(const Point & p) const
     {
       return {x_ + p.x_, y_ + p.y_};
     }
@@ -252,6 +267,47 @@ namespace Aleph
     [[nodiscard]] Geom_Number cross(const Point & p) const
     {
       return x_ * p.y_ - y_ * p.x_;
+    }
+
+    /// Squared Euclidean norm.
+    [[nodiscard]] Geom_Number norm_squared() const
+    {
+      return x_ * x_ + y_ * y_;
+    }
+
+    /// Euclidean norm.
+    [[nodiscard]] Geom_Number norm() const
+    {
+      return euclidean_distance(x_, y_);
+    }
+
+    /// Return a normalized copy of this vector.
+    [[nodiscard]] Point normalize() const
+    {
+      const Geom_Number n = norm();
+      ah_domain_error_if(n == 0) << "Cannot normalize the zero vector";
+      return *this / n;
+    }
+
+    /// Rotate this point around the origin by @p angle (radians).
+    [[nodiscard]] Point rotate(const Geom_Number & angle) const
+    {
+      const Geom_Number c = cosinus(angle);
+      const Geom_Number s = sinus(angle);
+      return {x_ * c - y_ * s, x_ * s + y_ * c};
+    }
+
+    /// Linear interpolation between this point and @p other.
+    [[nodiscard]] Point lerp(const Point & other, const Geom_Number & t) const
+    {
+      const Geom_Number one_minus_t = Geom_Number(1) - t;
+      return *this * one_minus_t + other * t;
+    }
+
+    /// Midpoint between this point and @p other.
+    [[nodiscard]] Point midpoint(const Point & other) const
+    {
+      return lerp(other, Geom_Number(1, 2));
     }
 
     [[nodiscard]] const Geom_Number &get_x() const noexcept /// Returns x value
@@ -354,7 +410,7 @@ namespace Aleph
     /// Return the nearest point (to this) between p1 and p2.
     [[nodiscard]] const Point &nearest_point(const Point & p1, const Point & p2) const
     {
-      return this->distance_to(p1) < this->distance_to(p2) ? p1 : p2;
+      return this->distance_squared_to(p1) < this->distance_squared_to(p2) ? p1 : p2;
     }
 
     /// Returns true if this is inside a segment s.
@@ -398,6 +454,12 @@ namespace Aleph
     [[nodiscard]] const Point &rightmost_point() const { return *this; }
   };
 
+  /// Scalar multiplication with commutative order.
+  [[nodiscard]] inline Point operator*(const Geom_Number & s, const Point & p)
+  {
+    return p * s;
+  }
+
 
   /** @brief Polar representation of a 2D point.
    *
@@ -429,7 +491,7 @@ namespace Aleph
     }
 
     /// Construct from Cartesian coordinates (origin at (0,0)).
-    Polar_Point(const Point & p)
+    explicit Polar_Point(const Point & p)
     {
       const Geom_Number & x = p.x_;
       const Geom_Number & y = p.y_;
@@ -505,12 +567,13 @@ namespace Aleph
     }
 
   public:
-    bool operator ==(const Segment & s) const
+    [[nodiscard]] bool operator ==(const Segment & s) const noexcept
     {
-      return src_ == s.src_ and tgt_ == s.tgt_;
+      return (src_ == s.src_ and tgt_ == s.tgt_) or
+             (src_ == s.tgt_ and tgt_ == s.src_);
     }
 
-    bool operator !=(const Segment & s) const
+    [[nodiscard]] bool operator !=(const Segment & s) const noexcept
     {
       return not (*this == s);
     }
@@ -610,6 +673,13 @@ namespace Aleph
       return compute_slope();
     }
 
+    /// Exact slope as Geom_Number. Undefined for vertical segments.
+    [[nodiscard]] Geom_Number slope_exact() const
+    {
+      ah_domain_error_if(tgt_.x_ == src_.x_) << "Vertical segment has undefined slope";
+      return (tgt_.y_ - src_.y_) / (tgt_.x_ - src_.x_);
+    }
+
     /// Compute the counterclockwise wise angle respect to another segment s.
     [[nodiscard]] double counterclockwise_angle_with(const Segment & s) const
     {
@@ -622,20 +692,17 @@ namespace Aleph
 
       const Geom_Number angle = arctan2(det, dot);
 
-      if (angle == 0)
-        return 0;
-
       if (angle < 0)
-        return -angle.get_d();
+        return geom_number_to_double(angle + 2 * geom_pi());
 
-      return 2 * PI - angle.get_d();
+      return angle.get_d();
     }
 
     /// Compute the counterclockwise angle of this respect x-axis.
     [[nodiscard]] double counterclockwise_angle() const
     {
       const Segment x_axis(Point(0, 0), Point(1, 0));
-      return counterclockwise_angle_with(x_axis);
+      return x_axis.counterclockwise_angle_with(*this);
     }
 
     /// Return the Euclidean length of the segment (distance between endpoints).
@@ -689,6 +756,43 @@ namespace Aleph
       return {x, y};
     }
 
+    /// Return the same segment with endpoints swapped.
+    [[nodiscard]] Segment reversed() const
+    {
+      return {tgt_, src_};
+    }
+
+    /// Evaluate this segment at parameter @p t in [0, 1].
+    [[nodiscard]] Point at(const Geom_Number & t) const
+    {
+      const Geom_Number one_minus_t = Geom_Number(1) - t;
+      return src_ * one_minus_t + tgt_ * t;
+    }
+
+    /// Orthogonal projection of @p p onto the segment (clamped to endpoints).
+    [[nodiscard]] Point project(const Point & p) const
+    {
+      const Point dir = tgt_ - src_;
+      const Geom_Number len2 = dir.dot(dir);
+
+      if (len2 == 0)
+        return src_;
+
+      Geom_Number t = (p - src_).dot(dir) / len2;
+      if (t < 0)
+        t = 0;
+      else if (t > 1)
+        t = 1;
+
+      return at(t);
+    }
+
+    /// Euclidean distance from @p p to this segment.
+    [[nodiscard]] Geom_Number distance_to(const Point & p) const
+    {
+      return p.distance_to(project(p));
+    }
+
 
     /// Return whichever endpoint is nearer to @p p.
     [[nodiscard]] const Point &nearest_point(const Point & p) const
@@ -732,12 +836,12 @@ namespace Aleph
     {
       // Translate target to the origin and convert to polar coordinates.
       const Polar_Point tgt_polar(tgt_ - src_);
+      ah_domain_error_if(tgt_polar.get_r() == 0)
+      << "Cannot build a midpoint perpendicular of a zero-length segment";
 
       const Geom_Number & arc_tgt_src = tgt_polar.get_theta();
 
       Geom_Number arc_perp_pt = arctan(dist / (tgt_polar.get_r() / 2));
-
-      const Geom_Number mperp = dist / (tgt_polar.get_r() / 2);
 
       // Distance from src to the perpendicular point.
       Geom_Number perp_r = euclidean_distance(dist, tgt_polar.get_r() / 2);
@@ -1052,10 +1156,76 @@ namespace Aleph
 
     [[nodiscard]] const Point &get_p3() const { return p3_; }
 
+    [[nodiscard]] bool operator==(const Triangle & t) const noexcept
+    {
+      const bool p1_in = p1_ == t.p1_ or p1_ == t.p2_ or p1_ == t.p3_;
+      const bool p2_in = p2_ == t.p1_ or p2_ == t.p2_ or p2_ == t.p3_;
+      const bool p3_in = p3_ == t.p1_ or p3_ == t.p2_ or p3_ == t.p3_;
+      return p1_in and p2_in and p3_in;
+    }
+
+    [[nodiscard]] bool operator!=(const Triangle & t) const noexcept
+    {
+      return not (*this == t);
+    }
+
     /// Centroid of the triangle.
     [[nodiscard]] Point centroid() const
     {
       return (p1_ + p2_ + p3_) / Geom_Number(3);
+    }
+
+    /// Perimeter of the triangle.
+    [[nodiscard]] Geom_Number perimeter() const
+    {
+      return p1_.distance_to(p2_) + p2_.distance_to(p3_) + p3_.distance_to(p1_);
+    }
+
+    /// Circumcenter of the triangle.
+    [[nodiscard]] Point circumcenter() const
+    {
+      const Geom_Number & x1 = p1_.x_;
+      const Geom_Number & y1 = p1_.y_;
+      const Geom_Number & x2 = p2_.x_;
+      const Geom_Number & y2 = p2_.y_;
+      const Geom_Number & x3 = p3_.x_;
+      const Geom_Number & y3 = p3_.y_;
+
+      const Geom_Number d = Geom_Number(2) *
+                            (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+      ah_domain_error_if(d == 0) << "Cannot compute circumcenter of a degenerate triangle";
+
+      const Geom_Number x1sq_y1sq = x1 * x1 + y1 * y1;
+      const Geom_Number x2sq_y2sq = x2 * x2 + y2 * y2;
+      const Geom_Number x3sq_y3sq = x3 * x3 + y3 * y3;
+
+      const Geom_Number ux =
+          (x1sq_y1sq * (y2 - y3) + x2sq_y2sq * (y3 - y1) +
+           x3sq_y3sq * (y1 - y2)) / d;
+
+      const Geom_Number uy =
+          (x1sq_y1sq * (x3 - x2) + x2sq_y2sq * (x1 - x3) +
+           x3sq_y3sq * (x2 - x1)) / d;
+
+      return {ux, uy};
+    }
+
+    /// Incenter of the triangle.
+    [[nodiscard]] Point incenter() const
+    {
+      const Geom_Number a = p2_.distance_to(p3_);
+      const Geom_Number b = p1_.distance_to(p3_);
+      const Geom_Number c = p1_.distance_to(p2_);
+      const Geom_Number sum = a + b + c;
+      ah_domain_error_if(sum == 0) << "Cannot compute incenter of a degenerate triangle";
+
+      return (p1_ * a + p2_ * b + p3_ * c) / sum;
+    }
+
+    /// Three edges in counterclockwise vertex order.
+    [[nodiscard]] std::array<Segment, 3> edges() const
+    {
+      return {Segment(p1_, p2_), Segment(p2_, p3_), Segment(p3_, p1_)};
     }
 
     /// Returns true if the point p lies strictly inside this triangle.
@@ -1090,6 +1260,17 @@ namespace Aleph
     Geom_Number xmax_, ymax_;
 
   public:
+    [[nodiscard]] bool operator==(const Rectangle & r) const noexcept
+    {
+      return xmin_ == r.xmin_ and ymin_ == r.ymin_ and
+             xmax_ == r.xmax_ and ymax_ == r.ymax_;
+    }
+
+    [[nodiscard]] bool operator!=(const Rectangle & r) const noexcept
+    {
+      return not (*this == r);
+    }
+
     [[nodiscard]] const Geom_Number &get_xmin() const { return xmin_; }
 
     [[nodiscard]] const Geom_Number &get_ymin() const { return ymin_; }
@@ -1124,6 +1305,29 @@ namespace Aleph
     [[nodiscard]] Geom_Number width() const { return xmax_ - xmin_; }
 
     [[nodiscard]] Geom_Number height() const { return ymax_ - ymin_; }
+
+    [[nodiscard]] Geom_Number area() const { return width() * height(); }
+
+    [[nodiscard]] Geom_Number perimeter() const
+    {
+      return 2 * (width() + height());
+    }
+
+    [[nodiscard]] Point center() const
+    {
+      return {(xmin_ + xmax_) / 2, (ymin_ + ymax_) / 2};
+    }
+
+    /// Rectangle corners in CCW order starting at bottom-left.
+    [[nodiscard]] std::array<Point, 4> corners() const
+    {
+      return {
+            Point(xmin_, ymin_),
+            Point(xmax_, ymin_),
+            Point(xmax_, ymax_),
+            Point(xmin_, ymax_)
+          };
+    }
 
     // does this axis-aligned rectangle intersect that one?
     [[nodiscard]] bool intersects(const Rectangle & that) const
@@ -1160,6 +1364,14 @@ namespace Aleph
       return p.get_x() >= xmin_ and p.get_x() <= xmax_ and
              p.get_y() >= ymin_ and p.get_y() <= ymax_;
     }
+
+    [[nodiscard]] std::string to_string() const
+    {
+      return "(" + std::to_string(geom_number_to_double(xmin_)) + "," +
+             std::to_string(geom_number_to_double(ymin_)) + ")-(" +
+             std::to_string(geom_number_to_double(xmax_)) + "," +
+             std::to_string(geom_number_to_double(ymax_)) + ")";
+    }
   };
 
   // Returns true if this segment intersects one or two edges of triangle @p t.
@@ -1179,50 +1391,65 @@ namespace Aleph
     ah_domain_error_if(not this->intersects_with(t))
     << "segment does not intersects with triangle";
 
-    Point p[2];
+    std::array<Point, 6> points;
+    size_t count = 0;
 
-    int i = 0;
-
-    try
-      { // check intersection against edge p1-p2
-        p[i] = this->intersection_with(Segment(t.get_p1(), t.get_p2()));
-
-        ++i; // intersection detected
-      }
-    catch (std::domain_error &)
+    auto append_unique = [&points, &count](const Point & pt)
       {
-        // No intersection with the previous edge; continue.
-      }
+        for (size_t i = 0; i < count; ++i)
+          if (points[i] == pt)
+            return;
+        points[count++] = pt;
+      };
 
-    try
-      { // check intersection against edge p2-p3
-        p[i] = this->intersection_with(Segment(t.get_p2(), t.get_p3()));
-
-        ++i; // intersection detected
-      }
-    catch (std::domain_error &)
+    auto collect_with_edge = [this, &append_unique](const Segment & edge)
       {
-        // No intersection with the previous edge; continue.
-      }
+        if (not this->intersects_with(edge))
+          return;
 
-    if (i == 2) // two intersection points already collected
-      return {p[0], p[1]};
+        if (this->is_parallel_with(edge))
+          {
+            if (this->contains(edge.get_src_point()))
+              append_unique(edge.get_src_point());
+            if (this->contains(edge.get_tgt_point()))
+              append_unique(edge.get_tgt_point());
+            if (edge.contains(this->get_src_point()))
+              append_unique(this->get_src_point());
+            if (edge.contains(this->get_tgt_point()))
+              append_unique(this->get_tgt_point());
+            return;
+          }
 
-    try
-      { // check intersection against edge p3-p1
-        p[i] = this->intersection_with(Segment(t.get_p3(), t.get_p1()));
+        append_unique(this->intersection_with(edge));
+      };
 
-        ++i;
-      }
-    catch (std::domain_error &)
-      {
-        // No intersection with this edge.
-      }
+    collect_with_edge(Segment(t.get_p1(), t.get_p2()));
+    collect_with_edge(Segment(t.get_p2(), t.get_p3()));
+    collect_with_edge(Segment(t.get_p3(), t.get_p1()));
 
-    ah_domain_error_if(i == 0)
+    ah_domain_error_if(count == 0)
     << "no intersection point found despite intersection confirmed";
 
-    return i == 1 ? Segment(p[0], p[0]) : Segment(p[0], p[1]);
+    if (count == 1)
+      return {points[0], points[0]};
+
+    // Keep the farthest pair in case collinear overlaps produced >2 points.
+    size_t i_best = 0;
+    size_t j_best = 1;
+    Geom_Number best_d2 = points[0].distance_squared_to(points[1]);
+    for (size_t i = 0; i < count; ++i)
+      for (size_t j = i + 1; j < count; ++j)
+        {
+          const Geom_Number d2 = points[i].distance_squared_to(points[j]);
+          if (d2 > best_d2)
+            {
+              best_d2 = d2;
+              i_best = i;
+              j_best = j;
+            }
+        }
+
+    return {points[i_best], points[j_best]};
   }
 
 
@@ -1258,13 +1485,26 @@ namespace Aleph
             const Geom_Number & vr)
       : center_(std::move(center)), hr_(hr), vr_(vr)
     {
-      // empty
+      validate_positive_radii();
     }
 
     Ellipse(const Ellipse & e) = default;
 
 
-    Ellipse() = default;
+    Ellipse() : center_(0, 0), hr_(1), vr_(1)
+    {
+      // empty
+    }
+
+    [[nodiscard]] bool operator==(const Ellipse & e) const noexcept
+    {
+      return center_ == e.center_ and hr_ == e.hr_ and vr_ == e.vr_;
+    }
+
+    [[nodiscard]] bool operator!=(const Ellipse & e) const noexcept
+    {
+      return not (*this == e);
+    }
 
     [[nodiscard]] const Point &get_center() const { return center_; }
 
@@ -1272,11 +1512,51 @@ namespace Aleph
 
     [[nodiscard]] const Geom_Number &get_vradius() const { return vr_; }
 
+    [[nodiscard]] Geom_Number area() const
+    {
+      validate_positive_radii();
+      return geom_pi() * hr_ * vr_;
+    }
+
+    /// Perimeter approximation (Ramanujan's second formula).
+    [[nodiscard]] Geom_Number perimeter() const
+    {
+      validate_positive_radii();
+      const Geom_Number ab_sum = hr_ + vr_;
+      const Geom_Number h = (hr_ - vr_) * (hr_ - vr_) / (ab_sum * ab_sum);
+      const Geom_Number correction =
+          Geom_Number(1) + Geom_Number(3) * h /
+          (Geom_Number(10) + square_root(Geom_Number(4) - Geom_Number(3) * h));
+      return geom_pi() * ab_sum * correction;
+    }
+
+    /// Sample a point on the ellipse at parameter angle (radians).
+    [[nodiscard]] Point sample(const Geom_Number & angle) const
+    {
+      validate_positive_radii();
+      return {
+            center_.get_x() + hr_ * cosinus(angle),
+            center_.get_y() + vr_ * sinus(angle)
+          };
+    }
+
+    [[nodiscard]] std::string to_string() const
+    {
+      return "Ellipse(center=" + center_.to_string() +
+             ", hr=" + std::to_string(geom_number_to_double(hr_)) +
+             ", vr=" + std::to_string(geom_number_to_double(vr_)) + ")";
+    }
+
   private:
     void validate_positive_radii() const
     {
       ah_domain_error_if(hr_ <= 0 or vr_ <= 0)
       << "Ellipse radii must be > 0";
+    }
+
+    [[nodiscard]] static bool in_unit_interval(const Geom_Number & t)
+    {
+      return t >= 0 and t <= 1;
     }
 
   public:
@@ -1391,25 +1671,33 @@ namespace Aleph
     {
       validate_positive_radii();
 
-      const Geom_Number dx = s.get_tgt_point().get_x() - s.get_src_point().get_x();
+      const Point p0 = s.get_src_point() - center_;
+      const Point p1 = s.get_tgt_point() - center_;
+      const Geom_Number dx = p1.get_x() - p0.get_x();
+      const Geom_Number dy = p1.get_y() - p0.get_y();
+      const Geom_Number a2 = hr_ * hr_;
+      const Geom_Number b2 = vr_ * vr_;
 
-      // Vertical segment: check if x-coordinate is within ellipse x-range.
-      if (dx == 0)
-        {
-          const Geom_Number sx = s.get_src_point().get_x();
-          return sx >= center_.get_x() - hr_ and sx <= center_.get_x() + hr_;
-        }
+      const Geom_Number A = (dx * dx) / a2 + (dy * dy) / b2;
+      const Geom_Number B =
+          Geom_Number(2) * (p0.get_x() * dx / a2 + p0.get_y() * dy / b2);
+      const Geom_Number C =
+          (p0.get_x() * p0.get_x()) / a2 + (p0.get_y() * p0.get_y()) / b2 -
+          Geom_Number(1);
 
-      // Non-vertical: compute the exact slope and use tangent-based test.
-      const Geom_Number m =
-          (s.get_tgt_point().get_y() - s.get_src_point().get_y()) / dx;
+      // Degenerate segment: it intersects the boundary iff the point is on it.
+      if (A == 0)
+        return C == 0;
 
-      Segment tg1;
-      Segment tg2;
-      compute_tangents(tg1, tg2, m);
+      const Geom_Number discriminant = B * B - Geom_Number(4) * A * C;
+      if (discriminant < 0)
+        return false;
 
-      return s.is_left_of(tg1.get_src_point()) xor
-             s.is_left_of(tg2.get_tgt_point());
+      const Geom_Number root = square_root(discriminant);
+      const Geom_Number denom = Geom_Number(2) * A;
+      const Geom_Number t1 = (-B - root) / denom;
+      const Geom_Number t2 = (-B + root) / denom;
+      return in_unit_interval(t1) or in_unit_interval(t2);
     }
 
   private:
@@ -1446,124 +1734,54 @@ namespace Aleph
       return compute_radius(p) == 1;
     }
 
-    /*
-      Segment intersection routines. Solve the system composed of the ellipse
-      equation
-
-                               2    2
-                              y    x
-             eq1              -- + -- = 1
-                               2    2
-                              b    a
-
-      and the segment line equation
-
-                  eq2              y - yr = m*(x - xr)
-
-      where (xr, yr) is a point on the line once it is translated to the
-      ellipse-centered coordinate system.
-
-      The explicit solutions (obtained, for example, via
-      maxima: solve([eq1, eq2], [x, y])) are:
-
-                      2                2   2    2  2    2     2         2  2
-         a b sqrt(- yr  + 2 m xr yr - m  xr  + a  m  + b ) + a  m yr - a  m  xr
-  x1 = - ----------------------------------------------------------------------
-                                 2  2    2
-                                a  m  + b
-
-                         2                2   2    2  2    2     2       2
-          a b m sqrt(- yr  + 2 m xr yr - m  xr  + a  m  + b ) - b  yr + b  m xr
-  y1 = - ----------------------------------------------------------------------
-                                 2  2    2
-                                a  m  + b
-
-                    2                2   2    2  2    2     2         2  2
-       a b sqrt(- yr  + 2 m xr yr - m  xr  + a  m  + b ) - a  m yr + a  m  xr
-  x2 = ----------------------------------------------------------------------
-                                 2  2    2
-                                a  m  + b
-
-                      2                2   2    2  2    2     2       2
-       a b m sqrt(- yr  + 2 m xr yr - m  xr  + a  m  + b ) + b  yr - b  m xr
-  y2 = ----------------------------------------------------------------------
-                                 2  2    2
-                                a  m  + b
-
-       These formulas assume the ellipse is centered at (0, 0).
-
-       To compute the actual intersection: translate the segment so the ellipse
-       center lands at the origin, evaluate the expressions above, and translate
-       the resulting segment back to the real center.
-
-       BUG: there remains a numerical issue when the line passes through the
-            ellipse center; graphpic-generated code still disagrees between the
-            two solutions even though they should match.
-    */
+    // Returns the boundary intersection points between @p sg and this ellipse.
+    // For tangency, returns a degenerate segment (same endpoint twice).
     [[nodiscard]] Segment intersection_with(const Segment & sg) const
     {
       validate_positive_radii();
 
-      ah_domain_error_if(not intersects_with(sg)) << "there is no intersection";
+      const Point p0 = sg.get_src_point() - center_;
+      const Point p1 = sg.get_tgt_point() - center_;
+      const Geom_Number dx = p1.get_x() - p0.get_x();
+      const Geom_Number dy = p1.get_y() - p0.get_y();
+      const Geom_Number a2 = hr_ * hr_;
+      const Geom_Number b2 = vr_ * vr_;
 
-      const Geom_Number & a = hr_;
-      const Geom_Number & b = vr_;
+      const Geom_Number A = (dx * dx) / a2 + (dy * dy) / b2;
+      const Geom_Number B =
+          Geom_Number(2) * (p0.get_x() * dx / a2 + p0.get_y() * dy / b2);
+      const Geom_Number C =
+          (p0.get_x() * p0.get_x()) / a2 + (p0.get_y() * p0.get_y()) / b2 -
+          Geom_Number(1);
 
-      const Geom_Number a2 = a * a;
-      const Geom_Number b2 = b * b;
-
-      // Segment translated to coordinate system with origin at (xc, yc).
-      const Segment sg_new(sg.get_src_point() - center_,
-                           sg.get_tgt_point() - center_);
-
-      const Geom_Number dx = sg_new.get_tgt_point().get_x() -
-                             sg_new.get_src_point().get_x();
-
-      // Vertical segment special case: x = constant, solve y from ellipse eq.
-      if (dx == 0)
+      if (A == 0)
         {
-          const Geom_Number & xr = sg_new.get_src_point().get_x();
-          const Geom_Number xr2 = xr * xr;
-
-          ah_domain_error_if(xr2 > a2) << "vertical segment outside ellipse x-range";
-
-          const Geom_Number y_sq = b2 * (Geom_Number(1) - xr2 / a2);
-          const Geom_Number y_val = square_root(y_sq);
-
-          return {Point(xr, -y_val) + center_, Point(xr, y_val) + center_};
+          ah_domain_error_if(C != 0) << "there is no intersection";
+          return {sg.get_src_point(), sg.get_src_point()};
         }
 
-      // Non-vertical: compute the exact slope as Geom_Number.
-      const Geom_Number m = (sg_new.get_tgt_point().get_y() -
-                             sg_new.get_src_point().get_y()) / dx;
+      const Geom_Number discriminant = B * B - Geom_Number(4) * A * C;
+      ah_domain_error_if(discriminant < 0) << "there is no intersection";
 
-      const Geom_Number ab = a * b;
-      const Geom_Number m2 = m * m;
+      const Geom_Number root = square_root(discriminant);
+      const Geom_Number denom = Geom_Number(2) * A;
+      const Geom_Number t1 = (-B - root) / denom;
+      const Geom_Number t2 = (-B + root) / denom;
 
-      const Point & pr = sg_new.get_tgt_point();
-      const Geom_Number & xr = pr.get_x();
-      const Geom_Number & yr = pr.get_y();
+      const bool in1 = in_unit_interval(t1);
+      const bool in2 = in_unit_interval(t2);
+      ah_domain_error_if(not in1 and not in2) << "there is no intersection";
 
-      const Geom_Number a2m2_plus_b2 = a2 * m2 + b2;
+      auto eval = [&](const Geom_Number & t)
+      {
+        return Point(p0.get_x() + dx * t, p0.get_y() + dy * t) + center_;
+      };
 
-      const Geom_Number yr_minus_m_xr = yr - m * xr;
+      if (in1 and in2)
+        return {eval(t1), eval(t2)};
 
-      Geom_Number ab_root = a2m2_plus_b2 - yr_minus_m_xr * yr_minus_m_xr;
-      ab_root = ab * square_root(ab_root);
-
-      const Geom_Number ab_m_root = m * ab_root;
-
-      const Geom_Number sumx = a2 * m * yr_minus_m_xr;
-      const Geom_Number sumy = b2 * yr_minus_m_xr;
-
-      const Geom_Number x1 = -(ab_root + sumx) / a2m2_plus_b2;
-      const Geom_Number y1 = -(ab_m_root - sumy) / a2m2_plus_b2;
-
-      const Geom_Number x2 = (ab_root - sumx) / a2m2_plus_b2;
-      const Geom_Number y2 = (ab_m_root + sumy) / a2m2_plus_b2;
-
-      // Translate back from ellipse-centered coords to actual center.
-      return {Point(x1, y1) + center_, Point(x2, y2) + center_};
+      const Point touch = in1 ? eval(t1) : eval(t2);
+      return {touch, touch};
     }
   };
 
@@ -1645,6 +1863,19 @@ namespace Aleph
       << "RotatedEllipse radii must be > 0";
     }
 
+    void normalize_rotation()
+    {
+      const Geom_Number norm2 = cos_th_ * cos_th_ + sin_th_ * sin_th_;
+      ah_domain_error_if(norm2 == 0)
+      << "Rotation vector (cos,sin) cannot be (0,0)";
+      if (norm2 != 1)
+        {
+          const Geom_Number norm = square_root(norm2);
+          cos_th_ /= norm;
+          sin_th_ /= norm;
+        }
+    }
+
   public:
     /// Construct a rotated ellipse from center, semi-axes, and cos/sin of angle.
     RotatedEllipse(Point center,
@@ -1654,7 +1885,8 @@ namespace Aleph
       : center_(std::move(center)), a_(a), b_(b),
         cos_th_(cos_theta), sin_th_(sin_theta)
     {
-      // empty
+      validate_positive_radii();
+      normalize_rotation();
     }
 
     /// Construct an axis-aligned ellipse (θ = 0).
@@ -1662,20 +1894,41 @@ namespace Aleph
                    const Geom_Number & a, const Geom_Number & b)
       : center_(std::move(center)), a_(a), b_(b), cos_th_(1), sin_th_(0)
     {
-      // empty
+      validate_positive_radii();
     }
 
-    RotatedEllipse() = default;
+    RotatedEllipse()
+      : center_(0, 0), a_(1), b_(1), cos_th_(1), sin_th_(0)
+    {
+      // empty
+    }
 
     RotatedEllipse(const RotatedEllipse &) = default;
 
     RotatedEllipse &operator=(const RotatedEllipse &) = default;
+
+    [[nodiscard]] bool operator==(const RotatedEllipse & e) const noexcept
+    {
+      return center_ == e.center_ and a_ == e.a_ and b_ == e.b_ and
+             cos_th_ == e.cos_th_ and sin_th_ == e.sin_th_;
+    }
+
+    [[nodiscard]] bool operator!=(const RotatedEllipse & e) const noexcept
+    {
+      return not (*this == e);
+    }
 
     [[nodiscard]] const Point &get_center() const { return center_; }
     [[nodiscard]] const Geom_Number &get_a() const { return a_; }
     [[nodiscard]] const Geom_Number &get_b() const { return b_; }
     [[nodiscard]] const Geom_Number &get_cos() const { return cos_th_; }
     [[nodiscard]] const Geom_Number &get_sin() const { return sin_th_; }
+
+    [[nodiscard]] Geom_Number area() const
+    {
+      validate_positive_radii();
+      return geom_pi() * a_ * b_;
+    }
 
     /// Evaluate (x'/a)² + (y'/b)² for a point in local coords.
     [[nodiscard]] Geom_Number radius_value(const Point & p) const
@@ -1705,14 +1958,47 @@ namespace Aleph
       return radius_value(p) == 1;
     }
 
-    /// Sample a point on the ellipse at parameter t ∈ [0, 1] mapping to [0, 2π).
-    /// Uses rational approximations of cos/sin via the caller-provided functions.
+    /// Sample a point on the ellipse from caller-provided cos(t), sin(t).
     [[nodiscard]] Point sample(const Geom_Number & cos_t,
                                const Geom_Number & sin_t) const
     {
+      validate_positive_radii();
       // Point on axis-aligned ellipse: (a cos t, b sin t).
       // Rotate and translate to world.
       return to_world(Point(a_ * cos_t, b_ * sin_t));
+    }
+
+    /// Sample a point on the ellipse for parameter t in [0, 1] -> angle [0, 2π).
+    [[nodiscard]] Point sample(const Geom_Number & t) const
+    {
+      const Geom_Number angle = Geom_Number(2) * geom_pi() * t;
+      return sample(cosinus(angle), sinus(angle));
+    }
+
+    /// Return true if segment @p s intersects this rotated ellipse.
+    [[nodiscard]] bool intersects_with(const Segment & s) const
+    {
+      validate_positive_radii();
+      const Segment local_s(to_local(s.get_src_point()), to_local(s.get_tgt_point()));
+      return Ellipse(Point(0, 0), a_, b_).intersects_with(local_s);
+    }
+
+    /// Return boundary intersection segment between @p s and this rotated ellipse.
+    [[nodiscard]] Segment intersection_with(const Segment & s) const
+    {
+      validate_positive_radii();
+      const Segment local_s(to_local(s.get_src_point()), to_local(s.get_tgt_point()));
+      const Segment local_i = Ellipse(Point(0, 0), a_, b_).intersection_with(local_s);
+      return {to_world(local_i.get_src_point()), to_world(local_i.get_tgt_point())};
+    }
+
+    [[nodiscard]] std::string to_string() const
+    {
+      return "RotatedEllipse(center=" + center_.to_string() +
+             ", a=" + std::to_string(geom_number_to_double(a_)) +
+             ", b=" + std::to_string(geom_number_to_double(b_)) +
+             ", cos=" + std::to_string(geom_number_to_double(cos_th_)) +
+             ", sin=" + std::to_string(geom_number_to_double(sin_th_)) + ")";
     }
 
     /// Extremal points of the rotated ellipse.
@@ -2099,6 +2385,26 @@ namespace Aleph
       return x_ * x_ + y_ * y_ + z_ * z_;
     }
 
+    /// Euclidean norm.
+    [[nodiscard]] Geom_Number norm() const
+    {
+      return square_root(norm_squared());
+    }
+
+    /// Euclidean distance.
+    [[nodiscard]] Geom_Number distance_to(const Point3D & p) const
+    {
+      return square_root(distance_squared_to(p));
+    }
+
+    /// Return a normalized vector.
+    [[nodiscard]] Point3D normalize() const
+    {
+      const Geom_Number n = norm();
+      ah_domain_error_if(n == 0) << "Cannot normalize zero Point3D";
+      return *this / n;
+    }
+
     /// Project to 2D (drop z).
     [[nodiscard]] Point to_2d() const { return {x_, y_}; }
 
@@ -2136,12 +2442,19 @@ namespace Aleph
 
     [[nodiscard]] const Point3D &get_src() const { return src_; }
     [[nodiscard]] const Point3D &get_tgt() const { return tgt_; }
+    [[nodiscard]] const Point3D &get_src_point() const { return src_; }
+    [[nodiscard]] const Point3D &get_tgt_point() const { return tgt_; }
 
     [[nodiscard]] Point3D direction() const { return tgt_ - src_; }
 
     [[nodiscard]] Geom_Number length_squared() const
     {
       return src_.distance_squared_to(tgt_);
+    }
+
+    [[nodiscard]] Geom_Number length() const
+    {
+      return src_.distance_to(tgt_);
     }
 
     /// Evaluate the segment at parameter t ∈ [0,1].
@@ -2160,6 +2473,51 @@ namespace Aleph
     [[nodiscard]] bool operator==(const Segment3D & s) const
     {
       return src_ == s.src_ and tgt_ == s.tgt_;
+    }
+
+    [[nodiscard]] bool operator!=(const Segment3D & s) const
+    {
+      return not (*this == s);
+    }
+
+    [[nodiscard]] bool contains(const Point3D & p) const
+    {
+      const Point3D d = direction();
+      const Point3D w = p - src_;
+
+      if (d == Point3D(0, 0, 0))
+        return p == src_;
+
+      if (d.cross(w) != Point3D(0, 0, 0))
+        return false;
+
+      Geom_Number t;
+      if (d.get_x() != 0)
+        t = w.get_x() / d.get_x();
+      else if (d.get_y() != 0)
+        t = w.get_y() / d.get_y();
+      else
+        t = w.get_z() / d.get_z();
+
+      return t >= 0 and t <= 1;
+    }
+
+    [[nodiscard]] Geom_Number distance_to(const Point3D & p) const
+    {
+      const Point3D d = direction();
+      const Geom_Number len2 = d.dot(d);
+
+      if (len2 == 0)
+        return p.distance_to(src_);
+
+      Geom_Number t = (p - src_).dot(d) / len2;
+      if (t < 0)
+        t = 0;
+      else if (t > 1)
+        t = 1;
+
+      const Point3D proj = at(t);
+      return p.distance_to(proj);
     }
   };
 
@@ -2186,10 +2544,10 @@ namespace Aleph
       return (p2_ - p1_).cross(p3_ - p1_);
     }
 
-    /// Twice the area squared = |normal|².
+    /// 2 * area^2.
     [[nodiscard]] Geom_Number double_area_squared() const
     {
-      return normal().norm_squared();
+      return normal().norm_squared() / Geom_Number(2);
     }
 
     /// Centroid.
@@ -2280,18 +2638,25 @@ namespace Aleph
     /// sub-tetrahedra volumes).
     [[nodiscard]] bool contains(const Point3D & p) const
     {
+      auto signed_volume_x6_of = [](const Point3D & a, const Point3D & b,
+                                    const Point3D & c, const Point3D & d)
+      {
+        return scalar_triple_product(b - a, c - a, d - a);
+      };
+
       const Geom_Number d0 = signed_volume_x6();
       if (d0 == 0) return false; // degenerate
 
-      const Geom_Number d1 = scalar_triple_product(p2_ - p, p3_ - p, p4_ - p);
-      const Geom_Number d2 = scalar_triple_product(p1_ - p, p3_ - p, p4_ - p);
-      const Geom_Number d3 = scalar_triple_product(p1_ - p, p2_ - p, p4_ - p);
-      const Geom_Number d4 = scalar_triple_product(p1_ - p, p2_ - p, p3_ - p);
+      // Keep vertex order consistent with d0 by replacing one vertex at a time.
+      const Geom_Number d1 = signed_volume_x6_of(p, p2_, p3_, p4_);
+      const Geom_Number d2 = signed_volume_x6_of(p1_, p, p3_, p4_);
+      const Geom_Number d3 = signed_volume_x6_of(p1_, p2_, p, p4_);
+      const Geom_Number d4 = signed_volume_x6_of(p1_, p2_, p3_, p);
 
       // Point is inside iff all sub-volumes have the same sign as d0.
-      if (const bool pos = d0 > 0)
-        return d1 >= 0 and d2 <= 0 and d3 >= 0 and d4 <= 0;
-      return d1 <= 0 and d2 >= 0 and d3 <= 0 and d4 >= 0;
+      if (d0 > 0)
+        return d1 >= 0 and d2 >= 0 and d3 >= 0 and d4 >= 0;
+      return d1 <= 0 and d2 <= 0 and d3 <= 0 and d4 <= 0;
     }
 
     /// Faces of the tetrahedron.
@@ -2339,23 +2704,19 @@ namespace Aleph
 
   inline std::ostream &operator<<(std::ostream & o, const Rectangle & r)
   {
-    o << "Rectangle(" << r.get_xmin() << ", " << r.get_ymin()
-        << " -- " << r.get_xmax() << ", " << r.get_ymax() << ")";
+    o << "Rectangle" << r.to_string();
     return o;
   }
 
   inline std::ostream &operator<<(std::ostream & o, const Ellipse & e)
   {
-    o << "Ellipse(center=" << e.get_center()
-        << ", hr=" << e.get_hradius() << ", vr=" << e.get_vradius() << ")";
+    o << e.to_string();
     return o;
   }
 
   inline std::ostream &operator<<(std::ostream & o, const RotatedEllipse & e)
   {
-    o << "RotatedEllipse(center=" << e.get_center()
-        << ", a=" << e.get_a() << ", b=" << e.get_b()
-        << ", cos=" << e.get_cos() << ", sin=" << e.get_sin() << ")";
+    o << e.to_string();
     return o;
   }
 
@@ -2386,6 +2747,20 @@ namespace Aleph
     return o;
   }
 } // namespace Aleph
+
+namespace std
+{
+  template <>
+  struct hash<Aleph::Point>
+  {
+    std::size_t operator()(const Aleph::Point & p) const
+    {
+      const std::size_t hx = std::hash<std::string>{}(p.get_x().get_str());
+      const std::size_t hy = std::hash<std::string>{}(p.get_y().get_str());
+      return hx ^ (hy + 0x9e3779b97f4a7c15ULL + (hx << 6) + (hx >> 2));
+    }
+  };
+} // namespace std
 
 // ============================================================================
 // std::format support (C++20)
@@ -2443,6 +2818,40 @@ struct std::formatter<Aleph::Rectangle> : std::formatter<std::string>
 };
 
 template <>
+struct std::formatter<Aleph::Polar_Point> : std::formatter<std::string>
+{
+  auto format(const Aleph::Polar_Point & p, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+                                               std::format("PolarPoint(r={}, theta={})",
+                                                           Aleph::geom_number_to_double(p.get_r()),
+                                                           Aleph::geom_number_to_double(p.get_theta())), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Aleph::Ellipse> : std::formatter<std::string>
+{
+  auto format(const Aleph::Ellipse & e, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+                                               std::format("{}",
+                                                           e.to_string()), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Aleph::RotatedEllipse> : std::formatter<std::string>
+{
+  auto format(const Aleph::RotatedEllipse & e, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+                                               std::format("{}",
+                                                           e.to_string()), ctx);
+  }
+};
+
+template <>
 struct std::formatter<Aleph::Point3D> : std::formatter<std::string>
 {
   auto format(const Aleph::Point3D & p, std::format_context & ctx) const
@@ -2452,6 +2861,39 @@ struct std::formatter<Aleph::Point3D> : std::formatter<std::string>
                                                            Aleph::geom_number_to_double(p.get_x()),
                                                            Aleph::geom_number_to_double(p.get_y()),
                                                            Aleph::geom_number_to_double(p.get_z())), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Aleph::Segment3D> : std::formatter<std::string>
+{
+  auto format(const Aleph::Segment3D & s, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+                                               std::format("Segment3D({} -> {})",
+                                                           s.get_src(), s.get_tgt()), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Aleph::Triangle3D> : std::formatter<std::string>
+{
+  auto format(const Aleph::Triangle3D & t, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+                                               std::format("Triangle3D({}, {}, {})",
+                                                           t.get_p1(), t.get_p2(), t.get_p3()), ctx);
+  }
+};
+
+template <>
+struct std::formatter<Aleph::Tetrahedron> : std::formatter<std::string>
+{
+  auto format(const Aleph::Tetrahedron & t, std::format_context & ctx) const
+  {
+    return std::formatter<std::string>::format(
+                                               std::format("Tetrahedron({}, {}, {}, {})",
+                                                           t.get_p1(), t.get_p2(), t.get_p3(), t.get_p4()), ctx);
   }
 };
 
