@@ -5042,7 +5042,7 @@ namespace Aleph
           return nodes_(pred)->label + Geom_Number(1);
         if (succ != SIZE_MAX)
           return nodes_(succ)->label - Geom_Number(1);
-        return Geom_Number(0);
+        return {0};
       }
 
     public:
@@ -6594,7 +6594,7 @@ namespace Aleph
    * exact (quadrant + cross product — no atan2).
    *
    * ## Complexity
-   * - Time:  O(n² ) worst case (O(n log n) with BST status)
+   * - Time:  O(n log n) — rotational sweep with Treap-based status tree
    * - Space: O(n)
    *
    * @par Example
@@ -6679,31 +6679,87 @@ namespace Aleph
       return {q.get_x() + t * rdx, q.get_y() + t * rdy};
     }
 
-    /// Find the index of the nearest intersected edge in `status` along
-    /// ray from q toward dir.  Returns n (invalid) if none found.
+    /// BST-based sweep status for active edges, ordered by ray-intersection
+    /// distance.  Each edge is keyed by (ray_param, edge_index) computed at
+    /// insertion time.  Since the distance ordering of non-crossing edges is
+    /// invariant between consecutive vertex events, the BST ordering remains
+    /// valid throughout the sweep.
     ///
-    /// @note This is a linear scan over the status array, making each call
-    /// O(|status|).  Since it is called twice per vertex event, the overall
-    /// algorithm is O(n^2).  A BST-based status structure keyed by ray
-    /// intersection distance would reduce this to O(n log n).
-    [[nodiscard]] static size_t nearest_edge(const Array<Point> & verts, const size_t n,
-                                             const Array<size_t> & status,
-                                             const Point & q, const Point & dir)
+    /// Backed by Aleph's Treap via DynSetTree.  Provides O(log n) insert,
+    /// erase and min (nearest edge).
+    class EdgeStatusTree
     {
-      size_t best = n;
-      Geom_Number best_t(-1);
-      for (size_t si = 0; si < status.size(); ++si)
+      struct EdgeKey
+      {
+        Geom_Number t;
+        size_t edge;
+      };
+
+      struct EdgeKeyCmp
+      {
+        bool operator()(const EdgeKey & a, const EdgeKey & b) const
         {
-          const size_t ei = status(si);
-          if (const Geom_Number t = ray_param(q, dir, verts(ei), verts((ei + 1) % n));
-            t >= 0 and (best_t < 0 or t < best_t))
-            {
-              best_t = t;
-              best = ei;
-            }
+          if (a.t != b.t) return a.t < b.t;
+          return a.edge < b.edge;
         }
-      return best;
-    }
+      };
+
+      DynSetTree<EdgeKey, Treap, EdgeKeyCmp> tree_;
+      Array<Geom_Number> params_;   // edge → ray_param at insertion time
+      Array<bool> in_tree_;         // edge → currently in tree
+      const Array<Point> & verts_;
+      const size_t n_;
+      const Point & query_;
+
+    public:
+      EdgeStatusTree(const Array<Point> & verts, const size_t n,
+                     const Point & query)
+        : verts_(verts), n_(n), query_(query)
+      {
+        for (size_t i = 0; i < n; ++i)
+          {
+            params_.append(Geom_Number(-1));
+            in_tree_.append(false);
+          }
+      }
+
+      void insert(const size_t edge, const Point & dir)
+      {
+        if (in_tree_(edge))
+          return;
+
+        const Geom_Number t = ray_param(query_, dir,
+                                        verts_(edge), verts_((edge + 1) % n_));
+        params_(edge) = t;
+        in_tree_(edge) = true;
+        tree_.insert(EdgeKey{t, edge});
+      }
+
+      void erase(const size_t edge)
+      {
+        if (not in_tree_(edge))
+          return;
+
+        tree_.remove(EdgeKey{params_(edge), edge});
+        in_tree_(edge) = false;
+      }
+
+      /// Return the nearest edge (smallest ray_param).
+      /// Returns n_ if the tree is empty.
+      [[nodiscard]] size_t min() const
+      {
+        if (tree_.is_empty())
+          return n_;
+        return tree_.min().edge;
+      }
+
+      [[nodiscard]] bool contains(const size_t edge) const
+      {
+        return in_tree_(edge);
+      }
+
+      [[nodiscard]] bool is_empty() const { return tree_.is_empty(); }
+    };
 
   public:
     /**
@@ -6737,9 +6793,26 @@ namespace Aleph
                        return angle_less(query, verts(a), verts(b));
                      });
 
+      // Determine which edges cross the initial ray (wrapping edges).
+      // Their angular span straddles 0°, so their start/end events must be
+      // swapped relative to non-wrapping edges.
+      const Point init_dir(query.get_x() + 1, query.get_y());
+      Array<bool> wrapping;
+      wrapping.reserve(n);
+      for (size_t ei = 0; ei < n; ++ei)
+        {
+          const Geom_Number t = ray_param(query, init_dir,
+                                          verts(ei), verts((ei + 1) % n));
+          wrapping.append(t > 0);
+        }
+
       // Build edge event tables: for each vertex, which edges start/end there.
       // Edge i goes from verts(i) to verts((i+1)%n).
-      // "starts" at the vertex with the smaller angle.
+      // For non-wrapping edges: insert at the smaller-angle vertex, remove at
+      //   the larger-angle vertex (normal sweep order).
+      // For wrapping edges (already in the initial status): remove at the
+      //   smaller-angle vertex (ray exits their span), insert at the
+      //   larger-angle vertex (ray re-enters their span).
       Array<DynList<size_t>> starts, ends;
       starts.reserve(n);
       ends.reserve(n);
@@ -6751,27 +6824,27 @@ namespace Aleph
       for (size_t ei = 0; ei < n; ++ei)
         {
           const size_t a = ei, b = (ei + 1) % n;
-          if (angle_less(query, verts(a), verts(b)))
+          const bool a_less = angle_less(query, verts(a), verts(b));
+          const size_t small_v = a_less ? a : b;
+          const size_t large_v = a_less ? b : a;
+
+          if (wrapping(ei))
             {
-              starts(a).append(ei);
-              ends(b).append(ei);
+              ends(small_v).append(ei);    // remove when ray exits span
+              starts(large_v).append(ei);  // re-insert when ray re-enters
             }
           else
             {
-              starts(b).append(ei);
-              ends(a).append(ei);
+              starts(small_v).append(ei);  // insert when ray enters span
+              ends(large_v).append(ei);    // remove when ray exits span
             }
         }
 
-      // Initialize status: edges crossing the initial ray (positive x from q).
-      const Point init_dir(query.get_x() + 1, query.get_y());
-      Array<size_t> status;
+      // Initialize status with wrapping edges.
+      EdgeStatusTree status(verts, n, query);
       for (size_t ei = 0; ei < n; ++ei)
-        {
-          const Geom_Number t = ray_param(query, init_dir,
-                                          verts(ei), verts((ei + 1) % n));
-          if (t > 0) status.append(ei);
-        }
+        if (wrapping(ei))
+          status.insert(ei, init_dir);
 
       // Build visibility polygon.
       Array<Point> vis_pts;
@@ -6783,27 +6856,18 @@ namespace Aleph
           const Point dir = v; // ray from query toward v
 
           // Nearest edge BEFORE processing events at this vertex.
-          const size_t prev_near = nearest_edge(verts, n, status, query, dir);
+          const size_t prev_near = status.min();
 
           // Remove ending edges.
           for (DynList<size_t>::Iterator it(ends(vi)); it.has_curr(); it.next_ne())
-            {
-              const size_t ei = it.get_curr();
-              for (size_t j = 0; j < status.size(); ++j)
-                if (status(j) == ei)
-                  {
-                    status(j) = status(status.size() - 1);
-                    status.remove_last();
-                    break;
-                  }
-            }
+            status.erase(it.get_curr());
 
           // Insert starting edges.
           for (DynList<size_t>::Iterator it(starts(vi)); it.has_curr(); it.next_ne())
-            status.append(it.get_curr());
+            status.insert(it.get_curr(), dir);
 
           // Nearest edge AFTER processing events.
-          const size_t curr_near = nearest_edge(verts, n, status, query, dir);
+          const size_t curr_near = status.min();
 
           // Determine visibility.
           bool v_is_on_edge = false;

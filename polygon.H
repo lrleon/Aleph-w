@@ -34,7 +34,7 @@
  *
  *  This file provides classes for representing and manipulating 2D polygons:
  *
- *  - **Vertex**: A point that participates in a doubly-linked list of vertices.
+ *  - **Vertex**: A point that participates in a doubly linked list of vertices.
  *  - **Polygon**: General (irregular) polygon defined by a sequence of vertices.
  *  - **Regular_Polygon**: Regular polygon defined by center, side length, and vertex count.
  *

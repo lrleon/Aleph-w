@@ -263,7 +263,7 @@ namespace Aleph
       return x_ * p.x_ + y_ * p.y_;
     }
 
-    /// 2D cross product (z-component of the 3D cross product).
+    /// 2D cross-product (z-component of the 3D cross-product).
     [[nodiscard]] Geom_Number cross(const Point & p) const
     {
       return x_ * p.y_ - y_ * p.x_;
@@ -578,29 +578,29 @@ namespace Aleph
       return not (*this == s);
     }
 
-    [[nodiscard]] const Point &highest_point() const
+    [[nodiscard]] const Point &highest_point() const noexcept
     {
       return src_.y_ > tgt_.y_ ? src_ : tgt_;
     }
 
-    [[nodiscard]] const Point &lowest_point() const
+    [[nodiscard]] const Point &lowest_point() const noexcept
     {
       return src_.y_ < tgt_.y_ ? src_ : tgt_;
     }
 
-    [[nodiscard]] const Point &leftmost_point() const
+    [[nodiscard]] const Point &leftmost_point() const noexcept
     {
       return src_.x_ < tgt_.x_ ? src_ : tgt_;
     }
 
-    [[nodiscard]] const Point &rightmost_point() const
+    [[nodiscard]] const Point &rightmost_point() const noexcept
     {
       return src_.x_ > tgt_.x_ ? src_ : tgt_;
     }
 
-    [[nodiscard]] const Point &get_src_point() const { return src_; }
+    [[nodiscard]] const Point &get_src_point() const noexcept { return src_; }
 
-    [[nodiscard]] const Point &get_tgt_point() const { return tgt_; }
+    [[nodiscard]] const Point &get_tgt_point() const noexcept { return tgt_; }
 
     Segment() = default;
 
@@ -877,8 +877,8 @@ namespace Aleph
         return false;
 
       // There is a proper intersection when each segment straddles the other.
-      return (src_.is_left_of(s) xor tgt_.is_left_of(s)) and
-             (s.src_.is_left_of(*this) xor s.tgt_.is_left_of(*this));
+      return src_.is_left_of(s) xor tgt_.is_left_of(s) and
+             s.src_.is_left_of(*this) xor s.tgt_.is_left_of(*this);
     }
 
     /// Return true if @p p lies on this segment.
@@ -1200,12 +1200,12 @@ namespace Aleph
       const Geom_Number x3sq_y3sq = x3 * x3 + y3 * y3;
 
       const Geom_Number ux =
-          (x1sq_y1sq * (y2 - y3) + x2sq_y2sq * (y3 - y1) +
-           x3sq_y3sq * (y1 - y2)) / d;
+      (x1sq_y1sq * (y2 - y3) + x2sq_y2sq * (y3 - y1) +
+       x3sq_y3sq * (y1 - y2)) / d;
 
       const Geom_Number uy =
-          (x1sq_y1sq * (x3 - x2) + x2sq_y2sq * (x1 - x3) +
-           x3sq_y3sq * (x2 - x1)) / d;
+      (x1sq_y1sq * (x3 - x2) + x2sq_y2sq * (x1 - x3) +
+       x3sq_y3sq * (x2 - x1)) / d;
 
       return {ux, uy};
     }
@@ -1302,24 +1302,24 @@ namespace Aleph
       ymax_ = ymax;
     }
 
-    [[nodiscard]] Geom_Number width() const { return xmax_ - xmin_; }
+    [[nodiscard]] Geom_Number width() const noexcept { return xmax_ - xmin_; }
 
-    [[nodiscard]] Geom_Number height() const { return ymax_ - ymin_; }
+    [[nodiscard]] Geom_Number height() const noexcept { return ymax_ - ymin_; }
 
-    [[nodiscard]] Geom_Number area() const { return width() * height(); }
+    [[nodiscard]] Geom_Number area() const noexcept { return width() * height(); }
 
-    [[nodiscard]] Geom_Number perimeter() const
+    [[nodiscard]] Geom_Number perimeter() const noexcept
     {
       return 2 * (width() + height());
     }
 
-    [[nodiscard]] Point center() const
+    [[nodiscard]] Point center() const noexcept
     {
       return {(xmin_ + xmax_) / 2, (ymin_ + ymax_) / 2};
     }
 
     /// Rectangle corners in CCW order starting at bottom-left.
-    [[nodiscard]] std::array<Point, 4> corners() const
+    [[nodiscard]] std::array<Point, 4> corners() const noexcept
     {
       return {
             Point(xmin_, ymin_),
@@ -1330,13 +1330,13 @@ namespace Aleph
     }
 
     // does this axis-aligned rectangle intersect that one?
-    [[nodiscard]] bool intersects(const Rectangle & that) const
+    [[nodiscard]] bool intersects(const Rectangle & that) const noexcept
     {
       return this->xmax_ >= that.xmin_ and this->ymax_ >= that.ymin_ and
              that.xmax_ >= this->xmin_ and that.ymax_ >= this->ymin_;
     }
 
-    [[nodiscard]] Geom_Number distance_squared_to(const Point & p) const
+    [[nodiscard]] Geom_Number distance_squared_to(const Point & p) const noexcept
     {
       Geom_Number dx = 0.0, dy = 0.0;
       if (p.get_x() < xmin_)
@@ -1359,7 +1359,7 @@ namespace Aleph
     }
 
     // does this axis-aligned rectangle contain p?
-    [[nodiscard]] bool contains(const Point & p) const
+    [[nodiscard]] bool contains(const Point & p) const noexcept
     {
       return p.get_x() >= xmin_ and p.get_x() <= xmax_ and
              p.get_y() >= ymin_ and p.get_y() <= ymax_;
@@ -1389,7 +1389,7 @@ namespace Aleph
   inline Segment Segment::intersection_with(const Triangle & t) const
   {
     ah_domain_error_if(not this->intersects_with(t))
-    << "segment does not intersects with triangle";
+      << "segment does not intersects with triangle";
 
     std::array<Point, 6> points;
     size_t count = 0;
@@ -1428,7 +1428,7 @@ namespace Aleph
     collect_with_edge(Segment(t.get_p3(), t.get_p1()));
 
     ah_domain_error_if(count == 0)
-    << "no intersection point found despite intersection confirmed";
+      << "no intersection point found despite intersection confirmed";
 
     if (count == 1)
       return {points[0], points[0]};
@@ -1439,15 +1439,12 @@ namespace Aleph
     Geom_Number best_d2 = points[0].distance_squared_to(points[1]);
     for (size_t i = 0; i < count; ++i)
       for (size_t j = i + 1; j < count; ++j)
-        {
-          const Geom_Number d2 = points[i].distance_squared_to(points[j]);
-          if (d2 > best_d2)
-            {
-              best_d2 = d2;
-              i_best = i;
-              j_best = j;
-            }
-        }
+        if (const Geom_Number d2 = points[i].distance_squared_to(points[j]); d2 > best_d2)
+          {
+            best_d2 = d2;
+            i_best = i;
+            j_best = j;
+          }
 
     return {points[i_best], points[j_best]};
   }
@@ -1530,7 +1527,7 @@ namespace Aleph
       return geom_pi() * ab_sum * correction;
     }
 
-    /// Sample a point on the ellipse at parameter angle (radians).
+    /// Sample a point on the ellipse at the parameter angle (radians).
     [[nodiscard]] Point sample(const Geom_Number & angle) const
     {
       validate_positive_radii();
@@ -1550,8 +1547,7 @@ namespace Aleph
   private:
     void validate_positive_radii() const
     {
-      ah_domain_error_if(hr_ <= 0 or vr_ <= 0)
-      << "Ellipse radii must be > 0";
+      ah_domain_error_if(hr_ <= 0 or vr_ <= 0) << "Ellipse radii must be > 0";
     }
 
     [[nodiscard]] static bool in_unit_interval(const Geom_Number & t)
@@ -1627,9 +1623,9 @@ namespace Aleph
       // (0, y1) and (0, -y1). For an ellipse centered at @p center we
       // translate them along the line (0,0)--center.
 
-      const Segment t1 = Segment(center_ + Point(x1, 0), center_ + Point(0, y1));
+      const auto t1 = Segment(center_ + Point(x1, 0), center_ + Point(0, y1));
 
-      const Segment t2 = Segment(center_ + Point(-x1, 0), center_ + Point(0, -y1));
+      const auto t2 = Segment(center_ + Point(-x1, 0), center_ + Point(0, -y1));
 
       // tangent segments may be longer than required. For each one pick the
       // endpoint closest to the center.
@@ -1747,12 +1743,11 @@ namespace Aleph
       const Geom_Number a2 = hr_ * hr_;
       const Geom_Number b2 = vr_ * vr_;
 
-      const Geom_Number A = (dx * dx) / a2 + (dy * dy) / b2;
+      const Geom_Number A = dx * dx / a2 + dy * dy / b2;
       const Geom_Number B =
           Geom_Number(2) * (p0.get_x() * dx / a2 + p0.get_y() * dy / b2);
       const Geom_Number C =
-          (p0.get_x() * p0.get_x()) / a2 + (p0.get_y() * p0.get_y()) / b2 -
-          Geom_Number(1);
+          p0.get_x() * p0.get_x() / a2 + p0.get_y() * p0.get_y() / b2 - Geom_Number(1);
 
       if (A == 0)
         {
@@ -1773,9 +1768,9 @@ namespace Aleph
       ah_domain_error_if(not in1 and not in2) << "there is no intersection";
 
       auto eval = [&](const Geom_Number & t)
-      {
-        return Point(p0.get_x() + dx * t, p0.get_y() + dy * t) + center_;
-      };
+        {
+          return Point(p0.get_x() + dx * t, p0.get_y() + dy * t) + center_;
+        };
 
       if (in1 and in2)
         return {eval(t1), eval(t2)};
@@ -1859,15 +1854,13 @@ namespace Aleph
 
     void validate_positive_radii() const
     {
-      ah_domain_error_if(a_ <= 0 or b_ <= 0)
-      << "RotatedEllipse radii must be > 0";
+      ah_domain_error_if(a_ <= 0 or b_ <= 0) << "RotatedEllipse radii must be > 0";
     }
 
     void normalize_rotation()
     {
       const Geom_Number norm2 = cos_th_ * cos_th_ + sin_th_ * sin_th_;
-      ah_domain_error_if(norm2 == 0)
-      << "Rotation vector (cos,sin) cannot be (0,0)";
+      ah_domain_error_if(norm2 == 0) << "Rotation vector (cos,sin) cannot be (0,0)";
       if (norm2 != 1)
         {
           const Geom_Number norm = square_root(norm2);
@@ -1952,7 +1945,7 @@ namespace Aleph
       return radius_value(p) < 1;
     }
 
-    /// Returns true if point p lies exactly on the ellipse boundary.
+    /// Returns true if the point p lies exactly on the ellipse boundary.
     [[nodiscard]] bool on_boundary(const Point & p) const
     {
       return radius_value(p) == 1;
@@ -1964,7 +1957,7 @@ namespace Aleph
     {
       validate_positive_radii();
       // Point on axis-aligned ellipse: (a cos t, b sin t).
-      // Rotate and translate to world.
+      // Rotate and translate to the world.
       return to_world(Point(a_ * cos_t, b_ * sin_t));
     }
 
@@ -2440,10 +2433,10 @@ namespace Aleph
 
     Segment3D(const Point3D & src, const Point3D & tgt) : src_(src), tgt_(tgt) {}
 
-    [[nodiscard]] const Point3D &get_src() const { return src_; }
-    [[nodiscard]] const Point3D &get_tgt() const { return tgt_; }
-    [[nodiscard]] const Point3D &get_src_point() const { return src_; }
-    [[nodiscard]] const Point3D &get_tgt_point() const { return tgt_; }
+    [[nodiscard]] const Point3D &get_src() const noexcept { return src_; }
+    [[nodiscard]] const Point3D &get_tgt() const noexcept { return tgt_; }
+    [[nodiscard]] const Point3D &get_src_point() const noexcept { return src_; }
+    [[nodiscard]] const Point3D &get_tgt_point() const noexcept { return tgt_; }
 
     [[nodiscard]] Point3D direction() const { return tgt_ - src_; }
 
@@ -2640,9 +2633,9 @@ namespace Aleph
     {
       auto signed_volume_x6_of = [](const Point3D & a, const Point3D & b,
                                     const Point3D & c, const Point3D & d)
-      {
-        return scalar_triple_product(b - a, c - a, d - a);
-      };
+        {
+          return scalar_triple_product(b - a, c - a, d - a);
+        };
 
       const Geom_Number d0 = signed_volume_x6();
       if (d0 == 0) return false; // degenerate
