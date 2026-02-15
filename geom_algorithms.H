@@ -455,23 +455,25 @@ namespace Aleph
           const Vertex *curr = ears.remove_pos(0);
 
           const Vertex & prev = p.get_prev_vertex(*curr);
-          const Vertex & prev_prev = p.get_prev_vertex(prev);
           const Vertex & next = p.get_next_vertex(*curr);
-          const Vertex & next_next = p.get_next_vertex(next);
 
-          if (diagonal(p, prev_prev, next))
+          ret.append(Triangle(prev.to_point(), curr->to_point(), next.to_point()));
+          p.remove_vertex(*curr);
+
+          // After removal, prev and next are adjacent; recompute their
+          // outer neighbors for ear tests on the updated topology.
+          const Vertex & new_prev_prev = p.get_prev_vertex(prev);
+          const Vertex & new_next_next = p.get_next_vertex(next);
+
+          if (diagonal(p, new_prev_prev, next))
             ears.insert(&prev);
           else
             ears.remove(&prev);
 
-          if (diagonal(p, prev, next_next))
+          if (diagonal(p, prev, new_next_next))
             ears.insert(&next);
           else
             ears.remove(&next);
-
-          ret.append(Triangle(prev.to_point(), curr->to_point(), next.to_point()));
-
-          p.remove_vertex(*curr);
         }
 
       assert(p.size() == 3);
@@ -636,13 +638,21 @@ namespace Aleph
       left_py.reserve(mid - l);
       right_py.reserve(r - mid);
 
+      const size_t left_target = mid - l;
       for (size_t i = 0; i < py.size(); ++i)
         {
           const Point & p = py(i);
-          if (LexicographicCmp x_cmp; x_cmp(p, mid_point))
+          if (p.get_x() < mid_point.get_x())
             left_py.append(p);
-          else
+          else if (p.get_x() > mid_point.get_x())
             right_py.append(p);
+          else // tie on x — fill left first, then right
+            {
+              if (left_py.size() < left_target)
+                left_py.append(p);
+              else
+                right_py.append(p);
+            }
         }
 
       const Result best_left = recurse(px, l, mid, left_py);
@@ -1833,6 +1843,14 @@ namespace Aleph
 
                                 work.append(WorkTriangle{u, v, pidx, true});
                               });
+
+          // Compact: remove dead triangles to avoid O(n^3) accumulation
+          Array<WorkTriangle> compacted;
+          compacted.reserve(work.size());
+          for (size_t t = 0; t < work.size(); ++t)
+            if (work(t).alive)
+              compacted.append(work(t));
+          work = std::move(compacted);
         }
 
       ret.triangles.reserve(work.size());
@@ -2948,26 +2966,59 @@ namespace Aleph
       const Array<HalfPlaneIntersection::HalfPlane> clip_hps =
           HalfPlaneIntersection::from_convex_polygon(clip);
 
-      Array<Polygon> ret;
-      ret.reserve(sites.size());
+      const size_t n = sites.size();
 
-      for (size_t i = 0; i < sites.size(); ++i)
+      // Compute Delaunay to get adjacency: each site's Voronoi cell is
+      // bounded only by bisectors with its Delaunay neighbors (~6 on avg),
+      // reducing total complexity from O(n^2 log n) to O(n log n).
+      constexpr DelaunayTriangulationBowyerWatson dt_algo;
+      DynList<Point> site_list;
+      for (size_t i = 0; i < n; ++i)
+        site_list.append(sites(i));
+      auto dt = dt_algo(site_list);
+
+      // Map Delaunay site indices back to input indices.
+      // dt.sites may be reordered/deduped, so match by position.
+      Array<size_t> dt_to_input;
+      dt_to_input.reserve(dt.sites.size());
+      for (size_t di = 0; di < dt.sites.size(); ++di)
+        {
+          size_t match = 0;
+          for (size_t oi = 0; oi < n; ++oi)
+            if (dt.sites(di) == sites(oi))
+              { match = oi; break; }
+          dt_to_input.append(match);
+        }
+
+      // Build adjacency lists from Delaunay triangles (in input-index space)
+      Array<DynSetTree<size_t, Treap_Rk>> adj(n);
+      for (size_t i = 0; i < n; ++i)
+        adj.append(DynSetTree<size_t, Treap_Rk>());
+      for (size_t t = 0; t < dt.triangles.size(); ++t)
+        {
+          const size_t a = dt_to_input(dt.triangles(t).i);
+          const size_t b = dt_to_input(dt.triangles(t).j);
+          const size_t c = dt_to_input(dt.triangles(t).k);
+          adj(a).insert(b); adj(a).insert(c);
+          adj(b).insert(a); adj(b).insert(c);
+          adj(c).insert(a); adj(c).insert(b);
+        }
+
+      Array<Polygon> ret;
+      ret.reserve(n);
+
+      for (size_t i = 0; i < n; ++i)
         {
           HalfPlaneIntersection hpi;
           Array<HalfPlaneIntersection::HalfPlane> hps = clip_hps;
-          hps.reserve(clip_hps.size() + sites.size());
 
-          for (size_t j = 0; j < sites.size(); ++j)
-            {
-              if (j == i)
-                continue;
-
-              if (sites(j) == sites(i))
-                continue;
-
+          adj(i).for_each([&](size_t j) {
+            if (sites(j) != sites(i))
               hps.append(bisector_halfplane_for_site(sites(i), sites(j)));
-            }
+          });
 
+          // If a site has no Delaunay neighbors (degenerate case),
+          // fall back to the clip polygon alone.
           ret.append(hpi(hps));
         }
 
@@ -4055,7 +4106,7 @@ namespace Aleph
     /// @brief Discard all pending events.
     void clear() noexcept
     {
-      queue_.empty();
+      queue_.empty(); // DynSetTree::empty() is a mutator that removes all elements
       seq_ = 0;
     }
 
@@ -4676,11 +4727,35 @@ namespace Aleph
               const size_t b = ev.seg_b;
               append_intersection(a, b, ev.pt);
 
+              // Walk outward from a (or b) through the status tree to find
+              // all active segments passing through ev.pt.  Segments sharing
+              // a point are adjacent in sweep-line order, so this is O(k)
+              // instead of the former O(n) scan.
               Array<size_t> block;
-              block.reserve(n);
-              for (size_t s = 0; s < n; ++s)
-                if (status.contains(s) and segs(s).contains(ev.pt))
-                  block.append(s);
+
+              // Pick a seed segment that is still in the status tree
+              size_t seed = SIZE_MAX;
+              if (status.contains(a) and segs(a).contains(ev.pt))
+                seed = a;
+              else if (status.contains(b) and segs(b).contains(ev.pt))
+                seed = b;
+
+              if (seed != SIZE_MAX)
+                {
+                  block.append(seed);
+
+                  // Walk predecessors
+                  for (size_t p = status.predecessor(seed);
+                       p != SIZE_MAX and segs(p).contains(ev.pt);
+                       p = status.predecessor(p))
+                    block.append(p);
+
+                  // Walk successors
+                  for (size_t s = status.successor(seed);
+                       s != SIZE_MAX and segs(s).contains(ev.pt);
+                       s = status.successor(s))
+                    block.append(s);
+                }
 
               if (block.size() > 2)
                 {
@@ -6357,29 +6432,38 @@ namespace Aleph
     /// Compute two points on the offset line of edge (a, b) moved by distance d
     /// along its outward (or inward) normal.  inward=true for CCW polygon means
     /// the normal is (dy, -dx) pointing to the interior.
+    ///
+    /// The entire computation is performed in mpfr_class space because
+    /// perpendicular-distance normalization involves sqrt, which is
+    /// irrational for general rational inputs.  Staying in mpfr avoids
+    /// the costly mpfr->mpq->mpfr round-trips that produce large-denominator
+    /// rationals and degrade subsequent arithmetic.
     static void offset_edge(const Point & a, const Point & b,
                             const Geom_Number & d, const bool inward,
                             Point & oa, Point & ob)
     {
-      const Geom_Number dx = b.get_x() - a.get_x();
-      const Geom_Number dy = b.get_y() - a.get_y();
-      const Geom_Number len = euclidean_distance(dx, dy);
+      const mpfr_class dx(b.get_x() - a.get_x());
+      const mpfr_class dy(b.get_y() - a.get_y());
+      const mpfr_class len = hypot(dx, dy);
+      const mpfr_class md(d);
 
       // For CCW polygon: inward normal = (dy, -dx)/len, outward = (-dy, dx)/len
-      Geom_Number nx, ny;
+      mpfr_class nx, ny;
       if (inward)
         {
-          nx = -dy * d / len;
-          ny = dx * d / len;
+          nx = -dy * md / len;
+          ny = dx * md / len;
         }
       else
         {
-          nx = dy * d / len;
-          ny = -dx * d / len;
+          nx = dy * md / len;
+          ny = -dx * md / len;
         }
 
-      oa = Point(a.get_x() + nx, a.get_y() + ny);
-      ob = Point(b.get_x() + nx, b.get_y() + ny);
+      oa = Point(Geom_Number(mpfr_class(a.get_x()) + nx),
+                 Geom_Number(mpfr_class(a.get_y()) + ny));
+      ob = Point(Geom_Number(mpfr_class(b.get_x()) + nx),
+                 Geom_Number(mpfr_class(b.get_y()) + ny));
     }
 
     /// Line-line intersection of (a1,a2) and (b1,b2).
@@ -6597,6 +6681,11 @@ namespace Aleph
 
     /// Find the index of the nearest intersected edge in `status` along
     /// ray from q toward dir.  Returns n (invalid) if none found.
+    ///
+    /// @note This is a linear scan over the status array, making each call
+    /// O(|status|).  Since it is called twice per vertex event, the overall
+    /// algorithm is O(n^2).  A BST-based status structure keyed by ray
+    /// intersection distance would reduce this to O(n log n).
     [[nodiscard]] static size_t nearest_edge(const Array<Point> & verts, const size_t n,
                                              const Array<size_t> & status,
                                              const Point & q, const Point & dir)
@@ -7900,6 +7989,10 @@ namespace Aleph
                        return a.tri < b.tri;
                      });
 
+      // Identify hull sites: sites on boundary edges (edges shared by
+      // exactly one triangle) have unbounded power cells.
+      DynSetTree<size_t, Treap_Rk> hull_sites;
+
       for (size_t i = 0; i < edge_refs.size();)
         {
           size_t j = i + 1;
@@ -7907,6 +8000,13 @@ namespace Aleph
                  edge_refs(j).u == edge_refs(i).u and
                  edge_refs(j).v == edge_refs(i).v)
             ++j;
+
+          if (j - i == 1)
+            {
+              // Boundary edge: both sites are on the convex hull
+              hull_sites.insert(rt_to_ours(edge_refs(i).u));
+              hull_sites.insert(rt_to_ours(edge_refs(i).v));
+            }
 
           // In a manifold triangulation this group has exactly 1 or 2 refs.
           // If degeneracies produce >2, connect all pairs defensively.
@@ -7927,7 +8027,7 @@ namespace Aleph
           i = j;
         }
 
-      // Build cells (simplified: one cell per site with its power vertices).
+      // Build cells: hull sites have unbounded cells.
       ret.cells.reserve(n);
       for (size_t s = 0; s < n; ++s)
         {
@@ -7935,7 +8035,7 @@ namespace Aleph
           cell.site_index = s;
           cell.site = sites(s).position;
           cell.weight = sites(s).weight;
-          cell.bounded = true; // simplified assumption
+          cell.bounded = hull_sites.search(s) == nullptr;
 
           // Collect power centers of triangles incident to this site.
           for (size_t t = 0; t < rt.triangles.size(); ++t)
