@@ -115,6 +115,7 @@ set(EXAMPLE_PROGRAMS
     robust_predicates_example
     voronoi_clipped_cells_example
     delaunay_voronoi_example
+    constrained_delaunay_example
     point_in_polygon_example
     polygon_intersection_example
     tikz_polygons_example

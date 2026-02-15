@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <tpl_dynArray.H>
+#include <ah-unique.H>
 
 using namespace Aleph;
 using namespace std;
@@ -77,6 +78,26 @@ TEST(DynArrayBasics, default_values_and_touch)
   ref = 99;
   EXPECT_EQ(arr.size(), 11u);
   EXPECT_EQ(arr.access(10), 99);
+}
+
+TEST(DynArrayAlgorithms, InPlaceUnique)
+{
+  DynArray<int> arr;
+  arr.append(1);
+  arr.append(2);
+  arr.append(1);
+  arr.append(3);
+  arr.append(2);
+  arr.append(4);
+  arr.append(4);
+
+  in_place_unique(arr);
+
+  ASSERT_EQ(arr.size(), 4u);
+  EXPECT_EQ(arr.access(0), 1);
+  EXPECT_EQ(arr.access(1), 2);
+  EXPECT_EQ(arr.access(2), 3);
+  EXPECT_EQ(arr.access(3), 4);
 }
 
 TEST(DynArrayErrors, stack_operations_on_empty)

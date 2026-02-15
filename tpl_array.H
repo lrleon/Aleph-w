@@ -158,7 +158,9 @@ public:
    *  @note Exception safety: Strong guarantee (if allocation fails or T's copy constructor throws, no memory is leaked).
    *  @note Thread safety: Safe to call concurrently on different instances; not thread-safe on the same instance.
    */
-  Array(size_t n, const T& value) : array(n)
+  Array(size_t n, const T& value)
+    requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
+    : array(n)
   {
     for (size_t i = 0; i < n; ++i)
       array.put(value);
@@ -196,7 +198,9 @@ public:
   }
 
   /// Copy constructor
-  Array(const Array &s) : array(s.array) { /* empty */ }
+  Array(const Array &s)
+    requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
+    : array(s.array) { /* empty */ }
 
   /// Move constructor
   Array(Array &&s) noexcept: array(std::forward<MemArray < T>>
@@ -208,6 +212,7 @@ public:
 
   /// Assign by copy `s` to `this`
   Array &operator=(const Array &s)
+    requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
   {
     if (this == &s)
       return *this;
@@ -237,6 +242,7 @@ public:
       @throw bad_alloc if there is no enough memory
   */
   T &append(const T &data)
+    requires std::is_copy_assignable_v<T>
   {
     return array.put(data);
   }

@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <tpl_array.H>
+#include <ah-unique.H>
 
 #include <array>
 #include <numeric>
@@ -220,6 +221,19 @@ TEST(ArrayTraverse, TraversalVariants)
   bool called = false;
   EXPECT_TRUE(arr.traverse(MoveOnlyOp(&called)));
   EXPECT_TRUE(called);
+}
+
+TEST(ArrayAlgorithms, InPlaceUnique)
+{
+  Array<int> arr = {1, 2, 1, 3, 2, 4, 4};
+
+  in_place_unique(arr);
+
+  ASSERT_EQ(arr.size(), 4u);
+  EXPECT_EQ(arr[0], 1);
+  EXPECT_EQ(arr[1], 2);
+  EXPECT_EQ(arr[2], 3);
+  EXPECT_EQ(arr[3], 4);
 }
 
 TEST(ArrayIterators, IteratorCoversAllElements)

@@ -42,7 +42,8 @@ TEST(TikzPlaneTest, DrawEmptyPlane)
   const std::string result = output.str();
 
   EXPECT_NE(result.find("\\begin{tikzpicture}"), std::string::npos);
-  EXPECT_NE(result.find("\\clip (0,0) rectangle (100.000000,60.000000);"), std::string::npos);
+  EXPECT_NE(result.find("\\clip (-1.000000,-1.000000) rectangle (101.000000,61.000000);"),
+            std::string::npos);
   EXPECT_NE(result.find("\\end{tikzpicture}"), std::string::npos);
   EXPECT_FALSE(has_nan_or_inf(result));
 }
@@ -148,4 +149,58 @@ TEST(TikzPlaneTest, OptionalCartesianAxis)
   EXPECT_NE(result.find("\\draw["), std::string::npos);
   EXPECT_NE(result.find("draw=gray"), std::string::npos);
   EXPECT_NE(result.find("->"), std::string::npos);
+}
+
+TEST(TikzPlaneTest, SupportsRectangleAndLineEq)
+{
+  Tikz_Plane plane(120, 80);
+  put_in_plane(plane, Rectangle(0, 0, 30, 20));
+  put_in_plane(plane, LineEq(0, 1)); // y = x
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+
+  EXPECT_NE(result.find("-- cycle;"), std::string::npos);
+  EXPECT_NE(result.find("\\draw"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzPlaneTest, EscapesLatexText)
+{
+  Tikz_Plane plane(120, 80);
+  put_in_plane(plane, Text(Point(0, 0), "A_%$#&{}\\B"));
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+
+  EXPECT_NE(result.find("A\\_\\%\\$\\#\\&\\{\\}\\textbackslash{}B"), std::string::npos);
+}
+
+TEST(TikzPlaneTest, ConfigurableClipPadding)
+{
+  Tikz_Plane plane(100, 60);
+  plane.set_clip_padding_mm(3.5);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+
+  EXPECT_NE(result.find("\\clip (-3.500000,-3.500000) rectangle (103.500000,63.500000);"),
+            std::string::npos);
+}
+
+TEST(TikzPlaneTest, SupportsBezierHelpers)
+{
+  Tikz_Plane plane(120, 80);
+  put_quadratic_bezier_in_plane(plane, Point(0, 0), Point(20, 40), Point(40, 0), 8);
+  put_cubic_bezier_in_plane(plane, Point(40, 0), Point(60, 40), Point(80, -20), Point(100, 10), 8);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+
+  EXPECT_NE(result.find("\\draw"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
 }

@@ -2,6 +2,7 @@
 # define TIKZGEOM_H
 
 # include <algorithm>
+# include <array>
 # include <cmath>
 # include <cstddef>
 # include <iomanip>
@@ -13,6 +14,7 @@
 # include <variant>
 # include <vector>
 
+# include "line.H"
 # include "point.H"
 # include "polygon.H"
 
@@ -106,7 +108,7 @@ public:
   /** @brief Runtime set of supported objects. */
   using Object = std::variant<Point, Polar_Point, Segment, Triangle,
                               Ellipse, RotatedEllipse, Text,
-                              Polygon, Regular_Polygon>;
+                              Polygon, Regular_Polygon, Rectangle, LineEq>;
 
 private:
   struct Geom_Box
@@ -143,6 +145,7 @@ private:
 
   bool with_cartesian_axis_ = false;
   double point_radius_mm_ = 1.0;
+  double clip_padding_mm_ = -1.0;
 
   Tikz_Style default_style_;
   Tikz_Style axis_style_ = []()
@@ -277,96 +280,118 @@ private:
     return square_root(a2 * s2 + b2 * c2);
   }
 
-  static Point highest_point_of(const Point & p) { return p; }
-  static Point highest_point_of(const Polar_Point & pp) { return Point(pp); }
-  static Point highest_point_of(const Segment & s) { return s.highest_point(); }
-  static Point highest_point_of(const Triangle & t) { return t.highest_point(); }
-  static Point highest_point_of(const Ellipse & e) { return e.highest_point(); }
-  static Point highest_point_of(const Text & t) { return t.highest_point(); }
-
-  static Point highest_point_of(const Polygon & poly)
+  static Geom_Box make_box(const Geom_Number & xmin,
+                           const Geom_Number & xmax,
+                           const Geom_Number & ymin,
+                           const Geom_Number & ymax)
   {
-    return poly.size() == 0 ? Point(0, 0) : poly.highest_point();
+    Geom_Box box;
+    box.xmin = xmin;
+    box.xmax = xmax;
+    box.ymin = ymin;
+    box.ymax = ymax;
+    box.initialized = true;
+    return box;
   }
 
-  static Point highest_point_of(const Regular_Polygon & poly)
+  static void merge_box(Geom_Box & dst, const Geom_Box & src)
   {
-    return poly.size() == 0 ? Point(0, 0) : poly.highest_point();
+    if (not src.initialized)
+      return;
+
+    if (not dst.initialized)
+      {
+        dst = src;
+        return;
+      }
+
+    dst.xmin = std::min(dst.xmin, src.xmin);
+    dst.xmax = std::max(dst.xmax, src.xmax);
+    dst.ymin = std::min(dst.ymin, src.ymin);
+    dst.ymax = std::max(dst.ymax, src.ymax);
   }
 
-  static Point highest_point_of(const RotatedEllipse & e)
+  static Geom_Box bbox_of(const Point & p)
   {
-    const Geom_Number ey = rotated_y_extent(e);
-    return {e.get_center().get_x(), e.get_center().get_y() + ey};
+    return make_box(p.get_x(), p.get_x(), p.get_y(), p.get_y());
   }
 
-  static Point lowest_point_of(const Point & p) { return p; }
-  static Point lowest_point_of(const Polar_Point & pp) { return Point(pp); }
-  static Point lowest_point_of(const Segment & s) { return s.lowest_point(); }
-  static Point lowest_point_of(const Triangle & t) { return t.lowest_point(); }
-  static Point lowest_point_of(const Ellipse & e) { return e.lowest_point(); }
-  static Point lowest_point_of(const Text & t) { return t.lowest_point(); }
-
-  static Point lowest_point_of(const Polygon & poly)
+  static Geom_Box bbox_of(const Polar_Point & pp)
   {
-    return poly.size() == 0 ? Point(0, 0) : poly.lowest_point();
+    return bbox_of(Point(pp));
   }
 
-  static Point lowest_point_of(const Regular_Polygon & poly)
+  static Geom_Box bbox_of(const Segment & s)
   {
-    return poly.size() == 0 ? Point(0, 0) : poly.lowest_point();
+    return make_box(s.leftmost_point().get_x(), s.rightmost_point().get_x(),
+                    s.lowest_point().get_y(), s.highest_point().get_y());
   }
 
-  static Point lowest_point_of(const RotatedEllipse & e)
+  static Geom_Box bbox_of(const Triangle & t)
   {
-    const Geom_Number ey = rotated_y_extent(e);
-    return {e.get_center().get_x(), e.get_center().get_y() - ey};
+    return make_box(t.leftmost_point().get_x(), t.rightmost_point().get_x(),
+                    t.lowest_point().get_y(), t.highest_point().get_y());
   }
 
-  static Point leftmost_point_of(const Point & p) { return p; }
-  static Point leftmost_point_of(const Polar_Point & pp) { return Point(pp); }
-  static Point leftmost_point_of(const Segment & s) { return s.leftmost_point(); }
-  static Point leftmost_point_of(const Triangle & t) { return t.leftmost_point(); }
-  static Point leftmost_point_of(const Ellipse & e) { return e.leftmost_point(); }
-  static Point leftmost_point_of(const Text & t) { return t.leftmost_point(); }
-
-  static Point leftmost_point_of(const Polygon & poly)
+  static Geom_Box bbox_of(const Ellipse & e)
   {
-    return poly.size() == 0 ? Point(0, 0) : poly.leftmost_point();
+    return make_box(e.leftmost_point().get_x(), e.rightmost_point().get_x(),
+                    e.lowest_point().get_y(), e.highest_point().get_y());
   }
 
-  static Point leftmost_point_of(const Regular_Polygon & poly)
-  {
-    return poly.size() == 0 ? Point(0, 0) : poly.leftmost_point();
-  }
-
-  static Point leftmost_point_of(const RotatedEllipse & e)
+  static Geom_Box bbox_of(const RotatedEllipse & e)
   {
     const Geom_Number ex = rotated_x_extent(e);
-    return {e.get_center().get_x() - ex, e.get_center().get_y()};
+    const Geom_Number ey = rotated_y_extent(e);
+    const Point & c = e.get_center();
+    return make_box(c.get_x() - ex, c.get_x() + ex,
+                    c.get_y() - ey, c.get_y() + ey);
   }
 
-  static Point rightmost_point_of(const Point & p) { return p; }
-  static Point rightmost_point_of(const Polar_Point & pp) { return Point(pp); }
-  static Point rightmost_point_of(const Segment & s) { return s.rightmost_point(); }
-  static Point rightmost_point_of(const Triangle & t) { return t.rightmost_point(); }
-  static Point rightmost_point_of(const Ellipse & e) { return e.rightmost_point(); }
-  static Point rightmost_point_of(const Text & t) { return t.rightmost_point(); }
-
-  static Point rightmost_point_of(const Polygon & poly)
+  static Geom_Box bbox_of(const Text & t)
   {
-    return poly.size() == 0 ? Point(0, 0) : poly.rightmost_point();
+    return make_box(t.leftmost_point().get_x(), t.rightmost_point().get_x(),
+                    t.lowest_point().get_y(), t.highest_point().get_y());
   }
 
-  static Point rightmost_point_of(const Regular_Polygon & poly)
+  static Geom_Box bbox_of(const Polygon & poly)
   {
-    return poly.size() == 0 ? Point(0, 0) : poly.rightmost_point();
+    if (poly.size() == 0)
+      return {};
+
+    Geom_Box box;
+    for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+      {
+        const Point p = it.get_current_vertex().to_point();
+        merge_box(box, bbox_of(p));
+      }
+    return box;
   }
 
-  static Point rightmost_point_of(const RotatedEllipse & e)
+  static Geom_Box bbox_of(const Regular_Polygon & poly)
   {
-    const Geom_Number ex = rotated_x_extent(e);
-    return {e.get_center().get_x() + ex, e.get_center().get_y()};
+    if (poly.size() == 0)
+      return {};
+
+    Geom_Box box;
+    for (size_t i = 0; i < poly.size(); ++i)
+      merge_box(box, bbox_of(poly.get_vertex(i)));
+    return box;
+  }
+
+  static Geom_Box bbox_of(const Rectangle & r)
+  {
+    return make_box(r.get_xmin(), r.get_xmax(), r.get_ymin(), r.get_ymax());
+  }
+
+  static Geom_Box bbox_of(const LineEq & l)
+  {
+    const Geom_Number x0 = Geom_Number(0);
+    const Geom_Number x1 = Geom_Number(1);
+    const Geom_Number y0 = l(x0);
+    const Geom_Number y1 = l(x1);
+    return make_box(std::min(x0, x1), std::max(x0, x1),
+                    std::min(y0, y1), std::max(y0, y1));
   }
 
   Geom_Box compute_box() const
@@ -374,32 +399,38 @@ private:
     Geom_Box box;
     for (const auto & entry : objects_)
       {
-        const Point highest = std::visit(
-            [](const auto & val) { return highest_point_of(val); }, entry.object);
-        const Point lowest = std::visit(
-            [](const auto & val) { return lowest_point_of(val); }, entry.object);
-        const Point leftmost = std::visit(
-            [](const auto & val) { return leftmost_point_of(val); }, entry.object);
-        const Point rightmost = std::visit(
-            [](const auto & val) { return rightmost_point_of(val); }, entry.object);
-
-        if (not box.initialized)
-          {
-            box.xmin = leftmost.get_x();
-            box.xmax = rightmost.get_x();
-            box.ymin = lowest.get_y();
-            box.ymax = highest.get_y();
-            box.initialized = true;
-            continue;
-          }
-
-        box.xmin = std::min(box.xmin, leftmost.get_x());
-        box.xmax = std::max(box.xmax, rightmost.get_x());
-        box.ymin = std::min(box.ymin, lowest.get_y());
-        box.ymax = std::max(box.ymax, highest.get_y());
+        merge_box(box, std::visit(
+            [](const auto & val) { return bbox_of(val); }, entry.object));
       }
 
     return box;
+  }
+
+  [[nodiscard]] double effective_clip_padding_mm() const
+  {
+    return std::max(point_radius_mm_, clip_padding_mm_ > 0.0 ? clip_padding_mm_ : 0.0);
+  }
+
+  [[nodiscard]] static std::string escape_latex(const std::string & text)
+  {
+    std::string escaped;
+    escaped.reserve(text.size() + 8);
+    for (const char ch : text)
+      switch (ch)
+        {
+        case '\\': escaped += "\\textbackslash{}"; break;
+        case '{': escaped += "\\{"; break;
+        case '}': escaped += "\\}"; break;
+        case '$': escaped += "\\$"; break;
+        case '%': escaped += "\\%"; break;
+        case '#': escaped += "\\#"; break;
+        case '&': escaped += "\\&"; break;
+        case '_': escaped += "\\_"; break;
+        case '^': escaped += "\\^{}"; break;
+        case '~': escaped += "\\~{}"; break;
+        default: escaped.push_back(ch); break;
+        }
+    return escaped;
   }
 
   Mapping compute_mapping(const Geom_Box & box, const bool squarize) const
@@ -627,7 +658,7 @@ private:
     if (not style.text_font_command.empty())
       output << style.text_font_command << " ";
 
-    output << t.get_str() << "};" << std::endl;
+    output << escape_latex(t.get_str()) << "};" << std::endl;
   }
 
   template <typename Out>
@@ -653,6 +684,85 @@ private:
       vertices.push_back(poly.get_vertex(i));
 
     draw_polyline(output, vertices, true, style, box, map);
+  }
+
+  template <typename Out>
+  void draw_rectangle(const Rectangle & r, const Tikz_Style & style, Out & output,
+                      const Geom_Box & box, const Mapping & map) const
+  {
+    std::vector<Point> vertices;
+    vertices.reserve(4);
+    const std::array<Point, 4> corners = r.corners();
+    for (const Point & p : corners)
+      vertices.push_back(p);
+    draw_polyline(output, vertices, true, style, box, map);
+  }
+
+  template <typename Out>
+  void draw_line_eq(const LineEq & l, const Tikz_Style & style, Out & output,
+                    const Geom_Box & box, const Mapping & map) const
+  {
+    if (not box.initialized)
+      return;
+
+    std::vector<Point> clipped;
+    clipped.reserve(4);
+
+    const auto append_if_new = [&](const Point & p)
+      {
+        for (const Point & existing : clipped)
+          if (existing == p)
+            return;
+        clipped.push_back(p);
+      };
+
+    const auto y_in_range = [&](const Geom_Number & y)
+      {
+        return box.ymin <= y and y <= box.ymax;
+      };
+    const auto x_in_range = [&](const Geom_Number & x)
+      {
+        return box.xmin <= x and x <= box.xmax;
+      };
+
+    const Geom_Number y_left = l(box.xmin);
+    if (y_in_range(y_left))
+      append_if_new(Point(box.xmin, y_left));
+
+    const Geom_Number y_right = l(box.xmax);
+    if (y_in_range(y_right))
+      append_if_new(Point(box.xmax, y_right));
+
+    if (l.m != Geom_Number(0))
+      {
+        const Geom_Number x_bottom = (box.ymin - l.y0) / l.m;
+        if (x_in_range(x_bottom))
+          append_if_new(Point(x_bottom, box.ymin));
+
+        const Geom_Number x_top = (box.ymax - l.y0) / l.m;
+        if (x_in_range(x_top))
+          append_if_new(Point(x_top, box.ymax));
+      }
+
+    if (clipped.size() < 2)
+      return;
+
+    size_t best_i = 0;
+    size_t best_j = 1;
+    Geom_Number best_d2 = clipped[0].distance_squared_to(clipped[1]);
+    for (size_t i = 0; i < clipped.size(); ++i)
+      for (size_t j = i + 1; j < clipped.size(); ++j)
+        {
+          const Geom_Number d2 = clipped[i].distance_squared_to(clipped[j]);
+          if (d2 > best_d2)
+            {
+              best_d2 = d2;
+              best_i = i;
+              best_j = j;
+            }
+        }
+
+    draw_segment(Segment(clipped[best_i], clipped[best_j]), style, output, box, map);
   }
 
   template <typename Out>
@@ -711,6 +821,10 @@ private:
             draw_polygon(value, entry.style, output, box, map);
           else if constexpr (std::is_same_v<T, Regular_Polygon>)
             draw_regular_polygon(value, entry.style, output, box, map);
+          else if constexpr (std::is_same_v<T, Rectangle>)
+            draw_rectangle(value, entry.style, output, box, map);
+          else if constexpr (std::is_same_v<T, LineEq>)
+            draw_line_eq(value, entry.style, output, box, map);
         },
         entry.object);
   }
@@ -743,6 +857,8 @@ public:
   [[nodiscard]] const double &get_yoffset() const { return yoffset_; }
   /// @brief Radius used to draw point primitives (millimeters).
   [[nodiscard]] const double &get_point_radius_mm() const { return point_radius_mm_; }
+  /// @brief Clip expansion around the frame; <= 0 means auto (point radius).
+  [[nodiscard]] const double &get_clip_padding_mm() const { return clip_padding_mm_; }
   /// @brief Number of currently inserted objects.
   [[nodiscard]] size_t size() const { return objects_.size(); }
 
@@ -774,6 +890,15 @@ public:
     ah_domain_error_if(radius_mm <= 0)
       << "point radius must be greater than zero";
     point_radius_mm_ = radius_mm;
+  }
+
+  /** @brief Configure clip expansion around frame borders.
+   *
+   *  When <= 0, the plane uses `point_radius_mm_` automatically.
+   */
+  void set_clip_padding_mm(const double & padding_mm)
+  {
+    clip_padding_mm_ = padding_mm;
   }
 
   /** @brief Enable Cartesian axes drawing (only when 0 lies in range). */
@@ -824,7 +949,9 @@ public:
     output << "  % " << objects_.size() << " geometric objects in plane" << std::endl;
     output << "  \\begin{scope}[shift={(" << xoffset_ << "mm," << yoffset_ << "mm)}]"
            << std::endl;
-    output << "    \\clip (0,0) rectangle (" << wide_ << "," << height_ << ");"
+    const double clip_padding = effective_clip_padding_mm();
+    output << "    \\clip (" << -clip_padding << "," << -clip_padding << ") rectangle ("
+           << (wide_ + clip_padding) << "," << (height_ + clip_padding) << ");"
            << std::endl;
 
     draw_cartesian_axis(output, box, map);
@@ -849,130 +976,85 @@ public:
   }
 };
 
-/// @brief Insert a `Point` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Point & geom_obj)
+/** @brief Insert any supported geometry type in a @ref Tikz_Plane. */
+template <typename Geom,
+          typename = std::enable_if_t<
+              std::is_constructible_v<Tikz_Plane::Object, std::decay_t<Geom>>>>
+inline void put_in_plane(Tikz_Plane & plane, const Geom & geom_obj)
 {
-  plane.put(geom_obj);
+  plane.put(Tikz_Plane::Object(geom_obj));
 }
 
-/// @brief Insert a styled `Point` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Point & geom_obj,
+/** @brief Insert any supported geometry type with style/layer. */
+template <typename Geom,
+          typename = std::enable_if_t<
+              std::is_constructible_v<Tikz_Plane::Object, std::decay_t<Geom>>>>
+inline void put_in_plane(Tikz_Plane & plane, const Geom & geom_obj,
                          const Tikz_Style & style,
                          const int layer = Tikz_Plane::Layer_Default)
 {
-  plane.put(geom_obj, style, layer);
+  plane.put(Tikz_Plane::Object(geom_obj), style, layer);
 }
 
-/// @brief Insert a `Polar_Point` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Polar_Point & geom_obj)
+/// @brief Approximate and insert a quadratic Bézier as an open polyline.
+inline void put_quadratic_bezier_in_plane(Tikz_Plane & plane,
+                                          const Point & p0,
+                                          const Point & p1,
+                                          const Point & p2,
+                                          const size_t subdivisions = 64,
+                                          const Tikz_Style & style = {},
+                                          const int layer = Tikz_Plane::Layer_Default)
 {
-  plane.put(geom_obj);
+  ah_domain_error_if(subdivisions == 0) << "Need at least 1 subdivision";
+
+  Polygon curve;
+  for (size_t i = 0; i <= subdivisions; ++i)
+    {
+      const Geom_Number t = Geom_Number(i) / Geom_Number(subdivisions);
+      const Geom_Number s = Geom_Number(1) - t;
+      const Geom_Number x = s * s * p0.get_x() +
+                            Geom_Number(2) * s * t * p1.get_x() +
+                            t * t * p2.get_x();
+      const Geom_Number y = s * s * p0.get_y() +
+                            Geom_Number(2) * s * t * p1.get_y() +
+                            t * t * p2.get_y();
+      curve.add_vertex(Point(x, y));
+    }
+
+  put_in_plane(plane, curve, style, layer);
 }
 
-/// @brief Insert a styled `Polar_Point` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Polar_Point & geom_obj,
-                         const Tikz_Style & style,
-                         const int layer = Tikz_Plane::Layer_Default)
+/// @brief Approximate and insert a cubic Bézier as an open polyline.
+inline void put_cubic_bezier_in_plane(Tikz_Plane & plane,
+                                      const Point & p0,
+                                      const Point & p1,
+                                      const Point & p2,
+                                      const Point & p3,
+                                      const size_t subdivisions = 64,
+                                      const Tikz_Style & style = {},
+                                      const int layer = Tikz_Plane::Layer_Default)
 {
-  plane.put(geom_obj, style, layer);
-}
+  ah_domain_error_if(subdivisions == 0) << "Need at least 1 subdivision";
 
-/// @brief Insert a `Segment` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Segment & geom_obj)
-{
-  plane.put(geom_obj);
-}
+  Polygon curve;
+  for (size_t i = 0; i <= subdivisions; ++i)
+    {
+      const Geom_Number t = Geom_Number(i) / Geom_Number(subdivisions);
+      const Geom_Number s = Geom_Number(1) - t;
+      const Geom_Number s2 = s * s;
+      const Geom_Number t2 = t * t;
+      const Geom_Number x = s2 * s * p0.get_x() +
+                            Geom_Number(3) * s2 * t * p1.get_x() +
+                            Geom_Number(3) * s * t2 * p2.get_x() +
+                            t2 * t * p3.get_x();
+      const Geom_Number y = s2 * s * p0.get_y() +
+                            Geom_Number(3) * s2 * t * p1.get_y() +
+                            Geom_Number(3) * s * t2 * p2.get_y() +
+                            t2 * t * p3.get_y();
+      curve.add_vertex(Point(x, y));
+    }
 
-/// @brief Insert a styled `Segment` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Segment & geom_obj,
-                         const Tikz_Style & style,
-                         const int layer = Tikz_Plane::Layer_Default)
-{
-  plane.put(geom_obj, style, layer);
-}
-
-/// @brief Insert a `Triangle` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Triangle & geom_obj)
-{
-  plane.put(geom_obj);
-}
-
-/// @brief Insert a styled `Triangle` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Triangle & geom_obj,
-                         const Tikz_Style & style,
-                         const int layer = Tikz_Plane::Layer_Default)
-{
-  plane.put(geom_obj, style, layer);
-}
-
-/// @brief Insert an `Ellipse` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Ellipse & geom_obj)
-{
-  plane.put(geom_obj);
-}
-
-/// @brief Insert a styled `Ellipse` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Ellipse & geom_obj,
-                         const Tikz_Style & style,
-                         const int layer = Tikz_Plane::Layer_Default)
-{
-  plane.put(geom_obj, style, layer);
-}
-
-/// @brief Insert a `RotatedEllipse` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const RotatedEllipse & geom_obj)
-{
-  plane.put(geom_obj);
-}
-
-/// @brief Insert a styled `RotatedEllipse` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const RotatedEllipse & geom_obj,
-                         const Tikz_Style & style,
-                         const int layer = Tikz_Plane::Layer_Default)
-{
-  plane.put(geom_obj, style, layer);
-}
-
-/// @brief Insert a `Text` label in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Text & geom_obj)
-{
-  plane.put(geom_obj);
-}
-
-/// @brief Insert a styled `Text` label in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Text & geom_obj,
-                         const Tikz_Style & style,
-                         const int layer = Tikz_Plane::Layer_Default)
-{
-  plane.put(geom_obj, style, layer);
-}
-
-/// @brief Insert a `Polygon` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Polygon & geom_obj)
-{
-  plane.put(geom_obj);
-}
-
-/// @brief Insert a styled `Polygon` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Polygon & geom_obj,
-                         const Tikz_Style & style,
-                         const int layer = Tikz_Plane::Layer_Default)
-{
-  plane.put(geom_obj, style, layer);
-}
-
-/// @brief Insert a `Regular_Polygon` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Regular_Polygon & geom_obj)
-{
-  plane.put(geom_obj);
-}
-
-/// @brief Insert a styled `Regular_Polygon` in a @ref Tikz_Plane.
-inline void put_in_plane(Tikz_Plane & plane, const Regular_Polygon & geom_obj,
-                         const Tikz_Style & style,
-                         const int layer = Tikz_Plane::Layer_Default)
-{
-  plane.put(geom_obj, style, layer);
+  put_in_plane(plane, curve, style, layer);
 }
 
 } // namespace Aleph

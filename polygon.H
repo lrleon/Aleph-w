@@ -860,17 +860,22 @@ namespace Aleph
       is_closed_ = true;
     }
 
-    /** @brief Check if a point is inside the polygon (or on its boundary).
+    enum class PointLocation
+    {
+      Outside,
+      Boundary,
+      Inside
+    };
+
+    /** @brief Classify a point against this closed polygon.
      *
-     *  Tests whether the given point lies inside or on the boundary of this
-     *  closed simple polygon. Uses the winding number algorithm, which works
-     *  correctly for both convex and non-convex polygons.
+     *  Uses winding number with exact predicates.
      *
      *  @param p The point to test.
-     *  @return True if @p p is inside or on the boundary.
+     *  @return PointLocation::Outside, PointLocation::Boundary, or PointLocation::Inside.
      *  @throws std::domain_error If the polygon is not closed.
      */
-    [[nodiscard]] bool contains(const Point & p) const
+    [[nodiscard]] PointLocation locate_point(const Point & p) const
     {
       ah_domain_error_if(not is_closed_) << "Polygon is not closed";
 
@@ -883,7 +888,7 @@ namespace Aleph
           const Point & b = edge.get_tgt_point();
 
           if (on_segment(edge, p))
-            return true;
+            return PointLocation::Boundary;
 
           if (a.get_y() <= p.get_y())
             {
@@ -899,7 +904,22 @@ namespace Aleph
             }
         }
 
-      return winding != 0;
+      return winding == 0 ? PointLocation::Outside : PointLocation::Inside;
+    }
+
+    /** @brief Check if a point is inside the polygon (or on its boundary).
+     *
+     *  Tests whether the given point lies inside or on the boundary of this
+     *  closed simple polygon. Uses the winding number algorithm, which works
+     *  correctly for both convex and non-convex polygons.
+     *
+     *  @param p The point to test.
+     *  @return True if @p p is inside or on the boundary.
+     *  @throws std::domain_error If the polygon is not closed.
+     */
+    [[nodiscard]] bool contains(const Point & p) const
+    {
+      return locate_point(p) != PointLocation::Outside;
     }
 
     /// @deprecated Use contains() instead.

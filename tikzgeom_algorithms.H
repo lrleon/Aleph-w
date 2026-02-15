@@ -935,7 +935,7 @@ namespace Aleph
         trace.steps.append(step);
 
         if (restart)
-          continue;
+          continue; // this is deliberately after appending the step, so the "restart" state is visible in the trace
       }
 
     committed.append(target);
@@ -1186,6 +1186,59 @@ namespace Aleph
                            Tikz_Plane::Layer_Overlay);
     return res;
   }
+  /** @brief Insert constrained Delaunay triangulation result.
+   *
+   *  Draws all triangles in wire style, constrained edges in a distinct
+   *  foreground style, and optionally sites as points.
+   */
+  inline void put_cdt_result(
+      Tikz_Plane & plane,
+      const ConstrainedDelaunayTriangulation::Result & cdt,
+      const Tikz_Style & triangle_style = tikz_wire_style("blue!60"),
+      const Tikz_Style & constraint_style = tikz_path_style("red"),
+      const bool draw_sites = true,
+      const Tikz_Style & site_style = tikz_points_style("black"),
+      const int triangle_layer = Tikz_Plane::Layer_Default,
+      const int constraint_layer = Tikz_Plane::Layer_Foreground,
+      const int site_layer = Tikz_Plane::Layer_Overlay)
+  {
+    for (size_t i = 0; i < cdt.triangles.size(); ++i)
+      {
+        const auto & tri = cdt.triangles(i);
+        Triangle t(cdt.sites(tri.i), cdt.sites(tri.j), cdt.sites(tri.k));
+        put_in_plane(plane, t, triangle_style, triangle_layer);
+      }
+
+    for (size_t i = 0; i < cdt.constrained_edges.size(); ++i)
+      {
+        const auto & e = cdt.constrained_edges(i);
+        Segment s(cdt.sites(e.u), cdt.sites(e.v));
+        put_in_plane(plane, s, constraint_style, constraint_layer);
+      }
+
+    if (draw_sites)
+      put_points(plane, cdt.sites, site_style, site_layer);
+  }
+
+  /** @brief Compute and insert constrained Delaunay triangulation. */
+  [[nodiscard]] inline ConstrainedDelaunayTriangulation::Result
+  visualize_cdt(
+      Tikz_Plane & plane,
+      const DynList<Point> & points,
+      const DynList<Segment> & constraints,
+      const ConstrainedDelaunayTriangulation & algorithm = {},
+      const Tikz_Style & triangle_style = tikz_wire_style("blue!60"),
+      const Tikz_Style & constraint_style = tikz_path_style("red"),
+      const bool draw_sites = true,
+      const Tikz_Style & site_style = tikz_points_style("black"))
+  {
+    auto result = algorithm(points, constraints);
+    put_cdt_result(plane, result,
+                   triangle_style, constraint_style,
+                   draw_sites, site_style);
+    return result;
+  }
+
 } // namespace Aleph
 
 # endif // TIKZGEOM_ALGORITHMS_H

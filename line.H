@@ -169,7 +169,7 @@ struct LineEq
     : y0(y1 - __m * x1), m(__m) {}
 
   /**
-   * @brief Construct line through two points.
+   * @brief Construct a line through two points.
    *
    * Computes slope and y-intercept from the two points.
    * The slope is: m = (y2 - y1) / (x2 - x1)
@@ -367,8 +367,8 @@ struct LineEq
     ah_domain_error_if(is_horizontal())
       << "Cannot compute perpendicular to horizontal line (would be vertical)";
 
-    Geom_Number perp_slope = Geom_Number(-1) / m;
-    return LineEq(px, py, perp_slope);
+    const Geom_Number perp_slope = Geom_Number(-1) / m;
+    return {px, py, perp_slope};
   }
 
   /**
@@ -382,9 +382,9 @@ struct LineEq
    */
   [[nodiscard]] Geom_Number distance_to(const Geom_Number & px, const Geom_Number & py) const noexcept
   {
-    Geom_Number diff = py - (y0 + m * px);
+    const Geom_Number diff = py - (y0 + m * px);
     // Use mpfr for sqrt, then convert back to rational
-    mpfr_class denominator = sqrt(mpfr_class(1) + mpfr_class(m) * mpfr_class(m));
+    const mpfr_class denominator = sqrt(mpfr_class(1) + mpfr_class(m) * mpfr_class(m));
     return abs(diff) / Geom_Number(denominator);
   }
 
@@ -414,7 +414,7 @@ struct LineEq
   }
 
   /**
-   * @brief Compute perpendicular line through a Point.
+   * @brief Compute a perpendicular line through a Point.
    *
    * @param p Point on the perpendicular line
    * @return Perpendicular line through p
@@ -439,7 +439,7 @@ struct LineEq
   }
 
   /**
-   * @brief Compute intersection Point with another line.
+   * @brief Compute the intersection Point with another line.
    *
    * @param l The other line
    * @param epsilon Tolerance for parallel line detection
@@ -457,7 +457,7 @@ struct LineEq
                                           const Geom_Number & epsilon = LINE_EPSILON) const
   {
     auto [x, y] = intersection(l, epsilon);
-    return Point(x, y);
+    return {x, y};
   }
 
   /**

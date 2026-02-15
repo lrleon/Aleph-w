@@ -347,6 +347,7 @@ foreach(test_program ${TEST_PROGRAMS})
                 geom_algorithms_test_edgecases_sweepline_minkowski_kdtree.cc
                 geom_algorithms_test_decomp_rangetree_visibility_shortestpath_arrangement.cc
                 geom_algorithms_test_boolean_3d_serializer_aabb_misc.cc
+                geom_algorithms_test_cdt.cc
             )
         else()
             add_executable(${test_exe} ${test_program}.cc)

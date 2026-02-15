@@ -1722,11 +1722,11 @@ TEST_F(GeomAlgorithmsTest, DelaunayIncrementalGrid)
 }
 
 
-// ---------- VoronoiDiagram ----------
+// ---------- VoronoiDiagramFortune ----------
 
 TEST_F(GeomAlgorithmsTest, VoronoiFortuneFourPoints)
 {
-  VoronoiDiagram voronoi;
+  VoronoiDiagramFortune voronoi;
   auto r = voronoi({Point(0, 0), Point(4, 0), Point(4, 4), Point(0, 4)});
 
   EXPECT_EQ(r.sites.size(), 4u);
@@ -1744,7 +1744,7 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneEquidistance)
   pts.append(Point(6, 5));
   pts.append(Point(0, 5));
 
-  VoronoiDiagram voronoi;
+  VoronoiDiagramFortune voronoi;
   auto r = voronoi(pts);
 
   for (size_t e = 0; e < r.edges.size(); ++e)
@@ -1773,12 +1773,34 @@ TEST_F(GeomAlgorithmsTest, VoronoiFortuneClippedCells)
   clip.add_vertex(Point(0, 4));
   clip.close();
 
-  VoronoiDiagram voronoi;
+  VoronoiDiagramFortune voronoi;
   auto cells = voronoi.clipped_cells(pts, clip);
 
   EXPECT_EQ(cells.size(), 3u);
   for (size_t i = 0; i < cells.size(); ++i)
     EXPECT_TRUE(cells(i).polygon.is_closed());
+}
+
+
+TEST_F(GeomAlgorithmsTest, VoronoiFortuneKeepsDualImplementationAvailable)
+{
+  DynList<Point> pts;
+  pts.append(Point(0, 0));
+  pts.append(Point(6, 0));
+  pts.append(Point(7, 3));
+  pts.append(Point(2, 7));
+  pts.append(Point(-1, 4));
+
+  VoronoiDiagram dual_voronoi;
+  VoronoiDiagramFortune fortune_voronoi;
+
+  const auto dual = dual_voronoi(pts);
+  const auto fortune = fortune_voronoi(pts);
+
+  EXPECT_EQ(fortune.sites.size(), dual.sites.size());
+  EXPECT_EQ(fortune.vertices.size(), dual.vertices.size());
+  EXPECT_EQ(fortune.edges.size(), dual.edges.size());
+  EXPECT_EQ(fortune.cells.size(), dual.cells.size());
 }
 
 
@@ -1902,4 +1924,3 @@ TEST_F(GeomAlgorithmsTest, SweepLineStress10K)
           << " reported as intersecting but don't";
     }
 }
-

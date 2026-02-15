@@ -38,6 +38,7 @@
 # include <gtest/gtest.h>
 
 # include <htlist.H>
+# include <ah-unique.H>
 
 using namespace testing;
 using namespace Aleph;
@@ -121,6 +122,28 @@ TEST(DynList, Simple_append_and_insert_of_list)
   EXPECT_EQ(list.size(), 2);
   EXPECT_EQ(list.get_first(), 1);
   EXPECT_EQ(list.get_last(), 2);
+}
+
+TEST(DynListAlgorithms, InPlaceUnique)
+{
+  DynList<int> list;
+  list.append(1);
+  list.append(2);
+  list.append(1);
+  list.append(3);
+  list.append(2);
+  list.append(4);
+  list.append(4);
+
+  in_place_unique(list);
+
+  ASSERT_EQ(list.size(), 4u);
+  auto it = list.get_it();
+  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 1); it.next();
+  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 2); it.next();
+  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 3); it.next();
+  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 4); it.next();
+  EXPECT_FALSE(it.has_curr());
 }
 
 TEST_F(List_of_25_items, Basic_operations)
