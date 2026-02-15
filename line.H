@@ -88,22 +88,27 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef LINE_H
-#define LINE_H
+# ifndef LINE_H
+# define LINE_H
 
 #include <cmath>
 #include <utility>
 #include <string>
 #include <sstream>
 #include <ah-errors.H>
+#include <point.H>
 
 namespace Aleph
 {
 
-/** @brief Default epsilon for floating-point comparisons.
+/** @brief Default epsilon for geometric comparisons.
+ *
+ *  Zero for exact rational arithmetic. Can be overridden in method calls
+ *  for approximate comparisons.
+ *
  *  @ingroup Geometry
  */
-inline constexpr double LINE_EPSILON = 1e-10;
+inline const Geom_Number LINE_EPSILON(0);
 
 /**
  * @brief 2D infinite line in slope-intercept form.
@@ -119,8 +124,8 @@ inline constexpr double LINE_EPSILON = 1e-10;
  */
 struct LineEq
 {
-  double y0 = 0;  ///< Y-intercept (where line crosses y-axis)
-  double m = 1;   ///< Slope (dy/dx)
+  Geom_Number y0{0};  ///< Y-intercept (where line crosses y-axis)
+  Geom_Number m{1};   ///< Slope (dy/dx)
 
   /**
    * @brief Default constructor creates line y = x.
@@ -139,10 +144,10 @@ struct LineEq
    *
    * @par Example
    * @code
-   * LineEq line(5.0, 2.0);  // y = 5 + 2x
+   * LineEq line(Geom_Number(5), Geom_Number(2));  // y = 5 + 2x
    * @endcode
    */
-  constexpr LineEq(double __y0, double __m) noexcept 
+  LineEq(const Geom_Number & __y0, const Geom_Number & __m) noexcept
     : y0(__y0), m(__m) {}
 
   /**
@@ -157,10 +162,10 @@ struct LineEq
    * @par Example
    * @code
    * // Line through (2, 4) with slope 3
-   * LineEq line(2.0, 4.0, 3.0);  // y = -2 + 3x
+   * LineEq line(Geom_Number(2), Geom_Number(4), Geom_Number(3));  // y = -2 + 3x
    * @endcode
    */
-  constexpr LineEq(double x1, double y1, double __m) noexcept
+  LineEq(const Geom_Number & x1, const Geom_Number & y1, const Geom_Number & __m) noexcept
     : y0(y1 - __m * x1), m(__m) {}
 
   /**
@@ -174,25 +179,58 @@ struct LineEq
    * @param x2 X-coordinate of second point
    * @param y2 Y-coordinate of second point
    *
-   * @throws std::domain_error if x1 == x2 (vertical line, undefined slope)
+   * @throws domain_error if x1 == x2 (vertical line, undefined slope)
    *
    * @note Horizontal lines (y1 == y2) are valid and result in slope = 0.
    *
    * @par Example
    * @code
-   * LineEq line(0.0, 0.0, 2.0, 6.0);  // y = 3x
-   * LineEq horizontal(0.0, 5.0, 10.0, 5.0);  // y = 5 (horizontal)
+   * LineEq line(Geom_Number(0), Geom_Number(0), Geom_Number(2), Geom_Number(6));  // y = 3x
+   * LineEq horizontal(Geom_Number(0), Geom_Number(5), Geom_Number(10), Geom_Number(5));  // y = 5 (horizontal)
    * @endcode
    */
-  LineEq(double x1, double y1, double x2, double y2)
+  LineEq(const Geom_Number & x1, const Geom_Number & y1,
+         const Geom_Number & x2, const Geom_Number & y2)
   {
-    ah_domain_error_if(std::abs(x1 - x2) < LINE_EPSILON)
+    ah_domain_error_if(x1 == x2)
       << "Cannot create line from points with same x-coordinate (vertical line): "
       << "x1 = " << x1 << ", x2 = " << x2;
-    
+
     m = (y2 - y1) / (x2 - x1);
     y0 = y1 - m * x1;
   }
+
+  /**
+   * @brief Construct line through a Point with given slope.
+   *
+   * @param p Point on the line
+   * @param __m Slope of the line
+   *
+   * @par Example
+   * @code
+   * Point p(Geom_Number(2), Geom_Number(4));
+   * LineEq line(p, Geom_Number(3));  // Line through (2, 4) with slope 3
+   * @endcode
+   */
+  LineEq(const Point & p, const Geom_Number & __m) noexcept
+    : LineEq(p.get_x(), p.get_y(), __m) {}
+
+  /**
+   * @brief Construct line through two Points.
+   *
+   * @param p1 First point
+   * @param p2 Second point
+   * @throws domain_error if points have the same x-coordinate (vertical line)
+   *
+   * @par Example
+   * @code
+   * Point a(Geom_Number(0), Geom_Number(0));
+   * Point b(Geom_Number(2), Geom_Number(6));
+   * LineEq line(a, b);  // y = 3x
+   * @endcode
+   */
+  LineEq(const Point & p1, const Point & p2)
+    : LineEq(p1.get_x(), p1.get_y(), p2.get_x(), p2.get_y()) {}
 
   /**
    * @brief Evaluate line at given x-coordinate.
@@ -204,35 +242,35 @@ struct LineEq
    *
    * @par Example
    * @code
-   * LineEq line(1.0, 2.0);  // y = 1 + 2x
-   * double y = line(3.0);   // y = 7
+   * LineEq line(Geom_Number(1), Geom_Number(2));  // y = 1 + 2x
+   * Geom_Number y = line(Geom_Number(3));   // y = 7
    * @endcode
    */
-  [[nodiscard]] constexpr double operator()(double x) const noexcept 
-  { 
-    return y0 + m * x; 
+  [[nodiscard]] Geom_Number operator()(const Geom_Number & x) const noexcept
+  {
+    return y0 + m * x;
   }
 
   /**
    * @brief Get the slope of the line.
    * @return The slope (m)
    */
-  [[nodiscard]] constexpr double slope() const noexcept { return m; }
+  [[nodiscard]] const Geom_Number & slope() const noexcept { return m; }
 
   /**
    * @brief Get the y-intercept of the line.
    * @return The y-intercept (y0)
    */
-  [[nodiscard]] constexpr double y_intercept() const noexcept { return y0; }
+  [[nodiscard]] const Geom_Number & y_intercept() const noexcept { return y0; }
 
   /**
    * @brief Check if the line is horizontal (slope = 0).
-   * @param epsilon Tolerance for floating-point comparison
+   * @param epsilon Tolerance for comparison (default: exact equality)
    * @return True if the line is horizontal
    */
-  [[nodiscard]] constexpr bool is_horizontal(double epsilon = LINE_EPSILON) const noexcept
+  [[nodiscard]] bool is_horizontal(const Geom_Number & epsilon = LINE_EPSILON) const noexcept
   {
-    return std::abs(m) < epsilon;
+    return abs(m) <= epsilon;
   }
 
   /**
@@ -241,13 +279,13 @@ struct LineEq
    * Two lines are parallel if they have the same slope.
    *
    * @param l The other line
-   * @param epsilon Tolerance for floating-point comparison
+   * @param epsilon Tolerance for comparison (default: exact equality)
    * @return True if lines are parallel
    */
-  [[nodiscard]] constexpr bool is_parallel_to(const LineEq & l, 
-                                               double epsilon = LINE_EPSILON) const noexcept
+  [[nodiscard]] bool is_parallel_to(const LineEq & l,
+                                     const Geom_Number & epsilon = LINE_EPSILON) const noexcept
   {
-    return std::abs(m - l.m) < epsilon;
+    return abs(m - l.m) <= epsilon;
   }
 
   /**
@@ -256,13 +294,13 @@ struct LineEq
    * Two lines are perpendicular if m1 * m2 = -1
    *
    * @param l The other line
-   * @param epsilon Tolerance for floating-point comparison
+   * @param epsilon Tolerance for comparison (default: exact equality)
    * @return True if lines are perpendicular
    */
-  [[nodiscard]] constexpr bool is_perpendicular_to(const LineEq & l,
-                                                    double epsilon = LINE_EPSILON) const noexcept
+  [[nodiscard]] bool is_perpendicular_to(const LineEq & l,
+                                          const Geom_Number & epsilon = LINE_EPSILON) const noexcept
   {
-    return std::abs(m * l.m + 1.0) < epsilon;
+    return abs(m * l.m + Geom_Number(1)) <= epsilon;
   }
 
   /**
@@ -272,9 +310,9 @@ struct LineEq
    *
    * @param y Y-coordinate
    * @return X-coordinate on the line
-   * @throws std::domain_error if line is horizontal (undefined x)
+   * @throws domain_error if line is horizontal (undefined x)
    */
-  [[nodiscard]] double x_at(double y) const
+  [[nodiscard]] Geom_Number x_at(const Geom_Number & y) const
   {
     ah_domain_error_if(is_horizontal())
       << "Cannot compute x for horizontal line (slope = 0)";
@@ -293,23 +331,23 @@ struct LineEq
    * @param l The other line
    * @param epsilon Tolerance for parallel line detection
    * @return Pair (x, y) of intersection coordinates
-   * @throws std::domain_error if lines are parallel (no unique intersection)
+   * @throws domain_error if lines are parallel (no unique intersection)
    *
    * @par Example
    * @code
-   * LineEq l1(0.0, 1.0);   // y = x
-   * LineEq l2(2.0, -1.0);  // y = 2 - x
+   * LineEq l1(Geom_Number(0), Geom_Number(1));   // y = x
+   * LineEq l2(Geom_Number(2), Geom_Number(-1));  // y = 2 - x
    * auto [x, y] = l1.intersection(l2);  // (1, 1)
    * @endcode
    */
-  [[nodiscard]] std::pair<double, double> intersection(const LineEq & l,
-                                                        double epsilon = LINE_EPSILON) const
+  [[nodiscard]] std::pair<Geom_Number, Geom_Number> intersection(const LineEq & l,
+                                                                  const Geom_Number & epsilon = LINE_EPSILON) const
   {
     ah_domain_error_if(is_parallel_to(l, epsilon))
       << "Cannot compute intersection of parallel lines: "
       << "slope1 = " << m << ", slope2 = " << l.m;
 
-    double x = (y0 - l.y0) / (l.m - m);
+    Geom_Number x = (y0 - l.y0) / (l.m - m);
     return {x, (*this)(x)};
   }
 
@@ -322,14 +360,14 @@ struct LineEq
    * @param px X-coordinate of point
    * @param py Y-coordinate of point
    * @return Perpendicular line through (px, py)
-   * @throws std::domain_error if this line is horizontal (perpendicular would be vertical)
+   * @throws domain_error if this line is horizontal (perpendicular would be vertical)
    */
-  [[nodiscard]] LineEq perpendicular_through(double px, double py) const
+  [[nodiscard]] LineEq perpendicular_through(const Geom_Number & px, const Geom_Number & py) const
   {
     ah_domain_error_if(is_horizontal())
       << "Cannot compute perpendicular to horizontal line (would be vertical)";
-    
-    double perp_slope = -1.0 / m;
+
+    Geom_Number perp_slope = Geom_Number(-1) / m;
     return LineEq(px, py, perp_slope);
   }
 
@@ -342,10 +380,12 @@ struct LineEq
    * @param py Y-coordinate of point
    * @return Perpendicular distance from point to line
    */
-  [[nodiscard]] double distance_to(double px, double py) const noexcept
+  [[nodiscard]] Geom_Number distance_to(const Geom_Number & px, const Geom_Number & py) const noexcept
   {
-    double diff = py - (y0 + m * px);
-    return std::abs(diff) / std::sqrt(1.0 + m * m);
+    Geom_Number diff = py - (y0 + m * px);
+    // Use mpfr for sqrt, then convert back to rational
+    mpfr_class denominator = sqrt(mpfr_class(1) + mpfr_class(m) * mpfr_class(m));
+    return abs(diff) / Geom_Number(denominator);
   }
 
   /**
@@ -353,13 +393,71 @@ struct LineEq
    *
    * @param px X-coordinate of point
    * @param py Y-coordinate of point
-   * @param epsilon Tolerance for floating-point comparison
+   * @param epsilon Tolerance for comparison (default: exact equality)
    * @return True if point is on the line
    */
-  [[nodiscard]] bool contains_point(double px, double py, 
-                                    double epsilon = LINE_EPSILON) const noexcept
+  [[nodiscard]] bool contains_point(const Geom_Number & px, const Geom_Number & py,
+                                     const Geom_Number & epsilon = LINE_EPSILON) const noexcept
   {
-    return std::abs(py - (*this)(px)) < epsilon;
+    return abs(py - (*this)(px)) <= epsilon;
+  }
+
+  /**
+   * @brief Compute distance from a Point to this line.
+   *
+   * @param p The point
+   * @return Perpendicular distance from point to line
+   */
+  [[nodiscard]] Geom_Number distance_to(const Point & p) const noexcept
+  {
+    return distance_to(p.get_x(), p.get_y());
+  }
+
+  /**
+   * @brief Compute perpendicular line through a Point.
+   *
+   * @param p Point on the perpendicular line
+   * @return Perpendicular line through p
+   * @throws domain_error if this line is horizontal (perpendicular would be vertical)
+   */
+  [[nodiscard]] LineEq perpendicular_through(const Point & p) const
+  {
+    return perpendicular_through(p.get_x(), p.get_y());
+  }
+
+  /**
+   * @brief Check if a Point lies on this line.
+   *
+   * @param p The point to test
+   * @param epsilon Tolerance for comparison (default: exact equality)
+   * @return True if point is on the line
+   */
+  [[nodiscard]] bool contains_point(const Point & p,
+                                     const Geom_Number & epsilon = LINE_EPSILON) const noexcept
+  {
+    return contains_point(p.get_x(), p.get_y(), epsilon);
+  }
+
+  /**
+   * @brief Compute intersection Point with another line.
+   *
+   * @param l The other line
+   * @param epsilon Tolerance for parallel line detection
+   * @return Intersection point
+   * @throws domain_error if lines are parallel (no unique intersection)
+   *
+   * @par Example
+   * @code
+   * LineEq l1(Geom_Number(0), Geom_Number(1));   // y = x
+   * LineEq l2(Geom_Number(2), Geom_Number(-1));  // y = 2 - x
+   * Point p = l1.intersection_point(l2);  // Point(1, 1)
+   * @endcode
+   */
+  [[nodiscard]] Point intersection_point(const LineEq & l,
+                                          const Geom_Number & epsilon = LINE_EPSILON) const
+  {
+    auto [x, y] = intersection(l, epsilon);
+    return Point(x, y);
   }
 
   /**
@@ -369,12 +467,12 @@ struct LineEq
    * (within epsilon tolerance).
    *
    * @param l Line to compare with
+   * @param epsilon Tolerance for comparison (default: exact equality)
    * @return True if lines are identical
    */
   [[nodiscard]] bool operator==(const LineEq & l) const noexcept
   {
-    return std::abs(y0 - l.y0) < LINE_EPSILON and 
-           std::abs(m - l.m) < LINE_EPSILON;
+    return y0 == l.y0 and m == l.m;
   }
 
   /**
@@ -386,6 +484,21 @@ struct LineEq
   [[nodiscard]] bool operator!=(const LineEq & l) const noexcept
   {
     return not (*this == l);
+  }
+
+  /**
+   * @brief Test approximate equality of two lines.
+   *
+   * Lines are approximately equal if they have the same slope and y-intercept
+   * within epsilon tolerance.
+   *
+   * @param l Line to compare with
+   * @param epsilon Tolerance for comparison
+   * @return True if lines are approximately equal
+   */
+  [[nodiscard]] bool approx_equal(const LineEq & l, const Geom_Number & epsilon) const noexcept
+  {
+    return abs(y0 - l.y0) <= epsilon and abs(m - l.m) <= epsilon;
   }
 
   /**
@@ -419,4 +532,4 @@ struct LineEq
 using Aleph::LineEq;
 using Aleph::LINE_EPSILON;
 
-#endif // LINE_H
+# endif // LINE_H
