@@ -100,6 +100,13 @@
  *  - **AABBTree**: Axis-aligned bounding box tree for accelerating rectangle
  *    range queries and point queries.
  *
+ *  ## Polyline / Polygon Simplification
+ *
+ *  - **DouglasPeuckerSimplification**: Recursive split by maximum
+ *    perpendicular distance. O(n log n) average, O(n²) worst.
+ *  - **VisvalingamWhyattSimplification**: Iteratively removes the vertex
+ *    forming the smallest effective area triangle. O(n log n) with a heap.
+ *
  *  ## C++20 Support
  *
  *  - **GeomNumberType**: Concept describing numeric types usable by geometry
@@ -1018,7 +1025,6 @@ namespace Aleph
   class MinimumEnclosingCircle
   {
   public:
-
     /// Result type: a circle defined by center and squared radius.
     struct Circle
     {
@@ -1132,13 +1138,12 @@ namespace Aleph
     [[nodiscard]] Circle operator()(std::initializer_list<Point> points) const
     {
       DynList<Point> l;
-      for (const auto & p : points)
+      for (const auto & p: points)
         l.append(p);
       return (*this)(l);
     }
 
   private:
-
     /// Minimum enclosing circle with boundary point @p p1.
     [[nodiscard]] static Circle mec_with_point(const Array<Point> & pts,
                                                size_t n,
@@ -6640,26 +6645,26 @@ namespace Aleph
           in_place_sort(nbrs);
           in_place_unique(nbrs);
           in_place_sort(nbrs,
-                    [&verts, v](const size_t a, const size_t b)
-                      {
-                        const Geom_Number dax = verts(a).get_x() - verts(v).get_x();
-                        const Geom_Number day = verts(a).get_y() - verts(v).get_y();
-                        const Geom_Number dbx = verts(b).get_x() - verts(v).get_x();
-                        const Geom_Number dby = verts(b).get_y() - verts(v).get_y();
+                        [&verts, v](const size_t a, const size_t b)
+                          {
+                            const Geom_Number dax = verts(a).get_x() - verts(v).get_x();
+                            const Geom_Number day = verts(a).get_y() - verts(v).get_y();
+                            const Geom_Number dbx = verts(b).get_x() - verts(v).get_x();
+                            const Geom_Number dby = verts(b).get_y() - verts(v).get_y();
 
-                        const bool upper_a = day > 0 or (day == 0 and dax >= 0);
-                        const bool upper_b = dby > 0 or (dby == 0 and dbx >= 0);
-                        if (upper_a != upper_b)
-                          return upper_a > upper_b;
+                            const bool upper_a = day > 0 or (day == 0 and dax >= 0);
+                            const bool upper_b = dby > 0 or (dby == 0 and dbx >= 0);
+                            if (upper_a != upper_b)
+                              return upper_a > upper_b;
 
-                        const Geom_Number cross = dax * dby - day * dbx;
-                        if (cross != 0)
-                          return cross > 0;
+                            const Geom_Number cross = dax * dby - day * dbx;
+                            if (cross != 0)
+                              return cross > 0;
 
-                        const Geom_Number da2 = dax * dax + day * day;
-                        const Geom_Number db2 = dbx * dbx + dby * dby;
-                        return da2 < db2;
-                      });
+                            const Geom_Number da2 = dax * dax + day * day;
+                            const Geom_Number db2 = dbx * dbx + dby * dby;
+                            return da2 < db2;
+                          });
         }
 
       using HalfEdge = std::pair<size_t, size_t>;
@@ -7455,8 +7460,10 @@ namespace Aleph
       if (d1 <= 0.0 and d2 <= 0.0)
         {
           out.reduced_simplex = {a};
-          out.cx = a.vx; out.cy = a.vy;
-          out.witness_a = a.a; out.witness_b = a.b;
+          out.cx = a.vx;
+          out.cy = a.vy;
+          out.witness_a = a.a;
+          out.witness_b = a.b;
           out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
           return out;
         }
@@ -7468,8 +7475,10 @@ namespace Aleph
       if (d3 >= 0.0 and d4 <= d3)
         {
           out.reduced_simplex = {b};
-          out.cx = b.vx; out.cy = b.vy;
-          out.witness_a = b.a; out.witness_b = b.b;
+          out.cx = b.vx;
+          out.cy = b.vy;
+          out.witness_a = b.a;
+          out.witness_b = b.b;
           out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
           return out;
         }
@@ -7494,8 +7503,10 @@ namespace Aleph
       if (d6 >= 0.0 and d5 <= d6)
         {
           out.reduced_simplex = {c};
-          out.cx = c.vx; out.cy = c.vy;
-          out.witness_a = c.a; out.witness_b = c.b;
+          out.cx = c.vx;
+          out.cy = c.vy;
+          out.witness_a = c.a;
+          out.witness_b = c.b;
           out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
           return out;
         }
@@ -11179,6 +11190,378 @@ namespace Aleph
 
     /// Whether the tree is empty.
     [[nodiscard]] bool is_empty() const { return entries_.is_empty(); }
+  };
+
+  // ============================================================================
+  // Polyline / Polygon Simplification
+  // ============================================================================
+
+  /**
+   * @brief Douglas-Peucker polyline simplification.
+   *
+   * Recursively splits the polyline at the vertex farthest from the line
+   * connecting the current endpoints. Vertices closer than @p epsilon to
+   * the connecting line are discarded.
+   *
+   * - Open polyline: first and last vertex are always kept.
+   * - Closed polygon: the vertex farthest from vertex 0 is used to split
+   *   the ring into two open chains, each simplified independently.
+   *
+   * Complexity: O(n log n) average, O(n²) worst case.
+   *
+   * @ingroup Geometry
+   */
+  class DouglasPeuckerSimplification
+  {
+    static void dp_recurse(const Array<Point> & pts, const size_t first,
+                           const size_t last, const Geom_Number & eps2,
+                           Array<bool> & keep)
+    {
+      if (last <= first + 1)
+        return;
+
+      const Segment seg(pts(first), pts(last));
+      Geom_Number max_dist2 = 0;
+      size_t max_idx = first;
+
+      for (size_t i = first + 1; i < last; ++i)
+        {
+          Geom_Number d = seg.distance_to(pts(i));
+          if (Geom_Number d2 = d * d; d2 > max_dist2)
+            {
+              max_dist2 = d2;
+              max_idx = i;
+            }
+        }
+
+      if (max_dist2 > eps2)
+        {
+          keep(max_idx) = true;
+          dp_recurse(pts, first, max_idx, eps2, keep);
+          dp_recurse(pts, max_idx, last, eps2, keep);
+        }
+    }
+
+  public:
+    /**
+     * @brief Simplify an open polyline.
+     *
+     * First and last vertices are always kept.
+     *
+     * @param polyline Ordered sequence of vertices.
+     * @param epsilon  Maximum perpendicular distance tolerance.
+     * @return Simplified vertex array (subsequence of @p polyline).
+     */
+    [[nodiscard]] Array<Point>
+    operator()(const Array<Point> & polyline,
+               const Geom_Number & epsilon) const
+    {
+      const size_t n = polyline.size();
+      if (n <= 2)
+        return polyline;
+
+      const Geom_Number eps2 = epsilon * epsilon;
+      Array<bool> keep(n);
+      for (size_t i = 0; i < n; ++i)
+        keep.append(false);
+      keep(0) = true;
+      keep(n - 1) = true;
+
+      dp_recurse(polyline, 0, n - 1, eps2, keep);
+
+      Array<Point> result;
+      for (size_t i = 0; i < n; ++i)
+        if (keep(i))
+          result.append(polyline(i));
+
+      return result;
+    }
+
+    /// @brief Overload accepting DynList.
+    [[nodiscard]] Array<Point>
+    operator()(const DynList<Point> & polyline,
+               const Geom_Number & epsilon) const
+    {
+      Array<Point> arr;
+      for (typename DynList<Point>::Iterator it(polyline);
+           it.has_curr(); it.next_ne())
+        arr.append(it.get_curr());
+      return (*this)(arr, epsilon);
+    }
+
+    /**
+     * @brief Simplify a closed polygon.
+     *
+     * Splits the polygon ring at the vertex farthest from vertex 0,
+     * simplifies each open chain, and merges the results.
+     *
+     * @param poly    The closed polygon.
+     * @param epsilon Maximum perpendicular distance tolerance.
+     * @return A new polygon with fewer vertices.
+     */
+    [[nodiscard]] Polygon
+    simplify_polygon(const Polygon & poly,
+                     const Geom_Number & epsilon) const
+    {
+      auto verts = GeomPolygonUtils::extract_vertices(poly);
+      const size_t n = verts.size();
+      if (n <= 3)
+        return poly;
+
+      // Find vertex farthest from vertex 0
+      size_t far_idx = 1;
+      Geom_Number far_dist2 = 0;
+      for (size_t i = 1; i < n; ++i)
+        {
+          Geom_Number dx = verts(i).get_x() - verts(0).get_x();
+          Geom_Number dy = verts(i).get_y() - verts(0).get_y();
+          if (Geom_Number d2 = dx * dx + dy * dy; d2 > far_dist2)
+            {
+              far_dist2 = d2;
+              far_idx = i;
+            }
+        }
+
+      // Build two open chains sharing endpoints at vertex 0 and far_idx
+      Array<Point> chain1; // 0 → far_idx
+      for (size_t i = 0; i <= far_idx; ++i)
+        chain1.append(verts(i));
+
+      Array<Point> chain2; // far_idx → 0 (wrapping around)
+      for (size_t i = far_idx; i < n; ++i)
+        chain2.append(verts(i));
+      chain2.append(verts(0));
+
+      auto s1 = (*this)(chain1, epsilon);
+      auto s2 = (*this)(chain2, epsilon);
+
+      // Merge: s1 + s2 without duplicate junction points
+      Array<Point> merged;
+      for (size_t i = 0; i < s1.size(); ++i)
+        merged.append(s1(i));
+      for (size_t i = 1; i + 1 < s2.size(); ++i) // skip first (dup) & last (dup)
+        merged.append(s2(i));
+
+      if (merged.size() < 3)
+        return poly;
+
+      Polygon result;
+      for (size_t i = 0; i < merged.size(); ++i)
+        result.add_vertex(merged(i));
+      result.close();
+      return result;
+    }
+  };
+
+  /**
+   * @brief Visvalingam-Whyatt polyline simplification.
+   *
+   * Iteratively removes the vertex that forms the smallest effective area
+   * triangle with its two neighbors. Uses a min-heap for O(n log n)
+   * complexity.
+   *
+   * - Open polyline: first and last vertex are never removed.
+   * - Closed polygon: all vertices are candidates; cyclic neighbor links.
+   *
+   * @ingroup Geometry
+   */
+  class VisvalingamWhyattSimplification
+  {
+    struct VWEntry
+    {
+      size_t idx;
+      Geom_Number area;
+      bool operator <(const VWEntry & o) const { return area < o.area; }
+      bool operator >(const VWEntry & o) const { return area > o.area; }
+    };
+
+    [[nodiscard]] static Geom_Number
+    effective_area(const Point & a, const Point & b, const Point & c)
+    {
+      Geom_Number ap = area_of_parallelogram(a, b, c);
+      if (ap < 0) ap = -ap;
+      return ap / 2;
+    }
+
+  public:
+    /**
+     * @brief Simplify an open polyline.
+     *
+     * First and last vertices are always kept.
+     *
+     * @param polyline       Ordered sequence of vertices.
+     * @param area_threshold Minimum effective area to keep a vertex.
+     * @return Simplified vertex array (subsequence of @p polyline).
+     */
+    [[nodiscard]] Array<Point>
+    operator()(const Array<Point> & polyline,
+               const Geom_Number & area_threshold) const
+    {
+      const size_t n = polyline.size();
+      if (n <= 2)
+        return polyline;
+
+      // prev/next linked list (index-based)
+      Array<size_t> prev(n), next(n);
+      Array<bool> alive(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          prev.append(i == 0 ? n : i - 1); // n = sentinel for "no prev"
+          next.append(i == n - 1 ? n : i + 1);
+          alive.append(true);
+        }
+
+      // Min-heap
+      DynBinHeap<VWEntry, std::less<VWEntry>> heap;
+
+      // Compute initial areas for interior vertices
+      Array<Geom_Number> areas(n);
+      for (size_t i = 0; i < n; ++i)
+        areas.append(Geom_Number(-1));
+
+      for (size_t i = 1; i + 1 < n; ++i)
+        {
+          areas(i) = effective_area(polyline(prev(i)), polyline(i),
+                                    polyline(next(i)));
+          heap.put({i, areas(i)});
+        }
+
+      while (not heap.is_empty())
+        {
+          auto [idx, area] = heap.get();
+
+          if (not alive(idx))
+            continue;
+          if (area != areas(idx))
+            continue; // stale entry
+          if (area >= area_threshold)
+            break;
+
+          // Remove this vertex
+          alive(idx) = false;
+          const size_t p = prev(idx);
+          const size_t nx = next(idx);
+
+          if (p < n)
+            next(p) = nx;
+          if (nx < n)
+            prev(nx) = p;
+
+          // Recompute neighbor areas
+          if (p < n and p != 0 and prev(p) < n)
+            {
+              areas(p) = effective_area(polyline(prev(p)), polyline(p),
+                                        polyline(next(p)));
+              heap.put({p, areas(p)});
+            }
+          if (nx < n and nx != n - 1 and next(nx) < n)
+            {
+              areas(nx) = effective_area(polyline(prev(nx)), polyline(nx),
+                                         polyline(next(nx)));
+              heap.put({nx, areas(nx)});
+            }
+        }
+
+      Array<Point> result;
+      for (size_t i = 0; i < n; ++i)
+        if (alive(i))
+          result.append(polyline(i));
+
+      return result;
+    }
+
+    /// @brief Overload accepting DynList.
+    [[nodiscard]] Array<Point>
+    operator()(const DynList<Point> & polyline,
+               const Geom_Number & area_threshold) const
+    {
+      Array<Point> arr;
+      for (typename DynList<Point>::Iterator it(polyline);
+           it.has_curr(); it.next_ne())
+        arr.append(it.get_curr());
+      return (*this)(arr, area_threshold);
+    }
+
+    /**
+     * @brief Simplify a closed polygon.
+     *
+     * All vertices are candidates (cyclic neighbor links).
+     *
+     * @param poly           The closed polygon.
+     * @param area_threshold Minimum effective area to keep a vertex.
+     * @return A new polygon with fewer vertices.
+     */
+    [[nodiscard]] static Polygon
+    simplify_polygon(const Polygon & poly,
+                     const Geom_Number & area_threshold)
+    {
+      auto verts = GeomPolygonUtils::extract_vertices(poly);
+      const size_t n = verts.size();
+      if (n <= 3)
+        return poly;
+
+      // Cyclic prev/next linked list
+      Array<size_t> prev(n), next(n);
+      Array<bool> alive(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          prev.append(i == 0 ? n - 1 : i - 1);
+          next.append(i == n - 1 ? 0 : i + 1);
+          alive.append(true);
+        }
+
+      DynBinHeap<VWEntry, std::less<VWEntry>> heap;
+
+      Array<Geom_Number> areas(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          areas.append(effective_area(verts(prev(i)), verts(i),
+                                      verts(next(i))));
+          heap.put({i, areas(i)});
+        }
+
+      size_t remaining = n;
+      while (not heap.is_empty() and remaining > 3)
+        {
+          auto [idx, area] = heap.get();
+
+          if (not alive(idx))
+            continue;
+          if (area != areas(idx))
+            continue;
+          if (area >= area_threshold)
+            break;
+
+          alive(idx) = false;
+          --remaining;
+          const size_t p = prev(idx);
+          const size_t nx = next(idx);
+
+          next(p) = nx;
+          prev(nx) = p;
+
+          // Recompute neighbor areas
+          areas(p) = effective_area(verts(prev(p)), verts(p), verts(next(p)));
+          heap.put({p, areas(p)});
+          areas(nx) = effective_area(verts(prev(nx)), verts(nx),
+                                     verts(next(nx)));
+          heap.put({nx, areas(nx)});
+        }
+
+      Array<Point> result;
+      for (size_t i = 0; i < n; ++i)
+        if (alive(i))
+          result.append(verts(i));
+
+      if (result.size() < 3)
+        return poly;
+
+      Polygon rpoly;
+      for (size_t i = 0; i < result.size(); ++i)
+        rpoly.add_vertex(result(i));
+      rpoly.close();
+      return rpoly;
+    }
   };
 
   // ============================================================================

@@ -1285,6 +1285,80 @@ namespace Aleph
     return circle;
   }
 
+  // ==========================================================================
+  // Simplification visualization
+  // ==========================================================================
+
+  /**
+   * @brief Draw original and simplified polygons overlaid.
+   *
+   * @param plane            Target TikZ canvas.
+   * @param original         The original polygon (drawn faded).
+   * @param simplified       The simplified polygon (drawn bold).
+   * @param original_style   Style for the original polygon.
+   * @param simplified_style Style for the simplified polygon.
+   * @param draw_vertices    Whether to draw vertices of the simplified polygon.
+   * @param vertex_style     Style for simplified polygon vertices.
+   */
+  inline void put_simplification_result(
+      Tikz_Plane & plane,
+      const Polygon & original,
+      const Polygon & simplified,
+      const Tikz_Style & original_style = tikz_wire_style("gray!50"),
+      const Tikz_Style & simplified_style = tikz_wire_style("blue!80", 1.2),
+      const bool draw_vertices = true,
+      const Tikz_Style & vertex_style = tikz_points_style("red"))
+  {
+    put_in_plane(plane, original, original_style);
+    put_in_plane(plane, simplified, simplified_style);
+    if (draw_vertices)
+      put_polygon_vertices(plane, simplified, vertex_style);
+  }
+
+  /**
+   * @brief Simplify a polygon with Douglas-Peucker and draw the result.
+   *
+   * @return The simplified polygon.
+   */
+  [[nodiscard]] inline Polygon visualize_douglas_peucker(
+      Tikz_Plane & plane,
+      const Polygon & poly,
+      const Geom_Number & epsilon,
+      const DouglasPeuckerSimplification & algorithm = {},
+      const Tikz_Style & original_style = tikz_wire_style("gray!50"),
+      const Tikz_Style & simplified_style = tikz_wire_style("blue!80", 1.2),
+      const bool draw_vertices = true,
+      const Tikz_Style & vertex_style = tikz_points_style("red"))
+  {
+    Polygon simplified = algorithm.simplify_polygon(poly, epsilon);
+    put_simplification_result(plane, poly, simplified,
+                              original_style, simplified_style,
+                              draw_vertices, vertex_style);
+    return simplified;
+  }
+
+  /**
+   * @brief Simplify a polygon with Visvalingam-Whyatt and draw the result.
+   *
+   * @return The simplified polygon.
+   */
+  [[nodiscard]] inline Polygon visualize_visvalingam_whyatt(
+      Tikz_Plane & plane,
+      const Polygon & poly,
+      const Geom_Number & area_threshold,
+      const VisvalingamWhyattSimplification & algorithm = {},
+      const Tikz_Style & original_style = tikz_wire_style("gray!50"),
+      const Tikz_Style & simplified_style = tikz_wire_style("green!70!black", 1.2),
+      const bool draw_vertices = true,
+      const Tikz_Style & vertex_style = tikz_points_style("red"))
+  {
+    Polygon simplified = algorithm.simplify_polygon(poly, area_threshold);
+    put_simplification_result(plane, poly, simplified,
+                              original_style, simplified_style,
+                              draw_vertices, vertex_style);
+    return simplified;
+  }
+
 } // namespace Aleph
 
 # endif // TIKZGEOM_ALGORITHMS_H

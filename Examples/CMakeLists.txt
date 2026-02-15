@@ -136,6 +136,7 @@ set(EXAMPLE_PROGRAMS
     convex_polygon_distance_gjk_example
     rotating_calipers_example
     minimum_enclosing_circle_example
+    polygon_simplification_example
 )
 
 # Function to get source file from program name
