@@ -4119,8 +4119,8 @@ namespace Aleph
    * ## Assumptions
    *
    * - Segments must not be zero-length (src == tgt).
-   * - Overlapping collinear segments are **not** reported; only proper
-   *   and T-shaped intersections that yield a unique point are reported.
+   * - Overlapping collinear segments are reported at their overlap
+   *   boundary points (start and end of the shared interval).
    *
    * @ingroup Geometry
    */
@@ -4505,9 +4505,10 @@ namespace Aleph
     /**
      * @brief Detect an intersection and enqueue it as a future event.
      *
-     * Checks segments @p i and @p j for a unique intersection point (skipping
-     * parallel/collinear overlaps). If the intersection lies at x >= @p sx,
-     * appends an INTERSECTION event and records the pair in @p seen_pairs.
+     * Checks segments @p i and @p j for intersection. For non-parallel
+     * segments, reports the unique intersection point. For collinear
+     * overlapping segments, reports the overlap boundary points.
+     * Only intersections at x >= @p sx are enqueued.
      *
      * @param segs Canonicalized segment array.
      * @param i First segment index.
@@ -4534,8 +4535,41 @@ namespace Aleph
       const Segment & sb = segs(hi);
       if (not segments_intersect(sa, sb))
         return;
+
       if (sa.is_parallel_with(sb))
-        return; // Skip collinear overlaps.
+        {
+          // Collinear overlapping segments: report overlap boundary points.
+          // Segments are canonicalized so src is the left endpoint.
+          // Overlap is [max(sa.src, sb.src), min(sa.tgt, sb.tgt)] projected
+          // onto the dominant axis.
+          const auto & as = sa.get_src_point();
+          const auto & at = sa.get_tgt_point();
+          const auto & bs = sb.get_src_point();
+          const auto & bt = sb.get_tgt_point();
+
+          // Use x as primary, y as secondary (matching canonicalize order).
+          auto pt_le = [](const Point & p, const Point & q)
+            {
+              if (p.get_x() != q.get_x()) return p.get_x() < q.get_x();
+              return p.get_y() < q.get_y();
+            };
+
+          const Point & overlap_start = pt_le(as, bs) ? bs : as;
+          const Point & overlap_end   = pt_le(at, bt) ? at : bt;
+
+          // Only report if there is a proper overlap interval (not just
+          // a single touching endpoint — that is handled by the non-parallel
+          // path via intersection_with).
+          if (pt_le(overlap_start, overlap_end) or overlap_start == overlap_end)
+            {
+              seen_pairs.insert(key);
+              if (!(overlap_start.get_x() < sx))
+                eq.enqueue(Event{overlap_start, EventType::INTERSECTION, lo, hi});
+              if (overlap_start != overlap_end and !(overlap_end.get_x() < sx))
+                eq.enqueue(Event{overlap_end, EventType::INTERSECTION, lo, hi});
+            }
+          return;
+        }
 
       const Point ip = sa.intersection_with(sb);
       if (ip.get_x() < sx)
@@ -6335,13 +6369,13 @@ namespace Aleph
       Geom_Number nx, ny;
       if (inward)
         {
-          nx = dy * d / len;
-          ny = -dx * d / len;
+          nx = -dy * d / len;
+          ny = dx * d / len;
         }
       else
         {
-          nx = -dy * d / len;
-          ny = dx * d / len;
+          nx = dy * d / len;
+          ny = -dx * d / len;
         }
 
       oa = Point(a.get_x() + nx, a.get_y() + ny);

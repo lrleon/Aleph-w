@@ -928,10 +928,10 @@ TEST_F(RegularPolygonSegmentTest, GetFirstSegment)
 TEST_F(RegularPolygonSegmentTest, GetLastSegment)
 {
   Segment last = sq->get_last_segment();
-  Point vertex0 = sq->get_vertex(0);
+  Point vertex2 = sq->get_vertex(2);
   Point vertex3 = sq->get_vertex(3);
-  
-  EXPECT_TRUE(points_equal(last.get_src_point(), vertex0));
+
+  EXPECT_TRUE(points_equal(last.get_src_point(), vertex2));
   EXPECT_TRUE(points_equal(last.get_tgt_point(), vertex3));
 }
 

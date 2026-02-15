@@ -557,8 +557,8 @@ namespace Aleph
       if (tgt_.x_ == src_.x_)
         {
           if (src_.y_ < tgt_.y_)
-            return std::numeric_limits<double>::infinity();
-          return -std::numeric_limits<double>::infinity();
+            return std::numeric_limits<double>::max();
+          return -std::numeric_limits<double>::max();
         }
 
       const Geom_Number slope_ = (tgt_.y_ - src_.y_) / (tgt_.x_ - src_.x_);
