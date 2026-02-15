@@ -1239,6 +1239,52 @@ namespace Aleph
     return result;
   }
 
+  // ---------- Minimum Enclosing Circle visualization ----------
+
+  /**
+   * @brief Draw a precomputed minimum enclosing circle result.
+   *
+   * Draws the enclosing circle as an `Ellipse` and optionally the input
+   * points on top.
+   */
+  inline void put_mec_result(
+      Tikz_Plane & plane,
+      const MinimumEnclosingCircle::Circle & circle,
+      const DynList<Point> & points,
+      const Tikz_Style & circle_style = tikz_wire_style("blue!70"),
+      const bool draw_sites = true,
+      const Tikz_Style & site_style = tikz_points_style("black"),
+      const int circle_layer = Tikz_Plane::Layer_Default,
+      const int site_layer = Tikz_Plane::Layer_Overlay)
+  {
+    const Geom_Number r = circle.radius();
+    put_in_plane(plane, Ellipse(circle.center, r, r),
+                 circle_style, circle_layer);
+
+    if (draw_sites)
+      put_points(plane, points, site_style, site_layer);
+  }
+
+  /**
+   * @brief Compute minimum enclosing circle and insert into @p plane.
+   *
+   * @return The computed circle.
+   */
+  [[nodiscard]] inline MinimumEnclosingCircle::Circle
+  visualize_mec(
+      Tikz_Plane & plane,
+      const DynList<Point> & points,
+      const MinimumEnclosingCircle & algorithm = {},
+      const Tikz_Style & circle_style = tikz_wire_style("blue!70"),
+      const bool draw_sites = true,
+      const Tikz_Style & site_style = tikz_points_style("black"))
+  {
+    auto circle = algorithm(points);
+    put_mec_result(plane, circle, points,
+                   circle_style, draw_sites, site_style);
+    return circle;
+  }
+
 } // namespace Aleph
 
 # endif // TIKZGEOM_ALGORITHMS_H

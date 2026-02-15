@@ -134,6 +134,7 @@ set(EXAMPLE_PROGRAMS
     convex_hull_comparison_example
     closest_pair_example
     rotating_calipers_example
+    minimum_enclosing_circle_example
 )
 
 # Function to get source file from program name

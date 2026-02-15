@@ -58,6 +58,11 @@
  *  - **ClosestPairDivideAndConquer**: Computes the closest pair of points in
  *    O(n log n) time using divide & conquer.
  *
+ *  ## Minimum Enclosing Circle
+ *
+ *  - **MinimumEnclosingCircle**: Smallest circle containing all input points,
+ *    computed in expected O(n) time via Welzl's algorithm.
+ *
  *  ## Rotating Calipers (Convex Polygons)
  *
  *  - **RotatingCalipersConvexPolygon**: Computes diameter in O(n) and minimum
@@ -976,6 +981,199 @@ namespace Aleph
     {
       Result r = (*this)(point_set);
       return {r.first, r.second};
+    }
+  };
+
+  // ============================================================================
+  // Minimum Enclosing Circle (Welzl)
+  // ============================================================================
+
+  /**
+   * @brief Smallest circle enclosing a point set (Welzl's algorithm).
+   *
+   * Given a set of 2D points, computes the minimum enclosing circle (MEC)
+   * using an iterative version of Welzl's randomized incremental algorithm.
+   *
+   * ## Complexity
+   *
+   * - Expected time: O(n)
+   * - Worst-case time: O(n³) (extremely unlikely with random shuffle)
+   * - Space: O(n) for the working copy
+   *
+   * ## Usage
+   *
+   * ```cpp
+   * DynList<Point> pts;
+   * pts.append(Point(0, 0));
+   * pts.append(Point(4, 0));
+   * pts.append(Point(2, 3));
+   *
+   * MinimumEnclosingCircle mec;
+   * auto circle = mec(pts);
+   * // circle.center, circle.radius(), circle.contains(p)
+   * ```
+   *
+   * @ingroup Geometry
+   */
+  class MinimumEnclosingCircle
+  {
+  public:
+
+    /// Result type: a circle defined by center and squared radius.
+    struct Circle
+    {
+      Point center;
+      Geom_Number radius_squared = 0;
+
+      /// Exact radius (square root of radius_squared).
+      [[nodiscard]] Geom_Number radius() const
+      {
+        return square_root(radius_squared);
+      }
+
+      /// True if point @p p lies inside or on the circle boundary.
+      [[nodiscard]] bool contains(const Point & p) const
+      {
+        return center.distance_squared_to(p) <= radius_squared;
+      }
+    };
+
+    /// Circle through a single point (degenerate, radius = 0).
+    [[nodiscard]] static Circle from_one_point(const Point & a)
+    {
+      return {a, 0};
+    }
+
+    /// Smallest circle with @p a and @p b on its boundary (diameter).
+    [[nodiscard]] static Circle from_two_points(const Point & a,
+                                                const Point & b)
+    {
+      const Point c = a.midpoint(b);
+      return {c, c.distance_squared_to(a)};
+    }
+
+    /// Circumscribed circle through three points.
+    ///
+    /// If the three points are collinear, returns the diameter circle of
+    /// the farthest pair.
+    [[nodiscard]] static Circle from_three_points(const Point & a,
+                                                  const Point & b,
+                                                  const Point & c)
+    {
+      const Geom_Number & ax = a.get_x();
+      const Geom_Number & ay = a.get_y();
+      const Geom_Number & bx = b.get_x();
+      const Geom_Number & by = b.get_y();
+      const Geom_Number & cx = c.get_x();
+      const Geom_Number & cy = c.get_y();
+
+      const Geom_Number d = ax * (by - cy) + bx * (cy - ay) + cx * (ay - by);
+
+      if (d == 0) // collinear — return diameter of farthest pair
+        {
+          const Geom_Number d_ab = a.distance_squared_to(b);
+          const Geom_Number d_bc = b.distance_squared_to(c);
+          const Geom_Number d_ac = a.distance_squared_to(c);
+
+          if (d_ab >= d_bc && d_ab >= d_ac)
+            return from_two_points(a, b);
+          if (d_bc >= d_ab && d_bc >= d_ac)
+            return from_two_points(b, c);
+          return from_two_points(a, c);
+        }
+
+      const Geom_Number den = d + d;
+      const Geom_Number a2 = ax * ax + ay * ay;
+      const Geom_Number b2 = bx * bx + by * by;
+      const Geom_Number c2 = cx * cx + cy * cy;
+
+      const Geom_Number ux =
+          (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / den;
+      const Geom_Number uy =
+          (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / den;
+
+      const Point center{ux, uy};
+      return {center, center.distance_squared_to(a)};
+    }
+
+    /**
+     * @brief Compute the minimum enclosing circle of a point set.
+     *
+     * @param points Input point set (unmodified; a working copy is made).
+     * @return The smallest Circle containing every input point.
+     * @throws std::domain_error if the point set is empty.
+     */
+    [[nodiscard]] Circle operator()(const DynList<Point> & points) const
+    {
+      Array<Point> pts;
+      for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+        pts.append(it.get_curr());
+
+      ah_domain_error_if(pts.size() == 0)
+          << "MinimumEnclosingCircle: empty point set";
+
+      // Fisher-Yates shuffle
+      {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        for (size_t i = pts.size() - 1; i > 0; --i)
+          {
+            std::uniform_int_distribution<size_t> dist(0, i);
+            const size_t j = dist(gen);
+            if (i != j)
+              std::swap(pts(i), pts(j));
+          }
+      }
+
+      return welzl_iterative(pts);
+    }
+
+    /// Convenience overload accepting an initializer list.
+    [[nodiscard]] Circle operator()(std::initializer_list<Point> points) const
+    {
+      DynList<Point> l;
+      for (const auto & p : points)
+        l.append(p);
+      return (*this)(l);
+    }
+
+  private:
+
+    /// Minimum enclosing circle with boundary point @p p1.
+    [[nodiscard]] static Circle mec_with_point(const Array<Point> & pts,
+                                               size_t n,
+                                               const Point & p1)
+    {
+      Circle d = from_one_point(p1);
+      for (size_t j = 0; j < n; ++j)
+        if (not d.contains(pts(j)))
+          d = mec_with_two_points(pts, j, p1, pts(j));
+      return d;
+    }
+
+    /// Minimum enclosing circle with boundary points @p p1 and @p p2.
+    [[nodiscard]] static Circle mec_with_two_points(const Array<Point> & pts,
+                                                    size_t n,
+                                                    const Point & p1,
+                                                    const Point & p2)
+    {
+      Circle d = from_two_points(p1, p2);
+      for (size_t k = 0; k < n; ++k)
+        if (not d.contains(pts(k)))
+          d = from_three_points(p1, p2, pts(k));
+      return d;
+    }
+
+    /// Iterative Welzl: three nested loops.
+    [[nodiscard]] static Circle welzl_iterative(const Array<Point> & pts)
+    {
+      Circle d = from_one_point(pts(0));
+
+      for (size_t i = 1; i < pts.size(); ++i)
+        if (not d.contains(pts(i)))
+          d = mec_with_point(pts, i, pts(i));
+
+      return d;
     }
   };
 
