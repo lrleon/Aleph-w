@@ -11383,19 +11383,9 @@ namespace Aleph
       return ap / 2;
     }
 
-  public:
-    /**
-     * @brief Simplify an open polyline.
-     *
-     * First and last vertices are always kept.
-     *
-     * @param polyline       Ordered sequence of vertices.
-     * @param area_threshold Minimum effective area to keep a vertex.
-     * @return Simplified vertex array (subsequence of @p polyline).
-     */
-    [[nodiscard]] Array<Point>
-    operator()(const Array<Point> & polyline,
-               const Geom_Number & area_threshold) const
+    [[nodiscard]] static Array<Point>
+    simplify_open_array(const Array<Point> & polyline,
+                        const Geom_Number & area_threshold)
     {
       const size_t n = polyline.size();
       if (n <= 2)
@@ -11470,6 +11460,23 @@ namespace Aleph
       return result;
     }
 
+  public:
+    /**
+     * @brief Simplify an open polyline.
+     *
+     * First and last vertices are always kept.
+     *
+     * @param polyline       Ordered sequence of vertices.
+     * @param area_threshold Minimum effective area to keep a vertex.
+     * @return Simplified vertex array (subsequence of @p polyline).
+     */
+    [[nodiscard]] Array<Point>
+    operator()(const Array<Point> & polyline,
+               const Geom_Number & area_threshold) const
+    {
+      return simplify_open_array(polyline, area_threshold);
+    }
+
     /// @brief Overload accepting DynList.
     [[nodiscard]] Array<Point>
     operator()(const DynList<Point> & polyline,
@@ -11479,7 +11486,7 @@ namespace Aleph
       for (typename DynList<Point>::Iterator it(polyline);
            it.has_curr(); it.next_ne())
         arr.append(it.get_curr());
-      return (*this)(arr, area_threshold);
+      return simplify_open_array(arr, area_threshold);
     }
 
     /**
@@ -11510,7 +11517,7 @@ namespace Aleph
           alive.append(true);
         }
 
-      DynBinHeap<VWEntry, std::less<VWEntry>> heap;
+      DynBinHeap<VWEntry, std::less<>> heap;
 
       Array<Geom_Number> areas(n);
       for (size_t i = 0; i < n; ++i)
