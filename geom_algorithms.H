@@ -7198,6 +7198,542 @@ namespace Aleph
   };
 
   // ============================================================================
+  // Convex Polygon Distance (GJK) — 2D
+  // ============================================================================
+
+  /**
+   * @brief Distance between two closed convex polygons using GJK.
+   *
+   * The algorithm runs a 2D GJK loop on the Minkowski difference to detect
+   * overlap and drive the search direction. For robust witness output,
+   * disjoint cases are refined with exact point-to-segment checks.
+   *
+   * ## Requirements
+   * - Both polygons must be closed and convex with >= 3 vertices.
+   *
+   * ## Complexity
+   * - GJK phase: O((n + m) * k), where k is the number of iterations.
+   * - Refinement (disjoint): O(n * m).
+   *
+   * @ingroup Geometry
+   */
+  class ConvexPolygonDistanceGJK
+  {
+  public:
+    struct Result
+    {
+      Geom_Number distance_squared = 0;
+      Geom_Number distance = 0;
+      Point closest_on_first;
+      Point closest_on_second;
+      bool intersects = false;
+      size_t gjk_iterations = 0;
+    };
+
+  private:
+    struct SupportPoint
+    {
+      Point a;
+      Point b;
+      Point v; // a - b
+      double vx = 0.0;
+      double vy = 0.0;
+    };
+
+    struct ClosestSimplexResult
+    {
+      std::vector<SupportPoint> reduced_simplex;
+      double cx = 0.0;
+      double cy = 0.0;
+      Point witness_a;
+      Point witness_b;
+      bool contains_origin = false;
+    };
+
+    static constexpr size_t kMaxIters = 64;
+    static constexpr double kEps = 1e-12;
+
+    [[nodiscard]] static double to_double(const Geom_Number & v)
+    {
+      return geom_number_to_double(v);
+    }
+
+    [[nodiscard]] static double dot2(const double ax, const double ay,
+                                     const double bx, const double by) noexcept
+    {
+      return ax * bx + ay * by;
+    }
+
+    [[nodiscard]] static double norm2(const double x, const double y) noexcept
+    {
+      return dot2(x, y, x, y);
+    }
+
+    [[nodiscard]] static Point point_from_double(const double x, const double y)
+    {
+      return {Geom_Number(x), Geom_Number(y)};
+    }
+
+    [[nodiscard]] static Point lerp_point(const Point & a, const Point & b,
+                                          const double t)
+    {
+      const double ax = to_double(a.get_x());
+      const double ay = to_double(a.get_y());
+      const double bx = to_double(b.get_x());
+      const double by = to_double(b.get_y());
+      return point_from_double((1.0 - t) * ax + t * bx,
+                               (1.0 - t) * ay + t * by);
+    }
+
+    [[nodiscard]] static Point centroid_of(const Array<Point> & v)
+    {
+      Geom_Number sx = 0;
+      Geom_Number sy = 0;
+      for (size_t i = 0; i < v.size(); ++i)
+        {
+          sx += v(i).get_x();
+          sy += v(i).get_y();
+        }
+      return {sx / Geom_Number(v.size()), sy / Geom_Number(v.size())};
+    }
+
+    [[nodiscard]] static SupportPoint
+    support(const Array<Point> & p,
+            const Array<Point> & q,
+            const double dx,
+            const double dy)
+    {
+      size_t ip = 0;
+      size_t iq = 0;
+      double best_p = -std::numeric_limits<double>::infinity();
+      double best_q = -std::numeric_limits<double>::infinity();
+
+      for (size_t i = 0; i < p.size(); ++i)
+        {
+          const double proj = dot2(to_double(p(i).get_x()), to_double(p(i).get_y()),
+                                   dx, dy);
+          if (proj > best_p)
+            {
+              best_p = proj;
+              ip = i;
+            }
+        }
+
+      // Support of Minkowski difference uses opposite direction in q.
+      for (size_t i = 0; i < q.size(); ++i)
+        {
+          const double proj = dot2(to_double(q(i).get_x()), to_double(q(i).get_y()),
+                                   -dx, -dy);
+          if (proj > best_q)
+            {
+              best_q = proj;
+              iq = i;
+            }
+        }
+
+      const Point pa = p(ip);
+      const Point pb = q(iq);
+      const Geom_Number vx = pa.get_x() - pb.get_x();
+      const Geom_Number vy = pa.get_y() - pb.get_y();
+      return SupportPoint{pa, pb, Point(vx, vy), to_double(vx), to_double(vy)};
+    }
+
+    [[nodiscard]] static bool polygons_intersect_or_contain(const Polygon & p,
+                                                            const Polygon & q)
+    {
+      for (Polygon::Segment_Iterator itp(p); itp.has_curr(); itp.next_ne())
+        {
+          const Segment sp = itp.get_current_segment();
+          for (Polygon::Segment_Iterator itq(q); itq.has_curr(); itq.next_ne())
+            if (sp.intersects_with(itq.get_current_segment()))
+              return true;
+        }
+
+      Point vp;
+      for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
+        {
+          vp = it.get_current_vertex();
+          break;
+        }
+
+      Point vq;
+      for (Polygon::Vertex_Iterator it(q); it.has_curr(); it.next_ne())
+        {
+          vq = it.get_current_vertex();
+          break;
+        }
+
+      return PointInPolygonWinding::contains(q, vp) or
+             PointInPolygonWinding::contains(p, vq);
+    }
+
+    [[nodiscard]] static ClosestSimplexResult
+    closest_from_simplex(const std::vector<SupportPoint> & simplex)
+    {
+      ah_domain_error_if(simplex.empty())
+        << "GJK simplex cannot be empty";
+
+      ClosestSimplexResult out;
+
+      if (simplex.size() == 1)
+        {
+          out.reduced_simplex = simplex;
+          out.cx = simplex[0].vx;
+          out.cy = simplex[0].vy;
+          out.witness_a = simplex[0].a;
+          out.witness_b = simplex[0].b;
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      if (simplex.size() == 2)
+        {
+          const SupportPoint & a = simplex[0];
+          const SupportPoint & b = simplex[1];
+          const double abx = b.vx - a.vx;
+          const double aby = b.vy - a.vy;
+          const double ab2 = norm2(abx, aby);
+
+          if (ab2 <= kEps * kEps)
+            {
+              out.reduced_simplex = {a};
+              out.cx = a.vx;
+              out.cy = a.vy;
+              out.witness_a = a.a;
+              out.witness_b = a.b;
+              out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+              return out;
+            }
+
+          double t = -dot2(a.vx, a.vy, abx, aby) / ab2;
+          if (t < 0.0) t = 0.0;
+          if (t > 1.0) t = 1.0;
+
+          if (t <= kEps)
+            {
+              out.reduced_simplex = {a};
+              out.cx = a.vx;
+              out.cy = a.vy;
+              out.witness_a = a.a;
+              out.witness_b = a.b;
+            }
+          else if (t >= 1.0 - kEps)
+            {
+              out.reduced_simplex = {b};
+              out.cx = b.vx;
+              out.cy = b.vy;
+              out.witness_a = b.a;
+              out.witness_b = b.b;
+            }
+          else
+            {
+              out.reduced_simplex = {a, b};
+              out.cx = a.vx + t * abx;
+              out.cy = a.vy + t * aby;
+              out.witness_a = lerp_point(a.a, b.a, t);
+              out.witness_b = lerp_point(a.b, b.b, t);
+            }
+
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      // Triangle case.
+      const SupportPoint & a = simplex[0];
+      const SupportPoint & b = simplex[1];
+      const SupportPoint & c = simplex[2];
+
+      const double abx = b.vx - a.vx;
+      const double aby = b.vy - a.vy;
+      const double acx = c.vx - a.vx;
+      const double acy = c.vy - a.vy;
+      const double apx = -a.vx;
+      const double apy = -a.vy;
+
+      const double d1 = dot2(abx, aby, apx, apy);
+      const double d2 = dot2(acx, acy, apx, apy);
+      if (d1 <= 0.0 and d2 <= 0.0)
+        {
+          out.reduced_simplex = {a};
+          out.cx = a.vx; out.cy = a.vy;
+          out.witness_a = a.a; out.witness_b = a.b;
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double bpx = -b.vx;
+      const double bpy = -b.vy;
+      const double d3 = dot2(abx, aby, bpx, bpy);
+      const double d4 = dot2(acx, acy, bpx, bpy);
+      if (d3 >= 0.0 and d4 <= d3)
+        {
+          out.reduced_simplex = {b};
+          out.cx = b.vx; out.cy = b.vy;
+          out.witness_a = b.a; out.witness_b = b.b;
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double vc = d1 * d4 - d3 * d2;
+      if (vc <= 0.0 and d1 >= 0.0 and d3 <= 0.0)
+        {
+          const double t = d1 / (d1 - d3);
+          out.reduced_simplex = {a, b};
+          out.cx = a.vx + t * abx;
+          out.cy = a.vy + t * aby;
+          out.witness_a = lerp_point(a.a, b.a, t);
+          out.witness_b = lerp_point(a.b, b.b, t);
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double cpx = -c.vx;
+      const double cpy = -c.vy;
+      const double d5 = dot2(abx, aby, cpx, cpy);
+      const double d6 = dot2(acx, acy, cpx, cpy);
+      if (d6 >= 0.0 and d5 <= d6)
+        {
+          out.reduced_simplex = {c};
+          out.cx = c.vx; out.cy = c.vy;
+          out.witness_a = c.a; out.witness_b = c.b;
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double vb = d5 * d2 - d1 * d6;
+      if (vb <= 0.0 and d2 >= 0.0 and d6 <= 0.0)
+        {
+          const double t = d2 / (d2 - d6);
+          out.reduced_simplex = {a, c};
+          out.cx = a.vx + t * acx;
+          out.cy = a.vy + t * acy;
+          out.witness_a = lerp_point(a.a, c.a, t);
+          out.witness_b = lerp_point(a.b, c.b, t);
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double va = d3 * d6 - d5 * d4;
+      if (va <= 0.0 and (d4 - d3) >= 0.0 and (d5 - d6) >= 0.0)
+        {
+          const double t = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+          const double bcx = c.vx - b.vx;
+          const double bcy = c.vy - b.vy;
+          out.reduced_simplex = {b, c};
+          out.cx = b.vx + t * bcx;
+          out.cy = b.vy + t * bcy;
+          out.witness_a = lerp_point(b.a, c.a, t);
+          out.witness_b = lerp_point(b.b, c.b, t);
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      // Origin is inside triangle.
+      const double denom = va + vb + vc;
+      if (std::fabs(denom) <= kEps)
+        {
+          out.reduced_simplex = {a, b, c};
+          out.cx = 0.0;
+          out.cy = 0.0;
+          out.witness_a = a.a;
+          out.witness_b = a.b;
+          out.contains_origin = true;
+          return out;
+        }
+
+      const double inv = 1.0 / denom;
+      const double wa = va * inv;
+      const double wb = vb * inv;
+      const double wc = vc * inv;
+      out.reduced_simplex = {a, b, c};
+      out.cx = 0.0;
+      out.cy = 0.0;
+      out.witness_a =
+          point_from_double(wa * to_double(a.a.get_x()) +
+                            wb * to_double(b.a.get_x()) +
+                            wc * to_double(c.a.get_x()),
+                            wa * to_double(a.a.get_y()) +
+                            wb * to_double(b.a.get_y()) +
+                            wc * to_double(c.a.get_y()));
+      out.witness_b =
+          point_from_double(wa * to_double(a.b.get_x()) +
+                            wb * to_double(b.b.get_x()) +
+                            wc * to_double(c.b.get_x()),
+                            wa * to_double(a.b.get_y()) +
+                            wb * to_double(b.b.get_y()) +
+                            wc * to_double(c.b.get_y()));
+      out.contains_origin = true;
+      return out;
+    }
+
+    [[nodiscard]] static Result
+    exact_refine_disjoint(const Polygon & p,
+                          const Polygon & q,
+                          const Array<Point> & pv,
+                          const Array<Point> & qv)
+    {
+      Result out;
+      out.intersects = false;
+
+      if (polygons_intersect_or_contain(p, q))
+        {
+          out.distance_squared = 0;
+          out.distance = 0;
+          out.closest_on_first = pv(0);
+          out.closest_on_second = pv(0);
+          out.intersects = true;
+          return out;
+        }
+
+      bool has_best = false;
+      Geom_Number best_d2 = 0;
+      Point best_a, best_b;
+
+      for (size_t i = 0; i < pv.size(); ++i)
+        {
+          const Point pnt = pv(i);
+          for (size_t j = 0; j < qv.size(); ++j)
+            {
+              const Point q0 = qv(j);
+              const Point q1 = qv((j + 1) % qv.size());
+              const Segment edge(q0, q1);
+              const Point proj = edge.project(pnt);
+              const Geom_Number d2 = pnt.distance_squared_to(proj);
+              if (not has_best or d2 < best_d2)
+                {
+                  has_best = true;
+                  best_d2 = d2;
+                  best_a = pnt;
+                  best_b = proj;
+                }
+            }
+        }
+
+      for (size_t i = 0; i < qv.size(); ++i)
+        {
+          const Point pnt = qv(i);
+          for (size_t j = 0; j < pv.size(); ++j)
+            {
+              const Point p0 = pv(j);
+              const Point p1 = pv((j + 1) % pv.size());
+              const Segment edge(p0, p1);
+              const Point proj = edge.project(pnt);
+              const Geom_Number d2 = pnt.distance_squared_to(proj);
+              if (not has_best or d2 < best_d2)
+                {
+                  has_best = true;
+                  best_d2 = d2;
+                  best_a = proj;
+                  best_b = pnt;
+                }
+            }
+        }
+
+      ah_domain_error_if(not has_best)
+        << "Could not compute distance between convex polygons";
+
+      out.distance_squared = best_d2;
+      out.distance = square_root(best_d2);
+      out.closest_on_first = best_a;
+      out.closest_on_second = best_b;
+      out.intersects = (best_d2 == 0);
+      return out;
+    }
+
+  public:
+    /**
+     * @brief Compute the distance between two closed convex polygons.
+     *
+     * @throws domain_error If either polygon is open, has < 3 vertices,
+     *         or is non-convex.
+     */
+    [[nodiscard]] Result operator ()(const Polygon & p,
+                                     const Polygon & q) const
+    {
+      ah_domain_error_if(not p.is_closed()) << "First polygon must be closed";
+      ah_domain_error_if(not q.is_closed()) << "Second polygon must be closed";
+      ah_domain_error_if(p.size() < 3) << "First polygon must have at least 3 vertices";
+      ah_domain_error_if(q.size() < 3) << "Second polygon must have at least 3 vertices";
+
+      const Array<Point> pv = GeomPolygonUtils::extract_vertices(p);
+      const Array<Point> qv = GeomPolygonUtils::extract_vertices(q);
+
+      ah_domain_error_if(not GeomPolygonUtils::is_convex(pv))
+        << "First polygon must be convex";
+      ah_domain_error_if(not GeomPolygonUtils::is_convex(qv))
+        << "Second polygon must be convex";
+
+      // Fast exact overlap check to avoid unnecessary iterations.
+      if (polygons_intersect_or_contain(p, q))
+        {
+          Result r;
+          r.distance_squared = 0;
+          r.distance = 0;
+          r.closest_on_first = pv(0);
+          r.closest_on_second = pv(0);
+          r.intersects = true;
+          return r;
+        }
+
+      Point cp = centroid_of(pv);
+      Point cq = centroid_of(qv);
+      double dirx = to_double(cp.get_x() - cq.get_x());
+      double diry = to_double(cp.get_y() - cq.get_y());
+      if (norm2(dirx, diry) <= kEps * kEps)
+        {
+          dirx = 1.0;
+          diry = 0.0;
+        }
+
+      std::vector<SupportPoint> simplex;
+      simplex.reserve(3);
+      simplex.push_back(support(pv, qv, dirx, diry));
+      dirx = -simplex[0].vx;
+      diry = -simplex[0].vy;
+
+      double prev_d2 = std::numeric_limits<double>::infinity();
+      size_t iters = 0;
+
+      for (; iters < kMaxIters; ++iters)
+        {
+          if (norm2(dirx, diry) <= kEps * kEps)
+            break;
+
+          simplex.push_back(support(pv, qv, dirx, diry));
+          if (simplex.size() > 3)
+            simplex.erase(simplex.begin());
+
+          ClosestSimplexResult step = closest_from_simplex(simplex);
+          simplex = std::move(step.reduced_simplex);
+
+          const double d2 = norm2(step.cx, step.cy);
+          if (step.contains_origin or d2 <= kEps * kEps)
+            {
+              Result r;
+              r.distance_squared = 0;
+              r.distance = 0;
+              r.closest_on_first = step.witness_a;
+              r.closest_on_second = step.witness_b;
+              r.intersects = true;
+              r.gjk_iterations = iters + 1;
+              return r;
+            }
+
+          if (prev_d2 - d2 <= kEps * std::max(1.0, prev_d2))
+            break;
+
+          prev_d2 = d2;
+          dirx = -step.cx;
+          diry = -step.cy;
+        }
+
+      Result refined = exact_refine_disjoint(p, q, pv, qv);
+      refined.gjk_iterations = iters;
+      return refined;
+    }
+  };
+
+  // ============================================================================
   // KD-Tree Point Search — O(log n) Nearest Neighbor
   // ============================================================================
 

@@ -680,6 +680,249 @@ TEST_F(GeomAlgorithmsTest, MinkowskiSumIsConvex)
     }
 }
 
+static Point first_vertex_of(const Polygon & poly)
+{
+  for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+    return it.get_current_vertex();
+  return Point(0, 0);
+}
+
+static Geom_Number brute_convex_distance_squared(const Polygon & p, const Polygon & q,
+                                                 Point & out_p, Point & out_q)
+{
+  if (PointInPolygonWinding::contains(p, first_vertex_of(q)) or
+      PointInPolygonWinding::contains(q, first_vertex_of(p)))
+    {
+      out_p = first_vertex_of(p);
+      out_q = out_p;
+      return 0;
+    }
+
+  for (Polygon::Segment_Iterator itp(p); itp.has_curr(); itp.next_ne())
+    {
+      const Segment sp = itp.get_current_segment();
+      for (Polygon::Segment_Iterator itq(q); itq.has_curr(); itq.next_ne())
+        if (sp.intersects_with(itq.get_current_segment()))
+          {
+            out_p = first_vertex_of(p);
+            out_q = out_p;
+            return 0;
+          }
+    }
+
+  const Array<Point> pv = GeomPolygonUtils::extract_vertices(p);
+  const Array<Point> qv = GeomPolygonUtils::extract_vertices(q);
+
+  bool has_best = false;
+  Geom_Number best_d2 = 0;
+
+  for (size_t i = 0; i < pv.size(); ++i)
+    for (size_t j = 0; j < qv.size(); ++j)
+      {
+        const Segment e(qv(j), qv((j + 1) % qv.size()));
+        const Point proj = e.project(pv(i));
+        const Geom_Number d2 = pv(i).distance_squared_to(proj);
+        if (not has_best or d2 < best_d2)
+          {
+            has_best = true;
+            best_d2 = d2;
+            out_p = pv(i);
+            out_q = proj;
+          }
+      }
+
+  for (size_t i = 0; i < qv.size(); ++i)
+    for (size_t j = 0; j < pv.size(); ++j)
+      {
+        const Segment e(pv(j), pv((j + 1) % pv.size()));
+        const Point proj = e.project(qv(i));
+        const Geom_Number d2 = qv(i).distance_squared_to(proj);
+        if (not has_best or d2 < best_d2)
+          {
+            has_best = true;
+            best_d2 = d2;
+            out_p = proj;
+            out_q = qv(i);
+          }
+      }
+
+  return best_d2;
+}
+
+// ---------- ConvexPolygonDistanceGJK ----------
+
+TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKSeparatedSquares)
+{
+  Polygon a;
+  a.add_vertex(Point(0, 0));
+  a.add_vertex(Point(1, 0));
+  a.add_vertex(Point(1, 1));
+  a.add_vertex(Point(0, 1));
+  a.close();
+
+  Polygon b;
+  b.add_vertex(Point(2, 0));
+  b.add_vertex(Point(3, 0));
+  b.add_vertex(Point(3, 1));
+  b.add_vertex(Point(2, 1));
+  b.close();
+
+  ConvexPolygonDistanceGJK gjk;
+  const auto r = gjk(a, b);
+
+  EXPECT_FALSE(r.intersects);
+  EXPECT_EQ(r.distance_squared, Geom_Number(1));
+  EXPECT_EQ(r.closest_on_first.distance_squared_to(r.closest_on_second),
+            r.distance_squared);
+  EXPECT_LE(r.gjk_iterations, 64u);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKOverlapping)
+{
+  Polygon a;
+  a.add_vertex(Point(0, 0));
+  a.add_vertex(Point(3, 0));
+  a.add_vertex(Point(3, 3));
+  a.add_vertex(Point(0, 3));
+  a.close();
+
+  Polygon b;
+  b.add_vertex(Point(2, 2));
+  b.add_vertex(Point(4, 2));
+  b.add_vertex(Point(4, 4));
+  b.add_vertex(Point(2, 4));
+  b.close();
+
+  ConvexPolygonDistanceGJK gjk;
+  const auto r = gjk(a, b);
+
+  EXPECT_TRUE(r.intersects);
+  EXPECT_EQ(r.distance_squared, Geom_Number(0));
+  EXPECT_EQ(r.distance, Geom_Number(0));
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKTouchingEdge)
+{
+  Polygon a;
+  a.add_vertex(Point(0, 0));
+  a.add_vertex(Point(1, 0));
+  a.add_vertex(Point(1, 1));
+  a.add_vertex(Point(0, 1));
+  a.close();
+
+  Polygon b;
+  b.add_vertex(Point(1, 0));
+  b.add_vertex(Point(2, 0));
+  b.add_vertex(Point(2, 1));
+  b.add_vertex(Point(1, 1));
+  b.close();
+
+  ConvexPolygonDistanceGJK gjk;
+  const auto r = gjk(a, b);
+
+  EXPECT_TRUE(r.intersects);
+  EXPECT_EQ(r.distance_squared, Geom_Number(0));
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKSymmetry)
+{
+  Polygon a;
+  a.add_vertex(Point(0, 0));
+  a.add_vertex(Point(4, 0));
+  a.add_vertex(Point(2, 2));
+  a.close();
+
+  Polygon b;
+  b.add_vertex(Point(6, 1));
+  b.add_vertex(Point(9, 1));
+  b.add_vertex(Point(9, 4));
+  b.add_vertex(Point(6, 4));
+  b.close();
+
+  ConvexPolygonDistanceGJK gjk;
+  const auto ab = gjk(a, b);
+  const auto ba = gjk(b, a);
+
+  EXPECT_EQ(ab.distance_squared, ba.distance_squared);
+  EXPECT_EQ(ab.distance, ba.distance);
+  EXPECT_EQ(ab.intersects, ba.intersects);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKInvalidInputThrows)
+{
+  Polygon convex;
+  convex.add_vertex(Point(0, 0));
+  convex.add_vertex(Point(2, 0));
+  convex.add_vertex(Point(2, 2));
+  convex.add_vertex(Point(0, 2));
+  convex.close();
+
+  Polygon concave;
+  concave.add_vertex(Point(0, 0));
+  concave.add_vertex(Point(4, 0));
+  concave.add_vertex(Point(2, 1));
+  concave.add_vertex(Point(4, 4));
+  concave.add_vertex(Point(0, 4));
+  concave.close();
+
+  Polygon open;
+  open.add_vertex(Point(0, 0));
+  open.add_vertex(Point(1, 0));
+  open.add_vertex(Point(1, 1));
+
+  ConvexPolygonDistanceGJK gjk;
+  EXPECT_THROW((void) gjk(open, convex), std::domain_error);
+  EXPECT_THROW((void) gjk(convex, open), std::domain_error);
+  EXPECT_THROW((void) gjk(concave, convex), std::domain_error);
+  EXPECT_THROW((void) gjk(convex, concave), std::domain_error);
+}
+
+TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKMatchesBruteBaseline)
+{
+  AndrewMonotonicChainConvexHull hull;
+  ConvexPolygonDistanceGJK gjk;
+
+  int seed = 424242;
+  for (int tc = 0; tc < 12; ++tc)
+    {
+      Polygon a, b;
+      while (a.size() < 3)
+        {
+          DynList<Point> pts;
+          for (int i = 0; i < 16; ++i)
+            {
+              seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+              const int x = (seed % 51) - 25;
+              seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+              const int y = (seed % 51) - 25;
+              pts.append(Point(x, y));
+            }
+          a = hull(pts);
+        }
+
+      while (b.size() < 3)
+        {
+          DynList<Point> pts;
+          for (int i = 0; i < 16; ++i)
+            {
+              seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+              const int x = (seed % 51) - 25;
+              seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+              const int y = (seed % 51) - 25;
+              pts.append(Point(x + 10, y + 7));
+            }
+          b = hull(pts);
+        }
+
+      const auto r = gjk(a, b);
+      Point bp, bq;
+      const Geom_Number brute_d2 = brute_convex_distance_squared(a, b, bp, bq);
+
+      EXPECT_EQ(r.distance_squared, brute_d2);
+      EXPECT_EQ(r.intersects, brute_d2 == 0);
+    }
+}
+
 
 // ---------- KDTreePointSearch ----------
 

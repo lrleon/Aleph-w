@@ -133,6 +133,7 @@ set(EXAMPLE_PROGRAMS
     halfplane_intersection_example
     convex_hull_comparison_example
     closest_pair_example
+    convex_polygon_distance_gjk_example
     rotating_calipers_example
     minimum_enclosing_circle_example
 )
