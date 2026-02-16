@@ -105,7 +105,7 @@ namespace Aleph {
       @endcode
 
       @note The size is maintained automatically, so size() is O(1).
-      @note This is a circular doubly linked list with sentinel header.
+      @note This is a circular doubly linked list with a sentinel header.
 
       @see DynList Singly linked list alternative (no size counter).
       @see Dlink Low-level doubly linked list node.

@@ -73,6 +73,20 @@ TEST(ArrayBasics, DefaultConstructionAndBase)
   EXPECT_EQ(carr.get_last(), 20);
 }
 
+TEST(ArrayFunctional, ToArrayPreservesOrder)
+{
+  Array<int> src = {5, 7, 9, 11};
+
+  auto copy = src.to_array();
+
+  ASSERT_EQ(copy.size(), src.size());
+  for (size_t i = 0; i < copy.size(); ++i)
+    EXPECT_EQ(copy(i), src(i));
+
+  // original remains unchanged
+  EXPECT_EQ(src.size(), 4u);
+}
+
 TEST(ArrayModifiers, InsertAppendAndRemove)
 {
   Array<int> arr;

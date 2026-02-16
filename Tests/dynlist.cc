@@ -39,6 +39,7 @@
 
 # include <htlist.H>
 # include <ah-unique.H>
+# include <ah-convert.H>
 
 using namespace testing;
 using namespace Aleph;
@@ -294,4 +295,18 @@ TEST_F(List_of_25_items, traverse)
   auto ret = list.traverse([&N, this] (int i) { ++N; return i < n/2; });
   EXPECT_FALSE(ret);
   EXPECT_EQ(N, n/2);
+}
+
+TEST(DynListFunctional, ToArrayHelperPreservesOrder)
+{
+  DynList<int> list;
+  for (int v : {5, 8, 13})
+    list.append(v);
+
+  auto arr = to_array(list);
+
+  ASSERT_EQ(arr.size(), list.size());
+  size_t i = 0;
+  for (auto it = list.get_it(); it.has_curr(); it.next_ne(), ++i)
+    EXPECT_EQ(arr(i), it.get_curr());
 }

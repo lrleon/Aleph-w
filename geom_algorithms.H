@@ -107,6 +107,12 @@
  *  - **VisvalingamWhyattSimplification**: Iteratively removes the vertex
  *    forming the smallest effective area triangle. O(n log n) with a heap.
  *
+ *  ## Polygon Offset
+ *
+ *  - **ConvexPolygonOffset**: Inward/outward offset of convex polygons.
+ *  - **PolygonOffset**: Inward/outward offset of arbitrary simple polygons,
+ *    with self-intersection cleanup. O(n²).
+ *
  *  ## C++20 Support
  *
  *  - **GeomNumberType**: Concept describing numeric types usable by geometry
@@ -8326,6 +8332,8 @@ namespace Aleph
    */
   class ConvexPolygonOffset
   {
+    friend class PolygonOffset;
+
     [[nodiscard]] static Array<Point> extract_verts(const Polygon & poly)
     {
       return GeomPolygonUtils::extract_vertices(poly);
@@ -8498,6 +8506,528 @@ namespace Aleph
         }
       result.close();
       return result;
+    }
+  };
+
+  // ============================================================================
+  // General Polygon Offset (non-convex)
+  // ============================================================================
+
+  /**
+   * @brief Offset (inflate/deflate) an arbitrary simple polygon.
+   *
+   * Unlike ConvexPolygonOffset, this class handles non-convex (simple)
+   * polygons.  The raw miter-join offset polygon may self-intersect at
+   * reflex vertices; a self-intersection cleanup phase extracts the valid
+   * contours.
+   *
+   * ## Algorithm
+   *
+   * 1. **Raw offset**: Shift each edge by `|d|` along its outward (d>0) or
+   *    inward (d<0) normal, then join consecutive offset edges at their
+   *    miter point (line–line intersection).  An optional miter limit
+   *    replaces excessively long miter joins with bevel (two-point) joins.
+   *
+   * 2. **Self-intersection cleanup**: O(n²) scan finds all proper
+   *    self-intersections of the raw polygon, builds an augmented vertex
+   *    list with crossing links, then traces valid CCW contours
+   *    (positive signed area).
+   *
+   * ## Complexity
+   * - Time:  O(n²) — dominated by the all-pairs edge intersection scan.
+   * - Space: O(n + k) where k = number of self-intersections.
+   *
+   * @ingroup Geometry
+   */
+  class PolygonOffset
+  {
+  public:
+    /// Join strategy at offset vertices.
+    enum class JoinType { Miter, Bevel };
+
+    /// Result of an offset operation: zero or more polygons.
+    struct Result
+    {
+      Array<Polygon> polygons;
+
+      [[nodiscard]] bool is_empty() const noexcept
+      {
+        return polygons.is_empty();
+      }
+
+      [[nodiscard]] size_t size() const noexcept
+      {
+        return polygons.size();
+      }
+    };
+
+    /**
+     * @brief Offset a simple polygon by the given distance.
+     *
+     * @param poly     A closed simple polygon.
+     * @param distance Positive = outward (expand), negative = inward (shrink).
+     * @param join     Join strategy (Miter or Bevel).
+     * @param miter_limit  When miter distance exceeds miter_limit * |d|,
+     *                     fall back to bevel join.
+     * @return Zero or more result polygons.
+     */
+    [[nodiscard]] Result
+    operator()(const Polygon & poly, const Geom_Number & distance,
+               JoinType join = JoinType::Miter,
+               const Geom_Number & miter_limit = Geom_Number(2)) const
+    {
+      ah_domain_error_if(!poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(poly.size() < 3) << "Polygon must have >= 3 vertices";
+
+      if (distance == 0)
+        {
+          Result r;
+          r.polygons.append(poly);
+          return r;
+        }
+
+      Array<Point> v = GeomPolygonUtils::extract_vertices(poly);
+      GeomPolygonUtils::ensure_ccw(v);
+
+      Array<Point> raw = compute_raw_offset(v, distance, join, miter_limit);
+
+      if (raw.size() < 3)
+        return Result{};
+
+      return cleanup(raw);
+    }
+
+    /**
+     * @brief Convenience: return the single largest-area result polygon.
+     *
+     * @return The largest polygon, or an empty (0-vertex) polygon if the
+     *         offset collapses entirely.
+     */
+    [[nodiscard]] Polygon
+    offset_polygon(const Polygon & poly, const Geom_Number & distance,
+                   JoinType join = JoinType::Miter,
+                   const Geom_Number & miter_limit = Geom_Number(2)) const
+    {
+      Result r = (*this)(poly, distance, join, miter_limit);
+      if (r.is_empty())
+        return Polygon();
+
+      size_t best = 0;
+      Geom_Number best_area = abs_area(r.polygons(0));
+      for (size_t i = 1; i < r.polygons.size(); ++i)
+        {
+          const Geom_Number a = abs_area(r.polygons(i));
+          if (a > best_area)
+            {
+              best_area = a;
+              best = i;
+            }
+        }
+      return r.polygons(best);
+    }
+
+  private:
+
+    // ----- helpers -----
+
+    [[nodiscard]] static Geom_Number abs_area(const Polygon & p)
+    {
+      Geom_Number a = GeomPolygonUtils::signed_double_area(p);
+      if (a < 0) a = -a;
+      return a;
+    }
+
+    /// Compute two points on the offset line of edge (a→b) shifted by |d|
+    /// along its outward or inward normal.  Delegates to mpfr arithmetic.
+    static void offset_edge(const Point & a, const Point & b,
+                            const Geom_Number & d, bool inward,
+                            Point & oa, Point & ob)
+    {
+      ConvexPolygonOffset::offset_edge(a, b, d, inward, oa, ob);
+    }
+
+    /// Line–line intersection of (a1,a2) and (b1,b2).
+    [[nodiscard]] static Point line_intersect(const Point & a1, const Point & a2,
+                                              const Point & b1, const Point & b2)
+    {
+      return ConvexPolygonOffset::line_intersect(a1, a2, b1, b2);
+    }
+
+    // ----- Phase 1: raw offset polygon -----
+
+    /// Compute the squared distance between two points.
+    [[nodiscard]] static Geom_Number sq_dist(const Point & a, const Point & b)
+    {
+      const Geom_Number dx = b.get_x() - a.get_x();
+      const Geom_Number dy = b.get_y() - a.get_y();
+      return dx * dx + dy * dy;
+    }
+
+    [[nodiscard]] static Array<Point>
+    compute_raw_offset(const Array<Point> & v, const Geom_Number & distance,
+                       JoinType join, const Geom_Number & miter_limit)
+    {
+      const size_t n = v.size();
+      const bool inward = distance < 0;
+      Geom_Number d = distance;
+      if (inward) d = -distance;
+
+      // Compute offset edge pairs.
+      Array<Point> oa, ob;
+      oa.reserve(n);
+      ob.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          Point a, b;
+          offset_edge(v(i), v((i + 1) % n), d, inward, a, b);
+          oa.append(a);
+          ob.append(b);
+        }
+
+      // Join consecutive offset edges, tracking junction boundaries.
+      const Geom_Number miter_sq = miter_limit * miter_limit * d * d;
+      Array<Point> raw;
+      raw.reserve(n * 2);
+
+      // junction_first[i] = index in raw where junction i's vertices begin.
+      // junction_count[i] = number of vertices emitted for junction i.
+      Array<size_t> junction_first, junction_count;
+      junction_first.reserve(n);
+      junction_count.reserve(n);
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t j = (i + 1) % n;
+          junction_first.append(raw.size());
+
+          const Geom_Number dax = ob(i).get_x() - oa(i).get_x();
+          const Geom_Number day = ob(i).get_y() - oa(i).get_y();
+          const Geom_Number dbx = ob(j).get_x() - oa(j).get_x();
+          const Geom_Number dby = ob(j).get_y() - oa(j).get_y();
+          const Geom_Number denom = dax * dby - day * dbx;
+
+          if (denom == 0)
+            {
+              junction_count.append(0);
+              continue;
+            }
+
+          const Point miter = line_intersect(oa(i), ob(i), oa(j), ob(j));
+
+          if (join == JoinType::Bevel ||
+              (join == JoinType::Miter && sq_dist(v((i + 1) % n), miter) > miter_sq))
+            {
+              raw.append(ob(i));
+              raw.append(oa(j));
+              junction_count.append(2);
+            }
+          else
+            {
+              raw.append(miter);
+              junction_count.append(1);
+            }
+        }
+
+      // Validate edge directions: for each span between consecutive
+      // junctions, the direction must match the corresponding original edge.
+      // A reversed direction indicates that the offset has "crossed through"
+      // the polygon (excessive offset).
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t j = (i + 1) % n;
+          if (junction_count(i) == 0 || junction_count(j) == 0)
+            continue;
+
+          // Span runs from the last vertex of junction i to the first
+          // vertex of junction j, along offset edge (i+1)%n.
+          const size_t span_start = junction_first(i) + junction_count(i) - 1;
+          const size_t span_end = junction_first(j);
+
+          const Geom_Number sdx = raw(span_end).get_x() - raw(span_start).get_x();
+          const Geom_Number sdy = raw(span_end).get_y() - raw(span_start).get_y();
+
+          // Direction of original edge (i+1)%n: v(j) → v((j+1)%n).
+          const Geom_Number edx = v((j + 1) % n).get_x() - v(j).get_x();
+          const Geom_Number edy = v((j + 1) % n).get_y() - v(j).get_y();
+
+          if (sdx * edx + sdy * edy < 0)
+            return Array<Point>(); // direction reversed → excessive offset
+        }
+
+      return raw;
+    }
+
+    // ----- Phase 2: self-intersection cleanup -----
+
+    /// Intersection found between edge i and edge j of the raw polygon.
+    struct Intersection
+    {
+      Point pt;
+      size_t edge_i, edge_j;
+      Geom_Number alpha_i, alpha_j; // parameter along each edge
+    };
+
+    /// Augmented vertex in the cleaned polygon.
+    struct AugVertex
+    {
+      Point pt;
+      bool is_intersection = false;
+      size_t partner = SIZE_MAX; // index of same point on other edge
+      bool visited = false;
+      Geom_Number alpha = 0;
+    };
+
+    /// Compute parameter t of point I along directed edge P→Q.
+    [[nodiscard]] static Geom_Number
+    edge_param(const Point & P, const Point & Q, const Point & I)
+    {
+      const Geom_Number dx = Q.get_x() - P.get_x();
+      if (dx != 0)
+        return (I.get_x() - P.get_x()) / dx;
+      return (I.get_y() - P.get_y()) / (Q.get_y() - P.get_y());
+    }
+
+    /// O(n²) scan for all proper self-intersections.
+    [[nodiscard]] static Array<Intersection>
+    find_self_intersections(const Array<Point> & raw)
+    {
+      const size_t n = raw.size();
+      Array<Intersection> isects;
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const Point & a0 = raw(i);
+          const Point & a1 = raw((i + 1) % n);
+          const Segment sa(a0, a1);
+
+          for (size_t j = i + 2; j < n; ++j)
+            {
+              // Skip adjacent edges (they share a vertex).
+              if (j == (i + n - 1) % n)
+                continue;
+              if (i == 0 && j == n - 1)
+                continue;
+
+              const Point & b0 = raw(j);
+              const Point & b1 = raw((j + 1) % n);
+              const Segment sb(b0, b1);
+
+              if (!sa.intersects_properly_with(sb))
+                continue;
+
+              const Point ip = sa.intersection_with(sb);
+              const Geom_Number ai = edge_param(a0, a1, ip);
+              const Geom_Number aj = edge_param(b0, b1, ip);
+              isects.append({ip, i, j, ai, aj});
+            }
+        }
+
+      return isects;
+    }
+
+    /// Insertion-sort indices by alpha key.
+    static void sort_by_alpha(Array<size_t> & idx,
+                              const Array<Geom_Number> & keys)
+    {
+      for (size_t i = 1; i < idx.size(); ++i)
+        {
+          const size_t val = idx(i);
+          const Geom_Number key = keys(val);
+          size_t j = i;
+          while (j > 0 && keys(idx(j - 1)) > key)
+            {
+              idx(j) = idx(j - 1);
+              --j;
+            }
+          idx(j) = val;
+        }
+    }
+
+    /// Build the augmented vertex list with crossing links.
+    [[nodiscard]] static Array<AugVertex>
+    build_augmented(const Array<Point> & raw,
+                    const Array<Intersection> & isects)
+    {
+      const size_t n = raw.size();
+      const size_t m = isects.size();
+
+      // Position in the augmented list for each intersection occurrence.
+      // Each intersection appears twice (once on each edge).
+      Array<size_t> pos_i, pos_j;
+      pos_i.reserve(m);
+      pos_j.reserve(m);
+      for (size_t k = 0; k < m; ++k)
+        {
+          pos_i.append(0);
+          pos_j.append(0);
+        }
+
+      Array<AugVertex> aug;
+      aug.reserve(n + 2 * m);
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          // Append original vertex.
+          AugVertex v;
+          v.pt = raw(i);
+          aug.append(v);
+
+          // Collect intersections on this edge.
+          Array<size_t> edge_isects;
+          Array<Geom_Number> edge_alphas;
+          for (size_t k = 0; k < m; ++k)
+            {
+              if (isects(k).edge_i == i)
+                {
+                  edge_isects.append(k);
+                  edge_alphas.append(isects(k).alpha_i);
+                }
+              else if (isects(k).edge_j == i)
+                {
+                  edge_isects.append(k);
+                  edge_alphas.append(isects(k).alpha_j);
+                }
+            }
+
+          if (edge_isects.is_empty())
+            continue;
+
+          // Sort by alpha.
+          Array<size_t> order;
+          for (size_t p = 0; p < edge_isects.size(); ++p)
+            order.append(p);
+          sort_by_alpha(order, edge_alphas);
+
+          for (size_t p = 0; p < order.size(); ++p)
+            {
+              const size_t k = edge_isects(order(p));
+              const size_t aug_idx = aug.size();
+
+              // Record position for partner linking.
+              if (isects(k).edge_i == i)
+                pos_i(k) = aug_idx;
+              else
+                pos_j(k) = aug_idx;
+
+              AugVertex iv;
+              iv.pt = isects(k).pt;
+              iv.is_intersection = true;
+              iv.alpha = edge_alphas(order(p));
+              aug.append(iv);
+            }
+        }
+
+      // Set partner links.
+      for (size_t k = 0; k < m; ++k)
+        {
+          aug(pos_i(k)).partner = pos_j(k);
+          aug(pos_j(k)).partner = pos_i(k);
+        }
+
+      return aug;
+    }
+
+    /// Build a polygon from a point array.
+    [[nodiscard]] static Polygon build_poly(const Array<Point> & pts)
+    {
+      Polygon p;
+      for (size_t i = 0; i < pts.size(); ++i)
+        p.add_vertex(pts(i));
+      if (pts.size() >= 3)
+        p.close();
+      return p;
+    }
+
+    /// Walk the augmented polygon and extract valid CCW contours.
+    ///
+    /// At each intersection vertex, jump to the partner first (switching
+    /// to the other branch of the crossing) and then walk forward.
+    /// This traces the inner contours correctly for self-intersecting
+    /// offset polygons.
+    [[nodiscard]] static Array<Polygon>
+    extract_contours(Array<AugVertex> & aug)
+    {
+      Array<Polygon> result;
+      const size_t N = aug.size();
+      const size_t safety = N * 2 + 10;
+
+      for (size_t s = 0; s < N; ++s)
+        {
+          if (!aug(s).is_intersection || aug(s).visited)
+            continue;
+
+          // Trace one contour starting from intersection s.
+          // Jump to partner first, then walk forward.
+          Array<Point> boundary;
+          size_t steps = 0;
+
+          aug(s).visited = true;
+          if (aug(s).partner != SIZE_MAX)
+            aug(aug(s).partner).visited = true;
+
+          // Jump to partner to enter the "other branch".
+          size_t idx = (aug(s).partner != SIZE_MAX) ? aug(s).partner : s;
+          const size_t entry = idx; // we'll loop until we return here
+
+          do
+            {
+              // Append current vertex and walk forward.
+              boundary.append(aug(idx).pt);
+              idx = (idx + 1) % N;
+
+              while (!aug(idx).is_intersection)
+                {
+                  boundary.append(aug(idx).pt);
+                  idx = (idx + 1) % N;
+                  if (++steps > safety)
+                    goto done_contour;
+                }
+
+              // At next intersection — mark visited and jump to partner.
+              aug(idx).visited = true;
+              if (aug(idx).partner != SIZE_MAX)
+                {
+                  aug(aug(idx).partner).visited = true;
+                  idx = aug(idx).partner;
+                }
+
+              if (++steps > safety)
+                break;
+            }
+          while (idx != entry);
+
+        done_contour:
+          if (boundary.size() >= 3)
+            {
+              // Keep only CCW contours (positive signed area).
+              const Geom_Number sa = GeomPolygonUtils::signed_double_area(boundary);
+              if (sa > 0)
+                result.append(build_poly(boundary));
+            }
+        }
+
+      return result;
+    }
+
+    /// Full cleanup pipeline.
+    [[nodiscard]] Result cleanup(const Array<Point> & raw) const
+    {
+      auto isects = find_self_intersections(raw);
+
+      if (isects.is_empty())
+        {
+          // No self-intersections — check if the raw polygon is valid CCW.
+          const Geom_Number sa = GeomPolygonUtils::signed_double_area(raw);
+          Result r;
+          if (sa > 0 && raw.size() >= 3)
+            r.polygons.append(build_poly(raw));
+          return r;
+        }
+
+      auto aug = build_augmented(raw, isects);
+      Result r;
+      r.polygons = extract_contours(aug);
+      return r;
     }
   };
 
@@ -11402,7 +11932,7 @@ namespace Aleph
         }
 
       // Min-heap
-      DynBinHeap<VWEntry, std::less<VWEntry>> heap;
+      DynBinHeap<VWEntry, std::less<>> heap;
 
       // Compute initial areas for interior vertices
       Array<Geom_Number> areas(n);

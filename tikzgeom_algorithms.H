@@ -1359,6 +1359,63 @@ namespace Aleph
     return simplified;
   }
 
+  // ==========================================================================
+  // Polygon offset visualization
+  // ==========================================================================
+
+  /**
+   * @brief Draw a polygon offset result overlaid on the original polygon.
+   *
+   * @param plane           Target TikZ canvas.
+   * @param original        The original polygon (drawn faded).
+   * @param result          The offset result (one or more polygons).
+   * @param original_style  Style for the original polygon.
+   * @param offset_style    Style for offset polygon(s).
+   * @param draw_vertices   Whether to draw vertices of offset polygon(s).
+   * @param vertex_style    Style for offset polygon vertices.
+   */
+  inline void put_offset_result(
+      Tikz_Plane & plane,
+      const Polygon & original,
+      const PolygonOffset::Result & result,
+      const Tikz_Style & original_style = tikz_wire_style("gray!50"),
+      const Tikz_Style & offset_style = tikz_wire_style("blue!80", 1.2),
+      const bool draw_vertices = true,
+      const Tikz_Style & vertex_style = tikz_points_style("red"))
+  {
+    put_in_plane(plane, original, original_style);
+    for (size_t i = 0; i < result.polygons.size(); ++i)
+      {
+        put_in_plane(plane, result.polygons(i), offset_style);
+        if (draw_vertices)
+          put_polygon_vertices(plane, result.polygons(i), vertex_style);
+      }
+  }
+
+  /**
+   * @brief Offset a polygon and draw the result.
+   *
+   * @return The offset result.
+   */
+  [[nodiscard]] inline PolygonOffset::Result visualize_polygon_offset(
+      Tikz_Plane & plane,
+      const Polygon & poly,
+      const Geom_Number & distance,
+      const PolygonOffset & algorithm = {},
+      PolygonOffset::JoinType join = PolygonOffset::JoinType::Miter,
+      const Geom_Number & miter_limit = Geom_Number(2),
+      const Tikz_Style & original_style = tikz_wire_style("gray!50"),
+      const Tikz_Style & offset_style = tikz_wire_style("blue!80", 1.2),
+      const bool draw_vertices = true,
+      const Tikz_Style & vertex_style = tikz_points_style("red"))
+  {
+    PolygonOffset::Result result = algorithm(poly, distance, join, miter_limit);
+    put_offset_result(plane, poly, result,
+                      original_style, offset_style,
+                      draw_vertices, vertex_style);
+    return result;
+  }
+
 } // namespace Aleph
 
 # endif // TIKZGEOM_ALGORITHMS_H

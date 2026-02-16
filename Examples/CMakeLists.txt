@@ -137,6 +137,7 @@ set(EXAMPLE_PROGRAMS
     rotating_calipers_example
     minimum_enclosing_circle_example
     polygon_simplification_example
+    polygon_offset_example
 )
 
 # Function to get source file from program name

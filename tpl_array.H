@@ -48,6 +48,7 @@
 # include <iostream>
 # include <utility>
 # include <vector>
+# include <concepts>
 # include <aleph.H>
 # include <htlist.H>
 # include <tpl_dynDlist.H>
@@ -443,6 +444,12 @@ public:
   }
 
   [[nodiscard]] bool is_valid() const noexcept { return array.is_valid(); }
+
+  /** Copy to Aleph::Array (requires copyable elements). */
+  Array to_array() const requires std::copy_constructible<T>
+  {
+    return *this; // copy
+  }
 
   /** Iterator on the items of an array.
 

@@ -39,6 +39,7 @@
 
 # include <tpl_dynDlist.H>
 # include <ah-unique.H>
+# include <ah-convert.H>
 
 using namespace std;
 using namespace testing;
@@ -579,4 +580,18 @@ TEST(DynDlist, StackAndQueueAliases)
   list.pop();
   EXPECT_TRUE(list.is_empty());
   EXPECT_THROW(list.pop(), std::underflow_error);
+}
+
+TEST(DynDlistFunctional, ToArrayHelperPreservesOrder)
+{
+  DynDlist<int> list;
+  for (int v : {2, 4, 8})
+    list.append(v);
+
+  auto arr = to_array(list);
+
+  ASSERT_EQ(arr.size(), list.size());
+  size_t i = 0;
+  for (auto it = list.get_it(); it.has_curr(); it.next_ne(), ++i)
+    EXPECT_EQ(arr(i), it.get_curr());
 }

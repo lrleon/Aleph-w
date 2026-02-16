@@ -61,6 +61,19 @@ TEST(DynArrayBasics, construction_and_size)
   EXPECT_EQ(arr.access(1), 7);
 }
 
+TEST(DynArrayFunctional, ToArrayPreservesOrder)
+{
+  DynArray<int> src;
+  for (int v : {3, 6, 9})
+    src.append(v);
+
+  auto copy = src.to_array();
+
+  ASSERT_EQ(copy.size(), src.size());
+  for (size_t i = 0; i < copy.size(); ++i)
+    EXPECT_EQ(copy(i), src(i));
+}
+
 TEST(DynArrayBasics, default_values_and_touch)
 {
   DynArray<int> arr;

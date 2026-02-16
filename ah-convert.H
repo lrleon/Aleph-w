@@ -172,6 +172,15 @@ template <class C>
   return ret;
 }
 
+/** @brief Convenience wrapper identical to to_Array (copy contents).
+ *         Accepts any Aleph container with Item_Type and get_it().
+ */
+template <class C>
+[[nodiscard]] Array<typename C::Item_Type> to_array(const C & c)
+{
+  return to_Array(c);
+}
+
 /** @brief Convert a DynArray to a DynList.
 
     Creates a new DynList containing copies of all elements from the
