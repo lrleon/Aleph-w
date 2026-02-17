@@ -350,6 +350,35 @@ namespace Aleph
       put_in_plane(plane, it.get_curr(), style, layer);
   }
 
+  /// @brief Label points as `prefix + index` with configurable placement.
+  inline void put_point_labels(Tikz_Plane & plane,
+                               const Array<Point> & pts,
+                               const std::string & prefix = "p",
+                               const std::string & placement = "above right",
+                               const Tikz_Style & style = make_tikz_draw_style("black"),
+                               const int layer = Tikz_Plane::Layer_Overlay)
+  {
+    for (size_t i = 0; i < pts.size(); ++i)
+      put_point_label_in_plane(plane, pts(i),
+                               prefix + std::to_string(i),
+                               placement, style, layer);
+  }
+
+  /// @brief Label points in iteration order as `prefix + index`.
+  inline void put_point_labels(Tikz_Plane & plane,
+                               const DynList<Point> & pts,
+                               const std::string & prefix = "p",
+                               const std::string & placement = "above right",
+                               const Tikz_Style & style = make_tikz_draw_style("black"),
+                               const int layer = Tikz_Plane::Layer_Overlay)
+  {
+    size_t idx = 0;
+    for (DynList<Point>::Iterator it(pts); it.has_curr(); it.next_ne(), ++idx)
+      put_point_label_in_plane(plane, it.get_curr(),
+                               prefix + std::to_string(idx),
+                               placement, style, layer);
+  }
+
   /// @brief Insert all polygons from an `Array<Polygon>`.
   inline void put_polygons(Tikz_Plane & plane, const Array<Polygon> & polys,
                            const Tikz_Style & style = tikz_wire_style(),
@@ -512,6 +541,21 @@ namespace Aleph
 
     if (draw_sites)
       put_points(plane, dt.sites, site_style, site_layer);
+  }
+
+  /** @brief Compute and insert Delaunay triangulation as triangle outlines. */
+  [[nodiscard]] inline DelaunayTriangulationBowyerWatson::Result
+  visualize_delaunay(
+      Tikz_Plane & plane,
+      const DynList<Point> & points,
+      const DelaunayTriangulationBowyerWatson & algorithm = {},
+      const Tikz_Style & triangle_style = tikz_wire_style("blue"),
+      const bool draw_sites = true,
+      const Tikz_Style & site_style = tikz_points_style("black"))
+  {
+    auto dt = algorithm(points);
+    put_delaunay_result(plane, dt, triangle_style, draw_sites, site_style);
+    return dt;
   }
 
   [[nodiscard]] inline Point ray_endpoint(const Point & src, const Point & direction,
@@ -739,6 +783,236 @@ namespace Aleph
                                    Tikz_Plane::Layer_Foreground,
                                    color_faces_by_index);
     return res;
+  }
+
+  /** @brief Draw KD-tree partitions from a debug snapshot. */
+  inline void put_kdtree_partitions_result(
+      Tikz_Plane & plane,
+      const KDTreePointSearch::DebugSnapshot & snapshot,
+      const bool draw_partition_boxes = false,
+      const bool draw_points = true,
+      const Tikz_Style & partition_style = tikz_wire_style("gray!55", true),
+      const Tikz_Style & split_style = tikz_wire_style("blue!70"),
+      const Tikz_Style & point_style = tikz_points_style("red"),
+      const int partition_layer = Tikz_Plane::Layer_Background,
+      const int split_layer = Tikz_Plane::Layer_Default,
+      const int point_layer = Tikz_Plane::Layer_Foreground)
+  {
+    for (size_t i = 0; i < snapshot.partitions.size(); ++i)
+      {
+        const auto & part = snapshot.partitions(i);
+        if (draw_partition_boxes)
+          put_in_plane(plane, part.region, partition_style, partition_layer);
+
+        if (part.is_leaf)
+          continue;
+
+        const Geom_Number x0 = part.region.get_xmin();
+        const Geom_Number x1 = part.region.get_xmax();
+        const Geom_Number y0 = part.region.get_ymin();
+        const Geom_Number y1 = part.region.get_ymax();
+        Segment split_seg = part.split_on_x ?
+                            Segment(Point(part.split_value, y0),
+                                    Point(part.split_value, y1)) :
+                            Segment(Point(x0, part.split_value),
+                                    Point(x1, part.split_value));
+
+        Tikz_Style style = split_style;
+        style.draw_color = detail::tikz_palette_color(part.depth);
+        put_in_plane(plane, split_seg, style, split_layer);
+      }
+
+    if (draw_points)
+      put_points(plane, snapshot.points, point_style, point_layer);
+  }
+
+  /** @brief Visualize KD-tree recursive space partitions. */
+  inline KDTreePointSearch::DebugSnapshot visualize_kdtree_partitions(
+      Tikz_Plane & plane,
+      const KDTreePointSearch & kd_tree,
+      const bool draw_partition_boxes = false,
+      const bool draw_points = true,
+      const Tikz_Style & partition_style = tikz_wire_style("gray!55", true),
+      const Tikz_Style & split_style = tikz_wire_style("blue!70"),
+      const Tikz_Style & point_style = tikz_points_style("red"))
+  {
+    const auto snapshot = kd_tree.debug_snapshot();
+    put_kdtree_partitions_result(
+        plane, snapshot, draw_partition_boxes, draw_points,
+        partition_style, split_style, point_style);
+    return snapshot;
+  }
+
+  /** @brief Draw range-tree X-axis hierarchy and optional query highlights. */
+  inline void put_range_tree_result(
+      Tikz_Plane & plane,
+      const RangeTree2D::DebugSnapshot & snapshot,
+      const bool draw_points = true,
+      const Rectangle * query_rect = nullptr,
+      const DynList<Point> * query_hits = nullptr,
+      const Tikz_Style & split_style = tikz_wire_style("purple"),
+      const Tikz_Style & point_style = tikz_points_style("black"),
+      const Tikz_Style & query_rect_style = tikz_wire_style("red", true),
+      const Tikz_Style & query_hit_style = tikz_points_style("red"),
+      const int split_layer = Tikz_Plane::Layer_Default,
+      const int point_layer = Tikz_Plane::Layer_Foreground)
+  {
+    if (snapshot.x_sorted_points.size() == 0)
+      return;
+
+    Geom_Number ymin = snapshot.x_sorted_points(0).get_y();
+    Geom_Number ymax = ymin;
+    for (size_t i = 1; i < snapshot.x_sorted_points.size(); ++i)
+      {
+        if (snapshot.x_sorted_points(i).get_y() < ymin)
+          ymin = snapshot.x_sorted_points(i).get_y();
+        if (snapshot.x_sorted_points(i).get_y() > ymax)
+          ymax = snapshot.x_sorted_points(i).get_y();
+      }
+
+    for (size_t i = 0; i < snapshot.nodes.size(); ++i)
+      {
+        const auto & node = snapshot.nodes(i);
+        if (node.is_leaf)
+          continue;
+
+        Tikz_Style style = split_style;
+        style.draw_color = detail::tikz_palette_color(node.tree_index);
+        put_in_plane(plane,
+                     Segment(Point(node.split_x, ymin), Point(node.split_x, ymax)),
+                     style, split_layer);
+      }
+
+    if (draw_points)
+      put_points(plane, snapshot.x_sorted_points, point_style, point_layer);
+
+    if (query_rect != nullptr)
+      put_in_plane(plane, *query_rect, query_rect_style, point_layer + 1);
+
+    if (query_hits != nullptr)
+      put_points(plane, *query_hits, query_hit_style, point_layer + 2);
+  }
+
+  /** @brief Visualize range-tree structure without a query overlay. */
+  inline RangeTree2D::DebugSnapshot visualize_range_tree(
+      Tikz_Plane & plane,
+      const RangeTree2D & tree,
+      const bool draw_points = true,
+      const Tikz_Style & split_style = tikz_wire_style("purple"),
+      const Tikz_Style & point_style = tikz_points_style("black"))
+  {
+    const auto snapshot = tree.debug_snapshot();
+    put_range_tree_result(
+        plane, snapshot, draw_points, nullptr, nullptr,
+        split_style, point_style);
+    return snapshot;
+  }
+
+  /// @brief Result bundle for range-tree query visualization.
+  struct RangeTreeQueryVizResult
+  {
+    RangeTree2D::DebugSnapshot snapshot;
+    Rectangle query_rect;
+    DynList<Point> query_hits;
+  };
+
+  /** @brief Visualize range-tree plus a query rectangle and matching points. */
+  inline RangeTreeQueryVizResult visualize_range_tree_query(
+      Tikz_Plane & plane,
+      const RangeTree2D & tree,
+      const Rectangle & query_rect,
+      const bool draw_points = true,
+      const Tikz_Style & split_style = tikz_wire_style("purple"),
+      const Tikz_Style & point_style = tikz_points_style("black"),
+      const Tikz_Style & query_rect_style = tikz_wire_style("red", true),
+      const Tikz_Style & query_hit_style = tikz_points_style("red"))
+  {
+    RangeTreeQueryVizResult out;
+    out.snapshot = tree.debug_snapshot();
+    out.query_rect = query_rect;
+    out.query_hits = tree.query(query_rect.get_xmin(), query_rect.get_xmax(),
+                                query_rect.get_ymin(), query_rect.get_ymax());
+    put_range_tree_result(
+        plane, out.snapshot, draw_points, &out.query_rect, &out.query_hits,
+        split_style, point_style, query_rect_style, query_hit_style);
+    return out;
+  }
+
+  /** @brief Draw AABB tree hierarchy and optional query results. */
+  inline void put_aabb_tree_result(
+      Tikz_Plane & plane,
+      const AABBTree::DebugSnapshot & snapshot,
+      const Rectangle * query_rect = nullptr,
+      const Array<size_t> * query_hit_ids = nullptr,
+      const Tikz_Style & node_bbox_style = tikz_wire_style("teal!70!black"),
+      const Tikz_Style & leaf_bbox_style = tikz_wire_style("blue!70"),
+      const Tikz_Style & query_rect_style = tikz_wire_style("red", true),
+      const Tikz_Style & query_hit_style = tikz_wire_style("red"),
+      const int node_layer = Tikz_Plane::Layer_Default,
+      const int query_layer = Tikz_Plane::Layer_Foreground)
+  {
+    for (size_t i = 0; i < snapshot.nodes.size(); ++i)
+      {
+        const auto & node = snapshot.nodes(i);
+        Tikz_Style style = node.is_leaf ? leaf_bbox_style : node_bbox_style;
+        style.draw_color = detail::tikz_palette_color(node.depth);
+        put_in_plane(plane, node.bbox, style, node_layer);
+      }
+
+    if (query_rect != nullptr)
+      put_in_plane(plane, *query_rect, query_rect_style, query_layer);
+
+    if (query_hit_ids != nullptr)
+      for (size_t i = 0; i < snapshot.nodes.size(); ++i)
+        if (snapshot.nodes(i).is_leaf)
+          for (size_t j = 0; j < query_hit_ids->size(); ++j)
+            if (snapshot.nodes(i).user_index == (*query_hit_ids)(j))
+              {
+                put_in_plane(plane, snapshot.nodes(i).bbox, query_hit_style, query_layer + 1);
+                break;
+              }
+  }
+
+  /** @brief Visualize AABB tree hierarchy. */
+  inline AABBTree::DebugSnapshot visualize_aabb_tree(
+      Tikz_Plane & plane,
+      const AABBTree & tree,
+      const Tikz_Style & node_bbox_style = tikz_wire_style("teal!70!black"),
+      const Tikz_Style & leaf_bbox_style = tikz_wire_style("blue!70"))
+  {
+    const auto snapshot = tree.debug_snapshot();
+    put_aabb_tree_result(
+        plane, snapshot, nullptr, nullptr,
+        node_bbox_style, leaf_bbox_style);
+    return snapshot;
+  }
+
+  /// @brief Result bundle for AABB query visualization.
+  struct AABBTreeQueryVizResult
+  {
+    AABBTree::DebugSnapshot snapshot;
+    Rectangle query_rect;
+    Array<size_t> query_hit_ids;
+  };
+
+  /** @brief Visualize AABB tree with a rectangle query overlay. */
+  inline AABBTreeQueryVizResult visualize_aabb_tree_query(
+      Tikz_Plane & plane,
+      const AABBTree & tree,
+      const Rectangle & query_rect,
+      const Tikz_Style & node_bbox_style = tikz_wire_style("teal!70!black"),
+      const Tikz_Style & leaf_bbox_style = tikz_wire_style("blue!70"),
+      const Tikz_Style & query_rect_style = tikz_wire_style("red", true),
+      const Tikz_Style & query_hit_style = tikz_wire_style("red"))
+  {
+    AABBTreeQueryVizResult out;
+    out.snapshot = tree.debug_snapshot();
+    out.query_rect = query_rect;
+    out.query_hit_ids = tree.query(query_rect);
+    put_aabb_tree_result(
+        plane, out.snapshot, &out.query_rect, &out.query_hit_ids,
+        node_bbox_style, leaf_bbox_style, query_rect_style, query_hit_style);
+    return out;
   }
 
   /** @brief Insert a point path as connected segments and optional waypoints. */
@@ -1186,6 +1460,293 @@ namespace Aleph
                            Tikz_Plane::Layer_Overlay);
     return res;
   }
+
+  /** @brief Draw regular (weighted Delaunay) triangulation output. */
+  inline void put_regular_triangulation_result(
+      Tikz_Plane & plane,
+      const RegularTriangulationBowyerWatson::Result & rt,
+      const Tikz_Style & triangle_style = tikz_wire_style("blue!60"),
+      const bool draw_sites = true,
+      const Tikz_Style & site_style = tikz_points_style("black"),
+      const int triangle_layer = Tikz_Plane::Layer_Default,
+      const int site_layer = Tikz_Plane::Layer_Foreground)
+  {
+    for (size_t i = 0; i < rt.triangles.size(); ++i)
+      {
+        const auto & tri = rt.triangles(i);
+        Triangle t(rt.sites(tri.i).position,
+                   rt.sites(tri.j).position,
+                   rt.sites(tri.k).position);
+        put_in_plane(plane, t, triangle_style, triangle_layer);
+      }
+
+    if (draw_sites)
+      for (size_t i = 0; i < rt.sites.size(); ++i)
+        put_in_plane(plane, rt.sites(i).position, site_style, site_layer);
+  }
+
+  /** @brief Compute and insert regular (weighted Delaunay) triangulation. */
+  [[nodiscard]] inline RegularTriangulationBowyerWatson::Result
+  visualize_regular_triangulation(
+      Tikz_Plane & plane,
+      const Array<RegularTriangulationBowyerWatson::WeightedSite> & weighted_sites,
+      const RegularTriangulationBowyerWatson & algorithm = {},
+      const Tikz_Style & triangle_style = tikz_wire_style("blue!60"),
+      const bool draw_sites = true,
+      const Tikz_Style & site_style = tikz_points_style("black"))
+  {
+    auto result = algorithm(weighted_sites);
+    put_regular_triangulation_result(
+        plane, result, triangle_style, draw_sites, site_style);
+    return result;
+  }
+
+  /** @brief Draw closest-pair result over the full point set. */
+  inline void put_closest_pair_result(
+      Tikz_Plane & plane,
+      const DynList<Point> & points,
+      const ClosestPairDivideAndConquer::Result & result,
+      const Tikz_Style & points_style = tikz_points_style("black"),
+      const Tikz_Style & pair_style = tikz_path_style("red"),
+      const Tikz_Style & pair_points_style = tikz_points_style("red"),
+      const int points_layer = Tikz_Plane::Layer_Default,
+      const int pair_layer = Tikz_Plane::Layer_Foreground)
+  {
+    put_points(plane, points, points_style, points_layer);
+    put_in_plane(plane, Segment(result.first, result.second), pair_style, pair_layer);
+    put_in_plane(plane, result.first, pair_points_style, pair_layer + 1);
+    put_in_plane(plane, result.second, pair_points_style, pair_layer + 1);
+  }
+
+  /** @brief Compute and draw closest pair from an input point set. */
+  [[nodiscard]] inline ClosestPairDivideAndConquer::Result
+  visualize_closest_pair(
+      Tikz_Plane & plane,
+      const DynList<Point> & points,
+      const ClosestPairDivideAndConquer & algorithm = {},
+      const Tikz_Style & points_style = tikz_points_style("black"),
+      const Tikz_Style & pair_style = tikz_path_style("red"),
+      const Tikz_Style & pair_points_style = tikz_points_style("red"))
+  {
+    auto result = algorithm(points);
+    put_closest_pair_result(
+        plane, points, result,
+        points_style, pair_style, pair_points_style);
+    return result;
+  }
+
+  /// @brief Bundle of rotating-calipers results used by visualization helpers.
+  struct RotatingCalipersResult
+  {
+    RotatingCalipersConvexPolygon::DiameterResult diameter;
+    RotatingCalipersConvexPolygon::WidthResult width;
+  };
+
+  /** @brief Draw diameter and minimum-width witnesses for a convex polygon. */
+  inline void put_rotating_calipers_result(
+      Tikz_Plane & plane,
+      const Polygon & polygon,
+      const RotatingCalipersResult & result,
+      const Tikz_Style & polygon_style = tikz_wire_style("gray!55"),
+      const Tikz_Style & diameter_style = tikz_path_style("red"),
+      const Tikz_Style & width_style = tikz_path_style("blue"),
+      const Tikz_Style & witness_style = tikz_points_style("orange!90!black"),
+      const int polygon_layer = Tikz_Plane::Layer_Default,
+      const int witness_layer = Tikz_Plane::Layer_Foreground)
+  {
+    put_in_plane(plane, polygon, polygon_style, polygon_layer);
+    put_in_plane(plane, Segment(result.diameter.first, result.diameter.second),
+                 diameter_style, witness_layer);
+    put_in_plane(plane, Segment(result.width.edge_first, result.width.edge_second),
+                 width_style, witness_layer);
+    put_in_plane(plane, result.width.antipodal, witness_style, witness_layer + 1);
+  }
+
+  /** @brief Compute and draw rotating-calipers diameter and minimum width. */
+  [[nodiscard]] inline RotatingCalipersResult
+  visualize_rotating_calipers(
+      Tikz_Plane & plane,
+      const Polygon & polygon,
+      const Tikz_Style & polygon_style = tikz_wire_style("gray!55"),
+      const Tikz_Style & diameter_style = tikz_path_style("red"),
+      const Tikz_Style & width_style = tikz_path_style("blue"),
+      const Tikz_Style & witness_style = tikz_points_style("orange!90!black"))
+  {
+    RotatingCalipersResult result{
+      RotatingCalipersConvexPolygon::diameter(polygon),
+      RotatingCalipersConvexPolygon::minimum_width(polygon)
+    };
+    put_rotating_calipers_result(
+        plane, polygon, result, polygon_style, diameter_style, width_style, witness_style);
+    return result;
+  }
+
+  /** @brief Draw half-plane boundaries and their bounded intersection polygon. */
+  inline void put_half_plane_intersection_result(
+      Tikz_Plane & plane,
+      const Array<HalfPlaneIntersection::HalfPlane> & halfplanes,
+      const Polygon & intersection,
+      const Tikz_Style & boundary_style = tikz_wire_style("gray!60", true, true),
+      const Tikz_Style & result_style = tikz_area_style("red", "red!25", 0.50),
+      const int boundary_layer = Tikz_Plane::Layer_Default,
+      const int result_layer = Tikz_Plane::Layer_Foreground)
+  {
+    for (size_t i = 0; i < halfplanes.size(); ++i)
+      put_in_plane(plane,
+                   Segment(halfplanes(i).p, halfplanes(i).q),
+                   boundary_style, boundary_layer);
+
+    if (intersection.size() > 0)
+      put_in_plane(plane, intersection, result_style, result_layer);
+  }
+
+  /** @brief Compute and draw bounded half-plane intersection. */
+  [[nodiscard]] inline Polygon
+  visualize_half_plane_intersection(
+      Tikz_Plane & plane,
+      const Array<HalfPlaneIntersection::HalfPlane> & halfplanes,
+      const HalfPlaneIntersection & algorithm = {},
+      const Tikz_Style & boundary_style = tikz_wire_style("gray!60", true, true),
+      const Tikz_Style & result_style = tikz_area_style("red", "red!25", 0.50))
+  {
+    Polygon intersection = algorithm(halfplanes);
+    put_half_plane_intersection_result(
+        plane, halfplanes, intersection, boundary_style, result_style);
+    return intersection;
+  }
+
+  /** @brief Draw input polygons and their Minkowski sum result. */
+  inline void put_minkowski_sum_result(
+      Tikz_Plane & plane,
+      const Polygon & first,
+      const Polygon & second,
+      const Polygon & result,
+      const Tikz_Style & first_style = tikz_area_style("blue", "blue!14", 0.30),
+      const Tikz_Style & second_style = tikz_area_style("green!60!black", "green!16", 0.30),
+      const Tikz_Style & result_style = tikz_area_style("red", "red!26", 0.60),
+      const int input_layer = Tikz_Plane::Layer_Default,
+      const int result_layer = Tikz_Plane::Layer_Foreground)
+  {
+    put_in_plane(plane, first, first_style, input_layer);
+    put_in_plane(plane, second, second_style, input_layer + 1);
+    if (result.size() > 0)
+      put_in_plane(plane, result, result_style, result_layer);
+  }
+
+  /** @brief Compute and draw Minkowski sum of two convex polygons. */
+  [[nodiscard]] inline Polygon
+  visualize_minkowski_sum(
+      Tikz_Plane & plane,
+      const Polygon & first,
+      const Polygon & second,
+      const MinkowskiSumConvex & algorithm = {},
+      const Tikz_Style & first_style = tikz_area_style("blue", "blue!14", 0.30),
+      const Tikz_Style & second_style = tikz_area_style("green!60!black", "green!16", 0.30),
+      const Tikz_Style & result_style = tikz_area_style("red", "red!26", 0.60))
+  {
+    Polygon result = algorithm(first, second);
+    put_minkowski_sum_result(
+        plane, first, second, result, first_style, second_style, result_style);
+    return result;
+  }
+
+  /** @brief Draw a monotone triangulation result plus polygon boundary. */
+  inline void put_monotone_triangulation_result(
+      Tikz_Plane & plane,
+      const Polygon & polygon,
+      const DynList<Triangle> & triangles,
+      const Tikz_Style & polygon_style = tikz_wire_style("black"),
+      const Tikz_Style & triangle_style = tikz_wire_style("blue!65"),
+      const int polygon_layer = Tikz_Plane::Layer_Default,
+      const int triangle_layer = Tikz_Plane::Layer_Foreground)
+  {
+    put_in_plane(plane, polygon, polygon_style, polygon_layer);
+    for (DynList<Triangle>::Iterator it(triangles); it.has_curr(); it.next_ne())
+      put_in_plane(plane, it.get_curr(), triangle_style, triangle_layer);
+  }
+
+  /** @brief Compute and draw triangulation via monotone partition pipeline. */
+  [[nodiscard]] inline DynList<Triangle>
+  visualize_monotone_triangulation(
+      Tikz_Plane & plane,
+      const Polygon & polygon,
+      const MonotonePolygonTriangulation & algorithm = {},
+      const Tikz_Style & polygon_style = tikz_wire_style("black"),
+      const Tikz_Style & triangle_style = tikz_wire_style("blue!65"))
+  {
+    DynList<Triangle> triangles = algorithm(polygon);
+    put_monotone_triangulation_result(
+        plane, polygon, triangles, polygon_style, triangle_style);
+    return triangles;
+  }
+
+  /** @brief Draw visibility polygon with source polygon and query point. */
+  inline void put_visibility_polygon_result(
+      Tikz_Plane & plane,
+      const Polygon & polygon,
+      const Point & query_point,
+      const Polygon & visibility_polygon,
+      const Tikz_Style & polygon_style = tikz_wire_style("black"),
+      const Tikz_Style & visibility_style = tikz_area_style("orange!90!black", "orange!25", 0.50),
+      const Tikz_Style & query_style = tikz_points_style("red"),
+      const int polygon_layer = Tikz_Plane::Layer_Default,
+      const int visibility_layer = Tikz_Plane::Layer_Foreground)
+  {
+    put_in_plane(plane, polygon, polygon_style, polygon_layer);
+    if (visibility_polygon.size() > 0)
+      put_in_plane(plane, visibility_polygon, visibility_style, visibility_layer);
+    put_in_plane(plane, query_point, query_style, visibility_layer + 1);
+  }
+
+  /** @brief Compute and draw visibility polygon from a query point. */
+  [[nodiscard]] inline Polygon
+  visualize_visibility_polygon(
+      Tikz_Plane & plane,
+      const Polygon & polygon,
+      const Point & query_point,
+      const VisibilityPolygon & algorithm = {},
+      const Tikz_Style & polygon_style = tikz_wire_style("black"),
+      const Tikz_Style & visibility_style = tikz_area_style("orange!90!black", "orange!25", 0.50),
+      const Tikz_Style & query_style = tikz_points_style("red"))
+  {
+    Polygon visibility_polygon = algorithm(polygon, query_point);
+    put_visibility_polygon_result(
+        plane, polygon, query_point, visibility_polygon,
+        polygon_style, visibility_style, query_style);
+    return visibility_polygon;
+  }
+
+  /** @brief Draw line segments and all sweep-line intersection points. */
+  inline void put_line_sweep_result(
+      Tikz_Plane & plane,
+      const Array<Segment> & segments,
+      const Array<SweepLineSegmentIntersection::Intersection> & intersections,
+      const Tikz_Style & segment_style = tikz_wire_style("blue!60"),
+      const Tikz_Style & intersection_style = tikz_points_style("red"),
+      const int segment_layer = Tikz_Plane::Layer_Default,
+      const int intersection_layer = Tikz_Plane::Layer_Foreground)
+  {
+    for (size_t i = 0; i < segments.size(); ++i)
+      put_in_plane(plane, segments(i), segment_style, segment_layer);
+
+    for (size_t i = 0; i < intersections.size(); ++i)
+      put_in_plane(plane, intersections(i).point, intersection_style, intersection_layer);
+  }
+
+  /** @brief Compute and draw Bentley-Ottmann line-sweep intersections. */
+  [[nodiscard]] inline Array<SweepLineSegmentIntersection::Intersection>
+  visualize_line_sweep(
+      Tikz_Plane & plane,
+      const Array<Segment> & segments,
+      const SweepLineSegmentIntersection & algorithm = {},
+      const Tikz_Style & segment_style = tikz_wire_style("blue!60"),
+      const Tikz_Style & intersection_style = tikz_points_style("red"))
+  {
+    Array<SweepLineSegmentIntersection::Intersection> intersections = algorithm(segments);
+    put_line_sweep_result(
+        plane, segments, intersections, segment_style, intersection_style);
+    return intersections;
+  }
   /** @brief Insert constrained Delaunay triangulation result.
    *
    *  Draws all triangles in wire style, constrained edges in a distinct
@@ -1413,6 +1974,249 @@ namespace Aleph
     put_offset_result(plane, poly, result,
                       original_style, offset_style,
                       draw_vertices, vertex_style);
+    return result;
+  }
+
+  // ==========================================================================
+  // Chaikin smoothing visualization
+  // ==========================================================================
+
+  /**
+   * @brief Draw original and smoothed polygons overlaid.
+   *
+   * @param plane           Target TikZ canvas.
+   * @param original        The original polygon (drawn faded).
+   * @param smoothed        The smoothed polygon (drawn bold).
+   * @param original_style  Style for the original polygon.
+   * @param smoothed_style  Style for the smoothed polygon.
+   * @param draw_vertices   Whether to draw vertices of the smoothed polygon.
+   * @param vertex_style    Style for smoothed polygon vertices.
+   */
+  inline void put_smoothing_result(
+      Tikz_Plane & plane,
+      const Polygon & original,
+      const Polygon & smoothed,
+      const Tikz_Style & original_style = tikz_wire_style("gray!50"),
+      const Tikz_Style & smoothed_style = tikz_wire_style("violet!80", 1.2),
+      const bool draw_vertices = true,
+      const Tikz_Style & vertex_style = tikz_points_style("red"))
+  {
+    put_in_plane(plane, original, original_style);
+    put_in_plane(plane, smoothed, smoothed_style);
+    if (draw_vertices)
+      put_polygon_vertices(plane, smoothed, vertex_style);
+  }
+
+  /**
+   * @brief Smooth a polygon with Chaikin subdivision and draw the result.
+   *
+   * @return The smoothed polygon.
+   */
+  [[nodiscard]] inline Polygon visualize_chaikin_smoothing(
+      Tikz_Plane & plane,
+      const Polygon & poly,
+      size_t iterations,
+      const Geom_Number & ratio = Geom_Number(1, 4),
+      const Tikz_Style & original_style = tikz_wire_style("gray!50"),
+      const Tikz_Style & smoothed_style = tikz_wire_style("violet!80", 1.2),
+      const bool draw_vertices = true,
+      const Tikz_Style & vertex_style = tikz_points_style("red"))
+  {
+    Polygon smoothed = ChaikinSmoothing::smooth_polygon(poly, iterations, ratio);
+    put_smoothing_result(plane, poly, smoothed,
+                         original_style, smoothed_style,
+                         draw_vertices, vertex_style);
+    return smoothed;
+  }
+
+  // ==========================================================================
+  // Trapezoidal Map Visualization
+  // ==========================================================================
+
+  /**
+   * @brief Draw the trapezoidal map result into a Tikz_Plane.
+   *
+   * - Active trapezoids are drawn as filled quadrilaterals (alternating
+   *   palette colors).
+   * - Vertical extensions from input-segment endpoints are drawn as
+   *   dashed gray lines.
+   * - Input segments are drawn in bold red.
+   * - Optional query points are color-coded by location type.
+   */
+  inline void put_trapezoidal_map_result(
+      Tikz_Plane & plane,
+      const TrapezoidalMapPointLocation::Result & res,
+      const Tikz_Style & segment_style = tikz_path_style("red"),
+      const Tikz_Style & extension_style = tikz_wire_style("gray!60", true),
+      const bool draw_trapezoids = true,
+      const double trapezoid_opacity = 0.3,
+      const int trap_layer = Tikz_Plane::Layer_Background,
+      const int seg_layer = Tikz_Plane::Layer_Foreground,
+      const int ext_layer = Tikz_Plane::Layer_Default)
+  {
+    using Trap = TrapezoidalMapPointLocation::Trapezoid;
+    constexpr size_t NONE = TrapezoidalMapPointLocation::NONE;
+
+    // Draw filled trapezoids.
+    if (draw_trapezoids)
+      {
+        size_t color_idx = 0;
+        for (size_t i = 0; i < res.trapezoids.size(); ++i)
+          {
+            const Trap & t = res.trapezoids(i);
+            if (!t.active) continue;
+
+            // A trapezoid has 4 corners defined by:
+            //   top-left: intersection of left vertical with top segment
+            //   top-right: intersection of right vertical with top segment
+            //   bot-right: intersection of right vertical with bottom segment
+            //   bot-left: intersection of left vertical with bottom segment
+            // For simplicity, approximate corners using the endpoints
+            // and the x-coordinates of the left/right boundary points.
+            const Point & lp = res.points(t.leftp);
+            const Point & rp = res.points(t.rightp);
+            const Segment & top_seg = res.segments(t.top);
+            const Segment & bot_seg = res.segments(t.bottom);
+
+            // Compute y-coordinates at left and right x-boundaries.
+            auto y_at_x = [](const Segment & seg, const Geom_Number & x)
+                -> Geom_Number
+              {
+                const Geom_Number & x1 = seg.get_src_point().get_x();
+                const Geom_Number & x2 = seg.get_tgt_point().get_x();
+                const Geom_Number & y1 = seg.get_src_point().get_y();
+                const Geom_Number & y2 = seg.get_tgt_point().get_y();
+                if (x1 == x2) return (y1 + y2) / 2;
+                return y1 + (y2 - y1) * (x - x1) / (x2 - x1);
+              };
+
+            const Geom_Number lx = lp.get_x();
+            const Geom_Number rx = rp.get_x();
+            if (lx == rx) { ++color_idx; continue; } // degenerate
+
+            const Point tl_corner(lx, y_at_x(top_seg, lx));
+            const Point tr_corner(rx, y_at_x(top_seg, rx));
+            const Point br_corner(rx, y_at_x(bot_seg, rx));
+            const Point bl_corner(lx, y_at_x(bot_seg, lx));
+
+            // Draw as 4 segments (avoids Polygon self-intersection checks
+            // that can fail when corners are collinear).
+            Tikz_Style ts;
+            ts.draw_color = detail::tikz_palette_color(color_idx);
+            ts.fill_color = detail::tikz_palette_color(color_idx);
+            ts.opacity = trapezoid_opacity;
+
+            // Build polygon with try/catch — skip if degenerate.
+            try
+              {
+                Polygon quad;
+                quad.add_vertex(bl_corner);
+                quad.add_vertex(br_corner);
+                quad.add_vertex(tr_corner);
+                quad.add_vertex(tl_corner);
+                quad.close();
+                ts.fill = true;
+                put_in_plane(plane, quad, ts, trap_layer);
+              }
+            catch (...)
+              {
+                // Degenerate quad — draw edges instead.
+                put_in_plane(plane, Segment(bl_corner, br_corner),
+                             ts, trap_layer);
+                put_in_plane(plane, Segment(br_corner, tr_corner),
+                             ts, trap_layer);
+                put_in_plane(plane, Segment(tr_corner, tl_corner),
+                             ts, trap_layer);
+                put_in_plane(plane, Segment(tl_corner, bl_corner),
+                             ts, trap_layer);
+              }
+            ++color_idx;
+          }
+      }
+
+    // Draw vertical extensions from input endpoints.
+    for (size_t i = 0; i < res.num_input_points; ++i)
+      {
+        // Find the topmost and bottommost trapezoid boundaries at this point.
+        // For simplicity, draw a short vertical dashed line through each
+        // input point spanning the local trapezoid.
+        const Point & p = res.points(i);
+        // Walk the trapezoids to find the vertical extent at p.
+        Geom_Number top_y = p.get_y();
+        Geom_Number bot_y = p.get_y();
+        for (size_t j = 0; j < res.trapezoids.size(); ++j)
+          {
+            const Trap & t = res.trapezoids(j);
+            if (!t.active) continue;
+            if (t.leftp == NONE or t.rightp == NONE) continue;
+            const Point & lp = res.points(t.leftp);
+            const Point & rp = res.points(t.rightp);
+            if (p.get_x() < lp.get_x() or p.get_x() > rp.get_x())
+              continue;
+            // This trapezoid covers x-coordinate of p.
+            auto y_at_x = [](const Segment & seg, const Geom_Number & x)
+                -> Geom_Number
+              {
+                const Geom_Number & x1 = seg.get_src_point().get_x();
+                const Geom_Number & x2 = seg.get_tgt_point().get_x();
+                const Geom_Number & y1 = seg.get_src_point().get_y();
+                const Geom_Number & y2 = seg.get_tgt_point().get_y();
+                if (x1 == x2) return (y1 + y2) / 2;
+                return y1 + (y2 - y1) * (x - x1) / (x2 - x1);
+              };
+            const Geom_Number ty = y_at_x(res.segments(t.top), p.get_x());
+            const Geom_Number by = y_at_x(res.segments(t.bottom), p.get_x());
+            if (ty > top_y) top_y = ty;
+            if (by < bot_y) bot_y = by;
+          }
+        if (top_y > bot_y)
+          put_in_plane(plane, Segment(Point(p.get_x(), bot_y),
+                                       Point(p.get_x(), top_y)),
+                       extension_style, ext_layer);
+      }
+
+    // Draw input segments.
+    for (size_t i = 0; i < res.num_input_segments; ++i)
+      put_in_plane(plane, res.segments(i), segment_style, seg_layer);
+  }
+
+  /**
+   * @brief Build a trapezoidal map and draw it.
+   *
+   * Convenience wrapper that constructs the map and draws it in one call.
+   */
+  [[nodiscard]] inline TrapezoidalMapPointLocation::Result
+  visualize_trapezoidal_map(
+      Tikz_Plane & plane,
+      const Array<Segment> & segments,
+      const Tikz_Style & segment_style = tikz_path_style("red"),
+      const Tikz_Style & extension_style = tikz_wire_style("gray!60", true),
+      const bool draw_trapezoids = true,
+      const double trapezoid_opacity = 0.3)
+  {
+    TrapezoidalMapPointLocation tm;
+    auto result = tm(segments);
+    put_trapezoidal_map_result(plane, result, segment_style, extension_style,
+                               draw_trapezoids, trapezoid_opacity);
+    return result;
+  }
+
+  /**
+   * @brief Build a trapezoidal map from a polygon and draw it.
+   */
+  [[nodiscard]] inline TrapezoidalMapPointLocation::Result
+  visualize_trapezoidal_map(
+      Tikz_Plane & plane,
+      const Polygon & polygon,
+      const Tikz_Style & segment_style = tikz_path_style("red"),
+      const Tikz_Style & extension_style = tikz_wire_style("gray!60", true),
+      const bool draw_trapezoids = true,
+      const double trapezoid_opacity = 0.3)
+  {
+    TrapezoidalMapPointLocation tm;
+    auto result = tm(polygon);
+    put_trapezoidal_map_result(plane, result, segment_style, extension_style,
+                               draw_trapezoids, trapezoid_opacity);
     return result;
   }
 

@@ -74,6 +74,33 @@ Polygon make_concave_for_decomposition()
   return p;
 }
 
+Polygon make_convex_for_calipers()
+{
+  Polygon p;
+  p.add_vertex(Point(-10, -4));
+  p.add_vertex(Point(10, -6));
+  p.add_vertex(Point(16, 2));
+  p.add_vertex(Point(7, 12));
+  p.add_vertex(Point(-8, 10));
+  p.close();
+  return p;
+}
+
+Polygon make_visibility_polygon()
+{
+  Polygon p;
+  p.add_vertex(Point(0, 0));
+  p.add_vertex(Point(20, 0));
+  p.add_vertex(Point(20, 18));
+  p.add_vertex(Point(11, 18));
+  p.add_vertex(Point(11, 8));
+  p.add_vertex(Point(7, 8));
+  p.add_vertex(Point(7, 18));
+  p.add_vertex(Point(0, 18));
+  p.close();
+  return p;
+}
+
 size_t count_points(const DynList<Point> & pts)
 {
   size_t n = 0;
@@ -177,6 +204,30 @@ TEST(TikzGeomAlgorithmsTest, VisualizeVoronoi)
   const std::string result = output.str();
 
   EXPECT_NE(result.find("dashed"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeDelaunay)
+{
+  DynList<Point> points;
+  points.append(Point(-12, -8));
+  points.append(Point(-8, 9));
+  points.append(Point(0, 14));
+  points.append(Point(11, 9));
+  points.append(Point(14, -7));
+  points.append(Point(2, -13));
+  points.append(Point(0, 0));
+
+  Tikz_Plane plane(160, 110);
+  const auto dt = visualize_delaunay(plane, points);
+
+  EXPECT_GE(dt.sites.size(), 5U);
+  EXPECT_GT(dt.triangles.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("draw=blue"), std::string::npos);
   EXPECT_FALSE(has_nan_or_inf(result));
 }
 
@@ -304,6 +355,236 @@ TEST(TikzGeomAlgorithmsTest, VisualizeAlphaShape)
   EXPECT_FALSE(has_nan_or_inf(result));
 }
 
+TEST(TikzGeomAlgorithmsTest, VisualizeRegularTriangulation)
+{
+  Array<RegularTriangulationBowyerWatson::WeightedSite> sites;
+  sites.append({Point(-10, -6), Geom_Number(0)});
+  sites.append({Point(-2, 10), Geom_Number(2)});
+  sites.append({Point(10, -4), Geom_Number(1)});
+  sites.append({Point(15, 8), Geom_Number(3)});
+  sites.append({Point(2, -12), Geom_Number(0)});
+
+  Tikz_Plane plane(160, 110);
+  const auto rt = visualize_regular_triangulation(plane, sites);
+
+  EXPECT_GE(rt.sites.size(), 4U);
+  EXPECT_GT(rt.triangles.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("blue!60"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeClosestPair)
+{
+  DynList<Point> points;
+  points.append(Point(-12, -8));
+  points.append(Point(-2, 5));
+  points.append(Point(1, 7));
+  points.append(Point(2, 7));
+  points.append(Point(10, -6));
+
+  Tikz_Plane plane(150, 100);
+  const auto cp = visualize_closest_pair(plane, points);
+
+  EXPECT_TRUE(cp.distance_squared >= 0);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("draw=red"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeRotatingCalipers)
+{
+  const Polygon poly = make_convex_for_calipers();
+  Tikz_Plane plane(160, 110);
+
+  const auto rc = visualize_rotating_calipers(plane, poly);
+
+  EXPECT_TRUE(rc.diameter.distance_squared > 0);
+  EXPECT_TRUE(rc.width.width_squared >= 0);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("draw=red"), std::string::npos);
+  EXPECT_NE(result.find("draw=blue"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeHalfPlaneIntersection)
+{
+  const Polygon clip = make_convex_for_calipers();
+  const auto hps = HalfPlaneIntersection::from_convex_polygon(clip);
+
+  Tikz_Plane plane(160, 110);
+  const Polygon inter = visualize_half_plane_intersection(plane, hps);
+
+  EXPECT_GT(inter.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("fill=red!25"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeMinkowskiSum)
+{
+  Polygon p;
+  p.add_vertex(Point(-4, -2));
+  p.add_vertex(Point(3, -2));
+  p.add_vertex(Point(1, 4));
+  p.close();
+
+  Polygon q;
+  q.add_vertex(Point(-3, -1));
+  q.add_vertex(Point(2, -1));
+  q.add_vertex(Point(0, 3));
+  q.close();
+
+  Tikz_Plane plane(160, 110);
+  const Polygon sum = visualize_minkowski_sum(plane, p, q);
+
+  EXPECT_GT(sum.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("fill=red!26"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeMonotoneTriangulation)
+{
+  const Polygon concave = make_concave_for_decomposition();
+  Tikz_Plane plane(170, 110);
+
+  const DynList<Triangle> tris = visualize_monotone_triangulation(plane, concave);
+  size_t tri_count = 0;
+  for (DynList<Triangle>::Iterator it(tris); it.has_curr(); it.next_ne())
+    ++tri_count;
+  EXPECT_GT(tri_count, 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("blue!65"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeVisibilityPolygon)
+{
+  const Polygon polygon = make_visibility_polygon();
+  const Point query(2, 16);
+
+  Tikz_Plane plane(170, 110);
+  const Polygon vis = visualize_visibility_polygon(plane, polygon, query);
+  EXPECT_GT(vis.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("orange!90!black"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeLineSweep)
+{
+  Array<Segment> segments;
+  segments.append(Segment(Point(-15, -8), Point(15, 10)));
+  segments.append(Segment(Point(-12, 11), Point(14, -7)));
+  segments.append(Segment(Point(-15, 2), Point(15, 2)));
+
+  Tikz_Plane plane(170, 110);
+  const auto intersections = visualize_line_sweep(plane, segments);
+
+  EXPECT_GT(intersections.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("blue!60"), std::string::npos);
+  EXPECT_NE(result.find("fill=red"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeKDTreePartitions)
+{
+  Array<Point> points;
+  points.append(Point(10, 10));
+  points.append(Point(20, 30));
+  points.append(Point(50, 40));
+  points.append(Point(70, 80));
+  points.append(Point(90, 20));
+  const auto kd = KDTreePointSearch::build(points, 0, 0, 100, 100);
+
+  Tikz_Plane plane(180, 110);
+  const auto snap = visualize_kdtree_partitions(plane, kd, true, true);
+
+  EXPECT_EQ(snap.points.size(), points.size());
+  EXPECT_GT(snap.partitions.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("fill=red"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeRangeTreeAndQuery)
+{
+  DynList<Point> points;
+  points.append(Point(1, 1));
+  points.append(Point(3, 5));
+  points.append(Point(4, 4));
+  points.append(Point(7, 2));
+  points.append(Point(9, 8));
+
+  RangeTree2D tree;
+  tree.build(points);
+
+  Tikz_Plane plane(180, 110);
+  const auto viz = visualize_range_tree_query(
+      plane, tree, Rectangle(2, 1, 6, 5));
+
+  EXPECT_GT(viz.snapshot.nodes.size(), 0U);
+  EXPECT_GT(viz.query_hits.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("draw=red"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeAABBTreeAndQuery)
+{
+  AABBTree tree;
+  Array<AABBTree::Entry> entries;
+  entries.append({Rectangle(0, 0, 5, 5), 0});
+  entries.append({Rectangle(3, 3, 8, 8), 1});
+  entries.append({Rectangle(10, 10, 15, 15), 2});
+  tree.build(entries);
+
+  Tikz_Plane plane(180, 110);
+  const auto viz = visualize_aabb_tree_query(
+      plane, tree, Rectangle(2, 2, 6, 6));
+
+  EXPECT_GT(viz.snapshot.nodes.size(), 0U);
+  EXPECT_GT(viz.query_hit_ids.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("draw=red"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
 TEST(TikzGeomAlgorithmsTest, VisualizeShortestPathWithPortals)
 {
   const Polygon polygon = make_shortest_path_polygon();
@@ -425,6 +706,63 @@ TEST(TikzGeomSceneTest, ComposeMultipleAlgorithmsInSingleScene)
 
   const std::string tikz = scene.to_tikz();
   EXPECT_NE(tikz.find("draw=teal!70!black"), std::string::npos);
+  EXPECT_NE(tikz.find("draw=red"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(tikz));
+}
+
+TEST(TikzGeomSceneTest, NewVisualizationWrappers)
+{
+  Tikz_Scene scene(190, 120, 0, 0, true);
+
+  DynList<Point> points;
+  points.append(Point(-10, -7));
+  points.append(Point(-2, 9));
+  points.append(Point(8, -6));
+  points.append(Point(12, 8));
+  points.append(Point(0, 0));
+
+  const auto dt = scene.visualize_delaunay(points);
+  EXPECT_GT(dt.triangles.size(), 0U);
+
+  const auto cp = scene.visualize_closest_pair(points);
+  EXPECT_TRUE(cp.distance_squared >= 0);
+
+  Array<Segment> segments;
+  segments.append(Segment(Point(-12, -8), Point(12, 10)));
+  segments.append(Segment(Point(-12, 10), Point(12, -8)));
+  const auto intersections = scene.visualize_line_sweep(segments);
+  EXPECT_GT(intersections.size(), 0U);
+
+  Array<Point> kd_points;
+  kd_points.append(Point(5, 5));
+  kd_points.append(Point(15, 20));
+  kd_points.append(Point(35, 10));
+  kd_points.append(Point(45, 30));
+  const auto kd = KDTreePointSearch::build(kd_points, 0, 0, 50, 40);
+  const auto kd_snap = scene.visualize_kdtree_partitions(kd);
+  EXPECT_GT(kd_snap.partitions.size(), 0U);
+
+  RangeTree2D range_tree;
+  DynList<Point> range_points;
+  range_points.append(Point(1, 1));
+  range_points.append(Point(3, 4));
+  range_points.append(Point(6, 2));
+  range_tree.build(range_points);
+  const auto rv = scene.visualize_range_tree_query(
+      range_tree, Rectangle(0, 0, 4, 5));
+  EXPECT_GT(rv.query_hits.size(), 0U);
+
+  AABBTree aabb_tree;
+  Array<AABBTree::Entry> aabb_entries;
+  aabb_entries.append({Rectangle(0, 0, 4, 4), 0});
+  aabb_entries.append({Rectangle(2, 2, 8, 8), 1});
+  aabb_tree.build(aabb_entries);
+  const auto av = scene.visualize_aabb_tree_query(
+      aabb_tree, Rectangle(1, 1, 3, 3));
+  EXPECT_GT(av.query_hit_ids.size(), 0U);
+
+  const std::string tikz = scene.to_tikz();
+  EXPECT_NE(tikz.find("draw=blue"), std::string::npos);
   EXPECT_NE(tikz.find("draw=red"), std::string::npos);
   EXPECT_FALSE(has_nan_or_inf(tikz));
 }

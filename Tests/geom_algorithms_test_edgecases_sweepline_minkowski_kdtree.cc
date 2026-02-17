@@ -241,6 +241,130 @@ TEST_F(GeomAlgorithmsTest, DelaunayAsTrianglesProducesValidTriangles)
 // Phase 4 — New Algorithms Tests
 // ============================================================================
 
+// ---------- SegmentSegmentIntersection (Dedicated O(1)) ----------
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionNoIntersection)
+{
+  SegmentSegmentIntersection pair_ix;
+  const auto result = pair_ix(Segment(Point(0, 0), Point(2, 0)),
+                              Segment(Point(0, 2), Point(2, 2)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::NONE);
+  EXPECT_FALSE(result.intersects());
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionProperCross)
+{
+  SegmentSegmentIntersection pair_ix;
+  const auto result = pair_ix(Segment(Point(0, 0), Point(4, 4)),
+                              Segment(Point(0, 4), Point(4, 0)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::POINT);
+  EXPECT_TRUE(result.intersects());
+  EXPECT_EQ(result.point, Point(2, 2));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionEndpointTouch)
+{
+  SegmentSegmentIntersection pair_ix;
+  const auto result = pair_ix(Segment(Point(0, 0), Point(4, 0)),
+                              Segment(Point(4, 0), Point(4, 3)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::POINT);
+  EXPECT_EQ(result.point, Point(4, 0));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionCollinearOverlap)
+{
+  SegmentSegmentIntersection pair_ix;
+  const Segment a(Point(0, 0), Point(6, 0));
+  const Segment b(Point(2, 0), Point(4, 0));
+  const auto result = pair_ix(a, b);
+
+  Aleph::TestVisual::SvgScene scene;
+  scene.segments.append(a);
+  scene.segments.append(b);
+  scene.highlighted_points.append(Point(2, 0));
+  scene.highlighted_points.append(Point(4, 0));
+  (void) Aleph::TestVisual::emit_case_svg(
+      "case_segment_segment_overlap_o1", scene,
+      "Dedicated O(1) segment-segment overlap");
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::OVERLAP);
+  EXPECT_EQ(result.overlap.get_src_point(), Point(2, 0));
+  EXPECT_EQ(result.overlap.get_tgt_point(), Point(4, 0));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionVerticalOverlap)
+{
+  SegmentSegmentIntersection pair_ix;
+  const auto result = pair_ix(Segment(Point(2, 5), Point(2, 1)),
+                              Segment(Point(2, 3), Point(2, 7)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::OVERLAP);
+  EXPECT_EQ(result.overlap.get_src_point(), Point(2, 3));
+  EXPECT_EQ(result.overlap.get_tgt_point(), Point(2, 5));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionDegeneratePointOnSegment)
+{
+  SegmentSegmentIntersection pair_ix;
+  const auto result = pair_ix(Segment(Point(3, 3), Point(3, 3)),
+                              Segment(Point(0, 0), Point(6, 6)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::POINT);
+  EXPECT_EQ(result.point, Point(3, 3));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionDegenerateIdenticalPoints)
+{
+  SegmentSegmentIntersection pair_ix;
+  const auto result = pair_ix(Segment(Point(7, -2), Point(7, -2)),
+                              Segment(Point(7, -2), Point(7, -2)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::POINT);
+  EXPECT_EQ(result.point, Point(7, -2));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionDegenerateDisjointPoints)
+{
+  SegmentSegmentIntersection pair_ix;
+  const auto result = pair_ix(Segment(Point(1, 1), Point(1, 1)),
+                              Segment(Point(2, 2), Point(2, 2)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::NONE);
+  EXPECT_FALSE(result.intersects());
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionCollinearTouchPoint)
+{
+  SegmentSegmentIntersection pair_ix;
+  const auto result = pair_ix(Segment(Point(0, 0), Point(2, 0)),
+                              Segment(Point(2, 0), Point(5, 0)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::POINT);
+  EXPECT_EQ(result.point, Point(2, 0));
+}
+
+
+TEST_F(GeomAlgorithmsTest, SegmentSegmentIntersectionFreeFunction)
+{
+  const auto result = segment_segment_intersection(Segment(Point(0, 0), Point(3, 3)),
+                                                   Segment(Point(0, 3), Point(3, 0)));
+
+  EXPECT_EQ(result.kind, SegmentSegmentIntersection::Kind::POINT);
+  EXPECT_EQ(result.point, Point(Geom_Number(3, 2), Geom_Number(3, 2)));
+}
+
+
 // ---------- SweepLineSegmentIntersection ----------
 
 TEST_F(GeomAlgorithmsTest, SweepLineNoSegments)
@@ -1016,6 +1140,29 @@ TEST_F(GeomAlgorithmsTest, KDTreeForEach)
   size_t visited = 0;
   kd.for_each([&visited](const Point &) { ++visited; });
   EXPECT_EQ(visited, 3u);
+}
+
+TEST_F(GeomAlgorithmsTest, KDTreeDebugSnapshotHasPartitions)
+{
+  KDTreePointSearch kd(0, 0, 100, 100);
+  kd.insert(Point(10, 10));
+  kd.insert(Point(25, 40));
+  kd.insert(Point(70, 20));
+  kd.insert(Point(80, 90));
+
+  const auto snap = kd.debug_snapshot();
+  EXPECT_EQ(snap.points.size(), kd.size());
+  EXPECT_GT(snap.partitions.size(), 0u);
+  EXPECT_EQ(snap.bounds.get_xmin(), Geom_Number(0));
+  EXPECT_EQ(snap.bounds.get_ymin(), Geom_Number(0));
+  EXPECT_EQ(snap.bounds.get_xmax(), Geom_Number(100));
+  EXPECT_EQ(snap.bounds.get_ymax(), Geom_Number(100));
+
+  size_t leaves = 0;
+  for (size_t i = 0; i < snap.partitions.size(); ++i)
+    if (snap.partitions(i).is_leaf)
+      ++leaves;
+  EXPECT_EQ(leaves, kd.size());
 }
 
 
@@ -2078,11 +2225,9 @@ TEST_F(GeomAlgorithmsTest, SweepLineCollinearOverlapping)
 
   auto result = sweep(segs);
 
-  // BUG: the Bentley-Ottmann sweep line does not detect overlapping
-  // collinear segments.  Correct behavior: at least 1 intersection
-  // at the overlap boundary (e.g. endpoint (2,0) or (4,0)).
+  // Overlap must be reported at least at one overlap boundary point.
   EXPECT_GE(result.size(), 1u)
-      << "Collinear overlapping segments not detected — sweep line limitation";
+      << "Collinear overlapping segments were not reported";
 }
 
 

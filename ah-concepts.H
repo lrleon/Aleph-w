@@ -137,6 +137,13 @@ namespace Aleph
                     });
         };
 
+  template <typename T>
+  concept AlephArrayConvertible = requires(T c)
+    {
+      typename T::Item_Type;
+      { c.get_it() };
+    };
+
 } // namespace Aleph
 
 # endif // AH_CONCEPTS_H

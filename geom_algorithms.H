@@ -83,6 +83,11 @@
  *  - **HalfPlaneIntersection**: Exact bounded half-plane intersection using
  *    angle-sorted deque (O(n log n)).
  *
+ *  ## Segment-Segment Intersection
+ *
+ *  - **SegmentSegmentIntersection**: Dedicated O(1) exact intersection for
+ *    a single segment pair (`none` / `point` / `overlap`).
+ *
  *  ## Delaunay / Voronoi
  *
  *  - **DelaunayTriangulationBowyerWatson**: Incremental Delaunay triangulation
@@ -112,6 +117,12 @@
  *  - **ConvexPolygonOffset**: Inward/outward offset of convex polygons.
  *  - **PolygonOffset**: Inward/outward offset of arbitrary simple polygons,
  *    with self-intersection cleanup. O(n²).
+ *
+ *  ## Trapezoidal Map Point Location
+ *
+ *  - **TrapezoidalMapPointLocation**: O(log n) point location via
+ *    trapezoidal decomposition with DAG search. O(n log n) expected
+ *    construction, O(log n) expected query.
  *
  *  ## C++20 Support
  *
@@ -1747,7 +1758,7 @@ namespace Aleph
 
     [[nodiscard]] static bool upper_half(const HalfPlane & h)
     {
-      return (h.dy() > 0) or (h.dy() == 0 and h.dx() >= 0);
+      return h.dy() > 0 or h.dy() == 0 and h.dx() >= 0;
     }
 
     [[nodiscard]] static Geom_Number cross_dir(const HalfPlane & a,
@@ -2156,16 +2167,17 @@ namespace Aleph
         return ret;
 
       Array<Point> pts = ret.sites;
-      ret.triangles = GeomBowyerWatsonUtils::triangulate<IndexedTriangle>(
-                                                                          std::move(pts), n,
-                                                                          [](const Array<Point> & all_pts,
-                                                                             const size_t ia, const size_t ib,
-                                                                             const size_t ic, const size_t ip)
-                                                                            {
-                                                                              return
-                                                                                  DelaunayTriangulationBowyerWatson::point_in_circumcircle(
-                                                                                   all_pts, ia, ib, ic, ip);
-                                                                            });
+      ret.triangles =
+          GeomBowyerWatsonUtils::triangulate<IndexedTriangle>(
+                                                              std::move(pts), n,
+                                                              [](const Array<Point> & all_pts,
+                                                                 const size_t ia, const size_t ib,
+                                                                 const size_t ic, const size_t ip)
+                                                                {
+                                                                  return
+                                                                      DelaunayTriangulationBowyerWatson::point_in_circumcircle(
+                                                                       all_pts, ia, ib, ic, ip);
+                                                                });
 
       return ret;
     }
@@ -2231,7 +2243,7 @@ namespace Aleph
    *
    * - Sites are sorted lexicographically by position; positional duplicates
    *   are removed (keeping the first weight encountered).
-   * - Collinear inputs return an empty triangulation.
+   * - Collinear inputs return empty triangulation.
    * - Output triangles are indexed against the returned deduplicated sites.
    *
    * ## Complexity
@@ -2588,7 +2600,7 @@ namespace Aleph
           if (pts(i).get_y() < mny) mny = pts(i).get_y();
           if (pts(i).get_y() > mxy) mxy = pts(i).get_y();
         }
-      Geom_Number delta = (mxx - mnx) > (mxy - mny) ? (mxx - mnx) : (mxy - mny);
+      Geom_Number delta = mxx - mnx > mxy - mny ? mxx - mnx : mxy - mny;
       if (delta == 0)
         delta = 1;
       const Geom_Number sp = delta * 16 + 1;
@@ -2950,8 +2962,7 @@ namespace Aleph
           if (not tris(t).alive)
             continue;
 
-          const size_t loc = edge_opposite(tris(t), u, v);
-          if (loc != NONE)
+          if (const size_t loc = edge_opposite(tris(t), u, v); loc != NONE)
             {
               out_tri = t;
               out_local = loc;
@@ -3059,13 +3070,13 @@ namespace Aleph
       //   adj[0] opp a_opp = edge(b_opp, q): this is from tb. If bq==q, ext_b1; if bp==q, ext_b2
       //   adj[1] opp b_opp = edge(q, a_opp): this is ext_a1
       //   adj[2] opp q = tri_b
-      size_t new_a_adj0, new_a_adj1, new_a_adj2;
-      bool new_a_con0, new_a_con1, new_a_con2;
+      size_t new_a_adj0;
+      bool new_a_con0;
 
-      new_a_adj1 = ext_a1; // edge(q, a_opp) was opp p in ta
-      new_a_con1 = con_a1;
-      new_a_adj2 = tri_b;
-      new_a_con2 = false; // new diagonal is not constrained
+      const size_t new_a_adj1 = ext_a1; // edge(q, a_opp) was opp p in ta
+      const bool new_a_con1 = con_a1;
+      const size_t new_a_adj2 = tri_b;
+      const bool new_a_con2 = false; // the new diagonal is not constrained
 
       if (bq == q)
         {
@@ -3082,13 +3093,13 @@ namespace Aleph
       //   adj[0] opp b_opp = edge(a_opp, p): this is ext_a2
       //   adj[1] opp a_opp = edge(p, b_opp): from tb. If bp==p, ext_b2; if bq==p, ext_b1
       //   adj[2] opp p = tri_a
-      size_t new_b_adj0, new_b_adj1, new_b_adj2;
-      bool new_b_con0, new_b_con1, new_b_con2;
+      size_t new_b_adj1;
+      bool new_b_con1;
 
-      new_b_adj0 = ext_a2; // edge(p, a_opp) was opp q in ta
-      new_b_con0 = con_a2;
-      new_b_adj2 = tri_a;
-      new_b_con2 = false; // new diagonal
+      const size_t new_b_adj0 = ext_a2; // edge(p, a_opp) was opp q in ta
+      const bool new_b_con0 = con_a2;
+      const size_t new_b_adj2 = tri_a;
+      const bool new_b_con2 = false; // new diagonal
 
       if (bp == p)
         {
@@ -3124,25 +3135,13 @@ namespace Aleph
 
       // Remap external neighbors to point to correct new triangle.
       if (new_a_adj0 != NONE)
-        {
-          const size_t li = adj_of(tris(new_a_adj0), tri_b);
-          if (li != NONE) tris(new_a_adj0).adj[li] = tri_a;
-        }
+        if (const size_t li = adj_of(tris(new_a_adj0), tri_b); li != NONE) tris(new_a_adj0).adj[li] = tri_a;
       if (new_b_adj0 != NONE)
-        {
-          const size_t li = adj_of(tris(new_b_adj0), tri_a);
-          if (li != NONE) tris(new_b_adj0).adj[li] = tri_b;
-        }
+        if (const size_t li = adj_of(tris(new_b_adj0), tri_a); li != NONE) tris(new_b_adj0).adj[li] = tri_b;
       if (new_b_adj1 != NONE)
-        {
-          const size_t li = adj_of(tris(new_b_adj1), tri_a);
-          if (li != NONE) tris(new_b_adj1).adj[li] = tri_b;
-        }
+        if (const size_t li = adj_of(tris(new_b_adj1), tri_a); li != NONE) tris(new_b_adj1).adj[li] = tri_b;
       if (new_a_adj1 != NONE)
-        {
-          const size_t li = adj_of(tris(new_a_adj1), tri_b);
-          if (li != NONE) tris(new_a_adj1).adj[li] = tri_a;
-        }
+        if (const size_t li = adj_of(tris(new_a_adj1), tri_b); li != NONE) tris(new_a_adj1).adj[li] = tri_a;
     }
 
     /// Collect edges that cross segment (u,v) by scanning all mesh edges.
@@ -3180,17 +3179,13 @@ namespace Aleph
               if (nb != NONE and nb < t)
                 continue;
 
-              const Segment seg_edge(pts(w1), pts(w2));
-              if (seg_uv.intersects_properly_with(seg_edge))
+              if (const Segment seg_edge(pts(w1), pts(w2)); seg_uv.intersects_properly_with(seg_edge))
                 {
                   crossings.append(CrossingEdge{t, static_cast<size_t>(e)});
                   // Also record from the neighbor's side.
                   if (nb != NONE and tris(nb).alive)
-                    {
-                      const size_t lb = adj_of(tris(nb), t);
-                      if (lb != NONE)
-                        crossings.append(CrossingEdge{nb, lb});
-                    }
+                    if (const size_t lb = adj_of(tris(nb), t); lb != NONE)
+                      crossings.append(CrossingEdge{nb, lb});
                 }
             }
         }
@@ -3207,8 +3202,7 @@ namespace Aleph
           if (not tris(t).alive)
             continue;
 
-          const size_t loc = edge_opposite(tris(t), u, v);
-          if (loc != NONE)
+          if (const size_t loc = edge_opposite(tris(t), u, v); loc != NONE)
             tris(t).constrained[loc] = true;
         }
     }
@@ -3507,19 +3501,19 @@ namespace Aleph
       for (size_t i = 0; i < n; ++i)
         site_list.append(ret.sites(i));
 
-      DelaunayTriangulationBowyerWatson dt_algo;
-      auto dt_result = dt_algo(site_list);
+      constexpr DelaunayTriangulationBowyerWatson dt_algo;
+      auto [sites, triangles] = dt_algo(site_list);
 
-      if (dt_result.triangles.is_empty())
+      if (triangles.is_empty())
         return ret;
 
       // The DT may have reordered sites. We need to use its sites array
       // and remap. Since both are sorted/deduped, they should match.
-      ret.sites = dt_result.sites;
+      ret.sites = sites;
 
       // 3. Build adjacency mesh.
       Array<Tri> tris;
-      build_adjacency(tris, dt_result.triangles);
+      build_adjacency(tris, triangles);
 
       // 4. Map constraints to index pairs (with splitting).
       Array<IndexedEdge> indexed_constraints =
@@ -4255,8 +4249,7 @@ namespace Aleph
       double disc = b * b - 4.0 * a * c;
       if (disc < 0.0 and disc > -kEps)
         disc = 0.0;
-      ah_domain_error_if(disc < 0.0)
-        << "Negative discriminant in Fortune breakpoint";
+      ah_domain_error_if(disc < 0.0) << "Negative discriminant in Fortune breakpoint";
 
       const double sq = std::sqrt(disc);
       const double x1 = (-b - sq) / (2.0 * a);
@@ -4470,8 +4463,7 @@ namespace Aleph
                 }
 
               Arc *arc = locate_arc(head, sites, sx, ly - 10.0 * kEps);
-              ah_domain_error_if(arc == nullptr)
-                << "Could not locate arc in Fortune site event";
+              ah_domain_error_if(arc == nullptr) << "Could not locate arc in Fortune site event";
 
               invalidate_circle_event(arc);
 
@@ -5255,7 +5247,7 @@ namespace Aleph
      * @param a Edge source.
      * @param b Edge target.
      * @return Ordered list of intermediate hull vertices between a and b
-     * (does not include a nor b). If @p point_set is empty returns an empty
+     * (does not include a nor b). If @p point_set is empty, it returns an empty
      * list.
      */
     static DynList<Point> quick_hull(DynList<Point> & point_set, const Point & a,
@@ -5368,6 +5360,133 @@ namespace Aleph
       return ret;
     }
   };
+
+  // ============================================================================
+  // Segment-Segment Intersection (Dedicated O(1))
+  // ============================================================================
+
+  /**
+   * @brief Dedicated exact intersection for a single pair of segments.
+   *
+   * This utility solves the 2-segment case directly in constant time using
+   * exact predicates from `point.H`, instead of routing through a sweep-line
+   * structure meant for many segments.
+   *
+   * Returned intersection kinds:
+   * - `Kind::NONE`: no intersection.
+   * - `Kind::POINT`: unique intersection point (proper cross, endpoint touch,
+   *   or degenerate point-on-segment).
+   * - `Kind::OVERLAP`: collinear overlap interval (non-zero length).
+   *
+   * ## Complexity
+   *
+   * - Time:  O(1)
+   * - Space: O(1)
+   *
+   * @ingroup Geometry
+   */
+  class SegmentSegmentIntersection
+  {
+  public:
+    enum class Kind { NONE, POINT, OVERLAP };
+
+    struct Result
+    {
+      Kind kind = Kind::NONE;
+      Point point = Point(0, 0); // Valid when kind == POINT
+      Segment overlap = Segment(Point(0, 0), Point(0, 0)); // Valid when kind == OVERLAP
+
+      [[nodiscard]] bool intersects() const noexcept
+      {
+        return kind != Kind::NONE;
+      }
+    };
+
+  private:
+    [[nodiscard]] static bool point_less_on_axis(const Point & a,
+                                                 const Point & b,
+                                                 const bool vertical_axis)
+    {
+      if (vertical_axis)
+        {
+          if (a.get_y() != b.get_y())
+            return a.get_y() < b.get_y();
+          return a.get_x() < b.get_x();
+        }
+
+      if (a.get_x() != b.get_x())
+        return a.get_x() < b.get_x();
+      return a.get_y() < b.get_y();
+    }
+
+    [[nodiscard]] static Point point_max_on_axis(const Point & a,
+                                                 const Point & b,
+                                                 const bool vertical_axis)
+    {
+      return point_less_on_axis(a, b, vertical_axis) ? b : a;
+    }
+
+    [[nodiscard]] static Point point_min_on_axis(const Point & a,
+                                                 const Point & b,
+                                                 const bool vertical_axis)
+    {
+      return point_less_on_axis(a, b, vertical_axis) ? a : b;
+    }
+
+    [[nodiscard]] static Segment collinear_overlap(const Segment & s1,
+                                                   const Segment & s2)
+    {
+      const bool vertical_axis = s1.get_src_point().get_x() == s1.get_tgt_point().get_x();
+
+      Point a0 = s1.get_src_point();
+      Point a1 = s1.get_tgt_point();
+      Point b0 = s2.get_src_point();
+      Point b1 = s2.get_tgt_point();
+
+      if (point_less_on_axis(a1, a0, vertical_axis))
+        std::swap(a0, a1);
+      if (point_less_on_axis(b1, b0, vertical_axis))
+        std::swap(b0, b1);
+
+      const Point lo = point_max_on_axis(a0, b0, vertical_axis);
+      const Point hi = point_min_on_axis(a1, b1, vertical_axis);
+      return Segment(lo, hi);
+    }
+
+  public:
+    [[nodiscard]] Result operator ()(const Segment & s1, const Segment & s2) const
+    {
+      Result out;
+
+      if (not segments_intersect(s1, s2))
+        return out;
+
+      if (not s1.is_parallel_with(s2))
+        {
+          out.kind = Kind::POINT;
+          out.point = s1.intersection_with(s2);
+          return out;
+        }
+
+      out.overlap = collinear_overlap(s1, s2);
+      if (out.overlap.get_src_point() == out.overlap.get_tgt_point())
+        {
+          out.kind = Kind::POINT;
+          out.point = out.overlap.get_src_point();
+          return out;
+        }
+
+      out.kind = Kind::OVERLAP;
+      return out;
+    }
+  };
+
+  /// @brief Convenience free-function wrapper for SegmentSegmentIntersection.
+  [[nodiscard]] inline SegmentSegmentIntersection::Result
+  segment_segment_intersection(const Segment & s1, const Segment & s2)
+  {
+    return SegmentSegmentIntersection{}(s1, s2);
+  }
 
   // ============================================================================
   // Line Sweep / Event-Driven Framework
@@ -5792,7 +5911,7 @@ namespace Aleph
         return merge(root->left, root->right);
       }
 
-      static void destroy(Node *n)
+      static void destroy(const Node *n)
       {
         if (n == nullptr)
           return;
@@ -5805,7 +5924,7 @@ namespace Aleph
                                                   const Geom_Number & sx) const
       {
         size_t pred = SIZE_MAX;
-        Node *cur = root_;
+        const Node *cur = root_;
         while (cur != nullptr)
           if (status_less(cur->seg, seg, sx, segs_))
             {
@@ -5821,7 +5940,7 @@ namespace Aleph
                                                 const Geom_Number & sx) const
       {
         size_t succ = SIZE_MAX;
-        Node *cur = root_;
+        const Node *cur = root_;
         while (cur != nullptr)
           if (status_less(seg, cur->seg, sx, segs_))
             {
@@ -5870,7 +5989,7 @@ namespace Aleph
 
         const size_t pred = predecessor_for_insert(seg, sx);
         const size_t succ = successor_for_insert(seg, sx);
-        Node *node = new Node{
+        const auto node = new Node{
               seg, fresh_label_between(pred, succ),
               static_cast<unsigned>(rng_()),
               nullptr, nullptr
@@ -5896,7 +6015,7 @@ namespace Aleph
           return SIZE_MAX;
 
         const Geom_Number & label = nodes_(seg)->label;
-        Node *pred = nullptr;
+        const Node *pred = nullptr;
         Node *cur = root_;
         while (cur != nullptr)
           if (cur->label < label)
@@ -5916,7 +6035,7 @@ namespace Aleph
           return SIZE_MAX;
 
         const Geom_Number & label = nodes_(seg)->label;
-        Node *succ = nullptr;
+        const Node *succ = nullptr;
         Node *cur = root_;
         while (cur != nullptr)
           if (label < cur->label)
@@ -5962,45 +6081,23 @@ namespace Aleph
 
       const Segment & sa = segs(lo);
       const Segment & sb = segs(hi);
-      if (not segments_intersect(sa, sb))
+      const auto hit = segment_segment_intersection(sa, sb);
+      if (not hit.intersects())
         return;
 
-      if (sa.is_parallel_with(sb))
+      if (hit.kind == SegmentSegmentIntersection::Kind::OVERLAP)
         {
-          // Collinear overlapping segments: report overlap boundary points.
-          // Segments are canonicalized so src is the left endpoint.
-          // Overlap is [max(sa.src, sb.src), min(sa.tgt, sb.tgt)] projected
-          // onto the dominant axis.
-          const auto & as = sa.get_src_point();
-          const auto & at = sa.get_tgt_point();
-          const auto & bs = sb.get_src_point();
-          const auto & bt = sb.get_tgt_point();
-
-          // Use x as primary, y as secondary (matching canonicalize order).
-          auto pt_le = [](const Point & p, const Point & q)
-            {
-              if (p.get_x() != q.get_x()) return p.get_x() < q.get_x();
-              return p.get_y() < q.get_y();
-            };
-
-          const Point & overlap_start = pt_le(as, bs) ? bs : as;
-          const Point & overlap_end = pt_le(at, bt) ? at : bt;
-
-          // Only report if there is a proper overlap interval (not just
-          // a single touching endpoint — that is handled by the non-parallel
-          // path via intersection_with).
-          if (pt_le(overlap_start, overlap_end) or overlap_start == overlap_end)
-            {
-              seen_pairs.insert(key);
-              if (! (overlap_start.get_x() < sx))
-                eq.enqueue(Event{overlap_start, EventType::INTERSECTION, lo, hi});
-              if (overlap_start != overlap_end and ! (overlap_end.get_x() < sx))
-                eq.enqueue(Event{overlap_end, EventType::INTERSECTION, lo, hi});
-            }
+          seen_pairs.insert(key);
+          const Point overlap_start = hit.overlap.get_src_point();
+          const Point overlap_end = hit.overlap.get_tgt_point();
+          if (not (overlap_start.get_x() < sx))
+            eq.enqueue(Event{overlap_start, EventType::INTERSECTION, lo, hi});
+          if (not (overlap_end.get_x() < sx))
+            eq.enqueue(Event{overlap_end, EventType::INTERSECTION, lo, hi});
           return;
         }
 
-      const Point ip = sa.intersection_with(sb);
+      const Point ip = hit.point;
       if (ip.get_x() < sx)
         return; // Intersection is to the left of the sweep.
 
@@ -6089,8 +6186,7 @@ namespace Aleph
             }
           else if (ev.type == EventType::RIGHT)
             {
-              const size_t idx = ev.seg_a;
-              if (status.contains(idx))
+              if (const size_t idx = ev.seg_a; status.contains(idx))
                 {
                   const size_t pred = status.predecessor(idx);
                   const size_t succ = status.successor(idx);
@@ -6383,7 +6479,7 @@ namespace Aleph
                                                   const Geom_Number & sweep_y) const
       {
         size_t pred = SIZE_MAX;
-        Node *cur = root_;
+        const Node *cur = root_;
         while (cur != nullptr)
           if (edge_status_less(cur->edge, edge, sweep_y, verts_))
             {
@@ -6399,7 +6495,7 @@ namespace Aleph
                                                 const Geom_Number & sweep_y) const
       {
         size_t succ = SIZE_MAX;
-        Node *cur = root_;
+        const Node *cur = root_;
         while (cur != nullptr)
           if (edge_status_less(edge, cur->edge, sweep_y, verts_))
             {
@@ -6448,7 +6544,7 @@ namespace Aleph
 
         const size_t pred = predecessor_for_insert(edge, sweep_y);
         const size_t succ = successor_for_insert(edge, sweep_y);
-        Node *node = new Node{
+        const auto node = new Node{
               edge, fresh_label_between(pred, succ),
               static_cast<unsigned>(rng_()),
               nullptr, nullptr
@@ -6472,7 +6568,7 @@ namespace Aleph
                                               const Geom_Number & sweep_y) const
       {
         size_t best = SIZE_MAX;
-        Node *cur = root_;
+        const Node *cur = root_;
         while (cur != nullptr)
           {
             const Geom_Number x = edge_x_at_y(verts_, cur->edge, sweep_y);
@@ -6829,8 +6925,7 @@ namespace Aleph
 
             case VertexType::SPLIT:
               {
-                const size_t left = status.left_edge_of_point(verts(vi), sweep_y);
-                if (left != SIZE_MAX)
+                if (const size_t left = status.left_edge_of_point(verts(vi), sweep_y); left != SIZE_MAX)
                   {
                     add_diagonal(vi, helper(left));
                     helper(left) = vi;
@@ -6922,8 +7017,7 @@ namespace Aleph
       ah_domain_error_if(p.size() < 3) << "Polygon must have at least 3 vertices";
 
       Array<Point> verts = extract_vertices(p);
-      ah_domain_error_if(signed_double_area(verts) == 0)
-        << "Polygon is degenerate (zero area)";
+      ah_domain_error_if(signed_double_area(verts) == 0) << "Polygon is degenerate (zero area)";
 
       ensure_ccw(verts);
 
@@ -7133,10 +7227,8 @@ namespace Aleph
     {
       ah_domain_error_if(not P.is_closed()) << "First polygon must be closed";
       ah_domain_error_if(not Q.is_closed()) << "Second polygon must be closed";
-      ah_domain_error_if(P.size() < 3)
-        << "First polygon must have at least 3 vertices";
-      ah_domain_error_if(Q.size() < 3)
-        << "Second polygon must have at least 3 vertices";
+      ah_domain_error_if(P.size() < 3) << "First polygon must have at least 3 vertices";
+      ah_domain_error_if(Q.size() < 3) << "Second polygon must have at least 3 vertices";
 
       Array<Point> pv = extract_vertices(P);
       Array<Point> qv = extract_vertices(Q);
@@ -7342,8 +7434,8 @@ namespace Aleph
             }
         }
 
-      const Point pa = p(ip);
-      const Point pb = q(iq);
+      const Point & pa = p(ip);
+      const Point & pb = q(iq);
       const Geom_Number vx = pa.get_x() - pb.get_x();
       const Geom_Number vy = pa.get_y() - pb.get_y();
       return SupportPoint{pa, pb, Point(vx, vy), to_double(vx), to_double(vy)};
@@ -7363,14 +7455,14 @@ namespace Aleph
       Point vp;
       for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
         {
-          vp = it.get_current_vertex();
+          vp = it.get_current_vertex().to_point();
           break;
         }
 
       Point vq;
       for (Polygon::Vertex_Iterator it(q); it.has_curr(); it.next_ne())
         {
-          vq = it.get_current_vertex();
+          vq = it.get_current_vertex().to_point();
           break;
         }
 
@@ -7381,8 +7473,7 @@ namespace Aleph
     [[nodiscard]] static ClosestSimplexResult
     closest_from_simplex(const std::vector<SupportPoint> & simplex)
     {
-      ah_domain_error_if(simplex.empty())
-        << "GJK simplex cannot be empty";
+      ah_domain_error_if(simplex.empty()) << "GJK simplex cannot be empty";
 
       ClosestSimplexResult out;
 
@@ -7531,9 +7622,9 @@ namespace Aleph
         }
 
       const double va = d3 * d6 - d5 * d4;
-      if (va <= 0.0 and (d4 - d3) >= 0.0 and (d5 - d6) >= 0.0)
+      if (va <= 0.0 and d4 - d3 >= 0.0 and d5 - d6 >= 0.0)
         {
-          const double t = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+          const double t = (d4 - d3) / (d4 - d3 + (d5 - d6));
           const double bcx = c.vx - b.vx;
           const double bcy = c.vy - b.vy;
           out.reduced_simplex = {b, c};
@@ -7565,20 +7656,18 @@ namespace Aleph
       out.reduced_simplex = {a, b, c};
       out.cx = 0.0;
       out.cy = 0.0;
-      out.witness_a =
-          point_from_double(wa * to_double(a.a.get_x()) +
-                            wb * to_double(b.a.get_x()) +
-                            wc * to_double(c.a.get_x()),
-                            wa * to_double(a.a.get_y()) +
-                            wb * to_double(b.a.get_y()) +
-                            wc * to_double(c.a.get_y()));
-      out.witness_b =
-          point_from_double(wa * to_double(a.b.get_x()) +
-                            wb * to_double(b.b.get_x()) +
-                            wc * to_double(c.b.get_x()),
-                            wa * to_double(a.b.get_y()) +
-                            wb * to_double(b.b.get_y()) +
-                            wc * to_double(c.b.get_y()));
+      out.witness_a = point_from_double(wa * to_double(a.a.get_x()) +
+                                        wb * to_double(b.a.get_x()) +
+                                        wc * to_double(c.a.get_x()),
+                                        wa * to_double(a.a.get_y()) +
+                                        wb * to_double(b.a.get_y()) +
+                                        wc * to_double(c.a.get_y()));
+      out.witness_b = point_from_double(wa * to_double(a.b.get_x()) +
+                                        wb * to_double(b.b.get_x()) +
+                                        wc * to_double(c.b.get_x()),
+                                        wa * to_double(a.b.get_y()) +
+                                        wb * to_double(b.b.get_y()) +
+                                        wc * to_double(c.b.get_y()));
       out.contains_origin = true;
       return out;
     }
@@ -7608,15 +7697,14 @@ namespace Aleph
 
       for (size_t i = 0; i < pv.size(); ++i)
         {
-          const Point pnt = pv(i);
+          const Point & pnt = pv(i);
           for (size_t j = 0; j < qv.size(); ++j)
             {
-              const Point q0 = qv(j);
-              const Point q1 = qv((j + 1) % qv.size());
+              const Point & q0 = qv(j);
+              const Point & q1 = qv((j + 1) % qv.size());
               const Segment edge(q0, q1);
               const Point proj = edge.project(pnt);
-              const Geom_Number d2 = pnt.distance_squared_to(proj);
-              if (not has_best or d2 < best_d2)
+              if (const Geom_Number d2 = pnt.distance_squared_to(proj); not has_best or d2 < best_d2)
                 {
                   has_best = true;
                   best_d2 = d2;
@@ -7628,15 +7716,14 @@ namespace Aleph
 
       for (size_t i = 0; i < qv.size(); ++i)
         {
-          const Point pnt = qv(i);
+          const Point & pnt = qv(i);
           for (size_t j = 0; j < pv.size(); ++j)
             {
-              const Point p0 = pv(j);
-              const Point p1 = pv((j + 1) % pv.size());
+              const Point & p0 = pv(j);
+              const Point & p1 = pv((j + 1) % pv.size());
               const Segment edge(p0, p1);
               const Point proj = edge.project(pnt);
-              const Geom_Number d2 = pnt.distance_squared_to(proj);
-              if (not has_best or d2 < best_d2)
+              if (const Geom_Number d2 = pnt.distance_squared_to(proj); not has_best or d2 < best_d2)
                 {
                   has_best = true;
                   best_d2 = d2;
@@ -7646,8 +7733,7 @@ namespace Aleph
             }
         }
 
-      ah_domain_error_if(not has_best)
-        << "Could not compute distance between convex polygons";
+      ah_domain_error_if(not has_best) << "Could not compute distance between convex polygons";
 
       out.distance_squared = best_d2;
       out.distance = square_root(best_d2);
@@ -7784,8 +7870,48 @@ namespace Aleph
   class KDTreePointSearch
   {
     K2Tree<> tree;
+    Array<Point> points_;
+    Rectangle bounds_;
+
+    [[nodiscard]] static bool lexicographic_less(const Point & a, const Point & b)
+    {
+      if (a.get_x() < b.get_x()) return true;
+      if (b.get_x() < a.get_x()) return false;
+      return a.get_y() < b.get_y();
+    }
+
+    [[nodiscard]] static Array<Point> unique_points(Array<Point> points)
+    {
+      quicksort_op(points, [](const Point & a, const Point & b)
+                     {
+                       return lexicographic_less(a, b);
+                     });
+      Array<Point> uniq;
+      uniq.reserve(points.size());
+      for (size_t i = 0; i < points.size(); ++i)
+        if (uniq.is_empty() or uniq.get_last() != points(i))
+          uniq.append(points(i));
+      return uniq;
+    }
 
   public:
+    struct DebugPartition
+    {
+      Rectangle region;
+      bool split_on_x = true;
+      Geom_Number split_value = 0;
+      size_t depth = 0;
+      bool is_leaf = false;
+      Point representative = Point(0, 0);
+    };
+
+    struct DebugSnapshot
+    {
+      Rectangle bounds;
+      Array<Point> points;
+      Array<DebugPartition> partitions;
+    };
+
     /**
      * @brief Construct an empty KD-tree for the given bounding region.
      *
@@ -7796,7 +7922,8 @@ namespace Aleph
      */
     KDTreePointSearch(const Geom_Number & xmin, const Geom_Number & ymin,
                       const Geom_Number & xmax, const Geom_Number & ymax)
-      : tree(xmin, ymin, xmax, ymax)
+      : tree(xmin, ymin, xmax, ymax),
+        bounds_(xmin, ymin, xmax, ymax)
     {}
 
     /**
@@ -7817,13 +7944,17 @@ namespace Aleph
       KDTreePointSearch kd(xmin, ymin, xmax, ymax);
       kd.tree = K2Tree<>::build(points, Point(xmin, ymin),
                                 Point(xmax, ymax));
+      kd.points_ = unique_points(points);
       return kd;
     }
 
     /// @brief Insert a point. Returns true if inserted, false if duplicate.
     bool insert(const Point & p)
     {
-      return tree.insert(p);
+      if (not tree.insert(p))
+        return false;
+      points_.append(p);
+      return true;
     }
 
     /// @brief Check if a point exists in the tree.
@@ -7857,6 +7988,92 @@ namespace Aleph
     void for_each(Op && op) const
     {
       tree.for_each(std::forward<Op>(op));
+    }
+
+    /**
+     * @brief Build a deterministic geometric partition snapshot for visualization.
+     *
+     * The snapshot uses the current point set and alternates split axis by
+     * depth (x/y), producing a balanced partition tree suitable for didactic
+     * rendering.
+     */
+    [[nodiscard]] DebugSnapshot debug_snapshot() const
+    {
+      DebugSnapshot snap;
+      snap.bounds = bounds_;
+      snap.points = points_;
+      if (points_.is_empty())
+        return snap;
+
+      auto recurse = [&](const auto & self,
+                         const Array<Point> & pts,
+                         const Rectangle & region,
+                         const size_t depth,
+                         const bool split_on_x) -> void
+      {
+        if (pts.is_empty())
+          return;
+
+        Array<Point> sorted = pts;
+        quicksort_op(sorted, [split_on_x](const Point & a, const Point & b)
+                       {
+                         if (split_on_x)
+                           {
+                             if (a.get_x() != b.get_x()) return a.get_x() < b.get_x();
+                             return a.get_y() < b.get_y();
+                           }
+                         if (a.get_y() != b.get_y()) return a.get_y() < b.get_y();
+                         return a.get_x() < b.get_x();
+                       });
+
+        size_t mid = sorted.size() / 2;
+        if (mid == 0) mid = 1;
+        if (mid >= sorted.size()) mid = sorted.size() - 1;
+
+        const Point pivot = sorted(mid);
+        DebugPartition part;
+        part.region = region;
+        part.split_on_x = split_on_x;
+        part.split_value = split_on_x ? pivot.get_x() : pivot.get_y();
+        part.depth = depth;
+        part.is_leaf = sorted.size() == 1;
+        part.representative = pivot;
+        snap.partitions.append(part);
+
+        if (sorted.size() == 1)
+          return;
+
+        Array<Point> left_pts;
+        Array<Point> right_pts;
+        left_pts.reserve(mid);
+        right_pts.reserve(sorted.size() - mid);
+        for (size_t i = 0; i < mid; ++i)
+          left_pts.append(sorted(i));
+        for (size_t i = mid; i < sorted.size(); ++i)
+          right_pts.append(sorted(i));
+
+        if (split_on_x)
+          {
+            Rectangle left(region.get_xmin(), region.get_ymin(),
+                           pivot.get_x(), region.get_ymax());
+            Rectangle right(pivot.get_x(), region.get_ymin(),
+                            region.get_xmax(), region.get_ymax());
+            self(self, left_pts, left, depth + 1, false);
+            self(self, right_pts, right, depth + 1, false);
+          }
+        else
+          {
+            Rectangle bottom(region.get_xmin(), region.get_ymin(),
+                             region.get_xmax(), pivot.get_y());
+            Rectangle top(region.get_xmin(), pivot.get_y(),
+                          region.get_xmax(), region.get_ymax());
+            self(self, left_pts, bottom, depth + 1, true);
+            self(self, right_pts, top, depth + 1, true);
+          }
+      };
+
+      recurse(recurse, points_, bounds_, 0, true);
+      return snap;
     }
   };
 
@@ -7916,7 +8133,7 @@ namespace Aleph
           u = v;
           v = tmp;
         }
-      return (v == u + 1) or (u == 0 and v == n - 1);
+      return v == u + 1 or (u == 0 and v == n - 1);
     }
 
     /// Check whether merging faces f1 and f2 across diagonal (u,v) is convex.
@@ -8060,7 +8277,7 @@ namespace Aleph
           changed = false;
           for (size_t fi = 0; fi < faces.size() and not changed; ++fi)
             {
-              const auto & f1 = faces(fi);
+              const auto f1 = faces(fi); // copy to avoid dangling when faces mutates
               for (size_t k = 0; k < f1.size() and not changed; ++k)
                 {
                   const size_t u = f1(k);
@@ -8071,14 +8288,14 @@ namespace Aleph
 
                   for (size_t fj = fi + 1; fj < faces.size() and not changed; ++fj)
                     {
-                      if (const auto & f2 = faces(fj); find_pos(f2, u) == NONE or find_pos(f2, v) == NONE)
+                      const auto f2 = faces(fj); // copy for the same reason
+                      if (find_pos(f2, u) == NONE or find_pos(f2, v) == NONE)
                         continue;
 
-                      if (not can_merge(pts, faces(fi), faces(fj), u, v))
+                      if (not can_merge(pts, f1, f2, u, v))
                         continue;
 
-                      Array<size_t> merged =
-                          merge_faces(faces(fi), faces(fj), u, v);
+                      Array<size_t> merged = merge_faces(f1, f2, u, v);
 
                       Array<Array<size_t>> new_faces;
                       new_faces.reserve(faces.size() - 1);
@@ -8142,6 +8359,28 @@ namespace Aleph
    */
   class RangeTree2D
   {
+  public:
+    struct DebugNode
+    {
+      size_t tree_index = 0;
+      size_t lo = 0;
+      size_t hi = 0;
+      size_t left = ~static_cast<size_t>(0);
+      size_t right = ~static_cast<size_t>(0);
+      Geom_Number xmin = 0;
+      Geom_Number xmax = 0;
+      Geom_Number split_x = 0;
+      size_t y_sorted_size = 0;
+      bool is_leaf = false;
+    };
+
+    struct DebugSnapshot
+    {
+      Array<Point> x_sorted_points;
+      Array<DebugNode> nodes;
+    };
+
+  private:
     struct Node
     {
       Array<Point> y_sorted;
@@ -8310,6 +8549,45 @@ namespace Aleph
     [[nodiscard]] size_t size() const noexcept { return n_; }
 
     [[nodiscard]] bool is_empty() const noexcept { return n_ == 0; }
+
+    /// @brief Return structural snapshot for visualization/debug.
+    [[nodiscard]] DebugSnapshot debug_snapshot() const
+    {
+      DebugSnapshot snap;
+      snap.x_sorted_points = pts_;
+      if (not built_ or n_ == 0)
+        return snap;
+
+      auto build_debug = [&](const auto & self,
+                             const size_t tree_idx,
+                             const size_t lo,
+                             const size_t hi) -> size_t
+      {
+        const size_t out_idx = snap.nodes.size();
+        snap.nodes.append(DebugNode{});
+        DebugNode & dn = snap.nodes(out_idx);
+        dn.tree_index = tree_idx;
+        dn.lo = lo;
+        dn.hi = hi;
+        dn.is_leaf = lo == hi;
+        dn.xmin = pts_(lo).get_x();
+        dn.xmax = pts_(hi).get_x();
+        dn.y_sorted_size = tree_(tree_idx).y_sorted.size();
+        dn.split_x = pts_((lo + hi) / 2).get_x();
+
+        if (lo < hi)
+          {
+            const size_t mid = lo + (hi - lo) / 2;
+            dn.left = self(self, 2 * tree_idx, lo, mid);
+            dn.right = self(self, 2 * tree_idx + 1, mid + 1, hi);
+          }
+
+        return out_idx;
+      };
+
+      build_debug(build_debug, 1, 0, n_ - 1);
+      return snap;
+    }
   };
 
   // ============================================================================
@@ -8396,10 +8674,10 @@ namespace Aleph
     [[nodiscard]] static Point line_intersect(const Point & a1, const Point & a2,
                                               const Point & b1, const Point & b2)
     {
-      const Geom_Number &a1x = a1.get_x(), a1y = a1.get_y();
-      const Geom_Number &a2x = a2.get_x(), a2y = a2.get_y();
-      const Geom_Number &b1x = b1.get_x(), b1y = b1.get_y();
-      const Geom_Number &b2x = b2.get_x(), b2y = b2.get_y();
+      const Geom_Number &a1x = a1.get_x(), &a1y = a1.get_y();
+      const Geom_Number &a2x = a2.get_x(), &a2y = a2.get_y();
+      const Geom_Number &b1x = b1.get_x(), &b1y = b1.get_y();
+      const Geom_Number &b2x = b2.get_x(), &b2y = b2.get_y();
 
       const Geom_Number dax = a2x - a1x, day = a2y - a1y;
       const Geom_Number dbx = b2x - b1x, dby = b2y - b1y;
@@ -8426,8 +8704,7 @@ namespace Aleph
     static Polygon inward(const Polygon & convex_poly,
                           const Geom_Number & distance)
     {
-      ah_domain_error_if(!convex_poly.is_closed())
-        << "Polygon must be closed";
+      ah_domain_error_if(!convex_poly.is_closed()) << "Polygon must be closed";
 
       Array<Point> v = extract_verts(convex_poly);
 
@@ -8450,7 +8727,7 @@ namespace Aleph
           hps.append(HalfPlaneIntersection::HalfPlane(oa, ob));
         }
 
-      HalfPlaneIntersection hpi;
+      constexpr HalfPlaneIntersection hpi;
       return hpi(hps);
     }
 
@@ -8496,8 +8773,7 @@ namespace Aleph
           const Geom_Number day = ob(i).get_y() - oa(i).get_y();
           const Geom_Number dbx = ob(j).get_x() - oa(j).get_x();
           const Geom_Number dby = ob(j).get_y() - oa(j).get_y();
-          const Geom_Number denom = dax * dby - day * dbx;
-          if (denom == 0)
+          if (const Geom_Number denom = dax * dby - day * dbx; denom == 0)
             // Collinear triples produce consecutive parallel offset lines:
             // there is no corner vertex to add for that junction.
             continue;
@@ -8573,7 +8849,7 @@ namespace Aleph
      */
     [[nodiscard]] Result
     operator()(const Polygon & poly, const Geom_Number & distance,
-               JoinType join = JoinType::Miter,
+               const JoinType join = JoinType::Miter,
                const Geom_Number & miter_limit = Geom_Number(2)) const
     {
       ah_domain_error_if(!poly.is_closed()) << "Polygon must be closed";
@@ -8589,7 +8865,7 @@ namespace Aleph
       Array<Point> v = GeomPolygonUtils::extract_vertices(poly);
       GeomPolygonUtils::ensure_ccw(v);
 
-      Array<Point> raw = compute_raw_offset(v, distance, join, miter_limit);
+      const Array<Point> raw = compute_raw_offset(v, distance, join, miter_limit);
 
       if (raw.size() < 3)
         return Result{};
@@ -8610,24 +8886,20 @@ namespace Aleph
     {
       Result r = (*this)(poly, distance, join, miter_limit);
       if (r.is_empty())
-        return Polygon();
+        return {};
 
       size_t best = 0;
       Geom_Number best_area = abs_area(r.polygons(0));
       for (size_t i = 1; i < r.polygons.size(); ++i)
-        {
-          const Geom_Number a = abs_area(r.polygons(i));
-          if (a > best_area)
-            {
-              best_area = a;
-              best = i;
-            }
-        }
+        if (const Geom_Number a = abs_area(r.polygons(i)); a > best_area)
+          {
+            best_area = a;
+            best = i;
+          }
       return r.polygons(best);
     }
 
   private:
-
     // ----- helpers -----
 
     [[nodiscard]] static Geom_Number abs_area(const Polygon & p)
@@ -8640,7 +8912,7 @@ namespace Aleph
     /// Compute two points on the offset line of edge (a→b) shifted by |d|
     /// along its outward or inward normal.  Delegates to mpfr arithmetic.
     static void offset_edge(const Point & a, const Point & b,
-                            const Geom_Number & d, bool inward,
+                            const Geom_Number & d, const bool inward,
                             Point & oa, Point & ob)
     {
       ConvexPolygonOffset::offset_edge(a, b, d, inward, oa, ob);
@@ -8665,7 +8937,7 @@ namespace Aleph
 
     [[nodiscard]] static Array<Point>
     compute_raw_offset(const Array<Point> & v, const Geom_Number & distance,
-                       JoinType join, const Geom_Number & miter_limit)
+                       const JoinType join, const Geom_Number & miter_limit)
     {
       const size_t n = v.size();
       const bool inward = distance < 0;
@@ -8712,10 +8984,10 @@ namespace Aleph
               continue;
             }
 
-          const Point miter = line_intersect(oa(i), ob(i), oa(j), ob(j));
-
-          if (join == JoinType::Bevel ||
-              (join == JoinType::Miter && sq_dist(v((i + 1) % n), miter) > miter_sq))
+          if (const Point miter = line_intersect(oa(i), ob(i), oa(j), ob(j)); join == JoinType::Bevel or
+                                                                              (join == JoinType::Miter &&
+                                                                               sq_dist(v((i + 1) % n), miter) >
+                                                                               miter_sq))
             {
               raw.append(ob(i));
               raw.append(oa(j));
@@ -8751,7 +9023,7 @@ namespace Aleph
           const Geom_Number edy = v((j + 1) % n).get_y() - v(j).get_y();
 
           if (sdx * edx + sdy * edy < 0)
-            return Array<Point>(); // direction reversed → excessive offset
+            return {}; // direction reversed → excessive offset
         }
 
       return raw;
@@ -8781,8 +9053,7 @@ namespace Aleph
     [[nodiscard]] static Geom_Number
     edge_param(const Point & P, const Point & Q, const Point & I)
     {
-      const Geom_Number dx = Q.get_x() - P.get_x();
-      if (dx != 0)
+      if (const Geom_Number dx = Q.get_x() - P.get_x(); dx != 0)
         return (I.get_x() - P.get_x()) / dx;
       return (I.get_y() - P.get_y()) / (Q.get_y() - P.get_y());
     }
@@ -8812,7 +9083,7 @@ namespace Aleph
               const Point & b1 = raw((j + 1) % n);
               const Segment sb(b0, b1);
 
-              if (!sa.intersects_properly_with(sb))
+              if (not sa.intersects_properly_with(sb))
                 continue;
 
               const Point ip = sa.intersection_with(sb);
@@ -8832,7 +9103,7 @@ namespace Aleph
       for (size_t i = 1; i < idx.size(); ++i)
         {
           const size_t val = idx(i);
-          const Geom_Number key = keys(val);
+          const Geom_Number & key = keys(val);
           size_t j = i;
           while (j > 0 && keys(idx(j - 1)) > key)
             {
@@ -8953,7 +9224,7 @@ namespace Aleph
 
       for (size_t s = 0; s < N; ++s)
         {
-          if (!aug(s).is_intersection || aug(s).visited)
+          if (not aug(s).is_intersection || aug(s).visited)
             continue;
 
           // Trace one contour starting from intersection s.
@@ -8975,7 +9246,7 @@ namespace Aleph
               boundary.append(aug(idx).pt);
               idx = (idx + 1) % N;
 
-              while (!aug(idx).is_intersection)
+              while (! aug(idx).is_intersection)
                 {
                   boundary.append(aug(idx).pt);
                   idx = (idx + 1) % N;
@@ -8983,7 +9254,7 @@ namespace Aleph
                     goto done_contour;
                 }
 
-              // At next intersection — mark visited and jump to partner.
+              // At the next intersection — mark visited and jump to partner.
               aug(idx).visited = true;
               if (aug(idx).partner != SIZE_MAX)
                 {
@@ -9000,8 +9271,7 @@ namespace Aleph
           if (boundary.size() >= 3)
             {
               // Keep only CCW contours (positive signed area).
-              const Geom_Number sa = GeomPolygonUtils::signed_double_area(boundary);
-              if (sa > 0)
+              if (const Geom_Number sa = GeomPolygonUtils::signed_double_area(boundary); sa > 0)
                 result.append(build_poly(boundary));
             }
         }
@@ -9010,9 +9280,9 @@ namespace Aleph
     }
 
     /// Full cleanup pipeline.
-    [[nodiscard]] Result cleanup(const Array<Point> & raw) const
+    static Result cleanup(const Array<Point> & raw)
     {
-      auto isects = find_self_intersections(raw);
+      const auto isects = find_self_intersections(raw);
 
       if (isects.is_empty())
         {
@@ -9088,7 +9358,7 @@ namespace Aleph
         return cross > 0;
 
       // Same angle: closer point first.
-      return (dax * dax + day * day) < (dbx * dbx + dby * dby);
+      return dax * dax + day * day < (dbx * dbx + dby * dby);
     }
 
     /// Parametric t along ray  q + t*(dir-q)  for intersection with edge (e0,e1).
@@ -9896,7 +10166,7 @@ namespace Aleph
       if (q1 != q2) return q1 < q2;
       if (const Geom_Number cross = dx1 * dy2 - dy1 * dx2; cross != 0)
         return cross > 0;
-      return (dx1 * dx1 + dy1 * dy1) < (dx2 * dx2 + dy2 * dy2);
+      return dx1 * dx1 + dy1 * dy1 < (dx2 * dx2 + dy2 * dy2);
     }
 
     /// Internal half-edge representation for face computation.
@@ -10252,7 +10522,7 @@ namespace Aleph
 
           // circumradius² = ab2 * bc2 * ca2 / (4 * four_area_sq)
           // Compare: ab2 * bc2 * ca2 ≤ alpha_squared * 4 * four_area_sq
-          const bool pass = (ab2 * bc2 * ca2 <= alpha_squared * four_area_sq * 4);
+          const bool pass = ab2 * bc2 * ca2 <= alpha_squared * four_area_sq * 4;
           kept.append(pass);
           if (pass)
             ret.triangles.append(tri);
@@ -10284,10 +10554,10 @@ namespace Aleph
       all_edges.reserve(ret.triangles.size() * 3);
       for (size_t t = 0; t < ret.triangles.size(); ++t)
         {
-          const auto & tri = ret.triangles(t);
-          all_edges.append(make_key(tri.i, tri.j));
-          all_edges.append(make_key(tri.j, tri.k));
-          all_edges.append(make_key(tri.k, tri.i));
+          const auto & [i, j, k] = ret.triangles(t);
+          all_edges.append(make_key(i, j));
+          all_edges.append(make_key(j, k));
+          all_edges.append(make_key(k, i));
         }
 
       quicksort_op(all_edges, [](const EdgeKey & a, const EdgeKey & b)
@@ -10301,8 +10571,7 @@ namespace Aleph
           while (j < all_edges.size() and all_edges(j) == all_edges(i))
             ++j;
           if (j - i == 1) // appears exactly once → boundary
-            ret.boundary_edges.append(
-                                      Segment(ret.sites(all_edges(i).u),
+            ret.boundary_edges.append(Segment(ret.sites(all_edges(i).u),
                                               ret.sites(all_edges(i).v)));
           i = j;
         }
@@ -10535,9 +10804,9 @@ namespace Aleph
           // Collect power centers of triangles incident to this site.
           for (size_t t = 0; t < rt.triangles.size(); ++t)
             {
-              const auto & tri = rt.triangles(t);
-              if (rt_to_ours(tri.i) == s or rt_to_ours(tri.j) == s or
-                  rt_to_ours(tri.k) == s)
+              const auto & [i, j, k] = rt.triangles(t);
+              if (rt_to_ours(i) == s or rt_to_ours(j) == s or
+                  rt_to_ours(k) == s)
                 cell.vertices.append(pcenters(t));
             }
 
@@ -10969,7 +11238,7 @@ namespace Aleph
               const Point & b1 = vb((j + 1) % nb);
               const Segment sb(b0, b1);
 
-              if (! sa.intersects_properly_with(sb))
+              if (not sa.intersects_properly_with(sb))
                 continue;
 
               const Point ip = sa.intersection_with(sb);
@@ -11101,7 +11370,7 @@ namespace Aleph
 
       for (size_t s = 0; s < list_a.size(); ++s)
         {
-          if (! list_a(s).intersect)
+          if (not list_a(s).intersect)
             continue;
           if (list_a(s).visited)
             continue;
@@ -11131,7 +11400,7 @@ namespace Aleph
 
               // Walk forward until the next intersection node.
               idx = (idx + 1) % cur_list.size();
-              while (! cur_list(idx).intersect)
+              while (not cur_list(idx).intersect)
                 {
                   boundary.append(cur_list(idx).pt);
                   idx = (idx + 1) % cur_list.size();
@@ -11469,6 +11738,24 @@ namespace Aleph
       size_t index; ///< user-defined identifier
     };
 
+    struct DebugNode
+    {
+      size_t node_index = ~static_cast<size_t>(0);
+      Rectangle bbox;
+      bool is_leaf = false;
+      size_t entry_index = ~static_cast<size_t>(0); // index in entries_ array
+      size_t user_index = ~static_cast<size_t>(0); // Entry::index
+      size_t left = ~static_cast<size_t>(0); // index into DebugSnapshot::nodes
+      size_t right = ~static_cast<size_t>(0); // index into DebugSnapshot::nodes
+      size_t depth = 0;
+    };
+
+    struct DebugSnapshot
+    {
+      Array<DebugNode> nodes;
+      size_t root = ~static_cast<size_t>(0);
+    };
+
   private:
     struct Node
     {
@@ -11720,6 +12007,40 @@ namespace Aleph
 
     /// Whether the tree is empty.
     [[nodiscard]] bool is_empty() const { return entries_.is_empty(); }
+
+    /// @brief Return the full tree structure for visualization/debug.
+    [[nodiscard]] DebugSnapshot debug_snapshot() const
+    {
+      DebugSnapshot snap;
+      if (root_ == NONE)
+        return snap;
+
+      auto dfs = [&](const auto & self, const size_t ni, const size_t depth) -> size_t
+      {
+        const Node & n = nodes_(ni);
+        const size_t out_idx = snap.nodes.size();
+        snap.nodes.append(DebugNode{});
+        DebugNode & dn = snap.nodes(out_idx);
+        dn.node_index = ni;
+        dn.bbox = n.bbox;
+        dn.is_leaf = n.is_leaf();
+        dn.depth = depth;
+        if (dn.is_leaf)
+          {
+            dn.entry_index = n.entry_idx;
+            dn.user_index = entries_(n.entry_idx).index;
+          }
+        else
+          {
+            dn.left = self(self, n.left, depth + 1);
+            dn.right = self(self, n.right, depth + 1);
+          }
+        return out_idx;
+      };
+
+      snap.root = dfs(dfs, root_, 0);
+      return snap;
+    }
   };
 
   // ============================================================================
@@ -12098,6 +12419,1025 @@ namespace Aleph
         rpoly.add_vertex(result(i));
       rpoly.close();
       return rpoly;
+    }
+  };
+
+  // ============================================================================
+  // Chaikin Corner-Cutting Subdivision (Polygon Smoothing)
+  // ============================================================================
+
+  /**
+   * @brief Chaikin corner-cutting subdivision for polygon smoothing.
+   *
+   * Each iteration replaces every edge (P_i, P_{i+1}) with two new points
+   * at fractions `ratio` and `1 - ratio` along the edge.  After k iterations
+   * the result converges toward a quadratic B-spline curve.
+   *
+   * - Closed polygon with n vertices -> n * 2^k vertices after k iterations.
+   * - Open polyline preserves first and last vertices.
+   *
+   * Complexity: O(n * 2^k) where n = input size, k = iterations.
+   *
+   * @ingroup Geometry
+   */
+  class ChaikinSmoothing
+  {
+    [[nodiscard]] static Array<Point>
+    smooth_open_once(const Array<Point> & pts, const Geom_Number & r)
+    {
+      const size_t n = pts.size();
+      Array<Point> result;
+      result.append(pts(0));
+      for (size_t i = 0; i + 1 < n; ++i)
+        {
+          const auto & p = pts(i);
+          const auto & q = pts(i + 1);
+          Geom_Number one_r = Geom_Number(1) - r;
+          result.append(Point(p.get_x() * one_r + q.get_x() * r,
+                              p.get_y() * one_r + q.get_y() * r));
+          result.append(Point(p.get_x() * r + q.get_x() * one_r,
+                              p.get_y() * r + q.get_y() * one_r));
+        }
+      result.append(pts(n - 1));
+      return result;
+    }
+
+    [[nodiscard]] static Array<Point>
+    smooth_closed_once(const Array<Point> & pts, const Geom_Number & r)
+    {
+      const size_t n = pts.size();
+      Array<Point> result;
+      Geom_Number one_r = Geom_Number(1) - r;
+      for (size_t i = 0; i < n; ++i)
+        {
+          const auto & p = pts(i);
+          const auto & q = pts((i + 1) % n);
+          result.append(Point(p.get_x() * one_r + q.get_x() * r,
+                              p.get_y() * one_r + q.get_y() * r));
+          result.append(Point(p.get_x() * r + q.get_x() * one_r,
+                              p.get_y() * r + q.get_y() * one_r));
+        }
+      return result;
+    }
+
+  public:
+    /**
+     * @brief Smooth an open polyline.
+     *
+     * First and last vertices are preserved.
+     *
+     * @param polyline   Ordered sequence of vertices.
+     * @param iterations Number of subdivision iterations (>= 1).
+     * @param ratio      Cutting fraction in (0, 0.5). Default 1/4.
+     * @return Smoothed vertex array.
+     */
+    [[nodiscard]] Array<Point>
+    operator()(const Array<Point> & polyline, size_t iterations,
+               const Geom_Number & ratio = Geom_Number(1, 4)) const
+    {
+      ah_domain_error_if(iterations == 0) << "iterations must be >= 1";
+      ah_domain_error_if(ratio <= Geom_Number(0) or
+                         ratio >= Geom_Number(1, 2)) << "ratio must be in (0, 0.5)";
+
+      Array<Point> cur = polyline;
+      for (size_t k = 0; k < iterations; ++k)
+        cur = smooth_open_once(cur, ratio);
+      return cur;
+    }
+
+    /// @brief Overload accepting DynList.
+    [[nodiscard]] Array<Point>
+    operator()(const DynList<Point> & polyline, size_t iterations,
+               const Geom_Number & ratio = Geom_Number(1, 4)) const
+    {
+      Array<Point> arr;
+      for (typename DynList<Point>::Iterator it(polyline);
+           it.has_curr(); it.next_ne())
+        arr.append(it.get_curr());
+      return (*this)(arr, iterations, ratio);
+    }
+
+    /**
+     * @brief Smooth a closed polygon.
+     *
+     * All vertices participate in corner cutting (cyclic).
+     *
+     * @param poly       The closed polygon.
+     * @param iterations Number of subdivision iterations (>= 1).
+     * @param ratio      Cutting fraction in (0, 0.5). Default 1/4.
+     * @return A new smoothed polygon.
+     */
+    [[nodiscard]] static Polygon
+    smooth_polygon(const Polygon & poly, size_t iterations,
+                   const Geom_Number & ratio = Geom_Number(1, 4))
+    {
+      ah_domain_error_if(iterations == 0) << "iterations must be >= 1";
+      ah_domain_error_if(ratio <= Geom_Number(0) or
+                         ratio >= Geom_Number(1, 2)) << "ratio must be in (0, 0.5)";
+
+      Array<Point> cur = GeomPolygonUtils::extract_vertices(poly);
+      for (size_t k = 0; k < iterations; ++k)
+        cur = smooth_closed_once(cur, ratio);
+
+      Polygon rpoly;
+      for (size_t i = 0; i < cur.size(); ++i)
+        rpoly.add_vertex(cur(i));
+      rpoly.close();
+      return rpoly;
+    }
+  };
+
+  // ============================================================================
+  // Trapezoidal Map Point Location
+  // ============================================================================
+
+  /**
+   * @brief O(log n) point location via trapezoidal map with DAG search.
+   *
+   * Given a set of non-crossing line segments (or polygon edges), builds a
+   * trapezoidal decomposition of the plane using randomized incremental
+   * construction (Seidel 1991 / de Berg et al.).
+   *
+   * - **Construction**: O(n log n) expected time.
+   * - **Query**: O(log n) expected time per point.
+   *
+   * The result structure stores the trapezoidal map and a directed acyclic
+   * graph (DAG) used for point location queries.
+   *
+   * ## Usage
+   *
+   * ```cpp
+   * // Build from segments
+   * Array<Segment> segs;
+   * segs.append(Segment(Point(0,0), Point(4,2)));
+   * segs.append(Segment(Point(1,3), Point(5,1)));
+   * TrapezoidalMapPointLocation tm;
+   * auto result = tm(segs);
+   *
+   * // Query a point
+   * auto loc = result.locate(Point(2, 1));
+   * if (loc.type == TrapezoidalMapPointLocation::LocationType::TRAPEZOID)
+   *   std::cout << "In trapezoid " << loc.trapezoid_index << "\n";
+   *
+   * // Build from a polygon
+   * Polygon poly;
+   * poly.add_vertex(Point(0,0));
+   * poly.add_vertex(Point(4,0));
+   * poly.add_vertex(Point(4,4));
+   * poly.add_vertex(Point(0,4));
+   * poly.close();
+   * auto result2 = tm(poly);
+   * bool inside = result2.contains(Point(2, 2)); // true
+   * ```
+   *
+   * @ingroup Geometry
+   */
+  class TrapezoidalMapPointLocation
+  {
+  public:
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
+
+    /// A trapezoid bounded by two segments (top/bottom) and two points
+    /// (left/right vertical walls).
+    struct Trapezoid
+    {
+      size_t top; ///< index into segments array (upper bound)
+      size_t bottom; ///< index into segments array (lower bound)
+      size_t leftp; ///< index into points array (left endpoint)
+      size_t rightp; ///< index into points array (right endpoint)
+      size_t upper_left; ///< neighbor trapezoid index
+      size_t lower_left; ///< neighbor trapezoid index
+      size_t upper_right; ///< neighbor trapezoid index
+      size_t lower_right; ///< neighbor trapezoid index
+      size_t dag_leaf; ///< back-pointer to DAG leaf node
+      bool active; ///< false if replaced during construction
+    };
+
+    /// DAG node types.
+    enum class NodeType { X_NODE, Y_NODE, LEAF };
+
+    /// A node in the search DAG.
+    struct DagNode
+    {
+      NodeType type;
+      size_t index; ///< point / segment / trapezoid index
+      size_t left; ///< left child (below for Y, left for X)
+      size_t right; ///< right child (above for Y, right for X)
+    };
+
+    /// Classification of a query result.
+    enum class LocationType { TRAPEZOID, ON_SEGMENT, ON_POINT };
+
+    /// Result of a point location query.
+    struct LocationResult
+    {
+      LocationType type;
+      size_t trapezoid_index;
+      size_t segment_index; ///< valid when ON_SEGMENT
+      size_t point_index; ///< valid when ON_POINT
+    };
+
+    /// The trapezoidal map and DAG search structure.
+    struct Result
+    {
+      Array<Point> points;
+      Array<Segment> segments;
+      Array<Trapezoid> trapezoids;
+      Array<DagNode> dag;
+      size_t dag_root;
+      size_t num_input_segments;
+      size_t num_input_points;
+
+      /**
+       * @brief Locate a point in the trapezoidal map.
+       *
+       * Walks the DAG from the root.
+       *  - At X-nodes: compare query point with stored point.
+       *  - At Y-nodes: test above/below the stored segment.
+       *  - At leaves: return the trapezoid.
+       *
+       * @param p The query point.
+       * @return LocationResult with type and indices.
+       */
+      [[nodiscard]] LocationResult locate(const Point & p) const
+      {
+        size_t ni = dag_root;
+        while (true)
+          {
+            const auto & [type, index, left, right] = dag(ni);
+            if (type == NodeType::LEAF)
+              return {LocationType::TRAPEZOID, index, NONE, NONE};
+
+            if (type == NodeType::X_NODE)
+              {
+                const Point & xp = points(index);
+                if (p == xp)
+                  return {LocationType::ON_POINT, NONE, NONE, index};
+                ni = p < xp ? left : right;
+              }
+            else // Y_NODE
+              {
+                const Segment & seg = segments(index);
+                const Geom_Number cross =
+                    area_of_parallelogram(seg.get_src_point(),
+                                          seg.get_tgt_point(), p);
+                if (cross == 0)
+                  {
+                    // point is on the segment line — check if between endpoints
+                    if (seg.contains(p))
+                      return {
+                            LocationType::ON_SEGMENT, NONE, index,
+                            NONE
+                          };
+                    // collinear but outside the segment extent — go above
+                    ni = left;
+                  }
+                else if (cross > 0)
+                  ni = left; // above (left of directed segment)
+                else
+                  ni = right; // below
+              }
+          }
+      }
+
+      /**
+       * @brief Check if point is inside any input polygon.
+       *
+       * Uses vertical ray casting over the input segments.  This only works
+       * when the map was built from closed polygons (via the polygon
+       * overloads).
+       *
+       * @param p The query point.
+       * @return true if @p p is inside or on the boundary of an input polygon.
+       */
+      [[nodiscard]] bool contains(const Point & p) const
+      {
+        // Check exact boundary / vertex hits first.
+        for (size_t i = 0; i < num_input_points; ++i)
+          if (p == points(i)) return true;
+        for (size_t i = 0; i < num_input_segments; ++i)
+          if (segments(i).contains(p)) return true;
+
+        // Vertical ray cast downward: count input segments strictly below p
+        // whose x-range covers p.x (half-open [src.x, tgt.x)).
+        // Segments are stored left-to-right (src < tgt), so src.x <= tgt.x.
+        // Vertical segments have empty half-open interval and are skipped.
+        size_t crossings = 0;
+        for (size_t i = 0; i < num_input_segments; ++i)
+          {
+            const Segment & seg = segments(i);
+            const Point & a = seg.get_src_point();
+            const Point & b = seg.get_tgt_point();
+            if (p.get_x() < a.get_x() or p.get_x() >= b.get_x())
+              continue;
+            // y of segment at p.x (b.x != a.x guaranteed by half-open check)
+            const Geom_Number seg_y = a.get_y() +
+                                      (b.get_y() - a.get_y()) * (p.get_x() - a.get_x()) /
+                                      (b.get_x() - a.get_x());
+            if (seg_y < p.get_y())
+              ++crossings;
+          }
+        return crossings % 2 == 1;
+      }
+    };
+
+  private:
+    /// Test if point p is above segment seg (left of the directed segment).
+    [[nodiscard]] static bool point_above_segment(
+        const Point & p, const Segment & seg)
+    {
+      return area_of_parallelogram(seg.get_src_point(),
+                                   seg.get_tgt_point(), p) > 0;
+    }
+
+    /// Locate the DAG leaf (trapezoid) containing point p.
+    [[nodiscard]] static size_t dag_locate(
+        const Array<Point> & pts, const Array<Segment> & segs,
+        const Array<DagNode> & dag, const Point & p, size_t root)
+    {
+      size_t ni = root;
+      while (true)
+        {
+          const auto & [type, index, left, right] = dag(ni);
+          if (type == NodeType::LEAF)
+            return index;
+
+          if (type == NodeType::X_NODE)
+            {
+              if (const Point & xp = pts(index); p == xp)
+                ni = right; // tie-break: go right
+              else
+                ni = p < xp ? left : right;
+            }
+          else // Y_NODE
+            {
+              const Geom_Number cross =
+                  area_of_parallelogram(segs(index).get_src_point(),
+                                        segs(index).get_tgt_point(), p);
+              if (cross > 0)
+                ni = left; // above
+              else if (cross < 0)
+                ni = right; // below
+              else
+                ni = left; // on segment line → go above
+            }
+        }
+    }
+
+    /// Create a new trapezoid and a DAG leaf for it.
+    static size_t make_trapezoid(Array<Trapezoid> & traps, Array<DagNode> & dag,
+                                 const size_t top, const size_t bottom,
+                                 const size_t leftp, const size_t rightp)
+    {
+      const size_t ti = traps.size();
+      const size_t di = dag.size();
+      traps.append(Trapezoid{
+                     top, bottom, leftp, rightp,
+                     NONE, NONE, NONE, NONE, di, true
+                   });
+      dag.append(DagNode{NodeType::LEAF, ti, NONE, NONE});
+      return ti;
+    }
+
+    /// Replace a DAG leaf with an internal node (X or Y).
+    static void replace_leaf(Array<DagNode> & dag, const size_t leaf_idx,
+                             const NodeType type, const size_t index,
+                             const size_t left, const size_t right)
+    {
+      dag(leaf_idx).type = type;
+      dag(leaf_idx).index = index;
+      dag(leaf_idx).left = left;
+      dag(leaf_idx).right = right;
+    }
+
+    /// Update all neighbor pointers that referenced old_ti to point to new_ti.
+    static void update_neighbor(Array<Trapezoid> & traps,
+                                const size_t neighbor_idx, const size_t old_ti,
+                                const size_t new_ti)
+    {
+      if (neighbor_idx == NONE) return;
+      Trapezoid & nb = traps(neighbor_idx);
+      if (nb.upper_left == old_ti) nb.upper_left = new_ti;
+      if (nb.lower_left == old_ti) nb.lower_left = new_ti;
+      if (nb.upper_right == old_ti) nb.upper_right = new_ti;
+      if (nb.lower_right == old_ti) nb.lower_right = new_ti;
+    }
+
+    /// Find all trapezoids crossed by segment seg_idx, starting from
+    /// the trapezoid containing the left endpoint.
+    [[nodiscard]] static Array<size_t>
+    find_crossed_trapezoids(const Array<Point> & pts, const Array<Segment> & segs,
+                            const Array<Trapezoid> & traps,
+                            const size_t seg_idx, const size_t start_trap)
+    {
+      Array<size_t> crossed;
+      crossed.append(start_trap);
+
+      const Segment & seg = segs(seg_idx);
+      const Point & rp = seg.get_tgt_point();
+
+      size_t ti = start_trap;
+      while (true)
+        {
+          const Trapezoid & t = traps(ti);
+          const Point & rightp = pts(t.rightp);
+          // If the right boundary of this trapezoid is at or past the
+          // segment's right endpoint, we're done.
+          if (rp < rightp or rp == rightp)
+            break;
+
+          // Go right: the segment exits through the right wall of t.
+          // If the right endpoint of the segment is above the segment
+          // at the right boundary x, go to upper_right; else lower_right.
+          if (t.upper_right != NONE and t.lower_right != NONE)
+            {
+              // Test which neighbor the segment enters.
+              if (point_above_segment(rightp, seg))
+                ti = t.lower_right;
+              else
+                ti = t.upper_right;
+            }
+          else if (t.upper_right != NONE)
+            ti = t.upper_right;
+          else if (t.lower_right != NONE)
+            ti = t.lower_right;
+          else
+            break; // no right neighbor
+
+          crossed.append(ti);
+        }
+      return crossed;
+    }
+
+    /// Handle the case where a segment is fully contained in one trapezoid.
+    static void split_single_trapezoid(Array<Point> & pts, Array<Segment> & segs,
+                                       Array<Trapezoid> & traps, Array<DagNode> & dag,
+                                       const size_t seg_idx, const size_t trap_idx)
+    {
+      const Trapezoid old_t = traps(trap_idx);
+      const Segment & seg = segs(seg_idx);
+      const Point & lp = seg.get_src_point();
+      const Point & rp = seg.get_tgt_point();
+
+      // Find point indices.
+      size_t lp_idx = NONE, rp_idx = NONE;
+      for (size_t i = 0; i < pts.size(); ++i)
+        {
+          if (pts(i) == lp) lp_idx = i;
+          if (pts(i) == rp) rp_idx = i;
+        }
+
+      const bool shared_left = (old_t.leftp == lp_idx);
+      const bool shared_right = (old_t.rightp == rp_idx);
+
+      // Deactivate old trapezoid.
+      traps(trap_idx).active = false;
+
+      // Create new trapezoids:
+      // A = left of lp (if not shared)
+      // B = above segment (between lp and rp)
+      // C = below segment (between lp and rp)
+      // D = right of rp (if not shared)
+
+      const size_t dag_old = old_t.dag_leaf;
+
+      size_t a_idx = NONE, d_idx = NONE;
+
+      if (not shared_left)
+        a_idx = make_trapezoid(traps, dag, old_t.top, old_t.bottom,
+                               old_t.leftp, lp_idx);
+      const size_t b_idx = make_trapezoid(traps, dag, old_t.top, seg_idx,
+                                          lp_idx, rp_idx);
+      const size_t c_idx = make_trapezoid(traps, dag, seg_idx, old_t.bottom,
+                                          lp_idx, rp_idx);
+      if (not shared_right)
+        d_idx = make_trapezoid(traps, dag, old_t.top, old_t.bottom,
+                               rp_idx, old_t.rightp);
+
+      // Set neighbor pointers.
+      // A neighbors:
+      if (a_idx != NONE)
+        {
+          traps(a_idx).upper_left = old_t.upper_left;
+          traps(a_idx).lower_left = old_t.lower_left;
+          traps(a_idx).upper_right = b_idx;
+          traps(a_idx).lower_right = c_idx;
+          update_neighbor(traps, old_t.upper_left, trap_idx, a_idx);
+          update_neighbor(traps, old_t.lower_left, trap_idx, a_idx);
+        }
+
+      // B neighbors:
+      traps(b_idx).upper_left = shared_left ? old_t.upper_left : a_idx;
+      traps(b_idx).lower_left = shared_left ? old_t.lower_left : a_idx;
+      traps(b_idx).upper_right = shared_right ? old_t.upper_right : d_idx;
+      traps(b_idx).lower_right = shared_right ? old_t.lower_right : d_idx;
+
+      // C neighbors:
+      traps(c_idx).upper_left = shared_left ? old_t.upper_left : a_idx;
+      traps(c_idx).lower_left = shared_left ? old_t.lower_left : a_idx;
+      traps(c_idx).upper_right = shared_right ? old_t.upper_right : d_idx;
+      traps(c_idx).lower_right = shared_right ? old_t.lower_right : d_idx;
+
+      if (shared_left)
+        {
+          update_neighbor(traps, old_t.upper_left, trap_idx, b_idx);
+          update_neighbor(traps, old_t.lower_left, trap_idx, c_idx);
+        }
+
+      // D neighbors:
+      if (d_idx != NONE)
+        {
+          traps(d_idx).upper_left = b_idx;
+          traps(d_idx).lower_left = c_idx;
+          traps(d_idx).upper_right = old_t.upper_right;
+          traps(d_idx).lower_right = old_t.lower_right;
+          update_neighbor(traps, old_t.upper_right, trap_idx, d_idx);
+          update_neighbor(traps, old_t.lower_right, trap_idx, d_idx);
+        }
+
+      if (shared_right)
+        {
+          update_neighbor(traps, old_t.upper_right, trap_idx, b_idx);
+          update_neighbor(traps, old_t.lower_right, trap_idx, c_idx);
+        }
+
+      // Build DAG sub-tree rooted at dag_old.
+      // Structure depends on shared_left / shared_right.
+      if (not shared_left and not shared_right)
+        {
+          // X(lp) -> left=A, right=X(rp) -> left=Y(seg)->above=B,below=C, right=D
+          const size_t y_node = dag.size();
+          dag.append(DagNode{
+                       NodeType::Y_NODE, seg_idx,
+                       traps(b_idx).dag_leaf, traps(c_idx).dag_leaf
+                     });
+          const size_t x_rp = dag.size();
+          dag.append(DagNode{
+                       NodeType::X_NODE, rp_idx,
+                       y_node, traps(d_idx).dag_leaf
+                     });
+          replace_leaf(dag, dag_old, NodeType::X_NODE, lp_idx,
+                       traps(a_idx).dag_leaf, x_rp);
+        }
+      else if (shared_left and not shared_right)
+        {
+          // Y(seg) -> above=B, below=C  wrapped in X(rp)->left=Y, right=D
+          const size_t y_node = dag.size();
+          dag.append(DagNode{
+                       NodeType::Y_NODE, seg_idx,
+                       traps(b_idx).dag_leaf, traps(c_idx).dag_leaf
+                     });
+          replace_leaf(dag, dag_old, NodeType::X_NODE, rp_idx,
+                       y_node, traps(d_idx).dag_leaf);
+        }
+      else if (not shared_left and shared_right)
+        {
+          // X(lp) -> left=A, right=Y(seg)->above=B, below=C
+          const size_t y_node = dag.size();
+          dag.append(DagNode{
+                       NodeType::Y_NODE, seg_idx,
+                       traps(b_idx).dag_leaf, traps(c_idx).dag_leaf
+                     });
+          replace_leaf(dag, dag_old, NodeType::X_NODE, lp_idx,
+                       traps(a_idx).dag_leaf, y_node);
+        }
+      else // both shared
+        {
+          // Just Y(seg) -> above=B, below=C
+          replace_leaf(dag, dag_old, NodeType::Y_NODE, seg_idx,
+                       traps(b_idx).dag_leaf, traps(c_idx).dag_leaf);
+        }
+    }
+
+    /// Handle the case where a segment crosses multiple trapezoids.
+    static void split_multiple_trapezoids(Array<Point> & pts, Array<Segment> & segs,
+                                          Array<Trapezoid> & traps, Array<DagNode> & dag,
+                                          const size_t seg_idx,
+                                          const Array<size_t> & crossed)
+    {
+      const Segment & seg = segs(seg_idx);
+      const Point & lp = seg.get_src_point();
+      const Point & rp = seg.get_tgt_point();
+
+      size_t lp_idx = NONE, rp_idx = NONE;
+      for (size_t i = 0; i < pts.size(); ++i)
+        {
+          if (pts(i) == lp) lp_idx = i;
+          if (pts(i) == rp) rp_idx = i;
+        }
+
+      const size_t nc = crossed.size();
+
+      // For each crossed trapezoid, create above/below sub-trapezoids.
+      // Adjacent above (or below) trapezoids that share the same top (or
+      // bottom) segment are merged.
+      Array<size_t> above_traps; // one per crossed, but may be merged
+      Array<size_t> below_traps;
+      above_traps.reserve(nc);
+      below_traps.reserve(nc);
+
+      size_t prev_above = NONE, prev_below = NONE;
+      size_t left_trap = NONE; // left-of-lp trapezoid
+
+      for (size_t ci = 0; ci < nc; ++ci)
+        {
+          const size_t ti = crossed(ci);
+          const Trapezoid old_t = traps(ti);
+          traps(ti).active = false;
+
+          const bool is_first = (ci == 0);
+          const bool is_last = (ci == nc - 1);
+          const bool shared_left = is_first and (old_t.leftp == lp_idx);
+          const bool shared_right = is_last and (old_t.rightp == rp_idx);
+
+          // Determine the left/right x-boundaries for the new sub-trapezoids.
+          const size_t new_leftp = is_first ? lp_idx : old_t.leftp;
+          const size_t new_rightp = is_last ? rp_idx : old_t.rightp;
+
+          // Above trapezoid.
+          bool merged_above = false;
+          if (prev_above != NONE and traps(prev_above).top == old_t.top)
+            {
+              // Merge: extend prev_above to the right.
+              traps(prev_above).rightp = new_rightp;
+              above_traps.append(prev_above);
+              merged_above = true;
+            }
+          else
+            {
+              const size_t ai = make_trapezoid(traps, dag, old_t.top, seg_idx,
+                                               new_leftp, new_rightp);
+              above_traps.append(ai);
+              prev_above = ai;
+            }
+
+          // Below trapezoid.
+          bool merged_below = false;
+          if (prev_below != NONE and traps(prev_below).bottom == old_t.bottom)
+            {
+              traps(prev_below).rightp = new_rightp;
+              below_traps.append(prev_below);
+              merged_below = true;
+            }
+          else
+            {
+              const size_t bi = make_trapezoid(traps, dag, seg_idx, old_t.bottom,
+                                               new_leftp, new_rightp);
+              below_traps.append(bi);
+              prev_below = bi;
+            }
+
+          const size_t cur_above = above_traps(ci);
+          const size_t cur_below = below_traps(ci);
+
+          // Handle left trapezoid (only for first crossed trapezoid).
+          if (is_first and not shared_left)
+            {
+              left_trap = make_trapezoid(traps, dag, old_t.top, old_t.bottom,
+                                         old_t.leftp, lp_idx);
+              traps(left_trap).upper_left = old_t.upper_left;
+              traps(left_trap).lower_left = old_t.lower_left;
+              traps(left_trap).upper_right = cur_above;
+              traps(left_trap).lower_right = cur_below;
+              update_neighbor(traps, old_t.upper_left, ti, left_trap);
+              update_neighbor(traps, old_t.lower_left, ti, left_trap);
+            }
+
+          // Set left neighbors for above/below.
+          if (is_first)
+            {
+              if (not merged_above)
+                {
+                  if (shared_left)
+                    {
+                      traps(cur_above).upper_left = old_t.upper_left;
+                      traps(cur_above).lower_left = old_t.lower_left;
+                      update_neighbor(traps, old_t.upper_left, ti, cur_above);
+                    }
+                  else
+                    {
+                      traps(cur_above).upper_left = left_trap;
+                      traps(cur_above).lower_left = left_trap;
+                    }
+                }
+              if (not merged_below)
+                {
+                  if (shared_left)
+                    {
+                      traps(cur_below).upper_left = old_t.upper_left;
+                      traps(cur_below).lower_left = old_t.lower_left;
+                      update_neighbor(traps, old_t.lower_left, ti, cur_below);
+                    }
+                  else
+                    {
+                      traps(cur_below).upper_left = left_trap;
+                      traps(cur_below).lower_left = left_trap;
+                    }
+                }
+            }
+          else
+            {
+              // Interior crossed trapezoid.
+              if (not merged_above)
+                {
+                  // Left neighbor of new above is the previous above.
+                  traps(cur_above).upper_left = above_traps(ci - 1);
+                  traps(cur_above).lower_left = above_traps(ci - 1);
+                  // Also set the previous above's right neighbors.
+                  if (above_traps(ci - 1) != cur_above)
+                    {
+                      traps(above_traps(ci - 1)).upper_right = cur_above;
+                      traps(above_traps(ci - 1)).lower_right = cur_above;
+                    }
+                }
+              if (not merged_below)
+                {
+                  traps(cur_below).upper_left = below_traps(ci - 1);
+                  traps(cur_below).lower_left = below_traps(ci - 1);
+                  if (below_traps(ci - 1) != cur_below)
+                    {
+                      traps(below_traps(ci - 1)).upper_right = cur_below;
+                      traps(below_traps(ci - 1)).lower_right = cur_below;
+                    }
+                }
+
+              // Connect left neighbors from old trapezoid.
+              if (not merged_above)
+                if (old_t.upper_left != NONE and old_t.upper_left != crossed(ci - 1))
+                  {
+                    traps(cur_above).upper_left = old_t.upper_left;
+                    update_neighbor(traps, old_t.upper_left, ti, cur_above);
+                  }
+              if (not merged_below)
+                if (old_t.lower_left != NONE and old_t.lower_left != crossed(ci - 1))
+                  {
+                    traps(cur_below).lower_left = old_t.lower_left;
+                    update_neighbor(traps, old_t.lower_left, ti, cur_below);
+                  }
+            }
+
+          // Handle right trapezoid (only for last crossed trapezoid).
+          if (is_last)
+            {
+              if (not shared_right)
+                {
+                  const size_t right_trap = make_trapezoid(traps, dag, old_t.top, old_t.bottom,
+                                                           rp_idx, old_t.rightp);
+                  traps(right_trap).upper_left = cur_above;
+                  traps(right_trap).lower_left = cur_below;
+                  traps(right_trap).upper_right = old_t.upper_right;
+                  traps(right_trap).lower_right = old_t.lower_right;
+                  update_neighbor(traps, old_t.upper_right, ti, right_trap);
+                  update_neighbor(traps, old_t.lower_right, ti, right_trap);
+                  traps(cur_above).upper_right = right_trap;
+                  traps(cur_above).lower_right = right_trap;
+                  traps(cur_below).upper_right = right_trap;
+                  traps(cur_below).lower_right = right_trap;
+
+                  // Build DAG for this trapezoid.
+                  const size_t y_node = dag.size();
+                  dag.append(DagNode{
+                               NodeType::Y_NODE, seg_idx,
+                               traps(cur_above).dag_leaf,
+                               traps(cur_below).dag_leaf
+                             });
+                  const size_t dag_old = old_t.dag_leaf;
+                  replace_leaf(dag, dag_old, NodeType::X_NODE, rp_idx,
+                               y_node, traps(right_trap).dag_leaf);
+                }
+              else
+                {
+                  traps(cur_above).upper_right = old_t.upper_right;
+                  traps(cur_above).lower_right = old_t.lower_right;
+                  traps(cur_below).upper_right = old_t.upper_right;
+                  traps(cur_below).lower_right = old_t.lower_right;
+                  update_neighbor(traps, old_t.upper_right, ti, cur_above);
+                  update_neighbor(traps, old_t.lower_right, ti, cur_below);
+
+                  // Build DAG for this trapezoid.
+                  const size_t dag_old = old_t.dag_leaf;
+                  replace_leaf(dag, dag_old, NodeType::Y_NODE, seg_idx,
+                               traps(cur_above).dag_leaf,
+                               traps(cur_below).dag_leaf);
+                }
+            }
+          else if (is_first)
+            {
+              // First but not last — build DAG with X-node for left endpoint.
+              const size_t dag_old = old_t.dag_leaf;
+              const size_t y_node = dag.size();
+              dag.append(DagNode{
+                           NodeType::Y_NODE, seg_idx,
+                           traps(cur_above).dag_leaf,
+                           traps(cur_below).dag_leaf
+                         });
+              if (shared_left)
+                replace_leaf(dag, dag_old, NodeType::Y_NODE, seg_idx,
+                             traps(cur_above).dag_leaf,
+                             traps(cur_below).dag_leaf);
+              else
+                replace_leaf(dag, dag_old, NodeType::X_NODE, lp_idx,
+                             traps(left_trap).dag_leaf, y_node);
+            }
+          else
+            {
+              // Middle trapezoid — just a Y-node.
+              const size_t dag_old = old_t.dag_leaf;
+              replace_leaf(dag, dag_old, NodeType::Y_NODE, seg_idx,
+                           traps(cur_above).dag_leaf,
+                           traps(cur_below).dag_leaf);
+            }
+        }
+    }
+
+  public:
+    /**
+     * @brief Build a trapezoidal map from a set of non-crossing segments.
+     *
+     * @param input_segments Array of line segments (must not cross each other
+     *        except at endpoints).
+     * @return Result containing the trapezoidal map and DAG.
+     * @throws domain_error if any segment is degenerate (src == tgt).
+     */
+    [[nodiscard]] Result
+    operator()(const Array<Segment> & input_segments) const
+    {
+      Result ret;
+      const size_t n = input_segments.size();
+      ret.num_input_segments = n;
+
+      // Collect unique points from segments.
+      // Orient all segments left-to-right (src < tgt lexicographically).
+      ret.segments.reserve(n + 2);
+      for (size_t i = 0; i < n; ++i)
+        {
+          const Point & s = input_segments(i).get_src_point();
+          const Point & t = input_segments(i).get_tgt_point();
+          ah_domain_error_if(s == t) << "Degenerate segment (src == tgt) at index " << i;
+          if (s < t)
+            ret.segments.append(Segment(s, t));
+          else
+            ret.segments.append(Segment(t, s));
+        }
+
+      // Collect and deduplicate points.
+      {
+        Array<Point> all_pts;
+        all_pts.reserve(2 * n);
+        for (size_t i = 0; i < n; ++i)
+          {
+            all_pts.append(ret.segments(i).get_src_point());
+            all_pts.append(ret.segments(i).get_tgt_point());
+          }
+        // Sort lexicographically.
+        in_place_sort(all_pts);
+        // Deduplicate.
+        for (size_t i = 0; i < all_pts.size(); ++i)
+          {
+            if (ret.points.is_empty() or
+                not (ret.points(ret.points.size() - 1) == all_pts(i)))
+              ret.points.append(all_pts(i));
+          }
+      }
+
+      ret.num_input_points = ret.points.size();
+
+      // Compute bounding box with margin.
+      if (ret.points.is_empty())
+        {
+          // No input segments: create a trivial bounding box.
+          ret.points.append(Point(-1, -1));
+          ret.points.append(Point(1, -1));
+          ret.points.append(Point(1, 1));
+          ret.points.append(Point(-1, 1));
+        }
+
+      Geom_Number mnx = ret.points(0).get_x();
+      Geom_Number mxx = mnx;
+      Geom_Number mny = ret.points(0).get_y();
+      Geom_Number mxy = mny;
+      for (size_t i = 1; i < ret.points.size(); ++i)
+        {
+          if (ret.points(i).get_x() < mnx) mnx = ret.points(i).get_x();
+          if (ret.points(i).get_x() > mxx) mxx = ret.points(i).get_x();
+          if (ret.points(i).get_y() < mny) mny = ret.points(i).get_y();
+          if (ret.points(i).get_y() > mxy) mxy = ret.points(i).get_y();
+        }
+
+      Geom_Number margin = (mxx - mnx > mxy - mny) ? mxx - mnx : mxy - mny;
+      if (margin == 0) margin = 1;
+      margin = margin + 1;
+
+      // Bounding box corner points.
+      const Point bl(mnx - margin, mny - margin);
+      const Point br(mxx + margin, mny - margin);
+      const Point tl(mnx - margin, mxy + margin);
+      const Point tr(mxx + margin, mxy + margin);
+
+      const size_t bl_idx = ret.points.size();
+      ret.points.append(bl);
+      ret.points.append(br);
+      ret.points.append(tl);
+      const size_t tr_idx = ret.points.size();
+      ret.points.append(tr);
+
+      // Bounding box segments: top (tl→tr) and bottom (bl→br).
+      const size_t top_seg = ret.segments.size();
+      ret.segments.append(Segment(tl, tr));
+      const size_t bot_seg = ret.segments.size();
+      ret.segments.append(Segment(bl, br));
+
+      // Initialize: one trapezoid spanning the bounding box.
+      ret.dag_root = 0;
+      const size_t t0 = make_trapezoid(ret.trapezoids, ret.dag,
+                                       top_seg, bot_seg, bl_idx, tr_idx);
+      (void) t0;
+
+      // Randomized insertion order.
+      if (n == 0) return ret;
+
+      Array<size_t> order;
+      order.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        order.append(i);
+
+      // Fisher-Yates shuffle.
+      {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        for (size_t i = n - 1; i > 0; --i)
+          {
+            std::uniform_int_distribution<size_t> dis(0, i);
+            const size_t j = dis(gen);
+            const size_t tmp = order(i);
+            order(i) = order(j);
+            order(j) = tmp;
+          }
+      }
+
+      // Insert segments one by one.
+      for (size_t oi = 0; oi < n; ++oi)
+        {
+          const size_t si = order(oi);
+          const Segment & seg = ret.segments(si);
+
+          // Locate the trapezoid containing the left endpoint.
+          const size_t start = dag_locate(ret.points, ret.segments,
+                                          ret.dag, seg.get_src_point(),
+                                          ret.dag_root);
+
+          // Find all trapezoids crossed by this segment.
+          Array<size_t> crossed = find_crossed_trapezoids(
+                                                          ret.points, ret.segments, ret.trapezoids, si, start);
+
+          if (crossed.size() == 1)
+            split_single_trapezoid(ret.points, ret.segments,
+                                   ret.trapezoids, ret.dag,
+                                   si, crossed(0));
+          else
+            split_multiple_trapezoids(ret.points, ret.segments,
+                                      ret.trapezoids, ret.dag,
+                                      si, crossed);
+        }
+
+      return ret;
+    }
+
+    /**
+     * @brief Build a trapezoidal map from a closed polygon's edges.
+     *
+     * @param polygon A closed simple polygon.
+     * @return Result containing the trapezoidal map and DAG.
+     */
+    [[nodiscard]] Result operator()(const Polygon & polygon) const
+    {
+      ah_domain_error_if(!polygon.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(polygon.size() < 3) << "Polygon must have at least 3 vertices";
+
+      Array<Segment> segs;
+      for (Polygon::Segment_Iterator it(polygon); it.has_curr(); it.next_ne())
+        segs.append(it.get_current_segment());
+      return (*this)(segs);
+    }
+
+    /**
+     * @brief Build a trapezoidal map from multiple closed polygons.
+     *
+     * @param polygons Array of closed simple polygons (must not overlap).
+     * @return Result containing the trapezoidal map and DAG.
+     */
+    [[nodiscard]] Result operator()(const Array<Polygon> & polygons) const
+    {
+      Array<Segment> segs;
+      for (size_t i = 0; i < polygons.size(); ++i)
+        {
+          const Polygon & poly = polygons(i);
+          ah_domain_error_if(!poly.is_closed()) << "Polygon " << i << " must be closed";
+          ah_domain_error_if(poly.size() < 3) << "Polygon " << i << " must have at least 3 vertices";
+          for (Polygon::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
+            segs.append(it.get_current_segment());
+        }
+      return (*this)(segs);
     }
   };
 

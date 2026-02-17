@@ -351,6 +351,7 @@ foreach(test_program ${TEST_PROGRAMS})
                 geom_algorithms_test_mec.cc
                 geom_algorithms_test_simplification.cc
                 geom_algorithms_test_offset.cc
+                geom_algorithms_test_trapezoidal_map.cc
             )
         else()
             add_executable(${test_exe} ${test_program}.cc)

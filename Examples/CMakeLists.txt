@@ -113,6 +113,7 @@ set(EXAMPLE_PROGRAMS
     mo_algorithm_example
     mo_on_trees_example
     robust_predicates_example
+    segment_segment_intersection_example
     voronoi_clipped_cells_example
     delaunay_voronoi_example
     constrained_delaunay_example
@@ -130,6 +131,10 @@ set(EXAMPLE_PROGRAMS
     tikz_scene_example
     tikz_scene_beamer_example
     tikz_scene_overlays_example
+    tikz_missing_primitives_example
+    tikz_visibility_calipers_example
+    tikz_render_features_example
+    tikz_tree_structures_example
     halfplane_intersection_example
     convex_hull_comparison_example
     closest_pair_example
@@ -138,6 +143,8 @@ set(EXAMPLE_PROGRAMS
     minimum_enclosing_circle_example
     polygon_simplification_example
     polygon_offset_example
+    chaikin_smoothing_example
+    trapezoidal_map_example
 )
 
 # Function to get source file from program name

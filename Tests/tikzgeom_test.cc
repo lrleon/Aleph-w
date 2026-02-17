@@ -204,3 +204,92 @@ TEST(TikzPlaneTest, SupportsBezierHelpers)
   EXPECT_NE(result.find("\\draw"), std::string::npos);
   EXPECT_FALSE(has_nan_or_inf(result));
 }
+
+TEST(TikzPlaneTest, SupportsNativeBezierRendering)
+{
+  Tikz_Plane plane(120, 80);
+  put_quadratic_bezier_native_in_plane(
+      plane, Point(0, 0), Point(20, 40), Point(40, 0));
+  put_cubic_bezier_native_in_plane(
+      plane, Point(40, 0), Point(60, 40), Point(80, -20), Point(100, 10));
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+
+  EXPECT_NE(result.find(".. controls"), std::string::npos);
+  EXPECT_NE(result.find(" and "), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzPlaneTest, SupportsTextPlacementAndAnchor)
+{
+  Tikz_Plane plane(120, 80);
+  Tikz_Style style = make_tikz_draw_style("black");
+  style.text_anchor = "west";
+  style.text_placement = "above right";
+  put_in_plane(plane, Text(Point(0, 0), "anchor demo"), style);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+
+  EXPECT_NE(result.find("anchor=west"), std::string::npos);
+  EXPECT_NE(result.find("above right"), std::string::npos);
+}
+
+TEST(TikzPlaneTest, SupportsPatternFillStyle)
+{
+  Tikz_Plane plane(120, 80);
+  Tikz_Style style = make_tikz_fill_style("black", "gray!20");
+  style.pattern = "north east lines";
+  style.pattern_color = "black";
+
+  Polygon p;
+  p.add_vertex(Point(0, 0));
+  p.add_vertex(Point(20, 0));
+  p.add_vertex(Point(10, 10));
+  p.close();
+  put_in_plane(plane, p, style);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+
+  EXPECT_NE(result.find("pattern=north east lines"), std::string::npos);
+  EXPECT_NE(result.find("pattern color=black"), std::string::npos);
+}
+
+TEST(TikzPlaneTest, SupportsGridTicksLegendLayersAndTikzset)
+{
+  Tikz_Plane plane(120, 80);
+  plane.put_coordinate_grid(5.0, 5.0, true);
+  plane.put_cartesian_axis();
+  plane.enable_native_tikz_layers(true);
+  plane.enable_auto_legend(true);
+
+  Tikz_Style named = make_tikz_draw_style("red");
+  named.thick = true;
+  plane.register_tikz_style("edgeA", named);
+
+  Tikz_Style use_named;
+  use_named.tikz_style_name = "edgeA";
+  use_named.draw_color = "";
+  put_in_plane(plane, Segment(Point(-10, -10), Point(10, 10)),
+               use_named, Tikz_Plane::Layer_Foreground);
+  Tikz_Style blue = make_tikz_draw_style("blue");
+  put_in_plane(plane, Segment(Point(-10, 10), Point(10, -10)),
+               blue, Tikz_Plane::Layer_Background);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+
+  EXPECT_NE(result.find("\\pgfdeclarelayer{background}"), std::string::npos);
+  EXPECT_NE(result.find("\\begin{pgfonlayer}{foreground}"), std::string::npos);
+  EXPECT_NE(result.find("\\tikzset{edgeA/.style="), std::string::npos);
+  EXPECT_NE(result.find("edgeA"), std::string::npos);
+  EXPECT_NE(result.find("draw=gray!40"), std::string::npos);
+  EXPECT_NE(result.find("\\node[anchor=west]"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}

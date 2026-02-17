@@ -176,6 +176,20 @@ public:
     return *this;
   }
 
+  Tikz_Scene & put_coordinate_grid(const double step_x = 1.0,
+                                   const double step_y = 1.0,
+                                   const bool draw_ticks = true)
+  {
+    plane_.put_coordinate_grid(step_x, step_y, draw_ticks);
+    return *this;
+  }
+
+  Tikz_Scene & remove_coordinate_grid()
+  {
+    plane_.remove_coordinate_grid();
+    return *this;
+  }
+
   Tikz_Scene & set_default_style(const Tikz_Style & style)
   {
     plane_.set_default_style(style);
@@ -188,9 +202,47 @@ public:
     return *this;
   }
 
+  Tikz_Scene & set_grid_style(const Tikz_Style & style)
+  {
+    plane_.set_grid_style(style);
+    return *this;
+  }
+
   Tikz_Scene & set_point_radius_mm(const double radius_mm)
   {
     plane_.set_point_radius_mm(radius_mm);
+    return *this;
+  }
+
+  Tikz_Scene & enable_native_tikz_layers(const bool enabled = true)
+  {
+    plane_.enable_native_tikz_layers(enabled);
+    return *this;
+  }
+
+  Tikz_Scene & enable_auto_legend(const bool enabled = true)
+  {
+    plane_.enable_auto_legend(enabled);
+    return *this;
+  }
+
+  Tikz_Scene & add_legend_entry(const std::string & label,
+                                const Tikz_Style & style)
+  {
+    plane_.add_legend_entry(label, style);
+    return *this;
+  }
+
+  Tikz_Scene & clear_legend()
+  {
+    plane_.clear_legend();
+    return *this;
+  }
+
+  Tikz_Scene & register_tikz_style(const std::string & name,
+                                   const Tikz_Style & style)
+  {
+    plane_.register_tikz_style(name, style);
     return *this;
   }
 
@@ -324,6 +376,104 @@ public:
   AlphaShape::Result visualize_alpha_shape(Args &&... args)
   {
     return Aleph::visualize_alpha_shape(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_delaunay(Args &&... args)
+  {
+    return Aleph::visualize_delaunay(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_regular_triangulation(Args &&... args)
+  {
+    return Aleph::visualize_regular_triangulation(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_closest_pair(Args &&... args)
+  {
+    return Aleph::visualize_closest_pair(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_rotating_calipers(Args &&... args)
+  {
+    return Aleph::visualize_rotating_calipers(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_half_plane_intersection(Args &&... args)
+  {
+    return Aleph::visualize_half_plane_intersection(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_minkowski_sum(Args &&... args)
+  {
+    return Aleph::visualize_minkowski_sum(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_monotone_triangulation(Args &&... args)
+  {
+    return Aleph::visualize_monotone_triangulation(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_visibility_polygon(Args &&... args)
+  {
+    return Aleph::visualize_visibility_polygon(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_line_sweep(Args &&... args)
+  {
+    return Aleph::visualize_line_sweep(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_kdtree_partitions(Args &&... args)
+  {
+    return Aleph::visualize_kdtree_partitions(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_range_tree(Args &&... args)
+  {
+    return Aleph::visualize_range_tree(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_range_tree_query(Args &&... args)
+  {
+    return Aleph::visualize_range_tree_query(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_aabb_tree(Args &&... args)
+  {
+    return Aleph::visualize_aabb_tree(
+        plane_, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto visualize_aabb_tree_query(Args &&... args)
+  {
+    return Aleph::visualize_aabb_tree_query(
         plane_, std::forward<Args>(args)...);
   }
 

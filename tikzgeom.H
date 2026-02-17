@@ -6,9 +6,11 @@
 # include <cmath>
 # include <cstddef>
 # include <iomanip>
+# include <map>
 # include <ostream>
 # include <sstream>
 # include <string>
+# include <unordered_set>
 # include <type_traits>
 # include <utility>
 # include <variant>
@@ -53,9 +55,14 @@ namespace Aleph
  */
 struct Tikz_Style
 {
+  std::string tikz_style_name; ///< Optional named style (from `\tikzset`)
   std::string draw_color = "black"; ///< TikZ draw color (`draw=<color>`)
   std::string fill_color; ///< TikZ fill color (`fill=<color>`)
+  std::string pattern; ///< TikZ pattern (e.g. `north east lines`)
+  std::string pattern_color; ///< TikZ pattern color (`pattern color=<color>`)
   std::string text_color; ///< TikZ text color (`text=<color>`)
+  std::string text_anchor; ///< TikZ node anchor (`anchor=<value>`)
+  std::string text_placement; ///< TikZ placement (`above`, `below left`, ...)
   std::string extra_options; ///< Raw extra options appended as-is
   std::string text_font_command; ///< e.g. `\\small`, `\\footnotesize`
 
@@ -67,6 +74,21 @@ struct Tikz_Style
   bool thick = false; ///< Add `thick`
   bool with_arrow = false; ///< Add `->`
   bool fill = false; ///< Fill closed shapes (polygon/triangle/ellipse)
+};
+
+struct Tikz_Quadratic_Bezier
+{
+  Point p0;
+  Point p1;
+  Point p2;
+};
+
+struct Tikz_Cubic_Bezier
+{
+  Point p0;
+  Point p1;
+  Point p2;
+  Point p3;
 };
 
 /** @brief Create a basic draw style with a custom color. */
@@ -108,7 +130,8 @@ public:
   /** @brief Runtime set of supported objects. */
   using Object = std::variant<Point, Polar_Point, Segment, Triangle,
                               Ellipse, RotatedEllipse, Text,
-                              Polygon, Regular_Polygon, Rectangle, LineEq>;
+                              Polygon, Regular_Polygon, Rectangle, LineEq,
+                              Tikz_Quadratic_Bezier, Tikz_Cubic_Bezier>;
 
 private:
   struct Geom_Box
@@ -144,8 +167,18 @@ private:
   double yoffset_ = 0.0;
 
   bool with_cartesian_axis_ = false;
+  bool with_coordinate_grid_ = false;
+  bool with_grid_ticks_ = false;
+  bool with_native_layers_ = false;
+  bool with_auto_legend_ = false;
   double point_radius_mm_ = 1.0;
   double clip_padding_mm_ = -1.0;
+  double grid_step_x_ = 1.0;
+  double grid_step_y_ = 1.0;
+  double tick_size_mm_ = 1.5;
+  double legend_x_mm_ = 3.0;
+  double legend_y_mm_ = 3.0;
+  double legend_entry_step_mm_ = 5.0;
 
   Tikz_Style default_style_;
   Tikz_Style axis_style_ = []()
@@ -155,6 +188,24 @@ private:
     s.with_arrow = true;
     return s;
   }();
+
+  Tikz_Style grid_style_ = []()
+  {
+    Tikz_Style s;
+    s.draw_color = "gray!40";
+    s.dotted = true;
+    s.line_width_mm = 0.2;
+    return s;
+  }();
+
+  struct Legend_Entry
+  {
+    std::string label;
+    Tikz_Style style;
+  };
+
+  std::vector<Legend_Entry> legend_entries_;
+  std::map<std::string, Tikz_Style> tikz_style_defs_;
 
   std::vector<Styled_Object> objects_;
   size_t next_order_ = 0;
@@ -194,6 +245,9 @@ private:
   {
     std::string opts;
 
+    if (not style.tikz_style_name.empty())
+      append_option(opts, style.tikz_style_name);
+
     if (not style.draw_color.empty())
       append_option(opts, "draw=" + style.draw_color);
 
@@ -203,6 +257,13 @@ private:
           append_option(opts, "fill=" + style.fill_color);
         else if (not style.draw_color.empty())
           append_option(opts, "fill=" + style.draw_color);
+
+        if (not style.pattern.empty())
+          {
+            append_option(opts, "pattern=" + style.pattern);
+            if (not style.pattern_color.empty())
+              append_option(opts, "pattern color=" + style.pattern_color);
+          }
       }
 
     if (style.line_width_mm > 0.0)
@@ -229,6 +290,8 @@ private:
   [[nodiscard]] static std::string point_options(const Tikz_Style & style)
   {
     std::string opts;
+    if (not style.tikz_style_name.empty())
+      append_option(opts, style.tikz_style_name);
 
     if (not style.fill_color.empty())
       append_option(opts, "fill=" + style.fill_color);
@@ -247,6 +310,8 @@ private:
   [[nodiscard]] static std::string text_options(const Tikz_Style & style)
   {
     std::string opts;
+    if (not style.tikz_style_name.empty())
+      append_option(opts, style.tikz_style_name);
 
     if (not style.text_color.empty())
       append_option(opts, "text=" + style.text_color);
@@ -255,6 +320,11 @@ private:
 
     if (style.opacity >= 0.0)
       append_option(opts, "opacity=" + fmt_double(style.opacity));
+
+    if (not style.text_anchor.empty())
+      append_option(opts, "anchor=" + style.text_anchor);
+    if (not style.text_placement.empty())
+      append_option(opts, style.text_placement);
 
     if (not style.extra_options.empty())
       append_option(opts, style.extra_options);
@@ -392,6 +462,25 @@ private:
     const Geom_Number y1 = l(x1);
     return make_box(std::min(x0, x1), std::max(x0, x1),
                     std::min(y0, y1), std::max(y0, y1));
+  }
+
+  static Geom_Box bbox_of(const Tikz_Quadratic_Bezier & b)
+  {
+    Geom_Box box;
+    merge_box(box, bbox_of(b.p0));
+    merge_box(box, bbox_of(b.p1));
+    merge_box(box, bbox_of(b.p2));
+    return box;
+  }
+
+  static Geom_Box bbox_of(const Tikz_Cubic_Bezier & b)
+  {
+    Geom_Box box;
+    merge_box(box, bbox_of(b.p0));
+    merge_box(box, bbox_of(b.p1));
+    merge_box(box, bbox_of(b.p2));
+    merge_box(box, bbox_of(b.p3));
+    return box;
   }
 
   Geom_Box compute_box() const
@@ -766,6 +855,208 @@ private:
   }
 
   template <typename Out>
+  void draw_quadratic_bezier(const Tikz_Quadratic_Bezier & b,
+                             const Tikz_Style & style, Out & output,
+                             const Geom_Box & box, const Mapping & map) const
+  {
+    const auto [x0, y0] = map_point(b.p0, box, map);
+    const auto [x1, y1] = map_point(b.p1, box, map);
+    const auto [x2, y2] = map_point(b.p2, box, map);
+
+    output << "    \\draw";
+    if (const std::string opts = draw_options(style, false); not opts.empty())
+      output << "[" << opts << "]";
+    output << " (" << x0 << "," << y0 << ") .. controls ("
+           << x1 << "," << y1 << ") .. (" << x2 << "," << y2 << ");"
+           << std::endl;
+  }
+
+  template <typename Out>
+  void draw_cubic_bezier(const Tikz_Cubic_Bezier & b,
+                         const Tikz_Style & style, Out & output,
+                         const Geom_Box & box, const Mapping & map) const
+  {
+    const auto [x0, y0] = map_point(b.p0, box, map);
+    const auto [x1, y1] = map_point(b.p1, box, map);
+    const auto [x2, y2] = map_point(b.p2, box, map);
+    const auto [x3, y3] = map_point(b.p3, box, map);
+
+    output << "    \\draw";
+    if (const std::string opts = draw_options(style, false); not opts.empty())
+      output << "[" << opts << "]";
+    output << " (" << x0 << "," << y0 << ") .. controls ("
+           << x1 << "," << y1 << ") and (" << x2 << "," << y2
+           << ") .. (" << x3 << "," << y3 << ");"
+           << std::endl;
+  }
+
+  [[nodiscard]] static const char * layer_name(const int layer)
+  {
+    if (layer <= Layer_Background)
+      return "background";
+    if (layer >= Layer_Overlay)
+      return "overlay";
+    if (layer >= Layer_Foreground)
+      return "foreground";
+    return "main";
+  }
+
+  template <typename Out>
+  void draw_coordinate_grid(Out & output,
+                            const Geom_Box & box, const Mapping & map) const
+  {
+    if (not with_coordinate_grid_ or not box.initialized)
+      return;
+
+    if (grid_step_x_ <= 0.0 or grid_step_y_ <= 0.0)
+      return;
+
+    const std::string opts = draw_options(grid_style_, false);
+    const double xmin = geom_number_to_double(box.xmin);
+    const double xmax = geom_number_to_double(box.xmax);
+    const double ymin = geom_number_to_double(box.ymin);
+    const double ymax = geom_number_to_double(box.ymax);
+
+    const double sx = grid_step_x_;
+    const double sy = grid_step_y_;
+    const int nx0 = static_cast<int>(std::ceil(xmin / sx));
+    const int nx1 = static_cast<int>(std::floor(xmax / sx));
+    const int ny0 = static_cast<int>(std::ceil(ymin / sy));
+    const int ny1 = static_cast<int>(std::floor(ymax / sy));
+
+    for (int i = nx0; i <= nx1; ++i)
+      {
+        const Geom_Number x = Geom_Number(static_cast<double>(i) * sx);
+        const double xm = map_x(x, box, map);
+        output << "    \\draw";
+        if (not opts.empty())
+          output << "[" << opts << "]";
+        output << " (" << xm << ",0) -- (" << xm << "," << height_ << ");"
+               << std::endl;
+      }
+
+    for (int i = ny0; i <= ny1; ++i)
+      {
+        const Geom_Number y = Geom_Number(static_cast<double>(i) * sy);
+        const double ym = map_y(y, box, map);
+        output << "    \\draw";
+        if (not opts.empty())
+          output << "[" << opts << "]";
+        output << " (0," << ym << ") -- (" << wide_ << "," << ym << ");"
+               << std::endl;
+      }
+
+    if (not with_grid_ticks_)
+      return;
+
+    const std::string tick_opts = draw_options(axis_style_, false);
+    const bool has_x_axis = map.has_y_range and box.ymin <= 0 and 0 <= box.ymax;
+    const bool has_y_axis = map.has_x_range and box.xmin <= 0 and 0 <= box.xmax;
+    const double y_axis_mm = has_x_axis ? map_y(Geom_Number(0), box, map) : -1.0;
+    const double x_axis_mm = has_y_axis ? map_x(Geom_Number(0), box, map) : -1.0;
+
+    if (has_x_axis)
+      for (int i = nx0; i <= nx1; ++i)
+        {
+          const Geom_Number x = Geom_Number(static_cast<double>(i) * sx);
+          const double xm = map_x(x, box, map);
+          output << "    \\draw";
+          if (not tick_opts.empty())
+            output << "[" << tick_opts << "]";
+          output << " (" << xm << "," << (y_axis_mm - tick_size_mm_ / 2.0)
+                 << ") -- (" << xm << "," << (y_axis_mm + tick_size_mm_ / 2.0) << ");"
+                 << std::endl;
+        }
+
+    if (has_y_axis)
+      for (int i = ny0; i <= ny1; ++i)
+        {
+          const Geom_Number y = Geom_Number(static_cast<double>(i) * sy);
+          const double ym = map_y(y, box, map);
+          output << "    \\draw";
+          if (not tick_opts.empty())
+            output << "[" << tick_opts << "]";
+          output << " (" << (x_axis_mm - tick_size_mm_ / 2.0) << "," << ym
+                 << ") -- (" << (x_axis_mm + tick_size_mm_ / 2.0) << "," << ym << ");"
+                 << std::endl;
+        }
+  }
+
+  [[nodiscard]] std::vector<Legend_Entry> collect_legend_entries() const
+  {
+    std::vector<Legend_Entry> entries = legend_entries_;
+    if (not with_auto_legend_)
+      return entries;
+
+    std::unordered_set<std::string> seen;
+    for (const auto & e : entries)
+      seen.insert(e.label);
+
+    for (const auto & obj : objects_)
+      {
+        std::string color = obj.style.draw_color;
+        if (color.empty() and not obj.style.fill_color.empty())
+          color = obj.style.fill_color;
+        if (color.empty())
+          continue;
+        if (seen.find(color) != seen.end())
+          continue;
+
+        Tikz_Style legend_style;
+        legend_style.draw_color = color;
+        legend_style.fill_color = obj.style.fill_color;
+        legend_style.fill = obj.style.fill;
+        legend_style.pattern = obj.style.pattern;
+        legend_style.pattern_color = obj.style.pattern_color;
+        entries.push_back({color, legend_style});
+        seen.insert(color);
+      }
+
+    return entries;
+  }
+
+  template <typename Out>
+  void draw_legend(Out & output) const
+  {
+    const std::vector<Legend_Entry> entries = collect_legend_entries();
+    if (entries.empty())
+      return;
+
+    for (size_t i = 0; i < entries.size(); ++i)
+      {
+        const double y = height_ - legend_y_mm_ - static_cast<double>(i) * legend_entry_step_mm_;
+        const double x0 = legend_x_mm_;
+        const double x1 = legend_x_mm_ + 7.0;
+        const std::string opts = draw_options(entries[i].style, true);
+
+        output << "    \\draw";
+        if (not opts.empty())
+          output << "[" << opts << "]";
+        output << " (" << x0 << "," << y << ") -- (" << x1 << "," << y << ");"
+               << std::endl;
+
+        output << "    \\node[anchor=west] at (" << (x1 + 1.2) << "," << y
+               << ") {" << escape_latex(entries[i].label) << "};" << std::endl;
+      }
+  }
+
+  template <typename Out>
+  void draw_tikzset_styles(Out & output) const
+  {
+    if (tikz_style_defs_.empty())
+      return;
+
+    for (const auto & [name, style] : tikz_style_defs_)
+      {
+        std::string opts = draw_options(style, true);
+        const std::string txt = text_options(style);
+        if (not txt.empty())
+          append_option(opts, txt);
+        output << "  \\tikzset{" << name << "/.style={" << opts << "}}" << std::endl;
+      }
+  }
+
+  template <typename Out>
   void draw_cartesian_axis(Out & output,
                            const Geom_Box & box, const Mapping & map) const
   {
@@ -825,6 +1116,10 @@ private:
             draw_rectangle(value, entry.style, output, box, map);
           else if constexpr (std::is_same_v<T, LineEq>)
             draw_line_eq(value, entry.style, output, box, map);
+          else if constexpr (std::is_same_v<T, Tikz_Quadratic_Bezier>)
+            draw_quadratic_bezier(value, entry.style, output, box, map);
+          else if constexpr (std::is_same_v<T, Tikz_Cubic_Bezier>)
+            draw_cubic_bezier(value, entry.style, output, box, map);
         },
         entry.object);
   }
@@ -867,6 +1162,7 @@ public:
 
   /// @brief Style used for Cartesian axes when enabled.
   [[nodiscard]] const Tikz_Style &get_axis_style() const { return axis_style_; }
+  [[nodiscard]] const Tikz_Style &get_grid_style() const { return grid_style_; }
 
   /** @brief Configure the default style for subsequent non-styled inserts. */
   void set_default_style(const Tikz_Style & style)
@@ -878,6 +1174,12 @@ public:
   void set_axis_style(const Tikz_Style & style)
   {
     axis_style_ = style;
+  }
+
+  /** @brief Configure the style used to draw coordinate grids. */
+  void set_grid_style(const Tikz_Style & style)
+  {
+    grid_style_ = style;
   }
 
   /** @brief Configure point marker radius.
@@ -913,6 +1215,62 @@ public:
     with_cartesian_axis_ = false;
   }
 
+  /** @brief Enable coordinate grid/ticks with user step sizes. */
+  void put_coordinate_grid(const double step_x = 1.0,
+                           const double step_y = 1.0,
+                           const bool draw_ticks = true)
+  {
+    ah_domain_error_if(step_x <= 0.0 or step_y <= 0.0)
+      << "Grid steps must be greater than zero";
+    with_coordinate_grid_ = true;
+    with_grid_ticks_ = draw_ticks;
+    grid_step_x_ = step_x;
+    grid_step_y_ = step_y;
+  }
+
+  /// @brief Disable coordinate grid rendering.
+  void remove_coordinate_grid()
+  {
+    with_coordinate_grid_ = false;
+  }
+
+  /** @brief Enable native PGF layers (`\pgfdeclarelayer`). */
+  void enable_native_tikz_layers(const bool enabled = true)
+  {
+    with_native_layers_ = enabled;
+  }
+
+  /** @brief Enable auto-legend generation from style colors. */
+  void enable_auto_legend(const bool enabled = true)
+  {
+    with_auto_legend_ = enabled;
+  }
+
+  /** @brief Add a legend entry to be rendered in the top-left corner. */
+  void add_legend_entry(const std::string & label, const Tikz_Style & style)
+  {
+    legend_entries_.push_back({label, style});
+  }
+
+  /// @brief Remove user-provided legend entries.
+  void clear_legend()
+  {
+    legend_entries_.clear();
+  }
+
+  /** @brief Register a reusable `\tikzset` style for the rendered picture. */
+  void register_tikz_style(const std::string & name, const Tikz_Style & style)
+  {
+    ah_domain_error_if(name.empty()) << "Style name cannot be empty";
+    tikz_style_defs_[name] = style;
+  }
+
+  /// @brief Clear all registered `\tikzset` style definitions.
+  void clear_tikz_styles()
+  {
+    tikz_style_defs_.clear();
+  }
+
   /// @brief Remove all inserted objects from the plane.
   void clear()
   {
@@ -945,7 +1303,16 @@ public:
 
     output << std::fixed << std::setprecision(6);
     output << "% Requires: \\usepackage{tikz}" << std::endl;
+    if (with_native_layers_)
+      {
+        output << "\\pgfdeclarelayer{background}" << std::endl
+               << "\\pgfdeclarelayer{foreground}" << std::endl
+               << "\\pgfdeclarelayer{overlay}" << std::endl;
+      }
     output << "\\begin{tikzpicture}[x=1mm,y=1mm]" << std::endl;
+    if (with_native_layers_)
+      output << "  \\pgfsetlayers{background,main,foreground,overlay}" << std::endl;
+    draw_tikzset_styles(output);
     output << "  % " << objects_.size() << " geometric objects in plane" << std::endl;
     output << "  \\begin{scope}[shift={(" << xoffset_ << "mm," << yoffset_ << "mm)}]"
            << std::endl;
@@ -954,6 +1321,7 @@ public:
            << (wide_ + clip_padding) << "," << (height_ + clip_padding) << ");"
            << std::endl;
 
+    draw_coordinate_grid(output, box, map);
     draw_cartesian_axis(output, box, map);
 
     std::vector<size_t> order(objects_.size());
@@ -968,8 +1336,29 @@ public:
                        return objects_[lhs].order < objects_[rhs].order;
                      });
 
-    for (const size_t idx : order)
-      draw_object(objects_[idx], output, box, map);
+    if (with_native_layers_)
+      {
+        const char * current = nullptr;
+        for (const size_t idx : order)
+          {
+            const char * target = layer_name(objects_[idx].layer);
+            if (current == nullptr or std::string(current) != target)
+              {
+                if (current != nullptr)
+                  output << "    \\end{pgfonlayer}" << std::endl;
+                output << "    \\begin{pgfonlayer}{" << target << "}" << std::endl;
+                current = target;
+              }
+            draw_object(objects_[idx], output, box, map);
+          }
+        if (current != nullptr)
+          output << "    \\end{pgfonlayer}" << std::endl;
+      }
+    else
+      for (const size_t idx : order)
+        draw_object(objects_[idx], output, box, map);
+
+    draw_legend(output);
 
     output << "  \\end{scope}" << std::endl;
     output << "\\end{tikzpicture}" << std::endl;
@@ -1055,6 +1444,45 @@ inline void put_cubic_bezier_in_plane(Tikz_Plane & plane,
     }
 
   put_in_plane(plane, curve, style, layer);
+}
+
+/// @brief Insert a quadratic Bézier using native TikZ controls syntax.
+inline void put_quadratic_bezier_native_in_plane(
+    Tikz_Plane & plane,
+    const Point & p0,
+    const Point & p1,
+    const Point & p2,
+    const Tikz_Style & style = {},
+    const int layer = Tikz_Plane::Layer_Default)
+{
+  put_in_plane(plane, Tikz_Quadratic_Bezier{p0, p1, p2}, style, layer);
+}
+
+/// @brief Insert a cubic Bézier using native TikZ controls syntax.
+inline void put_cubic_bezier_native_in_plane(
+    Tikz_Plane & plane,
+    const Point & p0,
+    const Point & p1,
+    const Point & p2,
+    const Point & p3,
+    const Tikz_Style & style = {},
+    const int layer = Tikz_Plane::Layer_Default)
+{
+  put_in_plane(plane, Tikz_Cubic_Bezier{p0, p1, p2, p3}, style, layer);
+}
+
+/// @brief Insert a point label with configurable placement (`above`, etc.).
+inline void put_point_label_in_plane(
+    Tikz_Plane & plane,
+    const Point & point,
+    const std::string & label,
+    const std::string & placement = "above",
+    const Tikz_Style & style = make_tikz_draw_style("black"),
+    const int layer = Tikz_Plane::Layer_Overlay)
+{
+  Tikz_Style label_style = style;
+  label_style.text_placement = placement;
+  put_in_plane(plane, Text(point, label), label_style, layer);
 }
 
 } // namespace Aleph

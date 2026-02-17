@@ -741,6 +741,26 @@ TEST_F(GeomAlgorithmsTest, AABBTreeRootBbox)
   EXPECT_EQ(root.get_ymax(), Geom_Number(15));
 }
 
+TEST_F(GeomAlgorithmsTest, AABBTreeDebugSnapshot)
+{
+  AABBTree tree;
+  Array<AABBTree::Entry> entries;
+  entries.append({Rectangle(0, 0, 5, 5), 10});
+  entries.append({Rectangle(3, 3, 8, 8), 11});
+  entries.append({Rectangle(10, 10, 15, 15), 12});
+  tree.build(entries);
+
+  const auto snap = tree.debug_snapshot();
+  EXPECT_GT(snap.nodes.size(), 0u);
+  EXPECT_NE(snap.root, ~static_cast<size_t>(0));
+
+  size_t leaf_count = 0;
+  for (size_t i = 0; i < snap.nodes.size(); ++i)
+    if (snap.nodes(i).is_leaf)
+      ++leaf_count;
+  EXPECT_EQ(leaf_count, tree.size());
+}
+
 
 // ============================================================================
 // GeomNumberType Concept Test (compile-time)

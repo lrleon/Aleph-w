@@ -422,6 +422,33 @@ TEST_F(GeomAlgorithmsTest, RangeTree2DSameY)
   EXPECT_EQ(r.size(), 1u); // (3,5)
 }
 
+TEST_F(GeomAlgorithmsTest, RangeTree2DDebugSnapshot)
+{
+  DynList<Point> pts;
+  pts.append(Point(1, 2));
+  pts.append(Point(3, 5));
+  pts.append(Point(4, 4));
+  pts.append(Point(7, 1));
+
+  RangeTree2D tree;
+  tree.build(pts);
+
+  const auto snap = tree.debug_snapshot();
+  EXPECT_EQ(snap.x_sorted_points.size(), tree.size());
+  EXPECT_GT(snap.nodes.size(), 0u);
+
+  size_t leaf_count = 0;
+  for (size_t i = 0; i < snap.nodes.size(); ++i)
+    {
+      if (snap.nodes(i).is_leaf)
+        ++leaf_count;
+      EXPECT_GE(snap.nodes(i).y_sorted_size, 1u);
+      EXPECT_TRUE(snap.nodes(i).xmin <= snap.nodes(i).xmax);
+    }
+
+  EXPECT_EQ(leaf_count, tree.size());
+}
+
 
 // ========== ConvexPolygonOffset ==========
 

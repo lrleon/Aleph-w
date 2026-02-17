@@ -923,6 +923,7 @@ Geom_Number area = area_of_triangle(a, b, c);  // exact
 | `area_of_parallelogram(a, b, c)` | Signed area (2x triangle area) |
 
 Higher-level algorithms in `geom_algorithms.H`:
+- **Segment-Segment Intersection (O(1))**: `SegmentSegmentIntersection` for direct 2-segment queries (`none` / `point` / `overlap`)
 - **Convex Hull**: Andrew, Graham, Brute-force, Gift Wrapping, QuickHull
 - **Closest Pair**: Divide & conquer (`O(n log n)`)
 - **Rotating Calipers**: Diameter and minimum width on convex polygons
@@ -2641,6 +2642,7 @@ cmake --build build
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |
 | Robust predicates | `robust_predicates_example.cc` | Orientation, intersection, exact arithmetic |
+| Dedicated segment intersection | `segment_segment_intersection_example.cc` | O(1) pairwise segment intersection (`none`/`point`/`overlap`) |
 | Geometry algorithms | `geom_example.C` | Convex hull, triangulation, and `-s advanced` (Delaunay/Voronoi/PIP/HPI) |
 | Voronoi clipped cells | `voronoi_clipped_cells_example.cc` | Site-indexed clipped Voronoi cells with CSV/WKT export |
 | Delaunay + Voronoi | `delaunay_voronoi_example.cc` | Delaunay triangulation, Voronoi dual, clipped cells |
