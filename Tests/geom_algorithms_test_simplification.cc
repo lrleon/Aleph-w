@@ -521,31 +521,47 @@ TEST_F(GeomAlgorithmsTest, Chaikin_ClosedPolygon_RemainsValid)
 
 TEST_F(GeomAlgorithmsTest, Chaikin_Circle_ConvergesToCircle)
 {
-  // Coarse octagon approximation of circle with radius 10
+  // Coarse integer octagon approximation of a circle-like shape.
+  // Integer coordinates avoid trigonometric conversion instability across
+  // toolchains/libstdc++ versions.
   Polygon oct;
-  for (int i = 0; i < 8; ++i)
-    {
-      double angle = 2.0 * M_PI * i / 8;
-      oct.add_vertex(Point(10 * cos(angle), 10 * sin(angle)));
-    }
+  oct.add_vertex(Point(10, 0));
+  oct.add_vertex(Point(7, 7));
+  oct.add_vertex(Point(0, 10));
+  oct.add_vertex(Point(-7, 7));
+  oct.add_vertex(Point(-10, 0));
+  oct.add_vertex(Point(-7, -7));
+  oct.add_vertex(Point(0, -10));
+  oct.add_vertex(Point(7, -7));
   oct.close();
 
-  // Area of circle = pi * r^2 = pi * 100 ~ 314.159
-  // After smoothing the octagon should have area closer to circle
   auto compute_area = [](const Polygon & p)
     {
-      auto a = GeomPolygonUtils::signed_double_area(p);
-      if (a < 0) a = -a;
-      return a / 2;
+      const auto verts = GeomPolygonUtils::extract_vertices(p);
+      if (verts.size() < 3)
+        return 0.0;
+
+      double sum = 0.0;
+      for (size_t i = 0; i < verts.size(); ++i)
+        {
+          const auto & a = verts(i);
+          const auto & b = verts((i + 1) % verts.size());
+          sum += geom_number_to_double(a.get_x()) * geom_number_to_double(b.get_y()) -
+                 geom_number_to_double(a.get_y()) * geom_number_to_double(b.get_x());
+        }
+      return std::abs(sum) * 0.5;
     };
 
-  Geom_Number oct_area = compute_area(oct);
+  const double oct_area = compute_area(oct);
+  Polygon smooth1 = ChaikinSmoothing::smooth_polygon(oct, 1);
   Polygon smooth4 = ChaikinSmoothing::smooth_polygon(oct, 4);
-  Geom_Number smooth_area = compute_area(smooth4);
+  const double smooth1_area = compute_area(smooth1);
+  const double smooth_area = compute_area(smooth4);
 
-  // Smoothed area should be closer to pi*100 than octagon area
-  // (both are less than circle area, but smoothed is larger)
-  EXPECT_GT(smooth_area, oct_area);
+  // Chaikin corner cutting on a convex polygon shrinks area monotonically.
+  EXPECT_LT(smooth1_area, oct_area);
+  EXPECT_LT(smooth_area, smooth1_area);
+  EXPECT_GT(smooth_area, 0.0);
 }
 
 TEST_F(GeomAlgorithmsTest, Chaikin_CustomRatio)

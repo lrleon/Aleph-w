@@ -2325,7 +2325,7 @@ namespace Aleph
       const bool draw_trapezoids = true,
       const double trapezoid_opacity = 0.3)
   {
-    TrapezoidalMapPointLocation tm;
+    const TrapezoidalMapPointLocation tm;
     auto result = tm(segments);
     put_trapezoidal_map_result(plane, result, segment_style, extension_style,
                                draw_trapezoids, trapezoid_opacity);
