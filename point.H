@@ -1166,9 +1166,15 @@ namespace Aleph
      */
     [[nodiscard]] bool intersects_properly_with(const Segment & s) const
     {
-      // Four orientation checks for a proper intersection.
-      return src_.is_left_of(s) xor tgt_.is_left_of(s) and
-             s.src_.is_left_of(*this) xor s.tgt_.is_left_of(*this);
+      // Each pair of endpoints must lie strictly on opposite sides of the
+      // other segment's supporting line.  Using the product of signed areas
+      // guarantees that shared endpoints (area == 0) are never treated as a
+      // proper crossing.
+      const auto d1 = area_of_parallelogram(s.src_, s.tgt_, src_);
+      const auto d2 = area_of_parallelogram(s.src_, s.tgt_, tgt_);
+      const auto d3 = area_of_parallelogram(src_, tgt_, s.src_);
+      const auto d4 = area_of_parallelogram(src_, tgt_, s.tgt_);
+      return (d1 * d2 < 0) and (d3 * d4 < 0);
     }
 
     /**

@@ -10011,8 +10011,6 @@ namespace Aleph
           const Point & pl = portals(i).left;
 
           // --- tighten right boundary ---
-          // (Y-up coords: cross >= 0 means pr is CCW from apex→fr, i.e.
-          //  it narrows the funnel from the right side.)
           if (cross(apex, fr, pr) >= 0)
             {
               if (apex == fr or cross(apex, fl, pr) < 0)
@@ -10059,7 +10057,8 @@ namespace Aleph
             }
         }
 
-      result.append(target);
+      if (result.get_last() != target)
+        result.append(target);
       return result;
     }
   };
