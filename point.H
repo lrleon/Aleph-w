@@ -3589,6 +3589,8 @@ namespace std
 #if __cplusplus >= 202002L && __has_include(<format>)
 # include <format>
 
+# if defined(__cpp_lib_format)
+
 template <>
 struct std::formatter<Aleph::Point> : std::formatter<std::string>
 {
@@ -3717,6 +3719,7 @@ struct std::formatter<Aleph::Tetrahedron> : std::formatter<std::string>
   }
 };
 
+# endif // __cpp_lib_format
 #endif // C++20 format
 
 # endif // POINT_H

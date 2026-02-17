@@ -534,15 +534,7 @@ TEST_F(GeomAlgorithmsTest, Chaikin_Circle_ConvergesToCircle)
   // After smoothing the octagon should have area closer to circle
   auto compute_area = [](const Polygon & p)
     {
-      auto verts = GeomPolygonUtils::extract_vertices(p);
-      Geom_Number a(0);
-      size_t n = verts.size();
-      for (size_t i = 0; i < n; ++i)
-        {
-          size_t j = (i + 1) % n;
-          a = a + verts(i).get_x() * verts(j).get_y()
-                - verts(j).get_x() * verts(i).get_y();
-        }
+      auto a = GeomPolygonUtils::signed_double_area(p);
       if (a < 0) a = -a;
       return a / 2;
     };

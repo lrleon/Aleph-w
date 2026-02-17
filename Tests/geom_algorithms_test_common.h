@@ -8,7 +8,7 @@
 namespace
 {
 
-bool polygon_contains_vertex(const Polygon & poly, const Point & p)
+[[maybe_unused]] bool polygon_contains_vertex(const Polygon & poly, const Point & p)
 {
   if (poly.size() == 0)
     return false;
@@ -20,7 +20,7 @@ bool polygon_contains_vertex(const Polygon & poly, const Point & p)
   return false;
 }
 
-bool matches_unordered_pair(const Point & a, const Point & b,
+[[maybe_unused]] bool matches_unordered_pair(const Point & a, const Point & b,
                             const Point & u, const Point & v)
 {
   return (a == u and b == v) or (a == v and b == u);
@@ -55,7 +55,7 @@ void sort3(size_t & a, size_t & b, size_t & c)
     }
 }
 
-Array<TriKey>
+[[maybe_unused]] Array<TriKey>
 canonical_triangles(const DelaunayTriangulationBowyerWatson::Result & r)
 {
   Array<TriKey> out;
@@ -80,7 +80,7 @@ canonical_triangles(const DelaunayTriangulationBowyerWatson::Result & r)
   return out;
 }
 
-Point circumcenter_of(const Point & a, const Point & b, const Point & c)
+[[maybe_unused]] Point circumcenter_of(const Point & a, const Point & b, const Point & c)
 {
   const Geom_Number & ax = a.get_x();
   const Geom_Number & ay = a.get_y();
@@ -107,26 +107,26 @@ Geom_Number polygon_signed_area(const Polygon & poly)
   return GeomPolygonUtils::signed_double_area(poly) / 2;
 }
 
-Geom_Number polygon_area(const Polygon & poly)
+[[maybe_unused]] Geom_Number polygon_area(const Polygon & poly)
 {
   Geom_Number a = polygon_signed_area(poly);
   if (a < 0) { a = -a; }
   return a;
 }
 
-bool is_ccw(const Polygon & poly)
+[[maybe_unused]] bool is_ccw(const Polygon & poly)
 {
   return GeomPolygonUtils::signed_double_area(poly) > 0;
 }
 
-Geom_Number triangle_area(const Triangle & t)
+[[maybe_unused]] Geom_Number triangle_area(const Triangle & t)
 {
   Geom_Number a = t.area();
   if (a < 0) { a = -a; }
   return a;
 }
 
-bool all_points_inside_or_on(const DynList<Point> & points, const Polygon & hull)
+[[maybe_unused]] bool all_points_inside_or_on(const DynList<Point> & points, const Polygon & hull)
 {
   for (auto it = points.get_it(); it.has_curr(); it.next_ne())
     {
@@ -137,7 +137,7 @@ bool all_points_inside_or_on(const DynList<Point> & points, const Polygon & hull
   return true;
 }
 
-bool polygon_is_convex(const Polygon & poly)
+[[maybe_unused]] bool polygon_is_convex(const Polygon & poly)
 {
   Array<Point> verts;
   verts.reserve(poly.size());

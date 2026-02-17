@@ -224,9 +224,15 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  └─ Domain Indexing                                                        │
 │                                                                            │
 │  GEOMETRY                                                                  │
-│  ├─ Robust Predicates (orientation, intersection — exact arithmetic)       │
-│  ├─ Convex Hull (brute force, gift wrapping, QuickHull)                    │
-│  └─ Triangulation (ear-cutting)                                            │
+│  ├─ Primitives (Point, Segment, Polygon, Ellipse)                          │
+│  ├─ Exact Predicates (orientation, intersection, in_circle)                │
+│  ├─ Convex Hull (Andrew, Graham, QuickHull)                                │
+│  ├─ Triangulation (Ear-Cutting, Monotone, Delaunay, CDT)                   │
+│  ├─ Proximity (Closest Pair, MEC, Rotating Calipers)                       │
+│  ├─ Diagrams (Voronoi, Power Diagram)                                      │
+│  ├─ Intersections (Bentley-Ottmann, Sutherland-Hodgman)                    │
+│  ├─ Simplification (Douglas-Peucker, Visvalingam-Whyatt)                   │
+│  └─ Visualization (TikZ/PGF backend, algorithm renderers)                  │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```

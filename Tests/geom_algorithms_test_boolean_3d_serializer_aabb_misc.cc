@@ -787,6 +787,8 @@ TEST_F(GeomAlgorithmsTest, GeomNumberConceptSatisfied)
 
 # include <format>
 
+# if defined(__cpp_lib_format)
+
 
 TEST_F(GeomAlgorithmsTest, StdFormatPoint)
 {
@@ -865,6 +867,15 @@ TEST_F(GeomAlgorithmsTest, StdFormatTetrahedron)
   EXPECT_NE(s.find("Tetrahedron("), std::string::npos);
 }
 
+
+# else
+
+TEST_F(GeomAlgorithmsTest, StdFormatUnavailableInStdlib)
+{
+  GTEST_SKIP() << "std::format header exists but __cpp_lib_format is not enabled.";
+}
+
+# endif
 
 #endif // C++20 format
 

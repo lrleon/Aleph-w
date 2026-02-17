@@ -12682,7 +12682,7 @@ namespace Aleph
                                           seg.get_tgt_point(), p);
                 if (cross == 0)
                   {
-                    // point is on the segment line — check if between endpoints
+                    // the point is on the segment line — check if between endpoints
                     if (seg.contains(p))
                       return {
                             LocationType::ON_SEGMENT, NONE, index,
@@ -13089,7 +13089,7 @@ namespace Aleph
           const size_t cur_above = above_traps(ci);
           const size_t cur_below = below_traps(ci);
 
-          // Handle left trapezoid (only for first crossed trapezoid).
+          // Handle the left trapezoid (only for the first crossed trapezoid).
           if (is_first and not shared_left)
             {
               left_trap = make_trapezoid(traps, dag, old_t.top, old_t.bottom,

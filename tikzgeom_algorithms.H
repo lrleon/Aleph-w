@@ -287,7 +287,15 @@ namespace Aleph
    *  - Voronoi and Power diagrams
    */
 
-  /// @brief Style optimized for point clouds.
+  /** @brief Creates a style optimized for point clouds.
+   *
+   *  Generates a @ref Tikz_Style where points are drawn as small filled circles.
+   *  The draw and fill colors are set to the same value.
+   *
+   *  @param color The color for the points.
+   *  @param opacity The opacity for the points (0.0 to 1.0). -1 means default.
+   *  @return A @ref Tikz_Style suitable for `put_points`.
+   */
   inline Tikz_Style tikz_points_style(const std::string & color = "black",
                                       const double opacity = -1.0)
   {
@@ -298,7 +306,13 @@ namespace Aleph
     return s;
   }
 
-  /// @brief Style optimized for wireframe segments/polygons.
+  /** @brief Creates a style optimized for wireframe segments and polygons.
+   *
+   *  @param color The stroke color.
+   *  @param dashed Whether to use a dashed line style.
+   *  @param with_arrow Whether to add an arrowhead to segments.
+   *  @return A @ref Tikz_Style suitable for drawing outlines.
+   */
   inline Tikz_Style tikz_wire_style(const std::string & color = "black",
                                     const bool dashed = false,
                                     const bool with_arrow = false)
@@ -310,7 +324,15 @@ namespace Aleph
     return s;
   }
 
-  /// @brief Style optimized for polyline paths (shortest-path overlays, etc).
+  /** @brief Creates a style optimized for polyline paths.
+   *
+   *  This style is intended for highlighting paths, such as the result of a
+   *  shortest-path algorithm. It defaults to a thick, solid line.
+   *
+   *  @param color The path color.
+   *  @param with_arrow Whether to add an arrowhead to the path segments.
+   *  @return A prominent @ref Tikz_Style for paths.
+   */
   inline Tikz_Style tikz_path_style(const std::string & color = "red",
                                     const bool with_arrow = false)
   {
@@ -319,7 +341,16 @@ namespace Aleph
     return s;
   }
 
-  /// @brief Style optimized for filled polygons.
+  /** @brief Creates a style for drawing filled polygons.
+   *
+   *  This style is used for representing areas, like polygon intersections or
+   *  Voronoi cells. It enables filling and sets an opacity for visualization.
+   *
+   *  @param draw_color The stroke color for the polygon boundary.
+   *  @param fill_color The fill color for the polygon's interior.
+   *  @param opacity The opacity of the fill (0.0 to 1.0).
+   *  @return A @ref Tikz_Style for filled shapes.
+   */
   inline Tikz_Style tikz_area_style(const std::string & draw_color = "black",
                                     const std::string & fill_color = "gray!25",
                                     const double opacity = 0.6)
@@ -332,7 +363,13 @@ namespace Aleph
     return s;
   }
 
-  /// @brief Insert all points from an `Array<Point>`.
+  /** @brief Inserts all points from an `Array<Point>` into the plane.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param pts An array of points to insert.
+   *  @param style The style to apply to each point.
+   *  @param layer The layer on which to draw the points.
+   */
   inline void put_points(Tikz_Plane & plane, const Array<Point> & pts,
                          const Tikz_Style & style = tikz_points_style(),
                          const int layer = Tikz_Plane::Layer_Default)
@@ -341,7 +378,13 @@ namespace Aleph
       put_in_plane(plane, pts(i), style, layer);
   }
 
-  /// @brief Insert all points from a `DynList<Point>`.
+  /** @brief Inserts all points from a `DynList<Point>` into the plane.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param pts A dynamic list of points to insert.
+   *  @param style The style to apply to each point.
+   *  @param layer The layer on which to draw the points.
+   */
   inline void put_points(Tikz_Plane & plane, const DynList<Point> & pts,
                          const Tikz_Style & style = tikz_points_style(),
                          const int layer = Tikz_Plane::Layer_Default)
@@ -350,7 +393,17 @@ namespace Aleph
       put_in_plane(plane, it.get_curr(), style, layer);
   }
 
-  /// @brief Label points as `prefix + index` with configurable placement.
+  /** @brief Adds a text label to each point in an `Array<Point>`.
+   *
+   *  Labels are generated as `prefix + index`. For example, `p0`, `p1`, etc.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param pts The array of points to label.
+   *  @param prefix A string prefix for each label.
+   *  @param placement The TikZ placement string (e.g., "above", "below left").
+   *  @param style The style for the text labels.
+   *  @param layer The layer on which to draw the labels.
+   */
   inline void put_point_labels(Tikz_Plane & plane,
                                const Array<Point> & pts,
                                const std::string & prefix = "p",
@@ -364,7 +417,17 @@ namespace Aleph
                                placement, style, layer);
   }
 
-  /// @brief Label points in iteration order as `prefix + index`.
+  /** @brief Adds a text label to each point in a `DynList<Point>`.
+   *
+   *  Labels are generated as `prefix + index` based on iteration order.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param pts The list of points to label.
+   *  @param prefix A string prefix for each label.
+   *  @param placement The TikZ placement string (e.g., "above", "below left").
+   *  @param style The style for the text labels.
+   *  @param layer The layer on which to draw the labels.
+   */
   inline void put_point_labels(Tikz_Plane & plane,
                                const DynList<Point> & pts,
                                const std::string & prefix = "p",
@@ -379,7 +442,13 @@ namespace Aleph
                                placement, style, layer);
   }
 
-  /// @brief Insert all polygons from an `Array<Polygon>`.
+  /** @brief Inserts all polygons from an `Array<Polygon>` into the plane.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param polys An array of polygons to insert.
+   *  @param style The style to apply to each polygon.
+   *  @param layer The layer on which to draw the polygons.
+   */
   inline void put_polygons(Tikz_Plane & plane, const Array<Polygon> & polys,
                            const Tikz_Style & style = tikz_wire_style(),
                            const int layer = Tikz_Plane::Layer_Default)
@@ -388,7 +457,13 @@ namespace Aleph
       put_in_plane(plane, polys(i), style, layer);
   }
 
-  /// @brief Insert all vertices of a polygon as points.
+  /** @brief Inserts the vertices of a polygon as styled points.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param poly The polygon whose vertices are to be drawn.
+   *  @param style The style for the vertex points.
+   *  @param layer The layer on which to draw the points.
+   */
   inline void put_polygon_vertices(Tikz_Plane & plane, const Polygon & poly,
                                    const Tikz_Style & style = tikz_points_style(),
                                    const int layer = Tikz_Plane::Layer_Overlay)
@@ -397,7 +472,13 @@ namespace Aleph
       put_in_plane(plane, it.get_current_vertex().to_point(), style, layer);
   }
 
-  /// @brief Insert all vertices of a regular polygon as points.
+  /** @brief Inserts the vertices of a regular polygon as styled points.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param poly The regular polygon whose vertices are to be drawn.
+   *  @param style The style for the vertex points.
+   *  @param layer The layer on which to draw the points.
+   */
   inline void put_polygon_vertices(Tikz_Plane & plane, const Regular_Polygon & poly,
                                    const Tikz_Style & style = tikz_points_style(),
                                    const int layer = Tikz_Plane::Layer_Overlay)
@@ -406,7 +487,13 @@ namespace Aleph
       put_in_plane(plane, poly.get_vertex(i), style, layer);
   }
 
-  /// @brief Build a polygon from ordered vertices.
+  /** @brief Constructs a `Polygon` from an ordered array of vertices.
+   *
+   *  @param vertices An array of `Point`s in the desired order.
+   *  @param close If true, closes the polygon by adding an edge from the last
+   *         vertex back to the first.
+   *  @return The constructed `Polygon`.
+   */
   inline Polygon polygon_from_vertices(const Array<Point> & vertices,
                                        const bool close = true)
   {
@@ -420,18 +507,24 @@ namespace Aleph
     return poly;
   }
 
-  /// @brief Build a polygon from indexed vertices.
+  /** @brief Constructs a `Polygon` from a list of indices into a vertex array.
+   *
+   *  This is useful for algorithms that return faces or boundaries as lists of
+   *  indices (e.g., `SegmentArrangement`).
+   *
+   *  @param vertices The master array of `Point` vertices.
+   *  @param indices The indices of the vertices that form this polygon.
+   *  @param close If true, closes the polygon.
+   *  @return The constructed `Polygon`.
+   */
   inline Polygon polygon_from_vertex_indices(const Array<Point> & vertices,
                                              const DynList<size_t> & indices,
                                              const bool close = true)
   {
     Polygon poly;
     for (DynList<size_t>::Iterator it(indices); it.has_curr(); it.next_ne())
-      {
-        const size_t idx = it.get_curr();
-        if (idx < vertices.size())
-          poly.add_vertex(vertices(idx));
-      }
+      if (const size_t idx = it.get_curr(); idx < vertices.size())
+        poly.add_vertex(vertices(idx));
 
     if (close and poly.size() >= 2)
       poly.close();
@@ -439,10 +532,24 @@ namespace Aleph
     return poly;
   }
 
-  /** @brief Visualize a convex hull computation.
+  /** @brief Runs a convex hull algorithm and visualizes the result.
    *
-   *  Draws the input point cloud and the resulting hull polygon.
-   *  The hull is computed using the supplied algorithm object.
+   *  This helper function takes a list of points, computes their convex hull
+   *  using the provided algorithm object, and inserts both the original points
+   *  and the resulting hull polygon into the `Tikz_Plane`.
+   *
+   *  @tparam HullAlgorithm The type of the convex hull algorithm object. It must
+   *          be a callable that takes a `DynList<Point>` and returns a `Polygon`.
+   *  @param plane The target TikZ plane.
+   *  @param points The input point cloud.
+   *  @param hull_algorithm An instance of the hull algorithm to use.
+   *  @param point_style The style for the input points.
+   *  @param hull_style The style for the convex hull polygon's outline.
+   *  @param hull_vertex_style The style for the vertices of the hull.
+   *  @param point_layer The layer for the input points.
+   *  @param hull_layer The layer for the hull polygon and its vertices.
+   *  @param draw_hull_vertices If true, the vertices of the hull are drawn.
+   *  @return The computed convex hull `Polygon`.
    */
   template <typename HullAlgorithm>
   Polygon visualize_convex_hull(Tikz_Plane & plane,
@@ -470,9 +577,21 @@ namespace Aleph
     return hull;
   }
 
-  /** @brief Visualize convex polygon intersection.
+  /** @brief Visualizes the intersection of two convex polygons.
    *
-   *  Draws subject/clip polygons and their intersection.
+   *  Draws the subject and clip polygons with semi-transparent fills and
+   *  overlays their intersection with a distinct, solid fill.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param subject The subject polygon.
+   *  @param clip The clipping polygon.
+   *  @param intersection_algorithm The algorithm to use for intersection.
+   *  @param subject_style The style for the subject polygon.
+   *  @param clip_style The style for the clip polygon.
+   *  @param result_style The style for the resulting intersection polygon.
+   *  @param input_layer The base layer for the input polygons.
+   *  @param result_layer The layer for the intersection polygon.
+   *  @return The `Polygon` representing the intersection.
    */
   inline Polygon visualize_convex_intersection(
       Tikz_Plane & plane,
@@ -495,9 +614,24 @@ namespace Aleph
     return inter;
   }
 
-  /** @brief Visualize boolean operation on polygons.
+  /** @brief Visualizes a boolean operation (union, intersection, difference) on two polygons.
    *
-   *  Returns the resulting polygons and inserts them into the plane.
+   *  Draws the two input polygons (`a` and `b`) with semi-transparent fills
+   *  and overlays the result of the boolean operation with a distinct style.
+   *  This function can handle non-convex polygons.
+   *
+   *  @param plane The target TikZ plane.
+   *  @param a The subject polygon.
+   *  @param b The clip polygon.
+   *  @param op The boolean operation to perform (e.g., `Op::Union`).
+   *  @param bop The boolean operations algorithm object.
+   *  @param a_style The style for polygon `a`.
+   *  @param b_style The style for polygon `b`.
+   *  @param result_style The style for the resulting polygon(s).
+   *  @param input_layer The base layer for the input polygons.
+   *  @param result_layer The layer for the resulting polygon(s).
+   *  @return An `Array<Polygon>` containing the result of the operation.
+   *          The result can be multiple disjoint polygons.
    */
   inline Array<Polygon> visualize_boolean_operation(
       Tikz_Plane & plane,
@@ -605,17 +739,13 @@ namespace Aleph
       }
 
     for (size_t i = 0; i < vor.edges.size(); ++i)
-      {
-        const auto & e = vor.edges(i);
-
-        if (e.unbounded)
-          {
-            const Point tgt = ray_endpoint(e.src, e.direction, unbounded_ray_length);
-            put_in_plane(plane, Segment(e.src, tgt), unbounded_edge_style, edge_layer);
-          }
-        else
-          put_in_plane(plane, Segment(e.src, e.tgt), edge_style, edge_layer);
-      }
+      if (const auto & e = vor.edges(i); e.unbounded)
+        {
+          const Point tgt = ray_endpoint(e.src, e.direction, unbounded_ray_length);
+          put_in_plane(plane, Segment(e.src, tgt), unbounded_edge_style, edge_layer);
+        }
+      else
+        put_in_plane(plane, Segment(e.src, e.tgt), edge_style, edge_layer);
 
     put_points(plane, vor.sites, site_style, site_layer);
   }
@@ -636,8 +766,7 @@ namespace Aleph
       const Geom_Number & unbounded_ray_length = Geom_Number(50))
   {
     VoronoiDiagram::Result vor = algorithm(sites);
-    put_voronoi_result(
-                       plane, vor,
+    put_voronoi_result(plane, vor,
                        draw_cells, cell_style,
                        edge_style, unbounded_edge_style, site_style,
                        unbounded_ray_length,
@@ -722,12 +851,12 @@ namespace Aleph
         size_t face_color_idx = 0;
         for (size_t i = 0; i < arrangement.faces.size(); ++i)
           {
-            const auto & face = arrangement.faces(i);
-            if (face.unbounded and not draw_unbounded_face)
+            const auto & [boundary, unbounded] = arrangement.faces(i);
+            if (unbounded and not draw_unbounded_face)
               continue;
 
-            Polygon poly = polygon_from_vertex_indices(
-                                                       arrangement.vertices, face.boundary, true);
+            Polygon poly =
+                polygon_from_vertex_indices(arrangement.vertices, boundary, true);
             if (poly.size() >= 3)
               {
                 Tikz_Style style = face_style;
@@ -812,10 +941,10 @@ namespace Aleph
         const Geom_Number y0 = part.region.get_ymin();
         const Geom_Number y1 = part.region.get_ymax();
         Segment split_seg = part.split_on_x ?
-                            Segment(Point(part.split_value, y0),
-                                    Point(part.split_value, y1)) :
-                            Segment(Point(x0, part.split_value),
-                                    Point(x1, part.split_value));
+                              Segment(Point(part.split_value, y0),
+                                      Point(part.split_value, y1)) :
+                              Segment(Point(x0, part.split_value),
+                                      Point(x1, part.split_value));
 
         Tikz_Style style = split_style;
         style.draw_color = detail::tikz_palette_color(part.depth);
@@ -838,8 +967,8 @@ namespace Aleph
   {
     const auto snapshot = kd_tree.debug_snapshot();
     put_kdtree_partitions_result(
-        plane, snapshot, draw_partition_boxes, draw_points,
-        partition_style, split_style, point_style);
+                                 plane, snapshot, draw_partition_boxes, draw_points,
+                                 partition_style, split_style, point_style);
     return snapshot;
   }
 
@@ -848,8 +977,8 @@ namespace Aleph
       Tikz_Plane & plane,
       const RangeTree2D::DebugSnapshot & snapshot,
       const bool draw_points = true,
-      const Rectangle * query_rect = nullptr,
-      const DynList<Point> * query_hits = nullptr,
+      const Rectangle *query_rect = nullptr,
+      const DynList<Point> *query_hits = nullptr,
       const Tikz_Style & split_style = tikz_wire_style("purple"),
       const Tikz_Style & point_style = tikz_points_style("black"),
       const Tikz_Style & query_rect_style = tikz_wire_style("red", true),
@@ -902,9 +1031,8 @@ namespace Aleph
       const Tikz_Style & point_style = tikz_points_style("black"))
   {
     const auto snapshot = tree.debug_snapshot();
-    put_range_tree_result(
-        plane, snapshot, draw_points, nullptr, nullptr,
-        split_style, point_style);
+    put_range_tree_result(plane, snapshot, draw_points, nullptr, nullptr,
+                          split_style, point_style);
     return snapshot;
   }
 
@@ -932,9 +1060,8 @@ namespace Aleph
     out.query_rect = query_rect;
     out.query_hits = tree.query(query_rect.get_xmin(), query_rect.get_xmax(),
                                 query_rect.get_ymin(), query_rect.get_ymax());
-    put_range_tree_result(
-        plane, out.snapshot, draw_points, &out.query_rect, &out.query_hits,
-        split_style, point_style, query_rect_style, query_hit_style);
+    put_range_tree_result(plane, out.snapshot, draw_points, &out.query_rect, &out.query_hits,
+                          split_style, point_style, query_rect_style, query_hit_style);
     return out;
   }
 
@@ -942,8 +1069,8 @@ namespace Aleph
   inline void put_aabb_tree_result(
       Tikz_Plane & plane,
       const AABBTree::DebugSnapshot & snapshot,
-      const Rectangle * query_rect = nullptr,
-      const Array<size_t> * query_hit_ids = nullptr,
+      const Rectangle *query_rect = nullptr,
+      const Array<size_t> *query_hit_ids = nullptr,
       const Tikz_Style & node_bbox_style = tikz_wire_style("teal!70!black"),
       const Tikz_Style & leaf_bbox_style = tikz_wire_style("blue!70"),
       const Tikz_Style & query_rect_style = tikz_wire_style("red", true),
@@ -981,9 +1108,8 @@ namespace Aleph
       const Tikz_Style & leaf_bbox_style = tikz_wire_style("blue!70"))
   {
     const auto snapshot = tree.debug_snapshot();
-    put_aabb_tree_result(
-        plane, snapshot, nullptr, nullptr,
-        node_bbox_style, leaf_bbox_style);
+    put_aabb_tree_result(plane, snapshot, nullptr, nullptr,
+                         node_bbox_style, leaf_bbox_style);
     return snapshot;
   }
 
@@ -1010,8 +1136,8 @@ namespace Aleph
     out.query_rect = query_rect;
     out.query_hit_ids = tree.query(query_rect);
     put_aabb_tree_result(
-        plane, out.snapshot, &out.query_rect, &out.query_hit_ids,
-        node_bbox_style, leaf_bbox_style, query_rect_style, query_hit_style);
+                         plane, out.snapshot, &out.query_rect, &out.query_hit_ids,
+                         node_bbox_style, leaf_bbox_style, query_rect_style, query_hit_style);
     return out;
   }
 
@@ -1497,7 +1623,7 @@ namespace Aleph
   {
     auto result = algorithm(weighted_sites);
     put_regular_triangulation_result(
-        plane, result, triangle_style, draw_sites, site_style);
+                                     plane, result, triangle_style, draw_sites, site_style);
     return result;
   }
 
@@ -1518,7 +1644,7 @@ namespace Aleph
     put_in_plane(plane, result.second, pair_points_style, pair_layer + 1);
   }
 
-  /** @brief Compute and draw closest pair from an input point set. */
+  /** @brief Compute and draw the closest pair from an input point set. */
   [[nodiscard]] inline ClosestPairDivideAndConquer::Result
   visualize_closest_pair(
       Tikz_Plane & plane,
@@ -1530,8 +1656,8 @@ namespace Aleph
   {
     auto result = algorithm(points);
     put_closest_pair_result(
-        plane, points, result,
-        points_style, pair_style, pair_points_style);
+                            plane, points, result,
+                            points_style, pair_style, pair_points_style);
     return result;
   }
 
@@ -1573,11 +1699,11 @@ namespace Aleph
       const Tikz_Style & witness_style = tikz_points_style("orange!90!black"))
   {
     RotatingCalipersResult result{
-      RotatingCalipersConvexPolygon::diameter(polygon),
-      RotatingCalipersConvexPolygon::minimum_width(polygon)
-    };
+          RotatingCalipersConvexPolygon::diameter(polygon),
+          RotatingCalipersConvexPolygon::minimum_width(polygon)
+        };
     put_rotating_calipers_result(
-        plane, polygon, result, polygon_style, diameter_style, width_style, witness_style);
+                                 plane, polygon, result, polygon_style, diameter_style, width_style, witness_style);
     return result;
   }
 
@@ -1611,7 +1737,7 @@ namespace Aleph
   {
     Polygon intersection = algorithm(halfplanes);
     put_half_plane_intersection_result(
-        plane, halfplanes, intersection, boundary_style, result_style);
+                                       plane, halfplanes, intersection, boundary_style, result_style);
     return intersection;
   }
 
@@ -1646,7 +1772,7 @@ namespace Aleph
   {
     Polygon result = algorithm(first, second);
     put_minkowski_sum_result(
-        plane, first, second, result, first_style, second_style, result_style);
+                             plane, first, second, result, first_style, second_style, result_style);
     return result;
   }
 
@@ -1676,7 +1802,7 @@ namespace Aleph
   {
     DynList<Triangle> triangles = algorithm(polygon);
     put_monotone_triangulation_result(
-        plane, polygon, triangles, polygon_style, triangle_style);
+                                      plane, polygon, triangles, polygon_style, triangle_style);
     return triangles;
   }
 
@@ -1711,8 +1837,8 @@ namespace Aleph
   {
     Polygon visibility_polygon = algorithm(polygon, query_point);
     put_visibility_polygon_result(
-        plane, polygon, query_point, visibility_polygon,
-        polygon_style, visibility_style, query_style);
+                                  plane, polygon, query_point, visibility_polygon,
+                                  polygon_style, visibility_style, query_style);
     return visibility_polygon;
   }
 
@@ -1744,9 +1870,10 @@ namespace Aleph
   {
     Array<SweepLineSegmentIntersection::Intersection> intersections = algorithm(segments);
     put_line_sweep_result(
-        plane, segments, intersections, segment_style, intersection_style);
+                          plane, segments, intersections, segment_style, intersection_style);
     return intersections;
   }
+
   /** @brief Insert constrained Delaunay triangulation result.
    *
    *  Draws all triangles in wire style, constrained edges in a distinct
@@ -2015,7 +2142,7 @@ namespace Aleph
   [[nodiscard]] inline Polygon visualize_chaikin_smoothing(
       Tikz_Plane & plane,
       const Polygon & poly,
-      size_t iterations,
+      const size_t iterations,
       const Geom_Number & ratio = Geom_Number(1, 4),
       const Tikz_Style & original_style = tikz_wire_style("gray!50"),
       const Tikz_Style & smoothed_style = tikz_wire_style("violet!80", 1.2),
@@ -2064,7 +2191,7 @@ namespace Aleph
         for (size_t i = 0; i < res.trapezoids.size(); ++i)
           {
             const Trap & t = res.trapezoids(i);
-            if (!t.active) continue;
+            if (! t.active) continue;
 
             // A trapezoid has 4 corners defined by:
             //   top-left: intersection of left vertical with top segment
@@ -2080,7 +2207,7 @@ namespace Aleph
 
             // Compute y-coordinates at left and right x-boundaries.
             auto y_at_x = [](const Segment & seg, const Geom_Number & x)
-                -> Geom_Number
+              -> Geom_Number
               {
                 const Geom_Number & x1 = seg.get_src_point().get_x();
                 const Geom_Number & x2 = seg.get_tgt_point().get_x();
@@ -2092,7 +2219,11 @@ namespace Aleph
 
             const Geom_Number lx = lp.get_x();
             const Geom_Number rx = rp.get_x();
-            if (lx == rx) { ++color_idx; continue; } // degenerate
+            if (lx == rx)
+              {
+                ++color_idx;
+                continue;
+              } // degenerate
 
             const Point tl_corner(lx, y_at_x(top_seg, lx));
             const Point tr_corner(rx, y_at_x(top_seg, rx));
@@ -2147,7 +2278,7 @@ namespace Aleph
         for (size_t j = 0; j < res.trapezoids.size(); ++j)
           {
             const Trap & t = res.trapezoids(j);
-            if (!t.active) continue;
+            if (! t.active) continue;
             if (t.leftp == NONE or t.rightp == NONE) continue;
             const Point & lp = res.points(t.leftp);
             const Point & rp = res.points(t.rightp);
@@ -2155,7 +2286,7 @@ namespace Aleph
               continue;
             // This trapezoid covers x-coordinate of p.
             auto y_at_x = [](const Segment & seg, const Geom_Number & x)
-                -> Geom_Number
+              -> Geom_Number
               {
                 const Geom_Number & x1 = seg.get_src_point().get_x();
                 const Geom_Number & x2 = seg.get_tgt_point().get_x();
@@ -2171,7 +2302,7 @@ namespace Aleph
           }
         if (top_y > bot_y)
           put_in_plane(plane, Segment(Point(p.get_x(), bot_y),
-                                       Point(p.get_x(), top_y)),
+                                      Point(p.get_x(), top_y)),
                        extension_style, ext_layer);
       }
 
@@ -2219,7 +2350,6 @@ namespace Aleph
                                draw_trapezoids, trapezoid_opacity);
     return result;
   }
-
 } // namespace Aleph
 
 # endif // TIKZGEOM_ALGORITHMS_H
