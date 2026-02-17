@@ -947,6 +947,38 @@ See `Examples/voronoi_clipped_cells_example.cc` for clipped, site-indexed
 Voronoi cells exported as CSV/WKT.
 See `docs/TIKZGEOM_GUIDE.md` for the full TikZ API and extension patterns.
 
+<a id="readme-computational-geometry"></a>
+### Computational Geometry
+
+Aleph-w provides a robust suite for 2D and 3D computational geometry, built on **exact rational arithmetic** (`Geom_Number` = `mpq_class`) to prevent floating-point errors in geometric predicates.
+
+**Key Features:**
+
+- **Geometric Primitives (`point.H`, `polygon.H`)**: A comprehensive set of classes for points (2D/3D), segments, polygons (simple and regular), triangles, rectangles, and ellipses (axis-aligned and rotated).
+- **Exact Predicates**: Core functions like `orientation()`, `segments_intersect()`, and `in_circle()` are exact, ensuring robust and correct behavior for higher-level algorithms.
+
+**Algorithms (`geom_algorithms.H`):**
+
+| Category | Algorithms | Complexity |
+|---|---|---|
+| **Convex Hull** | Andrew's Monotonic Chain, Graham Scan, QuickHull, Gift Wrapping (Jarvis March), Brute-Force | O(n log n) / O(nh) |
+| **Triangulation** | Ear-Cutting, Monotone Polygon, Delaunay (Bowyer-Watson, Randomized Inc.), Constrained Delaunay (CDT) | O(n²), O(n log n) |
+| **Proximity** | Closest Pair (Divide & Conquer), Minimum Enclosing Circle (Welzl), Rotating Calipers (Diameter/Width) | O(n log n), O(n) |
+| **Diagrams** | Voronoi Diagram (from Delaunay), Power Diagram (Weighted Voronoi) | O(n log n) |
+| **Intersections** | Segment Sweep (Bentley-Ottmann), Half-Plane Intersection, Convex Polygon Clipping, Boolean Polygon Ops (Greiner-Hormann) | O((n+k)log n), O(n log n) |
+| **Simplification** | Douglas-Peucker, Visvalingam-Whyatt, Chaikin Smoothing | O(n log n), O(n*2^k) |
+| **Pathfinding** | Shortest Path in Simple Polygon (Funnel Algorithm) | O(n²) |
+| **Spatial Indexing** | AABB Tree, KD-Tree | O(log n) queries |
+
+**Visualization (`tikzgeom.H`, `eepicgeom.H`):**
+
+- **TikZ Backend**: A modern, flexible backend (`Tikz_Plane`) for generating high-quality PGF/TikZ diagrams. Supports layers, styling, and native Bézier curves.
+- **Algorithm Visualizers**: A suite of functions in `tikzgeom_algorithms.H` to render the output of algorithms like Voronoi diagrams, convex hulls, and arrangements.
+- **Document Export**: The `Tikz_Scene` helper in `tikzgeom_scene.H` composes complex figures and exports them as standalone LaTeX documents, Beamer slides, or handouts, including multi-step animations using overlays.
+- **Legacy EEPIC Backend**: For compatibility with older LaTeX workflows.
+
+See `Examples/` for over a dozen geometry-specific programs, including `tikz_funnel_beamer_twocol_example.cc` which generates animated Beamer slides of the shortest-path funnel algorithm.
+
 <a id="readme-linear-algebra-sparse-structures"></a>
 ### Linear Algebra (Sparse Structures)
 

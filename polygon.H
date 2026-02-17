@@ -1247,6 +1247,12 @@ namespace Aleph
   // Stream output operators for polygon classes
   // ============================================================================
 
+  /**
+   * @brief Output stream operator for Polygon.
+   * @param o The output stream.
+   * @param p The polygon to output.
+   * @return A reference to the output stream.
+   */
   inline std::ostream &operator<<(std::ostream & o, const Polygon & p)
   {
     o << "Polygon(n=" << p.size() << ", "
@@ -1262,6 +1268,12 @@ namespace Aleph
     return o;
   }
 
+  /**
+   * @brief Output stream operator for Regular_Polygon.
+   * @param o The output stream.
+   * @param p The regular polygon to output.
+   * @return A reference to the output stream.
+   */
   inline std::ostream &operator<<(std::ostream & o, const Regular_Polygon & p)
   {
     o << "Regular_Polygon(center=" << p.get_center()

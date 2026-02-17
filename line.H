@@ -461,15 +461,13 @@ struct LineEq
   }
 
   /**
-   * @brief Test equality of two lines.
-   *
-   * Lines are equal if they have the same slope and y-intercept
-   * (within epsilon tolerance).
-   *
-   * @param l Line to compare with
-   * @param epsilon Tolerance for comparison (default: exact equality)
-   * @return True if lines are identical
-   */
+ * @brief Test equality of two lines.
+ *
+ * Lines are equal if they have the same slope and y-intercept.
+ *
+ * @param l Line to compare with
+ * @return True if lines are identical
+ */
   [[nodiscard]] bool operator==(const LineEq & l) const noexcept
   {
     return y0 == l.y0 and m == l.m;
@@ -489,8 +487,8 @@ struct LineEq
   /**
    * @brief Test approximate equality of two lines.
    *
-   * Lines are approximately equal if they have the same slope and y-intercept
-   * within epsilon tolerance.
+   * Lines are approximately equal if their slope and y-intercept
+   * are within an epsilon tolerance.
    *
    * @param l Line to compare with
    * @param epsilon Tolerance for comparison
@@ -502,9 +500,9 @@ struct LineEq
   }
 
   /**
-   * @brief Convert line to string representation.
+   * @brief Convert line to a string representation.
    *
-   * @return String in format "y = y0 + m * x"
+   * @return String in the format "y = y0 + m * x"
    */
   [[nodiscard]] std::string to_string() const
   {
@@ -516,9 +514,9 @@ struct LineEq
   /**
    * @brief Output stream operator.
    *
-   * @param out Output stream
-   * @param l Line to output
-   * @return Reference to output stream
+   * @param out The output stream.
+   * @param l The line to output.
+   * @return A reference to the output stream.
    */
   friend std::ostream & operator<<(std::ostream & out, const LineEq & l)
   {
