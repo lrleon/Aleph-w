@@ -60,14 +60,31 @@
 
 # include <gmpfrxx.h>
 
-/// Global-namespace overload so that ADL (e.g. from GTest) finds it
-/// instead of the gmpxx template, which references symbols compiled
-/// against libstdc++ and fails to link with libc++.
-inline std::ostream &operator <<(std::ostream & o, const mpq_class & n)
+/// When compiling with libc++, the gmpxx library's low-level stream
+/// operators (compiled against libstdc++) are unavailable.  The gmpxx
+/// header template `operator<<(__gmp_expr<T,U>)` ultimately calls
+/// `o << temp.__get_mp()`, which resolves to these overloads.
+/// Provide them here so that *all* GMP expression types can be printed,
+/// not just mpq_class.
+# if defined(_LIBCPP_VERSION)
+inline std::ostream & operator<<(std::ostream & o, mpq_srcptr q)
 {
-  o << n.get_d();
+  o << mpq_get_d(q);
   return o;
 }
+
+inline std::ostream & operator<<(std::ostream & o, mpz_srcptr z)
+{
+  o << mpz_get_d(z);
+  return o;
+}
+
+inline std::ostream & operator<<(std::ostream & o, mpf_srcptr f)
+{
+  o << mpf_get_d(f);
+  return o;
+}
+# endif
 
 namespace Aleph
 {

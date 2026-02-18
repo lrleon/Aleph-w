@@ -1593,7 +1593,7 @@ namespace Aleph
                                                 const bool clip_ccw)
     {
       const Orientation o = orientation(a, b, p);
-      return clip_ccw ? (o != Orientation::CW) : (o != Orientation::CCW);
+      return clip_ccw ? o != Orientation::CW : o != Orientation::CCW;
     }
 
     [[nodiscard]] static Point line_intersection(const Point & s, const Point & e,
@@ -11482,7 +11482,7 @@ namespace Aleph
 
       Array<Polygon> res = greiner_hormann(va, vb, /*start_entering=*/true);
 
-      if (! res.is_empty())
+      if (not res.is_empty())
         return res;
 
       // No proper intersections — check containment.
