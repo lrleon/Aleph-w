@@ -6501,7 +6501,7 @@ namespace Aleph
         return merge(root->left, root->right);
       }
 
-      static void destroy(Node *n)
+      static void destroy(const Node *n)
       {
         if (n == nullptr)
           return;
@@ -6794,8 +6794,7 @@ namespace Aleph
                             if (upper_a != upper_b)
                               return upper_a > upper_b;
 
-                            const Geom_Number cross = dax * dby - day * dbx;
-                            if (cross != 0)
+                            if (const Geom_Number cross = dax * dby - day * dbx; cross != 0)
                               return cross > 0;
 
                             const Geom_Number da2 = dax * dax + day * day;
@@ -9018,9 +9017,8 @@ namespace Aleph
           const Geom_Number day = ob(i).get_y() - oa(i).get_y();
           const Geom_Number dbx = ob(j).get_x() - oa(j).get_x();
           const Geom_Number dby = ob(j).get_y() - oa(j).get_y();
-          const Geom_Number denom = dax * dby - day * dbx;
 
-          if (denom == 0)
+          if (const Geom_Number denom = dax * dby - day * dbx; denom == 0)
             {
               junction_count.append(0);
               continue;
@@ -9288,7 +9286,7 @@ namespace Aleph
               boundary.append(aug(idx).pt);
               idx = (idx + 1) % N;
 
-              while (! aug(idx).is_intersection)
+              while (not aug(idx).is_intersection)
                 {
                   boundary.append(aug(idx).pt);
                   idx = (idx + 1) % N;
@@ -9793,7 +9791,7 @@ namespace Aleph
             size_t v = tris(ti).v[(e + 2) % 3];
             if (u > v)
               {
-                size_t tmp = u;
+                const size_t tmp = u;
                 u = v;
                 v = tmp;
               }
@@ -11231,7 +11229,7 @@ namespace Aleph
       for (size_t i = 1; i < idx.size(); ++i)
         {
           const size_t val = idx(i);
-          const Geom_Number key = keys(val);
+          const Geom_Number& key = keys(val);
           size_t j = i;
           while (j > 0 && keys(idx(j - 1)) > key)
             {

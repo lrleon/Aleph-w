@@ -60,6 +60,15 @@
 
 # include <gmpfrxx.h>
 
+/// Global-namespace overload so that ADL (e.g. from GTest) finds it
+/// instead of the gmpxx template, which references symbols compiled
+/// against libstdc++ and fails to link with libc++.
+inline std::ostream &operator <<(std::ostream & o, const mpq_class & n)
+{
+  o << n.get_d();
+  return o;
+}
+
 namespace Aleph
 {
   /** @brief Numeric type used by the geometry module.
@@ -73,12 +82,6 @@ namespace Aleph
   inline double geom_number_to_double(const Geom_Number & n)
   {
     return n.get_d();
-  }
-
-  inline std::ostream &operator <<(std::ostream & o, const Geom_Number & n)
-  {
-    o << n.get_d();
-    return o;
   }
 
   // TODO: provide helpers for rotating special figures (e.g., ellipses) by
