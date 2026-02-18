@@ -671,15 +671,13 @@ namespace Aleph
     static bool diagonalize(const Polygon & p, const Segment & s)
     {
       for (Polygon::Segment_Iterator it(p); it.has_curr(); it.next_ne())
-        {
-          if (Segment curr = it.get_current_segment();
-            curr.get_src_point() != s.get_src_point() and
-            curr.get_tgt_point() != s.get_src_point() and
-            curr.get_src_point() != s.get_tgt_point() and
-            curr.get_tgt_point() != s.get_tgt_point() and
-            s.intersects_with(curr))
-            return false;
-        }
+        if (Segment curr = it.get_current_segment();
+          curr.get_src_point() != s.get_src_point() and
+          curr.get_tgt_point() != s.get_src_point() and
+          curr.get_src_point() != s.get_tgt_point() and
+          curr.get_tgt_point() != s.get_tgt_point() and
+          s.intersects_with(curr))
+          return false;
       return true;
     }
 
@@ -1184,8 +1182,7 @@ namespace Aleph
         for (size_t i = pts.size() - 1; i > 0; --i)
           {
             std::uniform_int_distribution<size_t> dist(0, i);
-            const size_t j = dist(gen);
-            if (i != j)
+            if (const size_t j = dist(gen); i != j)
               std::swap(pts(i), pts(j));
           }
       }
@@ -2705,19 +2702,17 @@ namespace Aleph
           FixedQueue<size_t> frontier(ntris_before + 1);
           frontier.put(ti);
           while (not frontier.is_empty())
-            {
-              for (const size_t ct = frontier.get(); unsigned long nb: tris(ct).adj)
-                {
-                  if (nb == NONE or nb >= ntris_before or not tris(nb).alive or is_bad(nb))
-                    continue;
-                  if (in_cc(pts, tris(nb).v[0], tris(nb).v[1], tris(nb).v[2], pidx))
-                    {
-                      is_bad(nb) = true;
-                      cavity.append(nb);
-                      frontier.put(nb);
-                    }
-                }
-            }
+            for (const size_t ct = frontier.get(); unsigned long nb: tris(ct).adj)
+              {
+                if (nb == NONE or nb >= ntris_before or not tris(nb).alive or is_bad(nb))
+                  continue;
+                if (in_cc(pts, tris(nb).v[0], tris(nb).v[1], tris(nb).v[2], pidx))
+                  {
+                    is_bad(nb) = true;
+                    cavity.append(nb);
+                    frontier.put(nb);
+                  }
+              }
 
           // --- Extract boundary edges ---
           // Each boundary edge is an edge of a cavity triangle whose
@@ -2908,15 +2903,12 @@ namespace Aleph
     {
       size_t lo = 0, hi = pts.size();
       while (lo < hi)
-        {
-          const size_t mid = lo + (hi - lo) / 2;
-          if (lexicographic_less(pts(mid), p))
-            lo = mid + 1;
-          else if (lexicographic_less(p, pts(mid)))
-            hi = mid;
-          else
-            return mid;
-        }
+        if (const size_t mid = lo + (hi - lo) / 2; lexicographic_less(pts(mid), p))
+          lo = mid + 1;
+        else if (lexicographic_less(p, pts(mid)))
+          hi = mid;
+        else
+          return mid;
       return NONE;
     }
 
@@ -3118,7 +3110,7 @@ namespace Aleph
       const size_t new_a_adj1 = ext_a1; // edge(q, a_opp) was opp p in ta
       const bool new_a_con1 = con_a1;
       const size_t new_a_adj2 = tri_b;
-      const bool new_a_con2 = false; // the new diagonal is not constrained
+      constexpr bool new_a_con2 = false; // the new diagonal is not constrained
 
       if (bq == q)
         {
@@ -3141,7 +3133,7 @@ namespace Aleph
       const size_t new_b_adj0 = ext_a2; // edge(p, a_opp) was opp q in ta
       const bool new_b_con0 = con_a2;
       const size_t new_b_adj2 = tri_a;
-      const bool new_b_con2 = false; // new diagonal
+      constexpr bool new_b_con2 = false; // new diagonal
 
       if (bp == p)
         {
@@ -6841,7 +6833,7 @@ namespace Aleph
 
       DynSetTree<HalfEdge> visited;
       Array<Array<size_t>> faces;
-      for (const auto & kv: next_half | std::views::keys)
+      for (const auto & [kv, _]: next_half)
         {
           const HalfEdge start = kv;
           if (visited.search(start) != nullptr)
@@ -8056,67 +8048,67 @@ namespace Aleph
                          const Rectangle & region,
                          const size_t depth,
                          const bool split_on_x) -> void
-      {
-        if (pts.is_empty())
-          return;
+        {
+          if (pts.is_empty())
+            return;
 
-        Array<Point> sorted = pts;
-        quicksort_op(sorted, [split_on_x](const Point & a, const Point & b)
-                       {
-                         if (split_on_x)
-                           {
-                             if (a.get_x() != b.get_x()) return a.get_x() < b.get_x();
-                             return a.get_y() < b.get_y();
-                           }
-                         if (a.get_y() != b.get_y()) return a.get_y() < b.get_y();
-                         return a.get_x() < b.get_x();
-                       });
+          Array<Point> sorted = pts;
+          quicksort_op(sorted, [split_on_x](const Point & a, const Point & b)
+                         {
+                           if (split_on_x)
+                             {
+                               if (a.get_x() != b.get_x()) return a.get_x() < b.get_x();
+                               return a.get_y() < b.get_y();
+                             }
+                           if (a.get_y() != b.get_y()) return a.get_y() < b.get_y();
+                           return a.get_x() < b.get_x();
+                         });
 
-        size_t mid = sorted.size() / 2;
-        if (mid == 0) mid = 1;
-        if (mid >= sorted.size()) mid = sorted.size() - 1;
+          size_t mid = sorted.size() / 2;
+          if (mid == 0) mid = 1;
+          if (mid >= sorted.size()) mid = sorted.size() - 1;
 
-        const Point pivot = sorted(mid);
-        DebugPartition part;
-        part.region = region;
-        part.split_on_x = split_on_x;
-        part.split_value = split_on_x ? pivot.get_x() : pivot.get_y();
-        part.depth = depth;
-        part.is_leaf = sorted.size() == 1;
-        part.representative = pivot;
-        snap.partitions.append(part);
+          const Point pivot = sorted(mid);
+          DebugPartition part;
+          part.region = region;
+          part.split_on_x = split_on_x;
+          part.split_value = split_on_x ? pivot.get_x() : pivot.get_y();
+          part.depth = depth;
+          part.is_leaf = sorted.size() == 1;
+          part.representative = pivot;
+          snap.partitions.append(part);
 
-        if (sorted.size() == 1)
-          return;
+          if (sorted.size() == 1)
+            return;
 
-        Array<Point> left_pts;
-        Array<Point> right_pts;
-        left_pts.reserve(mid);
-        right_pts.reserve(sorted.size() - mid);
-        for (size_t i = 0; i < mid; ++i)
-          left_pts.append(sorted(i));
-        for (size_t i = mid; i < sorted.size(); ++i)
-          right_pts.append(sorted(i));
+          Array<Point> left_pts;
+          Array<Point> right_pts;
+          left_pts.reserve(mid);
+          right_pts.reserve(sorted.size() - mid);
+          for (size_t i = 0; i < mid; ++i)
+            left_pts.append(sorted(i));
+          for (size_t i = mid; i < sorted.size(); ++i)
+            right_pts.append(sorted(i));
 
-        if (split_on_x)
-          {
-            Rectangle left(region.get_xmin(), region.get_ymin(),
-                           pivot.get_x(), region.get_ymax());
-            Rectangle right(pivot.get_x(), region.get_ymin(),
+          if (split_on_x)
+            {
+              Rectangle left(region.get_xmin(), region.get_ymin(),
+                             pivot.get_x(), region.get_ymax());
+              Rectangle right(pivot.get_x(), region.get_ymin(),
+                              region.get_xmax(), region.get_ymax());
+              self(self, left_pts, left, depth + 1, false);
+              self(self, right_pts, right, depth + 1, false);
+            }
+          else
+            {
+              Rectangle bottom(region.get_xmin(), region.get_ymin(),
+                               region.get_xmax(), pivot.get_y());
+              Rectangle top(region.get_xmin(), pivot.get_y(),
                             region.get_xmax(), region.get_ymax());
-            self(self, left_pts, left, depth + 1, false);
-            self(self, right_pts, right, depth + 1, false);
-          }
-        else
-          {
-            Rectangle bottom(region.get_xmin(), region.get_ymin(),
-                             region.get_xmax(), pivot.get_y());
-            Rectangle top(region.get_xmin(), pivot.get_y(),
-                          region.get_xmax(), region.get_ymax());
-            self(self, left_pts, bottom, depth + 1, true);
-            self(self, right_pts, top, depth + 1, true);
-          }
-      };
+              self(self, left_pts, bottom, depth + 1, true);
+              self(self, right_pts, top, depth + 1, true);
+            }
+        };
 
       recurse(recurse, points_, bounds_, 0, true);
       return snap;
@@ -8611,28 +8603,28 @@ namespace Aleph
                              const size_t tree_idx,
                              const size_t lo,
                              const size_t hi) -> size_t
-      {
-        const size_t out_idx = snap.nodes.size();
-        snap.nodes.append(DebugNode{});
-        DebugNode & dn = snap.nodes(out_idx);
-        dn.tree_index = tree_idx;
-        dn.lo = lo;
-        dn.hi = hi;
-        dn.is_leaf = lo == hi;
-        dn.xmin = pts_(lo).get_x();
-        dn.xmax = pts_(hi).get_x();
-        dn.y_sorted_size = tree_(tree_idx).y_sorted.size();
-        dn.split_x = pts_((lo + hi) / 2).get_x();
+        {
+          const size_t out_idx = snap.nodes.size();
+          snap.nodes.append(DebugNode{});
+          DebugNode & dn = snap.nodes(out_idx);
+          dn.tree_index = tree_idx;
+          dn.lo = lo;
+          dn.hi = hi;
+          dn.is_leaf = lo == hi;
+          dn.xmin = pts_(lo).get_x();
+          dn.xmax = pts_(hi).get_x();
+          dn.y_sorted_size = tree_(tree_idx).y_sorted.size();
+          dn.split_x = pts_((lo + hi) / 2).get_x();
 
-        if (lo < hi)
-          {
-            const size_t mid = lo + (hi - lo) / 2;
-            dn.left = self(self, 2 * tree_idx, lo, mid);
-            dn.right = self(self, 2 * tree_idx + 1, mid + 1, hi);
-          }
+          if (lo < hi)
+            {
+              const size_t mid = lo + (hi - lo) / 2;
+              dn.left = self(self, 2 * tree_idx, lo, mid);
+              dn.right = self(self, 2 * tree_idx + 1, mid + 1, hi);
+            }
 
-        return out_idx;
-      };
+          return out_idx;
+        };
 
       build_debug(build_debug, 1, 0, n_ - 1);
       return snap;
@@ -12066,27 +12058,27 @@ namespace Aleph
         return snap;
 
       auto dfs = [&](const auto & self, const size_t ni, const size_t depth) -> size_t
-      {
-        const Node & n = nodes_(ni);
-        const size_t out_idx = snap.nodes.size();
-        snap.nodes.append(DebugNode{});
-        DebugNode & dn = snap.nodes(out_idx);
-        dn.node_index = ni;
-        dn.bbox = n.bbox;
-        dn.is_leaf = n.is_leaf();
-        dn.depth = depth;
-        if (dn.is_leaf)
-          {
-            dn.entry_index = n.entry_idx;
-            dn.user_index = entries_(n.entry_idx).index;
-          }
-        else
-          {
-            dn.left = self(self, n.left, depth + 1);
-            dn.right = self(self, n.right, depth + 1);
-          }
-        return out_idx;
-      };
+        {
+          const Node & n = nodes_(ni);
+          const size_t out_idx = snap.nodes.size();
+          snap.nodes.append(DebugNode{});
+          DebugNode & dn = snap.nodes(out_idx);
+          dn.node_index = ni;
+          dn.bbox = n.bbox;
+          dn.is_leaf = n.is_leaf();
+          dn.depth = depth;
+          if (dn.is_leaf)
+            {
+              dn.entry_index = n.entry_idx;
+              dn.user_index = entries_(n.entry_idx).index;
+            }
+          else
+            {
+              dn.left = self(self, n.left, depth + 1);
+              dn.right = self(self, n.right, depth + 1);
+            }
+          return out_idx;
+        };
 
       snap.root = dfs(dfs, root_, 0);
       return snap;

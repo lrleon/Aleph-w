@@ -68,7 +68,7 @@ namespace Aleph
    * routines convert to/from @c mpfr_class internally when transcendentals are
    * required.
    */
-  typedef mpq_class Geom_Number;
+  using Geom_Number = mpq_class;
 
   inline double geom_number_to_double(const Geom_Number & n)
   {

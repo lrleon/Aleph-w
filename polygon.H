@@ -1052,11 +1052,8 @@ namespace Aleph
           first_seg.get_tgt_point());
 
       if (turn != 0)
-        {
-          const int curr_sign = turn > 0 ? 1 : -1;
-          if (sign != 0 and sign != curr_sign)
+          if (const int curr_sign = turn > 0 ? 1 : -1; sign != 0 and sign != curr_sign)
             return false;
-        }
 
       return true;
     }

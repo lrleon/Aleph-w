@@ -756,17 +756,15 @@ namespace Aleph
       const int site_layer = Tikz_Plane::Layer_Foreground)
   {
     if (draw_cells)
-      {
-        for (size_t i = 0; i < vor.cells.size(); ++i)
-          {
-            const auto & cell = vor.cells(i);
-            if (not cell.bounded or cell.vertices.size() < 3)
-              continue;
+      for (size_t i = 0; i < vor.cells.size(); ++i)
+        {
+          const auto & cell = vor.cells(i);
+          if (not cell.bounded or cell.vertices.size() < 3)
+            continue;
 
-            Polygon poly = polygon_from_vertices(cell.vertices, true);
-            put_in_plane(plane, poly, cell_style, cell_layer);
-          }
-      }
+          Polygon poly = polygon_from_vertices(cell.vertices, true);
+          put_in_plane(plane, poly, cell_style, cell_layer);
+        }
 
     for (size_t i = 0; i < vor.edges.size(); ++i)
       if (const auto & e = vor.edges(i); e.unbounded)
@@ -819,17 +817,15 @@ namespace Aleph
       const int site_layer = Tikz_Plane::Layer_Foreground)
   {
     if (draw_cells)
-      {
-        for (size_t i = 0; i < pd.cells.size(); ++i)
-          {
-            const auto & cell = pd.cells(i);
-            if (cell.vertices.size() < 3)
-              continue;
+      for (size_t i = 0; i < pd.cells.size(); ++i)
+        {
+          const auto & cell = pd.cells(i);
+          if (cell.vertices.size() < 3)
+            continue;
 
-            Polygon poly = polygon_from_vertices(cell.vertices, true);
-            put_in_plane(plane, poly, cell_style, cell_layer);
-          }
-      }
+          Polygon poly = polygon_from_vertices(cell.vertices, true);
+          put_in_plane(plane, poly, cell_style, cell_layer);
+        }
 
     for (size_t i = 0; i < pd.edges.size(); ++i)
       {
