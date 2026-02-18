@@ -836,6 +836,8 @@ namespace Aleph
     void close()
     {
       ah_domain_error_if(is_closed_) << "Polygon is already closed";
+      ah_domain_error_if(num_vertex_ < 3)
+        << "Polygon needs at least 3 vertices to close (has " << num_vertex_ << ")";
 
       if (num_vertex_ >= 4)
         {
@@ -926,6 +928,139 @@ namespace Aleph
     [[deprecated("Use contains() instead")]]
     [[nodiscard]] bool contains_to(const Point & p) const { return contains(p); }
 
+    /** @brief Compute the signed area of the polygon using the shoelace formula.
+     *
+     *  Positive for counter-clockwise vertices, negative for clockwise.
+     *  Works for both convex and non-convex simple polygons.
+     *
+     *  @return The signed area (positive if CCW, negative if CW).
+     *  @throws std::domain_error If polygon has fewer than 3 vertices.
+     */
+    [[nodiscard]] Geom_Number signed_area() const
+    {
+      ah_domain_error_if(num_vertex_ < 3) << "Polygon must have at least 3 vertices";
+
+      Geom_Number sum = 0;
+      for (Segment_Iterator it(*this); it.has_curr(); it.next_ne())
+        {
+          const Segment seg = it.get_current_segment();
+          const Point & a = seg.get_src_point();
+          const Point & b = seg.get_tgt_point();
+          sum += a.get_x() * b.get_y() - a.get_y() * b.get_x();
+        }
+      return sum / 2;
+    }
+
+    /** @brief Compute the absolute area of the polygon.
+     *
+     *  @return The unsigned area of the polygon.
+     *  @throws std::domain_error If polygon has fewer than 3 vertices.
+     */
+    [[nodiscard]] Geom_Number area() const
+    {
+      Geom_Number a = signed_area();
+      return a < 0 ? Geom_Number(-a) : a;
+    }
+
+    /** @brief Compute the perimeter of the polygon.
+     *
+     *  Sum of all edge lengths. For closed polygons, includes the closing edge.
+     *
+     *  @return The perimeter length.
+     *  @throws std::domain_error If polygon has fewer than 2 vertices.
+     */
+    [[nodiscard]] Geom_Number perimeter() const
+    {
+      ah_domain_error_if(num_vertex_ < 2) << "Polygon must have at least 2 vertices";
+
+      Geom_Number sum = 0;
+      for (Segment_Iterator it(*this); it.has_curr(); it.next_ne())
+        sum += it.get_current_segment().length();
+      return sum;
+    }
+
+    /** @brief Compute the centroid (center of mass) of the polygon.
+     *
+     *  Uses the standard formula for the centroid of a simple polygon.
+     *
+     *  @return The centroid point.
+     *  @throws std::domain_error If polygon has fewer than 3 vertices or zero area.
+     */
+    [[nodiscard]] Point centroid() const
+    {
+      ah_domain_error_if(num_vertex_ < 3) << "Polygon must have at least 3 vertices";
+
+      Geom_Number cx = 0, cy = 0, a6 = 0;
+      for (Segment_Iterator it(*this); it.has_curr(); it.next_ne())
+        {
+          const Segment seg = it.get_current_segment();
+          const Point & p = seg.get_src_point();
+          const Point & q = seg.get_tgt_point();
+          const Geom_Number cross = p.get_x() * q.get_y() - q.get_x() * p.get_y();
+          cx += (p.get_x() + q.get_x()) * cross;
+          cy += (p.get_y() + q.get_y()) * cross;
+          a6 += cross;
+        }
+
+      ah_domain_error_if(a6 == 0) << "Polygon has zero area";
+      return Point(cx / (3 * a6), cy / (3 * a6));
+    }
+
+    /** @brief Check if the polygon is convex.
+     *
+     *  A polygon is convex if all cross products of consecutive edges have
+     *  the same sign (all left turns or all right turns).
+     *
+     *  @return True if the polygon is convex, false otherwise.
+     *  @throws std::domain_error If polygon has fewer than 3 vertices.
+     */
+    [[nodiscard]] bool is_convex() const
+    {
+      ah_domain_error_if(num_vertex_ < 3) << "Polygon must have at least 3 vertices";
+
+      // Check turn direction at each vertex using segment iterator
+      int sign = 0;
+      Segment_Iterator it(*this);
+      Segment prev_seg = it.get_current_segment();
+      it.next_ne();
+
+      while (it.has_curr())
+        {
+          const Segment curr_seg = it.get_current_segment();
+          // Turn at the shared vertex (prev_seg.tgt == curr_seg.src)
+          const Geom_Number turn = area_of_parallelogram(
+              prev_seg.get_src_point(), prev_seg.get_tgt_point(),
+              curr_seg.get_tgt_point());
+
+          if (turn != 0)
+            {
+              const int curr_sign = turn > 0 ? 1 : -1;
+              if (sign == 0)
+                sign = curr_sign;
+              else if (sign != curr_sign)
+                return false;
+            }
+
+          prev_seg = curr_seg;
+          it.next_ne();
+        }
+
+      // Check the wrap-around turn (last vertex to first)
+      const Segment first_seg = Segment_Iterator(*this).get_current_segment();
+      const Geom_Number turn = area_of_parallelogram(
+          prev_seg.get_src_point(), prev_seg.get_tgt_point(),
+          first_seg.get_tgt_point());
+
+      if (turn != 0)
+        {
+          const int curr_sign = turn > 0 ? 1 : -1;
+          if (sign != 0 and sign != curr_sign)
+            return false;
+        }
+
+      return true;
+    }
+
     /** @brief Construct a polygon from a Triangle.
      *
      *  Creates a closed 3-vertex polygon from the given triangle.
@@ -982,13 +1117,20 @@ namespace Aleph
    *  Regular_Polygon diamond(Point(0, 0), 100.0, 4, PI/4);
    *  @endcode
    *
+   *  @note This class uses `double` internally for side length, angles, and
++   *        circumradius because vertex positions require trigonometric functions
++   *        (sin, cos) whose results are transcendental and cannot be exactly
++   *        represented in `Geom_Number` (rational arithmetic). The center point
++   *        remains exact; vertex coordinates are computed with floating-point
++   *        precision.
++   *
    *  @see Polygon
    *  @ingroup Geometry
    */
   class Regular_Polygon : public Geom_Object
   {
     Point center_; ///< Center point of the polygon
-    double side_size_; ///< Length of each side
+    double side_size_; ///< Length of each side (double due to trig limitations)
     size_t num_vertex_; ///< Number of vertices (sides)
     double angle_; ///< Rotation angle in radians
     double r_; ///< Circumradius (distance from center to vertices)

@@ -219,6 +219,21 @@ TEST_F(PolygonConstructionTest, ClosePolygon)
   EXPECT_TRUE(poly.is_closed());
 }
 
+TEST_F(PolygonConstructionTest, CloseWithTooFewVerticesThrows)
+{
+  Polygon empty;
+  EXPECT_THROW(empty.close(), std::domain_error);
+
+  Polygon one_vertex;
+  one_vertex.add_vertex(Point(0, 0));
+  EXPECT_THROW(one_vertex.close(), std::domain_error);
+
+  Polygon two_vertices;
+  two_vertices.add_vertex(Point(0, 0));
+  two_vertices.add_vertex(Point(100, 0));
+  EXPECT_THROW(two_vertices.close(), std::domain_error);
+}
+
 TEST_F(PolygonConstructionTest, CannotAddVertexToClosedPolygon)
 {
   Polygon poly = create_triangle();
@@ -1279,6 +1294,171 @@ TEST(PolygonEdgeCases, NegativeCoordinatesPolygon)
   
   EXPECT_TRUE(poly.contains(Point(-750, -750)));
   EXPECT_FALSE(poly.contains(Point(0, 0)));
+}
+
+//============================================================================
+// Polygon Convenience Methods Tests
+//============================================================================
+
+TEST(PolygonConvenienceMethods, AreaOfUnitSquare)
+{
+  Polygon square;
+  square.add_vertex(Point(0, 0));
+  square.add_vertex(Point(1, 0));
+  square.add_vertex(Point(1, 1));
+  square.add_vertex(Point(0, 1));
+  square.close();
+
+  EXPECT_EQ(square.area(), Geom_Number(1));
+  EXPECT_EQ(square.signed_area(), Geom_Number(1)); // CCW => positive
+}
+
+TEST(PolygonConvenienceMethods, AreaOfClockwiseSquare)
+{
+  Polygon square;
+  square.add_vertex(Point(0, 0));
+  square.add_vertex(Point(0, 1));
+  square.add_vertex(Point(1, 1));
+  square.add_vertex(Point(1, 0));
+  square.close();
+
+  EXPECT_EQ(square.area(), Geom_Number(1));
+  EXPECT_EQ(square.signed_area(), Geom_Number(-1)); // CW => negative
+}
+
+TEST(PolygonConvenienceMethods, AreaOfTriangle)
+{
+  Polygon tri;
+  tri.add_vertex(Point(0, 0));
+  tri.add_vertex(Point(4, 0));
+  tri.add_vertex(Point(0, 3));
+  tri.close();
+
+  EXPECT_EQ(tri.area(), Geom_Number(6)); // (4*3)/2 = 6
+}
+
+TEST(PolygonConvenienceMethods, PerimeterOfUnitSquare)
+{
+  Polygon square;
+  square.add_vertex(Point(0, 0));
+  square.add_vertex(Point(1, 0));
+  square.add_vertex(Point(1, 1));
+  square.add_vertex(Point(0, 1));
+  square.close();
+
+  EXPECT_EQ(square.perimeter(), Geom_Number(4));
+}
+
+TEST(PolygonConvenienceMethods, PerimeterOf345Triangle)
+{
+  Polygon tri;
+  tri.add_vertex(Point(0, 0));
+  tri.add_vertex(Point(3, 0));
+  tri.add_vertex(Point(0, 4));
+  tri.close();
+
+  // 3 + 4 + 5 = 12
+  EXPECT_EQ(tri.perimeter(), Geom_Number(12));
+}
+
+TEST(PolygonConvenienceMethods, CentroidOfUnitSquare)
+{
+  Polygon square;
+  square.add_vertex(Point(0, 0));
+  square.add_vertex(Point(2, 0));
+  square.add_vertex(Point(2, 2));
+  square.add_vertex(Point(0, 2));
+  square.close();
+
+  Point c = square.centroid();
+  EXPECT_EQ(c.get_x(), Geom_Number(1));
+  EXPECT_EQ(c.get_y(), Geom_Number(1));
+}
+
+TEST(PolygonConvenienceMethods, CentroidOfTriangle)
+{
+  Polygon tri;
+  tri.add_vertex(Point(0, 0));
+  tri.add_vertex(Point(3, 0));
+  tri.add_vertex(Point(0, 3));
+  tri.close();
+
+  Point c = tri.centroid();
+  EXPECT_EQ(c.get_x(), Geom_Number(1));
+  EXPECT_EQ(c.get_y(), Geom_Number(1));
+}
+
+TEST(PolygonConvenienceMethods, IsConvexSquare)
+{
+  Polygon square;
+  square.add_vertex(Point(0, 0));
+  square.add_vertex(Point(1, 0));
+  square.add_vertex(Point(1, 1));
+  square.add_vertex(Point(0, 1));
+  square.close();
+
+  EXPECT_TRUE(square.is_convex());
+}
+
+TEST(PolygonConvenienceMethods, IsConvexTriangle)
+{
+  Polygon tri;
+  tri.add_vertex(Point(0, 0));
+  tri.add_vertex(Point(1, 0));
+  tri.add_vertex(Point(0.5, 1));
+  tri.close();
+
+  EXPECT_TRUE(tri.is_convex());
+}
+
+TEST(PolygonConvenienceMethods, NonConvexLShape)
+{
+  // L-shaped polygon (non-convex)
+  Polygon lshape;
+  lshape.add_vertex(Point(0, 0));
+  lshape.add_vertex(Point(2, 0));
+  lshape.add_vertex(Point(2, 1));
+  lshape.add_vertex(Point(1, 1));
+  lshape.add_vertex(Point(1, 2));
+  lshape.add_vertex(Point(0, 2));
+  lshape.close();
+
+  EXPECT_FALSE(lshape.is_convex());
+}
+
+TEST(PolygonConvenienceMethods, AreaThrowsForTooFewVertices)
+{
+  Polygon line;
+  line.add_vertex(Point(0, 0));
+  line.add_vertex(Point(1, 1));
+
+  EXPECT_THROW(line.area(), std::domain_error);
+}
+
+TEST(PolygonConvenienceMethods, PerimeterThrowsForSingleVertex)
+{
+  Polygon single;
+  single.add_vertex(Point(0, 0));
+
+  EXPECT_THROW(single.perimeter(), std::domain_error);
+}
+
+TEST(PolygonConvenienceMethods, CentroidThrowsForTooFewVertices)
+{
+  Polygon line;
+  line.add_vertex(Point(0, 0));
+  line.add_vertex(Point(1, 1));
+
+  EXPECT_THROW(line.centroid(), std::domain_error);
+}
+
+TEST(PolygonConvenienceMethods, IsConvexThrowsForTooFewVertices)
+{
+  Polygon line;
+  line.add_vertex(Point(0, 0));
+  line.add_vertex(Point(1, 1));
+
+  EXPECT_THROW(line.is_convex(), std::domain_error);
 }
 
 //============================================================================

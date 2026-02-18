@@ -81,14 +81,19 @@ TEST_F(GeomAlgorithmsTest, TriangulateOpenPolygonThrows)
 
 TEST_F(GeomAlgorithmsTest, TriangulateDegenerateCollinearPolygonThrows)
 {
-  Polygon p;
-  p.add_vertex(Point(0, 0));
-  p.add_vertex(Point(1, 0));
-  p.add_vertex(Point(2, 0));
-  p.close();
-
-  CuttingEarsTriangulation triangulator;
-  EXPECT_THROW((void) triangulator(p), std::domain_error);
+  // Degenerate (collinear) polygon should throw - either at close() time
+  // if vertices are reduced, or at triangulation time for zero area
+  EXPECT_THROW(
+    {
+      Polygon p;
+      p.add_vertex(Point(0, 0));
+      p.add_vertex(Point(1, 0));
+      p.add_vertex(Point(2, 0));
+      p.close();
+      CuttingEarsTriangulation triangulator;
+      (void) triangulator(p);
+    },
+    std::domain_error);
 }
 
 
@@ -292,7 +297,9 @@ TEST_F(GeomAlgorithmsTest, AndrewMonotonicChainCollinearKeepsEndpoints)
       "case_andrew_collinear_endpoints", scene,
       "Andrew monotonic chain / collinear input");
 
+  // Degenerate 2-point hull cannot be closed (requires >= 3 vertices)
   EXPECT_EQ(hull.size(), 2u);
+  EXPECT_FALSE(hull.is_closed());
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(0, 0)));
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(4, 0)));
   EXPECT_FALSE(polygon_contains_vertex(hull, Point(2, 0)));
@@ -344,7 +351,9 @@ TEST_F(GeomAlgorithmsTest, GrahamScanCollinearKeepsEndpoints)
       "case_graham_collinear_endpoints", scene,
       "Graham scan / collinear input");
 
+  // Degenerate 2-point hull cannot be closed (requires >= 3 vertices)
   EXPECT_EQ(hull.size(), 2u);
+  EXPECT_FALSE(hull.is_closed());
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(0, 0)));
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(4, 4)));
   EXPECT_FALSE(polygon_contains_vertex(hull, Point(2, 2)));
@@ -496,17 +505,15 @@ TEST_F(GeomAlgorithmsTest, RotatingCalipersRectangle)
 
 TEST_F(GeomAlgorithmsTest, RotatingCalipersTwoPointDegenerate)
 {
-  Polygon p;
-  p.add_vertex(Point(1, 1));
-  p.add_vertex(Point(4, 5));
-  p.close();
-
-  RotatingCalipersConvexPolygon calipers;
-  auto d = calipers.diameter(p);
-  EXPECT_EQ(d.distance_squared, 25);
-
-  auto w = calipers.minimum_width(p);
-  EXPECT_EQ(w.width_squared, 0);
+  // A polygon with only 2 vertices cannot be closed (requires >= 3)
+  EXPECT_THROW(
+    {
+      Polygon p;
+      p.add_vertex(Point(1, 1));
+      p.add_vertex(Point(4, 5));
+      p.close();
+    },
+    std::domain_error);
 }
 
 
@@ -701,8 +708,9 @@ TEST_F(GeomAlgorithmsTest, ConvexPolygonIntersectionTouchingEdge)
       "case_convex_polygon_intersection_touching_edge", scene,
       "Convex intersection / touching edge");
 
+  // Degenerate 2-vertex intersection cannot be closed (requires >= 3 vertices)
   EXPECT_EQ(r.size(), 2u);
-  EXPECT_TRUE(r.is_closed());
+  EXPECT_FALSE(r.is_closed());
   EXPECT_TRUE(polygon_contains_vertex(r, Point(2, 0)));
   EXPECT_TRUE(polygon_contains_vertex(r, Point(2, 2)));
 }
@@ -1453,15 +1461,17 @@ TEST_F(GeomAlgorithmsTest, HalfPlaneFromConvexPentagonCW)
 
 TEST_F(GeomAlgorithmsTest, HalfPlaneFromConvexPolygonDegenerateThrows)
 {
-  // Degenerate polygon (zero area) should throw.
-  Polygon degen;
-  degen.add_vertex(Point(0, 0));
-  degen.add_vertex(Point(1, 0));
-  degen.add_vertex(Point(2, 0));
-  degen.close();
-
+  // Degenerate polygon (zero area) should throw - either at close() time
+  // if vertices are reduced, or at algorithm time for zero area
   EXPECT_THROW(
-    (void) HalfPlaneIntersection::from_convex_polygon(degen),
+    {
+      Polygon degen;
+      degen.add_vertex(Point(0, 0));
+      degen.add_vertex(Point(1, 0));
+      degen.add_vertex(Point(2, 0));
+      degen.close();
+      (void) HalfPlaneIntersection::from_convex_polygon(degen);
+    },
     std::domain_error);
 }
 

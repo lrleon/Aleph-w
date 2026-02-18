@@ -1,3 +1,33 @@
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
 # ifndef TIKZGEOM_H
 # define TIKZGEOM_H
 
@@ -108,6 +138,20 @@ namespace Aleph
     Point p3; ///< End point.
   };
 
+  /** @brief An open or closed polyline for TikZ rendering.
+   *
+   *  @ingroup Geometry
+   *
+   *  Unlike `Polygon`, this type stores raw vertices without colinearity
+   *  merging.  It is used by Bézier polyline approximations where every
+   *  sample point must be preserved.
+   */
+  struct Tikz_Polyline
+  {
+    std::vector<Point> vertices; ///< Ordered vertices.
+    bool closed = false;         ///< Whether to close the polyline.
+  };
+
   /** @brief Create a basic draw style with a custom color. */
   inline Tikz_Style make_tikz_draw_style(const std::string & draw_color)
   {
@@ -148,7 +192,8 @@ namespace Aleph
     using Object = std::variant<Point, Polar_Point, Segment, Triangle,
                                 Ellipse, RotatedEllipse, Text,
                                 Polygon, Regular_Polygon, Rectangle, LineEq,
-                                Tikz_Quadratic_Bezier, Tikz_Cubic_Bezier>;
+                                Tikz_Quadratic_Bezier, Tikz_Cubic_Bezier,
+                                Tikz_Polyline>;
 
   private:
     struct Geom_Box
@@ -496,6 +541,14 @@ namespace Aleph
       merge_box(box, bbox_of(b.p1));
       merge_box(box, bbox_of(b.p2));
       merge_box(box, bbox_of(b.p3));
+      return box;
+    }
+
+    static Geom_Box bbox_of(const Tikz_Polyline & pl)
+    {
+      Geom_Box box;
+      for (const auto & p : pl.vertices)
+        merge_box(box, bbox_of(p));
       return box;
     }
 
@@ -1141,6 +1194,9 @@ namespace Aleph
                        draw_quadratic_bezier(value, entry.style, output, box, map);
                      else if constexpr (std::is_same_v<T, Tikz_Cubic_Bezier>)
                        draw_cubic_bezier(value, entry.style, output, box, map);
+                     else if constexpr (std::is_same_v<T, Tikz_Polyline>)
+                       draw_polyline(output, value.vertices, value.closed,
+                                     entry.style, box, map);
                    },
                  entry.object);
     }
@@ -1416,7 +1472,8 @@ namespace Aleph
   {
     ah_domain_error_if(subdivisions == 0) << "Need at least 1 subdivision";
 
-    Polygon curve;
+    Tikz_Polyline curve;
+    curve.vertices.reserve(subdivisions + 1);
     for (size_t i = 0; i <= subdivisions; ++i)
       {
         const Geom_Number t = Geom_Number(i) / Geom_Number(subdivisions);
@@ -1427,7 +1484,7 @@ namespace Aleph
         const Geom_Number y = s * s * p0.get_y() +
                               Geom_Number(2) * s * t * p1.get_y() +
                               t * t * p2.get_y();
-        curve.add_vertex(Point(x, y));
+        curve.vertices.emplace_back(x, y);
       }
 
     put_in_plane(plane, curve, style, layer);
@@ -1445,7 +1502,8 @@ namespace Aleph
   {
     ah_domain_error_if(subdivisions == 0) << "Need at least 1 subdivision";
 
-    Polygon curve;
+    Tikz_Polyline curve;
+    curve.vertices.reserve(subdivisions + 1);
     for (size_t i = 0; i <= subdivisions; ++i)
       {
         const Geom_Number t = Geom_Number(i) / Geom_Number(subdivisions);
@@ -1460,7 +1518,7 @@ namespace Aleph
                               Geom_Number(3) * s2 * t * p1.get_y() +
                               Geom_Number(3) * s * t2 * p2.get_y() +
                               t2 * t * p3.get_y();
-        curve.add_vertex(Point(x, y));
+        curve.vertices.emplace_back(x, y);
       }
 
     put_in_plane(plane, curve, style, layer);

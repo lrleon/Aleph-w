@@ -1,3 +1,33 @@
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
 # ifndef TIKZGEOM_ALGORITHMS_H
 # define TIKZGEOM_ALGORITHMS_H
 
@@ -501,7 +531,7 @@ namespace Aleph
     for (size_t i = 0; i < vertices.size(); ++i)
       poly.add_vertex(vertices(i));
 
-    if (close and poly.size() >= 2)
+    if (close and poly.size() >= 3)
       poly.close();
 
     return poly;
@@ -526,7 +556,7 @@ namespace Aleph
       if (const size_t idx = it.get_curr(); idx < vertices.size())
         poly.add_vertex(vertices(idx));
 
-    if (close and poly.size() >= 2)
+    if (close and poly.size() >= 3)
       poly.close();
 
     return poly;
@@ -730,7 +760,7 @@ namespace Aleph
         for (size_t i = 0; i < vor.cells.size(); ++i)
           {
             const auto & cell = vor.cells(i);
-            if (not cell.bounded or cell.vertices.size() < 2)
+            if (not cell.bounded or cell.vertices.size() < 3)
               continue;
 
             Polygon poly = polygon_from_vertices(cell.vertices, true);
@@ -793,7 +823,7 @@ namespace Aleph
         for (size_t i = 0; i < pd.cells.size(); ++i)
           {
             const auto & cell = pd.cells(i);
-            if (cell.vertices.size() < 2)
+            if (cell.vertices.size() < 3)
               continue;
 
             Polygon poly = polygon_from_vertices(cell.vertices, true);

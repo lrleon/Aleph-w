@@ -43,13 +43,16 @@ TEST_F(GeomAlgorithmsTest, ClosestPairAllDuplicates)
 
 TEST_F(GeomAlgorithmsTest, TriangulateTwoVerticesThrows)
 {
-  Polygon p;
-  p.add_vertex(Point(0, 0));
-  p.add_vertex(Point(1, 0));
-  p.close();
-
-  CuttingEarsTriangulation triangulator;
-  EXPECT_THROW((void) triangulator(p), std::domain_error);
+  // A polygon with only 2 vertices cannot be closed (requires >= 3)
+  // so the exception is thrown at close() time, not at triangulation time
+  EXPECT_THROW(
+    {
+      Polygon p;
+      p.add_vertex(Point(0, 0));
+      p.add_vertex(Point(1, 0));
+      p.close();
+    },
+    std::domain_error);
 }
 
 
@@ -71,13 +74,16 @@ TEST_F(GeomAlgorithmsTest, RotatingCalipersOpenSingleVertexThrows)
 
 TEST_F(GeomAlgorithmsTest, PointInPolygonTwoVerticesThrows)
 {
-  Polygon p;
-  p.add_vertex(Point(0, 0));
-  p.add_vertex(Point(5, 5));
-  p.close();
-
-  PointInPolygonWinding pip;
-  EXPECT_THROW((void) pip.locate(p, Point(2, 2)), std::domain_error);
+  // A polygon with only 2 vertices cannot be closed (requires >= 3)
+  // so the exception is thrown at close() time
+  EXPECT_THROW(
+    {
+      Polygon p;
+      p.add_vertex(Point(0, 0));
+      p.add_vertex(Point(5, 5));
+      p.close();
+    },
+    std::domain_error);
 }
 
 
@@ -92,7 +98,9 @@ TEST_F(GeomAlgorithmsTest, AndrewMonotonicChainTwoPoints)
   AndrewMonotonicChainConvexHull andrew;
   Polygon hull = andrew(points);
 
+  // Degenerate 2-point hull cannot be closed (requires >= 3 vertices)
   EXPECT_EQ(hull.size(), 2u);
+  EXPECT_FALSE(hull.is_closed());
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(0, 0)));
   EXPECT_TRUE(polygon_contains_vertex(hull, Point(5, 5)));
 }
@@ -156,7 +164,9 @@ TEST_F(GeomAlgorithmsTest, GrahamScanTwoPoints)
 
   GrahamScanConvexHull graham;
   Polygon hull = graham(points);
+  // Degenerate 2-point hull cannot be closed (requires >= 3 vertices)
   EXPECT_EQ(hull.size(), 2u);
+  EXPECT_FALSE(hull.is_closed());
 }
 
 
@@ -605,14 +615,19 @@ TEST_F(GeomAlgorithmsTest, MonotoneTriangulateOpenThrows)
 
 TEST_F(GeomAlgorithmsTest, MonotoneTriangulateDegenerateThrows)
 {
-  Polygon p;
-  p.add_vertex(Point(0, 0));
-  p.add_vertex(Point(1, 0));
-  p.add_vertex(Point(2, 0));
-  p.close();
-
-  MonotonePolygonTriangulation mt;
-  EXPECT_THROW((void) mt(p), std::domain_error);
+  // Degenerate (collinear) polygon should throw - either at close() time
+  // if vertices are reduced, or at triangulation time for zero area
+  EXPECT_THROW(
+    {
+      Polygon p;
+      p.add_vertex(Point(0, 0));
+      p.add_vertex(Point(1, 0));
+      p.add_vertex(Point(2, 0));
+      p.close();
+      MonotonePolygonTriangulation mt;
+      (void) mt(p);
+    },
+    std::domain_error);
 }
 
 

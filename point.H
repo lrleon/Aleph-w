@@ -957,8 +957,13 @@ namespace Aleph
     }
 
     /**
-     * @brief Computes the counter-clockwise angle with respect to another segment.
-     * @param s The other segment.
+     * @brief Computes the counter-clockwise rotation angle FROM this segment TO another.
+     *
+     * Returns the angle (in radians) you would rotate this segment counter-clockwise
+     * to align it with segment @p s. For example, if this segment points along +X
+     * and @p s points along +Y, the result is π/2 (90°).
+     *
+     * @param s The target segment.
      * @return The angle in radians, in the range [0, 2*PI).
      */
     [[nodiscard]] double counterclockwise_angle_with(const Segment & s) const
@@ -3198,13 +3203,16 @@ namespace Aleph
     }
 
     /**
-     * @brief Checks for exact equality.
+     * @brief Checks for equality between two segments.
+     * @note Segments are considered equal if their endpoints are the same,
+     *       regardless of direction (src/tgt).
      * @param s The other segment.
-     * @return `true` if source and target points are identical.
+     * @return `true` if segments are equal, `false` otherwise.
      */
     [[nodiscard]] bool operator==(const Segment3D & s) const
     {
-      return src_ == s.src_ and tgt_ == s.tgt_;
+      return (src_ == s.src_ and tgt_ == s.tgt_) or
+             (src_ == s.tgt_ and tgt_ == s.src_);
     }
 
     /**

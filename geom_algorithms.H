@@ -217,12 +217,21 @@ namespace Aleph
   /**
    * @brief Shared polygon helpers used across multiple geometry algorithms.
    *
-   * Centralizes common routines that were previously duplicated verbatim in
-   * several classes.
+   * Provides utilities for working with polygons represented as `Array<Point>`.
+   * Many internal algorithms extract vertices into arrays for efficient indexed
+   * access. These helpers centralize common operations.
+   *
+   * @note For direct operations on `Polygon` objects, prefer the convenience
+   *       methods `Polygon::area()`, `Polygon::is_convex()`, etc. Use this class
+   *       when working with extracted vertex arrays.
+   *
+   * @note `signed_double_area()` returns **twice** the signed area (avoids division).
+   *       Use `area()` for the actual area value.
    */
   class GeomPolygonUtils
   {
   public:
+    /// @brief Extract vertices from a polygon into an array for indexed access.
     [[nodiscard]] static Array<Point> extract_vertices(const Polygon & poly)
     {
       Array<Point> verts;
@@ -232,6 +241,11 @@ namespace Aleph
       return verts;
     }
 
+    /** @brief Compute twice the signed area (shoelace formula without division).
+     *
+     *  Returns positive for CCW vertices, negative for CW. This is 2× the actual
+     *  signed area; use `area()` or `signed_area()` for the true value.
+     */
     [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & verts)
     {
       Geom_Number sum = 0;
@@ -244,11 +258,39 @@ namespace Aleph
       return sum;
     }
 
+    /// @brief Compute twice the signed area of a polygon.
     [[nodiscard]] static Geom_Number signed_double_area(const Polygon & poly)
     {
       return signed_double_area(extract_vertices(poly));
     }
 
+    /// @brief Compute the actual signed area of a vertex array.
+    [[nodiscard]] static Geom_Number signed_area(const Array<Point> & verts)
+    {
+      return signed_double_area(verts) / 2;
+    }
+
+    /// @brief Compute the actual signed area of a polygon.
+    [[nodiscard]] static Geom_Number signed_area(const Polygon & poly)
+    {
+      return signed_double_area(poly) / 2;
+    }
+
+    /// @brief Compute the absolute area of a vertex array.
+    [[nodiscard]] static Geom_Number area(const Array<Point> & verts)
+    {
+      Geom_Number a = signed_area(verts);
+      return a < 0 ? Geom_Number(-a) : a;
+    }
+
+    /// @brief Compute the absolute area of a polygon.
+    [[nodiscard]] static Geom_Number area(const Polygon & poly)
+    {
+      Geom_Number a = signed_area(poly);
+      return a < 0 ? Geom_Number(-a) : a;
+    }
+
+    /// @brief Check if a vertex array forms a convex polygon.
     [[nodiscard]] static bool is_convex(const Array<Point> & verts)
     {
       if (verts.size() < 3)
@@ -1630,7 +1672,7 @@ namespace Aleph
       for (size_t i = 0; i < clean.size(); ++i)
         ret.add_vertex(clean(i));
 
-      if (ret.size() >= 2)
+      if (ret.size() >= 3)
         ret.close();
 
       return ret;
@@ -1850,7 +1892,7 @@ namespace Aleph
       for (size_t i = 0; i < clean.size(); ++i)
         ret.add_vertex(clean(i));
 
-      if (ret.size() >= 2)
+      if (ret.size() >= 3)
         ret.close();
 
       return ret;
@@ -4679,7 +4721,7 @@ namespace Aleph
       for (size_t i = 0; i < upper.size(); ++i)
         ret.add_vertex(upper(i));
 
-      if (ret.size() >= 2)
+      if (ret.size() >= 3)
         ret.close();
 
       return ret;
@@ -4832,7 +4874,7 @@ namespace Aleph
         {
           ret.add_vertex(pivot);
           ret.add_vertex(filtered(0));
-          ret.close();
+          // Cannot close with only 2 vertices - return unclosed degenerate hull
           return ret;
         }
 
@@ -4853,7 +4895,7 @@ namespace Aleph
       for (size_t i = 0; i < hull.size(); ++i)
         ret.add_vertex(hull(i));
 
-      if (ret.size() >= 2)
+      if (ret.size() >= 3)
         ret.close();
 
       return ret;
@@ -5003,7 +5045,8 @@ namespace Aleph
           extremes.remove(*ptr);
         }
 
-      ret.close();
+      if (ret.size() >= 3)
+        ret.close();
       return ret;
     }
   };
@@ -5110,7 +5153,7 @@ namespace Aleph
         }
       while (current != start);
 
-      if (ret.size() >= 2)
+      if (ret.size() >= 3)
         ret.close();
       return ret;
     }
@@ -5355,7 +5398,7 @@ namespace Aleph
       for (DynList<Point>::Iterator it(convex_set); it.has_curr(); it.next_ne())
         ret.add_vertex(it.get_curr());
 
-      if (ret.size() >= 2)
+      if (ret.size() >= 3)
         ret.close();
       return ret;
     }
@@ -7052,9 +7095,12 @@ namespace Aleph
               Polygon piece;
               for (size_t i = 0; i < mono.size(); ++i)
                 piece.add_vertex(mono(i));
-              piece.close();
-              constexpr CuttingEarsTriangulation ears;
-              tris = ears(piece);
+              if (piece.size() >= 3)
+                {
+                  piece.close();
+                  constexpr CuttingEarsTriangulation ears;
+                  tris = ears(piece);
+                }
             }
 
           for (DynList<Triangle>::Iterator it(tris); it.has_curr(); it.next_ne())
@@ -7293,7 +7339,7 @@ namespace Aleph
       for (size_t i = 0; i < clean.size(); ++i)
         ret.add_vertex(clean(i));
 
-      if (ret.size() >= 2)
+      if (ret.size() >= 3)
         ret.close();
 
       return ret;
@@ -8321,8 +8367,11 @@ namespace Aleph
           Polygon p;
           for (size_t k = 0; k < faces(fi).size(); ++k)
             p.add_vertex(pts(faces(fi)(k)));
-          p.close();
-          result.append(std::move(p));
+          if (p.size() >= 3)
+            {
+              p.close();
+              result.append(std::move(p));
+            }
         }
 
       return result;
@@ -8704,12 +8753,12 @@ namespace Aleph
     static Polygon inward(const Polygon & convex_poly,
                           const Geom_Number & distance)
     {
-      ah_domain_error_if(!convex_poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(not convex_poly.is_closed()) << "Polygon must be closed";
 
       Array<Point> v = extract_verts(convex_poly);
 
       ah_domain_error_if(v.size() < 3) << "Polygon must have >= 3 vertices";
-      ah_domain_error_if(!is_convex(v)) << "Polygon must be convex";
+      ah_domain_error_if(not is_convex(v)) << "Polygon must be convex";
 
       if (distance == 0) return convex_poly;
 
@@ -8740,12 +8789,12 @@ namespace Aleph
      */
     static Polygon outward(const Polygon & convex_poly, const Geom_Number & distance)
     {
-      ah_domain_error_if(!convex_poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(not convex_poly.is_closed()) << "Polygon must be closed";
 
       Array<Point> v = extract_verts(convex_poly);
 
       ah_domain_error_if(v.size() < 3) << "Polygon must have >= 3 vertices";
-      ah_domain_error_if(!is_convex(v)) << "Polygon must be convex";
+      ah_domain_error_if(not is_convex(v)) << "Polygon must be convex";
 
       if (distance == 0) return convex_poly;
 
@@ -8780,7 +8829,8 @@ namespace Aleph
 
           result.add_vertex(line_intersect(oa(i), ob(i), oa(j), ob(j)));
         }
-      result.close();
+      if (result.size() >= 3)
+        result.close();
       return result;
     }
   };
@@ -8852,7 +8902,7 @@ namespace Aleph
                const JoinType join = JoinType::Miter,
                const Geom_Number & miter_limit = Geom_Number(2)) const
     {
-      ah_domain_error_if(!poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
       ah_domain_error_if(poly.size() < 3) << "Polygon must have >= 3 vertices";
 
       if (distance == 0)
@@ -9490,7 +9540,7 @@ namespace Aleph
     [[nodiscard]] Polygon operator()(const Polygon & polygon,
                                      const Point & query) const
     {
-      ah_domain_error_if(!polygon.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(not polygon.is_closed()) << "Polygon must be closed";
       ah_domain_error_if(polygon.size() < 3) << "Polygon must have >= 3 vertices";
       ah_domain_error_if(not PointInPolygonWinding::strictly_contains(polygon, query))
         << "Query point must be strictly inside the polygon";
@@ -9637,7 +9687,8 @@ namespace Aleph
               Polygon cleaned;
               for (size_t i = 0; i + 1 < rv.size(); ++i)
                 cleaned.add_vertex(rv(i));
-              cleaned.close();
+              if (cleaned.size() >= 3)
+                cleaned.close();
               return cleaned;
             }
           result.close();
@@ -9877,11 +9928,11 @@ namespace Aleph
                                             const Point & source,
                                             const Point & target) const
     {
-      ah_domain_error_if(!polygon.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(not polygon.is_closed()) << "Polygon must be closed";
       ah_domain_error_if(polygon.size() < 3) << "Polygon must have >= 3 vertices";
-      ah_domain_error_if(!PointInPolygonWinding::contains(polygon, source))
+      ah_domain_error_if(not PointInPolygonWinding::contains(polygon, source))
         << "Source must be inside the polygon";
-      ah_domain_error_if(!PointInPolygonWinding::contains(polygon, target))
+      ah_domain_error_if(not PointInPolygonWinding::contains(polygon, target))
         << "Target must be inside the polygon";
 
       DynList<Point> result;
@@ -11058,8 +11109,8 @@ namespace Aleph
     [[nodiscard]] Array<Polygon>
     operator()(const Polygon & a, const Polygon & b, Op op) const
     {
-      ah_domain_error_if(!a.is_closed()) << "First polygon must be closed";
-      ah_domain_error_if(!b.is_closed()) << "Second polygon must be closed";
+      ah_domain_error_if(not a.is_closed()) << "First polygon must be closed";
+      ah_domain_error_if(not b.is_closed()) << "Second polygon must be closed";
       ah_domain_error_if(a.size() < 3) << "First polygon must have >= 3 vertices";
       ah_domain_error_if(b.size() < 3) << "Second polygon must have >= 3 vertices";
 
@@ -13410,7 +13461,7 @@ namespace Aleph
      */
     [[nodiscard]] Result operator()(const Polygon & polygon) const
     {
-      ah_domain_error_if(!polygon.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(not polygon.is_closed()) << "Polygon must be closed";
       ah_domain_error_if(polygon.size() < 3) << "Polygon must have at least 3 vertices";
 
       Array<Segment> segs;
@@ -13431,7 +13482,7 @@ namespace Aleph
       for (size_t i = 0; i < polygons.size(); ++i)
         {
           const Polygon & poly = polygons(i);
-          ah_domain_error_if(!poly.is_closed()) << "Polygon " << i << " must be closed";
+          ah_domain_error_if(not poly.is_closed()) << "Polygon " << i << " must be closed";
           ah_domain_error_if(poly.size() < 3) << "Polygon " << i << " must have at least 3 vertices";
           for (Polygon::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
             segs.append(it.get_current_segment());
