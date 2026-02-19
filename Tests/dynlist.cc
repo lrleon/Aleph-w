@@ -322,6 +322,23 @@ TEST_F(List_of_25_items, traverse)
 
 TEST(DynListFunctional, ToArrayHelperPreservesOrder)
 {
+  // empty list
+  {
+    DynList<int> empty;
+    auto arr = to_array(empty);
+    EXPECT_EQ(arr.size(), 0u);
+  }
+
+  // single element
+  {
+    DynList<int> one;
+    one.append(42);
+    auto arr = to_array(one);
+    ASSERT_EQ(arr.size(), 1u);
+    EXPECT_EQ(arr(0), 42);
+  }
+
+  // multiple elements — order preserved
   DynList<int> list;
   for (int v : {5, 8, 13})
     list.append(v);
@@ -330,6 +347,7 @@ TEST(DynListFunctional, ToArrayHelperPreservesOrder)
 
   ASSERT_EQ(arr.size(), list.size());
   size_t i = 0;
-  for (auto it = list.get_it(); it.has_curr(); it.next_ne(), ++i)
+  for (auto it = list.get_it(); it.has_curr(); it.next(), ++i)
     EXPECT_EQ(arr(i), it.get_curr());
+}
 }
