@@ -67,18 +67,36 @@
 /// Provide them here so that *all* GMP expression types can be printed,
 /// not just mpq_class.
 # if defined(_LIBCPP_VERSION)
+/**
+ * @brief Stream output operator for GMP rational pointers (libc++ compatibility).
+ * @param o The output stream.
+ * @param q The GMP rational source pointer.
+ * @return A reference to the output stream.
+ */
 inline std::ostream & operator<<(std::ostream & o, mpq_srcptr q)
 {
   o << mpq_get_d(q);
   return o;
 }
 
+/**
+ * @brief Stream output operator for GMP integer pointers (libc++ compatibility).
+ * @param o The output stream.
+ * @param z The GMP integer source pointer.
+ * @return A reference to the output stream.
+ */
 inline std::ostream & operator<<(std::ostream & o, mpz_srcptr z)
 {
   o << mpz_get_d(z);
   return o;
 }
 
+/**
+ * @brief Stream output operator for GMP float pointers (libc++ compatibility).
+ * @param o The output stream.
+ * @param f The GMP float source pointer.
+ * @return A reference to the output stream.
+ */
 inline std::ostream & operator<<(std::ostream & o, mpf_srcptr f)
 {
   o << mpf_get_d(f);
@@ -3661,6 +3679,7 @@ namespace std
 
 # if defined(__cpp_lib_format)
 
+/** @brief Formatter specialization for Aleph::Point. */
 template <>
 struct std::formatter<Aleph::Point> : std::formatter<std::string>
 {
@@ -3673,6 +3692,7 @@ struct std::formatter<Aleph::Point> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Segment. */
 template <>
 struct std::formatter<Aleph::Segment> : std::formatter<std::string>
 {
@@ -3684,6 +3704,7 @@ struct std::formatter<Aleph::Segment> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Triangle. */
 template <>
 struct std::formatter<Aleph::Triangle> : std::formatter<std::string>
 {
@@ -3695,6 +3716,7 @@ struct std::formatter<Aleph::Triangle> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Rectangle. */
 template <>
 struct std::formatter<Aleph::Rectangle> : std::formatter<std::string>
 {
@@ -3709,6 +3731,7 @@ struct std::formatter<Aleph::Rectangle> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Polar_Point. */
 template <>
 struct std::formatter<Aleph::Polar_Point> : std::formatter<std::string>
 {
@@ -3721,6 +3744,7 @@ struct std::formatter<Aleph::Polar_Point> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Ellipse. */
 template <>
 struct std::formatter<Aleph::Ellipse> : std::formatter<std::string>
 {
@@ -3732,6 +3756,7 @@ struct std::formatter<Aleph::Ellipse> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::RotatedEllipse. */
 template <>
 struct std::formatter<Aleph::RotatedEllipse> : std::formatter<std::string>
 {
@@ -3743,6 +3768,7 @@ struct std::formatter<Aleph::RotatedEllipse> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Point3D. */
 template <>
 struct std::formatter<Aleph::Point3D> : std::formatter<std::string>
 {
@@ -3756,6 +3782,7 @@ struct std::formatter<Aleph::Point3D> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Segment3D. */
 template <>
 struct std::formatter<Aleph::Segment3D> : std::formatter<std::string>
 {
@@ -3767,6 +3794,7 @@ struct std::formatter<Aleph::Segment3D> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Triangle3D. */
 template <>
 struct std::formatter<Aleph::Triangle3D> : std::formatter<std::string>
 {
@@ -3778,6 +3806,7 @@ struct std::formatter<Aleph::Triangle3D> : std::formatter<std::string>
   }
 };
 
+/** @brief Formatter specialization for Aleph::Tetrahedron. */
 template <>
 struct std::formatter<Aleph::Tetrahedron> : std::formatter<std::string>
 {

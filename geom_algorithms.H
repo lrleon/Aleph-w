@@ -4184,25 +4184,44 @@ namespace Aleph
    *
    * @ingroup Geometry
    */
+  /**
+   * @brief Fast Voronoi diagram computation using randomized incremental Delaunay.
+   *
+   * This class provides a convenient interface to compute the Voronoi diagram
+   * of a set of points. It combines @ref DelaunayTriangulationRandomizedIncremental
+   * with @ref VoronoiDiagramFromDelaunay to produce the dual diagram.
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
   class VoronoiDiagram
   {
-    DelaunayTriangulationRandomizedIncremental delaunay_;
-    VoronoiDiagramFromDelaunay voronoi_;
+    DelaunayTriangulationRandomizedIncremental delaunay_; ///< Internal Delaunay triangulator.
+    VoronoiDiagramFromDelaunay voronoi_; ///< Internal dual builder.
 
   public:
-    using Edge = VoronoiDiagramFromDelaunay::Edge;
-    using Cell = VoronoiDiagramFromDelaunay::Cell;
-    using ClippedCell = VoronoiDiagramFromDelaunay::ClippedCell;
-    using Result = VoronoiDiagramFromDelaunay::Result;
+    using Edge = VoronoiDiagramFromDelaunay::Edge; ///< Type for Voronoi edges.
+    using Cell = VoronoiDiagramFromDelaunay::Cell; ///< Type for Voronoi cells.
+    using ClippedCell = VoronoiDiagramFromDelaunay::ClippedCell; ///< Type for clipped Voronoi cells.
+    using Result = VoronoiDiagramFromDelaunay::Result; ///< Complete result structure.
 
-    /// Compute the Voronoi diagram for a list of points.
+    /**
+     * @brief Compute the Voronoi diagram for a list of points.
+     * @param pts Input list of sites.
+     * @return Result structure containing the diagram components.
+     */
     [[nodiscard]] Result operator()(const DynList<Point> & pts) const
     {
       const auto dt = delaunay_(pts);
       return voronoi_(dt);
     }
 
-    /// Compute the Voronoi diagram from an initializer list.
+    /**
+     * @brief Compute the Voronoi diagram from an initializer list.
+     * @param il Initializer list of points.
+     * @return Result structure containing the diagram components.
+     */
     [[nodiscard]] Result operator()(const std::initializer_list<Point> il) const
     {
       DynList<Point> pts;
@@ -4211,7 +4230,12 @@ namespace Aleph
       return (*this)(pts);
     }
 
-    /// Compute Voronoi cells clipped to a bounding polygon.
+    /**
+     * @brief Compute Voronoi cells clipped to a bounding polygon.
+     * @param pts Input list of sites.
+     * @param clip Bounding polygon used for clipping.
+     * @return Array of clipped cells.
+     */
     [[nodiscard]] Array<ClippedCell>
     clipped_cells(const DynList<Point> & pts, const Polygon & clip) const
     {
@@ -4227,41 +4251,52 @@ namespace Aleph
    * sweep (site + circle events) and then reuses @ref VoronoiDiagramFromDelaunay
    * to build Voronoi vertices/edges/cells, avoiding duplicated dual logic.
    *
-   * The existing @ref VoronoiDiagram class (incremental Delaunay + dual) is
-   * kept unchanged.
+   * Fortune's algorithm is a sweep-line algorithm for generating Voronoi 
+   * diagrams in O(n log n) time.
    *
    * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
    */
   class VoronoiDiagramFortune
   {
   public:
-    using Edge = VoronoiDiagramFromDelaunay::Edge;
-    using Cell = VoronoiDiagramFromDelaunay::Cell;
-    using ClippedCell = VoronoiDiagramFromDelaunay::ClippedCell;
-    using Result = VoronoiDiagramFromDelaunay::Result;
+    using Edge = VoronoiDiagramFromDelaunay::Edge; ///< Type for Voronoi edges.
+    using Cell = VoronoiDiagramFromDelaunay::Cell; ///< Type for Voronoi cells.
+    using ClippedCell = VoronoiDiagramFromDelaunay::ClippedCell; ///< Type for clipped Voronoi cells.
+    using Result = VoronoiDiagramFromDelaunay::Result; ///< Complete result structure.
 
   private:
-    struct Arc;
+    struct Arc; ///< Forward declaration of beach-line arc.
 
+    /**
+     * @brief Event in the sweep-line algorithm (site or circle event).
+     */
     struct Event
     {
-      double y = 0.0;
-      double x = 0.0;
-      bool is_site = false;
-      size_t site = 0;
-      Arc *arc = nullptr;
-      size_t id = 0;
-      bool valid = true;
+      double y = 0.0;     ///< Y-coordinate of the event.
+      double x = 0.0;     ///< X-coordinate of the site or circle center.
+      bool is_site = false; ///< True if it's a site event, false for circle.
+      size_t site = 0;    ///< Site index.
+      Arc *arc = nullptr; ///< Corresponding arc in the beach-line (circle events).
+      size_t id = 0;      ///< Unique event ID for deterministic sorting.
+      bool valid = true;  ///< False if the circle event was invalidated.
     };
 
+    /**
+     * @brief Arc in the beach-line state structure.
+     */
     struct Arc
     {
-      size_t site = 0;
-      Arc *prev = nullptr;
-      Arc *next = nullptr;
-      Event *circle = nullptr;
+      size_t site = 0;        ///< Site index generating this parabolic arc.
+      Arc *prev = nullptr;    ///< Previous arc in the beach-line.
+      Arc *next = nullptr;    ///< Next arc in the beach-line.
+      Event *circle = nullptr; ///< Potential circle event generated by this arc.
     };
 
+    /**
+     * @brief Comparator for prioritizing events in the sweep-line.
+     */
     struct EventCmp
     {
       bool operator ()(const Event *a, const Event *b) const
@@ -4276,6 +4311,9 @@ namespace Aleph
       }
     };
 
+    /**
+     * @brief Key for identifying a triangle by its vertex indices.
+     */
     struct TriKey
     {
       size_t a = 0;
@@ -4615,7 +4653,11 @@ namespace Aleph
     }
 
   public:
-    /** Compute the Voronoi diagram for a list of points. */
+    /**
+     * @brief Compute the Voronoi diagram for a list of points.
+     * @param pts Input list of sites.
+     * @return Result structure containing the diagram components.
+     */
     [[nodiscard]] Result operator()(const DynList<Point> & pts) const
     {
       // Reuse canonical site handling and keep a robust fallback path.
@@ -4632,7 +4674,11 @@ namespace Aleph
       return voronoi_(dt_sweep);
     }
 
-    /** Compute the Voronoi diagram from an initializer list. */
+    /**
+     * @brief Compute the Voronoi diagram from an initializer list.
+     * @param il Initializer list of points.
+     * @return Result structure containing the diagram components.
+     */
     [[nodiscard]] Result operator()(const std::initializer_list<Point> il) const
     {
       DynList<Point> pts;
@@ -4641,14 +4687,19 @@ namespace Aleph
       return (*this)(pts);
     }
 
-    /** Compute Voronoi cells clipped to a bounding polygon. */
+    /**
+     * @brief Compute Voronoi cells clipped to a bounding polygon.
+     * @param pts Input list of sites.
+     * @param clip Bounding polygon used for clipping.
+     * @return Array of clipped cells.
+     */
     [[nodiscard]] Array<ClippedCell>
     clipped_cells(const DynList<Point> & pts, const Polygon & clip) const
     {
       return VoronoiDiagramFromDelaunay::clipped_cells_indexed((*this)(pts), clip);
     }
 
-    /** Compute Voronoi cells clipped to a bounding polygon. */
+    /** @overload */
     [[nodiscard]] Array<ClippedCell>
     clipped_cells(const std::initializer_list<Point> il,
                   const Polygon & clip) const
@@ -4689,6 +4740,9 @@ namespace Aleph
    */
   class AndrewMonotonicChainConvexHull
   {
+    /**
+     * @brief Lexicographical comparison for points (x primary, y secondary).
+     */
     struct LexicographicCmp
     {
       bool operator ()(const Point & p1, const Point & p2) const
@@ -4703,6 +4757,9 @@ namespace Aleph
       }
     };
 
+    /**
+     * @brief Extracts points from a list, sorts them and removes duplicates.
+     */
     static Array<Point> sorted_unique_points(const DynList<Point> & point_set)
     {
       Array<Point> points;
@@ -4724,6 +4781,9 @@ namespace Aleph
       return unique;
     }
 
+    /**
+     * @brief Computes the turn orientation of triple (a, b, c).
+     */
     [[nodiscard]] static Geom_Number turn(const Point & a, const Point & b, const Point & c)
     {
       return area_of_parallelogram(a, b, c);
@@ -4815,6 +4875,9 @@ namespace Aleph
    */
   class GrahamScanConvexHull
   {
+    /**
+     * @brief Lexicographical comparison for points.
+     */
     struct LexicographicCmp
     {
       bool operator ()(const Point & p1, const Point & p2) const
@@ -4829,6 +4892,9 @@ namespace Aleph
       }
     };
 
+    /**
+     * @brief Extracts points from a list, sorts them and removes duplicates.
+     */
     static Array<Point> sorted_unique_points(const DynList<Point> & point_set)
     {
       Array<Point> points;
@@ -4850,6 +4916,9 @@ namespace Aleph
       return unique;
     }
 
+    /**
+     * @brief Computes the turn orientation of triple (a, b, c).
+     */
     [[nodiscard]] static Geom_Number turn(const Point & a, const Point & b, const Point & c)
     {
       return area_of_parallelogram(a, b, c);
@@ -4994,8 +5063,12 @@ namespace Aleph
    */
   class BruteForceConvexHull
   {
+    /**
+     * @brief Comparator for segments to ensure strict weak ordering in sets.
+     */
     struct CmpSegment
     {
+      /** @brief Strict lexicographical comparison for points. */
       static bool cmp_point(const Point & p1, const Point & p2)
       {
         if (p1.get_x() < p2.get_x())
@@ -5004,6 +5077,7 @@ namespace Aleph
         return not (p2.get_x() < p1.get_x()) and p1.get_y() < p2.get_y();
       }
 
+      /** @brief Compares two segments lexicographically. */
       bool operator ()(const Segment & s1, const Segment & s2) const
       {
         if (cmp_point(s1.get_src_point(), s2.get_src_point()))
@@ -5017,6 +5091,9 @@ namespace Aleph
     using SegmentSet = DynSetTree<Segment, Treap_Rk, CmpSegment>;
     using PointIt = DynList<Point>::Iterator;
 
+    /**
+     * @brief Checks if all points in a list lie to the left of a segment.
+     */
     static bool are_all_points_on_left(const DynList<Point> & l, const Segment & s)
     {
       for (PointIt it(l); it.has_curr(); it.next_ne())
@@ -5143,6 +5220,9 @@ namespace Aleph
    */
   class GiftWrappingConvexHull
   {
+    /**
+     * @brief Finds the point with the minimum y-coordinate (and minimum x on ties).
+     */
     static const Point * get_lowest_point(const DynList<Point> & point_set)
     {
       DynList<Point>::Iterator it(point_set);
@@ -5492,14 +5572,26 @@ namespace Aleph
   class SegmentSegmentIntersection
   {
   public:
-    enum class Kind { NONE, POINT, OVERLAP };
+    /**
+     * @brief Types of intersection between two segments.
+     */
+    enum class Kind 
+    { 
+      NONE,    ///< No intersection.
+      POINT,   ///< Intersection at a single point.
+      OVERLAP  ///< Intersection over a collinear interval.
+    };
 
+    /**
+     * @brief Detailed result of a segment-segment intersection test.
+     */
     struct Result
     {
-      Kind kind = Kind::NONE;
-      Point point = Point(0, 0); // Valid when kind == POINT
-      Segment overlap = Segment(Point(0, 0), Point(0, 0)); // Valid when kind == OVERLAP
+      Kind kind = Kind::NONE; ///< Type of intersection.
+      Point point = Point(0, 0); ///< The intersection point (if kind is POINT).
+      Segment overlap = Segment(Point(0, 0), Point(0, 0)); ///< The overlap segment (if kind is OVERLAP).
 
+      /** @brief Returns true if any intersection exists. */
       [[nodiscard]] bool intersects() const noexcept
       {
         return kind != Kind::NONE;
@@ -5558,6 +5650,12 @@ namespace Aleph
     }
 
   public:
+    /**
+     * @brief Computes the intersection of two line segments.
+     * @param s1 First segment.
+     * @param s2 Second segment.
+     * @return Result structure with intersection type and details.
+     */
     [[nodiscard]] Result operator ()(const Segment & s1, const Segment & s2) const
     {
       Result out;
@@ -5642,15 +5740,21 @@ namespace Aleph
   template <typename Event, typename CmpEvent>
   class LineSweepFramework
   {
+    /**
+     * @brief Internal event wrapper that adds a sequence number for tie-breaking.
+     */
     struct SeqEvent
     {
-      Event event;
-      size_t seq;
+      Event event; ///< The user-defined event payload.
+      size_t seq;  ///< Insertion sequence number.
     };
 
+    /**
+     * @brief Comparator for SeqEvent, ensuring a strict weak ordering.
+     */
     struct CmpSeqEvent
     {
-      CmpEvent cmp;
+      CmpEvent cmp; ///< The user-provided base comparator.
 
       bool operator ()(const SeqEvent & a, const SeqEvent & b) const
       {
@@ -5835,14 +5939,20 @@ namespace Aleph
       return {b, a};
     }
 
+    /**
+     * @brief Types of events in the Bentley-Ottmann sweep.
+     */
     enum class EventType { LEFT, INTERSECTION, RIGHT };
 
+    /**
+     * @brief Represents an event in the sweep-line algorithm.
+     */
     struct Event
     {
-      Point pt;
-      EventType type;
-      size_t seg_a; // Segment index (LEFT/RIGHT) or first seg (INTERSECTION)
-      size_t seg_b; // Unused (LEFT/RIGHT) or second seg (INTERSECTION)
+      Point pt;       ///< Coordinates of the event.
+      EventType type; ///< Type of the event.
+      size_t seg_a;   ///< Index of the first segment involved.
+      size_t seg_b;   ///< Index of the second segment (only for INTERSECTION).
     };
 
     /**
@@ -6427,19 +6537,31 @@ namespace Aleph
       GeomPolygonUtils::ensure_ccw(v);
     }
 
+    /**
+     * @brief Classification of vertices for y-monotone decomposition.
+     */
     enum class VertexType { START, END, SPLIT, MERGE, REGULAR };
 
+    /**
+     * @brief Lexicographical "above" comparison (y primary, x secondary).
+     */
     [[nodiscard]] static bool is_above(const Point & a, const Point & b)
     {
       return a.get_y() > b.get_y() or
              (a.get_y() == b.get_y() and a.get_x() < b.get_x());
     }
 
+    /**
+     * @brief Lexicographical "below" comparison.
+     */
     [[nodiscard]] static bool is_below(const Point & a, const Point & b)
     {
       return is_above(b, a);
     }
 
+    /**
+     * @brief Check if the edge starting at @p edge points downwards.
+     */
     [[nodiscard]] static bool edge_goes_down(const Array<Point> & verts,
                                              const size_t edge)
     {
@@ -7429,24 +7551,30 @@ namespace Aleph
   class ConvexPolygonDistanceGJK
   {
   public:
+    /**
+     * @brief Holds the results of the distance computation.
+     */
     struct Result
     {
-      Geom_Number distance_squared = 0;
-      Geom_Number distance = 0;
-      Point closest_on_first;
-      Point closest_on_second;
-      bool intersects = false;
-      size_t gjk_iterations = 0;
+      Geom_Number distance_squared = 0; ///< The minimum squared distance.
+      Geom_Number distance = 0;         ///< The minimum Euclidean distance.
+      Point closest_on_first;           ///< Witness point on the first polygon.
+      Point closest_on_second;          ///< Witness point on the second polygon.
+      bool intersects = false;          ///< True if the polygons overlap.
+      size_t gjk_iterations = 0;        ///< Count of iterations performed.
     };
 
   private:
+    /**
+     * @brief A point in the Minkowski difference and its source components.
+     */
     struct SupportPoint
     {
-      Point a;
-      Point b;
-      Point v; // a - b
-      double vx = 0.0;
-      double vy = 0.0;
+      Point a; ///< Contributing point from the first polygon.
+      Point b; ///< Contributing point from the second polygon.
+      Point v; ///< Resulting point in Minkowski difference (a - b).
+      double vx = 0.0; ///< Double-precision cache for faster predicates.
+      double vy = 0.0; ///< Double-precision cache for faster predicates.
     };
 
     struct ClosestSimplexResult
@@ -8001,21 +8129,27 @@ namespace Aleph
     }
 
   public:
+    /**
+     * @brief Represents a spatial partition or leaf in the KD-tree.
+     */
     struct DebugPartition
     {
-      Rectangle region;
-      bool split_on_x = true;
-      Geom_Number split_value = 0;
-      size_t depth = 0;
-      bool is_leaf = false;
-      Point representative = Point(0, 0);
+      Rectangle region;           ///< Geometric region covered by this node.
+      bool split_on_x = true;     ///< True if split is vertical, false if horizontal.
+      Geom_Number split_value = 0; ///< The coordinate value of the split.
+      size_t depth = 0;           ///< Depth of the node in the tree.
+      bool is_leaf = false;       ///< True if it's a leaf node.
+      Point representative = Point(0, 0); ///< Point stored in the leaf.
     };
 
+    /**
+     * @brief A complete snapshot of the tree for debugging.
+     */
     struct DebugSnapshot
     {
-      Rectangle bounds;
-      Array<Point> points;
-      Array<DebugPartition> partitions;
+      Rectangle bounds;                 ///< Global bounding box of the tree.
+      Array<Point> points;              ///< All points stored in the tree.
+      Array<DebugPartition> partitions; ///< List of all internal and leaf partitions.
     };
 
     /**
@@ -8469,30 +8603,39 @@ namespace Aleph
   class RangeTree2D
   {
   public:
+    /**
+     * @brief Represents a node in the range tree for debugging.
+     */
     struct DebugNode
     {
-      size_t tree_index = 0;
-      size_t lo = 0;
-      size_t hi = 0;
-      size_t left = ~static_cast<size_t>(0);
-      size_t right = ~static_cast<size_t>(0);
-      Geom_Number xmin = 0;
-      Geom_Number xmax = 0;
-      Geom_Number split_x = 0;
-      size_t y_sorted_size = 0;
-      bool is_leaf = false;
+      size_t tree_index = 0; ///< Implicit tree index (1-based).
+      size_t lo = 0;         ///< Lower index into the x-sorted point array.
+      size_t hi = 0;         ///< Upper index into the x-sorted point array.
+      size_t left = ~static_cast<size_t>(0);  ///< Left child tree index.
+      size_t right = ~static_cast<size_t>(0); ///< Right child tree index.
+      Geom_Number xmin = 0;  ///< Minimum x-coordinate in this subtree.
+      Geom_Number xmax = 0;  ///< Maximum x-coordinate in this subtree.
+      Geom_Number split_x = 0; ///< X-coordinate used to split this node.
+      size_t y_sorted_size = 0; ///< Number of points in the y-sorted secondary structure.
+      bool is_leaf = false;  ///< True if this is a leaf node.
     };
 
+    /**
+     * @brief A complete snapshot of the range tree for debugging.
+     */
     struct DebugSnapshot
     {
-      Array<Point> x_sorted_points;
-      Array<DebugNode> nodes;
+      Array<Point> x_sorted_points; ///< The underlying x-sorted point array.
+      Array<DebugNode> nodes;       ///< List of all nodes in debug format.
     };
 
   private:
+    /**
+     * @brief Internal node structure containing the y-sorted secondary array.
+     */
     struct Node
     {
-      Array<Point> y_sorted;
+      Array<Point> y_sorted; ///< Points in this node's x-range, sorted by y.
     };
 
     Array<Point> pts_; ///< points sorted by x (primary key)
@@ -8928,14 +9071,25 @@ namespace Aleph
   class PolygonOffset
   {
   public:
-    /// Join strategy at offset vertices.
-    enum class JoinType { Miter, Bevel };
+    /**
+     * @brief Strategy for connecting offset edges at vertices.
+     */
+    enum class JoinType 
+    { 
+      Miter, ///< Extend edges until they intersect.
+      Bevel  ///< Connect edge endpoints with a straight line.
+    };
 
-    /// Result of an offset operation: zero or more polygons.
+    /**
+     * @brief The result of an offset operation, which may produce multiple polygons.
+     */
     struct Result
     {
-      Array<Polygon> polygons;
+      Array<Polygon> polygons; ///< Set of resulting simple polygons.
 
+      /**
+       * @brief Checks if the result contains no polygons.
+       */
       [[nodiscard]] bool is_empty() const noexcept
       {
         return polygons.is_empty();
@@ -10205,27 +10359,33 @@ namespace Aleph
   class SegmentArrangement
   {
   public:
-    /// An edge of the arrangement (sub-segment between two vertices).
+    /**
+     * @brief Represents an edge in the planar subdivision.
+     */
     struct ArrEdge
     {
-      size_t src; ///< source vertex index
-      size_t tgt; ///< target vertex index
-      size_t seg_idx; ///< index of the original segment
+      size_t src;     ///< Index of the source vertex.
+      size_t tgt;     ///< Index of the target vertex.
+      size_t seg_idx; ///< Index of the original segment that generated this edge.
     };
 
-    /// A face of the arrangement.
+    /**
+     * @brief Represents a face (region) in the planar subdivision.
+     */
     struct ArrFace
     {
-      DynList<size_t> boundary; ///< vertex indices in order around the face
-      bool unbounded; ///< true for the single outer face
+      DynList<size_t> boundary; ///< Ordered indices of vertices forming the face boundary.
+      bool unbounded;           ///< True if this is the infinite outer face.
     };
 
-    /// Result of the arrangement computation.
+    /**
+     * @brief The complete result of the segment arrangement computation.
+     */
     struct Result
     {
-      Array<Point> vertices;
-      Array<ArrEdge> edges;
-      Array<ArrFace> faces;
+      Array<Point> vertices; ///< Unique vertices (endpoints and intersection points).
+      Array<ArrEdge> edges;  ///< Sub-segments forming the arrangement graph.
+      Array<ArrFace> faces;  ///< Faces defined by the arrangement.
     };
 
   private:
@@ -10278,15 +10438,17 @@ namespace Aleph
       return dx1 * dx1 + dy1 * dy1 < (dx2 * dx2 + dy2 * dy2);
     }
 
-    /// Internal half-edge representation for face computation.
+    /**
+     * @brief Internal half-edge structure used for face traversal.
+     */
     struct HalfEdge
     {
-      size_t origin; ///< vertex index where this half-edge starts
-      size_t target; ///< vertex index where this half-edge ends
-      size_t twin; ///< index of the opposite half-edge
-      size_t next; ///< next half-edge around the same face
-      size_t face; ///< face this half-edge borders
-      size_t edge_idx; ///< index into the result edges array
+      size_t origin;   ///< Index of the vertex where this half-edge starts.
+      size_t target;   ///< Index of the vertex where this half-edge ends.
+      size_t twin;     ///< Index of the twin half-edge going in the opposite direction.
+      size_t next;     ///< Index of the next half-edge in CCW order around the face.
+      size_t face;     ///< Index of the face this half-edge borders.
+      size_t edge_idx; ///< Index of the corresponding undirected edge.
     };
 
   public:
@@ -10582,11 +10744,14 @@ namespace Aleph
   class AlphaShape
   {
   public:
+    /**
+     * @brief Result of an alpha-shape computation.
+     */
     struct Result
     {
-      Array<Point> sites;
-      Array<DelaunayTriangulationBowyerWatson::IndexedTriangle> triangles;
-      Array<Segment> boundary_edges;
+      Array<Point> sites; ///< Deduplicated and sorted input sites.
+      Array<DelaunayTriangulationBowyerWatson::IndexedTriangle> triangles; ///< Triangles that satisfy the alpha criterion.
+      Array<Segment> boundary_edges; ///< Segments forming the boundary of the alpha-shape.
     };
 
     /**
@@ -10639,10 +10804,14 @@ namespace Aleph
 
       // Extract boundary edges: edges appearing in exactly one kept triangle.
       // Use a simple count map via sorted edge keys.
+      /**
+       * @brief Key for identifying an undirected edge by its vertex indices.
+       */
       struct EdgeKey
       {
-        size_t u, v;
+        size_t u, v; ///< Vertex indices (sorted u < v).
 
+        /** @brief Exact equality check. */
         bool operator==(const EdgeKey & o) const
         {
           return u == o.u and v == o.v;
@@ -10738,37 +10907,49 @@ namespace Aleph
   class PowerDiagram
   {
   public:
+    /**
+     * @brief A site with an associated weight (squared radius).
+     */
     struct WeightedSite
     {
-      Point position;
-      Geom_Number weight;
+      Point position;     ///< Coordinates of the site.
+      Geom_Number weight; ///< Weight of the site.
     };
 
+    /**
+     * @brief Represents an edge in the power diagram.
+     */
     struct PowerEdge
     {
-      size_t site_u;
-      size_t site_v;
-      Point src;
-      Point tgt;
-      bool unbounded;
-      Point direction;
+      size_t site_u;    ///< Index of the first site sharing this edge.
+      size_t site_v;    ///< Index of the second site sharing this edge.
+      Point src;        ///< Source point of the edge.
+      Point tgt;        ///< Target point of the edge (if not unbounded).
+      bool unbounded;   ///< True if the edge is an unbounded ray.
+      Point direction;  ///< Direction vector for unbounded rays.
     };
 
+    /**
+     * @brief Represents a cell in the power diagram.
+     */
     struct PowerCell
     {
-      size_t site_index;
-      Point site;
-      Geom_Number weight;
-      bool bounded;
-      Array<Point> vertices;
+      size_t site_index;      ///< Index of the site this cell belongs to.
+      Point site;             ///< Coordinates of the site.
+      Geom_Number weight;     ///< Weight of the site.
+      bool bounded;           ///< True if the cell is completely bounded.
+      Array<Point> vertices;  ///< Vertices of the cell in CCW order.
     };
 
+    /**
+     * @brief Complete result of a power diagram computation.
+     */
     struct Result
     {
-      Array<WeightedSite> sites;
-      Array<Point> vertices;
-      Array<PowerEdge> edges;
-      Array<PowerCell> cells;
+      Array<WeightedSite> sites; ///< Sorted and unique input sites.
+      Array<Point> vertices;     ///< Vertices of the power diagram.
+      Array<PowerEdge> edges;    ///< Edges of the power diagram.
+      Array<PowerCell> cells;    ///< Cells of the power diagram.
     };
 
     /**
@@ -11154,7 +11335,15 @@ namespace Aleph
   class BooleanPolygonOperations
   {
   public:
-    enum class Op { INTERSECTION, UNION, DIFFERENCE };
+    /**
+     * @brief Type of Boolean operation to perform.
+     */
+    enum class Op 
+    { 
+      INTERSECTION, ///< Find regions common to both polygons.
+      UNION,        ///< Find regions covered by either polygon.
+      DIFFERENCE    ///< Find regions in the first polygon not covered by the second.
+    };
 
     /**
      * @brief Compute a boolean operation on two simple polygons.
@@ -12385,11 +12574,17 @@ namespace Aleph
    */
   class VisvalingamWhyattSimplification
   {
+    /**
+     * @brief Entry in the priority queue for vertex removal.
+     */
     struct VWEntry
     {
-      size_t idx;
-      Geom_Number area;
+      size_t idx;       ///< Index of the vertex in the polyline.
+      Geom_Number area; ///< Effective area of the triangle formed with its neighbors.
+      
+      /** @brief Comparison based on effective area. */
       bool operator <(const VWEntry & o) const { return area < o.area; }
+      /** @brief Comparison based on effective area. */
       bool operator >(const VWEntry & o) const { return area > o.area; }
     };
 
@@ -12831,22 +13026,24 @@ namespace Aleph
      */
     struct LocationResult
     {
-      LocationType type;
-      size_t trapezoid_index;
-      size_t segment_index; ///< valid when ON_SEGMENT
-      size_t point_index; ///< valid when ON_POINT
+      LocationType type;       ///< Classification of the point location.
+      size_t trapezoid_index;  ///< Index of the containing trapezoid (if any).
+      size_t segment_index;    ///< Index of the segment the point lies on.
+      size_t point_index;      ///< Index of the point the query point coincides with.
     };
 
-    /// The trapezoidal map and DAG search structure.
+    /**
+     * @brief The trapezoidal map and DAG search structure.
+     */
     struct Result
     {
-      Array<Point> points;
-      Array<Segment> segments;
-      Array<Trapezoid> trapezoids;
-      Array<DagNode> dag;
-      size_t dag_root;
-      size_t num_input_segments;
-      size_t num_input_points;
+      Array<Point> points;         ///< Unique endpoints of all segments.
+      Array<Segment> segments;     ///< Input segments.
+      Array<Trapezoid> trapezoids; ///< All trapezoids created during construction.
+      Array<DagNode> dag;          ///< The search directed acyclic graph.
+      size_t dag_root;             ///< Index of the DAG root node.
+      size_t num_input_segments;   ///< Number of segments originally provided.
+      size_t num_input_points;     ///< Number of unique points derived from segments.
 
       /**
        * @brief Locate a point in the trapezoidal map.
