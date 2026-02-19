@@ -350,4 +350,4 @@ TEST(DynListFunctional, ToArrayHelperPreservesOrder)
   for (auto it = list.get_it(); it.has_curr(); it.next(), ++i)
     EXPECT_EQ(arr(i), it.get_curr());
 }
-}
+
