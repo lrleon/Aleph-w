@@ -136,7 +136,7 @@ public:
   using Key_Type = T;
 
   /// Return the number of elements (constant time)
-  const size_t & size() const noexcept { return num_elem; }
+  [[nodiscard]] const size_t & size() const noexcept { return num_elem; }
 
   DynDlist() = default;
 
@@ -484,8 +484,8 @@ public:
        */
   class Iterator : public Dnode<T>::Iterator
   {
-    DynDlist * list_ptr; // puntero a la lista
-    long       pos;      // posición del elemento actual en la secuencia
+    DynDlist * list_ptr; // Pointer to list
+    long       pos;      // Position of the current element in the sequence
 
     using Base = typename Dnode<T>::Iterator;
 
@@ -497,7 +497,7 @@ public:
         /// The type of element stored in the container
     using Item_Type = T;
 
-    /// Return the ordinal position of current item
+    /// Return the ordinal position of the current item
     long get_pos() const noexcept { return pos; }
 
     /// Move the iterator one position forward guaranteeing no
@@ -509,7 +509,7 @@ public:
     }
 
     /// Move the iterator one item forward. Throw overflow_error if
-    /// iterator has not current item
+    /// the iterator has no current item
     void next()
     {
       Dnode<T>::Iterator::next();
@@ -517,7 +517,7 @@ public:
     }
 
     /// Move the iterator one item backward. Throw underflow_error if
-    /// iterator has not current item
+    /// the iterator has no current item
     void prev()
     {
       Dnode<T>::Iterator::prev();
@@ -555,6 +555,8 @@ public:
 
     Iterator & operator = (const Iterator & it) noexcept
     {
+      if (this == &it)
+        return *this;
       Dnode<T>::Iterator::operator = (it);
       list_ptr = it.list_ptr;
       pos      = it.pos;
@@ -760,7 +762,7 @@ public:
     assert(this->is_empty());
 
     for (Iterator itor(const_cast<DynDlist&>(list));
-         itor.has_curr();itor.next_ne())
+         itor.has_curr(); itor.next_ne())
       this->append(itor.get_curr());
   }
 
