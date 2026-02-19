@@ -227,7 +227,18 @@ TEST_F(SegmentTest, EqualityReversedOrder)
 {
   Segment s1(origin, p3);
   Segment s2(p3, origin);
-  EXPECT_TRUE(s1 == s2);  // Undirected semantics
+  // NOTE: Semantic change from earlier versions:
+  // - Previously, Segment equality was *directed*: Segment(A, B) != Segment(B, A).
+  // - The library now uses *undirected* semantics: Segment(A, B) == Segment(B, A).
+  //
+  // This is a behavioral change that can affect existing code that relied on the
+  // old directed comparison semantics (for example, when using Segment as a key
+  // in associative containers or when detecting orientation-sensitive duplicates).
+  //
+  // Users upgrading from earlier versions should review the API documentation
+  // and migration notes regarding Segment equality/inequality to ensure their
+  // code still behaves as intended.
+  EXPECT_TRUE(s1 == s2);
 }
 
 TEST_F(SegmentTest, InequalityDifferentEndpoints)
