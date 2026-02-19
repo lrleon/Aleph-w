@@ -191,7 +191,7 @@ TEST_F(PointTest, IsToRightFrom)
   Point left{0.5, 1};
   Point right{0.5, -1};
 
-  EXPECT_TRUE(right.is_to_right_from(a, b));  // no rename for this overload
+  EXPECT_TRUE(right.is_to_right_from(a, b));  // intentionally kept with legacy name for this overload (backward compatibility; differs from is_left_of naming pattern)
   EXPECT_FALSE(left.is_to_right_from(a, b));
 }
 
