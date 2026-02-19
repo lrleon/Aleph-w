@@ -901,7 +901,7 @@ Aleph-w provides a robust suite for 2D and 3D computational geometry, built on *
 | **Diagrams** | Voronoi Diagram (from Delaunay), Power Diagram (Weighted Voronoi) | O(n log n) |
 | **Intersections** | Segment Sweep (Bentley-Ottmann), Half-Plane Intersection, Convex Polygon Clipping, Boolean Polygon Ops (Greiner-Hormann) | O((n+k)log n), O(n log n) |
 | **Simplification** | Douglas-Peucker, Visvalingam-Whyatt, Chaikin Smoothing | O(n log n), O(n*2^k) |
-| **Pathfinding** | Shortest Path in Simple Polygon (Funnel Algorithm) | O(n²) |
+| **Pathfinding** | Shortest Path in Simple Polygon (Funnel Algorithm) | O(n) |
 | **Spatial Indexing** | AABB Tree, KD-Tree | O(log n) queries |
 
 **Visualization (`tikzgeom.H`, `eepicgeom.H`):**
