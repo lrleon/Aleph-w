@@ -32,11 +32,6 @@
 
 /**
  * @file eepicgeom_test.cc
- * @brief Tests for Eepicgeom
- */
-
-/**
- * @file eepicgeom_test.cc
  * @brief Comprehensive test suite for eepicgeom.H - EEPIC LaTeX drawing utilities
  *
  * Tests cover:
@@ -1069,7 +1064,7 @@ TEST(EepicPolymorphismTest, PointInPlane)
   put_in_plane(plane, p);
 
   std::ostringstream output;
-  plane.draw(output);
+  ASSERT_NO_THROW(plane.draw(output));
 
   // After draw, extreme points should match the point
   EXPECT_EQ(plane.highest(), p);

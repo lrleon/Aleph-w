@@ -127,24 +127,47 @@ TEST(DynList, Simple_append_and_insert_of_list)
 
 TEST(DynListAlgorithms, InPlaceUnique)
 {
-  DynList<int> list;
-  list.append(1);
-  list.append(2);
-  list.append(1);
-  list.append(3);
-  list.append(2);
-  list.append(4);
-  list.append(4);
+  {
+    DynList<int> list;
+    list.append(3);
+    list.append(1);
+    list.append(2);
+    list.append(3);
 
-  in_place_unique(list);
+    in_place_unique(list);
 
-  ASSERT_EQ(list.size(), 4u);
-  auto it = list.get_it();
-  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 1); it.next();
-  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 2); it.next();
-  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 3); it.next();
-  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 4); it.next();
-  EXPECT_FALSE(it.has_curr());
+    ASSERT_EQ(list.size(), 3u);
+    auto it = list.get_it();
+    ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 3); it.next();
+    ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 1); it.next();
+    ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 2); it.next();
+    EXPECT_FALSE(it.has_curr());
+  }
+
+  {
+    DynList<int> empty_list;
+    in_place_unique(empty_list);
+    EXPECT_EQ(empty_list.size(), 0u);
+    EXPECT_FALSE(empty_list.get_it().has_curr());
+  }
+
+  {
+    DynList<int> single_list;
+    single_list.append(42);
+    in_place_unique(single_list);
+    EXPECT_EQ(single_list.size(), 1u);
+    EXPECT_EQ(single_list.get_first(), 42);
+  }
+
+  {
+    DynList<int> all_equal;
+    all_equal.append(5);
+    all_equal.append(5);
+    all_equal.append(5);
+    in_place_unique(all_equal);
+    EXPECT_EQ(all_equal.size(), 1u);
+    EXPECT_EQ(all_equal.get_first(), 5);
+  }
 }
 
 TEST_F(List_of_25_items, Basic_operations)

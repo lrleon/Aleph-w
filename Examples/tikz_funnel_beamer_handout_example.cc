@@ -122,11 +122,21 @@ std::string render_final_panel(const FunnelTraceResult & trace)
      << "\\footnotesize frames: " << (trace.steps.size() + 1) << "\\\\\n"
      << "portals: " << trace.portals.size() << "\\\\\n"
      << "path nodes: " << trace.final_path.size() << "\\\\[1.2mm]\n"
-     << "\\begin{tabular}{@{}ll@{}}\n"
-     << "Source & " << fmt_point(trace.final_path(0)) << "\\\\\n"
-     << "Target & " << fmt_point(trace.final_path(trace.final_path.size() - 1))
-     << "\\\\\n"
-     << "\\end{tabular}";
+     << "\\begin{tabular}{@{}ll@{}}\n";
+
+  if (trace.final_path.empty())
+    {
+      ss << "Source & N/A\\\\\n"
+         << "Target & N/A\\\\\n";
+    }
+  else
+    {
+      ss << "Source & " << fmt_point(trace.final_path(0)) << "\\\\\n"
+         << "Target & " << fmt_point(trace.final_path(trace.final_path.size() - 1))
+         << "\\\\\n";
+    }
+
+  ss << "\\end{tabular}";
 
   return ss.str();
 }

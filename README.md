@@ -884,78 +884,6 @@ auto ans = mo.solve({{0, 4}, {1, 3}});
 <a id="readme-computational-geometry"></a>
 ### Computational Geometry
 
-Aleph-w provides **exact geometric predicates** built on arbitrary-precision
-rationals (`Geom_Number` = `mpq_class`). All orientation and intersection
-tests are exact — no floating-point rounding errors.
-
-In addition to primitives (`point.H`, `polygon.H`), Aleph-w provides higher-level
-algorithms, serialization helpers (WKT/GeoJSON), a lightweight spatial index
-(AABB tree), and C++20 conveniences (`GeomNumberType`, `std::format` for basic
-geometry types).
-
-**Header:** `point.H`
-
-```cpp
-#include <point.H>
-
-// --- Orientation ---
-Point a(0, 0), b(4, 0), c(2, 3);
-Orientation o = orientation(a, b, c);  // Orientation::CCW
-
-// --- Segment intersection detection ---
-Segment s1(Point(0, 0), Point(2, 2));
-Segment s2(Point(0, 2), Point(2, 0));
-bool cross = segments_intersect(s1, s2);  // true
-
-// --- Exact intersection point (mpq_class, no rounding) ---
-Point p = segment_intersection_point(s1, s2);  // exactly (1, 1)
-
-// --- Works with vertical / horizontal / any configuration ---
-Segment v(Point(3, 0), Point(3, 6));
-Segment d(Point(0, 0), Point(6, 6));
-Point q = segment_intersection_point(v, d);  // exactly (3, 3)
-
-// --- Triangle area (exact rational) ---
-Geom_Number area = area_of_triangle(a, b, c);  // exact
-```
-
-| Function | Description |
-|----------|-------------|
-| `orientation(a, b, c)` | `CCW`, `CW`, or `COLLINEAR` via cross-product |
-| `on_segment(s, p)` | True if `p` lies on segment `s` |
-| `segments_intersect(s1, s2)` | True if segments intersect (any config) |
-| `segment_intersection_point(s1, s2)` | Exact intersection point; throws if there is no unique intersection point |
-| `area_of_triangle(a, b, c)` | Unsigned area as exact rational |
-| `area_of_parallelogram(a, b, c)` | Signed area (2x triangle area) |
-
-Higher-level algorithms in `geom_algorithms.H`:
-- **Segment-Segment Intersection (O(1))**: `SegmentSegmentIntersection` for direct 2-segment queries (`none` / `point` / `overlap`)
-- **Convex Hull**: Andrew, Graham, Brute-force, Gift Wrapping, QuickHull
-- **Closest Pair**: Divide & conquer (`O(n log n)`)
-- **Rotating Calipers**: Diameter and minimum width on convex polygons
-- **Point-in-Polygon**: Winding-based exact classification
-- **Convex Polygon Intersection**: Exact Sutherland-Hodgman clipping
-- **Half-Plane Intersection**: Exact bounded intersection
-- **Delaunay / Voronoi**: Bowyer-Watson triangulation and dual Voronoi
-
-Utilities in `geom_algorithms.H`:
-- **Serialization**: `GeomSerializer::to_wkt()` and `GeomSerializer::to_geojson()`
-- **Spatial Index**: `AABBTree` (rectangle overlap queries, point queries)
-- **C++20**: `GeomNumberType` concept
-
-Visualization headers:
-- **`eepicgeom.H`**: legacy EEPIC plane (`Eepic_Plane`) for LaTeX export.
-- **`tikzgeom.H`**: modern PGF/TikZ plane (`Tikz_Plane`) with styles/layers.
-- **`tikzgeom_algorithms.H`**: helpers to render algorithm outputs (hulls, intersections, Voronoi, power diagram).
-- **`tikzgeom_scene.H`**: high-level scene API (`Tikz_Scene`) to compose objects + multiple algorithms and export standalone/beamer/handout LaTeX, including multi-step beamer overlays.
-
-See `Examples/voronoi_clipped_cells_example.cc` for clipped, site-indexed
-Voronoi cells exported as CSV/WKT.
-See `docs/TIKZGEOM_GUIDE.md` for the full TikZ API and extension patterns.
-
-<a id="readme-computational-geometry"></a>
-### Computational Geometry
-
 Aleph-w provides a robust suite for 2D and 3D computational geometry, built on **exact rational arithmetic** (`Geom_Number` = `mpq_class`) to prevent floating-point errors in geometric predicates.
 
 **Key Features:**
@@ -984,6 +912,32 @@ Aleph-w provides a robust suite for 2D and 3D computational geometry, built on *
 - **Legacy EEPIC Backend**: For compatibility with older LaTeX workflows.
 
 See `Examples/` for over a dozen geometry-specific programs, including `tikz_funnel_beamer_twocol_example.cc` which generates animated Beamer slides of the shortest-path funnel algorithm.
+
+**Header:** `point.H`
+
+```cpp
+#include <point.H>
+
+// --- Orientation ---
+Point a(0, 0), b(4, 0), c(2, 3);
+Orientation o = orientation(a, b, c);  // Orientation::CCW
+
+// --- Segment intersection detection ---
+Segment s1(Point(0, 0), Point(2, 2));
+Segment s2(Point(0, 2), Point(2, 0));
+bool cross = segments_intersect(s1, s2);  // true
+
+// --- Exact intersection point (mpq_class, no rounding) ---
+Point p = segment_intersection_point(s1, s2);  // exactly (1, 1)
+
+// --- Works with vertical / horizontal / any configuration ---
+Segment v(Point(3, 0), Point(3, 6));
+Segment d(Point(0, 0), Point(6, 6));
+Point q = segment_intersection_point(v, d);  // exactly (3, 3)
+
+// --- Triangle area (exact rational) ---
+Geom_Number area = area_of_triangle(a, b, c);  // exact
+```
 
 <a id="readme-linear-algebra-sparse-structures"></a>
 ### Linear Algebra (Sparse Structures)
