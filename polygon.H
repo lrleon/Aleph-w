@@ -592,10 +592,12 @@ namespace Aleph
       return *Vertex::dlink_to_vertex(vertex_list_.get_prev());
     }
 
-    /// @brief Get the vertex after the given vertex.
-    /// @param v A vertex of this polygon.
-    /// @return Reference to the next vertex (wraps around for closed polygons).
-    /// @note No validation is performed to check if @p v belongs to this polygon.
+    /**
+     * @brief Get the vertex following @p v in the polygon.
+     * @details For closed polygons, this wraps from the last vertex to the first.
+     * @param v Reference vertex.
+     * @return Reference to the next vertex.
+     */
     [[nodiscard]] const Vertex &get_next_vertex(const Vertex & v) const
     {
       // If v is the last vertex (next points to sentinel), wrap to the first vertex
@@ -604,10 +606,12 @@ namespace Aleph
                v.next_vertex();
     }
 
-    /// @brief Get the vertex before the given vertex.
-    /// @param v A vertex of this polygon.
-    /// @return Reference to the previous vertex (wraps around for closed polygons).
-    /// @note No validation is performed to check if @p v belongs to this polygon.
+    /**
+     * @brief Get the vertex preceding @p v in the polygon.
+     * @details For closed polygons, this wraps from the first vertex to the last.
+     * @param v Reference vertex.
+     * @return Reference to the previous vertex.
+     */
     [[nodiscard]] const Vertex &get_prev_vertex(const Vertex & v) const
     {
       // If v is the first vertex (prev points to sentinel), wrap to last vertex
@@ -1003,7 +1007,7 @@ namespace Aleph
         }
 
       ah_domain_error_if(a6 == 0) << "Polygon has zero area";
-      return Point(cx / (3 * a6), cy / (3 * a6));
+      return {cx / (3 * a6), cy / (3 * a6)};
     }
 
     /** @brief Check if the polygon is convex.

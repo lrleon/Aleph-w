@@ -215,12 +215,13 @@ namespace Aleph
       bool has_y_range = false;
     };
 
+    /** @brief An object with its associated style, layer, and insertion order. */
     struct Styled_Object
     {
-      Object object;
-      Tikz_Style style;
-      int layer = Layer_Default;
-      size_t order = 0;
+      Object object; ///< The geometric object.
+      Tikz_Style style; ///< The style used to render the object.
+      int layer = Layer_Default; ///< The rendering layer.
+      size_t order = 0; ///< Insertion order within the layer.
     };
 
     double wide_ = 0.0;
@@ -1239,21 +1240,28 @@ namespace Aleph
 
     /// @brief Style used for Cartesian axes when enabled.
     [[nodiscard]] const Tikz_Style &get_axis_style() const { return axis_style_; }
+    /// @brief Style used for coordinate grids when enabled.
     [[nodiscard]] const Tikz_Style &get_grid_style() const { return grid_style_; }
 
-    /** @brief Configure the default style for subsequent non-styled inserts. */
+    /** @brief Configure the default style for subsequent non-styled inserts.
+     *  @param style The new default style.
+     */
     void set_default_style(const Tikz_Style & style)
     {
       default_style_ = style;
     }
 
-    /** @brief Configure the style used to draw Cartesian axes. */
+    /** @brief Configure the style used to draw Cartesian axes.
+     *  @param style The new axis style.
+     */
     void set_axis_style(const Tikz_Style & style)
     {
       axis_style_ = style;
     }
 
-    /** @brief Configure the style used to draw coordinate grids. */
+    /** @brief Configure the style used to draw coordinate grids.
+     *  @param style The new grid style.
+     */
     void set_grid_style(const Tikz_Style & style)
     {
       grid_style_ = style;

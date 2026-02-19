@@ -466,6 +466,15 @@ namespace Aleph
     list.swap(&aux);
   }
 
+  /**
+   * @brief Helper class to compare nodes of a linked list.
+   * @details Adapts a comparison functor for elements of type @p T to 
+   *          work with list nodes of type @p Tnode<T>.
+   * @tparam Tlink Base link type (e.g., Dlink).
+   * @tparam Tnode Template for the node type (e.g., Dnode).
+   * @tparam T Element type.
+   * @tparam Compare Comparison functor for @p T.
+   */
   template <typename Tlink,
             template <class> class Tnode,
             typename T, class Compare>
@@ -474,11 +483,13 @@ namespace Aleph
     Compare cmp;
 
   public:
+    /** @brief Construct from a comparison functor. */
     Compare_Tnode(Compare cmp_fct = Compare()) noexcept(std::is_nothrow_copy_constructible_v<Compare>)
       : cmp(cmp_fct)
     { /* empty */
     }
 
+    /** @brief Compares two nodes based on their data. */
     bool operator ()(Tlink *l1, Tlink *l2) const
       noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(), std::declval<const T&>())))
     {
@@ -490,7 +501,7 @@ namespace Aleph
       return cmp(n1->get_data(), n2->get_data());
     }
 
-    // To generalize in sequential_search
+    /** @brief Compares a node's data with a value. */
     bool operator ()(Tlink *l, const T & x) const
       noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(), std::declval<const T&>())))
     {
@@ -502,6 +513,9 @@ namespace Aleph
     }
   };
 
+  /**
+   * @brief Comparator specialization for Dnode objects.
+   */
   template <typename T, class Compare>
   struct Compare_Dnode : public Compare_Tnode<Dlink, Dnode, T, Compare>
   {
@@ -512,6 +526,9 @@ namespace Aleph
     }
   };
 
+  /**
+   * @brief Comparator specialization for Snodenc objects.
+   */
   template <typename T, class Compare>
   using Compare_Snodenc = Compare_Tnode<Slinknc, Snodenc, T, Compare>;
 
@@ -574,39 +591,23 @@ namespace Aleph
     return Not_Found;
   }
 
-  /** Sequential search on a dynamic array.
-
-      sequential_search(a,x,l,r) search sequentially,
-      in array a, between indices l and r, respectively,
-      the first occurrence of x.
-
-      The function handles two type parameters:
-      -# T: the type of data held by the array.
-      -# Equal: comparison class between elements.
-
-      This version of dynamic arrangements skips positions
-      that have certainly not been written. However, take
-      taking into consideration that, depending on the size of the block, they may
-      there are entries not written but limited to addresses
-      valid memory. In this sense, it is possible that within
-      that class of entries an element with value x is found.
-
-      @param[in] a pointer to the dynamic array on which it is performed
-      the search.
-      @param[in] x the element to search for.
-      @param[in] l left index where the search begins.
-      @param[in] r right index where the search ends.
-      @param eq comparison object.
-      @return index of the first position in the array of
-      the element x; -1 otherwise.
-      @note Search cannot distinguish whether a valid entry has
-      been written or not. Programming the Equal class can
-      consider a special value that represents that the entry has not
-      been written. It is guaranteed that input that has not been
-      mapped to a block will not be accessed.
-      @see DynArray
-      \ingroup Algorithms
-  */
+  /** @brief Linear search for an element in a dynamic array.
+   *
+   *  Scans the dynamic array between indices l and r looking for the first
+   *  occurrence of the specified element.
+   *
+   *  @tparam T Element type.
+   *  @tparam Equal Equality comparison functor (default: `Aleph::equal_to<T>`).
+   *
+   *  @param a Pointer to the dynamic array.
+   *  @param x The element to search for.
+   *  @param l Left index (inclusive).
+   *  @param r Right index (inclusive).
+   *  @param eq Equality comparator.
+   *
+   *  @return Index of the first occurrence of x, or `Not_Found` if not found.
+   *  @note Only existing (mapped) entries in the DynArray are accessed.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   long sequential_search(const DynArray<T> & a, const T & x,
@@ -620,6 +621,18 @@ namespace Aleph
     return Not_Found;
   }
 
+  /** @brief Linear search for an element in a linked list.
+   *
+   *  @tparam Link Link node type (e.g., Dlink, Slinknc).
+   *  @tparam T Element type.
+   *  @tparam Equal Equality comparison functor.
+   *
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *
+   *  @return Pointer to the first node containing x, or nullptr if not found.
+   */
   template <class Link, typename T, class Equal>
   Link * sequential_search(const Link & list, const T & x, Equal & eq)
   {
@@ -631,6 +644,12 @@ namespace Aleph
     return nullptr;
   }
 
+  /** @brief Linear search for an element in a Dlink list.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the first Dlink containing x, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   Dlink * sequential_search(const Dlink & list, const T & x,
                             Equal eq = Equal())
@@ -639,6 +658,12 @@ namespace Aleph
     return sequential_search<Dlink, T, Compare_Dnode<T, Equal>>(list, x, cmp);
   }
 
+  /** @brief Linear search for an element in an Slinknc list.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the first Slinknc containing x, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   Slinknc * sequential_search(const Slinknc & list, const T & x,
                               Equal eq = Equal())
@@ -647,25 +672,12 @@ namespace Aleph
     return sequential_search<Slinknc, T, Compare_Snodenc<T, Equal>>(list, x, cmp);
   }
 
-  /** Sequential search over a list of nodes.
-
-      sequential_search(list,x) search sequentially,
-      in the list of nodes of type Dnode<T> list the first
-      occurrence of x.
-
-      The function handles two type parameters:
-      -# T: the type of data held by the array.
-      -# Equal: comparison class between elements.
-
-      @param[in] list the list on which to perform
-      the search.
-      @param[in] x the element to search for.
-      @param eq comparison object.
-      @return pointer to the first containing node
-      element x; nullptr otherwise.
-      @see Dnode
-      \ingroup Algorithms
-  */
+  /** @brief Linear search over a list of Dnodes.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the first Dnode containing x, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   Dnode<T> * sequential_search(const Dnode<T> & list, const T & x,
@@ -678,6 +690,7 @@ namespace Aleph
     return ret == nullptr ? nullptr : static_cast<Dnode<T> *>(ret);
   }
 
+  /** @overload */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   Dnode<T> * sequential_search(const Dnode<T> & list, const T & x,
@@ -686,25 +699,12 @@ namespace Aleph
     return sequential_search<T, Equal>(list, x, eq);
   }
 
-  /** Sequential search on a dynamic list DynDlist.
-
-      sequential_search(list,x) search sequentially,
-      in the dynamic list (DynDlist<T>) the first
-      occurrence of x.
-
-      The function handles two type parameters:
-      -# T: the type of data held by the array.
-      -# Equal: comparison class between elements.
-
-      @param[in] list the dynamic list on which to perform
-      the search.
-      @param[in] x the element to search for.
-      @param eq comparison object.
-      @return pointer to the first element with value equal to x;
-      nullptr otherwise.
-      @see DynDlist
-      \ingroup Algorithms
-  */
+  /** @brief Linear search on a DynDlist.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the data of the first matching element, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   T * sequential_search(const DynDlist<T> & list, const T & x,
@@ -715,6 +715,12 @@ namespace Aleph
     return ret != nullptr ? &ret->get_data() : nullptr;
   }
 
+  /** @brief Linear search on a DynList.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the data of the first matching element, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   T * sequential_search(const DynList<T> & list, const T & x,
@@ -729,6 +735,7 @@ namespace Aleph
     return nullptr;
   }
 
+  /** @overload */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   T * sequential_search(const DynList<T> & list, const T & x,
@@ -2001,6 +2008,10 @@ namespace Aleph
     quicksort<Compare_Dnode<T, Compare>>(list, cmp);
   }
 
+  /** @brief Sort an HTList using the quicksort method.
+   *  @param list The list to sort.
+   *  @param cmp Comparison functor for the data type @p T.
+   */
   template <typename T, class Compare>
   void quicksort(HTList & list, const Compare & cmp = Compare())
   {
@@ -2024,6 +2035,10 @@ namespace Aleph
     list.concat_list(bigger);
   }
 
+  /** @brief Sort a DynList using the quicksort method.
+   *  @param list The list to sort.
+   *  @param cmp Comparison functor for the data type @p T.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   void quicksort(DynList<T> & list, const Compare & cmp = Compare())
   {
@@ -2931,9 +2946,15 @@ namespace Aleph
   }
 
 
+  /** @brief Convert a 1-based heap index to a 0-based array index. */
   inline static long back_index(const long i) noexcept { return i - 1; }
 
-
+  /**
+   * @brief Move an element up in a heap to restore heap property.
+   * @param table The dynamic array containing the heap.
+   * @param n The index of the element to sift up (1-based).
+   * @param cmp Comparison functor.
+   */
   template <typename T, class Compare>
   inline
   void sift_up(DynArray<T> & table, const long n, const Compare & cmp)
@@ -2950,6 +2971,13 @@ namespace Aleph
       }
   }
 
+  /**
+   * @brief Move an element down in a heap to restore heap property.
+   * @param table The dynamic array containing the heap.
+   * @param start The index of the element to sift down (1-based).
+   * @param n The current size of the heap.
+   * @param cmp Comparison functor.
+   */
   template <typename T, class Compare>
   inline
   void sift_down(DynArray<T> & table, const long start, const long n, const Compare & cmp)
@@ -2976,7 +3004,7 @@ namespace Aleph
       }
   }
 
-  // Legacy overload for backward compatibility
+  /** @overload */
   template <typename T, class Compare>
   inline
   void sift_down(DynArray<T> & table, const long n, const Compare & cmp)

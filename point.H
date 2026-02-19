@@ -96,6 +96,11 @@ namespace Aleph
    */
   using Geom_Number = mpq_class;
 
+  /**
+   * @brief Converts a Geom_Number to its double precision representation.
+   * @param n The Geom_Number to convert.
+   * @return The double value.
+   */
   inline double geom_number_to_double(const Geom_Number & n)
   {
     return n.get_d();
@@ -110,7 +115,10 @@ namespace Aleph
   constexpr double PI_2 = PI / 2.0;
   constexpr double PI_4 = PI / 4.0;
 
-  // High-precision pi value for computations that require Geom_Number.
+  /**
+   * @brief High-precision pi value for computations that require Geom_Number.
+   * @return A reference to the static Geom_Number pi.
+   */
   inline const Geom_Number &geom_pi()
   {
     static const Geom_Number pi = acos(mpfr_class(-1));
@@ -125,7 +133,14 @@ namespace Aleph
   class Ellipse;
 
 
-  /// Compute the area of parallelogram defined by vectors a->b and b->c
+  /**
+   * @brief Compute the signed area of the parallelogram defined by vectors a->b and a->c.
+   * @details Equivalent to the 2D cross product (b-a) x (c-a).
+   * @param a The first point.
+   * @param b The second point.
+   * @param c The third point.
+   * @return The signed area (positive for CCW, negative for CW).
+   */
   inline Geom_Number
   area_of_parallelogram(const Point & a, const Point & b, const Point & c);
 
@@ -174,6 +189,9 @@ namespace Aleph
     return sqrt(mpfr_class(x));
   }
 
+  /**
+   * @brief Base class for all geometric objects.
+   */
   struct Geom_Object
   {
     Geom_Object() = default;
@@ -2655,9 +2673,12 @@ namespace Aleph
      callers can shift the reference point directly.
   */
 
-  /* Estimate the count of printable characters in a LaTeX string (skipping '\',
-     '$', '{', '}', etc.).
-  */
+  /**
+   * @brief Estimate the count of printable characters in a LaTeX string.
+   * @details Skips LaTeX commands (starting with \), braces, and math mode markers.
+   * @param str The LaTeX string to estimate.
+   * @return The estimated number of printable characters.
+   */
   inline size_t approximate_string_size(const std::string & str)
   {
     const char *ptr = str.c_str();
@@ -2692,6 +2713,10 @@ namespace Aleph
       }
   }
 
+  /**
+   * @brief Represents a text string positioned at a 2D point.
+   * @ingroup Geometry
+   */
   class Text : public Geom_Object
   {
     Point p_;
@@ -2705,38 +2730,51 @@ namespace Aleph
 
     static constexpr double font_height_in_points = 1.2;
 
+    /**
+     * @brief Constructs a Text object.
+     * @param p The position of the text.
+     * @param str The text string (can contain LaTeX commands).
+     */
     Text(Point p, const std::string & str)
       : p_(std::move(p)), str_(str), len_(approximate_string_size(str))
     {
       // empty
     }
 
+    /** @brief Default constructor. */
     Text() = default;
 
+    /** @brief Gets the estimated length of the text. */
     [[nodiscard]] const size_t &len() const { return len_; }
 
+    /** @brief Gets the position point of the text. */
     [[nodiscard]] const Point &get_point() const
     {
       return p_;
     }
 
+    /** @brief Gets the text string. */
     [[nodiscard]] const std::string &get_str() const { return str_; }
 
+    /** @brief Gets the highest point (the anchor point). */
     [[nodiscard]] Point highest_point() const
     {
       return p_;
     }
 
+    /** @brief Gets the lowest point (the anchor point). */
     [[nodiscard]] Point lowest_point() const
     {
       return p_;
     }
 
+    /** @brief Gets the leftmost point (the anchor point). */
     [[nodiscard]] Point leftmost_point() const
     {
       return p_;
     }
 
+    /** @brief Gets the rightmost point (the anchor point). */
     [[nodiscard]] Point rightmost_point() const
     {
       return p_;
@@ -3598,6 +3636,10 @@ namespace Aleph
 
 namespace std
 {
+  /**
+   * @brief Hash specialization for Aleph::Point.
+   * @details Enables the use of Aleph::Point in unordered containers like std::unordered_set.
+   */
   template <>
   struct hash<Aleph::Point>
   {

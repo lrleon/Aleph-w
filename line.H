@@ -201,7 +201,7 @@ struct LineEq
   }
 
   /**
-   * @brief Construct line through a Point with given slope.
+   * @brief Construct a line through a Point with a given slope.
    *
    * @param p Point on the line
    * @param __m Slope of the line
@@ -320,7 +320,7 @@ struct LineEq
   }
 
   /**
-   * @brief Compute intersection point with another line.
+   * @brief Compute the intersection point with another line.
    *
    * Solves the system of equations to find where lines cross:
    * - y = y0_1 + m_1 * x
@@ -430,7 +430,7 @@ struct LineEq
    *
    * @param p The point to test
    * @param epsilon Tolerance for comparison (default: exact equality)
-   * @return True if point is on the line
+   * @return True if the point is on the line
    */
   [[nodiscard]] bool contains_point(const Point & p,
                                      const Geom_Number & epsilon = LINE_EPSILON) const noexcept

@@ -2082,44 +2082,62 @@ namespace Aleph
   // ============================================================================
 
   /**
-   * @brief Exact Delaunay's triangulation via Bowyer-Watson incremental insertion.
+   * @brief Exact Delaunay triangulation using the Bowyer-Watson incremental algorithm.
    *
-   * The algorithm removes duplicate points, inserts points incrementally into
-   * super-triangle triangulation, and retriangulates the cavity of triangles
-   * whose circumcircle contains the inserted point.
+   * This class computes the Delaunay triangulation of a set of 2D points. The 
+   * Delaunay triangulation for a set P of points in a plane is a triangulation 
+   * DT(P) such that no point in P is inside the circumcircle of any triangle in DT(P).
    *
-   * ## Policy
+   * ## Implementation Details
    *
-   * - Points are sorted lexicographically (x, then y), and duplicates are removed.
-   * - Collinear inputs return empty triangulation.
-   * - Cocircular ties are broken deterministically by insertion index.
-   * - Output triangles are indexed against the returned unique sites array.
+   * 1. **Preprocessing**: Duplicate points are removed, and the remaining points 
+   *    are sorted lexicographically to ensure deterministic behavior.
+   * 2. **Super-triangle**: A large triangle enclosing all points is created to 
+   *    initialize the triangulation.
+   * 3. **Incremental Insertion**: Points are inserted one by one. For each point:
+   *    - Identify all triangles whose circumcircle contains the point (the cavity).
+   *    - Remove these triangles and find the boundary of the cavity.
+   *    - Create new triangles by connecting the new point to each edge of the cavity boundary.
+   * 4. **Cleanup**: Triangles connected to the super-triangle vertices are removed.
    *
    * ## Complexity
    *
-   * - Worst-case time: O(n^2)
-   * - Typical random input: near O(n log n)
-   * - Space: O(n)
+   * - Time: Average O(n log n), Worst-case O(n²) where n is the number of points.
+   * - Typical random input: near O(n log n).
+   * - Space: O(n) to store the triangulation.
    *
    * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
    */
   class DelaunayTriangulationBowyerWatson
   {
   public:
+    /**
+     * @brief Represents a triangle by the indices of its three vertices.
+     * 
+     * The indices refer to the @c sites array in the @c Result structure.
+     */
     struct IndexedTriangle
     {
-      size_t i;
-      size_t j;
-      size_t k;
+      size_t i; ///< Index of the first vertex.
+      size_t j; ///< Index of the second vertex.
+      size_t k; ///< Index of the third vertex.
     };
 
+    /**
+     * @brief The result of a Delaunay triangulation.
+     */
     struct Result
     {
-      Array<Point> sites;
-      Array<IndexedTriangle> triangles;
+      Array<Point> sites;               ///< Unique, sorted input points used for triangulation.
+      Array<IndexedTriangle> triangles; ///< Triangles forming the Delaunay triangulation.
     };
 
   private:
+    /**
+     * @brief Lexicographical comparison for points.
+     */
     [[nodiscard]] static bool lexicographic_less(const Point & p1, const Point & p2)
     {
       if (p1.get_x() < p2.get_x())
@@ -2129,6 +2147,9 @@ namespace Aleph
       return p1.get_y() < p2.get_y();
     }
 
+    /**
+     * @brief Check if all points in an array are collinear.
+     */
     [[nodiscard]] static bool all_collinear(const Array<Point> & pts)
     {
       if (pts.size() < 3)
@@ -2141,6 +2162,9 @@ namespace Aleph
       return true;
     }
 
+    /**
+     * @brief Predicate to check if a point lies inside the circumcircle of a triangle.
+     */
     [[nodiscard]] static bool point_in_circumcircle(const Array<Point> & pts,
                                                     const size_t ia,
                                                     const size_t ib,
@@ -2177,6 +2201,9 @@ namespace Aleph
       return ip < max_idx;
     }
 
+    /**
+     * @brief Extracts unique points from a list and sorts them lexicographically.
+     */
     [[nodiscard]] static Array<Point> unique_points(const DynList<Point> & point_set)
     {
       Array<Point> all;
@@ -3632,54 +3659,79 @@ namespace Aleph
   // ============================================================================
 
   /**
-   * @brief Voronoi diagram derived from Delaunay triangulation.
+   * @brief Voronoi diagram derived as the dual of a Delaunay triangulation.
    *
-   * The dual construction is used:
-   * - Voronoi vertices are circumcenters of Delaunay triangles.
-   * - Internal Delaunay edges map to bounded Voronoi segments.
-   * - Hull Delaunay edges map to unbounded Voronoi rays.
+   * A Voronoi diagram is a partition of a plane into regions close to each 
+   * of a given set of objects. In the simplest case, these objects are just 
+   * finitely many points in the plane (called seeds, sites, or generators).
+   *
+   * ## Implementation Details
+   *
+   * - **Vertices**: Voronoi vertices are the circumcenters of the Delaunay triangles.
+   * - **Edges**: Each edge in the Delaunay triangulation corresponds to an edge in 
+   *   the Voronoi diagram. Internal Delaunay edges map to bounded Voronoi segments, 
+   *   while Delaunay edges on the convex hull map to unbounded Voronoi rays.
+   * - **Cells**: Each site has a corresponding Voronoi cell, which is a convex 
+   *   polygon (possibly unbounded).
    *
    * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
    */
   class VoronoiDiagramFromDelaunay
   {
   public:
+    /**
+     * @brief Represents an edge in the Voronoi diagram.
+     */
     struct Edge
     {
-      size_t site_u;
-      size_t site_v;
-      Point src;
-      Point tgt;
-      bool unbounded;
-      Point direction;
+      size_t site_u;    ///< Index of the first site sharing this edge.
+      size_t site_v;    ///< Index of the second site sharing this edge.
+      Point src;        ///< Source point of the edge.
+      Point tgt;        ///< Target point of the edge (only if not unbounded).
+      bool unbounded;   ///< True if the edge is an unbounded ray.
+      Point direction;  ///< Direction vector for unbounded rays.
     };
 
+    /**
+     * @brief Represents a Voronoi cell.
+     */
     struct Cell
     {
-      size_t site_index;
-      Point site;
-      bool bounded;
-      Array<Point> vertices;
+      size_t site_index;      ///< Index of the site this cell belongs to.
+      Point site;             ///< Coordinates of the site.
+      bool bounded;           ///< True if the cell is completely bounded.
+      Array<Point> vertices;  ///< Vertices of the cell in CCW order.
     };
 
+    /**
+     * @brief Represents a Voronoi cell clipped by a bounding polygon.
+     */
     struct ClippedCell
     {
-      size_t site_index;
-      Point site;
-      Polygon polygon;
+      size_t site_index;  ///< Index of the site.
+      Point site;         ///< Coordinates of the site.
+      Polygon polygon;    ///< Clipped convex polygon representing the cell.
     };
 
+    /**
+     * @brief The complete result of a Voronoi diagram computation.
+     */
     struct Result
     {
-      Array<Point> sites;
-      Array<Point> vertices;
-      Array<Edge> edges;
-      Array<Cell> cells;
+      Array<Point> sites;     ///< Input sites.
+      Array<Point> vertices;  ///< Voronoi vertices.
+      Array<Edge> edges;      ///< Voronoi edges.
+      Array<Cell> cells;      ///< Voronoi cells.
     };
 
   private:
-    DelaunayTriangulationBowyerWatson delaunay;
+    DelaunayTriangulationBowyerWatson delaunay; ///< Internal Delaunay triangulator.
 
+    /**
+     * @brief Computes the circumcenter of three points.
+     */
     [[nodiscard]] static Point circumcenter(const Point & a,
                                             const Point & b,
                                             const Point & c)
@@ -3705,6 +3757,9 @@ namespace Aleph
       return {ux, uy};
     }
 
+    /**
+     * @brief Extracts vertices from a closed polygon.
+     */
     [[nodiscard]] static Array<Point> extract_vertices(const Polygon & p)
     {
       ah_domain_error_if(not p.is_closed()) << "Polygon must be closed";
@@ -3713,6 +3768,9 @@ namespace Aleph
       return GeomPolygonUtils::extract_vertices(p);
     }
 
+    /**
+     * @brief Checks if a vertex set forms a convex polygon.
+     */
     [[nodiscard]] static bool is_convex(const Array<Point> & verts)
     {
       if (verts.size() < 3)
@@ -3720,6 +3778,9 @@ namespace Aleph
       return GeomPolygonUtils::is_convex(verts);
     }
 
+    /**
+     * @brief Creates a half-plane from a directed edge.
+     */
     [[nodiscard]] static HalfPlaneIntersection::HalfPlane
     bisector_halfplane_for_site(const Point & s, const Point & t)
     {
@@ -11591,8 +11652,24 @@ namespace Aleph
    *
    * @ingroup Geometry
    */
+  /**
+   * @brief Serializes geometric types to standard string formats (WKT, GeoJSON).
+   *
+   * This class provides static methods to convert basic geometric primitives like
+   * @c Point, @c Segment, @c Polygon, etc., into Well-Known Text (WKT) and GeoJSON 
+   * representations. 
+   *
+   * All numeric values are output as doubles (via `geom_number_to_double`).
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
   class GeomSerializer
   {
+    /**
+     * @brief Formats a Geom_Number as a string with high precision.
+     */
     static std::string dbl(const Geom_Number & n)
     {
       std::ostringstream os;
@@ -11601,15 +11678,19 @@ namespace Aleph
     }
 
   public:
-    // ---- WKT ----
+    // ---- WKT (Well-Known Text) ----
 
-    /// Point → "POINT (x y)"
+    /**
+     * @brief Converts a Point to WKT format: "POINT (x y)".
+     */
     [[nodiscard]] static std::string to_wkt(const Point & p)
     {
       return "POINT (" + dbl(p.get_x()) + " " + dbl(p.get_y()) + ")";
     }
 
-    /// Segment → "LINESTRING (x1 y1, x2 y2)"
+    /**
+     * @brief Converts a Segment to WKT format: "LINESTRING (x1 y1, x2 y2)".
+     */
     [[nodiscard]] static std::string to_wkt(const Segment & s)
     {
       return "LINESTRING (" +
@@ -11619,7 +11700,9 @@ namespace Aleph
              dbl(s.get_tgt_point().get_y()) + ")";
     }
 
-    /// Triangle → "POLYGON ((x1 y1, x2 y2, x3 y3, x1 y1))"
+    /**
+     * @brief Converts a Triangle to WKT format: "POLYGON ((x1 y1, x2 y2, x3 y3, x1 y1))".
+     */
     [[nodiscard]] static std::string to_wkt(const Triangle & t)
     {
       auto pt = [](const Point & p)
@@ -11630,7 +11713,9 @@ namespace Aleph
              ", " + pt(t.get_p3()) + ", " + pt(t.get_p1()) + "))";
     }
 
-    /// Rectangle → "POLYGON ((xmin ymin, xmax ymin, xmax ymax, xmin ymax, xmin ymin))"
+    /**
+     * @brief Converts a Rectangle to WKT format: "POLYGON ((xmin ymin, xmax ymin, xmax ymax, xmin ymax, xmin ymin))".
+     */
     [[nodiscard]] static std::string to_wkt(const Rectangle & r)
     {
       return "POLYGON ((" +
@@ -11641,7 +11726,9 @@ namespace Aleph
              dbl(r.get_xmin()) + " " + dbl(r.get_ymin()) + "))";
     }
 
-    /// Polygon → "POLYGON ((x1 y1, x2 y2, ..., x1 y1))"
+    /**
+     * @brief Converts a Polygon to WKT format: "POLYGON ((x1 y1, x2 y2, ..., x1 y1))".
+     */
     [[nodiscard]] static std::string to_wkt(const Polygon & poly)
     {
       std::ostringstream os;
@@ -11667,7 +11754,9 @@ namespace Aleph
       return os.str();
     }
 
-    /// Point3D → "POINT Z (x y z)"
+    /**
+     * @brief Converts a Point3D to WKT format: "POINT Z (x y z)".
+     */
     [[nodiscard]] static std::string to_wkt(const Point3D & p)
     {
       return "POINT Z (" + dbl(p.get_x()) + " " + dbl(p.get_y()) +
@@ -11676,14 +11765,18 @@ namespace Aleph
 
     // ---- GeoJSON ----
 
-    /// Point → GeoJSON geometry object.
+    /**
+     * @brief Converts a Point to a GeoJSON geometry object.
+     */
     [[nodiscard]] static std::string to_geojson(const Point & p)
     {
       return R"({"type":"Point","coordinates":[)" +
              dbl(p.get_x()) + "," + dbl(p.get_y()) + "]}";
     }
 
-    /// Segment → GeoJSON LineString.
+    /**
+     * @brief Converts a Segment to a GeoJSON LineString.
+     */
     [[nodiscard]] static std::string to_geojson(const Segment & s)
     {
       return R"({"type":"LineString","coordinates":[[)" +
@@ -11775,50 +11868,70 @@ namespace Aleph
    * @endcode
    *
    * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
    */
   class AABBTree
   {
   public:
-    /// An entry: bounding box + user-defined index.
+    /**
+     * @brief An entry in the tree, consisting of a bounding box and a user-defined index.
+     */
     struct Entry
     {
-      Rectangle bbox;
-      size_t index; ///< user-defined identifier
+      Rectangle bbox; ///< The axis-aligned bounding box.
+      size_t index;   ///< User-defined identifier for the entry.
     };
 
+    /**
+     * @brief Structure used for debugging and visualizing the tree structure.
+     */
     struct DebugNode
     {
-      size_t node_index = ~static_cast<size_t>(0);
-      Rectangle bbox;
-      bool is_leaf = false;
-      size_t entry_index = ~static_cast<size_t>(0); // index in entries_ array
-      size_t user_index = ~static_cast<size_t>(0); // Entry::index
-      size_t left = ~static_cast<size_t>(0); // index into DebugSnapshot::nodes
-      size_t right = ~static_cast<size_t>(0); // index into DebugSnapshot::nodes
-      size_t depth = 0;
+      size_t node_index = ~static_cast<size_t>(0);  ///< Index of the node.
+      Rectangle bbox;                               ///< Bounding box of the node.
+      bool is_leaf = false;                         ///< True if it's a leaf node.
+      size_t entry_index = ~static_cast<size_t>(0); ///< Index in entries_ array.
+      size_t user_index = ~static_cast<size_t>(0);  ///< Entry::index.
+      size_t left = ~static_cast<size_t>(0);        ///< Left child index.
+      size_t right = ~static_cast<size_t>(0);       ///< Right child index.
+      size_t depth = 0;                             ///< Depth in the tree.
     };
 
+    /**
+     * @brief A snapshot of the entire tree for debugging.
+     */
     struct DebugSnapshot
     {
-      Array<DebugNode> nodes;
-      size_t root = ~static_cast<size_t>(0);
+      Array<DebugNode> nodes;               ///< Array of all nodes in debug format.
+      size_t root = ~static_cast<size_t>(0); ///< Index of the root node.
     };
 
   private:
+    /**
+     * @brief Internal tree node structure.
+     */
     struct Node
     {
-      Rectangle bbox;
-      size_t left = ~static_cast<size_t>(0);
-      size_t right = ~static_cast<size_t>(0);
-      size_t entry_idx = ~static_cast<size_t>(0); // valid only for leaves
+      Rectangle bbox;                        ///< Bounding box enclosing all descendants.
+      size_t left = ~static_cast<size_t>(0);  ///< Left child index.
+      size_t right = ~static_cast<size_t>(0); ///< Right child index.
+      size_t entry_idx = ~static_cast<size_t>(0); ///< Index in entries_ (leaf only).
+      
+      /**
+       * @brief Checks if this node is a leaf.
+       */
       [[nodiscard]] bool is_leaf() const { return entry_idx != ~static_cast<size_t>(0); }
     };
 
-    Array<Node> nodes_;
-    Array<Entry> entries_;
+    Array<Node> nodes_;   ///< Internal array storing tree nodes.
+    Array<Entry> entries_; ///< Original entries stored in the tree.
 
     static constexpr size_t NONE = ~static_cast<size_t>(0);
 
+    /**
+     * @brief Computes the union of two axis-aligned bounding boxes.
+     */
     [[nodiscard]] static Rectangle union_bbox(const Rectangle & a,
                                               const Rectangle & b)
     {
@@ -11829,6 +11942,9 @@ namespace Aleph
       return {xmin, ymin, xmax, ymax};
     }
 
+    /**
+     * @brief Checks if two rectangles overlap.
+     */
     [[nodiscard]] static bool boxes_overlap(const Rectangle & a,
                                             const Rectangle & b)
     {
@@ -11836,6 +11952,9 @@ namespace Aleph
              a.get_ymin() <= b.get_ymax() and a.get_ymax() >= b.get_ymin();
     }
 
+    /**
+     * @brief Checks if a rectangle contains a point.
+     */
     [[nodiscard]] static bool box_contains_point(const Rectangle & r,
                                                  const Point & p)
     {
@@ -12640,43 +12759,76 @@ namespace Aleph
    *
    * @ingroup Geometry
    */
+  /**
+   * @brief Fast point location in planar subdivisions using trapezoidal maps.
+   *
+   * This class implements a randomized incremental algorithm to build a trapezoidal 
+   * decomposition of a set of non-crossing line segments. It provides O(log n) 
+   * expected query time for point location.
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
   class TrapezoidalMapPointLocation
   {
   public:
     static constexpr size_t NONE = ~static_cast<size_t>(0);
 
-    /// A trapezoid bounded by two segments (top/bottom) and two points
-    /// (left/right vertical walls).
+    /**
+     * @brief A trapezoid in the decomposition.
+     * 
+     * A trapezoid is bounded by two segments (top and bottom) and two points 
+     * (left and right endpoints) which define its vertical boundaries.
+     */
     struct Trapezoid
     {
-      size_t top; ///< index into segments array (upper bound)
-      size_t bottom; ///< index into segments array (lower bound)
-      size_t leftp; ///< index into points array (left endpoint)
-      size_t rightp; ///< index into points array (right endpoint)
-      size_t upper_left; ///< neighbor trapezoid index
-      size_t lower_left; ///< neighbor trapezoid index
-      size_t upper_right; ///< neighbor trapezoid index
-      size_t lower_right; ///< neighbor trapezoid index
-      size_t dag_leaf; ///< back-pointer to DAG leaf node
-      bool active; ///< false if replaced during construction
+      size_t top;         ///< Index into segments array (upper boundary).
+      size_t bottom;      ///< Index into segments array (lower boundary).
+      size_t leftp;       ///< Index into points array (left vertical wall).
+      size_t rightp;      ///< Index into points array (right vertical wall).
+      size_t upper_left;  ///< Neighbor trapezoid to the upper left.
+      size_t lower_left;  ///< Neighbor trapezoid to the lower left.
+      size_t upper_right; ///< Neighbor trapezoid to the upper right.
+      size_t lower_right; ///< Neighbor trapezoid to the lower right.
+      size_t dag_leaf;    ///< Back-pointer to the corresponding DAG leaf node.
+      bool active;        ///< True if this trapezoid is part of the current map.
     };
 
-    /// DAG node types.
-    enum class NodeType { X_NODE, Y_NODE, LEAF };
+    /**
+     * @brief Types of nodes in the search DAG.
+     */
+    enum class NodeType 
+    { 
+      X_NODE, ///< A node that splits the search space by an X-coordinate.
+      Y_NODE, ///< A node that splits the search space by a segment (Y-direction).
+      LEAF    ///< A leaf node representing a trapezoid.
+    };
 
-    /// A node in the search DAG.
+    /**
+     * @brief A node in the search Directed Acyclic Graph (DAG).
+     */
     struct DagNode
     {
-      NodeType type;
-      size_t index; ///< point / segment / trapezoid index
-      size_t left; ///< left child (below for Y, left for X)
-      size_t right; ///< right child (above for Y, right for X)
+      NodeType type; ///< The type of the node.
+      size_t index;  ///< Index into points, segments, or trapezoids depending on type.
+      size_t left;   ///< Index of the left child (or below/left child).
+      size_t right;  ///< Index of the right child (or above/right child).
     };
 
-    /// Classification of a query result.
-    enum class LocationType { TRAPEZOID, ON_SEGMENT, ON_POINT };
+    /**
+     * @brief Classification of a point location query result.
+     */
+    enum class LocationType 
+    { 
+      TRAPEZOID,  ///< The point is strictly inside a trapezoid.
+      ON_SEGMENT, ///< The point lies on a segment boundary.
+      ON_POINT    ///< The point coincides with a segment endpoint.
+    };
 
-    /// Result of a point location query.
+    /**
+     * @brief Result of a point location query.
+     */
     struct LocationResult
     {
       LocationType type;
