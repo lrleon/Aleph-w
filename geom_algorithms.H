@@ -332,15 +332,23 @@ namespace Aleph
    * Emits the three undirected edges of each triangle, sorts by (u,v,tri),
    * then visits contiguous groups with the same undirected edge key.
    */
+  /**
+   * @brief Utilities for finding adjacencies between triangles in a mesh.
+   *
+   * Provides a mechanism to iterate over groups of triangles that share the same edge.
+   */
   class GeomTriangleAdjacencyUtils
   {
   public:
+    /**
+     * @brief Represents a reference to a triangle edge.
+     */
     struct EdgeRef
     {
-      size_t u;
-      size_t v;
-      size_t tri;
-      size_t third;
+      size_t u;     ///< Index of the first vertex of the edge (u < v).
+      size_t v;     ///< Index of the second vertex of the edge (u < v).
+      size_t tri;   ///< Index of the triangle containing this edge.
+      size_t third; ///< Index of the third vertex in the triangle (not on the edge).
     };
 
   private:

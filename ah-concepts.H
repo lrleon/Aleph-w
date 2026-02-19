@@ -137,6 +137,15 @@ namespace Aleph
                     });
         };
 
+  /**
+   * @brief Concept that identifies types that can be converted or used as an Aleph Array.
+   * 
+   * A type @p T satisfies AlephArrayConvertible if it defines a nested type @c Item_Type
+   * and provides a @c get_it() method, which is the standard way in Aleph-w to obtain 
+   * an iterator for the container.
+   * 
+   * @tparam T The type to check.
+   */
   template <typename T>
   concept AlephArrayConvertible = requires(T c)
     {
