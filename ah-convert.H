@@ -165,11 +165,21 @@ template <class T>
 */
 template <class C>
 [[nodiscard]] Array<typename C::Item_Type> to_Array(const C & c)
+  requires AlephArrayConvertible<C>
 {
   Array<typename C::Item_Type> ret;
   for (auto it = c.get_it(); it.has_curr(); it.next_ne())
     ret.append(it.get_curr());
   return ret;
+}
+
+/** @brief Convenience wrapper identical to to_Array (copy contents).
+ *         Accepts any Aleph container with Item_Type and get_it().
+ */
+template <class C>
+[[nodiscard]] Array<typename C::Item_Type> to_array(const C & c)
+{
+  return to_Array(c);
 }
 
 /** @brief Convert a DynArray to a DynList.

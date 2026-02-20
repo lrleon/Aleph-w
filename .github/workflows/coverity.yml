@@ -1,23 +1,11 @@
 name: Coverity Scan
 
 on:
-  # Trigger on push to workflow file and relevant source/build files
-  push:
-    paths:
-      - '.github/workflows/coverity.yml'
-      - 'src/**'
-      - 'include/**'
-      - '**/*.c'
-      - '**/*.cc'
-      - '**/*.cpp'
-      - '**/*.cxx'
-      - 'CMakeLists.txt'
-  # Weekly automatic scan on the default branch only. GitHub cron schedules run in UTC.
-  # Currently aligned to run at 06:00 UTC on Sunday, intended to be ~4 hours after the full_analysis workflow (02:00 UTC).
-  schedule:
-    - cron: '0 6 * * 0'
   # Manual trigger - can select any branch from GitHub Actions UI
   workflow_dispatch:
+  # Optional trigger for Pull Requests via label
+  pull_request:
+    types: [labeled]
 
 permissions:
   contents: read
@@ -25,6 +13,10 @@ permissions:
 jobs:
   coverity:
     name: Coverity Static Analysis
+    # Only run if manually triggered or if the 'run-coverity' label was added to a PR
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'run-coverity')
     runs-on: ubuntu-24.04
     
     env:

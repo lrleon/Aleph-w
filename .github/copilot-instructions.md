@@ -15,6 +15,7 @@ Aleph-w is a comprehensive C++20 library for graph algorithms and data structure
 - **MUST**: Use `std::optional` instead of sentinel values or nullable pointers where semantically clear
 - **MUST**: Use `if constexpr` for compile-time branching in templates
 - **MUST**: Use concepts to constrain template parameters (see section below)
+- **MUST**: Use and, or, not for logical operations (instead of &&, ||, !)
 - **SHOULD**: Use `std::span` for non-owning views of contiguous sequences
 - **SHOULD**: Consider `std::variant` for type-safe unions
 - **SHOULD**: Use fold expressions for variadic template expansion

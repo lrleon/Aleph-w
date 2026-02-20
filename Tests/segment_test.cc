@@ -44,6 +44,7 @@
 #include <cmath>
 
 using namespace std;
+using namespace Aleph;
 
 // =============================================================================
 // Test Fixture
@@ -226,8 +227,18 @@ TEST_F(SegmentTest, EqualityReversedOrder)
 {
   Segment s1(origin, p3);
   Segment s2(p3, origin);
-  // Note: In point.H Segment, equality checks exact src/tgt match
-  EXPECT_FALSE(s1 == s2);  // Different src/tgt
+  // NOTE: Semantic change from earlier versions:
+  // - Previously, Segment equality was *directed*: Segment(A, B) != Segment(B, A).
+  // - The library now uses *undirected* semantics: Segment(A, B) == Segment(B, A).
+  //
+  // This is a behavioral change that can affect existing code that relied on the
+  // old directed comparison semantics (for example, when using Segment as a key
+  // in associative containers or when detecting orientation-sensitive duplicates).
+  //
+  // Users upgrading from earlier versions should review the API documentation
+  // and migration notes regarding Segment equality/inequality to ensure their
+  // code still behaves as intended.
+  EXPECT_TRUE(s1 == s2);
 }
 
 TEST_F(SegmentTest, InequalityDifferentEndpoints)
@@ -263,8 +274,8 @@ TEST_F(SegmentTest, IsToLeftFrom)
   
   // Segment is to the left of points above it (depending on orientation)
   // This depends on the specific implementation
-  (void)s.is_to_left_from(above);
-  (void)s.is_to_right_from(below);
+  (void)s.is_left_of(above);
+  (void)s.is_right_of(below);
   
   // Just verify the methods work without crashing
   SUCCEED();
@@ -289,8 +300,32 @@ TEST_F(SegmentTest, CounterclockwiseAngleWith)
   
   double angle = s1.counterclockwise_angle_with(s2);
   // 90 degrees counterclockwise from x to y
-  EXPECT_TRUE(near_equal(angle, PI_2, 0.1) || 
-              near_equal(angle, 2*PI - PI_2, 0.1));
+  EXPECT_TRUE(near_equal(angle, PI_2, 0.1));
+}
+
+TEST_F(SegmentTest, Reversed)
+{
+  Segment s(origin, p3);
+  Segment r = s.reversed();
+  EXPECT_EQ(r.get_src_point(), p3);
+  EXPECT_EQ(r.get_tgt_point(), origin);
+}
+
+TEST_F(SegmentTest, ProjectPoint)
+{
+  Segment s(Point(0, 0), Point(10, 0));
+  Point proj = s.project(Point(3, 4));
+  EXPECT_TRUE(near_equal(proj.get_x(), 3));
+  EXPECT_TRUE(near_equal(proj.get_y(), 0));
+
+  Point clamped = s.project(Point(-5, 2));
+  EXPECT_EQ(clamped, Point(0, 0));
+}
+
+TEST_F(SegmentTest, DistanceToPoint)
+{
+  Segment s(Point(0, 0), Point(10, 0));
+  EXPECT_TRUE(near_equal(s.distance_to(Point(3, 4)), Geom_Number(4), 0.01));
 }
 
 // =============================================================================

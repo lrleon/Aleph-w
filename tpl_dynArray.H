@@ -48,6 +48,7 @@
 
 # include <string>
 # include <vector>
+# include <concepts>
 # include <aleph.H>
 # include <ahIterator.H>
 # include <array_utils.H>
@@ -58,6 +59,7 @@
 # include <ah-dry.H>
 # include <ah-errors.H>
 # include <ah-errors.H>
+# include <tpl_array.H>
 
 namespace Aleph
 {
@@ -1276,7 +1278,17 @@ namespace Aleph
     /// Return `true` if the array is empty
     bool is_empty() const noexcept { return this->size() == 0; }
 
-    /// Reverse the order of items in array
+    /** Copy contents into Aleph::Array (requires copyable elements). */
+    Array<T> to_array() const requires std::copy_constructible<T>
+    {
+      Array<T> ret;
+      ret.reserve(this->size());
+      for (size_t i = 0; i < this->size(); ++i)
+        ret.append(this->access(i));
+      return ret;
+    }
+
+    /// Reverse the order of items in an array
     DynArray &reverse()
     {
       for (size_t i = 0, j = current_dim - 1; i < j; ++i, --j)

@@ -42,6 +42,7 @@ Language: English | [Español](README.es.md)
   - [Lists and Sequential Structures](#readme-lists-and-sequential-structures)
   - [Range Query Structures](#readme-range-query-structures)
   - [Graphs](#readme-graphs)
+  - [Computational Geometry](#readme-computational-geometry)
   - [Linear Algebra (Sparse Structures)](#readme-linear-algebra-sparse-structures)
 - [Algorithms](#readme-algorithms-main)
   - [Shortest Path Algorithms](#readme-shortest-path-algorithms)
@@ -221,6 +222,17 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Sparse Vector                                                          │
 │  ├─ Sparse Matrix                                                          │
 │  └─ Domain Indexing                                                        │
+│                                                                            │
+│  GEOMETRY                                                                  │
+│  ├─ Primitives (Point, Segment, Polygon, Ellipse)                          │
+│  ├─ Exact Predicates (orientation, intersection, in_circle)                │
+│  ├─ Convex Hull (Andrew, Graham, QuickHull)                                │
+│  ├─ Triangulation (Ear-Cutting, Monotone, Delaunay, CDT)                   │
+│  ├─ Proximity (Closest Pair, MEC, Rotating Calipers)                       │
+│  ├─ Diagrams (Voronoi, Power Diagram)                                      │
+│  ├─ Intersections (Bentley-Ottmann, Sutherland-Hodgman)                    │
+│  ├─ Simplification (Douglas-Peucker, Visvalingam-Whyatt)                   │
+│  └─ Visualization (TikZ/PGF backend, algorithm renderers)                  │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -867,6 +879,64 @@ struct Sum_Policy {
 Gen_Mo_Algorithm<int, Sum_Policy> mo = {3, 1, 4, 1, 5};
 auto ans = mo.solve({{0, 4}, {1, 3}});
 // ans(0) == 14, ans(1) == 6
+```
+
+<a id="readme-computational-geometry"></a>
+### Computational Geometry
+
+Aleph-w provides a robust suite for 2D and 3D computational geometry, built on **exact rational arithmetic** (`Geom_Number` = `mpq_class`) to prevent floating-point errors in geometric predicates.
+
+**Key Features:**
+
+- **Geometric Primitives (`point.H`, `polygon.H`)**: A comprehensive set of classes for points (2D/3D), segments, polygons (simple and regular), triangles, rectangles, and ellipses (axis-aligned and rotated).
+- **Exact Predicates**: Core functions like `orientation()`, `segments_intersect()`, and `in_circle()` are exact, ensuring robust and correct behavior for higher-level algorithms.
+
+**Algorithms (`geom_algorithms.H`):**
+
+| Category | Algorithms | Complexity |
+|---|---|---|
+| **Convex Hull** | Andrew's Monotonic Chain, Graham Scan, QuickHull, Gift Wrapping (Jarvis March), Brute-Force | O(n log n) / O(nh) |
+| **Triangulation** | Ear-Cutting, Monotone Polygon, Delaunay (Bowyer-Watson, Randomized Inc.), Constrained Delaunay (CDT) | O(n²), O(n log n) |
+| **Proximity** | Closest Pair (Divide & Conquer), Minimum Enclosing Circle (Welzl), Rotating Calipers (Diameter/Width) | O(n log n), O(n) |
+| **Diagrams** | Voronoi Diagram (from Delaunay), Power Diagram (Weighted Voronoi) | O(n log n) |
+| **Intersections** | Segment Sweep (Bentley-Ottmann), Half-Plane Intersection, Convex Polygon Clipping, Boolean Polygon Ops (Greiner-Hormann) | O((n+k)log n), O(n log n) |
+| **Simplification** | Douglas-Peucker, Visvalingam-Whyatt, Chaikin Smoothing | O(n log n), O(n*2^k) |
+| **Pathfinding** | Shortest Path in Simple Polygon (Funnel Algorithm) | O(n) |
+| **Spatial Indexing** | AABB Tree, KD-Tree | O(log n) queries |
+
+**Visualization (`tikzgeom.H`, `eepicgeom.H`):**
+
+- **TikZ Backend**: A modern, flexible backend (`Tikz_Plane`) for generating high-quality PGF/TikZ diagrams. Supports layers, styling, and native Bézier curves.
+- **Algorithm Visualizers**: A suite of functions in `tikzgeom_algorithms.H` to render the output of algorithms like Voronoi diagrams, convex hulls, and arrangements.
+- **Document Export**: The `Tikz_Scene` helper in `tikzgeom_scene.H` composes complex figures and exports them as standalone LaTeX documents, Beamer slides, or handouts, including multi-step animations using overlays.
+- **Legacy EEPIC Backend**: For compatibility with older LaTeX workflows.
+
+See `Examples/` for over a dozen geometry-specific programs, including `tikz_funnel_beamer_twocol_example.cc` which generates animated Beamer slides of the shortest-path funnel algorithm.
+
+**Header:** `point.H`
+
+```cpp
+#include <point.H>
+
+// --- Orientation ---
+Point a(0, 0), b(4, 0), c(2, 3);
+Orientation o = orientation(a, b, c);  // Orientation::CCW
+
+// --- Segment intersection detection ---
+Segment s1(Point(0, 0), Point(2, 2));
+Segment s2(Point(0, 2), Point(2, 0));
+bool cross = segments_intersect(s1, s2);  // true
+
+// --- Exact intersection point (mpq_class, no rounding) ---
+Point p = segment_intersection_point(s1, s2);  // exactly (1, 1)
+
+// --- Works with vertical / horizontal / any configuration ---
+Segment v(Point(3, 0), Point(3, 6));
+Segment d(Point(0, 0), Point(6, 6));
+Point q = segment_intersection_point(v, d);  // exactly (3, 3)
+
+// --- Triangle area (exact rational) ---
+Geom_Number area = area_of_triangle(a, b, c);  // exact
 ```
 
 <a id="readme-linear-algebra-sparse-structures"></a>
@@ -2562,6 +2632,30 @@ cmake --build build
 | MST | `mst_example.C` | Kruskal, Prim |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
+| **Geometry** | | |
+| Robust predicates | `robust_predicates_example.cc` | Orientation, intersection, exact arithmetic |
+| Dedicated segment intersection | `segment_segment_intersection_example.cc` | O(1) pairwise segment intersection (`none`/`point`/`overlap`) |
+| Geometry algorithms | `geom_example.C` | Convex hull, triangulation, and `-s advanced` (Delaunay/Voronoi/PIP/HPI) |
+| Voronoi clipped cells | `voronoi_clipped_cells_example.cc` | Site-indexed clipped Voronoi cells with CSV/WKT export |
+| Delaunay + Voronoi | `delaunay_voronoi_example.cc` | Delaunay triangulation, Voronoi dual, clipped cells |
+| Point-in-polygon | `point_in_polygon_example.cc` | Winding-number inside/boundary/outside |
+| Polygon intersection | `polygon_intersection_example.cc` | Convex-convex intersection (Sutherland-Hodgman) |
+| Half-plane intersection | `halfplane_intersection_example.cc` | Bounded feasible region for 2D linear constraints |
+| Hull comparison | `convex_hull_comparison_example.cc` | Compare 5 hull algorithms on the same dataset |
+| Closest pair | `closest_pair_example.cc` | Divide-and-conquer closest pair + verification |
+| Rotating calipers | `rotating_calipers_example.cc` | Diameter and minimum width of a convex polygon |
+| TikZ polygons | `tikz_polygons_example.cc` | Styled polygon visualization in PGF/TikZ |
+| TikZ convex hull | `tikz_convex_hull_example.cc` | Input cloud + hull overlay |
+| TikZ intersections | `tikz_intersection_example.cc` | Convex and boolean intersection overlays |
+| TikZ Voronoi/power | `tikz_voronoi_power_example.cc` | Voronoi+Delaunay overlay and power diagram |
+| TikZ advanced algorithms | `tikz_advanced_algorithms_example.cc` | Segment arrangement (colored faces), shortest path with funnel portals, convex decomposition, and alpha shape |
+| TikZ funnel animation | `tikz_funnel_animation_example.cc` | Multi-page funnel (SSFA) step-by-step frames for shortest path |
+| TikZ funnel beamer | `tikz_funnel_beamer_example.cc` | Single Beamer slide with SSFA overlays via `Tikz_Scene::draw_beamer_overlays()` |
+| TikZ funnel beamer (2-col) | `tikz_funnel_beamer_twocol_example.cc` | Beamer overlays with left visual frame + right state panel (`apex/left/right/event`) |
+| TikZ funnel handout | `tikz_funnel_beamer_handout_example.cc` | `beamer[handout]` output with one printable frame per funnel step (2-column layout) |
+| TikZ scene composer | `tikz_scene_example.cc` | `Tikz_Scene` composition of arrangement, hull, and shortest-path overlays in one export |
+| TikZ scene beamer/handout | `tikz_scene_beamer_example.cc` | `Tikz_Scene::draw_beamer()` and `draw_handout()` single-frame exports |
+| TikZ scene overlays | `tikz_scene_overlays_example.cc` | `Tikz_Scene::draw_beamer_overlays()` / `draw_handout_overlays()` for step-by-step polygon slides |
 | **Parallel** | | |
 | Thread pool | `thread_pool_example.cc` | Concurrent tasks |
 | Parallel ops | `ah_parallel_example.cc` | pmap, pfilter |

@@ -38,6 +38,8 @@
 # include <gtest/gtest.h>
 
 # include <tpl_dynDlist.H>
+# include <ah-unique.H>
+# include <ah-convert.H>
 
 using namespace std;
 using namespace testing;
@@ -153,6 +155,28 @@ TEST(DynDlist, Simple_append_and_insert_of_list)
     EXPECT_EQ(list.get_first(), 1);
     EXPECT_EQ(list.get_last(), 2);
   }
+}
+
+TEST(DynDlistAlgorithms, InPlaceUnique)
+{
+  DynDlist<int> list;
+  list.append(1);
+  list.append(2);
+  list.append(1);
+  list.append(3);
+  list.append(2);
+  list.append(4);
+  list.append(4);
+
+  in_place_unique(list);
+
+  ASSERT_EQ(list.size(), 4u);
+  auto it = list.get_it();
+  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 1); it.next();
+  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 2); it.next();
+  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 3); it.next();
+  ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 4); it.next();
+  EXPECT_FALSE(it.has_curr());
 }
 
 TEST_F(List_of_10_items, copy_and_assignment)
@@ -556,4 +580,18 @@ TEST(DynDlist, StackAndQueueAliases)
   list.pop();
   EXPECT_TRUE(list.is_empty());
   EXPECT_THROW(list.pop(), std::underflow_error);
+}
+
+TEST(DynDlistFunctional, ToArrayHelperPreservesOrder)
+{
+  DynDlist<int> list;
+  for (int v : {2, 4, 8})
+    list.append(v);
+
+  auto arr = to_array(list);
+
+  ASSERT_EQ(arr.size(), list.size());
+  size_t i = 0;
+  for (auto it = list.get_it(); it.has_curr(); it.next_ne(), ++i)
+    EXPECT_EQ(arr(i), it.get_curr());
 }

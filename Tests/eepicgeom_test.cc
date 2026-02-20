@@ -32,11 +32,6 @@
 
 /**
  * @file eepicgeom_test.cc
- * @brief Tests for Eepicgeom
- */
-
-/**
- * @file eepicgeom_test.cc
  * @brief Comprehensive test suite for eepicgeom.H - EEPIC LaTeX drawing utilities
  *
  * Tests cover:
@@ -159,17 +154,14 @@ protected:
   std::unique_ptr<Eepic_Plane> plane;
 };
 
-// NOTE: Single point causes assertion failure due to zero geom_wide/geom_height
-// This is a known bug in eepicgeom.H. The DISABLED_ prefix documents this issue.
-TEST_F(EepicPlaneWithObjectsTest, DISABLED_AddSinglePoint)
+TEST_F(EepicPlaneWithObjectsTest, AddSinglePoint)
 {
-  // BUG: Single point causes assertion failure at line 447 of eepicgeom.H
-  // because geom_wide = rightmost.x - leftmost.x = 0 for a single point
+  // Was disabled: zero-range padding now handles single-point bounding box.
   Point p(10, 20);
   put_in_plane(*plane, p);
 
   std::ostringstream output;
-  plane->draw(output);
+  EXPECT_NO_THROW(plane->draw(output));
 
   std::string result = output.str();
   EXPECT_TRUE(result.find("\\begin{picture}") != std::string::npos);
@@ -320,14 +312,14 @@ protected:
 };
 
 // NOTE: Single point causes assertion failure due to zero geom_wide/geom_height
-TEST_F(ExtremePointsTest, DISABLED_SinglePointExtremes)
+TEST_F(ExtremePointsTest, SinglePointExtremes)
 {
-  // BUG: Crashes due to assertion failure at line 447 in eepicgeom.H
+  // Was disabled: zero-range padding now handles single-point bounding box.
   Point p(50, 75);
   put_in_plane(*plane, p);
 
   std::ostringstream output;
-  plane->draw(output);
+  EXPECT_NO_THROW(plane->draw(output));
 
   // After draw, extreme points should be computed
   EXPECT_EQ(plane->leftmost(), p);
@@ -481,9 +473,9 @@ TEST_F(ArrowEdgeCaseTest, DiagonalArrow)
 }
 
 // Disabled due to zero-range bug when y1 == y2 (geom_height = 0)
-TEST_F(ArrowEdgeCaseTest, DISABLED_HorizontalArrow)
+TEST_F(ArrowEdgeCaseTest, HorizontalArrow)
 {
-  // Horizontal arrow (tgt_y == src_y) - BUG: triggers zero-range in y
+  // Horizontal arrow (tgt_y == src_y) — was disabled due to zero-range bug
   Point p1(0, 50);
   Point p2(100, 50);
   Arrow arrow(p1, p2);
@@ -513,24 +505,19 @@ TEST_F(ArrowEdgeCaseTest, NearHorizontalArrow)
   EXPECT_FALSE(result.find("inf") != std::string::npos);
 }
 
-// NOTE: This test documents the known bug - vertical segments cause
-// division by zero in PUT_ARROW macro (line 692 in eepicgeom.H)
-// The test is marked as disabled until the bug is fixed
-TEST_F(ArrowEdgeCaseTest, DISABLED_VerticalArrow)
+TEST_F(ArrowEdgeCaseTest, VerticalArrow)
 {
-  // Vertical arrow (tgt_x == src_x) - BUG: causes division by zero
-  // in: const double phi = atan( fabs( (tgt_y - src_y)/(tgt_x - src_x) ) );
+  // Vertical arrow (tgt_x == src_x) — was disabled due to division by zero;
+  // fixed by replacing atan(dy/dx) with atan2(dy, dx).
   Point p1(50, 0);
   Point p2(50, 100);
   Arrow arrow(p1, p2);
   put_in_plane(*plane, arrow);
 
   std::ostringstream output;
-  // This would produce nan/inf values due to division by zero
-  plane->draw(output);
+  EXPECT_NO_THROW(plane->draw(output));
 
   std::string result = output.str();
-  // When fixed, these should pass
   EXPECT_FALSE(result.find("nan") != std::string::npos);
   EXPECT_FALSE(result.find("inf") != std::string::npos);
 }
@@ -1070,14 +1057,14 @@ TEST_F(CoordinateTransformTest, VGeomNumberToEepic)
 //============================================================================
 
 // Disabled due to single-point zero-range bug
-TEST(EepicPolymorphismTest, DISABLED_PointInPlane)
+TEST(EepicPolymorphismTest, PointInPlane)
 {
   Eepic_Plane plane(500, 500);
   Point p(10, 20);
   put_in_plane(plane, p);
 
   std::ostringstream output;
-  plane.draw(output);
+  ASSERT_NO_THROW(plane.draw(output));
 
   // After draw, extreme points should match the point
   EXPECT_EQ(plane.highest(), p);
@@ -1285,7 +1272,7 @@ TEST_F(EdgeCaseTest, NegativeCoordinates)
 }
 
 // Disabled due to zero-range bug (zero-length segment has same start/end point)
-TEST_F(EdgeCaseTest, DISABLED_ZeroLengthSegment)
+TEST_F(EdgeCaseTest, ZeroLengthSegment)
 {
   plane = std::make_unique<Eepic_Plane>(500, 500);
 
@@ -1294,24 +1281,21 @@ TEST_F(EdgeCaseTest, DISABLED_ZeroLengthSegment)
   put_in_plane(*plane, seg);
 
   std::ostringstream output;
-  // BUG: Crashes due to zero geom_wide and geom_height
   EXPECT_NO_THROW(plane->draw(output));
 }
 
-// Disabled due to zero-range bug (single vertex = single point)
-TEST_F(EdgeCaseTest, DISABLED_SingleVertexPolygon)
+TEST_F(EdgeCaseTest, SingleVertexPolygon)
 {
   plane = std::make_unique<Eepic_Plane>(500, 500);
 
   Polygon poly;
   poly.add_vertex(Point(50, 50));
-  // Single vertex polygon - edge case
 
   put_in_plane(*plane, poly);
 
   std::ostringstream output;
-  // BUG: Crashes due to zero geom_wide and geom_height
-  EXPECT_NO_THROW(plane->draw(output));
+  // Single-vertex polygon throws because Segment_Iterator requires >= 2 vertices
+  EXPECT_THROW(plane->draw(output), std::domain_error);
 }
 
 TEST_F(EdgeCaseTest, TwoVertexPolygon)
@@ -1355,8 +1339,7 @@ TEST(MemoryTest, PlaneDestruction)
   SUCCEED();
 }
 
-// Disabled due to single-point zero-range bug
-TEST(MemoryTest, DISABLED_MultipleDrawCalls)
+TEST(MemoryTest, MultipleDrawCalls)
 {
   Eepic_Plane plane(500, 500);
 

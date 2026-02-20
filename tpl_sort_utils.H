@@ -400,6 +400,26 @@ namespace Aleph
     return extreme;
   }
 
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  const T * search_extreme(const DynList<T> & list, const Compare & cmp = Compare())
+  {
+    if (list.is_empty())
+      return nullptr;
+
+    typename DynList<T>::Iterator it(list);
+    const T *extreme = &it.get_curr();
+    it.next_ne();
+    for (; it.has_curr(); it.next_ne())
+      {
+        const T & curr = it.get_curr();
+        if (cmp(curr, *extreme))
+          extreme = &curr;
+      }
+
+    return extreme;
+  }
+
   template <class Compare>
   inline
   Dlink * search_extreme(const Dlink & list, const Compare & cmp = Compare())
@@ -446,6 +466,15 @@ namespace Aleph
     list.swap(&aux);
   }
 
+  /**
+   * @brief Helper class to compare nodes of a linked list.
+   * @details Adapts a comparison functor for elements of type @p T to 
+   *          work with list nodes of type @p Tnode<T>.
+   * @tparam Tlink Base link type (e.g., Dlink).
+   * @tparam Tnode Template for the node type (e.g., Dnode).
+   * @tparam T Element type.
+   * @tparam Compare Comparison functor for @p T.
+   */
   template <typename Tlink,
             template <class> class Tnode,
             typename T, class Compare>
@@ -454,11 +483,13 @@ namespace Aleph
     Compare cmp;
 
   public:
+    /** @brief Construct from a comparison functor. */
     Compare_Tnode(Compare cmp_fct = Compare()) noexcept(std::is_nothrow_copy_constructible_v<Compare>)
       : cmp(cmp_fct)
     { /* empty */
     }
 
+    /** @brief Compares two nodes based on their data. */
     bool operator ()(Tlink *l1, Tlink *l2) const
       noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(), std::declval<const T&>())))
     {
@@ -470,7 +501,7 @@ namespace Aleph
       return cmp(n1->get_data(), n2->get_data());
     }
 
-    // To generalize in sequential_search
+    /** @brief Compares a node's data with a value. */
     bool operator ()(Tlink *l, const T & x) const
       noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(), std::declval<const T&>())))
     {
@@ -482,6 +513,9 @@ namespace Aleph
     }
   };
 
+  /**
+   * @brief Comparator specialization for Dnode objects.
+   */
   template <typename T, class Compare>
   struct Compare_Dnode : public Compare_Tnode<Dlink, Dnode, T, Compare>
   {
@@ -492,6 +526,9 @@ namespace Aleph
     }
   };
 
+  /**
+   * @brief Comparator specialization for Snodenc objects.
+   */
   template <typename T, class Compare>
   using Compare_Snodenc = Compare_Tnode<Slinknc, Snodenc, T, Compare>;
 
@@ -554,39 +591,23 @@ namespace Aleph
     return Not_Found;
   }
 
-  /** Sequential search on a dynamic array.
-
-      sequential_search(a,x,l,r) search sequentially,
-      in array a, between indices l and r, respectively,
-      the first occurrence of x.
-
-      The function handles two type parameters:
-      -# T: the type of data held by the array.
-      -# Equal: comparison class between elements.
-
-      This version of dynamic arrangements skips positions
-      that have certainly not been written. However, take
-      taking into consideration that, depending on the size of the block, they may
-      there are entries not written but limited to addresses
-      valid memory. In this sense, it is possible that within
-      that class of entries an element with value x is found.
-
-      @param[in] a pointer to the dynamic array on which it is performed
-      the search.
-      @param[in] x the element to search for.
-      @param[in] l left index where the search begins.
-      @param[in] r right index where the search ends.
-      @param eq comparison object.
-      @return index of first position in containing array
-      element x; -1 otherwise.
-      @note Search cannot distinguish whether a valid entry has
-      been written or not. Programming the Equal class can
-      consider a special value that represents that the entry has not
-      been written. It is guaranteed that input that has not been
-      mapped to a block will not be accessed.
-      @see DynArray
-      \ingroup Algorithms
-  */
+  /** @brief Linear search for an element in a dynamic array.
+   *
+   *  Scans the dynamic array between indices l and r looking for the first
+   *  occurrence of the specified element.
+   *
+   *  @tparam T Element type.
+   *  @tparam Equal Equality comparison functor (default: `Aleph::equal_to<T>`).
+   *
+   *  @param a Pointer to the dynamic array.
+   *  @param x The element to search for.
+   *  @param l Left index (inclusive).
+   *  @param r Right index (inclusive).
+   *  @param eq Equality comparator.
+   *
+   *  @return Index of the first occurrence of x, or `Not_Found` if not found.
+   *  @note Only existing (mapped) entries in the DynArray are accessed.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   long sequential_search(const DynArray<T> & a, const T & x,
@@ -600,6 +621,18 @@ namespace Aleph
     return Not_Found;
   }
 
+  /** @brief Linear search for an element in a linked list.
+   *
+   *  @tparam Link Link node type (e.g., Dlink, Slinknc).
+   *  @tparam T Element type.
+   *  @tparam Equal Equality comparison functor.
+   *
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *
+   *  @return Pointer to the first node containing x, or nullptr if not found.
+   */
   template <class Link, typename T, class Equal>
   Link * sequential_search(const Link & list, const T & x, Equal & eq)
   {
@@ -611,6 +644,12 @@ namespace Aleph
     return nullptr;
   }
 
+  /** @brief Linear search for an element in a Dlink list.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the first Dlink containing x, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   Dlink * sequential_search(const Dlink & list, const T & x,
                             Equal eq = Equal())
@@ -619,6 +658,12 @@ namespace Aleph
     return sequential_search<Dlink, T, Compare_Dnode<T, Equal>>(list, x, cmp);
   }
 
+  /** @brief Linear search for an element in an Slinknc list.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the first Slinknc containing x, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   Slinknc * sequential_search(const Slinknc & list, const T & x,
                               Equal eq = Equal())
@@ -627,25 +672,12 @@ namespace Aleph
     return sequential_search<Slinknc, T, Compare_Snodenc<T, Equal>>(list, x, cmp);
   }
 
-  /** Sequential search over a list of nodes.
-
-      sequential_search(list,x) search sequentially,
-      in the list of nodes of type Dnode<T> list the first
-      occurrence of x.
-
-      The function handles two type parameters:
-      -# T: the type of data held by the array.
-      -# Equal: comparison class between elements.
-
-      @param[in] list the list on which to perform
-      the search.
-      @param[in] x the element to search for.
-      @param eq comparison object.
-      @return pointer to the first containing node
-      element x; nullptr otherwise.
-      @see Dnode
-      \ingroup Algorithms
-  */
+  /** @brief Linear search over a list of Dnodes.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the first Dnode containing x, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   Dnode<T> * sequential_search(const Dnode<T> & list, const T & x,
@@ -658,6 +690,7 @@ namespace Aleph
     return ret == nullptr ? nullptr : static_cast<Dnode<T> *>(ret);
   }
 
+  /** @overload */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   Dnode<T> * sequential_search(const Dnode<T> & list, const T & x,
@@ -666,25 +699,12 @@ namespace Aleph
     return sequential_search<T, Equal>(list, x, eq);
   }
 
-  /** Sequential search on a dynamic list DynDlist.
-
-      sequential_search(list,x) search sequentially,
-      in the dynamic list (DynDlist<T>) the first
-      occurrence of x.
-
-      The function handles two type parameters:
-      -# T: the type of data held by the array.
-      -# Equal: comparison class between elements.
-
-      @param[in] list the dynamic list on which to perform
-      the search.
-      @param[in] x the element to search for.
-      @param eq comparison object.
-      @return pointer to the first element with value equal to x;
-      nullptr otherwise.
-      @see DynDlist
-      \ingroup Algorithms
-  */
+  /** @brief Linear search on a DynDlist.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the data of the first matching element, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   T * sequential_search(const DynDlist<T> & list, const T & x,
@@ -695,6 +715,12 @@ namespace Aleph
     return ret != nullptr ? &ret->get_data() : nullptr;
   }
 
+  /** @brief Linear search on a DynList.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the data of the first matching element, or nullptr.
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   T * sequential_search(const DynList<T> & list, const T & x,
@@ -709,6 +735,7 @@ namespace Aleph
     return nullptr;
   }
 
+  /** @overload */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
   T * sequential_search(const DynList<T> & list, const T & x,
@@ -787,22 +814,19 @@ namespace Aleph
     return static_cast<Dnode<T> *>(ret);
   }
 
-  /** Generic search for an extreme element in a list
-      of nodes (Dlist<T>).
-
-      search_extreme(list) searches sequentially in the list of nodes
-      list the extreme, minimum or element
-      maximum according to the comparison criterion Compare.
-
-      @param[in] list the list to search on.
-      @param cmp comparison object.
-      @return pointer to the containing node of the extreme element.
-      @note There is no checking if the list is empty.
-      \ingroup Algorithms
-  */
+  /** @brief Search for an extreme element in a DynDlist.
+   *
+   *  Performs a linear scan to find the minimum or maximum element according to
+   *  the comparison criterion Compare.
+   *
+   *  @param[in] list the list to search on.
+   *  @param cmp comparison object.
+   *  @return pointer to the data of the extreme element, or nullptr if empty.
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  T * search_extreme(const DynDlist<T> & list, const Compare & cmp = Compare())
+  T * search_extreme(DynDlist<T> & list, const Compare & cmp = Compare())
   {
     const auto & base = static_cast<const Dnode<T> &>(list);
     Dnode<T> *ret = search_extreme<T, Compare>(const_cast<Dnode<T> &>(base), cmp);
@@ -810,9 +834,25 @@ namespace Aleph
     return ret != nullptr ? &(ret->get_data()) : nullptr;
   }
 
+  /** @overload */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  T * search_extreme(const DynList<T> & list, const Compare & cmp = Compare())
+  const T * search_extreme(const DynDlist<T> & list, const Compare & cmp = Compare())
+  {
+    const auto & base = static_cast<const Dnode<T> &>(list);
+    Dnode<T> *ret = search_extreme<T, Compare>(const_cast<Dnode<T> &>(base), cmp);
+
+    return ret != nullptr ? &(ret->get_data()) : nullptr;
+  }
+
+  /** @brief Search for an extreme element in a DynList.
+   *  @param list The list header.
+   *  @param cmp Comparison functor.
+   *  @return Pointer to the data of the extreme element, or nullptr if empty.
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  T * search_extreme(DynList<T> & list, const Compare & cmp = Compare())
   {
     if (list.is_empty())
       return nullptr;
@@ -830,24 +870,42 @@ namespace Aleph
     return extreme;
   }
 
-  /** Returns the minimum element of the list
-
-      \ingroup Algorithms
-  */
+  /** @brief Search for the minimum element in a DynDlist.
+   *  @param list The list header.
+   *  @param cmp Comparison functor.
+   *  @return Pointer to the data of the minimum element, or nullptr if empty.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  T * search_min(const DynDlist<T> & list, const Compare & cmp = Compare())
+  T * search_min(DynDlist<T> & list, const Compare & cmp = Compare())
   {
     return search_extreme<T, Compare>(list, cmp);
   }
 
-  /** Returns the maximum element of the list
+  /** @overload */
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  const T * search_min(const DynDlist<T> & list, const Compare & cmp = Compare())
+  {
+    return search_extreme<T, Compare>(list, cmp);
+  }
 
-      \ingroup Algorithms
-  */
+  /** @brief Search for the maximum element in a DynDlist.
+   *  @param list The list header.
+   *  @param cmp Comparison functor.
+   *  @return Pointer to the data of the maximum element, or nullptr if empty.
+   */
   template <typename T, class Compare = Aleph::greater<T>>
   inline
-  T * search_max(const DynDlist<T> & list, const Compare & cmp = Compare())
+  T * search_max(DynDlist<T> & list, const Compare & cmp = Compare())
+  {
+    return search_extreme<T, Compare>(list, cmp);
+  }
+
+  /** @overload */
+  template <typename T, class Compare = Aleph::greater<T>>
+  inline
+  const T * search_max(const DynDlist<T> & list, const Compare & cmp = Compare())
   {
     return search_extreme<T, Compare>(list, cmp);
   }
@@ -895,7 +953,7 @@ namespace Aleph
   {
     if (l >= r)
       return;
-    for (long i = l, j; i <= r; ++i)
+    for (long i = l + 1, j; i <= r; ++i)
       {
         T tmp = a[i]; // store a[i], since it will be overwritten
         for (j = i; j > l and cmp(tmp, a[j - 1]); --j)
@@ -1120,6 +1178,13 @@ namespace Aleph
     merge(a, l, m, r, buf, cmp);
   }
 
+  /** @brief Sort an array using merge sort with a reusable buffer.
+   *  @param a Pointer to the array.
+   *  @param l Left index (inclusive).
+   *  @param r Right index (inclusive).
+   *  @param buf Reusable buffer for merging.
+   *  @param cmp Comparison functor.
+   */
   template <typename T, class Compare>
   void mergesort(T *a, const long l, const long r, std::vector<T> & buf, Compare cmp)
   {
@@ -1428,6 +1493,13 @@ namespace Aleph
     return std::move(list);
   }
 
+  /** @brief Select a pivot for partitioning using median-of-three.
+   *  @param a Pointer to the array.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   *  @return Index of the selected pivot.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   long select_pivot(T *a, long l, long r, const Compare & cmp = Compare())
@@ -1439,6 +1511,9 @@ namespace Aleph
   long partition(T *a, const long l, const long r, const Compare & cmp = Compare())
     noexcept(noexcept(cmp(a[0], a[0])) && std::is_nothrow_swappable_v<T>)
   {
+    if (l >= r)
+      return l;
+
     const long p = select_pivot<T, Compare>(a, l, r, cmp);
     std::swap(a[p], a[r]);
 
@@ -1467,40 +1542,24 @@ namespace Aleph
     return i;
   }
 
-  /** Sorts an array using the quicksort method.
-
-      quicksort_rec(a,l,r) sorts the array a between indices l and r
-      according to the quicksort method according to comparison criteria Compare.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      This method has an expected performance of \f$O(n \; \lg n)\f$
-      and is considered the fastest ordering method.
-
-      This version of quicksort can take up \f$O(n)\f$ space.
-      Use quicksort_rec_min() if you want to guarantee consumption
-      maximum space of \f$O(\lg n)\f$ at the expense of a little more
-      of constant time.
-
-      Quicksort is a probabilistic method. In a very bad case
-      -very bad luck- can be degraded to
-      \f$O(n^2)\f$. To alleviate, to the extent of luck, the bad
-      cases, use quicksort_insertion() which runs heuristics to
-      alleviate the bad cases and invoke the insert method to
-      small array partitions.
-
-      @param[in,out] a the array to sort.
-      @param[in] l lower index.
-      @param[in] r top index.
-      @param cmp Comparison functor defining "less than" relationship.
-
-      @see selection_sort() insertion_sort() mergesort() heapsort()
-      @see quicksort_rec_min() quicksort_insertion() quicksort()
-
-      \ingroup Algorithms
-  */
+  /** @brief Recursively sort an array using quicksort.
+   *
+   *  This method has an expected performance of \f$O(n \; \lg n)\f$
+   *  and is considered the fastest ordering method.
+   *
+   *  This version of quicksort can take up \f$O(n)\f$ space.
+   *  Use quicksort_rec_min() if you want to guarantee consumption
+   *  maximum space of \f$O(\lg n)\f$.
+   *
+   *  @param a Pointer to the array to sort.
+   *  @param l Left index (inclusive).
+   *  @param r Right index (inclusive).
+   *  @param cmp Comparison functor defining "less than" relationship.
+   *
+   *  @see selection_sort() insertion_sort() mergesort() heapsort()
+   *  @see quicksort_rec_min() quicksort_insertion() quicksort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void quicksort_rec(T *a, const long l, const long r, const Compare & cmp = Compare())
@@ -1514,6 +1573,13 @@ namespace Aleph
     quicksort_rec<T, Compare>(a, pivot + 1, r, cmp);
   }
 
+  /** @brief Sort an array using quicksort with tail recursion elimination.
+   *  @details Ensures O(log n) stack depth by recursing on the smaller partition.
+   *  @param a Pointer to the array.
+   *  @param l Left index (inclusive).
+   *  @param r Right index (inclusive).
+   *  @param cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void quicksort_no_tail(T *a, long l, long r, const Compare & cmp = Compare())
@@ -1592,6 +1658,9 @@ namespace Aleph
     return m;
   }
 
+  /// Forward declaration
+  inline size_t introsort_depth_limit(size_t n) noexcept;
+
   /** @brief Sort an array using iterative quicksort with optimizations.
    *
    *  This is the main quicksort implementation, featuring:
@@ -1639,13 +1708,15 @@ namespace Aleph
         return;
       }
 
+    const auto n = static_cast<size_t>(r - l + 1);
+
     typedef std::pair<long, long> Partition;
-    FixedStack<Partition> stack(64);
+    FixedStack<Partition> stack(introsort_depth_limit(n) + 2);
     stack.push(Partition(l, r));
 
     while (stack.size() > 0)
       {
-        const Partition p = stack.pop();
+        Partition p = stack.pop();
         const long diff = p.second - p.first;
 
         if (diff <= 1)
@@ -1659,12 +1730,12 @@ namespace Aleph
 
         if (const long pivot = partition<T, Compare>(a, p.first, p.second, cmp); pivot - p.first < p.second - pivot)
         // which one is smaller?
-          { // left partition is smaller
+          { // the left partition is smaller
             stack.push(Partition(pivot + 1, p.second));
             stack.push(Partition(p.first, pivot - 1));
           }
         else
-          { // right partition is smaller
+          { // the right partition is smaller
             stack.push(Partition(p.first, pivot - 1));
             stack.push(Partition(pivot + 1, p.second));
           }
@@ -1950,6 +2021,10 @@ namespace Aleph
     quicksort<Compare_Dnode<T, Compare>>(list, cmp);
   }
 
+  /** @brief Sort an HTList using the quicksort method.
+   *  @param list The list to sort.
+   *  @param cmp Comparison functor for the data type @p T.
+   */
   template <typename T, class Compare>
   void quicksort(HTList & list, const Compare & cmp = Compare())
   {
@@ -1973,6 +2048,10 @@ namespace Aleph
     list.concat_list(bigger);
   }
 
+  /** @brief Sort a DynList using the quicksort method.
+   *  @param list The list to sort.
+   *  @param cmp Comparison functor for the data type @p T.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   void quicksort(DynList<T> & list, const Compare & cmp = Compare())
   {
@@ -2123,6 +2202,14 @@ namespace Aleph
     return pivot; // element found at index x
   }
 
+  /** @brief Random search for an element in a dynamic array.
+   *  @param a The dynamic array to search.
+   *  @param x The element to search for.
+   *  @param l Left index (inclusive).
+   *  @param r Right index (inclusive).
+   *  @param cmp Comparison functor.
+   *  @return Index of the element if found, Not_Found otherwise.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   long random_search(DynArray<T> & a, const T & x, const long l, const long r,
@@ -2256,7 +2343,7 @@ namespace Aleph
       search the list is partially ordered.
 
       A specialization uses the "less than" relationship as
-      comparison criterion and saves writing that
+      a comparison criterion and saves writing that
       class.
 
       @param[in,out] list dynamic list in which to perform
@@ -2291,11 +2378,19 @@ namespace Aleph
     if (i == pivot)
       return a[i];
 
-    if (i < pivot) // Is it in left partition?
+    if (i < pivot) // Is it in the left partition?
       return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
     return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
   }
 
+  /** @brief Implementation of pivot selection using operator().
+   *  @tparam Container Container type.
+   *  @param a The container.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   *  @return Index of the selected pivot.
+   */
   template <typename T, class Compare, typename Container>
   inline
   long select_pivot_op_impl(const Container & a, const long l, const long r,
@@ -2352,6 +2447,14 @@ namespace Aleph
     return select_pivot_op_impl<T, Compare>(a, l, r, cmp);
   }
 
+  /** @brief Implementation of partitioning using operator().
+   *  @tparam Container Container type.
+   *  @param a The container.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   *  @return Index of the pivot in its final position.
+   */
   template <typename T, class Compare, typename Container>
   inline
   long partition_op_impl(Container & a, const long l, const long r,
@@ -2363,7 +2466,7 @@ namespace Aleph
     long i = l - 1;
     long j = r;
 
-    // Move selected pivot to position r
+    // Move the selected pivot to position r
     if (const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp); pivot_idx != r)
       std::swap(a(pivot_idx), a(r));
 
@@ -2387,6 +2490,13 @@ namespace Aleph
     return i;
   }
 
+  /** @brief Partition a DynArray using operator().
+   *  @param a The dynamic array.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   *  @return Index of the pivot in its final position.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   long partition_op(DynArray<T> & a, const long l, const long r,
@@ -2395,6 +2505,13 @@ namespace Aleph
     return partition_op_impl<T, Compare>(a, l, r, cmp);
   }
 
+  /** @brief Partition an Array using operator().
+   *  @param a The array.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   *  @return Index of the pivot in its final position.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   long partition_op(Array<T> & a, const long l, const long r,
@@ -2443,6 +2560,13 @@ namespace Aleph
     return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
   }
 
+  /** @brief Select the i-th smallest element in a DynArray.
+   *  @param a The dynamic array.
+   *  @param i Position to select.
+   *  @param cmp Comparison functor.
+   *  @return Reference to the selected element.
+   *  @throw out_of_range if index is invalid.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   const T &random_select(DynArray<T> & a, const long i, const Compare & cmp = Compare())
   {
@@ -2455,6 +2579,13 @@ namespace Aleph
     return __random_select<T, Compare>(a, i, 0, n, cmp);
   }
 
+  /** @brief Select the i-th smallest element in an Array.
+   *  @param a The array.
+   *  @param i Position to select.
+   *  @param cmp Comparison functor.
+   *  @return Reference to the selected element.
+   *  @throw out_of_range if index is invalid.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   const T &random_select(Array<T> & a, const long i, const Compare & cmp = Compare())
   {
@@ -2511,11 +2642,19 @@ namespace Aleph
   const T &random_select(T *a, const long i, const long n,
                          const Compare & cmp = Compare())
   {
-    ah_out_of_range_error_if(i >= n) << "index out of range";
+    ah_out_of_range_error_if(n <= 0 or i < 0 or i >= n)
+      << "index out of range";
 
     return __random_select<T, Compare>(a, i, 0, n - 1, cmp);
   }
 
+  /** @brief Select the k-th smallest element in an array (convenience overload).
+   *  @param a Pointer to the array.
+   *  @param i Position to select.
+   *  @param n Number of elements.
+   *  @param cmp Comparison functor.
+   *  @return Reference to the selected element.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   const T &random_select(T *a, const long i, const long n,
                          Compare && cmp = Compare())
@@ -2524,10 +2663,10 @@ namespace Aleph
   }
 
   /** Random selection of the ith element from a list based
-      about Dlink.
+       on Dlink.
 
       random_select(list,i) returns the ith smallest element
-      content in the list list according to order criteria
+      content in the list according to order criteria
       determined by the Compare class.
 
       The routine uses the quicksort partition to
@@ -2596,7 +2735,7 @@ namespace Aleph
   }
 
   /** Random selection of the ith element from a list based
-      about Dlink.
+       on Dlink.
 
       random_select(list,i) returns the ith smallest element
       content in the list.
@@ -2879,9 +3018,15 @@ namespace Aleph
   }
 
 
+  /** @brief Convert a 1-based heap index to a 0-based array index. */
   inline static long back_index(const long i) noexcept { return i - 1; }
 
-
+  /**
+   * @brief Move an element up in a heap to restore heap property.
+   * @param table The dynamic array containing the heap.
+   * @param n The index of the element to sift up (1-based).
+   * @param cmp Comparison functor.
+   */
   template <typename T, class Compare>
   inline
   void sift_up(DynArray<T> & table, const long n, const Compare & cmp)
@@ -2898,6 +3043,13 @@ namespace Aleph
       }
   }
 
+  /**
+   * @brief Move an element down in a heap to restore heap property.
+   * @param table The dynamic array containing the heap.
+   * @param start The index of the element to sift down (1-based).
+   * @param n The current size of the heap.
+   * @param cmp Comparison functor.
+   */
   template <typename T, class Compare>
   inline
   void sift_down(DynArray<T> & table, const long start, const long n, const Compare & cmp)
@@ -2924,7 +3076,7 @@ namespace Aleph
       }
   }
 
-  // Legacy overload for backward compatibility
+  /** @overload */
   template <typename T, class Compare>
   inline
   void sift_down(DynArray<T> & table, const long n, const Compare & cmp)
@@ -3028,6 +3180,14 @@ namespace Aleph
       }
   }
 
+  /** @brief Partition a container using the last element as pivot.
+   *  @tparam C Container template (must support random access).
+   *  @param a The container.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   *  @return Index of the pivot in its final position.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -3059,6 +3219,12 @@ namespace Aleph
     return i;
   }
 
+  /** @brief Recursively sort a dynamic array using quicksort.
+   *  @param a The dynamic array.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void quicksort_rec(DynArray<T> & a, const long l, const long r,
@@ -3079,6 +3245,7 @@ namespace Aleph
       }
   }
 
+  /** @brief Push two values onto a stack. */
   template <class Stack, class A, class B>
   inline
   void push2(Stack & stack, const A & a, const B & b)
@@ -3121,7 +3288,8 @@ namespace Aleph
   {
     long l = 0, r = a.size() - 1;
 
-    FixedStack<long> stack(64);
+    const size_t n = a.size();
+    FixedStack<long> stack((introsort_depth_limit(n) + 2) * 2);
 
     push2(stack, l, r);
 
@@ -3398,6 +3566,23 @@ namespace Aleph
     return l;
   }
 
+  /** @brief Binary search on a sorted container of pointers.
+   *
+   *  Performs binary search to find an element or its insertion point
+   *  in a sorted container that stores pointers to elements. 
+   *  Comparisons are performed on the pointed-to values.
+   *
+   *  @tparam C Container template (must support operator() and size()).
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   *
+   *  @param a Sorted container of pointers.
+   *  @param x Element to search for.
+   *  @param l Left index (inclusive).
+   *  @param r Right index (inclusive).
+   *  @param cmp Comparison functor.
+   *  @return Index where element is found or should be inserted.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -3418,6 +3603,17 @@ namespace Aleph
     return l;
   }
 
+  /** @brief Binary search on a sorted container of pointers (full range).
+   *
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   *
+   *  @param a Sorted container of pointers.
+   *  @param x Element to search for.
+   *  @param cmp Comparison functor.
+   *  @return Index where element is found or should be inserted.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -3468,6 +3664,19 @@ namespace Aleph
     return binary_search(a, x, 0, static_cast<long>(n) - 1, cmp);
   }
 
+  /** @brief Binary search for all occurrences of a value.
+   *
+   *  Finds all indices in a sorted container that contain a value equal to @p x.
+   *
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   *
+   *  @param a Sorted container.
+   *  @param x Element to search for.
+   *  @param cmp Comparison functor.
+   *  @return DynList containing all indices where @p x is found.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -3504,10 +3713,102 @@ namespace Aleph
     return ret;
   }
 
+  /** @brief Build an index array of pointers for indirect sorting (const version).
+   *  
+   *  Creates a DynArray of constant pointers to the elements of container @p a,
+   *  sorted according to @p cmp.
+   * 
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   * 
+   *  @param a Container to index.
+   *  @param cmp Comparison functor.
+   *  @return DynArray of sorted pointers.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
-  T * bsearch(const C<T> & a, const T & x, const Compare & cmp = Compare())
+  DynArray<const T *> build_index_ptr(const C<T> & a, const Compare & cmp = Compare())
+  {
+    const size_t & n = a.size();
+    DynArray<const T *> ret;
+    ret.reserve(a.size());
+    for (size_t i = 0; i < n; ++i)
+      ret(i) = &a(i);
+
+    quicksort_op(ret, [&cmp](const T *ptr1, const T *ptr2)
+                   {
+                     return cmp(*ptr1, *ptr2);
+                   });
+
+    return ret;
+  }
+
+  /** @brief Search for all occurrences of a value returning pointers (const version).
+   * 
+   *  Performs binary search on @p a and collects pointers to all elements
+   *  equal to @p x.
+   * 
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   * 
+   *  @param a Sorted container.
+   *  @param x Value to search for.
+   *  @param cmp Comparison functor.
+   *  @return DynList of pointers to matching elements.
+   */
+  template <template <typename> class C, typename T,
+            class Compare = Aleph::less<T>>
+  inline
+  DynList<const T *> bsearch_dup(const C<T> & a, const T & x, const Compare & cmp = Compare())
+  {
+    DynList<const T *> ret;
+    long idx = binary_search(a, x, cmp);
+    if (idx < 0)
+      return ret;
+
+    const T *found_ptr = &a(idx);
+    if (not are_equals(*found_ptr, x, cmp))
+      return ret;
+
+    for (long i = idx - 1; i >= 0; --i)
+      {
+        const T *ptr = &a(i);
+        if (not are_equals(*ptr, x, cmp))
+          break;
+        ret.insert(ptr);
+      }
+
+    ret.append(found_ptr);
+
+    for (long i = idx + 1, n = a.size(); i < n; ++i)
+      {
+        const T *ptr = &a(i);
+        if (not are_equals(*ptr, x, cmp))
+          break;
+        ret.append(ptr);
+      }
+
+    return ret;
+  }
+
+  /** @brief Search for a value in a sorted container returning a pointer.
+   * 
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   * 
+   *  @param a Sorted container.
+   *  @param x Value to search for.
+   *  @param cmp Comparison functor.
+   *  @return Pointer to the found element, or nullptr if not found.
+   */
+  template <template <typename> class C, typename T,
+            class Compare = Aleph::less<T>>
+  inline
+  T * bsearch(C<T> & a, const T & x, const Compare & cmp = Compare())
   {
     long i = binary_search(a, x, cmp);
     if (i < 0)
@@ -3516,6 +3817,30 @@ namespace Aleph
     return are_equals(*ptr, x, cmp) ? ptr : nullptr;
   }
 
+  /** @overload */
+  template <template <typename> class C, typename T,
+            class Compare = Aleph::less<T>>
+  inline
+  const T * bsearch(const C<T> & a, const T & x, const Compare & cmp = Compare())
+  {
+    long i = binary_search(a, x, cmp);
+    if (i < 0)
+      return nullptr;
+    const T *ptr = &a(i);
+    return are_equals(*ptr, x, cmp) ? ptr : nullptr;
+  }
+
+  /** @brief Search for a value in a sorted container of pointers.
+   * 
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   * 
+   *  @param a Sorted container of pointers.
+   *  @param x Value to search for.
+   *  @param cmp Comparison functor.
+   *  @return The found pointer, or nullptr if not found.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -3528,23 +3853,34 @@ namespace Aleph
     return are_equals(*ptr, x, cmp) ? ptr : nullptr;
   }
 
+  /** @brief Search for all occurrences of a value returning pointers.
+   * 
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   * 
+   *  @param a Sorted container.
+   *  @param x Value to search for.
+   *  @param cmp Comparison functor.
+   *  @return DynList of pointers to matching elements.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
-  DynList<T *> bsearch_dup(const C<T> & a, const T & x, const Compare & cmp = Compare())
+  DynList<T *> bsearch_dup(C<T> & a, const T & x, const Compare & cmp = Compare())
   {
     DynList<T *> ret;
     long idx = binary_search(a, x, cmp);
     if (idx < 0)
       return ret;
 
-    T *found_ptr = const_cast<T *>(&a(idx));
+    T *found_ptr = &a(idx);
     if (not are_equals(*found_ptr, x, cmp))
       return ret;
 
     for (long i = idx - 1; i >= 0; --i)
       {
-        T *ptr = const_cast<T *>(&a(i));
+        T *ptr = &a(i);
         if (not are_equals(*ptr, x, cmp))
           break;
         ret.insert(ptr);
@@ -3554,7 +3890,7 @@ namespace Aleph
 
     for (long i = idx + 1, n = a.size(); i < n; ++i)
       {
-        T *ptr = const_cast<T *>(&a(i));
+        T *ptr = &a(i);
         if (not are_equals(*ptr, x, cmp))
           break;
         ret.append(ptr);
@@ -3563,6 +3899,17 @@ namespace Aleph
     return ret;
   }
 
+  /** @brief Search for all occurrences of a value in a container of pointers.
+   * 
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   * 
+   *  @param a Sorted container of pointers.
+   *  @param x Value to search for.
+   *  @param cmp Comparison functor.
+   *  @return DynList of found pointers.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -3682,16 +4029,14 @@ namespace Aleph
     if (idx < 0)
       return ret;
 
-    T *ptr = const_cast<T *>(&a(idx));
-    if (not are_equals(*ptr, x, cmp))
+    if (not are_equals(a(idx), x, cmp))
       return ret;
 
     const long mid = idx;
 
     for (long i = idx - 1; i >= 0; --i)
       {
-        ptr = const_cast<T *>(&a(i));
-        if (not are_equals(*ptr, x, cmp))
+        if (not are_equals(a(i), x, cmp))
           break;
         ret.insert(i);
       }
@@ -3700,8 +4045,7 @@ namespace Aleph
 
     for (long i = idx + 1, n = a.size(); i < n; ++i)
       {
-        ptr = const_cast<T *>(&a(i));
-        if (not are_equals(*ptr, x, cmp))
+        if (not are_equals(a(i), x, cmp))
           break;
         ret.append(i);
       }
@@ -3709,10 +4053,21 @@ namespace Aleph
     return ret;
   }
 
+  /** @brief Search for all indices of a value in a sorted container of pointers.
+   * 
+   *  @tparam C Container template.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type.
+   * 
+   *  @param a Sorted container of pointers.
+   *  @param x Value to search for.
+   *  @param cmp Comparison functor.
+   *  @return DynList of indices where pointers point to values equal to @p x.
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
-  DynList<long> binindex_dup(const C<T *> & a, const T & x, const Compare & cmp = Compare())
+      DynList<long> binindex_dup(const C<T *> & a, const T & x, const Compare & cmp = Compare())
   {
     DynList<long> ret;
     long idx = binary_search(a, x, cmp);
@@ -3824,7 +4179,7 @@ namespace Aleph
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
-  DynArray<T *> build_index_ptr(const C<T> & a, const Compare & cmp = Compare())
+  DynArray<T *> build_index_ptr(C<T> & a, const Compare & cmp = Compare())
   {
     const size_t & n = a.size();
     DynArray<T *> ret;
@@ -3879,7 +4234,7 @@ namespace Aleph
 
     size_t l = 0, r = n - 1;
 
-    FixedStack<size_t> stack(64);
+    FixedStack<size_t> stack((introsort_depth_limit(n) + 2) * 2);
 
     push2(stack, l, r);
 
@@ -3924,36 +4279,14 @@ namespace Aleph
       }
   }
 
-  /** Recursive binary search on an ordered array.
-
-      binary_search_rec<T,Compare>(a,x,l,r) performs search for x
-      in the arrangement a comprised between the lower limits l and
-      upper r.
-
-      The routine is generic and uses two type parameters:
-      -# The type of data that the array contains.
-      -# The comparison class.
-
-      The routine uses the binary search algorithm, which requires
-      that the arrangement is orderly. This condition is not verified in
-      the algorithm.
-
-      The method always returns an integer between
-      [l..r]. If the element is found, then the return value
-      It is the index where it is located; otherwise, it returns
-      the index where x would be inserted so that the array was
-      tidy.
-
-      @param[in] a pointer to the array on which to perform the search.
-      @param[in] x the element to search for.
-      @param[in] l left search index.
-      @param[in] r search right index.
-      @param cmp comparison object.
-      @return index of the element where x is located or the index of
-      the position where x would be inserted.
-      @see sequential_search()
-      \ingroup Algorithms
-  */
+  /** @brief Recursive binary search on an ordered array.
+   *  @param a Pointer to the sorted array.
+   *  @param x Value to search for.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   *  @return Index of the element if found, or its insertion position.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   long binary_search_rec(T *a, const T & x, const long l, const long r,
@@ -3972,36 +4305,14 @@ namespace Aleph
     return m;
   }
 
-  /** Iterative binary search over an ordered array.
-
-      binary_search<T,Compare>(a,x,l,r) performs search for x
-      in the arrangement a comprised between the lower limits l and
-      upper r.
-
-      The routine is generic and uses two type parameters:
-      -# The type of data that the array contains.
-      -# The comparison class.
-
-      The routine uses the binary search algorithm, which requires
-      that the arrangement is orderly. This condition is not verified in
-      the algorithm.
-
-      The method always returns an integer between
-      [l..r]. If the element is found, then the return value
-      It is the index where it is located; otherwise, it returns
-      the index where x would be inserted so that the array was
-      tidy.
-
-      @param a pointer to the array on which to perform the search.
-      @param[in] x the element to search for.
-      @param[in] l left search index.
-      @param[in] r search right index.
-      @param cmp comparison object.
-      @return index of the element where x is located or the index of
-      the position where x would be inserted.
-      @see sequential_search()
-      \ingroup Algorithms
-  */
+  /** @brief Iterative binary search on an ordered array.
+   *  @param a Pointer to the sorted array.
+   *  @param x Value to search for.
+   *  @param l Left index.
+   *  @param r Right index.
+   *  @param cmp Comparison functor.
+   *  @return Index of the element if found, or its insertion position.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   long binary_search(T *a, const T & x, long l, long r,

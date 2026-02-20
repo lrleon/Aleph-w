@@ -278,14 +278,10 @@ namespace Aleph
     */
     MemArray(size_t __dim = Min_Dim) : ptr(nullptr), n(0)
     {
-      static_assert(std::is_copy_constructible_v<T>,
-                    "No copy constructor for T");
       static_assert(std::is_move_constructible_v<T>,
-                    "No move constructor for T");
-      static_assert(std::is_copy_assignable_v<T>,
-                    "No copy assign for T");
+                    "T must be move constructible");
       static_assert(std::is_move_assignable_v<T>,
-                    "No move assign for T");
+                    "T must be move assignable");
       init_dim(__dim);
       allocate();
     }
@@ -310,6 +306,7 @@ namespace Aleph
 
     /// Construct a copy of `a`
     MemArray(const MemArray &a)
+      requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
       : ptr(nullptr), dim(a.dim), n(a.n)
     {
       allocate();
@@ -327,6 +324,7 @@ namespace Aleph
 
     /// Assign by copy `a` to `this`
     MemArray &operator=(const MemArray &a)
+      requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
     {
       if (this == &a)
         return *this;
@@ -374,6 +372,7 @@ namespace Aleph
     /// Put a copy of `item` at the end of sequence. The array expands if
     /// this is already full
     T &put(const T &item)
+      requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
       expand();
@@ -414,6 +413,7 @@ namespace Aleph
     /// Push a copy of `item` at the beginning of sequence. The array expands if
     /// this is already full
     T &push(const T &item)
+      requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
       open_gap();
@@ -457,6 +457,7 @@ namespace Aleph
 
     /// \overload put(const T & item)
     T &append(T &item)
+      requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
       return put(item);
@@ -471,6 +472,7 @@ namespace Aleph
 
     /// \overload push(const T & item)
     T &insert(T &item)
+      requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
       return push(item);
@@ -519,6 +521,7 @@ namespace Aleph
     }
 
     MemArray &append(const MemArray &a)
+      requires std::is_copy_assignable_v<T>
     {
       const size_t old_n = n;
       const size_t num_entries = a.size();
