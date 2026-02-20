@@ -40,6 +40,7 @@
 
     Main functions include:
     - **Range generation**: `range()`, `nrange()`, `contiguous_range()`, `rep()`
+    - **In-place mutation**: `fill()`, `iota()`
     - **Iteration**: `for_each()`, `enum_for_each()`, `each()`
     - **Predicates**: `all()`, `exists()`, `none()`, `contains()`, `count_if()`
     - **Transformation**: `maps()`, `filter()`, `reverse()`, `flatten()`, `flat_map()`
@@ -275,6 +276,121 @@ namespace Aleph
   DynList<T> rep(size_t n, T && item = T())
   {
     return rep<T>(n, item);
+  }
+
+  // ─── In-place fill operations ─────────────────────────────────────────────
+
+  /** @brief Fill all elements of a container with a fixed value.
+   *
+   *  Sets every element currently in @p container to @p value in traversal
+   *  order (front to back).  The container size is unchanged; if it is
+   *  empty this is a no-op.
+   *
+   *  Analogous to `std::fill`, but works with any Aleph-w sequential
+   *  container via the `AlephSequentialContainer` concept.
+   *
+   *  @tparam C  Container type satisfying `AlephSequentialContainer`.
+   *  @param[in,out] container  The container whose elements are overwritten.
+   *  @param[in]     value      The value assigned to every element.
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> lst = {1, 2, 3, 4};
+   *  fill(lst, 0);           // lst is now {0, 0, 0, 0}
+   *
+   *  Array<double> arr(5, 0.0);
+   *  fill(arr, 3.14);        // all elements become 3.14
+   *
+   *  auto zeros = rep(4, 0); // {0, 0, 0, 0}
+   *  fill(zeros, 7);         // {7, 7, 7, 7}
+   *  @endcode
+   *
+   *  @note To *create* a new container of repeated values, use `rep()`.
+   *  @see  iota()  For filling with a sequence of incrementing values.
+   *  @see  rep()   For constructing a new list of repeated values.
+   *  @ingroup Algorithms
+   */
+  template <AlephSequentialContainer C>
+  void fill(C & container, const typename C::Item_Type & value)
+  {
+    container.mutable_for_each([&value](typename C::Item_Type & item)
+      {
+        item = value;
+      });
+  }
+
+  /** @brief Fill all elements of a container with unit-step sequential values.
+   *
+   *  Assigns `start`, `start+1`, `start+2`, … to successive elements of
+   *  @p container in traversal order (front to back).  The container size
+   *  is unchanged; if it is empty this is a no-op.
+   *
+   *  Analogous to `std::iota` but for Aleph-w sequential containers.
+   *
+   *  @tparam C  Container type satisfying `AlephSequentialContainer`.
+   *             Additionally, `C::Item_Type` must support prefix `++`.
+   *  @param[in,out] container  Container whose elements are overwritten.
+   *  @param[in]     start      First value written to the first element.
+   *
+   *  @par Example
+   *  @code
+   *  auto lst = rep(5, 0);   // {0, 0, 0, 0, 0}
+   *  iota(lst, 1);           // {1, 2, 3, 4, 5}
+   *
+   *  Array<int> arr(4, 0);
+   *  iota(arr, 10);          // {10, 11, 12, 13}
+   *  @endcode
+   *
+   *  @see fill()        For filling with a constant value.
+   *  @see iota(C&,T,T)  For a custom step size.
+   *  @ingroup Algorithms
+   */
+  template <AlephSequentialContainer C>
+  requires requires(typename C::Item_Type v) { ++v; }
+  void iota(C & container, typename C::Item_Type start)
+  {
+    container.mutable_for_each([&start](typename C::Item_Type & item)
+      {
+        item = start++;
+      });
+  }
+
+  /** @brief Fill all elements of a container with custom-step sequential values.
+   *
+   *  Assigns `start`, `start + step`, `start + 2*step`, … to successive
+   *  elements of @p container in traversal order.  The container size is
+   *  unchanged; if it is empty this is a no-op.
+   *
+   *  @tparam C  Container type satisfying `AlephSequentialContainer`.
+   *             Additionally, `C::Item_Type` must support `+=`.
+   *  @param[in,out] container  Container whose elements are overwritten.
+   *  @param[in]     start      First value written to the first element.
+   *  @param[in]     step       Increment added after each element.
+   *
+   *  @par Example
+   *  @code
+   *  auto lst = rep(4, 0);
+   *  iota(lst, 0, 2);        // {0, 2, 4, 6}
+   *
+   *  Array<double> arr(3, 0.0);
+   *  iota(arr, 1.0, 0.5);   // {1.0, 1.5, 2.0}
+   *  @endcode
+   *
+   *  @see fill()       For filling with a constant value.
+   *  @see iota(C&,T)   For unit-step iota.
+   *  @ingroup Algorithms
+   */
+  template <AlephSequentialContainer C>
+  requires requires(typename C::Item_Type v, typename C::Item_Type s) { v += s; }
+  void iota(C & container,
+            typename C::Item_Type start,
+            const typename C::Item_Type step)
+  {
+    container.mutable_for_each([&start, &step](typename C::Item_Type & item)
+      {
+        item   = start;
+        start += step;
+      });
   }
 
   /** @brief Create a list of pointers to items in a container.
@@ -2321,6 +2437,28 @@ namespace Aleph
       if (pred(it.get_curr()))
         ++count;
     return count;
+  }
+
+  template <AlephSequentialIterableContainer Container, class Equal>
+  [[nodiscard]] inline bool all_unique(const Container & container, Equal & eq)
+  {
+    for (auto it1 = container.get_it(); it1.has_curr(); it1.next_ne())
+      {
+        auto it2 = it1;
+        it2.next_ne();
+        for (; it2.has_curr(); it2.next_ne())
+          if (eq(it1.get_curr(), it2.get_curr()))
+            return false;
+      }
+    return true;
+  }
+
+  template <AlephSequentialIterableContainer Container,
+            class Equal = std::equal_to<typename Container::Item_Type>>
+  [[nodiscard]] inline bool all_unique(const Container & container,
+                                      Equal && eq = Equal())
+  {
+    return all_unique<Container, Equal>(container, eq);
   }
 
   /** @brief Check if container contains a specific value.

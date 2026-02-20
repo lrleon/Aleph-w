@@ -1,0 +1,529 @@
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
+
+/**
+ * @file lca_test.cc
+ * @brief Tests for LCA.H (binary lifting and Euler tour + RMQ).
+ *
+ * Coverage:
+ * - Empty and single-node trees
+ * - Deterministic rooted trees with known LCAs/distances
+ * - Input validation (cycle, disconnected, loop, parallel edge)
+ * - Arc-filter behavior
+ * - Node ownership and range checks
+ * - Random stress against an independent naive oracle
+ * - Cross-backend consistency (List_Graph, List_SGraph, Array_Graph)
+ */
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <limits>
+#include <random>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+
+#include <LCA.H>
+#include <tpl_agraph.H>
+#include <tpl_graph.H>
+#include <tpl_sgraph.H>
+
+using namespace Aleph;
+
+namespace
+{
+  template <class GT>
+  Array<typename GT::Node *>
+  build_graph_with_unit_arcs(GT & g,
+                             const size_t n,
+                             const std::vector<std::pair<size_t, size_t>> & edges)
+  {
+    using Node = typename GT::Node;
+
+    auto nodes = Array<Node *>::create(n);
+    for (size_t i = 0; i < n; ++i)
+      nodes(i) = g.insert_node(static_cast<int>(i));
+
+    for (const auto & [u, v] : edges)
+      {
+        if (u >= n or v >= n)
+          continue;
+        g.insert_arc(nodes(u), nodes(v), 1);
+      }
+
+    return nodes;
+  }
+
+  struct Positive_Arc_Filter
+  {
+    template <class Arc>
+    bool operator()(Arc * a) const noexcept
+    {
+      return a->get_info() > 0;
+    }
+  };
+
+  class Naive_Tree_Oracle
+  {
+    static constexpr size_t NONE = std::numeric_limits<size_t>::max();
+
+    size_t n_ = 0;
+    size_t root_ = 0;
+    std::vector<std::vector<size_t>> adj_;
+    std::vector<size_t> parent_;
+    std::vector<size_t> depth_;
+    std::vector<size_t> tin_;
+    std::vector<size_t> tout_;
+    size_t timer_ = 0;
+
+    void dfs(const size_t u, const size_t p, const size_t d)
+    {
+      parent_[u] = p;
+      depth_[u] = d;
+      tin_[u] = timer_++;
+
+      for (const auto v : adj_[u])
+        if (v != p)
+          dfs(v, u, d + 1);
+
+      tout_[u] = timer_ - 1;
+    }
+
+  public:
+    Naive_Tree_Oracle(const size_t n,
+                      const std::vector<std::pair<size_t, size_t>> & edges,
+                      const size_t root)
+      : n_(n),
+        root_(root),
+        adj_(n),
+        parent_(n, NONE),
+        depth_(n, 0),
+        tin_(n, 0),
+        tout_(n, 0)
+    {
+      ah_runtime_error_if(n_ == 0) << "Naive_Tree_Oracle requires n > 0";
+      ah_runtime_error_if(root_ >= n_) << "Naive_Tree_Oracle: invalid root";
+      ah_runtime_error_if(edges.size() != n_ - 1)
+        << "Naive_Tree_Oracle: edges.size() must be n-1";
+
+      for (const auto & [u, v] : edges)
+        {
+          ah_runtime_error_if(u >= n_ or v >= n_ or u == v)
+            << "Naive_Tree_Oracle: invalid edge";
+          adj_[u].push_back(v);
+          adj_[v].push_back(u);
+        }
+
+      dfs(root_, NONE, 0);
+
+      for (size_t i = 0; i < n_; ++i)
+        ah_runtime_error_if(parent_[i] == NONE and i != root_)
+          << "Naive_Tree_Oracle: disconnected input";
+    }
+
+    [[nodiscard]] size_t depth(const size_t u) const
+    {
+      ah_runtime_error_if(u >= n_) << "Naive_Tree_Oracle::depth: bad index";
+      return depth_[u];
+    }
+
+    [[nodiscard]] bool is_ancestor(const size_t u, const size_t v) const
+    {
+      ah_runtime_error_if(u >= n_ or v >= n_) << "Naive_Tree_Oracle::is_ancestor: bad index";
+      return tin_[u] <= tin_[v] and tout_[v] <= tout_[u];
+    }
+
+    [[nodiscard]] size_t lca(size_t u, size_t v) const
+    {
+      ah_runtime_error_if(u >= n_ or v >= n_) << "Naive_Tree_Oracle::lca: bad index";
+
+      if (depth_[u] < depth_[v])
+        std::swap(u, v);
+
+      while (depth_[u] > depth_[v])
+        u = parent_[u];
+
+      while (u != v)
+        {
+          u = parent_[u];
+          v = parent_[v];
+        }
+
+      return u;
+    }
+
+    [[nodiscard]] size_t distance(const size_t u, const size_t v) const
+    {
+      const size_t a = lca(u, v);
+      return depth_[u] + depth_[v] - 2 * depth_[a];
+    }
+
+    [[nodiscard]] size_t kth_ancestor(const size_t u, const size_t k) const
+    {
+      ah_runtime_error_if(u >= n_) << "Naive_Tree_Oracle::kth_ancestor: bad index";
+      if (k > depth_[u])
+        return NONE;
+
+      size_t cur = u;
+      for (size_t i = 0; i < k; ++i)
+        cur = parent_[cur];
+      return cur;
+    }
+
+    [[nodiscard]] static size_t none() noexcept { return NONE; }
+  };
+
+  std::vector<std::pair<size_t, size_t>>
+  make_random_tree_edges(const size_t n, std::mt19937 & rng)
+  {
+    std::vector<std::pair<size_t, size_t>> edges;
+    edges.reserve(n > 0 ? n - 1 : 0);
+
+    for (size_t v = 1; v < n; ++v)
+      {
+        std::uniform_int_distribution<size_t> pick(0, v - 1);
+        edges.emplace_back(v, pick(rng));
+      }
+
+    return edges;
+  }
+
+  template <class GT>
+  class LcaTypedTest : public ::testing::Test
+  {
+  };
+
+  using GraphBackends = ::testing::Types<
+      List_Graph<Graph_Node<int>, Graph_Arc<int>>,
+      List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>,
+      Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>>;
+
+  TYPED_TEST_SUITE(LcaTypedTest, GraphBackends);
+}
+
+
+TYPED_TEST(LcaTypedTest, EmptyTree)
+{
+  using Graph = TypeParam;
+
+  Graph g;
+
+  Binary_Lifting_LCA<Graph> bl(g);
+  Euler_RMQ_LCA<Graph> er(g);
+
+  EXPECT_TRUE(bl.is_empty());
+  EXPECT_TRUE(er.is_empty());
+  EXPECT_EQ(bl.size(), 0u);
+  EXPECT_EQ(er.size(), 0u);
+
+  EXPECT_THROW(bl.lca_id(0, 0), std::domain_error);
+  EXPECT_THROW(er.lca_id(0, 0), std::domain_error);
+}
+
+TYPED_TEST(LcaTypedTest, SingleNode)
+{
+  using Graph = TypeParam;
+  using Node = typename Graph::Node;
+
+  Graph g;
+  Node * n0 = g.insert_node(7);
+
+  Binary_Lifting_LCA<Graph> bl(g, n0);
+  Euler_RMQ_LCA<Graph> er(g, n0);
+
+  EXPECT_EQ(bl.size(), 1u);
+  EXPECT_EQ(er.size(), 1u);
+  EXPECT_EQ(bl.root(), n0);
+  EXPECT_EQ(er.root(), n0);
+
+  EXPECT_EQ(bl.lca(n0, n0), n0);
+  EXPECT_EQ(er.lca(n0, n0), n0);
+
+  EXPECT_EQ(bl.depth_of(n0), 0u);
+  EXPECT_EQ(er.depth_of(n0), 0u);
+  EXPECT_EQ(bl.distance(n0, n0), 0u);
+  EXPECT_EQ(er.distance(n0, n0), 0u);
+
+  EXPECT_EQ(bl.parent_of(n0), nullptr);
+  EXPECT_EQ(er.parent_of(n0), nullptr);
+  EXPECT_EQ(bl.kth_ancestor(n0, 1), nullptr);
+}
+
+TYPED_TEST(LcaTypedTest, ManualTreeQueries)
+{
+  using Graph = TypeParam;
+
+  // Rooted at 0:
+  //           0
+  //        /     (right)
+  //     (left)      2
+  //       1      children of 2
+  //      / \      5   6
+  //     3   4   children of 5
+  //             7 and 8
+  const std::vector<std::pair<size_t, size_t>> edges = {
+      {0, 1}, {0, 2},
+      {1, 3}, {1, 4},
+      {2, 5}, {2, 6},
+      {5, 7}, {5, 8}};
+
+  Graph g;
+  auto nodes = build_graph_with_unit_arcs(g, 9, edges);
+
+  Binary_Lifting_LCA<Graph> bl(g, nodes(0));
+  Euler_RMQ_LCA<Graph> er(g, nodes(0));
+
+  auto check = [&](const size_t u, const size_t v,
+                   const size_t expected_lca, const size_t expected_dist)
+  {
+    auto * bl_lca = bl.lca(nodes(u), nodes(v));
+    auto * er_lca = er.lca(nodes(u), nodes(v));
+
+    EXPECT_EQ(static_cast<size_t>(bl_lca->get_info()), expected_lca)
+        << "u=" << u << " v=" << v;
+    EXPECT_EQ(static_cast<size_t>(er_lca->get_info()), expected_lca)
+        << "u=" << u << " v=" << v;
+    EXPECT_EQ(bl_lca, er_lca) << "u=" << u << " v=" << v;
+
+    EXPECT_EQ(bl.distance(nodes(u), nodes(v)), expected_dist);
+    EXPECT_EQ(er.distance(nodes(u), nodes(v)), expected_dist);
+  };
+
+  check(3, 4, 1, 2);
+  check(3, 6, 0, 4);
+  check(7, 8, 5, 2);
+  check(7, 6, 2, 3);
+  check(0, 8, 0, 3);
+
+  EXPECT_EQ(bl.kth_ancestor(nodes(8), 1), nodes(5));
+  EXPECT_EQ(bl.kth_ancestor(nodes(8), 2), nodes(2));
+  EXPECT_EQ(bl.kth_ancestor(nodes(8), 3), nodes(0));
+  EXPECT_EQ(bl.kth_ancestor(nodes(8), 4), nullptr);
+
+  EXPECT_TRUE(bl.is_ancestor(nodes(2), nodes(7)));
+  EXPECT_FALSE(bl.is_ancestor(nodes(1), nodes(7)));
+  EXPECT_TRUE(er.is_ancestor(nodes(2), nodes(7)));
+  EXPECT_FALSE(er.is_ancestor(nodes(1), nodes(7)));
+}
+
+TYPED_TEST(LcaTypedTest, DefaultRootIsFirstNode)
+{
+  using Graph = TypeParam;
+
+  const std::vector<std::pair<size_t, size_t>> edges = {
+      {0, 1}, {1, 2}, {2, 3}, {3, 4}};
+
+  Graph g;
+  auto nodes = build_graph_with_unit_arcs(g, 5, edges);
+
+  Binary_Lifting_LCA<Graph> bl(g);
+  Euler_RMQ_LCA<Graph> er(g);
+
+  EXPECT_EQ(bl.root(), nodes(0));
+  EXPECT_EQ(er.root(), nodes(0));
+
+  EXPECT_EQ(static_cast<size_t>(bl.lca(nodes(4), nodes(2))->get_info()), 2u);
+  EXPECT_EQ(static_cast<size_t>(er.lca(nodes(4), nodes(2))->get_info()), 2u);
+}
+
+TYPED_TEST(LcaTypedTest, RejectsCycle)
+{
+  using Graph = TypeParam;
+
+  const std::vector<std::pair<size_t, size_t>> edges = {
+      {0, 1}, {1, 2}, {2, 0}};
+
+  Graph g;
+  auto nodes = build_graph_with_unit_arcs(g, 3, edges);
+
+  EXPECT_THROW((Binary_Lifting_LCA<Graph>(g, nodes(0))), std::domain_error);
+  EXPECT_THROW((Euler_RMQ_LCA<Graph>(g, nodes(0))), std::domain_error);
+}
+
+TYPED_TEST(LcaTypedTest, RejectsDisconnectedGraph)
+{
+  using Graph = TypeParam;
+
+  const std::vector<std::pair<size_t, size_t>> edges = {
+      {0, 1}, {2, 3}};
+
+  Graph g;
+  auto nodes = build_graph_with_unit_arcs(g, 4, edges);
+
+  EXPECT_THROW((Binary_Lifting_LCA<Graph>(g, nodes(0))), std::domain_error);
+  EXPECT_THROW((Euler_RMQ_LCA<Graph>(g, nodes(0))), std::domain_error);
+}
+
+TYPED_TEST(LcaTypedTest, RejectsLoopAndParallelEdges)
+{
+  using Graph = TypeParam;
+
+  {
+    Graph g;
+    auto nodes = build_graph_with_unit_arcs(g, 3, {{0, 1}, {1, 2}, {2, 2}});
+    EXPECT_THROW((Binary_Lifting_LCA<Graph>(g, nodes(0))), std::domain_error);
+    EXPECT_THROW((Euler_RMQ_LCA<Graph>(g, nodes(0))), std::domain_error);
+  }
+
+  {
+    Graph g;
+    auto nodes = build_graph_with_unit_arcs(g, 2, {{0, 1}, {0, 1}});
+    EXPECT_THROW((Binary_Lifting_LCA<Graph>(g, nodes(0))), std::domain_error);
+    EXPECT_THROW((Euler_RMQ_LCA<Graph>(g, nodes(0))), std::domain_error);
+  }
+}
+
+TYPED_TEST(LcaTypedTest, ArcFilterSelectsTree)
+{
+  using Graph = TypeParam;
+
+  Graph g;
+  auto nodes = Array<typename Graph::Node *>::create(6);
+  for (size_t i = 0; i < 6; ++i)
+    nodes(i) = g.insert_node(static_cast<int>(i));
+
+  // Tree edges (kept by filter).
+  g.insert_arc(nodes(0), nodes(1), 1);
+  g.insert_arc(nodes(0), nodes(2), 1);
+  g.insert_arc(nodes(1), nodes(3), 1);
+  g.insert_arc(nodes(1), nodes(4), 1);
+  g.insert_arc(nodes(2), nodes(5), 1);
+
+  // Extra non-tree edges (ignored by filter).
+  g.insert_arc(nodes(3), nodes(5), -1);
+  g.insert_arc(nodes(4), nodes(2), -1);
+
+  EXPECT_THROW((Binary_Lifting_LCA<Graph>(g, nodes(0))), std::domain_error);
+  EXPECT_THROW((Euler_RMQ_LCA<Graph>(g, nodes(0))), std::domain_error);
+
+  Binary_Lifting_LCA<Graph, Positive_Arc_Filter> bl(g, nodes(0), Positive_Arc_Filter());
+  Euler_RMQ_LCA<Graph, Positive_Arc_Filter> er(g, nodes(0), Positive_Arc_Filter());
+
+  EXPECT_EQ(static_cast<size_t>(bl.lca(nodes(3), nodes(4))->get_info()), 1u);
+  EXPECT_EQ(static_cast<size_t>(er.lca(nodes(3), nodes(4))->get_info()), 1u);
+  EXPECT_EQ(static_cast<size_t>(bl.lca(nodes(3), nodes(5))->get_info()), 0u);
+  EXPECT_EQ(static_cast<size_t>(er.lca(nodes(3), nodes(5))->get_info()), 0u);
+}
+
+TYPED_TEST(LcaTypedTest, RejectsNodeFromAnotherGraphAndBadIds)
+{
+  using Graph = TypeParam;
+
+  Graph g1;
+  auto n1 = build_graph_with_unit_arcs(g1, 3, {{0, 1}, {1, 2}});
+
+  Graph g2;
+  auto n2 = build_graph_with_unit_arcs(g2, 2, {{0, 1}});
+
+  Binary_Lifting_LCA<Graph> bl(g1, n1(0));
+  Euler_RMQ_LCA<Graph> er(g1, n1(0));
+
+  EXPECT_THROW(bl.lca(n1(0), n2(0)), std::domain_error);
+  EXPECT_THROW(er.lca(n1(0), n2(0)), std::domain_error);
+  EXPECT_THROW(bl.depth_of(n2(0)), std::domain_error);
+  EXPECT_THROW(er.depth_of(n2(0)), std::domain_error);
+
+  EXPECT_THROW(bl.lca_id(0, 99), std::out_of_range);
+  EXPECT_THROW(er.lca_id(0, 99), std::out_of_range);
+  EXPECT_THROW(bl.node_of(99), std::out_of_range);
+  EXPECT_THROW(er.node_of(99), std::out_of_range);
+}
+
+TYPED_TEST(LcaTypedTest, RandomTreesAgainstNaiveOracle)
+{
+  using Graph = TypeParam;
+
+  std::mt19937 rng(0x1ca2026u);
+
+  for (size_t sample = 0; sample < 24; ++sample)
+    {
+      std::uniform_int_distribution<size_t> n_pick(2, 90);
+      const size_t n = n_pick(rng);
+      const auto edges = make_random_tree_edges(n, rng);
+
+      Graph g;
+      auto nodes = build_graph_with_unit_arcs(g, n, edges);
+
+      std::uniform_int_distribution<size_t> root_pick(0, n - 1);
+      const size_t root = root_pick(rng);
+
+      Binary_Lifting_LCA<Graph> bl(g, nodes(root));
+      Euler_RMQ_LCA<Graph> er(g, nodes(root));
+      Naive_Tree_Oracle oracle(n, edges, root);
+
+      for (size_t u = 0; u < n; ++u)
+        {
+          EXPECT_EQ(bl.depth_of(nodes(u)), oracle.depth(u));
+          EXPECT_EQ(er.depth_of(nodes(u)), oracle.depth(u));
+          EXPECT_EQ(bl.node_of(bl.id_of(nodes(u))), nodes(u));
+          EXPECT_EQ(er.node_of(er.id_of(nodes(u))), nodes(u));
+
+          std::uniform_int_distribution<size_t> k_pick(0, oracle.depth(u) + 2);
+          const size_t k = k_pick(rng);
+          const size_t expected = oracle.kth_ancestor(u, k);
+          auto * got = bl.kth_ancestor(nodes(u), k);
+          if (expected == Naive_Tree_Oracle::none())
+            EXPECT_EQ(got, nullptr);
+          else
+            EXPECT_EQ(static_cast<size_t>(got->get_info()), expected);
+        }
+
+      std::uniform_int_distribution<size_t> node_pick(0, n - 1);
+      for (size_t q = 0; q < 450; ++q)
+        {
+          const size_t u = node_pick(rng);
+          const size_t v = node_pick(rng);
+
+          const size_t expected_lca = oracle.lca(u, v);
+          const size_t expected_dist = oracle.distance(u, v);
+
+          auto * bl_lca = bl.lca(nodes(u), nodes(v));
+          auto * er_lca = er.lca(nodes(u), nodes(v));
+
+          EXPECT_EQ(static_cast<size_t>(bl_lca->get_info()), expected_lca)
+              << "sample=" << sample;
+          EXPECT_EQ(static_cast<size_t>(er_lca->get_info()), expected_lca)
+              << "sample=" << sample;
+          EXPECT_EQ(bl_lca, er_lca) << "sample=" << sample;
+
+          EXPECT_EQ(bl.distance(nodes(u), nodes(v)), expected_dist);
+          EXPECT_EQ(er.distance(nodes(u), nodes(v)), expected_dist);
+
+          EXPECT_EQ(bl.is_ancestor(nodes(expected_lca), nodes(u)),
+                    oracle.is_ancestor(expected_lca, u));
+          EXPECT_EQ(er.is_ancestor(nodes(expected_lca), nodes(v)),
+                    oracle.is_ancestor(expected_lca, v));
+        }
+    }
+}

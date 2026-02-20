@@ -317,10 +317,13 @@ set(TEST_PROGRAMS
     fenwick_tree
     tpl_segment_tree_test
     tpl_cartesian_tree_test
+    lca_test
     tpl_mo_algorithm_test
     tpl_mo_on_trees_test
     ah_concepts_test
     robust_predicates_test
+    blossom_test
+    weighted_blossom_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++

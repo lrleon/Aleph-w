@@ -110,6 +110,7 @@ set(EXAMPLE_PROGRAMS
     disjoint_sparse_table_test
     segment_tree_example
     cartesian_tree_example
+    lca_example
     mo_algorithm_example
     mo_on_trees_example
     robust_predicates_example
@@ -145,6 +146,8 @@ set(EXAMPLE_PROGRAMS
     polygon_offset_example
     chaikin_smoothing_example
     trapezoidal_map_example
+    blossom_example
+    weighted_blossom_example
 )
 
 # Function to get source file from program name

@@ -74,6 +74,8 @@
  * - Graph traversals (DFS, BFS)
  * - Shortest path algorithms (Dijkstra, Bellman-Ford, Floyd-Warshall, A*)
  * - Minimum spanning trees (Prim, Kruskal)
+ * - Matching algorithms (Blossom, bipartite matching, Hungarian assignment)
+ * - Lowest Common Ancestor (binary lifting, Euler tour + RMQ)
  * - Connectivity algorithms (strongly connected components, bridges, cuts)
  * - Topological sorting
  * - Graph coloring

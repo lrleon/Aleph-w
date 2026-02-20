@@ -929,3 +929,303 @@ TEST(CutNodes, ExceptionDuringMapSubgraphClearsGraph)
       EXPECT_EQ(sg.get_num_arcs(), 0U);
     }
 }
+
+// ============================================================================
+// Bridges (Compute_Bridges / find_bridges)
+// ============================================================================
+
+namespace
+{
+  // Collect bridge arcs into a set for easy membership testing.
+  std::set<Graph::Arc *> bridge_set(const DynList<Graph::Arc *> & lst)
+  {
+    std::set<Graph::Arc *> s;
+    for (typename DynList<Graph::Arc *>::Iterator it(lst); it.has_curr(); it.next_ne())
+      s.insert(it.get_curr());
+    return s;
+  }
+} // namespace
+
+TEST(Bridges, PathGraphAllEdgesAreBridges)
+{
+  // 0 -- 1 -- 2 -- 3 : all 3 arcs are bridges
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  auto a01 = g.insert_arc(nodes[0], nodes[1], 1);
+  auto a12 = g.insert_arc(nodes[1], nodes[2], 1);
+  auto a23 = g.insert_arc(nodes[2], nodes[3], 1);
+
+  Compute_Bridges<Graph> cb(g);
+  auto bridges = cb.find_bridges(nodes[0]);
+
+  auto bs = bridge_set(bridges);
+  EXPECT_EQ(bs.size(), 3U);
+  EXPECT_TRUE(bs.count(a01));
+  EXPECT_TRUE(bs.count(a12));
+  EXPECT_TRUE(bs.count(a23));
+}
+
+TEST(Bridges, CycleHasNoBridges)
+{
+  // 0 -- 1 -- 2 -- 3 -- 0 : no bridges
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 1);
+  g.insert_arc(nodes[2], nodes[3], 1);
+  g.insert_arc(nodes[3], nodes[0], 1);
+
+  auto bridges = find_bridges(g);
+  EXPECT_TRUE(bridges.is_empty());
+}
+
+TEST(Bridges, TwoTrianglesOneBridge)
+{
+  // Triangles 0-1-2-0 and 3-4-5-3, connected by bridge 2--3
+  Graph g;
+  auto nodes = make_nodes(g, 6);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 1);
+  g.insert_arc(nodes[2], nodes[0], 1);
+  auto bridge = g.insert_arc(nodes[2], nodes[3], 1); // bridge
+  g.insert_arc(nodes[3], nodes[4], 1);
+  g.insert_arc(nodes[4], nodes[5], 1);
+  g.insert_arc(nodes[5], nodes[3], 1);
+
+  auto bridges = find_bridges(g, nodes[0]);
+  EXPECT_EQ(bridges.size(), 1U);
+  EXPECT_TRUE(bridge_set(bridges).count(bridge));
+}
+
+TEST(Bridges, TreeAllEdgesAreBridges)
+{
+  /*
+   *       0
+   *      / \
+   *     1   2
+   *    / \
+   *   3   4
+   */
+  Graph g;
+  auto nodes = make_nodes(g, 5);
+  auto a01 = g.insert_arc(nodes[0], nodes[1], 1);
+  auto a02 = g.insert_arc(nodes[0], nodes[2], 1);
+  auto a13 = g.insert_arc(nodes[1], nodes[3], 1);
+  auto a14 = g.insert_arc(nodes[1], nodes[4], 1);
+
+  auto bridges = find_bridges(g);
+  auto bs = bridge_set(bridges);
+  EXPECT_EQ(bs.size(), 4U);
+  EXPECT_TRUE(bs.count(a01));
+  EXPECT_TRUE(bs.count(a02));
+  EXPECT_TRUE(bs.count(a13));
+  EXPECT_TRUE(bs.count(a14));
+}
+
+TEST(Bridges, CompleteK4NoBridges)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  for (int i = 0; i < 4; ++i)
+    for (int j = i + 1; j < 4; ++j)
+      g.insert_arc(nodes[i], nodes[j], 1);
+
+  auto bridges = find_bridges(g);
+  EXPECT_TRUE(bridges.is_empty());
+}
+
+TEST(Bridges, SingleNodeNoBridges)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 1);
+  auto bridges = find_bridges(g, nodes[0]);
+  EXPECT_TRUE(bridges.is_empty());
+}
+
+TEST(Bridges, TwoNodesOneBridge)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 2);
+  auto b = g.insert_arc(nodes[0], nodes[1], 1);
+
+  auto bridges = find_bridges(g);
+  EXPECT_EQ(bridges.size(), 1U);
+  EXPECT_TRUE(bridge_set(bridges).count(b));
+}
+
+TEST(Bridges, ParallelArcsNotBridges)
+{
+  // Two parallel arcs between nodes 0 and 1: neither is a bridge
+  Graph g;
+  auto nodes = make_nodes(g, 2);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[0], nodes[1], 2); // parallel arc
+
+  auto bridges = find_bridges(g);
+  EXPECT_TRUE(bridges.is_empty());
+}
+
+TEST(Bridges, FreeFunctionConsistentWithClass)
+{
+  // Triangle + pendant edge: only pendant is a bridge
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 1);
+  g.insert_arc(nodes[2], nodes[0], 1);
+  auto pend = g.insert_arc(nodes[2], nodes[3], 1); // bridge
+
+  Compute_Bridges<Graph> cb(g);
+  auto b_class = cb.find_bridges(nodes[0]);
+  auto b_free  = find_bridges(g, nodes[0]);
+
+  EXPECT_EQ(b_class.size(), b_free.size());
+  EXPECT_EQ(b_class.size(), 1U);
+  EXPECT_TRUE(bridge_set(b_class).count(pend));
+}
+
+TEST(Bridges, OperatorCallConsistentWithMethod)
+{
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 1);
+  g.insert_arc(nodes[2], nodes[3], 1);
+
+  Compute_Bridges<Graph> cb(g);
+  auto b1 = cb.find_bridges();
+  auto b2 = cb(); // operator()()
+
+  EXPECT_EQ(b1.size(), b2.size());
+  EXPECT_EQ(b1.size(), 3U);
+}
+
+TEST(Bridges, MultipleCallsSameResult)
+{
+  // Two triangles joined by a single bridge
+  Graph g;
+  auto nodes = make_nodes(g, 6);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 1);
+  g.insert_arc(nodes[2], nodes[0], 1);
+  g.insert_arc(nodes[2], nodes[3], 1); // bridge
+  g.insert_arc(nodes[3], nodes[4], 1);
+  g.insert_arc(nodes[4], nodes[5], 1);
+  g.insert_arc(nodes[5], nodes[3], 1);
+
+  Compute_Bridges<Graph> cb(g);
+  auto b1 = cb.find_bridges();
+  auto b2 = cb.find_bridges();
+
+  EXPECT_EQ(b1.size(), 1U);
+  EXPECT_EQ(b2.size(), 1U);
+}
+
+TEST(Bridges, StressTestPathGraph)
+{
+  // Path of 100 nodes: all 99 edges are bridges
+  Graph g;
+  const int N = 100;
+  auto nodes = make_nodes(g, N);
+  for (int i = 0; i < N - 1; ++i)
+    g.insert_arc(nodes[i], nodes[i + 1], 1);
+
+  auto bridges = find_bridges(g);
+  EXPECT_EQ(bridges.size(), static_cast<size_t>(N - 1));
+}
+
+TEST(Bridges, ConsistentWithCutArcOnPathGraph)
+{
+  // Path 0-1-2-3: every edge is also a "cut arc" after compute_cut_nodes+paint
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 1);
+  g.insert_arc(nodes[2], nodes[3], 1);
+
+  // Bridges via Compute_Bridges
+  auto bridges = find_bridges(g, nodes[0]);
+  EXPECT_EQ(bridges.size(), 3U);
+
+  // Articulation points via Compute_Cut_Nodes: nodes 1 and 2
+  DynDlist<Graph::Node *> cuts;
+  Compute_Cut_Nodes<Graph> alg(g);
+  alg(nodes[0], cuts);
+  EXPECT_EQ(cuts.size(), 2U); // nodes 1 and 2
+}
+
+TEST(Bridges, StarGraphAllEdgesBridges)
+{
+  // Star: center (0) -- leaves 1..4; all 4 arcs are bridges
+  Graph g;
+  auto nodes = make_nodes(g, 5);
+  std::vector<Graph::Arc *> arcs;
+  for (int i = 1; i < 5; ++i)
+    arcs.push_back(g.insert_arc(nodes[0], nodes[i], 1));
+
+  auto bridges = find_bridges(g, nodes[0]);
+  auto bs = bridge_set(bridges);
+  EXPECT_EQ(bs.size(), 4U);
+  for (auto * a : arcs)
+    EXPECT_TRUE(bs.count(a));
+}
+
+TEST(Bridges, SelfLoopDoesNotAffectBridges)
+{
+  // Path 0-1-2 with a self-loop on node 1: bridges are still 0-1 and 1-2
+  Graph g;
+  auto nodes = make_nodes(g, 3);
+  auto a01 = g.insert_arc(nodes[0], nodes[1], 1);
+  auto a12 = g.insert_arc(nodes[1], nodes[2], 1);
+  g.insert_arc(nodes[1], nodes[1], 99); // self-loop on 1
+
+  auto bridges = find_bridges(g, nodes[0]);
+  auto bs = bridge_set(bridges);
+  EXPECT_EQ(bs.size(), 2U);
+  EXPECT_TRUE(bs.count(a01));
+  EXPECT_TRUE(bs.count(a12));
+}
+
+TEST(Bridges, ResultIsIndependentOfStartNode)
+{
+  // Two triangles connected by a bridge (2--3).
+  // Regardless of where the DFS starts, only that arc is a bridge.
+  Graph g;
+  auto nodes = make_nodes(g, 6);
+  g.insert_arc(nodes[0], nodes[1], 1);
+  g.insert_arc(nodes[1], nodes[2], 1);
+  g.insert_arc(nodes[2], nodes[0], 1);
+  auto bridge = g.insert_arc(nodes[2], nodes[3], 1);
+  g.insert_arc(nodes[3], nodes[4], 1);
+  g.insert_arc(nodes[4], nodes[5], 1);
+  g.insert_arc(nodes[5], nodes[3], 1);
+
+  for (int start = 0; start < 6; ++start)
+    {
+      auto bridges = find_bridges(g, nodes[start]);
+      auto bs = bridge_set(bridges);
+      EXPECT_EQ(bs.size(), 1U) << "start=" << start;
+      EXPECT_TRUE(bs.count(bridge)) << "start=" << start;
+    }
+}
+
+TEST(Bridges, NonBridgeEdgesAbsentFromList)
+{
+  // Triangle 0-1-2-0 + pendant 2-3.
+  // The 3 triangle arcs must NOT appear; only the pendant is a bridge.
+  Graph g;
+  auto nodes = make_nodes(g, 4);
+  auto t01 = g.insert_arc(nodes[0], nodes[1], 1); // triangle, not bridge
+  auto t12 = g.insert_arc(nodes[1], nodes[2], 1); // triangle, not bridge
+  auto t20 = g.insert_arc(nodes[2], nodes[0], 1); // triangle, not bridge
+  auto pend = g.insert_arc(nodes[2], nodes[3], 1); // bridge
+
+  auto bridges = find_bridges(g);
+  auto bs = bridge_set(bridges);
+
+  EXPECT_EQ(bs.size(), 1U);
+  EXPECT_TRUE(bs.count(pend));
+  EXPECT_FALSE(bs.count(t01));
+  EXPECT_FALSE(bs.count(t12));
+  EXPECT_FALSE(bs.count(t20));
+}

@@ -261,12 +261,18 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Min-Cost Max-Flow                                                      │
 │  └─ Multicommodity                                                         │
 │                                                                            │
-│  SORTING                  SEARCHING                OTHER                   │
-│  ├─ Quicksort            ├─ Binary Search         ├─ Union-Find            │
-│  ├─ Mergesort            ├─ Interpolation         ├─ Huffman Coding        │
-│  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
-│  ├─ Introsort                                     ├─ Geometric             │
-│  └─ Shell Sort                                    └─ RMQ/LCA (Euler Tour)  │
+│  SORTING                  SEARCHING                MATCHING                │
+│  ├─ Quicksort            ├─ Binary Search         ├─ Hopcroft-Karp         │
+│  ├─ Mergesort            ├─ Interpolation         ├─ Edmonds-Blossom       │
+│  ├─ Heapsort             └─ Pattern Matching      └─ Hungarian (Munkres)   │
+│  ├─ Introsort                                                              │
+│  └─ Shell Sort                                                             │
+│                                                                            │
+│  GEOMETRY                 OTHER                                            │
+│  ├─ Convex Hull          ├─ Union-Find                                     │
+│  ├─ Triangulation        ├─ Huffman Coding                                 │
+│  ├─ Voronoi / Delaunay   ├─ Simplex (LP)                                   │
+│  └─ Intersections        └─ RMQ/LCA (Euler + Binary Lifting)               │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -821,6 +827,77 @@ int main() {
 
     return 0;
 }
+```
+
+### Tree LCA on Graph Backends
+
+`LCA.H` provides two LCA engines for rooted trees represented as Aleph graphs:
+
+| Class | Build | Query (`lca`) | Space |
+|-------|-------|----------------|-------|
+| `Gen_Binary_Lifting_LCA<GT, SA>` | O(n log n) | O(log n) | O(n log n) |
+| `Gen_Euler_RMQ_LCA<GT, SA>` | O(n log n) | O(1) | O(n log n) |
+
+Highlights:
+- Works with `List_Graph`, `List_SGraph`, and `Array_Graph`.
+- Supports arc filtering via `SA`.
+- Validates tree shape on the filtered graph (connected, acyclic, simple).
+- Exposes `lca`, `distance`, `is_ancestor`, `depth_of`, and id-based APIs.
+
+```cpp
+#include <LCA.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+int main() {
+    G g;
+    auto * n0 = g.insert_node(0);
+    auto * n1 = g.insert_node(1);
+    auto * n2 = g.insert_node(2);
+    auto * n3 = g.insert_node(3);
+    g.insert_arc(n0, n1);
+    g.insert_arc(n0, n2);
+    g.insert_arc(n1, n3);
+
+    Binary_Lifting_LCA<G> bl(g, n0);
+    Euler_RMQ_LCA<G> er(g, n0);
+
+    auto * a = bl.lca(n3, n2);           // n0
+    auto * b = er.lca(n3, n2);           // n0
+    size_t d = bl.distance(n3, n2);      // 3 edges
+    bool ok = bl.is_ancestor(n0, n3);    // true
+    (void)a; (void)b; (void)d; (void)ok;
+}
+```
+
+Backend-specific constructors:
+
+```cpp
+#include <LCA.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+Binary_Lifting_LCA<G> bl(g, root_node);
+Euler_RMQ_LCA<G> er(g, root_node);
+```
+
+```cpp
+#include <LCA.H>
+#include <tpl_sgraph.H>
+
+using G = List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>;
+Binary_Lifting_LCA<G> bl(g, root_node);
+Euler_RMQ_LCA<G> er(g, root_node);
+```
+
+```cpp
+#include <LCA.H>
+#include <tpl_agraph.H>
+
+using G = Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>;
+Binary_Lifting_LCA<G> bl(g, root_node);
+Euler_RMQ_LCA<G> er(g, root_node);
 ```
 
 ### Mo's Algorithm (Offline Range Queries)
@@ -1410,11 +1487,11 @@ Aleph-w extends Mo's algorithm to **tree structures** for subtree and path queri
 
 // Tree represented as Aleph graph
 List_Graph<Graph_Node<int>, Graph_Arc<Empty_Class>> g;
-auto * root = build_tree(g);  // Your tree construction
+auto * root_node = build_tree(g);  // Your tree construction
 
 // Subtree distinct count
-Distinct_Count_Mo_On_Trees<decltype(g)> mot(g, root);
-auto subtree_answers = mot.subtree_solve({root, child1, child2});
+Distinct_Count_Mo_On_Trees<decltype(g)> mot(g, root_node);
+auto subtree_answers = mot.subtree_solve({root_node, child1, child2});
 
 // Path distinct count between nodes
 auto path_answers = mot.path_solve({{node_a, node_b}, {node_c, node_d}});
@@ -1871,13 +1948,25 @@ int main() {
     tarjan_scc(digraph, sccs);
 
     // Find articulation points
-    DynList<Node*> cut_nodes;
-    compute_cut_nodes(g, cut_nodes);
+    auto cut_nodes = compute_cut_nodes(g);
 
     std::cout << "Articulation points:\n";
     cut_nodes.for_each([](auto* node) {
         std::cout << "  " << node->get_info() << "\n";
     });
+
+    // Find bridges (cut edges) — Tarjan O(V+E)
+    auto bridges = find_bridges(g);
+
+    std::cout << "Bridges:\n";
+    bridges.for_each([&g](auto* arc) {
+        std::cout << "  " << g.get_src_node(arc)->get_info()
+                  << " -- " << g.get_tgt_node(arc)->get_info() << "\n";
+    });
+
+    // Class form: cheaper when calling find_bridges() repeatedly
+    Compute_Bridges<Graph> cb(g);
+    auto b2 = cb.find_bridges(nodes[2]); // start from a specific node
 
     return 0;
 }
@@ -1896,7 +1985,154 @@ int main() {
 │  Hopcroft-Karp: O(E√V)                                                      │
 │  Max-Flow Reduction: O(VE)                                                  │
 │                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  GENERAL GRAPH MATCHING (Edmonds-Blossom)                                  │
+│                                                                             │
+│  Handles odd cycles (blossoms) in non-bipartite graphs                     │
+│  Time: O(V³)                                                                │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  GENERAL GRAPH WEIGHTED MATCHING (Weighted Blossom)                        │
+│                                                                             │
+│  Maximizes total matching weight in non-bipartite graphs                   │
+│  Optional: maximize cardinality first, then weight                          │
+│  Backends: List_Graph, List_SGraph, Array_Graph                             │
+│  Time: O(V³)                                                                │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ASSIGNMENT PROBLEM (Hungarian / Munkres)                                   │
+│                                                                             │
+│  Given an m×n cost matrix, find the minimum-cost perfect matching           │
+│  between rows and columns.                                                  │
+│                                                                             │
+│  Cost matrix:          Optimal assignment:                                  │
+│  ┌──────────────┐      Worker 0 → Task 2  (cost  69)                        │
+│  │  82  83  69  │      Worker 1 → Task 1  (cost  37)                        │
+│  │  77  37  49  │      Worker 2 → Task 0  (cost  11)                        │
+│  │  11  69   5  │      Worker 3 → Task 3  (cost  23)                        │
+│  │   8   9  98  │                                                           │
+│  └──────────────┘      Total cost: 140                                      │
+│                                                                             │
+│  Algorithm: Shortest augmenting paths + dual variables (potentials)         │
+│  Time:  O(n³)   Space: O(n²)   Handles: rectangular, negative costs        │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### General Graph Matching (Edmonds-Blossom)
+
+```cpp
+#include <Blossom.H>
+#include <tpl_graph.H>
+
+using namespace Aleph;
+
+int main() {
+    using Graph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+    Graph g;
+
+    auto* n0 = g.insert_node(0);
+    auto* n1 = g.insert_node(1);
+    auto* n2 = g.insert_node(2);
+    auto* n3 = g.insert_node(3);
+    auto* n4 = g.insert_node(4);
+
+    // Odd cycle + stem arcs
+    g.insert_arc(n0, n1);
+    g.insert_arc(n1, n2);
+    g.insert_arc(n2, n3);
+    g.insert_arc(n3, n4);
+    g.insert_arc(n4, n0);
+    g.insert_arc(n1, n4);
+
+    DynDlist<Graph::Arc*> matching;
+    size_t cardinality = blossom_maximum_cardinality_matching(g, matching);
+
+    std::cout << "Maximum matching size: " << cardinality << "\n";
+    return 0;
+}
+```
+
+#### General Graph Weighted Matching (Weighted Blossom)
+
+`Blossom_Weighted.H` is backend-generic in Aleph. It is tested on:
+- `List_Graph<Graph_Node<int>, Graph_Arc<long long>>`
+- `List_SGraph<Graph_Snode<int>, Graph_Sarc<long long>>`
+- `Array_Graph<Graph_Anode<int>, Graph_Aarc<long long>>`
+
+See `Tests/weighted_blossom_test.cc` and `Examples/weighted_blossom_example.cc`.
+
+```cpp
+#include <Blossom_Weighted.H>
+#include <tpl_graph.H>
+#include <tpl_sgraph.H>
+#include <tpl_agraph.H>
+
+using namespace Aleph;
+
+int main() {
+    using ListGraph = List_Graph<Graph_Node<int>, Graph_Arc<long long>>;
+    using SGraph = List_SGraph<Graph_Snode<int>, Graph_Sarc<long long>>;
+    using AGraph = Array_Graph<Graph_Anode<int>, Graph_Aarc<long long>>;
+
+    ListGraph g;
+
+    auto* n0 = g.insert_node(0);
+    auto* n1 = g.insert_node(1);
+    auto* n2 = g.insert_node(2);
+    auto* n3 = g.insert_node(3);
+
+    g.insert_arc(n0, n1, 9);
+    g.insert_arc(n1, n2, 10);
+    g.insert_arc(n2, n3, 8);
+    g.insert_arc(n0, n3, 7);
+
+    DynDlist<ListGraph::Arc*> matching;
+    auto result = blossom_maximum_weight_matching(g, matching);
+    // Optional lexicographic objective:
+    // auto result = blossom_maximum_weight_matching(
+    //     g, matching, Dft_Dist<ListGraph>(), Dft_Show_Arc<ListGraph>(), true);
+
+    std::cout << "Matching size: " << result.cardinality << "\n";
+    std::cout << "Total weight: " << result.total_weight << "\n";
+    return 0;
+}
+```
+
+#### Hungarian Assignment (Munkres)
+
+```cpp
+#include <Hungarian.H>
+#include <tpl_dynMat.H>
+
+using namespace Aleph;
+
+int main() {
+    // Construct directly from initializer list
+    Hungarian_Assignment<int> ha({
+        {82, 83, 69, 92},
+        {77, 37, 49, 92},
+        {11, 69,  5, 86},
+        { 8,  9, 98, 23}
+    });
+
+    std::cout << "Optimal cost: " << ha.get_total_cost() << "\n";  // 140
+
+    for (auto [worker, task] : ha.get_assignments())
+        std::cout << "Worker " << worker << " -> Task " << task << "\n";
+
+    // Maximization: negate costs automatically
+    DynMatrix<int> profit(3, 3, 0);
+    profit.allocate();
+    // ... fill profit matrix ...
+    auto result = hungarian_max_assignment(profit);
+    std::cout << "Max profit: " << result.total_cost << "\n";
+
+    return 0;
+}
 ```
 
 <a id="readme-sorting-algorithms"></a>
@@ -2447,11 +2683,16 @@ int main() {
 | `AStar.H` | `astar_search()` | Heuristic pathfinding |
 | `Kruskal.H` | `kruskal_min_spanning_tree()` | MST (edge-based) |
 | `Prim.H` | `prim_min_spanning_tree()` | MST (vertex-based) |
+| `Blossom.H` | `blossom_maximum_cardinality_matching()` | Maximum matching (general graph) |
+| `Blossom_Weighted.H` | `blossom_maximum_weight_matching()` | Maximum-weight matching (general graph; List/SGraph/Array backends) |
+| `Hungarian.H` | `hungarian_assignment()`, `hungarian_max_assignment()` | Assignment problem (min-cost / max-profit) |
+| `LCA.H` | `Gen_Binary_Lifting_LCA`, `Gen_Euler_RMQ_LCA` | Lowest common ancestor on rooted trees (binary lifting / Euler+RMQ) |
 | `tpl_maxflow.H` | `*_maximum_flow()` | Maximum flow algorithms |
 | `tpl_mincost.H` | `min_cost_max_flow()` | Min-cost max-flow |
 | `Tarjan.H` | `tarjan_scc()` | Strongly connected components |
 | `tpl_components.H` | `connected_components()` | Connected components |
-| `tpl_cut_nodes.H` | `compute_cut_nodes()` | Articulation points |
+| `tpl_cut_nodes.H` | `compute_cut_nodes()`, `Compute_Cut_Nodes` | Articulation points and biconnected components |
+| `tpl_cut_nodes.H` | `find_bridges()`, `Compute_Bridges` | Bridge edges (cut edges) — Tarjan O(V+E) |
 | `topological_sort.H` | `topological_sort()` | DAG ordering |
 | `Karger.H` | `karger_min_cut()` | Probabilistic min-cut |
 | `Stoer_Wagner.H` | `stoer_wagner_min_cut()` | Deterministic min-cut |
@@ -2630,6 +2871,10 @@ cmake --build build
 | Min cut | `min_cut_example.cc` | Karger, Stoer-Wagner |
 | **Special Algorithms** | | |
 | MST | `mst_example.C` | Kruskal, Prim |
+| General matching | `blossom_example.cc` | Edmonds-Blossom + TikZ exports |
+| General weighted matching | `weighted_blossom_example.cc` | Weighted blossom + objective comparison + TikZ exports |
+| Assignment (Hungarian) | `hungarian_example.cc` | Hungarian/Munkres minimum-cost and maximum-profit assignment |
+| Tree LCA | `lca_example.cc` | Binary lifting + Euler/RMQ LCA with cross-backend parity (List/SGraph/Array) |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |

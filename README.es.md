@@ -36,7 +36,11 @@ Idioma: Español | [English](README.md)
 - [Licencia](#readme-es-licencia)
 - [Agradecimientos](#readme-es-agradecimientos)
 
-> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo el flujo completo de Delaunay/Voronoi y los ejemplos:
+> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo emparejamiento máximo en grafos generales con Edmonds-Blossom (`Blossom.H`), emparejamiento de máximo peso en grafos generales (`Blossom_Weighted.H`, validado en `List_Graph`, `List_SGraph` y `Array_Graph`), el algoritmo Húngaro/Munkres para asignación óptima (`Hungarian.H`), LCA en árboles sobre grafos de Aleph (`LCA.H`, binary lifting y Euler+RMQ), el flujo completo de Delaunay/Voronoi y los ejemplos:
+> - `Examples/blossom_example.cc`
+> - `Examples/weighted_blossom_example.cc`
+> - `Examples/hungarian_example.cc`
+> - `Examples/lca_example.cc`
 > - `Examples/geom_example.C` (incluye selector `-s advanced`)
 > - `Examples/voronoi_clipped_cells_example.cc`
 > - `Examples/delaunay_voronoi_example.cc`
@@ -66,8 +70,81 @@ Idioma: Español | [English](README.md)
 
 **Aleph-w** es una librería C++ (C++20) orientada a enseñanza y uso práctico: incluye implementaciones de estructuras de datos, algoritmos clásicos (especialmente de grafos) y una suite de pruebas amplia.
 
-- **Distribución**: headers en el raíz del repo + librería estática `libAleph.a`.
-- **Build**: CMake (con presets opcionales) y tests con GoogleTest.
+- **238 archivos de cabecera** cubriendo algoritmos clásicos y modernos.
+- **90+ estructuras de datos** con múltiples variantes.
+- **50+ algoritmos de grafos** incluyendo flujos, cortes y caminos.
+- **80+ programas de ejemplo** con comentarios detallados.
+
+### Características de un vistazo
+
+#### Estructuras de Datos
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                  RESUMEN DE ESTRUCTURAS DE DATOS                           │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ÁRBOLES                  TABLAS HASH              HEAPS                   │
+│  ├─ Árbol AVL            ├─ Chaining              ├─ Binary Heap           │
+│  ├─ Árbol Rojo-Negro     ├─ Open Addressing       ├─ Fibonacci Heap        │
+│  ├─ Árbol Splay          ├─ Linear Probing        └─ Array Heap            │
+│  ├─ Treap                └─ Linear Hashing                                 │
+│  ├─ Skip List                                                              │
+│  └─ Variantes con Rank                                                     │
+│                                                                            │
+│  LISTAS                   ARREGLOS                 GRAFOS                  │
+│  ├─ Simplemente ligada   ├─ Arreglo dinámico      ├─ Lista de adyacencia   │
+│  ├─ Doblemente ligada    ├─ Arreglo fijo          ├─ Matriz de adyacencia  │
+│  ├─ Circular             ├─ Matriz 2D             ├─ Redes (flujos)        │
+│  └─ Skip List            └─ BitArray              └─ Euclidianos           │
+│                                                                            │
+│  ESPECIALES               ESPACIALES               PROBABILÍSTICAS         │
+│  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
+│  ├─ LRU Cache            ├─ 2D-Tree               └─ Skip List             │
+│  └─ Prefix Tree (Trie)   └─ K-d Tree                                       │
+│                                                                            │
+│  GEOMETRÍA                                                                 │
+│  ├─ Primitivas (Punto, Segmento, Polígono, Elipse)                         │
+│  ├─ Predicados Exactos (orientación, intersección, in_circle)              │
+│  ├─ Convex Hull (Andrew, Graham, QuickHull)                                │
+│  ├─ Triangulación (Ear-Cutting, Delaunay, CDT)                             │
+│  ├─ Proximidad (Closest Pair, MEC, Rotating Calipers)                      │
+│  ├─ Diagramas (Voronoi, Power Diagram)                                     │
+│  └─ Visualización (TikZ/PGF backend)                                       │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Algoritmos
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                          RESUMEN DE ALGORITMOS                             │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  CAMINOS MÍNIMOS          ÁRBOLES EXPANSORES       CONECTIVIDAD            │
+│  ├─ Dijkstra             ├─ Kruskal               ├─ DFS / BFS             │
+│  ├─ Bellman-Ford         └─ Prim                  ├─ Componentes Conexas   │
+│  ├─ Floyd-Warshall                                ├─ Tarjan / Kosaraju     │
+│  ├─ Johnson                                       ├─ Puntos de Articulación│
+│  └─ A* Search                                     └─ Biconectividad        │
+│                                                                            │
+│  FLUJOS EN REDES          CORTE MÍNIMO             EMPAREJAMIENTO (MATCH)  │
+│  ├─ Ford-Fulkerson       ├─ Karger                ├─ Hopcroft-Karp         │
+│  ├─ Edmonds-Karp         ├─ Karger-Stein          ├─ Edmonds-Blossom       │
+│  ├─ Push-Relabel         └─ Stoer-Wagner          └─ Húngaro (Asignación)  │
+│  ├─ Dinic                                                                  │
+│  └─ Min-Cost Max-Flow                                                      │
+│                                                                            │
+│  ORDENAMIENTO             BÚSQUEDA                 OTROS                   │
+│  ├─ Quicksort            ├─ Búsqueda Binaria      ├─ Union-Find            │
+│  ├─ Mergesort            ├─ Interpolación         ├─ Huffman Coding        │
+│  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
+│  ├─ Introsort                                     └─ RMQ/LCA (Euler Tour)  │
+│  └─ Shell Sort                                                             │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 

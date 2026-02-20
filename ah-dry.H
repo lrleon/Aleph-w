@@ -1001,7 +1001,7 @@ public:
 
       Since `foldl` is overloaded with several operation structures,
       there is a certain flexibility with the parameter qualifiers. You
-      could, for example, to declare `acc` and/or `item` by value.
+      could, for example, declare `acc` and/or `item` by value.
 
       The method is a template. The first template parameter `__T`
       specifies the final folded type. By default, this type is `T` (the

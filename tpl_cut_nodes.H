@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -31,19 +30,56 @@
 
 
 /** @file tpl_cut_nodes.H
- *  @brief Articulation points (cut nodes) and bridges.
+ *  @brief Articulation points (cut nodes), bridges, and biconnected components.
  *
- *  Finds cut vertices and bridge edges whose removal disconnects
- *  the graph. Uses DFS with low-link values.
+ *  Provides two related algorithms for connectivity analysis of undirected
+ *  graphs, both based on Tarjan's DFS low-link technique (O(V + E)):
  *
- *  ## Features
- *  - Find all cut vertices
- *  - Find all bridges
- *  - Compute biconnected components
+ *  ### Cut nodes (articulation points)
  *
- *  ## Complexity: O(V + E)
+ *  A **cut node** is a vertex whose removal disconnects the graph.
+ *
+ *  | Symbol | Meaning |
+ *  |--------|---------|
+ *  | `df[v]`  | DFS discovery time of v |
+ *  | `low[v]` | minimum `df` reachable from v's subtree via ≤1 back-edge |
+ *
+ *  Condition (non-root): v is a cut node if ∃ child c with `low[c] >= df[v]`.
+ *
+ *  **API**
+ *  - `Compute_Cut_Nodes<GT,SA>`: class — compute, then optionally paint
+ *    biconnected blocks and extract mapped subgraphs.
+ *  - `compute_cut_nodes(g)` / `compute_cut_nodes(g, start)`:
+ *    free functions returning `DynList<Node*>`.
+ *
+ *  ### Bridges (cut edges / isthmuses)
+ *
+ *  A **bridge** is an edge whose removal disconnects the graph.
+ *
+ *  Condition: tree edge `(u → v)` is a bridge iff `low[v] > df[u]`
+ *  (no back-edge from v's subtree escapes above u).
+ *
+ *  Parallel edges are handled correctly: only the exact parent arc (by
+ *  pointer identity) is skipped; a second parallel arc acts as a back-edge.
+ *
+ *  **API**
+ *  - `Compute_Bridges<GT,SA>`: class with `find_bridges(start)`,
+ *    `find_bridges()`, `operator()(start)`, `operator()()`.
+ *  - `find_bridges(g)` / `find_bridges(g, start)`:
+ *    free functions returning `DynList<Arc*>`.
+ *
+ *  ### Biconnected components
+ *
+ *  After calling `Compute_Cut_Nodes::cut_nodes()`, call `paint_subgraphs()`
+ *  to colour each biconnected block, then `map_subgraph()` or
+ *  `compute_blocks()` to extract mapped copies.
+ *
+ *  @note Both algorithms require an **undirected**, **connected** graph.
+ *        A `std::domain_error` is thrown for digraphs.
+ *  @note Complexity: O(V + E) time and O(V) extra space.
  *
  *  @see tpl_components.H Connected components
+ *  @see tpl_graph_utils.H Low-level graph utilities (df<GT>, low<GT>)
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
@@ -264,12 +300,9 @@ components as well as the cross arcs.
               ARC_BITS(arc).set_bit(Cut, true); // mark as cut arc
               continue; // move to next arc
             }
-          else
-            {
-              paint_arc<GT>(arc, Cross_Arc); // mark as cross arc
-              if (is_node_painted<GT>(tgt_node))
-                continue;
-            }
+          paint_arc<GT>(arc, Cross_Arc); // mark as cross arc
+          if (is_node_painted<GT>(tgt_node))
+            continue;
 
           // paint the block reachable through this arc
           paint_subgraph(tgt_node);
@@ -280,16 +313,16 @@ components as well as the cross arcs.
         }
     }
 
-	    typename GT::Node * create_and_map_node(typename GT::Node *gp,
-	                                            const long & color,
-	                                            GT & sg)
-	    {
-	      (void)color;
-	      assert(get_color<GT>(gp) == color);
-	      assert(not IS_NODE_VISITED(gp, Build_Subtree));
+    typename GT::Node * create_and_map_node(typename GT::Node *gp,
+                                            const long & color,
+                                            GT & sg)
+    {
+      (void) color;
+      assert(get_color<GT>(gp) == color);
+      assert(not IS_NODE_VISITED(gp, Build_Subtree));
 
-	      std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
-	      sg.insert_node(tp_auto.get());
+      std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
+      sg.insert_node(tp_auto.get());
       GT::map_nodes(gp, tp_auto.get());
       NODE_BITS(gp).set_bit(Build_Subtree, true);
 
@@ -375,18 +408,29 @@ components as well as the cross arcs.
   The "colors" of each component are placed in the NODE_COUNTER
   attribute of each node and arc. The first color starts at value 1.
 
+  @note **Cut nodes keep color 0** (they don't belong to any block).
+  @note **Cross arcs** (cut → non-cut) are stored with
+        `ARC_COUNTER(arc) == Cross_Arc` (−1, which is NOT considered
+        "painted" by `is_arc_painted`).
+  @note **Cut arcs** (cut → cut) have the `Cut` bit set in `ARC_BITS`
+        and counter = 0.
+
   Use this routine if it is not necessary or sufficient to obtain
   the components using the colors of the blocks. This saves the
   computation and memory of having to create new graphs.
 
-  @return the number of components, which is the number of colors.
+  @return **The next unused color** (one past the highest color
+          assigned).  If N biconnected blocks were found and painted
+          with colors 1 … N, the return value is N + 1.
+          Returns 1 without painting anything if there are no cut
+          nodes (the graph is biconnected).
   @throw std::logic_error if the computation of cut nodes has not
   been previously invoked.
      */
     long paint_subgraphs()
     {
       ah_logic_error_if(state != Cut_Nodes_Computed)
-      << "Cut nodes have not been computed or the class is in another phase";
+        << "Cut nodes have not been computed or the class is in another phase";
 
       gptr->reset_counter_nodes();
       gptr->reset_counter_arcs();
@@ -524,16 +568,17 @@ components as well as the cross arcs.
                         GT & cut_graph,
                         DynDlist<typename GT::Arc *> & cross_arc_list)
     {
-      ah_logic_error_if(state < Cut_Nodes_Computed)
-      << "Cut nodes have not been computed";
+      ah_logic_error_if(state < Cut_Nodes_Computed) << "Cut nodes have not been computed";
 
       if (state == Cut_Nodes_Computed)
         paint_subgraphs();
 
+      // curr_color is the NEXT unused color, so valid colors are 1 .. curr_color-1.
+      // We allocate curr_color slots (indices 0 .. curr_color-1) so that
+      // block at color c lives at blocks[c-1]; slot [0] remains unused / empty.
       const long & num_colors = curr_color;
 
       DynArray<GT *> blocks; // blocks in an array for fast access
-      // Whether it is empty or not indicates if it has been processed.
       blocks.reserve(num_colors);
 
       // Create an ordered list of empty components by color i
@@ -562,6 +607,203 @@ components as well as the cross arcs.
       map_cut_graph(cut_graph, cross_arc_list);
     }
   };
+
+  // =========================================================================
+  // Bridge finding (Tarjan low-link algorithm)
+  // =========================================================================
+
+  /** @brief Find bridge edges (isthmuses) of a connected undirected graph.
+   *
+   *  A **bridge** (also called *isthmus* or *cut edge*) is an arc whose
+   *  removal disconnects the graph.  This class implements Tarjan's
+   *  O(V + E) algorithm: a single DFS that tracks *discovery time* `df[v]`
+   *  and *low-link* `low[v]` (earliest discovery time reachable from the
+   *  subtree of `v` via back-edges).
+   *
+   *  **Bridge condition**: a DFS tree edge `(p → tgt)` is a bridge if and
+   *  only if `low[tgt] > df[p]`, i.e., no back-edge in `tgt`'s subtree
+   *  reaches an ancestor of `p`.
+   *
+   *  **Parallel edges** are handled correctly: only the exact parent arc
+   *  (by pointer identity) is skipped; a second parallel edge acts as a
+   *  back-edge and prevents either copy from being a bridge.
+   *
+   *  **Usage**:
+   *  @code
+   *  Compute_Bridges<Graph> cb(g);
+   *  DynList<Graph::Arc *> bridges = cb.find_bridges();
+   *  for (auto * a : bridges)
+   *    std::cout << "bridge endpoint ids: "
+   *              << g.get_src_node(a)->get_info() << " -- "
+   *              << g.get_tgt_node(a)->get_info() << '\n';
+   *  @endcode
+   *
+   *  @tparam GT  Graph type (must be undirected; see @ref tpl_graph.H).
+   *  @tparam SA  Arc filter (default: `Dft_Show_Arc<GT>`).
+   *
+   *  @note Complexity: O(V + E) time and O(V) extra space.
+   *  @note The graph must be undirected.  A domain_error is thrown for
+   *        digraphs.
+   *
+   *  @ingroup Graphs
+   *  @see Compute_Cut_Nodes, find_bridges(), is_an_cut_arc()
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  class Compute_Bridges
+  {
+    SA sa;
+    GT *gptr;
+
+    void __dfs(typename GT::Node *p, typename GT::Arc *parent_arc,
+               long & curr_df, DynList<typename GT::Arc *> & bridges)
+    {
+      NODE_BITS(p).set_bit(Depth_First, true);
+      low<GT>(p) = df<GT>(p) = curr_df++;
+
+      for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+        {
+          auto arc = it.get_curr();
+          if (arc == parent_arc)
+            continue; // skip the arc we came from
+
+          auto tgt = it.get_tgt_node();
+
+          if (IS_NODE_VISITED(tgt, Depth_First))
+            {
+              // Back-edge: update low if this arc has not been traversed yet
+              if (not IS_ARC_VISITED(arc, Depth_First))
+                low<GT>(p) = std::min(df<GT>(tgt), low<GT>(p));
+              continue;
+            }
+
+          if (IS_ARC_VISITED(arc, Depth_First))
+            continue;
+
+          ARC_BITS(arc).set_bit(Depth_First, true); // mark tree arc
+
+          __dfs(tgt, arc, curr_df, bridges);
+
+          low<GT>(p) = std::min(low<GT>(tgt), low<GT>(p));
+
+          if (low<GT>(tgt) > df<GT>(p)) // bridge condition
+            bridges.append(arc);
+        }
+    }
+
+  public:
+    /** @brief Constructor.
+     *
+     *  @param[in] g   Undirected connected graph.
+     *  @param[in] sa  Arc filter.
+     */
+    Compute_Bridges(const GT & g, SA sa = SA())
+      : sa(sa), gptr(&const_cast<GT &>(g))
+    { /* empty */
+    }
+
+    /** @brief Find all bridge edges starting from @p start.
+     *
+     *  Performs a DFS from @p start and returns every arc identified
+     *  as a bridge.  The graph's `Depth_First` bits and `NODE_COUNTER`
+     *  fields are used internally and reset before the search; `NODE_COOKIE`
+     *  is used for low-link storage and cleared on return.
+     *
+     *  @param[in] start  Starting node for the DFS.
+     *  @return `DynList` of pointers to bridge arcs (order: DFS post-order).
+     *  @throws std::domain_error    If the graph is a digraph.
+     *  @throws std::invalid_argument If @p start is `nullptr`.
+     */
+    DynList<typename GT::Arc *> find_bridges(typename GT::Node *start)
+    {
+      ah_domain_error_if(gptr->is_digraph()) << "Compute_Bridges: does not work on digraphs";
+      ah_invalid_argument_if(start == nullptr) << "Compute_Bridges::find_bridges(): start must be non-null";
+
+      DynList<typename GT::Arc *> bridges;
+
+      if (gptr->get_num_nodes() == 0)
+        return bridges;
+
+      gptr->for_each_node([](auto p)
+                            {
+                              NODE_COUNTER(p) = 0;
+                              NODE_BITS(p).reset();
+                            });
+      gptr->reset_arcs();
+
+      long curr_df = 0;
+      __dfs(start, nullptr, curr_df, bridges);
+
+      // NODE_COOKIE holds low-link values (stored as longs); clear them.
+      gptr->for_each_node([](auto p) { NODE_COOKIE(p) = nullptr; });
+
+      return bridges;
+    }
+
+    /** \overload
+     *
+     *  Starts the DFS from the first node returned by the graph.
+     */
+    DynList<typename GT::Arc *> find_bridges()
+    {
+      return find_bridges(gptr->get_first_node());
+    }
+
+    /** \overload operator()
+     *
+     *  Synonym for `find_bridges(start)`.
+     */
+    DynList<typename GT::Arc *> operator()(typename GT::Node *start)
+    {
+      return find_bridges(start);
+    }
+
+    /** \overload operator()
+     *
+     *  Synonym for `find_bridges()` (from first node).
+     */
+    DynList<typename GT::Arc *> operator()()
+    {
+      return find_bridges();
+    }
+  };
+
+  /** @brief Find all bridge edges in a connected undirected graph.
+   *
+   *  Convenience free function wrapping `Compute_Bridges<GT, SA>`.
+   *  A **bridge** is an arc whose removal disconnects the graph.
+   *
+   *  @code
+   *  auto bridges = find_bridges(g, start_node);
+   *  for (auto * a : bridges)
+   *    ...;
+   *  @endcode
+   *
+   *  @tparam GT   Graph type.
+   *  @tparam SA   Arc filter.
+   *  @param[in] g      Undirected connected graph.
+   *  @param[in] start  Starting node for the DFS.
+   *  @param[in] sa     Arc filter.
+   *  @return `DynList` of pointers to bridge arcs.
+   *
+   *  @ingroup Graphs
+   *  @see Compute_Bridges
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  DynList<typename GT::Arc *>
+  find_bridges(const GT & g, typename GT::Node *start, SA sa = SA())
+  {
+    return Compute_Bridges<GT, SA>(g, sa).find_bridges(start);
+  }
+
+  /** \overload find_bridges(const GT &, typename GT::Node *, SA)
+   *
+   *  Starts from the first node of the graph.
+   */
+  template <class GT>
+  DynList<typename GT::Arc *> find_bridges(const GT & g)
+  {
+    return Compute_Bridges<GT>(g).find_bridges();
+  }
 } // end namespace Aleph
 
 # endif // TPL_CUT_NODES_H
