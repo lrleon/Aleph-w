@@ -38,6 +38,8 @@
 # include <gtest/gtest.h>
 
 # include <htlist.H>
+# include <ah-unique.H>
+# include <ah-convert.H>
 
 using namespace testing;
 using namespace Aleph;
@@ -121,6 +123,51 @@ TEST(DynList, Simple_append_and_insert_of_list)
   EXPECT_EQ(list.size(), 2);
   EXPECT_EQ(list.get_first(), 1);
   EXPECT_EQ(list.get_last(), 2);
+}
+
+TEST(DynListAlgorithms, InPlaceUnique)
+{
+  {
+    DynList<int> list;
+    list.append(3);
+    list.append(1);
+    list.append(2);
+    list.append(3);
+
+    in_place_unique(list);
+
+    ASSERT_EQ(list.size(), 3u);
+    auto it = list.get_it();
+    ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 3); it.next();
+    ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 1); it.next();
+    ASSERT_TRUE(it.has_curr()); EXPECT_EQ(it.get_curr(), 2); it.next();
+    EXPECT_FALSE(it.has_curr());
+  }
+
+  {
+    DynList<int> empty_list;
+    in_place_unique(empty_list);
+    EXPECT_EQ(empty_list.size(), 0u);
+    EXPECT_FALSE(empty_list.get_it().has_curr());
+  }
+
+  {
+    DynList<int> single_list;
+    single_list.append(42);
+    in_place_unique(single_list);
+    EXPECT_EQ(single_list.size(), 1u);
+    EXPECT_EQ(single_list.get_first(), 42);
+  }
+
+  {
+    DynList<int> all_equal;
+    all_equal.append(5);
+    all_equal.append(5);
+    all_equal.append(5);
+    in_place_unique(all_equal);
+    EXPECT_EQ(all_equal.size(), 1u);
+    EXPECT_EQ(all_equal.get_first(), 5);
+  }
 }
 
 TEST_F(List_of_25_items, Basic_operations)
@@ -272,3 +319,35 @@ TEST_F(List_of_25_items, traverse)
   EXPECT_FALSE(ret);
   EXPECT_EQ(N, n/2);
 }
+
+TEST(DynListFunctional, ToArrayHelperPreservesOrder)
+{
+  // empty list
+  {
+    DynList<int> empty;
+    auto arr = to_array(empty);
+    EXPECT_EQ(arr.size(), 0u);
+  }
+
+  // single element
+  {
+    DynList<int> one;
+    one.append(42);
+    auto arr = to_array(one);
+    ASSERT_EQ(arr.size(), 1u);
+    EXPECT_EQ(arr(0), 42);
+  }
+
+  // multiple elements — order preserved
+  DynList<int> list;
+  for (int v : {5, 8, 13})
+    list.append(v);
+
+  auto arr = to_array(list);
+
+  ASSERT_EQ(arr.size(), list.size());
+  size_t i = 0;
+  for (auto it = list.get_it(); it.has_curr(); it.next(), ++i)
+    EXPECT_EQ(arr(i), it.get_curr());
+}
+

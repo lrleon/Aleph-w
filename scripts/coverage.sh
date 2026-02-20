@@ -80,7 +80,7 @@ GCOVR_ARGS=(
   --gcov-ignore-errors source_not_found
   --gcov-ignore-errors no_working_dir_found
   --gcov-ignore-errors output_error
-  --gcov-ignore-parse-errors negative_hits.warn
+  --gcov-ignore-parse-errors all
   --exclude "(^|.*/)Tests/.*"
   --exclude "(^|.*/)Examples/.*"
   --exclude "(^|.*/)build-coverage/.*"

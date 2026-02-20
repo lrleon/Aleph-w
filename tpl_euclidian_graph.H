@@ -65,7 +65,7 @@
  *  
  *  for (Node_Iterator<EG> it(city_map); it.has_curr(); it.next()) {
  *    auto node = it.get_curr();
- *    double dist = query_pos.distance_with(city_map.get_position(node));
+ *    double dist = query_pos.distance_to(city_map.get_position(node));
  *    if (dist < min_dist) {
  *      min_dist = dist;
  *      nearest = node;
@@ -227,7 +227,7 @@ namespace Aleph
     {
       const Point & src_point = this->get_src_node(arc)->get_position();
       const Point & tgt_point = this->get_tgt_node(arc)->get_position();
-      return src_point.distance_with(tgt_point);
+      return src_point.distance_to(tgt_point);
     }
 
     Euclidian_Graph<Node, Arc> &operator =(Euclidian_Graph<Node, Arc> & eg)

@@ -49,6 +49,8 @@
 # include <vector>
 # include <ah-errors.H>
 
+namespace Aleph { template <class> class Array; }
+
 /**  Generic traversal of the container through its iterator.
 
      This class implements a conditioned traversal on the container
@@ -141,21 +143,21 @@ bool traverse(const Container & c, Operation && op)
 
     This class implements common sequential searching on containers.
 
-    \note Take in account that any of these searches takes \f$O(n)\f$ of
+    \note Take into account that any of these searches takes \f$O(n)\f$ of
     complexity for the worst case and that this is independent of type
     of container. For example, a hash table or a binary search tree,
     exports its own search that is much faster that any of these
     primitives. As an advice: do not use this method inside loops. If
     you find yourself in this situation, then consider to revise your
     design and to use another search method. Use these primitives very
-    few times, for algorithms whose complexity is by far greater that
+    few times for algorithms whose complexity is by far greater that
     \f$O(n)\f$ and when you cannot index with an adequate data
     structure.
 
     \warning Be very careful about the fact that many of these
     primitives return pointers or references to container's data. In
     many cases, alteration of that data will corrupt the internal
-    state of container.
+    state of the container.
 
     \ingroup Sequences
 */
@@ -986,7 +988,7 @@ public:
   /** Fold the elements of the container to a specific result.
 
       `foldl(init, op)` set an internal variable `acc` of type `__T` to
-      `init` value. Then it traverses the container and on each `item`
+      `init` value. Then it traverses the container, and on each `item`
       it performs:
 
       acc = op(acc, op(acc, item);

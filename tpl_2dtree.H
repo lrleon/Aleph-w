@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -45,10 +44,15 @@
 # define TPL_2DTREE_H
 
 # include <point.H>
+# include <optional>
+# include <algorithm>
 # include <htlist.H>
+# include <ahSort.H>
+# include <tpl_array.H>
 # include <ahDefs.H> // For Empty_Class
+# include <utility>
 
-using namespace Aleph;
+using Aleph::Empty_Class;
 
 /** @brief 2D k-d tree for efficient spatial point operations.
 
@@ -107,9 +111,9 @@ using namespace Aleph;
       std::cout << "Point found!" << '\n';
 
     // Find nearest neighbor
-    Point nearest = tree.nearest(Point(30, 45));
-    std::cout << "Nearest: (" << nearest.get_x() << ", "
-              << nearest.get_y() << ")" << '\n';
+    if (auto nearest = tree.nearest(Point(30, 45)))
+      std::cout << "Nearest: (" << nearest->get_x() << ", "
+                << nearest->get_y() << ")" << '\n';
 
     // Range query
     Rectangle rect(20, 20, 80, 80);
@@ -119,9 +123,9 @@ using namespace Aleph;
 
     @tparam T Optional user data type associated with points (default: Empty_Class)
 
-    @note This implementation uses a memory pool for efficient node allocation.
-    @note The tree does NOT automatically balance. For sorted insertions, consider
-          building from a shuffled sequence.
+    @note The tree does NOT automatically balance.  For sorted insertions,
+          use the static `build()` factory which selects medians to produce
+          an O(log n)-height tree.
 
     @see QuadTree Alternative spatial structure with adaptive quadrant subdivision.
     @author Leandro Rabindranath León
@@ -133,14 +137,14 @@ class K2Tree
   /// @brief Internal node structure for the k-d tree.
   struct Node
   {
-    Point point; ///< The point stored at this node
-    Rectangle rect; ///< The axis-aligned rectangle for this node's region
-    Node *lb; ///< Left/bottom subtree
-    Node *rt; ///< Right/top subtree
+    Point point_; ///< The point stored at this node
+    Rectangle rect_; ///< The axis-aligned rectangle for this node's region
+    Node *lb_; ///< Left/bottom subtree
+    Node *rt_; ///< Right/top subtree
 
     /// @brief Construct a node with a given point.
-    Node(const Point & __point) noexcept
-      : point(__point), lb(nullptr), rt(nullptr)
+    Node(Point p) noexcept
+      : point_(std::move(p)), lb_(nullptr), rt_(nullptr)
     {
       // empty
     }
@@ -149,42 +153,42 @@ class K2Tree
     void set_rect(const Geom_Number & xmin, const Geom_Number & ymin,
                   const Geom_Number & xmax, const Geom_Number & ymax) noexcept
     {
-      rect.set_rect(xmin, ymin, xmax, ymax);
+      rect_.set_rect(xmin, ymin, xmax, ymax);
     }
 
     /// @brief Set the rectangular region using corner points.
     void set_rect(const Point & pmin, const Point & pmax) noexcept
     {
-      rect.set_rect(pmin.get_x(), pmin.get_y(), pmax.get_x(), pmax.get_y());
+      rect_.set_rect(pmin.get_x(), pmin.get_y(), pmax.get_x(), pmax.get_y());
     }
 
-    [[nodiscard]] const Geom_Number &xmin() const noexcept { return rect.get_xmin(); }
-    [[nodiscard]] const Geom_Number &ymin() const noexcept { return rect.get_ymin(); }
-    [[nodiscard]] const Geom_Number &xmax() const noexcept { return rect.get_xmax(); }
-    [[nodiscard]] const Geom_Number &ymax() const noexcept { return rect.get_ymax(); }
-    [[nodiscard]] const Geom_Number &x() const noexcept { return point.get_x(); }
-    [[nodiscard]] const Geom_Number &y() const noexcept { return point.get_y(); }
+    [[nodiscard]] const Geom_Number &xmin() const noexcept { return rect_.get_xmin(); }
+    [[nodiscard]] const Geom_Number &ymin() const noexcept { return rect_.get_ymin(); }
+    [[nodiscard]] const Geom_Number &xmax() const noexcept { return rect_.get_xmax(); }
+    [[nodiscard]] const Geom_Number &ymax() const noexcept { return rect_.get_ymax(); }
+    [[nodiscard]] const Geom_Number &x() const noexcept { return point_.get_x(); }
+    [[nodiscard]] const Geom_Number &y() const noexcept { return point_.get_y(); }
   };
 
-  Point pmin; ///< Lower-left corner of reference rectangle
-  Point pmax; ///< Upper-right corner of reference rectangle
-  size_t N; ///< Number of points in the tree
-  Node *root; ///< Root of the tree
+  Point pmin_; ///< Lower-left corner of reference rectangle
+  Point pmax_; ///< Upper-right corner of reference rectangle
+  size_t N_; ///< Number of points in the tree
+  Node *root_; ///< Root of the tree
 
 public:
   /// @brief Default constructor - creates an empty tree with zero-sized region.
-  K2Tree() : pmin(0, 0), pmax(0, 0), N(0), root(nullptr)
+  K2Tree() : pmin_(0, 0), pmax_(0, 0), N_(0), root_(nullptr)
   {
     // empty
   }
 
   /** @brief Construct a k-d tree with specified bounding region.
    *
-   *  @param __pmin Lower-left corner of the region
-   *  @param __pmax Upper-right corner of the region
+   *  @param pmin Lower-left corner of the region
+   *  @param pmax Upper-right corner of the region
    */
-  K2Tree(const Point & __pmin, const Point & __pmax)
-    : pmin(__pmin), pmax(__pmax), N(0), root(nullptr)
+  K2Tree(Point pmin, Point pmax)
+    : pmin_(std::move(pmin)), pmax_(std::move(pmax)), N_(0), root_(nullptr)
   {
     // empty
   }
@@ -198,7 +202,7 @@ public:
    */
   K2Tree(const Geom_Number & xmin, const Geom_Number & ymin,
          const Geom_Number & xmax, const Geom_Number & ymax)
-    : pmin(xmin, ymin), pmax(xmax, ymax), N(0), root(nullptr)
+    : pmin_(xmin, ymin), pmax_(xmax, ymax), N_(0), root_(nullptr)
   {
     // empty
   }
@@ -207,11 +211,36 @@ public:
 
   K2Tree &operator =(const K2Tree &) = delete;
 
+  /// @brief Move constructor — transfers ownership of all nodes.
+  K2Tree(K2Tree && other) noexcept
+    : pmin_(std::move(other.pmin_)), pmax_(std::move(other.pmax_)),
+      N_(other.N_), root_(other.root_)
+  {
+    other.N_ = 0;
+    other.root_ = nullptr;
+  }
+
+  /// @brief Move assignment operator — transfers ownership of all nodes.
+  K2Tree &operator =(K2Tree && other) noexcept
+  {
+    if (this != &other)
+      {
+        destroy_tree(root_);
+        pmin_ = other.pmin_;
+        pmax_ = other.pmax_;
+        N_ = other.N_;
+        root_ = other.root_;
+        other.N_ = 0;
+        other.root_ = nullptr;
+      }
+    return *this;
+  }
+
   /// @brief Check if the tree is empty.
-  [[nodiscard]] constexpr bool is_empty() const noexcept { return N == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return N_ == 0; }
 
   /// @brief Get the number of points in the tree.
-  [[nodiscard]] constexpr size_t size() const noexcept { return N; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return N_; }
 
 private:
   /** @brief Insert into tree with left-right (X) split.
@@ -233,12 +262,12 @@ private:
         if (p.get_y() == root->y())
           return nullptr; // Duplicate point
 
-        ret_val = bu_insert(root->rt, p);
+        ret_val = bu_insert(root->rt_, p);
         if (ret_val != nullptr)
           {
-            root->rt = ret_val; // Node was inserted
-            root->rt->set_rect(root->x(), root->ymin(),
-                               root->xmax(), root->ymax());
+            root->rt_ = ret_val; // Node was inserted
+            root->rt_->set_rect(root->x(), root->ymin(),
+                                root->xmax(), root->ymax());
 
             return root;
           }
@@ -248,25 +277,24 @@ private:
 
     if (p.get_x() < root->x())
       {
-        ret_val = bu_insert(root->lb, p);
+        ret_val = bu_insert(root->lb_, p);
         if (ret_val != nullptr)
           {
-            root->lb = ret_val;
-            root->lb->set_rect(root->xmin(), root->ymin(),
-                               root->x(), root->ymax());
+            root->lb_ = ret_val;
+            root->lb_->set_rect(root->xmin(), root->ymin(),
+                                root->x(), root->ymax());
 
             return root;
           }
-        else
-          return nullptr;
+        return nullptr;
       }
 
-    ret_val = bu_insert(root->rt, p);
+    ret_val = bu_insert(root->rt_, p);
     if (ret_val != nullptr)
       {
-        root->rt = ret_val;
-        root->rt->set_rect(root->x(), root->ymin(),
-                           root->xmax(), root->ymax());
+        root->rt_ = ret_val;
+        root->rt_->set_rect(root->x(), root->ymin(),
+                            root->xmax(), root->ymax());
 
         return root;
       }
@@ -293,12 +321,12 @@ private:
         if (p.get_x() == root->x())
           return nullptr; // Duplicate point
 
-        ret_val = lr_insert(root->rt, p);
+        ret_val = lr_insert(root->rt_, p);
         if (ret_val != nullptr)
           {
-            root->rt = ret_val; // Node was inserted
-            root->rt->set_rect(root->xmin(), root->y(),
-                               root->xmax(), root->ymax());
+            root->rt_ = ret_val; // Node was inserted
+            root->rt_->set_rect(root->xmin(), root->y(),
+                                root->xmax(), root->ymax());
 
             return root;
           }
@@ -308,23 +336,23 @@ private:
 
     if (p.get_y() < root->y())
       {
-        ret_val = lr_insert(root->lb, p);
+        ret_val = lr_insert(root->lb_, p);
         if (ret_val != nullptr)
           {
-            root->lb = ret_val;
-            root->lb->set_rect(root->xmin(), root->ymin(),
-                               root->xmax(), root->y());
+            root->lb_ = ret_val;
+            root->lb_->set_rect(root->xmin(), root->ymin(),
+                                root->xmax(), root->y());
             return root;
           }
         return nullptr;
       }
 
-    ret_val = lr_insert(root->rt, p);
+    ret_val = lr_insert(root->rt_, p);
     if (ret_val != nullptr)
       {
-        root->rt = ret_val;
-        root->rt->set_rect(root->xmin(), root->y(),
-                           root->xmax(), root->ymax());
+        root->rt_ = ret_val;
+        root->rt_->set_rect(root->xmin(), root->y(),
+                            root->xmax(), root->ymax());
 
         return root;
       }
@@ -337,27 +365,25 @@ public:
    *
    *  The point is inserted only if it's not already present (no duplicates).
    *
-   *  @param p Point to insert
-   *  @return Pointer to the inserted point, or nullptr if duplicate
+   *  @param p Point to insert.
+   *  @return true if the point was inserted, false if it was a duplicate.
    */
-  Point * insert(const Point & p)
+  bool insert(const Point & p)
   {
-    if (root == nullptr)
+    if (root_ == nullptr)
       {
-        root = new Node(p);
-        root->set_rect(pmin, pmax);
-        ++N;
-
-        return &root->point;
+        root_ = new Node(p);
+        root_->set_rect(pmin_, pmax_);
+        ++N_;
+        return true;
       }
 
-    Node *ret = lr_insert(root, p);
+    Node *ret = lr_insert(root_, p);
     if (ret == nullptr)
-      return nullptr;
+      return false;
 
-    ++N;
-
-    return &root->point; // FIX: Was returning nullptr
+    ++N_;
+    return true;
   }
 
 private:
@@ -372,12 +398,12 @@ private:
         if (root->x() == p.get_x())
           return root;
 
-        return lr_search(root->rt, p);
+        return lr_search(root->rt_, p);
       }
 
     if (p.get_y() < root->y())
-      return lr_search(root->lb, p);
-    return lr_search(root->rt, p);
+      return lr_search(root->lb_, p);
+    return lr_search(root->rt_, p);
   }
 
   /// @brief Search with left-right (X) split pattern.
@@ -391,19 +417,19 @@ private:
         if (root->y() == p.get_y())
           return root;
 
-        return bu_search(root->rt, p);
+        return bu_search(root->rt_, p);
       }
 
     if (p.get_x() < root->x())
-      return bu_search(root->lb, p);
-    return bu_search(root->rt, p);
+      return bu_search(root->lb_, p);
+    return bu_search(root->rt_, p);
   }
 
 public:
   /// @brief Check if the tree contains a point.
   [[nodiscard]] bool contains(const Point & p) const noexcept
   {
-    return lr_search(root, p) != nullptr;
+    return lr_search(root_, p) != nullptr;
   }
 
 private:
@@ -418,15 +444,14 @@ private:
     if (root == nullptr)
       return;
 
-    if (not root->rect.intersects(rect))
+    if (not root->rect_.intersects(rect))
       return;
 
-    const Point & point = root->point;
-    if (rect.contains(point))
+    if (const Point & point = root->point_; rect.contains(point))
       q->append(point);
 
-    range(root->lb, rect, q);
-    range(root->rt, rect, q);
+    range(root->lb_, rect, q);
+    range(root->rt_, rect, q);
   }
 
 public:
@@ -438,77 +463,85 @@ public:
    *  @param rect Query rectangle
    *  @param l Output list where matching points are appended
    */
-  void range(const Rectangle & rect, DynList<Point> *l)
+  void range(const Rectangle & rect, DynList<Point> *l) const
   {
-    if (N == 0)
+    if (N_ == 0)
       return;
 
-    range(root, rect, l);
+    range(root_, rect, l);
   }
 
 private:
-  Node *min_node; ///< Current nearest node (for nearest())
-  Geom_Number min_dist2; ///< Current minimum squared distance
+  /// @brief Thread-local state for nearest-neighbor recursion.
+  struct NearestState
+  {
+    Node *node = nullptr;
+    Geom_Number dist2;
+  };
 
-  /** @brief Recursively find nearest neighbor (X-split level).
+  /** @brief Recursively find the nearest neighbor (X-split level).
    *
    *  @param root Current node
    *  @param p Query point
+   *  @param st Mutable search state
    */
-  void lr_nearest(Node *root, const Point & p) noexcept
+  static void lr_nearest(Node *root, const Point & p,
+                         NearestState & st) noexcept
   {
     if (root == nullptr)
       return;
 
-    if (root->rect.distance_squared_to(p) > min_dist2)
+    if (root->rect_.distance_squared_to(p) > st.dist2)
       return;
 
-    if (const Geom_Number d2 = root->point.distance_squared_to(p); d2 < min_dist2)
+    if (const Geom_Number d2 = root->point_.distance_squared_to(p); d2 < st.dist2)
       {
-        min_dist2 = d2;
-        min_node = root;
+        st.dist2 = d2;
+        st.node = root;
       }
 
     if (p.get_x() < root->x()) // Is p to left of this?
       {
-        bu_nearest(root->lb, p);
-        bu_nearest(root->rt, p);
+        bu_nearest(root->lb_, p, st);
+        bu_nearest(root->rt_, p, st);
       }
     else
       {
-        bu_nearest(root->rt, p);
-        bu_nearest(root->lb, p);
+        bu_nearest(root->rt_, p, st);
+        bu_nearest(root->lb_, p, st);
       }
   }
 
-  /** @brief Recursively find nearest neighbor (Y-split level).
+  /** @brief Recursively find the nearest neighbor (Y-split level).
    *
    *  @param root Current node
    *  @param p Query point
+   *  @param st Mutable search state
    */
-  void bu_nearest(Node *root, const Point & p) noexcept
+  static void bu_nearest(Node *root, const Point & p,
+                         NearestState & st) noexcept
   {
     if (root == nullptr)
       return;
 
-    if (root->rect.distance_squared_to(p) > min_dist2)
+    if (root->rect_.distance_squared_to(p) > st.dist2)
       return;
 
-    if (const Geom_Number d2 = root->point.distance_squared_to(p); d2 < min_dist2)
+    if (const Geom_Number d2 = root->point_.distance_squared_to(p); d2 < st.dist2)
       {
-        min_dist2 = d2;
-        min_node = root;
+        st.dist2 = d2;
+        st.node = root;
       }
 
     if (p.get_y() < root->y()) // Is p below this?
       {
-        lr_nearest(root->lb, p);
-        lr_nearest(root->rt, p);
+        lr_nearest(root->lb_, p, st);
+        lr_nearest(root->rt_, p, st);
       }
     else
       {
-        lr_nearest(root->rt, p);
-        lr_nearest(root->lb, p);
+        lr_nearest(root->rt_, p, st);
+        lr_nearest(root->lb_, p, st);
       }
   }
 
@@ -516,33 +549,187 @@ public:
   /** @brief Find the nearest point to a query point.
    *
    *  Performs a nearest neighbor search using branch-and-bound pruning.
+   *  This method is const and thread-safe (no mutable members).
    *
    *  @param p Query point
-   *  @return The nearest point in the tree, or NullPoint if tree is empty
+   *  @return The nearest point in the tree; empty if the tree is empty.
    */
-  [[nodiscard]] Point nearest(const Point & p) noexcept
+  [[nodiscard]] std::optional<Point> nearest(const Point & p) const noexcept
   {
-    if (N == 0)
-      return NullPoint;
+    if (N_ == 0)
+      return std::nullopt;
 
-    // Initialize with distance to root (mpq_class doesn't have max())
-    min_node = root;
-    min_dist2 = root->point.distance_squared_to(p);
+    NearestState st;
+    st.node = root_;
+    st.dist2 = root_->point_.distance_squared_to(p);
 
-    lr_nearest(root, p);
+    lr_nearest(root_, p, st);
 
-    return min_node != nullptr ? min_node->point : NullPoint;
+    return st.node != nullptr ? std::optional<Point>(st.node->point_) : std::nullopt;
+  }
+
+  /** @brief Apply an operation to every point in the tree (inorder).
+   *
+   *  @tparam Op Callable with signature compatible with `void(const Point &)`.
+   *  @param op The operation to apply.
+   */
+  template <typename Op>
+  void for_each(Op && op) const
+  {
+    for_each_node(root_, std::forward<Op>(op));
+  }
+
+  /** @brief Build a balanced k-d tree from an array of points.
+   *
+   *  Constructs a balanced tree by recursively selecting medians,
+   *  alternating between X and Y coordinates.  This avoids the
+   *  degeneration to O(n) height that occurs with sorted insertions.
+   *
+   *  Duplicate points are removed internally.
+   *
+   *  @param points Array of points (copied internally).
+   *  @param pmin Lower-left corner of the bounding region.
+   *  @param pmax Upper-right corner of the bounding region.
+   *  @return A balanced K2Tree containing all unique points.
+   *
+   *  @par Complexity:
+   *  - Time:  O(n log n)
+   *  - Space: O(n)
+   */
+  [[nodiscard]] static K2Tree build(Array<Point> points,
+                                    const Point & pmin,
+                                    const Point & pmax)
+  {
+    // Sort lexicographically and remove duplicates
+    if (points.size() > 1)
+      {
+        Aleph::sort(points, [](const Point & a, const Point & b)
+                      {
+                        if (a.get_x() < b.get_x()) return true;
+                        if (b.get_x() < a.get_x()) return false;
+                        return a.get_y() < b.get_y();
+                      });
+
+        size_t w = 1;
+        for (size_t r = 1; r < points.size(); ++r)
+          if (points(r) != points(w - 1))
+            points(w++) = points(r);
+
+        while (points.size() > w)
+          points.remove_last();
+      }
+
+    K2Tree tree(pmin, pmax);
+    if (points.is_empty())
+      return tree;
+
+    tree.root_ = build_balanced(points, 0, points.size(), true,
+                                pmin, pmax);
+    tree.N_ = points.size();
+    return tree;
   }
 
 private:
+  /// @brief Recursively build a balanced subtree selecting medians.
+  ///
+  /// After nth_element, elements with the same splitting coordinate as
+  /// the median are moved to the right partition so that
+  /// lr_search/bu_search (which send equal-coord queries right) can
+  /// find them.
+  static Node * build_balanced(Array<Point> & pts,
+                               const size_t lo, const size_t hi,
+                               const bool split_x,
+                               const Point & rmin, const Point & rmax)
+  {
+    if (lo >= hi)
+      return nullptr;
+
+    const size_t mid = lo + (hi - lo) / 2;
+
+    if (split_x)
+      std::nth_element(&pts(lo), &pts(mid), &pts(hi),
+                       [](const Point & a, const Point & b)
+                         {
+                           return a.get_x() < b.get_x();
+                         });
+    else
+      std::nth_element(&pts(lo), &pts(mid), &pts(hi),
+                       [](const Point & a, const Point & b)
+                         {
+                           return a.get_y() < b.get_y();
+                         });
+
+    // Ensure the left partition [lo, root_pos) has only elements with
+    // split-coord strictly less than the median, matching the search
+    // invariant (equal goes right).
+    const Geom_Number mv = split_x ? pts(mid).get_x() : pts(mid).get_y();
+
+    size_t strict_end = lo;
+    for (size_t i = lo; i < mid; ++i)
+      if (const Geom_Number v = split_x ? pts(i).get_x() : pts(i).get_y(); v < mv)
+        {
+          if (i != strict_end)
+            {
+              const Point tmp = pts(i);
+              pts(i) = pts(strict_end);
+              pts(strict_end) = tmp;
+            }
+          ++strict_end;
+        }
+
+    // If equal-valued elements were found in [strict_end, mid), move
+    // the median to strict_end so that those elements fall into the
+    // right subtree.
+    size_t root_pos = mid;
+    if (strict_end < mid)
+      {
+        const Point median_pt = pts(mid);
+        pts(mid) = pts(strict_end);
+        pts(strict_end) = median_pt;
+        root_pos = strict_end;
+      }
+
+    Node *node = new Node(pts(root_pos));
+    node->set_rect(rmin, rmax);
+
+    if (split_x)
+      {
+        node->lb_ = build_balanced(pts, lo, root_pos, false,
+                                   rmin, Point(node->x(), rmax.get_y()));
+        node->rt_ = build_balanced(pts, root_pos + 1, hi, false,
+                                   Point(node->x(), rmin.get_y()), rmax);
+      }
+    else
+      {
+        node->lb_ = build_balanced(pts, lo, root_pos, true,
+                                   rmin, Point(rmax.get_x(), node->y()));
+        node->rt_ = build_balanced(pts, root_pos + 1, hi, true,
+                                   Point(rmin.get_x(), node->y()), rmax);
+      }
+
+    return node;
+  }
+
+  /// @brief Recursive inorder traversal helper for for_each.
+  template <typename Op>
+  static void for_each_node(const Node *node, Op && op)
+  {
+    if (node == nullptr)
+      return;
+
+    for_each_node(node->lb_, op);
+    op(node->point_);
+    for_each_node(node->rt_, op);
+  }
+
   /// @brief Recursively delete all nodes.
   void destroy_tree(Node *node) noexcept
   {
     if (node == nullptr)
       return;
 
-    destroy_tree(node->lb);
-    destroy_tree(node->rt);
+    destroy_tree(node->lb_);
+    destroy_tree(node->rt_);
     delete node;
   }
 
@@ -550,7 +737,7 @@ public:
   /// @brief Destructor - frees all nodes.
   ~K2Tree()
   {
-    destroy_tree(root);
+    destroy_tree(root_);
   }
 };
 

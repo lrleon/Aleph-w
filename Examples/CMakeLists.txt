@@ -112,6 +112,39 @@ set(EXAMPLE_PROGRAMS
     cartesian_tree_example
     mo_algorithm_example
     mo_on_trees_example
+    robust_predicates_example
+    segment_segment_intersection_example
+    voronoi_clipped_cells_example
+    delaunay_voronoi_example
+    constrained_delaunay_example
+    point_in_polygon_example
+    polygon_intersection_example
+    tikz_polygons_example
+    tikz_convex_hull_example
+    tikz_intersection_example
+    tikz_voronoi_power_example
+    tikz_advanced_algorithms_example
+    tikz_funnel_animation_example
+    tikz_funnel_beamer_example
+    tikz_funnel_beamer_twocol_example
+    tikz_funnel_beamer_handout_example
+    tikz_scene_example
+    tikz_scene_beamer_example
+    tikz_scene_overlays_example
+    tikz_missing_primitives_example
+    tikz_visibility_calipers_example
+    tikz_render_features_example
+    tikz_tree_structures_example
+    halfplane_intersection_example
+    convex_hull_comparison_example
+    closest_pair_example
+    convex_polygon_distance_gjk_example
+    rotating_calipers_example
+    minimum_enclosing_circle_example
+    polygon_simplification_example
+    polygon_offset_example
+    chaikin_smoothing_example
+    trapezoidal_map_example
 )
 
 # Function to get source file from program name

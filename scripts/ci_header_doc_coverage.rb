@@ -281,7 +281,8 @@ def parse_changed_public_declarations(file, added_lines)
 
   lines.each_with_index do |raw_line, idx|
     line_no = idx + 1
-    stripped = raw_line.strip
+    sanitized, in_block_comment = sanitize_for_braces(raw_line, in_block_comment)
+    stripped = sanitized.strip
     in_decl_scope =
       if class_stack.any?
         brace_depth == class_stack.last[:depth]
@@ -291,6 +292,7 @@ def parse_changed_public_declarations(file, added_lines)
       end
 
     if in_decl_scope &&
+       !stripped.empty? &&
        !stripped.start_with?('//', '/*', '*') &&
        (m = stripped.match(/^(?:template\s*<.*>\s*)?(class|struct)\s+([A-Za-z_]\w*)\b/))
       kind = m[1]
@@ -319,6 +321,7 @@ def parse_changed_public_declarations(file, added_lines)
     end
 
     if in_decl_scope &&
+       !stripped.empty? &&
        !stripped.start_with?('//', '/*', '*') &&
        (m = stripped.match(/^concept\s+([A-Za-z_]\w*)\s*=/))
       is_public = class_stack.empty? || class_stack.last[:access] == 'public'
@@ -335,7 +338,7 @@ def parse_changed_public_declarations(file, added_lines)
 
     if in_decl_scope
       current_class_name = class_stack.empty? ? nil : class_stack.last[:name]
-      fn_name = parse_function_like_decl(raw_line, current_class_name)
+      fn_name = parse_function_like_decl(sanitized, current_class_name)
       unless fn_name.nil?
         is_public = class_stack.empty? || class_stack.last[:access] == 'public'
         declarations << Declaration.new(
@@ -351,7 +354,6 @@ def parse_changed_public_declarations(file, added_lines)
     end
 
     before_depth = brace_depth
-    sanitized, in_block_comment = sanitize_for_braces(raw_line, in_block_comment)
     brace_depth += sanitized.count('{')
     brace_depth -= sanitized.count('}')
 

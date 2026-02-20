@@ -107,7 +107,10 @@ set(HLIST
     tpl_slist.H tpl_snode.H tpl_lhash.H tpl_dynLhash.H
     tpl_odhash.H tpl_memArray.H tpl_dynArray.H ahFuntional.H hash-dry.H
     bloom-filter.H ah-dry.H graph-dry.H tpl_con_queue.H
-    q-consumer-threads.H ah-string-utils.H ah-comb.H geom_algorithms.H
+    q-consumer-threads.H ah-string-utils.H ah-unique.H ah-comb.H geom_algorithms.H
+    tikzgeom.H
+    tikzgeom_algorithms.H
+    tikzgeom_scene.H
     tpl_fenwick_tree.H
     tpl_segment_tree.H
     tpl_cartesian_tree.H
@@ -132,7 +135,6 @@ set(LIBCCCSRCS
     hash-dry.C
     aleph-graph.C
     ahNow.C
-    point.C
     euclidian-graph-common.C
 )
 

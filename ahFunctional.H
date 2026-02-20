@@ -61,9 +61,11 @@
 # include <tuple>
 # include <functional>
 # include <algorithm>
+# include <concepts>
 # include <optional>
 # include <ah-errors.H>
 # include <ah-ranges.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -340,7 +342,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <class Op>
-  void each(size_t start, size_t end, Op & op)
+  void each(const size_t start, const size_t end, Op & op)
   {
     for (size_t i = start; i <= end; ++i)
       op();
@@ -355,7 +357,7 @@ namespace Aleph
 
   /** @overload each */
   template <class Op>
-  void each(size_t n, Op & op)
+  void each(const size_t n, Op & op)
   {
     if (n == 0) return;
     each(0, n - 1, op);
@@ -377,7 +379,7 @@ namespace Aleph
   */
   template <class Container> [[nodiscard]]
   DynList<typename Container::Item_Type>
-  sublist(const Container & c, size_t pos, size_t stride)
+  sublist(const Container & c, size_t pos, const size_t stride)
   {
     DynList<typename Container::Item_Type> ret;
     try
@@ -1492,13 +1494,13 @@ namespace Aleph
     /** @brief Check if both iterators have current elements.
         @return true if both iterators are valid.
     */
-    bool has_curr() const noexcept { return it1.has_curr() and it2.has_curr(); }
+    [[nodiscard]] bool has_curr() const noexcept { return it1.has_curr() and it2.has_curr(); }
 
     /** @brief Check if first iterator has current element. */
-    bool has_curr1() const noexcept { return it1.has_curr(); }
+    [[nodiscard]] bool has_curr1() const noexcept { return it1.has_curr(); }
 
     /** @brief Check if second iterator has current element. */
-    bool has_curr2() const noexcept { return it2.has_curr(); }
+    [[nodiscard]] bool has_curr2() const noexcept { return it2.has_curr(); }
 
     /** @brief Get current pair (bounds-checked).
         @return Pair of current elements.
@@ -1540,7 +1542,7 @@ namespace Aleph
         @return true if both iterators are exhausted.
         @note Useful for verifying equal container lengths.
     */
-    bool was_traversed() const noexcept
+    [[nodiscard]] bool was_traversed() const noexcept
     {
       return not (it1.has_curr() or it2.has_curr());
     }
@@ -2416,14 +2418,14 @@ namespace Aleph
         it2.next_ne();
       }
 
-    // Process remaining elements from first container
+    // Process remaining elements from the first container
     while (it1.has_curr())
       {
         ret_val.append(std::pair<T1, T2>(it1.get_curr(), fill_b));
         it1.next_ne();
       }
 
-    // Process remaining elements from second container
+    // Process remaining elements from the second container
     while (it2.has_curr())
       {
         ret_val.append(std::pair<T1, T2>(fill_a, it2.get_curr()));
@@ -2786,7 +2788,6 @@ namespace Aleph
 
     return ret;
   }
-
 
 } // end namespace Aleph
 

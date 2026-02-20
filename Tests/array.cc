@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <tpl_array.H>
+#include <ah-unique.H>
 
 #include <array>
 #include <numeric>
@@ -70,6 +71,20 @@ TEST(ArrayBasics, DefaultConstructionAndBase)
   const auto & carr = arr;
   EXPECT_EQ(carr.get_first(), 10);
   EXPECT_EQ(carr.get_last(), 20);
+}
+
+TEST(ArrayFunctional, ToArrayPreservesOrder)
+{
+  Array<int> src = {5, 7, 9, 11};
+
+  auto copy = src.to_array();
+
+  ASSERT_EQ(copy.size(), src.size());
+  for (size_t i = 0; i < copy.size(); ++i)
+    EXPECT_EQ(copy(i), src(i));
+
+  // original remains unchanged
+  EXPECT_EQ(src.size(), 4u);
 }
 
 TEST(ArrayModifiers, InsertAppendAndRemove)
@@ -220,6 +235,19 @@ TEST(ArrayTraverse, TraversalVariants)
   bool called = false;
   EXPECT_TRUE(arr.traverse(MoveOnlyOp(&called)));
   EXPECT_TRUE(called);
+}
+
+TEST(ArrayAlgorithms, InPlaceUnique)
+{
+  Array<int> arr = {1, 2, 1, 3, 2, 4, 4};
+
+  in_place_unique(arr);
+
+  ASSERT_EQ(arr.size(), 4u);
+  EXPECT_EQ(arr[0], 1);
+  EXPECT_EQ(arr[1], 2);
+  EXPECT_EQ(arr[2], 3);
+  EXPECT_EQ(arr[3], 4);
 }
 
 TEST(ArrayIterators, IteratorCoversAllElements)

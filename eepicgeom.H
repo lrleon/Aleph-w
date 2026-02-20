@@ -366,6 +366,8 @@ public:
     // Scan all objects searching extreme coordinates (left, right, top, bottom).
     DynDlist<Eepic_Geom_Object *>::Iterator it(list);
 
+    ah_domain_error_if(not it.has_curr()) << "No objects in plane";
+
     Eepic_Geom_Object *curr = it.get_curr();
 
     __lowest = curr->lowest_point();
@@ -411,6 +413,12 @@ private:
     geom_height = __highest.get_y() - __lowest.get_y();
     geom_wide = __rightmost.get_x() - __leftmost.get_x();
 
+    // Pad degenerate ranges so coordinate mapping never divides by zero.
+    if (geom_wide == 0)
+      geom_wide = (geom_height != 0) ? geom_height : Geom_Number(1);
+    if (geom_height == 0)
+      geom_height = (geom_wide != 0) ? geom_wide : Geom_Number(1);
+
     // Compute minimal x/y.
     geom_x_min = geom_number_to_double(__leftmost.get_x());
     geom_y_min = geom_number_to_double(__lowest.get_y());
@@ -440,7 +448,8 @@ private:
         real_height = height;
       }
 
-    assert(geom_height > 0 and geom_wide > 0);
+    ah_domain_error_if(geom_height <= 0 or geom_wide <= 0)
+      << "Degenerate bounding box";
   }
 
   void draw_cartesian_axis(std::ostream & output);
@@ -694,7 +703,7 @@ public:
                                                                         \
   const double l = sqrt(arrow_width*arrow_width + arrow_lenght*arrow_lenght); \
   const double tetha = atan2(arrow_width, arrow_lenght);                \
-  const double phi = atan( fabs( (tgt_y - src_y)/(tgt_x - src_x) ) );   \
+  const double phi = atan2( fabs(tgt_y - src_y), fabs(tgt_x - src_x) ); \
                                                                         \
   double dx1 = l*cos(phi - tetha);                                      \
   double dy1 = l*sin(phi - tetha);                                      \

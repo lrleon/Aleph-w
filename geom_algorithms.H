@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -42,15 +41,93 @@
  *
  *  ## Convex Hull
  *
- *  Three algorithms to compute the convex hull of a point set:
+ *  Convex hull algorithms to compute the hull of a point set:
  *
  *  | Algorithm | Complexity | Best For |
  *  |-----------|------------|----------|
+ *  | AndrewMonotonicChainConvexHull | O(n log n) | General use, deterministic |
+ *  | GrahamScanConvexHull | O(n log n) | General use, angle-based |
  *  | BruteForceConvexHull | O(n³) | Small sets, educational |
  *  | GiftWrappingConvexHull | O(nh) | Few hull points (h small) |
  *  | QuickHull | O(n log n) avg, O(n²) worst | General use |
  *
  *  where n = number of points, h = number of hull points.
+ *
+ *  ## Closest Pair
+ *
+ *  - **ClosestPairDivideAndConquer**: Computes the closest pair of points in
+ *    O(n log n) time using divide & conquer.
+ *
+ *  ## Minimum Enclosing Circle
+ *
+ *  - **MinimumEnclosingCircle**: Smallest circle containing all input points,
+ *    computed in expected O(n) time via Welzl's algorithm.
+ *
+ *  ## Rotating Calipers (Convex Polygons)
+ *
+ *  - **RotatingCalipersConvexPolygon**: Computes diameter in O(n) and minimum
+ *    width in O(n) for convex polygons.
+ *
+ *  ## Point-in-Polygon
+ *
+ *  - **PointInPolygonWinding**: Exact point location in simple polygons
+ *    (inside/boundary/outside) using winding number.
+ *
+ *  ## Polygon Intersection (Basic)
+ *
+ *  - **ConvexPolygonIntersectionBasic**: Exact convex-convex polygon
+ *    intersection via Sutherland-Hodgman clipping.
+ *
+ *  ## Half-Plane Intersection
+ *
+ *  - **HalfPlaneIntersection**: Exact bounded half-plane intersection using
+ *    angle-sorted deque (O(n log n)).
+ *
+ *  ## Segment-Segment Intersection
+ *
+ *  - **SegmentSegmentIntersection**: Dedicated O(1) exact intersection for
+ *    a single segment pair (`none` / `point` / `overlap`).
+ *
+ *  ## Delaunay / Voronoi
+ *
+ *  - **DelaunayTriangulationBowyerWatson**: Incremental Delaunay triangulation
+ *    using Bowyer-Watson.
+ *  - **VoronoiDiagramFromDelaunay**: Voronoi diagram derived as the dual of a
+ *    Delaunay triangulation (bounded edges + unbounded rays).
+ *
+ *  ## Serialization
+ *
+ *  - **GeomSerializer**: Convert basic geometry types to **WKT** and
+ *    **GeoJSON** strings.
+ *
+ *  ## Spatial Indexing
+ *
+ *  - **AABBTree**: Axis-aligned bounding box tree for accelerating rectangle
+ *    range queries and point queries.
+ *
+ *  ## Polyline / Polygon Simplification
+ *
+ *  - **DouglasPeuckerSimplification**: Recursive split by maximum
+ *    perpendicular distance. O(n log n) average, O(n²) worst.
+ *  - **VisvalingamWhyattSimplification**: Iteratively removes the vertex
+ *    forming the smallest effective area triangle. O(n log n) with a heap.
+ *
+ *  ## Polygon Offset
+ *
+ *  - **ConvexPolygonOffset**: Inward/outward offset of convex polygons.
+ *  - **PolygonOffset**: Inward/outward offset of arbitrary simple polygons,
+ *    with self-intersection cleanup. O(n²).
+ *
+ *  ## Trapezoidal Map Point Location
+ *
+ *  - **TrapezoidalMapPointLocation**: O(log n) point location via
+ *    trapezoidal decomposition with DAG search. O(n log n) expected
+ *    construction, O(log n) expected query.
+ *
+ *  ## C++20 Support
+ *
+ *  - **GeomNumberType**: Concept describing numeric types usable by geometry
+ *    routines.
  *
  *  ## Dependencies
  *
@@ -92,6 +169,17 @@
  *
  *  @see polygon.H Geometric primitives
  *  @see Point, Segment, Polygon, Triangle
+ *  @see GeomSerializer
+ *  @see AABBTree
+ *
+ *  Example programs:
+ *  - `Examples/geom_example.C` (core + advanced demo selector)
+ *  - `Examples/delaunay_voronoi_example.cc`
+ *  - `Examples/point_in_polygon_example.cc`
+ *  - `Examples/halfplane_intersection_example.cc`
+ *  - `Examples/convex_hull_comparison_example.cc`
+ *  - `Examples/closest_pair_example.cc`
+ *  - `Examples/rotating_calipers_example.cc`
  *
  *  @ingroup Geometry
  *  @author Leandro Rabindranath León
@@ -101,625 +189,13710 @@
 # ifndef GEOM_ALGORITHMS_H
 # define GEOM_ALGORITHMS_H
 
+# include <sstream>
 # include <polygon.H>
 # include <htlist.H>
+# include <tpl_dynDlist.H>
 # include <tpl_dynSetTree.H>
+# include <tpl_arrayQueue.H>
+# include <tpl_arrayStack.H>
 # include <tpl_sort_utils.H>
+# include <tpl_2dtree.H>
 # include <ah-errors.H>
+# include <algorithm>
+# include <utility>
+# include <random>
+# include <map>
+# include <set>
+# include <queue>
+# include <memory>
+# include <limits>
+# include <cmath>
+
+# include <ah-unique.H>
+# include <tpl_dynBinHeap.H>
 
 namespace Aleph
 {
-
-// ============================================================================
-// Triangulation Algorithms
-// ============================================================================
-
-/**
- * @brief Polygon triangulation using the ear-cutting algorithm.
- *
- * Decomposes a simple polygon into a set of non-overlapping triangles.
- * An "ear" is a triangle formed by three consecutive vertices where
- * the diagonal between the first and third vertices lies entirely
- * inside the polygon.
- *
- * ## Algorithm
- *
- * 1. Find all ears (vertices whose diagonal is inside the polygon)
- * 2. Remove an ear, creating a triangle
- * 3. Update the ear status of adjacent vertices
- * 4. Repeat until only a triangle remains
- *
- * ## Complexity
- *
- * - Time: O(n²) where n = number of vertices
- * - Space: O(n) for the ears set
- *
- * ## Requirements
- *
- * - Input must be a simple polygon (no self-intersections)
- * - Polygon must have at least 3 vertices
- * - Vertices should be in counter-clockwise order
- *
- * ## Example
- *
- * ```cpp
- * // Create a convex quadrilateral
- * Polygon quad;
- * quad.add_vertex(Point(0, 0));
- * quad.add_vertex(Point(4, 0));
- * quad.add_vertex(Point(4, 3));
- * quad.add_vertex(Point(0, 3));
- * quad.close();
- *
- * CuttingEarsTriangulation triangulator;
- * DynList<Triangle> triangles = triangulator(quad);
- * // Result: 2 triangles
- * ```
- *
- * @warning The input polygon is modified (vertices are removed).
- *          Pass a copy if you need to preserve the original.
- *
- * @see Triangle Output triangle type
- * @see Polygon Input polygon type
- *
- * @ingroup Geometry
- * @author Alejandro J. Mujica
- */
-class CuttingEarsTriangulation
-{
-  using EarsSet = DynSetTree<const Vertex *, Treap_Rk>;
-
-public:
-
   /**
-   * @brief Check if a segment is a valid diagonal of the polygon.
+   * @brief Shared polygon helpers used across multiple geometry algorithms.
    *
-   * A diagonal is valid if it doesn't intersect any edge of the polygon
-   * (except at endpoints).
+   * Provides utilities for working with polygons represented as `Array<Point>`.
+   * Many internal algorithms extract vertices into arrays for efficient indexed
+   * access. These helpers centralize common operations.
    *
-   * @param p The polygon.
-   * @param s The candidate diagonal segment.
-   * @return true if s is a valid diagonal.
+   * @note For direct operations on `Polygon` objects, prefer the convenience
+   *       methods `Polygon::area()`, `Polygon::is_convex()`, etc. Use this class
+   *       when working with extracted vertex arrays.
+   *
+   * @note `signed_double_area()` returns **twice** the signed area (avoids division).
+   *       Use `area()` for the actual area value.
    */
-  static bool diagonalie(const Polygon & p, const Segment & s)
+  class GeomPolygonUtils
   {
-    for (Polygon::Segment_Iterator it(p); it.has_curr(); it.next_ne())
-      {
-        if (Segment curr = it.get_current_segment(); 
-            (curr.get_src_point() != s.get_src_point()) and
-            (curr.get_tgt_point() != s.get_src_point()) and
-            (curr.get_src_point() != s.get_tgt_point()) and
-            (curr.get_tgt_point() != s.get_tgt_point()) and
-            s.intersects_with(curr))
-          return false;
-      }
-    return true;
-  }
-
-  /**
-   * @brief Check if vertex b is inside the cone formed at vertex a.
-   *
-   * The cone is defined by the edges adjacent to a (from prev to next).
-   *
-   * @param p The polygon.
-   * @param a The vertex forming the cone apex.
-   * @param b The vertex to test.
-   * @return true if b is visible from a within the polygon.
-   */
-  static bool in_cone(const Polygon & p, const Vertex & a, const Vertex & b)
-  {
-    // a0 -> a -> a1 are consecutive vertices
-    const Vertex & a0 = p.get_prev_vertex(a);
-    const Vertex & a1 = p.get_next_vertex(a);
-
-    if (a0.is_to_left_on_from(a, a1))
-      return a0.is_to_left_from(a, b) and a1.is_to_left_from(b, a);
-
-    return not (a1.is_to_left_on_from(a, b) and
-                a0.is_to_left_on_from(b, a));
-  }
-
-  /**
-   * @brief Check if segment (a, b) is a valid internal diagonal.
-   *
-   * @param p The polygon.
-   * @param a First vertex of the diagonal.
-   * @param b Second vertex of the diagonal.
-   * @return true if (a, b) is a valid diagonal.
-   */
-  static bool diagonal(const Polygon & p, const Vertex & a, const Vertex & b)
-  {
-    return in_cone(p, a, b) and in_cone(p, b, a) and
-           diagonalie(p, Segment(a, b));
-  }
-
-  /**
-   * @brief Initialize the set of ear vertices.
-   *
-   * @param p The polygon.
-   * @return Set of pointers to ear vertices.
-   */
-  static EarsSet init_ears(const Polygon & p)
-  {
-    EarsSet ret;
-
-    for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
-      {
-        Vertex & curr = it.get_current_vertex();
-        const Vertex & prev = p.get_prev_vertex(curr);
-        const Vertex & next = p.get_next_vertex(curr);
-        if (diagonal(p, prev, next))
-          ret.insert(&curr);
-      }
-
-    return ret;
-  }
-
-public:
-
-  /**
-   * @brief Triangulate the polygon.
-   *
-   * @param p The polygon to triangulate (will be modified).
-   * @return List of triangles forming the triangulation.
-   *
-   * @throws domain_error if the polygon has fewer than 3 vertices.
-   *
-   * @note The input polygon is consumed (vertices removed).
-   */
-  DynList<Triangle> operator ()(Polygon & p)
-  {
-    ah_domain_error_if(p.size() < 3) << "Polygon has less than 3 vertices";
-
-    EarsSet ears = init_ears(p);
-
-    DynList<Triangle> ret;
-
-    while (p.size() > 3)
-      {
-        const Vertex *curr = ears.remove_pos(0);
-
-        const Vertex & prev = p.get_prev_vertex(*curr);
-        const Vertex & prev_prev = p.get_prev_vertex(prev);
-        const Vertex & next = p.get_next_vertex(*curr);
-        const Vertex & next_next = p.get_next_vertex(next);
-
-        if (diagonal(p, prev_prev, next))
-          ears.insert(&prev);
-        else
-          ears.remove(&prev);
-
-        if (diagonal(p, prev, next_next))
-          ears.insert(&next);
-        else
-          ears.remove(&next);
-
-        ret.append(Triangle(prev, *curr, next));
-
-        p.remove_vertex(*curr);
-      }
-
-    assert(p.size() == 3);
-
-    const Vertex & a = p.get_first_vertex();
-    const Vertex & b = a.next_vertex();
-    const Vertex & c = b.next_vertex();
-
-    ret.append(Triangle(a, b, c));
-
-    return ret;
-  }
-};
-
-// ============================================================================
-// Convex Hull Algorithms
-// ============================================================================
-
-/**
- * @brief Brute force convex hull algorithm.
- *
- * Computes the convex hull by testing all pairs of points to find
- * extreme edges (edges where all other points are on one side).
- *
- * ## Algorithm
- *
- * For each pair of points (p, q):
- *   If all other points are to the left of segment (p, q),
- *   then (p, q) is an edge of the convex hull.
- *
- * ## Complexity
- *
- * - Time: O(n³) - checks n² pairs, each against n points
- * - Space: O(n) for the edge set
- *
- * ## Use Cases
- *
- * - Educational purposes
- * - Very small point sets (< 20 points)
- * - Verification of other algorithms
- *
- * @see GiftWrappingConvexHull O(nh) algorithm
- * @see QuickHull O(n log n) average algorithm
- *
- * @ingroup Geometry
- * @author Alejandro J. Mujica
- */
-class BruteForceConvexHull
-{
-  struct CmpSegment
-  {
-    bool cmp_point(const Point & p1, const Point & p2) const
+  public:
+    /// @brief Extract vertices from a polygon into an array for indexed access.
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & poly)
     {
-      if (p1.get_x() < p2.get_x())
-        return true;
-
-      return not (p2.get_x() < p1.get_x()) and p1.get_y() < p2.get_y();
+      Array<Point> verts;
+      verts.reserve(poly.size());
+      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+        verts.append(it.get_current_vertex());
+      return verts;
     }
 
-    bool operator ()(const Segment & s1, const Segment & s2) const
+    /** @brief Compute twice the signed area (shoelace formula without division).
+     *
+     *  Returns positive for CCW vertices, negative for CW. This is 2× the actual
+     *  signed area; use `area()` or `signed_area()` for the true value.
+     */
+    [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & verts)
     {
-      if (cmp_point(s1.get_src_point(), s2.get_src_point()))
+      Geom_Number sum = 0;
+      for (size_t i = 0; i < verts.size(); ++i)
+        {
+          const Point & a = verts(i);
+          const Point & b = verts((i + 1) % verts.size());
+          sum += a.get_x() * b.get_y() - a.get_y() * b.get_x();
+        }
+      return sum;
+    }
+
+    /// @brief Compute twice the signed area of a polygon.
+    [[nodiscard]] static Geom_Number signed_double_area(const Polygon & poly)
+    {
+      return signed_double_area(extract_vertices(poly));
+    }
+
+    /// @brief Compute the actual signed area of a vertex array.
+    [[nodiscard]] static Geom_Number signed_area(const Array<Point> & verts)
+    {
+      return signed_double_area(verts) / 2;
+    }
+
+    /// @brief Compute the actual signed area of a polygon.
+    [[nodiscard]] static Geom_Number signed_area(const Polygon & poly)
+    {
+      return signed_double_area(poly) / 2;
+    }
+
+    /// @brief Compute the absolute area of a vertex array.
+    [[nodiscard]] static Geom_Number area(const Array<Point> & verts)
+    {
+      Geom_Number a = signed_area(verts);
+      return a < 0 ? Geom_Number(-a) : a;
+    }
+
+    /// @brief Compute the absolute area of a polygon.
+    [[nodiscard]] static Geom_Number area(const Polygon & poly)
+    {
+      Geom_Number a = signed_area(poly);
+      return a < 0 ? Geom_Number(-a) : a;
+    }
+
+    /// @brief Check if a vertex array forms a convex polygon.
+    [[nodiscard]] static bool is_convex(const Array<Point> & verts)
+    {
+      if (verts.size() < 3)
         return true;
 
-      return not (cmp_point(s2.get_src_point(), s1.get_src_point())) and
-             cmp_point(s1.get_tgt_point(), s2.get_tgt_point());
+      int sign = 0;
+      const size_t n = verts.size();
+      for (size_t i = 0; i < n; ++i)
+        {
+          const Geom_Number turn =
+              area_of_parallelogram(verts(i), verts((i + 1) % n),
+                                    verts((i + 2) % n));
+          if (turn == 0)
+            continue;
+          const int curr = turn > 0 ? 1 : -1;
+          if (sign == 0)
+            sign = curr;
+          else if (sign != curr)
+            return false;
+        }
+      return true;
+    }
+
+    static void ensure_ccw(Array<Point> & verts)
+    {
+      if (signed_double_area(verts) < 0)
+        for (size_t i = 0; i < verts.size() / 2; ++i)
+          {
+            const Point tmp = verts(i);
+            verts(i) = verts(verts.size() - 1 - i);
+            verts(verts.size() - 1 - i) = tmp;
+          }
     }
   };
 
-  using SegmentSet = DynSetTree<Segment, Treap_Rk, CmpSegment>;
-  using PointIt = DynList<Point>::Iterator;
-
-  bool are_all_points_on_left(DynList<Point> & l, const Segment & s)
+  /**
+   * @brief Shared edge-group extraction for triangle meshes.
+   *
+   * Emits the three undirected edges of each triangle, sorts by (u,v,tri),
+   * then visits contiguous groups with the same undirected edge key.
+   */
+  /**
+   * @brief Utilities for finding adjacencies between triangles in a mesh.
+   *
+   * Provides a mechanism to iterate over groups of triangles that share the same edge.
+   */
+  class GeomTriangleAdjacencyUtils
   {
-    for (PointIt it(l); it.has_curr(); it.next_ne())
-      {
-        const Point & p = it.get_curr();
+  public:
+    /**
+     * @brief Represents a reference to a triangle edge.
+     */
+    struct EdgeRef
+    {
+      size_t u;     ///< Index of the first vertex of the edge (u < v).
+      size_t v;     ///< Index of the second vertex of the edge (u < v).
+      size_t tri;   ///< Index of the triangle containing this edge.
+      size_t third; ///< Index of the third vertex in the triangle (not on the edge).
+    };
 
-        if (p.is_to_right_from(s))
-          return false;
-      }
+  private:
+    static void append_edge(Array<EdgeRef> & edges, size_t a, size_t b,
+                            const size_t tri, const size_t third)
+    {
+      if (a > b)
+        {
+          const size_t tmp = a;
+          a = b;
+          b = tmp;
+        }
 
-    return true;
-  }
+      edges.append(EdgeRef{a, b, tri, third});
+    }
 
-  SegmentSet extreme_edges(DynList<Point> & point_set)
-  {
-    SegmentSet ret;
+  public:
+    template <typename TriangleArray, typename GroupFn>
+    static void for_each_sorted_edge_group(const TriangleArray & triangles,
+                                           GroupFn on_group)
+    {
+      Array<EdgeRef> edges;
+      edges.reserve(triangles.size() * 3);
+      for (size_t tri_idx = 0; tri_idx < triangles.size(); ++tri_idx)
+        {
+          const auto & tri = triangles(tri_idx);
+          append_edge(edges, tri.i, tri.j, tri_idx, tri.k);
+          append_edge(edges, tri.j, tri.k, tri_idx, tri.i);
+          append_edge(edges, tri.k, tri.i, tri_idx, tri.j);
+        }
 
-    for (PointIt i(point_set); i.has_curr(); i.next_ne())
-      {
-        const Point & p_i = i.get_curr();
+      quicksort_op(edges, [](const EdgeRef & a, const EdgeRef & b)
+                     {
+                       if (a.u != b.u)
+                         return a.u < b.u;
+                       if (a.v != b.v)
+                         return a.v < b.v;
+                       return a.tri < b.tri;
+                     });
 
-        for (PointIt j(point_set); j.has_curr(); j.next_ne())
-          {
-            const Point & p_j = j.get_curr();
+      size_t first = 0;
+      while (first < edges.size())
+        {
+          size_t last = first + 1;
+          while (last < edges.size() and
+                 edges(last).u == edges(first).u and
+                 edges(last).v == edges(first).v)
+            ++last;
 
-            if (p_i == p_j)
-              continue;
-
-            Segment s(p_i, p_j);
-
-            if (are_all_points_on_left(point_set, s))
-              ret.insert(s);
-          }
-      }
-
-    return ret;
-  }
-
-public:
+          on_group(edges, first, last);
+          first = last;
+        }
+    }
+  };
 
   /**
-   * @brief Compute the convex hull of a point set.
-   *
-   * @param point_set The input points.
-   * @return A closed polygon representing the convex hull.
+   * @brief Shared Bowyer-Watson core parameterized by in-circle predicate.
    */
-  Polygon operator ()(DynList<Point> & point_set)
+  class GeomBowyerWatsonUtils
   {
-    Polygon ret;
+  private:
+    struct WorkTriangle
+    {
+      size_t a;
+      size_t b;
+      size_t c;
+      bool alive;
+    };
 
-    SegmentSet extremes = extreme_edges(point_set);
+    struct UndirectedEdge
+    {
+      size_t u;
+      size_t v;
+    };
 
-    Segment first_segment = extremes.remove_pos(0);
-    ret.add_vertex(first_segment.get_src_point());
-    ret.add_vertex(first_segment.get_tgt_point());
-
-    while (true)
+    struct CmpUndirectedEdge
+    {
+      bool operator ()(const UndirectedEdge & a, const UndirectedEdge & b) const
       {
-        const Vertex & last_vertex = ret.get_last_vertex();
-
-        Segment *ptr = extremes.find_ptr([&last_vertex](const Segment & s)
-                                           {
-                                             return s.get_src_point() == last_vertex;
-                                           });
-
-        assert(ptr != nullptr);
-
-        if (ptr->get_tgt_point() == ret.get_first_vertex())
-          break;
-
-        ret.add_vertex(ptr->get_tgt_point());
-
-        extremes.remove(*ptr);
+        if (a.u != b.u)
+          return a.u < b.u;
+        return a.v < b.v;
       }
+    };
 
-    ret.close();
-    return ret;
-  }
-};
+    using EdgeSet = DynSetTree<UndirectedEdge, Treap_Rk, CmpUndirectedEdge>;
 
-/**
- * @brief Gift wrapping (Jarvis march) convex hull algorithm.
- *
- * Computes the convex hull by starting from the lowest point and
- * "wrapping" around the point set, always selecting the point that
- * makes the smallest counter-clockwise angle.
- *
- * ## Algorithm
- *
- * 1. Start with the lowest point (guaranteed to be on hull)
- * 2. Find the point that makes the smallest angle with the last edge
- * 3. Add it to the hull
- * 4. Repeat until returning to the starting point
- *
- * ## Complexity
- *
- * - Time: O(nh) where n = total points, h = hull points
- * - Space: O(1) additional
- *
- * ## Use Cases
- *
- * - When the convex hull has few points (h << n)
- * - When output-sensitive algorithm is preferred
- *
- * @see QuickHull For general-purpose convex hull
- *
- * @ingroup Geometry
- * @author Alejandro J. Mujica
- */
-class GiftWrappingConvexHull
-{
-  Point * get_lowest_point(DynList<Point> & point_set)
-  {
-    DynList<Point>::Iterator it(point_set);
-    Point *ret = &it.get_curr();
-    it.next();
+    static void toggle_edge(EdgeSet & boundary, size_t u, size_t v)
+    {
+      if (u > v)
+        {
+          const size_t tmp = u;
+          u = v;
+          v = tmp;
+        }
 
-    for (/* nothing */; it.has_curr(); it.next_ne())
-      {
-        Point & p = it.get_curr();
+      const UndirectedEdge e{u, v};
+      if (const auto *ptr = boundary.search(e); ptr != nullptr)
+        boundary.remove(*ptr);
+      else
+        boundary.insert(e);
+    }
 
-        if (p.get_y() < ret->get_y())
-          ret = &p;
-      }
+  public:
+    template <typename IndexedTriangle, typename InCirclePredicate>
+    [[nodiscard]] static Array<IndexedTriangle>
+    triangulate(Array<Point> pts, const size_t n,
+                InCirclePredicate point_in_circumcircle)
+    {
+      Array<IndexedTriangle> out;
+      if (n < 3)
+        return out;
 
-    return ret;
-  }
+      Geom_Number minx = pts(0).get_x();
+      Geom_Number maxx = pts(0).get_x();
+      Geom_Number miny = pts(0).get_y();
+      Geom_Number maxy = pts(0).get_y();
 
-public:
+      for (size_t i = 1; i < n; ++i)
+        {
+          if (pts(i).get_x() < minx) minx = pts(i).get_x();
+          if (pts(i).get_x() > maxx) maxx = pts(i).get_x();
+          if (pts(i).get_y() < miny) miny = pts(i).get_y();
+          if (pts(i).get_y() > maxy) maxy = pts(i).get_y();
+        }
 
-  /**
-   * @brief Compute the convex hull of a point set.
-   *
-   * @param point_set The input points.
-   * @return A closed polygon representing the convex hull.
-   */
-  Polygon operator ()(DynList<Point> & point_set)
-  {
-    Polygon ret;
+      const Geom_Number dx = maxx - minx;
+      const Geom_Number dy = maxy - miny;
+      Geom_Number delta = dx > dy ? dx : dy;
+      if (delta == 0)
+        delta = 1;
 
-    Point *lowest_point = get_lowest_point(point_set);
-    Point *p_i = lowest_point;
-    ret.add_vertex(*lowest_point);
+      const Geom_Number span = delta * 16 + 1;
+      const Geom_Number two_span = span + span;
+      const Geom_Number midx = (minx + maxx) / 2;
+      const Geom_Number midy = (miny + maxy) / 2;
 
-    Segment last_segment = Segment(Point(0, 0), Point(1, 0));
+      const Point s0(midx - two_span, midy - span);
+      const Point s1(midx + two_span, midy - span);
+      const Point s2(midx, midy + two_span);
 
-    while (true)
-      {
-        Point *p_k = nullptr;
+      pts.append(s0);
+      pts.append(s1);
+      pts.append(s2);
 
-        double min_angle = std::numeric_limits<double>::max();
+      const size_t i0 = n;
+      const size_t i1 = n + 1;
+      const size_t i2 = n + 2;
 
-        for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
-          {
-            Point & p_j = it.get_curr();
+      Array<WorkTriangle> work;
+      work.append(WorkTriangle{i0, i1, i2, true});
 
-            if (p_j == *p_i)
-              continue;
+      for (size_t pidx = 0; pidx < n; ++pidx)
+        {
+          Array<size_t> bad;
+          bad.reserve(work.size());
 
-            double angle =
-                Segment(*p_i, p_j).counterclockwise_angle_with(last_segment);
+          for (size_t t = 0; t < work.size(); ++t)
+            {
+              const auto & [a, b, c, alive] = work(t);
+              if (not alive)
+                continue;
 
-            if (angle < min_angle)
-              {
-                min_angle = angle;
-                p_k = &p_j;
-              }
-          }
+              if (point_in_circumcircle(pts, a, b, c, pidx))
+                bad.append(t);
+            }
 
-        assert(p_k != nullptr);
-
-        if (p_k == lowest_point)
-          break;
-
-        ret.add_vertex(*p_k);
-
-        last_segment = ret.get_last_segment();
-
-        p_i = p_k;
-      }
-
-    ret.close();
-    return ret;
-  }
-};
-
-/**
- * @brief QuickHull convex hull algorithm.
- *
- * Computes the convex hull using a divide-and-conquer approach similar
- * to QuickSort. Recursively finds the farthest point from a line and
- * partitions the remaining points.
- *
- * ## Algorithm
- *
- * 1. Find leftmost and rightmost points (guaranteed on hull)
- * 2. Partition points into those above and below the line
- * 3. For each partition, find the farthest point from the line
- * 4. Recursively process the sub-partitions
- *
- * ## Complexity
- *
- * - Time: O(n log n) average, O(n²) worst case
- * - Space: O(n) for recursive calls
- *
- * ## Use Cases
- *
- * - General-purpose convex hull computation
- * - Large point sets
- * - When average-case performance matters more than worst-case
- *
- * @ingroup Geometry
- * @author Alejandro J. Mujica
- */
-class QuickHull
-{
-  Point get_fartest_point(DynList<Point> & point_set, const Segment & s)
-  {
-    Geom_Number max_distance = 0;
-    Point ret;
-
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
-      {
-        const Point & p = it.get_curr();
-
-        Segment s1 = s.get_perpendicular(p);
-
-        Geom_Number sz = s1.size();
-
-        if (sz > max_distance)
-          {
-            ret = p;
-            max_distance = sz;
-          }
-      }
-
-    return ret;
-  }
-
-  std::pair<DynList<Point>, DynList<Point>>
-  get_right_points(DynList<Point> & point_set,
-                   const Point & a, const Point & b, const Point & c)
-  {
-    std::pair<DynList<Point>, DynList<Point>> ret;
-
-    while (not point_set.is_empty())
-      {
-        Point p = point_set.remove_first();
-
-        if (p != a and p != c and p.is_to_right_from(a, c))
-          {
-            ret.first.append(p);
+          if (bad.is_empty())
             continue;
+
+          EdgeSet boundary;
+
+          for (size_t bad_idx = 0; bad_idx < bad.size(); ++bad_idx)
+            {
+              auto & [a, b, c, alive] = work(bad(bad_idx));
+              if (not alive)
+                continue;
+
+              toggle_edge(boundary, a, b);
+              toggle_edge(boundary, b, c);
+              toggle_edge(boundary, c, a);
+              alive = false;
+            }
+
+          boundary.for_each([&](const UndirectedEdge & edge)
+                              {
+                                size_t u = edge.u;
+                                size_t v = edge.v;
+
+                                const Orientation o = orientation(pts(u), pts(v), pts(pidx));
+                                if (o == Orientation::COLLINEAR)
+                                  return;
+
+                                if (o == Orientation::CW)
+                                  {
+                                    const size_t tmp = u;
+                                    u = v;
+                                    v = tmp;
+                                  }
+
+                                work.append(WorkTriangle{u, v, pidx, true});
+                              });
+
+          Array<WorkTriangle> compacted;
+          compacted.reserve(work.size());
+          for (size_t t = 0; t < work.size(); ++t)
+            if (work(t).alive)
+              compacted.append(work(t));
+          work = std::move(compacted);
+        }
+
+      out.reserve(work.size());
+      for (size_t t = 0; t < work.size(); ++t)
+        {
+          const auto & [a, b, c, alive] = work(t);
+          if (not alive)
+            continue;
+
+          if (a >= n or b >= n or c >= n)
+            continue;
+
+          if (orientation(pts(a), pts(b), pts(c)) == Orientation::COLLINEAR)
+            continue;
+
+          out.append(IndexedTriangle{a, b, c});
+        }
+
+      return out;
+    }
+  };
+
+  // ============================================================================
+  // Triangulation Algorithms
+  // ============================================================================
+
+  /**
+   * @brief Polygon triangulation using the ear-cutting algorithm.
+   *
+   * Decomposes a simple polygon into a set of non-overlapping triangles.
+   * An "ear" is a triangle formed by three consecutive vertices where
+   * the diagonal between the first and third vertices lies entirely
+   * inside the polygon.
+   *
+   * ## Algorithm
+   *
+   * 1. Find all ears (vertices whose diagonal is inside the polygon)
+   * 2. Remove an ear, creating a triangle
+   * 3. Update the ear status of adjacent vertices
+   * 4. Repeat until only a triangle remains
+   *
+   * ## Complexity
+   *
+   * - Time: O(n²) where n = number of vertices
+   * - Space: O(n) for the ears set
+   *
+   * ## Requirements
+   *
+   * - Input must be a simple polygon (no self-intersections)
+   * - Polygon must have at least 3 vertices
+   * - Vertices can be clockwise or counter-clockwise (normalized internally)
+   *
+   * ## Example
+   *
+   * ```cpp
+   * // Create a convex quadrilateral
+   * Polygon quad;
+   * quad.add_vertex(Point(0, 0));
+   * quad.add_vertex(Point(4, 0));
+   * quad.add_vertex(Point(4, 3));
+   * quad.add_vertex(Point(0, 3));
+   * quad.close();
+   *
+   * CuttingEarsTriangulation triangulator;
+   * DynList<Triangle> triangles = triangulator(quad);
+   * // Result: 2 triangles
+   * ```
+   *
+   * @warning The input polygon is modified (vertices are removed).
+   *          Pass a copy if you need to preserve the original.
+   *
+   * @see Triangle Output triangle type
+   * @see Polygon Input polygon type
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
+  class CuttingEarsTriangulation
+  {
+    using EarsSet = DynSetTree<const Vertex *, Treap_Rk>;
+
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & p)
+    {
+      return GeomPolygonUtils::extract_vertices(p);
+    }
+
+    [[nodiscard]] static Geom_Number signed_double_area(const Polygon & p)
+    {
+      return GeomPolygonUtils::signed_double_area(p);
+    }
+
+    static void normalize_to_ccw(Polygon & p)
+    {
+      const Geom_Number area2 = signed_double_area(p);
+      ah_domain_error_if(area2 == 0) << "Polygon is degenerate (zero area)";
+      if (area2 > 0)
+        return;
+
+      const Array<Point> verts = extract_vertices(p);
+      Polygon ccw;
+      for (size_t i = verts.size(); i > 0; --i)
+        ccw.add_vertex(verts(i - 1));
+      ccw.close();
+      p = std::move(ccw);
+    }
+
+  public:
+    /**
+     * @brief Check if a segment is a valid diagonal of the polygon.
+     *
+     * A diagonal is valid if it doesn't intersect any edge of the polygon
+     * (except at endpoints).
+     *
+     * @param p The polygon.
+     * @param s The candidate diagonal segment.
+     * @return true if s is a valid diagonal.
+     */
+    static bool diagonalize(const Polygon & p, const Segment & s)
+    {
+      for (Polygon::Segment_Iterator it(p); it.has_curr(); it.next_ne())
+        if (Segment curr = it.get_current_segment();
+          curr.get_src_point() != s.get_src_point() and
+          curr.get_tgt_point() != s.get_src_point() and
+          curr.get_src_point() != s.get_tgt_point() and
+          curr.get_tgt_point() != s.get_tgt_point() and
+          s.intersects_with(curr))
+          return false;
+      return true;
+    }
+
+    /**
+     * @brief Check if vertex b is inside the cone formed at vertex a.
+     *
+     * The cone is defined by the edges adjacent to a (from prev to next).
+     *
+     * @param p The polygon.
+     * @param a The vertex forming the cone apex.
+     * @param b The vertex to test.
+     * @return true if b is visible from a within the polygon.
+     */
+    static bool in_cone(const Polygon & p, const Vertex & a, const Vertex & b)
+    {
+      // a0 -> a -> a1 are consecutive vertices
+      const Vertex & a0 = p.get_prev_vertex(a);
+      const Vertex & a1 = p.get_next_vertex(a);
+
+      if (a0.is_to_left_on_from(a, a1))
+        return a0.is_left_of(a, b) and a1.is_left_of(b, a);
+
+      return not (a1.is_to_left_on_from(a, b) and
+                  a0.is_to_left_on_from(b, a));
+    }
+
+    /**
+     * @brief Check if segment (a, b) is a valid internal diagonal.
+     *
+     * @param p The polygon.
+     * @param a First vertex of the diagonal.
+     * @param b Second vertex of the diagonal.
+     * @return true if (a, b) is a valid diagonal.
+     */
+    static bool diagonal(const Polygon & p, const Vertex & a, const Vertex & b)
+    {
+      return in_cone(p, a, b) and in_cone(p, b, a) and
+             diagonalize(p, Segment(a.to_point(), b.to_point()));
+    }
+
+    /**
+     * @brief Initialize the set of ear vertices.
+     *
+     * @param p The polygon.
+     * @return Set of pointers to ear vertices.
+     */
+    static EarsSet init_ears(const Polygon & p)
+    {
+      EarsSet ret;
+
+      for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
+        {
+          Vertex & curr = it.get_current_vertex();
+          const Vertex & prev = p.get_prev_vertex(curr);
+          if (const Vertex & next = p.get_next_vertex(curr); diagonal(p, prev, next))
+            ret.insert(&curr);
+        }
+
+      return ret;
+    }
+
+  public:
+    /**
+     * @brief Triangulate the polygon.
+     *
+     * @param poly The polygon to triangulate.
+     * @return List of triangles forming the triangulation.
+     *
+     * @throws domain_error if polygon is not closed.
+     * @throws domain_error if the polygon has fewer than 3 vertices.
+     * @throws domain_error if polygon is degenerate (zero area).
+     * @throws domain_error if no valid ear can be found.
+     */
+    DynList<Triangle> operator ()(const Polygon & poly) const
+    {
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(poly.size() < 3) << "Polygon has less than 3 vertices";
+
+      Polygon p = poly; // work on a copy
+      normalize_to_ccw(p);
+
+      EarsSet ears;
+      if (p.size() > 3)
+        {
+          ears = init_ears(p);
+          ah_domain_error_if(ears.is_empty())
+              << "No valid ear found; polygon may be non-simple";
+        }
+
+      DynList<Triangle> ret;
+
+      while (p.size() > 3)
+        {
+          ah_domain_error_if(ears.is_empty())
+              << "No valid ear found during triangulation";
+          const Vertex *curr = ears.remove_pos(0);
+
+          const Vertex & prev = p.get_prev_vertex(*curr);
+          const Vertex & next = p.get_next_vertex(*curr);
+
+          ret.append(Triangle(prev.to_point(), curr->to_point(), next.to_point()));
+          p.remove_vertex(*curr);
+
+          // After removal, prev and next are adjacent; recompute their
+          // outer neighbors for ear tests on the updated topology.
+          const Vertex & new_prev_prev = p.get_prev_vertex(prev);
+          const Vertex & new_next_next = p.get_next_vertex(next);
+
+          if (diagonal(p, new_prev_prev, next))
+            ears.insert(&prev);
+          else
+            ears.remove(&prev);
+
+          if (diagonal(p, prev, new_next_next))
+            ears.insert(&next);
+          else
+            ears.remove(&next);
+        }
+
+      assert(p.size() == 3);
+
+      const Vertex & a = p.get_first_vertex();
+      const Vertex & b = a.next_vertex();
+      const Vertex & c = b.next_vertex();
+
+      ret.append(Triangle(a.to_point(), b.to_point(), c.to_point()));
+
+      return ret;
+    }
+  };
+
+  // ============================================================================
+  // Closest Pair of Points
+  // ============================================================================
+
+  /**
+   * @brief Closest pair of points via divide and conquer.
+   *
+   * Computes the pair of points with minimum Euclidean distance using a classic
+   * O(n log n) divide-and-conquer algorithm.
+   *
+   * ## Policy
+   *
+   * - Uses exact arithmetic (`Geom_Number`) for distance comparisons.
+   * - Duplicate points are detected after sorting; if found, returns distance 0.
+   * - Throws if the input has fewer than 2 points.
+   *
+   * ## Complexity
+   *
+   * - Time: O(n log n)
+   * - Space: O(n)
+   *
+   * @ingroup Geometry
+   */
+  class ClosestPairDivideAndConquer
+  {
+  public:
+    struct Result
+    {
+      Point first;
+      Point second;
+      Geom_Number distance_squared;
+    };
+
+  private:
+    /**
+     * @brief Strict weak order for sorting points lexicographically by (x,y).
+     *
+     * Used to sort the input array `px` by x (primary) then y (secondary).
+     */
+    struct LexicographicCmp
+    {
+      bool operator ()(const Point & p1, const Point & p2) const
+      {
+        if (p1.get_x() < p2.get_x())
+          return true;
+
+        if (p2.get_x() < p1.get_x())
+          return false;
+
+        return p1.get_y() < p2.get_y();
+      }
+    };
+
+    /**
+     * @brief Strict weak order for sorting points by (y,x).
+     *
+     * Used to maintain the auxiliary array `py` sorted by y. Ties on y are
+     * broken by x to keep ordering deterministic.
+     */
+    struct ByYCmp
+    {
+      bool operator ()(const Point & p1, const Point & p2) const
+      {
+        if (p1.get_y() < p2.get_y())
+          return true;
+
+        if (p2.get_y() < p1.get_y())
+          return false;
+
+        if (p1.get_x() < p2.get_x())
+          return true;
+
+        if (p2.get_x() < p1.get_x())
+          return false;
+
+        return false;
+      }
+    };
+
+    /**
+     * @brief Squared Euclidean distance between two points.
+     *
+     * Uses exact arithmetic (`Geom_Number`).
+     */
+    [[nodiscard]] static Geom_Number dist2(const Point & a, const Point & b)
+    {
+      return a.distance_squared_to(b);
+    }
+
+    /**
+     * @brief Construct a `Result` object for a pair (a,b).
+     */
+    [[nodiscard]] static Result make_result(const Point & a, const Point & b)
+    {
+      return {a, b, dist2(a, b)};
+    }
+
+    /**
+     * @brief Brute-force closest pair on a small subarray.
+     *
+     * @param px Points sorted by x.
+     * @param l Left index (inclusive).
+     * @param r Right index (exclusive).
+     * @return Closest pair in px[l..r).
+     *
+     * @pre `r - l >= 2`.
+     */
+    [[nodiscard]] static Result brute_force(const Array<Point> & px,
+                                            const size_t l, const size_t r)
+    {
+      assert(r - l >= 2);
+
+      Result best = make_result(px(l), px(l + 1));
+
+      for (size_t i = l; i < r; ++i)
+        for (size_t j = i + 1; j < r; ++j)
+          if (Result cand = make_result(px(i), px(j)); cand.distance_squared < best.distance_squared)
+            best = cand;
+
+      return best;
+    }
+
+    /**
+     * @brief Recursive divide-and-conquer step.
+     *
+     * Splits the x-sorted array at `mid`, recurses on left/right halves,
+     * then checks a y-sorted "strip" around the split line to account for
+     * cross-boundary pairs.
+     *
+     * @param px Points sorted by x.
+     * @param l Left index (inclusive).
+     * @param r Right index (exclusive).
+     * @param py Points in the range [l,r) sorted by y.
+     * @return Closest pair in px[l..r).
+     */
+    [[nodiscard]] static Result recurse(const Array<Point> & px, const size_t l,
+                                        const size_t r, Array<Point> & py)
+    {
+      const size_t n = r - l;
+      if (n <= 3)
+        return brute_force(px, l, r);
+
+      const size_t mid = l + n / 2;
+      const Point & mid_point = px(mid);
+
+      Array<Point> left_py;
+      Array<Point> right_py;
+      left_py.reserve(mid - l);
+      right_py.reserve(r - mid);
+
+      const size_t left_target = mid - l;
+      for (size_t i = 0; i < py.size(); ++i)
+        {
+          const Point & p = py(i);
+          if (p.get_x() < mid_point.get_x())
+            left_py.append(p);
+          else if (p.get_x() > mid_point.get_x())
+            right_py.append(p);
+          else // tie on x — fill left first, then right
+            {
+              if (left_py.size() < left_target)
+                left_py.append(p);
+              else
+                right_py.append(p);
+            }
+        }
+
+      const Result best_left = recurse(px, l, mid, left_py);
+      const Result best_right = recurse(px, mid, r, right_py);
+      Result best = best_left.distance_squared < best_right.distance_squared ?
+                      best_left :
+                      best_right;
+
+      Array<Point> strip;
+      strip.reserve(py.size());
+      for (size_t i = 0; i < py.size(); ++i)
+        {
+          const Point & p = py(i);
+          if (const Geom_Number dx = p.get_x() - mid_point.get_x(); dx * dx < best.distance_squared)
+            strip.append(p);
+        }
+
+      for (size_t i = 0; i < strip.size(); ++i)
+        for (size_t j = i + 1; j < strip.size(); ++j)
+          {
+            if (const Geom_Number dy = strip(j).get_y() - strip(i).get_y(); dy * dy >= best.distance_squared)
+              break;
+
+            if (Result cand = make_result(strip(i), strip(j)); cand.distance_squared < best.distance_squared)
+              best = cand;
           }
 
-        if (p != c and p != b and p.is_to_right_from(c, b))
-          ret.second.append(p);
+      return best;
+    }
+
+  public:
+    /**
+     * @brief Compute the closest pair of points.
+     *
+     * @param point_set Input set of points.
+     * @return The closest pair and its squared distance.
+     *
+     * @throws domain_error if point_set has fewer than 2 points.
+     */
+    [[nodiscard]] Result operator ()(const DynList<Point> & point_set) const
+    {
+      Array<Point> px;
+      for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+        px.append(it.get_curr());
+
+      ah_domain_error_if(px.size() < 2)
+        << "Closest pair requires at least 2 points";
+
+      quicksort_op(px, LexicographicCmp());
+
+      // Early-exit on duplicate points: exact minimum distance is zero.
+      for (size_t i = 1; i < px.size(); ++i)
+        if (px(i) == px(i - 1))
+          return {px(i - 1), px(i), 0};
+
+      Array<Point> py = px;
+      quicksort_op(py, ByYCmp());
+
+      return recurse(px, 0, px.size(), py);
+    }
+
+    /**
+     * @brief Convenience wrapper returning the closest segment.
+     *
+     * @param point_set Input set of points.
+     * @return Segment between the closest pair.
+     */
+    [[nodiscard]] Segment closest_segment(DynList<Point> & point_set) const
+    {
+      Result r = (*this)(point_set);
+      return {r.first, r.second};
+    }
+  };
+
+  // ============================================================================
+  // Minimum Enclosing Circle (Welzl)
+  // ============================================================================
+
+  /**
+   * @brief Smallest circle enclosing a point set (Welzl's algorithm).
+   *
+   * Given a set of 2D points, computes the minimum enclosing circle (MEC)
+   * using an iterative version of Welzl's randomized incremental algorithm.
+   *
+   * ## Complexity
+   *
+   * - Expected time: O(n)
+   * - Worst-case time: O(n³) (extremely unlikely with random shuffle)
+   * - Space: O(n) for the working copy
+   *
+   * ## Usage
+   *
+   * ```cpp
+   * DynList<Point> pts;
+   * pts.append(Point(0, 0));
+   * pts.append(Point(4, 0));
+   * pts.append(Point(2, 3));
+   *
+   * MinimumEnclosingCircle mec;
+   * auto circle = mec(pts);
+   * // circle.center, circle.radius(), circle.contains(p)
+   * ```
+   *
+   * @ingroup Geometry
+   */
+  class MinimumEnclosingCircle
+  {
+  public:
+    /// Result type: a circle defined by center and squared radius.
+    struct Circle
+    {
+      Point center;
+      Geom_Number radius_squared = 0;
+
+      /// Exact radius (square root of radius_squared).
+      [[nodiscard]] Geom_Number radius() const
+      {
+        return square_root(radius_squared);
       }
 
-    return ret;
-  }
-
-  DynList<Point> quick_hull(DynList<Point> & point_set, const Point & a,
-                            const Point & b)
-  {
-    if (point_set.is_empty())
-      return DynList<Point>();
-
-    Point c = get_fartest_point(point_set, Segment(a, b));
-
-    auto r = get_right_points(point_set, a, b, c);
-
-    DynList<Point> ret = quick_hull(r.first, a, c);
-    DynList<Point> tmp = quick_hull(r.second, c, b);
-    ret.append(c);
-    ret.concat(tmp);
-
-    return ret;
-  }
-
-  std::pair<Point, Point> search_extremes(DynList<Point> & point_set)
-  {
-    DynList<Point>::Iterator it(point_set);
-    Point leftmost = it.get_curr();
-    Point rightmost = it.get_curr();
-    it.next();
-
-    for (/* nothing */; it.has_curr(); it.next_ne())
+      /// True if point @p p lies inside or on the circle boundary.
+      [[nodiscard]] bool contains(const Point & p) const
       {
-        const Point & p = it.get_curr();
+        return center.distance_squared_to(p) <= radius_squared;
+      }
+    };
 
-        if (p.get_x() < leftmost.get_x())
-          leftmost = p;
+    /// Circle through a single point (degenerate, radius = 0).
+    [[nodiscard]] static Circle from_one_point(const Point & a)
+    {
+      return {a, 0};
+    }
 
-        if (p.get_x() > rightmost.get_x())
-          rightmost = p;
+    /// Smallest circle with @p a and @p b on its boundary (diameter).
+    [[nodiscard]] static Circle from_two_points(const Point & a,
+                                                const Point & b)
+    {
+      const Point c = a.midpoint(b);
+      return {c, c.distance_squared_to(a)};
+    }
+
+    /// Circumscribed circle through three points.
+    ///
+    /// If the three points are collinear, returns the diameter circle of
+    /// the farthest pair.
+    [[nodiscard]] static Circle from_three_points(const Point & a,
+                                                  const Point & b,
+                                                  const Point & c)
+    {
+      const Geom_Number & ax = a.get_x();
+      const Geom_Number & ay = a.get_y();
+      const Geom_Number & bx = b.get_x();
+      const Geom_Number & by = b.get_y();
+      const Geom_Number & cx = c.get_x();
+      const Geom_Number & cy = c.get_y();
+
+      const Geom_Number d = ax * (by - cy) + bx * (cy - ay) + cx * (ay - by);
+
+      if (d == 0) // collinear — return diameter of farthest pair
+        {
+          const Geom_Number d_ab = a.distance_squared_to(b);
+          const Geom_Number d_bc = b.distance_squared_to(c);
+          const Geom_Number d_ac = a.distance_squared_to(c);
+
+          if (d_ab >= d_bc && d_ab >= d_ac)
+            return from_two_points(a, b);
+          if (d_bc >= d_ab && d_bc >= d_ac)
+            return from_two_points(b, c);
+          return from_two_points(a, c);
+        }
+
+      const Geom_Number den = d + d;
+      const Geom_Number a2 = ax * ax + ay * ay;
+      const Geom_Number b2 = bx * bx + by * by;
+      const Geom_Number c2 = cx * cx + cy * cy;
+
+      const Geom_Number ux =
+          (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / den;
+      const Geom_Number uy =
+          (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / den;
+
+      const Point center{ux, uy};
+      return {center, center.distance_squared_to(a)};
+    }
+
+    /**
+     * @brief Compute the minimum enclosing circle of a point set.
+     *
+     * @param points Input point set (unmodified; a working copy is made).
+     * @return The smallest Circle containing every input point.
+     * @throws std::domain_error if the point set is empty.
+     */
+    [[nodiscard]] Circle operator()(const DynList<Point> & points) const
+    {
+      Array<Point> pts;
+      for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+        pts.append(it.get_curr());
+
+      ah_domain_error_if(pts.size() == 0)
+          << "MinimumEnclosingCircle: empty point set";
+
+      // Fisher-Yates shuffle
+      {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        for (size_t i = pts.size() - 1; i > 0; --i)
+          {
+            std::uniform_int_distribution<size_t> dist(0, i);
+            if (const size_t j = dist(gen); i != j)
+              std::swap(pts(i), pts(j));
+          }
       }
 
-    return std::make_pair(leftmost, rightmost);
-  }
+      return welzl_iterative(pts);
+    }
 
-  std::pair<DynList<Point>, DynList<Point>>
-  partition(DynList<Point> & point_set, const Point & a, const Point & b)
+    /// Convenience overload accepting an initializer list.
+    [[nodiscard]] Circle operator()(std::initializer_list<Point> points) const
+    {
+      DynList<Point> l;
+      for (const auto & p: points)
+        l.append(p);
+      return (*this)(l);
+    }
+
+  private:
+    /// Minimum enclosing circle with boundary point @p p1.
+    [[nodiscard]] static Circle mec_with_point(const Array<Point> & pts,
+                                               size_t n,
+                                               const Point & p1)
+    {
+      Circle d = from_one_point(p1);
+      for (size_t j = 0; j < n; ++j)
+        if (not d.contains(pts(j)))
+          d = mec_with_two_points(pts, j, p1, pts(j));
+      return d;
+    }
+
+    /// Minimum enclosing circle with boundary points @p p1 and @p p2.
+    [[nodiscard]] static Circle mec_with_two_points(const Array<Point> & pts,
+                                                    size_t n,
+                                                    const Point & p1,
+                                                    const Point & p2)
+    {
+      Circle d = from_two_points(p1, p2);
+      for (size_t k = 0; k < n; ++k)
+        if (not d.contains(pts(k)))
+          d = from_three_points(p1, p2, pts(k));
+      return d;
+    }
+
+    /// Iterative Welzl: three nested loops.
+    [[nodiscard]] static Circle welzl_iterative(const Array<Point> & pts)
+    {
+      Circle d = from_one_point(pts(0));
+
+      for (size_t i = 1; i < pts.size(); ++i)
+        if (not d.contains(pts(i)))
+          d = mec_with_point(pts, i, pts(i));
+
+      return d;
+    }
+  };
+
+  // ============================================================================
+  // Rotating Calipers (Convex Polygon Metrics)
+  // ============================================================================
+
+  /**
+   * @brief Rotating calipers metrics for convex polygons.
+   *
+   * Computes two standard convex-polygon metrics:
+   *
+   * - Diameter (farthest pair of vertices).
+   * - Minimum width (minimum distance between two parallel supporting lines).
+   *
+   * ## Requirements
+   *
+   * - The input polygon must be closed.
+   * - The input polygon must be convex (collinear consecutive triples allowed).
+   *
+   * ## Complexity
+   *
+   * - Diameter: O(n) time.
+   * - Minimum width: O(n) time (rotating calipers).
+   * - Space: O(n) for temporary vertex storage.
+   *
+   * @ingroup Geometry
+   */
+  class RotatingCalipersConvexPolygon
   {
-    std::pair<DynList<Point>, DynList<Point>> ret;
+  public:
+    struct DiameterResult
+    {
+      Point first;
+      Point second;
+      Geom_Number distance_squared;
+    };
 
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+    struct WidthResult
+    {
+      Point edge_first;
+      Point edge_second;
+      Point antipodal;
+      Geom_Number width_squared;
+    };
+
+  private:
+    /**
+     * @brief Extract polygon vertices into an array.
+     *
+     * @param poly Input polygon.
+     * @return Vertex array in iteration order.
+     *
+     * @throws domain_error if @p poly is not closed or has fewer than 2
+     * vertices.
+     */
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & poly)
+    {
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
+
+      ah_domain_error_if(poly.size() < 2) << "Rotating calipers requires at least 2 vertices";
+
+      return GeomPolygonUtils::extract_vertices(poly);
+    }
+
+    /**
+     * @brief Check if a polygon vertex cycle is convex.
+     *
+     * Convexity is tested by scanning all consecutive triples and ensuring
+     * all non-zero turns have the same sign. Collinear triples are ignored.
+     *
+     * @param verts Polygon vertices.
+     * @return True if convex (or degenerate with < 3 vertices), false otherwise.
+     */
+    [[nodiscard]] static bool is_convex(const Array<Point> & verts)
+    {
+      return GeomPolygonUtils::is_convex(verts);
+    }
+
+    [[nodiscard]] static DiameterResult make_diameter(const Point & a, const Point & b)
+    {
+      return {a, b, a.distance_squared_to(b)};
+    }
+
+  public:
+    /**
+     * @brief Compute convex polygon diameter (farthest vertex pair).
+     *
+     * @param poly Closed convex polygon.
+     * @return Farthest pair and squared distance.
+     *
+     * @throws domain_error if the polygon is not closed, has < 2 vertices, or is non-convex.
+     */
+    static DiameterResult diameter(const Polygon & poly)
+    {
+      const Array<Point> verts = extract_vertices(poly);
+      ah_domain_error_if(not is_convex(verts)) << "Polygon must be convex";
+
+      const size_t n = verts.size();
+      if (n == 2)
+        return make_diameter(verts(0), verts(1));
+
+      auto edge_area = [&verts, n](const size_t i, const size_t k) -> Geom_Number
+        {
+          Geom_Number area =
+              area_of_parallelogram(verts(i), verts((i + 1) % n), verts(k));
+          if (area < 0)
+            area = -area;
+          return area;
+        };
+
+      size_t j = 1;
+      size_t safety = 0;
+      while (edge_area(0, (j + 1) % n) > edge_area(0, j) and safety++ < n)
+        j = (j + 1) % n;
+
+      DiameterResult best = make_diameter(verts(0), verts(j));
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t ni = (i + 1) % n;
+          safety = 0;
+          while (edge_area(i, (j + 1) % n) > edge_area(i, j) and safety++ < n)
+            j = (j + 1) % n;
+
+          if (DiameterResult cand1 = make_diameter(verts(i), verts(j)); cand1.distance_squared > best.distance_squared)
+            best = cand1;
+
+          if (DiameterResult cand2 = make_diameter(verts(ni), verts(j)); cand2.distance_squared > best.distance_squared)
+            best = cand2;
+        }
+
+      return best;
+    }
+
+    /**
+     * @brief Compute the minimum width of a closed convex polygon.
+     *
+     * The width for an edge is the maximum perpendicular distance from vertices
+     * to the edge line; the minimum width is the minimum of these edge widths.
+     *
+     * @param poly Closed convex polygon.
+     * @return Supporting edge, antipodal vertex, and squared width.
+     *
+     * @note Uses rotating calipers in O(n) for convex polygons.
+     *
+     * @throws domain_error if the polygon is not closed, has < 2 vertices, or is non-convex.
+     */
+    static WidthResult minimum_width(const Polygon & poly)
+    {
+      const Array<Point> verts = extract_vertices(poly);
+      ah_domain_error_if(not is_convex(verts)) << "Polygon must be convex";
+
+      const size_t n = verts.size();
+      if (n == 2)
+        return {verts(0), verts(1), verts(0), 0};
+
+      auto area_to_edge = [&verts, n](const size_t i, const size_t k) -> Geom_Number
+        {
+          Geom_Number area =
+              area_of_parallelogram(verts(i), verts((i + 1) % n), verts(k));
+          if (area < 0)
+            area = -area;
+          return area;
+        };
+
+      auto edge_len2 = [&verts, n](const size_t i) -> Geom_Number
+        {
+          return verts(i).distance_squared_to(verts((i + 1) % n));
+        };
+
+      size_t best_i = 0;
+      size_t best_ni = 1;
+      size_t best_j = 0;
+      Geom_Number best_width_sq = 0;
+      bool initialized = false;
+
+      // Initialize antipodal index for edge (0,1).
+      size_t j = 1 % n;
+      size_t safety = 0;
+      while (area_to_edge(0, (j + 1) % n) > area_to_edge(0, j) and safety++ < n)
+        j = (j + 1) % n;
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t ni = (i + 1) % n;
+
+          const Geom_Number len2 = edge_len2(i);
+          if (len2 == 0)
+            continue;
+
+          // Advance antipodal index while area increases.
+          safety = 0;
+          while (area_to_edge(i, (j + 1) % n) > area_to_edge(i, j) and safety++ < n)
+            j = (j + 1) % n;
+
+          const Geom_Number num = area_to_edge(i, j);
+          const Geom_Number width_sq = (num * num) / len2;
+          if (not initialized or width_sq < best_width_sq)
+            {
+              best_i = i;
+              best_ni = ni;
+              best_j = j;
+              best_width_sq = width_sq;
+              initialized = true;
+            }
+        }
+
+      if (not initialized)
+        return {verts(0), verts(1), verts(0), 0};
+
+      return {verts(best_i), verts(best_ni), verts(best_j), best_width_sq};
+    }
+  };
+
+  // ============================================================================
+  // Point-in-Polygon
+  // ============================================================================
+
+  /**
+   * @brief Exact point-in-polygon classification via winding number.
+   *
+   * Classifies a point relative to a simple closed polygon as:
+   * - Inside
+   * - Boundary
+   * - Outside
+   *
+   * Uses exact geometric predicates (`orientation`, `on_segment`) with
+   * `Geom_Number`, avoiding floating-point robustness issues.
+   *
+   * ## Requirements
+   *
+   * - Polygon must be closed.
+   * - Polygon must have at least 3 vertices.
+   * - Polygon should be simple (non-self-intersecting).
+   *
+   * ## Complexity
+   *
+   * - Time: O(n), where n is number of polygon edges.
+   * - Space: O(1).
+   *
+   * @ingroup Geometry
+   */
+  class PointInPolygonWinding
+  {
+  public:
+    enum class Location
+    {
+      Outside,
+      Boundary,
+      Inside
+    };
+
+    /**
+     * @brief Classify point location with respect to a polygon.
+     *
+     * @param poly Closed simple polygon.
+     * @param p Query point.
+     * @return Location::Outside, Location::Boundary, or Location::Inside.
+     *
+     * @throws domain_error if polygon is open or has fewer than 3 vertices.
+     */
+    static Location locate(const Polygon & poly, const Point & p)
+    {
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
+
+      ah_domain_error_if(poly.size() < 3) << "Point-in-polygon requires at least 3 vertices";
+
+      switch (poly.locate_point(p))
+        {
+        case Polygon::PointLocation::Boundary:
+          return Location::Boundary;
+        case Polygon::PointLocation::Inside:
+          return Location::Inside;
+        case Polygon::PointLocation::Outside:
+        default:
+          return Location::Outside;
+        }
+    }
+
+    /**
+     * @brief Return true if the point is inside or on the boundary.
+     *
+     * @param poly Closed simple polygon.
+     * @param p Query point.
+     * @return true iff location is Inside or Boundary.
+     */
+    [[nodiscard]] static bool contains(const Polygon & poly, const Point & p)
+    {
+      const Location loc = locate(poly, p);
+      return loc != Location::Outside;
+    }
+
+    /**
+     * @brief Return true only for strict interior points.
+     *
+     * @param poly Closed simple polygon.
+     * @param p Query point.
+     * @return true iff location is Inside.
+     */
+    [[nodiscard]] static bool strictly_contains(const Polygon & poly,
+                                                const Point & p)
+    {
+      return locate(poly, p) == Location::Inside;
+    }
+  };
+
+  // ============================================================================
+  // Polygon Intersection (Basic)
+  // ============================================================================
+
+  /**
+   * @brief Basic exact intersection for closed convex polygons.
+   *
+   * Computes the intersection of two closed convex polygons using the
+   * Sutherland-Hodgman clipping algorithm.
+   *
+   * ## Scope
+   *
+   * - Convex subject polygon.
+   * - Convex clip polygon.
+   * - Exact arithmetic (`Geom_Number`) through robust predicates.
+   *
+   * ## Complexity
+   *
+   * - Time: O(n * m), where n and m are vertex counts.
+   * - Space: O(n + m).
+   *
+   * @ingroup Geometry
+   */
+  class ConvexPolygonIntersectionBasic
+  {
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & poly)
+    {
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
+
+      ah_domain_error_if(poly.size() < 3) << "Polygon must have at least 3 vertices";
+
+      return GeomPolygonUtils::extract_vertices(poly);
+    }
+
+    [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & verts)
+    {
+      return GeomPolygonUtils::signed_double_area(verts);
+    }
+
+    [[nodiscard]] static bool is_convex(const Array<Point> & verts)
+    {
+      if (verts.size() < 3)
+        return false;
+      return GeomPolygonUtils::is_convex(verts);
+    }
+
+    [[nodiscard]] static bool inside_half_plane(const Point & p, const Point & a,
+                                                const Point & b,
+                                                const bool clip_ccw)
+    {
+      const Orientation o = orientation(a, b, p);
+      return clip_ccw ? o != Orientation::CW : o != Orientation::CCW;
+    }
+
+    [[nodiscard]] static Point line_intersection(const Point & s, const Point & e,
+                                                 const Point & a, const Point & b)
+    {
+      const Geom_Number rx = e.get_x() - s.get_x();
+      const Geom_Number ry = e.get_y() - s.get_y();
+      const Geom_Number sx = b.get_x() - a.get_x();
+      const Geom_Number sy = b.get_y() - a.get_y();
+
+      const Geom_Number den = rx * sy - ry * sx;
+      if (den == 0)
+        {
+          if (orientation(a, b, s) == Orientation::COLLINEAR)
+            return s;
+          if (orientation(a, b, e) == Orientation::COLLINEAR)
+            return e;
+          return s;
+        }
+
+      const Geom_Number qpx = a.get_x() - s.get_x();
+      const Geom_Number qpy = a.get_y() - s.get_y();
+      const Geom_Number t = (qpx * sy - qpy * sx) / den;
+
+      return {s.get_x() + t * rx, s.get_y() + t * ry};
+    }
+
+    static void push_clean(Array<Point> & out, const Point & p)
+    {
+      if (out.is_empty())
+        {
+          out.append(p);
+          return;
+        }
+
+      if (out.get_last() == p)
+        return;
+
+      while (out.size() >= 2)
+        {
+          const Point & a = out(out.size() - 2);
+          const Point & b = out(out.size() - 1);
+          if (orientation(a, b, p) != Orientation::COLLINEAR)
+            break;
+
+          if (const Segment ab(a, b); on_segment(ab, p))
+            return;
+
+          out.remove_last();
+        }
+
+      out.append(p);
+    }
+
+    [[nodiscard]] static Array<Point> normalize_vertices(const Array<Point> & pts)
+    {
+      Array<Point> ret;
+      ret.reserve(pts.size());
+      for (size_t i = 0; i < pts.size(); ++i)
+        push_clean(ret, pts(i));
+
+      if (ret.size() > 1 and ret(0) == ret.get_last())
+        ret.remove_last();
+
+      return ret;
+    }
+
+    [[nodiscard]] static Polygon build_polygon(const Array<Point> & pts)
+    {
+      Polygon ret;
+      Array<Point> clean = normalize_vertices(pts);
+
+      for (size_t i = 0; i < clean.size(); ++i)
+        ret.add_vertex(clean(i));
+
+      if (ret.size() >= 3)
+        ret.close();
+
+      return ret;
+    }
+
+  public:
+    /**
+     * @brief Intersect two closed convex polygons.
+     *
+     * @param subject Convex subject polygon.
+     * @param clip Convex clipping polygon.
+     * @return Intersection polygon (possibly empty, segment, or polygonal area).
+     *
+     * @throws domain_error if any polygon is open, has < 3 vertices, or is non-convex.
+     */
+    [[nodiscard]] Polygon operator ()(const Polygon & subject,
+                                      const Polygon & clip) const
+    {
+      const Array<Point> subj = extract_vertices(subject);
+      const Array<Point> clp = extract_vertices(clip);
+
+      ah_domain_error_if(not is_convex(subj)) << "Subject polygon must be convex";
+      ah_domain_error_if(not is_convex(clp)) << "Clip polygon must be convex";
+
+      const Geom_Number clip_area2 = signed_double_area(clp);
+      ah_domain_error_if(clip_area2 == 0) << "Clip polygon is degenerate";
+
+      const bool clip_ccw = clip_area2 > 0;
+
+      Array<Point> output = subj;
+
+      for (size_t i = 0; i < clp.size(); ++i)
+        {
+          if (output.is_empty())
+            break;
+
+          const Point & a = clp(i);
+          const Point & b = clp((i + 1) % clp.size());
+
+          const Array<Point> input = output;
+          output = Array<Point>();
+          output.reserve(input.size() + 2);
+
+          Point s = input.get_last();
+          bool s_inside = inside_half_plane(s, a, b, clip_ccw);
+
+          for (size_t j = 0; j < input.size(); ++j)
+            {
+              const Point & e = input(j);
+              const bool e_inside = inside_half_plane(e, a, b, clip_ccw);
+
+              if (e_inside)
+                {
+                  if (not s_inside)
+                    push_clean(output, line_intersection(s, e, a, b));
+                  push_clean(output, e);
+                }
+              else if (s_inside)
+                push_clean(output, line_intersection(s, e, a, b));
+
+              s = e;
+              s_inside = e_inside;
+            }
+
+          output = normalize_vertices(output);
+        }
+
+      return build_polygon(output);
+    }
+  };
+
+  // ============================================================================
+  // Half-Plane Intersection
+  // ============================================================================
+
+  /**
+   * @brief Exact bounded intersection of half-planes.
+   *
+   * Each half-plane is represented by a directed line (p -> q); the feasible side
+   * is the left side of that line (including boundary).
+   *
+   * This class computes the bounded polygon defined by the intersection of a set
+   * of half-planes using the classic angle-sorted deque algorithm.
+   *
+   * ## Complexity
+   *
+   * - Time: O(n log n) for n half-planes.
+   * - Space: O(n).
+   *
+   * @ingroup Geometry
+   */
+  class HalfPlaneIntersection
+  {
+  public:
+    struct HalfPlane
+    {
+      Point p;
+      Point q;
+
+      HalfPlane() = default;
+
+      HalfPlane(Point p_, Point q_) : p(std::move(p_)), q(std::move(q_)) {}
+
+      [[nodiscard]] Geom_Number dx() const { return q.get_x() - p.get_x(); }
+
+      [[nodiscard]] Geom_Number dy() const { return q.get_y() - p.get_y(); }
+
+      [[nodiscard]] Geom_Number offset() const
       {
-        const Point & p = it.get_curr();
+        // n = (-dy, dx), inequality n.x*x + n.y*y >= offset
+        return -dy() * p.get_x() + dx() * p.get_y();
+      }
 
-        if (p.is_to_right_from(a, b))
+      [[nodiscard]] bool outside(const Point & x) const
+      {
+        return orientation(p, q, x) == Orientation::CW;
+      }
+    };
+
+  private:
+    [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & verts)
+    {
+      return GeomPolygonUtils::signed_double_area(verts);
+    }
+
+    [[nodiscard]] static bool upper_half(const HalfPlane & h)
+    {
+      return h.dy() > 0 or h.dy() == 0 and h.dx() >= 0;
+    }
+
+    [[nodiscard]] static Geom_Number cross_dir(const HalfPlane & a,
+                                               const HalfPlane & b)
+    {
+      return a.dx() * b.dy() - a.dy() * b.dx();
+    }
+
+    [[nodiscard]] static Geom_Number dot_dir(const HalfPlane & a,
+                                             const HalfPlane & b)
+    {
+      return a.dx() * b.dx() + a.dy() * b.dy();
+    }
+
+    [[nodiscard]] static bool same_direction(const HalfPlane & a,
+                                             const HalfPlane & b)
+    {
+      return cross_dir(a, b) == 0 and dot_dir(a, b) > 0;
+    }
+
+    [[nodiscard]] static bool parallel(const HalfPlane & a, const HalfPlane & b)
+    {
+      return cross_dir(a, b) == 0;
+    }
+
+    [[nodiscard]] static Point line_intersection(const HalfPlane & a,
+                                                 const HalfPlane & b)
+    {
+      const Geom_Number rx = a.dx();
+      const Geom_Number ry = a.dy();
+      const Geom_Number sx = b.dx();
+      const Geom_Number sy = b.dy();
+
+      const Geom_Number den = rx * sy - ry * sx;
+      ah_domain_error_if(den == 0) << "Parallel half-plane boundaries";
+
+      const Geom_Number qpx = b.p.get_x() - a.p.get_x();
+      const Geom_Number qpy = b.p.get_y() - a.p.get_y();
+      const Geom_Number t = (qpx * sy - qpy * sx) / den;
+
+      return {a.p.get_x() + t * rx, a.p.get_y() + t * ry};
+    }
+
+    static void push_clean(Array<Point> & out, const Point & p)
+    {
+      if (out.is_empty())
+        {
+          out.append(p);
+          return;
+        }
+
+      if (out.get_last() == p)
+        return;
+
+      while (out.size() >= 2)
+        {
+          const Point & a = out(out.size() - 2);
+          const Point & b = out(out.size() - 1);
+          if (orientation(a, b, p) != Orientation::COLLINEAR)
+            break;
+
+          if (const Segment ab(a, b); on_segment(ab, p))
+            return;
+
+          out.remove_last();
+        }
+
+      out.append(p);
+    }
+
+    [[nodiscard]] static Array<Point> normalize_vertices(const Array<Point> & pts)
+    {
+      Array<Point> ret;
+      ret.reserve(pts.size());
+      for (size_t i = 0; i < pts.size(); ++i)
+        push_clean(ret, pts(i));
+
+      if (ret.size() > 1 and ret(0) == ret.get_last())
+        ret.remove_last();
+
+      return ret;
+    }
+
+    [[nodiscard]] static Polygon build_polygon(const Array<Point> & pts)
+    {
+      Polygon ret;
+      const Array<Point> clean = normalize_vertices(pts);
+
+      for (size_t i = 0; i < clean.size(); ++i)
+        ret.add_vertex(clean(i));
+
+      if (ret.size() >= 3)
+        ret.close();
+
+      return ret;
+    }
+
+  public:
+    /**
+     * @brief Build half-planes from the edges of a closed convex polygon.
+     *
+     * Edge direction is normalized, so the interior of the polygon is always on
+     * the left side of each half-plane, for both CCW and CW input order.
+     *
+     * @param poly Closed convex polygon.
+     * @return Array of edge half-planes.
+     */
+    [[nodiscard]] static Array<HalfPlane> from_convex_polygon(const Polygon & poly)
+    {
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(poly.size() < 3) << "Polygon must have at least 3 vertices";
+
+      Array<Point> verts;
+      verts.reserve(poly.size());
+      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+        verts.append(it.get_current_vertex());
+
+      const Geom_Number area2 = signed_double_area(verts);
+      ah_domain_error_if(area2 == 0) << "Polygon is degenerate";
+      const bool ccw = area2 > 0;
+
+      Array<HalfPlane> hs;
+      hs.reserve(verts.size());
+      for (size_t i = 0; i < verts.size(); ++i)
+        {
+          const Point & a = verts(i);
+          const Point & b = verts((i + 1) % verts.size());
+          hs.append(ccw ? HalfPlane(a, b) : HalfPlane(b, a));
+        }
+      return hs;
+    }
+
+    /**
+     * @brief Intersect half-planes and return bounded feasible polygon.
+     *
+     * @param halfplanes Input half-planes.
+     * @return Bounded intersection polygon; empty polygon if infeasible or unbounded.
+     */
+    [[nodiscard]] Polygon operator ()(const Array<HalfPlane> & halfplanes) const
+    {
+      if (halfplanes.size() < 3)
+        return {};
+
+      Array<HalfPlane> hps = halfplanes;
+      quicksort_op(hps, [](const HalfPlane & a, const HalfPlane & b)
+                     {
+                       const bool ha = upper_half(a);
+                       const bool hb = upper_half(b);
+                       if (ha != hb)
+                         return ha and not hb;
+
+                       if (const Geom_Number cr = cross_dir(a, b); cr != 0)
+                         return cr > 0;
+
+                       // Same direction: keep stronger constraints first.
+                       return a.offset() > b.offset();
+                     });
+
+      Array<HalfPlane> unique;
+      unique.reserve(hps.size());
+      for (size_t i = 0; i < hps.size(); ++i)
+        {
+          const HalfPlane & hp = hps(i);
+          if (unique.is_empty())
+            {
+              unique.append(hp);
+              continue;
+            }
+
+          if (const HalfPlane & last = unique.get_last(); same_direction(last, hp))
+            {
+              if (hp.offset() > last.offset())
+                {
+                  unique.remove_last();
+                  unique.append(hp);
+                }
+              continue;
+            }
+
+          unique.append(hp);
+        }
+
+      DynDlist<HalfPlane> dq;
+      DynDlist<Point> intersections;
+
+      for (size_t i = 0; i < unique.size(); ++i)
+        {
+          const HalfPlane & hp = unique(i);
+
+          while (not intersections.is_empty() and hp.outside(intersections.get_last()))
+            {
+              dq.remove_last();
+              intersections.remove_last();
+            }
+
+          while (not intersections.is_empty() and hp.outside(intersections.get_first()))
+            {
+              dq.remove_first();
+              intersections.remove_first();
+            }
+
+          if (not dq.is_empty() and parallel(dq.get_last(), hp))
+            {
+              if (same_direction(dq.get_last(), hp))
+                {
+                  if (hp.offset() > dq.get_last().offset())
+                    {
+                      dq.remove_last();
+                      if (not intersections.is_empty())
+                        intersections.remove_last();
+                    }
+                  else
+                    continue;
+                }
+              else // Opposite parallel boundaries cannot define a bounded polygon here.
+                return {};
+            }
+
+          if (not dq.is_empty())
+            intersections.append(line_intersection(dq.get_last(), hp));
+
+          dq.append(hp);
+        }
+
+      while (not intersections.is_empty() and dq.get_first().outside(intersections.get_last()))
+        {
+          dq.remove_last();
+          intersections.remove_last();
+        }
+
+      while (not intersections.is_empty() and dq.get_last().outside(intersections.get_first()))
+        {
+          dq.remove_first();
+          intersections.remove_first();
+        }
+
+      if (dq.size() < 3)
+        return {};
+
+      if (parallel(dq.get_last(), dq.get_first()))
+        return {};
+
+      const Point closing = line_intersection(dq.get_last(), dq.get_first());
+
+      Array<Point> verts;
+      verts.reserve(intersections.size() + 1);
+
+      DynDlist<Point> tmp = intersections;
+      while (not tmp.is_empty())
+        verts.append(tmp.remove_first());
+      verts.append(closing);
+
+      return build_polygon(verts);
+    }
+
+    /**
+     * @brief Overload for initializer-list convenience.
+     *
+     * @param il Input half-planes.
+     * @return Bounded intersection polygon.
+     */
+    [[nodiscard]] Polygon operator ()(const std::initializer_list<HalfPlane> il) const
+    {
+      Array<HalfPlane> hps;
+      hps.reserve(il.size());
+      for (const HalfPlane & hp: il)
+        hps.append(hp);
+      return (*this)(hps);
+    }
+  };
+
+  // ============================================================================
+  // Delaunay Triangulation (Bowyer-Watson)
+  // ============================================================================
+
+  /**
+   * @brief Exact Delaunay triangulation using the Bowyer-Watson incremental algorithm.
+   *
+   * This class computes the Delaunay triangulation of a set of 2D points. The 
+   * Delaunay triangulation for a set P of points in a plane is a triangulation 
+   * DT(P) such that no point in P is inside the circumcircle of any triangle in DT(P).
+   *
+   * ## Implementation Details
+   *
+   * 1. **Preprocessing**: Duplicate points are removed, and the remaining points 
+   *    are sorted lexicographically to ensure deterministic behavior.
+   * 2. **Super-triangle**: A large triangle enclosing all points is created to 
+   *    initialize the triangulation.
+   * 3. **Incremental Insertion**: Points are inserted one by one. For each point:
+   *    - Identify all triangles whose circumcircle contains the point (the cavity).
+   *    - Remove these triangles and find the boundary of the cavity.
+   *    - Create new triangles by connecting the new point to each edge of the cavity boundary.
+   * 4. **Cleanup**: Triangles connected to the super-triangle vertices are removed.
+   *
+   * ## Complexity
+   *
+   * - Time: Average O(n log n), Worst-case O(n²) where n is the number of points.
+   * - Typical random input: near O(n log n).
+   * - Space: O(n) to store the triangulation.
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
+  class DelaunayTriangulationBowyerWatson
+  {
+  public:
+    /**
+     * @brief Represents a triangle by the indices of its three vertices.
+     * 
+     * The indices refer to the @c sites array in the @c Result structure.
+     */
+    struct IndexedTriangle
+    {
+      size_t i; ///< Index of the first vertex.
+      size_t j; ///< Index of the second vertex.
+      size_t k; ///< Index of the third vertex.
+    };
+
+    /**
+     * @brief The result of a Delaunay triangulation.
+     */
+    struct Result
+    {
+      Array<Point> sites;               ///< Unique, sorted input points used for triangulation.
+      Array<IndexedTriangle> triangles; ///< Triangles forming the Delaunay triangulation.
+    };
+
+  private:
+    /**
+     * @brief Lexicographical comparison for points.
+     */
+    [[nodiscard]] static bool lexicographic_less(const Point & p1, const Point & p2)
+    {
+      if (p1.get_x() < p2.get_x())
+        return true;
+      if (p2.get_x() < p1.get_x())
+        return false;
+      return p1.get_y() < p2.get_y();
+    }
+
+    /**
+     * @brief Check if all points in an array are collinear.
+     */
+    [[nodiscard]] static bool all_collinear(const Array<Point> & pts)
+    {
+      if (pts.size() < 3)
+        return true;
+
+      for (size_t i = 2; i < pts.size(); ++i)
+        if (orientation(pts(0), pts(1), pts(i)) != Orientation::COLLINEAR)
+          return false;
+
+      return true;
+    }
+
+    /**
+     * @brief Predicate to check if a point lies inside the circumcircle of a triangle.
+     */
+    [[nodiscard]] static bool point_in_circumcircle(const Array<Point> & pts,
+                                                    const size_t ia,
+                                                    const size_t ib,
+                                                    const size_t ic,
+                                                    const size_t ip)
+    {
+      const Point & a = pts(ia);
+      const Point & b = pts(ib);
+      const Point & c = pts(ic);
+      const Point & p = pts(ip);
+
+      const Geom_Number det = in_circle_determinant(a, b, c, p);
+
+      const Orientation o = orientation(a, b, c);
+      if (o == Orientation::CCW)
+        {
+          if (det > 0)
+            return true;
+          if (det < 0)
+            return false;
+        }
+      if (o == Orientation::CW)
+        {
+          if (det < 0)
+            return true;
+          if (det > 0)
+            return false;
+        }
+
+      // Cocircular / degenerate tie-break for deterministic output.
+      size_t max_idx = ia;
+      if (ib > max_idx) max_idx = ib;
+      if (ic > max_idx) max_idx = ic;
+      return ip < max_idx;
+    }
+
+    /**
+     * @brief Extracts unique points from a list and sorts them lexicographically.
+     */
+    [[nodiscard]] static Array<Point> unique_points(const DynList<Point> & point_set)
+    {
+      Array<Point> all;
+      for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+        all.append(it.get_curr());
+
+      quicksort_op(all, [](const Point & p1, const Point & p2)
+                     {
+                       return lexicographic_less(p1, p2);
+                     });
+
+      Array<Point> ret;
+      ret.reserve(all.size());
+      for (size_t i = 0; i < all.size(); ++i)
+        if (ret.is_empty() or ret.get_last() != all(i))
+          ret.append(all(i));
+
+      return ret;
+    }
+
+  public:
+    /**
+     * @brief Compute Delaunay triangulation of a point set.
+     *
+     * @param point_set Input points.
+     * @return Unique sites and triangulation indices.
+     */
+    [[nodiscard]] Result operator ()(const DynList<Point> & point_set) const
+    {
+      Result ret;
+      ret.sites = unique_points(point_set);
+      const size_t n = ret.sites.size();
+
+      if (n < 3 or all_collinear(ret.sites))
+        return ret;
+
+      Array<Point> pts = ret.sites;
+      ret.triangles =
+          GeomBowyerWatsonUtils::triangulate<IndexedTriangle>(
+                                                              std::move(pts), n,
+                                                              [](const Array<Point> & all_pts,
+                                                                 const size_t ia, const size_t ib,
+                                                                 const size_t ic, const size_t ip)
+                                                                {
+                                                                  return
+                                                                      DelaunayTriangulationBowyerWatson::point_in_circumcircle(
+                                                                       all_pts, ia, ib, ic, ip);
+                                                                });
+
+      return ret;
+    }
+
+    /**
+     * @brief Convenience overload using initializer-list input.
+     *
+     * @param il Input points.
+     * @return Unique sites and triangulation indices.
+     */
+    [[nodiscard]] Result operator ()(const std::initializer_list<Point> il) const
+    {
+      DynList<Point> points;
+      for (const Point & p: il)
+        points.append(p);
+      return (*this)(points);
+    }
+
+    /**
+     * @brief Convert indexed triangulation to geometric triangles.
+     *
+     * @param result Triangulation result.
+     * @return List of geometric triangles.
+     */
+    static DynList<Triangle> as_triangles(const Result & result)
+    {
+      DynList<Triangle> out;
+      for (size_t tria_idx = 0; tria_idx < result.triangles.size(); ++tria_idx)
+        {
+          const auto & [i, j, k] = result.triangles(tria_idx);
+          out.append(Triangle(result.sites(i),
+                              result.sites(j),
+                              result.sites(k)));
+        }
+      return out;
+    }
+  };
+
+  // ============================================================================
+  // Regular Triangulation (Weighted Delaunay) — Bowyer-Watson
+  // ============================================================================
+
+  /**
+   * @brief Exact regular triangulation (weighted Delaunay) via Bowyer-Watson.
+   *
+   * A regular triangulation is the weighted generalization of the Delaunay
+   * triangulation.  Each site carries a weight wᵢ, and the standard
+   * in-circle predicate is replaced by the **power test**: point (p, wₚ)
+   * is inside the ortho-circle of triangle ((a,wₐ),(b,wᵦ),(c,wc)) iff
+   *
+   *   | ax−px  ay−py  (ax²+ay²−wₐ)−(px²+py²−wₚ) |
+   *   | bx−px  by−py  (bx²+by²−wᵦ)−(px²+py²−wₚ) | > 0   (CCW triangle)
+   *   | cx−px  cy−py  (cx²+cy²−wc)−(px²+py²−wₚ) |
+   *
+   * Geometrically this is equivalent to lifting each site (xᵢ, yᵢ, wᵢ)
+   * to the 3-D point (xᵢ, yᵢ, xᵢ²+yᵢ²−wᵢ) and taking the lower convex
+   * hull, then projecting back to 2-D.
+   *
+   * When all weights are equal this reduces to the standard Delaunay
+   * triangulation.
+   *
+   * ## Policy
+   *
+   * - Sites are sorted lexicographically by position; positional duplicates
+   *   are removed (keeping the first weight encountered).
+   * - Collinear inputs return empty triangulation.
+   * - Output triangles are indexed against the returned deduplicated sites.
+   *
+   * ## Complexity
+   *
+   * - Worst-case time: O(n²)
+   * - Typical random input: near O(n log n)
+   * - Space: O(n)
+   *
+   * @ingroup Geometry
+   */
+  class RegularTriangulationBowyerWatson
+  {
+  public:
+    /// A 2-D site with an associated weight (squared radius).
+    struct WeightedSite
+    {
+      Point position;
+      Geom_Number weight;
+    };
+
+    using IndexedTriangle = DelaunayTriangulationBowyerWatson::IndexedTriangle;
+
+    struct Result
+    {
+      Array<WeightedSite> sites;
+      Array<IndexedTriangle> triangles;
+    };
+
+  private:
+    [[nodiscard]] static bool lex_less(const Point & p1, const Point & p2)
+    {
+      if (p1.get_x() < p2.get_x())
+        return true;
+      if (p2.get_x() < p1.get_x())
+        return false;
+      return p1.get_y() < p2.get_y();
+    }
+
+    [[nodiscard]] static bool all_collinear(const Array<WeightedSite> & s)
+    {
+      if (s.size() < 3)
+        return true;
+
+      for (size_t i = 2; i < s.size(); ++i)
+        if (orientation(s(0).position, s(1).position, s(i).position)
+            != Orientation::COLLINEAR)
+          return false;
+
+      return true;
+    }
+
+    /**
+     * @brief Weighted in-circle (power) predicate.
+     *
+     * Tests whether the weighted site at index @p ip lies inside the
+     * ortho-circle of the triangle (ia, ib, ic).  The lifted coordinate
+     * for each vertex is x²+y²−w, so the third-column entry of the
+     * standard in-circle determinant becomes
+     *   (adx²+ady²) − wₐ + wₚ
+     * instead of the unweighted adx²+ady².
+     *
+     * @param pts  Positions (including super-triangle vertices).
+     * @param wts  Weights   (super-triangle vertices have weight 0).
+     * @param ia,ib,ic  Triangle vertex indices.
+     * @param ip  Query point index.
+     * @return true if (ip, wts(ip)) is inside the ortho-circle.
+     */
+    [[nodiscard]] static bool point_in_power_circle(
+        const Array<Point> & pts, const Array<Geom_Number> & wts,
+        const size_t ia, const size_t ib, const size_t ic, const size_t ip)
+    {
+      const Point & a = pts(ia);
+      const Point & b = pts(ib);
+      const Point & c = pts(ic);
+      const Point & p = pts(ip);
+
+      const Geom_Number adx = a.get_x() - p.get_x();
+      const Geom_Number ady = a.get_y() - p.get_y();
+      const Geom_Number bdx = b.get_x() - p.get_x();
+      const Geom_Number bdy = b.get_y() - p.get_y();
+      const Geom_Number cdx = c.get_x() - p.get_x();
+      const Geom_Number cdy = c.get_y() - p.get_y();
+
+      const Geom_Number ad2 = adx * adx + ady * ady - wts(ia) + wts(ip);
+      const Geom_Number bd2 = bdx * bdx + bdy * bdy - wts(ib) + wts(ip);
+      const Geom_Number cd2 = cdx * cdx + cdy * cdy - wts(ic) + wts(ip);
+
+      const Geom_Number det = ad2 * (bdx * cdy - bdy * cdx) -
+                              bd2 * (adx * cdy - ady * cdx) +
+                              cd2 * (adx * bdy - ady * bdx);
+
+      const Orientation o = orientation(a, b, c);
+      if (o == Orientation::CCW)
+        {
+          if (det > 0) return true;
+          if (det < 0) return false;
+        }
+      if (o == Orientation::CW)
+        {
+          if (det < 0) return true;
+          if (det > 0) return false;
+        }
+
+      // Cocircular / degenerate tie-break for deterministic output.
+      size_t max_idx = ia;
+      if (ib > max_idx) max_idx = ib;
+      if (ic > max_idx) max_idx = ic;
+      return ip < max_idx;
+    }
+
+    [[nodiscard]] static Array<WeightedSite>
+    unique_sites(const Array<WeightedSite> & input)
+    {
+      Array<WeightedSite> all;
+      all.reserve(input.size());
+      for (size_t i = 0; i < input.size(); ++i)
+        all.append(input(i));
+
+      quicksort_op(all, [](const WeightedSite & a, const WeightedSite & b)
+                     {
+                       return lex_less(a.position, b.position);
+                     });
+
+      Array<WeightedSite> ret;
+      ret.reserve(all.size());
+      for (size_t i = 0; i < all.size(); ++i)
+        if (ret.is_empty() or ret.get_last().position != all(i).position)
+          ret.append(all(i));
+
+      return ret;
+    }
+
+  public:
+    /**
+     * @brief Compute the regular triangulation of a weighted point set.
+     *
+     * @param weighted_sites Input weighted sites.
+     * @return Deduplicated sites and triangulation indices.
+     */
+    [[nodiscard]] Result operator ()(const Array<WeightedSite> & weighted_sites) const
+    {
+      Result ret;
+      ret.sites = unique_sites(weighted_sites);
+      const size_t n = ret.sites.size();
+
+      if (n < 3 or all_collinear(ret.sites))
+        return ret;
+
+      Array<Point> pts;
+      Array<Geom_Number> wts;
+      pts.reserve(n + 3);
+      wts.reserve(n + 3);
+      for (size_t i = 0; i < n; ++i)
+        {
+          pts.append(ret.sites(i).position);
+          wts.append(ret.sites(i).weight);
+        }
+      wts.append(Geom_Number(0));
+      wts.append(Geom_Number(0));
+      wts.append(Geom_Number(0));
+      ret.triangles = GeomBowyerWatsonUtils::triangulate<IndexedTriangle>(
+                                                                          std::move(pts), n,
+                                                                          [&wts](const Array<Point> & all_pts,
+                                                                        const size_t ia, const size_t ib,
+                                                                        const size_t ic, const size_t ip)
+                                                                            {
+                                                                              return
+                                                                                  RegularTriangulationBowyerWatson::point_in_power_circle(
+                                                                                   all_pts, wts, ia, ib, ic, ip);
+                                                                            });
+
+      return ret;
+    }
+  };
+
+  // ============================================================================
+  // Delaunay Triangulation — Randomized Incremental O(n log n) expected
+  // ============================================================================
+
+  /**
+   * @brief O(n log n) expected-time Delaunay's triangulation.
+   *
+   * Uses randomized incremental insertion with a history DAG for O(log n)
+   * expected point location and adjacency-based Lawson flipping.
+   *
+   * ## Complexity
+   * - Expected time:  O(n log n)
+   * - Worst-case time: O(n²) (extremely unlikely with random shuffle)
+   * - Space: O(n)
+   *
+   * @ingroup Geometry
+   */
+  class DelaunayTriangulationRandomizedIncremental
+  {
+  public:
+    using IndexedTriangle = DelaunayTriangulationBowyerWatson::IndexedTriangle;
+    using Result = DelaunayTriangulationBowyerWatson::Result;
+
+  private:
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
+
+    struct Tri
+    {
+      size_t v[3]; ///< vertex indices, CCW order
+      size_t adj[3]; ///< adj[i] = neighbor across edge opposite v[i]
+      bool alive;
+    };
+
+    struct DagNode
+    {
+      size_t tri;
+      Array<size_t> children;
+    };
+
+    /// Return local index (0,1,2) of vertex id in triangle t, or NONE.
+    [[nodiscard]] static size_t local_of(const Tri & t, const size_t id)
+    {
+      for (int i = 0; i < 3; ++i)
+        if (t.v[i] == id) return static_cast<size_t>(i);
+      return NONE;
+    }
+
+    /// Return the local index of the edge shared with neighbor n.
+    [[nodiscard]] static size_t adj_of(const Tri & t, const size_t n)
+    {
+      for (int i = 0; i < 3; ++i)
+        if (t.adj[i] == n) return static_cast<size_t>(i);
+      return NONE;
+    }
+
+    /// True if point p is inside or on triangle t (using orientation tests).
+    [[nodiscard]] static bool point_in_tri(const Array<Point> & pts,
+                                           const Tri & t, const size_t pidx)
+    {
+      const Orientation o0 = orientation(pts(t.v[0]), pts(t.v[1]), pts(pidx));
+      const Orientation o1 = orientation(pts(t.v[1]), pts(t.v[2]), pts(pidx));
+      const Orientation o2 = orientation(pts(t.v[2]), pts(t.v[0]), pts(pidx));
+      const bool has_cw = o0 == Orientation::CW or o1 == Orientation::CW
+                          or o2 == Orientation::CW;
+      const bool has_ccw = o0 == Orientation::CCW or o1 == Orientation::CCW
+                           or o2 == Orientation::CCW;
+      return not (has_cw and has_ccw);
+    }
+
+    /// Standard in-circumcircle test using exact in_circle_determinant.
+    /// Works correctly with finite super-triangle vertices (placed 16×
+    /// beyond the bounding box) — no special half-plane handling needed.
+    [[nodiscard]] static bool in_cc(const Array<Point> & pts,
+                                    const size_t ia, const size_t ib,
+                                    const size_t ic, const size_t ip)
+    {
+      const Geom_Number det = in_circle_determinant(pts(ia), pts(ib),
+                                                    pts(ic), pts(ip));
+      const Orientation o = orientation(pts(ia), pts(ib), pts(ic));
+      if (o == Orientation::CCW)
+        {
+          if (det > 0) return true;
+          if (det < 0) return false;
+        }
+      if (o == Orientation::CW)
+        {
+          if (det < 0) return true;
+          if (det > 0) return false;
+        }
+      size_t mx = ia;
+      if (ib > mx) mx = ib;
+      if (ic > mx) mx = ic;
+      return ip < mx;
+    }
+
+    /// Locate the leaf triangle containing point pidx via a DAG walk.
+    /// Walk from root through dead (internal) nodes toward alive (leaf)
+    /// triangles.  Both dead and alive children are considered, so the
+    /// walk follows the correct branch even through intermediate dead
+    /// nodes.
+    [[nodiscard]] static size_t locate(const Array<Point> & pts,
+                                       const Array<Tri> & tris,
+                                       const Array<DagNode> & dag,
+                                       const size_t pidx, const size_t root)
+    {
+      size_t cur = root;
+      while (not dag(cur).children.is_empty())
+        {
+          bool found = false;
+          for (size_t c = 0; c < dag(cur).children.size(); ++c)
+            {
+              if (const size_t child = dag(cur).children(c); point_in_tri(pts, tris(child), pidx))
+                {
+                  cur = child;
+                  found = true;
+                  break;
+                }
+            }
+          if (not found)
+            break;
+        }
+      return cur;
+    }
+
+    /// Update neighbor n of the old triangle ot to point to a new triangle nt.
+    static void remap_adj(Array<Tri> & tris, const size_t ot, const size_t nt)
+    {
+      for (const unsigned long nb: tris(ot).adj)
+        {
+          if (nb == NONE) continue;
+          if (const size_t li = adj_of(tris(nb), ot); li != NONE)
+            tris(nb).adj[li] = nt;
+        }
+    }
+
+  public:
+    [[nodiscard]] Result operator()(const DynList<Point> & point_set) const
+    {
+      Result ret;
+
+      // Build unique sorted points.
+      {
+        Array<Point> all;
+        for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+          all.append(it.get_curr());
+        quicksort_op(all, [](const Point & a, const Point & b)
+                       {
+                         return a.get_x() < b.get_x() or
+                                (a.get_x() == b.get_x() and a.get_y() < b.get_y());
+                       });
+        ret.sites = Array<Point>();
+        ret.sites.reserve(all.size());
+        for (size_t i = 0; i < all.size(); ++i)
+          if (ret.sites.is_empty() or ret.sites.get_last() != all(i))
+            ret.sites.append(all(i));
+      }
+
+      const size_t n = ret.sites.size();
+      if (n < 3)
+        return ret;
+
+      // Check all-collinear.
+      {
+        bool collinear = true;
+        for (size_t i = 2; i < n and collinear; ++i)
+          if (orientation(ret.sites(0), ret.sites(1), ret.sites(i)) != Orientation::COLLINEAR)
+            collinear = false;
+        if (collinear) return ret;
+      }
+
+      // Build pts array with super-triangle appended.
+      Array<Point> pts = ret.sites;
+      Geom_Number mnx = pts(0).get_x(), mxx = mnx;
+      Geom_Number mny = pts(0).get_y(), mxy = mny;
+      for (size_t i = 1; i < n; ++i)
+        {
+          if (pts(i).get_x() < mnx) mnx = pts(i).get_x();
+          if (pts(i).get_x() > mxx) mxx = pts(i).get_x();
+          if (pts(i).get_y() < mny) mny = pts(i).get_y();
+          if (pts(i).get_y() > mxy) mxy = pts(i).get_y();
+        }
+      Geom_Number delta = mxx - mnx > mxy - mny ? mxx - mnx : mxy - mny;
+      if (delta == 0)
+        delta = 1;
+      const Geom_Number sp = delta * 16 + 1;
+      const Geom_Number cx = (mnx + mxx) / 2, cy = (mny + mxy) / 2;
+      pts.append(Point(cx - sp - sp, cy - sp));
+      pts.append(Point(cx + sp + sp, cy - sp));
+      pts.append(Point(cx, cy + sp + sp));
+
+      // Random insertion order for input points [0..n).
+      Array<size_t> order;
+      order.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        order.append(i);
+      // Fisher-Yates shuffle.
+      {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        for (size_t i = n - 1; i > 0; --i)
+          {
+            std::uniform_int_distribution<size_t> dis(0, i);
+            const size_t j = dis(gen);
+            const size_t tmp = order(i);
+            order(i) = order(j);
+            order(j) = tmp;
+          }
+      }
+
+      // Initialize with super-triangle.
+      Array<Tri> tris;
+      Array<DagNode> dag;
+      tris.append(Tri{{n, n + 1, n + 2}, {NONE, NONE, NONE}, true});
+      dag.append(DagNode{0, Array<size_t>()});
+
+      // Insert each point using the local Bowyer-Watson cavity approach.
+      // 1) Locate containing triangle via DAG  — O(log n) expected.
+      // 2) BFS from it to find all "bad" triangles (circumcircle
+      //    contains the new point).
+      // 3) Extract the boundary polygon of the cavity.
+      // 4) Re-triangulate cavity by connecting boundary edges to
+      //    the new point.
+      // Expected cavity size is O(1) for random insertion order,
+      // giving O(n log n) total expected time.
+      for (size_t oi = 0; oi < n; ++oi)
+        {
+          const size_t pidx = order(oi);
+          const size_t ti = locate(pts, tris, dag, pidx, 0);
+
+          // --- BFS to find the cavity ---
+          const size_t ntris_before = tris.size();
+          Array<bool> is_bad;
+          is_bad.reserve(ntris_before);
+          for (size_t i = 0; i < ntris_before; ++i)
+            is_bad.append(false);
+
+          Array<size_t> cavity;
+          is_bad(ti) = true;
+          cavity.append(ti);
+
+          // Frontier queue: at most one enqueue per triangle.
+          FixedQueue<size_t> frontier(ntris_before + 1);
+          frontier.put(ti);
+          while (not frontier.is_empty())
+            for (const size_t ct = frontier.get(); unsigned long nb: tris(ct).adj)
+              {
+                if (nb == NONE or nb >= ntris_before or not tris(nb).alive or is_bad(nb))
+                  continue;
+                if (in_cc(pts, tris(nb).v[0], tris(nb).v[1], tris(nb).v[2], pidx))
+                  {
+                    is_bad(nb) = true;
+                    cavity.append(nb);
+                    frontier.put(nb);
+                  }
+              }
+
+          // --- Extract boundary edges ---
+          // Each boundary edge is an edge of a cavity triangle whose
+          // neighbor is outside the cavity (or NONE).
+          struct BEdge
+          {
+            size_t u, v, ext, old_ct;
+          };
+          Array<BEdge> boundary;
+          for (size_t ci = 0; ci < cavity.size(); ++ci)
+            {
+              const size_t ct = cavity(ci);
+              for (int e = 0; e < 3; ++e)
+                {
+                  const size_t nb = tris(ct).adj[e];
+                  if (nb != NONE and nb < ntris_before and is_bad(nb))
+                    continue; // internal cavity edge — skip
+                  // Boundary edge opposite v[e]: vertices (v[(e+1)%3], v[(e+2)%3]).
+                  boundary.append(BEdge{
+                                    tris(ct).v[(e + 1) % 3],
+                                    tris(ct).v[(e + 2) % 3],
+                                    nb, ct
+                                  });
+                }
+            }
+
+          // --- Create new triangles ---
+          // For each boundary edge (u,v) create triangle (u, v, pidx).
+          // adj[2] (opposite pidx) = external neighbor.
+          const size_t V = pts.size();
+          Array<size_t> as_u, as_v; // vertex → new tri where it's u / v
+          as_u.reserve(V);
+          as_v.reserve(V);
+          for (size_t i = 0; i < V; ++i)
+            {
+              as_u.append(NONE);
+              as_v.append(NONE);
+            }
+
+          Array<size_t> new_tris;
+          new_tris.reserve(boundary.size());
+
+          for (size_t bi = 0; bi < boundary.size(); ++bi)
+            {
+              size_t u = boundary(bi).u, v = boundary(bi).v;
+              const size_t ext = boundary(bi).ext;
+              const size_t old_ct = boundary(bi).old_ct;
+
+              // Ensure CCW winding.
+              if (orientation(pts(u), pts(v), pts(pidx)) != Orientation::CCW)
+                {
+                  const size_t tmp = u;
+                  u = v;
+                  v = tmp;
+                }
+
+              const size_t nt = tris.size();
+              tris.append(Tri{{u, v, pidx}, {NONE, NONE, ext}, true});
+              dag.append(DagNode{nt, Array<size_t>()});
+              new_tris.append(nt);
+
+              as_u(u) = nt;
+              as_v(v) = nt;
+
+              // Remap external neighbor to point to the new triangle.
+              if (ext != NONE)
+                if (const size_t li = adj_of(tris(ext), old_ct); li != NONE)
+                  tris(ext).adj[li] = nt;
+            }
+
+          // --- Internal adjacencies between new triangles ---
+          // Two new triangles share an edge through pidx.
+          // For triangle (u, v, pidx):
+          //   adj[0] opp u = edge(v, pidx)  → the new tri with v as u
+          //   adj[1] opp v = edge(pidx, u)  → the new tri with u as v
+          for (size_t ni = 0; ni < new_tris.size(); ++ni)
+            {
+              const size_t nt = new_tris(ni);
+              const size_t u = tris(nt).v[0];
+              const size_t v = tris(nt).v[1];
+              tris(nt).adj[0] = as_u(v); // neighbor across (v, pidx)
+              tris(nt).adj[1] = as_v(u); // neighbor across (pidx, u)
+            }
+
+          // --- Kill cavity and update DAG ---
+          for (size_t ci = 0; ci < cavity.size(); ++ci)
+            {
+              tris(cavity(ci)).alive = false;
+              for (size_t ni = 0; ni < new_tris.size(); ++ni)
+                dag(cavity(ci)).children.append(new_tris(ni));
+            }
+        }
+
+      // Collect alive triangles that don't reference super-triangle.
+      ret.triangles.reserve(2 * n);
+      for (size_t t = 0; t < tris.size(); ++t)
+        {
+          const Tri & tr = tris(t);
+          if (not tr.alive) continue;
+          if (tr.v[0] >= n or tr.v[1] >= n or tr.v[2] >= n) continue;
+          if (orientation(pts(tr.v[0]), pts(tr.v[1]), pts(tr.v[2])) == Orientation::COLLINEAR)
+            continue;
+          ret.triangles.append(IndexedTriangle{tr.v[0], tr.v[1], tr.v[2]});
+        }
+
+      return ret;
+    }
+
+    [[nodiscard]] Result operator()(const std::initializer_list<Point> il) const
+    {
+      DynList<Point> points;
+      for (const Point & p: il)
+        points.append(p);
+      return (*this)(points);
+    }
+  };
+
+  // ============================================================================
+  // Constrained Delaunay Triangulation (CDT)
+  // ============================================================================
+
+  /**
+   * @brief Constrained Delaunay Triangulation via Sloan's flip-based method.
+   *
+   * Computes a triangulation that:
+   * 1. Contains all specified constraint edges.
+   * 2. Is Delaunay for non-constrained edges.
+   * 3. Includes all input points as vertices.
+   *
+   * ## Algorithm (Sloan 1993)
+   *
+   * 1. Merge all points and constraint endpoints, deduplicate.
+   * 2. Compute unconstrained Delaunay triangulation (Bowyer-Watson).
+   * 3. Build half-edge adjacency mesh from DT output.
+   * 4. Enforce each constraint by flipping crossing edges.
+   * 5. Restore Delaunay property for non-constrained edges (Lawson flips).
+   * 6. Extract alive triangles and constrained-edge list.
+   *
+   * ## Complexity
+   *
+   * - Time: O(n^2) worst-case, O(n log n) typical
+   * - Space: O(n)
+   *
+   * @ingroup Geometry
+   */
+  class ConstrainedDelaunayTriangulation
+  {
+  public:
+    using IndexedTriangle = DelaunayTriangulationBowyerWatson::IndexedTriangle;
+
+    struct IndexedEdge
+    {
+      size_t u;
+      size_t v;
+    };
+
+    struct Result
+    {
+      Array<Point> sites;
+      Array<IndexedTriangle> triangles;
+      Array<IndexedEdge> constrained_edges;
+    };
+
+  private:
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
+
+    struct Tri
+    {
+      size_t v[3]; ///< CCW vertex indices
+      size_t adj[3]; ///< adj[i] = neighbor across edge opposite v[i]
+      bool constrained[3]; ///< constrained[i] = edge opp v[i] is constrained
+      bool alive;
+    };
+
+    [[nodiscard]] static bool lexicographic_less(const Point & p1,
+                                                 const Point & p2)
+    {
+      if (p1.get_x() < p2.get_x())
+        return true;
+      if (p2.get_x() < p1.get_x())
+        return false;
+      return p1.get_y() < p2.get_y();
+    }
+
+    /// Find index of point p in sorted unique array, or NONE.
+    [[nodiscard]] static size_t find_point_index(const Array<Point> & pts,
+                                                 const Point & p)
+    {
+      size_t lo = 0, hi = pts.size();
+      while (lo < hi)
+        if (const size_t mid = lo + (hi - lo) / 2; lexicographic_less(pts(mid), p))
+          lo = mid + 1;
+        else if (lexicographic_less(p, pts(mid)))
+          hi = mid;
+        else
+          return mid;
+      return NONE;
+    }
+
+    /// Return local index (0,1,2) of vertex id in triangle t, or NONE.
+    [[nodiscard]] static size_t local_of(const Tri & t, const size_t id)
+    {
+      for (int i = 0; i < 3; ++i)
+        if (t.v[i] == id) return static_cast<size_t>(i);
+      return NONE;
+    }
+
+    /// Return the local index of the edge shared with neighbor n.
+    [[nodiscard]] static size_t adj_of(const Tri & t, const size_t n)
+    {
+      for (int i = 0; i < 3; ++i)
+        if (t.adj[i] == n) return static_cast<size_t>(i);
+      return NONE;
+    }
+
+    /// Return the local edge index for edge (a,b) in triangle t.
+    /// The edge (v[(i+1)%3], v[(i+2)%3]) is "opposite" v[i].
+    [[nodiscard]] static size_t edge_opposite(const Tri & t,
+                                              const size_t a, const size_t b)
+    {
+      for (int i = 0; i < 3; ++i)
+        {
+          const size_t e0 = t.v[(i + 1) % 3];
+          const size_t e1 = t.v[(i + 2) % 3];
+          if ((e0 == a and e1 == b) or (e0 == b and e1 == a))
+            return static_cast<size_t>(i);
+        }
+      return NONE;
+    }
+
+    /// Build adjacency mesh from DT output.
+    static void build_adjacency(Array<Tri> & tris,
+                                const Array<IndexedTriangle> & dt_tris)
+    {
+      tris.reserve(dt_tris.size());
+      for (size_t i = 0; i < dt_tris.size(); ++i)
+        {
+          const auto & t = dt_tris(i);
+          tris.append(Tri{
+                        {t.i, t.j, t.k},
+                        {NONE, NONE, NONE},
+                        {false, false, false},
+                        true
+                      });
+        }
+
+      GeomTriangleAdjacencyUtils::for_each_sorted_edge_group(
+                                                             dt_tris,
+                                                             [&](const Array<GeomTriangleAdjacencyUtils::EdgeRef> &
+                                                                 edges,
+                                                                 const size_t first, const size_t last)
+                                                               {
+                                                                 if (last - first != 2)
+                                                                   return; // boundary edge (1 tri) or degenerate
+
+                                                                 const auto & e0 = edges(first);
+                                                                 const auto & e1 = edges(first + 1);
+
+                                                                 const size_t t0 = e0.tri;
+                                                                 const size_t t1 = e1.tri;
+                                                                 const size_t loc0 =
+                                                                     edge_opposite(tris(t0), e0.u, e0.v);
+                                                                 const size_t loc1 =
+                                                                     edge_opposite(tris(t1), e1.u, e1.v);
+
+                                                                 if (loc0 != NONE)
+                                                                   tris(t0).adj[loc0] = t1;
+                                                                 if (loc1 != NONE)
+                                                                   tris(t1).adj[loc1] = t0;
+                                                               });
+    }
+
+    /// Check if edge (u,v) already exists in the mesh.
+    [[nodiscard]] static bool edge_exists(const Array<Tri> & tris,
+                                          const size_t u, const size_t v,
+                                          size_t & out_tri,
+                                          size_t & out_local)
+    {
+      for (size_t t = 0; t < tris.size(); ++t)
+        {
+          if (not tris(t).alive)
+            continue;
+
+          if (const size_t loc = edge_opposite(tris(t), u, v); loc != NONE)
+            {
+              out_tri = t;
+              out_local = loc;
+              return true;
+            }
+        }
+      return false;
+    }
+
+    /// True if diagonal (a,d) in quad (a,b,d) + (a,d,c) forms a convex quad.
+    /// The four points of the quadrilateral are a, b, d, c where:
+    /// - Triangle 1 = (a, b, d) with vertices going around
+    /// - Triangle 2 = (a, d, c)
+    /// Convexity means b and c are on opposite sides of (a,d)
+    /// AND a and d are on opposite sides of (b,c).
+    [[nodiscard]] static bool is_convex_quad(const Array<Point> & pts,
+                                             const size_t a, const size_t b,
+                                             const size_t c, const size_t d)
+    {
+      const Orientation o1 = orientation(pts(a), pts(d), pts(b));
+      const Orientation o2 = orientation(pts(a), pts(d), pts(c));
+      if (o1 == Orientation::COLLINEAR or o2 == Orientation::COLLINEAR)
+        return false;
+      if (o1 == o2)
+        return false;
+
+      const Orientation o3 = orientation(pts(b), pts(c), pts(a));
+      const Orientation o4 = orientation(pts(b), pts(c), pts(d));
+      if (o3 == Orientation::COLLINEAR or o4 == Orientation::COLLINEAR)
+        return false;
+      if (o3 == o4)
+        return false;
+
+      return true;
+    }
+
+    /// Flip the diagonal of the quad formed by tri_a and tri_b.
+    /// tri_a contains edge (p, q) at local index la (opposite vertex).
+    /// tri_b is the neighbor across that edge.
+    /// After flipping, the new diagonal connects the two "opposite" vertices.
+    static void flip_edge(Array<Tri> & tris, const size_t tri_a,
+                          const size_t tri_b)
+    {
+      Tri & ta = tris(tri_a);
+      Tri & tb = tris(tri_b);
+
+      // Identify the shared edge.
+      const size_t la = adj_of(ta, tri_b);
+      const size_t lb = adj_of(tb, tri_a);
+      if (la == NONE or lb == NONE)
+        return;
+
+      // Vertices: a_opp is opposite the shared edge in ta,
+      //           b_opp is opposite the shared edge in tb.
+      const size_t a_opp = ta.v[la];
+      const size_t b_opp = tb.v[lb];
+      const size_t p = ta.v[(la + 1) % 3]; // shared edge start
+      const size_t q = ta.v[(la + 2) % 3]; // shared edge end
+
+      // External neighbors before the flip.
+      const size_t ext_a1 = ta.adj[(la + 1) % 3]; // neighbor opp p in ta
+      const size_t ext_a2 = ta.adj[(la + 2) % 3]; // neighbor opp q in ta
+      const size_t ext_b1 = tb.adj[(lb + 1) % 3]; // neighbor opp p_adj in tb
+      const size_t ext_b2 = tb.adj[(lb + 2) % 3]; // neighbor opp q_adj in tb
+
+      // Constrained flags for external edges.
+      const bool con_a1 = ta.constrained[(la + 1) % 3];
+      const bool con_a2 = ta.constrained[(la + 2) % 3];
+      const bool con_b1 = tb.constrained[(lb + 1) % 3];
+      const bool con_b2 = tb.constrained[(lb + 2) % 3];
+
+      // Identify which external neighbors of tb go with which new triangle.
+      // tb has vertices: b_opp, p', q' where p' = tb.v[(lb+1)%3], q' = tb.v[(lb+2)%3]
+      // p' and q' are p and q (in some order).
+      const size_t bp = tb.v[(lb + 1) % 3]; // one of {p, q}
+      const size_t bq = tb.v[(lb + 2) % 3]; // the other
+
+      // New triangle A: (a_opp, b_opp, q) — uses new diagonal + edge (b_opp, q)
+      // New triangle B: (b_opp, a_opp, p) — uses new diagonal + edge (a_opp, p)
+      // Ensure CCW winding.
+
+      // After flip, new triangles share edge (a_opp, b_opp).
+      // tri_a becomes (a_opp, b_opp, q) [CCW if original was CCW]
+      // tri_b becomes (b_opp, a_opp, p) [CCW if original was CCW]
+
+      // New tri_a = (a_opp, b_opp, q):
+      //   - adj[0] opp a_opp = edge(b_opp, q) — this was in tb between b_opp and q
+      //   - adj[1] opp b_opp = edge(q, a_opp) — this was in ta between q and a_opp
+      //   - adj[2] opp q     = tri_b (new diagonal)
+      // New tri_b = (b_opp, a_opp, p):
+      //   - adj[0] opp b_opp = edge(a_opp, p) — this was in ta between a_opp and p
+      //   - adj[1] opp a_opp = edge(p, b_opp) — this was in tb between p and b_opp
+      //   - adj[2] opp p     = tri_a (new diagonal)
+
+      // Figure out external neighbors and constrained flags.
+      // From ta: edge opp (la+1)%3 i.e., opp ta.v[(la+1)%3] = opp p = edge(a_opp, q)
+      //          edge opp (la+2)%3 i.e., opp ta.v[(la+2)%3] = opp q = edge(p, a_opp)
+      // So: ext_a1 is neighbor across edge(a_opp, q), ext_a2 across edge(p, a_opp).
+      //
+      // From tb: bp = tb.v[(lb+1)%3], bq = tb.v[(lb+2)%3]
+      //          ext_b1 is neighbor across edge(b_opp, bq), opp bp
+      //          ext_b2 is neighbor across edge(bp, b_opp), opp bq
+
+      // New tri_a = (a_opp, b_opp, q):
+      //   adj[0] opp a_opp = edge(b_opp, q): this is from tb. If bq==q, ext_b1; if bp==q, ext_b2
+      //   adj[1] opp b_opp = edge(q, a_opp): this is ext_a1
+      //   adj[2] opp q = tri_b
+      size_t new_a_adj0;
+      bool new_a_con0;
+
+      const size_t new_a_adj1 = ext_a1; // edge(q, a_opp) was opp p in ta
+      const bool new_a_con1 = con_a1;
+      const size_t new_a_adj2 = tri_b;
+      constexpr bool new_a_con2 = false; // the new diagonal is not constrained
+
+      if (bq == q)
+        {
+          new_a_adj0 = ext_b1; // edge(b_opp, q) was opp bp in tb
+          new_a_con0 = con_b1;
+        }
+      else
+        {
+          new_a_adj0 = ext_b2; // edge(b_opp, q) was opp bq in tb, so bp==q
+          new_a_con0 = con_b2;
+        }
+
+      // New tri_b = (b_opp, a_opp, p):
+      //   adj[0] opp b_opp = edge(a_opp, p): this is ext_a2
+      //   adj[1] opp a_opp = edge(p, b_opp): from tb. If bp==p, ext_b2; if bq==p, ext_b1
+      //   adj[2] opp p = tri_a
+      size_t new_b_adj1;
+      bool new_b_con1;
+
+      const size_t new_b_adj0 = ext_a2; // edge(p, a_opp) was opp q in ta
+      const bool new_b_con0 = con_a2;
+      const size_t new_b_adj2 = tri_a;
+      constexpr bool new_b_con2 = false; // new diagonal
+
+      if (bp == p)
+        {
+          new_b_adj1 = ext_b2; // edge(p, b_opp) was opp bq in tb
+          new_b_con1 = con_b2;
+        }
+      else
+        {
+          new_b_adj1 = ext_b1; // edge(p, b_opp) was opp bp in tb, bq==p
+          new_b_con1 = con_b1;
+        }
+
+      // Write new triangles.
+      ta.v[0] = a_opp;
+      ta.v[1] = b_opp;
+      ta.v[2] = q;
+      ta.adj[0] = new_a_adj0;
+      ta.adj[1] = new_a_adj1;
+      ta.adj[2] = new_a_adj2;
+      ta.constrained[0] = new_a_con0;
+      ta.constrained[1] = new_a_con1;
+      ta.constrained[2] = new_a_con2;
+
+      tb.v[0] = b_opp;
+      tb.v[1] = a_opp;
+      tb.v[2] = p;
+      tb.adj[0] = new_b_adj0;
+      tb.adj[1] = new_b_adj1;
+      tb.adj[2] = new_b_adj2;
+      tb.constrained[0] = new_b_con0;
+      tb.constrained[1] = new_b_con1;
+      tb.constrained[2] = new_b_con2;
+
+      // Remap external neighbors to point to correct new triangle.
+      if (new_a_adj0 != NONE)
+        if (const size_t li = adj_of(tris(new_a_adj0), tri_b); li != NONE) tris(new_a_adj0).adj[li] = tri_a;
+      if (new_b_adj0 != NONE)
+        if (const size_t li = adj_of(tris(new_b_adj0), tri_a); li != NONE) tris(new_b_adj0).adj[li] = tri_b;
+      if (new_b_adj1 != NONE)
+        if (const size_t li = adj_of(tris(new_b_adj1), tri_a); li != NONE) tris(new_b_adj1).adj[li] = tri_b;
+      if (new_a_adj1 != NONE)
+        if (const size_t li = adj_of(tris(new_a_adj1), tri_b); li != NONE) tris(new_a_adj1).adj[li] = tri_a;
+    }
+
+    /// Collect edges that cross segment (u,v) by scanning all mesh edges.
+    /// Returns pairs of (tri_index, local_edge_index) for each crossing.
+    struct CrossingEdge
+    {
+      size_t tri;
+      size_t local; ///< local index in tri (opposite vertex)
+    };
+
+    [[nodiscard]] static Array<CrossingEdge>
+    find_crossing_edges(const Array<Point> & pts, const Array<Tri> & tris,
+                        const size_t u, const size_t v)
+    {
+      Array<CrossingEdge> crossings;
+      const Segment seg_uv(pts(u), pts(v));
+
+      for (size_t t = 0; t < tris.size(); ++t)
+        {
+          if (not tris(t).alive)
+            continue;
+
+          for (int e = 0; e < 3; ++e)
+            {
+              const size_t w1 = tris(t).v[(e + 1) % 3];
+              const size_t w2 = tris(t).v[(e + 2) % 3];
+
+              // Skip edges incident to u or v (they can't "cross").
+              if (w1 == u or w1 == v or w2 == u or w2 == v)
+                continue;
+
+              // Only process each undirected edge once (from the triangle
+              // with the smaller index, or from the boundary side).
+              const size_t nb = tris(t).adj[e];
+              if (nb != NONE and nb < t)
+                continue;
+
+              if (const Segment seg_edge(pts(w1), pts(w2)); seg_uv.intersects_properly_with(seg_edge))
+                {
+                  crossings.append(CrossingEdge{t, static_cast<size_t>(e)});
+                  // Also record from the neighbor's side.
+                  if (nb != NONE and tris(nb).alive)
+                    if (const size_t lb = adj_of(tris(nb), t); lb != NONE)
+                      crossings.append(CrossingEdge{nb, lb});
+                }
+            }
+        }
+
+      return crossings;
+    }
+
+    /// Mark edge (u,v) as constrained in the mesh.
+    static void mark_constrained(Array<Tri> & tris,
+                                 const size_t u, const size_t v)
+    {
+      for (size_t t = 0; t < tris.size(); ++t)
+        {
+          if (not tris(t).alive)
+            continue;
+
+          if (const size_t loc = edge_opposite(tris(t), u, v); loc != NONE)
+            tris(t).constrained[loc] = true;
+        }
+    }
+
+    /// Enforce a single constraint edge (u,v) using Sloan's flip approach.
+    static void enforce_constraint(Array<Point> & pts, Array<Tri> & tris,
+                                   const size_t u, const size_t v)
+    {
+      // Check if edge already in mesh.
+      size_t et, el;
+      if (edge_exists(tris, u, v, et, el))
+        {
+          mark_constrained(tris, u, v);
+          return;
+        }
+
+      // Find crossing edges and flip them.
+      const size_t max_iterations = tris.size() * 4 + 100;
+      for (size_t iter = 0; iter < max_iterations; ++iter)
+        {
+          // Check if the edge now exists.
+          if (edge_exists(tris, u, v, et, el))
+            {
+              mark_constrained(tris, u, v);
+              return;
+            }
+
+          Array<CrossingEdge> crossings = find_crossing_edges(pts, tris, u, v);
+          if (crossings.is_empty())
+            {
+              // Edge should exist now, or no crossings found.
+              if (edge_exists(tris, u, v, et, el))
+                mark_constrained(tris, u, v);
+              return;
+            }
+
+          bool flipped_any = false;
+          for (size_t ci = 0; ci < crossings.size(); ++ci)
+            {
+              const size_t tri_idx = crossings(ci).tri;
+              const size_t loc_idx = crossings(ci).local;
+
+              if (not tris(tri_idx).alive)
+                continue;
+
+              if (tris(tri_idx).constrained[loc_idx])
+                continue; // don't flip constrained edges
+
+              const size_t nb = tris(tri_idx).adj[loc_idx];
+              if (nb == NONE or not tris(nb).alive)
+                continue;
+
+              // Get the four vertices of the quadrilateral.
+              const size_t a = tris(tri_idx).v[loc_idx]; // opposite vertex in tri_idx
+              const size_t lb = adj_of(tris(nb), tri_idx);
+              if (lb == NONE)
+                continue;
+              const size_t d = tris(nb).v[lb]; // opposite vertex in nb
+              const size_t b = tris(tri_idx).v[(loc_idx + 1) % 3];
+              const size_t c = tris(tri_idx).v[(loc_idx + 2) % 3];
+
+              if (is_convex_quad(pts, a, b, c, d))
+                {
+                  flip_edge(tris, tri_idx, nb);
+                  flipped_any = true;
+                  break; // restart since crossings changed
+                }
+            }
+
+          if (not flipped_any)
+            {
+              // Try flipping any crossing edge even non-convex (won't flip but
+              // we break infinite loop).
+              break;
+            }
+        }
+
+      // Final check — mark if the edge appeared.
+      if (edge_exists(tris, u, v, et, el))
+        mark_constrained(tris, u, v);
+    }
+
+    /// Lawson flip pass: restore Delaunay for non-constrained edges.
+    static void lawson_flip(const Array<Point> & pts, Array<Tri> & tris)
+    {
+      // Collect all non-constrained interior edges.
+      // Use a simple iterative approach: keep flipping until no more flips.
+      bool changed = true;
+      const size_t max_passes = tris.size() * 4 + 100;
+      size_t pass = 0;
+
+      while (changed and pass++ < max_passes)
+        {
+          changed = false;
+
+          for (size_t t = 0; t < tris.size(); ++t)
+            {
+              if (not tris(t).alive)
+                continue;
+
+              for (int e = 0; e < 3; ++e)
+                {
+                  if (tris(t).constrained[e])
+                    continue; // don't flip constrained edges
+
+                  const size_t nb = tris(t).adj[e];
+                  if (nb == NONE or nb <= t) // process each pair once
+                    continue;
+                  if (not tris(nb).alive)
+                    continue;
+
+                  // in-circle test: is the opposite vertex of nb inside
+                  // the circumcircle of t?
+                  const size_t lb = adj_of(tris(nb), t);
+                  if (lb == NONE)
+                    continue;
+
+                  const size_t d = tris(nb).v[lb]; // opposite vertex in nb
+
+                  // Check CCW orientation of triangle t
+                  const Orientation o = orientation(pts(tris(t).v[0]),
+                                                    pts(tris(t).v[1]),
+                                                    pts(tris(t).v[2]));
+                  if (o == Orientation::COLLINEAR)
+                    continue;
+
+                  const Geom_Number det = in_circle_determinant(
+                                                                pts(tris(t).v[0]), pts(tris(t).v[1]),
+                                                                pts(tris(t).v[2]), pts(d));
+
+                  bool violates = false;
+                  if (o == Orientation::CCW and det > 0)
+                    violates = true;
+                  else if (o == Orientation::CW and det < 0)
+                    violates = true;
+
+                  if (not violates)
+                    continue;
+
+                  // Check convexity before flipping.
+                  const size_t a = tris(t).v[e];
+                  const size_t b = tris(t).v[(e + 1) % 3];
+                  const size_t c = tris(t).v[(e + 2) % 3];
+
+                  if (is_convex_quad(pts, a, b, c, d))
+                    {
+                      flip_edge(tris, t, nb);
+                      changed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Merge input points, constraint endpoints, and constraint-constraint
+    /// intersection points; then deduplicate.
+    [[nodiscard]] static Array<Point>
+    merge_and_deduplicate(const DynList<Point> & points,
+                          const DynList<Segment> & constraints)
+    {
+      Array<Point> all;
+      for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+        all.append(it.get_curr());
+
+      // Collect constraint segments into an array for pairwise checks.
+      Array<Segment> con_arr;
+      for (DynList<Segment>::Iterator it(constraints); it.has_curr(); it.next_ne())
+        {
+          const Segment & s = it.get_curr();
+          all.append(s.get_src_point());
+          all.append(s.get_tgt_point());
+          con_arr.append(s);
+        }
+
+      // Compute pairwise intersection points of constraints.
+      for (size_t i = 0; i < con_arr.size(); ++i)
+        for (size_t j = i + 1; j < con_arr.size(); ++j)
+          if (con_arr(i).intersects_properly_with(con_arr(j)))
+            all.append(segment_intersection_point(con_arr(i), con_arr(j)));
+
+      quicksort_op(all, [](const Point & a, const Point & b)
+                     {
+                       return lexicographic_less(a, b);
+                     });
+
+      Array<Point> ret;
+      ret.reserve(all.size());
+      for (size_t i = 0; i < all.size(); ++i)
+        if (ret.is_empty() or ret.get_last() != all(i))
+          ret.append(all(i));
+
+      return ret;
+    }
+
+    /// Split constraints at interior collinear points.
+    [[nodiscard]] static Array<IndexedEdge>
+    map_constraints(const Array<Point> & sites,
+                    const DynList<Segment> & constraints)
+    {
+      Array<IndexedEdge> result;
+
+      for (DynList<Segment>::Iterator it(constraints); it.has_curr(); it.next_ne())
+        {
+          const Segment & seg = it.get_curr();
+          const size_t u = find_point_index(sites, seg.get_src_point());
+          const size_t v = find_point_index(sites, seg.get_tgt_point());
+
+          if (u == NONE or v == NONE or u == v)
+            continue;
+
+          // Find interior collinear points and split.
+          Array<size_t> chain;
+          chain.append(u);
+          for (size_t i = 0; i < sites.size(); ++i)
+            {
+              if (i == u or i == v)
+                continue;
+              if (seg.contains(sites(i)))
+                chain.append(i);
+            }
+          chain.append(v);
+
+          // Sort chain by distance from u.
+          if (chain.size() > 2)
+            {
+              const Point & pu = sites(u);
+              quicksort_op(chain, [&](const size_t a, const size_t b)
+                             {
+                               const Geom_Number da =
+                                   (sites(a).get_x() - pu.get_x()) *
+                                   (sites(a).get_x() - pu.get_x()) +
+                                   (sites(a).get_y() - pu.get_y()) *
+                                   (sites(a).get_y() - pu.get_y());
+                               const Geom_Number db =
+                                   (sites(b).get_x() - pu.get_x()) *
+                                   (sites(b).get_x() - pu.get_x()) +
+                                   (sites(b).get_y() - pu.get_y()) *
+                                   (sites(b).get_y() - pu.get_y());
+                               return da < db;
+                             });
+            }
+
+          for (size_t i = 0; i + 1 < chain.size(); ++i)
+            {
+              const size_t a = chain(i) < chain(i + 1) ? chain(i) : chain(i + 1);
+              const size_t b = chain(i) < chain(i + 1) ? chain(i + 1) : chain(i);
+              // Avoid duplicates.
+              bool dup = false;
+              for (size_t j = 0; j < result.size(); ++j)
+                if (result(j).u == a and result(j).v == b)
+                  {
+                    dup = true;
+                    break;
+                  }
+              if (not dup)
+                result.append(IndexedEdge{a, b});
+            }
+        }
+
+      return result;
+    }
+
+  public:
+    /**
+     * @brief Compute constrained Delaunay triangulation.
+     *
+     * @param points Input points.
+     * @param constraints Constraint segments (must connect input points).
+     * @return Unique sites, triangulation indices, and constrained edge list.
+     */
+    [[nodiscard]] Result operator()(const DynList<Point> & points,
+                                    const DynList<Segment> & constraints) const
+    {
+      Result ret;
+
+      // 1. Merge and deduplicate.
+      ret.sites = merge_and_deduplicate(points, constraints);
+      const size_t n = ret.sites.size();
+
+      if (n < 3)
+        return ret;
+
+      // Check all-collinear.
+      {
+        bool collinear = true;
+        for (size_t i = 2; i < n and collinear; ++i)
+          if (orientation(ret.sites(0), ret.sites(1), ret.sites(i))
+              != Orientation::COLLINEAR)
+            collinear = false;
+        if (collinear)
+          return ret;
+      }
+
+      // 2. Compute unconstrained DT.
+      DynList<Point> site_list;
+      for (size_t i = 0; i < n; ++i)
+        site_list.append(ret.sites(i));
+
+      constexpr DelaunayTriangulationBowyerWatson dt_algo;
+      auto [sites, triangles] = dt_algo(site_list);
+
+      if (triangles.is_empty())
+        return ret;
+
+      // The DT may have reordered sites. We need to use its sites array
+      // and remap. Since both are sorted/deduped, they should match.
+      ret.sites = sites;
+
+      // 3. Build adjacency mesh.
+      Array<Tri> tris;
+      build_adjacency(tris, triangles);
+
+      // 4. Map constraints to index pairs (with splitting).
+      Array<IndexedEdge> indexed_constraints =
+          map_constraints(ret.sites, constraints);
+
+      // 5. Enforce each constraint.
+      for (size_t i = 0; i < indexed_constraints.size(); ++i)
+        enforce_constraint(ret.sites, tris, indexed_constraints(i).u,
+                           indexed_constraints(i).v);
+
+      // 6. Lawson flip pass.
+      lawson_flip(ret.sites, tris);
+
+      // 7. Extract result.
+      ret.triangles.reserve(tris.size());
+      for (size_t t = 0; t < tris.size(); ++t)
+        {
+          if (not tris(t).alive)
+            continue;
+          if (orientation(ret.sites(tris(t).v[0]),
+                          ret.sites(tris(t).v[1]),
+                          ret.sites(tris(t).v[2])) == Orientation::COLLINEAR)
+            continue;
+          ret.triangles.append(IndexedTriangle{
+                                 tris(t).v[0], tris(t).v[1],
+                                 tris(t).v[2]
+                               });
+        }
+
+      // Collect constrained edges.
+      ret.constrained_edges.reserve(indexed_constraints.size());
+      for (size_t i = 0; i < indexed_constraints.size(); ++i)
+        ret.constrained_edges.append(indexed_constraints(i));
+
+      return ret;
+    }
+
+    /**
+     * @brief Convenience overload using initializer lists.
+     */
+    [[nodiscard]] Result operator()(const std::initializer_list<Point> points,
+                                    const std::initializer_list<Segment> constraints) const
+    {
+      DynList<Point> pts;
+      for (const Point & p: points)
+        pts.append(p);
+
+      DynList<Segment> segs;
+      for (const Segment & s: constraints)
+        segs.append(s);
+
+      return (*this)(pts, segs);
+    }
+
+    /**
+     * @brief Convert indexed triangulation to geometric triangles.
+     */
+    static DynList<Triangle> as_triangles(const Result & result)
+    {
+      DynList<Triangle> out;
+      for (size_t i = 0; i < result.triangles.size(); ++i)
+        {
+          const auto & [ii, j, k] = result.triangles(i);
+          out.append(Triangle(result.sites(ii),
+                              result.sites(j),
+                              result.sites(k)));
+        }
+      return out;
+    }
+  };
+
+  // ============================================================================
+  // Voronoi Diagram (Dual of Delaunay)
+  // ============================================================================
+
+  /**
+   * @brief Voronoi diagram derived as the dual of a Delaunay triangulation.
+   *
+   * A Voronoi diagram is a partition of a plane into regions close to each 
+   * of a given set of objects. In the simplest case, these objects are just 
+   * finitely many points in the plane (called seeds, sites, or generators).
+   *
+   * ## Implementation Details
+   *
+   * - **Vertices**: Voronoi vertices are the circumcenters of the Delaunay triangles.
+   * - **Edges**: Each edge in the Delaunay triangulation corresponds to an edge in 
+   *   the Voronoi diagram. Internal Delaunay edges map to bounded Voronoi segments, 
+   *   while Delaunay edges on the convex hull map to unbounded Voronoi rays.
+   * - **Cells**: Each site has a corresponding Voronoi cell, which is a convex 
+   *   polygon (possibly unbounded).
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
+  class VoronoiDiagramFromDelaunay
+  {
+  public:
+    /**
+     * @brief Represents an edge in the Voronoi diagram.
+     */
+    struct Edge
+    {
+      size_t site_u;    ///< Index of the first site sharing this edge.
+      size_t site_v;    ///< Index of the second site sharing this edge.
+      Point src;        ///< Source point of the edge.
+      Point tgt;        ///< Target point of the edge (only if not unbounded).
+      bool unbounded;   ///< True if the edge is an unbounded ray.
+      Point direction;  ///< Direction vector for unbounded rays.
+    };
+
+    /**
+     * @brief Represents a Voronoi cell.
+     */
+    struct Cell
+    {
+      size_t site_index;      ///< Index of the site this cell belongs to.
+      Point site;             ///< Coordinates of the site.
+      bool bounded;           ///< True if the cell is completely bounded.
+      Array<Point> vertices;  ///< Vertices of the cell in CCW order.
+    };
+
+    /**
+     * @brief Represents a Voronoi cell clipped by a bounding polygon.
+     */
+    struct ClippedCell
+    {
+      size_t site_index;  ///< Index of the site.
+      Point site;         ///< Coordinates of the site.
+      Polygon polygon;    ///< Clipped convex polygon representing the cell.
+    };
+
+    /**
+     * @brief The complete result of a Voronoi diagram computation.
+     */
+    struct Result
+    {
+      Array<Point> sites;     ///< Input sites.
+      Array<Point> vertices;  ///< Voronoi vertices.
+      Array<Edge> edges;      ///< Voronoi edges.
+      Array<Cell> cells;      ///< Voronoi cells.
+    };
+
+  private:
+    DelaunayTriangulationBowyerWatson delaunay; ///< Internal Delaunay triangulator.
+
+    /**
+     * @brief Computes the circumcenter of three points.
+     */
+    [[nodiscard]] static Point circumcenter(const Point & a,
+                                            const Point & b,
+                                            const Point & c)
+    {
+      const Geom_Number & ax = a.get_x();
+      const Geom_Number & ay = a.get_y();
+      const Geom_Number & bx = b.get_x();
+      const Geom_Number & by = b.get_y();
+      const Geom_Number & cx = c.get_x();
+      const Geom_Number & cy = c.get_y();
+
+      const Geom_Number a2 = ax * ax + ay * ay;
+      const Geom_Number b2 = bx * bx + by * by;
+      const Geom_Number c2 = cx * cx + cy * cy;
+
+      const Geom_Number d = ax * (by - cy) + bx * (cy - ay) + cx * (ay - by);
+      ah_domain_error_if(d == 0) << "Circumcenter undefined for collinear points";
+      const Geom_Number den = d + d;
+
+      const Geom_Number ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / den;
+      const Geom_Number uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / den;
+
+      return {ux, uy};
+    }
+
+    /**
+     * @brief Extracts vertices from a closed polygon.
+     */
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & p)
+    {
+      ah_domain_error_if(not p.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(p.size() < 3) << "Polygon must have at least 3 vertices";
+
+      return GeomPolygonUtils::extract_vertices(p);
+    }
+
+    /**
+     * @brief Checks if a vertex set forms a convex polygon.
+     */
+    [[nodiscard]] static bool is_convex(const Array<Point> & verts)
+    {
+      if (verts.size() < 3)
+        return false;
+      return GeomPolygonUtils::is_convex(verts);
+    }
+
+    /**
+     * @brief Creates a half-plane from a directed edge.
+     */
+    [[nodiscard]] static HalfPlaneIntersection::HalfPlane
+    bisector_halfplane_for_site(const Point & s, const Point & t)
+    {
+      const Point mid((s.get_x() + t.get_x()) / 2,
+                      (s.get_y() + t.get_y()) / 2);
+
+      const Geom_Number dx = t.get_x() - s.get_x();
+      const Geom_Number dy = t.get_y() - s.get_y();
+      const Point q(mid.get_x() - dy, mid.get_y() + dx);
+
+      return {mid, q}; // the left side contains s
+    }
+
+    [[nodiscard]] static Array<ClippedCell>
+    indexed_clipped_cells(const Array<Point> & sites, const Array<Polygon> & polys)
+    {
+      ah_domain_error_if(sites.size() != polys.size())
+        << "Sites and clipped polygons size mismatch";
+
+      Array<ClippedCell> ret;
+      ret.reserve(sites.size());
+
+      for (size_t i = 0; i < sites.size(); ++i)
+        {
+          ClippedCell cell;
+          cell.site_index = i;
+          cell.site = sites(i);
+          cell.polygon = polys(i);
+          ret.append(std::move(cell));
+        }
+
+      return ret;
+    }
+
+  public:
+    /**
+     * @brief Build Voronoi from a precomputed Delaunay triangulation.
+     *
+     * @param dt Delaunay triangulation result.
+     * @return Voronoi vertices, edges, and per-site cells.
+     */
+    [[nodiscard]] Result
+    operator ()(const DelaunayTriangulationBowyerWatson::Result & dt) const
+    {
+      Result ret;
+      ret.sites = dt.sites;
+
+      if (dt.triangles.is_empty())
+        return ret;
+
+      Array<Point> centers;
+      centers.reserve(dt.triangles.size());
+      for (size_t idx = 0; idx < dt.triangles.size(); ++idx)
+        {
+          const auto & [i, j, k] = dt.triangles(idx);
+          centers.append(circumcenter(dt.sites(i), dt.sites(j), dt.sites(k)));
+        }
+      ret.vertices = centers;
+
+      Array<unsigned char> on_hull;
+      on_hull.reserve(dt.sites.size());
+      for (size_t i = 0; i < dt.sites.size(); ++i)
+        on_hull.append(0);
+
+      GeomTriangleAdjacencyUtils::for_each_sorted_edge_group(
+                                                             dt.triangles,
+                                                             [&](const Array<GeomTriangleAdjacencyUtils::EdgeRef> &
+                                                                 edges,
+                                                                 const size_t first, const size_t last)
+                                                               {
+                                                                 if (const size_t cnt = last - first; cnt >= 2)
+                                                                   {
+                                                                     const Point & p1 = centers(edges(first).tri);
+                                                                     const Point & p2 = centers(edges(first + 1).tri);
+                                                                     ret.edges.append(Edge{
+                                                                        edges(first).u, edges(first).v,
+                                                                        p1, p2, false, Point()
+                                                                      });
+                                                                     return;
+                                                                   }
+
+                                                                 const auto & edge = edges(first);
+                                                                 const size_t u = edge.u;
+                                                                 const size_t v = edge.v;
+                                                                 const size_t tri = edge.tri;
+                                                                 const size_t third = edge.third;
+                                                                 on_hull(u) = 1;
+                                                                 on_hull(v) = 1;
+
+                                                                 const Point & pu = dt.sites(u);
+                                                                 const Point & pv = dt.sites(v);
+                                                                 const Point & pw = dt.sites(third);
+
+                                                                 const Geom_Number ex = pv.get_x() - pu.get_x();
+                                                                 const Geom_Number ey = pv.get_y() - pu.get_y();
+
+                                                                 Geom_Number dirx = -ey;
+                                                                 Geom_Number diry = ex;
+                                                                 if (orientation(pu, pv, pw) == Orientation::CCW)
+                                                                   {
+                                                                     dirx = ey;
+                                                                     diry = -ex;
+                                                                   }
+
+                                                                 const Point & src = centers(tri);
+                                                                 ret.edges.append(Edge{
+                                                                    u, v, src, src, true, Point(dirx, diry)
+                                                                  });
+                                                               });
+
+      // Pre-build site -> incident triangles index (O(T) instead of O(n*T)).
+      Array<Array<size_t>> incidence;
+      incidence.reserve(dt.sites.size());
+      for (size_t s = 0; s < dt.sites.size(); ++s)
+        incidence.append(Array<size_t>());
+      for (size_t t = 0; t < dt.triangles.size(); ++t)
+        {
+          const auto & [ti, tj, tk] = dt.triangles(t);
+          incidence(ti).append(t);
+          incidence(tj).append(t);
+          incidence(tk).append(t);
+        }
+
+      ret.cells.reserve(dt.sites.size());
+      for (size_t s = 0; s < dt.sites.size(); ++s)
+        {
+          Array<Point> verts;
+          verts.reserve(incidence(s).size());
+          for (size_t idx = 0; idx < incidence(s).size(); ++idx)
+            verts.append(centers(incidence(s)(idx)));
+
+          const Point site = dt.sites(s);
+          if (verts.size() > 1)
+            {
+              quicksort_op(verts, [&site](const Point & a, const Point & b)
+                             {
+                               const Geom_Number ax = a.get_x() - site.get_x();
+                               const Geom_Number ay = a.get_y() - site.get_y();
+                               const Geom_Number bx = b.get_x() - site.get_x();
+                               const Geom_Number by = b.get_y() - site.get_y();
+
+                               const bool au = (ay > 0) or (ay == 0 and ax >= 0);
+                               const bool bu = (by > 0) or (by == 0 and bx >= 0);
+                               if (au != bu)
+                                 return au and not bu;
+
+                               if (const Geom_Number cr = ax * by - ay * bx; cr != 0)
+                                 return cr > 0;
+
+                               return (ax * ax + ay * ay) < (bx * bx + by * by);
+                             });
+            }
+
+          Array<Point> clean;
+          clean.reserve(verts.size());
+          for (size_t k = 0; k < verts.size(); ++k)
+            if (clean.is_empty() or clean.get_last() != verts(k))
+              clean.append(verts(k));
+          if (clean.size() > 1 and clean(0) == clean.get_last())
+            clean.remove_last();
+
+          Cell cell;
+          cell.site_index = s;
+          cell.site = site;
+          cell.bounded = on_hull(s) == 0;
+          cell.vertices = clean;
+          ret.cells.append(std::move(cell));
+        }
+
+      return ret;
+    }
+
+    /**
+     * @brief Build Voronoi from a point set (computes Delaunay first).
+     *
+     * @param point_set Input points.
+     * @return Voronoi diagram.
+     */
+    [[nodiscard]] Result operator ()(const DynList<Point> & point_set) const
+    {
+      return (*this)(delaunay(point_set));
+    }
+
+    /**
+     * @brief Convenience overload using initializer-list input.
+     *
+     * @param il Input points.
+     * @return Voronoi diagram.
+     */
+    [[nodiscard]] Result operator ()(const std::initializer_list<Point> il) const
+    {
+      return (*this)(delaunay(il));
+    }
+
+    /**
+     * @brief Clip Voronoi cells against a closed convex polygon.
+     *
+     * This produces bounded polygons for all cells, including originally
+     * unbounded hull-site cells.
+     *
+     * @param sites Voronoi sites.
+     * @param clip Closed convex clipping polygon.
+     * @return One clipped convex polygon per site (same order as sites).
+     *
+     * @throws domain_error if the clip is not closed/convex or has < 3 vertices.
+     */
+    static Array<Polygon> clipped_cells(const Array<Point> & sites,
+                                        const Polygon & clip)
+    {
+      const Array<Point> clip_verts = extract_vertices(clip);
+      ah_domain_error_if(not is_convex(clip_verts)) << "Clip polygon must be convex";
+
+      const Array<HalfPlaneIntersection::HalfPlane> clip_hps =
+          HalfPlaneIntersection::from_convex_polygon(clip);
+
+      const size_t n = sites.size();
+
+      // Compute Delaunay to get adjacency: each site's Voronoi cell is
+      // bounded only by bisectors with its Delaunay neighbors (~6 on avg),
+      // reducing total complexity from O(n^2 log n) to O(n log n).
+      constexpr DelaunayTriangulationBowyerWatson dt_algo;
+      DynList<Point> site_list;
+      for (size_t i = 0; i < n; ++i)
+        site_list.append(sites(i));
+      auto dt = dt_algo(site_list);
+
+      // Map Delaunay site indices back to input indices.
+      // dt.sites may be reordered/deduped, so match by position.
+      Array<size_t> dt_to_input;
+      dt_to_input.reserve(dt.sites.size());
+      for (size_t di = 0; di < dt.sites.size(); ++di)
+        {
+          size_t match = 0;
+          for (size_t oi = 0; oi < n; ++oi)
+            if (dt.sites(di) == sites(oi))
+              {
+                match = oi;
+                break;
+              }
+          dt_to_input.append(match);
+        }
+
+      // Build adjacency lists from Delaunay triangles (in input-index space)
+      Array<DynSetTree<size_t, Treap_Rk>> adj(n);
+      for (size_t i = 0; i < n; ++i)
+        adj.append(DynSetTree<size_t, Treap_Rk>());
+      for (size_t t = 0; t < dt.triangles.size(); ++t)
+        {
+          const size_t a = dt_to_input(dt.triangles(t).i);
+          const size_t b = dt_to_input(dt.triangles(t).j);
+          const size_t c = dt_to_input(dt.triangles(t).k);
+          adj(a).insert(b);
+          adj(a).insert(c);
+          adj(b).insert(a);
+          adj(b).insert(c);
+          adj(c).insert(a);
+          adj(c).insert(b);
+        }
+
+      Array<Polygon> ret;
+      ret.reserve(n);
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          HalfPlaneIntersection hpi;
+          Array<HalfPlaneIntersection::HalfPlane> hps = clip_hps;
+
+          adj(i).for_each([&](size_t j)
+                            {
+                              if (sites(j) != sites(i))
+                                hps.append(bisector_halfplane_for_site(sites(i), sites(j)));
+                            });
+
+          // If a site has no Delaunay neighbors (degenerate case),
+          // fall back to the clip polygon alone.
+          ret.append(hpi(hps));
+        }
+
+      return ret;
+    }
+
+    /**
+     * @brief Clip Voronoi cells against a closed convex polygon.
+     *
+     * @param vor Voronoi result.
+     * @param clip Closed convex clipping polygon.
+     * @return One clipped convex polygon per site.
+     */
+    [[nodiscard]] static Array<Polygon> clipped_cells(const Result & vor,
+                                                      const Polygon & clip)
+    {
+      return clipped_cells(vor.sites, clip);
+    }
+
+    /**
+     * @brief Compute Voronoi and clip its cells against a closed convex polygon.
+     *
+     * @param point_set Input sites.
+     * @param clip Closed convex clipping polygon.
+     * @return One clipped convex polygon per site.
+     */
+    [[nodiscard]] Array<Polygon> clipped_cells(const DynList<Point> & point_set,
+                                               const Polygon & clip) const
+    {
+      return clipped_cells(delaunay(point_set).sites, clip);
+    }
+
+    /**
+     * @brief Convenience overload with initializer-list input.
+     *
+     * @param il Input sites.
+     * @param clip Closed convex clipping polygon.
+     * @return One clipped convex polygon per site.
+     */
+    [[nodiscard]] Array<Polygon>
+    clipped_cells(const std::initializer_list<Point> il, const Polygon & clip) const
+    {
+      return clipped_cells(delaunay(il).sites, clip);
+    }
+
+    /**
+     * @brief Clip Voronoi cells and return explicit site-indexed records.
+     *
+     * @param sites Voronoi sites.
+     * @param clip Closed convex clipping polygon.
+     * @return Array of {site_index, site, polygon} records.
+     */
+    static Array<ClippedCell>
+    clipped_cells_indexed(const Array<Point> & sites, const Polygon & clip)
+    {
+      return indexed_clipped_cells(sites, clipped_cells(sites, clip));
+    }
+
+    /**
+     * @brief Clip Voronoi cells (from result) into site-indexed records.
+     *
+     * @param vor Voronoi result.
+     * @param clip Closed convex clipping polygon.
+     * @return Array of {site_index, site, polygon} records.
+     */
+    [[nodiscard]] static Array<ClippedCell>
+    clipped_cells_indexed(const Result & vor, const Polygon & clip)
+    {
+      return clipped_cells_indexed(vor.sites, clip);
+    }
+
+    /**
+     * @brief Compute/clip Voronoi cells and return site-indexed records.
+     *
+     * @param point_set Input sites.
+     * @param clip Closed convex clipping polygon.
+     * @return Array of {site_index, site, polygon} records.
+     */
+    [[nodiscard]] Array<ClippedCell>
+    clipped_cells_indexed(const DynList<Point> & point_set, const Polygon & clip) const
+    {
+      return clipped_cells_indexed(delaunay(point_set).sites, clip);
+    }
+
+    /**
+     * @brief Convenience overload with initializer-list input.
+     *
+     * @param il Input sites.
+     * @param clip Closed convex clipping polygon.
+     * @return Array of {site_index, site, polygon} records.
+     */
+    [[nodiscard]] Array<ClippedCell>
+    clipped_cells_indexed(const std::initializer_list<Point> il,
+                          const Polygon & clip) const
+    {
+      return clipped_cells_indexed(delaunay(il).sites, clip);
+    }
+  };
+
+  // ============================================================================
+  // Voronoi Diagram — O(n log n) via Incremental Delaunay Dual
+  // ============================================================================
+
+  /**
+   * @brief O(n log n) Voronoi diagram construction.
+   *
+   * Computes the Voronoi diagram by composing:
+   *
+   *   1. O(n log n) randomized incremental Delaunay triangulation
+   *   2. O(n)   dual construction (circumcenters → Voronoi vertices)
+   *
+   * Uses exact rational arithmetic (`Geom_Number`) throughout.
+   *
+   * The output types are identical to `VoronoiDiagramFromDelaunay`.
+   *
+   * ## Complexity
+   * - Expected time:  O(n log n)
+   * - Space: O(n)
+   *
+   * @par Example
+   * @code
+   * VoronoiDiagram vd;
+   * auto res = vd({Point(0,0), Point(1,0), Point(0,1)});
+   * // res.cells / res.edges contain the diagram.
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  /**
+   * @brief Fast Voronoi diagram computation using randomized incremental Delaunay.
+   *
+   * This class provides a convenient interface to compute the Voronoi diagram
+   * of a set of points. It combines @ref DelaunayTriangulationRandomizedIncremental
+   * with @ref VoronoiDiagramFromDelaunay to produce the dual diagram.
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
+  class VoronoiDiagram
+  {
+    DelaunayTriangulationRandomizedIncremental delaunay_; ///< Internal Delaunay triangulator.
+    VoronoiDiagramFromDelaunay voronoi_; ///< Internal dual builder.
+
+  public:
+    using Edge = VoronoiDiagramFromDelaunay::Edge; ///< Type for Voronoi edges.
+    using Cell = VoronoiDiagramFromDelaunay::Cell; ///< Type for Voronoi cells.
+    using ClippedCell = VoronoiDiagramFromDelaunay::ClippedCell; ///< Type for clipped Voronoi cells.
+    using Result = VoronoiDiagramFromDelaunay::Result; ///< Complete result structure.
+
+    /**
+     * @brief Compute the Voronoi diagram for a list of points.
+     * @param pts Input list of sites.
+     * @return Result structure containing the diagram components.
+     */
+    [[nodiscard]] Result operator()(const DynList<Point> & pts) const
+    {
+      const auto dt = delaunay_(pts);
+      return voronoi_(dt);
+    }
+
+    /**
+     * @brief Compute the Voronoi diagram from an initializer list.
+     * @param il Initializer list of points.
+     * @return Result structure containing the diagram components.
+     */
+    [[nodiscard]] Result operator()(const std::initializer_list<Point> il) const
+    {
+      DynList<Point> pts;
+      for (const Point & p: il)
+        pts.append(p);
+      return (*this)(pts);
+    }
+
+    /**
+     * @brief Compute Voronoi cells clipped to a bounding polygon.
+     * @param pts Input list of sites.
+     * @param clip Bounding polygon used for clipping.
+     * @return Array of clipped cells.
+     */
+    [[nodiscard]] Array<ClippedCell>
+    clipped_cells(const DynList<Point> & pts, const Polygon & clip) const
+    {
+      auto [sites, triangles] = delaunay_(pts);
+      return VoronoiDiagramFromDelaunay::clipped_cells_indexed(sites, clip);
+    }
+  };
+
+  /**
+   * @brief Fortune sweep-line Voronoi construction.
+   *
+   * This class computes a Delaunay triangulation via Fortune's beach-line
+   * sweep (site + circle events) and then reuses @ref VoronoiDiagramFromDelaunay
+   * to build Voronoi vertices/edges/cells, avoiding duplicated dual logic.
+   *
+   * Fortune's algorithm is a sweep-line algorithm for generating Voronoi 
+   * diagrams in O(n log n) time.
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
+  class VoronoiDiagramFortune
+  {
+  public:
+    using Edge = VoronoiDiagramFromDelaunay::Edge; ///< Type for Voronoi edges.
+    using Cell = VoronoiDiagramFromDelaunay::Cell; ///< Type for Voronoi cells.
+    using ClippedCell = VoronoiDiagramFromDelaunay::ClippedCell; ///< Type for clipped Voronoi cells.
+    using Result = VoronoiDiagramFromDelaunay::Result; ///< Complete result structure.
+
+  private:
+    struct Arc; ///< Forward declaration of beach-line arc.
+
+    /**
+     * @brief Event in the sweep-line algorithm (site or circle event).
+     */
+    struct Event
+    {
+      double y = 0.0;     ///< Y-coordinate of the event.
+      double x = 0.0;     ///< X-coordinate of the site or circle center.
+      bool is_site = false; ///< True if it's a site event, false for circle.
+      size_t site = 0;    ///< Site index.
+      Arc *arc = nullptr; ///< Corresponding arc in the beach-line (circle events).
+      size_t id = 0;      ///< Unique event ID for deterministic sorting.
+      bool valid = true;  ///< False if the circle event was invalidated.
+    };
+
+    /**
+     * @brief Arc in the beach-line state structure.
+     */
+    struct Arc
+    {
+      size_t site = 0;        ///< Site index generating this parabolic arc.
+      Arc *prev = nullptr;    ///< Previous arc in the beach-line.
+      Arc *next = nullptr;    ///< Next arc in the beach-line.
+      Event *circle = nullptr; ///< Potential circle event generated by this arc.
+    };
+
+    /**
+     * @brief Comparator for prioritizing events in the sweep-line.
+     */
+    struct EventCmp
+    {
+      bool operator ()(const Event *a, const Event *b) const
+      {
+        // DynBinHeap is a min-heap, so define the smallest key as the
+        // highest-priority event: max y, then min x, site before circle, then
+        // smallest id.
+        if (a->y != b->y) return a->y > b->y; // larger y has smaller key
+        if (a->x != b->x) return a->x < b->x; // smaller x has smaller key
+        if (a->is_site != b->is_site) return a->is_site > b->is_site; // site (0) < circle (1)
+        return a->id < b->id;
+      }
+    };
+
+    /**
+     * @brief Key for identifying a triangle by its vertex indices.
+     */
+    struct TriKey
+    {
+      size_t a = 0;
+      size_t b = 0;
+      size_t c = 0;
+
+      bool operator <(const TriKey & o) const
+      {
+        if (a != o.a) return a < o.a;
+        if (b != o.b) return b < o.b;
+        return c < o.c;
+      }
+    };
+
+    static constexpr double kEps = 1e-9;
+
+    VoronoiDiagramFromDelaunay voronoi_;
+    DelaunayTriangulationBowyerWatson fallback_;
+
+    [[nodiscard]] static double as_double(const Geom_Number & v)
+    {
+      return geom_number_to_double(v);
+    }
+
+    [[nodiscard]] static bool all_collinear(const Array<Point> & pts)
+    {
+      if (pts.size() < 3)
+        return true;
+
+      for (size_t i = 2; i < pts.size(); ++i)
+        if (orientation(pts(0), pts(1), pts(i)) != Orientation::COLLINEAR)
+          return false;
+
+      return true;
+    }
+
+    [[nodiscard]] static DelaunayTriangulationBowyerWatson::IndexedTriangle
+    normalized_triangle(const size_t i, const size_t j, const size_t k,
+                        const Array<Point> & sites)
+    {
+      DelaunayTriangulationBowyerWatson::IndexedTriangle t{i, j, k};
+      if (orientation(sites(t.i), sites(t.j), sites(t.k)) == Orientation::CW)
+        std::swap(t.j, t.k);
+      return t;
+    }
+
+    [[nodiscard]] static double breakpoint_x(const Point & left_site,
+                                             const Point & right_site,
+                                             const double sweepline_y)
+    {
+      const double px = as_double(left_site.get_x());
+      const double py = as_double(left_site.get_y());
+      const double qx = as_double(right_site.get_x());
+      const double qy = as_double(right_site.get_y());
+
+      if (std::fabs(py - qy) <= kEps)
+        return (px + qx) / 2.0;
+      if (std::fabs(py - sweepline_y) <= kEps)
+        return px;
+      if (std::fabs(qy - sweepline_y) <= kEps)
+        return qx;
+
+      const double z0 = 2.0 * (py - sweepline_y);
+      const double z1 = 2.0 * (qy - sweepline_y);
+
+      const double a = 1.0 / z0 - 1.0 / z1;
+      const double b = -2.0 * (px / z0 - qx / z1);
+      const double c = (px * px + py * py - sweepline_y * sweepline_y) / z0 -
+                       (qx * qx + qy * qy - sweepline_y * sweepline_y) / z1;
+
+      if (std::fabs(a) <= kEps)
+        return -c / b;
+
+      double disc = b * b - 4.0 * a * c;
+      if (disc < 0.0 and disc > -kEps)
+        disc = 0.0;
+      ah_domain_error_if(disc < 0.0) << "Negative discriminant in Fortune breakpoint";
+
+      const double sq = std::sqrt(disc);
+      const double x1 = (-b - sq) / (2.0 * a);
+      const double x2 = (-b + sq) / (2.0 * a);
+      return py < qy ? std::max(x1, x2) : std::min(x1, x2);
+    }
+
+    [[nodiscard]] static Arc *
+    locate_arc(Arc *head, const Array<Point> & sites,
+               const double x, const double sweepline_y)
+    {
+      if (head == nullptr)
+        return nullptr;
+
+      for (Arc *arc = head; arc != nullptr; arc = arc->next)
+        {
+          const double left = arc->prev == nullptr ?
+                                -std::numeric_limits<double>::infinity() :
+                                breakpoint_x(sites(arc->prev->site), sites(arc->site), sweepline_y);
+          const double right = arc->next == nullptr ?
+                                 std::numeric_limits<double>::infinity() :
+                                 breakpoint_x(sites(arc->site), sites(arc->next->site), sweepline_y);
+
+          if (x >= left - kEps and x <= right + kEps)
+            return arc;
+        }
+
+      Arc *tail = head;
+      while (tail->next != nullptr)
+        tail = tail->next;
+      return tail;
+    }
+
+    static void invalidate_circle_event(Arc *arc)
+    {
+      if (arc != nullptr and arc->circle != nullptr)
+        {
+          arc->circle->valid = false;
+          arc->circle = nullptr;
+        }
+    }
+
+    static void enqueue_circle_event(Arc *arc,
+                                     const double sweepline_y,
+                                     const Array<Point> & sites,
+                                     DynBinHeap<Event *, EventCmp> & queue,
+                                     Array<std::unique_ptr<Event>> & event_pool,
+                                     size_t & next_event_id)
+    {
+      invalidate_circle_event(arc);
+
+      if (arc == nullptr or arc->prev == nullptr or arc->next == nullptr)
+        return;
+
+      const size_t ia = arc->prev->site;
+      const size_t ib = arc->site;
+      const size_t ic = arc->next->site;
+      if (ia == ib or ib == ic or ia == ic)
+        return;
+
+      const Point & a = sites(ia);
+      const Point & b = sites(ib);
+      const Point & c = sites(ic);
+
+      if (orientation(a, b, c) != Orientation::CW)
+        return;
+
+      const double ax = as_double(a.get_x());
+      const double ay = as_double(a.get_y());
+      const double bx = as_double(b.get_x());
+      const double by = as_double(b.get_y());
+      const double cx = as_double(c.get_x());
+      const double cy = as_double(c.get_y());
+
+      const double det = 2.0 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+      if (std::fabs(det) <= kEps)
+        return;
+
+      const double a2 = ax * ax + ay * ay;
+      const double b2 = bx * bx + by * by;
+      const double c2 = cx * cx + cy * cy;
+
+      const double ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / det;
+      const double uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / det;
+
+      const double r = std::hypot(ax - ux, ay - uy);
+      const double event_y = uy - r;
+      if (event_y >= sweepline_y - kEps)
+        return;
+
+      event_pool.append(std::make_unique<Event>());
+      Event *ev = event_pool.get_last().get();
+      ev->y = event_y;
+      ev->x = ux;
+      ev->is_site = false;
+      ev->site = 0;
+      ev->arc = arc;
+      ev->id = next_event_id++;
+      ev->valid = true;
+
+      arc->circle = ev;
+      queue.put(ev);
+    }
+
+    [[nodiscard]] static bool
+    is_valid_delaunay(const DelaunayTriangulationBowyerWatson::Result & dt)
+    {
+      for (size_t t = 0; t < dt.triangles.size(); ++t)
+        {
+          const auto & [i, j, k] = dt.triangles(t);
+          const Point & a = dt.sites(i);
+          const Point & b = dt.sites(j);
+          const Point & c = dt.sites(k);
+          const Orientation o = orientation(a, b, c);
+          if (o == Orientation::COLLINEAR)
+            return false;
+
+          for (size_t p = 0; p < dt.sites.size(); ++p)
+            {
+              if (p == i or p == j or p == k)
+                continue;
+
+              if (const Geom_Number det = in_circle_determinant(a, b, c, dt.sites(p));
+                (o == Orientation::CCW and det > 0) or (o == Orientation::CW and det < 0))
+                return false;
+            }
+        }
+
+      return true;
+    }
+
+    static DelaunayTriangulationBowyerWatson::Result
+    triangulate_sweep(const Array<Point> & sites)
+    {
+      using DTResult = DelaunayTriangulationBowyerWatson::Result;
+      using DTTriangle = DelaunayTriangulationBowyerWatson::IndexedTriangle;
+
+      DTResult out;
+      out.sites = sites;
+
+      const size_t n = sites.size();
+      if (n < 3 or all_collinear(sites))
+        return out;
+
+      DynBinHeap<Event *, EventCmp> queue;
+      auto event_pool = Array<std::unique_ptr<Event>>::create(4 * n + 8);
+      auto arc_pool = Array<std::unique_ptr<Arc>>::create(3 * n + 8);
+
+      auto make_arc = [&](const size_t site_idx) -> Arc *
+        {
+          arc_pool.append(std::make_unique<Arc>());
+          Arc *a = arc_pool.get_last().get();
+          a->site = site_idx;
+          return a;
+        };
+
+      size_t next_event_id = 1;
+      for (size_t i = 0; i < n; ++i)
+        {
+          event_pool.append(std::make_unique<Event>());
+          Event *ev = event_pool.get_last().get();
+          ev->y = as_double(sites(i).get_y());
+          ev->x = as_double(sites(i).get_x());
+          ev->is_site = true;
+          ev->site = i;
+          ev->id = next_event_id++;
+          queue.put(ev);
+        }
+
+      Arc *head = nullptr;
+
+      DynSetTree<TriKey> seen;
+      Array<DTTriangle> tris;
+      tris.reserve(2 * n);
+
+      auto append_triangle = [&](const size_t i, const size_t j, const size_t k)
+        {
+          if (i == j or j == k or i == k)
+            return;
+          if (orientation(sites(i), sites(j), sites(k)) == Orientation::COLLINEAR)
+            return;
+
+          size_t a = i, b = j, c = k;
+          if (a > b) std::swap(a, b);
+          if (b > c) std::swap(b, c);
+          if (a > b) std::swap(a, b);
+
+          if (const auto ptr = seen.insert(TriKey{a, b, c}); ptr == nullptr)
+            return;
+
+          tris.append(normalized_triangle(i, j, k, sites));
+        };
+
+      while (not queue.is_empty())
+        {
+          const Event *ev = queue.get();
+          if (not ev->valid)
+            continue;
+
+          const double ly = ev->y;
+
+          if (ev->is_site)
+            {
+              const size_t site_idx = ev->site;
+              const double sx = as_double(sites(site_idx).get_x());
+
+              if (head == nullptr)
+                {
+                  head = make_arc(site_idx);
+                  continue;
+                }
+
+              Arc *arc = locate_arc(head, sites, sx, ly - 10.0 * kEps);
+              ah_domain_error_if(arc == nullptr) << "Could not locate arc in Fortune site event";
+
+              invalidate_circle_event(arc);
+
+              Arc *middle = make_arc(site_idx);
+              Arc *right = make_arc(arc->site);
+
+              right->next = arc->next;
+              if (right->next != nullptr)
+                right->next->prev = right;
+
+              arc->next = middle;
+              middle->prev = arc;
+              middle->next = right;
+              right->prev = middle;
+
+              enqueue_circle_event(arc, ly, sites, queue, event_pool, next_event_id);
+              enqueue_circle_event(right, ly, sites, queue, event_pool, next_event_id);
+            }
+          else
+            {
+              Arc *arc = ev->arc;
+              if (arc == nullptr or arc->circle != ev)
+                continue;
+
+              Arc *left = arc->prev;
+              Arc *right = arc->next;
+              if (left == nullptr or right == nullptr)
+                continue;
+
+              append_triangle(left->site, arc->site, right->site);
+
+              invalidate_circle_event(left);
+              invalidate_circle_event(arc);
+              invalidate_circle_event(right);
+
+              left->next = right;
+              right->prev = left;
+
+              enqueue_circle_event(left, ly, sites, queue, event_pool, next_event_id);
+              enqueue_circle_event(right, ly, sites, queue, event_pool, next_event_id);
+            }
+        }
+
+      out.triangles = std::move(tris);
+      return out;
+    }
+
+  public:
+    /**
+     * @brief Compute the Voronoi diagram for a list of points.
+     * @param pts Input list of sites.
+     * @return Result structure containing the diagram components.
+     */
+    [[nodiscard]] Result operator()(const DynList<Point> & pts) const
+    {
+      // Reuse canonical site handling and keep a robust fallback path.
+      const auto dt_ref = fallback_(pts);
+      if (dt_ref.sites.size() < 3 or dt_ref.triangles.is_empty())
+        return voronoi_(dt_ref);
+
+      const auto dt_sweep = triangulate_sweep(dt_ref.sites);
+      if (dt_sweep.triangles.is_empty() or
+          dt_sweep.triangles.size() != dt_ref.triangles.size() or
+          not is_valid_delaunay(dt_sweep))
+        return voronoi_(dt_ref);
+
+      return voronoi_(dt_sweep);
+    }
+
+    /**
+     * @brief Compute the Voronoi diagram from an initializer list.
+     * @param il Initializer list of points.
+     * @return Result structure containing the diagram components.
+     */
+    [[nodiscard]] Result operator()(const std::initializer_list<Point> il) const
+    {
+      DynList<Point> pts;
+      for (const Point & p: il)
+        pts.append(p);
+      return (*this)(pts);
+    }
+
+    /**
+     * @brief Compute Voronoi cells clipped to a bounding polygon.
+     * @param pts Input list of sites.
+     * @param clip Bounding polygon used for clipping.
+     * @return Array of clipped cells.
+     */
+    [[nodiscard]] Array<ClippedCell>
+    clipped_cells(const DynList<Point> & pts, const Polygon & clip) const
+    {
+      return VoronoiDiagramFromDelaunay::clipped_cells_indexed((*this)(pts), clip);
+    }
+
+    /** @overload */
+    [[nodiscard]] Array<ClippedCell>
+    clipped_cells(const std::initializer_list<Point> il,
+                  const Polygon & clip) const
+    {
+      DynList<Point> pts;
+      for (const Point & p: il)
+        pts.append(p);
+      return clipped_cells(pts, clip);
+    }
+  };
+
+  // ============================================================================
+  // Convex Hull Algorithms
+  // ============================================================================
+
+  /**
+   * @brief Andrew's monotonic chain convex hull algorithm.
+   *
+   * Computes the convex hull by sorting points lexicographically and building
+   * the lower and upper chains with a stack-like process.
+   *
+   * ## Policy
+   *
+   * - Duplicate points are removed before processing.
+   * - Collinear points on hull edges are excluded, keeping only extreme
+   *   endpoints of each edge.
+   * - Degenerate cases are preserved:
+   *   - 0 unique points -> empty polygon
+   *   - 1 unique point  -> 1-vertex (open) polygon
+   *   - 2 unique points -> 2-vertex closed degenerate hull
+   *
+   * ## Complexity
+   *
+   * - Time: O(n log n) due to sorting
+   * - Space: O(n)
+   *
+   * @ingroup Geometry
+   */
+  class AndrewMonotonicChainConvexHull
+  {
+    /**
+     * @brief Lexicographical comparison for points (x primary, y secondary).
+     */
+    struct LexicographicCmp
+    {
+      bool operator ()(const Point & p1, const Point & p2) const
+      {
+        if (p1.get_x() < p2.get_x())
+          return true;
+
+        if (p2.get_x() < p1.get_x())
+          return false;
+
+        return p1.get_y() < p2.get_y();
+      }
+    };
+
+    /**
+     * @brief Extracts points from a list, sorts them and removes duplicates.
+     */
+    static Array<Point> sorted_unique_points(const DynList<Point> & point_set)
+    {
+      Array<Point> points;
+      for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+        points.append(it.get_curr());
+
+      if (points.size() <= 1)
+        return points;
+
+      quicksort_op(points, LexicographicCmp());
+
+      Array<Point> unique;
+      unique.reserve(points.size());
+      unique.append(points(0));
+      for (size_t i = 1; i < points.size(); ++i)
+        if (points(i) != unique.get_last())
+          unique.append(points(i));
+
+      return unique;
+    }
+
+    /**
+     * @brief Computes the turn orientation of triple (a, b, c).
+     */
+    [[nodiscard]] static Geom_Number turn(const Point & a, const Point & b, const Point & c)
+    {
+      return area_of_parallelogram(a, b, c);
+    }
+
+  public:
+    /**
+     * @brief Compute the convex hull of a point set.
+     *
+     * @param point_set The input points.
+     * @return A polygon representing the convex hull.
+     */
+    Polygon operator ()(const DynList<Point> & point_set) const
+    {
+      Polygon ret;
+      Array<Point> points = sorted_unique_points(point_set);
+      const size_t n = points.size();
+
+      if (n == 0)
+        return ret;
+
+      if (n == 1)
+        {
+          ret.add_vertex(points(0));
+          return ret;
+        }
+
+      Array<Point> lower;
+      lower.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          while (lower.size() >= 2 &&
+                 turn(lower(lower.size() - 2), lower(lower.size() - 1), points(i)) <= 0)
+            lower.remove_last();
+          lower.append(points(i));
+        }
+
+      Array<Point> upper;
+      upper.reserve(n);
+      for (size_t i = n; i > 0; --i)
+        {
+          const Point & p = points(i - 1);
+          while (upper.size() >= 2 &&
+                 turn(upper(upper.size() - 2), upper(upper.size() - 1), p) <= 0)
+            upper.remove_last();
+          upper.append(p);
+        }
+
+      // Remove duplicate endpoints before concatenating chains.
+      lower.remove_last();
+      upper.remove_last();
+
+      for (size_t i = 0; i < lower.size(); ++i)
+        ret.add_vertex(lower(i));
+
+      for (size_t i = 0; i < upper.size(); ++i)
+        ret.add_vertex(upper(i));
+
+      if (ret.size() >= 3)
+        ret.close();
+
+      return ret;
+    }
+  };
+
+  /**
+   * @brief Graham scan convex hull algorithm.
+   *
+   * Computes the convex hull by choosing the lowest point as pivot, sorting
+   * the remaining points by polar angle around the pivot, and scanning with
+   * a stack-like process.
+   *
+   * ## Policy
+   *
+   * - Duplicate points are removed before processing.
+   * - Collinear points on hull edges are excluded, keeping only extreme
+   *   endpoints of each edge.
+   * - Degenerate cases are preserved:
+   *   - 0 unique points -> empty polygon
+   *   - 1 unique point  -> 1-vertex (open) polygon
+   *   - 2 unique points -> 2-vertex closed degenerate hull
+   *
+   * ## Complexity
+   *
+   * - Time: O(n log n) due to sorting
+   * - Space: O(n)
+   *
+   * @ingroup Geometry
+   */
+  class GrahamScanConvexHull
+  {
+    /**
+     * @brief Lexicographical comparison for points.
+     */
+    struct LexicographicCmp
+    {
+      bool operator ()(const Point & p1, const Point & p2) const
+      {
+        if (p1.get_x() < p2.get_x())
+          return true;
+
+        if (p2.get_x() < p1.get_x())
+          return false;
+
+        return p1.get_y() < p2.get_y();
+      }
+    };
+
+    /**
+     * @brief Extracts points from a list, sorts them and removes duplicates.
+     */
+    static Array<Point> sorted_unique_points(const DynList<Point> & point_set)
+    {
+      Array<Point> points;
+      for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+        points.append(it.get_curr());
+
+      if (points.size() <= 1)
+        return points;
+
+      quicksort_op(points, LexicographicCmp());
+
+      Array<Point> unique;
+      unique.reserve(points.size());
+      unique.append(points(0));
+      for (size_t i = 1; i < points.size(); ++i)
+        if (points(i) != unique.get_last())
+          unique.append(points(i));
+
+      return unique;
+    }
+
+    /**
+     * @brief Computes the turn orientation of triple (a, b, c).
+     */
+    [[nodiscard]] static Geom_Number turn(const Point & a, const Point & b, const Point & c)
+    {
+      return area_of_parallelogram(a, b, c);
+    }
+
+  public:
+    /**
+     * @brief Compute the convex hull of a point set.
+     *
+     * @param point_set The input points.
+     * @return A polygon representing the convex hull.
+     */
+    Polygon operator ()(const DynList<Point> & point_set) const
+    {
+      Polygon ret;
+      Array<Point> points = sorted_unique_points(point_set);
+      const size_t n = points.size();
+
+      if (n == 0)
+        return ret;
+
+      if (n == 1)
+        {
+          ret.add_vertex(points(0));
+          return ret;
+        }
+
+      // Pivot = lowest y, and lowest x on ties.
+      size_t pivot_idx = 0;
+      for (size_t i = 1; i < n; ++i)
+        {
+          if (points(i).get_y() < points(pivot_idx).get_y())
+            {
+              pivot_idx = i;
+              continue;
+            }
+
+          if (points(i).get_y() == points(pivot_idx).get_y() &&
+              points(i).get_x() < points(pivot_idx).get_x())
+            pivot_idx = i;
+        }
+
+      const Point pivot = points(pivot_idx);
+      if (pivot_idx != 0)
+        {
+          const Point tmp = points(0);
+          points(0) = points(pivot_idx);
+          points(pivot_idx) = tmp;
+        }
+
+      Array<Point> polar;
+      polar.reserve(n - 1);
+      for (size_t i = 1; i < n; ++i)
+        polar.append(points(i));
+
+      quicksort_op(polar, [&pivot](const Point & a, const Point & b)
+                     {
+                       const Geom_Number area = area_of_parallelogram(pivot, a, b);
+                       if (area > 0)
+                         return true;
+                       if (area < 0)
+                         return false;
+
+                       // Same angle: keep nearer first; later we keep only farthest.
+                       return pivot.distance_squared_to(a) <
+                              pivot.distance_squared_to(b);
+                     });
+
+      // Keep only the farthest point per polar direction.
+      Array<Point> filtered;
+      filtered.reserve(polar.size());
+      for (size_t i = 0; i < polar.size();)
+        {
+          size_t j = i;
+          while (j + 1 < polar.size() &&
+                 area_of_parallelogram(pivot, polar(j), polar(j + 1)) == 0)
+            ++j;
+          filtered.append(polar(j));
+          i = j + 1;
+        }
+
+      if (filtered.size() == 1)
+        {
+          ret.add_vertex(pivot);
+          ret.add_vertex(filtered(0));
+          // Cannot close with only 2 vertices - return unclosed degenerate hull
+          return ret;
+        }
+
+      Array<Point> hull;
+      hull.reserve(filtered.size() + 1);
+      hull.append(pivot);
+      hull.append(filtered(0));
+
+      for (size_t i = 1; i < filtered.size(); ++i)
+        {
+          const Point & p = filtered(i);
+          while (hull.size() >= 2 &&
+                 turn(hull(hull.size() - 2), hull(hull.size() - 1), p) <= 0)
+            hull.remove_last();
+          hull.append(p);
+        }
+
+      for (size_t i = 0; i < hull.size(); ++i)
+        ret.add_vertex(hull(i));
+
+      if (ret.size() >= 3)
+        ret.close();
+
+      return ret;
+    }
+  };
+
+  /**
+   * @brief Brute force convex hull algorithm.
+   *
+   * Computes the convex hull by testing all pairs of points to find
+   * extreme edges (edges where all other points are on one side).
+   *
+   * ## Algorithm
+   *
+   * For each pair of points (p, q):
+   *   If all other points are to the left of segment (p, q),
+   *   then (p, q) is an edge of the convex hull.
+   *
+   * ## Complexity
+   *
+   * - Time: O(n³) - checks n² pairs, each against n points
+   * - Space: O(n) for the edge set
+   *
+   * ## Use Cases
+   *
+   * - Educational purposes
+   * - Very small point sets (< 20 points)
+   * - Verification of other algorithms
+   *
+   * @see GiftWrappingConvexHull O(nh) algorithm
+   * @see QuickHull O(n log n) average algorithm
+   *
+   * @ingroup Geometry
+   * @author Alejandro J. Mujica
+   */
+  class BruteForceConvexHull
+  {
+    /**
+     * @brief Comparator for segments to ensure strict weak ordering in sets.
+     */
+    struct CmpSegment
+    {
+      /** @brief Strict lexicographical comparison for points. */
+      static bool cmp_point(const Point & p1, const Point & p2)
+      {
+        if (p1.get_x() < p2.get_x())
+          return true;
+
+        return not (p2.get_x() < p1.get_x()) and p1.get_y() < p2.get_y();
+      }
+
+      /** @brief Compares two segments lexicographically. */
+      bool operator ()(const Segment & s1, const Segment & s2) const
+      {
+        if (cmp_point(s1.get_src_point(), s2.get_src_point()))
+          return true;
+
+        return not (cmp_point(s2.get_src_point(), s1.get_src_point())) and
+               cmp_point(s1.get_tgt_point(), s2.get_tgt_point());
+      }
+    };
+
+    using SegmentSet = DynSetTree<Segment, Treap_Rk, CmpSegment>;
+    using PointIt = DynList<Point>::Iterator;
+
+    /**
+     * @brief Checks if all points in a list lie to the left of a segment.
+     */
+    static bool are_all_points_on_left(const DynList<Point> & l, const Segment & s)
+    {
+      for (PointIt it(l); it.has_curr(); it.next_ne())
+        if (const Point & p = it.get_curr(); p.is_right_of(s))
+          return false;
+
+      return true;
+    }
+
+    static SegmentSet extreme_edges(const DynList<Point> & point_set)
+    {
+      SegmentSet ret;
+
+      for (PointIt i(point_set); i.has_curr(); i.next_ne())
+        {
+          const Point & p_i = i.get_curr();
+
+          for (PointIt j(point_set); j.has_curr(); j.next_ne())
+            {
+              const Point & p_j = j.get_curr();
+
+              if (p_i == p_j)
+                continue;
+
+              if (Segment s(p_i, p_j); are_all_points_on_left(point_set, s))
+                ret.insert(s);
+            }
+        }
+
+      return ret;
+    }
+
+  public:
+    /**
+     * @brief Compute the convex hull of a point set.
+     *
+     * @param point_set The input points.
+     * @return A closed polygon representing the convex hull.
+     */
+    Polygon operator ()(const DynList<Point> & point_set) const
+    {
+      Polygon ret;
+
+      if (point_set.is_empty())
+        return ret;
+
+      PointIt check_it(point_set);
+      const Point first = check_it.get_curr();
+      bool has_distinct = false;
+      check_it.next();
+      for (; check_it.has_curr(); check_it.next_ne())
+        if (check_it.get_curr() != first)
+          {
+            has_distinct = true;
+            break;
+          }
+
+      if (not has_distinct)
+        {
+          ret.add_vertex(first);
+          return ret;
+        }
+
+      SegmentSet extremes = extreme_edges(point_set);
+
+      const Segment first_segment = extremes.remove_pos(0);
+      ret.add_vertex(first_segment.get_src_point());
+      ret.add_vertex(first_segment.get_tgt_point());
+
+      while (true)
+        {
+          const Vertex & last_vertex = ret.get_last_vertex();
+
+          const Segment *ptr = extremes.find_ptr([&last_vertex](const Segment & s)
+                                                   {
+                                                     return s.get_src_point() == last_vertex;
+                                                   });
+
+          ah_domain_error_if(ptr == nullptr)
+            << "BruteForceConvexHull: broken chain (degenerate input?)";
+
+          if (ptr->get_tgt_point() == ret.get_first_vertex())
+            break;
+
+          ret.add_vertex(ptr->get_tgt_point());
+
+          extremes.remove(*ptr);
+        }
+
+      if (ret.size() >= 3)
+        ret.close();
+      return ret;
+    }
+  };
+
+  /**
+   * @brief Gift wrapping (Jarvis march) convex hull algorithm.
+   *
+   * Computes the convex hull by starting from the lowest point and
+   * "wrapping" around the point set, always selecting the point that
+   * makes the smallest counter-clockwise angle.
+   *
+   * ## Algorithm
+   *
+   * 1. Start with the lowest point (guaranteed to be on hull)
+   * 2. Find the point that makes the smallest angle with the last edge
+   * 3. Add it to the hull
+   * 4. Repeat until returning to the starting point
+   *
+   * ## Complexity
+   *
+   * - Time: O(nh) where n = total points, h = hull points
+   * - Space: O(1) additional
+   *
+   * ## Use Cases
+   *
+   * - When the convex hull has few points (h << n)
+   * - When output-sensitive algorithm is preferred
+   *
+   * @see QuickHull For general-purpose convex hull
+   *
+   * @ingroup Geometry
+   * @author Alejandro J. Mujica
+   */
+  class GiftWrappingConvexHull
+  {
+    /**
+     * @brief Finds the point with the minimum y-coordinate (and minimum x on ties).
+     */
+    static const Point * get_lowest_point(const DynList<Point> & point_set)
+    {
+      DynList<Point>::Iterator it(point_set);
+      const Point *ret = &it.get_curr();
+      it.next();
+
+      for (/* nothing */; it.has_curr(); it.next_ne())
+        {
+          const Point & p = it.get_curr();
+          if (p.get_y() < ret->get_y() or
+              (p.get_y() == ret->get_y() and p.get_x() < ret->get_x()))
+            ret = &p;
+        }
+
+      return ret;
+    }
+
+  public:
+    /**
+     * @brief Compute the convex hull of a point set.
+     *
+     * Uses exact cross-product predicates instead of floating-point angles.
+     * At each step, the next hull vertex is the point such that all other
+     * points lie to the left of the directed edge from current to the next.
+     *
+     * @param point_set The input points.
+     * @return A closed polygon representing the convex hull.
+     */
+    Polygon operator ()(const DynList<Point> & point_set) const
+    {
+      Polygon ret;
+
+      if (point_set.is_empty())
+        return ret;
+
+      const Point *start = get_lowest_point(point_set);
+      const Point *current = start;
+
+      do
+        {
+          ret.add_vertex(*current);
+          const Point *next = nullptr;
+
+          for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+            {
+              const Point & candidate = it.get_curr();
+
+              if (candidate == *current)
+                continue;
+
+              if (next == nullptr)
+                {
+                  next = &candidate;
+                  continue;
+                }
+
+              if (const Orientation o = orientation(*current, *next, candidate); o == Orientation::CW)
+                next = &candidate;
+              else if (o == Orientation::COLLINEAR and
+                       current->distance_squared_to(candidate) >
+                       current->distance_squared_to(*next))
+                next = &candidate;
+            }
+
+          if (next == nullptr)
+            break;
+
+          current = next;
+        }
+      while (current != start);
+
+      if (ret.size() >= 3)
+        ret.close();
+      return ret;
+    }
+  };
+
+  /**
+   * @brief QuickHull convex hull algorithm.
+   *
+   * Computes the convex hull using a divide-and-conquer approach similar
+   * to QuickSort. Recursively finds the farthest point from a line and
+   * partitions the remaining points.
+   *
+   * ## Algorithm
+   *
+   * 1. Find leftmost and rightmost points (guaranteed on hull)
+   * 2. Partition points into those above and below the line
+   * 3. For each partition, find the farthest point from the line
+   * 4. Recursively process the sub-partitions
+   *
+   * ## Complexity
+   *
+   * - Time: O(n log n) average, O(n²) worst case
+   * - Space: O(n) for recursive calls
+   *
+   * ## Use Cases
+   *
+   * - General-purpose convex hull computation
+   * - Large point sets
+   * - When average-case performance matters more than worst-case
+   *
+   * @ingroup Geometry
+   * @author Alejandro J. Mujica
+   */
+  class QuickHull
+  {
+    /**
+     * @brief Return the point in @p point_set farthest from segment @p s.
+     *
+     * This is the standard QuickHull selection step: pick the point with
+     * maximum perpendicular distance to the current hull edge. In this
+     * implementation we compare the absolute value of the parallelogram area
+     * |area_of_parallelogram(a,b,p)| which is proportional to that distance
+     * (the segment length |ab| is constant for all candidates), avoiding
+     * square-roots.
+     *
+     * @param point_set Candidate points.
+     * @param s Base segment (a,b) used as reference.
+     * @return A point from @p point_set maximizing |area_of_parallelogram|.
+     *
+     * @note If @p point_set is empty, the returned point is default-constructed.
+     */
+    static Point get_farthest_point(const DynList<Point> & point_set,
+                                    const Segment & s)
+    {
+      // Compare perpendicular distances via |area_of_parallelogram|.
+      // Since the segment base is constant for all candidates, comparing
+      // |area| is equivalent to comparing distance (avoids sqrt).
+      Geom_Number max_area = 0;
+      Point ret;
+      const Point & a = s.get_src_point();
+      const Point & b = s.get_tgt_point();
+
+      for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+        {
+          const Point & p = it.get_curr();
+          Geom_Number area = area_of_parallelogram(a, b, p);
+          if (area < 0)
+            area = -area;
+
+          if (area > max_area)
+            {
+              ret = p;
+              max_area = area;
+            }
+        }
+
+      return ret;
+    }
+
+    /**
+     * @brief Partition points to the right of edges (a,c) and (c,b).
+     *
+     * Given a triangle (a,c,b) where @p c is the farthest point from segment
+     * (a,b), QuickHull must recursively process the points on the *outside*
+     * (i.e. the same side as the hull) of the sub-edges (a,c) and (c,b).
+     *
+     * This function consumes @p point_set and splits its points into two sets:
+     *
+     * - `ret.first`: points strictly on the **right side** of the directed
+     *   edge (a,c), excluding endpoints a and c.
+     * - `ret.second`: points strictly on the **right side** of the directed
+     *   edge (c,b), excluding endpoints c and b.
+     *
+     * “Right side” is detected with the signed area predicate:
+     * `area_of_parallelogram(u,v,p) < 0`.
+     *
+     * @param[in,out] point_set Input candidate points. **This list is emptied**
+     * by repeated `remove_first()`.
+     * @param a First endpoint of the current hull edge.
+     * @param b Second endpoint of the current hull edge.
+     * @param c Farthest point from edge (a,b) defining the split.
+     * @return A pair of lists `(S_ac, S_cb)` as described above.
+     */
+    static std::pair<DynList<Point>, DynList<Point>>
+    get_right_points(DynList<Point> & point_set,
+                     const Point & a, const Point & b, const Point & c)
+    {
+      std::pair<DynList<Point>, DynList<Point>> ret;
+
+      while (not point_set.is_empty())
+        {
+          Point p = point_set.remove_first();
+
+          if (p != a and p != c and area_of_parallelogram(a, c, p) < 0)
+            {
+              ret.first.append(p);
+              continue;
+            }
+
+          if (p != c and p != b and area_of_parallelogram(c, b, p) < 0)
+            ret.second.append(p);
+        }
+
+      return ret;
+    }
+
+    /**
+     * @brief Recursive QuickHull step for a directed edge (a,b).
+     *
+     * Assumes @p point_set contains points on the outside of the directed edge
+     * (a,b) (in this implementation: points to the right of (a,b)).
+     *
+     * @param[in,out] point_set Candidate points; may be consumed by recursion.
+     * @param a Edge source.
+     * @param b Edge target.
+     * @return Ordered list of intermediate hull vertices between a and b
+     * (does not include a nor b). If @p point_set is empty, it returns an empty
+     * list.
+     */
+    static DynList<Point> quick_hull(DynList<Point> & point_set, const Point & a,
+                                     const Point & b)
+    {
+      if (point_set.is_empty())
+        return {};
+
+      const Point c = get_farthest_point(point_set, Segment(a, b));
+
+      auto [s_ac, s_bc] = get_right_points(point_set, a, b, c);
+
+      DynList<Point> ret = quick_hull(s_ac, a, c);
+      DynList<Point> tmp = quick_hull(s_bc, c, b);
+      ret.append(c);
+      ret.concat(tmp);
+
+      return ret;
+    }
+
+    /**
+     * @brief Find leftmost and rightmost points by x coordinate.
+     *
+     * @param point_set Non-empty input set.
+     * @return `(leftmost, rightmost)` where ties are broken by first occurrence
+     * during traversal.
+     */
+    static std::pair<Point, Point> search_extremes(const DynList<Point> & point_set)
+    {
+      DynList<Point>::Iterator it(point_set);
+      Point leftmost = it.get_curr();
+      Point rightmost = it.get_curr();
+      it.next();
+
+      for (/* nothing */; it.has_curr(); it.next_ne())
+        {
+          const Point & p = it.get_curr();
+
+          if (p.get_x() < leftmost.get_x())
+            leftmost = p;
+
+          if (p.get_x() > rightmost.get_x())
+            rightmost = p;
+        }
+
+      return std::make_pair(leftmost, rightmost);
+    }
+
+    /**
+     * @brief Split points by the line through directed segment (a,b).
+     *
+     * @param point_set Input points.
+     * @param a Segment source.
+     * @param b Segment target.
+     * @return A pair `(right, left_or_collinear)` where:
+     * - `right`: points with `area_of_parallelogram(a,b,p) < 0`.
+     * - `left_or_collinear`: all remaining points.
+     */
+    static std::pair<DynList<Point>, DynList<Point>>
+    partition(const DynList<Point> & point_set, const Point & a, const Point & b)
+    {
+      std::pair<DynList<Point>, DynList<Point>> ret;
+
+      for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+        if (const Point & p = it.get_curr(); area_of_parallelogram(a, b, p) < 0)
           ret.first.append(p);
         else
           ret.second.append(p);
-      }
 
-    return ret;
-  }
+      return ret;
+    }
 
-public:
+  public:
+    /**
+     * @brief Compute the convex hull of a point set.
+     *
+     * @param point_set The input points.
+     * @return A closed polygon representing the convex hull.
+     */
+    Polygon operator ()(const DynList<Point> & point_set) const
+    {
+      Polygon ret;
+
+      if (point_set.is_empty())
+        return ret;
+
+      const auto [leftmost, rightmost] = search_extremes(point_set);
+      if (leftmost == rightmost)
+        {
+          ret.add_vertex(leftmost);
+          return ret;
+        }
+
+      auto [right, left_or_collinear] = partition(point_set, leftmost, rightmost);
+
+      DynList<Point> s1 = quick_hull(right, leftmost, rightmost);
+      DynList<Point> s2 = quick_hull(left_or_collinear, rightmost, leftmost);
+
+      DynList<Point> convex_set;
+      convex_set.append(leftmost);
+      convex_set.concat(s1);
+      convex_set.append(rightmost);
+      convex_set.concat(s2);
+
+      for (DynList<Point>::Iterator it(convex_set); it.has_curr(); it.next_ne())
+        ret.add_vertex(it.get_curr());
+
+      if (ret.size() >= 3)
+        ret.close();
+      return ret;
+    }
+  };
+
+  // ============================================================================
+  // Segment-Segment Intersection (Dedicated O(1))
+  // ============================================================================
 
   /**
-   * @brief Compute the convex hull of a point set.
+   * @brief Dedicated exact intersection for a single pair of segments.
    *
-   * @param point_set The input points.
-   * @return A closed polygon representing the convex hull.
+   * This utility solves the 2-segment case directly in constant time using
+   * exact predicates from `point.H`, instead of routing through a sweep-line
+   * structure meant for many segments.
+   *
+   * Returned intersection kinds:
+   * - `Kind::NONE`: no intersection.
+   * - `Kind::POINT`: unique intersection point (proper cross, endpoint touch,
+   *   or degenerate point-on-segment).
+   * - `Kind::OVERLAP`: collinear overlap interval (non-zero length).
+   *
+   * ## Complexity
+   *
+   * - Time:  O(1)
+   * - Space: O(1)
+   *
+   * @ingroup Geometry
    */
-  Polygon operator ()(DynList<Point> & point_set)
+  class SegmentSegmentIntersection
   {
-    Polygon ret;
+  public:
+    /**
+     * @brief Types of intersection between two segments.
+     */
+    enum class Kind 
+    { 
+      NONE,    ///< No intersection.
+      POINT,   ///< Intersection at a single point.
+      OVERLAP  ///< Intersection over a collinear interval.
+    };
 
-    auto e = search_extremes(point_set);
-    auto p = partition(point_set, e.first, e.second);
+    /**
+     * @brief Detailed result of a segment-segment intersection test.
+     */
+    struct Result
+    {
+      Kind kind = Kind::NONE; ///< Type of intersection.
+      Point point = Point(0, 0); ///< The intersection point (if kind is POINT).
+      Segment overlap = Segment(Point(0, 0), Point(0, 0)); ///< The overlap segment (if kind is OVERLAP).
 
-    DynList<Point> s1 = quick_hull(p.first, e.first, e.second);
-    DynList<Point> s2 = quick_hull(p.second, e.second, e.first);
+      /** @brief Returns true if any intersection exists. */
+      [[nodiscard]] bool intersects() const noexcept
+      {
+        return kind != Kind::NONE;
+      }
+    };
 
-    DynList<Point> convex_set;
-    convex_set.append(e.first);
-    convex_set.concat(s1);
-    convex_set.append(e.second);
-    convex_set.concat(s2);
+  private:
+    [[nodiscard]] static bool point_less_on_axis(const Point & a,
+                                                 const Point & b,
+                                                 const bool vertical_axis)
+    {
+      if (vertical_axis)
+        {
+          if (a.get_y() != b.get_y())
+            return a.get_y() < b.get_y();
+          return a.get_x() < b.get_x();
+        }
 
-    for (DynList<Point>::Iterator it(convex_set); it.has_curr(); it.next_ne())
-      ret.add_vertex(it.get_curr());
+      if (a.get_x() != b.get_x())
+        return a.get_x() < b.get_x();
+      return a.get_y() < b.get_y();
+    }
 
-    ret.close();
-    return ret;
+    [[nodiscard]] static Point point_max_on_axis(const Point & a,
+                                                 const Point & b,
+                                                 const bool vertical_axis)
+    {
+      return point_less_on_axis(a, b, vertical_axis) ? b : a;
+    }
+
+    [[nodiscard]] static Point point_min_on_axis(const Point & a,
+                                                 const Point & b,
+                                                 const bool vertical_axis)
+    {
+      return point_less_on_axis(a, b, vertical_axis) ? a : b;
+    }
+
+    [[nodiscard]] static Segment collinear_overlap(const Segment & s1,
+                                                   const Segment & s2)
+    {
+      const bool vertical_axis = s1.get_src_point().get_x() == s1.get_tgt_point().get_x();
+
+      Point a0 = s1.get_src_point();
+      Point a1 = s1.get_tgt_point();
+      Point b0 = s2.get_src_point();
+      Point b1 = s2.get_tgt_point();
+
+      if (point_less_on_axis(a1, a0, vertical_axis))
+        std::swap(a0, a1);
+      if (point_less_on_axis(b1, b0, vertical_axis))
+        std::swap(b0, b1);
+
+      const Point lo = point_max_on_axis(a0, b0, vertical_axis);
+      const Point hi = point_min_on_axis(a1, b1, vertical_axis);
+      return Segment(lo, hi);
+    }
+
+  public:
+    /**
+     * @brief Computes the intersection of two line segments.
+     * @param s1 First segment.
+     * @param s2 Second segment.
+     * @return Result structure with intersection type and details.
+     */
+    [[nodiscard]] Result operator ()(const Segment & s1, const Segment & s2) const
+    {
+      Result out;
+
+      if (not segments_intersect(s1, s2))
+        return out;
+
+      if (not s1.is_parallel_with(s2))
+        {
+          out.kind = Kind::POINT;
+          out.point = s1.intersection_with(s2);
+          return out;
+        }
+
+      out.overlap = collinear_overlap(s1, s2);
+      if (out.overlap.get_src_point() == out.overlap.get_tgt_point())
+        {
+          out.kind = Kind::POINT;
+          out.point = out.overlap.get_src_point();
+          return out;
+        }
+
+      out.kind = Kind::OVERLAP;
+      return out;
+    }
+  };
+
+  /// @brief Convenience free-function wrapper for SegmentSegmentIntersection.
+  [[nodiscard]] inline SegmentSegmentIntersection::Result
+  segment_segment_intersection(const Segment & s1, const Segment & s2)
+  {
+    return SegmentSegmentIntersection{}(s1, s2);
   }
-};
 
+  // ============================================================================
+  // Line Sweep / Event-Driven Framework
+  // ============================================================================
+
+  /**
+   * @brief Reusable event-driven sweep line framework.
+   *
+   * This template manages an event queue backed by a balanced BST
+   * (`DynSetTree<Avl_Tree>`).  The user supplies:
+   *
+   * - **Event**: the event payload (e.g. a point + an enum tag).
+   * - **CmpEvent**: strict weak order on events that defines the sweep
+   *   direction.  Ties are broken internally by insertion sequence, so
+   *   duplicate-position events are supported.
+   *
+   * The framework does **not** own the sweep-line status structure —
+   * the handler is free to use whatever data structure is appropriate
+   * (array, BST, linked list, etc.).
+   *
+   * ## Usage
+   *
+   * @code
+   *   struct MyEvent { Point pos; int type; size_t seg_id; };
+   *   struct CmpMyEvent {
+   *     bool operator()(const MyEvent & a, const MyEvent & b) const
+   *     { return a.pos.get_x() < b.pos.get_x(); }
+   *   };
+   *
+   *   LineSweepFramework<MyEvent, CmpMyEvent> fw;
+   *   fw.enqueue({p1, START, 0});
+   *   fw.enqueue({p2, END,   0});
+   *
+   *   fw.run([&](auto & sweep, const MyEvent & e) {
+   *     // process event, may call sweep.enqueue(...)
+   *   });
+   * @endcode
+   *
+   * ## Complexity
+   *
+   * - Enqueue / dequeue: O(log n) per operation.
+   * - `run()`: processes all events; total cost depends on the handler.
+   *
+   * @tparam Event    Event payload type.
+   * @tparam CmpEvent Strict-weak-order comparator on Event.
+   *
+   * @ingroup Geometry
+   */
+  template <typename Event, typename CmpEvent>
+  class LineSweepFramework
+  {
+    /**
+     * @brief Internal event wrapper that adds a sequence number for tie-breaking.
+     */
+    struct SeqEvent
+    {
+      Event event; ///< The user-defined event payload.
+      size_t seq;  ///< Insertion sequence number.
+    };
+
+    /**
+     * @brief Comparator for SeqEvent, ensuring a strict weak ordering.
+     */
+    struct CmpSeqEvent
+    {
+      CmpEvent cmp; ///< The user-provided base comparator.
+
+      bool operator ()(const SeqEvent & a, const SeqEvent & b) const
+      {
+        if (cmp(a.event, b.event)) return true;
+        if (cmp(b.event, a.event)) return false;
+        return a.seq < b.seq;
+      }
+    };
+
+    DynSetTree<SeqEvent, Avl_Tree, CmpSeqEvent> queue_;
+    size_t seq_ = 0;
+
+  public:
+    /// @brief Enqueue an event.
+    void enqueue(const Event & e)
+    {
+      queue_.insert(SeqEvent{e, seq_++});
+    }
+
+    /// @brief Enqueue an event (move version).
+    void enqueue(Event && e)
+    {
+      queue_.insert(SeqEvent{std::move(e), seq_++});
+    }
+
+    /// @brief True if the event queue is non-empty.
+    [[nodiscard]] bool has_events() const noexcept
+    {
+      return not queue_.is_empty();
+    }
+
+    /// @brief Number of pending events.
+    [[nodiscard]] size_t pending() const noexcept
+    {
+      return queue_.size();
+    }
+
+    /// @brief Remove and return the next (minimum) event.
+    Event dequeue()
+    {
+      SeqEvent se = queue_.min();
+      queue_.remove(se);
+      return std::move(se.event);
+    }
+
+    /// @brief Peek at the next event without removing it.
+    [[nodiscard]] const Event &peek() const
+    {
+      return queue_.min().event;
+    }
+
+    /// @brief Discard all pending events.
+    void clear() noexcept
+    {
+      queue_.empty(); // DynSetTree::empty() is a mutator that removes all elements
+      seq_ = 0;
+    }
+
+    /**
+     * @brief Run the sweep: process every event through @p handler.
+     *
+     * The handler signature must be compatible with:
+     * @code
+     *   void handler(LineSweepFramework<Event,CmpEvent> & fw,
+     *                const Event & e);
+     * @endcode
+     *
+     * The handler may call `fw.enqueue()` to schedule new events
+     * discovered during processing (e.g. intersection events).
+     */
+    template <typename Handler>
+    void run(Handler && handler)
+    {
+      while (has_events())
+        handler(*this, dequeue());
+    }
+
+    /**
+     * @brief Run the sweep, collecting every event into @p out.
+     *
+     * Each dequeued event is appended to @p out *before* the handler
+     * is invoked, providing a full processing log.
+     */
+    template <typename Handler>
+    void run(Handler && handler, Array<Event> & out)
+    {
+      while (has_events())
+        {
+          Event e = dequeue();
+          out.append(e);
+          handler(*this, e);
+        }
+    }
+  };
+
+  // ============================================================================
+  // Sweep Line Segment Intersection (Bentley-Ottmann)
+  // ============================================================================
+
+  /**
+   * @brief Report all pairwise intersection points among a set of segments.
+   *
+   * Uses the Bentley-Ottmann sweep-line paradigm:
+   * - An event queue processes left endpoints, right endpoints, and
+   *   discovered intersection points from left to right.
+   * - A sweep-line status keeps active segments ordered by their
+   *   y-coordinate at the current sweep x.
+   * - Only adjacent pairs in the sweep-line status are tested for
+   *   intersection, bounding the total work.
+   *
+   * ## Complexity
+   *
+   * - Time:  O((n + k) log n) where n = segments, k = intersections.
+   * - Space: O(n + k)
+   *
+   * ## Assumptions
+   *
+   * - Segments must not be zero-length (src == tgt).
+   * - Overlapping collinear segments are reported at their overlap
+   *   boundary points (start and end of the shared interval).
+   *
+   * @ingroup Geometry
+   */
+  class SweepLineSegmentIntersection
+  {
+  public:
+    /// @brief A single intersection record.
+    struct Intersection
+    {
+      size_t seg_i; ///< Index of the first segment.
+      size_t seg_j; ///< Index of second segment (seg_i < seg_j).
+      Point point; ///< Intersection point.
+    };
+
+  private:
+    /**
+     * @brief Evaluate the y-coordinate of segment @p s at x = @p x.
+     *
+     * Used to order active segments in the sweep-line status.
+     *
+     * @param s Segment (assumed non-degenerate).
+     * @param x Sweep x coordinate.
+     * @return y coordinate of the intersection of the segment with the
+     * vertical line x = @p x. For vertical segments, returns the midpoint y.
+     */
+    [[nodiscard]] static Geom_Number y_at_x(const Segment & s,
+                                            const Geom_Number & x)
+    {
+      const Geom_Number & x1 = s.get_src_point().get_x();
+      const Geom_Number & y1 = s.get_src_point().get_y();
+      const Geom_Number & x2 = s.get_tgt_point().get_x();
+      const Geom_Number & y2 = s.get_tgt_point().get_y();
+
+      if (x1 == x2)
+        return (y1 + y2) / 2;
+
+      return y1 + (x - x1) * (y2 - y1) / (x2 - x1);
+    }
+
+    /**
+     * @brief Canonicalize a segment so its src is the "left" endpoint.
+     *
+     * This normalizes event generation:
+     * - If x differs, the smaller-x endpoint becomes src.
+     * - If x ties (vertical), the smaller-y endpoint becomes src.
+     *
+     * @param s Input segment.
+     * @return Segment with consistent (src,tgt) orientation.
+     */
+    [[nodiscard]] static Segment canonicalize(const Segment & s)
+    {
+      const Point & a = s.get_src_point();
+      const Point & b = s.get_tgt_point();
+
+      if (a.get_x() < b.get_x())
+        return s;
+      if (b.get_x() < a.get_x())
+        return {b, a};
+      // Vertical: lower endpoint first.
+      if (a.get_y() < b.get_y())
+        return s;
+      return {b, a};
+    }
+
+    /**
+     * @brief Types of events in the Bentley-Ottmann sweep.
+     */
+    enum class EventType { LEFT, INTERSECTION, RIGHT };
+
+    /**
+     * @brief Represents an event in the sweep-line algorithm.
+     */
+    struct Event
+    {
+      Point pt;       ///< Coordinates of the event.
+      EventType type; ///< Type of the event.
+      size_t seg_a;   ///< Index of the first segment involved.
+      size_t seg_b;   ///< Index of the second segment (only for INTERSECTION).
+    };
+
+    /**
+     * @brief Ordering for events in the sweep queue.
+     *
+     * Sort key:
+     * - increasing x
+     * - then increasing y
+     * - then event type (LEFT < INTERSECTION < RIGHT)
+     */
+    [[nodiscard]] static bool event_less(const Event & a, const Event & b)
+    {
+      if (a.pt.get_x() != b.pt.get_x())
+        return a.pt.get_x() < b.pt.get_x();
+      if (a.pt.get_y() != b.pt.get_y())
+        return a.pt.get_y() < b.pt.get_y();
+      // LEFT < INTERSECTION < RIGHT for the same point.
+      return static_cast<int>(a.type) < static_cast<int>(b.type);
+    }
+
+    /// @brief Functor wrapper for event_less (used by LineSweepFramework).
+    struct EventLess
+    {
+      bool operator()(const Event & a, const Event & b) const
+      {
+        return event_less(a, b);
+      }
+    };
+
+    [[nodiscard]] static bool slope_less(const Segment & a, const Segment & b)
+    {
+      const Geom_Number adx = a.get_tgt_point().get_x() - a.get_src_point().get_x();
+      const Geom_Number ady = a.get_tgt_point().get_y() - a.get_src_point().get_y();
+      const Geom_Number bdx = b.get_tgt_point().get_x() - b.get_src_point().get_x();
+      const Geom_Number bdy = b.get_tgt_point().get_y() - b.get_src_point().get_y();
+
+      if (adx == 0 and bdx == 0)
+        return ady < bdy;
+      if (adx == 0)
+        return false; // +inf slope
+      if (bdx == 0)
+        return true;
+
+      const Geom_Number lhs = ady * bdx;
+      const Geom_Number rhs = bdy * adx;
+      return lhs < rhs;
+    }
+
+    [[nodiscard]] static bool status_less(const size_t lhs, const size_t rhs,
+                                          const Geom_Number & sx,
+                                          const Array<Segment> & segs)
+    {
+      if (lhs == rhs)
+        return false;
+
+      const Geom_Number yl = y_at_x(segs(lhs), sx);
+      const Geom_Number yr = y_at_x(segs(rhs), sx);
+      if (yl != yr)
+        return yl < yr;
+
+      if (slope_less(segs(lhs), segs(rhs)))
+        return true;
+      if (slope_less(segs(rhs), segs(lhs)))
+        return false;
+
+      return lhs < rhs;
+    }
+
+    /**
+     * @brief Sweep-line status as a balanced tree with O(log n) updates.
+     *
+     * Maintains an order label per active segment. Labels are updated only
+     * when segments are inserted/removed or reinserted at intersection events.
+     * This avoids global re-sorting while supporting predecessor/successor
+     * queries in logarithmic time.
+     */
+    class StatusTree
+    {
+      struct Node
+      {
+        size_t seg;
+        Geom_Number label;
+        unsigned priority;
+        Node *left = nullptr;
+        Node *right = nullptr;
+      };
+
+      Node *root_ = nullptr;
+      const Array<Segment> & segs_;
+      std::mt19937 rng_{0x5f3759dfu};
+      Array<Node *> nodes_;
+
+      [[nodiscard]] static Node * merge(Node *a, Node *b)
+      {
+        if (a == nullptr) return b;
+        if (b == nullptr) return a;
+        if (a->priority < b->priority)
+          {
+            a->right = merge(a->right, b);
+            return a;
+          }
+        b->left = merge(a, b->left);
+        return b;
+      }
+
+      [[nodiscard]] static Node * insert_by_label(Node *root, Node *node)
+      {
+        if (root == nullptr)
+          return node;
+
+        if (node->priority < root->priority)
+          {
+            Node *left = nullptr;
+            Node *right = nullptr;
+            split_by_label(root, node->label, left, right);
+            node->left = left;
+            node->right = right;
+            return node;
+          }
+
+        if (node->label < root->label)
+          root->left = insert_by_label(root->left, node);
+        else
+          root->right = insert_by_label(root->right, node);
+        return root;
+      }
+
+      static void split_by_label(Node *root, const Geom_Number & label,
+                                 Node *& left, Node *& right)
+      {
+        if (root == nullptr)
+          {
+            left = nullptr;
+            right = nullptr;
+            return;
+          }
+
+        if (root->label < label)
+          {
+            split_by_label(root->right, label, root->right, right);
+            left = root;
+          }
+        else
+          {
+            split_by_label(root->left, label, left, root->left);
+            right = root;
+          }
+      }
+
+      [[nodiscard]] static Node * erase_by_label(Node *root,
+                                                 const Geom_Number & label,
+                                                 Node *& removed)
+      {
+        if (root == nullptr)
+          return nullptr;
+
+        if (label < root->label)
+          {
+            root->left = erase_by_label(root->left, label, removed);
+            return root;
+          }
+
+        if (root->label < label)
+          {
+            root->right = erase_by_label(root->right, label, removed);
+            return root;
+          }
+
+        removed = root;
+        return merge(root->left, root->right);
+      }
+
+      static void destroy(const Node *n)
+      {
+        if (n == nullptr)
+          return;
+        destroy(n->left);
+        destroy(n->right);
+        delete n;
+      }
+
+      [[nodiscard]] size_t predecessor_for_insert(const size_t seg,
+                                                  const Geom_Number & sx) const
+      {
+        size_t pred = SIZE_MAX;
+        const Node *cur = root_;
+        while (cur != nullptr)
+          if (status_less(cur->seg, seg, sx, segs_))
+            {
+              pred = cur->seg;
+              cur = cur->right;
+            }
+          else
+            cur = cur->left;
+        return pred;
+      }
+
+      [[nodiscard]] size_t successor_for_insert(const size_t seg,
+                                                const Geom_Number & sx) const
+      {
+        size_t succ = SIZE_MAX;
+        const Node *cur = root_;
+        while (cur != nullptr)
+          if (status_less(seg, cur->seg, sx, segs_))
+            {
+              succ = cur->seg;
+              cur = cur->left;
+            }
+          else
+            cur = cur->right;
+        return succ;
+      }
+
+      [[nodiscard]] Geom_Number
+      fresh_label_between(const size_t pred, const size_t succ) const
+      {
+        if (pred != SIZE_MAX and succ != SIZE_MAX)
+          return (nodes_(pred)->label + nodes_(succ)->label) / Geom_Number(2);
+        if (pred != SIZE_MAX)
+          return nodes_(pred)->label + Geom_Number(1);
+        if (succ != SIZE_MAX)
+          return nodes_(succ)->label - Geom_Number(1);
+        return Geom_Number(0);
+      }
+
+    public:
+      explicit StatusTree(const Array<Segment> & segs) : segs_(segs)
+      {
+        nodes_.reserve(segs.size());
+        for (size_t i = 0; i < segs.size(); ++i)
+          nodes_.append(nullptr);
+      }
+
+      ~StatusTree()
+      {
+        destroy(root_);
+      }
+
+      [[nodiscard]] bool contains(const size_t seg) const
+      {
+        return nodes_(seg) != nullptr;
+      }
+
+      void insert(const size_t seg, const Geom_Number & sx)
+      {
+        if (contains(seg))
+          return;
+
+        const size_t pred = predecessor_for_insert(seg, sx);
+        const size_t succ = successor_for_insert(seg, sx);
+        const auto node = new Node{
+              seg, fresh_label_between(pred, succ),
+              static_cast<unsigned>(rng_()),
+              nullptr, nullptr
+            };
+        root_ = insert_by_label(root_, node);
+        nodes_(seg) = node;
+      }
+
+      void erase(const size_t seg)
+      {
+        if (not contains(seg))
+          return;
+
+        Node *removed = nullptr;
+        root_ = erase_by_label(root_, nodes_(seg)->label, removed);
+        nodes_(seg) = nullptr;
+        delete removed;
+      }
+
+      [[nodiscard]] size_t predecessor(const size_t seg) const
+      {
+        if (not contains(seg))
+          return SIZE_MAX;
+
+        const Geom_Number & label = nodes_(seg)->label;
+        const Node *pred = nullptr;
+        Node *cur = root_;
+        while (cur != nullptr)
+          if (cur->label < label)
+            {
+              pred = cur;
+              cur = cur->right;
+            }
+          else
+            cur = cur->left;
+
+        return pred == nullptr ? SIZE_MAX : pred->seg;
+      }
+
+      [[nodiscard]] size_t successor(const size_t seg) const
+      {
+        if (not contains(seg))
+          return SIZE_MAX;
+
+        const Geom_Number & label = nodes_(seg)->label;
+        const Node *succ = nullptr;
+        Node *cur = root_;
+        while (cur != nullptr)
+          if (label < cur->label)
+            {
+              succ = cur;
+              cur = cur->left;
+            }
+          else
+            cur = cur->right;
+
+        return succ == nullptr ? SIZE_MAX : succ->seg;
+      }
+    };
+
+    /**
+     * @brief Detect an intersection and enqueue it as a future event.
+     *
+     * Checks segments @p i and @p j for intersection. For non-parallel
+     * segments, reports the unique intersection point. For collinear
+     * overlapping segments, reports the overlap boundary points.
+     * Only intersections at x >= @p sx are enqueued.
+     *
+     * @param segs Canonicalized segment array.
+     * @param i First segment index.
+     * @param j Second segment index.
+     * @param sx Current sweep x.
+     * @param[in,out] eq Event queue.
+     * @param[in,out] seen_pairs Set preventing duplicate pair processing.
+     * @param n Total number of segments (used for pair-key encoding).
+     */
+    static void check_and_enqueue(const Array<Segment> & segs,
+                                  const size_t i, const size_t j,
+                                  const Geom_Number & sx,
+                                  LineSweepFramework<Event, EventLess> & eq,
+                                  DynSetTree<size_t, Treap_Rk> & seen_pairs,
+                                  const size_t n)
+    {
+      const size_t lo = i < j ? i : j;
+      const size_t hi = i < j ? j : i;
+      const size_t key = lo * n + hi;
+      if (seen_pairs.search(key) != nullptr)
+        return;
+
+      const Segment & sa = segs(lo);
+      const Segment & sb = segs(hi);
+      const auto hit = segment_segment_intersection(sa, sb);
+      if (not hit.intersects())
+        return;
+
+      if (hit.kind == SegmentSegmentIntersection::Kind::OVERLAP)
+        {
+          seen_pairs.insert(key);
+          const Point overlap_start = hit.overlap.get_src_point();
+          const Point overlap_end = hit.overlap.get_tgt_point();
+          if (not (overlap_start.get_x() < sx))
+            eq.enqueue(Event{overlap_start, EventType::INTERSECTION, lo, hi});
+          if (not (overlap_end.get_x() < sx))
+            eq.enqueue(Event{overlap_end, EventType::INTERSECTION, lo, hi});
+          return;
+        }
+
+      const Point ip = hit.point;
+      if (ip.get_x() < sx)
+        return; // Intersection is to the left of the sweep.
+
+      seen_pairs.insert(key);
+      eq.enqueue(Event{ip, EventType::INTERSECTION, lo, hi});
+    }
+
+  public:
+    /**
+     * @brief Find all pairwise segment intersection points.
+     *
+     * @param segments Input segments.
+     * @return Array of intersection records (i < j, sorted by x then y).
+     *
+     * @throws domain_error if any segment is degenerate (zero length).
+     */
+    [[nodiscard]] Array<Intersection>
+    operator ()(const Array<Segment> & segments) const
+    {
+      const size_t n = segments.size();
+      Array<Intersection> result;
+
+      if (n < 2)
+        return result;
+
+      // Canonicalize: src is the left endpoint.
+      Array<Segment> segs;
+      segs.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          ah_domain_error_if(segments(i).get_src_point() == segments(i).get_tgt_point())
+            << "Segment " << i << " is degenerate (zero length)";
+          segs.append(canonicalize(segments(i)));
+        }
+
+      // Build the initial event queue (left + right endpoints).
+      LineSweepFramework<Event, EventLess> eq;
+      for (size_t i = 0; i < n; ++i)
+        {
+          eq.enqueue(Event{segs(i).get_src_point(), EventType::LEFT, i, 0});
+          eq.enqueue(Event{segs(i).get_tgt_point(), EventType::RIGHT, i, 0});
+        }
+
+      // Seen intersection pairs (key = lo * n + hi).
+      DynSetTree<size_t, Treap_Rk> seen_pairs;
+      DynSetTree<size_t, Treap_Rk> reported_pairs;
+
+      auto pair_key = [n](const size_t i, const size_t j)
+        {
+          const size_t lo = i < j ? i : j;
+          const size_t hi = i < j ? j : i;
+          return lo * n + hi;
+        };
+
+      auto append_intersection = [&result, &reported_pairs, &pair_key](const size_t i,
+                                                                       const size_t j,
+                                                                       const Point & p)
+        {
+          const size_t key = pair_key(i, j);
+          if (reported_pairs.search(key) != nullptr)
+            return;
+          reported_pairs.insert(key);
+
+          const size_t lo = i < j ? i : j;
+          const size_t hi = i < j ? j : i;
+          result.append(Intersection{lo, hi, p});
+        };
+
+      // Sweep-line status: balanced tree with O(log n) updates.
+      StatusTree status(segs);
+
+      while (eq.has_events())
+        {
+          const Event ev = eq.dequeue();
+          const Geom_Number sx = ev.pt.get_x();
+
+          if (ev.type == EventType::LEFT)
+            {
+              const size_t idx = ev.seg_a;
+              status.insert(idx, sx);
+
+              if (const size_t pred = status.predecessor(idx); pred != SIZE_MAX)
+                check_and_enqueue(segs, pred, idx, sx, eq, seen_pairs, n);
+              if (const size_t succ = status.successor(idx); succ != SIZE_MAX)
+                check_and_enqueue(segs, idx, succ, sx, eq, seen_pairs, n);
+            }
+          else if (ev.type == EventType::RIGHT)
+            {
+              if (const size_t idx = ev.seg_a; status.contains(idx))
+                {
+                  const size_t pred = status.predecessor(idx);
+                  const size_t succ = status.successor(idx);
+                  if (pred != SIZE_MAX and succ != SIZE_MAX)
+                    check_and_enqueue(segs, pred, succ, sx, eq, seen_pairs, n);
+                  status.erase(idx);
+                }
+            }
+          else // INTERSECTION
+            {
+              const size_t a = ev.seg_a;
+              const size_t b = ev.seg_b;
+              append_intersection(a, b, ev.pt);
+
+              // Walk outward from a (or b) through the status tree to find
+              // all active segments passing through ev.pt.  Segments sharing
+              // a point are adjacent in sweep-line order, so this is O(k)
+              // instead of the former O(n) scan.
+              Array<size_t> block;
+
+              // Pick a seed segment that is still in the status tree
+              size_t seed = SIZE_MAX;
+              if (status.contains(a) and segs(a).contains(ev.pt))
+                seed = a;
+              else if (status.contains(b) and segs(b).contains(ev.pt))
+                seed = b;
+
+              if (seed != SIZE_MAX)
+                {
+                  block.append(seed);
+
+                  // Walk predecessors
+                  for (size_t p = status.predecessor(seed);
+                       p != SIZE_MAX and segs(p).contains(ev.pt);
+                       p = status.predecessor(p))
+                    block.append(p);
+
+                  // Walk successors
+                  for (size_t s = status.successor(seed);
+                       s != SIZE_MAX and segs(s).contains(ev.pt);
+                       s = status.successor(s))
+                    block.append(s);
+                }
+
+              if (block.size() > 2)
+                {
+                  for (size_t i = 0; i + 1 < block.size(); ++i)
+                    for (size_t j = i + 1; j < block.size(); ++j)
+                      append_intersection(block(i), block(j), ev.pt);
+                }
+
+              if (block.size() == 0)
+                {
+                  if (status.contains(a)) block.append(a);
+                  if (status.contains(b) and (block.size() == 0 or block(0) != b))
+                    block.append(b);
+                }
+
+              for (size_t i = 0; i < block.size(); ++i)
+                status.erase(block(i));
+              for (size_t i = 0; i < block.size(); ++i)
+                status.insert(block(i), sx);
+
+              for (size_t i = 0; i < block.size(); ++i)
+                {
+                  const size_t s = block(i);
+                  if (const size_t pred = status.predecessor(s); pred != SIZE_MAX)
+                    check_and_enqueue(segs, pred, s, sx, eq, seen_pairs, n);
+                  if (const size_t succ = status.successor(s); succ != SIZE_MAX)
+                    check_and_enqueue(segs, s, succ, sx, eq, seen_pairs, n);
+                }
+            }
+        }
+
+      // Sort results by (x, y).
+      quicksort_op(result, [](const Intersection & a, const Intersection & b)
+                     {
+                       if (a.point.get_x() != b.point.get_x())
+                         return a.point.get_x() < b.point.get_x();
+                       if (a.point.get_y() != b.point.get_y())
+                         return a.point.get_y() < b.point.get_y();
+                       if (a.seg_i != b.seg_i)
+                         return a.seg_i < b.seg_i;
+                       return a.seg_j < b.seg_j;
+                     });
+
+      return result;
+    }
+  };
+
+  // ============================================================================
+  // Monotone Polygon Triangulation
+  // ============================================================================
+
+  /**
+   * @brief O(n log n) triangulation of simple polygons via y-monotone
+   *        partition + linear-time monotone triangulation.
+   *
+   * ## Algorithm
+   *
+   * 1. Decompose the simple polygon into y-monotone sub-polygons by
+   *    adding diagonals at split and merge vertices (sweep-line, O(n log n)).
+   * 2. Triangulate each y-monotone polygon in O(n) with a stack-based
+   *    scan.
+   *
+   * ## Requirements
+   *
+   * - Input must be a closed simple polygon with ≥ 3 vertices.
+   * - Vertices may be CW or CCW (normalized internally).
+   *
+   * ## Complexity
+   *
+   * - Time:  O(n log n) for general simple polygons.
+   * - Time:  O(n) when the input polygon is already y-monotone.
+   * - Space: O(n)
+   *
+   * @ingroup Geometry
+   */
+  class MonotonePolygonTriangulation
+  {
+  private:
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & p)
+    {
+      return GeomPolygonUtils::extract_vertices(p);
+    }
+
+    [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & v)
+    {
+      return GeomPolygonUtils::signed_double_area(v);
+    }
+
+    static void ensure_ccw(Array<Point> & v)
+    {
+      GeomPolygonUtils::ensure_ccw(v);
+    }
+
+    /**
+     * @brief Classification of vertices for y-monotone decomposition.
+     */
+    enum class VertexType { START, END, SPLIT, MERGE, REGULAR };
+
+    /**
+     * @brief Lexicographical "above" comparison (y primary, x secondary).
+     */
+    [[nodiscard]] static bool is_above(const Point & a, const Point & b)
+    {
+      return a.get_y() > b.get_y() or
+             (a.get_y() == b.get_y() and a.get_x() < b.get_x());
+    }
+
+    /**
+     * @brief Lexicographical "below" comparison.
+     */
+    [[nodiscard]] static bool is_below(const Point & a, const Point & b)
+    {
+      return is_above(b, a);
+    }
+
+    /**
+     * @brief Check if the edge starting at @p edge points downwards.
+     */
+    [[nodiscard]] static bool edge_goes_down(const Array<Point> & verts,
+                                             const size_t edge)
+    {
+      return is_below(verts((edge + 1) % verts.size()), verts(edge));
+    }
+
+    [[nodiscard]] static Geom_Number edge_x_at_y(const Array<Point> & verts,
+                                                 const size_t edge,
+                                                 const Geom_Number & y)
+    {
+      const Point & a = verts(edge);
+      const Point & b = verts((edge + 1) % verts.size());
+      if (a.get_y() == b.get_y())
+        return a.get_x() < b.get_x() ? a.get_x() : b.get_x();
+
+      return a.get_x() + (y - a.get_y()) * (b.get_x() - a.get_x())
+             / (b.get_y() - a.get_y());
+    }
+
+    [[nodiscard]] static bool edge_status_less(const size_t lhs,
+                                               const size_t rhs,
+                                               const Geom_Number & sweep_y,
+                                               const Array<Point> & verts)
+    {
+      if (lhs == rhs)
+        return false;
+
+      const Geom_Number xl = edge_x_at_y(verts, lhs, sweep_y);
+      const Geom_Number xr = edge_x_at_y(verts, rhs, sweep_y);
+      if (xl != xr)
+        return xl < xr;
+      return lhs < rhs;
+    }
+
+    class EdgeStatusTree
+    {
+      struct Node
+      {
+        size_t edge;
+        Geom_Number label;
+        unsigned priority;
+        Node *left = nullptr;
+        Node *right = nullptr;
+      };
+
+      Node *root_ = nullptr;
+      const Array<Point> & verts_;
+      std::mt19937 rng_{0x31415926u};
+      Array<Node *> nodes_;
+
+      static void split_by_label(Node *root, const Geom_Number & label,
+                                 Node *& left, Node *& right)
+      {
+        if (root == nullptr)
+          {
+            left = nullptr;
+            right = nullptr;
+            return;
+          }
+
+        if (root->label < label)
+          {
+            split_by_label(root->right, label, root->right, right);
+            left = root;
+          }
+        else
+          {
+            split_by_label(root->left, label, left, root->left);
+            right = root;
+          }
+      }
+
+      [[nodiscard]] static Node * merge(Node *a, Node *b)
+      {
+        if (a == nullptr) return b;
+        if (b == nullptr) return a;
+        if (a->priority < b->priority)
+          {
+            a->right = merge(a->right, b);
+            return a;
+          }
+        b->left = merge(a, b->left);
+        return b;
+      }
+
+      [[nodiscard]] static Node * insert_by_label(Node *root, Node *node)
+      {
+        if (root == nullptr)
+          return node;
+
+        if (node->priority < root->priority)
+          {
+            Node *left = nullptr;
+            Node *right = nullptr;
+            split_by_label(root, node->label, left, right);
+            node->left = left;
+            node->right = right;
+            return node;
+          }
+
+        if (node->label < root->label)
+          root->left = insert_by_label(root->left, node);
+        else
+          root->right = insert_by_label(root->right, node);
+        return root;
+      }
+
+      [[nodiscard]] static Node * erase_by_label(Node *root,
+                                                 const Geom_Number & label,
+                                                 Node *& removed)
+      {
+        if (root == nullptr)
+          return nullptr;
+
+        if (label < root->label)
+          {
+            root->left = erase_by_label(root->left, label, removed);
+            return root;
+          }
+
+        if (root->label < label)
+          {
+            root->right = erase_by_label(root->right, label, removed);
+            return root;
+          }
+
+        removed = root;
+        return merge(root->left, root->right);
+      }
+
+      static void destroy(const Node *n)
+      {
+        if (n == nullptr)
+          return;
+        destroy(n->left);
+        destroy(n->right);
+        delete n;
+      }
+
+      [[nodiscard]] size_t predecessor_for_insert(const size_t edge,
+                                                  const Geom_Number & sweep_y) const
+      {
+        size_t pred = SIZE_MAX;
+        const Node *cur = root_;
+        while (cur != nullptr)
+          if (edge_status_less(cur->edge, edge, sweep_y, verts_))
+            {
+              pred = cur->edge;
+              cur = cur->right;
+            }
+          else
+            cur = cur->left;
+        return pred;
+      }
+
+      [[nodiscard]] size_t successor_for_insert(const size_t edge,
+                                                const Geom_Number & sweep_y) const
+      {
+        size_t succ = SIZE_MAX;
+        const Node *cur = root_;
+        while (cur != nullptr)
+          if (edge_status_less(edge, cur->edge, sweep_y, verts_))
+            {
+              succ = cur->edge;
+              cur = cur->left;
+            }
+          else
+            cur = cur->right;
+        return succ;
+      }
+
+      [[nodiscard]] Geom_Number
+      fresh_label_between(const size_t pred, const size_t succ) const
+      {
+        if (pred != SIZE_MAX and succ != SIZE_MAX)
+          return (nodes_(pred)->label + nodes_(succ)->label) / Geom_Number(2);
+        if (pred != SIZE_MAX)
+          return nodes_(pred)->label + Geom_Number(1);
+        if (succ != SIZE_MAX)
+          return nodes_(succ)->label - Geom_Number(1);
+        return {0};
+      }
+
+    public:
+      explicit EdgeStatusTree(const Array<Point> & verts) : verts_(verts)
+      {
+        nodes_.reserve(verts.size());
+        for (size_t i = 0; i < verts.size(); ++i)
+          nodes_.append(nullptr);
+      }
+
+      ~EdgeStatusTree()
+      {
+        destroy(root_);
+      }
+
+      [[nodiscard]] bool contains(const size_t edge) const
+      {
+        return nodes_(edge) != nullptr;
+      }
+
+      void insert(const size_t edge, const Geom_Number & sweep_y)
+      {
+        if (contains(edge))
+          return;
+
+        const size_t pred = predecessor_for_insert(edge, sweep_y);
+        const size_t succ = successor_for_insert(edge, sweep_y);
+        const auto node = new Node{
+              edge, fresh_label_between(pred, succ),
+              static_cast<unsigned>(rng_()),
+              nullptr, nullptr
+            };
+        root_ = insert_by_label(root_, node);
+        nodes_(edge) = node;
+      }
+
+      void erase(const size_t edge)
+      {
+        if (not contains(edge))
+          return;
+
+        Node *removed = nullptr;
+        root_ = erase_by_label(root_, nodes_(edge)->label, removed);
+        nodes_(edge) = nullptr;
+        delete removed;
+      }
+
+      [[nodiscard]] size_t left_edge_of_point(const Point & p,
+                                              const Geom_Number & sweep_y) const
+      {
+        size_t best = SIZE_MAX;
+        const Node *cur = root_;
+        while (cur != nullptr)
+          {
+            const Geom_Number x = edge_x_at_y(verts_, cur->edge, sweep_y);
+            if (x < p.get_x())
+              {
+                best = cur->edge;
+                cur = cur->right;
+              }
+            else
+              cur = cur->left;
+          }
+        return best;
+      }
+    };
+
+    /// Triangulate a y-monotone polygon given as a vertex array.
+    [[nodiscard]] static DynList<Triangle>
+    triangulate_monotone(const Array<Point> & verts)
+    {
+      DynList<Triangle> result;
+      const size_t n = verts.size();
+      if (n < 3)
+        return result;
+      if (n == 3)
+        {
+          result.append(Triangle(verts(0), verts(1), verts(2)));
+          return result;
+        }
+
+      // Sort vertex indices by y descending, x ascending for ties.
+      Array<size_t> sorted;
+      sorted.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        sorted.append(i);
+
+      quicksort_op(sorted, [&verts](const size_t a, const size_t b)
+                     {
+                       if (verts(a).get_y() != verts(b).get_y())
+                         return verts(a).get_y() > verts(b).get_y();
+                       return verts(a).get_x() < verts(b).get_x();
+                     });
+
+      // Identify left and right chains.
+      // Top vertex = sorted(0), bottom vertex = sorted(n-1).
+      // Left chain: goes from top to bottom counter-clockwise.
+      const size_t top = sorted(0);
+      const size_t bot = sorted(n - 1);
+
+      Array<bool> on_left;
+      on_left.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        on_left.append(false);
+
+      // Walk from top to bottom going forward in the polygon.
+      for (size_t i = top; i != bot; i = (i + 1) % n)
+        on_left(i) = true;
+      on_left(top) = true; // top is on both; mark left.
+
+      // Stack-based triangulation.
+      FixedStack<size_t> stack(n);
+      stack.push(sorted(0));
+      stack.push(sorted(1));
+
+      for (size_t i = 2; i < n - 1; ++i)
+        {
+          const size_t curr = sorted(i);
+          const size_t stk_top = stack.top();
+          if (on_left(curr) != on_left(stk_top))
+            {
+              // Different chain: fan triangles from curr to all stack vertices.
+              while (stack.size() > 1)
+                {
+                  const size_t a = stack.top();
+                  const size_t b = stack.top(1);
+                  result.append(Triangle(verts(curr), verts(a), verts(b)));
+                  stack.pop();
+                }
+              stack.pop();
+              stack.push(sorted(i - 1));
+              stack.push(curr);
+            }
+          else
+            {
+              // Same chain: pop vertices while diagonal is inside.
+              size_t last_popped = stack.top();
+              stack.pop();
+
+              while (not stack.is_empty())
+                {
+                  const size_t peek = stack.top();
+                  const Geom_Number area =
+                      area_of_parallelogram(verts(curr), verts(last_popped),
+                                            verts(peek));
+
+                  // On the left chain we need CW turn (area < 0);
+                  // on the right chain we need CCW turn (area > 0).
+                  if ((on_left(curr) and area >= 0) or (not on_left(curr) and area <= 0))
+                    break;
+
+                  result.append(Triangle(verts(curr), verts(last_popped),
+                                         verts(peek)));
+                  last_popped = peek;
+                  stack.pop();
+                }
+
+              stack.push(last_popped);
+              stack.push(curr);
+            }
+        }
+
+      // Process last vertex (bottom): fan to the remaining stack.
+      const size_t last = sorted(n - 1);
+      while (stack.size() > 1)
+        {
+          const size_t a = stack.top();
+          const size_t b = stack.top(1);
+          result.append(Triangle(verts(last), verts(a), verts(b)));
+          stack.pop();
+        }
+
+      return result;
+    }
+
+    [[nodiscard]] static VertexType classify_vertex(const Array<Point> & v,
+                                                    const size_t i)
+    {
+      const size_t n = v.size();
+      const Point & prev = v((i + n - 1) % n);
+      const Point & curr = v(i);
+      const Point & next = v((i + 1) % n);
+
+      const bool prev_below = is_below(prev, curr);
+      const bool next_below = is_below(next, curr);
+      const bool prev_above = is_above(prev, curr);
+      const bool next_above = is_above(next, curr);
+      const bool reflex = orientation(prev, curr, next) == Orientation::CW;
+
+      if (prev_below and next_below)
+        return reflex ? VertexType::SPLIT : VertexType::START;
+      if (prev_above and next_above)
+        return reflex ? VertexType::MERGE : VertexType::END;
+      return VertexType::REGULAR;
+    }
+
+    [[nodiscard]] static bool regular_interior_right(const Array<Point> & v,
+                                                     const size_t i)
+    {
+      return is_below(v((i + 1) % v.size()), v(i));
+    }
+
+    [[nodiscard]] static Array<Array<size_t>>
+    build_faces_from_diagonals(const Array<Point> & verts,
+                               const DynSetTree<std::pair<size_t, size_t>> & diagonals)
+    {
+      const size_t n = verts.size();
+      Array<Array<size_t>> adj;
+      adj.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        adj.append(Array<size_t>());
+
+      auto add_undirected_edge = [&adj](const size_t a, const size_t b)
+        {
+          adj(a).append(b);
+          adj(b).append(a);
+        };
+
+      for (size_t i = 0; i < n; ++i)
+        add_undirected_edge(i, (i + 1) % n);
+
+      for (const auto & d: diagonals)
+        add_undirected_edge(d.first, d.second);
+
+      for (size_t v = 0; v < n; ++v)
+        {
+          auto & nbrs = adj(v);
+          in_place_sort(nbrs);
+          in_place_unique(nbrs);
+          in_place_sort(nbrs,
+                        [&verts, v](const size_t a, const size_t b)
+                          {
+                            const Geom_Number dax = verts(a).get_x() - verts(v).get_x();
+                            const Geom_Number day = verts(a).get_y() - verts(v).get_y();
+                            const Geom_Number dbx = verts(b).get_x() - verts(v).get_x();
+                            const Geom_Number dby = verts(b).get_y() - verts(v).get_y();
+
+                            const bool upper_a = day > 0 or (day == 0 and dax >= 0);
+                            const bool upper_b = dby > 0 or (dby == 0 and dbx >= 0);
+                            if (upper_a != upper_b)
+                              return upper_a > upper_b;
+
+                            if (const Geom_Number cross = dax * dby - day * dbx; cross != 0)
+                              return cross > 0;
+
+                            const Geom_Number da2 = dax * dax + day * day;
+                            const Geom_Number db2 = dbx * dbx + dby * dby;
+                            return da2 < db2;
+                          });
+        }
+
+      using HalfEdge = std::pair<size_t, size_t>;
+      std::map<HalfEdge, HalfEdge> next_half;
+      for (size_t v = 0; v < n; ++v)
+        {
+          const auto & nbrs = adj(v);
+          if (nbrs.is_empty())
+            continue;
+          for (size_t k = 0; k < nbrs.size(); ++k)
+            {
+              const size_t u = nbrs(k);
+              const size_t pred = nbrs((k + nbrs.size() - 1) % nbrs.size());
+              next_half[HalfEdge{u, v}] = HalfEdge{v, pred};
+            }
+        }
+
+      auto face_area2 = [&verts](const Array<size_t> & face)
+        {
+          Geom_Number area2 = 0;
+          for (size_t i = 0; i < face.size(); ++i)
+            {
+              const Point & a = verts(face(i));
+              const Point & b = verts(face((i + 1) % face.size()));
+              area2 += a.get_x() * b.get_y() - a.get_y() * b.get_x();
+            }
+          return area2;
+        };
+
+      DynSetTree<HalfEdge> visited;
+      Array<Array<size_t>> faces;
+      for (const auto & [kv, _]: next_half)
+        {
+          const HalfEdge start = kv;
+          if (visited.search(start) != nullptr)
+            continue;
+
+          HalfEdge cur = start;
+          Array<size_t> face;
+          while (visited.insert(cur) != nullptr)
+            {
+              face.append(cur.first);
+              auto it_next = next_half.find(cur);
+              if (it_next == next_half.end())
+                {
+                  face.empty();
+                  break;
+                }
+              cur = it_next->second;
+              if (cur == start)
+                break;
+            }
+
+          if (face.is_empty() or cur != start or face.size() < 3)
+            continue;
+          if (face_area2(face) <= 0)
+            continue; // Ignore outer face / degenerate loops.
+
+          Array<size_t> poly_idx;
+          poly_idx.reserve(face.size());
+          for (const size_t idx: face)
+            poly_idx.append(idx);
+          faces.append(poly_idx);
+        }
+
+      return faces;
+    }
+
+    [[nodiscard]] static Array<Array<size_t>>
+    decompose_to_monotone_faces(const Array<Point> & verts)
+    {
+      const size_t n = verts.size();
+      Array<Array<size_t>> faces;
+
+      if (n < 3)
+        return faces;
+
+      if (is_y_monotone(verts))
+        {
+          Array<size_t> one;
+          one.reserve(n);
+          for (size_t i = 0; i < n; ++i)
+            one.append(i);
+          faces.append(one);
+          return faces;
+        }
+
+      Array<VertexType> vtype;
+      vtype.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        vtype.append(classify_vertex(verts, i));
+
+      Array<size_t> order;
+      order.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        order.append(i);
+      quicksort_op(order, [&verts](const size_t a, const size_t b)
+                     {
+                       if (verts(a).get_y() != verts(b).get_y())
+                         return verts(a).get_y() > verts(b).get_y();
+                       return verts(a).get_x() < verts(b).get_x();
+                     });
+
+      Array<size_t> helper;
+      helper.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        helper.append(SIZE_MAX);
+
+      EdgeStatusTree status(verts);
+      DynSetTree<std::pair<size_t, size_t>> diagonals;
+
+      auto add_diagonal = [&](const size_t a, const size_t b)
+        {
+          if (a == b or b == SIZE_MAX)
+            return;
+          if ((a + 1) % n == b or (b + 1) % n == a)
+            return;
+
+          const size_t lo = a < b ? a : b;
+          const size_t hi = a < b ? b : a;
+          diagonals.insert({lo, hi});
+        };
+
+      auto helper_is_merge = [&helper, &vtype](const size_t edge)
+        {
+          return helper(edge) != SIZE_MAX and
+                 vtype(helper(edge)) == VertexType::MERGE;
+        };
+
+      for (size_t oi = 0; oi < n; ++oi)
+        {
+          const size_t vi = order(oi);
+          const size_t prev = (vi + n - 1) % n;
+          const size_t e_prev = prev; // edge prev -> vi
+          const size_t e_curr = vi; // edge vi -> next
+          const Geom_Number sweep_y = verts(vi).get_y();
+
+          switch (vtype(vi))
+            {
+            case VertexType::START:
+              if (edge_goes_down(verts, e_curr))
+                {
+                  status.insert(e_curr, sweep_y);
+                  helper(e_curr) = vi;
+                }
+              break;
+
+            case VertexType::END:
+              if (edge_goes_down(verts, e_prev))
+                {
+                  if (helper_is_merge(e_prev))
+                    add_diagonal(vi, helper(e_prev));
+                  status.erase(e_prev);
+                }
+              break;
+
+            case VertexType::SPLIT:
+              {
+                if (const size_t left = status.left_edge_of_point(verts(vi), sweep_y); left != SIZE_MAX)
+                  {
+                    add_diagonal(vi, helper(left));
+                    helper(left) = vi;
+                  }
+
+                if (edge_goes_down(verts, e_curr))
+                  {
+                    status.insert(e_curr, sweep_y);
+                    helper(e_curr) = vi;
+                  }
+              }
+              break;
+
+            case VertexType::MERGE:
+              if (edge_goes_down(verts, e_prev))
+                {
+                  if (helper_is_merge(e_prev))
+                    add_diagonal(vi, helper(e_prev));
+                  status.erase(e_prev);
+                }
+              if (const size_t left = status.left_edge_of_point(verts(vi), sweep_y);
+                left != SIZE_MAX)
+                {
+                  if (helper_is_merge(left))
+                    add_diagonal(vi, helper(left));
+                  helper(left) = vi;
+                }
+              break;
+
+            case VertexType::REGULAR:
+              if (regular_interior_right(verts, vi))
+                {
+                  if (edge_goes_down(verts, e_prev))
+                    {
+                      if (helper_is_merge(e_prev))
+                        add_diagonal(vi, helper(e_prev));
+                      status.erase(e_prev);
+                    }
+                  if (edge_goes_down(verts, e_curr))
+                    {
+                      status.insert(e_curr, sweep_y);
+                      helper(e_curr) = vi;
+                    }
+                }
+              else if (const size_t left = status.left_edge_of_point(verts(vi), sweep_y);
+                left != SIZE_MAX)
+                {
+                  if (helper_is_merge(left))
+                    add_diagonal(vi, helper(left));
+                  helper(left) = vi;
+                }
+              break;
+            }
+        }
+
+      faces = build_faces_from_diagonals(verts, diagonals);
+      if (faces.size() == 0)
+        {
+          Array<size_t> one;
+          one.reserve(n);
+          for (size_t i = 0; i < n; ++i)
+            one.append(i);
+          faces.append(one);
+        }
+      return faces;
+    }
+
+  public:
+    /**
+     * @brief Triangulate a simple polygon.
+     *
+     * For convex and y-monotone polygons, the result is computed directly
+     * in O(n). For general simple polygons, the polygon is partitioned into
+     * y-monotone sub-polygons in O(n log n), then each sub-polygon is
+     * triangulated in linear time.
+     *
+     * @param p The polygon (will not be modified; a copy is used).
+     * @return List of triangles forming the triangulation.
+     *
+     * @throws domain_error if polygon is not closed or has < 3 vertices.
+     * @throws domain_error if polygon is degenerate (zero area).
+     *
+     * @note The algorithm follows the standard sweep-line monotone partition
+     *       pipeline and runs in O(n log n) for simple polygons.
+     */
+    [[nodiscard]] DynList<Triangle> operator ()(Polygon p) const
+    {
+      ah_domain_error_if(not p.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(p.size() < 3) << "Polygon must have at least 3 vertices";
+
+      Array<Point> verts = extract_vertices(p);
+      ah_domain_error_if(signed_double_area(verts) == 0) << "Polygon is degenerate (zero area)";
+
+      ensure_ccw(verts);
+
+      // Check if the polygon is y-monotone.
+      if (is_y_monotone(verts))
+        return triangulate_monotone(verts);
+
+      const Array<Array<size_t>> faces = decompose_to_monotone_faces(verts);
+      DynList<Triangle> result;
+      bool produced_any = false;
+
+      for (size_t fi = 0; fi < faces.size(); ++fi)
+        {
+          if (faces(fi).size() < 3)
+            continue;
+
+          Array<Point> mono;
+          mono.reserve(faces(fi).size());
+          for (size_t i = 0; i < faces(fi).size(); ++i)
+            mono.append(verts(faces(fi)(i)));
+
+          if (signed_double_area(mono) == 0)
+            continue;
+          ensure_ccw(mono);
+
+          DynList<Triangle> tris;
+          if (is_y_monotone(mono))
+            tris = triangulate_monotone(mono);
+          else
+            {
+              // Defensive fallback for degenerate decomposition edge cases.
+              Polygon piece;
+              for (size_t i = 0; i < mono.size(); ++i)
+                piece.add_vertex(mono(i));
+              if (piece.size() >= 3)
+                {
+                  piece.close();
+                  constexpr CuttingEarsTriangulation ears;
+                  tris = ears(piece);
+                }
+            }
+
+          for (DynList<Triangle>::Iterator it(tris); it.has_curr(); it.next_ne())
+            {
+              result.append(it.get_curr());
+              produced_any = true;
+            }
+        }
+
+      if (produced_any)
+        return result;
+
+      // Conservative fallback if decomposition could not produce valid faces.
+      constexpr CuttingEarsTriangulation ears;
+      return ears(p);
+    }
+
+  private:
+    /// @brief Check if a CCW polygon vertex array is y-monotone.
+    [[nodiscard]] static bool is_y_monotone(const Array<Point> & v)
+    {
+      const size_t n = v.size();
+      if (n <= 3)
+        return true;
+
+      // Find topmost and bottommost vertices.
+      size_t top_idx = 0;
+      size_t bot_idx = 0;
+      for (size_t i = 1; i < n; ++i)
+        {
+          if (v(i).get_y() > v(top_idx).get_y() or
+              (v(i).get_y() == v(top_idx).get_y() and
+               v(i).get_x() < v(top_idx).get_x()))
+            top_idx = i;
+
+          if (v(i).get_y() < v(bot_idx).get_y() or
+              (v(i).get_y() == v(bot_idx).get_y() and
+               v(i).get_x() > v(bot_idx).get_x()))
+            bot_idx = i;
+        }
+
+      // Walk from top to bottom along the forward chain — y must be
+      // non-increasing.
+      for (size_t i = top_idx; ;)
+        {
+          const size_t next = (i + 1) % n;
+          if (next == bot_idx)
+            break;
+          if (v(next).get_y() > v(i).get_y())
+            return false;
+          i = next;
+        }
+
+      // Walk from top to bottom along the backward chain — y must be
+      // non-increasing.
+      for (size_t i = top_idx; ;)
+        {
+          const size_t prev = (i + n - 1) % n;
+          if (prev == bot_idx)
+            break;
+          if (v(prev).get_y() > v(i).get_y())
+            return false;
+          i = prev;
+        }
+
+      return true;
+    }
+  };
+
+  // ============================================================================
+  // Minkowski Sum for Convex Polygons — O(n + m)
+  // ============================================================================
+
+  /**
+   * @brief Exact Minkowski sum of two closed convex polygons.
+   *
+   * The Minkowski sum P ⊕ Q of two convex polygons P and Q is a convex
+   * polygon whose vertices are sums of vertex pairs from P and Q.
+   * The algorithm merges the edge vectors of both polygons sorted by
+   * polar angle in O(n + m).
+   *
+   * ## Requirements
+   *
+   * - Both polygons must be closed and convex with ≥ 3 vertices.
+   * - Vertices may be CW or CCW (normalized internally to CCW).
+   *
+   * ## Complexity
+   *
+   * - Time:  O(n + m)
+   * - Space: O(n + m)
+   *
+   * @par Example
+   * @code
+   * Polygon P;
+   * P.add_vertex(Point(0,0)); P.add_vertex(Point(1,0)); P.add_vertex(Point(0,1));
+   * P.close();
+   * Polygon Q;
+   * Q.add_vertex(Point(0,0)); Q.add_vertex(Point(2,0)); Q.add_vertex(Point(0,2));
+   * Q.close();
+   * MinkowskiSumConvex ms;
+   * Polygon R = ms(P, Q);
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class MinkowskiSumConvex
+  {
+  private:
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & poly)
+    {
+      return GeomPolygonUtils::extract_vertices(poly);
+    }
+
+    [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & v)
+    {
+      return GeomPolygonUtils::signed_double_area(v);
+    }
+
+    [[nodiscard]] static bool is_convex(const Array<Point> & verts)
+    {
+      if (verts.size() < 3)
+        return false;
+      return GeomPolygonUtils::is_convex(verts);
+    }
+
+    /// Ensure CCW and rotate so that the bottom-most vertex is first.
+    static Array<Point> normalize(Array<Point> v)
+    {
+      GeomPolygonUtils::ensure_ccw(v);
+
+      // Find bottom-most vertex (min y, then min x).
+      size_t bot = 0;
+      for (size_t i = 1; i < v.size(); ++i)
+        if (v(i).get_y() < v(bot).get_y() or (v(i).get_y() == v(bot).get_y() and
+                                              v(i).get_x() < v(bot).get_x()))
+          bot = i;
+
+      Array<Point> result;
+      result.reserve(v.size());
+      for (size_t i = 0; i < v.size(); ++i)
+        result.append(v((bot + i) % v.size()));
+
+      return result;
+    }
+
+    [[nodiscard]] static Point edge_vec(const Array<Point> & v, const size_t i)
+    {
+      const size_t j = (i + 1) % v.size();
+      return {v(j).get_x() - v(i).get_x(), v(j).get_y() - v(i).get_y()};
+    }
+
+    [[nodiscard]] static Geom_Number cross(const Point & a, const Point & b)
+    {
+      return a.get_x() * b.get_y() - a.get_y() * b.get_x();
+    }
+
+  public:
+    /**
+     * @brief Compute the Minkowski sum of two convex polygons.
+     *
+     * @param P First convex polygon.
+     * @param Q Second convex polygon.
+     * @return Convex polygon P ⊕ Q.
+     *
+     * @throws domain_error if either polygon is not closed, has < 3
+     *         vertices, or is not convex.
+     */
+    [[nodiscard]] Polygon operator ()(const Polygon & P,
+                                      const Polygon & Q) const
+    {
+      ah_domain_error_if(not P.is_closed()) << "First polygon must be closed";
+      ah_domain_error_if(not Q.is_closed()) << "Second polygon must be closed";
+      ah_domain_error_if(P.size() < 3) << "First polygon must have at least 3 vertices";
+      ah_domain_error_if(Q.size() < 3) << "Second polygon must have at least 3 vertices";
+
+      Array<Point> pv = extract_vertices(P);
+      Array<Point> qv = extract_vertices(Q);
+
+      ah_domain_error_if(not is_convex(pv)) << "First polygon must be convex";
+      ah_domain_error_if(not is_convex(qv)) << "Second polygon must be convex";
+
+      pv = normalize(pv);
+      qv = normalize(qv);
+
+      const size_t np = pv.size();
+      const size_t nq = qv.size();
+
+      Array<Point> result;
+      result.reserve(np + nq);
+
+      size_t ip = 0;
+      size_t iq = 0;
+
+      while (ip < np or iq < nq)
+        {
+          result.append(Point(pv(ip % np).get_x() + qv(iq % nq).get_x(),
+                              pv(ip % np).get_y() + qv(iq % nq).get_y()));
+
+          if (ip >= np)
+            {
+              ++iq;
+              continue;
+            }
+          if (iq >= nq)
+            {
+              ++ip;
+              continue;
+            }
+
+          const Point ep = edge_vec(pv, ip % np);
+          const Point eq = edge_vec(qv, iq % nq);
+
+          if (const Geom_Number cr = cross(ep, eq); cr > 0)
+            ++ip;
+          else if (cr < 0)
+            ++iq;
+          else
+            {
+              ++ip;
+              ++iq;
+            } // Parallel edges: advance both.
+        }
+
+      // Remove collinear and duplicate vertices.
+      Array<Point> clean;
+      clean.reserve(result.size());
+      for (size_t i = 0; i < result.size(); ++i)
+        {
+          if (clean.is_empty() or clean.get_last() != result(i))
+            clean.append(result(i));
+        }
+      if (clean.size() > 1 and clean(0) == clean.get_last())
+        clean.remove_last();
+
+      Polygon ret;
+      for (size_t i = 0; i < clean.size(); ++i)
+        ret.add_vertex(clean(i));
+
+      if (ret.size() >= 3)
+        ret.close();
+
+      return ret;
+    }
+  };
+
+  // ============================================================================
+  // Convex Polygon Distance (GJK) — 2D
+  // ============================================================================
+
+  /**
+   * @brief Distance between two closed convex polygons using GJK.
+   *
+   * The algorithm runs a 2D GJK loop on the Minkowski difference to detect
+   * overlap and drive the search direction. For robust witness output,
+   * disjoint cases are refined with exact point-to-segment checks.
+   *
+   * ## Requirements
+   * - Both polygons must be closed and convex with >= 3 vertices.
+   *
+   * ## Complexity
+   * - GJK phase: O((n + m) * k), where k is the number of iterations.
+   * - Refinement (disjoint): O(n * m).
+   *
+   * @ingroup Geometry
+   */
+  class ConvexPolygonDistanceGJK
+  {
+  public:
+    /**
+     * @brief Holds the results of the distance computation.
+     */
+    struct Result
+    {
+      Geom_Number distance_squared = 0; ///< The minimum squared distance.
+      Geom_Number distance = 0;         ///< The minimum Euclidean distance.
+      Point closest_on_first;           ///< Witness point on the first polygon.
+      Point closest_on_second;          ///< Witness point on the second polygon.
+      bool intersects = false;          ///< True if the polygons overlap.
+      size_t gjk_iterations = 0;        ///< Count of iterations performed.
+    };
+
+  private:
+    /**
+     * @brief A point in the Minkowski difference and its source components.
+     */
+    struct SupportPoint
+    {
+      Point a; ///< Contributing point from the first polygon.
+      Point b; ///< Contributing point from the second polygon.
+      Point v; ///< Resulting point in Minkowski difference (a - b).
+      double vx = 0.0; ///< Double-precision cache for faster predicates.
+      double vy = 0.0; ///< Double-precision cache for faster predicates.
+    };
+
+    struct ClosestSimplexResult
+    {
+      std::vector<SupportPoint> reduced_simplex;
+      double cx = 0.0;
+      double cy = 0.0;
+      Point witness_a;
+      Point witness_b;
+      bool contains_origin = false;
+    };
+
+    static constexpr size_t kMaxIters = 64;
+    static constexpr double kEps = 1e-12;
+
+    [[nodiscard]] static double to_double(const Geom_Number & v)
+    {
+      return geom_number_to_double(v);
+    }
+
+    [[nodiscard]] static double dot2(const double ax, const double ay,
+                                     const double bx, const double by) noexcept
+    {
+      return ax * bx + ay * by;
+    }
+
+    [[nodiscard]] static double norm2(const double x, const double y) noexcept
+    {
+      return dot2(x, y, x, y);
+    }
+
+    [[nodiscard]] static Point point_from_double(const double x, const double y)
+    {
+      return {Geom_Number(x), Geom_Number(y)};
+    }
+
+    [[nodiscard]] static Point lerp_point(const Point & a, const Point & b,
+                                          const double t)
+    {
+      const double ax = to_double(a.get_x());
+      const double ay = to_double(a.get_y());
+      const double bx = to_double(b.get_x());
+      const double by = to_double(b.get_y());
+      return point_from_double((1.0 - t) * ax + t * bx,
+                               (1.0 - t) * ay + t * by);
+    }
+
+    [[nodiscard]] static Point centroid_of(const Array<Point> & v)
+    {
+      Geom_Number sx = 0;
+      Geom_Number sy = 0;
+      for (size_t i = 0; i < v.size(); ++i)
+        {
+          sx += v(i).get_x();
+          sy += v(i).get_y();
+        }
+      return {sx / Geom_Number(v.size()), sy / Geom_Number(v.size())};
+    }
+
+    [[nodiscard]] static SupportPoint
+    support(const Array<Point> & p,
+            const Array<Point> & q,
+            const double dx,
+            const double dy)
+    {
+      size_t ip = 0;
+      size_t iq = 0;
+      double best_p = -std::numeric_limits<double>::infinity();
+      double best_q = -std::numeric_limits<double>::infinity();
+
+      for (size_t i = 0; i < p.size(); ++i)
+        {
+          const double proj = dot2(to_double(p(i).get_x()), to_double(p(i).get_y()),
+                                   dx, dy);
+          if (proj > best_p)
+            {
+              best_p = proj;
+              ip = i;
+            }
+        }
+
+      // Support of Minkowski difference uses opposite direction in q.
+      for (size_t i = 0; i < q.size(); ++i)
+        {
+          const double proj = dot2(to_double(q(i).get_x()), to_double(q(i).get_y()),
+                                   -dx, -dy);
+          if (proj > best_q)
+            {
+              best_q = proj;
+              iq = i;
+            }
+        }
+
+      const Point & pa = p(ip);
+      const Point & pb = q(iq);
+      const Geom_Number vx = pa.get_x() - pb.get_x();
+      const Geom_Number vy = pa.get_y() - pb.get_y();
+      return SupportPoint{pa, pb, Point(vx, vy), to_double(vx), to_double(vy)};
+    }
+
+    [[nodiscard]] static bool polygons_intersect_or_contain(const Polygon & p,
+                                                            const Polygon & q)
+    {
+      for (Polygon::Segment_Iterator itp(p); itp.has_curr(); itp.next_ne())
+        {
+          const Segment sp = itp.get_current_segment();
+          for (Polygon::Segment_Iterator itq(q); itq.has_curr(); itq.next_ne())
+            if (sp.intersects_with(itq.get_current_segment()))
+              return true;
+        }
+
+      Point vp;
+      for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
+        {
+          vp = it.get_current_vertex().to_point();
+          break;
+        }
+
+      Point vq;
+      for (Polygon::Vertex_Iterator it(q); it.has_curr(); it.next_ne())
+        {
+          vq = it.get_current_vertex().to_point();
+          break;
+        }
+
+      return PointInPolygonWinding::contains(q, vp) or
+             PointInPolygonWinding::contains(p, vq);
+    }
+
+    [[nodiscard]] static ClosestSimplexResult
+    closest_from_simplex(const std::vector<SupportPoint> & simplex)
+    {
+      ah_domain_error_if(simplex.empty()) << "GJK simplex cannot be empty";
+
+      ClosestSimplexResult out;
+
+      if (simplex.size() == 1)
+        {
+          out.reduced_simplex = simplex;
+          out.cx = simplex[0].vx;
+          out.cy = simplex[0].vy;
+          out.witness_a = simplex[0].a;
+          out.witness_b = simplex[0].b;
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      if (simplex.size() == 2)
+        {
+          const SupportPoint & a = simplex[0];
+          const SupportPoint & b = simplex[1];
+          const double abx = b.vx - a.vx;
+          const double aby = b.vy - a.vy;
+          const double ab2 = norm2(abx, aby);
+
+          if (ab2 <= kEps * kEps)
+            {
+              out.reduced_simplex = {a};
+              out.cx = a.vx;
+              out.cy = a.vy;
+              out.witness_a = a.a;
+              out.witness_b = a.b;
+              out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+              return out;
+            }
+
+          double t = -dot2(a.vx, a.vy, abx, aby) / ab2;
+          if (t < 0.0) t = 0.0;
+          if (t > 1.0) t = 1.0;
+
+          if (t <= kEps)
+            {
+              out.reduced_simplex = {a};
+              out.cx = a.vx;
+              out.cy = a.vy;
+              out.witness_a = a.a;
+              out.witness_b = a.b;
+            }
+          else if (t >= 1.0 - kEps)
+            {
+              out.reduced_simplex = {b};
+              out.cx = b.vx;
+              out.cy = b.vy;
+              out.witness_a = b.a;
+              out.witness_b = b.b;
+            }
+          else
+            {
+              out.reduced_simplex = {a, b};
+              out.cx = a.vx + t * abx;
+              out.cy = a.vy + t * aby;
+              out.witness_a = lerp_point(a.a, b.a, t);
+              out.witness_b = lerp_point(a.b, b.b, t);
+            }
+
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      // Triangle case.
+      const SupportPoint & a = simplex[0];
+      const SupportPoint & b = simplex[1];
+      const SupportPoint & c = simplex[2];
+
+      const double abx = b.vx - a.vx;
+      const double aby = b.vy - a.vy;
+      const double acx = c.vx - a.vx;
+      const double acy = c.vy - a.vy;
+      const double apx = -a.vx;
+      const double apy = -a.vy;
+
+      const double d1 = dot2(abx, aby, apx, apy);
+      const double d2 = dot2(acx, acy, apx, apy);
+      if (d1 <= 0.0 and d2 <= 0.0)
+        {
+          out.reduced_simplex = {a};
+          out.cx = a.vx;
+          out.cy = a.vy;
+          out.witness_a = a.a;
+          out.witness_b = a.b;
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double bpx = -b.vx;
+      const double bpy = -b.vy;
+      const double d3 = dot2(abx, aby, bpx, bpy);
+      const double d4 = dot2(acx, acy, bpx, bpy);
+      if (d3 >= 0.0 and d4 <= d3)
+        {
+          out.reduced_simplex = {b};
+          out.cx = b.vx;
+          out.cy = b.vy;
+          out.witness_a = b.a;
+          out.witness_b = b.b;
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double vc = d1 * d4 - d3 * d2;
+      if (vc <= 0.0 and d1 >= 0.0 and d3 <= 0.0)
+        {
+          const double t = d1 / (d1 - d3);
+          out.reduced_simplex = {a, b};
+          out.cx = a.vx + t * abx;
+          out.cy = a.vy + t * aby;
+          out.witness_a = lerp_point(a.a, b.a, t);
+          out.witness_b = lerp_point(a.b, b.b, t);
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double cpx = -c.vx;
+      const double cpy = -c.vy;
+      const double d5 = dot2(abx, aby, cpx, cpy);
+      const double d6 = dot2(acx, acy, cpx, cpy);
+      if (d6 >= 0.0 and d5 <= d6)
+        {
+          out.reduced_simplex = {c};
+          out.cx = c.vx;
+          out.cy = c.vy;
+          out.witness_a = c.a;
+          out.witness_b = c.b;
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double vb = d5 * d2 - d1 * d6;
+      if (vb <= 0.0 and d2 >= 0.0 and d6 <= 0.0)
+        {
+          const double t = d2 / (d2 - d6);
+          out.reduced_simplex = {a, c};
+          out.cx = a.vx + t * acx;
+          out.cy = a.vy + t * acy;
+          out.witness_a = lerp_point(a.a, c.a, t);
+          out.witness_b = lerp_point(a.b, c.b, t);
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      const double va = d3 * d6 - d5 * d4;
+      if (va <= 0.0 and d4 - d3 >= 0.0 and d5 - d6 >= 0.0)
+        {
+          const double t = (d4 - d3) / (d4 - d3 + (d5 - d6));
+          const double bcx = c.vx - b.vx;
+          const double bcy = c.vy - b.vy;
+          out.reduced_simplex = {b, c};
+          out.cx = b.vx + t * bcx;
+          out.cy = b.vy + t * bcy;
+          out.witness_a = lerp_point(b.a, c.a, t);
+          out.witness_b = lerp_point(b.b, c.b, t);
+          out.contains_origin = norm2(out.cx, out.cy) <= kEps * kEps;
+          return out;
+        }
+
+      // Origin is inside triangle.
+      const double denom = va + vb + vc;
+      if (std::fabs(denom) <= kEps)
+        {
+          out.reduced_simplex = {a, b, c};
+          out.cx = 0.0;
+          out.cy = 0.0;
+          out.witness_a = a.a;
+          out.witness_b = a.b;
+          out.contains_origin = true;
+          return out;
+        }
+
+      const double inv = 1.0 / denom;
+      const double wa = va * inv;
+      const double wb = vb * inv;
+      const double wc = vc * inv;
+      out.reduced_simplex = {a, b, c};
+      out.cx = 0.0;
+      out.cy = 0.0;
+      out.witness_a = point_from_double(wa * to_double(a.a.get_x()) +
+                                        wb * to_double(b.a.get_x()) +
+                                        wc * to_double(c.a.get_x()),
+                                        wa * to_double(a.a.get_y()) +
+                                        wb * to_double(b.a.get_y()) +
+                                        wc * to_double(c.a.get_y()));
+      out.witness_b = point_from_double(wa * to_double(a.b.get_x()) +
+                                        wb * to_double(b.b.get_x()) +
+                                        wc * to_double(c.b.get_x()),
+                                        wa * to_double(a.b.get_y()) +
+                                        wb * to_double(b.b.get_y()) +
+                                        wc * to_double(c.b.get_y()));
+      out.contains_origin = true;
+      return out;
+    }
+
+    [[nodiscard]] static Result
+    exact_refine_disjoint(const Polygon & p,
+                          const Polygon & q,
+                          const Array<Point> & pv,
+                          const Array<Point> & qv)
+    {
+      Result out;
+      out.intersects = false;
+
+      if (polygons_intersect_or_contain(p, q))
+        {
+          out.distance_squared = 0;
+          out.distance = 0;
+          out.closest_on_first = pv(0);
+          out.closest_on_second = pv(0);
+          out.intersects = true;
+          return out;
+        }
+
+      bool has_best = false;
+      Geom_Number best_d2 = 0;
+      Point best_a, best_b;
+
+      for (size_t i = 0; i < pv.size(); ++i)
+        {
+          const Point & pnt = pv(i);
+          for (size_t j = 0; j < qv.size(); ++j)
+            {
+              const Point & q0 = qv(j);
+              const Point & q1 = qv((j + 1) % qv.size());
+              const Segment edge(q0, q1);
+              const Point proj = edge.project(pnt);
+              if (const Geom_Number d2 = pnt.distance_squared_to(proj); not has_best or d2 < best_d2)
+                {
+                  has_best = true;
+                  best_d2 = d2;
+                  best_a = pnt;
+                  best_b = proj;
+                }
+            }
+        }
+
+      for (size_t i = 0; i < qv.size(); ++i)
+        {
+          const Point & pnt = qv(i);
+          for (size_t j = 0; j < pv.size(); ++j)
+            {
+              const Point & p0 = pv(j);
+              const Point & p1 = pv((j + 1) % pv.size());
+              const Segment edge(p0, p1);
+              const Point proj = edge.project(pnt);
+              if (const Geom_Number d2 = pnt.distance_squared_to(proj); not has_best or d2 < best_d2)
+                {
+                  has_best = true;
+                  best_d2 = d2;
+                  best_a = proj;
+                  best_b = pnt;
+                }
+            }
+        }
+
+      ah_domain_error_if(not has_best) << "Could not compute distance between convex polygons";
+
+      out.distance_squared = best_d2;
+      out.distance = square_root(best_d2);
+      out.closest_on_first = best_a;
+      out.closest_on_second = best_b;
+      out.intersects = (best_d2 == 0);
+      return out;
+    }
+
+  public:
+    /**
+     * @brief Compute the distance between two closed convex polygons.
+     *
+     * @throws domain_error If either polygon is open, has < 3 vertices,
+     *         or is non-convex.
+     */
+    [[nodiscard]] Result operator ()(const Polygon & p,
+                                     const Polygon & q) const
+    {
+      ah_domain_error_if(not p.is_closed()) << "First polygon must be closed";
+      ah_domain_error_if(not q.is_closed()) << "Second polygon must be closed";
+      ah_domain_error_if(p.size() < 3) << "First polygon must have at least 3 vertices";
+      ah_domain_error_if(q.size() < 3) << "Second polygon must have at least 3 vertices";
+
+      const Array<Point> pv = GeomPolygonUtils::extract_vertices(p);
+      const Array<Point> qv = GeomPolygonUtils::extract_vertices(q);
+
+      ah_domain_error_if(not GeomPolygonUtils::is_convex(pv))
+        << "First polygon must be convex";
+      ah_domain_error_if(not GeomPolygonUtils::is_convex(qv))
+        << "Second polygon must be convex";
+
+      // Fast exact overlap check to avoid unnecessary iterations.
+      if (polygons_intersect_or_contain(p, q))
+        {
+          Result r;
+          r.distance_squared = 0;
+          r.distance = 0;
+          r.closest_on_first = pv(0);
+          r.closest_on_second = pv(0);
+          r.intersects = true;
+          return r;
+        }
+
+      Point cp = centroid_of(pv);
+      Point cq = centroid_of(qv);
+      double dirx = to_double(cp.get_x() - cq.get_x());
+      double diry = to_double(cp.get_y() - cq.get_y());
+      if (norm2(dirx, diry) <= kEps * kEps)
+        {
+          dirx = 1.0;
+          diry = 0.0;
+        }
+
+      std::vector<SupportPoint> simplex;
+      simplex.reserve(3);
+      simplex.push_back(support(pv, qv, dirx, diry));
+      dirx = -simplex[0].vx;
+      diry = -simplex[0].vy;
+
+      double prev_d2 = std::numeric_limits<double>::infinity();
+      size_t iters = 0;
+
+      for (; iters < kMaxIters; ++iters)
+        {
+          if (norm2(dirx, diry) <= kEps * kEps)
+            break;
+
+          simplex.push_back(support(pv, qv, dirx, diry));
+          if (simplex.size() > 3)
+            simplex.erase(simplex.begin());
+
+          ClosestSimplexResult step = closest_from_simplex(simplex);
+          simplex = std::move(step.reduced_simplex);
+
+          const double d2 = norm2(step.cx, step.cy);
+          if (step.contains_origin or d2 <= kEps * kEps)
+            {
+              Result r;
+              r.distance_squared = 0;
+              r.distance = 0;
+              r.closest_on_first = step.witness_a;
+              r.closest_on_second = step.witness_b;
+              r.intersects = true;
+              r.gjk_iterations = iters + 1;
+              return r;
+            }
+
+          if (prev_d2 - d2 <= kEps * std::max(1.0, prev_d2))
+            break;
+
+          prev_d2 = d2;
+          dirx = -step.cx;
+          diry = -step.cy;
+        }
+
+      Result refined = exact_refine_disjoint(p, q, pv, qv);
+      refined.gjk_iterations = iters;
+      return refined;
+    }
+  };
+
+  // ============================================================================
+  // KD-Tree Point Search — O(log n) Nearest Neighbor
+  // ============================================================================
+
+  /**
+   * @brief Spatial point index for O(log n) nearest-neighbor queries.
+   *
+   * This is a thin wrapper around `K2Tree<>` (see `tpl_2dtree.H`) that
+   * provides a convenient interface consistent with the other geometry
+   * algorithms in this file.
+   *
+   * ## Complexity
+   *
+   * - Build (balanced):   O(n log n)
+   * - Insert:             O(log n) average, O(n) worst case
+   * - Nearest neighbor:   O(log n) average, O(n) worst case
+   * - Range query:        O(√n + k) where k is output size
+   * - Contains:           O(log n) average
+   *
+   * @par Example
+   * @code
+   * Array<Point> pts;
+   * pts.append(Point(0,0));
+   * pts.append(Point(2,0));
+   * pts.append(Point(0,2));
+   * auto kd = KDTreePointSearch::build(pts, 0, 0, 2, 2);
+   * auto nn = kd.nearest(Point(1,1));
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class KDTreePointSearch
+  {
+    K2Tree<> tree;
+    Array<Point> points_;
+    Rectangle bounds_;
+
+    [[nodiscard]] static bool lexicographic_less(const Point & a, const Point & b)
+    {
+      if (a.get_x() < b.get_x()) return true;
+      if (b.get_x() < a.get_x()) return false;
+      return a.get_y() < b.get_y();
+    }
+
+    [[nodiscard]] static Array<Point> unique_points(Array<Point> points)
+    {
+      quicksort_op(points, [](const Point & a, const Point & b)
+                     {
+                       return lexicographic_less(a, b);
+                     });
+      Array<Point> uniq;
+      uniq.reserve(points.size());
+      for (size_t i = 0; i < points.size(); ++i)
+        if (uniq.is_empty() or uniq.get_last() != points(i))
+          uniq.append(points(i));
+      return uniq;
+    }
+
+  public:
+    /**
+     * @brief Represents a spatial partition or leaf in the KD-tree.
+     */
+    struct DebugPartition
+    {
+      Rectangle region;           ///< Geometric region covered by this node.
+      bool split_on_x = true;     ///< True if split is vertical, false if horizontal.
+      Geom_Number split_value = 0; ///< The coordinate value of the split.
+      size_t depth = 0;           ///< Depth of the node in the tree.
+      bool is_leaf = false;       ///< True if it's a leaf node.
+      Point representative = Point(0, 0); ///< Point stored in the leaf.
+    };
+
+    /**
+     * @brief A complete snapshot of the tree for debugging.
+     */
+    struct DebugSnapshot
+    {
+      Rectangle bounds;                 ///< Global bounding box of the tree.
+      Array<Point> points;              ///< All points stored in the tree.
+      Array<DebugPartition> partitions; ///< List of all internal and leaf partitions.
+    };
+
+    /**
+     * @brief Construct an empty KD-tree for the given bounding region.
+     *
+     * @param xmin Minimum x of bounding box.
+     * @param ymin Minimum y of bounding box.
+     * @param xmax Maximum x of bounding box.
+     * @param ymax Maximum y of bounding box.
+     */
+    KDTreePointSearch(const Geom_Number & xmin, const Geom_Number & ymin,
+                      const Geom_Number & xmax, const Geom_Number & ymax)
+      : tree(xmin, ymin, xmax, ymax),
+        bounds_(xmin, ymin, xmax, ymax)
+    {}
+
+    /**
+     * @brief Build a balanced KD-tree from a point array.
+     *
+     * @param points Input points (duplicates removed internally).
+     * @param xmin Minimum x of bounding box.
+     * @param ymin Minimum y of bounding box.
+     * @param xmax Maximum x of bounding box.
+     * @param ymax Maximum y of bounding box.
+     * @return A balanced KDTreePointSearch.
+     */
+    [[nodiscard]] static KDTreePointSearch
+    build(const Array<Point> & points,
+          const Geom_Number & xmin, const Geom_Number & ymin,
+          const Geom_Number & xmax, const Geom_Number & ymax)
+    {
+      KDTreePointSearch kd(xmin, ymin, xmax, ymax);
+      kd.tree = K2Tree<>::build(points, Point(xmin, ymin),
+                                Point(xmax, ymax));
+      kd.points_ = unique_points(points);
+      return kd;
+    }
+
+    /// @brief Insert a point. Returns true if inserted, false if duplicate.
+    bool insert(const Point & p)
+    {
+      if (not tree.insert(p))
+        return false;
+      points_.append(p);
+      return true;
+    }
+
+    /// @brief Check if a point exists in the tree.
+    [[nodiscard]] bool contains(const Point & p) const
+    {
+      return tree.contains(p);
+    }
+
+    /// @brief Find the nearest neighbor to query point @p p.
+    [[nodiscard]] std::optional<Point> nearest(const Point & p) const
+    {
+      return tree.nearest(p);
+    }
+
+    /// @brief Collect all points inside the given rectangle.
+    void range(const Geom_Number & xmin, const Geom_Number & ymin,
+               const Geom_Number & xmax, const Geom_Number & ymax,
+               DynList<Point> *out) const
+    {
+      tree.range({xmin, ymin, xmax, ymax}, out);
+    }
+
+    /// @brief Return the number of points in the tree.
+    [[nodiscard]] size_t size() const noexcept { return tree.size(); }
+
+    /// @brief Return true if the tree is empty.
+    [[nodiscard]] bool is_empty() const noexcept { return tree.is_empty(); }
+
+    /// @brief Apply an operation to every point (inorder traversal).
+    template <typename Op>
+    void for_each(Op && op) const
+    {
+      tree.for_each(std::forward<Op>(op));
+    }
+
+    /**
+     * @brief Build a deterministic geometric partition snapshot for visualization.
+     *
+     * The snapshot uses the current point set and alternates split axis by
+     * depth (x/y), producing a balanced partition tree suitable for didactic
+     * rendering.
+     */
+    [[nodiscard]] DebugSnapshot debug_snapshot() const
+    {
+      DebugSnapshot snap;
+      snap.bounds = bounds_;
+      snap.points = points_;
+      if (points_.is_empty())
+        return snap;
+
+      auto recurse = [&](const auto & self,
+                         const Array<Point> & pts,
+                         const Rectangle & region,
+                         const size_t depth,
+                         const bool split_on_x) -> void
+        {
+          if (pts.is_empty())
+            return;
+
+          Array<Point> sorted = pts;
+          quicksort_op(sorted, [split_on_x](const Point & a, const Point & b)
+                         {
+                           if (split_on_x)
+                             {
+                               if (a.get_x() != b.get_x()) return a.get_x() < b.get_x();
+                               return a.get_y() < b.get_y();
+                             }
+                           if (a.get_y() != b.get_y()) return a.get_y() < b.get_y();
+                           return a.get_x() < b.get_x();
+                         });
+
+          size_t mid = sorted.size() / 2;
+          if (mid == 0) mid = 1;
+          if (mid >= sorted.size()) mid = sorted.size() - 1;
+
+          const Point pivot = sorted(mid);
+          DebugPartition part;
+          part.region = region;
+          part.split_on_x = split_on_x;
+          part.split_value = split_on_x ? pivot.get_x() : pivot.get_y();
+          part.depth = depth;
+          part.is_leaf = sorted.size() == 1;
+          part.representative = pivot;
+          snap.partitions.append(part);
+
+          if (sorted.size() == 1)
+            return;
+
+          Array<Point> left_pts;
+          Array<Point> right_pts;
+          left_pts.reserve(mid);
+          right_pts.reserve(sorted.size() - mid);
+          for (size_t i = 0; i < mid; ++i)
+            left_pts.append(sorted(i));
+          for (size_t i = mid; i < sorted.size(); ++i)
+            right_pts.append(sorted(i));
+
+          if (split_on_x)
+            {
+              Rectangle left(region.get_xmin(), region.get_ymin(),
+                             pivot.get_x(), region.get_ymax());
+              Rectangle right(pivot.get_x(), region.get_ymin(),
+                              region.get_xmax(), region.get_ymax());
+              self(self, left_pts, left, depth + 1, false);
+              self(self, right_pts, right, depth + 1, false);
+            }
+          else
+            {
+              Rectangle bottom(region.get_xmin(), region.get_ymin(),
+                               region.get_xmax(), pivot.get_y());
+              Rectangle top(region.get_xmin(), pivot.get_y(),
+                            region.get_xmax(), region.get_ymax());
+              self(self, left_pts, bottom, depth + 1, true);
+              self(self, right_pts, top, depth + 1, true);
+            }
+        };
+
+      recurse(recurse, points_, bounds_, 0, true);
+      return snap;
+    }
+  };
+
+  // ============================================================================
+  // Convex Polygon Decomposition — Hertel-Mehlhorn
+  // ============================================================================
+
+  /**
+   * @brief Decompose a simple polygon into convex parts using Hertel-Mehlhorn.
+   *
+   * The algorithm triangulates the polygon, then greedily removes internal
+   * diagonals whose removal keeps the merged region convex.
+   *
+   * ## Algorithm
+   *
+   * 1. Triangulate the polygon (via MonotonePolygonTriangulation).
+   * 2. For each internal diagonal shared by two convex faces, check whether
+   *    removing it (merging the two faces) preserves convexity.
+   * 3. Remove all such diagonals greedily.
+   *
+   * ## Complexity
+   *
+   * - Time:  O(n log n) for triangulation + O(n²) for merging = O(n²)
+   * - Space: O(n)
+   * - The output has at most 4× the optimal number of convex parts.
+   *
+   * @par Example
+   * @code
+   * Polygon poly;
+   * poly.add_vertex(Point(0,0)); poly.add_vertex(Point(4,0));
+   * poly.add_vertex(Point(4,1)); poly.add_vertex(Point(1,1));
+   * poly.add_vertex(Point(1,4)); poly.add_vertex(Point(0,4));
+   * poly.close();
+   * ConvexPolygonDecomposition dec;
+   * auto parts = dec(poly);
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class ConvexPolygonDecomposition
+  {
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
+
+    [[nodiscard]] static size_t find_pos(const Array<size_t> & face, size_t v)
+    {
+      for (size_t i = 0; i < face.size(); ++i)
+        if (face(i) == v)
+          return i;
+      return NONE;
+    }
+
+    [[nodiscard]] static bool is_polygon_edge(size_t u, size_t v, size_t n)
+    {
+      if (u > v)
+        {
+          const size_t tmp = u;
+          u = v;
+          v = tmp;
+        }
+      return v == u + 1 or (u == 0 and v == n - 1);
+    }
+
+    /// Check whether merging faces f1 and f2 across diagonal (u,v) is convex.
+    [[nodiscard]] static bool can_merge(const Array<Point> & pts,
+                                        const Array<size_t> & f1,
+                                        const Array<size_t> & f2,
+                                        size_t u, size_t v)
+    {
+      const size_t n1 = f1.size();
+      const size_t n2 = f2.size();
+
+      size_t pu1 = find_pos(f1, u);
+      size_t pv1 = find_pos(f1, v);
+
+      // Ensure u is followed by v in f1 (CCW).  If not, swap roles.
+      if ((pu1 + 1) % n1 != pv1)
+        {
+          const size_t tmp = u;
+          u = v;
+          v = tmp;
+          pu1 = find_pos(f1, u);
+          pv1 = find_pos(f1, v);
+        }
+
+      const size_t prev_u = f1((pu1 + n1 - 1) % n1);
+      const size_t next_v = f1((pv1 + 1) % n1);
+
+      const size_t pu2 = find_pos(f2, u);
+      const size_t pv2 = find_pos(f2, v);
+
+      const size_t next_u = f2((pu2 + 1) % n2);
+      const size_t prev_v = f2((pv2 + n2 - 1) % n2);
+
+      if (orientation(pts(prev_u), pts(u), pts(next_u)) == Orientation::CW)
+        return false;
+      if (orientation(pts(prev_v), pts(v), pts(next_v)) == Orientation::CW)
+        return false;
+
+      return true;
+    }
+
+    /// Merge f1 and f2 by removing their shared edge (u,v).
+    [[nodiscard]] static Array<size_t> merge_faces(const Array<size_t> & f1,
+                                                   const Array<size_t> & f2,
+                                                   size_t u, size_t v)
+    {
+      const size_t n1 = f1.size();
+      const size_t n2 = f2.size();
+
+      size_t pu1 = find_pos(f1, u);
+      size_t pv1 = find_pos(f1, v);
+
+      if ((pu1 + 1) % n1 != pv1)
+        {
+          const size_t tmp = u;
+          u = v;
+          v = tmp;
+          pv1 = find_pos(f1, v);
+        }
+
+      const size_t pu2 = find_pos(f2, u);
+
+      Array<size_t> merged;
+      merged.reserve(n1 + n2 - 2);
+
+      // Part 1: f1 vertices from after v around to u (inclusive), skip v.
+      for (size_t k = 0; k < n1 - 1; ++k)
+        merged.append(f1((pv1 + 1 + k) % n1));
+
+      // Part 2: f2 vertices from after u around to v (inclusive), skip u.
+      for (size_t k = 0; k < n2 - 1; ++k)
+        merged.append(f2((pu2 + 1 + k) % n2));
+
+      return merged;
+    }
+
+    [[nodiscard]] static Array<Point> extract_vertices(const Polygon & p)
+    {
+      return GeomPolygonUtils::extract_vertices(p);
+    }
+
+  public:
+    /**
+     * @brief Decompose polygon @p poly into convex parts.
+     *
+     * @param poly  A closed simple polygon with ≥ 3 vertices.
+     * @return Array of closed convex polygons partitioning the input.
+     */
+    [[nodiscard]] Array<Polygon> operator()(const Polygon & poly) const
+    {
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(poly.size() < 3) << "Polygon must have >= 3 vertices";
+
+      const Array<Point> pts = extract_vertices(poly);
+      const size_t n = pts.size();
+
+      if (n == 3)
+        {
+          Array<Polygon> result;
+          result.append(poly);
+          return result;
+        }
+
+      // Triangulate.
+      MonotonePolygonTriangulation triang;
+      DynList<Triangle> tri_list = triang(poly);
+
+      // Build indexed faces from triangles.
+      Array<Array<size_t>> faces;
+      for (DynList<Triangle>::Iterator it(tri_list); it.has_curr(); it.next_ne())
+        {
+          const Triangle & t = it.get_curr();
+          size_t i0 = NONE, i1 = NONE, i2 = NONE;
+          for (size_t i = 0; i < n; ++i)
+            {
+              if (i0 == NONE and pts(i) == t.get_p1()) i0 = i;
+              if (i1 == NONE and pts(i) == t.get_p2()) i1 = i;
+              if (i2 == NONE and pts(i) == t.get_p3()) i2 = i;
+            }
+          if (i0 == NONE or i1 == NONE or i2 == NONE)
+            continue;
+
+          if (orientation(pts(i0), pts(i1), pts(i2)) == Orientation::CW)
+            {
+              const size_t tmp = i1;
+              i1 = i2;
+              i2 = tmp;
+            }
+
+          Array<size_t> face;
+          face.append(i0);
+          face.append(i1);
+          face.append(i2);
+          faces.append(std::move(face));
+        }
+
+      // Hertel-Mehlhorn: greedily merge across diagonals.
+      bool changed = true;
+      while (changed)
+        {
+          changed = false;
+          for (size_t fi = 0; fi < faces.size() and not changed; ++fi)
+            {
+              const auto f1 = faces(fi); // copy to avoid dangling when faces mutates
+              for (size_t k = 0; k < f1.size() and not changed; ++k)
+                {
+                  const size_t u = f1(k);
+                  const size_t v = f1((k + 1) % f1.size());
+
+                  if (is_polygon_edge(u, v, n))
+                    continue;
+
+                  for (size_t fj = fi + 1; fj < faces.size() and not changed; ++fj)
+                    {
+                      const auto f2 = faces(fj); // copy for the same reason
+                      if (find_pos(f2, u) == NONE or find_pos(f2, v) == NONE)
+                        continue;
+
+                      if (not can_merge(pts, f1, f2, u, v))
+                        continue;
+
+                      Array<size_t> merged = merge_faces(f1, f2, u, v);
+
+                      Array<Array<size_t>> new_faces;
+                      new_faces.reserve(faces.size() - 1);
+                      for (size_t i = 0; i < faces.size(); ++i)
+                        {
+                          if (i == fi)
+                            new_faces.append(std::move(merged));
+                          else if (i != fj)
+                            new_faces.append(std::move(faces(i)));
+                        }
+                      faces = std::move(new_faces);
+                      changed = true;
+                    }
+                }
+            }
+        }
+
+      // Convert index faces to Polygons.
+      Array<Polygon> result;
+      result.reserve(faces.size());
+      for (size_t fi = 0; fi < faces.size(); ++fi)
+        {
+          Polygon p;
+          for (size_t k = 0; k < faces(fi).size(); ++k)
+            p.add_vertex(pts(faces(fi)(k)));
+          if (p.size() >= 3)
+            {
+              p.close();
+              result.append(std::move(p));
+            }
+        }
+
+      return result;
+    }
+  };
+
+  // ============================================================================
+  // Range Tree 2D — Orthogonal Range Queries
+  // ============================================================================
+
+  /**
+   * @brief Static 2D range tree for orthogonal range queries.
+   *
+   * Supports axis-aligned rectangle queries: given [xmin,xmax] × [ymin,ymax],
+   * find all points inside.
+   *
+   * ## Complexity
+   * - Build:  O(n log n) time, O(n log n) space
+   * - Query:  O(log² n + k) where k = output size
+   *
+   * @par Example
+   * @code
+   * Array<Point> pts;
+   * pts.append(Point(0,0));
+   * pts.append(Point(2,1));
+   * pts.append(Point(3,3));
+   * RangeTree2D rt;
+   * rt.build(pts);
+   * Array<Point> out;
+   * rt.query(0, 0, 2, 2, out);
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class RangeTree2D
+  {
+  public:
+    /**
+     * @brief Represents a node in the range tree for debugging.
+     */
+    struct DebugNode
+    {
+      size_t tree_index = 0; ///< Implicit tree index (1-based).
+      size_t lo = 0;         ///< Lower index into the x-sorted point array.
+      size_t hi = 0;         ///< Upper index into the x-sorted point array.
+      size_t left = ~static_cast<size_t>(0);  ///< Left child tree index.
+      size_t right = ~static_cast<size_t>(0); ///< Right child tree index.
+      Geom_Number xmin = 0;  ///< Minimum x-coordinate in this subtree.
+      Geom_Number xmax = 0;  ///< Maximum x-coordinate in this subtree.
+      Geom_Number split_x = 0; ///< X-coordinate used to split this node.
+      size_t y_sorted_size = 0; ///< Number of points in the y-sorted secondary structure.
+      bool is_leaf = false;  ///< True if this is a leaf node.
+    };
+
+    /**
+     * @brief A complete snapshot of the range tree for debugging.
+     */
+    struct DebugSnapshot
+    {
+      Array<Point> x_sorted_points; ///< The underlying x-sorted point array.
+      Array<DebugNode> nodes;       ///< List of all nodes in debug format.
+    };
+
+  private:
+    /**
+     * @brief Internal node structure containing the y-sorted secondary array.
+     */
+    struct Node
+    {
+      Array<Point> y_sorted; ///< Points in this node's x-range, sorted by y.
+    };
+
+    Array<Point> pts_; ///< points sorted by x (primary key)
+    Array<Node> tree_; ///< implicit binary tree (1-indexed)
+    size_t n_ = 0;
+    bool built_ = false;
+
+    /// Binary search: first index i in arr where arr(i).get_y() >= ymin.
+    [[nodiscard]] static size_t lower_bound_y(const Array<Point> & arr,
+                                              const Geom_Number & ymin)
+    {
+      size_t lo = 0, hi = arr.size();
+      while (lo < hi)
+        if (const size_t mid = lo + (hi - lo) / 2; arr(mid).get_y() < ymin)
+          lo = mid + 1;
+        else
+          hi = mid;
+      return lo;
+    }
+
+    /// Binary search: first index i in arr where arr(i).get_y() > ymax.
+    [[nodiscard]] static size_t upper_bound_y(const Array<Point> & arr,
+                                              const Geom_Number & ymax)
+    {
+      size_t lo = 0, hi = arr.size();
+      while (lo < hi)
+        if (const size_t mid = lo + (hi - lo) / 2; arr(mid).get_y() <= ymax)
+          lo = mid + 1;
+        else
+          hi = mid;
+      return lo;
+    }
+
+    /// Binary search: first index i in pts_ where pts_(i).get_x() >= xval.
+    [[nodiscard]] size_t lower_bound_x(const Geom_Number & xval) const
+    {
+      size_t lo = 0, hi = n_;
+      while (lo < hi)
+        if (const size_t mid = lo + (hi - lo) / 2; pts_(mid).get_x() < xval)
+          lo = mid + 1;
+        else
+          hi = mid;
+      return lo;
+    }
+
+    /// Binary search: first index i in pts_ where pts_(i).get_x() > xval.
+    [[nodiscard]] size_t upper_bound_x(const Geom_Number & xval) const
+    {
+      size_t lo = 0, hi = n_;
+      while (lo < hi)
+        if (const size_t mid = lo + (hi - lo) / 2; pts_(mid).get_x() <= xval)
+          lo = mid + 1;
+        else
+          hi = mid;
+      return lo;
+    }
+
+    void build_node(const size_t node, const size_t lo, const size_t hi)
+    {
+      if (lo == hi)
+        {
+          tree_(node).y_sorted.append(pts_(lo));
+          return;
+        }
+
+      const size_t mid = lo + (hi - lo) / 2;
+      build_node(2 * node, lo, mid);
+      build_node(2 * node + 1, mid + 1, hi);
+
+      // Merge children's y-sorted arrays.
+      const auto & left = tree_(2 * node).y_sorted;
+      const auto & right = tree_(2 * node + 1).y_sorted;
+      auto & merged = tree_(node).y_sorted;
+      merged.reserve(left.size() + right.size());
+
+      size_t i = 0, j = 0;
+      while (i < left.size() and j < right.size())
+        if (left(i).get_y() < right(j).get_y() or
+            (left(i).get_y() == right(j).get_y() &&
+             left(i).get_x() <= right(j).get_x()))
+          merged.append(left(i++));
+        else
+          merged.append(right(j++));
+      while (i < left.size())
+        merged.append(left(i++));
+      while (j < right.size())
+        merged.append(right(j++));
+    }
+
+    void query_range(const size_t node, const size_t lo, const size_t hi,
+                     const size_t qlo, const size_t qhi,
+                     const Geom_Number & ymin, const Geom_Number & ymax,
+                     DynList<Point> & out) const
+    {
+      if (qlo > qhi or lo > qhi or hi < qlo)
+        return;
+
+      if (qlo <= lo and hi <= qhi)
+        {
+          const auto & ys = tree_(node).y_sorted;
+          const size_t from = lower_bound_y(ys, ymin);
+          const size_t to = upper_bound_y(ys, ymax);
+          for (size_t i = from; i < to; ++i)
+            out.append(ys(i));
+          return;
+        }
+
+      const size_t mid = lo + (hi - lo) / 2;
+      query_range(2 * node, lo, mid, qlo, qhi, ymin, ymax, out);
+      query_range(2 * node + 1, mid + 1, hi, qlo, qhi, ymin, ymax, out);
+    }
+
+  public:
+    /// Build the range tree from a point set.
+    void build(const DynList<Point> & points)
+    {
+      pts_ = Array<Point>();
+      for (DynList<Point>::Iterator it(points); it.has_curr(); it.next_ne())
+        pts_.append(it.get_curr());
+
+      n_ = pts_.size();
+      if (n_ == 0)
+        {
+          built_ = true;
+          return;
+        }
+
+      quicksort_op(pts_, [](const Point & a, const Point & b)
+                     {
+                       return a.get_x() < b.get_x() ||
+                              (a.get_x() == b.get_x() and a.get_y() < b.get_y());
+                     });
+
+      tree_ = Array<Node>();
+      const size_t tree_sz = 4 * n_ + 4;
+      tree_.reserve(tree_sz);
+      for (size_t i = 0; i < tree_sz; ++i)
+        tree_.append(Node{Array<Point>()});
+
+      build_node(1, 0, n_ - 1);
+      built_ = true;
+    }
+
+    /// Query: return all points inside [xmin,xmax] × [ymin,ymax].
+    [[nodiscard]] DynList<Point> query(const Geom_Number & xmin,
+                                       const Geom_Number & xmax,
+                                       const Geom_Number & ymin,
+                                       const Geom_Number & ymax) const
+    {
+      DynList<Point> out;
+      if (not built_ or n_ == 0)
+        return out;
+
+      const size_t qlo = lower_bound_x(xmin);
+      const size_t qhi = upper_bound_x(xmax);
+      if (qhi == 0)
+        return out;
+
+      query_range(1, 0, n_ - 1, qlo, qhi - 1, ymin, ymax, out);
+      return out;
+    }
+
+    [[nodiscard]] size_t size() const noexcept { return n_; }
+
+    [[nodiscard]] bool is_empty() const noexcept { return n_ == 0; }
+
+    /// @brief Return structural snapshot for visualization/debug.
+    [[nodiscard]] DebugSnapshot debug_snapshot() const
+    {
+      DebugSnapshot snap;
+      snap.x_sorted_points = pts_;
+      if (not built_ or n_ == 0)
+        return snap;
+
+      auto build_debug = [&](const auto & self,
+                             const size_t tree_idx,
+                             const size_t lo,
+                             const size_t hi) -> size_t
+        {
+          const size_t out_idx = snap.nodes.size();
+          snap.nodes.append(DebugNode{});
+          DebugNode & dn = snap.nodes(out_idx);
+          dn.tree_index = tree_idx;
+          dn.lo = lo;
+          dn.hi = hi;
+          dn.is_leaf = lo == hi;
+          dn.xmin = pts_(lo).get_x();
+          dn.xmax = pts_(hi).get_x();
+          dn.y_sorted_size = tree_(tree_idx).y_sorted.size();
+          dn.split_x = pts_((lo + hi) / 2).get_x();
+
+          if (lo < hi)
+            {
+              const size_t mid = lo + (hi - lo) / 2;
+              dn.left = self(self, 2 * tree_idx, lo, mid);
+              dn.right = self(self, 2 * tree_idx + 1, mid + 1, hi);
+            }
+
+          return out_idx;
+        };
+
+      build_debug(build_debug, 1, 0, n_ - 1);
+      return snap;
+    }
+  };
+
+  // ============================================================================
+  // Convex Polygon Offset (Inward / Outward)
+  // ============================================================================
+
+  /**
+   * @brief Inward (erosion) and outward (dilation) offset of convex polygons.
+   *
+   * The inward offset shrinks the polygon by moving each edge inward by a
+   * perpendicular distance d, then intersecting the resulting half-planes.
+   * The outward offset expands it by moving edges outward and computing
+   * consecutive offset-line intersections.
+   *
+   * ## Complexity
+   * - Inward:  O(n log n) via HalfPlaneIntersection
+   * - Outward: O(n)
+   *
+   * @ingroup Geometry
+   */
+  class ConvexPolygonOffset
+  {
+    friend class PolygonOffset;
+
+    [[nodiscard]] static Array<Point> extract_verts(const Polygon & poly)
+    {
+      return GeomPolygonUtils::extract_vertices(poly);
+    }
+
+    [[nodiscard]] static Geom_Number signed_double_area(const Array<Point> & v)
+    {
+      return GeomPolygonUtils::signed_double_area(v);
+    }
+
+    [[nodiscard]] static bool is_convex(const Array<Point> & v)
+    {
+      if (v.size() < 3) return false;
+      return GeomPolygonUtils::is_convex(v);
+    }
+
+    static void ensure_ccw(Array<Point> & v)
+    {
+      GeomPolygonUtils::ensure_ccw(v);
+    }
+
+    /// Compute two points on the offset line of edge (a, b) moved by distance d
+    /// along its outward (or inward) normal.  inward=true for CCW polygon means
+    /// the normal is (dy, -dx) pointing to the interior.
+    ///
+    /// The entire computation is performed in mpfr_class space because
+    /// perpendicular-distance normalization involves sqrt, which is
+    /// irrational for general rational inputs.  Staying in mpfr avoids
+    /// the costly mpfr->mpq->mpfr round-trips that produce large-denominator
+    /// rationals and degrade subsequent arithmetic.
+    static void offset_edge(const Point & a, const Point & b,
+                            const Geom_Number & d, const bool inward,
+                            Point & oa, Point & ob)
+    {
+      const mpfr_class dx(b.get_x() - a.get_x());
+      const mpfr_class dy(b.get_y() - a.get_y());
+      const mpfr_class len = hypot(dx, dy);
+      const mpfr_class md(d);
+
+      // For CCW polygon: inward normal = (dy, -dx)/len, outward = (-dy, dx)/len
+      mpfr_class nx, ny;
+      if (inward)
+        {
+          nx = -dy * md / len;
+          ny = dx * md / len;
+        }
+      else
+        {
+          nx = dy * md / len;
+          ny = -dx * md / len;
+        }
+
+      oa = Point(Geom_Number(mpfr_class(a.get_x()) + nx),
+                 Geom_Number(mpfr_class(a.get_y()) + ny));
+      ob = Point(Geom_Number(mpfr_class(b.get_x()) + nx),
+                 Geom_Number(mpfr_class(b.get_y()) + ny));
+    }
+
+    /// Line-line intersection of (a1,a2) and (b1,b2).
+    [[nodiscard]] static Point line_intersect(const Point & a1, const Point & a2,
+                                              const Point & b1, const Point & b2)
+    {
+      const Geom_Number &a1x = a1.get_x(), &a1y = a1.get_y();
+      const Geom_Number &a2x = a2.get_x(), &a2y = a2.get_y();
+      const Geom_Number &b1x = b1.get_x(), &b1y = b1.get_y();
+      const Geom_Number &b2x = b2.get_x(), &b2y = b2.get_y();
+
+      const Geom_Number dax = a2x - a1x, day = a2y - a1y;
+      const Geom_Number dbx = b2x - b1x, dby = b2y - b1y;
+      const Geom_Number denom = dax * dby - day * dbx;
+      if (denom == 0)
+        {
+          // Consecutive offset lines can be parallel when the input has a
+          // collinear triple. In that case, use the shared shifted vertex.
+          return a2;
+        }
+
+      const Geom_Number t = ((b1x - a1x) * dby - (b1y - a1y) * dbx) / denom;
+      return {a1x + t * dax, a1y + t * day};
+    }
+
+  public:
+    /**
+     * @brief Inward offset (erosion) of a convex polygon.
+     *
+     * @param convex_poly A closed convex polygon.
+     * @param distance Perpendicular distance to move each edge inward.
+     * @return The offset polygon, or an empty polygon if distance is too large.
+     */
+    static Polygon inward(const Polygon & convex_poly,
+                          const Geom_Number & distance)
+    {
+      ah_domain_error_if(not convex_poly.is_closed()) << "Polygon must be closed";
+
+      Array<Point> v = extract_verts(convex_poly);
+
+      ah_domain_error_if(v.size() < 3) << "Polygon must have >= 3 vertices";
+      ah_domain_error_if(not is_convex(v)) << "Polygon must be convex";
+
+      if (distance == 0) return convex_poly;
+
+      ensure_ccw(v);
+      const size_t n = v.size();
+
+      Array<HalfPlaneIntersection::HalfPlane> hps;
+      hps.reserve(n);
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t j = (i + 1) % n;
+          Point oa, ob;
+          offset_edge(v(i), v(j), distance, true, oa, ob);
+          hps.append(HalfPlaneIntersection::HalfPlane(oa, ob));
+        }
+
+      constexpr HalfPlaneIntersection hpi;
+      return hpi(hps);
+    }
+
+    /**
+     * @brief Outward offset (dilation) of a convex polygon.
+     *
+     * @param convex_poly A closed convex polygon.
+     * @param distance Perpendicular distance to move each edge outward.
+     * @return The expanded polygon.
+     */
+    static Polygon outward(const Polygon & convex_poly, const Geom_Number & distance)
+    {
+      ah_domain_error_if(not convex_poly.is_closed()) << "Polygon must be closed";
+
+      Array<Point> v = extract_verts(convex_poly);
+
+      ah_domain_error_if(v.size() < 3) << "Polygon must have >= 3 vertices";
+      ah_domain_error_if(not is_convex(v)) << "Polygon must be convex";
+
+      if (distance == 0) return convex_poly;
+
+      ensure_ccw(v);
+      const size_t n = v.size();
+
+      // Compute offset lines for each edge.
+      Array<Point> oa, ob; // offset edge endpoints
+      oa.reserve(n);
+      ob.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          Point a, b;
+          offset_edge(v(i), v((i + 1) % n), distance, false, a, b);
+          oa.append(a);
+          ob.append(b);
+        }
+
+      // Intersect consecutive offset lines → new vertices.
+      Polygon result;
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t j = (i + 1) % n;
+          const Geom_Number dax = ob(i).get_x() - oa(i).get_x();
+          const Geom_Number day = ob(i).get_y() - oa(i).get_y();
+          const Geom_Number dbx = ob(j).get_x() - oa(j).get_x();
+          const Geom_Number dby = ob(j).get_y() - oa(j).get_y();
+          if (const Geom_Number denom = dax * dby - day * dbx; denom == 0)
+            // Collinear triples produce consecutive parallel offset lines:
+            // there is no corner vertex to add for that junction.
+            continue;
+
+          result.add_vertex(line_intersect(oa(i), ob(i), oa(j), ob(j)));
+        }
+      if (result.size() >= 3)
+        result.close();
+      return result;
+    }
+  };
+
+  // ============================================================================
+  // General Polygon Offset (non-convex)
+  // ============================================================================
+
+  /**
+   * @brief Offset (inflate/deflate) an arbitrary simple polygon.
+   *
+   * Unlike ConvexPolygonOffset, this class handles non-convex (simple)
+   * polygons.  The raw miter-join offset polygon may self-intersect at
+   * reflex vertices; a self-intersection cleanup phase extracts the valid
+   * contours.
+   *
+   * ## Algorithm
+   *
+   * 1. **Raw offset**: Shift each edge by `|d|` along its outward (d>0) or
+   *    inward (d<0) normal, then join consecutive offset edges at their
+   *    miter point (line–line intersection).  An optional miter limit
+   *    replaces excessively long miter joins with bevel (two-point) joins.
+   *
+   * 2. **Self-intersection cleanup**: O(n²) scan finds all proper
+   *    self-intersections of the raw polygon, builds an augmented vertex
+   *    list with crossing links, then traces valid CCW contours
+   *    (positive signed area).
+   *
+   * ## Complexity
+   * - Time:  O(n²) — dominated by the all-pairs edge intersection scan.
+   * - Space: O(n + k) where k = number of self-intersections.
+   *
+   * @ingroup Geometry
+   */
+  class PolygonOffset
+  {
+  public:
+    /**
+     * @brief Strategy for connecting offset edges at vertices.
+     */
+    enum class JoinType 
+    { 
+      Miter, ///< Extend edges until they intersect.
+      Bevel  ///< Connect edge endpoints with a straight line.
+    };
+
+    /**
+     * @brief The result of an offset operation, which may produce multiple polygons.
+     */
+    struct Result
+    {
+      Array<Polygon> polygons; ///< Set of resulting simple polygons.
+
+      /**
+       * @brief Checks if the result contains no polygons.
+       */
+      [[nodiscard]] bool is_empty() const noexcept
+      {
+        return polygons.is_empty();
+      }
+
+      [[nodiscard]] size_t size() const noexcept
+      {
+        return polygons.size();
+      }
+    };
+
+    /**
+     * @brief Offset a simple polygon by the given distance.
+     *
+     * @param poly     A closed simple polygon.
+     * @param distance Positive = outward (expand), negative = inward (shrink).
+     * @param join     Join strategy (Miter or Bevel).
+     * @param miter_limit  When miter distance exceeds miter_limit * |d|,
+     *                     fall back to bevel join.
+     * @return Zero or more result polygons.
+     */
+    [[nodiscard]] Result
+    operator()(const Polygon & poly, const Geom_Number & distance,
+               const JoinType join = JoinType::Miter,
+               const Geom_Number & miter_limit = Geom_Number(2)) const
+    {
+      ah_domain_error_if(not poly.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(poly.size() < 3) << "Polygon must have >= 3 vertices";
+
+      if (distance == 0)
+        {
+          Result r;
+          r.polygons.append(poly);
+          return r;
+        }
+
+      Array<Point> v = GeomPolygonUtils::extract_vertices(poly);
+      GeomPolygonUtils::ensure_ccw(v);
+
+      const Array<Point> raw = compute_raw_offset(v, distance, join, miter_limit);
+
+      if (raw.size() < 3)
+        return Result{};
+
+      return cleanup(raw);
+    }
+
+    /**
+     * @brief Convenience: return the single largest-area result polygon.
+     *
+     * @return The largest polygon, or an empty (0-vertex) polygon if the
+     *         offset collapses entirely.
+     */
+    [[nodiscard]] Polygon
+    offset_polygon(const Polygon & poly, const Geom_Number & distance,
+                   JoinType join = JoinType::Miter,
+                   const Geom_Number & miter_limit = Geom_Number(2)) const
+    {
+      Result r = (*this)(poly, distance, join, miter_limit);
+      if (r.is_empty())
+        return {};
+
+      size_t best = 0;
+      Geom_Number best_area = abs_area(r.polygons(0));
+      for (size_t i = 1; i < r.polygons.size(); ++i)
+        if (const Geom_Number a = abs_area(r.polygons(i)); a > best_area)
+          {
+            best_area = a;
+            best = i;
+          }
+      return r.polygons(best);
+    }
+
+  private:
+    // ----- helpers -----
+
+    [[nodiscard]] static Geom_Number abs_area(const Polygon & p)
+    {
+      Geom_Number a = GeomPolygonUtils::signed_double_area(p);
+      if (a < 0) a = -a;
+      return a;
+    }
+
+    /// Compute two points on the offset line of edge (a→b) shifted by |d|
+    /// along its outward or inward normal.  Delegates to mpfr arithmetic.
+    static void offset_edge(const Point & a, const Point & b,
+                            const Geom_Number & d, const bool inward,
+                            Point & oa, Point & ob)
+    {
+      ConvexPolygonOffset::offset_edge(a, b, d, inward, oa, ob);
+    }
+
+    /// Line–line intersection of (a1,a2) and (b1,b2).
+    [[nodiscard]] static Point line_intersect(const Point & a1, const Point & a2,
+                                              const Point & b1, const Point & b2)
+    {
+      return ConvexPolygonOffset::line_intersect(a1, a2, b1, b2);
+    }
+
+    // ----- Phase 1: raw offset polygon -----
+
+    /// Compute the squared distance between two points.
+    [[nodiscard]] static Geom_Number sq_dist(const Point & a, const Point & b)
+    {
+      const Geom_Number dx = b.get_x() - a.get_x();
+      const Geom_Number dy = b.get_y() - a.get_y();
+      return dx * dx + dy * dy;
+    }
+
+    [[nodiscard]] static Array<Point>
+    compute_raw_offset(const Array<Point> & v, const Geom_Number & distance,
+                       const JoinType join, const Geom_Number & miter_limit)
+    {
+      const size_t n = v.size();
+      const bool inward = distance < 0;
+      Geom_Number d = distance;
+      if (inward) d = -distance;
+
+      // Compute offset edge pairs.
+      Array<Point> oa, ob;
+      oa.reserve(n);
+      ob.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          Point a, b;
+          offset_edge(v(i), v((i + 1) % n), d, inward, a, b);
+          oa.append(a);
+          ob.append(b);
+        }
+
+      // Join consecutive offset edges, tracking junction boundaries.
+      const Geom_Number miter_sq = miter_limit * miter_limit * d * d;
+      Array<Point> raw;
+      raw.reserve(n * 2);
+
+      // junction_first[i] = index in raw where junction i's vertices begin.
+      // junction_count[i] = number of vertices emitted for junction i.
+      Array<size_t> junction_first, junction_count;
+      junction_first.reserve(n);
+      junction_count.reserve(n);
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t j = (i + 1) % n;
+          junction_first.append(raw.size());
+
+          const Geom_Number dax = ob(i).get_x() - oa(i).get_x();
+          const Geom_Number day = ob(i).get_y() - oa(i).get_y();
+          const Geom_Number dbx = ob(j).get_x() - oa(j).get_x();
+          const Geom_Number dby = ob(j).get_y() - oa(j).get_y();
+
+          if (const Geom_Number denom = dax * dby - day * dbx; denom == 0)
+            {
+              junction_count.append(0);
+              continue;
+            }
+
+          if (const Point miter = line_intersect(oa(i), ob(i), oa(j), ob(j)); join == JoinType::Bevel or
+                                                                              (join == JoinType::Miter &&
+                                                                               sq_dist(v((i + 1) % n), miter) >
+                                                                               miter_sq))
+            {
+              raw.append(ob(i));
+              raw.append(oa(j));
+              junction_count.append(2);
+            }
+          else
+            {
+              raw.append(miter);
+              junction_count.append(1);
+            }
+        }
+
+      // Validate edge directions: for each span between consecutive
+      // junctions, the direction must match the corresponding original edge.
+      // A reversed direction indicates that the offset has "crossed through"
+      // the polygon (excessive offset).
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t j = (i + 1) % n;
+          if (junction_count(i) == 0 || junction_count(j) == 0)
+            continue;
+
+          // Span runs from the last vertex of junction i to the first
+          // vertex of junction j, along offset edge (i+1)%n.
+          const size_t span_start = junction_first(i) + junction_count(i) - 1;
+          const size_t span_end = junction_first(j);
+
+          const Geom_Number sdx = raw(span_end).get_x() - raw(span_start).get_x();
+          const Geom_Number sdy = raw(span_end).get_y() - raw(span_start).get_y();
+
+          // Direction of original edge (i+1)%n: v(j) → v((j+1)%n).
+          const Geom_Number edx = v((j + 1) % n).get_x() - v(j).get_x();
+          const Geom_Number edy = v((j + 1) % n).get_y() - v(j).get_y();
+
+          if (sdx * edx + sdy * edy < 0)
+            return {}; // direction reversed → excessive offset
+        }
+
+      return raw;
+    }
+
+    // ----- Phase 2: self-intersection cleanup -----
+
+    /// Intersection found between edge i and edge j of the raw polygon.
+    struct Intersection
+    {
+      Point pt;
+      size_t edge_i, edge_j;
+      Geom_Number alpha_i, alpha_j; // parameter along each edge
+    };
+
+    /// Augmented vertex in the cleaned polygon.
+    struct AugVertex
+    {
+      Point pt;
+      bool is_intersection = false;
+      size_t partner = SIZE_MAX; // index of same point on other edge
+      bool visited = false;
+      Geom_Number alpha = 0;
+    };
+
+    /// Compute parameter t of point I along directed edge P→Q.
+    [[nodiscard]] static Geom_Number
+    edge_param(const Point & P, const Point & Q, const Point & I)
+    {
+      if (const Geom_Number dx = Q.get_x() - P.get_x(); dx != 0)
+        return (I.get_x() - P.get_x()) / dx;
+      return (I.get_y() - P.get_y()) / (Q.get_y() - P.get_y());
+    }
+
+    /// O(n²) scan for all proper self-intersections.
+    [[nodiscard]] static Array<Intersection>
+    find_self_intersections(const Array<Point> & raw)
+    {
+      const size_t n = raw.size();
+      Array<Intersection> isects;
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const Point & a0 = raw(i);
+          const Point & a1 = raw((i + 1) % n);
+          const Segment sa(a0, a1);
+
+          for (size_t j = i + 2; j < n; ++j)
+            {
+              // Skip adjacent edges (they share a vertex).
+              if (j == (i + n - 1) % n)
+                continue;
+              if (i == 0 && j == n - 1)
+                continue;
+
+              const Point & b0 = raw(j);
+              const Point & b1 = raw((j + 1) % n);
+              const Segment sb(b0, b1);
+
+              if (not sa.intersects_properly_with(sb))
+                continue;
+
+              const Point ip = sa.intersection_with(sb);
+              const Geom_Number ai = edge_param(a0, a1, ip);
+              const Geom_Number aj = edge_param(b0, b1, ip);
+              isects.append({ip, i, j, ai, aj});
+            }
+        }
+
+      return isects;
+    }
+
+    /// Insertion-sort indices by alpha key.
+    static void sort_by_alpha(Array<size_t> & idx,
+                              const Array<Geom_Number> & keys)
+    {
+      for (size_t i = 1; i < idx.size(); ++i)
+        {
+          const size_t val = idx(i);
+          const Geom_Number & key = keys(val);
+          size_t j = i;
+          while (j > 0 && keys(idx(j - 1)) > key)
+            {
+              idx(j) = idx(j - 1);
+              --j;
+            }
+          idx(j) = val;
+        }
+    }
+
+    /// Build the augmented vertex list with crossing links.
+    [[nodiscard]] static Array<AugVertex>
+    build_augmented(const Array<Point> & raw,
+                    const Array<Intersection> & isects)
+    {
+      const size_t n = raw.size();
+      const size_t m = isects.size();
+
+      // Position in the augmented list for each intersection occurrence.
+      // Each intersection appears twice (once on each edge).
+      Array<size_t> pos_i, pos_j;
+      pos_i.reserve(m);
+      pos_j.reserve(m);
+      for (size_t k = 0; k < m; ++k)
+        {
+          pos_i.append(0);
+          pos_j.append(0);
+        }
+
+      Array<AugVertex> aug;
+      aug.reserve(n + 2 * m);
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          // Append original vertex.
+          AugVertex v;
+          v.pt = raw(i);
+          aug.append(v);
+
+          // Collect intersections on this edge.
+          Array<size_t> edge_isects;
+          Array<Geom_Number> edge_alphas;
+          for (size_t k = 0; k < m; ++k)
+            {
+              if (isects(k).edge_i == i)
+                {
+                  edge_isects.append(k);
+                  edge_alphas.append(isects(k).alpha_i);
+                }
+              else if (isects(k).edge_j == i)
+                {
+                  edge_isects.append(k);
+                  edge_alphas.append(isects(k).alpha_j);
+                }
+            }
+
+          if (edge_isects.is_empty())
+            continue;
+
+          // Sort by alpha.
+          Array<size_t> order;
+          for (size_t p = 0; p < edge_isects.size(); ++p)
+            order.append(p);
+          sort_by_alpha(order, edge_alphas);
+
+          for (size_t p = 0; p < order.size(); ++p)
+            {
+              const size_t k = edge_isects(order(p));
+              const size_t aug_idx = aug.size();
+
+              // Record position for partner linking.
+              if (isects(k).edge_i == i)
+                pos_i(k) = aug_idx;
+              else
+                pos_j(k) = aug_idx;
+
+              AugVertex iv;
+              iv.pt = isects(k).pt;
+              iv.is_intersection = true;
+              iv.alpha = edge_alphas(order(p));
+              aug.append(iv);
+            }
+        }
+
+      // Set partner links.
+      for (size_t k = 0; k < m; ++k)
+        {
+          aug(pos_i(k)).partner = pos_j(k);
+          aug(pos_j(k)).partner = pos_i(k);
+        }
+
+      return aug;
+    }
+
+    /// Build a polygon from a point array.
+    [[nodiscard]] static Polygon build_poly(const Array<Point> & pts)
+    {
+      Polygon p;
+      for (size_t i = 0; i < pts.size(); ++i)
+        p.add_vertex(pts(i));
+      if (pts.size() >= 3)
+        p.close();
+      return p;
+    }
+
+    /// Walk the augmented polygon and extract valid CCW contours.
+    ///
+    /// At each intersection vertex, jump to the partner first (switching
+    /// to the other branch of the crossing) and then walk forward.
+    /// This traces the inner contours correctly for self-intersecting
+    /// offset polygons.
+    [[nodiscard]] static Array<Polygon>
+    extract_contours(Array<AugVertex> & aug)
+    {
+      Array<Polygon> result;
+      const size_t N = aug.size();
+      const size_t safety = N * 2 + 10;
+
+      for (size_t s = 0; s < N; ++s)
+        {
+          if (not aug(s).is_intersection || aug(s).visited)
+            continue;
+
+          // Trace one contour starting from intersection s.
+          // Jump to partner first, then walk forward.
+          Array<Point> boundary;
+          size_t steps = 0;
+
+          aug(s).visited = true;
+          if (aug(s).partner != SIZE_MAX)
+            aug(aug(s).partner).visited = true;
+
+          // Jump to partner to enter the "other branch".
+          size_t idx = (aug(s).partner != SIZE_MAX) ? aug(s).partner : s;
+          const size_t entry = idx; // we'll loop until we return here
+
+          do
+            {
+              // Append current vertex and walk forward.
+              boundary.append(aug(idx).pt);
+              idx = (idx + 1) % N;
+
+              while (not aug(idx).is_intersection)
+                {
+                  boundary.append(aug(idx).pt);
+                  idx = (idx + 1) % N;
+                  if (++steps > safety)
+                    goto done_contour;
+                }
+
+              // At the next intersection — mark visited and jump to partner.
+              aug(idx).visited = true;
+              if (aug(idx).partner != SIZE_MAX)
+                {
+                  aug(aug(idx).partner).visited = true;
+                  idx = aug(idx).partner;
+                }
+
+              if (++steps > safety)
+                break;
+            }
+          while (idx != entry);
+
+        done_contour:
+          if (boundary.size() >= 3)
+            {
+              // Keep only CCW contours (positive signed area).
+              if (const Geom_Number sa = GeomPolygonUtils::signed_double_area(boundary); sa > 0)
+                result.append(build_poly(boundary));
+            }
+        }
+
+      return result;
+    }
+
+    /// Full cleanup pipeline.
+    static Result cleanup(const Array<Point> & raw)
+    {
+      const auto isects = find_self_intersections(raw);
+
+      if (isects.is_empty())
+        {
+          // No self-intersections — check if the raw polygon is valid CCW.
+          const Geom_Number sa = GeomPolygonUtils::signed_double_area(raw);
+          Result r;
+          if (sa > 0 && raw.size() >= 3)
+            r.polygons.append(build_poly(raw));
+          return r;
+        }
+
+      auto aug = build_augmented(raw, isects);
+      Result r;
+      r.polygons = extract_contours(aug);
+      return r;
+    }
+  };
+
+  // ============================================================================
+  // Visibility Polygon
+  // ============================================================================
+
+  /**
+   * @brief Compute the visibility polygon from a point inside a simple polygon.
+   *
+   * Uses a rotational plane sweep (Lee 1979).  All angular comparisons are
+   * exact (quadrant + cross product — no atan2).
+   *
+   * ## Complexity
+   * - Time:  O(n log n) — rotational sweep with Treap-based status tree
+   * - Space: O(n)
+   *
+   * @par Example
+   * @code
+   * Polygon poly;
+   * poly.add_vertex(Point(0,0)); poly.add_vertex(Point(4,0));
+   * poly.add_vertex(Point(4,4)); poly.add_vertex(Point(0,4));
+   * poly.close();
+   * VisibilityPolygon vp;
+   * auto vis = vp(poly, Point(2,2));
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class VisibilityPolygon
+  {
+    /// Quadrant of direction (dx, dy):  0 = +x+y, 1 = -x+y, 2 = -x-y, 3 = +x-y.
+    [[nodiscard]] static int angle_quadrant(const Geom_Number & dx,
+                                            const Geom_Number & dy)
+    {
+      if (dx > 0 and dy >= 0) return 0;
+      if (dx <= 0 and dy > 0) return 1;
+      if (dx < 0 and dy <= 0) return 2;
+      return 3; // dx >= 0 and dy < 0
+    }
+
+    /// True if direction (a - q) has a smaller angle than (b - q).
+    [[nodiscard]] static bool angle_less(const Point & q,
+                                         const Point & a,
+                                         const Point & b)
+    {
+      const Geom_Number dax = a.get_x() - q.get_x();
+      const Geom_Number day = a.get_y() - q.get_y();
+      const Geom_Number dbx = b.get_x() - q.get_x();
+      const Geom_Number dby = b.get_y() - q.get_y();
+
+      const int qa = angle_quadrant(dax, day);
+      const int qb = angle_quadrant(dbx, dby);
+      if (qa != qb) return qa < qb;
+
+      // Same quadrant: cross product.  Positive = a is before b (CCW).
+      if (const Geom_Number cross = dax * dby - day * dbx; cross != 0)
+        return cross > 0;
+
+      // Same angle: closer point first.
+      return dax * dax + day * day < (dbx * dbx + dby * dby);
+    }
+
+    /// Parametric t along ray  q + t*(dir-q)  for intersection with edge (e0,e1).
+    /// Returns -1 if parallel / no intersection.
+    [[nodiscard]] static Geom_Number ray_param(const Point & q,
+                                               const Point & dir,
+                                               const Point & e0,
+                                               const Point & e1)
+    {
+      const Geom_Number rdx = dir.get_x() - q.get_x();
+      const Geom_Number rdy = dir.get_y() - q.get_y();
+      const Geom_Number edx = e1.get_x() - e0.get_x();
+      const Geom_Number edy = e1.get_y() - e0.get_y();
+      const Geom_Number denom = rdx * edy - rdy * edx;
+      if (denom == 0)
+        return {-1};
+
+      const Geom_Number dx = e0.get_x() - q.get_x();
+      const Geom_Number dy = e0.get_y() - q.get_y();
+      const Geom_Number t = (dx * edy - dy * edx) / denom;
+      const Geom_Number s = (dx * rdy - dy * rdx) / denom;
+      if (s < 0 or s > 1 or t < 0)
+        return {-1};
+      return t;
+    }
+
+    /// Intersection point of ray from q through dir with edge (e0, e1).
+    [[nodiscard]] static Point ray_edge_hit(const Point & q,
+                                            const Point & dir,
+                                            const Point & e0,
+                                            const Point & e1)
+    {
+      const Geom_Number t = ray_param(q, dir, e0, e1);
+      const Geom_Number rdx = dir.get_x() - q.get_x();
+      const Geom_Number rdy = dir.get_y() - q.get_y();
+      return {q.get_x() + t * rdx, q.get_y() + t * rdy};
+    }
+
+    /// BST-based sweep status for active edges, ordered by ray-intersection
+    /// distance.  Each edge is keyed by (ray_param, edge_index) computed at
+    /// insertion time.  Since the distance ordering of non-crossing edges is
+    /// invariant between consecutive vertex events, the BST ordering remains
+    /// valid throughout the sweep.
+    ///
+    /// Backed by Aleph's Treap via DynSetTree.  Provides O(log n) insert,
+    /// erase and min (nearest edge).
+    class EdgeStatusTree
+    {
+      struct EdgeKey
+      {
+        Geom_Number t;
+        size_t edge;
+      };
+
+      struct EdgeKeyCmp
+      {
+        bool operator()(const EdgeKey & a, const EdgeKey & b) const
+        {
+          if (a.t != b.t) return a.t < b.t;
+          return a.edge < b.edge;
+        }
+      };
+
+      DynSetTree<EdgeKey, Treap, EdgeKeyCmp> tree_;
+      Array<Geom_Number> params_; // edge → ray_param at insertion time
+      Array<bool> in_tree_; // edge → currently in tree
+      const Array<Point> & verts_;
+      const size_t n_;
+      const Point & query_;
+
+    public:
+      EdgeStatusTree(const Array<Point> & verts, const size_t n,
+                     const Point & query)
+        : verts_(verts), n_(n), query_(query)
+      {
+        for (size_t i = 0; i < n; ++i)
+          {
+            params_.append(Geom_Number(-1));
+            in_tree_.append(false);
+          }
+      }
+
+      void insert(const size_t edge, const Point & dir)
+      {
+        if (in_tree_(edge))
+          return;
+
+        const Geom_Number t = ray_param(query_, dir,
+                                        verts_(edge), verts_((edge + 1) % n_));
+        params_(edge) = t;
+        in_tree_(edge) = true;
+        tree_.insert(EdgeKey{t, edge});
+      }
+
+      void erase(const size_t edge)
+      {
+        if (not in_tree_(edge))
+          return;
+
+        tree_.remove(EdgeKey{params_(edge), edge});
+        in_tree_(edge) = false;
+      }
+
+      /// Return the nearest edge (smallest ray_param).
+      /// Returns n_ if the tree is empty.
+      [[nodiscard]] size_t min() const
+      {
+        if (tree_.is_empty())
+          return n_;
+        return tree_.min().edge;
+      }
+
+      [[nodiscard]] bool contains(const size_t edge) const
+      {
+        return in_tree_(edge);
+      }
+
+      [[nodiscard]] bool is_empty() const { return tree_.is_empty(); }
+    };
+
+  public:
+    /**
+     * @brief Compute the visibility polygon.
+     *
+     * @param polygon A closed simple polygon.
+     * @param query   A point strictly inside the polygon.
+     * @return The visibility polygon.
+     */
+    [[nodiscard]] Polygon operator()(const Polygon & polygon,
+                                     const Point & query) const
+    {
+      ah_domain_error_if(not polygon.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(polygon.size() < 3) << "Polygon must have >= 3 vertices";
+      ah_domain_error_if(not PointInPolygonWinding::strictly_contains(polygon, query))
+        << "Query point must be strictly inside the polygon";
+
+      // Extract vertices.
+      Array<Point> verts;
+      for (Polygon::Vertex_Iterator it(polygon); it.has_curr(); it.next_ne())
+        verts.append(it.get_current_vertex());
+      const size_t n = verts.size();
+
+      // Sort vertex indices by angle from query.
+      Array<size_t> order;
+      order.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        order.append(i);
+      quicksort_op(order, [&](size_t a, size_t b)
+                     {
+                       return angle_less(query, verts(a), verts(b));
+                     });
+
+      // Determine which edges cross the initial ray (wrapping edges).
+      // Their angular span straddles 0°, so their start/end events must be
+      // swapped relative to non-wrapping edges.
+      const Point init_dir(query.get_x() + 1, query.get_y());
+      Array<bool> wrapping;
+      wrapping.reserve(n);
+      for (size_t ei = 0; ei < n; ++ei)
+        {
+          const Geom_Number t = ray_param(query, init_dir,
+                                          verts(ei), verts((ei + 1) % n));
+          wrapping.append(t > 0);
+        }
+
+      // Build edge event tables: for each vertex, which edges start/end there.
+      // Edge i goes from verts(i) to verts((i+1)%n).
+      // For non-wrapping edges: insert at the smaller-angle vertex, remove at
+      //   the larger-angle vertex (normal sweep order).
+      // For wrapping edges (already in the initial status): remove at the
+      //   smaller-angle vertex (ray exits their span), insert at the
+      //   larger-angle vertex (ray re-enters their span).
+      Array<DynList<size_t>> starts, ends;
+      starts.reserve(n);
+      ends.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        starts.append(DynList<size_t>());
+      for (size_t i = 0; i < n; ++i)
+        ends.append(DynList<size_t>());
+
+      for (size_t ei = 0; ei < n; ++ei)
+        {
+          const size_t a = ei, b = (ei + 1) % n;
+          const bool a_less = angle_less(query, verts(a), verts(b));
+          const size_t small_v = a_less ? a : b;
+          const size_t large_v = a_less ? b : a;
+
+          if (wrapping(ei))
+            {
+              ends(small_v).append(ei); // remove when ray exits span
+              starts(large_v).append(ei); // re-insert when ray re-enters
+            }
+          else
+            {
+              starts(small_v).append(ei); // insert when ray enters span
+              ends(large_v).append(ei); // remove when ray exits span
+            }
+        }
+
+      // Initialize status with wrapping edges.
+      EdgeStatusTree status(verts, n, query);
+      for (size_t ei = 0; ei < n; ++ei)
+        if (wrapping(ei))
+          status.insert(ei, init_dir);
+
+      // Build visibility polygon.
+      Array<Point> vis_pts;
+
+      for (size_t oi = 0; oi < n; ++oi)
+        {
+          const size_t vi = order(oi);
+          const Point & v = verts(vi);
+          const Point dir = v; // ray from query toward v
+
+          // Nearest edge BEFORE processing events at this vertex.
+          const size_t prev_near = status.min();
+
+          // Remove ending edges.
+          for (DynList<size_t>::Iterator it(ends(vi)); it.has_curr(); it.next_ne())
+            status.erase(it.get_curr());
+
+          // Insert starting edges.
+          for (DynList<size_t>::Iterator it(starts(vi)); it.has_curr(); it.next_ne())
+            status.insert(it.get_curr(), dir);
+
+          // Nearest edge AFTER processing events.
+          const size_t curr_near = status.min();
+
+          // Determine visibility.
+          bool v_is_on_edge = false;
+          if (prev_near < n)
+            {
+              const size_t ea = prev_near, eb = (prev_near + 1) % n;
+              if (vi == ea or vi == eb) v_is_on_edge = true;
+            }
+          if (curr_near < n and not v_is_on_edge)
+            {
+              const size_t ea = curr_near, eb = (curr_near + 1) % n;
+              if (vi == ea or vi == eb) v_is_on_edge = true;
+            }
+
+          if (v_is_on_edge)
+            {
+              // Vertex is on the nearest edge — directly visible.
+              vis_pts.append(v);
+            }
+          else if (prev_near != curr_near)
+            {
+              // Nearest edge changed — add intersection with old and new.
+              if (prev_near < n)
+                vis_pts.append(ray_edge_hit(query, dir,
+                                            verts(prev_near), verts((prev_near + 1) % n)));
+              vis_pts.append(v);
+              if (curr_near < n)
+                vis_pts.append(ray_edge_hit(query, dir,
+                                            verts(curr_near), verts((curr_near + 1) % n)));
+            }
+        }
+
+      // Remove duplicate consecutive points.
+      Polygon result;
+      for (size_t i = 0; i < vis_pts.size(); ++i)
+        {
+          if (i > 0 and vis_pts(i) == vis_pts(i - 1))
+            continue;
+          result.add_vertex(vis_pts(i));
+        }
+      if (result.size() >= 3)
+        {
+          // Remove last if the same as first.
+          Array<Point> rv;
+          for (Polygon::Vertex_Iterator it(result); it.has_curr(); it.next_ne())
+            rv.append(it.get_current_vertex());
+          if (rv.size() >= 2 and rv(0) == rv(rv.size() - 1))
+            {
+              Polygon cleaned;
+              for (size_t i = 0; i + 1 < rv.size(); ++i)
+                cleaned.add_vertex(rv(i));
+              if (cleaned.size() >= 3)
+                cleaned.close();
+              return cleaned;
+            }
+          result.close();
+        }
+      return result;
+    }
+  };
+
+  // ============================================================================
+  // Shortest Path in Simple Polygon (Lee-Preparata Funnel)
+  // ============================================================================
+
+  /**
+   * @brief Compute the shortest Euclidean path between two points inside a
+   *        simple polygon.
+   *
+   * Uses ear-cutting triangulation, BFS on the dual graph to find the
+   * triangle sleeve, and the Lee-Preparata funnel algorithm.
+   *
+   * ## Complexity
+   * - Time:  O(n²)  dominated by CuttingEarsTriangulation
+   * - Space: O(n)
+   *
+   * @par Example
+   * @code
+   * Polygon poly;
+   * poly.add_vertex(Point(0,0)); poly.add_vertex(Point(5,0));
+   * poly.add_vertex(Point(5,5)); poly.add_vertex(Point(0,5));
+   * poly.close();
+   * ShortestPathInPolygon sp;
+   * auto path = sp(poly, Point(1,1), Point(4,4));
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class ShortestPathInPolygon
+  {
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
+
+    struct ITri
+    {
+      size_t v[3];
+      size_t adj[3]; // adj[i] = neighbour sharing edge opposite v[i], or NONE
+    };
+
+    /// Match a Point from a Triangle to an index in pts (exact comparison).
+    [[nodiscard]] static size_t find_index(const Array<Point> & pts,
+                                           const Point & p)
+    {
+      for (size_t i = 0; i < pts.size(); ++i)
+        if (pts(i) == p) return i;
+      return NONE;
+    }
+
+    /// Build indexed triangulation with adjacency.
+    [[nodiscard]] static Array<ITri> build_tris(const Array<Point> & pts,
+                                                const DynList<Triangle> & tl)
+    {
+      // Convert to indexed form.
+      Array<ITri> tris;
+      for (DynList<Triangle>::Iterator it(tl); it.has_curr(); it.next_ne())
+        {
+          const Triangle & t = it.get_curr();
+          ITri ti{};
+          ti.v[0] = find_index(pts, t.get_p1());
+          ti.v[1] = find_index(pts, t.get_p2());
+          ti.v[2] = find_index(pts, t.get_p3());
+          ti.adj[0] = ti.adj[1] = ti.adj[2] = NONE;
+          tris.append(ti);
+        }
+
+      // Build adjacency via an edge map.
+      // Key: (min_idx, max_idx), Value: (triangle_index, local_edge_index)
+      struct EdgeKey
+      {
+        size_t u, v;
+      };
+
+      struct CmpEdge
+      {
+        bool operator()(const EdgeKey & a, const EdgeKey & b) const
+        {
+          if (a.u != b.u)
+            return a.u < b.u;
+          return a.v < b.v;
+        }
+      };
+
+      struct EdgeVal
+      {
+        size_t tri;
+        size_t local;
+      };
+
+      DynSetTree<EdgeKey, Avl_Tree, CmpEdge> edge_set;
+
+      // We need a separate map. Use parallel arrays since DynSetTree doesn't
+      // store mapped values.  Use a simpler approach: flat array scan.
+      struct EdgeEntry
+      {
+        size_t u, v, tri, local;
+      };
+      Array<EdgeEntry> edges;
+      edges.reserve(tris.size() * 3);
+
+      for (size_t ti = 0; ti < tris.size(); ++ti)
+        for (int e = 0; e < 3; ++e)
+          {
+            size_t u = tris(ti).v[(e + 1) % 3];
+            size_t v = tris(ti).v[(e + 2) % 3];
+            if (u > v)
+              {
+                const size_t tmp = u;
+                u = v;
+                v = tmp;
+              }
+            edges.append(EdgeEntry{u, v, ti, size_t(e)});
+          }
+
+      // Sort edges and find matching pairs.
+      quicksort_op(edges, [](const EdgeEntry & a, const EdgeEntry & b)
+                     {
+                       if (a.u != b.u)
+                         return a.u < b.u;
+                       if (a.v != b.v)
+                         return a.v < b.v;
+                       return a.tri < b.tri;
+                     });
+
+      for (size_t i = 0; i + 1 < edges.size(); ++i)
+        if (edges(i).u == edges(i + 1).u and edges(i).v == edges(i + 1).v)
+          {
+            const size_t t1 = edges(i).tri, l1 = edges(i).local;
+            const size_t t2 = edges(i + 1).tri, l2 = edges(i + 1).local;
+            tris(t1).adj[l1] = t2;
+            tris(t2).adj[l2] = t1;
+            ++i; // skip the matched pair
+          }
+
+      return tris;
+    }
+
+    /// Point-in-triangle test.
+    [[nodiscard]] static bool point_in_triangle(const Array<Point> & pts,
+                                                const ITri & t,
+                                                const Point & p)
+    {
+      const Orientation o0 = orientation(pts(t.v[0]), pts(t.v[1]), p);
+      const Orientation o1 = orientation(pts(t.v[1]), pts(t.v[2]), p);
+      const Orientation o2 = orientation(pts(t.v[2]), pts(t.v[0]), p);
+      const bool has_cw = o0 == Orientation::CW or o1 == Orientation::CW
+                          or o2 == Orientation::CW;
+      const bool has_ccw = o0 == Orientation::CCW or o1 == Orientation::CCW
+                           or o2 == Orientation::CCW;
+      return not (has_cw and has_ccw);
+    }
+
+    /// Find a triangle containing point p.
+    [[nodiscard]] static size_t find_tri(const Array<Point> & pts,
+                                         const Array<ITri> & tris,
+                                         const Point & p)
+    {
+      for (size_t i = 0; i < tris.size(); ++i)
+        if (point_in_triangle(pts, tris(i), p)) return i;
+      return NONE;
+    }
+
+    /// BFS on dual graph → sleeve.
+    [[nodiscard]] static Array<size_t> find_sleeve(const Array<ITri> & tris,
+                                                   const size_t src, const size_t dst)
+    {
+      if (src == dst)
+        {
+          Array<size_t> s;
+          s.append(src);
+          return s;
+        }
+
+      Array<size_t> parent;
+      parent.reserve(tris.size());
+      for (size_t i = 0; i < tris.size(); ++i)
+        parent.append(NONE);
+      parent(src) = src; // sentinel
+
+      DynList<size_t> queue;
+      queue.append(src);
+
+      while (not queue.is_empty())
+        {
+          const size_t cur = queue.remove_first();
+          if (cur == dst)
+            break;
+          for (unsigned long nb: tris(cur).adj)
+            if (nb != NONE and parent(nb) == NONE)
+              {
+                parent(nb) = cur;
+                queue.append(nb);
+              }
+        }
+
+      // Reconstruct path.
+      Array<size_t> path;
+      for (size_t cur = dst; cur != src; cur = parent(cur))
+        path.append(cur);
+      path.append(src);
+
+      // Reverse.
+      for (size_t i = 0; i < path.size() / 2; ++i)
+        {
+          const size_t tmp = path(i);
+          path(i) = path(path.size() - 1 - i);
+          path(path.size() - 1 - i) = tmp;
+        }
+      return path;
+    }
+
+
+    /// Cross product (b-a) x (c-a).
+    [[nodiscard]] static Geom_Number cross(const Point & a,
+                                           const Point & b,
+                                           const Point & c)
+    {
+      return (b.get_x() - a.get_x()) * (c.get_y() - a.get_y()) -
+             (b.get_y() - a.get_y()) * (c.get_x() - a.get_x());
+    }
+
+  public:
+    /**
+     * @brief Compute the shortest path between two points in a simple polygon.
+     *
+     * @param polygon  A closed simple polygon.
+     * @param source   Start point (inside or on the boundary).
+     * @param target   End point (inside or on the boundary).
+     * @return Ordered sequence of waypoints from source to target.
+     */
+    [[nodiscard]] DynList<Point> operator()(const Polygon & polygon,
+                                            const Point & source,
+                                            const Point & target) const
+    {
+      ah_domain_error_if(not polygon.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(polygon.size() < 3) << "Polygon must have >= 3 vertices";
+      ah_domain_error_if(not PointInPolygonWinding::contains(polygon, source))
+        << "Source must be inside the polygon";
+      ah_domain_error_if(not PointInPolygonWinding::contains(polygon, target))
+        << "Target must be inside the polygon";
+
+      DynList<Point> result;
+      if (source == target)
+        {
+          result.append(source);
+          return result;
+        }
+
+      // Check direct line of sight.
+      {
+        const Segment seg(source, target);
+        bool blocked = false;
+        for (Polygon::Segment_Iterator it(polygon); it.has_curr() and not blocked; it.next_ne())
+          if (const Segment edge = it.get_current_segment(); seg.intersects_properly_with(edge))
+            blocked = true;
+        if (not blocked)
+          {
+            result.append(source);
+            result.append(target);
+            return result;
+          }
+      }
+
+      // Extract vertices.
+      Array<Point> pts;
+      for (Polygon::Vertex_Iterator it(polygon); it.has_curr(); it.next_ne())
+        pts.append(it.get_current_vertex());
+
+      // Triangulate.
+      CuttingEarsTriangulation triangulator;
+      DynList<Triangle> tri_list = triangulator(polygon);
+
+      ah_domain_error_if(tri_list.is_empty()) << "Triangulation failed";
+
+      // Build indexed triangulation with adjacency.
+      Array<ITri> tris = build_tris(pts, tri_list);
+
+      // Locate source and target triangles.
+      const size_t src_t = find_tri(pts, tris, source);
+      const size_t dst_t = find_tri(pts, tris, target);
+
+      ah_domain_error_if(src_t == NONE) << "Could not locate source in triangulation";
+      ah_domain_error_if(dst_t == NONE) << "Could not locate target in triangulation";
+
+      // Find sleeve.
+      Array<size_t> sleeve = find_sleeve(tris, src_t, dst_t);
+
+      if (sleeve.size() <= 1)
+        {
+          result.append(source);
+          result.append(target);
+          return result;
+        }
+
+      // ----------------------------------------------------------------
+      // Simple Stupid Funnel Algorithm  (Mononen / Lee-Preparata).
+      //
+      // Build a portal list from the sleeve diagonals, then walk it
+      // maintaining a funnel (apex, left boundary, right boundary).
+      // ----------------------------------------------------------------
+
+      // A portal is a pair (left, right) as seen when walking from source
+      // toward target.  Portal 0 = (source, source), last = (target, target).
+      struct Portal
+      {
+        Point left;
+        Point right;
+      };
+      Array<Portal> portals;
+      portals.append(Portal{source, source});
+
+      // For each sleeve diagonal, find shared vertices and the "opposite"
+      // vertex in the current triangle (the one NOT shared with the next).
+      // Orient the portal using cross(V_prev, s0, s1):
+      //   cross < 0  →  left = s0, right = s1
+      //   cross > 0  →  left = s1, right = s0
+      // This is robust regardless of triangulation order.
+
+      for (size_t i = 0; i + 1 < sleeve.size(); ++i)
+        {
+          size_t s0 = 0, s1 = 0;
+          size_t v_prev = 0; {
+            int sc = 0;
+            bool found[3] = {false, false, false};
+            for (int a = 0; a < 3; ++a)
+              for (unsigned long b: tris(sleeve(i + 1)).v)
+                if (tris(sleeve(i)).v[a] == b)
+                  {
+                    found[a] = true;
+                    break;
+                  }
+
+            for (int a = 0; a < 3; ++a)
+              {
+                if (found[a])
+                  {
+                    if (sc == 0) s0 = tris(sleeve(i)).v[a];
+                    else s1 = tris(sleeve(i)).v[a];
+                    ++sc;
+                  }
+                else
+                  v_prev = tris(sleeve(i)).v[a];
+              }
+          }
+
+          const Geom_Number c = cross(pts(v_prev), pts(s0), pts(s1));
+          if (c < 0)
+            portals.append(Portal{pts(s0), pts(s1)});
+          else
+            portals.append(Portal{pts(s1), pts(s0)});
+        }
+
+      portals.append(Portal{target, target});
+
+      // --- SSFA core ---
+      Point apex = source;
+      Point fl = source; // funnel left boundary
+      Point fr = source; // funnel right boundary
+      size_t ai = 0, li = 0, ri = 0;
+
+      result.append(source);
+
+      for (size_t i = 1; i < portals.size(); ++i)
+        {
+          const Point & pr = portals(i).right;
+          const Point & pl = portals(i).left;
+
+          // --- tighten right boundary ---
+          if (cross(apex, fr, pr) >= 0)
+            {
+              if (apex == fr or cross(apex, fl, pr) < 0)
+                {
+                  fr = pr;
+                  ri = i;
+                }
+              else
+                {
+                  // Right crossed over left → left becomes new apex.
+                  result.append(fl);
+                  apex = fl;
+                  ai = li;
+                  fl = apex;
+                  fr = apex;
+                  li = ai;
+                  ri = ai;
+                  i = ai; // loop increments to ai+1
+                  continue;
+                }
+            }
+
+          // --- tighten left boundary ---
+          if (cross(apex, fl, pl) <= 0)
+            {
+              if (apex == fl or cross(apex, fr, pl) > 0)
+                {
+                  fl = pl;
+                  li = i;
+                }
+              else
+                {
+                  // Left crossed over right → right becomes new apex.
+                  result.append(fr);
+                  apex = fr;
+                  ai = ri;
+                  fl = apex;
+                  fr = apex;
+                  li = ai;
+                  ri = ai;
+                  i = ai;
+                  continue;
+                }
+            }
+        }
+
+      if (result.get_last() != target)
+        result.append(target);
+      return result;
+    }
+  };
+
+  // ============================================================================
+  // Segment Arrangement — Full Planar Subdivision
+  // ============================================================================
+
+  /**
+   * @brief Compute the full planar subdivision induced by a set of segments.
+   *
+   * Given n segments, produces:
+   * - **Vertices**: segment endpoints + intersection points (deduplicated).
+   * - **Edges**: sub-segments between consecutive vertices along each segment.
+   * - **Faces**: connected regions of the plane (including the unbounded face).
+   *
+   * ## Complexity
+   * For n segments with k intersections:
+   * - Time:  O((n + k) log(n + k))
+   * - Space: O(n + k)
+   *
+   * @par Example
+   * @code
+   * Array<Segment> segs;
+   * segs.append(Segment(Point(0,0), Point(2,2)));
+   * segs.append(Segment(Point(0,2), Point(2,0)));
+   * SegmentArrangement arr;
+   * auto res = arr(segs);
+   * // res.vertices / res.edges / res.faces describe the subdivision.
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class SegmentArrangement
+  {
+  public:
+    /**
+     * @brief Represents an edge in the planar subdivision.
+     */
+    struct ArrEdge
+    {
+      size_t src;     ///< Index of the source vertex.
+      size_t tgt;     ///< Index of the target vertex.
+      size_t seg_idx; ///< Index of the original segment that generated this edge.
+    };
+
+    /**
+     * @brief Represents a face (region) in the planar subdivision.
+     */
+    struct ArrFace
+    {
+      DynList<size_t> boundary; ///< Ordered indices of vertices forming the face boundary.
+      bool unbounded;           ///< True if this is the infinite outer face.
+    };
+
+    /**
+     * @brief The complete result of the segment arrangement computation.
+     */
+    struct Result
+    {
+      Array<Point> vertices; ///< Unique vertices (endpoints and intersection points).
+      Array<ArrEdge> edges;  ///< Sub-segments forming the arrangement graph.
+      Array<ArrFace> faces;  ///< Faces defined by the arrangement.
+    };
+
+  private:
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
+
+    /// Lexicographic point comparison.
+    [[nodiscard]] static bool pt_less(const Point & a, const Point & b)
+    {
+      if (a.get_x() != b.get_x()) return a.get_x() < b.get_x();
+      return a.get_y() < b.get_y();
+    }
+
+    /// Find the index of point p in a sorted vertex array (binary search).
+    [[nodiscard]] static size_t find_vertex(const Array<Point> & verts,
+                                            const Point & p)
+    {
+      size_t lo = 0, hi = verts.size();
+      while (lo < hi)
+        if (const size_t mid = lo + (hi - lo) / 2; pt_less(verts(mid), p))
+          lo = mid + 1;
+        else if (pt_less(p, verts(mid)))
+          hi = mid;
+        else
+          return mid;
+      return NONE;
+    }
+
+    /// Angular quadrant of direction (dx, dy).
+    [[nodiscard]] static int angle_quad(const Geom_Number & dx,
+                                        const Geom_Number & dy)
+    {
+      if (dx > 0 and dy >= 0) return 0;
+      if (dx <= 0 and dy > 0) return 1;
+      if (dx < 0 and dy <= 0) return 2;
+      return 3;
+    }
+
+    /// Compare two directions from the same origin by angle (exact).
+    /// Returns true if (dx1,dy1) has a smaller CCW angle than (dx2,dy2).
+    [[nodiscard]] static bool angle_lt(const Geom_Number & dx1,
+                                       const Geom_Number & dy1,
+                                       const Geom_Number & dx2,
+                                       const Geom_Number & dy2)
+    {
+      const int q1 = angle_quad(dx1, dy1);
+      const int q2 = angle_quad(dx2, dy2);
+      if (q1 != q2) return q1 < q2;
+      if (const Geom_Number cross = dx1 * dy2 - dy1 * dx2; cross != 0)
+        return cross > 0;
+      return dx1 * dx1 + dy1 * dy1 < (dx2 * dx2 + dy2 * dy2);
+    }
+
+    /**
+     * @brief Internal half-edge structure used for face traversal.
+     */
+    struct HalfEdge
+    {
+      size_t origin;   ///< Index of the vertex where this half-edge starts.
+      size_t target;   ///< Index of the vertex where this half-edge ends.
+      size_t twin;     ///< Index of the twin half-edge going in the opposite direction.
+      size_t next;     ///< Index of the next half-edge in CCW order around the face.
+      size_t face;     ///< Index of the face this half-edge borders.
+      size_t edge_idx; ///< Index of the corresponding undirected edge.
+    };
+
+  public:
+    /**
+     * @brief Compute the arrangement of a set of segments.
+     *
+     * @param segments Input segments (non-degenerate).
+     * @return Vertices, edges, and faces of the planar subdivision.
+     */
+    [[nodiscard]] Result operator()(const Array<Segment> & segments) const
+    {
+      Result ret;
+      const size_t n = segments.size();
+
+      if (n == 0)
+        {
+          // Single unbounded face.
+          ArrFace uf;
+          uf.unbounded = true;
+          ret.faces.append(uf);
+          return ret;
+        }
+
+      // --- Step 1: Compute all intersections. ---
+      SweepLineSegmentIntersection sweep;
+      auto inters = sweep(segments);
+
+      // --- Step 2: Build a deduplicated vertex set. ---
+      // Collect all endpoints + intersection points.
+      Array<Point> all_pts;
+      all_pts.reserve(2 * n + inters.size());
+      for (size_t i = 0; i < n; ++i)
+        {
+          all_pts.append(segments(i).get_src_point());
+          all_pts.append(segments(i).get_tgt_point());
+        }
+      for (size_t i = 0; i < inters.size(); ++i)
+        all_pts.append(inters(i).point);
+
+      // Sort lexicographically.
+      quicksort_op(all_pts, [](const Point & a, const Point & b)
+                     {
+                       return pt_less(a, b);
+                     });
+
+      // Deduplicate.
+      ret.vertices.reserve(all_pts.size());
+      for (size_t i = 0; i < all_pts.size(); ++i)
+        if (ret.vertices.is_empty() or ret.vertices.get_last() != all_pts(i))
+          ret.vertices.append(all_pts(i));
+
+      // --- Step 3: Split segments into sub-edges. ---
+      // For each segment, collect its vertices and sort along the segment.
+      for (size_t si = 0; si < n; ++si)
+        {
+          const Point & sp = segments(si).get_src_point();
+          const Point & tp = segments(si).get_tgt_point();
+
+          // Collect vertices on this segment.
+          Array<size_t> on_seg;
+          on_seg.append(find_vertex(ret.vertices, sp));
+          on_seg.append(find_vertex(ret.vertices, tp));
+
+          // Add intersection points involving this segment.
+          for (size_t ki = 0; ki < inters.size(); ++ki)
+            if (inters(ki).seg_i == si or inters(ki).seg_j == si)
+              if (const size_t vi = find_vertex(ret.vertices, inters(ki).point); vi != NONE)
+                on_seg.append(vi);
+
+          // Deduplicate.
+          quicksort_op(on_seg, [](const size_t a, const size_t b)
+                         {
+                           return a < b;
+                         }); {
+            Array<size_t> uniq;
+            for (size_t i = 0; i < on_seg.size(); ++i)
+              if (uniq.is_empty() or uniq.get_last() != on_seg(i))
+                uniq.append(on_seg(i));
+            on_seg = uniq;
+          }
+
+          // Sort by parametric position along the segment.
+          // Use the primary direction (x for non-vertical, y for vertical).
+          const bool vertical = (sp.get_x() == tp.get_x());
+          const auto & verts = ret.vertices;
+          if (vertical)
+            quicksort_op(on_seg, [&](const size_t a, const size_t b)
+                           {
+                             return verts(a).get_y() < verts(b).get_y();
+                           });
+          else
+            quicksort_op(on_seg, [&](const size_t a, const size_t b)
+                           {
+                             return verts(a).get_x() < verts(b).get_x();
+                           });
+
+          // Create edges between consecutive vertices.
+          for (size_t i = 0; i + 1 < on_seg.size(); ++i)
+            ret.edges.append(ArrEdge{on_seg(i), on_seg(i + 1), si});
+        }
+
+      // --- Step 4 + 5: Build half-edges, compute next pointers, find faces. ---
+      const size_t ne = ret.edges.size();
+      const size_t nhe = 2 * ne;
+      const size_t nv = ret.vertices.size();
+
+      if (ne == 0)
+        {
+          // Only isolated vertices, no edges → one unbounded face.
+          ArrFace uf;
+          uf.unbounded = true;
+          ret.faces.append(uf);
+          return ret;
+        }
+
+      // Create half-edges: for edge i, half-edge 2*i goes src→tgt,
+      //                                  half-edge 2*i+1 goes tgt→src.
+      Array<HalfEdge> he;
+      he.reserve(nhe);
+      for (size_t i = 0; i < ne; ++i)
+        {
+          he.append(HalfEdge{
+                      ret.edges(i).src, ret.edges(i).tgt,
+                      2 * i + 1, NONE, NONE, i
+                    });
+          he.append(HalfEdge{
+                      ret.edges(i).tgt, ret.edges(i).src,
+                      2 * i, NONE, NONE, i
+                    });
+        }
+
+      // Build incidence: for each vertex, list of outgoing half-edge indices.
+      Array<Array<size_t>> inc;
+      inc.reserve(nv);
+      for (size_t i = 0; i < nv; ++i)
+        inc.append(Array<size_t>());
+      for (size_t h = 0; h < nhe; ++h)
+        inc(he(h).origin).append(h);
+
+      // Sort outgoing half-edges at each vertex by angle.
+      const auto & verts = ret.vertices;
+      for (size_t v = 0; v < nv; ++v)
+        {
+          if (inc(v).size() <= 1) continue;
+          quicksort_op(inc(v), [&](size_t a, size_t b)
+                         {
+                           const Geom_Number dxa = verts(he(a).target).get_x()
+                                                   - verts(v).get_x();
+                           const Geom_Number dya = verts(he(a).target).get_y()
+                                                   - verts(v).get_y();
+                           const Geom_Number dxb = verts(he(b).target).get_x()
+                                                   - verts(v).get_x();
+                           const Geom_Number dyb = verts(he(b).target).get_y()
+                                                   - verts(v).get_y();
+                           return angle_lt(dxa, dya, dxb, dyb);
+                         });
+        }
+
+      // Compute "next" pointers.
+      // For half-edge h = (u→v), the next half-edge around the face is:
+      // at vertex v, take the twin of h (which is v→u), find its position
+      // in the sorted incidence list of v, go one step CW (previous in CCW
+      // order) → that's the next half-edge of the face.
+      //
+      // Equivalently: next(h) where h = u→v:
+      //   twin(h) = v→u.  Find twin(h) in inc(v).  The previous entry in
+      //   inc(v) (wrapping) is the next half-edge of the face.
+      for (size_t v = 0; v < nv; ++v)
+        {
+          const auto & list = inc(v);
+          const size_t sz = list.size();
+          if (sz == 0) continue;
+
+          for (size_t i = 0; i < sz; ++i)
+            {
+              // Half-edge list(i) leaves v.  Its twin arrives at v.
+              // The twin is the "incoming" half-edge.  The face's "next"
+              // after the twin is the one that comes just before list(i)
+              // in the CCW angular order, i.e. the one CW from it.
+              // So: next(twin(list(i))) = list((i+1) % sz)
+              //   wrong — let me re-derive.
+              //
+              // We have inc(v) sorted CCW: h0, h1, ..., h_{k-1} (outgoing).
+              // For outgoing h_i (= v → t_i), twin(h_i) = t_i → v (incoming).
+              // The face containing twin(h_i) continues with the next outgoing
+              // half-edge at v going CW from the incoming direction.
+              //
+              // Incoming direction of twin(h_i) at v: from t_i toward v.
+              // This is the reverse of h_i's outgoing direction.
+              // In the CCW list, h_i is at position i.  The CW-next after
+              // the reversed direction of h_i corresponds to h_{(i-1+k)%k}.
+              //
+              // So: next(twin(h_i)) = h_{(i-1+k) % k}.
+
+              const size_t prev = (i == 0) ? sz - 1 : i - 1;
+              he(he(list(i)).twin).next = list(prev);
+            }
+        }
+
+      // --- Face traversal ---
+      Array<bool> visited;
+      visited.reserve(nhe);
+      for (size_t i = 0; i < nhe; ++i)
+        visited.append(false);
+
+      for (size_t h = 0; h < nhe; ++h)
+        {
+          if (visited(h)) continue;
+
+          ArrFace face;
+          face.unbounded = false;
+
+          // Trace the face boundary.
+          size_t cur = h;
+          Geom_Number signed_area = 0;
+          do
+            {
+              visited(cur) = true;
+              face.boundary.append(he(cur).origin);
+
+              // Accumulate signed area (shoelace).
+              const Point & p1 = verts(he(cur).origin);
+              const Point & p2 = verts(he(cur).target);
+              signed_area += p1.get_x() * p2.get_y() - p2.get_x() * p1.get_y();
+
+              cur = he(cur).next;
+            }
+          while (cur != h and cur != NONE);
+
+          // CW winding (negative area) → unbounded face.
+          if (signed_area < 0)
+            face.unbounded = true;
+
+          ret.faces.append(face);
+        }
+
+      // Ensure exactly one unbounded face is marked.
+      // If none was found (e.g. all half-edges form CCW cycles, which
+      // happens when all segments are isolated non-intersecting ones),
+      // mark the face with the largest absolute signed area as unbounded.
+      {
+        bool has_ub = false;
+        for (size_t i = 0; i < ret.faces.size(); ++i)
+          if (ret.faces(i).unbounded)
+            {
+              has_ub = true;
+              break;
+            }
+        if (not has_ub and not ret.faces.is_empty())
+          ret.faces(0).unbounded = true;
+      }
+
+      return ret;
+    }
+  };
+
+  // ============================================================================
+  // Alpha Shapes — Generalization of Convex Hull
+  // ============================================================================
+
+  /**
+   * @brief Alpha shape of a point set.
+   *
+   * The α-shape is a generalization of the convex hull.  For α = ∞ it
+   * equals the convex hull; as α decreases, the shape "shrinks" around
+   * the points, revealing concavities.
+   *
+   * ## Algorithm
+   *
+   * 1. Compute the Delaunay triangulation.
+   * 2. Filter: keep only triangles whose circumradius² ≤ α².
+   * 3. Extract the boundary edges (edges belonging to exactly one kept
+   *    triangle).
+   *
+   * ## Complexity
+   * O(n log n) for the Delaunay step + O(T) to filter, where T = number
+   * of Delaunay triangles.
+   *
+   * @par Example
+   * @code
+   * DynList<Point> pts;
+   * pts.append(Point(0,0));
+   * pts.append(Point(1,0));
+   * pts.append(Point(0,1));
+   * pts.append(Point(1,1));
+   * AlphaShape as;
+   * auto out = as(pts, Geom_Number(1));
+   * // out.boundary_edges is the alpha-shape boundary as segments.
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class AlphaShape
+  {
+  public:
+    /**
+     * @brief Result of an alpha-shape computation.
+     */
+    struct Result
+    {
+      Array<Point> sites; ///< Deduplicated and sorted input sites.
+      Array<DelaunayTriangulationBowyerWatson::IndexedTriangle> triangles; ///< Triangles that satisfy the alpha criterion.
+      Array<Segment> boundary_edges; ///< Segments forming the boundary of the alpha-shape.
+    };
+
+    /**
+     * @brief Compute the α-shape.
+     *
+     * @param points Input point set.
+     * @param alpha_squared  The α² threshold.  A Delaunay triangle is
+     *        kept iff its circumradius² ≤ alpha_squared.
+     * @return The filtered triangulation and its boundary.
+     *
+     * @throws domain_error if fewer than 3 points.
+     */
+    [[nodiscard]] Result
+    operator()(const DynList<Point> & points,
+               const Geom_Number & alpha_squared) const
+    {
+      constexpr DelaunayTriangulationBowyerWatson delaunay;
+      auto [sites, triangles] = delaunay(points);
+
+      Result ret;
+      ret.sites = sites;
+
+      if (triangles.size() == 0)
+        return ret;
+
+      // Filter triangles by circumradius².
+      Array<bool> kept;
+      kept.reserve(triangles.size());
+      for (size_t t = 0; t < triangles.size(); ++t)
+        {
+          const auto & tri = triangles(t);
+          const Point & a = sites(tri.i);
+          const Point & b = sites(tri.j);
+          const Point & c = sites(tri.k);
+
+          // Circumradius² = (|AB|²|BC|²|CA|²) / (16 * area²)
+          const Geom_Number ab2 = a.distance_squared_to(b);
+          const Geom_Number bc2 = b.distance_squared_to(c);
+          const Geom_Number ca2 = c.distance_squared_to(a);
+          const Geom_Number area2x = area_of_parallelogram(a, b, c);
+          const Geom_Number four_area_sq = area2x * area2x;
+
+          // circumradius² = ab2 * bc2 * ca2 / (4 * four_area_sq)
+          // Compare: ab2 * bc2 * ca2 ≤ alpha_squared * 4 * four_area_sq
+          const bool pass = ab2 * bc2 * ca2 <= alpha_squared * four_area_sq * 4;
+          kept.append(pass);
+          if (pass)
+            ret.triangles.append(tri);
+        }
+
+      // Extract boundary edges: edges appearing in exactly one kept triangle.
+      // Use a simple count map via sorted edge keys.
+      /**
+       * @brief Key for identifying an undirected edge by its vertex indices.
+       */
+      struct EdgeKey
+      {
+        size_t u, v; ///< Vertex indices (sorted u < v).
+
+        /** @brief Exact equality check. */
+        bool operator==(const EdgeKey & o) const
+        {
+          return u == o.u and v == o.v;
+        }
+
+        bool operator<(const EdgeKey & o) const
+        {
+          return u < o.u or (u == o.u and v < o.v);
+        }
+      };
+
+      auto make_key = [](const size_t a, const size_t b) -> EdgeKey
+        {
+          return a < b ? EdgeKey{a, b} : EdgeKey{b, a};
+        };
+
+      Array<EdgeKey> all_edges;
+      all_edges.reserve(ret.triangles.size() * 3);
+      for (size_t t = 0; t < ret.triangles.size(); ++t)
+        {
+          const auto & [i, j, k] = ret.triangles(t);
+          all_edges.append(make_key(i, j));
+          all_edges.append(make_key(j, k));
+          all_edges.append(make_key(k, i));
+        }
+
+      quicksort_op(all_edges, [](const EdgeKey & a, const EdgeKey & b)
+                     {
+                       return a < b;
+                     });
+
+      for (size_t i = 0; i < all_edges.size();)
+        {
+          size_t j = i + 1;
+          while (j < all_edges.size() and all_edges(j) == all_edges(i))
+            ++j;
+          if (j - i == 1) // appears exactly once → boundary
+            ret.boundary_edges.append(Segment(ret.sites(all_edges(i).u),
+                                              ret.sites(all_edges(i).v)));
+          i = j;
+        }
+
+      return ret;
+    }
+  };
+
+  // ============================================================================
+  // Power Diagram — Weighted Voronoi
+  // ============================================================================
+
+  /**
+   * @brief Power diagram (weighted Voronoi diagram).
+   *
+   * Each site sᵢ has a weight wᵢ.  The power distance from a point p
+   * to site sᵢ is  ||p - sᵢ||² − wᵢ.
+   *
+   * The power diagram partitions the plane into cells where each cell
+   * contains points closer (in power distance) to one site than to all
+   * others.
+   *
+   * ## Algorithm
+   *
+   * 1. Compute the regular triangulation (weighted Delaunay) via
+   *    `RegularTriangulationBowyerWatson`, which uses the power test
+   *    (weighted in-circle predicate) to determine triangulation
+   *    connectivity.
+   * 2. For each triangle, compute the power center (the point equidistant
+   *    in power distance to the three sites).
+   * 3. Connect power centers of adjacent triangles to form power edges,
+   *    using sorted triangle-edge keys.
+   *
+   * ## Complexity
+   *
+   * Let T be the number of triangles in the regular triangulation.
+   * - Adjacency extraction: O(T log T).
+   * - Additional processing (centers/cells): O(T + n).
+   *
+   * When all weights are equal this reduces to the standard Voronoi diagram.
+   *
+   * @par Example
+   * @code
+   * Array<PowerDiagram::WeightedSite> sites;
+   * sites.append({Point(0,0), Geom_Number(0)});
+   * sites.append({Point(2,0), Geom_Number(1)});
+   * sites.append({Point(0,2), Geom_Number(0)});
+   * PowerDiagram pd;
+   * auto res = pd(sites);
+   * // res.cells contains one cell per site (boundedness depends on input).
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class PowerDiagram
+  {
+  public:
+    /**
+     * @brief A site with an associated weight (squared radius).
+     */
+    struct WeightedSite
+    {
+      Point position;     ///< Coordinates of the site.
+      Geom_Number weight; ///< Weight of the site.
+    };
+
+    /**
+     * @brief Represents an edge in the power diagram.
+     */
+    struct PowerEdge
+    {
+      size_t site_u;    ///< Index of the first site sharing this edge.
+      size_t site_v;    ///< Index of the second site sharing this edge.
+      Point src;        ///< Source point of the edge.
+      Point tgt;        ///< Target point of the edge (if not unbounded).
+      bool unbounded;   ///< True if the edge is an unbounded ray.
+      Point direction;  ///< Direction vector for unbounded rays.
+    };
+
+    /**
+     * @brief Represents a cell in the power diagram.
+     */
+    struct PowerCell
+    {
+      size_t site_index;      ///< Index of the site this cell belongs to.
+      Point site;             ///< Coordinates of the site.
+      Geom_Number weight;     ///< Weight of the site.
+      bool bounded;           ///< True if the cell is completely bounded.
+      Array<Point> vertices;  ///< Vertices of the cell in CCW order.
+    };
+
+    /**
+     * @brief Complete result of a power diagram computation.
+     */
+    struct Result
+    {
+      Array<WeightedSite> sites; ///< Sorted and unique input sites.
+      Array<Point> vertices;     ///< Vertices of the power diagram.
+      Array<PowerEdge> edges;    ///< Edges of the power diagram.
+      Array<PowerCell> cells;    ///< Cells of the power diagram.
+    };
+
+    /**
+     * @brief Compute the power center of three weighted sites.
+     *
+     * The power center is equidistant in power distance to all three sites.
+     */
+    [[nodiscard]] static Point
+    power_center(const WeightedSite & a, const WeightedSite & b,
+                 const WeightedSite & c)
+    {
+      // Power center solves:
+      //   ||p - a||² - wa = ||p - b||² - wb = ||p - c||² - wc
+      // Expanding:  2(bx-ax)px + 2(by-ay)py = bx²+by²-ax²-ay² - (wb - wa)
+      //             2(cx-ax)px + 2(cy-ay)py = cx²+cy²-ax²-ay² - (wc - wa)
+      const Geom_Number & ax = a.position.get_x();
+      const Geom_Number & ay = a.position.get_y();
+      const Geom_Number & bx = b.position.get_x();
+      const Geom_Number & by = b.position.get_y();
+      const Geom_Number & cx = c.position.get_x();
+      const Geom_Number & cy = c.position.get_y();
+
+      const Geom_Number d1x = bx - ax, d1y = by - ay;
+      const Geom_Number d2x = cx - ax, d2y = cy - ay;
+
+      const Geom_Number rhs1 = (bx * bx + by * by - ax * ax - ay * ay -
+                                (b.weight - a.weight)) / 2;
+      const Geom_Number rhs2 = (cx * cx + cy * cy - ax * ax - ay * ay -
+                                (c.weight - a.weight)) / 2;
+
+      const Geom_Number det = d1x * d2y - d1y * d2x;
+      ah_domain_error_if(det == 0) << "Degenerate configuration";
+
+      return {
+            (rhs1 * d2y - rhs2 * d1y) / det,
+            (d1x * rhs2 - d2x * rhs1) / det
+          };
+    }
+
+    /**
+     * @brief Compute the power diagram.
+     *
+     * Uses the regular triangulation (weighted Delaunay) so that the
+     * triangulation connectivity correctly reflects the site weights.
+     *
+     * @param sites Weighted point set.
+     * @return The power diagram: vertices, edges, and cells.
+     */
+    [[nodiscard]] Result operator()(const Array<WeightedSite> & sites) const
+    {
+      Result ret;
+      const size_t n = sites.size();
+      if (n == 0) return ret;
+
+      ret.sites = sites;
+
+      // Compute regular triangulation (weighted Delaunay).
+      Array<RegularTriangulationBowyerWatson::WeightedSite> rt_input;
+      rt_input.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        rt_input.append({sites(i).position, sites(i).weight});
+
+      constexpr RegularTriangulationBowyerWatson reg_tri;
+      auto rt = reg_tri(rt_input);
+
+      if (rt.triangles.size() == 0) return ret;
+
+      // Build a mapping from regular-triangulation site indices to ours.
+      // rt.sites may have been reordered/deduped, so match by position.
+      Array<size_t> rt_to_ours;
+      rt_to_ours.reserve(rt.sites.size());
+      for (size_t ri = 0; ri < rt.sites.size(); ++ri)
+        {
+          size_t match = 0;
+          for (size_t oi = 0; oi < n; ++oi)
+            if (rt.sites(ri).position == sites(oi).position)
+              {
+                match = oi;
+                break;
+              }
+          rt_to_ours.append(match);
+        }
+
+      // Compute power centers for each regular triangle.
+      Array<Point> pcenters;
+      pcenters.reserve(rt.triangles.size());
+      for (size_t t = 0; t < rt.triangles.size(); ++t)
+        {
+          const auto & tri = rt.triangles(t);
+          pcenters.append(power_center(
+                                       sites(rt_to_ours(tri.i)),
+                                       sites(rt_to_ours(tri.j)),
+                                       sites(rt_to_ours(tri.k))));
+        }
+
+      ret.vertices = pcenters;
+
+      // Identify hull sites: sites on boundary edges (edges shared by
+      // exactly one triangle) have unbounded power cells.
+      DynSetTree<size_t, Treap_Rk> hull_sites;
+
+      GeomTriangleAdjacencyUtils::for_each_sorted_edge_group(
+                                                             rt.triangles,
+                                                             [&](const Array<GeomTriangleAdjacencyUtils::EdgeRef> &
+                                                                 edge_refs,
+                                                                 const size_t first, const size_t last)
+                                                               {
+                                                                 if (last - first == 1)
+                                                                   {
+                                                                     // Boundary edge: both sites are on the convex hull.
+                                                                     hull_sites.insert(rt_to_ours(edge_refs(first).u));
+                                                                     hull_sites.insert(rt_to_ours(edge_refs(first).v));
+                                                                   }
+
+                                                                 // In a manifold triangulation this group has exactly 1 or 2 refs.
+                                                                 // If degeneracies produce >2, connect all pairs defensively.
+                                                                 if (last - first >= 2)
+                                                                   for (size_t a = first; a + 1 < last; ++a)
+                                                                     for (size_t b = a + 1; b < last; ++b)
+                                                                       {
+                                                                         PowerEdge pe;
+                                                                         pe.site_u = rt_to_ours(edge_refs(first).u);
+                                                                         pe.site_v = rt_to_ours(edge_refs(first).v);
+                                                                         pe.src = pcenters(edge_refs(a).tri);
+                                                                         pe.tgt = pcenters(edge_refs(b).tri);
+                                                                         pe.unbounded = false;
+                                                                         pe.direction = Point(0, 0);
+                                                                         ret.edges.append(pe);
+                                                                       }
+                                                               });
+
+      // Build cells: hull sites have unbounded cells.
+      ret.cells.reserve(n);
+      for (size_t s = 0; s < n; ++s)
+        {
+          PowerCell cell;
+          cell.site_index = s;
+          cell.site = sites(s).position;
+          cell.weight = sites(s).weight;
+          cell.bounded = hull_sites.search(s) == nullptr;
+
+          // Collect power centers of triangles incident to this site.
+          for (size_t t = 0; t < rt.triangles.size(); ++t)
+            {
+              const auto & [i, j, k] = rt.triangles(t);
+              if (rt_to_ours(i) == s or rt_to_ours(j) == s or
+                  rt_to_ours(k) == s)
+                cell.vertices.append(pcenters(t));
+            }
+
+          ret.cells.append(cell);
+        }
+
+      return ret;
+    }
+  };
+
+  // ============================================================================
+  // Bezier Curves
+  // ============================================================================
+
+  /**
+   * @brief Quadratic and cubic Bézier curves with exact rational arithmetic.
+   *
+   * A Bézier curve is a parametric curve defined by control points.
+   * - **Quadratic** (3 control points): B(t) = (1-t)²P₀ + 2t(1-t)P₁ + t²P₂
+   * - **Cubic** (4 control points): B(t) = (1-t)³P₀ + 3t(1-t)²P₁ +
+   *                                        3t²(1-t)P₂ + t³P₃
+   *
+   * Since the parameter t ∈ [0,1] is rational, evaluation is exact.
+   *
+   * @par Example
+   * @code
+   * Point p = BezierCurve::cubic(Point(0,0), Point(1,2), Point(2,2), Point(3,0),
+   *                             Geom_Number(1) / Geom_Number(2));
+   * auto poly = BezierCurve::approximate_cubic(Point(0,0), Point(1,2), Point(2,2), Point(3,0), 32);
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class BezierCurve
+  {
+  public:
+    /// Evaluate a quadratic Bézier at parameter t.
+    [[nodiscard]] static Point
+    quadratic(const Point & p0, const Point & p1, const Point & p2,
+              const Geom_Number & t)
+    {
+      const Geom_Number s = Geom_Number(1) - t;
+      const Geom_Number s2 = s * s;
+      const Geom_Number t2 = t * t;
+      const Geom_Number st2 = Geom_Number(2) * s * t;
+
+      return {
+            s2 * p0.get_x() + st2 * p1.get_x() + t2 * p2.get_x(),
+            s2 * p0.get_y() + st2 * p1.get_y() + t2 * p2.get_y()
+          };
+    }
+
+    /// Evaluate a cubic Bézier at parameter t.
+    [[nodiscard]] static Point
+    cubic(const Point & p0, const Point & p1,
+          const Point & p2, const Point & p3,
+          const Geom_Number & t)
+    {
+      const Geom_Number s = Geom_Number(1) - t;
+      const Geom_Number s2 = s * s;
+      const Geom_Number s3 = s2 * s;
+      const Geom_Number t2 = t * t;
+      const Geom_Number t3 = t2 * t;
+      const Geom_Number c1 = Geom_Number(3) * s2 * t;
+      const Geom_Number c2 = Geom_Number(3) * s * t2;
+
+      return {
+            s3 * p0.get_x() + c1 * p1.get_x() +
+            c2 * p2.get_x() + t3 * p3.get_x(),
+            s3 * p0.get_y() + c1 * p1.get_y() +
+            c2 * p2.get_y() + t3 * p3.get_y()
+          };
+    }
+
+    /// Sample a quadratic Bézier into n+1 points (t = 0, 1/n, ..., 1).
+    [[nodiscard]] static Array<Point>
+    sample_quadratic(const Point & p0, const Point & p1, const Point & p2, const size_t n)
+    {
+      ah_domain_error_if(n == 0) << "Need at least 1 subdivision";
+      Array<Point> pts;
+      pts.reserve(n + 1);
+      for (size_t i = 0; i <= n; ++i)
+        pts.append(quadratic(p0, p1, p2, Geom_Number(i) / Geom_Number(n)));
+      return pts;
+    }
+
+    /// Sample a cubic Bézier into n+1 points.
+    [[nodiscard]] static Array<Point>
+    sample_cubic(const Point & p0, const Point & p1,
+                 const Point & p2, const Point & p3,
+                 const size_t n)
+    {
+      ah_domain_error_if(n == 0) << "Need at least 1 subdivision";
+      Array<Point> pts;
+      pts.reserve(n + 1);
+      for (size_t i = 0; i <= n; ++i)
+        pts.append(cubic(p0, p1, p2, p3, Geom_Number(i) / Geom_Number(n)));
+      return pts;
+    }
+
+    /// De Casteljau subdivision: split a cubic Bézier at parameter t
+    /// into two cubic Béziers (left and right).
+    struct SplitResult
+    {
+      Point left[4];
+      Point right[4];
+    };
+
+    [[nodiscard]] static SplitResult
+    split_cubic(const Point & p0, const Point & p1,
+                const Point & p2, const Point & p3,
+                const Geom_Number & t)
+    {
+      auto lerp = [&](const Point & a, const Point & b) -> Point
+        {
+          const Geom_Number s = Geom_Number(1) - t;
+          return {
+                s * a.get_x() + t * b.get_x(),
+                s * a.get_y() + t * b.get_y()
+              };
+        };
+
+      const Point q0 = lerp(p0, p1);
+      const Point q1 = lerp(p1, p2);
+      const Point q2 = lerp(p2, p3);
+      const Point r0 = lerp(q0, q1);
+      const Point r1 = lerp(q1, q2);
+      const Point s0 = lerp(r0, r1);
+
+      SplitResult sr;
+      sr.left[0] = p0;
+      sr.left[1] = q0;
+      sr.left[2] = r0;
+      sr.left[3] = s0;
+      sr.right[0] = s0;
+      sr.right[1] = r1;
+      sr.right[2] = q2;
+      sr.right[3] = p3;
+      return sr;
+    }
+
+    /// Compute the bounding box of a cubic Bézier's control polygon.
+    [[nodiscard]] static Rectangle
+    control_bbox(const Point & p0, const Point & p1,
+                 const Point & p2, const Point & p3)
+    {
+      Geom_Number mnx = p0.get_x(), mxx = p0.get_x();
+      Geom_Number mny = p0.get_y(), mxy = p0.get_y();
+      auto update = [&](const Point & p)
+        {
+          if (p.get_x() < mnx) mnx = p.get_x();
+          if (p.get_x() > mxx) mxx = p.get_x();
+          if (p.get_y() < mny) mny = p.get_y();
+          if (p.get_y() > mxy) mxy = p.get_y();
+        };
+      update(p1);
+      update(p2);
+      update(p3);
+      return {mnx, mny, mxx, mxy};
+    }
+
+    /// Approximate a quadratic Bézier as a polyline (polygon without closing).
+    [[nodiscard]] static Polygon
+    approximate_quadratic(const Point & p0, const Point & p1,
+                          const Point & p2, const size_t n)
+    {
+      auto pts = sample_quadratic(p0, p1, p2, n);
+      Polygon poly;
+      for (size_t i = 0; i < pts.size(); ++i)
+        poly.add_vertex(pts(i));
+      return poly;
+    }
+
+    /// Approximate a cubic Bézier as a polyline.
+    [[nodiscard]] static Polygon
+    approximate_cubic(const Point & p0, const Point & p1,
+                      const Point & p2, const Point & p3, const size_t n)
+    {
+      auto pts = sample_cubic(p0, p1, p2, p3, n);
+      Polygon poly;
+      for (size_t i = 0; i < pts.size(); ++i)
+        poly.add_vertex(pts(i));
+      return poly;
+    }
+  };
+
+  // ============================================================================
+  // Boolean Polygon Operations
+  // ============================================================================
+
+  /**
+   * @brief Boolean operations on simple polygons (union, intersection,
+   *        difference) using the Greiner-Hormann algorithm.
+   *
+   * Implements general boolean operations on arbitrary simple polygons,
+   * including concave ones, via the Greiner-Hormann clipping algorithm:
+   *
+   * 1. Find all proper intersection points between polygon edges.
+   * 2. Build augmented vertex lists with intersection nodes inserted.
+   * 3. Mark each intersection as entering or exiting the other polygon.
+   * 4. Traverse the augmented lists to extract result boundaries.
+   *
+   * - **Intersection**: A ∩ B — regions inside both polygons.
+   * - **Union**: A ∪ B — outer boundary of both polygons.
+   * - **Difference**: A \ B = A ∩ complement(B) — regions in A outside B.
+   *
+   * ## Limitations
+   *
+   * - Both polygons must be *simple* (no self-intersections) and closed.
+   * - Degenerate cases (shared edges, vertex-on-edge tangencies) may
+   *   produce approximate results; the algorithm handles proper
+   *   (transversal) intersections exactly.
+   * - Results with holes (e.g. B entirely inside A for difference) are
+   *   not representable as a single simple polygon; in such cases the
+   *   outer boundary alone is returned.
+   *
+   * ## Complexity
+   *
+   * O(n·m + k log k) where n, m are vertex counts and k is the number
+   * of intersection points.
+   *
+   * @par Example
+   * @code
+   * Polygon A;
+   * A.add_vertex(Point(0,0)); A.add_vertex(Point(2,0)); A.add_vertex(Point(2,2)); A.add_vertex(Point(0,2));
+   * A.close();
+   * Polygon B;
+   * B.add_vertex(Point(1,1)); B.add_vertex(Point(3,1)); B.add_vertex(Point(3,3)); B.add_vertex(Point(1,3));
+   * B.close();
+   * BooleanPolygonOperations bop;
+   * auto res = bop(A, B, BooleanPolygonOperations::Op::INTERSECTION);
+   * @endcode
+   *
+   * @ingroup Geometry
+   */
+  class BooleanPolygonOperations
+  {
+  public:
+    /**
+     * @brief Type of Boolean operation to perform.
+     */
+    enum class Op 
+    { 
+      INTERSECTION, ///< Find regions common to both polygons.
+      UNION,        ///< Find regions covered by either polygon.
+      DIFFERENCE    ///< Find regions in the first polygon not covered by the second.
+    };
+
+    /**
+     * @brief Compute a boolean operation on two simple polygons.
+     *
+     * @param a First polygon (must be closed and simple).
+     * @param b Second polygon (must be closed and simple).
+     * @param op The operation to perform.
+     * @return Array of result polygons (may be empty for disjoint intersection,
+     *         or multiple polygons for complex shapes).
+     */
+    [[nodiscard]] Array<Polygon>
+    operator()(const Polygon & a, const Polygon & b, Op op) const
+    {
+      ah_domain_error_if(not a.is_closed()) << "First polygon must be closed";
+      ah_domain_error_if(not b.is_closed()) << "Second polygon must be closed";
+      ah_domain_error_if(a.size() < 3) << "First polygon must have >= 3 vertices";
+      ah_domain_error_if(b.size() < 3) << "Second polygon must have >= 3 vertices";
+
+      switch (op)
+        {
+        case Op::INTERSECTION: return compute_intersection(a, b);
+        case Op::UNION: return compute_union(a, b);
+        case Op::DIFFERENCE: return compute_difference(a, b);
+        }
+      return {};
+    }
+
+    /// Convenience: intersection.
+    [[nodiscard]] Array<Polygon>
+    intersection(const Polygon & a, const Polygon & b) const
+    {
+      return (*this)(a, b, Op::INTERSECTION);
+    }
+
+    /// Convenience: union.
+    [[nodiscard]] Array<Polygon>
+    polygon_union(const Polygon & a, const Polygon & b) const
+    {
+      return (*this)(a, b, Op::UNION);
+    }
+
+    /// Convenience: difference (a minus b).
+    [[nodiscard]] Array<Polygon>
+    difference(const Polygon & a, const Polygon & b) const
+    {
+      return (*this)(a, b, Op::DIFFERENCE);
+    }
+
+  private:
+    // ----- Greiner-Hormann node for augmented polygon vertex list -----
+
+    struct GHNode
+    {
+      Point pt;
+      bool intersect = false;
+      bool entering = false;
+      size_t neighbor = SIZE_MAX; // index in the other polygon's list
+      bool visited = false;
+      Geom_Number alpha = 0; // parameter along the original edge
+    };
+
+    // ----- helpers -----
+
+    /// Extract vertices from a polygon into an Array.
+    [[nodiscard]] static Array<Point> extract(const Polygon & p)
+    {
+      return GeomPolygonUtils::extract_vertices(p);
+    }
+
+    /// Ensure vertices are in CCW order.
+    static void ensure_ccw(Array<Point> & v)
+    {
+      GeomPolygonUtils::ensure_ccw(v);
+    }
+
+    /// Reverse a vertex array in place.
+    static void reverse_array(Array<Point> & v)
+    {
+      for (size_t i = 0, j = v.size() - 1; i < j; ++i, --j)
+        {
+          const Point tmp = v(i);
+          v(i) = v(j);
+          v(j) = tmp;
+        }
+    }
+
+    /// Build a polygon from a vertex array (bypasses colinearity merge).
+    [[nodiscard]] static Polygon build_poly(const Array<Point> & pts)
+    {
+      Polygon p;
+      for (size_t i = 0; i < pts.size(); ++i)
+        p.add_vertex(pts(i));
+      if (pts.size() >= 3)
+        p.close();
+      return p;
+    }
+
+    /// Compute parameter t of point I along directed edge P→Q.
+    [[nodiscard]] static Geom_Number
+    edge_param(const Point & P, const Point & Q, const Point & I)
+    {
+      const Geom_Number dx = Q.get_x() - P.get_x();
+      if (dx != 0)
+        return (I.get_x() - P.get_x()) / dx;
+      return (I.get_y() - P.get_y()) / (Q.get_y() - P.get_y());
+    }
+
+    /// Point-in-polygon test on a CCW vertex array (winding number).
+    [[nodiscard]] static bool
+    point_inside_ccw(const Array<Point> & poly, const Point & p)
+    {
+      int winding = 0;
+      const size_t n = poly.size();
+      for (size_t i = 0; i < n; ++i)
+        {
+          const Point & a = poly(i);
+          const Point & b = poly((i + 1) % n);
+          const Segment edge(a, b);
+          if (edge.contains(p))
+            return true;
+          if (a.get_y() <= p.get_y())
+            {
+              if (b.get_y() > p.get_y() &&
+                  area_of_parallelogram(a, b, p) > 0)
+                ++winding;
+            }
+          else
+            {
+              if (b.get_y() <= p.get_y() &&
+                  area_of_parallelogram(a, b, p) < 0)
+                --winding;
+            }
+        }
+      return winding != 0;
+    }
+
+    /// Insertion-sort indices by a key array.
+    static void sort_indices_by_alpha(Array<size_t> & idx,
+                                      const Array<Geom_Number> & keys)
+    {
+      for (size_t i = 1; i < idx.size(); ++i)
+        {
+          const size_t val = idx(i);
+          const Geom_Number& key = keys(val);
+          size_t j = i;
+          while (j > 0 && keys(idx(j - 1)) > key)
+            {
+              idx(j) = idx(j - 1);
+              --j;
+            }
+          idx(j) = val;
+        }
+    }
+
+    // ----- Core Greiner-Hormann algorithm -----
+
+    /// Intersection pair found between edge i of A and edge j of B.
+    struct IsectPair
+    {
+      Point pt;
+      size_t edge_a, edge_b;
+      Geom_Number alpha_a, alpha_b;
+    };
+
+    /// Run Greiner-Hormann and return result polygons.
+    /// @param va CCW vertices of A.
+    /// @param vb CCW vertices of B.
+    /// @param start_entering true → start at entering intersections
+    ///        (intersection op); false → start at exiting (union op).
+    [[nodiscard]] static Array<Polygon>
+    greiner_hormann(const Array<Point> & va, const Array<Point> & vb,
+                    bool start_entering)
+    {
+      const size_t na = va.size();
+      const size_t nb = vb.size();
+
+      // --- Phase 1: find all proper intersection pairs ---
+
+      Array<IsectPair> pairs;
+
+      for (size_t i = 0; i < na; ++i)
+        {
+          const Point & a0 = va(i);
+          const Point & a1 = va((i + 1) % na);
+          const Segment sa(a0, a1);
+
+          for (size_t j = 0; j < nb; ++j)
+            {
+              const Point & b0 = vb(j);
+              const Point & b1 = vb((j + 1) % nb);
+              const Segment sb(b0, b1);
+
+              if (not sa.intersects_properly_with(sb))
+                continue;
+
+              const Point ip = sa.intersection_with(sb);
+              const Geom_Number aa = edge_param(a0, a1, ip);
+              const Geom_Number ab = edge_param(b0, b1, ip);
+              pairs.append({ip, i, j, aa, ab});
+            }
+        }
+
+      // --- Phase 2: build augmented lists ---
+
+      Array<GHNode> list_a, list_b;
+      // pair_idx_a[k] / pair_idx_b[k] = position in list_a / list_b for
+      // intersection pair k.
+      Array<size_t> pair_idx_a, pair_idx_b;
+      pair_idx_a.reserve(pairs.size());
+      pair_idx_b.reserve(pairs.size());
+      for (size_t k = 0; k < pairs.size(); ++k)
+        {
+          pair_idx_a.append(0);
+          pair_idx_b.append(0);
+        }
+
+      // Build list_a: for each edge, add original vertex then sorted
+      // intersections.
+      for (size_t i = 0; i < na; ++i)
+        {
+          GHNode vn;
+          vn.pt = va(i);
+          list_a.append(vn);
+
+          // Collect pairs on this edge of A.
+          Array<size_t> edge_pairs;
+          Array<Geom_Number> edge_alphas;
+          for (size_t k = 0; k < pairs.size(); ++k)
+            if (pairs(k).edge_a == i)
+              {
+                edge_pairs.append(k);
+                edge_alphas.append(pairs(k).alpha_a);
+              }
+
+          // Sort by alpha.
+          Array<size_t> order;
+          for (size_t p = 0; p < edge_pairs.size(); ++p)
+            order.append(p);
+          sort_indices_by_alpha(order, edge_alphas);
+
+          for (size_t p = 0; p < order.size(); ++p)
+            {
+              const size_t k = edge_pairs(order(p));
+              pair_idx_a(k) = list_a.size();
+              GHNode in;
+              in.pt = pairs(k).pt;
+              in.intersect = true;
+              in.alpha = pairs(k).alpha_a;
+              list_a.append(in);
+            }
+        }
+
+      // Build list_b analogously.
+      for (size_t j = 0; j < nb; ++j)
+        {
+          GHNode vn;
+          vn.pt = vb(j);
+          list_b.append(vn);
+
+          Array<size_t> edge_pairs;
+          Array<Geom_Number> edge_alphas;
+          for (size_t k = 0; k < pairs.size(); ++k)
+            if (pairs(k).edge_b == j)
+              {
+                edge_pairs.append(k);
+                edge_alphas.append(pairs(k).alpha_b);
+              }
+
+          Array<size_t> order;
+          for (size_t p = 0; p < edge_pairs.size(); ++p)
+            order.append(p);
+          sort_indices_by_alpha(order, edge_alphas);
+
+          for (size_t p = 0; p < order.size(); ++p)
+            {
+              const size_t k = edge_pairs(order(p));
+              pair_idx_b(k) = list_b.size();
+              GHNode in;
+              in.pt = pairs(k).pt;
+              in.intersect = true;
+              in.alpha = pairs(k).alpha_b;
+              list_b.append(in);
+            }
+        }
+
+      // Set neighbor links.
+      for (size_t k = 0; k < pairs.size(); ++k)
+        {
+          list_a(pair_idx_a(k)).neighbor = pair_idx_b(k);
+          list_b(pair_idx_b(k)).neighbor = pair_idx_a(k);
+        }
+
+      // --- Phase 3: mark entry / exit ---
+
+      // Walk list_a; determine if the first original vertex of A is
+      // inside B.
+      {
+        bool inside = point_inside_ccw(vb, va(0));
+        for (size_t i = 0; i < list_a.size(); ++i)
+          if (list_a(i).intersect)
+            {
+              list_a(i).entering = ! inside;
+              inside = ! inside;
+            }
+      }
+
+      // Walk list_b similarly w.r.t. A.
+      {
+        bool inside = point_inside_ccw(va, vb(0));
+        for (size_t j = 0; j < list_b.size(); ++j)
+          if (list_b(j).intersect)
+            {
+              list_b(j).entering = ! inside;
+              inside = ! inside;
+            }
+      }
+
+      // --- Phase 4: traverse ---
+
+      Array<Polygon> result;
+      const size_t safety_limit = list_a.size() + list_b.size() + pairs.size() * 2;
+
+      for (size_t s = 0; s < list_a.size(); ++s)
+        {
+          if (not list_a(s).intersect)
+            continue;
+          if (list_a(s).visited)
+            continue;
+          if (list_a(s).entering != start_entering)
+            continue;
+
+          // Trace one result polygon.
+          Array<Point> boundary;
+          bool on_a = true;
+          size_t idx = s;
+          size_t steps = 0;
+
+          do
+            {
+              auto & cur_list = on_a ? list_a : list_b;
+
+              // Mark current intersection visited (and its partner).
+              cur_list(idx).visited = true;
+              if (cur_list(idx).neighbor != SIZE_MAX)
+                {
+                  auto & other = on_a ? list_b : list_a;
+                  other(cur_list(idx).neighbor).visited = true;
+                }
+
+              // Record this intersection point.
+              boundary.append(cur_list(idx).pt);
+
+              // Walk forward until the next intersection node.
+              idx = (idx + 1) % cur_list.size();
+              while (not cur_list(idx).intersect)
+                {
+                  boundary.append(cur_list(idx).pt);
+                  idx = (idx + 1) % cur_list.size();
+                  if (++steps > safety_limit)
+                    goto done_poly;
+                }
+
+              // idx is now at the next intersection — mark it and switch.
+              cur_list(idx).visited = true; {
+                auto & other = on_a ? list_b : list_a;
+                const size_t nbr = cur_list(idx).neighbor;
+                other(nbr).visited = true;
+                on_a = ! on_a;
+                idx = nbr;
+              }
+
+              if (++steps > safety_limit)
+                break;
+            }
+          while (! (on_a && idx == s));
+
+        done_poly:
+          if (boundary.size() >= 3)
+            result.append(build_poly(boundary));
+        }
+
+      return result;
+    }
+
+    // ----- Operation dispatchers -----
+
+    static Array<Polygon>
+    compute_intersection(const Polygon & a, const Polygon & b)
+    {
+      Array<Point> va = extract(a);
+      Array<Point> vb = extract(b);
+      ensure_ccw(va);
+      ensure_ccw(vb);
+
+      Array<Polygon> res = greiner_hormann(va, vb, /*start_entering=*/true);
+
+      if (not res.is_empty())
+        return res;
+
+      // No proper intersections — check containment.
+      if (point_inside_ccw(vb, va(0)))
+        {
+          // A entirely inside B → intersection is A.
+          res.append(a);
+          return res;
+        }
+      if (point_inside_ccw(va, vb(0)))
+        {
+          // B entirely inside A → intersection is B.
+          res.append(b);
+          return res;
+        }
+      // Disjoint.
+      return res;
+    }
+
+    static Array<Polygon>
+    compute_union(const Polygon & a, const Polygon & b)
+    {
+      Array<Point> va = extract(a);
+      Array<Point> vb = extract(b);
+      ensure_ccw(va);
+      ensure_ccw(vb);
+
+      Array<Polygon> res = greiner_hormann(va, vb, /*start_entering=*/false);
+
+      if (! res.is_empty())
+        return res;
+
+      // No proper intersections — check containment.
+      if (point_inside_ccw(vb, va(0)))
+        {
+          // A inside B → union is B.
+          res.append(b);
+          return res;
+        }
+      if (point_inside_ccw(va, vb(0)))
+        {
+          // B inside A → union is A.
+          res.append(a);
+          return res;
+        }
+      // Disjoint → both.
+      res.append(a);
+      res.append(b);
+      return res;
+    }
+
+    static Array<Polygon>
+    compute_difference(const Polygon & a, const Polygon & b)
+    {
+      Array<Point> va = extract(a);
+      Array<Point> vb = extract(b);
+      ensure_ccw(va);
+      ensure_ccw(vb);
+
+      // A \ B = A ∩ complement(B).  Reversing B's winding makes
+      // "inside reversed-B" = "outside B", so intersection with
+      // reversed-B gives the difference.
+      reverse_array(vb);
+
+      Array<Polygon> res = greiner_hormann(va, vb, /*start_entering=*/true);
+
+      if (! res.is_empty())
+        return res;
+
+      // No proper intersections — check containment using ORIGINAL B.
+      // Reverse vb back to original orientation for the test.
+      reverse_array(vb);
+
+      if (point_inside_ccw(vb, va(0)))
+        {
+          // A entirely inside B → difference is empty.
+          return res;
+        }
+      // B inside A → difference has a hole (limitation: return A).
+      // Disjoint → difference is A.
+      res.append(a);
+      return res;
+    }
+  };
+
+  // ============================================================================
+  // Serialization — WKT and GeoJSON
+  // ============================================================================
+
+  /**
+   * @brief Serialization utilities for geometry objects.
+   *
+   * Provides conversion to standard text formats:
+   * - **WKT** (Well-Known Text): OGC standard for geometry representation.
+   * - **GeoJSON**: JSON-based format for geographic data structures.
+   *
+   * All numeric values are output as doubles (via `geom_number_to_double`).
+   *
+   * @ingroup Geometry
+   */
+  /**
+   * @brief Serializes geometric types to standard string formats (WKT, GeoJSON).
+   *
+   * This class provides static methods to convert basic geometric primitives like
+   * @c Point, @c Segment, @c Polygon, etc., into Well-Known Text (WKT) and GeoJSON 
+   * representations. 
+   *
+   * All numeric values are output as doubles (via `geom_number_to_double`).
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
+  class GeomSerializer
+  {
+    /**
+     * @brief Formats a Geom_Number as a string with high precision.
+     */
+    static std::string dbl(const Geom_Number & n)
+    {
+      std::ostringstream os;
+      os << std::setprecision(15) << geom_number_to_double(n);
+      return os.str();
+    }
+
+  public:
+    // ---- WKT (Well-Known Text) ----
+
+    /**
+     * @brief Converts a Point to WKT format: "POINT (x y)".
+     */
+    [[nodiscard]] static std::string to_wkt(const Point & p)
+    {
+      return "POINT (" + dbl(p.get_x()) + " " + dbl(p.get_y()) + ")";
+    }
+
+    /**
+     * @brief Converts a Segment to WKT format: "LINESTRING (x1 y1, x2 y2)".
+     */
+    [[nodiscard]] static std::string to_wkt(const Segment & s)
+    {
+      return "LINESTRING (" +
+             dbl(s.get_src_point().get_x()) + " " +
+             dbl(s.get_src_point().get_y()) + ", " +
+             dbl(s.get_tgt_point().get_x()) + " " +
+             dbl(s.get_tgt_point().get_y()) + ")";
+    }
+
+    /**
+     * @brief Converts a Triangle to WKT format: "POLYGON ((x1 y1, x2 y2, x3 y3, x1 y1))".
+     */
+    [[nodiscard]] static std::string to_wkt(const Triangle & t)
+    {
+      auto pt = [](const Point & p)
+        {
+          return dbl(p.get_x()) + " " + dbl(p.get_y());
+        };
+      return "POLYGON ((" + pt(t.get_p1()) + ", " + pt(t.get_p2()) +
+             ", " + pt(t.get_p3()) + ", " + pt(t.get_p1()) + "))";
+    }
+
+    /**
+     * @brief Converts a Rectangle to WKT format: "POLYGON ((xmin ymin, xmax ymin, xmax ymax, xmin ymax, xmin ymin))".
+     */
+    [[nodiscard]] static std::string to_wkt(const Rectangle & r)
+    {
+      return "POLYGON ((" +
+             dbl(r.get_xmin()) + " " + dbl(r.get_ymin()) + ", " +
+             dbl(r.get_xmax()) + " " + dbl(r.get_ymin()) + ", " +
+             dbl(r.get_xmax()) + " " + dbl(r.get_ymax()) + ", " +
+             dbl(r.get_xmin()) + " " + dbl(r.get_ymax()) + ", " +
+             dbl(r.get_xmin()) + " " + dbl(r.get_ymin()) + "))";
+    }
+
+    /**
+     * @brief Converts a Polygon to WKT format: "POLYGON ((x1 y1, x2 y2, ..., x1 y1))".
+     */
+    [[nodiscard]] static std::string to_wkt(const Polygon & poly)
+    {
+      std::ostringstream os;
+      os << std::setprecision(15) << "POLYGON ((";
+      bool first = true;
+      Point first_pt;
+      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+        {
+          const Point & v = it.get_current_vertex();
+          if (first)
+            {
+              first_pt = v;
+              first = false;
+            }
+          else os << ", ";
+          os << geom_number_to_double(v.get_x()) << " "
+              << geom_number_to_double(v.get_y());
+        }
+      if (not first)
+        os << ", " << geom_number_to_double(first_pt.get_x()) << " "
+            << geom_number_to_double(first_pt.get_y());
+      os << "))";
+      return os.str();
+    }
+
+    /**
+     * @brief Converts a Point3D to WKT format: "POINT Z (x y z)".
+     */
+    [[nodiscard]] static std::string to_wkt(const Point3D & p)
+    {
+      return "POINT Z (" + dbl(p.get_x()) + " " + dbl(p.get_y()) +
+             " " + dbl(p.get_z()) + ")";
+    }
+
+    // ---- GeoJSON ----
+
+    /**
+     * @brief Converts a Point to a GeoJSON geometry object.
+     */
+    [[nodiscard]] static std::string to_geojson(const Point & p)
+    {
+      return R"({"type":"Point","coordinates":[)" +
+             dbl(p.get_x()) + "," + dbl(p.get_y()) + "]}";
+    }
+
+    /**
+     * @brief Converts a Segment to a GeoJSON LineString.
+     */
+    [[nodiscard]] static std::string to_geojson(const Segment & s)
+    {
+      return R"({"type":"LineString","coordinates":[[)" +
+             dbl(s.get_src_point().get_x()) + "," +
+             dbl(s.get_src_point().get_y()) + "],[" +
+             dbl(s.get_tgt_point().get_x()) + "," +
+             dbl(s.get_tgt_point().get_y()) + "]]}";
+    }
+
+    /// Triangle → GeoJSON Polygon.
+    [[nodiscard]] static std::string to_geojson(const Triangle & t)
+    {
+      auto pt = [](const Point & p)
+        {
+          return "[" + dbl(p.get_x()) + "," + dbl(p.get_y()) + "]";
+        };
+      return R"({"type":"Polygon","coordinates":[[)" +
+             pt(t.get_p1()) + "," + pt(t.get_p2()) + "," +
+             pt(t.get_p3()) + "," + pt(t.get_p1()) + "]]}";
+    }
+
+    /// Polygon → GeoJSON Polygon.
+    [[nodiscard]] static std::string to_geojson(const Polygon & poly)
+    {
+      std::ostringstream os;
+      os << std::setprecision(15);
+      os << R"({"type":"Polygon","coordinates":[[)";
+      bool first = true;
+      Point first_pt;
+      for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
+        {
+          const Point & v = it.get_current_vertex();
+          if (first)
+            {
+              first_pt = v;
+              first = false;
+            }
+          else os << ",";
+          os << "[" << geom_number_to_double(v.get_x()) << ","
+              << geom_number_to_double(v.get_y()) << "]";
+        }
+      if (not first)
+        os << ",[" << geom_number_to_double(first_pt.get_x()) << ","
+            << geom_number_to_double(first_pt.get_y()) << "]";
+      os << "]]}";
+      return os.str();
+    }
+
+    /// Point3D → GeoJSON Point with Z.
+    [[nodiscard]] static std::string to_geojson(const Point3D & p)
+    {
+      return R"({"type":"Point","coordinates":[)" +
+             dbl(p.get_x()) + "," + dbl(p.get_y()) + "," +
+             dbl(p.get_z()) + "]}";
+    }
+  };
+
+  // ============================================================================
+  // AABB Tree — Axis-Aligned Bounding Box Tree
+  // ============================================================================
+
+  /**
+   * @brief Axis-aligned bounding box tree for spatial queries.
+   *
+   * An AABB tree organizes a collection of axis-aligned bounding boxes
+   * (rectangles) in a binary tree to accelerate spatial queries such as:
+   * - Point-in-box queries.
+   * - Box-box intersection queries.
+   * - Range queries (find all boxes overlapping a query box).
+   *
+   * ## Construction
+   *
+   * The tree is built top-down by splitting the input boxes along the
+   * longest axis of the enclosing bounding box. Each internal node stores
+   * the union bounding box of its children.
+   *
+   * ## Complexity
+   * - Build: O(n log n)
+   * - Query: O(log n + k) for k results, worst case O(n).
+   *
+   * @par Example
+   * @code
+   * Array<AABBTree::Entry> entries;
+   * entries.append({Rectangle(0,0,1,1), 0});
+   * entries.append({Rectangle(2,2,3,3), 1});
+   * AABBTree tree;
+   * tree.build(entries);
+   * auto hits = tree.query(Rectangle(0,0,2,2));
+   * @endcode
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
+  class AABBTree
+  {
+  public:
+    /**
+     * @brief An entry in the tree, consisting of a bounding box and a user-defined index.
+     */
+    struct Entry
+    {
+      Rectangle bbox; ///< The axis-aligned bounding box.
+      size_t index;   ///< User-defined identifier for the entry.
+    };
+
+    /**
+     * @brief Structure used for debugging and visualizing the tree structure.
+     */
+    struct DebugNode
+    {
+      size_t node_index = ~static_cast<size_t>(0);  ///< Index of the node.
+      Rectangle bbox;                               ///< Bounding box of the node.
+      bool is_leaf = false;                         ///< True if it's a leaf node.
+      size_t entry_index = ~static_cast<size_t>(0); ///< Index in entries_ array.
+      size_t user_index = ~static_cast<size_t>(0);  ///< Entry::index.
+      size_t left = ~static_cast<size_t>(0);        ///< Left child index.
+      size_t right = ~static_cast<size_t>(0);       ///< Right child index.
+      size_t depth = 0;                             ///< Depth in the tree.
+    };
+
+    /**
+     * @brief A snapshot of the entire tree for debugging.
+     */
+    struct DebugSnapshot
+    {
+      Array<DebugNode> nodes;               ///< Array of all nodes in debug format.
+      size_t root = ~static_cast<size_t>(0); ///< Index of the root node.
+    };
+
+  private:
+    /**
+     * @brief Internal tree node structure.
+     */
+    struct Node
+    {
+      Rectangle bbox;                        ///< Bounding box enclosing all descendants.
+      size_t left = ~static_cast<size_t>(0);  ///< Left child index.
+      size_t right = ~static_cast<size_t>(0); ///< Right child index.
+      size_t entry_idx = ~static_cast<size_t>(0); ///< Index in entries_ (leaf only).
+      
+      /**
+       * @brief Checks if this node is a leaf.
+       */
+      [[nodiscard]] bool is_leaf() const { return entry_idx != ~static_cast<size_t>(0); }
+    };
+
+    Array<Node> nodes_;   ///< Internal array storing tree nodes.
+    Array<Entry> entries_; ///< Original entries stored in the tree.
+
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
+
+    /**
+     * @brief Computes the union of two axis-aligned bounding boxes.
+     */
+    [[nodiscard]] static Rectangle union_bbox(const Rectangle & a,
+                                              const Rectangle & b)
+    {
+      const Geom_Number xmin = a.get_xmin() < b.get_xmin() ? a.get_xmin() : b.get_xmin();
+      const Geom_Number ymin = a.get_ymin() < b.get_ymin() ? a.get_ymin() : b.get_ymin();
+      const Geom_Number xmax = a.get_xmax() > b.get_xmax() ? a.get_xmax() : b.get_xmax();
+      const Geom_Number ymax = a.get_ymax() > b.get_ymax() ? a.get_ymax() : b.get_ymax();
+      return {xmin, ymin, xmax, ymax};
+    }
+
+    /**
+     * @brief Checks if two rectangles overlap.
+     */
+    [[nodiscard]] static bool boxes_overlap(const Rectangle & a,
+                                            const Rectangle & b)
+    {
+      return a.get_xmin() <= b.get_xmax() and a.get_xmax() >= b.get_xmin() and
+             a.get_ymin() <= b.get_ymax() and a.get_ymax() >= b.get_ymin();
+    }
+
+    /**
+     * @brief Checks if a rectangle contains a point.
+     */
+    [[nodiscard]] static bool box_contains_point(const Rectangle & r,
+                                                 const Point & p)
+    {
+      return p.get_x() >= r.get_xmin() and p.get_x() <= r.get_xmax() and
+             p.get_y() >= r.get_ymin() and p.get_y() <= r.get_ymax();
+    }
+
+    [[nodiscard]] Geom_Number center_coord(const size_t entry_idx,
+                                           const bool split_x) const
+    {
+      return split_x ?
+               entries_(entry_idx).bbox.get_xmin() + entries_(entry_idx).bbox.get_xmax() :
+               entries_(entry_idx).bbox.get_ymin() + entries_(entry_idx).bbox.get_ymax();
+    }
+
+    void insertion_sort_by_center(Array<size_t> & idx, const size_t lo,
+                                  const size_t hi, const bool split_x) const
+    {
+      for (size_t i = lo + 1; i < hi; ++i)
+        {
+          const size_t key = idx(i);
+          const Geom_Number key_val = center_coord(key, split_x);
+          size_t j = i;
+          while (j > lo and center_coord(idx(j - 1), split_x) > key_val)
+            {
+              idx(j) = idx(j - 1);
+              --j;
+            }
+          idx(j) = key;
+        }
+    }
+
+    // Partially reorder idx[lo..hi) so idx[kth] is in its sorted position
+    // by center along the split axis (expected linear time).
+    void select_kth_by_center(Array<size_t> & idx, size_t lo, size_t hi,
+                              const size_t kth, const bool split_x) const
+    {
+      while (hi - lo > 16)
+        {
+          const Geom_Number pivot =
+              center_coord(idx(lo + (hi - lo) / 2), split_x);
+
+          size_t lt = lo;
+          size_t i = lo;
+          size_t gt = hi;
+          while (i < gt)
+            {
+              const Geom_Number val = center_coord(idx(i), split_x);
+              if (val < pivot)
+                {
+                  const size_t tmp = idx(lt);
+                  idx(lt) = idx(i);
+                  idx(i) = tmp;
+                  ++lt;
+                  ++i;
+                }
+              else if (val > pivot)
+                {
+                  --gt;
+                  const size_t tmp = idx(gt);
+                  idx(gt) = idx(i);
+                  idx(i) = tmp;
+                }
+              else
+                ++i;
+            }
+
+          if (kth < lt)
+            hi = lt;
+          else if (kth >= gt)
+            lo = gt;
+          else
+            return;
+        }
+
+      insertion_sort_by_center(idx, lo, hi, split_x);
+    }
+
+    // Build a subtree for entries[lo..hi) and return its node index.
+    size_t build(Array<size_t> & idx, const size_t lo, const size_t hi)
+    {
+      if (hi - lo == 1)
+        {
+          Node n;
+          n.bbox = entries_(idx(lo)).bbox;
+          n.entry_idx = idx(lo);
+          const size_t ni = nodes_.size();
+          nodes_.append(n);
+          return ni;
+        }
+
+      // Compute enclosing bbox.
+      Rectangle total = entries_(idx(lo)).bbox;
+      for (size_t i = lo + 1; i < hi; ++i)
+        total = union_bbox(total, entries_(idx(i)).bbox);
+
+      // Split along the longest axis.
+      const Geom_Number dx = total.get_xmax() - total.get_xmin();
+      const Geom_Number dy = total.get_ymax() - total.get_ymin();
+      const bool split_x = dx >= dy;
+
+      const size_t mid = lo + (hi - lo) / 2;
+      select_kth_by_center(idx, lo, hi, mid, split_x);
+
+      const size_t left = build(idx, lo, mid);
+      const size_t right = build(idx, mid, hi);
+
+      Node n;
+      n.bbox = union_bbox(nodes_(left).bbox, nodes_(right).bbox);
+      n.left = left;
+      n.right = right;
+      const size_t ni = nodes_.size();
+      nodes_.append(n);
+      return ni;
+    }
+
+    void query_impl(const size_t ni, const Rectangle & q,
+                    Array<size_t> & results) const
+    {
+      if (ni == NONE) return;
+      const Node & n = nodes_(ni);
+      if (not boxes_overlap(n.bbox, q)) return;
+
+      if (n.is_leaf())
+        {
+          results.append(entries_(n.entry_idx).index);
+          return;
+        }
+
+      query_impl(n.left, q, results);
+      query_impl(n.right, q, results);
+    }
+
+    void query_point_impl(const size_t ni, const Point & p,
+                          Array<size_t> & results) const
+    {
+      if (ni == NONE) return;
+      const Node & n = nodes_(ni);
+      if (not box_contains_point(n.bbox, p)) return;
+
+      if (n.is_leaf())
+        {
+          if (box_contains_point(entries_(n.entry_idx).bbox, p))
+            results.append(entries_(n.entry_idx).index);
+          return;
+        }
+
+      query_point_impl(n.left, p, results);
+      query_point_impl(n.right, p, results);
+    }
+
+    size_t root_ = NONE;
+
+  public:
+    AABBTree() = default;
+
+    /**
+     * @brief Build the AABB tree from an array of entries.
+     *
+     * @param entries Array of (bounding box, index) pairs.
+     */
+    void build(const Array<Entry> & entries)
+    {
+      entries_ = entries;
+      nodes_ = Array<Node>();
+      if (entries_.is_empty())
+        {
+          root_ = NONE;
+          return;
+        }
+
+      Array<size_t> idx;
+      idx.reserve(entries_.size());
+      for (size_t i = 0; i < entries_.size(); ++i)
+        idx.append(i);
+
+      root_ = build(idx, 0, idx.size());
+    }
+
+    /**
+     * @brief Find all entries whose bounding box overlaps the query rectangle.
+     *
+     * @param query The query bounding box.
+     * @return Array of user-defined indices of overlapping entries.
+     */
+    [[nodiscard]] Array<size_t> query(const Rectangle & query) const
+    {
+      Array<size_t> results;
+      if (root_ != NONE)
+        query_impl(root_, query, results);
+      return results;
+    }
+
+    /**
+     * @brief Find all entries whose bounding box contains the query point.
+     *
+     * @param p The query point.
+     * @return Array of user-defined indices of entries containing p.
+     */
+    [[nodiscard]] Array<size_t> query_point(const Point & p) const
+    {
+      Array<size_t> results;
+      if (root_ != NONE)
+        query_point_impl(root_, p, results);
+      return results;
+    }
+
+    /// Return the root bounding box (union of all entries).
+    [[nodiscard]] Rectangle root_bbox() const
+    {
+      ah_domain_error_if(root_ == NONE) << "Empty tree";
+      return nodes_(root_).bbox;
+    }
+
+    /// Number of entries.
+    [[nodiscard]] size_t size() const { return entries_.size(); }
+
+    /// Whether the tree is empty.
+    [[nodiscard]] bool is_empty() const { return entries_.is_empty(); }
+
+    /// @brief Return the full tree structure for visualization/debug.
+    [[nodiscard]] DebugSnapshot debug_snapshot() const
+    {
+      DebugSnapshot snap;
+      if (root_ == NONE)
+        return snap;
+
+      auto dfs = [&](const auto & self, const size_t ni, const size_t depth) -> size_t
+        {
+          const Node & n = nodes_(ni);
+          const size_t out_idx = snap.nodes.size();
+          snap.nodes.append(DebugNode{});
+          DebugNode & dn = snap.nodes(out_idx);
+          dn.node_index = ni;
+          dn.bbox = n.bbox;
+          dn.is_leaf = n.is_leaf();
+          dn.depth = depth;
+          if (dn.is_leaf)
+            {
+              dn.entry_index = n.entry_idx;
+              dn.user_index = entries_(n.entry_idx).index;
+            }
+          else
+            {
+              dn.left = self(self, n.left, depth + 1);
+              dn.right = self(self, n.right, depth + 1);
+            }
+          return out_idx;
+        };
+
+      snap.root = dfs(dfs, root_, 0);
+      return snap;
+    }
+  };
+
+  // ============================================================================
+  // Polyline / Polygon Simplification
+  // ============================================================================
+
+  /**
+   * @brief Douglas-Peucker polyline simplification.
+   *
+   * Recursively splits the polyline at the vertex farthest from the line
+   * connecting the current endpoints. Vertices closer than @p epsilon to
+   * the connecting line are discarded.
+   *
+   * - Open polyline: first and last vertex are always kept.
+   * - Closed polygon: the vertex farthest from vertex 0 is used to split
+   *   the ring into two open chains, each simplified independently.
+   *
+   * Complexity: O(n log n) average, O(n²) worst case.
+   *
+   * @ingroup Geometry
+   */
+  class DouglasPeuckerSimplification
+  {
+    static void dp_recurse(const Array<Point> & pts, const size_t first,
+                           const size_t last, const Geom_Number & eps2,
+                           Array<bool> & keep)
+    {
+      if (last <= first + 1)
+        return;
+
+      const Segment seg(pts(first), pts(last));
+      Geom_Number max_dist2 = 0;
+      size_t max_idx = first;
+
+      for (size_t i = first + 1; i < last; ++i)
+        {
+          Geom_Number d = seg.distance_to(pts(i));
+          if (Geom_Number d2 = d * d; d2 > max_dist2)
+            {
+              max_dist2 = d2;
+              max_idx = i;
+            }
+        }
+
+      if (max_dist2 > eps2)
+        {
+          keep(max_idx) = true;
+          dp_recurse(pts, first, max_idx, eps2, keep);
+          dp_recurse(pts, max_idx, last, eps2, keep);
+        }
+    }
+
+  public:
+    /**
+     * @brief Simplify an open polyline.
+     *
+     * First and last vertices are always kept.
+     *
+     * @param polyline Ordered sequence of vertices.
+     * @param epsilon  Maximum perpendicular distance tolerance.
+     * @return Simplified vertex array (subsequence of @p polyline).
+     */
+    [[nodiscard]] Array<Point>
+    operator()(const Array<Point> & polyline,
+               const Geom_Number & epsilon) const
+    {
+      const size_t n = polyline.size();
+      if (n <= 2)
+        return polyline;
+
+      const Geom_Number eps2 = epsilon * epsilon;
+      Array<bool> keep(n);
+      for (size_t i = 0; i < n; ++i)
+        keep.append(false);
+      keep(0) = true;
+      keep(n - 1) = true;
+
+      dp_recurse(polyline, 0, n - 1, eps2, keep);
+
+      Array<Point> result;
+      for (size_t i = 0; i < n; ++i)
+        if (keep(i))
+          result.append(polyline(i));
+
+      return result;
+    }
+
+    /// @brief Overload accepting DynList.
+    [[nodiscard]] Array<Point>
+    operator()(const DynList<Point> & polyline,
+               const Geom_Number & epsilon) const
+    {
+      Array<Point> arr;
+      for (typename DynList<Point>::Iterator it(polyline);
+           it.has_curr(); it.next_ne())
+        arr.append(it.get_curr());
+      return (*this)(arr, epsilon);
+    }
+
+    /**
+     * @brief Simplify a closed polygon.
+     *
+     * Splits the polygon ring at the vertex farthest from vertex 0,
+     * simplifies each open chain, and merges the results.
+     *
+     * @param poly    The closed polygon.
+     * @param epsilon Maximum perpendicular distance tolerance.
+     * @return A new polygon with fewer vertices.
+     */
+    [[nodiscard]] Polygon
+    simplify_polygon(const Polygon & poly,
+                     const Geom_Number & epsilon) const
+    {
+      auto verts = GeomPolygonUtils::extract_vertices(poly);
+      const size_t n = verts.size();
+      if (n <= 3)
+        return poly;
+
+      // Find vertex farthest from vertex 0
+      size_t far_idx = 1;
+      Geom_Number far_dist2 = 0;
+      for (size_t i = 1; i < n; ++i)
+        {
+          Geom_Number dx = verts(i).get_x() - verts(0).get_x();
+          Geom_Number dy = verts(i).get_y() - verts(0).get_y();
+          if (Geom_Number d2 = dx * dx + dy * dy; d2 > far_dist2)
+            {
+              far_dist2 = d2;
+              far_idx = i;
+            }
+        }
+
+      // Build two open chains sharing endpoints at vertex 0 and far_idx
+      Array<Point> chain1; // 0 → far_idx
+      for (size_t i = 0; i <= far_idx; ++i)
+        chain1.append(verts(i));
+
+      Array<Point> chain2; // far_idx → 0 (wrapping around)
+      for (size_t i = far_idx; i < n; ++i)
+        chain2.append(verts(i));
+      chain2.append(verts(0));
+
+      auto s1 = (*this)(chain1, epsilon);
+      auto s2 = (*this)(chain2, epsilon);
+
+      // Merge: s1 + s2 without duplicate junction points
+      Array<Point> merged;
+      for (size_t i = 0; i < s1.size(); ++i)
+        merged.append(s1(i));
+      for (size_t i = 1; i + 1 < s2.size(); ++i) // skip first (dup) & last (dup)
+        merged.append(s2(i));
+
+      if (merged.size() < 3)
+        return poly;
+
+      Polygon result;
+      for (size_t i = 0; i < merged.size(); ++i)
+        result.add_vertex(merged(i));
+      result.close();
+      return result;
+    }
+  };
+
+  /**
+   * @brief Visvalingam-Whyatt polyline simplification.
+   *
+   * Iteratively removes the vertex that forms the smallest effective area
+   * triangle with its two neighbors. Uses a min-heap for O(n log n)
+   * complexity.
+   *
+   * - Open polyline: first and last vertex are never removed.
+   * - Closed polygon: all vertices are candidates; cyclic neighbor links.
+   *
+   * @ingroup Geometry
+   */
+  class VisvalingamWhyattSimplification
+  {
+    /**
+     * @brief Entry in the priority queue for vertex removal.
+     */
+    struct VWEntry
+    {
+      size_t idx;       ///< Index of the vertex in the polyline.
+      Geom_Number area; ///< Effective area of the triangle formed with its neighbors.
+      
+      /** @brief Comparison based on effective area. */
+      bool operator <(const VWEntry & o) const { return area < o.area; }
+      /** @brief Comparison based on effective area. */
+      bool operator >(const VWEntry & o) const { return area > o.area; }
+    };
+
+    [[nodiscard]] static Geom_Number
+    effective_area(const Point & a, const Point & b, const Point & c)
+    {
+      Geom_Number ap = area_of_parallelogram(a, b, c);
+      if (ap < 0) ap = -ap;
+      return ap / 2;
+    }
+
+    [[nodiscard]] static Array<Point>
+    simplify_open_array(const Array<Point> & polyline,
+                        const Geom_Number & area_threshold)
+    {
+      const size_t n = polyline.size();
+      if (n <= 2)
+        return polyline;
+
+      // prev/next linked list (index-based)
+      Array<size_t> prev(n), next(n);
+      Array<bool> alive(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          prev.append(i == 0 ? n : i - 1); // n = sentinel for "no prev"
+          next.append(i == n - 1 ? n : i + 1);
+          alive.append(true);
+        }
+
+      // Min-heap
+      DynBinHeap<VWEntry, std::less<>> heap;
+
+      // Compute initial areas for interior vertices
+      Array<Geom_Number> areas(n);
+      for (size_t i = 0; i < n; ++i)
+        areas.append(Geom_Number(-1));
+
+      for (size_t i = 1; i + 1 < n; ++i)
+        {
+          areas(i) = effective_area(polyline(prev(i)), polyline(i),
+                                    polyline(next(i)));
+          heap.put({i, areas(i)});
+        }
+
+      while (not heap.is_empty())
+        {
+          auto [idx, area] = heap.get();
+
+          if (not alive(idx))
+            continue;
+          if (area != areas(idx))
+            continue; // stale entry
+          if (area >= area_threshold)
+            break;
+
+          // Remove this vertex
+          alive(idx) = false;
+          const size_t p = prev(idx);
+          const size_t nx = next(idx);
+
+          if (p < n)
+            next(p) = nx;
+          if (nx < n)
+            prev(nx) = p;
+
+          // Recompute neighbor areas
+          if (p < n and p != 0 and prev(p) < n)
+            {
+              areas(p) = effective_area(polyline(prev(p)), polyline(p),
+                                        polyline(next(p)));
+              heap.put({p, areas(p)});
+            }
+          if (nx < n and nx != n - 1 and next(nx) < n)
+            {
+              areas(nx) = effective_area(polyline(prev(nx)), polyline(nx),
+                                         polyline(next(nx)));
+              heap.put({nx, areas(nx)});
+            }
+        }
+
+      Array<Point> result;
+      for (size_t i = 0; i < n; ++i)
+        if (alive(i))
+          result.append(polyline(i));
+
+      return result;
+    }
+
+  public:
+    /**
+     * @brief Simplify an open polyline.
+     *
+     * First and last vertices are always kept.
+     *
+     * @param polyline       Ordered sequence of vertices.
+     * @param area_threshold Minimum effective area to keep a vertex.
+     * @return Simplified vertex array (subsequence of @p polyline).
+     */
+    [[nodiscard]] Array<Point>
+    operator()(const Array<Point> & polyline,
+               const Geom_Number & area_threshold) const
+    {
+      return simplify_open_array(polyline, area_threshold);
+    }
+
+    /// @brief Overload accepting DynList.
+    [[nodiscard]] Array<Point>
+    operator()(const DynList<Point> & polyline,
+               const Geom_Number & area_threshold) const
+    {
+      Array<Point> arr;
+      for (typename DynList<Point>::Iterator it(polyline);
+           it.has_curr(); it.next_ne())
+        arr.append(it.get_curr());
+      return simplify_open_array(arr, area_threshold);
+    }
+
+    /**
+     * @brief Simplify a closed polygon.
+     *
+     * All vertices are candidates (cyclic neighbor links).
+     *
+     * @param poly           The closed polygon.
+     * @param area_threshold Minimum effective area to keep a vertex.
+     * @return A new polygon with fewer vertices.
+     */
+    [[nodiscard]] static Polygon
+    simplify_polygon(const Polygon & poly,
+                     const Geom_Number & area_threshold)
+    {
+      auto verts = GeomPolygonUtils::extract_vertices(poly);
+      const size_t n = verts.size();
+      if (n <= 3)
+        return poly;
+
+      // Cyclic prev/next linked list
+      Array<size_t> prev(n), next(n);
+      Array<bool> alive(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          prev.append(i == 0 ? n - 1 : i - 1);
+          next.append(i == n - 1 ? 0 : i + 1);
+          alive.append(true);
+        }
+
+      DynBinHeap<VWEntry, std::less<>> heap;
+
+      Array<Geom_Number> areas(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          areas.append(effective_area(verts(prev(i)), verts(i),
+                                      verts(next(i))));
+          heap.put({i, areas(i)});
+        }
+
+      size_t remaining = n;
+      while (not heap.is_empty() and remaining > 3)
+        {
+          auto [idx, area] = heap.get();
+
+          if (not alive(idx))
+            continue;
+          if (area != areas(idx))
+            continue;
+          if (area >= area_threshold)
+            break;
+
+          alive(idx) = false;
+          --remaining;
+          const size_t p = prev(idx);
+          const size_t nx = next(idx);
+
+          next(p) = nx;
+          prev(nx) = p;
+
+          // Recompute neighbor areas
+          areas(p) = effective_area(verts(prev(p)), verts(p), verts(next(p)));
+          heap.put({p, areas(p)});
+          areas(nx) = effective_area(verts(prev(nx)), verts(nx),
+                                     verts(next(nx)));
+          heap.put({nx, areas(nx)});
+        }
+
+      Array<Point> result;
+      for (size_t i = 0; i < n; ++i)
+        if (alive(i))
+          result.append(verts(i));
+
+      if (result.size() < 3)
+        return poly;
+
+      Polygon rpoly;
+      for (size_t i = 0; i < result.size(); ++i)
+        rpoly.add_vertex(result(i));
+      rpoly.close();
+      return rpoly;
+    }
+  };
+
+  // ============================================================================
+  // Chaikin Corner-Cutting Subdivision (Polygon Smoothing)
+  // ============================================================================
+
+  /**
+   * @brief Chaikin corner-cutting subdivision for polygon smoothing.
+   *
+   * Each iteration replaces every edge (P_i, P_{i+1}) with two new points
+   * at fractions `ratio` and `1 - ratio` along the edge.  After k iterations
+   * the result converges toward a quadratic B-spline curve.
+   *
+   * - Closed polygon with n vertices -> n * 2^k vertices after k iterations.
+   * - Open polyline preserves first and last vertices.
+   *
+   * Complexity: O(n * 2^k) where n = input size, k = iterations.
+   *
+   * @ingroup Geometry
+   */
+  class ChaikinSmoothing
+  {
+    [[nodiscard]] static Array<Point>
+    smooth_open_once(const Array<Point> & pts, const Geom_Number & r)
+    {
+      const size_t n = pts.size();
+      Array<Point> result;
+      result.append(pts(0));
+      for (size_t i = 0; i + 1 < n; ++i)
+        {
+          const auto & p = pts(i);
+          const auto & q = pts(i + 1);
+          Geom_Number one_r = Geom_Number(1) - r;
+          result.append(Point(p.get_x() * one_r + q.get_x() * r,
+                              p.get_y() * one_r + q.get_y() * r));
+          result.append(Point(p.get_x() * r + q.get_x() * one_r,
+                              p.get_y() * r + q.get_y() * one_r));
+        }
+      result.append(pts(n - 1));
+      return result;
+    }
+
+    [[nodiscard]] static Array<Point>
+    smooth_closed_once(const Array<Point> & pts, const Geom_Number & r)
+    {
+      const size_t n = pts.size();
+      Array<Point> result;
+      Geom_Number one_r = Geom_Number(1) - r;
+      for (size_t i = 0; i < n; ++i)
+        {
+          const auto & p = pts(i);
+          const auto & q = pts((i + 1) % n);
+          result.append(Point(p.get_x() * one_r + q.get_x() * r,
+                              p.get_y() * one_r + q.get_y() * r));
+          result.append(Point(p.get_x() * r + q.get_x() * one_r,
+                              p.get_y() * r + q.get_y() * one_r));
+        }
+      return result;
+    }
+
+  public:
+    /**
+     * @brief Smooth an open polyline.
+     *
+     * First and last vertices are preserved.
+     *
+     * @param polyline   Ordered sequence of vertices.
+     * @param iterations Number of subdivision iterations (>= 1).
+     * @param ratio      Cutting fraction in (0, 0.5). Default 1/4.
+     * @return Smoothed vertex array.
+     */
+    [[nodiscard]] Array<Point>
+    operator()(const Array<Point> & polyline, size_t iterations,
+               const Geom_Number & ratio = Geom_Number(1, 4)) const
+    {
+      ah_domain_error_if(iterations == 0) << "iterations must be >= 1";
+      ah_domain_error_if(ratio <= Geom_Number(0) or
+                         ratio >= Geom_Number(1, 2)) << "ratio must be in (0, 0.5)";
+
+      Array<Point> cur = polyline;
+      for (size_t k = 0; k < iterations; ++k)
+        cur = smooth_open_once(cur, ratio);
+      return cur;
+    }
+
+    /// @brief Overload accepting DynList.
+    [[nodiscard]] Array<Point>
+    operator()(const DynList<Point> & polyline, size_t iterations,
+               const Geom_Number & ratio = Geom_Number(1, 4)) const
+    {
+      Array<Point> arr;
+      for (typename DynList<Point>::Iterator it(polyline);
+           it.has_curr(); it.next_ne())
+        arr.append(it.get_curr());
+      return (*this)(arr, iterations, ratio);
+    }
+
+    /**
+     * @brief Smooth a closed polygon.
+     *
+     * All vertices participate in corner cutting (cyclic).
+     *
+     * @param poly       The closed polygon.
+     * @param iterations Number of subdivision iterations (>= 1).
+     * @param ratio      Cutting fraction in (0, 0.5). Default 1/4.
+     * @return A new smoothed polygon.
+     */
+    [[nodiscard]] static Polygon
+    smooth_polygon(const Polygon & poly, size_t iterations,
+                   const Geom_Number & ratio = Geom_Number(1, 4))
+    {
+      ah_domain_error_if(iterations == 0) << "iterations must be >= 1";
+      ah_domain_error_if(ratio <= Geom_Number(0) or
+                         ratio >= Geom_Number(1, 2)) << "ratio must be in (0, 0.5)";
+
+      Array<Point> cur = GeomPolygonUtils::extract_vertices(poly);
+      for (size_t k = 0; k < iterations; ++k)
+        cur = smooth_closed_once(cur, ratio);
+
+      Polygon rpoly;
+      for (size_t i = 0; i < cur.size(); ++i)
+        rpoly.add_vertex(cur(i));
+      rpoly.close();
+      return rpoly;
+    }
+  };
+
+  // ============================================================================
+  // Trapezoidal Map Point Location
+  // ============================================================================
+
+  /**
+   * @brief O(log n) point location via trapezoidal map with DAG search.
+   *
+   * Given a set of non-crossing line segments (or polygon edges), builds a
+   * trapezoidal decomposition of the plane using randomized incremental
+   * construction (Seidel 1991 / de Berg et al.).
+   *
+   * - **Construction**: O(n log n) expected time.
+   * - **Query**: O(log n) expected time per point.
+   *
+   * The result structure stores the trapezoidal map and a directed acyclic
+   * graph (DAG) used for point location queries.
+   *
+   * ## Usage
+   *
+   * ```cpp
+   * // Build from segments
+   * Array<Segment> segs;
+   * segs.append(Segment(Point(0,0), Point(4,2)));
+   * segs.append(Segment(Point(1,3), Point(5,1)));
+   * TrapezoidalMapPointLocation tm;
+   * auto result = tm(segs);
+   *
+   * // Query a point
+   * auto loc = result.locate(Point(2, 1));
+   * if (loc.type == TrapezoidalMapPointLocation::LocationType::TRAPEZOID)
+   *   std::cout << "In trapezoid " << loc.trapezoid_index << "\n";
+   *
+   * // Build from a polygon
+   * Polygon poly;
+   * poly.add_vertex(Point(0,0));
+   * poly.add_vertex(Point(4,0));
+   * poly.add_vertex(Point(4,4));
+   * poly.add_vertex(Point(0,4));
+   * poly.close();
+   * auto result2 = tm(poly);
+   * bool inside = result2.contains(Point(2, 2)); // true
+   * ```
+   *
+   * @ingroup Geometry
+   */
+  /**
+   * @brief Fast point location in planar subdivisions using trapezoidal maps.
+   *
+   * This class implements a randomized incremental algorithm to build a trapezoidal 
+   * decomposition of a set of non-crossing line segments. It provides O(log n) 
+   * expected query time for point location.
+   *
+   * @ingroup Geometry
+   * @author Leandro Rabindranath León
+   * @author Alejandro J. Mujica
+   */
+  class TrapezoidalMapPointLocation
+  {
+  public:
+    static constexpr size_t NONE = ~static_cast<size_t>(0);
+
+    /**
+     * @brief A trapezoid in the decomposition.
+     * 
+     * A trapezoid is bounded by two segments (top and bottom) and two points 
+     * (left and right endpoints) which define its vertical boundaries.
+     */
+    struct Trapezoid
+    {
+      size_t top;         ///< Index into segments array (upper boundary).
+      size_t bottom;      ///< Index into segments array (lower boundary).
+      size_t leftp;       ///< Index into points array (left vertical wall).
+      size_t rightp;      ///< Index into points array (right vertical wall).
+      size_t upper_left;  ///< Neighbor trapezoid to the upper left.
+      size_t lower_left;  ///< Neighbor trapezoid to the lower left.
+      size_t upper_right; ///< Neighbor trapezoid to the upper right.
+      size_t lower_right; ///< Neighbor trapezoid to the lower right.
+      size_t dag_leaf;    ///< Back-pointer to the corresponding DAG leaf node.
+      bool active;        ///< True if this trapezoid is part of the current map.
+    };
+
+    /**
+     * @brief Types of nodes in the search DAG.
+     */
+    enum class NodeType 
+    { 
+      X_NODE, ///< A node that splits the search space by an X-coordinate.
+      Y_NODE, ///< A node that splits the search space by a segment (Y-direction).
+      LEAF    ///< A leaf node representing a trapezoid.
+    };
+
+    /**
+     * @brief A node in the search Directed Acyclic Graph (DAG).
+     */
+    struct DagNode
+    {
+      NodeType type; ///< The type of the node.
+      size_t index;  ///< Index into points, segments, or trapezoids depending on type.
+      size_t left;   ///< Index of the left child (or below/left child).
+      size_t right;  ///< Index of the right child (or above/right child).
+    };
+
+    /**
+     * @brief Classification of a point location query result.
+     */
+    enum class LocationType 
+    { 
+      TRAPEZOID,  ///< The point is strictly inside a trapezoid.
+      ON_SEGMENT, ///< The point lies on a segment boundary.
+      ON_POINT    ///< The point coincides with a segment endpoint.
+    };
+
+    /**
+     * @brief Result of a point location query.
+     */
+    struct LocationResult
+    {
+      LocationType type;       ///< Classification of the point location.
+      size_t trapezoid_index;  ///< Index of the containing trapezoid (if any).
+      size_t segment_index;    ///< Index of the segment the point lies on.
+      size_t point_index;      ///< Index of the point the query point coincides with.
+    };
+
+    /**
+     * @brief The trapezoidal map and DAG search structure.
+     */
+    struct Result
+    {
+      Array<Point> points;         ///< Unique endpoints of all segments.
+      Array<Segment> segments;     ///< Input segments.
+      Array<Trapezoid> trapezoids; ///< All trapezoids created during construction.
+      Array<DagNode> dag;          ///< The search directed acyclic graph.
+      size_t dag_root;             ///< Index of the DAG root node.
+      size_t num_input_segments;   ///< Number of segments originally provided.
+      size_t num_input_points;     ///< Number of unique points derived from segments.
+
+      /**
+       * @brief Locate a point in the trapezoidal map.
+       *
+       * Walks the DAG from the root.
+       *  - At X-nodes: compare query point with stored point.
+       *  - At Y-nodes: test above/below the stored segment.
+       *  - At leaves: return the trapezoid.
+       *
+       * @param p The query point.
+       * @return LocationResult with type and indices.
+       */
+      [[nodiscard]] LocationResult locate(const Point & p) const
+      {
+        size_t ni = dag_root;
+        while (true)
+          {
+            const auto & [type, index, left, right] = dag(ni);
+            if (type == NodeType::LEAF)
+              return {LocationType::TRAPEZOID, index, NONE, NONE};
+
+            if (type == NodeType::X_NODE)
+              {
+                const Point & xp = points(index);
+                if (p == xp)
+                  return {LocationType::ON_POINT, NONE, NONE, index};
+                ni = p < xp ? left : right;
+              }
+            else // Y_NODE
+              {
+                const Segment & seg = segments(index);
+                const Geom_Number cross =
+                    area_of_parallelogram(seg.get_src_point(),
+                                          seg.get_tgt_point(), p);
+                if (cross == 0)
+                  {
+                    // the point is on the segment line — check if between endpoints
+                    if (seg.contains(p))
+                      return {
+                            LocationType::ON_SEGMENT, NONE, index,
+                            NONE
+                          };
+                    // collinear but outside the segment extent — go above
+                    ni = left;
+                  }
+                else if (cross > 0)
+                  ni = left; // above (left of directed segment)
+                else
+                  ni = right; // below
+              }
+          }
+      }
+
+      /**
+       * @brief Check if point is inside any input polygon.
+       *
+       * Uses vertical ray casting over the input segments.  This only works
+       * when the map was built from closed polygons (via the polygon
+       * overloads).
+       *
+       * @param p The query point.
+       * @return true if @p p is inside or on the boundary of an input polygon.
+       */
+      [[nodiscard]] bool contains(const Point & p) const
+      {
+        // Check exact boundary / vertex hits first.
+        for (size_t i = 0; i < num_input_points; ++i)
+          if (p == points(i)) return true;
+        for (size_t i = 0; i < num_input_segments; ++i)
+          if (segments(i).contains(p)) return true;
+
+        // Vertical ray cast downward: count input segments strictly below p
+        // whose x-range covers p.x (half-open [src.x, tgt.x)).
+        // Segments are stored left-to-right (src < tgt), so src.x <= tgt.x.
+        // Vertical segments have empty half-open interval and are skipped.
+        size_t crossings = 0;
+        for (size_t i = 0; i < num_input_segments; ++i)
+          {
+            const Segment & seg = segments(i);
+            const Point & a = seg.get_src_point();
+            const Point & b = seg.get_tgt_point();
+            if (p.get_x() < a.get_x() or p.get_x() >= b.get_x())
+              continue;
+            // y of segment at p.x (b.x != a.x guaranteed by half-open check)
+            const Geom_Number seg_y = a.get_y() +
+                                      (b.get_y() - a.get_y()) * (p.get_x() - a.get_x()) /
+                                      (b.get_x() - a.get_x());
+            if (seg_y < p.get_y())
+              ++crossings;
+          }
+        return crossings % 2 == 1;
+      }
+    };
+
+  private:
+    /// Test if point p is above segment seg (left of the directed segment).
+    [[nodiscard]] static bool point_above_segment(
+        const Point & p, const Segment & seg)
+    {
+      return area_of_parallelogram(seg.get_src_point(),
+                                   seg.get_tgt_point(), p) > 0;
+    }
+
+    /// Locate the DAG leaf (trapezoid) containing point p.
+    [[nodiscard]] static size_t dag_locate(
+        const Array<Point> & pts, const Array<Segment> & segs,
+        const Array<DagNode> & dag, const Point & p, size_t root)
+    {
+      size_t ni = root;
+      while (true)
+        {
+          const auto & [type, index, left, right] = dag(ni);
+          if (type == NodeType::LEAF)
+            return index;
+
+          if (type == NodeType::X_NODE)
+            {
+              if (const Point & xp = pts(index); p == xp)
+                ni = right; // tie-break: go right
+              else
+                ni = p < xp ? left : right;
+            }
+          else // Y_NODE
+            {
+              const Geom_Number cross =
+                  area_of_parallelogram(segs(index).get_src_point(),
+                                        segs(index).get_tgt_point(), p);
+              if (cross > 0)
+                ni = left; // above
+              else if (cross < 0)
+                ni = right; // below
+              else
+                ni = left; // on segment line → go above
+            }
+        }
+    }
+
+    /// Create a new trapezoid and a DAG leaf for it.
+    static size_t make_trapezoid(Array<Trapezoid> & traps, Array<DagNode> & dag,
+                                 const size_t top, const size_t bottom,
+                                 const size_t leftp, const size_t rightp)
+    {
+      const size_t ti = traps.size();
+      const size_t di = dag.size();
+      traps.append(Trapezoid{
+                     top, bottom, leftp, rightp,
+                     NONE, NONE, NONE, NONE, di, true
+                   });
+      dag.append(DagNode{NodeType::LEAF, ti, NONE, NONE});
+      return ti;
+    }
+
+    /// Replace a DAG leaf with an internal node (X or Y).
+    static void replace_leaf(Array<DagNode> & dag, const size_t leaf_idx,
+                             const NodeType type, const size_t index,
+                             const size_t left, const size_t right)
+    {
+      dag(leaf_idx).type = type;
+      dag(leaf_idx).index = index;
+      dag(leaf_idx).left = left;
+      dag(leaf_idx).right = right;
+    }
+
+    /// Update all neighbor pointers that referenced old_ti to point to new_ti.
+    static void update_neighbor(Array<Trapezoid> & traps,
+                                const size_t neighbor_idx, const size_t old_ti,
+                                const size_t new_ti)
+    {
+      if (neighbor_idx == NONE) return;
+      Trapezoid & nb = traps(neighbor_idx);
+      if (nb.upper_left == old_ti) nb.upper_left = new_ti;
+      if (nb.lower_left == old_ti) nb.lower_left = new_ti;
+      if (nb.upper_right == old_ti) nb.upper_right = new_ti;
+      if (nb.lower_right == old_ti) nb.lower_right = new_ti;
+    }
+
+    /// Find all trapezoids crossed by segment seg_idx, starting from
+    /// the trapezoid containing the left endpoint.
+    [[nodiscard]] static Array<size_t>
+    find_crossed_trapezoids(const Array<Point> & pts, const Array<Segment> & segs,
+                            const Array<Trapezoid> & traps,
+                            const size_t seg_idx, const size_t start_trap)
+    {
+      Array<size_t> crossed;
+      crossed.append(start_trap);
+
+      const Segment & seg = segs(seg_idx);
+      const Point & rp = seg.get_tgt_point();
+
+      size_t ti = start_trap;
+      while (true)
+        {
+          const Trapezoid & t = traps(ti);
+          const Point & rightp = pts(t.rightp);
+          // If the right boundary of this trapezoid is at or past the
+          // segment's right endpoint, we're done.
+          if (rp < rightp or rp == rightp)
+            break;
+
+          // Go right: the segment exits through the right wall of t.
+          // If the right endpoint of the segment is above the segment
+          // at the right boundary x, go to upper_right; else lower_right.
+          if (t.upper_right != NONE and t.lower_right != NONE)
+            {
+              // Test which neighbor the segment enters.
+              if (point_above_segment(rightp, seg))
+                ti = t.lower_right;
+              else
+                ti = t.upper_right;
+            }
+          else if (t.upper_right != NONE)
+            ti = t.upper_right;
+          else if (t.lower_right != NONE)
+            ti = t.lower_right;
+          else
+            break; // no right neighbor
+
+          crossed.append(ti);
+        }
+      return crossed;
+    }
+
+    /// Handle the case where a segment is fully contained in one trapezoid.
+    static void split_single_trapezoid(Array<Point> & pts, Array<Segment> & segs,
+                                       Array<Trapezoid> & traps, Array<DagNode> & dag,
+                                       const size_t seg_idx, const size_t trap_idx)
+    {
+      const Trapezoid old_t = traps(trap_idx);
+      const Segment & seg = segs(seg_idx);
+      const Point & lp = seg.get_src_point();
+      const Point & rp = seg.get_tgt_point();
+
+      // Find point indices.
+      size_t lp_idx = NONE, rp_idx = NONE;
+      for (size_t i = 0; i < pts.size(); ++i)
+        {
+          if (pts(i) == lp) lp_idx = i;
+          if (pts(i) == rp) rp_idx = i;
+        }
+
+      const bool shared_left = (old_t.leftp == lp_idx);
+      const bool shared_right = (old_t.rightp == rp_idx);
+
+      // Deactivate old trapezoid.
+      traps(trap_idx).active = false;
+
+      // Create new trapezoids:
+      // A = left of lp (if not shared)
+      // B = above segment (between lp and rp)
+      // C = below segment (between lp and rp)
+      // D = right of rp (if not shared)
+
+      const size_t dag_old = old_t.dag_leaf;
+
+      size_t a_idx = NONE, d_idx = NONE;
+
+      if (not shared_left)
+        a_idx = make_trapezoid(traps, dag, old_t.top, old_t.bottom,
+                               old_t.leftp, lp_idx);
+      const size_t b_idx = make_trapezoid(traps, dag, old_t.top, seg_idx,
+                                          lp_idx, rp_idx);
+      const size_t c_idx = make_trapezoid(traps, dag, seg_idx, old_t.bottom,
+                                          lp_idx, rp_idx);
+      if (not shared_right)
+        d_idx = make_trapezoid(traps, dag, old_t.top, old_t.bottom,
+                               rp_idx, old_t.rightp);
+
+      // Set neighbor pointers.
+      // A neighbors:
+      if (a_idx != NONE)
+        {
+          traps(a_idx).upper_left = old_t.upper_left;
+          traps(a_idx).lower_left = old_t.lower_left;
+          traps(a_idx).upper_right = b_idx;
+          traps(a_idx).lower_right = c_idx;
+          update_neighbor(traps, old_t.upper_left, trap_idx, a_idx);
+          update_neighbor(traps, old_t.lower_left, trap_idx, a_idx);
+        }
+
+      // B neighbors:
+      traps(b_idx).upper_left = shared_left ? old_t.upper_left : a_idx;
+      traps(b_idx).lower_left = shared_left ? old_t.lower_left : a_idx;
+      traps(b_idx).upper_right = shared_right ? old_t.upper_right : d_idx;
+      traps(b_idx).lower_right = shared_right ? old_t.lower_right : d_idx;
+
+      // C neighbors:
+      traps(c_idx).upper_left = shared_left ? old_t.upper_left : a_idx;
+      traps(c_idx).lower_left = shared_left ? old_t.lower_left : a_idx;
+      traps(c_idx).upper_right = shared_right ? old_t.upper_right : d_idx;
+      traps(c_idx).lower_right = shared_right ? old_t.lower_right : d_idx;
+
+      if (shared_left)
+        {
+          update_neighbor(traps, old_t.upper_left, trap_idx, b_idx);
+          update_neighbor(traps, old_t.lower_left, trap_idx, c_idx);
+        }
+
+      // D neighbors:
+      if (d_idx != NONE)
+        {
+          traps(d_idx).upper_left = b_idx;
+          traps(d_idx).lower_left = c_idx;
+          traps(d_idx).upper_right = old_t.upper_right;
+          traps(d_idx).lower_right = old_t.lower_right;
+          update_neighbor(traps, old_t.upper_right, trap_idx, d_idx);
+          update_neighbor(traps, old_t.lower_right, trap_idx, d_idx);
+        }
+
+      if (shared_right)
+        {
+          update_neighbor(traps, old_t.upper_right, trap_idx, b_idx);
+          update_neighbor(traps, old_t.lower_right, trap_idx, c_idx);
+        }
+
+      // Build DAG sub-tree rooted at dag_old.
+      // Structure depends on shared_left / shared_right.
+      if (not shared_left and not shared_right)
+        {
+          // X(lp) -> left=A, right=X(rp) -> left=Y(seg)->above=B,below=C, right=D
+          const size_t y_node = dag.size();
+          dag.append(DagNode{
+                       NodeType::Y_NODE, seg_idx,
+                       traps(b_idx).dag_leaf, traps(c_idx).dag_leaf
+                     });
+          const size_t x_rp = dag.size();
+          dag.append(DagNode{
+                       NodeType::X_NODE, rp_idx,
+                       y_node, traps(d_idx).dag_leaf
+                     });
+          replace_leaf(dag, dag_old, NodeType::X_NODE, lp_idx,
+                       traps(a_idx).dag_leaf, x_rp);
+        }
+      else if (shared_left and not shared_right)
+        {
+          // Y(seg) -> above=B, below=C  wrapped in X(rp)->left=Y, right=D
+          const size_t y_node = dag.size();
+          dag.append(DagNode{
+                       NodeType::Y_NODE, seg_idx,
+                       traps(b_idx).dag_leaf, traps(c_idx).dag_leaf
+                     });
+          replace_leaf(dag, dag_old, NodeType::X_NODE, rp_idx,
+                       y_node, traps(d_idx).dag_leaf);
+        }
+      else if (not shared_left and shared_right)
+        {
+          // X(lp) -> left=A, right=Y(seg)->above=B, below=C
+          const size_t y_node = dag.size();
+          dag.append(DagNode{
+                       NodeType::Y_NODE, seg_idx,
+                       traps(b_idx).dag_leaf, traps(c_idx).dag_leaf
+                     });
+          replace_leaf(dag, dag_old, NodeType::X_NODE, lp_idx,
+                       traps(a_idx).dag_leaf, y_node);
+        }
+      else // both shared
+        {
+          // Just Y(seg) -> above=B, below=C
+          replace_leaf(dag, dag_old, NodeType::Y_NODE, seg_idx,
+                       traps(b_idx).dag_leaf, traps(c_idx).dag_leaf);
+        }
+    }
+
+    /// Handle the case where a segment crosses multiple trapezoids.
+    static void split_multiple_trapezoids(Array<Point> & pts, Array<Segment> & segs,
+                                          Array<Trapezoid> & traps, Array<DagNode> & dag,
+                                          const size_t seg_idx,
+                                          const Array<size_t> & crossed)
+    {
+      const Segment & seg = segs(seg_idx);
+      const Point & lp = seg.get_src_point();
+      const Point & rp = seg.get_tgt_point();
+
+      size_t lp_idx = NONE, rp_idx = NONE;
+      for (size_t i = 0; i < pts.size(); ++i)
+        {
+          if (pts(i) == lp) lp_idx = i;
+          if (pts(i) == rp) rp_idx = i;
+        }
+
+      const size_t nc = crossed.size();
+
+      // For each crossed trapezoid, create above/below sub-trapezoids.
+      // Adjacent above (or below) trapezoids that share the same top (or
+      // bottom) segment are merged.
+      Array<size_t> above_traps; // one per crossed, but may be merged
+      Array<size_t> below_traps;
+      above_traps.reserve(nc);
+      below_traps.reserve(nc);
+
+      size_t prev_above = NONE, prev_below = NONE;
+      size_t left_trap = NONE; // left-of-lp trapezoid
+
+      for (size_t ci = 0; ci < nc; ++ci)
+        {
+          const size_t ti = crossed(ci);
+          const Trapezoid old_t = traps(ti);
+          traps(ti).active = false;
+
+          const bool is_first = (ci == 0);
+          const bool is_last = (ci == nc - 1);
+          const bool shared_left = is_first and (old_t.leftp == lp_idx);
+          const bool shared_right = is_last and (old_t.rightp == rp_idx);
+
+          // Determine the left/right x-boundaries for the new sub-trapezoids.
+          const size_t new_leftp = is_first ? lp_idx : old_t.leftp;
+          const size_t new_rightp = is_last ? rp_idx : old_t.rightp;
+
+          // Above trapezoid.
+          bool merged_above = false;
+          if (prev_above != NONE and traps(prev_above).top == old_t.top)
+            {
+              // Merge: extend prev_above to the right.
+              traps(prev_above).rightp = new_rightp;
+              above_traps.append(prev_above);
+              merged_above = true;
+            }
+          else
+            {
+              const size_t ai = make_trapezoid(traps, dag, old_t.top, seg_idx,
+                                               new_leftp, new_rightp);
+              above_traps.append(ai);
+              prev_above = ai;
+            }
+
+          // Below trapezoid.
+          bool merged_below = false;
+          if (prev_below != NONE and traps(prev_below).bottom == old_t.bottom)
+            {
+              traps(prev_below).rightp = new_rightp;
+              below_traps.append(prev_below);
+              merged_below = true;
+            }
+          else
+            {
+              const size_t bi = make_trapezoid(traps, dag, seg_idx, old_t.bottom,
+                                               new_leftp, new_rightp);
+              below_traps.append(bi);
+              prev_below = bi;
+            }
+
+          const size_t cur_above = above_traps(ci);
+          const size_t cur_below = below_traps(ci);
+
+          // Handle the left trapezoid (only for the first crossed trapezoid).
+          if (is_first and not shared_left)
+            {
+              left_trap = make_trapezoid(traps, dag, old_t.top, old_t.bottom,
+                                         old_t.leftp, lp_idx);
+              traps(left_trap).upper_left = old_t.upper_left;
+              traps(left_trap).lower_left = old_t.lower_left;
+              traps(left_trap).upper_right = cur_above;
+              traps(left_trap).lower_right = cur_below;
+              update_neighbor(traps, old_t.upper_left, ti, left_trap);
+              update_neighbor(traps, old_t.lower_left, ti, left_trap);
+            }
+
+          // Set left neighbors for above/below.
+          if (is_first)
+            {
+              if (not merged_above)
+                {
+                  if (shared_left)
+                    {
+                      traps(cur_above).upper_left = old_t.upper_left;
+                      traps(cur_above).lower_left = old_t.lower_left;
+                      update_neighbor(traps, old_t.upper_left, ti, cur_above);
+                    }
+                  else
+                    {
+                      traps(cur_above).upper_left = left_trap;
+                      traps(cur_above).lower_left = left_trap;
+                    }
+                }
+              if (not merged_below)
+                {
+                  if (shared_left)
+                    {
+                      traps(cur_below).upper_left = old_t.upper_left;
+                      traps(cur_below).lower_left = old_t.lower_left;
+                      update_neighbor(traps, old_t.lower_left, ti, cur_below);
+                    }
+                  else
+                    {
+                      traps(cur_below).upper_left = left_trap;
+                      traps(cur_below).lower_left = left_trap;
+                    }
+                }
+            }
+          else
+            {
+              // Interior crossed trapezoid.
+              if (not merged_above)
+                {
+                  // Left neighbor of new above is the previous above.
+                  traps(cur_above).upper_left = above_traps(ci - 1);
+                  traps(cur_above).lower_left = above_traps(ci - 1);
+                  // Also set the previous above's right neighbors.
+                  if (above_traps(ci - 1) != cur_above)
+                    {
+                      traps(above_traps(ci - 1)).upper_right = cur_above;
+                      traps(above_traps(ci - 1)).lower_right = cur_above;
+                    }
+                }
+              if (not merged_below)
+                {
+                  traps(cur_below).upper_left = below_traps(ci - 1);
+                  traps(cur_below).lower_left = below_traps(ci - 1);
+                  if (below_traps(ci - 1) != cur_below)
+                    {
+                      traps(below_traps(ci - 1)).upper_right = cur_below;
+                      traps(below_traps(ci - 1)).lower_right = cur_below;
+                    }
+                }
+
+              // Connect left neighbors from old trapezoid.
+              if (not merged_above)
+                if (old_t.upper_left != NONE and old_t.upper_left != crossed(ci - 1))
+                  {
+                    traps(cur_above).upper_left = old_t.upper_left;
+                    update_neighbor(traps, old_t.upper_left, ti, cur_above);
+                  }
+              if (not merged_below)
+                if (old_t.lower_left != NONE and old_t.lower_left != crossed(ci - 1))
+                  {
+                    traps(cur_below).lower_left = old_t.lower_left;
+                    update_neighbor(traps, old_t.lower_left, ti, cur_below);
+                  }
+            }
+
+          // Handle right trapezoid (only for last crossed trapezoid).
+          if (is_last)
+            {
+              if (not shared_right)
+                {
+                  const size_t right_trap = make_trapezoid(traps, dag, old_t.top, old_t.bottom,
+                                                           rp_idx, old_t.rightp);
+                  traps(right_trap).upper_left = cur_above;
+                  traps(right_trap).lower_left = cur_below;
+                  traps(right_trap).upper_right = old_t.upper_right;
+                  traps(right_trap).lower_right = old_t.lower_right;
+                  update_neighbor(traps, old_t.upper_right, ti, right_trap);
+                  update_neighbor(traps, old_t.lower_right, ti, right_trap);
+                  traps(cur_above).upper_right = right_trap;
+                  traps(cur_above).lower_right = right_trap;
+                  traps(cur_below).upper_right = right_trap;
+                  traps(cur_below).lower_right = right_trap;
+
+                  // Build DAG for this trapezoid.
+                  const size_t y_node = dag.size();
+                  dag.append(DagNode{
+                               NodeType::Y_NODE, seg_idx,
+                               traps(cur_above).dag_leaf,
+                               traps(cur_below).dag_leaf
+                             });
+                  const size_t dag_old = old_t.dag_leaf;
+                  replace_leaf(dag, dag_old, NodeType::X_NODE, rp_idx,
+                               y_node, traps(right_trap).dag_leaf);
+                }
+              else
+                {
+                  traps(cur_above).upper_right = old_t.upper_right;
+                  traps(cur_above).lower_right = old_t.lower_right;
+                  traps(cur_below).upper_right = old_t.upper_right;
+                  traps(cur_below).lower_right = old_t.lower_right;
+                  update_neighbor(traps, old_t.upper_right, ti, cur_above);
+                  update_neighbor(traps, old_t.lower_right, ti, cur_below);
+
+                  // Build DAG for this trapezoid.
+                  const size_t dag_old = old_t.dag_leaf;
+                  replace_leaf(dag, dag_old, NodeType::Y_NODE, seg_idx,
+                               traps(cur_above).dag_leaf,
+                               traps(cur_below).dag_leaf);
+                }
+            }
+          else if (is_first)
+            {
+              // First but not last — build DAG with X-node for left endpoint.
+              const size_t dag_old = old_t.dag_leaf;
+              const size_t y_node = dag.size();
+              dag.append(DagNode{
+                           NodeType::Y_NODE, seg_idx,
+                           traps(cur_above).dag_leaf,
+                           traps(cur_below).dag_leaf
+                         });
+              if (shared_left)
+                replace_leaf(dag, dag_old, NodeType::Y_NODE, seg_idx,
+                             traps(cur_above).dag_leaf,
+                             traps(cur_below).dag_leaf);
+              else
+                replace_leaf(dag, dag_old, NodeType::X_NODE, lp_idx,
+                             traps(left_trap).dag_leaf, y_node);
+            }
+          else
+            {
+              // Middle trapezoid — just a Y-node.
+              const size_t dag_old = old_t.dag_leaf;
+              replace_leaf(dag, dag_old, NodeType::Y_NODE, seg_idx,
+                           traps(cur_above).dag_leaf,
+                           traps(cur_below).dag_leaf);
+            }
+        }
+    }
+
+  public:
+    /**
+     * @brief Build a trapezoidal map from a set of non-crossing segments.
+     *
+     * @param input_segments Array of line segments (must not cross each other
+     *        except at endpoints).
+     * @return Result containing the trapezoidal map and DAG.
+     * @throws domain_error if any segment is degenerate (src == tgt).
+     */
+    [[nodiscard]] Result
+    operator()(const Array<Segment> & input_segments) const
+    {
+      Result ret;
+      const size_t n = input_segments.size();
+      ret.num_input_segments = n;
+
+      // Collect unique points from segments.
+      // Orient all segments left-to-right (src < tgt lexicographically).
+      ret.segments.reserve(n + 2);
+      for (size_t i = 0; i < n; ++i)
+        {
+          const Point & s = input_segments(i).get_src_point();
+          const Point & t = input_segments(i).get_tgt_point();
+          ah_domain_error_if(s == t) << "Degenerate segment (src == tgt) at index " << i;
+          if (s < t)
+            ret.segments.append(Segment(s, t));
+          else
+            ret.segments.append(Segment(t, s));
+        }
+
+      // Collect and deduplicate points.
+      {
+        Array<Point> all_pts;
+        all_pts.reserve(2 * n);
+        for (size_t i = 0; i < n; ++i)
+          {
+            all_pts.append(ret.segments(i).get_src_point());
+            all_pts.append(ret.segments(i).get_tgt_point());
+          }
+        // Sort lexicographically.
+        in_place_sort(all_pts);
+        // Deduplicate.
+        for (size_t i = 0; i < all_pts.size(); ++i)
+          {
+            if (ret.points.is_empty() or
+                not (ret.points(ret.points.size() - 1) == all_pts(i)))
+              ret.points.append(all_pts(i));
+          }
+      }
+
+      ret.num_input_points = ret.points.size();
+
+      // Compute bounding box with margin.
+      if (ret.points.is_empty())
+        {
+          // No input segments: create a trivial bounding box.
+          ret.points.append(Point(-1, -1));
+          ret.points.append(Point(1, -1));
+          ret.points.append(Point(1, 1));
+          ret.points.append(Point(-1, 1));
+        }
+
+      Geom_Number mnx = ret.points(0).get_x();
+      Geom_Number mxx = mnx;
+      Geom_Number mny = ret.points(0).get_y();
+      Geom_Number mxy = mny;
+      for (size_t i = 1; i < ret.points.size(); ++i)
+        {
+          if (ret.points(i).get_x() < mnx) mnx = ret.points(i).get_x();
+          if (ret.points(i).get_x() > mxx) mxx = ret.points(i).get_x();
+          if (ret.points(i).get_y() < mny) mny = ret.points(i).get_y();
+          if (ret.points(i).get_y() > mxy) mxy = ret.points(i).get_y();
+        }
+
+      Geom_Number margin = (mxx - mnx > mxy - mny) ? mxx - mnx : mxy - mny;
+      if (margin == 0) margin = 1;
+      margin = margin + 1;
+
+      // Bounding box corner points.
+      const Point bl(mnx - margin, mny - margin);
+      const Point br(mxx + margin, mny - margin);
+      const Point tl(mnx - margin, mxy + margin);
+      const Point tr(mxx + margin, mxy + margin);
+
+      const size_t bl_idx = ret.points.size();
+      ret.points.append(bl);
+      ret.points.append(br);
+      ret.points.append(tl);
+      const size_t tr_idx = ret.points.size();
+      ret.points.append(tr);
+
+      // Bounding box segments: top (tl→tr) and bottom (bl→br).
+      const size_t top_seg = ret.segments.size();
+      ret.segments.append(Segment(tl, tr));
+      const size_t bot_seg = ret.segments.size();
+      ret.segments.append(Segment(bl, br));
+
+      // Initialize: one trapezoid spanning the bounding box.
+      ret.dag_root = 0;
+      const size_t t0 = make_trapezoid(ret.trapezoids, ret.dag,
+                                       top_seg, bot_seg, bl_idx, tr_idx);
+      (void) t0;
+
+      // Randomized insertion order.
+      if (n == 0) return ret;
+
+      Array<size_t> order;
+      order.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        order.append(i);
+
+      // Fisher-Yates shuffle.
+      {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        for (size_t i = n - 1; i > 0; --i)
+          {
+            std::uniform_int_distribution<size_t> dis(0, i);
+            const size_t j = dis(gen);
+            const size_t tmp = order(i);
+            order(i) = order(j);
+            order(j) = tmp;
+          }
+      }
+
+      // Insert segments one by one.
+      for (size_t oi = 0; oi < n; ++oi)
+        {
+          const size_t si = order(oi);
+          const Segment & seg = ret.segments(si);
+
+          // Locate the trapezoid containing the left endpoint.
+          const size_t start = dag_locate(ret.points, ret.segments,
+                                          ret.dag, seg.get_src_point(),
+                                          ret.dag_root);
+
+          // Find all trapezoids crossed by this segment.
+          Array<size_t> crossed = find_crossed_trapezoids(
+                                                          ret.points, ret.segments, ret.trapezoids, si, start);
+
+          if (crossed.size() == 1)
+            split_single_trapezoid(ret.points, ret.segments,
+                                   ret.trapezoids, ret.dag,
+                                   si, crossed(0));
+          else
+            split_multiple_trapezoids(ret.points, ret.segments,
+                                      ret.trapezoids, ret.dag,
+                                      si, crossed);
+        }
+
+      return ret;
+    }
+
+    /**
+     * @brief Build a trapezoidal map from a closed polygon's edges.
+     *
+     * @param polygon A closed simple polygon.
+     * @return Result containing the trapezoidal map and DAG.
+     */
+    [[nodiscard]] Result operator()(const Polygon & polygon) const
+    {
+      ah_domain_error_if(not polygon.is_closed()) << "Polygon must be closed";
+      ah_domain_error_if(polygon.size() < 3) << "Polygon must have at least 3 vertices";
+
+      Array<Segment> segs;
+      for (Polygon::Segment_Iterator it(polygon); it.has_curr(); it.next_ne())
+        segs.append(it.get_current_segment());
+      return (*this)(segs);
+    }
+
+    /**
+     * @brief Build a trapezoidal map from multiple closed polygons.
+     *
+     * @param polygons Array of closed simple polygons (must not overlap).
+     * @return Result containing the trapezoidal map and DAG.
+     */
+    [[nodiscard]] Result operator()(const Array<Polygon> & polygons) const
+    {
+      Array<Segment> segs;
+      for (size_t i = 0; i < polygons.size(); ++i)
+        {
+          const Polygon & poly = polygons(i);
+          ah_domain_error_if(not poly.is_closed()) << "Polygon " << i << " must be closed";
+          ah_domain_error_if(poly.size() < 3) << "Polygon " << i << " must have at least 3 vertices";
+          for (Polygon::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
+            segs.append(it.get_current_segment());
+        }
+      return (*this)(segs);
+    }
+  };
+
+  // ============================================================================
+  // GeomNumber Concept (C++20)
+  // ============================================================================
+
+#if __cplusplus >= 202002L
+
+# include <concepts>
+
+  /**
+   * @brief C++20 concept for types usable as geometry numeric types.
+   *
+   * A type satisfies `GeomNumberType` if it supports the basic arithmetic
+   * operations required by the geometry module: construction from int,
+   * comparison, and the four arithmetic operators.
+   *
+   * ## Satisfied by
+   * - `mpq_class` (GMP rational)
+   * - `double`, `float`
+   * - `long long`, `__int128`
+   *
+   * ## Usage
+   *
+   * ```cpp
+   * template <GeomNumberType N>
+   * N compute_area(N ax, N ay, N bx, N by, N cx, N cy);
+   * ```
+   *
+   * @ingroup Geometry
+   */
+  template <typename T>
+  concept GeomNumberType = requires(T a, T b, int i)
+    {
+      { T(i) } -> std::convertible_to<T>;
+      { a + b } -> std::convertible_to<T>;
+      { a - b } -> std::convertible_to<T>;
+      { a * b } -> std::convertible_to<T>;
+      { a / b } -> std::convertible_to<T>;
+      { a == b } -> std::convertible_to<bool>;
+      { a != b } -> std::convertible_to<bool>;
+      { a < b } -> std::convertible_to<bool>;
+      { a <= b } -> std::convertible_to<bool>;
+      { a > b } -> std::convertible_to<bool>;
+      { a >= b } -> std::convertible_to<bool>;
+      { -a } -> std::convertible_to<T>;
+    };
+
+  // Verify that Geom_Number satisfies the concept.
+  static_assert(GeomNumberType<Geom_Number>,
+                "Geom_Number must satisfy GeomNumberType");
+  static_assert(GeomNumberType<double>,
+                "double must satisfy GeomNumberType");
+  static_assert(GeomNumberType<long long>,
+                "long long must satisfy GeomNumberType");
+
+#endif // C++20
 } // namespace Aleph
 
 # endif // GEOM_ALGORITHMS_H

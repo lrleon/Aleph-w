@@ -51,6 +51,7 @@
 
 #include <gtest/gtest.h>
 #include <cmath>
+#include <unordered_set>
 #include <point.H>
 
 using namespace Aleph;
@@ -149,7 +150,7 @@ TEST_F(PointTest, DistanceWith)
 {
   Point a{0, 0};
   Point b{3, 4};
-  Geom_Number dist = a.distance_with(b);
+  Geom_Number dist = a.distance_to(b);
   EXPECT_TRUE(approx_equal(dist, 5.0));
 }
 
@@ -179,8 +180,8 @@ TEST_F(PointTest, IsToLeftFrom)
   Point left{0.5, 1};
   Point right{0.5, -1};
 
-  EXPECT_TRUE(left.is_to_left_from(a, b));
-  EXPECT_FALSE(right.is_to_left_from(a, b));
+  EXPECT_TRUE(left.is_left_of(a, b));
+  EXPECT_FALSE(right.is_left_of(a, b));
 }
 
 TEST_F(PointTest, IsToRightFrom)
@@ -190,7 +191,7 @@ TEST_F(PointTest, IsToRightFrom)
   Point left{0.5, 1};
   Point right{0.5, -1};
 
-  EXPECT_TRUE(right.is_to_right_from(a, b));
+  EXPECT_TRUE(right.is_to_right_from(a, b));  // intentionally kept with legacy name for this overload (backward compatibility; differs from is_left_of naming pattern)
   EXPECT_FALSE(left.is_to_right_from(a, b));
 }
 
@@ -201,7 +202,7 @@ TEST_F(PointTest, IsToLeftOnFrom)
   Point on_line{0.5, 0};
   Point left{0.5, 1};
 
-  EXPECT_TRUE(on_line.is_to_left_on_from(a, b));
+  EXPECT_TRUE(on_line.is_to_left_on_from(a, b));  // not deprecated
   EXPECT_TRUE(left.is_to_left_on_from(a, b));
 }
 
@@ -241,6 +242,40 @@ TEST_F(PointTest, HighestLowestLeftmostRightmost)
   EXPECT_EQ(p1.lowest_point(), p1);
   EXPECT_EQ(p1.leftmost_point(), p1);
   EXPECT_EQ(p1.rightmost_point(), p1);
+}
+
+TEST_F(PointTest, NormNormalizeRotateAndLerp)
+{
+  Point v{3, 4};
+  EXPECT_EQ(v.norm_squared(), Geom_Number(25));
+  EXPECT_TRUE(approx_equal(v.norm(), Geom_Number(5), 1e-9));
+
+  Point unit = v.normalize();
+  EXPECT_TRUE(approx_equal(unit.norm(), Geom_Number(1), 1e-6));
+
+  Point rotated = Point(1, 0).rotate(Geom_Number(PI_2));
+  EXPECT_TRUE(approx_equal(rotated.get_x(), Geom_Number(0), 1e-6));
+  EXPECT_TRUE(approx_equal(rotated.get_y(), Geom_Number(1), 1e-6));
+
+  Point a{0, 0};
+  Point b{10, 10};
+  EXPECT_EQ(a.midpoint(b), Point(5, 5));
+  EXPECT_EQ(a.lerp(b, Geom_Number(1, 2)), Point(5, 5));
+  EXPECT_EQ(Geom_Number(2) * Point(3, 4), Point(6, 8));
+}
+
+TEST_F(PointTest, LexicographicOrder)
+{
+  EXPECT_TRUE(Point(0, 0) < Point(0, 1));
+  EXPECT_TRUE(Point(0, 1) < Point(1, 0));
+  EXPECT_FALSE(Point(1, 0) < Point(1, 0));
+}
+
+TEST_F(PointTest, HashSupport)
+{
+  std::unordered_set<Point> set;
+  set.insert(Point(1, 2));
+  EXPECT_EQ(set.count(Point(1, 2)), 1u);
 }
 
 //============================================================================
@@ -412,8 +447,8 @@ TEST_F(SegmentTest, ContainsToPoint)
   Point inside{0.5, 0.5};
   Point outside{2, 2};
 
-  EXPECT_TRUE(diagonal.contains_to(inside));
-  EXPECT_FALSE(diagonal.contains_to(outside));
+  EXPECT_TRUE(diagonal.contains(inside));
+  EXPECT_FALSE(diagonal.contains(outside));
 }
 
 TEST_F(SegmentTest, IsColinearWith)
@@ -609,8 +644,8 @@ TEST_F(TriangleTest, ContainsTo)
   Point inside{1, 1};
   Point outside{5, 5};
 
-  EXPECT_TRUE(t.contains_to(inside));
-  EXPECT_FALSE(t.contains_to(outside));
+  EXPECT_TRUE(t.contains(inside));
+  EXPECT_FALSE(t.contains(outside));
 }
 
 TEST_F(TriangleTest, HighestPoint)
@@ -808,25 +843,25 @@ TEST_F(EllipseTest, RightmostPoint)
 
 TEST_F(EllipseTest, ContainsToCenter)
 {
-  EXPECT_TRUE(circle.contains_to(center));
+  EXPECT_TRUE(circle.contains(center));
 }
 
 TEST_F(EllipseTest, ContainsToInside)
 {
   Point inside{0.5, 0.5};
-  EXPECT_TRUE(circle.contains_to(inside));
+  EXPECT_TRUE(circle.contains(inside));
 }
 
 TEST_F(EllipseTest, ContainsToOutside)
 {
   Point outside{2, 2};
-  EXPECT_FALSE(circle.contains_to(outside));
+  EXPECT_FALSE(circle.contains(outside));
 }
 
 TEST_F(EllipseTest, ContainsToOnBorder)
 {
   Point on_border{1, 0};
-  EXPECT_TRUE(circle.contains_to(on_border));
+  EXPECT_TRUE(circle.contains(on_border));
 }
 
 TEST_F(EllipseTest, IntersectsWithPointOnBorder)
@@ -844,6 +879,34 @@ TEST_F(EllipseTest, PointIsInsideEllipse)
 {
   Point inside{0.5, 0};
   EXPECT_TRUE(inside.is_inside(circle));
+}
+
+TEST_F(EllipseTest, VerticalSegmentOutsideYRangeDoesNotIntersect)
+{
+  Ellipse e(Point(0, 0), 5, 3);
+  Segment vertical_far(Point(0, 10), Point(0, 20));
+  EXPECT_FALSE(e.intersects_with(vertical_far));
+}
+
+TEST_F(EllipseTest, SegmentThroughCenterIntersectionStable)
+{
+  Ellipse e(Point(0, 0), 5, 3);
+  Segment horizontal(Point(-10, 0), Point(10, 0));
+  Segment inter = e.intersection_with(horizontal);
+
+  EXPECT_TRUE(approx_equal(inter.get_src_point().get_y(), Geom_Number(0), 1e-8));
+  EXPECT_TRUE(approx_equal(inter.get_tgt_point().get_y(), Geom_Number(0), 1e-8));
+  EXPECT_TRUE(approx_equal(inter.get_src_point().get_x(), Geom_Number(-5), 1e-8));
+  EXPECT_TRUE(approx_equal(inter.get_tgt_point().get_x(), Geom_Number(5), 1e-8));
+}
+
+TEST_F(EllipseTest, ExtraEllipseApis)
+{
+  EXPECT_TRUE(approx_equal(ellipse.area(), Geom_Number(2) * Geom_Number(PI), 1e-5));
+  EXPECT_GT(ellipse.perimeter(), Geom_Number(0));
+  EXPECT_EQ(ellipse.sample(Geom_Number(0)), Point(2, 0));
+  EXPECT_FALSE(ellipse.to_string().empty());
+  EXPECT_EQ(ellipse, Ellipse(center, 2, 1));
 }
 
 //============================================================================
@@ -870,15 +933,15 @@ TEST(HelperFunctionTest, AreaOfParallelogramNegative)
   EXPECT_EQ(area, -1);
 }
 
-TEST(HelperFunctionTest, Pitag)
+TEST(HelperFunctionTest, EuclideanDistance)
 {
-  Geom_Number result = pitag(3, 4);
+  Geom_Number result = euclidean_distance(3, 4);
   EXPECT_TRUE(approx_equal(result, 5.0));
 }
 
-TEST(HelperFunctionTest, PitagZero)
+TEST(HelperFunctionTest, EuclideanDistanceZero)
 {
-  Geom_Number result = pitag(0, 0);
+  Geom_Number result = euclidean_distance(0, 0);
   EXPECT_TRUE(approx_equal(result, 0.0));
 }
 
@@ -926,28 +989,28 @@ TEST(HelperFunctionTest, GeomNumberToDouble)
 TEST(TextTest, AproximateStringSizeSimple)
 {
   std::string str = "hello";
-  size_t len = aproximate_string_size(str);
+  size_t len = approximate_string_size(str);
   EXPECT_EQ(len, 5);
 }
 
 TEST(TextTest, AproximateStringSizeWithLatex)
 {
   std::string str = "\\alpha";  // Latex command counts as 1
-  size_t len = aproximate_string_size(str);
+  size_t len = approximate_string_size(str);
   EXPECT_EQ(len, 1);
 }
 
 TEST(TextTest, AproximateStringSizeWithDollarSigns)
 {
   std::string str = "$x$";  // $ signs are skipped
-  size_t len = aproximate_string_size(str);
+  size_t len = approximate_string_size(str);
   EXPECT_EQ(len, 1);  // Only 'x' counts
 }
 
 TEST(TextTest, AproximateStringSizeWithBraces)
 {
   std::string str = "{ab}";
-  size_t len = aproximate_string_size(str);
+  size_t len = approximate_string_size(str);
   EXPECT_EQ(len, 2);  // Only 'a' and 'b' count
 }
 
@@ -990,17 +1053,6 @@ TEST(GeomObjectTest, VirtualDestructor)
 }
 
 //============================================================================
-// NullPoint Tests
-//============================================================================
-
-TEST(NullPointTest, Exists)
-{
-  // NullPoint should be defined and accessible
-  EXPECT_EQ(NullPoint.get_x(), 0);
-  EXPECT_EQ(NullPoint.get_y(), 0);
-}
-
-//============================================================================
 // Edge Cases and Regression Tests
 //============================================================================
 
@@ -1026,7 +1078,7 @@ TEST(EdgeCaseTest, SegmentConstructionWithSlopeAndLength)
 
   Segment s{src, slope, length};
 
-  EXPECT_TRUE(approx_equal(s.size(), length, 1e-6));
+  EXPECT_TRUE(approx_equal(s.length(), length, 1e-6));
 }
 
 TEST(EdgeCaseTest, ParallelSegmentOffset)
@@ -1037,29 +1089,29 @@ TEST(EdgeCaseTest, ParallelSegmentOffset)
   Segment parallel{original, dist};
 
   // Parallel segment should have same length
-  EXPECT_TRUE(approx_equal(parallel.size(), original.size(), 1e-6));
+  EXPECT_TRUE(approx_equal(parallel.length(), original.length(), 1e-6));
 }
 
 TEST(EdgeCaseTest, SegmentEnlargeSrc)
 {
   Segment s{Point{1, 0}, Point{2, 0}};
-  Geom_Number original_size = s.size();
+  Geom_Number original_size = s.length();
 
   s.enlarge_src(1);
 
   // Segment should be longer now
-  EXPECT_GT(s.size(), original_size);
+  EXPECT_GT(s.length(), original_size);
 }
 
 TEST(EdgeCaseTest, SegmentEnlargeTgt)
 {
   Segment s{Point{0, 0}, Point{1, 0}};
-  Geom_Number original_size = s.size();
+  Geom_Number original_size = s.length();
 
   s.enlarge_tgt(1);
 
   // Segment should be longer now
-  EXPECT_GT(s.size(), original_size);
+  EXPECT_GT(s.length(), original_size);
 }
 
 TEST(EdgeCaseTest, ZeroAreaTriangleFails)
@@ -1085,7 +1137,13 @@ TEST(EdgeCaseTest, MidPerpendicular)
   Point mid = s.mid_point();
   Point perp_mid = perp.mid_point();
 
-  EXPECT_TRUE(approx_equal(mid.distance_with(perp_mid), 0.0, 1e-6));
+  EXPECT_TRUE(approx_equal(mid.distance_to(perp_mid), 0.0, 1e-6));
+}
+
+TEST(EdgeCaseTest, MidPerpendicularZeroLengthThrows)
+{
+  Segment s{Point{1, 1}, Point{1, 1}};
+  EXPECT_THROW(s.mid_perpendicular(1), std::domain_error);
 }
 
 //============================================================================

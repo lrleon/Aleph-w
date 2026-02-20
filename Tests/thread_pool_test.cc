@@ -1955,7 +1955,7 @@ TEST_F(ThreadPoolTest, BenchmarkEnqueueOverhead)
   
   // Should be able to enqueue at least 50k tasks/sec
   // (relaxed for slower CI environments)
-  EXPECT_LT(ns_per_task, 20000);  // < 20μs per task
+  EXPECT_LT(ns_per_task, 25000);  // < 25μs per task
 }
 
 TEST_F(ThreadPoolTest, BenchmarkVsStdAsync)

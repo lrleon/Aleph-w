@@ -25,7 +25,7 @@ Idioma: Español | [English](README.md)
 ---
 
 <a id="readme-es-contenido"></a>
-## Contenido {#readme-es-contenido}
+## Contenido
 
 - [Resumen](#readme-es-resumen)
 - [Requisitos](#readme-es-requisitos)
@@ -36,12 +36,33 @@ Idioma: Español | [English](README.md)
 - [Licencia](#readme-es-licencia)
 - [Agradecimientos](#readme-es-agradecimientos)
 
-> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos).
+> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo el flujo completo de Delaunay/Voronoi y los ejemplos:
+> - `Examples/geom_example.C` (incluye selector `-s advanced`)
+> - `Examples/voronoi_clipped_cells_example.cc`
+> - `Examples/delaunay_voronoi_example.cc`
+> - `Examples/point_in_polygon_example.cc`
+> - `Examples/polygon_intersection_example.cc`
+> - `Examples/halfplane_intersection_example.cc`
+> - `Examples/convex_hull_comparison_example.cc`
+> - `Examples/closest_pair_example.cc`
+> - `Examples/rotating_calipers_example.cc`
+> - `Examples/tikz_polygons_example.cc`
+> - `Examples/tikz_convex_hull_example.cc`
+> - `Examples/tikz_intersection_example.cc`
+> - `Examples/tikz_voronoi_power_example.cc`
+> - `Examples/tikz_advanced_algorithms_example.cc`
+> - `Examples/tikz_funnel_animation_example.cc`
+> - `Examples/tikz_funnel_beamer_example.cc`
+> - `Examples/tikz_funnel_beamer_twocol_example.cc`
+> - `Examples/tikz_funnel_beamer_handout_example.cc`
+> - `Examples/tikz_scene_example.cc`
+> - `Examples/tikz_scene_beamer_example.cc`
+> - `Examples/tikz_scene_overlays_example.cc`
 
 ---
 
 <a id="readme-es-resumen"></a>
-## Resumen {#readme-es-resumen}
+## Resumen
 
 **Aleph-w** es una librería C++ (C++20) orientada a enseñanza y uso práctico: incluye implementaciones de estructuras de datos, algoritmos clásicos (especialmente de grafos) y una suite de pruebas amplia.
 
@@ -51,7 +72,7 @@ Idioma: Español | [English](README.md)
 ---
 
 <a id="readme-es-requisitos"></a>
-## Requisitos {#readme-es-requisitos}
+## Requisitos
 
 ### Compiladores
 
@@ -91,7 +112,7 @@ sudo apt-get install -y libgtest-dev
 ---
 
 <a id="readme-es-instalacion"></a>
-## Instalación {#readme-es-instalacion}
+## Instalación
 
 Guía detallada: `INSTALL.es.md`.
 
@@ -143,7 +164,7 @@ target_link_libraries(your_target PRIVATE Aleph)
 ---
 
 <a id="readme-es-uso-rapido"></a>
-## Uso rápido {#readme-es-uso-rapido}
+## Uso rápido
 
 Los headers están en el raíz del repo (p.ej. `tpl_dynSetTree.H`, `tpl_graph.H`, etc.).
 
@@ -281,10 +302,51 @@ int main() {
 }
 ```
 
+### Ejemplo 5: Voronoi recortado (celdas indexadas por sitio)
+
+El ejemplo `Examples/voronoi_clipped_cells_example.cc` muestra cómo:
+
+- construir Voronoi desde un conjunto de puntos,
+- recortar todas las celdas contra un polígono convexo, y
+- exportar celdas `ClippedCell` a CSV/WKT.
+
+```bash
+cmake --build build --target voronoi_clipped_cells_example
+./build/Examples/voronoi_clipped_cells_example /tmp/voronoi_clipped_cells.csv
+```
+
+### Ejemplo 6: Visualización TikZ/LaTeX (PGF)
+
+Para generar figuras `.tex` con objetos geométricos y resultados de algoritmos:
+
+```bash
+cmake --build build --target tikz_polygons_example tikz_convex_hull_example tikz_intersection_example tikz_voronoi_power_example tikz_advanced_algorithms_example tikz_funnel_animation_example tikz_funnel_beamer_example tikz_funnel_beamer_twocol_example tikz_funnel_beamer_handout_example tikz_scene_example tikz_scene_beamer_example tikz_scene_overlays_example
+./build/Examples/tikz_polygons_example /tmp/tikz_polygons_example.tex
+./build/Examples/tikz_convex_hull_example /tmp/tikz_convex_hull_example.tex
+./build/Examples/tikz_intersection_example /tmp/tikz_intersection_example.tex
+./build/Examples/tikz_voronoi_power_example /tmp/tikz_voronoi_power_example.tex
+./build/Examples/tikz_advanced_algorithms_example /tmp/tikz_advanced_algorithms_example.tex
+./build/Examples/tikz_funnel_animation_example /tmp/tikz_funnel_animation_example.tex
+./build/Examples/tikz_funnel_beamer_example /tmp/tikz_funnel_beamer_example.tex
+./build/Examples/tikz_funnel_beamer_twocol_example /tmp/tikz_funnel_beamer_twocol_example.tex
+./build/Examples/tikz_funnel_beamer_handout_example /tmp/tikz_funnel_beamer_handout_example.tex
+./build/Examples/tikz_scene_example /tmp/tikz_scene_example.tex
+./build/Examples/tikz_scene_beamer_example /tmp/tikz_scene_beamer_example.tex
+./build/Examples/tikz_scene_beamer_example /tmp/tikz_scene_handout_example.tex --handout
+./build/Examples/tikz_scene_overlays_example /tmp/tikz_scene_overlays_example.tex
+./build/Examples/tikz_scene_overlays_example /tmp/tikz_scene_overlays_handout.tex --handout
+```
+
+Headers relevantes:
+- `tikzgeom.H`: `Tikz_Plane`, estilos y capas.
+- `tikzgeom_scene.H`: `Tikz_Scene`, interfaz de composición para mezclar múltiples visualizaciones en una sola figura/export (standalone, beamer y handout), incluyendo secuencias multi-paso con overlays.
+- `tikzgeom_algorithms.H`: helpers para convex hull, intersecciones, Voronoi/power diagram, arrangement, shortest path (con portales), trazas/frames del funnel, versiones beamer (incluyendo layout en dos columnas y handout), descomposición convexa y alpha shape.
+- `docs/TIKZGEOM_GUIDE.md`: guia completa de interfaz y extension.
+
 ---
 
 <a id="readme-es-pruebas"></a>
-## Pruebas {#readme-es-pruebas}
+## Pruebas
 
 ```bash
 cmake -S . -B build -DBUILD_TESTS=ON
@@ -302,7 +364,7 @@ Nota: algunos tests largos/de performance están marcados `Disabled/Skipped` int
 ---
 
 <a id="readme-es-contribuir"></a>
-## Contribuir {#readme-es-contribuir}
+## Contribuir
 
 PRs son bienvenidos.
 
@@ -312,14 +374,14 @@ PRs son bienvenidos.
 ---
 
 <a id="readme-es-licencia"></a>
-## Licencia {#readme-es-licencia}
+## Licencia
 
 Aleph-w se distribuye bajo **licencia MIT**. Ver `LICENSE`.
 
 ---
 
 <a id="readme-es-agradecimientos"></a>
-## Agradecimientos {#readme-es-agradecimientos}
+## Agradecimientos
 
 - **Universidad de Los Andes** (Mérida, Venezuela) - Cuna de Aleph-w
 - **Miles de estudiantes** que aprendieron algoritmos con esta biblioteca

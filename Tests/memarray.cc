@@ -39,6 +39,7 @@
 
 # include <tpl_memArray.H>
 # include <htlist.H>
+# include <memory>
 
 using namespace std;
 using namespace testing;
@@ -209,6 +210,29 @@ TEST_F(Default_MemArray, putn)
   EXPECT_EQ(item, 0);
   EXPECT_TRUE(m.is_empty());
   EXPECT_EQ(m.size(), 0);
+}
+
+TEST(MemArrayMoveOnly, AppendAndRemoveUniquePtr)
+{
+  MemArray<std::unique_ptr<int>> m;
+
+  auto p1 = std::make_unique<int>(5);
+  auto p2 = std::make_unique<int>(7);
+
+  m.append(std::move(p1));
+  m.append(std::move(p2));
+
+  ASSERT_EQ(m.size(), 2u);
+  EXPECT_EQ(*m[0], 5);
+  EXPECT_EQ(*m[1], 7);
+
+  auto last = m.remove_last();
+  EXPECT_EQ(*last, 7);
+  EXPECT_EQ(m.size(), 1u);
+
+  auto first = m.remove_first();
+  EXPECT_EQ(*first, 5);
+  EXPECT_TRUE(m.is_empty());
 }
 
 TEST_F(Default_MemArray, access_operator)

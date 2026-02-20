@@ -553,9 +553,9 @@ void demo_geometric_primitives()
   cout << "  Test point: (73, 50)" << endl;
   cout << "  Relative to line Bogota-Medellin:" << endl;
   
-  if (test_point.is_to_left_from(bogota, medellin))
+  if (test_point.is_left_of(bogota, medellin))
     cout << "    Point is to the LEFT" << endl;
-  else if (test_point.is_to_right_from(bogota, medellin))
+  else if (test_point.is_to_right_from(bogota, medellin))  // not deprecated
     cout << "    Point is to the RIGHT" << endl;
   else
     cout << "    Point is ON the line" << endl;
@@ -574,13 +574,13 @@ void demo_geometric_primitives()
   
   cout << "\n  Point containment:" << endl;
   cout << "    Point (75, 45): ";
-  if (triangle.contains_to(inside))
+  if (triangle.contains(inside))
     cout << "INSIDE the triangle" << endl;
   else
     cout << "OUTSIDE the triangle" << endl;
     
   cout << "    Point (80, 80): ";
-  if (triangle.contains_to(outside))
+  if (triangle.contains(outside))
     cout << "INSIDE the triangle" << endl;
   else
     cout << "OUTSIDE the triangle" << endl;
@@ -655,12 +655,85 @@ void demo_coverage_area()
 }
 
 // ============================================================================
+// Example 7: Advanced Geometry Algorithms
+// ============================================================================
+
+void demo_advanced_algorithms()
+{
+  print_header("Example 7: Advanced Geometry (Delaunay/Voronoi/PIP/HPI)");
+
+  print_subheader("Delaunay + Voronoi");
+  DynList<Point> sites;
+  sites.append(Point(0, 0));
+  sites.append(Point(6, 0));
+  sites.append(Point(8, 4));
+  sites.append(Point(5, 8));
+  sites.append(Point(1, 7));
+  sites.append(Point(3, 3));
+  sites.append(Point(5, 4));
+
+  DelaunayTriangulationBowyerWatson delaunay;
+  const auto dt = delaunay(sites);
+  cout << "  Delaunay: sites=" << dt.sites.size()
+       << " triangles=" << dt.triangles.size() << endl;
+
+  VoronoiDiagramFromDelaunay voronoi;
+  const auto vor = voronoi(dt);
+  cout << "  Voronoi: vertices=" << vor.vertices.size()
+       << " edges=" << vor.edges.size() << endl;
+
+  Polygon clip;
+  clip.add_vertex(Point(-2, -2));
+  clip.add_vertex(Point(10, -2));
+  clip.add_vertex(Point(10, 10));
+  clip.add_vertex(Point(-2, 10));
+  clip.close();
+  const auto clipped = VoronoiDiagramFromDelaunay::clipped_cells_indexed(vor, clip);
+  cout << "  Voronoi clipped cells=" << clipped.size() << endl;
+
+  print_subheader("Point-in-Polygon (Winding Number)");
+  Polygon concave;
+  concave.add_vertex(Point(0, 0));
+  concave.add_vertex(Point(8, 0));
+  concave.add_vertex(Point(8, 3));
+  concave.add_vertex(Point(5, 3));
+  concave.add_vertex(Point(5, 6));
+  concave.add_vertex(Point(8, 6));
+  concave.add_vertex(Point(8, 9));
+  concave.add_vertex(Point(0, 9));
+  concave.close();
+
+  const Point q_inside(1, 1);
+  const Point q_outside(6, 4); // inside notch => outside polygon
+  cout << "  q_inside -> "
+       << (PointInPolygonWinding::contains(concave, q_inside) ? "inside/boundary" : "outside")
+       << endl;
+  cout << "  q_outside -> "
+       << (PointInPolygonWinding::contains(concave, q_outside) ? "inside/boundary" : "outside")
+       << endl;
+
+  print_subheader("Half-Plane Intersection");
+  using HP = HalfPlaneIntersection::HalfPlane;
+  Array<HP> hps;
+  hps.append(HP(Point(0, 1), Point(0, 0)));  // x >= 0
+  hps.append(HP(Point(0, 0), Point(1, 0)));  // y >= 0
+  hps.append(HP(Point(4, 0), Point(4, 1)));  // x <= 4
+  hps.append(HP(Point(1, 4), Point(0, 4)));  // y <= 4
+  hps.append(HP(Point(6, 0), Point(0, 6)));  // x + y <= 6
+
+  HalfPlaneIntersection hpi;
+  Polygon feasible = hpi(hps);
+  cout << "  Feasible polygon vertices: " << feasible.size() << endl;
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 
 static void usage(const char* prog)
 {
-  cout << "Usage: " << prog << " [-s <triangulation|convexhull|all>] [--help]\n";
+  cout << "Usage: " << prog
+       << " [-s <triangulation|convexhull|advanced|all>] [--help]\n";
   cout << "\nIf no selector is given, all demos are executed.\n";
 }
 
@@ -694,7 +767,7 @@ int main(int argc, char* argv[])
   cout << "\n";
   cout << "========================================================================" << endl;
   cout << "        ALEPH-W COMPUTATIONAL GEOMETRY EXAMPLE" << endl;
-  cout << "        Triangulation and Convex Hull Algorithms" << endl;
+  cout << "        Core + Advanced Geometry Algorithms" << endl;
   cout << "========================================================================" << endl;
 
   if (section == "all" || section == "triangulation")
@@ -715,7 +788,11 @@ int main(int argc, char* argv[])
       demo_coverage_area();
     }
 
-  if (!(section == "all" || section == "triangulation" || section == "convexhull"))
+  if (section == "all" || section == "advanced")
+    demo_advanced_algorithms();
+
+  if (!(section == "all" || section == "triangulation" ||
+        section == "convexhull" || section == "advanced"))
     {
       cout << "Unknown section: " << section << "\n";
       usage(argv[0]);
