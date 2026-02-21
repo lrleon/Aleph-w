@@ -111,6 +111,9 @@ set(EXAMPLE_PROGRAMS
     segment_tree_example
     cartesian_tree_example
     lca_example
+    hld_example
+    heavy_light_decomposition_example
+    centroid_decomposition_example
     mo_algorithm_example
     mo_on_trees_example
     robust_predicates_example
@@ -148,6 +151,8 @@ set(EXAMPLE_PROGRAMS
     trapezoidal_map_example
     blossom_example
     weighted_blossom_example
+    min_cost_matching_example
+    hungarian_example
 )
 
 # Function to get source file from program name

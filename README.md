@@ -216,6 +216,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Disjoint Sparse Table                                                  │
 │  ├─ Segment Tree / Lazy / Beats                                            │
 │  ├─ Cartesian Tree RMQ (via LCA)                                           │
+│  ├─ Heavy-Light Decomposition (path/subtree)                               │
+│  ├─ Centroid Decomposition (distance tricks)                               │
 │  └─ Mo's Algorithm (Offline)                                               │
 │                                                                            │
 │  LINEAR ALGEBRA                                                            │
@@ -272,7 +274,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Convex Hull          ├─ Union-Find                                     │
 │  ├─ Triangulation        ├─ Huffman Coding                                 │
 │  ├─ Voronoi / Delaunay   ├─ Simplex (LP)                                   │
-│  └─ Intersections        └─ RMQ/LCA (Euler + Binary Lifting)               │
+│  └─ Intersections        └─ RMQ/LCA/HLD/Centroid decompositions            │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -898,6 +900,142 @@ Euler_RMQ_LCA<G> er(g, root_node);
 using G = Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>;
 Binary_Lifting_LCA<G> bl(g, root_node);
 Euler_RMQ_LCA<G> er(g, root_node);
+```
+
+### Tree Decompositions (Heavy-Light + Centroid)
+
+`Tree_Decomposition.H` adds two advanced tree engines on Aleph graph backends:
+
+| Class | Build | Typical Query/Update | Use case |
+|-------|-------|-----------------------|----------|
+| `Gen_Heavy_Light_Decomposition<GT, SA>` | O(n) | path split in O(log n) segments | Path/subtree decomposition |
+| `Gen_HLD_Path_Query<GT, T, Op, SA>` | O(n) + segment tree | O(log² n) path, O(log n) subtree | Dynamic path/subtree range queries |
+| `Gen_Centroid_Decomposition<GT, SA>` | O(n log n) | O(log n) ancestor chain scans | Dynamic nearest/farthest marked-node tricks |
+
+Highlights:
+- Works with `List_Graph`, `List_SGraph`, and `Array_Graph`.
+- Supports arc filters `SA`.
+- Exposes centroid-ancestor chains with distances (ideal for online distance queries).
+- Integrates directly with segment trees for HLD path/subtree queries.
+
+Problem patterns solved:
+- **Dynamic path aggregates**: `sum/min/max/xor` on `path(u, v)` with node point updates.
+- **Dynamic subtree aggregates**: full subtree query `subtree(u)` with node point updates.
+- **Dynamic nearest active node** (unweighted distance in edges): mark nodes as active and query `min dist(u, active)`.
+- **Dynamic farthest/threshold-style distance queries** by scanning centroid ancestor chains.
+
+Quick decision guide:
+
+| If your problem looks like... | Prefer | Why |
+|---|---|---|
+| Many online path queries + point updates | `Gen_HLD_Path_Query` | Path becomes O(log n) base-array segments |
+| Many online subtree queries + point updates | `Gen_HLD_Path_Query` | Subtree is one contiguous base-array range |
+| Nearest/farthest active node on a tree | `Gen_Centroid_Decomposition` | Query/update naturally map to centroid ancestor chain |
+| Only LCA/ancestor/distance (no segment aggregate) | `LCA.H` | Simpler API, lower conceptual overhead |
+| Offline custom path/subtree statistics (non-monoid) | `tpl_mo_on_trees.H` | Better fit for add/remove offline policies |
+
+30-second diagnostic checklist:
+1. Is the tree static and you only need `lca`, `is_ancestor`, or `distance`? Use `LCA.H`.
+2. Do you need online `path(u, v)` or `subtree(u)` aggregates with an associative op and node point updates? Use `Gen_HLD_Path_Query`.
+3. Do you maintain a dynamic set of marked nodes and query nearest/farthest by tree distance? Use `Gen_Centroid_Decomposition`.
+4. Are queries offline and maintained via add/remove (not monoid-friendly)? Use `tpl_mo_on_trees.H`.
+5. Do you require weighted-edge distances? `Gen_Centroid_Decomposition` is edge-count based today; adapt your workflow (or preprocess distances) before applying centroid-chain formulas.
+
+Practical notes:
+- The current implementations assume an **unweighted tree topology** for distance-based centroid workflows (`distance = #edges`).
+- They validate the filtered graph is a simple tree; construction fails fast on invalid topology.
+- For **range updates** (not only point updates), combine HLD decomposition with a lazy segment tree policy.
+
+#### Ready-to-use Recipes
+
+Recipe 1: Path sum with node point updates
+When to use:
+Many online queries like “sum on path(u, v)” and occasional node value changes.
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+// Build once.
+HLD_Path_Query<G, int, Aleph::plus<int>> q(g, root, 0); // identity for sum
+
+// Online operations.
+q.update_node(sensor_a, +3);            // value[a] += 3
+q.set_node(sensor_b, 42);               // value[b] = 42
+int risk = q.query_path(city_u, city_v); // sum on unique tree path
+```
+
+Recipe 2: Subtree aggregate (full service area)
+When to use:
+Rooted-hierarchy totals where each update touches a single node.
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+HLD_Path_Query<G, int, Aleph::plus<int>> q(g, ceo, 0);
+
+int area_cost = q.query_subtree(region_head); // sum over full rooted subtree
+q.update_node(team_node, -5);                 // adjust one team budget
+int updated = q.query_subtree(region_head);
+```
+
+Recipe 3: Nearest active node (dynamic centers)
+When to use:
+Activate/mark nodes over time and repeatedly query nearest active node distance.
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+#include <algorithm>
+#include <limits>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+Centroid_Decomposition<G> cd(g, root);
+
+const size_t INF = std::numeric_limits<size_t>::max() / 4;
+auto best = Array<size_t>::create(cd.size());
+for (size_t i = 0; i < cd.size(); ++i) best(i) = INF;
+
+auto activate = [&](G::Node * x) {
+  cd.for_each_centroid_ancestor(x, [&](size_t c, size_t d, size_t) {
+    best(c) = std::min(best(c), d);
+  });
+};
+
+auto nearest = [&](G::Node * x) {
+  size_t ans = INF;
+  cd.for_each_centroid_ancestor(x, [&](size_t c, size_t d, size_t) {
+    if (best(c) != INF) ans = std::min(ans, best(c) + d);
+  });
+  return ans; // #edges to nearest active node (or INF if none active)
+};
+```
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+// Assume g is a rooted tree and root is a node in g.
+Heavy_Light_Decomposition<G> hld(g, root);
+HLD_Path_Query<G, int, Aleph::plus<int>> q(g, root, 0); // identity = 0
+
+int path_sum = q.query_path(u, v);
+int subtree_sum = q.query_subtree(u);
+q.update_node(u, +5);
+q.set_node(v, 42);
+
+Centroid_Decomposition<G> cd(g, root);
+// For node x, iterate centroid ancestors with distances:
+cd.for_each_centroid_ancestor(x, [&](size_t c, size_t d, size_t k) {
+    // c: centroid ancestor id, d: distance(x, c), k: index in centroid chain
+});
 ```
 
 ### Mo's Algorithm (Offline Range Queries)
@@ -2003,6 +2141,17 @@ int main() {
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
+│  GENERAL GRAPH MINIMUM-COST MATCHING (Dedicated API)                       │
+│                                                                             │
+│  Minimizes total matching cost in non-bipartite graphs                     │
+│  Optional: maximize cardinality first, then minimize cost                   │
+│  Also supports minimum-cost perfect matching (feasibility-aware)            │
+│  API: blossom_minimum_cost_matching(),                                       │
+│       blossom_minimum_cost_perfect_matching()                               │
+│  Time: O(V³)                                                                │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
 │  ASSIGNMENT PROBLEM (Hungarian / Munkres)                                   │
 │                                                                             │
 │  Given an m×n cost matrix, find the minimum-cost perfect matching           │
@@ -2098,6 +2247,62 @@ int main() {
 
     std::cout << "Matching size: " << result.cardinality << "\n";
     std::cout << "Total weight: " << result.total_weight << "\n";
+    return 0;
+}
+```
+
+#### General Graph Minimum-Cost Matching (Dedicated API)
+
+`Min_Cost_Matching.H` provides a dedicated API for non-bipartite
+minimum-cost matching over Aleph graph backends (`List_Graph`,
+`List_SGraph`, `Array_Graph`).
+
+It also provides a dedicated perfect-matching variant:
+`blossom_minimum_cost_perfect_matching()`, which reports feasibility
+and returns the minimum perfect-matching cost when feasible.
+
+```cpp
+#include <Min_Cost_Matching.H>
+#include <tpl_graph.H>
+
+using namespace Aleph;
+
+int main() {
+    using Graph = List_Graph<Graph_Node<int>, Graph_Arc<long long>>;
+    Graph g;
+
+    auto* n0 = g.insert_node(0);
+    auto* n1 = g.insert_node(1);
+    auto* n2 = g.insert_node(2);
+    auto* n3 = g.insert_node(3);
+
+    g.insert_arc(n0, n1, 8);
+    g.insert_arc(n0, n2, -5);
+    g.insert_arc(n1, n3, 6);
+    g.insert_arc(n2, n3, 2);
+
+    DynDlist<Graph::Arc*> matching;
+
+    // Pure minimum-cost objective
+    auto pure = blossom_minimum_cost_matching(g, matching);
+
+    // Lexicographic objective:
+    // maximum-cardinality first, then minimum-cost
+    auto card_first = blossom_minimum_cost_matching(
+        g, matching, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(), true);
+
+    std::cout << "Pure   -> card: " << pure.cardinality
+              << ", cost: " << pure.total_cost << "\n";
+    std::cout << "Card+  -> card: " << card_first.cardinality
+              << ", cost: " << card_first.total_cost << "\n";
+
+    // Perfect matching variant (feasibility-aware)
+    auto perfect = blossom_minimum_cost_perfect_matching(g, matching);
+    if (perfect.feasible)
+        std::cout << "Perfect -> card: " << perfect.cardinality
+                  << ", cost: " << perfect.total_cost << "\n";
+    else
+        std::cout << "Perfect -> infeasible\n";
     return 0;
 }
 ```
@@ -2685,8 +2890,12 @@ int main() {
 | `Prim.H` | `prim_min_spanning_tree()` | MST (vertex-based) |
 | `Blossom.H` | `blossom_maximum_cardinality_matching()` | Maximum matching (general graph) |
 | `Blossom_Weighted.H` | `blossom_maximum_weight_matching()` | Maximum-weight matching (general graph; List/SGraph/Array backends) |
+| `Min_Cost_Matching.H` | `blossom_minimum_cost_matching()`, `blossom_minimum_cost_perfect_matching()` | Minimum-cost matching in general graphs (including perfect-matching feasibility/cost) |
 | `Hungarian.H` | `hungarian_assignment()`, `hungarian_max_assignment()` | Assignment problem (min-cost / max-profit) |
 | `LCA.H` | `Gen_Binary_Lifting_LCA`, `Gen_Euler_RMQ_LCA` | Lowest common ancestor on rooted trees (binary lifting / Euler+RMQ) |
+| `Tree_Decomposition.H` | `Gen_Heavy_Light_Decomposition`, `Gen_HLD_Path_Query` | Heavy-Light decomposition + path/subtree dynamic queries |
+| `Tree_Decomposition.H` | `Gen_Centroid_Decomposition` | Centroid decomposition with centroid-ancestor distance chains |
+| `HLD.H` | `Gen_HLD`, `HLD_Sum`, `HLD_Max`, `HLD_Min` | Self-contained HLD with typed convenience wrappers + edge-weighted path queries |
 | `tpl_maxflow.H` | `*_maximum_flow()` | Maximum flow algorithms |
 | `tpl_mincost.H` | `min_cost_max_flow()` | Min-cost max-flow |
 | `Tarjan.H` | `tarjan_scc()` | Strongly connected components |
@@ -2855,6 +3064,8 @@ cmake --build build
 | Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
 | Segment trees | `segment_tree_example.cc` | Point/range updates, lazy propagation, Beats |
 | Cartesian Tree/LCA/RMQ | `cartesian_tree_example.cc` | Cartesian Tree, LCA, RMQ reductions |
+| Heavy-Light decomposition | `heavy_light_decomposition_example.cc` | Path/subtree queries with dynamic point updates |
+| Centroid decomposition | `centroid_decomposition_example.cc` | Dynamic nearest active center queries on trees |
 | Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
@@ -2873,8 +3084,11 @@ cmake --build build
 | MST | `mst_example.C` | Kruskal, Prim |
 | General matching | `blossom_example.cc` | Edmonds-Blossom + TikZ exports |
 | General weighted matching | `weighted_blossom_example.cc` | Weighted blossom + objective comparison + TikZ exports |
+| General minimum-cost matching | `min_cost_matching_example.cc` | Dedicated minimum-cost API + perfect-matching feasibility + backend comparison |
 | Assignment (Hungarian) | `hungarian_example.cc` | Hungarian/Munkres minimum-cost and maximum-profit assignment |
 | Tree LCA | `lca_example.cc` | Binary lifting + Euler/RMQ LCA with cross-backend parity (List/SGraph/Array) |
+| Tree Decomposition | `heavy_light_decomposition_example.cc`, `centroid_decomposition_example.cc` | Heavy-Light path/subtree queries and centroid-distance dynamic queries |
+| HLD convenience | `hld_example.cc` | HLD_Sum/Max/Min path queries, subtree queries, point updates, edge-weighted queries |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |

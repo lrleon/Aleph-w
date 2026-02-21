@@ -311,7 +311,7 @@ namespace Aleph
       }
 
       /** @brief Augment the matching along the path ending at endpoint. */
-      void augment_matching(long endpoint)
+      void augment_matching(const long endpoint)
       {
         long v = endpoint;
         while (v != No_Vertex)
@@ -364,8 +364,8 @@ namespace Aleph
        */
       size_t solve()
       {
-        for (size_t i = 0; i < match.size(); ++i)
-          match[i] = No_Vertex;
+        for (long & i : match)
+          i = No_Vertex;
 
         for (size_t i = 0; i < nodes.size(); ++i)
           {

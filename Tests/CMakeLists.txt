@@ -324,6 +324,7 @@ set(TEST_PROGRAMS
     robust_predicates_test
     blossom_test
     weighted_blossom_test
+    min_cost_matching_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++

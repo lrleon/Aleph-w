@@ -48,7 +48,7 @@ void example_basic_assignment()
   cout << "W3:   8     9    98    23" << endl;
   cout << endl;
 
-  Hungarian_Assignment<int> ha({
+  const Hungarian_Assignment<int> ha({
     {82, 83, 69, 92},
     {77, 37, 49, 92},
     {11, 69,  5, 86},
@@ -63,7 +63,7 @@ void example_basic_assignment()
   cout << endl;
 
   // Show individual costs
-  int costs[4][4] = {
+  constexpr int costs[4][4] = {
     {82, 83, 69, 92},
     {77, 37, 49, 92},
     {11, 69,  5, 86},

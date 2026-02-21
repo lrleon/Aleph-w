@@ -87,6 +87,7 @@ set(HLIST
         tpl_odhash.H tpl_nodePool.H random_graph.H
         tpl_olhash.H tpl_dynSetHash.H ahSort.H ahSearch.H
     tpl_random_queue.H tpl_net_sup_dem.H tpl_bipartite.H Blossom.H Blossom_Weighted.H
+    Min_Cost_Matching.H
     blossom_weighted_mwmatching.H graph-traverse.H
     tpl_dynarray_set.H tpl_kgraph.H tpl_dynMat.H
     ahMem.H ahAssert.H ahDefs.H aleph.H euclidian-graph-common.H
@@ -115,7 +116,10 @@ set(HLIST
     tpl_fenwick_tree.H
     tpl_segment_tree.H
     tpl_cartesian_tree.H
+    Tree_Decomposition.H
     ah-concepts.H
+    LCA.H
+    HLD.H
 )
 
 # C++ source files

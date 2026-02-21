@@ -552,7 +552,7 @@ namespace Aleph::blossom_weighted_detail::mwmatching
       explicit MatchingContext(const Array<EdgeT> & edges_in)
         : graph(edges_in)
       {
-        // Initially all vertices are unmatched.
+        // Initially, all vertices are unmatched.
         vertex_mate.reserve(graph.num_vertex);
         for (VertexId x = 0; x < graph.num_vertex; ++x)
           vertex_mate.append(NO_VERTEX);
@@ -562,7 +562,7 @@ namespace Aleph::blossom_weighted_detail::mwmatching
         for (VertexId x = 0; x < graph.num_vertex; ++x)
           trivial_blossom.append(BlossomT(x));
 
-        // Initially all vertices are trivial top-level blossoms.
+        // Initially, all vertices are trivial top-level blossoms.
         vertex_top_blossom.reserve(graph.num_vertex);
         for (VertexId x = 0; x < graph.num_vertex; ++x)
           vertex_top_blossom.append(&trivial_blossom[x]);
@@ -1261,8 +1261,7 @@ namespace Aleph::blossom_weighted_detail::mwmatching
               {
                 // After augmenting "inner_blossom",
                 // continue by augmenting its parent.
-                rec_stack.top() = std::make_pair(outer_blossom,
-                                                 inner_blossom);
+                rec_stack.top() = std::make_pair(outer_blossom, inner_blossom);
               }
             else
               {
