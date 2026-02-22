@@ -104,6 +104,7 @@ namespace
   }
 
 
+  /** @brief Helper to print k-shortest path results. */
   template <class Result_List>
   void print_results(const string & title, const Result_List & results)
   {

@@ -93,8 +93,12 @@ namespace
     for (size_t i = 0; i < s.nodes.size(); ++i)
       nodes.push_back(g.insert_node(static_cast<int>(i)));
 
-    for (auto [u, v] : s.edges)
-      g.insert_arc(nodes[u], nodes[v], 1);
+    for (const auto & [u, v] : s.edges)
+      {
+        ah_range_error_if(u >= s.nodes.size() or v >= s.nodes.size())
+          << "Edge endpoint out of range";
+        g.insert_arc(nodes[u], nodes[v], 1);
+      }
 
     return g;
   }
@@ -173,8 +177,19 @@ namespace
         << "vertex/.style={circle, draw=black!70, fill=white, minimum size=9mm, inner sep=1pt, font=\\small\\bfseries}"
         << "}\n";
 
-    for (auto [u, v] : s.edges)
+    for (size_t i = 0; i < s.nodes.size(); ++i)
       {
+        const auto & node = s.nodes[i];
+        out << "  \\node[vertex] (n" << i << ") at ("
+            << fixed << setprecision(2) << node.x << "," << node.y << ") {"
+            << node.label << "};\n";
+      }
+
+    for (const auto & [u, v] : s.edges)
+      {
+        ah_range_error_if(u >= s.nodes.size() or v >= s.nodes.size())
+          << "Edge endpoint out of range";
+
         size_t a = u;
         size_t b = v;
         if (a > b)
@@ -188,14 +203,6 @@ namespace
 
     for (auto [u, v] : matching_pairs)
       out << "  \\draw[match] (n" << u << ") -- (n" << v << ");\n";
-
-    for (size_t i = 0; i < s.nodes.size(); ++i)
-      {
-        const auto & node = s.nodes[i];
-        out << "  \\node[vertex] (n" << i << ") at ("
-            << fixed << setprecision(2) << node.x << "," << node.y << ") {"
-            << node.label << "};\n";
-      }
 
     out << "  \\node[font=\\small] at (0,-2.95) {matching size = "
         << matching_pairs.size() << "};\n";

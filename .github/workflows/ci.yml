@@ -71,7 +71,8 @@ jobs:
             cmake ninja-build pkg-config ccache \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
-            libgtest-dev
+            libgtest-dev \
+            ruby-full
 
       - name: Install GCC toolchain
         if: matrix.compiler == 'gcc'
@@ -217,6 +218,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake ninja-build \
+            ruby-full \
             g++ \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev
@@ -248,10 +250,10 @@ jobs:
           PLANARITY_OUT_DIR="$PWD/build-planarity-visual/planarity_artifacts"
           export PLANARITY_OUT_DIR
           mkdir -p build-planarity-visual/planarity_visual/renders
-          python3 scripts/planarity_certificate_ci_visual_diff.py \
+          ruby scripts/planarity_certificate_ci_visual_diff.rb \
             --input "${PLANARITY_OUT_DIR}/planarity_k33_certificate.graphml" \
-            --profile portable.python-render-svg \
-            --profile portable.python-render-pdf \
+            --profile portable.ruby-render-svg \
+            --profile portable.ruby-render-pdf \
             --render-output-dir "$PWD/build-planarity-visual/planarity_visual/renders" \
             --report "$PWD/build-planarity-visual/planarity_visual/report.json" \
             --print-summary

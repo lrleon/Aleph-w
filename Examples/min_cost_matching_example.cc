@@ -58,6 +58,8 @@
 
 # include <Min_Cost_Matching.H>
 # include <tpl_agraph.H>
+# include <tpl_dynArray.H>
+# include <tpl_dynSetTree.H>
 # include <tpl_graph.H>
 # include <tpl_sgraph.H>
 
@@ -80,25 +82,23 @@ namespace
   GT build_graph(const Scenario & s)
   {
     GT g;
-    vector<typename GT::Node *> nodes;
-    nodes.reserve(s.num_nodes);
+    DynArray<typename GT::Node *> nodes;
 
     for (size_t i = 0; i < s.num_nodes; ++i)
-      nodes.push_back(g.insert_node(static_cast<int>(i)));
+      nodes.append(g.insert_node(static_cast<int>(i)));
 
     for (const auto & [u, v, cost] : s.edges)
-      g.insert_arc(nodes[u], nodes[v], cost);
+      g.insert_arc(nodes(u), nodes(v), cost);
 
     return g;
   }
 
 
   template <class GT>
-  vector<pair<size_t, size_t>>
+  DynArray<pair<size_t, size_t>>
   extract_pairs(const GT & g, const DynDlist<typename GT::Arc *> & matching)
   {
-    vector<pair<size_t, size_t>> pairs;
-    pairs.reserve(matching.size());
+    DynSetTree<pair<size_t, size_t>> sorted_pairs;
 
     for (auto it = matching.get_it(); it.has_curr(); it.next_ne())
       {
@@ -107,23 +107,27 @@ namespace
         size_t v = static_cast<size_t>(g.get_tgt_node(arc)->get_info());
         if (u > v)
           swap(u, v);
-        pairs.emplace_back(u, v);
+        sorted_pairs.insert({u, v});
       }
 
-    sort(pairs.begin(), pairs.end());
+    DynArray<pair<size_t, size_t>> pairs;
+    for (auto it = sorted_pairs.get_it(); it.has_curr(); it.next_ne())
+      pairs.append(it.get_curr());
+
     return pairs;
   }
 
 
-  string format_pairs(const vector<pair<size_t, size_t>> & pairs)
+  string format_pairs(const DynArray<pair<size_t, size_t>> & pairs)
   {
-    if (pairs.empty())
+    if (pairs.is_empty())
       return "(empty)";
 
     string out;
     for (size_t i = 0; i < pairs.size(); ++i)
       {
-        out += "(" + to_string(pairs[i].first) + "," + to_string(pairs[i].second) + ")";
+        const auto & p = pairs(i);
+        out += "(" + to_string(p.first) + "," + to_string(p.second) + ")";
         if (i + 1 < pairs.size())
           out += " ";
       }

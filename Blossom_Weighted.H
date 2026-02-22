@@ -127,13 +127,22 @@ namespace Aleph
 
       if constexpr (std::is_signed_v<T>)
         {
-          ah_overflow_error_if(value > static_cast<T>(std::numeric_limits<long long>::max())
-                               or value < static_cast<T>(std::numeric_limits<long long>::min()))
+          using Common = std::common_type_t<T, long long>;
+          constexpr auto ll_max = std::numeric_limits<long long>::max();
+          constexpr auto ll_min = std::numeric_limits<long long>::min();
+
+          const auto v = static_cast<Common>(value);
+          ah_overflow_error_if(v > static_cast<Common>(ll_max)
+                               or v < static_cast<Common>(ll_min))
             << "Weight cannot be represented as long long";
         }
       else
         {
-          ah_overflow_error_if(value > static_cast<T>(std::numeric_limits<long long>::max()))
+          using Common = std::common_type_t<T, long long>;
+          constexpr auto ll_max = std::numeric_limits<long long>::max();
+
+          const auto v = static_cast<Common>(value);
+          ah_overflow_error_if(v > static_cast<Common>(ll_max))
             << "Weight cannot be represented as long long";
         }
 

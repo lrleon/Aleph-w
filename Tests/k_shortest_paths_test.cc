@@ -508,6 +508,66 @@ TEST(KShortestPathsTest, EppsteinResultsAreNonDecreasingCost)
 }
 
 
+TEST(KShortestPathsTest, SelfLoopAndParallelArcs)
+{
+  // Graph with:
+  // - Node 0 -> 1: Two parallel arcs with weights 10 and 20.
+  // - Node 1 -> 1: Self-loop with weight 5.
+  // - Node 1 -> 2: Arc with weight 5.
+  //
+  // Shortest paths from 0 to 2:
+  // 1. 0->1(cost=10)->2(cost=5) = 15
+  // 2. 0->1(cost=20)->2(cost=5) = 25
+  //
+  // The self-loop 1->1 should be ignored by Yen's (simple paths only).
+  // Eppstein's API is general (non-loopless), so a cheaper loopy path may
+  // appear before the second simple alternative.
+
+  const auto edges = make_edges({
+      {0, 1, 10}, // parallel arc 1
+      {0, 1, 20}, // parallel arc 2
+      {1, 1, 5},  // self-loop on spur node
+      {1, 2, 5}
+  });
+  auto built = build_graph(3, edges);
+
+  const size_t K = 2;
+  const auto yen_results = normalize_results(
+      yen_k_shortest_paths<Graph>(built.g, built.nodes[0], built.nodes[2], K));
+  const auto epp_results = normalize_results(
+      eppstein_k_shortest_paths<Graph>(built.g, built.nodes[0], built.nodes[2], K));
+
+  ASSERT_EQ(yen_results.size(), 2u);
+  ASSERT_EQ(epp_results.size(), 2u);
+
+  // Check path 1: Cost 15, nodes [0, 1, 2]
+  EXPECT_EQ(yen_results[0].cost, 15);
+  EXPECT_EQ(yen_results[0].nodes.size(), 3u);
+  EXPECT_EQ(yen_results[0].nodes(0), 0);
+  EXPECT_EQ(yen_results[0].nodes(1), 1);
+  EXPECT_EQ(yen_results[0].nodes(2), 2);
+
+  // Check path 2: Cost 25, nodes [0, 1, 2]
+  EXPECT_EQ(yen_results[1].cost, 25);
+  EXPECT_EQ(yen_results[1].nodes.size(), 3u);
+  EXPECT_EQ(yen_results[1].nodes(0), 0);
+  EXPECT_EQ(yen_results[1].nodes(1), 1);
+  EXPECT_EQ(yen_results[1].nodes(2), 2);
+
+  // Eppstein: first path matches Yen's best simple path.
+  EXPECT_EQ(epp_results[0], yen_results[0]);
+
+  // Eppstein can use the self-loop:
+  // 0->1(cost=10)->1(cost=5)->2(cost=5) = 20
+  EXPECT_EQ(epp_results[1].cost, 20);
+  EXPECT_EQ(epp_results[1].nodes.size(), 4u);
+  EXPECT_EQ(epp_results[1].nodes(0), 0);
+  EXPECT_EQ(epp_results[1].nodes(1), 1);
+  EXPECT_EQ(epp_results[1].nodes(2), 1);
+  EXPECT_EQ(epp_results[1].nodes(3), 2);
+}
+
+
 // ============================================================================
 // Opt-in deterministic performance regression test.
 //

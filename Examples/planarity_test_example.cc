@@ -59,6 +59,7 @@ namespace
   using DGraph = List_Digraph<Graph_Node<string>, Graph_Arc<int>>;
   using UDual = Default_Planar_Dual_Graph<UGraph>;
 
+  /** Print planarity test results. */
   template <class GT>
   void print_result(const string & title,
                     const Planarity_Test_Result<GT> & r)
@@ -113,6 +114,7 @@ namespace
   }
 
 
+  /** Print geometric drawing details. */
   template <class GT>
   void print_drawing(const Planar_Geometric_Drawing<GT> & d)
   {

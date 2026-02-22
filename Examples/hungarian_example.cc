@@ -58,8 +58,7 @@ void example_basic_assignment()
   cout << "Optimal total cost: " << ha.get_total_cost() << endl;
   cout << "Assignments:" << endl;
   for (auto [r, c] : ha.get_assignments())
-    cout << "  Worker " << r << " -> Task " << c
-         << " (cost " << ha.get_total_cost() << ")" << endl;
+    cout << "  Worker " << r << " -> Task " << c << endl;
   cout << endl;
 
   // Show individual costs

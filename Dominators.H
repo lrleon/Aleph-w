@@ -527,16 +527,16 @@ namespace Aleph
      *  @return Map from each reachable node to its dominance frontier.
      *  @throws std::domain_error If root is null.
      */
-    [[nodiscard]] DynMapTree<Node*, DynList<Node*>>
+    [[nodiscard]] DynMapTree<Node*, DynSetTree<Node*>>
     dominance_frontiers(const GT & g, Node *root)
     {
       ensure_computed(g, root);
 
-      DynMapTree<Node*, DynList<Node*>> df;
+      DynMapTree<Node*, DynSetTree<Node*>> df;
 
       // Initialize empty frontiers for all reachable nodes
       for (long i = 0; i < num_reachable; ++i)
-        df.insert(vertex[i], DynList<Node*>());
+        df.insert(vertex[i], DynSetTree<Node*>());
 
       // For each node with 2+ predecessors, walk up from each pred
       for (long b = 0; b < num_reachable; ++b)
@@ -552,7 +552,7 @@ namespace Aleph
               long runner = it.get_curr();
               while (runner != idom_arr[b] and runner != -1)
                 {
-                  df.find(vertex[runner]).append(bnode);
+                  df.find(vertex[runner]).insert(bnode);
                   runner = idom_arr[runner];
                 }
             }
@@ -662,7 +662,7 @@ namespace Aleph
    *  @see Lengauer_Tarjan_Dominators
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  [[nodiscard]] DynMapTree<typename GT::Node*, DynList<typename GT::Node*>>
+  [[nodiscard]] DynMapTree<typename GT::Node*, DynSetTree<typename GT::Node*>>
   compute_dominance_frontiers(const GT & g, typename GT::Node *root,
                               SA sa = SA())
   {
@@ -747,8 +747,13 @@ namespace Aleph
     /** @brief Ensure computation is up to date.
      *
      *  Inverts the graph and runs dominator computation on the reversed
-     *  graph from the exit node.  If the computation was already done
-     *  for the same graph and exit node, this is a no-op.
+     *  graph from the exit node.
+     *
+     *  @note `invert_digraph` creates a new graph with fresh Arc objects.
+     *        If the arc filter `SA` depends on the identity (address) of the
+     *        original arcs, it will fail or filter incorrectly on the reversed
+     *        graph. Stateless filters (like `Dft_Show_Arc`) or those depending
+     *        only on Node identities are safe.
      *
      *  @param g The directed graph.
      *  @param exit_node Exit node (must not be null).
@@ -757,9 +762,6 @@ namespace Aleph
     {
       ah_domain_error_if(exit_node == nullptr)
         << "Lengauer_Tarjan_Post_Dominators: exit node cannot be null";
-
-      if (is_computed and gptr == &g and exit_ptr == exit_node)
-        return;
 
       gptr = &const_cast<GT &>(g);
       exit_ptr = exit_node;
@@ -948,7 +950,7 @@ namespace Aleph
      *  @return Map from each reachable node to its post-dominance frontier.
      *  @throws std::domain_error If exit_node is null.
      */
-    [[nodiscard]] DynMapTree<Node*, DynList<Node*>>
+    [[nodiscard]] DynMapTree<Node*, DynSetTree<Node*>>
     post_dominance_frontiers(const GT & g, Node *exit_node)
     {
       ensure_computed(g, exit_node);
@@ -956,14 +958,14 @@ namespace Aleph
       auto rev_exit = to_rev(exit_node);
       auto rev_df = dom.dominance_frontiers(rev, rev_exit);
 
-      DynMapTree<Node*, DynList<Node*>> result;
+      DynMapTree<Node*, DynSetTree<Node*>> result;
       for (auto it = rev_df.get_it(); it.has_curr(); it.next_ne())
         {
           auto & [rev_n, rev_frontier] = it.get_curr();
           auto orig = to_orig(rev_n);
-          DynList<Node*> orig_frontier;
-          for (auto fi = rev_frontier.get_it(); fi.has_curr(); fi.next_ne())
-            orig_frontier.append(to_orig(fi.get_curr()));
+          DynSetTree<Node*> orig_frontier;
+          for (typename DynSetTree<Node*>::Iterator fi(rev_frontier); fi.has_curr(); fi.next_ne())
+            orig_frontier.insert(to_orig(fi.get_curr()));
           result.insert(orig, std::move(orig_frontier));
         }
       return result;
@@ -1067,7 +1069,7 @@ namespace Aleph
    *  @see Lengauer_Tarjan_Post_Dominators
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  [[nodiscard]] DynMapTree<typename GT::Node*, DynList<typename GT::Node*>>
+  [[nodiscard]] DynMapTree<typename GT::Node*, DynSetTree<typename GT::Node*>>
   compute_post_dominance_frontiers(const GT & g,
                                    typename GT::Node *exit_node,
                                    SA sa = SA())

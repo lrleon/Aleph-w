@@ -1022,16 +1022,36 @@ namespace Aleph
   }
 
 
-  /** @brief General (non-loopless) k-shortest-path API.
+  /** @brief Compute k shortest general (loopy) paths.
    *
-   *  This routine is separated from Yen's loopless engine:
-   *  - `yen_k_shortest_paths()` returns simple (cycle-free) paths.
-   *  - `eppstein_k_shortest_paths()` may return paths with repeated
-   *    vertices/arcs when they are among the next best alternatives.
+   *  Returns up to `k` paths (allowing cycles) ordered by non-decreasing total cost.
+   *  If fewer than `k` paths exist, all available paths are returned.
    *
-   *  The method expands complete path candidates by deviations over each
-   *  accepted path and reconnects each deviation through a shortest suffix
-   *  to `target`.
+   *  This algorithm uses an Eppstein-style approach: it builds a shortest path tree
+   *  towards the target in the reversed graph, then explores path deviations
+   *  ordered by cost.
+   *
+   *  @tparam GT Graph type.
+   *  @tparam Distance Arc cost accessor (`Distance::Distance_Type` required).
+   *  @tparam SA Arc filter.
+   *
+   *  @param[in] g Graph.
+   *  @param[in] source Source node.
+   *  @param[in] target Target node.
+   *  @param[in] k Maximum number of paths to return.
+   *  @param[in] distance Arc cost accessor.
+   *  @param[in] sa Arc filter.
+   *
+   *  @return `DynList<K_Shortest_Path_Item<GT, Cost_Type>>` containing the paths found.
+   *
+   *  @throws std::domain_error If `source` or `target` is null.
+   *  @throws std::domain_error If negative arc weights are detected.
+   *
+   *  @complexity O(E + V log V + k * log k) typically, depending on the number of
+   *              deviations explored. Building the suffix tree dominates initially.
+   *
+   *  @note This implementation is NOT thread-safe due to internal use of
+   *        static thread-local storage for reverse graph traversal.
    *
    *  @ingroup Graphs
    */
@@ -1173,6 +1193,24 @@ namespace Aleph
       // empty
     }
 
+    /** @brief Compute k shortest general (loopy) paths.
+     *
+     *  Wrapper for `eppstein_k_shortest_paths` using the stored distance and filter.
+     *
+     *  @param[in] g Graph.
+     *  @param[in] source Source node.
+     *  @param[in] target Target node.
+     *  @param[in] k Maximum number of paths to return.
+     *
+     *  @return `DynList<K_Shortest_Path_Item<GT, Cost_Type>>` containing the paths found.
+     *
+     *  @throws std::domain_error If `source` or `target` is null.
+     *  @throws std::domain_error If negative arc weights are detected.
+     *
+     *  @complexity Same as `eppstein_k_shortest_paths`: O(E + V log V + k * log k).
+     *
+     *  @note This implementation is NOT thread-safe.
+     */
     DynList<K_Shortest_Path_Item<GT, typename Distance::Distance_Type>>
     operator()(const GT & g,
                typename GT::Node *source,

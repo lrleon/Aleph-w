@@ -1510,6 +1510,9 @@ struct CaseInsensitiveStringHash {
   }
 };
 
+/**
+ * @brief Helper for float comparison with tolerance
+ */
 struct FloatToleranceEqual {
   float tolerance;
   FloatToleranceEqual(float tol = 0.001f) : tolerance(tol) {}

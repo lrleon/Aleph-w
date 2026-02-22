@@ -506,7 +506,19 @@ namespace Aleph
     negated.allocate();
     for (size_t i = 0; i < rows; ++i)
       for (size_t j = 0; j < cols; ++j)
-        negated(i, j) = -static_cast<Promoted>(cost.read(i, j));
+        {
+          if constexpr (std::is_signed_v<Promoted>)
+            {
+              auto v = static_cast<Promoted>(cost.read(i, j));
+              ah_overflow_error_if(v == std::numeric_limits<Promoted>::min())
+                << "Cannot negate minimum integer value";
+              negated(i, j) = -v;
+            }
+          else
+            {
+              negated(i, j) = -static_cast<Promoted>(cost.read(i, j));
+            }
+        }
 
     auto inner = hungarian_assignment(negated);
 

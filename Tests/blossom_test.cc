@@ -239,22 +239,22 @@ namespace
   {
     GT g;
 
-    std::vector<typename GT::Node *> left_nodes;
-    std::vector<typename GT::Node *> right_nodes;
+    DynArray<typename GT::Node *> left_nodes;
+    DynArray<typename GT::Node *> right_nodes;
     left_nodes.reserve(left_size);
     right_nodes.reserve(right_size);
 
     for (size_t i = 0; i < left_size; ++i)
-      left_nodes.push_back(g.insert_node(static_cast<int>(i)));
+      left_nodes(i) = g.insert_node(static_cast<int>(i));
 
     for (size_t i = 0; i < right_size; ++i)
-      right_nodes.push_back(g.insert_node(static_cast<int>(left_size + i)));
+      right_nodes(i) = g.insert_node(static_cast<int>(left_size + i));
 
     for (const auto & [l, r] : edges_lr)
       {
         if (l >= left_size or r >= right_size)
           continue;
-        g.insert_arc(left_nodes[l], right_nodes[r], 1);
+        g.insert_arc(left_nodes(l), right_nodes(r), 1);
       }
 
     return g;

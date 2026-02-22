@@ -40,6 +40,7 @@
  *   ./build/Examples/min_mean_cycle_example
  */
 
+# include <cmath>
 # include <iomanip>
 # include <iostream>
 # include <string>
@@ -91,6 +92,13 @@ namespace
     // r.minimum_mean (they should agree up to numerical precision).
     const long double witness_mean = static_cast<long double>(r.cycle_total_cost)
                                      / static_cast<long double>(r.cycle_length);
+
+    if (std::abs(witness_mean - static_cast<long double>(r.minimum_mean)) > 1e-9)
+      {
+        cerr << "Sanity check failed: witness mean " << witness_mean
+             << " != minimum mean " << r.minimum_mean << endl;
+        abort();
+      }
 
     cout << "  witness cycle: cost=" << r.cycle_total_cost
          << ", length=" << r.cycle_length

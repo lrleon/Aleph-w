@@ -1,4 +1,4 @@
-name: Planarity Gephi Nightly
+name: Planarity Gephi Weekly
 
 on:
   schedule:
@@ -135,8 +135,8 @@ jobs:
               f.write(f"gephi_tags_csv={out_csv}\n")
           PY
 
-  gephi-nightly:
-    name: gephi-nightly (${{ matrix.os }}, ${{ matrix.gephi_tag }})
+  gephi-weekly:
+    name: gephi-weekly (${{ matrix.os }}, ${{ matrix.gephi_tag }})
     needs: prepare-tag-matrix
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -169,6 +169,7 @@ jobs:
           import json
           import os
           import pathlib
+          import shutil
           import stat
           import tarfile
           import urllib.request
@@ -238,7 +239,8 @@ jobs:
                       or lower.startswith("win")
                       or "win-" in lower
                       or "win64" in lower
-                      or "win32" in lower):
+                      or "win32" in lower
+                      or re.search(r'\bwin\b', lower)):
                       score += 80
                   if "x64" in lower or "amd64" in lower:
                       score += 10
@@ -249,7 +251,7 @@ jobs:
               key=score_asset,
               reverse=True,
           )
-          if not ranked or score_asset(ranked[0]) < 0:
+          if not ranked or score_asset(ranked[0]) < 80:
               names = [str(a.get("name", "")) for a in assets if isinstance(a, dict)]
               raise SystemExit(
                   f"Unable to pick Gephi package for OS={runner_os}. assets={names}"
@@ -265,14 +267,15 @@ jobs:
               asset_headers["Authorization"] = f"token {github_token}"
           req_asset = urllib.request.Request(asset_url, headers=asset_headers)
           with urllib.request.urlopen(req_asset, timeout=300) as resp:
-              archive_path.write_bytes(resp.read())
+              with archive_path.open("wb") as f:
+                  shutil.copyfileobj(resp, f, length=1024*1024)
 
           if asset_name.lower().endswith(".zip"):
               with zipfile.ZipFile(archive_path, "r") as zf:
                   zf.extractall(ex_dir)
           elif asset_name.lower().endswith(".tar.gz"):
               with tarfile.open(archive_path, "r:gz") as tf:
-                  tf.extractall(ex_dir)
+                  tf.extractall(ex_dir, filter="data")
           else:
               raise SystemExit(f"Unsupported archive format: {asset_name}")
 
@@ -416,10 +419,16 @@ jobs:
           }
 
           if exit_code == 0:
-              payload = json.loads(proc.stdout)
-              summary["overall_valid"] = bool(payload.get("overall_valid", False))
-              if not summary["overall_valid"]:
+              try:
+                  payload = json.loads(proc.stdout)
+                  summary["overall_valid"] = bool(payload.get("overall_valid", False))
+                  if not summary["overall_valid"]:
+                      exit_code = 2
+              except (json.JSONDecodeError, ValueError) as e:
+                  summary["overall_valid"] = False
                   exit_code = 2
+                  print(f"Failed to parse validator output: {e}")
+                  print(f"Raw output: {proc.stdout}")
 
           (out_dir / "nightly_case_summary.json").write_text(
               json.dumps(summary, indent=2, sort_keys=True) + "\n",
@@ -434,11 +443,11 @@ jobs:
           print("overall_valid=True")
           PY
 
-      - name: Upload nightly artifacts
+      - name: Upload weekly artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gephi-nightly-${{ matrix.os }}-${{ matrix.gephi_tag }}
+          name: gephi-weekly-${{ matrix.os }}-${{ matrix.gephi_tag }}
           if-no-files-found: ignore
           retention-days: 90
           path: |
@@ -449,11 +458,11 @@ jobs:
             build-gephi-nightly/validator_stdout.json
             build-gephi-nightly/validator_stderr.txt
 
-  gephi-nightly-comparison:
-    name: gephi-nightly-comparison
+  gephi-weekly-comparison:
+    name: gephi-weekly-comparison
     needs:
       - prepare-tag-matrix
-      - gephi-nightly
+      - gephi-weekly
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -467,11 +476,11 @@ jobs:
         with:
           ruby-version: '3.3'
 
-      - name: Download nightly artifacts
+      - name: Download weekly artifacts
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          pattern: gephi-nightly-*
+          pattern: gephi-weekly-*
           path: build-gephi-nightly-artifacts
           merge-multiple: false
 
@@ -537,7 +546,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gephi-nightly-comparison-${{ github.run_id }}
+          name: gephi-weekly-comparison-${{ github.run_id }}
           if-no-files-found: ignore
           retention-days: 90
           path: |
@@ -552,6 +561,6 @@ jobs:
           NUM_REGRESSIONS: ${{ steps.compare.outputs.num_regressions }}
         run: |
           set -euo pipefail
-          echo "Gephi nightly comparison detected regressions across tags." >&2
+          echo "Gephi weekly comparison detected regressions across tags." >&2
           echo "num_regressions=${NUM_REGRESSIONS}" >&2
           exit 1

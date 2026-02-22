@@ -102,13 +102,12 @@ namespace
   {
     GT g;
     DynArray<typename GT::Node *> nodes;
-    nodes.reserve(s.nodes.size());
 
     for (size_t i = 0; i < s.nodes.size(); ++i)
-      nodes(i) = g.insert_node(static_cast<int>(i));
+      nodes.append(g.insert_node(static_cast<int>(i)));
 
     for (const auto & [u, v, w] : s.edges)
-      g.insert_arc(nodes[u], nodes[v], w);
+      g.insert_arc(nodes(u), nodes(v), w);
 
     return g;
   }
