@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -111,6 +110,7 @@
 # include <tpl_graph_utils.H>
 # include <tpl_array.H>
 # include <htlist.H>
+# include <tpl_dynListStack.H>
 # include <ah-errors.H>
 # include <tpl_dynSetTree.H>
 
@@ -157,63 +157,15 @@ namespace Aleph
     long num_reachable = 0;
 
     // Internal arrays indexed by DFS number
-    Array<Node*> vertex;     // DFS number -> node pointer
-    Array<long> par;         // DFS parent (as DFS number)
-    Array<long> semi;        // semi-dominator (as DFS number)
-    Array<long> idom_arr;    // immediate dominator (as DFS number)
-    Array<long> anc;         // Union-Find ancestor
-    Array<long> label_arr;   // Union-Find label (best semi on path)
+    Array<Node *> vertex; // DFS number -> node pointer
+    Array<long> par; // DFS parent (as DFS number)
+    Array<long> semi; // semi-dominator (as DFS number)
+    Array<long> idom_arr; // immediate dominator (as DFS number)
+    Array<long> anc; // Union-Find ancestor
+    Array<long> label_arr; // Union-Find label (best semi on path)
     Array<DynList<long>> pred; // predecessors[i] = DFS numbers of predecessors of node i
 
-    /** @brief Iterative DFS to number nodes and build DFS tree.
-     *
-     *  @param v Current node being visited.
-     *  @param p DFS number of v's parent (-1 for root).
-     */
-    void dfs(Node *v, long p)
-    {
-      struct Pending_Frame
-      {
-        Node *node = nullptr;
-        long parent = -1;
-      };
-
-      Array<Pending_Frame> stack;
-      stack.reserve(gptr->get_num_nodes());
-      stack.append(Pending_Frame{v, p});
-      NODE_COUNTER(v) = -2; // discovered but not yet numbered
-
-      while (not stack.is_empty())
-        {
-          const Pending_Frame frame = stack.remove_last();
-          Node *curr = frame.node;
-
-          const long v_num = num_reachable++;
-          NODE_COUNTER(curr) = v_num;
-          vertex[v_num] = curr;
-          par[v_num] = frame.parent;
-          semi[v_num] = v_num;
-          label_arr[v_num] = v_num;
-          anc[v_num] = -1;
-
-          // Push children in reverse order so DFS visitation order
-          // matches the recursive implementation.
-          Array<Node *> children;
-          for (Out_Iterator<GT, SA> it(curr, sa); it.has_curr(); it.next_ne())
-            {
-              Node *w = gptr->get_tgt_node(it.get_curr());
-              if (NODE_COUNTER(w) != -1)
-                continue;
-              NODE_COUNTER(w) = -2; // mark discovered to avoid duplicate pushes
-              children.append(w);
-            }
-
-          for (long i = static_cast<long>(children.size()) - 1; i >= 0; --i)
-            stack.append(Pending_Frame{children[static_cast<size_t>(i)], v_num});
-        }
-    }
-
-    /** @brief Path compression for Union-Find.
+    /** @brief Path compression for Union-Find (iterative).
      *
      *  Updates label[v] to hold the node with the minimum
      *  semi-dominator on the path from v to the tree root
@@ -221,21 +173,78 @@ namespace Aleph
      *
      *  @param v The node (DFS number) to compress.
      */
-    void compress(const long v)
+    void compress(long v)
     {
       if (anc[v] == -1 or anc[anc[v]] == -1)
         return;
 
+      // First pass: find the path to the root
       Array<long> path;
-      for (long x = v; anc[x] != -1 and anc[anc[x]] != -1; x = anc[x])
-        path.append(x);
-
-      for (long i = static_cast<long>(path.size()) - 1; i >= 0; --i)
+      long root = v;
+      while (anc[root] != -1 and anc[anc[root]] != -1)
         {
-          const long x = path[static_cast<size_t>(i)];
-          if (semi[label_arr[anc[x]]] < semi[label_arr[x]])
-            label_arr[x] = label_arr[anc[x]];
-          anc[x] = anc[anc[x]];
+          path.append(root);
+          root = anc[root];
+        }
+
+      // Second pass: compress path and update labels
+      // Iterate from root-child down to v
+      while (not path.is_empty())
+        {
+          const long u = path.remove_last();
+          if (semi[label_arr[anc[u]]] < semi[label_arr[u]])
+            label_arr[u] = label_arr[anc[u]];
+          anc[u] = anc[anc[u]];
+        }
+    }
+
+    /** @brief Iterative DFS to number nodes and build DFS tree.
+     *
+     *  @param root_ptr Root node pointer.
+     */
+    void dfs(Node *root_ptr)
+    {
+      struct Frame
+      {
+        Node *u;
+        Out_Iterator<GT, SA> it;
+      };
+
+      DynListStack<Frame> stack;
+
+      // Initialize root
+      const long root_num = num_reachable++;
+      NODE_COUNTER(root_ptr) = root_num;
+      vertex[root_num] = root_ptr;
+      par[root_num] = -1;
+      semi[root_num] = root_num;
+      label_arr[root_num] = root_num;
+      anc[root_num] = -1;
+
+      stack.push(Frame{root_ptr, Out_Iterator<GT, SA>(root_ptr, sa)});
+
+      while (not stack.is_empty())
+        {
+          if (Frame & top = stack.top(); top.it.has_curr())
+            {
+              Node *v = gptr->get_tgt_node(top.it.get_curr());
+              top.it.next_ne();
+
+              if (NODE_COUNTER(v) == -1)
+                {
+                  const long v_num = num_reachable++;
+                  NODE_COUNTER(v) = v_num;
+                  vertex[v_num] = v;
+                  par[v_num] = NODE_COUNTER(top.u);
+                  semi[v_num] = v_num;
+                  label_arr[v_num] = v_num;
+                  anc[v_num] = -1;
+
+                  stack.push(Frame{v, Out_Iterator<GT, SA>(v, sa)});
+                }
+            }
+          else
+            static_cast<void>(stack.pop());
         }
     }
 
@@ -279,7 +288,7 @@ namespace Aleph
         }
 
       // Allocate internal arrays
-      vertex = Array<Node*>(N, nullptr);
+      vertex = Array<Node *>(N, nullptr);
       par = Array<long>(N, -1L);
       semi = Array<long>(N, -1L);
       idom_arr = Array<long>(N, -1L);
@@ -290,7 +299,7 @@ namespace Aleph
       gptr->for_each_node([](Node *p) { NODE_COUNTER(p) = -1; });
 
       // Phase 1: DFS from root
-      dfs(root, -1); // dfs updates num_reachable
+      dfs(root); // dfs updates num_reachable
 
       if (num_reachable <= 1)
         {
@@ -384,11 +393,13 @@ namespace Aleph
 
     /// Dominator instances should not be copied (they hold internal state)
     Lengauer_Tarjan_Dominators(const Lengauer_Tarjan_Dominators &) = delete;
-    Lengauer_Tarjan_Dominators & operator=(const Lengauer_Tarjan_Dominators &) = delete;
+
+    Lengauer_Tarjan_Dominators &operator=(const Lengauer_Tarjan_Dominators &) = delete;
 
     /// Move is allowed
     Lengauer_Tarjan_Dominators(Lengauer_Tarjan_Dominators &&) = default;
-    Lengauer_Tarjan_Dominators & operator=(Lengauer_Tarjan_Dominators &&) = default;
+
+    Lengauer_Tarjan_Dominators &operator=(Lengauer_Tarjan_Dominators &&) = default;
 
     /** @brief Compute immediate dominators.
      *
@@ -400,12 +411,12 @@ namespace Aleph
      *  @return List of (node, immediate_dominator) pairs.
      *  @throws std::domain_error If root is null.
      */
-    [[nodiscard]] DynList<std::pair<Node*, Node*>>
+    [[nodiscard]] DynList<std::pair<Node *, Node *>>
     compute_idom(const GT & g, Node *root)
     {
       ensure_computed(g, root);
 
-      DynList<std::pair<Node*, Node*>> result;
+      DynList<std::pair<Node *, Node *>> result;
       for (long i = 0; i < num_reachable; ++i)
         {
           Node *idom_node = (idom_arr[i] >= 0) ? vertex[idom_arr[i]] : nullptr;
@@ -436,7 +447,7 @@ namespace Aleph
         return;
 
       // Create tree nodes and establish mapping
-      Array<Node*> tree_nodes(num_reachable, nullptr);
+      Array<Node *> tree_nodes(num_reachable, nullptr);
       for (long i = 0; i < num_reachable; ++i)
         {
           auto tn = tree.insert_node(vertex[i]->get_info());
@@ -446,10 +457,8 @@ namespace Aleph
 
       // Create arcs: idom(v) -> v
       for (long i = 1; i < num_reachable; ++i)
-        {
-          if (idom_arr[i] >= 0)
-            tree.insert_arc(tree_nodes[idom_arr[i]], tree_nodes[i]);
-        }
+        if (idom_arr[i] >= 0)
+          tree.insert_arc(tree_nodes[idom_arr[i]], tree_nodes[i]);
     }
 
     /** @brief Get the immediate dominator of a specific node.
@@ -527,16 +536,16 @@ namespace Aleph
      *  @return Map from each reachable node to its dominance frontier.
      *  @throws std::domain_error If root is null.
      */
-    [[nodiscard]] DynMapTree<Node*, DynSetTree<Node*>>
+    [[nodiscard]] DynMapTree<Node *, DynSetTree<Node *>>
     dominance_frontiers(const GT & g, Node *root)
     {
       ensure_computed(g, root);
 
-      DynMapTree<Node*, DynSetTree<Node*>> df;
+      DynMapTree<Node *, DynSetTree<Node *>> df;
 
       // Initialize empty frontiers for all reachable nodes
       for (long i = 0; i < num_reachable; ++i)
-        df.insert(vertex[i], DynSetTree<Node*>());
+        df.insert(vertex[i], DynSetTree<Node *>());
 
       // For each node with 2+ predecessors, walk up from each pred
       for (long b = 0; b < num_reachable; ++b)
@@ -576,10 +585,10 @@ namespace Aleph
     /// @{
 
     /** @brief Get the arc filter. */
-    [[nodiscard]] SA & get_filter() noexcept { return sa; }
+    [[nodiscard]] SA &get_filter() noexcept { return sa; }
 
     /** @brief Get the arc filter (const). */
-    [[nodiscard]] const SA & get_filter() const noexcept { return sa; }
+    [[nodiscard]] const SA &get_filter() const noexcept { return sa; }
 
     /** @brief Check if a computation has been performed. */
     [[nodiscard]] bool has_computation() const noexcept { return is_computed; }
@@ -619,7 +628,7 @@ namespace Aleph
    *  @see Lengauer_Tarjan_Dominators
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  [[nodiscard]] DynList<std::pair<typename GT::Node*, typename GT::Node*>>
+  [[nodiscard]] DynList<std::pair<typename GT::Node *, typename GT::Node *>>
   compute_dominators(const GT & g, typename GT::Node *root, SA sa = SA())
   {
     return Lengauer_Tarjan_Dominators<GT, SA>(sa).compute_idom(g, root);
@@ -662,7 +671,7 @@ namespace Aleph
    *  @see Lengauer_Tarjan_Dominators
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  [[nodiscard]] DynMapTree<typename GT::Node*, DynSetTree<typename GT::Node*>>
+  [[nodiscard]] DynMapTree<typename GT::Node *, DynSetTree<typename GT::Node *>>
   compute_dominance_frontiers(const GT & g, typename GT::Node *root,
                               SA sa = SA())
   {
@@ -727,8 +736,8 @@ namespace Aleph
     bool is_computed = false;
 
     // Saved node mappings (orig ↔ rev) to avoid NODE_COOKIE conflicts
-    DynMapTree<Node*, Node*> orig_to_rev;
-    DynMapTree<Node*, Node*> rev_to_orig;
+    DynMapTree<Node *, Node *> orig_to_rev;
+    DynMapTree<Node *, Node *> rev_to_orig;
 
     /** @brief Map original node to reversed graph node. */
     [[nodiscard]] Node * to_rev(Node *orig) const
@@ -771,8 +780,8 @@ namespace Aleph
       rev = invert_digraph(g);
 
       // Step 2: Save orig↔rev mappings before dom overwrites anything
-      orig_to_rev = DynMapTree<Node*, Node*>();
-      rev_to_orig = DynMapTree<Node*, Node*>();
+      orig_to_rev = DynMapTree<Node *, Node *>();
+      rev_to_orig = DynMapTree<Node *, Node *>();
       for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
         {
           auto orig = it.get_curr();
@@ -801,11 +810,13 @@ namespace Aleph
 
     /// Post-dominator instances should not be copied (they hold internal state)
     Lengauer_Tarjan_Post_Dominators(const Lengauer_Tarjan_Post_Dominators &) = delete;
+
     Lengauer_Tarjan_Post_Dominators &
     operator=(const Lengauer_Tarjan_Post_Dominators &) = delete;
 
     /// Move is allowed
     Lengauer_Tarjan_Post_Dominators(Lengauer_Tarjan_Post_Dominators &&) = default;
+
     Lengauer_Tarjan_Post_Dominators &
     operator=(Lengauer_Tarjan_Post_Dominators &&) = default;
 
@@ -819,7 +830,7 @@ namespace Aleph
      *  @return List of (node, immediate_post_dominator) pairs.
      *  @throws std::domain_error If exit_node is null.
      */
-    [[nodiscard]] DynList<std::pair<Node*, Node*>>
+    [[nodiscard]] DynList<std::pair<Node *, Node *>>
     compute_ipdom(const GT & g, Node *exit_node)
     {
       ensure_computed(g, exit_node);
@@ -827,7 +838,7 @@ namespace Aleph
       auto rev_exit = to_rev(exit_node);
       auto rev_idoms = dom.compute_idom(rev, rev_exit);
 
-      DynList<std::pair<Node*, Node*>> result;
+      DynList<std::pair<Node *, Node *>> result;
       for (auto it = rev_idoms.get_it(); it.has_curr(); it.next_ne())
         {
           auto [rev_n, rev_id] = it.get_curr();
@@ -863,7 +874,7 @@ namespace Aleph
         return;
 
       // Create tree nodes with mapping to original graph
-      DynMapTree<Node*, Node*> orig_to_tree;
+      DynMapTree<Node *, Node *> orig_to_tree;
       for (auto it = rev_idoms.get_it(); it.has_curr(); it.next_ne())
         {
           auto [rev_n, rev_id] = it.get_curr();
@@ -950,7 +961,7 @@ namespace Aleph
      *  @return Map from each reachable node to its post-dominance frontier.
      *  @throws std::domain_error If exit_node is null.
      */
-    [[nodiscard]] DynMapTree<Node*, DynSetTree<Node*>>
+    [[nodiscard]] DynMapTree<Node *, DynSetTree<Node *>>
     post_dominance_frontiers(const GT & g, Node *exit_node)
     {
       ensure_computed(g, exit_node);
@@ -958,13 +969,13 @@ namespace Aleph
       auto rev_exit = to_rev(exit_node);
       auto rev_df = dom.dominance_frontiers(rev, rev_exit);
 
-      DynMapTree<Node*, DynSetTree<Node*>> result;
+      DynMapTree<Node *, DynSetTree<Node *>> result;
       for (auto it = rev_df.get_it(); it.has_curr(); it.next_ne())
         {
           auto & [rev_n, rev_frontier] = it.get_curr();
           auto orig = to_orig(rev_n);
-          DynSetTree<Node*> orig_frontier;
-          for (typename DynSetTree<Node*>::Iterator fi(rev_frontier); fi.has_curr(); fi.next_ne())
+          DynSetTree<Node *> orig_frontier;
+          for (typename DynSetTree<Node *>::Iterator fi(rev_frontier); fi.has_curr(); fi.next_ne())
             orig_frontier.insert(to_orig(fi.get_curr()));
           result.insert(orig, std::move(orig_frontier));
         }
@@ -986,10 +997,10 @@ namespace Aleph
     /// @{
 
     /** @brief Get the arc filter. */
-    [[nodiscard]] SA & get_filter() noexcept { return sa; }
+    [[nodiscard]] SA &get_filter() noexcept { return sa; }
 
     /** @brief Get the arc filter (const). */
-    [[nodiscard]] const SA & get_filter() const noexcept { return sa; }
+    [[nodiscard]] const SA &get_filter() const noexcept { return sa; }
 
     /** @brief Check if a computation has been performed. */
     [[nodiscard]] bool has_computation() const noexcept { return is_computed; }
@@ -1023,12 +1034,12 @@ namespace Aleph
    *  @see Lengauer_Tarjan_Post_Dominators
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  [[nodiscard]] DynList<std::pair<typename GT::Node*, typename GT::Node*>>
+  [[nodiscard]] DynList<std::pair<typename GT::Node *, typename GT::Node *>>
   compute_post_dominators(const GT & g, typename GT::Node *exit_node,
                           SA sa = SA())
   {
     return Lengauer_Tarjan_Post_Dominators<GT, SA>(sa)
-      .compute_ipdom(g, exit_node);
+        .compute_ipdom(g, exit_node);
   }
 
   /** @brief Build the post-dominator tree of a digraph.
@@ -1051,12 +1062,12 @@ namespace Aleph
                                  GT & tree, SA sa = SA())
   {
     Lengauer_Tarjan_Post_Dominators<GT, SA>(sa)
-      .build_tree(g, exit_node, tree);
+        .build_tree(g, exit_node, tree);
   }
 
   /** @brief Compute post-dominance frontiers of a digraph.
    *
-   *  Convenience free function wrapping Lengauer_Tarjan_Post_Dominators.
+   *  Convenience-free function wrapping Lengauer_Tarjan_Post_Dominators.
    *
    *  @tparam GT Graph type (must be directed).
    *  @tparam SA Arc filter type.
@@ -1069,15 +1080,14 @@ namespace Aleph
    *  @see Lengauer_Tarjan_Post_Dominators
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  [[nodiscard]] DynMapTree<typename GT::Node*, DynSetTree<typename GT::Node*>>
+  [[nodiscard]] DynMapTree<typename GT::Node *, DynSetTree<typename GT::Node *>>
   compute_post_dominance_frontiers(const GT & g,
                                    typename GT::Node *exit_node,
                                    SA sa = SA())
   {
     return Lengauer_Tarjan_Post_Dominators<GT, SA>(sa)
-      .post_dominance_frontiers(g, exit_node);
+        .post_dominance_frontiers(g, exit_node);
   }
-
 } // end namespace Aleph
 
 # endif // DOMINATORS_H

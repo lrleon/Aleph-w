@@ -111,6 +111,7 @@ namespace
 
     // Recomputed from witness cycle cost/length as a sanity check against
     // r.minimum_mean (they should agree up to numerical precision).
+    // Note: witness_mean is derived from total_cost/length to verify r.minimum_mean.
     const long double witness_mean = static_cast<long double>(r.cycle_total_cost)
                                      / static_cast<long double>(r.cycle_length);
 

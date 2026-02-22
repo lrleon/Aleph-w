@@ -69,9 +69,8 @@ int main()
   //  entry
   //    |
   //  cond
-  //  / \
-  // then  else
-  //  \  /
+  //  |- then
+  //  `- else
   //  join
   //    |
   //  loop_header <----+

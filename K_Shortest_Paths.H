@@ -189,6 +189,14 @@ namespace Aleph
       using Arc = typename GT::Arc;
       using Distance_Type = typename Distance::Distance_Type;
 
+      /**
+       * @brief Context for reverse-graph Dijkstra in build_suffix_index_digraph().
+       *
+       * @warning This struct uses static thread_local pointers to map reverse arcs
+       * back to original arcs. It is NOT re-entrant on the same thread: nested calls
+       * to algorithms using this struct will overwrite the global context.
+       * The Reset_Reverse_Distance RAII guard is used to restore state.
+       */
       // Context for reverse-graph Dijkstra in build_suffix_index_digraph().
       // This is intentionally thread-local, but not re-entrant on the same
       // thread: nested calls can overwrite map_ptr/base_ptr. The

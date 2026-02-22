@@ -502,7 +502,7 @@ TEST_F(GraphCopyTest, MoveConstructor)
 {
   // Build a graph with some nodes and arcs
   auto* n1 = g.insert_node(1);
-  auto* n2 = g.insert_node(2);
+  g.insert_node(2);
   auto* n3 = g.insert_node(3);
   g.insert_arc(n1, n3, 10);
 
@@ -526,7 +526,7 @@ TEST_F(GraphCopyTest, MoveAssignment)
 {
   // Build a graph with some nodes and arcs
   auto* n1 = g.insert_node(1);
-  auto* n2 = g.insert_node(2);
+  g.insert_node(2);
   auto* n3 = g.insert_node(3);
   g.insert_arc(n1, n3, 10);
 

@@ -50,21 +50,6 @@ static bool has_constrained_edge(
   return false;
 }
 
-// Helper: check all triangles have CCW winding
-static bool all_ccw(const ConstrainedDelaunayTriangulation::Result & r)
-{
-  for (size_t t = 0; t < r.triangles.size(); ++t)
-    {
-      const auto & tri = r.triangles(t);
-      const Orientation o = orientation(r.sites(tri.i),
-                                        r.sites(tri.j),
-                                        r.sites(tri.k));
-      if (o != Orientation::CCW)
-        return false;
-    }
-  return true;
-}
-
 // Helper: check Delaunay property for non-constrained edges
 // For each triangle, check that no non-adjacent vertex violates circumcircle
 // (only approximate check — checks that mesh triangles don't violate each other)

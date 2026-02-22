@@ -117,7 +117,6 @@ namespace
    * @param matching Dynamic list of arc pointers representing the matching.
    * @return std::vector<std::pair<size_t, size_t>> Sorted list of matched node pairs with each pair formatted as (u, v) where u <= v.
    */
-  vector<pair<size_t, size_t>>
   DynArray<pair<size_t, size_t>>
   extract_pairs(const GT & g, const DynDlist<typename GT::Arc *> & matching)
   {
@@ -151,7 +150,6 @@ namespace
    * @param pairs Sorted vector of node-index pairs to format.
    * @return std::string "(empty)" for an empty list, or a space-separated list of pairs formatted as "(u,v)".
    */
-  string format_pairs(const vector<pair<size_t, size_t>> & pairs)
   string format_pairs(const DynArray<pair<size_t, size_t>> & pairs)
   {
     if (pairs.is_empty())
@@ -317,16 +315,7 @@ namespace
     print_backend_perfect<Array_Graph<Graph_Anode<int>, Graph_Aarc<long long>>>(
         "Array_Graph", s);
   }
-} /**
- * @brief Runs example demonstrations for minimum-cost matching and perfect matching.
- *
- * Builds and executes three example scenarios that demonstrate the dedicated
- * Blossom APIs (minimum-cost matching and minimum-cost perfect matching)
- * across the provided backends, printing results and consistency checks to
- * standard output.
- *
- * @return int 0 on success.
- */
+} // namespace
 
 
 int main()

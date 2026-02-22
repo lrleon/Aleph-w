@@ -397,10 +397,10 @@ TEST(EulerTourLCA, ManualSmall)
   // {3, 2, 6, 1, 9}
   // Tree structure:
   //        3(1)
-  //       /    \
-  //     1(2)   4(9)
-  //    /    \
-  //  0(3)  2(6)
+  //       |- 1(2)
+  //       |  |- 0(3)
+  //       |  `- 2(6)
+  //       `- 4(9)
   Euler_Tour_LCA<int> lca = {3, 2, 6, 1, 9};
 
   // LCA(0, 2) = 1 (node with value 2, parent of both)

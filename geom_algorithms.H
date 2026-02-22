@@ -1650,7 +1650,7 @@ namespace Aleph
           if (const Segment ab(a, b); on_segment(ab, p))
             return;
 
-          out.remove_last();
+          static_cast<void>(out.remove_last());
         }
 
       out.append(p);
@@ -1664,7 +1664,7 @@ namespace Aleph
         push_clean(ret, pts(i));
 
       if (ret.size() > 1 and ret(0) == ret.get_last())
-        ret.remove_last();
+        static_cast<void>(ret.remove_last());
 
       return ret;
     }
@@ -1870,7 +1870,7 @@ namespace Aleph
           if (const Segment ab(a, b); on_segment(ab, p))
             return;
 
-          out.remove_last();
+          static_cast<void>(out.remove_last());
         }
 
       out.append(p);
@@ -1884,7 +1884,7 @@ namespace Aleph
         push_clean(ret, pts(i));
 
       if (ret.size() > 1 and ret(0) == ret.get_last())
-        ret.remove_last();
+        static_cast<void>(ret.remove_last());
 
       return ret;
     }
@@ -1979,7 +1979,7 @@ namespace Aleph
             {
               if (hp.offset() > last.offset())
                 {
-                  unique.remove_last();
+                  static_cast<void>(unique.remove_last());
                   unique.append(hp);
                 }
               continue;
@@ -3940,7 +3940,7 @@ namespace Aleph
             if (clean.is_empty() or clean.get_last() != verts(k))
               clean.append(verts(k));
           if (clean.size() > 1 and clean(0) == clean.get_last())
-            clean.remove_last();
+            static_cast<void>(clean.remove_last());
 
           Cell cell;
           cell.site_index = s;
@@ -4817,7 +4817,7 @@ namespace Aleph
         {
           while (lower.size() >= 2 &&
                  turn(lower(lower.size() - 2), lower(lower.size() - 1), points(i)) <= 0)
-            lower.remove_last();
+            static_cast<void>(lower.remove_last());
           lower.append(points(i));
         }
 
@@ -4828,13 +4828,13 @@ namespace Aleph
           const Point & p = points(i - 1);
           while (upper.size() >= 2 &&
                  turn(upper(upper.size() - 2), upper(upper.size() - 1), p) <= 0)
-            upper.remove_last();
+            static_cast<void>(upper.remove_last());
           upper.append(p);
         }
 
       // Remove duplicate endpoints before concatenating chains.
-      lower.remove_last();
-      upper.remove_last();
+      static_cast<void>(lower.remove_last());
+      static_cast<void>(upper.remove_last());
 
       for (size_t i = 0; i < lower.size(); ++i)
         ret.add_vertex(lower(i));
@@ -5018,7 +5018,7 @@ namespace Aleph
           const Point & p = filtered(i);
           while (hull.size() >= 2 &&
                  turn(hull(hull.size() - 2), hull(hull.size() - 1), p) <= 0)
-            hull.remove_last();
+            static_cast<void>(hull.remove_last());
           hull.append(p);
         }
 
@@ -7515,7 +7515,7 @@ namespace Aleph
             clean.append(result(i));
         }
       if (clean.size() > 1 and clean(0) == clean.get_last())
-        clean.remove_last();
+        static_cast<void>(clean.remove_last());
 
       Polygon ret;
       for (size_t i = 0; i < clean.size(); ++i)
