@@ -107,6 +107,19 @@ namespace
   };
 
   template <class GT>
+  /**
+   * @brief Builds a small rooted tree on the specified graph backend, runs two LCA engines,
+   * validates their results against a deterministic query set, and benchmarks them with many random queries.
+   *
+   * Constructs a fixed "company hierarchy" tree in the provided graph type, instantiates
+   * Binary_Lifting_LCA and Euler_RMQ_LCA with the root at CEO, compares engine outputs for a
+   * predefined set of queries (checking LCA and distance), and measures runtime and checksums
+   * for 200,000 deterministic random queries to compare performance and result parity.
+   *
+   * @param backend_name Human-readable name of the graph backend (used in console output and result reporting).
+   * @return Backend_Result Aggregated results for the backend including deterministic consistency flags,
+   *         per-engine benchmark times (milliseconds), per-engine checksums, and a checksum equality flag.
+   */
   Backend_Result run_backend(const char * backend_name)
   {
     using Graph = GT;
@@ -224,6 +237,15 @@ namespace
   }
 }
 
+/**
+ * @brief Runs the LCA cross-backend parity demo and prints results.
+ *
+ * Builds and executes the LCA example for three graph backends, collects per-backend
+ * timing and checksum metrics, prints a parity summary table, and reports whether
+ * all backends produced identical checksums.
+ *
+ * @return int 0 on success.
+ */
 int main()
 {
   using LG = List_Graph<Graph_Node<int>, Graph_Arc<int>>;

@@ -56,6 +56,21 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Demonstrates centroid-decomposition-based dynamic nearest-center queries on a fixed tree.
+ *
+ * Builds a small tree of labeled "villages", constructs a Centroid_Decomposition and a
+ * Heavy_Light_Decomposition (used as an oracle for exact distances), and exercises:
+ * - activation of centers (propagating distances to centroid ancestors),
+ * - centroid-based nearest-center queries,
+ * - brute-force verification of results via the HLD oracle.
+ *
+ * The program prints diagnostic information (centroid root and ancestor chain), activates
+ * sample villages, compares centroid-query results against the brute-force oracle with
+ * assertions, and reports success when all checks pass.
+ *
+ * @return int 0 on successful completion.
+ */
 int main()
 {
   using G    = List_Graph<Graph_Node<int>, Graph_Arc<int>>;

@@ -83,11 +83,13 @@ namespace
   };
 
   /**
-   * @brief Sorts three indices in ascending order.
+   * Sort three indices into ascending order in place.
    *
-   * @param a First index.
-   * @param b Second index.
-   * @param c Third index.
+   * This function rearranges the values of a, b, and c so that a <= b <= c.
+   *
+   * @param a First index; will hold the smallest of the three on return.
+   * @param b Second index; will hold the middle value on return.
+   * @param c Third index; will hold the largest of the three on return.
    */
   void sort3(size_t & a, size_t & b, size_t & c)
   {
@@ -146,12 +148,13 @@ namespace
   }
 
   /**
-   * @brief Computes the circumcenter of a triangle defined by three points.
+   * Compute the circumcenter of a triangle given its three vertices.
    *
-   * @param a First point of the triangle.
-   * @param b Second point of the triangle.
-   * @param c Third point of the triangle.
-   * @return Point The coordinates of the circumcenter.
+   * @param a First vertex of the triangle.
+   * @param b Second vertex of the triangle.
+   * @param c Third vertex of the triangle.
+   * @returns Point Coordinates of the circumcenter of the triangle.
+   * @throws std::domain_error if the three points are collinear (triangle has zero area).
    */
   [[maybe_unused]] Point circumcenter_of(const Point & a, const Point & b, const Point & c)
   {
@@ -179,10 +182,10 @@ namespace
   }
 
   /**
-   * @brief Computes the signed area of a polygon.
+   * Compute the polygon's signed area.
    *
-   * @param poly The polygon.
-   * @return Geom_Number The signed area (positive for CCW, negative for CW).
+   * @param poly Polygon whose signed area is computed.
+   * @return Signed area: positive when vertices are in counter-clockwise order, negative when in clockwise order.
    */
   Geom_Number polygon_signed_area(const Polygon & poly)
   {
@@ -243,10 +246,10 @@ namespace
   }
 
   /**
-   * @brief Checks if a polygon is convex.
+   * Determine whether the polygon's vertex ordering defines a convex polygon.
    *
-   * @param poly The polygon to check.
-   * @return true if the polygon is convex, false otherwise.
+   * @param poly Polygon whose convexity is to be tested.
+   * @returns `true` if the polygon is convex, `false` otherwise.
    */
   [[maybe_unused]] bool polygon_is_convex(const Polygon & poly)
   {

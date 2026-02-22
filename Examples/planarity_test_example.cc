@@ -61,6 +61,20 @@ namespace
 
   /** Print planarity test results. */
   template <class GT>
+  /**
+   * @brief Prints a concise, human-readable summary of a planarity test result to stdout.
+   *
+   * The output includes planarity status, input and simplified node/edge counts,
+   * counts of ignored loops and parallel arcs, whether the Euler bound rejected the
+   * instance, availability and basic details of a combinatorial embedding (faces,
+   * embedding mode, and truncation notice), and availability and basic details of a
+   * non-planar certificate (type, witness edge/path counts, branch-node counts and
+   * truncation notice). A blank line is printed after the summary.
+   *
+   * @tparam GT Graph type used by the planarity test result.
+   * @param title A short label printed as the summary header.
+   * @param r The Planarity_Test_Result to summarize; selected fields of `r` are printed.
+   */
   void print_result(const string & title,
                     const Planarity_Test_Result<GT> & r)
   {
@@ -116,6 +130,15 @@ namespace
 
   /** Print geometric drawing details. */
   template <class GT>
+  /**
+   * @brief Prints a brief summary of a planar geometric drawing to standard output.
+   *
+   * Prints whether a geometric drawing is available and, if so, reports drawing
+   * metrics (crossing count, validated no-crossings flag, relaxation iterations)
+   * and up to the first three node positions.
+   *
+   * @param d The planar geometric drawing to summarize.
+   */
   void print_drawing(const Planar_Geometric_Drawing<GT> & d)
   {
     cout << "  geometric drawing available: "
@@ -138,6 +161,22 @@ namespace
 }
 
 
+/**
+ * @brief Example executable demonstrating Planarity_Test usage on Aleph graphs.
+ *
+ * This program selects an output directory (argv[1], then PLANARITY_OUT_DIR, then /tmp),
+ * configures planarity test options (embedding and non‑planar certificate computation,
+ * plus a strict LR variant), and runs several demonstration cases:
+ * - a planar sample (pentagon + chord) with optional dual and geometric drawing output,
+ * - a dense planar sample (K5 minus one edge) with dual metadata and optional drawing,
+ * - a non‑planar sample (K3,3) that emits JSON/DOT/GraphML/GEXF certificates, writes them
+ *   to the output directory, and prints validator/render helper commands and diagnostics,
+ * - a directed‑graph normalization sample showing loop/parallel/opposite‑arc handling.
+ *
+ * The program prints concise summaries and certificate/report paths to stdout.
+ *
+ * @return int Exit status: `0` on success, non‑zero on error.
+ */
 int main(int argc, char ** argv)
 {
   namespace fs = std::filesystem;

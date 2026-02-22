@@ -79,6 +79,17 @@ namespace
 
 
   template <class GT>
+  /**
+   * @brief Constructs a graph of type `GT` representing the given scenario.
+   *
+   * Creates `s.num_nodes` nodes whose stored node info is the node index (0..s.num_nodes-1)
+   * and inserts an arc for each entry in `s.edges` connecting the corresponding node indices
+   * with the provided cost.
+   *
+   * @tparam GT Graph type to construct.
+   * @param s Scenario describing node count and edges (tuples of u, v, cost).
+   * @return GT A graph instance populated with the scenario's nodes and arcs.
+   */
   GT build_graph(const Scenario & s)
   {
     GT g;
@@ -95,6 +106,18 @@ namespace
 
 
   template <class GT>
+  /**
+   * @brief Convert a matching (list of arc pointers) into a sorted list of node-index pairs.
+   *
+   * For each arc in |matching| obtains the source and target node info from |g|,
+   * normalizes each pair so the smaller index comes first, and returns all pairs
+   * sorted in ascending lexicographic order.
+   *
+   * @param g Graph instance whose node info fields contain the node indices.
+   * @param matching Dynamic list of arc pointers representing the matching.
+   * @return std::vector<std::pair<size_t, size_t>> Sorted list of matched node pairs with each pair formatted as (u, v) where u <= v.
+   */
+  vector<pair<size_t, size_t>>
   DynArray<pair<size_t, size_t>>
   extract_pairs(const GT & g, const DynDlist<typename GT::Arc *> & matching)
   {
@@ -118,6 +141,17 @@ namespace
   }
 
 
+  /**
+   * @brief Formats a list of node-pair tuples into a human-readable string.
+   *
+   * Produces "(empty)" when the input list contains no pairs. Otherwise returns
+   * the pairs as a space-separated sequence like "(u,v) (x,y) ..." where each
+   * pair preserves the order of elements provided.
+   *
+   * @param pairs Sorted vector of node-index pairs to format.
+   * @return std::string "(empty)" for an empty list, or a space-separated list of pairs formatted as "(u,v)".
+   */
+  string format_pairs(const vector<pair<size_t, size_t>> & pairs)
   string format_pairs(const DynArray<pair<size_t, size_t>> & pairs)
   {
     if (pairs.is_empty())
@@ -137,6 +171,28 @@ namespace
 
 
   template <class GT>
+  /**
+   * @brief Run the minimum-cost matching demo for a specific graph backend and print results.
+   *
+   * Builds a graph from the given scenario, computes a minimum-cost matching using the
+   * specified objective mode, prints the backend's matching cardinality, total cost,
+   * and matched pairs to stdout, and checks consistency with a canonical result.
+   *
+   * @param backend_name Human-readable name for the graph backend (printed with results).
+   * @param s Scenario describing nodes and weighted edges used to build the graph.
+   * @param max_cardinality If true, prefer maximum-cardinality matchings before minimizing cost;
+   *        if false, minimize cost without prioritizing cardinality.
+   * @param canonical_cost On first backend call (when `first_backend` is true), set to this
+   *        backend's total cost; on subsequent calls, used as the canonical cost to compare against.
+   * @param canonical_cardinality On first backend call (when `first_backend` is true), set to this
+   *        backend's cardinality; on subsequent calls, used as the canonical cardinality to compare against.
+   * @param first_backend Input/output flag indicating whether this is the first backend being processed.
+   *        If true, the function updates `canonical_cost` and `canonical_cardinality` and sets this flag to false.
+   *
+   * Side effects:
+   * - Writes a result line to stdout with cardinality, cost, and matched pairs.
+   * - Writes a warning to stderr if this backend's cost or cardinality differs from the canonical values.
+   */
   void print_backend(const string & backend_name,
                      const Scenario & s,
                      bool max_cardinality,
@@ -174,6 +230,16 @@ namespace
   }
 
 
+  /**
+   * @brief Execute a min-cost matching demonstration for a scenario across backends.
+   *
+   * Runs the scenario `s` for both objective modes (pure minimum-cost and
+   * maximum-cardinality-then-minimum-cost), invokes the matching demonstration
+   * for each graph backend, and prints per-backend results and consistency
+   * warnings to standard output.
+   *
+   * @param s Scenario describing title, node count, and edge list used to build graphs.
+   */
   void run_scenario(const Scenario & s)
   {
     cout << '\n' << s.title << '\n';
@@ -200,6 +266,17 @@ namespace
 
 
   template <class GT>
+  /**
+   * @brief Build the scenario graph for a backend, check for a feasible perfect matching, and print the result.
+   *
+   * Builds a graph from the provided Scenario, determines whether a perfect matching exists,
+   * and writes a one-line summary to standard output. If a feasible perfect matching is found,
+   * prints the matching cardinality, total cost, and the list of matched node pairs.
+   *
+   * @tparam GT Graph backend type used to construct and analyze the graph.
+   * @param backend_name Human-readable name of the graph backend (printed as part of the output).
+   * @param s Scenario describing node count and weighted edges to populate the graph.
+   */
   void print_backend_perfect(const string & backend_name,
                              const Scenario & s)
   {
@@ -220,6 +297,14 @@ namespace
   }
 
 
+  /**
+   * @brief Runs the perfect-matching demonstration for all supported graph backends.
+   *
+   * Builds graphs from the provided scenario, invokes the perfect matching routine for
+   * each backend, and prints the formatted results (feasibility, cardinality, cost, and pairs).
+   *
+   * @param s Scenario containing the demo title, node count, and edge list.
+   */
   void run_perfect_demo(const Scenario & s)
   {
     cout << '\n' << s.title << " (perfect matching)\n";
@@ -232,7 +317,16 @@ namespace
     print_backend_perfect<Array_Graph<Graph_Anode<int>, Graph_Aarc<long long>>>(
         "Array_Graph", s);
   }
-} // namespace
+} /**
+ * @brief Runs example demonstrations for minimum-cost matching and perfect matching.
+ *
+ * Builds and executes three example scenarios that demonstrate the dedicated
+ * Blossom APIs (minimum-cost matching and minimum-cost perfect matching)
+ * across the provided backends, printing results and consistency checks to
+ * standard output.
+ *
+ * @return int 0 on success.
+ */
 
 
 int main()

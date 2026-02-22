@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -50,6 +49,17 @@ using namespace Aleph;
 
 using CFG = List_Digraph<Graph_Node<string>, Graph_Arc<int>>;
 
+/**
+ * @brief Demonstrates construction of a control-flow graph and performs dominance analyses.
+ *
+ * Builds a sample CFG with if-else and loop structure, computes immediate dominators
+ * and post-dominators using the Lengauer–Tarjan algorithms, constructs dominator and
+ * post-dominator trees, computes dominance and post-dominance frontiers (for SSA
+ * phi-placement and CDG construction), reports blocks that need phi-functions, and
+ * runs example dominance/post-dominance queries while printing results to stdout.
+ *
+ * @return int Exit status: 0 on success.
+ */
 int main()
 {
   // ========================================================================
