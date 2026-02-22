@@ -72,6 +72,15 @@ namespace
   };
 
 
+  /**
+   * @brief Construct a directed graph from a Scenario and populate an external node pointer array.
+   *
+   * Builds a Graph with s.num_nodes nodes and inserts directed arcs for every Edge in s.edges.
+   *
+   * @param s Scenario describing number of nodes, edge list, source/target, and k.
+   * @param nodes Receives pointers to the newly inserted Graph nodes in ascending index order (size reserved to s.num_nodes).
+   * @return Graph The constructed directed graph containing the nodes and arcs specified by the scenario.
+   */
   Graph build_graph(const Scenario & s, Array<Graph::Node *> & nodes)
   {
     Graph g;
@@ -89,6 +98,14 @@ namespace
   }
 
 
+  /**
+   * @brief Convert a graph path into a human-readable node sequence.
+   *
+   * Produces a string listing node identifiers in path order separated by " -> ".
+   *
+   * @param path Path to convert.
+   * @return std::string The formatted node sequence, e.g. "0 -> 1 -> 3".
+   */
   string path_to_string(const Path<Graph> & path)
   {
     string out;
@@ -105,6 +122,16 @@ namespace
 
 
   template <class Result_List>
+  /**
+   * @brief Print a titled list of k-shortest-path results to standard output.
+   *
+   * Prints each result on its own line with a 1-based rank, total cost, and
+   * path (node sequence). If the results list is empty, prints "  (no path found)".
+   *
+   * @param title Header text printed before the results.
+   * @param results List of k-shortest-path result items to display; each item's
+   *                `total_cost` and `path` are shown.
+   */
   void print_results(const string & title, const Result_List & results)
   {
     cout << title << '\n';
@@ -121,7 +148,14 @@ namespace
       cout << "  (no path found)\n";
     cout << '\n';
   }
-} // namespace
+} /**
+ * @brief Runs a sample demonstration computing K shortest paths using two APIs and prints their results.
+ *
+ * Constructs a sample scenario, builds a directed graph, computes up to K shortest paths using Yen's
+ * loopless algorithm and an Eppstein-style API, and prints each algorithm's results to standard output.
+ *
+ * @return int Exit code (0 on success).
+ */
 
 
 int main()

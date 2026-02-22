@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -36,6 +35,13 @@
 using namespace std;
 using namespace Aleph;
 
+/**
+ * @brief Demonstrates a 4x4 workers-to-tasks assignment using Hungarian_Assignment.
+ *
+ * Prints a labeled 4x4 cost matrix, constructs a Hungarian_Assignment<int> with
+ * those costs, outputs the optimal total cost and the worker->task assignments,
+ * and then prints the individual per-assignment costs using a local constexpr matrix.
+ */
 void example_basic_assignment()
 {
   cout << "=== Basic Assignment (4x4 workers-to-tasks) ===" << endl;
@@ -76,6 +82,13 @@ void example_basic_assignment()
   cout << endl;
 }
 
+/**
+ * @brief Demonstrates maximizing total profit for a 3x3 profit matrix and prints the results.
+ *
+ * Constructs a 3x3 DynMatrix of integer profits, computes a maximum-weight assignment
+ * using hungarian_max_assignment, and writes the profit matrix, the maximum total profit,
+ * and each worker->job assignment with its profit to standard output.
+ */
 void example_maximization()
 {
   cout << "=== Maximization (3x3 profit matrix) ===" << endl;
@@ -104,6 +117,13 @@ void example_maximization()
   cout << endl;
 }
 
+/**
+ * @brief Demonstrates rectangular assignment (3 workers, 5 tasks) using Hungarian_Assignment.
+ *
+ * @details Prints a labeled 3x5 cost matrix to stdout, constructs a Hungarian_Assignment<int>
+ * with the hard-coded costs, then prints the optimal total cost and the worker→task assignments
+ * (two tasks remain unassigned).
+ */
 void example_rectangular()
 {
   cout << "=== Rectangular (3 workers, 5 tasks) ===" << endl;
@@ -128,6 +148,14 @@ void example_rectangular()
   cout << endl;
 }
 
+/**
+ * @brief Runs the three Hungarian algorithm example demonstrations.
+ *
+ * Calls example_basic_assignment(), example_maximization(), and example_rectangular()
+ * to print example matrices, optimal assignments, and total costs.
+ *
+ * @return int 0 on success.
+ */
 int main()
 {
   example_basic_assignment();

@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -1488,6 +1487,17 @@ TEST(functional_performance, deep_nesting)
 
 // Custom equality predicates for testing all_unique overloads
 struct CaseInsensitiveStringEqual {
+  /**
+   * @brief Performs a case-insensitive comparison of two strings.
+   *
+   * Compares the two strings for equality by checking that they have the same length
+   * and that each corresponding character is equal after conversion with `std::tolower`
+   * (characters are cast to `unsigned char` before conversion).
+   *
+   * @param a First string to compare.
+   * @param b Second string to compare.
+   * @return `true` if both strings have the same length and are equal ignoring case, `false` otherwise.
+   */
   bool operator()(const string& a, const string& b) const {
     if (a.size() != b.size()) return false;
     for (size_t i = 0; i < a.size(); ++i)
@@ -1501,6 +1511,15 @@ struct CaseInsensitiveStringEqual {
 };
 
 struct CaseInsensitiveStringHash {
+  /**
+   * @brief Produces a case-insensitive hash for a string by hashing its lowercase form.
+   *
+   * Converts the input string to lowercase (using unsigned-char-safe tolower) and returns the
+   * result of hashing that lowercase representation.
+   *
+   * @param s Input string to hash.
+   * @return size_t Hash value computed from the lowercase version of `s`.
+   */
   size_t operator()(const string& s) const {
     string lower;
     lower.reserve(s.size());
@@ -1512,7 +1531,22 @@ struct CaseInsensitiveStringHash {
 
 struct FloatToleranceEqual {
   float tolerance;
-  FloatToleranceEqual(float tol = 0.001f) : tolerance(tol) {}
+  /**
+ * @brief Constructs a FloatToleranceEqual comparator with a specified tolerance.
+ *
+ * The comparator considers two floating-point values equal when their absolute
+ * difference is less than or equal to the configured tolerance.
+ *
+ * @param tol Tolerance threshold used for comparisons; defaults to 0.001.
+ */
+FloatToleranceEqual(float tol = 0.001f) : tolerance(tol) {}
+  /**
+   * @brief Compares two floating-point values for equality within the configured tolerance.
+   *
+   * @param a First value to compare.
+   * @param b Second value to compare.
+   * @return true if the absolute difference between `a` and `b` is less than or equal to `tolerance`, false otherwise.
+   */
   bool operator()(float a, float b) const {
     return std::abs(a - b) <= tolerance;
   }

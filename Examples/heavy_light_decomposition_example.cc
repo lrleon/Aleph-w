@@ -55,6 +55,15 @@ namespace
   using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
   using Node = G::Node;
 
+  /**
+   * @brief Computes the sum of node values along the path between two nodes, inclusive.
+   *
+   * @param values Array of node values indexed by HLD node id.
+   * @param hld Heavy-Light Decomposition instance describing the tree.
+   * @param u Node id of one endpoint.
+   * @param v Node id of the other endpoint.
+   * @return int Sum of values for all nodes on the path from u to v, including both endpoints.
+   */
   int brute_path_sum(const Array<int> & values,
                      const Heavy_Light_Decomposition<G> & hld,
                      size_t u,
@@ -85,6 +94,14 @@ namespace
     return sum + values(u);
   }
 
+  /**
+   * @brief Computes the sum of node values in the subtree rooted at a given node id.
+   *
+   * @param values Array of node values indexed by HLD node id.
+   * @param hld Heavy-Light Decomposition providing size and ancestor queries by id.
+   * @param u Node id of the subtree root.
+   * @return int Sum of values for all nodes v such that u is an ancestor of v (including u).
+   */
   int brute_subtree_sum(const Array<int> & values,
                         const Heavy_Light_Decomposition<G> & hld,
                         const size_t u)
@@ -98,6 +115,17 @@ namespace
   }
 }
 
+/**
+ * @brief Executable example demonstrating heavy-light decomposition on a small tree.
+ *
+ * Builds a sample "Aurora Power Grid" tree with per-node maintenance costs, constructs an
+ * HLD-based query structure, and exercises path-sum and subtree-sum queries. Results are
+ * validated against brute-force computations via assertions. The program also performs
+ * point updates (increment and set), re-validates affected queries, prints node mappings,
+ * query results, and shows how a path is split into base-array segments by the HLD.
+ *
+ * @return int Returns 0 on successful completion (all assertions passed).
+ */
 int main()
 {
   G g;

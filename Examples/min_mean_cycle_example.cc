@@ -59,6 +59,12 @@ namespace
   {
     Arc * blocked = nullptr;
 
+    /**
+     * @brief Predicate that checks whether an arc is not the blocked arc.
+     *
+     * @param arc Pointer to the arc to test; may be nullptr.
+     * @return `true` if `arc` is not equal to the predicate's `blocked` arc, `false` otherwise.
+     */
     bool operator()(Arc * arc) const noexcept
     {
       return arc != blocked;
@@ -66,6 +72,21 @@ namespace
   };
 
 
+  /**
+   * @brief Print a formatted summary of a minimum-mean-cycle computation for a graph.
+   *
+   * Writes a human-readable report to standard output: prints the provided title,
+   * whether a directed cycle exists, the reported minimum mean, and—if a witness
+   * cycle is available—its total cost, length, recomputed mean, the sequence of
+   * nodes, and the sequence of arcs with per-arc costs.
+   *
+   * @param g Graph whose node information is used to render arc endpoints.
+   * @param title Header line printed before the result details.
+   * @param r Result object produced by the Karp minimum-mean-cycle routines;
+   *          its fields (e.g., `has_cycle`, `minimum_mean`, `cycle_length`,
+   *          `cycle_total_cost`, `cycle_nodes`, `cycle_arcs`) control the
+   *          printed output.
+   */
   void print_result(const Graph & g,
                     const string & title,
                     const Min_Mean_Cycle_Result<Graph, double> & r)
@@ -123,7 +144,19 @@ namespace
       }
     cout << "\n\n";
   }
-} // namespace
+} /**
+ * @brief Example program demonstrating Karp's minimum mean cycle algorithm on Aleph digraphs.
+ *
+ * Constructs a sample directed graph with six nodes (A–F), inserts arcs that create
+ * multiple cycles (including an optimal cycle B→D→E→B and a higher-cost cycle C↔F),
+ * and runs three variants of the algorithm:
+ *  - full result with witness cycle,
+ *  - value-only API reporting only the minimum mean,
+ *  - filtered run that blocks a specified arc (D→E) via the Hide_Arc predicate.
+ * Results are printed to standard output.
+ *
+ * @return int Exit status (0 on success).
+ */
 
 
 int main()

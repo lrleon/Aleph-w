@@ -57,7 +57,14 @@ namespace
 
   // ================================================================
   // Scenario 1: Corporate Hierarchy — Security Clearance (Path Max)
-  // ================================================================
+  /**
+   * @brief Demonstrates HLD path-maximum queries on a corporate hierarchy example.
+   *
+   * Constructs a rooted 8-node org-chart tree with per-node security clearance values,
+   * runs a fixed set of path queries to report the highest clearance on each path,
+   * the distance between nodes, and the lowest common ancestor for each query,
+   * then prints the results and the number of HLD chains.
+   */
   void scenario_security_clearance()
   {
     std::cout << "============================================================\n";
@@ -125,7 +132,16 @@ namespace
 
   // ================================================================
   // Scenario 2: Network — Bandwidth Bottleneck (Path Min)
-  // ================================================================
+  /**
+   * @brief Demonstrates finding bottleneck bandwidths on paths in a tree network.
+   *
+   * Builds a small rooted network with bandwidths stored on child nodes, computes
+   * the minimum edge bandwidth (bottleneck) along several example paths, and
+   * prints a table showing each path, its bottleneck bandwidth, and hop distance.
+   *
+   * Edge weights are interpreted on the child endpoint of each tree edge; path
+   * queries exclude the LCA node so they reflect edge-weight minima.
+   */
   void scenario_bandwidth_bottleneck()
   {
     std::cout << "============================================================\n";
@@ -189,7 +205,17 @@ namespace
 
   // ================================================================
   // Scenario 3: Tax Routes — Path Sum + Dynamic Updates
-  // ================================================================
+  /**
+   * @brief Demonstrates path-sum queries and point updates on a small tax-route tree.
+   *
+   * Constructs a rooted tree of cities with per-node tax values, computes path sums
+   * and subtree sums using Heavy-Light Decomposition, performs point updates to
+   * change individual city taxes, and prints before/after query results.
+   *
+   * The function runs a fixed example: it prints path sums for selected city pairs,
+   * prints subtree sums for key nodes, doubles the Capital's tax via a point
+   * update, then sets Port's tax to zero and prints the corresponding updated results.
+   */
   void scenario_tax_routes()
   {
     std::cout << "============================================================\n";
@@ -263,6 +289,15 @@ namespace
 }
 
 
+/**
+ * @brief Entry point that runs HLD demonstration scenarios for Aleph tree graphs.
+ *
+ * Prints a header, executes three example scenarios demonstrating Heavy-Light
+ * Decomposition (security clearance max queries, bandwidth bottleneck min queries,
+ * and tax-route sum queries with dynamic updates), and prints a completion message.
+ *
+ * @return int Zero on successful completion.
+ */
 int main()
 {
   std::cout << "==============================================================\n";

@@ -84,6 +84,17 @@ namespace
   };
 
   template <class GT>
+  /**
+   * @brief Constructs a graph of type `GT` that represents the given scenario.
+   *
+   * Builds a graph containing one node per entry in `s.nodes` (inserted with integer
+   * ids 0..n-1) and one directed arc for each pair in `s.edges` with weight 1.
+   *
+   * @tparam GT Graph type; must provide `using Node`, `Node*`, `insert_node(int)` and
+   *            `insert_arc(Node*, Node*, int)` operations.
+   * @param s Scenario describing vertices (positions and labels) and an edge list.
+   * @return GT Graph instance populated with the scenario's nodes and arcs.
+   */
   GT build_graph(const Scenario & s)
   {
     GT g;
@@ -100,6 +111,18 @@ namespace
   }
 
   template <class GT>
+  /**
+   * @brief Extracts sorted, deduplicated matching vertex pairs from a graph's matching.
+   *
+   * Returns each matched edge as a pair (u, v) with u <= v, sorted lexicographically
+   * and with duplicates removed.
+   *
+   * @param g Graph instance whose nodes' info fields contain vertex indices.
+   * @param matching List of arc pointers representing the matching.
+   * @return std::vector<std::pair<size_t, size_t>> Vector of unique, sorted vertex-index
+   *         pairs corresponding to matched edges; each pair is ordered with the smaller
+   *         index first.
+   */
   vector<pair<size_t, size_t>> extract_matching_pairs(
       const GT & g,
       const DynDlist<typename GT::Arc *> & matching)
@@ -122,6 +145,14 @@ namespace
     return pairs;
   }
 
+  /**
+   * Format a list of vertex-index pairs into a human-readable string.
+   *
+   * Each pair is formatted as `(u,v)` and pairs are separated by single spaces.
+   *
+   * @param pairs Vector of vertex index pairs to format.
+   * @return `"(empty)"` if `pairs` is empty; otherwise a space-separated list of `(u,v)` entries.
+   */
   string format_pairs(const vector<pair<size_t, size_t>> & pairs)
   {
     if (pairs.empty())
@@ -138,6 +169,19 @@ namespace
     return out;
   }
 
+  /**
+   * @brief Write a standalone TikZ/LaTeX document visualizing a graph scenario and highlighting matched edges.
+   *
+   * Generates a .tex file at the provided path containing a TikZ picture that draws all vertices and edges
+   * from the scenario, renders matched edges with a distinct style, and annotates the matching size.
+   *
+   * @param s Scenario describing vertex positions, labels, and edge list.
+   * @param matching_pairs Vector of matched vertex-index pairs to highlight in the output.
+   * @param file_path Filesystem path where the generated .tex file will be written.
+   *
+   * If the file cannot be opened for writing, an error message is written to stderr and the function returns
+   * without producing output.
+   */
   void write_tikz(const Scenario & s,
                   const vector<pair<size_t, size_t>> & matching_pairs,
                   const string & file_path)
@@ -205,6 +249,12 @@ namespace
   }
 
   template <class GT>
+  /**
+   * Compute the maximum-cardinality matching for the given scenario and return its size and matched vertex pairs.
+   *
+   * @param s Scenario describing the graph (nodes, positions and edges) to build and solve.
+   * @return pair whose first element is the matching cardinality (number of matched vertex pairs) and whose second element is a vector of unique, sorted vertex-index pairs `(u, v)` with `u <= v` representing the matching.
+   */
   pair<size_t, vector<pair<size_t, size_t>>> solve_case(const Scenario & s)
   {
     GT g = build_graph<GT>(s);
@@ -214,6 +264,21 @@ namespace
   }
 
   template <class GT>
+  /**
+   * @brief Run the matching backend for a scenario, print its result, and validate consistency.
+   *
+   * Executes the maximum-cardinality matching for graph type `GT` on scenario `s`, prints
+   * the backend name with the matching size and pairs, records the first backend's result
+   * into the provided canonical references, and emits a warning if the matching size
+   * differs from the canonical cardinality.
+   *
+   * @tparam GT Graph type used as the backend.
+   * @param backend_name Human-readable name of the backend for logging.
+   * @param s Scenario describing nodes and edges to solve.
+   * @param cardinality_ref Reference to store the canonical matching cardinality from the first backend.
+   * @param pairs_ref Reference to store the canonical matching pairs from the first backend.
+   * @param is_first Flag indicating whether this is the first backend being run; set to false after storing canonical results.
+   */
   void print_backend_result(const string & backend_name,
                             const Scenario & s,
                             size_t & cardinality_ref,
@@ -236,6 +301,17 @@ namespace
       cerr << "  Warning: cardinality mismatch across backends\n";
   }
 
+  /**
+   * @brief Execute a scenario: run matching backends, print results, and export a TikZ visualization.
+   *
+   * Runs the maximum-cardinality matching on the scenario's graph using multiple backend graph
+   * implementations, prints each backend's matching size and pairs to stdout, and writes a TikZ
+   * file representing the graph with matched edges highlighted.
+   *
+   * @param s Scenario describing the graph topology and node layout (slug, title, nodes, edges).
+   *
+   * @note Produces console output and writes the TikZ file to /tmp/blossom_<slug>.tex.
+   */
   void run_scenario(const Scenario & s)
   {
     cout << "\n" << s.title << "\n";
@@ -261,6 +337,15 @@ namespace
   }
 }
 
+/**
+ * @brief Program entry that runs two Edmonds–Blossom example scenarios and emits TikZ visualizations.
+ *
+ * Executes two predefined Scenario instances (pentagon_stems and double_flower), prints per-backend
+ * matching results to stdout, writes corresponding TikZ files to /tmp, and prints instructions to
+ * convert those TeX files to PDF.
+ *
+ * @return int Exit code: `0` on success.
+ */
 int main()
 {
   const Scenario pentagon_stems{

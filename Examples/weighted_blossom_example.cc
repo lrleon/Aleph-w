@@ -98,6 +98,18 @@ namespace
 
 
   template <class GT>
+  /**
+   * @brief Construct a graph of type GT from a Scenario.
+   *
+   * Builds a GT instance with one node per Scenario node and inserts arcs for
+   * each Scenario edge using the provided weights.
+   *
+   * @tparam GT Graph type to construct; must provide insert_node(int) and
+   *            insert_arc(node_ptr, node_ptr, weight) APIs.
+   * @param s Scenario describing node positions and weighted undirected edges.
+   * @return GT Constructed graph whose nodes were created with their Scenario
+   *            indices as the integer payload and whose arcs reflect Scenario.edges.
+   */
   GT build_graph(const Scenario & s)
   {
     GT g;
@@ -115,6 +127,19 @@ namespace
 
 
   template <class GT>
+  /**
+   * @brief Compute a maximum-weight matching for the given scenario and return its solution.
+   *
+   * Builds a graph from the provided Scenario, solves for a maximum-weight matching
+   * (optionally preferring larger cardinality when weights tie), and returns the
+   * matching details. Matched pairs are reported as unique, sorted (u,v) tuples
+   * with u <= v in deterministic order using the node indices from the Scenario.
+   *
+   * @param s The scenario describing nodes, edges, and weights to solve.
+   * @param max_cardinality If `true`, prefer matchings with larger cardinality when total weight ties.
+   * @return Solve_Output Contains `total_weight` (sum of weights in the matching),
+   * `cardinality` (number of matched edges), and `matched_pairs` (array of `(u,v)` pairs with `u <= v`).
+   */
   Solve_Output solve_case(const Scenario & s, bool max_cardinality)
   {
     GT g = build_graph<GT>(s);
@@ -146,6 +171,15 @@ namespace
   }
 
 
+  /**
+   * @brief Formats an array of index pairs into a readable sequence.
+   *
+   * Produces a space-separated sequence of pair tokens in the form "(u,v) (x,y) ..."
+   * or the literal "(empty)" when the input array contains no pairs.
+   *
+   * @param pairs Array of index pairs to format.
+   * @return string A string containing the formatted pairs or "(empty)" if no pairs.
+   */
   string format_pairs(const DynArray<pair<size_t, size_t>> & pairs)
   {
     if (pairs.is_empty())
@@ -163,6 +197,20 @@ namespace
   }
 
 
+  /**
+   * @brief Write a LaTeX/TikZ document that visualizes a graph scenario and its matching.
+   *
+   * Generates a standalone TikZ/LaTeX file at the given path containing:
+   * - plotted vertices at coordinates from the scenario with labels,
+   * - edges with weight labels,
+   * - matched edges highlighted,
+   * - a header describing the objective mode and a footer summarizing matching size and total weight.
+   *
+   * @param s Scenario describing node positions, labels, and weighted undirected edges.
+   * @param output Solve_Output containing matched pairs, matching cardinality, and total weight to visualize.
+   * @param max_cardinality If true, the document's objective description will indicate "max-cardinality then max-weight"; otherwise "pure max-weight".
+   * @param file_path Filesystem path where the generated .tex file will be written; the file is overwritten if it exists. If the file cannot be opened, the function writes a diagnostic to stderr and returns without producing output.
+   */
   void write_tikz(const Scenario & s,
                   const Solve_Output & output,
                   bool max_cardinality,
@@ -234,6 +282,19 @@ namespace
 
 
   template <class GT>
+  /**
+   * @brief Runs the solver for a specific graph backend, prints its result, and checks consistency against a canonical reference.
+   *
+   * Executes the matching solver for the backend identified by `backend` on scenario `s` using the
+   * `max_cardinality` mode, prints the backend name, matching cardinality, total weight, and matched pairs,
+   * and emits a warning to stderr if the cardinality or total weight differs from `reference`.
+   *
+   * @param backend Human-readable name of the graph backend being tested (printed to stdout).
+   * @param s Scenario describing nodes and weighted edges to solve.
+   * @param max_cardinality If `true`, prefer maximum cardinality before maximizing weight; otherwise use pure max-weight objective.
+   * @param reference On first invocation for a given mode, updated to the backend's result and subsequently used as the canonical result to compare against.
+   * @param first On entry, indicates whether this backend result should initialize `reference`; set to `false` when initialization occurs.
+   */
   void print_backend(const string & backend,
                      const Scenario & s,
                      bool max_cardinality,
@@ -261,6 +322,13 @@ namespace
   }
 
 
+  /**
+   * Execute the given Scenario: solve maximum-weight matchings (in two modes) across multiple backends, print per-backend results, and produce TikZ visualizations.
+   *
+   * For both modes — pure maximum-weight and maximum-cardinality-then-maximum-weight — this function runs the solver on three graph backends, prints each backend's cardinality, total weight, and matched pairs (and reports objective mismatches), and writes a TikZ/LaTeX file summarizing the matching to /tmp using the scenario slug and mode in the filename.
+   *
+   * @param s Scenario to run; its title is printed and its slug is used to name the generated TikZ files.
+   */
   void run_scenario(const Scenario & s)
   {
     cout << "\n" << s.title << "\n";
@@ -292,7 +360,16 @@ namespace
       }
   }
 
-} // namespace
+} /**
+ * @brief Runs example scenarios demonstrating maximum-weight matching and writes TikZ visualizations.
+ *
+ * Executes two predefined graph scenarios that exercise the weighted blossom algorithm in both
+ * pure max-weight and max-cardinality-then-max-weight modes across multiple graph backends, prints
+ * per-backend results and warnings on objective mismatches, and emits .tex files visualizing each
+ * computed matching.
+ *
+ * @return int Exit status code; `0` on successful completion.
+ */
 
 
 int main()
