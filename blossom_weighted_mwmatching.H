@@ -42,23 +42,25 @@
  * - Header/style integration.
  */
 
-#ifndef ALEPH_BLOSSOM_WEIGHTED_MWMATCHING_H
-#define ALEPH_BLOSSOM_WEIGHTED_MWMATCHING_H
+# ifndef ALEPH_BLOSSOM_WEIGHTED_MWMATCHING_H
+# define ALEPH_BLOSSOM_WEIGHTED_MWMATCHING_H
 
-#include <algorithm>
-#include <cassert>
-#include <cmath>
-#include <cstddef>
-#include <limits>
-#include <tuple>
-#include <utility>
+# include <algorithm>
+# include <cassert>
+# include <cmath>
+# include <cstddef>
+# include <limits>
+# include <tuple>
+# include <utility>
 
-#include <ah-errors.H>
-#include <tpl_array.H>
-#include <tpl_agraph.H>
-#include <tpl_dynDlist.H>
-#include <tpl_dynListQueue.H>
-#include <tpl_dynListStack.H>
+# include <ah-errors.H>
+# include <ahFunctional.H>
+# include <ahSort.H>
+# include <tpl_array.H>
+# include <tpl_agraph.H>
+# include <tpl_dynDlist.H>
+# include <tpl_dynListQueue.H>
+# include <tpl_dynListStack.H>
 
 namespace Aleph::blossom_weighted_detail::mwmatching
 {
@@ -2172,7 +2174,13 @@ namespace Aleph::blossom_weighted_detail::mwmatching
   Array<Edge<WeightType>> adjust_weights_for_maximum_cardinality_matching(
       const Array<Edge<WeightType>> & edges_in)
   {
-    const WeightType min_safe_weight = std::numeric_limits<WeightType>::min() / 4;
+    // For integer types, min() is the most-negative representable value.
+    // For floating-point types, min() is the smallest *positive* normalized
+    // value — not the most negative — so we must use lowest() instead.
+    const WeightType min_safe_weight =
+        (std::numeric_limits<WeightType>::is_integer
+             ? std::numeric_limits<WeightType>::min()
+             : std::numeric_limits<WeightType>::lowest()) / 4;
     const WeightType max_safe_weight = std::numeric_limits<WeightType>::max() / 4;
 
     // Copy edges.

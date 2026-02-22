@@ -116,6 +116,9 @@ set(HLIST
     tpl_fenwick_tree.H
     tpl_segment_tree.H
     tpl_cartesian_tree.H
+    K_Shortest_Paths.H
+    Min_Mean_Cycle.H
+    Planarity_Test.H
     Tree_Decomposition.H
     ah-concepts.H
     LCA.H

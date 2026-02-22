@@ -765,6 +765,8 @@ public:
   template <class Operation>
   void each(size_t pos, const size_t slice, Operation & operation) const
   {
+    if (slice == 0)
+      return;
     auto it = const_me()->get_it(pos);
     while (true)
       {
@@ -785,6 +787,15 @@ public:
     each<Operation>(pos, slice, operation);
   }
 
+  /** @brief Apply a mutable operation to each element of the container.
+   *
+   *  Traverses the container and calls @p operation on every element,
+   *  allowing the operation to modify each item in place.
+   *
+   *  @tparam Operation Callable with signature `void(T &)`.
+   *  @param  operation Functor applied to each element; may modify it.
+   *  @throws Anything that @p operation or the underlying `traverse` may throw.
+   */
   template <class Operation>
   void mutable_for_each(Operation & operation)
   {
@@ -991,7 +1002,7 @@ public:
       `init` value. Then it traverses the container, and on each `item`
       it performs:
 
-      acc = op(acc, op(acc, item);
+      acc = op(acc, item);
 
       So `acc` serves as a sort of accumulator.
 
@@ -1299,7 +1310,6 @@ public:
       \throw anything that could throw op  or `bad_alloc` if there is
       no enough memory
   */
-  template <class Operation>
   std::pair<Aleph::DynList<T>, Aleph::DynList<T>> partition(size_t n) const
   {
     size_t i = 0;
@@ -1701,11 +1711,11 @@ public:
   template <template <typename> class C = Aleph::DynList>
   C<std::pair<Key, Data*>> items_ptr() const
   {
-    C<Data> ret_val;
+    C<std::pair<Key, Data*>> ret_val;
     const_me()->for_each([&ret_val] (std::pair<Key, Data> & p)
                          {
                            ret_val.append(std::pair<Key,Data*>(p.first,
-                                                               p.second));
+                                                               &p.second));
                          });
     return ret_val;
   }

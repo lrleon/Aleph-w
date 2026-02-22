@@ -41,6 +41,7 @@
 #include <vector>
 
 #include <tpl_cut_nodes.H>
+#include <tpl_dynSetTree.H>
 #include <tpl_graph.H>
 #include <tpl_graph_utils.H>
 
@@ -937,9 +938,9 @@ TEST(CutNodes, ExceptionDuringMapSubgraphClearsGraph)
 namespace
 {
   // Collect bridge arcs into a set for easy membership testing.
-  std::set<Graph::Arc *> bridge_set(const DynList<Graph::Arc *> & lst)
+  DynSetTree<Graph::Arc *> bridge_set(const DynList<Graph::Arc *> & lst)
   {
-    std::set<Graph::Arc *> s;
+    DynSetTree<Graph::Arc *> s;
     for (typename DynList<Graph::Arc *>::Iterator it(lst); it.has_curr(); it.next_ne())
       s.insert(it.get_curr());
     return s;
@@ -960,9 +961,9 @@ TEST(Bridges, PathGraphAllEdgesAreBridges)
 
   auto bs = bridge_set(bridges);
   EXPECT_EQ(bs.size(), 3U);
-  EXPECT_TRUE(bs.count(a01));
-  EXPECT_TRUE(bs.count(a12));
-  EXPECT_TRUE(bs.count(a23));
+  EXPECT_TRUE(bs.exist(a01));
+  EXPECT_TRUE(bs.exist(a12));
+  EXPECT_TRUE(bs.exist(a23));
 }
 
 TEST(Bridges, CycleHasNoBridges)
@@ -994,7 +995,7 @@ TEST(Bridges, TwoTrianglesOneBridge)
 
   auto bridges = find_bridges(g, nodes[0]);
   EXPECT_EQ(bridges.size(), 1U);
-  EXPECT_TRUE(bridge_set(bridges).count(bridge));
+  EXPECT_TRUE(bridge_set(bridges).exist(bridge));
 }
 
 TEST(Bridges, TreeAllEdgesAreBridges)
@@ -1016,10 +1017,10 @@ TEST(Bridges, TreeAllEdgesAreBridges)
   auto bridges = find_bridges(g);
   auto bs = bridge_set(bridges);
   EXPECT_EQ(bs.size(), 4U);
-  EXPECT_TRUE(bs.count(a01));
-  EXPECT_TRUE(bs.count(a02));
-  EXPECT_TRUE(bs.count(a13));
-  EXPECT_TRUE(bs.count(a14));
+  EXPECT_TRUE(bs.exist(a01));
+  EXPECT_TRUE(bs.exist(a02));
+  EXPECT_TRUE(bs.exist(a13));
+  EXPECT_TRUE(bs.exist(a14));
 }
 
 TEST(Bridges, CompleteK4NoBridges)
@@ -1050,7 +1051,7 @@ TEST(Bridges, TwoNodesOneBridge)
 
   auto bridges = find_bridges(g);
   EXPECT_EQ(bridges.size(), 1U);
-  EXPECT_TRUE(bridge_set(bridges).count(b));
+  EXPECT_TRUE(bridge_set(bridges).exist(b));
 }
 
 TEST(Bridges, ParallelArcsNotBridges)
@@ -1081,7 +1082,7 @@ TEST(Bridges, FreeFunctionConsistentWithClass)
 
   EXPECT_EQ(b_class.size(), b_free.size());
   EXPECT_EQ(b_class.size(), 1U);
-  EXPECT_TRUE(bridge_set(b_class).count(pend));
+  EXPECT_TRUE(bridge_set(b_class).exist(pend));
 }
 
 TEST(Bridges, OperatorCallConsistentWithMethod)
@@ -1159,15 +1160,14 @@ TEST(Bridges, StarGraphAllEdgesBridges)
   // Star: center (0) -- leaves 1..4; all 4 arcs are bridges
   Graph g;
   auto nodes = make_nodes(g, 5);
-  std::vector<Graph::Arc *> arcs;
+  DynList<Graph::Arc *> arcs;
   for (int i = 1; i < 5; ++i)
-    arcs.push_back(g.insert_arc(nodes[0], nodes[i], 1));
+    arcs.append(g.insert_arc(nodes[0], nodes[i], 1));
 
   auto bridges = find_bridges(g, nodes[0]);
   auto bs = bridge_set(bridges);
   EXPECT_EQ(bs.size(), 4U);
-  for (auto * a : arcs)
-    EXPECT_TRUE(bs.count(a));
+  arcs.for_each([&](Graph::Arc * a) { EXPECT_TRUE(bs.exist(a)); });
 }
 
 TEST(Bridges, SelfLoopDoesNotAffectBridges)
@@ -1182,8 +1182,8 @@ TEST(Bridges, SelfLoopDoesNotAffectBridges)
   auto bridges = find_bridges(g, nodes[0]);
   auto bs = bridge_set(bridges);
   EXPECT_EQ(bs.size(), 2U);
-  EXPECT_TRUE(bs.count(a01));
-  EXPECT_TRUE(bs.count(a12));
+  EXPECT_TRUE(bs.exist(a01));
+  EXPECT_TRUE(bs.exist(a12));
 }
 
 TEST(Bridges, ResultIsIndependentOfStartNode)
@@ -1205,7 +1205,7 @@ TEST(Bridges, ResultIsIndependentOfStartNode)
       auto bridges = find_bridges(g, nodes[start]);
       auto bs = bridge_set(bridges);
       EXPECT_EQ(bs.size(), 1U) << "start=" << start;
-      EXPECT_TRUE(bs.count(bridge)) << "start=" << start;
+      EXPECT_TRUE(bs.exist(bridge)) << "start=" << start;
     }
 }
 
@@ -1224,8 +1224,37 @@ TEST(Bridges, NonBridgeEdgesAbsentFromList)
   auto bs = bridge_set(bridges);
 
   EXPECT_EQ(bs.size(), 1U);
-  EXPECT_TRUE(bs.count(pend));
-  EXPECT_FALSE(bs.count(t01));
-  EXPECT_FALSE(bs.count(t12));
-  EXPECT_FALSE(bs.count(t20));
+  EXPECT_TRUE(bs.exist(pend));
+  EXPECT_FALSE(bs.exist(t01));
+  EXPECT_FALSE(bs.exist(t12));
+  EXPECT_FALSE(bs.exist(t20));
+}
+
+TEST(Bridges, EmptyGraphNoArgReturnsEmpty)
+{
+  // Empty graph: find_bridges() must return empty list without throwing.
+  Graph g;
+  EXPECT_TRUE(find_bridges(g).is_empty());
+}
+
+TEST(Bridges, DisconnectedGraphBridgesFromAllComponents)
+{
+  // Component A: path 0-1-2 (both arcs are bridges).
+  // Component B: path 3-4-5 (both arcs are bridges).
+  // The two components are not connected, so there are 4 bridges total.
+  Graph g;
+  auto nodes = make_nodes(g, 6);
+  auto a01 = g.insert_arc(nodes[0], nodes[1], 1);
+  auto a12 = g.insert_arc(nodes[1], nodes[2], 1);
+  auto a34 = g.insert_arc(nodes[3], nodes[4], 1);
+  auto a45 = g.insert_arc(nodes[4], nodes[5], 1);
+
+  // Start from a node in component A; component B must still be covered.
+  auto bridges = find_bridges(g, nodes[0]);
+  auto bs = bridge_set(bridges);
+  EXPECT_EQ(bs.size(), 4U);
+  EXPECT_TRUE(bs.exist(a01));
+  EXPECT_TRUE(bs.exist(a12));
+  EXPECT_TRUE(bs.exist(a34));
+  EXPECT_TRUE(bs.exist(a45));
 }

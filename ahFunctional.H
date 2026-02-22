@@ -2439,6 +2439,17 @@ namespace Aleph
     return count;
   }
 
+  /** @brief Check if all elements in a container are unique using a custom equality comparator.
+
+      This function determines whether all elements in the container are unique
+      according to the provided equality comparator. It performs an O(n²) comparison
+      by checking each pair of elements.
+
+      @param container Source container to check.
+      @param eq Equality comparator used to compare elements.
+      @return true if all elements are unique according to the comparator, false otherwise.
+      @ingroup Algorithms
+  */
   template <AlephSequentialIterableContainer Container, class Equal>
   [[nodiscard]] inline bool all_unique(const Container & container, Equal & eq)
   {
@@ -2453,6 +2464,20 @@ namespace Aleph
     return true;
   }
 
+  /** @brief Check if all elements in a container are unique using a custom equality comparator.
+
+      @overload This overload accepts rvalue references to equality comparators and
+      uses std::equal_to as the default comparator.
+
+      This function determines whether all elements in the container are unique
+      according to the provided equality comparator. It performs an O(n²) comparison
+      by checking each pair of elements.
+
+      @param container Source container to check.
+      @param eq Equality comparator used to compare elements (rvalue reference, defaults to std::equal_to).
+      @return true if all elements are unique according to the comparator, false otherwise.
+      @ingroup Algorithms
+  */
   template <AlephSequentialIterableContainer Container,
             class Equal = std::equal_to<typename Container::Item_Type>>
   [[nodiscard]] inline bool all_unique(const Container & container,

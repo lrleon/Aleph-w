@@ -90,6 +90,7 @@
 # define HUNGARIAN_H
 
 # include <limits>
+# include <type_traits>
 # include <utility>
 # include <initializer_list>
 # include <tpl_dynMat.H>
@@ -112,6 +113,10 @@ namespace Aleph
   template <typename Cost_Type = double>
   struct Hungarian_Result
   {
+    static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>> or
+                  std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
+                  "Cost_Type must be signed or floating-point to avoid "
+                  "underflow when negating costs");
     Cost_Type total_cost = Cost_Type{0}; ///< Optimal total cost
     Array<long> row_to_col; ///< row i is assigned to column row_to_col[i]
     Array<long> col_to_row; ///< column j is assigned to row col_to_row[j]
@@ -169,6 +174,10 @@ namespace Aleph
   template <typename Cost_Type = double>
   class Hungarian_Assignment
   {
+    static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>> or
+                  std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
+                  "Cost_Type must be signed or floating-point to avoid "
+                  "underflow when negating costs");
     size_t n_ = 0; // Padded square dimension
     size_t orig_rows_ = 0; // Original row count
     size_t orig_cols_ = 0; // Original column count
@@ -484,16 +493,27 @@ namespace Aleph
   [[nodiscard]] Hungarian_Result<Cost_Type>
   hungarian_max_assignment(const DynMatrix<Cost_Type> & cost)
   {
+    // Use a promoted signed type for negation to avoid overflow when
+    // Cost_Type is a signed integer and a cell contains its minimum value.
+    using Promoted =
+        std::make_signed_t<std::common_type_t<Cost_Type, long long>>;
+
     const size_t rows = cost.rows();
     const size_t cols = cost.cols();
-    DynMatrix<Cost_Type> negated(rows, cols);
+    DynMatrix<Promoted> negated(rows, cols);
     negated.allocate();
     for (size_t i = 0; i < rows; ++i)
       for (size_t j = 0; j < cols; ++j)
-        negated(i, j) = -cost.read(i, j);
+        negated(i, j) = -static_cast<Promoted>(cost.read(i, j));
 
-    auto result = hungarian_assignment(negated);
-    result.total_cost = -result.total_cost;
+    auto inner = hungarian_assignment(negated);
+
+    Hungarian_Result<Cost_Type> result;
+    result.total_cost  = static_cast<Cost_Type>(-inner.total_cost);
+    result.row_to_col  = std::move(inner.row_to_col);
+    result.col_to_row  = std::move(inner.col_to_row);
+    result.orig_rows   = inner.orig_rows;
+    result.orig_cols   = inner.orig_cols;
     return result;
   }
 } // end namespace Aleph

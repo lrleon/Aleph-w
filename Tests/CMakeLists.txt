@@ -278,6 +278,9 @@ set(TEST_PROGRAMS
     pointer_table_test
     graph_functional_test
     johnson_test
+    k_shortest_paths_test
+    min_mean_cycle_test
+    planarity_test
     graph_copy_test
     thread_pool_test
     timeoutQueue_test
@@ -325,6 +328,7 @@ set(TEST_PROGRAMS
     blossom_test
     weighted_blossom_test
     min_cost_matching_test
+    dominators_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++

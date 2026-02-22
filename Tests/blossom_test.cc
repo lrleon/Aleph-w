@@ -46,6 +46,7 @@
 # include <gtest/gtest.h>
 
 # include <algorithm>
+# include <bit>
 # include <cstdint>
 # include <functional>
 # include <random>
@@ -171,7 +172,7 @@ namespace
       if (ans != -1)
         return ans;
 
-      const size_t i = static_cast<size_t>(__builtin_ctzll(mask));
+      const size_t i = static_cast<size_t>(std::countr_zero(mask));
       const uint64_t rest = mask & ~(uint64_t{1} << i);
 
       ans = solve(rest); // leave i unmatched
@@ -179,7 +180,7 @@ namespace
       uint64_t options = adj[i] & rest;
       while (options != 0)
         {
-          const size_t j = static_cast<size_t>(__builtin_ctzll(options));
+          const size_t j = static_cast<size_t>(std::countr_zero(options));
           options &= (options - 1);
           ans = std::max(ans,
                          1 + solve(rest & ~(uint64_t{1} << j)));

@@ -40,11 +40,16 @@
  * - ask for the distance from a village to the nearest active team.
  *
  * Centroid decomposition answers each operation in O(log n).
+ *
+ * All per-node arrays are indexed by centroid/HLD integer IDs obtained via
+ * cd.id_of(node), not by insertion order, so the example is correct for any
+ * graph backend and insertion sequence.
  */
 
 # include <Tree_Decomposition.H>
 # include <tpl_graph.H>
 
+# include <algorithm>
 # include <cassert>
 # include <cstdio>
 # include <limits>
@@ -53,19 +58,20 @@ using namespace Aleph;
 
 int main()
 {
-  using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+  using G    = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+  using Node = G::Node;
 
   G g;
 
   //                  0
-  //              /   |   \\ (edge)
-  //             1    2    3
-  //           /  \        |
-  //          4    5       6
-  //                    /  |  \\ (edge)
-  //                   7   8   9
-  //                           |
-  //                           10
+  //              /   |   | (edge)
+  //             1    2   3
+  //           /  \       |
+  //          4    5      6
+  //                    / |  | (edge)
+  //                   7  8  9
+  //                          |
+  //                          10
 
   auto * n0  = g.insert_node(0);
   auto * n1  = g.insert_node(1);
@@ -90,25 +96,48 @@ int main()
   g.insert_arc(n6, n9, 1);
   g.insert_arc(n9, n10, 1);
 
-  const char * label[] = {
-      "Village-0", "Village-1", "Village-2", "Village-3", "Village-4", "Village-5",
-      "Village-6", "Village-7", "Village-8", "Village-9", "Village-10"};
+  Centroid_Decomposition<G>      cd(g, n0);
+  Heavy_Light_Decomposition<G>   hld(g, n0); // oracle distance for assertions
 
-  Centroid_Decomposition<G> cd(g, n0);
-  Heavy_Light_Decomposition<G> hld(g, n0); // oracle distance for assertions
-
-  const size_t n = cd.size();
+  const size_t n   = cd.size();
   const size_t INF = std::numeric_limits<size_t>::max() / 4;
 
-  auto best = Array<size_t>::create(n);
+  // --- Build label_by_id and node_by_id keyed on centroid IDs ---
+  // This avoids assuming cd.id_of(ni) == i (which would be fragile and
+  // graph-backend-dependent). Both cd and hld share the same Rooted_Tree_Topology
+  // ID space (same Node_Iterator order on the same graph object), so
+  // hld.distance_id(u, v) is valid with centroid IDs.
+
+  Node * nodes_arr[] = { n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10 };
+  const char * village_label[] = {
+      "Village-0",  "Village-1",  "Village-2",  "Village-3",  "Village-4",
+      "Village-5",  "Village-6",  "Village-7",  "Village-8",  "Village-9",
+      "Village-10"
+  };
+  constexpr int NUM_NODES = 11;
+
+  auto label_by_id = Array<const char *>::create(n);
+  auto node_by_id  = Array<Node *>::create(n);
+
+  for (int i = 0; i < NUM_NODES; ++i)
+    {
+      const size_t id      = cd.id_of(nodes_arr[i]);
+      label_by_id(id) = village_label[i];
+      node_by_id(id)  = nodes_arr[i];
+    }
+
+  // --- Per-node bookkeeping arrays indexed by centroid ID ---
+  auto best   = Array<size_t>::create(n);
   auto active = Array<char>::create(n);
 
   for (size_t i = 0; i < n; ++i)
     {
-      best(i) = INF;
+      best(i)   = INF;
       active(i) = 0;
     }
 
+  // Activate a village by centroid ID: propagate its distance to every
+  // centroid ancestor so query() can find it later in O(log n).
   auto activate = [&](const size_t u)
     {
       active(u) = 1;
@@ -121,6 +150,7 @@ int main()
           });
     };
 
+  // Query the nearest active village from village u (centroid ID).
   auto query = [&](const size_t u)
     {
       size_t ans = INF;
@@ -134,6 +164,8 @@ int main()
       return ans;
     };
 
+  // Brute-force oracle: scan all active nodes and use HLD for exact distance.
+  // Uses centroid IDs throughout (valid since cd and hld share the same topology).
   auto brute_query = [&](const size_t u)
     {
       size_t ans = INF;
@@ -143,39 +175,43 @@ int main()
       return ans;
     };
 
+  // --- Demo ---
+
   std::printf("=== Emergency Response Network (Centroid Decomposition) ===\n\n");
   std::printf("Centroid root: %s (id=%zu)\n\n",
-              label[cd.centroid_root_id()],
+              label_by_id(cd.centroid_root_id()),
               cd.centroid_root_id());
 
   std::printf("Centroid chain for Village-10:\n");
   cd.for_each_centroid_ancestor_id(
-      10,
+      cd.id_of(n10),
       [&](const size_t c, const size_t d, const size_t k)
       {
-        std::printf("  k=%zu  centroid=%s  dist=%zu\n", k, label[c], d);
+        std::printf("  k=%zu  centroid=%s  dist=%zu\n", k, label_by_id(c), d);
       });
 
   std::printf("\nActivate team at Village-0 and Village-8\n");
-  activate(0);
-  activate(8);
+  activate(cd.id_of(n0));
+  activate(cd.id_of(n8));
 
-  for (size_t u : {4u, 5u, 7u, 10u})
+  for (Node * node : { n4, n5, n7, n10 })
     {
-      const size_t ans = query(u);
+      const size_t u     = cd.id_of(node);
+      const size_t ans   = query(u);
       const size_t brute = brute_query(u);
-      std::printf("  nearest(%-10s) = %zu\n", label[u], ans);
+      std::printf("  nearest(%-10s) = %zu\n", label_by_id(u), ans);
       assert(ans == brute);
     }
 
   std::printf("\nActivate new team at Village-10\n");
-  activate(10);
+  activate(cd.id_of(n10));
 
-  for (size_t u : {2u, 6u, 9u, 10u})
+  for (Node * node : { n2, n6, n9, n10 })
     {
-      const size_t ans = query(u);
+      const size_t u     = cd.id_of(node);
+      const size_t ans   = query(u);
       const size_t brute = brute_query(u);
-      std::printf("  nearest(%-10s) = %zu\n", label[u], ans);
+      std::printf("  nearest(%-10s) = %zu\n", label_by_id(u), ans);
       assert(ans == brute);
     }
 

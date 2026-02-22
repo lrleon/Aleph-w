@@ -17,6 +17,9 @@ set(EXAMPLE_PROGRAMS
     bellman_ford_example
     kosaraju_example
     johnson_example
+    k_shortest_paths_example
+    min_mean_cycle_example
+    planarity_test_example
     btreepic
     cut_nodes_example
     deway
@@ -153,6 +156,7 @@ set(EXAMPLE_PROGRAMS
     weighted_blossom_example
     min_cost_matching_example
     hungarian_example
+    dominators_example
 )
 
 # Function to get source file from program name

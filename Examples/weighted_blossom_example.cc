@@ -192,11 +192,20 @@ namespace
         << "};\n";
 
     out << "  \\tikzset{"
-        << "edge/.style={draw=black!58, line width=0.95pt},"
+        << "edge/.style={draw=black!58, line width=0.95pt, shorten <=2pt, shorten >=2pt},"
         << "match/.style={draw=orange!92!black, line width=2.7pt},"
         << "wlabel/.style={fill=white, inner sep=1.2pt, font=\\scriptsize},"
         << "vertex/.style={circle, draw=black!70, fill=white, minimum size=9mm, inner sep=1pt, font=\\small\\bfseries}"
         << "}\n";
+
+    // Emit vertex node definitions first so \draw commands can reference them.
+    for (size_t i = 0; i < s.nodes.size(); ++i)
+      {
+        const auto & p = s.nodes[i];
+        out << "  \\node[vertex] (n" << i << ") at ("
+            << fixed << setprecision(2) << p.x << "," << p.y << ") {"
+            << p.label << "};\n";
+      }
 
     for (const auto & [u_raw, v_raw, w] : s.edges)
       {
@@ -211,14 +220,6 @@ namespace
 
         out << "  \\node[wlabel] at ($(n" << u << ")!0.5!(n" << v << ")$) {"
             << w << "};\n";
-      }
-
-    for (size_t i = 0; i < s.nodes.size(); ++i)
-      {
-        const auto & p = s.nodes[i];
-        out << "  \\node[vertex] (n" << i << ") at ("
-            << fixed << setprecision(2) << p.x << "," << p.y << ") {"
-            << p.label << "};\n";
       }
 
     out << "  \\node[font=\\small] at (0,-3.05) {matching size = "

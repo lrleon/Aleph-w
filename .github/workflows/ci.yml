@@ -200,6 +200,68 @@ jobs:
             build/CMakeCache.txt
             build/test_artifacts/golden_svg
 
+  planarity-visual-golden:
+    name: planarity-visual-golden (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CC: gcc
+      CXX: g++
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build \
+            g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev
+
+      - name: Configure
+        run: |
+          rm -rf build-planarity-visual
+          cmake -S . -B build-planarity-visual -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=ON \
+            -DBUILD_TESTS=OFF
+
+      - name: Build example
+        run: |
+          cmake --build build-planarity-visual --target planarity_test_example --parallel
+
+      - name: Generate certificate exchange artifacts
+        run: |
+          ./build-planarity-visual/Examples/planarity_test_example \
+            > build-planarity-visual/planarity_example_stdout.txt
+          test -f /tmp/planarity_k33_certificate.graphml
+          test -f /tmp/planarity_k33_certificate.gexf
+
+      - name: Visual golden diff
+        run: |
+          mkdir -p build-planarity-visual/planarity_visual/renders
+          python3 scripts/planarity_certificate_ci_visual_diff.py \
+            --input /tmp/planarity_k33_certificate.graphml \
+            --profile portable.python-render-svg \
+            --profile portable.python-render-pdf \
+            --render-output-dir "$PWD/build-planarity-visual/planarity_visual/renders" \
+            --report "$PWD/build-planarity-visual/planarity_visual/report.json" \
+            --print-summary
+
+      - name: Upload visual artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planarity-visual-golden-failure
+          if-no-files-found: ignore
+          path: |
+            build-planarity-visual/planarity_example_stdout.txt
+            build-planarity-visual/planarity_visual/report.json
+            build-planarity-visual/planarity_visual/renders
+
   coverage:
     name: coverage (ubuntu-24.04, gcc, Debug)
     runs-on: ubuntu-24.04
@@ -498,6 +560,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - build-and-test
+      - planarity-visual-golden
       - coverage
       - sanitizers
       - tsan
@@ -507,6 +570,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "planarity-visual-golden result: ${{ needs.planarity-visual-golden.result }}"
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
@@ -528,6 +592,7 @@ jobs:
           }
 
           check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "planarity-visual-golden" "${{ needs.planarity-visual-golden.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
@@ -544,6 +609,7 @@ jobs:
     needs:
       - policy-checks
       - build-and-test
+      - planarity-visual-golden
       - coverage
       - sanitizers
       - tsan
@@ -554,6 +620,7 @@ jobs:
           set -euo pipefail
           echo "policy-checks result: ${{ needs.policy-checks.result }}"
           echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "planarity-visual-golden result: ${{ needs.planarity-visual-golden.result }}"
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
@@ -576,6 +643,7 @@ jobs:
 
           check_job "policy-checks" "${{ needs.policy-checks.result }}"
           check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "planarity-visual-golden" "${{ needs.planarity-visual-golden.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"

@@ -1483,3 +1483,89 @@ TEST(functional_performance, deep_nesting)
   EXPECT_EQ(result, build_dynlist<int>(1, 3, 5, 7, 9));
 }
 
+// Custom equality predicates for testing all_unique overloads
+struct CaseInsensitiveStringEqual {
+  bool operator()(const string& a, const string& b) const {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i)
+      if (tolower(a[i]) != tolower(b[i])) return false;
+    return true;
+  }
+};
+
+struct FloatToleranceEqual {
+  float tolerance;
+  FloatToleranceEqual(float tol = 0.001f) : tolerance(tol) {}
+  bool operator()(float a, float b) const {
+    return fabs(a - b) <= tolerance;
+  }
+};
+
+TEST(all_unique_overload, case_insensitive_strings_true)
+{
+  // All strings unique when case-insensitive comparison is used
+  auto strings = build_dynlist<string>("Hello", "World", "Test", "Aleph");
+  EXPECT_TRUE(all_unique(strings, CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, case_insensitive_strings_false)
+{
+  // "hello" and "HELLO" should be considered equal with case-insensitive comparison
+  auto strings = build_dynlist<string>("hello", "World", "HELLO", "Test");
+  EXPECT_FALSE(all_unique(strings, CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, float_tolerance_true)
+{
+  // All floats unique within tolerance
+  auto floats = build_dynlist<float>(1.0f, 1.1f, 1.2f, 1.3f);
+  EXPECT_TRUE(all_unique(floats, FloatToleranceEqual(0.05f)));
+}
+
+TEST(all_unique_overload, float_tolerance_false)
+{
+  // 1.0 and 1.01 should be considered equal with tolerance 0.05
+  auto floats = build_dynlist<float>(1.0f, 1.01f, 1.5f, 2.0f);
+  EXPECT_FALSE(all_unique(floats, FloatToleranceEqual(0.05f)));
+}
+
+TEST(all_unique_overload, default_equality_true)
+{
+  // Test with default std::equal_to - all unique
+  auto ints = build_dynlist<int>(1, 2, 3, 4, 5);
+  EXPECT_TRUE(all_unique(ints));
+}
+
+TEST(all_unique_overload, default_equality_false)
+{
+  // Test with default std::equal_to - duplicates present
+  auto ints = build_dynlist<int>(1, 2, 3, 2, 5);
+  EXPECT_FALSE(all_unique(ints));
+}
+
+TEST(all_unique_overload, custom_predicate_with_rvalue)
+{
+  // Test that the rvalue overload works with custom predicate
+  auto strings = build_dynlist<string>("Apple", "apple", "Banana");
+  EXPECT_FALSE(all_unique(strings, CaseInsensitiveStringEqual()));
+  
+  auto unique_strings = build_dynlist<string>("Apple", "Banana", "Cherry");
+  EXPECT_TRUE(all_unique(unique_strings, CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, empty_container)
+{
+  // Empty container should always return true
+  DynList<int> empty;
+  EXPECT_TRUE(all_unique(empty, std::equal_to<int>()));
+  EXPECT_TRUE(all_unique(empty));
+}
+
+TEST(all_unique_overload, single_element)
+{
+  // Single element container should always return true
+  auto single = build_dynlist<int>(42);
+  EXPECT_TRUE(all_unique(single, std::equal_to<int>()));
+  EXPECT_TRUE(all_unique(single));
+}
+

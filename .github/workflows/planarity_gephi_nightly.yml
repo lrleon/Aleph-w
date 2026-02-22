@@ -1,0 +1,543 @@
+name: Planarity Gephi Nightly
+
+on:
+  schedule:
+    # Weekly on Sunday at 03:30 UTC.
+    - cron: '30 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      gephi_tags:
+        description: 'Comma-separated Gephi tags. Empty => auto-select latest 0.9.x and 0.10.x.'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare-tag-matrix:
+    name: prepare-tag-matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      gephi_tags_json: ${{ steps.prepare.outputs.gephi_tags_json }}
+      gephi_tags_csv: ${{ steps.prepare.outputs.gephi_tags_csv }}
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Resolve Gephi tag matrix
+        id: prepare
+        shell: bash
+        env:
+          MANUAL_GEPHI_TAGS: ${{ github.event.inputs.gephi_tags }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+          from pathlib import Path
+
+          manual = os.environ.get("MANUAL_GEPHI_TAGS", "").strip()
+
+          def norm_tag(tag: str) -> str:
+              t = tag.strip()
+              if not t:
+                  return ""
+              if not t.startswith("v"):
+                  t = "v" + t
+              return t
+
+          def dedup(seq):
+              out = []
+              seen = set()
+              for x in seq:
+                  if x not in seen:
+                      seen.add(x)
+                      out.append(x)
+              return out
+
+          def parse_version(tag: str):
+              m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)$", tag)
+              if not m:
+                  return None
+              return tuple(int(m.group(i)) for i in range(1, 4))
+
+          tags = []
+          if manual:
+              raw = [norm_tag(tok) for tok in manual.split(",")]
+              tags = [t for t in raw if t]
+          else:
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/gephi/gephi/releases?per_page=100",
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "User-Agent": "aleph-planarity-gephi-nightly",
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=120) as resp:
+                  releases = json.loads(resp.read().decode("utf-8"))
+
+              candidates = []
+              for rel in releases:
+                  if not isinstance(rel, dict):
+                      continue
+                  if rel.get("draft") or rel.get("prerelease"):
+                      continue
+                  tag = str(rel.get("tag_name", "")).strip()
+                  v = parse_version(tag)
+                  if v is None:
+                      continue
+                  candidates.append((tag if tag.startswith("v") else "v" + tag, v))
+
+              latest_010 = None
+              latest_09 = None
+              for tag, v in candidates:
+                  major, minor, _patch = v
+                  if major == 0 and minor == 10:
+                      if latest_010 is None or v > latest_010[1]:
+                          latest_010 = (tag, v)
+                  if major == 0 and minor == 9:
+                      if latest_09 is None or v > latest_09[1]:
+                          latest_09 = (tag, v)
+
+              if latest_09 is not None:
+                  tags.append(latest_09[0])
+              if latest_010 is not None:
+                  tags.append(latest_010[0])
+
+          tags = dedup([norm_tag(t) for t in tags if norm_tag(t)])
+          if not tags:
+              tags = ["v0.10.1"]
+
+          out_json = json.dumps(tags)
+          out_csv = ",".join(tags)
+          print(f"Resolved Gephi tags: {out_csv}")
+
+          gh_out = Path(os.environ["GITHUB_OUTPUT"])
+          with gh_out.open("a", encoding="utf-8") as f:
+              f.write(f"gephi_tags_json={out_json}\n")
+              f.write(f"gephi_tags_csv={out_csv}\n")
+          PY
+
+  gephi-nightly:
+    name: gephi-nightly (${{ matrix.os }}, ${{ matrix.gephi_tag }})
+    needs: prepare-tag-matrix
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+        gephi_tag: ${{ fromJSON(needs.prepare-tag-matrix.outputs.gephi_tags_json) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Download and unpack Gephi release
+        id: install_gephi
+        shell: bash
+        env:
+          GEPHI_TAG: ${{ matrix.gephi_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p build-gephi-nightly
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import stat
+          import tarfile
+          import urllib.request
+          import zipfile
+
+          workspace = pathlib.Path.cwd()
+          out_dir = workspace / "build-gephi-nightly"
+          dl_dir = out_dir / "download"
+          ex_dir = out_dir / "gephi-dist"
+          dl_dir.mkdir(parents=True, exist_ok=True)
+          ex_dir.mkdir(parents=True, exist_ok=True)
+
+          gephi_tag = os.environ["GEPHI_TAG"].strip()
+          runner_os = os.environ["RUNNER_OS"].strip()
+          runner_arch = os.environ.get("RUNNER_ARCH", "").strip().lower()
+          api_url = f"https://api.github.com/repos/gephi/gephi/releases/tags/{gephi_tag}"
+
+          req = urllib.request.Request(
+              api_url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "aleph-planarity-gephi-nightly",
+              },
+          )
+          with urllib.request.urlopen(req, timeout=120) as resp:
+              release = json.loads(resp.read().decode("utf-8"))
+
+          assets = release.get("assets", [])
+          if not isinstance(assets, list) or len(assets) == 0:
+              raise SystemExit(f"No assets found for Gephi tag: {gephi_tag}")
+
+          def score_asset(asset: dict) -> int:
+              name = str(asset.get("name", "")).strip()
+              lower = name.lower()
+              if not lower:
+                  return -10**6
+              if any(token in lower for token in ("source", "sha256", "checksum", ".asc")):
+                  return -10**6
+
+              score = 0
+              if lower.endswith(".zip"):
+                  score += 20
+              elif lower.endswith(".tar.gz"):
+                  score += 15
+              else:
+                  return -10**6
+
+              if runner_os == "Linux":
+                  if "linux" in lower:
+                      score += 80
+                  if "x64" in lower or "amd64" in lower:
+                      score += 10
+              elif runner_os == "MacOS":
+                  if "mac" in lower or "osx" in lower or "darwin" in lower:
+                      score += 80
+                  if ("arm64" in lower or "aarch64" in lower) and "arm64" in runner_arch:
+                      score += 10
+                  if ("x64" in lower or "amd64" in lower) and "x64" in runner_arch:
+                      score += 10
+              elif runner_os == "Windows":
+                  if "windows" in lower or "win" in lower:
+                      score += 80
+                  if "x64" in lower or "amd64" in lower:
+                      score += 10
+              return score
+
+          ranked = sorted(
+              (a for a in assets if isinstance(a, dict)),
+              key=score_asset,
+              reverse=True,
+          )
+          if not ranked or score_asset(ranked[0]) < 0:
+              names = [str(a.get("name", "")) for a in assets if isinstance(a, dict)]
+              raise SystemExit(
+                  f"Unable to pick Gephi package for OS={runner_os}. assets={names}"
+              )
+
+          asset = ranked[0]
+          asset_name = str(asset["name"])
+          asset_url = str(asset["browser_download_url"])
+          archive_path = dl_dir / asset_name
+
+          req_asset = urllib.request.Request(
+              asset_url, headers={"User-Agent": "aleph-planarity-gephi-nightly"}
+          )
+          with urllib.request.urlopen(req_asset, timeout=300) as resp:
+              archive_path.write_bytes(resp.read())
+
+          if asset_name.lower().endswith(".zip"):
+              with zipfile.ZipFile(archive_path, "r") as zf:
+                  zf.extractall(ex_dir)
+          elif asset_name.lower().endswith(".tar.gz"):
+              with tarfile.open(archive_path, "r:gz") as tf:
+                  tf.extractall(ex_dir)
+          else:
+              raise SystemExit(f"Unsupported archive format: {asset_name}")
+
+          candidates = []
+          for p in ex_dir.rglob("*"):
+              if not p.is_file():
+                  continue
+              lower = p.name.lower()
+              posix = p.as_posix().lower()
+              if runner_os == "Linux":
+                  if lower == "gephi":
+                      candidates.append(p)
+              elif runner_os == "MacOS":
+                  if posix.endswith("/gephi.app/contents/macos/gephi") or lower == "gephi":
+                      candidates.append(p)
+              elif runner_os == "Windows":
+                  if lower in ("gephi64.exe", "gephi.exe", "gephi64.bat", "gephi.bat"):
+                      candidates.append(p)
+
+          if not candidates:
+              raise SystemExit(f"Unable to locate Gephi executable in {ex_dir}")
+
+          def score_exe(path: pathlib.Path) -> int:
+              posix = path.as_posix().lower()
+              score = 0
+              if runner_os == "Linux":
+                  if "/bin/gephi" in posix:
+                      score += 20
+              elif runner_os == "MacOS":
+                  if "gephi.app/contents/macos/gephi" in posix:
+                      score += 20
+              elif runner_os == "Windows":
+                  if posix.endswith("gephi64.exe"):
+                      score += 20
+                  if "/bin/" in posix:
+                      score += 5
+              return score
+
+          gephi_exe = sorted(candidates, key=score_exe, reverse=True)[0]
+          if runner_os != "Windows":
+              mode = gephi_exe.stat().st_mode
+              gephi_exe.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+          (out_dir / "downloaded_gephi_asset.txt").write_text(
+              f"tag={gephi_tag}\n"
+              f"runner_os={runner_os}\n"
+              f"runner_arch={runner_arch}\n"
+              f"asset_name={asset_name}\n"
+              f"asset_url={asset_url}\n"
+              f"gephi_executable={gephi_exe.as_posix()}\n",
+              encoding="utf-8",
+          )
+
+          gh_out = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          with gh_out.open("a", encoding="utf-8") as f:
+              f.write(f"gephi_exe={gephi_exe.as_posix()}\n")
+              f.write(f"asset_name={asset_name}\n")
+          PY
+
+      - name: Validate fixture with real Gephi binary
+        shell: bash
+        env:
+          GEPHI_EXE: ${{ steps.install_gephi.outputs.gephi_exe }}
+          GEPHI_TAG: ${{ matrix.gephi_tag }}
+          GEPHI_ASSET_NAME: ${{ steps.install_gephi.outputs.asset_name }}
+          MATRIX_OS: ${{ matrix.os }}
+        run: |
+          set -euo pipefail
+          mkdir -p build-gephi-nightly
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import sys
+
+          root = pathlib.Path.cwd()
+          out_dir = root / "build-gephi-nightly"
+          fixture = root / "scripts" / "fixtures" / "planarity_k33_certificate.graphml"
+          validator = root / "scripts" / "planarity_certificate_validator.rb"
+
+          if not fixture.exists():
+              raise SystemExit(f"Fixture not found: {fixture}")
+
+          gephi_exe = pathlib.Path(os.environ["GEPHI_EXE"]).as_posix()
+          gephi_version = os.environ.get("GEPHI_TAG", "").strip().lstrip("v") or "nightly"
+          catalog_path = out_dir / "nightly_real_gephi_templates.json"
+
+          catalog = {
+              "schema_version": 1,
+              "templates": [
+                  {
+                      "id": "nightly.real-gephi.smoke",
+                      "os": "any",
+                      "gephi_version": gephi_version,
+                      "description": "Nightly real-Gephi smoke check using downloaded package.",
+                      "cmd": f"\"{gephi_exe}\" --version",
+                  }
+              ],
+          }
+          catalog_path.write_text(
+              json.dumps(catalog, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+
+          cmd = [
+              "ruby",
+              str(validator),
+              "--json",
+              "--input",
+              str(fixture),
+              "--gephi",
+              "--require-gephi",
+              "--gephi-template",
+              "nightly.real-gephi.smoke",
+              "--gephi-template-catalog",
+              str(catalog_path),
+          ]
+
+          proc = subprocess.run(
+              cmd,
+              check=False,
+              capture_output=True,
+              text=True,
+              timeout=240,
+          )
+
+          (out_dir / "validator_stdout.json").write_text(proc.stdout, encoding="utf-8")
+          (out_dir / "validator_stderr.txt").write_text(proc.stderr, encoding="utf-8")
+          (out_dir / "validator_command.txt").write_text(
+              " ".join(cmd) + "\n",
+              encoding="utf-8",
+          )
+
+          summary = {
+              "os": os.environ.get("MATRIX_OS", ""),
+              "gephi_tag": os.environ.get("GEPHI_TAG", ""),
+              "asset_name": os.environ.get("GEPHI_ASSET_NAME", ""),
+              "validator_exit_code": int(proc.returncode),
+              "overall_valid": False,
+          }
+
+          if proc.returncode == 0:
+              payload = json.loads(proc.stdout)
+              summary["overall_valid"] = bool(payload.get("overall_valid", False))
+              if not summary["overall_valid"]:
+                  proc.returncode = 2
+
+          (out_dir / "nightly_case_summary.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          if proc.returncode != 0:
+              print(proc.stdout)
+              print(proc.stderr, file=sys.stderr)
+              raise SystemExit(proc.returncode)
+
+          print("overall_valid=True")
+          PY
+
+      - name: Upload nightly artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gephi-nightly-${{ matrix.os }}-${{ matrix.gephi_tag }}
+          if-no-files-found: ignore
+          retention-days: 90
+          path: |
+            build-gephi-nightly/downloaded_gephi_asset.txt
+            build-gephi-nightly/nightly_real_gephi_templates.json
+            build-gephi-nightly/nightly_case_summary.json
+            build-gephi-nightly/validator_command.txt
+            build-gephi-nightly/validator_stdout.json
+            build-gephi-nightly/validator_stderr.txt
+
+  gephi-nightly-comparison:
+    name: gephi-nightly-comparison
+    needs:
+      - prepare-tag-matrix
+      - gephi-nightly
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Download nightly artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: gephi-nightly-*
+          path: build-gephi-nightly-artifacts
+          merge-multiple: false
+
+      - name: Build comparison report
+        id: compare
+        shell: bash
+        env:
+          RESOLVED_TAGS: ${{ needs.prepare-tag-matrix.outputs.gephi_tags_csv }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p build-gephi-nightly-summary
+          ruby scripts/planarity_gephi_nightly_comparison.rb \
+            --artifacts-root build-gephi-nightly-artifacts \
+            --resolved-tags "${RESOLVED_TAGS}" \
+            --run-id "${RUN_ID}" \
+            --run-attempt "${RUN_ATTEMPT}" \
+            --git-sha "${GIT_SHA}" \
+            --report-json build-gephi-nightly-summary/gephi_nightly_comparison.json \
+            --report-md build-gephi-nightly-summary/gephi_nightly_comparison.md \
+            --print-summary
+
+      - name: Append comparison report to run summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_md="build-gephi-nightly-summary/gephi_nightly_comparison.md"
+          if [ -f "${report_md}" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            cat "${report_md}" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Notify regressions (optional webhook)
+        if: ${{ steps.compare.outputs.has_regressions == 'true' }}
+        shell: bash
+        env:
+          ALERT_WEBHOOK: ${{ secrets.ALEPH_PLANARITY_ALERT_WEBHOOK }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ruby scripts/planarity_gephi_regression_notify.rb \
+            --report-json build-gephi-nightly-summary/gephi_nightly_comparison.json \
+            --output-md build-gephi-nightly-summary/gephi_nightly_alert.md \
+            --run-url "${RUN_URL}" \
+            --repository "${REPOSITORY}" \
+            --webhook-url "${ALERT_WEBHOOK}" \
+            --print-summary
+
+      - name: Append regression alert to run summary
+        if: ${{ steps.compare.outputs.has_regressions == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          alert_md="build-gephi-nightly-summary/gephi_nightly_alert.md"
+          if [ -f "${alert_md}" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            cat "${alert_md}" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload comparison artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gephi-nightly-comparison-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 90
+          path: |
+            build-gephi-nightly-summary/gephi_nightly_comparison.json
+            build-gephi-nightly-summary/gephi_nightly_comparison.md
+            build-gephi-nightly-summary/gephi_nightly_alert.md
+
+      - name: Enforce regression gate
+        if: ${{ steps.compare.outputs.has_regressions == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Gephi nightly comparison detected regressions across tags." >&2
+          echo "num_regressions=${{ steps.compare.outputs.num_regressions }}" >&2
+          exit 1

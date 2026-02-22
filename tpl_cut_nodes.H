@@ -701,27 +701,31 @@ components as well as the cross arcs.
     { /* empty */
     }
 
-    /** @brief Find all bridge edges starting from @p start.
+    /** @brief Find all bridge edges in the graph, starting from @p start.
      *
-     *  Performs a DFS from @p start and returns every arc identified
-     *  as a bridge.  The graph's `Depth_First` bits and `NODE_COUNTER`
-     *  fields are used internally and reset before the search; `NODE_COOKIE`
-     *  is used for low-link storage and cleared on return.
+     *  Performs a DFS from @p start and then visits any nodes not
+     *  reachable from @p start (disconnected components), returning
+     *  every arc identified as a bridge.  The graph's `Depth_First`
+     *  bits and `NODE_COUNTER` fields are used internally and reset
+     *  before the search; `NODE_COOKIE` is used for low-link storage
+     *  and cleared on return.
      *
-     *  @param[in] start  Starting node for the DFS.
+     *  @param[in] start  Starting node for the first DFS.
      *  @return `DynList` of pointers to bridge arcs (order: DFS post-order).
-     *  @throws std::domain_error    If the graph is a digraph.
-     *  @throws std::invalid_argument If @p start is `nullptr`.
+     *  @throws std::domain_error     If the graph is a digraph.
+     *  @throws std::invalid_argument If @p start is `nullptr` and the
+     *                                graph is non-empty.
      */
     DynList<typename GT::Arc *> find_bridges(typename GT::Node *start)
     {
       ah_domain_error_if(gptr->is_digraph()) << "Compute_Bridges: does not work on digraphs";
-      ah_invalid_argument_if(start == nullptr) << "Compute_Bridges::find_bridges(): start must be non-null";
 
       DynList<typename GT::Arc *> bridges;
 
       if (gptr->get_num_nodes() == 0)
         return bridges;
+
+      ah_invalid_argument_if(start == nullptr) << "Compute_Bridges::find_bridges(): start must be non-null";
 
       gptr->for_each_node([](auto p)
                             {
@@ -733,6 +737,13 @@ components as well as the cross arcs.
       long curr_df = 0;
       __dfs(start, nullptr, curr_df, bridges);
 
+      // Cover disconnected components: any node not reached from start.
+      gptr->for_each_node([&](auto p)
+                            {
+                              if (not IS_NODE_VISITED(p, Depth_First))
+                                __dfs(p, nullptr, curr_df, bridges);
+                            });
+
       // NODE_COOKIE holds low-link values (stored as longs); clear them.
       gptr->for_each_node([](auto p) { NODE_COOKIE(p) = nullptr; });
 
@@ -742,13 +753,16 @@ components as well as the cross arcs.
     /** \overload
      *
      *  Starts the DFS from the first node returned by the graph.
+     *  Returns an empty list immediately if the graph has no nodes.
      */
     DynList<typename GT::Arc *> find_bridges()
     {
+      if (gptr->get_num_nodes() == 0)
+        return DynList<typename GT::Arc *>{};
       return find_bridges(gptr->get_first_node());
     }
 
-    /** \overload operator()
+    /** \overload
      *
      *  Synonym for `find_bridges(start)`.
      */
@@ -757,7 +771,7 @@ components as well as the cross arcs.
       return find_bridges(start);
     }
 
-    /** \overload operator()
+    /** \overload
      *
      *  Synonym for `find_bridges()` (from first node).
      */

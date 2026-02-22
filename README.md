@@ -1780,8 +1780,13 @@ int main() {
 │ Floyd-Warshall │   O(V³)    │    Yes     │ All pairs, dense graphs          │
 │ Johnson        │O(V²logV+VE)│    Yes     │ All pairs, sparse graphs         │
 │ A*             │ O(E) best  │     No     │ Pathfinding with heuristic       │
+│ K-shortest     │O(K*V*(E+VlogV))│  No     │ Top-K alternatives (simple/general) s→t │
 └────────────────┴────────────┴────────────┴──────────────────────────────────┘
 ```
+
+`K_Shortest_Paths.H` provides two distinct modes:
+- `yen_k_shortest_paths()`: loopless/simple alternatives.
+- `eppstein_k_shortest_paths()`: general alternatives (may include cycles).
 
 #### Dijkstra's Algorithm
 
@@ -1867,6 +1872,119 @@ int main() {
 
     std::cout << "Path length: " << dist << "\n";
     return 0;
+}
+```
+
+#### K-Shortest Paths (Yen Loopless + Eppstein-Style General API)
+
+Use this when one shortest path is not enough:
+- route planning with `k` ranked alternatives from `s` to `t`
+- resilient failover (if best route is blocked, move to next)
+- near-optimal candidate generation for downstream constraints
+
+`K_Shortest_Paths.H` supports both contracts:
+- `yen_k_shortest_paths()`: up to `k` **simple** (cycle-free) paths.
+- `eppstein_k_shortest_paths()`: up to `k` general paths, where cycles may appear.
+- `Yen_K_Shortest_Paths<...>` and `Eppstein_K_Shortest_Paths<...>`: functor wrappers
+  for reusable configured solvers (distance + arc filter).
+
+Both are returned in non-decreasing total cost. Arc weights must be non-negative.
+Implementation detail:
+- Yen performs iterative spur-path recomputation.
+- Eppstein-style precomputes one reverse shortest-path tree and expands sidetracks.
+
+Why keep both APIs separated:
+- Use Yen when path simplicity is a hard requirement (routing without repeated vertices).
+- Use Eppstein-style when you need broader ranked alternatives and want faster reuse of
+  the same source/target structure in dense deviation spaces.
+
+```cpp
+#include <tpl_graph.H>
+#include <K_Shortest_Paths.H>
+
+using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<long long>>;
+
+int main() {
+    Graph g;
+    auto* s = g.insert_node(0);
+    auto* a = g.insert_node(1);
+    auto* b = g.insert_node(2);
+    auto* t = g.insert_node(3);
+
+    g.insert_arc(s, a, 1);
+    g.insert_arc(s, b, 2);
+    g.insert_arc(a, b, 1);
+    g.insert_arc(a, t, 2);
+    g.insert_arc(b, t, 1);
+
+    const size_t k = 4;
+    auto simple = yen_k_shortest_paths<Graph>(g, s, t, k);
+    auto general = eppstein_k_shortest_paths<Graph>(g, s, t, k);
+
+    for (decltype(simple)::Iterator it(simple); it.has_curr(); it.next_ne()) {
+      const auto& item = it.get_curr();
+      std::cout << "[simple] cost=" << item.total_cost << "\n";
+    }
+
+    for (decltype(general)::Iterator it(general); it.has_curr(); it.next_ne()) {
+      const auto& item = it.get_curr();
+      std::cout << "[general] cost=" << item.total_cost << "\n";
+    }
+
+    return 0;
+}
+```
+
+#### Minimum Mean Cycle (Karp)
+
+Use this when your system has repeated loops and you care about
+the **best long-run average cost per step**, not just one shortest path.
+Typical scenarios:
+- performance/latency analysis of cyclic pipelines
+- pricing or resource loops in networked systems
+- steady-state optimization in automata/state machines
+
+`Min_Mean_Cycle.H` provides:
+- `karp_minimum_mean_cycle()`: Karp `O(VE)` minimum cycle mean on directed graphs.
+- `minimum_mean_cycle()`: alias with the same behavior.
+- `karp_minimum_mean_cycle_value()` / `minimum_mean_cycle_value()`: value-only
+  variant (no witness extraction).
+- `Karp_Minimum_Mean_Cycle<...>`: reusable functor wrapper.
+- `Karp_Minimum_Mean_Cycle_Value<...>`: reusable value-only functor wrapper.
+
+Both variants keep Karp complexity `O(VE)`. Value-only avoids witness metadata and
+usually uses less memory in practice.
+
+The result reports:
+- `has_cycle`: whether at least one directed cycle exists
+- `minimum_mean`: optimal cycle mean
+- witness walk information (`cycle_nodes`, `cycle_arcs`, `cycle_total_cost`, `cycle_length`)
+
+Witness semantics:
+- `cycle_nodes` is a closed walk (first node repeated at the end).
+- In tie-heavy graphs it may contain repeated internal vertices; it is a valid
+  witness of the minimum mean value, not necessarily a canonical simple cycle.
+
+```cpp
+#include <tpl_graph.H>
+#include <Min_Mean_Cycle.H>
+
+using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<long long>>;
+
+int main() {
+    Graph g;
+    auto* a = g.insert_node(0);
+    auto* b = g.insert_node(1);
+    auto* c = g.insert_node(2);
+
+    g.insert_arc(a, b, 4);
+    g.insert_arc(b, c, 1);
+    g.insert_arc(c, a, 1); // cycle mean = 2
+
+    auto result = karp_minimum_mean_cycle(g);
+    if (result.has_cycle) {
+      std::cout << "minimum mean: " << result.minimum_mean << "\n";
+    }
 }
 ```
 
@@ -2107,6 +2225,268 @@ int main() {
     auto b2 = cb.find_bridges(nodes[2]); // start from a specific node
 
     return 0;
+}
+```
+
+<a id="readme-planarity"></a>
+### Planarity Testing
+
+Use this when your problem depends on whether a graph can be embedded in the plane
+without edge crossings.
+
+Typical scenarios:
+- deciding if a topology is physically drawable without crossings
+- validating graph constraints before planar-only algorithms
+- extracting machine-checkable evidence for non-planarity
+- obtaining a combinatorial embedding to reason about faces/rotations
+
+`Planarity_Test.H` provides:
+- `planarity_test()`: detailed result (`is_planar` + normalization metadata)
+- `is_planar_graph()`: boolean convenience API
+- `Planarity_Test<...>` and `Is_Planar_Graph<...>` wrappers
+
+The test is performed on the underlying undirected simple graph:
+- digraph orientation is ignored
+- self-loops are ignored
+- parallel arcs are collapsed
+
+Advanced outputs are opt-in through `Planarity_Test_Options`:
+- `compute_embedding`: combinatorial embedding (rotation system + faces)
+  - primary mode: LR-first construction (`embedding_is_lr_linear = true`)
+    with deterministic LR-local repair (reversal/swap candidates,
+    multi-start coordinate descent)
+  - optional fallback: bounded exact search if LR embedding fails validation
+  - strict profile (`embedding_allow_bruteforce_fallback = false`) avoids
+    exhaustive fallback and is typically faster (no exponential backtracking),
+    but may return `is_planar = true` with no embedding
+    (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
+  - `embedding_max_combinations` is the LR local-repair evaluation budget
+    in strict mode (and the exact-search budget when fallback is used)
+  - robust profile (recommended for face/dual workflows): keep fallback enabled
+- `compute_nonplanar_certificate`: non-planarity witness
+  - first reduces to a minimal obstruction by edge/vertex deletion passes
+  - then searches Kuratowski patterns on the branch-core
+  - returns `K5_Subdivision`, `K33_Subdivision`, or
+    `Minimal_NonPlanar_Obstruction` if classification is not possible under limits
+  - each witness edge keeps traceability to original input arcs
+    (`representative_input_arc`, `input_arcs`)
+  - each witness path includes both nodes and traceable edge sequence
+    (`certificate_paths[i].nodes`, `certificate_paths[i].edges`)
+
+Embedding guarantee model:
+- planarity decision itself (`is_planar`) comes from the LR test and remains exact.
+- strict LR embedding mode (`embedding_allow_bruteforce_fallback = false`) is a
+  bounded constructive strategy; if it reaches budget, embedding can be missing
+  (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
+  even for planar graphs.
+- if embedding completeness is required, keep fallback enabled and provide enough
+  `embedding_max_combinations` budget.
+
+Face and dual APIs:
+- `planar_dual_metadata(result)`:
+  - face boundaries as dart walks
+  - face adjacency
+  - primal-edge ↔ dual-edge relation
+- `build_planar_dual_graph(result)` / `build_planar_dual_graph(metadata)`:
+  - builds an Aleph dual graph (`List_Graph` by default)
+  - dual node info: face id
+  - dual arc info: `Planar_Dual_Edge_Info<GT>`
+
+Embedding-aware geometric drawing API:
+- `planar_geometric_drawing(result, drawing_options)`:
+  - computes 2D coordinates for embedding nodes
+  - uses harmonic relaxation on top of the combinatorial embedding
+  - can validate straight-edge crossings (`drawing_validated_no_crossings`)
+
+Certificate export APIs:
+- `nonplanar_certificate_to_json(result)`:
+  - structured machine-readable witness (nodes, obstruction edges, paths)
+- `nonplanar_certificate_to_dot(result)`:
+  - GraphViz DOT with highlighted obstruction/path edges
+- `nonplanar_certificate_to_graphml(result)`:
+  - GraphML exchange format for graph tools/pipelines
+- `nonplanar_certificate_to_gexf(result)`:
+  - GEXF exchange format for Gephi-like tooling
+- `validate_nonplanar_certificate(result)` / `nonplanar_certificate_is_valid(result)`:
+  - structural consistency validation for exported witnesses
+
+External validation adapter (end-to-end artifacts):
+- `scripts/planarity_certificate_validator.rb`
+  - validates exported `GraphML` / `GEXF` files directly
+  - checks XML consistency, endpoint references and obstruction-edge presence
+  - optional `--networkx` pass for tool-level loadability checks
+  - optional `--gephi` pass for Gephi CLI/toolkit adapter checks
+    (`--gephi-cmd` supports a custom command template with `{input}`)
+  - optional `--render-gephi` pass for render/export validation
+    (`--render-profile` + `--render-output-dir`, with SVG/PDF artifact checks)
+- `scripts/planarity_gephi_templates.json`
+  - catalog of Gephi command templates by OS/version (plus portable CI template)
+- `scripts/planarity_gephi_render_profiles.json`
+  - catalog of Gephi render/export profiles (SVG/PDF) by OS/version
+    (plus portable deterministic CI profiles)
+- `scripts/planarity_certificate_ci_batch.rb`
+  - reproducible batch wrapper for CI that emits a deterministic JSON report
+- `scripts/planarity_visual_golden_manifest.json`
+  - deterministic golden digest baseline for portable render profiles
+- `scripts/planarity_certificate_ci_visual_diff.rb`
+  - dedicated visual-golden CI runner (render + SHA256 diff against manifest)
+- `scripts/planarity_gephi_nightly_comparison.rb`
+  - run-level aggregator for nightly artifacts + regression detection (`overall_valid` and exit-code deltas)
+- `scripts/planarity_gephi_regression_notify.rb`
+  - optional notifier for nightly regressions (Markdown alert + webhook dispatch)
+- `scripts/fixtures/planarity_k33_certificate.graphml`
+  - Aleph-generated non-planar certificate fixture used by CI/adapter probes
+- `.github/workflows/planarity_gephi_nightly.yml`
+  - weekly + manual real-Gephi packaging probe (Linux/macOS/Windows)
+  - auto-selects latest `0.9.x` and `0.10.x` Gephi tags (or manual override)
+  - downloads official Gephi release binaries and validates adapter integration
+  - emits per-run comparative report artifact across tags/OS matrix
+  - enforces a regression gate when newer tags regress against previous tags per OS
+  - optional webhook notifications for regressions via secret
+    `ALEPH_PLANARITY_ALERT_WEBHOOK`
+
+```bash
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --input /tmp/planarity_k33_certificate.gexf
+
+# Optional: also verify loadability through NetworkX
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --networkx
+
+# Optional: Gephi adapter mode (portable; command template is user-configurable)
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --gephi \
+  --gephi-cmd "gephi --headless --import {input}"
+
+# List template catalog (filterable by OS)
+ruby scripts/planarity_certificate_validator.rb \
+  --list-gephi-templates --template-os linux --json
+
+# Use template id from catalog
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --gephi --require-gephi \
+  --gephi-template portable.python-file-exists
+
+# List render profile catalog (filterable by OS)
+ruby scripts/planarity_certificate_validator.rb \
+  --list-gephi-render-profiles --render-os linux --json
+
+# Run render profile and validate produced artifact
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --render-gephi --require-render \
+  --render-profile portable.python-render-svg \
+  --render-output-dir /tmp/aleph_planarity_renders
+
+# CI batch report (deterministic JSON artifact)
+ruby scripts/planarity_certificate_ci_batch.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --input /tmp/planarity_k33_certificate.gexf \
+  --gephi --require-gephi \
+  --gephi-template portable.python-file-exists \
+  --report /tmp/aleph_planarity_ci_report.json --print-summary
+
+# CI batch report with render validation
+ruby scripts/planarity_certificate_ci_batch.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --render-gephi --require-render \
+  --render-profile portable.python-render-svg \
+  --render-output-dir /tmp/aleph_planarity_renders \
+  --report /tmp/aleph_planarity_ci_render_report.json --print-summary
+
+# Dedicated visual golden-diff runner (deterministic)
+ruby scripts/planarity_certificate_ci_visual_diff.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --profile portable.python-render-svg \
+  --profile portable.python-render-pdf \
+  --render-output-dir /tmp/aleph_planarity_visual_renders \
+  --report /tmp/aleph_planarity_visual_diff_report.json --print-summary
+
+# Real-Gephi local smoke check (without portable profiles)
+ruby scripts/planarity_certificate_validator.rb \
+  --input scripts/fixtures/planarity_k33_certificate.graphml \
+  --gephi --require-gephi \
+  --gephi-cmd "\"/path/to/gephi\" --version"
+
+# Nightly workflow manual override example:
+# workflow_dispatch input gephi_tags="v0.9.7,v0.10.1"
+
+# Local nightly artifact comparison/regression check (Ruby implementation)
+ruby scripts/planarity_gephi_nightly_comparison.rb \
+  --artifacts-root /tmp/gephi-nightly-artifacts \
+  --resolved-tags v0.9.7,v0.10.1 \
+  --run-id local --run-attempt 1 --git-sha local \
+  --report-json /tmp/gephi_nightly_comparison.json \
+  --report-md /tmp/gephi_nightly_comparison.md \
+  --print-summary
+
+# Optional regression notification (webhook)
+ALEPH_PLANARITY_ALERT_WEBHOOK="https://example.invalid/webhook" \
+ruby scripts/planarity_gephi_regression_notify.rb \
+  --report-json /tmp/gephi_nightly_comparison.json \
+  --output-md /tmp/gephi_nightly_alert.md \
+  --repository lrleon/Aleph-w \
+  --run-url https://github.com/lrleon/Aleph-w/actions/runs/123 \
+  --webhook-env ALEPH_PLANARITY_ALERT_WEBHOOK \
+  --print-summary
+```
+
+```cpp
+#include <tpl_graph.H>
+#include <Planarity_Test.H>
+
+using Graph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+int main() {
+    Graph g;
+    auto* u0 = g.insert_node(0);
+    auto* u1 = g.insert_node(1);
+    auto* u2 = g.insert_node(2);
+    auto* v0 = g.insert_node(3);
+    auto* v1 = g.insert_node(4);
+    auto* v2 = g.insert_node(5);
+
+    // K3,3
+    g.insert_arc(u0, v0); g.insert_arc(u0, v1); g.insert_arc(u0, v2);
+    g.insert_arc(u1, v0); g.insert_arc(u1, v1); g.insert_arc(u1, v2);
+    g.insert_arc(u2, v0); g.insert_arc(u2, v1); g.insert_arc(u2, v2);
+
+    Planarity_Test_Options opts;
+    opts.compute_embedding = true;
+    opts.compute_nonplanar_certificate = true;
+    opts.embedding_prefer_lr_linear = true;
+    opts.embedding_allow_bruteforce_fallback = true;
+
+    auto result = planarity_test(g, opts);
+    std::cout << "Planar: " << result.is_planar << "\n";  // false
+    std::cout << "Certificate: " << to_string(result.certificate_type) << "\n";
+    if (!result.certificate_obstruction_edges.is_empty())
+        std::cout << "First witness edge multiplicity: "
+                  << result.certificate_obstruction_edges[0].input_arcs.size()
+                  << "\n";
+
+    if (result.is_planar && result.has_combinatorial_embedding) {
+        auto md = planar_dual_metadata(result);
+        auto dual = build_planar_dual_graph<Graph>(md);
+        auto drawing = planar_geometric_drawing(result);
+        std::cout << "Dual faces: " << dual.get_num_nodes() << "\n";
+        std::cout << "Crossings: " << drawing.crossing_count << "\n";
+    } else if (result.has_nonplanar_certificate) {
+        auto vr = validate_nonplanar_certificate(result);
+        auto json = nonplanar_certificate_to_json(result);
+        auto dot = nonplanar_certificate_to_dot(result);
+        auto graphml = nonplanar_certificate_to_graphml(result);
+        auto gexf = nonplanar_certificate_to_gexf(result);
+        std::cout << "Certificate valid: " << vr.is_valid << "\n";
+        std::cout << "JSON bytes: " << json.size() << "\n";
+        std::cout << "DOT bytes: " << dot.size() << "\n";
+        std::cout << "GraphML bytes: " << graphml.size() << "\n";
+        std::cout << "GEXF bytes: " << gexf.size() << "\n";
+    }
 }
 ```
 
@@ -2886,6 +3266,7 @@ int main() {
 | `Floyd_Warshall.H` | `floyd_all_shortest_paths()` | All-pairs shortest paths |
 | `Johnson.H` | `johnson_all_pairs()` | All-pairs (sparse graphs) |
 | `AStar.H` | `astar_search()` | Heuristic pathfinding |
+| `K_Shortest_Paths.H` | `yen_k_shortest_paths()`, `eppstein_k_shortest_paths()` | K shortest alternatives (loopless/simple and general) between source and target |
 | `Kruskal.H` | `kruskal_min_spanning_tree()` | MST (edge-based) |
 | `Prim.H` | `prim_min_spanning_tree()` | MST (vertex-based) |
 | `Blossom.H` | `blossom_maximum_cardinality_matching()` | Maximum matching (general graph) |
@@ -2902,6 +3283,7 @@ int main() {
 | `tpl_components.H` | `connected_components()` | Connected components |
 | `tpl_cut_nodes.H` | `compute_cut_nodes()`, `Compute_Cut_Nodes` | Articulation points and biconnected components |
 | `tpl_cut_nodes.H` | `find_bridges()`, `Compute_Bridges` | Bridge edges (cut edges) — Tarjan O(V+E) |
+| `Planarity_Test.H` | `planarity_test()`, `planar_dual_metadata()`, `planar_geometric_drawing()`, `validate_nonplanar_certificate()`, `nonplanar_certificate_to_json()`, `nonplanar_certificate_to_dot()`, `nonplanar_certificate_to_graphml()`, `nonplanar_certificate_to_gexf()` | LR planarity test + embedding/dual metadata + geometric drawing + validated non-planar witness export |
 | `topological_sort.H` | `topological_sort()` | DAG ordering |
 | `Karger.H` | `karger_min_cut()` | Probabilistic min-cut |
 | `Stoer_Wagner.H` | `stoer_wagner_min_cut()` | Deterministic min-cut |
@@ -3076,6 +3458,7 @@ cmake --build build
 | Bellman-Ford | `bellman_ford_example.cc` | Negative weights |
 | Johnson | `johnson_example.cc` | All-pairs sparse |
 | A* | `astar_example.cc` | Heuristic search |
+| K shortest paths | `k_shortest_paths_example.cc` | Yen (loopless) vs Eppstein-style general alternatives |
 | **Network Flows** | | |
 | Max flow | `network_flow_example.C` | Basic max flow |
 | Min-cost flow | `mincost_flow_example.cc` | Cost optimization |
@@ -3089,6 +3472,7 @@ cmake --build build
 | Tree LCA | `lca_example.cc` | Binary lifting + Euler/RMQ LCA with cross-backend parity (List/SGraph/Array) |
 | Tree Decomposition | `heavy_light_decomposition_example.cc`, `centroid_decomposition_example.cc` | Heavy-Light path/subtree queries and centroid-distance dynamic queries |
 | HLD convenience | `hld_example.cc` | HLD_Sum/Max/Min path queries, subtree queries, point updates, edge-weighted queries |
+| Planarity + certificates | `planarity_test_example.cc` | LR planarity, dual metadata, geometric drawing, JSON/DOT/GraphML/GEXF certificate export + structural validation |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |

@@ -373,11 +373,12 @@ void demo_biconnected_components()
   // Paint subgraphs (components)
   long num_colors = compute.paint_subgraphs();
   
+  // paint_subgraphs() returns the next unused color (N+1 for N components).
   cout << "\n--- Biconnected Components ---" << endl;
-  cout << "Number of components: " << num_colors << endl;
-  
+  cout << "Number of components: " << (num_colors - 1) << endl;
+
   cout << "\nNodes by component (color):" << endl;
-  for (long color = 1; color <= num_colors; ++color)
+  for (long color = 1; color < num_colors; ++color)
   {
     cout << "  Component " << color << ": ";
     bool first = true;

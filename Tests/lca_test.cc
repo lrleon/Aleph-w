@@ -340,6 +340,7 @@ TYPED_TEST(LcaTypedTest, ManualTreeQueries)
 TYPED_TEST(LcaTypedTest, DefaultRootIsFirstNode)
 {
   using Graph = TypeParam;
+  using Node = typename Graph::Node;
 
   const std::vector<std::pair<size_t, size_t>> edges = {
       {0, 1}, {1, 2}, {2, 3}, {3, 4}};
@@ -347,14 +348,32 @@ TYPED_TEST(LcaTypedTest, DefaultRootIsFirstNode)
   Graph g;
   auto nodes = build_graph_with_unit_arcs(g, 5, edges);
 
+  // Find the first node returned by Node_Iterator for this backend.
+  // List_Graph / Array_Graph iterate in insertion order, so the first
+  // node is nodes(0). List_SGraph iterates by pointer address (BST
+  // in-order), so the first node may differ — this is expected behaviour.
+  Node * first_node = nullptr;
+  for (Node_Iterator<Graph> it(g); it.has_curr(); it.next_ne())
+    {
+      first_node = it.get_curr();
+      break;
+    }
+  ASSERT_NE(first_node, nullptr);
+
   Binary_Lifting_LCA<Graph> bl(g);
   Euler_RMQ_LCA<Graph> er(g);
 
-  EXPECT_EQ(bl.root(), nodes(0));
-  EXPECT_EQ(er.root(), nodes(0));
+  // Both engines must choose the same default root = first iterated node.
+  EXPECT_EQ(bl.root(), first_node);
+  EXPECT_EQ(er.root(), first_node);
 
-  EXPECT_EQ(static_cast<size_t>(bl.lca(nodes(4), nodes(2))->get_info()), 2u);
-  EXPECT_EQ(static_cast<size_t>(er.lca(nodes(4), nodes(2))->get_info()), 2u);
+  // Use the oracle with the actual default root to derive the expected LCA.
+  const size_t root_info = static_cast<size_t>(first_node->get_info());
+  Naive_Tree_Oracle oracle(5, edges, root_info);
+
+  const size_t expected_lca = oracle.lca(4, 2);
+  EXPECT_EQ(static_cast<size_t>(bl.lca(nodes(4), nodes(2))->get_info()), expected_lca);
+  EXPECT_EQ(static_cast<size_t>(er.lca(nodes(4), nodes(2))->get_info()), expected_lca);
 }
 
 TYPED_TEST(LcaTypedTest, RejectsCycle)

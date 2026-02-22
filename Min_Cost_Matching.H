@@ -115,6 +115,11 @@ namespace Aleph
   {
     /** @internal
      *  @brief Convert integral values to `long long` with overflow checks.
+     *
+     *  Checks are skipped with `constexpr` logic when T's range is known at
+     *  compile time to fit within `long long` (e.g. `int`, `unsigned int`).
+     *  When a check is needed we compare via `__int128` to avoid the
+     *  narrowing/UB that arises from casting LLONG_MAX/MIN into a narrower T.
      */
     template <typename T>
     long long to_ll_checked(T value)
@@ -122,15 +127,34 @@ namespace Aleph
       static_assert(std::is_integral_v<T>,
                     "Min_Cost_Matching requires integral arc costs");
 
-      if constexpr (std::is_signed_v<T>)
+      // Number of value bits in T and in long long (excludes the sign bit).
+      constexpr int T_digits  = std::numeric_limits<T>::digits;
+      constexpr int LL_digits = std::numeric_limits<long long>::digits; // 63
+
+      // Upper check: T can hold values > LLONG_MAX when
+      //   unsigned T: T_digits >= LL_digits  (e.g. unsigned long long: 64 >= 63)
+      //   signed   T: T_digits >  LL_digits  (e.g. __int128: 127 > 63)
+      constexpr bool need_upper =
+          std::is_unsigned_v<T> ? (T_digits >= LL_digits)
+                                : (T_digits >  LL_digits);
+
+      // Lower check: only signed T wider than long long can go below LLONG_MIN.
+      constexpr bool need_lower =
+          std::is_signed_v<T> and (T_digits > LL_digits);
+
+      if constexpr (need_upper)
         {
-          ah_overflow_error_if(value > static_cast<T>(std::numeric_limits<long long>::max())
-                               or value < static_cast<T>(std::numeric_limits<long long>::min()))
+          ah_overflow_error_if(
+              static_cast<__int128>(value) >
+              static_cast<__int128>(std::numeric_limits<long long>::max()))
             << "Cost cannot be represented as long long";
         }
-      else
+
+      if constexpr (need_lower)
         {
-          ah_overflow_error_if(value > static_cast<T>(std::numeric_limits<long long>::max()))
+          ah_overflow_error_if(
+              static_cast<__int128>(value) <
+              static_cast<__int128>(std::numeric_limits<long long>::min()))
             << "Cost cannot be represented as long long";
         }
 
@@ -154,7 +178,7 @@ namespace Aleph
       }
 
       template <class Arc>
-      long long operator()(Arc * arc) const
+      long long operator()(Arc *arc) const
       {
         const long long c = to_ll_checked(cost_(arc));
         ah_overflow_error_if(c == std::numeric_limits<long long>::min())
@@ -200,6 +224,9 @@ namespace Aleph
                                         SA sa = SA(),
                                         const bool max_cardinality = false)
   {
+    ah_domain_error_if(g.is_digraph())
+      << "compute_minimum_cost_general_matching(): g is a digraph";
+
     using Arc = typename GT::Arc;
     using Raw_Cost = std::decay_t<decltype(cost(static_cast<Arc *>(nullptr)))>;
 
@@ -210,18 +237,18 @@ namespace Aleph
 
     const auto weighted_result =
         compute_maximum_weight_general_matching<
-            GT,
-            min_cost_matching_detail::Negated_Cost_Accessor<Cost>,
-            SA>(g,
-                matching,
-                min_cost_matching_detail::Negated_Cost_Accessor<Cost>(cost_accessor),
-                std::move(sa),
-                max_cardinality);
+          GT,
+          min_cost_matching_detail::Negated_Cost_Accessor<Cost>,
+          SA>(g,
+              matching,
+              min_cost_matching_detail::Negated_Cost_Accessor<Cost>(cost_accessor),
+              std::move(sa),
+              max_cardinality);
 
     long long total_cost = 0;
     for (auto it = matching.get_it(); it.has_curr(); it.next_ne())
       {
-        Arc * arc = it.get_curr();
+        Arc *arc = it.get_curr();
         const long long c = min_cost_matching_detail::to_ll_checked(cost_accessor(arc));
         const __int128 sum = static_cast<__int128>(total_cost)
                              + static_cast<__int128>(c);
@@ -255,7 +282,8 @@ namespace Aleph
                                 const bool max_cardinality = false)
   {
     return compute_minimum_cost_general_matching<GT, Cost, SA>(
-        g, matching, std::move(cost), std::move(sa), max_cardinality);
+                                                               g, matching, std::move(cost), std::move(sa),
+                                                               max_cardinality);
   }
 
 
@@ -309,7 +337,8 @@ namespace Aleph
       return Min_Cost_Perfect_Matching_Result<long long>{false, 0, 0};
 
     const auto best = compute_minimum_cost_general_matching<GT, Cost, SA>(
-        g, matching, std::move(cost), std::move(sa), true);
+                                                                          g, matching, std::move(cost), std::move(sa),
+                                                                          true);
 
     const size_t expected = num_nodes / 2;
     if (best.cardinality != expected)
@@ -319,7 +348,8 @@ namespace Aleph
       }
 
     return Min_Cost_Perfect_Matching_Result<long long>{
-        true, best.total_cost, best.cardinality};
+          true, best.total_cost, best.cardinality
+        };
   }
 
 
@@ -339,7 +369,7 @@ namespace Aleph
                                         SA sa = SA())
   {
     return compute_minimum_cost_perfect_general_matching<GT, Cost, SA>(
-        g, matching, std::move(cost), std::move(sa));
+                                                                       g, matching, std::move(cost), std::move(sa));
   }
 
 
@@ -371,7 +401,7 @@ namespace Aleph
     operator()(const GT & g, DynDlist<typename GT::Arc *> & matching)
     {
       return compute_minimum_cost_general_matching<GT, Cost, SA>(
-          g, matching, cost_, sa_, max_cardinality_);
+                                                                 g, matching, cost_, sa_, max_cardinality_);
     }
   };
 
@@ -389,8 +419,7 @@ namespace Aleph
     SA sa_;
 
   public:
-    Compute_Minimum_Cost_Perfect_General_Matching(Cost cost = Cost(),
-                                                  SA sa = SA())
+    Compute_Minimum_Cost_Perfect_General_Matching(Cost cost = Cost(), SA sa = SA())
       : cost_(std::move(cost)),
         sa_(std::move(sa))
     {
@@ -400,8 +429,7 @@ namespace Aleph
     Min_Cost_Perfect_Matching_Result<long long>
     operator()(const GT & g, DynDlist<typename GT::Arc *> & matching)
     {
-      return compute_minimum_cost_perfect_general_matching<GT, Cost, SA>(
-          g, matching, cost_, sa_);
+      return compute_minimum_cost_perfect_general_matching<GT, Cost, SA>(g, matching, cost_, sa_);
     }
   };
 } // namespace Aleph
