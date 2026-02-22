@@ -412,8 +412,10 @@ namespace
                 const std::string & ext)
   {
     static size_t seq = 0;
+    namespace fs = std::filesystem;
     std::ostringstream out;
-    out << "/tmp/aleph_planarity_" << stem << "_" << ++seq << ext;
+    out << (fs::temp_directory_path() / "aleph_planarity").string()
+        << "_" << stem << "_" << ++seq << ext;
     return out.str();
   }
 
@@ -474,8 +476,9 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    cmd << " > /tmp/aleph_planarity_validator.stdout"
-        << " 2> /tmp/aleph_planarity_validator.stderr";
+    const fs::path tmp = fs::temp_directory_path();
+    cmd << " > " << shell_quote((tmp / "aleph_planarity_validator.stdout").string())
+        << " 2> " << shell_quote((tmp / "aleph_planarity_validator.stderr").string());
     return std::system(cmd.str().c_str());
   }
 
@@ -503,8 +506,9 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    cmd << " > /tmp/aleph_planarity_batch.stdout"
-        << " 2> /tmp/aleph_planarity_batch.stderr";
+    const fs::path tmp = fs::temp_directory_path();
+    cmd << " > " << shell_quote((tmp / "aleph_planarity_batch.stdout").string())
+        << " 2> " << shell_quote((tmp / "aleph_planarity_batch.stderr").string());
     return std::system(cmd.str().c_str());
   }
 
@@ -537,8 +541,9 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    cmd << " > /tmp/aleph_planarity_visual.stdout"
-        << " 2> /tmp/aleph_planarity_visual.stderr";
+    const fs::path tmp = fs::temp_directory_path();
+    cmd << " > " << shell_quote((tmp / "aleph_planarity_visual.stdout").string())
+        << " 2> " << shell_quote((tmp / "aleph_planarity_visual.stderr").string());
     return std::system(cmd.str().c_str());
   }
 
@@ -571,8 +576,9 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    cmd << " > /tmp/aleph_planarity_gephi_nightly.stdout"
-        << " 2> /tmp/aleph_planarity_gephi_nightly.stderr";
+    const fs::path tmp = fs::temp_directory_path();
+    cmd << " > " << shell_quote((tmp / "aleph_planarity_gephi_nightly.stdout").string())
+        << " 2> " << shell_quote((tmp / "aleph_planarity_gephi_nightly.stderr").string());
     return std::system(cmd.str().c_str());
   }
 
@@ -601,10 +607,42 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    cmd << " > /tmp/aleph_planarity_gephi_notify.stdout"
-        << " 2> /tmp/aleph_planarity_gephi_notify.stderr";
+    const fs::path tmp = fs::temp_directory_path();
+    cmd << " > " << shell_quote((tmp / "aleph_planarity_gephi_notify.stdout").string())
+        << " 2> " << shell_quote((tmp / "aleph_planarity_gephi_notify.stderr").string());
     return std::system(cmd.str().c_str());
   }
+  // Returns the path where run_external_certificate_validator writes stdout.
+  std::string
+  validator_stdout_path()
+  {
+    namespace fs = std::filesystem;
+    return (fs::temp_directory_path() / "aleph_planarity_validator.stdout").string();
+  }
+
+
+  // Returns true when the planarity_certificate_validator.rb script can be
+  // found in the repository and Ruby is executable on this machine.
+  bool
+  has_ruby_and_validator_script()
+  {
+    namespace fs = std::filesystem;
+    const auto root = find_repo_root();
+    if (not root.has_value())
+      return false;
+    if (not fs::exists(*root / "scripts" / "planarity_certificate_validator.rb"))
+      return false;
+    return std::system("ruby --version > /dev/null 2>&1") == 0;
+  }
+
+
+  // Returns true when python3 is executable on this machine.
+  bool
+  has_python3()
+  {
+    return std::system("python3 --version > /dev/null 2>&1") == 0;
+  }
+
 } // namespace
 
 
@@ -1529,6 +1567,12 @@ TEST(PlanarityTest, NonPlanarCertificateValidationDetectsTamperedPathEdge)
 
 TEST(PlanarityTest, ExternalCertificateValidatorAcceptsGraphmlAndGexf)
 {
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
+
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
   Planarity_Test_Options opts;
@@ -1550,6 +1594,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorAcceptsGraphmlAndGexf)
 
 TEST(PlanarityTest, ExternalCertificateValidatorRejectsMissingObstruction)
 {
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
+
   const std::string broken_graphml = make_tmp_path("external_invalid", ".graphml");
   write_text_file(broken_graphml, R"(<?xml version="1.0" encoding="UTF-8"?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlns">
@@ -1571,6 +1621,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorRejectsMissingObstruction)
 
 TEST(PlanarityTest, ExternalCertificateValidatorNetworkxModeIsPortable)
 {
+  if (not has_ruby_and_validator_script() or not has_python3())
+    {
+      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, or python3 not found";
+      return;
+    }
+
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
   Planarity_Test_Options opts;
@@ -1598,6 +1654,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorNetworkxModeIsPortable)
 
 TEST(PlanarityTest, ExternalCertificateValidatorGephiModeIsPortable)
 {
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
+
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
   Planarity_Test_Options opts;
@@ -1627,6 +1689,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiModeIsPortable)
 
 TEST(PlanarityTest, ExternalCertificateValidatorGephiCustomTemplateWorks)
 {
+  if (not has_ruby_and_validator_script() or not has_python3())
+    {
+      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, or python3 not found";
+      return;
+    }
+
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
   Planarity_Test_Options opts;
@@ -1651,6 +1719,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiTemplateSupportsInputPathWi
 {
   namespace fs = std::filesystem;
 
+  if (not has_ruby_and_validator_script() or not has_python3())
+    {
+      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, or python3 not found";
+      return;
+    }
+
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
   Planarity_Test_Options opts;
@@ -1659,7 +1733,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiTemplateSupportsInputPathWi
   ASSERT_FALSE(r.is_planar);
   ASSERT_TRUE(r.has_nonplanar_certificate);
 
-  const fs::path dir = fs::path("/tmp") / "aleph planarity gephi spaces";
+  const fs::path dir = fs::temp_directory_path() / "aleph planarity gephi spaces";
   fs::create_directories(dir);
   const std::string graphml_path = (dir / "k33 certificate.graphml").string();
   write_text_file(graphml_path, nonplanar_certificate_to_graphml(r));
@@ -1675,11 +1749,17 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiTemplateSupportsInputPathWi
 
 TEST(PlanarityTest, ExternalCertificateValidatorCanListGephiTemplates)
 {
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
+
   const int rc = run_external_certificate_validator(
       {}, false, false, false, false, "", "--list-gephi-templates --json");
   EXPECT_EQ(rc, 0);
 
-  const std::string out = read_text_file("/tmp/aleph_planarity_validator.stdout");
+  const std::string out = read_text_file(validator_stdout_path());
   EXPECT_NE(out.find("\"templates\""), std::string::npos);
   EXPECT_NE(out.find("portable.python-file-exists"), std::string::npos);
   EXPECT_NE(out.find("linux.gephi-0.10.smoke"), std::string::npos);
@@ -1690,12 +1770,18 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanListGephiTemplates)
 
 TEST(PlanarityTest, ExternalCertificateValidatorCanFilterGephiTemplatesByOs)
 {
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
+
   const int rc = run_external_certificate_validator(
       {}, false, false, false, false, "",
       "--list-gephi-templates --template-os windows --json");
   EXPECT_EQ(rc, 0);
 
-  const std::string out = read_text_file("/tmp/aleph_planarity_validator.stdout");
+  const std::string out = read_text_file(validator_stdout_path());
   EXPECT_NE(out.find("windows.gephi-0.10.smoke"), std::string::npos);
   EXPECT_EQ(out.find("linux.gephi-0.10.smoke"), std::string::npos);
 }
@@ -1703,12 +1789,18 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanFilterGephiTemplatesByOs)
 
 TEST(PlanarityTest, ExternalCertificateValidatorCanListGephiRenderProfiles)
 {
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
+
   const int rc = run_external_certificate_validator(
       {}, false, false, false, false, "",
       "--list-gephi-render-profiles --json");
   EXPECT_EQ(rc, 0);
 
-  const std::string out = read_text_file("/tmp/aleph_planarity_validator.stdout");
+  const std::string out = read_text_file(validator_stdout_path());
   EXPECT_NE(out.find("\"profiles\""), std::string::npos);
   EXPECT_NE(out.find("portable.python-render-svg"), std::string::npos);
   EXPECT_NE(out.find("linux.gephi-0.10.render-svg"), std::string::npos);
@@ -1719,12 +1811,18 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanListGephiRenderProfiles)
 
 TEST(PlanarityTest, ExternalCertificateValidatorCanFilterRenderProfilesByOs)
 {
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
+
   const int rc = run_external_certificate_validator(
       {}, false, false, false, false, "",
       "--list-gephi-render-profiles --render-os windows --json");
   EXPECT_EQ(rc, 0);
 
-  const std::string out = read_text_file("/tmp/aleph_planarity_validator.stdout");
+  const std::string out = read_text_file(validator_stdout_path());
   EXPECT_NE(out.find("windows.gephi-0.10.render-svg"), std::string::npos);
   EXPECT_EQ(out.find("linux.gephi-0.10.render-svg"), std::string::npos);
 }
@@ -1732,6 +1830,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanFilterRenderProfilesByOs)
 
 TEST(PlanarityTest, ExternalCertificateValidatorGephiCatalogTemplateWorks)
 {
+  if (not has_ruby_and_validator_script() or not has_python3())
+    {
+      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, or python3 not found";
+      return;
+    }
+
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
   Planarity_Test_Options opts;
@@ -1753,6 +1857,13 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiCatalogTemplateWorks)
 TEST(PlanarityTest, ExternalCertificateValidatorRenderSvgProfileProducesArtifact)
 {
   namespace fs = std::filesystem;
+
+  if (not has_ruby_and_validator_script() or not has_python3())
+    {
+      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, "
+                      "or python3 not found";
+      return;
+    }
 
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
@@ -1778,7 +1889,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSvgProfileProducesArtifact
   EXPECT_TRUE(fs::exists(out_path));
   EXPECT_GT(fs::file_size(out_path), 0u);
 
-  const std::string out = read_text_file("/tmp/aleph_planarity_validator.stdout");
+  const std::string out = read_text_file(validator_stdout_path());
   EXPECT_NE(out.find("render_output_kind"), std::string::npos);
   EXPECT_NE(out.find("svg"), std::string::npos);
 }
@@ -1787,6 +1898,13 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSvgProfileProducesArtifact
 TEST(PlanarityTest, ExternalCertificateValidatorRenderPdfProfileProducesArtifact)
 {
   namespace fs = std::filesystem;
+
+  if (not has_ruby_and_validator_script() or not has_python3())
+    {
+      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, "
+                      "or python3 not found";
+      return;
+    }
 
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
@@ -1818,6 +1936,13 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSupportsInputPathWithSpace
 {
   namespace fs = std::filesystem;
 
+  if (not has_ruby_and_validator_script() or not has_python3())
+    {
+      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, "
+                      "or python3 not found";
+      return;
+    }
+
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
   Planarity_Test_Options opts;
@@ -1826,7 +1951,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSupportsInputPathWithSpace
   ASSERT_FALSE(r.is_planar);
   ASSERT_TRUE(r.has_nonplanar_certificate);
 
-  const fs::path dir = fs::path("/tmp") / "aleph planarity render spaces";
+  const fs::path dir = fs::temp_directory_path() / "aleph planarity render spaces";
   fs::create_directories(dir);
   const std::string graphml_path = (dir / "k33 certificate.graphml").string();
   const std::string output_dir = (dir / "render output").string();
@@ -1848,6 +1973,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSupportsInputPathWithSpace
 
 TEST(PlanarityTest, ExternalCertificateValidatorRenderFailsOnUnknownProfile)
 {
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
+
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
 
   Planarity_Test_Options opts;
@@ -2253,6 +2384,12 @@ TEST(PlanarityTest, ExternalCertificateBatchRunnerFailsOnInvalidInput)
 TEST(PlanarityTest, ExternalCertificateFixtureGraphmlIsValid)
 {
   namespace fs = std::filesystem;
+
+  if (not has_ruby_and_validator_script())
+    {
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
+      return;
+    }
 
   const auto root = find_repo_root();
   ASSERT_TRUE(root.has_value());

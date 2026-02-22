@@ -207,6 +207,82 @@ int main()
        << (dom.dominates(cfg, entry, then_block, join) ? "yes" : "no") << endl;
   cout << "  loop_hdr dominates loop_body? "
        << (dom.dominates(cfg, entry, loop_header, loop_body) ? "yes" : "no") << endl;
+  cout << endl;
+
+  // ========================================================================
+  // 7. Compute post-dominators (from exit node)
+  // ========================================================================
+
+  Lengauer_Tarjan_Post_Dominators<CFG> pdom;
+  auto ipdoms = pdom.compute_ipdom(cfg, exit_block);
+
+  cout << "=== Immediate Post-Dominators (exit = " << exit_block->get_info()
+       << ") ===" << endl;
+  for (auto pit = ipdoms.get_it(); pit.has_curr(); pit.next_ne())
+    {
+      auto [node, ipdom] = pit.get_curr();
+      cout << "  ipdom(" << node->get_info() << ") = "
+           << (ipdom ? ipdom->get_info() : "(exit)") << endl;
+    }
+  cout << endl;
+
+  // ========================================================================
+  // 8. Build and display post-dominator tree
+  // ========================================================================
+
+  CFG pdom_tree;
+  pdom.build_tree(cfg, exit_block, pdom_tree);
+
+  cout << "=== Post-Dominator Tree ===" << endl;
+  cout << "Nodes: " << pdom_tree.get_num_nodes() << endl;
+  cout << "Arcs:  " << pdom_tree.get_num_arcs() << endl;
+  cout << endl;
+  cout << "Tree edges (parent -> child):" << endl;
+  for (auto pit = pdom_tree.get_arc_it(); pit.has_curr(); pit.next_ne())
+    {
+      auto arc = pit.get_curr();
+      cout << "  " << pdom_tree.get_src_node(arc)->get_info()
+           << " -> " << pdom_tree.get_tgt_node(arc)->get_info() << endl;
+    }
+  cout << endl;
+
+  // ========================================================================
+  // 9. Compute post-dominance frontiers (for CDG construction)
+  // ========================================================================
+
+  auto pdf = pdom.post_dominance_frontiers(cfg, exit_block);
+
+  cout << "=== Post-Dominance Frontiers ===" << endl;
+  for (auto pit = pdf.get_it(); pit.has_curr(); pit.next_ne())
+    {
+      auto & [node, frontier] = pit.get_curr();
+      cout << "  PDF(" << node->get_info() << ") = {";
+      bool first = true;
+      for (auto fi = frontier.get_it(); fi.has_curr(); fi.next_ne())
+        {
+          if (not first)
+            cout << ", ";
+          cout << fi.get_curr()->get_info();
+          first = false;
+        }
+      cout << "}" << endl;
+    }
+  cout << endl;
+
+  // ========================================================================
+  // 10. Post-dominance queries
+  // ========================================================================
+
+  cout << "=== Post-Dominance Queries ===" << endl;
+  cout << "  exit post-dominates entry?    "
+       << (pdom.post_dominates(cfg, exit_block, exit_block, entry) ? "yes" : "no")
+       << endl;
+  cout << "  loop_hdr post-dominates cond? "
+       << (pdom.post_dominates(cfg, exit_block, loop_header, cond) ? "yes" : "no")
+       << endl;
+  cout << "  then post-dominates entry?    "
+       << (pdom.post_dominates(cfg, exit_block, then_block, entry) ? "yes" : "no")
+       << endl;
 
   return 0;
 }

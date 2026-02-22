@@ -41,6 +41,8 @@
  */
 
 # include <algorithm>
+# include <cstdlib>
+# include <filesystem>
 # include <fstream>
 # include <iostream>
 # include <string>
@@ -134,8 +136,24 @@ namespace
 }
 
 
-int main()
+int main(int argc, char ** argv)
 {
+  namespace fs = std::filesystem;
+
+  const char * env_out_dir = std::getenv("PLANARITY_OUT_DIR");
+  const fs::path output_dir =
+      (argc > 1 and argv[1] != nullptr and argv[1][0] != '\0')
+          ? fs::path(argv[1])
+          : ((env_out_dir != nullptr and env_out_dir[0] != '\0')
+                 ? fs::path(env_out_dir)
+                 : fs::path("/tmp"));
+
+  std::error_code mkdir_ec;
+  fs::create_directories(output_dir, mkdir_ec);
+  if (mkdir_ec)
+    cout << "warning: could not ensure output directory exists: "
+         << output_dir.string() << '\n';
+
   Planarity_Test_Options opts;
   opts.compute_embedding = true;
   opts.compute_nonplanar_certificate = true;
@@ -144,6 +162,7 @@ int main()
 
   cout << "Planarity test on Aleph graphs\n";
   cout << "=============================\n\n";
+  cout << "Certificate output directory: " << output_dir.string() << "\n\n";
 
   {
     UGraph g;
@@ -244,10 +263,14 @@ int main()
         const auto gexf = nonplanar_certificate_to_gexf(r);
         const auto vr = validate_nonplanar_certificate(r);
 
-        const string json_path = "/tmp/planarity_k33_certificate.json";
-        const string dot_path = "/tmp/planarity_k33_certificate.dot";
-        const string graphml_path = "/tmp/planarity_k33_certificate.graphml";
-        const string gexf_path = "/tmp/planarity_k33_certificate.gexf";
+        const string json_path =
+            (output_dir / "planarity_k33_certificate.json").string();
+        const string dot_path =
+            (output_dir / "planarity_k33_certificate.dot").string();
+        const string graphml_path =
+            (output_dir / "planarity_k33_certificate.graphml").string();
+        const string gexf_path =
+            (output_dir / "planarity_k33_certificate.gexf").string();
         {
           ofstream fj(json_path);
           fj << json;
@@ -292,35 +315,49 @@ int main()
         cout << "  optional render profile catalog command:\n";
         cout << "    ruby scripts/planarity_certificate_validator.rb"
              << " --list-gephi-render-profiles --json" << '\n';
+        const string render_dir =
+            (output_dir / "aleph_planarity_renders").string();
+        const string ci_report =
+            (output_dir / "aleph_planarity_ci_report.json").string();
+        const string ci_render_report =
+            (output_dir / "aleph_planarity_ci_render_report.json").string();
+        const string visual_render_dir =
+            (output_dir / "aleph_planarity_visual_renders").string();
+        const string visual_report =
+            (output_dir / "aleph_planarity_visual_diff_report.json").string();
+        const string nightly_comparison_json =
+            (output_dir / "gephi_nightly_comparison.json").string();
+        const string nightly_alert_md =
+            (output_dir / "gephi_nightly_alert.md").string();
         cout << "  optional render validation command:\n";
         cout << "    ruby scripts/planarity_certificate_validator.rb"
              << " --input " << graphml_path
              << " --render-gephi --require-render"
              << " --render-profile portable.python-render-svg"
-             << " --render-output-dir /tmp/aleph_planarity_renders" << '\n';
+             << " --render-output-dir " << render_dir << '\n';
         cout << "  optional CI batch command:\n";
         cout << "    ruby scripts/planarity_certificate_ci_batch.rb"
              << " --input " << graphml_path
              << " --input " << gexf_path
              << " --gephi --require-gephi"
              << " --gephi-template portable.python-file-exists"
-             << " --report /tmp/aleph_planarity_ci_report.json --print-summary"
+             << " --report " << ci_report << " --print-summary"
              << '\n';
         cout << "  optional CI batch render command:\n";
         cout << "    ruby scripts/planarity_certificate_ci_batch.rb"
              << " --input " << graphml_path
              << " --render-gephi --require-render"
              << " --render-profile portable.python-render-svg"
-             << " --render-output-dir /tmp/aleph_planarity_renders"
-             << " --report /tmp/aleph_planarity_ci_render_report.json"
+             << " --render-output-dir " << render_dir
+             << " --report " << ci_render_report
              << " --print-summary" << '\n';
         cout << "  optional visual golden diff command:\n";
         cout << "    ruby scripts/planarity_certificate_ci_visual_diff.rb"
              << " --input " << graphml_path
              << " --profile portable.python-render-svg"
              << " --profile portable.python-render-pdf"
-             << " --render-output-dir /tmp/aleph_planarity_visual_renders"
-             << " --report /tmp/aleph_planarity_visual_diff_report.json"
+             << " --render-output-dir " << visual_render_dir
+             << " --report " << visual_report
              << " --print-summary" << '\n';
         cout << "  optional nightly real-Gephi workflow:\n";
         cout << "    .github/workflows/planarity_gephi_nightly.yml"
@@ -328,8 +365,8 @@ int main()
              << '\n';
         cout << "  optional nightly regression notify command:\n";
         cout << "    ruby scripts/planarity_gephi_regression_notify.rb"
-             << " --report-json /tmp/gephi_nightly_comparison.json"
-             << " --output-md /tmp/gephi_nightly_alert.md"
+             << " --report-json " << nightly_comparison_json
+             << " --output-md " << nightly_alert_md
              << " --repository lrleon/Aleph-w"
              << " --run-url https://github.com/lrleon/Aleph-w/actions/runs/123"
              << " --webhook-env ALEPH_PLANARITY_ALERT_WEBHOOK --print-summary"

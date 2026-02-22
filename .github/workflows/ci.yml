@@ -235,16 +235,21 @@ jobs:
 
       - name: Generate certificate exchange artifacts
         run: |
+          PLANARITY_OUT_DIR="$PWD/build-planarity-visual/planarity_artifacts"
+          export PLANARITY_OUT_DIR
+          mkdir -p "${PLANARITY_OUT_DIR}"
           ./build-planarity-visual/Examples/planarity_test_example \
             > build-planarity-visual/planarity_example_stdout.txt
-          test -f /tmp/planarity_k33_certificate.graphml
-          test -f /tmp/planarity_k33_certificate.gexf
+          test -f "${PLANARITY_OUT_DIR}/planarity_k33_certificate.graphml"
+          test -f "${PLANARITY_OUT_DIR}/planarity_k33_certificate.gexf"
 
       - name: Visual golden diff
         run: |
+          PLANARITY_OUT_DIR="$PWD/build-planarity-visual/planarity_artifacts"
+          export PLANARITY_OUT_DIR
           mkdir -p build-planarity-visual/planarity_visual/renders
           python3 scripts/planarity_certificate_ci_visual_diff.py \
-            --input /tmp/planarity_k33_certificate.graphml \
+            --input "${PLANARITY_OUT_DIR}/planarity_k33_certificate.graphml" \
             --profile portable.python-render-svg \
             --profile portable.python-render-pdf \
             --render-output-dir "$PWD/build-planarity-visual/planarity_visual/renders" \

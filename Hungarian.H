@@ -495,8 +495,10 @@ namespace Aleph
   {
     // Use a promoted signed type for negation to avoid overflow when
     // Cost_Type is a signed integer and a cell contains its minimum value.
-    using Promoted =
-        std::make_signed_t<std::common_type_t<Cost_Type, long long>>;
+    using Common = std::common_type_t<Cost_Type, long long>;
+    using Promoted = std::conditional_t<std::is_floating_point_v<Common>,
+                                        Common,
+                                        std::make_signed_t<Common>>;
 
     const size_t rows = cost.rows();
     const size_t cols = cost.cols();

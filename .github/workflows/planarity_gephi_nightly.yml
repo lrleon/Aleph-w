@@ -34,16 +34,12 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-
       - name: Resolve Gephi tag matrix
         id: prepare
         shell: bash
         env:
           MANUAL_GEPHI_TAGS: ${{ github.event.inputs.gephi_tags }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -54,6 +50,7 @@ jobs:
           from pathlib import Path
 
           manual = os.environ.get("MANUAL_GEPHI_TAGS", "").strip()
+          github_token = os.environ.get("GITHUB_TOKEN", "").strip()
 
           def norm_tag(tag: str) -> str:
               t = tag.strip()
@@ -83,12 +80,15 @@ jobs:
               raw = [norm_tag(tok) for tok in manual.split(",")]
               tags = [t for t in raw if t]
           else:
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "aleph-planarity-gephi-nightly",
+              }
+              if github_token:
+                  headers["Authorization"] = f"token {github_token}"
               req = urllib.request.Request(
                   "https://api.github.com/repos/gephi/gephi/releases?per_page=100",
-                  headers={
-                      "Accept": "application/vnd.github+json",
-                      "User-Agent": "aleph-planarity-gephi-nightly",
-                  },
+                  headers=headers,
               )
               with urllib.request.urlopen(req, timeout=120) as resp:
                   releases = json.loads(resp.read().decode("utf-8"))
@@ -161,6 +161,7 @@ jobs:
         shell: bash
         env:
           GEPHI_TAG: ${{ matrix.gephi_tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p build-gephi-nightly
@@ -181,16 +182,21 @@ jobs:
           ex_dir.mkdir(parents=True, exist_ok=True)
 
           gephi_tag = os.environ["GEPHI_TAG"].strip()
+          github_token = os.environ.get("GITHUB_TOKEN", "").strip()
           runner_os = os.environ["RUNNER_OS"].strip()
           runner_arch = os.environ.get("RUNNER_ARCH", "").strip().lower()
           api_url = f"https://api.github.com/repos/gephi/gephi/releases/tags/{gephi_tag}"
 
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "User-Agent": "aleph-planarity-gephi-nightly",
+          }
+          if github_token:
+              headers["Authorization"] = f"token {github_token}"
+
           req = urllib.request.Request(
               api_url,
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "User-Agent": "aleph-planarity-gephi-nightly",
-              },
+              headers=headers,
           )
           with urllib.request.urlopen(req, timeout=120) as resp:
               release = json.loads(resp.read().decode("utf-8"))
@@ -228,7 +234,11 @@ jobs:
                   if ("x64" in lower or "amd64" in lower) and "x64" in runner_arch:
                       score += 10
               elif runner_os == "Windows":
-                  if "windows" in lower or "win" in lower:
+                  if ("windows" in lower
+                      or lower.startswith("win")
+                      or "win-" in lower
+                      or "win64" in lower
+                      or "win32" in lower):
                       score += 80
                   if "x64" in lower or "amd64" in lower:
                       score += 10
@@ -250,9 +260,10 @@ jobs:
           asset_url = str(asset["browser_download_url"])
           archive_path = dl_dir / asset_name
 
-          req_asset = urllib.request.Request(
-              asset_url, headers={"User-Agent": "aleph-planarity-gephi-nightly"}
-          )
+          asset_headers = {"User-Agent": "aleph-planarity-gephi-nightly"}
+          if github_token:
+              asset_headers["Authorization"] = f"token {github_token}"
+          req_asset = urllib.request.Request(asset_url, headers=asset_headers)
           with urllib.request.urlopen(req_asset, timeout=300) as resp:
               archive_path.write_bytes(resp.read())
 
@@ -387,6 +398,7 @@ jobs:
               text=True,
               timeout=240,
           )
+          exit_code = int(proc.returncode)
 
           (out_dir / "validator_stdout.json").write_text(proc.stdout, encoding="utf-8")
           (out_dir / "validator_stderr.txt").write_text(proc.stderr, encoding="utf-8")
@@ -403,21 +415,21 @@ jobs:
               "overall_valid": False,
           }
 
-          if proc.returncode == 0:
+          if exit_code == 0:
               payload = json.loads(proc.stdout)
               summary["overall_valid"] = bool(payload.get("overall_valid", False))
               if not summary["overall_valid"]:
-                  proc.returncode = 2
+                  exit_code = 2
 
           (out_dir / "nightly_case_summary.json").write_text(
               json.dumps(summary, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
 
-          if proc.returncode != 0:
+          if exit_code != 0:
               print(proc.stdout)
               print(proc.stderr, file=sys.stderr)
-              raise SystemExit(proc.returncode)
+              raise SystemExit(exit_code)
 
           print("overall_valid=True")
           PY
@@ -536,8 +548,10 @@ jobs:
       - name: Enforce regression gate
         if: ${{ steps.compare.outputs.has_regressions == 'true' }}
         shell: bash
+        env:
+          NUM_REGRESSIONS: ${{ steps.compare.outputs.num_regressions }}
         run: |
           set -euo pipefail
           echo "Gephi nightly comparison detected regressions across tags." >&2
-          echo "num_regressions=${{ steps.compare.outputs.num_regressions }}" >&2
+          echo "num_regressions=${NUM_REGRESSIONS}" >&2
           exit 1

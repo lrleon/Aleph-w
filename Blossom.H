@@ -264,7 +264,8 @@ namespace Aleph
 
         while (not bfs_queue.is_empty())
           {
-            for (const size_t v = bfs_queue.get(); const size_t u: adjacency[v])
+            const size_t v = bfs_queue.get();
+            for (const size_t u: adjacency[v])
               {
                 if (base[v] == base[u] or match[v] == static_cast<long>(u))
                   continue;

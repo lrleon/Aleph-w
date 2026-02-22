@@ -31,11 +31,14 @@
 
 
 /** @file Dominators.H
- *  @brief Dominator tree computation via the Lengauer-Tarjan algorithm.
+ *  @brief Dominator and post-dominator tree computation via the
+ *         Lengauer-Tarjan algorithm.
  *
  *  This file implements the Lengauer-Tarjan algorithm for computing
  *  **immediate dominators** and the **dominator tree** of a directed graph
- *  from a given root node, in O(E * alpha(V)) time.
+ *  from a given root node, in O(E * alpha(V)) time.  It also provides
+ *  **post-dominator** computation by running the same algorithm on the
+ *  reversed graph from a designated exit node.
  *
  *  ## Definitions
  *
@@ -160,27 +163,53 @@ namespace Aleph
     Array<long> idom_arr;    // immediate dominator (as DFS number)
     Array<long> anc;         // Union-Find ancestor
     Array<long> label_arr;   // Union-Find label (best semi on path)
+    Array<DynList<long>> pred; // predecessors[i] = DFS numbers of predecessors of node i
 
-    /** @brief Recursive DFS to number nodes and build DFS tree.
+    /** @brief Iterative DFS to number nodes and build DFS tree.
      *
      *  @param v Current node being visited.
      *  @param p DFS number of v's parent (-1 for root).
      */
     void dfs(Node *v, long p)
     {
-      long v_num = num_reachable++;
-      NODE_COUNTER(v) = v_num;
-      vertex[v_num] = v;
-      par[v_num] = p;
-      semi[v_num] = v_num;
-      label_arr[v_num] = v_num;
-      anc[v_num] = -1;
+      struct Pending_Frame
+      {
+        Node *node = nullptr;
+        long parent = -1;
+      };
 
-      for (Out_Iterator<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+      Array<Pending_Frame> stack;
+      stack.reserve(gptr->get_num_nodes());
+      stack.append(Pending_Frame{v, p});
+      NODE_COUNTER(v) = -2; // discovered but not yet numbered
+
+      while (not stack.is_empty())
         {
-          auto w = gptr->get_tgt_node(it.get_curr());
-          if (NODE_COUNTER(w) == -1)
-            dfs(w, v_num);
+          const Pending_Frame frame = stack.remove_last();
+          Node *curr = frame.node;
+
+          const long v_num = num_reachable++;
+          NODE_COUNTER(curr) = v_num;
+          vertex[v_num] = curr;
+          par[v_num] = frame.parent;
+          semi[v_num] = v_num;
+          label_arr[v_num] = v_num;
+          anc[v_num] = -1;
+
+          // Push children in reverse order so DFS visitation order
+          // matches the recursive implementation.
+          Array<Node *> children;
+          for (Out_Iterator<GT, SA> it(curr, sa); it.has_curr(); it.next_ne())
+            {
+              Node *w = gptr->get_tgt_node(it.get_curr());
+              if (NODE_COUNTER(w) != -1)
+                continue;
+              NODE_COUNTER(w) = -2; // mark discovered to avoid duplicate pushes
+              children.append(w);
+            }
+
+          for (long i = static_cast<long>(children.size()) - 1; i >= 0; --i)
+            stack.append(Pending_Frame{children[static_cast<size_t>(i)], v_num});
         }
     }
 
@@ -192,14 +221,22 @@ namespace Aleph
      *
      *  @param v The node (DFS number) to compress.
      */
-    void compress(long v)
+    void compress(const long v)
     {
-      if (anc[anc[v]] == -1)
+      if (anc[v] == -1 or anc[anc[v]] == -1)
         return;
-      compress(anc[v]);
-      if (semi[label_arr[anc[v]]] < semi[label_arr[v]])
-        label_arr[v] = label_arr[anc[v]];
-      anc[v] = anc[anc[v]];
+
+      Array<long> path;
+      for (long x = v; anc[x] != -1 and anc[anc[x]] != -1; x = anc[x])
+        path.append(x);
+
+      for (long i = static_cast<long>(path.size()) - 1; i >= 0; --i)
+        {
+          const long x = path[static_cast<size_t>(i)];
+          if (semi[label_arr[anc[x]]] < semi[label_arr[x]])
+            label_arr[x] = label_arr[anc[x]];
+          anc[x] = anc[anc[x]];
+        }
     }
 
     /** @brief EVAL operation for the Union-Find forest.
@@ -210,7 +247,7 @@ namespace Aleph
      *  @param v The node (DFS number) to evaluate.
      *  @return DFS number of the node with minimum semi.
      */
-    [[nodiscard]] long eval(long v)
+    [[nodiscard]] long eval(const long v)
     {
       if (anc[v] == -1)
         return v;
@@ -253,7 +290,7 @@ namespace Aleph
       gptr->for_each_node([](Node *p) { NODE_COUNTER(p) = -1; });
 
       // Phase 1: DFS from root
-      dfs(root, -1);
+      dfs(root, -1); // dfs updates num_reachable
 
       if (num_reachable <= 1)
         {
@@ -263,23 +300,32 @@ namespace Aleph
           return;
         }
 
+      // Build predecessor lists by iterating over all arcs.
+      // In_Iterator does not work on List_Digraph because arcs are
+      // only stored in the source node's adjacency list.
+      pred = Array<DynList<long>>(static_cast<size_t>(num_reachable), DynList<long>());
+      for (typename GT::Arc_Iterator ait(g); ait.has_curr(); ait.next_ne())
+        {
+          auto arc = ait.get_curr();
+          if (not sa(arc))
+            continue;
+          long s = NODE_COUNTER(gptr->get_src_node(arc));
+          long t = NODE_COUNTER(gptr->get_tgt_node(arc));
+          if (s >= 0 and s < num_reachable and t >= 0 and t < num_reachable)
+            pred[t].append(s);
+        }
+
       // Allocate buckets (one per reachable node)
-      Array<DynList<long>> bucket(num_reachable, DynList<long>());
+      Array<DynList<long>> bucket(static_cast<size_t>(num_reachable), DynList<long>());
 
       // Phase 2: Semi-dominators (process in reverse DFS order)
       for (long w = num_reachable - 1; w >= 1; --w)
         {
-          Node *wnode = vertex[w];
-
-          // For each predecessor of w (incoming arcs)
-          for (In_Iterator<GT, SA> it(wnode, sa); it.has_curr(); it.next_ne())
+          // For each predecessor of w
+          for (auto pit = pred[w].get_it(); pit.has_curr(); pit.next_ne())
             {
-              Node *pred = gptr->get_src_node(it.get_curr());
-              long v_num = NODE_COUNTER(pred);
-              if (v_num < 0 or v_num >= num_reachable)
-                continue; // predecessor not reachable from root
-
-              long u = eval(v_num);
+              const long v_num = pit.get_curr();
+              const long u = eval(v_num);
               if (semi[u] < semi[w])
                 semi[w] = semi[u];
             }
@@ -290,7 +336,7 @@ namespace Aleph
           // Process bucket of parent[w]
           while (not bucket[par[w]].is_empty())
             {
-              long v = bucket[par[w]].remove_first();
+              const long v = bucket[par[w]].remove_first();
               long u = eval(v);
               idom_arr[v] = (semi[u] == semi[v]) ? par[w] : u;
             }
@@ -492,26 +538,16 @@ namespace Aleph
       for (long i = 0; i < num_reachable; ++i)
         df.insert(vertex[i], DynList<Node*>());
 
-      // For each node, if it has 2+ reachable predecessors, walk up
+      // For each node with 2+ predecessors, walk up from each pred
       for (long b = 0; b < num_reachable; ++b)
         {
-          Node *bnode = vertex[b];
-
-          // Collect reachable predecessors
-          DynList<long> preds;
-          for (In_Iterator<GT, SA> it(bnode, sa); it.has_curr(); it.next_ne())
-            {
-              Node *pred = gptr->get_src_node(it.get_curr());
-              long p = NODE_COUNTER(pred);
-              if (p >= 0 and p < num_reachable and vertex[p] == pred)
-                preds.append(p);
-            }
-
-          if (preds.size() < 2)
+          if (pred[b].size() < 2)
             continue;
 
+          Node *bnode = vertex[b];
+
           // Walk up from each predecessor to idom(b)
-          for (auto it = preds.get_it(); it.has_curr(); it.next_ne())
+          for (auto it = pred[b].get_it(); it.has_curr(); it.next_ne())
             {
               long runner = it.get_curr();
               while (runner != idom_arr[b] and runner != -1)
@@ -631,6 +667,413 @@ namespace Aleph
                               SA sa = SA())
   {
     return Lengauer_Tarjan_Dominators<GT, SA>(sa).dominance_frontiers(g, root);
+  }
+
+  // =========================================================================
+  // Post-dominator computation (Lengauer-Tarjan on the reversed graph)
+  // =========================================================================
+
+  /** @class Lengauer_Tarjan_Post_Dominators
+   *  @brief Computes post-dominator tree and post-dominance frontiers of a
+   *         digraph using the Lengauer-Tarjan algorithm on the reversed graph.
+   *
+   *  A node `d` **post-dominates** `v` if every path from `v` to a
+   *  designated exit node passes through `d`.  The **post-dominator tree**
+   *  is the dominator tree of the reversed graph rooted at the exit node.
+   *
+   *  This class internally inverts the digraph with `invert_digraph()` and
+   *  runs `Lengauer_Tarjan_Dominators` on the result.  Results are
+   *  transparently mapped back to the original graph nodes.
+   *
+   *  The class caches its computation: calling multiple methods with
+   *  the same graph and exit node reuses the previous result without
+   *  recomputing.
+   *
+   *  @tparam GT The directed graph type.
+   *  @tparam SA Arc filter class for the internal iterator.
+   *
+   *  ## Complexity
+   *
+   *  | Operation | Time | Space |
+   *  |-----------|------|-------|
+   *  | Post-dominator tree | O(E * alpha(V)) | O(V + E) |
+   *  | Post-dominance frontiers | O(V + E) additional | O(V + |PDF|) |
+   *
+   *  ## Applications
+   *
+   *  - Control dependence graph (CDG) construction
+   *  - Program dependence graph (PDG) construction
+   *  - Compiler optimization and code motion
+   *
+   *  @note This class creates an internal copy of the reversed graph.
+   *  @warning This class is NOT thread-safe.
+   *
+   *  @ingroup Graphs
+   *  @see Lengauer_Tarjan_Dominators
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  class Lengauer_Tarjan_Post_Dominators
+  {
+    SA sa;
+
+    using Node = typename GT::Node;
+    using Arc = typename GT::Arc;
+
+    GT rev;
+    Lengauer_Tarjan_Dominators<GT, SA> dom;
+
+    GT *gptr = nullptr;
+    Node *exit_ptr = nullptr;
+    bool is_computed = false;
+
+    // Saved node mappings (orig ↔ rev) to avoid NODE_COOKIE conflicts
+    DynMapTree<Node*, Node*> orig_to_rev;
+    DynMapTree<Node*, Node*> rev_to_orig;
+
+    /** @brief Map original node to reversed graph node. */
+    [[nodiscard]] Node * to_rev(Node *orig) const
+    {
+      auto *p = orig_to_rev.search(orig);
+      return p ? p->second : nullptr;
+    }
+
+    /** @brief Map reversed graph node to original node. */
+    [[nodiscard]] Node * to_orig(Node *rev_n) const
+    {
+      auto *p = rev_to_orig.search(rev_n);
+      return p ? p->second : nullptr;
+    }
+
+    /** @brief Ensure computation is up to date.
+     *
+     *  Inverts the graph and runs dominator computation on the reversed
+     *  graph from the exit node.  If the computation was already done
+     *  for the same graph and exit node, this is a no-op.
+     *
+     *  @param g The directed graph.
+     *  @param exit_node Exit node (must not be null).
+     */
+    void ensure_computed(const GT & g, Node *exit_node)
+    {
+      ah_domain_error_if(exit_node == nullptr)
+        << "Lengauer_Tarjan_Post_Dominators: exit node cannot be null";
+
+      if (is_computed and gptr == &g and exit_ptr == exit_node)
+        return;
+
+      gptr = &const_cast<GT &>(g);
+      exit_ptr = exit_node;
+      is_computed = false;
+
+      // Step 1: Invert the digraph (sets NODE_COOKIE for mapping)
+      rev = invert_digraph(g);
+
+      // Step 2: Save orig↔rev mappings before dom overwrites anything
+      orig_to_rev = DynMapTree<Node*, Node*>();
+      rev_to_orig = DynMapTree<Node*, Node*>();
+      for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+        {
+          auto orig = it.get_curr();
+          auto rev_n = mapped_node<GT>(orig);
+          orig_to_rev.insert(orig, rev_n);
+          rev_to_orig.insert(rev_n, orig);
+        }
+
+      // Step 3: Run forward dominators on reversed graph from exit
+      //         (discard return value; we only need the cached state)
+      auto rev_exit = to_rev(exit_node);
+      (void) dom.compute_idom(rev, rev_exit);
+
+      is_computed = true;
+    }
+
+  public:
+    /** @brief Construct a post-dominator computation instance.
+     *
+     *  @param __sa Arc filter functor. Defaults to Dft_Show_Arc<GT>.
+     */
+    Lengauer_Tarjan_Post_Dominators(SA __sa = SA()) noexcept
+      : sa(std::move(__sa)), dom(sa)
+    { /* empty */
+    }
+
+    /// Post-dominator instances should not be copied (they hold internal state)
+    Lengauer_Tarjan_Post_Dominators(const Lengauer_Tarjan_Post_Dominators &) = delete;
+    Lengauer_Tarjan_Post_Dominators &
+    operator=(const Lengauer_Tarjan_Post_Dominators &) = delete;
+
+    /// Move is allowed
+    Lengauer_Tarjan_Post_Dominators(Lengauer_Tarjan_Post_Dominators &&) = default;
+    Lengauer_Tarjan_Post_Dominators &
+    operator=(Lengauer_Tarjan_Post_Dominators &&) = default;
+
+    /** @brief Compute immediate post-dominators.
+     *
+     *  Returns a list of (node, ipdom) pairs for every node that can
+     *  reach the exit node.  The exit node's ipdom is nullptr.
+     *
+     *  @param g The directed graph.
+     *  @param exit_node Exit node for post-dominator computation.
+     *  @return List of (node, immediate_post_dominator) pairs.
+     *  @throws std::domain_error If exit_node is null.
+     */
+    [[nodiscard]] DynList<std::pair<Node*, Node*>>
+    compute_ipdom(const GT & g, Node *exit_node)
+    {
+      ensure_computed(g, exit_node);
+
+      auto rev_exit = to_rev(exit_node);
+      auto rev_idoms = dom.compute_idom(rev, rev_exit);
+
+      DynList<std::pair<Node*, Node*>> result;
+      for (auto it = rev_idoms.get_it(); it.has_curr(); it.next_ne())
+        {
+          auto [rev_n, rev_id] = it.get_curr();
+          auto orig_n = to_orig(rev_n);
+          auto orig_id = rev_id ? to_orig(rev_id) : nullptr;
+          result.append(std::make_pair(orig_n, orig_id));
+        }
+      return result;
+    }
+
+    /** @brief Build the post-dominator tree as a separate graph.
+     *
+     *  Creates a new directed graph `tree` where each node that can
+     *  reach the exit in the original graph is represented, and arcs go
+     *  from ipdom to child.  Nodes are mapped via NODE_COOKIE between
+     *  the original graph and the tree.
+     *
+     *  @param g The directed graph.
+     *  @param exit_node Exit node.
+     *  @param[out] tree Output post-dominator tree (cleared first).
+     *  @throws std::domain_error If exit_node is null.
+     */
+    void build_tree(const GT & g, Node *exit_node, GT & tree)
+    {
+      ensure_computed(g, exit_node);
+
+      clear_graph(tree);
+
+      auto rev_exit = to_rev(exit_node);
+      auto rev_idoms = dom.compute_idom(rev, rev_exit);
+
+      if (rev_idoms.is_empty())
+        return;
+
+      // Create tree nodes with mapping to original graph
+      DynMapTree<Node*, Node*> orig_to_tree;
+      for (auto it = rev_idoms.get_it(); it.has_curr(); it.next_ne())
+        {
+          auto [rev_n, rev_id] = it.get_curr();
+          auto orig = to_orig(rev_n);
+          auto tn = tree.insert_node(orig->get_info());
+          GT::map_nodes(orig, tn);
+          orig_to_tree.insert(orig, tn);
+        }
+
+      // Create arcs: ipdom(v) -> v
+      for (auto it = rev_idoms.get_it(); it.has_curr(); it.next_ne())
+        {
+          auto [rev_n, rev_id] = it.get_curr();
+          if (rev_id == nullptr)
+            continue; // exit node has no ipdom
+          auto orig = to_orig(rev_n);
+          auto orig_id = to_orig(rev_id);
+          tree.insert_arc(orig_to_tree.find(orig_id),
+                          orig_to_tree.find(orig));
+        }
+    }
+
+    /** @brief Get the immediate post-dominator of a specific node.
+     *
+     *  @param g The directed graph.
+     *  @param exit_node Exit node.
+     *  @param node The node whose ipdom is queried.
+     *  @return Pointer to the immediate post-dominator, or nullptr if
+     *          node is the exit or cannot reach the exit.
+     *  @throws std::domain_error If exit_node or node is null.
+     */
+    [[nodiscard]] Node * get_ipdom(const GT & g, Node *exit_node, Node *node)
+    {
+      ah_domain_error_if(node == nullptr)
+        << "Lengauer_Tarjan_Post_Dominators::get_ipdom: node cannot be null";
+      ensure_computed(g, exit_node);
+
+      auto rev_n = to_rev(node);
+      if (rev_n == nullptr)
+        return nullptr; // node not in graph
+
+      auto rev_exit = to_rev(exit_node);
+      auto rev_idom = dom.get_idom(rev, rev_exit, rev_n);
+      return rev_idom ? to_orig(rev_idom) : nullptr;
+    }
+
+    /** @brief Test whether node d post-dominates node v.
+     *
+     *  Post-dominance is reflexive: every node post-dominates itself.
+     *
+     *  @param g The directed graph.
+     *  @param exit_node Exit node.
+     *  @param d Potential post-dominator.
+     *  @param v Potential post-dominated node.
+     *  @return true if d post-dominates v, false otherwise.
+     *  @throws std::domain_error If exit_node is null.
+     */
+    [[nodiscard]] bool
+    post_dominates(const GT & g, Node *exit_node, Node *d, Node *v)
+    {
+      ensure_computed(g, exit_node);
+
+      if (d == v)
+        return true; // reflexive
+
+      auto rev_d = to_rev(d);
+      auto rev_v = to_rev(v);
+      if (rev_d == nullptr or rev_v == nullptr)
+        return false;
+
+      auto rev_exit = to_rev(exit_node);
+      return dom.dominates(rev, rev_exit, rev_d, rev_v);
+    }
+
+    /** @brief Compute post-dominance frontiers for all reachable nodes.
+     *
+     *  The post-dominance frontier PDF(x) of a node x is the set of
+     *  nodes y where x post-dominates a successor of y but does not
+     *  strictly post-dominate y.  This is the key data structure for
+     *  constructing the control dependence graph (CDG).
+     *
+     *  @param g The directed graph.
+     *  @param exit_node Exit node.
+     *  @return Map from each reachable node to its post-dominance frontier.
+     *  @throws std::domain_error If exit_node is null.
+     */
+    [[nodiscard]] DynMapTree<Node*, DynList<Node*>>
+    post_dominance_frontiers(const GT & g, Node *exit_node)
+    {
+      ensure_computed(g, exit_node);
+
+      auto rev_exit = to_rev(exit_node);
+      auto rev_df = dom.dominance_frontiers(rev, rev_exit);
+
+      DynMapTree<Node*, DynList<Node*>> result;
+      for (auto it = rev_df.get_it(); it.has_curr(); it.next_ne())
+        {
+          auto & [rev_n, rev_frontier] = it.get_curr();
+          auto orig = to_orig(rev_n);
+          DynList<Node*> orig_frontier;
+          for (auto fi = rev_frontier.get_it(); fi.has_curr(); fi.next_ne())
+            orig_frontier.append(to_orig(fi.get_curr()));
+          result.insert(orig, std::move(orig_frontier));
+        }
+      return result;
+    }
+
+    /** @brief Build post-dominator tree (operator() alias).
+     *
+     *  @param g The directed graph.
+     *  @param exit_node Exit node.
+     *  @param[out] tree Output post-dominator tree.
+     */
+    void operator()(const GT & g, Node *exit_node, GT & tree)
+    {
+      build_tree(g, exit_node, tree);
+    }
+
+    /// @name Accessors
+    /// @{
+
+    /** @brief Get the arc filter. */
+    [[nodiscard]] SA & get_filter() noexcept { return sa; }
+
+    /** @brief Get the arc filter (const). */
+    [[nodiscard]] const SA & get_filter() const noexcept { return sa; }
+
+    /** @brief Check if a computation has been performed. */
+    [[nodiscard]] bool has_computation() const noexcept { return is_computed; }
+
+    /** @brief Get the graph of the last computation. */
+    [[nodiscard]] GT * get_graph() const noexcept { return gptr; }
+
+    /** @brief Get the exit node of the last computation. */
+    [[nodiscard]] Node * get_exit() const noexcept { return exit_ptr; }
+
+    /// @}
+  };
+
+
+  // =========================================================================
+  // Post-dominator free functions
+  // =========================================================================
+
+  /** @brief Compute immediate post-dominators of a digraph from an exit node.
+   *
+   *  Convenience free function wrapping Lengauer_Tarjan_Post_Dominators.
+   *
+   *  @tparam GT Graph type (must be directed).
+   *  @tparam SA Arc filter type.
+   *  @param g The directed graph.
+   *  @param exit_node Exit node.
+   *  @param sa Arc filter.
+   *  @return List of (node, ipdom) pairs. Exit node's ipdom is nullptr.
+   *
+   *  @ingroup Graphs
+   *  @see Lengauer_Tarjan_Post_Dominators
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  [[nodiscard]] DynList<std::pair<typename GT::Node*, typename GT::Node*>>
+  compute_post_dominators(const GT & g, typename GT::Node *exit_node,
+                          SA sa = SA())
+  {
+    return Lengauer_Tarjan_Post_Dominators<GT, SA>(sa)
+      .compute_ipdom(g, exit_node);
+  }
+
+  /** @brief Build the post-dominator tree of a digraph.
+   *
+   *  Convenience free function wrapping Lengauer_Tarjan_Post_Dominators.
+   *
+   *  @tparam GT Graph type (must be directed).
+   *  @tparam SA Arc filter type.
+   *  @param g The directed graph.
+   *  @param exit_node Exit node.
+   *  @param[out] tree Output post-dominator tree (cleared first). Nodes are
+   *              mapped to the original graph via GT::map_nodes.
+   *  @param sa Arc filter.
+   *
+   *  @ingroup Graphs
+   *  @see Lengauer_Tarjan_Post_Dominators
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  void build_post_dominator_tree(const GT & g, typename GT::Node *exit_node,
+                                 GT & tree, SA sa = SA())
+  {
+    Lengauer_Tarjan_Post_Dominators<GT, SA>(sa)
+      .build_tree(g, exit_node, tree);
+  }
+
+  /** @brief Compute post-dominance frontiers of a digraph.
+   *
+   *  Convenience free function wrapping Lengauer_Tarjan_Post_Dominators.
+   *
+   *  @tparam GT Graph type (must be directed).
+   *  @tparam SA Arc filter type.
+   *  @param g The directed graph.
+   *  @param exit_node Exit node.
+   *  @param sa Arc filter.
+   *  @return Map from each reachable node to its post-dominance frontier.
+   *
+   *  @ingroup Graphs
+   *  @see Lengauer_Tarjan_Post_Dominators
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  [[nodiscard]] DynMapTree<typename GT::Node*, DynList<typename GT::Node*>>
+  compute_post_dominance_frontiers(const GT & g,
+                                   typename GT::Node *exit_node,
+                                   SA sa = SA())
+  {
+    return Lengauer_Tarjan_Post_Dominators<GT, SA>(sa)
+      .post_dominance_frontiers(g, exit_node);
   }
 
 } // end namespace Aleph

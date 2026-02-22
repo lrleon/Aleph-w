@@ -189,6 +189,10 @@ namespace Aleph
       using Arc = typename GT::Arc;
       using Distance_Type = typename Distance::Distance_Type;
 
+      // Context for reverse-graph Dijkstra in build_suffix_index_digraph().
+      // This is intentionally thread-local, but not re-entrant on the same
+      // thread: nested calls can overwrite map_ptr/base_ptr. The
+      // Reset_Reverse_Distance guard below restores this state.
       inline static thread_local const DynMapTree<Arc *, Arc *> * map_ptr = nullptr;
       inline static thread_local const Distance * base_ptr = nullptr;
 
@@ -236,34 +240,28 @@ namespace Aleph
 
 
     template <class GT, typename Cost_Type>
-    typename GT::Node *
-    get_node_at(const DynList<typename GT::Node *> & nodes,
-                const size_t idx)
+    struct Path_Snapshot
     {
-      size_t i = 0;
-      for (typename DynList<typename GT::Node *>::Iterator it(nodes);
-           it.has_curr(); it.next_ne(), ++i)
-        if (i == idx)
-          return it.get_curr_ne();
-
-      ah_out_of_range_error() << "get_node_at(): index " << idx << " out of range";
-      return nullptr;
-    }
+      Array<typename GT::Node *> nodes;
+      Array<typename GT::Arc *> arcs;
+    };
 
 
     template <class GT, typename Cost_Type>
-    typename GT::Arc *
-    get_arc_at(const DynList<typename GT::Arc *> & arcs,
-               const size_t idx)
+    Path_Snapshot<GT, Cost_Type>
+    make_path_snapshot(const Path_State<GT, Cost_Type> & path)
     {
-      size_t i = 0;
-      for (typename DynList<typename GT::Arc *>::Iterator it(arcs);
-           it.has_curr(); it.next_ne(), ++i)
-        if (i == idx)
-          return it.get_curr_ne();
+      Path_Snapshot<GT, Cost_Type> snapshot;
+      snapshot.nodes.reserve(path.nodes.size());
+      snapshot.arcs.reserve(path.arcs.size());
 
-      ah_out_of_range_error() << "get_arc_at(): index " << idx << " out of range";
-      return nullptr;
+      for (auto it = path.nodes.get_it(); it.has_curr(); it.next_ne())
+        snapshot.nodes.append(it.get_curr_ne());
+
+      for (auto it = path.arcs.get_it(); it.has_curr(); it.next_ne())
+        snapshot.arcs.append(it.get_curr_ne());
+
+      return snapshot;
     }
 
 
@@ -345,8 +343,8 @@ namespace Aleph
 
 
     template <class GT, typename Cost_Type>
-    bool same_prefix_nodes(const Path_State<GT, Cost_Type> & a,
-                           const Path_State<GT, Cost_Type> & b,
+    bool same_prefix_nodes(const Path_Snapshot<GT, Cost_Type> & a,
+                           const Path_Snapshot<GT, Cost_Type> & b,
                            const size_t spur_index)
     {
       if (a.nodes.size() <= spur_index or b.nodes.size() <= spur_index)
@@ -354,18 +352,12 @@ namespace Aleph
       if (a.arcs.size() < spur_index or b.arcs.size() < spur_index)
         return false;
 
-      size_t i = 0;
-      for (auto an = a.nodes.get_it(), bn = b.nodes.get_it();
-           an.has_curr() and i <= spur_index;
-           an.next_ne(), bn.next_ne(), ++i)
-        if (an.get_curr_ne() != bn.get_curr_ne())
+      for (size_t i = 0; i <= spur_index; ++i)
+        if (a.nodes[i] != b.nodes[i])
           return false;
 
-      i = 0;
-      for (auto aa = a.arcs.get_it(), ba = b.arcs.get_it();
-           aa.has_curr() and i < spur_index;
-           aa.next_ne(), ba.next_ne(), ++i)
-        if (aa.get_curr_ne() != ba.get_curr_ne())
+      for (size_t i = 0; i < spur_index; ++i)
+        if (a.arcs[i] != b.arcs[i])
           return false;
 
       return true;
@@ -544,6 +536,8 @@ namespace Aleph
       using Rev_Show_Arc = Dft_Show_Arc<GT>;
       Reverse_Distance::map_ptr = &rev_arc_to_orig;
       Reverse_Distance::base_ptr = &distance;
+      // Restores thread-local reverse-distance context on scope exit.
+      // Nested/re-entrant use on the same thread is not supported.
       struct Reset_Reverse_Distance
       {
         ~Reset_Reverse_Distance()
@@ -722,23 +716,17 @@ namespace Aleph
 
     template <class GT, typename Cost_Type>
     Path_State<GT, Cost_Type>
-    compose_candidate(const Path_State<GT, Cost_Type> & base_path,
+    compose_candidate(const Path_Snapshot<GT, Cost_Type> & base_path,
                       const size_t spur_index,
                       const Path_State<GT, Cost_Type> & spur_state)
     {
       Path_State<GT, Cost_Type> candidate;
 
-      size_t i = 0;
-      for (typename DynList<typename GT::Node *>::Iterator it(base_path.nodes);
-           it.has_curr() and i <= spur_index;
-           it.next_ne(), ++i)
-        candidate.nodes.append(it.get_curr_ne());
+      for (size_t i = 0; i <= spur_index; ++i)
+        candidate.nodes.append(base_path.nodes[i]);
 
-      i = 0;
-      for (typename DynList<typename GT::Arc *>::Iterator it(base_path.arcs);
-           it.has_curr() and i < spur_index;
-           it.next_ne(), ++i)
-        candidate.arcs.append(it.get_curr_ne());
+      for (size_t i = 0; i < spur_index; ++i)
+        candidate.arcs.append(base_path.arcs[i]);
 
       bool first_spur_node = true;
       for (typename DynList<typename GT::Node *>::Iterator it(spur_state.nodes);
@@ -763,7 +751,7 @@ namespace Aleph
 
     template <class GT, typename Cost_Type>
     Path_State<GT, Cost_Type>
-    compose_general_candidate(const Path_State<GT, Cost_Type> & base_path,
+    compose_general_candidate(const Path_Snapshot<GT, Cost_Type> & base_path,
                               const size_t spur_index,
                               typename GT::Arc * deviation_arc,
                               typename GT::Node * deviation_next_node,
@@ -771,17 +759,11 @@ namespace Aleph
     {
       Path_State<GT, Cost_Type> candidate;
 
-      size_t i = 0;
-      for (typename DynList<typename GT::Node *>::Iterator it(base_path.nodes);
-           it.has_curr() and i <= spur_index;
-           it.next_ne(), ++i)
-        candidate.nodes.append(it.get_curr_ne());
+      for (size_t i = 0; i <= spur_index; ++i)
+        candidate.nodes.append(base_path.nodes[i]);
 
-      i = 0;
-      for (typename DynList<typename GT::Arc *>::Iterator it(base_path.arcs);
-           it.has_curr() and i < spur_index;
-           it.next_ne(), ++i)
-        candidate.arcs.append(it.get_curr_ne());
+      for (size_t i = 0; i < spur_index; ++i)
+        candidate.arcs.append(base_path.arcs[i]);
 
       candidate.arcs.append(deviation_arc);
       candidate.nodes.append(deviation_next_node);
@@ -824,15 +806,16 @@ namespace Aleph
       if (base_path.arcs.is_empty())
         return;
 
+      const Path_Snapshot<GT, Cost_Type> base_snapshot =
+          make_path_snapshot<GT, Cost_Type>(base_path);
+
       Cost_Type prefix_cost = Cost_Type{0};
-      const size_t arc_count = base_path.arcs.size();
+      const size_t arc_count = base_snapshot.arcs.size();
 
       for (size_t spur_index = 0; spur_index < arc_count; ++spur_index)
         {
-          Node * spur_node = get_node_at<GT, Cost_Type>(
-              base_path.nodes, spur_index);
-          Arc * base_arc = get_arc_at<GT, Cost_Type>(
-              base_path.arcs, spur_index);
+          Node * spur_node = base_snapshot.nodes[spur_index];
+          Arc * base_arc = base_snapshot.arcs[spur_index];
 
           for (Node_Arc_Iterator<GT, SA> it(spur_node, sa); it.has_curr(); it.next_ne())
             {
@@ -856,7 +839,7 @@ namespace Aleph
 
               Path_State<GT, Cost_Type> candidate =
                   compose_general_candidate<GT, Cost_Type>(
-                      base_path,
+                      base_snapshot,
                       spur_index,
                       deviation_arc,
                       deviation_next_node,
@@ -955,28 +938,36 @@ namespace Aleph
     for (size_t kth = 1; kth < k; ++kth)
       {
         const State & previous = accepted.get_last();
-        if (previous.nodes.size() < 2)
+        const auto previous_snapshot =
+            k_shortest_paths_detail::make_path_snapshot<GT, Cost_Type>(previous);
+        if (previous_snapshot.nodes.size() < 2)
           break;
 
-        for (size_t spur_index = 0; spur_index + 1 < previous.nodes.size(); ++spur_index)
+        Array<k_shortest_paths_detail::Path_Snapshot<GT, Cost_Type>>
+            accepted_snapshots;
+        accepted_snapshots.reserve(accepted.size());
+        for (const State & p: accepted)
+          accepted_snapshots.append(
+              k_shortest_paths_detail::make_path_snapshot<GT, Cost_Type>(p));
+
+        for (size_t spur_index = 0; spur_index + 1 < previous_snapshot.nodes.size();
+             ++spur_index)
           {
-            Node *spur_node =
-                k_shortest_paths_detail::get_node_at<GT, Cost_Type>(
-                                                                    previous.nodes, spur_index);
+            Node *spur_node = previous_snapshot.nodes[spur_index];
 
             DynSetTree<Node *> forbidden_nodes;
             DynSetTree<Arc *> forbidden_arcs;
 
             for (size_t i = 0; i < spur_index; ++i)
-              forbidden_nodes.insert(
-                                     k_shortest_paths_detail::get_node_at<GT, Cost_Type>(
-                                        previous.nodes, i));
+              forbidden_nodes.insert(previous_snapshot.nodes[i]);
 
-            for (const State & p: accepted)
-              if (k_shortest_paths_detail::same_prefix_nodes(p, previous, spur_index))
-                forbidden_arcs.insert(
-                                      k_shortest_paths_detail::get_arc_at<GT, Cost_Type>(
-                                         p.arcs, spur_index));
+            for (size_t p_idx = 0; p_idx < accepted_snapshots.size(); ++p_idx)
+              {
+                const auto & p_snapshot = accepted_snapshots[p_idx];
+                if (k_shortest_paths_detail::same_prefix_nodes(
+                        p_snapshot, previous_snapshot, spur_index))
+                  forbidden_arcs.insert(p_snapshot.arcs[spur_index]);
+              }
 
             State spur_state;
             if (not k_shortest_paths_detail::shortest_path_filtered<GT, Distance, SA>(
@@ -991,7 +982,8 @@ namespace Aleph
               continue;
 
             State candidate =
-                k_shortest_paths_detail::compose_candidate(previous, spur_index, spur_state);
+                k_shortest_paths_detail::compose_candidate(
+                    previous_snapshot, spur_index, spur_state);
             candidate.total_cost =
                 k_shortest_paths_detail::compute_cost_from_arcs<GT, Distance>(
                                                                               candidate.arcs, distance);

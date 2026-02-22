@@ -45,6 +45,7 @@
 
 # include <algorithm>
 # include <bit>
+# include <chrono>
 # include <cstdint>
 # include <functional>
 # include <limits>
@@ -836,4 +837,132 @@ TEST(MinCostMatchingBackendsTest, RandomSmallGraphsMatchExactOptimum)
               << "trial=" << trial << ", mode=" << max_cardinality;
         }
     }
+}
+
+
+TEST(MinCostMatchingBackendsTest, DISABLED_PerfRegressionLargeFixedSeed)
+{
+  using Clock = std::chrono::steady_clock;
+
+  constexpr size_t n = 1400;
+  constexpr size_t oracle_n = 24; // exact_* supports n <= 24
+
+# ifdef NDEBUG
+  constexpr long long kBudgetGeneralMs = 12000;
+  constexpr long long kBudgetPerfectMs = 12000;
+# else
+  constexpr long long kBudgetGeneralMs = 30000;
+  constexpr long long kBudgetPerfectMs = 30000;
+# endif
+
+  std::mt19937_64 rng(0xBADC0FFEE0DDF00DULL);
+  std::uniform_int_distribution<int> c_dist(-100, 150);
+  std::bernoulli_distribution edge_coin(0.015);
+  std::bernoulli_distribution duplicate_coin(0.08);
+  std::bernoulli_distribution loop_coin(0.02);
+
+  std::vector<Cost_Edge> edges;
+  edges.reserve(n * 18);
+
+  for (size_t i = 0; i < n; ++i)
+    for (size_t j = i + 1; j < n; ++j)
+      if (edge_coin(rng))
+        {
+          edges.emplace_back(i, j, static_cast<long long>(c_dist(rng)));
+          if (duplicate_coin(rng))
+            edges.emplace_back(i, j, static_cast<long long>(c_dist(rng)));
+        }
+
+  for (size_t i = 0; i < n; ++i)
+    if (loop_coin(rng))
+      edges.emplace_back(i, i, static_cast<long long>(c_dist(rng)));
+
+  if (edges.empty())
+    edges.emplace_back(0, 1, 1);
+
+  std::vector<Cost_Edge> oracle_edges;
+  oracle_edges.reserve(edges.size() / 4 + 1);
+  for (const auto & [u, v, c] : edges)
+    if (u < oracle_n and v < oracle_n)
+      oracle_edges.emplace_back(u, v, c);
+
+  // Sanity pass through the same exact/solver entry points used by
+  // correctness tests, but on a bounded oracle-sized subproblem.
+  for (bool max_cardinality : {false, true})
+    {
+      const Objective expected = exact_minimum_cost_matching_optimum(
+          oracle_n, oracle_edges, max_cardinality);
+      const Objective list_obj = solve_backend<List_Backend>(
+          oracle_n, oracle_edges, max_cardinality);
+      const Objective sgraph_obj = solve_backend<SGraph_Backend>(
+          oracle_n, oracle_edges, max_cardinality);
+      const Objective agraph_obj = solve_backend<AGraph_Backend>(
+          oracle_n, oracle_edges, max_cardinality);
+
+      ASSERT_EQ(list_obj, expected);
+      ASSERT_EQ(sgraph_obj, expected);
+      ASSERT_EQ(agraph_obj, expected);
+    }
+
+  const auto expected_perfect = exact_minimum_cost_perfect_matching_optimum(
+      oracle_n, oracle_edges);
+  const auto list_perfect_small = solve_backend_perfect<List_Backend>(
+      oracle_n, oracle_edges);
+  const auto sgraph_perfect_small = solve_backend_perfect<SGraph_Backend>(
+      oracle_n, oracle_edges);
+  const auto agraph_perfect_small = solve_backend_perfect<AGraph_Backend>(
+      oracle_n, oracle_edges);
+
+  ASSERT_EQ(list_perfect_small.feasible, expected_perfect.feasible);
+  ASSERT_EQ(sgraph_perfect_small.feasible, expected_perfect.feasible);
+  ASSERT_EQ(agraph_perfect_small.feasible, expected_perfect.feasible);
+  if (expected_perfect.feasible)
+    {
+      ASSERT_EQ(list_perfect_small.cardinality, expected_perfect.cardinality);
+      ASSERT_EQ(sgraph_perfect_small.cardinality, expected_perfect.cardinality);
+      ASSERT_EQ(agraph_perfect_small.cardinality, expected_perfect.cardinality);
+      ASSERT_EQ(list_perfect_small.total_cost, expected_perfect.total_cost);
+      ASSERT_EQ(sgraph_perfect_small.total_cost, expected_perfect.total_cost);
+      ASSERT_EQ(agraph_perfect_small.total_cost, expected_perfect.total_cost);
+    }
+
+  const auto general_start = Clock::now();
+  const Objective list_general = solve_backend<List_Backend>(n, edges, true);
+  const Objective sgraph_general = solve_backend<SGraph_Backend>(n, edges, true);
+  const Objective agraph_general = solve_backend<AGraph_Backend>(n, edges, true);
+  const auto general_end = Clock::now();
+  const auto general_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      general_end - general_start).count();
+
+  ASSERT_EQ(sgraph_general, list_general);
+  ASSERT_EQ(agraph_general, list_general);
+  ASSERT_LT(general_elapsed_ms, kBudgetGeneralMs)
+      << "general perf regression: n=" << n
+      << ", edges=" << edges.size()
+      << ", elapsed_ms=" << general_elapsed_ms
+      << ", budget_ms=" << kBudgetGeneralMs;
+
+  const auto perfect_start = Clock::now();
+  const auto list_perfect = solve_backend_perfect<List_Backend>(n, edges);
+  const auto sgraph_perfect = solve_backend_perfect<SGraph_Backend>(n, edges);
+  const auto agraph_perfect = solve_backend_perfect<AGraph_Backend>(n, edges);
+  const auto perfect_end = Clock::now();
+  const auto perfect_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      perfect_end - perfect_start).count();
+
+  ASSERT_EQ(sgraph_perfect.feasible, list_perfect.feasible);
+  ASSERT_EQ(agraph_perfect.feasible, list_perfect.feasible);
+  if (list_perfect.feasible)
+    {
+      ASSERT_EQ(sgraph_perfect.cardinality, list_perfect.cardinality);
+      ASSERT_EQ(agraph_perfect.cardinality, list_perfect.cardinality);
+      ASSERT_EQ(sgraph_perfect.total_cost, list_perfect.total_cost);
+      ASSERT_EQ(agraph_perfect.total_cost, list_perfect.total_cost);
+    }
+
+  ASSERT_LT(perfect_elapsed_ms, kBudgetPerfectMs)
+      << "perfect perf regression: n=" << n
+      << ", edges=" << edges.size()
+      << ", elapsed_ms=" << perfect_elapsed_ms
+      << ", budget_ms=" << kBudgetPerfectMs;
 }

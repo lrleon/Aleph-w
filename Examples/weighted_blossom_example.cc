@@ -56,14 +56,14 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #include <Blossom_Weighted.H>
 #include <tpl_agraph.H>
+#include <tpl_dynArray.H>
+#include <tpl_dynSetTree.H>
 #include <tpl_graph.H>
 #include <tpl_sgraph.H>
 
@@ -84,8 +84,8 @@ namespace
   {
     string slug;
     string title;
-    vector<Node_Pos> nodes;
-    vector<tuple<size_t, size_t, long long>> edges;
+    DynArray<Node_Pos> nodes;
+    DynArray<tuple<size_t, size_t, long long>> edges;
   };
 
 
@@ -93,7 +93,7 @@ namespace
   {
     long long total_weight = 0;
     size_t cardinality = 0;
-    vector<pair<size_t, size_t>> matched_pairs;
+    DynArray<pair<size_t, size_t>> matched_pairs;
   };
 
 
@@ -101,11 +101,11 @@ namespace
   GT build_graph(const Scenario & s)
   {
     GT g;
-    vector<typename GT::Node *> nodes;
+    DynArray<typename GT::Node *> nodes;
     nodes.reserve(s.nodes.size());
 
     for (size_t i = 0; i < s.nodes.size(); ++i)
-      nodes.push_back(g.insert_node(static_cast<int>(i)));
+      nodes(i) = g.insert_node(static_cast<int>(i));
 
     for (const auto & [u, v, w] : s.edges)
       g.insert_arc(nodes[u], nodes[v], w);
@@ -127,7 +127,7 @@ namespace
         Dft_Show_Arc<GT>(),
         max_cardinality);
 
-    vector<pair<size_t, size_t>> pairs;
+    DynSetTree<pair<size_t, size_t>> sorted_pairs;
     for (auto it = matching.get_it(); it.has_curr(); it.next_ne())
       {
         auto * arc = it.get_curr();
@@ -135,24 +135,27 @@ namespace
         size_t v = static_cast<size_t>(g.get_tgt_node(arc)->get_info());
         if (u > v)
           swap(u, v);
-        pairs.emplace_back(u, v);
+        sorted_pairs.insert(make_pair(u, v));
       }
 
-    sort(pairs.begin(), pairs.end());
+    DynArray<pair<size_t, size_t>> pairs;
+    for (auto it = sorted_pairs.get_it(); it.has_curr(); it.next_ne())
+      pairs.append(it.get_curr());
 
     return Solve_Output{result.total_weight, result.cardinality, pairs};
   }
 
 
-  string format_pairs(const vector<pair<size_t, size_t>> & pairs)
+  string format_pairs(const DynArray<pair<size_t, size_t>> & pairs)
   {
-    if (pairs.empty())
+    if (pairs.is_empty())
       return "(empty)";
 
     string out;
     for (size_t i = 0; i < pairs.size(); ++i)
       {
-        out += "(" + to_string(pairs[i].first) + "," + to_string(pairs[i].second) + ")";
+        const auto & p = pairs(i);
+        out += "(" + to_string(p.first) + "," + to_string(p.second) + ")";
         if (i + 1 < pairs.size())
           out += " ";
       }
@@ -165,8 +168,7 @@ namespace
                   bool max_cardinality,
                   const string & file_path)
   {
-    set<pair<size_t, size_t>> matched_set(output.matched_pairs.begin(),
-                                          output.matched_pairs.end());
+    DynSetTree<pair<size_t, size_t>> matched_set(output.matched_pairs);
 
     ofstream out(file_path);
     if (not out)
@@ -201,7 +203,7 @@ namespace
     // Emit vertex node definitions first so \draw commands can reference them.
     for (size_t i = 0; i < s.nodes.size(); ++i)
       {
-        const auto & p = s.nodes[i];
+        const auto & p = s.nodes(i);
         out << "  \\node[vertex] (n" << i << ") at ("
             << fixed << setprecision(2) << p.x << "," << p.y << ") {"
             << p.label << "};\n";
@@ -213,7 +215,7 @@ namespace
         size_t v = v_raw;
         size_t a = min(u, v);
         size_t b = max(u, v);
-        const bool matched = (matched_set.find(make_pair(a, b)) != matched_set.end());
+        const bool matched = matched_set.contains(make_pair(a, b));
 
         out << "  \\draw[" << (matched ? "match" : "edge") << "] (n"
             << u << ") -- (n" << v << ");\n";

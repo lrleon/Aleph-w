@@ -123,6 +123,8 @@ set(HLIST
     ah-concepts.H
     LCA.H
     HLD.H
+    Dominators.H
+    Hungarian.H
 )
 
 # C++ source files

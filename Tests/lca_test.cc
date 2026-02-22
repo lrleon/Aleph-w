@@ -46,18 +46,21 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
+#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <random>
 #include <stdexcept>
 #include <utility>
-#include <vector>
 
 #include <LCA.H>
 #include <tpl_agraph.H>
+#include <tpl_array.H>
 #include <tpl_graph.H>
 #include <tpl_sgraph.H>
+#include <htlist.H>
 
 using namespace Aleph;
 
@@ -67,7 +70,7 @@ namespace
   Array<typename GT::Node *>
   build_graph_with_unit_arcs(GT & g,
                              const size_t n,
-                             const std::vector<std::pair<size_t, size_t>> & edges)
+                             const Array<std::pair<size_t, size_t>> & edges)
   {
     using Node = typename GT::Node;
 
@@ -75,8 +78,12 @@ namespace
     for (size_t i = 0; i < n; ++i)
       nodes(i) = g.insert_node(static_cast<int>(i));
 
-    for (const auto & [u, v] : edges)
+    for (typename Array<std::pair<size_t, size_t>>::Iterator it(edges);
+         it.has_curr(); it.next_ne())
       {
+        const auto & e = it.get_curr();
+        const size_t u = e.first;
+        const size_t v = e.second;
         if (u >= n or v >= n)
           continue;
         g.insert_arc(nodes(u), nodes(v), 1);
@@ -100,11 +107,11 @@ namespace
 
     size_t n_ = 0;
     size_t root_ = 0;
-    std::vector<std::vector<size_t>> adj_;
-    std::vector<size_t> parent_;
-    std::vector<size_t> depth_;
-    std::vector<size_t> tin_;
-    std::vector<size_t> tout_;
+    Array<DynList<size_t>> adj_;
+    Array<size_t> parent_;
+    Array<size_t> depth_;
+    Array<size_t> tin_;
+    Array<size_t> tout_;
     size_t timer_ = 0;
 
     void dfs(const size_t u, const size_t p, const size_t d)
@@ -113,20 +120,23 @@ namespace
       depth_[u] = d;
       tin_[u] = timer_++;
 
-      for (const auto v : adj_[u])
-        if (v != p)
-          dfs(v, u, d + 1);
+      for (auto it = adj_[u].get_it(); it.has_curr(); it.next_ne())
+        {
+          const size_t v = it.get_curr();
+          if (v != p)
+            dfs(v, u, d + 1);
+        }
 
       tout_[u] = timer_ - 1;
     }
 
   public:
     Naive_Tree_Oracle(const size_t n,
-                      const std::vector<std::pair<size_t, size_t>> & edges,
+                      const Array<std::pair<size_t, size_t>> & edges,
                       const size_t root)
       : n_(n),
         root_(root),
-        adj_(n),
+        adj_(Array<DynList<size_t>>::create(n)),
         parent_(n, NONE),
         depth_(n, 0),
         tin_(n, 0),
@@ -137,12 +147,17 @@ namespace
       ah_runtime_error_if(edges.size() != n_ - 1)
         << "Naive_Tree_Oracle: edges.size() must be n-1";
 
-      for (const auto & [u, v] : edges)
+      for (typename Array<std::pair<size_t, size_t>>::Iterator it(edges);
+           it.has_curr(); it.next_ne())
         {
+          const auto & e = it.get_curr();
+          const size_t u = e.first;
+          const size_t v = e.second;
+
           ah_runtime_error_if(u >= n_ or v >= n_ or u == v)
             << "Naive_Tree_Oracle: invalid edge";
-          adj_[u].push_back(v);
-          adj_[v].push_back(u);
+          adj_[u].append(v);
+          adj_[v].append(u);
         }
 
       dfs(root_, NONE, 0);
@@ -204,16 +219,16 @@ namespace
     [[nodiscard]] static size_t none() noexcept { return NONE; }
   };
 
-  std::vector<std::pair<size_t, size_t>>
+  Array<std::pair<size_t, size_t>>
   make_random_tree_edges(const size_t n, std::mt19937 & rng)
   {
-    std::vector<std::pair<size_t, size_t>> edges;
+    Array<std::pair<size_t, size_t>> edges;
     edges.reserve(n > 0 ? n - 1 : 0);
 
     for (size_t v = 1; v < n; ++v)
       {
         std::uniform_int_distribution<size_t> pick(0, v - 1);
-        edges.emplace_back(v, pick(rng));
+        edges.append(std::make_pair(v, pick(rng)));
       }
 
     return edges;
@@ -292,11 +307,16 @@ TYPED_TEST(LcaTypedTest, ManualTreeQueries)
   //      / \      5   6
   //     3   4   children of 5
   //             7 and 8
-  const std::vector<std::pair<size_t, size_t>> edges = {
-      {0, 1}, {0, 2},
-      {1, 3}, {1, 4},
-      {2, 5}, {2, 6},
-      {5, 7}, {5, 8}};
+  Array<std::pair<size_t, size_t>> edges;
+  edges.reserve(8);
+  edges.append(std::make_pair(0, 1));
+  edges.append(std::make_pair(0, 2));
+  edges.append(std::make_pair(1, 3));
+  edges.append(std::make_pair(1, 4));
+  edges.append(std::make_pair(2, 5));
+  edges.append(std::make_pair(2, 6));
+  edges.append(std::make_pair(5, 7));
+  edges.append(std::make_pair(5, 8));
 
   Graph g;
   auto nodes = build_graph_with_unit_arcs(g, 9, edges);
@@ -342,8 +362,12 @@ TYPED_TEST(LcaTypedTest, DefaultRootIsFirstNode)
   using Graph = TypeParam;
   using Node = typename Graph::Node;
 
-  const std::vector<std::pair<size_t, size_t>> edges = {
-      {0, 1}, {1, 2}, {2, 3}, {3, 4}};
+  Array<std::pair<size_t, size_t>> edges;
+  edges.reserve(4);
+  edges.append(std::make_pair(0, 1));
+  edges.append(std::make_pair(1, 2));
+  edges.append(std::make_pair(2, 3));
+  edges.append(std::make_pair(3, 4));
 
   Graph g;
   auto nodes = build_graph_with_unit_arcs(g, 5, edges);
@@ -380,8 +404,11 @@ TYPED_TEST(LcaTypedTest, RejectsCycle)
 {
   using Graph = TypeParam;
 
-  const std::vector<std::pair<size_t, size_t>> edges = {
-      {0, 1}, {1, 2}, {2, 0}};
+  Array<std::pair<size_t, size_t>> edges;
+  edges.reserve(3);
+  edges.append(std::make_pair(0, 1));
+  edges.append(std::make_pair(1, 2));
+  edges.append(std::make_pair(2, 0));
 
   Graph g;
   auto nodes = build_graph_with_unit_arcs(g, 3, edges);
@@ -394,8 +421,10 @@ TYPED_TEST(LcaTypedTest, RejectsDisconnectedGraph)
 {
   using Graph = TypeParam;
 
-  const std::vector<std::pair<size_t, size_t>> edges = {
-      {0, 1}, {2, 3}};
+  Array<std::pair<size_t, size_t>> edges;
+  edges.reserve(2);
+  edges.append(std::make_pair(0, 1));
+  edges.append(std::make_pair(2, 3));
 
   Graph g;
   auto nodes = build_graph_with_unit_arcs(g, 4, edges);
@@ -410,14 +439,23 @@ TYPED_TEST(LcaTypedTest, RejectsLoopAndParallelEdges)
 
   {
     Graph g;
-    auto nodes = build_graph_with_unit_arcs(g, 3, {{0, 1}, {1, 2}, {2, 2}});
+    Array<std::pair<size_t, size_t>> edges;
+    edges.reserve(3);
+    edges.append(std::make_pair(0, 1));
+    edges.append(std::make_pair(1, 2));
+    edges.append(std::make_pair(2, 2));
+    auto nodes = build_graph_with_unit_arcs(g, 3, edges);
     EXPECT_THROW((Binary_Lifting_LCA<Graph>(g, nodes(0))), std::domain_error);
     EXPECT_THROW((Euler_RMQ_LCA<Graph>(g, nodes(0))), std::domain_error);
   }
 
   {
     Graph g;
-    auto nodes = build_graph_with_unit_arcs(g, 2, {{0, 1}, {0, 1}});
+    Array<std::pair<size_t, size_t>> edges;
+    edges.reserve(2);
+    edges.append(std::make_pair(0, 1));
+    edges.append(std::make_pair(0, 1));
+    auto nodes = build_graph_with_unit_arcs(g, 2, edges);
     EXPECT_THROW((Binary_Lifting_LCA<Graph>(g, nodes(0))), std::domain_error);
     EXPECT_THROW((Euler_RMQ_LCA<Graph>(g, nodes(0))), std::domain_error);
   }
@@ -460,10 +498,17 @@ TYPED_TEST(LcaTypedTest, RejectsNodeFromAnotherGraphAndBadIds)
   using Graph = TypeParam;
 
   Graph g1;
-  auto n1 = build_graph_with_unit_arcs(g1, 3, {{0, 1}, {1, 2}});
+  Array<std::pair<size_t, size_t>> edges1;
+  edges1.reserve(2);
+  edges1.append(std::make_pair(0, 1));
+  edges1.append(std::make_pair(1, 2));
+  auto n1 = build_graph_with_unit_arcs(g1, 3, edges1);
 
   Graph g2;
-  auto n2 = build_graph_with_unit_arcs(g2, 2, {{0, 1}});
+  Array<std::pair<size_t, size_t>> edges2;
+  edges2.reserve(1);
+  edges2.append(std::make_pair(0, 1));
+  auto n2 = build_graph_with_unit_arcs(g2, 2, edges2);
 
   Binary_Lifting_LCA<Graph> bl(g1, n1(0));
   Euler_RMQ_LCA<Graph> er(g1, n1(0));
@@ -545,4 +590,95 @@ TYPED_TEST(LcaTypedTest, RandomTreesAgainstNaiveOracle)
                     oracle.is_ancestor(expected_lca, v));
         }
     }
+}
+
+TYPED_TEST(LcaTypedTest, PerfRegression)
+{
+  using Graph = TypeParam;
+  using Clock = std::chrono::steady_clock;
+
+# ifndef LCA_PERF_TEST
+  const char * run_perf = std::getenv("ALEPH_RUN_LCA_PERF");
+  if (run_perf == nullptr or run_perf[0] != '1' or run_perf[1] != '\0')
+    GTEST_SKIP() << "LCA perf test disabled by default. "
+                 << "Enable with -DLCA_PERF_TEST or ALEPH_RUN_LCA_PERF=1";
+# endif
+
+  constexpr size_t n = 100000;
+  constexpr size_t query_count = 300000;
+# ifdef NDEBUG
+  constexpr long long kBudgetMs = 12000;
+# else
+  constexpr long long kBudgetMs = 25000;
+# endif
+
+  std::mt19937 rng(0x1ca2026u);
+  const auto edges = make_random_tree_edges(n, rng);
+
+  Graph g;
+  const auto nodes = build_graph_with_unit_arcs(g, n, edges);
+
+  std::uniform_int_distribution<size_t> root_pick(0, n - 1);
+  const size_t root = root_pick(rng);
+
+  const auto t_start = Clock::now();
+  Binary_Lifting_LCA<Graph> bl(g, nodes(root));
+  Euler_RMQ_LCA<Graph> er(g, nodes(root));
+  const auto t_after_build = Clock::now();
+
+  // Keep an independent sanity check without impacting timed query loop.
+  Naive_Tree_Oracle oracle(n, edges, root);
+  std::uniform_int_distribution<size_t> sanity_pick(0, n - 1);
+  for (size_t i = 0; i < 64; ++i)
+    {
+      const size_t u = sanity_pick(rng);
+      const size_t v = sanity_pick(rng);
+      const size_t expected_lca = oracle.lca(u, v);
+      const size_t expected_dist = oracle.distance(u, v);
+
+      ASSERT_EQ(static_cast<size_t>(bl.lca(nodes(u), nodes(v))->get_info()),
+                expected_lca);
+      ASSERT_EQ(static_cast<size_t>(er.lca(nodes(u), nodes(v))->get_info()),
+                expected_lca);
+      ASSERT_EQ(bl.distance(nodes(u), nodes(v)), expected_dist);
+      ASSERT_EQ(er.distance(nodes(u), nodes(v)), expected_dist);
+    }
+
+  // Reuse the same node-picking pattern as RandomTreesAgainstNaiveOracle.
+  std::uniform_int_distribution<size_t> node_pick(0, n - 1);
+  size_t checksum = 0;
+  for (size_t q = 0; q < query_count; ++q)
+    {
+      const size_t u = node_pick(rng);
+      const size_t v = node_pick(rng);
+
+      auto * bl_lca = bl.lca(nodes(u), nodes(v));
+      auto * er_lca = er.lca(nodes(u), nodes(v));
+      ASSERT_EQ(bl_lca, er_lca);
+
+      const size_t d1 = bl.distance(nodes(u), nodes(v));
+      const size_t d2 = er.distance(nodes(u), nodes(v));
+      ASSERT_EQ(d1, d2);
+
+      checksum ^= (static_cast<size_t>(bl_lca->get_info()) + 0x9e3779b9u);
+      checksum ^= (d1 + (q << 1));
+    }
+
+  const auto t_end = Clock::now();
+
+  const auto build_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      t_after_build - t_start).count();
+  const auto query_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      t_end - t_after_build).count();
+  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      t_end - t_start).count();
+
+  ASSERT_NE(checksum, 0u);
+  ASSERT_LT(elapsed_ms, kBudgetMs)
+      << "Perf regression: n=" << n
+      << ", queries=" << query_count
+      << ", build_ms=" << build_ms
+      << ", query_ms=" << query_ms
+      << ", elapsed_ms=" << elapsed_ms
+      << ", budget_ms=" << kBudgetMs;
 }

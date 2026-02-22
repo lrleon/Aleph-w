@@ -3286,6 +3286,7 @@ int main() {
 | `Planarity_Test.H` | `planarity_test()`, `planar_dual_metadata()`, `planar_geometric_drawing()`, `validate_nonplanar_certificate()`, `nonplanar_certificate_to_json()`, `nonplanar_certificate_to_dot()`, `nonplanar_certificate_to_graphml()`, `nonplanar_certificate_to_gexf()` | LR planarity test + embedding/dual metadata + geometric drawing + validated non-planar witness export |
 | `topological_sort.H` | `topological_sort()` | DAG ordering |
 | `Karger.H` | `karger_min_cut()` | Probabilistic min-cut |
+| `Dominators.H` | `compute_dominators()`, `build_dominator_tree()`, `compute_dominance_frontiers()`, `compute_post_dominators()`, `build_post_dominator_tree()`, `compute_post_dominance_frontiers()` | Dominator & post-dominator trees (Lengauer-Tarjan) + dominance/post-dominance frontiers |
 | `Stoer_Wagner.H` | `stoer_wagner_min_cut()` | Deterministic min-cut |
 
 #### Memory Management

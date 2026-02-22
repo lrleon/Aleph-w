@@ -42,10 +42,9 @@
 
 # include <iostream>
 # include <string>
-# include <tuple>
-# include <vector>
 
 # include <K_Shortest_Paths.H>
+# include <tpl_array.H>
 # include <tpl_graph.H>
 
 using namespace std;
@@ -56,25 +55,35 @@ namespace
   using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<long long>>;
   using Result_Item = K_Shortest_Path_Item<Graph, long long>;
 
+  struct Edge
+  {
+    size_t u = 0;
+    size_t v = 0;
+    long long w = 0;
+  };
+
   struct Scenario
   {
     size_t num_nodes = 0;
-    vector<tuple<size_t, size_t, long long>> edges;
+    Array<Edge> edges;
     size_t source = 0;
     size_t target = 0;
     size_t k = 5;
   };
 
 
-  Graph build_graph(const Scenario & s, vector<Graph::Node *> & nodes)
+  Graph build_graph(const Scenario & s, Array<Graph::Node *> & nodes)
   {
     Graph g;
     nodes.reserve(s.num_nodes);
     for (size_t i = 0; i < s.num_nodes; ++i)
-      nodes.push_back(g.insert_node(static_cast<int>(i)));
+      nodes.append(g.insert_node(static_cast<int>(i)));
 
-    for (const auto & [u, v, w] : s.edges)
-      g.insert_arc(nodes[u], nodes[v], w);
+    for (typename Array<Edge>::Iterator it(s.edges); it.has_curr(); it.next_ne())
+      {
+        const Edge & e = it.get_curr();
+        g.insert_arc(nodes[e.u], nodes[e.v], e.w);
+      }
 
     return g;
   }
@@ -117,19 +126,22 @@ namespace
 
 int main()
 {
-  const Scenario scenario{
-      .num_nodes = 8,
-      .edges = {
-          {0, 1, 1}, {1, 2, 1}, {2, 7, 1},
-          {0, 3, 2}, {3, 4, 2}, {4, 7, 2},
-          {2, 5, 1}, {5, 2, 1}
-      },
-      .source = 0,
-      .target = 7,
-      .k = 6
-  };
+  Scenario scenario;
+  scenario.num_nodes = 8;
+  scenario.source = 0;
+  scenario.target = 7;
+  scenario.k = 6;
+  scenario.edges.reserve(8);
+  scenario.edges.append(Edge{0, 1, 1});
+  scenario.edges.append(Edge{1, 2, 1});
+  scenario.edges.append(Edge{2, 7, 1});
+  scenario.edges.append(Edge{0, 3, 2});
+  scenario.edges.append(Edge{3, 4, 2});
+  scenario.edges.append(Edge{4, 7, 2});
+  scenario.edges.append(Edge{2, 5, 1});
+  scenario.edges.append(Edge{5, 2, 1});
 
-  vector<Graph::Node *> nodes;
+  Array<Graph::Node *> nodes;
   Graph g = build_graph(scenario, nodes);
 
   auto * source = nodes[scenario.source];

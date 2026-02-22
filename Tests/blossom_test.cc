@@ -47,17 +47,22 @@
 
 # include <algorithm>
 # include <bit>
+# include <chrono>
 # include <cstdint>
+# include <cstdlib>
 # include <functional>
 # include <random>
+# include <string>
 # include <stdexcept>
-# include <unordered_set>
 # include <utility>
 # include <vector>
 
 # include <Blossom.H>
 # include <tpl_bipartite.H>
+# include <tpl_dynArray.H>
+# include <tpl_dynSetTree.H>
 # include <tpl_graph.H>
+# include <tpl_olhash.H>
 # include <tpl_sgraph.H>
 # include <tpl_agraph.H>
 
@@ -67,41 +72,69 @@ namespace
 {
   template <class GT>
   GT build_graph(size_t n,
-                 const std::vector<std::pair<size_t, size_t>> & edges,
+                 const DynArray<std::pair<size_t, size_t>> & edges,
                  int arc_info = 1)
   {
     GT g;
-    std::vector<typename GT::Node *> nodes;
+    DynArray<typename GT::Node *> nodes;
     nodes.reserve(n);
 
     for (size_t i = 0; i < n; ++i)
-      nodes.push_back(g.insert_node(static_cast<int>(i)));
+      nodes(i) = g.insert_node(static_cast<int>(i));
 
     for (const auto & [u, v] : edges)
       {
         if (u >= n or v >= n)
           continue;
-        g.insert_arc(nodes[u], nodes[v], arc_info);
+        g.insert_arc(nodes(u), nodes(v), arc_info);
       }
 
     return g;
   }
 
   template <class GT>
+  GT build_graph(size_t n,
+                 std::initializer_list<std::pair<size_t, size_t>> edges,
+                 int arc_info = 1)
+  {
+    DynArray<std::pair<size_t, size_t>> aleph_edges;
+    aleph_edges.reserve(edges.size());
+
+    size_t i = 0;
+    for (const auto & edge : edges)
+      aleph_edges(i++) = edge;
+
+    return build_graph<GT>(n, aleph_edges, arc_info);
+  }
+
+  template <class GT>
+  GT build_graph(size_t n,
+                 const std::vector<std::pair<size_t, size_t>> & edges,
+                 int arc_info = 1)
+  {
+    DynArray<std::pair<size_t, size_t>> aleph_edges;
+    aleph_edges.reserve(edges.size());
+    for (size_t i = 0; i < edges.size(); ++i)
+      aleph_edges(i) = edges[i];
+
+    return build_graph<GT>(n, aleph_edges, arc_info);
+  }
+
+  template <class GT>
   bool verify_matching(const GT & g, const DynDlist<typename GT::Arc *> & matching)
   {
-    std::unordered_set<typename GT::Arc *> arcs_in_graph;
+    OLhashTable<typename GT::Arc *> arcs_in_graph;
     for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next_ne())
       arcs_in_graph.insert(it.get_curr());
 
-    std::unordered_set<typename GT::Node *> used_nodes;
+    DynSetTree<typename GT::Node *> used_nodes;
     for (auto it = matching.get_it(); it.has_curr(); it.next_ne())
       {
         auto * arc = it.get_curr();
         if (arc == nullptr)
           return false;
 
-        if (arcs_in_graph.find(arc) == arcs_in_graph.end())
+        if (not arcs_in_graph.contains(arc))
           return false;
 
         auto * src = g.get_src_node(arc);
@@ -112,10 +145,10 @@ namespace
         if (src == tgt)
           return false;
 
-        if (not used_nodes.insert(src).second)
+        if (used_nodes.contains_or_insert(src).second)
           return false;
 
-        if (not used_nodes.insert(tgt).second)
+        if (used_nodes.contains_or_insert(tgt).second)
           return false;
       }
 
@@ -518,6 +551,54 @@ TYPED_TEST(BlossomMatchingTypedTest, DenseRandomStressCrossBackendAgreement)
       EXPECT_LE(blossom_size, n / 2)
           << "sample=" << sample << " n=" << n;
     }
+}
+
+TYPED_TEST(BlossomMatchingTypedTest, BlossomMatchingPerfRegression)
+{
+  using Graph = TypeParam;
+
+  const char * run_perf = std::getenv("ALEPH_RUN_BLOSSOM_PERF");
+  if (run_perf == nullptr or std::string(run_perf) != "1")
+    GTEST_SKIP() << "Set ALEPH_RUN_BLOSSOM_PERF=1 to run blossom perf regression test";
+
+  constexpr size_t n = 900;
+  constexpr double p = 0.02;
+  constexpr unsigned seed = 0xB10550u;
+# ifdef NDEBUG
+  constexpr long long kBudgetMs = 12000;
+# else
+  constexpr long long kBudgetMs = 25000;
+# endif
+
+  std::mt19937 rng(seed);
+  std::uniform_real_distribution<double> coin(0.0, 1.0);
+
+  std::vector<std::pair<size_t, size_t>> edges;
+  edges.reserve(static_cast<size_t>(n * n * p));
+  for (size_t u = 0; u < n; ++u)
+    for (size_t v = u + 1; v < n; ++v)
+      if (coin(rng) < p)
+        edges.emplace_back(u, v);
+
+  if (edges.empty())
+    edges.emplace_back(0, 1);
+
+  auto g = build_graph<Graph>(n, edges);
+  DynDlist<typename Graph::Arc *> matching;
+
+  const auto t0 = std::chrono::steady_clock::now();
+  const size_t blossom_size = run_blossom(g, matching);
+  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now() - t0).count();
+
+  EXPECT_EQ(matching.size(), blossom_size);
+  EXPECT_TRUE(verify_matching(g, matching));
+  EXPECT_LE(blossom_size, n / 2);
+  EXPECT_LT(elapsed_ms, kBudgetMs)
+      << "Blossom perf regression: n=" << n
+      << ", edges=" << edges.size()
+      << ", elapsed_ms=" << elapsed_ms
+      << ", budget_ms=" << kBudgetMs;
 }
 
 // -----------------------------------------------------------------------------

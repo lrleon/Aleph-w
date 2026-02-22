@@ -36,12 +36,15 @@
  */
 
 #include <gtest/gtest.h>
+#include <chrono>
+#include <cstdlib>
 #include <map>
-#include <set>
 #include <string>
 #include <random>
 
 #include <Dominators.H>
+#include <tpl_dynArray.H>
+#include <tpl_dynMapTree.H>
 #include <tpl_graph.H>
 
 using namespace Aleph;
@@ -50,24 +53,24 @@ namespace
 {
   using DG = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
 
-  std::vector<DG::Node *> make_nodes(DG & g, int n)
+  DynArray<DG::Node *> make_nodes(DG & g, int n)
   {
-    std::vector<DG::Node *> nodes;
-    nodes.reserve(n);
+    DynArray<DG::Node *> nodes;
+    nodes.reserve(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i)
-      nodes.push_back(g.insert_node(i));
+      nodes(static_cast<size_t>(i)) = g.insert_node(i);
     return nodes;
   }
 
   // Build idom map: node_info -> idom_info (-1 if root/no idom)
-  std::map<int, int> idom_map(const DynList<std::pair<DG::Node*,
-                                                       DG::Node*>> & idoms)
+  DynMapTree<int, int> idom_map(const DynList<std::pair<DG::Node *,
+                                                         DG::Node *>> & idoms)
   {
-    std::map<int, int> m;
+    DynMapTree<int, int> m;
     for (auto it = idoms.get_it(); it.has_curr(); it.next_ne())
       {
         auto [node, idom] = it.get_curr();
-        m[node->get_info()] = idom ? idom->get_info() : -1;
+        m.insert(node->get_info(), idom ? idom->get_info() : -1);
       }
     return m;
   }
@@ -265,7 +268,7 @@ TEST(Dominators, UnreachableNodes)
 
   // Only 3 reachable nodes
   EXPECT_EQ(m.size(), 3U);
-  EXPECT_EQ(m.count(3), 0U); // node 3 not in result
+  EXPECT_EQ(m.search(3), nullptr); // node 3 not in result
 }
 
 TEST(Dominators, SelfLoop)
@@ -492,10 +495,15 @@ TEST(Dominators, GetIdomSpecificNode)
 
   Lengauer_Tarjan_Dominators<DG> alg;
 
-  EXPECT_EQ(alg.get_idom(g, nodes[0], nodes[0]), nullptr); // root
-  EXPECT_EQ(alg.get_idom(g, nodes[0], nodes[1]), nodes[0]);
-  EXPECT_EQ(alg.get_idom(g, nodes[0], nodes[2]), nodes[1]);
-  EXPECT_EQ(alg.get_idom(g, nodes[0], nodes[3]), nodes[2]);
+  DG::Node * n0 = nodes[0];
+  DG::Node * n1 = nodes[1];
+  DG::Node * n2 = nodes[2];
+  DG::Node * n3 = nodes[3];
+
+  EXPECT_EQ(alg.get_idom(g, n0, n0), nullptr); // root
+  EXPECT_EQ(alg.get_idom(g, n0, n1), n0);
+  EXPECT_EQ(alg.get_idom(g, n0, n2), n1);
+  EXPECT_EQ(alg.get_idom(g, n0, n3), n2);
 }
 
 TEST(Dominators, GetIdomNullNodeThrows)
@@ -546,8 +554,9 @@ TEST(Dominators, LargeRandomDAG)
   EXPECT_EQ(m[0], -1);
 
   // Every non-root reachable node should have an idom
-  for (auto & [node_id, idom_id] : m)
+  for (auto it = m.get_it(); it.has_curr(); it.next_ne())
     {
+      const auto & [node_id, idom_id] = it.get_curr();
       if (node_id == 0)
         continue;
       EXPECT_GE(idom_id, 0) << "Node " << node_id << " has no idom";
@@ -558,6 +567,53 @@ TEST(Dominators, LargeRandomDAG)
   build_dominator_tree(g, nodes[0], tree);
   EXPECT_EQ(tree.get_num_nodes(), m.size());
   EXPECT_EQ(tree.get_num_arcs(), m.size() - 1);
+}
+
+TEST(Dominators, PerformanceLargeRandomDAG)
+{
+  const char * run_perf = std::getenv("ALEPH_RUN_DOMINATORS_PERF");
+  if (run_perf == nullptr or std::string(run_perf) != "1")
+    GTEST_SKIP() << "Set ALEPH_RUN_DOMINATORS_PERF=1 to run dominators perf test";
+
+  constexpr int N = 5000;
+# ifdef NDEBUG
+  constexpr long long kBudgetMs = 9000;
+# else
+  constexpr long long kBudgetMs = 20000;
+# endif
+
+  DG g;
+  auto nodes = make_nodes(g, N);
+  std::mt19937 rng(0xD01A70u);
+
+  for (int i = 0; i < N - 1; ++i)
+    {
+      const int max_step = std::min(12, N - i - 1);
+      const int j = i + 1 + static_cast<int>(rng() % max_step);
+      g.insert_arc(nodes[i], nodes[j]);
+
+      for (int k = 0; k < 4; ++k)
+        {
+          const int t = i + 1 + static_cast<int>(rng() % (N - i - 1));
+          g.insert_arc(nodes[i], nodes[t]);
+        }
+    }
+
+  const auto t0 = std::chrono::steady_clock::now();
+  auto idoms = compute_dominators(g, nodes[0]);
+  auto m = idom_map(idoms);
+  DG tree;
+  build_dominator_tree(g, nodes[0], tree);
+  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now() - t0).count();
+
+  EXPECT_EQ(m[0], -1);
+  EXPECT_EQ(tree.get_num_nodes(), m.size());
+  EXPECT_EQ(tree.get_num_arcs(), m.size() - 1);
+  EXPECT_LT(elapsed_ms, kBudgetMs)
+      << "Dominators perf regression: N=" << N
+      << ", elapsed_ms=" << elapsed_ms
+      << ", budget_ms=" << kBudgetMs;
 }
 
 
@@ -606,7 +662,8 @@ TEST(Dominators, CacheReuse)
   EXPECT_EQ(m1, m2);
   EXPECT_TRUE(alg.has_computation());
   EXPECT_EQ(alg.get_graph(), &g);
-  EXPECT_EQ(alg.get_root(), nodes[0]);
+  DG::Node * root = nodes[0];
+  EXPECT_EQ(alg.get_root(), root);
 }
 
 
@@ -638,4 +695,246 @@ TEST(Dominators, StringTypedGraph)
   EXPECT_EQ(m["entry"], "none");
   EXPECT_EQ(m["body"], "entry");
   EXPECT_EQ(m["exit"], "body");
+}
+
+
+// ============================================================================
+// Post-Dominator Tests
+// ============================================================================
+
+namespace
+{
+  // Build ipdom map: node_info -> ipdom_info (-1 if exit/no ipdom)
+  std::map<int, int> ipdom_map(const DynList<std::pair<DG::Node*,
+                                                        DG::Node*>> & ipdoms)
+  {
+    std::map<int, int> m;
+    for (auto it = ipdoms.get_it(); it.has_curr(); it.next_ne())
+      {
+        auto [node, ipdom] = it.get_curr();
+        m[node->get_info()] = ipdom ? ipdom->get_info() : -1;
+      }
+    return m;
+  }
+} // namespace
+
+TEST(PostDominators, SingleNode)
+{
+  DG g;
+  auto nodes = make_nodes(g, 1);
+
+  auto ipdoms = compute_post_dominators(g, nodes[0]);
+  auto m = ipdom_map(ipdoms);
+
+  EXPECT_EQ(m.size(), 1U);
+  EXPECT_EQ(m[0], -1); // exit has no ipdom
+}
+
+TEST(PostDominators, LinearChain)
+{
+  // 0 -> 1 -> 2 -> 3; exit = 3
+  // ipdom(2) = 3, ipdom(1) = 2, ipdom(0) = 1
+  DG g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1]);
+  g.insert_arc(nodes[1], nodes[2]);
+  g.insert_arc(nodes[2], nodes[3]);
+
+  auto m = ipdom_map(compute_post_dominators(g, nodes[3]));
+
+  EXPECT_EQ(m[3], -1);  // exit
+  EXPECT_EQ(m[2], 3);
+  EXPECT_EQ(m[1], 2);
+  EXPECT_EQ(m[0], 1);
+}
+
+TEST(PostDominators, DiamondGraph)
+{
+  //     0
+  //    / |
+  //   1   2
+  //    \ /
+  //     3
+  // exit = 3; ipdom(1) = 3, ipdom(2) = 3, ipdom(0) = 3
+  DG g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1]);
+  g.insert_arc(nodes[0], nodes[2]);
+  g.insert_arc(nodes[1], nodes[3]);
+  g.insert_arc(nodes[2], nodes[3]);
+
+  auto m = ipdom_map(compute_post_dominators(g, nodes[3]));
+
+  EXPECT_EQ(m[3], -1);
+  EXPECT_EQ(m[1], 3);
+  EXPECT_EQ(m[2], 3);
+  EXPECT_EQ(m[0], 3);
+}
+
+TEST(PostDominators, IfThenElseCFG)
+{
+  // Classic if-then-else CFG:
+  //   0 (entry)
+  //  / |
+  // 1   2  (then / else)
+  //  \ /
+  //   3    (join)
+  //   |
+  //   4    (exit)
+  // ipdom(3) = 4, ipdom(1) = 3, ipdom(2) = 3, ipdom(0) = 3
+  DG g;
+  auto nodes = make_nodes(g, 5);
+  g.insert_arc(nodes[0], nodes[1]);
+  g.insert_arc(nodes[0], nodes[2]);
+  g.insert_arc(nodes[1], nodes[3]);
+  g.insert_arc(nodes[2], nodes[3]);
+  g.insert_arc(nodes[3], nodes[4]);
+
+  auto m = ipdom_map(compute_post_dominators(g, nodes[4]));
+
+  EXPECT_EQ(m[4], -1);
+  EXPECT_EQ(m[3], 4);
+  EXPECT_EQ(m[1], 3);
+  EXPECT_EQ(m[2], 3);
+  EXPECT_EQ(m[0], 3);
+}
+
+TEST(PostDominators, LoopCFG)
+{
+  // CFG with a loop:
+  //   0 (entry)
+  //   |
+  //   1 (loop header) <---+
+  //  / |                   |
+  // 2   3 (loop body) ----+
+  // |
+  // 4 (exit)
+  // exit = 4; ipdom(2) = 4, ipdom(1) = 2, ipdom(0) = 1
+  // Node 3 cannot reach 4 (it only loops back to 1), so it may or may
+  // not appear in the post-dominator result depending on reachability
+  // in the reversed graph.
+  DG g;
+  auto nodes = make_nodes(g, 5);
+  g.insert_arc(nodes[0], nodes[1]);
+  g.insert_arc(nodes[1], nodes[2]);
+  g.insert_arc(nodes[1], nodes[3]);
+  g.insert_arc(nodes[3], nodes[1]); // back-edge
+  g.insert_arc(nodes[2], nodes[4]);
+
+  auto m = ipdom_map(compute_post_dominators(g, nodes[4]));
+
+  EXPECT_EQ(m[4], -1);
+  EXPECT_EQ(m[2], 4);
+  EXPECT_EQ(m[1], 2);
+  EXPECT_EQ(m[0], 1);
+}
+
+TEST(PostDominators, PostDominanceReflexive)
+{
+  // Every node post-dominates itself
+  //   0 -> 1 -> 2
+  DG g;
+  auto nodes = make_nodes(g, 3);
+  g.insert_arc(nodes[0], nodes[1]);
+  g.insert_arc(nodes[1], nodes[2]);
+
+  Lengauer_Tarjan_Post_Dominators<DG> alg;
+
+  for (int i = 0; i < 3; ++i)
+    EXPECT_TRUE(alg.post_dominates(g, nodes[2], nodes[i], nodes[i]));
+}
+
+TEST(PostDominators, ExitPostDominatesAll)
+{
+  // The exit node post-dominates every node that can reach it
+  //   0 -> 1 -> 2 -> 3
+  DG g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1]);
+  g.insert_arc(nodes[1], nodes[2]);
+  g.insert_arc(nodes[2], nodes[3]);
+
+  Lengauer_Tarjan_Post_Dominators<DG> alg;
+
+  for (int i = 0; i < 4; ++i)
+    EXPECT_TRUE(alg.post_dominates(g, nodes[3], nodes[3], nodes[i]));
+}
+
+TEST(PostDominators, PostDominanceFrontiers)
+{
+  // Diamond graph for PDF:
+  //     0
+  //    / |
+  //   1   2
+  //    \ /
+  //     3
+  // exit = 3
+  // In reversed graph: 3->{1,2}, 1->0, 2->0. Root=3.
+  // Dom on reversed: idom(1)=3, idom(2)=3, idom(0)=3
+  // DF on reversed at node 0: {0 has preds 1,2 in rev. Runner from 1: 1!=idom(0)=3 → DF(1)+=0,
+  //   runner=idom(1)=3=idom(0) stop. Runner from 2: 2!=3 → DF(2)+=0, runner=3 stop.}
+  // PDF(1) = DF_rev(1) mapped back = {0}
+  // PDF(2) = DF_rev(2) mapped back = {0}
+  // PDF(0) = {} (only one "predecessor" in rev)
+  // PDF(3) = {}
+  DG g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1]);
+  g.insert_arc(nodes[0], nodes[2]);
+  g.insert_arc(nodes[1], nodes[3]);
+  g.insert_arc(nodes[2], nodes[3]);
+
+  auto pdf = compute_post_dominance_frontiers(g, nodes[3]);
+
+  // PDF(3) = {} (exit)
+  EXPECT_TRUE(pdf.find(nodes[3]).is_empty());
+
+  // PDF(1) = {0}
+  auto & pdf1 = pdf.find(nodes[1]);
+  EXPECT_EQ(pdf1.size(), 1U);
+  EXPECT_EQ(pdf1.get_first()->get_info(), 0);
+
+  // PDF(2) = {0}
+  auto & pdf2 = pdf.find(nodes[2]);
+  EXPECT_EQ(pdf2.size(), 1U);
+  EXPECT_EQ(pdf2.get_first()->get_info(), 0);
+
+  // PDF(0) = {}
+  EXPECT_TRUE(pdf.find(nodes[0]).is_empty());
+}
+
+TEST(PostDominators, PostDominatorTreeStructure)
+{
+  //   0 -> 1 -> 2 -> 3
+  // exit = 3; post-dom tree: 3->2->1->0 (chain)
+  DG g;
+  auto nodes = make_nodes(g, 4);
+  g.insert_arc(nodes[0], nodes[1]);
+  g.insert_arc(nodes[1], nodes[2]);
+  g.insert_arc(nodes[2], nodes[3]);
+
+  DG tree;
+  build_post_dominator_tree(g, nodes[3], tree);
+
+  // Tree should have 4 nodes and 3 arcs (n-1)
+  EXPECT_EQ(tree.get_num_nodes(), 4U);
+  EXPECT_EQ(tree.get_num_arcs(), 3U);
+
+  // Verify node mapping
+  for (auto it = tree.get_node_it(); it.has_curr(); it.next_ne())
+    {
+      auto tn = it.get_curr();
+      auto orig = mapped_node<DG>(tn);
+      EXPECT_NE(orig, nullptr);
+      EXPECT_EQ(tn->get_info(), orig->get_info());
+    }
+}
+
+TEST(PostDominators, ErrorHandlingNullExit)
+{
+  DG g;
+  auto nodes = make_nodes(g, 2);
+  g.insert_arc(nodes[0], nodes[1]);
+
+  EXPECT_THROW(compute_post_dominators(g, nullptr), std::domain_error);
 }
