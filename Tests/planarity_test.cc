@@ -462,7 +462,8 @@ namespace
                                      const bool use_gephi = false,
                                      const bool require_gephi = false,
                                      const std::string & gephi_cmd = "",
-                                     const std::string & extra_args = "")
+                                     const std::string & extra_args = "",
+                                     const std::string & label = "validator")
   {
     namespace fs = std::filesystem;
     const auto root = find_repo_root();
@@ -492,7 +493,7 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    return run_script_cmd(cmd.str(), "validator");
+    return run_script_cmd(cmd.str(), label);
   }
 
 
@@ -615,10 +616,10 @@ namespace
   }
   // Returns the path where run_external_certificate_validator writes stdout.
   std::string
-  validator_stdout_path()
+  validator_stdout_path(const std::string & label = "validator")
   {
     namespace fs = std::filesystem;
-    return (fs::temp_directory_path() / "aleph_planarity_validator.stdout").string();
+    return (fs::temp_directory_path() / ("aleph_planarity_" + label + ".stdout")).string();
   }
 
 
@@ -1757,11 +1758,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanListGephiTemplates)
       return;
     }
 
+  const std::string lbl = "list_templates";
   const int rc = run_external_certificate_validator(
-      {}, false, false, false, false, "", "--list-gephi-templates --json");
+      {}, false, false, false, false, "", "--list-gephi-templates --json", lbl);
   EXPECT_EQ(rc, 0);
 
-  const std::string out = read_text_file(validator_stdout_path());
+  const std::string out = read_text_file(validator_stdout_path(lbl));
   EXPECT_NE(out.find("\"templates\""), std::string::npos);
   EXPECT_NE(out.find("portable.ruby-file-exists"), std::string::npos);
   EXPECT_NE(out.find("linux.gephi-0.10.smoke"), std::string::npos);
@@ -1778,12 +1780,13 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanFilterGephiTemplatesByOs)
       return;
     }
 
+  const std::string lbl = "filter_templates_os";
   const int rc = run_external_certificate_validator(
       {}, false, false, false, false, "",
-      "--list-gephi-templates --template-os windows --json");
+      "--list-gephi-templates --template-os windows --json", lbl);
   EXPECT_EQ(rc, 0);
 
-  const std::string out = read_text_file(validator_stdout_path());
+  const std::string out = read_text_file(validator_stdout_path(lbl));
   EXPECT_NE(out.find("windows.gephi-0.10.smoke"), std::string::npos);
   EXPECT_EQ(out.find("linux.gephi-0.10.smoke"), std::string::npos);
 }
@@ -1797,12 +1800,13 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanListGephiRenderProfiles)
       return;
     }
 
+  const std::string lbl = "list_profiles";
   const int rc = run_external_certificate_validator(
       {}, false, false, false, false, "",
-      "--list-gephi-render-profiles --json");
+      "--list-gephi-render-profiles --json", lbl);
   EXPECT_EQ(rc, 0);
 
-  const std::string out = read_text_file(validator_stdout_path());
+  const std::string out = read_text_file(validator_stdout_path(lbl));
   EXPECT_NE(out.find("\"profiles\""), std::string::npos);
   EXPECT_NE(out.find("portable.ruby-render-svg"), std::string::npos);
   EXPECT_NE(out.find("linux.gephi-0.10.render-svg"), std::string::npos);
@@ -1819,12 +1823,13 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanFilterRenderProfilesByOs)
       return;
     }
 
+  const std::string lbl = "filter_profiles_os";
   const int rc = run_external_certificate_validator(
       {}, false, false, false, false, "",
-      "--list-gephi-render-profiles --render-os windows --json");
+      "--list-gephi-render-profiles --render-os windows --json", lbl);
   EXPECT_EQ(rc, 0);
 
-  const std::string out = read_text_file(validator_stdout_path());
+  const std::string out = read_text_file(validator_stdout_path(lbl));
   EXPECT_NE(out.find("windows.gephi-0.10.render-svg"), std::string::npos);
   EXPECT_EQ(out.find("linux.gephi-0.10.render-svg"), std::string::npos);
 }
@@ -1878,11 +1883,13 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSvgProfileProducesArtifact
   const std::string output_dir = make_tmp_path("external_render_svg_dir", "");
   write_text_file(graphml_path, nonplanar_certificate_to_graphml(r));
 
+  const std::string lbl = "render_svg";
   const int rc = run_external_certificate_validator(
       {graphml_path}, false, false, false, false, "",
       "--render-gephi --require-render "
       "--render-profile portable.ruby-render-svg "
-      "--render-output-dir " + shell_quote(output_dir));
+      "--render-output-dir " + shell_quote(output_dir),
+      lbl);
   EXPECT_EQ(rc, 0);
 
   const fs::path out_path = fs::path(output_dir) /
@@ -1890,7 +1897,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSvgProfileProducesArtifact
   EXPECT_TRUE(fs::exists(out_path));
   EXPECT_GT(fs::file_size(out_path), 0u);
 
-  const std::string out = read_text_file(validator_stdout_path());
+  const std::string out = read_text_file(validator_stdout_path(lbl));
   EXPECT_NE(out.find("render_output_kind"), std::string::npos);
   EXPECT_NE(out.find("svg"), std::string::npos);
 }
