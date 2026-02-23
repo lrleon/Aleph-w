@@ -40,6 +40,7 @@
 
     Main functions include:
     - **Range generation**: `range()`, `nrange()`, `contiguous_range()`, `rep()`
+    - **In-place mutation**: `fill()`, `iota()`
     - **Iteration**: `for_each()`, `enum_for_each()`, `each()`
     - **Predicates**: `all()`, `exists()`, `none()`, `contains()`, `count_if()`
     - **Transformation**: `maps()`, `filter()`, `reverse()`, `flatten()`, `flat_map()`
@@ -63,9 +64,11 @@
 # include <algorithm>
 # include <concepts>
 # include <optional>
+# include <type_traits>
 # include <ah-errors.H>
 # include <ah-ranges.H>
 # include <ah-concepts.H>
+# include <hash-dry.H>
 
 namespace Aleph
 {
@@ -83,19 +86,19 @@ namespace Aleph
   /** @brief Represents a missing value. */
   template <typename T> struct None : public Found_Item<T>
   {
-    [[noreturn]] virtual T & get_item() override
+    [[noreturn]] T & get_item() override
     {
       ah_invalid_argument() << "Access from None type";
       __builtin_unreachable();  // Satisfies compiler after throw
     }
 
-    [[noreturn]] virtual const T & get_item() const override
+    [[noreturn]] const T & get_item() const override
     {
       ah_invalid_argument() << "Access from None type";
       __builtin_unreachable();
     }
 
-    virtual bool is_found() const noexcept override { return false; }
+    [[nodiscard]] bool is_found() const noexcept override { return false; }
   };
 
   /** @brief Represents a found value (stored by reference). */
@@ -105,9 +108,9 @@ namespace Aleph
 
     Some(T & i) : item(i) {}
 
-    virtual T & get_item() override { return item; }
-    virtual const T & get_item() const override { return item; }
-    virtual bool is_found() const noexcept override { return true; }
+    T & get_item() override { return item; }
+    const T & get_item() const override { return item; }
+    [[nodiscard]] bool is_found() const noexcept override { return true; }
   };
 
   /** @brief Default mapping operation (identity). */
@@ -124,6 +127,77 @@ namespace Aleph
     TR operator () (const TR & /*acc */, const TD & /* val */)
       const noexcept { return TR(); }
   };
+
+  // Forward declaration to avoid pulling tpl_dynSetHash.H (it depends on
+  // ahFunctional.H through other Aleph headers).
+  template <typename Key, class Cmp>
+    requires EqualityComparator<Cmp, Key>
+  struct DynSetLhash;
+
+  namespace functional_detail
+  {
+    template <typename T, class Eq, typename = void>
+    struct Dyn_Set_Lhash_Available : public std::false_type {};
+
+    template <typename T, class Eq>
+    struct Dyn_Set_Lhash_Available<T, Eq,
+                                   std::void_t<decltype(sizeof(DynSetLhash<T, Eq>))>>
+      : public std::true_type {};
+
+    template <typename T, class Eq>
+    inline constexpr bool dyn_set_lhash_available =
+      Dyn_Set_Lhash_Available<T, Eq>::value;
+
+    template <AlephSequentialIterableContainer Container, class Equal>
+    [[nodiscard]] inline bool pairwise_all_unique(const Container & container,
+                                                  Equal & eq)
+    {
+      for (auto it1 = container.get_it(); it1.has_curr(); it1.next_ne())
+        {
+          auto it2 = it1;
+          it2.next_ne();
+          for (; it2.has_curr(); it2.next_ne())
+            if (eq(it1.get_curr(), it2.get_curr()))
+              return false;
+        }
+      return true;
+    }
+
+    template <AlephSequentialIterableContainer Container, class Hash, class Equal>
+      requires std::copy_constructible<typename Container::Item_Type>
+               and requires(const typename Container::Item_Type & v, Hash h, Equal e)
+               {
+                 { h(v) } -> std::convertible_to<size_t>;
+                 { e(v, v) } -> std::convertible_to<bool>;
+               }
+    [[nodiscard]] inline bool all_unique_hash_path(const Container & container,
+                                                   Hash & hash, Equal & eq)
+    {
+      using T = typename Container::Item_Type;
+      using Eq_Type = std::remove_cvref_t<Equal>;
+
+      if constexpr (dyn_set_lhash_available<T, Eq_Type>)
+        {
+          using Set_Type = DynSetLhash<T, Eq_Type>;
+          using Hash_Fct = typename Set_Type::Hash_Fct;
+
+          Hash_Fct hash_fct([&hash] (const T & value)
+                            {
+                              return static_cast<size_t>(hash(value));
+                            });
+
+          Set_Type seen(17, hash_fct, eq,
+                        hash_default_lower_alpha, hash_default_upper_alpha);
+
+          for (auto it = container.get_it(); it.has_curr(); it.next_ne())
+            if (seen.contains_or_insert(it.get_curr()).second)
+              return false;
+          return true;
+        }
+
+      return pairwise_all_unique(container, eq);
+    }
+  } // namespace functional_detail
 
 
   template <typename T> class DynList;
@@ -244,7 +318,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T = int, template <typename> class Container = DynList>
-  [[nodiscard]] inline Container<T> range(const T n)
+  [[nodiscard]] Container<T> range(const T n)
   {
     Container<T> ret_val;
     for (T i = 0; i < n; ++i)
@@ -262,7 +336,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T = int> [[nodiscard]] inline
-  DynList<T> rep(size_t n, const T & item)
+  DynList<T> rep(const size_t n, const T & item)
   {
     DynList<T> ret_val;
     for (size_t i = 0; i < n; ++i)
@@ -272,9 +346,124 @@ namespace Aleph
 
   /** @overload rep */
   template <typename T = int> [[nodiscard]] inline
-  DynList<T> rep(size_t n, T && item = T())
+  DynList<T> rep(const size_t n, T && item = T())
   {
     return rep<T>(n, item);
+  }
+
+  // ─── In-place fill operations ─────────────────────────────────────────────
+
+  /** @brief Fill all elements of a container with a fixed value.
+   *
+   *  Sets every element currently in @p container to @p value in traversal
+   *  order (front to back).  The container size is unchanged; if it is
+   *  empty this is a no-op.
+   *
+   *  Analogous to `std::fill`, but works with any Aleph-w sequential
+   *  container via the `AlephSequentialContainer` concept.
+   *
+   *  @tparam C  Container type satisfying `AlephSequentialContainer`.
+   *  @param[in,out] container  The container whose elements are overwritten.
+   *  @param[in]     value      The value assigned to every element.
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> lst = {1, 2, 3, 4};
+   *  fill(lst, 0);           // lst is now {0, 0, 0, 0}
+   *
+   *  Array<double> arr(5, 0.0);
+   *  fill(arr, 3.14);        // all elements become 3.14
+   *
+   *  auto zeros = rep(4, 0); // {0, 0, 0, 0}
+   *  fill(zeros, 7);         // {7, 7, 7, 7}
+   *  @endcode
+   *
+   *  @note To *create* a new container of repeated values, use `rep()`.
+   *  @see  iota()  For filling with a sequence of incrementing values.
+   *  @see  rep()   For constructing a new list of repeated values.
+   *  @ingroup Algorithms
+   */
+  template <AlephSequentialContainer C>
+  void fill(C & container, const typename C::Item_Type & value)
+  {
+    container.mutable_for_each([&value](typename C::Item_Type & item)
+      {
+        item = value;
+      });
+  }
+
+  /** @brief Fill all elements of a container with unit-step sequential values.
+   *
+   *  Assigns `start`, `start+1`, `start+2`, … to successive elements of
+   *  @p container in traversal order (front to back).  The container size
+   *  is unchanged; if it is empty this is a no-op.
+   *
+   *  Analogous to `std::iota` but for Aleph-w sequential containers.
+   *
+   *  @tparam C  Container type satisfying `AlephSequentialContainer`.
+   *             Additionally, `C::Item_Type` must support prefix `++`.
+   *  @param[in,out] container  Container whose elements are overwritten.
+   *  @param[in]     start      First value written to the first element.
+   *
+   *  @par Example
+   *  @code
+   *  auto lst = rep(5, 0);   // {0, 0, 0, 0, 0}
+   *  iota(lst, 1);           // {1, 2, 3, 4, 5}
+   *
+   *  Array<int> arr(4, 0);
+   *  iota(arr, 10);          // {10, 11, 12, 13}
+   *  @endcode
+   *
+   *  @see fill()        For filling with a constant value.
+   *  @see iota(C&,T,T)  For a custom step size.
+   *  @ingroup Algorithms
+   */
+  template <AlephSequentialContainer C>
+  requires requires(typename C::Item_Type v) { ++v; }
+  void iota(C & container, typename C::Item_Type start)
+  {
+    container.mutable_for_each([&start](typename C::Item_Type & item)
+      {
+        item = start++;
+      });
+  }
+
+  /** @brief Fill all elements of a container with custom-step sequential values.
+   *
+   *  Assigns `start`, `start + step`, `start + 2*step`, … to successive
+   *  elements of @p container in traversal order.  The container size is
+   *  unchanged; if it is empty this is a no-op.
+   *
+   *  @tparam C  Container type satisfying `AlephSequentialContainer`.
+   *             Additionally, `C::Item_Type` must support `+=`.
+   *  @param[in,out] container  Container whose elements are overwritten.
+   *  @param[in]     start      First value written to the first element.
+   *  @param[in]     step       Increment added after each element.
+   *
+   *  @par Example
+   *  @code
+   *  auto lst = rep(4, 0);
+   *  iota(lst, 0, 2);        // {0, 2, 4, 6}
+   *
+   *  Array<double> arr(3, 0.0);
+   *  iota(arr, 1.0, 0.5);   // {1.0, 1.5, 2.0}
+   *  @endcode
+   *
+   *  @see fill()       For filling with a constant value.
+   *  @see iota(C&,T)   For unit-step iota.
+   *  @ingroup Algorithms
+   */
+  template <AlephSequentialContainer C>
+  requires requires(typename C::Item_Type v, typename C::Item_Type s) { v += s; }
+  void iota(C & container,
+            typename C::Item_Type start,
+            const typename C::Item_Type step)
+  {
+    container.mutable_for_each([&start, &step](typename C::Item_Type & item)
+      {
+        item   = start;
+        start += step;
+      });
   }
 
   /** @brief Create a list of pointers to items in a container.
@@ -2321,6 +2510,114 @@ namespace Aleph
       if (pred(it.get_curr()))
         ++count;
     return count;
+  }
+
+  /** @brief Check if all elements in a container are unique using a comparator.
+
+      This function determines whether all elements in the container are unique
+      according to the provided equality comparator.
+
+      Complexity:
+      - If `Equal` is `std::equal_to<T>`, `std::hash<T>` is available, and
+        `DynSetLhash` is complete in the current translation unit, the check
+        runs in expected O(n).
+      - Otherwise, it falls back to pairwise comparison (O(n²)).
+
+      @param container Source container to check.
+      @param eq Equality comparator used to compare elements.
+      @return true if all elements are unique according to the comparator, false otherwise.
+      @ingroup Algorithms
+  */
+  template <AlephSequentialIterableContainer Container, class Equal>
+  [[nodiscard]] inline bool all_unique(const Container & container, Equal & eq)
+  {
+    using T = typename Container::Item_Type;
+    using Eq = std::remove_cvref_t<Equal>;
+
+    if constexpr (std::is_same_v<Eq, std::equal_to<T>>
+                  and std::copy_constructible<T>
+                  and requires(const T & v)
+                  {
+                    { std::hash<T>{}(v) } -> std::convertible_to<size_t>;
+                  })
+      {
+        auto hash = [] (const T & value) -> size_t
+          {
+            return std::hash<T>{}(value);
+          };
+        return functional_detail::all_unique_hash_path(container, hash, eq);
+      }
+
+    return functional_detail::pairwise_all_unique(container, eq);
+  }
+
+  /** @brief Check if all elements in a container are unique using an rvalue/lvalue comparator.
+
+      @overload of `all_unique(const Container &, Equal &)`.
+      This overload accepts comparators by forwarding reference and also
+      provides a default comparator (`std::equal_to<Item_Type>`).
+
+      This function determines whether all elements in the container are unique
+      according to the provided equality comparator.
+
+      @param container Source container to check.
+      @param eq Equality comparator used to compare elements (may be rvalue or lvalue; defaults to std::equal_to).
+      @return true if all elements are unique according to the comparator, false otherwise.
+      @ingroup Algorithms
+  */
+  template <AlephSequentialIterableContainer Container,
+            class Equal = std::equal_to<typename Container::Item_Type>>
+  [[nodiscard]] inline bool all_unique(const Container & container,
+                                      Equal && eq = Equal())
+  {
+    return all_unique<Container, Equal>(container, eq);
+  }
+
+  /** @brief Check uniqueness with explicit hash + equality functors.
+
+      This overload is intended for custom equivalence relations where a matching
+      hash function is available (for example, case-insensitive string equality).
+
+      Complexity:
+      - Expected O(n) when `DynSetLhash` is complete in the current translation unit.
+      - O(n²) fallback otherwise.
+
+      @param container Source container to check.
+      @param hash Hash functor compatible with eq.
+      @param eq Equality comparator compatible with hash.
+      @return true if all elements are unique according to eq, false otherwise.
+      @ingroup Algorithms
+  */
+  template <AlephSequentialIterableContainer Container, class Hash, class Equal>
+    requires std::copy_constructible<typename Container::Item_Type>
+             and requires(const typename Container::Item_Type & v, Hash h, Equal e)
+             {
+               { h(v) } -> std::convertible_to<size_t>;
+               { e(v, v) } -> std::convertible_to<bool>;
+             }
+  [[nodiscard]] inline bool all_unique(const Container & container,
+                                       Hash & hash, Equal & eq)
+  {
+    return functional_detail::all_unique_hash_path(container, hash, eq);
+  }
+
+  /** @overload all_unique(container, hash, eq) */
+  template <AlephSequentialIterableContainer Container, class Hash, class Equal>
+    requires std::copy_constructible<typename Container::Item_Type>
+             and requires(const typename Container::Item_Type & v, Hash h, Equal e)
+             {
+               { h(v) } -> std::convertible_to<size_t>;
+               { e(v, v) } -> std::convertible_to<bool>;
+             }
+  [[nodiscard]] inline bool all_unique(const Container & container,
+                                       Hash && hash, Equal && eq)
+  {
+    using Hash_Type = std::remove_reference_t<Hash>;
+    using Eq_Type = std::remove_reference_t<Equal>;
+
+    Hash_Type hash_obj = std::forward<Hash>(hash);
+    Eq_Type eq_obj = std::forward<Equal>(eq);
+    return all_unique(container, hash_obj, eq_obj);
   }
 
   /** @brief Check if container contains a specific value.

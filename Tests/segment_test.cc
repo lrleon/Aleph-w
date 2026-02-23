@@ -163,13 +163,13 @@ TEST_F(SegmentTest, RightmostPoint)
 TEST_F(SegmentTest, Size)
 {
   Segment horizontal(origin, p1);  // length 10
-  EXPECT_TRUE(near_equal(horizontal.size(), 10));
+  EXPECT_TRUE(near_equal(horizontal.length(), 10));
   
   Segment vertical(origin, p2);  // length 10
-  EXPECT_TRUE(near_equal(vertical.size(), 10));
+  EXPECT_TRUE(near_equal(vertical.length(), 10));
   
   Segment diagonal(origin, p3);  // length sqrt(200) ≈ 14.14
-  EXPECT_TRUE(near_equal(diagonal.size(), std::sqrt(200.0), 0.01));
+  EXPECT_TRUE(near_equal(diagonal.length(), std::sqrt(200.0), 0.01));
 }
 
 TEST_F(SegmentTest, MidPoint)
@@ -338,7 +338,7 @@ TEST_F(SegmentTest, ParallelSegmentConstructor)
   Segment parallel(original, Geom_Number(5));  // 5 units away
   
   // The parallel segment should have the same length
-  EXPECT_TRUE(near_equal(parallel.size(), original.size(), 0.01));
+  EXPECT_TRUE(near_equal(parallel.length(), original.length(), 0.01));
   
   // The parallel segment should have a different y coordinate
   // (shifted by 5 units perpendicular to the original)
@@ -354,7 +354,7 @@ TEST_F(SegmentTest, NegativeCoordinates)
   Point n2(-5, -5);
   Segment s(n1, n2);
   
-  EXPECT_TRUE(near_equal(s.size(), std::sqrt(50.0), 0.01));
+  EXPECT_TRUE(near_equal(s.length(), std::sqrt(50.0), 0.01));
   Point mid = s.mid_point();
   EXPECT_TRUE(near_equal(mid.get_x(), -7.5, 0.1));
   EXPECT_TRUE(near_equal(mid.get_y(), -7.5, 0.1));
@@ -364,7 +364,7 @@ TEST_F(SegmentTest, DegenerateSegment)
 {
   Point same(5, 5);
   Segment s(same, same);
-  EXPECT_TRUE(near_equal(s.size(), 0));
+  EXPECT_TRUE(near_equal(s.length(), 0));
 }
 
 TEST_F(SegmentTest, LargeCoordinates)
@@ -373,7 +373,7 @@ TEST_F(SegmentTest, LargeCoordinates)
   Point b(1000010, 1000010);
   Segment s(a, b);
   
-  EXPECT_TRUE(near_equal(s.size(), std::sqrt(200.0), 0.01));
+  EXPECT_TRUE(near_equal(s.length(), std::sqrt(200.0), 0.01));
 }
 
 int main(int argc, char **argv)

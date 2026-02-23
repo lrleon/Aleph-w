@@ -385,7 +385,7 @@ protected:
     s = start;
 
     Operate_On_Nodes<GT, IN>()(g);
-    (Operate_On_Arcs<GT, IA>(sa))(g);
+    (Operate_On_Arcs<GT, IA, SA>(sa))(g);
   }
 
   /** @brief Cleanup algorithm state.

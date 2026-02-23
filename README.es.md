@@ -36,7 +36,14 @@ Idioma: Español | [English](README.md)
 - [Licencia](#readme-es-licencia)
 - [Agradecimientos](#readme-es-agradecimientos)
 
-> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo el flujo completo de Delaunay/Voronoi y los ejemplos:
+> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo emparejamiento máximo en grafos generales con Edmonds-Blossom (`Blossom.H`), emparejamiento de máximo peso en grafos generales (`Blossom_Weighted.H`, validado en `List_Graph`, `List_SGraph` y `Array_Graph`), emparejamiento de costo minimo en grafos generales (`Min_Cost_Matching.H`, con variante de matching perfecto factible/no factible), el algoritmo Húngaro/Munkres para asignación óptima (`Hungarian.H`), LCA en árboles sobre grafos de Aleph (`LCA.H`, binary lifting y Euler+RMQ), descomposiciones de árbol avanzadas (`Tree_Decomposition.H`: Heavy-Light + Centroid Decomposition), el flujo completo de Delaunay/Voronoi y los ejemplos:
+> - `Examples/blossom_example.cc`
+> - `Examples/weighted_blossom_example.cc`
+> - `Examples/min_cost_matching_example.cc`
+> - `Examples/hungarian_example.cc`
+> - `Examples/lca_example.cc`
+> - `Examples/heavy_light_decomposition_example.cc`
+> - `Examples/centroid_decomposition_example.cc`
 > - `Examples/geom_example.C` (incluye selector `-s advanced`)
 > - `Examples/voronoi_clipped_cells_example.cc`
 > - `Examples/delaunay_voronoi_example.cc`
@@ -66,8 +73,81 @@ Idioma: Español | [English](README.md)
 
 **Aleph-w** es una librería C++ (C++20) orientada a enseñanza y uso práctico: incluye implementaciones de estructuras de datos, algoritmos clásicos (especialmente de grafos) y una suite de pruebas amplia.
 
-- **Distribución**: headers en el raíz del repo + librería estática `libAleph.a`.
-- **Build**: CMake (con presets opcionales) y tests con GoogleTest.
+- **238 archivos de cabecera** cubriendo algoritmos clásicos y modernos.
+- **90+ estructuras de datos** con múltiples variantes.
+- **50+ algoritmos de grafos** incluyendo flujos, cortes y caminos.
+- **80+ programas de ejemplo** con comentarios detallados.
+
+### Características de un vistazo
+
+#### Estructuras de Datos
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                  RESUMEN DE ESTRUCTURAS DE DATOS                           │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  ÁRBOLES                  TABLAS HASH              HEAPS                   │
+│  ├─ Árbol AVL            ├─ Chaining              ├─ Binary Heap           │
+│  ├─ Árbol Rojo-Negro     ├─ Open Addressing       ├─ Fibonacci Heap        │
+│  ├─ Árbol Splay          ├─ Linear Probing        └─ Array Heap            │
+│  ├─ Treap                └─ Linear Hashing                                 │
+│  ├─ Skip List                                                              │
+│  └─ Variantes con Rank                                                     │
+│                                                                            │
+│  LISTAS                   ARREGLOS                 GRAFOS                  │
+│  ├─ Simplemente ligada   ├─ Arreglo dinámico      ├─ Lista de adyacencia   │
+│  ├─ Doblemente ligada    ├─ Arreglo fijo          ├─ Matriz de adyacencia  │
+│  ├─ Circular             ├─ Matriz 2D             ├─ Redes (flujos)        │
+│  └─ Skip List            └─ BitArray              └─ Euclidianos           │
+│                                                                            │
+│  ESPECIALES               ESPACIALES               PROBABILÍSTICAS         │
+│  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
+│  ├─ LRU Cache            ├─ 2D-Tree               └─ Skip List             │
+│  └─ Prefix Tree (Trie)   └─ K-d Tree                                       │
+│                                                                            │
+│  GEOMETRÍA                                                                 │
+│  ├─ Primitivas (Punto, Segmento, Polígono, Elipse)                         │
+│  ├─ Predicados Exactos (orientación, intersección, in_circle)              │
+│  ├─ Convex Hull (Andrew, Graham, QuickHull)                                │
+│  ├─ Triangulación (Ear-Cutting, Delaunay, CDT)                             │
+│  ├─ Proximidad (Closest Pair, MEC, Rotating Calipers)                      │
+│  ├─ Diagramas (Voronoi, Power Diagram)                                     │
+│  └─ Visualización (TikZ/PGF backend)                                       │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Algoritmos
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                          RESUMEN DE ALGORITMOS                             │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  CAMINOS MÍNIMOS          ÁRBOLES EXPANSORES       CONECTIVIDAD            │
+│  ├─ Dijkstra             ├─ Kruskal               ├─ DFS / BFS             │
+│  ├─ Bellman-Ford         └─ Prim                  ├─ Componentes Conexas   │
+│  ├─ Floyd-Warshall                                ├─ Tarjan / Kosaraju     │
+│  ├─ Johnson                                       ├─ Puntos de Articulación│
+│  └─ A* Search                                     └─ Biconectividad        │
+│                                                                            │
+│  FLUJOS EN REDES          CORTE MÍNIMO             EMPAREJAMIENTO (MATCH)  │
+│  ├─ Ford-Fulkerson       ├─ Karger                ├─ Hopcroft-Karp         │
+│  ├─ Edmonds-Karp         ├─ Karger-Stein          ├─ Edmonds-Blossom       │
+│  ├─ Push-Relabel         └─ Stoer-Wagner          └─ Húngaro (Asignación)  │
+│  ├─ Dinic                                                                  │
+│  └─ Min-Cost Max-Flow                                                      │
+│                                                                            │
+│  ORDENAMIENTO             BÚSQUEDA                 OTROS                   │
+│  ├─ Quicksort            ├─ Búsqueda Binaria      ├─ Union-Find            │
+│  ├─ Mergesort            ├─ Interpolación         ├─ Huffman Coding        │
+│  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
+│  ├─ Introsort                                     └─ RMQ/LCA/HLD/Centroid   │
+│  └─ Shell Sort                                                             │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -255,6 +335,67 @@ int main() {
     return 0;
 }
 ```
+
+### Ejemplo 3b: Descomposiciones de árbol (HLD + Centroid)
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+int main() {
+    G g;
+    auto * r = g.insert_node(10);
+    auto * a = g.insert_node(4);
+    auto * b = g.insert_node(7);
+    g.insert_arc(r, a, 1);
+    g.insert_arc(r, b, 1);
+
+    // HLD + segment tree (suma en paths/subárboles)
+    HLD_Path_Query<G, int, Aleph::plus<int>> hldq(g, r, 0);
+    int path_sum = hldq.query_path(a, b);   // 4 + 10 + 7 = 21
+    int sub_sum  = hldq.query_subtree(r);   // 21
+
+    // Centroid decomposition (cadenas de ancestros centroid + distancias)
+    Centroid_Decomposition<G> cd(g, r);
+    cd.for_each_centroid_ancestor(a, [&](size_t c, size_t d, size_t k) {
+        (void)c; (void)d; (void)k; // usar para consultas dinámicas por distancia
+    });
+
+    (void)path_sum; (void)sub_sum;
+    return 0;
+}
+```
+
+#### ¿Qué problema resuelve `Tree_Decomposition.H`?
+
+Patrones típicos:
+- **Consultas online sobre caminos** con actualizaciones puntuales por nodo.
+  Ejemplo: \"suma de riesgo entre sucursal A y B\" muchas veces.
+- **Consultas online por subárbol** con actualizaciones puntuales.
+  Ejemplo: \"costo total de una región operativa\" donde cambian nodos individuales.
+- **Nodo activo más cercano / más lejano** en árboles (distancia en número de aristas).
+  Ejemplo: centros de atención, estaciones de emergencia, hubs activos.
+
+Guía rápida:
+- Si el núcleo es `path(u, v)` o `subtree(u)` + updates puntuales: usa **HLD** (`Gen_HLD_Path_Query`).
+- Si el núcleo es distancia a un conjunto dinámico de nodos marcados: usa **Centroid Decomposition** (`Gen_Centroid_Decomposition`).
+- Si solo necesitas ancestros/LCA/distancia estática: `LCA.H` es más simple.
+- Si todo es offline y no monoidal: evalúa `tpl_mo_on_trees.H`.
+
+Checklist de diagnóstico (30 segundos):
+1. ¿El árbol es estático y solo necesitas `lca`, ancestros o distancia? Usa `LCA.H`.
+2. ¿Necesitas consultas online `path(u,v)` o `subtree(u)` con operación asociativa y updates puntuales por nodo? Usa `Gen_HLD_Path_Query`.
+3. ¿Mantienes un conjunto dinámico de nodos activos y consultas el más cercano/más lejano? Usa `Gen_Centroid_Decomposition`.
+4. ¿Todo es offline y se resuelve con add/remove (no monoidal)? Usa `tpl_mo_on_trees.H`.
+5. ¿Necesitas distancias con aristas ponderadas? `Gen_Centroid_Decomposition` actual trabaja con número de aristas; adapta el flujo antes de aplicar fórmulas de centroid chain.
+
+Recetas rápidas:
+- **Suma en camino con updates puntuales**: `HLD_Path_Query<..., Aleph::plus<int>>`, luego `query_path(u,v)`, `update_node(x,delta)`, `set_node(x,val)`.
+- **Total por subárbol**: mismo `HLD_Path_Query`, usando `query_subtree(u)`.
+- **Centro activo más cercano**: `Centroid_Decomposition`, mantener `best[centroid]` y combinar sobre `for_each_centroid_ancestor()`.
+- Referencias listas para ejecutar: `Examples/heavy_light_decomposition_example.cc` y `Examples/centroid_decomposition_example.cc`.
 
 ### Ejemplo 4: Álgebra Lineal Sparse (matrices y vectores dispersos)
 

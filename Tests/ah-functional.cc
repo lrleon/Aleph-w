@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -36,11 +35,14 @@
  * @brief Tests for Ah Functional
  */
 # include <gtest/gtest.h>
+# include <cctype>
+# include <cmath>
 
 # include <ah-zip.H>
 # include <ahFunctional.H>
 # include <ah-string-utils.H>
 # include <tpl_dynSetTree.H>
+# include <tpl_dynSetHash.H>
 # include <tpl_odhash.H>
 # include <tpl_dynArray.H>
 
@@ -1483,3 +1485,186 @@ TEST(functional_performance, deep_nesting)
   EXPECT_EQ(result, build_dynlist<int>(1, 3, 5, 7, 9));
 }
 
+// Custom equality predicates for testing all_unique overloads
+struct CaseInsensitiveStringEqual {
+  /**
+   * @brief Performs a case-insensitive comparison of two strings.
+   *
+   * Compares the two strings for equality by checking that they have the same length
+   * and that each corresponding character is equal after conversion with `std::tolower`
+   * (characters are cast to `unsigned char` before conversion).
+   *
+   * @param a First string to compare.
+   * @param b Second string to compare.
+   * @return `true` if both strings have the same length and are equal ignoring case, `false` otherwise.
+   */
+  bool operator()(const string& a, const string& b) const {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i)
+      {
+        const auto ca = static_cast<unsigned char>(a[i]);
+        const auto cb = static_cast<unsigned char>(b[i]);
+        if (std::tolower(ca) != std::tolower(cb)) return false;
+      }
+    return true;
+  }
+};
+
+struct CaseInsensitiveStringHash {
+  /**
+   * @brief Produces a case-insensitive hash for a string by hashing its lowercase form.
+   *
+   * Converts the input string to lowercase (using unsigned-char-safe tolower) and returns the
+   * result of hashing that lowercase representation.
+   *
+   * @param s Input string to hash.
+   * @return size_t Hash value computed from the lowercase version of `s`.
+   */
+  size_t operator()(const string& s) const {
+    string lower;
+    lower.reserve(s.size());
+    for (char c : s)
+      lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    return std::hash<string>()(lower);
+  }
+};
+
+/**
+ * @brief Helper for float comparison with tolerance
+ */
+struct FloatToleranceEqual {
+  float tolerance;
+  /**
+   * @brief Constructs a FloatToleranceEqual comparator with a specified tolerance.
+   *
+   * The comparator considers two floating-point values equal when their absolute
+   * difference is less than or equal to the configured tolerance.
+   *
+   * @param tol Tolerance threshold used for comparisons; defaults to 0.001.
+   */
+  FloatToleranceEqual(float tol = 0.001f) : tolerance(tol) {}
+  /**
+   * @brief Compares two floating-point values for equality within the configured tolerance.
+   *
+   * @param a First value to compare.
+   * @param b Second value to compare.
+   * @return true if the absolute difference between `a` and `b` is less than or equal to `tolerance`, false otherwise.
+   */
+  bool operator()(float a, float b) const {
+    return std::abs(a - b) <= tolerance;
+  }
+};
+
+TEST(all_unique_overload, case_insensitive_strings_true)
+{
+  // All strings unique when case-insensitive comparison is used
+  auto strings = build_dynlist<string>("Hello", "World", "Test", "Aleph");
+  EXPECT_TRUE(all_unique(strings, CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, case_insensitive_strings_false)
+{
+  // "hello" and "HELLO" should be considered equal with case-insensitive comparison
+  auto strings = build_dynlist<string>("hello", "World", "HELLO", "Test");
+  EXPECT_FALSE(all_unique(strings, CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, float_tolerance_true)
+{
+  // All floats unique within tolerance
+  auto floats = build_dynlist<float>(1.0f, 1.1f, 1.2f, 1.3f);
+  EXPECT_TRUE(all_unique(floats, FloatToleranceEqual(0.05f)));
+}
+
+TEST(all_unique_overload, float_tolerance_false)
+{
+  // 1.0 and 1.01 should be considered equal with tolerance 0.05
+  auto floats = build_dynlist<float>(1.0f, 1.01f, 1.5f, 2.0f);
+  EXPECT_FALSE(all_unique(floats, FloatToleranceEqual(0.05f)));
+}
+
+TEST(all_unique_overload, default_equality_true)
+{
+  // Test with default std::equal_to - all unique
+  auto ints = build_dynlist<int>(1, 2, 3, 4, 5);
+  EXPECT_TRUE(all_unique(ints));
+}
+
+TEST(all_unique_overload, default_equality_false)
+{
+  // Test with default std::equal_to - duplicates present
+  auto ints = build_dynlist<int>(1, 2, 3, 2, 5);
+  EXPECT_FALSE(all_unique(ints));
+}
+
+TEST(all_unique_overload, rvalue_comparator_false_case)
+{
+  // Exercise overload with temporary container + temporary comparator (false case)
+  EXPECT_FALSE(all_unique(build_dynlist<string>("Apple", "apple", "Banana"),
+                          CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, rvalue_comparator_true_case)
+{
+  // Exercise overload with temporary container + temporary comparator (true case)
+  EXPECT_TRUE(all_unique(build_dynlist<string>("Apple", "Banana", "Cherry"),
+                         CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, custom_hash_and_eq_true)
+{
+  auto strings = build_dynlist<string>("Hello", "World", "Test", "Aleph");
+  EXPECT_TRUE(all_unique(strings,
+                         CaseInsensitiveStringHash(),
+                         CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, custom_hash_and_eq_false)
+{
+  auto strings = build_dynlist<string>("hello", "World", "HELLO", "Test");
+  EXPECT_FALSE(all_unique(strings,
+                          CaseInsensitiveStringHash(),
+                          CaseInsensitiveStringEqual()));
+}
+
+TEST(all_unique_overload, custom_hash_and_eq_lvalue_functors)
+{
+  auto strings = build_dynlist<string>("Alpha", "Bravo", "alpha");
+  CaseInsensitiveStringHash hash;
+  CaseInsensitiveStringEqual eq;
+  EXPECT_FALSE(all_unique(strings, hash, eq));
+}
+
+TEST(all_unique_overload, custom_hash_functor_is_invoked)
+{
+  auto strings = build_dynlist<string>("Alpha", "Bravo", "ALPHA");
+  size_t hash_calls = 0;
+
+  auto hash = [&hash_calls] (const string & s) -> size_t
+    {
+      ++hash_calls;
+      return CaseInsensitiveStringHash()(s);
+    };
+  CaseInsensitiveStringEqual eq;
+
+  EXPECT_FALSE(all_unique(strings, hash, eq));
+  EXPECT_GT(hash_calls, 0u);
+}
+
+TEST(all_unique_overload, empty_container)
+{
+  // Empty container should always return true
+  DynList<int> empty;
+  EXPECT_TRUE(all_unique(empty, std::hash<int>(), std::equal_to<int>()));
+  EXPECT_TRUE(all_unique(empty, std::equal_to<int>()));
+  EXPECT_TRUE(all_unique(empty));
+}
+
+TEST(all_unique_overload, single_element)
+{
+  // Single element container should always return true
+  auto single = build_dynlist<int>(42);
+  EXPECT_TRUE(all_unique(single, std::hash<int>(), std::equal_to<int>()));
+  EXPECT_TRUE(all_unique(single, std::equal_to<int>()));
+  EXPECT_TRUE(all_unique(single));
+}

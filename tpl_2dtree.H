@@ -603,12 +603,12 @@ public:
     // Sort lexicographically and remove duplicates
     if (points.size() > 1)
       {
-        Aleph::sort(points, [](const Point & a, const Point & b)
-                      {
-                        if (a.get_x() < b.get_x()) return true;
-                        if (b.get_x() < a.get_x()) return false;
-                        return a.get_y() < b.get_y();
-                      });
+        Aleph::in_place_sort(points, [](const Point & a, const Point & b)
+                             {
+                               if (a.get_x() < b.get_x()) return true;
+                               if (b.get_x() < a.get_x()) return false;
+                               return a.get_y() < b.get_y();
+                             });
 
         size_t w = 1;
         for (size_t r = 1; r < points.size(); ++r)
@@ -616,7 +616,7 @@ public:
             points(w++) = points(r);
 
         while (points.size() > w)
-          points.remove_last();
+          static_cast<void>(points.remove_last());
       }
 
     K2Tree tree(pmin, pmax);

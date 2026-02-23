@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -202,7 +201,7 @@ namespace Aleph
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
   [[nodiscard]] std::pair<bool, size_t> search_inversion(const Container<T> & cont,
-                                                    const Compare & cmp = Compare())
+                                                         const Compare & cmp = Compare())
   {
     if (cont.is_empty())
       return std::make_pair(true, 0);
@@ -491,7 +490,7 @@ namespace Aleph
 
     /** @brief Compares two nodes based on their data. */
     bool operator ()(Tlink *l1, Tlink *l2) const
-      noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(), std::declval<const T&>())))
+      noexcept(noexcept(std::declval<const Compare &>()(std::declval<const T &>(), std::declval<const T &>())))
     {
       auto *n1 = static_cast<Tnode<T> *>(l1);
       auto *n2 = static_cast<Tnode<T> *>(l2);
@@ -503,7 +502,7 @@ namespace Aleph
 
     /** @brief Compares a node's data with a value. */
     bool operator ()(Tlink *l, const T & x) const
-      noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(), std::declval<const T&>())))
+      noexcept(noexcept(std::declval<const Compare &>()(std::declval<const T &>(), std::declval<const T &>())))
     {
       auto *n = static_cast<Tnode<T> *>(l);
 
@@ -1026,7 +1025,7 @@ namespace Aleph
         prev = curr;
       }
     ah_logic_error()
-      << "insert_sorted(): reached end of list traversal without inserting";
+        << "insert_sorted(): reached end of list traversal without inserting";
   }
 
   /** Sorts a list of simple nodes by insertion method
@@ -1520,7 +1519,7 @@ namespace Aleph
     // Note: pivot stays at a[r] throughout the loop - no copy needed
     // This saves a potentially expensive copy for large T types
     long i = l - 1; // index first element to the left > pivot
-    long j = r;     // index first element to the right < pivot
+    long j = r; // index first element to the right < pivot
     while (true)
       {
         // advance while a[i] < pivot (pivot is at a[r])
@@ -2035,10 +2034,10 @@ namespace Aleph
     HTList smaller, bigger; // lists of smaller and larger than pivot
 
     while (not list.is_empty())
-        if (auto *p = static_cast<Snodenc<T> *>(list.remove_first_ne()); cmp(p->get_data(), pivot->get_data()))
-          smaller.append(p);
-        else
-          bigger.append(p);
+      if (auto *p = static_cast<Snodenc<T> *>(list.remove_first_ne()); cmp(p->get_data(), pivot->get_data()))
+        smaller.append(p);
+      else
+        bigger.append(p);
 
     quicksort<T, Compare>(bigger, cmp);
     quicksort<T, Compare>(smaller, cmp);
@@ -2700,16 +2699,16 @@ namespace Aleph
     Dlink *pivot = list.remove_next();
 
     while (not list.is_empty())
-        if (Dlink *p = list.remove_next(); cmp(p, pivot)) // p < pivot?
-          {
-            smaller.append(p);
-            ++smaller_count;
-          }
-        else
-          {
-            bigger.append(p);
-            ++bigger_count;
-          }
+      if (Dlink *p = list.remove_next(); cmp(p, pivot)) // p < pivot?
+        {
+          smaller.append(p);
+          ++smaller_count;
+        }
+      else
+        {
+          bigger.append(p);
+          ++bigger_count;
+        }
 
     if (i >= smaller_count + bigger_count + 1)
       {
@@ -4067,7 +4066,7 @@ namespace Aleph
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
-      DynList<long> binindex_dup(const C<T *> & a, const T & x, const Compare & cmp = Compare())
+  DynList<long> binindex_dup(const C<T *> & a, const T & x, const Compare & cmp = Compare())
   {
     DynList<long> ret;
     long idx = binary_search(a, x, cmp);

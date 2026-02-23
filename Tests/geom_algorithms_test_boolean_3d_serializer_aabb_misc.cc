@@ -1266,11 +1266,11 @@ TEST_F(GeomAlgorithmsTest, SegmentEnlargeDiagonal)
   Segment s_copy = s;
   s_copy.enlarge_src(Geom_Number(5));
   // Source should have moved away from target.
-  EXPECT_TRUE(s_copy.size() > s.size());
+  EXPECT_TRUE(s_copy.length() > s.length());
 
   Segment s_copy2 = s;
   s_copy2.enlarge_tgt(Geom_Number(5));
-  EXPECT_TRUE(s_copy2.size() > s.size());
+  EXPECT_TRUE(s_copy2.length() > s.length());
 }
 
 

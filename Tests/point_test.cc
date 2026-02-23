@@ -394,11 +394,11 @@ TEST_F(SegmentTest, Equality)
 
 TEST_F(SegmentTest, Size)
 {
-  Geom_Number len = horizontal.size();
+  Geom_Number len = horizontal.length();
   EXPECT_TRUE(approx_equal(len, 1.0));
 
   Segment longer{Point{0, 0}, Point{3, 4}};
-  EXPECT_TRUE(approx_equal(longer.size(), 5.0));
+  EXPECT_TRUE(approx_equal(longer.length(), 5.0));
 }
 
 TEST_F(SegmentTest, Slope)

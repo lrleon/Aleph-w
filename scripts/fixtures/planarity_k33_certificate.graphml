@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="k_node_label" for="node" attr.name="label" attr.type="string"/>
+  <key id="k_node_branch" for="node" attr.name="branch" attr.type="boolean"/>
+  <key id="k_node_ptr" for="node" attr.name="ptr" attr.type="string"/>
+  <key id="k_edge_kind" for="edge" attr.name="kind" attr.type="string"/>
+  <key id="k_edge_path_id" for="edge" attr.name="path_id" attr.type="int"/>
+  <key id="k_edge_input_mult" for="edge" attr.name="input_multiplicity" attr.type="int"/>
+  <graph id="NonPlanarCertificate" edgedefault="undirected">
+    <node id="n0">
+      <data key="k_node_label">0x597592d148c0</data>
+      <data key="k_node_branch">true</data>
+      <data key="k_node_ptr">0x597592d148c0</data>
+    </node>
+    <node id="n1">
+      <data key="k_node_label">0x597592cb08a0</data>
+      <data key="k_node_branch">true</data>
+      <data key="k_node_ptr">0x597592cb08a0</data>
+    </node>
+    <node id="n2">
+      <data key="k_node_label">0x597592d0d360</data>
+      <data key="k_node_branch">true</data>
+      <data key="k_node_ptr">0x597592d0d360</data>
+    </node>
+    <node id="n3">
+      <data key="k_node_label">0x597592caf2c0</data>
+      <data key="k_node_branch">true</data>
+      <data key="k_node_ptr">0x597592caf2c0</data>
+    </node>
+    <node id="n4">
+      <data key="k_node_label">0x597592caf330</data>
+      <data key="k_node_branch">true</data>
+      <data key="k_node_ptr">0x597592caf330</data>
+    </node>
+    <node id="n5">
+      <data key="k_node_label">0x597592d10bc0</data>
+      <data key="k_node_branch">true</data>
+      <data key="k_node_ptr">0x597592d10bc0</data>
+    </node>
+    <edge id="e0" source="n0" target="n3">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e1" source="n0" target="n4">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e2" source="n0" target="n5">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e3" source="n1" target="n3">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e4" source="n1" target="n4">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e5" source="n1" target="n5">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e6" source="n2" target="n3">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e7" source="n2" target="n4">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e8" source="n2" target="n5">
+      <data key="k_edge_kind">obstruction</data>
+      <data key="k_edge_path_id">-1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e9" source="n0" target="n3">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">0</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e10" source="n0" target="n4">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">1</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e11" source="n0" target="n5">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">2</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e12" source="n1" target="n3">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">3</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e13" source="n1" target="n4">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">4</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e14" source="n1" target="n5">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">5</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e15" source="n2" target="n3">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">6</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e16" source="n2" target="n4">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">7</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+    <edge id="e17" source="n2" target="n5">
+      <data key="k_edge_kind">path</data>
+      <data key="k_edge_path_id">8</data>
+      <data key="k_edge_input_mult">1</data>
+    </edge>
+  </graph>
+</graphml>

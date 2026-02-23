@@ -139,11 +139,11 @@ namespace Aleph
 
   /**
    * @brief Concept that identifies types that can be converted or used as an Aleph Array.
-   * 
+   *
    * A type @p T satisfies AlephArrayConvertible if it defines a nested type @c Item_Type
-   * and provides a @c get_it() method, which is the standard way in Aleph-w to obtain 
+   * and provides a @c get_it() method, which is the standard way in Aleph-w to obtain
    * an iterator for the container.
-   * 
+   *
    * @tparam T The type to check.
    */
   template <typename T>
@@ -152,6 +152,78 @@ namespace Aleph
       typename T::Item_Type;
       { c.get_it() };
     };
+
+  /** @brief Concept for Aleph-w mutable sequential containers.
+   *
+   *  A type `C` satisfies `AlephSequentialContainer` if and only if it exposes
+   *  all of the following:
+   *
+   *  | Expression | Requirement |
+   *  |---|---|
+   *  | `typename C::Item_Type` | element type is defined |
+   *  | `cc.size()` | returns something convertible to `size_t` |
+   *  | `cc.is_empty()` | returns something convertible to `bool` |
+   *  | `c.append(val)` | accepts `const Item_Type &`, inserts at back |
+   *  | `c.mutable_for_each(f)` | accepts `void(Item_Type &)` callable |
+   *
+   *  The four Aleph sequential containers all satisfy this concept:
+   *  - `DynList<T>` (`htlist.H`)
+   *  - `DynDlist<T>` (`tpl_dynDlist.H`)
+   *  - `Array<T>` (`tpl_array.H`)
+   *  - `DynArray<T>` (`tpl_dynArray.H`)
+   *
+   *  The concept is primarily used to constrain the `fill()` and `iota()`
+   *  free functions in `ahFunctional.H`.
+   *
+   *  @tparam C  Container type to check.
+   *
+   *  @see fill()  In-place fill with a constant value.
+   *  @see iota()  In-place fill with sequential values.
+   *  @ingroup Functors
+   */
+  template <typename C>
+  concept AlephSequentialContainer =
+      requires { typename C::Item_Type; } and
+      requires(C & c, const C & cc, const typename C::Item_Type & val)
+        {
+          { cc.size()     } -> std::convertible_to<size_t>;
+          { cc.is_empty() } -> std::convertible_to<bool>;
+          c.append(val);
+        } and
+      // mutable_for_each must accept a void(Item_Type&) callable
+      requires(C & c)
+        {
+          c.mutable_for_each([](typename C::Item_Type &) {});
+        };
+
+  /** @brief Concept for Aleph-w sequential containers that can be iterated.
+   *
+   *  This refines `AlephSequentialContainer` by additionally requiring
+   *  `get_it()` to be available in a `const` container, so that algorithms
+   *  can traverse items in read-only mode.
+   *
+   *  It is intended for Aleph-w *sequential* containers such as:
+   *  - `DynList<T>`
+   *  - `DynDlist<T>`
+   *  - `Array<T>`
+   *  - `DynArray<T>`
+   *
+   *  Although some associative containers may define methods with names like
+   *  `append()`, they typically do not satisfy the full sequential interface
+   *  required here (notably `mutable_for_each()` with an `Item_Type &`), so
+   *  they are excluded by design.
+   *
+   *  @tparam C  Container type to check.
+   *
+   *  @ingroup Functors
+   */
+  template <typename C>
+  concept AlephSequentialIterableContainer =
+      AlephSequentialContainer<C> and
+      requires(const C & cc)
+        {
+          cc.get_it();
+        };
 
 } // namespace Aleph
 

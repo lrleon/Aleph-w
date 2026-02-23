@@ -216,6 +216,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Disjoint Sparse Table                                                  │
 │  ├─ Segment Tree / Lazy / Beats                                            │
 │  ├─ Cartesian Tree RMQ (via LCA)                                           │
+│  ├─ Heavy-Light Decomposition (path/subtree)                               │
+│  ├─ Centroid Decomposition (distance tricks)                               │
 │  └─ Mo's Algorithm (Offline)                                               │
 │                                                                            │
 │  LINEAR ALGEBRA                                                            │
@@ -261,12 +263,18 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Min-Cost Max-Flow                                                      │
 │  └─ Multicommodity                                                         │
 │                                                                            │
-│  SORTING                  SEARCHING                OTHER                   │
-│  ├─ Quicksort            ├─ Binary Search         ├─ Union-Find            │
-│  ├─ Mergesort            ├─ Interpolation         ├─ Huffman Coding        │
-│  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
-│  ├─ Introsort                                     ├─ Geometric             │
-│  └─ Shell Sort                                    └─ RMQ/LCA (Euler Tour)  │
+│  SORTING                  SEARCHING                MATCHING                │
+│  ├─ Quicksort            ├─ Binary Search         ├─ Hopcroft-Karp         │
+│  ├─ Mergesort            ├─ Interpolation         ├─ Edmonds-Blossom       │
+│  ├─ Heapsort             └─ Pattern Matching      └─ Hungarian (Munkres)   │
+│  ├─ Introsort                                                              │
+│  └─ Shell Sort                                                             │
+│                                                                            │
+│  GEOMETRY                 OTHER                                            │
+│  ├─ Convex Hull          ├─ Union-Find                                     │
+│  ├─ Triangulation        ├─ Huffman Coding                                 │
+│  ├─ Voronoi / Delaunay   ├─ Simplex (LP)                                   │
+│  └─ Intersections        └─ RMQ/LCA/HLD/Centroid decompositions            │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -821,6 +829,213 @@ int main() {
 
     return 0;
 }
+```
+
+### Tree LCA on Graph Backends
+
+`LCA.H` provides two LCA engines for rooted trees represented as Aleph graphs:
+
+| Class | Build | Query (`lca`) | Space |
+|-------|-------|----------------|-------|
+| `Gen_Binary_Lifting_LCA<GT, SA>` | O(n log n) | O(log n) | O(n log n) |
+| `Gen_Euler_RMQ_LCA<GT, SA>` | O(n log n) | O(1) | O(n log n) |
+
+Highlights:
+- Works with `List_Graph`, `List_SGraph`, and `Array_Graph`.
+- Supports arc filtering via `SA`.
+- Validates tree shape on the filtered graph (connected, acyclic, simple).
+- Exposes `lca`, `distance`, `is_ancestor`, `depth_of`, and id-based APIs.
+
+```cpp
+#include <LCA.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+int main() {
+    G g;
+    auto * n0 = g.insert_node(0);
+    auto * n1 = g.insert_node(1);
+    auto * n2 = g.insert_node(2);
+    auto * n3 = g.insert_node(3);
+    g.insert_arc(n0, n1);
+    g.insert_arc(n0, n2);
+    g.insert_arc(n1, n3);
+
+    Binary_Lifting_LCA<G> bl(g, n0);
+    Euler_RMQ_LCA<G> er(g, n0);
+
+    auto * a = bl.lca(n3, n2);           // n0
+    auto * b = er.lca(n3, n2);           // n0
+    size_t d = bl.distance(n3, n2);      // 3 edges
+    bool ok = bl.is_ancestor(n0, n3);    // true
+    (void)a; (void)b; (void)d; (void)ok;
+}
+```
+
+Backend-specific constructors:
+
+```cpp
+#include <LCA.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+Binary_Lifting_LCA<G> bl(g, root_node);
+Euler_RMQ_LCA<G> er(g, root_node);
+```
+
+```cpp
+#include <LCA.H>
+#include <tpl_sgraph.H>
+
+using G = List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>;
+Binary_Lifting_LCA<G> bl(g, root_node);
+Euler_RMQ_LCA<G> er(g, root_node);
+```
+
+```cpp
+#include <LCA.H>
+#include <tpl_agraph.H>
+
+using G = Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>;
+Binary_Lifting_LCA<G> bl(g, root_node);
+Euler_RMQ_LCA<G> er(g, root_node);
+```
+
+### Tree Decompositions (Heavy-Light + Centroid)
+
+`Tree_Decomposition.H` adds two advanced tree engines on Aleph graph backends:
+
+| Class | Build | Typical Query/Update | Use case |
+|-------|-------|-----------------------|----------|
+| `Gen_Heavy_Light_Decomposition<GT, SA>` | O(n) | path split in O(log n) segments | Path/subtree decomposition |
+| `Gen_HLD_Path_Query<GT, T, Op, SA>` | O(n) + segment tree | O(log² n) path, O(log n) subtree | Dynamic path/subtree range queries |
+| `Gen_Centroid_Decomposition<GT, SA>` | O(n log n) | O(log n) ancestor chain scans | Dynamic nearest/farthest marked-node tricks |
+
+Highlights:
+- Works with `List_Graph`, `List_SGraph`, and `Array_Graph`.
+- Supports arc filters `SA`.
+- Exposes centroid-ancestor chains with distances (ideal for online distance queries).
+- Integrates directly with segment trees for HLD path/subtree queries.
+
+Problem patterns solved:
+- **Dynamic path aggregates**: `sum/min/max/xor` on `path(u, v)` with node point updates.
+- **Dynamic subtree aggregates**: full subtree query `subtree(u)` with node point updates.
+- **Dynamic nearest active node** (unweighted distance in edges): mark nodes as active and query `min dist(u, active)`.
+- **Dynamic farthest/threshold-style distance queries** by scanning centroid ancestor chains.
+
+Quick decision guide:
+
+| If your problem looks like... | Prefer | Why |
+|---|---|---|
+| Many online path queries + point updates | `Gen_HLD_Path_Query` | Path becomes O(log n) base-array segments |
+| Many online subtree queries + point updates | `Gen_HLD_Path_Query` | Subtree is one contiguous base-array range |
+| Nearest/farthest active node on a tree | `Gen_Centroid_Decomposition` | Query/update naturally map to centroid ancestor chain |
+| Only LCA/ancestor/distance (no segment aggregate) | `LCA.H` | Simpler API, lower conceptual overhead |
+| Offline custom path/subtree statistics (non-monoid) | `tpl_mo_on_trees.H` | Better fit for add/remove offline policies |
+
+30-second diagnostic checklist:
+1. Is the tree static and you only need `lca`, `is_ancestor`, or `distance`? Use `LCA.H`.
+2. Do you need online `path(u, v)` or `subtree(u)` aggregates with an associative op and node point updates? Use `Gen_HLD_Path_Query`.
+3. Do you maintain a dynamic set of marked nodes and query nearest/farthest by tree distance? Use `Gen_Centroid_Decomposition`.
+4. Are queries offline and maintained via add/remove (not monoid-friendly)? Use `tpl_mo_on_trees.H`.
+5. Do you require weighted-edge distances? `Gen_Centroid_Decomposition` is edge-count based today; adapt your workflow (or preprocess distances) before applying centroid-chain formulas.
+
+Practical notes:
+- The current implementations assume an **unweighted tree topology** for distance-based centroid workflows (`distance = #edges`).
+- They validate the filtered graph is a simple tree; construction fails fast on invalid topology.
+- For **range updates** (not only point updates), combine HLD decomposition with a lazy segment tree policy.
+
+#### Ready-to-use Recipes
+
+Recipe 1: Path sum with node point updates
+When to use:
+Many online queries like “sum on path(u, v)” and occasional node value changes.
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+// Build once.
+HLD_Path_Query<G, int, Aleph::plus<int>> q(g, root, 0); // identity for sum
+
+// Online operations.
+q.update_node(sensor_a, +3);            // value[a] += 3
+q.set_node(sensor_b, 42);               // value[b] = 42
+int risk = q.query_path(city_u, city_v); // sum on unique tree path
+```
+
+Recipe 2: Subtree aggregate (full service area)
+When to use:
+Rooted-hierarchy totals where each update touches a single node.
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+HLD_Path_Query<G, int, Aleph::plus<int>> q(g, ceo, 0);
+
+int area_cost = q.query_subtree(region_head); // sum over full rooted subtree
+q.update_node(team_node, -5);                 // adjust one team budget
+int updated = q.query_subtree(region_head);
+```
+
+Recipe 3: Nearest active node (dynamic centers)
+When to use:
+Activate/mark nodes over time and repeatedly query nearest active node distance.
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+#include <algorithm>
+#include <limits>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+Centroid_Decomposition<G> cd(g, root);
+
+const size_t INF = std::numeric_limits<size_t>::max() / 4;
+auto best = Array<size_t>::create(cd.size());
+for (size_t i = 0; i < cd.size(); ++i) best(i) = INF;
+
+auto activate = [&](G::Node * x) {
+  cd.for_each_centroid_ancestor(x, [&](size_t c, size_t d, size_t) {
+    best(c) = std::min(best(c), d);
+  });
+};
+
+auto nearest = [&](G::Node * x) {
+  size_t ans = INF;
+  cd.for_each_centroid_ancestor(x, [&](size_t c, size_t d, size_t) {
+    if (best(c) != INF) ans = std::min(ans, best(c) + d);
+  });
+  return ans; // #edges to nearest active node (or INF if none active)
+};
+```
+
+```cpp
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
+
+using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+// Assume g is a rooted tree and root is a node in g.
+Heavy_Light_Decomposition<G> hld(g, root);
+HLD_Path_Query<G, int, Aleph::plus<int>> q(g, root, 0); // identity = 0
+
+int path_sum = q.query_path(u, v);
+int subtree_sum = q.query_subtree(u);
+q.update_node(u, +5);
+q.set_node(v, 42);
+
+Centroid_Decomposition<G> cd(g, root);
+// For node x, iterate centroid ancestors with distances:
+cd.for_each_centroid_ancestor(x, [&](size_t c, size_t d, size_t k) {
+    // c: centroid ancestor id, d: distance(x, c), k: index in centroid chain
+});
 ```
 
 ### Mo's Algorithm (Offline Range Queries)
@@ -1410,11 +1625,11 @@ Aleph-w extends Mo's algorithm to **tree structures** for subtree and path queri
 
 // Tree represented as Aleph graph
 List_Graph<Graph_Node<int>, Graph_Arc<Empty_Class>> g;
-auto * root = build_tree(g);  // Your tree construction
+auto * root_node = build_tree(g);  // Your tree construction
 
 // Subtree distinct count
-Distinct_Count_Mo_On_Trees<decltype(g)> mot(g, root);
-auto subtree_answers = mot.subtree_solve({root, child1, child2});
+Distinct_Count_Mo_On_Trees<decltype(g)> mot(g, root_node);
+auto subtree_answers = mot.subtree_solve({root_node, child1, child2});
 
 // Path distinct count between nodes
 auto path_answers = mot.path_solve({{node_a, node_b}, {node_c, node_d}});
@@ -1565,8 +1780,13 @@ int main() {
 │ Floyd-Warshall │   O(V³)    │    Yes     │ All pairs, dense graphs          │
 │ Johnson        │O(V²logV+VE)│    Yes     │ All pairs, sparse graphs         │
 │ A*             │ O(E) best  │     No     │ Pathfinding with heuristic       │
+│ K-shortest     │O(K*V*(E+VlogV))│  No     │ Top-K alternatives (simple/general) s→t │
 └────────────────┴────────────┴────────────┴──────────────────────────────────┘
 ```
+
+`K_Shortest_Paths.H` provides two distinct modes:
+- `yen_k_shortest_paths()`: loopless/simple alternatives.
+- `eppstein_k_shortest_paths()`: general alternatives (may include cycles).
 
 #### Dijkstra's Algorithm
 
@@ -1652,6 +1872,119 @@ int main() {
 
     std::cout << "Path length: " << dist << "\n";
     return 0;
+}
+```
+
+#### K-Shortest Paths (Yen Loopless + Eppstein-Style General API)
+
+Use this when one shortest path is not enough:
+- route planning with `k` ranked alternatives from `s` to `t`
+- resilient failover (if best route is blocked, move to next)
+- near-optimal candidate generation for downstream constraints
+
+`K_Shortest_Paths.H` supports both contracts:
+- `yen_k_shortest_paths()`: up to `k` **simple** (cycle-free) paths.
+- `eppstein_k_shortest_paths()`: up to `k` general paths, where cycles may appear.
+- `Yen_K_Shortest_Paths<...>` and `Eppstein_K_Shortest_Paths<...>`: functor wrappers
+  for reusable configured solvers (distance + arc filter).
+
+Both are returned in non-decreasing total cost. Arc weights must be non-negative.
+Implementation detail:
+- Yen performs iterative spur-path recomputation.
+- Eppstein-style precomputes one reverse shortest-path tree and expands sidetracks.
+
+Why keep both APIs separated:
+- Use Yen when path simplicity is a hard requirement (routing without repeated vertices).
+- Use Eppstein-style when you need broader ranked alternatives and want faster reuse of
+  the same source/target structure in dense deviation spaces.
+
+```cpp
+#include <tpl_graph.H>
+#include <K_Shortest_Paths.H>
+
+using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<long long>>;
+
+int main() {
+    Graph g;
+    auto* s = g.insert_node(0);
+    auto* a = g.insert_node(1);
+    auto* b = g.insert_node(2);
+    auto* t = g.insert_node(3);
+
+    g.insert_arc(s, a, 1);
+    g.insert_arc(s, b, 2);
+    g.insert_arc(a, b, 1);
+    g.insert_arc(a, t, 2);
+    g.insert_arc(b, t, 1);
+
+    const size_t k = 4;
+    auto simple = yen_k_shortest_paths<Graph>(g, s, t, k);
+    auto general = eppstein_k_shortest_paths<Graph>(g, s, t, k);
+
+    for (decltype(simple)::Iterator it(simple); it.has_curr(); it.next_ne()) {
+      const auto& item = it.get_curr();
+      std::cout << "[simple] cost=" << item.total_cost << "\n";
+    }
+
+    for (decltype(general)::Iterator it(general); it.has_curr(); it.next_ne()) {
+      const auto& item = it.get_curr();
+      std::cout << "[general] cost=" << item.total_cost << "\n";
+    }
+
+    return 0;
+}
+```
+
+#### Minimum Mean Cycle (Karp)
+
+Use this when your system has repeated loops and you care about
+the **best long-run average cost per step**, not just one shortest path.
+Typical scenarios:
+- performance/latency analysis of cyclic pipelines
+- pricing or resource loops in networked systems
+- steady-state optimization in automata/state machines
+
+`Min_Mean_Cycle.H` provides:
+- `karp_minimum_mean_cycle()`: Karp `O(VE)` minimum cycle mean on directed graphs.
+- `minimum_mean_cycle()`: alias with the same behavior.
+- `karp_minimum_mean_cycle_value()` / `minimum_mean_cycle_value()`: value-only
+  variant (no witness extraction).
+- `Karp_Minimum_Mean_Cycle<...>`: reusable functor wrapper.
+- `Karp_Minimum_Mean_Cycle_Value<...>`: reusable value-only functor wrapper.
+
+Both variants keep Karp complexity `O(VE)`. Value-only avoids witness metadata and
+usually uses less memory in practice.
+
+The result reports:
+- `has_cycle`: whether at least one directed cycle exists
+- `minimum_mean`: optimal cycle mean
+- witness walk information (`cycle_nodes`, `cycle_arcs`, `cycle_total_cost`, `cycle_length`)
+
+Witness semantics:
+- `cycle_nodes` is a closed walk (first node repeated at the end).
+- In tie-heavy graphs it may contain repeated internal vertices; it is a valid
+  witness of the minimum mean value, not necessarily a canonical simple cycle.
+
+```cpp
+#include <tpl_graph.H>
+#include <Min_Mean_Cycle.H>
+
+using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<long long>>;
+
+int main() {
+    Graph g;
+    auto* a = g.insert_node(0);
+    auto* b = g.insert_node(1);
+    auto* c = g.insert_node(2);
+
+    g.insert_arc(a, b, 4);
+    g.insert_arc(b, c, 1);
+    g.insert_arc(c, a, 1); // cycle mean = 2
+
+    auto result = karp_minimum_mean_cycle(g);
+    if (result.has_cycle) {
+      std::cout << "minimum mean: " << result.minimum_mean << "\n";
+    }
 }
 ```
 
@@ -1871,15 +2204,289 @@ int main() {
     tarjan_scc(digraph, sccs);
 
     // Find articulation points
-    DynList<Node*> cut_nodes;
-    compute_cut_nodes(g, cut_nodes);
+    auto cut_nodes = compute_cut_nodes(g);
 
     std::cout << "Articulation points:\n";
     cut_nodes.for_each([](auto* node) {
         std::cout << "  " << node->get_info() << "\n";
     });
 
+    // Find bridges (cut edges) — Tarjan O(V+E)
+    auto bridges = find_bridges(g);
+
+    std::cout << "Bridges:\n";
+    bridges.for_each([&g](auto* arc) {
+        std::cout << "  " << g.get_src_node(arc)->get_info()
+                  << " -- " << g.get_tgt_node(arc)->get_info() << "\n";
+    });
+
+    // Class form: cheaper when calling find_bridges() repeatedly
+    Compute_Bridges<Graph> cb(g);
+    auto b2 = cb.find_bridges(nodes[2]); // start from a specific node
+
     return 0;
+}
+```
+
+<a id="readme-planarity"></a>
+### Planarity Testing
+
+Use this when your problem depends on whether a graph can be embedded in the plane
+without edge crossings.
+
+Typical scenarios:
+- deciding if a topology is physically drawable without crossings
+- validating graph constraints before planar-only algorithms
+- extracting machine-checkable evidence for non-planarity
+- obtaining a combinatorial embedding to reason about faces/rotations
+
+`Planarity_Test.H` provides:
+- `planarity_test()`: detailed result (`is_planar` + normalization metadata)
+- `is_planar_graph()`: boolean convenience API
+- `Planarity_Test<...>` and `Is_Planar_Graph<...>` wrappers
+
+The test is performed on the underlying undirected simple graph:
+- digraph orientation is ignored
+- self-loops are ignored
+- parallel arcs are collapsed
+
+Advanced outputs are opt-in through `Planarity_Test_Options`:
+- `compute_embedding`: combinatorial embedding (rotation system + faces)
+  - primary mode: LR-first construction (`embedding_is_lr_linear = true`)
+    with deterministic LR-local repair (reversal/swap candidates,
+    multi-start coordinate descent)
+  - optional fallback: bounded exact search if LR embedding fails validation
+  - strict profile (`embedding_allow_bruteforce_fallback = false`) avoids
+    exhaustive fallback and is typically faster (no exponential backtracking),
+    but may return `is_planar = true` with no embedding
+    (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
+  - `embedding_max_combinations` is the LR local-repair evaluation budget
+    in strict mode (and the exact-search budget when fallback is used)
+  - robust profile (recommended for face/dual workflows): keep fallback enabled
+- `compute_nonplanar_certificate`: non-planarity witness
+  - first reduces to a minimal obstruction by edge/vertex deletion passes
+  - then searches Kuratowski patterns on the branch-core
+  - returns `K5_Subdivision`, `K33_Subdivision`, or
+    `Minimal_NonPlanar_Obstruction` if classification is not possible under limits
+  - each witness edge keeps traceability to original input arcs
+    (`representative_input_arc`, `input_arcs`)
+  - each witness path includes both nodes and traceable edge sequence
+    (`certificate_paths[i].nodes`, `certificate_paths[i].edges`)
+
+Embedding guarantee model:
+- planarity decision itself (`is_planar`) comes from the LR test and remains exact.
+- strict LR embedding mode (`embedding_allow_bruteforce_fallback = false`) is a
+  bounded constructive strategy; if it reaches budget, embedding can be missing
+  (`has_combinatorial_embedding = false`, `embedding_search_truncated = true`)
+  even for planar graphs.
+- if embedding completeness is required, keep fallback enabled and provide enough
+  `embedding_max_combinations` budget.
+
+Face and dual APIs:
+- `planar_dual_metadata(result)`:
+  - face boundaries as dart walks
+  - face adjacency
+  - primal-edge ↔ dual-edge relation
+- `build_planar_dual_graph(result)` / `build_planar_dual_graph(metadata)`:
+  - builds an Aleph dual graph (`List_Graph` by default)
+  - dual node info: face id
+  - dual arc info: `Planar_Dual_Edge_Info<GT>`
+
+Embedding-aware geometric drawing API:
+- `planar_geometric_drawing(result, drawing_options)`:
+  - computes 2D coordinates for embedding nodes
+  - uses harmonic relaxation on top of the combinatorial embedding
+  - can validate straight-edge crossings (`drawing_validated_no_crossings`)
+
+Certificate export APIs:
+- `nonplanar_certificate_to_json(result)`:
+  - structured machine-readable witness (nodes, obstruction edges, paths)
+- `nonplanar_certificate_to_dot(result)`:
+  - GraphViz DOT with highlighted obstruction/path edges
+- `nonplanar_certificate_to_graphml(result)`:
+  - GraphML exchange format for graph tools/pipelines
+- `nonplanar_certificate_to_gexf(result)`:
+  - GEXF exchange format for Gephi-like tooling
+- `validate_nonplanar_certificate(result)` / `nonplanar_certificate_is_valid(result)`:
+  - structural consistency validation for exported witnesses
+
+External validation adapter (end-to-end artifacts):
+- `scripts/planarity_certificate_validator.rb`
+  - validates exported `GraphML` / `GEXF` files directly
+  - checks XML consistency, endpoint references and obstruction-edge presence
+  - optional `--networkx` pass for tool-level loadability checks
+  - optional `--gephi` pass for Gephi CLI/toolkit adapter checks
+    (`--gephi-cmd` supports a custom command template with `{input}`)
+  - optional `--render-gephi` pass for render/export validation
+    (`--render-profile` + `--render-output-dir`, with SVG/PDF artifact checks)
+- `scripts/planarity_gephi_templates.json`
+  - catalog of Gephi command templates by OS/version (plus portable CI template)
+- `scripts/planarity_gephi_render_profiles.json`
+  - catalog of Gephi render/export profiles (SVG/PDF) by OS/version
+    (plus portable deterministic CI profiles)
+- `scripts/planarity_certificate_ci_batch.rb`
+  - reproducible batch wrapper for CI that emits a deterministic JSON report
+- `scripts/planarity_visual_golden_manifest.json`
+  - deterministic golden digest baseline for portable render profiles
+- `scripts/planarity_certificate_ci_visual_diff.rb`
+  - dedicated visual-golden CI runner (render + SHA256 diff against manifest)
+- `scripts/planarity_gephi_weekly_comparison.rb`
+  - run-level aggregator for nightly artifacts + regression detection (`overall_valid` and exit-code deltas)
+- `scripts/planarity_gephi_regression_notify.rb`
+  - optional notifier for nightly regressions (Markdown alert + webhook dispatch)
+- `scripts/fixtures/planarity_k33_certificate.graphml`
+  - Aleph-generated non-planar certificate fixture used by CI/adapter probes
+- `.github/workflows/planarity_gephi_nightly.yml`
+  - weekly + manual real-Gephi packaging probe (Linux/macOS/Windows)
+  - auto-selects latest `0.9.x` and `0.10.x` Gephi tags (or manual override)
+  - downloads official Gephi release binaries and validates adapter integration
+  - emits per-run comparative report artifact across tags/OS matrix
+  - enforces a regression gate when newer tags regress against previous tags per OS
+  - optional webhook notifications for regressions via secret
+    `ALEPH_PLANARITY_ALERT_WEBHOOK`
+
+```bash
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --input /tmp/planarity_k33_certificate.gexf
+
+# Optional: also verify loadability through NetworkX
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --networkx
+
+# Optional: Gephi adapter mode (portable; command template is user-configurable)
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --gephi \
+  --gephi-cmd "gephi --headless --import {input}"
+
+# List template catalog (filterable by OS)
+ruby scripts/planarity_certificate_validator.rb \
+  --list-gephi-templates --template-os linux --json
+
+# Use template id from catalog
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --gephi --require-gephi \
+  --gephi-template portable.python-file-exists
+
+# List render profile catalog (filterable by OS)
+ruby scripts/planarity_certificate_validator.rb \
+  --list-gephi-render-profiles --render-os linux --json
+
+# Run render profile and validate produced artifact
+ruby scripts/planarity_certificate_validator.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --render-gephi --require-render \
+  --render-profile portable.python-render-svg \
+  --render-output-dir /tmp/aleph_planarity_renders
+
+# CI batch report (deterministic JSON artifact)
+ruby scripts/planarity_certificate_ci_batch.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --input /tmp/planarity_k33_certificate.gexf \
+  --gephi --require-gephi \
+  --gephi-template portable.python-file-exists \
+  --report /tmp/aleph_planarity_ci_report.json --print-summary
+
+# CI batch report with render validation
+ruby scripts/planarity_certificate_ci_batch.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --render-gephi --require-render \
+  --render-profile portable.python-render-svg \
+  --render-output-dir /tmp/aleph_planarity_renders \
+  --report /tmp/aleph_planarity_ci_render_report.json --print-summary
+
+# Dedicated visual golden-diff runner (deterministic)
+ruby scripts/planarity_certificate_ci_visual_diff.rb \
+  --input /tmp/planarity_k33_certificate.graphml \
+  --profile portable.python-render-svg \
+  --profile portable.python-render-pdf \
+  --render-output-dir /tmp/aleph_planarity_visual_renders \
+  --report /tmp/aleph_planarity_visual_diff_report.json --print-summary
+
+# Real-Gephi local smoke check (without portable profiles)
+ruby scripts/planarity_certificate_validator.rb \
+  --input scripts/fixtures/planarity_k33_certificate.graphml \
+  --gephi --require-gephi \
+  --gephi-cmd "\"/path/to/gephi\" --version"
+
+# Nightly workflow manual override example:
+# workflow_dispatch input gephi_tags="v0.9.7,v0.10.1"
+
+# Local nightly artifact comparison/regression check (Ruby implementation)
+ruby scripts/planarity_gephi_weekly_comparison.rb \
+  --artifacts-root /tmp/gephi-nightly-artifacts \
+  --resolved-tags v0.9.7,v0.10.1 \
+  --run-id local --run-attempt 1 --git-sha local \
+  --report-json /tmp/gephi_weekly_comparison.json \
+  --report-md /tmp/gephi_weekly_comparison.md \
+  --print-summary
+
+# Optional regression notification (webhook)
+ALEPH_PLANARITY_ALERT_WEBHOOK="https://example.invalid/webhook" \
+ruby scripts/planarity_gephi_regression_notify.rb \
+  --report-json /tmp/gephi_weekly_comparison.json \
+  --output-md /tmp/gephi_nightly_alert.md \
+  --repository lrleon/Aleph-w \
+  --run-url https://github.com/lrleon/Aleph-w/actions/runs/123 \
+  --webhook-env ALEPH_PLANARITY_ALERT_WEBHOOK \
+  --print-summary
+```
+
+```cpp
+#include <tpl_graph.H>
+#include <Planarity_Test.H>
+
+using Graph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+
+int main() {
+    Graph g;
+    auto* u0 = g.insert_node(0);
+    auto* u1 = g.insert_node(1);
+    auto* u2 = g.insert_node(2);
+    auto* v0 = g.insert_node(3);
+    auto* v1 = g.insert_node(4);
+    auto* v2 = g.insert_node(5);
+
+    // K3,3
+    g.insert_arc(u0, v0); g.insert_arc(u0, v1); g.insert_arc(u0, v2);
+    g.insert_arc(u1, v0); g.insert_arc(u1, v1); g.insert_arc(u1, v2);
+    g.insert_arc(u2, v0); g.insert_arc(u2, v1); g.insert_arc(u2, v2);
+
+    Planarity_Test_Options opts;
+    opts.compute_embedding = true;
+    opts.compute_nonplanar_certificate = true;
+    opts.embedding_prefer_lr_linear = true;
+    opts.embedding_allow_bruteforce_fallback = true;
+
+    auto result = planarity_test(g, opts);
+    std::cout << "Planar: " << result.is_planar << "\n";  // false
+    std::cout << "Certificate: " << to_string(result.certificate_type) << "\n";
+    if (!result.certificate_obstruction_edges.is_empty())
+        std::cout << "First witness edge multiplicity: "
+                  << result.certificate_obstruction_edges[0].input_arcs.size()
+                  << "\n";
+
+    if (result.is_planar && result.has_combinatorial_embedding) {
+        auto md = planar_dual_metadata(result);
+        auto dual = build_planar_dual_graph<Graph>(md);
+        auto drawing = planar_geometric_drawing(result);
+        std::cout << "Dual faces: " << dual.get_num_nodes() << "\n";
+        std::cout << "Crossings: " << drawing.crossing_count << "\n";
+    } else if (result.has_nonplanar_certificate) {
+        auto vr = validate_nonplanar_certificate(result);
+        auto json = nonplanar_certificate_to_json(result);
+        auto dot = nonplanar_certificate_to_dot(result);
+        auto graphml = nonplanar_certificate_to_graphml(result);
+        auto gexf = nonplanar_certificate_to_gexf(result);
+        std::cout << "Certificate valid: " << vr.is_valid << "\n";
+        std::cout << "JSON bytes: " << json.size() << "\n";
+        std::cout << "DOT bytes: " << dot.size() << "\n";
+        std::cout << "GraphML bytes: " << graphml.size() << "\n";
+        std::cout << "GEXF bytes: " << gexf.size() << "\n";
+    }
 }
 ```
 
@@ -1896,7 +2503,221 @@ int main() {
 │  Hopcroft-Karp: O(E√V)                                                      │
 │  Max-Flow Reduction: O(VE)                                                  │
 │                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  GENERAL GRAPH MATCHING (Edmonds-Blossom)                                  │
+│                                                                             │
+│  Handles odd cycles (blossoms) in non-bipartite graphs                     │
+│  Time: O(V³)                                                                │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  GENERAL GRAPH WEIGHTED MATCHING (Weighted Blossom)                        │
+│                                                                             │
+│  Maximizes total matching weight in non-bipartite graphs                   │
+│  Optional: maximize cardinality first, then weight                          │
+│  Backends: List_Graph, List_SGraph, Array_Graph                             │
+│  Time: O(V³)                                                                │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  GENERAL GRAPH MINIMUM-COST MATCHING (Dedicated API)                       │
+│                                                                             │
+│  Minimizes total matching cost in non-bipartite graphs                     │
+│  Optional: maximize cardinality first, then minimize cost                   │
+│  Also supports minimum-cost perfect matching (feasibility-aware)            │
+│  API: blossom_minimum_cost_matching(),                                       │
+│       blossom_minimum_cost_perfect_matching()                               │
+│  Time: O(V³)                                                                │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ASSIGNMENT PROBLEM (Hungarian / Munkres)                                   │
+│                                                                             │
+│  Given an m×n cost matrix, find the minimum-cost perfect matching           │
+│  between rows and columns.                                                  │
+│                                                                             │
+│  Cost matrix:          Optimal assignment:                                  │
+│  ┌──────────────┐      Worker 0 → Task 2  (cost  69)                        │
+│  │  82  83  69  │      Worker 1 → Task 1  (cost  37)                        │
+│  │  77  37  49  │      Worker 2 → Task 0  (cost  11)                        │
+│  │  11  69   5  │      Worker 3 → Task 3  (cost  23)                        │
+│  │   8   9  98  │                                                           │
+│  └──────────────┘      Total cost: 140                                      │
+│                                                                             │
+│  Algorithm: Shortest augmenting paths + dual variables (potentials)         │
+│  Time:  O(n³)   Space: O(n²)   Handles: rectangular, negative costs        │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### General Graph Matching (Edmonds-Blossom)
+
+```cpp
+#include <Blossom.H>
+#include <tpl_graph.H>
+
+using namespace Aleph;
+
+int main() {
+    using Graph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+    Graph g;
+
+    auto* n0 = g.insert_node(0);
+    auto* n1 = g.insert_node(1);
+    auto* n2 = g.insert_node(2);
+    auto* n3 = g.insert_node(3);
+    auto* n4 = g.insert_node(4);
+
+    // Odd cycle + stem arcs
+    g.insert_arc(n0, n1);
+    g.insert_arc(n1, n2);
+    g.insert_arc(n2, n3);
+    g.insert_arc(n3, n4);
+    g.insert_arc(n4, n0);
+    g.insert_arc(n1, n4);
+
+    DynDlist<Graph::Arc*> matching;
+    size_t cardinality = blossom_maximum_cardinality_matching(g, matching);
+
+    std::cout << "Maximum matching size: " << cardinality << "\n";
+    return 0;
+}
+```
+
+#### General Graph Weighted Matching (Weighted Blossom)
+
+`Blossom_Weighted.H` is backend-generic in Aleph. It is tested on:
+- `List_Graph<Graph_Node<int>, Graph_Arc<long long>>`
+- `List_SGraph<Graph_Snode<int>, Graph_Sarc<long long>>`
+- `Array_Graph<Graph_Anode<int>, Graph_Aarc<long long>>`
+
+See `Tests/weighted_blossom_test.cc` and `Examples/weighted_blossom_example.cc`.
+
+```cpp
+#include <Blossom_Weighted.H>
+#include <tpl_graph.H>
+#include <tpl_sgraph.H>
+#include <tpl_agraph.H>
+
+using namespace Aleph;
+
+int main() {
+    using ListGraph = List_Graph<Graph_Node<int>, Graph_Arc<long long>>;
+    using SGraph = List_SGraph<Graph_Snode<int>, Graph_Sarc<long long>>;
+    using AGraph = Array_Graph<Graph_Anode<int>, Graph_Aarc<long long>>;
+
+    ListGraph g;
+
+    auto* n0 = g.insert_node(0);
+    auto* n1 = g.insert_node(1);
+    auto* n2 = g.insert_node(2);
+    auto* n3 = g.insert_node(3);
+
+    g.insert_arc(n0, n1, 9);
+    g.insert_arc(n1, n2, 10);
+    g.insert_arc(n2, n3, 8);
+    g.insert_arc(n0, n3, 7);
+
+    DynDlist<ListGraph::Arc*> matching;
+    auto result = blossom_maximum_weight_matching(g, matching);
+    // Optional lexicographic objective:
+    // auto result = blossom_maximum_weight_matching(
+    //     g, matching, Dft_Dist<ListGraph>(), Dft_Show_Arc<ListGraph>(), true);
+
+    std::cout << "Matching size: " << result.cardinality << "\n";
+    std::cout << "Total weight: " << result.total_weight << "\n";
+    return 0;
+}
+```
+
+#### General Graph Minimum-Cost Matching (Dedicated API)
+
+`Min_Cost_Matching.H` provides a dedicated API for non-bipartite
+minimum-cost matching over Aleph graph backends (`List_Graph`,
+`List_SGraph`, `Array_Graph`).
+
+It also provides a dedicated perfect-matching variant:
+`blossom_minimum_cost_perfect_matching()`, which reports feasibility
+and returns the minimum perfect-matching cost when feasible.
+
+```cpp
+#include <Min_Cost_Matching.H>
+#include <tpl_graph.H>
+
+using namespace Aleph;
+
+int main() {
+    using Graph = List_Graph<Graph_Node<int>, Graph_Arc<long long>>;
+    Graph g;
+
+    auto* n0 = g.insert_node(0);
+    auto* n1 = g.insert_node(1);
+    auto* n2 = g.insert_node(2);
+    auto* n3 = g.insert_node(3);
+
+    g.insert_arc(n0, n1, 8);
+    g.insert_arc(n0, n2, -5);
+    g.insert_arc(n1, n3, 6);
+    g.insert_arc(n2, n3, 2);
+
+    DynDlist<Graph::Arc*> matching;
+
+    // Pure minimum-cost objective
+    auto pure = blossom_minimum_cost_matching(g, matching);
+
+    // Lexicographic objective:
+    // maximum-cardinality first, then minimum-cost
+    auto card_first = blossom_minimum_cost_matching(
+        g, matching, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(), true);
+
+    std::cout << "Pure   -> card: " << pure.cardinality
+              << ", cost: " << pure.total_cost << "\n";
+    std::cout << "Card+  -> card: " << card_first.cardinality
+              << ", cost: " << card_first.total_cost << "\n";
+
+    // Perfect matching variant (feasibility-aware)
+    auto perfect = blossom_minimum_cost_perfect_matching(g, matching);
+    if (perfect.feasible)
+        std::cout << "Perfect -> card: " << perfect.cardinality
+                  << ", cost: " << perfect.total_cost << "\n";
+    else
+        std::cout << "Perfect -> infeasible\n";
+    return 0;
+}
+```
+
+#### Hungarian Assignment (Munkres)
+
+```cpp
+#include <Hungarian.H>
+#include <tpl_dynMat.H>
+
+using namespace Aleph;
+
+int main() {
+    // Construct directly from initializer list
+    Hungarian_Assignment<int> ha({
+        {82, 83, 69, 92},
+        {77, 37, 49, 92},
+        {11, 69,  5, 86},
+        { 8,  9, 98, 23}
+    });
+
+    std::cout << "Optimal cost: " << ha.get_total_cost() << "\n";  // 140
+
+    for (auto [worker, task] : ha.get_assignments())
+        std::cout << "Worker " << worker << " -> Task " << task << "\n";
+
+    // Maximization: negate costs automatically
+    DynMatrix<int> profit(3, 3, 0);
+    profit.allocate();
+    // ... fill profit matrix ...
+    auto result = hungarian_max_assignment(profit);
+    std::cout << "Max profit: " << result.total_cost << "\n";
+
+    return 0;
+}
 ```
 
 <a id="readme-sorting-algorithms"></a>
@@ -2445,15 +3266,27 @@ int main() {
 | `Floyd_Warshall.H` | `floyd_all_shortest_paths()` | All-pairs shortest paths |
 | `Johnson.H` | `johnson_all_pairs()` | All-pairs (sparse graphs) |
 | `AStar.H` | `astar_search()` | Heuristic pathfinding |
+| `K_Shortest_Paths.H` | `yen_k_shortest_paths()`, `eppstein_k_shortest_paths()` | K shortest alternatives (loopless/simple and general) between source and target |
 | `Kruskal.H` | `kruskal_min_spanning_tree()` | MST (edge-based) |
 | `Prim.H` | `prim_min_spanning_tree()` | MST (vertex-based) |
+| `Blossom.H` | `blossom_maximum_cardinality_matching()` | Maximum matching (general graph) |
+| `Blossom_Weighted.H` | `blossom_maximum_weight_matching()` | Maximum-weight matching (general graph; List/SGraph/Array backends) |
+| `Min_Cost_Matching.H` | `blossom_minimum_cost_matching()`, `blossom_minimum_cost_perfect_matching()` | Minimum-cost matching in general graphs (including perfect-matching feasibility/cost) |
+| `Hungarian.H` | `hungarian_assignment()`, `hungarian_max_assignment()` | Assignment problem (min-cost / max-profit) |
+| `LCA.H` | `Gen_Binary_Lifting_LCA`, `Gen_Euler_RMQ_LCA` | Lowest common ancestor on rooted trees (binary lifting / Euler+RMQ) |
+| `Tree_Decomposition.H` | `Gen_Heavy_Light_Decomposition`, `Gen_HLD_Path_Query` | Heavy-Light decomposition + path/subtree dynamic queries |
+| `Tree_Decomposition.H` | `Gen_Centroid_Decomposition` | Centroid decomposition with centroid-ancestor distance chains |
+| `HLD.H` | `Gen_HLD`, `HLD_Sum`, `HLD_Max`, `HLD_Min` | Self-contained HLD with typed convenience wrappers + edge-weighted path queries |
 | `tpl_maxflow.H` | `*_maximum_flow()` | Maximum flow algorithms |
 | `tpl_mincost.H` | `min_cost_max_flow()` | Min-cost max-flow |
 | `Tarjan.H` | `tarjan_scc()` | Strongly connected components |
 | `tpl_components.H` | `connected_components()` | Connected components |
-| `tpl_cut_nodes.H` | `compute_cut_nodes()` | Articulation points |
+| `tpl_cut_nodes.H` | `compute_cut_nodes()`, `Compute_Cut_Nodes` | Articulation points and biconnected components |
+| `tpl_cut_nodes.H` | `find_bridges()`, `Compute_Bridges` | Bridge edges (cut edges) — Tarjan O(V+E) |
+| `Planarity_Test.H` | `planarity_test()`, `planar_dual_metadata()`, `planar_geometric_drawing()`, `validate_nonplanar_certificate()`, `nonplanar_certificate_to_json()`, `nonplanar_certificate_to_dot()`, `nonplanar_certificate_to_graphml()`, `nonplanar_certificate_to_gexf()` | LR planarity test + embedding/dual metadata + geometric drawing + validated non-planar witness export |
 | `topological_sort.H` | `topological_sort()` | DAG ordering |
 | `Karger.H` | `karger_min_cut()` | Probabilistic min-cut |
+| `Dominators.H` | `compute_dominators()`, `build_dominator_tree()`, `compute_dominance_frontiers()`, `compute_post_dominators()`, `build_post_dominator_tree()`, `compute_post_dominance_frontiers()` | Dominator & post-dominator trees (Lengauer-Tarjan) + dominance/post-dominance frontiers |
 | `Stoer_Wagner.H` | `stoer_wagner_min_cut()` | Deterministic min-cut |
 
 #### Memory Management
@@ -2614,6 +3447,8 @@ cmake --build build
 | Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
 | Segment trees | `segment_tree_example.cc` | Point/range updates, lazy propagation, Beats |
 | Cartesian Tree/LCA/RMQ | `cartesian_tree_example.cc` | Cartesian Tree, LCA, RMQ reductions |
+| Heavy-Light decomposition | `heavy_light_decomposition_example.cc` | Path/subtree queries with dynamic point updates |
+| Centroid decomposition | `centroid_decomposition_example.cc` | Dynamic nearest active center queries on trees |
 | Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
@@ -2624,12 +3459,21 @@ cmake --build build
 | Bellman-Ford | `bellman_ford_example.cc` | Negative weights |
 | Johnson | `johnson_example.cc` | All-pairs sparse |
 | A* | `astar_example.cc` | Heuristic search |
+| K shortest paths | `k_shortest_paths_example.cc` | Yen (loopless) vs Eppstein-style general alternatives |
 | **Network Flows** | | |
 | Max flow | `network_flow_example.C` | Basic max flow |
 | Min-cost flow | `mincost_flow_example.cc` | Cost optimization |
 | Min cut | `min_cut_example.cc` | Karger, Stoer-Wagner |
 | **Special Algorithms** | | |
 | MST | `mst_example.C` | Kruskal, Prim |
+| General matching | `blossom_example.cc` | Edmonds-Blossom + TikZ exports |
+| General weighted matching | `weighted_blossom_example.cc` | Weighted blossom + objective comparison + TikZ exports |
+| General minimum-cost matching | `min_cost_matching_example.cc` | Dedicated minimum-cost API + perfect-matching feasibility + backend comparison |
+| Assignment (Hungarian) | `hungarian_example.cc` | Hungarian/Munkres minimum-cost and maximum-profit assignment |
+| Tree LCA | `lca_example.cc` | Binary lifting + Euler/RMQ LCA with cross-backend parity (List/SGraph/Array) |
+| Tree Decomposition | `heavy_light_decomposition_example.cc`, `centroid_decomposition_example.cc` | Heavy-Light path/subtree queries and centroid-distance dynamic queries |
+| HLD convenience | `hld_example.cc` | HLD_Sum/Max/Min path queries, subtree queries, point updates, edge-weighted queries |
+| Planarity + certificates | `planarity_test_example.cc` | LR planarity, dual metadata, geometric drawing, JSON/DOT/GraphML/GEXF certificate export + structural validation |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |
