@@ -58,6 +58,7 @@
 # include <vector>
 
 # include <Blossom.H>
+# include <tpl_array.H>
 # include <tpl_bipartite.H>
 # include <tpl_dynArray.H>
 # include <tpl_dynSetTree.H>
@@ -80,7 +81,7 @@ namespace
     nodes.reserve(n);
 
     for (size_t i = 0; i < n; ++i)
-      nodes(i) = g.insert_node(static_cast<int>(i));
+      nodes.append(g.insert_node(static_cast<int>(i)));
 
     for (const auto & [u, v] : edges)
       {
@@ -99,26 +100,13 @@ namespace
   {
     DynArray<std::pair<size_t, size_t>> aleph_edges;
     aleph_edges.reserve(edges.size());
-
-    size_t i = 0;
     for (const auto & edge : edges)
-      aleph_edges(i++) = edge;
+      aleph_edges.append(edge);
 
     return build_graph<GT>(n, aleph_edges, arc_info);
   }
 
-  template <class GT>
-  GT build_graph(size_t n,
-                 const std::vector<std::pair<size_t, size_t>> & edges,
-                 int arc_info = 1)
-  {
-    DynArray<std::pair<size_t, size_t>> aleph_edges;
-    aleph_edges.reserve(edges.size());
-    for (size_t i = 0; i < edges.size(); ++i)
-      aleph_edges(i) = edges[i];
 
-    return build_graph<GT>(n, aleph_edges, arc_info);
-  }
 
   template <class GT>
   bool verify_matching(const GT & g, const DynDlist<typename GT::Arc *> & matching)
@@ -155,30 +143,30 @@ namespace
     return true;
   }
 
-  std::vector<std::pair<size_t, size_t>> normalize_simple_edges
-  (size_t n, const std::vector<std::pair<size_t, size_t>> & edges)
+  DynArray<std::pair<size_t, size_t>> normalize_simple_edges
+  (size_t n, const DynArray<std::pair<size_t, size_t>> & edges)
   {
-    std::vector<std::pair<size_t, size_t>> simple_edges;
-    simple_edges.reserve(edges.size());
+    DynSetTree<std::pair<size_t, size_t>> seen;
 
-    for (auto [u, v] : edges)
+    for (size_t i = 0; i < edges.size(); ++i)
       {
+        auto [u, v] = edges(i);
         if (u >= n or v >= n or u == v)
           continue;
         if (u > v)
           std::swap(u, v);
-        simple_edges.emplace_back(u, v);
+        seen.insert(std::make_pair(u, v));
       }
 
-    std::sort(simple_edges.begin(), simple_edges.end());
-    simple_edges.erase(std::unique(simple_edges.begin(), simple_edges.end()),
-                       simple_edges.end());
+    DynArray<std::pair<size_t, size_t>> simple_edges;
+    for (const auto & p : seen)
+      simple_edges.append(p);
 
     return simple_edges;
   }
 
   size_t exact_maximum_matching_size(size_t n,
-                                     const std::vector<std::pair<size_t, size_t>> & edges)
+                                     const DynArray<std::pair<size_t, size_t>> & edges)
   {
     if (n == 0)
       return 0;
@@ -186,22 +174,24 @@ namespace
     // Enough for all tests in this file; keeps DP vector small and fast.
     ah_runtime_error_if(n > 20) << "exact_maximum_matching_size supports n <= 20";
 
-    std::vector<uint64_t> adj(n, 0);
-    for (auto [u, v] : normalize_simple_edges(n, edges))
+    Array<uint64_t> adj(n, uint64_t{0});
+    auto simple = normalize_simple_edges(n, edges);
+    for (size_t i = 0; i < simple.size(); ++i)
       {
-        adj[u] |= (uint64_t{1} << v);
-        adj[v] |= (uint64_t{1} << u);
+        auto [u, v] = simple(i);
+        adj(u) |= (uint64_t{1} << v);
+        adj(v) |= (uint64_t{1} << u);
       }
 
     const size_t state_count = static_cast<size_t>(uint64_t{1} << n);
-    std::vector<int> memo(state_count, -1);
+    Array<int> memo(state_count, -1);
 
     std::function<int(uint64_t)> solve = [&](uint64_t mask) -> int
     {
       if (mask == 0)
         return 0;
 
-      int & ans = memo[static_cast<size_t>(mask)];
+      int & ans = memo(static_cast<size_t>(mask));
       if (ans != -1)
         return ans;
 
@@ -210,7 +200,7 @@ namespace
 
       ans = solve(rest); // leave i unmatched
 
-      uint64_t options = adj[i] & rest;
+      uint64_t options = adj(i) & rest;
       while (options != 0)
         {
           const size_t j = static_cast<size_t>(std::countr_zero(options));
@@ -235,7 +225,7 @@ namespace
   template <class GT>
   GT build_bipartite_graph(size_t left_size,
                            size_t right_size,
-                           const std::vector<std::pair<size_t, size_t>> & edges_lr)
+                           const DynArray<std::pair<size_t, size_t>> & edges_lr)
   {
     GT g;
 
@@ -250,8 +240,9 @@ namespace
     for (size_t i = 0; i < right_size; ++i)
       right_nodes(i) = g.insert_node(static_cast<int>(left_size + i));
 
-    for (const auto & [l, r] : edges_lr)
+    for (size_t i = 0; i < edges_lr.size(); ++i)
       {
+        auto [l, r] = edges_lr(i);
         if (l >= left_size or r >= right_size)
           continue;
         g.insert_arc(left_nodes(l), right_nodes(r), 1);
@@ -321,10 +312,11 @@ TYPED_TEST(BlossomMatchingTypedTest, CompleteGraphK6)
 {
   using Graph = TypeParam;
 
-  std::vector<std::pair<size_t, size_t>> edges;
+  DynArray<std::pair<size_t, size_t>> edges;
+  edges.reserve(15); // For K6, there are 6*5/2 = 15 edges
   for (size_t i = 0; i < 6; ++i)
     for (size_t j = i + 1; j < 6; ++j)
-      edges.emplace_back(i, j);
+      edges.append(std::make_pair(i, j));
 
   auto g = build_graph<Graph>(6, edges);
   DynDlist<typename Graph::Arc *> matching;
@@ -409,11 +401,12 @@ TYPED_TEST(BlossomMatchingTypedTest, RandomGraphsAgreeWithExactDP)
       {
         const double p = 0.10 + 0.03 * static_cast<double>(sample);
 
-        std::vector<std::pair<size_t, size_t>> edges;
+        DynArray<std::pair<size_t, size_t>> edges;
+        edges.reserve(n * (n - 1) / 2);
         for (size_t u = 0; u < n; ++u)
           for (size_t v = u + 1; v < n; ++v)
             if (coin(rng) < p)
-              edges.emplace_back(u, v);
+              edges.append(std::make_pair(u, v));
 
         auto g = build_graph<Graph>(n, edges);
 
@@ -442,12 +435,13 @@ TYPED_TEST(BlossomMatchingTypedTest, AgreesWithHopcroftKarpOnBipartiteGraphs)
       for (int sample = 0; sample < 10; ++sample)
         {
           const double p = 0.15 + 0.07 * static_cast<double>(sample);
-          std::vector<std::pair<size_t, size_t>> edges_lr;
+          DynArray<std::pair<size_t, size_t>> edges_lr;
+          edges_lr.reserve(left * right);
 
           for (size_t l = 0; l < left; ++l)
             for (size_t r = 0; r < right; ++r)
               if (coin(rng) < p)
-                edges_lr.emplace_back(l, r);
+                edges_lr.append(std::make_pair(l, r));
 
           auto g = build_bipartite_graph<Graph>(left, right, edges_lr);
 
@@ -475,7 +469,7 @@ TYPED_TEST(BlossomMatchingTypedTest, NestedOddCyclesWithStems)
   // stems: 1-9, 4-10, 6-11
   //
   // This family tends to trigger multiple blossom contractions and expansions.
-  const std::vector<std::pair<size_t, size_t>> edges = {
+  const DynArray<std::pair<size_t, size_t>> edges = {
       {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 0},
       {2, 5}, {5, 6}, {6, 7}, {7, 8}, {8, 2},
       {1, 9}, {4, 10}, {6, 11}
@@ -503,7 +497,7 @@ TYPED_TEST(BlossomMatchingTypedTest, FlowerWithSharedCenterAndBridge)
   //   0-5-6-0
   // Tail:
   //   2-7-8-9
-  const std::vector<std::pair<size_t, size_t>> edges = {
+  const DynArray<std::pair<size_t, size_t>> edges = {
       {0, 1}, {1, 2}, {2, 0},
       {0, 3}, {3, 4}, {4, 0},
       {0, 5}, {5, 6}, {6, 0},
@@ -534,11 +528,12 @@ TYPED_TEST(BlossomMatchingTypedTest, DenseRandomStressCrossBackendAgreement)
       const size_t n = 30 + static_cast<size_t>(sample % 11); // [30, 40]
       const double p = 0.16 + 0.01 * static_cast<double>(sample);
 
-      std::vector<std::pair<size_t, size_t>> edges;
+      DynArray<std::pair<size_t, size_t>> edges;
+      edges.reserve(n * (n - 1) / 2);
       for (size_t u = 0; u < n; ++u)
         for (size_t v = u + 1; v < n; ++v)
           if (coin(rng) < p)
-            edges.emplace_back(u, v);
+            edges.append(std::make_pair(u, v));
 
       auto g = build_graph<Graph>(n, edges);
       DynDlist<typename Graph::Arc *> matching;
@@ -573,15 +568,15 @@ TYPED_TEST(BlossomMatchingTypedTest, BlossomMatchingPerfRegression)
   std::mt19937 rng(seed);
   std::uniform_real_distribution<double> coin(0.0, 1.0);
 
-  std::vector<std::pair<size_t, size_t>> edges;
+  DynArray<std::pair<size_t, size_t>> edges;
   edges.reserve(static_cast<size_t>(n * n * p));
   for (size_t u = 0; u < n; ++u)
     for (size_t v = u + 1; v < n; ++v)
       if (coin(rng) < p)
-        edges.emplace_back(u, v);
+        edges.append(std::make_pair(u, v));
 
-  if (edges.empty())
-    edges.emplace_back(0, 1);
+  if (edges.is_empty())
+    edges.append(std::make_pair(0, 1));
 
   auto g = build_graph<Graph>(n, edges);
   DynDlist<typename Graph::Arc *> matching;

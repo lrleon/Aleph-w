@@ -64,41 +64,15 @@
 #include <tpl_graph.H>
 #include <tpl_sgraph.H>
 
+#include "test_graph_helpers.h"
+
 using namespace Aleph;
+using Aleph_Test_Helpers::build_graph_with_unit_arcs;
+using Aleph_Test_Helpers::Positive_Arc_Filter;
+using Aleph_Test_Helpers::make_random_tree_edges;
 
 namespace
 {
-  template <class GT>
-  Array<typename GT::Node *>
-  build_graph_with_unit_arcs(GT & g,
-                             const size_t n,
-                             const std::vector<std::pair<size_t, size_t>> & edges)
-  {
-    using Node = typename GT::Node;
-
-    auto nodes = Array<Node *>::create(n);
-    for (size_t i = 0; i < n; ++i)
-      nodes(i) = g.insert_node(static_cast<int>(i));
-
-    for (const auto & [u, v] : edges)
-      {
-        if (u >= n or v >= n)
-          continue;
-        g.insert_arc(nodes(u), nodes(v), 1);
-      }
-
-    return nodes;
-  }
-
-  struct Positive_Arc_Filter
-  {
-    template <class Arc>
-    bool operator()(Arc * a) const noexcept
-    {
-      return a->get_info() > 0;
-    }
-  };
-
   // Naive oracle that computes path queries by walking to LCA
   class Naive_Path_Oracle
   {
@@ -241,21 +215,6 @@ namespace
     [[nodiscard]] int value(size_t u) const { return values_[u]; }
     [[nodiscard]] size_t depth(size_t u) const { return depth_[u]; }
   };
-
-  std::vector<std::pair<size_t, size_t>>
-  make_random_tree_edges(const size_t n, std::mt19937 & rng)
-  {
-    std::vector<std::pair<size_t, size_t>> edges;
-    edges.reserve(n > 0 ? n - 1 : 0);
-
-    for (size_t v = 1; v < n; ++v)
-      {
-        std::uniform_int_distribution<size_t> pick(0, v - 1);
-        edges.emplace_back(v, pick(rng));
-      }
-
-    return edges;
-  }
 
   template <class GT>
   class HldTypedTest : public ::testing::Test
@@ -653,7 +612,7 @@ TYPED_TEST(HldTypedTest, StressRandomAgainstNaive)
     {
       std::uniform_int_distribution<size_t> n_pick(2, 80);
       const size_t n = n_pick(rng);
-      const auto edges = make_random_tree_edges(n, rng);
+      const auto edges = make_random_tree_edges<std::vector<std::pair<size_t, size_t>>>(n, rng);
 
       std::uniform_int_distribution<int> val_pick(-100, 100);
       std::vector<int> vals(n);

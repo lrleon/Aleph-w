@@ -53,11 +53,11 @@
 # include <fstream>
 # include <iomanip>
 # include <iostream>
-# include <set>
 # include <string>
 # include <utility>
-# include <vector>
 
+# include <tpl_array.H>
+# include <tpl_dynSetTree.H>
 # include <Blossom.H>
 # include <tpl_graph.H>
 # include <tpl_sgraph.H>
@@ -79,8 +79,8 @@ namespace
   {
     string slug;
     string title;
-    vector<Node_Pos> nodes;
-    vector<pair<size_t, size_t>> edges;
+    Array<Node_Pos> nodes;
+    Array<pair<size_t, size_t>> edges;
   };
 
   template <class GT>
@@ -98,11 +98,11 @@ namespace
   GT build_graph(const Scenario & s)
   {
     GT g;
-    vector<typename GT::Node *> nodes;
+    Array<typename GT::Node *> nodes;
     nodes.reserve(s.nodes.size());
 
     for (size_t i = 0; i < s.nodes.size(); ++i)
-      nodes.push_back(g.insert_node(static_cast<int>(i)));
+      nodes.append(g.insert_node(static_cast<int>(i)));
 
     for (const auto & [u, v] : s.edges)
       {
@@ -123,15 +123,15 @@ namespace
    *
    * @param g Graph instance whose nodes' info fields contain vertex indices.
    * @param matching List of arc pointers representing the matching.
-   * @return std::vector<std::pair<size_t, size_t>> Vector of unique, sorted vertex-index
+   * @return Array<pair<size_t, size_t>> Array of unique, sorted vertex-index
    *         pairs corresponding to matched edges; each pair is ordered with the smaller
    *         index first.
    */
-  vector<pair<size_t, size_t>> extract_matching_pairs(
+  Array<pair<size_t, size_t>> extract_matching_pairs(
       const GT & g,
       const DynDlist<typename GT::Arc *> & matching)
   {
-    vector<pair<size_t, size_t>> pairs;
+    DynSetTree<pair<size_t, size_t>> seen;
 
     for (auto it = matching.get_it(); it.has_curr(); it.next_ne())
       {
@@ -140,13 +140,14 @@ namespace
         size_t v = static_cast<size_t>(g.get_tgt_node(arc)->get_info());
         if (u > v)
           swap(u, v);
-        pairs.emplace_back(u, v);
+        seen.insert(make_pair(u, v));
       }
 
-    sort(pairs.begin(), pairs.end());
-    pairs.erase(unique(pairs.begin(), pairs.end()), pairs.end());
+    Array<pair<size_t, size_t>> result;
+    for (const auto & p : seen)
+      result.append(p);
 
-    return pairs;
+    return result;
   }
 
   /**
@@ -154,12 +155,12 @@ namespace
    *
    * Each pair is formatted as `(u,v)` and pairs are separated by single spaces.
    *
-   * @param pairs Vector of vertex index pairs to format.
+   * @param pairs Array of vertex index pairs to format.
    * @return `"(empty)"` if `pairs` is empty; otherwise a space-separated list of `(u,v)` entries.
    */
-  string format_pairs(const vector<pair<size_t, size_t>> & pairs)
+  string format_pairs(const Array<pair<size_t, size_t>> & pairs)
   {
-    if (pairs.empty())
+    if (pairs.is_empty())
       return "(empty)";
 
     string out;
@@ -180,22 +181,22 @@ namespace
    * from the scenario, renders matched edges with a distinct style, and annotates the matching size.
    *
    * @param s Scenario describing vertex positions, labels, and edge list.
-   * @param matching_pairs Vector of matched vertex-index pairs to highlight in the output.
+   * @param matching_pairs Array of matched vertex-index pairs to highlight in the output.
    * @param file_path Filesystem path where the generated .tex file will be written.
    *
    * If the file cannot be opened for writing, an error message is written to stderr and the function returns
    * without producing output.
    */
   void write_tikz(const Scenario & s,
-                  const vector<pair<size_t, size_t>> & matching_pairs,
+                  const Array<pair<size_t, size_t>> & matching_pairs,
                   const string & file_path)
   {
-    set<pair<size_t, size_t>> matched_set;
+    DynSetTree<pair<size_t, size_t>> matched_set;
     for (auto [u, v] : matching_pairs)
       {
         if (u > v)
           swap(u, v);
-        matched_set.emplace(u, v);
+        matched_set.insert(make_pair(u, v));
       }
 
     ofstream out(file_path);
@@ -239,7 +240,7 @@ namespace
         if (a > b)
           swap(a, b);
 
-        if (matched_set.find(std::make_pair(a, b)) != matched_set.end())
+        if (matched_set.search(make_pair(a, b)) != nullptr)
           continue;
 
         out << "  \\draw[edge] (n" << u << ") -- (n" << v << ");\n";
@@ -260,9 +261,9 @@ namespace
    * Compute the maximum-cardinality matching for the given scenario and return its size and matched vertex pairs.
    *
    * @param s Scenario describing the graph (nodes, positions and edges) to build and solve.
-   * @return pair whose first element is the matching cardinality (number of matched vertex pairs) and whose second element is a vector of unique, sorted vertex-index pairs `(u, v)` with `u <= v` representing the matching.
+   * @return pair whose first element is the matching cardinality (number of matched vertex pairs) and whose second element is an Array of unique, sorted vertex-index pairs `(u, v)` with `u <= v` representing the matching.
    */
-  pair<size_t, vector<pair<size_t, size_t>>> solve_case(const Scenario & s)
+  pair<size_t, Array<pair<size_t, size_t>>> solve_case(const Scenario & s)
   {
     GT g = build_graph<GT>(s);
     DynDlist<typename GT::Arc *> matching;
@@ -289,7 +290,7 @@ namespace
   void print_backend_result(const string & backend_name,
                             const Scenario & s,
                             size_t & cardinality_ref,
-                            vector<pair<size_t, size_t>> & pairs_ref,
+                            Array<pair<size_t, size_t>> & pairs_ref,
                             bool & is_first)
   {
     auto [cardinality, pairs] = solve_case<GT>(s);
@@ -325,7 +326,7 @@ namespace
     cout << string(s.title.size(), '-') << "\n";
 
     size_t cardinality = 0;
-    vector<pair<size_t, size_t>> canonical_pairs;
+    Array<pair<size_t, size_t>> canonical_pairs;
     bool first = true;
 
     print_backend_result<List_Graph<Graph_Node<int>, Graph_Arc<int>>>(

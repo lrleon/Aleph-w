@@ -273,9 +273,9 @@ namespace Aleph
      *  @param g The directed graph.
      *  @param root The root node for dominator computation.
      */
-    void do_compute(const GT & g, Node *root)
+    void do_compute(GT & g, Node *root)
     {
-      gptr = &const_cast<GT &>(g);
+      gptr = &g;
       root_ptr = root;
       is_computed = false;
       num_reachable = 0;
@@ -294,6 +294,7 @@ namespace Aleph
       idom_arr = Array<long>(N, -1L);
       anc = Array<long>(N, -1L);
       label_arr = Array<long>(N, -1L);
+      pred = Array<DynList<long>>(N, DynList<long>());
 
       // Mark all nodes as unvisited
       gptr->for_each_node([](Node *p) { NODE_COUNTER(p) = -1; });
@@ -370,7 +371,7 @@ namespace Aleph
      *  @param g The directed graph.
      *  @param root Root node (must not be null).
      */
-    void ensure_computed(const GT & g, Node *root)
+    void ensure_computed(GT & g, Node *root)
     {
       ah_domain_error_if(root == nullptr)
         << "Lengauer_Tarjan_Dominators: root cannot be null";
@@ -412,7 +413,7 @@ namespace Aleph
      *  @throws std::domain_error If root is null.
      */
     [[nodiscard]] DynList<std::pair<Node *, Node *>>
-    compute_idom(const GT & g, Node *root)
+    compute_idom(GT & g, Node *root)
     {
       ensure_computed(g, root);
 
@@ -437,7 +438,7 @@ namespace Aleph
      *  @param[out] tree Output dominator tree (cleared first).
      *  @throws std::domain_error If root is null.
      */
-    void build_tree(const GT & g, Node *root, GT & tree)
+    void build_tree(GT & g, Node *root, GT & tree)
     {
       ensure_computed(g, root);
 
@@ -470,7 +471,7 @@ namespace Aleph
      *          is the root or unreachable.
      *  @throws std::domain_error If root or node is null.
      */
-    [[nodiscard]] Node * get_idom(const GT & g, Node *root, Node *node)
+    [[nodiscard]] Node * get_idom(GT & g, Node *root, Node *node)
     {
       ah_domain_error_if(node == nullptr)
         << "Lengauer_Tarjan_Dominators::get_idom: node cannot be null";
@@ -494,7 +495,7 @@ namespace Aleph
      *  @return true if d dominates v, false otherwise.
      *  @throws std::domain_error If root is null.
      */
-    [[nodiscard]] bool dominates(const GT & g, Node *root, Node *d, Node *v)
+    [[nodiscard]] bool dominates(GT & g, Node *root, Node *d, Node *v)
     {
       ensure_computed(g, root);
 
@@ -537,7 +538,7 @@ namespace Aleph
      *  @throws std::domain_error If root is null.
      */
     [[nodiscard]] DynMapTree<Node *, DynSetTree<Node *>>
-    dominance_frontiers(const GT & g, Node *root)
+    dominance_frontiers(GT & g, Node *root)
     {
       ensure_computed(g, root);
 
@@ -546,6 +547,9 @@ namespace Aleph
       // Initialize empty frontiers for all reachable nodes
       for (long i = 0; i < num_reachable; ++i)
         df.insert(vertex[i], DynSetTree<Node *>());
+
+      if (num_reachable <= 1)
+        return df;
 
       // For each node with 2+ predecessors, walk up from each pred
       for (long b = 0; b < num_reachable; ++b)
@@ -576,7 +580,7 @@ namespace Aleph
      *  @param root Root node.
      *  @param[out] tree Output dominator tree.
      */
-    void operator()(const GT & g, Node *root, GT & tree)
+    void operator()(GT & g, Node *root, GT & tree)
     {
       build_tree(g, root, tree);
     }
@@ -629,7 +633,7 @@ namespace Aleph
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   [[nodiscard]] DynList<std::pair<typename GT::Node *, typename GT::Node *>>
-  compute_dominators(const GT & g, typename GT::Node *root, SA sa = SA())
+  compute_dominators(GT & g, typename GT::Node *root, SA sa = SA())
   {
     return Lengauer_Tarjan_Dominators<GT, SA>(sa).compute_idom(g, root);
   }
@@ -650,7 +654,7 @@ namespace Aleph
    *  @see Lengauer_Tarjan_Dominators
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  void build_dominator_tree(const GT & g, typename GT::Node *root,
+  void build_dominator_tree(GT & g, typename GT::Node *root,
                             GT & tree, SA sa = SA())
   {
     Lengauer_Tarjan_Dominators<GT, SA>(sa).build_tree(g, root, tree);
@@ -672,7 +676,7 @@ namespace Aleph
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   [[nodiscard]] DynMapTree<typename GT::Node *, DynSetTree<typename GT::Node *>>
-  compute_dominance_frontiers(const GT & g, typename GT::Node *root,
+  compute_dominance_frontiers(GT & g, typename GT::Node *root,
                               SA sa = SA())
   {
     return Lengauer_Tarjan_Dominators<GT, SA>(sa).dominance_frontiers(g, root);

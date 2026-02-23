@@ -314,25 +314,56 @@ int main(int argc, char ** argv)
             (output_dir / "planarity_k33_certificate.gexf").string();
         {
           ofstream fj(json_path);
-          fj << json;
+          if (fj)
+            {
+              fj << json;
+              if (fj)
+                cout << "  certificate JSON written to: " << json_path << '\n';
+              else
+                cerr << "  error writing JSON to: " << json_path << '\n';
+            }
+          else
+            cerr << "  could not open JSON file: " << json_path << '\n';
         }
         {
           ofstream fd(dot_path);
-          fd << dot;
+          if (fd)
+            {
+              fd << dot;
+              if (fd)
+                cout << "  certificate DOT written to: " << dot_path << '\n';
+              else
+                cerr << "  error writing DOT to: " << dot_path << '\n';
+            }
+          else
+            cerr << "  could not open DOT file: " << dot_path << '\n';
         }
         {
           ofstream fg(graphml_path);
-          fg << graphml;
+          if (fg)
+            {
+              fg << graphml;
+              if (fg)
+                cout << "  certificate GraphML written to: " << graphml_path << '\n';
+              else
+                cerr << "  error writing GraphML to: " << graphml_path << '\n';
+            }
+          else
+            cerr << "  could not open GraphML file: " << graphml_path << '\n';
         }
         {
           ofstream fx(gexf_path);
-          fx << gexf;
+          if (fx)
+            {
+              fx << gexf;
+              if (fx)
+                cout << "  certificate GEXF written to: " << gexf_path << '\n';
+              else
+                cerr << "  error writing GEXF to: " << gexf_path << '\n';
+            }
+          else
+            cerr << "  could not open GEXF file: " << gexf_path << '\n';
         }
-
-        cout << "  certificate JSON written to: " << json_path << '\n';
-        cout << "  certificate DOT written to: " << dot_path << '\n';
-        cout << "  certificate GraphML written to: " << graphml_path << '\n';
-        cout << "  certificate GEXF written to: " << gexf_path << '\n';
         cout << "  certificate JSON bytes: " << json.size() << '\n';
         cout << "  certificate DOT bytes: " << dot.size() << '\n';
         cout << "  certificate GraphML bytes: " << graphml.size() << '\n';

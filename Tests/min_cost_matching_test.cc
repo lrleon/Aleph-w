@@ -48,19 +48,20 @@
 # include <chrono>
 # include <cstdint>
 # include <functional>
+# include <initializer_list>
 # include <limits>
 # include <ostream>
 # include <random>
 # include <stdexcept>
 # include <tuple>
-# include <unordered_map>
-# include <unordered_set>
 # include <utility>
-# include <vector>
 
 # include <Blossom_Weighted.H>
 # include <Min_Cost_Matching.H>
 # include <tpl_agraph.H>
+# include <tpl_array.H>
+# include <tpl_dynMapTree.H>
+# include <tpl_dynSetTree.H>
 # include <tpl_graph.H>
 # include <tpl_sgraph.H>
 
@@ -69,6 +70,7 @@ using namespace Aleph;
 namespace
 {
   using Cost_Edge = std::tuple<size_t, size_t, long long>;
+  using Cost_Edges = Array<Cost_Edge>;
   using List_Backend =
       List_Graph<Graph_Node<int>, Graph_Arc<long long>>;
   using SGraph_Backend =
@@ -95,22 +97,30 @@ namespace
         << ", cost=" << obj.total_cost << "}";
   }
 
+  Cost_Edges make_cost_edges(std::initializer_list<Cost_Edge> init)
+  {
+    Cost_Edges ret;
+    ret.reserve(init.size());
+    for (const auto & e : init)
+      ret.append(e);
+    return ret;
+  }
+
 
   template <class GT>
-  GT build_graph(size_t n, const std::vector<Cost_Edge> & edges)
+  GT build_graph(size_t n, const Cost_Edges & edges)
   {
     GT g;
-    std::vector<typename GT::Node *> nodes;
-    nodes.reserve(n);
+    auto nodes = Array<typename GT::Node *>::create(n);
 
     for (size_t i = 0; i < n; ++i)
-      nodes.push_back(g.insert_node(static_cast<int>(i)));
+      nodes(i) = g.insert_node(static_cast<int>(i));
 
     for (const auto & [u, v, c] : edges)
       {
         if (u >= n or v >= n)
           continue;
-        g.insert_arc(nodes[u], nodes[v], c);
+        g.insert_arc(nodes(u), nodes(v), c);
       }
 
     return g;
@@ -121,18 +131,18 @@ namespace
   bool verify_matching(const GT & g,
                        const DynDlist<typename GT::Arc *> & matching)
   {
-    std::unordered_set<typename GT::Arc *> arcs_in_graph;
+    DynSetTree<typename GT::Arc *> arcs_in_graph;
     for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next_ne())
       arcs_in_graph.insert(it.get_curr());
 
-    std::unordered_set<typename GT::Node *> used_nodes;
+    DynSetTree<typename GT::Node *> used_nodes;
     for (auto it = matching.get_it(); it.has_curr(); it.next_ne())
       {
         auto * arc = it.get_curr();
         if (arc == nullptr)
           return false;
 
-        if (arcs_in_graph.find(arc) == arcs_in_graph.end())
+        if (arcs_in_graph.search(arc) == nullptr)
           return false;
 
         auto * src = g.get_src_node(arc);
@@ -140,10 +150,13 @@ namespace
         if (src == nullptr or tgt == nullptr or src == tgt)
           return false;
 
-        if (not used_nodes.insert(src).second)
+        if (used_nodes.search(src) != nullptr)
           return false;
-        if (not used_nodes.insert(tgt).second)
+        used_nodes.insert(src);
+
+        if (used_nodes.search(tgt) != nullptr)
           return false;
+        used_nodes.insert(tgt);
       }
 
     return true;
@@ -168,22 +181,11 @@ namespace
   }
 
 
-  std::vector<Cost_Edge>
-  normalize_simple_edges(size_t n, const std::vector<Cost_Edge> & edges)
+  Cost_Edges
+  normalize_simple_edges(size_t n, const Cost_Edges & edges)
   {
     using Pair = std::pair<size_t, size_t>;
-    struct Pair_Hash
-    {
-      size_t operator()(const Pair & p) const noexcept
-      {
-        const size_t h1 = std::hash<size_t>{}(p.first);
-        const size_t h2 = std::hash<size_t>{}(p.second);
-        return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
-      }
-    };
-
-    std::unordered_map<Pair, long long, Pair_Hash> best;
-    best.reserve(edges.size() * 2 + 1);
+    DynMapTree<Pair, long long> best;
 
     for (auto [u, v, c] : edges)
       {
@@ -194,32 +196,37 @@ namespace
           std::swap(u, v);
 
         const Pair key{u, v};
-        const auto it = best.find(key);
-        if (it == best.end() or c < it->second)
-          best[key] = c;
+        auto * it = best.search(key);
+        if (it == nullptr)
+          best.insert(key, c);
+        else if (c < it->second)
+          it->second = c;
       }
 
-    std::vector<Cost_Edge> result;
+    Cost_Edges result;
     result.reserve(best.size());
-    for (const auto & kv : best)
-      result.emplace_back(kv.first.first, kv.first.second, kv.second);
+    for (auto it = best.get_it(); it.has_curr(); it.next_ne())
+      {
+        const auto & kv = it.get_curr();
+        result.append(std::make_tuple(kv.first.first, kv.first.second, kv.second));
+      }
 
-    std::sort(result.begin(), result.end(),
-              [](const Cost_Edge & a, const Cost_Edge & b)
-              {
-                if (std::get<0>(a) != std::get<0>(b))
-                  return std::get<0>(a) < std::get<0>(b);
-                if (std::get<1>(a) != std::get<1>(b))
-                  return std::get<1>(a) < std::get<1>(b);
-                return std::get<2>(a) < std::get<2>(b);
-              });
+    quicksort_op(result,
+                 [](const Cost_Edge & a, const Cost_Edge & b)
+                 {
+                   if (std::get<0>(a) != std::get<0>(b))
+                     return std::get<0>(a) < std::get<0>(b);
+                   if (std::get<1>(a) != std::get<1>(b))
+                     return std::get<1>(a) < std::get<1>(b);
+                   return std::get<2>(a) < std::get<2>(b);
+                 });
 
     return result;
   }
 
 
   Objective exact_minimum_cost_matching_optimum(size_t n,
-                                                const std::vector<Cost_Edge> & edges,
+                                                const Cost_Edges & edges,
                                                 bool max_cardinality)
   {
     if (n == 0)
@@ -229,19 +236,21 @@ namespace
       << "exact_minimum_cost_matching_optimum supports n <= 24";
 
     constexpr long long NO_EDGE = std::numeric_limits<long long>::max() / 4;
-    std::vector<std::vector<long long>> c(n, std::vector<long long>(n, NO_EDGE));
+    auto c = Array<Array<long long>>::create(n);
+    for (size_t i = 0; i < n; ++i)
+      c(i) = Array<long long>(n, NO_EDGE);
 
     for (auto [u, v, cost] : normalize_simple_edges(n, edges))
       {
-        c[u][v] = cost;
-        c[v][u] = cost;
+        c(u)(v) = cost;
+        c(v)(u) = cost;
       }
 
     const uint64_t full_mask = (uint64_t{1} << n) - 1;
     const size_t state_count = static_cast<size_t>(full_mask + 1);
 
-    std::vector<Objective> memo(state_count);
-    std::vector<char> seen(state_count, 0);
+    Array<Objective> memo(state_count);
+    Array<char> seen(state_count, 0);
 
     std::function<Objective(uint64_t)> solve = [&](uint64_t mask) -> Objective
     {
@@ -249,8 +258,8 @@ namespace
         return Objective{0, 0};
 
       const size_t pos = static_cast<size_t>(mask);
-      if (seen[pos])
-        return memo[pos];
+      if (seen(pos))
+        return memo(pos);
 
       const size_t i = static_cast<size_t>(std::countr_zero(mask));
       const uint64_t rest = mask & ~(uint64_t{1} << i);
@@ -263,19 +272,19 @@ namespace
           const size_t j = static_cast<size_t>(std::countr_zero(options));
           options &= (options - 1);
 
-          if (c[i][j] == NO_EDGE)
+          if (c(i)(j) == NO_EDGE)
             continue;
 
           Objective candidate = solve(rest & ~(uint64_t{1} << j));
           ++candidate.cardinality;
-          candidate.total_cost += c[i][j];
+          candidate.total_cost += c(i)(j);
 
           if (better(candidate, best, max_cardinality))
             best = candidate;
         }
 
-      seen[pos] = 1;
-      memo[pos] = best;
+      seen(pos) = 1;
+      memo(pos) = best;
       return best;
     };
 
@@ -285,7 +294,7 @@ namespace
 
   Min_Cost_Perfect_Matching_Result<long long>
   exact_minimum_cost_perfect_matching_optimum(size_t n,
-                                              const std::vector<Cost_Edge> & edges)
+                                              const Cost_Edges & edges)
   {
     if (n == 0)
       return Min_Cost_Perfect_Matching_Result<long long>{true, 0, 0};
@@ -340,7 +349,7 @@ namespace
 
   template <class GT>
   Objective solve_backend(size_t n,
-                          const std::vector<Cost_Edge> & edges,
+                          const Cost_Edges & edges,
                           bool max_cardinality)
   {
     GT g = build_graph<GT>(n, edges);
@@ -354,7 +363,7 @@ namespace
   template <class GT>
   Min_Cost_Perfect_Matching_Result<long long>
   solve_backend_perfect(size_t n,
-                        const std::vector<Cost_Edge> & edges)
+                        const Cost_Edges & edges)
   {
     GT g = build_graph<GT>(n, edges);
     DynDlist<typename GT::Arc *> matching;
@@ -501,14 +510,14 @@ TEST(MinCostMatchingStandaloneTest, FreeAliasAndFunctorAgree)
 {
   using Graph = List_Backend;
 
-  const std::vector<Cost_Edge> edges = {
+  const Cost_Edges edges = make_cost_edges({
       {0, 1, 5},
       {1, 2, -2},
       {2, 3, 7},
       {0, 3, 1},
       {0, 2, 4},
       {1, 3, 3}
-  };
+  });
 
   Graph g = build_graph<Graph>(4, edges);
 
@@ -537,7 +546,7 @@ TEST(MinCostMatchingStandaloneTest, MatchesNegatedWeightedBlossomObjective)
 {
   using Graph = List_Backend;
 
-  const std::vector<Cost_Edge> edges = {
+  const Cost_Edges edges = make_cost_edges({
       {0, 1, 8},
       {0, 2, -4},
       {1, 3, 2},
@@ -545,7 +554,7 @@ TEST(MinCostMatchingStandaloneTest, MatchesNegatedWeightedBlossomObjective)
       {2, 4, -3},
       {3, 5, 6},
       {4, 5, 1}
-  };
+  });
 
   Graph g = build_graph<Graph>(6, edges);
 
@@ -647,7 +656,7 @@ TEST(MinCostMatchingPerfectStandaloneTest, FeasiblePerfectMatchingMatchesExactOr
 {
   using Graph = List_Backend;
 
-  const std::vector<Cost_Edge> edges = {
+  const Cost_Edges edges = make_cost_edges({
       {0, 1, 9},
       {0, 2, 4},
       {0, 5, 2},
@@ -657,7 +666,7 @@ TEST(MinCostMatchingPerfectStandaloneTest, FeasiblePerfectMatchingMatchesExactOr
       {3, 4, 5},
       {3, 5, 1},
       {4, 5, 8}
-  };
+  });
 
   Graph g = build_graph<Graph>(6, edges);
   DynDlist<Graph::Arc *> matching;
@@ -678,12 +687,12 @@ TEST(MinCostMatchingPerfectStandaloneTest, AliasAndFunctorAgree)
 {
   using Graph = List_Backend;
 
-  const std::vector<Cost_Edge> edges = {
+  const Cost_Edges edges = make_cost_edges({
       {0, 1, 5},
       {0, 3, 9},
       {1, 2, 2},
       {2, 3, 4}
-  };
+  });
 
   Graph g = build_graph<Graph>(4, edges);
 
@@ -710,7 +719,7 @@ TEST(MinCostMatchingPerfectStandaloneTest, AliasAndFunctorAgree)
 
 TEST(MinCostMatchingBackendsTest, DeterministicScenarioMatchesExactAcrossBackends)
 {
-  const std::vector<Cost_Edge> edges = {
+  const Cost_Edges edges = make_cost_edges({
       {0, 1, 5},
       {1, 2, -3},
       {2, 3, 4},
@@ -721,7 +730,7 @@ TEST(MinCostMatchingBackendsTest, DeterministicScenarioMatchesExactAcrossBackend
       {1, 4, 7},
       {2, 5, -2},
       {1, 3, 3}
-  };
+  });
 
   for (bool max_cardinality : {false, true})
     {
@@ -751,21 +760,21 @@ TEST(MinCostMatchingPerfectBackendsTest, RandomSmallGraphsMatchExactPerfectOracl
   for (size_t trial = 0; trial < 100; ++trial)
     {
       const size_t n = static_cast<size_t>(2 * n_half_dist(rng));
-      std::vector<Cost_Edge> edges;
+      Cost_Edges edges;
       edges.reserve(n * (n - 1));
 
       for (size_t i = 0; i < n; ++i)
         for (size_t j = i + 1; j < n; ++j)
           if (edge_coin(rng))
             {
-              edges.emplace_back(i, j, static_cast<long long>(c_dist(rng)));
+              edges.append(std::make_tuple(i, j, static_cast<long long>(c_dist(rng))));
               if (duplicate_coin(rng))
-                edges.emplace_back(i, j, static_cast<long long>(c_dist(rng)));
+                edges.append(std::make_tuple(i, j, static_cast<long long>(c_dist(rng))));
             }
 
       for (size_t i = 0; i < n; ++i)
         if (loop_coin(rng))
-          edges.emplace_back(i, i, static_cast<long long>(c_dist(rng)));
+          edges.append(std::make_tuple(i, i, static_cast<long long>(c_dist(rng))));
 
       const auto expected = exact_minimum_cost_perfect_matching_optimum(n, edges);
       const auto list_obj = solve_backend_perfect<List_Backend>(n, edges);
@@ -801,21 +810,21 @@ TEST(MinCostMatchingBackendsTest, RandomSmallGraphsMatchExactOptimum)
   for (size_t trial = 0; trial < 120; ++trial)
     {
       const size_t n = static_cast<size_t>(n_dist(rng));
-      std::vector<Cost_Edge> edges;
+      Cost_Edges edges;
       edges.reserve(n * (n - 1));
 
       for (size_t i = 0; i < n; ++i)
         for (size_t j = i + 1; j < n; ++j)
           if (edge_coin(rng))
             {
-              edges.emplace_back(i, j, static_cast<long long>(c_dist(rng)));
+              edges.append(std::make_tuple(i, j, static_cast<long long>(c_dist(rng))));
               if (duplicate_coin(rng))
-                edges.emplace_back(i, j, static_cast<long long>(c_dist(rng)));
+                edges.append(std::make_tuple(i, j, static_cast<long long>(c_dist(rng))));
             }
 
       for (size_t i = 0; i < n; ++i)
         if (loop_coin(rng))
-          edges.emplace_back(i, i, static_cast<long long>(c_dist(rng)));
+          edges.append(std::make_tuple(i, i, static_cast<long long>(c_dist(rng))));
 
       for (bool max_cardinality : {false, true})
         {
@@ -861,30 +870,30 @@ TEST(MinCostMatchingBackendsTest, DISABLED_PerfRegressionLargeFixedSeed)
   std::bernoulli_distribution duplicate_coin(0.08);
   std::bernoulli_distribution loop_coin(0.02);
 
-  std::vector<Cost_Edge> edges;
+  Cost_Edges edges;
   edges.reserve(n * 18);
 
   for (size_t i = 0; i < n; ++i)
     for (size_t j = i + 1; j < n; ++j)
       if (edge_coin(rng))
         {
-          edges.emplace_back(i, j, static_cast<long long>(c_dist(rng)));
+          edges.append(std::make_tuple(i, j, static_cast<long long>(c_dist(rng))));
           if (duplicate_coin(rng))
-            edges.emplace_back(i, j, static_cast<long long>(c_dist(rng)));
+            edges.append(std::make_tuple(i, j, static_cast<long long>(c_dist(rng))));
         }
 
   for (size_t i = 0; i < n; ++i)
     if (loop_coin(rng))
-      edges.emplace_back(i, i, static_cast<long long>(c_dist(rng)));
+      edges.append(std::make_tuple(i, i, static_cast<long long>(c_dist(rng))));
 
-  if (edges.empty())
-    edges.emplace_back(0, 1, 1);
+  if (edges.is_empty())
+    edges.append(std::make_tuple(0, 1, 1));
 
-  std::vector<Cost_Edge> oracle_edges;
+  Cost_Edges oracle_edges;
   oracle_edges.reserve(edges.size() / 4 + 1);
   for (const auto & [u, v, c] : edges)
     if (u < oracle_n and v < oracle_n)
-      oracle_edges.emplace_back(u, v, c);
+      oracle_edges.append(std::make_tuple(u, v, c));
 
   // Sanity pass through the same exact/solver entry points used by
   // correctness tests, but on a bounded oracle-sized subproblem.

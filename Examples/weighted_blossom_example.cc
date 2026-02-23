@@ -57,7 +57,6 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
-#include <tuple>
 #include <utility>
 
 #include <Blossom_Weighted.H>
@@ -67,7 +66,6 @@
 #include <tpl_graph.H>
 #include <tpl_sgraph.H>
 
-using namespace std;
 using namespace Aleph;
 
 namespace
@@ -76,16 +74,24 @@ namespace
   {
     double x = 0;
     double y = 0;
-    string label;
+    std::string label;
+  };
+
+
+  struct Weighted_Edge
+  {
+    size_t u = 0;
+    size_t v = 0;
+    long long w = 0;
   };
 
 
   struct Scenario
   {
-    string slug;
-    string title;
+    std::string slug;
+    std::string title;
     DynArray<Node_Pos> nodes;
-    DynArray<tuple<size_t, size_t, long long>> edges;
+    DynArray<Weighted_Edge> edges;
   };
 
 
@@ -93,7 +99,7 @@ namespace
   {
     long long total_weight = 0;
     size_t cardinality = 0;
-    DynArray<pair<size_t, size_t>> matched_pairs;
+    DynArray<std::pair<size_t, size_t>> matched_pairs;
   };
 
 
@@ -118,8 +124,8 @@ namespace
     for (size_t i = 0; i < s.nodes.size(); ++i)
       nodes.append(g.insert_node(static_cast<int>(i)));
 
-    for (const auto & [u, v, w] : s.edges)
-      g.insert_arc(nodes(u), nodes(v), w);
+    for (const auto & e : s.edges)
+      g.insert_arc(nodes(e.u), nodes(e.v), e.w);
 
     return g;
   }
@@ -151,18 +157,18 @@ namespace
         Dft_Show_Arc<GT>(),
         max_cardinality);
 
-    DynSetTree<pair<size_t, size_t>> sorted_pairs;
+    DynSetTree<std::pair<size_t, size_t>> sorted_pairs;
     for (auto it = matching.get_it(); it.has_curr(); it.next_ne())
       {
         auto * arc = it.get_curr();
         size_t u = static_cast<size_t>(g.get_src_node(arc)->get_info());
         size_t v = static_cast<size_t>(g.get_tgt_node(arc)->get_info());
         if (u > v)
-          swap(u, v);
-        sorted_pairs.insert(make_pair(u, v));
+          std::swap(u, v);
+        sorted_pairs.insert(std::make_pair(u, v));
       }
 
-    DynArray<pair<size_t, size_t>> pairs;
+    DynArray<std::pair<size_t, size_t>> pairs;
     for (auto it = sorted_pairs.get_it(); it.has_curr(); it.next_ne())
       pairs.append(it.get_curr());
 
@@ -179,16 +185,16 @@ namespace
    * @param pairs Array of index pairs to format.
    * @return string A string containing the formatted pairs or "(empty)" if no pairs.
    */
-  string format_pairs(const DynArray<pair<size_t, size_t>> & pairs)
+  std::string format_pairs(const DynArray<std::pair<size_t, size_t>> & pairs)
   {
     if (pairs.is_empty())
       return "(empty)";
 
-    string out;
+    std::string out;
     for (size_t i = 0; i < pairs.size(); ++i)
       {
         const auto & p = pairs(i);
-        out += "(" + to_string(p.first) + "," + to_string(p.second) + ")";
+        out += "(" + std::to_string(p.first) + "," + std::to_string(p.second) + ")";
         if (i + 1 < pairs.size())
           out += " ";
       }
@@ -213,14 +219,14 @@ namespace
   void write_tikz(const Scenario & s,
                   const Solve_Output & output,
                   bool max_cardinality,
-                  const string & file_path)
+                  const std::string & file_path)
   {
-    DynSetTree<pair<size_t, size_t>> matched_set(output.matched_pairs);
+    DynSetTree<std::pair<size_t, size_t>> matched_set(output.matched_pairs);
 
-    ofstream out(file_path);
+    std::ofstream out(file_path);
     if (not out)
       {
-        cerr << "Cannot write file: " << file_path << "\n";
+        std::cerr << "Cannot write file: " << file_path << "\n";
         return;
       }
 
@@ -252,7 +258,7 @@ namespace
       {
         const auto & p = s.nodes(i);
         out << "  \\node[vertex] (n" << i << ") at ("
-            << fixed << setprecision(2) << p.x << "," << p.y << ") {"
+            << std::fixed << std::setprecision(2) << p.x << "," << p.y << ") {"
             << p.label << "};\n";
       }
 
@@ -260,9 +266,9 @@ namespace
       {
         size_t u = u_raw;
         size_t v = v_raw;
-        size_t a = min(u, v);
-        size_t b = max(u, v);
-        const bool matched = matched_set.contains(make_pair(a, b));
+        size_t a = std::min(u, v);
+        size_t b = std::max(u, v);
+        const bool matched = matched_set.contains(std::make_pair(a, b));
 
         out << "  \\draw[" << (matched ? "match" : "edge") << "] (n"
             << u << ") -- (n" << v << ");\n";
@@ -294,7 +300,7 @@ namespace
    * @param reference On first invocation for a given mode, updated to the backend's result and subsequently used as the canonical result to compare against.
    * @param first On entry, indicates whether this backend result should initialize `reference`; set to `false` when initialization occurs.
    */
-  void print_backend(const string & backend,
+  void print_backend(const std::string & backend,
                      const Scenario & s,
                      bool max_cardinality,
                      Solve_Output & reference,
@@ -308,15 +314,15 @@ namespace
         first = false;
       }
 
-    cout << "  " << backend
-         << " -> card " << got.cardinality
-         << ", weight " << got.total_weight
-         << " | " << format_pairs(got.matched_pairs) << "\n";
+    std::cout << "  " << backend
+              << " -> card " << got.cardinality
+              << ", weight " << got.total_weight
+              << " | " << format_pairs(got.matched_pairs) << "\n";
 
     if (got.cardinality != reference.cardinality
         or got.total_weight != reference.total_weight)
       {
-        cerr << "  Warning: backend objective mismatch\n";
+        std::cerr << "  Warning: backend objective mismatch\n";
       }
   }
 
@@ -330,14 +336,14 @@ namespace
    */
   void run_scenario(const Scenario & s)
   {
-    cout << "\n" << s.title << "\n";
-    cout << string(s.title.size(), '-') << "\n";
+    std::cout << "\n" << s.title << "\n";
+    std::cout << std::string(s.title.size(), '-') << "\n";
 
     for (bool max_cardinality : {false, true})
       {
-        cout << (max_cardinality
-                 ? "\nMode: maximum-cardinality then maximum-weight\n"
-                 : "\nMode: pure maximum-weight\n");
+        std::cout << (max_cardinality
+                      ? "\nMode: maximum-cardinality then maximum-weight\n"
+                      : "\nMode: pure maximum-weight\n");
 
         Solve_Output canonical;
         bool first = true;
@@ -351,11 +357,11 @@ namespace
         print_backend<Array_Graph<Graph_Anode<int>, Graph_Aarc<long long>>>(
             "Array_Graph", s, max_cardinality, canonical, first);
 
-        const string suffix = max_cardinality ? "max_cardinality" : "max_weight";
-        const string tex_path = "/tmp/weighted_blossom_" + s.slug + "_" + suffix + ".tex";
+        const std::string suffix = max_cardinality ? "max_cardinality" : "max_weight";
+        const std::string tex_path = "/tmp/weighted_blossom_" + s.slug + "_" + suffix + ".tex";
 
         write_tikz(s, canonical, max_cardinality, tex_path);
-        cout << "  TikZ export: " << tex_path << "\n";
+        std::cout << "  TikZ export: " << tex_path << "\n";
       }
   }
 
@@ -427,7 +433,7 @@ int main()
   run_scenario(odd_cycle_bridge);
   run_scenario(tradeoff);
 
-  cout << "\nDone. Compile generated .tex files with pdflatex to visualize the matchings.\n";
+  std::cout << "\nDone. Compile generated .tex files with pdflatex to visualize the matchings.\n";
 
   return 0;
 }

@@ -354,6 +354,20 @@ namespace Aleph
 
 
   /** @brief Alias for compute_maximum_weight_general_matching().
+   *
+   *  @param[in] g Graph (must be undirected).
+   *  @param[out] matching Output list where the selected matching arcs will be stored.
+   *  @param[in] weight Weight accessor functor. Defaults to `Dft_Dist<GT>`.
+   *  @param[in] sa Arc filter for graph traversal.
+   *  @param[in] max_cardinality If true, optimize lexicographically:
+   *             maximum cardinality first, then maximum weight.
+   *
+   *  @return A Blossom_Weighted_Result structure containing the total weight and cardinality.
+   *
+   *  @exception domain_error If `g` is a digraph.
+   *  @exception overflow_error If weights exceed `long long` limits or the number 
+   *                            of nodes exceeds the internal solver's limit.
+   *
    *  @ingroup Graphs
    */
   template <class GT,
@@ -385,6 +399,13 @@ namespace Aleph
     bool max_cardinality_ = false;
 
   public:
+    /** @brief Construct the solver with specific options.
+     *
+     *  @param[in] weight Weight accessor functor.
+     *  @param[in] sa Arc filter for graph traversal.
+     *  @param[in] max_cardinality If true, optimize lexicographically:
+     *             maximum cardinality first, then maximum weight.
+     */
     Compute_Maximum_Weight_General_Matching(Weight weight = Weight(),
                                             SA sa = SA(),
                                             const bool max_cardinality = false)
@@ -395,6 +416,17 @@ namespace Aleph
       // empty
     }
 
+    /** @brief Compute maximum-weight matching.
+     *
+     *  @param[in] g Graph (must be undirected).
+     *  @param[out] matching Output list where the selected matching arcs will be stored.
+     *
+     *  @return A Blossom_Weighted_Result structure containing the total weight and cardinality.
+     *
+     *  @exception domain_error If `g` is a digraph.
+     *  @exception overflow_error If weights exceed `long long` limits or the number 
+     *                            of nodes exceeds the internal solver's limit.
+     */
     Blossom_Weighted_Result<long long>
     operator()(const GT & g, DynDlist<typename GT::Arc *> & matching)
     {

@@ -1535,14 +1535,14 @@ struct CaseInsensitiveStringHash {
 struct FloatToleranceEqual {
   float tolerance;
   /**
- * @brief Constructs a FloatToleranceEqual comparator with a specified tolerance.
- *
- * The comparator considers two floating-point values equal when their absolute
- * difference is less than or equal to the configured tolerance.
- *
- * @param tol Tolerance threshold used for comparisons; defaults to 0.001.
- */
-FloatToleranceEqual(float tol = 0.001f) : tolerance(tol) {}
+   * @brief Constructs a FloatToleranceEqual comparator with a specified tolerance.
+   *
+   * The comparator considers two floating-point values equal when their absolute
+   * difference is less than or equal to the configured tolerance.
+   *
+   * @param tol Tolerance threshold used for comparisons; defaults to 0.001.
+   */
+  FloatToleranceEqual(float tol = 0.001f) : tolerance(tol) {}
   /**
    * @brief Compares two floating-point values for equality within the configured tolerance.
    *
@@ -1597,12 +1597,16 @@ TEST(all_unique_overload, default_equality_false)
   EXPECT_FALSE(all_unique(ints));
 }
 
-TEST(all_unique_overload, custom_predicate_with_rvalue)
+TEST(all_unique_overload, rvalue_comparator_false_case)
 {
-  // Exercise overload with temporary containers + temporary predicate
+  // Exercise overload with temporary container + temporary comparator (false case)
   EXPECT_FALSE(all_unique(build_dynlist<string>("Apple", "apple", "Banana"),
                           CaseInsensitiveStringEqual()));
+}
 
+TEST(all_unique_overload, rvalue_comparator_true_case)
+{
+  // Exercise overload with temporary container + temporary comparator (true case)
   EXPECT_TRUE(all_unique(build_dynlist<string>("Apple", "Banana", "Cherry"),
                          CaseInsensitiveStringEqual()));
 }

@@ -34,6 +34,7 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
 #include <geom_algorithms.H>
+#include <ah-errors.H>
 #include "geometry_visual_golden.h"
 
 namespace
@@ -172,8 +173,8 @@ namespace
     const Geom_Number d = ax * (by - cy) + bx * (cy - ay) + cx * (ay - by);
     const Geom_Number den = d + d;
 
-    if (den == 0)
-      throw std::domain_error("circumcenter_of: collinear triangle (zero area)");
+    ah_domain_error_if(den == 0)
+      << "circumcenter_of: collinear triangle (zero area)";
 
     return {
           (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / den,

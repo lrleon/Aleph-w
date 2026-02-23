@@ -100,7 +100,6 @@ void example_maximization()
   cout << endl;
 
   auto mat = DynMatrix<int>(3, 3, 0);
-  mat.allocate();
   int data[3][3] = {{10, 5, 13}, {3, 9, 18}, {10, 6, 12}};
   for (size_t i = 0; i < 3; ++i)
     for (size_t j = 0; j < 3; ++j)
@@ -141,7 +140,8 @@ void example_rectangular()
   });
 
   cout << "Optimal total cost: " << ha.get_total_cost() << endl;
-  cout << "Assignments (2 tasks left unassigned):" << endl;
+  const size_t unassigned_count = 5 - ha.get_assignments().size();
+  cout << "Assignments (" << unassigned_count << " tasks left unassigned):" << endl;
   for (auto [r, c] : ha.get_assignments())
     cout << "  Worker " << r << " -> Task " << c << endl;
   cout << endl;

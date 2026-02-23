@@ -460,6 +460,11 @@ namespace Aleph
   [[nodiscard]] Hungarian_Result<Cost_Type>
   hungarian_assignment(const DynMatrix<Cost_Type> & cost)
   {
+    static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>> or
+                  std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
+                  "Cost_Type must be signed or floating-point to avoid "
+                  "underflow when negating costs");
+
     Hungarian_Assignment<Cost_Type> ha(cost);
     Hungarian_Result<Cost_Type> result;
     result.total_cost = ha.get_total_cost();
@@ -493,6 +498,11 @@ namespace Aleph
   [[nodiscard]] Hungarian_Result<Cost_Type>
   hungarian_max_assignment(const DynMatrix<Cost_Type> & cost)
   {
+    static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>> or
+                  std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
+                  "Cost_Type must be signed or floating-point to avoid "
+                  "underflow when negating costs");
+
     // Use a promoted signed type for negation to avoid overflow when
     // Cost_Type is a signed integer and a cell contains its minimum value.
     using Common = std::common_type_t<Cost_Type, long long>;

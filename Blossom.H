@@ -65,6 +65,7 @@
 
 # include <cstdint>
 # include <cstddef>
+# include <cassert>
 # include <functional>
 # include <utility>
 
@@ -218,6 +219,7 @@ namespace Aleph
             b = static_cast<size_t>(parent[static_cast<size_t>(match[b])]);
           }
 
+        assert(false and "Blossom::lca fallback reached");
         return b;
       }
 

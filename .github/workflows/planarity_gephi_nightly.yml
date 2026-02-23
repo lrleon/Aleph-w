@@ -169,6 +169,7 @@ jobs:
           import json
           import os
           import pathlib
+          import re
           import shutil
           import stat
           import tarfile
@@ -227,7 +228,7 @@ jobs:
                       score += 80
                   if "x64" in lower or "amd64" in lower:
                       score += 10
-              elif runner_os == "MacOS":
+              elif runner_os.lower() == "macos":
                   if "mac" in lower or "osx" in lower or "darwin" in lower:
                       score += 80
                   if ("arm64" in lower or "aarch64" in lower) and "arm64" in runner_arch:
@@ -524,6 +525,10 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          if [ -z "${ALERT_WEBHOOK:-}" ]; then
+            echo "ALERT_WEBHOOK is empty; skipping regression notification."
+            exit 0
+          fi
           ruby scripts/planarity_gephi_regression_notify.rb \
             --report-json build-gephi-nightly-summary/gephi_nightly_comparison.json \
             --output-md build-gephi-nightly-summary/gephi_nightly_alert.md \

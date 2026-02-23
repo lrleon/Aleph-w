@@ -147,40 +147,7 @@ namespace Aleph
     };
 
 
-    template <class GT, class SA>
-    class In_Iterator_Adapter
-    {
-      In_Iterator<GT, SA> it_;
 
-    public:
-      In_Iterator_Adapter() = default;
-
-      In_Iterator_Adapter(typename GT::Node * p, SA sa = SA())
-        : it_(p, sa)
-      {
-        // empty
-      }
-
-      bool has_curr() const noexcept
-      {
-        return it_.has_curr();
-      }
-
-      void next_ne() noexcept
-      {
-        it_.next_ne();
-      }
-
-      typename GT::Arc * get_current_arc_ne() const noexcept
-      {
-        return it_.get_curr_ne();
-      }
-
-      typename GT::Node * get_tgt_node() const
-      {
-        return it_.get_tgt_node();
-      }
-    };
 
 
     template <class GT, class Distance>
@@ -357,7 +324,7 @@ namespace Aleph
     {
       if (a.nodes.size() <= spur_index or b.nodes.size() <= spur_index)
         return false;
-      if (a.arcs.size() < spur_index or b.arcs.size() < spur_index)
+      if (a.arcs.size() <= spur_index or b.arcs.size() <= spur_index)
         return false;
 
       for (size_t i = 0; i <= spur_index; ++i)
@@ -474,6 +441,8 @@ namespace Aleph
             {
               const Cost_Type dist_node = index.dist_to_target.find(node);
               const Cost_Type dist_parent = index.dist_to_target.find(parent);
+              bool has_best = false;
+              Cost_Type best_diff{};
               for (Node_Arc_Iterator<GT, SA> ait(node, sa); ait.has_curr(); ait.next_ne())
                 {
                   Arc * arc = ait.get_current_arc_ne();
@@ -482,10 +451,13 @@ namespace Aleph
 
                   const Cost_Type cand =
                       shortest_path_detail::checked_add(distance(arc), dist_parent);
-                  if (cand == dist_node)
+                  const Cost_Type diff =
+                      cand >= dist_node ? cand - dist_node : dist_node - cand;
+                  if (not has_best or diff < best_diff)
                     {
+                      best_diff = diff;
                       selected = arc;
-                      break;
+                      has_best = true;
                     }
                 }
             }
@@ -585,6 +557,8 @@ namespace Aleph
           Arc * selected = nullptr;
           const Cost_Type dist_u = index.dist_to_target.find(orig_node);
           const Cost_Type dist_v = index.dist_to_target.find(orig_parent);
+          bool has_best = false;
+          Cost_Type best_diff{};
           for (Node_Arc_Iterator<GT, SA> ait(orig_node, sa); ait.has_curr(); ait.next_ne())
             {
               Arc * arc = ait.get_current_arc_ne();
@@ -592,16 +566,19 @@ namespace Aleph
                 continue;
 
               if (selected == nullptr)
-                selected = arc;
+                selected = arc;  // fallback: first arc to parent
 
               if (dist_v != index.inf)
                 {
                   const Cost_Type cand =
                       shortest_path_detail::checked_add(distance(arc), dist_v);
-                  if (cand == dist_u)
+                  const Cost_Type diff =
+                      cand >= dist_u ? cand - dist_u : dist_u - cand;
+                  if (not has_best or diff < best_diff)
                     {
+                      best_diff = diff;
                       selected = arc;
-                      break;
+                      has_best = true;
                     }
                 }
             }
@@ -893,6 +870,15 @@ namespace Aleph
    *  @exception domain_error If `source` or `target` is null, or if negative
    *                          weights are detected.
    *
+   *  @complexity O(k * V * (E + V log V)) in the worst case: at each of the k
+   *              iterations up to V spur nodes are tried, each requiring a
+   *              Dijkstra run on the filtered graph.
+   *
+   *  @note This implementation is NOT thread-safe due to internal use of
+   *        `const_cast` and `Cookie_Saver` that mutate node/arc cookies on the
+   *        graph object passed as `g`.  Concurrent access to the same graph
+   *        from multiple threads will cause data races.
+   *
    *  @ingroup Graphs
    */
   template <class GT,
@@ -1061,6 +1047,14 @@ namespace Aleph
    *  @note This implementation is NOT thread-safe due to internal use of
    *        static thread-local storage for reverse graph traversal.
    *
+   *  @note **source == target limitation**: when `source` and `target` are the
+   *        same node the function returns exactly one result — the trivial
+   *        zero-cost path — regardless of `k`.  Loopy cycles through `source`
+   *        are not enumerated because `generate_general_deviation_candidates`
+   *        exits immediately on an empty-arc base path.  If cycle enumeration
+   *        from a self-loop origin is required, call the function with a
+   *        distinct dummy source or implement a dedicated cycle-seeding pass.
+   *
    *  @ingroup Graphs
    */
   template <class GT,
@@ -1147,7 +1141,16 @@ namespace Aleph
   }
 
 
-  /** @brief Functor wrapper for Yen k-shortest paths.
+  /** @brief Functor wrapper for Yen's k-shortest loopless paths algorithm.
+   *
+   *  Stores a distance accessor and arc filter so that repeated calls
+   *  on different graphs or node pairs reuse the same configuration.
+   *  Delegates to `yen_k_shortest_paths<GT, Distance, SA>`.
+   *
+   *  @tparam GT       Graph type (undirected or digraph).
+   *  @tparam Distance Arc cost accessor; must expose `Distance_Type` and
+   *                   `operator()(Arc*)`.  Defaults to `Dft_Dist<GT>`.
+   *  @tparam SA       Arc filter functor.  Defaults to `Dft_Show_Arc<GT>`.
    *
    *  @ingroup Graphs
    */
@@ -1168,6 +1171,31 @@ namespace Aleph
       // empty
     }
 
+    /** @brief Compute k shortest loopless paths.
+     *
+     *  Wrapper for `yen_k_shortest_paths<GT, Distance, SA>` using the
+     *  stored distance accessor and arc filter.
+     *
+     *  @param[in] g      Graph to search.
+     *  @param[in] source Source node.
+     *  @param[in] target Target node.
+     *  @param[in] k      Maximum number of paths to return.
+     *
+     *  @return `DynList<K_Shortest_Path_Item<GT, typename Distance::Distance_Type>>`
+     *          containing up to `k` simple paths in non-decreasing cost order.
+     *          Fewer than `k` entries are returned when fewer paths exist.
+     *
+     *  @throws std::domain_error If `source` or `target` is null.
+     *  @throws std::domain_error If negative arc weights are detected.
+     *
+     *  @complexity O(k * V * (E + V log V)) in the worst case.
+     *              Same as `yen_k_shortest_paths`.
+     *
+     *  @note This implementation is NOT thread-safe due to internal use of
+     *        `const_cast` and `Cookie_Saver` that mutate node/arc cookies on
+     *        the graph object passed as `g`.  Concurrent access to the same
+     *        graph from multiple threads will cause data races.
+     */
     DynList<K_Shortest_Path_Item<GT, typename Distance::Distance_Type>>
     operator()(const GT & g,
                typename GT::Node *source,

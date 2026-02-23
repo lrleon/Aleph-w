@@ -46,7 +46,9 @@
 # include <tpl_graph.H>
 
 # include <cassert>
-# include <cstdio>
+# include <iomanip>
+# include <iostream>
+# include <string>
 
 using namespace Aleph;
 
@@ -168,12 +170,14 @@ int main()
   for (size_t i = 0; i < hld.size(); ++i)
     values(i) = hld.node_of(i)->get_info();
 
-  std::printf("=== Aurora Power Grid (HLD path queries) ===\n\n");
-  std::printf("Node mapping (id -> label, base position):\n");
+  std::cout << "=== Aurora Power Grid (HLD path queries) ===\n\n";
+  std::cout << "Node mapping (id -> label, base position):\n";
   for (size_t i = 0; i < hld.size(); ++i)
-    std::printf("  id=%zu  %-8s  pos=%zu\n", i, labels[i], hld.position_of_id(i));
+    std::cout << "  id=" << i
+              << "  " << std::left << std::setw(8) << labels[i]
+              << std::right << "  pos=" << hld.position_of_id(i) << '\n';
 
-  std::printf("\nPath maintenance cost queries:\n");
+  std::cout << "\nPath maintenance cost queries:\n";
 
   const struct
   {
@@ -195,22 +199,25 @@ int main()
       const int ans = grid.query_path_id(u, v);
       const int brute = brute_path_sum(values, hld, u, v);
 
-      std::printf("  %-18s  HLD=%3d  brute=%3d\n", q.name, ans, brute);
+      std::cout << "  " << std::left << std::setw(18) << q.name << std::right
+                << "  HLD=" << std::setw(3) << ans
+                << "  brute=" << std::setw(3) << brute << '\n';
       assert(ans == brute);
     }
 
-  std::printf("\nSubtree (service area) totals:\n");
+  std::cout << "\nSubtree (service area) totals:\n";
   for (auto * x : {central, north, south, sa})
     {
       const size_t id = hld.id_of(x);
       const int ans = grid.query_subtree_id(id);
       const int brute = brute_subtree_sum(values, hld, id);
-      std::printf("  %-8s subtree total = %3d\n", labels[id], ans);
+      std::cout << "  " << std::left << std::setw(8) << labels[id] << std::right
+                << " subtree total = " << std::setw(3) << ans << '\n';
       assert(ans == brute);
     }
 
-  std::printf("\nBudget changes (point updates):\n");
-  std::printf("  +5 to S-A2, set West to 26\n");
+  std::cout << "\nBudget changes (point updates):\n";
+  std::cout << "  +5 to S-A2, set West to 26\n";
 
   const size_t id_sa2 = hld.id_of(sa2);
   const size_t id_west = hld.id_of(west);
@@ -223,21 +230,21 @@ int main()
 
   const int after_path = grid.query_path(north, sa2);
   const int brute_after_path = brute_path_sum(values, hld, hld.id_of(north), hld.id_of(sa2));
-  std::printf("  North -> S-A2 after update: HLD=%d brute=%d\n", after_path, brute_after_path);
+  std::cout << "  North -> S-A2 after update: HLD="
+            << after_path << " brute=" << brute_after_path << '\n';
   assert(after_path == brute_after_path);
 
-  std::printf("\nHow HLD splits path N-A -> S-A2 into base-array segments:\n");
+  std::cout << "\nHow HLD splits path N-A -> S-A2 into base-array segments:\n";
   hld.for_each_path_segment(na, sa2,
                             [&](const size_t l,
                                 const size_t r,
                                 const bool reversed)
                             {
-                              std::printf("  segment [%zu, %zu] (%s)\n",
-                                          l,
-                                          r,
-                                          reversed ? "reversed" : "forward");
+                              std::cout << "  segment [" << l << ", " << r
+                                        << "] (" << (reversed ? "reversed" : "forward")
+                                        << ")\n";
                             });
 
-  std::printf("\nAll assertions passed.\n");
+  std::cout << "\nAll assertions passed.\n";
   return 0;
 }

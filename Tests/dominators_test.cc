@@ -38,7 +38,6 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <cstdlib>
-#include <map>
 #include <string>
 #include <random>
 
@@ -685,7 +684,7 @@ TEST(Dominators, StringTypedGraph)
 
   auto idoms = compute_dominators(g, entry);
 
-  std::map<std::string, std::string> m;
+  DynMapTree<std::string, std::string> m;
   for (auto it = idoms.get_it(); it.has_curr(); it.next_ne())
     {
       auto [node, idom] = it.get_curr();
@@ -705,10 +704,10 @@ TEST(Dominators, StringTypedGraph)
 namespace
 {
   // Build ipdom map: node_info -> ipdom_info (-1 if exit/no ipdom)
-  std::map<int, int> ipdom_map(const DynList<std::pair<DG::Node*,
-                                                        DG::Node*>> & ipdoms)
+  DynMapTree<int, int> ipdom_map(const DynList<std::pair<DG::Node*,
+                                                         DG::Node*>> & ipdoms)
   {
-    std::map<int, int> m;
+    DynMapTree<int, int> m;
     for (auto it = ipdoms.get_it(); it.has_curr(); it.next_ne())
       {
         auto [node, ipdom] = it.get_curr();

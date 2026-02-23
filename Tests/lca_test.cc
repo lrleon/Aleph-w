@@ -62,45 +62,15 @@
 #include <tpl_sgraph.H>
 #include <htlist.H>
 
+#include "test_graph_helpers.h"
+
 using namespace Aleph;
+using Aleph_Test_Helpers::build_graph_with_unit_arcs;
+using Aleph_Test_Helpers::Positive_Arc_Filter;
+using Aleph_Test_Helpers::make_random_tree_edges;
 
 namespace
 {
-  template <class GT>
-  Array<typename GT::Node *>
-  build_graph_with_unit_arcs(GT & g,
-                             const size_t n,
-                             const Array<std::pair<size_t, size_t>> & edges)
-  {
-    using Node = typename GT::Node;
-
-    auto nodes = Array<Node *>::create(n);
-    for (size_t i = 0; i < n; ++i)
-      nodes(i) = g.insert_node(static_cast<int>(i));
-
-    for (typename Array<std::pair<size_t, size_t>>::Iterator it(edges);
-         it.has_curr(); it.next_ne())
-      {
-        const auto & e = it.get_curr();
-        const size_t u = e.first;
-        const size_t v = e.second;
-        if (u >= n or v >= n)
-          continue;
-        g.insert_arc(nodes(u), nodes(v), 1);
-      }
-
-    return nodes;
-  }
-
-  struct Positive_Arc_Filter
-  {
-    template <class Arc>
-    bool operator()(Arc * a) const noexcept
-    {
-      return a->get_info() > 0;
-    }
-  };
-
   class Naive_Tree_Oracle
   {
     static constexpr size_t NONE = std::numeric_limits<size_t>::max();
@@ -116,18 +86,45 @@ namespace
 
     void dfs(const size_t u, const size_t p, const size_t d)
     {
-      parent_[u] = p;
-      depth_[u] = d;
-      tin_[u] = timer_++;
+      struct Frame
+      {
+        size_t u = 0;
+        size_t p = NONE;
+        size_t d = 0;
+        bool entering = true;
+      };
 
-      for (auto it = adj_[u].get_it(); it.has_curr(); it.next_ne())
+      Array<Frame> stack;
+      stack.reserve(n_ * 2);
+      stack.append(Frame{u, p, d, true});
+
+      while (not stack.is_empty())
         {
-          const size_t v = it.get_curr();
-          if (v != p)
-            dfs(v, u, d + 1);
-        }
+          const Frame f = stack.remove_last();
+          if (f.entering)
+            {
+              parent_[f.u] = f.p;
+              depth_[f.u] = f.d;
+              tin_[f.u] = timer_++;
 
-      tout_[u] = timer_ - 1;
+              stack.append(Frame{f.u, f.p, f.d, false});
+
+              Array<size_t> children;
+              for (auto it = adj_[f.u].get_it(); it.has_curr(); it.next_ne())
+                {
+                  const size_t v = it.get_curr();
+                  if (v != f.p)
+                    children.append(v);
+                }
+
+              for (long i = static_cast<long>(children.size()) - 1; i >= 0; --i)
+                stack.append(Frame{children[static_cast<size_t>(i)], f.u, f.d + 1, true});
+            }
+          else
+            {
+              tout_[f.u] = timer_ - 1;
+            }
+        }
     }
 
   public:
@@ -218,21 +215,6 @@ namespace
 
     [[nodiscard]] static size_t none() noexcept { return NONE; }
   };
-
-  Array<std::pair<size_t, size_t>>
-  make_random_tree_edges(const size_t n, std::mt19937 & rng)
-  {
-    Array<std::pair<size_t, size_t>> edges;
-    edges.reserve(n > 0 ? n - 1 : 0);
-
-    for (size_t v = 1; v < n; ++v)
-      {
-        std::uniform_int_distribution<size_t> pick(0, v - 1);
-        edges.append(std::make_pair(v, pick(rng)));
-      }
-
-    return edges;
-  }
 
   template <class GT>
   class LcaTypedTest : public ::testing::Test
@@ -534,7 +516,7 @@ TYPED_TEST(LcaTypedTest, RandomTreesAgainstNaiveOracle)
     {
       std::uniform_int_distribution<size_t> n_pick(2, 90);
       const size_t n = n_pick(rng);
-      const auto edges = make_random_tree_edges(n, rng);
+      const auto edges = make_random_tree_edges<Array<std::pair<size_t, size_t>>>(n, rng);
 
       Graph g;
       auto nodes = build_graph_with_unit_arcs(g, n, edges);
@@ -613,7 +595,7 @@ TYPED_TEST(LcaTypedTest, PerfRegression)
 # endif
 
   std::mt19937 rng(0x1ca2026u);
-  const auto edges = make_random_tree_edges(n, rng);
+  const auto edges = make_random_tree_edges<Array<std::pair<size_t, size_t>>>(n, rng);
 
   Graph g;
   const auto nodes = build_graph_with_unit_arcs(g, n, edges);

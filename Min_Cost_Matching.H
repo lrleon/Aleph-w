@@ -144,15 +144,15 @@ namespace Aleph
 
       if constexpr (need_upper)
         {
-          const auto ll_max = std::numeric_limits<long long>::max();
-          ah_overflow_error_if(value > static_cast<T>(ll_max))
+          ah_overflow_error_if(static_cast<__int128>(value)
+                               > static_cast<__int128>(std::numeric_limits<long long>::max()))
             << "Cost cannot be represented as long long";
         }
 
       if constexpr (need_lower)
         {
-          const auto ll_min = std::numeric_limits<long long>::min();
-          ah_overflow_error_if(value < static_cast<T>(ll_min))
+          ah_overflow_error_if(static_cast<__int128>(value)
+                               < static_cast<__int128>(std::numeric_limits<long long>::min()))
             << "Cost cannot be represented as long long";
         }
 

@@ -47,7 +47,10 @@
 # include <utility>
 # include <vector>
 
+# include "test_graph_helpers.h"
+
 using namespace Aleph;
+using Aleph_Test_Helpers::Positive_Arc_Filter;
 
 namespace
 {
@@ -237,14 +240,6 @@ namespace
 
   TYPED_TEST_SUITE(TreeDecompositionTypedTest, GraphBackends);
 
-  struct Positive_Arc_Filter
-  {
-    template <class Arc>
-    bool operator()(Arc * a) const noexcept
-    {
-      return a->get_info() > 0;
-    }
-  };
 }
 
 

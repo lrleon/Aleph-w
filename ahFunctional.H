@@ -2551,16 +2551,17 @@ namespace Aleph
     return functional_detail::pairwise_all_unique(container, eq);
   }
 
-  /** @brief Check if all elements in a container are unique using a custom equality comparator.
+  /** @brief Check if all elements in a container are unique using an rvalue/lvalue comparator.
 
-      @overload This overload accepts rvalue references to equality comparators and
-      uses std::equal_to as the default comparator.
+      @overload of `all_unique(const Container &, Equal &)`.
+      This overload accepts comparators by forwarding reference and also
+      provides a default comparator (`std::equal_to<Item_Type>`).
 
       This function determines whether all elements in the container are unique
       according to the provided equality comparator.
 
       @param container Source container to check.
-      @param eq Equality comparator used to compare elements (rvalue reference, defaults to std::equal_to).
+      @param eq Equality comparator used to compare elements (may be rvalue or lvalue; defaults to std::equal_to).
       @return true if all elements are unique according to the comparator, false otherwise.
       @ingroup Algorithms
   */
