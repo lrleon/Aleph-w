@@ -32,83 +32,61 @@
 
 /**
  * @file cut_nodes_example.C
- * @brief Cut nodes (articulation points) and biconnected components in Aleph-w.
+ * @brief Cut nodes (articulation points), bridges, and biconnected components.
  *
  * ## Overview
  *
- * This example demonstrates algorithms for analyzing connectivity in undirected
- * graphs:
+ * Demonstrates algorithms for analyzing connectivity vulnerabilities in
+ * undirected graphs using Aleph-w:
  *
- * - **cut nodes** (articulation points): vertices whose removal disconnects the graph
- * - **biconnected components**: maximal edge blocks not separable by removing one vertex
+ * - **Cut nodes** (articulation points): vertices whose removal disconnects
+ *   the graph (`Compute_Cut_Nodes`, `compute_cut_nodes()`).
+ * - **Bridges** (cut edges / isthmuses): edges whose removal disconnects the
+ *   graph (`Compute_Bridges`, `find_bridges()`).
+ * - **Biconnected components**: maximal 2-edge-connected blocks
+ *   (`Compute_Cut_Nodes::paint_subgraphs()`).
  *
- * The implementation uses a DFS-based approach with discovery/low-link values
- * (Tarjan-style).
+ * Both algorithms use Tarjan's DFS low-link technique.
  *
- * ## Data model used by this example
+ * ## Key concepts
  *
- * - **Graph type**: `Graph = List_Graph<Graph_Node<string>, Graph_Arc<int>>`
- * - **Node info**: label (`string`)
- * - **Arc info**: integer value (`int`) used by the demo
+ * Given a DFS, let `df[v]` = discovery time and `low[v]` = minimum discovery
+ * time reachable from v's subtree via back-edges.
  *
- * ## Usage / CLI
+ * - **Articulation point** `u`: DFS root with ≥ 2 children, OR non-root where
+ *   `low[child] >= df[u]`.
+ * - **Bridge** `(u, v)` (tree edge): `low[v] > df[u]` — strictly greater,
+ *   meaning no back-edge from v's subtree escapes above u.
  *
- * This example uses TCLAP. Options:
+ * ## Data model
  *
- * - `--basic` / `-b`: basic cut nodes demo.
- * - `--network` / `-n`: network vulnerability analysis.
- * - `--biconnected` / `-c`: biconnected components demo.
- * - `--resilience` / `-r`: resilience comparison demo.
- * - `--fix` / `-f`: show how adding edges can remove articulation points.
- * - `--all` / `-a`: run all demos.
- * - `--help`: show help.
+ * - `Graph = List_Graph<Graph_Node<string>, Graph_Arc<int>>`
+ * - Node info: label (`string`), arc info: int (unused in most demos).
  *
- * Behavior:
- * - If no demo-selection flags are provided, the program defaults to running **all** demos.
+ * ## CLI options (TCLAP)
+ *
+ * | Flag | Long      | Description |
+ * |------|-----------|-------------|
+ * | `-b` | `--basic`       | Basic cut nodes demo |
+ * | `-n` | `--network`     | Network vulnerability analysis |
+ * | `-c` | `--biconnected` | Biconnected components demo |
+ * | `-r` | `--resilience`  | Resilience comparison |
+ * | `-f` | `--fix`         | Fixing vulnerabilities by adding edges |
+ * | `-d` | `--bridges`     | Bridge edges demo |
+ * | `-a` | `--all`         | Run all demos (default if no flag given) |
  *
  * ```bash
- * ./cut_nodes_example
- * ./cut_nodes_example --basic
- * ./cut_nodes_example --network
- * ./cut_nodes_example --biconnected
- * ./cut_nodes_example --resilience
- * ./cut_nodes_example --fix
- * ./cut_nodes_example --help
+ * ./cut_nodes_example             # all demos
+ * ./cut_nodes_example --bridges   # bridge demo only
+ * ./cut_nodes_example --basic --bridges
  * ```
- *
- * ## Algorithms
- *
- * The core idea is DFS with:
- *
- * - `df[v]`: discovery time
- * - `low[v]`: smallest discovery time reachable from v via tree edges + at most one back edge
- *
- * A vertex `u` is an articulation point if:
- *
- * - root case: `u` is DFS root and has ≥ 2 children
- * - non-root case: there exists a child `v` with `low[v] >= df[u]`
- *
- * This example focuses on cut nodes and biconnected blocks (bridges are discussed
- * conceptually but not printed as a primary output).
  *
  * ## Complexity
  *
- * Let **V** be the number of vertices and **E** the number of edges.
+ * - Time: O(V + E) — single DFS for both cut nodes and bridges.
+ * - Space: O(V) extra.
  *
- * - Time: `O(V + E)`
- * - Extra space: `O(V)`
- *
- * ## Pitfalls and edge cases
- *
- * - Disconnected graphs require running DFS from each unvisited node.
- * - DFS recursion depth may be large on deep graphs.
- *
- * ## References / see also
- *
- * - `tpl_cut_nodes.H`
- * - `graph_components_example.C` (components)
- * - `tarjan_example.C` (DFS-based decomposition)
- *
+ * @see tpl_cut_nodes.H
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
@@ -395,11 +373,12 @@ void demo_biconnected_components()
   // Paint subgraphs (components)
   long num_colors = compute.paint_subgraphs();
   
+  // paint_subgraphs() returns the next unused color (N+1 for N components).
   cout << "\n--- Biconnected Components ---" << endl;
-  cout << "Number of components: " << num_colors << endl;
-  
+  cout << "Number of components: " << (num_colors - 1) << endl;
+
   cout << "\nNodes by component (color):" << endl;
-  for (long color = 1; color <= num_colors; ++color)
+  for (long color = 1; color < num_colors; ++color)
   {
     cout << "  Component " << color << ": ";
     bool first = true;
@@ -465,6 +444,104 @@ void demo_resilience_comparison()
   cout << "\n--- Key Insight ---" << endl;
   cout << "Adding redundant connections (creating cycles) reduces fragility" << endl;
   cout << "by eliminating articulation points." << endl;
+}
+
+/**
+ * @brief Demonstrate bridge finding with Compute_Bridges / find_bridges().
+ *
+ * Shows three scenarios:
+ *  1. A graph with several bridges (the computer network).
+ *  2. A fully 2-edge-connected graph (cycle → no bridges).
+ *  3. The relationship between bridges and articulation points.
+ */
+void demo_bridges()
+{
+  cout << "\n" << string(60, '=') << endl;
+  cout << "Bridge Edges (Isthmuses / Cut Edges)" << endl;
+  cout << string(60, '=') << endl;
+  cout << "A bridge is an edge whose removal disconnects the graph." << endl;
+  cout << "Algorithm: Tarjan low-link DFS — O(V + E)." << endl;
+
+  // ── Scenario 1: computer network (has bridges) ──────────────────────────
+  {
+    cout << "\n--- Scenario 1: Computer Network ---" << endl;
+
+    Graph g = build_computer_network();
+    print_graph(g, "Computer Network");
+
+    // Free-function form
+    auto bridges = find_bridges(g);
+
+    cout << "\nBridge edges (" << bridges.size() << " found):" << endl;
+    if (bridges.is_empty())
+      cout << "  (none — graph is 2-edge-connected)" << endl;
+    else
+      bridges.for_each([&g](Graph::Arc * a)
+        {
+          cout << "  " << g.get_src_node(a)->get_info()
+               << " ══ " << g.get_tgt_node(a)->get_info()
+               << "  ← bridge" << endl;
+        });
+
+    cout << "\nImpact: severing a bridge immediately splits the network." << endl;
+  }
+
+  // ── Scenario 2: pure cycle (no bridges) ─────────────────────────────────
+  {
+    cout << "\n--- Scenario 2: Ring Topology (no bridges) ---" << endl;
+
+    Graph g;
+    auto a = g.insert_node("A");
+    auto b = g.insert_node("B");
+    auto c = g.insert_node("C");
+    auto d = g.insert_node("D");
+    auto e = g.insert_node("E");
+    g.insert_arc(a, b); g.insert_arc(b, c);
+    g.insert_arc(c, d); g.insert_arc(d, e);
+    g.insert_arc(e, a);
+
+    // Class form — useful when calling find_bridges() multiple times
+    Compute_Bridges<Graph> cb(g);
+    auto bridges = cb.find_bridges();
+
+    cout << "Ring A-B-C-D-E-A: ";
+    if (bridges.is_empty())
+      cout << "no bridges (fully 2-edge-connected)." << endl;
+    else
+      cout << bridges.size() << " bridge(s) found." << endl;
+  }
+
+  // ── Scenario 3: two triangles joined by a bridge ────────────────────────
+  {
+    cout << "\n--- Scenario 3: Two Triangles + Bridge ---" << endl;
+    cout << "  Triangle1: A-B-C-A    Bridge: C--D    Triangle2: D-E-F-D" << endl;
+
+    Graph g;
+    auto a = g.insert_node("A"), b = g.insert_node("B"),
+         c = g.insert_node("C"), d = g.insert_node("D"),
+         e = g.insert_node("E"), f = g.insert_node("F");
+    g.insert_arc(a, b); g.insert_arc(b, c); g.insert_arc(c, a);
+    auto br = g.insert_arc(c, d);            // the bridge
+    g.insert_arc(d, e); g.insert_arc(e, f); g.insert_arc(f, d);
+
+    auto bridges = find_bridges(g, a);
+
+    cout << "\nBridges found: " << bridges.size() << endl;
+    bridges.for_each([&g](Graph::Arc * arc)
+      {
+        cout << "  " << g.get_src_node(arc)->get_info()
+             << " ══ " << g.get_tgt_node(arc)->get_info() << endl;
+      });
+    (void)br; // used above
+
+    // Show relationship: bridge endpoints are also articulation points
+    auto cut_nodes = compute_cut_nodes(g);
+    cout << "\nArticulation points (cut nodes): ";
+    cut_nodes.for_each([](Graph::Node * p)
+      { cout << p->get_info() << " "; });
+    cout << endl;
+    cout << "Note: bridge endpoints C and D are also articulation points." << endl;
+  }
 }
 
 /**
@@ -544,55 +621,65 @@ int main(int argc, char* argv[])
       "Compare network resilience", false);
     TCLAP::SwitchArg fixArg("f", "fix",
       "Show fixing vulnerabilities", false);
+    TCLAP::SwitchArg bridgesArg("d", "bridges",
+      "Show bridge edges demo", false);
     TCLAP::SwitchArg allArg("a", "all",
       "Run all demos", false);
-    
+
     cmd.add(basicArg);
     cmd.add(netArg);
     cmd.add(biconArg);
     cmd.add(compareArg);
     cmd.add(fixArg);
+    cmd.add(bridgesArg);
     cmd.add(allArg);
-    
+
     cmd.parse(argc, argv);
-    
-    bool runBasic = basicArg.getValue();
-    bool runNet = netArg.getValue();
-    bool runBicon = biconArg.getValue();
+
+    bool runBasic   = basicArg.getValue();
+    bool runNet     = netArg.getValue();
+    bool runBicon   = biconArg.getValue();
     bool runCompare = compareArg.getValue();
-    bool runFix = fixArg.getValue();
-    bool runAll = allArg.getValue();
-    
-    if (not runBasic and not runNet and not runBicon and 
-        not runCompare and not runFix)
+    bool runFix     = fixArg.getValue();
+    bool runBridges = bridgesArg.getValue();
+    bool runAll     = allArg.getValue();
+
+    if (not runBasic and not runNet and not runBicon and
+        not runCompare and not runFix and not runBridges)
       runAll = true;
-    
-    cout << "=== Cut Nodes (Articulation Points) and Biconnected Components ===" << endl;
-    cout << "A cut node's removal disconnects the graph." << endl;
-    
+
+    cout << "=== Cut Nodes, Bridges, and Biconnected Components ===" << endl;
+    cout << "Cut node removal / bridge removal disconnects the graph." << endl;
+
     if (runAll or runBasic)
-    {
-      Graph g = build_network_graph();
-      print_graph(g, "Sample Network");
-      demo_cut_nodes(g, "Sample network");
-    }
-    
+      {
+        Graph g = build_network_graph();
+        print_graph(g, "Sample Network");
+        demo_cut_nodes(g, "Sample network");
+      }
+
     if (runAll or runNet)
       demo_network_vulnerability();
-    
+
     if (runAll or runBicon)
       demo_biconnected_components();
-    
+
     if (runAll or runCompare)
       demo_resilience_comparison();
-    
+
     if (runAll or runFix)
       demo_fixing_vulnerabilities();
-    
+
+    if (runAll or runBridges)
+      demo_bridges();
+
     cout << "\n=== Summary ===" << endl;
-    cout << "Cut nodes are critical points in network topology." << endl;
-    cout << "Uses: Network reliability, infrastructure planning, graph analysis" << endl;
-    cout << "Algorithm: DFS with low-link values, O(V + E)" << endl;
+    cout << "Cut nodes and bridges are dual notions of graph vulnerability:" << endl;
+    cout << "  cut node  = vertex whose removal disconnects the graph" << endl;
+    cout << "  bridge    = edge  whose removal disconnects the graph" << endl;
+    cout << "Both detected by Tarjan low-link DFS in O(V + E)." << endl;
+    cout << "Headers: tpl_cut_nodes.H (Compute_Cut_Nodes, Compute_Bridges," << endl;
+    cout << "         compute_cut_nodes(), find_bridges())" << endl;
     
     return 0;
   }

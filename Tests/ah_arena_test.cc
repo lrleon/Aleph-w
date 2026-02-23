@@ -387,7 +387,7 @@ TEST_F(TypedAllocationTest, ResetDoesNotCallDestructors)
 
 TEST_F(TypedAllocationTest, AllocationFailsReturnsNull)
 {
-  char buffer[sizeof(TestObject) - 1];  // Too small for TestObject
+  char buffer[sizeof(TestObject) - 1] = {};  // Too small for TestObject
   AhArenaAllocator arena(buffer, sizeof(buffer));
 
   TestObject* obj = allocate<TestObject>(arena, 42, "test");
@@ -477,7 +477,7 @@ TEST(ArenaTypeTraits, NoexceptMoveOperations)
 
 TEST(ArenaEdgeCases, VerySmallArena)
 {
-  char buffer[1];
+  char buffer[1] = {};
   AhArenaAllocator arena(buffer, 1);
 
   void* ptr = arena.alloc(1);

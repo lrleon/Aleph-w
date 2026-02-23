@@ -543,8 +543,8 @@ void demo_geometric_primitives()
   
   cout << "\n  Route lengths (approximate):" << endl;
   cout << "    Bogota-Medellin: " << fixed << setprecision(2) 
-       << to_double(bogota_medellin.size()) << " units" << endl;
-  cout << "    Bogota-Cali: " << to_double(bogota_cali.size()) 
+       << to_double(bogota_medellin.length()) << " units" << endl;
+  cout << "    Bogota-Cali: " << to_double(bogota_cali.length()) 
        << " units" << endl;
   
   print_subheader("Point Position Tests");
@@ -646,7 +646,7 @@ void demo_coverage_area()
   for (Polygon::Segment_Iterator it(coverage); it.has_curr(); it.next_ne())
   {
     const Segment& seg = it.get_current_segment();
-    perimeter += to_double(seg.size());
+    perimeter += to_double(seg.length());
   }
   
   cout << "    Perimeter: " << perimeter << " km" << endl;

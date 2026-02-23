@@ -798,7 +798,8 @@ TEST(K2TreeMove, MoveToSelf)
   K2TreeInt tree(0, 0, 100, 100);
   tree.insert(Point(5, 5));
 
-  tree = std::move(tree);
+  K2TreeInt * self = &tree;
+  tree = std::move(*self);
 
   // Self-move should be a no-op
   EXPECT_EQ(tree.size(), 1);
@@ -973,4 +974,3 @@ int main(int argc, char **argv)
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

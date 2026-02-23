@@ -124,7 +124,7 @@ std::string render_final_panel(const FunnelTraceResult & trace)
      << "path nodes: " << trace.final_path.size() << "\\\\[1.2mm]\n"
      << "\\begin{tabular}{@{}ll@{}}\n";
 
-  if (trace.final_path.empty())
+  if (trace.final_path.is_empty())
     {
       ss << "Source & N/A\\\\\n"
          << "Target & N/A\\\\\n";

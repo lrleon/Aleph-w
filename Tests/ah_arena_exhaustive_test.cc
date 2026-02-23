@@ -947,7 +947,7 @@ TEST(ArenaEdgeCases, ConstBufferUsage)
 
 TEST(ArenaEdgeCases, ZeroCapacityArena)
 {
-  char buffer[1];  // Minimal buffer
+  char buffer[1] = {};  // Minimal buffer
   AhArenaAllocator arena(buffer, 0);  // Zero capacity
 
   EXPECT_TRUE(arena.is_valid());

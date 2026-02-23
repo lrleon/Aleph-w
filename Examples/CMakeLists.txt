@@ -17,6 +17,9 @@ set(EXAMPLE_PROGRAMS
     bellman_ford_example
     kosaraju_example
     johnson_example
+    k_shortest_paths_example
+    min_mean_cycle_example
+    planarity_test_example
     btreepic
     cut_nodes_example
     deway
@@ -110,6 +113,10 @@ set(EXAMPLE_PROGRAMS
     disjoint_sparse_table_test
     segment_tree_example
     cartesian_tree_example
+    lca_example
+    hld_example
+    heavy_light_decomposition_example
+    centroid_decomposition_example
     mo_algorithm_example
     mo_on_trees_example
     robust_predicates_example
@@ -145,6 +152,11 @@ set(EXAMPLE_PROGRAMS
     polygon_offset_example
     chaikin_smoothing_example
     trapezoidal_map_example
+    blossom_example
+    weighted_blossom_example
+    min_cost_matching_example
+    hungarian_example
+    dominators_example
 )
 
 # Function to get source file from program name

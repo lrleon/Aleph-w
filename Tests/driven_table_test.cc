@@ -19,6 +19,7 @@ using namespace std;
 
 // Simple event that returns a string
 void* event_hello(void* data) {
+    (void)data;
     static string msg = "Hello";
     return &msg;
 }

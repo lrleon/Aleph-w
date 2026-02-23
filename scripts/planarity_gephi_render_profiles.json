@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "id": "portable.python-render-svg",
+      "os": "any",
+      "gephi_version": "n/a",
+      "output_kind": "svg",
+      "output_ext": "svg",
+      "description": "Portable deterministic SVG render profile for CI/testing.",
+      "cmd": "python3 -c \"import pathlib,sys; pathlib.Path(sys.argv[2]).write_text('<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"64\\\" height=\\\"64\\\"><circle cx=\\\"32\\\" cy=\\\"32\\\" r=\\\"20\\\"/></svg>', encoding='utf-8')\" {input} {output}"
+    },
+    {
+      "id": "portable.python-render-pdf",
+      "os": "any",
+      "gephi_version": "n/a",
+      "output_kind": "pdf",
+      "output_ext": "pdf",
+      "description": "Portable deterministic PDF render profile for CI/testing.",
+      "cmd": "python3 -c \"import pathlib,sys; pathlib.Path(sys.argv[2]).write_bytes(b'%PDF-1.4\\n1 0 obj<<>>endobj\\ntrailer<<>>\\n%%EOF\\n')\" {input} {output}"
+    },
+    {
+      "id": "portable.ruby-render-svg",
+      "os": "any",
+      "gephi_version": "n/a",
+      "output_kind": "svg",
+      "output_ext": "svg",
+      "description": "Portable deterministic SVG render profile implemented with Ruby.",
+      "cmd": "ruby -e \"File.write(ARGV[1], '<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"64\\\" height=\\\"64\\\"><circle cx=\\\"32\\\" cy=\\\"32\\\" r=\\\"20\\\"/></svg>')\" {input} {output}"
+    },
+    {
+      "id": "portable.ruby-render-pdf",
+      "os": "any",
+      "gephi_version": "n/a",
+      "output_kind": "pdf",
+      "output_ext": "pdf",
+      "description": "Portable deterministic PDF render profile implemented with Ruby.",
+      "cmd": "ruby -e \"File.binwrite(ARGV[1], \\\"%PDF-1.4\\\\n1 0 obj<<>>endobj\\\\ntrailer<<>>\\\\n%%EOF\\\\n\\\")\" {input} {output}"
+    },
+    {
+      "id": "linux.gephi-0.10.render-svg",
+      "os": "linux",
+      "gephi_version": "0.10.x",
+      "output_kind": "svg",
+      "output_ext": "svg",
+      "description": "Gephi 0.10.x headless SVG export profile (Linux packages).",
+      "cmd": "gephi --headless --import {input} --export {output}"
+    },
+    {
+      "id": "linux.gephi-0.10.render-pdf",
+      "os": "linux",
+      "gephi_version": "0.10.x",
+      "output_kind": "pdf",
+      "output_ext": "pdf",
+      "description": "Gephi 0.10.x headless PDF export profile (Linux packages).",
+      "cmd": "gephi --headless --import {input} --export {output}"
+    },
+    {
+      "id": "linux.gephi-0.9.render-svg",
+      "os": "linux",
+      "gephi_version": "0.9.x",
+      "output_kind": "svg",
+      "output_ext": "svg",
+      "description": "Gephi 0.9.x headless SVG export profile (Linux packages).",
+      "cmd": "gephi --headless --import {input} --export {output}"
+    },
+    {
+      "id": "linux.gephi-0.9.render-pdf",
+      "os": "linux",
+      "gephi_version": "0.9.x",
+      "output_kind": "pdf",
+      "output_ext": "pdf",
+      "description": "Gephi 0.9.x headless PDF export profile (Linux packages).",
+      "cmd": "gephi --headless --import {input} --export {output}"
+    },
+    {
+      "id": "macos.gephi-0.10.render-svg",
+      "os": "macos",
+      "gephi_version": "0.10.x",
+      "output_kind": "svg",
+      "output_ext": "svg",
+      "description": "Gephi 0.10.x app bundle CLI SVG export profile (macOS).",
+      "cmd": "/Applications/Gephi.app/Contents/MacOS/gephi --headless --import {input} --export {output}"
+    },
+    {
+      "id": "macos.gephi-0.10.render-pdf",
+      "os": "macos",
+      "gephi_version": "0.10.x",
+      "output_kind": "pdf",
+      "output_ext": "pdf",
+      "description": "Gephi 0.10.x app bundle CLI PDF export profile (macOS).",
+      "cmd": "/Applications/Gephi.app/Contents/MacOS/gephi --headless --import {input} --export {output}"
+    },
+    {
+      "id": "macos.gephi-0.9.render-svg",
+      "os": "macos",
+      "gephi_version": "0.9.x",
+      "output_kind": "svg",
+      "output_ext": "svg",
+      "description": "Gephi 0.9.x app bundle CLI SVG export profile (macOS).",
+      "cmd": "/Applications/Gephi.app/Contents/MacOS/gephi --headless --import {input} --export {output}"
+    },
+    {
+      "id": "macos.gephi-0.9.render-pdf",
+      "os": "macos",
+      "gephi_version": "0.9.x",
+      "output_kind": "pdf",
+      "output_ext": "pdf",
+      "description": "Gephi 0.9.x app bundle CLI PDF export profile (macOS).",
+      "cmd": "/Applications/Gephi.app/Contents/MacOS/gephi --headless --import {input} --export {output}"
+    },
+    {
+      "id": "windows.gephi-0.10.render-svg",
+      "os": "windows",
+      "gephi_version": "0.10.x",
+      "output_kind": "svg",
+      "output_ext": "svg",
+      "description": "Gephi 0.10.x CLI SVG export profile (Windows installers).",
+      "cmd": "gephi.exe --headless --import {input} --export {output}"
+    },
+    {
+      "id": "windows.gephi-0.10.render-pdf",
+      "os": "windows",
+      "gephi_version": "0.10.x",
+      "output_kind": "pdf",
+      "output_ext": "pdf",
+      "description": "Gephi 0.10.x CLI PDF export profile (Windows installers).",
+      "cmd": "gephi.exe --headless --import {input} --export {output}"
+    },
+    {
+      "id": "windows.gephi-0.9.render-svg",
+      "os": "windows",
+      "gephi_version": "0.9.x",
+      "output_kind": "svg",
+      "output_ext": "svg",
+      "description": "Gephi 0.9.x CLI SVG export profile (Windows installers).",
+      "cmd": "gephi.exe --headless --import {input} --export {output}"
+    },
+    {
+      "id": "windows.gephi-0.9.render-pdf",
+      "os": "windows",
+      "gephi_version": "0.9.x",
+      "output_kind": "pdf",
+      "output_ext": "pdf",
+      "description": "Gephi 0.9.x CLI PDF export profile (Windows installers).",
+      "cmd": "gephi.exe --headless --import {input} --export {output}"
+    }
+  ]
+}

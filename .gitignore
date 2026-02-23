@@ -238,6 +238,20 @@ test_union
 test-convexhull-time
 timeAllTree
 timeList-aleph
+
+# Local tooling metadata
+.claude/
+.cursor/
+
+# Generated documentation output
+docs/html/
+
+# Python bytecode cache
+scripts/__pycache__/
+
+# Generated example artifacts
+Examples/*.eepicaux
+*_output.csv
 timeList-stl
 timeMap-aleph
 timeMap-stl
