@@ -2157,7 +2157,18 @@ TEST(PlanarityTest, ExternalCertificateVisualDiffRunnerCanUpdateGoldenManifest)
       + " --update-golden");
   EXPECT_EQ(rc, 0);
 
+  const std::string report = read_text_file(report_path);
   const std::string manifest = read_text_file(manifest_path);
+
+  if (manifest.find("portable.python-render-svg") == std::string::npos)
+    {
+      std::cerr << "[diag] manifest_path=" << manifest_path << "\n"
+                << "[diag] manifest content (" << manifest.size() << " bytes):\n"
+                << manifest << "\n"
+                << "[diag] report content (" << report.size() << " bytes):\n"
+                << report << "\n";
+    }
+
   EXPECT_NE(manifest.find("\"profile_id\": \"portable.python-render-svg\""),
             std::string::npos);
   EXPECT_NE(manifest.find("0459f595d6268e7bdf9e8e273d4394fa50d23a89ec3d2449d10b7b47941b1327"),

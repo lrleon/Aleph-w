@@ -182,8 +182,6 @@ namespace
          << '\n';
   }
 
-  /** Print planarity test results. */
-  template <class GT>
   /**
    * @brief Prints a concise, human-readable summary of a planarity test result to stdout.
    *
@@ -198,6 +196,7 @@ namespace
    * @param title A short label printed as the summary header.
    * @param r The Planarity_Test_Result to summarize; selected fields of `r` are printed.
    */
+  template <class GT>
   void print_result(const string & title,
                     const Planarity_Test_Result<GT> & r)
   {
@@ -251,8 +250,6 @@ namespace
   }
 
 
-  /** Print geometric drawing details. */
-  template <class GT>
   /**
    * @brief Prints a brief summary of a planar geometric drawing to standard output.
    *
@@ -262,6 +259,7 @@ namespace
    *
    * @param d The planar geometric drawing to summarize.
    */
+  template <class GT>
   void print_drawing(const Planar_Geometric_Drawing<GT> & d)
   {
     cout << "  geometric drawing available: "
