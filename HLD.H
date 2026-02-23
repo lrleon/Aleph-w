@@ -290,10 +290,12 @@ namespace Aleph
 
             if (fr.next_child == adjacency_(fr.node).size())
               {
-                // All children processed; accumulate size into parent
+                // All children processed; accumulate size into parent.
+                // Save fr.node before pop() invalidates the reference.
+                const size_t done = fr.node;
                 (void) stack.pop();
                 if (not stack.is_empty())
-                  subtree_size_(stack.top().node) += subtree_size_(fr.node);
+                  subtree_size_(stack.top().node) += subtree_size_(done);
                 continue;
               }
 

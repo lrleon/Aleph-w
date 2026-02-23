@@ -877,13 +877,17 @@ namespace Aleph
       if (rev_idoms.is_empty())
         return;
 
-      // Create tree nodes with mapping to original graph
+      // Create tree nodes with mapping to original graph.
+      // NODE_COOKIE(orig) may still point to a reversed-graph node
+      // left by invert_digraph; clear it so that map_nodes creates
+      // a clean orig↔tree bidirectional mapping.
       DynMapTree<Node *, Node *> orig_to_tree;
       for (auto it = rev_idoms.get_it(); it.has_curr(); it.next_ne())
         {
           auto [rev_n, rev_id] = it.get_curr();
           auto orig = to_orig(rev_n);
           auto tn = tree.insert_node(orig->get_info());
+          NODE_COOKIE(orig) = nullptr;
           GT::map_nodes(orig, tn);
           orig_to_tree.insert(orig, tn);
         }
