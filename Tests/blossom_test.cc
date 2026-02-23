@@ -77,11 +77,21 @@ namespace
                  int arc_info = 1)
   {
     GT g;
-    DynArray<typename GT::Node *> nodes;
-    nodes.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+      static_cast<void>(g.insert_node(static_cast<int>(i)));
+
+    Array<typename GT::Node *> nodes(n, nullptr);
+    g.for_each_node(
+        [&](typename GT::Node * p)
+        {
+          const size_t id = static_cast<size_t>(p->get_info());
+          if (id < n)
+            nodes(id) = p;
+        });
 
     for (size_t i = 0; i < n; ++i)
-      nodes.append(g.insert_node(static_cast<int>(i)));
+      ah_runtime_error_if(nodes(i) == nullptr)
+        << "build_graph(): node id " << i << " not found after insertion";
 
     for (const auto & [u, v] : edges)
       {
@@ -228,24 +238,33 @@ namespace
                            const DynArray<std::pair<size_t, size_t>> & edges_lr)
   {
     GT g;
-
-    DynArray<typename GT::Node *> left_nodes;
-    DynArray<typename GT::Node *> right_nodes;
-    left_nodes.reserve(left_size);
-    right_nodes.reserve(right_size);
+    const size_t n = left_size + right_size;
 
     for (size_t i = 0; i < left_size; ++i)
-      left_nodes(i) = g.insert_node(static_cast<int>(i));
+      static_cast<void>(g.insert_node(static_cast<int>(i)));
 
     for (size_t i = 0; i < right_size; ++i)
-      right_nodes(i) = g.insert_node(static_cast<int>(left_size + i));
+      static_cast<void>(g.insert_node(static_cast<int>(left_size + i)));
+
+    Array<typename GT::Node *> nodes(n, nullptr);
+    g.for_each_node(
+        [&](typename GT::Node * p)
+        {
+          const size_t id = static_cast<size_t>(p->get_info());
+          if (id < n)
+            nodes(id) = p;
+        });
+
+    for (size_t i = 0; i < n; ++i)
+      ah_runtime_error_if(nodes(i) == nullptr)
+        << "build_bipartite_graph(): node id " << i << " not found after insertion";
 
     for (size_t i = 0; i < edges_lr.size(); ++i)
       {
         auto [l, r] = edges_lr(i);
         if (l >= left_size or r >= right_size)
           continue;
-        g.insert_arc(left_nodes(l), right_nodes(r), 1);
+        g.insert_arc(nodes(l), nodes(left_size + r), 1);
       }
 
     return g;

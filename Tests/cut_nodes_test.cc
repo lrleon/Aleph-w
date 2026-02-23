@@ -37,9 +37,8 @@
 
 #include <gtest/gtest.h>
 
-#include <set>
-#include <vector>
-
+#include <initializer_list>
+#include <tpl_array.H>
 #include <tpl_cut_nodes.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_graph.H>
@@ -51,21 +50,32 @@ namespace
 {
   using Graph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
 
-  std::vector<Graph::Node *> make_nodes(Graph & g, int n)
+  Array<Graph::Node *> make_nodes(Graph & g, int n)
   {
-    std::vector<Graph::Node *> nodes;
-    nodes.reserve(n);
+    auto nodes = Array<Graph::Node *>::create(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i)
-      nodes.push_back(g.insert_node(i));
+      nodes(static_cast<size_t>(i)) = g.insert_node(i);
     return nodes;
   }
 
-  std::set<int> cut_infos(const DynDlist<Graph::Node *> & list)
+  DynSetTree<int> cut_infos(const DynDlist<Graph::Node *> & list)
   {
-    std::set<int> s;
+    DynSetTree<int> s;
     for (typename DynDlist<Graph::Node *>::Iterator it(list); it.has_curr(); it.next_ne())
       s.insert(it.get_curr()->get_info());
     return s;
+  }
+
+  bool cut_infos_eq(const DynDlist<Graph::Node *> & list,
+                    std::initializer_list<int> expected)
+  {
+    const auto got = cut_infos(list);
+    if (got.size() != expected.size())
+      return false;
+    for (const int x : expected)
+      if (not got.exist(x))
+        return false;
+    return true;
   }
 
   size_t count_nodes_with_color(const Graph & g, long color)
@@ -115,7 +125,7 @@ TEST(CutNodes, PathGraphHasInternalCutNodes)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(nodes[0], cuts);
 
-  EXPECT_EQ(cut_infos(cuts), (std::set<int>{1, 2}));
+  EXPECT_TRUE(cut_infos_eq(cuts, {1, 2}));
 }
 
 TEST(CutNodes, CycleGraphHasNoCutNodes)
@@ -146,7 +156,7 @@ TEST(CutNodes, StarGraphHasCenterAsCutNode)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(nodes[center], cuts);
 
-  EXPECT_EQ(cut_infos(cuts), (std::set<int>{0}));
+  EXPECT_TRUE(cut_infos_eq(cuts, {0}));
 }
 
 TEST(CutNodes, PaintSubgraphsRequiresCutNodesComputed)
@@ -278,7 +288,7 @@ TEST(CutNodes, TreeAllInternalNodesAreCutNodes)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(nodes[0], cuts);
 
-  EXPECT_EQ(cut_infos(cuts), (std::set<int>{0, 1, 2}));
+  EXPECT_TRUE(cut_infos_eq(cuts, {0, 1, 2}));
 }
 
 TEST(CutNodes, BridgeGraphHasMultipleCutNodes)
@@ -298,7 +308,7 @@ TEST(CutNodes, BridgeGraphHasMultipleCutNodes)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(nodes[0], cuts);
 
-  EXPECT_EQ(cut_infos(cuts), (std::set<int>{2, 3}));
+  EXPECT_TRUE(cut_infos_eq(cuts, {2, 3}));
 }
 
 TEST(CutNodes, BiconnectedGraphHasNoCutNodes)
@@ -333,8 +343,11 @@ TEST(CutNodes, ArticulationAtRootNode)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(nodes[0], cuts);
 
-  EXPECT_TRUE(cut_infos(cuts).count(0) > 0);
-  EXPECT_TRUE(cut_infos(cuts).count(3) > 0);
+  {
+    const auto infos = cut_infos(cuts);
+    EXPECT_TRUE(infos.exist(0));
+    EXPECT_TRUE(infos.exist(3));
+  }
 }
 
 // ============================================================================
@@ -429,7 +442,7 @@ TEST(CutNodes, OperatorWithoutStartUsesFirstNode)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(cuts); // No start node specified
 
-  EXPECT_EQ(cut_infos(cuts), (std::set<int>{1, 2}));
+  EXPECT_TRUE(cut_infos_eq(cuts, {1, 2}));
 }
 
 TEST(CutNodes, OperatorWithSpecificStart)
@@ -444,7 +457,7 @@ TEST(CutNodes, OperatorWithSpecificStart)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(nodes[3], cuts); // Start from end
 
-  EXPECT_EQ(cut_infos(cuts), (std::set<int>{1, 2}));
+  EXPECT_TRUE(cut_infos_eq(cuts, {1, 2}));
 }
 
 // ============================================================================
@@ -470,7 +483,7 @@ TEST(CutNodes, PaintAssignsCorrectColors)
   EXPECT_EQ(get_color<Graph>(nodes[0]), 0L);
 
   // Each leaf should have a unique color > 0
-  std::set<long> leaf_colors;
+  DynSetTree<long> leaf_colors;
   for (int i = 1; i < 5; ++i)
     {
       long c = get_color<Graph>(nodes[i]);
@@ -818,7 +831,7 @@ TEST(CutNodes, SelfLoopDoesNotAffectCutNodes)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(nodes[0], cuts);
 
-  EXPECT_EQ(cut_infos(cuts), (std::set<int>{1}));
+  EXPECT_TRUE(cut_infos_eq(cuts, {1}));
 }
 
 TEST(CutNodes, ParallelArcsDoNotAffectCutNodes)
@@ -833,7 +846,7 @@ TEST(CutNodes, ParallelArcsDoNotAffectCutNodes)
   Compute_Cut_Nodes<Graph> alg(g);
   alg(nodes[0], cuts);
 
-  EXPECT_EQ(cut_infos(cuts), (std::set<int>{1}));
+  EXPECT_TRUE(cut_infos_eq(cuts, {1}));
 }
 
 // ============================================================================
@@ -885,7 +898,7 @@ TEST(CutNodes, MultipleIterationsOnSameGraph)
     {
       DynDlist<Graph::Node *> cuts;
       alg(nodes[0], cuts);
-      EXPECT_EQ(cut_infos(cuts), (std::set<int>{1, 2}));
+      EXPECT_TRUE(cut_infos_eq(cuts, {1, 2}));
     }
 }
 

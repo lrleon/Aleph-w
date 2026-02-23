@@ -2330,7 +2330,7 @@ External validation adapter (end-to-end artifacts):
   - deterministic golden digest baseline for portable render profiles
 - `scripts/planarity_certificate_ci_visual_diff.rb`
   - dedicated visual-golden CI runner (render + SHA256 diff against manifest)
-- `scripts/planarity_gephi_nightly_comparison.rb`
+- `scripts/planarity_gephi_weekly_comparison.rb`
   - run-level aggregator for nightly artifacts + regression detection (`overall_valid` and exit-code deltas)
 - `scripts/planarity_gephi_regression_notify.rb`
   - optional notifier for nightly regressions (Markdown alert + webhook dispatch)
@@ -2416,18 +2416,18 @@ ruby scripts/planarity_certificate_validator.rb \
 # workflow_dispatch input gephi_tags="v0.9.7,v0.10.1"
 
 # Local nightly artifact comparison/regression check (Ruby implementation)
-ruby scripts/planarity_gephi_nightly_comparison.rb \
+ruby scripts/planarity_gephi_weekly_comparison.rb \
   --artifacts-root /tmp/gephi-nightly-artifacts \
   --resolved-tags v0.9.7,v0.10.1 \
   --run-id local --run-attempt 1 --git-sha local \
-  --report-json /tmp/gephi_nightly_comparison.json \
-  --report-md /tmp/gephi_nightly_comparison.md \
+  --report-json /tmp/gephi_weekly_comparison.json \
+  --report-md /tmp/gephi_weekly_comparison.md \
   --print-summary
 
 # Optional regression notification (webhook)
 ALEPH_PLANARITY_ALERT_WEBHOOK="https://example.invalid/webhook" \
 ruby scripts/planarity_gephi_regression_notify.rb \
-  --report-json /tmp/gephi_nightly_comparison.json \
+  --report-json /tmp/gephi_weekly_comparison.json \
   --output-md /tmp/gephi_nightly_alert.md \
   --repository lrleon/Aleph-w \
   --run-url https://github.com/lrleon/Aleph-w/actions/runs/123 \

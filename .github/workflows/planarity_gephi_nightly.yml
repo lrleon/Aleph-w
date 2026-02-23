@@ -82,7 +82,7 @@ jobs:
           else:
               headers = {
                   "Accept": "application/vnd.github+json",
-                  "User-Agent": "aleph-planarity-gephi-nightly",
+                  "User-Agent": "aleph-planarity-gephi-weekly",
               }
               if github_token:
                   headers["Authorization"] = f"token {github_token}"
@@ -164,7 +164,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          mkdir -p build-gephi-nightly
+          mkdir -p build-gephi-weekly
           python - <<'PY'
           import json
           import os
@@ -177,7 +177,7 @@ jobs:
           import zipfile
 
           workspace = pathlib.Path.cwd()
-          out_dir = workspace / "build-gephi-nightly"
+          out_dir = workspace / "build-gephi-weekly"
           dl_dir = out_dir / "download"
           ex_dir = out_dir / "gephi-dist"
           dl_dir.mkdir(parents=True, exist_ok=True)
@@ -191,7 +191,7 @@ jobs:
 
           headers = {
               "Accept": "application/vnd.github+json",
-              "User-Agent": "aleph-planarity-gephi-nightly",
+              "User-Agent": "aleph-planarity-gephi-weekly",
           }
           if github_token:
               headers["Authorization"] = f"token {github_token}"
@@ -263,7 +263,7 @@ jobs:
           asset_url = str(asset["browser_download_url"])
           archive_path = dl_dir / asset_name
 
-          asset_headers = {"User-Agent": "aleph-planarity-gephi-nightly"}
+          asset_headers = {"User-Agent": "aleph-planarity-gephi-weekly"}
           if github_token:
               asset_headers["Authorization"] = f"token {github_token}"
           req_asset = urllib.request.Request(asset_url, headers=asset_headers)
@@ -345,7 +345,7 @@ jobs:
           MATRIX_OS: ${{ matrix.os }}
         run: |
           set -euo pipefail
-          mkdir -p build-gephi-nightly
+          mkdir -p build-gephi-weekly
           python - <<'PY'
           import json
           import os
@@ -354,7 +354,7 @@ jobs:
           import sys
 
           root = pathlib.Path.cwd()
-          out_dir = root / "build-gephi-nightly"
+          out_dir = root / "build-gephi-weekly"
           fixture = root / "scripts" / "fixtures" / "planarity_k33_certificate.graphml"
           validator = root / "scripts" / "planarity_certificate_validator.rb"
 
@@ -363,7 +363,7 @@ jobs:
 
           gephi_exe = pathlib.Path(os.environ["GEPHI_EXE"]).as_posix()
           gephi_version = os.environ.get("GEPHI_TAG", "").strip().lstrip("v") or "nightly"
-          catalog_path = out_dir / "nightly_real_gephi_templates.json"
+          catalog_path = out_dir / "weekly_real_gephi_templates.json"
 
           catalog = {
               "schema_version": 1,
@@ -431,7 +431,7 @@ jobs:
                   print(f"Failed to parse validator output: {e}")
                   print(f"Raw output: {proc.stdout}")
 
-          (out_dir / "nightly_case_summary.json").write_text(
+          (out_dir / "weekly_case_summary.json").write_text(
               json.dumps(summary, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
@@ -452,12 +452,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
           path: |
-            build-gephi-nightly/downloaded_gephi_asset.txt
-            build-gephi-nightly/nightly_real_gephi_templates.json
-            build-gephi-nightly/nightly_case_summary.json
-            build-gephi-nightly/validator_command.txt
-            build-gephi-nightly/validator_stdout.json
-            build-gephi-nightly/validator_stderr.txt
+            build-gephi-weekly/downloaded_gephi_asset.txt
+            build-gephi-weekly/weekly_real_gephi_templates.json
+            build-gephi-weekly/weekly_case_summary.json
+            build-gephi-weekly/validator_command.txt
+            build-gephi-weekly/validator_stdout.json
+            build-gephi-weekly/validator_stderr.txt
 
   gephi-weekly-comparison:
     name: gephi-weekly-comparison
@@ -482,7 +482,7 @@ jobs:
         continue-on-error: true
         with:
           pattern: gephi-weekly-*
-          path: build-gephi-nightly-artifacts
+          path: build-gephi-weekly-artifacts
           merge-multiple: false
 
       - name: Build comparison report
@@ -495,15 +495,15 @@ jobs:
           GIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          mkdir -p build-gephi-nightly-summary
-          ruby scripts/planarity_gephi_nightly_comparison.rb \
-            --artifacts-root build-gephi-nightly-artifacts \
+          mkdir -p build-gephi-weekly-summary
+          ruby scripts/planarity_gephi_weekly_comparison.rb \
+            --artifacts-root build-gephi-weekly-artifacts \
             --resolved-tags "${RESOLVED_TAGS}" \
             --run-id "${RUN_ID}" \
             --run-attempt "${RUN_ATTEMPT}" \
             --git-sha "${GIT_SHA}" \
-            --report-json build-gephi-nightly-summary/gephi_nightly_comparison.json \
-            --report-md build-gephi-nightly-summary/gephi_nightly_comparison.md \
+            --report-json build-gephi-weekly-summary/gephi_weekly_comparison.json \
+            --report-md build-gephi-weekly-summary/gephi_weekly_comparison.md \
             --print-summary
 
       - name: Append comparison report to run summary
@@ -511,7 +511,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          report_md="build-gephi-nightly-summary/gephi_nightly_comparison.md"
+          report_md="build-gephi-weekly-summary/gephi_weekly_comparison.md"
           if [ -f "${report_md}" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
             cat "${report_md}" >> "${GITHUB_STEP_SUMMARY}"
           fi
@@ -530,8 +530,8 @@ jobs:
             exit 0
           fi
           ruby scripts/planarity_gephi_regression_notify.rb \
-            --report-json build-gephi-nightly-summary/gephi_nightly_comparison.json \
-            --output-md build-gephi-nightly-summary/gephi_nightly_alert.md \
+            --report-json build-gephi-weekly-summary/gephi_weekly_comparison.json \
+            --output-md build-gephi-weekly-summary/gephi_weekly_alert.md \
             --run-url "${RUN_URL}" \
             --repository "${REPOSITORY}" \
             --webhook-url "${ALERT_WEBHOOK}" \
@@ -542,7 +542,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          alert_md="build-gephi-nightly-summary/gephi_nightly_alert.md"
+          alert_md="build-gephi-weekly-summary/gephi_weekly_alert.md"
           if [ -f "${alert_md}" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
             cat "${alert_md}" >> "${GITHUB_STEP_SUMMARY}"
           fi
@@ -555,9 +555,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
           path: |
-            build-gephi-nightly-summary/gephi_nightly_comparison.json
-            build-gephi-nightly-summary/gephi_nightly_comparison.md
-            build-gephi-nightly-summary/gephi_nightly_alert.md
+            build-gephi-weekly-summary/gephi_weekly_comparison.json
+            build-gephi-weekly-summary/gephi_weekly_comparison.md
+            build-gephi-weekly-summary/gephi_weekly_alert.md
 
       - name: Enforce regression gate
         if: ${{ steps.compare.outputs.has_regressions == 'true' }}
