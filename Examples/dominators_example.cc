@@ -47,7 +47,34 @@
 using namespace std;
 using namespace Aleph;
 
-using CFG = List_Digraph<Graph_Node<string>, Graph_Arc<int>>;
+namespace
+{
+  using CFG = List_Digraph<Graph_Node<string>, Graph_Arc<int>>;
+
+  /**
+   * @brief Prints a node's frontier as a comma-separated list enclosed in braces.
+   *
+   * @tparam Container Type of the container holding the frontier nodes.
+   * @param node The node whose frontier is being printed (used for symmetry).
+   * @param frontier The collection of nodes in the frontier.
+   */
+  template <typename Container>
+  void print_frontier(CFG::Node * node, const Container & frontier)
+  {
+    (void) node;
+    cout << "{";
+    bool first = true;
+    for (auto fi = frontier.get_it(); fi.has_curr(); fi.next_ne())
+      {
+        if (not first)
+          cout << ", ";
+        cout << fi.get_curr()->get_info();
+        first = false;
+      }
+    cout << "}";
+  }
+} // namespace
+
 
 /**
  * @brief Demonstrates construction of a control-flow graph and performs dominance analyses.
@@ -156,20 +183,6 @@ int main()
   // ========================================================================
 
   auto df = dom.dominance_frontiers(cfg, entry);
-  const auto print_frontier = [](auto * node, const auto & frontier)
-  {
-    (void) node; // kept for symmetry with call sites
-    cout << "{";
-    bool first = true;
-    for (auto fi = frontier.get_it(); fi.has_curr(); fi.next_ne())
-      {
-        if (not first)
-          cout << ", ";
-        cout << fi.get_curr()->get_info();
-        first = false;
-      }
-    cout << "}";
-  };
 
   cout << "=== Dominance Frontiers ===" << endl;
   for (auto it = df.get_it(); it.has_curr(); it.next_ne())
@@ -265,16 +278,9 @@ int main()
   for (auto pit = pdf.get_it(); pit.has_curr(); pit.next_ne())
     {
       auto & [node, frontier] = pit.get_curr();
-      cout << "  PDF(" << node->get_info() << ") = {";
-      bool first = true;
-      for (auto fi = frontier.get_it(); fi.has_curr(); fi.next_ne())
-        {
-          if (not first)
-            cout << ", ";
-          cout << fi.get_curr()->get_info();
-          first = false;
-        }
-      cout << "}" << endl;
+      cout << "  PDF(" << node->get_info() << ") = ";
+      print_frontier(node, frontier);
+      cout << endl;
     }
   cout << endl;
 

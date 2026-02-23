@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "templates": [
+    {
+      "id": "portable.python-file-exists",
+      "os": "any",
+      "gephi_version": "n/a",
+      "description": "Portable adapter command used in CI/tests; checks that input file exists.",
+      "cmd": "python3 -c \"import pathlib,sys; pathlib.Path(sys.argv[1]).stat()\" {input}"
+    },
+    {
+      "id": "linux.gephi-0.10.smoke",
+      "os": "linux",
+      "gephi_version": "0.10.x",
+      "description": "Gephi 0.10.x binary availability smoke-check (Linux).",
+      "cmd": "gephi --version"
+    },
+    {
+      "id": "linux.gephi-0.10.headless-import",
+      "os": "linux",
+      "gephi_version": "0.10.x",
+      "description": "Gephi 0.10.x headless import check (Linux).",
+      "cmd": "gephi --headless --import {input}"
+    },
+    {
+      "id": "linux.gephi-0.9.smoke",
+      "os": "linux",
+      "gephi_version": "0.9.x",
+      "description": "Gephi 0.9.x binary availability smoke-check (Linux).",
+      "cmd": "gephi --version"
+    },
+    {
+      "id": "linux.gephi-0.9.headless-import",
+      "os": "linux",
+      "gephi_version": "0.9.x",
+      "description": "Gephi 0.9.x headless import check (Linux).",
+      "cmd": "gephi --headless --import {input}"
+    },
+    {
+      "id": "macos.gephi-0.10.smoke",
+      "os": "macos",
+      "gephi_version": "0.10.x",
+      "description": "Gephi 0.10.x binary availability smoke-check (macOS).",
+      "cmd": "gephi --version"
+    },
+    {
+      "id": "macos.gephi-0.10.headless-import",
+      "os": "macos",
+      "gephi_version": "0.10.x",
+      "description": "Gephi 0.10.x headless import check (macOS).",
+      "cmd": "gephi --headless --import {input}"
+    },
+    {
+      "id": "macos.gephi-0.9.smoke",
+      "os": "macos",
+      "gephi_version": "0.9.x",
+      "description": "Gephi 0.9.x binary availability smoke-check (macOS).",
+      "cmd": "gephi --version"
+    },
+    {
+      "id": "macos.gephi-0.9.headless-import",
+      "os": "macos",
+      "gephi_version": "0.9.x",
+      "description": "Gephi 0.9.x headless import check (macOS).",
+      "cmd": "gephi --headless --import {input}"
+    },
+    {
+      "id": "windows.gephi-0.10.smoke",
+      "os": "windows",
+      "gephi_version": "0.10.x",
+      "description": "Gephi 0.10.x binary availability smoke-check (Windows).",
+      "cmd": "gephi.exe --version"
+    },
+    {
+      "id": "windows.gephi-0.10.headless-import",
+      "os": "windows",
+      "gephi_version": "0.10.x",
+      "description": "Gephi 0.10.x headless import check (Windows).",
+      "cmd": "gephi.exe --headless --import {input}"
+    },
+    {
+      "id": "windows.gephi-0.9.smoke",
+      "os": "windows",
+      "gephi_version": "0.9.x",
+      "description": "Gephi 0.9.x binary availability smoke-check (Windows).",
+      "cmd": "gephi.exe --version"
+    },
+    {
+      "id": "windows.gephi-0.9.headless-import",
+      "os": "windows",
+      "gephi_version": "0.9.x",
+      "description": "Gephi 0.9.x headless import check (Windows).",
+      "cmd": "gephi.exe --headless --import {input}"
+    }
+  ]
+}
