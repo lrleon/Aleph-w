@@ -870,9 +870,10 @@ namespace Aleph
    *  @exception domain_error If `source` or `target` is null, or if negative
    *                          weights are detected.
    *
-   *  @complexity O(k * V * (E + V log V)) in the worst case: at each of the k
-   *              iterations up to V spur nodes are tried, each requiring a
-   *              Dijkstra run on the filtered graph.
+   *  @par Complexity
+   *  O(k * V * (E + V log V)) in the worst case: at each of the k
+   *  iterations up to V spur nodes are tried, each requiring a
+   *  Dijkstra run on the filtered graph.
    *
    *  @note This implementation is NOT thread-safe due to internal use of
    *        `const_cast` and `Cookie_Saver` that mutate node/arc cookies on the
@@ -1041,8 +1042,9 @@ namespace Aleph
    *  @throws std::domain_error If `source` or `target` is null.
    *  @throws std::domain_error If negative arc weights are detected.
    *
-   *  @complexity O(E + V log V + k * log k) typically, depending on the number of
-   *              deviations explored. Building the suffix tree dominates initially.
+   *  @par Complexity
+   *  O(E + V log V + k * log k) typically, depending on the number of
+   *  deviations explored. Building the suffix tree dominates initially.
    *
    *  @note This implementation is NOT thread-safe due to internal use of
    *        static thread-local storage for reverse graph traversal.
@@ -1188,8 +1190,9 @@ namespace Aleph
      *  @throws std::domain_error If `source` or `target` is null.
      *  @throws std::domain_error If negative arc weights are detected.
      *
-     *  @complexity O(k * V * (E + V log V)) in the worst case.
-     *              Same as `yen_k_shortest_paths`.
+     *  @par Complexity
+     *  O(k * V * (E + V log V)) in the worst case.
+     *  Same as `yen_k_shortest_paths`.
      *
      *  @note This implementation is NOT thread-safe due to internal use of
      *        `const_cast` and `Cookie_Saver` that mutate node/arc cookies on
@@ -1243,7 +1246,8 @@ namespace Aleph
      *  @throws std::domain_error If `source` or `target` is null.
      *  @throws std::domain_error If negative arc weights are detected.
      *
-     *  @complexity Same as `eppstein_k_shortest_paths`: O(E + V log V + k * log k).
+     *  @par Complexity
+     *  Same as `eppstein_k_shortest_paths`: O(E + V log V + k * log k).
      *
      *  @note This implementation is NOT thread-safe.
      */
