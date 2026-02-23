@@ -32,7 +32,6 @@
 #define ALEPH_TEST_GEOM_ALGORITHMS_TEST_COMMON_H
 
 #include <gtest/gtest.h>
-#include <stdexcept>
 #include <geom_algorithms.H>
 #include <ah-errors.H>
 #include "geometry_visual_golden.h"
@@ -92,7 +91,7 @@ namespace
    * @param b Second index; will hold the middle value on return.
    * @param c Third index; will hold the largest of the three on return.
    */
-  void sort3(size_t & a, size_t & b, size_t & c)
+  [[maybe_unused]] void sort3(size_t & a, size_t & b, size_t & c)
   {
     if (a > b)
       {
@@ -188,7 +187,7 @@ namespace
    * @param poly Polygon whose signed area is computed.
    * @return Signed area: positive when vertices are in counter-clockwise order, negative when in clockwise order.
    */
-  Geom_Number polygon_signed_area(const Polygon & poly)
+  [[maybe_unused]] Geom_Number polygon_signed_area(const Polygon & poly)
   {
     return GeomPolygonUtils::signed_double_area(poly) / 2;
   }

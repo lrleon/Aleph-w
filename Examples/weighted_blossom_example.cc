@@ -103,7 +103,6 @@ namespace
   };
 
 
-  template <class GT>
   /**
    * @brief Construct a graph of type GT from a Scenario.
    *
@@ -116,6 +115,7 @@ namespace
    * @return GT Constructed graph whose nodes were created with their Scenario
    *            indices as the integer payload and whose arcs reflect Scenario.edges.
    */
+  template <class GT>
   GT build_graph(const Scenario & s)
   {
     GT g;
@@ -131,7 +131,6 @@ namespace
   }
 
 
-  template <class GT>
   /**
    * @brief Compute a maximum-weight matching for the given scenario and return its solution.
    *
@@ -145,6 +144,7 @@ namespace
    * @return Solve_Output Contains `total_weight` (sum of weights in the matching),
    * `cardinality` (number of matched edges), and `matched_pairs` (array of `(u,v)` pairs with `u <= v`).
    */
+  template <class GT>
   Solve_Output solve_case(const Scenario & s, bool max_cardinality)
   {
     GT g = build_graph<GT>(s);
@@ -286,7 +286,6 @@ namespace
   }
 
 
-  template <class GT>
   /**
    * @brief Runs the solver for a specific graph backend, prints its result, and checks consistency against a canonical reference.
    *
@@ -300,6 +299,7 @@ namespace
    * @param reference On first invocation for a given mode, updated to the backend's result and subsequently used as the canonical result to compare against.
    * @param first On entry, indicates whether this backend result should initialize `reference`; set to `false` when initialization occurs.
    */
+  template <class GT>
   void print_backend(const std::string & backend,
                      const Scenario & s,
                      bool max_cardinality,
@@ -363,21 +363,22 @@ namespace
         write_tikz(s, canonical, max_cardinality, tex_path);
         std::cout << "  TikZ export: " << tex_path << "\n";
       }
+    }
   }
-
-} /**
- * @brief Runs example scenarios demonstrating maximum-weight matching and writes TikZ visualizations.
- *
- * Executes two predefined graph scenarios that exercise the weighted blossom algorithm in both
- * pure max-weight and max-cardinality-then-max-weight modes across multiple graph backends, prints
- * per-backend results and warnings on objective mismatches, and emits .tex files visualizing each
- * computed matching.
- *
- * @return int Exit status code; `0` on successful completion.
- */
-
-
-int main()
+  
+  
+  /**
+   * @brief Runs example scenarios demonstrating maximum-weight matching and writes TikZ visualizations.
+   *
+   * Executes two predefined graph scenarios that exercise the weighted blossom algorithm in both
+   * pure max-weight and max-cardinality-then-max-weight modes across multiple graph backends, prints
+   * per-backend results and warnings on objective mismatches, and emits .tex files visualizing each
+   * computed matching.
+   *
+   * @return int Exit status code; `0` on successful completion.
+   */
+  int main()
+  
 {
   const Scenario odd_cycle_bridge{
     .slug = "odd_cycle_bridge",

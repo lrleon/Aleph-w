@@ -559,7 +559,7 @@ namespace
     if (not root.has_value())
       return -993;
 
-    const fs::path script = *root / "scripts" / "planarity_gephi_nightly_comparison.rb";
+    const fs::path script = *root / "scripts" / "planarity_gephi_weekly_comparison.rb";
     if (not fs::exists(script))
       return -992;
 

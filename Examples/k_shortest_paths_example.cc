@@ -40,6 +40,7 @@
  *   ./build/Examples/k_shortest_paths_example
  */
 
+# include <format>
 # include <iostream>
 # include <string>
 
@@ -122,7 +123,6 @@ namespace
 
 
   /** @brief Helper to print k-shortest path results. */
-  template <class Result_List>
   /**
    * @brief Print a titled list of k-shortest-path results to standard output.
    *
@@ -133,17 +133,15 @@ namespace
    * @param results List of k-shortest-path result items to display; each item's
    *                `total_cost` and `path` are shown.
    */
-  void print_results(const string & title, const Result_List & results)
+  void print_results(const string & title, const DynList<Result_Item> & results)
   {
     cout << title << '\n';
     size_t rank = 1;
-    for (typename Result_List::Iterator it(results); it.has_curr(); it.next_ne(), ++rank)
+    for (DynList<Result_Item>::Iterator it(results); it.has_curr(); it.next_ne(), ++rank)
       {
-        const Result_Item & item = it.get_curr();
-        cout << "  #" << rank
-             << "  cost=" << item.total_cost
-             << "  path=" << path_to_string(item.path)
-             << '\n';
+        const auto & item = it.get_curr();
+        cout << std::format("  #{}  cost={}  path={}\n",
+                            rank, item.total_cost, path_to_string(item.path));
       }
     if (results.is_empty())
       cout << "  (no path found)\n";
@@ -182,10 +180,9 @@ int main()
   auto * source = nodes[scenario.source];
   auto * target = nodes[scenario.target];
 
-  cout << "K shortest paths in Aleph graphs\n";
-  cout << "source=" << scenario.source
-       << ", target=" << scenario.target
-       << ", k=" << scenario.k << "\n\n";
+  cout << std::format("K shortest paths in Aleph graphs\n");
+  cout << std::format("source={}, target={}, k={}\n\n",
+                      scenario.source, scenario.target, scenario.k);
 
   const auto yen = yen_k_shortest_paths<Graph>(g, source, target, scenario.k);
   const auto epp = eppstein_k_shortest_paths<Graph>(g, source, target, scenario.k);

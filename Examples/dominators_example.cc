@@ -156,21 +156,28 @@ int main()
   // ========================================================================
 
   auto df = dom.dominance_frontiers(cfg, entry);
+  const auto print_frontier = [](auto * node, const auto & frontier)
+  {
+    (void) node; // kept for symmetry with call sites
+    cout << "{";
+    bool first = true;
+    for (auto fi = frontier.get_it(); fi.has_curr(); fi.next_ne())
+      {
+        if (not first)
+          cout << ", ";
+        cout << fi.get_curr()->get_info();
+        first = false;
+      }
+    cout << "}";
+  };
 
   cout << "=== Dominance Frontiers ===" << endl;
   for (auto it = df.get_it(); it.has_curr(); it.next_ne())
     {
       auto & [node, frontier] = it.get_curr();
-      cout << "  DF(" << node->get_info() << ") = {";
-      bool first = true;
-      for (auto fi = frontier.get_it(); fi.has_curr(); fi.next_ne())
-        {
-          if (not first)
-            cout << ", ";
-          cout << fi.get_curr()->get_info();
-          first = false;
-        }
-      cout << "}" << endl;
+      cout << "  DF(" << node->get_info() << ") = ";
+      print_frontier(node, frontier);
+      cout << endl;
     }
   cout << endl;
 
@@ -189,16 +196,9 @@ int main()
       if (not frontier.is_empty())
         {
           cout << "  Definitions in '" << node->get_info()
-               << "' need phi at: {";
-          bool first = true;
-          for (auto fi = frontier.get_it(); fi.has_curr(); fi.next_ne())
-            {
-              if (not first)
-                cout << ", ";
-              cout << fi.get_curr()->get_info();
-              first = false;
-            }
-          cout << "}" << endl;
+               << "' need phi at: ";
+          print_frontier(node, frontier);
+          cout << endl;
         }
     }
   cout << endl;

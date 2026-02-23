@@ -39,6 +39,7 @@
  * 3. Tax Routes — Path Sum + Dynamic Updates
  */
 
+#include <array>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
@@ -95,11 +96,11 @@ namespace
     g.insert_arc(n(2), n(6), 1);
     g.insert_arc(n(4), n(7), 1);
 
-    const char * names[] = {"CEO", "CTO", "CFO", "Eng", "Data",
-                            "Acct", "Legal", "ML"};
-    const int clearance[] = {5, 4, 3, 2, 3, 1, 2, 3};
+    constexpr std::array<const char *, 8> names = {
+        "CEO", "CTO", "CFO", "Eng", "Data", "Acct", "Legal", "ML"};
+    constexpr std::array<int, 8> clearance = {5, 4, 3, 2, 3, 1, 2, 3};
 
-    auto nv = [&clearance](Node * p) { return clearance[p->get_info()]; };
+    auto nv = [&clearance](Node * p) { return clearance[static_cast<size_t>(p->get_info())]; };
     HLD_Max<G, int> hld(g, n(0), nv);
 
     struct Query { size_t u, v; };
@@ -172,14 +173,15 @@ namespace
     g.insert_arc(n(2), n(5), 1);
     g.insert_arc(n(4), n(6), 1);
 
-    const char * names[] = {"Router", "S1", "S2", "S3", "S4", "S5", "S6"};
-    const int bandwidth[] = {1000, 100, 50, 80, 30, 60, 90};
+    constexpr std::array<const char *, 7> names = {
+        "Router", "S1", "S2", "S3", "S4", "S5", "S6"};
+    constexpr std::array<int, 7> bandwidth = {1000, 100, 50, 80, 30, 60, 90};
 
-    auto nv = [&bandwidth](Node * p) { return bandwidth[p->get_info()]; };
+    auto nv = [&bandwidth](Node * p) { return bandwidth[static_cast<size_t>(p->get_info())]; };
     HLD_Min<G, int> hld(g, n(0), nv);
 
     struct Query { size_t u, v; };
-    const Query queries[] = {{6, 5}, {4, 3}, {6, 3}, {1, 2}};
+    constexpr Query queries[] = {{6, 5}, {4, 3}, {6, 3}, {1, 2}};
 
     std::cout << std::left
               << std::setw(16) << "Path"
@@ -241,11 +243,11 @@ namespace
     g.insert_arc(n(1), n(4), 1);
     g.insert_arc(n(2), n(5), 1);
 
-    const char * names[] = {"Capital", "Port", "Market",
-                            "Farm", "Mine", "Workshop"};
-    const int taxes[] = {10, 5, 8, 3, 7, 6};
+    constexpr std::array<const char *, 6> names = {
+        "Capital", "Port", "Market", "Farm", "Mine", "Workshop"};
+    constexpr std::array<int, 6> taxes = {10, 5, 8, 3, 7, 6};
 
-    auto nv = [&taxes](Node * p) { return taxes[p->get_info()]; };
+    auto nv = [&taxes](Node * p) { return taxes[static_cast<size_t>(p->get_info())]; };
     HLD_Sum<G, int> hld(g, n(0), nv);
 
     auto print_query = [&](const char * label, size_t u, size_t v)

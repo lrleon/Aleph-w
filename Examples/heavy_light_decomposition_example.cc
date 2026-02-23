@@ -42,13 +42,15 @@
  * - point updates when maintenance budgets change.
  */
 
-# include <Tree_Decomposition.H>
-# include <tpl_graph.H>
+#include <Tree_Decomposition.H>
+#include <tpl_graph.H>
 
-# include <cassert>
-# include <iomanip>
-# include <iostream>
-# include <string>
+#include <array>
+#include <cassert>
+#include <format>
+#include <iomanip>
+#include <iostream>
+#include <string>
 
 using namespace Aleph;
 
@@ -159,7 +161,7 @@ int main()
   g.insert_arc(sa, sa1, 1);
   g.insert_arc(sa, sa2, 1);
 
-  const char * labels[] = {
+  const std::array<const char *, 9> labels = {
       "Central", "North", "West", "South", "N-A",
       "N-B", "S-A", "S-A1", "S-A2"};
 
@@ -173,23 +175,24 @@ int main()
   std::cout << "=== Aurora Power Grid (HLD path queries) ===\n\n";
   std::cout << "Node mapping (id -> label, base position):\n";
   for (size_t i = 0; i < hld.size(); ++i)
-    std::cout << "  id=" << i
-              << "  " << std::left << std::setw(8) << labels[i]
-              << std::right << "  pos=" << hld.position_of_id(i) << '\n';
+    std::cout << std::format("  id={}  {:<8}  pos={}\n",
+                             i, labels[i], hld.position_of_id(i));
 
   std::cout << "\nPath maintenance cost queries:\n";
 
-  const struct
+  struct Query
   {
     Node * u;
     Node * v;
     const char * name;
-  } queries[] = {
+  };
+
+  const std::array<Query, 4> queries = {{
       {na, nb, "N-A -> N-B"},
       {na, sa2, "N-A -> S-A2"},
       {west, sa1, "West -> S-A1"},
       {central, sa2, "Central -> S-A2"}
-  };
+  }};
 
   for (const auto & q : queries)
     {
@@ -199,9 +202,8 @@ int main()
       const int ans = grid.query_path_id(u, v);
       const int brute = brute_path_sum(values, hld, u, v);
 
-      std::cout << "  " << std::left << std::setw(18) << q.name << std::right
-                << "  HLD=" << std::setw(3) << ans
-                << "  brute=" << std::setw(3) << brute << '\n';
+      std::cout << std::format("  {:<18}  HLD={:>3}  brute={:>3}\n",
+                               q.name, ans, brute);
       assert(ans == brute);
     }
 
@@ -211,8 +213,8 @@ int main()
       const size_t id = hld.id_of(x);
       const int ans = grid.query_subtree_id(id);
       const int brute = brute_subtree_sum(values, hld, id);
-      std::cout << "  " << std::left << std::setw(8) << labels[id] << std::right
-                << " subtree total = " << std::setw(3) << ans << '\n';
+      std::cout << std::format("  {:<8} subtree total = {:>3}\n",
+                               labels[id], ans);
       assert(ans == brute);
     }
 
@@ -230,8 +232,8 @@ int main()
 
   const int after_path = grid.query_path(north, sa2);
   const int brute_after_path = brute_path_sum(values, hld, hld.id_of(north), hld.id_of(sa2));
-  std::cout << "  North -> S-A2 after update: HLD="
-            << after_path << " brute=" << brute_after_path << '\n';
+  std::cout << std::format("  North -> S-A2 after update: HLD={} brute={}\n",
+                           after_path, brute_after_path);
   assert(after_path == brute_after_path);
 
   std::cout << "\nHow HLD splits path N-A -> S-A2 into base-array segments:\n";
@@ -240,9 +242,8 @@ int main()
                                 const size_t r,
                                 const bool reversed)
                             {
-                              std::cout << "  segment [" << l << ", " << r
-                                        << "] (" << (reversed ? "reversed" : "forward")
-                                        << ")\n";
+                              std::cout << std::format("  segment [{}, {}] ({})\n",
+                                                       l, r, (reversed ? "reversed" : "forward"));
                             });
 
   std::cout << "\nAll assertions passed.\n";

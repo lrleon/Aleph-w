@@ -83,7 +83,6 @@ namespace
     Array<pair<size_t, size_t>> edges;
   };
 
-  template <class GT>
   /**
    * @brief Constructs a graph of type `GT` that represents the given scenario.
    *
@@ -95,6 +94,7 @@ namespace
    * @param s Scenario describing vertices (positions and labels) and an edge list.
    * @return GT Graph instance populated with the scenario's nodes and arcs.
    */
+  template <class GT>
   GT build_graph(const Scenario & s)
   {
     GT g;
@@ -114,7 +114,6 @@ namespace
     return g;
   }
 
-  template <class GT>
   /**
    * @brief Extracts sorted, deduplicated matching vertex pairs from a graph's matching.
    *
@@ -127,6 +126,7 @@ namespace
    *         pairs corresponding to matched edges; each pair is ordered with the smaller
    *         index first.
    */
+  template <class GT>
   Array<pair<size_t, size_t>> extract_matching_pairs(
       const GT & g,
       const DynDlist<typename GT::Arc *> & matching)
@@ -256,13 +256,13 @@ namespace
     out << "\\end{document}\n";
   }
 
-  template <class GT>
   /**
    * Compute the maximum-cardinality matching for the given scenario and return its size and matched vertex pairs.
    *
    * @param s Scenario describing the graph (nodes, positions and edges) to build and solve.
    * @return pair whose first element is the matching cardinality (number of matched vertex pairs) and whose second element is an Array of unique, sorted vertex-index pairs `(u, v)` with `u <= v` representing the matching.
    */
+  template <class GT>
   pair<size_t, Array<pair<size_t, size_t>>> solve_case(const Scenario & s)
   {
     GT g = build_graph<GT>(s);
@@ -271,7 +271,6 @@ namespace
     return std::make_pair(cardinality, extract_matching_pairs(g, matching));
   }
 
-  template <class GT>
   /**
    * @brief Run the matching backend for a scenario, print its result, and validate consistency.
    *
@@ -287,6 +286,7 @@ namespace
    * @param pairs_ref Reference to store the canonical matching pairs from the first backend.
    * @param is_first Flag indicating whether this is the first backend being run; set to false after storing canonical results.
    */
+  template <class GT>
   void print_backend_result(const string & backend_name,
                             const Scenario & s,
                             size_t & cardinality_ref,

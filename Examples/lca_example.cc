@@ -40,6 +40,7 @@
  * - Cross-backend parity (`List_Graph`, `List_SGraph`, `Array_Graph`)
  */
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -72,7 +73,7 @@ namespace
     NODES = 9
   };
 
-  static const char * const NODE_LABELS[NODES] = {
+  static const std::array<const char *, NODES> NODE_LABELS = {
       "CEO", "CTO", "CFO", "Platform", "Data",
       "Accounting", "Legal", "SRE", "ML"
   };
@@ -85,14 +86,14 @@ namespace
     size_t expected_distance;
   };
 
-  static const Query QUERIES[] = {
+  static const std::array<Query, 6> QUERIES = {{
       {SRE, ML, CTO, 4},
       {SRE, DATA, CTO, 3},
       {ACCOUNTING, LEGAL, CFO, 2},
       {ACCOUNTING, ML, CEO, 5},
       {PLATFORM, CTO, CTO, 1},
       {CTO, CFO, CEO, 2}
-  };
+  }};
 
   struct Backend_Result
   {
@@ -106,7 +107,6 @@ namespace
     std::uint64_t checksum_eul = 0;
   };
 
-  template <class GT>
   /**
    * @brief Builds a small rooted tree on the specified graph backend, runs two LCA engines,
    * validates their results against a deterministic query set, and benchmarks them with many random queries.
@@ -120,6 +120,7 @@ namespace
    * @return Backend_Result Aggregated results for the backend including deterministic consistency flags,
    *         per-engine benchmark times (milliseconds), per-engine checksums, and a checksum equality flag.
    */
+  template <class GT>
   Backend_Result run_backend(const char * backend_name)
   {
     using Graph = GT;
@@ -244,48 +245,58 @@ namespace
  * timing and checksum metrics, prints a parity summary table, and reports whether
  * all backends produced identical checksums.
  *
- * @return int 0 on success.
- */
-int main()
-{
-  using LG = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
-  using SG = List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>;
-  using AG = Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>;
-
-  std::cout << "==============================================================\n";
-  std::cout << " LCA on Aleph Tree Graphs (Cross-Backend Parity Demo)\n";
-  std::cout << "==============================================================\n\n";
-
-  const auto list_result = run_backend<LG>("List_Graph");
-  const auto sgraph_result = run_backend<SG>("List_SGraph");
-  const auto agraph_result = run_backend<AG>("Array_Graph");
-
-  std::cout << "Parity summary:\n";
-  std::cout << std::left
-            << std::setw(13) << "Backend"
-            << std::setw(14) << "Deterministic"
-            << std::setw(14) << "EnginesAgree"
-            << std::setw(14) << "ChecksumEq"
-            << std::setw(11) << "Binary(ms)"
-            << "Euler(ms)\n";
-  std::cout << std::string(72, '-') << "\n";
-
-  const Backend_Result results[] = {list_result, sgraph_result, agraph_result};
-  for (const auto & r : results)
-    std::cout << std::left
-              << std::setw(13) << r.backend_name
-              << std::setw(14) << (r.deterministic_ok ? "yes" : "no")
-              << std::setw(14) << (r.engines_agree ? "yes" : "no")
-              << std::setw(14) << (r.checksum_equal ? "yes" : "no")
-              << std::setw(11) << r.binary_ms
-              << r.euler_ms << "\n";
-
-  const bool cross_backend_checksum_ok =
-      list_result.checksum_bin == sgraph_result.checksum_bin and
-      list_result.checksum_bin == agraph_result.checksum_bin;
-
-  std::cout << "\nCross-backend checksum parity: "
-            << (cross_backend_checksum_ok ? "yes" : "no") << "\n";
-
-  return 0;
-}
+  * @return int 0 on success, non-zero on failure.
+  */
+ int main()
+ {
+   using LG = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+   using SG = List_SGraph<Graph_Snode<int>, Graph_Sarc<int>>;
+   using AG = Array_Graph<Graph_Anode<int>, Graph_Aarc<int>>;
+ 
+   std::cout << "==============================================================\n";
+   std::cout << " LCA on Aleph Tree Graphs (Cross-Backend Parity Demo)\n";
+   std::cout << "==============================================================\n\n";
+ 
+   const auto list_result = run_backend<LG>("List_Graph");
+   const auto sgraph_result = run_backend<SG>("List_SGraph");
+   const auto agraph_result = run_backend<AG>("Array_Graph");
+ 
+   std::cout << "Parity summary:\n";
+   std::cout << std::left
+             << std::setw(13) << "Backend"
+             << std::setw(14) << "Deterministic"
+             << std::setw(14) << "EnginesAgree"
+             << std::setw(14) << "ChecksumEq"
+             << std::setw(11) << "Binary(ms)"
+             << "Euler(ms)\n";
+   std::cout << std::string(72, '-') << "\n";
+ 
+   bool any_failure = false;
+   const std::array<Backend_Result, 3> results = {list_result, sgraph_result, agraph_result};
+   for (const auto & r : results)
+     {
+       std::cout << std::left
+                 << std::setw(13) << r.backend_name
+                 << std::setw(14) << (r.deterministic_ok ? "yes" : "no")
+                 << std::setw(14) << (r.engines_agree ? "yes" : "no")
+                 << std::setw(14) << (r.checksum_equal ? "yes" : "no")
+                 << std::setw(11) << r.binary_ms
+                 << r.euler_ms << "\n";
+ 
+       if (not r.deterministic_ok or not r.engines_agree or not r.checksum_equal)
+         any_failure = true;
+     }
+ 
+   const bool cross_backend_checksum_ok =
+       list_result.checksum_bin == sgraph_result.checksum_bin and
+       list_result.checksum_bin == agraph_result.checksum_bin;
+ 
+   std::cout << "\nCross-backend checksum parity: "
+             << (cross_backend_checksum_ok ? "yes" : "no") << "\n";
+ 
+   if (not cross_backend_checksum_ok)
+     any_failure = true;
+ 
+   return any_failure ? 1 : 0;
+ }
+ 

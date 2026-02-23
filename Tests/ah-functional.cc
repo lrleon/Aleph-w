@@ -1635,7 +1635,7 @@ TEST(all_unique_overload, custom_hash_and_eq_lvalue_functors)
   EXPECT_FALSE(all_unique(strings, hash, eq));
 }
 
-TEST(all_unique_overload, custom_hash_functor_is_used_when_dynsethash_is_available)
+TEST(all_unique_overload, custom_hash_functor_is_invoked)
 {
   auto strings = build_dynlist<string>("Alpha", "Bravo", "ALPHA");
   size_t hash_calls = 0;
@@ -1655,6 +1655,7 @@ TEST(all_unique_overload, empty_container)
 {
   // Empty container should always return true
   DynList<int> empty;
+  EXPECT_TRUE(all_unique(empty, std::hash<int>(), std::equal_to<int>()));
   EXPECT_TRUE(all_unique(empty, std::equal_to<int>()));
   EXPECT_TRUE(all_unique(empty));
 }
@@ -1663,6 +1664,7 @@ TEST(all_unique_overload, single_element)
 {
   // Single element container should always return true
   auto single = build_dynlist<int>(42);
+  EXPECT_TRUE(all_unique(single, std::hash<int>(), std::equal_to<int>()));
   EXPECT_TRUE(all_unique(single, std::equal_to<int>()));
   EXPECT_TRUE(all_unique(single));
 }

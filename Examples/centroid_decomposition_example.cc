@@ -50,8 +50,10 @@
 # include <tpl_graph.H>
 
 # include <algorithm>
+# include <array>
 # include <cassert>
-# include <cstdio>
+# include <format>
+# include <iostream>
 # include <limits>
 
 using namespace Aleph;
@@ -123,18 +125,23 @@ int main()
   // ID space (same Node_Iterator order on the same graph object), so
   // hld.distance_id(u, v) is valid with centroid IDs.
 
-  Node * nodes_arr[] = { n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10 };
-  const char * village_label[] = {
+  const std::array nodes_arr = { n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10 };
+  const std::array village_label = {
       "Village-0",  "Village-1",  "Village-2",  "Village-3",  "Village-4",
       "Village-5",  "Village-6",  "Village-7",  "Village-8",  "Village-9",
       "Village-10"
   };
-  constexpr int NUM_NODES = 11;
 
   auto label_by_id = Array<const char *>::create(n);
   auto node_by_id  = Array<Node *>::create(n);
 
-  for (int i = 0; i < NUM_NODES; ++i)
+  for (size_t i = 0; i < n; ++i)
+    {
+      label_by_id(i) = "";
+      node_by_id(i)  = nullptr;
+    }
+
+  for (size_t i = 0; i < nodes_arr.size(); ++i)
     {
       const size_t id      = cd.id_of(nodes_arr[i]);
       label_by_id(id) = village_label[i];
@@ -192,20 +199,20 @@ int main()
 
   // --- Demo ---
 
-  std::printf("=== Emergency Response Network (Centroid Decomposition) ===\n\n");
-  std::printf("Centroid root: %s (id=%zu)\n\n",
-              label_by_id(cd.centroid_root_id()),
-              cd.centroid_root_id());
+  std::cout << std::format("=== Emergency Response Network (Centroid Decomposition) ===\n\n");
+  std::cout << std::format("Centroid root: {} (id={})\n\n",
+                           label_by_id(cd.centroid_root_id()),
+                           cd.centroid_root_id());
 
-  std::printf("Centroid chain for Village-10:\n");
+  std::cout << std::format("Centroid chain for Village-10:\n");
   cd.for_each_centroid_ancestor_id(
       cd.id_of(n10),
       [&](const size_t c, const size_t d, const size_t k)
       {
-        std::printf("  k=%zu  centroid=%s  dist=%zu\n", k, label_by_id(c), d);
+        std::cout << std::format("  k={}  centroid={}  dist={}\n", k, label_by_id(c), d);
       });
 
-  std::printf("\nActivate team at Village-0 and Village-8\n");
+  std::cout << std::format("\nActivate team at Village-0 and Village-8\n");
   activate(cd.id_of(n0));
   activate(cd.id_of(n8));
 
@@ -214,11 +221,11 @@ int main()
       const size_t u     = cd.id_of(node);
       const size_t ans   = query(u);
       const size_t brute = brute_query(u);
-      std::printf("  nearest(%-10s) = %zu\n", label_by_id(u), ans);
+      std::cout << std::format("  nearest({:<10}) = {}\n", label_by_id(u), ans);
       assert(ans == brute);
     }
 
-  std::printf("\nActivate new team at Village-10\n");
+  std::cout << std::format("\nActivate new team at Village-10\n");
   activate(cd.id_of(n10));
 
   for (Node * node : { n2, n6, n9, n10 })
@@ -226,10 +233,10 @@ int main()
       const size_t u     = cd.id_of(node);
       const size_t ans   = query(u);
       const size_t brute = brute_query(u);
-      std::printf("  nearest(%-10s) = %zu\n", label_by_id(u), ans);
+      std::cout << std::format("  nearest({:<10}) = {}\n", label_by_id(u), ans);
       assert(ans == brute);
     }
 
-  std::printf("\nAll assertions passed.\n");
+  std::cout << std::format("\nAll assertions passed.\n");
   return 0;
 }

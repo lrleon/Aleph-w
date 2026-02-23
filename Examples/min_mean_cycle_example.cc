@@ -56,7 +56,10 @@ namespace
   using Graph = List_Digraph<Graph_Node<string>, Graph_Arc<double>>;
   using Arc = Graph::Arc;
 
-  struct Hide_Arc
+  /**
+   * @brief Predicate that checks whether an arc is not a specific blocked arc.
+   */
+  struct Arc_Visible
   {
     Arc * blocked = nullptr;
 
@@ -153,63 +156,67 @@ namespace
       }
     cout << "\n\n";
   }
-} /**
+} // namespace
+
+
+/**
  * @brief Example program demonstrating Karp's minimum mean cycle algorithm on Aleph digraphs.
  *
  * Constructs a sample directed graph with six nodes (A–F), inserts arcs that create
  * multiple cycles (including an optimal cycle B→D→E→B and a higher-cost cycle C↔F),
  * and runs three variants of the algorithm:
- *  - full result with witness cycle,
- *  - value-only API reporting only the minimum mean,
- *  - filtered run that blocks a specified arc (D→E) via the Hide_Arc predicate.
- * Results are printed to standard output.
- *
- * @return int Exit status (0 on success).
- */
-
-
-int main()
-{
-  Graph g;
-
-  auto * A = g.insert_node("A");
-  auto * B = g.insert_node("B");
-  auto * C = g.insert_node("C");
-  auto * D = g.insert_node("D");
-  auto * E = g.insert_node("E");
-  auto * F = g.insert_node("F");
-
-  // Cycle A->B->C->A has mean 2.0
-  g.insert_arc(A, B, 4.0);
-  g.insert_arc(B, C, 1.0);
-  g.insert_arc(C, A, 1.0);
-
-  // Cycle B->D->E->B has mean 1.0 (optimal in full graph)
-  g.insert_arc(B, D, 1.0);
-  Arc * blocked = g.insert_arc(D, E, 1.0);
-  g.insert_arc(E, B, 1.0);
-
-  // Extra expensive cycle
-  g.insert_arc(C, F, 6.0);
-  g.insert_arc(F, C, 6.0);
-
-  cout << "Minimum mean cycle with Karp (Aleph graphs)\n";
-  cout << "---------------------------------------------\n\n";
-
-  const auto full = karp_minimum_mean_cycle(g);
-  print_result(g, "Full graph", full);
-
-  const auto value_only = karp_minimum_mean_cycle_value(g);
-  cout << "Value-only API (full graph): ";
-  if (value_only.has_cycle)
-    cout << "minimum mean = " << value_only.minimum_mean << "\n\n";
-  else
-    cout << "no directed cycle\n\n";
-
-  const auto filtered =
-      karp_minimum_mean_cycle<Graph, Dft_Dist<Graph>, Hide_Arc>(
-          g, Dft_Dist<Graph>(), Hide_Arc{blocked});
-  print_result(g, "Filtered graph (blocking D->E)", filtered);
-
-  return 0;
-}
+  *  - full result with witness cycle,
+  *  - value-only API reporting only the minimum mean,
+  *  - filtered run that blocks a specified arc (D→E) via the Arc_Visible predicate.
+  * Results are printed to standard output.
+  *
+  * @return int Exit status (0 on success).
+  */
+ 
+ 
+ int main()
+ {
+   Graph g;
+ 
+   auto * A = g.insert_node("A");
+   auto * B = g.insert_node("B");
+   auto * C = g.insert_node("C");
+   auto * D = g.insert_node("D");
+   auto * E = g.insert_node("E");
+   auto * F = g.insert_node("F");
+ 
+   // Cycle A->B->C->A has mean 2.0
+   g.insert_arc(A, B, 4.0);
+   g.insert_arc(B, C, 1.0);
+   g.insert_arc(C, A, 1.0);
+ 
+   // Cycle B->D->E->B has mean 1.0 (optimal in full graph)
+   g.insert_arc(B, D, 1.0);
+   Arc * blocked = g.insert_arc(D, E, 1.0);
+   g.insert_arc(E, B, 1.0);
+ 
+   // Extra expensive cycle
+   g.insert_arc(C, F, 6.0);
+   g.insert_arc(F, C, 6.0);
+ 
+   cout << "Minimum mean cycle with Karp (Aleph graphs)\n";
+   cout << "---------------------------------------------\n\n";
+ 
+   const auto full = karp_minimum_mean_cycle(g);
+   print_result(g, "Full graph", full);
+ 
+   const auto value_only = karp_minimum_mean_cycle_value(g);
+   cout << "Value-only API (full graph): ";
+   if (value_only.has_cycle)
+     cout << "minimum mean = " << value_only.minimum_mean << "\n\n";
+   else
+     cout << "no directed cycle\n\n";
+ 
+   const auto filtered =
+       karp_minimum_mean_cycle<Graph, Dft_Dist<Graph>, Arc_Visible>(
+           g, Dft_Dist<Graph>(), Arc_Visible{blocked});
+   print_result(g, "Filtered graph (blocking D->E)", filtered);
+ 
+   return 0;
+ }
+ 
