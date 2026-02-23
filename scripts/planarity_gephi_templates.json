@@ -2,11 +2,11 @@
   "schema_version": 1,
   "templates": [
     {
-      "id": "portable.python-file-exists",
+      "id": "portable.ruby-file-exists",
       "os": "any",
       "gephi_version": "n/a",
       "description": "Portable adapter command used in CI/tests; checks that input file exists.",
-      "cmd": "python3 -c \"import pathlib,sys; pathlib.Path(sys.argv[1]).stat()\" {input}"
+      "cmd": "ruby -e \"File.stat(ARGV[0])\" {input}"
     },
     {
       "id": "linux.gephi-0.10.smoke",

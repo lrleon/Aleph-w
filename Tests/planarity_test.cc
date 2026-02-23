@@ -1622,9 +1622,10 @@ TEST(PlanarityTest, ExternalCertificateValidatorRejectsMissingObstruction)
 
 TEST(PlanarityTest, ExternalCertificateValidatorNetworkxModeIsPortable)
 {
-  if (not has_ruby_and_validator_script() or not has_python3())
+
+    if (not has_ruby_and_validator_script() or not has_python3())
     {
-      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, or python3 not found";
+      GTEST_SKIP() << "Skipped: Ruby, validator script, or python3 not found";
       return;
     }
 
@@ -1690,9 +1691,9 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiModeIsPortable)
 
 TEST(PlanarityTest, ExternalCertificateValidatorGephiCustomTemplateWorks)
 {
-  if (not has_ruby_and_validator_script() or not has_python3())
+  if (not has_ruby_and_validator_script())
     {
-      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, or python3 not found";
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
       return;
     }
 
@@ -1708,7 +1709,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiCustomTemplateWorks)
   write_text_file(graphml_path, nonplanar_certificate_to_graphml(r));
 
   const std::string cmd_template =
-      "python3 -c \"import pathlib,sys; pathlib.Path(sys.argv[1]).stat()\" {input}";
+      "ruby -e \"File.stat(ARGV[0])\" {input}";
 
   const int rc = run_external_certificate_validator(
       {graphml_path}, false, false, true, true, cmd_template);
@@ -1720,9 +1721,9 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiTemplateSupportsInputPathWi
 {
   namespace fs = std::filesystem;
 
-  if (not has_ruby_and_validator_script() or not has_python3())
+  if (not has_ruby_and_validator_script())
     {
-      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, or python3 not found";
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
       return;
     }
 
@@ -1740,7 +1741,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiTemplateSupportsInputPathWi
   write_text_file(graphml_path, nonplanar_certificate_to_graphml(r));
 
   const std::string cmd_template =
-      "python3 -c \"import pathlib,sys; pathlib.Path(sys.argv[1]).stat()\" {input}";
+      "ruby -e \"File.stat(ARGV[0])\" {input}";
 
   const int rc = run_external_certificate_validator(
       {graphml_path}, false, false, true, true, cmd_template);
@@ -1762,7 +1763,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanListGephiTemplates)
 
   const std::string out = read_text_file(validator_stdout_path());
   EXPECT_NE(out.find("\"templates\""), std::string::npos);
-  EXPECT_NE(out.find("portable.python-file-exists"), std::string::npos);
+  EXPECT_NE(out.find("portable.ruby-file-exists"), std::string::npos);
   EXPECT_NE(out.find("linux.gephi-0.10.smoke"), std::string::npos);
   EXPECT_NE(out.find("macos.gephi-0.10.smoke"), std::string::npos);
   EXPECT_NE(out.find("windows.gephi-0.10.smoke"), std::string::npos);
@@ -1803,7 +1804,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanListGephiRenderProfiles)
 
   const std::string out = read_text_file(validator_stdout_path());
   EXPECT_NE(out.find("\"profiles\""), std::string::npos);
-  EXPECT_NE(out.find("portable.python-render-svg"), std::string::npos);
+  EXPECT_NE(out.find("portable.ruby-render-svg"), std::string::npos);
   EXPECT_NE(out.find("linux.gephi-0.10.render-svg"), std::string::npos);
   EXPECT_NE(out.find("macos.gephi-0.10.render-svg"), std::string::npos);
   EXPECT_NE(out.find("windows.gephi-0.10.render-svg"), std::string::npos);
@@ -1831,9 +1832,9 @@ TEST(PlanarityTest, ExternalCertificateValidatorCanFilterRenderProfilesByOs)
 
 TEST(PlanarityTest, ExternalCertificateValidatorGephiCatalogTemplateWorks)
 {
-  if (not has_ruby_and_validator_script() or not has_python3())
+  if (not has_ruby_and_validator_script())
     {
-      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, or python3 not found";
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
       return;
     }
 
@@ -1850,7 +1851,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiCatalogTemplateWorks)
 
   const int rc = run_external_certificate_validator(
       {graphml_path}, false, false, true, true, "",
-      "--gephi-template portable.python-file-exists");
+      "--gephi-template portable.ruby-file-exists");
   EXPECT_EQ(rc, 0);
 }
 
@@ -1859,10 +1860,9 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSvgProfileProducesArtifact
 {
   namespace fs = std::filesystem;
 
-  if (not has_ruby_and_validator_script() or not has_python3())
+  if (not has_ruby_and_validator_script())
     {
-      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, "
-                      "or python3 not found";
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
       return;
     }
 
@@ -1881,7 +1881,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSvgProfileProducesArtifact
   const int rc = run_external_certificate_validator(
       {graphml_path}, false, false, false, false, "",
       "--render-gephi --require-render "
-      "--render-profile portable.python-render-svg "
+      "--render-profile portable.ruby-render-svg "
       "--render-output-dir " + shell_quote(output_dir));
   EXPECT_EQ(rc, 0);
 
@@ -1900,10 +1900,9 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderPdfProfileProducesArtifact
 {
   namespace fs = std::filesystem;
 
-  if (not has_ruby_and_validator_script() or not has_python3())
+  if (not has_ruby_and_validator_script())
     {
-      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, "
-                      "or python3 not found";
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
       return;
     }
 
@@ -1922,7 +1921,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderPdfProfileProducesArtifact
   const int rc = run_external_certificate_validator(
       {graphml_path}, false, false, false, false, "",
       "--render-gephi --require-render "
-      "--render-profile portable.python-render-pdf "
+      "--render-profile portable.ruby-render-pdf "
       "--render-output-dir " + shell_quote(output_dir));
   EXPECT_EQ(rc, 0);
 
@@ -1937,10 +1936,9 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSupportsInputPathWithSpace
 {
   namespace fs = std::filesystem;
 
-  if (not has_ruby_and_validator_script() or not has_python3())
+  if (not has_ruby_and_validator_script())
     {
-      GTEST_SKIP() << "Skipped: Ruby, planarity_certificate_validator.rb, "
-                      "or python3 not found";
+      GTEST_SKIP() << "Skipped: Ruby or planarity_certificate_validator.rb not found";
       return;
     }
 
@@ -1961,7 +1959,7 @@ TEST(PlanarityTest, ExternalCertificateValidatorRenderSupportsInputPathWithSpace
   const int rc = run_external_certificate_validator(
       {graphml_path}, false, false, false, false, "",
       "--render-gephi --require-render "
-      "--render-profile portable.python-render-svg "
+      "--render-profile portable.ruby-render-svg "
       "--render-output-dir " + shell_quote(output_dir));
   EXPECT_EQ(rc, 0);
 
@@ -2017,13 +2015,13 @@ TEST(PlanarityTest, ExternalCertificateBatchRunnerProducesReport)
 
   const int rc = run_external_certificate_batch(
       {graphml_path, gexf_path}, report_path,
-      "--gephi --require-gephi --gephi-template portable.python-file-exists --print-summary");
+      "--gephi --require-gephi --gephi-template portable.ruby-file-exists --print-summary");
   EXPECT_EQ(rc, 0);
 
   const std::string report = read_text_file(report_path);
   EXPECT_NE(report.find("\"num_inputs\": 2"), std::string::npos);
   EXPECT_NE(report.find("\"overall_valid\": true"), std::string::npos);
-  EXPECT_NE(report.find("\"gephi_template\": \"portable.python-file-exists\""),
+  EXPECT_NE(report.find("\"gephi_template\": \"portable.ruby-file-exists\""),
             std::string::npos);
 }
 
@@ -2046,12 +2044,12 @@ TEST(PlanarityTest, ExternalCertificateBatchRunnerSupportsRenderProfiles)
   const int rc = run_external_certificate_batch(
       {graphml_path}, report_path,
       "--render-gephi --require-render "
-      "--render-profile portable.python-render-svg "
+      "--render-profile portable.ruby-render-svg "
       "--render-output-dir " + shell_quote(output_dir));
   EXPECT_EQ(rc, 0);
 
   const std::string report = read_text_file(report_path);
-  EXPECT_NE(report.find("\"render_profile\": \"portable.python-render-svg\""),
+  EXPECT_NE(report.find("\"render_profile\": \"portable.ruby-render-svg\""),
             std::string::npos);
   EXPECT_NE(report.find("\"overall_valid\": true"), std::string::npos);
 }
@@ -2074,16 +2072,16 @@ TEST(PlanarityTest, ExternalCertificateVisualDiffRunnerPassesWithGoldenManifest)
 
   const int rc = run_external_certificate_visual_diff(
       {graphml_path},
-      {"portable.python-render-svg", "portable.python-render-pdf"},
+      {"portable.ruby-render-svg", "portable.ruby-render-pdf"},
       report_path,
       "--render-output-dir " + shell_quote(output_dir) + " --print-summary");
   EXPECT_EQ(rc, 0);
 
   const std::string report = read_text_file(report_path);
   EXPECT_NE(report.find("\"overall_passed\": true"), std::string::npos);
-  EXPECT_NE(report.find("\"profile_id\": \"portable.python-render-svg\""),
+  EXPECT_NE(report.find("\"profile_id\": \"portable.ruby-render-svg\""),
             std::string::npos);
-  EXPECT_NE(report.find("\"profile_id\": \"portable.python-render-pdf\""),
+  EXPECT_NE(report.find("\"profile_id\": \"portable.ruby-render-pdf\""),
             std::string::npos);
 }
 
@@ -2109,7 +2107,7 @@ TEST(PlanarityTest, ExternalCertificateVisualDiffRunnerDetectsGoldenMismatch)
   "schema_version": 1,
   "entries": [
     {
-      "profile_id": "portable.python-render-svg",
+      "profile_id": "portable.ruby-render-svg",
       "output_ext": "svg",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "bytes": 1
@@ -2120,7 +2118,7 @@ TEST(PlanarityTest, ExternalCertificateVisualDiffRunnerDetectsGoldenMismatch)
 
   const int rc = run_external_certificate_visual_diff(
       {graphml_path},
-      {"portable.python-render-svg"},
+      {"portable.ruby-render-svg"},
       report_path,
       "--render-output-dir " + shell_quote(output_dir)
       + " --golden-manifest " + shell_quote(manifest_path));
@@ -2150,7 +2148,7 @@ TEST(PlanarityTest, ExternalCertificateVisualDiffRunnerCanUpdateGoldenManifest)
 
   const int rc = run_external_certificate_visual_diff(
       {graphml_path},
-      {"portable.python-render-svg"},
+      {"portable.ruby-render-svg"},
       report_path,
       "--render-output-dir " + shell_quote(output_dir)
       + " --golden-manifest " + shell_quote(manifest_path)
@@ -2160,7 +2158,7 @@ TEST(PlanarityTest, ExternalCertificateVisualDiffRunnerCanUpdateGoldenManifest)
   const std::string report = read_text_file(report_path);
   const std::string manifest = read_text_file(manifest_path);
 
-  if (manifest.find("portable.python-render-svg") == std::string::npos)
+  if (manifest.find("portable.ruby-render-svg") == std::string::npos)
     {
       std::cerr << "[diag] manifest_path=" << manifest_path << "\n"
                 << "[diag] manifest content (" << manifest.size() << " bytes):\n"
@@ -2169,7 +2167,7 @@ TEST(PlanarityTest, ExternalCertificateVisualDiffRunnerCanUpdateGoldenManifest)
                 << report << "\n";
     }
 
-  EXPECT_NE(manifest.find("\"profile_id\": \"portable.python-render-svg\""),
+  EXPECT_NE(manifest.find("\"profile_id\": \"portable.ruby-render-svg\""),
             std::string::npos);
   EXPECT_NE(manifest.find("0459f595d6268e7bdf9e8e273d4394fa50d23a89ec3d2449d10b7b47941b1327"),
             std::string::npos);

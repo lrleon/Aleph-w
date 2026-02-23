@@ -38,20 +38,6 @@ DEFAULT_VISUAL_GOLDEN_ENTRIES = [
     "bytes" => 45,
     "output_kind" => "pdf",
     "output_ext" => "pdf",
-    "profile_id" => "portable.python-render-pdf",
-    "sha256" => "5a838678058f6de375e8635b5f2fea47a4e5f07cb1a882a44b10f39abc6f34ff"
-  },
-  {
-    "bytes" => 101,
-    "output_kind" => "svg",
-    "output_ext" => "svg",
-    "profile_id" => "portable.python-render-svg",
-    "sha256" => "0459f595d6268e7bdf9e8e273d4394fa50d23a89ec3d2449d10b7b47941b1327"
-  },
-  {
-    "bytes" => 45,
-    "output_kind" => "pdf",
-    "output_ext" => "pdf",
     "profile_id" => "portable.ruby-render-pdf",
     "sha256" => "5a838678058f6de375e8635b5f2fea47a4e5f07cb1a882a44b10f39abc6f34ff"
   },
@@ -512,11 +498,18 @@ def main(argv)
     end
   end
 
-  if manifest_updated
+  # Write the manifest when entries changed OR when --update-golden was
+  # requested and the file does not yet exist on disk (the in-memory
+  # defaults matched, but the caller expects a concrete manifest file).
+  should_write = manifest_updated ||
+                 (args["update_golden"] and not manifest_path.exist?)
+
+  if should_write
     manifest["schema_version"] = 1
     manifest["entries"] = stable_sorted_entries(entries)
     manifest_path.dirname.mkpath
     manifest_path.write(JSON.pretty_generate(manifest) + "\n")
+    manifest_updated = true
   end
 
   overall_passed = total_failures == 0
