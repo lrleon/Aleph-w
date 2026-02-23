@@ -439,6 +439,22 @@ namespace
   }
 
 
+  // Run a shell command, redirecting only stdout.  Stderr passes through
+  // to the test output so that Ruby script errors are visible in CI logs.
+  // Clears GITHUB_OUTPUT so scripts don't try to write to the CI output
+  // file when invoked as test sub-processes.
+  int
+  run_script_cmd(const std::string & cmd_str, const std::string & label)
+  {
+    namespace fs = std::filesystem;
+    const std::string stdout_path =
+        (fs::temp_directory_path() / ("aleph_planarity_" + label + ".stdout")).string();
+    const std::string full =
+        "GITHUB_OUTPUT='' " + cmd_str + " > " + shell_quote(stdout_path);
+    return std::system(full.c_str());
+  }
+
+
   int
   run_external_certificate_validator(const std::vector<std::string> & inputs,
                                      const bool use_networkx = false,
@@ -476,10 +492,7 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    const fs::path tmp = fs::temp_directory_path();
-    cmd << " > " << shell_quote((tmp / "aleph_planarity_validator.stdout").string())
-        << " 2> " << shell_quote((tmp / "aleph_planarity_validator.stderr").string());
-    return std::system(cmd.str().c_str());
+    return run_script_cmd(cmd.str(), "validator");
   }
 
 
@@ -506,10 +519,7 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    const fs::path tmp = fs::temp_directory_path();
-    cmd << " > " << shell_quote((tmp / "aleph_planarity_batch.stdout").string())
-        << " 2> " << shell_quote((tmp / "aleph_planarity_batch.stderr").string());
-    return std::system(cmd.str().c_str());
+    return run_script_cmd(cmd.str(), "batch");
   }
 
 
@@ -541,10 +551,7 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    const fs::path tmp = fs::temp_directory_path();
-    cmd << " > " << shell_quote((tmp / "aleph_planarity_visual.stdout").string())
-        << " 2> " << shell_quote((tmp / "aleph_planarity_visual.stderr").string());
-    return std::system(cmd.str().c_str());
+    return run_script_cmd(cmd.str(), "visual");
   }
 
 
@@ -576,10 +583,7 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    const fs::path tmp = fs::temp_directory_path();
-    cmd << " > " << shell_quote((tmp / "aleph_planarity_gephi_nightly.stdout").string())
-        << " 2> " << shell_quote((tmp / "aleph_planarity_gephi_nightly.stderr").string());
-    return std::system(cmd.str().c_str());
+    return run_script_cmd(cmd.str(), "gephi_comparison");
   }
 
 
@@ -607,10 +611,7 @@ namespace
     if (not extra_args.empty())
       cmd << " " << extra_args;
 
-    const fs::path tmp = fs::temp_directory_path();
-    cmd << " > " << shell_quote((tmp / "aleph_planarity_gephi_notify.stdout").string())
-        << " 2> " << shell_quote((tmp / "aleph_planarity_gephi_notify.stderr").string());
-    return std::system(cmd.str().c_str());
+    return run_script_cmd(cmd.str(), "gephi_notify");
   }
   // Returns the path where run_external_certificate_validator writes stdout.
   std::string
