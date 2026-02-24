@@ -41,6 +41,13 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Demonstrates Manacher's algorithm by computing and printing the longest palindrome in a sample string.
+ *
+ * Prints the input text, the longest palindromic substring found, its starting index, and its length to standard output.
+ *
+ * @return int Exit status code; `0` indicates successful execution.
+ */
 int main()
 {
   const std::string text = "forgeeksskeegfor";

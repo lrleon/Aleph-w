@@ -44,6 +44,16 @@
 using namespace Aleph;
 
 template <typename Range>
+/**
+ * @brief Print a label followed by the elements of a range to standard output.
+ *
+ * Each element is formatted with `std::format` using the `{}` format specifier,
+ * separated by spaces, and the output is terminated with a newline.
+ *
+ * @tparam Range Type of the range; must be iterable.
+ * @param label Prefix text printed before the range elements.
+ * @param r The range whose elements will be printed; element type must be formattable with `std::format`.
+ */
 void print_range(std::string_view label, const Range & r)
 {
   std::cout << label << ": ";
@@ -52,6 +62,14 @@ void print_range(std::string_view label, const Range & r)
   std::cout << "\n";
 }
 
+/**
+ * @brief Example program demonstrating computation of the Z-array and pattern matches using the Z-algorithm.
+ *
+ * Computes the Z-array for a sample text and finds all match positions of a sample pattern,
+ * then prints the text, pattern, Z-array, and match positions to standard output.
+ *
+ * @return int Exit code: `0` on success.
+ */
 int main()
 {
   const std::string text = "aabcaabxaaaz";

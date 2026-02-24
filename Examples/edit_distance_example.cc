@@ -41,6 +41,14 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Example program that computes and prints the Levenshtein distance.
+ *
+ * Prints two example strings ("kitten" and "sitting") and their Levenshtein
+ * distance computed via levenshtein_distance().
+ *
+ * @return int Program exit status: 0 on successful completion.
+ */
 int main()
 {
   const std::string a = "kitten";
