@@ -41,6 +41,14 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Example program that builds and prints the suffix array and Kasai LCP array for a sample string.
+ *
+ * Prints a header, the input text ("banana"), and a table with each index, the suffix array value,
+ * the corresponding suffix string, and the LCP value computed by the Kasai algorithm.
+ *
+ * @return int Exit status code (0 on success).
+ */
 int main()
 {
   const std::string text = "banana";

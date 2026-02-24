@@ -41,6 +41,14 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Example program demonstrating construction and queries on a Naive_Suffix_Tree for the string "banana".
+ *
+ * Constructs a Naive_Suffix_Tree from "banana", prints the input text and node count, checks whether the pattern "ana"
+ * is contained in the text, and prints all match starting positions to standard output.
+ *
+ * @return 0 on successful execution.
+ */
 int main()
 {
   const std::string text = "banana";

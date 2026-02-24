@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -62,6 +61,12 @@ static_assert(RadixSortable<int>);
 static_assert(RadixSortable<unsigned long long>);
 static_assert(not RadixSortable<bool>);
 
+/**
+ * @brief Constructs a DynArray<int> from an initializer list.
+ *
+ * @param xs Initializer list of integers to populate the DynArray, in the same order.
+ * @return DynArray<int> A DynArray containing the elements of `xs` in the same order.
+ */
 static DynArray<int> make_dynarray(std::initializer_list<int> xs)
 {
   DynArray<int> a;
@@ -96,6 +101,13 @@ static Dnode<int> make_dnode_list(std::initializer_list<int> xs)
   return h;
 }
 
+/**
+ * @brief Deletes every node in the Dnode<int> list referenced by `h`.
+ *
+ * Repeatedly removes the first element from `h` and deallocates it until `h` becomes empty.
+ *
+ * @param h Head of the Dnode<int> list to clear; becomes empty after the call.
+ */
 static void delete_all_nodes(Dnode<int> & h)
 {
   while (not h.is_empty())
@@ -103,12 +115,28 @@ static void delete_all_nodes(Dnode<int> & h)
 }
 
 template <typename T>
+/**
+ * @brief Sorts the elements of the DynArray in non-decreasing order in-place.
+ *
+ * @param a The DynArray to sort.
+ */
 static void sort_dynarray(DynArray<T> & a)
 {
   quicksort(a);
 }
 
 template <typename T>
+/**
+ * @brief Verifies two DynArray instances have the same size and identical elements.
+ *
+ * Asserts that the arrays' sizes are equal, then checks element-wise equality for each index.
+ *
+ * @tparam T Element type stored in the DynArray.
+ * @param a First array to compare.
+ * @param b Second array to compare.
+ *
+ * @note If the sizes differ, the `ASSERT_EQ` will fail and abort the current test; element mismatches are reported with `EXPECT_EQ` for each differing index.
+ */
 static void expect_same_dynarray(const DynArray<T> & a, const DynArray<T> & b)
 {
   ASSERT_EQ(a.size(), b.size());
@@ -117,6 +145,13 @@ static void expect_same_dynarray(const DynArray<T> & a, const DynArray<T> & b)
 }
 
 template <typename T>
+/**
+ * @brief Collects the raw memory addresses of all nodes in a DynList and returns them in sorted order.
+ *
+ * @tparam T Element type stored in the list.
+ * @param l The list whose node addresses will be collected.
+ * @return DynArray<uintptr_t> A DynArray containing the node pointer values cast to `uintptr_t`, sorted in ascending order.
+ */
 static DynArray<uintptr_t> dynlist_node_addresses(const DynList<T> & l)
 {
   DynArray<uintptr_t> ret;
@@ -129,6 +164,15 @@ static DynArray<uintptr_t> dynlist_node_addresses(const DynList<T> & l)
 }
 
 template <typename T>
+/**
+ * @brief Collects and returns the memory addresses of all nodes in a DynDlist.
+ *
+ * Traverses the list, captures each node pointer as an integer address, sorts the
+ * collected addresses in ascending order, and returns them in a DynArray.
+ *
+ * @param l The DynDlist to inspect.
+ * @return DynArray<uintptr_t> Sorted array of node addresses contained in `l`.
+ */
 static DynArray<uintptr_t> dyndlist_node_addresses(const DynDlist<T> & l)
 {
   DynArray<uintptr_t> ret;
@@ -1498,6 +1542,14 @@ TEST(SortUtilsCountingSort, basic_sort_by_identity)
     EXPECT_EQ(sa[i], i);
 }
 
+/**
+ * @brief Verifies that counting_sort_indices is stable for equal keys.
+ *
+ * @details Builds an index array referencing keys {2, 1, 1, 0}, runs counting_sort_indices
+ * over the key range [0, 2], and asserts that elements with the same key preserve their
+ * original relative order (the two elements with key 1 remain in the order 1 then 2),
+ * producing the final index order {3, 1, 2, 0}.
+ */
 TEST(SortUtilsCountingSort, stability)
 {
   // Two pairs with same key: (10,key=1) and (20,key=1)

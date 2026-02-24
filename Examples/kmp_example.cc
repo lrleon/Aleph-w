@@ -41,6 +41,16 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Example program demonstrating KMP prefix computation and pattern search.
+ *
+ * Computes the prefix function for a hard-coded pattern, finds all occurrences
+ * of that pattern in a hard-coded text using the library's KMP routines, and
+ * prints the text, pattern, prefix function values, and match positions to
+ * standard output.
+ *
+ * @return int 0 on successful termination.
+ */
 int main()
 {
   const std::string text = "ababaabababa";

@@ -41,6 +41,16 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Demonstrates basic usage of the Suffix_Automaton API with a sample string.
+ *
+ * Builds a suffix automaton for the string "ababa", prints the original text,
+ * the number of automaton states, the number of distinct substrings, whether
+ * the substring "bab" is contained, and the longest common substring with
+ * "zzabxababa".
+ *
+ * @return int Exit status (0 indicates success).
+ */
 int main()
 {
   const std::string text = "ababa";

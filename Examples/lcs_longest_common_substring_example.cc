@@ -41,6 +41,14 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Example program demonstrating longest_common_subsequence and longest_common_substring.
+ *
+ * Prints two sample input strings and the results from computing their longest common subsequence
+ * and a longest common substring (including lengths, substring value, and begin indices) to standard output.
+ *
+ * @return int Exit code 0 on successful execution.
+ */
 int main()
 {
   const std::string a = "AGGTAB";
