@@ -41,6 +41,15 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Demonstrates usage of the Boyer–Moore–Horspool string search.
+ *
+ * Runs a small example that searches a hard-coded text for a hard-coded
+ * pattern using `boyer_moore_horspool_search` and prints the text, pattern,
+ * and the starting indices of all matches to standard output.
+ *
+ * @return int Exit code (`0` indicates successful execution).
+ */
 int main()
 {
   const std::string text = "needle in a haystack with another needle";

@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -54,6 +53,13 @@ using namespace std;
 using namespace testing;
 using namespace Aleph;
 
+/**
+ * @brief Splits a string into non-empty tokens using a set of delimiter characters.
+ *
+ * @param s Input string to split.
+ * @param delim A string whose characters are treated as delimiter characters; each occurrence separates tokens. If `delim` is empty, the entire input is returned as a single token (unless `s` is empty).
+ * @return DynList<string> A list of tokens where each token is a maximal substring of `s` that contains no characters from `delim`. Empty tokens are omitted.
+ */
 static DynList<string> reference_split_string(const string & s, const string & delim)
 {
   DynList<string> ret;
@@ -82,6 +88,15 @@ static DynList<string> reference_split_string(const string & s, const string & d
   return ret;
 }
 
+/**
+ * @brief Asserts that two DynList<string> contain the same tokens in the same order.
+ *
+ * Compares the lists' sizes with ASSERT_EQ (which aborts the test on mismatch)
+ * and then compares each corresponding element with EXPECT_EQ.
+ *
+ * @param expected The expected list of tokens.
+ * @param got The actual list of tokens to verify.
+ */
 static void expect_tokens_eq(const DynList<string> & expected,
                              const DynList<string> & got)
 {
@@ -90,6 +105,15 @@ static void expect_tokens_eq(const DynList<string> & expected,
     EXPECT_EQ(got.nth(i), expected.nth(i));
 }
 
+/**
+ * @brief Assert that a DynList of strings and an Array of strings contain the same tokens.
+ *
+ * Compares sizes and each corresponding element; triggers test failures if the number
+ * of tokens differs or any element mismatches.
+ *
+ * @param expected Expected tokens as a DynList<string>.
+ * @param got Actual tokens as an Array<string>.
+ */
 static void expect_tokens_eq(const DynList<string> & expected,
                              const Array<string> & got)
 {

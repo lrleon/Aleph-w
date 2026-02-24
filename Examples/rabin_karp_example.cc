@@ -42,6 +42,15 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Demonstrates Rabin–Karp string search on a sample text and prints match positions.
+ *
+ * Runs a simple example that searches for occurrences of a pattern within a text
+ * using Aleph's rabin_karp_search and prints the text, pattern, and the starting
+ * indices of each match to standard output.
+ *
+ * @return int Exit status code: `0` on successful completion.
+ */
 int main()
 {
   const std::string text = "abracadabra abracadabra";

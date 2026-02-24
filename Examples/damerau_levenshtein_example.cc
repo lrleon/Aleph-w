@@ -41,6 +41,13 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Example program demonstrating computation of the Damerau–Levenshtein distance.
+ *
+ * Prints two example strings ("ca" and "ac"), computes their Damerau–Levenshtein distance using damerau_levenshtein_distance, and writes the results to standard output.
+ *
+ * @return int Exit status 0 on success.
+ */
 int main()
 {
   const std::string a = "ca";
