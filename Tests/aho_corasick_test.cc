@@ -212,12 +212,16 @@ TEST(AhoCorasick, LongTextSearch)
 TEST(AhoCorasick, SingleCharPatterns)
 {
   Aho_Corasick ac;
-  ac.add_pattern("a");
-  ac.add_pattern("b");
+  const size_t id_a = ac.add_pattern("a");
+  const size_t id_b = ac.add_pattern("b");
   ac.build();
 
   const auto matches = ac.search("abba");
-  EXPECT_EQ(matches.size(), 4u);
+  ASSERT_EQ(matches.size(), 4u);
+  EXPECT_EQ(matches[0], (Aho_Corasick::Match{0, id_a}));
+  EXPECT_EQ(matches[1], (Aho_Corasick::Match{1, id_b}));
+  EXPECT_EQ(matches[2], (Aho_Corasick::Match{2, id_b}));
+  EXPECT_EQ(matches[3], (Aho_Corasick::Match{3, id_a}));
 }
 
 TEST(AhoCorasick, BinaryPatterns)

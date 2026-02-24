@@ -36,6 +36,7 @@
 
 # include <iostream>
 # include <string>
+# include <format>
 
 # include <String_DP.H>
 
@@ -50,13 +51,11 @@ using namespace Aleph;
  */
 int main()
 {
-  const std::string a = "ca";
-  const std::string b = "ac";
+  const auto a = "ca";
+  const auto b = "ac";
 
-  std::cout << "Damerau-Levenshtein Example\n";
-  std::cout << "a = " << a << "\n";
-  std::cout << "b = " << b << "\n";
-  std::cout << "distance(a, b) = " << damerau_levenshtein_distance(a, b) << "\n";
+  std::cout << std::format("Damerau-Levenshtein Example\na = {}\nb = {}\ndistance(a, b) = {}\n",
+                           a, b, damerau_levenshtein_distance(a, b));
 
   return 0;
 }

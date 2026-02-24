@@ -62,10 +62,11 @@ int main()
   const auto matches = st.find_all(pattern);
 
   std::cout << "Pattern: " << pattern << "\n";
-  std::cout << "Contains: " << (st.contains(pattern) ? "yes" : "no") << "\n";
+  std::cout << "Contains: " << (not matches.is_empty() ? "yes" : "no") << "\n";
   std::cout << "Matches at positions: ";
   for (size_t i = 0; i < matches.size(); ++i)
-    std::cout << matches[i] << (i + 1 == matches.size() ? '\n' : ' ');
+    std::cout << matches[i] << (i + 1 == matches.size() ? "" : " ");
+  std::cout << "\n";
 
   return 0;
 }

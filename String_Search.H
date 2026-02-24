@@ -64,6 +64,10 @@ namespace Aleph
 {
   namespace string_search_detail
   {
+    /** @brief Generate an array of all positions from 0 to text_size.
+     *  @param[in] text_size The size of the text.
+     *  @return Array of positions.
+     */
     inline Array<size_t> all_match_positions(const size_t text_size)
     {
       Array<size_t> matches;
@@ -74,6 +78,12 @@ namespace Aleph
     }
 
 
+    /** @brief Find a character not present in either string.
+     *  @param[in] a First string.
+     *  @param[in] b Second string.
+     *  @param[out] delimiter The unused character found.
+     *  @return true if an unused character was found, false otherwise.
+     */
     inline bool find_unused_delimiter(const std::string_view a,
                                       const std::string_view b,
                                       char & delimiter)
@@ -96,6 +106,12 @@ namespace Aleph
     }
 
 
+    /** @brief Check if pattern matches text at given position.
+     *  @param[in] text The text to search in.
+     *  @param[in] pattern The pattern to match.
+     *  @param[in] pos The position in text to check.
+     *  @return true if matches, false otherwise.
+     */
     inline bool equals_at(const std::string_view text,
                           const std::string_view pattern,
                           const size_t pos)
@@ -115,6 +131,7 @@ namespace Aleph
    *
    *  @param[in] pattern Pattern to preprocess.
    *  @return Prefix-function array with size `pattern.size()`.
+   *  @throws None.
    *
    *  @par Complexity
    *  O(m) time and O(m) space, where `m = pattern.size()`.
@@ -149,6 +166,7 @@ namespace Aleph
    *  @param[in] text Text where matches are searched.
    *  @param[in] pattern Pattern to find.
    *  @return Array with all match start indices (0-based).
+   *  @throws None.
    *
    *  @note If `pattern` is empty, returns all positions in `[0, text.size()]`.
    *
@@ -194,6 +212,7 @@ namespace Aleph
    *
    *  @param[in] s Input string.
    *  @return Z-array with size `s.size()`. When non-empty, `z[0] = s.size()`.
+   *  @throws None.
    *
    *  @par Complexity
    *  O(n) time and O(n) space.
@@ -236,6 +255,7 @@ namespace Aleph
    *  @param[in] text Text where matches are searched.
    *  @param[in] pattern Pattern to find.
    *  @return Array with all match start indices (0-based).
+   *  @throws None.
    *
    *  @note If no delimiter byte is available between `pattern` and `text`,
    *        this function falls back to `kmp_search`.
@@ -280,6 +300,7 @@ namespace Aleph
    *  @param[in] text Text where matches are searched.
    *  @param[in] pattern Pattern to find.
    *  @return Array with all match start indices (0-based).
+   *  @throws None.
    *
    *  @note If `pattern` is empty, returns all positions in `[0, text.size()]`.
    *
@@ -335,6 +356,7 @@ namespace Aleph
    *  @param[in] pattern Pattern to find.
    *  @param[in] base Rolling-hash base.
    *  @return Array with all match start indices (0-based).
+   *  @throws None.
    *
    *  @note If `pattern` is empty, returns all positions in `[0, text.size()]`.
    *  @note The rolling hash uses implicit modulo via `uint64_t` overflow

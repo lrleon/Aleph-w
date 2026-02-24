@@ -85,6 +85,7 @@ namespace Aleph
    *  @param[in] a First string.
    *  @param[in] b Second string.
    *  @return Edit distance.
+   *  @throws None.
    *
    *  @par Complexity
    *  O(nm) time and O(min(n,m)) space.
@@ -135,7 +136,13 @@ namespace Aleph
   }
 
 
-  /** @brief Alias for Levenshtein distance. */
+  /** @brief Alias for Levenshtein distance.
+   *
+   *  @param[in] a First string.
+   *  @param[in] b Second string.
+   *  @return Edit distance.
+   *  @throws None.
+   */
   inline size_t edit_distance(const std::string_view a,
                               const std::string_view b)
   {
@@ -151,6 +158,7 @@ namespace Aleph
    *  @param[in] a First string.
    *  @param[in] b Second string.
    *  @return Damerau-Levenshtein distance.
+   *  @throws None.
    *
    *  @par Complexity
    *  O(nm) time and O(nm) space.
@@ -214,8 +222,8 @@ namespace Aleph
   /** @brief Result for Longest Common Subsequence (LCS). */
   struct LCS_Result
   {
-    size_t length = 0;
-    std::string subsequence;
+    size_t length = 0;        /**< Length of the subsequence */
+    std::string subsequence; /**< The subsequence string */
   };
 
 
@@ -224,6 +232,7 @@ namespace Aleph
    *  @param[in] a First string.
    *  @param[in] b Second string.
    *  @return LCS length and one optimal subsequence.
+   *  @throws None.
    *
    *  @par Complexity
    *  O(nm) time and O(nm) space.
@@ -270,10 +279,10 @@ namespace Aleph
   /** @brief Result for longest common substring. */
   struct Longest_Common_Substring_Result
   {
-    size_t length = 0;
-    size_t begin_a = 0;
-    size_t begin_b = 0;
-    std::string substring;
+    size_t length = 0;    /**< Length of common substring */
+    size_t begin_a = 0;   /**< Start index in first string */
+    size_t begin_b = 0;   /**< Start index in second string */
+    std::string substring; /**< The common substring */
   };
 
 
@@ -282,6 +291,7 @@ namespace Aleph
    *  @param[in] a First string.
    *  @param[in] b Second string.
    *  @return Length, starting indices, and substring.
+   *  @throws None.
    *
    *  @par Complexity
    *  O(nm) time and O(m) space.

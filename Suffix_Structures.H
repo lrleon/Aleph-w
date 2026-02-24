@@ -63,6 +63,10 @@ namespace Aleph
 {
   namespace suffix_structures_detail
   {
+    /** @brief Generate an array of all positions from 0 to n.
+     *  @param[in] n The maximum position.
+     *  @return Array of positions.
+     */
     inline Array<size_t> all_positions(const size_t n)
     {
       Array<size_t> out;
@@ -73,6 +77,9 @@ namespace Aleph
     }
 
 
+    /** @brief Sort matches in place using introsort.
+     *  @param[in,out] a Array of matches to sort.
+     */
     inline void sort_matches(Array<size_t> & a)
     {
       introsort(a);
@@ -165,9 +172,8 @@ namespace Aleph
    *  @param[in] text Input text.
    *  @param[in] sa Suffix array for `text`.
    *  @return LCP array.
-   *
-   *  @exception domain_error If `sa.size() != text.size()`.
-   *  @exception out_of_range If some `sa[i] >= text.size()`.
+   *  @throws domain_error If `sa.size() != text.size()`.
+   *  @throws out_of_range If some `sa[i] >= text.size()`.
    *
    *  @par Complexity
    *  O(n) time, O(n) space.
@@ -243,11 +249,11 @@ namespace Aleph
      */
     struct Node
     {
-      size_t start = 0;
-      size_t end = 0;
-      size_t parent = npos;
-      Array<size_t> children;
-      size_t suffix_index = npos;
+      size_t start = 0;        /**< Start index in text */
+      size_t end = 0;          /**< End index in text */
+      size_t parent = npos;    /**< Parent node index */
+      Array<size_t> children; /**< Indices of children nodes */
+      size_t suffix_index = npos; /**< Index of suffix starting at leaf */
     };
 
   private:
@@ -390,7 +396,6 @@ namespace Aleph
     /** @brief Construct a naive suffix tree.
      *  @param[in] text The text to build the tree from. If empty, the tree
      *                  will only contain the terminal character.
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(n^2) where n is text.size().
@@ -402,7 +407,6 @@ namespace Aleph
 
     /** @brief Build or rebuild the suffix tree for `text`.
      *  @param[in] text The text to build the tree from.
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(n^2) time and O(n^2) space in the worst case, where n is text.size().
@@ -567,13 +571,14 @@ namespace Aleph
   class Suffix_Automaton
   {
   public:
+    /** @brief One automaton state. */
     struct State
     {
-      int next[256];
-      int link = -1;
-      size_t len = 0;
-      size_t first_pos = 0;
-      bool terminal = false;
+      int next[256];      /**< Transitions for each byte */
+      int link = -1;      /**< Suffix link */
+      size_t len = 0;     /**< Max length of substring in this state */
+      size_t first_pos = 0; /**< First occurrence end position */
+      bool terminal = false; /**< true if state is terminal */
 
       State()
       {
@@ -586,6 +591,9 @@ namespace Aleph
     Array<State> states_;
     int last_ = 0;
 
+    /** @brief Traverse suffix links from last and mark all states as terminal.
+     *  @throws None.
+     */
     void mark_terminals()
     {
       int p = last_;
@@ -598,7 +606,6 @@ namespace Aleph
 
   public:
     /** @brief Construct an empty suffix automaton (SAM) with only the root state.
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(1).
@@ -609,7 +616,6 @@ namespace Aleph
     }
 
     /** @brief Reset the automaton to its initial empty state (root only).
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(1).
@@ -627,7 +633,6 @@ namespace Aleph
 
     /** @brief Extend the SAM with a single character.
      *  @param[in] ch The character to append to the current text representation.
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  Amortized O(1).
@@ -686,7 +691,6 @@ namespace Aleph
 
     /** @brief Build the SAM from an entire string.
      *  @param[in] text The input string to process.
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(n) where n is text.size().

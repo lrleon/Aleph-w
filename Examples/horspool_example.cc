@@ -62,8 +62,12 @@ int main()
   std::cout << "Pattern: " << pattern << "\n\n";
 
   std::cout << "Matches at positions: ";
-  for (size_t i = 0; i < matches.size(); ++i)
-    std::cout << matches[i] << (i + 1 == matches.size() ? '\n' : ' ');
+  if (matches.is_empty())
+    std::cout << "none";
+  else
+    for (size_t i = 0; i < matches.size(); ++i)
+      std::cout << matches[i] << (i + 1 == matches.size() ? "" : " ");
+  std::cout << "\n";
 
   return 0;
 }

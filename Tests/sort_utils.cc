@@ -40,6 +40,7 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+#include <array>
 
 #include <tpl_sort_utils.H>
 #include <tpl_dynArray.H>
@@ -113,18 +114,18 @@ static void delete_all_nodes(Dnode<int> & h)
     delete h.remove_first_ne();
 }
 
-template <typename T>
 /**
  * @brief Sorts the elements of the DynArray in non-decreasing order in-place.
  *
+ * @tparam T Element type stored in the DynArray.
  * @param a The DynArray to sort.
  */
+template <typename T>
 static void sort_dynarray(DynArray<T> & a)
 {
   quicksort(a);
 }
 
-template <typename T>
 /**
  * @brief Verifies two DynArray instances have the same size and identical elements.
  *
@@ -136,14 +137,16 @@ template <typename T>
  *
  * @note If the sizes differ, the `ASSERT_EQ` will fail and abort the current test; element mismatches are reported with `EXPECT_EQ` for each differing index.
  */
+template <typename T>
 static void expect_same_dynarray(const DynArray<T> & a, const DynArray<T> & b)
 {
-  ASSERT_EQ(a.size(), b.size());
+  EXPECT_EQ(a.size(), b.size());
+  if (a.size() != b.size())
+    return;
   for (size_t i = 0; i < a.size(); ++i)
     EXPECT_EQ(a(i), b(i));
 }
 
-template <typename T>
 /**
  * @brief Collects the raw memory addresses of all nodes in a DynList and returns them in sorted order.
  *
@@ -151,6 +154,7 @@ template <typename T>
  * @param l The list whose node addresses will be collected.
  * @return DynArray<uintptr_t> A DynArray containing the node pointer values cast to `uintptr_t`, sorted in ascending order.
  */
+template <typename T>
 static DynArray<uintptr_t> dynlist_node_addresses(const DynList<T> & l)
 {
   DynArray<uintptr_t> ret;
@@ -162,16 +166,17 @@ static DynArray<uintptr_t> dynlist_node_addresses(const DynList<T> & l)
   return ret;
 }
 
-template <typename T>
 /**
  * @brief Collects and returns the memory addresses of all nodes in a DynDlist.
  *
  * Traverses the list, captures each node pointer as an integer address, sorts the
  * collected addresses in ascending order, and returns them in a DynArray.
  *
+ * @tparam T Element type stored in the list.
  * @param l The DynDlist to inspect.
  * @return DynArray<uintptr_t> Sorted array of node addresses contained in `l`.
  */
+template <typename T>
 static DynArray<uintptr_t> dyndlist_node_addresses(const DynDlist<T> & l)
 {
   DynArray<uintptr_t> ret;
@@ -1557,7 +1562,7 @@ TEST(SortUtilsCountingSort, stability)
   Array<size_t> tmp = Array<size_t>::create(4);
   sa[0] = 0; sa[1] = 1; sa[2] = 2; sa[3] = 3;
 
-  int keys[] = {2, 1, 1, 0};
+  std::array<int, 4> keys = {2, 1, 1, 0};
   counting_sort_indices(sa, tmp, 4, 0, 2,
                         [&](size_t idx) -> int { return keys[idx]; });
 
@@ -1574,7 +1579,7 @@ TEST(SortUtilsCountingSort, negative_keys)
   Array<size_t> tmp = Array<size_t>::create(4);
   sa[0] = 0; sa[1] = 1; sa[2] = 2; sa[3] = 3;
 
-  int keys[] = {0, -1, 2, -2};
+  std::array<int, 4> keys = {0, -1, 2, -2};
   counting_sort_indices(sa, tmp, 4, -2, 2,
                         [&](size_t idx) -> int { return keys[idx]; });
 
@@ -1701,17 +1706,13 @@ TEST(SortUtilsCountingSortGeneric, empty_and_singleton)
 {
   DynArray<int> d;
   counting_sort(d);
-  EXPECT_EQ(d.size(), 0u);
+  EXPECT_TRUE(d.is_empty());
 
   Array<int> a;
   a.append(7);
   counting_sort(a);
   ASSERT_EQ(a.size(), 1u);
   EXPECT_EQ(a(0), 7);
-
-  DynArray<int> v;
-  counting_sort(v);
-  EXPECT_TRUE(v.is_empty());
 }
 
 TEST(SortUtilsCountingSortGeneric, dynlist_support)
@@ -1719,11 +1720,11 @@ TEST(SortUtilsCountingSortGeneric, dynlist_support)
   DynList<int> l = make_dynlist({4, -1, 3, 0, -1, 2});
   counting_sort(l);
 
-  const int expected[] = {-1, -1, 0, 2, 3, 4};
+  std::array<int, 6> expected = {-1, -1, 0, 2, 3, 4};
   size_t i = 0;
   for (DynList<int>::Iterator it(l); it.has_curr(); it.next(), ++i)
     EXPECT_EQ(it.get_curr(), expected[i]);
-  EXPECT_EQ(i, sizeof(expected) / sizeof(expected[0]));
+  EXPECT_EQ(i, expected.size());
 }
 
 TEST(SortUtilsCountingSortGeneric, dynlist_preserves_nodes)
@@ -1740,11 +1741,11 @@ TEST(SortUtilsCountingSortGeneric, dyndlist_support)
   DynDlist<int> l = make_dyndlist({7, 3, 7, 1, 0, -2});
   counting_sort(l);
 
-  const int expected[] = {-2, 0, 1, 3, 7, 7};
+  std::array<int, 6> expected = {-2, 0, 1, 3, 7, 7};
   size_t i = 0;
   for (DynDlist<int>::Iterator it(l); it.has_curr(); it.next(), ++i)
     EXPECT_EQ(it.get_curr(), expected[i]);
-  EXPECT_EQ(i, sizeof(expected) / sizeof(expected[0]));
+  EXPECT_EQ(i, expected.size());
 }
 
 TEST(SortUtilsCountingSortGeneric, dyndlist_preserves_nodes)
@@ -1820,11 +1821,11 @@ TEST(SortUtilsRadixSort, dynlist_support)
   DynList<int> l = make_dynlist({3, -1, 2, -5, 0, 3});
   radix_sort(l);
 
-  const int expected[] = {-5, -1, 0, 2, 3, 3};
+  std::array<int, 6> expected = {-5, -1, 0, 2, 3, 3};
   size_t i = 0;
   for (DynList<int>::Iterator it(l); it.has_curr(); it.next(), ++i)
     EXPECT_EQ(it.get_curr(), expected[i]);
-  EXPECT_EQ(i, sizeof(expected) / sizeof(expected[0]));
+  EXPECT_EQ(i, expected.size());
 }
 
 TEST(SortUtilsRadixSort, dynlist_preserves_nodes)
@@ -1841,11 +1842,11 @@ TEST(SortUtilsRadixSort, dyndlist_support)
   DynDlist<int> l = make_dyndlist({10, -2, 7, 0, -2, 1});
   radix_sort(l);
 
-  const int expected[] = {-2, -2, 0, 1, 7, 10};
+  std::array<int, 6> expected = {-2, -2, 0, 1, 7, 10};
   size_t i = 0;
   for (DynDlist<int>::Iterator it(l); it.has_curr(); it.next(), ++i)
     EXPECT_EQ(it.get_curr(), expected[i]);
-  EXPECT_EQ(i, sizeof(expected) / sizeof(expected[0]));
+  EXPECT_EQ(i, expected.size());
 }
 
 TEST(SortUtilsRadixSort, dyndlist_preserves_nodes)

@@ -36,6 +36,7 @@
 
 # include <gtest/gtest.h>
 
+# include <random>
 # include <String_Search.H>
 
 using namespace Aleph;
@@ -385,5 +386,51 @@ TEST(StringSearch, RabinKarpDifferentBases)
       ASSERT_EQ(rk.size(), kmp.size()) << "Failed with base=" << base;
       for (size_t i = 0; i < rk.size(); ++i)
         EXPECT_EQ(rk[i], kmp[i]) << "Failed with base=" << base;
+    }
+}
+
+TEST(StringSearch, RandomizedAgreement)
+{
+  std::mt19937 gen(42);
+  for (int iter = 0; iter < 1000; ++iter)
+    {
+      // Randomly choose alphabet size: 2 (binary-like), 4, 26, or 256 (full byte)
+      const int alphabet_choice = std::uniform_int_distribution<int>(0, 3)(gen);
+      const int alphabet_size = (alphabet_choice == 0) ? 2 :
+                                (alphabet_choice == 1) ? 4 :
+                                (alphabet_choice == 2) ? 26 : 256;
+
+      const int text_len = std::uniform_int_distribution<int>(0, 1000)(gen);
+      int pat_len = std::uniform_int_distribution<int>(0, 50)(gen);
+
+      // Occasional long pattern
+      if (iter % 100 == 0) pat_len = std::uniform_int_distribution<int>(100, 500)(gen);
+
+      std::string text(static_cast<size_t>(text_len), ' ');
+      for (int i = 0; i < text_len; ++i)
+        text[static_cast<size_t>(i)] = static_cast<char>(std::uniform_int_distribution<int>(0, alphabet_size - 1)(gen));
+
+      std::string pattern(static_cast<size_t>(pat_len), ' ');
+      for (int i = 0; i < pat_len; ++i)
+        pattern[static_cast<size_t>(i)] = static_cast<char>(std::uniform_int_distribution<int>(0, alphabet_size - 1)(gen));
+
+      // Occasional pattern == text
+      if (iter % 50 == 0 && text_len > 0) pattern = text;
+
+      const auto kmp = kmp_search(text, pattern);
+      const auto z = z_search(text, pattern);
+      const auto bmh = boyer_moore_horspool_search(text, pattern);
+      const auto rk = rabin_karp_search(text, pattern);
+
+      ASSERT_EQ(kmp.size(), z.size()) << "Mismatch at iteration " << iter << " alphabet_size " << alphabet_size;
+      ASSERT_EQ(kmp.size(), bmh.size()) << "Mismatch at iteration " << iter << " alphabet_size " << alphabet_size;
+      ASSERT_EQ(kmp.size(), rk.size()) << "Mismatch at iteration " << iter << " alphabet_size " << alphabet_size;
+
+      for (size_t i = 0; i < kmp.size(); ++i)
+        {
+          EXPECT_EQ(kmp[i], z[i]) << "Mismatch at iteration " << iter << ", index " << i;
+          EXPECT_EQ(kmp[i], bmh[i]) << "Mismatch at iteration " << iter << ", index " << i;
+          EXPECT_EQ(kmp[i], rk[i]) << "Mismatch at iteration " << iter << ", index " << i;
+        }
     }
 }

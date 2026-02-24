@@ -106,6 +106,7 @@
 #include <limits>
 #include <type_traits>
 #include <vector>
+#include <array>
 #include <utility>
 
 namespace Aleph
@@ -4348,6 +4349,11 @@ namespace Aleph
    *  @param[in]     max_key Maximum key value (inclusive).
    *  @param[in]     key_of  Maps `sa[i]` to its integer sort key.
    *
+   *  @throws std::domain_error if `max_key < min_key`.
+   *  @throws std::out_of_range if `sa.size() < n` or `tmp.size() < n`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *  @throws std::out_of_range if a computed key is outside `[min_key, max_key]`.
+   *
    *  @pre  `sa.size() >= n`, `tmp.size() >= n`.
    *  @pre  For all `i < n`: `min_key <= key_of(sa[i]) <= max_key`.
    *  @post `sa` is stably sorted by `key_of`.
@@ -4377,7 +4383,7 @@ namespace Aleph
     const auto range_minus_one =
       static_cast<unsigned long long>(static_cast<long long>(max_key) -
                                       static_cast<long long>(min_key));
-    const auto max_count =
+    constexpr auto max_count =
       static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
     ah_runtime_error_unless(range_minus_one <= max_count)
       << "counting_sort_indices(): key range is too large";
@@ -4444,7 +4450,7 @@ namespace Aleph
       const U range_minus_one =
         static_cast<U>(max_key) - static_cast<U>(min_key);
 
-      const size_t max_count =
+      constexpr size_t max_count =
         std::numeric_limits<size_t>::max() - static_cast<size_t>(1);
       ah_runtime_error_unless(range_minus_one <= static_cast<U>(max_count))
         << "counting_sort(): key range is too large";
@@ -4559,11 +4565,11 @@ namespace Aleph
         return;
 
       typename DynList<IntT>::Iterator it(list);
-      IntT min_key = it.get_curr();
+      IntT min_key = it.get_curr_ne();
       IntT max_key = min_key;
-      for (it.next(); it.has_curr(); it.next())
+      for (it.next_ne(); it.has_curr(); it.next_ne())
         {
-          const IntT value = it.get_curr();
+          const IntT value = it.get_curr_ne();
           if (value < min_key)
             min_key = value;
           if (value > max_key)
@@ -4575,8 +4581,8 @@ namespace Aleph
       for (size_t i = 0; i < k; ++i)
         count[i] = 0;
 
-      for (typename DynList<IntT>::Iterator scan(list); scan.has_curr(); scan.next())
-        ++count[counting_bucket(scan.get_curr(), min_key)];
+      for (typename DynList<IntT>::Iterator scan(list); scan.has_curr(); scan.next_ne())
+        ++count[counting_bucket(scan.get_curr_ne(), min_key)];
 
       typename DynList<IntT>::Iterator out(list);
       for (size_t bucket = 0; bucket < k; ++bucket)
@@ -4588,8 +4594,8 @@ namespace Aleph
           const IntT value = counting_value_from_bucket(bucket, min_key);
           for (size_t c = 0; c < times; ++c)
             {
-              out.get_curr() = value;
-              out.next();
+              out.get_curr_ne() = value;
+              out.next_ne();
             }
         }
     }
@@ -4604,11 +4610,11 @@ namespace Aleph
         return;
 
       typename DynDlist<IntT>::Iterator it(list);
-      IntT min_key = it.get_curr();
+      IntT min_key = it.get_curr_ne();
       IntT max_key = min_key;
-      for (it.next(); it.has_curr(); it.next())
+      for (it.next_ne(); it.has_curr(); it.next_ne())
         {
-          const IntT value = it.get_curr();
+          const IntT value = it.get_curr_ne();
           if (value < min_key)
             min_key = value;
           if (value > max_key)
@@ -4620,8 +4626,8 @@ namespace Aleph
       for (size_t i = 0; i < k; ++i)
         count[i] = 0;
 
-      for (typename DynDlist<IntT>::Iterator scan(list); scan.has_curr(); scan.next())
-        ++count[counting_bucket(scan.get_curr(), min_key)];
+      for (typename DynDlist<IntT>::Iterator scan(list); scan.has_curr(); scan.next_ne())
+        ++count[counting_bucket(scan.get_curr_ne(), min_key)];
 
       typename DynDlist<IntT>::Iterator out(list);
       for (size_t bucket = 0; bucket < k; ++bucket)
@@ -4633,8 +4639,8 @@ namespace Aleph
           const IntT value = counting_value_from_bucket(bucket, min_key);
           for (size_t c = 0; c < times; ++c)
             {
-              out.get_curr() = value;
-              out.next();
+              out.get_curr_ne() = value;
+              out.next_ne();
             }
         }
     }
@@ -4742,11 +4748,12 @@ namespace Aleph
     {
       using U = radix_unsigned_t<IntT>;
 
-      const size_t n = list.size();
-      if (n < 2)
+      if (const size_t n = list.size(); n < 2)
         return;
 
-      HTList buckets[256];
+      static_assert(std::is_default_constructible_v<HTList>,
+                    "HTList must be default constructible for std::array");
+      std::array<HTList, 256> buckets;
 
       for (size_t pass = 0; pass < sizeof(U); ++pass)
         {
@@ -4761,8 +4768,8 @@ namespace Aleph
               buckets[bucket].append(link);
             }
 
-          for (size_t bucket = 0; bucket < 256; ++bucket)
-            list.HTList::append(buckets[bucket]);
+          for (auto & bucket : buckets)
+            list.HTList::append(bucket);
         }
     }
 
@@ -4773,37 +4780,44 @@ namespace Aleph
     {
       using U = radix_unsigned_t<IntT>;
 
-      const size_t n = list.size();
-      if (n < 2)
+      if (const size_t n = list.size(); n < 2)
         return;
 
-      Dnode<IntT> buckets[256];
+      static_assert(std::is_default_constructible_v<Dnode<IntT>>,
+                    "Dnode must be default constructible for std::array");
+      std::array<Dnode<IntT>, 256> buckets;
 
       for (size_t pass = 0; pass < sizeof(U); ++pass)
         {
           const size_t shift = pass * 8;
 
-          while (not list.Dnode<IntT>::is_empty())
+          while (not list.template Dnode<IntT>::is_empty())
             {
-              Dnode<IntT> * node = list.Dnode<IntT>::remove_first_ne();
+              Dnode<IntT> * node = list.template Dnode<IntT>::remove_first_ne();
               const U key = radix_key<IntT>(node->get_data());
               const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
               buckets[bucket].append(node);
             }
 
-          for (size_t bucket = 0; bucket < 256; ++bucket)
-            list.Dnode<IntT>::append_list(&buckets[bucket]);
+          for (auto & bucket : buckets)
+            list.template Dnode<IntT>::append_list(&bucket);
         }
     }
   } // namespace sort_utils_detail
 
 
-  /** @brief Value concept accepted by counting sort overloads. */
+  /** @brief Value concept accepted by counting sort overloads.
+   *  @tparam T Value type; must be an integral type (except bool) satisfying
+   *            sort_utils_detail::counting_integer.
+   */
   template <typename T>
   concept CountingSortable = sort_utils_detail::counting_integer<T>;
 
 
-  /** @brief Value concept accepted by radix sort overloads. */
+  /** @brief Value concept accepted by radix sort overloads.
+   *  @tparam T Value type; must be an integral type (except bool) satisfying
+   *            sort_utils_detail::radix_integer.
+   */
   template <typename T>
   concept RadixSortable = sort_utils_detail::radix_integer<T>;
 

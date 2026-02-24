@@ -109,10 +109,7 @@ namespace Aleph
       nodes_.append(Node{});
     }
 
-    /** @brief Clear all patterns and reset to an empty automaton.
-     *
-     *  @return void
-     */
+    /** @brief Clear all patterns and reset to an empty automaton. */
     void clear()
     {
       nodes_.empty();
@@ -126,7 +123,8 @@ namespace Aleph
      *  @param[in] pattern Pattern to insert (must be non-empty).
      *  @return Pattern id to be used in match reporting.
      *
-     *  @throws std::domain_error If `pattern` is empty.
+     *  @pre pattern is non-empty.
+     *  @throws std::invalid_argument If `pattern` is empty.
      *
      *  @note Calling this invalidates the previously built automaton;
      *        call `build()` again before `search()`.
@@ -162,7 +160,7 @@ namespace Aleph
      *
      *  Must be called after all `add_pattern()` calls and before `search()`.
      *
-     *  @return void
+     *  @pre build() has been called since the last modification.
      *
      *  @par Complexity
      *  O(sum(pattern lengths) * alphabet) with fixed alphabet 256.
@@ -220,6 +218,7 @@ namespace Aleph
      *  @param[in] text Text to scan.
      *  @return Matches sorted by end-scan order.
      *
+     *  @pre build() has been called since the last modification.
      *  @throws std::runtime_error If `build()` has not been called.
      *
      *  @par Complexity
@@ -270,6 +269,7 @@ namespace Aleph
      *  @param[in] text Text to scan.
      *  @return true if any match is found, false otherwise.
      *
+     *  @pre build() has been called since the last modification.
      *  @throws std::runtime_error If `build()` has not been called.
      */
     [[nodiscard]] bool contains_any(const std::string_view text) const
@@ -323,6 +323,7 @@ namespace Aleph
      *  @param[in] id Pattern id.
      *  @return Pattern string.
      *
+     *  @pre id is a valid pattern id returned from add_pattern.
      *  @throws std::out_of_range If `id >= pattern_count()`.
      */
     [[nodiscard]] const std::string &pattern(const size_t id) const
