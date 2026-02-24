@@ -47,6 +47,7 @@
 # include <string>
 # include <string_view>
 # include <utility>
+# include <array>
 
 # include <ah-errors.H>
 # include <tpl_array.H>
@@ -80,14 +81,14 @@ namespace Aleph
   private:
     struct Node
     {
-      int next[256];
+      std::array<int, 256> next;
       int fail = 0;
+      int out_link = -1;
       Array<size_t> output;
 
       Node()
       {
-        for (size_t i = 0; i < 256; ++i)
-          next[i] = -1;
+        next.fill(-1);
       }
     };
 
@@ -171,13 +172,16 @@ namespace Aleph
       Array<size_t> queue;
       size_t head = 0;
 
+      nodes_[0].fail = 0;
+      nodes_[0].out_link = -1;
+
       for (size_t c = 0; c < 256; ++c)
-        if (const int next_state = nodes_[0].next[c]; next_state == -1)
-          nodes_[0].next[c] = 0;
-        else
+        if (const int next_state = nodes_[0].next[c]; next_state != -1)
           {
-            nodes_[static_cast<size_t>(next_state)].fail = 0;
-            queue.append(static_cast<size_t>(next_state));
+            const auto child = static_cast<size_t>(next_state);
+            nodes_[child].fail = 0;
+            nodes_[child].out_link = -1;
+            queue.append(child);
           }
 
       while (head < queue.size())
@@ -188,21 +192,21 @@ namespace Aleph
             {
               const int next_state = nodes_[state].next[c];
               if (next_state == -1)
-                {
-                  nodes_[state].next[c] =
-                      nodes_[static_cast<size_t>(nodes_[state].fail)].next[c];
-                  continue;
-                }
+                continue;
 
               const auto child = static_cast<size_t>(next_state);
-              const auto fail_to = static_cast<size_t>(
-                nodes_[static_cast<size_t>(nodes_[state].fail)].next[c]);
+              auto fail_to = static_cast<size_t>(nodes_[state].fail);
+
+              while (fail_to != 0 and nodes_[fail_to].next[c] == -1)
+                fail_to = static_cast<size_t>(nodes_[fail_to].fail);
+
+              if (const int candidate = nodes_[fail_to].next[c]; candidate != -1)
+                fail_to = static_cast<size_t>(candidate);
 
               nodes_[child].fail = static_cast<int>(fail_to);
-
-              const Array<size_t> & fail_output = nodes_[fail_to].output;
-              for (size_t i = 0; i < fail_output.size(); ++i)
-                nodes_[child].output.append(fail_output[i]);
+              nodes_[child].out_link =
+                  nodes_[fail_to].output.is_empty() ?
+                  nodes_[fail_to].out_link : static_cast<int>(fail_to);
 
               queue.append(child);
             }
@@ -232,13 +236,29 @@ namespace Aleph
       for (size_t i = 0; i < text.size(); ++i)
         {
           const unsigned char c = static_cast<unsigned char>(text[i]);
-          state = static_cast<size_t>(nodes_[state].next[c]);
 
-          const Array<size_t> & output = nodes_[state].output;
-          for (size_t k = 0; k < output.size(); ++k)
+          while (state != 0 and nodes_[state].next[c] == -1)
+            state = static_cast<size_t>(nodes_[state].fail);
+
+          if (const int next_state = nodes_[state].next[c]; next_state != -1)
+            state = static_cast<size_t>(next_state);
+          else
+            state = 0;
+
+          size_t out_state = state;
+          while (true)
             {
-              const size_t id = output[k];
-              matches.append(Match{i + 1 - patterns_[id].size(), id});
+              const Array<size_t> & output = nodes_[out_state].output;
+              for (size_t k = 0; k < output.size(); ++k)
+                {
+                  const size_t id = output[k];
+                  matches.append(Match{i + 1 - patterns_[id].size(), id});
+                }
+
+              const int next_out = nodes_[out_state].out_link;
+              if (next_out == -1)
+                break;
+              out_state = static_cast<size_t>(next_out);
             }
         }
 
@@ -254,7 +274,30 @@ namespace Aleph
      */
     [[nodiscard]] bool contains_any(const std::string_view text) const
     {
-      return not search(text).is_empty();
+      ah_runtime_error_unless(built_)
+        << "Aho_Corasick::contains_any(): call build() before search()";
+
+      size_t state = 0;
+      for (size_t i = 0; i < text.size(); ++i)
+        {
+          const unsigned char c = static_cast<unsigned char>(text[i]);
+
+          while (state != 0 and nodes_[state].next[c] == -1)
+            state = static_cast<size_t>(nodes_[state].fail);
+
+          if (const int next_state = nodes_[state].next[c]; next_state != -1)
+            state = static_cast<size_t>(next_state);
+          else
+            state = 0;
+
+          if (not nodes_[state].output.is_empty())
+            return true;
+
+          if (nodes_[state].out_link != -1)
+            return true;
+        }
+
+      return false;
     }
 
     /** @brief Return the number of inserted patterns.

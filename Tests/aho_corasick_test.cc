@@ -54,7 +54,7 @@ TEST(AhoCorasick, ClassicDictionary)
 
   const auto matches = ac.search("ahishers");
 
-  EXPECT_EQ(matches.size(), 4u);
+  ASSERT_EQ(matches.size(), 4u);
   EXPECT_EQ(matches[0], (Aho_Corasick::Match{1, id_his}));
   EXPECT_EQ(matches[1], (Aho_Corasick::Match{3, id_she}));
   EXPECT_EQ(matches[2], (Aho_Corasick::Match{4, id_he}));
@@ -96,6 +96,30 @@ TEST(AhoCorasick, BuildRequiredBeforeSearch)
   Aho_Corasick ac;
   ac.add_pattern("abc");
   EXPECT_THROW((void) ac.search("abc"), std::runtime_error);
+}
+
+TEST(AhoCorasick, IncrementalBuildAfterPreviousBuild)
+{
+  Aho_Corasick ac;
+  const size_t id_he = ac.add_pattern("he");
+  ac.build();
+
+  const auto he_only = ac.search("he");
+  ASSERT_EQ(he_only.size(), 1u);
+  EXPECT_EQ(he_only[0], (Aho_Corasick::Match{0, id_he}));
+
+  const size_t id_she = ac.add_pattern("she");
+  ac.build();
+
+  const auto she_matches = ac.search("she");
+  ASSERT_EQ(she_matches.size(), 2u);
+  EXPECT_EQ(she_matches[0], (Aho_Corasick::Match{0, id_she}));
+  EXPECT_EQ(she_matches[1], (Aho_Corasick::Match{1, id_he}));
+
+  // Rebuilding incrementally must not create spurious matches.
+  const auto he_after_rebuild = ac.search("he");
+  ASSERT_EQ(he_after_rebuild.size(), 1u);
+  EXPECT_EQ(he_after_rebuild[0], (Aho_Corasick::Match{0, id_he}));
 }
 
 TEST(AhoCorasick, EmptyPatternRejected)
@@ -166,7 +190,7 @@ TEST(AhoCorasick, LongTextSearch)
   ac.add_pattern("hay");
   ac.build();
 
-  // Build a 10K text with "hay" repeated and a few "needle" insertions
+  // Build a 10K text with "stack" repeated and a few "needle" insertions
   std::string text;
   text.reserve(10000);
   for (int i = 0; i < 2000; ++i)
@@ -374,4 +398,40 @@ TEST(AhoCorasick, PrefixPatternsMatchPositions)
 
   ASSERT_EQ(pos_abc.size(), 1u);
   EXPECT_EQ(pos_abc[0], 1u);
+}
+
+TEST(AhoCorasick, DeterministicStress)
+{
+  Aho_Corasick ac;
+  const int num_patterns = 1000;
+  Array<std::string> patterns;
+  
+  // Deterministic pattern generation
+  for (int i = 0; i < num_patterns; ++i)
+    {
+      std::string p = "pat" + std::to_string(i);
+      patterns.append(p);
+      ac.add_pattern(p);
+    }
+  
+  ac.build();
+  
+  // Deterministic text generation
+  std::string text;
+  text.reserve(200000);
+  for (int i = 0; i < 5000; ++i)
+    {
+      text += "some_random_filler_";
+      if (i % 10 == 0)
+        text += patterns[i % num_patterns];
+    }
+  
+  const auto matches = ac.search(text);
+  EXPECT_GT(matches.size(), 0u);
+  
+  for (const auto & m : matches)
+    {
+      const auto & pat = ac.pattern(m.pattern_id);
+      EXPECT_EQ(text.substr(m.position, pat.size()), pat);
+    }
 }

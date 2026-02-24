@@ -42,13 +42,14 @@ using namespace Aleph;
 
 namespace
 {
-  void expect_array_eq(const Array<size_t> & a,
-                       std::initializer_list<size_t> expected)
+  template <typename T, typename U>
+  void expect_array_eq(const Array<T> & a,
+                       std::initializer_list<U> expected)
   {
     ASSERT_EQ(a.size(), expected.size());
     size_t i = 0;
-    for (const size_t value : expected)
-      EXPECT_EQ(a[i++], value);
+    for (const auto & v : expected)
+      EXPECT_EQ(a[i++], static_cast<T>(v));
   }
 }
 

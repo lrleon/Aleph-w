@@ -1685,7 +1685,7 @@ TEST(SortUtilsCountingSortGeneric, c_array_overload)
   EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
 }
 
-TEST(SortUtilsCountingSortGeneric, std_vector_support)
+TEST(SortUtilsCountingSortGeneric, dynarray_support)
 {
   auto a = make_dynarray({9, -1, 3, 0, -1, 2});
   counting_sort(a);

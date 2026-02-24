@@ -73,19 +73,9 @@ namespace Aleph
     }
 
 
-    inline void insertion_sort(Array<size_t> & a)
+    inline void sort_matches(Array<size_t> & a)
     {
-      for (size_t i = 1; i < a.size(); ++i)
-        {
-          const size_t key = a[i];
-          size_t j = i;
-          while (j > 0 and key < a[j - 1])
-            {
-              a[j] = a[j - 1];
-              --j;
-            }
-          a[j] = key;
-        }
+      introsort(a);
     }
   } // namespace suffix_structures_detail
 
@@ -271,7 +261,7 @@ namespace Aleph
       for (const unsigned char c: s)
         used[c] = true;
 
-      for (size_t i = 1; i < 256; ++i)
+      for (size_t i = 0; i < 256; ++i)
         if (not used[i])
           return static_cast<char>(i);
 
@@ -391,7 +381,7 @@ namespace Aleph
               continue;
             }
 
-          for (const Array<size_t> & children = nodes_[u].children; unsigned long i: children)
+          for (const Array<size_t> & children = nodes_[u].children; size_t i: children)
             stack.append(i);
         }
     }
@@ -516,7 +506,7 @@ namespace Aleph
             {
               Array<size_t> matches;
               collect_leaf_suffixes(child, matches);
-              suffix_structures_detail::insertion_sort(matches);
+              suffix_structures_detail::sort_matches(matches);
               return matches;
             }
 
@@ -669,7 +659,10 @@ namespace Aleph
           else
             {
               const int clone = static_cast<int>(states_.size());
-              states_.append(states_[static_cast<size_t>(q)]);
+              // Copy q's state before append: append may reallocate states_,
+              // invalidating any reference into the old buffer.
+              const State clone_state = states_[static_cast<size_t>(q)];
+              states_.append(clone_state);
               states_[static_cast<size_t>(clone)].len =
                   states_[static_cast<size_t>(p)].len + 1;
               states_[static_cast<size_t>(clone)].terminal = false;

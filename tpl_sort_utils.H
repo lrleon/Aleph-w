@@ -4355,7 +4355,9 @@ namespace Aleph
    *  @note O(n + k) time and O(k) extra space, where
    *        `k = max_key - min_key + 1`.
    */
-  template <class KeyFn>
+  template <typename KeyFn>
+    requires std::invocable<KeyFn, size_t> and
+             std::convertible_to<std::invoke_result_t<KeyFn, size_t>, int>
   void counting_sort_indices(Array<size_t> & sa,
                              Array<size_t> & tmp,
                              const size_t n,
@@ -4372,8 +4374,15 @@ namespace Aleph
     ah_out_of_range_error_if(sa.size() < n or tmp.size() < n)
       << "counting_sort_indices(): sa/tmp size is smaller than n";
 
-    const auto k = static_cast<size_t>(
-      static_cast<long long>(max_key) - static_cast<long long>(min_key) + 1);
+    const auto range_minus_one =
+      static_cast<unsigned long long>(static_cast<long long>(max_key) -
+                                      static_cast<long long>(min_key));
+    const auto max_count =
+      static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
+    ah_runtime_error_unless(range_minus_one <= max_count)
+      << "counting_sort_indices(): key range is too large";
+
+    const auto k = static_cast<size_t>(range_minus_one) + 1;
     Array<size_t> count = Array<size_t>::create(k);
     for (size_t i = 0; i < k; ++i)
       count[i] = 0;
@@ -4383,7 +4392,10 @@ namespace Aleph
         const int key = key_of(sa[i]);
         ah_out_of_range_error_if(key < min_key or key > max_key)
           << "counting_sort_indices(): key out of expected range";
-        ++count[static_cast<size_t>(key - min_key)];
+        const auto bucket =
+          static_cast<size_t>(static_cast<unsigned long long>(
+            static_cast<long long>(key) - static_cast<long long>(min_key)));
+        ++count[bucket];
       }
 
     for (size_t j = 1; j < k; ++j)
@@ -4392,7 +4404,9 @@ namespace Aleph
     for (size_t i = n; i > 0; --i)
       {
         const int key = key_of(sa[i - 1]);
-        const auto idx = static_cast<size_t>(key - min_key);
+        const auto idx =
+          static_cast<size_t>(static_cast<unsigned long long>(
+            static_cast<long long>(key) - static_cast<long long>(min_key)));
         tmp[--count[idx]] = sa[i - 1];
       }
 
@@ -4640,6 +4654,7 @@ namespace Aleph
 
 
     template <template <typename> class C, typename IntT>
+      requires radix_integer<IntT>
     void radix_sort_impl(C<IntT> & a)
     {
       using U = radix_unsigned_t<IntT>;
@@ -4681,6 +4696,7 @@ namespace Aleph
 
 
     template <typename IntT>
+      requires radix_integer<IntT>
     void radix_sort_impl(IntT * a, const size_t n)
     {
       using U = radix_unsigned_t<IntT>;
@@ -4797,6 +4813,9 @@ namespace Aleph
    *  Sorts in ascending order by counting frequencies of each distinct
    *  integer value in the observed key range `[min(a), max(a)]`.
    *
+   *  @tparam T Value type.
+   *  @param[in,out] a The DynArray to sort.
+   *
    *  @par Complexity
    *  O(n + k) time and O(n + k) extra space, where
    *  `k = max(a) - min(a) + 1`.
@@ -4814,6 +4833,9 @@ namespace Aleph
    *  Sorts in ascending order by counting frequencies of each distinct
    *  integer value in the observed key range `[min(a), max(a)]`.
    *
+   *  @tparam T Value type.
+   *  @param[in,out] a The Array to sort.
+   *
    *  @par Complexity
    *  O(n + k) time and O(n + k) extra space, where
    *  `k = max(a) - min(a) + 1`.
@@ -4830,6 +4852,9 @@ namespace Aleph
    *
    *  This overload computes frequencies and writes ordered values directly
    *  into existing list nodes.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] list The DynList to sort.
    */
   template <typename T>
     requires CountingSortable<T>
@@ -4843,6 +4868,9 @@ namespace Aleph
    *
    *  This overload computes frequencies and writes ordered values directly
    *  into existing list nodes.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] list The DynDlist to sort.
    */
   template <typename T>
     requires CountingSortable<T>
@@ -4854,10 +4882,11 @@ namespace Aleph
 
   /** @brief Stable counting sort for raw integral arrays.
    *
+   *  @tparam T Value type.
    *  @param[in,out] a Pointer to the first element.
    *  @param[in] n Number of elements.
    *
-   *  @exception runtime_error If `a` is null and `n > 0`.
+   *  @exception std::runtime_error If `a` is null and `n > 0`.
    *
    *  @par Complexity
    *  O(n + k) time and O(n + k) extra space, where
@@ -4873,7 +4902,12 @@ namespace Aleph
   }
 
 
-  /** @brief Stable counting sort for fixed-size integral C arrays. */
+  /** @brief Stable counting sort for fixed-size integral C arrays.
+   *
+   *  @tparam T Value type.
+   *  @tparam N Array size.
+   *  @param[in,out] a The fixed-size array to sort.
+   */
   template <typename T, size_t N>
     requires CountingSortable<T>
   void counting_sort(T (& a)[N])
@@ -4886,6 +4920,9 @@ namespace Aleph
    *
    *  Sorts in ascending order. Signed integers are supported by applying a
    *  monotone bit transform on the sign bit.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] a The DynArray to sort.
    *
    *  @par Complexity
    *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
@@ -4903,6 +4940,9 @@ namespace Aleph
    *  Sorts in ascending order. Signed integers are supported by applying a
    *  monotone bit transform on the sign bit.
    *
+   *  @tparam T Value type.
+   *  @param[in,out] a The Array to sort.
+   *
    *  @par Complexity
    *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
    */
@@ -4917,6 +4957,9 @@ namespace Aleph
   /** @brief LSD radix sort for integral DynList values.
    *
    *  This overload performs stable bucket distribution directly on list nodes.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] list The DynList to sort.
    */
   template <typename T>
     requires RadixSortable<T>
@@ -4929,6 +4972,9 @@ namespace Aleph
   /** @brief LSD radix sort for integral DynDlist values.
    *
    *  This overload performs stable bucket distribution directly on list nodes.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] list The DynDlist to sort.
    */
   template <typename T>
     requires RadixSortable<T>
@@ -4940,10 +4986,11 @@ namespace Aleph
 
   /** @brief LSD radix sort for raw integral arrays.
    *
+   *  @tparam T Value type.
    *  @param[in,out] a Pointer to the first element.
    *  @param[in] n Number of elements.
    *
-   *  @exception runtime_error If `a` is null and `n > 0`.
+   *  @exception std::runtime_error If `a` is null and `n > 0`.
    *
    *  @par Complexity
    *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
@@ -4958,7 +5005,12 @@ namespace Aleph
   }
 
 
-  /** @brief LSD radix sort for fixed-size integral C arrays. */
+  /** @brief LSD radix sort for fixed-size integral C arrays.
+   *
+   *  @tparam T Value type.
+   *  @tparam N Array size.
+   *  @param[in,out] a The fixed-size array to sort.
+   */
   template <typename T, size_t N>
     requires RadixSortable<T>
   void radix_sort(T (& a)[N])

@@ -516,8 +516,8 @@ namespace Aleph
     char *endptr = nullptr;
     const auto val = std::strtod(s.c_str(), &endptr);
     const bool invalid =
-        (errno == ERANGE and (val == HUGE_VAL or val == HUGE_VALF or val == HUGE_VALL)) ||
-        (errno != 0 && val == 0) ||
+        (errno == ERANGE and (val == HUGE_VAL or val == HUGE_VALF or val == HUGE_VALL)) or
+        (errno != 0 and val == 0) or
         endptr == s.c_str() or
         *endptr != '\0' or
         not std::isfinite(val);
