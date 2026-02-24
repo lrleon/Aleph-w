@@ -243,7 +243,7 @@ namespace
     cout << '\n' << s.title << '\n';
     cout << string(s.title.size(), '-') << '\n';
 
-    for (bool max_cardinality : {false, true})
+    for (const bool max_cardinality : {false, true})
       {
         cout << (max_cardinality
                  ? "\nMode: maximum-cardinality then minimum-cost\n"

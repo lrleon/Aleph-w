@@ -37,6 +37,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <limits>
+#include <vector>
+
 #include <tpl_sort_utils.H>
 #include <tpl_dynArray.H>
 #include <tpl_array.H>
@@ -48,6 +53,13 @@ using namespace Aleph;
 using namespace std;
 
 namespace {
+
+static_assert(CountingSortable<int>);
+static_assert(CountingSortable<unsigned long long>);
+static_assert(not CountingSortable<bool>);
+static_assert(RadixSortable<int>);
+static_assert(RadixSortable<unsigned long long>);
+static_assert(not RadixSortable<bool>);
 
 static DynArray<int> make_dynarray(std::initializer_list<int> xs)
 {
@@ -87,6 +99,26 @@ static void delete_all_nodes(Dnode<int> & h)
 {
   while (not h.is_empty())
     delete h.remove_first_ne();
+}
+
+template <typename T>
+static std::vector<uintptr_t> dynlist_node_addresses(const DynList<T> & l)
+{
+  std::vector<uintptr_t> ret;
+  for (HTList::Iterator it(l); it.has_curr(); it.next())
+    ret.push_back(reinterpret_cast<uintptr_t>(it.get_curr()));
+  std::sort(ret.begin(), ret.end());
+  return ret;
+}
+
+template <typename T>
+static std::vector<uintptr_t> dyndlist_node_addresses(const DynDlist<T> & l)
+{
+  std::vector<uintptr_t> ret;
+  for (typename Dnode<T>::Iterator it(l); it.has_curr(); it.next())
+    ret.push_back(reinterpret_cast<uintptr_t>(it.get_curr()));
+  std::sort(ret.begin(), ret.end());
+  return ret;
 }
 
 TEST(SortUtilsSortedness, allows_equal)
@@ -1432,6 +1464,377 @@ TEST(SortUtilsSearch, binary_search_ptr_container_range_greater)
   EXPECT_EQ(binary_search(ptrs, 5, 1, 3, Aleph::greater<int>()), 1);
   // 0 would be inserted after 2 => at r+1
   EXPECT_EQ(binary_search(ptrs, 0, 1, 3, Aleph::greater<int>()), 4);
+}
+
+TEST(SortUtilsCountingSort, basic_sort_by_identity)
+{
+  Array<size_t> sa = Array<size_t>::create(5);
+  Array<size_t> tmp = Array<size_t>::create(5);
+  sa[0] = 3; sa[1] = 0; sa[2] = 4; sa[3] = 1; sa[4] = 2;
+
+  counting_sort_indices(sa, tmp, 5, 0, 4,
+                        [](size_t idx) -> int { return static_cast<int>(idx); });
+
+  for (size_t i = 0; i < 5; ++i)
+    EXPECT_EQ(sa[i], i);
+}
+
+TEST(SortUtilsCountingSort, stability)
+{
+  // Two pairs with same key: (10,key=1) and (20,key=1)
+  // Original order: indices 0(key=2), 1(key=1), 2(key=1), 3(key=0)
+  Array<size_t> sa = Array<size_t>::create(4);
+  Array<size_t> tmp = Array<size_t>::create(4);
+  sa[0] = 0; sa[1] = 1; sa[2] = 2; sa[3] = 3;
+
+  int keys[] = {2, 1, 1, 0};
+  counting_sort_indices(sa, tmp, 4, 0, 2,
+                        [&](size_t idx) -> int { return keys[idx]; });
+
+  // Expected: 3(key=0), 1(key=1), 2(key=1), 0(key=2)
+  EXPECT_EQ(sa[0], 3u);
+  EXPECT_EQ(sa[1], 1u);  // stable: 1 before 2
+  EXPECT_EQ(sa[2], 2u);
+  EXPECT_EQ(sa[3], 0u);
+}
+
+TEST(SortUtilsCountingSort, negative_keys)
+{
+  Array<size_t> sa = Array<size_t>::create(4);
+  Array<size_t> tmp = Array<size_t>::create(4);
+  sa[0] = 0; sa[1] = 1; sa[2] = 2; sa[3] = 3;
+
+  int keys[] = {0, -1, 2, -2};
+  counting_sort_indices(sa, tmp, 4, -2, 2,
+                        [&](size_t idx) -> int { return keys[idx]; });
+
+  // Sorted by key: 3(-2), 1(-1), 0(0), 2(2)
+  EXPECT_EQ(sa[0], 3u);
+  EXPECT_EQ(sa[1], 1u);
+  EXPECT_EQ(sa[2], 0u);
+  EXPECT_EQ(sa[3], 2u);
+}
+
+TEST(SortUtilsCountingSort, single_element)
+{
+  Array<size_t> sa = Array<size_t>::create(1);
+  Array<size_t> tmp = Array<size_t>::create(1);
+  sa[0] = 42;
+
+  counting_sort_indices(sa, tmp, 1, 0, 0,
+                        [](size_t) -> int { return 0; });
+  EXPECT_EQ(sa[0], 42u);
+}
+
+TEST(SortUtilsCountingSort, empty)
+{
+  Array<size_t> sa;
+  Array<size_t> tmp;
+  counting_sort_indices(sa, tmp, 0, 0, 0,
+                        [](size_t) -> int { return 0; });
+  EXPECT_TRUE(sa.is_empty());
+}
+
+TEST(SortUtilsCountingSort, invalid_key_interval_throws)
+{
+  Array<size_t> sa = Array<size_t>::create(1);
+  Array<size_t> tmp = Array<size_t>::create(1);
+  sa[0] = 0;
+
+  EXPECT_THROW(
+    counting_sort_indices(sa, tmp, 1, 3, 2,
+                          [](size_t) -> int { return 0; }),
+    std::domain_error);
+}
+
+TEST(SortUtilsCountingSort, key_out_of_range_throws)
+{
+  Array<size_t> sa = Array<size_t>::create(2);
+  Array<size_t> tmp = Array<size_t>::create(2);
+  sa[0] = 0;
+  sa[1] = 1;
+
+  EXPECT_THROW(
+    counting_sort_indices(sa, tmp, 2, 0, 1,
+                          [](size_t idx) -> int { return idx == 0 ? 0 : 2; }),
+    std::out_of_range);
+}
+
+TEST(SortUtilsCountingSort, insufficient_buffers_throw)
+{
+  Array<size_t> sa = Array<size_t>::create(1);
+  Array<size_t> tmp = Array<size_t>::create(1);
+  sa[0] = 0;
+
+  EXPECT_THROW(
+    counting_sort_indices(sa, tmp, 2, 0, 1,
+                          [](size_t idx) -> int { return static_cast<int>(idx); }),
+    std::out_of_range);
+}
+
+TEST(SortUtilsCountingSortGeneric, dynarray_signed_with_negatives)
+{
+  auto a = make_dynarray({5, -2, 3, -2, 0, 9, -10});
+  counting_sort(a);
+  EXPECT_EQ(a(0), -10);
+  EXPECT_EQ(a(1), -2);
+  EXPECT_EQ(a(2), -2);
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(SortUtilsCountingSortGeneric, array_unsigned_values)
+{
+  Array<unsigned int> a;
+  for (unsigned int x : {7u, 0u, 3u, 7u, 1u, 2u})
+    a.append(x);
+
+  counting_sort(a);
+  EXPECT_EQ(a(0), 0u);
+  EXPECT_EQ(a(1), 1u);
+  EXPECT_EQ(a(2), 2u);
+  EXPECT_EQ(a(3), 3u);
+  EXPECT_EQ(a(4), 7u);
+  EXPECT_EQ(a(5), 7u);
+}
+
+TEST(SortUtilsCountingSortGeneric, raw_pointer_and_nullptr_contract)
+{
+  int a[] = {4, 1, 3, 0, 2};
+  counting_sort(a, sizeof(a) / sizeof(a[0]));
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+
+  EXPECT_THROW((counting_sort<int>(nullptr, 1)), std::runtime_error);
+  EXPECT_NO_THROW((counting_sort<int>(nullptr, 0)));
+}
+
+TEST(SortUtilsCountingSortGeneric, c_array_overload)
+{
+  int a[] = {5, 1, 4, 2, 3, 0};
+  counting_sort(a);
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsCountingSortGeneric, std_vector_support)
+{
+  std::vector<int> a = {9, -1, 3, 0, -1, 2};
+  counting_sort(a);
+  EXPECT_TRUE(std::is_sorted(a.begin(), a.end()));
+  ASSERT_EQ(a.size(), 6u);
+  EXPECT_EQ(a[0], -1);
+  EXPECT_EQ(a[1], -1);
+  EXPECT_EQ(a[5], 9);
+}
+
+TEST(SortUtilsCountingSortGeneric, empty_and_singleton)
+{
+  DynArray<int> d;
+  counting_sort(d);
+  EXPECT_EQ(d.size(), 0u);
+
+  Array<int> a;
+  a.append(7);
+  counting_sort(a);
+  ASSERT_EQ(a.size(), 1u);
+  EXPECT_EQ(a(0), 7);
+
+  std::vector<int> v;
+  counting_sort(v);
+  EXPECT_TRUE(v.empty());
+}
+
+TEST(SortUtilsCountingSortGeneric, dynlist_support)
+{
+  DynList<int> l = make_dynlist({4, -1, 3, 0, -1, 2});
+  counting_sort(l);
+
+  const int expected[] = {-1, -1, 0, 2, 3, 4};
+  size_t i = 0;
+  for (DynList<int>::Iterator it(l); it.has_curr(); it.next(), ++i)
+    EXPECT_EQ(it.get_curr(), expected[i]);
+  EXPECT_EQ(i, sizeof(expected) / sizeof(expected[0]));
+}
+
+TEST(SortUtilsCountingSortGeneric, dynlist_preserves_nodes)
+{
+  DynList<int> l = make_dynlist({4, -1, 3, 0, -1, 2});
+  const auto before = dynlist_node_addresses(l);
+  counting_sort(l);
+  const auto after = dynlist_node_addresses(l);
+  EXPECT_EQ(before, after);
+}
+
+TEST(SortUtilsCountingSortGeneric, dyndlist_support)
+{
+  DynDlist<int> l = make_dyndlist({7, 3, 7, 1, 0, -2});
+  counting_sort(l);
+
+  const int expected[] = {-2, 0, 1, 3, 7, 7};
+  size_t i = 0;
+  for (DynDlist<int>::Iterator it(l); it.has_curr(); it.next(), ++i)
+    EXPECT_EQ(it.get_curr(), expected[i]);
+  EXPECT_EQ(i, sizeof(expected) / sizeof(expected[0]));
+}
+
+TEST(SortUtilsCountingSortGeneric, dyndlist_preserves_nodes)
+{
+  DynDlist<int> l = make_dyndlist({7, 3, 7, 1, 0, -2});
+  const auto before = dyndlist_node_addresses(l);
+  counting_sort(l);
+  const auto after = dyndlist_node_addresses(l);
+  EXPECT_EQ(before, after);
+}
+
+TEST(SortUtilsCountingSortGeneric, huge_range_throws)
+{
+  std::vector<unsigned long long> a = {
+    0ull, std::numeric_limits<unsigned long long>::max()
+  };
+  EXPECT_THROW(counting_sort(a), std::runtime_error);
+}
+
+TEST(SortUtilsRadixSort, dynarray_signed_basic)
+{
+  auto a = make_dynarray({170, 45, 75, 90, 802, 24, 2, 66});
+  radix_sort(a);
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(SortUtilsRadixSort, dynarray_with_negatives)
+{
+  auto a = make_dynarray({0, -1, 5, -10, 3, -1, 2});
+  radix_sort(a);
+  EXPECT_EQ(a(0), -10);
+  EXPECT_EQ(a(1), -1);
+  EXPECT_EQ(a(2), -1);
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(SortUtilsRadixSort, array_container)
+{
+  Array<int> a;
+  for (int x : {9, 1, 8, 2, 7, 3, 6, 4, 5, 0})
+    a.append(x);
+
+  radix_sort(a);
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(SortUtilsRadixSort, raw_pointer)
+{
+  int a[] = {9, 1, 8, 2, 7, 3, 6, 4, 5, 0};
+  radix_sort(a, sizeof(a) / sizeof(a[0]));
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsRadixSort, c_array_overload)
+{
+  int a[] = {9, 1, 8, 2, 7, 3, 6, 4, 5, 0};
+  radix_sort(a);
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsRadixSort, raw_pointer_nullptr_contract)
+{
+  EXPECT_THROW((radix_sort<int>(nullptr, 1)), std::runtime_error);
+  EXPECT_NO_THROW((radix_sort<int>(nullptr, 0)));
+}
+
+TEST(SortUtilsRadixSort, dynlist_support)
+{
+  DynList<int> l = make_dynlist({3, -1, 2, -5, 0, 3});
+  radix_sort(l);
+
+  const int expected[] = {-5, -1, 0, 2, 3, 3};
+  size_t i = 0;
+  for (DynList<int>::Iterator it(l); it.has_curr(); it.next(), ++i)
+    EXPECT_EQ(it.get_curr(), expected[i]);
+  EXPECT_EQ(i, sizeof(expected) / sizeof(expected[0]));
+}
+
+TEST(SortUtilsRadixSort, dynlist_preserves_nodes)
+{
+  DynList<int> l = make_dynlist({3, -1, 2, -5, 0, 3});
+  const auto before = dynlist_node_addresses(l);
+  radix_sort(l);
+  const auto after = dynlist_node_addresses(l);
+  EXPECT_EQ(before, after);
+}
+
+TEST(SortUtilsRadixSort, dyndlist_support)
+{
+  DynDlist<int> l = make_dyndlist({10, -2, 7, 0, -2, 1});
+  radix_sort(l);
+
+  const int expected[] = {-2, -2, 0, 1, 7, 10};
+  size_t i = 0;
+  for (DynDlist<int>::Iterator it(l); it.has_curr(); it.next(), ++i)
+    EXPECT_EQ(it.get_curr(), expected[i]);
+  EXPECT_EQ(i, sizeof(expected) / sizeof(expected[0]));
+}
+
+TEST(SortUtilsRadixSort, dyndlist_preserves_nodes)
+{
+  DynDlist<int> l = make_dyndlist({10, -2, 7, 0, -2, 1});
+  const auto before = dyndlist_node_addresses(l);
+  radix_sort(l);
+  const auto after = dyndlist_node_addresses(l);
+  EXPECT_EQ(before, after);
+}
+
+TEST(SortUtilsRadixSort, signed_extremes)
+{
+  DynArray<int> a;
+  a.reserve(6);
+  a(0) = std::numeric_limits<int>::max();
+  a(1) = 0;
+  a(2) = std::numeric_limits<int>::min();
+  a(3) = -1;
+  a(4) = std::numeric_limits<int>::max();
+  a(5) = std::numeric_limits<int>::min();
+
+  radix_sort(a);
+
+  EXPECT_EQ(a(0), std::numeric_limits<int>::min());
+  EXPECT_EQ(a(1), std::numeric_limits<int>::min());
+  EXPECT_EQ(a(4), std::numeric_limits<int>::max());
+  EXPECT_EQ(a(5), std::numeric_limits<int>::max());
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(SortUtilsRadixSort, unsigned_values)
+{
+  Array<unsigned int> a;
+  for (unsigned int x : {std::numeric_limits<unsigned int>::max(),
+                         0u, 10u, 1u, 1024u, 10u})
+    a.append(x);
+
+  radix_sort(a);
+
+  EXPECT_EQ(a(0), 0u);
+  EXPECT_EQ(a(1), 1u);
+  EXPECT_EQ(a(2), 10u);
+  EXPECT_EQ(a(3), 10u);
+  EXPECT_EQ(a(a.size() - 1), std::numeric_limits<unsigned int>::max());
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(SortUtilsRadixSort, empty_and_singleton)
+{
+  DynArray<int> d;
+  radix_sort(d);
+  EXPECT_EQ(d.size(), 0u);
+
+  Array<int> a;
+  a.append(7);
+  radix_sort(a);
+  ASSERT_EQ(a.size(), 1u);
+  EXPECT_EQ(a(0), 7);
 }
 
 } // namespace

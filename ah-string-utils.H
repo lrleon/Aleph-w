@@ -1240,7 +1240,7 @@ namespace Aleph
     build_pars_list(str, args...);
   }
 
-  /** Build a sringficated parameters' lists
+  /** Build a stringified parameters' list
 
    */
   template <class First, class... Rest>

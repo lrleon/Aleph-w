@@ -51,6 +51,18 @@ set(EXAMPLE_PROGRAMS
     timeAllTree
     topological_sort_example
     trie_example
+    kmp_example
+    z_algorithm_example
+    horspool_example
+    rabin_karp_example
+    aho_corasick_example
+    suffix_array_lcp_example
+    suffix_tree_example
+    suffix_automaton_example
+    manacher_example
+    edit_distance_example
+    damerau_levenshtein_example
+    lcs_longest_common_substring_example
     writeBalance
     writeHeap
     writeInsertRoot

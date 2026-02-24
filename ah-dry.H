@@ -250,9 +250,9 @@ public:
     return base()->nth_ne(n);
   }
 
-  /** Return the n-th item of container.
+  /** Return the n-th item of the container.
 
-      The notion of ordinal depends on type of container. On list,
+      The notion of ordinal depends on the type of container. On a list,
       probably will be the insertion order. On binary search trees will
       be the nth smaller item. On hash tables will be pseudo random.
 
@@ -298,7 +298,7 @@ public:
       searching criteria.
 
       `find_ptr(operation)` traverses the container and on each item
-      perform `operation(item)`. If the result of `operation` is `true`,
+      performs `operation(item)`. If the result of `operation` is `true`,
       then the traversal is stopped and a pointer to the current item
       (which matches `operation`) is returned.
 
@@ -308,7 +308,7 @@ public:
 
       \warning Frequent use of this method will definitively degrade the
       performance. Try not to use this method inside loops. In general,
-      if you falls in the situation, the consider your design and to
+      if you fall in the situation, then consider your design and to
       use a faster approach.
 
       \param[in] operation to be performed on each item for matching a
@@ -480,11 +480,11 @@ public:
     Basically, the constructors of this class append a sequence of items.
 
     \warning Note that these constructors require that the class is
-    correctly initialized, what not only very often is not the case, but
+    correctly initialized, which not only very often is not the case, but
     it could be impossible in most cases. The most part of situations,
     the derived class must be initialized before to start to append new
     items. But this is not the case during this construction. So, don't
-    use this class unless that you are absolutely sure that the derived
+    use this class unless you are absolutely sure that the derived
     class has been initialized.
 
     \ingroup Sequences
@@ -498,11 +498,11 @@ struct SpecialCtors
 
   SpecialCtors(SpecialCtors&&) noexcept {}
 
-  SpecialCtors & operator = (const SpecialCtors&) { return *this; }
+  SpecialCtors & operator = (const SpecialCtors&) = default;
 
   SpecialCtors & operator = (SpecialCtors&&) noexcept { return *this; }
 
-  /** Build the container by inserting all items of list `l`.
+  /** Build the container by inserting all items of the list `l`.
 
       @param[in] l list of items to insert
   */
@@ -598,14 +598,14 @@ public:
 
       `emplace_ins(args)` tries to match a constructor `T(args)`. If this
       exists, then this is constructed in-place and directly forwarded
-      to the method `insert() of container. If all on the container and
+      to the method `insert() of the container. If all on the container and
       `T` is adequately done, then the object is constructed once time,
       successively forwarded and finally, at its target place in the
       container, is moved, avoiding thus unnecessary copies.
 
-      \note The semantic of `insert()` depends on container. In general,
-      this has some sense for lists and arrays and it means insertion at
-      the beginning of sequence. On other type of container `append()`
+      \note The semantic of `insert()` depends on the container. In general,
+      this has some sense for lists and arrays, and it means insertion at
+      the beginning of the sequence. On another type of container `append()`
       is equivalent to `insert()`.
 
       \param[in] args variadic arguments list
@@ -669,14 +669,14 @@ public:
   /** Traverse all the container and performs an operation on each
       element.
 
-      `for_each(operation)` traverses the container and on each element
+      `for_each(operation)` traverses the container, and on each element
       `item` is performed `operation(item)`.
 
       `operation` must have the following signature:
 
       void operation(const T & item)
 
-      Overloading of this method allow that the signature can be
+      Overloading of this method allows that the signature can be
       lightly different; for example, remove the reference or the
       `const`.
 
@@ -752,9 +752,9 @@ public:
 
       void operation(T & item)
 
-      Be very careful with the fact that this method allows to modify
-      the elements themselves, what could badly alter the internal
-      state of container. This would be the case for heaps, binary
+      Be very careful with the fact that this method allows modifying
+      the elements themselves, which could badly alter the internal
+      state of the container. This would be the case for heaps, binary
       trees and hash tables.
 
       \param[in] pos starting position (0-based)
@@ -813,7 +813,7 @@ public:
     mutable_for_each<Operation>(operation);
   }
 
-  /** Check if all the elements of container satisfy a condition.
+  /** Check if all the elements of the container satisfy a condition.
 
       `all(operation)` checks if for each element `item` of container
       `operation(item)` returns `true`.
