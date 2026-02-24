@@ -397,16 +397,25 @@ namespace Aleph
     }
 
   public:
-    /** @brief Construct a suffix tree for `text`. */
+    /** @brief Construct a naive suffix tree.
+     *  @param[in] text The text to build the tree from. If empty, the tree
+     *                  will only contain the terminal character.
+     *  @return None.
+     *  @throws None.
+     *  @par Complexity
+     *  O(n^2) where n is text.size().
+     */
     explicit Naive_Suffix_Tree(const std::string_view text = "")
     {
       build(text);
     }
 
-    /** @brief Build/rebuild tree for `text`.
-     *
+    /** @brief Build or rebuild the suffix tree for `text`.
+     *  @param[in] text The text to build the tree from.
+     *  @return None.
+     *  @throws None.
      *  @par Complexity
-     *  O(n^2) time and O(n^2) space in the worst case.
+     *  O(n^2) time and O(n^2) space in the worst case, where n is text.size().
      */
     void build(const std::string_view text)
     {
@@ -421,7 +430,14 @@ namespace Aleph
         insert_suffix(i);
     }
 
-    /** @brief Return true if the pattern appears in the text. */
+    /** @brief Return true if the pattern appears in the text.
+     *  @param[in] pattern The substring pattern to search for.
+     *  @return True if `pattern` is found in the text, false otherwise.
+     *          If `pattern` is empty, returns true.
+     *  @throws None.
+     *  @par Complexity
+     *  O(m) where m is pattern.size().
+     */
     [[nodiscard]] bool contains(const std::string_view pattern) const
     {
       if (pattern.empty())
@@ -462,9 +478,16 @@ namespace Aleph
     }
 
     /** @brief Return all occurrences of a pattern.
-     *
+     *  @param[in] pattern The substring pattern to search for.
+     *  @return An array containing the starting positions of all occurrences
+     *          of `pattern` in the text, sorted in ascending order.
+     *          Returns an empty array if no occurrences are found.
      *  @note If `pattern` is empty, all positions `[0, text.size()]` are
      *        returned.
+     *  @throws None.
+     *  @par Complexity
+     *  O(m + k log k) where m is pattern.size() and k is the number of
+     *  occurrences.
      */
     [[nodiscard]] Array<size_t> find_all(const std::string_view pattern) const
     {
@@ -510,19 +533,35 @@ namespace Aleph
       return {};
     }
 
-    /** @brief Return the number of nodes in the tree. */
+    /** @brief Return the number of nodes in the tree.
+     *  @return Total number of nodes (internal and leaves).
+     *  @throws None.
+     *  @par Complexity
+     *  O(1).
+     */
     [[nodiscard]] size_t node_count() const noexcept
     {
       return nodes_.size();
     }
 
-    /** @brief Return text size (without terminal marker). */
+    /** @brief Return the text size (without terminal marker).
+     *  @return The size of the original text used to build the tree.
+     *          This corresponds to the `original_size_` member.
+     *  @throws None.
+     *  @par Complexity
+     *  O(1).
+     */
     [[nodiscard]] size_t text_size() const noexcept
     {
       return original_size_;
     }
 
-    /** @brief Return the internal node array for inspection/debugging. */
+    /** @brief Return the internal node array for inspection/debugging.
+     *  @return A constant reference to the underlying Array of nodes.
+     *  @throws None.
+     *  @par Complexity
+     *  O(1).
+     */
     [[nodiscard]] const Array<Node> &nodes() const noexcept
     {
       return nodes_;
@@ -568,13 +607,23 @@ namespace Aleph
     }
 
   public:
-    /** @brief Build empty SAM (root only). */
+    /** @brief Construct an empty suffix automaton (SAM) with only the root state.
+     *  @return None.
+     *  @throws None.
+     *  @par Complexity
+     *  O(1).
+     */
     Suffix_Automaton()
     {
       clear();
     }
 
-    /** @brief Reset automaton to empty root. */
+    /** @brief Reset the automaton to its initial empty state (root only).
+     *  @return None.
+     *  @throws None.
+     *  @par Complexity
+     *  O(1).
+     */
     void clear()
     {
       states_.empty();
@@ -586,7 +635,13 @@ namespace Aleph
       last_ = 0;
     }
 
-    /** @brief Extend SAM with one character. */
+    /** @brief Extend the SAM with a single character.
+     *  @param[in] ch The character to append to the current text representation.
+     *  @return None.
+     *  @throws None.
+     *  @par Complexity
+     *  Amortized O(1).
+     */
     void extend(const char ch)
     {
       const auto c = static_cast<unsigned char>(ch);
@@ -633,7 +688,13 @@ namespace Aleph
       last_ = cur;
     }
 
-    /** @brief Build SAM from a full string. */
+    /** @brief Build the SAM from an entire string.
+     *  @param[in] text The input string to process.
+     *  @return None.
+     *  @throws None.
+     *  @par Complexity
+     *  O(n) where n is text.size().
+     */
     void build(const std::string_view text)
     {
       clear();
@@ -643,7 +704,13 @@ namespace Aleph
       mark_terminals();
     }
 
-    /** @brief Return true if `pattern` is a substring of the built text. */
+    /** @brief Return true if `pattern` is a substring of the built text.
+     *  @param[in] pattern The substring pattern to search for.
+     *  @return True if the SAM contains `pattern`, false otherwise.
+     *  @throws None.
+     *  @par Complexity
+     *  O(m) where m is pattern.size().
+     */
     [[nodiscard]] bool contains(const std::string_view pattern) const
     {
       int state = 0;
@@ -657,10 +724,11 @@ namespace Aleph
       return true;
     }
 
-    /** @brief Count distinct substrings of the built text.
-     *
+    /** @brief Count the number of distinct substrings in the built text.
+     *  @return The total count of unique substrings.
+     *  @throws None.
      *  @par Complexity
-     *  O(number of states).
+     *  O(V) where V is the number of states.
      */
     [[nodiscard]] size_t distinct_substring_count() const
     {
@@ -675,13 +743,13 @@ namespace Aleph
       return total;
     }
 
-    /** @brief Longest common substring with `other`.
-     *
+    /** @brief Find the longest common substring between the built SAM text and `other`.
      *  @param[in] other String to compare against the built SAM text.
-     *  @return Longest common substring.
-     *
+     *  @return The longest common substring. Returns an empty string if no
+     *          common substring exists.
+     *  @throws None.
      *  @par Complexity
-     *  O(other.size()).
+     *  O(m) where m is other.size().
      */
     [[nodiscard]] std::string longest_common_substring(const std::string_view other) const
     {
@@ -725,13 +793,23 @@ namespace Aleph
       return std::string(other.substr(best_pos + 1 - best_len, best_len));
     }
 
-    /** @brief Number of SAM states. */
+    /** @brief Return the number of states in the SAM.
+     *  @return The size of the internal states array.
+     *  @throws None.
+     *  @par Complexity
+     *  O(1).
+     */
     [[nodiscard]] size_t state_count() const noexcept
     {
       return states_.size();
     }
 
-    /** @brief Access all states for testing/inspection. */
+    /** @brief Access the internal states array for testing/inspection.
+     *  @return A constant reference to the underlying Array of states.
+     *  @throws None.
+     *  @par Complexity
+     *  O(1).
+     */
     [[nodiscard]] const Array<State> &states() const noexcept
     {
       return states_;

@@ -108,7 +108,10 @@ namespace Aleph
       nodes_.append(Node{});
     }
 
-    /** @brief Clear all patterns and reset to an empty automaton. */
+    /** @brief Clear all patterns and reset to an empty automaton.
+     *
+     *  @return void
+     */
     void clear()
     {
       nodes_.empty();
@@ -117,12 +120,12 @@ namespace Aleph
       built_ = false;
     }
 
-    /** @brief Add one pattern.
+    /** @brief Add one pattern to the automaton.
      *
      *  @param[in] pattern Pattern to insert (must be non-empty).
      *  @return Pattern id to be used in match reporting.
      *
-     *  @exception domain_error If `pattern` is empty.
+     *  @throws std::domain_error If `pattern` is empty.
      *
      *  @note Calling this invalidates the previously built automaton;
      *        call `build()` again before `search()`.
@@ -157,6 +160,8 @@ namespace Aleph
     /** @brief Build failure links and transition completion.
      *
      *  Must be called after all `add_pattern()` calls and before `search()`.
+     *
+     *  @return void
      *
      *  @par Complexity
      *  O(sum(pattern lengths) * alphabet) with fixed alphabet 256.
@@ -211,7 +216,7 @@ namespace Aleph
      *  @param[in] text Text to scan.
      *  @return Matches sorted by end-scan order.
      *
-     *  @exception runtime_error If `build()` has not been called.
+     *  @throws std::runtime_error If `build()` has not been called.
      *
      *  @par Complexity
      *  O(text.size() + number_of_matches).
@@ -240,25 +245,43 @@ namespace Aleph
       return matches;
     }
 
-    /** @brief Return true if at least one pattern appears in the text. */
+    /** @brief Return true if at least one pattern appears in the text.
+     *
+     *  @param[in] text Text to scan.
+     *  @return true if any match is found, false otherwise.
+     *
+     *  @throws std::runtime_error If `build()` has not been called.
+     */
     [[nodiscard]] bool contains_any(const std::string_view text) const
     {
       return not search(text).is_empty();
     }
 
-    /** @brief Return the number of inserted patterns. */
+    /** @brief Return the number of inserted patterns.
+     *
+     *  @return Number of patterns.
+     */
     [[nodiscard]] size_t pattern_count() const noexcept
     {
       return patterns_.size();
     }
 
-    /** @brief Return whether `build()` has been executed since last insertion. */
+    /** @brief Return whether `build()` has been executed since last insertion.
+     *
+     *  @return true if the automaton is built, false otherwise.
+     */
     [[nodiscard]] bool is_built() const noexcept
     {
       return built_;
     }
 
-    /** @brief Return the pattern text by id. */
+    /** @brief Return the pattern text by id.
+     *
+     *  @param[in] id Pattern id.
+     *  @return Pattern string.
+     *
+     *  @throws std::out_of_range If `id >= pattern_count()`.
+     */
     [[nodiscard]] const std::string &pattern(const size_t id) const
     {
       ah_out_of_range_error_if(id >= patterns_.size())

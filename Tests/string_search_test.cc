@@ -194,7 +194,7 @@ TEST(StringSearch, StressLongRandomStringAllAlgorithmsAgree)
     }
 
   // Must find at least the planted positions
-  EXPECT_GE(kmp.size(), 6u);
+  EXPECT_EQ(kmp.size(), 6u);
 }
 
 TEST(StringSearch, BinaryContentMatching)
@@ -251,4 +251,138 @@ TEST(StringSearch, StressRepeatedCharacterPattern)
   EXPECT_EQ(z.size(), 997u);
   EXPECT_EQ(bmh.size(), 997u);
   EXPECT_EQ(rk.size(), 997u);
+}
+
+// --- 3.1 Z-algorithm with full 256-byte alphabet ---
+
+TEST(StringSearch, ZSearchFullByteAlphabet)
+{
+  // Build a text that uses all 256 byte values so that
+  // find_unused_delimiter fails and z_search must handle it.
+  std::string text;
+  for (int i = 0; i < 256; ++i)
+    text.push_back(static_cast<char>(i));
+  text += text; // 512 bytes, every byte present
+
+  // Pattern: bytes {0x80, 0x81, 0x82}
+  std::string pattern;
+  pattern.push_back(static_cast<char>(0x80));
+  pattern.push_back(static_cast<char>(0x81));
+  pattern.push_back(static_cast<char>(0x82));
+
+  const auto kmp = kmp_search(text, pattern);
+  const auto z = z_search(text, pattern);
+
+  // Z-search must agree with KMP regardless of delimiter availability
+  ASSERT_EQ(z.size(), kmp.size());
+  for (size_t i = 0; i < z.size(); ++i)
+    EXPECT_EQ(z[i], kmp[i]);
+
+  // The pattern appears once per 256-byte block
+  EXPECT_EQ(kmp.size(), 2u);
+}
+
+TEST(StringSearch, ZSearchFullByteAlphabetOverlapping)
+{
+  // Construct text with all 256 bytes, then plant an overlapping pattern
+  std::string text;
+  for (int i = 0; i < 256; ++i)
+    text.push_back(static_cast<char>(i));
+
+  // Append a known overlapping section at the boundary
+  const std::string pattern = text.substr(250, 6); // last 6 bytes of first block
+  text += text; // 512 bytes
+
+  const auto kmp = kmp_search(text, pattern);
+  const auto z = z_search(text, pattern);
+
+  ASSERT_EQ(z.size(), kmp.size());
+  for (size_t i = 0; i < z.size(); ++i)
+    EXPECT_EQ(z[i], kmp[i]);
+
+  EXPECT_GE(kmp.size(), 2u);
+}
+
+// --- 3.2 Rabin-Karp with adversarial / collision-prone inputs ---
+
+TEST(StringSearch, RabinKarpRepeatedSingleChar)
+{
+  // All same character: maximizes hash collisions for naive hashes,
+  // since every window has the same character distribution.
+  const std::string text(5000, 'A');
+  const std::string pattern(7, 'A');
+
+  const auto kmp = kmp_search(text, pattern);
+  const auto rk = rabin_karp_search(text, pattern);
+
+  ASSERT_EQ(rk.size(), kmp.size());
+  for (size_t i = 0; i < rk.size(); ++i)
+    EXPECT_EQ(rk[i], kmp[i]);
+
+  EXPECT_EQ(rk.size(), 5000u - 7u + 1u);
+}
+
+TEST(StringSearch, RabinKarpBinaryPermutations)
+{
+  // Two-character alphabet with patterns that are permutations of each
+  // other. "aab" and "aba" have identical character frequencies, which
+  // can cause collisions in sum-based hashes.
+  std::string text;
+  for (int i = 0; i < 500; ++i)
+    text += "aab";
+  // Plant "aba" at a few positions
+  text.replace(99, 3, "aba");
+  text.replace(600, 3, "aba");
+
+  const auto kmp_aab = kmp_search(text, "aab");
+  const auto rk_aab = rabin_karp_search(text, "aab");
+
+  ASSERT_EQ(rk_aab.size(), kmp_aab.size());
+  for (size_t i = 0; i < rk_aab.size(); ++i)
+    EXPECT_EQ(rk_aab[i], kmp_aab[i]);
+
+  const auto kmp_aba = kmp_search(text, "aba");
+  const auto rk_aba = rabin_karp_search(text, "aba");
+
+  ASSERT_EQ(rk_aba.size(), kmp_aba.size());
+  for (size_t i = 0; i < rk_aba.size(); ++i)
+    EXPECT_EQ(rk_aba[i], kmp_aba[i]);
+}
+
+TEST(StringSearch, RabinKarpLongPatternSparseMatches)
+{
+  // Long pattern with very few matches — stresses the hash verification path.
+  std::string text(10000, 'x');
+  const std::string pattern(100, 'y');
+
+  // Plant the pattern at exactly two positions
+  text.replace(1234, 100, pattern);
+  text.replace(7777, 100, pattern);
+
+  const auto kmp = kmp_search(text, pattern);
+  const auto rk = rabin_karp_search(text, pattern);
+
+  ASSERT_EQ(rk.size(), kmp.size());
+  for (size_t i = 0; i < rk.size(); ++i)
+    EXPECT_EQ(rk[i], kmp[i]);
+
+  EXPECT_EQ(rk.size(), 2u);
+}
+
+TEST(StringSearch, RabinKarpDifferentBases)
+{
+  // Verify correctness with different user-supplied bases
+  const std::string text = "the cat sat on the mat the cat";
+  const std::string pattern = "the cat";
+
+  const auto kmp = kmp_search(text, pattern);
+  const uint64_t bases[] = {2, 31, 256, 1000000007ull, 911382323ull};
+
+  for (const uint64_t base : bases)
+    {
+      const auto rk = rabin_karp_search(text, pattern, base);
+      ASSERT_EQ(rk.size(), kmp.size()) << "Failed with base=" << base;
+      for (size_t i = 0; i < rk.size(); ++i)
+        EXPECT_EQ(rk[i], kmp[i]) << "Failed with base=" << base;
+    }
 }

@@ -214,3 +214,164 @@ TEST(AhoCorasick, BinaryPatterns)
   ASSERT_EQ(matches.size(), 1u);
   EXPECT_EQ(matches[0].position, 3u);
 }
+
+TEST(AhoCorasick, EmptyText)
+{
+  Aho_Corasick ac;
+  ac.add_pattern("he");
+  ac.add_pattern("she");
+  ac.build();
+
+  const auto matches = ac.search("");
+  EXPECT_TRUE(matches.is_empty());
+}
+
+TEST(AhoCorasick, NoMatchesFound)
+{
+  Aho_Corasick ac;
+  ac.add_pattern("he");
+  ac.add_pattern("she");
+  ac.build();
+
+  const auto matches = ac.search("xyzxyz");
+  EXPECT_TRUE(matches.is_empty());
+}
+
+// --- 3.3 Aho-Corasick with patterns that are prefixes of each other ---
+
+TEST(AhoCorasick, PrefixChainPatterns)
+{
+  // Patterns {"a", "ab", "abc"} where each is a prefix of the next.
+  // Exercises output link propagation through the trie.
+  Aho_Corasick ac;
+  const size_t id_a = ac.add_pattern("a");
+  const size_t id_ab = ac.add_pattern("ab");
+  const size_t id_abc = ac.add_pattern("abc");
+  ac.build();
+
+  const auto matches = ac.search("abcabc");
+
+  // Count matches per pattern
+  size_t cnt_a = 0;
+  size_t cnt_ab = 0;
+  size_t cnt_abc = 0;
+
+  for (size_t i = 0; i < matches.size(); ++i)
+    {
+      if (matches[i].pattern_id == id_a)
+        ++cnt_a;
+      else if (matches[i].pattern_id == id_ab)
+        ++cnt_ab;
+      else if (matches[i].pattern_id == id_abc)
+        ++cnt_abc;
+    }
+
+  // "a" at positions 0, 3
+  EXPECT_EQ(cnt_a, 2u);
+  // "ab" at positions 0, 3
+  EXPECT_EQ(cnt_ab, 2u);
+  // "abc" at positions 0, 3
+  EXPECT_EQ(cnt_abc, 2u);
+
+  EXPECT_EQ(matches.size(), 6u);
+}
+
+TEST(AhoCorasick, PrefixChainWithSuffixOverlap)
+{
+  // Patterns {"a", "ab", "abc", "bc", "c"} — mixture of prefixes and
+  // suffix-overlapping patterns to exercise output links.
+  Aho_Corasick ac;
+  const size_t id_a = ac.add_pattern("a");
+  const size_t id_ab = ac.add_pattern("ab");
+  const size_t id_abc = ac.add_pattern("abc");
+  const size_t id_bc = ac.add_pattern("bc");
+  const size_t id_c = ac.add_pattern("c");
+  ac.build();
+
+  const auto matches = ac.search("abc");
+
+  size_t cnt_a = 0;
+  size_t cnt_ab = 0;
+  size_t cnt_abc = 0;
+  size_t cnt_bc = 0;
+  size_t cnt_c = 0;
+
+  for (size_t i = 0; i < matches.size(); ++i)
+    {
+      if (matches[i].pattern_id == id_a) ++cnt_a;
+      else if (matches[i].pattern_id == id_ab) ++cnt_ab;
+      else if (matches[i].pattern_id == id_abc) ++cnt_abc;
+      else if (matches[i].pattern_id == id_bc) ++cnt_bc;
+      else if (matches[i].pattern_id == id_c) ++cnt_c;
+    }
+
+  EXPECT_EQ(cnt_a, 1u);
+  EXPECT_EQ(cnt_ab, 1u);
+  EXPECT_EQ(cnt_abc, 1u);
+  EXPECT_EQ(cnt_bc, 1u);
+  EXPECT_EQ(cnt_c, 1u);
+  EXPECT_EQ(matches.size(), 5u);
+}
+
+TEST(AhoCorasick, LongPrefixChain)
+{
+  // Patterns "x", "xx", "xxx", ..., "xxxxxxxxxx" (1..10 x's)
+  Aho_Corasick ac;
+  Array<size_t> ids;
+  for (int len = 1; len <= 10; ++len)
+    ids.append(ac.add_pattern(std::string(static_cast<size_t>(len), 'x')));
+  ac.build();
+
+  // Text is 15 x's
+  const std::string text(15, 'x');
+  const auto matches = ac.search(text);
+
+  // Count occurrences of each pattern length
+  Array<size_t> counts = Array<size_t>::create(10);
+  for (size_t i = 0; i < 10; ++i)
+    counts[i] = 0;
+
+  for (size_t i = 0; i < matches.size(); ++i)
+    ++counts[matches[i].pattern_id];
+
+  // Pattern of length k appears (15 - k + 1) times
+  for (int k = 1; k <= 10; ++k)
+    EXPECT_EQ(counts[static_cast<size_t>(k - 1)],
+              static_cast<size_t>(15 - k + 1))
+      << "pattern length " << k;
+}
+
+TEST(AhoCorasick, PrefixPatternsMatchPositions)
+{
+  // Verify exact match positions for prefix patterns
+  Aho_Corasick ac;
+  const size_t id_a = ac.add_pattern("a");
+  const size_t id_ab = ac.add_pattern("ab");
+  const size_t id_abc = ac.add_pattern("abc");
+  ac.build();
+
+  const auto matches = ac.search("xabcx");
+
+  Array<size_t> pos_a;
+  Array<size_t> pos_ab;
+  Array<size_t> pos_abc;
+
+  for (size_t i = 0; i < matches.size(); ++i)
+    {
+      if (matches[i].pattern_id == id_a)
+        pos_a.append(matches[i].position);
+      else if (matches[i].pattern_id == id_ab)
+        pos_ab.append(matches[i].position);
+      else if (matches[i].pattern_id == id_abc)
+        pos_abc.append(matches[i].position);
+    }
+
+  ASSERT_EQ(pos_a.size(), 1u);
+  EXPECT_EQ(pos_a[0], 1u);
+
+  ASSERT_EQ(pos_ab.size(), 1u);
+  EXPECT_EQ(pos_ab[0], 1u);
+
+  ASSERT_EQ(pos_abc.size(), 1u);
+  EXPECT_EQ(pos_abc[0], 1u);
+}

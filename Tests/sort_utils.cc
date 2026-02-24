@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <ranges>
 #include <vector>
 
 #include <tpl_sort_utils.H>
@@ -102,22 +103,40 @@ static void delete_all_nodes(Dnode<int> & h)
 }
 
 template <typename T>
-static std::vector<uintptr_t> dynlist_node_addresses(const DynList<T> & l)
+static void sort_dynarray(DynArray<T> & a)
 {
-  std::vector<uintptr_t> ret;
+  quicksort(a);
+}
+
+template <typename T>
+static void expect_same_dynarray(const DynArray<T> & a, const DynArray<T> & b)
+{
+  ASSERT_EQ(a.size(), b.size());
+  for (size_t i = 0; i < a.size(); ++i)
+    EXPECT_EQ(a(i), b(i));
+}
+
+template <typename T>
+static DynArray<uintptr_t> dynlist_node_addresses(const DynList<T> & l)
+{
+  DynArray<uintptr_t> ret;
+  ret.reserve(l.size());
+  size_t i = 0;
   for (HTList::Iterator it(l); it.has_curr(); it.next())
-    ret.push_back(reinterpret_cast<uintptr_t>(it.get_curr()));
-  std::sort(ret.begin(), ret.end());
+    ret(i++) = reinterpret_cast<uintptr_t>(it.get_curr());
+  sort_dynarray(ret);
   return ret;
 }
 
 template <typename T>
-static std::vector<uintptr_t> dyndlist_node_addresses(const DynDlist<T> & l)
+static DynArray<uintptr_t> dyndlist_node_addresses(const DynDlist<T> & l)
 {
-  std::vector<uintptr_t> ret;
+  DynArray<uintptr_t> ret;
+  ret.reserve(l.size());
+  size_t i = 0;
   for (typename Dnode<T>::Iterator it(l); it.has_curr(); it.next())
-    ret.push_back(reinterpret_cast<uintptr_t>(it.get_curr()));
-  std::sort(ret.begin(), ret.end());
+    ret(i++) = reinterpret_cast<uintptr_t>(it.get_curr());
+  sort_dynarray(ret);
   return ret;
 }
 
@@ -270,8 +289,8 @@ TEST(SortUtilsHelpers, partition_op_dynarray_invariants)
   after.reserve(a.size());
   for (size_t i = 0; i < a.size(); ++i)
     after.push_back(a(i));
-  std::sort(before.begin(), before.end());
-  std::sort(after.begin(), after.end());
+  std::ranges::sort(before);
+  std::ranges::sort(after);
   EXPECT_EQ(before, after);
 }
 
@@ -300,8 +319,8 @@ TEST(SortUtilsHelpers, partition_op_array_invariants)
   after.reserve(a.size());
   for (size_t i = 0; i < a.size(); ++i)
     after.push_back(a(i));
-  std::sort(before.begin(), before.end());
-  std::sort(after.begin(), after.end());
+  std::ranges::sort(before);
+  std::ranges::sort(after);
   EXPECT_EQ(before, after);
 }
 
@@ -310,7 +329,7 @@ TEST(SortUtilsHelpers, __random_select_dynarray_and_array)
   {
     auto a = make_dynarray({4, 1, 3, 2, 0, 2});
     auto expected = std::vector<int>{4, 1, 3, 2, 0, 2};
-    std::sort(expected.begin(), expected.end());
+    std::ranges::sort(expected);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 0, 0, 5)), expected[0]);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 3, 0, 5)), expected[3]);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 5, 0, 5)), expected[5]);
@@ -321,7 +340,7 @@ TEST(SortUtilsHelpers, __random_select_dynarray_and_array)
     for (int x : {4, 1, 3, 2, 0, 2})
       a.append(x);
     auto expected = std::vector<int>{4, 1, 3, 2, 0, 2};
-    std::sort(expected.begin(), expected.end());
+    std::ranges::sort(expected);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 0, 0, 5)), expected[0]);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 3, 0, 5)), expected[3]);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 5, 0, 5)), expected[5]);
@@ -457,7 +476,7 @@ TEST(SortUtilsHelpers, __random_select_raw_pointer)
 {
   int a[] = {4, 1, 3, 2, 0, 2};
   std::vector<int> expected(std::begin(a), std::end(a));
-  std::sort(expected.begin(), expected.end());
+  std::ranges::sort(expected);
 
   Aleph::less<int> cmp;
   EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 0, 0, 5, cmp)), expected[0]);
@@ -1617,13 +1636,14 @@ TEST(SortUtilsCountingSortGeneric, c_array_overload)
 
 TEST(SortUtilsCountingSortGeneric, std_vector_support)
 {
-  std::vector<int> a = {9, -1, 3, 0, -1, 2};
+  auto a = make_dynarray({9, -1, 3, 0, -1, 2});
   counting_sort(a);
-  EXPECT_TRUE(std::is_sorted(a.begin(), a.end()));
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
   ASSERT_EQ(a.size(), 6u);
-  EXPECT_EQ(a[0], -1);
-  EXPECT_EQ(a[1], -1);
-  EXPECT_EQ(a[5], 9);
+  EXPECT_EQ(a(0), -1);
+  EXPECT_EQ(a(1), -1);
+  EXPECT_EQ(a(5), 9);
 }
 
 TEST(SortUtilsCountingSortGeneric, empty_and_singleton)
@@ -1638,9 +1658,9 @@ TEST(SortUtilsCountingSortGeneric, empty_and_singleton)
   ASSERT_EQ(a.size(), 1u);
   EXPECT_EQ(a(0), 7);
 
-  std::vector<int> v;
+  DynArray<int> v;
   counting_sort(v);
-  EXPECT_TRUE(v.empty());
+  EXPECT_TRUE(v.is_empty());
 }
 
 TEST(SortUtilsCountingSortGeneric, dynlist_support)
@@ -1661,7 +1681,7 @@ TEST(SortUtilsCountingSortGeneric, dynlist_preserves_nodes)
   const auto before = dynlist_node_addresses(l);
   counting_sort(l);
   const auto after = dynlist_node_addresses(l);
-  EXPECT_EQ(before, after);
+  expect_same_dynarray(before, after);
 }
 
 TEST(SortUtilsCountingSortGeneric, dyndlist_support)
@@ -1682,14 +1702,15 @@ TEST(SortUtilsCountingSortGeneric, dyndlist_preserves_nodes)
   const auto before = dyndlist_node_addresses(l);
   counting_sort(l);
   const auto after = dyndlist_node_addresses(l);
-  EXPECT_EQ(before, after);
+  expect_same_dynarray(before, after);
 }
 
 TEST(SortUtilsCountingSortGeneric, huge_range_throws)
 {
-  std::vector<unsigned long long> a = {
-    0ull, std::numeric_limits<unsigned long long>::max()
-  };
+  DynArray<unsigned long long> a;
+  a.reserve(2);
+  a(0) = 0ull;
+  a(1) = std::numeric_limits<unsigned long long>::max();
   EXPECT_THROW(counting_sort(a), std::runtime_error);
 }
 
@@ -1761,7 +1782,7 @@ TEST(SortUtilsRadixSort, dynlist_preserves_nodes)
   const auto before = dynlist_node_addresses(l);
   radix_sort(l);
   const auto after = dynlist_node_addresses(l);
-  EXPECT_EQ(before, after);
+  expect_same_dynarray(before, after);
 }
 
 TEST(SortUtilsRadixSort, dyndlist_support)
@@ -1782,7 +1803,7 @@ TEST(SortUtilsRadixSort, dyndlist_preserves_nodes)
   const auto before = dyndlist_node_addresses(l);
   radix_sort(l);
   const auto after = dyndlist_node_addresses(l);
-  EXPECT_EQ(before, after);
+  expect_same_dynarray(before, after);
 }
 
 TEST(SortUtilsRadixSort, signed_extremes)

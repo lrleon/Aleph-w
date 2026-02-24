@@ -40,9 +40,11 @@
 //
 # include <gtest/gtest.h>
 
+# include <cmath>
 # include <cstdlib>
 # include <limits>
 # include <random>
+# include <sstream>
 # include <stdexcept>
 # include <vector>
 
@@ -51,6 +53,50 @@
 using namespace std;
 using namespace testing;
 using namespace Aleph;
+
+static DynList<string> reference_split_string(const string & s, const string & delim)
+{
+  DynList<string> ret;
+  if (s.empty())
+    return ret;
+
+  if (delim.empty())
+    {
+      ret.append(s);
+      return ret;
+    }
+
+  string token;
+  for (char c : s)
+    if (delim.find(c) == string::npos)
+      token.push_back(c);
+    else if (not token.empty())
+      {
+        ret.append(token);
+        token.clear();
+      }
+
+  if (not token.empty())
+    ret.append(token);
+
+  return ret;
+}
+
+static void expect_tokens_eq(const DynList<string> & expected,
+                             const DynList<string> & got)
+{
+  ASSERT_EQ(got.size(), expected.size());
+  for (size_t i = 0; i < expected.size(); ++i)
+    EXPECT_EQ(got.nth(i), expected.nth(i));
+}
+
+static void expect_tokens_eq(const DynList<string> & expected,
+                             const Array<string> & got)
+{
+  ASSERT_EQ(got.size(), expected.size());
+  for (size_t i = 0; i < expected.size(); ++i)
+    EXPECT_EQ(got[i], expected.nth(i));
+}
 
 TEST(util, concat)
 {
@@ -252,6 +298,43 @@ TEST(StringUtils, split_and_split_string)
   }
 }
 
+TEST(StringUtilsCritical, split_string_edge_cases)
+{
+  {
+    auto out = split_to_list("", ",");
+    EXPECT_TRUE(out.is_empty());
+  }
+
+  {
+    auto out = split_to_list(",,,,", ",");
+    EXPECT_TRUE(out.is_empty());
+  }
+
+  {
+    auto expected = reference_split_string(",a,,b,,,c,", ",");
+    auto list_out = split_to_list(",a,,b,,,c,", ",");
+    auto array_out = split_to_array(",a,,b,,,c,", ",");
+    expect_tokens_eq(expected, list_out);
+    expect_tokens_eq(expected, array_out);
+  }
+
+  {
+    auto expected = reference_split_string("alpha||beta,gamma;;;delta", "|,;");
+    auto list_out = split_to_list("alpha||beta,gamma;;;delta", "|,;");
+    auto array_out = split_to_array("alpha||beta,gamma;;;delta", "|,;");
+    expect_tokens_eq(expected, list_out);
+    expect_tokens_eq(expected, array_out);
+  }
+
+  {
+    auto expected = reference_split_string("  keep   everything  ", "");
+    auto list_out = split_to_list("  keep   everything  ", "");
+    auto array_out = split_to_array("  keep   everything  ", "");
+    expect_tokens_eq(expected, list_out);
+    expect_tokens_eq(expected, array_out);
+  }
+}
+
 TEST(StringUtils, pascal_case)
 {
   EXPECT_EQ(to_Pascalcase("hello_world"), "HelloWorld");
@@ -387,6 +470,42 @@ TEST(StringUtils, format_string_computed_lens)
   ASSERT_EQ(formatted.nth(1).size(), 2u);
 }
 
+TEST(StringUtilsCritical, format_string_exact_alignment_and_stream_output)
+{
+  DynList<DynList<string>> mat;
+  DynList<string> r1; r1.append("id"); r1.append("value");
+  DynList<string> r2; r2.append("7"); r2.append("abc");
+  DynList<string> r3; r3.append("42"); r3.append("x");
+  mat.append(r1);
+  mat.append(r2);
+  mat.append(r3);
+
+  auto by_max = Aleph::format_string(mat);
+  ASSERT_EQ(by_max.size(), 3u);
+  EXPECT_EQ(by_max.nth(0).nth(0), "id ");
+  EXPECT_EQ(by_max.nth(0).nth(1), "value ");
+  EXPECT_EQ(by_max.nth(1).nth(0), " 7 ");
+  EXPECT_EQ(by_max.nth(1).nth(1), "  abc ");
+  EXPECT_EQ(by_max.nth(2).nth(0), "42 ");
+  EXPECT_EQ(by_max.nth(2).nth(1), "    x ");
+
+  DynList<size_t> lens;
+  lens.append(3);
+  lens.append(6);
+  auto by_lens = Aleph::format_string(lens, mat);
+  ASSERT_EQ(by_lens.size(), 3u);
+  EXPECT_EQ(by_lens.nth(0).nth(0), " id ");
+  EXPECT_EQ(by_lens.nth(0).nth(1), " value ");
+  EXPECT_EQ(by_lens.nth(1).nth(0), "  7 ");
+  EXPECT_EQ(by_lens.nth(1).nth(1), "   abc ");
+  EXPECT_EQ(by_lens.nth(2).nth(0), " 42 ");
+  EXPECT_EQ(by_lens.nth(2).nth(1), "     x ");
+
+  std::ostringstream out;
+  Aleph::format_string(out, lens, mat);
+  EXPECT_EQ(out.str(), " id  value \n  7    abc \n 42      x \n");
+}
+
 TEST(StringUtils, to_string_matrix_and_lines)
 {
   DynList<DynList<string>> mat;
@@ -402,6 +521,49 @@ TEST(StringUtils, to_string_matrix_and_lines)
   lines.append("x");
   lines.append("y");
   EXPECT_EQ(Aleph::to_string(lines), "x\ny");
+}
+
+TEST(StringUtilsCritical, justify_text_exact_wrapping_and_margins)
+{
+  const auto justified = justify_text("a bb c ddd e", 7, 2);
+  EXPECT_EQ(justified, "  a  bb c\n  ddd e");
+
+  auto lines = split_text_into_lines(justified);
+  ASSERT_EQ(lines.size(), 2u);
+  EXPECT_EQ(lines.nth(0).size(), 9u); // width + margin
+  EXPECT_EQ(lines.nth(1), "  ddd e");
+
+  EXPECT_EQ(justify_text("encyclopedia x", 5), "encyclopedia\nx");
+  EXPECT_EQ(justify_text("  one\t two\nthree  ", 6), "one\ntwo\nthree");
+}
+
+TEST(StringUtilsCritical, numeric_parsing_strictness)
+{
+  EXPECT_TRUE(is_double("0"));
+  EXPECT_TRUE(is_double("-1.25"));
+  EXPECT_TRUE(is_double("6.022e23"));
+  EXPECT_TRUE(is_double("  +3.5"));
+
+  EXPECT_FALSE(is_double(""));
+  EXPECT_FALSE(is_double("1.2x"));
+  EXPECT_FALSE(is_double("3.14 "));
+  EXPECT_FALSE(is_double("1e309"));
+  EXPECT_FALSE(is_double("1e-5000"));
+  EXPECT_FALSE(is_double("nan"));
+  EXPECT_FALSE(is_double("inf"));
+
+  EXPECT_DOUBLE_EQ(safe_atof("0"), 0.0);
+  EXPECT_NEAR(safe_atof("-1.25e2"), -125.0, 1e-12);
+  EXPECT_NEAR(safe_atof("  +3.5"), 3.5, 1e-12);
+
+  EXPECT_THROW(safe_atof(""), runtime_error);
+  EXPECT_THROW(safe_atof("abc"), runtime_error);
+  EXPECT_THROW(safe_atof("1.2x"), runtime_error);
+  EXPECT_THROW(safe_atof("3.5 "), runtime_error);
+  EXPECT_THROW(safe_atof("1e309"), runtime_error);
+  EXPECT_THROW(safe_atof("1e-5000"), runtime_error);
+  EXPECT_THROW(safe_atof("nan"), runtime_error);
+  EXPECT_THROW(safe_atof("inf"), runtime_error);
 }
 
 TEST(StringUtils, split_text_into_words_and_lines)
@@ -542,6 +704,44 @@ TEST(StringUtilsStress, split_string_tokens_have_no_delims)
         for (char c : delims)
           EXPECT_EQ(t.find(c), string::npos);
       });
+    }
+}
+
+TEST(StringUtilsStress, split_string_matches_reference_parser)
+{
+  std::mt19937 rng(1337);
+  static const string delim_pool = " ,;|/_-\t\n";
+  static const string token_pool =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+  std::uniform_int_distribution<int> delim_size_dist(0, 4);
+  std::uniform_int_distribution<int> delim_pick(0, int(delim_pool.size() - 1));
+  std::uniform_int_distribution<int> token_pick(0, int(token_pool.size() - 1));
+  std::uniform_int_distribution<int> text_len_dist(0, 128);
+  std::bernoulli_distribution use_delim(0.30);
+
+  for (int iter = 0; iter < 2000*stress_multiplier(); ++iter)
+    {
+      string delims;
+      const int dsz = delim_size_dist(rng);
+      for (int i = 0; i < dsz; ++i)
+        delims.push_back(delim_pool[size_t(delim_pick(rng))]);
+
+      string text;
+      const int len = text_len_dist(rng);
+      text.reserve(size_t(len));
+      for (int i = 0; i < len; ++i)
+        if (not delims.empty() and use_delim(rng))
+          text.push_back(delims[size_t(delim_pick(rng)) % delims.size()]);
+        else
+          text.push_back(token_pool[size_t(token_pick(rng))]);
+
+      const auto expected = reference_split_string(text, delims);
+      const auto list_out = split_to_list(text, delims);
+      const auto array_out = split_to_array(text, delims);
+
+      expect_tokens_eq(expected, list_out);
+      expect_tokens_eq(expected, array_out);
     }
 }
 

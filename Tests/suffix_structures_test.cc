@@ -39,20 +39,10 @@
 # include <stdexcept>
 
 # include <Suffix_Structures.H>
+# include "test_helpers.H"
 
 using namespace Aleph;
-
-namespace
-{
-  void expect_array_eq(const Array<size_t> & a,
-                       std::initializer_list<size_t> expected)
-  {
-    ASSERT_EQ(a.size(), expected.size());
-    size_t i = 0;
-    for (const size_t value : expected)
-      EXPECT_EQ(a[i++], value);
-  }
-}
+using namespace Aleph::test_helpers;
 
 TEST(SuffixStructures, SuffixArrayBanana)
 {
@@ -198,7 +188,7 @@ TEST(SuffixStructures, StressLongerSuffixArray)
                                           text.size() - sa[i - 1]);
       const std::string_view curr_suffix(text.data() + sa[i],
                                           text.size() - sa[i]);
-      EXPECT_LE(prev_suffix, curr_suffix);
+      EXPECT_LT(prev_suffix, curr_suffix);
     }
 }
 

@@ -4538,46 +4538,6 @@ namespace Aleph
 
     template <typename IntT>
       requires counting_integer<IntT>
-    void counting_sort_impl(std::vector<IntT> & a)
-    {
-      const size_t n = a.size();
-      if (n < 2)
-        return;
-
-      IntT min_key = a[0], max_key = a[0];
-      for (size_t i = 1; i < n; ++i)
-        {
-          if (a[i] < min_key)
-            min_key = a[i];
-          if (a[i] > max_key)
-            max_key = a[i];
-        }
-
-      const size_t k = counting_bucket_count(min_key, max_key);
-      Array<size_t> count = Array<size_t>::create(k);
-      for (size_t i = 0; i < k; ++i)
-        count[i] = 0;
-
-      for (size_t i = 0; i < n; ++i)
-        ++count[counting_bucket(a[i], min_key)];
-
-      for (size_t i = 1; i < k; ++i)
-        count[i] += count[i - 1];
-
-      Array<IntT> tmp = Array<IntT>::create(n);
-      for (size_t i = n; i > 0; --i)
-        {
-          const auto bucket = counting_bucket(a[i - 1], min_key);
-          tmp[--count[bucket]] = a[i - 1];
-        }
-
-      for (size_t i = 0; i < n; ++i)
-        a[i] = tmp[i];
-    }
-
-
-    template <typename IntT>
-      requires counting_integer<IntT>
     void counting_sort_impl(DynList<IntT> & list)
     {
       const size_t n = list.size();
@@ -4919,23 +4879,6 @@ namespace Aleph
   void counting_sort(T (& a)[N])
   {
     counting_sort(a, N);
-  }
-
-
-  /** @brief Stable counting sort for integral std::vector values.
-   *
-   *  Sorts in ascending order by counting frequencies of each distinct
-   *  integer value in the observed key range `[min(a), max(a)]`.
-   *
-   *  @par Complexity
-   *  O(n + k) time and O(n + k) extra space, where
-   *  `k = max(a) - min(a) + 1`.
-   */
-  template <typename T>
-    requires CountingSortable<T>
-  void counting_sort(std::vector<T> & a)
-  {
-    sort_utils_detail::counting_sort_impl(a);
   }
 
 

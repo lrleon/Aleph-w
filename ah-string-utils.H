@@ -52,6 +52,7 @@
 # include <algorithm>
 # include <cctype>
 # include <cerrno>
+# include <cmath>
 # include <cstdlib>
 # include <iomanip>
 # include <limits>
@@ -414,10 +415,10 @@ namespace Aleph
     const char *begin = str.c_str();
     char *endptr = nullptr;
     errno = 0;
-    (void) std::strtod(begin, &endptr);
+    const auto val = std::strtod(begin, &endptr);
     if (endptr == begin or *endptr != '\0')
       return false;
-    return errno != ERANGE;
+    return errno != ERANGE and std::isfinite(val);
   }
 
   /** Check whether a std::string fully parses as a finite `float`.
@@ -433,10 +434,10 @@ namespace Aleph
     const char *begin = str.c_str();
     char *endptr = nullptr;
     errno = 0;
-    (void) std::strtof(begin, &endptr);
+    const auto val = std::strtof(begin, &endptr);
     if (endptr == begin or *endptr != '\0')
       return false;
-    return errno != ERANGE;
+    return errno != ERANGE and std::isfinite(val);
   }
 
   /** Check whether a std::string fully parses as a `long`.
@@ -517,7 +518,9 @@ namespace Aleph
     const bool invalid =
         (errno == ERANGE and (val == HUGE_VAL or val == HUGE_VALF or val == HUGE_VALL)) ||
         (errno != 0 && val == 0) ||
-        endptr == s.c_str();
+        endptr == s.c_str() or
+        *endptr != '\0' or
+        not std::isfinite(val);
 
     ah_runtime_error_if(invalid) << "invalid std::string for double: " << s;
     return val;

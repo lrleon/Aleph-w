@@ -36,6 +36,7 @@
 
 # include <iostream>
 # include <string>
+# include <format>
 
 # include <String_Search.H>
 
@@ -48,13 +49,13 @@ int main()
 
   const auto matches = rabin_karp_search(text, pattern);
 
-  std::cout << "Rabin-Karp Example\n";
-  std::cout << "Text   : " << text << "\n";
-  std::cout << "Pattern: " << pattern << "\n\n";
+  std::cout << std::format("Rabin-Karp Example\nText   : {}\nPattern: {}\n\n", 
+                           text, pattern);
 
   std::cout << "Matches at positions: ";
-  for (size_t i = 0; i < matches.size(); ++i)
-    std::cout << matches[i] << (i + 1 == matches.size() ? '\n' : ' ');
+  for (const auto pos : matches)
+    std::cout << std::format("{} ", pos);
+  std::cout << "\n";
 
   return 0;
 }

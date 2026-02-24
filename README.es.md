@@ -504,13 +504,13 @@ Headers relevantes:
 
 ### Ejemplo 7: Algoritmos de strings clásicos
 
-Headers principales:
+Cabeceras principales:
 - `String_Search.H`: KMP, Z-algorithm, Boyer-Moore-Horspool, Rabin-Karp.
 - `Aho_Corasick.H`: matching multi-patrón.
 - `Suffix_Structures.H`: suffix array + LCP (Kasai), suffix tree didáctico, suffix automaton.
 - `String_Palindromes.H`: Manacher.
 - `String_DP.H`: Levenshtein, Damerau-Levenshtein, LCS, longest common substring.
-- `String_Algorithms.H`: include paraguas.
+- `String_Algorithms.H`: cabecera paraguas.
 
 ```cpp
 #include <String_Algorithms.H>

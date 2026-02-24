@@ -104,7 +104,7 @@ TEST(StringPalindromes, ManacherLongPalindrome)
   EXPECT_EQ(r.longest_palindrome, palindrome);
 }
 
-TEST(StringPalindromes, ManacherPalindromeInMiddle)
+TEST(StringPalindromes, ManacherWholeStringPalindrome)
 {
   const auto r = manacher("xxxracecarxxx");
   EXPECT_EQ(r.longest_palindrome, "xxxracecarxxx");
@@ -118,4 +118,151 @@ TEST(StringPalindromes, ManacherStressRepeatedPattern)
   const auto r = manacher(text);
   EXPECT_EQ(r.longest_length, 1000u);
   EXPECT_EQ(r.longest_palindrome, text);
+}
+
+// --- 3.4 Manacher: verify radius arrays directly ---
+
+TEST(StringPalindromes, OddRadiusArrayAbacaba)
+{
+  // "abacaba"
+  //  Char:       a  b  a  c  a  b  a
+  //  odd_radius: 1  2  1  4  1  2  1
+  //  index 1: "aba" centered at 'b' -> radius 2
+  //  index 3: "abacaba" centered at 'c' -> radius 4
+  //  index 5: "aba" centered at 'b' -> radius 2
+  const auto r = manacher("abacaba");
+  ASSERT_EQ(r.odd_radius.size(), 7u);
+  EXPECT_EQ(r.odd_radius[0], 1u);
+  EXPECT_EQ(r.odd_radius[1], 2u);
+  EXPECT_EQ(r.odd_radius[2], 1u);
+  EXPECT_EQ(r.odd_radius[3], 4u);
+  EXPECT_EQ(r.odd_radius[4], 1u);
+  EXPECT_EQ(r.odd_radius[5], 2u);
+  EXPECT_EQ(r.odd_radius[6], 1u);
+}
+
+TEST(StringPalindromes, EvenRadiusArrayAbba)
+{
+  // "abba"
+  //  even_radius[i] = max k such that text[i-k..i-1] == rev(text[i..i+k-1])
+  //  i=0: 0, i=1: 0, i=2: 2 ("abba"), i=3: 0
+  const auto r = manacher("abba");
+  ASSERT_EQ(r.even_radius.size(), 4u);
+  EXPECT_EQ(r.even_radius[0], 0u);
+  EXPECT_EQ(r.even_radius[1], 0u);
+  EXPECT_EQ(r.even_radius[2], 2u);
+  EXPECT_EQ(r.even_radius[3], 0u);
+}
+
+TEST(StringPalindromes, OddRadiusArrayAllSame)
+{
+  // "aaaa"
+  //  i=0: radius 1, i=1: radius 2, i=2: radius 2, i=3: radius 1
+  const auto r = manacher("aaaa");
+  ASSERT_EQ(r.odd_radius.size(), 4u);
+  EXPECT_EQ(r.odd_radius[0], 1u);
+  EXPECT_EQ(r.odd_radius[1], 2u);
+  EXPECT_EQ(r.odd_radius[2], 2u);
+  EXPECT_EQ(r.odd_radius[3], 1u);
+}
+
+TEST(StringPalindromes, EvenRadiusArrayAllSame)
+{
+  // "aaaa" even radii
+  //  i=0: 0, i=1: 1, i=2: 2, i=3: 1
+  const auto r = manacher("aaaa");
+  ASSERT_EQ(r.even_radius.size(), 4u);
+  EXPECT_EQ(r.even_radius[0], 0u);
+  EXPECT_EQ(r.even_radius[1], 1u);
+  EXPECT_EQ(r.even_radius[2], 2u);
+  EXPECT_EQ(r.even_radius[3], 1u);
+}
+
+TEST(StringPalindromes, RadiusBruteForceVerification)
+{
+  // Verify Manacher's radius arrays against brute-force for a test string
+  const std::string text = "abcbaXcbcYaabaa";
+  const size_t n = text.size();
+  const auto r = manacher(text);
+
+  ASSERT_EQ(r.odd_radius.size(), n);
+  ASSERT_EQ(r.even_radius.size(), n);
+
+  // Brute-force verify odd radii
+  for (size_t i = 0; i < n; ++i)
+    {
+      size_t k = 1;
+      while (i >= k and i + k < n and text[i - k] == text[i + k])
+        ++k;
+      EXPECT_EQ(r.odd_radius[i], k) << "odd_radius mismatch at i=" << i;
+    }
+
+  // Brute-force verify even radii
+  for (size_t i = 0; i < n; ++i)
+    {
+      size_t k = 0;
+      while (i >= k + 1 and i + k < n and text[i - k - 1] == text[i + k])
+        ++k;
+      EXPECT_EQ(r.even_radius[i], k) << "even_radius mismatch at i=" << i;
+    }
+}
+
+TEST(StringPalindromes, RadiusSingleCharString)
+{
+  const auto r = manacher("x");
+  ASSERT_EQ(r.odd_radius.size(), 1u);
+  ASSERT_EQ(r.even_radius.size(), 1u);
+  EXPECT_EQ(r.odd_radius[0], 1u);
+  EXPECT_EQ(r.even_radius[0], 0u);
+}
+
+TEST(StringPalindromes, RadiusTwoChars)
+{
+  {
+    const auto r = manacher("ab");
+    ASSERT_EQ(r.odd_radius.size(), 2u);
+    EXPECT_EQ(r.odd_radius[0], 1u);
+    EXPECT_EQ(r.odd_radius[1], 1u);
+    EXPECT_EQ(r.even_radius[0], 0u);
+    EXPECT_EQ(r.even_radius[1], 0u);
+  }
+  {
+    const auto r = manacher("aa");
+    ASSERT_EQ(r.odd_radius.size(), 2u);
+    EXPECT_EQ(r.odd_radius[0], 1u);
+    EXPECT_EQ(r.odd_radius[1], 1u);
+    EXPECT_EQ(r.even_radius[0], 0u);
+    EXPECT_EQ(r.even_radius[1], 1u);
+  }
+}
+
+TEST(StringPalindromes, RadiusStressRandomString)
+{
+  // Build a 2000-character string and verify radii match brute force
+  std::string text;
+  text.reserve(2000);
+  for (int i = 0; i < 2000; ++i)
+    text.push_back('a' + (i * 7 + 3) % 4); // small alphabet
+
+  const size_t n = text.size();
+  const auto r = manacher(text);
+
+  ASSERT_EQ(r.odd_radius.size(), n);
+  ASSERT_EQ(r.even_radius.size(), n);
+
+  for (size_t i = 0; i < n; ++i)
+    {
+      size_t k = 1;
+      while (i >= k and i + k < n and text[i - k] == text[i + k])
+        ++k;
+      EXPECT_EQ(r.odd_radius[i], k);
+    }
+
+  for (size_t i = 0; i < n; ++i)
+    {
+      size_t k = 0;
+      while (i >= k + 1 and i + k < n and text[i - k - 1] == text[i + k])
+        ++k;
+      EXPECT_EQ(r.even_radius[i], k);
+    }
 }

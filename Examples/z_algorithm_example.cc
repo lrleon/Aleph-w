@@ -36,10 +36,21 @@
 
 # include <iostream>
 # include <string>
+# include <format>
+# include <ranges>
 
 # include <String_Search.H>
 
 using namespace Aleph;
+
+template <typename Range>
+void print_range(std::string_view label, const Range & r)
+{
+  std::cout << label << ": ";
+  for (const auto & item : r)
+    std::cout << std::format("{} ", item);
+  std::cout << "\n";
+}
 
 int main()
 {
@@ -49,17 +60,11 @@ int main()
   const auto z = z_algorithm(text);
   const auto matches = z_search(text, pattern);
 
-  std::cout << "Z-Algorithm Example\n";
-  std::cout << "Text   : " << text << "\n";
-  std::cout << "Pattern: " << pattern << "\n\n";
+  std::cout << std::format("Z-Algorithm Example\nText   : {}\nPattern: {}\n\n",
+                           text, pattern);
 
-  std::cout << "Z-array: ";
-  for (size_t i = 0; i < z.size(); ++i)
-    std::cout << z[i] << (i + 1 == z.size() ? '\n' : ' ');
-
-  std::cout << "Matches at positions: ";
-  for (size_t i = 0; i < matches.size(); ++i)
-    std::cout << matches[i] << (i + 1 == matches.size() ? '\n' : ' ');
+  print_range("Z-array", z);
+  print_range("Matches at positions", matches);
 
   return 0;
 }
