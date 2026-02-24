@@ -210,3 +210,22 @@ TEST(SuffixStructures, BinaryContentSuffixAutomaton)
 
   EXPECT_FALSE(sam.contains(text + "x"));
 }
+
+TEST(SuffixStructures, SuffixAutomatonCloneLinkInvariant)
+{
+  // Regression: cloning a state could produce a non-root state with
+  // link == -1, causing out-of-range access in distinct_substring_count()
+  // and longest_common_substring().
+  Suffix_Automaton sam;
+  sam.build("bcaaaccaaacccaacca");
+
+  // Verify invariant: only state 0 may have link == -1
+  const auto & states = sam.states();
+  for (size_t i = 1; i < states.size(); ++i)
+    EXPECT_GE(states[i].link, 0) << "state " << i << " has link == -1";
+
+  // These must not crash
+  EXPECT_GT(sam.distinct_substring_count(), 0u);
+  EXPECT_EQ(sam.longest_common_substring("aacca"), "aacca");
+  EXPECT_TRUE(sam.contains("caaaccaaaccc"));
+}

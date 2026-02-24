@@ -673,6 +673,9 @@ namespace Aleph
               states_[static_cast<size_t>(clone)].len =
                   states_[static_cast<size_t>(p)].len + 1;
               states_[static_cast<size_t>(clone)].terminal = false;
+              // Enforce invariant: only root (state 0) may have link == -1
+              if (states_[static_cast<size_t>(clone)].link == -1)
+                states_[static_cast<size_t>(clone)].link = 0;
 
               while (p != -1 and states_[static_cast<size_t>(p)].next[c] == q)
                 {

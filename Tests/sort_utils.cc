@@ -40,7 +40,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
-#include <ranges>
 #include <vector>
 
 #include <tpl_sort_utils.H>
@@ -289,8 +288,8 @@ TEST(SortUtilsHelpers, partition_op_dynarray_invariants)
   after.reserve(a.size());
   for (size_t i = 0; i < a.size(); ++i)
     after.push_back(a(i));
-  std::ranges::sort(before);
-  std::ranges::sort(after);
+  std::sort(before.begin(), before.end());
+  std::sort(after.begin(), after.end());
   EXPECT_EQ(before, after);
 }
 
@@ -319,8 +318,8 @@ TEST(SortUtilsHelpers, partition_op_array_invariants)
   after.reserve(a.size());
   for (size_t i = 0; i < a.size(); ++i)
     after.push_back(a(i));
-  std::ranges::sort(before);
-  std::ranges::sort(after);
+  std::sort(before.begin(), before.end());
+  std::sort(after.begin(), after.end());
   EXPECT_EQ(before, after);
 }
 
@@ -329,7 +328,7 @@ TEST(SortUtilsHelpers, __random_select_dynarray_and_array)
   {
     auto a = make_dynarray({4, 1, 3, 2, 0, 2});
     auto expected = std::vector<int>{4, 1, 3, 2, 0, 2};
-    std::ranges::sort(expected);
+    std::sort(expected.begin(), expected.end());
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 0, 0, 5)), expected[0]);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 3, 0, 5)), expected[3]);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 5, 0, 5)), expected[5]);
@@ -340,7 +339,7 @@ TEST(SortUtilsHelpers, __random_select_dynarray_and_array)
     for (int x : {4, 1, 3, 2, 0, 2})
       a.append(x);
     auto expected = std::vector<int>{4, 1, 3, 2, 0, 2};
-    std::ranges::sort(expected);
+    std::sort(expected.begin(), expected.end());
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 0, 0, 5)), expected[0]);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 3, 0, 5)), expected[3]);
     EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 5, 0, 5)), expected[5]);
@@ -476,7 +475,7 @@ TEST(SortUtilsHelpers, __random_select_raw_pointer)
 {
   int a[] = {4, 1, 3, 2, 0, 2};
   std::vector<int> expected(std::begin(a), std::end(a));
-  std::ranges::sort(expected);
+  std::sort(expected.begin(), expected.end());
 
   Aleph::less<int> cmp;
   EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 0, 0, 5, cmp)), expected[0]);
