@@ -53,9 +53,11 @@
 # ifndef STRING_SEARCH_H
 # define STRING_SEARCH_H
 
+# include <cstdint>
 # include <algorithm>
 # include <string>
 # include <string_view>
+# include <array>
 
 # include <tpl_array.H>
 
@@ -87,7 +89,8 @@ namespace Aleph
                                       const std::string_view b,
                                       char & delimiter)
     {
-      bool used[256] = {false};
+      std::array<bool, 256> used{};
+      used.fill(false);
       for (const unsigned char c : a)
         used[c] = true;
 

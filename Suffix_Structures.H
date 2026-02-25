@@ -194,11 +194,13 @@ namespace Aleph
     for (size_t i = 0; i < n; ++i)
       lcp[i] = 0;
 
-    Array<size_t> rank = Array<size_t>::create(n);
+    Array<size_t> rank(n, std::numeric_limits<size_t>::max());
     for (size_t i = 0; i < n; ++i)
       {
         ah_out_of_range_error_if(sa[i] >= n)
           << "lcp_array_kasai(): suffix array contains invalid index";
+        ah_out_of_range_error_if(rank[sa[i]] != std::numeric_limits<size_t>::max())
+          << "lcp_array_kasai(): suffix array contains duplicate index";
         rank[sa[i]] = i;
       }
 
@@ -234,9 +236,9 @@ namespace Aleph
    *  @note Construction is O(n^2) in time and space.  This class is meant
    *        for teaching and small inputs; for production use prefer the
    *        suffix array + LCP approach or an external linear-time library.
-   *  @note A unique terminal byte is appended internally.  If every byte
-   *        value (1--255) appears in the input, construction will throw
-   *        `domain_error`.
+   *  @note A unique terminal byte is appended internally via choose_terminal().
+   *        If every byte value (0–255) appears in the input, construction
+   *        will throw std::domain_error.
    */
   class Naive_Suffix_Tree
   {
@@ -411,9 +413,12 @@ namespace Aleph
      */
     void build(const std::string_view text)
     {
+      const char terminal = choose_terminal(text);
+      std::string new_text(text.begin(), text.end());
+      new_text.push_back(terminal);
+
       original_size_ = text.size();
-      text_.assign(text.begin(), text.end());
-      text_.push_back(choose_terminal(text));
+      text_ = std::move(new_text);
 
       nodes_.empty();
       nodes_.append(Node{}); // root

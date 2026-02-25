@@ -64,6 +64,14 @@ TEST(SuffixStructures, LcpKasaiRejectsInvalidInput)
   EXPECT_THROW((void) lcp_array_kasai("banana", bad), std::domain_error);
 }
 
+TEST(SuffixStructures, LcpKasaiRejectsDuplicates)
+{
+  // Suffix array for "abc" is {0, 1, 2}.
+  // We provide a malformed SA {0, 1, 1} which has a duplicate.
+  Array<size_t> sa = build_array<size_t>(0, 1, 1);
+  EXPECT_THROW((void) lcp_array_kasai("abc", sa), std::out_of_range);
+}
+
 TEST(SuffixStructures, NaiveSuffixTreeContainsAndFindAll)
 {
   Naive_Suffix_Tree st("banana");

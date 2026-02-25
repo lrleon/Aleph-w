@@ -4362,8 +4362,8 @@ namespace Aleph
    *        `k = max_key - min_key + 1`.
    */
   template <typename KeyFn>
-    requires std::invocable<KeyFn, size_t> and
-             std::convertible_to<std::invoke_result_t<KeyFn, size_t>, int>
+    requires std::invocable<const KeyFn &, size_t> and
+             std::convertible_to<std::invoke_result_t<const KeyFn &, size_t>, int>
   void counting_sort_indices(Array<size_t> & sa,
                              Array<size_t> & tmp,
                              const size_t n,
@@ -4423,10 +4423,18 @@ namespace Aleph
 
   namespace sort_utils_detail
   {
+    /** @brief Value concept for counting sort.
+     *  @details Currently aliases IntegerSortableValue<T>, but may diverge
+     *           if specific constraints are added for counting sort.
+     */
     template <typename T>
     concept counting_integer = IntegerSortableValue<T>;
 
 
+    /** @brief Value concept for radix sort.
+     *  @details Currently aliases IntegerSortableValue<T>, but may diverge
+     *           if specific constraints are added for radix sort.
+     */
     template <typename T>
     concept radix_integer = IntegerSortableValue<T>;
 

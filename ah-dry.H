@@ -308,8 +308,7 @@ public:
 
       \warning Frequent use of this method will definitively degrade the
       performance. Try not to use this method inside loops. In general,
-      if you fall in the situation, then consider your design and to
-      use a faster approach.
+      if you fall into the situation, then consider your design and       use a faster approach.
 
       \param[in] operation to be performed on each item for matching a
       searching criteria.
