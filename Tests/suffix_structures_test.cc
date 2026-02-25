@@ -76,6 +76,10 @@ TEST(SuffixStructures, NaiveSuffixTreeContainsAndFindAll)
 {
   Naive_Suffix_Tree st("banana");
 
+  EXPECT_EQ(st.text_size(), 6u);
+  EXPECT_GT(st.node_count(), 0u);
+  EXPECT_EQ(st.nodes().size(), st.node_count());
+
   EXPECT_TRUE(st.contains("ana"));
   EXPECT_TRUE(st.contains("nana"));
   EXPECT_FALSE(st.contains("apple"));
@@ -84,6 +88,17 @@ TEST(SuffixStructures, NaiveSuffixTreeContainsAndFindAll)
   expect_array_eq(st.find_all("nana"), {2});
   EXPECT_TRUE(st.find_all("apple").is_empty());
   expect_array_eq(st.find_all(""), {0, 1, 2, 3, 4, 5, 6});
+}
+
+TEST(SuffixStructures, NaiveSuffixTreeSentinelExhaustion)
+{
+  // Construct a string containing all 256 byte values
+  std::string full_alphabet;
+  for (int i = 0; i < 256; ++i)
+    full_alphabet.push_back(static_cast<char>(i));
+
+  // Should throw domain_error because no unique sentinel is available
+  EXPECT_THROW(Naive_Suffix_Tree st(full_alphabet), std::domain_error);
 }
 
 TEST(SuffixStructures, SuffixAutomatonContainsAndDistinctCount)

@@ -54,6 +54,7 @@
 # include <string>
 # include <string_view>
 # include <utility>
+# include <array>
 
 # include <ah-errors.H>
 # include <tpl_array.H>
@@ -265,7 +266,8 @@ namespace Aleph
 
     static char choose_terminal(const std::string_view s)
     {
-      bool used[256] = {false};
+      std::array<bool, 256> used;
+      used.fill(false);
       for (const unsigned char c: s)
         used[c] = true;
 
@@ -579,16 +581,15 @@ namespace Aleph
     /** @brief One automaton state. */
     struct State
     {
-      int next[256]; /**< Transitions for each byte */
-      int link = -1; /**< Suffix link */
-      size_t len = 0; /**< Max length of substring in this state */
+      std::array<int, 256> next; /**< Transitions for each byte */
+      int link = -1;      /**< Suffix link */
+      size_t len = 0;     /**< Max length of substring in this state */
       size_t first_pos = 0; /**< First occurrence end position */
       bool terminal = false; /**< true if state is terminal */
 
       State()
       {
-        for (int & i: next)
-          i = -1;
+        next.fill(-1);
       }
     };
 
