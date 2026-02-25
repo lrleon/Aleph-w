@@ -4450,10 +4450,13 @@ namespace Aleph
       const U range_minus_one =
         static_cast<U>(max_key) - static_cast<U>(min_key);
 
-      constexpr size_t max_count =
-        std::numeric_limits<size_t>::max() - static_cast<size_t>(1);
-      ah_runtime_error_unless(range_minus_one <= static_cast<U>(max_count))
-        << "counting_sort(): key range is too large";
+      if constexpr (sizeof(U) >= sizeof(size_t))
+        {
+          constexpr size_t max_count =
+            std::numeric_limits<size_t>::max() - static_cast<size_t>(1);
+          ah_runtime_error_unless(range_minus_one <= static_cast<U>(max_count))
+            << "counting_sort(): key range is too large";
+        }
 
       return static_cast<size_t>(range_minus_one) + 1;
     }
@@ -4830,6 +4833,9 @@ namespace Aleph
    *  @tparam T Value type.
    *  @param[in,out] a The DynArray to sort.
    *
+   *  @throws std::domain_error if `max(a) < min(a)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *
    *  @par Complexity
    *  O(n + k) time and O(n + k) extra space, where
    *  `k = max(a) - min(a) + 1`.
@@ -4850,6 +4856,9 @@ namespace Aleph
    *  @tparam T Value type.
    *  @param[in,out] a The Array to sort.
    *
+   *  @throws std::domain_error if `max(a) < min(a)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *
    *  @par Complexity
    *  O(n + k) time and O(n + k) extra space, where
    *  `k = max(a) - min(a) + 1`.
@@ -4869,6 +4878,9 @@ namespace Aleph
    *
    *  @tparam T Value type.
    *  @param[in,out] list The DynList to sort.
+   *
+   *  @throws std::domain_error if `max(list) < min(list)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
    */
   template <typename T>
     requires CountingSortable<T>
@@ -4885,6 +4897,9 @@ namespace Aleph
    *
    *  @tparam T Value type.
    *  @param[in,out] list The DynDlist to sort.
+   *
+   *  @throws std::domain_error if `max(list) < min(list)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
    */
   template <typename T>
     requires CountingSortable<T>
@@ -4900,7 +4915,9 @@ namespace Aleph
    *  @param[in,out] a Pointer to the first element.
    *  @param[in] n Number of elements.
    *
-   *  @exception std::runtime_error If `a` is null and `n > 0`.
+   *  @throws std::domain_error if `max(a) < min(a)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t` 
+   *                             or if `a` is null and `n > 0`.
    *
    *  @par Complexity
    *  O(n + k) time and O(n + k) extra space, where
@@ -4921,6 +4938,9 @@ namespace Aleph
    *  @tparam T Value type.
    *  @tparam N Array size.
    *  @param[in,out] a The fixed-size array to sort.
+   *
+   *  @throws std::domain_error if `max(a) < min(a)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
    */
   template <typename T, size_t N>
     requires CountingSortable<T>
@@ -4937,6 +4957,9 @@ namespace Aleph
    *
    *  @tparam T Value type.
    *  @param[in,out] a The DynArray to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
    *
    *  @par Complexity
    *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
@@ -4957,6 +4980,9 @@ namespace Aleph
    *  @tparam T Value type.
    *  @param[in,out] a The Array to sort.
    *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
+   *
    *  @par Complexity
    *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
    */
@@ -4974,6 +5000,9 @@ namespace Aleph
    *
    *  @tparam T Value type.
    *  @param[in,out] list The DynList to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
    */
   template <typename T>
     requires RadixSortable<T>
@@ -4989,6 +5018,9 @@ namespace Aleph
    *
    *  @tparam T Value type.
    *  @param[in,out] list The DynDlist to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
    */
   template <typename T>
     requires RadixSortable<T>
@@ -5004,7 +5036,8 @@ namespace Aleph
    *  @param[in,out] a Pointer to the first element.
    *  @param[in] n Number of elements.
    *
-   *  @exception std::runtime_error If `a` is null and `n > 0`.
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if `a` is null and `n > 0`.
    *
    *  @par Complexity
    *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
@@ -5024,6 +5057,9 @@ namespace Aleph
    *  @tparam T Value type.
    *  @tparam N Array size.
    *  @param[in,out] a The fixed-size array to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
    */
   template <typename T, size_t N>
     requires RadixSortable<T>

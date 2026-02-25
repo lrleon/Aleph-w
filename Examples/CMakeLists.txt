@@ -27,6 +27,7 @@ set(EXAMPLE_PROGRAMS
     dynmap_example
     dynset_trees
     evalExp
+    fib
     fibonacci
     functional_example
     gen_rand_graph

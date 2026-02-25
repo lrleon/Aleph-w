@@ -131,7 +131,7 @@ namespace Aleph
           };
 
         counting_sort_indices(sa, tmp_sa, n, -1, max_rank, key2);
-        counting_sort_indices(sa, tmp_sa, n,  0, max_rank, key1);
+        counting_sort_indices(sa, tmp_sa, n, 0, max_rank, key1);
 
         auto less_idx = [&](const size_t a, const size_t b)
           {
@@ -249,9 +249,9 @@ namespace Aleph
      */
     struct Node
     {
-      size_t start = 0;        /**< Start index in text */
-      size_t end = 0;          /**< End index in text */
-      size_t parent = npos;    /**< Parent node index */
+      size_t start = 0; /**< Start index in text */
+      size_t end = 0; /**< End index in text */
+      size_t parent = npos; /**< Parent node index */
       Array<size_t> children; /**< Indices of children nodes */
       size_t suffix_index = npos; /**< Index of suffix starting at leaf */
     };
@@ -271,9 +271,9 @@ namespace Aleph
         if (not used[i])
           return static_cast<char>(i);
 
-      ah_domain_error_if(true)
-        << "Naive_Suffix_Tree::choose_terminal(): all 256 byte values "
-        << "are present in the input; no terminal marker available";
+      ah_domain_error()
+          << "Naive_Suffix_Tree::choose_terminal(): all 256 byte values "
+          << "are present in the input; no terminal marker available";
 
       return '\0'; // unreachable
     }
@@ -297,11 +297,8 @@ namespace Aleph
     {
       const Array<size_t> & children = nodes_[node].children;
       for (size_t i = 0; i < children.size(); ++i)
-        {
-          const size_t child = children[i];
-          if (text_[nodes_[child].start] == c)
-            return child;
-        }
+        if (const size_t child = children[i]; text_[nodes_[child].start] == c)
+          return child;
 
       return npos;
     }
@@ -310,11 +307,10 @@ namespace Aleph
                        const size_t old_child,
                        const size_t new_child)
     {
-      Array<size_t> & children = nodes_[parent].children;
-      for (size_t i = 0; i < children.size(); ++i)
-        if (children[i] == old_child)
+      for (Array<size_t> & children = nodes_[parent].children; unsigned long & i : children)
+        if (i == old_child)
           {
-            children[i] = new_child;
+            i = new_child;
             return;
           }
     }
@@ -396,6 +392,7 @@ namespace Aleph
     /** @brief Construct a naive suffix tree.
      *  @param[in] text The text to build the tree from. If empty, the tree
      *                  will only contain the terminal character.
+     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(n^2) where n is text.size().
@@ -407,6 +404,7 @@ namespace Aleph
 
     /** @brief Build or rebuild the suffix tree for `text`.
      *  @param[in] text The text to build the tree from.
+     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(n^2) time and O(n^2) space in the worst case, where n is text.size().
@@ -452,6 +450,7 @@ namespace Aleph
           size_t k = 0;
           while (pos + k < pattern.size()
                  and edge_start + k < edge_end
+                 and text_[edge_start + k] != text_.back() // Never match sentinel
                  and pattern[pos + k] == text_[edge_start + k])
             ++k;
 
@@ -503,6 +502,7 @@ namespace Aleph
           size_t k = 0;
           while (pos + k < pattern.size()
                  and edge_start + k < edge_end
+                 and text_[edge_start + k] != text_.back() // Never match sentinel
                  and pattern[pos + k] == text_[edge_start + k])
             ++k;
 
@@ -574,9 +574,9 @@ namespace Aleph
     /** @brief One automaton state. */
     struct State
     {
-      int next[256];      /**< Transitions for each byte */
-      int link = -1;      /**< Suffix link */
-      size_t len = 0;     /**< Max length of substring in this state */
+      int next[256]; /**< Transitions for each byte */
+      int link = -1; /**< Suffix link */
+      size_t len = 0; /**< Max length of substring in this state */
       size_t first_pos = 0; /**< First occurrence end position */
       bool terminal = false; /**< true if state is terminal */
 
@@ -606,6 +606,7 @@ namespace Aleph
 
   public:
     /** @brief Construct an empty suffix automaton (SAM) with only the root state.
+     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(1).
@@ -616,6 +617,7 @@ namespace Aleph
     }
 
     /** @brief Reset the automaton to its initial empty state (root only).
+     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(1).
@@ -633,6 +635,7 @@ namespace Aleph
 
     /** @brief Extend the SAM with a single character.
      *  @param[in] ch The character to append to the current text representation.
+     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  Amortized O(1).
@@ -691,6 +694,7 @@ namespace Aleph
 
     /** @brief Build the SAM from an entire string.
      *  @param[in] text The input string to process.
+     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(n) where n is text.size().
@@ -761,7 +765,7 @@ namespace Aleph
 
       for (size_t i = 0; i < other.size(); ++i)
         {
-          const unsigned char c = static_cast<unsigned char>(other[i]);
+          const auto c = static_cast<unsigned char>(other[i]);
 
           while (state != 0 and states_[static_cast<size_t>(state)].next[c] == -1)
             {

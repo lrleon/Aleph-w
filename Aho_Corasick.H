@@ -158,9 +158,12 @@ namespace Aleph
 
     /** @brief Build failure links and transition completion.
      *
-     *  Must be called after all `add_pattern()` calls and before `search()`.
+     *  Finalizes the automaton structure. Must be called after all `add_pattern()`
+     *  calls and before invoking `search()`.
      *
-     *  @pre build() has been called since the last modification.
+     *  @pre `add_pattern()` has been called for all desired patterns and no
+     *       further modifications (no additional `add_pattern()` calls) have
+     *       occurred since.
      *
      *  @par Complexity
      *  O(sum(pattern lengths) * alphabet) with fixed alphabet 256.

@@ -50,6 +50,7 @@
 # define AH_STRING_UTILS_H
 
 # include <algorithm>
+# include <array>
 # include <cctype>
 # include <cerrno>
 # include <cmath>
@@ -141,21 +142,85 @@ namespace Aleph
                            }).base(), s.end());
   }
 
-  // fast concatenation of several strings
-  /** Concatenate multiple streamable arguments into a single std::string.
+  namespace concat_detail
+  {
+    template <typename T>
+    inline constexpr bool is_string_like =
+      std::is_convertible_v<T, std::string_view> or
+      std::is_same_v<std::decay_t<T>, char>;
 
-      This is implemented via `std::ostringstream` and stream insertion.
+    inline size_t piece_size(std::string_view s) noexcept { return s.size(); }
+    inline size_t piece_size(char) noexcept { return 1; }
 
-      \tparam Args Types streamable to `std::ostream`.
+    inline void append_to(std::string & out, std::string_view s) { out += s; }
+    inline void append_to(std::string & out, char c) { out += c; }
+
+    /** @brief Convert any single value to std::string.
+     *
+     *  - String-like types: copy via string_view (no locale).
+     *  - Arithmetic types: std::to_string (no locale, no virtual dispatch,
+     *    typically SSO-eligible for small numbers).
+     *  - Anything else: single-shot ostringstream.
+     */
+    template <typename T>
+    std::string stringify(const T & v)
+    {
+      if constexpr (std::is_convertible_v<T, std::string_view>)
+        return std::string(std::string_view(v));
+      else if constexpr (std::is_same_v<std::decay_t<T>, char>)
+        return std::string(1, v);
+      else if constexpr (std::is_arithmetic_v<std::decay_t<T>>)
+        return std::to_string(v);
+      else
+        {
+          std::ostringstream s;
+          s << v;
+          return s.str();
+        }
+    }
+  } // namespace concat_detail
+
+  /** Concatenate multiple arguments into a single std::string.
+
+      When all arguments are string-like (`std::string`, `std::string_view`,
+      `const char *`, `char`), the result is pre-sized with a single heap
+      allocation, and pieces are appended directly — no locale overhead.
+
+      For mixed arguments (numeric, streamable types), each piece is
+      converted individually via `std::to_string` (arithmetic) or a
+      single-shot `ostringstream` (exotic types), then the total size
+      is computed and the result is assembled in one allocation.
+
+      \tparam Args Types that are either string-like or streamable to `std::ostream`.
       \param[in] args Values to concatenate.
       \return Concatenated std::string.
   */
   template <class... Args>
   inline std::string concat(const Args &... args)
   {
-    std::ostringstream s;
-    (s << ... << args);
-    return s.str();
+    if constexpr (sizeof...(Args) == 0)
+      return {};
+    else if constexpr ((concat_detail::is_string_like<Args> and ...))
+      {
+        std::string result;
+        result.reserve((concat_detail::piece_size(args) + ...));
+        (concat_detail::append_to(result, args), ...);
+        return result;
+      }
+    else
+      {
+        std::array<std::string, sizeof...(Args)> pieces = {
+          concat_detail::stringify(args)...
+        };
+        size_t total = 0;
+        for (const auto & p : pieces)
+          total += p.size();
+        std::string result;
+        result.reserve(total);
+        for (const auto & p : pieces)
+          result += p;
+        return result;
+      }
   }
 
   // trim from both ends (in place)

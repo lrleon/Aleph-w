@@ -37,7 +37,6 @@
 # include <iostream>
 # include <string>
 # include <format>
-# include <ranges>
 
 # include <String_Search.H>
 

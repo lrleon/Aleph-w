@@ -32,7 +32,7 @@
 /** @file String_Palindromes.H
  *  @brief Palindrome algorithms over strings.
  *
- *  Includes Manacher's algorithm in O(n) for longest palindromic substring and
+ *  Includes Manacher's algorithm in O(n) for the longest palindromic substring and
  *  radius arrays for odd/even centers.
  *
  *  @example manacher_example.cc
@@ -135,7 +135,7 @@ namespace Aleph
         size_t k = 0;
         if (static_cast<long long>(i) <= r)
           {
-            const size_t mirror = static_cast<size_t>(l + r - static_cast<long long>(i) + 1);
+            const auto mirror = static_cast<size_t>(l + r - static_cast<long long>(i) + 1);
             k = std::min(result.even_radius[mirror],
                          static_cast<size_t>(r - static_cast<long long>(i) + 1));
           }

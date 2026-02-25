@@ -54,7 +54,6 @@
 # define STRING_SEARCH_H
 
 # include <algorithm>
-# include <cstdint>
 # include <string>
 # include <string_view>
 
@@ -271,7 +270,7 @@ namespace Aleph
       return string_search_detail::all_match_positions(text.size());
 
     if (text.size() < pattern.size())
-      return Array<size_t>();
+      return {};
 
     char delimiter = 0;
     if (not string_search_detail::find_unused_delimiter(pattern, text, delimiter))
