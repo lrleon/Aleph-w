@@ -307,7 +307,7 @@ namespace Aleph
                        const size_t old_child,
                        const size_t new_child)
     {
-      for (Array<size_t> & children = nodes_[parent].children; unsigned long & i : children)
+      for (Array<size_t> & children = nodes_[parent].children; size_t & i : children)
         if (i == old_child)
           {
             i = new_child;
@@ -392,8 +392,8 @@ namespace Aleph
     /** @brief Construct a naive suffix tree.
      *  @param[in] text The text to build the tree from. If empty, the tree
      *                  will only contain the terminal character.
-     *  @return None.
-     *  @throws None.
+     *  @throws std::domain_error If all 256 byte values are present in `text`,
+     *                            leaving no unique sentinel character available.
      *  @par Complexity
      *  O(n^2) where n is text.size().
      */
@@ -404,8 +404,8 @@ namespace Aleph
 
     /** @brief Build or rebuild the suffix tree for `text`.
      *  @param[in] text The text to build the tree from.
-     *  @return None.
-     *  @throws None.
+     *  @throws std::domain_error If all 256 byte values are present in `text`,
+     *                            leaving no unique sentinel character available.
      *  @par Complexity
      *  O(n^2) time and O(n^2) space in the worst case, where n is text.size().
      */
@@ -606,7 +606,6 @@ namespace Aleph
 
   public:
     /** @brief Construct an empty suffix automaton (SAM) with only the root state.
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(1).
@@ -617,7 +616,6 @@ namespace Aleph
     }
 
     /** @brief Reset the automaton to its initial empty state (root only).
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(1).
@@ -635,7 +633,6 @@ namespace Aleph
 
     /** @brief Extend the SAM with a single character.
      *  @param[in] ch The character to append to the current text representation.
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  Amortized O(1).
@@ -661,8 +658,7 @@ namespace Aleph
         states_[static_cast<size_t>(cur)].link = 0;
       else
         {
-          const int q = states_[static_cast<size_t>(p)].next[c];
-          if (states_[static_cast<size_t>(p)].len + 1 == states_[static_cast<size_t>(q)].len)
+          if (const int q = states_[static_cast<size_t>(p)].next[c]; states_[static_cast<size_t>(p)].len + 1 == states_[static_cast<size_t>(q)].len)
             states_[static_cast<size_t>(cur)].link = q;
           else
             {
@@ -694,7 +690,6 @@ namespace Aleph
 
     /** @brief Build the SAM from an entire string.
      *  @param[in] text The input string to process.
-     *  @return None.
      *  @throws None.
      *  @par Complexity
      *  O(n) where n is text.size().
@@ -823,9 +818,17 @@ namespace Aleph
 
   /** @brief Convenience function: LCS via suffix automaton.
    *
+   *  Computes the longest common substring between `a` and `b` in linear time
+   *  by building a suffix automaton for `a` and processing `b`.
+   *
    *  @param[in] a First string.
    *  @param[in] b Second string.
    *  @return Longest common substring between `a` and `b`.
+   *
+   *  @throws std::bad_alloc if memory allocation fails.
+   *
+   *  @note Time: O(n + m), Space: O(n * alphabet) where n = a.size(),
+   *        m = b.size(), and alphabet = 256.
    */
   inline std::string longest_common_substring_sam(const std::string_view a,
                                                   const std::string_view b)

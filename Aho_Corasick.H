@@ -131,7 +131,7 @@ namespace Aleph
      */
     size_t add_pattern(std::string pattern)
     {
-      ah_domain_error_if(pattern.empty())
+      ah_invalid_argument_if(pattern.empty())
         << "Aho_Corasick::add_pattern(): pattern cannot be empty";
 
       size_t state = 0;

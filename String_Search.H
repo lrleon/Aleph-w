@@ -94,7 +94,7 @@ namespace Aleph
       for (const unsigned char c : b)
         used[c] = true;
 
-      for (size_t i = 1; i < 256; ++i)
+      for (size_t i = 0; i < 256; ++i)
         if (not used[i])
           {
             delimiter = static_cast<char>(i);

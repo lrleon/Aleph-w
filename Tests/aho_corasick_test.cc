@@ -125,7 +125,7 @@ TEST(AhoCorasick, IncrementalBuildAfterPreviousBuild)
 TEST(AhoCorasick, EmptyPatternRejected)
 {
   Aho_Corasick ac;
-  EXPECT_THROW((void) ac.add_pattern(""), std::domain_error);
+  EXPECT_THROW((void) ac.add_pattern(""), std::invalid_argument);
 }
 
 TEST(AhoCorasick, ClearAndRebuild)

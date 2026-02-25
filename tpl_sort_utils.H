@@ -4873,14 +4873,19 @@ namespace Aleph
 
   /** @brief Stable counting sort for integral DynList values.
    *
-   *  This overload computes frequencies and writes ordered values directly
-   *  into existing list nodes.
+   *  This overload performs an in-place value-replacement pass directly into
+   *  existing list nodes. It preserves stability for plain integral types.
+   *  However, user-defined types wrapping keys may not observe true stability
+   *  (object identity preservation) because node rearrangement is not performed.
    *
    *  @tparam T Value type.
    *  @param[in,out] list The DynList to sort.
    *
    *  @throws std::domain_error if `max(list) < min(list)`.
    *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *
+   *  @note Uses counting_sort_impl. If true node-reordering stability for
+   *        wrapped types is required, use a stable algorithm like mergesort.
    */
   template <typename T>
     requires CountingSortable<T>
@@ -4892,14 +4897,19 @@ namespace Aleph
 
   /** @brief Stable counting sort for integral DynDlist values.
    *
-   *  This overload computes frequencies and writes ordered values directly
-   *  into existing list nodes.
+   *  This overload performs an in-place value-replacement pass directly into
+   *  existing list nodes. It preserves stability for plain integral types.
+   *  However, user-defined types wrapping keys may not observe true stability
+   *  (object identity preservation) because node rearrangement is not performed.
    *
    *  @tparam T Value type.
    *  @param[in,out] list The DynDlist to sort.
    *
    *  @throws std::domain_error if `max(list) < min(list)`.
    *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *
+   *  @note Uses counting_sort_impl. If true node-reordering stability for
+   *        wrapped types is required, use a stable algorithm like mergesort.
    */
   template <typename T>
     requires CountingSortable<T>

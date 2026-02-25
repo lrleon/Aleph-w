@@ -52,6 +52,7 @@
 # include <algorithm>
 # include <string>
 # include <string_view>
+# include <array>
 
 # include <tpl_array.H>
 
@@ -186,7 +187,7 @@ namespace Aleph
         d[0][j + 1] = inf;
       }
 
-    size_t last_row[256] = {0};
+    std::array<size_t, 256> last_row = {0};
 
     for (size_t i = 1; i <= n; ++i)
       {
