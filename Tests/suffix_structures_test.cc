@@ -37,6 +37,7 @@
 # include <gtest/gtest.h>
 
 # include <stdexcept>
+# include <chrono>
 
 # include <Suffix_Structures.H>
 # include "test_helpers.H"
@@ -69,6 +70,14 @@ TEST(SuffixStructures, LcpKasaiRejectsDuplicates)
   // Suffix array for "abc" is {0, 1, 2}.
   // We provide a malformed SA {0, 1, 1} which has a duplicate.
   Array<size_t> sa = build_array<size_t>(0, 1, 1);
+  EXPECT_THROW((void) lcp_array_kasai("abc", sa), std::out_of_range);
+}
+
+TEST(SuffixStructures, LcpKasaiRejectsOutOfRange)
+{
+  // Suffix array for "abc" is {0, 1, 2}.
+  // We provide a malformed SA {0, 1, 3} where 3 is out of range.
+  Array<size_t> sa = build_array<size_t>(0, 1, 3);
   EXPECT_THROW((void) lcp_array_kasai("abc", sa), std::out_of_range);
 }
 
@@ -202,7 +211,15 @@ TEST(SuffixStructures, StressLongerSuffixArray)
   for (int i = 0; i < 5000; ++i)
     text.push_back('a' + (i * 7 + 3) % 26);
 
+  const auto start = std::chrono::steady_clock::now();
   const auto sa = suffix_array(text);
+  const auto end = std::chrono::steady_clock::now();
+  const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+  // O(n log n) suffix array construction for n=5000 should be very fast.
+  // We use a safe 500ms threshold to account for CI variations and Debug builds.
+  EXPECT_LT(elapsed, 500) << "Performance regression: suffix_array(5000) took " << elapsed << "ms";
+
   ASSERT_EQ(sa.size(), text.size());
 
   for (size_t i = 1; i < sa.size(); ++i)

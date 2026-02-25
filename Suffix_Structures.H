@@ -166,18 +166,21 @@ namespace Aleph
 
   /** @brief Compute LCP array from text and suffix array using Kasai.
    *
-   *  Returns an array `lcp` of size `n` where:
-   *  - `lcp[i] = LCP(sa[i], sa[i+1])` for `i < n-1`
-   *  - `lcp[n-1] = 0`
+   *  Calculates the Longest Common Prefix (LCP) values for adjacent suffixes
+   *  in the suffix array. The resulting array `lcp` has size `n`, where
+   *  `lcp[i]` is the length of the LCP of `text[sa[i]...]` and `text[sa[i+1]...]`.
    *
-   *  @param[in] text Input text.
-   *  @param[in] sa Suffix array for `text`.
-   *  @return LCP array.
-   *  @throws domain_error If `sa.size() != text.size()`.
-   *  @throws out_of_range If some `sa[i] >= text.size()`.
+   *  @param[in] text Input text string.
+   *  @param[in] sa   Suffix array for `text`.
+   *
+   *  @return Array containing LCP values of length `text.size()`.
+   *
+   *  @throws std::domain_error if `sa.size() != text.size()`.
+   *  @throws std::out_of_range if `sa` contains an index `>= text.size()` or
+   *                            if `sa` contains duplicate indices.
    *
    *  @par Complexity
-   *  O(n) time, O(n) space.
+   *  O(n) time and O(n) space.
    */
   inline Array<size_t> lcp_array_kasai(const std::string_view text,
                                        const Array<size_t> & sa)
