@@ -91,7 +91,7 @@ namespace Aleph
 
       Array<Node *> id_to_node_;         /**< Mapping from id to node pointer. */
       MapOLhash<Node *, size_t> node_to_id_; /**< Mapping from node pointer to id. */
-      Array<Array<size_t>> adj_;         /**< Adjacency list (children in rooted tree). */
+      Array<Array<size_t>> children_;    /**< Children list in the rooted tree. */
       Array<size_t> parent_;             /**< Parent id for each node. */
       Array<size_t> order_;              /**< Post-order traversal (leaves first). */
 
@@ -133,9 +133,9 @@ namespace Aleph
         if (n_ == 0)
           return;
 
-        adj_.reserve(n_);
+        children_.reserve(n_);
         for (size_t i = 0; i < n_; ++i)
-          adj_.append(Array<size_t>());
+          children_.append(Array<size_t>());
 
         using Pair_Key = std::pair<size_t, size_t>;
         DynMapTree<Pair_Key, char> unique_edges;
@@ -174,8 +174,8 @@ namespace Aleph
             const auto & [fst, snd] = it.get_curr();
             const size_t u = fst.first;
             const size_t v = fst.second;
-            adj_(u).append(v);
-            adj_(v).append(u);
+            children_(u).append(v);
+            children_(v).append(u);
           }
       }
 
@@ -210,14 +210,14 @@ namespace Aleph
         while (not stack.is_empty())
           {
             auto & fr = stack.top();
-            if (fr.next_child == adj_(fr.node).size())
+            if (fr.next_child == children_(fr.node).size())
               {
                 order_.append(fr.node);
                 (void) stack.pop();
                 continue;
               }
 
-            const size_t nxt = adj_(fr.node)(fr.next_child++);
+            const size_t nxt = children_(fr.node)(fr.next_child++);
             if (visited(nxt))
               continue;
 
@@ -228,6 +228,17 @@ namespace Aleph
 
         ah_domain_error_if(order_.size() != n_)
           << "Tree_Topology: graph is not connected";
+
+        // Filter children_ to only contain children after rooting
+        for (size_t i = 0; i < n_; ++i)
+          {
+            Array<size_t> children;
+            const size_t p = parent_(i);
+            for (size_t j = 0; j < children_(i).size(); ++j)
+              if (children_(i)[j] != p)
+                children.append(children_(i)[j]);
+            children_(i).swap(children);
+          }
       }
 
     public:
@@ -271,7 +282,7 @@ namespace Aleph
       /** @brief Returns children IDs of a node. */
       [[nodiscard]] const Array<size_t> &children(size_t id) const
       {
-        return adj_(id);
+        return children_(id);
       }
 
       /** @brief Returns parent ID of a node. */
@@ -468,6 +479,7 @@ namespace Aleph
   private:
     tree_dp_detail::Tree_Topology<GT, SA> topo_; /**< Tree topology and order. */
     T identity_;                                /**< Identity for merge operation. */
+    Array<T> init_vals_;                        /**< Cached per-node base values. */
     Array<T> dp_down_;                          /**< Bottom-up DP results. */
     Array<T> dp_up_;                            /**< Top-down contribution from parent side. */
     Array<T> answer_;                           /**< Final answer for each node as root. */
@@ -493,13 +505,15 @@ namespace Aleph
       if (n == 0)
         return;
 
+      init_vals_ = Array<T>::create(n);
       dp_down_ = Array<T>::create(n);
       dp_up_ = Array<T>::create(n);
       answer_ = Array<T>::create(n);
 
       for (size_t i = 0; i < n; ++i)
         {
-          dp_down_(i) = init(topo_.node_of(i));
+          init_vals_(i) = init(topo_.node_of(i));
+          dp_down_(i) = init_vals_[i];
           dp_up_(i) = identity_;
         }
 
@@ -518,18 +532,13 @@ namespace Aleph
 
       // Phase 2: top-down with prefix/suffix
       // Process nodes in reverse post-order (root first)
-      for (size_t k = n; k > 0; --k)
+      for (size_t k = n; k-- > 0; )
         {
-          const size_t v = order[k - 1];
+          const size_t v = order[k];
           Node *vn = topo_.node_of(v);
 
-          // Collect children of v (neighbors except parent)
-          const auto & adj = topo_.children(v);
-          Array<size_t> children;
-          for (size_t j = 0; j < adj.size(); ++j)
-            if (adj[j] != topo_.parent(v))
-              children.append(adj[j]);
-
+          // Collect children of v
+          const auto & children = topo_.children(v);
           const size_t nc = children.size();
           if (nc == 0)
             continue;
@@ -550,10 +559,10 @@ namespace Aleph
           for (size_t j = 0; j < nc; ++j)
             prefix(j + 1) = merge(prefix(j), contribs(j));
 
-          for (size_t j = nc; j > 0; --j)
-            suffix(j - 1) = merge(suffix(j), contribs(j - 1));
+          for (size_t j = nc; j-- > 0; )
+            suffix(j) = merge(suffix(j + 1), contribs(j));
 
-          const T base = merge(init(vn), dp_up_(v));
+          const T base = merge(init_vals_[v], dp_up_(v));
 
           // For each child, compute dp_up
           for (size_t j = 0; j < nc; ++j)

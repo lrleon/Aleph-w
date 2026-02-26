@@ -89,7 +89,9 @@ namespace
     print_rule();
     std::cout << "\n";
   }
-} /**
+}
+
+/**
  * @brief Example driver demonstrating matrix-chain dynamic programming routines.
  *
  * Runs several predefined scenarios (CLRS reference chain, two-matrix case, a

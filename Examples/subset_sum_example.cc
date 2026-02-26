@@ -90,7 +90,9 @@ namespace
       }
     std::cout << " = " << sum << "\n";
   }
-} /**
+}
+
+/**
  * @brief Demonstrates multiple subset-sum algorithms and queries using the Aleph-w library.
  *
  * Runs five example scenarios showcasing:

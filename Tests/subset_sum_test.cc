@@ -69,7 +69,7 @@ namespace
   {
     int sum = 0;
     BitArray seen(vals.size());
-    for (unsigned long idx : selected)
+    for (size_t idx : selected)
       {
         if (idx >= vals.size() or seen[idx])
           return false;
@@ -108,7 +108,7 @@ TEST(SubsetSum, BasicFound)
 
   // Verify selected indices sum to target
   int total = 0;
-  for (unsigned long selected_indice : r.selected_indices)
+  for (size_t selected_indice : r.selected_indices)
     total += vals[selected_indice];
   EXPECT_EQ(total, 9);
 }

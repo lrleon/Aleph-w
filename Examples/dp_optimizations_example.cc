@@ -99,19 +99,19 @@ namespace
     bounds.append(n);
 
     size_t i = n;
-    for (size_t g = groups; g >= 2; --g)
+    for (size_t g = groups; g-- > 1; )
       {
-        const size_t k = res.split[g][i];
+        const size_t k = res.split[g + 1][i];
         bounds.append(k);
         i = k;
       }
     bounds.append(0);
 
     std::cout << "Split points (prefix indices): ";
-    for (size_t p = bounds.size(); p > 0; --p)
+    for (size_t p = bounds.size(); p-- > 0; )
       {
-        std::cout << bounds[p - 1];
-        if (p > 1)
+        std::cout << bounds[p];
+        if (p > 0)
           std::cout << " -> ";
       }
     std::cout << "\n";
@@ -233,10 +233,10 @@ namespace
       }
 
     std::cout << "Chosen chain: ";
-    for (size_t p = path.size(); p > 0; --p)
+    for (size_t p = path.size(); p-- > 0; )
       {
-        std::cout << path[p - 1];
-        if (p > 1)
+        std::cout << path[p];
+        if (p > 0)
           std::cout << " -> ";
       }
     std::cout << "\n";
@@ -244,7 +244,9 @@ namespace
     rule();
     std::cout << "\n";
   }
-} /**
+}
+
+/**
  * @brief Runs the DP optimization demonstration suite and exits.
  *
  * Executes examples for Divide & Conquer DP partitioning, Knuth optimization,

@@ -80,6 +80,16 @@ namespace Aleph
       else
         return std::numeric_limits<T>::max() / 4;
     }
+
+    template <typename Target, typename Source>
+    [[nodiscard]] constexpr Target clamped_cast(Source val) noexcept
+    {
+      if (val >= static_cast<Source>(std::numeric_limits<Target>::max()))
+        return std::numeric_limits<Target>::max();
+      if (val <= static_cast<Source>(std::numeric_limits<Target>::min()))
+        return std::numeric_limits<Target>::min();
+      return static_cast<Target>(val);
+    }
   } // namespace dp_optimization_detail
 
 
@@ -436,7 +446,7 @@ namespace Aleph
           ah_domain_error_if(ln.slope > last.slope)
             << "Convex_Hull_Trick::add_line: slopes must be non-increasing";
 
-          // Keep only best intercept for equal slope.
+          // Keep only the best intercept for equal slope.
           if (ln.slope == last.slope)
             {
               if (ln.intercept >= last.intercept)
@@ -594,7 +604,7 @@ namespace Aleph
                                const T x) const
     {
       using PromotedT = dp_optimization_detail::promoted_t<T>;
-      PromotedT ret = static_cast<PromotedT>(nodes_[idx].line.value_at(x));
+      auto ret = static_cast<PromotedT>(nodes_[idx].line.value_at(x));
       if (l == r)
         return static_cast<T>(ret);
 
@@ -604,7 +614,7 @@ namespace Aleph
       else if (x > mid and nodes_[idx].right != NIL)
         ret = std::min(ret, static_cast<PromotedT>(query_impl(nodes_[idx].right, mid + 1, r, x)));
 
-      return static_cast<T>(ret);
+      return dp_optimization_detail::clamped_cast<T>(ret);
     }
 
   public:
@@ -780,7 +790,7 @@ namespace Aleph
     using PromotedT = dp_optimization_detail::promoted_t<T>;
     for (size_t j = 0; j < n; ++j)
       {
-        const PromotedT px = static_cast<PromotedT>(xs[j]);
+        const auto px = static_cast<PromotedT>(xs[j]);
         const T m = static_cast<T>(static_cast<PromotedT>(-2) * px);
         const T b = static_cast<T>(px * px + static_cast<PromotedT>(weights[j]));
         lc.add_line(m, b);
@@ -789,7 +799,7 @@ namespace Aleph
     Array<T> ret = Array<T>::create(n);
     for (size_t i = 0; i < n; ++i)
       {
-        const PromotedT px = static_cast<PromotedT>(xs[i]);
+        const auto px = static_cast<PromotedT>(xs[i]);
         ret(i) = static_cast<T>(px * px + static_cast<PromotedT>(lc.query(xs[i])));
       }
 

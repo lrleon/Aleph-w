@@ -45,9 +45,7 @@ using namespace Aleph;
 namespace
 {
   /**
-   * @brief Prints a labeled integer array in a compact, human-readable form.
-   *
-   * Prints the provided label followed by the array elements enclosed in square
+   * @brief Helper to print an array of integers formatted in a single line
    * brackets and separated by commas.
    *
    * @param label Text label printed before the array.
@@ -64,7 +62,33 @@ namespace
       }
     std::cout << "]\n";
   }
-} /**
+
+  /**
+   * @brief Encapsulates setup, computation, and result printing for a single LIS/LNDS scenario.
+   *
+   * @param label      The title for the scenario (e.g. "Scenario A: ...").
+   * @param seq        The input sequence.
+   * @param compute_fn Function that computes the LIS/LNDS result from the sequence.
+   * @param res_label  Label for the computed subsequence (e.g. "One LIS").
+   * @param len_label  Label for the computed length (e.g. "LIS length").
+   */
+  template <typename Fn>
+  void run_scenario(const char * label,
+                    const Array<int> & seq,
+                    Fn compute_fn,
+                    const char * res_label,
+                    const char * len_label)
+  {
+    std::cout << label << "\n";
+    print_rule();
+    print_array("Input", seq);
+    const auto r = compute_fn(seq);
+    print_array(res_label, r.subsequence);
+    std::cout << std::setw(14) << std::left << len_label << ": " << r.length << "\n";
+  }
+}
+
+/**
  * @brief Demonstrates usage of Aleph-w LIS/LNDS utilities by running several example scenarios and printing their inputs and results.
  *
  * Runs five scenarios: classic LIS, already sorted, reverse sorted, longest non-decreasing subsequence,
@@ -80,14 +104,10 @@ int main()
 
   // Example 1: classic LIS
   {
-    std::cout << "Scenario A: Classic LIS\n";
-    print_rule();
     Array<int> seq = {10, 9, 2, 5, 3, 7, 101, 18};
-    print_array("Input", seq);
-    const auto r = longest_increasing_subsequence(seq);
-    print_array("One LIS", r.subsequence);
-    std::cout << std::setw(14) << std::left << "LIS length" << ": " << r.length
-              << "\n";
+    run_scenario("Scenario A: Classic LIS", seq,
+                 [](const auto & s) { return longest_increasing_subsequence(s); },
+                 "One LIS", "LIS length");
     std::cout << std::setw(14) << std::left << "Length-only" << ": "
               << lis_length(seq) << "\n";
     print_rule();
@@ -96,42 +116,30 @@ int main()
 
   // Example 2: already sorted
   {
-    std::cout << "Scenario B: Already sorted\n";
-    print_rule();
     Array<int> seq = {1, 3, 5, 7, 9};
-    print_array("Input", seq);
-    const auto r = longest_increasing_subsequence(seq);
-    print_array("One LIS", r.subsequence);
-    std::cout << std::setw(14) << std::left << "LIS length" << ": " << r.length
-              << "\n";
+    run_scenario("Scenario B: Already sorted", seq,
+                 [](const auto & s) { return longest_increasing_subsequence(s); },
+                 "One LIS", "LIS length");
     print_rule();
     std::cout << "\n";
   }
 
   // Example 3: reverse sorted
   {
-    std::cout << "Scenario C: Reverse sorted\n";
-    print_rule();
     Array<int> seq = {9, 7, 5, 3, 1};
-    print_array("Input", seq);
-    const auto r = longest_increasing_subsequence(seq);
-    print_array("One LIS", r.subsequence);
-    std::cout << std::setw(14) << std::left << "LIS length" << ": " << r.length
-              << "\n";
+    run_scenario("Scenario C: Reverse sorted", seq,
+                 [](const auto & s) { return longest_increasing_subsequence(s); },
+                 "One LIS", "LIS length");
     print_rule();
     std::cout << "\n";
   }
 
   // Example 4: non-decreasing subsequence
   {
-    std::cout << "Scenario D: Longest non-decreasing subsequence\n";
-    print_rule();
     Array<int> seq = {3, 1, 2, 2, 3, 1};
-    print_array("Input", seq);
-    const auto r = longest_nondecreasing_subsequence(seq);
-    print_array("One LNDS", r.subsequence);
-    std::cout << std::setw(14) << std::left << "LNDS length" << ": "
-              << r.length << "\n";
+    run_scenario("Scenario D: Longest non-decreasing subsequence", seq,
+                 [](const auto & s) { return longest_nondecreasing_subsequence(s); },
+                 "One LNDS", "LNDS length");
     print_rule();
     std::cout << "\n";
   }

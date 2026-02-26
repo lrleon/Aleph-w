@@ -111,7 +111,9 @@ namespace
     std::cout << "Total weight: " << total_w << "\n";
     std::cout << "Total value : " << total_v << "\n";
   }
-} /**
+}
+
+/**
  * @brief Runs a console demonstration of multiple knapsack problem variants.
  *
  * Executes four scenarios (0/1 knapsack, value-only query, unbounded knapsack,

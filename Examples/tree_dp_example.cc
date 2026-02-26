@@ -36,6 +36,7 @@
 
 # include <iostream>
 # include <iomanip>
+# include <array>
 
 # include <Tree_DP.H>
 # include <print_rule.H>
@@ -47,9 +48,12 @@ using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
 /**
  * @brief Example program demonstrating tree dynamic programming (DP) and rerooting DP.
  *
- * Builds a fixed rooted tree, computes per-node subtree sizes, maximum distance
- * from the root, sum of distances from the root, and subtree value sums using
- * Gen_Tree_DP, then prints a formatted table of these per-node metrics.
+ * Builds a fixed rooted tree and demonstrates two types of DP:
+ * 1. Gen_Tree_DP: Bottom-up computation (subtree sizes, subtree value sums).
+ * 2. Gen_Reroot_DP: Computation of metrics as if each node were the root
+ *    (eccentricity/max distance and sum of distances to all other nodes).
+ *
+ * Prints a formatted table of these per-node metrics.
  *
  * @return int 0 on successful completion.
  */
@@ -76,7 +80,7 @@ int main()
   g.insert_arc(n1, n4, 1);
   g.insert_arc(n2, n5, 1);
 
-  G::Node * nodes[] = {n0, n1, n2, n3, n4, n5};
+  std::array<G::Node *, 6> nodes = {n0, n1, n2, n3, n4, n5};
 
   std::cout << "Tree (root=0):\n";
   std::cout << "      0\n";
@@ -85,9 +89,12 @@ int main()
   std::cout << "  / \\     \\\n";
   std::cout << " 3   4     5\n\n";
 
-  const auto subtree_sizes = tree_subtree_sizes(g, n0);
+  // Rerooting DP examples:
   const auto max_dist = tree_max_distance(g, n0);
   const auto sum_dist = tree_sum_of_distances(g, n0);
+
+  // Bottom-up DP examples:
+  const auto subtree_sizes = tree_subtree_sizes(g, n0);
 
   Gen_Tree_DP<G, size_t> id_map(g, n0,
     [](auto *) -> size_t { return 1; },
@@ -112,7 +119,7 @@ int main()
             << "\n";
   print_rule();
 
-  for (int i = 0; i < 6; ++i)
+  for (size_t i = 0; i < nodes.size(); ++i)
     {
       const size_t id = id_map.id_of(nodes[i]);
       std::cout << std::left
