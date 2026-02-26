@@ -95,6 +95,7 @@
 
 #include <ahUtils.H>
 #include <ahFunctional.H>
+#include <ah-concepts.H>
 #include <ah-errors.H>
 #include <tpl_arrayStack.H>
 #include <tpl_array.H>
@@ -102,7 +103,10 @@
 #include <tpl_dynDlist.H>
 #include <tpl_arrayHeap.H>
 #include <htlist.H>
+#include <limits>
+#include <type_traits>
 #include <vector>
+#include <array>
 #include <utility>
 
 namespace Aleph
@@ -4328,6 +4332,764 @@ namespace Aleph
           return m;
       }
     return l;
+  }
+
+
+  /** @brief Stable counting sort on an index array by integer keys.
+   *
+   *  Reorders `sa[0..n-1]` so that the elements appear sorted by
+   *  `key_of(sa[i])`.  Keys must lie in `[min_key, max_key]`.
+   *
+   *  @tparam KeyFn  Callable `(size_t) -> int` returning the sort key.
+   *
+   *  @param[in,out] sa      Index array to reorder.
+   *  @param[out]    tmp     Scratch array (same size as `sa`).
+   *  @param[in]     n       Number of elements to sort.
+   *  @param[in]     min_key Minimum key value (inclusive).
+   *  @param[in]     max_key Maximum key value (inclusive).
+   *  @param[in]     key_of  Maps `sa[i]` to its integer sort key.
+   *
+   *  @throws std::domain_error if `max_key < min_key`.
+   *  @throws std::out_of_range if `sa.size() < n` or `tmp.size() < n`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *  @throws std::out_of_range if a computed key is outside `[min_key, max_key]`.
+   *
+   *  @pre  `sa.size() >= n`, `tmp.size() >= n`.
+   *  @pre  For all `i < n`: `min_key <= key_of(sa[i]) <= max_key`.
+   *  @post `sa` is stably sorted by `key_of`.
+   *
+   *  @note O(n + k) time and O(k) extra space, where
+   *        `k = max_key - min_key + 1`.
+   */
+  template <typename KeyFn>
+    requires std::invocable<const KeyFn &, size_t> and
+             std::convertible_to<std::invoke_result_t<const KeyFn &, size_t>, int>
+  void counting_sort_indices(Array<size_t> & sa,
+                             Array<size_t> & tmp,
+                             const size_t n,
+                             const int min_key,
+                             const int max_key,
+                             const KeyFn & key_of)
+  {
+    ah_domain_error_if(max_key < min_key)
+      << "counting_sort_indices(): max_key < min_key";
+
+    if (n == 0)
+      return;
+
+    ah_out_of_range_error_if(sa.size() < n or tmp.size() < n)
+      << "counting_sort_indices(): sa/tmp size is smaller than n";
+
+    const auto range_minus_one =
+      static_cast<unsigned long long>(static_cast<long long>(max_key) -
+                                      static_cast<long long>(min_key));
+    constexpr auto max_count =
+      static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
+    ah_runtime_error_unless(range_minus_one <= max_count)
+      << "counting_sort_indices(): key range is too large";
+
+    const auto k = static_cast<size_t>(range_minus_one) + 1;
+    Array<size_t> count = Array<size_t>::create(k);
+    for (size_t i = 0; i < k; ++i)
+      count[i] = 0;
+
+    for (size_t i = 0; i < n; ++i)
+      {
+        const int key = key_of(sa[i]);
+        ah_out_of_range_error_if(key < min_key or key > max_key)
+          << "counting_sort_indices(): key out of expected range";
+        const auto bucket =
+          static_cast<size_t>(static_cast<unsigned long long>(
+            static_cast<long long>(key) - static_cast<long long>(min_key)));
+        ++count[bucket];
+      }
+
+    for (size_t j = 1; j < k; ++j)
+      count[j] += count[j - 1];
+
+    for (size_t i = n; i > 0; --i)
+      {
+        const int key = key_of(sa[i - 1]);
+        const auto idx =
+          static_cast<size_t>(static_cast<unsigned long long>(
+            static_cast<long long>(key) - static_cast<long long>(min_key)));
+        tmp[--count[idx]] = sa[i - 1];
+      }
+
+    for (size_t i = 0; i < n; ++i)
+      sa[i] = tmp[i];
+  }
+
+
+  namespace sort_utils_detail
+  {
+    /** @brief Value concept for counting sort.
+     *  @details Currently aliases IntegerSortableValue<T>, but may diverge
+     *           if specific constraints are added for counting sort.
+     */
+    template <typename T>
+    concept counting_integer = IntegerSortableValue<T>;
+
+
+    /** @brief Value concept for radix sort.
+     *  @details Currently aliases IntegerSortableValue<T>, but may diverge
+     *           if specific constraints are added for radix sort.
+     */
+    template <typename T>
+    concept radix_integer = IntegerSortableValue<T>;
+
+
+    template <typename IntT>
+    using counting_unsigned_t = std::make_unsigned_t<std::remove_cv_t<IntT>>;
+
+
+    template <typename IntT>
+    using radix_unsigned_t = std::make_unsigned_t<std::remove_cv_t<IntT>>;
+
+
+    template <typename IntT>
+    [[nodiscard]] size_t
+    counting_bucket_count(const IntT min_key, const IntT max_key)
+    {
+      ah_domain_error_if(max_key < min_key)
+        << "counting_sort(): max_key < min_key";
+
+      using U = counting_unsigned_t<IntT>;
+      const U range_minus_one =
+        static_cast<U>(max_key) - static_cast<U>(min_key);
+
+      if constexpr (sizeof(U) >= sizeof(size_t))
+        {
+          constexpr size_t max_count =
+            std::numeric_limits<size_t>::max() - static_cast<size_t>(1);
+          ah_runtime_error_unless(range_minus_one <= static_cast<U>(max_count))
+            << "counting_sort(): key range is too large";
+        }
+
+      return static_cast<size_t>(range_minus_one) + 1;
+    }
+
+
+    template <typename IntT>
+    [[nodiscard]] inline size_t
+    counting_bucket(const IntT value, const IntT min_key) noexcept
+    {
+      using U = counting_unsigned_t<IntT>;
+      return static_cast<size_t>(static_cast<U>(value) - static_cast<U>(min_key));
+    }
+
+
+    template <typename IntT>
+    [[nodiscard]] inline IntT
+    counting_value_from_bucket(const size_t bucket, const IntT min_key) noexcept
+    {
+      using U = counting_unsigned_t<IntT>;
+      return static_cast<IntT>(static_cast<U>(min_key) + static_cast<U>(bucket));
+    }
+
+
+    template <template <typename> class C, typename IntT>
+      requires counting_integer<IntT>
+    void counting_sort_impl(C<IntT> & a)
+    {
+      const size_t n = a.size();
+      if (n < 2)
+        return;
+
+      IntT min_key = a(0), max_key = a(0);
+      for (size_t i = 1; i < n; ++i)
+        {
+          if (a(i) < min_key)
+            min_key = a(i);
+          if (a(i) > max_key)
+            max_key = a(i);
+        }
+
+      const size_t k = counting_bucket_count(min_key, max_key);
+      Array<size_t> count = Array<size_t>::create(k);
+      for (size_t i = 0; i < k; ++i)
+        count[i] = 0;
+
+      for (size_t i = 0; i < n; ++i)
+        ++count[counting_bucket(a(i), min_key)];
+
+      for (size_t i = 1; i < k; ++i)
+        count[i] += count[i - 1];
+
+      Array<IntT> tmp = Array<IntT>::create(n);
+      for (size_t i = n; i > 0; --i)
+        {
+          const auto bucket = counting_bucket(a(i - 1), min_key);
+          tmp[--count[bucket]] = a(i - 1);
+        }
+
+      for (size_t i = 0; i < n; ++i)
+        a(i) = tmp[i];
+    }
+
+
+    template <typename IntT>
+      requires counting_integer<IntT>
+    void counting_sort_impl(IntT * a, const size_t n)
+    {
+      if (n < 2)
+        return;
+
+      IntT min_key = a[0], max_key = a[0];
+      for (size_t i = 1; i < n; ++i)
+        {
+          if (a[i] < min_key)
+            min_key = a[i];
+          if (a[i] > max_key)
+            max_key = a[i];
+        }
+
+      const size_t k = counting_bucket_count(min_key, max_key);
+      Array<size_t> count = Array<size_t>::create(k);
+      for (size_t i = 0; i < k; ++i)
+        count[i] = 0;
+
+      for (size_t i = 0; i < n; ++i)
+        ++count[counting_bucket(a[i], min_key)];
+
+      for (size_t i = 1; i < k; ++i)
+        count[i] += count[i - 1];
+
+      Array<IntT> tmp = Array<IntT>::create(n);
+      for (size_t i = n; i > 0; --i)
+        {
+          const auto bucket = counting_bucket(a[i - 1], min_key);
+          tmp[--count[bucket]] = a[i - 1];
+        }
+
+      for (size_t i = 0; i < n; ++i)
+        a[i] = tmp[i];
+    }
+
+
+    template <typename IntT>
+      requires counting_integer<IntT>
+    void counting_sort_impl(DynList<IntT> & list)
+    {
+      const size_t n = list.size();
+      if (n < 2)
+        return;
+
+      typename DynList<IntT>::Iterator it(list);
+      IntT min_key = it.get_curr_ne();
+      IntT max_key = min_key;
+      for (it.next_ne(); it.has_curr(); it.next_ne())
+        {
+          const IntT value = it.get_curr_ne();
+          if (value < min_key)
+            min_key = value;
+          if (value > max_key)
+            max_key = value;
+        }
+
+      const size_t k = counting_bucket_count(min_key, max_key);
+      Array<size_t> count = Array<size_t>::create(k);
+      for (size_t i = 0; i < k; ++i)
+        count[i] = 0;
+
+      for (typename DynList<IntT>::Iterator scan(list); scan.has_curr(); scan.next_ne())
+        ++count[counting_bucket(scan.get_curr_ne(), min_key)];
+
+      typename DynList<IntT>::Iterator out(list);
+      for (size_t bucket = 0; bucket < k; ++bucket)
+        {
+          const size_t times = count[bucket];
+          if (times == 0)
+            continue;
+
+          const IntT value = counting_value_from_bucket(bucket, min_key);
+          for (size_t c = 0; c < times; ++c)
+            {
+              out.get_curr_ne() = value;
+              out.next_ne();
+            }
+        }
+    }
+
+
+    template <typename IntT>
+      requires counting_integer<IntT>
+    void counting_sort_impl(DynDlist<IntT> & list)
+    {
+      const size_t n = list.size();
+      if (n < 2)
+        return;
+
+      typename DynDlist<IntT>::Iterator it(list);
+      IntT min_key = it.get_curr_ne();
+      IntT max_key = min_key;
+      for (it.next_ne(); it.has_curr(); it.next_ne())
+        {
+          const IntT value = it.get_curr_ne();
+          if (value < min_key)
+            min_key = value;
+          if (value > max_key)
+            max_key = value;
+        }
+
+      const size_t k = counting_bucket_count(min_key, max_key);
+      Array<size_t> count = Array<size_t>::create(k);
+      for (size_t i = 0; i < k; ++i)
+        count[i] = 0;
+
+      for (typename DynDlist<IntT>::Iterator scan(list); scan.has_curr(); scan.next_ne())
+        ++count[counting_bucket(scan.get_curr_ne(), min_key)];
+
+      typename DynDlist<IntT>::Iterator out(list);
+      for (size_t bucket = 0; bucket < k; ++bucket)
+        {
+          const size_t times = count[bucket];
+          if (times == 0)
+            continue;
+
+          const IntT value = counting_value_from_bucket(bucket, min_key);
+          for (size_t c = 0; c < times; ++c)
+            {
+              out.get_curr_ne() = value;
+              out.next_ne();
+            }
+        }
+    }
+
+
+    template <typename IntT>
+    [[nodiscard]] constexpr radix_unsigned_t<IntT>
+    radix_key(const IntT value) noexcept
+    {
+      using U = radix_unsigned_t<IntT>;
+      if constexpr (std::is_signed_v<std::remove_cv_t<IntT>>)
+        return static_cast<U>(value) ^
+               (U{1} << (std::numeric_limits<U>::digits - 1));
+      else
+        return static_cast<U>(value);
+    }
+
+
+    template <template <typename> class C, typename IntT>
+      requires radix_integer<IntT>
+    void radix_sort_impl(C<IntT> & a)
+    {
+      using U = radix_unsigned_t<IntT>;
+
+      const size_t n = a.size();
+      if (n < 2)
+        return;
+
+      Array<IntT> tmp = Array<IntT>::create(n);
+      Array<size_t> count = Array<size_t>::create(256);
+
+      for (size_t pass = 0; pass < sizeof(U); ++pass)
+        {
+          for (size_t i = 0; i < 256; ++i)
+            count[i] = 0;
+
+          const size_t shift = pass * 8;
+          for (size_t i = 0; i < n; ++i)
+            {
+              const U key = radix_key<IntT>(a(i));
+              const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
+              ++count[bucket];
+            }
+
+          for (size_t i = 1; i < 256; ++i)
+            count[i] += count[i - 1];
+
+          for (size_t i = n; i > 0; --i)
+            {
+              const U key = radix_key<IntT>(a(i - 1));
+              const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
+              tmp[--count[bucket]] = a(i - 1);
+            }
+
+          for (size_t i = 0; i < n; ++i)
+            a(i) = tmp[i];
+        }
+    }
+
+
+    template <typename IntT>
+      requires radix_integer<IntT>
+    void radix_sort_impl(IntT * a, const size_t n)
+    {
+      using U = radix_unsigned_t<IntT>;
+
+      if (n < 2)
+        return;
+
+      Array<IntT> tmp = Array<IntT>::create(n);
+      Array<size_t> count = Array<size_t>::create(256);
+
+      for (size_t pass = 0; pass < sizeof(U); ++pass)
+        {
+          for (size_t i = 0; i < 256; ++i)
+            count[i] = 0;
+
+          const size_t shift = pass * 8;
+          for (size_t i = 0; i < n; ++i)
+            {
+              const U key = radix_key<IntT>(a[i]);
+              const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
+              ++count[bucket];
+            }
+
+          for (size_t i = 1; i < 256; ++i)
+            count[i] += count[i - 1];
+
+          for (size_t i = n; i > 0; --i)
+            {
+              const U key = radix_key<IntT>(a[i - 1]);
+              const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
+              tmp[--count[bucket]] = a[i - 1];
+            }
+
+          for (size_t i = 0; i < n; ++i)
+            a[i] = tmp[i];
+        }
+    }
+
+
+    template <typename IntT>
+      requires radix_integer<IntT>
+    void radix_sort_impl(DynList<IntT> & list)
+    {
+      using U = radix_unsigned_t<IntT>;
+
+      if (const size_t n = list.size(); n < 2)
+        return;
+
+      static_assert(std::is_default_constructible_v<HTList>,
+                    "HTList must be default constructible for std::array");
+      std::array<HTList, 256> buckets;
+
+      for (size_t pass = 0; pass < sizeof(U); ++pass)
+        {
+          const size_t shift = pass * 8;
+
+          while (not list.is_empty())
+            {
+              Slinknc * link = list.HTList::remove_first_ne();
+              auto * node = static_cast<Snodenc<IntT> *>(link);
+              const U key = radix_key<IntT>(node->get_data());
+              const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
+              buckets[bucket].append(link);
+            }
+
+          for (auto & bucket : buckets)
+            list.HTList::append(bucket);
+        }
+    }
+
+
+    template <typename IntT>
+      requires radix_integer<IntT>
+    void radix_sort_impl(DynDlist<IntT> & list)
+    {
+      using U = radix_unsigned_t<IntT>;
+
+      if (const size_t n = list.size(); n < 2)
+        return;
+
+      static_assert(std::is_default_constructible_v<Dnode<IntT>>,
+                    "Dnode must be default constructible for std::array");
+      std::array<Dnode<IntT>, 256> buckets;
+
+      for (size_t pass = 0; pass < sizeof(U); ++pass)
+        {
+          const size_t shift = pass * 8;
+
+          while (not list.template Dnode<IntT>::is_empty())
+            {
+              Dnode<IntT> * node = list.template Dnode<IntT>::remove_first_ne();
+              const U key = radix_key<IntT>(node->get_data());
+              const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
+              buckets[bucket].append(node);
+            }
+
+          for (auto & bucket : buckets)
+            list.template Dnode<IntT>::append_list(&bucket);
+        }
+    }
+  } // namespace sort_utils_detail
+
+
+  /** @brief Value concept accepted by counting sort overloads.
+   *  @tparam T Value type; must be an integral type (except bool) satisfying
+   *            sort_utils_detail::counting_integer.
+   */
+  template <typename T>
+  concept CountingSortable = sort_utils_detail::counting_integer<T>;
+
+
+  /** @brief Value concept accepted by radix sort overloads.
+   *  @tparam T Value type; must be an integral type (except bool) satisfying
+   *            sort_utils_detail::radix_integer.
+   */
+  template <typename T>
+  concept RadixSortable = sort_utils_detail::radix_integer<T>;
+
+
+  /** @brief Stable counting sort for integral DynArray values.
+   *
+   *  Sorts in ascending order by counting frequencies of each distinct
+   *  integer value in the observed key range `[min(a), max(a)]`.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] a The DynArray to sort.
+   *
+   *  @throws std::domain_error if `max(a) < min(a)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *
+   *  @par Complexity
+   *  O(n + k) time and O(n + k) extra space, where
+   *  `k = max(a) - min(a) + 1`.
+   */
+  template <typename T>
+    requires CountingSortable<T>
+  void counting_sort(DynArray<T> & a)
+  {
+    sort_utils_detail::counting_sort_impl(a);
+  }
+
+
+  /** @brief Stable counting sort for integral Array values.
+   *
+   *  Sorts in ascending order by counting frequencies of each distinct
+   *  integer value in the observed key range `[min(a), max(a)]`.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] a The Array to sort.
+   *
+   *  @throws std::domain_error if `max(a) < min(a)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *
+   *  @par Complexity
+   *  O(n + k) time and O(n + k) extra space, where
+   *  `k = max(a) - min(a) + 1`.
+   */
+  template <typename T>
+    requires CountingSortable<T>
+  void counting_sort(Array<T> & a)
+  {
+    sort_utils_detail::counting_sort_impl(a);
+  }
+
+
+  /** @brief Stable counting sort for integral DynList values.
+   *
+   *  This overload performs an in-place value-replacement pass directly into
+   *  existing list nodes. It preserves stability for plain integral types or
+   *  when simple value equality semantics suffice. However, user-defined types
+   *  wrapping keys may not observe true stability (preservation of original
+   *  object identity and memory locations) because list nodes are not
+   *  rearranged; only their data is updated.
+   *
+   *  @tparam T Value type (must satisfy CountingSortable).
+   *  @param[in,out] list The DynList to sort.
+   *
+   *  @throws std::domain_error if `max(list) < min(list)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *
+   *  @note Internally implemented by counting_sort_impl. If true
+   *        node-reordering stability for wrapped types is required, use a
+   *        stable algorithm that rearranges links, such as mergesort.
+   */
+  template <typename T>
+    requires CountingSortable<T>
+  void counting_sort(DynList<T> & list)
+  {
+    sort_utils_detail::counting_sort_impl(list);
+  }
+
+
+  /** @brief Stable counting sort for integral DynDlist values.
+   *
+   *  This overload performs an in-place value-replacement pass directly into
+   *  existing list nodes. It preserves stability for plain integral types or
+   *  when simple value equality semantics suffice. However, user-defined types
+   *  wrapping keys may not observe true stability (preservation of original
+   *  object identity and memory locations) because list nodes are not
+   *  rearranged; only their data is updated.
+   *
+   *  @tparam T Value type (must satisfy CountingSortable).
+   *  @param[in,out] list The DynDlist to sort.
+   *
+   *  @throws std::domain_error if `max(list) < min(list)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *
+   *  @note Internally implemented by counting_sort_impl. If true
+   *        node-reordering stability for wrapped types is required, use a
+   *        stable algorithm that rearranges links, such as mergesort.
+   */
+  template <typename T>
+    requires CountingSortable<T>
+  void counting_sort(DynDlist<T> & list)
+  {
+    sort_utils_detail::counting_sort_impl(list);
+  }
+
+
+  /** @brief Stable counting sort for raw integral arrays.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] a Pointer to the first element.
+   *  @param[in] n Number of elements.
+   *
+   *  @throws std::domain_error if `max(a) < min(a)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *  @throws std::invalid_argument if `a` is null and `n > 0`.
+   *
+   *  @par Complexity
+   *  O(n + k) time and O(n + k) extra space, where
+   *  `k = max(a) - min(a) + 1`.
+   */
+  template <typename T>
+    requires CountingSortable<T>
+  void counting_sort(T * a, const size_t n)
+  {
+    ah_invalid_argument_if(a == nullptr and n > 0)
+      << "counting_sort(): null pointer with non-zero length";
+    sort_utils_detail::counting_sort_impl(a, n);
+  }
+
+
+  /** @brief Stable counting sort for fixed-size integral C arrays.
+   *
+   *  @tparam T Value type.
+   *  @tparam N Array size.
+   *  @param[in,out] a The fixed-size array to sort.
+   *
+   *  @throws std::domain_error if `max(a) < min(a)`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   */
+  template <typename T, size_t N>
+    requires CountingSortable<T>
+  void counting_sort(T (& a)[N])
+  {
+    counting_sort(a, N);
+  }
+
+
+  /** @brief LSD radix sort for integral DynArray values.
+   *
+   *  Sorts in ascending order. Signed integers are supported by applying a
+   *  monotone bit transform on the sign bit.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] a The DynArray to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
+   *
+   *  @par Complexity
+   *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
+   */
+  template <typename T>
+    requires RadixSortable<T>
+  void radix_sort(DynArray<T> & a)
+  {
+    sort_utils_detail::radix_sort_impl(a);
+  }
+
+
+  /** @brief LSD radix sort for integral Array values.
+   *
+   *  Sorts in ascending order. Signed integers are supported by applying a
+   *  monotone bit transform on the sign bit.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] a The Array to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
+   *
+   *  @par Complexity
+   *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
+   */
+  template <typename T>
+    requires RadixSortable<T>
+  void radix_sort(Array<T> & a)
+  {
+    sort_utils_detail::radix_sort_impl(a);
+  }
+
+
+  /** @brief LSD radix sort for integral DynList values.
+   *
+   *  This overload performs stable bucket distribution directly on list nodes.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] list The DynList to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
+   */
+  template <typename T>
+    requires RadixSortable<T>
+  void radix_sort(DynList<T> & list)
+  {
+    sort_utils_detail::radix_sort_impl(list);
+  }
+
+
+  /** @brief LSD radix sort for integral DynDlist values.
+   *
+   *  This overload performs stable bucket distribution directly on list nodes.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] list The DynDlist to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
+   */
+  template <typename T>
+    requires RadixSortable<T>
+  void radix_sort(DynDlist<T> & list)
+  {
+    sort_utils_detail::radix_sort_impl(list);
+  }
+
+
+  /** @brief LSD radix sort for raw integral arrays.
+   *
+   *  @tparam T Value type.
+   *  @param[in,out] a Pointer to the first element.
+   *  @param[in] n Number of elements.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::invalid_argument if `a` is null and `n > 0`.
+   *
+   *  @par Complexity
+   *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.
+   */
+  template <typename T>
+    requires RadixSortable<T>
+  void radix_sort(T * a, const size_t n)
+  {
+    ah_invalid_argument_if(a == nullptr and n > 0)
+      << "radix_sort(): null pointer with non-zero length";
+    sort_utils_detail::radix_sort_impl(a, n);
+  }
+
+
+  /** @brief LSD radix sort for fixed-size integral C arrays.
+   *
+   *  @tparam T Value type.
+   *  @tparam N Array size.
+   *  @param[in,out] a The fixed-size array to sort.
+   *
+   *  @throws std::domain_error if an internal domain error occurs.
+   *  @throws std::runtime_error if an internal runtime error occurs.
+   */
+  template <typename T, size_t N>
+    requires RadixSortable<T>
+  void radix_sort(T (& a)[N])
+  {
+    radix_sort(a, N);
   }
 }
 

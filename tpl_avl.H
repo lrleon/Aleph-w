@@ -132,14 +132,13 @@ namespace Aleph
 
       do // descend searching for key and push the search path
         {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
           if (cmp(key, KEY(p)))  // key < KEY(p)
             {
               cmp_result = CmpLess;
               p = LLINK(p);
-              // Prefetch only the child we'll visit next iteration
-              if (p != Node::NullPtr) [[likely]]
-                __builtin_prefetch(p);
             }
           else  // key >= KEY(p), could be equal
             {
@@ -147,9 +146,6 @@ namespace Aleph
               candidate_pos = avl_stack.size();
               cmp_result = CmpGreater;
               p = RLINK(p);
-              // Prefetch only the child we'll visit next iteration
-              if (p != Node::NullPtr) [[likely]]
-                __builtin_prefetch(p);
             }
         }
       while (p != Node::NullPtr);
@@ -176,22 +172,18 @@ namespace Aleph
       Node *p = root;
       do // descend searching for key and push the search path
         {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
           if (cmp(key, KEY(p))) // key < KEY(p)?
             {
               cmp_result = CmpLess;
               p = LLINK(p);
-              // Prefetch only the child we'll visit next iteration
-              if (p != Node::NullPtr) [[likely]]
-                __builtin_prefetch(p);
             }
           else // key >= KEY(p)
             {
               cmp_result = CmpGreater;
               p = RLINK(p);
-              // Prefetch only the child we'll visit next iteration
-              if (p != Node::NullPtr) [[likely]]
-                __builtin_prefetch(p);
             }
         }
       while (p != Node::NullPtr);
@@ -514,7 +506,19 @@ namespace Aleph
     /// node containing it is returned; otherwise `nullptr` is returned
     [[nodiscard]] Node * search(const Key & key) const noexcept
     {
-      return searchInBinTree<Node, Compare>(root, key, cmp);
+      Node *p = root;
+      while (p != Node::NullPtr)
+        {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
+          if (cmp(key, KEY(p)))
+            p = LLINK(p);
+          else if (cmp(KEY(p), key))
+            p = RLINK(p);
+          else
+            return p;
+        }
+      return nullptr;
     }
 
     /** Insert the node pointed by `p` in the tree.

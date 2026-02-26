@@ -50,6 +50,7 @@ Language: English | [Español](README.es.md)
   - [Network Flows](#readme-network-flows)
   - [Graph Connectivity](#readme-graph-connectivity)
   - [Matching](#readme-matching)
+  - [String Algorithms](#readme-string-algorithms)
   - [Sorting Algorithms](#readme-sorting-algorithms)
 - [Memory Management](#readme-memory-management)
   - [Arena Allocators](#readme-arena-allocators)
@@ -266,8 +267,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  SORTING                  SEARCHING                MATCHING                │
 │  ├─ Quicksort            ├─ Binary Search         ├─ Hopcroft-Karp         │
 │  ├─ Mergesort            ├─ Interpolation         ├─ Edmonds-Blossom       │
-│  ├─ Heapsort             └─ Pattern Matching      └─ Hungarian (Munkres)   │
-│  ├─ Introsort                                                              │
+│  ├─ Heapsort             └─ Pattern Matching (KMP/Z/Aho)                   │
+│  ├─ Introsort                                     └─ Hungarian (Munkres)   │
 │  └─ Shell Sort                                                             │
 │                                                                            │
 │  GEOMETRY                 OTHER                                            │
@@ -536,22 +537,25 @@ Aleph-w provides **8 different balanced tree implementations**, each optimized f
 #### Tree Comparison
 
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                      BALANCED TREE COMPARISON                              │
-├──────────────┬──────────────┬──────────────┬───────────────────────────────┤
-│   Operation  │   AVL Tree   │  Red-Black   │  Splay Tree  │     Treap      │
-├──────────────┼──────────────┼──────────────┼──────────────┼────────────────┤
-│   Insert     │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**    │
-│   Search     │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**    │
-│   Delete     │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**    │
-│   Min/Max    │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**    │
-├──────────────┼──────────────┼──────────────┼──────────────┼────────────────┤
-│   Height     │ ≤1.44 log n  │  ≤2 log n    │ Unbounded    │  O(log n)**    │
-│   Balance    │   Strict     │   Relaxed    │    None      │   Randomized   │
-├──────────────┼──────────────┼──────────────┼──────────────┼────────────────┤
-│  Best For    │ Read-heavy   │  General     │  Locality    │   Simplicity   │
-│              │  workloads   │  purpose     │  patterns    │   randomized   │
-└──────────────┴──────────────┴──────────────┴──────────────┴────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                BALANCED TREE COMPARISON                                     │
+├──────────────┬──────────────┬──────────────┬──────────────┬──────────────┬──────────────────┤
+│   Operation  │   AVL Tree   │  Red-Black   │  Splay Tree  │     Treap    │    Rand Tree     │
+├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┼──────────────────┤
+│   Insert     │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**  │    O(log n)**    │
+│   Search     │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**  │    O(log n)**    │
+│   Delete     │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**  │    O(log n)**    │
+│   Min/Max    │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**  │    O(log n)**    │
+├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┼──────────────────┤
+│   Height     │ ≤1.44 log n  │  ≤2 log n    │ Unbounded    │  O(log n)**  │    O(log n)**    │
+│   Balance    │   Strict     │   Relaxed    │    None      │  Randomized  │    Randomized    │
+├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┼──────────────────┤
+│  Best For    │ Read-heavy   │  General     │  Locality    │ Simplicity   │ Fast split/join  │
+│              │  workloads   │  purpose     │  patterns    │ randomized   │ randomized       │
+└──────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──────────────────┘
+
+* Amortized complexity.
+** Expected complexity (randomized).
 ```
 
 #### Usage Examples
@@ -570,6 +574,9 @@ DynSetTree<int, Splay_Tree> splay;
 
 // Treap - Randomized priorities, simple implementation
 DynSetTree<int, Treap> treap;
+
+// Randomized BST - Randomized insertion, excellent split/join performance
+DynSetTree<int, Rand_Tree> rand_tree;
 
 // With Rank support (order statistics)
 DynSetTree<int, Avl_Tree_Rk> avl_rank;
@@ -2720,6 +2727,76 @@ int main() {
 }
 ```
 
+<a id="readme-string-algorithms"></a>
+### String Algorithms
+
+Aleph-w now includes a complete classical string toolkit split by purpose:
+
+| Header | Scope |
+|---|---|
+| `String_Search.H` | KMP, Z-algorithm, Boyer-Moore-Horspool, Rabin-Karp |
+| `Aho_Corasick.H` | Multi-pattern matching |
+| `Suffix_Structures.H` | Suffix Array, LCP (Kasai), naive compressed Suffix Tree, Suffix Automaton |
+| `String_Palindromes.H` | Manacher (longest palindromic substring in O(n)) |
+| `String_DP.H` | Levenshtein, Damerau-Levenshtein, LCS, Longest Common Substring |
+| `String_Algorithms.H` | Umbrella include for all string algorithms |
+
+#### Covered Algorithms
+
+- Single-pattern search: `kmp_search`, `z_search`, `boyer_moore_horspool_search`, `rabin_karp_search`
+- Multi-pattern search: `Aho_Corasick`
+- Suffix structures: `suffix_array`, `lcp_array_kasai`, `Naive_Suffix_Tree`, `Suffix_Automaton`
+- Palindromes: `manacher`, `longest_palindromic_substring`
+- Edit/similarity: `levenshtein_distance`, `damerau_levenshtein_distance`
+- Sequence similarity: `longest_common_subsequence`, `longest_common_substring`
+
+#### Usage Example
+
+```cpp
+#include <String_Algorithms.H>
+#include <iostream>
+
+int main() {
+    auto kmp = Aleph::kmp_search("ababaabababa", "ababa");
+
+    Aleph::Aho_Corasick ac;
+    ac.add_pattern("he");
+    ac.add_pattern("she");
+    ac.build();
+    auto multi = ac.search("ahishers");
+
+    auto sa = Aleph::suffix_array("banana");
+    auto lcp = Aleph::lcp_array_kasai("banana", sa);
+
+    auto pal = Aleph::manacher("forgeeksskeegfor");
+    auto lcs = Aleph::longest_common_subsequence("AGGTAB", "GXTXAYB");
+    auto dist = Aleph::damerau_levenshtein_distance("ca", "ac");
+
+    std::cout << "kmp matches: " << kmp.size() << "\n";
+    std::cout << "aho matches: " << multi.size() << "\n";
+    std::cout << "sa size: " << sa.size() << ", lcp size: " << lcp.size() << "\n";
+    std::cout << "longest palindrome: " << pal.longest_palindrome << "\n";
+    std::cout << "lcs length: " << lcs.length << ", damerau: " << dist << "\n";
+}
+```
+
+#### String Examples
+
+Each algorithm has a focused example under `Examples/`:
+
+- `kmp_example.cc`
+- `z_algorithm_example.cc`
+- `horspool_example.cc`
+- `rabin_karp_example.cc`
+- `aho_corasick_example.cc`
+- `suffix_array_lcp_example.cc`
+- `suffix_tree_example.cc`
+- `suffix_automaton_example.cc`
+- `manacher_example.cc`
+- `edit_distance_example.cc`
+- `damerau_levenshtein_example.cc`
+- `lcs_longest_common_substring_example.cc`
+
 <a id="readme-sorting-algorithms"></a>
 ### Sorting Algorithms
 
@@ -3256,6 +3333,19 @@ int main() {
 | `Splay_Tree_Rk` | `tpl_splay_treeRk.H` | Splay with rank |
 | `Treap` | `tpl_treap.H` | Treap |
 | `Treap_Rk` | `tpl_treapRk.H` | Treap with rank |
+| `Rand_Tree` | `tpl_rand_tree.H` | Randomized search tree |
+| `Rand_Tree_Rk` | `tpl_rand_tree.H` | Randomized tree with rank |
+
+#### String Algorithms
+
+| Header | Functions / Classes | Description |
+|--------|---------------------|-------------|
+| `String_Search.H` | `kmp_search()`, `z_search()`, `boyer_moore_horspool_search()`, `rabin_karp_search()` | Pattern matching algorithms |
+| `Aho_Corasick.H` | `Aho_Corasick` | Multi-pattern search |
+| `Suffix_Structures.H` | `suffix_array()`, `lcp_array_kasai()`, `Naive_Suffix_Tree`, `Suffix_Automaton` | Text indexing structures |
+| `String_Palindromes.H` | `manacher()`, `longest_palindromic_substring()` | Palindrome detection in O(n) |
+| `String_DP.H` | `levenshtein_distance()`, `damerau_levenshtein_distance()`, `longest_common_subsequence()`, `longest_common_substring()` | Sequence similarity and edit distance |
+| `String_Algorithms.H` | *(all above)* | Umbrella include for string classical toolkit |
 
 #### Graph Algorithms
 
@@ -3460,6 +3550,19 @@ cmake --build build
 | Johnson | `johnson_example.cc` | All-pairs sparse |
 | A* | `astar_example.cc` | Heuristic search |
 | K shortest paths | `k_shortest_paths_example.cc` | Yen (loopless) vs Eppstein-style general alternatives |
+| **String Algorithms** | | |
+| KMP | `kmp_example.cc` | Prefix-function based linear-time single-pattern search |
+| Z-algorithm | `z_algorithm_example.cc` | Prefix-similarity array and pattern search |
+| Boyer-Moore-Horspool | `horspool_example.cc` | Fast practical bad-character shift search |
+| Rabin-Karp | `rabin_karp_example.cc` | Rolling-hash search with exact verification |
+| Aho-Corasick | `aho_corasick_example.cc` | Multi-pattern automaton matching |
+| Suffix Array + LCP | `suffix_array_lcp_example.cc` | Lexicographic suffix ordering and Kasai LCP |
+| Suffix Tree | `suffix_tree_example.cc` | Naive compressed suffix tree lookups |
+| Suffix Automaton | `suffix_automaton_example.cc` | Substring automaton, distinct substring count, LCS |
+| Manacher | `manacher_example.cc` | Longest palindromic substring in linear time |
+| Levenshtein | `edit_distance_example.cc` | Edit distance via dynamic programming |
+| Damerau-Levenshtein | `damerau_levenshtein_example.cc` | Edit distance with adjacent transpositions |
+| LCS / Longest Common Substring | `lcs_longest_common_substring_example.cc` | Subsequence and contiguous overlap extraction |
 | **Network Flows** | | |
 | Max flow | `network_flow_example.C` | Basic max flow |
 | Min-cost flow | `mincost_flow_example.cc` | Cost optimization |

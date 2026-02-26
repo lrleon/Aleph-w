@@ -55,6 +55,7 @@
 # define AH_CONCEPTS_H
 
 # include <concepts>
+# include <type_traits>
 
 namespace Aleph
 {
@@ -224,6 +225,16 @@ namespace Aleph
         {
           cc.get_it();
         };
+
+  /** @brief Integral value accepted by linear-time integer sorting algorithms.
+   *
+   *  This concept accepts integral types except `bool`, which avoids accidental
+   *  use of bit-like logical values in counting/radix sorting APIs.
+   */
+  template <typename T>
+  concept IntegerSortableValue =
+      std::is_integral_v<std::remove_cv_t<T>> and
+      not std::is_same_v<std::remove_cv_t<T>, bool>;
 
 } // namespace Aleph
 
