@@ -704,7 +704,7 @@ namespace Aleph
 
     for (size_t i = 1; i < n; ++i)
       {
-        const size_t min_valid = (i > window) ? (i - window) : 0;
+        const size_t min_valid = i > window ? i - window : 0;
 
         while (head < deque_idx.size() and deque_idx[head] < min_valid)
           ++head;

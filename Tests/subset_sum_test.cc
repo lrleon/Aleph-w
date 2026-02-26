@@ -36,7 +36,7 @@
 
 # include <cstdint>
 # include <random>
-# include <vector>
+# include <bitArray.H>
 
 # include <gtest/gtest.h>
 
@@ -68,7 +68,7 @@ namespace
                        const int target)
   {
     int sum = 0;
-    std::vector<bool> seen(vals.size(), false);
+    BitArray seen(vals.size());
     for (unsigned long idx : selected)
       {
         if (idx >= vals.size() or seen[idx])

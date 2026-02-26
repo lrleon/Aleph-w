@@ -65,30 +65,37 @@ namespace Aleph
 {
   namespace tree_dp_detail
   {
-    /** @internal
-     *  @brief Extract tree topology: node indexing, adjacency, parent, order.
+    /** @brief Extract tree topology: node indexing, adjacency, parent, order.
+     *
+     *  This class preprocesses a graph tree to provide efficient access to
+     *  parent-child relations and traversal orders.
+     *
+     *  @tparam GT Graph type.
+     *  @tparam SA Arc filter.
      */
     template <class GT, class SA>
     class Tree_Topology
     {
     public:
-      using Node = typename GT::Node;
-      using Arc = typename GT::Arc;
+      using Node = typename GT::Node; /**< Node type. */
+      using Arc = typename GT::Arc;   /**< Arc type. */
 
+      /** @brief Sentinel for null/none parent or id. */
       static constexpr size_t NONE = std::numeric_limits<size_t>::max();
 
     private:
-      const GT *graph_ = nullptr;
-      SA sa_;
-      Node *root_ = nullptr;
-      size_t n_ = 0;
+      const GT *graph_ = nullptr; /**< Source graph. */
+      SA sa_;                     /**< Arc filter. */
+      Node *root_ = nullptr;      /**< Tree root. */
+      size_t n_ = 0;              /**< Number of nodes. */
 
-      Array<Node *> id_to_node_;
-      MapOLhash<Node *, size_t> node_to_id_;
-      Array<Array<size_t>> adj_;
-      Array<size_t> parent_;
-      Array<size_t> order_; // post-order (leaves first)
+      Array<Node *> id_to_node_;         /**< Mapping from id to node pointer. */
+      MapOLhash<Node *, size_t> node_to_id_; /**< Mapping from node pointer to id. */
+      Array<Array<size_t>> adj_;         /**< Adjacency list (children in rooted tree). */
+      Array<size_t> parent_;             /**< Parent id for each node. */
+      Array<size_t> order_;              /**< Post-order traversal (leaves first). */
 
+      /** @brief Assign unique IDs to nodes and validate the root. */
       void index_nodes()
       {
         n_ = graph_->get_num_nodes();
@@ -120,6 +127,7 @@ namespace Aleph
             << "Tree_Topology: root node is not part of the graph";
       }
 
+      /** @brief Build undirected adjacency list and verify tree properties. */
       void build_adjacency()
       {
         if (n_ == 0)
@@ -171,6 +179,7 @@ namespace Aleph
           }
       }
 
+      /** @brief BFS/DFS traversal to establish parent-child relations and order. */
       void build_order()
       {
         if (n_ == 0)
@@ -222,6 +231,12 @@ namespace Aleph
       }
 
     public:
+      /** @brief Preprocess tree topology.
+       *  @param[in] g    The graph tree.
+       *  @param[in] root The root node.
+       *  @param[in] sa   The arc filter.
+       *  @throws ah_domain_error if not a tree or root not in graph.
+       */
       Tree_Topology(const GT & g, Node *root, SA sa = SA())
         : graph_(&g), sa_(std::move(sa)), root_(root)
       {
@@ -230,9 +245,13 @@ namespace Aleph
         build_order();
       }
 
+      /** @brief Returns number of nodes. */
       [[nodiscard]] size_t size() const noexcept { return n_; }
+
+      /** @brief Returns root node pointer. */
       [[nodiscard]] Node * root() const noexcept { return root_; }
 
+      /** @brief Returns internal ID of a node. */
       [[nodiscard]] size_t id_of(Node *node) const
       {
         const auto *item = node_to_id_.search(node);
@@ -241,6 +260,7 @@ namespace Aleph
         return item->second;
       }
 
+      /** @brief Returns node pointer for a given ID. */
       [[nodiscard]] Node * node_of(size_t id) const
       {
         ah_out_of_range_error_if(id >= n_)
@@ -248,22 +268,25 @@ namespace Aleph
         return id_to_node_(id);
       }
 
+      /** @brief Returns children IDs of a node. */
       [[nodiscard]] const Array<size_t> &children(size_t id) const
       {
         return adj_(id);
       }
 
+      /** @brief Returns parent ID of a node. */
       [[nodiscard]] size_t parent(size_t id) const noexcept
       {
         return parent_(id);
       }
 
-      // Post-order traversal: leaves first, root last
+      /** @brief Returns post-order traversal (leaves first, root last). */
       [[nodiscard]] const Array<size_t> &post_order() const noexcept
       {
         return order_;
       }
 
+      /** @brief Returns all node pointers indexed by ID. */
       [[nodiscard]] const Array<Node *> &nodes() const noexcept
       {
         return id_to_node_;
@@ -298,7 +321,7 @@ namespace Aleph
   class Gen_Tree_DP
   {
   public:
-    using Node = typename GT::Node;
+    using Node = typename GT::Node; /**< Node type. */
 
     /** @brief Initialization function: maps a leaf/node to its base value. */
     using Init_Fn = std::function<T(Node *)>;
@@ -311,8 +334,8 @@ namespace Aleph
     using Combine_Fn = std::function<T(Node *, const T &, Node *, const T &)>;
 
   private:
-    tree_dp_detail::Tree_Topology<GT, SA> topo_;
-    Array<T> dp_;
+    tree_dp_detail::Tree_Topology<GT, SA> topo_; /**< Tree topology and order. */
+    Array<T> dp_;                               /**< Computed DP values. */
 
   public:
     /** @brief Construct and compute bottom-up DP.
@@ -350,38 +373,51 @@ namespace Aleph
         }
     }
 
-    /** @brief Get the DP value for a node. */
+    /** @brief Returns the DP value for a given node.
+     *  @param[in] node Node pointer.
+     *  @return Constant reference to the computed DP value.
+     */
     [[nodiscard]] const T &value(Node *node) const
     {
       return dp_(topo_.id_of(node));
     }
 
-    /** @brief Get all DP values (indexed by internal id). */
+    /** @brief Returns all DP values (indexed by internal node ID). */
     [[nodiscard]] const Array<T> &values() const noexcept
     {
       return dp_;
     }
 
-    /** @brief Number of nodes. */
+    /** @brief Returns the number of nodes in the tree. */
     [[nodiscard]] size_t size() const noexcept
     {
       return topo_.size();
     }
 
-    /** @brief Get node by internal id. */
+    /** @brief Returns the node pointer for a given internal ID.
+     *  @param[in] id Internal node ID.
+     *  @return Node pointer.
+     */
     [[nodiscard]] Node * node_of(size_t id) const
     {
       return topo_.node_of(id);
     }
 
-    /** @brief Get internal id of a node. */
+    /** @brief Returns the internal ID for a given node pointer.
+     *  @param[in] node Node pointer.
+     *  @return Internal node ID.
+     */
     [[nodiscard]] size_t id_of(Node *node) const
     {
       return topo_.id_of(node);
     }
   };
 
-  /** @brief Convenient alias for Gen_Tree_DP. */
+  /** @brief Convenient alias for Gen_Tree_DP.
+   *  @tparam GT Graph type.
+   *  @tparam T  Value type.
+   *  @tparam SA Arc filter.
+   */
   template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
   using Tree_DP = Gen_Tree_DP<GT, T, SA>;
 
@@ -414,17 +450,27 @@ namespace Aleph
   class Gen_Reroot_DP
   {
   public:
-    using Node = typename GT::Node;
+    using Node = typename GT::Node; /**< Node type. */
+
+    /** @brief Initialization function: base contribution of a node. */
     using Init_Fn = std::function<T(Node *)>;
+
+    /** @brief Merge function: associative binary operation to combine results. */
     using Merge_Fn = std::function<T(const T &, const T &)>;
+
+    /** @brief Edge transformation function: applies edge effects to a subtree result.
+     *
+     *  Parameters: (parent_node, child_node, subtree_value)
+     *  Returns: contribution to parent's DP.
+     */
     using Apply_Edge_Fn = std::function<T(Node *, Node *, const T &)>;
 
   private:
-    tree_dp_detail::Tree_Topology<GT, SA> topo_;
-    T identity_;
-    Array<T> dp_down_; // bottom-up DP
-    Array<T> dp_up_; // top-down contribution from parent side
-    Array<T> answer_; // final answer for each node as root
+    tree_dp_detail::Tree_Topology<GT, SA> topo_; /**< Tree topology and order. */
+    T identity_;                                /**< Identity for merge operation. */
+    Array<T> dp_down_;                          /**< Bottom-up DP results. */
+    Array<T> dp_up_;                            /**< Top-down contribution from parent side. */
+    Array<T> answer_;                           /**< Final answer for each node as root. */
 
   public:
     /** @brief Construct and compute rerooting DP.
@@ -527,38 +573,51 @@ namespace Aleph
         answer_(i) = merge(dp_down_(i), dp_up_(i));
     }
 
-    /** @brief Get the answer for a node (as if it were the root). */
+    /** @brief Returns the answer for a given node as root.
+     *  @param[in] node Node pointer.
+     *  @return Constant reference to the computed DP answer.
+     */
     [[nodiscard]] const T &value(Node *node) const
     {
       return answer_(topo_.id_of(node));
     }
 
-    /** @brief Get all answers (indexed by internal id). */
+    /** @brief Returns all computed answers (indexed by internal ID). */
     [[nodiscard]] const Array<T> &values() const noexcept
     {
       return answer_;
     }
 
-    /** @brief Number of nodes. */
+    /** @brief Returns the number of nodes in the tree. */
     [[nodiscard]] size_t size() const noexcept
     {
       return topo_.size();
     }
 
-    /** @brief Get node by internal id. */
+    /** @brief Returns the node pointer for a given internal ID.
+     *  @param[in] id Internal node ID.
+     *  @return Node pointer.
+     */
     [[nodiscard]] Node * node_of(size_t id) const
     {
       return topo_.node_of(id);
     }
 
-    /** @brief Get internal id of a node. */
+    /** @brief Returns the internal ID for a given node pointer.
+     *  @param[in] node Node pointer.
+     *  @return Internal node ID.
+     */
     [[nodiscard]] size_t id_of(Node *node) const
     {
       return topo_.id_of(node);
     }
   };
 
-  /** @brief Convenient alias for Gen_Reroot_DP. */
+  /** @brief Convenient alias for Gen_Reroot_DP.
+   *  @tparam GT Graph type.
+   *  @tparam T  Value type.
+   *  @tparam SA Arc filter.
+   */
   template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
   using Reroot_DP = Gen_Reroot_DP<GT, T, SA>;
 

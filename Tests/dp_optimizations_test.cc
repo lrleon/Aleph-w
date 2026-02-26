@@ -41,6 +41,7 @@
 # include <chrono>
 # include <numeric>
 # include <ctime>
+# include <cstdlib>
 
 # include <DP_Optimizations.H>
 
@@ -436,6 +437,9 @@ TEST(DPOptimizations, WeightedSquaredDistanceValidatesSizes)
 
 TEST(DPOptimizations, DivideConquerPartitionPerf)
 {
+  if (std::getenv("RUN_PERF_TESTS") == nullptr)
+    GTEST_SKIP() << "Skipping performance test; set RUN_PERF_TESTS=1 to enable";
+
   // Deterministic performance check for D&C DP optimizer.
   // Complexity O(groups * n * log n). For these parameters, ~2.2M iterations.
   const size_t groups = 100;
@@ -458,6 +462,8 @@ TEST(DPOptimizations, DivideConquerPartitionPerf)
   EXPECT_LT(cpu_elapsed_ms, 500.0) 
     << "Performance regression: divide_and_conquer_partition_dp took " << cpu_elapsed_ms << "ms CPU time";
   
-  EXPECT_EQ(res.optimal_cost, cost(0, n) / groups); // For this specific cost, optimal is equal splits if real
-  // but since we split into n intervals, it's roughly n^2 / g.
+  // We split the range [0, n) into groups intervals. Given the cost(i, j) = (j-i)^2
+  // model, the optimal cost res.optimal_cost is achieved with equal-sized splits,
+  // yielding exactly cost(0, n) / groups, which is roughly n^2 / groups.
+  EXPECT_EQ(res.optimal_cost, cost(0, n) / groups); 
 }
