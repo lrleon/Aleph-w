@@ -110,6 +110,12 @@ set(HLIST
     tpl_odhash.H tpl_memArray.H tpl_dynArray.H ahFuntional.H hash-dry.H
     bloom-filter.H ah-dry.H graph-dry.H tpl_con_queue.H
     q-consumer-threads.H ah-string-utils.H ah-unique.H ah-comb.H geom_algorithms.H
+    String_Search.H
+    Aho_Corasick.H
+    Suffix_Structures.H
+    String_Palindromes.H
+    String_DP.H
+    String_Algorithms.H
     tikzgeom.H
     tikzgeom_algorithms.H
     tikzgeom_scene.H

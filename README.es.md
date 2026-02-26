@@ -36,7 +36,7 @@ Idioma: Español | [English](README.md)
 - [Licencia](#readme-es-licencia)
 - [Agradecimientos](#readme-es-agradecimientos)
 
-> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo emparejamiento máximo en grafos generales con Edmonds-Blossom (`Blossom.H`), emparejamiento de máximo peso en grafos generales (`Blossom_Weighted.H`, validado en `List_Graph`, `List_SGraph` y `Array_Graph`), emparejamiento de costo minimo en grafos generales (`Min_Cost_Matching.H`, con variante de matching perfecto factible/no factible), el algoritmo Húngaro/Munkres para asignación óptima (`Hungarian.H`), LCA en árboles sobre grafos de Aleph (`LCA.H`, binary lifting y Euler+RMQ), descomposiciones de árbol avanzadas (`Tree_Decomposition.H`: Heavy-Light + Centroid Decomposition), el flujo completo de Delaunay/Voronoi y los ejemplos:
+> Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos), incluyendo emparejamiento máximo en grafos generales con Edmonds-Blossom (`Blossom.H`), emparejamiento de máximo peso en grafos generales (`Blossom_Weighted.H`, validado en `List_Graph`, `List_SGraph` y `Array_Graph`), emparejamiento de costo minimo en grafos generales (`Min_Cost_Matching.H`, con variante de matching perfecto factible/no factible), el algoritmo Húngaro/Munkres para asignación óptima (`Hungarian.H`), LCA en árboles sobre grafos de Aleph (`LCA.H`, binary lifting y Euler+RMQ), descomposiciones de árbol avanzadas (`Tree_Decomposition.H`: Heavy-Light + Centroid Decomposition), la suite completa de strings (`String_Search.H`, `Aho_Corasick.H`, `Suffix_Structures.H`, `String_Palindromes.H`, `String_DP.H`, `String_Algorithms.H`), el flujo completo de Delaunay/Voronoi y los ejemplos:
 > - `Examples/blossom_example.cc`
 > - `Examples/weighted_blossom_example.cc`
 > - `Examples/min_cost_matching_example.cc`
@@ -65,6 +65,18 @@ Idioma: Español | [English](README.md)
 > - `Examples/tikz_scene_example.cc`
 > - `Examples/tikz_scene_beamer_example.cc`
 > - `Examples/tikz_scene_overlays_example.cc`
+> - `Examples/kmp_example.cc`
+> - `Examples/z_algorithm_example.cc`
+> - `Examples/horspool_example.cc`
+> - `Examples/rabin_karp_example.cc`
+> - `Examples/aho_corasick_example.cc`
+> - `Examples/suffix_array_lcp_example.cc`
+> - `Examples/suffix_tree_example.cc`
+> - `Examples/suffix_automaton_example.cc`
+> - `Examples/manacher_example.cc`
+> - `Examples/edit_distance_example.cc`
+> - `Examples/damerau_levenshtein_example.cc`
+> - `Examples/lcs_longest_common_substring_example.cc`
 
 ---
 
@@ -92,6 +104,7 @@ Idioma: Español | [English](README.md)
 │  ├─ Árbol Rojo-Negro     ├─ Open Addressing       ├─ Fibonacci Heap        │
 │  ├─ Árbol Splay          ├─ Linear Probing        └─ Array Heap            │
 │  ├─ Treap                └─ Linear Hashing                                 │
+│  ├─ Rand Tree                                                              │
 │  ├─ Skip List                                                              │
 │  └─ Variantes con Rank                                                     │
 │                                                                            │
@@ -139,12 +152,16 @@ Idioma: Español | [English](README.md)
 │  ├─ Dinic                                                                  │
 │  └─ Min-Cost Max-Flow                                                      │
 │                                                                            │
-│  ORDENAMIENTO             BÚSQUEDA                 OTROS                   │
-│  ├─ Quicksort            ├─ Búsqueda Binaria      ├─ Union-Find            │
-│  ├─ Mergesort            ├─ Interpolación         ├─ Huffman Coding        │
-│  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
-│  ├─ Introsort                                     └─ RMQ/LCA/HLD/Centroid   │
+│  ORDENAMIENTO             BÚSQUEDA                 STRINGS                 │
+│  ├─ Quicksort            ├─ Búsqueda Binaria      ├─ Pattern Matching      │
+│  ├─ Mergesort            └─ Interpolación         ├─ Suffix Structures     │
+│  ├─ Heapsort                                      ├─ Edit Distance / LCS   │
+│  ├─ Introsort                                     └─ Palíndromos (Manacher)│
 │  └─ Shell Sort                                                             │
+│                                                                            │
+│  OTROS                                                                     │
+│  ├─ Union-Find           ├─ Huffman Coding        ├─ Simplex (LP)          │
+│  └─ RMQ/LCA/HLD/Centroid └─ BitArray                                       │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -255,6 +272,7 @@ Los headers están en el raíz del repo (p.ej. `tpl_dynSetTree.H`, `tpl_graph.H`
 #include <iostream>
 
 int main() {
+    // Soporta Avl_Tree, Rb_Tree, Splay_Tree, Treap, Rand_Tree y variantes *Rk
     DynSetTree<int, Avl_Tree> numbers;
 
     numbers.insert(50);
@@ -483,6 +501,54 @@ Headers relevantes:
 - `tikzgeom_scene.H`: `Tikz_Scene`, interfaz de composición para mezclar múltiples visualizaciones en una sola figura/export (standalone, beamer y handout), incluyendo secuencias multi-paso con overlays.
 - `tikzgeom_algorithms.H`: helpers para convex hull, intersecciones, Voronoi/power diagram, arrangement, shortest path (con portales), trazas/frames del funnel, versiones beamer (incluyendo layout en dos columnas y handout), descomposición convexa y alpha shape.
 - `docs/TIKZGEOM_GUIDE.md`: guia completa de interfaz y extension.
+
+### Ejemplo 7: Algoritmos de strings clásicos
+
+Cabeceras principales:
+- `String_Search.H`: KMP, Z-algorithm, Boyer-Moore-Horspool, Rabin-Karp.
+- `Aho_Corasick.H`: matching multi-patrón.
+- `Suffix_Structures.H`: suffix array + LCP (Kasai), suffix tree didáctico, suffix automaton.
+- `String_Palindromes.H`: Manacher.
+- `String_DP.H`: Levenshtein, Damerau-Levenshtein, LCS, longest common substring.
+- `String_Algorithms.H`: cabecera paraguas.
+
+```cpp
+#include <String_Algorithms.H>
+#include <iostream>
+
+int main() {
+    auto kmp = Aleph::kmp_search("ababaabababa", "ababa");
+
+    Aleph::Aho_Corasick ac;
+    ac.add_pattern("he");
+    ac.add_pattern("she");
+    ac.build();
+    auto multi = ac.search("ahishers");
+
+    auto sa = Aleph::suffix_array("banana");
+    auto lcp = Aleph::lcp_array_kasai("banana", sa);
+    auto pal = Aleph::longest_palindromic_substring("forgeeksskeegfor");
+    auto lev = Aleph::levenshtein_distance("kitten", "sitting");
+
+    std::cout << kmp.size() << " " << multi.size() << " "
+              << sa.size() << " " << lcp.size() << " "
+              << pal << " " << lev << "\n";
+}
+```
+
+Ejemplos dedicados en `Examples/`:
+- `kmp_example.cc`
+- `z_algorithm_example.cc`
+- `horspool_example.cc`
+- `rabin_karp_example.cc`
+- `aho_corasick_example.cc`
+- `suffix_array_lcp_example.cc`
+- `suffix_tree_example.cc`
+- `suffix_automaton_example.cc`
+- `manacher_example.cc`
+- `edit_distance_example.cc`
+- `damerau_levenshtein_example.cc`
+- `lcs_longest_common_substring_example.cc`
 
 ---
 

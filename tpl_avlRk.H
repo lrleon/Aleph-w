@@ -136,14 +136,13 @@ namespace Aleph
 
       do
         {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
           if (cmp(key, KEY(p)))  // key < KEY(p)
             {
               cmp_result = CmpLess;
               p = LLINK(p);
-              // Prefetch only the child we'll visit next iteration
-              if (p != Node::NullPtr) [[likely]]
-                __builtin_prefetch(p);
             }
           else  // key >= KEY(p), could be equal
             {
@@ -151,9 +150,6 @@ namespace Aleph
               candidate_pos = avl_stack.size();
               cmp_result = CmpGreater;
               p = RLINK(p);
-              // Prefetch only the child we'll visit next iteration
-              if (p != Node::NullPtr) [[likely]]
-                __builtin_prefetch(p);
             }
         }
       while (p != Node::NullPtr);
@@ -180,22 +176,18 @@ namespace Aleph
       Node *p = root;
       do
         {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
           if (cmp(key, KEY(p))) // key < KEY(p)?
             {
               cmp_result = CmpLess;
               p = LLINK(p);
-              // Prefetch only the child we'll visit next iteration
-              if (p != Node::NullPtr) [[likely]]
-                __builtin_prefetch(p);
             }
           else // key >= KEY(p)
             {
               cmp_result = CmpGreater;
               p = RLINK(p);
-              // Prefetch only the child we'll visit next iteration
-              if (p != Node::NullPtr) [[likely]]
-                __builtin_prefetch(p);
             }
         }
       while (p != Node::NullPtr);

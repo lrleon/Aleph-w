@@ -1496,17 +1496,16 @@ namespace Aleph
 
     while (root != Node::NullPtr)
       {
-        const bool go_left = cmp(key, KEY(root)); // key < root ?
+        __builtin_prefetch(LLINK(root));
+        __builtin_prefetch(RLINK(root));
 
-        Node *next = go_left ? LLINK(root) : RLINK(root);
-
-        // Prefetch only the branch that follows (best for caching)
-        if (next != Node::NullPtr)
-          __builtin_prefetch(next, 0, 3);
-
-        if (not go_left)
-          candidate = root;
-        root = next;
+        if (cmp(key, KEY(root)))  // key < root: go left
+          root = LLINK(root);
+        else  // key >= root: go right, mark as candidate
+          {
+            candidate = root;
+            root = RLINK(root);
+          }
       }
 
     // Optimistic check: if candidate exists and key == candidate, return it
