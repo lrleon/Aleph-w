@@ -54,6 +54,7 @@
  *
  * This module contains a wide variety of algorithms including:
  * - Sorting and searching algorithms
+ * - Dynamic programming (Knapsack, LIS, Matrix-Chain, Subset-Sum, Tree DP)
  * - Combinatorial algorithms (permutations, combinations)
  * - String algorithms
  * - Numerical algorithms

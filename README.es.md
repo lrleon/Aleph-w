@@ -550,6 +550,52 @@ Ejemplos dedicados en `Examples/`:
 - `damerau_levenshtein_example.cc`
 - `lcs_longest_common_substring_example.cc`
 
+### Ejemplo 8: Programación dinámica clásica
+
+Cabeceras principales:
+- `Knapsack.H`: 0/1, unbounded y bounded knapsack (con reconstrucción).
+- `LIS.H`: LIS/LNDS en `O(n log n)` con reconstrucción.
+- `Matrix_Chain.H`: parentización óptima para producto encadenado de matrices.
+- `Subset_Sum.H`: existencia/reconstrucción/conteo + MITM.
+- `Tree_DP.H`: DP genérico en árboles y rerooting `O(n)`.
+- `DP_Optimizations.H`: Divide & Conquer DP, Knuth, CHT, Li Chao y monotone queue.
+
+```cpp
+#include <Knapsack.H>
+#include <LIS.H>
+#include <Matrix_Chain.H>
+#include <Subset_Sum.H>
+#include <DP_Optimizations.H>
+
+int main() {
+    Aleph::Array<Aleph::Knapsack_Item<int, int>> items = {{2, 3}, {3, 4}, {4, 5}};
+    auto k = Aleph::knapsack_01(items, 6);
+
+    Aleph::Array<int> seq = {10, 9, 2, 5, 3, 7, 101, 18};
+    auto lis = Aleph::longest_increasing_subsequence(seq);
+
+    Aleph::Array<size_t> dims = {30, 35, 15, 5, 10, 20, 25};
+    auto mc = Aleph::matrix_chain_order(dims);
+
+    Aleph::Array<int> vals = {3, 34, 4, 12, 5, 2};
+    auto ss = Aleph::subset_sum(vals, 9);
+
+    Aleph::Array<long long> xs = {-3, 0, 2, 7};
+    Aleph::Array<long long> ws = {4, 1, 9, 2};
+    auto geo = Aleph::min_weighted_squared_distance_1d(xs, ws);
+
+    return int(k.optimal_value + lis.length + mc.min_multiplications + ss.exists + geo.size());
+}
+```
+
+Ejemplos dedicados en `Examples/`:
+- `knapsack_example.cc`
+- `lis_example.cc`
+- `matrix_chain_example.cc`
+- `subset_sum_example.cc`
+- `tree_dp_example.cc`
+- `dp_optimizations_example.cc`
+
 ---
 
 <a id="readme-es-pruebas"></a>

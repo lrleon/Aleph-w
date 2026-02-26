@@ -52,6 +52,7 @@ Language: English | [Español](README.es.md)
   - [Matching](#readme-matching)
   - [String Algorithms](#readme-string-algorithms)
   - [Sorting Algorithms](#readme-sorting-algorithms)
+  - [Dynamic Programming Algorithms](#readme-dp-algorithms)
 - [Memory Management](#readme-memory-management)
   - [Arena Allocators](#readme-arena-allocators)
 - [Parallel Computing](#readme-parallel-computing)
@@ -2797,6 +2798,68 @@ Each algorithm has a focused example under `Examples/`:
 - `damerau_levenshtein_example.cc`
 - `lcs_longest_common_substring_example.cc`
 
+<a id="readme-dp-algorithms"></a>
+### Dynamic Programming Algorithms
+
+Aleph-w also includes a practical dynamic-programming toolkit:
+
+| Header | Scope |
+|---|---|
+| `Knapsack.H` | 0/1, unbounded, and bounded knapsack (with reconstruction) |
+| `LIS.H` | LIS and LNDS in O(n log n), with sequence reconstruction |
+| `Matrix_Chain.H` | Optimal matrix-chain parenthesization (interval DP) |
+| `Subset_Sum.H` | Subset sum (existence/reconstruction/count) + MITM |
+| `Tree_DP.H` | Generic tree DP + rerooting DP (all roots in O(n)) |
+| `DP_Optimizations.H` | D&C DP, Knuth, Convex Hull Trick, Li Chao, monotone queue |
+
+#### Covered DP APIs
+
+- Knapsack: `knapsack_01`, `knapsack_01_value`, `knapsack_unbounded`, `knapsack_bounded`
+- Subsequences: `longest_increasing_subsequence`, `lis_length`, `longest_nondecreasing_subsequence`
+- Matrix chain: `matrix_chain_order`, `matrix_chain_min_cost`
+- Subset sum: `subset_sum`, `subset_sum_exists`, `subset_sum_count`, `subset_sum_mitm`
+- Trees: `Gen_Tree_DP`, `Gen_Reroot_DP`, `tree_subtree_sizes`, `tree_max_distance`, `tree_sum_of_distances`
+- DP optimizations: `divide_and_conquer_partition_dp`, `knuth_optimize_interval`, `optimal_merge_knuth`, `Convex_Hull_Trick`, `Li_Chao_Tree`, `monotone_queue_min_dp`, `min_weighted_squared_distance_1d`
+
+#### DP Usage Example
+
+```cpp
+#include <Knapsack.H>
+#include <LIS.H>
+#include <Matrix_Chain.H>
+#include <Subset_Sum.H>
+#include <DP_Optimizations.H>
+
+int main() {
+    Aleph::Array<Aleph::Knapsack_Item<int, int>> items = {{2, 3}, {3, 4}, {4, 5}};
+    auto k = Aleph::knapsack_01(items, 6);
+
+    Aleph::Array<int> seq = {10, 9, 2, 5, 3, 7, 101, 18};
+    auto lis = Aleph::longest_increasing_subsequence(seq);
+
+    Aleph::Array<size_t> dims = {30, 35, 15, 5, 10, 20, 25};
+    auto mc = Aleph::matrix_chain_order(dims);
+
+    Aleph::Array<int> vals = {3, 34, 4, 12, 5, 2};
+    auto ss = Aleph::subset_sum(vals, 9);
+
+    Aleph::Array<long long> xs = {-3, 0, 2, 7};
+    Aleph::Array<long long> ws = {4, 1, 9, 2};
+    auto geo = Aleph::min_weighted_squared_distance_1d(xs, ws);
+
+    return int(k.optimal_value + lis.length + mc.min_multiplications + ss.exists + geo.size());
+}
+```
+
+#### DP Examples
+
+- `knapsack_example.cc`
+- `lis_example.cc`
+- `matrix_chain_example.cc`
+- `subset_sum_example.cc`
+- `tree_dp_example.cc`
+- `dp_optimizations_example.cc`
+
 <a id="readme-sorting-algorithms"></a>
 ### Sorting Algorithms
 
@@ -3347,6 +3410,10 @@ int main() {
 | `String_DP.H` | `levenshtein_distance()`, `damerau_levenshtein_distance()`, `longest_common_subsequence()`, `longest_common_substring()` | Sequence similarity and edit distance |
 | `String_Algorithms.H` | *(all above)* | Umbrella include for string classical toolkit |
 
+#### Dynamic Programming
+
+Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algorithms) section for a complete list of headers, functions, and examples.
+
 #### Graph Algorithms
 
 | Header | Function | Description |
@@ -3563,6 +3630,7 @@ cmake --build build
 | Levenshtein | `edit_distance_example.cc` | Edit distance via dynamic programming |
 | Damerau-Levenshtein | `damerau_levenshtein_example.cc` | Edit distance with adjacent transpositions |
 | LCS / Longest Common Substring | `lcs_longest_common_substring_example.cc` | Subsequence and contiguous overlap extraction |
+| **Dynamic Programming** | (see [Dynamic Programming Algorithms](#readme-dp-algorithms)) | Full toolkit and optimization examples |
 | **Network Flows** | | |
 | Max flow | `network_flow_example.C` | Basic max flow |
 | Min-cost flow | `mincost_flow_example.cc` | Cost optimization |
