@@ -119,7 +119,7 @@ namespace Aleph
 
     int max_rank = 255; // initial ranks are char codes in [0, 255]
 
-    for (size_t k = 1; ; k *= 2)
+    for (size_t k = 1; ; )
       {
         auto key2 = [&](const size_t idx) -> int
           {
@@ -158,6 +158,11 @@ namespace Aleph
 
         if (k >= n)
           break;
+
+        if (k > n / 2)
+          break;
+
+        k *= 2;
       }
 
     return sa;
