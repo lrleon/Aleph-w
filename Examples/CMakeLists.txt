@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXAMPLES_WARN_FLAGS} ${EXAMPLES_COMMON
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 # List of all example programs present in the directory
 set(EXAMPLE_PROGRAMS
@@ -64,6 +65,12 @@ set(EXAMPLE_PROGRAMS
     edit_distance_example
     damerau_levenshtein_example
     lcs_longest_common_substring_example
+    knapsack_example
+    lis_example
+    matrix_chain_example
+    subset_sum_example
+    tree_dp_example
+    dp_optimizations_example
     writeBalance
     writeHeap
     writeInsertRoot

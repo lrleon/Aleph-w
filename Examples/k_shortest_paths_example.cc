@@ -147,7 +147,9 @@ namespace
       cout << "  (no path found)\n";
     cout << '\n';
   }
-} /**
+}
+
+/**
  * @brief Runs a sample demonstration computing K shortest paths using two APIs and prints their results.
  *
  * Constructs a sample scenario, builds a directed graph, computes up to K shortest paths using Yen's

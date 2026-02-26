@@ -222,7 +222,7 @@ public:
 	  }
 	catch (...)
 	  {
-	    for (size_t k = i - 1; k >= 0; --k)
+	    for (size_t k = i; k-- > 0; )
 	      delete [] map[k];
 	    delete [] map;
 	    clear_graph(g);
