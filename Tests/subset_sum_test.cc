@@ -34,10 +34,11 @@
  * @brief Tests for Subset_Sum.H.
  */
 
-# include <gtest/gtest.h>
-
 # include <cstdint>
 # include <random>
+# include <vector>
+
+# include <gtest/gtest.h>
 
 # include <Subset_Sum.H>
 
@@ -48,7 +49,7 @@ namespace
   size_t brute_subset_count(const Array<int> & vals, const int target)
   {
     const size_t n = vals.size();
-    const uint64_t total_masks = uint64_t(1) << n;
+    const uint64_t total_masks = static_cast<uint64_t>(1) << n;
     size_t count = 0;
     for (uint64_t mask = 0; mask < total_masks; ++mask)
       {
@@ -68,9 +69,8 @@ namespace
   {
     int sum = 0;
     std::vector<bool> seen(vals.size(), false);
-    for (size_t i = 0; i < selected.size(); ++i)
+    for (unsigned long idx : selected)
       {
-        const size_t idx = selected[i];
         if (idx >= vals.size() or seen[idx])
           return false;
         seen[idx] = true;
@@ -83,7 +83,7 @@ namespace
 
 TEST(SubsetSum, EmptyArray)
 {
-  Array<int> vals;
+  const Array<int> vals;
   auto r = subset_sum(vals, 0);
   EXPECT_TRUE(r.exists);
   EXPECT_EQ(r.selected_indices.size(), 0u);
@@ -108,8 +108,8 @@ TEST(SubsetSum, BasicFound)
 
   // Verify selected indices sum to target
   int total = 0;
-  for (size_t k = 0; k < r.selected_indices.size(); ++k)
-    total += vals[r.selected_indices[k]];
+  for (unsigned long selected_indice : r.selected_indices)
+    total += vals[selected_indice];
   EXPECT_EQ(total, 9);
 }
 

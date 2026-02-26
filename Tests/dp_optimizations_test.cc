@@ -40,6 +40,7 @@
 # include <random>
 # include <chrono>
 # include <numeric>
+# include <ctime>
 
 # include <DP_Optimizations.H>
 
@@ -447,16 +448,15 @@ TEST(DPOptimizations, DivideConquerPartitionPerf)
     return diff * diff;
   };
 
-  const auto start = std::chrono::steady_clock::now();
+  const std::clock_t start_clock = std::clock();
   const auto res = divide_and_conquer_partition_dp<long long>(groups, n, cost);
-  const auto end = std::chrono::steady_clock::now();
+  const std::clock_t end_clock = std::clock();
   
-  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  const double cpu_elapsed_ms = (static_cast<double>(end_clock - start_clock) * 1000.0) / CLOCKS_PER_SEC;
   
-  // Conservative 500ms threshold to avoid CI flakiness while detecting regressions.
-  // Typical execution should be well under 100ms.
-  EXPECT_LT(elapsed_ms, 500) 
-    << "Performance regression: divide_and_conquer_partition_dp took " << elapsed_ms << "ms";
+  // Conservative 500ms CPU-time threshold to avoid CI flakiness.
+  EXPECT_LT(cpu_elapsed_ms, 500.0) 
+    << "Performance regression: divide_and_conquer_partition_dp took " << cpu_elapsed_ms << "ms CPU time";
   
   EXPECT_EQ(res.optimal_cost, cost(0, n) / groups); // For this specific cost, optimal is equal splits if real
   // but since we split into n intervals, it's roughly n^2 / g.

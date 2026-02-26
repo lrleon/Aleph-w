@@ -83,7 +83,8 @@ namespace Aleph
   } // namespace dp_optimization_detail
 
 
-  /** @brief Result of divide-and-conquer partition DP optimization. */
+  /** @brief Result of divide-and-conquer partition DP optimization.
+   *  @tparam Cost Numeric DP cost type. */
   template <typename Cost>
   struct Divide_Conquer_DP_Result
   {
@@ -207,7 +208,8 @@ namespace Aleph
   }
 
 
-  /** @brief Result of Knuth interval-DP optimization. */
+  /** @brief Result of Knuth interval-DP optimization.
+   *  @tparam Cost Numeric DP cost type. */
   template <typename Cost>
   struct Knuth_Optimization_Result
   {
@@ -368,6 +370,8 @@ namespace Aleph
    *  Supports insertion of lines with non-increasing slope and minimum queries
    *  over x. Query can be done in O(log n) for arbitrary x or amortized O(1)
    *  for non-decreasing x via `query_monotone()`.
+   *
+   *  @tparam T Numeric type for slopes and coordinates.
    */
   template <typename T>
   class Convex_Hull_Trick
@@ -508,6 +512,8 @@ namespace Aleph
    *
    *  Supports arbitrary line insertion order and O(log X) min queries where X
    *  is the domain length.
+   *
+   *  @tparam T Signed integral numeric type for coordinates.
    */
   template <typename T>
   class Li_Chao_Tree
@@ -643,7 +649,8 @@ namespace Aleph
   };
 
 
-  /** @brief Result of monotone-queue windowed DP transition. */
+  /** @brief Result of monotone-queue windowed DP transition.
+   *  @tparam Cost Numeric DP cost type. */
   template <typename Cost>
   struct Monotone_Queue_DP_Result
   {
@@ -660,8 +667,10 @@ namespace Aleph
    *  dp[i] = base_cost[i] + min(dp[j]) for j in [max(0, i-window), i-1]
    *  @endcode
    *
+   *  @tparam Cost Numeric DP cost type.
    *  @param[in] base_cost Additive base cost per state.
    *  @param[in] window Maximum predecessor distance.
+   *  @param[in] inf Sentinel for unreachable states.
    *
    *  @return Monotone_Queue_DP_Result with dp and parent pointers.
    *
@@ -734,6 +743,7 @@ namespace Aleph
    *  This is a geometric application of CHT/Li Chao (lower envelope of
    *  parabolas) and also a common DP optimization pattern.
    *
+   *  @tparam T Signed integral numeric type.
    *  @param[in] xs Signed integral coordinates.
    *  @param[in] weights Additive weights per coordinate.
    *
