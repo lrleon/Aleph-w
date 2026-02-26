@@ -4371,11 +4371,11 @@ namespace Aleph
                              const int max_key,
                              const KeyFn & key_of)
   {
-    if (n == 0)
-      return;
-
     ah_domain_error_if(max_key < min_key)
       << "counting_sort_indices(): max_key < min_key";
+
+    if (n == 0)
+      return;
 
     ah_out_of_range_error_if(sa.size() < n or tmp.size() < n)
       << "counting_sort_indices(): sa/tmp size is smaller than n";
@@ -4882,18 +4882,21 @@ namespace Aleph
   /** @brief Stable counting sort for integral DynList values.
    *
    *  This overload performs an in-place value-replacement pass directly into
-   *  existing list nodes. It preserves stability for plain integral types.
-   *  However, user-defined types wrapping keys may not observe true stability
-   *  (object identity preservation) because node rearrangement is not performed.
+   *  existing list nodes. It preserves stability for plain integral types or
+   *  when simple value equality semantics suffice. However, user-defined types
+   *  wrapping keys may not observe true stability (preservation of original
+   *  object identity and memory locations) because list nodes are not
+   *  rearranged; only their data is updated.
    *
-   *  @tparam T Value type.
+   *  @tparam T Value type (must satisfy CountingSortable).
    *  @param[in,out] list The DynList to sort.
    *
    *  @throws std::domain_error if `max(list) < min(list)`.
    *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
    *
-   *  @note Uses counting_sort_impl. If true node-reordering stability for
-   *        wrapped types is required, use a stable algorithm like mergesort.
+   *  @note Internally implemented by counting_sort_impl. If true
+   *        node-reordering stability for wrapped types is required, use a
+   *        stable algorithm that rearranges links, such as mergesort.
    */
   template <typename T>
     requires CountingSortable<T>
@@ -4906,18 +4909,21 @@ namespace Aleph
   /** @brief Stable counting sort for integral DynDlist values.
    *
    *  This overload performs an in-place value-replacement pass directly into
-   *  existing list nodes. It preserves stability for plain integral types.
-   *  However, user-defined types wrapping keys may not observe true stability
-   *  (object identity preservation) because node rearrangement is not performed.
+   *  existing list nodes. It preserves stability for plain integral types or
+   *  when simple value equality semantics suffice. However, user-defined types
+   *  wrapping keys may not observe true stability (preservation of original
+   *  object identity and memory locations) because list nodes are not
+   *  rearranged; only their data is updated.
    *
-   *  @tparam T Value type.
+   *  @tparam T Value type (must satisfy CountingSortable).
    *  @param[in,out] list The DynDlist to sort.
    *
    *  @throws std::domain_error if `max(list) < min(list)`.
    *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
    *
-   *  @note Uses counting_sort_impl. If true node-reordering stability for
-   *        wrapped types is required, use a stable algorithm like mergesort.
+   *  @note Internally implemented by counting_sort_impl. If true
+   *        node-reordering stability for wrapped types is required, use a
+   *        stable algorithm that rearranges links, such as mergesort.
    */
   template <typename T>
     requires CountingSortable<T>
@@ -4945,7 +4951,7 @@ namespace Aleph
     requires CountingSortable<T>
   void counting_sort(T * a, const size_t n)
   {
-    ah_runtime_error_unless(a != nullptr or n == 0)
+    ah_invalid_argument_if(a == nullptr and n > 0)
       << "counting_sort(): null pointer with non-zero length";
     sort_utils_detail::counting_sort_impl(a, n);
   }
@@ -5064,7 +5070,7 @@ namespace Aleph
     requires RadixSortable<T>
   void radix_sort(T * a, const size_t n)
   {
-    ah_runtime_error_unless(a != nullptr or n == 0)
+    ah_invalid_argument_if(a == nullptr and n > 0)
       << "radix_sort(): null pointer with non-zero length";
     sort_utils_detail::radix_sort_impl(a, n);
   }

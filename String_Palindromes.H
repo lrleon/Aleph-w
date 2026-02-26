@@ -61,12 +61,12 @@ namespace Aleph
    */
   struct Manacher_Result
   {
-    Array<size_t> odd_radius;
-    Array<size_t> even_radius;
+    Array<size_t> odd_radius;  /**< odd_radius[i] is radius around center i (length = 2*r-1). */
+    Array<size_t> even_radius; /**< even_radius[i] is radius around center between i-1 and i (length = 2*r). */
 
-    size_t longest_begin = 0;
-    size_t longest_length = 0;
-    std::string longest_palindrome;
+    size_t longest_begin = 0;      /**< 0-based start index of the longest palindrome. */
+    size_t longest_length = 0;     /**< Length of the longest palindrome. */
+    std::string longest_palindrome; /**< The longest palindromic substring. */
   };
 
 

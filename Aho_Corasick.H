@@ -69,9 +69,13 @@ namespace Aleph
      */
     struct Match
     {
-      size_t position = 0;
-      size_t pattern_id = 0;
+      size_t position = 0;   /**< 0-based start index of the match. */
+      size_t pattern_id = 0; /**< Insertion-order ID of the pattern. */
 
+      /** @brief Equality operator for Match.
+       *  @param other The match to compare against.
+       *  @return true if both position and pattern_id are equal.
+       */
       bool operator==(const Match & other) const noexcept
       {
         return position == other.position and pattern_id == other.pattern_id;

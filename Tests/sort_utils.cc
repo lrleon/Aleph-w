@@ -1679,7 +1679,7 @@ TEST(SortUtilsCountingSortGeneric, raw_pointer_and_nullptr_contract)
   counting_sort(a, sizeof(a) / sizeof(a[0]));
   EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
 
-  EXPECT_THROW((counting_sort<int>(nullptr, 1)), std::runtime_error);
+  EXPECT_THROW((counting_sort<int>(nullptr, 1)), std::invalid_argument);
   EXPECT_NO_THROW((counting_sort<int>(nullptr, 0)));
 }
 
@@ -1812,7 +1812,7 @@ TEST(SortUtilsRadixSort, c_array_overload)
 
 TEST(SortUtilsRadixSort, raw_pointer_nullptr_contract)
 {
-  EXPECT_THROW((radix_sort<int>(nullptr, 1)), std::runtime_error);
+  EXPECT_THROW((radix_sort<int>(nullptr, 1)), std::invalid_argument);
   EXPECT_NO_THROW((radix_sort<int>(nullptr, 0)));
 }
 
