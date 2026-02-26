@@ -44,6 +44,15 @@ using namespace Aleph;
 
 namespace
 {
+  /**
+   * @brief Prints a labeled integer array in a compact, human-readable form.
+   *
+   * Prints the provided label followed by the array elements enclosed in square
+   * brackets and separated by commas.
+   *
+   * @param label Text label printed before the array.
+   * @param arr   Array of integers to print.
+   */
   void print_array(const char * label, const Array<int> & arr)
   {
     std::cout << std::setw(14) << std::left << label << ": [";
@@ -55,7 +64,15 @@ namespace
       }
     std::cout << "]\n";
   }
-} // namespace
+} /**
+ * @brief Demonstrates usage of Aleph-w LIS/LNDS utilities by running several example scenarios and printing their inputs and results.
+ *
+ * Runs five scenarios: classic LIS, already sorted, reverse sorted, longest non-decreasing subsequence,
+ * and decreasing subsequences via a custom comparator. Each scenario prints the input sequence, one
+ * computed subsequence, and its length using Aleph-w helpers.
+ *
+ * @return int Exit code (0 on success).
+ */
 
 int main()
 {

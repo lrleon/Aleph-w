@@ -44,6 +44,15 @@ using namespace Aleph;
 
 using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
 
+/**
+ * @brief Example program demonstrating tree dynamic programming (DP) and rerooting DP.
+ *
+ * Builds a fixed rooted tree, computes per-node subtree sizes, maximum distance
+ * from the root, sum of distances from the root, and subtree value sums using
+ * Gen_Tree_DP, then prints a formatted table of these per-node metrics.
+ *
+ * @return int 0 on successful completion.
+ */
 int main()
 {
   std::cout << "\n=== Tree DP / Rerooting DP ===\n\n";
