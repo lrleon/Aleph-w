@@ -4940,8 +4940,8 @@ namespace Aleph
    *  @param[in] n Number of elements.
    *
    *  @throws std::domain_error if `max(a) < min(a)`.
-   *  @throws std::runtime_error if the key range is too large to fit in `size_t` 
-   *                             or if `a` is null and `n > 0`.
+   *  @throws std::runtime_error if the key range is too large to fit in `size_t`.
+   *  @throws std::invalid_argument if `a` is null and `n > 0`.
    *
    *  @par Complexity
    *  O(n + k) time and O(n + k) extra space, where
@@ -5061,7 +5061,7 @@ namespace Aleph
    *  @param[in] n Number of elements.
    *
    *  @throws std::domain_error if an internal domain error occurs.
-   *  @throws std::runtime_error if `a` is null and `n > 0`.
+   *  @throws std::invalid_argument if `a` is null and `n > 0`.
    *
    *  @par Complexity
    *  O(w*n) time and O(n + 256) extra space, where `w = sizeof(T)`.

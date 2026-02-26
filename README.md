@@ -267,8 +267,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  SORTING                  SEARCHING                MATCHING                │
 │  ├─ Quicksort            ├─ Binary Search         ├─ Hopcroft-Karp         │
 │  ├─ Mergesort            ├─ Interpolation         ├─ Edmonds-Blossom       │
-│  ├─ Heapsort             └─ Pattern Matching (KMP/Z/Aho) └─ Hungarian (Munkres) │
-│  ├─ Introsort                                                              │
+│  ├─ Heapsort             └─ Pattern Matching (KMP/Z/Aho)                   │
+│  ├─ Introsort                                     └─ Hungarian (Munkres)   │
 │  └─ Shell Sort                                                             │
 │                                                                            │
 │  GEOMETRY                 OTHER                                            │
