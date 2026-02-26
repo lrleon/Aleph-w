@@ -46,6 +46,15 @@ using Item = Knapsack_Item<int, int>;
 
 namespace
 {
+  /**
+   * @brief Prints a formatted table of items with their indices, names, weights, and values.
+   *
+   * Prints a human-readable table header and one row per item showing the item's index,
+   * display name, weight, and value, aligned into columns.
+   *
+   * @param items Array of items whose weight and value fields will be displayed.
+   * @param names Array of C-style strings used as display names for each item; must be the same length as `items`.
+   */
   void print_item_table(const Array<Item> & items, const Array<const char *> & names)
   {
     std::cout << std::left
@@ -61,6 +70,17 @@ namespace
                 << std::setw(10) << items[i].value << "\n";
   }
 
+  /**
+   * @brief Print a human-readable summary of selected items, their counts, and totals.
+   *
+   * Prints each selected item's multiplicity, name, weight, and value, followed by the total
+   * weight and total value. If no items are selected, prints a single "[empty]" line in the
+   * chosen-items section.
+   *
+   * @param items Array of items (each providing .weight and .value) corresponding to the universe of available items.
+   * @param names Parallel array of C strings with display names for each item; must have the same length as `items`.
+   * @param selected Array of indices into `items` listing chosen items; may be empty and may contain repeated indices to indicate multiplicity.
+   */
   void print_selection_summary(const Array<Item> & items,
                                const Array<const char *> & names,
                                const Array<size_t> & selected)
@@ -91,7 +111,15 @@ namespace
     std::cout << "Total weight: " << total_w << "\n";
     std::cout << "Total value : " << total_v << "\n";
   }
-} // namespace
+} /**
+ * @brief Runs a console demonstration of multiple knapsack problem variants.
+ *
+ * Executes four scenarios (0/1 knapsack, value-only query, unbounded knapsack,
+ * and bounded knapsack) that print item tables, capacities, computed optimal
+ * values, and summaries of selected items to standard output.
+ *
+ * @return int Exit status code; `0` on successful completion.
+ */
 
 int main()
 {

@@ -44,6 +44,14 @@ using namespace Aleph;
 
 namespace
 {
+  /**
+   * @brief Prints a human-readable list of matrices described by a dimension array.
+   *
+   * Outputs "Matrices: " followed by entries of the form Ai(rows x cols) for each
+   * consecutive pair in dims, where Ai corresponds to dims[i] x dims[i+1].
+   *
+   * @param dims Array of dimensions of length n+1 describing n matrices.
+   */
   void print_dims(const Array<size_t> & dims)
   {
     std::cout << "Matrices: ";
@@ -57,6 +65,17 @@ namespace
     std::cout << "\n";
   }
 
+  /**
+   * @brief Print a formatted matrix-chain example case to stdout.
+   *
+   * Prints the provided title, the matrix dimensions as A1..AN, and the
+   * computed minimum multiplication cost along with the optimal
+   * parenthesization, separated by visual rules.
+   *
+   * @param dims Array of matrix dimensions; length must be number_of_matrices + 1
+   *             (i.e., dims[i] and dims[i+1] are the row/column sizes for matrix Ai).
+   * @param title Null-terminated heading text displayed before the case output.
+   */
   void run_case(const Array<size_t> & dims, const char * title)
   {
     std::cout << title << "\n";
@@ -70,7 +89,16 @@ namespace
     print_rule();
     std::cout << "\n";
   }
-} // namespace
+} /**
+ * @brief Example driver demonstrating matrix-chain dynamic programming routines.
+ *
+ * Runs several predefined scenarios (CLRS reference chain, two-matrix case, a
+ * highly asymmetric three-matrix case, uniform square matrices, and a cost-only
+ * helper), prints matrix dimensions, minimum multiplication costs, and optimal
+ * parenthesizations to stdout.
+ *
+ * @return int Exit status (0 on success).
+ */
 
 int main()
 {

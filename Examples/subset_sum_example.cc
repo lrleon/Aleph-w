@@ -44,6 +44,13 @@ using namespace Aleph;
 
 namespace
 {
+  /**
+   * @brief Prints a formatted list of integers to standard output.
+   *
+   * Prints the contents of @p vals as "Values: [v0, v1, ...]" followed by a newline.
+   *
+   * @param vals Array of integers to print.
+   */
   void print_values(const Array<int> & vals)
   {
     std::cout << "Values: [";
@@ -56,6 +63,14 @@ namespace
     std::cout << "]\n";
   }
 
+  /**
+   * @brief Prints a chosen subset from a value array and its total sum.
+   *
+   * Prints "Chosen subset: [empty]" if no indices are provided. Otherwise prints the selected values joined by " + " followed by " = <sum>".
+   *
+   * @param vals Array of integer values from which the subset is selected.
+   * @param idx Array of indices into `vals` specifying the chosen subset in order.
+   */
   void print_solution(const Array<int> & vals, const Array<size_t> & idx)
   {
     if (idx.is_empty())
@@ -75,7 +90,20 @@ namespace
       }
     std::cout << " = " << sum << "\n";
   }
-} // namespace
+} /**
+ * @brief Demonstrates multiple subset-sum algorithms and queries using the Aleph-w library.
+ *
+ * Runs five example scenarios showcasing:
+ * - DP with reconstruction (selected subset output),
+ * - existence-only queries,
+ * - counting subsets by target,
+ * - meet-in-the-middle handling signed values,
+ * - a consistency comparison table between DP and MITM.
+ *
+ * Output is printed to stdout with labeled sections and separators.
+ *
+ * @return int Exit status code (returns 0 on success).
+ */
 
 int main()
 {

@@ -43,11 +43,26 @@ using namespace Aleph;
 
 namespace
 {
+  /**
+   * @brief Print a horizontal separator line to standard output.
+   *
+   * Prints a single line of dashes followed by a newline to visually separate sections in console output.
+   */
   void rule()
   {
     std::cout << "------------------------------------------------------------\n";
   }
 
+  /**
+   * @brief Demonstrates Divide & Conquer DP partitioning on a sample demand sequence.
+   *
+   * Runs a partitioning example that groups route-demand prefixes into a fixed
+   * number of segments using a squared-segment cost, computes the optimal cost,
+   * reconstructs split points, and prints the input sequence, group count,
+   * optimal cost, and resulting prefix-index splits to standard output.
+   *
+   * @note Side effects: writes formatted example output to stdout.
+   */
   void show_divide_and_conquer_dp()
   {
     std::cout << "[1] Divide & Conquer DP optimization\n";
@@ -105,6 +120,12 @@ namespace
     std::cout << "\n";
   }
 
+  /**
+   * @brief Demonstrates Knuth optimization for optimal adjacent merge on a sample sequence.
+   *
+   * Runs optimal_merge_knuth on a fixed array of block sizes and prints the input blocks,
+   * the computed minimum merge cost, and the top split index to standard output.
+   */
   void show_knuth_optimization()
   {
     std::cout << "[2] Knuth optimization (optimal adjacent merge)\n";
@@ -125,6 +146,15 @@ namespace
     std::cout << "\n";
   }
 
+  /**
+   * @brief Demonstrates Convex Hull Trick and Li Chao tree usages and prints example outputs.
+   *
+   * Builds a monotone-slope Convex Hull Trick, inserts several lines, queries minimum values
+   * at sample x positions, then solves the 1D weighted squared-distance problem using a
+   * Li Chao-style approach and prints a table of x_i, w_i, and the computed minima.
+   *
+   * @note This function performs console output as its primary effect.
+   */
   void show_cht_and_li_chao_geometry()
   {
     std::cout << "[3] CHT + Li Chao (geometry-friendly lower envelopes)\n";
@@ -168,6 +198,13 @@ namespace
     std::cout << "\n";
   }
 
+  /**
+   * @brief Demonstrates monotone-queue optimized dynamic programming for fixed-window transitions.
+   *
+   * Runs a DP where each dp[i] = base[i] + min(dp[j]) for j in [i-window, i-1] on a sample input,
+   * prints the base costs, window size, and final minimum cost, and reconstructs and prints the chosen
+   * transition chain.
+   */
   void show_monotone_queue_dp()
   {
     std::cout << "[4] Monotone queue optimization (windowed transitions)\n";
@@ -207,7 +244,15 @@ namespace
     rule();
     std::cout << "\n";
   }
-} // namespace
+} /**
+ * @brief Runs the DP optimization demonstration suite and exits.
+ *
+ * Executes examples for Divide & Conquer DP partitioning, Knuth optimization,
+ * Convex Hull Trick / Li Chao geometry, and Monotone Queue DP, printing results
+ * to standard output.
+ *
+ * @return int 0 on success.
+ */
 
 int main()
 {
