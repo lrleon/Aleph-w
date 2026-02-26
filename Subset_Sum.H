@@ -103,7 +103,7 @@ namespace Aleph
     // Enumerate all subset sums of arr[start..start+len-1]
     // Returns array of pairs (sum, bitmask relative to start)
     template <typename T>
-    Array<std::pair<T, uint64_t>>
+    Array<std::pair<long long, uint64_t>>
     enumerate_sums(const Array<T> & arr, size_t start, size_t len)
     {
       ah_out_of_range_error_if(len >= std::numeric_limits<uint64_t>::digits)
@@ -113,15 +113,15 @@ namespace Aleph
       ah_out_of_range_error_if(count > std::numeric_limits<size_t>::max())
         << "subset_sum_mitm: subset count does not fit size_t";
 
-      Array<std::pair<T, uint64_t>> result;
+      Array<std::pair<long long, uint64_t>> result;
       result.reserve(static_cast<size_t>(count));
 
       for (uint64_t mask = 0; mask < count; ++mask)
         {
-          T s = T{};
+          long long s = 0;
           for (size_t j = 0; j < len; ++j)
             if (mask & (static_cast<uint64_t>(1) << j))
-              s += arr[start + j];
+              s += static_cast<long long>(arr[start + j]);
           result.append(std::make_pair(s, mask));
         }
 
@@ -281,7 +281,16 @@ namespace Aleph
       {
         const size_t vi = weights[i];
         for (size_t s = tgt; s >= vi and s != static_cast<size_t>(-1); --s)
-          dp(s) += dp[s - vi];
+          {
+            const size_t count = dp[s - vi];
+            if (count > 0)
+              {
+                if (dp(s) > std::numeric_limits<size_t>::max() - count)
+                  dp(s) = std::numeric_limits<size_t>::max();
+                else
+                  dp(s) += count;
+              }
+          }
       }
 
     return dp[tgt];
@@ -324,9 +333,10 @@ namespace Aleph
                   return a.first < b.first;
                 });
 
+    const long long target_ll = static_cast<long long>(target);
     for (size_t i = 0; i < sums1.size(); ++i)
       {
-        const T need = target - sums1[i].first;
+        const long long need = target_ll - sums1[i].first;
 
         // binary search in sums2 for 'need'
         size_t lo = 0, hi = sums2.size();

@@ -38,6 +38,7 @@
 # include <iomanip>
 
 # include <Knapsack.H>
+# include <print_rule.H>
 
 using namespace Aleph;
 
@@ -45,11 +46,6 @@ using Item = Knapsack_Item<int, int>;
 
 namespace
 {
-  void print_rule()
-  {
-    std::cout << "------------------------------------------------------------\n";
-  }
-
   void print_item_table(const Array<Item> & items, const Array<const char *> & names)
   {
     std::cout << std::left

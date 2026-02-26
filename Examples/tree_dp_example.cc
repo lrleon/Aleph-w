@@ -38,18 +38,11 @@
 # include <iomanip>
 
 # include <Tree_DP.H>
+# include <print_rule.H>
 
 using namespace Aleph;
 
 using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
-
-namespace
-{
-  void print_rule()
-  {
-    std::cout << "------------------------------------------------------------\n";
-  }
-} // namespace
 
 int main()
 {

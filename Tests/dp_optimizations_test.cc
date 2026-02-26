@@ -38,6 +38,8 @@
 
 # include <limits>
 # include <random>
+# include <chrono>
+# include <numeric>
 
 # include <DP_Optimizations.H>
 
@@ -429,4 +431,33 @@ TEST(DPOptimizations, WeightedSquaredDistanceValidatesSizes)
   Array<long long> xs = {1, 2, 3};
   Array<long long> ws = {4, 5};
   EXPECT_THROW(min_weighted_squared_distance_1d(xs, ws), std::domain_error);
+}
+
+TEST(DPOptimizations, DivideConquerPartitionPerf)
+{
+  // Deterministic performance check for D&C DP optimizer.
+  // Complexity O(groups * n * log n). For these parameters, ~2.2M iterations.
+  const size_t groups = 100;
+  const size_t n = 2000;
+  
+  // Cost function lambda matching the pattern in correctness tests
+  auto cost = [](size_t i, size_t j) -> long long 
+  {
+    const long long diff = static_cast<long long>(j - i);
+    return diff * diff;
+  };
+
+  const auto start = std::chrono::steady_clock::now();
+  const auto res = divide_and_conquer_partition_dp<long long>(groups, n, cost);
+  const auto end = std::chrono::steady_clock::now();
+  
+  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  
+  // Conservative 500ms threshold to avoid CI flakiness while detecting regressions.
+  // Typical execution should be well under 100ms.
+  EXPECT_LT(elapsed_ms, 500) 
+    << "Performance regression: divide_and_conquer_partition_dp took " << elapsed_ms << "ms";
+  
+  EXPECT_EQ(res.optimal_cost, cost(0, n) / groups); // For this specific cost, optimal is equal splits if real
+  // but since we split into n intervals, it's roughly n^2 / g.
 }

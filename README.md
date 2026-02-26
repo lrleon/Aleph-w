@@ -52,6 +52,7 @@ Language: English | [Español](README.es.md)
   - [Matching](#readme-matching)
   - [String Algorithms](#readme-string-algorithms)
   - [Sorting Algorithms](#readme-sorting-algorithms)
+  - [Dynamic Programming Algorithms](#readme-dp-algorithms)
 - [Memory Management](#readme-memory-management)
   - [Arena Allocators](#readme-arena-allocators)
 - [Parallel Computing](#readme-parallel-computing)
@@ -2818,7 +2819,7 @@ Aleph-w also includes a practical dynamic-programming toolkit:
 - Matrix chain: `matrix_chain_order`, `matrix_chain_min_cost`
 - Subset sum: `subset_sum`, `subset_sum_exists`, `subset_sum_count`, `subset_sum_mitm`
 - Trees: `Gen_Tree_DP`, `Gen_Reroot_DP`, `tree_subtree_sizes`, `tree_max_distance`, `tree_sum_of_distances`
-- DP optimizations: `divide_and_conquer_partition_dp`, `knuth_optimize_interval`, `optimal_merge_knuth`, `Convex_Hull_Trick`, `Li_Chao_Tree`, `monotone_queue_min_dp`
+- DP optimizations: `divide_and_conquer_partition_dp`, `knuth_optimize_interval`, `optimal_merge_knuth`, `Convex_Hull_Trick`, `Li_Chao_Tree`, `monotone_queue_min_dp`, `min_weighted_squared_distance_1d`
 
 #### DP Usage Example
 

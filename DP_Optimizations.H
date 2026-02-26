@@ -69,6 +69,10 @@ namespace Aleph
   namespace dp_optimization_detail
   {
     template <typename T>
+    using promoted_t = std::conditional_t<std::is_floating_point_v<T>, T,
+                       std::conditional_t<(sizeof(T) < 8), long long, __int128_t>>;
+
+    template <typename T>
     [[nodiscard]] constexpr T default_inf() noexcept
     {
       if constexpr (std::numeric_limits<T>::has_infinity)
@@ -119,7 +123,7 @@ namespace Aleph
                                   const size_t n,
                                   Transition_Cost_Fn transition_cost,
                                   const Cost inf =
-                                    dp_optimization_detail::default_inf<Cost>())
+                                      dp_optimization_detail::default_inf<Cost>())
   {
     Array<Cost> prev = Array<Cost>::create(n + 1);
     Array<Cost> curr = Array<Cost>::create(n + 1);
@@ -148,40 +152,46 @@ namespace Aleph
 
         if (g <= n)
           {
-            auto solve = [&] (auto && self,
-                              const size_t left, const size_t right,
-                              const size_t opt_left, const size_t opt_right) -> void
-            {
-              if (left > right)
-                return;
+            auto solve = [&](auto && self,
+                             const size_t left, const size_t right,
+                             const size_t opt_left, const size_t opt_right) -> void
+              {
+                if (left > right)
+                  return;
 
-              const size_t mid = std::midpoint(left, right);
-              const size_t k_end = std::min(mid - 1, opt_right);
+                const size_t mid = std::midpoint(left, right);
+                const size_t k_end = std::min(mid - 1, opt_right);
 
-              Cost best = inf;
-              size_t best_k = opt_left;
+                Cost best = inf;
+                size_t best_k = opt_left;
 
-              for (size_t k = opt_left; k <= k_end; ++k)
-                {
-                  if (prev[k] == inf)
-                    continue;
+                for (size_t k = opt_left; k <= k_end; ++k)
+                  {
+                    if (prev[k] >= inf)
+                      continue;
 
-                  const Cost cand = prev[k] + transition_cost(k, mid);
-                  if (cand < best)
-                    {
-                      best = cand;
-                      best_k = k;
-                    }
-                }
+                    const Cost tc = transition_cost(k, mid);
+                    Cost cand;
+                    if (tc >= inf or prev[k] > inf - tc)
+                      cand = inf;
+                    else
+                      cand = prev[k] + tc;
 
-              curr(mid) = best;
-              split[g](mid) = best_k;
+                    if (cand < best)
+                      {
+                        best = cand;
+                        best_k = k;
+                      }
+                  }
 
-              if (left < mid)
-                self(self, left, mid - 1, opt_left, best_k);
-              if (mid < right)
-                self(self, mid + 1, right, best_k, opt_right);
-            };
+                curr(mid) = best;
+                split[g](mid) = best_k;
+
+                if (left < mid)
+                  self(self, left, mid - 1, opt_left, best_k);
+                if (mid < right)
+                  self(self, mid + 1, right, best_k, opt_right);
+              };
 
             solve(solve, g, n, g - 1, n - 1);
           }
@@ -190,10 +200,10 @@ namespace Aleph
       }
 
     return Divide_Conquer_DP_Result<Cost>{
-      prev[n],
-      std::move(prev),
-      std::move(split)
-    };
+          prev[n],
+          std::move(prev),
+          std::move(split)
+        };
   }
 
 
@@ -234,7 +244,7 @@ namespace Aleph
   knuth_optimize_interval(const size_t n,
                           Interval_Cost_Fn interval_cost,
                           const Cost inf =
-                            dp_optimization_detail::default_inf<Cost>())
+                              dp_optimization_detail::default_inf<Cost>())
   {
     Array<Array<Cost>> dp;
     dp.reserve(n + 1);
@@ -290,7 +300,14 @@ namespace Aleph
 
           for (size_t k = left; k <= right; ++k)
             {
-              const Cost cand = dp[i][k] + dp[k][j] + w;
+              const Cost d1 = dp[i][k];
+              const Cost d2 = dp[k][j];
+              Cost cand;
+              if (d1 >= inf or d2 >= inf or w >= inf or d1 > inf - d2 or (d1 + d2) > inf - w)
+                cand = inf;
+              else
+                cand = d1 + d2 + w;
+
               if (cand < best)
                 {
                   best = cand;
@@ -303,10 +320,10 @@ namespace Aleph
         }
 
     return Knuth_Optimization_Result<Cost>{
-      n == 0 ? Cost{} : dp[0][n],
-      std::move(dp),
-      std::move(opt)
-    };
+          n == 0 ? Cost{} : dp[0][n],
+          std::move(dp),
+          std::move(opt)
+        };
   }
 
 
@@ -336,13 +353,13 @@ namespace Aleph
       }
 
     return knuth_optimize_interval<size_t>(
-      n,
-      [&] (const size_t i, const size_t j) -> size_t
-      {
-        return prefix[j] - prefix[i];
-      },
-      std::numeric_limits<size_t>::max() / 4
-    );
+                                           n,
+                                           [&](const size_t i, const size_t j) -> size_t
+                                             {
+                                               return prefix[j] - prefix[i];
+                                             },
+                                           std::numeric_limits<size_t>::max() / 4
+                                          );
   }
 
 
@@ -355,6 +372,8 @@ namespace Aleph
   template <typename T>
   class Convex_Hull_Trick
   {
+    static_assert(std::is_signed_v<T>, "Convex_Hull_Trick requires a signed type");
+
   public:
     /** @brief Affine line y = m*x + b. */
     struct Line
@@ -364,7 +383,9 @@ namespace Aleph
 
       [[nodiscard]] T value_at(const T x) const noexcept
       {
-        return slope * x + intercept;
+        using PromotedT = dp_optimization_detail::promoted_t<T>;
+        return static_cast<T>(static_cast<PromotedT>(slope) * static_cast<PromotedT>(x) +
+                              static_cast<PromotedT>(intercept));
       }
     };
 
@@ -377,7 +398,7 @@ namespace Aleph
                                                     const Line & b) noexcept
     {
       return static_cast<long double>(b.intercept - a.intercept)
-           / static_cast<long double>(a.slope - b.slope);
+             / static_cast<long double>(a.slope - b.slope);
     }
 
   public:
@@ -460,13 +481,10 @@ namespace Aleph
       const auto xd = static_cast<long double>(x);
 
       while (lo < hi)
-        {
-          const size_t mid = std::midpoint(lo, hi + 1);
-          if (starts_[mid] <= xd)
-            lo = mid;
-          else
-            hi = mid - 1;
-        }
+        if (const size_t mid = std::midpoint(lo, hi + 1); starts_[mid] <= xd)
+          lo = mid;
+        else
+          hi = mid - 1;
 
       return lines_[lo].value_at(x);
     }
@@ -494,8 +512,8 @@ namespace Aleph
   template <typename T>
   class Li_Chao_Tree
   {
-    static_assert(std::is_integral_v<T>,
-                  "Li_Chao_Tree requires an integral coordinate/value type");
+    static_assert(std::is_integral_v<T> and std::is_signed_v<T>,
+                  "Li_Chao_Tree requires a signed integral coordinate/value type");
 
   public:
     /** @brief Affine line y = m*x + b. */
@@ -506,7 +524,9 @@ namespace Aleph
 
       [[nodiscard]] T value_at(const T x) const noexcept
       {
-        return slope * x + intercept;
+        using PromotedT = dp_optimization_detail::promoted_t<T>;
+        return static_cast<T>(static_cast<PromotedT>(slope) * static_cast<PromotedT>(x) +
+                              static_cast<PromotedT>(intercept));
       }
     };
 
@@ -567,17 +587,18 @@ namespace Aleph
                                const T l, const T r,
                                const T x) const
     {
-      T ret = nodes_[idx].line.value_at(x);
+      using PromotedT = dp_optimization_detail::promoted_t<T>;
+      PromotedT ret = static_cast<PromotedT>(nodes_[idx].line.value_at(x));
       if (l == r)
-        return ret;
+        return static_cast<T>(ret);
 
       const T mid = std::midpoint(l, r);
       if (x <= mid and nodes_[idx].left != NIL)
-        ret = std::min(ret, query_impl(nodes_[idx].left, l, mid, x));
+        ret = std::min(ret, static_cast<PromotedT>(query_impl(nodes_[idx].left, l, mid, x)));
       else if (x > mid and nodes_[idx].right != NIL)
-        ret = std::min(ret, query_impl(nodes_[idx].right, mid + 1, r, x));
+        ret = std::min(ret, static_cast<PromotedT>(query_impl(nodes_[idx].right, mid + 1, r, x)));
 
-      return ret;
+      return static_cast<T>(ret);
     }
 
   public:
@@ -651,7 +672,9 @@ namespace Aleph
   template <typename Cost>
   [[nodiscard]] inline Monotone_Queue_DP_Result<Cost>
   monotone_queue_min_dp(const Array<Cost> & base_cost,
-                        const size_t window)
+                        const size_t window,
+                        const Cost inf =
+                            dp_optimization_detail::default_inf<Cost>())
   {
     const size_t n = base_cost.size();
     if (n == 0)
@@ -681,11 +704,15 @@ namespace Aleph
           << "monotone_queue_min_dp: no valid predecessor for i=" << i;
 
         const size_t best = deque_idx[head];
-        dp(i) = dp[best] + base_cost[i];
+        const Cost bc = base_cost[i];
+        if (dp[best] >= inf or bc >= inf or dp[best] > inf - bc)
+          dp(i) = inf;
+        else
+          dp(i) = dp[best] + bc;
+
         parent(i) = best;
 
-        while (deque_idx.size() > head
-               and dp[deque_idx[deque_idx.size() - 1]] >= dp[i])
+        while (deque_idx.size() > head and dp[deque_idx[deque_idx.size() - 1]] >= dp[i])
           (void) deque_idx.remove_last();
 
         deque_idx.append(i);
@@ -740,16 +767,21 @@ namespace Aleph
       }
 
     Li_Chao_Tree<T> lc(min_x, max_x);
+    using PromotedT = dp_optimization_detail::promoted_t<T>;
     for (size_t j = 0; j < n; ++j)
       {
-        const T m = -2 * xs[j];
-        const T b = xs[j] * xs[j] + weights[j];
+        const PromotedT px = static_cast<PromotedT>(xs[j]);
+        const T m = static_cast<T>(static_cast<PromotedT>(-2) * px);
+        const T b = static_cast<T>(px * px + static_cast<PromotedT>(weights[j]));
         lc.add_line(m, b);
       }
 
     Array<T> ret = Array<T>::create(n);
     for (size_t i = 0; i < n; ++i)
-      ret(i) = xs[i] * xs[i] + lc.query(xs[i]);
+      {
+        const PromotedT px = static_cast<PromotedT>(xs[i]);
+        ret(i) = static_cast<T>(px * px + static_cast<PromotedT>(lc.query(xs[i])));
+      }
 
     return ret;
   }

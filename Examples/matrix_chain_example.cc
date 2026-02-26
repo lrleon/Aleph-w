@@ -38,16 +38,12 @@
 # include <iomanip>
 
 # include <Matrix_Chain.H>
+# include <print_rule.H>
 
 using namespace Aleph;
 
 namespace
 {
-  void print_rule()
-  {
-    std::cout << "------------------------------------------------------------\n";
-  }
-
   void print_dims(const Array<size_t> & dims)
   {
     std::cout << "Matrices: ";

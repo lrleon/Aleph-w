@@ -67,11 +67,14 @@ namespace
                        const int target)
   {
     int sum = 0;
+    std::vector<bool> seen(vals.size(), false);
     for (size_t i = 0; i < selected.size(); ++i)
       {
-        if (selected[i] >= vals.size())
+        const size_t idx = selected[i];
+        if (idx >= vals.size() or seen[idx])
           return false;
-        sum += vals[selected[i]];
+        seen[idx] = true;
+        sum += vals[idx];
       }
     return sum == target;
   }

@@ -129,7 +129,7 @@ namespace Aleph
   {
     ah_domain_error_if(dims.size() < 2)
       << "matrix_chain_order: dims must have at least 2 entries";
-    for (const unsigned long dim : dims)
+    for (const size_t dim : dims)
       ah_domain_error_if(dim == 0)
         << "matrix_chain_order: matrix dimensions must be positive";
 

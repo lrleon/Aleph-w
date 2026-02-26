@@ -38,16 +38,12 @@
 # include <iomanip>
 
 # include <Subset_Sum.H>
+# include <print_rule.H>
 
 using namespace Aleph;
 
 namespace
 {
-  void print_rule()
-  {
-    std::cout << "------------------------------------------------------------\n";
-  }
-
   void print_values(const Array<int> & vals)
   {
     std::cout << "Values: [";

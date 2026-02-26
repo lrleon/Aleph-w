@@ -118,6 +118,7 @@ set(HLIST
     String_Algorithms.H
     Knapsack.H
     LIS.H
+    DP_Optimizations.H
     Matrix_Chain.H
     Subset_Sum.H
     Tree_DP.H

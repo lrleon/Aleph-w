@@ -38,16 +38,12 @@
 # include <iomanip>
 
 # include <LIS.H>
+# include <print_rule.H>
 
 using namespace Aleph;
 
 namespace
 {
-  void print_rule()
-  {
-    std::cout << "------------------------------------------------------------\n";
-  }
-
   void print_array(const char * label, const Array<int> & arr)
   {
     std::cout << std::setw(14) << std::left << label << ": [";
