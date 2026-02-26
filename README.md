@@ -2797,6 +2797,60 @@ Each algorithm has a focused example under `Examples/`:
 - `damerau_levenshtein_example.cc`
 - `lcs_longest_common_substring_example.cc`
 
+<a id="readme-dp-algorithms"></a>
+### Dynamic Programming Algorithms
+
+Aleph-w also includes a practical dynamic-programming toolkit:
+
+| Header | Scope |
+|---|---|
+| `Knapsack.H` | 0/1, unbounded, and bounded knapsack (with reconstruction) |
+| `LIS.H` | LIS and LNDS in O(n log n), with sequence reconstruction |
+| `Matrix_Chain.H` | Optimal matrix-chain parenthesization (interval DP) |
+| `Subset_Sum.H` | Subset sum (existence/reconstruction/count) + MITM |
+| `Tree_DP.H` | Generic tree DP + rerooting DP (all roots in O(n)) |
+
+#### Covered DP APIs
+
+- Knapsack: `knapsack_01`, `knapsack_01_value`, `knapsack_unbounded`, `knapsack_bounded`
+- Subsequences: `longest_increasing_subsequence`, `lis_length`, `longest_nondecreasing_subsequence`
+- Matrix chain: `matrix_chain_order`, `matrix_chain_min_cost`
+- Subset sum: `subset_sum`, `subset_sum_exists`, `subset_sum_count`, `subset_sum_mitm`
+- Trees: `Gen_Tree_DP`, `Gen_Reroot_DP`, `tree_subtree_sizes`, `tree_max_distance`, `tree_sum_of_distances`
+
+#### DP Usage Example
+
+```cpp
+#include <Knapsack.H>
+#include <LIS.H>
+#include <Matrix_Chain.H>
+#include <Subset_Sum.H>
+
+int main() {
+    Aleph::Array<Aleph::Knapsack_Item<int, int>> items = {{2, 3}, {3, 4}, {4, 5}};
+    auto k = Aleph::knapsack_01(items, 6);
+
+    Aleph::Array<int> seq = {10, 9, 2, 5, 3, 7, 101, 18};
+    auto lis = Aleph::longest_increasing_subsequence(seq);
+
+    Aleph::Array<size_t> dims = {30, 35, 15, 5, 10, 20, 25};
+    auto mc = Aleph::matrix_chain_order(dims);
+
+    Aleph::Array<int> vals = {3, 34, 4, 12, 5, 2};
+    auto ss = Aleph::subset_sum(vals, 9);
+
+    return int(k.optimal_value + lis.length + mc.min_multiplications + ss.exists);
+}
+```
+
+#### DP Examples
+
+- `knapsack_example.cc`
+- `lis_example.cc`
+- `matrix_chain_example.cc`
+- `subset_sum_example.cc`
+- `tree_dp_example.cc`
+
 <a id="readme-sorting-algorithms"></a>
 ### Sorting Algorithms
 
@@ -3347,6 +3401,16 @@ int main() {
 | `String_DP.H` | `levenshtein_distance()`, `damerau_levenshtein_distance()`, `longest_common_subsequence()`, `longest_common_substring()` | Sequence similarity and edit distance |
 | `String_Algorithms.H` | *(all above)* | Umbrella include for string classical toolkit |
 
+#### Dynamic Programming
+
+| Header | Functions / Classes | Description |
+|--------|---------------------|-------------|
+| `Knapsack.H` | `knapsack_01()`, `knapsack_01_value()`, `knapsack_unbounded()`, `knapsack_bounded()` | Classical knapsack variants with reconstruction |
+| `LIS.H` | `longest_increasing_subsequence()`, `lis_length()`, `longest_nondecreasing_subsequence()` | O(n log n) subsequence optimization |
+| `Matrix_Chain.H` | `matrix_chain_order()`, `matrix_chain_min_cost()` | Optimal parenthesization for matrix products |
+| `Subset_Sum.H` | `subset_sum()`, `subset_sum_exists()`, `subset_sum_count()`, `subset_sum_mitm()` | Exact subset-sum toolkit (DP + MITM) |
+| `Tree_DP.H` | `Gen_Tree_DP`, `Gen_Reroot_DP`, `tree_subtree_sizes()`, `tree_max_distance()`, `tree_sum_of_distances()` | Generic tree DP and rerooting patterns |
+
 #### Graph Algorithms
 
 | Header | Function | Description |
@@ -3563,6 +3627,12 @@ cmake --build build
 | Levenshtein | `edit_distance_example.cc` | Edit distance via dynamic programming |
 | Damerau-Levenshtein | `damerau_levenshtein_example.cc` | Edit distance with adjacent transpositions |
 | LCS / Longest Common Substring | `lcs_longest_common_substring_example.cc` | Subsequence and contiguous overlap extraction |
+| **Dynamic Programming** | | |
+| Knapsack (0/1, unbounded, bounded) | `knapsack_example.cc` | Packing optimization with reconstruction and variant comparison |
+| LIS / LNDS | `lis_example.cc` | O(n log n) subsequence optimization with comparator variants |
+| Matrix-chain multiplication | `matrix_chain_example.cc` | Parenthesization minimization for chained products |
+| Subset sum (DP + MITM) | `subset_sum_example.cc` | Existence, counting, reconstruction, and MITM contrast |
+| Tree DP / Rerooting | `tree_dp_example.cc` | Subtree metrics and all-root rerooting in linear time |
 | **Network Flows** | | |
 | Max flow | `network_flow_example.C` | Basic max flow |
 | Min-cost flow | `mincost_flow_example.cc` | Cost optimization |

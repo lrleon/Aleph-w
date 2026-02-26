@@ -64,6 +64,11 @@ set(EXAMPLE_PROGRAMS
     edit_distance_example
     damerau_levenshtein_example
     lcs_longest_common_substring_example
+    knapsack_example
+    lis_example
+    matrix_chain_example
+    subset_sum_example
+    tree_dp_example
     writeBalance
     writeHeap
     writeInsertRoot

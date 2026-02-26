@@ -116,6 +116,11 @@ set(HLIST
     String_Palindromes.H
     String_DP.H
     String_Algorithms.H
+    Knapsack.H
+    LIS.H
+    Matrix_Chain.H
+    Subset_Sum.H
+    Tree_DP.H
     tikzgeom.H
     tikzgeom_algorithms.H
     tikzgeom_scene.H
