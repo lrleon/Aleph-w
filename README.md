@@ -2809,6 +2809,7 @@ Aleph-w also includes a practical dynamic-programming toolkit:
 | `Matrix_Chain.H` | Optimal matrix-chain parenthesization (interval DP) |
 | `Subset_Sum.H` | Subset sum (existence/reconstruction/count) + MITM |
 | `Tree_DP.H` | Generic tree DP + rerooting DP (all roots in O(n)) |
+| `DP_Optimizations.H` | D&C DP, Knuth, Convex Hull Trick, Li Chao, monotone queue |
 
 #### Covered DP APIs
 
@@ -2817,6 +2818,7 @@ Aleph-w also includes a practical dynamic-programming toolkit:
 - Matrix chain: `matrix_chain_order`, `matrix_chain_min_cost`
 - Subset sum: `subset_sum`, `subset_sum_exists`, `subset_sum_count`, `subset_sum_mitm`
 - Trees: `Gen_Tree_DP`, `Gen_Reroot_DP`, `tree_subtree_sizes`, `tree_max_distance`, `tree_sum_of_distances`
+- DP optimizations: `divide_and_conquer_partition_dp`, `knuth_optimize_interval`, `optimal_merge_knuth`, `Convex_Hull_Trick`, `Li_Chao_Tree`, `monotone_queue_min_dp`
 
 #### DP Usage Example
 
@@ -2825,6 +2827,7 @@ Aleph-w also includes a practical dynamic-programming toolkit:
 #include <LIS.H>
 #include <Matrix_Chain.H>
 #include <Subset_Sum.H>
+#include <DP_Optimizations.H>
 
 int main() {
     Aleph::Array<Aleph::Knapsack_Item<int, int>> items = {{2, 3}, {3, 4}, {4, 5}};
@@ -2839,7 +2842,11 @@ int main() {
     Aleph::Array<int> vals = {3, 34, 4, 12, 5, 2};
     auto ss = Aleph::subset_sum(vals, 9);
 
-    return int(k.optimal_value + lis.length + mc.min_multiplications + ss.exists);
+    Aleph::Array<long long> xs = {-3, 0, 2, 7};
+    Aleph::Array<long long> ws = {4, 1, 9, 2};
+    auto geo = Aleph::min_weighted_squared_distance_1d(xs, ws);
+
+    return int(k.optimal_value + lis.length + mc.min_multiplications + ss.exists + geo.size());
 }
 ```
 
@@ -2850,6 +2857,7 @@ int main() {
 - `matrix_chain_example.cc`
 - `subset_sum_example.cc`
 - `tree_dp_example.cc`
+- `dp_optimizations_example.cc`
 
 <a id="readme-sorting-algorithms"></a>
 ### Sorting Algorithms
@@ -3410,6 +3418,7 @@ int main() {
 | `Matrix_Chain.H` | `matrix_chain_order()`, `matrix_chain_min_cost()` | Optimal parenthesization for matrix products |
 | `Subset_Sum.H` | `subset_sum()`, `subset_sum_exists()`, `subset_sum_count()`, `subset_sum_mitm()` | Exact subset-sum toolkit (DP + MITM) |
 | `Tree_DP.H` | `Gen_Tree_DP`, `Gen_Reroot_DP`, `tree_subtree_sizes()`, `tree_max_distance()`, `tree_sum_of_distances()` | Generic tree DP and rerooting patterns |
+| `DP_Optimizations.H` | `divide_and_conquer_partition_dp()`, `knuth_optimize_interval()`, `optimal_merge_knuth()`, `Convex_Hull_Trick`, `Li_Chao_Tree`, `monotone_queue_min_dp()`, `min_weighted_squared_distance_1d()` | High-impact DP optimizations + geometric lower-envelope application |
 
 #### Graph Algorithms
 
@@ -3633,6 +3642,7 @@ cmake --build build
 | Matrix-chain multiplication | `matrix_chain_example.cc` | Parenthesization minimization for chained products |
 | Subset sum (DP + MITM) | `subset_sum_example.cc` | Existence, counting, reconstruction, and MITM contrast |
 | Tree DP / Rerooting | `tree_dp_example.cc` | Subtree metrics and all-root rerooting in linear time |
+| DP optimizations (D&C / Knuth / CHT / Li Chao / monotone queue) | `dp_optimizations_example.cc` | Complexity-reduction patterns with a geometric lower-envelope use case |
 | **Network Flows** | | |
 | Max flow | `network_flow_example.C` | Basic max flow |
 | Min-cost flow | `mincost_flow_example.cc` | Cost optimization |

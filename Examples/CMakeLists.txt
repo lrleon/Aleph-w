@@ -69,6 +69,7 @@ set(EXAMPLE_PROGRAMS
     matrix_chain_example
     subset_sum_example
     tree_dp_example
+    dp_optimizations_example
     writeBalance
     writeHeap
     writeInsertRoot
