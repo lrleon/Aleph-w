@@ -41,20 +41,34 @@
     - Build unique sorted combinations (`build_combs`).
     - Fold over permutations (`fold_perm`).
     - Count permutations (`perm_count`).
+    - Generate next lexicographic permutations on arrays (`next_permutation`).
+    - Generate k-combinations by index progression (`next_combination_indices`).
+    - Generate fixed-popcount bitmask combinations (`next_combination_mask`).
+    - Enumerate materialized k-combinations (`for_each_combination`,
+      `build_combinations`).
+    - Count combinations with overflow checks (`combination_count`).
     - Check for existence or universality (`exists_perm`, `all_perm`).
 
-    @note "Permutation" in this context means the cartesian product of the input lists,
-          not mathematical permutations of a set.
+    @note `traverse_perm`/`for_each_perm`/`build_perms` use "permutation" in the
+          cartesian-product sense. `next_permutation` is the classical
+          lexicographic permutation of a single sequence.
 
     @ingroup Algorithms
  *  @author Leandro Rabindranath León
 */
+
+# include <algorithm>
+# include <bit>
+# include <cstdint>
+# include <limits>
+# include <numeric>
 
 # include <htlist.H>
 # include <tpl_dynDlist.H>
 # include <tpl_dynArray.H>
 # include <tpl_array.H>
 # include <tpl_dynSetTree.H>
+# include <ahFunction.H>
 # include <ahSort.H>
 
 namespace Aleph
@@ -118,6 +132,102 @@ namespace Aleph
         }
 
       return ret;
+    }
+
+    template <class ArrayLike>
+    inline void reverse_range(ArrayLike & a,
+                              size_t left, size_t right) noexcept
+    {
+      while (left < right)
+        {
+          std::swap(a(left), a(right));
+          ++left;
+          --right;
+        }
+    }
+
+    template <class IndexArray>
+    inline void validate_combination_indices(const IndexArray & idx,
+                                             const size_t n)
+    {
+      const size_t k = idx.size();
+      ah_domain_error_if(k > n)
+        << "next_combination_indices: k=" << k << " cannot exceed n=" << n;
+
+      for (size_t i = 0; i < k; ++i)
+        {
+          ah_out_of_range_error_if(idx(i) >= n)
+            << "next_combination_indices: index " << idx(i)
+            << " at position " << i << " is outside [0, " << n << ")";
+
+          if (i > 0)
+            ah_domain_error_if(idx(i - 1) >= idx(i))
+              << "next_combination_indices: indices must be strictly increasing";
+        }
+    }
+
+    template <class ArrayLike, class Compare>
+    [[nodiscard]] inline bool next_permutation_impl(ArrayLike & a,
+                                                    Compare cmp,
+                                                    const bool reset_on_last)
+    {
+      const size_t n = a.size();
+      if (n < 2)
+        return false;
+
+      size_t pivot = n;
+      for (size_t i = n - 1; i > 0; --i)
+        if (cmp(a(i - 1), a(i)))
+          {
+            pivot = i - 1;
+            break;
+          }
+
+      if (pivot == n)
+        {
+          if (reset_on_last)
+            reverse_range(a, 0, n - 1);
+          return false;
+        }
+
+      size_t succ = n - 1;
+      while (not cmp(a(pivot), a(succ)))
+        --succ;
+
+      std::swap(a(pivot), a(succ));
+      reverse_range(a, pivot + 1, n - 1);
+      return true;
+    }
+
+    template <class IndexArray>
+    [[nodiscard]] inline bool next_combination_indices_impl(IndexArray & idx,
+                                                            const size_t n,
+                                                            const bool reset_on_last)
+    {
+      validate_combination_indices(idx, n);
+
+      const size_t k = idx.size();
+      if (k == 0)
+        return false;
+
+      for (size_t pos = k; pos > 0; --pos)
+        {
+          const size_t i = pos - 1;
+          const size_t max_here = n - (k - i);
+          if (idx(i) < max_here)
+            {
+              ++idx(i);
+              for (size_t j = i + 1; j < k; ++j)
+                idx(j) = idx(j - 1) + 1;
+              return true;
+            }
+        }
+
+      if (reset_on_last)
+        for (size_t i = 0; i < k; ++i)
+          idx(i) = i;
+
+      return false;
     }
   } // namespace comb_detail
   /// @endcond
@@ -690,6 +800,395 @@ namespace Aleph
   DynList<R> map_perm(const DynList<DynList<T>> & l, Op && op)
   {
     return map_perm<R>(l, op);
+  }
+
+  /** Compute the next lexicographic permutation of an `Array`.
+
+      This function follows the classical linear-time pivot/successor/suffix
+      algorithm.
+
+      - If a next permutation exists, it is written in-place and `true` is
+        returned.
+      - If the input is already the last permutation:
+        - when `reset_on_last == true`, the array is reset to the first
+          permutation and `false` is returned;
+        - when `reset_on_last == false`, the array is left unchanged and
+          `false` is returned.
+
+      Duplicate values are fully supported. Starting from a sorted array yields
+      each distinct permutation exactly once.
+
+      @tparam T Element type.
+      @tparam Compare Strict weak ordering comparator.
+      @param[in,out] a Sequence to transform.
+      @param[in] cmp Ordering relation.
+      @param[in] reset_on_last Whether to reset to the first permutation.
+      @return `true` if advanced to a new permutation; `false` otherwise.
+
+      @note Complexity: O(n) per step.
+
+      @ingroup Algorithms
+  */
+  template <typename T, class Compare = Aleph::less<T>>
+  [[nodiscard]] inline bool
+  next_permutation(Array<T> & a,
+                   Compare cmp = Compare(),
+                   const bool reset_on_last = true)
+  {
+    return comb_detail::next_permutation_impl(a, cmp, reset_on_last);
+  }
+
+  /** \overload next_permutation for `DynArray`. */
+  template <typename T, class Compare = Aleph::less<T>>
+  [[nodiscard]] inline bool
+  next_permutation(DynArray<T> & a,
+                   Compare cmp = Compare(),
+                   const bool reset_on_last = true)
+  {
+    return comb_detail::next_permutation_impl(a, cmp, reset_on_last);
+  }
+
+  /** Compute `n choose k` with overflow checks.
+
+      @param[in] n Universe size.
+      @param[in] k Selection size.
+      @return The exact binomial coefficient C(n, k), or 0 when `k > n`.
+
+      @throws ah_runtime_error if the exact result does not fit in `size_t`.
+
+      @ingroup Algorithms
+  */
+  [[nodiscard]] inline size_t combination_count(size_t n, size_t k)
+  {
+    if (k > n)
+      return 0;
+
+    k = std::min(k, n - k);
+    if (k == 0)
+      return 1;
+
+    size_t result = 1;
+    for (size_t i = 1; i <= k; ++i)
+      {
+        size_t num = n - k + i;
+        size_t den = i;
+
+        size_t g = std::gcd(num, den);
+        num /= g;
+        den /= g;
+
+        g = std::gcd(result, den);
+        result /= g;
+        den /= g;
+
+        g = std::gcd(num, den);
+        num /= g;
+        den /= g;
+
+        ah_runtime_error_if(den != 1)
+          << "combination_count: internal reduction failure for C("
+          << n << ", " << k << ")";
+
+        ah_runtime_error_if(result > std::numeric_limits<size_t>::max() / num)
+          << "combination_count: overflow for C(" << n << ", " << k << ")";
+        result *= num;
+      }
+
+    return result;
+  }
+
+  /** Advance an index-combination `[i0 < i1 < ... < i(k-1)]` to the next one.
+
+      `idx` must contain valid strictly increasing indices in `[0, n)`.
+
+      @param[in,out] idx Current combination indices.
+      @param[in] n Universe size.
+      @param[in] reset_on_last Whether to reset to `{0,1,...,k-1}` at the end.
+      @return `true` if advanced; `false` if `idx` was already the last one.
+
+      @throws ah_domain_error if `idx` is not strictly increasing.
+      @throws ah_out_of_range_error if an index is outside `[0, n)`.
+
+      @note Complexity: O(k) per step.
+
+      @ingroup Algorithms
+  */
+  [[nodiscard]] inline bool
+  next_combination_indices(Array<size_t> & idx,
+                           const size_t n,
+                           const bool reset_on_last = true)
+  {
+    return comb_detail::next_combination_indices_impl(idx, n, reset_on_last);
+  }
+
+  /** \overload next_combination_indices for `DynArray<size_t>`. */
+  [[nodiscard]] inline bool
+  next_combination_indices(DynArray<size_t> & idx,
+                           const size_t n,
+                           const bool reset_on_last = true)
+  {
+    return comb_detail::next_combination_indices_impl(idx, n, reset_on_last);
+  }
+
+  /** Build the first k-of-64 combination mask (`k` low bits set). */
+  [[nodiscard]] inline uint64_t first_combination_mask(const size_t k)
+  {
+    ah_out_of_range_error_if(k > 64)
+      << "first_combination_mask: k=" << k << " cannot exceed 64";
+
+    if (k == 0)
+      return 0;
+    if (k == 64)
+      return std::numeric_limits<uint64_t>::max();
+    return (uint64_t(1) << k) - 1;
+  }
+
+  /** Advance a fixed-popcount bitmask to the next combination (Gosper hack).
+
+      The mask is interpreted over the low `n` bits.
+
+      @param[in,out] mask Current mask.
+      @param[in] n Number of active low bits (domain size).
+      @param[in] reset_on_last Whether to reset to the first mask when done.
+      @return `true` if advanced; `false` if already last within `n` bits.
+
+      @throws ah_out_of_range_error if `n > 64`.
+      @throws ah_domain_error if `mask` has bits outside the low `n` bits.
+
+      @note Complexity: O(1) arithmetic operations.
+
+      @ingroup Algorithms
+  */
+  [[nodiscard]] inline bool
+  next_combination_mask(uint64_t & mask,
+                        const size_t n,
+                        const bool reset_on_last = true)
+  {
+    ah_out_of_range_error_if(n > 64)
+      << "next_combination_mask: n=" << n << " cannot exceed 64";
+
+    if (n == 0)
+      {
+        ah_domain_error_if(mask != 0)
+          << "next_combination_mask: for n=0, mask must be 0";
+        return false;
+      }
+
+    const uint64_t domain_mask =
+      n == 64 ? std::numeric_limits<uint64_t>::max() : ((uint64_t(1) << n) - 1);
+
+    ah_domain_error_if(mask & ~domain_mask)
+      << "next_combination_mask: mask has bits outside the low n bits";
+
+    const size_t k = std::popcount(mask);
+    if (k == 0)
+      {
+        if (reset_on_last)
+          mask = 0;
+        return false;
+      }
+
+    const uint64_t c = mask & (~mask + 1); // isolate least significant set bit
+    const uint64_t r = mask + c;
+
+    if (r == 0)
+      {
+        if (reset_on_last)
+          mask = first_combination_mask(k);
+        return false;
+      }
+
+    const uint64_t next = (((r ^ mask) >> 2) / c) | r;
+    if (next & ~domain_mask)
+      {
+        if (reset_on_last)
+          mask = first_combination_mask(k);
+        return false;
+      }
+
+    mask = next;
+    return true;
+  }
+
+  /// @cond INTERNAL
+  template <class ValuesArray, class Op>
+  [[nodiscard]] static inline bool
+  for_each_combination_impl(const ValuesArray & values,
+                            const size_t k,
+                            Op & op)
+  {
+    const size_t n = values.size();
+    ah_domain_error_if(k > n)
+      << "for_each_combination: k=" << k << " cannot exceed n=" << n;
+
+    if (k == 0)
+      return op(Array<typename ValuesArray::Item_Type>());
+
+    Array<size_t> idx = Array<size_t>::create(k);
+    for (size_t i = 0; i < k; ++i)
+      idx(i) = i;
+
+    while (true)
+      {
+        Array<typename ValuesArray::Item_Type> comb = Array<typename ValuesArray::Item_Type>::create(k);
+        for (size_t i = 0; i < k; ++i)
+          comb(i) = values(idx(i));
+
+        if (not op(comb))
+          return false;
+
+        if (not next_combination_indices(idx, n, false))
+          break;
+      }
+
+    return true;
+  }
+  /// @endcond
+
+  /** Enumerate all k-combinations of an `Array<T>` in lexicographic index order.
+
+      The callback receives each materialized combination as `Array<T>` and can
+      stop early by returning `false`.
+
+      @tparam T Element type.
+      @tparam Op Callable with the signature `bool(const Array<T>&)`.
+      @param[in] values Source values.
+      @param[in] k Combination size.
+      @param[in] op Callback invoked for each combination.
+      @return `true` if fully traversed; `false` if the callback stopped early.
+
+      @ingroup Algorithms
+  */
+  template <typename T, class Op>
+  [[nodiscard]] inline bool
+  for_each_combination(const Array<T> & values, const size_t k, Op & op)
+  {
+    return for_each_combination_impl(values, k, op);
+  }
+
+  /** \overload for_each_combination for rvalue callback. */
+  template <typename T, class Op>
+  [[nodiscard]] inline bool
+  for_each_combination(const Array<T> & values, const size_t k, Op && op)
+  {
+    return for_each_combination(values, k, op);
+  }
+
+  /** \overload for_each_combination for `DynArray<T>`. */
+  template <typename T, class Op>
+  [[nodiscard]] inline bool
+  for_each_combination(const DynArray<T> & values, const size_t k, Op & op)
+  {
+    return for_each_combination_impl(values, k, op);
+  }
+
+  /** \overload for_each_combination for `DynArray<T>` and rvalue callback. */
+  template <typename T, class Op>
+  [[nodiscard]] inline bool
+  for_each_combination(const DynArray<T> & values, const size_t k, Op && op)
+  {
+    return for_each_combination(values, k, op);
+  }
+
+  /** Materialize all k-combinations of `Array<T>`.
+
+      @tparam T Element type.
+      @param[in] values Source values.
+      @param[in] k Combination size.
+      @return All combinations in lexicographic index order.
+
+      @ingroup Algorithms
+  */
+  template <typename T>
+  [[nodiscard]] inline Array<Array<T>>
+  build_combinations(const Array<T> & values, const size_t k)
+  {
+    Array<Array<T>> ret;
+    (void) for_each_combination(values, k, [&ret](const Array<T> & comb)
+    {
+      ret.append(comb);
+      return true;
+    });
+    return ret;
+  }
+
+  /** \overload build_combinations for `DynArray<T>`. */
+  template <typename T>
+  [[nodiscard]] inline Array<Array<T>>
+  build_combinations(const DynArray<T> & values, const size_t k)
+  {
+    Array<Array<T>> ret;
+    (void) for_each_combination(values, k, [&ret](const Array<T> & comb)
+    {
+      ret.append(comb);
+      return true;
+    });
+    return ret;
+  }
+
+
+  /** @brief Convert a binary number to its Gray code representation.
+   *
+   *  The i-th bit of the Gray code is 1 if the i-th and (i+1)-th bits of the
+   *  binary number are different.
+   *
+   *  @tparam T Unsigned integral type.
+   *  @param n Binary number.
+   *  @return Gray code representation of n.
+   *
+   *  @ingroup Algorithms
+   */
+  template <std::unsigned_integral T>
+  [[nodiscard]] constexpr T bin_to_gray(const T n) noexcept
+  {
+    return n ^ (n >> 1);
+  }
+
+
+  /** @brief Convert a Gray code number to its binary representation.
+   *
+   *  The conversion is performed by iteratively XORing the Gray code with
+   *  right-shifted versions of itself.
+   *
+   *  @tparam T Unsigned integral type.
+   *  @param g Gray code number.
+   *  @return Binary representation of g.
+   *
+   *  @ingroup Algorithms
+   */
+  template <std::unsigned_integral T>
+  [[nodiscard]] constexpr T gray_to_bin(T g) noexcept
+  {
+    for (size_t shift = 1; shift < sizeof(T) * 8; shift <<= 1)
+      g ^= (g >> shift);
+    return g;
+  }
+
+
+  /** @brief Generate the sequence of n-bit Gray codes.
+   *
+   *  Returns an array containing all 2^n Gray codes in sequence, where
+   *  each successive value differs by exactly one bit.
+   *
+   *  @param n Number of bits (must be <= 31 to fit in Array).
+   *  @return Array of 2^n Gray codes.
+   *
+   *  @throws ah_domain_error if n > 31 (exceeds Array size limits).
+   *
+   *  @ingroup Algorithms
+   */
+  [[nodiscard]] inline Array<uint32_t> build_gray_code(const size_t n)
+  {
+    ah_domain_error_if(n > 31)
+      << "build_gray_code: n=" << n << " exceeds 31-bit limit for Array";
+
+    const size_t count = size_t(1) << n;
+    Array<uint32_t> ret;
+    ret.reserve(count);
+    for (size_t i = 0; i < count; ++i)
+      ret.append(bin_to_gray(static_cast<uint32_t>(i)));
+
+    return ret;
   }
 }
 

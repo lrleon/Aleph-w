@@ -1536,6 +1536,75 @@ template <class Container, typename T>
 using GenericKeys = GenericItems<Container, T>;
 
 
+/** Equality test for sequence containers.
+
+    This class implements the `equal_to()` method and `operator ==` for
+    containers whose elements are ordered and do not necessarily
+    export a fast `search()` method.
+
+    The test is performed by comparing elements one by one in traversal
+    order.
+
+    \tparam Container container type to which the equality test will
+    be applied.
+    \ingroup Sequences
+*/
+template <class Container>
+class EqualSequenceMethod
+{
+  const Container * const_me() const
+  {
+    return static_cast<const Container*>(this);
+  }
+
+public:
+
+  /** Equality test between `this` and `r`.
+
+      The test is performed by comparing elements one by one in
+      traversal order.
+
+      \param[in] r container on which the comparison will be performed.
+      \return `true` if the containers have the same size and all the
+      elements are equal in the same order.
+  */
+  bool equal_to(const Container & r) const noexcept
+  {
+    if (const_me() == &r)
+      return true;
+
+    if (const_me()->size() != r.size())
+      return false;
+
+    auto it1 = const_me()->get_it();
+    auto it2 = r.get_it();
+
+    while (it1.has_curr())
+      {
+        if (not (it1.get_curr() == it2.get_curr()))
+          return false;
+
+        it1.next();
+        it2.next();
+      }
+
+    return true;
+  }
+
+  /// \overload equal_to(const Container & r)
+  bool operator == (const Container & r) const	noexcept
+  {
+    return equal_to(r);
+  }
+
+  /** Negation of equal_to() */
+  bool operator != (const Container & r) const	noexcept
+  {
+    return not equal_to(r);
+  }
+};
+
+
 /** Equality test for containers.
 
     \ingroup Sequences

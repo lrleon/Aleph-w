@@ -48,6 +48,8 @@
  *  | Merge Sort | O(n log n) | O(n) or O(1) | Yes | Lists, guaranteed performance |
  *  | Quicksort | O(n log n)* | O(log n) | No | General purpose, fastest average |
  *  | Heapsort | O(n log n) | O(1) | No | Guaranteed O(n log n), in-place |
+ *  | Bucket Sort | O(n) expected | O(n+k) | Yes | Uniformly distributed data |
+ *  | Timsort | O(n log n) | O(n) | Yes | Real-world data, nearly sorted |
  *
  *  (* Quicksort has O(n²) worst case, but median-of-three pivot selection minimizes this risk)
  *
@@ -108,6 +110,8 @@
 #include <vector>
 #include <array>
 #include <utility>
+#include <cmath>
+#include <algorithm>
 
 namespace Aleph
 {
@@ -2371,19 +2375,53 @@ namespace Aleph
 
   template <typename T, class Compare>
   static inline
-  const T &__random_select(T *a, const long i, const long l, const long r,
+  const T &__random_select(T *a, const long i, long l, long r,
                            const Compare & cmp)
   {
-    if (l >= r)
-      return a[l];
+    while (l < r)
+      {
+        if (r - l < 10)
+          {
+            insertion_sort<T, Compare>(a, l, r, cmp);
+            return a[i];
+          }
 
-    const long pivot = partition<T, Compare>(a, l, r, cmp);
-    if (i == pivot)
-      return a[i];
+        const long pivot_idx = select_pivot<T, Compare>(a, l, r, cmp);
+        std::swap(a[pivot_idx], a[r]);
 
-    if (i < pivot) // Is it in the left partition?
-      return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
-    return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
+        long lt = l;
+        long gt = r - 1;
+        long current = l;
+
+        while (current <= gt)
+          {
+            if (cmp(a[current], a[r]))
+              {
+                std::swap(a[lt], a[current]);
+                lt++;
+                current++;
+              }
+            else if (cmp(a[r], a[current]))
+              {
+                std::swap(a[current], a[gt]);
+                gt--;
+              }
+            else
+              current++;
+          }
+
+        std::swap(a[current], a[r]);
+
+        if (i >= lt and i <= current)
+          return a[i];
+
+        if (i < lt)
+          r = lt - 1;
+        else
+          l = current + 1;
+      }
+
+    return a[l];
   }
 
   /** @brief Implementation of pivot selection using operator().
@@ -2526,41 +2564,129 @@ namespace Aleph
   template <typename T, class Compare>
   static inline
   const T &__random_select(DynArray<T> & a, const long i,
-                           const long l, const long r,
+                           long l, long r,
                            const Compare & cmp = Compare())
   {
     assert(i >= l and i <= r);
 
-    if (l >= r)
-      return a(l);
+    while (l < r)
+      {
+        if (r - l < 10)
+          {
+            for (long p = l + 1; p <= r; ++p)
+              {
+                T key = std::move(a(p));
+                long j = p - 1;
+                while (j >= l and cmp(key, a(j)))
+                  {
+                    a(j + 1) = std::move(a(j));
+                    j--;
+                  }
+                a(j + 1) = std::move(key);
+              }
+            return a(i);
+          }
 
-    const long pivot = partition_op<T, Compare>(a, l, r, cmp);
-    if (i == pivot)
-      return a(i);
+        const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp);
+        std::swap(a(pivot_idx), a(r));
 
-    if (i < pivot) // is it in left partition?
-      return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
-    return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
+        long lt = l;
+        long gt = r - 1;
+        long current = l;
+
+        while (current <= gt)
+          {
+            if (cmp(a(current), a(r)))
+              {
+                std::swap(a(lt), a(current));
+                lt++;
+                current++;
+              }
+            else if (cmp(a(r), a(current)))
+              {
+                std::swap(a(current), a(gt));
+                gt--;
+              }
+            else
+              current++;
+          }
+
+        std::swap(a(current), a(r));
+
+        if (i >= lt and i <= current)
+          return a(i);
+
+        if (i < lt)
+          r = lt - 1;
+        else
+          l = current + 1;
+      }
+
+    return a(l);
   }
 
   template <typename T, class Compare>
   static inline
   const T &__random_select(Array<T> & a, const long i,
-                           const long l, const long r,
+                           long l, long r,
                            const Compare & cmp = Compare())
   {
     assert(i >= l and i <= r);
 
-    if (l >= r)
-      return a(l);
+    while (l < r)
+      {
+        if (r - l < 10)
+          {
+            for (long p = l + 1; p <= r; ++p)
+              {
+                T key = std::move(a(p));
+                long j = p - 1;
+                while (j >= l and cmp(key, a(j)))
+                  {
+                    a(j + 1) = std::move(a(j));
+                    j--;
+                  }
+                a(j + 1) = std::move(key);
+              }
+            return a(i);
+          }
 
-    const long pivot = partition_op<T, Compare>(a, l, r, cmp);
-    if (i == pivot)
-      return a(i);
+        const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp);
+        std::swap(a(pivot_idx), a(r));
 
-    if (i < pivot) // Is it in left partition?
-      return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
-    return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
+        long lt = l;
+        long gt = r - 1;
+        long current = l;
+
+        while (current <= gt)
+          {
+            if (cmp(a(current), a(r)))
+              {
+                std::swap(a(lt), a(current));
+                lt++;
+                current++;
+              }
+            else if (cmp(a(r), a(current)))
+              {
+                std::swap(a(current), a(gt));
+                gt--;
+              }
+            else
+              current++;
+          }
+
+        std::swap(a(current), a(r));
+
+        if (i >= lt and i <= current)
+          return a(i);
+
+        if (i < lt)
+          r = lt - 1;
+        else
+          l = current + 1;
+      }
+
+    return a(l);
   }
 
   /** @brief Select the i-th smallest element in a DynArray.
@@ -4381,10 +4507,10 @@ namespace Aleph
       << "counting_sort_indices(): sa/tmp size is smaller than n";
 
     const auto range_minus_one =
-      static_cast<unsigned long long>(static_cast<long long>(max_key) -
-                                      static_cast<long long>(min_key));
+        static_cast<unsigned long long>(static_cast<long long>(max_key) -
+                                        static_cast<long long>(min_key));
     constexpr auto max_count =
-      static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
+        static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
     ah_runtime_error_unless(range_minus_one <= max_count)
       << "counting_sort_indices(): key range is too large";
 
@@ -4399,8 +4525,8 @@ namespace Aleph
         ah_out_of_range_error_if(key < min_key or key > max_key)
           << "counting_sort_indices(): key out of expected range";
         const auto bucket =
-          static_cast<size_t>(static_cast<unsigned long long>(
-            static_cast<long long>(key) - static_cast<long long>(min_key)));
+            static_cast<size_t>(static_cast<unsigned long long>(
+              static_cast<long long>(key) - static_cast<long long>(min_key)));
         ++count[bucket];
       }
 
@@ -4411,8 +4537,8 @@ namespace Aleph
       {
         const int key = key_of(sa[i - 1]);
         const auto idx =
-          static_cast<size_t>(static_cast<unsigned long long>(
-            static_cast<long long>(key) - static_cast<long long>(min_key)));
+            static_cast<size_t>(static_cast<unsigned long long>(
+              static_cast<long long>(key) - static_cast<long long>(min_key)));
         tmp[--count[idx]] = sa[i - 1];
       }
 
@@ -4456,12 +4582,12 @@ namespace Aleph
 
       using U = counting_unsigned_t<IntT>;
       const U range_minus_one =
-        static_cast<U>(max_key) - static_cast<U>(min_key);
+          static_cast<U>(max_key) - static_cast<U>(min_key);
 
       if constexpr (sizeof(U) >= sizeof(size_t))
         {
           constexpr size_t max_count =
-            std::numeric_limits<size_t>::max() - static_cast<size_t>(1);
+              std::numeric_limits<size_t>::max() - static_cast<size_t>(1);
           ah_runtime_error_unless(range_minus_one <= static_cast<U>(max_count))
             << "counting_sort(): key range is too large";
         }
@@ -4530,7 +4656,7 @@ namespace Aleph
 
     template <typename IntT>
       requires counting_integer<IntT>
-    void counting_sort_impl(IntT * a, const size_t n)
+    void counting_sort_impl(IntT *a, const size_t n)
     {
       if (n < 2)
         return;
@@ -4714,7 +4840,7 @@ namespace Aleph
 
     template <typename IntT>
       requires radix_integer<IntT>
-    void radix_sort_impl(IntT * a, const size_t n)
+    void radix_sort_impl(IntT *a, const size_t n)
     {
       using U = radix_unsigned_t<IntT>;
 
@@ -4772,14 +4898,14 @@ namespace Aleph
 
           while (not list.is_empty())
             {
-              Slinknc * link = list.HTList::remove_first_ne();
-              auto * node = static_cast<Snodenc<IntT> *>(link);
+              Slinknc *link = list.HTList::remove_first_ne();
+              auto *node = static_cast<Snodenc<IntT> *>(link);
               const U key = radix_key<IntT>(node->get_data());
               const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
               buckets[bucket].append(link);
             }
 
-          for (auto & bucket : buckets)
+          for (auto & bucket: buckets)
             list.HTList::append(bucket);
         }
     }
@@ -4804,13 +4930,13 @@ namespace Aleph
 
           while (not list.template Dnode<IntT>::is_empty())
             {
-              Dnode<IntT> * node = list.template Dnode<IntT>::remove_first_ne();
+              Dnode<IntT> *node = list.template Dnode<IntT>::remove_first_ne();
               const U key = radix_key<IntT>(node->get_data());
               const auto bucket = static_cast<size_t>((key >> shift) & U{0xFF});
               buckets[bucket].append(node);
             }
 
-          for (auto & bucket : buckets)
+          for (auto & bucket: buckets)
             list.template Dnode<IntT>::append_list(&bucket);
         }
     }
@@ -4949,7 +5075,7 @@ namespace Aleph
    */
   template <typename T>
     requires CountingSortable<T>
-  void counting_sort(T * a, const size_t n)
+  void counting_sort(T *a, const size_t n)
   {
     ah_invalid_argument_if(a == nullptr and n > 0)
       << "counting_sort(): null pointer with non-zero length";
@@ -4968,7 +5094,7 @@ namespace Aleph
    */
   template <typename T, size_t N>
     requires CountingSortable<T>
-  void counting_sort(T (& a)[N])
+  void counting_sort(T (&a)[N])
   {
     counting_sort(a, N);
   }
@@ -5068,7 +5194,7 @@ namespace Aleph
    */
   template <typename T>
     requires RadixSortable<T>
-  void radix_sort(T * a, const size_t n)
+  void radix_sort(T *a, const size_t n)
   {
     ah_invalid_argument_if(a == nullptr and n > 0)
       << "radix_sort(): null pointer with non-zero length";
@@ -5087,9 +5213,938 @@ namespace Aleph
    */
   template <typename T, size_t N>
     requires RadixSortable<T>
-  void radix_sort(T (& a)[N])
+  void radix_sort(T (&a)[N])
   {
     radix_sort(a, N);
+  }
+
+
+  // ================================================================
+  //                        Bucket Sort
+  // ================================================================
+
+  namespace bucket_sort_detail
+  {
+    /** @brief Insertion sort a sub-array [lo, hi).
+     *  Used internally by bucket sort to sort individual buckets.
+     */
+    template <typename T, class Compare>
+    void insertion_sort_range(T *a, const size_t lo, const size_t hi,
+                              const Compare & cmp) noexcept
+    {
+      for (size_t i = lo + 1; i < hi; ++i)
+        {
+          T tmp = std::move(a[i]);
+          size_t j = i;
+          while (j > lo and cmp(tmp, a[j - 1]))
+            {
+              a[j] = std::move(a[j - 1]);
+              --j;
+            }
+          a[j] = std::move(tmp);
+        }
+    }
+
+
+    /** @brief Core bucket sort implementation on a raw pointer range.
+     *
+     *  Distributes elements into `num_buckets` buckets according to
+     *  `bucket_key`, sorts each bucket with insertion sort, and
+     *  writes the concatenated result back.
+     *
+     *  @tparam T Element type.
+     *  @tparam Compare Comparison functor.
+     *  @tparam BucketKey Callable mapping T -> size_t bucket index.
+     */
+    template <typename T, class Compare, class BucketKey>
+    void bucket_sort_impl(T *a, const size_t n, const size_t num_buckets,
+                          const BucketKey & bucket_key, const Compare & cmp)
+    {
+      if (n < 2)
+        return;
+
+      // Count elements per bucket
+      Array<size_t> counts = Array<size_t>::create(num_buckets);
+      for (size_t i = 0; i < num_buckets; ++i)
+        counts[i] = 0;
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t b = bucket_key(a[i]);
+          ah_domain_error_if(b >= num_buckets)
+            << "bucket_sort: bucket_key returned " << b
+            << " which is >= num_buckets (" << num_buckets << ")";
+          ++counts[b];
+        }
+
+      // Compute bucket start offsets (prefix sum)
+      Array<size_t> offsets = Array<size_t>::create(num_buckets);
+      offsets[0] = 0;
+      for (size_t i = 1; i < num_buckets; ++i)
+        offsets[i] = offsets[i - 1] + counts[i - 1];
+
+      // Distribute elements into a temporary array (stable)
+      Array<T> tmp = Array<T>::create(n);
+      // Reset counts for placement
+      for (size_t i = 0; i < num_buckets; ++i)
+        counts[i] = 0;
+
+      for (size_t i = 0; i < n; ++i)
+        {
+          const size_t b = bucket_key(a[i]);
+          tmp[offsets[b] + counts[b]] = a[i];
+          ++counts[b];
+        }
+
+      // Sort each bucket with insertion sort
+      for (size_t b = 0; b < num_buckets; ++b)
+        if (counts[b] > 1)
+          insertion_sort_range(&tmp[0], offsets[b],
+                               offsets[b] + counts[b], cmp);
+
+      // Copy back
+      for (size_t i = 0; i < n; ++i)
+        a[i] = std::move(tmp[i]);
+    }
+  } // namespace bucket_sort_detail
+
+
+  /** @brief Bucket sort with user-supplied bucket mapping.
+   *
+   *  Distributes elements into `num_buckets` buckets using `bucket_key`,
+   *  sorts each bucket with insertion sort, and concatenates.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *  @tparam BucketKey Callable: `bucket_key(element) -> size_t` in `[0, num_buckets)`.
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] n Number of elements.
+   *  @param[in] num_buckets Number of buckets to distribute into.
+   *  @param[in] bucket_key Mapping function from element to bucket index.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @throws std::invalid_argument if `a` is null and `n > 0`.
+   *  @throws std::domain_error if `bucket_key` returns an out-of-range index.
+   *
+   *  @par Complexity
+   *  O(n + k) expected time (uniform distribution), O(n^2) worst case.
+   *  O(n + k) extra space.
+   *
+   *  @par Stability
+   *  Stable — equal elements preserve their original relative order.
+   *
+   *  @see counting_sort, radix_sort
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>, class BucketKey>
+  void bucket_sort(T *a, const size_t n, const size_t num_buckets,
+                   const BucketKey & bucket_key,
+                   const Compare & cmp = Compare())
+  {
+    ah_invalid_argument_if(a == nullptr and n > 0)
+      << "bucket_sort(): null pointer with non-zero length";
+    bucket_sort_detail::bucket_sort_impl(a, n, num_buckets, bucket_key, cmp);
+  }
+
+
+  /** @brief Bucket sort convenience for floating-point arrays.
+   *
+   *  Automatically detects `[min, max]` range and distributes into `n` buckets
+   *  using linear interpolation. Ideal for uniformly distributed data.
+   *
+   *  @tparam T Floating-point type (`float`, `double`, `long double`).
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] n Number of elements.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @throws std::invalid_argument if `a` is null and `n > 0`.
+   *
+   *  @par Complexity
+   *  O(n) expected for uniformly distributed data, O(n^2) worst case.
+   *
+   *  @par Stability
+   *  Stable.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+    requires std::floating_point<T>
+  void bucket_sort(T *a, const size_t n, const Compare & cmp = Compare())
+  {
+    ah_invalid_argument_if(a == nullptr and n > 0)
+      << "bucket_sort(): null pointer with non-zero length";
+
+    if (n < 2)
+      return;
+
+    T min_val = a[0], max_val = a[0];
+    for (size_t i = 1; i < n; ++i)
+      {
+        if (a[i] < min_val) min_val = a[i];
+        if (a[i] > max_val) max_val = a[i];
+      }
+
+    const T range = max_val - min_val;
+    if (range == T{0})
+      return; // all equal
+
+    const size_t num_buckets = n;
+    auto key = [min_val, range, num_buckets](const T & val) -> size_t
+      {
+        const auto b = static_cast<size_t>((val - min_val) / range *
+                                           static_cast<T>(num_buckets - 1));
+        return b < num_buckets ? b : num_buckets - 1;
+      };
+
+    bucket_sort_detail::bucket_sort_impl(a, n, num_buckets, key, cmp);
+  }
+
+
+  /** @brief Bucket sort for DynArray (floating-point convenience).
+   *
+   *  @tparam T Floating-point type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] a DynArray to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @par Complexity
+   *  O(n) expected for uniformly distributed data.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+    requires std::floating_point<T>
+  void bucket_sort(DynArray<T> & a, const Compare & cmp = Compare())
+  {
+    const size_t n = a.size();
+    if (n < 2)
+      return;
+
+    Array<T> tmp = Array<T>::create(n);
+    for (size_t i = 0; i < n; ++i)
+      tmp[i] = a(i);
+
+    bucket_sort(&tmp[0], n, cmp);
+
+    for (size_t i = 0; i < n; ++i)
+      a(i) = tmp[i];
+  }
+
+
+  /** @brief Bucket sort for Array (floating-point convenience).
+   *
+   *  @tparam T Floating-point type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] a Array to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+    requires std::floating_point<T>
+  void bucket_sort(Array<T> & a, const Compare & cmp = Compare())
+  {
+    if (a.size() < 2)
+      return;
+    bucket_sort(&a[0], a.size(), cmp);
+  }
+
+
+  /** @brief Bucket sort for fixed-size C arrays (floating-point convenience).
+   *
+   *  @tparam T Floating-point type.
+   *  @tparam N Array size.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] a The array to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, size_t N, class Compare = Aleph::less<T>>
+    requires std::floating_point<T>
+  void bucket_sort(T (&a)[N], const Compare & cmp = Compare())
+  {
+    bucket_sort(static_cast<T *>(a), N, cmp);
+  }
+
+
+  /** @brief Bucket sort for DynList (floating-point convenience).
+   *
+   *  Copies elements to an Array, sorts with bucket sort, then writes
+   *  sorted values back into the list nodes.
+   *
+   *  @tparam T Floating-point type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list DynList to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+    requires std::floating_point<T>
+  void bucket_sort(DynList<T> & list, const Compare & cmp = Compare())
+  {
+    const size_t n = list.size();
+    if (n < 2)
+      return;
+
+    Array<T> tmp = Array<T>::create(n);
+    size_t i = 0;
+    for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
+      tmp[i++] = it.get_curr_ne();
+
+    bucket_sort(&tmp[0], n, cmp);
+
+    i = 0;
+    for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
+      it.get_curr_ne() = tmp[i++];
+  }
+
+
+  /** @brief Bucket sort for DynArray with user-supplied bucket mapping.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @tparam BucketKey Callable mapping T -> size_t.
+   *  @param[in,out] a DynArray to sort.
+   *  @param[in] num_buckets Number of buckets.
+   *  @param[in] bucket_key Mapping function.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>, class BucketKey>
+  void bucket_sort(DynArray<T> & a, const size_t num_buckets,
+                   const BucketKey & bucket_key,
+                   const Compare & cmp = Compare())
+  {
+    const size_t n = a.size();
+    if (n < 2)
+      return;
+
+    Array<T> tmp = Array<T>::create(n);
+    for (size_t i = 0; i < n; ++i)
+      tmp[i] = a(i);
+
+    bucket_sort(&tmp[0], n, num_buckets, bucket_key, cmp);
+
+    for (size_t i = 0; i < n; ++i)
+      a(i) = tmp[i];
+  }
+
+
+  /** @brief Bucket sort for Array with user-supplied bucket mapping.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @tparam BucketKey Callable mapping T -> size_t.
+   *  @param[in,out] a Array to sort.
+   *  @param[in] num_buckets Number of buckets.
+   *  @param[in] bucket_key Mapping function.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>, class BucketKey>
+  void bucket_sort(Array<T> & a, const size_t num_buckets,
+                   const BucketKey & bucket_key,
+                   const Compare & cmp = Compare())
+  {
+    if (a.size() < 2)
+      return;
+    bucket_sort(&a[0], a.size(), num_buckets, bucket_key, cmp);
+  }
+
+
+  // ================================================================
+  //                          Timsort
+  // ================================================================
+
+  namespace timsort_detail
+  {
+    /** @brief Compute the minimum run length for timsort.
+     *
+     *  Returns a value in [32, 64] such that n/minrun is close to a power of 2.
+     *  This is Python's algorithm: shift n right until it's in [32, 64),
+     *  adding 1 if any bits were shifted out.
+     */
+    [[nodiscard]] constexpr size_t compute_minrun(size_t n) noexcept
+    {
+      size_t r = 0;
+      while (n >= 64)
+        {
+          r |= (n & 1);
+          n >>= 1;
+        }
+      return n + r;
+    }
+
+
+    /** @brief Reverse elements in [lo, hi). */
+    template <typename T>
+    void reverse_range(T *a, size_t lo, size_t hi) noexcept
+    {
+      while (lo + 1 < hi)
+        {
+          std::swap(a[lo], a[hi - 1]);
+          ++lo;
+          --hi;
+        }
+    }
+
+
+    /** @brief Find the length of the natural run starting at `lo`.
+     *
+     *  If the run is descending (strictly), it is reversed to become ascending.
+     *  Returns the length of the run.
+     */
+    template <typename T, class Compare>
+    size_t count_run_and_make_ascending(T *a, const size_t lo,
+                                        const size_t hi,
+                                        const Compare & cmp) noexcept
+    {
+      if (hi - lo <= 1)
+        return hi - lo;
+
+      size_t run_hi = lo + 1;
+      if (cmp(a[run_hi], a[lo])) // descending
+        {
+          while (run_hi < hi and cmp(a[run_hi], a[run_hi - 1]))
+            ++run_hi;
+          reverse_range(a, lo, run_hi);
+        }
+      else // ascending
+        while (run_hi < hi and not cmp(a[run_hi], a[run_hi - 1]))
+          ++run_hi;
+      return run_hi - lo;
+    }
+
+
+    /** @brief Binary insertion sort on [lo, hi) starting from `start`.
+     *
+     *  Elements in [lo, start) are already sorted. This uses binary search
+     *  to find the insertion point, then shifts elements.
+     */
+    template <typename T, class Compare>
+    void binary_insertion_sort(T *a, const size_t lo, const size_t hi,
+                               size_t start, const Compare & cmp) noexcept
+    {
+      if (start <= lo)
+        start = lo + 1;
+
+      for (; start < hi; ++start)
+        {
+          T pivot = std::move(a[start]);
+
+          // Binary search for insertion point in [lo, start)
+          size_t left = lo;
+          size_t right = start;
+          while (left < right)
+            {
+              const size_t mid = left + (right - left) / 2;
+              if (cmp(pivot, a[mid]))
+                right = mid;
+              else
+                left = mid + 1;
+            }
+
+          // Shift elements [left, start) right by one
+          for (size_t p = start; p > left; --p)
+            a[p] = std::move(a[p - 1]);
+          a[left] = std::move(pivot);
+        }
+    }
+
+
+    /** @brief Gallop left: find the position where `key` would be inserted
+     *  into a[base..base+len) to keep it sorted, assuming a is sorted.
+     *  Returns the leftmost such position (for stability).
+     *
+     *  Uses exponential search from `hint` then binary search.
+     */
+    template <typename T, class Compare>
+    size_t gallop_left(const T & key, const T *a, const size_t len,
+                       const size_t hint, const Compare & cmp) noexcept
+    {
+      size_t last_ofs = 0;
+      size_t ofs = 1;
+
+      if (cmp(a[hint], key)) // key > a[hint]: search right
+        {
+          const size_t max_ofs = len - hint;
+          while (ofs < max_ofs and cmp(a[hint + ofs], key))
+            {
+              last_ofs = ofs;
+              ofs = (ofs << 1) + 1;
+              if (ofs > max_ofs)
+                ofs = max_ofs;
+            }
+          last_ofs += hint;
+          ofs += hint;
+        }
+      else // key <= a[hint]: search left
+        {
+          const size_t max_ofs = hint + 1;
+          while (ofs < max_ofs and not cmp(a[hint - ofs], key))
+            {
+              last_ofs = ofs;
+              ofs = (ofs << 1) + 1;
+              if (ofs > max_ofs)
+                ofs = max_ofs;
+            }
+          const size_t tmp = last_ofs;
+          last_ofs = hint - ofs;
+          ofs = hint - tmp;
+        }
+
+      // Binary search in (last_ofs, ofs]
+      ++last_ofs;
+      while (last_ofs < ofs)
+        {
+          const size_t mid = last_ofs + (ofs - last_ofs) / 2;
+          if (cmp(a[mid], key))
+            last_ofs = mid + 1;
+          else
+            ofs = mid;
+        }
+      return ofs;
+    }
+
+
+    /** @brief Gallop right: find the rightmost position where `key` would
+     *  be inserted into a[0..len) to keep it sorted.
+     */
+    template <typename T, class Compare>
+    size_t gallop_right(const T & key, const T *a, const size_t len,
+                        const size_t hint, const Compare & cmp) noexcept
+    {
+      size_t last_ofs = 0;
+      size_t ofs = 1;
+
+      if (cmp(key, a[hint])) // key < a[hint]: search left
+        {
+          const size_t max_ofs = hint + 1;
+          while (ofs < max_ofs and cmp(key, a[hint - ofs]))
+            {
+              last_ofs = ofs;
+              ofs = (ofs << 1) + 1;
+              if (ofs > max_ofs)
+                ofs = max_ofs;
+            }
+          const size_t tmp = last_ofs;
+          last_ofs = hint - ofs;
+          ofs = hint - tmp;
+        }
+      else // key >= a[hint]: search right
+        {
+          const size_t max_ofs = len - hint;
+          while (ofs < max_ofs and not cmp(key, a[hint + ofs]))
+            {
+              last_ofs = ofs;
+              ofs = (ofs << 1) + 1;
+              if (ofs > max_ofs)
+                ofs = max_ofs;
+            }
+          last_ofs += hint;
+          ofs += hint;
+        }
+
+      ++last_ofs;
+      while (last_ofs < ofs)
+        {
+          const size_t mid = last_ofs + (ofs - last_ofs) / 2;
+          if (cmp(key, a[mid]))
+            ofs = mid;
+          else
+            last_ofs = mid + 1;
+        }
+      return ofs;
+    }
+
+
+    /** @brief Merge two adjacent sorted runs a[base1..base1+len1) and
+     *  a[base2..base2+len2) using temporary buffer. Assumes
+     *  base2 == base1 + len1 and len1 <= len2.
+     *
+     *  Uses galloping to skip long monotone sequences.
+     */
+    template <typename T, class Compare>
+    void merge_lo(T *a, const size_t base1, const size_t len1,
+                  const size_t base2, const size_t len2,
+                  T *tmp, const Compare & cmp)
+    {
+      // Copy run1 into tmp
+      for (size_t i = 0; i < len1; ++i)
+        tmp[i] = std::move(a[base1 + i]);
+
+      size_t c1 = 0; // cursor into tmp (run1 copy)
+      size_t c2 = base2; // cursor into a (run2)
+      size_t dest = base1; // write cursor into a
+      const size_t end1 = len1;
+      const size_t end2 = base2 + len2;
+
+      while (c1 < end1 and c2 < end2)
+        {
+          if (cmp(a[c2], tmp[c1]))
+            a[dest++] = std::move(a[c2++]);
+          else
+            a[dest++] = std::move(tmp[c1++]);
+        }
+
+      // Copy remaining from tmp (run1)
+      while (c1 < end1)
+        a[dest++] = std::move(tmp[c1++]);
+      // Remaining run2 elements are already in place
+    }
+
+
+    /** @brief Merge two adjacent sorted runs where len1 >= len2.
+     *  a[base1..base1+len1) and a[base2..base2+len2).
+     *  Copies run2 (the smaller) into tmp and merges backward.
+     */
+    template <typename T, class Compare>
+    void merge_hi(T *a, const size_t base1, const size_t len1,
+                  const size_t base2, const size_t len2,
+                  T *tmp, const Compare & cmp)
+    {
+      // Copy run2 into tmp
+      for (size_t i = 0; i < len2; ++i)
+        tmp[i] = std::move(a[base2 + i]);
+
+      // Merge from the right (highest to lowest)
+      size_t dest = base2 + len2; // one past end
+      size_t c1 = base1 + len1; // one past end of run1 in a
+      size_t c2 = len2; // one past end of run2 in tmp
+
+      while (c1 > base1 and c2 > 0)
+        {
+          if (cmp(tmp[c2 - 1], a[c1 - 1]))
+            a[--dest] = std::move(a[--c1]);
+          else
+            a[--dest] = std::move(tmp[--c2]);
+        }
+
+      // Copy remaining from tmp (run2)
+      while (c2 > 0)
+        a[--dest] = std::move(tmp[--c2]);
+      // Remaining run1 elements are already in place
+    }
+
+
+    /** @brief Merge runs[at] with runs[at+1].
+     *
+     *  Uses galloping to trim the merge range, then delegates to
+     *  merge_lo or merge_hi depending on which run is smaller.
+     */
+    template <typename T, class Compare>
+    void merge_at(T *a, size_t *run_base, size_t *run_len,
+                  size_t & stack_size, const size_t at,
+                  T *tmp, const Compare & cmp)
+    {
+      size_t base1 = run_base[at];
+      size_t len1 = run_len[at];
+      size_t base2 = run_base[at + 1];
+      size_t len2 = run_len[at + 1];
+
+      // Record merged run
+      run_len[at] = len1 + len2;
+      if (at == stack_size - 3)
+        {
+          run_base[at + 1] = run_base[at + 2];
+          run_len[at + 1] = run_len[at + 2];
+        }
+      --stack_size;
+
+      // Where does the first element of run2 go in run1?
+      size_t k = gallop_right(a[base2], a + base1, len1, 0, cmp);
+      base1 += k;
+      len1 -= k;
+      if (len1 == 0)
+        return;
+
+      // Where does the last element of run1 go in run2?
+      len2 = gallop_left(a[base1 + len1 - 1], a + base2, len2,
+                         len2 - 1, cmp);
+      if (len2 == 0)
+        return;
+
+      if (len1 <= len2)
+        merge_lo(a, base1, len1, base2, len2, tmp, cmp);
+      else
+        merge_hi(a, base1, len1, base2, len2, tmp, cmp);
+    }
+
+
+    /** @brief Maintain the timsort run stack invariants.
+     *
+     *  After pushing a new run, check and enforce:
+     *  - run_len[i-2] > run_len[i-1] + run_len[i]
+     *  - run_len[i-1] > run_len[i]
+     *  Merge violating pairs until invariants hold.
+     */
+    template <typename T, class Compare>
+    void merge_collapse(T *a, size_t *run_base, size_t *run_len,
+                        size_t & stack_size, T *tmp,
+                        const Compare & cmp)
+    {
+      while (stack_size > 1)
+        if (long n = static_cast<long>(stack_size) - 2; n > 0 and run_len[n - 1] <= run_len[n] + run_len[n + 1])
+          {
+            if (run_len[n - 1] < run_len[n + 1])
+              --n;
+            merge_at(a, run_base, run_len, stack_size, n, tmp, cmp);
+          }
+        else if (run_len[n] <= run_len[n + 1])
+          merge_at(a, run_base, run_len, stack_size, n, tmp, cmp);
+        else
+          break;
+    }
+
+
+    /** @brief Force-merge all remaining runs at the end. */
+    template <typename T, class Compare>
+    void merge_force_collapse(T *a, size_t *run_base, size_t *run_len,
+                              size_t & stack_size, T *tmp,
+                              const Compare & cmp)
+    {
+      while (stack_size > 1)
+        {
+          long n = static_cast<long>(stack_size) - 2;
+          if (n > 0 and run_len[n - 1] < run_len[n + 1])
+            --n;
+          merge_at(a, run_base, run_len, stack_size, n, tmp, cmp);
+        }
+    }
+
+
+    /** @brief Core timsort implementation on a raw array.
+     *
+     *  1. Scans for natural runs
+     *  2. Extends short runs with binary insertion sort
+     *  3. Merges runs using an adaptive merge strategy with galloping
+     *
+     *  @tparam T Element type.
+     *  @tparam Compare Comparison functor.
+     *  @param a Pointer to the array.
+     *  @param n Number of elements.
+     *  @param cmp Comparison functor.
+     */
+    template <typename T, class Compare>
+    void timsort_impl(T *a, const size_t n, const Compare & cmp)
+    {
+      if (n < 2)
+        return;
+
+      // For very small arrays, just use binary insertion sort
+      if (n < 64)
+        {
+          const size_t run_len = count_run_and_make_ascending(a, 0, n, cmp);
+          binary_insertion_sort(a, 0, n, run_len, cmp);
+          return;
+        }
+
+      const size_t minrun = compute_minrun(n);
+
+      // Run stack — log2(n) + 1 entries is sufficient
+      // (timsort invariant guarantees Fibonacci-like growth)
+      constexpr size_t MAX_STACK = 85; // enough for 2^64 elements
+      size_t run_base_arr[MAX_STACK];
+      size_t run_len_arr[MAX_STACK];
+      size_t stack_size = 0;
+
+      // Temporary merge buffer — allocated once, sized to n/2
+      // (merge_lo/merge_hi copy the smaller run)
+      Array<T> tmp_buf = Array<T>::create(n / 2 + 1);
+      T *tmp = &tmp_buf[0];
+
+      size_t lo = 0;
+      size_t remaining = n;
+
+      while (remaining > 0)
+        {
+          // Find the next natural run
+          size_t run_len = count_run_and_make_ascending(a, lo, lo + remaining,
+                                                        cmp);
+
+          // If the run is too short, extend it with insertion sort
+          if (run_len < minrun)
+            {
+              const size_t force = remaining < minrun ? remaining : minrun;
+              binary_insertion_sort(a, lo, lo + force, lo + run_len, cmp);
+              run_len = force;
+            }
+
+          // Push this run onto the stack
+          run_base_arr[stack_size] = lo;
+          run_len_arr[stack_size] = run_len;
+          ++stack_size;
+
+          // Maintain the stack invariants
+          merge_collapse(a, run_base_arr, run_len_arr, stack_size, tmp, cmp);
+
+          lo += run_len;
+          remaining -= run_len;
+        }
+
+      // Force-merge all remaining runs
+      merge_force_collapse(a, run_base_arr, run_len_arr, stack_size, tmp, cmp);
+    }
+  } // namespace timsort_detail
+
+
+  /** @brief Timsort — adaptive, stable, natural merge sort.
+   *
+   *  Timsort is a hybrid sorting algorithm derived from merge sort and
+   *  insertion sort. It identifies existing ordered subsequences (runs)
+   *  in the data and merges them efficiently. This makes it particularly
+   *  fast for real-world data that often contains pre-existing order.
+   *
+   *  @tparam T Element type (must be move-assignable).
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] n Number of elements.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @throws std::invalid_argument if `a` is null and `n > 0`.
+   *
+   *  @par Complexity
+   *  - Best: O(n) — already sorted data (single run).
+   *  - Average/Worst: O(n log n).
+   *  - Space: O(n) for merge buffer.
+   *
+   *  @par Stability
+   *  Stable — equal elements preserve their original relative order.
+   *
+   *  @see mergesort, insertion_sort, quicksort
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  void timsort(T *a, const size_t n, const Compare & cmp = Compare())
+  {
+    ah_invalid_argument_if(a == nullptr and n > 0)
+      << "timsort(): null pointer with non-zero length";
+    timsort_detail::timsort_impl(a, n, cmp);
+  }
+
+
+  /** @brief Timsort on a sub-range [l, r] (inclusive indices).
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array.
+   *  @param[in] l Left index (inclusive).
+   *  @param[in] r Right index (inclusive).
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  void timsort(T *a, const long l, const long r,
+               const Compare & cmp = Compare())
+  {
+    if (l >= r)
+      return;
+    timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
+  }
+
+
+  /** @brief Timsort for DynArray.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *  @param[in,out] a DynArray to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  void timsort(DynArray<T> & a, const Compare & cmp = Compare())
+  {
+    const size_t n = a.size();
+    if (n < 2)
+      return;
+
+    Array<T> tmp = Array<T>::create(n);
+    for (size_t i = 0; i < n; ++i)
+      tmp[i] = a(i);
+
+    timsort(&tmp[0], n, cmp);
+
+    for (size_t i = 0; i < n; ++i)
+      a(i) = tmp[i];
+  }
+
+
+  /** @brief Timsort for Array.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *  @param[in,out] a Array to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  void timsort(Array<T> & a, const Compare & cmp = Compare())
+  {
+    if (a.size() < 2)
+      return;
+    timsort(&a[0], a.size(), cmp);
+  }
+
+
+  /** @brief Timsort for fixed-size C arrays.
+   *
+   *  @tparam T Element type.
+   *  @tparam N Array size.
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *  @param[in,out] a The array to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, size_t N, class Compare = Aleph::less<T>>
+    requires std::is_invocable_r_v<bool, Compare, const T &, const T &>
+  void timsort(T (&a)[N], const Compare & cmp = Compare())
+  {
+    timsort(static_cast<T *>(a), N, cmp);
+  }
+
+
+  /** @brief Timsort for DynList.
+   *
+   *  Copies elements to an Array, sorts with timsort, then writes
+   *  sorted values back into the list nodes.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *  @param[in,out] list DynList to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  void timsort(DynList<T> & list, const Compare & cmp = Compare())
+  {
+    const size_t n = list.size();
+    if (n < 2)
+      return;
+
+    Array<T> tmp = Array<T>::create(n);
+    size_t i = 0;
+    for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
+      tmp[i++] = it.get_curr_ne();
+
+    timsort(&tmp[0], n, cmp);
+
+    i = 0;
+    for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
+      it.get_curr_ne() = tmp[i++];
   }
 }
 

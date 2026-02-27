@@ -596,6 +596,36 @@ Ejemplos dedicados en `Examples/`:
 - `tree_dp_example.cc`
 - `dp_optimizations_example.cc`
 
+### Ejemplo 9: Combinatoria / enumeración lexicográfica
+
+Cabeceras principales:
+- `ah-comb.H`: `next_permutation()`, `next_combination_indices()`, `next_combination_mask()`.
+- `ah-comb.H`: `for_each_combination()`, `build_combinations()`, `combination_count()`.
+
+```cpp
+#include <ah-comb.H>
+
+int main() {
+    Aleph::Array<int> p = {1, 1, 2, 3};
+    do {
+        // usar permutación actual
+    } while (Aleph::next_permutation(p)); // al final vuelve a la primera
+
+    Aleph::Array<size_t> idx = {0, 1, 2}; // k=3
+    const size_t n = 6;
+    do {
+        // combinación de índices actual
+    } while (Aleph::next_combination_indices(idx, n));
+
+    auto c = Aleph::build_combinations(Aleph::Array<int>{10, 20, 30, 40}, 2);
+    return int(c.size()); // C(4,2) = 6
+}
+```
+
+Ejemplos dedicados en `Examples/`:
+- `comb_example.C`
+- `combinatorics_enumeration_example.cc`
+
 ---
 
 <a id="readme-es-pruebas"></a>

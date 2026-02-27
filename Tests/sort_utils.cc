@@ -39,6 +39,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <random>
+#include <string>
 #include <vector>
 #include <array>
 
@@ -1908,6 +1910,509 @@ TEST(SortUtilsRadixSort, empty_and_singleton)
   radix_sort(a);
   ASSERT_EQ(a.size(), 1u);
   EXPECT_EQ(a(0), 7);
+}
+
+TEST(SortUtilsRandomSelect, duplicates_three_way_partition)
+{
+  std::vector<int> v = {9, 2, 4, 7, 3, 7, 10, 2, 7, 1, 8, 7, 7, 7, 7};
+  for (size_t i = 0; i < v.size(); ++i)
+    {
+      std::vector<int> copy = v;
+      int res = Aleph::random_select(copy.data(), static_cast<long>(i), static_cast<long>(copy.size()), std::less<int>());
+      std::vector<int> sorted = v;
+      std::sort(sorted.begin(), sorted.end());
+      EXPECT_EQ(res, sorted[i]) << "Mismatch at index " << i;
+    }
+}
+
+TEST(SortUtilsRandomSelect, identical_elements)
+{
+  std::vector<int> v(100, 42); // 100 identical elements
+  for (size_t i = 0; i < v.size(); i += 10)
+    {
+      std::vector<int> copy = v;
+      int res = Aleph::random_select(copy.data(), static_cast<long>(i), static_cast<long>(copy.size()), std::less<int>());
+      EXPECT_EQ(res, 42) << "Mismatch at index " << i;
+    }
+}
+
+TEST(SortUtilsRandomSelect, sorted_and_reverse_sorted)
+{
+  std::vector<int> v;
+  for (int i = 0; i < 50; ++i)
+    v.push_back(i);
+
+  std::vector<int> rev = v;
+  std::reverse(rev.begin(), rev.end());
+
+  for (size_t i = 0; i < v.size(); i += 5)
+    {
+      std::vector<int> copy_v = v;
+      std::vector<int> copy_rev = rev;
+      
+      EXPECT_EQ(Aleph::random_select(copy_v.data(), static_cast<long>(i), static_cast<long>(copy_v.size()), std::less<int>()), static_cast<int>(i));
+      EXPECT_EQ(Aleph::random_select(copy_rev.data(), static_cast<long>(i), static_cast<long>(copy_rev.size()), std::less<int>()), static_cast<int>(i));
+    }
+}
+
+// ================================================================
+//                   Bucket Sort Tests
+// ================================================================
+
+TEST(BucketSort, float_uniform)
+{
+  constexpr size_t N = 500;
+  DynArray<float> a;
+  a.reserve(N);
+  std::mt19937 gen(42);
+  std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = dist(gen);
+
+  bucket_sort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(BucketSort, float_with_negatives)
+{
+  constexpr size_t N = 300;
+  DynArray<float> a;
+  a.reserve(N);
+  std::mt19937 gen(123);
+  std::uniform_real_distribution<float> dist(-100.0f, 100.0f);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = dist(gen);
+
+  bucket_sort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(BucketSort, double_support)
+{
+  constexpr size_t N = 200;
+  DynArray<double> a;
+  a.reserve(N);
+  std::mt19937 gen(77);
+  std::uniform_real_distribution<double> dist(-50.0, 50.0);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = dist(gen);
+
+  bucket_sort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(BucketSort, custom_bucket_key)
+{
+  int a[] = {95, 23, 67, 12, 45, 78, 34, 56, 89, 1};
+  const size_t n = sizeof(a) / sizeof(a[0]);
+  const size_t num_buckets = 10;
+
+  auto key = [](const int & val) -> size_t
+  {
+    return static_cast<size_t>(val / 10);
+  };
+
+  bucket_sort(a, n, num_buckets, key);
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(BucketSort, dynarray_support)
+{
+  constexpr size_t N = 100;
+  DynArray<double> a;
+  a.reserve(N);
+  std::mt19937 gen(55);
+  std::uniform_real_distribution<double> dist(0.0, 1.0);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = dist(gen);
+
+  bucket_sort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(BucketSort, array_support)
+{
+  Array<double> a;
+  std::mt19937 gen(99);
+  std::uniform_real_distribution<double> dist(-10.0, 10.0);
+  for (size_t i = 0; i < 50; ++i)
+    a.append(dist(gen));
+
+  bucket_sort(a);
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(BucketSort, c_array_overload)
+{
+  double a[] = {3.5, 1.2, 4.8, 0.3, 2.7, 1.9, 4.1, 0.1};
+  bucket_sort(a);
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(BucketSort, dynlist_support)
+{
+  DynList<double> l;
+  l.append(3.5);
+  l.append(1.2);
+  l.append(4.8);
+  l.append(0.3);
+  l.append(2.7);
+
+  bucket_sort(l);
+
+  double prev = -std::numeric_limits<double>::infinity();
+  for (DynList<double>::Iterator it(l); it.has_curr(); it.next())
+    {
+      EXPECT_GE(it.get_curr(), prev);
+      prev = it.get_curr();
+    }
+}
+
+TEST(BucketSort, empty_and_singleton)
+{
+  DynArray<float> d;
+  bucket_sort(d);
+  EXPECT_EQ(d.size(), 0u);
+
+  DynArray<float> s;
+  s.reserve(1);
+  s(0) = 42.0f;
+  bucket_sort(s);
+  ASSERT_EQ(s.size(), 1u);
+  EXPECT_FLOAT_EQ(s(0), 42.0f);
+}
+
+TEST(BucketSort, all_equal)
+{
+  constexpr size_t N = 50;
+  DynArray<float> a;
+  a.reserve(N);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = 7.7f;
+
+  bucket_sort(a);
+  for (size_t i = 0; i < N; ++i)
+    EXPECT_FLOAT_EQ(a(i), 7.7f);
+}
+
+TEST(BucketSort, descending_order)
+{
+  constexpr size_t N = 100;
+  DynArray<double> a;
+  a.reserve(N);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = static_cast<double>(N - i);
+
+  bucket_sort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(BucketSort, null_pointer_contract)
+{
+  EXPECT_THROW((bucket_sort<float>(nullptr, 1)), std::invalid_argument);
+  EXPECT_NO_THROW((bucket_sort<float>(nullptr, 0)));
+}
+
+TEST(BucketSort, stability)
+{
+  // Records with same bucket should preserve relative order
+  struct Record
+  {
+    int group;
+    int seq;
+  };
+
+  Record data[] = {{0, 0}, {2, 1}, {0, 2}, {1, 3}, {2, 4}, {1, 5}};
+  const size_t n = sizeof(data) / sizeof(data[0]);
+  const size_t num_buckets = 3;
+
+  auto key = [](const Record & r) -> size_t { return r.group; };
+  auto cmp = [](const Record & a, const Record & b) { return a.group < b.group; };
+
+  bucket_sort(data, n, num_buckets, key, cmp);
+
+  // Verify sorted by group
+  for (size_t i = 1; i < n; ++i)
+    ASSERT_LE(data[i - 1].group, data[i].group);
+
+  // Verify stability: within same group, original order preserved
+  // Group 0: seq 0, 2
+  EXPECT_EQ(data[0].seq, 0);
+  EXPECT_EQ(data[1].seq, 2);
+  // Group 1: seq 3, 5
+  EXPECT_EQ(data[2].seq, 3);
+  EXPECT_EQ(data[3].seq, 5);
+  // Group 2: seq 1, 4
+  EXPECT_EQ(data[4].seq, 1);
+  EXPECT_EQ(data[5].seq, 4);
+}
+
+
+// ================================================================
+//                      Timsort Tests
+// ================================================================
+
+TEST(Timsort, already_sorted)
+{
+  constexpr size_t N = 200;
+  DynArray<int> a;
+  a.reserve(N);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = static_cast<int>(i);
+
+  timsort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(Timsort, reverse_sorted)
+{
+  constexpr size_t N = 200;
+  DynArray<int> a;
+  a.reserve(N);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = static_cast<int>(N - i);
+
+  timsort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(Timsort, random_small)
+{
+  int a[] = {5, 3, 8, 1, 9, 2, 7, 4, 6, 0};
+  timsort(static_cast<int*>(a), size_t{10});
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(Timsort, random_large)
+{
+  constexpr size_t N = 100000;
+  DynArray<int> a;
+  a.reserve(N);
+  std::mt19937 gen(42);
+  std::uniform_int_distribution<int> dist(-1000000, 1000000);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = dist(gen);
+
+  timsort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(Timsort, all_equal)
+{
+  constexpr size_t N = 100;
+  DynArray<int> a;
+  a.reserve(N);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = 42;
+
+  timsort(a);
+  for (size_t i = 0; i < N; ++i)
+    EXPECT_EQ(a(i), 42);
+}
+
+TEST(Timsort, two_sorted_halves)
+{
+  constexpr size_t N = 200;
+  DynArray<int> a;
+  a.reserve(N);
+  // First half: 0, 2, 4, ... 198
+  for (size_t i = 0; i < N / 2; ++i)
+    a(i) = static_cast<int>(i * 2);
+  // Second half: 1, 3, 5, ... 199
+  for (size_t i = N / 2; i < N; ++i)
+    a(i) = static_cast<int>((i - N / 2) * 2 + 1);
+
+  timsort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(Timsort, custom_comparator)
+{
+  constexpr size_t N = 50;
+  DynArray<int> a;
+  a.reserve(N);
+  std::mt19937 gen(99);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = static_cast<int>(gen() % 1000);
+
+  timsort(a, Aleph::greater<int>());
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_GE(a(i - 1), a(i));
+}
+
+TEST(Timsort, dynarray_support)
+{
+  auto a = make_dynarray({9, 1, 8, 2, 7, 3, 6, 4, 5, 0});
+  timsort(a);
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(Timsort, array_support)
+{
+  Array<int> a;
+  for (int x : {9, 1, 8, 2, 7, 3, 6, 4, 5, 0})
+    a.append(x);
+
+  timsort(a);
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(Timsort, c_array_overload)
+{
+  int a[] = {5, 3, 8, 1, 9, 2, 7, 4, 6, 0};
+  timsort(a);
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(Timsort, dynlist_support)
+{
+  DynList<int> l = make_dynlist({5, 3, 8, 1, 9, 2, 7, 4, 6, 0});
+  timsort(l);
+
+  int prev = std::numeric_limits<int>::min();
+  for (DynList<int>::Iterator it(l); it.has_curr(); it.next())
+    {
+      EXPECT_GE(it.get_curr(), prev);
+      prev = it.get_curr();
+    }
+}
+
+TEST(Timsort, empty_and_singleton)
+{
+  DynArray<int> d;
+  timsort(d);
+  EXPECT_EQ(d.size(), 0u);
+
+  Array<int> a;
+  a.append(7);
+  timsort(a);
+  ASSERT_EQ(a.size(), 1u);
+  EXPECT_EQ(a(0), 7);
+}
+
+TEST(Timsort, null_pointer_contract)
+{
+  EXPECT_THROW((timsort<int>(nullptr, 1)), std::invalid_argument);
+  EXPECT_NO_THROW((timsort<int>(nullptr, 0)));
+}
+
+TEST(Timsort, stability)
+{
+  struct Record
+  {
+    int key;
+    int seq; // original order
+    bool operator<(const Record & rhs) const { return key < rhs.key; }
+  };
+
+  Record data[] = {
+    {3, 0}, {1, 1}, {4, 2}, {1, 3}, {5, 4},
+    {9, 5}, {2, 6}, {6, 7}, {5, 8}, {3, 9}
+  };
+  const size_t n = sizeof(data) / sizeof(data[0]);
+
+  auto cmp = [](const Record & a, const Record & b) { return a.key < b.key; };
+  timsort(data, n, cmp);
+
+  // Verify sorted by key
+  for (size_t i = 1; i < n; ++i)
+    ASSERT_LE(data[i - 1].key, data[i].key);
+
+  // Verify stability: equal keys preserve original seq order
+  for (size_t i = 1; i < n; ++i)
+    if (data[i - 1].key == data[i].key)
+      EXPECT_LT(data[i - 1].seq, data[i].seq)
+        << "Stability violated at index " << i;
+}
+
+TEST(Timsort, string_sort)
+{
+  Array<std::string> a;
+  a.append("banana");
+  a.append("apple");
+  a.append("cherry");
+  a.append("date");
+  a.append("apricot");
+
+  timsort(a, Aleph::less<std::string>());
+
+  EXPECT_EQ(a(0), "apple");
+  EXPECT_EQ(a(1), "apricot");
+  EXPECT_EQ(a(2), "banana");
+  EXPECT_EQ(a(3), "cherry");
+  EXPECT_EQ(a(4), "date");
+}
+
+TEST(Timsort, nearly_sorted)
+{
+  constexpr size_t N = 500;
+  DynArray<int> a;
+  a.reserve(N);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = static_cast<int>(i);
+
+  // Introduce a few inversions
+  std::mt19937 gen(12);
+  for (int k = 0; k < 10; ++k)
+    {
+      size_t i = gen() % N;
+      size_t j = gen() % N;
+      std::swap(a(i), a(j));
+    }
+
+  timsort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(Timsort, range_overload)
+{
+  int a[] = {9, 5, 3, 8, 1, 7, 2, 6, 4, 0};
+  // Sort only the subrange [2, 7] (inclusive)
+  timsort(a, 2L, 7L);
+
+  // a[2..7] should be sorted
+  for (int i = 3; i <= 7; ++i)
+    ASSERT_LE(a[i - 1], a[i]);
+
+  // Elements outside the range should be unchanged
+  EXPECT_EQ(a[0], 9);
+  EXPECT_EQ(a[1], 5);
+  EXPECT_EQ(a[8], 4);
+  EXPECT_EQ(a[9], 0);
+}
+
+TEST(Timsort, compute_minrun)
+{
+  using timsort_detail::compute_minrun;
+
+  // n < 64: minrun == n
+  EXPECT_EQ(compute_minrun(1), 1u);
+  EXPECT_EQ(compute_minrun(32), 32u);
+  EXPECT_EQ(compute_minrun(63), 63u);
+
+  // n == 64: minrun == 32
+  EXPECT_EQ(compute_minrun(64), 32u);
+
+  // minrun should always be in [32, 64] for n >= 64
+  for (size_t n = 64; n < 10000; ++n)
+    {
+      const size_t mr = compute_minrun(n);
+      EXPECT_GE(mr, 32u) << "n=" << n;
+      EXPECT_LE(mr, 64u) << "n=" << n;
+    }
 }
 
 } // namespace
