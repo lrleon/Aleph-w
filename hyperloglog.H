@@ -130,7 +130,8 @@ namespace Aleph
             ++v;
         }
 
-      double e = alpha_m_ * static_cast<double>(m_ * m_) / z;
+      // Cast each factor individually to avoid size_t overflow on 32-bit
+      double e = alpha_m_ * (static_cast<double>(m_) * static_cast<double>(m_)) / z;
 
       // Small range correction (Linear Counting)
       if (e <= 2.5 * static_cast<double>(m_))

@@ -2176,8 +2176,8 @@ TEST(BucketSort, zero_buckets)
   const size_t num_buckets = 0;
   auto key = [](const int &) -> size_t { return 0; };
 
-  // Should return immediately without crash/OOB
-  EXPECT_NO_THROW(bucket_sort(a, n, num_buckets, key));
+  // Zero buckets with n >= 2 must throw domain_error
+  EXPECT_THROW(bucket_sort(a, n, num_buckets, key), std::domain_error);
 }
 
 // ================================================================
@@ -2219,7 +2219,7 @@ TEST(Timsort, random_small)
 
 TEST(Timsort, random_large)
 {
-  constexpr size_t N = 100000;
+  constexpr size_t N = 10000;
   DynArray<int> a;
   a.reserve(N);
   std::mt19937 gen(42);
@@ -2228,6 +2228,27 @@ TEST(Timsort, random_large)
     a(i) = dist(gen);
 
   timsort(a);
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(Timsort, perf_large)
+{
+  constexpr size_t N = 100000;
+  DynArray<int> a;
+  a.reserve(N);
+  std::mt19937 gen(42);
+  std::uniform_int_distribution<int> dist(-1000000, 1000000);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = dist(gen);
+
+  auto start = std::chrono::steady_clock::now();
+  timsort(a);
+  auto end = std::chrono::steady_clock::now();
+  
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  EXPECT_LE(duration, 500) << "Timsort performance regression detected";
+
   for (size_t i = 1; i < N; ++i)
     ASSERT_LE(a(i - 1), a(i));
 }

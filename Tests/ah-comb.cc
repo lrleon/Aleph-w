@@ -56,7 +56,7 @@ std::string list_to_string(const DynList<int> & l)
   bool first = true;
   l.for_each([&](int v)
   {
-    if (!first)
+    if (not first)
       oss << ',';
     first = false;
     oss << v;
@@ -723,7 +723,7 @@ TEST(AhComb, StressTestManyPermutations)
   EXPECT_EQ(count, 243u);
 }
 
-TEST(AhComb, NodescardBuildPerms)
+TEST(AhComb, NodiscardBuildPerms)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -733,7 +733,7 @@ TEST(AhComb, NodescardBuildPerms)
   EXPECT_EQ(perms.size(), 2u);
 }
 
-TEST(AhComb, NodescardBuildCombs)
+TEST(AhComb, NodiscardBuildCombs)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -743,7 +743,7 @@ TEST(AhComb, NodescardBuildCombs)
   EXPECT_EQ(combs.size(), 2u);
 }
 
-TEST(AhComb, NodescardTranspose)
+TEST(AhComb, NodiscardTranspose)
 {
   DynList<int> r1 = {1, 2};
   DynList<DynList<int>> m = {r1};
@@ -753,7 +753,7 @@ TEST(AhComb, NodescardTranspose)
   EXPECT_EQ(t.size(), 2u);
 }
 
-TEST(AhComb, NodescardFoldPerm)
+TEST(AhComb, NodiscardFoldPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -766,7 +766,7 @@ TEST(AhComb, NodescardFoldPerm)
   EXPECT_EQ(sum, 3);
 }
 
-TEST(AhComb, NodescardPermCount)
+TEST(AhComb, NodiscardPermCount)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -776,7 +776,7 @@ TEST(AhComb, NodescardPermCount)
   EXPECT_EQ(count, 2u);
 }
 
-TEST(AhComb, NodescardExistsPerm)
+TEST(AhComb, NodiscardExistsPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -1040,7 +1040,7 @@ TEST(AhComb, BuildCombinationsArrayAndDynArray)
   EXPECT_EQ(seq_to_string(combs_dyn(5)), "3,4");
 }
 
-TEST(AhComb, NodescardAllPerm)
+TEST(AhComb, NodiscardAllPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -1050,7 +1050,7 @@ TEST(AhComb, NodescardAllPerm)
   EXPECT_TRUE(all);
 }
 
-TEST(AhComb, NodescardNonePerm)
+TEST(AhComb, NodiscardNonePerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -1060,7 +1060,7 @@ TEST(AhComb, NodescardNonePerm)
   EXPECT_TRUE(none);
 }
 
-TEST(AhComb, NodescardFilterPerm)
+TEST(AhComb, NodiscardFilterPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -1070,7 +1070,7 @@ TEST(AhComb, NodescardFilterPerm)
   EXPECT_EQ(filtered.size(), 2u);
 }
 
-TEST(AhComb, NodescardMapPerm)
+TEST(AhComb, NodiscardMapPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};

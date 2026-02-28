@@ -42,15 +42,9 @@
 
 #include <tpl_sort_utils.H>
 #include <tpl_dynArray.H>
+#include <print_rule.H>
 
 using namespace Aleph;
-
-namespace
-{
-  void print_rule()
-  {
-    std::cout << "--------------------------------------------------------\n";
-  }
 
   template <typename Container>
   void print_array(const char * label, const Container & a)

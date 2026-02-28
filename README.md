@@ -3628,38 +3628,6 @@ cmake --build build
 | Gray code utilities | `gray_code_example.cc` | Binary to Gray conversion and sequence generation |
 | Number theory toolbox | `math_nt_example.cc` | Safe mod multiplication, Miller-Rabin, Pollard's Rho, NTT, modular combinatorics and linalg |
 | Streaming algorithms | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
-
-<a id="readme-streaming-algorithms"></a>
-### Probabilistic Streaming Algorithms
-
-Aleph-w provides a set of modern algorithms for processing data streams with low memory footprint:
-
-| Header | Class | Purpose |
-|---|---|---|
-| `reservoir-sampling.H` | `Reservoir_Sampler` | Randomly sample `k` elements from a stream of unknown length |
-| `count-min-sketch.H` | `Count_Min_Sketch` | Approximate frequency estimation (O(1) updates/queries) |
-| `hyperloglog.H` | `HyperLogLog` | Cardinality estimation (count unique elements) with low error |
-| `minhash.H` | `MinHash` | Jaccard similarity estimation between sets |
-| `simhash.H` | `SimHash` | Cosine similarity estimation using bitwise fingerprints |
-
-#### Streaming Usage Example
-
-```cpp
-#include <count-min-sketch.H>
-#include <hyperloglog.H>
-
-int main() {
-    // Frequency estimation with 1% relative error and 99% confidence
-    auto cms = Aleph::Count_Min_Sketch<std::string>::from_error_bounds(0.01, 0.01);
-    cms.update("event_type_a");
-    size_t freq = cms.estimate("event_type_a");
-
-    // Cardinality estimation (unique elements)
-    Aleph::HyperLogLog<int> hll(12); // 2^12 registers
-    for (int i = 0; i < 1000000; ++i) hll.update(i % 1000);
-    double unique = hll.estimate(); // ~1000.0
-}
-```
 | Lexicographic permutation/combination enumeration | `combinatorics_enumeration_example.cc` | Extended `next_permutation`, k-combinations by indices/bitmask, and materialized enumeration |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
@@ -3730,6 +3698,40 @@ int main() {
 | Parallel ops | `ah_parallel_example.cc` | pmap, pfilter |
 | **Memory** | | |
 | Arena | `map_arena_example.C` | Arena allocator |
+
+---
+
+<a id="readme-streaming-algorithms"></a>
+### Probabilistic Streaming Algorithms
+
+Aleph-w provides a set of modern algorithms for processing data streams with low memory footprint:
+
+| Header | Class | Purpose |
+|---|---|---|
+| `reservoir-sampling.H` | `Reservoir_Sampler` | Randomly sample `k` elements from a stream of unknown length |
+| `count-min-sketch.H` | `Count_Min_Sketch` | Approximate frequency estimation (O(1) updates/queries) |
+| `hyperloglog.H` | `HyperLogLog` | Cardinality estimation (count unique elements) with low error |
+| `minhash.H` | `MinHash` | Jaccard similarity estimation between sets |
+| `simhash.H` | `SimHash` | Cosine similarity estimation using bitwise fingerprints |
+
+#### Streaming Usage Example
+
+```cpp
+#include <count-min-sketch.H>
+#include <hyperloglog.H>
+
+int main() {
+    // Frequency estimation with 1% relative error and 99% confidence
+    auto cms = Aleph::Count_Min_Sketch<std::string>::from_error_bounds(0.01, 0.01);
+    cms.update("event_type_a");
+    size_t freq = cms.estimate("event_type_a");
+
+    // Cardinality estimation (unique elements)
+    Aleph::HyperLogLog<int> hll(12); // 2^12 registers
+    for (int i = 0; i < 1000000; ++i) hll.update(i % 1000);
+    double unique = hll.estimate(); // ~1000.0
+}
+```
 
 ---
 

@@ -38,17 +38,16 @@
  *  @ingroup Algorithms
  */
 
-#ifndef MODULAR_LINALG_H
-#define MODULAR_LINALG_H
+# ifndef MODULAR_LINALG_H
+# define MODULAR_LINALG_H
 
-#include <cstdint>
-#include <algorithm>
-#include <stdexcept>
-#include <optional>
-#include <ah-errors.H>
-#include <tpl_array.H>
-#include <tpl_dynMat.H>
-#include "modular_arithmetic.H"
+# include <cstdint>
+# include <algorithm>
+# include <optional>
+# include <ah-errors.H>
+# include <tpl_array.H>
+# include <tpl_dynMat.H>
+# include <modular_arithmetic.H>
 
 namespace Aleph
 {
@@ -68,6 +67,36 @@ namespace Aleph
     MatrixT mat;  ///< The underlying matrix data.
     uint64_t mod; ///< The prime modulus defining the finite field.
 
+    // Private helpers for matrix element access (dispatch on MatrixT type)
+    static uint64_t get_val(const MatrixT & m, size_t r, size_t c)
+    {
+      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+        return m[r][c];
+      else
+        return m.read_ne(r, c);
+    }
+
+    static void set_val(MatrixT & m, size_t r, size_t c, uint64_t v)
+    {
+      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+        m(r)(c) = v;
+      else
+        m.write(r, c, v);
+    }
+
+    static void swap_rows(MatrixT & m, size_t r1, size_t r2)
+    {
+      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+        std::swap(m(r1), m(r2));
+      else
+        for (size_t j = 0; j < m.cols(); ++j)
+          {
+            uint64_t tmp = m.read_ne(r1, j);
+            m.write(r1, j, m.read_ne(r2, j));
+            m.write(r2, j, tmp);
+          }
+    }
+
   public:
     /** @brief Construct a modular matrix from an existing matrix and a prime modulus.
      *
@@ -76,16 +105,29 @@ namespace Aleph
      *
      *  @param[in] m Source matrix data.
      *  @param[in] p Prime modulus.
+     *  @throws std::invalid_argument if p <= 1 or if m is a ragged Array<Array>.
      */
     Modular_Matrix(const MatrixT & m, const uint64_t p)
       : mat(m), mod(p)
     {
+      ah_invalid_argument_if(mod <= 1)
+        << "Modular_Matrix: modulus must be > 1";
+
       // Normalize initial values
       if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
         {
-          for (size_t i = 0; i < mat.size(); ++i)
-            for (size_t j = 0; j < mat[i].size(); ++j)
-              mat(i)(j) %= mod;
+          const size_t n_rows = mat.size();
+          if (n_rows > 0)
+            {
+              const size_t n_cols = mat[0].size();
+              for (size_t i = 0; i < n_rows; ++i)
+                {
+                  ah_invalid_argument_if(mat[i].size() != n_cols)
+                    << "Modular_Matrix: ragged matrix input is not supported";
+                  for (size_t j = 0; j < n_cols; ++j)
+                    mat(i)(j) %= mod;
+                }
+            }
         }
       else // assume DynMatrix style
         {
@@ -127,35 +169,6 @@ namespace Aleph
 
       MatrixT a = mat;
       uint64_t det = 1;
-
-      auto get_val = [](const MatrixT & m, size_t r, size_t c) -> uint64_t
-        {
-          if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-            return m[r][c];
-          else
-            return m.read_ne(r, c);
-        };
-
-      auto set_val = [](MatrixT & m, size_t r, size_t c, uint64_t v)
-        {
-          if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-            m(r)(c) = v;
-          else
-            m.write(r, c, v);
-        };
-
-      auto swap_rows = [](MatrixT & m, size_t r1, size_t r2)
-        {
-          if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-            std::swap(m(r1), m(r2));
-          else
-            for (size_t j = 0; j < m.cols(); ++j)
-              {
-                uint64_t tmp = m.read_ne(r1, j);
-                m.write(r1, j, m.read_ne(r2, j));
-                m.write(r2, j, tmp);
-              }
-        };
 
       for (size_t i = 0; i < n_rows; ++i)
         {
@@ -241,35 +254,6 @@ namespace Aleph
             inv.write(i, i, 1);
         }
 
-      auto get_val = [](const MatrixT & m, size_t r, size_t c) -> uint64_t
-        {
-          if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-            return m[r][c];
-          else
-            return m.read_ne(r, c);
-        };
-
-      auto set_val = [](MatrixT & m, size_t r, size_t c, uint64_t v)
-        {
-          if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-            m(r)(c) = v;
-          else
-            m.write(r, c, v);
-        };
-
-      auto swap_rows = [](MatrixT & m, size_t r1, size_t r2)
-        {
-          if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-            std::swap(m(r1), m(r2));
-          else
-            for (size_t j = 0; j < m.cols(); ++j)
-              {
-                uint64_t tmp = m.read_ne(r1, j);
-                m.write(r1, j, m.read_ne(r2, j));
-                m.write(r2, j, tmp);
-              }
-        };
-
       for (size_t i = 0; i < n_rows; ++i)
         {
           size_t pivot = i;
@@ -329,4 +313,4 @@ namespace Aleph
   using ModularSparseMatrix = Modular_Matrix<DynMatrix<uint64_t>>;
 } // namespace Aleph
 
-#endif // MODULAR_LINALG_H
+# endif // MODULAR_LINALG_H

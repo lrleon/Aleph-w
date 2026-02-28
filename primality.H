@@ -37,12 +37,12 @@
  *  @ingroup Algorithms
  */
 
-#ifndef PRIMALITY_H
-#define PRIMALITY_H
+# ifndef PRIMALITY_H
+# define PRIMALITY_H
 
-#include <cstdint>
-#include <initializer_list>
-#include "modular_arithmetic.H"
+# include <cstdint>
+# include <initializer_list>
+# include <modular_arithmetic.H>
 
 namespace Aleph
 {
@@ -57,18 +57,19 @@ namespace Aleph
  *  @param s The power of 2 dividing n-1.
  *  @return true if 'n' is composite, false if 'n' is probably prime.
  */
-inline bool check_composite(uint64_t n, uint64_t a, uint64_t d, int s) noexcept
+[[nodiscard]] inline bool check_composite(uint64_t n, uint64_t a,
+                                           uint64_t d, int s) noexcept
 {
-    uint64_t x = mod_exp(a, d, n);
-    if (x == 1 || x == n - 1)
-        return false;
-    for (int r = 1; r < s; r++)
+  uint64_t x = mod_exp(a, d, n);
+  if (x == 1 or x == n - 1)
+    return false;
+  for (int r = 1; r < s; r++)
     {
-        x = mod_mul(x, x, n);
-        if (x == n - 1)
-            return false;
+      x = mod_mul(x, x, n);
+      if (x == n - 1)
+        return false;
     }
-    return true;
+  return true;
 }
 
 /** @brief Miller-Rabin primality test for 64-bit integers.
@@ -80,31 +81,31 @@ inline bool check_composite(uint64_t n, uint64_t a, uint64_t d, int s) noexcept
  *  @param n The number to test for primality.
  *  @return true if n is prime, false otherwise.
  */
-inline bool miller_rabin(uint64_t n) noexcept
+[[nodiscard]] inline bool miller_rabin(uint64_t n) noexcept
 {
-    if (n < 2) return false;
-    if (n == 2 || n == 3) return true;
-    if (n % 2 == 0) return false;
+  if (n < 2) return false;
+  if (n == 2 or n == 3) return true;
+  if (n % 2 == 0) return false;
 
-    uint64_t d = n - 1;
-    int s = 0;
-    while ((d & 1) == 0)
+  uint64_t d = n - 1;
+  int s = 0;
+  while ((d & 1) == 0)
     {
-        d >>= 1;
-        s++;
+      d >>= 1;
+      s++;
     }
 
-    // These bases are sufficient for deterministic testing up to 2^64.
-    for (uint64_t a : {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37})
+  // These bases are sufficient for deterministic testing up to 2^64.
+  for (uint64_t a : {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37})
     {
-        if (n <= a)
-            break;
-        if (check_composite(n, a, d, s))
-            return false;
+      if (n <= a)
+        break;
+      if (check_composite(n, a, d, s))
+        return false;
     }
-    return true;
+  return true;
 }
 
 } // namespace Aleph
 
-#endif // PRIMALITY_H
+# endif // PRIMALITY_H

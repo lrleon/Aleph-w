@@ -44,7 +44,6 @@
 # include <cmath>
 # include <algorithm>
 # include <concepts>
-# include <vector>
 
 # include <ah-errors.H>
 # include <tpl_array.H>
@@ -106,7 +105,7 @@ namespace Aleph
     {
       ah_domain_error_if(epsilon <= 0.0) 
         << "Count_Min_Sketch::from_error_bounds: epsilon must be > 0 (got " << epsilon << ")";
-      ah_domain_error_if(delta <= 0.0 || delta >= 1.0) 
+      ah_domain_error_if(delta <= 0.0 or delta >= 1.0)
         << "Count_Min_Sketch::from_error_bounds: delta must be in (0, 1) (got " << delta << ")";
 
       return Count_Min_Sketch(
@@ -150,8 +149,9 @@ namespace Aleph
       ah_domain_error_if(w_ != other.w_ or d_ != other.d_)
         << "Count_Min_Sketch::merge: dimension mismatch";
       
-      ah_domain_error_if(seeds_ != other.seeds_)
-        << "Count_Min_Sketch::merge: hash function seeds mismatch";
+      for (size_t i = 0; i < d_; ++i)
+        ah_domain_error_if(seeds_(i) != other.seeds_[i])
+          << "Count_Min_Sketch::merge: hash seed mismatch at index " << i;
       
       for (size_t i = 0; i < table_.size(); ++i)
         table_(i) += other.table_[i];

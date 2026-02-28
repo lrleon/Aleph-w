@@ -42,7 +42,8 @@
  *  @author Leandro Rabindranath León
  */
 
-# include <ctime>
+# include <chrono>
+# include <limits>
 # include <memory>
 # include <gsl/gsl_rng.h>
 
@@ -66,6 +67,7 @@ namespace Aleph
 
     size_t k_;             /**< Sample size. */
     size_t n_seen_ = 0;    /**< Total elements seen so far. */
+    unsigned long seed_;   /**< Stored seed for RNG reset. */
     Array<T> reservoir_;   /**< Current random sample. */
     GslRngPtr rng_;        /**< Random number generator. */
 
@@ -76,14 +78,15 @@ namespace Aleph
      *  @param[in] seed Optional seed for RNG (defaults to current time).
      */
     explicit Reservoir_Sampler(const size_t k,
-                               const unsigned long seed = static_cast<unsigned long>(std::time(nullptr)))
-      : k_(k), 
+                               const unsigned long seed = static_cast<unsigned long>(
+                                 std::chrono::high_resolution_clock::now().time_since_epoch().count()))
+      : k_(k), seed_(seed),
         rng_(gsl_rng_alloc(gsl_rng_mt19937), gsl_rng_free)
     {
-      ah_domain_error_if(k == 0) << "Reservoir_Sampler: k must be > 0";
       ah_runtime_error_unless(rng_ != nullptr) << "Reservoir_Sampler: GSL RNG allocation failed";
-      gsl_rng_set(rng_.get(), seed);
-      reservoir_.reserve(k_);
+      gsl_rng_set(rng_.get(), seed_);
+      if (k_ > 0)
+        reservoir_.reserve(k_);
     }
 
     /** @brief Process a new element from the stream.
@@ -93,8 +96,17 @@ namespace Aleph
      */
     void update(const T & val)
     {
+      ah_overflow_error_if(n_seen_ == std::numeric_limits<size_t>::max())
+        << "Reservoir_Sampler::update: stream length exceeded size_t capacity";
+
+      if (k_ == 0)
+        {
+          ++n_seen_;
+          return;
+        }
+
       if (n_seen_ < k_)
-          reservoir_.append(val);
+        reservoir_.append(val);
       else
         {
           // Probability of replacement is k / (n_seen + 1)
@@ -127,11 +139,16 @@ namespace Aleph
     /** @brief Target sample size. */
     [[nodiscard]] size_t sample_size() const noexcept { return k_; }
 
-    /** @brief Reset the sampler while keeping k and seed. */
+    /** @brief Reset the sampler while keeping k and seed.
+     *
+     *  Clears the reservoir, resets the element counter, and reseeds the
+     *  RNG to its original state so the sampler is fully reproducible.
+     */
     void clear()
     {
       reservoir_.clear();
       n_seen_ = 0;
+      gsl_rng_set(rng_.get(), seed_);
     }
   };
 
@@ -150,7 +167,8 @@ namespace Aleph
   template <typename Itor>
   [[nodiscard]] inline Array<typename std::iterator_traits<Itor>::value_type>
   reservoir_sample(Itor beg, const Itor & end, size_t k,
-                   unsigned long seed = static_cast<unsigned long>(std::time(nullptr)))
+                   unsigned long seed = static_cast<unsigned long>(
+                     std::chrono::high_resolution_clock::now().time_since_epoch().count()))
   {
     using T = typename std::iterator_traits<Itor>::value_type;
     Reservoir_Sampler<T> sampler(k, seed);

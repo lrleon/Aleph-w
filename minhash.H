@@ -71,11 +71,10 @@ namespace Aleph
      *  @param[in] k Number of hashes to use (higher k -> better precision).
      */
     explicit MinHash(size_t k = 128)
-      : k_(k)
+      : k_(k),
+        signature_(k, std::numeric_limits<uint64_t>::max())
     {
       ah_domain_error_if(k == 0) << "MinHash: k must be > 0";
-
-      signature_ = Array<uint64_t>(k_, std::numeric_limits<uint64_t>::max());
       seeds_.reserve(k_);
 
       // Use dft_hash_fct to generate independent seeds
@@ -130,6 +129,24 @@ namespace Aleph
       constexpr uint64_t inf = std::numeric_limits<uint64_t>::max();
       for (size_t i = 0; i < k_; ++i)
         signature_(i) = inf;
+    }
+
+    /** @brief Merge another MinHash signature into this one.
+     *
+     *  Combines two MinHash signatures by taking the element-wise minimum,
+     *  which corresponds to the union of the underlying sets.
+     *
+     *  @param[in] other Another MinHash with the same number of hashes.
+     *  @throws std::domain_error if signature sizes differ.
+     */
+    MinHash & merge(const MinHash & other)
+    {
+      ah_domain_error_if(k_ != other.k_)
+        << "MinHash::merge: signature size mismatch ("
+        << k_ << " vs " << other.k_ << ")";
+      for (size_t i = 0; i < k_; ++i)
+        signature_(i) = std::min(signature_(i), other.signature_[i]);
+      return *this;
     }
 
     [[nodiscard]] size_t size() const noexcept { return k_; }

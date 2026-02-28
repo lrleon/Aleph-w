@@ -38,13 +38,13 @@
  *  @ingroup Algorithms
  */
 
-#ifndef NTT_H
-#define NTT_H
+# ifndef NTT_H
+# define NTT_H
 
-#include <cstdint>
-#include <algorithm>
-#include <tpl_array.H>
-#include "modular_arithmetic.H"
+# include <cstdint>
+# include <algorithm>
+# include <tpl_array.H>
+# include <modular_arithmetic.H>
 
 namespace Aleph
 {
@@ -67,18 +67,18 @@ class NTT
      *
      *  @param[in,out] a Array to permute.
      */
-    static void bit_reverse(Array<uint64_t>& a)
+    static void bit_reverse(Array<uint64_t> & a)
     {
-        int n = a.size();
-        for (int i = 1, j = 0; i < n; i++)
-        {
-            int bit = n >> 1;
+        const size_t n = a.size();
+        for (size_t i = 1, j = 0; i < n; ++i)
+          {
+            size_t bit = n >> 1;
             for (; j & bit; bit >>= 1)
-                j ^= bit;
+              j ^= bit;
             j ^= bit;
             if (i < j)
-                std::swap(a(i), a(j));
-        }
+              std::swap(a(i), a(j));
+          }
     }
 
 public:
@@ -89,40 +89,48 @@ public:
      *  @param[in,out] a The input polynomial coefficients (modified in-place).
      *  @param[in] invert true for Inverse NTT, false for Forward NTT.
      */
-    static void transform(Array<uint64_t>& a, bool invert)
+    static void transform(Array<uint64_t> & a, bool invert)
     {
-        int n = a.size();
+        const size_t n = a.size();
+        if (n <= 1) return;
+
+        // Check if n is a power of 2
+        ah_invalid_argument_if((n & (n - 1)) != 0)
+          << "NTT::transform: input size " << n << " must be a power of two";
+
+        // Check if (MOD - 1) is divisible by n
+        ah_invalid_argument_if((MOD - 1) % static_cast<uint64_t>(n) != 0)
+          << "NTT::transform: size " << n
+          << " must divide MOD - 1 (" << (MOD - 1) << ")";
+
         bit_reverse(a);
 
-        for (int len = 2; len <= n; len <<= 1)
-        {
+        for (size_t len = 2; len <= n; len <<= 1)
+          {
             uint64_t wlen = mod_exp(ROOT, (MOD - 1) / len, MOD);
             if (invert)
-            {
-                uint64_t inv_wlen = mod_inv(wlen, MOD);
-                wlen = inv_wlen;
-            }
+              wlen = mod_inv(wlen, MOD);
 
-            for (int i = 0; i < n; i += len)
-            {
+            for (size_t i = 0; i < n; i += len)
+              {
                 uint64_t w = 1;
-                for (int j = 0; j < len / 2; j++)
-                {
-                    uint64_t u = a[i + j];
-                    uint64_t v = mod_mul(a[i + j + len / 2], w, MOD);
-                    a[i + j] = (u + v) % MOD;
-                    a[i + j + len / 2] = (u - v + MOD) % MOD;
+                for (size_t j = 0; j < len / 2; ++j)
+                  {
+                    const uint64_t u = a[i + j];
+                    const uint64_t v = mod_mul(a[i + j + len / 2], w, MOD);
+                    a(i + j) = (u + v) % MOD;
+                    a(i + j + len / 2) = (u - v + MOD) % MOD;
                     w = mod_mul(w, wlen, MOD);
-                }
-            }
-        }
+                  }
+              }
+          }
 
         if (invert)
-        {
-            uint64_t inv_n = mod_inv(n, MOD);
-            for (int i = 0; i < n; i++)
-                a[i] = mod_mul(a[i], inv_n, MOD);
-        }
+          {
+            const uint64_t inv_n = mod_inv(n, MOD);
+            for (size_t i = 0; i < n; ++i)
+              a(i) = mod_mul(a[i], inv_n, MOD);
+          }
     }
 
     /** @brief Multiply two polynomials using NTT.
@@ -135,13 +143,26 @@ public:
      */
     static Array<uint64_t> multiply(Array<uint64_t> const& a, Array<uint64_t> const& b)
     {
-        if (a.is_empty() || b.is_empty()) return {};
+        if (a.is_empty() or b.is_empty()) return {};
         
-        Array<uint64_t> fa = a, fb = b;
         size_t n = 1;
         while (n < a.size() + b.size() - 1) 
             n <<= 1;
+
+        // Compute maximum NTT length supported by MOD
+        uint64_t m_minus_1 = MOD - 1;
+        size_t max_ntt_len = 1;
+        while (m_minus_1 > 0 and (m_minus_1 % 2 == 0))
+          {
+            max_ntt_len <<= 1;
+            m_minus_1 /= 2;
+          }
+
+        ah_invalid_argument_if(n > max_ntt_len)
+          << "NTT::multiply: product size " << n << " exceeds maximum supported length "
+          << max_ntt_len << " for MOD " << MOD;
             
+        Array<uint64_t> fa = a, fb = b;
         fa.reserve(n);
         fb.reserve(n);
         for (size_t i = a.size(); i < n; ++i) fa.append(0);
@@ -166,4 +187,4 @@ public:
 
 } // namespace Aleph
 
-#endif // NTT_H
+# endif // NTT_H

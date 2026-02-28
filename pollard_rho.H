@@ -39,18 +39,18 @@
  *  @ingroup Algorithms
  */
 
-#ifndef POLLARD_RHO_H
-#define POLLARD_RHO_H
+# ifndef POLLARD_RHO_H
+# define POLLARD_RHO_H
 
-#include <cstdint>
-#include <numeric>
-#include <random>
-#include <algorithm>
+# include <cstdint>
+# include <numeric>
+# include <random>
 
-#include <tpl_array.H>
-#include <ahSort.H>
-#include "primality.H"
-#include "modular_arithmetic.H"
+# include <ah-errors.H>
+# include <tpl_array.H>
+# include <ahSort.H>
+# include <primality.H>
+# include <modular_arithmetic.H>
 
 namespace Aleph
 {
@@ -65,60 +65,82 @@ namespace detail
  *  @param c The constant for the polynomial f(x) = x^2 + c.
  *  @return A non-trivial factor of n, or n if it fails to find one.
  */
-inline uint64_t pollard_rho_step(uint64_t n, uint64_t seed, uint64_t c)
+[[nodiscard]] inline uint64_t pollard_rho_step(uint64_t n, uint64_t seed,
+                                               uint64_t c)
 {
-    uint64_t x = seed, y = seed, d = 1;
-    auto f = [&](const uint64_t val) {
-        return (mod_mul(val, val, n) + c) % n;
-    };
+  uint64_t x = seed, y = seed, d = 1;
+  auto f = [&](const uint64_t val) {
+    uint64_t v2 = mod_mul(val, val, n);
+# if defined(__SIZEOF_INT128__)
+    return static_cast<uint64_t>((static_cast<__uint128_t>(v2) + c) % n);
+# else
+    // Safe modular addition
+    uint64_t c_mod = c % n;
+    if (n - v2 <= c_mod) return c_mod - (n - v2);
+    return v2 + c_mod;
+# endif
+  };
 
-    while (d == 1)
+  while (d == 1)
     {
-        x = f(x);
-        y = f(f(y));
-        const uint64_t diff = x > y ? x - y : y - x;
-        d = std::gcd(diff, n);
-        if (d == n)
-            return n; // Failure for this seed/c combination
+      x = f(x);
+      y = f(f(y));
+      const uint64_t diff = x > y ? x - y : y - x;
+      d = std::gcd(diff, n);
+      if (d == n)
+        return n; // Failure for this seed/c combination
     }
-    return d;
+  return d;
 }
 
 /** @brief Helper to repeatedly apply Pollard's rho until a factor is found.
+ *
+ *  Tries different random seed/constant pairs. Gives up after a bounded
+ *  number of attempts to guarantee termination.
+ *
+ *  @param n Composite number to find a factor of.
+ *  @return A non-trivial factor of n.
+ *  @throws std::runtime_error if no factor found after max attempts.
  */
-inline uint64_t find_any_factor(uint64_t n)
+[[nodiscard]] inline uint64_t find_any_factor(uint64_t n)
 {
-    if (n % 2 == 0) return 2;
-    if (n % 3 == 0) return 3;
-    if (n % 5 == 0) return 5;
+  if (n % 2 == 0) return 2;
+  if (n % 3 == 0) return 3;
+  if (n % 5 == 0) return 5;
 
-    std::mt19937_64 rng(1337); // Deterministic seed or could use random_device
+    std::mt19937_64 rng(std::random_device{}());
 
-    uint64_t d = n;
-    while (d == n)
-    {
+    constexpr size_t max_attempts = 256;
+    for (size_t attempt = 0; attempt < max_attempts; ++attempt)
+      {
         const uint64_t seed = rng() % (n - 2) + 2;
         const uint64_t c = rng() % (n - 1) + 1;
-        d = pollard_rho_step(n, seed, c);
-    }
-    return d;
+        const uint64_t d = pollard_rho_step(n, seed, c);
+        if (d != n)
+          return d;
+      }
+
+    ah_runtime_error_unless(false)
+      << "pollard_rho: failed to find a factor of " << n
+      << " after " << max_attempts << " attempts";
+    __builtin_unreachable();
 }
 
 /** @brief Recursive extraction of all prime factors.
  */
-inline void extract_prime_factors(uint64_t n, Array<uint64_t>& factors)
+inline void extract_prime_factors(uint64_t n, Array<uint64_t> & factors)
 {
-    if (n <= 1)
-        return;
-    if (miller_rabin(n))
+  if (n <= 1)
+    return;
+  if (miller_rabin(n))
     {
-        factors.append(n);
-        return;
+      factors.append(n);
+      return;
     }
 
-    const uint64_t factor = find_any_factor(n);
-    extract_prime_factors(factor, factors);
-    extract_prime_factors(n / factor, factors);
+  const uint64_t factor = find_any_factor(n);
+  extract_prime_factors(factor, factors);
+  extract_prime_factors(n / factor, factors);
 }
 
 } // namespace detail
@@ -128,14 +150,14 @@ inline void extract_prime_factors(uint64_t n, Array<uint64_t>& factors)
  *  @param n The number to factor.
  *  @return A sorted array containing the prime factors of n.
  */
-inline Array<uint64_t> pollard_rho(uint64_t n)
+[[nodiscard]] inline Array<uint64_t> pollard_rho(uint64_t n)
 {
-    Array<uint64_t> factors;
-    detail::extract_prime_factors(n, factors);
-    in_place_sort(factors);
-    return factors;
+  Array<uint64_t> factors;
+  detail::extract_prime_factors(n, factors);
+  in_place_sort(factors);
+  return factors;
 }
 
 } // namespace Aleph
 
-#endif // POLLARD_RHO_H
+# endif // POLLARD_RHO_H

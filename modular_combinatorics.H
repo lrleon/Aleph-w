@@ -37,13 +37,13 @@
  *  @ingroup Algorithms
  */
 
-#ifndef MODULAR_COMBINATORICS_H
-#define MODULAR_COMBINATORICS_H
+# ifndef MODULAR_COMBINATORICS_H
+# define MODULAR_COMBINATORICS_H
 
-#include <cstdint>
-#include <ah-errors.H>
-#include <tpl_array.H>
-#include "modular_arithmetic.H"
+# include <cstdint>
+# include <ah-errors.H>
+# include <tpl_array.H>
+# include <modular_arithmetic.H>
 
 namespace Aleph
 {
@@ -64,9 +64,14 @@ public:
      *
      *  @param[in] max_n Maximum value for factorials to precompute.
      *  @param[in] p Prime modulus.
+     *  @pre p > 1
+     *  @throws std::invalid_argument if p <= 1.
      */
     ModularCombinatorics(size_t max_n, uint64_t p) : mod_(p)
     {
+        ah_invalid_argument_if(p <= 1)
+          << "ModularCombinatorics: modulus must be > 1";
+
         if (max_n >= mod_)
             max_n = static_cast<size_t>(mod_ - 1);
             
@@ -91,11 +96,16 @@ public:
      *  @param[in] n Total number of items.
      *  @param[in] k Number of items to choose.
      *  @return nCk % p.
-     *  @note Requires n <= max_n used during construction.
+     *  @note Requires n < fact_.size() (precomputed range).
+     *  @throws ah_out_of_range_error if n exceeds precomputed range.
      */
-    [[nodiscard]] uint64_t nCk(uint64_t n, uint64_t k) const noexcept
+    [[nodiscard]] uint64_t nCk(uint64_t n, uint64_t k) const
     {
         if (k > n) return 0;
+        ah_out_of_range_error_if(n >= fact_.size())
+          << "ModularCombinatorics::nCk: n=" << n << " exceeds precomputed range "
+          << fact_.size() - 1;
+
         const uint64_t num = fact_[n];
         const uint64_t den = mod_mul(invFact_[k], invFact_[n - k], mod_);
         return mod_mul(num, den, mod_);
@@ -110,8 +120,9 @@ public:
      *  @param[in] k Number of items to choose.
      *  @return nCk % p.
      *  @note Complexity: O(p + log_p n).
+     *  @throws ah_out_of_range_error if sub-problem exceeds precomputed range.
      */
-    [[nodiscard]] uint64_t lucas_nCk(uint64_t n, uint64_t k) const noexcept
+    [[nodiscard]] uint64_t lucas_nCk(uint64_t n, uint64_t k) const
     {
         if (k > n) return 0;
         if (k == 0) return 1;
@@ -119,7 +130,7 @@ public:
         const uint64_t ni = n % mod_;
         const uint64_t ki = k % mod_;
         
-        if (ki > ni) return 0; // Lucas theorem property
+        if (ki > ni) return 0; 
         
         return mod_mul(nCk(ni, ki), lucas_nCk(n / mod_, k / mod_), mod_);
     }
@@ -127,4 +138,4 @@ public:
 
 } // namespace Aleph
 
-#endif // MODULAR_COMBINATORICS_H
+# endif // MODULAR_COMBINATORICS_H

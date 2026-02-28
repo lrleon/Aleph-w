@@ -65,14 +65,17 @@ namespace Aleph
   template <typename T>
   class SimHash
   {
+  public:
+    static constexpr size_t FINGERPRINT_SIZE = 64;
+
+  private:
     Array<double> v_; /**< Accumulator vector for each bit. */
 
   public:
     /** @brief Construct SimHash accumulator. */
     SimHash()
-    {
-      v_ = Array<double>(64, 0.0);
-    }
+      : v_(FINGERPRINT_SIZE, 0.0)
+    {}
 
     /** @brief Add a feature to the set.
      *
@@ -82,7 +85,7 @@ namespace Aleph
     void update(const T & val, const double weight = 1.0)
     {
       const auto hash = static_cast<uint64_t>(murmur3hash(val, 0x9e3779b9));
-      for (int i = 0; i < 64; ++i)
+      for (size_t i = 0; i < FINGERPRINT_SIZE; ++i)
         {
           if ((hash >> i) & 1)
             v_(i) += weight;
@@ -104,12 +107,12 @@ namespace Aleph
         }
     }
 
-    /** @brief Returns the 64-bit fingerprint. */
+    /** @brief Returns the fingerprint. */
     [[nodiscard]] uint64_t get_fingerprint() const noexcept
     {
       uint64_t fingerprint = 0;
-      for (int i = 0; i < 64; ++i)
-        if (v_[i] > 0)
+      for (size_t i = 0; i < FINGERPRINT_SIZE; ++i)
+        if (v_(i) > 0)
           fingerprint |= (static_cast<uint64_t>(1) << i);
       
       return fingerprint;
@@ -121,13 +124,13 @@ namespace Aleph
     [[nodiscard]] static double similarity(const uint64_t f1, const uint64_t f2) noexcept
     {
       const int distance = std::popcount(f1 ^ f2);
-      return 1.0 - (static_cast<double>(distance) / 64.0);
+      return 1.0 - (static_cast<double>(distance) / static_cast<double>(FINGERPRINT_SIZE));
     }
 
     /** @brief Reset the accumulator. */
     void clear()
     {
-      for (size_t i = 0; i < 64; ++i)
+      for (size_t i = 0; i < FINGERPRINT_SIZE; ++i)
         v_(i) = 0.0;
     }
   };

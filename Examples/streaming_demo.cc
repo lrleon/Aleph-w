@@ -36,6 +36,7 @@
 # include <iostream>
 # include <iomanip>
 # include <string>
+# include <unordered_map>
 
 # include <reservoir-sampling.H>
 # include <count-min-sketch.H>
@@ -79,11 +80,16 @@ int main()
     cout << "[2] Count-Min Sketch (frequency estimation)\n";
     print_rule();
     auto cms = Count_Min_Sketch<string>::from_error_bounds(0.01, 0.01);
-    for (const auto & s : stream) cms.update(s);
+    unordered_map<string, size_t> actual;
+    for (const auto & s : stream) 
+      {
+        cms.update(s);
+        actual[s]++;
+      }
 
-    cout << "Estimated frequency of 'apple' : " << cms.estimate("apple") << " (Actual: 5)\n";
-    cout << "Estimated frequency of 'banana': " << cms.estimate("banana") << " (Actual: 4)\n";
-    cout << "Estimated frequency of 'word_0': " << cms.estimate("word_0") << " (Actual: 10)\n";
+    cout << "Estimated frequency of 'apple' : " << cms.estimate("apple") << " (Actual: " << actual["apple"] << ")\n";
+    cout << "Estimated frequency of 'banana': " << cms.estimate("banana") << " (Actual: " << actual["banana"] << ")\n";
+    cout << "Estimated frequency of 'word_0': " << cms.estimate("word_0") << " (Actual: " << actual["word_0"] << ")\n";
     cout << "\n";
   }
 
@@ -92,10 +98,14 @@ int main()
     cout << "[3] HyperLogLog (cardinality estimation)\n";
     print_rule();
     HyperLogLog<string> hll(10); // 1024 registers
-    for (const auto & s : stream) hll.update(s);
+    unordered_map<string, bool> unique_map;
+    for (const auto & s : stream) 
+      {
+        hll.update(s);
+        unique_map[s] = true;
+      }
 
-    // Total unique: 6 (initial) + 100 (generated) = 106
-    cout << "Estimated unique elements: " << fixed << setprecision(1) << hll.estimate() << " (Actual: 106)\n";
+    cout << "Estimated unique elements: " << fixed << setprecision(1) << hll.estimate() << " (Actual: " << unique_map.size() << ")\n";
     cout << "\n";
   }
 

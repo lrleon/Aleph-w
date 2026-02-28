@@ -1552,7 +1552,7 @@ using GenericKeys = GenericItems<Container, T>;
 template <class Container>
 class EqualSequenceMethod
 {
-  const Container * const_me() const
+  const Container * const_me() const noexcept
   {
     return static_cast<const Container*>(this);
   }

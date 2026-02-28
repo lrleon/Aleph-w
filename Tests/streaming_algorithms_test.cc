@@ -154,6 +154,53 @@ TEST(StreamingAlgorithms, SimHash)
   EXPECT_LT(sim13, 0.7);
 }
 
+TEST(StreamingAlgorithms, EdgeCases)
+{
+  // 1. Reservoir sample with k=0, k=1 and empty input
+  DynList<int> empty_list;
+  EXPECT_EQ(reservoir_sample(empty_list.begin(), empty_list.end(), 0).size(), 0u);
+  EXPECT_EQ(reservoir_sample(empty_list.begin(), empty_list.end(), 5).size(), 0u);
+  
+  DynList<int> singleton = {42};
+  auto s1 = reservoir_sample(singleton.begin(), singleton.end(), 1, 123);
+  ASSERT_EQ(s1.size(), 1u);
+  EXPECT_EQ(s1[0], 42);
+
+  // 2. Count-Min Sketch: invalid params and empty/singleton
+  EXPECT_THROW(Count_Min_Sketch<int>::from_error_bounds(0, 0.01), std::domain_error);
+  
+  Count_Min_Sketch<int> cms(100, 5);
+  EXPECT_GE(cms.estimate(42), 0u); // empty: 0
+  cms.update(42, 10);
+  EXPECT_EQ(cms.estimate(42), 10u);
+  
+  Count_Min_Sketch<int> cms_other(50, 5); // different width
+  EXPECT_THROW(cms.merge(cms_other), std::domain_error);
+
+  // 3. HyperLogLog: empty and singleton
+  HyperLogLog<int> hll(10);
+  EXPECT_NEAR(hll.estimate(), 0.0, 0.1);
+  hll.update(42);
+  EXPECT_NEAR(hll.estimate(), 1.0, 0.5);
+
+  // 4. MinHash: empty and singletons
+  MinHash<int> mh1(64), mh2(64);
+  EXPECT_EQ(mh1.similarity(mh2), 1.0); // empty vs empty
+  mh1.update(100);
+  EXPECT_LT(mh1.similarity(mh2), 0.1); // singleton vs empty
+  mh2.update(100);
+  EXPECT_EQ(mh1.similarity(mh2), 1.0); // same singleton
+
+  // 5. SimHash: empty and singletons
+  SimHash<int> sh1, sh2;
+  EXPECT_EQ(sh1.get_fingerprint(), 0u);
+  EXPECT_EQ(SimHash<int>::similarity(sh1.get_fingerprint(), sh2.get_fingerprint()), 1.0);
+  sh1.update(42);
+  sh2.update(42);
+  EXPECT_EQ(sh1.get_fingerprint(), sh2.get_fingerprint());
+  EXPECT_EQ(SimHash<int>::similarity(sh1.get_fingerprint(), sh2.get_fingerprint()), 1.0);
+}
+
 TEST(StreamingAlgorithms, CMSSketchMerge)
 {
   Count_Min_Sketch<int> cms1(size_t(100), size_t(5));

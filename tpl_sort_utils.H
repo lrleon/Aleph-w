@@ -5458,8 +5458,11 @@ namespace Aleph
     void bucket_sort_impl(T *a, const size_t n, const size_t num_buckets,
                           const BucketKey & bucket_key, const Compare & cmp)
     {
-      if (n < 2 or num_buckets == 0)
+      if (n < 2)
         return;
+
+      ah_domain_error_if(num_buckets == 0)
+        << "bucket_sort: num_buckets must be > 0";
 
       // Count elements per bucket
       Array<size_t> counts = Array<size_t>::create(num_buckets);
