@@ -1568,7 +1568,9 @@ public:
       \return `true` if the containers have the same size and all the
       elements are equal in the same order.
   */
-  bool equal_to(const Container & r) const noexcept
+  bool equal_to(const Container & r) const
+    noexcept(noexcept(std::declval<const typename Container::Item_Type&>() ==
+                      std::declval<const typename Container::Item_Type&>()))
   {
     if (const_me() == &r)
       return true;
@@ -1592,13 +1594,15 @@ public:
   }
 
   /// \overload equal_to(const Container & r)
-  bool operator == (const Container & r) const	noexcept
+  bool operator == (const Container & r) const
+    noexcept(noexcept(std::declval<const EqualSequenceMethod&>().equal_to(r)))
   {
     return equal_to(r);
   }
 
   /** Negation of equal_to() */
-  bool operator != (const Container & r) const	noexcept
+  bool operator != (const Container & r) const
+    noexcept(noexcept(std::declval<const EqualSequenceMethod&>().equal_to(r)))
   {
     return not equal_to(r);
   }

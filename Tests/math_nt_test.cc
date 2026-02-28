@@ -50,6 +50,10 @@ TEST(MathNT, ModMulAndExp)
     EXPECT_EQ(mod_mul(2, 3, m), 6);
     EXPECT_EQ(mod_exp(2, 10, m), 1024);
     
+    // Test mod_exp with m = 1
+    EXPECT_EQ(mod_exp(2, 10, 1), 0ULL);
+    EXPECT_EQ(mod_exp(2, 0, 1), 0ULL);
+    
     uint64_t big_m = 4000000000000000000ULL; // > 32 bits
     uint64_t a = 3000000000000000000ULL;
     uint64_t b = 2000000000000000000ULL;

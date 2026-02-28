@@ -53,11 +53,19 @@ namespace Aleph
  *
  *  Configured with a specific prime modulus and its primitive root.
  *  Default parameters use the standard CP prime 998244353.
+ *
+ *  @tparam MOD Prime modulus.
+ *  @tparam ROOT Primitive root modulo MOD.
  */
 template <uint64_t MOD = 998244353, uint64_t ROOT = 3>
 class NTT
 {
     /** @brief Bit reversal permutation helper.
+     *
+     *  Reorders the array elements in bit-reversed order to facilitate
+     *  the iterative butterfly computation.
+     *
+     *  @param[in,out] a Array to permute.
      */
     static void bit_reverse(Array<uint64_t>& a)
     {
@@ -76,8 +84,10 @@ class NTT
 public:
     /** @brief Forward or Inverse Number Theoretic Transform.
      *
-     *  @param a The input polynomial (modified in-place).
-     *  @param invert true for Inverse NTT, false for Forward NTT.
+     *  Computes the NTT of the input array in-place.
+     *
+     *  @param[in,out] a The input polynomial coefficients (modified in-place).
+     *  @param[in] invert true for Inverse NTT, false for Forward NTT.
      */
     static void transform(Array<uint64_t>& a, bool invert)
     {
@@ -100,8 +110,8 @@ public:
                 {
                     uint64_t u = a[i + j];
                     uint64_t v = mod_mul(a[i + j + len / 2], w, MOD);
-                    a(i + j) = (u + v) % MOD;
-                    a(i + j + len / 2) = (u - v + MOD) % MOD;
+                    a[i + j] = (u + v) % MOD;
+                    a[i + j + len / 2] = (u - v + MOD) % MOD;
                     w = mod_mul(w, wlen, MOD);
                 }
             }
@@ -111,14 +121,16 @@ public:
         {
             uint64_t inv_n = mod_inv(n, MOD);
             for (int i = 0; i < n; i++)
-                a(i) = mod_mul(a[i], inv_n, MOD);
+                a[i] = mod_mul(a[i], inv_n, MOD);
         }
     }
 
     /** @brief Multiply two polynomials using NTT.
      *
-     *  @param a First polynomial.
-     *  @param b Second polynomial.
+     *  Computes the discrete convolution of two polynomials modulo MOD.
+     *
+     *  @param[in] a First polynomial coefficients.
+     *  @param[in] b Second polynomial coefficients.
      *  @return The convolution of a and b modulo MOD.
      */
     static Array<uint64_t> multiply(Array<uint64_t> const& a, Array<uint64_t> const& b)

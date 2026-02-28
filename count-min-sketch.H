@@ -98,12 +98,17 @@ namespace Aleph
      *  Estimate will be within epsilon * total_count from actual with
      *  probability at least 1 - delta.
      *
-     *  @param[in] epsilon Relative error bound.
-     *  @param[in] delta   Confidence bound (error probability).
+     *  @param[in] epsilon Relative error bound (must be > 0).
+     *  @param[in] delta   Confidence bound (error probability, must be in (0, 1)).
      *  @return A new Count_Min_Sketch instance.
      */
     static Count_Min_Sketch from_error_bounds(const double epsilon, const double delta)
     {
+      ah_domain_error_if(epsilon <= 0.0) 
+        << "Count_Min_Sketch::from_error_bounds: epsilon must be > 0 (got " << epsilon << ")";
+      ah_domain_error_if(delta <= 0.0 || delta >= 1.0) 
+        << "Count_Min_Sketch::from_error_bounds: delta must be in (0, 1) (got " << delta << ")";
+
       return Count_Min_Sketch(
           static_cast<size_t>(std::ceil(std::exp(1.0) / epsilon)),
           static_cast<size_t>(std::ceil(std::log(1.0 / delta))));
@@ -144,6 +149,9 @@ namespace Aleph
     {
       ah_domain_error_if(w_ != other.w_ or d_ != other.d_)
         << "Count_Min_Sketch::merge: dimension mismatch";
+      
+      ah_domain_error_if(seeds_ != other.seeds_)
+        << "Count_Min_Sketch::merge: hash function seeds mismatch";
       
       for (size_t i = 0; i < table_.size(); ++i)
         table_(i) += other.table_[i];

@@ -53,15 +53,30 @@
 namespace Aleph
 {
   /** @brief Matrix operations modulo a prime.
-   *  @tparam MatrixT The matrix container type.
+   *
+   *  Provides linear algebra algorithms over a finite field defined by a prime
+   *  modulus. Supports various matrix backends like Array of Arrays for dense
+   *  matrices or DynMatrix for sparse ones.
+   *
+   *  @tparam MatrixT The matrix container type. Must support either `rows()`/`cols()`
+   *                  and `read_ne()`/`write()` (for sparse) or `size()` and
+   *                  `operator[]` (for dense).
    */
   template <typename MatrixT>
   class Modular_Matrix
   {
-    MatrixT mat;
-    uint64_t mod;
+    MatrixT mat;  ///< The underlying matrix data.
+    uint64_t mod; ///< The prime modulus defining the finite field.
 
   public:
+    /** @brief Construct a modular matrix from an existing matrix and a prime modulus.
+     *
+     *  Initializes the internal matrix and ensures all elements are normalized
+     *  within the range [0, p-1].
+     *
+     *  @param[in] m Source matrix data.
+     *  @param[in] p Prime modulus.
+     */
     Modular_Matrix(const MatrixT & m, const uint64_t p)
       : mat(m), mod(p)
     {
@@ -81,11 +96,17 @@ namespace Aleph
         }
     }
 
-    /** @brief Get the underlying matrix. */
+    /** @brief Get a constant reference to the underlying matrix.
+     *  @return Constant reference to the matrix data.
+     */
     const MatrixT &get() const { return mat; }
 
     /** @brief Computes the determinant of the matrix modulo p.
-     *  @return The determinant.
+     *
+     *  Uses Gaussian elimination to compute the determinant in O(n^3) time.
+     *
+     *  @return The determinant of the matrix modulo p.
+     *  @throws ah_domain_error if the matrix is not square or is empty.
      */
     [[nodiscard]] uint64_t determinant() const
     {
@@ -157,7 +178,7 @@ namespace Aleph
 
           const uint64_t diag = get_val(a, i, i);
           det = mod_mul(det, diag, mod);
-          const uint64_t inv = mod_inv(static_cast<int64_t>(diag), static_cast<int64_t>(mod));
+          const uint64_t inv = mod_inv(diag, mod);
 
           for (size_t j = i + 1; j < n_rows; ++j)
             if (const uint64_t val_ji = get_val(a, j, i); val_ji != 0)
@@ -174,7 +195,12 @@ namespace Aleph
     }
 
     /** @brief Computes the inverse of the matrix modulo p.
-     *  @return A new Modular_Matrix representing the inverse, or std::nullopt if singular.
+     *
+     *  Uses Gauss-Jordan elimination to find the inverse in O(n^3) time.
+     *
+     *  @return A new Modular_Matrix containing the inverse, or std::nullopt if the
+     *          matrix is singular (not invertible).
+     *  @throws ah_domain_error if the matrix is not square or is empty.
      */
     [[nodiscard]] std::optional<Modular_Matrix<MatrixT>> inverse() const
     {
@@ -264,7 +290,7 @@ namespace Aleph
             }
 
           const uint64_t pivot_val = get_val(a, i, i);
-          uint64_t pivot_inv = mod_inv(static_cast<int64_t>(pivot_val), static_cast<int64_t>(mod));
+          const uint64_t pivot_inv = mod_inv(pivot_val, mod);
           for (size_t j = 0; j < n_rows; ++j)
             {
               set_val(a, i, j, mod_mul(get_val(a, i, j), pivot_inv, mod));
@@ -288,10 +314,18 @@ namespace Aleph
     }
   };
 
-  /** @brief Alias for common Array-based modular matrix. */
+  /** @brief Alias for common Array-based modular matrix.
+   *
+   *  Recommended for dense matrices where O(1) access is prioritized over
+   *  memory efficiency for zeros.
+   */
   using ModularMatrix = Modular_Matrix<Array<Array<uint64_t>>>;
 
-  /** @brief Alias for sparse DynMatrix-based modular matrix. */
+  /** @brief Alias for sparse DynMatrix-based modular matrix.
+   *
+   *  Recommended for large sparse matrices where unwritten entries (zeros)
+   *  should not consume memory.
+   */
   using ModularSparseMatrix = Modular_Matrix<DynMatrix<uint64_t>>;
 } // namespace Aleph
 

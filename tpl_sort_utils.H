@@ -458,6 +458,15 @@ namespace Aleph
    *  @see selection_sort(Dnode<T>&, Compare)
    *  @ingroup Algorithms
    */
+  /** @brief Selection sort for doubly-linked lists (`Dlink`).
+   *
+   *  Sorts the list by repeatedly finding the extreme element and appending
+   *  it to a temporary auxiliary list.
+   *
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <class Compare>
   inline
   void selection_sort(Dlink & list, Compare cmp)
@@ -559,6 +568,13 @@ namespace Aleph
       @param cmp comparison object.
       \ingroup Algorithms
   */
+  /** @brief Selection sort for Dnode-based doubly-linked lists.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline void selection_sort(Dnode<T> & list, Compare cmp)
   {
@@ -1047,6 +1063,13 @@ namespace Aleph
       @param cmp comparison object.
       \ingroup Algorithms
   */
+  /** @brief Generic insertion sort for linked lists.
+   *
+   *  @tparam ListType The list container type (e.g., DynList, DynDlist).
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <class ListType, class Compare>
   inline
   void list_insertion_sort(ListType & list, const Compare & cmp)
@@ -1062,6 +1085,13 @@ namespace Aleph
     list.swap(aux);
   }
 
+  /** @brief Insertion sort for DynList.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] l The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void insertion_sort(DynList<T> & l, const Compare & cmp = Compare())
@@ -1071,6 +1101,17 @@ namespace Aleph
     list_insertion_sort<HTList, Cmp>(l, c);
   }
 
+  /** @brief Insertion sort for DynList (rvalue overload).
+   *
+   *  Moves the input list into the sorted result. Useful for sorting
+   *  temporary lists efficiently.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] l The list to sort (rvalue).
+   *  @param[in] cmp Comparison functor.
+   *  @return The sorted list.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   DynList<T> insertion_sort(DynList<T> && l, const Compare & cmp = Compare())
@@ -1092,6 +1133,13 @@ namespace Aleph
       @param cmp Comparison functor defining "less than" relationship.
       @see Dnode selection_sort(Dlink * link)
   */
+  /** @brief Insertion sort for Dnode-based lists.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline void insertion_sort(Dnode<T> & list, const Compare & cmp = Compare())
   {
@@ -1317,6 +1365,15 @@ namespace Aleph
 
       \ingroup Algorithms
   */
+  /** @brief Merge two sorted Dnode-based lists.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] l1 First sorted list.
+   *  @param[in,out] l2 Second sorted list.
+   *  @param[out] result Empty list to receive merged result.
+   *  @param[in] cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void merge_lists(Dnode<T> & l1, Dnode<T> & l2, Dnode<T> & result,
@@ -1413,6 +1470,14 @@ namespace Aleph
     merge_lists<Tlist<T>, Compare>(l, r, list, cmp); // merge them
   }
 
+  /** @brief Merge sort for generic list templates.
+   *
+   *  @tparam Tlist List template type.
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <template <typename> class Tlist, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -1450,6 +1515,13 @@ namespace Aleph
 
       \ingroup Algorithms
   */
+  /** @brief Merge sort for Dnode-based lists.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void mergesort(Dnode<T> & list, const Compare & cmp = Compare())
@@ -1477,6 +1549,13 @@ namespace Aleph
 
       \ingroup Algorithms
   */
+  /** @brief Merge sort for DynDlist.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void mergesort(DynDlist<T> & list, const Compare & cmp = Compare())
@@ -1484,6 +1563,13 @@ namespace Aleph
     mergesort<Dnode<T>, Compare_Dnode<T, Compare>>(list, cmp);
   }
 
+  /** @brief Merge sort for DynList.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort.
+   *  @param[in] cmp Comparison functor.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void mergesort(DynList<T> & list, const Compare & cmp = Compare())
@@ -1513,6 +1599,23 @@ namespace Aleph
     noexcept(noexcept(cmp(a[0], a[0])) && std::is_nothrow_swappable_v<T>);
 
 
+  /** @brief Partition an array range [l, r] around a pivot.
+   *
+   *  Rearranges elements such that all elements less than the pivot are
+   *  on the left, and elements greater or equal are on the right.
+   *
+   *  Time complexity: O(n).
+   *  Space complexity: O(1).
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *
+   *  @param[in,out] a Pointer to the array.
+   *  @param[in] l Left index.
+   *  @param[in] r Right index.
+   *  @param[in] cmp Comparison functor.
+   *  @return The final index of the pivot.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   long partition(T *a, const long l, const long r, const Compare & cmp = Compare())
@@ -1586,6 +1689,19 @@ namespace Aleph
    *  @param l Left index (inclusive).
    *  @param r Right index (inclusive).
    *  @param cmp Comparison functor.
+   */
+  /** @brief Quicksort implementation with tail-recursion optimization.
+   *
+   *  Recursively sorts the smaller partition and iterates on the larger one
+   *  to guarantee O(log n) stack depth.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *
+   *  @param[in,out] a Pointer to the array.
+   *  @param[in] l Left index.
+   *  @param[in] r Right index.
+   *  @param[in] cmp Comparison functor.
    */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -1951,6 +2067,13 @@ namespace Aleph
    *
    *  @see Array
    *  @ingroup Algorithms
+   */
+  /** @brief Introsort for Aleph Array.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] arr Array to sort.
+   *  @param[in] cmp Comparison functor.
    */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -3374,7 +3497,17 @@ namespace Aleph
       }
   }
 
-  /** @brief Push two values onto a stack. */
+  /** @brief Push two values onto a stack.
+   *
+   *  Convenience helper for iterative quicksort implementations.
+   *
+   *  @tparam Stack Stack container type.
+   *  @tparam A First value type.
+   *  @tparam B Second value type.
+   *  @param stack The stack to push onto.
+   *  @param a First value.
+   *  @param b Second value.
+   */
   template <class Stack, class A, class B>
   inline
   void push2(Stack & stack, const A & a, const B & b)
@@ -3477,7 +3610,20 @@ namespace Aleph
   }
 
   /** @brief Heapsort a subrange of a DynArray.
+  /** @brief Heapsort implementation for a subrange of a DynArray.
    *
+   *  Sorts the elements in the range [l, r] (inclusive) using the heapsort
+   *  algorithm.
+   *
+   *  Time complexity: O(n log n).
+   *  Space complexity: O(1).
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] a The dynamic array.
+   *  @param[in] l Left index (inclusive).
+   *  @param[in] r Right index (inclusive).
+   *  @param[in] cmp Comparison functor.
    *  @internal
    */
   template <typename T, class Compare>
@@ -4573,6 +4719,15 @@ namespace Aleph
     using radix_unsigned_t = std::make_unsigned_t<std::remove_cv_t<IntT>>;
 
 
+    /** @brief Compute the number of buckets required for a counting sort range.
+     *
+     *  @tparam IntT Integer type.
+     *  @param min_key Minimum value in the range.
+     *  @param max_key Maximum value in the range.
+     *  @return Total number of buckets needed.
+     *  @throws ah_domain_error if max_key < min_key.
+     *  @throws ah_runtime_error if the range exceeds size_t capacity.
+     */
     template <typename IntT>
     [[nodiscard]] size_t
     counting_bucket_count(const IntT min_key, const IntT max_key)
@@ -4596,6 +4751,13 @@ namespace Aleph
     }
 
 
+    /** @brief Map a value to its bucket index in counting sort.
+     *
+     *  @tparam IntT Integer type.
+     *  @param value Value to map.
+     *  @param min_key Minimum key in the range.
+     *  @return Bucket index in [0, bucket_count).
+     */
     template <typename IntT>
     [[nodiscard]] inline size_t
     counting_bucket(const IntT value, const IntT min_key) noexcept
@@ -4605,6 +4767,13 @@ namespace Aleph
     }
 
 
+    /** @brief Retrieve the original value from a bucket index in counting sort.
+     *
+     *  @tparam IntT Integer type.
+     *  @param bucket Bucket index.
+     *  @param min_key Minimum key in the range.
+     *  @return The original value corresponding to the bucket.
+     */
     template <typename IntT>
     [[nodiscard]] inline IntT
     counting_value_from_bucket(const size_t bucket, const IntT min_key) noexcept
@@ -4614,6 +4783,12 @@ namespace Aleph
     }
 
 
+    /** @brief Internal implementation of counting sort for containers.
+     *
+     *  @tparam C Container template type.
+     *  @tparam IntT Integer type.
+     *  @param[in,out] a Container to sort.
+     */
     template <template <typename> class C, typename IntT>
       requires counting_integer<IntT>
     void counting_sort_impl(C<IntT> & a)
@@ -4838,6 +5013,14 @@ namespace Aleph
     }
 
 
+    /** @brief Core radix sort implementation for raw pointer ranges.
+     *
+     *  Uses counting sort as a stable subroutine to sort by each byte digit.
+     *
+     *  @tparam IntT Integer type.
+     *  @param[in,out] a Pointer to the array.
+     *  @param[in] n Number of elements.
+     */
     template <typename IntT>
       requires radix_integer<IntT>
     void radix_sort_impl(IntT *a, const size_t n)
@@ -4879,6 +5062,14 @@ namespace Aleph
     }
 
 
+    /** @brief LSD radix sort implementation for DynList.
+     *
+     *  Performs a stable radix sort on a linked list. This implementation
+     *  is memory efficient as it reuses the original list nodes.
+     *
+     *  @tparam IntT Integer type.
+     *  @param[in,out] list The list to sort.
+     */
     template <typename IntT>
       requires radix_integer<IntT>
     void radix_sort_impl(DynList<IntT> & list)
@@ -4911,6 +5102,13 @@ namespace Aleph
     }
 
 
+    /** @brief LSD radix sort implementation for DynDlist.
+     *
+     *  Performs a stable radix sort on a doubly-linked list.
+     *
+     *  @tparam IntT Integer type.
+     *  @param[in,out] list The doubly-linked list to sort.
+     */
     template <typename IntT>
       requires radix_integer<IntT>
     void radix_sort_impl(DynDlist<IntT> & list)
@@ -5260,7 +5458,7 @@ namespace Aleph
     void bucket_sort_impl(T *a, const size_t n, const size_t num_buckets,
                           const BucketKey & bucket_key, const Compare & cmp)
     {
-      if (n < 2)
+      if (n < 2 or num_buckets == 0)
         return;
 
       // Count elements per bucket
@@ -5350,7 +5548,7 @@ namespace Aleph
 
   /** @brief Bucket sort convenience for floating-point arrays.
    *
-   *  Automatically detects `[min, max]` range and distributes into `n` buckets
+   *  Automatically detects the ` [min, max] ` range and distributes it into `n` buckets
    *  using linear interpolation. Ideal for uniformly distributed data.
    *
    *  @tparam T Floating-point type (`float`, `double`, `long double`).
@@ -5363,7 +5561,7 @@ namespace Aleph
    *  @throws std::invalid_argument if `a` is null and `n > 0`.
    *
    *  @par Complexity
-   *  O(n) expected for uniformly distributed data, O(n^2) worst case.
+   *  O(n) expected for uniformly distributed data, O(n^2) the worst case.
    *
    *  @par Stability
    *  Stable.
@@ -5392,11 +5590,17 @@ namespace Aleph
       return; // all equal
 
     const size_t num_buckets = n;
-    auto key = [min_val, range, num_buckets](const T & val) -> size_t
+    auto key = [min_val, max_val, range, num_buckets, cmp](const T & val) -> size_t
       {
-        const auto b = static_cast<size_t>((val - min_val) / range *
-                                           static_cast<T>(num_buckets - 1));
-        return b < num_buckets ? b : num_buckets - 1;
+        auto b = static_cast<size_t>((val - min_val) / range *
+                                      static_cast<T>(num_buckets - 1));
+        if (b >= num_buckets)
+          b = num_buckets - 1;
+
+        if (not cmp(min_val, max_val)) // Descending order
+          b = (num_buckets - 1) - b;
+
+        return b;
       };
 
     bucket_sort_detail::bucket_sort_impl(a, n, num_buckets, key, cmp);
@@ -5583,7 +5787,9 @@ namespace Aleph
     }
 
 
-    /** @brief Reverse elements in [lo, hi). */
+    /** @brief Reverse elements in [lo, hi).
+     *  @tparam T Element type.
+     */
     template <typename T>
     void reverse_range(T *a, size_t lo, size_t hi) noexcept
     {
@@ -5600,6 +5806,9 @@ namespace Aleph
      *
      *  If the run is descending (strictly), it is reversed to become ascending.
      *  Returns the length of the run.
+     *
+     *  @tparam T Element type.
+     *  @tparam Compare Comparison functor.
      */
     template <typename T, class Compare>
     size_t count_run_and_make_ascending(T *a, const size_t lo,
@@ -5627,6 +5836,9 @@ namespace Aleph
      *
      *  Elements in [lo, start) are already sorted. This uses binary search
      *  to find the insertion point, then shifts elements.
+     *
+     *  @tparam T Element type.
+     *  @tparam Compare Comparison functor.
      */
     template <typename T, class Compare>
     void binary_insertion_sort(T *a, const size_t lo, const size_t hi,
@@ -5664,6 +5876,23 @@ namespace Aleph
      *  Returns the leftmost such position (for stability).
      *
      *  Uses exponential search from `hint` then binary search.
+     */
+    /** @brief Gallop left: find the insertion point for a key in a sorted range.
+     *
+     *  Finds the leftmost position where `key` can be inserted while maintaining
+     *  order. Uses a "galloping" strategy (exponential search followed by
+     *  binary search) to find the position in O(log n) time, being faster
+     *  than binary search when the key is near the hint.
+     *
+     *  @tparam T Element type.
+     *  @tparam Compare Comparison functor.
+     *
+     *  @param key The value to search for.
+     *  @param a Pointer to the sorted array.
+     *  @param len Length of the sorted range.
+     *  @param hint Index to start the search from.
+     *  @param cmp Comparison functor.
+     *  @return Leftmost index where key could be inserted.
      */
     template <typename T, class Compare>
     size_t gallop_left(const T & key, const T *a, const size_t len,
@@ -5716,6 +5945,22 @@ namespace Aleph
 
     /** @brief Gallop right: find the rightmost position where `key` would
      *  be inserted into a[0..len) to keep it sorted.
+     */
+    /** @brief Gallop right: find the insertion point for a key in a sorted range.
+     *
+     *  Finds the rightmost position where `key` can be inserted while maintaining
+     *  order. Uses a "galloping" strategy (exponential search followed by
+     *  binary search).
+     *
+     *  @tparam T Element type.
+     *  @tparam Compare Comparison functor.
+     *
+     *  @param key The value to search for.
+     *  @param a Pointer to the sorted array.
+     *  @param len Length of the sorted range.
+     *  @param hint Index to start the search from.
+     *  @param cmp Comparison functor.
+     *  @return Rightmost index where key could be inserted.
      */
     template <typename T, class Compare>
     size_t gallop_right(const T & key, const T *a, const size_t len,
@@ -5932,6 +6177,20 @@ namespace Aleph
      *  @param n Number of elements.
      *  @param cmp Comparison functor.
      */
+    /** @brief Core Timsort implementation.
+     *
+     *  Implements the Timsort algorithm:
+     *  1. Divide the array into runs.
+     *  2. Extend short runs using binary insertion sort to at least minrun length.
+     *  3. Merge runs using an adaptive merge strategy with galloping.
+     *
+     *  @tparam T Element type.
+     *  @tparam Compare Comparison functor.
+     *
+     *  @param[in,out] a Pointer to the array to sort.
+     *  @param[in] n Number of elements.
+     *  @param[in] cmp Comparison functor.
+     */
     template <typename T, class Compare>
     void timsort_impl(T *a, const size_t n, const Compare & cmp)
     {
@@ -6049,6 +6308,11 @@ namespace Aleph
   {
     if (l >= r)
       return;
+
+    ah_invalid_argument_if(a == nullptr)
+      << "timsort(): null pointer contract violation for non-empty range ["
+      << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
+
     timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
   }
 

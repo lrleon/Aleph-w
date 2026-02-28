@@ -49,18 +49,21 @@ namespace Aleph
 {
 
 /** @brief Combinatorics operations modulo a prime.
+ *
+ *  Precomputes factorials and inverse factorials up to a certain range to allow
+ *  O(1) computation of combinations. Supports large n, k through Lucas' Theorem.
  */
 class ModularCombinatorics
 {
-    uint64_t mod_;
-    Array<uint64_t> fact_;
-    Array<uint64_t> invFact_;
+    uint64_t mod_;         ///< Prime modulus.
+    Array<uint64_t> fact_; ///< Precomputed factorials.
+    Array<uint64_t> invFact_; ///< Precomputed inverse factorials.
 
 public:
     /** @brief Precomputes factorials up to 'max_n' modulo 'p'.
      *
-     *  @param max_n Maximum value for factorials.
-     *  @param p Prime modulus.
+     *  @param[in] max_n Maximum value for factorials to precompute.
+     *  @param[in] p Prime modulus.
      */
     ModularCombinatorics(size_t max_n, uint64_t p) : mod_(p)
     {
@@ -82,9 +85,13 @@ public:
 
     /** @brief Calculate nCk modulo p in O(1).
      *
-     *  @param n Total items.
-     *  @param k Chosen items.
+     *  Computes the binomial coefficient (n choose k) modulo p using
+     *  precomputed factorials.
+     *
+     *  @param[in] n Total number of items.
+     *  @param[in] k Number of items to choose.
      *  @return nCk % p.
+     *  @note Requires n <= max_n used during construction.
      */
     [[nodiscard]] uint64_t nCk(uint64_t n, uint64_t k) const noexcept
     {
@@ -96,11 +103,13 @@ public:
 
     /** @brief Calculate nCk modulo p using Lucas' theorem.
      *
-     *  Useful when n and k are large, but p is small (and <= max_n).
+     *  Provides an efficient way to compute combinations when n and k are
+     *  large but the modulus p is relatively small.
      *
-     *  @param n Total items.
-     *  @param k Chosen items.
+     *  @param[in] n Total number of items.
+     *  @param[in] k Number of items to choose.
      *  @return nCk % p.
+     *  @note Complexity: O(p + log_p n).
      */
     [[nodiscard]] uint64_t lucas_nCk(uint64_t n, uint64_t k) const noexcept
     {

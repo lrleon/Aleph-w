@@ -36,13 +36,13 @@
 # include <iostream>
 # include <iomanip>
 # include <string>
-# include <vector>
 
 # include <reservoir-sampling.H>
 # include <count-min-sketch.H>
 # include <hyperloglog.H>
 # include <minhash.H>
 # include <print_rule.H>
+# include <tpl_dynList.H>
 
 using namespace std;
 using namespace Aleph;
@@ -52,14 +52,14 @@ int main()
   cout << "\n=== Probabilistic Streaming Algorithms Demo ===\n\n";
 
   // Simulation data: a stream of words with many repetitions
-  vector<string> stream = {
+  DynList<string> stream = {
     "apple", "banana", "apple", "cherry", "banana", "apple", "date", 
     "banana", "elderberry", "fig", "apple", "banana", "cherry", "apple"
   };
   
   // Extend stream to make it "large"
   for (int i = 0; i < 1000; ++i)
-    stream.push_back("word_" + to_string(i % 100)); // 100 unique generated words
+    stream.append("word_" + to_string(i % 100)); // 100 unique generated words
 
   cout << "Stream size: " << stream.size() << " elements.\n\n";
 
@@ -105,8 +105,8 @@ int main()
     print_rule();
     MinHash<string> mh1(128), mh2(128);
     
-    vector<string> set1 = {"cat", "dog", "bird", "fish", "hamster"};
-    vector<string> set2 = {"dog", "cat", "lion", "tiger", "bird"};
+    DynList<string> set1 = {"cat", "dog", "bird", "fish", "hamster"};
+    DynList<string> set2 = {"dog", "cat", "lion", "tiger", "bird"};
     // Intersection: {cat, dog, bird} (3)
     // Union: {cat, dog, bird, fish, hamster, lion, tiger} (7)
     // Jaccard: 3/7 = 0.428

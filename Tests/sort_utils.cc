@@ -2004,6 +2004,21 @@ TEST(BucketSort, double_support)
     ASSERT_LE(a(i - 1), a(i));
 }
 
+TEST(BucketSort, descending_order)
+{
+  constexpr size_t N = 100;
+  DynArray<double> a;
+  a.reserve(N);
+  std::mt19937 gen(99);
+  std::uniform_real_distribution<double> dist(-10.0, 10.0);
+  for (size_t i = 0; i < N; ++i)
+    a(i) = dist(gen);
+
+  bucket_sort(a, Aleph::greater<double>());
+  for (size_t i = 1; i < N; ++i)
+    ASSERT_GE(a(i - 1), a(i)) << "Failed at index " << i << " values: " << a(i-1) << ", " << a(i);
+}
+
 TEST(BucketSort, custom_bucket_key)
 {
   int a[] = {95, 23, 67, 12, 45, 78, 34, 56, 89, 1};
@@ -2100,7 +2115,7 @@ TEST(BucketSort, all_equal)
     EXPECT_FLOAT_EQ(a(i), 7.7f);
 }
 
-TEST(BucketSort, descending_order)
+TEST(BucketSort, reverse_sorted_input)
 {
   constexpr size_t N = 100;
   DynArray<double> a;
@@ -2153,6 +2168,17 @@ TEST(BucketSort, stability)
   EXPECT_EQ(data[5].seq, 4);
 }
 
+
+TEST(BucketSort, zero_buckets)
+{
+  int a[] = {3, 1, 2};
+  const size_t n = 3;
+  const size_t num_buckets = 0;
+  auto key = [](const int &) -> size_t { return 0; };
+
+  // Should return immediately without crash/OOB
+  EXPECT_NO_THROW(bucket_sort(a, n, num_buckets, key));
+}
 
 // ================================================================
 //                      Timsort Tests

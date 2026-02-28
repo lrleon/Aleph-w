@@ -86,7 +86,12 @@ TEST(StreamingAlgorithms, CountMinSketch)
   EXPECT_GE(cms.estimate("cherry"), 1u);
   EXPECT_LT(cms.estimate("cherry"), 10u); // should be reasonably close
   
-  EXPECT_EQ(cms.estimate("dragonfruit"), 0u);
+  EXPECT_LT(cms.estimate("dragonfruit"), 5u); // unseen key: might have collisions but should be low
+
+  // Validation tests
+  EXPECT_THROW(Count_Min_Sketch<int>::from_error_bounds(0.0, 0.1), std::domain_error);
+  EXPECT_THROW(Count_Min_Sketch<int>::from_error_bounds(0.1, 0.0), std::domain_error);
+  EXPECT_THROW(Count_Min_Sketch<int>::from_error_bounds(0.1, 1.0), std::domain_error);
 }
 
 TEST(StreamingAlgorithms, HyperLogLog)
@@ -99,6 +104,10 @@ TEST(StreamingAlgorithms, HyperLogLog)
 
   double est = hll.estimate();
   EXPECT_NEAR(est, 1000.0, 1000.0 * 0.05); // allow 5% error
+
+  // Validation tests
+  EXPECT_THROW(HyperLogLog<int>(3), std::domain_error);
+  EXPECT_THROW(HyperLogLog<int>(17), std::domain_error);
 }
 
 TEST(StreamingAlgorithms, MinHash)

@@ -75,16 +75,23 @@ namespace Aleph
       return static_cast<uint64_t>(murmur3hash(val, 0x12345678));
     }
 
+    /** @brief Validate b and compute m = 2^b.
+     *  @internal
+     */
+    [[nodiscard]] static size_t compute_m_or_throw(const uint8_t b)
+    {
+      ah_domain_error_if(b < 4 or b > 16)
+        << "HyperLogLog: b must be in range [4, 16] (got " << static_cast<int>(b) << ")";
+      return static_cast<size_t>(1) << b;
+    }
+
   public:
     /** @brief Construct with precision parameter.
      *  @param[in] b Number of bits for index [4..16]. m = 2^b registers.
      */
     explicit HyperLogLog(const uint8_t b = 12)
-      : b_(b), m_(static_cast<size_t>(1) << b)
+      : b_(b), m_(compute_m_or_throw(b))
     {
-      ah_domain_error_if(b < 4 or b > 16)
-        << "HyperLogLog: b must be in range [4, 16]";
-
       registers_ = Array<uint8_t>(m_, static_cast<uint8_t>(0));
 
       // Standard constants from Flajolet et al.

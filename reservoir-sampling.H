@@ -81,6 +81,7 @@ namespace Aleph
         rng_(gsl_rng_alloc(gsl_rng_mt19937), gsl_rng_free)
     {
       ah_domain_error_if(k == 0) << "Reservoir_Sampler: k must be > 0";
+      ah_runtime_error_unless(rng_ != nullptr) << "Reservoir_Sampler: GSL RNG allocation failed";
       gsl_rng_set(rng_.get(), seed);
       reservoir_.reserve(k_);
     }
