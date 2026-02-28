@@ -44,6 +44,7 @@
 # include <cstdint>
 # include <algorithm>
 # include <optional>
+# include <type_traits>
 # include <ah-errors.H>
 # include <tpl_array.H>
 # include <tpl_dynMat.H>

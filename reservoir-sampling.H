@@ -45,6 +45,7 @@
 # include <chrono>
 # include <limits>
 # include <memory>
+# include <iterator>
 # include <gsl/gsl_rng.h>
 
 # include <ah-errors.H>

@@ -58,7 +58,6 @@ using namespace Aleph;
       }
     std::cout << "]\n";
   }
-}
 
 int main()
 {

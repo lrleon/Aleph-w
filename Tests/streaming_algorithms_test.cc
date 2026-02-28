@@ -34,11 +34,12 @@
  */
 
 # include <gtest/gtest.h>
-# include <vector>
-# include <set>
 # include <string>
 # include <random>
 
+# include <tpl_dynArray.H>
+# include <tpl_hash.H>
+# include <tpl_dynList.H>
 # include <reservoir-sampling.H>
 # include <count-min-sketch.H>
 # include <hyperloglog.H>
@@ -49,8 +50,8 @@ using namespace Aleph;
 
 TEST(StreamingAlgorithms, ReservoirSampling)
 {
-  std::vector<int> data;
-  for (int i = 0; i < 1000; ++i) data.push_back(i);
+  DynArray<int> data;
+  for (int i = 0; i < 1000; ++i) data.append(i);
 
   const size_t k = 50;
   auto sample = reservoir_sample(data.begin(), data.end(), k, 12345);
@@ -65,7 +66,7 @@ TEST(StreamingAlgorithms, ReservoirSampling)
     }
 
   // Check unique elements (mostly, since it's random sampling without replacement from unique input)
-  std::set<int> unique_vals;
+  DynHashSet<int> unique_vals;
   for (size_t i = 0; i < sample.size(); ++i)
     unique_vals.insert(sample[i]);
   EXPECT_EQ(unique_vals.size(), k);
@@ -135,13 +136,13 @@ TEST(StreamingAlgorithms, SimHash)
 {
   SimHash<std::string> sh1, sh2, sh3;
 
-  const std::vector<std::string> doc1 = {"this", "is", "a", "test", "document", "with", "some", "words"};
-  const std::vector<std::string> doc2 = {"this", "is", "a", "test", "document", "with", "other", "words"}; // one word diff
-  const std::vector<std::string> doc3 = {"completely", "unrelated", "content", "nothing", "matches", "here", "at", "all"};
+  const DynArray<std::string> doc1 = {"this", "is", "a", "test", "document", "with", "some", "words"};
+  const DynArray<std::string> doc2 = {"this", "is", "a", "test", "document", "with", "other", "words"}; // one word diff
+  const DynArray<std::string> doc3 = {"completely", "unrelated", "content", "nothing", "matches", "here", "at", "all"};
 
-  for (const auto & w : doc1) sh1.update(w);
-  for (const auto & w : doc2) sh2.update(w);
-  for (const auto & w : doc3) sh3.update(w);
+  for (size_t i = 0; i < doc1.size(); ++i) sh1.update(doc1[i]);
+  for (size_t i = 0; i < doc2.size(); ++i) sh2.update(doc2[i]);
+  for (size_t i = 0; i < doc3.size(); ++i) sh3.update(doc3[i]);
 
   uint64_t f1 = sh1.get_fingerprint();
   uint64_t f2 = sh2.get_fingerprint();

@@ -44,6 +44,8 @@
 # include <cmath>
 # include <algorithm>
 # include <concepts>
+# include <cstdint>
+# include <limits>
 
 # include <ah-errors.H>
 # include <tpl_array.H>
@@ -62,9 +64,9 @@ namespace Aleph
    *  - d = depth (related to confidence)
    *
    *  @tparam T        Type of elements to count.
-   *  @tparam CounterT Integral type for counters (default: size_t).
+   *  @tparam CounterT Unsigned integral type for counters (default: size_t).
    */
-  template <typename T, std::integral CounterT = size_t>
+  template <typename T, std::unsigned_integral CounterT = size_t>
   class Count_Min_Sketch
   {
     size_t w_;             /**< Width of the sketch. */
@@ -83,6 +85,10 @@ namespace Aleph
     {
       ah_domain_error_if(w == 0 or d == 0) 
         << "Count_Min_Sketch: dimensions must be positive";
+
+      ah_domain_error_if(w > std::numeric_limits<size_t>::max() / d)
+        << "Count_Min_Sketch: product of dimensions w*d overflows size_t (got "
+        << w << " * " << d << ")";
       
       table_ = Array<CounterT>(w_ * d_, CounterT(0));
       seeds_.reserve(d_);
@@ -103,14 +109,19 @@ namespace Aleph
      */
     static Count_Min_Sketch from_error_bounds(const double epsilon, const double delta)
     {
-      ah_domain_error_if(epsilon <= 0.0) 
-        << "Count_Min_Sketch::from_error_bounds: epsilon must be > 0 (got " << epsilon << ")";
-      ah_domain_error_if(delta <= 0.0 or delta >= 1.0)
-        << "Count_Min_Sketch::from_error_bounds: delta must be in (0, 1) (got " << delta << ")";
+      ah_domain_error_if(epsilon <= 0.0 or not std::isfinite(epsilon)) 
+        << "Count_Min_Sketch::from_error_bounds: epsilon must be positive and finite (got " << epsilon << ")";
+      ah_domain_error_if(delta <= 0.0 or delta >= 1.0 or not std::isfinite(delta))
+        << "Count_Min_Sketch::from_error_bounds: delta must be in (0, 1) and finite (got " << delta << ")";
 
-      return Count_Min_Sketch(
-          static_cast<size_t>(std::ceil(std::exp(1.0) / epsilon)),
-          static_cast<size_t>(std::ceil(std::log(1.0 / delta))));
+      const double w_dbl = std::ceil(std::exp(1.0) / epsilon);
+      const double d_dbl = std::ceil(std::log(1.0 / delta));
+      const double max_sz = static_cast<double>(std::numeric_limits<size_t>::max());
+
+      ah_domain_error_if(w_dbl > max_sz or d_dbl > max_sz)
+        << "Count_Min_Sketch::from_error_bounds: calculated dimensions exceed size_t limits";
+
+      return Count_Min_Sketch(static_cast<size_t>(w_dbl), static_cast<size_t>(d_dbl));
     }
 
     /** @brief Increment count for an element.
@@ -119,12 +130,24 @@ namespace Aleph
      */
     void update(const T & val, CounterT count = 1)
     {
+      if (count == 0) return;
+
+      constexpr CounterT max_val = std::numeric_limits<CounterT>::max();
+
       for (size_t i = 0; i < d_; ++i)
         {
           const size_t h = murmur3hash(val, seeds_[i]) % w_;
-          table_(i * w_ + h) += count;
+          const size_t idx = i * w_ + h;
+          if (max_val - table_[idx] < count)
+            table_(idx) = max_val;
+          else
+            table_(idx) += count;
         }
-      total_count_ += count;
+
+      if (max_val - total_count_ < count)
+        total_count_ = max_val;
+      else
+        total_count_ += count;
     }
 
     /** @brief Estimate frequency of an element.
@@ -153,10 +176,20 @@ namespace Aleph
         ah_domain_error_if(seeds_(i) != other.seeds_[i])
           << "Count_Min_Sketch::merge: hash seed mismatch at index " << i;
       
+      constexpr CounterT max_val = std::numeric_limits<CounterT>::max();
+
       for (size_t i = 0; i < table_.size(); ++i)
-        table_(i) += other.table_[i];
+        {
+          if (max_val - table_[i] < other.table_[i])
+            table_(i) = max_val;
+          else
+            table_(i) += other.table_[i];
+        }
       
-      total_count_ += other.total_count_;
+      if (max_val - total_count_ < other.total_count_)
+        total_count_ = max_val;
+      else
+        total_count_ += other.total_count_;
     }
 
     /** @brief Clear all counters. */

@@ -36,7 +36,6 @@
 # include <iostream>
 # include <iomanip>
 # include <string>
-# include <unordered_map>
 
 # include <reservoir-sampling.H>
 # include <count-min-sketch.H>
@@ -44,6 +43,7 @@
 # include <minhash.H>
 # include <print_rule.H>
 # include <tpl_dynList.H>
+# include <tpl_hash.H>
 
 using namespace std;
 using namespace Aleph;
@@ -80,11 +80,15 @@ int main()
     cout << "[2] Count-Min Sketch (frequency estimation)\n";
     print_rule();
     auto cms = Count_Min_Sketch<string>::from_error_bounds(0.01, 0.01);
-    unordered_map<string, size_t> actual;
+    DynHashMap<string, size_t> actual;
     for (const auto & s : stream) 
       {
         cms.update(s);
-        actual[s]++;
+        size_t * ptr = actual.search(s);
+        if (ptr)
+          (*ptr)++;
+        else
+          actual.insert(s, 1);
       }
 
     cout << "Estimated frequency of 'apple' : " << cms.estimate("apple") << " (Actual: " << actual["apple"] << ")\n";
@@ -98,11 +102,11 @@ int main()
     cout << "[3] HyperLogLog (cardinality estimation)\n";
     print_rule();
     HyperLogLog<string> hll(10); // 1024 registers
-    unordered_map<string, bool> unique_map;
+    DynHashSet<string> unique_map;
     for (const auto & s : stream) 
       {
         hll.update(s);
-        unique_map[s] = true;
+        unique_map.insert(s);
       }
 
     cout << "Estimated unique elements: " << fixed << setprecision(1) << hll.estimate() << " (Actual: " << unique_map.size() << ")\n";

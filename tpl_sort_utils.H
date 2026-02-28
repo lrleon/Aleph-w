@@ -3609,7 +3609,6 @@ namespace Aleph
       }
   }
 
-  /** @brief Heapsort a subrange of a DynArray.
   /** @brief Heapsort implementation for a subrange of a DynArray.
    *
    *  Sorts the elements in the range [l, r] (inclusive) using the heapsort
@@ -5428,7 +5427,11 @@ namespace Aleph
      */
     template <typename T, class Compare>
     void insertion_sort_range(T *a, const size_t lo, const size_t hi,
-                              const Compare & cmp) noexcept
+                              const Compare & cmp)
+      noexcept(std::is_nothrow_move_constructible_v<T> and
+               std::is_nothrow_move_assignable_v<T> and
+               noexcept(std::declval<const Compare&>()(std::declval<const T&>(),
+                                                       std::declval<const T&>())))
     {
       for (size_t i = lo + 1; i < hi; ++i)
         {
@@ -5493,7 +5496,7 @@ namespace Aleph
       for (size_t i = 0; i < n; ++i)
         {
           const size_t b = bucket_key(a[i]);
-          tmp[offsets[b] + counts[b]] = a[i];
+          tmp[offsets[b] + counts[b]] = std::move(a[i]);
           ++counts[b];
         }
 
@@ -5783,7 +5786,7 @@ namespace Aleph
       size_t r = 0;
       while (n >= 64)
         {
-          r |= (n & 1);
+          r |= n & 1;
           n >>= 1;
         }
       return n + r;
@@ -5816,7 +5819,7 @@ namespace Aleph
     template <typename T, class Compare>
     size_t count_run_and_make_ascending(T *a, const size_t lo,
                                         const size_t hi,
-                                        const Compare & cmp) noexcept
+                                        const Compare & cmp)
     {
       if (hi - lo <= 1)
         return hi - lo;

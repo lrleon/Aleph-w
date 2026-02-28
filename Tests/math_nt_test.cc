@@ -243,7 +243,7 @@ TEST(MathNT, ModularLinalg)
   ASSERT_TRUE(inv_opt.has_value());
   auto inv_mat = inv_opt->get();
   
-  // Check A * A^-1 = I
+  // Check A^-1 * A = I
   EXPECT_EQ((inv_mat[0][0] * 1 + inv_mat[0][1] * 3) % 5, 1);
   EXPECT_EQ((inv_mat[0][0] * 2 + inv_mat[0][1] * 4) % 5, 0);
   EXPECT_EQ((inv_mat[1][0] * 1 + inv_mat[1][1] * 3) % 5, 0);

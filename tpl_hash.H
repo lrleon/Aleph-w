@@ -129,6 +129,15 @@ namespace Aleph
 
     Generate_Proxy_Operator(HashMap);
   };
+
+  /// @brief Alias for HashSet (for consistency with other Dyn containers).
+  template <typename T>
+  using DynHashSet = HashSet<T>;
+
+  /// @brief Alias for HashMap (for consistency with other Dyn containers).
+  template <typename K, typename V>
+  using DynHashMap = HashMap<K, V>;
+
 } // end namespace Aleph
 
 
