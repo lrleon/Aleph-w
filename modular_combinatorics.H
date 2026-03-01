@@ -44,6 +44,7 @@
 # include <ah-errors.H>
 # include <tpl_array.H>
 # include <modular_arithmetic.H>
+# include <primality.H>
 
 namespace Aleph
 {
@@ -63,12 +64,13 @@ namespace Aleph
      *
      *  @param[in] max_n Maximum value for factorials to precompute.
      *  @param[in] p Prime modulus.
-     *  @pre p > 1
-     *  @throws std::invalid_argument if p <= 1.
+     *  @pre p is a prime number.
+     *  @throws std::invalid_argument if p is not prime.
      */
     ModularCombinatorics(size_t max_n, const uint64_t p) : mod_(p)
     {
-      ah_invalid_argument_if(p <= 1) << "ModularCombinatorics: modulus must be > 1";
+      ah_invalid_argument_if(not miller_rabin(mod_))
+        << "ModularCombinatorics: modulus " << mod_ << " must be prime";
 
       if (max_n >= mod_)
         max_n = static_cast<size_t>(mod_ - 1);

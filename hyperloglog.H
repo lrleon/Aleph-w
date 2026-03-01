@@ -125,12 +125,13 @@ namespace Aleph
       size_t v = 0; // count of empty registers for Linear Counting
       for (size_t i = 0; i < m_; ++i)
         {
-          z += std::pow(2.0, -static_cast<double>(registers_[i]));
+          // More efficient and stable than std::pow(2.0, -registers_[i])
+          z += std::ldexp(1.0, -static_cast<int>(registers_[i]));
           if (registers_[i] == 0)
             ++v;
         }
 
-      // Cast each factor individually to avoid size_t overflow on 32-bit
+      // Raw estimate
       double e = alpha_m_ * (static_cast<double>(m_) * static_cast<double>(m_)) / z;
 
       // Small range correction (Linear Counting)
@@ -140,11 +141,16 @@ namespace Aleph
             e = static_cast<double>(m_) * std::log(static_cast<double>(m_) / static_cast<double>(v));
         }
       // Large range correction
-      else if (e > (1.0 / 30.0) * std::pow(2.0, 64.0))
-        e = -std::pow(2.0, 64.0) * std::log(1.0 - e / std::pow(2.0, 64.0));
+      else 
+        {
+          static constexpr double two_to_64 = 18446744073709551616.0;
+          if (e > (1.0 / 30.0) * two_to_64)
+            e = -two_to_64 * std::log(1.0 - e / two_to_64);
+        }
 
       return e;
     }
+
 
     /** @brief Merge another HyperLogLog into this one.
      *  @throws std::domain_error if register count (b) mismatches.

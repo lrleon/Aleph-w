@@ -59,7 +59,13 @@ namespace Aleph
    *  Maintain a representative random sample of size `k` from a stream
    *  of elements.
    *
+   *  ## Thread-safety
+   *  This class is **not thread-safe**. External synchronization is required
+   *  for concurrent access from multiple threads.
+   *
    *  @tparam T Element type.
+   *  @pre `k >= 0`. If `k == 0`, no elements are stored and `get_sample()`
+   *       always returns an empty array.
    */
   template <typename T>
   class Reservoir_Sampler
@@ -115,16 +121,12 @@ namespace Aleph
       else
         {
           // Probability of replacement is k / (n_seen + 1)
-          // gsl_rng_uniform_int takes unsigned long, guard against overflow/truncation
-          const size_t limit = std::numeric_limits<unsigned long>::max();
-          
-          // Statistical integrity check: for n_seen >= 2^53, precision loss 
-          // in floating-point or 64-bit bounds can bias the sampling.
-          ah_overflow_error_if(n_seen_ >= (1ULL << 53))
-            << "Reservoir_Sampler::update: stream length exceeds safe precision threshold (2^53)";
+          const uint64_t rng_min = gsl_rng_min(rng_.get());
+          const uint64_t rng_max = gsl_rng_max(rng_.get());
+          const uint64_t rng_range = rng_max - rng_min + 1;
 
-          ah_runtime_error_unless(n_seen_ < limit)
-            << "Reservoir_Sampler::update: stream length exceeds unsigned long capacity of RNG API";
+          ah_runtime_error_unless(n_seen_ < rng_range)
+            << "Reservoir_Sampler::update: stream length exceeds RNG generator range (" << rng_range << ")";
 
           const size_t j = gsl_rng_uniform_int(rng_.get(), n_seen_ + 1);
           if (j < k_)
@@ -141,6 +143,7 @@ namespace Aleph
      *  @param[in] end Sentinel to the end of the range.
      *  @return void
      *  @throws std::overflow_error if stream length exceeds safe limits.
+     *  @throws std::runtime_error if RNG range is exceeded.
      */
     template <std::input_iterator Itor, std::sentinel_for<Itor> Sent>
     void update(Itor beg, Sent end)
@@ -151,6 +154,7 @@ namespace Aleph
 
     /** @brief Returns the current random sample. 
      *  @return const Array<T>& The current reservoir sample.
+     *  @throws none
      */
     [[nodiscard]] const Array<T> & get_sample() const noexcept
     {
@@ -159,11 +163,13 @@ namespace Aleph
 
     /** @brief Total elements processed so far. 
      *  @return size_t Total number of elements processed.
+     *  @throws none
      */
     [[nodiscard]] size_t total_seen() const noexcept { return n_seen_; }
 
     /** @brief Target sample size. 
      *  @return size_t The target sample size (k_).
+     *  @throws none
      */
     [[nodiscard]] size_t sample_size() const noexcept { return k_; }
 
@@ -172,6 +178,7 @@ namespace Aleph
      *  Clears the reservoir, resets the element counter, and reseeds the
      *  RNG to its original state so the sampler is fully reproducible.
      *  @return void
+     *  @throws none
      */
     void clear()
     {

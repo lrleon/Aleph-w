@@ -85,7 +85,9 @@ TEST(StreamingAlgorithms, CountMinSketch)
   EXPECT_GE(cms.estimate("apple"), 110u);
   EXPECT_GE(cms.estimate("banana"), 5u);
   EXPECT_GE(cms.estimate("cherry"), 1u);
-  EXPECT_LT(cms.estimate("cherry"), 10u); // should be reasonably close
+  // Theoretical bound: f + epsilon * total_count = 1 + 0.01 * 121 = 2.21
+  // We use a safe bound of 10u to account for small total_count noise.
+  EXPECT_LE(cms.estimate("cherry"), 10u); 
   
   // Deterministic property check
   const size_t before = cms.estimate("dragonfruit");

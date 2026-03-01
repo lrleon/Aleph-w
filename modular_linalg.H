@@ -164,6 +164,14 @@ namespace Aleph
         }
     }
 
+  private:
+    // Internal constructor to skip validation when data is already normalized
+    struct skip_validation_t {};
+    Modular_Matrix(MatrixT && m, uint64_t p, skip_validation_t)
+      : mat(std::move(m)), mod(p) {}
+
+  public:
+
     /** @brief Get a constant reference to the underlying matrix.
      *  @return Constant reference to the matrix data.
      *  @note Thread-safety: Safe for concurrent reads.
@@ -305,7 +313,7 @@ namespace Aleph
                   }
         }
 
-      return Modular_Matrix<MatrixT>(inv, mod);
+      return Modular_Matrix<MatrixT>(std::move(inv), mod, skip_validation_t{});
     }
   };
 
