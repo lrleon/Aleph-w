@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -40,24 +39,71 @@
 # include <ah-comb.H>
 # include <ahFunctional.H>
 
+# include <algorithm>
+# include <array>
 # include <set>
 # include <sstream>
+# include <vector>
 
 using namespace Aleph;
 
 namespace
 {
+/**
+ * @brief Converts a DynList<int> to a comma-separated string of its elements.
+ *
+ * @param l Source list whose elements will be concatenated in order.
+ * @return std::string The elements of `l` joined by commas (e.g., "1,2,3"); returns an empty string if `l` is empty.
+ */
 std::string list_to_string(const DynList<int> & l)
 {
   std::ostringstream oss;
   bool first = true;
   l.for_each([&](int v)
   {
-    if (!first)
+    if (not first)
       oss << ',';
     first = false;
     oss << v;
   });
+  return oss.str();
+}
+
+template <class Seq>
+/**
+ * @brief Converts a sequence-like object to a comma-separated string.
+ *
+ * @tparam Seq Sequence-like type that provides size() and operator()(size_t).
+ * @param s Sequence whose elements will be converted via stream insertion and joined with commas.
+ * @return std::string Comma-separated representation of the sequence's elements (empty string when the sequence is empty).
+ */
+std::string seq_to_string(const Seq & s)
+{
+  std::ostringstream oss;
+  for (size_t i = 0; i < s.size(); ++i)
+    {
+      if (i > 0)
+        oss << ',';
+      oss << s(i);
+    }
+  return oss.str();
+}
+
+/**
+ * @brief Converts a vector of integers to a comma-separated string.
+ *
+ * @param v Vector of integers to stringify.
+ * @return std::string Comma-separated sequence of the vector's elements; empty string if the vector is empty.
+ */
+std::string vector_to_string(const std::vector<int> & v)
+{
+  std::ostringstream oss;
+  for (size_t i = 0; i < v.size(); ++i)
+    {
+      if (i > 0)
+        oss << ',';
+      oss << v[i];
+    }
   return oss.str();
 }
 }
@@ -695,7 +741,7 @@ TEST(AhComb, StressTestManyPermutations)
   EXPECT_EQ(count, 243u);
 }
 
-TEST(AhComb, NodescardBuildPerms)
+TEST(AhComb, NodiscardBuildPerms)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -705,7 +751,7 @@ TEST(AhComb, NodescardBuildPerms)
   EXPECT_EQ(perms.size(), 2u);
 }
 
-TEST(AhComb, NodescardBuildCombs)
+TEST(AhComb, NodiscardBuildCombs)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -715,7 +761,7 @@ TEST(AhComb, NodescardBuildCombs)
   EXPECT_EQ(combs.size(), 2u);
 }
 
-TEST(AhComb, NodescardTranspose)
+TEST(AhComb, NodiscardTranspose)
 {
   DynList<int> r1 = {1, 2};
   DynList<DynList<int>> m = {r1};
@@ -725,7 +771,7 @@ TEST(AhComb, NodescardTranspose)
   EXPECT_EQ(t.size(), 2u);
 }
 
-TEST(AhComb, NodescardFoldPerm)
+TEST(AhComb, NodiscardFoldPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -738,7 +784,7 @@ TEST(AhComb, NodescardFoldPerm)
   EXPECT_EQ(sum, 3);
 }
 
-TEST(AhComb, NodescardPermCount)
+TEST(AhComb, NodiscardPermCount)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -748,7 +794,7 @@ TEST(AhComb, NodescardPermCount)
   EXPECT_EQ(count, 2u);
 }
 
-TEST(AhComb, NodescardExistsPerm)
+TEST(AhComb, NodiscardExistsPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -758,7 +804,269 @@ TEST(AhComb, NodescardExistsPerm)
   EXPECT_TRUE(exists);
 }
 
-TEST(AhComb, NodescardAllPerm)
+TEST(AhComb, NextPermutationArrayBasicLexicographicOrder)
+{
+  Array<int> a = {1, 2, 3};
+
+  std::vector<std::string> seen;
+  seen.push_back(seq_to_string(a));
+  while (next_permutation(a))
+    seen.push_back(seq_to_string(a));
+
+  const std::vector<std::string> expected = {
+    "1,2,3", "1,3,2", "2,1,3", "2,3,1", "3,1,2", "3,2,1"
+  };
+  EXPECT_EQ(seen, expected);
+
+  // Default behavior resets to first permutation at the end.
+  EXPECT_EQ(seq_to_string(a), "1,2,3");
+}
+
+TEST(AhComb, NextPermutationArrayHandlesDuplicatesWithoutRepeats)
+{
+  Array<int> a = {1, 1, 2};
+
+  std::vector<std::string> seen;
+  seen.push_back(seq_to_string(a));
+  while (next_permutation(a))
+    seen.push_back(seq_to_string(a));
+
+  const std::vector<std::string> expected = {
+    "1,1,2", "1,2,1", "2,1,1"
+  };
+  EXPECT_EQ(seen, expected);
+  EXPECT_EQ(seq_to_string(a), "1,1,2");
+}
+
+TEST(AhComb, NextPermutationArrayMatchesStdWithCustomComparator)
+{
+  Array<int> a = {3, 2, 1};
+  std::vector<int> v = {3, 2, 1};
+
+  while (true)
+    {
+      EXPECT_EQ(seq_to_string(a), vector_to_string(v));
+
+      const bool ha = Aleph::next_permutation(a, Aleph::greater<int>());
+      const bool hv = std::next_permutation(v.begin(), v.end(),
+                                            std::greater<int>());
+      EXPECT_EQ(ha, hv);
+
+      if (not ha)
+        break;
+    }
+}
+
+TEST(AhComb, NextPermutationResetOnLastCanBeDisabled)
+{
+  Array<int> a = {3, 2, 1};
+  EXPECT_FALSE(next_permutation(a, Aleph::less<int>(), false));
+  EXPECT_EQ(seq_to_string(a), "3,2,1");
+}
+
+TEST(AhComb, NextPermutationDynArray)
+{
+  DynArray<int> a;
+  a.reserve(3);
+  a(0) = 1;
+  a(1) = 2;
+  a(2) = 3;
+
+  size_t count = 1;
+  while (next_permutation(a))
+    ++count;
+
+  EXPECT_EQ(count, 6u);
+  EXPECT_EQ(seq_to_string(a), "1,2,3");
+}
+
+TEST(AhComb, NextCombinationIndicesArrayEnumeratesAll)
+{
+  Array<size_t> idx = {0, 1, 2};
+  const size_t n = 5;
+
+  std::vector<std::array<size_t, 3>> seen;
+  while (true)
+    {
+      seen.push_back({idx(0), idx(1), idx(2)});
+      if (not next_combination_indices(idx, n))
+        break;
+    }
+
+  const std::vector<std::array<size_t, 3>> expected = {
+    {0, 1, 2}, {0, 1, 3}, {0, 1, 4}, {0, 2, 3}, {0, 2, 4},
+    {0, 3, 4}, {1, 2, 3}, {1, 2, 4}, {1, 3, 4}, {2, 3, 4}
+  };
+  EXPECT_EQ(seen, expected);
+
+  // Default behavior resets to first combination at the end.
+  EXPECT_EQ(idx(0), 0u);
+  EXPECT_EQ(idx(1), 1u);
+  EXPECT_EQ(idx(2), 2u);
+}
+
+TEST(AhComb, NextCombinationIndicesResetOnLastCanBeDisabled)
+{
+  Array<size_t> idx = {2, 3, 4};
+  EXPECT_FALSE(next_combination_indices(idx, 5, false));
+  EXPECT_EQ(idx(0), 2u);
+  EXPECT_EQ(idx(1), 3u);
+  EXPECT_EQ(idx(2), 4u);
+}
+
+/**
+ * @brief Verifies input validation for next_combination_indices.
+ *
+ * Checks that next_combination_indices throws a std::domain_error when the
+ * indices are not strictly increasing, throws std::out_of_range when an index
+ * is >= n, and throws std::domain_error when the number of indices is greater
+ * than n.
+ */
+TEST(AhComb, NextCombinationIndicesValidation)
+{
+  Array<size_t> not_increasing = {0, 2, 2};
+  EXPECT_THROW(next_combination_indices(not_increasing, 5), std::domain_error);
+
+  Array<size_t> out_of_range = {0, 1, 5};
+  EXPECT_THROW(next_combination_indices(out_of_range, 5), std::out_of_range);
+
+  Array<size_t> k_gt_n = {0, 1, 2};
+  EXPECT_THROW(next_combination_indices(k_gt_n, 2), std::domain_error);
+}
+
+TEST(AhComb, NextCombinationIndicesDynArray)
+{
+  DynArray<size_t> idx;
+  idx.reserve(2);
+  idx(0) = 0;
+  idx(1) = 1;
+
+  size_t count = 1;
+  while (next_combination_indices(idx, 4))
+    ++count;
+
+  EXPECT_EQ(count, 6u); // C(4,2)
+  EXPECT_EQ(idx(0), 0u);
+  EXPECT_EQ(idx(1), 1u);
+}
+
+TEST(AhComb, CombinationCountBasicCases)
+{
+  EXPECT_EQ(combination_count(0, 0), 1u);
+  EXPECT_EQ(combination_count(5, 0), 1u);
+  EXPECT_EQ(combination_count(5, 5), 1u);
+  EXPECT_EQ(combination_count(5, 2), 10u);
+  EXPECT_EQ(combination_count(5, 3), 10u);
+  EXPECT_EQ(combination_count(20, 10), 184756u);
+  EXPECT_EQ(combination_count(6, 8), 0u);
+}
+
+TEST(AhComb, CombinationCountOverflowThrows)
+{
+  if (sizeof(size_t) >= 8)
+    EXPECT_THROW(combination_count(68, 34), std::runtime_error);
+  else
+    EXPECT_THROW(combination_count(35, 17), std::runtime_error);
+}
+
+TEST(AhComb, CombinationMaskEnumerationAndReset)
+{
+  uint64_t mask = first_combination_mask(3); // 0b00111
+  const size_t n = 5;
+
+  std::vector<uint64_t> seen;
+  while (true)
+    {
+      seen.push_back(mask);
+      if (not next_combination_mask(mask, n))
+        break;
+    }
+
+  const std::vector<uint64_t> expected = {
+    0x07, 0x0b, 0x0d, 0x0e, 0x13, 0x15, 0x16, 0x19, 0x1a, 0x1c
+  };
+  EXPECT_EQ(seen, expected);
+  EXPECT_EQ(mask, uint64_t(0x07)); // reset to first
+}
+
+TEST(AhComb, CombinationMaskValidation)
+{
+  uint64_t mask = 0;
+  EXPECT_THROW((void)next_combination_mask(mask, 65), std::out_of_range);
+
+  mask = (uint64_t(1) << 7); // outside n=5
+  EXPECT_THROW((void)next_combination_mask(mask, 5), std::domain_error);
+}
+
+TEST(AhComb, ForEachCombinationArrayAndEarlyStop)
+{
+  Array<int> values = {10, 20, 30, 40};
+
+  std::vector<std::string> seen;
+  bool full = for_each_combination(values, 2, [&seen](const Array<int> & c)
+  {
+    seen.push_back(seq_to_string(c));
+    return true;
+  });
+  EXPECT_TRUE(full);
+
+  const std::vector<std::string> expected = {
+    "10,20", "10,30", "10,40", "20,30", "20,40", "30,40"
+  };
+  EXPECT_EQ(seen, expected);
+
+  size_t calls = 0;
+  bool done = for_each_combination(values, 3, [&calls](const Array<int> &)
+  {
+    ++calls;
+    return calls < 3;
+  });
+  EXPECT_FALSE(done);
+  EXPECT_EQ(calls, 3u);
+}
+
+TEST(AhComb, ForEachCombinationEdgeCases)
+{
+  Array<int> values = {1, 2, 3};
+
+  size_t calls = 0;
+  bool ok = for_each_combination(values, 0, [&calls](const Array<int> & c)
+  {
+    ++calls;
+    EXPECT_EQ(c.size(), 0u);
+    return true;
+  });
+  EXPECT_TRUE(ok);
+  EXPECT_EQ(calls, 1u);
+
+  EXPECT_THROW((void)for_each_combination(values, 4,
+              [](const Array<int> &) { return true; }), std::domain_error);
+}
+
+TEST(AhComb, BuildCombinationsArrayAndDynArray)
+{
+  Array<int> values = {1, 2, 3, 4};
+  auto combs = build_combinations(values, 3);
+  ASSERT_EQ(combs.size(), 4u);
+  EXPECT_EQ(seq_to_string(combs(0)), "1,2,3");
+  EXPECT_EQ(seq_to_string(combs(1)), "1,2,4");
+  EXPECT_EQ(seq_to_string(combs(2)), "1,3,4");
+  EXPECT_EQ(seq_to_string(combs(3)), "2,3,4");
+
+  DynArray<int> dyn;
+  dyn.reserve(4);
+  dyn(0) = 1;
+  dyn(1) = 2;
+  dyn(2) = 3;
+  dyn(3) = 4;
+
+  auto combs_dyn = build_combinations(dyn, 2);
+  ASSERT_EQ(combs_dyn.size(), 6u);
+  EXPECT_EQ(seq_to_string(combs_dyn(0)), "1,2");
+  EXPECT_EQ(seq_to_string(combs_dyn(5)), "3,4");
+}
+
+TEST(AhComb, NodiscardAllPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -768,7 +1076,7 @@ TEST(AhComb, NodescardAllPerm)
   EXPECT_TRUE(all);
 }
 
-TEST(AhComb, NodescardNonePerm)
+TEST(AhComb, NodiscardNonePerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -778,7 +1086,7 @@ TEST(AhComb, NodescardNonePerm)
   EXPECT_TRUE(none);
 }
 
-TEST(AhComb, NodescardFilterPerm)
+TEST(AhComb, NodiscardFilterPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -788,7 +1096,7 @@ TEST(AhComb, NodescardFilterPerm)
   EXPECT_EQ(filtered.size(), 2u);
 }
 
-TEST(AhComb, NodescardMapPerm)
+TEST(AhComb, NodiscardMapPerm)
 {
   DynList<int> l1 = {1, 2};
   DynList<DynList<int>> l = {l1};
@@ -796,4 +1104,53 @@ TEST(AhComb, NodescardMapPerm)
   // Should not trigger nodiscard warning - use result
   auto mapped = map_perm<int>(l, [](const DynList<int> & p) { return p.get_first(); });
   EXPECT_EQ(mapped.size(), 2u);
+}
+
+TEST(AhComb, GrayCodeConversion)
+{
+  // n = 0..7
+  const std::vector<uint32_t> expected_gray = {
+    0, 1, 3, 2, 6, 7, 5, 4
+  };
+
+  for (uint32_t i = 0; i < expected_gray.size(); ++i)
+    {
+      uint32_t g = bin_to_gray(i);
+      EXPECT_EQ(g, expected_gray[i]) << "bin_to_gray mismatch at i=" << i;
+      EXPECT_EQ(gray_to_bin(g), i) << "gray_to_bin mismatch at g=" << g;
+    }
+}
+
+TEST(AhComb, BuildGrayCode)
+{
+  const size_t n = 4;
+  auto gray = build_gray_code(n);
+  
+  ASSERT_EQ(gray.size(), 16u);
+  
+  // Verify adjacency property (exactly one bit difference)
+  for (size_t i = 1; i < gray.size(); ++i)
+    {
+      uint32_t diff = gray[i] ^ gray[i-1];
+      // diff should be a power of 2
+      EXPECT_TRUE(diff > 0 && (diff & (diff - 1)) == 0)
+        << "Not a Gray code sequence at i=" << i 
+        << " (values: " << gray[i-1] << ", " << gray[i] << ")";
+    }
+    
+  // Verify cyclic property
+  uint32_t diff_last = gray[gray.size()-1] ^ gray[0];
+  EXPECT_TRUE(diff_last > 0 && (diff_last & (diff_last - 1)) == 0);
+}
+
+TEST(AhComb, GrayCodeLargeValue)
+{
+  uint64_t val = 0x123456789ABCDEF0ULL;
+  uint64_t g = bin_to_gray(val);
+  EXPECT_EQ(gray_to_bin(g), val);
+}
+
+TEST(AhComb, BuildGrayCodeThrowsOnTooLarge)
+{
+  EXPECT_THROW(build_gray_code(32), std::domain_error);
 }
