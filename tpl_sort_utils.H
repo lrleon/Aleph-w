@@ -549,25 +549,6 @@ namespace Aleph
   using Compare_Snodenc = Compare_Tnode<Slinknc, Snodenc, T, Compare>;
 
 
-  /** Sorts a linked list of type Dnode<T> using
-      the selection method.
-
-      Sorts the list, with nodes of type Dnode<T>
-      depending on the selection method.
-
-      The selection method has a performance of \f$O(n^2)\f$.
-      Due to its simplicity of implementation and its constant cost
-      is low, so it is a good method for arrangements of
-      very small dimension.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      @param[in,out] list the list to be sorted.
-      @param cmp comparison object.
-      \ingroup Algorithms
-  */
   /** @brief Selection sort for Dnode-based doubly-linked lists.
    *
    *  @tparam T Element type.
@@ -1052,17 +1033,6 @@ namespace Aleph
         << "insert_sorted(): reached end of list traversal without inserting";
   }
 
-  /** Sorts a list of simple nodes by insertion method
-
-      insertion_sort(list) sorts by insertion method
-      linked list
-
-      The insert method has a performance of \f$O(n^2)\f$.
-
-      @param[in,out] list the list to be ordered.
-      @param cmp comparison object.
-      \ingroup Algorithms
-  */
   /** @brief Generic insertion sort for linked lists.
    *
    *  @tparam ListType The list container type (e.g., DynList, DynDlist).
@@ -1122,17 +1092,6 @@ namespace Aleph
     return std::move(l);
   }
 
-  /** Sorts the list by insertion method.
-
-      Sorts the list based on Dnode<T> by the
-      insertion according to comparison criterion Compare.
-
-      The insert method has a performance of \f$O(n^2)\f$.
-
-      @param[in,out] list the list to sort.
-      @param cmp Comparison functor defining "less than" relationship.
-      @see Dnode selection_sort(Dlink * link)
-  */
   /** @brief Insertion sort for Dnode-based lists.
    *
    *  @tparam T Element type.
@@ -1349,22 +1308,6 @@ namespace Aleph
     assert(l1.is_empty() and l2.is_empty());
   }
 
-  /** Merge two sorted lists of type Dnode into one.
-
-      merge_lists(l1,l2,result) takes two sorted lists l1 and l2
-      and merges them into a single ordered list result according to
-      comparison criterion Compare.
-
-      It is not checked whether lists l1 and l2 are sorted.
-      Results will be incorrect if this premise is not met.
-
-      @param[in,out] l1 an ordered list to merge.
-      @param[in,out] l2 an ordered list to merge.
-      @param[out] result the list where the result will be placed.
-      @param cmp comparison object.
-
-      \ingroup Algorithms
-  */
   /** @brief Merge two sorted Dnode-based lists.
    *
    *  @tparam T Element type.
@@ -1578,6 +1521,16 @@ namespace Aleph
   }
 
 
+  /** @brief Merge sort for DynList (rvalue overload).
+   *
+   *  Moves the input list into the sorted result.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor.
+   *  @param[in,out] list The list to sort (rvalue).
+   *  @param[in] cmp Comparison functor.
+   *  @return The sorted list.
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   DynList<T> mergesort(DynList<T> && list, const Compare & cmp = Compare())
@@ -1683,13 +1636,6 @@ namespace Aleph
     quicksort_rec<T, Compare>(a, pivot + 1, r, cmp);
   }
 
-  /** @brief Sort an array using quicksort with tail recursion elimination.
-   *  @details Ensures O(log n) stack depth by recursing on the smaller partition.
-   *  @param a Pointer to the array.
-   *  @param l Left index (inclusive).
-   *  @param r Right index (inclusive).
-   *  @param cmp Comparison functor.
-   */
   /** @brief Quicksort implementation with tail-recursion optimization.
    *
    *  Recursively sorts the smaller partition and iterates on the larger one
@@ -2051,23 +1997,6 @@ namespace Aleph
    *  directly on the underlying buffer.
    *
    *  @tparam T Element type.
-   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
-   *
-   *  @param[in,out] arr The Array to sort.
-   *  @param cmp Comparison functor.
-   *
-   *  @par Example
-   *  @code
-   *  Array<int> arr = {5, 2, 8, 1, 9};
-   *  introsort(arr);  // arr is now {1, 2, 5, 8, 9}
-   *
-   *  // Descending order
-   *  introsort(arr, std::greater<int>());
-   *  @endcode
-   *
-   *  @see Array
-   *  @ingroup Algorithms
-   */
   /** @brief Introsort for Aleph Array.
    *
    *  @tparam T Element type.
@@ -5585,8 +5514,13 @@ namespace Aleph
       return;
 
     T min_val = a[0], max_val = a[0];
-    for (size_t i = 1; i < n; ++i)
+    for (size_t i = 0; i < n; ++i)
       {
+        if (not std::isfinite(a[i])) [[unlikely]]
+          {
+            introsort(a, n, cmp);
+            return;
+          }
         if (a[i] < min_val) min_val = a[i];
         if (a[i] > max_val) max_val = a[i];
       }
@@ -5595,15 +5529,16 @@ namespace Aleph
     if (range == T{0})
       return; // all equal
 
+    const bool descending = not cmp(min_val, max_val);
     const size_t num_buckets = n;
-    auto key = [min_val, max_val, range, num_buckets, cmp](const T & val) -> size_t
+    auto key = [min_val, max_val, range, num_buckets, descending](const T & val) -> size_t
       {
         auto b = static_cast<size_t>((val - min_val) / range *
                                       static_cast<T>(num_buckets - 1));
         if (b >= num_buckets)
           b = num_buckets - 1;
 
-        if (not cmp(min_val, max_val)) // Descending order
+        if (descending)
           b = (num_buckets - 1) - b;
 
         return b;
@@ -6305,7 +6240,7 @@ namespace Aleph
   void timsort(T *a, const long l, const long r,
                const Compare & cmp = Compare())
   {
-    ah_invalid_argument_if(l < 0 or r < 0)
+    ah_range_error_if(l < 0 or r < 0)
       << "timsort(): negative bounds [" << l << ", " << r << "] are not allowed";
 
     if (l >= r)

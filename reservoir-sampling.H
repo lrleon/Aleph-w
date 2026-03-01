@@ -111,9 +111,24 @@ namespace Aleph
       else
         {
           // Probability of replacement is k / (n_seen + 1)
-          const size_t j = gsl_rng_uniform_int(rng_.get(), n_seen_ + 1);
-          if (j < k_)
-            reservoir_(j) = val;
+          // gsl_rng_uniform_int takes unsigned long, guard against overflow/truncation
+          const size_t limit = std::numeric_limits<unsigned long>::max();
+          if (n_seen_ < limit)
+            {
+              const size_t j = gsl_rng_uniform_int(rng_.get(), n_seen_ + 1);
+              if (j < k_)
+                reservoir_(j) = val;
+            }
+          else
+            {
+              // For massive streams where n_seen >= ULONG_MAX, we use a 
+              // 64-bit safe bound if possible or fallback. GSL doesn't have 
+              // a 64-bit uniform_int in all versions, so we use uniform double.
+              const double u = gsl_rng_uniform(rng_.get()); // [0, 1)
+              const size_t j = static_cast<size_t>(u * static_cast<double>(n_seen_ + 1));
+              if (j < k_)
+                reservoir_(j) = val;
+            }
         }
       ++n_seen_;
     }

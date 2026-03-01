@@ -151,14 +151,14 @@ public:
 
         // Compute maximum NTT length supported by MOD
         uint64_t m_minus_1 = MOD - 1;
-        size_t max_ntt_len = 1;
+        uint64_t max_ntt_len = 1;
         while (m_minus_1 > 0 and (m_minus_1 % 2 == 0))
           {
             max_ntt_len <<= 1;
             m_minus_1 /= 2;
           }
 
-        ah_invalid_argument_if(n > max_ntt_len)
+        ah_invalid_argument_if(static_cast<uint64_t>(n) > max_ntt_len)
           << "NTT::multiply: product size " << n << " exceeds maximum supported length "
           << max_ntt_len << " for MOD " << MOD;
             
