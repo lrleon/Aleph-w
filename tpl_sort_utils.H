@@ -5797,7 +5797,8 @@ namespace Aleph
      *  @tparam T Element type.
      */
     template <typename T>
-    void reverse_range(T *a, size_t lo, size_t hi) noexcept
+    void reverse_range(T *a, size_t lo, size_t hi) 
+      noexcept(std::is_nothrow_swappable_v<T>)
     {
       while (lo + 1 < hi)
         {
@@ -5848,18 +5849,21 @@ namespace Aleph
      */
     template <typename T, class Compare>
     void binary_insertion_sort(T *a, const size_t lo, const size_t hi,
-                               size_t start, const Compare & cmp) noexcept
+                               const size_t start, const Compare & cmp)
+      noexcept(std::is_nothrow_move_constructible_v<T> and
+               std::is_nothrow_move_assignable_v<T> and
+               noexcept(std::declval<const Compare&>()(std::declval<const T&>(),
+                                                       std::declval<const T&>())))
+
     {
-      if (start <= lo)
-        start = lo + 1;
-
-      for (; start < hi; ++start)
+      size_t i = (start <= lo) ? lo + 1 : start;
+      for (; i < hi; ++i)
         {
-          T pivot = std::move(a[start]);
+          T pivot = std::move(a[i]);
 
-          // Binary search for insertion point in [lo, start)
+          // Binary search for insertion point in [lo, i)
           size_t left = lo;
-          size_t right = start;
+          size_t right = i;
           while (left < right)
             {
               const size_t mid = left + (right - left) / 2;
@@ -5869,20 +5873,14 @@ namespace Aleph
                 left = mid + 1;
             }
 
-          // Shift elements [left, start) right by one
-          for (size_t p = start; p > left; --p)
+          // Shift elements [left, i) right by one
+          for (size_t p = i; p > left; --p)
             a[p] = std::move(a[p - 1]);
           a[left] = std::move(pivot);
         }
     }
 
 
-    /** @brief Gallop left: find the position where `key` would be inserted
-     *  into a[base..base+len) to keep it sorted, assuming a is sorted.
-     *  Returns the leftmost such position (for stability).
-     *
-     *  Uses exponential search from `hint` then binary search.
-     */
     /** @brief Gallop left: find the insertion point for a key in a sorted range.
      *
      *  Finds the leftmost position where `key` can be inserted while maintaining
@@ -5902,7 +5900,9 @@ namespace Aleph
      */
     template <typename T, class Compare>
     size_t gallop_left(const T & key, const T *a, const size_t len,
-                       const size_t hint, const Compare & cmp) noexcept
+                       const size_t hint, const Compare & cmp)
+      noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(),
+                                                       std::declval<const T&>())))
     {
       size_t last_ofs = 0;
       size_t ofs = 1;
@@ -5931,6 +5931,9 @@ namespace Aleph
                 ofs = max_ofs;
             }
           const size_t tmp = last_ofs;
+          // Note: last_ofs may intentionally underflow if hint < ofs.
+          // This is compensated by the subsequent ++last_ofs to effectively
+          // start the binary search at index 0.
           last_ofs = hint - ofs;
           ofs = hint - tmp;
         }
@@ -5949,9 +5952,6 @@ namespace Aleph
     }
 
 
-    /** @brief Gallop right: find the rightmost position where `key` would
-     *  be inserted into a[0..len) to keep it sorted.
-     */
     /** @brief Gallop right: find the insertion point for a key in a sorted range.
      *
      *  Finds the rightmost position where `key` can be inserted while maintaining
@@ -5970,7 +5970,9 @@ namespace Aleph
      */
     template <typename T, class Compare>
     size_t gallop_right(const T & key, const T *a, const size_t len,
-                        const size_t hint, const Compare & cmp) noexcept
+                        const size_t hint, const Compare & cmp)
+      noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(),
+                                                       std::declval<const T&>())))
     {
       size_t last_ofs = 0;
       size_t ofs = 1;
@@ -5986,6 +5988,9 @@ namespace Aleph
                 ofs = max_ofs;
             }
           const size_t tmp = last_ofs;
+          // Note: last_ofs may intentionally underflow if hint < ofs.
+          // This is compensated by the subsequent ++last_ofs to effectively
+          // start the binary search at index 0.
           last_ofs = hint - ofs;
           ofs = hint - tmp;
         }
@@ -6171,18 +6176,6 @@ namespace Aleph
     }
 
 
-    /** @brief Core timsort implementation on a raw array.
-     *
-     *  1. Scans for natural runs
-     *  2. Extends short runs with binary insertion sort
-     *  3. Merges runs using an adaptive merge strategy with galloping
-     *
-     *  @tparam T Element type.
-     *  @tparam Compare Comparison functor.
-     *  @param a Pointer to the array.
-     *  @param n Number of elements.
-     *  @param cmp Comparison functor.
-     */
     /** @brief Core Timsort implementation.
      *
      *  Implements the Timsort algorithm:
@@ -6312,6 +6305,9 @@ namespace Aleph
   void timsort(T *a, const long l, const long r,
                const Compare & cmp = Compare())
   {
+    ah_invalid_argument_if(l < 0 or r < 0)
+      << "timsort(): negative bounds [" << l << ", " << r << "] are not allowed";
+
     if (l >= r)
       return;
 

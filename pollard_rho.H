@@ -120,7 +120,7 @@ namespace detail
           return d;
       }
 
-    ah_runtime_error_unless(false)
+    ah_runtime_error()
       << "pollard_rho: failed to find a factor of " << n
       << " after " << max_attempts << " attempts";
     __builtin_unreachable();

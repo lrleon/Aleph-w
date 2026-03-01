@@ -131,12 +131,16 @@ namespace Aleph
   };
 
   /// @brief Alias for HashSet (for consistency with other Dyn containers).
-  template <typename T>
-  using DynHashSet = HashSet<T>;
+  template <typename Key,
+            template <typename, class> class HashSetTable = ODhashTable,
+            class Cmp = Aleph::equal_to<Key>>
+  using DynHashSet = HashSet<Key, HashSetTable, Cmp>;
 
   /// @brief Alias for HashMap (for consistency with other Dyn containers).
-  template <typename K, typename V>
-  using DynHashMap = HashMap<K, V>;
+  template <typename Key, typename Data,
+            template <typename, typename, class> class HashMapTable = MapODhash,
+            class Cmp = Aleph::equal_to<Key>>
+  using DynHashMap = HashMap<Key, Data, HashMapTable, Cmp>;
 
 } // end namespace Aleph
 

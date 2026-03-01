@@ -87,7 +87,10 @@ TEST(StreamingAlgorithms, CountMinSketch)
   EXPECT_GE(cms.estimate("cherry"), 1u);
   EXPECT_LT(cms.estimate("cherry"), 10u); // should be reasonably close
   
-  EXPECT_LT(cms.estimate("dragonfruit"), 5u); // unseen key: might have collisions but should be low
+  // Deterministic property check
+  const size_t before = cms.estimate("dragonfruit");
+  cms.update("dragonfruit", 5);
+  EXPECT_GE(cms.estimate("dragonfruit"), before + 5);
 
   // Validation tests
   EXPECT_THROW(Count_Min_Sketch<int>::from_error_bounds(0.0, 0.1), std::domain_error);

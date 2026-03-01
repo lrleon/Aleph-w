@@ -102,14 +102,19 @@ int main()
     cout << "[3] HyperLogLog (cardinality estimation)\n";
     print_rule();
     HyperLogLog<string> hll(10); // 1024 registers
-    DynHashSet<string> unique_map;
+    DynHashSet<string> unique_set;
     for (const auto & s : stream) 
       {
         hll.update(s);
-        unique_map.insert(s);
+        unique_set.insert(s);
       }
 
-    cout << "Estimated unique elements: " << fixed << setprecision(1) << hll.estimate() << " (Actual: " << unique_map.size() << ")\n";
+    const ios::fmtflags f(cout.flags());
+    const streamsize p = cout.precision();
+    cout << "Estimated unique elements: " << fixed << setprecision(1) 
+         << hll.estimate() << " (Actual: " << unique_set.size() << ")\n";
+    cout.flags(f);
+    cout.precision(p);
     cout << "\n";
   }
 

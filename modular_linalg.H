@@ -200,8 +200,10 @@ namespace Aleph
                 uint64_t factor = mod_mul(val_ji, inv, mod);
                 for (size_t k = i; k < n_cols; ++k)
                   {
-                    uint64_t term = mod_mul(factor, get_val(a, i, k), mod);
-                    set_val(a, j, k, (get_val(a, j, k) + mod - term) % mod);
+                    const uint64_t term = mod_mul(factor, get_val(a, i, k), mod);
+                    const uint64_t current = get_val(a, j, k);
+                    const uint64_t res = (current >= term) ? (current - term) : (current + mod - term);
+                    set_val(a, j, k, res);
                   }
               }
         }
@@ -287,11 +289,13 @@ namespace Aleph
               if (uint64_t factor = get_val(a, j, i); factor != 0)
                 for (size_t k = 0; k < n_rows; ++k)
                   {
-                    uint64_t term_a = mod_mul(factor, get_val(a, i, k), mod);
-                    set_val(a, j, k, (get_val(a, j, k) + mod - term_a) % mod);
+                    const uint64_t term_a = mod_mul(factor, get_val(a, i, k), mod);
+                    const uint64_t curr_a = get_val(a, j, k);
+                    set_val(a, j, k, (curr_a >= term_a) ? (curr_a - term_a) : (curr_a + mod - term_a));
 
-                    uint64_t term_inv = mod_mul(factor, get_val(inv, i, k), mod);
-                    set_val(inv, j, k, (get_val(inv, j, k) + mod - term_inv) % mod);
+                    const uint64_t term_inv = mod_mul(factor, get_val(inv, i, k), mod);
+                    const uint64_t curr_inv = get_val(inv, j, k);
+                    set_val(inv, j, k, (curr_inv >= term_inv) ? (curr_inv - term_inv) : (curr_inv + mod - term_inv));
                   }
         }
 
