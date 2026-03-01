@@ -43,6 +43,7 @@
 
 # include <cstdint>
 # include <algorithm>
+# include <ah-errors.H>
 # include <tpl_array.H>
 # include <modular_arithmetic.H>
 
@@ -86,8 +87,12 @@ public:
      *
      *  Computes the NTT of the input array in-place.
      *
+     *  @pre `a.size()` must be a power of two.
+     *  @pre `a.size()` must divide `MOD - 1`.
      *  @param[in,out] a The input polynomial coefficients (modified in-place).
      *  @param[in] invert true for Inverse NTT, false for Forward NTT.
+     *  @throws std::invalid_argument if `a.size()` is not a power of two or 
+     *          doesn't divide `MOD - 1`.
      */
     static void transform(Array<uint64_t> & a, bool invert)
     {
@@ -140,6 +145,8 @@ public:
      *  @param[in] a First polynomial coefficients.
      *  @param[in] b Second polynomial coefficients.
      *  @return The convolution of a and b modulo MOD.
+     *  @throws std::invalid_argument if the product size exceeds the maximum 
+     *          NTT length supported by the modulus.
      */
     static Array<uint64_t> multiply(Array<uint64_t> const& a, Array<uint64_t> const& b)
     {

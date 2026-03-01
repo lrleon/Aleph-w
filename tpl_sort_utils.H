@@ -441,23 +441,6 @@ namespace Aleph
     return search_extreme<Slinknc, Compare>(list, cmp);
   }
 
-  /** @brief Sort a doubly linked list using selection sort.
-   *
-   *  Sorts a list of Dlink nodes by repeatedly extracting the minimum
-   *  element and appending it to an auxiliary list.
-   *
-   *  Time complexity: O(n²) - n iterations × O(n) search_extreme
-   *  Space complexity: O(1) - uses an auxiliary list but no extra memory
-   *
-   *  @tparam Compare Functor comparing Dlink pointers.
-   *                  `cmp(l1, l2)` returns true if l1 < l2.
-   *
-   *  @param[in,out] list The list to sort (modified in place).
-   *  @param cmp Comparison functor.
-   *
-   *  @see selection_sort(Dnode<T>&, Compare)
-   *  @ingroup Algorithms
-   */
   /** @brief Selection sort for doubly-linked lists (`Dlink`).
    *
    *  Sorts the list by repeatedly finding the extreme element and appending
@@ -669,8 +652,7 @@ namespace Aleph
    *  @return Pointer to the first Slinknc containing x, or nullptr.
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
-  Slinknc * sequential_search(const Slinknc & list, const T & x,
-                              Equal eq = Equal())
+  Slinknc * sequential_search(const Slinknc & list, const T & x, Equal eq = Equal())
   {
     Compare_Snodenc<T, Equal> cmp(eq);
     return sequential_search<Slinknc, T, Compare_Snodenc<T, Equal>>(list, x, cmp);
@@ -684,8 +666,7 @@ namespace Aleph
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  Dnode<T> * sequential_search(const Dnode<T> & list, const T & x,
-                               Equal & eq)
+  Dnode<T> * sequential_search(const Dnode<T> & list, const T & x, Equal & eq)
   {
     Compare_Dnode<T, Equal> cmp(eq);
     const auto & base = static_cast<const Dlink &>(list);
@@ -697,8 +678,7 @@ namespace Aleph
   /** @overload */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  Dnode<T> * sequential_search(const Dnode<T> & list, const T & x,
-                               Equal && eq = Equal())
+  Dnode<T> * sequential_search(const Dnode<T> & list, const T & x, Equal && eq = Equal())
   {
     return sequential_search<T, Equal>(list, x, eq);
   }
@@ -711,8 +691,7 @@ namespace Aleph
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  T * sequential_search(const DynDlist<T> & list, const T & x,
-                        Equal eq = Equal())
+  T * sequential_search(const DynDlist<T> & list, const T & x, Equal eq = Equal())
   {
     Dnode<T> *ret = sequential_search<T, Equal>
         (const_cast<Dnode<T> &>(static_cast<const Dnode<T> &>(list)), x, eq);
@@ -727,8 +706,7 @@ namespace Aleph
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  T * sequential_search(const DynList<T> & list, const T & x,
-                        Equal & eq)
+  T * sequential_search(const DynList<T> & list, const T & x, Equal & eq)
   {
     for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
       {
@@ -742,8 +720,7 @@ namespace Aleph
   /** @overload */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  T * sequential_search(const DynList<T> & list, const T & x,
-                        Equal eq = Equal())
+  T * sequential_search(const DynList<T> & list, const T & x, Equal eq = Equal())
   {
     for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
       {
@@ -953,7 +930,7 @@ namespace Aleph
   inline
   void insertion_sort(T *a, const long l, const long r,
                       const Compare & cmp = Compare())
-    noexcept(noexcept(cmp(a[0], a[0])) && std::is_nothrow_move_assignable_v<T>)
+    noexcept(noexcept(cmp(a[0], a[0])) and std::is_nothrow_move_assignable_v<T>)
   {
     if (l >= r)
       return;
@@ -1378,7 +1355,7 @@ namespace Aleph
       dynamic (DynList or DynDlist) according to comparison criteria Compare.
 
       This method has a deterministic performance of \f$O(n \; \lg n)\f$
-      and a space consumption of \f$O(1)\f$. It is a very good method
+      and space consumption of \f$O(1)\f$. It is a very good method
       for lists.
 
       @param[in,out] list the list to be sorted.
@@ -1472,26 +1449,6 @@ namespace Aleph
     mergesort<Dnode<T>, Compare_Dnode<T, Compare>>(list, cmp);
   }
 
-  /** Sorts a dynamic list based on the mergesort method.
-
-      Sort a list using the mergesort method
-      dynamics according to comparison criterion Compare.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      This method has a deterministic performance of \f$O(n \; \lg n)\f$
-      and a space consumption of \f$O(1)\f$. It is a very good method
-      for lists.
-
-      @param[in,out] list the list to be sorted.
-      @param cmp Comparison functor defining "less than" relationship.
-
-      @see quicksort(DynDlist<T> & list)
-
-      \ingroup Algorithms
-  */
   /** @brief Merge sort for DynDlist.
    *
    *  @tparam T Element type.
@@ -1785,28 +1742,28 @@ namespace Aleph
 
     while (stack.size() > 0)
       {
-        Partition p = stack.pop();
-        const long diff = p.second - p.first;
+        auto [fst, snd] = stack.pop();
+        const long diff = snd - fst;
 
         if (diff <= 1)
           continue;
 
         if (diff < Quicksort_Threshold)
           {
-            insertion_sort(a, p.first, p.second, cmp);
+            insertion_sort(a, fst, snd, cmp);
             continue;
           }
 
-        if (const long pivot = partition<T, Compare>(a, p.first, p.second, cmp); pivot - p.first < p.second - pivot)
+        if (const long pivot = partition<T, Compare>(a, fst, snd, cmp); pivot - fst < snd - pivot)
         // which one is smaller?
           { // the left partition is smaller
-            stack.push(Partition(pivot + 1, p.second));
-            stack.push(Partition(p.first, pivot - 1));
+            stack.push(Partition(pivot + 1, snd));
+            stack.push(Partition(fst, pivot - 1));
           }
         else
           { // the right partition is smaller
-            stack.push(Partition(p.first, pivot - 1));
-            stack.push(Partition(pivot + 1, p.second));
+            stack.push(Partition(fst, pivot - 1));
+            stack.push(Partition(pivot + 1, snd));
           }
       }
   }
@@ -1990,13 +1947,6 @@ namespace Aleph
     introsort(begin, n, cmp);
   }
 
-  /** @brief Sort an Array container using introsort.
-   *
-   *  This overload provides direct support for the Aleph Array<T> container.
-   *  Since Array uses contiguous memory (MemArray), introsort can work
-   *  directly on the underlying buffer.
-   *
-   *  @tparam T Element type.
   /** @brief Introsort for Aleph Array.
    *
    *  @tparam T Element type.
@@ -2038,12 +1988,10 @@ namespace Aleph
     Dlink smaller, bigger; // lists of smaller and larger than pivot
 
     while (not list.is_empty())
-      {
-        if (Dlink *p = list.remove_next(); cmp(p, pivot))
-          smaller.append(p);
-        else
-          bigger.append(p);
-      }
+      if (Dlink *p = list.remove_next(); cmp(p, pivot))
+        smaller.append(p);
+      else
+        bigger.append(p);
 
     quicksort<Compare>(bigger, cmp);
     quicksort<Compare>(smaller, cmp);
@@ -2647,21 +2595,19 @@ namespace Aleph
         long current = l;
 
         while (current <= gt)
-          {
-            if (cmp(a(current), a(r)))
-              {
-                std::swap(a(lt), a(current));
-                lt++;
-                current++;
-              }
-            else if (cmp(a(r), a(current)))
-              {
-                std::swap(a(current), a(gt));
-                gt--;
-              }
-            else
+          if (cmp(a(current), a(r)))
+            {
+              std::swap(a(lt), a(current));
+              lt++;
               current++;
-          }
+            }
+          else if (cmp(a(r), a(current)))
+            {
+              std::swap(a(current), a(gt));
+              gt--;
+            }
+          else
+            current++;
 
         std::swap(a(current), a(r));
 
@@ -2711,21 +2657,19 @@ namespace Aleph
         long current = l;
 
         while (current <= gt)
-          {
-            if (cmp(a(current), a(r)))
-              {
-                std::swap(a(lt), a(current));
-                lt++;
-                current++;
-              }
-            else if (cmp(a(r), a(current)))
-              {
-                std::swap(a(current), a(gt));
-                gt--;
-              }
-            else
+          if (cmp(a(current), a(r)))
+            {
+              std::swap(a(lt), a(current));
+              lt++;
               current++;
-          }
+            }
+          else if (cmp(a(r), a(current)))
+            {
+              std::swap(a(current), a(gt));
+              gt--;
+            }
+          else
+            current++;
 
         std::swap(a(current), a(r));
 
@@ -2823,8 +2767,7 @@ namespace Aleph
   const T &random_select(T *a, const long i, const long n,
                          const Compare & cmp = Compare())
   {
-    ah_out_of_range_error_if(n <= 0 or i < 0 or i >= n)
-      << "index out of range";
+    ah_out_of_range_error_if(n <= 0 or i < 0 or i >= n) << "index out of range";
 
     return __random_select<T, Compare>(a, i, 0, n - 1, cmp);
   }
@@ -3597,10 +3540,9 @@ namespace Aleph
         --depth_limit;
 
         // Partition and continue
-        const long pivot = partition(a, l, r, cmp);
 
         // Recurse on smaller partition, iterate on larger (tail call elimination)
-        if (pivot - l < r - pivot)
+        if (const long pivot = partition(a, l, r, cmp); pivot - l < r - pivot)
           {
             introsort_loop<T, Compare>(a, l, pivot - 1, depth_limit, cmp);
             l = pivot + 1;
@@ -4660,8 +4602,7 @@ namespace Aleph
     [[nodiscard]] size_t
     counting_bucket_count(const IntT min_key, const IntT max_key)
     {
-      ah_domain_error_if(max_key < min_key)
-        << "counting_sort(): max_key < min_key";
+      ah_domain_error_if(max_key < min_key) << "counting_sort(): max_key < min_key";
 
       using U = counting_unsigned_t<IntT>;
       const U range_minus_one =
@@ -5359,8 +5300,8 @@ namespace Aleph
                               const Compare & cmp)
       noexcept(std::is_nothrow_move_constructible_v<T> and
                std::is_nothrow_move_assignable_v<T> and
-               noexcept(std::declval<const Compare&>()(std::declval<const T&>(),
-                                                       std::declval<const T&>())))
+               noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
+                                                        std::declval<const T &>())))
     {
       for (size_t i = lo + 1; i < hi; ++i)
         {
@@ -5531,10 +5472,10 @@ namespace Aleph
 
     const bool descending = not cmp(min_val, max_val);
     const size_t num_buckets = n;
-    auto key = [min_val, max_val, range, num_buckets, descending](const T & val) -> size_t
+    auto key = [min_val, range, num_buckets, descending](const T & val) -> size_t
       {
         auto b = static_cast<size_t>((val - min_val) / range *
-                                      static_cast<T>(num_buckets - 1));
+                                     static_cast<T>(num_buckets - 1));
         if (b >= num_buckets)
           b = num_buckets - 1;
 
@@ -5732,7 +5673,7 @@ namespace Aleph
      *  @tparam T Element type.
      */
     template <typename T>
-    void reverse_range(T *a, size_t lo, size_t hi) 
+    void reverse_range(T *a, size_t lo, size_t hi)
       noexcept(std::is_nothrow_swappable_v<T>)
     {
       while (lo + 1 < hi)
@@ -5787,8 +5728,8 @@ namespace Aleph
                                const size_t start, const Compare & cmp)
       noexcept(std::is_nothrow_move_constructible_v<T> and
                std::is_nothrow_move_assignable_v<T> and
-               noexcept(std::declval<const Compare&>()(std::declval<const T&>(),
-                                                       std::declval<const T&>())))
+               noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
+                                                        std::declval<const T &>())))
 
     {
       size_t i = (start <= lo) ? lo + 1 : start;
@@ -5836,8 +5777,8 @@ namespace Aleph
     template <typename T, class Compare>
     size_t gallop_left(const T & key, const T *a, const size_t len,
                        const size_t hint, const Compare & cmp)
-      noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(),
-                                                       std::declval<const T&>())))
+      noexcept(noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
+                                                        std::declval<const T &>())))
     {
       size_t last_ofs = 0;
       size_t ofs = 1;
@@ -5906,8 +5847,8 @@ namespace Aleph
     template <typename T, class Compare>
     size_t gallop_right(const T & key, const T *a, const size_t len,
                         const size_t hint, const Compare & cmp)
-      noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(),
-                                                       std::declval<const T&>())))
+      noexcept(noexcept(std::declval<const Compare &>()(std::declval<const T &>(),
+                                                        std::declval<const T &>())))
     {
       size_t last_ofs = 0;
       size_t ofs = 1;
@@ -5978,12 +5919,10 @@ namespace Aleph
       const size_t end2 = base2 + len2;
 
       while (c1 < end1 and c2 < end2)
-        {
-          if (cmp(a[c2], tmp[c1]))
-            a[dest++] = std::move(a[c2++]);
-          else
-            a[dest++] = std::move(tmp[c1++]);
-        }
+        if (cmp(a[c2], tmp[c1]))
+          a[dest++] = std::move(a[c2++]);
+        else
+          a[dest++] = std::move(tmp[c1++]);
 
       // Copy remaining from tmp (run1)
       while (c1 < end1)
@@ -6011,12 +5950,10 @@ namespace Aleph
       size_t c2 = len2; // one past end of run2 in tmp
 
       while (c1 > base1 and c2 > 0)
-        {
-          if (cmp(tmp[c2 - 1], a[c1 - 1]))
-            a[--dest] = std::move(a[--c1]);
-          else
-            a[--dest] = std::move(tmp[--c2]);
-        }
+        if (cmp(tmp[c2 - 1], a[c1 - 1]))
+          a[--dest] = std::move(a[--c1]);
+        else
+          a[--dest] = std::move(tmp[--c2]);
 
       // Copy remaining from tmp (run2)
       while (c2 > 0)
