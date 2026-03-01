@@ -96,7 +96,8 @@ namespace Aleph
     }
 
   // These bases are sufficient for deterministic testing up to 2^64.
-  for (uint64_t a : {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37})
+  // Using Jim Sinclair's minimal 7-witness set for 64-bit range.
+  for (uint64_t a : {2, 325, 9375, 28178, 450775, 9780504, 1795265022})
     {
       if (n <= a)
         break;

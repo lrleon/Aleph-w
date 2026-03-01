@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <random>
 #include <string>

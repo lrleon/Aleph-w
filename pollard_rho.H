@@ -65,12 +65,12 @@ namespace detail
  *  @param c The constant for the polynomial f(x) = x^2 + c.
  *  @return A non-trivial factor of n, or n if it fails to find one.
  */
-[[nodiscard]] inline uint64_t pollard_rho_step(uint64_t n, uint64_t seed,
-                                               uint64_t c)
+[[nodiscard]] inline uint64_t pollard_rho_step(const uint64_t n, const uint64_t seed,
+                                               const uint64_t c)
 {
   uint64_t x = seed, y = seed, d = 1;
   auto f = [&](const uint64_t val) {
-    uint64_t v2 = mod_mul(val, val, n);
+    const uint64_t v2 = mod_mul(val, val, n);
 # if defined(__SIZEOF_INT128__)
     return static_cast<uint64_t>((static_cast<__uint128_t>(v2) + c) % n);
 # else
@@ -102,7 +102,7 @@ namespace detail
  *  @return A non-trivial factor of n.
  *  @throws std::runtime_error if no factor found after max attempts.
  */
-[[nodiscard]] inline uint64_t find_any_factor(uint64_t n)
+[[nodiscard]] inline uint64_t find_any_factor(const uint64_t n)
 {
   if (n % 2 == 0) return 2;
   if (n % 3 == 0) return 3;
@@ -115,8 +115,7 @@ namespace detail
       {
         const uint64_t seed = rng() % (n - 2) + 2;
         const uint64_t c = rng() % (n - 1) + 1;
-        const uint64_t d = pollard_rho_step(n, seed, c);
-        if (d != n)
+        if (const uint64_t d = pollard_rho_step(n, seed, c); d != n)
           return d;
       }
 

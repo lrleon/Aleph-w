@@ -91,13 +91,17 @@ public:
      *  @pre `a.size()` must divide `MOD - 1`.
      *  @param[in,out] a The input polynomial coefficients (modified in-place).
      *  @param[in] invert true for Inverse NTT, false for Forward NTT.
-     *  @throws std::invalid_argument if `a.size()` is not a power of two or 
+     *  @return void (performed in-place).
+     *  @throws std::invalid_argument if `a.size()` is 0, not a power of two, or 
      *          doesn't divide `MOD - 1`.
+     *  @note Time complexity: O(n log n)
+     *  @note Space complexity: O(1)
      */
     static void transform(Array<uint64_t> & a, bool invert)
     {
         const size_t n = a.size();
-        if (n <= 1) return;
+        ah_invalid_argument_if(n == 0) << "NTT::transform: input must be non-empty";
+        if (n == 1) return;
 
         // Check if n is a power of 2
         ah_invalid_argument_if((n & (n - 1)) != 0)
@@ -146,15 +150,26 @@ public:
      *  @param[in] b Second polynomial coefficients.
      *  @return The convolution of a and b modulo MOD.
      *  @throws std::invalid_argument if the product size exceeds the maximum 
-     *          NTT length supported by the modulus.
+     *          NTT length supported by the modulus or overflows size_t.
+     *  @note Time complexity: O(n log n)
+     *  @note Space complexity: O(n)
      */
     static Array<uint64_t> multiply(Array<uint64_t> const& a, Array<uint64_t> const& b)
     {
         if (a.is_empty() or b.is_empty()) return {};
         
+        // Check for required size overflow: a.size() + b.size() - 1
+        ah_invalid_argument_if(a.size() > std::numeric_limits<size_t>::max() - b.size() + 1)
+          << "NTT::multiply: product size exceeds size_t capacity";
+
+        const size_t required = a.size() + b.size() - 1;
         size_t n = 1;
-        while (n < a.size() + b.size() - 1) 
+        while (n < required) 
+          {
+            ah_invalid_argument_if(n > std::numeric_limits<size_t>::max() / 2)
+              << "NTT::multiply: required power-of-two size exceeds size_t capacity";
             n <<= 1;
+          }
 
         // Compute maximum NTT length supported by MOD
         uint64_t m_minus_1 = MOD - 1;

@@ -1071,7 +1071,7 @@ namespace Aleph
   [[nodiscard]] inline bool
   for_each_combination(const Array<T> & values, const size_t k, Op && op)
   {
-    return for_each_combination(values, k, op);
+    return for_each_combination_impl(values, k, op);
   }
 
   /** \overload for_each_combination for `DynArray<T>`. */
@@ -1087,7 +1087,7 @@ namespace Aleph
   [[nodiscard]] inline bool
   for_each_combination(const DynArray<T> & values, const size_t k, Op && op)
   {
-    return for_each_combination(values, k, op);
+    return for_each_combination_impl(values, k, op);
   }
 
   /** Materialize all k-combinations of `Array<T>`.

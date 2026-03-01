@@ -47,19 +47,18 @@
 
 namespace Aleph
 {
-
-/** @brief Combinatorics operations modulo a prime.
- *
- *  Precomputes factorials and inverse factorials up to a certain range to allow
- *  O(1) computation of combinations. Supports large n, k through Lucas' Theorem.
- */
-class ModularCombinatorics
-{
-    uint64_t mod_;         ///< Prime modulus.
+  /** @brief Combinatorics operations modulo a prime.
+   *
+   *  Precomputes factorials and inverse factorials up to a certain range to allow
+   *  O(1) computation of combinations. Supports large n, k through Lucas' Theorem.
+   */
+  class ModularCombinatorics
+  {
+    uint64_t mod_; ///< Prime modulus.
     Array<uint64_t> fact_; ///< Precomputed factorials.
     Array<uint64_t> invFact_; ///< Precomputed inverse factorials.
 
-public:
+  public:
     /** @brief Precomputes factorials up to 'max_n' modulo 'p'.
      *
      *  @param[in] max_n Maximum value for factorials to precompute.
@@ -67,25 +66,24 @@ public:
      *  @pre p > 1
      *  @throws std::invalid_argument if p <= 1.
      */
-    ModularCombinatorics(size_t max_n, uint64_t p) : mod_(p)
+    ModularCombinatorics(size_t max_n, const uint64_t p) : mod_(p)
     {
-        ah_invalid_argument_if(p <= 1)
-          << "ModularCombinatorics: modulus must be > 1";
+      ah_invalid_argument_if(p <= 1) << "ModularCombinatorics: modulus must be > 1";
 
-        if (max_n >= mod_)
-            max_n = static_cast<size_t>(mod_ - 1);
-            
-        fact_.reserve(max_n + 1);
-        invFact_.reserve(max_n + 1);
-        
-        fact_.append(1);
-        for (size_t i = 1; i <= max_n; i++)
-            fact_.append(mod_mul(fact_[i - 1], i, mod_));
-            
-        invFact_.putn(max_n + 1);
-        invFact_(max_n) = mod_inv(fact_[max_n], mod_);
-        for (size_t i = max_n; i >= 1; i--)
-            invFact_(i - 1) = mod_mul(invFact_[i], i, mod_);
+      if (max_n >= mod_)
+        max_n = static_cast<size_t>(mod_ - 1);
+
+      fact_.reserve(max_n + 1);
+      invFact_.reserve(max_n + 1);
+
+      fact_.append(1);
+      for (size_t i = 1; i <= max_n; i++)
+        fact_.append(mod_mul(fact_[i - 1], i, mod_));
+
+      invFact_.putn(max_n + 1);
+      invFact_(max_n) = mod_inv(fact_[max_n], mod_);
+      for (size_t i = max_n; i > 0; i--)
+        invFact_(i - 1) = mod_mul(invFact_[i], i, mod_);
     }
 
     /** @brief Calculate nCk modulo p in O(1).
@@ -99,16 +97,16 @@ public:
      *  @note Requires n < fact_.size() (precomputed range).
      *  @throws ah_out_of_range_error if n exceeds precomputed range.
      */
-    [[nodiscard]] uint64_t nCk(uint64_t n, uint64_t k) const
+    [[nodiscard]] uint64_t nCk(const uint64_t n, const uint64_t k) const
     {
-        if (k > n) return 0;
-        ah_out_of_range_error_if(n >= fact_.size())
+      if (k > n) return 0;
+      ah_out_of_range_error_if(n >= fact_.size())
           << "ModularCombinatorics::nCk: n=" << n << " exceeds precomputed range "
           << fact_.size() - 1;
 
-        const uint64_t num = fact_[n];
-        const uint64_t den = mod_mul(invFact_[k], invFact_[n - k], mod_);
-        return mod_mul(num, den, mod_);
+      const uint64_t num = fact_[n];
+      const uint64_t den = mod_mul(invFact_[k], invFact_[n - k], mod_);
+      return mod_mul(num, den, mod_);
     }
 
     /** @brief Calculate nCk modulo p using Lucas' theorem.
@@ -122,20 +120,19 @@ public:
      *  @note Complexity: O(p + log_p n).
      *  @throws ah_out_of_range_error if sub-problem exceeds precomputed range.
      */
-    [[nodiscard]] uint64_t lucas_nCk(uint64_t n, uint64_t k) const
+    [[nodiscard]] uint64_t lucas_nCk(const uint64_t n, const uint64_t k) const
     {
-        if (k > n) return 0;
-        if (k == 0) return 1;
+      if (k > n) return 0;
+      if (k == 0) return 1;
 
-        const uint64_t ni = n % mod_;
-        const uint64_t ki = k % mod_;
-        
-        if (ki > ni) return 0; 
-        
-        return mod_mul(nCk(ni, ki), lucas_nCk(n / mod_, k / mod_), mod_);
+      const uint64_t ni = n % mod_;
+      const uint64_t ki = k % mod_;
+
+      if (ki > ni) return 0;
+
+      return mod_mul(nCk(ni, ki), lucas_nCk(n / mod_, k / mod_), mod_);
     }
-};
-
+  };
 } // namespace Aleph
 
 # endif // MODULAR_COMBINATORICS_H

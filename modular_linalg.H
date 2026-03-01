@@ -65,7 +65,7 @@ namespace Aleph
   template <typename MatrixT>
   class Modular_Matrix
   {
-    MatrixT mat;  ///< The underlying matrix data.
+    MatrixT mat; ///< The underlying matrix data.
     uint64_t mod; ///< The prime modulus defining the finite field.
 
     // Private helpers for matrix element access (dispatch on MatrixT type)
@@ -111,14 +111,12 @@ namespace Aleph
     Modular_Matrix(const MatrixT & m, const uint64_t p)
       : mat(m), mod(p)
     {
-      ah_invalid_argument_if(mod <= 1)
-        << "Modular_Matrix: modulus must be > 1";
+      ah_invalid_argument_if(mod <= 1) << "Modular_Matrix: modulus must be > 1";
 
       // Normalize initial values
       if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
         {
-          const size_t n_rows = mat.size();
-          if (n_rows > 0)
+          if (const size_t n_rows = mat.size(); n_rows > 0)
             {
               const size_t n_cols = mat[0].size();
               for (size_t i = 0; i < n_rows; ++i)
@@ -132,10 +130,12 @@ namespace Aleph
         }
       else // assume DynMatrix style
         {
-          for (size_t i = 0; i < mat.rows(); ++i)
-            for (size_t j = 0; j < mat.cols(); ++j)
-              if (const uint64_t val = mat.read_ne(i, j); val != 0)
-                mat.write(i, j, val % mod);
+          // Use traverse_allocated to efficiently normalize only stored entries
+          mat.traverse_allocated([this](uint64_t & val)
+                                   {
+                                     val %= mod;
+                                     return true;
+                                   });
         }
     }
 

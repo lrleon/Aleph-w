@@ -1415,26 +1415,6 @@ namespace Aleph
     merge_lists<Tlist<T>, Compare>(l, r, list, cmp); // merge them
   }
 
-  /** Sorts a list according to the mergesort method.
-
-      Sort a list using the mergesort method
-      based on Dnode<T>, according to comparison criteria Compare.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      This method has a deterministic performance of \f$O(n \; \lg n)\f$
-      and a space consumption of \f$O(1)\f$. It is a very good method
-      for lists.
-
-      @param[in,out] list the list to be sorted.
-      @param cmp Comparison functor defining "less than" relationship.
-
-      @see mergesort(Dlink & list) quicksort(Dnode<T>)
-
-      \ingroup Algorithms
-  */
   /** @brief Merge sort for Dnode-based lists.
    *
    *  @tparam T Element type.
