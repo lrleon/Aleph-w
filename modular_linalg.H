@@ -50,25 +50,48 @@
 # include <tpl_dynMat.H>
 # include <modular_arithmetic.H>
 # include <primality.H>
+# include <concepts>
 
 namespace Aleph
 {
-  /** @brief Get dimensions of a matrix backend.
-   *  @tparam MatrixT The matrix container type.
-   *  @param[in] m Matrix instance.
-   *  @return A pair (rows, cols).
+  /** @concept SparseMatrix
+   *  Expresses requirements for sparse matrix backends like DynMatrix.
    */
-  template <typename MatrixT>
+  template <typename T>
+  concept SparseMatrix = requires(const T m, T & mut_m, size_t r, size_t c, uint64_t v) {
+    { m.rows() } -> std::convertible_to<size_t>;
+    { m.cols() } -> std::convertible_to<size_t>;
+    { m.read_ne(r, c) } -> std::convertible_to<uint64_t>;
+    { mut_m.write(r, c, v) };
+  };
+
+  /** @concept DenseMatrix
+   *  Expresses requirements for dense matrix backends like Array<Array<uint64_t>>.
+   */
+  template <typename T>
+  concept DenseMatrix = std::is_same_v<T, Array<Array<uint64_t>>>;
+
+  /** @concept ModularMatrixBackend
+   *  Union of supported matrix backends for modular operations.
+   */
+  template <typename T>
+  concept ModularMatrixBackend = DenseMatrix<T> or SparseMatrix<T>;
+
+  /** @brief Get dimensions of a dense matrix. */
+  template <DenseMatrix MatrixT>
   [[nodiscard]] constexpr std::pair<size_t, size_t>
   matrix_dims(const MatrixT & m) noexcept
   {
-    if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-      {
-        const size_t rows = m.size();
-        return {rows, rows > 0 ? m[0].size() : 0};
-      }
-    else
-      return {m.rows(), m.cols()};
+    const size_t rows = m.size();
+    return {rows, rows > 0 ? m[0].size() : 0};
+  }
+
+  /** @brief Get dimensions of a sparse matrix. */
+  template <SparseMatrix MatrixT>
+  [[nodiscard]] constexpr std::pair<size_t, size_t>
+  matrix_dims(const MatrixT & m) noexcept
+  {
+    return {m.rows(), m.cols()};
   }
 
   /** @brief Matrix operations modulo a prime.
@@ -82,20 +105,18 @@ namespace Aleph
    *  synchronization is required if the underlying matrix backend is being
    *  modified.
    *
-   *  @tparam MatrixT The matrix container type. Must support either `rows()`/`cols()`
-   *                  and `read_ne()`/`write()` (for sparse) or `size()` and
-   *                  `operator[]` (for dense).
+   *  @tparam MatrixT The matrix container type. Must satisfy ModularMatrixBackend concept.
    */
-  template <typename MatrixT>
+  template <ModularMatrixBackend MatrixT>
   class Modular_Matrix
   {
     MatrixT mat; ///< The underlying matrix data.
     uint64_t mod; ///< The prime modulus defining the finite field.
 
-    // Private helpers for matrix element access (dispatch on MatrixT type)
+    // Private helpers for matrix element access using constrained overloads
     static uint64_t get_val(const MatrixT & m, size_t r, size_t c)
     {
-      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+      if constexpr (DenseMatrix<MatrixT>)
         return m[r][c];
       else
         return m.read_ne(r, c);
@@ -103,7 +124,7 @@ namespace Aleph
 
     static void set_val(MatrixT & m, size_t r, size_t c, uint64_t v)
     {
-      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+      if constexpr (DenseMatrix<MatrixT>)
         m(r)(c) = v;
       else
         m.write(r, c, v);
@@ -111,15 +132,18 @@ namespace Aleph
 
     static void swap_rows(MatrixT & m, size_t r1, size_t r2)
     {
-      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+      if constexpr (DenseMatrix<MatrixT>)
         std::swap(m(r1), m(r2));
       else
-        for (size_t j = 0; j < m.cols(); ++j)
-          {
-            uint64_t tmp = m.read_ne(r1, j);
-            m.write(r1, j, m.read_ne(r2, j));
-            m.write(r2, j, tmp);
-          }
+        {
+          const size_t cols = m.cols();
+          for (size_t j = 0; j < cols; ++j)
+            {
+              uint64_t tmp = m.read_ne(r1, j);
+              m.write(r1, j, m.read_ne(r2, j));
+              m.write(r2, j, tmp);
+            }
+        }
     }
 
   public:
@@ -139,7 +163,7 @@ namespace Aleph
         << "Modular_Matrix: modulus " << mod << " must be prime";
 
       // Normalize initial values
-      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+      if constexpr (DenseMatrix<MatrixT>)
         {
           const auto [n_rows, n_cols] = matrix_dims(mat);
           if (n_rows > 0)
@@ -153,7 +177,7 @@ namespace Aleph
                 }
             }
         }
-      else // assume DynMatrix style
+      else // SparseMatrix
         {
           // Use traverse_allocated to efficiently normalize only stored entries
           mat.traverse_allocated([this](uint64_t & val)
@@ -182,7 +206,9 @@ namespace Aleph
      *
      *  Uses Gaussian elimination to compute the determinant in O(n^3) time.
      *
+     *  @pre Matrix must be non-empty and square.
      *  @return The determinant of the matrix modulo p.
+     *  @post Returns determinant modulo p.
      *  @throws std::domain_error if the matrix is not square or is empty.
      */
     [[nodiscard]] uint64_t determinant() const
@@ -238,8 +264,11 @@ namespace Aleph
      *
      *  Uses Gauss-Jordan elimination to find the inverse in O(n^3) time.
      *
+     *  @pre Matrix must be non-empty and square.
      *  @return A new Modular_Matrix containing the inverse, or std::nullopt if the
      *          matrix is singular (not invertible).
+     *  @post Returns inverse matrix modulo p or std::nullopt if matrix is
+     *        singular (not invertible).
      *  @throws std::domain_error if the matrix is not square or is empty.
      */
     [[nodiscard]] std::optional<Modular_Matrix<MatrixT>> inverse() const

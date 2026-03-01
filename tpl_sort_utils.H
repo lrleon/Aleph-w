@@ -5789,7 +5789,7 @@ namespace Aleph
           const size_t tmp = last_ofs;
           // Note: last_ofs may intentionally underflow if hint < ofs.
           // This is compensated by the subsequent ++last_ofs to effectively
-          // start the binary search at index 0.
+          // start the binary search at index 0. This is safe for unsigned types.
           last_ofs = hint - ofs;
           ofs = hint - tmp;
         }
@@ -5846,7 +5846,7 @@ namespace Aleph
           const size_t tmp = last_ofs;
           // Note: last_ofs may intentionally underflow if hint < ofs.
           // This is compensated by the subsequent ++last_ofs to effectively
-          // start the binary search at index 0.
+          // start the binary search at index 0. This is safe for unsigned types.
           last_ofs = hint - ofs;
           ofs = hint - tmp;
         }
@@ -6236,13 +6236,13 @@ namespace Aleph
 
   /** @brief Timsort for DynList.
    *
-   *  Copies elements to an Array, sorts with timsort, then writes
-   *  sorted values back into the list nodes.
-   *
    *  @tparam T Element type.
    *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
    *  @param[in,out] list DynList to sort.
    *  @param[in] cmp Comparison functor.
+   *
+   *  @par Complexity
+   *  Time O(n log n), Space O(n) due to temporary array copy.
    *
    *  @ingroup Algorithms
    */
@@ -6262,6 +6262,38 @@ namespace Aleph
 
     i = 0;
     for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
+      it.get_curr_ne() = tmp[i++];
+  }
+
+
+  /** @brief Timsort for DynDlist.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor (default: `Aleph::less<T>`).
+   *  @param[in,out] list DynDlist to sort.
+   *  @param[in] cmp Comparison functor.
+   *
+   *  @par Complexity
+   *  Time O(n log n), Space O(n) due to temporary array copy.
+   *
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  void timsort(DynDlist<T> & list, const Compare & cmp = Compare())
+  {
+    const size_t n = list.size();
+    if (n < 2)
+      return;
+
+    Array<T> tmp = Array<T>::create(n);
+    size_t i = 0;
+    for (typename DynDlist<T>::Iterator it(list); it.has_curr(); it.next_ne())
+      tmp[i++] = it.get_curr_ne();
+
+    timsort(&tmp[0], n, cmp);
+
+    i = 0;
+    for (typename DynDlist<T>::Iterator it(list); it.has_curr(); it.next_ne())
       it.get_curr_ne() = tmp[i++];
   }
 }

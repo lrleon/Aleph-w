@@ -116,6 +116,8 @@ namespace Aleph
      *  Provides an efficient way to compute combinations when n and k are
      *  large but the modulus p is relatively small.
      *
+     *  @pre Internal nCk calls require precomputation up to `mod_ - 1`
+     *       (ensured if constructor's `max_n >= mod_ - 1`).
      *  @param[in] n Total number of items.
      *  @param[in] k Number of items to choose.
      *  @return nCk % p.
