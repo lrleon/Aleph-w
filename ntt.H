@@ -43,6 +43,7 @@
 
 # include <cstdint>
 # include <algorithm>
+# include <limits>
 # include <ah-errors.H>
 # include <tpl_array.H>
 # include <modular_arithmetic.H>
@@ -194,7 +195,7 @@ public:
         transform(fb, false);
 
         for (size_t i = 0; i < n; i++)
-            fa(i) = mod_mul(fa[i], fb[i], MOD);
+          fa(i) = mod_mul(fa[i], fb[i], MOD);
 
         transform(fa, true);
 

@@ -182,7 +182,7 @@ namespace Aleph
   };
 
 
-  /** @brief Convencience function to sample k elements from a range.
+  /** @brief Convenience function to sample k elements from a range.
    *
    *  @tparam Itor Input iterator type.
    *  @tparam Sent Sentinel type for Itor.

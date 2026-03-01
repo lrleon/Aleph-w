@@ -49,14 +49,38 @@
 # include <tpl_array.H>
 # include <tpl_dynMat.H>
 # include <modular_arithmetic.H>
+# include <primality.H>
 
 namespace Aleph
 {
+  /** @brief Get dimensions of a matrix backend.
+   *  @tparam MatrixT The matrix container type.
+   *  @param[in] m Matrix instance.
+   *  @return A pair (rows, cols).
+   */
+  template <typename MatrixT>
+  [[nodiscard]] constexpr std::pair<size_t, size_t>
+  matrix_dims(const MatrixT & m) noexcept
+  {
+    if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+      {
+        const size_t rows = m.size();
+        return {rows, rows > 0 ? m[0].size() : 0};
+      }
+    else
+      return {m.rows(), m.cols()};
+  }
+
   /** @brief Matrix operations modulo a prime.
    *
    *  Provides linear algebra algorithms over a finite field defined by a prime
    *  modulus. Supports various matrix backends like Array of Arrays for dense
    *  matrices or DynMatrix for sparse ones.
+   *
+   *  ## Thread-safety
+   *  Methods are safe for concurrent reads from multiple threads. External
+   *  synchronization is required if the underlying matrix backend is being
+   *  modified.
    *
    *  @tparam MatrixT The matrix container type. Must support either `rows()`/`cols()`
    *                  and `read_ne()`/`write()` (for sparse) or `size()` and
@@ -106,19 +130,20 @@ namespace Aleph
      *
      *  @param[in] m Source matrix data.
      *  @param[in] p Prime modulus.
-     *  @throws std::invalid_argument if p <= 1 or if m is a ragged Array<Array>.
+     *  @throws std::invalid_argument if p is not prime or if m is a ragged Array<Array>.
      */
     Modular_Matrix(const MatrixT & m, const uint64_t p)
       : mat(m), mod(p)
     {
-      ah_invalid_argument_if(mod <= 1) << "Modular_Matrix: modulus must be > 1";
+      ah_invalid_argument_if(not miller_rabin(mod))
+        << "Modular_Matrix: modulus " << mod << " must be prime";
 
       // Normalize initial values
       if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
         {
-          if (const size_t n_rows = mat.size(); n_rows > 0)
+          const auto [n_rows, n_cols] = matrix_dims(mat);
+          if (n_rows > 0)
             {
-              const size_t n_cols = mat[0].size();
               for (size_t i = 0; i < n_rows; ++i)
                 {
                   ah_invalid_argument_if(mat[i].size() != n_cols)
@@ -141,29 +166,20 @@ namespace Aleph
 
     /** @brief Get a constant reference to the underlying matrix.
      *  @return Constant reference to the matrix data.
+     *  @note Thread-safety: Safe for concurrent reads.
      */
-    const MatrixT &get() const { return mat; }
+    const MatrixT &get() const noexcept { return mat; }
 
     /** @brief Computes the determinant of the matrix modulo p.
      *
      *  Uses Gaussian elimination to compute the determinant in O(n^3) time.
      *
      *  @return The determinant of the matrix modulo p.
-     *  @throws ah_domain_error if the matrix is not square or is empty.
+     *  @throws std::domain_error if the matrix is not square or is empty.
      */
     [[nodiscard]] uint64_t determinant() const
     {
-      size_t n_rows, n_cols;
-      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-        {
-          n_rows = mat.size();
-          n_cols = n_rows > 0 ? mat[0].size() : 0;
-        }
-      else
-        {
-          n_rows = mat.rows();
-          n_cols = mat.cols();
-        }
+      const auto [n_rows, n_cols] = matrix_dims(mat);
 
       ah_domain_error_if(n_rows == 0 or n_rows != n_cols)
           << "Determinant requires a square matrix";
@@ -202,7 +218,7 @@ namespace Aleph
                   {
                     const uint64_t term = mod_mul(factor, get_val(a, i, k), mod);
                     const uint64_t current = get_val(a, j, k);
-                    const uint64_t res = (current >= term) ? (current - term) : (current + mod - term);
+                    const uint64_t res = (current >= term) ? (current - term) : (mod - (term - current));
                     set_val(a, j, k, res);
                   }
               }
@@ -216,21 +232,11 @@ namespace Aleph
      *
      *  @return A new Modular_Matrix containing the inverse, or std::nullopt if the
      *          matrix is singular (not invertible).
-     *  @throws ah_domain_error if the matrix is not square or is empty.
+     *  @throws std::domain_error if the matrix is not square or is empty.
      */
     [[nodiscard]] std::optional<Modular_Matrix<MatrixT>> inverse() const
     {
-      size_t n_rows, n_cols;
-      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
-        {
-          n_rows = mat.size();
-          n_cols = n_rows > 0 ? mat[0].size() : 0;
-        }
-      else
-        {
-          n_rows = mat.rows();
-          n_cols = mat.cols();
-        }
+      const auto [n_rows, n_cols] = matrix_dims(mat);
 
       ah_domain_error_if(n_rows == 0 or n_rows != n_cols)
           << "Inverse requires a square matrix";
@@ -291,11 +297,11 @@ namespace Aleph
                   {
                     const uint64_t term_a = mod_mul(factor, get_val(a, i, k), mod);
                     const uint64_t curr_a = get_val(a, j, k);
-                    set_val(a, j, k, (curr_a >= term_a) ? (curr_a - term_a) : (curr_a + mod - term_a));
+                    set_val(a, j, k, (curr_a >= term_a) ? (curr_a - term_a) : (mod - (term_a - curr_a)));
 
                     const uint64_t term_inv = mod_mul(factor, get_val(inv, i, k), mod);
                     const uint64_t curr_inv = get_val(inv, j, k);
-                    set_val(inv, j, k, (curr_inv >= term_inv) ? (curr_inv - term_inv) : (curr_inv + mod - term_inv));
+                    set_val(inv, j, k, (curr_inv >= term_inv) ? (curr_inv - term_inv) : (mod - (term_inv - curr_inv)));
                   }
         }
 

@@ -75,8 +75,8 @@ namespace Aleph
 /** @brief Miller-Rabin primality test for 64-bit integers.
  *
  *  A deterministic primality test for any 64-bit unsigned integer.
- *  It uses a known sufficient set of 12 bases to guarantee correctness
- *  for all n < 2^64.
+ *  It uses a known sufficient set of 7 bases (Jim Sinclair's set) to 
+ *  guarantee correctness for all n < 2^64.
  *
  *  @param n The number to test for primality.
  *  @return true if n is prime, false otherwise.
