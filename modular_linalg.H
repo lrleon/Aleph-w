@@ -51,6 +51,7 @@
 # include <modular_arithmetic.H>
 # include <primality.H>
 # include <concepts>
+# include <utility>
 
 namespace Aleph
 {
@@ -63,6 +64,8 @@ namespace Aleph
     { m.cols() } -> std::convertible_to<size_t>;
     { m.read_ne(r, c) } -> std::convertible_to<uint64_t>;
     { mut_m.write(r, c, v) };
+    { mut_m.traverse_allocated([](uint64_t &) { return true; }) } -> std::convertible_to<bool>;
+    { mut_m.set_dimension(r, c) };
   };
 
   /** @concept DenseMatrix
@@ -139,9 +142,15 @@ namespace Aleph
           const size_t cols = m.cols();
           for (size_t j = 0; j < cols; ++j)
             {
-              uint64_t tmp = m.read_ne(r1, j);
-              m.write(r1, j, m.read_ne(r2, j));
-              m.write(r2, j, tmp);
+              const uint64_t v1 = m.read_ne(r1, j);
+              const uint64_t v2 = m.read_ne(r2, j);
+
+              // Avoid redundant writes that can densify sparse backends
+              if (v1 == v2)
+                continue;
+
+              m.write(r1, j, v2);
+              m.write(r2, j, v1);
             }
         }
     }

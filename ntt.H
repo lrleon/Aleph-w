@@ -92,7 +92,6 @@ public:
      *  @pre `a.size()` must divide `MOD - 1`.
      *  @param[in,out] a The input polynomial coefficients (modified in-place).
      *  @param[in] invert true for Inverse NTT, false for Forward NTT.
-     *  @return void (performed in-place).
      *  @throws std::invalid_argument if `a.size()` is 0, not a power of two, or 
      *          doesn't divide `MOD - 1`.
      *  @note Time complexity: O(n log n)

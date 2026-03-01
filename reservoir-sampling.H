@@ -141,7 +141,6 @@ namespace Aleph
      *  @tparam Sent Sentinel type for Itor.
      *  @param[in] beg Iterator to the first element of the range.
      *  @param[in] end Sentinel to the end of the range.
-     *  @return void
      *  @throws std::overflow_error if stream length exceeds safe limits.
      *  @throws std::runtime_error if RNG range is exceeded.
      */
@@ -177,7 +176,6 @@ namespace Aleph
      *
      *  Clears the reservoir, resets the element counter, and reseeds the
      *  RNG to its original state so the sampler is fully reproducible.
-     *  @return void
      *  @throws none
      */
     void clear()

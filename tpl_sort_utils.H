@@ -2747,6 +2747,8 @@ namespace Aleph
   const T &random_select(T *a, const long i, const long n,
                          const Compare & cmp = Compare())
   {
+    ah_invalid_argument_if(a == nullptr and n > 0) << "null pointer";
+
     ah_out_of_range_error_if(n <= 0 or i < 0 or i >= n) << "index out of range";
 
     return __random_select<T, Compare>(a, i, 0, n - 1, cmp);
