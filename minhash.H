@@ -42,6 +42,7 @@
  */
 
 # include <algorithm>
+# include <iterator>
 # include <limits>
 # include <cstdint>
 
@@ -86,6 +87,9 @@ namespace Aleph
     }
 
     /** @brief Add an element to the set.
+     *  @param[in] val The element to incorporate into the signature.
+     *  @return void
+     *  @throws none
      *  @note Complexity: O(k).
      */
     void update(const T & val)
@@ -102,6 +106,8 @@ namespace Aleph
      *  @tparam Itor Iterator whose value type is compatible with `update(const T&)`.
      *  @param[in] beg Iterator to the first element.
      *  @param[in] end Past-the-end iterator.
+     *  @return void
+     *  @throws none
      *  @note Complexity: O(k * n) where n = distance(beg, end).
      */
     template <std::input_iterator Itor>
@@ -115,6 +121,7 @@ namespace Aleph
     }
 
     /** @brief Estimate Jaccard similarity with another signature.
+     *  @param[in] other The MinHash signature to compare against.
      *  @return Estimated Jaccard index in [0.0, 1.0].
      *  @throws std::domain_error if signature sizes mismatch.
      */
@@ -131,13 +138,21 @@ namespace Aleph
       return static_cast<double>(matches) / static_cast<double>(k_);
     }
 
-    /** @brief Returns the current signature. */
+    /** @brief Returns the current signature.
+     *  @return Const reference to the internal Array of k minimized hash values.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
     [[nodiscard]] const Array<uint64_t> &get_signature() const noexcept
     {
       return signature_;
     }
 
-    /** @brief Reset the signature. */
+    /** @brief Reset the signature to the initial all-maximum state.
+     *  @return void
+     *  @throws none
+     *  @note Complexity: O(k).
+     */
     void clear()
     {
       constexpr uint64_t inf = std::numeric_limits<uint64_t>::max();
@@ -151,6 +166,7 @@ namespace Aleph
      *  which corresponds to the union of the underlying sets.
      *
      *  @param[in] other Another MinHash with the same number of hashes.
+     *  @return Reference to `*this` after the merge.
      *  @throws std::domain_error if signature sizes differ.
      */
     MinHash & merge(const MinHash & other)
@@ -164,7 +180,7 @@ namespace Aleph
     }
 
     /** @brief Number of hash functions used in the signature.
-     *  @return size_t The value k passed at construction.
+     *  @return size_t The value k passed at construction (signature size k_).
      *  @throws none
      *  @note Complexity: O(1).
      */

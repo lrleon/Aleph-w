@@ -200,19 +200,12 @@ namespace Aleph
      */
     void set_n_seen_for_testing(const size_t n)
     {
-      if (n >= k_)
-        {
-          ah_invalid_argument_if(reservoir_.size() < k_)
-            << "set_n_seen_for_testing: n_seen (" << n << ") >= k (" << k_
-            << ") but reservoir size (" << reservoir_.size() << ") < k";
-        }
-      else
-        {
-          ah_invalid_argument_if(n > reservoir_.size())
-            << "set_n_seen_for_testing: n_seen (" << n << ") > reservoir size ("
-            << reservoir_.size() << ")";
-        }
-
+      const size_t expected = (n < k_) ? n : k_;
+      ah_invalid_argument_if(reservoir_.size() != expected)
+        << "set_n_seen_for_testing: inconsistent state: "
+        << "n=" << n << ", k=" << k_
+        << ", reservoir.size()=" << reservoir_.size()
+        << " (expected " << expected << ")";
       n_seen_ = n;
     }
 

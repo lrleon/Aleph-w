@@ -53,7 +53,6 @@
 
 namespace Aleph
 {
-
   /** @brief SimHash fingerprint generator.
    *
    *  Maintains a 64-bit fingerprint representing a weighted set of features.
@@ -93,12 +92,10 @@ namespace Aleph
     {
       const auto hash = static_cast<uint64_t>(murmur3hash(val, 0x9e3779b9));
       for (size_t i = 0; i < FINGERPRINT_SIZE; ++i)
-        {
-          if ((hash >> i) & 1)
-            v_(i) += weight;
-          else
-            v_(i) -= weight;
-        }
+        if ((hash >> i) & 1)
+          v_(i) += weight;
+        else
+          v_(i) -= weight;
     }
 
     /** @brief Add all features in a range to the SimHash accumulator.
@@ -129,7 +126,7 @@ namespace Aleph
       for (size_t i = 0; i < FINGERPRINT_SIZE; ++i)
         if (v_(i) > 0)
           fingerprint |= (static_cast<uint64_t>(1) << i);
-      
+
       return fingerprint;
     }
 
@@ -149,7 +146,6 @@ namespace Aleph
         v_(i) = 0.0;
     }
   };
-
 } // namespace Aleph
 
 # endif // SIMHASH_H

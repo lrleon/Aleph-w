@@ -5512,22 +5512,36 @@ namespace Aleph
     if (range == T{0})
       return; // all equal
 
-    const bool descending = cmp(max_val, min_val) and not cmp(min_val, max_val);
-    const size_t num_buckets = n;
-    auto key = [min_val, range, num_buckets, descending](const T & val) -> size_t
+    // Numeric interpolation is only correct for the default arithmetic
+    // comparators (Aleph::less / Aleph::greater).  For any other comparator
+    // the mapping from value to bucket index is undefined, so fall back to
+    // the stable timsort which respects the caller's comparator directly.
+    if constexpr (std::is_same_v<Compare, Aleph::less<T>> or
+                  std::is_same_v<Compare, Aleph::greater<T>>)
       {
-        auto b = static_cast<size_t>((val - min_val) / range *
-                                     static_cast<T>(num_buckets - 1));
-        if (b >= num_buckets)
-          b = num_buckets - 1;
+        const bool descending = cmp(max_val, min_val) and not cmp(min_val, max_val);
+        const size_t num_buckets = n;
+        auto key = [min_val, range, num_buckets, descending](const T & val) -> size_t
+          {
+            auto b = static_cast<size_t>((val - min_val) / range *
+                                         static_cast<T>(num_buckets - 1));
+            if (b >= num_buckets)
+              b = num_buckets - 1;
 
-        if (descending)
-          b = (num_buckets - 1) - b;
+            if (descending)
+              b = (num_buckets - 1) - b;
 
-        return b;
-      };
+            return b;
+          };
 
-    bucket_sort_detail::bucket_sort_impl(a, n, num_buckets, key, cmp);
+        bucket_sort_detail::bucket_sort_impl(a, n, num_buckets, key, cmp);
+      }
+    else
+      {
+        // Custom comparator: bucket interpolation is not order-preserving;
+        // delegate to timsort which respects any strict-weak-ordering comparator.
+        timsort(a, n, cmp);
+      }
   }
 
 

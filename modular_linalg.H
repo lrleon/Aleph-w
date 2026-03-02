@@ -59,14 +59,15 @@ namespace Aleph
    *  Expresses requirements for sparse matrix backends like DynMatrix.
    */
   template <typename T>
-  concept SparseMatrix = requires(const T & m, T & mut_m, size_t r, size_t c, uint64_t v) {
-    { m.rows() } -> std::convertible_to<size_t>;
-    { m.cols() } -> std::convertible_to<size_t>;
-    { m.read_ne(r, c) } -> std::convertible_to<uint64_t>;
-    { mut_m.write(r, c, v) };
-    { mut_m.traverse_allocated([](uint64_t &) { return true; }) } -> std::convertible_to<bool>;
-    { mut_m.set_dimension(r, c) };
-  };
+  concept SparseMatrix = requires(const T & m, T & mut_m, size_t r, size_t c, uint64_t v)
+    {
+      { m.rows() } -> std::convertible_to<size_t>;
+      { m.cols() } -> std::convertible_to<size_t>;
+      { m.read_ne(r, c) } -> std::convertible_to<uint64_t>;
+      { mut_m.write(r, c, v) };
+      { mut_m.traverse_allocated([](uint64_t &) { return true; }) } -> std::convertible_to<bool>;
+      { mut_m.set_dimension(r, c) };
+    };
 
   /** @concept DenseMatrix
    *  Expresses requirements for dense matrix backends like Array<Array<uint64_t>>.
@@ -188,15 +189,13 @@ namespace Aleph
         {
           const auto [n_rows, n_cols] = matrix_dims(mat);
           if (n_rows > 0)
-            {
-              for (size_t i = 0; i < n_rows; ++i)
-                {
-                  ah_invalid_argument_if(mat[i].size() != n_cols)
+            for (size_t i = 0; i < n_rows; ++i)
+              {
+                ah_invalid_argument_if(mat[i].size() != n_cols)
                     << "Modular_Matrix: ragged matrix input is not supported";
-                  for (size_t j = 0; j < n_cols; ++j)
-                    mat(i)(j) %= mod;
-                }
-            }
+                for (size_t j = 0; j < n_cols; ++j)
+                  mat(i)(j) %= mod;
+              }
         }
       else // SparseMatrix
         {
@@ -211,12 +210,13 @@ namespace Aleph
 
   private:
     // Internal constructor to skip validation when data is already normalized
-    struct skip_validation_t {};
+    struct skip_validation_t
+    {};
+
     Modular_Matrix(MatrixT && m, uint64_t p, skip_validation_t)
       : mat(std::move(m)), mod(p) {}
 
   public:
-
     /** @brief Get a constant reference to the underlying matrix.
      *  @return Constant reference to the matrix data.
      *  @throws none
@@ -273,7 +273,7 @@ namespace Aleph
           for (size_t j = i + 1; j < n_rows; ++j)
             if (const uint64_t val_ji = get_val(a, j, i); val_ji != 0)
               {
-                uint64_t factor = mod_mul(val_ji, inv, mod);
+                const uint64_t factor = mod_mul(val_ji, inv, mod);
                 for (size_t k = i; k < n_cols; ++k)
                   if (const uint64_t val_ik = get_val(a, i, k); val_ik != 0)
                     {
@@ -331,14 +331,12 @@ namespace Aleph
         {
           size_t pivot = i;
           if (get_val(a, i, i) == 0)
-            {
-              for (size_t j = i + 1; j < n_rows; ++j)
-                if (get_val(a, j, i) != 0)
-                  {
-                    pivot = j;
-                    break;
-                  }
-            }
+            for (size_t j = i + 1; j < n_rows; ++j)
+              if (get_val(a, j, i) != 0)
+                {
+                  pivot = j;
+                  break;
+                }
 
           if (get_val(a, pivot, i) == 0)
             return std::nullopt; // Singular matrix
@@ -361,7 +359,7 @@ namespace Aleph
 
           for (size_t j = 0; j < n_rows; ++j)
             if (i != j)
-              if (uint64_t factor = get_val(a, j, i); factor != 0)
+              if (const uint64_t factor = get_val(a, j, i); factor != 0)
                 for (size_t k = 0; k < n_rows; ++k)
                   {
                     if (const uint64_t val_ik = get_val(a, i, k); val_ik != 0)
@@ -375,7 +373,9 @@ namespace Aleph
                       {
                         const uint64_t term_inv = mod_mul(factor, val_inv_ik, mod);
                         const uint64_t curr_inv = get_val(inv, j, k);
-                        set_val(inv, j, k, (curr_inv >= term_inv) ? (curr_inv - term_inv) : (mod - (term_inv - curr_inv)));
+                        set_val(inv, j, k, (curr_inv >= term_inv) ?
+                                             (curr_inv - term_inv) :
+                                             (mod - (term_inv - curr_inv)));
                       }
                   }
         }

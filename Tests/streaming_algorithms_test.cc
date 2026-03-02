@@ -119,23 +119,181 @@ TEST(StreamingAlgorithms, HyperLogLog)
 
 TEST(StreamingAlgorithms, MinHash)
 {
-  MinHash<int> mh1(256);
-  MinHash<int> mh2(256);
-  MinHash<int> mh3(256);
+  constexpr size_t K = 256;
+  MinHash<int> mh1(K);
+  MinHash<int> mh2(K);
+  MinHash<int> mh3(K);
+  MinHash<int> mh1_range(K);
 
   // Set 1: [0..99]
   // Set 2: [50..149] -> Intersection 50, Union 150 -> Jaccard = 1/3
   // Set 3: [200..299] -> Jaccard with 1 = 0
-  
+  DynArray<int> set1, set2, set3;
+  set1.reserve(100);
+  set2.reserve(100);
+  set3.reserve(100);
+
+  for (int i = 0; i < 100; ++i)
+    {
+      set1.append(i);
+      set2.append(i + 50);
+      set3.append(i + 200);
+    }
+
   for (int i = 0; i < 100; ++i) mh1.update(i);
   for (int i = 50; i < 150; ++i) mh2.update(i);
   for (int i = 200; i < 300; ++i) mh3.update(i);
+  mh1_range.update(set1.begin(), set1.end()); // range overload
+
+  EXPECT_EQ(mh1.size(), K);
+  EXPECT_EQ(mh2.size(), K);
+  EXPECT_EQ(mh3.size(), K);
+  EXPECT_EQ(mh1_range.size(), K);
+
+  // update(Itor, Itor) must be equivalent to repeated point updates.
+  EXPECT_DOUBLE_EQ(mh1.similarity(mh1_range), 1.0);
+  const auto & sig1 = mh1.get_signature();
+  const auto & sig1_range = mh1_range.get_signature();
+  const auto * sig_ptr = &mh1_range.get_signature();
+  EXPECT_NE(sig_ptr, nullptr);
+  EXPECT_EQ(sig_ptr, &mh1_range.get_signature());
+  ASSERT_EQ(sig1.size(), K);
+  ASSERT_EQ(sig1_range.size(), K);
+
+  bool changed_after_update = false;
+  for (size_t i = 0; i < K; ++i)
+    {
+      EXPECT_EQ(sig1[i], sig1_range[i]);
+      if (sig1_range[i] != std::numeric_limits<uint64_t>::max())
+        changed_after_update = true;
+    }
+  EXPECT_TRUE(changed_after_update);
 
   double sim12 = mh1.similarity(mh2);
   double sim13 = mh1.similarity(mh3);
 
   EXPECT_NEAR(sim12, 1.0/3.0, 0.1);
   EXPECT_NEAR(sim13, 0.0, 0.05);
+
+  // Merge contract: returns *this and corresponds to union of sets.
+  MinHash<int> mh_union_expected(K);
+  DynArray<int> union12;
+  union12.reserve(150);
+  for (int i = 0; i < 150; ++i)
+    union12.append(i);
+  mh_union_expected.update(union12.begin(), union12.end());
+
+  MinHash<int> mh_merged = mh1;
+  MinHash<int> & merge_ret = mh_merged.merge(mh2);
+  EXPECT_EQ(&merge_ret, &mh_merged);
+  EXPECT_EQ(mh_merged.size(), K);
+  EXPECT_DOUBLE_EQ(mh_merged.similarity(mh_union_expected), 1.0);
+
+  const auto & sig2 = mh2.get_signature();
+  const auto & sig_merged = mh_merged.get_signature();
+  const auto & sig_union = mh_union_expected.get_signature();
+  ASSERT_EQ(sig_merged.size(), K);
+  ASSERT_EQ(sig_union.size(), K);
+  for (size_t i = 0; i < K; ++i)
+    {
+      EXPECT_EQ(sig_merged[i], std::min(sig1[i], sig2[i]));
+      EXPECT_EQ(sig_merged[i], sig_union[i]);
+    }
+
+  // clear() restores the empty signature (all max values).
+  const Array<uint64_t> sig_before_clear = mh_merged.get_signature();
+  mh_merged.clear();
+  EXPECT_EQ(mh_merged.size(), K);
+
+  const auto & sig_cleared = mh_merged.get_signature();
+  ASSERT_EQ(sig_cleared.size(), K);
+  bool changed_after_clear = false;
+  for (size_t i = 0; i < K; ++i)
+    {
+      EXPECT_EQ(sig_cleared[i], std::numeric_limits<uint64_t>::max());
+      if (sig_cleared[i] != sig_before_clear[i])
+        changed_after_clear = true;
+    }
+  EXPECT_TRUE(changed_after_clear);
+
+  // In current MinHash contract, clear() == fresh empty signature.
+  MinHash<int> fresh(K);
+  EXPECT_DOUBLE_EQ(mh_merged.similarity(fresh), 1.0);
+
+  // Signature must change again after a new update from the cleared state.
+  const Array<uint64_t> sig_before_reupdate = mh_merged.get_signature();
+  mh_merged.update(set2.begin(), set2.end());
+  EXPECT_EQ(mh_merged.size(), K);
+
+  const auto & sig_reupdated = mh_merged.get_signature();
+  bool changed_after_reupdate = false;
+  for (size_t i = 0; i < K; ++i)
+    if (sig_reupdated[i] != sig_before_reupdate[i])
+      {
+        changed_after_reupdate = true;
+        break;
+      }
+  EXPECT_TRUE(changed_after_reupdate);
+}
+
+TEST(StreamingAlgorithms, MinHashNewMethods)
+{
+  // update(Itor, Itor) should produce the same signature as repeated update(val).
+  MinHash<int> mhLoop(64);
+  MinHash<int> mhRange(64);
+
+  DynArray<int> elems;
+  for (int i = 0; i < 50; ++i)
+    elems.append(i);
+
+  for (int i = 0; i < 50; ++i)
+    mhLoop.update(i);
+  mhRange.update(elems.begin(), elems.end());
+
+  EXPECT_EQ(mhLoop.similarity(mhRange), 1.0);
+
+  // size() returns k.
+  EXPECT_EQ(mhLoop.size(), 64u);
+  EXPECT_EQ(mhRange.size(), 64u);
+
+  // get_signature() returns a stable reference with exactly k entries.
+  const Array<uint64_t> & sig = mhLoop.get_signature();
+  EXPECT_EQ(sig.size(), 64u);
+
+  // clear() resets the signature; similarity to fresh MinHash is 1.0
+  // (both have all-max entries, so all positions agree).
+  MinHash<int> fresh(64);
+  mhLoop.clear();
+  EXPECT_EQ(mhLoop.similarity(fresh), 1.0);
+
+  // get_signature() after clear has all entries == max.
+  constexpr uint64_t max64 = std::numeric_limits<uint64_t>::max();
+  const Array<uint64_t> & sig2 = mhLoop.get_signature();
+  for (size_t i = 0; i < sig2.size(); ++i)
+    EXPECT_EQ(sig2[i], max64);
+
+  // merge() combines two signatures: union of [0..49] and [25..74]
+  // should give same result as building from [0..74] directly.
+  MinHash<int> mhA(64), mhB(64), mhUnion(64);
+  for (int i =  0; i < 50; ++i) mhA.update(i);
+  for (int i = 25; i < 75; ++i) mhB.update(i);
+  for (int i =  0; i < 75; ++i) mhUnion.update(i);
+
+  mhA.merge(mhB);
+  // Merged should be close to union; similarity should be high.
+  EXPECT_GT(mhA.similarity(mhUnion), 0.8);
+
+  // merge() returns *this (chaining works).
+  MinHash<int> mhC(64), mhD(64);
+  mhC.update(1);
+  mhD.update(2);
+  MinHash<int> & ref = mhC.merge(mhD);
+  EXPECT_EQ(&ref, &mhC);
+
+  // size() is stable after merge and clear.
+  EXPECT_EQ(mhA.size(), 64u);
+  mhA.clear();
+  EXPECT_EQ(mhA.size(), 64u);
 }
 
 TEST(StreamingAlgorithms, SimHash)
@@ -222,7 +380,7 @@ TEST(ReservoirSampler, overflow_size_t)
   for (int i = 0; i < 5; ++i)
     s2.update(i);
   s2.set_n_seen_for_testing(std::numeric_limits<size_t>::max());
-  const std::vector<int> one = {99};
+  DynArray<int> one = {99};
   EXPECT_THROW(s2.update(one.begin(), one.end()), std::overflow_error);
 }
 
@@ -244,8 +402,8 @@ TEST(ReservoirSampler, overflow_rng_range)
   for (int i = 0; i < 3; ++i)
     s2.update(i);
   s2.set_n_seen_for_testing(rng_range);
-  const std::vector<int> one = {99};
-  EXPECT_THROW(s2.update(one.begin(), one.end()), std::runtime_error);
+  DynArray<int> one2 = {99};
+  EXPECT_THROW(s2.update(one2.begin(), one2.end()), std::runtime_error);
 }
 
 TEST(StreamingAlgorithms, CMSSketchMerge)

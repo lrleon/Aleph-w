@@ -1538,6 +1538,10 @@ TEST(EqualSequenceMethod, LargeInputs)
 
   EXPECT_TRUE(a1 == a2);
   EXPECT_TRUE(d1 == d2);
+  EXPECT_TRUE(a1.equal_to(a2));
+  EXPECT_TRUE(d1.equal_to(d2));
+  EXPECT_FALSE(a1 != a2);
+  EXPECT_FALSE(d1 != d2);
 
   // Differ at one position
   a2(N/2) = -1;
@@ -1545,5 +1549,9 @@ TEST(EqualSequenceMethod, LargeInputs)
 
   EXPECT_FALSE(a1 == a2);
   EXPECT_FALSE(d1 == d2);
+  EXPECT_FALSE(a1.equal_to(a2));
+  EXPECT_FALSE(d1.equal_to(d2));
+  EXPECT_TRUE(a1 != a2);
+  EXPECT_TRUE(d1 != d2);
 }
 
