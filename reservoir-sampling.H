@@ -108,7 +108,6 @@ namespace Aleph
     /** @brief Process a new element from the stream.
      *
      *  @param[in] val The element to potentially include in the sample.
-     *  @return void
      *  @note Complexity: O(1).
      *  @throws std::overflow_error if the stream length exceeds size_t or
      *          unsigned long capacity.
@@ -152,7 +151,6 @@ namespace Aleph
      *  @tparam Sent Sentinel type for Itor.
      *  @param[in] beg Iterator to the first element of the range.
      *  @param[in] end Sentinel to the end of the range.
-     *  @return void
      *  @throws std::overflow_error if stream length exceeds safe limits.
      *  @throws std::runtime_error if RNG range is exceeded.
      */
@@ -198,7 +196,6 @@ namespace Aleph
      *  Allows unit tests to exercise overflow and RNG-range-exhaustion paths
      *  without having to feed billions of elements.  Do not use in production.
      *  @param[in] n New value for the internal element counter.
-     *  @return void
      *  @throws std::invalid_argument if the state would be inconsistent.
      */
     void set_n_seen_for_testing(const size_t n)
@@ -216,7 +213,6 @@ namespace Aleph
      *
      *  Clears the reservoir, resets the element counter, and reseeds the
      *  RNG to its original state so the sampler is fully reproducible.
-     *  @return void
      *  @throws none
      */
     void clear()
