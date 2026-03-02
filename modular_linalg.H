@@ -233,12 +233,15 @@ namespace Aleph
       for (size_t i = 0; i < n_rows; ++i)
         {
           size_t pivot = i;
-          for (size_t j = i + 1; j < n_rows; ++j)
-            if (get_val(a, j, i) != 0)
-              {
-                pivot = j;
-                break;
-              }
+          if (get_val(a, i, i) == 0)
+            {
+              for (size_t j = i + 1; j < n_rows; ++j)
+                if (get_val(a, j, i) != 0)
+                  {
+                    pivot = j;
+                    break;
+                  }
+            }
 
           if (get_val(a, pivot, i) == 0)
             return 0; // Singular matrix
@@ -312,12 +315,15 @@ namespace Aleph
       for (size_t i = 0; i < n_rows; ++i)
         {
           size_t pivot = i;
-          for (size_t j = i + 1; j < n_rows; ++j)
-            if (get_val(a, j, i) != 0)
-              {
-                pivot = j;
-                break;
-              }
+          if (get_val(a, i, i) == 0)
+            {
+              for (size_t j = i + 1; j < n_rows; ++j)
+                if (get_val(a, j, i) != 0)
+                  {
+                    pivot = j;
+                    break;
+                  }
+            }
 
           if (get_val(a, pivot, i) == 0)
             return std::nullopt; // Singular matrix

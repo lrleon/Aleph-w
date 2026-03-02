@@ -666,11 +666,10 @@ namespace Aleph
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  Dnode<T> * sequential_search(const Dnode<T> & list, const T & x, Equal & eq)
+  Dnode<T> * sequential_search(Dnode<T> & list, const T & x, Equal & eq)
   {
     Compare_Dnode<T, Equal> cmp(eq);
-    const auto & base = static_cast<const Dlink &>(list);
-    Dlink *ret = sequential_search<Dlink, T, Compare_Dnode<T, Equal>>(base, x, cmp);
+    Dlink *ret = sequential_search<Dlink, T, Compare_Dnode<T, Equal>>(list, x, cmp);
 
     return ret == nullptr ? nullptr : static_cast<Dnode<T> *>(ret);
   }
@@ -678,7 +677,32 @@ namespace Aleph
   /** @overload */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  Dnode<T> * sequential_search(const Dnode<T> & list, const T & x, Equal && eq = Equal())
+  Dnode<T> * sequential_search(Dnode<T> & list, const T & x, Equal && eq = Equal())
+  {
+    return sequential_search<T, Equal>(list, x, eq);
+  }
+
+  /** @brief Linear search over a list of Dnodes.
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the first Dnode containing x, or nullptr.
+   */
+  template <typename T, class Equal = Aleph::equal_to<T>>
+  inline
+  const Dnode<T> * sequential_search(const Dnode<T> & list, const T & x, Equal & eq)
+  {
+    Compare_Dnode<T, Equal> cmp(eq);
+    const auto & base = static_cast<const Dlink &>(list);
+    const Dlink *ret = sequential_search<Dlink, T, Compare_Dnode<T, Equal>>(base, x, cmp);
+
+    return ret == nullptr ? nullptr : static_cast<const Dnode<T> *>(ret);
+  }
+
+  /** @overload */
+  template <typename T, class Equal = Aleph::equal_to<T>>
+  inline
+  const Dnode<T> * sequential_search(const Dnode<T> & list, const T & x, Equal && eq = Equal())
   {
     return sequential_search<T, Equal>(list, x, eq);
   }
@@ -691,10 +715,23 @@ namespace Aleph
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  T * sequential_search(const DynDlist<T> & list, const T & x, Equal eq = Equal())
+  T * sequential_search(DynDlist<T> & list, const T & x, Equal eq = Equal())
   {
-    Dnode<T> *ret = sequential_search<T, Equal>
-        (const_cast<Dnode<T> &>(static_cast<const Dnode<T> &>(list)), x, eq);
+    Dnode<T> *ret = sequential_search<T, Equal>(list, x, eq);
+    return ret != nullptr ? &ret->get_data() : nullptr;
+  }
+
+  /** @brief Linear search on a DynDlist (const version).
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the data of the first matching element, or nullptr.
+   */
+  template <typename T, class Equal = Aleph::equal_to<T>>
+  inline
+  const T * sequential_search(const DynDlist<T> & list, const T & x, Equal eq = Equal())
+  {
+    const Dnode<T> *ret = sequential_search<T, Equal>(static_cast<const Dnode<T> &>(list), x, eq);
     return ret != nullptr ? &ret->get_data() : nullptr;
   }
 
@@ -706,7 +743,7 @@ namespace Aleph
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  T * sequential_search(const DynList<T> & list, const T & x, Equal & eq)
+  T * sequential_search(DynList<T> & list, const T & x, Equal & eq)
   {
     for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
       {
@@ -720,15 +757,36 @@ namespace Aleph
   /** @overload */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  T * sequential_search(const DynList<T> & list, const T & x, Equal eq = Equal())
+  T * sequential_search(DynList<T> & list, const T & x, Equal eq = Equal())
+  {
+    return sequential_search<T, Equal>(list, x, eq);
+  }
+
+  /** @brief Linear search on a DynList (const version).
+   *  @param list The list header.
+   *  @param x The element to search for.
+   *  @param eq Equality comparator.
+   *  @return Pointer to the data of the first matching element, or nullptr.
+   */
+  template <typename T, class Equal = Aleph::equal_to<T>>
+  inline
+  const T * sequential_search(const DynList<T> & list, const T & x, Equal & eq)
   {
     for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
       {
-        T & curr = it.get_curr_ne();
+        const T & curr = it.get_curr_ne();
         if (eq(curr, x))
           return &curr;
       }
     return nullptr;
+  }
+
+  /** @overload */
+  template <typename T, class Equal = Aleph::equal_to<T>>
+  inline
+  const T * sequential_search(const DynList<T> & list, const T & x, Equal eq = Equal())
+  {
+    return sequential_search<T, Equal>(list, x, eq);
   }
 
 
@@ -2355,6 +2413,70 @@ namespace Aleph
 
   template <typename T, class Compare>
   static inline
+  std::pair<long, long>
+  partition_three_way(T *a, long l, long r, const Compare & cmp)
+  {
+    const long pivot_idx = select_pivot<T, Compare>(a, l, r, cmp);
+    std::swap(a[pivot_idx], a[r]);
+
+    long lt = l;
+    long gt = r - 1;
+    long current = l;
+
+    while (current <= gt)
+      {
+        if (cmp(a[current], a[r]))
+          {
+            std::swap(a[lt], a[current]);
+            lt++;
+            current++;
+          }
+        else if (cmp(a[r], a[current]))
+          {
+            std::swap(a[current], a[gt]);
+            gt--;
+          }
+        else
+          current++;
+      }
+
+    std::swap(a[current], a[r]);
+    return {lt, current};
+  }
+
+  template <class Container, typename T, class Compare>
+  static inline
+  std::pair<long, long>
+  partition_three_way_op(Container & a, long l, long r, const Compare & cmp)
+  {
+    const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp);
+    std::swap(a(pivot_idx), a(r));
+
+    long lt = l;
+    long gt = r - 1;
+    long current = l;
+
+    while (current <= gt)
+      if (cmp(a(current), a(r)))
+        {
+          std::swap(a(lt), a(current));
+          lt++;
+          current++;
+        }
+      else if (cmp(a(r), a(current)))
+        {
+          std::swap(a(current), a(gt));
+          gt--;
+        }
+      else
+        current++;
+
+    std::swap(a(current), a(r));
+    return {lt, current};
+  }
+
+  template <typename T, class Compare>
+  static inline
   const T &__random_select(T *a, const long i, long l, long r,
                            const Compare & cmp)
   {
@@ -2366,31 +2488,7 @@ namespace Aleph
             return a[i];
           }
 
-        const long pivot_idx = select_pivot<T, Compare>(a, l, r, cmp);
-        std::swap(a[pivot_idx], a[r]);
-
-        long lt = l;
-        long gt = r - 1;
-        long current = l;
-
-        while (current <= gt)
-          {
-            if (cmp(a[current], a[r]))
-              {
-                std::swap(a[lt], a[current]);
-                lt++;
-                current++;
-              }
-            else if (cmp(a[r], a[current]))
-              {
-                std::swap(a[current], a[gt]);
-                gt--;
-              }
-            else
-              current++;
-          }
-
-        std::swap(a[current], a[r]);
+        const auto [lt, current] = partition_three_way<T, Compare>(a, l, r, cmp);
 
         if (i >= lt and i <= current)
           return a[i];
@@ -2567,29 +2665,7 @@ namespace Aleph
             return a(i);
           }
 
-        const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp);
-        std::swap(a(pivot_idx), a(r));
-
-        long lt = l;
-        long gt = r - 1;
-        long current = l;
-
-        while (current <= gt)
-          if (cmp(a(current), a(r)))
-            {
-              std::swap(a(lt), a(current));
-              lt++;
-              current++;
-            }
-          else if (cmp(a(r), a(current)))
-            {
-              std::swap(a(current), a(gt));
-              gt--;
-            }
-          else
-            current++;
-
-        std::swap(a(current), a(r));
+        const auto [lt, current] = partition_three_way_op<DynArray<T>, T, Compare>(a, l, r, cmp);
 
         if (i >= lt and i <= current)
           return a(i);
@@ -2629,29 +2705,7 @@ namespace Aleph
             return a(i);
           }
 
-        const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp);
-        std::swap(a(pivot_idx), a(r));
-
-        long lt = l;
-        long gt = r - 1;
-        long current = l;
-
-        while (current <= gt)
-          if (cmp(a(current), a(r)))
-            {
-              std::swap(a(lt), a(current));
-              lt++;
-              current++;
-            }
-          else if (cmp(a(r), a(current)))
-            {
-              std::swap(a(current), a(gt));
-              gt--;
-            }
-          else
-            current++;
-
-        std::swap(a(current), a(r));
+        const auto [lt, current] = partition_three_way_op<Array<T>, T, Compare>(a, l, r, cmp);
 
         if (i >= lt and i <= current)
           return a(i);
