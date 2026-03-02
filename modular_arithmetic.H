@@ -42,6 +42,7 @@
 # define MODULAR_ARITHMETIC_H
 
 # include <cstdint>
+# include <type_traits>
 
 # include <ah-errors.H>
 # include <tpl_array.H>

@@ -66,9 +66,12 @@ namespace Aleph
   class SimHash
   {
   public:
-    /** @brief Number of bits in the SimHash fingerprint.
+    /** @brief Number of bits in the SimHash fingerprint (always 64).
      *
-     *  Fixed at 64 to match the output width of the 64-bit Murmur3 hash.
+     *  The fingerprint is always a 64-bit value.  Note that the underlying
+     *  `murmur3hash()` returns `size_t`, which is 32-bit on non-x86_64
+     *  platforms; on those builds the upper 32 bits of every fingerprint
+     *  will be zero, effectively halving the collision resistance.
      */
     static constexpr size_t FINGERPRINT_SIZE = 64;
 

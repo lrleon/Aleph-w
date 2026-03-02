@@ -47,6 +47,8 @@
 namespace Aleph
 {
 
+namespace detail
+{
 /** @brief Helper function for Miller-Rabin test.
  *
  *  Checks if 'a' is a composite witness for 'n'.
@@ -71,6 +73,7 @@ namespace Aleph
     }
   return true;
 }
+} // namespace detail
 
 /** @brief Miller-Rabin primality test for 64-bit integers.
  *
@@ -101,7 +104,7 @@ namespace Aleph
     {
       if (n <= a)
         break;
-      if (check_composite(n, a, d, s))
+      if (detail::check_composite(n, a, d, s))
         return false;
     }
   return true;
