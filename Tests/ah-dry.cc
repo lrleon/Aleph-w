@@ -384,3 +384,44 @@ TYPED_TEST_P(CtorContainer, ctor)
 REGISTER_TYPED_TEST_SUITE_P(CtorContainer, ctor);
 
 INSTANTIATE_TYPED_TEST_SUITE_P(Ctors, CtorContainer, Ctypes);
+
+TEST(EqualSequenceMethod, comparison)
+{
+  Array<int> a1 = {1, 2, 3, 4, 5};
+  Array<int> a2 = {1, 2, 3, 4, 5};
+  Array<int> a3 = {1, 2, 3, 4};
+  Array<int> a4 = {5, 4, 3, 2, 1};
+  Array<int> a5 = {1, 2, 2, 3, 4, 5};
+
+  // 1. Size mismatch
+  EXPECT_FALSE(a1.equal_to(a3));
+  EXPECT_FALSE(a1 == a3);
+  EXPECT_TRUE(a1 != a3);
+
+  // 2. Self-comparison
+  EXPECT_TRUE(a1.equal_to(a1));
+  EXPECT_TRUE(a1 == a1);
+  EXPECT_FALSE(a1 != a1);
+
+  // 3. Same elements, same order
+  EXPECT_TRUE(a1.equal_to(a2));
+  EXPECT_TRUE(a1 == a2);
+  EXPECT_FALSE(a1 != a2);
+
+  // 4. Same elements, different order
+  EXPECT_FALSE(a1.equal_to(a4));
+  EXPECT_FALSE(a1 == a4);
+  EXPECT_TRUE(a1 != a4);
+
+  // 5. Multiplicity differences
+  EXPECT_FALSE(a1.equal_to(a5));
+  EXPECT_FALSE(a1 == a5);
+
+  // DynArray
+  DynArray<int> d1 = {1, 2, 3};
+  DynArray<int> d2 = {1, 2, 3};
+  DynArray<int> d3 = {3, 2, 1};
+
+  EXPECT_TRUE(d1 == d2);
+  EXPECT_FALSE(d1 == d3);
+}

@@ -71,10 +71,11 @@ namespace Aleph
      *  @param[in] k Number of hashes to use (higher k -> better precision).
      */
     explicit MinHash(size_t k = 128)
-      : k_(k),
-        signature_(k, std::numeric_limits<uint64_t>::max())
+      : k_(k)
     {
       ah_domain_error_if(k == 0) << "MinHash: k must be > 0";
+      
+      signature_.assign(k, std::numeric_limits<uint64_t>::max());
       seeds_.reserve(k_);
 
       // Use dft_hash_fct to generate independent seeds
@@ -101,11 +102,14 @@ namespace Aleph
      *  @param[in] end Past-the-end iterator.
      *  @note Complexity: O(k * n) where n = distance(beg, end).
      */
-    template <typename Itor>
+    template <std::input_iterator Itor>
     void update(Itor beg, const Itor & end)
     {
       while (beg != end)
-        update(*beg++);
+        {
+          update(*beg);
+          ++beg;
+        }
     }
 
     /** @brief Estimate Jaccard similarity with another signature.

@@ -41,6 +41,8 @@
 #include <string>
 #include <htlist.H>
 #include <ah-dry-mixin.H>
+#include <tpl_array.H>
+#include <tpl_dynArray.H>
 
 using namespace std;
 using namespace Aleph;
@@ -1371,5 +1373,131 @@ TEST(DynListIntegration, ExistingMethodsWork)
 
   // exists works
   EXPECT_TRUE(list.exists([](int x) { return x == 3; }));
+}
+
+
+// =============================================================================
+// EqualSequenceMethod Tests
+// Exercises equal_to(), operator==, and operator!= on Array<T> and DynArray<T>,
+// both of which inherit EqualSequenceMethod via CRTP.
+// =============================================================================
+
+// Helper: build an Array<int> from an initializer list.
+static Array<int> make_array(std::initializer_list<int> vals)
+{
+  Array<int> a;
+  for (int v : vals)
+    a.append(v);
+  return a;
+}
+
+// Helper: build a DynArray<int> from an initializer list.
+static DynArray<int> make_dynarray(std::initializer_list<int> vals)
+{
+  DynArray<int> a;
+  for (int v : vals)
+    a.append(v);
+  return a;
+}
+
+TEST(EqualSequenceMethod, SizeMismatchReturnsFalse)
+{
+  // Containers with different sizes must compare unequal regardless of content.
+  const Array<int> a3 = make_array({1, 2, 3});
+  const Array<int> a2 = make_array({1, 2});
+
+  EXPECT_FALSE(a3.equal_to(a2));
+  EXPECT_FALSE(a2.equal_to(a3));
+  EXPECT_FALSE(a3 == a2);
+  EXPECT_TRUE(a3 != a2);
+
+  const DynArray<int> d3 = make_dynarray({1, 2, 3});
+  const DynArray<int> d2 = make_dynarray({1, 2});
+
+  EXPECT_FALSE(d3.equal_to(d2));
+  EXPECT_FALSE(d2.equal_to(d3));
+  EXPECT_FALSE(d3 == d2);
+  EXPECT_TRUE(d3 != d2);
+}
+
+TEST(EqualSequenceMethod, SelfComparisonReturnsTrue)
+{
+  // equal_to(self) must return true via the identity fast-path.
+  const Array<int> a = make_array({10, 20, 30});
+  EXPECT_TRUE(a.equal_to(a));
+  EXPECT_TRUE(a == a);
+  EXPECT_FALSE(a != a);
+
+  const DynArray<int> d = make_dynarray({10, 20, 30});
+  EXPECT_TRUE(d.equal_to(d));
+  EXPECT_TRUE(d == d);
+  EXPECT_FALSE(d != d);
+}
+
+TEST(EqualSequenceMethod, SameElementsDifferentOrderReturnsFalse)
+{
+  // Same multiset, different traversal order → unequal (order-sensitive).
+  const Array<int> a1 = make_array({1, 2, 3});
+  const Array<int> a2 = make_array({3, 2, 1});
+
+  EXPECT_FALSE(a1.equal_to(a2));
+  EXPECT_FALSE(a1 == a2);
+  EXPECT_TRUE(a1 != a2);
+
+  const DynArray<int> d1 = make_dynarray({1, 2, 3});
+  const DynArray<int> d2 = make_dynarray({3, 2, 1});
+
+  EXPECT_FALSE(d1.equal_to(d2));
+  EXPECT_FALSE(d1 == d2);
+  EXPECT_TRUE(d1 != d2);
+}
+
+TEST(EqualSequenceMethod, DuplicateMultiplicityDifferenceReturnsFalse)
+{
+  // Same elements but different duplicate counts → unequal.
+  const Array<int> a1 = make_array({1, 1, 2});   // two 1s
+  const Array<int> a2 = make_array({1, 2, 2});   // two 2s
+
+  EXPECT_FALSE(a1.equal_to(a2));
+  EXPECT_FALSE(a1 == a2);
+  EXPECT_TRUE(a1 != a2);
+
+  const DynArray<int> d1 = make_dynarray({5, 5, 7});
+  const DynArray<int> d2 = make_dynarray({5, 7, 7});
+
+  EXPECT_FALSE(d1.equal_to(d2));
+  EXPECT_FALSE(d1 == d2);
+  EXPECT_TRUE(d1 != d2);
+}
+
+TEST(EqualSequenceMethod, EqualContainersReturnTrue)
+{
+  // Sanity-check the positive case: identical content → equal.
+  const Array<int> a1 = make_array({4, 5, 6});
+  const Array<int> a2 = make_array({4, 5, 6});
+
+  EXPECT_TRUE(a1.equal_to(a2));
+  EXPECT_TRUE(a1 == a2);
+  EXPECT_FALSE(a1 != a2);
+
+  const DynArray<int> d1 = make_dynarray({4, 5, 6});
+  const DynArray<int> d2 = make_dynarray({4, 5, 6});
+
+  EXPECT_TRUE(d1.equal_to(d2));
+  EXPECT_TRUE(d1 == d2);
+  EXPECT_FALSE(d1 != d2);
+}
+
+TEST(EqualSequenceMethod, EmptyContainersAreEqual)
+{
+  const Array<int> a1, a2;
+  EXPECT_TRUE(a1.equal_to(a2));
+  EXPECT_TRUE(a1 == a2);
+  EXPECT_FALSE(a1 != a2);
+
+  const DynArray<int> d1, d2;
+  EXPECT_TRUE(d1.equal_to(d2));
+  EXPECT_TRUE(d1 == d2);
+  EXPECT_FALSE(d1 != d2);
 }
 

@@ -130,11 +130,11 @@ namespace Aleph
       else
         {
           // Probability of replacement is k / (n_seen + 1)
-          ah_runtime_error_unless(n_seen_ < rng_range_)
-            << "Reservoir_Sampler::update: stream length exceeds RNG generator range (" << rng_range_ << ")";
-
           ah_overflow_error_if(n_seen_ >= std::numeric_limits<unsigned long>::max())
             << "Reservoir_Sampler::update: stream length exceeds unsigned long capacity";
+
+          ah_runtime_error_unless(n_seen_ < rng_range_)
+            << "Reservoir_Sampler::update: stream length exceeds RNG generator range (" << rng_range_ << ")";
 
           // Exclusive upper bound for the uniform random index in [0, n_seen_]
           const auto upper_bound = static_cast<unsigned long>(n_seen_ + 1);

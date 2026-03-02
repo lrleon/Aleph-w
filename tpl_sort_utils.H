@@ -5455,7 +5455,7 @@ namespace Aleph
    *  @throws std::invalid_argument if `a` is null and `n > 0`.
    *
    *  @note If any element is non-finite (NaN or Infinity), the routine
-   *        will skip bucket interpolation and fall back to introsort.
+   *        will skip bucket interpolation and fall back to timsort.
    *
    *  @par Complexity
    *  O(n) expected for uniformly distributed data, O(n^2) the worst case.

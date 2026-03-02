@@ -1582,15 +1582,18 @@ class EqualSequenceMethod
 
 public:
 
-  /** Equality test between `this` and `r`.
-
-      The test is performed by comparing elements one by one in
-      traversal order.
-
-      \param[in] r container on which the comparison will be performed.
-      \return `true` if the containers have the same size and all the
-      elements are equal in the same order.
-  */
+  /** @brief Equality test between `this` and `r`.
+   *
+   *  The test is performed by comparing elements one by one in
+   *  traversal order.
+   *
+   *  @param[in] r Container on which the comparison will be performed.
+   *  @return `true` if the containers have the same size and all the
+   *          elements are equal in the same order.
+   *  @throws none No-throw if the element comparison does not throw.
+   *          Propagates any exception from item comparison or iterator 
+   *          operations.
+   */
   bool equal_to(const Container & r) const
     noexcept(noexcept(std::declval<const typename Container::Item_Type&>() ==
                       std::declval<const typename Container::Item_Type&>()))
@@ -1616,14 +1619,22 @@ public:
     return true;
   }
 
-  /// \overload equal_to(const Container & r)
+  /** @brief Equality operator. Forwards to equal_to(r).
+   *  @param[in] r Container to compare with.
+   *  @return Result of equal_to(r).
+   *  @throws Propagates same exceptions as equal_to().
+   */
   bool operator == (const Container & r) const
     noexcept(noexcept(std::declval<const EqualSequenceMethod&>().equal_to(r)))
   {
     return equal_to(r);
   }
 
-  /** Negation of equal_to() */
+  /** @brief Inequality operator. Forwards to equal_to(r).
+   *  @param[in] r Container to compare with.
+   *  @return Negation of equal_to(r).
+   *  @throws Propagates same exceptions as equal_to().
+   */
   bool operator != (const Container & r) const
     noexcept(noexcept(std::declval<const EqualSequenceMethod&>().equal_to(r)))
   {
