@@ -161,8 +161,8 @@ namespace Aleph
               if (v1 == v2)
                 continue;
 
-              m.write(r1, j, v2);
-              m.write(r2, j, v1);
+              set_val(m, r1, j, v2);
+              set_val(m, r2, j, v1);
             }
         }
     }

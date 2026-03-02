@@ -85,7 +85,7 @@ namespace detail
   // Pollard's rho is expected to find a factor in O(n^1/4) iterations.
   // For 64-bit integers, 1,000,000 iterations is a very safe upper bound.
   constexpr size_t max_iterations = 1000000;
-  for (size_t iter = 0; iter < max_iterations && d == 1; ++iter)
+  for (size_t iter = 0; iter < max_iterations and d == 1; ++iter)
     {
       x = f(x);
       y = f(f(y));
@@ -93,7 +93,7 @@ namespace detail
       d = std::gcd(diff, n);
     }
 
-  if (d == 1 || d == n)
+  if (d == 1 or d == n)
     return n; // Failure for this seed/c combination or iteration limit reached
 
   return d;
@@ -133,7 +133,12 @@ namespace detail
     ah_runtime_error()
       << "pollard_rho: failed to find a factor of " << n
       << " after " << max_attempts << " attempts";
+
+# if defined(__GNUC__) || defined(__clang__)
     __builtin_unreachable();
+# elif defined(_MSC_VER)
+    __assume(0);
+# endif
 }
 
 /** @brief Recursive extraction of all prime factors.

@@ -5491,7 +5491,7 @@ namespace Aleph
     if (range == T{0})
       return; // all equal
 
-    const bool descending = not cmp(min_val, max_val);
+    const bool descending = cmp(max_val, min_val) and not cmp(min_val, max_val);
     const size_t num_buckets = n;
     auto key = [min_val, range, num_buckets, descending](const T & val) -> size_t
       {
@@ -6176,11 +6176,14 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   void timsort(T *a, const size_t n, const Compare & cmp = Compare())
   {
-    if (n < 2)
+    if (n == 0)
       return;
 
     ah_invalid_argument_if(a == nullptr)
       << "timsort(): null pointer with non-zero length";
+
+    if (n < 2)
+      return;
 
     timsort_detail::timsort_impl(a, n, cmp);
   }

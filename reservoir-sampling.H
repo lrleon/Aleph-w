@@ -64,8 +64,8 @@ namespace Aleph
    *  for concurrent access from multiple threads.
    *
    *  @tparam T Element type.
-   *  @pre `k >= 0`. If `k == 0`, no elements are stored and `get_sample()`
-   *       always returns an empty array.
+   *  @note k is an unsigned size_t. If `k == 0`, no elements are stored and
+   *        `get_sample()` returns an empty array.
    */
   template <typename T>
   class Reservoir_Sampler

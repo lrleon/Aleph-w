@@ -57,7 +57,7 @@ namespace Aleph
    *  @param b Second multiplier.
    *  @param m Modulus.
    *  @return (a * b) % m.
-   *  @pre m > 0
+   *  @throws std::invalid_argument if m == 0.
    */
   [[nodiscard]] inline uint64_t mod_mul(uint64_t a, uint64_t b, uint64_t m)
   {
@@ -91,6 +91,7 @@ namespace Aleph
    *  @param exp The exponent.
    *  @param m The modulus.
    *  @return (base^exp) % m.
+   *  @throws std::invalid_argument if m == 0.
    */
   [[nodiscard]] inline uint64_t mod_exp(uint64_t base, uint64_t exp, const uint64_t m)
   {
