@@ -296,6 +296,23 @@ TEST(StreamingAlgorithms, MinHashNewMethods)
   EXPECT_EQ(mhA.size(), 64u);
 }
 
+TEST(StreamingAlgorithms, MinHashPreconditions)
+{
+  // Constructor precondition: k must be > 0.
+  EXPECT_THROW((MinHash<int>(0)), std::domain_error);
+
+  // similarity() and merge() require matching signature sizes.
+  MinHash<int> mh64(64);
+  MinHash<int> mh32(32);
+  mh64.update(1);
+  mh32.update(1);
+
+  EXPECT_THROW((mh64.similarity(mh32)), std::domain_error);
+  EXPECT_THROW((mh32.similarity(mh64)), std::domain_error);
+  EXPECT_THROW(mh64.merge(mh32), std::domain_error);
+  EXPECT_THROW(mh32.merge(mh64), std::domain_error);
+}
+
 TEST(StreamingAlgorithms, SimHash)
 {
   SimHash<std::string> sh1, sh2, sh3;

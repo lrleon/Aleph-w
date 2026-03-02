@@ -211,6 +211,36 @@ TEST(MathNT, NTT)
   EXPECT_THROW(NTT<>::transform(bad, false), std::invalid_argument);
 }
 
+TEST(MathNT, NTTForwardInverseRoundTrip)
+{
+  constexpr uint64_t MOD = 998244353ULL;
+
+  auto check_round_trip = [&](const Array<uint64_t> & input)
+    {
+      Array<uint64_t> work = input;
+      Array<uint64_t> expected;
+      expected.reserve(input.size());
+      for (size_t i = 0; i < input.size(); ++i)
+        expected.append(input[i] % MOD);
+
+      NTT<>::transform(work, false);
+      NTT<>::transform(work, true);
+
+      ASSERT_EQ(work.size(), expected.size());
+      for (size_t i = 0; i < work.size(); ++i)
+        EXPECT_EQ(work[i], expected[i]);
+    };
+
+  // n = 1 (degenerate no-op path)
+  check_round_trip(Array<uint64_t>({MOD - 5}));
+
+  // Small powers of two with values near MOD
+  check_round_trip(Array<uint64_t>({MOD - 1, MOD - 2}));
+  check_round_trip(Array<uint64_t>({0, 1, MOD - 1, MOD - 7}));
+  check_round_trip(Array<uint64_t>({MOD - 1, MOD - 2, MOD - 3, MOD - 4,
+                                    1, 2, 3, 4}));
+}
+
 TEST(MathNT, ModularCombinatorics)
 {
   ModularCombinatorics mc(10, 1000000007);

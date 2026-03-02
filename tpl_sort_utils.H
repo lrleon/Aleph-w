@@ -6057,16 +6057,19 @@ namespace Aleph
                         const Compare & cmp)
     {
       while (stack_size > 1)
-        if (long n = static_cast<long>(stack_size) - 2; n > 0 and run_len[n - 1] <= run_len[n] + run_len[n + 1])
-          {
-            if (run_len[n - 1] < run_len[n + 1])
-              --n;
+        {
+          long n = static_cast<long>(stack_size) - 2;
+          if (n > 0 and run_len[n - 1] <= run_len[n] + run_len[n + 1])
+            {
+              if (run_len[n - 1] < run_len[n + 1])
+                --n;
+              merge_at(a, run_base, run_len, stack_size, n, tmp, cmp);
+            }
+          else if (run_len[n] <= run_len[n + 1])
             merge_at(a, run_base, run_len, stack_size, n, tmp, cmp);
-          }
-        else if (run_len[n] <= run_len[n + 1])
-          merge_at(a, run_base, run_len, stack_size, n, tmp, cmp);
-        else
-          break;
+          else
+            break;
+        }
     }
 
 

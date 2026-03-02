@@ -88,7 +88,6 @@ namespace Aleph
 
     /** @brief Add an element to the set.
      *  @param[in] val The element to incorporate into the signature.
-     *  @return void
      *  @throws none
      *  @note Complexity: O(k).
      */
@@ -106,7 +105,6 @@ namespace Aleph
      *  @tparam Itor Iterator whose value type is compatible with `update(const T&)`.
      *  @param[in] beg Iterator to the first element.
      *  @param[in] end Past-the-end iterator.
-     *  @return void
      *  @throws none
      *  @note Complexity: O(k * n) where n = distance(beg, end).
      */
@@ -149,7 +147,6 @@ namespace Aleph
     }
 
     /** @brief Reset the signature to the initial all-maximum state.
-     *  @return void
      *  @throws none
      *  @note Complexity: O(k).
      */
