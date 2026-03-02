@@ -80,13 +80,13 @@ namespace Aleph
   template <typename T>
   concept ModularMatrixBackend = DenseMatrix<T> or SparseMatrix<T>;
 
-  /** @brief Get dimensions of a dense matrix.
+  /** @brief Get dimensions of a matrix (dense or sparse).
    *
-   *  @tparam MatrixT The dense matrix type.
-   *  @param[in] m The input dense matrix (Array of Arrays).
+   *  @tparam MatrixT The matrix type (must satisfy ModularMatrixBackend).
+   *  @param[in] m The input matrix.
    *  @return A pair containing (number of rows, number of columns).
    *  @throws none Does not throw (noexcept).
-   *  @note Complexity: O(1) for dense row/column access.
+   *  @note Complexity: O(1).
    */
   template <DenseMatrix MatrixT>
   [[nodiscard]] constexpr std::pair<size_t, size_t>
@@ -96,14 +96,7 @@ namespace Aleph
     return {rows, rows > 0 ? m[0].size() : 0};
   }
 
-  /** @brief Get dimensions of a sparse matrix.
-   *
-   *  @tparam MatrixT The sparse matrix type.
-   *  @param[in] m The input sparse matrix.
-   *  @return A pair containing (number of rows, number of columns).
-   *  @throws none Does not throw (noexcept).
-   *  @note Complexity: O(1) based on sparse rows() and cols() methods.
-   */
+  /// @overload matrix_dims(const MatrixT & m)
   template <SparseMatrix MatrixT>
   [[nodiscard]] constexpr std::pair<size_t, size_t>
   matrix_dims(const MatrixT & m) noexcept

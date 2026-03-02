@@ -5454,6 +5454,9 @@ namespace Aleph
    *
    *  @throws std::invalid_argument if `a` is null and `n > 0`.
    *
+   *  @note If any element is non-finite (NaN or Infinity), the routine
+   *        will skip bucket interpolation and fall back to introsort.
+   *
    *  @par Complexity
    *  O(n) expected for uniformly distributed data, O(n^2) the worst case.
    *
@@ -5477,7 +5480,7 @@ namespace Aleph
       {
         if (not std::isfinite(a[i])) [[unlikely]]
           {
-            introsort(a, n, cmp);
+            timsort(a, n, cmp);
             return;
           }
         if (a[i] < min_val) min_val = a[i];
@@ -6173,8 +6176,12 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   void timsort(T *a, const size_t n, const Compare & cmp = Compare())
   {
-    ah_invalid_argument_if(a == nullptr and n > 0)
+    if (n < 2)
+      return;
+
+    ah_invalid_argument_if(a == nullptr)
       << "timsort(): null pointer with non-zero length";
+
     timsort_detail::timsort_impl(a, n, cmp);
   }
 
@@ -6198,12 +6205,12 @@ namespace Aleph
     ah_range_error_if(l < 0 or r < 0)
       << "timsort(): negative bounds [" << l << ", " << r << "] are not allowed";
 
+    if (l >= r)
+      return;
+
     ah_invalid_argument_if(a == nullptr)
       << "timsort(): null pointer contract violation for non-empty range ["
       << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
-
-    if (l >= r)
-      return;
 
     timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
   }

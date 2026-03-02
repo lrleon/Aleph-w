@@ -231,7 +231,10 @@ namespace Aleph
         const uint64_t inv = mod_inv(p, mod[i]);
         uint64_t term = mod_mul(rem[i], p, prod);
         term = mod_mul(term, inv, prod);
-        result = (result + term) % prod;
+        if (result >= prod - term)
+          result -= (prod - term);
+        else
+          result += term;
       }
 
     return result;

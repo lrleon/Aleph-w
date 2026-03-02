@@ -115,7 +115,11 @@ namespace detail
   if (n % 3 == 0) return 3;
   if (n % 5 == 0) return 5;
 
-    std::mt19937_64 rng(std::random_device{}());
+    // Use a thread_local engine to avoid expensive re-construction and re-seeding.
+    thread_local std::mt19937_64 rng([]() {
+        std::random_device rd;
+        return rd();
+    }());
 
     constexpr size_t max_attempts = 256;
     for (size_t attempt = 0; attempt < max_attempts; ++attempt)

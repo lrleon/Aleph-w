@@ -75,7 +75,9 @@ namespace Aleph
     size_t k_;             /**< Sample size. */
     size_t n_seen_ = 0;    /**< Total elements seen so far. */
     unsigned long seed_;   /**< Stored seed for RNG reset. */
-    uint64_t rng_range_;   /**< Cached range of the RNG. */
+    uint64_t rng_min_;     /**< Minimum value produced by RNG. */
+    uint64_t rng_max_;     /**< Maximum value produced by RNG. */
+    uint64_t rng_range_;   /**< Cached range of the RNG (max - min + 1). */
     Array<T> reservoir_;   /**< Current random sample. */
     GslRngPtr rng_;        /**< Random number generator. */
 
@@ -95,7 +97,9 @@ namespace Aleph
     {
       ah_runtime_error_unless(rng_ != nullptr) << "Reservoir_Sampler: GSL RNG allocation failed";
       gsl_rng_set(rng_.get(), seed_);
-      rng_range_ = gsl_rng_max(rng_.get()) - gsl_rng_min(rng_.get()) + 1;
+      rng_min_ = static_cast<uint64_t>(gsl_rng_min(rng_.get()));
+      rng_max_ = static_cast<uint64_t>(gsl_rng_max(rng_.get()));
+      rng_range_ = rng_max_ - rng_min_ + 1ULL;
       if (k_ > 0)
         reservoir_.reserve(k_);
     }
@@ -201,7 +205,8 @@ namespace Aleph
    *  @param[in] end  End of the range.
    *  @param[in] k    Number of elements to sample.
    *  @param[in] seed Random seed.
-   *  @return Array<T> containing the sampled elements.
+   *  @return Array of the iterator's value_type (derived from std::iterator_traits<Itor>::value_type) 
+   *          containing the sampled elements.
    *  @throws std::runtime_error if GSL RNG allocation fails.
    *  @throws std::overflow_error if stream length exceeds safe limits.
    *
