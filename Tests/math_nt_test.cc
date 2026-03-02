@@ -35,6 +35,7 @@
 
 # include <gtest/gtest.h>
 # include <chrono>
+# include <cstdlib>
 # include <random>
 # include <algorithm>
 # include <numeric>

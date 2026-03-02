@@ -59,7 +59,7 @@ namespace Aleph
    *  Expresses requirements for sparse matrix backends like DynMatrix.
    */
   template <typename T>
-  concept SparseMatrix = requires(const T m, T & mut_m, size_t r, size_t c, uint64_t v) {
+  concept SparseMatrix = requires(const T & m, T & mut_m, size_t r, size_t c, uint64_t v) {
     { m.rows() } -> std::convertible_to<size_t>;
     { m.cols() } -> std::convertible_to<size_t>;
     { m.read_ne(r, c) } -> std::convertible_to<uint64_t>;

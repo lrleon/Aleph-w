@@ -36,6 +36,7 @@
 # include <gtest/gtest.h>
 # include <string>
 # include <random>
+# include <vector>
 
 # include <tpl_dynArray.H>
 # include <tpl_hash.H>
