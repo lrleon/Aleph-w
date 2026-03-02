@@ -117,6 +117,19 @@ TEST(StreamingAlgorithms, HyperLogLog)
   EXPECT_THROW(HyperLogLog<int>(17), std::domain_error);
 }
 
+static void assertMinHashContracts(MinHash<int> & mh, size_t expected_k)
+{
+  EXPECT_EQ(mh.size(), expected_k);
+  const auto & sig = mh.get_signature();
+  EXPECT_EQ(sig.size(), expected_k);
+
+  // clear() behavior
+  mh.clear();
+  EXPECT_EQ(mh.size(), expected_k);
+  for (size_t i = 0; i < expected_k; ++i)
+    EXPECT_EQ(sig[i], std::numeric_limits<uint64_t>::max());
+}
+
 TEST(StreamingAlgorithms, MinHash)
 {
   constexpr size_t K = 256;
@@ -200,40 +213,11 @@ TEST(StreamingAlgorithms, MinHash)
       EXPECT_EQ(sig_merged[i], sig_union[i]);
     }
 
-  // clear() restores the empty signature (all max values).
-  const Array<uint64_t> sig_before_clear = mh_merged.get_signature();
-  mh_merged.clear();
-  EXPECT_EQ(mh_merged.size(), K);
-
-  const auto & sig_cleared = mh_merged.get_signature();
-  ASSERT_EQ(sig_cleared.size(), K);
-  bool changed_after_clear = false;
-  for (size_t i = 0; i < K; ++i)
-    {
-      EXPECT_EQ(sig_cleared[i], std::numeric_limits<uint64_t>::max());
-      if (sig_cleared[i] != sig_before_clear[i])
-        changed_after_clear = true;
-    }
-  EXPECT_TRUE(changed_after_clear);
-
-  // In current MinHash contract, clear() == fresh empty signature.
-  MinHash<int> fresh(K);
-  EXPECT_DOUBLE_EQ(mh_merged.similarity(fresh), 1.0);
-
-  // Signature must change again after a new update from the cleared state.
-  const Array<uint64_t> sig_before_reupdate = mh_merged.get_signature();
-  mh_merged.update(set2.begin(), set2.end());
-  EXPECT_EQ(mh_merged.size(), K);
-
-  const auto & sig_reupdated = mh_merged.get_signature();
-  bool changed_after_reupdate = false;
-  for (size_t i = 0; i < K; ++i)
-    if (sig_reupdated[i] != sig_before_reupdate[i])
-      {
-        changed_after_reupdate = true;
-        break;
-      }
-  EXPECT_TRUE(changed_after_reupdate);
+  // Use helper to verify common contracts (size, get_signature, clear).
+  assertMinHashContracts(mh1, K);
+  assertMinHashContracts(mh2, K);
+  assertMinHashContracts(mh3, K);
+  assertMinHashContracts(mh1_range, K);
 }
 
 TEST(StreamingAlgorithms, MinHashNewMethods)
@@ -250,27 +234,10 @@ TEST(StreamingAlgorithms, MinHashNewMethods)
     mhLoop.update(i);
   mhRange.update(elems.begin(), elems.end());
 
-  EXPECT_EQ(mhLoop.similarity(mhRange), 1.0);
+  EXPECT_DOUBLE_EQ(mhLoop.similarity(mhRange), 1.0);
 
-  // size() returns k.
-  EXPECT_EQ(mhLoop.size(), 64u);
-  EXPECT_EQ(mhRange.size(), 64u);
-
-  // get_signature() returns a stable reference with exactly k entries.
-  const Array<uint64_t> & sig = mhLoop.get_signature();
-  EXPECT_EQ(sig.size(), 64u);
-
-  // clear() resets the signature; similarity to fresh MinHash is 1.0
-  // (both have all-max entries, so all positions agree).
-  MinHash<int> fresh(64);
-  mhLoop.clear();
-  EXPECT_EQ(mhLoop.similarity(fresh), 1.0);
-
-  // get_signature() after clear has all entries == max.
-  constexpr uint64_t max64 = std::numeric_limits<uint64_t>::max();
-  const Array<uint64_t> & sig2 = mhLoop.get_signature();
-  for (size_t i = 0; i < sig2.size(); ++i)
-    EXPECT_EQ(sig2[i], max64);
+  assertMinHashContracts(mhLoop, 64);
+  assertMinHashContracts(mhRange, 64);
 
   // merge() combines two signatures: union of [0..49] and [25..74]
   // should give same result as building from [0..74] directly.

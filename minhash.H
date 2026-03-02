@@ -70,6 +70,7 @@ namespace Aleph
   public:
     /** @brief Construct with signature size.
      *  @param[in] k Number of hashes to use (higher k -> better precision).
+     *  @throws std::domain_error if k == 0.
      */
     explicit MinHash(size_t k = 128)
       : k_(k)
@@ -172,7 +173,7 @@ namespace Aleph
         << "MinHash::merge: signature size mismatch ("
         << k_ << " vs " << other.k_ << ")";
       for (size_t i = 0; i < k_; ++i)
-        signature_(i) = std::min(signature_(i), other.signature_[i]);
+        signature_(i) = std::min(signature_(i), other.signature_(i));
       return *this;
     }
 

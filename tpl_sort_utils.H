@@ -5400,6 +5400,10 @@ namespace Aleph
     /** @brief Helper to sort any container by copying to a temporary array.
      *  
      *  Used by bucket_sort and timsort wrappers for non-contiguous containers.
+     *
+     *  @note This provides the basic exception-safety guarantee. If sort_fn or
+     *        the comparator throws, the container `a` will remain in a valid
+     *        but unspecified state because elements are moved to `tmp`.
      */
     template <typename T, class Container, class SortFn, class Compare>
     void apply_sort_with_temp(Container & a, SortFn sort_fn, const Compare & cmp)
@@ -6231,12 +6235,12 @@ namespace Aleph
     ah_range_error_if(l < 0 or r < 0)
       << "timsort(): negative bounds [" << l << ", " << r << "] are not allowed";
 
-    ah_invalid_argument_if(a == nullptr)
-      << "timsort(): null pointer contract violation for range ["
-      << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
-
     if (l >= r)
       return;
+
+    ah_invalid_argument_if(a == nullptr)
+      << "timsort(): null pointer contract violation for non-empty range ["
+      << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
 
     timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
   }

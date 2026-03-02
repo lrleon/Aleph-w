@@ -115,7 +115,7 @@ TEST(MathNT, MillerRabin)
     bool oracle = true;
     for (uint64_t d = 2; d * d <= n; ++d)
       if (n % d == 0) { oracle = false; break; }
-    EXPECT_EQ(is_p, oracle);
+    EXPECT_EQ(is_p, oracle) << "n=" << n;
   }
 }
 
@@ -152,6 +152,9 @@ TEST(MathNT, PollardRho)
 
 TEST(MathNT, PerformanceRegression)
 {
+  if (not std::getenv("ENABLE_PERF_TESTS"))
+    GTEST_SKIP() << "Skipping performance regression (set ENABLE_PERF_TESTS to enable)";
+
   // 1. Pollard Rho on a large composite (product of two 31-bit primes)
   uint64_t p1 = 2147483647; // prime
   uint64_t p2 = 1000000007; // prime
@@ -167,8 +170,7 @@ TEST(MathNT, PerformanceRegression)
   EXPECT_TRUE(std::find(factors.begin(), factors.end(), p1) != factors.end());
   EXPECT_TRUE(std::find(factors.begin(), factors.end(), p2) != factors.end());
   
-  if (std::getenv("ENABLE_PERF_TESTS"))
-    EXPECT_LE(duration, 500) << "Pollard-Rho performance regression detected";
+  EXPECT_LE(duration, 500) << "Pollard-Rho performance regression detected";
 
   // 2. NTT on large vectors
   const size_t sz = 1 << 16;
@@ -181,8 +183,7 @@ TEST(MathNT, PerformanceRegression)
   end = std::chrono::steady_clock::now();
   
   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-  if (std::getenv("ENABLE_PERF_TESTS"))
-    EXPECT_LE(duration, 1000) << "NTT performance regression detected";
+  EXPECT_LE(duration, 1000) << "NTT performance regression detected";
 }
 
 TEST(MathNT, NTT)
