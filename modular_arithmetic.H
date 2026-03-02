@@ -216,7 +216,10 @@ namespace Aleph
     uint64_t prod = 1;
     for (size_t i = 0; i < n; ++i)
       {
-        ah_overflow_error_if(mod[i] != 0 and prod > UINT64_MAX / mod[i])
+        ah_invalid_argument_if(mod[i] <= 1)
+          << "crt: all moduli must be > 1 (got " << mod[i] << " at index " << i << ")";
+
+        ah_overflow_error_if(prod > UINT64_MAX / mod[i])
           << "crt: product of moduli overflows uint64_t at index " << i;
         prod *= mod[i];
       }

@@ -1397,8 +1397,8 @@ namespace Aleph
       dynamic (DynList or DynDlist) according to comparison criteria Compare.
 
       This method has a deterministic performance of \f$O(n \; \lg n)\f$
-      and space consumption of \f$O(1)\f$. It is a very good method
-      for lists.
+      and space consumption of \f$O(\lg n)\f$ due to the recursive
+      call stack. It is a very good method for lists.
 
       @param[in,out] list the list to be sorted.
       @param lsz size threshold to switch to insertion sort.
@@ -2623,6 +2623,24 @@ namespace Aleph
     return partition_op_impl<T, Compare>(a, l, r, cmp);
   }
 
+  template <typename Container, class Compare>
+  static inline
+  void insertion_sort_range(Container & a, long l, long r, const Compare & cmp)
+  {
+    using T = typename Container::Item_Type;
+    for (long p = l + 1; p <= r; ++p)
+      {
+        T key = std::move(a(p));
+        long j = p - 1;
+        while (j >= l and cmp(key, a(j)))
+          {
+            a(j + 1) = std::move(a(j));
+            j--;
+          }
+        a(j + 1) = std::move(key);
+      }
+  }
+
   template <typename T, class Compare>
   static inline
   const T &__random_select(DynArray<T> & a, const long i,
@@ -2635,17 +2653,7 @@ namespace Aleph
       {
         if (r - l < 10)
           {
-            for (long p = l + 1; p <= r; ++p)
-              {
-                T key = std::move(a(p));
-                long j = p - 1;
-                while (j >= l and cmp(key, a(j)))
-                  {
-                    a(j + 1) = std::move(a(j));
-                    j--;
-                  }
-                a(j + 1) = std::move(key);
-              }
+            insertion_sort_range(a, l, r, cmp);
             return a(i);
           }
 
@@ -2675,17 +2683,7 @@ namespace Aleph
       {
         if (r - l < 10)
           {
-            for (long p = l + 1; p <= r; ++p)
-              {
-                T key = std::move(a(p));
-                long j = p - 1;
-                while (j >= l and cmp(key, a(j)))
-                  {
-                    a(j + 1) = std::move(a(j));
-                    j--;
-                  }
-                a(j + 1) = std::move(key);
-              }
+            insertion_sort_range(a, l, r, cmp);
             return a(i);
           }
 

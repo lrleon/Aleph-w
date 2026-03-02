@@ -81,22 +81,29 @@ namespace detail
 # endif
   };
 
-  while (d == 1)
+  // Limit iterations to prevent infinite loops on degenerate cases.
+  // Pollard's rho is expected to find a factor in O(n^1/4) iterations.
+  // For 64-bit integers, 1,000,000 iterations is a very safe upper bound.
+  constexpr size_t max_iterations = 1000000;
+  for (size_t iter = 0; iter < max_iterations && d == 1; ++iter)
     {
       x = f(x);
       y = f(f(y));
       const uint64_t diff = x > y ? x - y : y - x;
       d = std::gcd(diff, n);
-      if (d == n)
-        return n; // Failure for this seed/c combination
     }
+
+  if (d == 1 || d == n)
+    return n; // Failure for this seed/c combination or iteration limit reached
+
   return d;
 }
 
 /** @brief Helper to repeatedly apply Pollard's rho until a factor is found.
  *
- *  Tries different random seed/constant pairs. Gives up after a bounded
- *  number of attempts to guarantee termination.
+ *  Tries different random seed/constant pairs. Each attempt has a bounded 
+ *  number of iterations, and the total number of attempts is also capped 
+ *  to guarantee termination.
  *
  *  @param n Composite number to find a factor of.
  *  @return A non-trivial factor of n.
@@ -146,11 +153,27 @@ inline void extract_prime_factors(const uint64_t n, Array<uint64_t> & factors)
 
 /** @brief Compute the prime factorization of a number using Pollard's rho.
  *
+ *  Computes all prime factors of a 64-bit integer n using recursive 
+ *  application of Pollard's rho algorithm combined with the 
+ *  Miller-Rabin primality test.
+ *
  *  @param n The number to factor.
- *  @return A sorted array containing the prime factors of n.
+ *  @return A sorted array containing the prime factors of n (multiset).
+ *  @throws std::invalid_argument if n < 2 (cannot factor numbers < 2).
+ *  @throws std::runtime_error if the algorithm fails to find a factor
+ *          after the maximum number of attempts (extremely unlikely).
+ *
+ *  @pre  n >= 2.
+ *  @post The product of all returned factors equals n.
+ *  @post All returned factors are prime.
+ *  @post The returned array is sorted in ascending order.
+ *
+ *  @note Expected complexity: O(n^1/4) average-case (probabilistic).
+ *  @note Worst-case: O(n^1/4) steps per factor extraction.
  */
 [[nodiscard]] inline Array<uint64_t> pollard_rho(uint64_t n)
 {
+  ah_invalid_argument_if(n < 2) << "pollard_rho: n must be >= 2";
   Array<uint64_t> factors;
   detail::extract_prime_factors(n, factors);
   in_place_sort(factors);

@@ -75,6 +75,7 @@ namespace Aleph
     size_t k_;             /**< Sample size. */
     size_t n_seen_ = 0;    /**< Total elements seen so far. */
     unsigned long seed_;   /**< Stored seed for RNG reset. */
+    uint64_t rng_range_;   /**< Cached range of the RNG. */
     Array<T> reservoir_;   /**< Current random sample. */
     GslRngPtr rng_;        /**< Random number generator. */
 
@@ -94,6 +95,7 @@ namespace Aleph
     {
       ah_runtime_error_unless(rng_ != nullptr) << "Reservoir_Sampler: GSL RNG allocation failed";
       gsl_rng_set(rng_.get(), seed_);
+      rng_range_ = gsl_rng_max(rng_.get()) - gsl_rng_min(rng_.get()) + 1;
       if (k_ > 0)
         reservoir_.reserve(k_);
     }
@@ -104,6 +106,8 @@ namespace Aleph
      *  @note Complexity: O(1).
      *  @throws std::overflow_error if the stream length exceeds size_t or
      *          unsigned long capacity.
+     *  @throws std::runtime_error if the stream length exceeds the range
+     *          of the underlying random number generator.
      */
     void update(const T & val)
     {
@@ -121,12 +125,8 @@ namespace Aleph
       else
         {
           // Probability of replacement is k / (n_seen + 1)
-          const uint64_t rng_min = gsl_rng_min(rng_.get());
-          const uint64_t rng_max = gsl_rng_max(rng_.get());
-          const uint64_t rng_range = rng_max - rng_min + 1;
-
-          ah_runtime_error_unless(n_seen_ < rng_range)
-            << "Reservoir_Sampler::update: stream length exceeds RNG generator range (" << rng_range << ")";
+          ah_runtime_error_unless(n_seen_ < rng_range_)
+            << "Reservoir_Sampler::update: stream length exceeds RNG generator range (" << rng_range_ << ")";
 
           ah_overflow_error_if(n_seen_ >= std::numeric_limits<unsigned long>::max())
             << "Reservoir_Sampler::update: stream length exceeds unsigned long capacity";
@@ -151,7 +151,10 @@ namespace Aleph
     void update(Itor beg, Sent end)
     {
       while (beg != end)
-        update(*beg++);
+        {
+          update(*beg);
+          ++beg;
+        }
     }
 
     /** @brief Returns the current random sample. 

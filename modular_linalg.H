@@ -81,10 +81,12 @@ namespace Aleph
   concept ModularMatrixBackend = DenseMatrix<T> or SparseMatrix<T>;
 
   /** @brief Get dimensions of a dense matrix.
+   *
+   *  @tparam MatrixT The dense matrix type.
    *  @param[in] m The input dense matrix (Array of Arrays).
    *  @return A pair containing (number of rows, number of columns).
-   *  @throws none
-   *  @note Complexity: O(1).
+   *  @throws none Does not throw (noexcept).
+   *  @note Complexity: O(1) for dense row/column access.
    */
   template <DenseMatrix MatrixT>
   [[nodiscard]] constexpr std::pair<size_t, size_t>
@@ -95,10 +97,12 @@ namespace Aleph
   }
 
   /** @brief Get dimensions of a sparse matrix.
+   *
+   *  @tparam MatrixT The sparse matrix type.
    *  @param[in] m The input sparse matrix.
    *  @return A pair containing (number of rows, number of columns).
-   *  @throws none
-   *  @note Complexity: O(1).
+   *  @throws none Does not throw (noexcept).
+   *  @note Complexity: O(1) based on sparse rows() and cols() methods.
    */
   template <SparseMatrix MatrixT>
   [[nodiscard]] constexpr std::pair<size_t, size_t>
@@ -276,12 +280,13 @@ namespace Aleph
               {
                 uint64_t factor = mod_mul(val_ji, inv, mod);
                 for (size_t k = i; k < n_cols; ++k)
-                  {
-                    const uint64_t term = mod_mul(factor, get_val(a, i, k), mod);
-                    const uint64_t current = get_val(a, j, k);
-                    const uint64_t res = (current >= term) ? (current - term) : (mod - (term - current));
-                    set_val(a, j, k, res);
-                  }
+                  if (const uint64_t val_ik = get_val(a, i, k); val_ik != 0)
+                    {
+                      const uint64_t term = mod_mul(factor, val_ik, mod);
+                      const uint64_t current = get_val(a, j, k);
+                      const uint64_t res = (current >= term) ? (current - term) : (mod - (term - current));
+                      set_val(a, j, k, res);
+                    }
               }
         }
       return det;
@@ -308,7 +313,7 @@ namespace Aleph
       MatrixT a = mat;
       MatrixT inv;
 
-      if constexpr (std::is_same_v<MatrixT, Array<Array<uint64_t>>>)
+      if constexpr (DenseMatrix<MatrixT>)
         {
           inv.reserve(n_rows);
           for (size_t i = 0; i < n_rows; ++i)
@@ -353,8 +358,10 @@ namespace Aleph
           const uint64_t pivot_inv = mod_inv(pivot_val, mod);
           for (size_t j = 0; j < n_rows; ++j)
             {
-              set_val(a, i, j, mod_mul(get_val(a, i, j), pivot_inv, mod));
-              set_val(inv, i, j, mod_mul(get_val(inv, i, j), pivot_inv, mod));
+              if (const uint64_t val = get_val(a, i, j); val != 0)
+                set_val(a, i, j, mod_mul(val, pivot_inv, mod));
+              if (const uint64_t val = get_val(inv, i, j); val != 0)
+                set_val(inv, i, j, mod_mul(val, pivot_inv, mod));
             }
 
           for (size_t j = 0; j < n_rows; ++j)
@@ -362,13 +369,19 @@ namespace Aleph
               if (uint64_t factor = get_val(a, j, i); factor != 0)
                 for (size_t k = 0; k < n_rows; ++k)
                   {
-                    const uint64_t term_a = mod_mul(factor, get_val(a, i, k), mod);
-                    const uint64_t curr_a = get_val(a, j, k);
-                    set_val(a, j, k, (curr_a >= term_a) ? (curr_a - term_a) : (mod - (term_a - curr_a)));
+                    if (const uint64_t val_ik = get_val(a, i, k); val_ik != 0)
+                      {
+                        const uint64_t term_a = mod_mul(factor, val_ik, mod);
+                        const uint64_t curr_a = get_val(a, j, k);
+                        set_val(a, j, k, (curr_a >= term_a) ? (curr_a - term_a) : (mod - (term_a - curr_a)));
+                      }
 
-                    const uint64_t term_inv = mod_mul(factor, get_val(inv, i, k), mod);
-                    const uint64_t curr_inv = get_val(inv, j, k);
-                    set_val(inv, j, k, (curr_inv >= term_inv) ? (curr_inv - term_inv) : (mod - (term_inv - curr_inv)));
+                    if (const uint64_t val_inv_ik = get_val(inv, i, k); val_inv_ik != 0)
+                      {
+                        const uint64_t term_inv = mod_mul(factor, val_inv_ik, mod);
+                        const uint64_t curr_inv = get_val(inv, j, k);
+                        set_val(inv, j, k, (curr_inv >= term_inv) ? (curr_inv - term_inv) : (mod - (term_inv - curr_inv)));
+                      }
                   }
         }
 

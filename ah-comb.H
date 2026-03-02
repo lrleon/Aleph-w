@@ -1015,7 +1015,7 @@ namespace Aleph
   [[nodiscard]] static inline bool
   for_each_combination_impl(const ValuesArray & values,
                             const size_t k,
-                            Op & op)
+                            Op && op)
   {
     const size_t n = values.size();
     ah_domain_error_if(k > n)
@@ -1061,33 +1061,17 @@ namespace Aleph
   */
   template <typename T, class Op>
   [[nodiscard]] inline bool
-  for_each_combination(const Array<T> & values, const size_t k, Op & op)
-  {
-    return for_each_combination_impl(values, k, op);
-  }
-
-  /** \overload for_each_combination for rvalue callback. */
-  template <typename T, class Op>
-  [[nodiscard]] inline bool
   for_each_combination(const Array<T> & values, const size_t k, Op && op)
   {
-    return for_each_combination_impl(values, k, op);
+    return for_each_combination_impl(values, k, std::forward<Op>(op));
   }
 
   /** \overload for_each_combination for `DynArray<T>`. */
   template <typename T, class Op>
   [[nodiscard]] inline bool
-  for_each_combination(const DynArray<T> & values, const size_t k, Op & op)
-  {
-    return for_each_combination_impl(values, k, op);
-  }
-
-  /** \overload for_each_combination for `DynArray<T>` and rvalue callback. */
-  template <typename T, class Op>
-  [[nodiscard]] inline bool
   for_each_combination(const DynArray<T> & values, const size_t k, Op && op)
   {
-    return for_each_combination_impl(values, k, op);
+    return for_each_combination_impl(values, k, std::forward<Op>(op));
   }
 
   /** Materialize all k-combinations of `Array<T>`.
