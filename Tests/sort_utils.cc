@@ -1917,44 +1917,49 @@ TEST(SortUtilsRadixSort, empty_and_singleton)
 
 TEST(SortUtilsRandomSelect, duplicates_three_way_partition)
 {
-  std::vector<int> v = {9, 2, 4, 7, 3, 7, 10, 2, 7, 1, 8, 7, 7, 7, 7};
+  DynArray<int> v = make_dynarray({9, 2, 4, 7, 3, 7, 10, 2, 7, 1, 8, 7, 7, 7, 7});
+  std::vector<int> expected = {9, 2, 4, 7, 3, 7, 10, 2, 7, 1, 8, 7, 7, 7, 7};
+  std::sort(expected.begin(), expected.end());
+
   for (size_t i = 0; i < v.size(); ++i)
     {
-      std::vector<int> copy = v;
-      int res = Aleph::random_select(copy.data(), static_cast<long>(i), static_cast<long>(copy.size()), std::less<int>());
-      std::vector<int> sorted = v;
-      std::sort(sorted.begin(), sorted.end());
-      EXPECT_EQ(res, sorted[i]) << "Mismatch at index " << i;
+      DynArray<int> copy = v;
+      int res = Aleph::random_select(&copy(0), static_cast<long>(i), static_cast<long>(copy.size()), std::less<int>());
+      EXPECT_EQ(res, expected[i]) << "Mismatch at index " << i;
     }
 }
 
 TEST(SortUtilsRandomSelect, identical_elements)
 {
-  std::vector<int> v(100, 42); // 100 identical elements
+  DynArray<int> v;
+  for (int i = 0; i < 100; ++i)
+    v.append(42);
+
   for (size_t i = 0; i < v.size(); i += 10)
     {
-      std::vector<int> copy = v;
-      int res = Aleph::random_select(copy.data(), static_cast<long>(i), static_cast<long>(copy.size()), std::less<int>());
+      DynArray<int> copy = v;
+      int res = Aleph::random_select(&copy(0), static_cast<long>(i), static_cast<long>(copy.size()), std::less<int>());
       EXPECT_EQ(res, 42) << "Mismatch at index " << i;
     }
 }
 
 TEST(SortUtilsRandomSelect, sorted_and_reverse_sorted)
 {
-  std::vector<int> v;
+  DynArray<int> v;
   for (int i = 0; i < 50; ++i)
-    v.push_back(i);
+    v.append(i);
 
-  std::vector<int> rev = v;
-  std::reverse(rev.begin(), rev.end());
+  DynArray<int> rev;
+  for (int i = 49; i >= 0; --i)
+    rev.append(i);
 
   for (size_t i = 0; i < v.size(); i += 5)
     {
-      std::vector<int> copy_v = v;
-      std::vector<int> copy_rev = rev;
+      DynArray<int> copy_v = v;
+      DynArray<int> copy_rev = rev;
       
-      EXPECT_EQ(Aleph::random_select(copy_v.data(), static_cast<long>(i), static_cast<long>(copy_v.size()), std::less<int>()), static_cast<int>(i));
-      EXPECT_EQ(Aleph::random_select(copy_rev.data(), static_cast<long>(i), static_cast<long>(copy_rev.size()), std::less<int>()), static_cast<int>(i));
+      EXPECT_EQ(Aleph::random_select(&copy_v(0), static_cast<long>(i), static_cast<long>(copy_v.size()), std::less<int>()), static_cast<int>(i));
+      EXPECT_EQ(Aleph::random_select(&copy_rev(0), static_cast<long>(i), static_cast<long>(copy_rev.size()), std::less<int>()), static_cast<int>(i));
     }
 }
 

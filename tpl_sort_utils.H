@@ -4647,8 +4647,7 @@ namespace Aleph
     [[nodiscard]] inline size_t
     counting_bucket(const IntT value, const IntT min_key) noexcept
     {
-      using U = counting_unsigned_t<IntT>;
-      return static_cast<size_t>(static_cast<U>(value) - static_cast<U>(min_key));
+      return static_cast<size_t>(static_cast<uint64_t>(value) - static_cast<uint64_t>(min_key));
     }
 
 
@@ -5649,18 +5648,10 @@ namespace Aleph
                    const BucketKey & bucket_key,
                    const Compare & cmp = Compare())
   {
-    const size_t n = a.size();
-    if (n < 2)
-      return;
-
-    Array<T> tmp = Array<T>::create(n);
-    for (size_t i = 0; i < n; ++i)
-      tmp[i] = std::move(a(i));
-
-    bucket_sort(&tmp[0], n, num_buckets, bucket_key, cmp);
-
-    for (size_t i = 0; i < n; ++i)
-      a(i) = std::move(tmp[i]);
+    bucket_sort_detail::apply_sort_with_temp<T>(a, [&](T *p, size_t n, const Compare & c)
+                                                  {
+                                                    bucket_sort(p, n, num_buckets, bucket_key, c);
+                                                  }, cmp);
   }
 
 

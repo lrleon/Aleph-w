@@ -67,11 +67,13 @@ namespace Aleph
     double alpha_m_; /**< Bias correction constant. */
     Array<uint8_t> registers_; /**< Max leading zeros observed per bucket. */
 
-    /** @brief Compute 64-bit hash using MurmurHash3. */
+    /** @brief Compute 64-bit hash using MurmurHash3.
+     *  @note Requires a 64-bit platform; fails at compile time otherwise.
+     */
     [[nodiscard]] static uint64_t hash64(const T & val) noexcept
     {
-      // Aleph's murmur3hash returns size_t (64-bit on x86_64).
-      // We force a 64-bit interpretation for consistency.
+      static_assert(sizeof(size_t) >= 8,
+        "HyperLogLog requires 64-bit size_t; murmur3hash is 32-bit on this platform");
       return static_cast<uint64_t>(murmur3hash(val, 0x12345678));
     }
 
