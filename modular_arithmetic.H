@@ -120,6 +120,7 @@ namespace Aleph
    *  @return The greatest common divisor of a and b.
    */
   template <typename T>
+    requires (std::is_integral_v<T> and std::is_signed_v<T>)
   [[nodiscard]] T ext_gcd(T a, T b, T & x, T & y) noexcept
   {
     if (b == 0)

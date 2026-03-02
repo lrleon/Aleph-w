@@ -43,6 +43,7 @@
  */
 
 # include <chrono>
+# include <cstdint>
 # include <limits>
 # include <memory>
 # include <iterator>
@@ -135,7 +136,9 @@ namespace Aleph
           ah_overflow_error_if(n_seen_ >= std::numeric_limits<unsigned long>::max())
             << "Reservoir_Sampler::update: stream length exceeds unsigned long capacity";
 
-          const size_t j = gsl_rng_uniform_int(rng_.get(), static_cast<unsigned long>(n_seen_ + 1));
+          // Exclusive upper bound for the uniform random index in [0, n_seen_]
+          const auto upper_bound = static_cast<unsigned long>(n_seen_ + 1);
+          const size_t j = gsl_rng_uniform_int(rng_.get(), upper_bound);
           if (j < k_)
             reservoir_(j) = val;
         }
@@ -176,11 +179,26 @@ namespace Aleph
      */
     [[nodiscard]] size_t total_seen() const noexcept { return n_seen_; }
 
-    /** @brief Target sample size. 
+    /** @brief Target sample size.
      *  @return size_t The target sample size (k_).
      *  @throws none
      */
     [[nodiscard]] size_t sample_size() const noexcept { return k_; }
+
+    /** @brief RNG output range (max - min + 1).
+     *  @return uint64_t The number of distinct values the RNG can produce.
+     *  @throws none
+     */
+    [[nodiscard]] uint64_t rng_range() const noexcept { return rng_range_; }
+
+    /** @brief Forcibly set the internal stream counter (for testing only).
+     *
+     *  Allows unit tests to exercise overflow and RNG-range-exhaustion paths
+     *  without having to feed billions of elements.  Do not use in production.
+     *  @param[in] n New value for the internal element counter.
+     *  @throws none
+     */
+    void set_n_seen_for_testing(const size_t n) noexcept { n_seen_ = n; }
 
     /** @brief Reset the sampler while keeping k and seed.
      *

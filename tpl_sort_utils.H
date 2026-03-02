@@ -6129,6 +6129,9 @@ namespace Aleph
             }
 
           // Push this run onto the stack
+          ah_runtime_error_unless(stack_size < MAX_STACK)
+            << "timsort: run stack overflow (stack_size=" << stack_size
+            << " >= MAX_STACK=" << MAX_STACK << "); this should never happen";
           run_base_arr[stack_size] = lo;
           run_len_arr[stack_size] = run_len;
           ++stack_size;
@@ -6212,7 +6215,7 @@ namespace Aleph
       return;
 
     ah_invalid_argument_if(a == nullptr)
-      << "timsort(): null pointer contract violation for non-empty range ["
+      << "timsort(): null pointer contract violation for range where l < r ["
       << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
 
     timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);

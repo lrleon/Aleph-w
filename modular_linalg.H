@@ -219,6 +219,8 @@ namespace Aleph
 
     /** @brief Get a constant reference to the underlying matrix.
      *  @return Constant reference to the matrix data.
+     *  @throws none
+     *  @note Complexity: O(1).
      *  @note Thread-safety: Safe for concurrent reads.
      */
     const MatrixT &get() const noexcept { return mat; }
@@ -320,7 +322,7 @@ namespace Aleph
         }
       else
         {
-          inv.set_dimension(n_rows, n_cols);
+          inv.set_dimension(n_rows, n_rows);
           for (size_t i = 0; i < n_rows; ++i)
             inv.write(i, i, 1);
         }

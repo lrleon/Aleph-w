@@ -207,6 +207,43 @@ TEST(StreamingAlgorithms, EdgeCases)
   EXPECT_EQ(SimHash<int>::similarity(sh1.get_fingerprint(), sh2.get_fingerprint()), 1.0);
 }
 
+TEST(ReservoirSampler, overflow_size_t)
+{
+  // The very first check in update() fires when n_seen_ == size_t::max,
+  // regardless of k or reservoir state.
+  Reservoir_Sampler<int> s(5, 42);
+  s.set_n_seen_for_testing(std::numeric_limits<size_t>::max());
+  EXPECT_THROW(s.update(1), std::overflow_error);
+
+  // Iterator overload delegates to update(), so the same guard fires.
+  Reservoir_Sampler<int> s2(5, 42);
+  s2.set_n_seen_for_testing(std::numeric_limits<size_t>::max());
+  const std::vector<int> one = {99};
+  EXPECT_THROW(s2.update(one.begin(), one.end()), std::overflow_error);
+}
+
+TEST(ReservoirSampler, overflow_rng_range)
+{
+  // RNG range exhaustion fires when n_seen_ >= rng_range_, but only after
+  // the reservoir is already full (n_seen_ >= k).  Seed the reservoir first
+  // via legitimate updates, then jump n_seen_ to rng_range_.
+  Reservoir_Sampler<int> s(3, 42);
+  for (int i = 0; i < 3; ++i)
+    s.update(i);                    // fill reservoir: n_seen_ == 3
+
+  const uint64_t rng_range = s.rng_range();
+  s.set_n_seen_for_testing(rng_range); // n_seen_ == rng_range_ >= k
+  EXPECT_THROW(s.update(99), std::runtime_error);
+
+  // Same path through the iterator overload.
+  Reservoir_Sampler<int> s2(3, 42);
+  for (int i = 0; i < 3; ++i)
+    s2.update(i);
+  s2.set_n_seen_for_testing(rng_range);
+  const std::vector<int> one = {99};
+  EXPECT_THROW(s2.update(one.begin(), one.end()), std::runtime_error);
+}
+
 TEST(StreamingAlgorithms, CMSSketchMerge)
 {
   Count_Min_Sketch<int> cms1(size_t(100), size_t(5));
