@@ -5655,12 +5655,12 @@ namespace Aleph
 
     Array<T> tmp = Array<T>::create(n);
     for (size_t i = 0; i < n; ++i)
-      tmp[i] = a(i);
+      tmp[i] = std::move(a(i));
 
     bucket_sort(&tmp[0], n, num_buckets, bucket_key, cmp);
 
     for (size_t i = 0; i < n; ++i)
-      a(i) = tmp[i];
+      a(i) = std::move(tmp[i]);
   }
 
 
@@ -6063,7 +6063,8 @@ namespace Aleph
       while (stack_size > 1)
         {
           long n = static_cast<long>(stack_size) - 2;
-          if (n > 0 and run_len[n - 1] <= run_len[n] + run_len[n + 1])
+          if ((n > 0 and run_len[n - 1] <= run_len[n] + run_len[n + 1]) or
+              (n > 1 and run_len[n - 2] <= run_len[n - 1] + run_len[n]))
             {
               if (run_len[n - 1] < run_len[n + 1])
                 --n;

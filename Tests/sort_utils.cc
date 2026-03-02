@@ -43,6 +43,7 @@
 #include <limits>
 #include <random>
 #include <string>
+#include <type_traits>
 #include <vector>
 #include <array>
 
@@ -2034,6 +2035,44 @@ TEST(BucketSort, custom_bucket_key)
 
   bucket_sort(a, n, num_buckets, key);
   EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(BucketSort, custom_bucket_key_move_only_pointer)
+{
+  struct MoveOnlyInt
+  {
+    int value = 0;
+
+    MoveOnlyInt() = default;
+    explicit MoveOnlyInt(const int v) : value(v) {}
+    MoveOnlyInt(const MoveOnlyInt &) = delete;
+    MoveOnlyInt & operator = (const MoveOnlyInt &) = delete;
+    MoveOnlyInt(MoveOnlyInt &&) noexcept = default;
+    MoveOnlyInt & operator = (MoveOnlyInt &&) noexcept = default;
+  };
+
+  static_assert(not std::is_copy_constructible_v<MoveOnlyInt>);
+  static_assert(not std::is_copy_assignable_v<MoveOnlyInt>);
+
+  MoveOnlyInt a[] = {
+    MoveOnlyInt(7), MoveOnlyInt(1), MoveOnlyInt(4), MoveOnlyInt(0),
+    MoveOnlyInt(6), MoveOnlyInt(2), MoveOnlyInt(5), MoveOnlyInt(3)
+  };
+  const size_t n = sizeof(a) / sizeof(a[0]);
+  const size_t num_buckets = 4;
+  auto key = [](const MoveOnlyInt & x) -> size_t
+  {
+    return static_cast<size_t>(x.value / 2);
+  };
+  auto cmp = [](const MoveOnlyInt & lhs, const MoveOnlyInt & rhs)
+  {
+    return lhs.value < rhs.value;
+  };
+
+  bucket_sort(a, n, num_buckets, key, cmp);
+
+  for (size_t i = 1; i < n; ++i)
+    ASSERT_LE(a[i - 1].value, a[i].value);
 }
 
 TEST(BucketSort, dynarray_support)
