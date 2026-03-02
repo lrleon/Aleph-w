@@ -717,7 +717,7 @@ namespace Aleph
   inline
   T * sequential_search(DynDlist<T> & list, const T & x, Equal eq = Equal())
   {
-    Dnode<T> *ret = sequential_search<T, Equal>(list, x, eq);
+    Dnode<T> *ret = sequential_search<T, Equal>(static_cast<Dnode<T> &>(list), x, eq);
     return ret != nullptr ? &ret->get_data() : nullptr;
   }
 
@@ -743,7 +743,7 @@ namespace Aleph
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  T * sequential_search(DynList<T> & list, const T & x, Equal & eq)
+  T * sequential_search(DynList<T> & list, const T & x, Equal eq = Equal())
   {
     for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
       {
@@ -754,14 +754,6 @@ namespace Aleph
     return nullptr;
   }
 
-  /** @overload */
-  template <typename T, class Equal = Aleph::equal_to<T>>
-  inline
-  T * sequential_search(DynList<T> & list, const T & x, Equal eq = Equal())
-  {
-    return sequential_search<T, Equal>(list, x, eq);
-  }
-
   /** @brief Linear search on a DynList (const version).
    *  @param list The list header.
    *  @param x The element to search for.
@@ -770,7 +762,7 @@ namespace Aleph
    */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  const T * sequential_search(const DynList<T> & list, const T & x, Equal & eq)
+  const T * sequential_search(const DynList<T> & list, const T & x, Equal eq = Equal())
   {
     for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
       {
@@ -779,14 +771,6 @@ namespace Aleph
           return &curr;
       }
     return nullptr;
-  }
-
-  /** @overload */
-  template <typename T, class Equal = Aleph::equal_to<T>>
-  inline
-  const T * sequential_search(const DynList<T> & list, const T & x, Equal eq = Equal())
-  {
-    return sequential_search<T, Equal>(list, x, eq);
   }
 
 

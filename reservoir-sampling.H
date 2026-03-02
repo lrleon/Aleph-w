@@ -102,8 +102,7 @@ namespace Aleph
      *
      *  @param[in] val The element to potentially include in the sample.
      *  @note Complexity: O(1).
-     *  @throws std::overflow_error if the stream length exceeds safe precision
-     *          threshold (2^53) or size_t capacity.
+     *  @throws std::overflow_error if the stream length exceeds size_t capacity.
      */
     void update(const T & val)
     {
@@ -211,7 +210,7 @@ namespace Aleph
     using T = typename std::iterator_traits<Itor>::value_type;
     Reservoir_Sampler<T> sampler(k, seed);
     sampler.update(beg, end);
-    return sampler.get_sample();
+    return Array<T>(sampler.get_sample());
   }
 
 } // namespace Aleph
