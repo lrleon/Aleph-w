@@ -66,6 +66,10 @@ namespace Aleph
   class SimHash
   {
   public:
+    /** @brief Number of bits in the SimHash fingerprint.
+     *
+     *  Fixed at 64 to match the output width of the 64-bit Murmur3 hash.
+     */
     static constexpr size_t FINGERPRINT_SIZE = 64;
 
   private:
@@ -94,8 +98,16 @@ namespace Aleph
         }
     }
 
-    /** @brief Process multiple weighted features.
-     *  @tparam Itor Iterator type pointing to std::pair<T, double> or similar.
+    /** @brief Add all features in a range to the SimHash accumulator.
+     *
+     *  Calls `update(item.first, item.second)` for each element in `[beg, end)`.
+     *  Each element must expose `.first` (the feature value) and `.second`
+     *  (its weight as `double`), e.g. `std::pair<T, double>`.
+     *
+     *  @tparam Itor Iterator whose value type provides `.first` and `.second`.
+     *  @param[in] beg Iterator to the first feature.
+     *  @param[in] end Past-the-end iterator.
+     *  @note Complexity: O(FINGERPRINT_SIZE * n) where n = distance(beg, end).
      */
     template <typename Itor>
     void update(Itor beg, const Itor & end)

@@ -200,8 +200,25 @@ namespace Aleph
       total_count_ = 0;
     }
 
+    /** @brief Number of counter columns (hash buckets per row).
+     *  @return size_t The width w passed at construction.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
     [[nodiscard]] size_t width() const noexcept { return w_; }
+
+    /** @brief Number of hash functions (independent counter rows).
+     *  @return size_t The depth d passed at construction.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
     [[nodiscard]] size_t depth() const noexcept { return d_; }
+
+    /** @brief Sum of all event weights inserted so far.
+     *  @return CounterT Cumulative total of all update() weight arguments.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
     [[nodiscard]] CounterT total_count() const noexcept { return total_count_; }
   };
 

@@ -125,6 +125,18 @@ public:
   }
 };
 
+/** @brief Invoke `c.traverse(op)` as a free function (lvalue operation).
+ *
+ *  Convenience wrapper so that `traverse(container, op)` can be used in
+ *  generic code without depending on the container type.
+ *
+ *  @tparam Container Any type that provides a `traverse(Operation&)` member.
+ *  @tparam Operation Callable with signature `bool(Item_Type &)`.
+ *  @param[in] c  Container to traverse.
+ *  @param[in] op Operation to apply to each element; return `false` to stop.
+ *  @return `true` if all elements were visited, `false` if traversal was stopped.
+ *  @throws anything that `op` throws.
+ */
 template <class Container, class Operation>
 bool traverse(const Container & c, Operation & op)
   noexcept(noexcept(c.traverse(op)))
@@ -132,6 +144,17 @@ bool traverse(const Container & c, Operation & op)
   return c.traverse(op);
 }
 
+/** @brief Invoke `c.traverse(op)` as a free function (rvalue operation).
+ *
+ *  Overload for temporary / rvalue callables such as lambda expressions.
+ *
+ *  @tparam Container Any type that provides a `traverse(Operation&&)` member.
+ *  @tparam Operation Callable with signature `bool(Item_Type &)`.
+ *  @param[in] c  Container to traverse.
+ *  @param[in] op Rvalue operation forwarded to the member overload.
+ *  @return `true` if all elements were visited, `false` if traversal was stopped.
+ *  @throws anything that `op` throws.
+ */
 template <class Container, class Operation>
 bool traverse(const Container & c, Operation && op)
   noexcept(noexcept(c.traverse(std::forward<Operation>(op))))

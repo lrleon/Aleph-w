@@ -92,7 +92,15 @@ namespace Aleph
           signature_(i) = h;
     }
 
-    /** @brief Process multiple elements. */
+    /** @brief Add all elements in a range to the MinHash signature.
+     *
+     *  Calls `update(val)` for each element in `[beg, end)`.
+     *
+     *  @tparam Itor Iterator whose value type is compatible with `update(const T&)`.
+     *  @param[in] beg Iterator to the first element.
+     *  @param[in] end Past-the-end iterator.
+     *  @note Complexity: O(k * n) where n = distance(beg, end).
+     */
     template <typename Itor>
     void update(Itor beg, const Itor & end)
     {
@@ -149,6 +157,11 @@ namespace Aleph
       return *this;
     }
 
+    /** @brief Number of hash functions used in the signature.
+     *  @return size_t The value k passed at construction.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
     [[nodiscard]] size_t size() const noexcept { return k_; }
   };
 } // namespace Aleph

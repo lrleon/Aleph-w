@@ -170,6 +170,11 @@ namespace Aleph
         registers_(i) = 0;
     }
 
+    /** @brief Number of HyperLogLog registers (2^b).
+     *  @return size_t The register count m = 2^b used by this estimator.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
     [[nodiscard]] size_t num_registers() const noexcept { return m_; }
   };
 } // namespace Aleph
