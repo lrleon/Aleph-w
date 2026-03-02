@@ -1501,3 +1501,49 @@ TEST(EqualSequenceMethod, EmptyContainersAreEqual)
   EXPECT_FALSE(d1 != d2);
 }
 
+TEST(EqualSequenceMethod, SingleElement)
+{
+  // Array
+  Array<int> a1 = {10};
+  Array<int> a2 = {10};
+  Array<int> a3 = {20};
+
+  EXPECT_TRUE(a1.equal_to(a1)); // Self
+  EXPECT_TRUE(a1.equal_to(a2)); // Equal
+  EXPECT_FALSE(a1.equal_to(a3)); // Not equal value
+  EXPECT_TRUE(a1 != a3);
+
+  // DynArray
+  DynArray<int> d1 = {10};
+  DynArray<int> d2 = {10};
+  DynArray<int> d3 = {20};
+
+  EXPECT_TRUE(d1 == d2);
+  EXPECT_FALSE(d1 == d3);
+}
+
+TEST(EqualSequenceMethod, LargeInputs)
+{
+  constexpr size_t N = 10000;
+  Array<int> a1, a2;
+  DynArray<int> d1, d2;
+
+  for (size_t i = 0; i < N; ++i)
+    {
+      a1.append(i);
+      a2.append(i);
+      d1.append(i);
+      d2.append(i);
+    }
+
+  EXPECT_TRUE(a1 == a2);
+  EXPECT_TRUE(d1 == d2);
+
+  // Differ at one position
+  a2(N/2) = -1;
+  d2(N/2) = -1;
+
+  EXPECT_FALSE(a1 == a2);
+  EXPECT_FALSE(d1 == d2);
+}
+

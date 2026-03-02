@@ -210,14 +210,17 @@ TEST(StreamingAlgorithms, EdgeCases)
 
 TEST(ReservoirSampler, overflow_size_t)
 {
-  // The very first check in update() fires when n_seen_ == size_t::max,
-  // regardless of k or reservoir state.
+  // Keep internal state consistent: for n_seen_ >= k, the reservoir must be full.
   Reservoir_Sampler<int> s(5, 42);
+  for (int i = 0; i < 5; ++i)
+    s.update(i);
   s.set_n_seen_for_testing(std::numeric_limits<size_t>::max());
   EXPECT_THROW(s.update(1), std::overflow_error);
 
   // Iterator overload delegates to update(), so the same guard fires.
   Reservoir_Sampler<int> s2(5, 42);
+  for (int i = 0; i < 5; ++i)
+    s2.update(i);
   s2.set_n_seen_for_testing(std::numeric_limits<size_t>::max());
   const std::vector<int> one = {99};
   EXPECT_THROW(s2.update(one.begin(), one.end()), std::overflow_error);

@@ -196,9 +196,25 @@ namespace Aleph
      *  Allows unit tests to exercise overflow and RNG-range-exhaustion paths
      *  without having to feed billions of elements.  Do not use in production.
      *  @param[in] n New value for the internal element counter.
-     *  @throws none
+     *  @throws std::invalid_argument if the state would be inconsistent.
      */
-    void set_n_seen_for_testing(const size_t n) noexcept { n_seen_ = n; }
+    void set_n_seen_for_testing(const size_t n)
+    {
+      if (n >= k_)
+        {
+          ah_invalid_argument_if(reservoir_.size() < k_)
+            << "set_n_seen_for_testing: n_seen (" << n << ") >= k (" << k_
+            << ") but reservoir size (" << reservoir_.size() << ") < k";
+        }
+      else
+        {
+          ah_invalid_argument_if(n > reservoir_.size())
+            << "set_n_seen_for_testing: n_seen (" << n << ") > reservoir size ("
+            << reservoir_.size() << ")";
+        }
+
+      n_seen_ = n;
+    }
 
     /** @brief Reset the sampler while keeping k and seed.
      *

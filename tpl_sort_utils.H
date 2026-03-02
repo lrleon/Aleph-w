@@ -1176,7 +1176,7 @@ namespace Aleph
     for (long j = m + 1; j <= r; ++j)
       buf[buf_idx--] = std::move(a[j]);
 
-    // Merge from both ends toward middle
+    // Merge from both ends toward the middle
     long i = 0;
     long j = s - 1;
 
@@ -2408,21 +2408,19 @@ namespace Aleph
     long current = l;
 
     while (current <= gt)
-      {
-        if (cmp(a[current], a[r]))
-          {
-            std::swap(a[lt], a[current]);
-            lt++;
-            current++;
-          }
-        else if (cmp(a[r], a[current]))
-          {
-            std::swap(a[current], a[gt]);
-            gt--;
-          }
-        else
+      if (cmp(a[current], a[r]))
+        {
+          std::swap(a[lt], a[current]);
+          lt++;
           current++;
-      }
+        }
+      else if (cmp(a[r], a[current]))
+        {
+          std::swap(a[current], a[gt]);
+          gt--;
+        }
+      else
+        current++;
 
     std::swap(a[current], a[r]);
     return {lt, current};
@@ -3134,7 +3132,7 @@ namespace Aleph
         };
     static constexpr int num_gaps = sizeof(ciura_gaps) / sizeof(ciura_gaps[0]);
 
-    // Find first gap smaller than array size
+    // Find the first gap smaller than the array size
     int gap_idx = num_gaps - 1;
     while (gap_idx >= 0 && ciura_gaps[gap_idx] >= n)
       --gap_idx;
@@ -3310,11 +3308,11 @@ namespace Aleph
     auto nc = Negate_Compare<T, Compare>(cmp);
 
     // Floyd's heap construction: O(n) instead of O(n log n)
-    // Start from last non-leaf node and sift down each node
+    // Start from the last non-leaf node and sift down each node
     for (long i = n / 2; i >= 1; --i)
       sift_down<T, Negate_Compare<T, Compare>>(a, i, n, nc);
 
-    // Extract elements from heap one by one
+    // Extract elements from the heap one by one
     for (long i = n; i >= 2; --i)
       {
         std::swap(a(0), a(i - 1));
@@ -5398,6 +5396,29 @@ namespace Aleph
       for (size_t i = 0; i < n; ++i)
         a[i] = std::move(tmp[i]);
     }
+
+    /** @brief Helper to sort any container by copying to a temporary array.
+     *  
+     *  Used by bucket_sort and timsort wrappers for non-contiguous containers.
+     */
+    template <typename T, class Container, class SortFn, class Compare>
+    void apply_sort_with_temp(Container & a, SortFn sort_fn, const Compare & cmp)
+    {
+      const size_t n = a.size();
+      if (n < 2)
+        return;
+
+      Array<T> tmp = Array<T>::create(n);
+      size_t i = 0;
+      for (auto it = a.get_it(); it.has_curr(); it.next_ne())
+        tmp[i++] = std::move(it.get_curr_ne());
+
+      sort_fn(&tmp[0], n, cmp);
+
+      i = 0;
+      for (auto it = a.get_it(); it.has_curr(); it.next_ne())
+        it.get_curr_ne() = std::move(tmp[i++]);
+    }
   } // namespace bucket_sort_detail
 
 
@@ -5526,18 +5547,10 @@ namespace Aleph
     requires std::floating_point<T>
   void bucket_sort(DynArray<T> & a, const Compare & cmp = Compare())
   {
-    const size_t n = a.size();
-    if (n < 2)
-      return;
-
-    Array<T> tmp = Array<T>::create(n);
-    for (size_t i = 0; i < n; ++i)
-      tmp[i] = a(i);
-
-    bucket_sort(&tmp[0], n, cmp);
-
-    for (size_t i = 0; i < n; ++i)
-      a(i) = tmp[i];
+    bucket_sort_detail::apply_sort_with_temp<T>(a, [](T *p, size_t n, const Compare & c)
+                                                  {
+                                                    bucket_sort(p, n, c);
+                                                  }, cmp);
   }
 
 
@@ -5594,20 +5607,10 @@ namespace Aleph
     requires std::floating_point<T>
   void bucket_sort(DynList<T> & list, const Compare & cmp = Compare())
   {
-    const size_t n = list.size();
-    if (n < 2)
-      return;
-
-    Array<T> tmp = Array<T>::create(n);
-    size_t i = 0;
-    for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
-      tmp[i++] = it.get_curr_ne();
-
-    bucket_sort(&tmp[0], n, cmp);
-
-    i = 0;
-    for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
-      it.get_curr_ne() = tmp[i++];
+    bucket_sort_detail::apply_sort_with_temp<T>(list, [](T *p, size_t n, const Compare & c)
+                                                  {
+                                                    bucket_sort(p, n, c);
+                                                  }, cmp);
   }
 
 
@@ -6211,12 +6214,12 @@ namespace Aleph
     ah_range_error_if(l < 0 or r < 0)
       << "timsort(): negative bounds [" << l << ", " << r << "] are not allowed";
 
+    ah_invalid_argument_if(a == nullptr)
+      << "timsort(): null pointer contract violation for range ["
+      << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
+
     if (l >= r)
       return;
-
-    ah_invalid_argument_if(a == nullptr)
-      << "timsort(): null pointer contract violation for range where l < r ["
-      << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
 
     timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
   }
@@ -6234,18 +6237,10 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   void timsort(DynArray<T> & a, const Compare & cmp = Compare())
   {
-    const size_t n = a.size();
-    if (n < 2)
-      return;
-
-    Array<T> tmp = Array<T>::create(n);
-    for (size_t i = 0; i < n; ++i)
-      tmp[i] = a(i);
-
-    timsort(&tmp[0], n, cmp);
-
-    for (size_t i = 0; i < n; ++i)
-      a(i) = tmp[i];
+    bucket_sort_detail::apply_sort_with_temp<T>(a, [](T *p, size_t n, const Compare & c)
+                                                  {
+                                                    timsort(p, n, c);
+                                                  }, cmp);
   }
 
 
@@ -6300,20 +6295,10 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   void timsort(DynList<T> & list, const Compare & cmp = Compare())
   {
-    const size_t n = list.size();
-    if (n < 2)
-      return;
-
-    Array<T> tmp = Array<T>::create(n);
-    size_t i = 0;
-    for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
-      tmp[i++] = it.get_curr_ne();
-
-    timsort(&tmp[0], n, cmp);
-
-    i = 0;
-    for (typename DynList<T>::Iterator it(list); it.has_curr(); it.next_ne())
-      it.get_curr_ne() = tmp[i++];
+    bucket_sort_detail::apply_sort_with_temp<T>(list, [](T *p, size_t n, const Compare & c)
+                                                  {
+                                                    timsort(p, n, c);
+                                                  }, cmp);
   }
 
 
@@ -6332,20 +6317,10 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   void timsort(DynDlist<T> & list, const Compare & cmp = Compare())
   {
-    const size_t n = list.size();
-    if (n < 2)
-      return;
-
-    Array<T> tmp = Array<T>::create(n);
-    size_t i = 0;
-    for (typename DynDlist<T>::Iterator it(list); it.has_curr(); it.next_ne())
-      tmp[i++] = it.get_curr_ne();
-
-    timsort(&tmp[0], n, cmp);
-
-    i = 0;
-    for (typename DynDlist<T>::Iterator it(list); it.has_curr(); it.next_ne())
-      it.get_curr_ne() = tmp[i++];
+    bucket_sort_detail::apply_sort_with_temp<T>(list, [](T *p, size_t n, const Compare & c)
+                                                  {
+                                                    timsort(p, n, c);
+                                                  }, cmp);
   }
 }
 

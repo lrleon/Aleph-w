@@ -1559,19 +1559,19 @@ template <class Container, typename T>
 using GenericKeys = GenericItems<Container, T>;
 
 
-/** Equality test for sequence containers.
-
-    This class implements the `equal_to()` method and `operator ==` for
-    containers whose elements are ordered and do not necessarily
-    export a fast `search()` method.
-
-    The test is performed by comparing elements one by one in traversal
-    order.
-
-    \tparam Container container type to which the equality test will
-    be applied.
-    \ingroup Sequences
-*/
+/** @brief Mixin providing equality comparison for sequence containers.
+ *
+ *  This class implements the `equal_to()` method and `operator ==` for
+ *  containers whose elements are ordered and do not necessarily
+ *  export a fast `search()` method.
+ *
+ *  The test is performed by comparing elements one by one in traversal
+ *  order.
+ *
+ *  @tparam Container container type to which the equality test will
+ *  be applied.
+ *  @ingroup Sequences
+ */
 template <class Container>
 class EqualSequenceMethod
 {
@@ -1590,13 +1590,10 @@ public:
    *  @param[in] r Container on which the comparison will be performed.
    *  @return `true` if the containers have the same size and all the
    *          elements are equal in the same order.
-   *  @throws none No-throw if the element comparison does not throw.
-   *          Propagates any exception from item comparison or iterator 
+   *  @throws Propagates any exception from item comparison or iterator 
    *          operations.
    */
   bool equal_to(const Container & r) const
-    noexcept(noexcept(std::declval<const typename Container::Item_Type&>() ==
-                      std::declval<const typename Container::Item_Type&>()))
   {
     if (const_me() == &r)
       return true;
@@ -1625,7 +1622,6 @@ public:
    *  @throws Propagates same exceptions as equal_to().
    */
   bool operator == (const Container & r) const
-    noexcept(noexcept(std::declval<const EqualSequenceMethod&>().equal_to(r)))
   {
     return equal_to(r);
   }
@@ -1636,7 +1632,6 @@ public:
    *  @throws Propagates same exceptions as equal_to().
    */
   bool operator != (const Container & r) const
-    noexcept(noexcept(std::declval<const EqualSequenceMethod&>().equal_to(r)))
   {
     return not equal_to(r);
   }

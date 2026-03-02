@@ -75,7 +75,9 @@ namespace Aleph
     {
       ah_domain_error_if(k == 0) << "MinHash: k must be > 0";
       
-      signature_.assign(k, std::numeric_limits<uint64_t>::max());
+      signature_.reserve(k);
+      for (size_t i = 0; i < k; ++i)
+        signature_.append(std::numeric_limits<uint64_t>::max());
       seeds_.reserve(k_);
 
       // Use dft_hash_fct to generate independent seeds
