@@ -102,7 +102,8 @@ namespace Aleph
      *
      *  @param[in] val The element to potentially include in the sample.
      *  @note Complexity: O(1).
-     *  @throws std::overflow_error if the stream length exceeds size_t capacity.
+     *  @throws std::overflow_error if the stream length exceeds size_t or
+     *          unsigned long capacity.
      */
     void update(const T & val)
     {
@@ -127,7 +128,10 @@ namespace Aleph
           ah_runtime_error_unless(n_seen_ < rng_range)
             << "Reservoir_Sampler::update: stream length exceeds RNG generator range (" << rng_range << ")";
 
-          const size_t j = gsl_rng_uniform_int(rng_.get(), n_seen_ + 1);
+          ah_overflow_error_if(n_seen_ >= std::numeric_limits<unsigned long>::max())
+            << "Reservoir_Sampler::update: stream length exceeds unsigned long capacity";
+
+          const size_t j = gsl_rng_uniform_int(rng_.get(), static_cast<unsigned long>(n_seen_ + 1));
           if (j < k_)
             reservoir_(j) = val;
         }

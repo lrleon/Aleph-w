@@ -127,7 +127,7 @@ namespace detail
 
 /** @brief Recursive extraction of all prime factors.
  */
-inline void extract_prime_factors(uint64_t n, Array<uint64_t> & factors)
+inline void extract_prime_factors(const uint64_t n, Array<uint64_t> & factors)
 {
   if (n <= 1)
     return;

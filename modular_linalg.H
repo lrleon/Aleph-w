@@ -80,7 +80,12 @@ namespace Aleph
   template <typename T>
   concept ModularMatrixBackend = DenseMatrix<T> or SparseMatrix<T>;
 
-  /** @brief Get dimensions of a dense matrix. */
+  /** @brief Get dimensions of a dense matrix.
+   *  @param[in] m The input dense matrix (Array of Arrays).
+   *  @return A pair containing (number of rows, number of columns).
+   *  @throws none
+   *  @note Complexity: O(1).
+   */
   template <DenseMatrix MatrixT>
   [[nodiscard]] constexpr std::pair<size_t, size_t>
   matrix_dims(const MatrixT & m) noexcept
@@ -89,7 +94,12 @@ namespace Aleph
     return {rows, rows > 0 ? m[0].size() : 0};
   }
 
-  /** @brief Get dimensions of a sparse matrix. */
+  /** @brief Get dimensions of a sparse matrix.
+   *  @param[in] m The input sparse matrix.
+   *  @return A pair containing (number of rows, number of columns).
+   *  @throws none
+   *  @note Complexity: O(1).
+   */
   template <SparseMatrix MatrixT>
   [[nodiscard]] constexpr std::pair<size_t, size_t>
   matrix_dims(const MatrixT & m) noexcept
@@ -130,7 +140,12 @@ namespace Aleph
       if constexpr (DenseMatrix<MatrixT>)
         m(r)(c) = v;
       else
-        m.write(r, c, v);
+        {
+          // Avoid materializing zero entries in sparse matrices.
+          // Only write if value is non-zero or if entry already exists.
+          if (v != 0 or m.read_ne(r, c) != 0)
+            m.write(r, c, v);
+        }
     }
 
     static void swap_rows(MatrixT & m, size_t r1, size_t r2)

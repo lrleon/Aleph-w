@@ -1767,7 +1767,7 @@ namespace Aleph
         auto [fst, snd] = stack.pop();
         const long diff = snd - fst;
 
-        if (diff <= 1)
+        if (diff <= 0)
           continue;
 
         if (diff < Quicksort_Threshold)
@@ -6200,12 +6200,12 @@ namespace Aleph
     ah_range_error_if(l < 0 or r < 0)
       << "timsort(): negative bounds [" << l << ", " << r << "] are not allowed";
 
-    if (l >= r)
-      return;
-
     ah_invalid_argument_if(a == nullptr)
       << "timsort(): null pointer contract violation for non-empty range ["
       << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
+
+    if (l >= r)
+      return;
 
     timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
   }
