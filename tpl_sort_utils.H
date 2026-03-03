@@ -4967,9 +4967,10 @@ namespace Aleph
       if (const size_t n = list.size(); n < 2)
         return;
 
-      static_assert(std::is_default_constructible_v<HTList>,
-                    "HTList must be default constructible for std::array");
-      std::array<HTList, 256> buckets;
+      Array<HTList> buckets;
+      buckets.reserve(256);
+      for (size_t i = 0; i < 256; ++i)
+        buckets.append(HTList());
 
       for (size_t pass = 0; pass < sizeof(U); ++pass)
         {
@@ -5006,9 +5007,10 @@ namespace Aleph
       if (const size_t n = list.size(); n < 2)
         return;
 
-      static_assert(std::is_default_constructible_v<Dnode<IntT>>,
-                    "Dnode must be default constructible for std::array");
-      std::array<Dnode<IntT>, 256> buckets;
+      Array<Dnode<IntT>> buckets;
+      buckets.reserve(256);
+      for (size_t i = 0; i < 256; ++i)
+        buckets.append(Dnode<IntT>());
 
       for (size_t pass = 0; pass < sizeof(U); ++pass)
         {
@@ -6261,12 +6263,12 @@ namespace Aleph
     ah_range_error_if(l < 0 or r < 0)
       << "timsort(): negative bounds [" << l << ", " << r << "] are not allowed";
 
+    if (l >= r)
+      return;
+
     ah_invalid_argument_if(a == nullptr)
       << "timsort(): null pointer contract violation for range ["
       << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
-
-    if (l >= r)
-      return;
 
     timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
   }

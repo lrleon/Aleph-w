@@ -1963,6 +1963,29 @@ TEST(SortUtilsRandomSelect, sorted_and_reverse_sorted)
     }
 }
 
+TEST(SortUtilsRandomSelect, RandomizedSeededProperty)
+{
+  std::mt19937 gen(42);
+  for (int iter = 0; iter < 100; ++iter)
+    {
+      const size_t N = std::uniform_int_distribution<size_t>(1, 200)(gen);
+      DynArray<int> a;
+      std::vector<int> expected;
+      for (size_t i = 0; i < N; ++i)
+        {
+          int val = std::uniform_int_distribution<int>(-1000, 1000)(gen);
+          a.append(val);
+          expected.push_back(val);
+        }
+      std::sort(expected.begin(), expected.end());
+
+      const long k = std::uniform_int_distribution<long>(0, static_cast<long>(N) - 1)(gen);
+      DynArray<int> copy = a;
+      int res = Aleph::random_select(&copy(0), k, static_cast<long>(N), std::less<int>());
+      EXPECT_EQ(res, expected[k]) << "Mismatch at iter " << iter << " rank " << k << " N " << N;
+    }
+}
+
 // ================================================================
 //                   Bucket Sort Tests
 // ================================================================

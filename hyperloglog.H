@@ -44,6 +44,7 @@
 # include <cmath>
 # include <algorithm>
 # include <bit>
+# include <concepts>
 # include <cstdint>
 
 # include <ah-errors.H>
@@ -178,7 +179,7 @@ namespace Aleph
       // Large range correction: use log1p for numerical stability; saturate when ratio >= 1
       else
         {
-          static constexpr double two_to_64 = 18446744073709551616.0;
+          static const double two_to_64 = std::ldexp(1.0, 64);
           if (e > (1.0 / 30.0) * two_to_64)
             {
               const double ratio = e / two_to_64;

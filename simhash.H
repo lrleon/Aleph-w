@@ -67,15 +67,31 @@ namespace Aleph
   public:
     /** @brief Number of bits in the SimHash fingerprint (always 64).
      *
-     *  The fingerprint is always a 64-bit value.  Note that the underlying
-     *  `murmur3hash()` returns `size_t`, which is 32-bit on non-x86_64
-     *  platforms; on those builds the upper 32 bits of every fingerprint
-     *  will be zero, effectively halving the collision resistance.
+     *  The fingerprint is always a 64-bit value. On platforms where
+     *  `murmur3hash()` returns 32-bit `size_t`, SimHash combines two
+     *  independent hash evaluations to populate all 64 bits.
      */
     static constexpr size_t FINGERPRINT_SIZE = 64;
 
   private:
     Array<double> v_; /**< Accumulator vector for each bit. */
+
+    /** @brief Compute a 64-bit hash value from a feature.
+     *
+     *  On 64-bit platforms this uses one `murmur3hash()` call. On 32-bit
+     *  platforms it combines two independently-seeded 32-bit hashes.
+     */
+    [[nodiscard]] static uint64_t hash64(const T & val) noexcept
+    {
+      if constexpr (sizeof(size_t) >= 8)
+        return static_cast<uint64_t>(murmur3hash(val, 0x9e3779b9UL));
+
+      const uint64_t lo =
+        static_cast<uint64_t>(murmur3hash(val, 0x9e3779b9UL)) & 0xffffffffULL;
+      const uint64_t hi =
+        static_cast<uint64_t>(murmur3hash(val, 0x85ebca6bUL)) & 0xffffffffULL;
+      return (hi << 32) | lo;
+    }
 
   public:
     /** @brief Construct SimHash accumulator. */
@@ -90,7 +106,7 @@ namespace Aleph
      */
     void update(const T & val, const double weight = 1.0)
     {
-      const auto hash = static_cast<uint64_t>(murmur3hash(val, 0x9e3779b9));
+      const uint64_t hash = hash64(val);
       for (size_t i = 0; i < FINGERPRINT_SIZE; ++i)
         if ((hash >> i) & 1)
           v_(i) += weight;
