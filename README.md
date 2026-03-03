@@ -218,6 +218,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Disjoint Sparse Table                                                  │
 │  ├─ Segment Tree / Lazy / Beats                                            │
 │  ├─ Cartesian Tree RMQ (via LCA)                                           │
+│  ├─ Interval Tree (overlap/stabbing queries)                               │
 │  ├─ Heavy-Light Decomposition (path/subtree)                               │
 │  ├─ Centroid Decomposition (distance tricks)                               │
 │  └─ Mo's Algorithm (Offline)                                               │
@@ -3380,6 +3381,8 @@ int main() {
 | `tpl_mo_algorithm.H` | `Distinct_Count_Mo<T>` | Count distinct elements in ranges |
 | `tpl_mo_algorithm.H` | `Powerful_Array_Mo<T>` | Powerful array query (sum cnt²·x) |
 | `tpl_mo_algorithm.H` | `Range_Mode_Mo<T>` | Range mode (most frequent element) |
+| `tpl_interval_tree.H` | `DynIntervalTree<T>` | Interval tree (overlap/stabbing queries) |
+| `tpl_interval_tree.H` | `Interval_Tree<T>` | Low-level interval treap (raw nodes) |
 | `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
 | `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
 | `al-domain.H` | `AlDomain<T>` | Domain for vector/matrix indices |
@@ -3620,6 +3623,7 @@ cmake --build build
 | Range queries | `sparse_table_example.cc` | Sparse Table (RMQ) |
 | Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
 | Segment trees | `segment_tree_example.cc` | Point/range updates, lazy propagation, Beats |
+| Interval tree | `interval_tree_example.cc` | Meeting scheduler, 1D segment intersection |
 | Cartesian Tree/LCA/RMQ | `cartesian_tree_example.cc` | Cartesian Tree, LCA, RMQ reductions |
 | Heavy-Light decomposition | `heavy_light_decomposition_example.cc` | Path/subtree queries with dynamic point updates |
 | Centroid decomposition | `centroid_decomposition_example.cc` | Dynamic nearest active center queries on trees |
