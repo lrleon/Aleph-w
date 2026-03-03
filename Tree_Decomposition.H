@@ -160,9 +160,9 @@ namespace Aleph
     private:
       using Pair_Key = std::pair<size_t, size_t>;
 
-      const GT * graph_ = nullptr;
+      const GT *graph_ = nullptr;
       SA sa_;
-      Node * root_ = nullptr;
+      Node *root_ = nullptr;
       size_t root_id_ = NONE;
 
       size_t n_ = 0;
@@ -178,7 +178,7 @@ namespace Aleph
         return std::make_pair(u, v);
       }
 
-      void check_id(const size_t id, const char * where) const
+      void check_id(const size_t id, const char *where) const
       {
         ah_out_of_range_error_if(id >= n_)
           << where << ": id=" << id << " is out of range [0, " << n_ << ")";
@@ -195,8 +195,7 @@ namespace Aleph
             return;
           }
 
-        id_to_node_ = Array<Node *>::create(n_);
-        {
+        id_to_node_ = Array<Node *>::create(n_); {
           MapOLhash<Node *, size_t> tmp(n_);
           node_to_id_.swap(tmp);
         }
@@ -204,7 +203,7 @@ namespace Aleph
         size_t next_id = 0;
         for (Node_Iterator<GT> it(*graph_); it.has_curr(); it.next_ne())
           {
-            Node * p = it.get_curr();
+            Node *p = it.get_curr();
             id_to_node_(next_id) = p;
             node_to_id_.insert(p, next_id);
             ++next_id;
@@ -237,12 +236,12 @@ namespace Aleph
 
         for (Arc_Iterator<GT, SA> it(*graph_, sa_); it.has_curr(); it.next_ne())
           {
-            Arc * a = it.get_curr_ne();
-            Node * src = graph_->get_src_node(a);
-            Node * tgt = graph_->get_tgt_node(a);
+            Arc *a = it.get_curr_ne();
+            Node *src = graph_->get_src_node(a);
+            Node *tgt = graph_->get_tgt_node(a);
 
-            const auto * src_item = node_to_id_.search(src);
-            const auto * tgt_item = node_to_id_.search(tgt);
+            const auto *src_item = node_to_id_.search(src);
+            const auto *tgt_item = node_to_id_.search(tgt);
 
             ah_runtime_error_unless(src_item != nullptr and tgt_item != nullptr)
               << "Rooted_Tree_Topology: arc endpoint is not indexed";
@@ -326,7 +325,7 @@ namespace Aleph
       }
 
     public:
-      Rooted_Tree_Topology(const GT & g, Node * root, SA sa = SA())
+      Rooted_Tree_Topology(const GT & g, Node *root, SA sa = SA())
         : graph_(&g), sa_(std::move(sa)), root_(root)
       {
         index_nodes();
@@ -339,22 +338,22 @@ namespace Aleph
       [[nodiscard]] Node * root() const noexcept { return root_; }
       [[nodiscard]] size_t root_id() const noexcept { return root_id_; }
 
-      [[nodiscard]] const Array<Node *> & id_to_node() const noexcept
+      [[nodiscard]] const Array<Node *> &id_to_node() const noexcept
       {
         return id_to_node_;
       }
 
-      [[nodiscard]] const Array<Array<size_t>> & adjacency() const noexcept
+      [[nodiscard]] const Array<Array<size_t>> &adjacency() const noexcept
       {
         return adjacency_;
       }
 
-      [[nodiscard]] size_t id_of(const Node * node) const
+      [[nodiscard]] size_t id_of(const Node *node) const
       {
         ah_invalid_argument_if(node == nullptr)
           << "Rooted_Tree_Topology::id_of: null node";
 
-        const auto * item = node_to_id_.search(const_cast<Node *>(node));
+        const auto *item = node_to_id_.search(const_cast<Node *>(node));
         ah_domain_error_if(item == nullptr)
           << "Rooted_Tree_Topology::id_of: node does not belong to graph";
 
@@ -367,7 +366,7 @@ namespace Aleph
         return id_to_node_(id);
       }
 
-      void validate_id(const size_t id, const char * where) const
+      void validate_id(const size_t id, const char *where) const
       {
         check_id(id, where);
       }
@@ -410,7 +409,7 @@ namespace Aleph
     Array<size_t> pos_;
     Array<size_t> inv_pos_;
 
-    void ensure_not_empty(const char * where) const
+    void ensure_not_empty(const char *where) const
     {
       ah_domain_error_if(is_empty()) << where << ": tree is empty";
     }
@@ -530,11 +529,8 @@ namespace Aleph
               ++next_pos;
 
               for (size_t j = 0; j < topology_.adjacency()(u).size(); ++j)
-                {
-                  const size_t v = topology_.adjacency()(u)(j);
-                  if (parent_(v) == u and v != heavy_(u))
-                    chain_stack.push({v, v});
-                }
+                if (const size_t v = topology_.adjacency()(u)(j); parent_(v) == u and v != heavy_(u))
+                  chain_stack.push({v, v});
 
               u = heavy_(u);
             }
@@ -551,7 +547,7 @@ namespace Aleph
      *  @param[in] root Root node pointer.
      *  @param[in] sa Arc filter.
      */
-    Gen_Heavy_Light_Decomposition(const GT & g, Node * root, SA sa = SA())
+    Gen_Heavy_Light_Decomposition(const GT & g, Node *root, SA sa = SA())
       : topology_(g, root, std::move(sa))
     {
       build_decomposition();
@@ -579,7 +575,7 @@ namespace Aleph
       return topology_.node_of(id);
     }
 
-    [[nodiscard]] size_t id_of(const Node * node) const
+    [[nodiscard]] size_t id_of(const Node *node) const
     {
       return topology_.id_of(node);
     }
@@ -590,7 +586,7 @@ namespace Aleph
       return parent_(id);
     }
 
-    [[nodiscard]] Node * parent_of(const Node * node) const
+    [[nodiscard]] Node * parent_of(const Node *node) const
     {
       const size_t pid = parent_id(id_of(node));
       return pid == NONE ? nullptr : node_of(pid);
@@ -602,7 +598,7 @@ namespace Aleph
       return depth_(id);
     }
 
-    [[nodiscard]] size_t depth_of(const Node * node) const
+    [[nodiscard]] size_t depth_of(const Node *node) const
     {
       return depth_of_id(id_of(node));
     }
@@ -613,7 +609,7 @@ namespace Aleph
       return subtree_size_(id);
     }
 
-    [[nodiscard]] size_t subtree_size_of(const Node * node) const
+    [[nodiscard]] size_t subtree_size_of(const Node *node) const
     {
       return subtree_size_of_id(id_of(node));
     }
@@ -624,7 +620,7 @@ namespace Aleph
       return heavy_(id);
     }
 
-    [[nodiscard]] Node * heavy_child(const Node * node) const
+    [[nodiscard]] Node * heavy_child(const Node *node) const
     {
       const size_t cid = heavy_child_id(id_of(node));
       return cid == NONE ? nullptr : node_of(cid);
@@ -636,7 +632,7 @@ namespace Aleph
       return head_(id);
     }
 
-    [[nodiscard]] Node * head_of(const Node * node) const
+    [[nodiscard]] Node * head_of(const Node *node) const
     {
       return node_of(head_id(id_of(node)));
     }
@@ -647,7 +643,7 @@ namespace Aleph
       return pos_(id);
     }
 
-    [[nodiscard]] size_t position_of(const Node * node) const
+    [[nodiscard]] size_t position_of(const Node *node) const
     {
       return position_of_id(id_of(node));
     }
@@ -662,7 +658,7 @@ namespace Aleph
     }
 
     /** @brief Base-array range of a full subtree (inclusive endpoints). */
-    [[nodiscard]] Range subtree_range(const Node * node) const
+    [[nodiscard]] Range subtree_range(const Node *node) const
     {
       return subtree_range_id(id_of(node));
     }
@@ -676,7 +672,7 @@ namespace Aleph
     }
 
     /** @brief True iff `u` is ancestor of `v` in the rooted tree. */
-    [[nodiscard]] bool is_ancestor(const Node * u, const Node * v) const
+    [[nodiscard]] bool is_ancestor(const Node *u, const Node *v) const
     {
       return is_ancestor_id(id_of(u), id_of(v));
     }
@@ -689,18 +685,16 @@ namespace Aleph
       topology_.validate_id(v, "Gen_Heavy_Light_Decomposition::lca_id");
 
       while (head_(u) != head_(v))
-        {
           if (depth_(head_(u)) >= depth_(head_(v)))
             u = parent_(head_(u));
           else
             v = parent_(head_(v));
-        }
 
       return (depth_(u) <= depth_(v)) ? u : v;
     }
 
     /** @brief Lowest common ancestor in O(log n). */
-    [[nodiscard]] Node * lca(const Node * u, const Node * v) const
+    [[nodiscard]] Node * lca(const Node *u, const Node *v) const
     {
       return node_of(lca_id(id_of(u), id_of(v)));
     }
@@ -713,7 +707,7 @@ namespace Aleph
     }
 
     /** @brief Distance (number of edges) between two nodes. */
-    [[nodiscard]] size_t distance(const Node * u, const Node * v) const
+    [[nodiscard]] size_t distance(const Node *u, const Node *v) const
     {
       return distance_id(id_of(u), id_of(v));
     }
@@ -738,18 +732,16 @@ namespace Aleph
       DynListStack<Range> down_segments;
 
       while (head_(u) != head_(v))
-        {
-          if (depth_(head_(u)) >= depth_(head_(v)))
-            {
-              visit(pos_(head_(u)), pos_(u), true);
-              u = parent_(head_(u));
-            }
-          else
-            {
-              down_segments.push(Range{pos_(head_(v)), pos_(v)});
-              v = parent_(head_(v));
-            }
-        }
+        if (depth_(head_(u)) >= depth_(head_(v)))
+          {
+            visit(pos_(head_(u)), pos_(u), true);
+            u = parent_(head_(u));
+          }
+        else
+          {
+            down_segments.push(Range{pos_(head_(v)), pos_(v)});
+            v = parent_(head_(v));
+          }
 
       if (depth_(u) >= depth_(v))
         visit(pos_(v), pos_(u), true);
@@ -758,14 +750,14 @@ namespace Aleph
 
       while (not down_segments.is_empty())
         {
-          const Range seg = down_segments.pop();
-          visit(seg.left, seg.right, false);
+          const auto [left, right] = down_segments.pop();
+          visit(left, right, false);
         }
     }
 
     /** @brief Enumerate path segments from `u` to `v` in path order. */
     template <class F>
-    void for_each_path_segment(const Node * u, const Node * v, F && visit) const
+    void for_each_path_segment(const Node *u, const Node *v, F && visit) const
     {
       for_each_path_segment_id(id_of(u), id_of(v), std::forward<F>(visit));
     }
@@ -781,9 +773,9 @@ namespace Aleph
     {
       for_each_path_segment_id(u, v,
                                [&](const size_t l, const size_t r, const bool)
-                               {
-                                 visit(l, r);
-                               });
+                                 {
+                                   visit(l, r);
+                                 });
     }
   };
 
@@ -827,7 +819,7 @@ namespace Aleph
     T identity_;
     Op op_;
 
-    void ensure_not_empty(const char * where) const
+    void ensure_not_empty(const char *where) const
     {
       ah_domain_error_if(is_empty()) << where << ": tree is empty";
     }
@@ -855,16 +847,16 @@ namespace Aleph
     static Array<T> build_base_from_node_info(const Gen_Heavy_Light_Decomposition<GT, SA> & hld)
     {
       return build_base_array(hld,
-                              [](Node * p) -> T
-                              {
-                                return static_cast<T>(p->get_info());
-                              });
+                              [](Node *p) -> T
+                                {
+                                  return static_cast<T>(p->get_info());
+                                });
     }
 
   public:
     /** @brief Construct from graph/root using `node->get_info()` as initial values. */
     Gen_HLD_Path_Query(const GT & g,
-                       Node * root,
+                       Node *root,
                        const T & identity,
                        Op op = Op(),
                        SA sa = SA())
@@ -894,7 +886,7 @@ namespace Aleph
       requires std::invocable<Getter, Node *> and
                std::convertible_to<std::invoke_result_t<Getter, Node *>, T>
     Gen_HLD_Path_Query(const GT & g,
-                       Node * root,
+                       Node *root,
                        Getter getter,
                        const T & identity,
                        Op op = Op(),
@@ -924,7 +916,7 @@ namespace Aleph
       // Empty
     }
 
-    [[nodiscard]] const Gen_Heavy_Light_Decomposition<GT, SA> & decomposition() const noexcept
+    [[nodiscard]] const Gen_Heavy_Light_Decomposition<GT, SA> &decomposition() const noexcept
     {
       return hld_;
     }
@@ -942,14 +934,14 @@ namespace Aleph
                                     [&](const size_t l,
                                         const size_t r,
                                         const bool)
-                                    {
-                                      ret = op_(ret, segment_tree_.query(l, r));
-                                    });
+                                      {
+                                        ret = op_(ret, segment_tree_.query(l, r));
+                                      });
       return ret;
     }
 
     /** @brief Path query between two nodes in O(log^2 n). */
-    [[nodiscard]] T query_path(const Node * u, const Node * v) const
+    [[nodiscard]] T query_path(const Node *u, const Node *v) const
     {
       return query_path_id(hld_.id_of(u), hld_.id_of(v));
     }
@@ -963,7 +955,7 @@ namespace Aleph
     }
 
     /** @brief Subtree query for node in O(log n). */
-    [[nodiscard]] T query_subtree(const Node * node) const
+    [[nodiscard]] T query_subtree(const Node *node) const
     {
       return query_subtree_id(hld_.id_of(node));
     }
@@ -976,7 +968,7 @@ namespace Aleph
     }
 
     /** @brief Point update: `a[node] = Op(a[node], delta)`. */
-    void update_node(const Node * node, const T & delta)
+    void update_node(const Node *node, const T & delta)
     {
       update_node_id(hld_.id_of(node), delta);
     }
@@ -989,7 +981,7 @@ namespace Aleph
     }
 
     /** @brief Point assignment: `a[node] = value`. */
-    void set_node(const Node * node, const T & value)
+    void set_node(const Node *node, const T & value)
     {
       set_node_id(hld_.id_of(node), value);
     }
@@ -1002,7 +994,7 @@ namespace Aleph
     }
 
     /** @brief Return current value at node. */
-    [[nodiscard]] T get_node(const Node * node) const
+    [[nodiscard]] T get_node(const Node *node) const
     {
       return get_node_id(hld_.id_of(node));
     }
@@ -1050,7 +1042,7 @@ namespace Aleph
     Array<Array<size_t>> centroid_ancestors_;
     Array<Array<size_t>> centroid_distances_;
 
-    void ensure_not_empty(const char * where) const
+    void ensure_not_empty(const char *where) const
     {
       ah_domain_error_if(is_empty()) << where << ": tree is empty";
     }
@@ -1232,8 +1224,8 @@ namespace Aleph
           ++centroid_count;
 
           for (size_t i = 0; i < topology_.adjacency()(centroid).size(); ++i)
-              if (const size_t v = topology_.adjacency()(centroid)(i); not removed_(v))
-                tasks.push({v, centroid, task.level + 1});
+            if (const size_t v = topology_.adjacency()(centroid)(i); not removed_(v))
+              tasks.push({v, centroid, task.level + 1});
         }
 
       ah_runtime_error_unless(centroid_count == n)
@@ -1242,7 +1234,7 @@ namespace Aleph
 
   public:
     /** @brief Construct using an explicit root node. */
-    Gen_Centroid_Decomposition(const GT & g, Node * root, SA sa = SA())
+    Gen_Centroid_Decomposition(const GT & g, Node *root, SA sa = SA())
       : topology_(g, root, std::move(sa))
     {
       build_centroid_tree();
@@ -1266,7 +1258,7 @@ namespace Aleph
       return topology_.node_of(id);
     }
 
-    [[nodiscard]] size_t id_of(const Node * node) const
+    [[nodiscard]] size_t id_of(const Node *node) const
     {
       return topology_.id_of(node);
     }
@@ -1291,7 +1283,7 @@ namespace Aleph
     }
 
     /** @brief Parent centroid of `node` (or `nullptr` if centroid root). */
-    [[nodiscard]] Node * centroid_parent(const Node * node) const
+    [[nodiscard]] Node * centroid_parent(const Node *node) const
     {
       const size_t pid = centroid_parent_id(id_of(node));
       return pid == NONE ? nullptr : node_of(pid);
@@ -1305,7 +1297,7 @@ namespace Aleph
     }
 
     /** @brief Level of centroid node in centroid tree (root level = 0). */
-    [[nodiscard]] size_t centroid_level_of(const Node * node) const
+    [[nodiscard]] size_t centroid_level_of(const Node *node) const
     {
       return centroid_level_of_id(id_of(node));
     }
@@ -1327,33 +1319,33 @@ namespace Aleph
     }
 
     /** @brief Number of centroid ancestors stored for node. */
-    [[nodiscard]] size_t centroid_path_length_of(const Node * node) const
+    [[nodiscard]] size_t centroid_path_length_of(const Node *node) const
     {
       return centroid_path_length_of_id(id_of(node));
     }
 
     /** @brief Centroid ancestors of node ID from centroid root down to local centroid. */
-    [[nodiscard]] const Array<size_t> & centroid_ancestors_of_id(const size_t id) const
+    [[nodiscard]] const Array<size_t> &centroid_ancestors_of_id(const size_t id) const
     {
       topology_.validate_id(id, "Gen_Centroid_Decomposition::centroid_ancestors_of_id");
       return centroid_ancestors_(id);
     }
 
     /** @brief Distances to centroid ancestors (aligned with `centroid_ancestors_of_id`). */
-    [[nodiscard]] const Array<size_t> & centroid_distances_of_id(const size_t id) const
+    [[nodiscard]] const Array<size_t> &centroid_distances_of_id(const size_t id) const
     {
       topology_.validate_id(id, "Gen_Centroid_Decomposition::centroid_distances_of_id");
       return centroid_distances_(id);
     }
 
     /** @brief Centroid ancestors of node from centroid root down to local centroid. */
-    [[nodiscard]] const Array<size_t> & centroid_ancestors_of(const Node * node) const
+    [[nodiscard]] const Array<size_t> &centroid_ancestors_of(const Node *node) const
     {
       return centroid_ancestors_of_id(id_of(node));
     }
 
     /** @brief Distances to centroid ancestors (aligned with `centroid_ancestors_of`). */
-    [[nodiscard]] const Array<size_t> & centroid_distances_of(const Node * node) const
+    [[nodiscard]] const Array<size_t> &centroid_distances_of(const Node *node) const
     {
       return centroid_distances_of_id(id_of(node));
     }
@@ -1418,7 +1410,7 @@ namespace Aleph
      *  Callback signature: `f(centroid_id, distance, index)`.
      */
     template <class F>
-    void for_each_centroid_ancestor(const Node * node, F && f) const
+    void for_each_centroid_ancestor(const Node *node, F && f) const
     {
       for_each_centroid_ancestor_id(id_of(node), std::forward<F>(f));
     }
@@ -1439,7 +1431,6 @@ namespace Aleph
   /** @brief Convenience alias for centroid decomposition. */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   using Centroid_Decomposition = Gen_Centroid_Decomposition<GT, SA>;
-
 } // namespace Aleph
 
 # endif // TREE_DECOMPOSITION_H

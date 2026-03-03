@@ -1135,6 +1135,9 @@ public:
       curr = nullptr;
     }
 
+     //!\~English Copy constructor \~Spanish Constructor de copia
+    Iterator(const Iterator &) = default;
+
      //!\~English Assignation \~Spanish Asignación
     Iterator & operator = (const Iterator & it) noexcept
       {

@@ -134,7 +134,7 @@ template<typename T>
 class Array : public LocateFunctions<Array<T>, T>,
               public FunctionalMethods<Array<T>, T>,
               public GenericKeys<Array<T>, T>,
-              public EqualToMethod<Array<T>>,
+              public EqualSequenceMethod<Array<T>>,
               public StlAlephIterator<Array<T>>
 {
   MemArray <T> array;

@@ -499,7 +499,7 @@ public:
   /** @brief Direct access to an allocated entry.
    *
    *  Returns a reference to the entry at position (i, j). The entry must
-   *  have been previously written or the matrix must have been allocated
+   *  have been previously written, or the matrix must have been allocated
    *  with allocate().
    *
    *  Time complexity: O(1).

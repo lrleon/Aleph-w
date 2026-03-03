@@ -84,11 +84,16 @@ set(EXAMPLE_PROGRAMS
     zip_utils_example
     uni_functional_example
     comb_example
+    combinatorics_enumeration_example
     string_utils_example
     eulerian_example
     bloom_filter_example
     hamiltonian_example
     random_graph_example
+    random_select_example
+    gray_code_example
+    streaming_demo
+    math_nt_example
     bipartite_example
     ranges_example
     dispatcher_example

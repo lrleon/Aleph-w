@@ -92,9 +92,7 @@ namespace Aleph
       using UW = std::make_unsigned_t<W>;
       const UW uvalue = static_cast<UW>(value);
       if constexpr (sizeof(UW) > sizeof(size_t))
-        ah_out_of_range_error_if(uvalue >
-                               static_cast<UW>(
-                                 std::numeric_limits<size_t>::max()))
+        ah_out_of_range_error_if(uvalue > static_cast<UW>( std::numeric_limits<size_t>::max()))
           << fn_name << ": " << field_name << " is too large for size_t";
 
       return static_cast<size_t>(uvalue);
@@ -266,7 +264,7 @@ namespace Aleph
     Array<V> dp = Array<V>::create(C + 1);
     // choice[w] = which item was last added at capacity w
     Array<size_t> choice = Array<size_t>::create(C + 1);
-    const size_t NONE = std::numeric_limits<size_t>::max();
+    constexpr size_t NONE = std::numeric_limits<size_t>::max();
     for (size_t w = 0; w <= C; ++w)
       {
         dp(w) = V{};
@@ -275,14 +273,11 @@ namespace Aleph
 
     for (size_t w = 1; w <= C; ++w)
       for (size_t i = 0; i < n; ++i)
-        {
-          const size_t wi = weights[i];
-          if (wi <= w and dp[w - wi] + items[i].value > dp[w])
-            {
-              dp(w) = dp[w - wi] + items[i].value;
-              choice(w) = i;
-            }
-        }
+        if (const size_t wi = weights[i]; wi <= w and dp[w - wi] + items[i].value > dp[w])
+          {
+            dp(w) = dp[w - wi] + items[i].value;
+            choice(w) = i;
+          }
 
     // reconstruct
     Array<size_t> sel;

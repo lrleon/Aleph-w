@@ -202,7 +202,7 @@ namespace Aleph
   class DynArray : public LocateFunctions<DynArray<T>, T>,
                    public FunctionalMethods<DynArray<T>, T>,
                    public GenericKeys<DynArray<T>, T>,
-                   public EqualToMethod<DynArray<T>>,
+                   public EqualSequenceMethod<DynArray<T>>,
                    public StlAlephIterator<DynArray<T>>
   {
     friend class BitArray; // for access to __traversal() method
