@@ -1183,7 +1183,7 @@ namespace Aleph
     long j = s - 1;
 
     for (long k = l; k <= r; ++k)
-      if (cmp(buf[i], buf[j]))
+      if (not cmp(buf[j], buf[i]))
         a[k] = std::move(buf[i++]);
       else
         a[k] = std::move(buf[j--]);
@@ -5426,6 +5426,34 @@ namespace Aleph
       for (auto it = a.get_it(); it.has_curr(); it.next_ne())
         it.get_curr_ne() = std::move(tmp[i++]);
     }
+
+    /** @brief Factory for lambdas that forward to a sort function. */
+    template <auto SortFn>
+    struct sort_invoker_factory
+    {
+      template <class Compare>
+      auto operator()(const Compare &) const
+      {
+        return [](auto *p, size_t n, const Compare & c) { SortFn(p, n, c); };
+      }
+    };
+
+    /** @brief Factory for bucket_sort with extra parameters. */
+    template <class BucketKey>
+    struct bucket_sort_invoker_factory
+    {
+      size_t num_buckets;
+      const BucketKey & bucket_key;
+
+      template <class Compare>
+      auto operator()(const Compare &) const
+      {
+        return [this](auto *p, size_t n, const Compare & c)
+               {
+                 bucket_sort(p, n, num_buckets, bucket_key, c);
+               };
+      }
+    };
   } // namespace bucket_sort_detail
 
 
@@ -5443,6 +5471,11 @@ namespace Aleph
    *  @param[in] num_buckets Number of buckets to distribute into.
    *  @param[in] bucket_key Mapping function from element to bucket index.
    *  @param[in] cmp Comparison functor.
+   *
+   *  @pre For all elements x,y, if @p cmp(x,y) is true then @p bucket_key(x) <= @p bucket_key(y)
+   *       (i.e., @p bucket_key is monotonic with respect to @p cmp).
+   *  @post If the precondition holds, the output array is globally ordered according to @p cmp 
+   *        after sorting.
    *
    *  @throws std::invalid_argument if `a` is null and `n > 0`.
    *  @throws std::domain_error if `bucket_key` returns an out-of-range index.
@@ -5568,10 +5601,9 @@ namespace Aleph
     requires std::floating_point<T>
   void bucket_sort(DynArray<T> & a, const Compare & cmp = Compare())
   {
-    bucket_sort_detail::apply_sort_with_temp<T>(a, [](T *p, size_t n, const Compare & c)
-                                                  {
-                                                    bucket_sort(p, n, c);
-                                                  }, cmp);
+    bucket_sort_detail::apply_sort_with_temp<T>(a, 
+      bucket_sort_detail::sort_invoker_factory<static_cast<void(*)(T*, size_t, const Compare&)>(bucket_sort)>{}(cmp),
+      cmp);
   }
 
 
@@ -5628,10 +5660,9 @@ namespace Aleph
     requires std::floating_point<T>
   void bucket_sort(DynList<T> & list, const Compare & cmp = Compare())
   {
-    bucket_sort_detail::apply_sort_with_temp<T>(list, [](T *p, size_t n, const Compare & c)
-                                                  {
-                                                    bucket_sort(p, n, c);
-                                                  }, cmp);
+    bucket_sort_detail::apply_sort_with_temp<T>(list, 
+      bucket_sort_detail::sort_invoker_factory<static_cast<void(*)(T*, size_t, const Compare&)>(bucket_sort)>{}(cmp),
+      cmp);
   }
 
 
@@ -5652,10 +5683,9 @@ namespace Aleph
                    const BucketKey & bucket_key,
                    const Compare & cmp = Compare())
   {
-    bucket_sort_detail::apply_sort_with_temp<T>(a, [&](T *p, size_t n, const Compare & c)
-                                                  {
-                                                    bucket_sort(p, n, num_buckets, bucket_key, c);
-                                                  }, cmp);
+    bucket_sort_detail::apply_sort_with_temp<T>(a, 
+      bucket_sort_detail::bucket_sort_invoker_factory<BucketKey>{num_buckets, bucket_key}(cmp),
+      cmp);
   }
 
 
@@ -6231,12 +6261,12 @@ namespace Aleph
     ah_range_error_if(l < 0 or r < 0)
       << "timsort(): negative bounds [" << l << ", " << r << "] are not allowed";
 
+    ah_invalid_argument_if(a == nullptr)
+      << "timsort(): null pointer contract violation for range ["
+      << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
+
     if (l >= r)
       return;
-
-    ah_invalid_argument_if(a == nullptr)
-      << "timsort(): null pointer contract violation for non-empty range ["
-      << l << ", " << r << "]; cannot call timsort_detail::timsort_impl()";
 
     timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
   }
@@ -6254,10 +6284,9 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   void timsort(DynArray<T> & a, const Compare & cmp = Compare())
   {
-    bucket_sort_detail::apply_sort_with_temp<T>(a, [](T *p, size_t n, const Compare & c)
-                                                  {
-                                                    timsort(p, n, c);
-                                                  }, cmp);
+    bucket_sort_detail::apply_sort_with_temp<T>(a, 
+      bucket_sort_detail::sort_invoker_factory<static_cast<void(*)(T*, size_t, const Compare&)>(timsort)>{}(cmp),
+      cmp);
   }
 
 
@@ -6312,10 +6341,9 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   void timsort(DynList<T> & list, const Compare & cmp = Compare())
   {
-    bucket_sort_detail::apply_sort_with_temp<T>(list, [](T *p, size_t n, const Compare & c)
-                                                  {
-                                                    timsort(p, n, c);
-                                                  }, cmp);
+    bucket_sort_detail::apply_sort_with_temp<T>(list, 
+      bucket_sort_detail::sort_invoker_factory<static_cast<void(*)(T*, size_t, const Compare&)>(timsort)>{}(cmp),
+      cmp);
   }
 
 
@@ -6334,10 +6362,9 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   void timsort(DynDlist<T> & list, const Compare & cmp = Compare())
   {
-    bucket_sort_detail::apply_sort_with_temp<T>(list, [](T *p, size_t n, const Compare & c)
-                                                  {
-                                                    timsort(p, n, c);
-                                                  }, cmp);
+    bucket_sort_detail::apply_sort_with_temp<T>(list, 
+      bucket_sort_detail::sort_invoker_factory<static_cast<void(*)(T*, size_t, const Compare&)>(timsort)>{}(cmp),
+      cmp);
   }
 }
 

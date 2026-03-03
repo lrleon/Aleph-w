@@ -51,6 +51,29 @@
 
 namespace Aleph { template <class> class Array; }
 
+  /** @brief Requirement for operations passed to traverse().
+   *
+   *  The operation must be invocable with an element of the container
+   *  and return a value convertible to bool.
+   */
+  template <class Operation, typename Item_Type>
+  concept TraverseOperation = requires(Operation & op, Item_Type & item)
+  {
+    { op(item) } -> std::convertible_to<bool>;
+  };
+
+  /** @brief Requirement for containers that can be traversed.
+   *
+   *  The container must provide a `traverse(Operation&)` member and
+   *  export an `Item_Type`.
+   */
+  template <class Container>
+  concept AlephTraversable = requires(Container & c)
+  {
+    typename Container::Item_Type;
+    { c.traverse(std::declval<bool(&)(typename Container::Item_Type&)>()) } -> std::convertible_to<bool>;
+  };
+
 /**  Generic traversal of the container through its iterator.
 
      This class implements a conditioned traversal on the container
@@ -94,6 +117,7 @@ public:
       \throw anything that could throw `operation`
   */
   template <class Operation>
+    requires TraverseOperation<Operation, typename Container::Item_Type>
   bool traverse(Operation & operation) noexcept(traverse_is_noexcept<Operation>())
   {
     for (typename Container::Iterator it(*static_cast<Container*>(this));
@@ -105,6 +129,7 @@ public:
 
   /// Const overload of `traverse(Operation&)`.
   template <class Operation>
+    requires TraverseOperation<Operation, typename Container::Item_Type>
   bool traverse(Operation & operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return const_cast<GenericTraverse*>(this)->traverse<Operation>(operation);
@@ -114,6 +139,7 @@ public:
   /// The operation @p operation is passed (invoked) as a named lvalue to
   /// the member overload rather than being perfectly forwarded.
   template <class Operation>
+    requires TraverseOperation<Operation, typename Container::Item_Type>
   bool traverse(Operation && operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
@@ -123,6 +149,7 @@ public:
   /// The operation @p operation is passed (invoked) as a named lvalue to
   /// the member overload rather than being perfectly forwarded.
   template <class Operation>
+    requires TraverseOperation<Operation, typename Container::Item_Type>
   bool traverse(Operation && operation) noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
@@ -141,7 +168,8 @@ public:
  *  @return `true` if all elements were visited, `false` if traversal was stopped.
  *  @throws anything that `op` throws.
  */
-template <class Container, class Operation>
+template <AlephTraversable Container, class Operation>
+  requires TraverseOperation<Operation, typename Container::Item_Type>
 bool traverse(const Container & c, Operation & op)
   noexcept(noexcept(c.traverse(op)))
 {
@@ -162,7 +190,8 @@ bool traverse(const Container & c, Operation & op)
  *  @return `true` if all elements were visited, `false` if traversal was stopped.
  *  @throws anything that `op` throws.
  */
-template <class Container, class Operation>
+template <AlephTraversable Container, class Operation>
+  requires TraverseOperation<Operation, typename Container::Item_Type>
 bool traverse(const Container & c, Operation && op)
   noexcept(noexcept(c.traverse(op)))
 {
@@ -374,13 +403,16 @@ public:
     return base()->find_ptr(operation);
   }
 
-  /** Overload of `find_ptr(Operation&) const` that accepts rvalues.
-  /// The operation is passed (invoked) as a named lvalue to the 
-  /// lvalue-reference overload rather than being perfectly forwarded.
-
-      @param[in] operation matching criteria
-      @return const pointer to matching element or nullptr
-  */
+  /** @brief Overload of find_ptr() const that accepts rvalues.
+   *
+   *  The operation is passed (invoked) as a named lvalue to the 
+   *  lvalue-reference overload rather than being perfectly forwarded.
+   *
+   *  @tparam Operation Matching criteria callable.
+   *  @param[in] operation matching criteria.
+   *  @return const pointer to matching element or nullptr.
+   *  @throws none
+   */
   template <class Operation>
   const Type * find_ptr(Operation && operation) const
     noexcept(operation_is_noexcept<Operation>())
@@ -388,13 +420,16 @@ public:
     return find_ptr<Operation>(operation);
   }
 
-  /** Overload of `find_ptr(Operation&)` that accepts rvalues.
-  /// The operation is passed (invoked) as a named lvalue to the 
-  /// lvalue-reference overload rather than being perfectly forwarded.
-
-      @param[in] operation matching criteria
-      @return pointer to matching element or nullptr
-  */
+  /** @brief Overload of find_ptr() that accepts rvalues.
+   *
+   *  The operation is passed (invoked) as a named lvalue to the 
+   *  lvalue-reference overload rather than being perfectly forwarded.
+   *
+   *  @tparam Operation Matching criteria callable.
+   *  @param[in] operation matching criteria.
+   *  @return pointer to matching element or nullptr.
+   *  @throws none
+   */
   template <class Operation>
   Type * find_ptr(Operation && operation)
     noexcept(operation_is_noexcept<Operation>())
@@ -439,13 +474,16 @@ public:
     return i;
   }
 
-  /** Overload of `find_index(Operation&)` that accepts rvalues.
-  /// The operation is passed (invoked) as a named lvalue to the 
-  /// lvalue-reference overload rather than being perfectly forwarded.
-
-      @param[in] operation matching criteria
-      @return position of first matching element or size if none
-  */
+  /** @brief Overload of find_index() that accepts rvalues.
+   *
+   *  The operation is passed (invoked) as a named lvalue to the 
+   *  lvalue-reference overload rather than being perfectly forwarded.
+   *
+   *  @tparam Operation Search criteria callable.
+   *  @param[in] operation matching criteria.
+   *  @return position of first matching element or size if none.
+   *  @throws none
+   */
   template <class Operation>
   size_t find_index(Operation && operation) const
     noexcept(operation_is_noexcept<Operation>())
@@ -1614,7 +1652,7 @@ using GenericKeys = GenericItems<Container, T>;
  *  order.
  *
  *  @tparam Container container type to which the equality test will
- *  be applied.
+ *  be applied (must satisfy AlephTraversable).
  *  @ingroup Sequences
  */
 template <class Container>
