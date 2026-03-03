@@ -130,7 +130,7 @@ namespace Aleph
     {
       while (beg != end)
         {
-          update(beg->first, beg->second);
+          update((*beg).first, (*beg).second);
           ++beg;
         }
     }

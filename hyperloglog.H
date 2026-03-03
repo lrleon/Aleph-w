@@ -44,7 +44,6 @@
 # include <cmath>
 # include <algorithm>
 # include <bit>
-# include <concepts>
 # include <cstdint>
 
 # include <ah-errors.H>
@@ -53,16 +52,6 @@
 
 namespace Aleph
 {
-  /** @brief Requirement for elements countable by HyperLogLog.
-   *
-   *  T must be hashable by murmur3hash(T, uint32_t) returning a 32-bit hash.
-   */
-  template <typename T>
-  concept MurmurHashable = requires(const T & val, uint32_t seed)
-  {
-    { murmur3hash(val, seed) } -> std::convertible_to<uint32_t>;
-  };
-
   /** @brief HyperLogLog cardinality estimator.
    *
    *  Estimates the count of distinct elements (NDV) in a stream.
@@ -73,9 +62,9 @@ namespace Aleph
    *  if multiple threads access the same HyperLogLog instance concurrently,
    *  especially if at least one thread modifies it (via update, merge, or clear).
    *
-   *  @tparam T Type of elements to count (must satisfy MurmurHashable).
+   *  @tparam T Type of elements to count.
    */
-  template <MurmurHashable T>
+  template <typename T>
   class HyperLogLog
   {
     uint8_t b_; /**< Number of bits for bucket index. */
