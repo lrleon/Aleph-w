@@ -111,6 +111,8 @@ public:
   }
 
   /// Overload of `traverse(Operation&) const` that accepts rvalues.
+  /// The operation @p operation is passed (invoked) as a named lvalue to
+  /// the member overload rather than being perfectly forwarded.
   template <class Operation>
   bool traverse(Operation && operation) const noexcept(traverse_is_noexcept<Operation>())
   {
@@ -118,6 +120,8 @@ public:
   }
 
   /// Overload of `traverse(Operation&)` that accepts rvalues.
+  /// The operation @p operation is passed (invoked) as a named lvalue to
+  /// the member overload rather than being perfectly forwarded.
   template <class Operation>
   bool traverse(Operation && operation) noexcept(traverse_is_noexcept<Operation>())
   {
@@ -144,14 +148,17 @@ bool traverse(const Container & c, Operation & op)
   return c.traverse(op);
 }
 
-/** @brief Invoke `c.traverse(op)` as a free function (rvalue operation).
+/** @brief Invoke `c.traverse(op)` as a free function (rvalue overload).
  *
  *  Overload for temporary / rvalue callables such as lambda expressions.
+ *  The operation @p op is passed (invoked) as a named lvalue to the member 
+ *  overload rather than being perfectly forwarded.
  *
  *  @tparam Container Any type that provides a `traverse(Operation&)` member.
  *  @tparam Operation Callable with signature `bool(Item_Type &)`.
  *  @param[in] c  Container to traverse.
- *  @param[in] op Operation forwarded to the member overload.
+ *  @param[in] op Operation passed (invoked) as a named lvalue to the member 
+ *               overload rather than being perfectly forwarded.
  *  @return `true` if all elements were visited, `false` if traversal was stopped.
  *  @throws anything that `op` throws.
  */
@@ -368,6 +375,8 @@ public:
   }
 
   /** Overload of `find_ptr(Operation&) const` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] operation matching criteria
       @return const pointer to matching element or nullptr
@@ -380,6 +389,8 @@ public:
   }
 
   /** Overload of `find_ptr(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] operation matching criteria
       @return pointer to matching element or nullptr
@@ -429,6 +440,8 @@ public:
   }
 
   /** Overload of `find_index(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] operation matching criteria
       @return position of first matching element or size if none
@@ -723,6 +736,8 @@ public:
   }
 
   /// Overload of `for_each(Operation&) const` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
   template <class Operation>
   void for_each(Operation && operation) const
   {
@@ -730,6 +745,8 @@ public:
   }
 
   /// Overload of `for_each(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
   template <class Operation>
   void for_each(Operation && operation)
   {
@@ -751,6 +768,8 @@ public:
   }
 
   /// Const alias of `for_each(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
   template <class Operation>
   void each(Operation && operation) const
   {
@@ -758,6 +777,8 @@ public:
   }
 
   /// Alias of `for_each(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
   template <class Operation>
   void each(Operation && operation)
   {
@@ -854,6 +875,8 @@ public:
   }
 
   /** Overload of `all(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] operation condition to test
       @return true if all elements satisfy the condition
@@ -885,6 +908,8 @@ public:
   }
 
   /** Overload of `exists(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] op predicate to test
       @return true if any element satisfies the predicate
@@ -947,6 +972,8 @@ public:
   }
 
   /** Overload of `maps(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @tparam __T target type (default T)
       @param[in] op transformation operation
@@ -984,6 +1011,8 @@ public:
   }
 
   /** Overload of `maps_if(Prop, Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @tparam __T target type (default T)
       @param[in] prop predicate
@@ -1077,6 +1106,8 @@ public:
   }
 
   /** Overload of `foldl(const __T&, Op&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @tparam __T accumulator type (default T)
       @param[in] init initial accumulator value
@@ -1103,6 +1134,8 @@ public:
   }
 
   /** Overload of `fold_left(const __T&, Op&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @tparam __T accumulator type (default T)
       @param[in] init initial accumulator value
@@ -1132,6 +1165,8 @@ public:
   }
 
   /** Overload of `fold(const T&, Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] init initial accumulator value
       @param[in] operation folding operation
@@ -1179,6 +1214,8 @@ public:
   }
 
   /** Overload of `filter(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] operation filter predicate
       @return DynList<T> with matching elements
@@ -1225,6 +1262,8 @@ public:
   }
 
   /** Overload of `ptr_filter(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] operation filter predicate
       @return DynList<const T*> with pointers to matching elements
@@ -1270,6 +1309,8 @@ public:
   }
 
   /** Overload of `pfilter(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] operation filter predicate
       @return DynList<std::tuple<T, size_t>> with matching elements and positions
@@ -1312,6 +1353,8 @@ public:
   }
 
   /** Overload of `partition(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] op filter predicate
       @return pair of lists (matched, not matched)
@@ -1395,6 +1438,8 @@ public:
   }
 
   /** Overload of `tpartition(Operation&)` that accepts rvalues.
+  /// The operation is passed (invoked) as a named lvalue to the 
+  /// lvalue-reference overload rather than being perfectly forwarded.
 
       @param[in] op filter predicate
       @return tuple of lists (matched, not matched)

@@ -685,12 +685,10 @@ namespace Aleph
       topology_.validate_id(v, "Gen_Heavy_Light_Decomposition::lca_id");
 
       while (head_(u) != head_(v))
-        {
           if (depth_(head_(u)) >= depth_(head_(v)))
             u = parent_(head_(u));
           else
             v = parent_(head_(v));
-        }
 
       return (depth_(u) <= depth_(v)) ? u : v;
     }
@@ -752,8 +750,8 @@ namespace Aleph
 
       while (not down_segments.is_empty())
         {
-          const Range seg = down_segments.pop();
-          visit(seg.left, seg.right, false);
+          const auto [left, right] = down_segments.pop();
+          visit(left, right, false);
         }
     }
 

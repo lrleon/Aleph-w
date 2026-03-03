@@ -2280,6 +2280,9 @@ TEST(Timsort, random_large)
 
 TEST(Timsort, perf_large)
 {
+  if (not std::getenv("ENABLE_PERF_TESTS"))
+    GTEST_SKIP() << "Skipping perf test (set ENABLE_PERF_TESTS to enable)";
+
   constexpr size_t N = 100000;
   DynArray<int> a;
   a.reserve(N);

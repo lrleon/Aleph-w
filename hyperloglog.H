@@ -57,6 +57,11 @@ namespace Aleph
    *  Estimates the count of distinct elements (NDV) in a stream.
    *  Typical error is 1.04/sqrt(m), where m is the number of registers.
    *
+   *  ## Thread-safety
+   *  This class is **not thread-safe**. External synchronization is required
+   *  if multiple threads access the same HyperLogLog instance concurrently,
+   *  especially if at least one thread modifies it (via update, merge, or clear).
+   *
    *  @tparam T Type of elements to count.
    */
   template <typename T>
@@ -87,24 +92,35 @@ namespace Aleph
       return static_cast<size_t>(1) << b;
     }
 
+    /** @brief Compute bias-correction constant alpha_m from Flajolet et al.
+     *  @internal
+     */
+    [[nodiscard]] static double compute_alpha(const size_t m) noexcept
+    {
+      if (m == 16) return 0.673;
+      if (m == 32) return 0.697;
+      if (m == 64) return 0.709;
+      return 0.7213 / (1.0 + 1.079 / static_cast<double>(m));
+    }
+
   public:
     /** @brief Construct with precision parameter.
      *  @param[in] b Number of bits for index [4..16]. m = 2^b registers.
+     *  @throws std::domain_error if b is outside [4, 16].
+     *  @note Not thread-safe: constructors should not be called concurrently on the same memory.
      */
     explicit HyperLogLog(const uint8_t b = 12)
-      : b_(b), m_(compute_m_or_throw(b))
-    {
-      registers_ = Array<uint8_t>(m_, static_cast<uint8_t>(0));
-
-      // Standard constants from Flajolet et al.
-      if (m_ == 16) alpha_m_ = 0.673;
-      else if (m_ == 32) alpha_m_ = 0.697;
-      else if (m_ == 64) alpha_m_ = 0.709;
-      else alpha_m_ = 0.7213 / (1.0 + 1.079 / static_cast<double>(m_));
-    }
+      : b_(b), m_(compute_m_or_throw(b)),
+        alpha_m_(compute_alpha(m_)),
+        registers_(m_, static_cast<uint8_t>(0))
+    {}
 
     /** @brief Add an element to the set.
+     *
+     *  @param[in] val Element to incorporate into the cardinality sketch.
+     *  @throws none
      *  @note Complexity: O(1).
+     *  @note Not thread-safe: concurrent calls to update() must be externally synchronized.
      */
     void update(const T & val)
     {
@@ -119,7 +135,11 @@ namespace Aleph
     }
 
     /** @brief Estimate current cardinality.
-     *  @return Approximate number of unique elements.
+     *
+     *  @return Approximate number of distinct elements seen so far.
+     *  @throws none
+     *  @note Complexity: O(m) where m = 2^b.
+     *  @note Thread-safe for concurrent reads as long as no concurrent update() or merge() is in progress.
      */
     [[nodiscard]] double estimate() const noexcept
     {
@@ -142,20 +162,31 @@ namespace Aleph
           if (v > 0)
             e = static_cast<double>(m_) * std::log(static_cast<double>(m_) / static_cast<double>(v));
         }
-      // Large range correction
-      else 
+      // Large range correction: use log1p for numerical stability; saturate when ratio >= 1
+      else
         {
           static constexpr double two_to_64 = 18446744073709551616.0;
           if (e > (1.0 / 30.0) * two_to_64)
-            e = -two_to_64 * std::log(1.0 - e / two_to_64);
+            {
+              const double ratio = e / two_to_64;
+              if (ratio >= 1.0)
+                return two_to_64; // saturate at hash-space limit
+              e = -two_to_64 * std::log1p(-ratio);
+            }
         }
 
       return e;
     }
 
-
-    /** @brief Merge another HyperLogLog into this one.
-     *  @throws std::domain_error if register count (b) mismatches.
+    /** @brief Merge another HyperLogLog into this one (union of sets).
+     *
+     *  Combines two sketches by taking the element-wise maximum of their
+     *  registers, which corresponds to the union of the underlying sets.
+     *
+     *  @param[in] other HyperLogLog with the same precision parameter b.
+     *  @throws std::domain_error if the precision parameters (b) differ.
+     *  @note Complexity: O(m) where m = 2^b.
+     *  @note Not thread-safe: concurrent calls must be externally synchronized.
      */
     void merge(const HyperLogLog & other)
     {
@@ -165,7 +196,12 @@ namespace Aleph
         registers_(i) = std::max(registers_[i], other.registers_[i]);
     }
 
-    /** @brief Reset all registers. */
+    /** @brief Reset all registers to zero.
+     *
+     *  @throws none
+     *  @note Complexity: O(m) where m = 2^b.
+     *  @note Not thread-safe: concurrent calls must be externally synchronized.
+     */
     void clear()
     {
       for (size_t i = 0; i < m_; ++i)
@@ -176,6 +212,7 @@ namespace Aleph
      *  @return size_t The register count m = 2^b used by this estimator.
      *  @throws none
      *  @note Complexity: O(1).
+     *  @note Thread-safe for concurrent reads as long as no concurrent modification is in progress.
      */
     [[nodiscard]] size_t num_registers() const noexcept { return m_; }
   };

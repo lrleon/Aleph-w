@@ -972,7 +972,9 @@ namespace Aleph
   inline
   void insertion_sort(T *a, const long l, const long r,
                       const Compare & cmp = Compare())
-    noexcept(noexcept(cmp(a[0], a[0])) and std::is_nothrow_move_assignable_v<T>)
+    noexcept(noexcept(cmp(a[0], a[0])) and
+             std::is_nothrow_copy_constructible_v<T> and
+             std::is_nothrow_move_assignable_v<T>)
   {
     if (l >= r)
       return;
@@ -4647,7 +4649,9 @@ namespace Aleph
     [[nodiscard]] inline size_t
     counting_bucket(const IntT value, const IntT min_key) noexcept
     {
-      return static_cast<size_t>(static_cast<uint64_t>(value) - static_cast<uint64_t>(min_key));
+      return static_cast<size_t>(
+        static_cast<counting_unsigned_t<IntT>>(value) -
+        static_cast<counting_unsigned_t<IntT>>(min_key));
     }
 
 
