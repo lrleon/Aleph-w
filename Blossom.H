@@ -172,8 +172,7 @@ namespace Aleph
             if (u == v) // loops never belong to a matching
               continue;
 
-            const Pair_Key key = normalized_pair(u, v);
-            if (pair_to_arc.search(key) == nullptr)
+            if (const Pair_Key key = normalized_pair(u, v); pair_to_arc.search(key) == nullptr)
               pair_to_arc.insert(key, a);
           }
 

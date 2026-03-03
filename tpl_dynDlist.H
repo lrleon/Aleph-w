@@ -553,6 +553,8 @@ public:
 
     Iterator() noexcept : list_ptr(nullptr) { /* empty */ }
 
+    Iterator(const Iterator &) = default;
+
     Iterator & operator = (const Iterator & it) noexcept
     {
       if (this == &it)

@@ -239,7 +239,7 @@ namespace
   [[maybe_unused]] bool all_points_inside_or_on(const DynList<Point> & points, const Polygon & hull)
   {
     for (auto it = points.get_it(); it.has_curr(); it.next_ne())
-      if (auto loc = PointInPolygonWinding::locate(hull, it.get_curr());
+      if (const auto loc = PointInPolygonWinding::locate(hull, it.get_curr());
         loc == PointInPolygonWinding::Location::Outside)
         return false;
     return true;

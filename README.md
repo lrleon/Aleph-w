@@ -3414,6 +3414,23 @@ int main() {
 
 Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algorithms) section for a complete list of headers, functions, and examples.
 
+#### Combinatorics & Enumeration
+
+| Header | Functions / Classes | Description |
+|--------|---------------------|-------------|
+| `ah-comb.H` | `next_permutation()`, `next_combination_indices()`, `next_combination_mask()`, `for_each_combination()`, `build_combinations()`, `combination_count()`, `bin_to_gray()`, `gray_to_bin()`, `build_gray_code()` | Lexicographic permutation, k-combination enumeration, and Gray code utilities |
+
+#### Mathematics & Number Theory
+
+| Header | Functions / Classes | Description |
+|--------|---------------------|-------------|
+| `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
+| `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
+| `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
+| `ntt.H` | `NTT` | Number Theoretic Transform for fast polynomial multiplication |
+| `modular_combinatorics.H` | `ModularCombinatorics` | $nCk \pmod p$ with precomputed factorials and Lucas Theorem |
+| `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
+
 #### Graph Algorithms
 
 | Header | Function | Description |
@@ -3607,6 +3624,11 @@ cmake --build build
 | Heavy-Light decomposition | `heavy_light_decomposition_example.cc` | Path/subtree queries with dynamic point updates |
 | Centroid decomposition | `centroid_decomposition_example.cc` | Dynamic nearest active center queries on trees |
 | Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
+| Combinatorics toolbox | `comb_example.C` | Cartesian-product traversal, transpose, and combinatorics helpers |
+| Gray code utilities | `gray_code_example.cc` | Binary to Gray conversion and sequence generation |
+| Number theory toolbox | `math_nt_example.cc` | Safe mod multiplication, Miller-Rabin, Pollard's Rho, NTT, modular combinatorics and linalg |
+| Streaming algorithms | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
+| Lexicographic permutation/combination enumeration | `combinatorics_enumeration_example.cc` | Extended `next_permutation`, k-combinations by indices/bitmask, and materialized enumeration |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
 | Components | `graph_components_example.C` | Finding components |
@@ -3676,6 +3698,40 @@ cmake --build build
 | Parallel ops | `ah_parallel_example.cc` | pmap, pfilter |
 | **Memory** | | |
 | Arena | `map_arena_example.C` | Arena allocator |
+
+---
+
+<a id="readme-streaming-algorithms"></a>
+### Probabilistic Streaming Algorithms
+
+Aleph-w provides a set of modern algorithms for processing data streams with low memory footprint:
+
+| Header | Class | Purpose |
+|---|---|---|
+| `reservoir-sampling.H` | `Reservoir_Sampler` | Randomly sample `k` elements from a stream of unknown length |
+| `count-min-sketch.H` | `Count_Min_Sketch` | Approximate frequency estimation (O(1) updates/queries) |
+| `hyperloglog.H` | `HyperLogLog` | Cardinality estimation (count unique elements) with low error |
+| `minhash.H` | `MinHash` | Jaccard similarity estimation between sets |
+| `simhash.H` | `SimHash` | Cosine similarity estimation using bitwise fingerprints |
+
+#### Streaming Usage Example
+
+```cpp
+#include <count-min-sketch.H>
+#include <hyperloglog.H>
+
+int main() {
+    // Frequency estimation with 1% relative error and 99% confidence
+    auto cms = Aleph::Count_Min_Sketch<std::string>::from_error_bounds(0.01, 0.01);
+    cms.update("event_type_a");
+    size_t freq = cms.estimate("event_type_a");
+
+    // Cardinality estimation (unique elements)
+    Aleph::HyperLogLog<int> hll(12); // 2^12 registers
+    for (int i = 0; i < 1000000; ++i) hll.update(i % 1000);
+    double unique = hll.estimate(); // ~1000.0
+}
+```
 
 ---
 

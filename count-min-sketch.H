@@ -1,0 +1,227 @@
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
+# ifndef COUNT_MIN_SKETCH_H
+# define COUNT_MIN_SKETCH_H
+
+/** @file count-min-sketch.H
+ *  @brief Count-Min Sketch for frequency estimation in streams.
+ *
+ *  Provides the `Count_Min_Sketch` class for approximate counting of 
+ *  events in a stream with constant memory and sub-linear error bounds.
+ *
+ *  @ingroup Algorithms
+ *  @author Leandro Rabindranath León
+ */
+
+# include <cmath>
+# include <algorithm>
+# include <concepts>
+# include <cstdint>
+# include <limits>
+
+# include <ah-errors.H>
+# include <tpl_array.H>
+# include <hash-fct.H>
+
+namespace Aleph
+{
+
+  /** @brief Count-Min Sketch frequency estimator.
+   *
+   *  Provides approximate frequency queries for elements in a stream.
+   *  The estimate is always an upper bound (no false negatives).
+   *
+   *  Memory complexity is O(w * d), where:
+   *  - w = width (related to error magnitude)
+   *  - d = depth (related to confidence)
+   *
+   *  @tparam T        Type of elements to count.
+   *  @tparam CounterT Unsigned integral type for counters (default: size_t).
+   */
+  template <typename T, std::unsigned_integral CounterT = size_t>
+  class Count_Min_Sketch
+  {
+    size_t w_;             /**< Width of the sketch. */
+    size_t d_;             /**< Depth (number of hash functions). */
+    Array<CounterT> table_; /**< Flat array for counters [d_ x w_]. */
+    Array<uint32_t> seeds_; /**< Random seeds for hash functions. */
+    CounterT total_count_ = 0; /**< Total updates processed. */
+
+  public:
+    /** @brief Construct with explicit dimensions.
+     *  @param[in] w Width (columns).
+     *  @param[in] d Depth (rows / hash functions).
+     */
+    Count_Min_Sketch(const size_t w, const size_t d)
+      : w_(w), d_(d)
+    {
+      ah_domain_error_if(w == 0 or d == 0) 
+        << "Count_Min_Sketch: dimensions must be positive";
+
+      ah_domain_error_if(w > std::numeric_limits<size_t>::max() / d)
+        << "Count_Min_Sketch: product of dimensions w*d overflows size_t (got "
+        << w << " * " << d << ")";
+      
+      table_ = Array<CounterT>(w_ * d_, CounterT(0));
+      seeds_.reserve(d_);
+      
+      for (size_t i = 0; i < d_; ++i)
+        seeds_.append(static_cast<uint32_t>(dft_hash_fct(i, 0x9e3779b9)));
+    }
+
+    /** @brief Create a sketch with target error bounds.
+     *
+     *  Calculates optimal w and d for given epsilon and delta.
+     *  Estimate will be within epsilon * total_count from actual with
+     *  probability at least 1 - delta.
+     *
+     *  @param[in] epsilon Relative error bound (must be > 0).
+     *  @param[in] delta   Confidence bound (error probability, must be in (0, 1)).
+     *  @return A new Count_Min_Sketch instance.
+     */
+    static Count_Min_Sketch from_error_bounds(const double epsilon, const double delta)
+    {
+      ah_domain_error_if(epsilon <= 0.0 or not std::isfinite(epsilon)) 
+        << "Count_Min_Sketch::from_error_bounds: epsilon must be positive and finite (got " << epsilon << ")";
+      ah_domain_error_if(delta <= 0.0 or delta >= 1.0 or not std::isfinite(delta))
+        << "Count_Min_Sketch::from_error_bounds: delta must be in (0, 1) and finite (got " << delta << ")";
+
+      const double w_dbl = std::ceil(std::exp(1.0) / epsilon);
+      const double d_dbl = std::ceil(std::log(1.0 / delta));
+      const double max_sz = static_cast<double>(std::numeric_limits<size_t>::max());
+
+      ah_domain_error_if(w_dbl > max_sz or d_dbl > max_sz)
+        << "Count_Min_Sketch::from_error_bounds: calculated dimensions exceed size_t limits";
+
+      return Count_Min_Sketch(static_cast<size_t>(w_dbl), static_cast<size_t>(d_dbl));
+    }
+
+    /** @brief Increment count for an element.
+     *  @param[in] val   Element to update.
+     *  @param[in] count Increment value (defaults to 1).
+     */
+    void update(const T & val, CounterT count = 1)
+    {
+      if (count == 0) return;
+
+      constexpr CounterT max_val = std::numeric_limits<CounterT>::max();
+
+      for (size_t i = 0; i < d_; ++i)
+        {
+          const size_t h = murmur3hash(val, seeds_[i]) % w_;
+          const size_t idx = i * w_ + h;
+          if (max_val - table_[idx] < count)
+            table_(idx) = max_val;
+          else
+            table_(idx) += count;
+        }
+
+      if (max_val - total_count_ < count)
+        total_count_ = max_val;
+      else
+        total_count_ += count;
+    }
+
+    /** @brief Estimate frequency of an element.
+     *  @return Approximate frequency (always >= actual).
+     */
+    [[nodiscard]] CounterT estimate(const T & val) const
+    {
+      CounterT min_val = std::numeric_limits<CounterT>::max();
+      for (size_t i = 0; i < d_; ++i)
+        {
+          const size_t h = murmur3hash(val, seeds_[i]) % w_;
+          min_val = std::min(min_val, table_[i * w_ + h]);
+        }
+      return min_val;
+    }
+
+    /** @brief Merge another sketch into this one.
+     *  @throws std::domain_error if dimensions or seeds mismatch.
+     */
+    void merge(const Count_Min_Sketch & other)
+    {
+      ah_domain_error_if(w_ != other.w_ or d_ != other.d_)
+        << "Count_Min_Sketch::merge: dimension mismatch";
+      
+      for (size_t i = 0; i < d_; ++i)
+        ah_domain_error_if(seeds_(i) != other.seeds_[i])
+          << "Count_Min_Sketch::merge: hash seed mismatch at index " << i;
+      
+      constexpr CounterT max_val = std::numeric_limits<CounterT>::max();
+
+      for (size_t i = 0; i < table_.size(); ++i)
+        {
+          if (max_val - table_[i] < other.table_[i])
+            table_(i) = max_val;
+          else
+            table_(i) += other.table_[i];
+        }
+      
+      if (max_val - total_count_ < other.total_count_)
+        total_count_ = max_val;
+      else
+        total_count_ += other.total_count_;
+    }
+
+    /** @brief Clear all counters. */
+    void clear()
+    {
+      for (size_t i = 0; i < table_.size(); ++i)
+        table_(i) = 0;
+      total_count_ = 0;
+    }
+
+    /** @brief Number of counter columns (hash buckets per row).
+     *  @return size_t The width w passed at construction.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
+    [[nodiscard]] size_t width() const noexcept { return w_; }
+
+    /** @brief Number of hash functions (independent counter rows).
+     *  @return size_t The depth d passed at construction.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
+    [[nodiscard]] size_t depth() const noexcept { return d_; }
+
+    /** @brief Sum of all event weights inserted so far.
+     *  @return CounterT Cumulative total of all update() weight arguments.
+     *  @throws none
+     *  @note Complexity: O(1).
+     */
+    [[nodiscard]] CounterT total_count() const noexcept { return total_count_; }
+  };
+
+} // namespace Aleph
+
+# endif // COUNT_MIN_SKETCH_H

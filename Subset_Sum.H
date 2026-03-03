@@ -267,8 +267,7 @@ namespace Aleph
   subset_sum_count(const Array<T> & values, T target)
   {
     const size_t n = values.size();
-    const size_t tgt = subset_sum_detail::to_size_checked(
-                                                          target, "subset_sum_count", "target");
+    const size_t tgt = subset_sum_detail::to_size_checked(target, "subset_sum_count", "target");
     const Array<size_t> weights = subset_sum_detail::extract_values_checked(
                                                                             values, "subset_sum_count");
 
@@ -281,16 +280,13 @@ namespace Aleph
       {
         const size_t vi = weights[i];
         for (size_t s = tgt; s >= vi and s != static_cast<size_t>(-1); --s)
-          {
-            const size_t count = dp[s - vi];
-            if (count > 0)
-              {
-                if (dp(s) > std::numeric_limits<size_t>::max() - count)
-                  dp(s) = std::numeric_limits<size_t>::max();
-                else
-                  dp(s) += count;
-              }
-          }
+          if (const size_t count = dp[s - vi]; count > 0)
+            {
+              if (dp(s) > std::numeric_limits<size_t>::max() - count)
+                dp(s) = std::numeric_limits<size_t>::max();
+              else
+                dp(s) += count;
+            }
       }
 
     return dp[tgt];
@@ -333,7 +329,7 @@ namespace Aleph
                   return a.first < b.first;
                 });
 
-    const long long target_ll = static_cast<long long>(target);
+    const auto target_ll = static_cast<long long>(target);
     for (size_t i = 0; i < sums1.size(); ++i)
       {
         const long long need = target_ll - sums1[i].first;

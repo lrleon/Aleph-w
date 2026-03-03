@@ -129,6 +129,25 @@ namespace Aleph
 
     Generate_Proxy_Operator(HashMap);
   };
+
+  /// @brief Alias for HashSet (for consistency with other Dyn containers).
+  ///
+  /// Defaults to OLhashTable (linear probing) for better cache locality.
+  /// Use ODhashTable explicitly when double-hashing distribution is preferred.
+  template <typename Key,
+            template <typename, class> class HashSetTable = OLhashTable,
+            class Cmp = Aleph::equal_to<Key>>
+  using DynHashSet = HashSet<Key, HashSetTable, Cmp>;
+
+  /// @brief Alias for HashMap (for consistency with other Dyn containers).
+  ///
+  /// Defaults to MapOLhash (linear probing) for better cache locality.
+  /// Use MapODhash explicitly when double-hashing distribution is preferred.
+  template <typename Key, typename Data,
+            template <typename, typename, class> class HashMapTable = MapOLhash,
+            class Cmp = Aleph::equal_to<Key>>
+  using DynHashMap = HashMap<Key, Data, HashMapTable, Cmp>;
+
 } // end namespace Aleph
 
 
