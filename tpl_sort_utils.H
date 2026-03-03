@@ -972,19 +972,19 @@ namespace Aleph
   inline
   void insertion_sort(T *a, const long l, const long r,
                       const Compare & cmp = Compare())
-    noexcept(noexcept(cmp(a[0], a[0])) and
-             std::is_nothrow_copy_constructible_v<T> and
+    noexcept(noexcept(cmp(std::declval<T&>(), std::declval<T&>())) and
+             std::is_nothrow_move_constructible_v<T> and
              std::is_nothrow_move_assignable_v<T>)
   {
     if (l >= r)
       return;
     for (long i = l + 1, j; i <= r; ++i)
       {
-        T tmp = a[i]; // store a[i], since it will be overwritten
+        T tmp = std::move(a[i]); // store a[i], since it will be overwritten
         for (j = i; j > l and cmp(tmp, a[j - 1]); --j)
-          a[j] = a[j - 1]; // shift to the right
+          a[j] = std::move(a[j - 1]); // shift to the right
 
-        a[j] = tmp; // insert tmp into the gap
+        a[j] = std::move(tmp); // insert tmp into the gap
       }
   }
 
@@ -3059,12 +3059,12 @@ namespace Aleph
   {
     for (long i = l + 1; i <= r; i++)
       {
-        T tmp = a(i);
+        T tmp = std::move(a(i));
         long j = i;
         for (/* nothing */; j > l and cmp(tmp, a(j - 1)); --j)
-          a(j) = a(j - 1);
+          a(j) = std::move(a(j - 1));
 
-        a(j) = tmp;
+        a(j) = std::move(tmp);
       }
   }
 

@@ -106,6 +106,7 @@ namespace Aleph
   public:
     /** @brief Construct with precision parameter.
      *  @param[in] b Number of bits for index [4..16]. m = 2^b registers.
+     *  @pre 4 <= b && b <= 16.
      *  @throws std::domain_error if b is outside [4, 16].
      *  @note Not thread-safe: constructors should not be called concurrently on the same memory.
      */
@@ -184,6 +185,7 @@ namespace Aleph
      *  registers, which corresponds to the union of the underlying sets.
      *
      *  @param[in] other HyperLogLog with the same precision parameter b.
+     *  @pre b_ == other.b_
      *  @throws std::domain_error if the precision parameters (b) differ.
      *  @note Complexity: O(m) where m = 2^b.
      *  @note Not thread-safe: concurrent calls must be externally synchronized.
