@@ -774,7 +774,6 @@ public:
    *
    *  @tparam Operation Callable with signature void(const T &).
    *  @param[in] operation to be performed on each item.
-   *  @return void
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
    */
@@ -791,7 +790,6 @@ public:
    *
    *  @tparam Operation Callable with signature void(const T &).
    *  @param[in] operation to be performed on each item.
-   *  @return void
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
    */
@@ -822,7 +820,6 @@ public:
    *
    *  @tparam Operation Callable with signature void(const T &).
    *  @param[in] operation to be performed on each item.
-   *  @return void
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
    */
@@ -839,7 +836,6 @@ public:
    *
    *  @tparam Operation Callable with signature void(const T &).
    *  @param[in] operation to be performed on each item.
-   *  @return void
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
    */

@@ -130,7 +130,6 @@ namespace Aleph
     /** @brief Add an element to the set.
      *
      *  @param[in] val Element to incorporate into the cardinality sketch.
-     *  @return void
      *  @throws none
      *  @note Complexity: O(1).
      *  @note Not thread-safe: concurrent calls to update() must be externally synchronized.
@@ -199,7 +198,6 @@ namespace Aleph
      *
      *  @param[in] other HyperLogLog with the same precision parameter b.
      *  @pre b_ == other.b_
-     *  @return void
      *  @throws std::domain_error if the precision parameters (b) differ.
      *  @note Complexity: O(m) where m = 2^b.
      *  @note Not thread-safe: concurrent calls must be externally synchronized.
@@ -214,7 +212,6 @@ namespace Aleph
 
     /** @brief Reset all registers to zero.
      *
-     *  @return void
      *  @throws none
      *  @note Complexity: O(m) where m = 2^b.
      *  @note Not thread-safe: concurrent calls must be externally synchronized.
