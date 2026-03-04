@@ -94,19 +94,27 @@ namespace Aleph
     Interval() = default;
 
     /// Construct interval [lo, hi]
-    Interval(const T & lo, const T & hi) noexcept : low(lo), high(hi) {}
+    Interval(const T & lo, const T & hi)
+      noexcept(std::is_nothrow_copy_constructible_v<T>)
+      : low(lo), high(hi) {}
 
     /// Construct interval [lo, hi] (move)
-    Interval(T && lo, T && hi) noexcept
+    Interval(T && lo, T && hi)
+      noexcept(std::is_nothrow_move_constructible_v<T>)
       : low(std::move(lo)), high(std::move(hi)) {}
 
     /// Construct a point interval [p, p]
-    static Interval point(const T & p) noexcept { return {p, p}; }
+    static Interval point(const T & p)
+      noexcept(std::is_nothrow_copy_constructible_v<T>)
+    {
+      return {p, p};
+    }
 
     /// Return true if this interval overlaps with `other`
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool overlaps(const Interval & other,
-                                const Compare & cmp = Compare()) const noexcept
+                                const Compare & cmp = Compare()) const
+      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
     {
       // [a,b] overlaps [c,d] iff a <= d and c <= b
       return not cmp(other.high, low) and not cmp(high, other.low);
@@ -115,24 +123,28 @@ namespace Aleph
     /// Return true if this interval contains the point `p`
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool contains(const T & p,
-                                const Compare & cmp = Compare()) const noexcept
+                                const Compare & cmp = Compare()) const
+      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
     {
       return not cmp(p, low) and not cmp(high, p);
     }
 
     /// Return true if low <= high
     template <class Compare = Aleph::less<T>>
-    [[nodiscard]] bool is_valid(const Compare & cmp = Compare()) const noexcept
+    [[nodiscard]] bool is_valid(const Compare & cmp = Compare()) const
+      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
     {
       return not cmp(high, low);
     }
 
-    bool operator ==(const Interval & other) const noexcept
+    bool operator ==(const Interval & other) const
+      noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
     {
       return low == other.low and high == other.high;
     }
 
-    bool operator !=(const Interval & other) const noexcept
+    bool operator !=(const Interval & other) const
+      noexcept(noexcept(*this == other))
     {
       return not (*this == other);
     }
@@ -149,9 +161,12 @@ namespace Aleph
   {
     Compare cmp;
 
-    Interval_Less(const Compare & c = Compare()) noexcept : cmp(c) {}
+    Interval_Less(const Compare & c = Compare())
+      noexcept(std::is_nothrow_copy_constructible_v<Compare>)
+      : cmp(c) {}
 
-    bool operator ()(const Interval<T> & a, const Interval<T> & b) const noexcept
+    bool operator ()(const Interval<T> & a, const Interval<T> & b) const
+      noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
     {
       if (cmp(a.low, b.low))
         return true;
@@ -815,7 +830,7 @@ namespace Aleph
      *  @par Complexity: O(k log n) where k = number of overlapping intervals
      */
     template <class Op>
-    void all_overlaps(const Key & query, Op op) const noexcept
+    void all_overlaps(const Key & query, Op && op) const noexcept
     {
       all_overlaps(tree_root, query, op, cmp);
     }
@@ -840,10 +855,10 @@ namespace Aleph
      *  @par Complexity: O(k log n)
      */
     template <class Op>
-    void stab(const T & p, Op op) const noexcept
+    void stab(const T & p, Op && op) const noexcept
     {
       Key point_iv(p, p);
-      all_overlaps(point_iv, std::move(op));
+      all_overlaps(point_iv, std::forward<Op>(op));
     }
 
     /** @brief Find all intervals containing point `p`.
@@ -1198,9 +1213,9 @@ namespace Aleph
      *  @throws none
      */
     template <class Op>
-    void all_overlaps(const Key & query, Op op) const noexcept
+    void all_overlaps(const Key & query, Op && op) const noexcept
     {
-      tree.all_overlaps(query, std::move(op));
+      tree.all_overlaps(query, std::forward<Op>(op));
     }
 
     /** @brief Find all overlapping intervals.
@@ -1231,9 +1246,9 @@ namespace Aleph
      *  @throws none
      */
     template <class Op>
-    void stab(const T & p, Op op) const noexcept
+    void stab(const T & p, Op && op) const noexcept
     {
-      tree.stab(p, std::move(op));
+      tree.stab(p, std::forward<Op>(op));
     }
 
     /** @brief Find all intervals containing point p.
