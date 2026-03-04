@@ -137,6 +137,7 @@ set(HLIST
     HLD.H
     Dominators.H
     Hungarian.H
+    tpl_interval_tree.H
 )
 
 # C++ source files

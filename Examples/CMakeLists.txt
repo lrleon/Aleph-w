@@ -137,6 +137,7 @@ set(EXAMPLE_PROGRAMS
     disjoint_sparse_table_example
     disjoint_sparse_table_test
     segment_tree_example
+    interval_tree_example
     cartesian_tree_example
     lca_example
     hld_example
