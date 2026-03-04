@@ -62,6 +62,7 @@
 
 # include <cassert>
 # include <ctime>
+# include <type_traits>
 
 # include <ahFunction.H>
 # include <tpl_binNodeUtils.H>
@@ -257,10 +258,12 @@ namespace Aleph
     T max_endpoint;
 
   public:
-    Interval_Tree_Node_Data() noexcept
+    Interval_Tree_Node_Data()
+      noexcept(std::is_nothrow_default_constructible_v<T>)
       : priority(Max_Priority), max_endpoint() {}
 
-    Interval_Tree_Node_Data(SentinelCtor) noexcept
+    Interval_Tree_Node_Data(SentinelCtor)
+      noexcept(std::is_nothrow_default_constructible_v<T>)
       : priority(Max_Priority), max_endpoint() {}
 
     unsigned long &getPriority() noexcept { return priority; }
@@ -319,7 +322,8 @@ namespace Aleph
       this->getMaxEndpoint() = k.high;
     }
 
-    Interval_Tree_Node(Key && k) noexcept
+    Interval_Tree_Node(Key && k)
+      noexcept(std::is_nothrow_move_constructible_v<Key>)
       : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)
     {
       this->getMaxEndpoint() = key.high;
@@ -332,7 +336,8 @@ namespace Aleph
       /* empty */
     }
 
-    Interval_Tree_Node(Interval_Tree_Node && node) noexcept
+    Interval_Tree_Node(Interval_Tree_Node && node)
+      noexcept(std::is_nothrow_move_constructible_v<Key>)
       : Data(std::move(static_cast<Data &>(node))),
         key(std::move(node.key)), lLink(NullPtr), rLink(NullPtr)
     {
@@ -409,7 +414,8 @@ namespace Aleph
       this->getMaxEndpoint() = k.high;
     }
 
-    Interval_Tree_NodeVtl(Key && k) noexcept
+    Interval_Tree_NodeVtl(Key && k)
+      noexcept(std::is_nothrow_move_constructible_v<Key>)
       : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)
     {
       this->getMaxEndpoint() = key.high;
@@ -422,7 +428,9 @@ namespace Aleph
       /* empty */
     }
 
-    Interval_Tree_NodeVtl(Interval_Tree_NodeVtl && node) noexcept
+    Interval_Tree_NodeVtl(Interval_Tree_NodeVtl && node)
+      noexcept(std::is_nothrow_move_constructible_v<Key> and
+               std::is_nothrow_move_constructible_v<Data>)
       : Data(std::move(static_cast<Data &>(node))),
         key(std::move(node.key)), lLink(NullPtr), rLink(NullPtr)
     {
@@ -896,6 +904,7 @@ namespace Aleph
      *
      *  @param p the query point
      *  @param op callable with signature `void(const Interval<T>&)`
+     *  @throws May throw if the provided callback throws.
      *
      *  @par Complexity: O(k log n)
      */
@@ -1048,7 +1057,9 @@ namespace Aleph
     DynIntervalTree(const DynIntervalTree & src)
       : tree(src.tree.endpoint_comp())
     {
-      copy_from(src);
+      DynIntervalTree tmp(src.tree.endpoint_comp());
+      tmp.copy_from(src);
+      this->swap(tmp);
     }
 
     /** @brief Move constructor.
@@ -1282,7 +1293,7 @@ namespace Aleph
      *  @tparam Op Callable with signature `void(const Key&)`.
      *  @param[in] p query point.
      *  @param[in] op callable to invoke for each containing interval.
-     *  @throws none
+     *  @throws May throw if the provided callback throws.
      */
     template <class Op>
     void stab(const T & p, Op && op) const
