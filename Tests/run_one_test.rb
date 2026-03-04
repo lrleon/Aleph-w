@@ -12,9 +12,10 @@ def ts
   Time.now.strftime('%Y-%m-%d %H:%M:%S')
 end
 
-def log(msg, verbose:)
-  return unless verbose
-  puts "[#{ts}] #{msg}"
+def log(msg, verbose:, always: false)
+  return unless verbose || always
+  prefix = verbose ? "[#{ts}] " : ">> "
+  puts "#{prefix}#{msg}"
 end
 
 def run_command(cmd, chdir: nil, verbose: false, label: nil)
@@ -23,7 +24,7 @@ def run_command(cmd, chdir: nil, verbose: false, label: nil)
 
   display_cmd = cmd.is_a?(Array) ? cmd.inspect : cmd
   header = label ? "#{label}: #{display_cmd}" : display_cmd
-  puts "\n>> #{header}"
+  puts "\n>> #{header}" if verbose
   started_at = Time.now
 
   unless verbose
@@ -206,11 +207,24 @@ unless cmake_args.any? { |arg| arg.start_with?('-DCMAKE_CXX_COMPILER=') }
 end
 
 if options[:from_file]
-  file = options[:from_file]
-  file = File.expand_path(file, ROOT_DIR) unless file.start_with?('/')
-  unless File.exist?(file)
+  file_path = options[:from_file]
+  found_file = nil
+  if file_path.start_with?('/')
+    found_file = file_path if File.exist?(file_path) && File.file?(file_path)
+  else
+    search_paths = [
+      File.expand_path(file_path), # Relative to cwd
+      File.join(ROOT_DIR, 'Tests', file_path),
+      File.join(ROOT_DIR, file_path)
+    ].uniq
+    found_file = search_paths.find { |p| File.exist?(p) && File.file?(p) }
+  end
+
+  unless found_file
     abort "File not found: #{options[:from_file]}"
   end
+
+  file = found_file
 
   base = File.basename(file)
   base = base.sub(/\.[^.]+\z/, '')
@@ -249,7 +263,7 @@ unless options[:skip_configure]
 
   configure_cmd = ['cmake', '-S', ROOT_DIR, '-B', build_dir, *cmake_args]
   label = File.exist?(cmake_cache) ? 'reconfigure' : 'configure'
-  log("#{label.capitalize}...", verbose: verbose)
+  log("#{label.capitalize}...", verbose: verbose, always: true)
   stdout, stderr, status = run_command(configure_cmd, verbose: verbose, label: label)
   unless status.success?
     warn stdout
@@ -259,14 +273,21 @@ unless options[:skip_configure]
 end
 
 unless options[:skip_build]
-  log('Building...', verbose: verbose)
-  build_cmd = ['cmake', '--build', '.']
-  build_cmd += ['--parallel', jobs.to_s] if jobs
-  stdout, stderr, status = run_command(build_cmd, chdir: build_dir, verbose: verbose, label: 'build')
-  unless status.success?
-    warn stdout
-    warn stderr
-    abort 'Build failed'
+  if options[:from_file]
+    # Optimization: If we are building a specific target from a file,
+    # we can skip the global build (which builds ALL tests) and rely on
+    # the target build step to build the specific test and its dependencies.
+    log('Skipping global build (will build specific target)...', verbose: verbose, always: true)
+  else
+    log('Building all...', verbose: verbose, always: true)
+    build_cmd = ['cmake', '--build', '.']
+    build_cmd += ['--parallel', jobs.to_s] if jobs
+    stdout, stderr, status = run_command(build_cmd, chdir: build_dir, verbose: verbose, label: 'build')
+    unless status.success?
+      warn stdout
+      warn stderr
+      abort 'Build failed'
+    end
   end
 end
 
@@ -276,7 +297,7 @@ if options[:from_file]
   built = false
   built_target = nil
   from_file_targets.each do |t|
-    log("Building target #{t}...", verbose: verbose)
+    log("Building target #{t}...", verbose: verbose, always: true)
     target_cmd = ['cmake', '--build', '.', '--target', t]
     target_cmd += ['--parallel', jobs.to_s] if jobs
     stdout, stderr, status = run_command(target_cmd, chdir: build_dir, verbose: verbose, label: 'build-target')
@@ -308,7 +329,7 @@ if options[:from_file]
   end
 
   cmd = [exe_path, *gtest_args]
-  log("Running executable #{exe_path}...", verbose: verbose)
+  log("Running executable #{exe_path}...", verbose: verbose, always: true)
   stdout, stderr, status = run_command(cmd, chdir: build_dir, verbose: verbose, label: 'gtest')
   puts stdout unless verbose
   warn stderr if !verbose && stderr && !stderr.empty?
@@ -321,7 +342,7 @@ end
 if options[:list_tests]
   ctest_list_cmd = ['ctest', '-N']
   ctest_list_cmd += ctest_args
-  log('Listing tests (ctest -N)...', verbose: verbose)
+  log('Listing tests (ctest -N)...', verbose: verbose, always: true)
   stdout, stderr, status = run_command(ctest_list_cmd, chdir: build_dir, verbose: verbose, label: 'ctest')
   puts stdout unless verbose
   warn stderr if !verbose && stderr && !stderr.empty?
@@ -332,7 +353,7 @@ end
 ctest_cmd = ['ctest', '--output-on-failure', '-R', test_pattern]
 ctest_cmd << '--progress' if verbose
 ctest_cmd += ctest_args
-log("Running ctest -R #{test_pattern}...", verbose: verbose)
+log("Running ctest -R #{test_pattern}...", verbose: verbose, always: true)
 stdout, stderr, status = run_command(ctest_cmd, chdir: build_dir, verbose: verbose, label: 'ctest')
 puts stdout unless verbose
 warn stderr if !verbose && stderr && !stderr.empty?

@@ -74,6 +74,7 @@
 # include <ahDry.H>
 # include <htlist.H>
 # include <utility>
+# include <memory>
 
 namespace Aleph
 {
@@ -91,10 +92,12 @@ namespace Aleph
     T low; ///< Lower endpoint
     T high; ///< Upper endpoint
 
-    /** @brief Default constructor.
+    /** @brief Initializes the interval as [T{}, T{}].
      *  @throws none
      */
-    Interval() = default;
+    Interval()
+      noexcept(std::is_nothrow_default_constructible_v<T>)
+      : low(), high() {}
 
     /** @brief Construct interval [lo, hi].
      *  @param[in] lo Lower endpoint.
@@ -126,7 +129,7 @@ namespace Aleph
     }
 
     /** @brief Return true if this interval overlaps with `other`.
-     *  @tparam Compare Comparison functor type.
+     *  @tparam Compare Comparison functor type (must represent ascending less-than).
      *  @param[in] other The other interval.
      *  @param[in] cmp Comparison functor for endpoints.
      *  @return true if intervals overlap, false otherwise.
@@ -142,8 +145,8 @@ namespace Aleph
     }
 
     /** @brief Return true if this interval contains the point `p`.
-     *  @tparam Compare Comparison functor type.
-     *  @param[in] p The query point.
+     *  @tparam Compare Comparison functor type (must represent ascending less-than).
+     *  @param[in] p the query point.
      *  @param[in] cmp Comparison functor for endpoints.
      *  @return true if p is in [low, high], false otherwise.
      *  @throws none
@@ -157,7 +160,7 @@ namespace Aleph
     }
 
     /** @brief Return true if low <= high.
-     *  @tparam Compare Comparison functor type.
+     *  @tparam Compare Comparison functor type (must represent ascending less-than).
      *  @param[in] cmp Comparison functor for endpoints.
      *  @return true if low <= high according to cmp.
      *  @throws none
@@ -234,6 +237,7 @@ namespace Aleph
   template <typename Key>
   struct interval_endpoint;
 
+  /** @brief Specialization for Interval<T>. */
   template <typename T>
   struct interval_endpoint<Interval<T>>
   {
@@ -337,7 +341,8 @@ namespace Aleph
     }
 
     Interval_Tree_Node(Interval_Tree_Node && node)
-      noexcept(std::is_nothrow_move_constructible_v<Key>)
+      noexcept(std::is_nothrow_move_constructible_v<Key> and
+               std::is_nothrow_move_constructible_v<Data>)
       : Data(std::move(static_cast<Data &>(node))),
         key(std::move(node.key)), lLink(NullPtr), rLink(NullPtr)
     {
@@ -366,6 +371,7 @@ namespace Aleph
     }
   };
 
+  /** @brief The sentinel node instance. */
   template <typename Key>
   Interval_Tree_Node<Key>
   Interval_Tree_Node<Key>::sentinel_node(sentinelCtor);
@@ -443,6 +449,7 @@ namespace Aleph
       /* empty */
     }
 
+    /** @brief Virtual destructor. */
     virtual ~Interval_Tree_NodeVtl() = default;
 
     void reset() noexcept
@@ -460,6 +467,7 @@ namespace Aleph
     }
   };
 
+  /** @brief The sentinel node instance (virtual version). */
   template <typename Key>
   Interval_Tree_NodeVtl<Key>
   Interval_Tree_NodeVtl<Key>::sentinel_node(sentinelCtor);
@@ -528,7 +536,7 @@ namespace Aleph
     }
 
     /// Recalculate max_endpoint from node's own high and children
-    static void update_max(Node *p, const Compare & cmp) noexcept
+    static void update_max(Node *p, const Compare & cmp)
     {
       auto & mx = MAX_EP(p);
       mx = KEY(p).high;
@@ -541,7 +549,7 @@ namespace Aleph
     }
 
     /// Rotate right with augmented field update
-    static Node * rotate_to_right_it(Node *p, const Compare & cmp) noexcept
+    static Node * rotate_to_right_it(Node *p, const Compare & cmp)
     {
       assert(p != Node::NullPtr);
       Node *q = LLINK(p);
@@ -553,7 +561,7 @@ namespace Aleph
     }
 
     /// Rotate left with augmented field update
-    static Node * rotate_to_left_it(Node *p, const Compare & cmp) noexcept
+    static Node * rotate_to_left_it(Node *p, const Compare & cmp)
     {
       assert(p != Node::NullPtr);
       Node *q = RLINK(p);
@@ -564,7 +572,7 @@ namespace Aleph
       return q;
     }
 
-    Node * insert(Node *root, Node *p) noexcept
+    Node * insert(Node *root, Node *p)
     {
       if (root == Node::NullPtr)
         return p;
@@ -599,7 +607,7 @@ namespace Aleph
       return Node::NullPtr; // duplicate
     }
 
-    Node * insert_dup(Node *root, Node *p) noexcept
+    Node * insert_dup(Node *root, Node *p)
     {
       if (root == Node::NullPtr)
         return p;
@@ -623,7 +631,7 @@ namespace Aleph
     }
 
     static Node * join_exclusive(Node *t1, Node *t2,
-                                 const Compare & cmp) noexcept
+                                 const Compare & cmp)
     {
       if (t1 == Node::NullPtr)
         return t2;
@@ -641,7 +649,7 @@ namespace Aleph
       return t2;
     }
 
-    Node * remove(Node *& root, const Key & key) noexcept
+    Node * remove(Node *& root, const Key & key)
     {
       if (root == Node::NullPtr)
         return Node::NullPtr;
@@ -695,7 +703,7 @@ namespace Aleph
     }
 
     /// Verify max_endpoint invariant
-    static bool check_max(Node *root, const Compare & cmp) noexcept
+    static bool check_max(Node *root, const Compare & cmp)
     {
       if (root == Node::NullPtr)
         return true;
@@ -747,7 +755,11 @@ namespace Aleph
       std::swap(num_nodes, tree.num_nodes);
     }
 
-    /// Construct with explicit seed and comparator
+    /** @brief Construct with explicit seed and comparator.
+     *  @param[in] seed Random seed.
+     *  @param[in] _cmp Comparison functor.
+     *  @throws ah_bad_alloc_if if random number generator allocation fails.
+     */
     Gen_Interval_Tree(const unsigned long seed,
                       const Compare & _cmp = Compare())
       : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr),
@@ -756,7 +768,10 @@ namespace Aleph
       init(seed);
     }
 
-    /// Construct with default seed (from system time)
+    /** @brief Construct with default seed (from system time).
+     *  @param[in] _cmp Comparison functor.
+     *  @throws ah_bad_alloc_if if random number generator allocation fails.
+     */
     Gen_Interval_Tree(const Compare & _cmp = Compare())
       : Gen_Interval_Tree(static_cast<unsigned long>(time(nullptr)), _cmp)
     {
@@ -781,7 +796,7 @@ namespace Aleph
     Node *&getRoot() noexcept { return tree_root; }
 
     /// Return the tree's root (const)
-    Node * getRoot() const noexcept { return tree_root; }
+    const Node * getRoot() const { return tree_root; }
 
     /// Return the number of nodes
     [[nodiscard]] size_t size() const noexcept { return num_nodes; }
@@ -797,7 +812,7 @@ namespace Aleph
      *  @param key the interval to search for
      *  @return pointer to the node if found, nullptr otherwise
      */
-    Node * search(const Key & key) const noexcept
+    const Node * search(const Key & key) const
     {
       Node *ret_val = searchInBinTree(tree_root, key, key_comp());
       return ret_val == Node::NullPtr ? nullptr : ret_val;
@@ -808,7 +823,7 @@ namespace Aleph
      *  @param p pointer to the node to insert
      *  @return p if inserted, nullptr if duplicate
      */
-    Node * insert(Node *p) noexcept
+    Node * insert(Node *p)
     {
       assert(p != Node::NullPtr);
       PRIO(p) = gsl_rng_get(r);
@@ -826,7 +841,7 @@ namespace Aleph
      *  @param p pointer to the node to insert
      *  @return the p pointer
      */
-    Node * insert_dup(Node *p) noexcept
+    Node * insert_dup(Node *p)
     {
       assert(p != Node::NullPtr);
       PRIO(p) = gsl_rng_get(r);
@@ -841,7 +856,7 @@ namespace Aleph
      *  @param key the interval to remove
      *  @return pointer to removed node if found, nullptr otherwise
      */
-    Node * remove(const Key & key) noexcept
+    Node * remove(const Key & key)
     {
       Node *ret_val = remove(tree_root, key);
       if (ret_val == Node::NullPtr)
@@ -858,7 +873,7 @@ namespace Aleph
      *
      *  @par Complexity: O(log n) expected
      */
-    Node * overlap_search(const Key & query) const noexcept
+    const Node * overlap_search(const Key & query) const
     {
       Node *x = tree_root;
       while (x != Node::NullPtr)
@@ -911,7 +926,7 @@ namespace Aleph
     template <class Op>
     void stab(const T & p, Op && op) const
     {
-      Key point_iv(p, p);
+      Key point_iv = Key::point(p);
       all_overlaps(point_iv, std::forward<Op>(op));
     }
 
@@ -922,14 +937,14 @@ namespace Aleph
      */
     [[nodiscard]] DynList<Key> find_stab(const T & p) const
     {
-      return find_all_overlaps(Key(p, p));
+      return find_all_overlaps(Key::point(p));
     }
 
     /** @brief Verify BST, heap, and max_endpoint invariants.
      *
      *  @return true if all invariants hold
      */
-    [[nodiscard]] bool verify() const noexcept
+    [[nodiscard]] bool verify() const
     {
       if (not check_bst(tree_root, key_comp()))
         return false;
@@ -1129,13 +1144,12 @@ namespace Aleph
     {
       ah_domain_error_if(not iv.is_valid(tree.endpoint_comp()))
         << "Invalid interval: low > high";
-      Node *p = new Node(iv);
-      Node *result = tree.insert(p);
+      std::unique_ptr<Node> p(new Node(iv));
+      Node *result = tree.insert(p.get());
       if (result == nullptr)
-        {
-          delete p;
-          ah_domain_error() << "Duplicate interval";
-        }
+        ah_domain_error() << "Duplicate interval";
+      
+      p.release();
       return KEY(result);
     }
 
@@ -1150,13 +1164,12 @@ namespace Aleph
     {
       ah_domain_error_if(not iv.is_valid(tree.endpoint_comp()))
         << "Invalid interval: low > high";
-      Node *p = new Node(std::move(iv));
-      Node *result = tree.insert(p);
+      std::unique_ptr<Node> p(new Node(std::move(iv)));
+      Node *result = tree.insert(p.get());
       if (result == nullptr)
-        {
-          delete p;
-          ah_domain_error() << "Duplicate interval";
-        }
+        ah_domain_error() << "Duplicate interval";
+      
+      p.release();
       return KEY(result);
     }
 
@@ -1182,9 +1195,9 @@ namespace Aleph
     {
       ah_domain_error_if(not iv.is_valid(tree.endpoint_comp()))
         << "Invalid interval: low > high";
-      Node *p = new Node(iv);
-      tree.insert_dup(p);
-      return KEY(p);
+      std::unique_ptr<Node> p(new Node(iv));
+      tree.insert_dup(p.get());
+      return KEY(p.release());
     }
 
     /** @brief Append an interval (alias for insert_dup).
@@ -1235,10 +1248,9 @@ namespace Aleph
      *
      *  @param[in] query the query interval.
      *  @return pointer to an overlapping interval, or nullptr if none.
-     *  @throws none
      *  @par Complexity: O(log n) expected.
      */
-    const Key * overlap_search(const Key & query) const noexcept
+    const Key * overlap_search(const Key & query) const
     {
       auto *p = tree.overlap_search(query);
       return p != nullptr ? &KEY(p) : nullptr;
@@ -1248,9 +1260,8 @@ namespace Aleph
      *  @param[in] lo lower endpoint.
      *  @param[in] hi upper endpoint.
      *  @return pointer to an overlapping interval, or nullptr.
-     *  @throws none
      */
-    const Key * overlap_search(const T & lo, const T & hi) const noexcept
+    const Key * overlap_search(const T & lo, const T & hi) const
     {
       return overlap_search(Key(lo, hi));
     }
@@ -1330,9 +1341,8 @@ namespace Aleph
 
     /** @brief Verify all tree invariants (BST, Treap, MaxEndpoint).
      *  @return true if valid.
-     *  @throws none
      */
-    [[nodiscard]] bool verify() const noexcept { return tree.verify(); }
+    [[nodiscard]] bool verify() const { return tree.verify(); }
 
     /** @brief Traverse all intervals in inorder (sorted by low endpoint).
      *
@@ -1346,7 +1356,7 @@ namespace Aleph
     template <class Operation>
     bool traverse(Operation & op)
     {
-      return Aleph::traverse(tree.getRoot(), [&op](Node *p)
+      return Aleph::traverse(tree.getRoot(), [&op](const Node *p)
                                {
                                  return op(p->get_key());
                                });
@@ -1373,7 +1383,7 @@ namespace Aleph
     template <class Operation>
     bool traverse(Operation & op) const
     {
-      return Aleph::traverse(tree.getRoot(), [&op](Node *p)
+      return Aleph::traverse(tree.getRoot(), [&op](const Node *p)
                                {
                                  return op(p->get_key());
                                });
@@ -1442,7 +1452,7 @@ namespace Aleph
       void next_ne() noexcept { it.next_ne(); }
 
       /** @brief Go back to the previous element.
-       *  @throws ah_invalid_argument if already at beginning.
+       *  @throws ah_invalid_argument if already at the beginning.
        */
       void prev() { it.prev(); }
 
