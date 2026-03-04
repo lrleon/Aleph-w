@@ -90,27 +90,47 @@ namespace Aleph
     T low; ///< Lower endpoint
     T high; ///< Upper endpoint
 
-    /// Default constructor
+    /** @brief Default constructor.
+     *  @throws none
+     */
     Interval() = default;
 
-    /// Construct interval [lo, hi]
+    /** @brief Construct interval [lo, hi].
+     *  @param[in] lo Lower endpoint.
+     *  @param[in] hi Upper endpoint.
+     *  @throws none
+     */
     Interval(const T & lo, const T & hi)
       noexcept(std::is_nothrow_copy_constructible_v<T>)
       : low(lo), high(hi) {}
 
-    /// Construct interval [lo, hi] (move)
+    /** @brief Construct interval [lo, hi] (move version).
+     *  @param[in] lo Lower endpoint.
+     *  @param[in] hi Upper endpoint.
+     *  @throws none
+     */
     Interval(T && lo, T && hi)
       noexcept(std::is_nothrow_move_constructible_v<T>)
       : low(std::move(lo)), high(std::move(hi)) {}
 
-    /// Construct a point interval [p, p]
+    /** @brief Construct a point interval [p, p].
+     *  @param[in] p The point value.
+     *  @return An interval where low == high == p.
+     *  @throws none
+     */
     static Interval point(const T & p)
       noexcept(std::is_nothrow_copy_constructible_v<T>)
     {
       return {p, p};
     }
 
-    /// Return true if this interval overlaps with `other`
+    /** @brief Return true if this interval overlaps with `other`.
+     *  @tparam Compare Comparison functor type.
+     *  @param[in] other The other interval.
+     *  @param[in] cmp Comparison functor for endpoints.
+     *  @return true if intervals overlap, false otherwise.
+     *  @throws none
+     */
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool overlaps(const Interval & other,
                                 const Compare & cmp = Compare()) const
@@ -120,7 +140,13 @@ namespace Aleph
       return not cmp(other.high, low) and not cmp(high, other.low);
     }
 
-    /// Return true if this interval contains the point `p`
+    /** @brief Return true if this interval contains the point `p`.
+     *  @tparam Compare Comparison functor type.
+     *  @param[in] p The query point.
+     *  @param[in] cmp Comparison functor for endpoints.
+     *  @return true if p is in [low, high], false otherwise.
+     *  @throws none
+     */
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool contains(const T & p,
                                 const Compare & cmp = Compare()) const
@@ -129,7 +155,12 @@ namespace Aleph
       return not cmp(p, low) and not cmp(high, p);
     }
 
-    /// Return true if low <= high
+    /** @brief Return true if low <= high.
+     *  @tparam Compare Comparison functor type.
+     *  @param[in] cmp Comparison functor for endpoints.
+     *  @return true if low <= high according to cmp.
+     *  @throws none
+     */
     template <class Compare = Aleph::less<T>>
     [[nodiscard]] bool is_valid(const Compare & cmp = Compare()) const
       noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
@@ -137,12 +168,22 @@ namespace Aleph
       return not cmp(high, low);
     }
 
+    /** @brief Equality operator.
+     *  @param[in] other Interval to compare with.
+     *  @return true if endpoints are equal.
+     *  @throws none
+     */
     bool operator ==(const Interval & other) const
       noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
     {
       return low == other.low and high == other.high;
     }
 
+    /** @brief Inequality operator.
+     *  @param[in] other Interval to compare with.
+     *  @return true if endpoints differ.
+     *  @throws none
+     */
     bool operator !=(const Interval & other) const
       noexcept(noexcept(*this == other))
     {
@@ -161,10 +202,20 @@ namespace Aleph
   {
     Compare cmp;
 
+    /** @brief Constructor.
+     *  @param[in] c Endpoint comparison functor.
+     *  @throws none
+     */
     Interval_Less(const Compare & c = Compare())
       noexcept(std::is_nothrow_copy_constructible_v<Compare>)
       : cmp(c) {}
 
+    /** @brief Comparison operator.
+     *  @param[in] a First interval.
+     *  @param[in] b Second interval.
+     *  @return true if a < b (lexicographical order on low, then high).
+     *  @throws none
+     */
     bool operator ()(const Interval<T> & a, const Interval<T> & b) const
       noexcept(std::is_nothrow_invocable_v<const Compare &, const T &, const T &>)
     {
@@ -458,7 +509,6 @@ namespace Aleph
     Node *& tree_root;
     gsl_rng *r;
     Compare cmp;
-    IntervalCmp interval_cmp;
     size_t num_nodes;
 
     void init(const unsigned int seed)
@@ -513,6 +563,7 @@ namespace Aleph
 
       const Key & pk = KEY(p);
       const Key & rk = KEY(root);
+      const IntervalCmp interval_cmp(cmp);
       Node *result = nullptr;
       if (interval_cmp(pk, rk))
         {
@@ -547,6 +598,7 @@ namespace Aleph
 
       const Key & pk = KEY(p);
       const Key & rk = KEY(root);
+      const IntervalCmp interval_cmp(cmp);
       if (interval_cmp(pk, rk))
         {
           LLINK(root) = insert_dup(LLINK(root), p);
@@ -587,6 +639,7 @@ namespace Aleph
         return Node::NullPtr;
 
       const Key & rk = KEY(root);
+      const IntervalCmp interval_cmp(cmp);
       Node *ret_val;
       if (interval_cmp(key, rk))
         ret_val = remove(LLINK(root), key);
@@ -609,7 +662,7 @@ namespace Aleph
     /// Recursive: find all intervals overlapping query
     template <class Op>
     static void all_overlaps(Node *root, const Key & query,
-                             Op & op, const Compare & cmp) noexcept
+                             Op & op, const Compare & cmp)
     {
       if (root == Node::NullPtr)
         return;
@@ -665,47 +718,39 @@ namespace Aleph
     void set_seed(const unsigned long seed) noexcept { gsl_rng_set(r, seed); }
 
     /// Return the interval comparison functor (over Interval<T> keys)
-    auto & key_comp() noexcept { return interval_cmp; }
-
-    /// Return the interval comparison functor (const)
-    const auto & key_comp() const noexcept { return interval_cmp; }
-
-    /// Return the endpoint comparison functor
-    Compare & endpoint_comp() noexcept { return cmp; }
+    IntervalCmp key_comp() const noexcept { return IntervalCmp(cmp); }
 
     /// Return the endpoint comparison functor (const)
     const Compare & endpoint_comp() const noexcept { return cmp; }
 
     /// Backwards-compatible accessor for the endpoint comparator
-    Compare & get_compare() noexcept { return endpoint_comp(); }
+    const Compare & get_compare() const noexcept { return endpoint_comp(); }
 
     /// Swap all state with `tree` in O(1)
     void swap(Gen_Interval_Tree & tree)
       noexcept(noexcept(std::swap(tree_root, tree.tree_root)) and
                noexcept(std::swap(cmp, tree.cmp)) and
-               noexcept(std::swap(interval_cmp, tree.interval_cmp)) and
                noexcept(std::swap(r, tree.r)) and
                noexcept(std::swap(num_nodes, tree.num_nodes)))
     {
       std::swap(tree_root, tree.tree_root);
       std::swap(cmp, tree.cmp);
-      std::swap(interval_cmp, tree.interval_cmp);
       std::swap(r, tree.r);
       std::swap(num_nodes, tree.num_nodes);
     }
 
     /// Construct with explicit seed and comparator
     Gen_Interval_Tree(const unsigned long seed,
-                      const Compare & __cmp = Compare())
+                      const Compare & _cmp = Compare())
       : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr),
-        cmp(__cmp), interval_cmp(__cmp), num_nodes(0)
+        cmp(_cmp), num_nodes(0)
     {
       init(seed);
     }
 
     /// Construct with default seed (from system time)
-    Gen_Interval_Tree(const Compare & __cmp = Compare())
-      : Gen_Interval_Tree(time(nullptr), __cmp)
+    Gen_Interval_Tree(const Compare & _cmp = Compare())
+      : Gen_Interval_Tree(static_cast<unsigned long>(time(nullptr)), _cmp)
     {
       /* empty */
     }
@@ -746,7 +791,7 @@ namespace Aleph
      */
     Node * search(const Key & key) const noexcept
     {
-      Node *ret_val = searchInBinTree(tree_root, key, interval_cmp);
+      Node *ret_val = searchInBinTree(tree_root, key, key_comp());
       return ret_val == Node::NullPtr ? nullptr : ret_val;
     }
 
@@ -830,7 +875,7 @@ namespace Aleph
      *  @par Complexity: O(k log n) where k = number of overlapping intervals
      */
     template <class Op>
-    void all_overlaps(const Key & query, Op && op) const noexcept
+    void all_overlaps(const Key & query, Op && op) const
     {
       all_overlaps(tree_root, query, op, cmp);
     }
@@ -855,7 +900,7 @@ namespace Aleph
      *  @par Complexity: O(k log n)
      */
     template <class Op>
-    void stab(const T & p, Op && op) const noexcept
+    void stab(const T & p, Op && op) const
     {
       Key point_iv(p, p);
       all_overlaps(point_iv, std::forward<Op>(op));
@@ -877,7 +922,7 @@ namespace Aleph
      */
     [[nodiscard]] bool verify() const noexcept
     {
-      if (not check_bst(tree_root, interval_cmp))
+      if (not check_bst(tree_root, key_comp()))
         return false;
       if (not is_treap(tree_root))
         return false;
@@ -997,19 +1042,13 @@ namespace Aleph
                     const Compare & cmp = Compare())
       : tree(seed, cmp) {}
 
-    /** @brief Copy constructor (exception-safe).
-     *
-     *  Copies into a local temporary and swaps on success so that a
-     *  throw during copy_from does not leak partially-inserted nodes.
-     *
+    /** @brief Copy constructor. 
      *  @param[in] src Source tree to copy from.
      */
     DynIntervalTree(const DynIntervalTree & src)
       : tree(src.tree.endpoint_comp())
     {
-      DynIntervalTree tmp(src.tree.endpoint_comp());
-      tmp.copy_from(src);
-      tree.swap(tmp.tree);
+      copy_from(src);
     }
 
     /** @brief Move constructor.
@@ -1210,10 +1249,10 @@ namespace Aleph
      *  @tparam Op Callable with signature `void(const Key&)`.
      *  @param[in] query the query interval.
      *  @param[in] op callable to invoke for each overlap.
-     *  @throws none
+     *  @throws Any exception thrown by @p op.
      */
     template <class Op>
-    void all_overlaps(const Key & query, Op && op) const noexcept
+    void all_overlaps(const Key & query, Op && op) const
     {
       tree.all_overlaps(query, std::forward<Op>(op));
     }
@@ -1246,7 +1285,7 @@ namespace Aleph
      *  @throws none
      */
     template <class Op>
-    void stab(const T & p, Op && op) const noexcept
+    void stab(const T & p, Op && op) const
     {
       tree.stab(p, std::forward<Op>(op));
     }
@@ -1367,13 +1406,19 @@ namespace Aleph
        *  @return constant reference to interval.
        *  @throws ah_invalid_argument if no current element exists.
        */
-      const Key &get_curr() const { return KEY(it.get_curr()); }
+      const Key &get_curr() const
+      {
+        return KEY(static_cast<const Node*>(it.get_curr()));
+      }
 
       /** @brief Return the current interval (no check).
-       *  @return reference to interval.
+       *  @return constant reference to interval.
        *  @throws none
        */
-      Key &get_curr_ne() const noexcept { return KEY(it.get_curr()); }
+      const Key &get_curr_ne() const noexcept
+      {
+        return KEY(static_cast<const Node*>(it.get_curr_ne()));
+      }
 
       /** @brief Advance to the next element.
        *  @throws ah_invalid_argument if already at end.
