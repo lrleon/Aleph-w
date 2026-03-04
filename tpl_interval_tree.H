@@ -59,6 +59,10 @@
 # define TPL_INTERVAL_TREE_H
 
 # include <gsl/gsl_rng.h>
+
+# include <cassert>
+# include <ctime>
+
 # include <ahFunction.H>
 # include <tpl_binNodeUtils.H>
 # include <treapNode.H>
@@ -287,7 +291,7 @@ namespace Aleph
     Interval_Tree_Node(SentinelCtor)
       : Data(sentinelCtor), lLink(nullptr), rLink(nullptr)
     {
-      /* empty - links set to nullptr, will be fixed when NullPtr is initialized */
+      /* empty - links set to nullptr will be fixed when NullPtr is initialized */
     }
   };
 
@@ -645,14 +649,20 @@ namespace Aleph
     /// Set the random number generator seed
     void set_seed(const unsigned long seed) noexcept { gsl_rng_set(r, seed); }
 
+    /// Return the interval comparison functor (over Interval<T> keys)
+    auto & key_comp() noexcept { return interval_cmp; }
+
+    /// Return the interval comparison functor (const)
+    const auto & key_comp() const noexcept { return interval_cmp; }
+
     /// Return the endpoint comparison functor
-    Compare &key_comp() noexcept { return cmp; }
+    Compare & endpoint_comp() noexcept { return cmp; }
 
     /// Return the endpoint comparison functor (const)
-    const Compare &key_comp() const noexcept { return cmp; }
+    const Compare & endpoint_comp() const noexcept { return cmp; }
 
-    /// \overload key_comp()
-    Compare &get_compare() noexcept { return key_comp(); }
+    /// Backwards-compatible accessor for the endpoint comparator
+    Compare & get_compare() noexcept { return endpoint_comp(); }
 
     /// Swap all state with `tree` in O(1)
     void swap(Gen_Interval_Tree & tree)
@@ -959,30 +969,53 @@ namespace Aleph
     }
 
   public:
-    /// Default constructor
+    /** @brief Default constructor.
+     *  @param[in] cmp Comparison functor for endpoints.
+     */
     DynIntervalTree(const Compare & cmp = Compare()) : tree(cmp) {}
 
-    /// Construct with explicit seed
+    /** @brief Construct with explicit seed for the internal RNG.
+     *  @param[in] seed Random seed.
+     *  @param[in] cmp Comparison functor for endpoints.
+     */
     DynIntervalTree(const unsigned long seed,
                     const Compare & cmp = Compare())
       : tree(seed, cmp) {}
 
-    /// Copy constructor
+    /** @brief Copy constructor (exception-safe).
+     *
+     *  Copies into a local temporary and swaps on success so that a
+     *  throw during copy_from does not leak partially-inserted nodes.
+     *
+     *  @param[in] src Source tree to copy from.
+     */
     DynIntervalTree(const DynIntervalTree & src)
-      : tree(src.tree.key_comp())
+      : tree(src.tree.endpoint_comp())
     {
-      copy_from(src);
+      DynIntervalTree tmp(src.tree.endpoint_comp());
+      tmp.copy_from(src);
+      tree.swap(tmp.tree);
     }
 
-    /// Move constructor
+    /** @brief Move constructor.
+     *
+     *  Not declared noexcept because the initializer
+     *  `tree(src.tree.endpoint_comp())` constructs a new Tree, which
+     *  allocates a GSL RNG via gsl_rng_alloc and copies the comparator —
+     *  both can throw.
+     *
+     *  @param[in,out] src Source tree to move from.
+     */
     DynIntervalTree(DynIntervalTree && src)
-      noexcept(noexcept(std::declval<Tree &>().swap(std::declval<Tree &>())))
-      : tree(src.tree.key_comp())
+      : tree(src.tree.endpoint_comp())
     {
       tree.swap(src.tree);
     }
 
-    /// Copy assignment
+    /** @brief Copy assignment.
+     *  @param[in] src Source tree to copy from.
+     *  @return Reference to this tree.
+     */
     DynIntervalTree &operator =(const DynIntervalTree & src)
     {
       if (this == &src)
@@ -992,7 +1025,10 @@ namespace Aleph
       return *this;
     }
 
-    /// Move assignment
+    /** @brief Move assignment.
+     *  @param[in,out] src Source tree to move from.
+     *  @return Reference to this tree.
+     */
     DynIntervalTree &operator =(DynIntervalTree && src)
       noexcept(noexcept(std::declval<Tree &>().swap(std::declval<Tree &>())))
     {
@@ -1003,9 +1039,12 @@ namespace Aleph
       return *this;
     }
 
+    /** @brief Destructor. */
     ~DynIntervalTree() { destroy_tree(); }
 
-    /// Swap with another DynIntervalTree in O(1)
+    /** @brief Swap state with another tree in O(1).
+     *  @param[in,out] other The other tree.
+     */
     void swap(DynIntervalTree & other)
       noexcept(noexcept(std::declval<Tree &>().swap(std::declval<Tree &>())))
     {
@@ -1014,15 +1053,16 @@ namespace Aleph
 
     Special_Ctors(DynIntervalTree, Key);
 
-    /** @brief Insert an interval.
+    /** @brief Insert an interval (unique).
      *
-     *  @param iv the interval to insert
-     *  @return reference to the key stored in the tree
-     *  @throws domain_error if iv.low > iv.high
+     *  @param[in] iv the interval to insert.
+     *  @return reference to the key stored in the tree.
+     *  @throws std::domain_error if iv.low > iv.high (invalid interval) or 
+     *          if the interval already exists in the tree.
      */
     Key &insert(const Key & iv)
     {
-      ah_domain_error_if(not iv.is_valid(tree.key_comp()))
+      ah_domain_error_if(not iv.is_valid(tree.endpoint_comp()))
         << "Invalid interval: low > high";
       Node *p = new Node(iv);
       Node *result = tree.insert(p);
@@ -1034,15 +1074,16 @@ namespace Aleph
       return KEY(result);
     }
 
-    /** @brief Insert an interval (move version).
+    /** @brief Insert an interval (move version, unique).
      *
-     *  @param iv the interval to insert
-     *  @return reference to the key stored in the tree
-     *  @throws domain_error if iv.low > iv.high
+     *  @param[in,out] iv the interval to insert.
+     *  @return reference to the key stored in the tree.
+     *  @throws std::domain_error if iv.low > iv.high (invalid interval) or 
+     *          if the interval already exists in the tree.
      */
     Key &insert(Key && iv)
     {
-      ah_domain_error_if(not iv.is_valid(tree.key_comp()))
+      ah_domain_error_if(not iv.is_valid(tree.endpoint_comp()))
         << "Invalid interval: low > high";
       Node *p = new Node(std::move(iv));
       Node *result = tree.insert(p);
@@ -1054,12 +1095,12 @@ namespace Aleph
       return KEY(result);
     }
 
-    /** @brief Insert an interval given endpoints.
+    /** @brief Insert an interval given endpoints (unique).
      *
-     *  @param lo lower endpoint
-     *  @param hi upper endpoint
-     *  @return reference to the key stored in the tree
-     *  @throws domain_error if lo > hi
+     *  @param[in] lo lower endpoint.
+     *  @param[in] hi upper endpoint.
+     *  @return reference to the key stored in the tree.
+     *  @throws std::domain_error if lo > hi or if the interval already exists.
      */
     Key &insert(const T & lo, const T & hi)
     {
@@ -1068,26 +1109,30 @@ namespace Aleph
 
     /** @brief Insert interval, allowing duplicates.
      *
-     *  @param iv the interval
-     *  @return reference to the stored key
-     *  @throws domain_error if iv.low > iv.high
+     *  @param[in] iv the interval to insert.
+     *  @return reference to the stored key.
+     *  @throws std::domain_error if iv.low > iv.high.
      */
     Key &insert_dup(const Key & iv)
     {
-      ah_domain_error_if(not iv.is_valid(tree.key_comp()))
+      ah_domain_error_if(not iv.is_valid(tree.endpoint_comp()))
         << "Invalid interval: low > high";
       Node *p = new Node(iv);
       tree.insert_dup(p);
       return KEY(p);
     }
 
-    /// Alias for insert (used by Special_Ctors)
+    /** @brief Append an interval (alias for insert_dup).
+     *  @param[in] iv the interval to append.
+     *  @return reference to the stored key.
+     *  @throws std::domain_error if iv.low > iv.high.
+     */
     Key &append(const Key & iv) { return insert_dup(iv); }
 
-    /** @brief Remove an interval.
+    /** @brief Remove an interval from the tree.
      *
-     *  @param iv the interval to remove
-     *  @return true if removed, false if not found
+     *  @param[in] iv the interval to remove.
+     *  @return true if removed, false if not found.
      */
     bool remove(const Key & iv)
     {
@@ -1100,9 +1145,9 @@ namespace Aleph
 
     /** @brief Remove an interval given endpoints.
      *
-     *  @param lo lower endpoint
-     *  @param hi upper endpoint
-     *  @return true if removed, false if not found
+     *  @param[in] lo lower endpoint.
+     *  @param[in] hi upper endpoint.
+     *  @return true if removed, false if not found.
      */
     bool remove(const T & lo, const T & hi)
     {
@@ -1111,8 +1156,9 @@ namespace Aleph
 
     /** @brief Search for an exact interval.
      *
-     *  @param iv interval to search
-     *  @return pointer to the stored interval if found, nullptr otherwise
+     *  @param[in] iv interval to search.
+     *  @return pointer to the stored interval if found, nullptr otherwise.
+     *  @throws none
      */
     const Key * search(const Key & iv) const noexcept
     {
@@ -1122,10 +1168,10 @@ namespace Aleph
 
     /** @brief Find any interval overlapping `query`.
      *
-     *  @param query the query interval
-     *  @return pointer to an overlapping interval, or nullptr
-     *
-     *  @par Complexity: O(log n) expected
+     *  @param[in] query the query interval.
+     *  @return pointer to an overlapping interval, or nullptr if none.
+     *  @throws none
+     *  @par Complexity: O(log n) expected.
      */
     const Key * overlap_search(const Key & query) const noexcept
     {
@@ -1133,7 +1179,12 @@ namespace Aleph
       return p != nullptr ? &KEY(p) : nullptr;
     }
 
-    /// \overload overlap_search(low, high)
+    /** @brief Overload of overlap_search() using endpoints.
+     *  @param[in] lo lower endpoint.
+     *  @param[in] hi upper endpoint.
+     *  @return pointer to an overlapping interval, or nullptr.
+     *  @throws none
+     */
     const Key * overlap_search(const T & lo, const T & hi) const noexcept
     {
       return overlap_search(Key(lo, hi));
@@ -1141,8 +1192,10 @@ namespace Aleph
 
     /** @brief Apply op to every overlapping interval.
      *
-     *  @param query the query interval
-     *  @param op callable
+     *  @tparam Op Callable with signature `void(const Key&)`.
+     *  @param[in] query the query interval.
+     *  @param[in] op callable to invoke for each overlap.
+     *  @throws none
      */
     template <class Op>
     void all_overlaps(const Key & query, Op op) const noexcept
@@ -1152,52 +1205,78 @@ namespace Aleph
 
     /** @brief Find all overlapping intervals.
      *
-     *  @param query the query interval
-     *  @return DynList of overlapping intervals
+     *  @param[in] query the query interval.
+     *  @return DynList containing all overlapping intervals.
      */
     [[nodiscard]] DynList<Key> find_all_overlaps(const Key & query) const
     {
       return tree.find_all_overlaps(query);
     }
 
-    /// \overload find_all_overlaps(low, high)
+    /** @brief Overload of find_all_overlaps() using endpoints.
+     *  @param[in] lo lower endpoint.
+     *  @param[in] hi upper endpoint.
+     *  @return DynList of overlapping intervals.
+     */
     [[nodiscard]] DynList<Key> find_all_overlaps(const T & lo,
                                                  const T & hi) const
     {
       return find_all_overlaps(Key(lo, hi));
     }
 
-    /** @brief Apply op to every interval containing point p. */
+    /** @brief Apply op to every interval containing point p.
+     *  @tparam Op Callable with signature `void(const Key&)`.
+     *  @param[in] p query point.
+     *  @param[in] op callable to invoke for each containing interval.
+     *  @throws none
+     */
     template <class Op>
     void stab(const T & p, Op op) const noexcept
     {
       tree.stab(p, std::move(op));
     }
 
-    /** @brief Find all intervals containing point p. */
+    /** @brief Find all intervals containing point p.
+     *  @param[in] p query point.
+     *  @return DynList of intervals containing p.
+     */
     [[nodiscard]] DynList<Key> find_stab(const T & p) const
     {
       return tree.find_stab(p);
     }
 
-    /// Number of intervals in the tree
+    /** @brief Return the number of intervals in the tree.
+     *  @return number of nodes.
+     *  @throws none
+     */
     [[nodiscard]] size_t size() const noexcept { return tree.size(); }
 
-    /// Return true if the tree is empty
+    /** @brief Return true if the tree contains no intervals.
+     *  @return true if empty.
+     *  @throws none
+     */
     [[nodiscard]] bool is_empty() const noexcept { return tree.is_empty(); }
 
-    /// Return true if the tree is empty (STL compat)
+    /** @brief Return true if the tree contains no intervals (STL compatible).
+     *  @return true if empty.
+     *  @throws none
+     */
     [[nodiscard]] bool empty() const noexcept { return is_empty(); }
 
-    /// Verify all invariants
+    /** @brief Verify all tree invariants (BST, Treap, MaxEndpoint).
+     *  @return true if valid.
+     *  @throws none
+     */
     [[nodiscard]] bool verify() const noexcept { return tree.verify(); }
 
-    /** @brief Traverse all intervals in order, applying op.
+    /** @brief Traverse all intervals in inorder (sorted by low endpoint).
      *
      *  If op returns false, traversal stops early.
      *
-     *  @param op callable with signature `bool(const Key&)`
-     *  @return true if all items were traversed
+     *  @tparam Operation callable with signature `bool(const Key&)`.
+     *  @param[in] op callable to perform on each interval.
+     *  @return true if all items were traversed.
+     *  @throws anything that `op` throws.
      */
     template <class Operation>
     bool traverse(Operation & op)
@@ -1208,12 +1287,24 @@ namespace Aleph
                                });
     }
 
+    /** @brief Overload of traverse() for rvalue callbacks.
+     *  @tparam Operation callable with signature `bool(const Key&)`.
+     *  @param[in] op callable to perform on each interval.
+     *  @return true if all items were traversed.
+     *  @throws anything that `op` throws.
+     */
     template <class Operation>
     bool traverse(Operation && op = Operation())
     {
       return traverse<Operation>(op);
     }
 
+    /** @brief Const overload of traverse().
+     *  @tparam Operation callable with signature `bool(const Key&)`.
+     *  @param[in] op callable to perform on each interval.
+     *  @return true if all items were traversed.
+     *  @throws anything that `op` throws.
+     */
     template <class Operation>
     bool traverse(Operation & op) const
     {
@@ -1223,6 +1314,12 @@ namespace Aleph
                                });
     }
 
+    /** @brief Const rvalue overload of traverse().
+     *  @tparam Operation callable with signature `bool(const Key&)`.
+     *  @param[in] op callable to perform on each interval.
+     *  @return true if all items were traversed.
+     *  @throws anything that `op` throws.
+     */
     template <class Operation>
     bool traverse(Operation && op = Operation()) const
     {
@@ -1238,26 +1335,60 @@ namespace Aleph
       typename Tree::Iterator it;
 
     public:
+      /** @brief Default constructor. */
       Iterator() noexcept = default;
 
+      /** @brief Construct for a given tree.
+       *  @param[in] t tree to iterate over.
+       */
       Iterator(const DynIntervalTree & t) : it(t.tree) {}
 
+      /** @brief Check if there is a current element.
+       *  @return true if valid current element exists.
+       */
       [[nodiscard]] bool has_curr() const noexcept { return it.has_curr(); }
 
+      /** @brief Return the current interval.
+       *  @return constant reference to interval.
+       *  @throws ah_invalid_argument if no current element exists.
+       */
       const Key &get_curr() const { return KEY(it.get_curr()); }
 
+      /** @brief Return the current interval (no check).
+       *  @return reference to interval.
+       *  @throws none
+       */
       Key &get_curr_ne() const noexcept { return KEY(it.get_curr()); }
 
+      /** @brief Advance to the next element.
+       *  @throws ah_invalid_argument if already at end.
+       */
       void next() { it.next(); }
 
+      /** @brief Advance to the next element (no check).
+       *  @throws none
+       */
       void next_ne() noexcept { it.next_ne(); }
 
+      /** @brief Go back to the previous element.
+       *  @throws ah_invalid_argument if already at beginning.
+       */
       void prev() { it.prev(); }
 
+      /** @brief Reset to the first element in traversal order.
+       *  @throws none
+       */
       void reset_first() noexcept { it.reset_first(); }
 
+      /** @brief Move to the position after the last element.
+       *  @throws none
+       */
       void end() noexcept { it.end(); }
 
+      /** @brief Return the 0-indexed current position.
+       *  @return index of current element.
+       *  @throws ah_invalid_argument if no current element.
+       */
       [[nodiscard]] size_t get_pos() const { return it.get_pos(); }
     };
   };
