@@ -37,7 +37,7 @@
 using namespace Aleph;
 using namespace std;
 
-using Node_Info = int;
+using Node_Info = char;
 using Arc_Info = int;
 using GT = List_Graph<Graph_Node<Node_Info>, Graph_Arc<Arc_Info>>;
 
@@ -72,14 +72,14 @@ int main()
   bfs01.paint_min_paths_tree(g, a);
 
   cout << "Shortest distances from A:" << endl;
-  cout << fixed << setw(8) << "Node" << setw(10) << "Distance" << endl;
+  cout << setw(8) << "Node" << setw(10) << "Distance" << endl;
   cout << setfill('-') << setw(18) << "-" << setfill(' ') << endl;
 
   for (auto it = g.get_node_it(); it.has_curr(); it.next())
     {
       auto node = it.get_curr();
       auto dist = bfs01.get_distance(node);
-      cout << setw(8) << (char)node->get_info()
+      cout << setw(8) << node->get_info()
            << setw(10) << dist << endl;
     }
 

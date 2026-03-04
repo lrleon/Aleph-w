@@ -663,10 +663,37 @@ TEST(BidirectionalBFS, GridGraph)
 }
 
 // ============================================================================
-// GoogleTest main
+// TEST 26: Meeting-point regression (must return shortest path)
 // ============================================================================
-int main(int argc, char **argv)
+TEST(BidirectionalBFS, MeetingPointDepthSumRegression)
 {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  GT g;
+  auto s = g.insert_node(0);
+  auto a1 = g.insert_node(1);
+  auto a2 = g.insert_node(2);
+  auto a3 = g.insert_node(3);
+  auto b1 = g.insert_node(4);
+  auto b2 = g.insert_node(5);
+  auto t = g.insert_node(6);
+
+  // Longer branch: s-a1-a2-a3-t (4 edges)
+  g.insert_arc(s, a1, 0);
+  g.insert_arc(a1, a2, 0);
+  g.insert_arc(a2, a3, 0);
+  g.insert_arc(a3, t, 0);
+
+  // Shorter branch: s-b1-b2-t (3 edges)
+  g.insert_arc(s, b1, 0);
+  g.insert_arc(b1, b2, 0);
+  g.insert_arc(b2, t, 0);
+
+  Bidirectional_BFS<GT> bibfs;
+  Find_Path_Breadth_First<GT> std_bfs;
+
+  Path<GT> bi_path(g), std_path(g);
+  ASSERT_TRUE(bibfs(g, s, t, bi_path));
+  ASSERT_TRUE(std_bfs(g, s, t, std_path));
+
+  EXPECT_EQ(path_edge_count(bi_path), 3u);
+  EXPECT_EQ(path_edge_count(bi_path), path_edge_count(std_path));
 }

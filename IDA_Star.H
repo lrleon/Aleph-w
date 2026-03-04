@@ -98,6 +98,7 @@
 
 # include <limits>
 # include <cmath>
+# include <type_traits>
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
 # include <AStar.H>
@@ -177,6 +178,9 @@ public:
   using Node = typename GT::Node;
   using Arc = typename GT::Arc;
 
+  static_assert(std::is_arithmetic_v<Distance_Type>,
+                "IDA* requires arithmetic distance type");
+
 private:
   SA sa;
   Distance distance;
@@ -185,27 +189,45 @@ private:
   static constexpr Distance_Type Inf =
     std::numeric_limits<Distance_Type>::max();
 
-  // Sentinel: FOUND means the goal was found
-  static constexpr Distance_Type FOUND = Distance_Type(-1);
+  struct SearchResult
+  {
+    bool found;
+    Distance_Type value;
+  };
 
   /** Recursive DFS bounded by threshold.
    *
-   *  @return FOUND if goal was reached, or the minimum f-value that
-   *          exceeded the threshold (for next iteration).
+   *  @return SearchResult with found=true if goal reached, or found=false
+   *          and value=minimum f-value that exceeded threshold.
    */
-  Distance_Type search(const GT & g, Node * curr, Node * end,
+  SearchResult search(const GT & g, Node * curr, Node * end,
                        Distance_Type g_cost, Distance_Type threshold,
                        Path<GT> & path)
   {
     auto f = g_cost + heuristic(curr, end);
 
     if (f > threshold)
-      return f;
+      return {false, f};
 
     if (curr == end)
-      return FOUND;
+      return {true, g_cost};
 
-    NODE_BITS(curr).set_bit(Find_Path, true);
+    struct Find_Path_Guard
+    {
+      Node * node = nullptr;
+
+      explicit Find_Path_Guard(Node * p) noexcept : node(p)
+      {
+        NODE_BITS(node).set_bit(Find_Path, true);
+      }
+
+      ~Find_Path_Guard() noexcept
+      {
+        NODE_BITS(node).set_bit(Find_Path, false);
+      }
+    };
+
+    Find_Path_Guard guard(curr);
 
     Distance_Type min_threshold = Inf;
 
@@ -217,23 +239,26 @@ private:
         if (IS_NODE_VISITED(tgt, Find_Path))
           continue;
 
+        auto w = distance(arc);
+        ah_domain_error_if(w < Distance_Type(0))
+          << "IDA*: negative weight " << w << " not allowed";
+        ah_overflow_error_if(g_cost > std::numeric_limits<Distance_Type>::max() - w)
+          << "IDA*: overflow computing g_cost + w";
+
         path.append(arc);
 
-        auto w = distance(arc);
-        auto t = search(g, tgt, end, g_cost + w, threshold, path);
+        auto res = search(g, tgt, end, g_cost + w, threshold, path);
 
-        if (t == FOUND)
-          return FOUND;
+        if (res.found)
+          return res;
 
-        if (t < min_threshold)
-          min_threshold = t;
+        if (res.value < min_threshold)
+          min_threshold = res.value;
 
         path.remove_last_node();
       }
 
-    NODE_BITS(curr).set_bit(Find_Path, false);
-
-    return min_threshold;
+    return {false, min_threshold};
   }
 
 public:
@@ -241,12 +266,12 @@ public:
    *
    *  @param[in] dist Distance functor for arc weights.
    *  @param[in] h Heuristic functor.
-   *  @param[in] __sa Arc filter for iterators.
+   *  @param[in] _sa Arc filter for iterators.
    */
   IDA_Star(Distance dist = Distance(),
            Heuristic h = Heuristic(),
-           SA __sa = SA())
-    : sa(__sa), distance(dist), heuristic(h)
+           SA _sa = SA())
+    : sa(_sa), distance(dist), heuristic(h)
   {
     // empty
   }
@@ -294,26 +319,22 @@ public:
       {
         g.reset_bit_nodes(Find_Path);
 
-        auto t = search(g, start, end, Distance_Type(0), threshold, path);
+        auto res = search(g, start, end, Distance_Type(0), threshold, path);
 
-        if (t == FOUND)
+        if (res.found)
           {
-            // Compute actual path cost
-            Distance_Type total = 0;
-            path.for_each_arc([&total, this](Arc * a)
-              {
-                total += distance(a);
-              });
-            return total;
+            g.reset_bit_nodes(Find_Path);
+            return res.value;
           }
 
-        if (t == Inf)
+        if (res.value == Inf)
           {
+            g.reset_bit_nodes(Find_Path);
             path.empty();
             return Inf;
           }
 
-        threshold = t;
+        threshold = res.value;
 
         // Reset path for next iteration
         path.empty();

@@ -147,13 +147,52 @@ private:
   {
     Distance_Type dist;
     Node * parent;
+    Arc * parent_arc;
 
-    Node_Info() noexcept : dist(Inf), parent(nullptr) {}
+    Node_Info() noexcept : dist(Inf), parent(nullptr), parent_arc(nullptr) {}
   };
 
 #define ZOB_INFO(p)   (static_cast<Node_Info *>(NODE_COOKIE(p)))
 #define ZOB_DIST(p)   (ZOB_INFO(p)->dist)
 #define ZOB_PARENT(p) (ZOB_INFO(p)->parent)
+#define ZOB_PARENT_ARC(p) (ZOB_INFO(p)->parent_arc)
+
+  void reset_state_after_failure() noexcept
+  {
+    painted = false;
+    ptr_g = nullptr;
+    s = nullptr;
+  }
+
+  class ZOB_Init_Guard
+  {
+    Zero_One_BFS * owner = nullptr;
+    const GT * g = nullptr;
+    bool committed = false;
+
+  public:
+    ZOB_Init_Guard(Zero_One_BFS & __owner, const GT & __g) noexcept
+      : owner(&__owner), g(&__g)
+    {
+      // empty
+    }
+
+    ZOB_Init_Guard(const ZOB_Init_Guard &) = delete;
+    ZOB_Init_Guard & operator = (const ZOB_Init_Guard &) = delete;
+    ZOB_Init_Guard(ZOB_Init_Guard &&) = delete;
+    ZOB_Init_Guard & operator = (ZOB_Init_Guard &&) = delete;
+
+    void commit() noexcept { committed = true; }
+
+    ~ZOB_Init_Guard() noexcept
+    {
+      if (not committed)
+        {
+          owner->uninit_discard();
+          owner->reset_state_after_failure();
+        }
+    }
+  };
 
   void init(const GT & g)
   {
@@ -162,10 +201,13 @@ private:
       {
         auto p = it.get_curr();
         g.reset_bit(p, Aleph::Spanning_Tree);
-        NODE_COOKIE(p) = new Node_Info;
+        NODE_COOKIE(p) = nullptr;
       }
     for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next())
       g.reset_bit(it.get_curr(), Aleph::Spanning_Tree);
+
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+      NODE_COOKIE(it.get_curr()) = new Node_Info;
   }
 
   void uninit_paint()
@@ -182,12 +224,21 @@ private:
 
   void uninit_discard()
   {
+    if (ptr_g == nullptr)
+      return;
+
     for (typename GT::Node_Iterator it(*ptr_g); it.has_curr(); it.next())
       {
         auto p = it.get_curr();
-        delete ZOB_INFO(p);
+        auto info = ZOB_INFO(p);
+        if (info != nullptr)
+          delete info;
         NODE_COOKIE(p) = nullptr;
+        ptr_g->reset_bit(p, Aleph::Spanning_Tree);
       }
+
+    for (typename GT::Arc_Iterator it(*ptr_g); it.has_curr(); it.next())
+      ptr_g->reset_bit(it.get_curr(), Aleph::Spanning_Tree);
   }
 
   void run_bfs(const GT & g, Node * start, Node * end = nullptr)
@@ -219,11 +270,16 @@ private:
 
             if (new_dist < ZOB_DIST(tgt))
               {
+                auto prev_parent_arc = ZOB_PARENT_ARC(tgt);
+                if (prev_parent_arc != nullptr)
+                  ARC_BITS(prev_parent_arc).set_bit(Aleph::Spanning_Tree, false);
+
                 ZOB_DIST(tgt) = new_dist;
                 ZOB_PARENT(tgt) = curr;
+                ZOB_PARENT_ARC(tgt) = arc;
                 NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
 
-                // Find the spanning tree arc and mark it
+                // Mark the selected parent arc in the spanning tree
                 ARC_BITS(arc).set_bit(Aleph::Spanning_Tree, true);
 
                 if (w == Distance_Type(0))
@@ -281,10 +337,15 @@ public:
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
+    painted = false;
+    s = nullptr;
+
     init(g);
+    ZOB_Init_Guard guard(*this, g);
     s = start;
     run_bfs(g, start);
     uninit_paint();
+    guard.commit();
     painted = true;
   }
 
@@ -375,10 +436,15 @@ public:
 
     path.empty();
 
+    painted = false;
+    s = nullptr;
+
     init(g);
+    ZOB_Init_Guard guard(*this, g);
     s = start;
     run_bfs(g, start, end);
     uninit_paint();
+    guard.commit();
     painted = true;
 
     if (not IS_NODE_VISITED(end, Aleph::Spanning_Tree))
@@ -404,6 +470,7 @@ public:
 #undef ZOB_INFO
 #undef ZOB_DIST
 #undef ZOB_PARENT
+#undef ZOB_PARENT_ARC
 };
 
 } // end namespace Aleph

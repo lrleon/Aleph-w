@@ -600,12 +600,3 @@ TEST(IDAStar, ChebyshevHeuristicExists)
   CH ch;
   (void)ch;  // suppress unused warning
 }
-
-// ============================================================================
-// GoogleTest main
-// ============================================================================
-int main(int argc, char **argv)
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}

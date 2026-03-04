@@ -228,8 +228,13 @@ TEST(ZeroOneBFS, EmptyGraphValidation)
   Zero_One_BFS<GT> bfs;
   Path<GT> path(g);
 
-  // Can't call with empty graph (no nodes to pass)
   EXPECT_EQ(g.get_num_nodes(), 0u);
+
+  // According to API, search nodes must be non-null and belong to g.
+  // For empty graph, any node is invalid.
+  Node * n = nullptr;
+  EXPECT_THROW(bfs(g, n, n, path), std::domain_error);
+  EXPECT_TRUE(path.is_empty());
 }
 
 // ============================================================================
@@ -241,12 +246,17 @@ TEST(ZeroOneBFS, InvalidWeightValidation)
   auto n0 = g.insert_node(0);
   auto n1 = g.insert_node(1);
 
-  g.insert_arc(n0, n1, 2);  // Invalid weight!
+  auto a01 = g.insert_arc(n0, n1, 2);  // Invalid weight!
 
   Zero_One_BFS<GT> bfs;
   Path<GT> path(g);
 
   EXPECT_THROW(bfs(g, n0, n1, path), std::domain_error);
+  EXPECT_EQ(NODE_COOKIE(n0), nullptr);
+  EXPECT_EQ(NODE_COOKIE(n1), nullptr);
+  EXPECT_FALSE(IS_NODE_VISITED(n0, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_NODE_VISITED(n1, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_ARC_VISITED(a01, Aleph::Spanning_Tree));
 }
 
 // ============================================================================
@@ -646,12 +656,17 @@ TEST(ZeroOneBFS, NegativeWeightValidation)
   auto n0 = g.insert_node(0);
   auto n1 = g.insert_node(1);
 
-  g.insert_arc(n0, n1, -1);
+  auto a01 = g.insert_arc(n0, n1, -1);
 
   Zero_One_BFS<GT> bfs;
   Path<GT> path(g);
 
   EXPECT_THROW(bfs(g, n0, n1, path), std::domain_error);
+  EXPECT_EQ(NODE_COOKIE(n0), nullptr);
+  EXPECT_EQ(NODE_COOKIE(n1), nullptr);
+  EXPECT_FALSE(IS_NODE_VISITED(n0, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_NODE_VISITED(n1, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_ARC_VISITED(a01, Aleph::Spanning_Tree));
 }
 
 // ============================================================================
@@ -725,10 +740,36 @@ TEST(ZeroOneBFS, LargeGraphManyZeros)
 }
 
 // ============================================================================
-// GoogleTest main
+// TEST 31: Parallel edges must not leave stale spanning-tree arc marks
 // ============================================================================
-int main(int argc, char **argv)
+TEST(ZeroOneBFS, ParallelEdgesKeepSingleParentArcMarked)
 {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  GT g;
+  auto start = g.insert_node(0);
+  auto mid = g.insert_node(1);
+  auto end = g.insert_node(2);
+
+  auto direct_one = g.insert_arc(start, end, 1);
+  auto start_mid_zero = g.insert_arc(start, mid, 0);
+  auto mid_end_one = g.insert_arc(mid, end, 1);
+  auto mid_end_zero = g.insert_arc(mid, end, 0); // Parallel arc, better cost
+
+  Zero_One_BFS<GT> bfs;
+  bfs.paint_min_paths_tree(g, start);
+
+  EXPECT_EQ(bfs.get_distance(end), 0);
+  EXPECT_TRUE(IS_NODE_VISITED(mid, Aleph::Spanning_Tree));
+  EXPECT_TRUE(IS_NODE_VISITED(end, Aleph::Spanning_Tree));
+
+  EXPECT_TRUE(IS_ARC_VISITED(start_mid_zero, Aleph::Spanning_Tree));
+  EXPECT_TRUE(IS_ARC_VISITED(mid_end_zero, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_ARC_VISITED(direct_one, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_ARC_VISITED(mid_end_one, Aleph::Spanning_Tree));
+
+  size_t painted_arcs = 0;
+  for (GT::Arc_Iterator it(g); it.has_curr(); it.next())
+    if (IS_ARC_VISITED(it.get_curr(), Aleph::Spanning_Tree))
+      ++painted_arcs;
+
+  EXPECT_EQ(painted_arcs, 2u);
 }

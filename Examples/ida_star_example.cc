@@ -5,14 +5,49 @@
  https://github.com/lrleon/Aleph-w
 */
 
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
+
+/**
+ * @file ida_star_example.cc
+ * @brief Illustrative example for Iterative Deepening A* (IDA*) algorithm.
+ */
+
 # include <iostream>
 # include <iomanip>
-# include <vector>
-# include <map>
 # include <algorithm>
 # include <limits>
 # include <aleph.H>
 # include <tpl_graph.H>
+# include <tpl_dynMapTree.H>
 # include <IDA_Star.H>
 
 using namespace Aleph;
@@ -43,14 +78,32 @@ int main() {
   cout << "=== IDA* (Iterative Deepening A*) Example ===" << endl << endl;
 
   int grid_size = 5;
-  vector<vector<bool>> obstacles(grid_size, vector<bool>(grid_size, false));
+  
+  // Use DynList<DynList<bool>> for obstacles as requested
+  DynList<DynList<bool>> obstacles;
+  for (int i = 0; i < grid_size; ++i)
+    {
+      DynList<bool> row;
+      for (int j = 0; j < grid_size; ++j)
+        row.append(false);
+      obstacles.append(row);
+    }
+
+  auto set_obstacle = [&](int y, int x, bool val) {
+    auto & row = obstacles.nth(y);
+    row.nth(x) = val;
+  };
+
+  auto get_obstacle = [&](int y, int x) -> bool {
+    return obstacles.nth(y).nth(x);
+  };
 
   for (int i = 1; i <= 3; ++i) {
-    obstacles[1][i] = true;
-    obstacles[3][i] = true;
+    set_obstacle(1, i, true);
+    set_obstacle(3, i, true);
   }
-  obstacles[2][1] = true;
-  obstacles[2][3] = true;
+  set_obstacle(2, 1, true);
+  set_obstacle(2, 3, true);
 
   cout << "Grid-based pathfinding (5x5):" << endl;
   cout << "S = Start, G = Goal, # = Obstacle, . = Free" << endl << endl;
@@ -61,7 +114,7 @@ int main() {
         cout << "S ";
       else if (x == grid_size - 1 and y == grid_size - 1)
         cout << "G ";
-      else if (obstacles[y][x])
+      else if (get_obstacle(y, x))
         cout << "# ";
       else
         cout << ". ";
@@ -72,20 +125,20 @@ int main() {
   cout << endl;
 
   GT g;
-  map<pair<int, int>, GT::Node *> nodes;
+  DynMapTree<pair<int, int>, GT::Node *> nodes;
 
   for (int y = 0; y < grid_size; ++y) {
     for (int x = 0; x < grid_size; ++x) {
-      if (not obstacles[y][x]) {
+      if (not get_obstacle(y, x)) {
         auto node = g.insert_node(Coord{x, y});
-        nodes[{x, y}] = node;
+        nodes.insert(make_pair(x, y), node);
       }
     }
   }
 
   for (int y = 0; y < grid_size; ++y) {
     for (int x = 0; x < grid_size; ++x) {
-      if (obstacles[y][x])
+      if (get_obstacle(y, x))
         continue;
 
       int dx[] = {0, 0, 1, -1};
@@ -96,17 +149,17 @@ int main() {
         int ny = y + dy[d];
 
         if (nx >= 0 and nx < grid_size and ny >= 0 and ny < grid_size
-            and not obstacles[ny][nx]) {
-          auto src = nodes[{x, y}];
-          auto tgt = nodes[{nx, ny}];
+            and not get_obstacle(ny, nx)) {
+          auto src = nodes.find(make_pair(x, y));
+          auto tgt = nodes.find(make_pair(nx, ny));
           g.insert_arc(src, tgt, 1);
         }
       }
     }
   }
 
-  auto start = nodes[{0, 0}];
-  auto goal = nodes[{grid_size - 1, grid_size - 1}];
+  auto start = nodes.find(make_pair(0, 0));
+  auto goal = nodes.find(make_pair(grid_size - 1, grid_size - 1));
 
   cout << "Running IDA* with Manhattan distance heuristic:" << endl;
 

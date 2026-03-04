@@ -7,6 +7,7 @@
  */
 
 # include <gtest/gtest.h>
+# include <cstdint>
 # include <Dial.H>
 # include <Dijkstra.H>
 # include <tpl_graph.H>
@@ -24,6 +25,16 @@ using Arc = GT::Arc;
 using DGT = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
 using DNode = DGT::Node;
 using DArc = DGT::Arc;
+
+struct Int8Dist
+{
+  using Distance_Type = int8_t;
+
+  [[nodiscard]] Distance_Type operator()(Arc * arc) const noexcept
+  {
+    return static_cast<Distance_Type>(arc->get_info());
+  }
+};
 
 // ============================================================================
 // TEST 1: Basic shortest path
@@ -175,6 +186,30 @@ TEST(Dial, NullNodeValidation)
 
   EXPECT_THROW(dial(g, nullptr, n0, path), std::domain_error);
   EXPECT_THROW(dial(g, n0, nullptr, path), std::domain_error);
+}
+
+// ============================================================================
+// TEST 9: Negative weight validation and rollback
+// ============================================================================
+TEST(Dial, NegativeWeightValidation)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto a01 = g.insert_arc(n0, n1, -3);
+
+  Dial_Min_Paths<GT> dial;
+  Path<GT> path(g);
+
+  EXPECT_THROW(dial(g, n0, n1, path), std::domain_error);
+  EXPECT_EQ(NODE_COOKIE(n0), nullptr);
+  EXPECT_EQ(NODE_COOKIE(n1), nullptr);
+  EXPECT_FALSE(IS_NODE_VISITED(n0, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_NODE_VISITED(n1, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_ARC_VISITED(a01, Aleph::Spanning_Tree));
+  EXPECT_FALSE(dial.is_painted());
+  EXPECT_EQ(dial.get_graph(), nullptr);
+  EXPECT_EQ(dial.get_start_node(), nullptr);
 }
 
 // ============================================================================
@@ -618,10 +653,74 @@ TEST(Dial, LargerCrossValidation)
 }
 
 // ============================================================================
-// GoogleTest main
+// TEST 27: Distance type overflow validation
 // ============================================================================
-int main(int argc, char **argv)
+TEST(Dial, DistanceTypeOverflowValidation)
 {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+
+  // max_dist = (3-1) * 120 = 240, which does not fit in int8_t.
+  g.insert_arc(n0, n1, 120);
+  g.insert_arc(n1, n2, 120);
+
+  Dial_Min_Paths<GT, Int8Dist> dial;
+  Path<GT> path(g);
+  EXPECT_THROW(dial(g, n0, n2, path), std::overflow_error);
+}
+
+// ============================================================================
+// TEST 28: Bucket upper bound validation
+// ============================================================================
+TEST(Dial, BucketUpperBoundValidation)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  constexpr int bucket_limit = 16 * 1024 * 1024;
+
+  // With |V|=2, max_dist = max_w. This forces num_buckets beyond safety limit.
+  g.insert_arc(n0, n1, bucket_limit);
+
+  Dial_Min_Paths<GT> dial;
+  Path<GT> path(g);
+  EXPECT_THROW(dial(g, n0, n1, path), std::runtime_error);
+}
+
+// ============================================================================
+// TEST 29: Parallel edges must keep a single parent arc marked
+// ============================================================================
+TEST(Dial, ParallelEdgesKeepSingleParentArcMarked)
+{
+  GT g;
+  auto start = g.insert_node(0);
+  auto mid = g.insert_node(1);
+  auto end = g.insert_node(2);
+
+  auto direct_high = g.insert_arc(start, end, 10);
+  auto start_mid = g.insert_arc(start, mid, 1);
+  auto mid_end_high = g.insert_arc(mid, end, 5);
+  auto mid_end_low = g.insert_arc(mid, end, 1); // Parallel arc with better cost
+
+  Dial_Min_Paths<GT> dial;
+  dial.paint_min_paths_tree(g, start);
+
+  EXPECT_EQ(dial.get_distance(end), 2);
+
+  Path<GT> path(g);
+  EXPECT_EQ(dial.get_min_path(end, path), 2);
+
+  EXPECT_TRUE(IS_ARC_VISITED(start_mid, Aleph::Spanning_Tree));
+  EXPECT_TRUE(IS_ARC_VISITED(mid_end_low, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_ARC_VISITED(mid_end_high, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_ARC_VISITED(direct_high, Aleph::Spanning_Tree));
+
+  size_t painted_arcs = 0;
+  for (GT::Arc_Iterator it(g); it.has_curr(); it.next())
+    if (IS_ARC_VISITED(it.get_curr(), Aleph::Spanning_Tree))
+      ++painted_arcs;
+
+  EXPECT_EQ(painted_arcs, 2u);
 }

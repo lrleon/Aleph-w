@@ -74,6 +74,7 @@
 # ifndef BIDIRECTIONAL_BFS_H
 # define BIDIRECTIONAL_BFS_H
 
+# include <limits>
 # include <tpl_dynListQueue.H>
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
@@ -125,11 +126,16 @@ private:
   static constexpr int UNSEEN = 0;
   static constexpr int FORWARD = 1;
   static constexpr int BACKWARD = 2;
+  static constexpr size_t INF_DIST = std::numeric_limits<size_t>::max();
 
   struct BFS_Info
   {
     Node * fwd_parent = nullptr;
     Node * bck_parent = nullptr;
+    Arc * fwd_parent_arc = nullptr;
+    Arc * bck_parent_arc = nullptr;
+    size_t fwd_dist = INF_DIST;
+    size_t bck_dist = INF_DIST;
     int dir = UNSEEN;
   };
 
@@ -137,13 +143,51 @@ private:
 #define BIBFS_DIR(p)        (BIBFS_INFO(p)->dir)
 #define BIBFS_FWD_PARENT(p) (BIBFS_INFO(p)->fwd_parent)
 #define BIBFS_BCK_PARENT(p) (BIBFS_INFO(p)->bck_parent)
+#define BIBFS_FWD_PARC(p)   (BIBFS_INFO(p)->fwd_parent_arc)
+#define BIBFS_BCK_PARC(p)   (BIBFS_INFO(p)->bck_parent_arc)
+#define BIBFS_FWD_DIST(p)   (BIBFS_INFO(p)->fwd_dist)
+#define BIBFS_BCK_DIST(p)   (BIBFS_INFO(p)->bck_dist)
+
+  class BiBFS_Init_Guard
+  {
+    Bidirectional_BFS * owner = nullptr;
+    const GT * g = nullptr;
+
+  public:
+    BiBFS_Init_Guard(Bidirectional_BFS & __owner, const GT & __g) noexcept
+      : owner(&__owner), g(&__g)
+    {
+      // empty
+    }
+
+    BiBFS_Init_Guard(const BiBFS_Init_Guard &) = delete;
+    BiBFS_Init_Guard & operator = (const BiBFS_Init_Guard &) = delete;
+    BiBFS_Init_Guard(BiBFS_Init_Guard &&) = delete;
+    BiBFS_Init_Guard & operator = (BiBFS_Init_Guard &&) = delete;
+
+    ~BiBFS_Init_Guard() noexcept
+    {
+      owner->cleanup(*g);
+    }
+  };
 
   void init(const GT & g)
   {
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+      NODE_COOKIE(it.get_curr()) = nullptr;
+
+    try
       {
-        auto p = it.get_curr();
-        NODE_COOKIE(p) = new BFS_Info;
+        for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+          {
+            auto p = it.get_curr();
+            NODE_COOKIE(p) = new BFS_Info;
+          }
+      }
+    catch (...)
+      {
+        cleanup(g);
+        throw;
       }
   }
 
@@ -157,6 +201,91 @@ private:
       }
   }
 
+  [[nodiscard]] bool is_seen(Node * p, const int dir) const noexcept
+  {
+    return (BIBFS_DIR(p) & dir) != 0;
+  }
+
+  void mark_seen(Node * p, const int dir) noexcept
+  {
+    BIBFS_DIR(p) |= dir;
+  }
+
+  [[nodiscard]] size_t get_dist(Node * p, const int dir) const noexcept
+  {
+    return dir == FORWARD ? BIBFS_FWD_DIST(p) : BIBFS_BCK_DIST(p);
+  }
+
+  void set_dist(Node * p, const int dir, const size_t d) noexcept
+  {
+    if (dir == FORWARD)
+      BIBFS_FWD_DIST(p) = d;
+    else
+      BIBFS_BCK_DIST(p) = d;
+  }
+
+  Node *& parent_ref(Node * p, const int dir) noexcept
+  {
+    if (dir == FORWARD)
+      return BIBFS_FWD_PARENT(p);
+    return BIBFS_BCK_PARENT(p);
+  }
+
+  Arc *& parent_arc_ref(Node * p, const int dir) noexcept
+  {
+    if (dir == FORWARD)
+      return BIBFS_FWD_PARC(p);
+    return BIBFS_BCK_PARC(p);
+  }
+
+  template <template <typename, class> class Itor>
+  void expand_frontier(const GT & g, DynListQueue<Node *> & frontier,
+                       const int my_dir, const int other_dir,
+                       size_t & best_len, Node *& best_meeting)
+  {
+    DynListQueue<Node *> next_frontier;
+
+    while (not frontier.is_empty())
+      {
+        auto curr = frontier.get();
+        const auto curr_dist = get_dist(curr, my_dir);
+
+        for (Itor<GT, SA> it(curr, sa); it.has_curr(); it.next())
+          {
+            auto arc = it.get_current_arc();
+            auto tgt = g.get_connected_node(arc, curr);
+
+            const bool seen_my = is_seen(tgt, my_dir);
+            if (not seen_my)
+              {
+                mark_seen(tgt, my_dir);
+                parent_ref(tgt, my_dir) = curr;
+                parent_arc_ref(tgt, my_dir) = arc;
+                set_dist(tgt, my_dir, curr_dist + 1);
+                next_frontier.put(tgt);
+              }
+
+            if (is_seen(tgt, other_dir))
+              {
+                const auto my_dist = get_dist(tgt, my_dir);
+                const auto other_dist = get_dist(tgt, other_dir);
+
+                if (my_dist != INF_DIST and other_dist != INF_DIST)
+                  {
+                    const auto candidate_len = my_dist + other_dist;
+                    if (candidate_len < best_len)
+                      {
+                        best_len = candidate_len;
+                        best_meeting = tgt;
+                      }
+                  }
+              }
+          }
+      }
+
+    frontier.swap(next_frontier);
+  }
+
   void build_path(const GT & g, Node * start, Node * meeting, Node * end,
                   Path<GT> & path)
   {
@@ -168,47 +297,30 @@ private:
         return;
       }
 
-    // Build forward half: start -> meeting
-    DynList<Node *> fwd_nodes;
-    for (auto curr = meeting; curr != nullptr; curr = BIBFS_FWD_PARENT(curr))
-      fwd_nodes.insert(curr);  // prepend
+    path.set_graph(g, start);
 
-    // Build backward half: meeting -> end
-    DynList<Node *> bck_nodes;
-    for (auto curr = BIBFS_BCK_PARENT(meeting); curr != nullptr;
-         curr = BIBFS_BCK_PARENT(curr))
-      bck_nodes.append(curr);
-
-    // Construct the path from the node sequence
-    // First node
-    auto fwd_it = fwd_nodes.get_it();
-    if (not fwd_it.has_curr())
-      return;
-
-    path.set_graph(g, fwd_it.get_curr());
-    auto prev = fwd_it.get_curr();
-    fwd_it.next();
-
-    // Forward nodes
-    while (fwd_it.has_curr())
+    // Reconstruct start -> meeting using stored forward parent arcs.
+    DynList<Arc *> fwd_arcs;
+    for (auto curr = meeting; curr != start; curr = BIBFS_FWD_PARENT(curr))
       {
-        auto curr = fwd_it.get_curr();
-        // Find arc between prev and curr
-        Arc * arc = search_arc<GT>(g, prev, curr);
-        if (arc != nullptr)
-          path.append(arc);
-        prev = curr;
-        fwd_it.next();
+        ah_runtime_error_if(BIBFS_FWD_PARENT(curr) == nullptr)
+          << "Bidirectional_BFS: inconsistent forward parent chain";
+        ah_runtime_error_if(BIBFS_FWD_PARC(curr) == nullptr)
+          << "Bidirectional_BFS: missing forward parent arc";
+        fwd_arcs.insert(BIBFS_FWD_PARC(curr)); // prepend for start->meeting order
       }
 
-    // Backward nodes
-    for (auto bck_it = bck_nodes.get_it(); bck_it.has_curr(); bck_it.next())
+    for (auto it = fwd_arcs.get_it(); it.has_curr(); it.next())
+      path.append(it.get_curr());
+
+    // Reconstruct meeting -> end using stored backward parent arcs.
+    for (auto curr = meeting; curr != end; curr = BIBFS_BCK_PARENT(curr))
       {
-        auto curr = bck_it.get_curr();
-        Arc * arc = search_arc<GT>(g, prev, curr);
-        if (arc != nullptr)
-          path.append(arc);
-        prev = curr;
+        ah_runtime_error_if(BIBFS_BCK_PARENT(curr) == nullptr)
+          << "Bidirectional_BFS: inconsistent backward parent chain";
+        ah_runtime_error_if(BIBFS_BCK_PARC(curr) == nullptr)
+          << "Bidirectional_BFS: missing backward parent arc";
+        path.append(BIBFS_BCK_PARC(curr));
       }
   }
 
@@ -227,9 +339,11 @@ public:
 
   /** @brief Finds the shortest unweighted path between start and end.
    *
-   *  Performs bidirectional BFS, expanding alternately from start
-   *  (using Fwd_Itor) and from end (using Bck_Itor). Stops when
-   *  the two frontiers meet.
+   *  Performs bidirectional BFS by expanding one complete frontier level
+   *  at a time. At each iteration the smaller frontier is expanded
+   *  (`Fwd_Itor` from start or `Bck_Itor` from end). Meeting detection
+   *  uses forward/backward distance maps and stops only when no shorter
+   *  meeting point can still exist.
    *
    *  @param[in] g The graph.
    *  @param[in] start The starting node.
@@ -257,84 +371,57 @@ public:
       }
 
     init(g);
+    BiBFS_Init_Guard guard(*this, g);
 
-    // Mark start and end
-    BIBFS_DIR(start) = FORWARD;
-    BIBFS_DIR(end) = BACKWARD;
-
-    DynListQueue<Node *> fwd_queue;
-    DynListQueue<Node *> bck_queue;
-
-    fwd_queue.put(start);
-    bck_queue.put(end);
-
+    bool found = false;
     Node * meeting = nullptr;
 
-    while (not fwd_queue.is_empty() or not bck_queue.is_empty())
+    mark_seen(start, FORWARD);
+    mark_seen(end, BACKWARD);
+    set_dist(start, FORWARD, 0);
+    set_dist(end, BACKWARD, 0);
+
+    DynListQueue<Node *> fwd_frontier;
+    DynListQueue<Node *> bck_frontier;
+
+    fwd_frontier.put(start);
+    bck_frontier.put(end);
+
+    size_t fwd_depth = 0;
+    size_t bck_depth = 0;
+    size_t best_len = INF_DIST;
+
+    while (not fwd_frontier.is_empty() and not bck_frontier.is_empty())
       {
-        // Expand forward frontier
-        if (not fwd_queue.is_empty())
+        const bool expand_forward = fwd_frontier.size() <= bck_frontier.size();
+
+        if (expand_forward)
           {
-            auto curr = fwd_queue.get();
-
-            for (Fwd_Itor<GT, SA> it(curr, sa); it.has_curr(); it.next())
-              {
-                auto arc = it.get_current_arc();
-                auto tgt = g.get_connected_node(arc, curr);
-
-                if (BIBFS_DIR(tgt) == BACKWARD)
-                  {
-                    // Meeting point found!
-                    BIBFS_FWD_PARENT(tgt) = curr;
-                    meeting = tgt;
-                    goto found;
-                  }
-
-                if (BIBFS_DIR(tgt) == UNSEEN)
-                  {
-                    BIBFS_DIR(tgt) = FORWARD;
-                    BIBFS_FWD_PARENT(tgt) = curr;
-                    fwd_queue.put(tgt);
-                  }
-              }
+            expand_frontier<Fwd_Itor>(g, fwd_frontier, FORWARD, BACKWARD,
+                                      best_len, meeting);
+            ++fwd_depth;
+          }
+        else
+          {
+            expand_frontier<Bck_Itor>(g, bck_frontier, BACKWARD, FORWARD,
+                                      best_len, meeting);
+            ++bck_depth;
           }
 
-        // Expand backward frontier
-        if (not bck_queue.is_empty())
+        if (meeting != nullptr)
           {
-            auto curr = bck_queue.get();
-
-            for (Bck_Itor<GT, SA> it(curr, sa); it.has_curr(); it.next())
-              {
-                auto arc = it.get_current_arc();
-                auto tgt = g.get_connected_node(arc, curr);
-
-                if (BIBFS_DIR(tgt) == FORWARD)
-                  {
-                    // Meeting point found!
-                    BIBFS_BCK_PARENT(tgt) = curr;
-                    meeting = tgt;
-                    goto found;
-                  }
-
-                if (BIBFS_DIR(tgt) == UNSEEN)
-                  {
-                    BIBFS_DIR(tgt) = BACKWARD;
-                    BIBFS_BCK_PARENT(tgt) = curr;
-                    bck_queue.put(tgt);
-                  }
-              }
+            const size_t min_depth = fwd_depth < bck_depth ? fwd_depth : bck_depth;
+            const size_t lower_bound = min_depth + 1;
+            if (lower_bound >= best_len)
+              break;
           }
       }
 
-    // No path found
-    cleanup(g);
-    return false;
+    found = meeting != nullptr;
+    if (found)
+      build_path(g, start, meeting, end, path);
 
-  found:
-    build_path(g, start, meeting, end, path);
-    cleanup(g);
-    return true;
+    return found;
   }
 
   /** @brief Finds shortest path (operator interface with path output).
@@ -368,6 +455,10 @@ public:
 #undef BIBFS_DIR
 #undef BIBFS_FWD_PARENT
 #undef BIBFS_BCK_PARENT
+#undef BIBFS_FWD_PARC
+#undef BIBFS_BCK_PARC
+#undef BIBFS_FWD_DIST
+#undef BIBFS_BCK_DIST
 };
 
 } // end namespace Aleph
