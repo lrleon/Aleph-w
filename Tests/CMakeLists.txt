@@ -331,6 +331,7 @@ set(TEST_PROGRAMS
     weighted_blossom_test
     min_cost_matching_test
     dominators_test
+    interval_tree_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++
