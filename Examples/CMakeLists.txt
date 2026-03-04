@@ -183,6 +183,10 @@ set(EXAMPLE_PROGRAMS
     min_cost_matching_example
     hungarian_example
     dominators_example
+    zero_one_bfs_example
+    dial_example
+    bidirectional_bfs_example
+    ida_star_example
 )
 
 # Function to get source file from program name

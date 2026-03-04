@@ -209,8 +209,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │                                                                            │
 │  SPECIAL                  SPATIAL                  PROBABILISTIC           │
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
-│  ├─ LRU Cache            ├─ 2D-Tree               └─ Skip List             │
-│  └─ Prefix Tree (Trie)   └─ K-d Tree                                       │
+│  ├─ LRU Cache            ├─ 2D-Tree               ├─ Count-Min Sketch      │
+│  └─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir │
 │                                                                            │
 │  RANGE QUERIES                                                             │
 │  ├─ Fenwick Tree (BIT)                                                     │
@@ -255,7 +255,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Bellman-Ford         └─ Prim                  ├─ Connected Components  │
 │  ├─ Floyd-Warshall                                ├─ Tarjan (SCC)          │
 │  ├─ Johnson                                       ├─ Kosaraju (SCC)        │
-│  └─ A* Search                                     ├─ Cut Nodes/Bridges     │
+│  ├─ A* Search                                     ├─ Cut Nodes/Bridges     │
+│  └─ 0-1 BFS / Dial / Bidirectional / IDA*          │
 │                                                   └─ Biconnected           │
 │                                                                            │
 │  NETWORK FLOWS            MINIMUM CUT              SPECIAL                 │
@@ -277,7 +278,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Convex Hull          ├─ Union-Find                                     │
 │  ├─ Triangulation        ├─ Huffman Coding                                 │
 │  ├─ Voronoi / Delaunay   ├─ Simplex (LP)                                   │
-│  └─ Intersections        └─ RMQ/LCA/HLD/Centroid decompositions            │
+│  └─ Intersections        ├─ RMQ/LCA/HLD/Centroid decompositions            │
+│                           └─ Streaming sketches (HLL/CMS/MinHash/SimHash)  │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
