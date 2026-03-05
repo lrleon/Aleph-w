@@ -18,6 +18,15 @@ def log(msg, verbose:, always: false)
   puts "#{prefix}#{msg}"
 end
 
+def normalize_command_for_open3(cmd)
+  return cmd unless cmd.is_a?(Array)
+  return cmd if cmd.empty?
+  return cmd if cmd.first.is_a?(Array)
+
+  executable, *args = cmd
+  [[executable, executable], *args]
+end
+
 def run_command(cmd, chdir: nil, verbose: false, label: nil)
   capture_opts = {}
   capture_opts[:chdir] = chdir if chdir
@@ -28,11 +37,12 @@ def run_command(cmd, chdir: nil, verbose: false, label: nil)
   started_at = Time.now
 
   unless verbose
+    open3_cmd = normalize_command_for_open3(cmd)
     stdout, stderr, status =
-      if cmd.is_a?(Array)
-        Open3.capture3(*cmd, **capture_opts)
+      if open3_cmd.is_a?(Array)
+        Open3.capture3(*open3_cmd, **capture_opts)
       else
-        Open3.capture3(cmd, **capture_opts)
+        Open3.capture3(open3_cmd, **capture_opts)
       end
     return [stdout, stderr, status]
   end
@@ -41,7 +51,8 @@ def run_command(cmd, chdir: nil, verbose: false, label: nil)
   stderr_buf = +''
   status = nil
 
-  popen_args = cmd.is_a?(Array) ? cmd : [cmd]
+  normalized_cmd = normalize_command_for_open3(cmd)
+  popen_args = normalized_cmd.is_a?(Array) ? normalized_cmd : [normalized_cmd]
   Open3.popen3(*popen_args, **capture_opts) do |stdin, stdout, stderr, wait_thr|
     stdin.close
 

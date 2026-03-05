@@ -332,6 +332,10 @@ set(TEST_PROGRAMS
     min_cost_matching_test
     dominators_test
     interval_tree_test
+    test_zero_one_bfs
+    test_dial
+    test_bidirectional_bfs
+    test_ida_star
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++
