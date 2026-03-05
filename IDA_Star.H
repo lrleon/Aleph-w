@@ -204,7 +204,13 @@ private:
                        Distance_Type g_cost, Distance_Type threshold,
                        Path<GT> & path)
   {
-    auto f = g_cost + heuristic(curr, end);
+    const Distance_Type h = heuristic(curr, end);
+    ah_domain_error_if(h < Distance_Type(0))
+      << "IDA*: heuristic must be non-negative, got " << h;
+    ah_overflow_error_if(g_cost >
+                         std::numeric_limits<Distance_Type>::max() - h)
+      << "IDA*: overflow computing g_cost + heuristic";
+    const Distance_Type f = g_cost + h;
 
     if (f > threshold)
       return {false, f};

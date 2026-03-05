@@ -773,3 +773,31 @@ TEST(ZeroOneBFS, ParallelEdgesKeepSingleParentArcMarked)
 
   EXPECT_EQ(painted_arcs, 2u);
 }
+
+// ============================================================================
+// TEST 32: Destructor must restore graph state and release NODE_COOKIE storage
+// ============================================================================
+TEST(ZeroOneBFS, DestructorRestoresGraphState)
+{
+  GT g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto a01 = g.insert_arc(n0, n1, 1);
+
+  {
+    Zero_One_BFS<GT> bfs;
+    bfs.paint_min_paths_tree(g, n0);
+
+    EXPECT_NE(NODE_COOKIE(n0), nullptr);
+    EXPECT_NE(NODE_COOKIE(n1), nullptr);
+    EXPECT_TRUE(IS_NODE_VISITED(n0, Aleph::Spanning_Tree));
+    EXPECT_TRUE(IS_NODE_VISITED(n1, Aleph::Spanning_Tree));
+    EXPECT_TRUE(IS_ARC_VISITED(a01, Aleph::Spanning_Tree));
+  }
+
+  EXPECT_EQ(NODE_COOKIE(n0), nullptr);
+  EXPECT_EQ(NODE_COOKIE(n1), nullptr);
+  EXPECT_FALSE(IS_NODE_VISITED(n0, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_NODE_VISITED(n1, Aleph::Spanning_Tree));
+  EXPECT_FALSE(IS_ARC_VISITED(a01, Aleph::Spanning_Tree));
+}

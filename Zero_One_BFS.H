@@ -159,11 +159,44 @@ private:
     Distance_Type dist;
   };
 
+  DynList<std::pair<Node *, Node_Info *>> owned_node_infos;
+  DynList<std::pair<Node *, Painted_Info *>> owned_painted_infos;
+
 #define ZOB_INFO(p)   (static_cast<Node_Info *>(NODE_COOKIE(p)))
 #define ZOB_PNTD(p)   (static_cast<Painted_Info *>(NODE_COOKIE(p)))
 #define ZOB_DIST(p)   (ZOB_INFO(p)->dist)
 #define ZOB_PARENT(p) (ZOB_INFO(p)->parent)
 #define ZOB_PARENT_ARC(p) (ZOB_INFO(p)->parent_arc)
+
+  void release_owned_node_infos() noexcept
+  {
+    for (auto it = owned_node_infos.get_it(); it.has_curr(); it.next())
+      {
+        auto item = it.get_curr();
+        auto p = item.first;
+        auto info = item.second;
+        if (info != nullptr)
+          delete info;
+        if (NODE_COOKIE(p) == info)
+          NODE_COOKIE(p) = nullptr;
+      }
+    owned_node_infos.empty();
+  }
+
+  void release_owned_painted_infos() noexcept
+  {
+    for (auto it = owned_painted_infos.get_it(); it.has_curr(); it.next())
+      {
+        auto item = it.get_curr();
+        auto p = item.first;
+        auto info = item.second;
+        if (info != nullptr)
+          delete info;
+        if (NODE_COOKIE(p) == info)
+          NODE_COOKIE(p) = nullptr;
+      }
+    owned_painted_infos.empty();
+  }
 
   void reset_state_after_failure() noexcept
   {
@@ -216,6 +249,8 @@ private:
   void init(const GT & g)
   {
     ptr_g = &const_cast<GT &>(g);
+    release_owned_node_infos();
+    release_owned_painted_infos();
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
       {
         auto p = it.get_curr();
@@ -225,20 +260,65 @@ private:
     for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next())
       g.reset_bit(it.get_curr(), Aleph::Spanning_Tree);
 
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
-      NODE_COOKIE(it.get_curr()) = new Node_Info;
+    try
+      {
+        for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+          {
+            auto p = it.get_curr();
+            auto info = new Node_Info;
+            NODE_COOKIE(p) = info;
+            try
+              {
+                owned_node_infos.append({p, info});
+              }
+            catch (...)
+              {
+                delete info;
+                NODE_COOKIE(p) = nullptr;
+                throw;
+              }
+          }
+      }
+    catch (...)
+      {
+        release_owned_node_infos();
+        release_owned_painted_infos();
+        throw;
+      }
   }
 
   void uninit_paint()
   {
-    for (typename GT::Node_Iterator it(*ptr_g); it.has_curr(); it.next())
+    // Two-phase conversion to be exception-safe:
+    // 1. Allocate all Painted_Info objects
+    // 2. Atomically swap and delete old Node_Info
+    DynList<std::pair<Node *, Painted_Info *>> pending;
+    try
       {
-        auto p = it.get_curr();
-        auto info = ZOB_INFO(p);
-        auto pinfo = new Painted_Info{info->parent, info->dist};
-        delete info;
+        for (typename GT::Node_Iterator it(*ptr_g); it.has_curr(); it.next())
+          {
+            auto p = it.get_curr();
+            auto info = ZOB_INFO(p);
+            pending.append({p, new Painted_Info{info->parent, info->dist}});
+          }
+      }
+    catch (...)
+      {
+        for (auto it = pending.get_it(); it.has_curr(); it.next())
+          delete it.get_curr().second;
+        throw;
+      }
+
+    // Phase 2: Apply changes
+    release_owned_node_infos();
+    for (auto it = pending.get_it(); it.has_curr(); it.next())
+      {
+        auto item = it.get_curr();
+        auto p = item.first;
+        auto pinfo = item.second;
         NODE_COOKIE(p) = pinfo;
       }
+    owned_painted_infos.swap(pending);
   }
 
   void uninit_discard()
@@ -246,18 +326,12 @@ private:
     if (ptr_g == nullptr)
       return;
 
+    release_owned_node_infos();
+    release_owned_painted_infos();
+
     for (typename GT::Node_Iterator it(*ptr_g); it.has_curr(); it.next())
       {
         auto p = it.get_curr();
-        if (NODE_COOKIE(p) != nullptr)
-          {
-            if (painted)
-              delete ZOB_PNTD(p);
-            else
-              delete ZOB_INFO(p);
-          }
-
-        NODE_COOKIE(p) = nullptr;
         ptr_g->reset_bit(p, Aleph::Spanning_Tree);
       }
 
@@ -327,6 +401,17 @@ public:
     // empty
   }
 
+  /** @brief Destructor.
+   *
+   *  Releases any per-node data left in NODE_COOKIE by the last
+   *  computation so sanitizers do not report leaks.
+   */
+  ~Zero_One_BFS() noexcept
+  {
+    uninit_discard();
+    reset_state_after_failure();
+  }
+
   /** @brief Check if a computation has been performed.
    *  @return true if a graph has been painted, false otherwise.
    */
@@ -360,6 +445,9 @@ public:
   {
     ah_domain_error_if(start == nullptr) << "start node cannot be null";
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
+
+    if (ptr_g != nullptr)
+      uninit_discard();
 
     painted = false;
     s = nullptr;
@@ -436,6 +524,7 @@ public:
   {
     ah_domain_error_if(not painted) << "Graph has not been painted";
     ah_domain_error_if(ptr_g == nullptr) << "No computation has been done";
+    ah_domain_error_if(end == nullptr) << "end pointer is null";
 
     path.empty();
     if (end == s)
@@ -504,6 +593,9 @@ public:
     ah_domain_error_if(end == nullptr) << "end node cannot be null";
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
+    if (ptr_g != nullptr)
+      uninit_discard();
+
     path.empty();
 
     painted = false;
@@ -538,6 +630,7 @@ public:
   }
 
 #undef ZOB_INFO
+#undef ZOB_PNTD
 #undef ZOB_DIST
 #undef ZOB_PARENT
 #undef ZOB_PARENT_ARC

@@ -434,6 +434,9 @@ namespace Aleph
      *  @param[in] start The starting node.
      *  @throw domain_error If start is nullptr, g is empty, or any arc
      *         weight is negative.
+     *  @throw overflow_error If maximum possible distance exceeds Distance_Type
+     *         range or during distance accumulation.
+     *  @throw runtime_error If bucket count exceeds safety limit.
      *  @throw bad_alloc If there is not enough memory.
      *
      *  @note Time complexity: O(V + E + V*C) where C is max edge weight.
@@ -460,7 +463,8 @@ namespace Aleph
      *  @param[in] node The destination node.
      *  @return The shortest distance from start to node.
      *  @throw domain_error If the graph has not been painted, node is null,
-     *         or node is not reachable from the start.
+     *         node is not reachable from the start, or path reconstruction
+     *         fails.
      *
      *  @note Time complexity: O(path_length)
      */
@@ -479,9 +483,10 @@ namespace Aleph
       for (auto curr = node; curr != s;)
         {
           auto parent = static_cast<Node *>(NODE_COOKIE(curr));
-          if (parent == nullptr)
-            break;
+          ah_domain_error_if(parent == nullptr)
+            << "Dial: path reconstruction failed (null parent)";
 
+          bool found = false;
           for (Itor<GT, SA> it(parent, sa); it.has_curr(); it.next())
             {
               auto arc = it.get_current_arc();
@@ -489,9 +494,13 @@ namespace Aleph
               if (tgt == curr and IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
                 {
                   total += distance(arc);
+                  found = true;
                   break;
                 }
             }
+          ah_domain_error_if(not found)
+            << "Dial: path reconstruction failed (arc not found)";
+
           curr = parent;
         }
 
@@ -504,6 +513,7 @@ namespace Aleph
      *  @param[out] path Path where the shortest path will be stored.
      *  @return The total cost of the path.
      *  @throw domain_error If the graph has not been painted.
+     *  @throw bad_alloc If there is not enough memory.
      *
      *  @note Time complexity: O(path_length)
      */
@@ -527,6 +537,9 @@ namespace Aleph
      *  @return The total cost, or max value if no path exists.
      *  @throw domain_error If start or end is nullptr, g is empty, or
      *         any arc weight is negative.
+     *  @throw overflow_error If maximum possible distance exceeds Distance_Type
+     *         range or during distance accumulation.
+     *  @throw runtime_error If bucket count exceeds safety limit.
      *  @throw bad_alloc If there is not enough memory.
      *
      *  @note Time complexity: O(V + E + V*C) where C is max edge weight.
@@ -564,6 +577,12 @@ namespace Aleph
      *  @param[in] end The destination node.
      *  @param[out] path The shortest path.
      *  @return The total cost, or max value if no path exists.
+     *  @throw domain_error If start or end is nullptr, g is empty, or
+     *         any arc weight is negative.
+     *  @throw overflow_error If maximum possible distance exceeds Distance_Type
+     *         range or during distance accumulation.
+     *  @throw runtime_error If bucket count exceeds safety limit.
+     *  @throw bad_alloc If there is not enough memory.
      */
     Distance_Type operator()(const GT & g, Node *start, Node *end,
                              Path<GT> & path)

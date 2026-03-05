@@ -156,14 +156,26 @@ TEST(IDAStar, NullNodeValidation)
   IDA_Zero<GT> ida;
   Path<GT> path(g);
 
+  // Null checks
   EXPECT_THROW(ida(g, nullptr, n0, path), std::domain_error);
   EXPECT_THROW(ida(g, n0, nullptr, path), std::domain_error);
+
+  // Empty graph check
+  GT g_empty;
+  EXPECT_THROW(ida(g_empty, n0, n0, path), std::domain_error);
+
+  // Negative weight check
+  GT g_neg;
+  auto s = g_neg.insert_node(1);
+  auto t = g_neg.insert_node(2);
+  g_neg.insert_arc(s, t, -1.0);
+  EXPECT_THROW(ida(g_neg, s, t, path), std::domain_error);
 }
 
 // ============================================================================
 // TEST 8: Relaxation (finds cheaper path)
 // ============================================================================
-TEST(IDAStar, RelaxationFindsCheeperPath)
+TEST(IDAStar, RelaxationFindsCheaperPath)
 {
   GT g;
   auto n0 = g.insert_node(0);
@@ -592,11 +604,17 @@ TEST(IDAStar, SelfLoop)
 // A full test would need a grid with coordinate-based node info.
 TEST(IDAStar, ChebyshevHeuristicExists)
 {
-  // Just verify the template instantiates
   struct Coord { int x; int y; };
   using CG = List_Graph<Graph_Node<Coord>, Graph_Arc<int>>;
   using CH = Chebyshev_Heuristic<CG>;
 
+  CG g;
+  auto n1 = g.insert_node(Coord{0, 0});
+  auto n2 = g.insert_node(Coord{3, 5});
+
   CH ch;
-  (void)ch;  // suppress unused warning
+  // Chebyshev distance = max(|x1-x2|, |y1-y2|) = max(3, 5) = 5
+  EXPECT_EQ(ch(n1, n2), 5);
+  EXPECT_EQ(ch(n2, n1), 5);
+  EXPECT_EQ(ch(n1, n1), 0);
 }
