@@ -93,12 +93,13 @@ namespace Aleph
   /** @brief Dial's algorithm for shortest paths with integer weights.
    *
    *  @details This class computes shortest paths in graphs where every
-   *  edge weight is a non-negative integer. It uses bucket-based
-   *  relaxation that runs in O(V + E + C) where C = max_weight * V.
+   *  edge weight is a non-negative integer.
    *
-   *  This is faster than Dijkstra when the maximum weight C is small
-   *  relative to log V (i.e., C << log V), because bucket operations
-   *  are O(1) vs O(log V) for heap operations.
+   *  Dial's algorithm runs in O(V*C + E) time vs Dijkstra with a heap
+   *  in O((V+E) log V), where C is the maximum edge weight. Use Dial
+   *  when V*C + E << (V+E) log V (equivalently V*C << (V+E) log V).
+   *  As a practical rule of thumb, Dial is especially effective on sparse
+   *  graphs (small E) with small integer edge weights (small C).
    *
    *  The class receives the following template parameters:
    *  -# `GT`: graph type (List_Graph, List_SGraph, Array_Graph, etc.).
@@ -163,6 +164,7 @@ namespace Aleph
       s = nullptr;
     }
 
+    /** @brief RAII guard for Dial initialization and cleanup. */
     class Dial_Init_Guard
     {
       Dial_Min_Paths * owner = nullptr;
@@ -170,19 +172,29 @@ namespace Aleph
       bool committed = false;
 
     public:
+      /** @brief Constructor.
+       *  @param[in] __owner The Dial_Min_Paths instance.
+       *  @param[in] __g The graph being processed.
+       */
       Dial_Init_Guard(Dial_Min_Paths & __owner, const GT & __g) noexcept
         : owner(&__owner), g(&__g)
       {
         // empty
       }
 
+      /** @brief Deleted copy constructor. */
       Dial_Init_Guard(const Dial_Init_Guard &) = delete;
+      /** @brief Deleted copy assignment. */
       Dial_Init_Guard & operator = (const Dial_Init_Guard &) = delete;
+      /** @brief Deleted move constructor. */
       Dial_Init_Guard(Dial_Init_Guard &&) = delete;
+      /** @brief Deleted move assignment. */
       Dial_Init_Guard & operator = (Dial_Init_Guard &&) = delete;
 
+      /** @brief Commits the operation, preventing cleanup on destruction. */
       void commit() noexcept { committed = true; }
 
+      /** @brief Destructor. Performs cleanup if not committed. */
       ~Dial_Init_Guard() noexcept
       {
         if (not committed)

@@ -481,7 +481,7 @@ TEST(ZeroOneBFS, LargeLinearGraph)
   GT g;
   const int N = 200;
 
-  std::vector<Node *> nodes(N);
+  auto nodes = Aleph::Array<Node *>::create(N);
   for (int i = 0; i < N; ++i)
     nodes[i] = g.insert_node(i);
 
@@ -721,7 +721,7 @@ TEST(ZeroOneBFS, LargeGraphManyZeros)
   GT g;
   const int N = 100;
 
-  std::vector<Node *> nodes(N);
+  auto nodes = Aleph::Array<Node *>::create(N);
   for (int i = 0; i < N; ++i)
     nodes[i] = g.insert_node(i);
 

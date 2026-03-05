@@ -152,7 +152,15 @@ private:
     Node_Info() noexcept : dist(Inf), parent(nullptr), parent_arc(nullptr) {}
   };
 
+  /** @brief Stores parent and distance after painting for O(1) access. */
+  struct Painted_Info
+  {
+    Node * parent;
+    Distance_Type dist;
+  };
+
 #define ZOB_INFO(p)   (static_cast<Node_Info *>(NODE_COOKIE(p)))
+#define ZOB_PNTD(p)   (static_cast<Painted_Info *>(NODE_COOKIE(p)))
 #define ZOB_DIST(p)   (ZOB_INFO(p)->dist)
 #define ZOB_PARENT(p) (ZOB_INFO(p)->parent)
 #define ZOB_PARENT_ARC(p) (ZOB_INFO(p)->parent_arc)
@@ -164,6 +172,7 @@ private:
     s = nullptr;
   }
 
+  /** @brief RAII guard for Zero_One_BFS initialization and cleanup. */
   class ZOB_Init_Guard
   {
     Zero_One_BFS * owner = nullptr;
@@ -171,19 +180,29 @@ private:
     bool committed = false;
 
   public:
+    /** @brief Constructor.
+     *  @param[in] __owner The Zero_One_BFS instance.
+     *  @param[in] __g The graph being processed.
+     */
     ZOB_Init_Guard(Zero_One_BFS & __owner, const GT & __g) noexcept
       : owner(&__owner), g(&__g)
     {
       // empty
     }
 
+    /** @brief Deleted copy constructor. */
     ZOB_Init_Guard(const ZOB_Init_Guard &) = delete;
+    /** @brief Deleted copy assignment. */
     ZOB_Init_Guard & operator = (const ZOB_Init_Guard &) = delete;
+    /** @brief Deleted move constructor. */
     ZOB_Init_Guard(ZOB_Init_Guard &&) = delete;
+    /** @brief Deleted move assignment. */
     ZOB_Init_Guard & operator = (ZOB_Init_Guard &&) = delete;
 
+    /** @brief Commits the operation, preventing cleanup on destruction. */
     void commit() noexcept { committed = true; }
 
+    /** @brief Destructor. Performs cleanup if not committed. */
     ~ZOB_Init_Guard() noexcept
     {
       if (not committed)
@@ -216,9 +235,9 @@ private:
       {
         auto p = it.get_curr();
         auto info = ZOB_INFO(p);
-        auto parent = info->parent;
+        auto pinfo = new Painted_Info{info->parent, info->dist};
         delete info;
-        NODE_COOKIE(p) = parent;
+        NODE_COOKIE(p) = pinfo;
       }
   }
 
@@ -230,9 +249,14 @@ private:
     for (typename GT::Node_Iterator it(*ptr_g); it.has_curr(); it.next())
       {
         auto p = it.get_curr();
-        auto info = ZOB_INFO(p);
-        if (info != nullptr)
-          delete info;
+        if (NODE_COOKIE(p) != nullptr)
+          {
+            if (painted)
+              delete ZOB_PNTD(p);
+            else
+              delete ZOB_INFO(p);
+          }
+
         NODE_COOKIE(p) = nullptr;
         ptr_g->reset_bit(p, Aleph::Spanning_Tree);
       }
@@ -369,11 +393,17 @@ public:
     ah_domain_error_if(not IS_NODE_VISITED(node, Aleph::Spanning_Tree))
       << "node is not reachable from start";
 
-    // Compute distance by walking the path
+    // O(1) access thanks to Painted_Info
+    auto dist_val = ZOB_PNTD(node)->dist;
+    if (dist_val != Inf)
+      return dist_val;
+
+    // Fallback: Compute distance by walking the path
     Distance_Type total = 0;
     for (auto curr = node; curr != s;)
       {
-        auto parent = static_cast<Node *>(NODE_COOKIE(curr));
+        auto pinfo = ZOB_PNTD(curr);
+        auto parent = pinfo->parent;
         if (parent == nullptr)
           break;
 
@@ -407,7 +437,47 @@ public:
     ah_domain_error_if(not painted) << "Graph has not been painted";
     ah_domain_error_if(ptr_g == nullptr) << "No computation has been done";
 
-    return Aleph::get_min_path<GT, Distance>(s, end, path);
+    path.empty();
+    if (end == s)
+      {
+        path.set_graph(*ptr_g, s);
+        return 0;
+      }
+
+    if (not IS_NODE_VISITED(end, Aleph::Spanning_Tree))
+      return Inf;
+
+    Distance_Type total = 0;
+    path.set_graph(*ptr_g, s);
+    DynList<Arc *> arcs;
+    for (auto curr = end; curr != s;)
+      {
+        auto parent = ZOB_PNTD(curr)->parent;
+        if (parent == nullptr)
+          return Inf;
+
+        bool found = false;
+        for (Itor<GT, SA> it(parent, sa); it.has_curr(); it.next())
+          {
+            auto arc = it.get_current_arc();
+            if (ptr_g->get_connected_node(arc, parent) == curr and
+                IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              {
+                arcs.insert(arc);
+                total += distance(arc);
+                curr = parent;
+                found = true;
+                break;
+              }
+          }
+        if (not found)
+          return Inf;
+      }
+
+    for (auto it = arcs.get_it(); it.has_curr(); it.next())
+      path.append(it.get_curr());
+
+    return total;
   }
 
   /** @brief Computes the shortest path from start to end.

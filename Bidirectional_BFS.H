@@ -148,23 +148,33 @@ private:
 #define BIBFS_FWD_DIST(p)   (BIBFS_INFO(p)->fwd_dist)
 #define BIBFS_BCK_DIST(p)   (BIBFS_INFO(p)->bck_dist)
 
+  /** @brief RAII guard for BiBFS initialization and cleanup. */
   class BiBFS_Init_Guard
   {
     Bidirectional_BFS * owner = nullptr;
     const GT * g = nullptr;
 
   public:
+    /** @brief Constructor.
+     *  @param[in] __owner The BiBFS instance.
+     *  @param[in] __g The graph being processed.
+     */
     BiBFS_Init_Guard(Bidirectional_BFS & __owner, const GT & __g) noexcept
       : owner(&__owner), g(&__g)
     {
       // empty
     }
 
+    /** @brief Deleted copy constructor. */
     BiBFS_Init_Guard(const BiBFS_Init_Guard &) = delete;
+    /** @brief Deleted copy assignment. */
     BiBFS_Init_Guard & operator = (const BiBFS_Init_Guard &) = delete;
+    /** @brief Deleted move constructor. */
     BiBFS_Init_Guard(BiBFS_Init_Guard &&) = delete;
+    /** @brief Deleted move assignment. */
     BiBFS_Init_Guard & operator = (BiBFS_Init_Guard &&) = delete;
 
+    /** @brief Destructor. Performs cleanup. */
     ~BiBFS_Init_Guard() noexcept
     {
       owner->cleanup(*g);

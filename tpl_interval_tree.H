@@ -373,8 +373,7 @@ namespace Aleph
 
   /** @brief The sentinel node instance. */
   template <typename Key>
-  Interval_Tree_Node<Key>
-  Interval_Tree_Node<Key>::sentinel_node(sentinelCtor);
+  Interval_Tree_Node<Key> Interval_Tree_Node<Key>::sentinel_node(sentinelCtor);
 
   template <typename Key>
   Interval_Tree_Node<Key> *const
@@ -469,8 +468,7 @@ namespace Aleph
 
   /** @brief The sentinel node instance (virtual version). */
   template <typename Key>
-  Interval_Tree_NodeVtl<Key>
-  Interval_Tree_NodeVtl<Key>::sentinel_node(sentinelCtor);
+  Interval_Tree_NodeVtl<Key> Interval_Tree_NodeVtl<Key>::sentinel_node(sentinelCtor);
 
   template <typename Key>
   Interval_Tree_NodeVtl<Key> *const
@@ -778,9 +776,13 @@ namespace Aleph
       /* empty */
     }
 
+    /** @brief Deleted copy constructor. */
     Gen_Interval_Tree(const Gen_Interval_Tree &) = delete;
+    /** @brief Deleted copy assignment. */
     Gen_Interval_Tree &operator =(const Gen_Interval_Tree &) = delete;
+    /** @brief Deleted move constructor. */
     Gen_Interval_Tree(Gen_Interval_Tree &&) = delete;
+    /** @brief Deleted move assignment. */
     Gen_Interval_Tree &operator =(Gen_Interval_Tree &&) = delete;
 
     ~Gen_Interval_Tree()

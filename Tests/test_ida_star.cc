@@ -501,7 +501,7 @@ TEST(IDAStar, LargerCrossValidation)
   GT g;
   const int N = 10;
 
-  std::vector<Node *> nodes(N);
+  auto nodes = Aleph::Array<Node *>::create(N);
   for (int i = 0; i < N; ++i)
     nodes[i] = g.insert_node(i);
 
