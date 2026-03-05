@@ -304,6 +304,7 @@ set(TEST_PROGRAMS
     random_tree_test
     streaming_algorithms_test
     math_nt_test
+    fft_test
     random_net_test
     euclidian_graph_test
     find_path_test

@@ -139,6 +139,7 @@ set(EXAMPLE_PROGRAMS
     segment_tree_example
     interval_tree_example
     cartesian_tree_example
+    fft_example
     lca_example
     hld_example
     heavy_light_decomposition_example
