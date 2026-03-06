@@ -49,6 +49,7 @@ Language: English | [Español](README.es.md)
   - [Minimum Spanning Trees](#readme-minimum-spanning-trees)
   - [Network Flows](#readme-network-flows)
   - [Graph Connectivity](#readme-graph-connectivity)
+  - [2-SAT (Satisfiability)](#readme-two-sat)
   - [Matching](#readme-matching)
   - [String Algorithms](#readme-string-algorithms)
   - [Sorting Algorithms](#readme-sorting-algorithms)
@@ -2233,6 +2234,66 @@ int main() {
     // Class form: cheaper when calling find_bridges() repeatedly
     Compute_Bridges<Graph> cb(g);
     auto b2 = cb.find_bridges(nodes[2]); // start from a specific node
+
+    return 0;
+}
+```
+
+<a id="readme-two-sat"></a>
+### 2-SAT (Satisfiability)
+
+The **2-satisfiability** problem (2-SAT) determines if a Boolean formula in CNF, with two literals per clause, is satisfiable. Aleph-w provides a linear-time solver `O(V+E)` based on the implication graph and Tarjan's SCC algorithm.
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            2-SAT SOLVER OVERVIEW                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  FORMULA: (x0 v x1) ∧ (~x0 v x2) ∧ (~x1 v ~x2)                              │
+│                                                                             │
+│  IMPLICATION GRAPH:                                                         │
+│  ~x0 ──▶ x1       x0 ──▶ x2       x1 ──▶ ~x2                                │
+│  ~x1 ──▶ x0      ~x2 ──▶ ~x0      x2 ──▶ ~x1                                │
+│                                                                             │
+│  ALGORITHM:                                                                 │
+│  1. Build implication graph with 2N nodes.                                  │
+│  2. Compute Strongly Connected Components (SCC).                            │
+│  3. Formula is SAT iff no variable x and ~x are in the same SCC.            │
+│  4. If SAT, topological order of SCCs yields a valid assignment.            │
+│                                                                             │
+│  Complexity: O(n + m) for n variables and m clauses                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Usage Examples
+
+```cpp
+#include <Two_Sat.H>
+
+int main() {
+    // Solve: (x0 OR x1) AND (~x0 OR x2) AND (~x1 OR ~x2)
+    Two_Sat<> sat(3);
+
+    // Using literal indices
+    sat.add_clause(sat.pos_lit(0), sat.pos_lit(1));  // x0 v x1
+    sat.add_clause(sat.neg_lit(0), sat.pos_lit(2));  // ~x0 v x2
+    sat.add_clause(sat.neg_lit(1), sat.neg_lit(2));  // ~x1 v ~x2
+
+    // Check satisfiability and get assignment
+    auto [ok, assignment] = sat.solve();
+
+    if (ok) {
+        bool x0 = assignment(0);
+        bool x1 = assignment(1);
+        bool x2 = assignment(2);
+    }
+
+    // Using signed 1-based API (more concise)
+    Two_Sat<> sat2(3);
+    sat2.add_clause_signed(1, 2);    // x0 v x1
+    sat2.add_clause_signed(-1, 3);   // ~x0 v x2
+    sat2.add_clause_signed(-2, -3);  // ~x1 v ~x2
 
     return 0;
 }

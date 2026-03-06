@@ -173,6 +173,12 @@ namespace Aleph
       ::operator delete(p);
     }
 
+    static void destroy_one(T * p) noexcept
+    {
+      if constexpr (not std::is_trivially_destructible_v<T>)
+        p->~T();
+    }
+
     /// Destroy `count` elements starting at `base[start]` (linear).
     static void destroy_elems(T * base, const size_t start,
                               const size_t count) noexcept
@@ -197,20 +203,16 @@ namespace Aleph
     static void default_construct(T * base, const size_t start,
                                   const size_t count)
     {
-      if constexpr (not std::is_trivially_default_constructible_v<T>)
+      size_t done = 0;
+      try
         {
-          size_t done = 0;
-          try
-            {
-              for (; done < count; ++done)
-                new (base + start + done) T();
-            }
-          catch (...)
-            {
-              for (size_t j = 0; j < done; ++j)
-                base[start + j].~T();
-              throw;
-            }
+          for (; done < count; ++done)
+            new (base + start + done) T;
+        }
+      catch (...)
+        {
+          destroy_elems(base, start, done);
+          throw;
         }
     }
 
@@ -235,6 +237,31 @@ namespace Aleph
         {
           for (size_t j = 0; j < done; ++j)
             dst[j].~T();
+          throw;
+        }
+    }
+
+    template <typename Index_Fn>
+    static void relocate_construct(T * dst, T * src,
+                                   const size_t count,
+                                   Index_Fn index_fn)
+    {
+      size_t done = 0;
+      try
+        {
+          for (; done < count; ++done)
+            {
+              T & item = src[index_fn(done)];
+              if constexpr (std::is_nothrow_move_constructible_v<T>
+                            or not std::is_copy_constructible_v<T>)
+                new (dst + done) T(std::move(item));
+              else
+                new (dst + done) T(item);
+            }
+        }
+      catch (...)
+        {
+          destroy_elems(dst, 0, done);
           throw;
         }
     }
@@ -267,11 +294,22 @@ namespace Aleph
 
       const size_t newsz = dim << 1; // 2*dim
       const size_t mask = dim - 1;
+      const size_t curr_dim = dim;
       T *new_ptr = raw_alloc(newsz);
-      for (size_t i = 0; i < n; ++i)
+      try
         {
-          assert(((i + first) & mask) == ((i + first) % dim));
-          new (new_ptr + i) T(std::move(ptr[(i + first) & mask]));
+          relocate_construct(new_ptr, ptr, n,
+                             [first, mask, curr_dim](const size_t i)
+                             {
+                               assert(((i + first) & mask)
+                                      == ((i + first) % curr_dim));
+                               return (i + first) & mask;
+                             });
+        }
+      catch (...)
+        {
+          raw_dealloc(new_ptr);
+          throw;
         }
       destroy_elems_circular(ptr, first, n, mask);
       raw_dealloc(ptr);
@@ -304,12 +342,22 @@ namespace Aleph
         return false;
 
       T *new_ptr = raw_alloc(newsz);
-
       const size_t mask = dim - 1;
-      for (size_t i = 0; i < n; ++i)
+      const size_t curr_dim = dim;
+      try
         {
-          assert(((first + i) & mask) == ((first + i) % dim));
-          new (new_ptr + i) T(std::move(ptr[(first + i) & mask]));
+          relocate_construct(new_ptr, ptr, n,
+                             [first, mask, curr_dim](const size_t i)
+                             {
+                               assert(((first + i) & mask)
+                                      == ((first + i) % curr_dim));
+                               return (first + i) & mask;
+                             });
+        }
+      catch (...)
+        {
+          raw_dealloc(new_ptr);
+          throw;
         }
       destroy_elems_circular(ptr, first, n, mask);
 
@@ -357,13 +405,13 @@ namespace Aleph
         adjusted to the next two power greater than `__dim`
         @throw bad_alloc if there is not enough memory.
     */
-    MemArray(size_t __dim = Min_Dim) : ptr(nullptr), n(0)
+    MemArray(size_t _dim = Min_Dim) : ptr(nullptr), n(0)
     {
       static_assert(std::is_move_constructible_v<T>,
                     "T must be move constructible");
       static_assert(std::is_move_assignable_v<T>,
                     "T must be move assignable");
-      init_dim(__dim);
+      init_dim(_dim);
       allocate();
     }
 
@@ -455,7 +503,7 @@ namespace Aleph
       allocate();
     }
 
-    /// Put a copy of `item` at the end of sequence. The array expands if
+    /// Put a copy of `item` at the end of the sequence. The array expands if
     /// this is already full
     T &put(const T &item)
       requires std::is_copy_constructible_v<T>
@@ -468,7 +516,7 @@ namespace Aleph
       return ret;
     }
 
-    /// Move `item` at the end of sequence. The array expands if
+    /// Move `item` at the end of the sequence. The array expands if
     /// this is already full
     T &put(T &&item)
     {
@@ -482,12 +530,6 @@ namespace Aleph
 
    private:
 
-    void open_gap(size_t pos = 0, size_t num_entries = 1)
-    {
-      putn(num_entries);
-      Aleph::open_gap(ptr, n, pos, num_entries);
-    }
-
     void close_gap(size_t pos, size_t num_entries = 1)
     {
       Aleph::close_gap(ptr, n, pos, num_entries);
@@ -499,12 +541,25 @@ namespace Aleph
     /// Push a copy of `item` at the beginning of sequence. The array expands if
     /// this is already full
     T &push(const T &item)
-      requires std::is_copy_assignable_v<T>
+      requires std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>
     {
       assert(ptr);
-      open_gap();
+
+      expand();
+
+      if (n == 0)
+        {
+          new (ptr) T(item);
+          ++n;
+          return ptr[0];
+        }
+
+      new (ptr + n) T(std::move(ptr[n - 1]));
+      for (size_t i = n - 1; i > 0; --i)
+        ptr[i] = std::move(ptr[i - 1]);
 
       ptr[0] = item;
+      ++n;
       T &ret = ptr[0];
       return ret;
     }
@@ -514,9 +569,22 @@ namespace Aleph
     T &push(T &&item)
     {
       assert(ptr);
-      open_gap(0, 1);
+
+      expand();
+
+      if (n == 0)
+        {
+          new (ptr) T(std::forward<T>(item));
+          ++n;
+          return ptr[0];
+        }
+
+      new (ptr + n) T(std::move(ptr[n - 1]));
+      for (size_t i = n - 1; i > 0; --i)
+        ptr[i] = std::move(ptr[i - 1]);
 
       ptr[0] = std::forward<T>(item);
+      ++n;
       T &ret = ptr[0];
       return ret;
     }
@@ -528,7 +596,7 @@ namespace Aleph
       return ptr[0];
     }
 
-    /// Remove first item. Gap is closed
+    /// Remove the first item. Gap is closed
     T remove_first()
     {
       ah_underflow_error_if(n == 0) << "remove_first(): MemArray is empty";
@@ -542,7 +610,7 @@ namespace Aleph
     T pop() { return remove_first(); }
 
     /// \overload put(const T & item)
-    T &append(T &item)
+    T &append(const T &item)
       requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
@@ -557,7 +625,7 @@ namespace Aleph
     }
 
     /// \overload push(const T & item)
-    T &insert(T &item)
+    T &insert(const T &item)
       requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
@@ -582,11 +650,16 @@ namespace Aleph
         @throw bad_alloc if there is no enough memory
     */
     void putn(const size_t more)
+      requires std::is_default_constructible_v<T>
     {
       assert(ptr);
+      if (more == 0)
+        return;
+
       const size_t new_n = n + more;
       if (new_n <= dim)
         {
+          default_construct(ptr, n, more);
           n = new_n;
           return;
         }
@@ -595,11 +668,29 @@ namespace Aleph
       while (new_dim < new_n)
         new_dim <<= 1; // dim = 2*dim
 
-      T *new_ptr = new T[new_dim];
-      for (size_t i = 0; i < n; ++i)
-        std::swap(ptr[i], new_ptr[i]);
+      T *new_ptr = raw_alloc(new_dim);
+      try
+        {
+          relocate_construct(new_ptr, ptr, n,
+                             [](const size_t i) { return i; });
+          try
+            {
+              default_construct(new_ptr, n, more);
+            }
+          catch (...)
+            {
+              destroy_elems(new_ptr, 0, n);
+              throw;
+            }
+        }
+      catch (...)
+        {
+          raw_dealloc(new_ptr);
+          throw;
+        }
 
-      delete[] ptr;
+      destroy_elems(ptr, 0, n);
+      raw_dealloc(ptr);
       ptr = new_ptr;
       dim = new_dim;
       n = new_n;
@@ -607,13 +698,28 @@ namespace Aleph
     }
 
     MemArray &append(const MemArray &a)
-      requires std::is_copy_assignable_v<T>
+      requires std::is_copy_constructible_v<T>
     {
       const size_t old_n = n;
       const size_t num_entries = a.size();
-      putn(num_entries);
-      for (size_t i = 0; i < num_entries; ++i)
-        ptr[old_n + i] = a.ptr[i];
+      if (num_entries == 0)
+        return *this;
+
+      reserve(old_n + num_entries);
+
+      size_t done = 0;
+      try
+        {
+          for (; done < num_entries; ++done)
+            new (ptr + old_n + done) T(a.ptr[done]);
+        }
+      catch (...)
+        {
+          destroy_elems(ptr, old_n, done);
+          throw;
+        }
+
+      n = old_n + num_entries;
 
       return *this;
     }
@@ -632,11 +738,20 @@ namespace Aleph
       size_t k = log2(cap);
       const size_t new_dim = is_power_of_2(cap) ? cap : 1 << ++k;
 
-      T *new_ptr = new T[new_dim];
-      for (size_t i = 0; i < n; ++i)
-        std::swap(ptr[i], new_ptr[i]);
+      T *new_ptr = raw_alloc(new_dim);
+      try
+        {
+          relocate_construct(new_ptr, ptr, n,
+                             [](const size_t i) { return i; });
+        }
+      catch (...)
+        {
+          raw_dealloc(new_ptr);
+          throw;
+        }
 
-      delete[] ptr;
+      destroy_elems(ptr, 0, n);
+      raw_dealloc(ptr);
       ptr = new_ptr;
       dim = new_dim;
       contract_threshold = dim / 4;
@@ -647,12 +762,15 @@ namespace Aleph
     T get(const size_t i = 1)
     {
       assert(ptr);
-      const long idx = n - i;
-      ah_underflow_error_if(idx < 0)
+      const long idx_long = static_cast<long>(n) - static_cast<long>(i);
+      ah_underflow_error_if(idx_long < 0)
           << "MemArray::get(): deleted more entries than capacity";
 
+      const size_t old_n = n;
+      const auto idx = static_cast<size_t>(idx_long);
+      T ret = std::move(ptr[idx]);
+      destroy_elems(ptr, idx, old_n - idx);
       n = idx;
-      T ret = std::move(ptr[n]);
 
       contract();
 
@@ -662,9 +780,11 @@ namespace Aleph
     T get_ne(const size_t i = 1) noexcept
     {
       assert(ptr);
-      const long idx = n - i;
+      const size_t old_n = n;
+      const size_t idx = n - i;
+      T ret = std::move(ptr[idx]);
+      destroy_elems(ptr, idx, old_n - idx);
       n = idx;
-      T ret = std::move(ptr[n]);
 
       contract();
 
@@ -769,7 +889,7 @@ namespace Aleph
 
     bool is_valid() const noexcept { return ptr; }
 
-    /** Simple iterator on elements of array
+    /** Simple iterator on elements of an array
 
         @ingroup Sequences
     */

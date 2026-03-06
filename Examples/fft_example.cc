@@ -111,7 +111,7 @@ namespace
     cout << "Goal: Identify frequency components of a composite signal.\n";
     print_rule();
 
-    constexpr size_t n = 8; // Input size must be a power of two for this FFT
+    constexpr size_t n = 10; // Arbitrary sizes are now supported directly.
     Array<double> signal;
     signal.reserve(n);
 
@@ -132,6 +132,8 @@ namespace
     // The result is an array of complex numbers where X[k] represents the 
     // amplitude and phase of the frequency corresponding to index k.
     const auto spectrum = FFTD::spectrum(signal);
+    const auto compact_spectrum = FFTD::rfft(signal);
+    const auto restored_from_compact = FFTD::irfft(compact_spectrum, signal.size());
     const auto magnitudes = FFTD::magnitude_spectrum(spectrum);
     const auto phases = FFTD::phase_spectrum(spectrum);
     const auto hann_windowed = FFTD::windowed_spectrum(signal, FFTD::hann_window(signal.size()));
@@ -149,11 +151,22 @@ namespace
              << "    phase = " << phases[k] << "\n";
       }
 
+    cout << "\nCompact real spectrum R[k] (only 0..floor(N/2)):\n";
+    for (size_t k = 0; k < compact_spectrum.size(); ++k)
+      {
+        cout << "  k=" << k << "  R[k] = ";
+        print_complex(compact_spectrum[k]);
+        cout << "\n";
+      }
+
     cout << "\nAnalysis:\n";
     cout << "- Bin k=1 shows energy from 1.5 * cos(theta).\n";
     cout << "- Bin k=3 shows energy from 0.75 * sin(3*theta).\n";
     cout << "- For real signals, the spectrum is Hermitian symmetric:\n";
-    cout << "  X[k] is the conjugate of X[N-k]. This is why |X[1]| = |X[7]|.\n";
+    cout << "  X[k] is the conjugate of X[N-k]. This is why |X[1]| = |X[9]|.\n";
+    cout << "- FFT<Real>::rfft() exposes only the non-redundant bins and\n";
+    cout << "  FFT<Real>::irfft() reconstructs the original arbitrary-length signal.\n";
+    cout << "  Compact round-trip sample 0 = " << restored_from_compact[0] << ".\n";
     cout << "- Applying FFT<Real>::windowed_spectrum(..., hann_window(N)) reduces\n";
     cout << "  edge discontinuity; here Hann-windowed |X[1]| = "
          << hann_magnitudes[1] << ".\n";
@@ -288,19 +301,66 @@ namespace
 
     Array<double> signal = {0.5, -1.25, 3.5, 2.0, -0.75, 4.25, 1.0, -2.0};
     Array<double> kernel = {0.25, 0.50, 0.25};
+    Array<Array<Complex>> complex_batch = {
+      Array<Complex>({Complex(0.5, 0.0), Complex(-1.25, 0.0), Complex(3.5, 0.0),
+                      Complex(2.0, 0.0), Complex(-0.75, 0.0), Complex(4.25, 0.0),
+                      Complex(1.0, 0.0), Complex(-2.0, 0.0)}),
+      Array<Complex>({Complex(1.0, 0.5), Complex(-0.5, 0.25), Complex(0.75, -1.0),
+                      Complex(2.0, 0.0), Complex(-1.0, 0.5), Complex(0.25, -0.25),
+                      Complex(1.5, 0.75), Complex(-0.75, -0.5)})
+    };
 
     const auto seq_spectrum = FFTD::transform(signal);
     const auto par_spectrum = FFTD::ptransform(pool, signal);
     const auto par_filtered = FFTD::pmultiply(pool, signal, kernel);
+    FFTD::Plan plan(complex_batch[0].size());
+    const auto batch_spectra = plan.ptransformed_batch(pool, complex_batch, false);
+    Array<Array<Complex>> image = {
+      Array<Complex>({Complex(1.0, 0.0), Complex(2.0, -0.5),
+                      Complex(-1.0, 0.25), Complex(0.5, 1.0)}),
+      Array<Complex>({Complex(-0.75, 1.5), Complex(1.25, -1.0),
+                      Complex(0.0, 0.5), Complex(-2.0, 0.0)}),
+      Array<Complex>({Complex(0.5, -0.25), Complex(-1.5, 0.75),
+                      Complex(2.5, 0.0), Complex(1.0, -1.5)})
+    };
+    const auto image_spectrum = FFTD::transformed2d(image);
+    FFTD::OverlapAddBank overlap_bank(2, kernel, 4);
+    Array<Array<double>> overlap_signals = {
+      signal,
+      Array<double>({1.0, -0.5, 0.75, 2.0, -1.25, 0.5, 0.25, -0.75})
+    };
+    const auto overlap_batch = overlap_bank.pconvolve(pool, overlap_signals);
 
     print_real_sequence("Input signal:", signal);
     print_complex_sequence("Sequential FFT(signal):", seq_spectrum);
     print_complex_sequence("Concurrent FFT(signal):", par_spectrum);
     print_real_sequence("Concurrent convolution result:", par_filtered);
+    print_complex_sequence("Concurrent batch FFT(signal 0):", batch_spectra[0]);
+    print_complex_sequence("2-D FFT(image row 0):", image_spectrum[0]);
+    print_real_sequence("Concurrent overlap-add bank (channel 0):", overlap_batch[0]);
+    cout << "SIMD backend for FFT<double>: " << FFTD::simd_backend_name()
+         << " (batch-plan backend: " << FFTD::batched_plan_simd_backend_name()
+         << ", detected hardware backend: "
+         << FFTD::detected_simd_backend_name()
+         << ", policy: " << FFTD::simd_preference_name()
+         << ", avx2 compiled/runtime: "
+         << (FFTD::avx2_kernel_compiled() ? "yes" : "no") << "/"
+         << (FFTD::avx2_runtime_available() ? "yes" : "no")
+         << ", neon compiled/runtime: "
+         << (FFTD::neon_kernel_compiled() ? "yes" : "no") << "/"
+         << (FFTD::neon_runtime_available() ? "yes" : "no") << ")\n";
 
     cout << "Use FFT<Real>::transform()/multiply() for the sequential path and\n"
          << "FFT<Real>::ptransform()/pmultiply() when you want explicit ThreadPool\n"
-         << "parallelism under Aleph's concurrency style.\n";
+         << "parallelism under Aleph's concurrency style. When many complex inputs\n"
+         << "share the same length, FFT<Real>::Plan::ptransformed_batch() reuses one\n"
+         << "plan and parallelizes across the batch instead of across a single FFT.\n"
+         << "For image-like data, transformed2d()/ptransformed2d() remove the need to\n"
+         << "manually loop over rows and columns, while transform_axes() targets flat\n"
+         << "buffers with explicit shape/stride metadata.\n"
+         << "For multichannel FIR streaming, FFT<Real>::OverlapAddBank shares the\n"
+         << "kernel spectrum across channels instead of rebuilding one convolver per\n"
+         << "channel.\n";
     print_rule();
     cout << "\n";
   }
@@ -343,7 +403,24 @@ namespace
     const auto reconstructed = FFTD::istft(spectrogram, analysis_window, istft_options);
     const auto zero_phase_fir = FFTD::filtfilt(signal, fir, 4);
     const auto zero_phase_iir = FFTD::filtfilt(signal, iir);
+    const auto designed_fir = FFTD::firwin_lowpass(33, 1200.0, 8000.0, 70.0);
+    Array<double> firls_bands = {0.0, 900.0, 1200.0, 4000.0};
+    Array<double> firls_desired = {1.0, 1.0, 0.0, 0.0};
+    Array<double> firls_weights = {1.0, 12.0};
+    const auto designed_firls =
+      FFTD::firls(33, firls_bands, firls_desired, 8000.0, firls_weights);
+    Array<double> remez_weights = {1.0, 16.0};
+    const auto designed_remez =
+      FFTD::remez(33, firls_bands, firls_desired, 8000.0, remez_weights);
+    const auto designed_bandpass =
+      FFTD::chebyshev2_bandpass(4, 40.0, 700.0, 1500.0, 8000.0);
+    const auto designed_elliptic =
+      FFTD::elliptic_bandstop(4, 1.0, 40.0, 700.0, 1500.0, 8000.0);
     const auto response = FFTD::freqz(iir, 5);
+    const auto designed_firls_response = FFTD::freqz(designed_firls, 5, false);
+    const auto designed_remez_response = FFTD::freqz(designed_remez, 5, false);
+    const auto designed_bandpass_response = FFTD::freqz(designed_bandpass, 5);
+    const auto designed_elliptic_response = FFTD::freqz(designed_elliptic, 5);
     const auto poles = FFTD::poles(iir);
     const auto pairs = FFTD::pair_poles_and_zeros(iir);
     const auto group = FFTD::group_delay(iir, 5);
@@ -402,6 +479,27 @@ namespace
     const auto batched = FFTD::batched_stft(batch_signals,
                                             analysis_window,
                                             stft_options);
+    const auto frame_major =
+      FFTD::multichannel_stft(batch_signals,
+                              analysis_window,
+                              stft_options,
+                              FFTD::SpectrogramLayout::frame_channel_bin);
+    const auto multichannel_reconstructed =
+      FFTD::multichannel_istft(frame_major,
+                               analysis_window,
+                               analysis_window,
+                               istft_options,
+                               Array<size_t>({signal.size(), zero_phase_fir.size()}),
+                               FFTD::SpectrogramLayout::frame_channel_bin);
+    Array<double> designed_fir_preview;
+    for (size_t i = 0; i < std::min<size_t>(6, designed_fir.size()); ++i)
+      designed_fir_preview.append(designed_fir[i]);
+    Array<double> designed_firls_preview;
+    for (size_t i = 0; i < std::min<size_t>(6, designed_firls.size()); ++i)
+      designed_firls_preview.append(designed_firls[i]);
+    Array<double> designed_remez_preview;
+    for (size_t i = 0; i < std::min<size_t>(6, designed_remez.size()); ++i)
+      designed_remez_preview.append(designed_remez[i]);
 
     print_real_sequence("Input signal:", signal);
     cout << "Raw frame_signal frames: " << frames.size()
@@ -410,15 +508,29 @@ namespace
     cout << "Parallel STFT frames: " << parallel_spectrogram.size()
          << ", streamed STFT frames: " << streamed_spectrogram.size()
          << ", streamed ISTFT samples: " << streamed_reconstruction.size()
-         << ", batched STFT items: " << batched.size() << "\n";
+         << ", batched STFT items: " << batched.size()
+         << ", frame-major multichannel frames: " << frame_major.size() << "\n";
     print_real_sequence("ISTFT reconstruction:", reconstructed);
     print_real_sequence("Streamed ISTFT reconstruction:", streamed_reconstruction);
     print_real_sequence("Causal streamed IIR result:", causal_streamed);
     print_real_sequence("Zero-phase FIR result:", zero_phase_fir);
     print_real_sequence("Zero-phase IIR result:", zero_phase_iir);
+    print_real_sequence("firwin_lowpass taps (first 6):", designed_fir_preview);
+    print_real_sequence("firls low-pass taps (first 6):", designed_firls_preview);
+    print_real_sequence("remez low-pass taps (first 6):", designed_remez_preview);
+    print_real_sequence("Frame-major multichannel ISTFT(channel 0):",
+                        multichannel_reconstructed[0]);
     print_complex_sequence("STFT frame 0:", spectrogram[0]);
     print_complex_sequence("STFT frame 1:", spectrogram[1]);
     print_complex_sequence("IIR poles:", poles);
+    print_complex_sequence("Chebyshev-II band-pass response samples:",
+                           designed_bandpass_response.response);
+    print_complex_sequence("Elliptic band-stop response samples:",
+                           designed_elliptic_response.response);
+    print_complex_sequence("firls low-pass response samples:",
+                           designed_firls_response.response);
+    print_complex_sequence("remez low-pass response samples:",
+                           designed_remez_response.response);
     cout << "Pole/zero pairs tracked: " << pairs.size() << "\n";
     print_real_sequence("Estimated group delay:", group);
     print_real_sequence("Estimated phase delay:", phase);
@@ -434,8 +546,111 @@ namespace
          << "STFTProcessor and ISTFTProcessor keep chunked analysis/synthesis aligned\n"
          << "with the offline result, the centered STFT/ISTFT option pair reconstructs\n"
          << "the original signal exactly under NOLA, batched_stft() scales the API to\n"
-         << "multiple signals, and freqz() plus poles()/pair_poles_and_zeros(),\n"
-         << "stability_margin(), group_delay()/phase_delay() expose filter behavior.\n";
+         << "multiple signals, multichannel_stft()/multichannel_istft() switch between\n"
+         << "channel-major and frame-major layouts without manual transposes, and\n"
+         << "freqz() plus poles()/pair_poles_and_zeros(),\n"
+         << "stability_margin(), group_delay()/phase_delay() expose filter behavior.\n"
+         << "The same header also covers FIR design through firwin_*(), firls(), remez(),\n"
+         << "and reusable Chebyshev-II plus elliptic/Cauer SOS designs.\n";
+    print_rule();
+    cout << "\n";
+  }
+
+  void demo_production_dsp_utilities()
+  {
+    cout << "[7] Production DSP utilities\n";
+    cout << "Goal: Estimate PSD/coherence, resample by rational factors, and\n"
+         << "compare overlap-save with low-latency partitioned convolution.\n";
+    print_rule();
+
+    constexpr double sample_rate = 8000.0;
+    Array<double> signal;
+    signal.reserve(256);
+    Array<double> shifted_signal;
+    shifted_signal.reserve(256);
+    for (size_t i = 0; i < 256; ++i)
+      {
+        const double t = static_cast<double>(i) / sample_rate;
+        signal.append(std::sin(2.0 * std::numbers::pi * 1000.0 * t)
+                      + 0.35 * std::sin(2.0 * std::numbers::pi * 1800.0 * t));
+        shifted_signal.append(1.5 * std::sin(2.0 * std::numbers::pi * 1000.0 * t + 0.25)
+                              + 0.35 * std::sin(2.0 * std::numbers::pi * 1800.0 * t));
+      }
+
+    const auto window = FFTD::hann_window(64);
+    FFTD::WelchOptions welch_options;
+    welch_options.hop_size = 32;
+    welch_options.fft_size = 128;
+
+    const auto psd = FFTD::welch(signal, window, sample_rate, welch_options);
+    const auto cross = FFTD::csd(signal, shifted_signal, window, sample_rate, welch_options);
+    const auto coh = FFTD::coherence(signal, shifted_signal, window, sample_rate, welch_options);
+
+    size_t peak = 0;
+    for (size_t i = 1; i < psd.density.size(); ++i)
+      if (psd.density[i] > psd.density[peak])
+        peak = i;
+
+    Array<double> prototype = {1.0, -1.0, 2.0, 0.5};
+    Array<double> kernel = {0.25, 0.5, 0.25};
+    const auto upfirdn_result = FFTD::upfirdn(prototype, kernel, 3, 2);
+    const auto resampled = FFTD::resample_poly(signal, 3, 2);
+
+    FFTD::OverlapSave overlap_save(kernel, 16);
+    Array<double> overlap_save_streamed;
+    const auto overlap_first =
+      overlap_save.process_block(Array<double>({1.0, -1.0, 0.5}));
+    const auto overlap_second =
+      overlap_save.process_block(Array<double>({2.0, 0.25, -0.5, 1.0}));
+    const auto overlap_tail = overlap_save.flush();
+    for (size_t i = 0; i < overlap_first.size(); ++i)
+      overlap_save_streamed.append(overlap_first[i]);
+    for (size_t i = 0; i < overlap_second.size(); ++i)
+      overlap_save_streamed.append(overlap_second[i]);
+    for (size_t i = 0; i < overlap_tail.size(); ++i)
+      overlap_save_streamed.append(overlap_tail[i]);
+
+    FFTD::PartitionedConvolver partitioned(kernel, 8);
+    Array<double> partitioned_streamed;
+    const auto partitioned_first =
+      partitioned.process_block(Array<double>({1.0, -1.0, 0.5}));
+    const auto partitioned_second =
+      partitioned.process_block(Array<double>({2.0, 0.25, -0.5, 1.0}));
+    const auto partitioned_tail = partitioned.flush();
+    for (size_t i = 0; i < partitioned_first.size(); ++i)
+      partitioned_streamed.append(partitioned_first[i]);
+    for (size_t i = 0; i < partitioned_second.size(); ++i)
+      partitioned_streamed.append(partitioned_second[i]);
+    for (size_t i = 0; i < partitioned_tail.size(); ++i)
+      partitioned_streamed.append(partitioned_tail[i]);
+
+    Array<double> resampled_preview;
+    for (size_t i = 0; i < std::min<size_t>(10, resampled.size()); ++i)
+      resampled_preview.append(resampled[i]);
+    Array<double> upfirdn_preview;
+    for (size_t i = 0; i < std::min<size_t>(10, upfirdn_result.size()); ++i)
+      upfirdn_preview.append(upfirdn_result[i]);
+
+    print_real_sequence("upfirdn prototype result (first 10):", upfirdn_preview);
+    print_real_sequence("resample_poly(signal, 3/2) (first 10):", resampled_preview);
+    print_real_sequence("Overlap-save streaming result:", overlap_save_streamed);
+    print_real_sequence("Partitioned streaming result:", partitioned_streamed);
+
+    cout << "Welch peak frequency: " << psd.frequency[peak]
+         << " Hz, PSD = " << psd.density[peak] << "\n";
+    cout << "Cross-spectrum magnitude at that bin: "
+         << std::abs(cross.density[peak])
+         << ", coherence = " << coh.magnitude_squared[peak] << "\n";
+    cout << "Window coherent gain = " << FFTD::window_coherent_gain(window)
+         << ", ENBW = " << FFTD::window_enbw(window)
+         << ", frame count (exact) = "
+         << FFTD::frame_offsets(signal.size(), window.size(), welch_options.hop_size, false).size()
+         << "\n";
+
+    cout << "welch()/csd()/coherence() provide one-sided spectral estimators,\n"
+         << "upfirdn()/resample_poly() cover rational-rate sample conversion,\n"
+         << "overlap_save_convolution() targets block FIR filtering, and\n"
+         << "PartitionedConvolver keeps latency tied to the configured partition size.\n";
     print_rule();
     cout << "\n";
   }
@@ -465,6 +680,9 @@ int main()
 
   // Case 6: Short-time analysis and zero-phase FIR filtering.
   demo_stft_and_zero_phase_filtering();
+
+  // Case 7: Production DSP helpers on top of the FFT core.
+  demo_production_dsp_utilities();
 
   cout << "All demonstrations completed successfully.\n";
   return 0;

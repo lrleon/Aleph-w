@@ -236,19 +236,19 @@ public:
   void empty() noexcept { array.empty(); }
 
     /// Return `true` if stack is empty
-  bool is_empty() const noexcept { return array.size() == 0; }
+  [[nodiscard]] bool is_empty() const noexcept { return array.size() == 0; }
 
     /// Return the number of elements stored in the stack
-  size_t size() const noexcept { return array.size(); }
+  [[nodiscard]] size_t size() const noexcept { return array.size(); }
 
   /// Return the internal capacity
   size_t capacity() const noexcept { return array.capacity(); }
 
-  /** Traverse all the items of stack from the youngest to oldest and
+  /** Traverse all the items of the stack from the youngest to the oldest and
       conditionally performs an operation.
 
       @param[in] operation to perform on the current element. If it
-      returns `true`, the the traversal continues to the next item;
+      returns `true`, the traversal continues to the next item;
       otherwise the traversal stops
    */
   template <class Operation>
@@ -301,8 +301,8 @@ public:
   /** Fixed length stack.
 
       `FixedStack<T>` models a stack with a maximum capacity. In
-      addition, no operation performs checks, what gives to all
-      operations the more highest performance.
+      addition, no operation performs checks, which gives to all
+      operations the highest performance.
 
       \note Use this type when you have an precise idea about the
       maximum stack size and this last is not too big.
@@ -326,7 +326,7 @@ public:
   using Item_Type = T; /// The type of element
 
       /// Construct a fixed stack of maximum `d` items
-  FixedStack(size_t d = 1024)
+  FixedStack(const size_t d = 1024)
     // Don't change the default value because you would risk of
     // breaking the tests
     : array(new T[d]), head(0), dim(d)
@@ -425,7 +425,7 @@ public:
   /// \overload push(T && data)
   T & insert(T && data) noexcept { return push(std::forward<T>(data)); }
 
-    /** Push in contant time `n`spaces into stack
+    /** Push in constant time `n`spaces into stack
 
         @param[in] n number of cells to push
         @return a modifiable reference to stack's top
@@ -453,7 +453,7 @@ public:
        */
   T popn(const int & n) noexcept
   {
-    assert((int (head - n)) >= 0);
+    assert(static_cast<int>(head - n) >= 0);
 
     head -= n;
     return std::move(array[head]);
@@ -486,13 +486,13 @@ public:
   }
 
     /// Return `true` if stack is empty
-  bool is_empty() const noexcept { return head == 0; }
+  [[nodiscard]] bool is_empty() const noexcept { return head == 0; }
 
   /// Empty the stack
   void empty() noexcept { head = 0; }
 
     /// Return the number of elements stored in the stack
-  size_t size() const noexcept { return head; }
+  [[nodiscard]] size_t size() const noexcept { return head; }
 
   /** Traverse all the items of stack from the youngest to oldest and
       conditionally performs an operation.

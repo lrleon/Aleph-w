@@ -59,7 +59,7 @@ namespace Aleph {
   /** Queue implemented with a single dynamic array.
 
       `ArrayQueue<T>` represents a queue if elements of generic type `T`
-      which is stored in single dynamic. In this queue, modifiying
+      which is stored in single dynamic. In this queue, modifying
       operations test arrays bounds.
 
       The array is allocated with `new` operator and dynamically grows
@@ -123,9 +123,11 @@ public:
 
   /// Copy constructor
   ArrayQueue(const ArrayQueue & q)
-    : MemArray<T>(q), front_index(q.front_index), rear_index(q.rear_index)
+    requires std::is_copy_constructible_v<T>
+    : MemArray<T>(q.capacity()), front_index(0), rear_index(0)
   {
-
+    for (size_t i = 0; i < q.size(); ++i)
+      put(q.front(i));
   }
 
   /// Move constructor
@@ -137,24 +139,27 @@ public:
     q.rear_index = 0;
   }
 
+  ~ArrayQueue()
+  {
+    empty();
+  }
+
   Special_Ctors(ArrayQueue, T);
 
   /// Copy assign
   ArrayQueue & operator = (const ArrayQueue & q)
+    requires std::is_copy_constructible_v<T>
   {
     if (this == &q)
       return *this;
 
-    static_cast<MemArray<T>&>(*this) = q;
-
-    front_index = q.front_index;
-    rear_index = q.rear_index;
-
+    ArrayQueue tmp(q);
+    swap(tmp);
     return *this;
   }
 
   /// Move assign
-  ArrayQueue & operator = (ArrayQueue && q)
+  ArrayQueue & operator = (ArrayQueue && q) noexcept
   {
     std::swap(front_index, q.front_index);
     std::swap(rear_index, q.rear_index);
@@ -166,7 +171,7 @@ private:
 
   T & complete_put() noexcept
   {
-    T & ret_val = this->access(rear_index);
+    T & ret_val = this->ptr[rear_index];
     increase_index(rear_index);
     ++this->n;
     return ret_val;
@@ -181,10 +186,11 @@ public:
           @throw bad_alloc if there is no enough memory
        */
   T & put(const T & item)
+    requires std::is_copy_constructible_v<T>
   {
     if (this->expand(front_index))
       recenter_indices();
-    this->access(rear_index) = item;
+    new (this->ptr + rear_index) T(item);
     return complete_put();
   }
 
@@ -193,7 +199,7 @@ public:
   {
     if (this->expand(front_index))
       recenter_indices();
-    this->access(rear_index) = std::forward<T>(item);
+    new (this->ptr + rear_index) T(std::forward<T>(item));
     return complete_put();
   }
 
@@ -223,6 +229,7 @@ public:
           @throw bad_alloc if there is no enough memory
        */
   T & putn(size_t sz)
+    requires std::is_default_constructible_v<T>
   {
     const size_t max_sz = 2*this->dim - this->n;
     ah_overflow_error_if(sz > max_sz) << "Maximum putn size reached";
@@ -239,8 +246,12 @@ public:
           }
 
         const size_t delta = remaining < available ? remaining : available;
-        increase_index(rear_index, delta);
-        this->n += delta;
+        for (size_t i = 0; i < delta; ++i)
+          {
+            new (this->ptr + rear_index) T;
+            increase_index(rear_index);
+            ++this->n;
+          }
         remaining -= delta;
       }
 
@@ -256,8 +267,9 @@ public:
   {
     ah_underflow_error_if(this->n == 0) << "queue is empty";
 
-    T ret_val = std::move(this->access(front_index));
-    this->n--;
+    T ret_val = std::move(this->ptr[front_index]);
+    this->destroy_one(this->ptr + front_index);
+    --(this->n);
     increase_index(front_index);
 
     if (this->contract(front_index))
@@ -276,6 +288,7 @@ public:
   {
     ah_underflow_error_if(i >= this->n) << "queue is empty";
 
+    this->destroy_elems_circular(this->ptr, front_index, i, this->dim - 1);
     this->n -= i;
     increase_index(front_index, i);
 
@@ -309,6 +322,18 @@ public:
     ah_range_error_if(i >= this->n) << "index of rear out of range";
 
     return rear_item(i);
+  }
+
+  void empty() noexcept
+  {
+    if (this->ptr != nullptr and this->n != 0)
+      this->destroy_elems_circular(this->ptr,
+                                   front_index,
+                                   this->n,
+                                   this->dim - 1);
+    this->n = 0;
+    front_index = 0;
+    rear_index = 0;
   }
 
   /** Traverse all the elements from the youngest to the oldest and execute
@@ -388,8 +413,6 @@ class FixedQueue : public LocateFunctions<FixedQueue<T>, T>,
                    public EqualToMethod<FixedQueue<T>>,
                    public StlAlephIterator<FixedQueue<T>>
 {
-private:
-
   size_t dim;
   T *    array;
   size_t front_index; /* index of oldest inserted item */

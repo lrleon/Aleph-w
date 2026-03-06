@@ -47,6 +47,7 @@ Idioma: Español | [English](README.md)
   - [Árboles de expansión mínima](#readme-es-mst)
   - [Flujos en redes](#readme-es-flujos)
   - [Conectividad en grafos](#readme-es-conectividad)
+  - [2-SAT (Satisfacibilidad)](#readme-es-two-sat)
   - [Emparejamiento (matching)](#readme-es-emparejamiento)
   - [Algoritmos de strings](#readme-es-algoritmos-de-cadenas)
   - [Algoritmos de ordenamiento](#readme-es-algoritmos-de-ordenamiento)
@@ -2187,6 +2188,66 @@ int main() {
     // Class form: cheaper when calling find_bridges() repeatedly
     Compute_Bridges<Graph> cb(g);
     auto b2 = cb.find_bridges(nodes[2]); // start from a specific node
+
+    return 0;
+}
+```
+
+<a id="readme-es-two-sat"></a>
+### 2-SAT (Satisfacibilidad)
+
+El problema de **2-satisfacibilidad** (2-SAT) determina si una fórmula booleana en CNF, con dos literales por cláusula, es satisfacible. Aleph-w ofrece un resolvedor en tiempo lineal `O(V+E)` basado en el grafo de implicación y el algoritmo de componentes fuertemente conexas (SCC) de Tarjan.
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       RESUMEN DEL RESOLVEDOR 2-SAT                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  FÓRMULA: (x0 v x1) ∧ (~x0 v x2) ∧ (~x1 v ~x2)                              │
+│                                                                             │
+│  GRAFO DE IMPLICACIÓN:                                                      │
+│  ~x0 ──▶ x1       x0 ──▶ x2       x1 ──▶ ~x2                                │
+│  ~x1 ──▶ x0      ~x2 ──▶ ~x0      x2 ──▶ ~x1                                │
+│                                                                             │
+│  ALGORITMO:                                                                 │
+│  1. Construir el grafo de implicación con 2N nodos.                         │
+│  2. Calcular Componentes Fuertemente Conexas (SCC).                         │
+│  3. La fórmula es SAT sii ningún par x y ~x están en la misma SCC.          │
+│  4. Si es SAT, el orden topológico de las SCC da una asignación válida.      │
+│                                                                             │
+│  Complejidad: O(n + m) para n variables y m cláusulas                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Ejemplos de uso
+
+```cpp
+#include <Two_Sat.H>
+
+int main() {
+    // Resolver: (x0 OR x1) AND (~x0 OR x2) AND (~x1 OR ~x2)
+    Two_Sat<> sat(3);
+
+    // Usando índices de literales
+    sat.add_clause(sat.pos_lit(0), sat.pos_lit(1));  // x0 v x1
+    sat.add_clause(sat.neg_lit(0), sat.pos_lit(2));  // ~x0 v x2
+    sat.add_clause(sat.neg_lit(1), sat.neg_lit(2));  // ~x1 v ~x2
+
+    // Verificar satisfacibilidad y obtener asignación
+    auto [ok, assignment] = sat.solve();
+
+    if (ok) {
+        bool x0 = assignment(0);
+        bool x1 = assignment(1);
+        bool x2 = assignment(2);
+    }
+
+    // Usando la API de variables signadas 1-based (más conciso)
+    Two_Sat<> sat2(3);
+    sat2.add_clause_signed(1, 2);    // x0 v x1
+    sat2.add_clause_signed(-1, 3);   // ~x0 v x2
+    sat2.add_clause_signed(-2, -3);  // ~x1 v ~x2
 
     return 0;
 }

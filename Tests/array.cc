@@ -50,6 +50,18 @@ using namespace Aleph;
 
 namespace {
 
+struct NoDefaultArrayItem
+{
+  int value;
+
+  explicit NoDefaultArrayItem(const int v) : value(v) {}
+
+  NoDefaultArrayItem(const NoDefaultArrayItem &) = default;
+  NoDefaultArrayItem(NoDefaultArrayItem &&) noexcept = default;
+  NoDefaultArrayItem & operator = (const NoDefaultArrayItem &) = default;
+  NoDefaultArrayItem & operator = (NoDefaultArrayItem &&) noexcept = default;
+};
+
 TEST(ArrayBasics, DefaultConstructionAndBase)
 {
   Array<int> arr;
@@ -129,6 +141,34 @@ TEST(ArrayCopyMove, CopyAndMoveSemantics)
   move_assigned = std::move(moved);
   EXPECT_EQ(move_assigned.size(), 4u);
   EXPECT_EQ(move_assigned[3], 4);
+}
+
+TEST(ArrayNoDefaultCtor, ReserveAndAppend)
+{
+  Array<NoDefaultArrayItem> arr;
+  arr.reserve(17);
+  arr.append(NoDefaultArrayItem(1));
+  arr.append(NoDefaultArrayItem(2));
+  arr.reserve(65);
+  arr.append(NoDefaultArrayItem(3));
+
+  ASSERT_EQ(arr.size(), 3u);
+  EXPECT_EQ(arr[0].value, 1);
+  EXPECT_EQ(arr[1].value, 2);
+  EXPECT_EQ(arr[2].value, 3);
+}
+
+TEST(ArrayNoDefaultCtor, InsertAtFront)
+{
+  Array<NoDefaultArrayItem> arr;
+  arr.append(NoDefaultArrayItem(2));
+  arr.append(NoDefaultArrayItem(3));
+  arr.insert(NoDefaultArrayItem(1));
+
+  ASSERT_EQ(arr.size(), 3u);
+  EXPECT_EQ(arr[0].value, 1);
+  EXPECT_EQ(arr[1].value, 2);
+  EXPECT_EQ(arr[2].value, 3);
 }
 
 TEST(ArrayCapacity, ReservePutnAndSwap)

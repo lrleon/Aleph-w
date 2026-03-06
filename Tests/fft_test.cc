@@ -35,6 +35,7 @@
 
 # include <gtest/gtest.h>
 
+# include <algorithm>
 # include <cmath>
 # include <complex>
 # include <numbers>
@@ -79,6 +80,28 @@ namespace
       EXPECT_NEAR(lhs[i], rhs[i], tol);
   }
 
+  size_t half_spectrum_index(const double frequency,
+                             const double sample_rate,
+                             const size_t num_points)
+  {
+    const double scaled =
+      frequency / (sample_rate / 2.0) * static_cast<double>(num_points - 1);
+    const long long rounded = std::llround(scaled);
+    if (rounded < 0)
+      return 0;
+    const size_t idx = static_cast<size_t>(rounded);
+    return std::min(idx, num_points - 1);
+  }
+
+  double response_magnitude_at(const FFTD::FrequencyResponse & response,
+                               const double frequency,
+                               const double sample_rate)
+  {
+    return std::abs(response.response[half_spectrum_index(frequency,
+                                                          sample_rate,
+                                                          response.response.size())]);
+  }
+
   void expect_spectrogram_near(const Array<Array<Complex>> & lhs,
                                const Array<Array<Complex>> & rhs,
                                const double tol = eps)
@@ -86,6 +109,33 @@ namespace
     ASSERT_EQ(lhs.size(), rhs.size());
     for (size_t i = 0; i < lhs.size(); ++i)
       expect_complex_array_near(lhs[i], rhs[i], tol);
+  }
+
+  void expect_matrix_near(const Array<Array<Complex>> & lhs,
+                          const Array<Array<Complex>> & rhs,
+                          const double tol = eps)
+  {
+    ASSERT_EQ(lhs.size(), rhs.size());
+    for (size_t i = 0; i < lhs.size(); ++i)
+      expect_complex_array_near(lhs[i], rhs[i], tol);
+  }
+
+  void expect_tensor3_near(const Array<Array<Array<Complex>>> & lhs,
+                           const Array<Array<Array<Complex>>> & rhs,
+                           const double tol = eps)
+  {
+    ASSERT_EQ(lhs.size(), rhs.size());
+    for (size_t i = 0; i < lhs.size(); ++i)
+      expect_matrix_near(lhs[i], rhs[i], tol);
+  }
+
+  void expect_real_batch_near(const Array<Array<double>> & lhs,
+                              const Array<Array<double>> & rhs,
+                              const double tol = eps)
+  {
+    ASSERT_EQ(lhs.size(), rhs.size());
+    for (size_t i = 0; i < lhs.size(); ++i)
+      expect_real_array_near(lhs[i], rhs[i], tol);
   }
 
   void append_spectrogram(Array<Array<Complex>> & dst,
@@ -127,6 +177,35 @@ namespace
 
         EXPECT_TRUE(found) << "Unexpected complex root " << lhs[i];
       }
+  }
+
+  Array<double> real_polynomial_from_roots(const Array<Complex> & roots)
+  {
+    Array<Complex> coeffs = Array<Complex>::create(1);
+    coeffs(0) = Complex(1.0, 0.0);
+
+    for (size_t i = 0; i < roots.size(); ++i)
+      {
+        Array<Complex> next = Array<Complex>::create(coeffs.size() + 1);
+        for (size_t j = 0; j < next.size(); ++j)
+          next(j) = Complex(0.0, 0.0);
+
+        for (size_t j = 0; j < coeffs.size(); ++j)
+          {
+            next(j) += coeffs[j];
+            next(j + 1) -= coeffs[j] * roots[i];
+          }
+
+        coeffs = std::move(next);
+      }
+
+    Array<double> output = Array<double>::create(coeffs.size());
+    for (size_t i = 0; i < coeffs.size(); ++i)
+      {
+        EXPECT_NEAR(coeffs[i].imag(), 0.0, 1e-10);
+        output(i) = coeffs[i].real();
+      }
+    return output;
   }
 
   Array<Complex> lift_real_input(const Array<double> & input)
@@ -197,6 +276,54 @@ namespace
         output(i + j) += a[i] * b[j];
 
     return output;
+  }
+
+  Array<double> naive_upfirdn(const Array<double> & signal,
+                              const Array<double> & coeffs,
+                              const size_t up,
+                              const size_t down)
+  {
+    if (signal.is_empty() or coeffs.is_empty())
+      return {};
+
+    Array<double> upsampled = Array<double>::create(signal.size() * up);
+    for (size_t i = 0; i < upsampled.size(); ++i)
+      upsampled(i) = 0.0;
+    for (size_t i = 0; i < signal.size(); ++i)
+      upsampled(i * up) = signal[i];
+
+    const Array<double> filtered = naive_convolution(upsampled, coeffs);
+    const size_t output_size = (filtered.size() + down - 1) / down;
+    Array<double> output = Array<double>::create(output_size);
+    for (size_t i = 0; i < output.size(); ++i)
+      output(i) = filtered[i * down];
+    return output;
+  }
+
+  Array<double> sine_signal(const size_t n,
+                            const double sample_rate,
+                            const double frequency,
+                            const double amplitude = 1.0,
+                            const double phase = 0.0)
+  {
+    Array<double> signal;
+    signal.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+      signal.append(amplitude
+                    * std::sin(2.0 * std::numbers::pi * frequency
+                               * static_cast<double>(i) / sample_rate
+                               + phase));
+    return signal;
+  }
+
+  size_t max_index(const Array<double> & input)
+  {
+    EXPECT_FALSE(input.is_empty());
+    size_t index = 0;
+    for (size_t i = 1; i < input.size(); ++i)
+      if (input[i] > input[index])
+        index = i;
+    return index;
   }
 
   Array<double> reverse_real_array(const Array<double> & input)
@@ -587,13 +714,10 @@ namespace
   }
 }
 
-TEST(FFT, TransformRejectsInvalidInput)
+TEST(FFT, TransformRejectsOnlyEmptyInput)
 {
   Array<Complex> empty;
   EXPECT_THROW(FFTD::transform(empty, false), std::invalid_argument);
-
-  Array<Complex> bad = {Complex(1.0, 0.0), Complex(2.0, 0.0), Complex(3.0, 0.0)};
-  EXPECT_THROW(FFTD::transform(bad, false), std::invalid_argument);
 }
 
 TEST(FFT, PowerOfTwoPredicate)
@@ -602,6 +726,25 @@ TEST(FFT, PowerOfTwoPredicate)
   EXPECT_TRUE(FFTD::is_power_of_two(1));
   EXPECT_TRUE(FFTD::is_power_of_two(8));
   EXPECT_FALSE(FFTD::is_power_of_two(12));
+}
+
+TEST(FFT, SimdBackendNameIsRecognized)
+{
+  const std::string backend = FFTD::simd_backend_name();
+  const std::string batch_backend = FFTD::batched_plan_simd_backend_name();
+  const std::string detected = FFTD::detected_simd_backend_name();
+  const std::string preference = FFTD::simd_preference_name();
+  EXPECT_TRUE(backend == "scalar" or backend == "avx2" or backend == "neon");
+  EXPECT_TRUE(batch_backend == "scalar" or batch_backend == "avx2"
+              or batch_backend == "neon");
+  EXPECT_TRUE(detected == "scalar" or detected == "avx2" or detected == "neon");
+  EXPECT_TRUE(preference == "auto" or preference == "scalar"
+              or preference == "avx2" or preference == "neon");
+  EXPECT_FALSE(FFTD::avx2_runtime_available() and FFTD::neon_runtime_available());
+  EXPECT_FALSE(FFTD::avx2_runtime_available() and not FFTD::avx2_kernel_compiled());
+  EXPECT_FALSE(FFTD::neon_runtime_available() and not FFTD::neon_kernel_compiled());
+  EXPECT_EQ(FFTD::avx2_runtime_available(), detected == "avx2");
+  EXPECT_EQ(FFTD::neon_runtime_available(), detected == "neon");
 }
 
 TEST(FFT, ComplexRoundTrip)
@@ -629,7 +772,9 @@ TEST(FFT, MatchesNaiveDFTForComplexSignals)
   std::mt19937_64 rng(20260305);
   std::uniform_real_distribution<double> dist(-5.0, 5.0);
 
-  for (const size_t n : {size_t(2), size_t(4), size_t(8), size_t(16)})
+  for (const size_t n : {size_t(2), size_t(3), size_t(4), size_t(5),
+                         size_t(6), size_t(8), size_t(10), size_t(15),
+                         size_t(16), size_t(17)})
     {
       Array<Complex> signal;
       signal.reserve(n);
@@ -644,12 +789,32 @@ TEST(FFT, MatchesNaiveDFTForComplexSignals)
 
 TEST(FFT, RealTransformMatchesLiftedComplexTransform)
 {
-  Array<double> signal = {1.0, 2.0, -1.0, 0.5, 3.0, -2.0, 4.0, -0.75};
+  Array<double> signal = {1.0, 2.0, -1.0, 0.5, 3.0, -2.0, 4.0, -0.75, 1.25};
 
   const auto real_spectrum = FFTD::transform(signal);
   const auto complex_spectrum = FFTD::transformed(lift_real_input(signal), false);
 
   expect_complex_array_near(real_spectrum, complex_spectrum, 1e-8);
+}
+
+TEST(FFT, ArbitraryLengthRoundTrip)
+{
+  std::mt19937_64 rng(20260306);
+  std::uniform_real_distribution<double> dist(-4.0, 4.0);
+
+  for (const size_t n : {size_t(3), size_t(5), size_t(6), size_t(10),
+                         size_t(12), size_t(15), size_t(17)})
+    {
+      Array<Complex> signal;
+      signal.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        signal.append(Complex(dist(rng), dist(rng)));
+
+      Array<Complex> work = signal;
+      FFTD::transform(work, false);
+      FFTD::transform(work, true);
+      expect_complex_array_near(work, signal, 1e-8);
+    }
 }
 
 TEST(FFT, AcceptsGenericComplexContainers)
@@ -793,6 +958,27 @@ TEST(FFT, ParallelComplexTransformMatchesSequential)
   expect_complex_array_near(work, expected, 1e-8);
 }
 
+TEST(FFT, ParallelArbitraryLengthComplexTransformMatchesSequential)
+{
+  ThreadPool pool(4);
+  Array<Complex> signal = {
+    Complex(1.5, -0.5),
+    Complex(-2.0, 3.0),
+    Complex(0.25, 4.5),
+    Complex(7.0, -1.0),
+    Complex(-3.5, 2.25),
+    Complex(1.0, 0.0),
+    Complex(2.0, -2.0),
+    Complex(-1.25, 0.75),
+    Complex(0.5, -0.25),
+    Complex(-0.75, 1.5)
+  };
+
+  const auto expected = FFTD::transformed(signal, false);
+  const auto obtained = FFTD::ptransformed(pool, signal, false);
+  expect_complex_array_near(obtained, expected, 1e-8);
+}
+
 TEST(FFT, ParallelRealTransformMatchesSequential)
 {
   ThreadPool pool(4);
@@ -805,7 +991,7 @@ TEST(FFT, ParallelRealTransformMatchesSequential)
 
 TEST(FFT, RealInverseRestoresSignal)
 {
-  Array<double> signal = {0.5, -1.25, 3.5, 2.0, -0.75, 4.25, 1.0, -2.0};
+  Array<double> signal = {0.5, -1.25, 3.5, 2.0, -0.75, 4.25, 1.0, -2.0, 0.25};
 
   const auto spectrum = FFTD::transform(signal);
   const auto restored = FFTD::inverse_transform_real(spectrum);
@@ -836,6 +1022,43 @@ TEST(FFT, RealSpectrumHasHermitianSymmetry)
 
   for (size_t k = 1; k < 4; ++k)
     expect_complex_near(spectrum[k], std::conj(spectrum[8 - k]), 1e-8);
+}
+
+TEST(FFT, CompactRealSpectrumMatchesFullSpectrum)
+{
+  Array<double> even_signal = {1.0, -2.0, 0.5, 3.5, -1.0, 4.0};
+  Array<double> odd_signal = {0.25, -1.5, 2.0, 0.0, -0.75, 1.25, 3.0};
+
+  const auto even_full = FFTD::transform(even_signal);
+  const auto even_compact = FFTD::rfft(even_signal);
+  ASSERT_EQ(even_compact.size(), even_signal.size() / 2 + 1);
+  for (size_t i = 0; i < even_compact.size(); ++i)
+    expect_complex_near(even_compact[i], even_full[i], 1e-8);
+
+  const auto odd_full = FFTD::transform(odd_signal);
+  const auto odd_compact = FFTD::rfft(odd_signal);
+  ASSERT_EQ(odd_compact.size(), odd_signal.size() / 2 + 1);
+  for (size_t i = 0; i < odd_compact.size(); ++i)
+    expect_complex_near(odd_compact[i], odd_full[i], 1e-8);
+}
+
+TEST(FFT, CompactRealInverseRestoresEvenAndOddSignals)
+{
+  ThreadPool pool(4);
+
+  Array<double> even_signal = {1.0, -2.0, 0.5, 3.5, -1.0, 4.0};
+  const auto even_compact = FFTD::rfft(even_signal);
+  expect_real_array_near(FFTD::irfft(even_compact), even_signal, 1e-8);
+  expect_real_array_near(FFTD::pirfft(pool, even_compact), even_signal, 1e-8);
+
+  Array<double> odd_signal = {0.25, -1.5, 2.0, 0.0, -0.75, 1.25, 3.0};
+  const auto odd_compact = FFTD::rfft(odd_signal);
+  expect_real_array_near(FFTD::irfft(odd_compact, odd_signal.size()), odd_signal, 1e-8);
+  expect_real_array_near(FFTD::pirfft(pool,
+                                      odd_compact,
+                                      odd_signal.size()),
+                         odd_signal,
+                         1e-8);
 }
 
 TEST(FFT, KnownSignalsProduceExpectedSpectra)
@@ -1036,14 +1259,16 @@ TEST(FFT, LongDoubleRoundTrip)
 // Plan tests
 // ---------------------------------------------------------------------------
 
-TEST(FFTPlan, ConstructionRejectsInvalidSizes)
+TEST(FFTPlan, ConstructionAcceptsArbitraryPositiveSizes)
 {
   EXPECT_THROW(FFTD::Plan(0), std::invalid_argument);
-  EXPECT_THROW(FFTD::Plan(3), std::invalid_argument);
-  EXPECT_THROW(FFTD::Plan(6), std::invalid_argument);
   EXPECT_NO_THROW(FFTD::Plan(1));
   EXPECT_NO_THROW(FFTD::Plan(2));
+  EXPECT_NO_THROW(FFTD::Plan(3));
+  EXPECT_NO_THROW(FFTD::Plan(6));
   EXPECT_NO_THROW(FFTD::Plan(8));
+  EXPECT_NO_THROW(FFTD::Plan(15));
+  EXPECT_NO_THROW(FFTD::Plan(17));
   EXPECT_NO_THROW(FFTD::Plan(1024));
 }
 
@@ -1074,8 +1299,10 @@ TEST(FFTPlan, MatchesStaticTransform)
   std::mt19937_64 rng(99887766);
   std::uniform_real_distribution<double> dist(-5.0, 5.0);
 
-  for (const size_t n : {size_t(1), size_t(2), size_t(4), size_t(8),
-                         size_t(16), size_t(64), size_t(256), size_t(1024)})
+  for (const size_t n : {size_t(1), size_t(2), size_t(3), size_t(4),
+                         size_t(5), size_t(6), size_t(8), size_t(10),
+                         size_t(15), size_t(16), size_t(17), size_t(64),
+                         size_t(256), size_t(1024)})
     {
       FFTD::Plan plan(n);
       Array<Complex> signal;
@@ -1094,7 +1321,8 @@ TEST(FFTPlan, RoundTrip)
   std::mt19937_64 rng(55443322);
   std::uniform_real_distribution<double> dist(-10.0, 10.0);
 
-  for (const size_t n : {size_t(2), size_t(8), size_t(64), size_t(512)})
+  for (const size_t n : {size_t(2), size_t(3), size_t(5), size_t(8),
+                         size_t(15), size_t(17), size_t(64), size_t(512)})
     {
       FFTD::Plan plan(n);
       Array<Complex> signal;
@@ -1134,13 +1362,13 @@ TEST(FFTPlan, ReusePlanForMultipleTransforms)
 
 TEST(FFTPlan, InverseTransformReal)
 {
-  Array<double> signal = {0.5, -1.25, 3.5, 2.0, -0.75, 4.25, 1.0, -2.0};
+  Array<double> signal = {0.5, -1.25, 3.5, 2.0, -0.75, 4.25, 1.0, -2.0, 0.25};
   Array<Complex> lifted;
-  lifted.reserve(8);
+  lifted.reserve(signal.size());
   for (size_t i = 0; i < signal.size(); ++i)
     lifted.append(Complex(signal[i], 0.0));
 
-  FFTD::Plan plan(8);
+  FFTD::Plan plan(signal.size());
   auto spectrum = plan.transformed(lifted, false);
   auto restored = plan.inverse_transform_real(spectrum);
 
@@ -1191,7 +1419,8 @@ TEST(FFTPlan, ParallelMatchesSequential)
   std::mt19937_64 rng(33221100);
   std::uniform_real_distribution<double> dist(-5.0, 5.0);
 
-  for (const size_t n : {size_t(8), size_t(64), size_t(256), size_t(1024)})
+  for (const size_t n : {size_t(8), size_t(10), size_t(15),
+                         size_t(17), size_t(64), size_t(256), size_t(1024)})
     {
       FFTD::Plan plan(n);
       Array<Complex> signal;
@@ -1207,6 +1436,156 @@ TEST(FFTPlan, ParallelMatchesSequential)
       const auto par_inv = plan.ptransformed(pool, signal, true);
       expect_complex_array_near(seq_inv, par_inv, 1e-9);
     }
+}
+
+TEST(FFTPlan, BatchTransformMatchesScalarLoop)
+{
+  ThreadPool pool(4);
+  std::mt19937_64 rng(76543210);
+  std::uniform_real_distribution<double> dist(-3.0, 3.0);
+
+  const size_t n = 17;
+  FFTD::Plan plan(n);
+  Array<Array<Complex>> batch;
+  batch.reserve(6);
+  for (size_t item = 0; item < 6; ++item)
+    {
+      Array<Complex> signal;
+      signal.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        signal.append(Complex(dist(rng), dist(rng)));
+      batch.append(signal);
+    }
+
+  const auto sequential_batch = plan.transformed_batch(batch, false);
+  const auto parallel_batch = plan.ptransformed_batch(pool, batch, false);
+  ASSERT_EQ(sequential_batch.size(), batch.size());
+  ASSERT_EQ(parallel_batch.size(), batch.size());
+  for (size_t i = 0; i < batch.size(); ++i)
+    {
+      const auto expected = plan.transformed(batch[i], false);
+      expect_complex_array_near(sequential_batch[i], expected, 1e-9);
+      expect_complex_array_near(parallel_batch[i], expected, 1e-9);
+    }
+
+  const auto restored = plan.inverse_transform_batch(sequential_batch);
+  const auto parallel_restored = plan.pinverse_transform_batch(pool, sequential_batch);
+  for (size_t i = 0; i < batch.size(); ++i)
+    {
+      expect_complex_array_near(restored[i], batch[i], 1e-8);
+      expect_complex_array_near(parallel_restored[i], batch[i], 1e-8);
+    }
+}
+
+TEST(FFTPlan, BatchTransformRejectsMismatchedSizes)
+{
+  ThreadPool pool(4);
+  FFTD::Plan plan(8);
+  Array<Array<Complex>> batch = {
+    Array<Complex>({Complex(1.0, 0.0), Complex(0.0, 1.0), Complex(-1.0, 0.0),
+                    Complex(0.0, -1.0), Complex(0.5, 0.25), Complex(-0.5, 0.75),
+                    Complex(1.25, -0.5), Complex(-0.25, 0.5)}),
+    Array<Complex>({Complex(1.0, 0.0), Complex(2.0, 0.0)})
+  };
+
+  EXPECT_THROW(plan.transform_batch(batch, false), std::invalid_argument);
+  EXPECT_THROW(plan.ptransform_batch(pool, batch, false), std::invalid_argument);
+  EXPECT_THROW(FFTD::transformed_batch(batch, false), std::invalid_argument);
+  EXPECT_THROW(FFTD::ptransformed_batch(pool, batch, false), std::invalid_argument);
+}
+
+TEST(FFTPlan, BatchCompactRealSpectrumMatchesScalarLoop)
+{
+  ThreadPool pool(4);
+  std::mt19937_64 rng(123456789);
+  std::uniform_real_distribution<double> dist(-2.0, 2.0);
+
+  const size_t n = 15;
+  FFTD::Plan plan(n);
+  Array<Array<double>> batch;
+  batch.reserve(5);
+  for (size_t item = 0; item < 5; ++item)
+    {
+      Array<double> signal;
+      signal.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        signal.append(dist(rng));
+      batch.append(signal);
+    }
+
+  const auto sequential = plan.rfft_batch(batch);
+  const auto parallel = plan.prfft_batch(pool, batch);
+  const auto restored = plan.irfft_batch(sequential);
+  const auto parallel_restored = plan.pirfft_batch(pool, sequential);
+
+  ASSERT_EQ(sequential.size(), batch.size());
+  ASSERT_EQ(parallel.size(), batch.size());
+  ASSERT_EQ(restored.size(), batch.size());
+  ASSERT_EQ(parallel_restored.size(), batch.size());
+  for (size_t i = 0; i < batch.size(); ++i)
+    {
+      const auto expected = plan.rfft(batch[i]);
+      expect_complex_array_near(sequential[i], expected, 1e-8);
+      expect_complex_array_near(parallel[i], expected, 1e-8);
+      expect_real_array_near(restored[i], batch[i], 1e-8);
+      expect_real_array_near(parallel_restored[i], batch[i], 1e-8);
+    }
+}
+
+TEST(FFTPlan, BatchInverseTransformRealMatchesScalarLoop)
+{
+  ThreadPool pool(4);
+  std::mt19937_64 rng(987654321);
+  std::uniform_real_distribution<double> dist(-2.5, 2.5);
+
+  const size_t n = 32;
+  FFTD::Plan plan(n);
+  Array<Array<Complex>> spectra;
+  spectra.reserve(4);
+  Array<Array<double>> expected;
+  expected.reserve(4);
+
+  for (size_t item = 0; item < 4; ++item)
+    {
+      Array<double> signal;
+      Array<Complex> lifted;
+      signal.reserve(n);
+      lifted.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        {
+          const double sample = dist(rng);
+          signal.append(sample);
+          lifted.append(Complex(sample, 0.0));
+        }
+      expected.append(signal);
+      spectra.append(plan.transformed(lifted, false));
+    }
+
+  const auto sequential = plan.inverse_transform_real_batch(spectra);
+  const auto parallel = plan.pinverse_transform_real_batch(pool, spectra);
+  ASSERT_EQ(sequential.size(), expected.size());
+  ASSERT_EQ(parallel.size(), expected.size());
+  for (size_t i = 0; i < expected.size(); ++i)
+    {
+      expect_real_array_near(sequential[i], expected[i], 1e-8);
+      expect_real_array_near(parallel[i], expected[i], 1e-8);
+    }
+}
+
+TEST(FFTPlan, CompactRealSpectrumRoundTrip)
+{
+  ThreadPool pool(4);
+  Array<double> signal = {1.0, -2.0, 0.5, 3.5, -1.0, 4.0, 0.75};
+
+  FFTD::Plan plan(signal.size());
+  const auto compact = plan.rfft(signal);
+  const auto parallel_compact = plan.prfft(pool, signal);
+  expect_complex_array_near(compact, parallel_compact, 1e-8);
+
+  const auto restored = plan.irfft(compact);
+  const auto parallel_restored = plan.pirfft(pool, compact);
+  expect_real_array_near(restored, signal, 1e-8);
+  expect_real_array_near(parallel_restored, signal, 1e-8);
 }
 
 TEST(FFTPlan, FloatPlan)
@@ -1900,6 +2279,148 @@ TEST(FFTWindows, DegenerateSizes)
   expect_real_array_near(FFTD::blackman_window(1), singleton, 1e-12);
 }
 
+TEST(FFTWindows, KaiserWindowAndFirwinDesignsShowExpectedResponseShape)
+{
+  const auto beta = FFTD::kaiser_beta(60.0);
+  EXPECT_NEAR(beta, 0.1102 * (60.0 - 8.7), 1e-12);
+
+  const auto kaiser = FFTD::kaiser_window(9, beta);
+  ASSERT_EQ(kaiser.size(), 9u);
+  EXPECT_NEAR(kaiser[0], kaiser[8], 1e-12);
+  EXPECT_NEAR(kaiser[1], kaiser[7], 1e-12);
+  EXPECT_NEAR(kaiser[2], kaiser[6], 1e-12);
+  EXPECT_NEAR(kaiser[3], kaiser[5], 1e-12);
+  EXPECT_NEAR(kaiser[4], 1.0, 1e-12);
+  EXPECT_LT(kaiser[0], kaiser[4]);
+
+  constexpr double sample_rate = 8000.0;
+  constexpr size_t num_points = 2049;
+
+  const auto fir_lp = FFTD::firwin_lowpass(65, 900.0, sample_rate, 70.0);
+  const auto fir_hp = FFTD::firwin_highpass(65, 900.0, sample_rate, 70.0);
+  const auto fir_bp = FFTD::firwin_bandpass(65, 700.0, 1500.0, sample_rate, 70.0);
+  const auto fir_bs = FFTD::firwin_bandstop(65, 700.0, 1500.0, sample_rate, 70.0);
+
+  const auto fir_lp_response = FFTD::freqz(fir_lp, num_points, false);
+  const auto fir_hp_response = FFTD::freqz(fir_hp, num_points, false);
+  const auto fir_bp_response = FFTD::freqz(fir_bp, num_points, false);
+  const auto fir_bs_response = FFTD::freqz(fir_bs, num_points, false);
+
+  EXPECT_NEAR(response_magnitude_at(fir_lp_response, 0.0, sample_rate), 1.0, 1e-6);
+  EXPECT_LT(response_magnitude_at(fir_lp_response, 2600.0, sample_rate), 0.01);
+
+  EXPECT_LT(response_magnitude_at(fir_hp_response, 0.0, sample_rate), 0.01);
+  EXPECT_GT(response_magnitude_at(fir_hp_response, 3200.0, sample_rate), 0.95);
+
+  EXPECT_LT(response_magnitude_at(fir_bp_response, 200.0, sample_rate), 0.02);
+  EXPECT_GT(response_magnitude_at(fir_bp_response, 1000.0, sample_rate), 0.95);
+  EXPECT_LT(response_magnitude_at(fir_bp_response, 2600.0, sample_rate), 0.02);
+
+  EXPECT_GT(response_magnitude_at(fir_bs_response, 200.0, sample_rate), 0.95);
+  EXPECT_LT(response_magnitude_at(fir_bs_response, 1000.0, sample_rate), 0.05);
+  EXPECT_GT(response_magnitude_at(fir_bs_response, 2600.0, sample_rate), 0.95);
+
+  EXPECT_THROW(FFTD::kaiser_beta(-1.0), std::invalid_argument);
+  EXPECT_THROW(FFTD::kaiser_window(9, -1.0), std::invalid_argument);
+  EXPECT_THROW(FFTD::firwin_lowpass(0, 900.0, sample_rate, 70.0),
+               std::invalid_argument);
+}
+
+TEST(FFTWindows, FirlsLeastSquaresDesignSupportsBandsAndWeights)
+{
+  constexpr double sample_rate = 8000.0;
+  constexpr size_t num_points = 4097;
+
+  Array<double> bands = {0.0, 900.0, 1200.0, sample_rate / 2.0};
+  Array<double> desired = {1.0, 1.0, 0.0, 0.0};
+  Array<double> weighted_stop = {1.0, 20.0};
+  Array<double> sloped_desired = {1.0, 0.65, 0.0, 0.0};
+
+  const auto balanced = FFTD::firls(65, bands, desired, sample_rate);
+  const auto weighted = FFTD::firls(65, bands, desired, sample_rate, weighted_stop);
+  const auto sloped = FFTD::firls(65, bands, sloped_desired, sample_rate, weighted_stop);
+
+  ASSERT_EQ(weighted.size(), 65u);
+  for (size_t i = 0; i < weighted.size(); ++i)
+    EXPECT_NEAR(weighted[i], weighted[weighted.size() - 1 - i], 1e-12);
+
+  const auto balanced_response = FFTD::freqz(balanced, num_points, false);
+  const auto weighted_response = FFTD::freqz(weighted, num_points, false);
+  const auto sloped_response = FFTD::freqz(sloped, num_points, false);
+
+  const double balanced_stop = response_magnitude_at(balanced_response,
+                                                     2600.0,
+                                                     sample_rate);
+  const double weighted_stop_mag = response_magnitude_at(weighted_response,
+                                                         2600.0,
+                                                         sample_rate);
+  EXPECT_NEAR(response_magnitude_at(weighted_response, 0.0, sample_rate), 1.0, 0.06);
+  EXPECT_GT(response_magnitude_at(weighted_response, 400.0, sample_rate), 0.9);
+  EXPECT_LT(weighted_stop_mag, balanced_stop);
+  EXPECT_LT(weighted_stop_mag, 0.03);
+
+  const double sloped_low = response_magnitude_at(sloped_response, 100.0, sample_rate);
+  const double sloped_upper = response_magnitude_at(sloped_response, 800.0, sample_rate);
+  EXPECT_GT(sloped_low, sloped_upper);
+  EXPECT_GT(sloped_upper, 0.45);
+  EXPECT_LT(response_magnitude_at(sloped_response, 2600.0, sample_rate), 0.03);
+
+  Array<double> bad_bands = {100.0, 900.0, 1200.0, sample_rate / 2.0};
+  Array<double> bad_desired = {1.0, 1.0, 0.0};
+  Array<double> bad_weights = {1.0};
+
+  EXPECT_THROW(FFTD::firls(64, bands, desired, sample_rate),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::firls(65, bad_bands, desired, sample_rate),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::firls(65, bands, bad_desired, sample_rate),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::firls(65, bands, desired, sample_rate, bad_weights),
+               std::invalid_argument);
+}
+
+TEST(FFTWindows, RemezEquirippleDesignSupportsBandsAndWeights)
+{
+  constexpr double sample_rate = 8000.0;
+  constexpr size_t num_points = 4097;
+
+  Array<double> bands = {0.0, 900.0, 1200.0, sample_rate / 2.0};
+  Array<double> desired = {1.0, 1.0, 0.0, 0.0};
+  Array<double> weighted_stop = {1.0, 16.0};
+
+  const auto firls_reference =
+    FFTD::firls(65, bands, desired, sample_rate, weighted_stop);
+  const auto equiripple =
+    FFTD::remez(65, bands, desired, sample_rate, weighted_stop);
+
+  ASSERT_EQ(equiripple.size(), 65u);
+  for (size_t i = 0; i < equiripple.size(); ++i)
+    EXPECT_NEAR(equiripple[i], equiripple[equiripple.size() - 1 - i], 1e-12);
+
+  const auto firls_response = FFTD::freqz(firls_reference, num_points, false);
+  const auto equiripple_response = FFTD::freqz(equiripple, num_points, false);
+
+  const double equiripple_stop = response_magnitude_at(equiripple_response,
+                                                       2600.0,
+                                                       sample_rate);
+  const double firls_stop = response_magnitude_at(firls_response,
+                                                  2600.0,
+                                                  sample_rate);
+
+  EXPECT_GT(response_magnitude_at(equiripple_response, 200.0, sample_rate), 0.9);
+  EXPECT_NEAR(response_magnitude_at(equiripple_response, 0.0, sample_rate), 1.0, 0.08);
+  EXPECT_LT(equiripple_stop, 0.02);
+  EXPECT_LT(equiripple_stop, firls_stop + 0.01);
+
+  Array<double> bad_weights = {1.0};
+  EXPECT_THROW(FFTD::remez(64, bands, desired, sample_rate),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::remez(65, bands, desired, sample_rate, bad_weights),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::remez(65, bands, desired, sample_rate, weighted_stop, 4),
+               std::invalid_argument);
+}
+
 TEST(FFTWindows, ApplyWindowRealAndComplex)
 {
   Array<double> signal = {2.0, -1.0, 0.5, 4.0};
@@ -1970,6 +2491,93 @@ TEST(FFTWindows, WindowedSpectrumMatchesManualPipeline)
   std::vector<double> window_vec(window.begin(), window.end());
   expect_complex_array_near(FFTD::windowed_spectrum(signal_vec, window_vec),
                             manual_real, 1e-12);
+}
+
+TEST(FFTWindows, WindowMetricsAndFrameHelpers)
+{
+  Array<double> rectangular = {1.0, 1.0, 1.0, 1.0};
+  EXPECT_NEAR(FFTD::window_energy(rectangular), 4.0, 1e-12);
+  EXPECT_NEAR(FFTD::window_coherent_gain(rectangular), 1.0, 1e-12);
+  EXPECT_NEAR(FFTD::window_enbw(rectangular), 1.0, 1e-12);
+
+  const auto padded_offsets = FFTD::frame_offsets(5, 4, 2, true);
+  ASSERT_EQ(padded_offsets.size(), 3u);
+  EXPECT_EQ(padded_offsets[0], 0u);
+  EXPECT_EQ(padded_offsets[1], 2u);
+  EXPECT_EQ(padded_offsets[2], 4u);
+
+  const auto exact_offsets = FFTD::frame_offsets(5, 4, 2, false);
+  ASSERT_EQ(exact_offsets.size(), 1u);
+  EXPECT_EQ(exact_offsets[0], 0u);
+
+  Array<double> signal = {1.0, 2.0, 3.0, 4.0, 5.0};
+  const auto frames = FFTD::frame_signal(signal, 4, 2, true);
+  const auto overlap_added = FFTD::overlap_add_frames(frames, 2);
+  expect_real_array_near(overlap_added,
+                         Array<double>({1.0, 2.0, 6.0, 8.0, 10.0, 0.0, 0.0, 0.0}),
+                         1e-12);
+
+  EXPECT_THROW(FFTD::window_energy(Array<double>()), std::invalid_argument);
+  EXPECT_THROW(FFTD::window_enbw(Array<double>({1.0, -1.0})), std::domain_error);
+  EXPECT_THROW(FFTD::frame_offsets(5, 0, 2, true), std::invalid_argument);
+}
+
+TEST(FFTDSPUtilities, WelchCsdAndCoherenceIdentifyTone)
+{
+  constexpr double sample_rate = 8000.0;
+  FFTD::WelchOptions options;
+  options.hop_size = 32;
+  options.fft_size = 128;
+
+  const auto x = sine_signal(512, sample_rate, 1000.0);
+  const auto y = sine_signal(512, sample_rate, 1000.0, 2.0, 0.25);
+  const auto window = FFTD::hann_window(64);
+
+  const auto pxx = FFTD::welch(x, window, sample_rate, options);
+  const auto pxy = FFTD::csd(x, y, window, sample_rate, options);
+  const auto coh = FFTD::coherence(x, y, window, sample_rate, options);
+
+  const size_t peak = max_index(pxx.density);
+  EXPECT_NEAR(pxx.frequency[peak], 1000.0, 1e-12);
+  EXPECT_GT(pxx.density[peak], 1e-3);
+  EXPECT_GT(std::abs(pxy.density[peak]), 1e-3);
+  EXPECT_GT(coh.magnitude_squared[peak], 0.999);
+
+  EXPECT_THROW(FFTD::csd(x, Array<double>({1.0, 2.0}), window, sample_rate, options),
+               std::invalid_argument);
+}
+
+TEST(FFTDSPUtilities, UpfirdnAndResamplePolyBehaveAsExpected)
+{
+  Array<double> signal = {1.0, -1.0, 2.0, 0.5};
+  Array<double> coeffs = {0.25, 0.5, 0.25};
+
+  const auto expected = naive_upfirdn(signal, coeffs, 3, 2);
+  const auto actual = FFTD::upfirdn(signal, coeffs, 3, 2);
+  expect_real_array_near(actual, expected, 1e-12);
+
+  Array<double> identity = {0.0, 1.0, 0.0};
+  const auto same = FFTD::resample_poly(signal, 1, 1, identity);
+  expect_real_array_near(same, signal, 1e-12);
+
+  Array<double> constant;
+  constant.reserve(64);
+  for (size_t i = 0; i < 64; ++i)
+    constant.append(1.0);
+
+  FFTD::ResamplePolyOptions options;
+  options.taps_per_phase = 12;
+  const auto doubled = FFTD::resample_poly(constant, 2, 1, options);
+  ASSERT_EQ(doubled.size(), 128u);
+  for (size_t i = 16; i < 112; ++i)
+    EXPECT_NEAR(doubled[i], 1.0, 5e-2);
+
+  EXPECT_THROW(FFTD::upfirdn(signal, coeffs, 0, 1), std::invalid_argument);
+  EXPECT_THROW(FFTD::resample_poly(signal, 2, 1, Array<double>()),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::resample_poly(signal, 2, 1,
+                                   FFTD::ResamplePolyOptions{0, 80.0}),
+               std::invalid_argument);
 }
 
 TEST(FFTSTFT, FrameSignalExactAndPadded)
@@ -2115,6 +2723,32 @@ TEST(FFTSTFT, CenteredOptionsAndOverlapConstraints)
   bad_options.hop_size = 2;
   bad_options.validate_nola = true;
   EXPECT_THROW(FFTD::stft(signal, bad_window, bad_options), std::domain_error);
+}
+
+TEST(FFTSTFT, AllowsNonPowerOfTwoFftSize)
+{
+  Array<double> signal = {
+    0.0, 1.0, 0.5, -0.25, -1.0, -0.5, 0.75, 1.25, 0.0, -0.75, 0.5
+  };
+  Array<double> window = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+  FFTD::STFTOptions stft_options;
+  stft_options.hop_size = 3;
+  stft_options.fft_size = 10;
+  stft_options.pad_end = true;
+  stft_options.validate_nola = true;
+
+  FFTD::ISTFTOptions istft_options;
+  istft_options.hop_size = 3;
+  istft_options.signal_length = signal.size();
+  istft_options.validate_nola = true;
+
+  const auto spectrogram = FFTD::stft(signal, window, stft_options);
+  ASSERT_FALSE(spectrogram.is_empty());
+  EXPECT_EQ(spectrogram[0].size(), 10u);
+
+  const auto reconstructed = FFTD::istft(spectrogram, window, istft_options);
+  expect_real_array_near(reconstructed, signal, 1e-9);
 }
 
 TEST(FFTSTFT, ParallelAndStreamingProcessorMatchOffline)
@@ -2474,6 +3108,197 @@ TEST(FFTSTFT, DefaultConstructedProcessorsRemainUnconfigured)
   EXPECT_THROW(inverse.process_frame(Array<Complex>({Complex(1.0, 0.0)})),
                std::runtime_error);
   EXPECT_THROW(inverse.flush(), std::runtime_error);
+}
+
+TEST(FFTND, TransformAxisSupportsRowMajorAndCustomStrideLayouts)
+{
+  Array<Array<Complex>> matrix = {
+    Array<Complex>({Complex(1.0, 0.5), Complex(-2.0, 1.0),
+                    Complex(0.25, -0.75), Complex(3.0, 0.0)}),
+    Array<Complex>({Complex(-1.5, 0.25), Complex(2.5, -1.0),
+                    Complex(0.5, 0.5), Complex(-0.75, 1.25)})
+  };
+
+  Array<Complex> flat;
+  for (size_t row = 0; row < matrix.size(); ++row)
+    for (size_t col = 0; col < matrix[row].size(); ++col)
+      flat.append(matrix[row][col]);
+
+  FFTD::TensorLayout row_major = FFTD::row_major_layout(Array<size_t>({2, 4}));
+  auto transformed = flat;
+  FFTD::transform_axis(transformed, row_major, 1, false);
+
+  for (size_t row = 0; row < matrix.size(); ++row)
+    {
+      const auto expected = FFTD::transformed(matrix[row]);
+      for (size_t col = 0; col < expected.size(); ++col)
+        expect_complex_near(transformed[row * 4 + col], expected[col], 1e-12);
+    }
+
+  Array<Complex> padded(10, Complex(-99.0, 0.0));
+  for (size_t col = 0; col < 4; ++col)
+    {
+      padded(col) = matrix[0][col];
+      padded(5 + col) = matrix[1][col];
+    }
+
+  FFTD::TensorLayout padded_layout;
+  padded_layout.shape = {2, 4};
+  padded_layout.strides = {5, 1};
+  FFTD::transform_axis(padded, padded_layout, 1, false);
+
+  EXPECT_EQ(padded[4], Complex(-99.0, 0.0));
+  EXPECT_EQ(padded[9], Complex(-99.0, 0.0));
+  for (size_t row = 0; row < matrix.size(); ++row)
+    {
+      const auto expected = FFTD::transformed(matrix[row]);
+      for (size_t col = 0; col < expected.size(); ++col)
+        expect_complex_near(padded[row * 5 + col], expected[col], 1e-12);
+    }
+}
+
+TEST(FFTND, Transform2DMatchesSequentialAxisPipeline)
+{
+  ThreadPool pool(4);
+  Array<Array<Complex>> matrix = {
+    Array<Complex>({Complex(1.0, 0.0), Complex(2.0, -0.5),
+                    Complex(-1.0, 0.25), Complex(0.5, 1.0)}),
+    Array<Complex>({Complex(-0.75, 1.5), Complex(1.25, -1.0),
+                    Complex(0.0, 0.5), Complex(-2.0, 0.0)}),
+    Array<Complex>({Complex(0.5, -0.25), Complex(-1.5, 0.75),
+                    Complex(2.5, 0.0), Complex(1.0, -1.5)})
+  };
+
+  Array<Array<Complex>> expected = matrix;
+  for (size_t row = 0; row < expected.size(); ++row)
+    expected(row) = FFTD::transformed(expected[row]);
+
+  for (size_t col = 0; col < expected[0].size(); ++col)
+    {
+      Array<Complex> column;
+      for (size_t row = 0; row < expected.size(); ++row)
+        column.append(expected[row][col]);
+      column = FFTD::transformed(column);
+      for (size_t row = 0; row < expected.size(); ++row)
+        expected(row)(col) = column[row];
+    }
+
+  expect_matrix_near(FFTD::transformed2d(matrix), expected, 1e-12);
+  expect_matrix_near(FFTD::ptransformed2d(pool, matrix), expected, 1e-12);
+  expect_matrix_near(FFTD::inverse_transform2d(expected), matrix, 1e-10);
+}
+
+TEST(FFTND, Transform3DAndBatched2DPathsRoundTrip)
+{
+  ThreadPool pool(4);
+  Array<Array<Array<Complex>>> tensor = {
+    {
+      Array<Complex>({Complex(1.0, 0.0), Complex(0.5, -0.25), Complex(-1.0, 0.5)}),
+      Array<Complex>({Complex(2.0, 1.0), Complex(-0.75, 0.0), Complex(1.5, -0.5)})
+    },
+    {
+      Array<Complex>({Complex(-0.5, 1.25), Complex(1.0, 0.0), Complex(0.25, -0.75)}),
+      Array<Complex>({Complex(0.0, 0.5), Complex(-1.5, 0.25), Complex(2.0, 0.0)})
+    }
+  };
+
+  const auto spectrum3d = FFTD::transformed3d(tensor);
+  const auto parallel3d = FFTD::ptransformed3d(pool, tensor);
+  expect_tensor3_near(parallel3d, spectrum3d, 1e-12);
+  expect_tensor3_near(FFTD::inverse_transform3d(spectrum3d), tensor, 1e-10);
+
+  Array<Array<Array<Complex>>> expected2d = tensor;
+  for (size_t i = 0; i < tensor.size(); ++i)
+    expected2d(i) = FFTD::transformed2d(tensor[i]);
+  expect_tensor3_near(FFTD::transformed2d_batch(tensor), expected2d, 1e-12);
+  expect_tensor3_near(FFTD::ptransformed2d_batch(pool, tensor), expected2d, 1e-12);
+
+  Array<Complex> flat;
+  for (size_t i = 0; i < tensor.size(); ++i)
+    for (size_t j = 0; j < tensor[i].size(); ++j)
+      for (size_t k = 0; k < tensor[i][j].size(); ++k)
+        flat.append(tensor[i][j][k]);
+
+  const auto axes_out =
+    FFTD::transformed_axes(flat,
+                           FFTD::row_major_layout(Array<size_t>({2, 2, 3})),
+                           Array<size_t>({1, 2}));
+
+  size_t index = 0;
+  for (size_t i = 0; i < expected2d.size(); ++i)
+    for (size_t j = 0; j < expected2d[i].size(); ++j)
+      for (size_t k = 0; k < expected2d[i][j].size(); ++k, ++index)
+        expect_complex_near(axes_out[index], expected2d[i][j][k], 1e-12);
+}
+
+TEST(FFTSTFT, MultichannelLayoutsAvoidManualRepacking)
+{
+  ThreadPool pool(4);
+  Array<Array<double>> signals = {
+    Array<double>({1.0, -0.5, 0.25, 2.0, -1.0, 0.5, 1.5, -0.75, 0.25}),
+    Array<double>({-1.0, 0.75, 0.5, -0.25, 1.25, -1.5, 0.0, 0.5, 1.0})
+  };
+  const auto window = FFTD::hann_window(8);
+
+  FFTD::STFTOptions stft_options;
+  stft_options.hop_size = 4;
+  stft_options.centered = true;
+  stft_options.pad_end = true;
+  stft_options.fft_size = 16;
+  stft_options.validate_nola = true;
+
+  FFTD::ISTFTOptions istft_options;
+  istft_options.hop_size = 4;
+  istft_options.centered = true;
+  istft_options.validate_nola = true;
+
+  Array<size_t> lengths = {signals[0].size(), signals[1].size()};
+
+  const auto channel_major =
+    FFTD::multichannel_stft(signals,
+                            window,
+                            stft_options,
+                            FFTD::SpectrogramLayout::channel_frame_bin);
+  const auto frame_major =
+    FFTD::multichannel_stft(signals,
+                            window,
+                            stft_options,
+                            FFTD::SpectrogramLayout::frame_channel_bin);
+  const auto parallel_frame_major =
+    FFTD::pmultichannel_stft(pool,
+                             signals,
+                             window,
+                             stft_options,
+                             FFTD::SpectrogramLayout::frame_channel_bin);
+
+  const auto transposed =
+    FFTD::transpose_spectrogram_layout(frame_major,
+                                       FFTD::SpectrogramLayout::frame_channel_bin,
+                                       FFTD::SpectrogramLayout::channel_frame_bin);
+  const auto parallel_transposed =
+    FFTD::transpose_spectrogram_layout(parallel_frame_major,
+                                       FFTD::SpectrogramLayout::frame_channel_bin,
+                                       FFTD::SpectrogramLayout::channel_frame_bin);
+  expect_tensor3_near(transposed, channel_major, 1e-12);
+  expect_tensor3_near(parallel_transposed, channel_major, 1e-12);
+
+  const auto reconstructed =
+    FFTD::multichannel_istft(frame_major,
+                             window,
+                             window,
+                             istft_options,
+                             lengths,
+                             FFTD::SpectrogramLayout::frame_channel_bin);
+  const auto parallel_reconstructed =
+    FFTD::pmultichannel_istft(pool,
+                              frame_major,
+                              window,
+                              window,
+                              istft_options,
+                              lengths,
+                              FFTD::SpectrogramLayout::frame_channel_bin);
+  expect_real_batch_near(reconstructed, signals, 1e-10);
+  expect_real_batch_near(parallel_reconstructed, signals, 1e-10);
 }
 
 TEST(FFTFiltFilt, IdentityAndConstantSignal)
@@ -2904,6 +3729,120 @@ TEST(FFTIIRUtilities, PairingMarginsAndCancellationChecks)
   EXPECT_THROW(FFTD::validate_stable(denominator, 0.6), std::domain_error);
 }
 
+TEST(FFTIIRUtilities, RootSolverHandlesConditionedHighOrderPolynomials)
+{
+  Array<Complex> roots = {
+    Complex(0.985, 0.0),
+    Complex(0.972, 0.0),
+    Complex(0.91, 0.12),
+    Complex(0.91, -0.12),
+    Complex(0.84, 0.21),
+    Complex(0.84, -0.21),
+    Complex(-0.55, 0.0)
+  };
+
+  const auto polynomial = real_polynomial_from_roots(roots);
+  expect_complex_unordered_near(FFTD::poles(polynomial), roots, 1e-7);
+
+  Array<double> scaled = Array<double>::create(polynomial.size());
+  for (size_t i = 0; i < polynomial.size(); ++i)
+    scaled(i) = polynomial[i] * 1e120;
+  expect_complex_unordered_near(FFTD::poles(scaled), roots, 1e-7);
+}
+
+TEST(FFTIIRUtilities, RootSolverMatchesRandomStableRootSets)
+{
+  std::mt19937_64 rng(20260306);
+  std::uniform_real_distribution<double> real_dist(-0.92, 0.92);
+  std::uniform_real_distribution<double> radius_dist(0.55, 0.95);
+  std::uniform_real_distribution<double> angle_dist(0.12, 1.0);
+
+  for (size_t trial = 0; trial < 12; ++trial)
+    {
+      Array<Complex> roots = {
+        Complex(real_dist(rng), 0.0),
+        Complex(real_dist(rng), 0.0)
+      };
+
+      for (size_t pair = 0; pair < 2; ++pair)
+        {
+          const double radius = radius_dist(rng);
+          const double angle = angle_dist(rng);
+          roots.append(std::polar(radius, angle));
+          roots.append(std::polar(radius, -angle));
+        }
+
+      const auto denominator = real_polynomial_from_roots(roots);
+      const auto recovered = FFTD::poles(denominator);
+      expect_complex_unordered_near(recovered, roots, 2e-6);
+      EXPECT_TRUE(FFTD::is_stable(denominator));
+    }
+}
+
+TEST(FFTIIRUtilities, SosAnalyticDelayMatchesSectionSums)
+{
+  FFTD::BiquadSection s1{0.075, 0.15, 0.075, 1.0, -0.9, 0.2};
+  FFTD::BiquadSection s2{0.14, 0.28, 0.14, 1.0, -0.5, 0.06};
+  Array<FFTD::BiquadSection> sections = {s1, s2};
+
+  const auto group_sections = FFTD::group_delay(sections, 257, false);
+  const auto phase_sections = FFTD::phase_delay(sections, 257, false);
+  const auto group_1 = FFTD::group_delay(s1, 257, false);
+  const auto group_2 = FFTD::group_delay(s2, 257, false);
+  const auto phase_1 = FFTD::phase_delay(s1, 257, false);
+  const auto phase_2 = FFTD::phase_delay(s2, 257, false);
+  const auto response_1 = FFTD::freqz(s1, 257, false);
+  const auto response_2 = FFTD::freqz(s2, 257, false);
+
+  ASSERT_EQ(group_sections.size(), group_1.size());
+  ASSERT_EQ(phase_sections.size(), phase_1.size());
+  for (size_t i = 0; i < group_sections.size(); ++i)
+    {
+      if (std::abs(response_1.response[i]) <= 1e-6
+          or std::abs(response_2.response[i]) <= 1e-6)
+        continue;
+      EXPECT_NEAR(group_sections[i], group_1[i] + group_2[i], 1e-8);
+      EXPECT_NEAR(phase_sections[i], phase_1[i] + phase_2[i], 1e-8);
+    }
+}
+
+TEST(FFTIIRUtilities, RefinedMarginsTrackHighResolutionReference)
+{
+  Array<FFTD::BiquadSection> sections = {
+    FFTD::BiquadSection{0.3, 0.6, 0.3, 1.0, -0.9, 0.2},
+    FFTD::BiquadSection{0.14, 0.28, 0.14, 1.0, -0.5, 0.06}
+  };
+
+  const auto coarse_phase = FFTD::phase_margin(sections, 257, true);
+  const auto ref_phase =
+    FFTD::phase_margin(FFTD::freqz(sections, 32769, true));
+  ASSERT_TRUE(coarse_phase.found);
+  ASSERT_TRUE(ref_phase.found);
+  EXPECT_NEAR(coarse_phase.crossover_omega, ref_phase.crossover_omega, 1e-4);
+  EXPECT_NEAR(coarse_phase.degrees, ref_phase.degrees, 1e-3);
+
+  const auto coarse_gain = FFTD::gain_margin(sections, 257, true);
+  const auto ref_gain =
+    FFTD::gain_margin(FFTD::freqz(sections, 32769, true));
+  ASSERT_TRUE(coarse_gain.found);
+  ASSERT_TRUE(ref_gain.found);
+  EXPECT_NEAR(coarse_gain.crossover_omega, ref_gain.crossover_omega, 1e-4);
+  EXPECT_NEAR(coarse_gain.decibels, ref_gain.decibels, 1e-3);
+}
+
+TEST(FFTIIRUtilities, SosStabilityMarginUsesWorstSection)
+{
+  FFTD::BiquadSection s1{0.075, 0.15, 0.075, 1.0, -0.9, 0.2};
+  FFTD::BiquadSection s2{0.2, 0.1, 0.05, 1.0, -1.7, 0.72};
+  Array<FFTD::BiquadSection> sections = {s1, s2};
+
+  const double margin_1 = FFTD::stability_margin(s1);
+  const double margin_2 = FFTD::stability_margin(s2);
+  EXPECT_NEAR(FFTD::stability_margin(sections), std::min(margin_1, margin_2), 1e-12);
+  EXPECT_NO_THROW(FFTD::validate_stable(sections, 0.09));
+  EXPECT_THROW(FFTD::validate_stable(sections, 0.11), std::domain_error);
+}
+
 TEST(FFTIIRUtilities, GainAndPhaseMarginsDetectCrossovers)
 {
   FFTD::FrequencyResponse gain_crossover_response;
@@ -2995,6 +3934,148 @@ TEST(FFTIIRDesign, BilinearAndPrototypeDesignsAreStable)
   EXPECT_THROW(FFTD::butterworth_lowpass(0, 800.0, 8000.0), std::invalid_argument);
   EXPECT_THROW(FFTD::butterworth_lowpass(4, 4000.0, 8000.0), std::invalid_argument);
   EXPECT_THROW(FFTD::chebyshev1_lowpass(4, 0.0, 800.0, 8000.0),
+               std::invalid_argument);
+}
+
+TEST(FFTIIRDesign, ExtendedDesignFamiliesCoverBandModesAndAdditionalPrototypes)
+{
+  constexpr double sample_rate = 8000.0;
+  constexpr size_t num_points = 2049;
+
+  const auto butter_bp = FFTD::butterworth_bandpass(4, 700.0, 1500.0, sample_rate);
+  const auto butter_bs = FFTD::butterworth_bandstop(4, 700.0, 1500.0, sample_rate);
+  const auto cheby1_bp =
+    FFTD::chebyshev1_bandpass(4, 1.0, 700.0, 1500.0, sample_rate);
+  const auto cheby1_bs =
+    FFTD::chebyshev1_bandstop(4, 1.0, 700.0, 1500.0, sample_rate);
+  const auto cheby2_lp =
+    FFTD::chebyshev2_lowpass(4, 40.0, 900.0, sample_rate);
+  const auto cheby2_hp =
+    FFTD::chebyshev2_highpass(4, 40.0, 900.0, sample_rate);
+  const auto cheby2_bp =
+    FFTD::chebyshev2_bandpass(4, 40.0, 700.0, 1500.0, sample_rate);
+  const auto cheby2_bs =
+    FFTD::chebyshev2_bandstop(4, 40.0, 700.0, 1500.0, sample_rate);
+  const auto bessel_lp = FFTD::bessel_lowpass(4, 900.0, sample_rate);
+  const auto bessel_hp = FFTD::bessel_highpass(4, 900.0, sample_rate);
+  const auto bessel_bp = FFTD::bessel_bandpass(4, 700.0, 1500.0, sample_rate);
+  const auto bessel_bs = FFTD::bessel_bandstop(4, 700.0, 1500.0, sample_rate);
+
+  for (const auto & sections : {butter_bp,
+                                butter_bs,
+                                cheby1_bp,
+                                cheby1_bs,
+                                cheby2_lp,
+                                cheby2_hp,
+                                cheby2_bp,
+                                cheby2_bs,
+                                bessel_lp,
+                                bessel_hp,
+                                bessel_bp,
+                                bessel_bs})
+    EXPECT_TRUE(FFTD::is_stable(sections));
+
+  const auto butter_bp_response = FFTD::freqz(butter_bp, num_points, false);
+  const auto butter_bs_response = FFTD::freqz(butter_bs, num_points, false);
+  const auto cheby1_bp_response = FFTD::freqz(cheby1_bp, num_points, false);
+  const auto cheby1_bs_response = FFTD::freqz(cheby1_bs, num_points, false);
+  const auto cheby2_lp_response = FFTD::freqz(cheby2_lp, num_points, false);
+  const auto cheby2_hp_response = FFTD::freqz(cheby2_hp, num_points, false);
+  const auto cheby2_bp_response = FFTD::freqz(cheby2_bp, num_points, false);
+  const auto cheby2_bs_response = FFTD::freqz(cheby2_bs, num_points, false);
+  const auto bessel_lp_response = FFTD::freqz(bessel_lp, num_points, false);
+  const auto bessel_hp_response = FFTD::freqz(bessel_hp, num_points, false);
+  const auto bessel_bp_response = FFTD::freqz(bessel_bp, num_points, false);
+  const auto bessel_bs_response = FFTD::freqz(bessel_bs, num_points, false);
+
+  EXPECT_GT(response_magnitude_at(butter_bp_response, 1000.0, sample_rate), 0.95);
+  EXPECT_LT(response_magnitude_at(butter_bp_response, 200.0, sample_rate), 0.12);
+  EXPECT_LT(response_magnitude_at(butter_bp_response, 2600.0, sample_rate), 0.12);
+  EXPECT_GT(response_magnitude_at(butter_bs_response, 200.0, sample_rate), 0.95);
+  EXPECT_LT(response_magnitude_at(butter_bs_response, 1000.0, sample_rate), 0.12);
+  EXPECT_GT(response_magnitude_at(butter_bs_response, 2600.0, sample_rate), 0.95);
+
+  EXPECT_GT(response_magnitude_at(cheby1_bp_response, 1000.0, sample_rate), 0.88);
+  EXPECT_LT(response_magnitude_at(cheby1_bp_response, 200.0, sample_rate), 0.16);
+  EXPECT_LT(response_magnitude_at(cheby1_bp_response, 2600.0, sample_rate), 0.16);
+  EXPECT_GT(response_magnitude_at(cheby1_bs_response, 200.0, sample_rate), 0.85);
+  EXPECT_LT(response_magnitude_at(cheby1_bs_response, 1000.0, sample_rate), 0.18);
+  EXPECT_GT(response_magnitude_at(cheby1_bs_response, 2600.0, sample_rate), 0.85);
+
+  EXPECT_NEAR(response_magnitude_at(cheby2_lp_response, 0.0, sample_rate), 1.0, 2e-3);
+  EXPECT_LT(response_magnitude_at(cheby2_lp_response, 1000.0, sample_rate), 0.02);
+  EXPECT_LT(response_magnitude_at(cheby2_lp_response, 2600.0, sample_rate), 0.02);
+  EXPECT_LT(response_magnitude_at(cheby2_hp_response, 0.0, sample_rate), 0.02);
+  EXPECT_GT(response_magnitude_at(cheby2_hp_response, 2600.0, sample_rate), 0.95);
+  EXPECT_GT(response_magnitude_at(cheby2_bp_response, 1000.0, sample_rate), 0.95);
+  EXPECT_LT(response_magnitude_at(cheby2_bp_response, 200.0, sample_rate), 0.05);
+  EXPECT_LT(response_magnitude_at(cheby2_bp_response, 2600.0, sample_rate), 0.05);
+  EXPECT_GT(response_magnitude_at(cheby2_bs_response, 200.0, sample_rate), 0.95);
+  EXPECT_LT(response_magnitude_at(cheby2_bs_response, 1000.0, sample_rate), 0.02);
+  EXPECT_GT(response_magnitude_at(cheby2_bs_response, 2600.0, sample_rate), 0.95);
+
+  EXPECT_NEAR(response_magnitude_at(bessel_lp_response, 0.0, sample_rate), 1.0, 2e-3);
+  EXPECT_LT(response_magnitude_at(bessel_lp_response, 3900.0, sample_rate), 1e-3);
+  EXPECT_LT(response_magnitude_at(bessel_hp_response, 0.0, sample_rate), 0.05);
+  EXPECT_GT(response_magnitude_at(bessel_hp_response, 2600.0, sample_rate), 0.99);
+  EXPECT_GT(response_magnitude_at(bessel_bp_response, 1000.0, sample_rate), 0.99);
+  EXPECT_LT(response_magnitude_at(bessel_bp_response, 3900.0, sample_rate), 1e-3);
+  EXPECT_GT(response_magnitude_at(bessel_bs_response, 200.0, sample_rate), 0.95);
+  EXPECT_LT(response_magnitude_at(bessel_bs_response, 1000.0, sample_rate), 0.25);
+  EXPECT_GT(response_magnitude_at(bessel_bs_response, 2600.0, sample_rate), 0.85);
+
+  EXPECT_THROW(FFTD::butterworth_bandpass(4, 1500.0, 700.0, sample_rate),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::chebyshev2_lowpass(4, 0.0, 900.0, sample_rate),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::bessel_lowpass(0, 900.0, sample_rate),
+               std::invalid_argument);
+}
+
+TEST(FFTIIRDesign, EllipticFamilyCoversRepresentativeResponses)
+{
+  constexpr double sample_rate = 8000.0;
+  constexpr size_t num_points = 2049;
+
+  const auto elliptic_lp =
+    FFTD::elliptic_lowpass(4, 1.0, 40.0, 900.0, sample_rate);
+  const auto elliptic_hp =
+    FFTD::elliptic_highpass(4, 1.0, 40.0, 900.0, sample_rate);
+  const auto elliptic_bp =
+    FFTD::elliptic_bandpass(4, 1.0, 40.0, 700.0, 1500.0, sample_rate);
+  const auto elliptic_bs =
+    FFTD::elliptic_bandstop(4, 1.0, 40.0, 700.0, 1500.0, sample_rate);
+
+  for (const auto & sections : {elliptic_lp, elliptic_hp, elliptic_bp, elliptic_bs})
+    {
+      EXPECT_FALSE(sections.is_empty());
+      EXPECT_TRUE(FFTD::is_stable(sections));
+    }
+
+  const auto elliptic_lp_response = FFTD::freqz(elliptic_lp, num_points, false);
+  const auto elliptic_hp_response = FFTD::freqz(elliptic_hp, num_points, false);
+  const auto elliptic_bp_response = FFTD::freqz(elliptic_bp, num_points, false);
+  const auto elliptic_bs_response = FFTD::freqz(elliptic_bs, num_points, false);
+
+  EXPECT_GT(response_magnitude_at(elliptic_lp_response, 0.0, sample_rate), 0.88);
+  EXPECT_LT(response_magnitude_at(elliptic_lp_response, 2600.0, sample_rate), 0.03);
+
+  EXPECT_LT(response_magnitude_at(elliptic_hp_response, 0.0, sample_rate), 0.03);
+  EXPECT_GT(response_magnitude_at(elliptic_hp_response, 2600.0, sample_rate), 0.88);
+
+  EXPECT_GT(response_magnitude_at(elliptic_bp_response, 1000.0, sample_rate), 0.88);
+  EXPECT_LT(response_magnitude_at(elliptic_bp_response, 200.0, sample_rate), 0.04);
+  EXPECT_LT(response_magnitude_at(elliptic_bp_response, 2600.0, sample_rate), 0.04);
+
+  EXPECT_GT(response_magnitude_at(elliptic_bs_response, 200.0, sample_rate), 0.88);
+  EXPECT_LT(response_magnitude_at(elliptic_bs_response, 1000.0, sample_rate), 0.04);
+  EXPECT_GT(response_magnitude_at(elliptic_bs_response, 2600.0, sample_rate), 0.88);
+
+  EXPECT_THROW(FFTD::elliptic_lowpass(0, 1.0, 40.0, 900.0, sample_rate),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::elliptic_lowpass(4, 0.0, 40.0, 900.0, sample_rate),
+               std::invalid_argument);
+  EXPECT_THROW(FFTD::elliptic_lowpass(4, 1.0, 0.5, 900.0, sample_rate),
                std::invalid_argument);
 }
 
@@ -3159,4 +4240,242 @@ TEST(FFTOverlapAdd, IncrementalParallelAndReset)
 
   expect_real_array_near(second_run, expected, 1e-7);
   EXPECT_TRUE(convolver.flush().is_empty());
+}
+
+TEST(FFTOverlapSave, MatchesDirectConvolutionAndStreaming)
+{
+  std::mt19937_64 rng(11235813);
+  std::uniform_real_distribution<double> dist(-1.5, 1.5);
+
+  Array<double> signal;
+  signal.reserve(193);
+  for (size_t i = 0; i < 193; ++i)
+    signal.append(dist(rng));
+
+  Array<double> kernel;
+  kernel.reserve(29);
+  for (size_t i = 0; i < 29; ++i)
+    kernel.append(dist(rng));
+
+  const auto expected = FFTD::multiply(signal, kernel);
+
+  for (const size_t block_size : {size_t(0), size_t(8), size_t(32)})
+    {
+      const auto actual =
+        FFTD::overlap_save_convolution(signal, kernel, block_size);
+      expect_real_array_near(actual, expected, 1e-8);
+
+      FFTD::OverlapSave processor(kernel, block_size);
+      Array<double> streamed;
+      append_real_samples(streamed,
+                          processor.process_block(slice_real_array(signal, 0, 57)));
+      append_real_samples(streamed,
+                          processor.process_block(slice_real_array(signal, 57, 61)));
+      append_real_samples(streamed,
+                          processor.process_block(slice_real_array(signal, 118, 75)));
+      append_real_samples(streamed, processor.flush());
+      expect_real_array_near(streamed, expected, 1e-8);
+    }
+}
+
+TEST(FFTPartitionedConvolver, MatchesDirectConvolutionAndStreaming)
+{
+  std::mt19937_64 rng(424242);
+  std::uniform_real_distribution<double> dist(-1.0, 1.0);
+
+  Array<double> signal;
+  signal.reserve(257);
+  for (size_t i = 0; i < 257; ++i)
+    signal.append(dist(rng));
+
+  Array<double> kernel;
+  kernel.reserve(73);
+  for (size_t i = 0; i < 73; ++i)
+    kernel.append(dist(rng));
+
+  const auto expected = FFTD::multiply(signal, kernel);
+
+  for (const size_t partition_size : {size_t(0), size_t(8), size_t(16)})
+    {
+      const auto actual =
+        FFTD::partitioned_convolution(signal, kernel, partition_size);
+      expect_real_array_near(actual, expected, 1e-8);
+
+      FFTD::PartitionedConvolver processor(kernel, partition_size);
+      Array<double> streamed;
+      append_real_samples(streamed,
+                          processor.process_block(slice_real_array(signal, 0, 11)));
+      append_real_samples(streamed,
+                          processor.process_block(slice_real_array(signal, 11, 37)));
+      append_real_samples(streamed,
+                          processor.process_block(slice_real_array(signal, 48, 209)));
+      append_real_samples(streamed, processor.flush());
+      expect_real_array_near(streamed, expected, 1e-8);
+    }
+}
+
+TEST(FFTOverlapAddBank, MatchesPerChannelDirectConvolution)
+{
+  ThreadPool pool(4);
+  std::mt19937_64 rng(123987456);
+  std::uniform_real_distribution<double> dist(-2.0, 2.0);
+
+  Array<Array<double>> signals;
+  signals.reserve(3);
+  for (const size_t size : {size_t(193), size_t(257), size_t(141)})
+    {
+      Array<double> signal;
+      signal.reserve(size);
+      for (size_t i = 0; i < size; ++i)
+        signal.append(dist(rng));
+      signals.append(signal);
+    }
+
+  Array<double> kernel;
+  kernel.reserve(23);
+  for (size_t i = 0; i < 23; ++i)
+    kernel.append(dist(rng));
+
+  FFTD::OverlapAddBank bank(signals.size(), kernel, 48);
+  const auto sequential = bank.convolve(signals);
+  const auto parallel = bank.pconvolve(pool, signals);
+  const auto wrapper_parallel =
+    FFTD::poverlap_add_convolution_batch(pool, signals, kernel, 48);
+
+  ASSERT_EQ(sequential.size(), signals.size());
+  ASSERT_EQ(parallel.size(), signals.size());
+  ASSERT_EQ(wrapper_parallel.size(), signals.size());
+  for (size_t channel = 0; channel < signals.size(); ++channel)
+    {
+      const auto expected = FFTD::multiply(signals[channel], kernel);
+      expect_real_array_near(sequential[channel], expected, 1e-7);
+      expect_real_array_near(parallel[channel], expected, 1e-7);
+      expect_real_array_near(wrapper_parallel[channel], expected, 1e-7);
+    }
+}
+
+TEST(FFTOverlapAddBank, StreamingParallelMatchesOfflinePerChannel)
+{
+  ThreadPool pool(4);
+  std::mt19937_64 rng(555666777);
+  std::uniform_real_distribution<double> dist(-1.5, 1.5);
+
+  Array<Array<double>> signals;
+  signals.reserve(3);
+  for (const size_t size : {size_t(96), size_t(141), size_t(87)})
+    {
+      Array<double> signal;
+      signal.reserve(size);
+      for (size_t i = 0; i < size; ++i)
+        signal.append(dist(rng));
+      signals.append(signal);
+    }
+
+  Array<double> kernel;
+  kernel.reserve(13);
+  for (size_t i = 0; i < 13; ++i)
+    kernel.append(dist(rng));
+
+  FFTD::OverlapAddBank bank(signals.size(), kernel, 24);
+  Array<Array<double>> streamed(signals.size(), Array<double>());
+  Array<size_t> offsets = {0, 0, 0};
+  Array<size_t> chunk_pattern = {11, 7, 29, 5};
+
+  for (size_t step = 0;; ++step)
+    {
+      bool any_pending = false;
+      Array<Array<double>> block;
+      for (size_t channel = 0; channel < signals.size(); ++channel)
+        {
+          const size_t remaining = signals[channel].size() - offsets[channel];
+          const size_t length = std::min(chunk_pattern[step % chunk_pattern.size()],
+                                         remaining);
+          Array<double> chunk;
+          chunk.reserve(length);
+          for (size_t i = 0; i < length; ++i)
+            chunk.append(signals[channel][offsets[channel] + i]);
+          offsets(channel) += length;
+          any_pending = any_pending or length != 0;
+          block.append(chunk);
+        }
+
+      if (not any_pending)
+        break;
+
+      const auto emitted = bank.pprocess_block(pool, block);
+      for (size_t channel = 0; channel < signals.size(); ++channel)
+        append_real_samples(streamed(channel), emitted[channel]);
+    }
+
+  const auto tail = bank.pflush(pool);
+  for (size_t channel = 0; channel < signals.size(); ++channel)
+    append_real_samples(streamed(channel), tail[channel]);
+
+  for (size_t channel = 0; channel < signals.size(); ++channel)
+    {
+      const auto expected = FFTD::multiply(signals[channel], kernel);
+      expect_real_array_near(streamed[channel], expected, 1e-7);
+    }
+
+  bank.reset();
+  const auto rerun = bank.process_block(signals);
+  const auto rerun_tail = bank.flush();
+  for (size_t channel = 0; channel < signals.size(); ++channel)
+    {
+      Array<double> combined = rerun[channel];
+      append_real_samples(combined, rerun_tail[channel]);
+      const auto expected = FFTD::multiply(signals[channel], kernel);
+      expect_real_array_near(combined, expected, 1e-7);
+    }
+}
+
+TEST(FFTOverlapAddBank, PreservesEmptyChannelsAndSparseBlocks)
+{
+  ThreadPool pool(4);
+  Array<Array<double>> signals = {
+    Array<double>({1.0, -0.5, 0.25, 2.0, -1.0}),
+    Array<double>(),
+    Array<double>({0.5, 1.5, -0.25})
+  };
+  Array<double> kernel = {0.25, 0.5, 0.25};
+
+  FFTD::OverlapAddBank bank(signals.size(), kernel, 4);
+  const auto sequential = bank.convolve(signals);
+  const auto parallel = bank.pconvolve(pool, signals);
+
+  ASSERT_EQ(sequential.size(), signals.size());
+  ASSERT_EQ(parallel.size(), signals.size());
+  EXPECT_TRUE(sequential[1].is_empty());
+  EXPECT_TRUE(parallel[1].is_empty());
+  expect_real_array_near(sequential[0], FFTD::multiply(signals[0], kernel), 1e-12);
+  expect_real_array_near(sequential[2], FFTD::multiply(signals[2], kernel), 1e-12);
+  expect_real_array_near(parallel[0], FFTD::multiply(signals[0], kernel), 1e-12);
+  expect_real_array_near(parallel[2], FFTD::multiply(signals[2], kernel), 1e-12);
+
+  bank.reset();
+  Array<Array<double>> streamed(signals.size(), Array<double>());
+  Array<Array<double>> first_block = {
+    Array<double>({1.0, -0.5}),
+    Array<double>(),
+    Array<double>({0.5})
+  };
+  Array<Array<double>> second_block = {
+    Array<double>({0.25, 2.0, -1.0}),
+    Array<double>(),
+    Array<double>({1.5, -0.25})
+  };
+
+  const auto part_a = bank.pprocess_block(pool, first_block);
+  const auto part_b = bank.pprocess_block(pool, second_block);
+  const auto tail = bank.pflush(pool);
+  for (size_t channel = 0; channel < signals.size(); ++channel)
+    {
+      append_real_samples(streamed(channel), part_a[channel]);
+      append_real_samples(streamed(channel), part_b[channel]);
+      append_real_samples(streamed(channel), tail[channel]);
+    }
+
+  EXPECT_TRUE(streamed[1].is_empty());
+  expect_real_array_near(streamed[0], FFTD::multiply(signals[0], kernel), 1e-12);
+  expect_real_array_near(streamed[2], FFTD::multiply(signals[2], kernel), 1e-12);
 }

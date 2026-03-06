@@ -1500,7 +1500,7 @@ namespace Aleph
 
     /** @brief Construct with @p num elements, all equal to @p init_val. */
     Segment_Tree_Beats(const size_t num, const T & init_val = T())
-      : tree(num == 0 ? 1 : 4 * num), n(num)
+      : tree(Array<Node>::create(num == 0 ? 1 : 4 * num)), n(num)
     {
       init_all_nodes();
       if (n > 0)
@@ -1509,7 +1509,8 @@ namespace Aleph
 
     /** @brief Construct from an initializer list. */
     Segment_Tree_Beats(std::initializer_list<T> il)
-      : tree(il.size() == 0 ? 1 : 4 * il.size()), n(il.size())
+      : tree(Array<Node>::create(il.size() == 0 ? 1 : 4 * il.size())),
+        n(il.size())
     {
       init_all_nodes();
       if (n > 0)
@@ -1521,7 +1522,7 @@ namespace Aleph
 
     /** @brief Construct from an Array\<T\>. */
     Segment_Tree_Beats(const Array<T> & values)
-      : tree(values.size() == 0 ? 1 : 4 * values.size()),
+      : tree(Array<Node>::create(values.size() == 0 ? 1 : 4 * values.size())),
         n(values.size())
     {
       init_all_nodes();
@@ -1531,7 +1532,7 @@ namespace Aleph
 
     /** @brief Construct from a std::vector\<T\>. */
     Segment_Tree_Beats(const std::vector<T> & values)
-      : tree(values.size() == 0 ? 1 : 4 * values.size()),
+      : tree(Array<Node>::create(values.size() == 0 ? 1 : 4 * values.size())),
         n(values.size())
     {
       init_all_nodes();
@@ -1540,7 +1541,7 @@ namespace Aleph
     }
 
     Segment_Tree_Beats(const DynList<T> & values)
-      : tree(values.size() == 0 ? 1 : 4 * values.size()),
+      : tree(Array<Node>::create(values.size() == 0 ? 1 : 4 * values.size())),
         n(values.size())
     {
       init_all_nodes();

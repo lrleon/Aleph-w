@@ -47,6 +47,18 @@ using namespace Aleph;
 
 constexpr size_t N = 17;
 
+struct NoDefaultQueueItem
+{
+  int value;
+
+  explicit NoDefaultQueueItem(const int v) : value(v) {}
+
+  NoDefaultQueueItem(const NoDefaultQueueItem &) = default;
+  NoDefaultQueueItem(NoDefaultQueueItem &&) noexcept = default;
+  NoDefaultQueueItem & operator = (const NoDefaultQueueItem &) = default;
+  NoDefaultQueueItem & operator = (NoDefaultQueueItem &&) noexcept = default;
+};
+
 struct SimpleQueue : public Test
 {
   size_t n = 0;
@@ -118,6 +130,30 @@ TEST(ArrayQueue, fill_and_empty_queue)
   EXPECT_TRUE(q.is_empty());
   EXPECT_EQ(q.size(), 0);
   EXPECT_EQ(q.capacity(), N);
+}
+
+TEST(ArrayQueueNoDefaultCtor, PutGetWrapAndGrow)
+{
+  ArrayQueue<NoDefaultQueueItem> q;
+  const size_t initial_cap = q.capacity();
+
+  for (size_t i = 0; i < initial_cap; ++i)
+    EXPECT_EQ(q.put(NoDefaultQueueItem(static_cast<int>(i))).value,
+              static_cast<int>(i));
+
+  for (size_t i = 0; i < initial_cap / 2; ++i)
+    EXPECT_EQ(q.get().value, static_cast<int>(i));
+
+  for (size_t i = initial_cap; i < initial_cap + initial_cap; ++i)
+    EXPECT_EQ(q.put(NoDefaultQueueItem(static_cast<int>(i))).value,
+              static_cast<int>(i));
+
+  ASSERT_GE(q.capacity(), initial_cap * 2);
+
+  for (size_t i = initial_cap / 2; i < initial_cap + initial_cap; ++i)
+    EXPECT_EQ(q.get().value, static_cast<int>(i));
+
+  EXPECT_TRUE(q.is_empty());
 }
 
 TEST_F(SimpleQueue, put_and_get_stress)

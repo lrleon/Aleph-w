@@ -505,6 +505,34 @@ add_custom_target(aleph_check
     DEPENDS aleph_build_tests
 )
 
+find_program(ALEPH_RUBY_EXECUTABLE ruby)
+if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_benchmark)
+    add_test(
+        NAME FFTRelease.BenchmarkValidate
+        COMMAND fft_benchmark --validate
+    )
+endif()
+
+if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_reference_probe)
+    add_test(
+        NAME FFTRelease.ReferenceCrossCheck
+        COMMAND ${ALEPH_RUBY_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fft_reference_check.rb
+                --build-dir
+                ${CMAKE_BINARY_DIR}
+    )
+endif()
+
+if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_benchmark AND TARGET fft_reference_probe)
+    add_test(
+        NAME FFTRelease.Audit
+        COMMAND ${ALEPH_RUBY_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fft_release_audit.rb
+                --build-dir
+                ${CMAKE_BINARY_DIR}
+    )
+endif()
+
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")
 message(STATUS "  Exhaustive test programs: ${EXHAUSTIVE_TESTS}")
