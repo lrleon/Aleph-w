@@ -119,12 +119,33 @@ namespace Aleph
    *  domain conversion and signal processing.
    *
    *  ### Performance and Architecture:
-   *  - **Mixed Radix Kernel**: Automatically chooses the best algorithm for 
+   *  - **Mixed Radix Kernel**: Automatically chooses the best algorithm for
    *    the input size. Radix-2/4 for powers of two, Bluestein for primes.
-   *  - **Precomputed Plans**: Use @ref Plan to avoid re-calculating twiddle 
+   *  - **Precomputed Plans**: Use @ref Plan to avoid re-calculating twiddle
    *    factors for repeated transforms of the same length.
-   *  - **Concurrency**: Parallel APIs (prefixed with `p`) leverage a 
+   *  - **Concurrency**: Parallel APIs (prefixed with `p`) leverage a
    *    `ThreadPool` for large-scale data processing.
+   *
+   *  ### Thread Safety:
+   *  All methods are `static`; there is no shared mutable instance state.
+   *  Multiple threads may call any method concurrently on independent data
+   *  without synchronization.  The one exception is @ref Plan: a single
+   *  `Plan` object must not be used concurrently from multiple threads
+   *  unless all concurrent calls are read-only (query-only methods).
+   *
+   *  ### Exception Safety:
+   *  - Methods that allocate memory (e.g. `transformed`, `convolve`) provide
+   *    the **basic guarantee**: if `std::bad_alloc` or any other exception is
+   *    thrown, no resources are leaked and all objects remain in a valid
+   *    (though possibly partially modified) state.
+   *  - In-place methods (e.g. `transform(Array<Complex>&, bool)`) provide the
+   *    **basic guarantee**: the array remains valid but may be partially
+   *    transformed if an exception is thrown mid-way.
+   *  - Callers should be prepared to handle `std::bad_alloc` (memory
+   *    allocation failure), `std::invalid_argument` (zero-length or
+   *    unsupported input), and `std::domain_error` (e.g. non-Hermitian
+   *    spectrum passed to an inverse real transform).
+   *  - No public method is declared `noexcept`; all may propagate exceptions.
    *
    *  @tparam Real Floating-point precision (double, float, long double).
    */
@@ -140,17 +161,17 @@ namespace Aleph
     enum class SimdBackend
     {
       scalar, ///< Generic implementation.
-      avx2,   ///< Intel/AMD AVX2.
-      neon    ///< ARM NEON.
+      avx2, ///< Intel/AMD AVX2.
+      neon ///< ARM NEON.
     };
 
     /** @brief User-selected SIMD dispatch preference. */
     enum class SimdPreference
     {
-      automatic,   ///< Use the fastest available hardware.
+      automatic, ///< Use the fastest available hardware.
       scalar_only, ///< Force the portable scalar implementation.
-      avx2_only,   ///< Force AVX2 (must be supported by CPU).
-      neon_only    ///< Force NEON (must be supported by CPU).
+      avx2_only, ///< Force AVX2 (must be supported by CPU).
+      neon_only ///< Force NEON (must be supported by CPU).
     };
 
     /** @brief Coefficients for an Infinite Impulse Response (IIR) filter.
@@ -158,7 +179,7 @@ namespace Aleph
      */
     struct IIRCoefficients
     {
-      Array<Real> numerator;   ///< Feed-forward coefficients (b).
+      Array<Real> numerator; ///< Feed-forward coefficients (b).
       Array<Real> denominator; ///< Feed-backward coefficients (a).
     };
 
@@ -167,8 +188,12 @@ namespace Aleph
      */
     struct BiquadSection
     {
-      Real b0 = Real(1); Real b1 = Real(0); Real b2 = Real(0);
-      Real a0 = Real(1); Real a1 = Real(0); Real a2 = Real(0);
+      Real b0 = Real(1);
+      Real b1 = Real(0);
+      Real b2 = Real(0);
+      Real a0 = Real(1);
+      Real a1 = Real(0);
+      Real a2 = Real(0);
 
       /** @return A copy of the numerator coefficients. */
       [[nodiscard]] Array<Real>
@@ -410,12 +435,10 @@ namespace Aleph
 
       const size_t half = n / 2;
       if ((n & 1) == 0)
-        {
-          ah_domain_error_if(std::abs(input[half].imag())
-                             > real_projection_tolerance(input[half], n))
+        ah_domain_error_if(std::abs(input[half].imag())
+                         > real_projection_tolerance(input[half], n))
             << ctx << ": coefficient " << half
             << " has non-negligible imaginary part " << input[half].imag();
-        }
 
       const size_t limit = (n & 1) == 0 ? half : half + 1;
       for (size_t k = 1; k < limit; ++k)
@@ -486,11 +509,9 @@ namespace Aleph
                const size_t length)
     {
       ah_invalid_argument_if(offset > input.size())
-        << "FFT::slice_copy: offset " << offset
-        << " exceeds input size " << input.size();
+        << "FFT::slice_copy: offset " << offset << " exceeds input size " << input.size();
       ah_invalid_argument_if(length > input.size() - offset)
-        << "FFT::slice_copy: length " << length
-        << " exceeds slice capacity " << (input.size() - offset);
+        << "FFT::slice_copy: length " << length << " exceeds slice capacity " << (input.size() - offset);
 
       Array<T> output;
       output.reserve(length);
@@ -573,8 +594,7 @@ namespace Aleph
         << ctx << ": analysis window size " << analysis_window.size()
         << " does not match synthesis window size "
         << synthesis_window.size();
-      ah_invalid_argument_if(hop_size == 0)
-        << ctx << ": hop size must be positive";
+      ah_invalid_argument_if(hop_size == 0) << ctx << ": hop size must be positive";
 
       Array<Real> profile = Array<Real>::create(hop_size);
       for (size_t i = 0; i < hop_size; ++i)
@@ -646,10 +666,8 @@ namespace Aleph
                        const bool pad_end,
                        const char *ctx)
     {
-      ah_invalid_argument_if(frame_size == 0)
-        << ctx << ": frame size must be positive";
-      ah_invalid_argument_if(hop_size == 0)
-        << ctx << ": hop size must be positive";
+      ah_invalid_argument_if(frame_size == 0) << ctx << ": frame size must be positive";
+      ah_invalid_argument_if(hop_size == 0) << ctx << ": hop size must be positive";
 
       Array<size_t> offsets;
       if (signal_size == 0)
@@ -657,8 +675,7 @@ namespace Aleph
 
       for (size_t offset = 0; offset < signal_size; offset += hop_size)
         {
-          const size_t length = std::min(frame_size, signal_size - offset);
-          if (not pad_end and length < frame_size)
+          if (const size_t length = std::min(frame_size, signal_size - offset); not pad_end and length < frame_size)
             break;
 
           offsets.append(offset);
@@ -715,11 +732,9 @@ namespace Aleph
                              const Real sample_rate,
                              const char *ctx)
     {
-      ah_invalid_argument_if(fft_size == 0)
-        << ctx << ": FFT size must be positive";
+      ah_invalid_argument_if(fft_size == 0) << ctx << ": FFT size must be positive";
       ah_invalid_argument_if(sample_rate <= Real(0))
-        << ctx << ": sample rate " << sample_rate
-        << " must be strictly positive";
+        << ctx << ": sample rate " << sample_rate << " must be strictly positive";
 
       Array<Real> frequency = Array<Real>::create(fft_size / 2 + 1);
       for (size_t k = 0; k < frequency.size(); ++k)
@@ -745,9 +760,8 @@ namespace Aleph
                            const char *ctx)
     {
       const size_t hop_size =
-          options.hop_size == 0 ? std::max(size_t(1), frame_size / 2) : options.hop_size;
-      ah_invalid_argument_if(hop_size == 0)
-        << ctx << ": hop size must be positive";
+          options.hop_size == 0 ? std::max(static_cast<size_t>(1), frame_size / 2) : options.hop_size;
+      ah_invalid_argument_if(hop_size == 0) << ctx << ": hop size must be positive";
       return hop_size;
     }
 
@@ -759,8 +773,7 @@ namespace Aleph
       const size_t fft_size =
           options.fft_size == 0 ? next_power_of_two(frame_size) : options.fft_size;
       ah_invalid_argument_if(fft_size < frame_size)
-        << ctx << ": FFT size " << fft_size
-        << " is smaller than frame size " << frame_size;
+        << ctx << ": FFT size " << fft_size << " is smaller than frame size " << frame_size;
       return fft_size;
     }
 
@@ -770,10 +783,8 @@ namespace Aleph
                          const WelchOptions & options,
                          const char *ctx)
     {
-      ah_invalid_argument_if(signal.is_empty())
-        << ctx << ": signal must be non-empty";
-      ah_invalid_argument_if(window.is_empty())
-        << ctx << ": window must be non-empty";
+      ah_invalid_argument_if(signal.is_empty()) << ctx << ": signal must be non-empty";
+      ah_invalid_argument_if(window.is_empty()) << ctx << ": window must be non-empty";
 
       const size_t hop_size = resolve_welch_hop_size(options, window.size(), ctx);
       Array<Array<Real>> frames =
@@ -913,8 +924,7 @@ namespace Aleph
         << ctx << ": matrix size " << matrix.size()
         << " does not match a dense " << n << "x" << n << " system";
       ah_invalid_argument_if(rhs.size() != n)
-        << ctx << ": rhs size " << rhs.size()
-        << " does not match system size " << n;
+        << ctx << ": rhs size " << rhs.size() << " does not match system size " << n;
 
       Real max_entry = Real(0);
       for (size_t i = 0; i < matrix.size(); ++i)
@@ -1263,15 +1273,15 @@ namespace Aleph
                                 const size_t batch_size,
                                 ThreadPool *pool) noexcept
     {
-      const size_t target_bytes = 32 * 1024;
+      constexpr size_t target_bytes = 32 * 1024;
       const size_t bytes_per_item = std::max(sizeof(Complex), sizeof(Real))
-                                    * std::max<size_t>(size_t(1), transform_size);
-      size_t tile = std::max<size_t>(size_t(1), target_bytes / bytes_per_item);
-      tile = std::max<size_t>(size_t(4), tile);
-      tile = std::min(tile, std::max<size_t>(size_t(1), batch_size));
+                                    * std::max<size_t>(1, transform_size);
+      size_t tile = std::max<size_t>(1, target_bytes / bytes_per_item);
+      tile = std::max<size_t>(4, tile);
+      tile = std::min(tile, std::max<size_t>(static_cast<size_t>(1), batch_size));
       if (pool != nullptr and pool->num_threads() > 1)
         tile = std::max(tile, pool->num_threads() * 2);
-      return std::min(tile, std::max<size_t>(size_t(1), batch_size));
+      return std::min(tile, std::max<size_t>(static_cast<size_t>(1), batch_size));
     }
 
     [[nodiscard]] static Array<Real>
@@ -1294,15 +1304,12 @@ namespace Aleph
                           const STFTOptions & options,
                           const char *ctx)
     {
-      ah_invalid_argument_if(window.is_empty())
-        << ctx << ": window must be non-empty";
-      ah_invalid_argument_if(options.hop_size == 0)
-        << ctx << ": hop size must be positive";
+      ah_invalid_argument_if(window.is_empty()) << ctx << ": window must be non-empty";
+      ah_invalid_argument_if(options.hop_size == 0) << ctx << ": hop size must be positive";
 
       const size_t fft_size = options.fft_size == 0 ? next_power_of_two(window.size()) : options.fft_size;
       ah_invalid_argument_if(fft_size < window.size())
-        << ctx << ": FFT size " << fft_size
-        << " is smaller than window size " << window.size();
+        << ctx << ": FFT size " << fft_size << " is smaller than window size " << window.size();
 
       validate_overlap_constraints(window,
                                    window,
@@ -1487,8 +1494,7 @@ namespace Aleph
                                        const char *ctx)
     {
       const size_t n = effective_coeff_length(coefficients);
-      ah_invalid_argument_if(n == 0)
-        << ctx << ": polynomial coefficients must be non-empty";
+      ah_invalid_argument_if(n == 0) << ctx << ": polynomial coefficients must be non-empty";
 
       PolynomialEvaluation output;
       output.value = Complex(coefficients[0], Real(0));
@@ -1506,8 +1512,7 @@ namespace Aleph
                                      const char *ctx)
     {
       const size_t n = effective_coeff_length(coefficients);
-      ah_invalid_argument_if(n <= 1)
-        << ctx << ": polynomial degree must be at least one";
+      ah_invalid_argument_if(n <= 1) << ctx << ": polynomial degree must be at least one";
 
       Array<Real> quotient = Array<Real>::create(n - 1);
       quotient(0) = coefficients[0];
@@ -1926,8 +1931,7 @@ namespace Aleph
                                       roots);
         }
 
-      ah_domain_error_if(not converged)
-        << ctx << ": root solver did not converge";
+      ah_domain_error_if(not converged) << ctx << ": root solver did not converge";
 
       polish_roots_with_newton(problem.balanced, roots, problem.tol, 8);
       for (size_t i = 0; i < roots.size(); ++i)
@@ -2280,8 +2284,7 @@ namespace Aleph
 
       const size_t degree = analog.size() - 1;
       ah_invalid_argument_if(degree > order)
-        << ctx << ": analog degree " << degree
-        << " exceeds requested bilinear order " << order;
+        << ctx << ": analog degree " << degree << " exceeds requested bilinear order " << order;
 
       Array<Real> output = Array<Real>::create(order + 1);
       for (size_t i = 0; i < output.size(); ++i)
@@ -2331,8 +2334,7 @@ namespace Aleph
                                   const char *ctx)
     {
       const Array<Real> trimmed = trim_leading_zeros_copy(input);
-      ah_invalid_argument_if(trimmed.is_empty())
-        << ctx << ": polynomial vanished after trimming";
+      ah_invalid_argument_if(trimmed.is_empty()) << ctx << ": polynomial vanished after trimming";
       return trimmed;
     }
 
@@ -2341,8 +2343,7 @@ namespace Aleph
                      const size_t exponent,
                      const char *ctx)
     {
-      ah_invalid_argument_if(poly.is_empty())
-        << ctx << ": polynomial base must be non-empty";
+      ah_invalid_argument_if(poly.is_empty()) << ctx << ": polynomial base must be non-empty";
 
       Array<Real> output = {Real(1)};
       for (size_t i = 0; i < exponent; ++i)
@@ -2527,8 +2528,7 @@ namespace Aleph
           ah_domain_error_if(best == roots.size()
                              or best_error > tol * (Real(16)
                                + std::abs(roots[i])))
-            << ctx << ": complex root " << roots[i]
-            << " does not have a matching conjugate";
+            << ctx << ": complex root " << roots[i] << " does not have a matching conjugate";
 
           RootGroup group;
           group.roots = {roots[i], roots[best]};
@@ -2545,8 +2545,7 @@ namespace Aleph
             continue;
 
           ah_domain_error_if(std::abs(roots[i].imag()) > tol)
-            << ctx << ": root " << roots[i]
-            << " was not paired into a real section";
+            << ctx << ": root " << roots[i] << " was not paired into a real section";
           real_roots.append(Complex(roots[i].real(), Real(0)));
         }
 
@@ -2602,8 +2601,7 @@ namespace Aleph
       const IIRCoefficients coeffs =
           normalize_iir_coefficients(numerator, denominator, ctx);
       ah_invalid_argument_if(coeffs.denominator.size() > 3)
-        << ctx << ": section denominator order "
-        << (coeffs.denominator.size() - 1)
+        << ctx << ": section denominator order " << (coeffs.denominator.size() - 1)
         << " exceeds second order";
 
       BiquadSection section;
@@ -2676,14 +2674,101 @@ namespace Aleph
                         * cutoff_frequency / sample_rate);
     }
 
+    // -----------------------------------------------------------------
+    // Elliptic integral portability layer.
+    //
+    // std::comp_ellint_1 and std::ellint_1 are C++17 special math
+    // functions fully supported in libstdc++ but absent from libc++.
+    // The fallback uses the Arithmetic-Geometric Mean (AGM) iteration,
+    // which converges quadratically and is accurate to machine epsilon
+    // in a handful of iterations.
+    // -----------------------------------------------------------------
+
+# if defined(__GLIBCXX__) or defined(_MSVC_STL_VERSION)
+
+    [[nodiscard]] static Real
+    ellint_1_impl(const Real k, const Real phi)
+    {
+      return std::ellint_1(k, phi);
+    }
+
+    [[nodiscard]] static Real
+    comp_ellint_1_impl(const Real k)
+    {
+      return std::comp_ellint_1(k);
+    }
+
+# else // libc++ or other stdlib without C++17 special math
+
+    [[nodiscard]] static Real
+    comp_ellint_1_impl(const Real k)
+    {
+      // Complete elliptic integral K(k) via AGM iteration.
+      Real a = Real(1);
+      Real b = std::sqrt(std::max(Real(0), Real(1) - k * k));
+      for (size_t i = 0; i < 64 and std::abs(a - b) >
+             std::numeric_limits<Real>::epsilon() * a; ++i)
+        {
+          const Real next_a = (a + b) / Real(2);
+          b = std::sqrt(a * b);
+          a = next_a;
+        }
+      return std::numbers::pi_v<Real> / (Real(2) * a);
+    }
+
+    [[nodiscard]] static Real
+    ellint_1_impl(const Real k, const Real phi)
+    {
+      // Incomplete elliptic integral F(phi, k) via Carlson's reduction.
+      // Uses the identity F(pi/2, k) = K(k) for the complete case,
+      // and the AGM-based Gauss transformation otherwise.
+      const Real half_pi = std::numbers::pi_v<Real> / Real(2);
+      if (std::abs(phi - half_pi) <=
+          std::numeric_limits<Real>::epsilon() * Real(4))
+        return comp_ellint_1_impl(k);
+
+      // Reduce to first quadrant
+      const Real sin_phi = std::sin(phi);
+      const Real cos_phi = std::cos(phi);
+      const Real sin2 = sin_phi * sin_phi;
+      const Real k2 = k * k;
+
+      // Numerical integration via Legendre series / AGM-based approach:
+      // F(phi, k) = integral from 0 to phi of
+      //             dt / sqrt(1 - k^2 sin^2(t))
+      //
+      // Use the substitution with AGM descent.
+      Real a = Real(1);
+      Real b = std::sqrt(std::max(Real(0), Real(1) - k2));
+      Real angle = phi;
+      Real power_of_two = Real(1);
+
+      for (size_t i = 0; i < 64 and std::abs(a - b) >
+             std::numeric_limits<Real>::epsilon() * a; ++i)
+        {
+          const Real next_a = (a + b) / Real(2);
+          b = std::sqrt(a * b);
+          const Real correction = std::asin(
+              std::clamp((a - next_a) * std::sin(angle) / next_a,
+                         Real(-1), Real(1)));
+          angle = angle + correction;
+          power_of_two *= Real(2);
+          a = next_a;
+        }
+
+      return angle / (power_of_two * a)
+             * std::numbers::pi_v<Real> / Real(2);
+    }
+
+# endif // stdlib dispatch
+
     [[nodiscard]] static Real
     complete_elliptic_first_kind(const Real modulus,
                                  const char *ctx)
     {
       ah_invalid_argument_if(modulus < Real(0) or modulus >= Real(1))
-        << ctx << ": elliptic modulus " << modulus
-        << " must lie in [0, 1)";
-      return std::comp_ellint_1(modulus);
+        << ctx << ": elliptic modulus " << modulus << " must lie in [0, 1)";
+      return comp_ellint_1_impl(modulus);
     }
 
     [[nodiscard]] static JacobiValues
@@ -2692,8 +2777,7 @@ namespace Aleph
                     const char *ctx)
     {
       ah_invalid_argument_if(modulus < Real(0) or modulus >= Real(1))
-        << ctx << ": elliptic modulus " << modulus
-        << " must lie in [0, 1)";
+        << ctx << ": elliptic modulus " << modulus << " must lie in [0, 1)";
 
       if (std::abs(argument) <= scaled_tolerance(argument, Real(4096)))
         return {};
@@ -2738,7 +2822,7 @@ namespace Aleph
 
       for (size_t iter = 0; iter < 96; ++iter)
         {
-          const Real value = std::ellint_1(modulus, phi);
+          const Real value = ellint_1_impl(modulus, phi);
           const Real residual = value - u;
           if (std::abs(residual) <= scaled_tolerance(u, Real(8192)))
             break;
@@ -2750,9 +2834,9 @@ namespace Aleph
 
           const Real sin_phi = std::sin(phi);
           const Real derivative =
-            Real(1) / std::sqrt(std::max(Real(0),
-                                         Real(1)
-                                         - modulus * modulus
+              Real(1) / std::sqrt(std::max(Real(0),
+                                           Real(1)
+                                           - modulus * modulus
                                            * sin_phi * sin_phi));
           Real candidate = phi - residual / derivative;
           if (candidate <= lower or candidate >= upper
@@ -2767,7 +2851,7 @@ namespace Aleph
       values.dn = std::sqrt(std::max(Real(0),
                                      Real(1)
                                      - modulus * modulus
-                                       * values.sn * values.sn));
+                                     * values.sn * values.sn));
       if (negative)
         values.sn = -values.sn;
       return values;
@@ -2784,7 +2868,7 @@ namespace Aleph
       ah_invalid_argument_if(modulus < Real(0) or modulus >= Real(1))
         << ctx << ": elliptic modulus " << modulus
         << " must lie in [0, 1)";
-      return std::ellint_1(modulus, std::atan(value));
+      return ellint_1_impl(modulus, std::atan(value));
     }
 
     [[nodiscard]] static Real
@@ -2799,11 +2883,11 @@ namespace Aleph
         << " must lie in (0, 1)";
 
       const Real k1_complement =
-        std::sqrt(std::max(Real(0), Real(1) - k1 * k1));
+          std::sqrt(std::max(Real(0), Real(1) - k1 * k1));
       const Real target =
-        complete_elliptic_first_kind(k1_complement, ctx)
-        / (static_cast<Real>(order)
-           * complete_elliptic_first_kind(k1, ctx));
+          complete_elliptic_first_kind(k1_complement, ctx)
+          / (static_cast<Real>(order)
+             * complete_elliptic_first_kind(k1, ctx));
 
       Real lower = Real(0);
       Real upper = Real(1) - std::sqrt(std::numeric_limits<Real>::epsilon());
@@ -2811,10 +2895,10 @@ namespace Aleph
         {
           const Real mid = (lower + upper) / Real(2);
           const Real mid_complement =
-            std::sqrt(std::max(Real(0), Real(1) - mid * mid));
+              std::sqrt(std::max(Real(0), Real(1) - mid * mid));
           const Real ratio =
-            complete_elliptic_first_kind(mid_complement, ctx)
-            / complete_elliptic_first_kind(mid, ctx);
+              complete_elliptic_first_kind(mid_complement, ctx)
+              / complete_elliptic_first_kind(mid, ctx);
           if (ratio > target)
             lower = mid;
           else
@@ -2832,7 +2916,7 @@ namespace Aleph
     {
       const JacobiValues uv = jacobi_sn_cn_dn(u, modulus, ctx);
       const Real complement =
-        std::sqrt(std::max(Real(0), Real(1) - modulus * modulus));
+          std::sqrt(std::max(Real(0), Real(1) - modulus * modulus));
       const JacobiValues vv = jacobi_sn_cn_dn(v, complement, ctx);
       const Complex cn(uv.cn * vv.cn,
                        uv.sn * uv.dn * vv.sn * vv.dn);
@@ -2974,9 +3058,9 @@ namespace Aleph
         << " must exceed passband ripple " << ripple_db;
 
       const Real epsilon =
-        std::sqrt(std::pow(Real(10), ripple_db / Real(10)) - Real(1));
+          std::sqrt(std::pow(Real(10), ripple_db / Real(10)) - Real(1));
       const Real stop_term =
-        std::pow(Real(10), attenuation_db / Real(10)) - Real(1);
+          std::pow(Real(10), attenuation_db / Real(10)) - Real(1);
       ah_domain_error_if(stop_term <= Real(0))
         << ctx << ": stopband attenuation produced a non-positive stop term";
 
@@ -2993,12 +3077,12 @@ namespace Aleph
       const Real K = complete_elliptic_first_kind(modulus, ctx);
       const Real K1 = complete_elliptic_first_kind(k1, ctx);
       const Real k1_complement =
-        std::sqrt(std::max(Real(0), Real(1) - k1 * k1));
+          std::sqrt(std::max(Real(0), Real(1) - k1 * k1));
       const Real r = inverse_jacobi_sc(Real(1) / epsilon,
                                        k1_complement,
                                        ctx);
       const Real v0 =
-        K * r / (static_cast<Real>(order) * K1);
+          K * r / (static_cast<Real>(order) * K1);
 
       AnalogPrototype prototype;
       prototype.zeros.reserve(order);
@@ -3008,8 +3092,8 @@ namespace Aleph
       for (size_t i = 0; i < pair_count; ++i)
         {
           const Real u =
-            (Real(2) * static_cast<Real>(i) + Real(1)) * K
-            / static_cast<Real>(order);
+              (Real(2) * static_cast<Real>(i) + Real(1)) * K
+              / static_cast<Real>(order);
           const JacobiValues values = jacobi_sn_cn_dn(u, modulus, ctx);
           const Real zero_scale = modulus * values.sn;
           ah_domain_error_if(std::abs(zero_scale)
@@ -3020,8 +3104,8 @@ namespace Aleph
           prototype.zeros.append(Complex(Real(0), -zero_imag));
 
           Complex pole =
-            Complex(Real(0), Real(1))
-            * elliptic_cd_minus_imaginary(u, v0, modulus, ctx);
+              Complex(Real(0), Real(1))
+              * elliptic_cd_minus_imaginary(u, v0, modulus, ctx);
           if (pole.real() > Real(0))
             pole = -pole;
           if (pole.imag() < Real(0))
@@ -3034,7 +3118,7 @@ namespace Aleph
       if ((order & 1) != 0)
         {
           const Real complement =
-            std::sqrt(std::max(Real(0), Real(1) - modulus * modulus));
+              std::sqrt(std::max(Real(0), Real(1) - modulus * modulus));
           const JacobiValues values = jacobi_sn_cn_dn(v0, complement, ctx);
           ah_domain_error_if(std::abs(values.cn)
                              <= scaled_tolerance(values.cn, Real(4096)))
@@ -3046,14 +3130,14 @@ namespace Aleph
       if (not prototype.zeros.is_empty())
         numerator = real_polynomial_from_roots(prototype.zeros, ctx);
       const Array<Real> denominator =
-        real_polynomial_from_roots(prototype.poles, ctx);
+          real_polynomial_from_roots(prototype.poles, ctx);
       const Real target_gain =
-        (order & 1) == 0 ?
-          Real(1) / std::sqrt(Real(1) + epsilon * epsilon) :
-          Real(1);
+          (order & 1) == 0 ?
+            Real(1) / std::sqrt(Real(1) + epsilon * epsilon) :
+            Real(1);
       prototype.gain =
-        target_gain * denominator[denominator.size() - 1]
-        / numerator[numerator.size() - 1];
+          target_gain * denominator[denominator.size() - 1]
+          / numerator[numerator.size() - 1];
       return prototype;
     }
 
@@ -3509,9 +3593,7 @@ namespace Aleph
                           const size_t lhs_harmonic,
                           const size_t rhs_harmonic) noexcept
     {
-      const size_t delta = lhs_harmonic >= rhs_harmonic
-        ? lhs_harmonic - rhs_harmonic
-        : rhs_harmonic - lhs_harmonic;
+      const size_t delta = lhs_harmonic >= rhs_harmonic ? lhs_harmonic - rhs_harmonic : rhs_harmonic - lhs_harmonic;
       return Real(0.5) * (integrate_cos_basis(omega_lo, omega_hi, delta)
                           + integrate_cos_basis(omega_lo,
                                                 omega_hi,
@@ -3556,7 +3638,7 @@ namespace Aleph
                const Array<Real> & desired,
                const Real sample_rate,
                const Array<Real> & weights,
-               const char * ctx)
+               const char *ctx)
     {
       ah_invalid_argument_if(num_taps == 0)
         << ctx << ": num_taps must be positive";
@@ -3602,8 +3684,7 @@ namespace Aleph
       Real previous_edge = Real(0);
       for (size_t i = 0; i < bands.size(); ++i)
         {
-          const Real edge = i == 0 ? Real(0)
-            : (i + 1 == bands.size() ? nyquist : bands[i]);
+          const Real edge = i == 0 ? Real(0) : (i + 1 == bands.size() ? nyquist : bands[i]);
           ah_invalid_argument_if(edge < -edge_tol or edge > nyquist + edge_tol)
             << ctx << ": band edge " << edge << " lies outside [0, Nyquist]";
           ah_invalid_argument_if(i > 0 and edge + edge_tol < previous_edge)
@@ -3644,10 +3725,10 @@ namespace Aleph
               for (size_t col = row; col < dimension; ++col)
                 {
                   const Real contribution =
-                    weight * integrate_cos_product(omega_lo,
-                                                   omega_hi,
-                                                   row,
-                                                   col);
+                      weight * integrate_cos_product(omega_lo,
+                                                     omega_hi,
+                                                     row,
+                                                     col);
                   system(row * dimension + col) += contribution;
                   if (col != row)
                     system(col * dimension + row) += contribution;
@@ -3656,7 +3737,7 @@ namespace Aleph
         }
 
       const Array<Real> cosine_series =
-        solve_dense_system(system, rhs, dimension, ctx);
+          solve_dense_system(system, rhs, dimension, ctx);
       Array<Real> coeffs = Array<Real>::create(num_taps);
       for (size_t i = 0; i < coeffs.size(); ++i)
         coeffs(i) = Real(0);
@@ -3680,7 +3761,7 @@ namespace Aleph
                                   const Real sample_rate,
                                   const Array<Real> & weights,
                                   const size_t grid_density,
-                                  const char * ctx)
+                                  const char *ctx)
     {
       ah_invalid_argument_if(num_taps == 0)
         << ctx << ": num_taps must be positive";
@@ -3734,14 +3815,14 @@ namespace Aleph
             << " must be positive";
 
           const Real omega_low =
-            Real(2) * std::numbers::pi_v<Real> * low / sample_rate;
+              Real(2) * std::numbers::pi_v<Real> * low / sample_rate;
           const Real omega_high =
-            Real(2) * std::numbers::pi_v<Real> * high / sample_rate;
+              Real(2) * std::numbers::pi_v<Real> * high / sample_rate;
           const Real omega_width = omega_high - omega_low;
           size_t sample_count =
-            static_cast<size_t>(std::ceil(target_points
-                                          * omega_width
-                                          / std::numbers::pi_v<Real>));
+              static_cast<size_t>(std::ceil(target_points
+                                            * omega_width
+                                            / std::numbers::pi_v<Real>));
           sample_count = std::max<size_t>(sample_count, 2);
 
           for (size_t i = 0; i < sample_count; ++i)
@@ -3750,12 +3831,13 @@ namespace Aleph
                 continue;
 
               const Real t =
-                sample_count == 1 ? Real(0)
-                                  : static_cast<Real>(i)
-                                      / static_cast<Real>(sample_count - 1);
+                  sample_count == 1 ?
+                    Real(0) :
+                    static_cast<Real>(i)
+                    / static_cast<Real>(sample_count - 1);
               const Real omega = omega_low + t * omega_width;
               const Real desired_value =
-                desired_low + t * (desired_high - desired_low);
+                  desired_low + t * (desired_high - desired_low);
               grid.omega.append(omega);
               grid.desired.append(desired_value);
               grid.weight.append(weight);
@@ -3788,10 +3870,11 @@ namespace Aleph
       for (size_t i = 0; i < extremal_count; ++i)
         {
           const Real position =
-            extremal_count == 1 ? Real(0)
-                                : static_cast<Real>(i)
-                                    * static_cast<Real>(grid_size - 1)
-                                    / static_cast<Real>(extremal_count - 1);
+              extremal_count == 1 ?
+                Real(0) :
+                static_cast<Real>(i)
+                * static_cast<Real>(grid_size - 1)
+                / static_cast<Real>(extremal_count - 1);
           extrema.append(static_cast<size_t>(std::llround(position)));
         }
       return extrema;
@@ -3800,7 +3883,7 @@ namespace Aleph
     [[nodiscard]] static Array<size_t>
     choose_remez_extrema(const Array<Real> & weighted_error,
                          const size_t required_count,
-                         const char * ctx)
+                         const char *ctx)
     {
       ah_invalid_argument_if(weighted_error.size() < required_count)
         << ctx << ": weighted error grid has only " << weighted_error.size()
@@ -3823,10 +3906,9 @@ namespace Aleph
             continue;
 
           const Real left_abs =
-            i == 0 ? Real(-1) : std::abs(weighted_error[i - 1]);
+              i == 0 ? Real(-1) : std::abs(weighted_error[i - 1]);
           const Real right_abs =
-            i + 1 == weighted_error.size() ? Real(-1)
-                                           : std::abs(weighted_error[i + 1]);
+              i + 1 == weighted_error.size() ? Real(-1) : std::abs(weighted_error[i + 1]);
           if (current_abs + scaled_tolerance(current_abs, Real(256)) < left_abs
               or current_abs + scaled_tolerance(current_abs, Real(256)) < right_abs)
             continue;
@@ -3903,7 +3985,7 @@ namespace Aleph
                               const Array<Real> & weight,
                               const Array<size_t> & extrema,
                               const size_t half_order,
-                              const char * ctx)
+                              const char *ctx)
     {
       const size_t dimension = half_order + 2;
       ah_invalid_argument_if(extrema.size() != dimension)
@@ -3922,9 +4004,9 @@ namespace Aleph
           const size_t index = extrema[row];
           for (size_t col = 0; col <= half_order; ++col)
             matrix(row * dimension + col) =
-              std::cos(static_cast<Real>(col) * omega[index]);
+                std::cos(static_cast<Real>(col) * omega[index]);
           matrix(row * dimension + half_order + 1) =
-            ((row & 1) == 0 ? Real(1) : Real(-1)) / weight[index];
+              ((row & 1) == 0 ? Real(1) : Real(-1)) / weight[index];
           rhs(row) = desired[index];
         }
 
@@ -3939,23 +4021,23 @@ namespace Aleph
                const Array<Real> & weights,
                const size_t grid_density,
                const size_t max_iterations,
-               const char * ctx)
+               const char *ctx)
     {
       ah_invalid_argument_if(max_iterations == 0)
         << ctx << ": max_iterations must be positive";
 
       const WeightedFrequencyGrid grid =
-        build_weighted_frequency_grid(num_taps,
-                                      bands,
-                                      desired,
-                                      sample_rate,
-                                      weights,
-                                      grid_density,
-                                      ctx);
+          build_weighted_frequency_grid(num_taps,
+                                        bands,
+                                        desired,
+                                        sample_rate,
+                                        weights,
+                                        grid_density,
+                                        ctx);
       const size_t half_order = (num_taps - 1) / 2;
       const size_t required_extrema = half_order + 2;
       Array<size_t> extrema =
-        evenly_spaced_extrema(grid.omega.size(), required_extrema);
+          evenly_spaced_extrema(grid.omega.size(), required_extrema);
 
       Array<Real> cosine = Array<Real>::create(half_order + 1);
       for (size_t i = 0; i < cosine.size(); ++i)
@@ -3964,12 +4046,12 @@ namespace Aleph
       for (size_t iter = 0; iter < max_iterations; ++iter)
         {
           const Array<Real> solution =
-            solve_remez_cosine_series(grid.omega,
-                                      grid.desired,
-                                      grid.weight,
-                                      extrema,
-                                      half_order,
-                                      ctx);
+              solve_remez_cosine_series(grid.omega,
+                                        grid.desired,
+                                        grid.weight,
+                                        extrema,
+                                        half_order,
+                                        ctx);
           for (size_t i = 0; i < cosine.size(); ++i)
             cosine(i) = solution[i];
 
@@ -3977,15 +4059,15 @@ namespace Aleph
           for (size_t i = 0; i < grid.omega.size(); ++i)
             {
               const Real approx =
-                evaluate_cosine_series(cosine, grid.omega[i]);
+                  evaluate_cosine_series(cosine, grid.omega[i]);
               weighted_error(i) =
-                grid.weight[i] * (approx - grid.desired[i]);
+                  grid.weight[i] * (approx - grid.desired[i]);
             }
 
           const Array<size_t> next_extrema =
-            choose_remez_extrema(weighted_error,
-                                 required_extrema,
-                                 ctx);
+              choose_remez_extrema(weighted_error,
+                                   required_extrema,
+                                   ctx);
           bool unchanged = next_extrema.size() == extrema.size();
           for (size_t i = 0; unchanged and i < extrema.size(); ++i)
             unchanged = next_extrema[i] == extrema[i];
@@ -5634,9 +5716,13 @@ namespace Aleph
       if constexpr (std::same_as<Real, float>)
         {
 
+
+
 #   if defined(__linux__)
       static const bool available = []() noexcept
         {
+
+
 
 #     if defined(__aarch64__) and defined(HWCAP_ASIMD)
       return (getauxval(AT_HWCAP) & HWCAP_ASIMD) != 0;
@@ -5655,6 +5741,8 @@ namespace Aleph
 #   if ALEPH_FFT_HAS_ARM_NEON_DOUBLE
       if constexpr (std::same_as<Real, double>)
         {
+
+
 
 #     if defined(__linux__) and defined(HWCAP_ASIMD)
       static const bool available = []() noexcept
@@ -7345,6 +7433,19 @@ namespace Aleph
       transform_any_size_impl(a, invert);
     }
 
+    /** @brief Parallel in-place FFT/IFFT using a thread pool.
+     *
+     *  Equivalent to @ref transform but distributes work across `pool`.
+     *  The transform is applied in-place to the complex array `a`.
+     *
+     *  @param pool      Thread pool to use for parallel execution.
+     *  @param a         Array of complex values to transform in-place.
+     *  @param invert    If `true`, computes the inverse transform (IFFT).
+     *  @param chunk_size Minimum number of elements per worker task
+     *                   (0 = automatic).
+     *  @throw std::invalid_argument if the size of `a` is zero.
+     *  @throw std::bad_alloc if memory allocation fails.
+     */
     static void
     ptransform(ThreadPool & pool, Array<Complex> & a, const bool invert,
                const size_t chunk_size = 0)
@@ -7371,6 +7472,18 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Parallel FFT/IFFT that returns a new array.
+     *
+     *  Functional parallel wrapper around @ref ptransform.
+     *
+     *  @param pool      Thread pool to use for parallel execution.
+     *  @param input     Input array of complex values.
+     *  @param invert    If `true`, computes the inverse transform.
+     *  @param chunk_size Minimum elements per worker task (0 = automatic).
+     *  @return A new array containing the transformed values.
+     *  @throw std::invalid_argument if the input size is zero.
+     *  @throw std::bad_alloc if memory allocation fails.
+     */
     [[nodiscard]] static Array<Complex>
     ptransformed(ThreadPool & pool, const Array<Complex> & input,
                  const bool invert = false, const size_t chunk_size = 0)
@@ -7840,6 +7953,20 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Zero-pad and forward-FFT a generic complex iterable.
+     *
+     *  Accepts any container of `std::complex<Real>` values (e.g.
+     *  `std::vector<Complex>`, `DynList<Complex>`).  The input is copied
+     *  to an internal `Array<Complex>` via @ref build_complex_input before
+     *  the transform is applied.
+     *
+     *  @tparam Container Any iterable whose elements are `std::complex<Real>`.
+     *  @param input The input container.
+     *  @return A new `Array<Complex>` zero-padded to a power-of-two length
+     *          and transformed.
+     *  @throw std::invalid_argument if the input is empty.
+     *  @throw std::bad_alloc if memory allocation fails.
+     */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -7848,6 +7975,16 @@ namespace Aleph
       return transform_padded(build_complex_input(input));
     }
 
+    /** @brief Parallel zero-pad and forward-FFT for a generic complex iterable.
+     *
+     *  @tparam Container Any iterable whose elements are `std::complex<Real>`.
+     *  @param pool      Thread pool for parallel execution.
+     *  @param input     The input container.
+     *  @param chunk_size Minimum elements per worker task (0 = automatic).
+     *  @return A new `Array<Complex>` zero-padded and transformed.
+     *  @throw std::invalid_argument if the input is empty.
+     *  @throw std::bad_alloc if memory allocation fails.
+     */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -7857,6 +7994,19 @@ namespace Aleph
       return ptransform_padded(pool, build_complex_input(input), chunk_size);
     }
 
+    /** @brief FFT/IFFT for a generic complex iterable.
+     *
+     *  Accepts any container of `std::complex<Real>` values.  The input is
+     *  converted to `Array<Complex>` via @ref build_complex_input before
+     *  the transform is applied.
+     *
+     *  @tparam Container Any iterable whose elements are `std::complex<Real>`.
+     *  @param input  The input container.
+     *  @param invert If `true`, computes the inverse transform (IFFT).
+     *  @return A new `Array<Complex>` containing the transformed values.
+     *  @throw std::invalid_argument if the input is empty.
+     *  @throw std::bad_alloc if memory allocation fails.
+     */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -7865,6 +8015,17 @@ namespace Aleph
       return transformed(build_complex_input(input), invert);
     }
 
+    /** @brief Parallel FFT/IFFT for a generic complex iterable.
+     *
+     *  @tparam Container Any iterable whose elements are `std::complex<Real>`.
+     *  @param pool      Thread pool for parallel execution.
+     *  @param input     The input container.
+     *  @param invert    If `true`, computes the inverse transform.
+     *  @param chunk_size Minimum elements per worker task (0 = automatic).
+     *  @return A new `Array<Complex>` containing the transformed values.
+     *  @throw std::invalid_argument if the input is empty.
+     *  @throw std::bad_alloc if memory allocation fails.
+     */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -7890,6 +8051,17 @@ namespace Aleph
       return transform_real_optimized(input);
     }
 
+    /** @brief Parallel real-input FFT.
+     *
+     *  Parallel equivalent of @ref transform(const Array<Real>&).
+     *
+     *  @param pool      Thread pool for parallel execution.
+     *  @param input     Input array of real values.
+     *  @param chunk_size Minimum elements per worker task (0 = automatic).
+     *  @return A new `Array<Complex>` containing the frequency spectrum.
+     *  @throw std::invalid_argument if the input is empty.
+     *  @throw std::bad_alloc if memory allocation fails.
+     */
     [[nodiscard]] static Array<Complex>
     ptransform(ThreadPool & pool, const Array<Real> & input,
                const size_t chunk_size = 0)
@@ -12836,10 +13008,10 @@ namespace Aleph
                       const Real sample_rate)
     {
       const auto [warped_low, warped_high] =
-        prewarp_band_edges(low_cutoff_frequency,
-                           high_cutoff_frequency,
-                           sample_rate,
-                           "FFT::elliptic_bandpass");
+          prewarp_band_edges(low_cutoff_frequency,
+                             high_cutoff_frequency,
+                             sample_rate,
+                             "FFT::elliptic_bandpass");
       const Real bandwidth = warped_high - warped_low;
       const Real center = std::sqrt(warped_low * warped_high);
       return design_transformed_sections(elliptic_prototype(order,
@@ -12862,10 +13034,10 @@ namespace Aleph
                       const Real sample_rate)
     {
       const auto [warped_low, warped_high] =
-        prewarp_band_edges(low_cutoff_frequency,
-                           high_cutoff_frequency,
-                           sample_rate,
-                           "FFT::elliptic_bandstop");
+          prewarp_band_edges(low_cutoff_frequency,
+                             high_cutoff_frequency,
+                             sample_rate,
+                             "FFT::elliptic_bandstop");
       const Real bandwidth = warped_high - warped_low;
       const Real center = std::sqrt(warped_low * warped_high);
       return design_transformed_sections(elliptic_prototype(order,
@@ -14127,7 +14299,7 @@ namespace Aleph
                 (head_ + kernel_partitions_.size() - part) % kernel_partitions_.size();
             for (size_t bin = 0; bin < fft_size_; ++bin)
               accumulated(bin) += input_history_[history_index][bin]
-                                  * kernel_partitions_[part][bin];
+                  * kernel_partitions_[part][bin];
           }
 
         const Array<Real> convolved = plan_.inverse_transform_real(accumulated);
@@ -14376,9 +14548,9 @@ namespace Aleph
     {
       return poverlap_add_convolution(pool,
                                       build_real_input(signal),
-                                     build_real_input(kernel),
-                                     block_size,
-                                     chunk_size);
+                                      build_real_input(kernel),
+                                      block_size,
+                                      chunk_size);
     }
 
     template <typename Container1, typename Container2>

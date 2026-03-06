@@ -448,6 +448,7 @@ TEST(TwoSat, LargerSatisfiable)
     target(i) = sign_dist(rng) != 0;
 
   Two_Sat<> sat(N);
+  Array<std::pair<size_t, size_t>> clauses;
 
   for (size_t c = 0; c < M; ++c)
     {
@@ -458,10 +459,21 @@ TEST(TwoSat, LargerSatisfiable)
       size_t l1 = target(v1) ? sat.pos_lit(v1) : sat.neg_lit(v1);
       size_t l2 = target(v2) ? sat.pos_lit(v2) : sat.neg_lit(v2);
       sat.add_clause(l1, l2);
+      clauses.append(std::pair<size_t, size_t>(l1, l2));
     }
 
   auto [ok, assignment] = sat.solve();
   EXPECT_TRUE(ok);
+
+  for (size_t c = 0; c < clauses.size(); ++c)
+    {
+      auto [l1, l2] = clauses[c];
+      bool val1 = sat.is_pos_lit(l1) ? assignment[sat.lit_var(l1)]
+                                     : not assignment[sat.lit_var(l1)];
+      bool val2 = sat.is_pos_lit(l2) ? assignment[sat.lit_var(l2)]
+                                     : not assignment[sat.lit_var(l2)];
+      EXPECT_TRUE(val1 or val2);
+    }
 }
 
 TEST(TwoSat, LargerUnsatisfiable)

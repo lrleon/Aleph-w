@@ -39,6 +39,7 @@
  *    complex coefficients.
  */
 
+# include <algorithm>
 # include <cmath>
 # include <complex>
 # include <iomanip>
@@ -50,11 +51,16 @@
 # include <print_rule.H>
 # include <tpl_array.H>
 
-using namespace std;
-using namespace Aleph;
-
 namespace
 {
+  using std::cout;
+  using std::fixed;
+  using std::setprecision;
+  using std::setw;
+  using std::size_t;
+  using Aleph::FFT;
+  using Aleph::Array;
+
   // Alias for common types to make the code more readable.
   using FFTD = FFT<double>;
   using Complex = FFTD::Complex;

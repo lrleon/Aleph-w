@@ -62,6 +62,8 @@
  *
  * Many of these algorithms are parameterized by comparison functors
  * and can work with various data structures.
+ *
+ * @see fft.H
  */
 
 /**

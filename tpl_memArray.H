@@ -164,13 +164,20 @@ namespace Aleph
     /// Allocate raw (uninitialized) memory for `count` elements of T.
     static T * raw_alloc(const size_t count)
     {
-      return static_cast<T *>(::operator new(count * sizeof(T)));
+      if constexpr (alignof(T) > __STDCPP_DEFAULT_NEW_ALIGNMENT__)
+        return static_cast<T *>(::operator new(count * sizeof(T),
+                                               std::align_val_t{alignof(T)}));
+      else
+        return static_cast<T *>(::operator new(count * sizeof(T)));
     }
 
     /// Free raw memory previously obtained from raw_alloc.
     static void raw_dealloc(T * p) noexcept
     {
-      ::operator delete(p);
+      if constexpr (alignof(T) > __STDCPP_DEFAULT_NEW_ALIGNMENT__)
+        ::operator delete(p, std::align_val_t{alignof(T)});
+      else
+        ::operator delete(p);
     }
 
     static void destroy_one(T * p) noexcept
@@ -246,6 +253,10 @@ namespace Aleph
                                    const size_t count,
                                    Index_Fn index_fn)
     {
+      static_assert(std::is_copy_constructible_v<T> or
+                    std::is_nothrow_move_constructible_v<T>,
+                    "relocate_construct requires T to be copy-constructible "
+                    "or nothrow-move-constructible");
       size_t done = 0;
       try
         {
@@ -440,7 +451,15 @@ namespace Aleph
       : ptr(nullptr), dim(a.dim), n(a.n)
     {
       allocate();
-      copy_construct(ptr, a.ptr, n);
+      try
+        {
+          copy_construct(ptr, a.ptr, n);
+        }
+      catch (...)
+        {
+          raw_dealloc(ptr);
+          throw;
+        }
     }
 
     /// Construct an array moved of rvalue `a`
@@ -461,7 +480,15 @@ namespace Aleph
       assert(a.ptr);
 
       T *newptr = raw_alloc(a.dim);
-      copy_construct(newptr, a.ptr, a.n);
+      try
+        {
+          copy_construct(newptr, a.ptr, a.n);
+        }
+      catch (...)
+        {
+          raw_dealloc(newptr);
+          throw;
+        }
 
       destroy_elems(ptr, 0, n);
       if (ptr != nullptr)
@@ -555,10 +582,18 @@ namespace Aleph
         }
 
       new (ptr + n) T(std::move(ptr[n - 1]));
-      for (size_t i = n - 1; i > 0; --i)
-        ptr[i] = std::move(ptr[i - 1]);
+      try 
+        {
+          for (size_t i = n - 1; i > 0; --i)
+            ptr[i] = std::move(ptr[i - 1]);
 
-      ptr[0] = item;
+          ptr[0] = item;
+        }
+      catch (...)
+        {
+          ptr[n].~T();
+          throw;
+        }
       ++n;
       T &ret = ptr[0];
       return ret;
@@ -580,10 +615,18 @@ namespace Aleph
         }
 
       new (ptr + n) T(std::move(ptr[n - 1]));
-      for (size_t i = n - 1; i > 0; --i)
-        ptr[i] = std::move(ptr[i - 1]);
+      try 
+        {
+          for (size_t i = n - 1; i > 0; --i)
+            ptr[i] = std::move(ptr[i - 1]);
 
-      ptr[0] = std::forward<T>(item);
+          ptr[0] = std::forward<T>(item);
+        }
+      catch (...)
+        {
+          ptr[n].~T();
+          throw;
+        }
       ++n;
       T &ret = ptr[0];
       return ret;

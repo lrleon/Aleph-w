@@ -506,7 +506,7 @@ add_custom_target(aleph_check
 )
 
 find_program(ALEPH_RUBY_EXECUTABLE ruby)
-if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_benchmark)
+if(TARGET fft_benchmark)
     add_test(
         NAME FFTRelease.BenchmarkValidate
         COMMAND fft_benchmark --validate

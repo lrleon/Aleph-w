@@ -137,8 +137,13 @@ public:
   [[nodiscard]] static constexpr size_t
   signed_to_lit(const long v) noexcept
   {
-    return v > 0 ? pos_lit(static_cast<size_t>(v - 1))
-                 : neg_lit(static_cast<size_t>(-v - 1));
+    if (v > 0)
+      return pos_lit(static_cast<size_t>(v - 1));
+
+    // Handle v < 0 safely, avoiding overflow for LONG_MIN
+    // -v - 1 is unsafe for LONG_MIN. Use magnitude subtraction.
+    const size_t magnitude_minus_one = static_cast<size_t>(-(v + 1));
+    return neg_lit(magnitude_minus_one);
   }
 
   /// @}
@@ -190,6 +195,9 @@ public:
   {
     ah_domain_error_if(a == 0 or b == 0)
       << "Two_Sat::add_clause_signed: variable index 0 is invalid";
+    ah_domain_error_if(a == std::numeric_limits<long>::min() or
+                       b == std::numeric_limits<long>::min())
+      << "Two_Sat::add_clause_signed: variable index LONG_MIN is invalid";
     add_clause(signed_to_lit(a), signed_to_lit(b));
   }
 

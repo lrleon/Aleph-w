@@ -231,6 +231,7 @@ public:
   T & putn(size_t sz)
     requires std::is_default_constructible_v<T>
   {
+    ah_invalid_argument_if(sz == 0) << "putn requires sz > 0";
     const size_t max_sz = 2*this->dim - this->n;
     ah_overflow_error_if(sz > max_sz) << "Maximum putn size reached";
 

@@ -453,7 +453,7 @@ public:
        */
   T popn(const int & n) noexcept
   {
-    assert(static_cast<int>(head - n) >= 0);
+    assert(n >= 0 and n <= static_cast<int>(head));
 
     head -= n;
     return std::move(array[head]);
