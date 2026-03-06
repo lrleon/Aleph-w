@@ -131,17 +131,22 @@ namespace
     // Step 2: Perform the FFT to move to the frequency domain.
     // The result is an array of complex numbers where X[k] represents the 
     // amplitude and phase of the frequency corresponding to index k.
-    const auto spectrum = FFTD::transform(signal);
+    const auto spectrum = FFTD::spectrum(signal);
+    const auto magnitudes = FFTD::magnitude_spectrum(spectrum);
+    const auto phases = FFTD::phase_spectrum(spectrum);
+    const auto hann_windowed = FFTD::windowed_spectrum(signal, FFTD::hann_window(signal.size()));
+    const auto hann_magnitudes = FFTD::magnitude_spectrum(hann_windowed);
 
     print_real_sequence("Time-domain samples x[t]:", signal);
 
-    cout << "Frequency bins X[k] and magnitudes |X[k]|:\n";
+    cout << "Frequency bins X[k], magnitudes |X[k]| and phase arg(X[k]):\n";
     for (size_t k = 0; k < spectrum.size(); ++k)
       {
         cout << "  k=" << k << "  X[k] = ";
         print_complex(spectrum[k]);
         cout << "    |X[k]| = " << fixed << setprecision(4)
-             << std::abs(spectrum[k]) << "\n";
+             << magnitudes[k]
+             << "    phase = " << phases[k] << "\n";
       }
 
     cout << "\nAnalysis:\n";
@@ -149,6 +154,9 @@ namespace
     cout << "- Bin k=3 shows energy from 0.75 * sin(3*theta).\n";
     cout << "- For real signals, the spectrum is Hermitian symmetric:\n";
     cout << "  X[k] is the conjugate of X[N-k]. This is why |X[1]| = |X[7]|.\n";
+    cout << "- Applying FFT<Real>::windowed_spectrum(..., hann_window(N)) reduces\n";
+    cout << "  edge discontinuity; here Hann-windowed |X[1]| = "
+         << hann_magnitudes[1] << ".\n";
     print_rule();
     cout << "\n";
   }
@@ -184,6 +192,9 @@ namespace
     print_real_sequence("Smoothing kernel (Filter):", kernel);
     print_real_sequence("Filtered Result (Linear Convolution):", filtered);
 
+    cout << "This overload uses the optimized sequential path for real-valued inputs.\n";
+    cout << "For long streams, FFT<Real>::OverlapAdd or overlap_add_convolution()\n";
+    cout << "lets you reuse the filter spectrum block-by-block.\n";
     cout << "Observation: The convolution result has size N + M - 1 = 6 + 3 - 1 = 8.\n";
     cout << "The values at the edges reflect the ramp-up and ramp-down of the filter.\n";
     print_rule();
@@ -266,6 +277,168 @@ namespace
     print_rule();
     cout << "\n";
   }
+
+  void demo_concurrent_fft()
+  {
+    cout << "[5] Concurrent FFT with ThreadPool\n";
+    cout << "Goal: Keep the sequential and concurrent APIs explicitly separated.\n";
+    print_rule();
+
+    ThreadPool pool(4);
+
+    Array<double> signal = {0.5, -1.25, 3.5, 2.0, -0.75, 4.25, 1.0, -2.0};
+    Array<double> kernel = {0.25, 0.50, 0.25};
+
+    const auto seq_spectrum = FFTD::transform(signal);
+    const auto par_spectrum = FFTD::ptransform(pool, signal);
+    const auto par_filtered = FFTD::pmultiply(pool, signal, kernel);
+
+    print_real_sequence("Input signal:", signal);
+    print_complex_sequence("Sequential FFT(signal):", seq_spectrum);
+    print_complex_sequence("Concurrent FFT(signal):", par_spectrum);
+    print_real_sequence("Concurrent convolution result:", par_filtered);
+
+    cout << "Use FFT<Real>::transform()/multiply() for the sequential path and\n"
+         << "FFT<Real>::ptransform()/pmultiply() when you want explicit ThreadPool\n"
+         << "parallelism under Aleph's concurrency style.\n";
+    print_rule();
+    cout << "\n";
+  }
+
+  void demo_stft_and_zero_phase_filtering()
+  {
+    cout << "[6] STFT, ISTFT, and zero-phase filtering\n";
+    cout << "Goal: Analyze by frames, reconstruct by overlap-add, inspect IIR response,\n"
+         << "stream STFT in chunks, and compare causal vs zero-phase filtering.\n";
+    print_rule();
+
+    ThreadPool pool(4);
+    Array<double> signal = {
+      0.0, 0.8, 1.0, 0.2, -0.7, -1.0, -0.3, 0.6,
+      1.1, 0.4, -0.5, -0.9
+    };
+    Array<double> analysis_window = {1.0, 0.75, 0.5, 1.0};
+    Array<double> fir = {0.2, 0.6, 0.2};
+    FFTD::BiquadSection iir = {0.075, 0.15, 0.075, 1.0, -0.9, 0.2};
+
+    FFTD::STFTOptions stft_options;
+    stft_options.hop_size = 2;
+    stft_options.centered = true;
+    stft_options.pad_end = true;
+    stft_options.fft_size = 8;
+    stft_options.validate_nola = true;
+
+    FFTD::ISTFTOptions istft_options;
+    istft_options.hop_size = 2;
+    istft_options.centered = true;
+    istft_options.signal_length = signal.size();
+    istft_options.validate_nola = true;
+
+    const auto frames = FFTD::frame_signal(signal, analysis_window.size(), 2, true);
+    const auto spectrogram = FFTD::stft(signal, analysis_window, stft_options);
+    const auto parallel_spectrogram = FFTD::pstft(pool,
+                                                  signal,
+                                                  analysis_window,
+                                                  stft_options);
+    const auto reconstructed = FFTD::istft(spectrogram, analysis_window, istft_options);
+    const auto zero_phase_fir = FFTD::filtfilt(signal, fir, 4);
+    const auto zero_phase_iir = FFTD::filtfilt(signal, iir);
+    const auto response = FFTD::freqz(iir, 5);
+    const auto poles = FFTD::poles(iir);
+    const auto pairs = FFTD::pair_poles_and_zeros(iir);
+    const auto group = FFTD::group_delay(iir, 5);
+    const auto phase = FFTD::phase_delay(iir, 5);
+    const auto stability_margin = FFTD::stability_margin(iir);
+    const auto min_pair_distance = FFTD::minimum_pole_zero_distance(iir);
+
+    FFTD::STFTProcessor processor(analysis_window, stft_options);
+    FFTD::ISTFTProcessor inverse_processor(spectrogram[0].size(),
+                                           analysis_window,
+                                           istft_options);
+    Array<Array<Complex>> streamed_spectrogram;
+    Array<double> streamed_reconstruction;
+
+    FFTD::LFilter causal_iir(iir);
+    Array<double> first_half;
+    Array<double> second_half;
+    for (size_t i = 0; i < signal.size() / 2; ++i)
+      first_half.append(signal[i]);
+    for (size_t i = signal.size() / 2; i < signal.size(); ++i)
+      second_half.append(signal[i]);
+    const auto streamed_first = processor.process_block(first_half);
+    const auto streamed_second = processor.process_block(second_half);
+    const auto streamed_tail = processor.flush();
+    const auto causal_first = causal_iir.filter(first_half);
+    const auto causal_second = causal_iir.filter(second_half);
+    Array<double> causal_streamed;
+    for (size_t i = 0; i < causal_first.size(); ++i)
+      causal_streamed.append(causal_first[i]);
+    for (size_t i = 0; i < causal_second.size(); ++i)
+      causal_streamed.append(causal_second[i]);
+    for (size_t i = 0; i < streamed_first.size(); ++i)
+      streamed_spectrogram.append(streamed_first[i]);
+    for (size_t i = 0; i < streamed_second.size(); ++i)
+      streamed_spectrogram.append(streamed_second[i]);
+    for (size_t i = 0; i < streamed_tail.size(); ++i)
+      streamed_spectrogram.append(streamed_tail[i]);
+
+    Array<Array<Complex>> first_frames;
+    Array<Array<Complex>> second_frames;
+    for (size_t i = 0; i < spectrogram.size() / 2; ++i)
+      first_frames.append(spectrogram[i]);
+    for (size_t i = spectrogram.size() / 2; i < spectrogram.size(); ++i)
+      second_frames.append(spectrogram[i]);
+    const auto reconstructed_first = inverse_processor.process_block(first_frames);
+    const auto reconstructed_second = inverse_processor.process_block(second_frames);
+    const auto reconstructed_tail = inverse_processor.flush();
+    for (size_t i = 0; i < reconstructed_first.size(); ++i)
+      streamed_reconstruction.append(reconstructed_first[i]);
+    for (size_t i = 0; i < reconstructed_second.size(); ++i)
+      streamed_reconstruction.append(reconstructed_second[i]);
+    for (size_t i = 0; i < reconstructed_tail.size(); ++i)
+      streamed_reconstruction.append(reconstructed_tail[i]);
+
+    Array<Array<double>> batch_signals = {signal, zero_phase_fir};
+    const auto batched = FFTD::batched_stft(batch_signals,
+                                            analysis_window,
+                                            stft_options);
+
+    print_real_sequence("Input signal:", signal);
+    cout << "Raw frame_signal frames: " << frames.size()
+         << ", centered STFT frames: " << spectrogram.size()
+         << ", FFT bins per frame: " << spectrogram[0].size() << "\n";
+    cout << "Parallel STFT frames: " << parallel_spectrogram.size()
+         << ", streamed STFT frames: " << streamed_spectrogram.size()
+         << ", streamed ISTFT samples: " << streamed_reconstruction.size()
+         << ", batched STFT items: " << batched.size() << "\n";
+    print_real_sequence("ISTFT reconstruction:", reconstructed);
+    print_real_sequence("Streamed ISTFT reconstruction:", streamed_reconstruction);
+    print_real_sequence("Causal streamed IIR result:", causal_streamed);
+    print_real_sequence("Zero-phase FIR result:", zero_phase_fir);
+    print_real_sequence("Zero-phase IIR result:", zero_phase_iir);
+    print_complex_sequence("STFT frame 0:", spectrogram[0]);
+    print_complex_sequence("STFT frame 1:", spectrogram[1]);
+    print_complex_sequence("IIR poles:", poles);
+    cout << "Pole/zero pairs tracked: " << pairs.size() << "\n";
+    print_real_sequence("Estimated group delay:", group);
+    print_real_sequence("Estimated phase delay:", phase);
+    cout << "IIR |H(0)| = " << std::abs(response.response[0])
+         << ", |H(pi)| = " << std::abs(response.response[response.response.size() - 1])
+         << ", stable = " << (FFTD::is_stable(iir) ? "yes" : "no")
+         << ", stability margin = " << stability_margin
+         << ", min pole/zero distance = " << min_pair_distance
+         << "\n";
+
+    cout << "frame_signal() exposes the hop-size layout explicitly, stft() applies\n"
+         << "windowing + zero-padding per frame, pstft() parallelizes the same analysis,\n"
+         << "STFTProcessor and ISTFTProcessor keep chunked analysis/synthesis aligned\n"
+         << "with the offline result, the centered STFT/ISTFT option pair reconstructs\n"
+         << "the original signal exactly under NOLA, batched_stft() scales the API to\n"
+         << "multiple signals, and freqz() plus poles()/pair_poles_and_zeros(),\n"
+         << "stability_margin(), group_delay()/phase_delay() expose filter behavior.\n";
+    print_rule();
+    cout << "\n";
+  }
 }
 
 /**
@@ -286,6 +459,12 @@ int main()
 
   // Case 4: Working directly with compatible iterable containers.
   demo_generic_containers();
+
+  // Case 5: Using the separate concurrent API with ThreadPool.
+  demo_concurrent_fft();
+
+  // Case 6: Short-time analysis and zero-phase FIR filtering.
+  demo_stft_and_zero_phase_filtering();
 
   cout << "All demonstrations completed successfully.\n";
   return 0;

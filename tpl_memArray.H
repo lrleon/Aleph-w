@@ -96,6 +96,8 @@
 # include <utility>
 # include <cstdlib>
 # include <cmath>
+# include <new>
+# include <type_traits>
 # include <stdexcept>
 
 # include <ah-errors.H>
@@ -159,11 +161,89 @@ namespace Aleph
 
    protected:
 
-    /// Allocate memory for the current dimension
+    /// Allocate raw (uninitialized) memory for `count` elements of T.
+    static T * raw_alloc(const size_t count)
+    {
+      return static_cast<T *>(::operator new(count * sizeof(T)));
+    }
+
+    /// Free raw memory previously obtained from raw_alloc.
+    static void raw_dealloc(T * p) noexcept
+    {
+      ::operator delete(p);
+    }
+
+    /// Destroy `count` elements starting at `base[start]` (linear).
+    static void destroy_elems(T * base, const size_t start,
+                              const size_t count) noexcept
+    {
+      if constexpr (not std::is_trivially_destructible_v<T>)
+        for (size_t i = 0; i < count; ++i)
+          base[start + i].~T();
+    }
+
+    /// Destroy `count` elements starting at circular index `first`.
+    static void destroy_elems_circular(T * base, const size_t first,
+                                       const size_t count,
+                                       const size_t mask) noexcept
+    {
+      if constexpr (not std::is_trivially_destructible_v<T>)
+        for (size_t i = 0; i < count; ++i)
+          base[(first + i) & mask].~T();
+    }
+
+    /// Default-construct `count` elements at `base[start..start+count)`.
+    /// For trivially default-constructible types this is a no-op.
+    static void default_construct(T * base, const size_t start,
+                                  const size_t count)
+    {
+      if constexpr (not std::is_trivially_default_constructible_v<T>)
+        {
+          size_t done = 0;
+          try
+            {
+              for (; done < count; ++done)
+                new (base + start + done) T();
+            }
+          catch (...)
+            {
+              for (size_t j = 0; j < done; ++j)
+                base[start + j].~T();
+              throw;
+            }
+        }
+    }
+
+    /// Move-construct `count` elements from src into dst (raw memory).
+    static void move_construct(T * dst, T * src,
+                               const size_t count) noexcept
+    {
+      for (size_t i = 0; i < count; ++i)
+        new (dst + i) T(std::move(src[i]));
+    }
+
+    /// Copy-construct `count` elements from src into dst (raw memory).
+    static void copy_construct(T * dst, const T * src, const size_t count)
+    {
+      size_t done = 0;
+      try
+        {
+          for (; done < count; ++done)
+            new (dst + done) T(src[done]);
+        }
+      catch (...)
+        {
+          for (size_t j = 0; j < done; ++j)
+            dst[j].~T();
+          throw;
+        }
+    }
+
+    /// Allocate raw memory for the current dimension (no construction)
     void allocate()
     {
       assert(is_power_of_2(dim));
-      ptr = new T[dim];
+      ptr = raw_alloc(dim);
       contract_threshold = dim / 4;
     }
 
@@ -187,13 +267,14 @@ namespace Aleph
 
       const size_t newsz = dim << 1; // 2*dim
       const size_t mask = dim - 1;
-      T *new_ptr = new T[newsz];
-      for (size_t i = 0; i < dim; ++i)
+      T *new_ptr = raw_alloc(newsz);
+      for (size_t i = 0; i < n; ++i)
         {
           assert(((i + first) & mask) == ((i + first) % dim));
-          std::swap(ptr[(i + first) & mask], new_ptr[i]);
+          new (new_ptr + i) T(std::move(ptr[(i + first) & mask]));
         }
-      delete[] ptr;
+      destroy_elems_circular(ptr, first, n, mask);
+      raw_dealloc(ptr);
       ptr = new_ptr;
       dim = newsz;
       contract_threshold = dim / 4;
@@ -222,17 +303,17 @@ namespace Aleph
       if (newsz <= Min_Dim)
         return false;
 
-      T *new_ptr = new T[newsz];
+      T *new_ptr = raw_alloc(newsz);
 
       const size_t mask = dim - 1;
-      for (int i = 0; i < newsz; ++i)
+      for (size_t i = 0; i < n; ++i)
         {
           assert(((first + i) & mask) == ((first + i) % dim));
-          std::swap(ptr[(first + i) & mask], new_ptr[i]);
+          new (new_ptr + i) T(std::move(ptr[(first + i) & mask]));
         }
+      destroy_elems_circular(ptr, first, n, mask);
 
-
-      delete[] ptr;
+      raw_dealloc(ptr);
       ptr = new_ptr;
       dim = newsz;
       contract_threshold = dim / 4;
@@ -290,7 +371,8 @@ namespace Aleph
     {
       if (ptr != nullptr)
         {
-          delete[] ptr;
+          destroy_elems(ptr, 0, n);
+          raw_dealloc(ptr);
           ptr = nullptr;
         }
     }
@@ -310,8 +392,7 @@ namespace Aleph
       : ptr(nullptr), dim(a.dim), n(a.n)
     {
       allocate();
-      for (int i = 0; i < dim; ++i)
-        ptr[i] = a.ptr[i];
+      copy_construct(ptr, a.ptr, n);
     }
 
     /// Construct an array moved of rvalue `a`
@@ -331,12 +412,12 @@ namespace Aleph
 
       assert(a.ptr);
 
-      T *newptr = new T[a.dim];    // allocate a new array
-      for (int i = 0; i < a.n; ++i)  // copy items to a new array
-        newptr[i] = a.ptr[i];
+      T *newptr = raw_alloc(a.dim);
+      copy_construct(newptr, a.ptr, a.n);
 
+      destroy_elems(ptr, 0, n);
       if (ptr != nullptr)
-        delete[] ptr;
+        raw_dealloc(ptr);
       ptr = newptr;
       dim = a.dim;
       n = a.n;
@@ -353,17 +434,22 @@ namespace Aleph
     }
 
     /// Empty the container. The array is not contracted
-    void empty() { n = 0; }
+    void empty()
+    {
+      destroy_elems(ptr, 0, n);
+      n = 0;
+    }
 
     /// Empty the array and release all memory
     void empty_and_release()
     {
+      destroy_elems(ptr, 0, n);
       n = 0;
       if (dim <= Min_Dim)
         return;
 
       assert(ptr);
-      delete[] ptr;
+      raw_dealloc(ptr);
       ptr = nullptr;
       dim = Min_Dim;
       allocate();
@@ -372,12 +458,12 @@ namespace Aleph
     /// Put a copy of `item` at the end of sequence. The array expands if
     /// this is already full
     T &put(const T &item)
-      requires std::is_copy_assignable_v<T>
+      requires std::is_copy_constructible_v<T>
     {
       assert(ptr);
       expand();
 
-      ptr[n] = item;
+      new (ptr + n) T(item);
       T &ret = ptr[n++];
       return ret;
     }
@@ -389,7 +475,7 @@ namespace Aleph
       assert(ptr);
       expand();
 
-      ptr[n] = std::forward<T>(item);
+      new (ptr + n) T(std::forward<T>(item));
       T &ret = ptr[n++];
       return ret;
     }

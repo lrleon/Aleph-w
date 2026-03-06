@@ -3428,7 +3428,7 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 
 | Header | Functions / Classes | Description |
 |--------|---------------------|-------------|
-| `fft.H` | `FFT<Real>` | Fast Fourier Transform for complex spectra, real signals, and linear convolution over `Array` and compatible iterable containers |
+| `fft.H` | `FFT<Real>` | Fast Fourier Transform for complex spectra plus optimized sequential real FFT/convolution and separate concurrent `ThreadPool` APIs over `Array` and compatible iterable containers |
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
@@ -3632,7 +3632,7 @@ cmake --build build
 | Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
 | Combinatorics toolbox | `comb_example.C` | Cartesian-product traversal, transpose, and combinatorics helpers |
 | Gray code utilities | `gray_code_example.cc` | Binary to Gray conversion and sequence generation |
-| Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, real/complex convolution, and direct use with compatible iterable containers such as `std::vector` |
+| Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector` |
 | Number theory toolbox | `math_nt_example.cc` | Safe mod multiplication, Miller-Rabin, Pollard's Rho, NTT, modular combinatorics and linalg |
 | Streaming algorithms | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
 | Lexicographic permutation/combination enumeration | `combinatorics_enumeration_example.cc` | Extended `next_permutation`, k-combinations by indices/bitmask, and materialized enumeration |

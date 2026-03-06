@@ -3378,7 +3378,7 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 
 | Header | Functions / Classes | Description |
 |--------|---------------------|-------------|
-| `fft.H` | `FFT<Real>` | Transformada rápida de Fourier para espectros complejos, señales reales y convolución lineal sobre `Array` y contenedores iterables compatibles |
+| `fft.H` | `FFT<Real>` | Transformada rápida de Fourier para espectros complejos más FFT/convolución real secuencial optimizada y APIs concurrentes separadas con `ThreadPool` sobre `Array` y contenedores iterables compatibles |
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
@@ -3584,7 +3584,7 @@ cmake --build build
 | Algoritmo de Mo | `mo_algorithm_example.cc` | Consultas offline de rango (distinct count, powerful array, mode) |
 | Caja de herramientas de combinatoria | `comb_example.C` | Recorrido de producto cartesiano, transposición y auxiliares de combinatoria |
 | Utilidades de código Gray | `gray_code_example.cc` | Conversión binario a Gray y generación de secuencias |
-| Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja y uso directo con contenedores iterables compatibles como `std::vector` |
+| Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector` |
 | Caja de herramientas de teoría de números | `math_nt_example.cc` | Multiplicación modular segura, Miller-Rabin, Pollard's Rho, NTT, combinatoria modular y álgebra lineal |
 | Algoritmos de streaming | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
 | Enumeración lexicográfica de permutaciones/combinaciones | `combinatorics_enumeration_example.cc` | `next_permutation` extendida, k-combinaciones por índices/bitmask y enumeración materializada |
