@@ -31,6 +31,7 @@
 
 # include <gtest/gtest.h>
 # include <random>
+# include <limits>
 
 # include <Two_Sat.H>
 # include <tpl_sgraph.H>
@@ -271,6 +272,27 @@ TEST(TwoSat, AtMostOneConflict)
   EXPECT_FALSE(sat.is_satisfiable());
 }
 
+TEST(TwoSat, AtMostOneEdgeCases)
+{
+  Two_Sat<> sat(3);
+
+  // Singleton: at most one of {x0} is true. Always SAT.
+  Array<size_t> singleton = {sat.pos_lit(0)};
+  sat.add_at_most_one(singleton);
+  EXPECT_TRUE(sat.is_satisfiable());
+
+  // Duplicate: at most one of {x1, x1} is true. Equivalent to at most one {x1}.
+  // Should NOT add (~x1 or ~x1) which would force x1 to be false.
+  Two_Sat<> sat2(3);
+  Array<size_t> duplicates = {sat2.pos_lit(1), sat2.pos_lit(1)};
+  sat2.add_at_most_one(duplicates);
+  sat2.set_true(sat2.pos_lit(1));
+  EXPECT_TRUE(sat2.is_satisfiable());
+
+  // Out of range validation in add_at_most_one.
+  EXPECT_THROW(sat.add_at_most_one({sat.pos_lit(5)}), std::domain_error);
+}
+
 // ---------------------------------------------------------------------------
 // Classical examples
 // ---------------------------------------------------------------------------
@@ -330,6 +352,10 @@ TEST(TwoSat, BoundsChecking)
                std::domain_error);
   EXPECT_THROW(sat.add_clause_signed(0, 1), std::domain_error);
   EXPECT_THROW(sat.add_clause_signed(1, 0), std::domain_error);
+  EXPECT_THROW(sat.add_clause_signed(std::numeric_limits<long>::min(), 1),
+               std::domain_error);
+  EXPECT_THROW(sat.add_clause_signed(1, std::numeric_limits<long>::min()),
+               std::domain_error);
 }
 
 // ---------------------------------------------------------------------------

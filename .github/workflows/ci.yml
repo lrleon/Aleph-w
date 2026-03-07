@@ -246,7 +246,13 @@ jobs:
             sudo cmake --install /usr/src/googletest/build
             exit 0
           fi
-          echo "No googletest sources found"
+          if [ -d /usr/src/gtest ]; then
+            sudo cmake -S /usr/src/gtest -B /usr/src/gtest/build -G Ninja
+            sudo cmake --build /usr/src/gtest/build
+            sudo cmake --install /usr/src/gtest/build
+            exit 0
+          fi
+          echo "No googletest sources found in /usr/src (expected /usr/src/googletest or /usr/src/gtest)"
           exit 1
 
       - name: Configure

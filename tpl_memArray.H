@@ -263,10 +263,10 @@ namespace Aleph
     /// Return `true` is the array is empty
     bool is_empty() const noexcept { return n == 0; }
 
-    /** Construct an array con capacity equal or gre+ater than `__dim`.
+    /** Construct an array con capacity equal or greater than `_dim`.
 
         @param[in] _dim proposed dimension of array which could be
-        adjusted to the next two power greater than `__dim`
+        adjusted to the next two power greater than `_dim`
         @throw bad_alloc if there is not enough memory.
     */
     MemArray(size_t _dim = Min_Dim) : ptr(nullptr), n(0)
@@ -323,7 +323,7 @@ namespace Aleph
       assert(a.ptr);
 
       T *newptr = new T[a.dim]; // allocate a new array
-      for (int i = 0; i < a.n; ++i) // copy items to a new array
+      for (size_t i = 0; i < a.n; ++i) // copy items to a new array
         newptr[i] = a.ptr[i];
 
       if (ptr != nullptr)
@@ -460,7 +460,7 @@ namespace Aleph
     }
 
     /// \overload push(const T & item)
-    T &insert(T & item)
+    T &insert(const T & item)
       requires std::is_copy_assignable_v<T>
     {
       assert(ptr);

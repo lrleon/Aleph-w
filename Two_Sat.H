@@ -59,10 +59,13 @@
 # define TWO_SAT_H
 
 # include <utility>
+# include <limits>
 
 # include <ah-errors.H>
 # include <tpl_array.H>
+# include <tpl_dynArray.H>
 # include <tpl_graph.H>
+# include <tpl_dynSetTree.H>
 # include <Tarjan.H>
 
 namespace Aleph {
@@ -147,6 +150,12 @@ public:
   }
 
   /// @}
+
+  /** @brief Deleted copy constructor to avoid dangling internal Node* pointers. */
+  Two_Sat(const Two_Sat &) = delete;
+
+  /** @brief Deleted copy assignment to avoid dangling internal Node* pointers. */
+  Two_Sat & operator=(const Two_Sat &) = delete;
 
   /** @brief Construct a solver for `n` variables.
    *  @param n Number of Boolean variables.
@@ -247,14 +256,39 @@ public:
   }
 
   /** @brief Add at-most-one constraint over a set of literals.
+   *
+   *  Ensures that at most one of the given literals is true. This
+   *  adds O(k^2) clauses where k is the number of distinct literals.
+   *
+   *  Singletons are validated but produce no clauses. Duplicate
+   *  literals are normalized. Pairs of identical literals are skipped
+   *  to avoid adding redundant forcing clauses.
+   *
    *  @param lits Array of literal indices.
+   *  @throw std::domain_error if any literal is out of range.
    */
   void add_at_most_one(const Array<size_t> & lits)
   {
-    const size_t k = lits.size();
-    for (size_t i = 0; i < k; ++i)
-      for (size_t j = i + 1; j < k; ++j)
-        add_clause(negate_lit(lits(i)), negate_lit(lits(j)));
+    DynSetTree<size_t> unique_lits;
+    for (size_t i = 0; i < lits.size(); ++i)
+      {
+        const size_t lit = lits(i);
+        ah_domain_error_if(lit_var(lit) >= num_vars)
+          << "Two_Sat::add_at_most_one: literal " << lit
+          << " refers to variable " << lit_var(lit)
+          << " but only " << num_vars << " variables exist";
+        unique_lits.insert(lit);
+      }
+
+    if (unique_lits.size() < 2)
+      return;
+
+    DynArray<size_t> u_dyn;
+    unique_lits.for_each([&u_dyn](const size_t & lit) { u_dyn.append(lit); });
+    const Array<size_t> u = u_dyn.to_array();
+    for (size_t i = 0; i < u.size(); ++i)
+      for (size_t j = i + 1; j < u.size(); ++j)
+        add_clause(negate_lit(u(i)), negate_lit(u(j)));
   }
 
   /** @brief Check if the formula is satisfiable.
@@ -262,8 +296,7 @@ public:
    */
   [[nodiscard]] bool is_satisfiable()
   {
-    auto [sat, _] = solve();
-    return sat;
+    return solve().first;
   }
 
   /** @brief Solve the 2-SAT instance.

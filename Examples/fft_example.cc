@@ -60,6 +60,7 @@ namespace
   using std::size_t;
   using Aleph::FFT;
   using Aleph::Array;
+  using Aleph::ThreadPool;
 
   // Alias for common types to make the code more readable.
   using FFTD = FFT<double>;

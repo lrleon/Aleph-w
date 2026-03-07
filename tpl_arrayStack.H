@@ -252,7 +252,7 @@ namespace Aleph
         conditionally performs an operation.
 
         @param[in] operation to perform on the current element. If it
-        returns `true`, the the traversal continues to the next item;
+        returns `true`, the traversal continues to the next item;
         otherwise the traversal stops
      */
     template <class Operation>
@@ -346,7 +346,7 @@ namespace Aleph
     FixedStack(const FixedStack & s)
       : array(new T [s.dim]), head(s.head), dim(s.dim)
     {
-      for (int i = 0; i < head; ++i)
+      for (size_t i = 0; i < head; ++i)
         array[i] = s.array[i];
     }
 
@@ -500,13 +500,13 @@ namespace Aleph
         conditionally performs an operation.
 
         @param[in] operation to perform on the current element. If it
-        returns `true`, the the traversal continues to the next item;
+        returns `true`, then the traversal continues to the next item;
         otherwise the traversal stops
      */
     template <class Operation>
     bool traverse(Operation & operation)
     {
-      for (int i = 0; i < head; i++)
+      for (size_t i = 0; i < head; i++)
         if (not operation(array[i]))
           return false;
 

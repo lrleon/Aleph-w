@@ -305,6 +305,7 @@ set(TEST_PROGRAMS
     streaming_algorithms_test
     math_nt_test
     fft_test
+    two_sat_test
     random_net_test
     euclidian_graph_test
     find_path_test
