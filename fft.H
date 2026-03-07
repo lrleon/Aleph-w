@@ -2865,47 +2865,60 @@ namespace Aleph
     }
 
     [[nodiscard]] static Real
+    carlson_rf_impl(Real x, Real y, Real z)
+    {
+      // Carlson's symmetric elliptic integral R_F(x, y, z) via the
+      // duplication theorem (Carlson 1979).  Converges cubically —
+      // typically 5-6 iterations for double precision.
+      const Real errtol =
+          std::pow(std::numeric_limits<Real>::epsilon() / Real(3),
+                   Real(1) / Real(6));
+      for (size_t i = 0; i < 64; ++i)
+        {
+          const Real mu = (x + y + z) / Real(3);
+          const Real dx = Real(1) - x / mu;
+          const Real dy = Real(1) - y / mu;
+          const Real dz = Real(1) - z / mu;
+          if (std::max({std::abs(dx), std::abs(dy), std::abs(dz)})
+              < errtol)
+            {
+              const Real e2 = dx * dy - dz * dz;
+              const Real e3 = dx * dy * dz;
+              return (Real(1) - e2 / Real(10) + e3 / Real(14)
+                      + e2 * e2 / Real(24)
+                      - Real(3) * e2 * e3 / Real(44))
+                     / std::sqrt(mu);
+            }
+          const Real lam = std::sqrt(x * y) + std::sqrt(x * z)
+                           + std::sqrt(y * z);
+          x = (x + lam) / Real(4);
+          y = (y + lam) / Real(4);
+          z = (z + lam) / Real(4);
+        }
+      return Real(1) / std::sqrt((x + y + z) / Real(3));
+    }
+
+    [[nodiscard]] static Real
     ellint_1_impl(const Real k, const Real phi)
     {
-      // Incomplete elliptic integral F(phi, k) via Carlson's reduction.
-      // Uses the identity F(pi/2, k) = K(k) for the complete case,
-      // and the AGM-based Gauss transformation otherwise.
+      // Incomplete elliptic integral F(phi, k) via Carlson's R_F.
+      // F(phi, k) = sin(phi) * R_F(cos^2(phi), 1 - k^2 sin^2(phi), 1).
+      // Uses the identity F(pi/2, k) = K(k) for the complete case.
       const Real half_pi = std::numbers::pi_v<Real> / Real(2);
       if (std::abs(phi - half_pi) <=
           std::numeric_limits<Real>::epsilon() * Real(4))
         return comp_ellint_1_impl(k);
 
-      // Reduce to first quadrant
-      const Real sin_phi = std::sin(phi);
-      const Real cos_phi = std::cos(phi);
-      const Real sin2 = sin_phi * sin_phi;
-      const Real k2 = k * k;
+      if (std::abs(phi) <=
+          std::numeric_limits<Real>::epsilon() * Real(4))
+        return Real(0);
 
-      // Numerical integration via Legendre series / AGM-based approach:
-      // F(phi, k) = integral from 0 to phi of
-      //             dt / sqrt(1 - k^2 sin^2(t))
-      //
-      // Use the substitution with AGM descent.
-      Real a = Real(1);
-      Real b = std::sqrt(std::max(Real(0), Real(1) - k2));
-      Real angle = phi;
-      Real power_of_two = Real(1);
-
-      for (size_t i = 0; i < 64 and std::abs(a - b) >
-             std::numeric_limits<Real>::epsilon() * a; ++i)
-        {
-          const Real next_a = (a + b) / Real(2);
-          b = std::sqrt(a * b);
-          const Real correction = std::asin(
-              std::clamp((a - next_a) * std::sin(angle) / next_a,
-                         Real(-1), Real(1)));
-          angle = angle + correction;
-          power_of_two *= Real(2);
-          a = next_a;
-        }
-
-      return angle / (power_of_two * a)
-             * std::numbers::pi_v<Real> / Real(2);
+      const Real s = std::sin(phi);
+      const Real c = std::cos(phi);
+      return s * carlson_rf_impl(c * c,
+                                 std::max(Real(0),
+                                          Real(1) - k * k * s * s),
+                                 Real(1));
     }
 
 # endif // stdlib dispatch
