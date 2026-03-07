@@ -1931,6 +1931,42 @@ namespace Aleph
                                       roots);
         }
 
+      if (not converged)
+        {
+          const size_t degree = roots.size();
+          const Real upper =
+              polynomial_root_upper_bound(problem.balanced);
+          const Real lower =
+              polynomial_root_lower_bound(problem.balanced);
+          Real base_radius = Real(1);
+          if (lower > Real(0) and std::isfinite(lower)
+              and std::isfinite(upper))
+            base_radius = std::sqrt(lower * upper);
+          else if (std::isfinite(upper) and upper > Real(0))
+            base_radius = upper;
+          if (not std::isfinite(base_radius)
+              or base_radius <= std::numeric_limits<Real>::min())
+            base_radius = Real(1);
+
+          for (size_t i = 0; i < degree; ++i)
+            {
+              const Real angle =
+                  Real(2) * std::numbers::pi_v<Real>
+                  * (static_cast<Real>(i) + Real(0.7))
+                  / static_cast<Real>(degree);
+              const Real radius =
+                  base_radius
+                  * (Real(0.7)
+                     + Real(0.6) * static_cast<Real>(i + 1)
+                     / static_cast<Real>(degree + 1));
+              roots(i) = std::polar(radius, angle);
+            }
+          converged =
+              try_aberth_ehrlich_roots(problem.balanced,
+                                       problem.tol * Real(2),
+                                       roots);
+        }
+
       ah_domain_error_if(not converged) << ctx << ": root solver did not converge";
 
       polish_roots_with_newton(problem.balanced, roots, problem.tol, 8);
@@ -5681,6 +5717,7 @@ namespace Aleph
       return n > 0 and (n & (n - 1)) == 0;
     }
 
+    /** @brief Returns the human-readable name of a SIMD backend. */
     [[nodiscard]] static constexpr const char *
     simd_backend_name(const SimdBackend backend) noexcept
     {
@@ -5696,6 +5733,7 @@ namespace Aleph
         }
     }
 
+    /** @brief Returns the human-readable name of a SIMD preference. */
     [[nodiscard]] static constexpr const char *
     simd_preference_name(const SimdPreference preference) noexcept
     {
@@ -5713,6 +5751,7 @@ namespace Aleph
         }
     }
 
+    /** @brief Returns whether the AVX2 kernel was compiled for this precision. */
     [[nodiscard]] static constexpr bool
     avx2_kernel_compiled() noexcept
     {
@@ -5723,6 +5762,7 @@ namespace Aleph
 # endif
     }
 
+    /** @brief Returns whether the NEON kernel was compiled for this precision. */
     [[nodiscard]] static constexpr bool
     neon_kernel_compiled() noexcept
     {
@@ -5931,12 +5971,14 @@ namespace Aleph
       return simd_preference_name(simd_preference());
     }
 
+    /** @brief Returns whether AVX2 dispatch is supported at runtime. */
     [[nodiscard]] static bool
     avx2_runtime_available() noexcept
     {
       return avx2_dispatch_available();
     }
 
+    /** @brief Returns whether NEON dispatch is supported at runtime. */
     [[nodiscard]] static bool
     neon_runtime_available() noexcept
     {
@@ -7224,6 +7266,13 @@ namespace Aleph
         return output;
       }
 
+      /** @brief Computes the Real-to-Complex FFT (RFFT).
+       *
+       *  Returns the compact spectrum (size N/2 + 1) for a real input.
+       *
+       *  @param input Real input array (size must equal plan size).
+       *  @return Compact complex spectrum.
+       */
       [[nodiscard]] Array<Complex>
       rfft(const Array<Real> & input) const
       {
@@ -7233,6 +7282,7 @@ namespace Aleph
         return FFT::compact_real_spectrum(FFT::project_to_plan_spectrum(*this, input));
       }
 
+      /** @brief Parallel Real-to-Complex FFT (RFFT). */
       [[nodiscard]] Array<Complex>
       prfft(ThreadPool & pool, const Array<Real> & input,
             const size_t chunk_size = 0) const
@@ -7246,6 +7296,11 @@ namespace Aleph
                                                                         chunk_size));
       }
 
+      /** @brief Computes the Complex-to-Real Inverse FFT (IRFFT).
+       *
+       *  @param spectrum Compact complex spectrum (size N/2 + 1).
+       *  @return Real signal of size N.
+       */
       [[nodiscard]] Array<Real>
       irfft(const Array<Complex> & spectrum) const
       {
@@ -7254,6 +7309,7 @@ namespace Aleph
                                                                 "FFT::Plan::irfft"));
       }
 
+      /** @brief Parallel Complex-to-Real Inverse FFT (IRFFT). */
       [[nodiscard]] Array<Real>
       pirfft(ThreadPool & pool, const Array<Complex> & spectrum,
              const size_t chunk_size = 0) const
@@ -7265,6 +7321,7 @@ namespace Aleph
                                        chunk_size);
       }
 
+      /** @brief Computes a batch of Real-to-Complex FFTs. */
       [[nodiscard]] Array<Array<Complex>>
       rfft_batch(const Array<Array<Real>> & input) const
       {
@@ -7272,6 +7329,7 @@ namespace Aleph
                                                FFT::project_to_plan_batch_spectra(*this, input));
       }
 
+      /** @brief Computes a parallel batch of Real-to-Complex FFTs. */
       [[nodiscard]] Array<Array<Complex>>
       prfft_batch(ThreadPool & pool,
                   const Array<Array<Real>> & input,
@@ -7281,6 +7339,7 @@ namespace Aleph
                                                FFT::project_to_plan_batch_spectra(*this, input, &pool, chunk_size));
       }
 
+      /** @brief Computes a batch of Complex-to-Real Inverse FFTs. */
       [[nodiscard]] Array<Array<Real>>
       irfft_batch(const Array<Array<Complex>> & spectra) const
       {
@@ -7288,6 +7347,7 @@ namespace Aleph
                                                                            spectra, n_, "FFT::Plan::irfft_batch"));
       }
 
+      /** @brief Computes a parallel batch of Complex-to-Real Inverse FFTs. */
       [[nodiscard]] Array<Array<Real>>
       pirfft_batch(ThreadPool & pool,
                    const Array<Array<Complex>> & spectra,
@@ -8132,6 +8192,7 @@ namespace Aleph
       return compact_real_spectrum(transform(input));
     }
 
+    /** @brief Parallel version of @ref rfft(const Array<Real>&). */
     [[nodiscard]] static Array<Complex>
     prfft(ThreadPool & pool, const Array<Real> & input,
           const size_t chunk_size = 0)
@@ -8139,12 +8200,14 @@ namespace Aleph
       return compact_real_spectrum(ptransform(pool, input, chunk_size));
     }
 
+    /** @brief Computes the FFT after zero-padding the input to the next power of two. */
     [[nodiscard]] static Array<Complex>
     transform_padded(const Array<Real> & input)
     {
       return transform(zero_padded_copy(input, next_power_of_two(input.size())));
     }
 
+    /** @brief Parallel version of @ref transform_padded(const Array<Real>&). */
     [[nodiscard]] static Array<Complex>
     ptransform_padded(ThreadPool & pool, const Array<Real> & input,
                       const size_t chunk_size = 0)
@@ -8153,6 +8216,7 @@ namespace Aleph
                         chunk_size);
     }
 
+    /** @brief Forward FFT for complex-valued containers. */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8161,6 +8225,7 @@ namespace Aleph
       return transformed(input, false);
     }
 
+    /** @brief Parallel version of @ref transform(const Container&). */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8170,6 +8235,7 @@ namespace Aleph
       return ptransformed(pool, input, false, chunk_size);
     }
 
+    /** @brief Forward FFT with padding for real-valued containers. */
     template <typename Container>
       requires Is_Real_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8178,6 +8244,7 @@ namespace Aleph
       return transform_padded(build_real_input(input));
     }
 
+    /** @brief Parallel version of @ref transform_padded(const Container&). */
     template <typename Container>
       requires Is_Real_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8187,6 +8254,7 @@ namespace Aleph
       return ptransform_padded(pool, build_real_input(input), chunk_size);
     }
 
+    /** @brief Forward FFT for real-valued containers. */
     template <typename Container>
       requires Is_Real_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8195,6 +8263,7 @@ namespace Aleph
       return transform(build_real_input(input));
     }
 
+    /** @brief Parallel version of @ref transform(const Container&). */
     template <typename Container>
       requires Is_Real_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8204,6 +8273,7 @@ namespace Aleph
       return ptransform(pool, build_real_input(input), chunk_size);
     }
 
+    /** @brief Compact real FFT for real-valued containers. */
     template <typename Container>
       requires Is_Real_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8212,6 +8282,7 @@ namespace Aleph
       return rfft(build_real_input(input));
     }
 
+    /** @brief Parallel version of @ref rfft(const Container&). */
     template <typename Container>
       requires Is_Real_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8228,6 +8299,7 @@ namespace Aleph
       return transformed(input, false);
     }
 
+    /** @brief Parallel version of @ref spectrum(const Array<Complex>&). */
     [[nodiscard]] static Array<Complex>
     pspectrum(ThreadPool & pool, const Array<Complex> & input,
               const size_t chunk_size = 0)
@@ -8235,12 +8307,14 @@ namespace Aleph
       return ptransformed(pool, input, false, chunk_size);
     }
 
+    /** @brief DSP alias for the real forward FFT. */
     [[nodiscard]] static Array<Complex>
     spectrum(const Array<Real> & input)
     {
       return transform(input);
     }
 
+    /** @brief Parallel version of @ref spectrum(const Array<Real>&). */
     [[nodiscard]] static Array<Complex>
     pspectrum(ThreadPool & pool, const Array<Real> & input,
               const size_t chunk_size = 0)
@@ -8248,6 +8322,7 @@ namespace Aleph
       return ptransform(pool, input, chunk_size);
     }
 
+    /** @brief DSP alias for complex-valued container forward FFT. */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8256,6 +8331,7 @@ namespace Aleph
       return transformed(input, false);
     }
 
+    /** @brief Parallel version of @ref spectrum(const Container&). */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8265,6 +8341,7 @@ namespace Aleph
       return ptransformed(pool, input, false, chunk_size);
     }
 
+    /** @brief DSP alias for real-valued container forward FFT. */
     template <typename Container>
       requires Is_Real_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8273,6 +8350,7 @@ namespace Aleph
       return transform(input);
     }
 
+    /** @brief Parallel version of @ref spectrum(const Container&). */
     template <typename Container>
       requires Is_Real_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8298,6 +8376,7 @@ namespace Aleph
       return transformed(input, true);
     }
 
+    /** @brief Parallel version of @ref inverse_transform(const Array<Complex>&). */
     [[nodiscard]] static Array<Complex>
     pinverse_transform(ThreadPool & pool, const Array<Complex> & input,
                        const size_t chunk_size = 0)
@@ -8305,6 +8384,7 @@ namespace Aleph
       return ptransformed(pool, input, true, chunk_size);
     }
 
+    /** @brief Forward IFFT for complex-valued containers. */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8313,6 +8393,7 @@ namespace Aleph
       return transformed(input, true);
     }
 
+    /** @brief Parallel version of @ref inverse_transform(const Container&). */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Complex>
@@ -8350,6 +8431,7 @@ namespace Aleph
                                                    0);
     }
 
+    /** @brief Parallel version of @ref inverse_transform_real(const Array<Complex>&). */
     [[nodiscard]] static Array<Real>
     pinverse_transform_real(ThreadPool & pool, const Array<Complex> & input,
                             const size_t chunk_size = 0)
@@ -8382,6 +8464,7 @@ namespace Aleph
                                                          "FFT::irfft"));
     }
 
+    /** @brief Parallel version of @ref irfft(const Array<Complex>&, size_t). */
     [[nodiscard]] static Array<Real>
     pirfft(ThreadPool & pool,
            const Array<Complex> & spectrum,
@@ -8395,6 +8478,7 @@ namespace Aleph
                                      chunk_size);
     }
 
+    /** @brief Inverse real transform for complex-valued containers. */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Real>
@@ -8403,6 +8487,7 @@ namespace Aleph
       return inverse_transform_real(build_complex_input(input));
     }
 
+    /** @brief Parallel version of @ref inverse_transform_real(const Container&). */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Real>
@@ -8412,6 +8497,7 @@ namespace Aleph
       return pinverse_transform_real(pool, build_complex_input(input), chunk_size);
     }
 
+    /** @brief Inverse real transform (compact) for complex-valued containers. */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Real>
@@ -8420,6 +8506,7 @@ namespace Aleph
       return irfft(build_complex_input(spectrum), signal_size);
     }
 
+    /** @brief Parallel version of @ref irfft(const Container&, size_t). */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Real>
@@ -8445,6 +8532,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Magnitude spectrum for complex-valued containers. */
     template <typename Container>
       requires Is_Complex_Container<Container>
     [[nodiscard]] static Array<Real>
@@ -14177,11 +14265,19 @@ namespace Aleph
         plan_.transform(kernel_spectrum_, false);
       }
 
+      /** @brief Returns the processing block size (the hop size). */
       [[nodiscard]] size_t block_size() const noexcept { return block_size_; }
+
+      /** @brief Returns the FFT size used internally (block_size + kernel_size - 1 padded to power of 2). */
       [[nodiscard]] size_t fft_size() const noexcept { return fft_size_; }
+
+      /** @brief Returns the current FIR kernel. */
       [[nodiscard]] const Array<Real> &kernel() const noexcept { return kernel_; }
+
+      /** @brief Returns the internal overlap history size. */
       [[nodiscard]] size_t overlap_size() const noexcept { return history_.size(); }
 
+      /** @brief Resets the internal filter state and history. */
       void reset()
       {
         clear_history();
@@ -14190,6 +14286,14 @@ namespace Aleph
         emitted_output_size_ = 0;
       }
 
+      /** @brief Processes an input block and returns the corresponding filtered output.
+       *
+       *  Input samples are buffered until a full block is available. Multiple blocks
+       *  might be emitted if the input is large.
+       *
+       *  @param block Input signal block.
+       *  @return Filtered output samples available so far.
+       */
       [[nodiscard]] Array<Real>
       process_block(const Array<Real> & block)
       {
@@ -14212,6 +14316,13 @@ namespace Aleph
         return emitted;
       }
 
+      /** @brief Flushes all buffered samples and returns the final tail of the convolution.
+       *
+       *  Zero-padding is applied to complete the final processing block if necessary.
+       *  The filter is reset after flushing.
+       *
+       *  @return The remaining filtered samples.
+       */
       [[nodiscard]] Array<Real>
       flush()
       {
@@ -14245,6 +14356,7 @@ namespace Aleph
         return output;
       }
 
+      /** @brief Convolves the input signal with the kernel (one-shot convenience). */
       [[nodiscard]] Array<Real>
       convolve(const Array<Real> & signal)
       {
@@ -14254,6 +14366,7 @@ namespace Aleph
         return output;
       }
 
+      /** @brief Processes an input block from a real-valued container. */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -14262,6 +14375,7 @@ namespace Aleph
         return process_block(build_real_input(block));
       }
 
+      /** @brief Convolves an input signal from a real-valued container. */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -14517,6 +14631,7 @@ namespace Aleph
     }
 
     /** @brief Parallel convenience wrapper for overlap-add convolution. */
+    /** @brief Parallel version of @ref overlap_add_convolution(const Array<Real>&, const Array<Real>&, size_t). */
     [[nodiscard]] static Array<Real>
     poverlap_add_convolution(ThreadPool & pool,
                              const Array<Real> & signal,
@@ -14540,7 +14655,7 @@ namespace Aleph
       return OverlapAddBank(signals.size(), kernel, block_size).convolve(signals);
     }
 
-    /** @brief Parallel multichannel overlap-add convolution. */
+    /** @brief Parallel version of @ref overlap_add_convolution_batch. */
     [[nodiscard]] static Array<Array<Real>>
     poverlap_add_convolution_batch(ThreadPool & pool,
                                    const Array<Array<Real>> & signals,
@@ -14576,6 +14691,7 @@ namespace Aleph
       return PartitionedConvolver(kernel, partition_size).convolve(signal);
     }
 
+    /** @brief Overlap-add convolution for real-valued containers. */
     template <typename Container1, typename Container2>
       requires Is_Real_Container<Container1> and Is_Real_Container<Container2>
     [[nodiscard]] static Array<Real>
@@ -14588,6 +14704,7 @@ namespace Aleph
                                      block_size);
     }
 
+    /** @brief Parallel version of @ref overlap_add_convolution(const Container1&, const Container2&, size_t). */
     template <typename Container1, typename Container2>
       requires Is_Real_Container<Container1> and Is_Real_Container<Container2>
     [[nodiscard]] static Array<Real>
@@ -14604,6 +14721,7 @@ namespace Aleph
                                       chunk_size);
     }
 
+    /** @brief Overlap-save convolution for real-valued containers. */
     template <typename Container1, typename Container2>
       requires Is_Real_Container<Container1> and Is_Real_Container<Container2>
     [[nodiscard]] static Array<Real>
@@ -14616,6 +14734,7 @@ namespace Aleph
                                       block_size);
     }
 
+    /** @brief Partitioned convolution for real-valued containers. */
     template <typename Container1, typename Container2>
       requires Is_Real_Container<Container1> and Is_Real_Container<Container2>
     [[nodiscard]] static Array<Real>
@@ -14653,6 +14772,7 @@ namespace Aleph
       return multiply_complex_impl(a, b);
     }
 
+    /** @brief Parallel version of @ref multiply(const Array<Complex>&, const Array<Complex>&). */
     [[nodiscard]] static Array<Complex>
     pmultiply(ThreadPool & pool, const Array<Complex> & a, const Array<Complex> & b,
               const size_t chunk_size = 0)
@@ -14660,6 +14780,7 @@ namespace Aleph
       return multiply_complex_impl(a, b, &pool, chunk_size);
     }
 
+    /** @brief Multiplication for complex-valued containers. */
     template <typename Container1, typename Container2>
       requires Is_Complex_Container<Container1> and Is_Complex_Container<Container2>
     [[nodiscard]] static Array<Complex>
@@ -14668,6 +14789,7 @@ namespace Aleph
       return multiply(build_complex_input(a), build_complex_input(b));
     }
 
+    /** @brief Parallel version of @ref multiply(const Container1&, const Container2&). */
     template <typename Container1, typename Container2>
       requires Is_Complex_Container<Container1> and Is_Complex_Container<Container2>
     [[nodiscard]] static Array<Complex>

@@ -465,22 +465,31 @@ namespace Aleph
   {
     using Base = Gen_Segment_Tree<T, Aleph::plus<T>>;
 
+    /** @brief Construct with @p num elements, all equal to @p init_val.
+     *
+     *  @param num      number of elements.
+     *  @param init_val initial value for each element.
+     */
     Sum_Segment_Tree(const size_t num, const T & init_val = T())
       : Base(num, init_val, T())
     {}
 
+    /** @brief Construct from an initializer list. */
     Sum_Segment_Tree(std::initializer_list<T> il)
       : Base(il, T())
     {}
 
+    /** @brief Construct from an Array\<T\>. */
     Sum_Segment_Tree(const Array<T> & values)
       : Base(values, T())
     {}
 
+    /** @brief Construct from a std::vector\<T\>. */
     Sum_Segment_Tree(const std::vector<T> & values)
       : Base(values, T())
     {}
 
+    /** @brief Construct from a DynList\<T\>. */
     Sum_Segment_Tree(const DynList<T> & values)
       : Base(values, T())
     {}
@@ -512,23 +521,32 @@ namespace Aleph
   {
     using Base = Gen_Segment_Tree<T, Min_Op<T>>;
 
+    /** @brief Construct with @p num elements, all equal to @p init_val.
+     *
+     *  @param num      number of elements.
+     *  @param init_val initial value for each element.
+     */
     Min_Segment_Tree(const size_t num,
                      const T & init_val = std::numeric_limits<T>::max())
       : Base(num, init_val, std::numeric_limits<T>::max())
     {}
 
+    /** @brief Construct from an initializer list. */
     Min_Segment_Tree(std::initializer_list<T> il)
       : Base(il, std::numeric_limits<T>::max())
     {}
 
+    /** @brief Construct from an Array\<T\>. */
     Min_Segment_Tree(const Array<T> & values)
       : Base(values, std::numeric_limits<T>::max())
     {}
 
+    /** @brief Construct from a std::vector\<T\>. */
     Min_Segment_Tree(const std::vector<T> & values)
       : Base(values, std::numeric_limits<T>::max())
     {}
 
+    /** @brief Construct from a DynList\<T\>. */
     Min_Segment_Tree(const DynList<T> & values)
       : Base(values, std::numeric_limits<T>::max())
     {}
@@ -561,23 +579,32 @@ namespace Aleph
   {
     using Base = Gen_Segment_Tree<T, Max_Op<T>>;
 
+    /** @brief Construct with @p num elements, all equal to @p init_val.
+     *
+     *  @param num      number of elements.
+     *  @param init_val initial value for each element.
+     */
     Max_Segment_Tree(const size_t num,
                      const T & init_val = std::numeric_limits<T>::lowest())
       : Base(num, init_val, std::numeric_limits<T>::lowest())
     {}
 
+    /** @brief Construct from an initializer list. */
     Max_Segment_Tree(std::initializer_list<T> il)
       : Base(il, std::numeric_limits<T>::lowest())
     {}
 
+    /** @brief Construct from an Array\<T\>. */
     Max_Segment_Tree(const Array<T> & values)
       : Base(values, std::numeric_limits<T>::lowest())
     {}
 
+    /** @brief Construct from a std::vector\<T\>. */
     Max_Segment_Tree(const std::vector<T> & values)
       : Base(values, std::numeric_limits<T>::lowest())
     {}
 
+    /** @brief Construct from a DynList\<T\>. */
     Max_Segment_Tree(const DynList<T> & values)
       : Base(values, std::numeric_limits<T>::lowest())
     {}
