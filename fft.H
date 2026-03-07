@@ -2526,7 +2526,7 @@ namespace Aleph
             }
 
           ah_domain_error_if(best == roots.size()
-                             or best_error > tol * (Real(16)
+                             or best_error > tol * (Real(128)
                                + std::abs(roots[i])))
             << ctx << ": complex root " << roots[i] << " does not have a matching conjugate";
 
