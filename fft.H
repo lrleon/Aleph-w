@@ -1674,10 +1674,11 @@ namespace Aleph
     static bool
     try_aberth_ehrlich_roots(const Array<Real> & coefficients,
                              const Real tol,
-                             Array<Complex> & roots) noexcept
+                             Array<Complex> & roots,
+                             const size_t max_iterations = 192) noexcept
     {
       const size_t degree = roots.size();
-      for (size_t iter = 0; iter < 192; ++iter)
+      for (size_t iter = 0; iter < max_iterations; ++iter)
         {
           bool converged = true;
           for (size_t i = 0; i < degree; ++i)
@@ -1728,10 +1729,11 @@ namespace Aleph
     static bool
     try_durand_kerner_roots(const Array<Real> & coefficients,
                             const Real tol,
-                            Array<Complex> & roots) noexcept
+                            Array<Complex> & roots,
+                            const size_t max_iterations = 192) noexcept
     {
       const size_t degree = roots.size();
-      for (size_t iter = 0; iter < 192; ++iter)
+      for (size_t iter = 0; iter < max_iterations; ++iter)
         {
           bool converged = true;
           for (size_t i = 0; i < degree; ++i)
@@ -1948,23 +1950,30 @@ namespace Aleph
               or base_radius <= std::numeric_limits<Real>::min())
             base_radius = Real(1);
 
-          for (size_t i = 0; i < degree; ++i)
+          constexpr Real offsets[] =
+              {Real(0.7), Real(0.25), Real(0.0), Real(0.375)};
+          for (const Real offset : offsets)
             {
-              const Real angle =
-                  Real(2) * std::numbers::pi_v<Real>
-                  * (static_cast<Real>(i) + Real(0.7))
-                  / static_cast<Real>(degree);
-              const Real radius =
-                  base_radius
-                  * (Real(0.7)
-                     + Real(0.6) * static_cast<Real>(i + 1)
-                     / static_cast<Real>(degree + 1));
-              roots(i) = std::polar(radius, angle);
+              for (size_t i = 0; i < degree; ++i)
+                {
+                  const Real angle =
+                      Real(2) * std::numbers::pi_v<Real>
+                      * (static_cast<Real>(i) + offset)
+                      / static_cast<Real>(degree);
+                  const Real radius =
+                      base_radius
+                      * (Real(0.7)
+                         + Real(0.6) * static_cast<Real>(i + 1)
+                         / static_cast<Real>(degree + 1));
+                  roots(i) = std::polar(radius, angle);
+                }
+              converged =
+                  try_aberth_ehrlich_roots(problem.balanced,
+                                           problem.tol * Real(2),
+                                           roots, 512);
+              if (converged)
+                break;
             }
-          converged =
-              try_aberth_ehrlich_roots(problem.balanced,
-                                       problem.tol * Real(2),
-                                       roots);
         }
 
       ah_domain_error_if(not converged) << ctx << ": root solver did not converge";
