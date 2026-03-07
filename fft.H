@@ -1872,6 +1872,95 @@ namespace Aleph
       return true;
     }
 
+    static bool
+    try_laguerre_roots(const Array<Real> & coefficients,
+                       const Real tol,
+                       Array<Complex> & roots) noexcept
+    {
+      const size_t n = coefficients.size();
+      const size_t degree = n - 1;
+
+      Array<Complex> deflated = Array<Complex>::create(n);
+      for (size_t i = 0; i < n; ++i)
+        deflated(i) = Complex(coefficients[i], Real(0));
+
+      for (size_t k = 0; k < degree; ++k)
+        {
+          const size_t m = degree - k;
+          const Real m_r = static_cast<Real>(m);
+          Complex z = std::polar(Real(0.8) + Real(0.4)
+                                  * static_cast<Real>(k)
+                                  / static_cast<Real>(degree + 1),
+                                 Real(2) * std::numbers::pi_v<Real>
+                                 * (static_cast<Real>(k) + Real(0.5))
+                                 / static_cast<Real>(degree));
+
+          bool found = false;
+          for (size_t iter = 0; iter < 512; ++iter)
+            {
+              Complex p = deflated[0];
+              Complex dp(Real(0), Real(0));
+              Complex d2p(Real(0), Real(0));
+              for (size_t i = 1; i <= m; ++i)
+                {
+                  d2p = z * d2p + dp;
+                  dp = z * dp + p;
+                  p = z * p + deflated[i];
+                }
+              d2p *= Complex(Real(2), Real(0));
+
+              if (std::abs(p) <= tol)
+                {
+                  found = true;
+                  break;
+                }
+
+              const Complex G = dp / p;
+              const Complex H = G * G - d2p / p;
+              const Complex disc =
+                  std::sqrt(Complex(m_r - Real(1), Real(0))
+                            * (Complex(m_r, Real(0)) * H - G * G));
+
+              const Complex denom1 = G + disc;
+              const Complex denom2 = G - disc;
+              const Complex & best_denom =
+                  std::abs(denom1) >= std::abs(denom2) ?
+                    denom1 : denom2;
+
+              Complex step;
+              if (std::abs(best_denom) > tol)
+                step = Complex(m_r, Real(0)) / best_denom;
+              else
+                step = (Real(1) + std::abs(z))
+                       * std::polar(Real(1),
+                                    Real(2) * std::numbers::pi_v<Real>
+                                    * static_cast<Real>(iter * 2 + 1)
+                                    / Real(97));
+
+              z -= step;
+              if (std::abs(step) <= tol * (Real(1) + std::abs(z)))
+                {
+                  found = true;
+                  break;
+                }
+            }
+
+          if (not found)
+            return false;
+
+          roots(k) = z;
+
+          Array<Complex> reduced = Array<Complex>::create(m);
+          reduced(0) = deflated[0];
+          for (size_t i = 1; i < m; ++i)
+            reduced(i) = deflated[i] + z * reduced[i - 1];
+
+          deflated = std::move(reduced);
+        }
+
+      return true;
+    }
+
     [[nodiscard]] static Array<Complex>
     polynomial_roots_impl(const Array<Real> & coefficients,
                           const char *ctx)
@@ -1934,47 +2023,10 @@ namespace Aleph
         }
 
       if (not converged)
-        {
-          const size_t degree = roots.size();
-          const Real upper =
-              polynomial_root_upper_bound(problem.balanced);
-          const Real lower =
-              polynomial_root_lower_bound(problem.balanced);
-          Real base_radius = Real(1);
-          if (lower > Real(0) and std::isfinite(lower)
-              and std::isfinite(upper))
-            base_radius = std::sqrt(lower * upper);
-          else if (std::isfinite(upper) and upper > Real(0))
-            base_radius = upper;
-          if (not std::isfinite(base_radius)
-              or base_radius <= std::numeric_limits<Real>::min())
-            base_radius = Real(1);
-
-          constexpr Real offsets[] =
-              {Real(0.7), Real(0.25), Real(0.0), Real(0.375)};
-          for (const Real offset : offsets)
-            {
-              for (size_t i = 0; i < degree; ++i)
-                {
-                  const Real angle =
-                      Real(2) * std::numbers::pi_v<Real>
-                      * (static_cast<Real>(i) + offset)
-                      / static_cast<Real>(degree);
-                  const Real radius =
-                      base_radius
-                      * (Real(0.7)
-                         + Real(0.6) * static_cast<Real>(i + 1)
-                         / static_cast<Real>(degree + 1));
-                  roots(i) = std::polar(radius, angle);
-                }
-              converged =
-                  try_aberth_ehrlich_roots(problem.balanced,
-                                           problem.tol * Real(2),
-                                           roots, 512);
-              if (converged)
-                break;
-            }
-        }
+        converged =
+            try_laguerre_roots(problem.balanced,
+                               problem.tol * Real(4),
+                               roots);
 
       ah_domain_error_if(not converged) << ctx << ": root solver did not converge";
 
