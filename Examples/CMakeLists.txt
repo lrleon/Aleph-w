@@ -139,6 +139,9 @@ set(EXAMPLE_PROGRAMS
     segment_tree_example
     interval_tree_example
     cartesian_tree_example
+    fft_benchmark
+    fft_reference_probe
+    fft_example
     lca_example
     hld_example
     heavy_light_decomposition_example
@@ -187,6 +190,7 @@ set(EXAMPLE_PROGRAMS
     dial_example
     bidirectional_bfs_example
     ida_star_example
+    two_sat_example
 )
 
 # Function to get source file from program name

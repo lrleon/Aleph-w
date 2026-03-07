@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -107,15 +106,14 @@
 
 namespace Aleph
 {
-
   /** Simple, scalable and fast dynamic array.
 
-      MemArray implement a totally sequential dynamic array. That is,
-      conditioned to memory availability, all the array is stored in a
+      MemArray implements a totally sequential dynamic array. That is,
+      conditioned to memory availability, the array is stored in a
       contiguous chunk of memory. So, the access is direct and with
       exactly the same cost of accessing a normal array.
 
-      The array allows to insert and remove elements. These operation are
+      The array allows inserting and removing elements. These operations are
       conceived by the ends. The number of stored elements is called `n`.
 
       The allocation technique obeys to "buddy system"; that is, the
@@ -125,7 +123,7 @@ namespace Aleph
       allocated and the current entries are moved (by move semantic if
       available).
 
-      When the number of entries descend to a `contract_threshold` the
+      When the number of entries descends to a `contract_threshold` the
       array is half long contracted.
 
       \note This class is not really conceived for managing a
@@ -137,28 +135,24 @@ namespace Aleph
   template <typename T>
   class MemArray
   {
-   public:
-
+  public:
     static constexpr size_t Min_Dim = 4;
 
-   protected:
-
+  protected:
     T *ptr = nullptr;
     size_t dim = Min_Dim;
     size_t n = 0;
 
-   public:
-
+  public:
     mutable size_t contract_threshold;
 
     /// Return the current base of array.
-    T *get_ptr() const noexcept { return ptr; }
+    T * get_ptr() const noexcept { return ptr; }
 
     /// Return the current dimension of array
     const size_t &get_dim() const noexcept { return dim; }
 
-   protected:
-
+  protected:
     /// Allocate memory for the current dimension
     void allocate()
     {
@@ -257,8 +251,7 @@ namespace Aleph
       assert(dim == 1 << k);
     }
 
-   public:
-
+  public:
     using Item_Type = T; /// The type of element of array
 
     /// Return the capacity of array (its dimension)
@@ -270,19 +263,17 @@ namespace Aleph
     /// Return `true` is the array is empty
     bool is_empty() const noexcept { return n == 0; }
 
-    /** Construct an array con capacity equal or gre+ater than `__dim`.
+    /** Construct an array con capacity equal or greater than `_dim`.
 
-        @param[in] __dim proposed dimension of array which could be
-        adjusted to the next two power greater than `__dim`
+        @param[in] _dim proposed dimension of array which could be
+        adjusted to the next two power greater than `_dim`
         @throw bad_alloc if there is not enough memory.
     */
-    MemArray(size_t __dim = Min_Dim) : ptr(nullptr), n(0)
+    MemArray(size_t _dim = Min_Dim) : ptr(nullptr), n(0)
     {
-      static_assert(std::is_move_constructible_v<T>,
-                    "T must be move constructible");
-      static_assert(std::is_move_assignable_v<T>,
-                    "T must be move assignable");
-      init_dim(__dim);
+      static_assert(std::is_move_constructible_v<T>, "T must be move constructible");
+      static_assert(std::is_move_assignable_v<T>, "T must be move assignable");
+      init_dim(_dim);
       allocate();
     }
 
@@ -296,7 +287,7 @@ namespace Aleph
     }
 
     /// Swap in constant time `this` with `a`
-    void swap(MemArray &a) noexcept
+    void swap(MemArray & a) noexcept
     {
       std::swap(ptr, a.ptr);
       std::swap(dim, a.dim);
@@ -305,7 +296,7 @@ namespace Aleph
     }
 
     /// Construct a copy of `a`
-    MemArray(const MemArray &a)
+    MemArray(const MemArray & a)
       requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
       : ptr(nullptr), dim(a.dim), n(a.n)
     {
@@ -315,7 +306,7 @@ namespace Aleph
     }
 
     /// Construct an array moved of rvalue `a`
-    MemArray(MemArray &&a) noexcept
+    MemArray(MemArray && a) noexcept
       : ptr(nullptr), dim(0), n(0), contract_threshold(0)
     {
       assert(a.ptr);
@@ -323,7 +314,7 @@ namespace Aleph
     }
 
     /// Assign by copy `a` to `this`
-    MemArray &operator=(const MemArray &a)
+    MemArray &operator=(const MemArray & a)
       requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
     {
       if (this == &a)
@@ -331,8 +322,8 @@ namespace Aleph
 
       assert(a.ptr);
 
-      T *newptr = new T[a.dim];    // allocate a new array
-      for (int i = 0; i < a.n; ++i)  // copy items to a new array
+      T *newptr = new T[a.dim]; // allocate a new array
+      for (size_t i = 0; i < a.n; ++i) // copy items to a new array
         newptr[i] = a.ptr[i];
 
       if (ptr != nullptr)
@@ -346,7 +337,7 @@ namespace Aleph
     }
 
     /// Assign by moving `a` to `this`
-    MemArray &operator=(MemArray &&a) noexcept
+    MemArray &operator=(MemArray && a) noexcept
     {
       swap(a);
       return *this;
@@ -371,31 +362,30 @@ namespace Aleph
 
     /// Put a copy of `item` at the end of sequence. The array expands if
     /// this is already full
-    T &put(const T &item)
+    T &put(const T & item)
       requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
       expand();
 
       ptr[n] = item;
-      T &ret = ptr[n++];
+      T & ret = ptr[n++];
       return ret;
     }
 
     /// Move `item` at the end of sequence. The array expands if
     /// this is already full
-    T &put(T &&item)
+    T &put(T && item)
     {
       assert(ptr);
       expand();
 
       ptr[n] = std::forward<T>(item);
-      T &ret = ptr[n++];
+      T & ret = ptr[n++];
       return ret;
     }
 
-   private:
-
+  private:
     void open_gap(size_t pos = 0, size_t num_entries = 1)
     {
       putn(num_entries);
@@ -408,30 +398,29 @@ namespace Aleph
       get(num_entries);
     }
 
-   public:
-
+  public:
     /// Push a copy of `item` at the beginning of sequence. The array expands if
     /// this is already full
-    T &push(const T &item)
+    T &push(const T & item)
       requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
       open_gap();
 
       ptr[0] = item;
-      T &ret = ptr[0];
+      T & ret = ptr[0];
       return ret;
     }
 
     /// Push a copy of `item` at the beginning of sequence. The array expands if
     /// this is already full
-    T &push(T &&item)
+    T &push(T && item)
     {
       assert(ptr);
       open_gap(0, 1);
 
       ptr[0] = std::forward<T>(item);
-      T &ret = ptr[0];
+      T & ret = ptr[0];
       return ret;
     }
 
@@ -442,7 +431,7 @@ namespace Aleph
       return ptr[0];
     }
 
-    /// Remove first item. Gap is closed
+    /// Remove the first item. Gap is closed
     T remove_first()
     {
       ah_underflow_error_if(n == 0) << "remove_first(): MemArray is empty";
@@ -456,7 +445,7 @@ namespace Aleph
     T pop() { return remove_first(); }
 
     /// \overload put(const T & item)
-    T &append(T &item)
+    T &append(const T & item)
       requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
@@ -464,14 +453,14 @@ namespace Aleph
     }
 
     /// \overload put(T && item)
-    T &append(T &&item)
+    T &append(T && item)
     {
       assert(ptr);
       return put(std::forward<T>(item));
     }
 
     /// \overload push(const T & item)
-    T &insert(T &item)
+    T &insert(const T & item)
       requires std::is_copy_assignable_v<T>
     {
       assert(ptr);
@@ -479,7 +468,7 @@ namespace Aleph
     }
 
     /// \overload push(T && item)
-    T &insert(T &&item)
+    T &insert(T && item)
     {
       assert(ptr);
       return push(std::forward<T>(item));
@@ -520,7 +509,7 @@ namespace Aleph
       contract_threshold = dim / 4;
     }
 
-    MemArray &append(const MemArray &a)
+    MemArray &append(const MemArray & a)
       requires std::is_copy_assignable_v<T>
     {
       const size_t old_n = n;
@@ -650,7 +639,7 @@ namespace Aleph
         `false` otherwise.
     */
     template <class Operation>
-    bool traverse(Operation &operation)
+    bool traverse(Operation & operation)
     {
       assert(ptr);
       for (int i = 0; i < n; i++)
@@ -662,21 +651,21 @@ namespace Aleph
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
-    bool traverse(Operation &operation) const
+    bool traverse(Operation & operation) const
     {
       return const_cast<MemArray *>(this)->traverse(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
-    bool traverse(Operation &&operation) const
+    bool traverse(Operation && operation) const
     {
       return traverse<Operation>(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
-    bool traverse(Operation &&operation)
+    bool traverse(Operation && operation)
     {
       return traverse<Operation>(operation);
     }
@@ -693,14 +682,13 @@ namespace Aleph
       using Base::Base;
 
       /// Construct an iterator on array `a`
-      Iterator(const MemArray<T> &a) noexcept
+      Iterator(const MemArray<T> & a) noexcept
         : Array_Iterator<T>(no_exception_ctor, a.ptr, a.dim, a.n)
       {
         assert(a.ptr != nullptr);
       }
     };
   };
-
 } // end namespace Aleph
 
 # endif // TPL_MEMARRAY_H

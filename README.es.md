@@ -47,6 +47,7 @@ Idioma: Español | [English](README.md)
   - [Árboles de expansión mínima](#readme-es-mst)
   - [Flujos en redes](#readme-es-flujos)
   - [Conectividad en grafos](#readme-es-conectividad)
+  - [2-SAT (Satisfacibilidad)](#readme-es-two-sat)
   - [Emparejamiento (matching)](#readme-es-emparejamiento)
   - [Algoritmos de strings](#readme-es-algoritmos-de-cadenas)
   - [Algoritmos de ordenamiento](#readme-es-algoritmos-de-ordenamiento)
@@ -2192,6 +2193,66 @@ int main() {
 }
 ```
 
+<a id="readme-es-two-sat"></a>
+### 2-SAT (Satisfacibilidad)
+
+El problema de **2-satisfacibilidad** (2-SAT) determina si una fórmula booleana en CNF, con dos literales por cláusula, es satisfacible. Aleph-w ofrece un resolvedor en tiempo lineal `O(V+E)` basado en el grafo de implicación y el algoritmo de componentes fuertemente conexas (SCC) de Tarjan.
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       RESUMEN DEL RESOLVEDOR 2-SAT                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  FÓRMULA: (x0 v x1) ∧ (~x0 v x2) ∧ (~x1 v ~x2)                              │
+│                                                                             │
+│  GRAFO DE IMPLICACIÓN:                                                      │
+│  ~x0 ──▶ x1       x0 ──▶ x2       x1 ──▶ ~x2                                │
+│  ~x1 ──▶ x0      ~x2 ──▶ ~x0      x2 ──▶ ~x1                                │
+│                                                                             │
+│  ALGORITMO:                                                                 │
+│  1. Construir el grafo de implicación con 2N nodos.                         │
+│  2. Calcular Componentes Fuertemente Conexas (SCC).                         │
+│  3. La fórmula es SAT sii ningún par x y ~x están en la misma SCC.          │
+│  4. Si es SAT, el orden topológico de las SCC da una asignación válida.      │
+│                                                                             │
+│  Complejidad: O(n + m) para n variables y m cláusulas                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Ejemplos de uso
+
+```cpp
+#include <Two_Sat.H>
+
+int main() {
+    // Resolver: (x0 OR x1) AND (~x0 OR x2) AND (~x1 OR ~x2)
+    Two_Sat<> sat(3);
+
+    // Usando índices de literales
+    sat.add_clause(sat.pos_lit(0), sat.pos_lit(1));  // x0 v x1
+    sat.add_clause(sat.neg_lit(0), sat.pos_lit(2));  // ~x0 v x2
+    sat.add_clause(sat.neg_lit(1), sat.neg_lit(2));  // ~x1 v ~x2
+
+    // Verificar satisfacibilidad y obtener asignación
+    auto [ok, assignment] = sat.solve();
+
+    if (ok) {
+        bool x0 = assignment(0);
+        bool x1 = assignment(1);
+        bool x2 = assignment(2);
+    }
+
+    // Usando la API de variables signadas 1-based (más conciso)
+    Two_Sat<> sat2(3);
+    sat2.add_clause_signed(1, 2);    // x0 v x1
+    sat2.add_clause_signed(-1, 3);   // ~x0 v x2
+    sat2.add_clause_signed(-2, -3);  // ~x1 v ~x2
+
+    return 0;
+}
+```
+
 <a id="readme-es-planaridad"></a>
 ### Prueba de planaridad
 
@@ -3378,6 +3439,7 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 
 | Header | Functions / Classes | Description |
 |--------|---------------------|-------------|
+| `fft.H` | `FFT<Real>` | Transformada rápida de Fourier para espectros complejos más FFT/convolución real secuencial optimizada y APIs concurrentes separadas con `ThreadPool` sobre `Array` y contenedores iterables compatibles |
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
@@ -3583,6 +3645,7 @@ cmake --build build
 | Algoritmo de Mo | `mo_algorithm_example.cc` | Consultas offline de rango (distinct count, powerful array, mode) |
 | Caja de herramientas de combinatoria | `comb_example.C` | Recorrido de producto cartesiano, transposición y auxiliares de combinatoria |
 | Utilidades de código Gray | `gray_code_example.cc` | Conversión binario a Gray y generación de secuencias |
+| Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector` |
 | Caja de herramientas de teoría de números | `math_nt_example.cc` | Multiplicación modular segura, Miller-Rabin, Pollard's Rho, NTT, combinatoria modular y álgebra lineal |
 | Algoritmos de streaming | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
 | Enumeración lexicográfica de permutaciones/combinaciones | `combinatorics_enumeration_example.cc` | `next_permutation` extendida, k-combinaciones por índices/bitmask y enumeración materializada |
