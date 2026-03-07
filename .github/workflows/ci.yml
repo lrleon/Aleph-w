@@ -260,7 +260,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build build --parallel
+          cmake --build build --parallel --target fft_test fft_benchmark fft_reference_probe
 
       - name: FFT tests (default SIMD policy)
         run: |
