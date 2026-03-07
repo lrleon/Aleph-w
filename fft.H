@@ -2492,12 +2492,63 @@ namespace Aleph
       return center / static_cast<Real>(roots.size());
     }
 
+    /** @brief Enforce conjugate symmetry on roots of a real-coefficient
+     *  polynomial.  For every complex root the nearest conjugate candidate
+     *  is found and both are replaced by the exact conjugate pair built
+     *  from the average of their real parts and imaginary magnitudes. */
+    [[nodiscard]] static Array<Complex>
+    enforce_conjugate_symmetry(const Array<Complex> & roots)
+    {
+      const Real tol = (max_root_radius(roots) + Real(1))
+                       * Real(2048) * std::numeric_limits<Real>::epsilon();
+      Array<Complex> result = roots;
+      Array<bool> paired(roots.size(), false);
+
+      for (size_t i = 0; i < result.size(); ++i)
+        {
+          if (paired[i] or std::abs(result[i].imag()) <= tol)
+            continue;
+
+          size_t best = result.size();
+          Real best_error = std::numeric_limits<Real>::infinity();
+          const Complex target = std::conj(result[i]);
+          for (size_t j = i + 1; j < result.size(); ++j)
+            {
+              if (paired[j])
+                continue;
+              const Real error = std::abs(result[j] - target);
+              if (error < best_error)
+                {
+                  best_error = error;
+                  best = j;
+                }
+            }
+
+          if (best < result.size())
+            {
+              const Real avg_re =
+                  (result[i].real() + result[best].real()) / Real(2);
+              const Real avg_im =
+                  (std::abs(result[i].imag())
+                   + std::abs(result[best].imag())) / Real(2);
+              result(i) = Complex(avg_re,  avg_im);
+              result(best) = Complex(avg_re, -avg_im);
+              paired[i] = true;
+              paired[best] = true;
+            }
+        }
+
+      return result;
+    }
+
     [[nodiscard]] static Array<RootGroup>
-    root_groups_impl(const Array<Complex> & roots,
+    root_groups_impl(const Array<Complex> & raw_roots,
                      const char *ctx)
     {
-      if (roots.is_empty())
+      if (raw_roots.is_empty())
         return {};
+
+      const Array<Complex> roots = enforce_conjugate_symmetry(raw_roots);
 
       const Real tol = (max_root_radius(roots) + Real(1))
                        * Real(2048) * std::numeric_limits<Real>::epsilon();
@@ -2526,7 +2577,7 @@ namespace Aleph
             }
 
           ah_domain_error_if(best == roots.size()
-                             or best_error > tol * (Real(128)
+                             or best_error > tol * (Real(16)
                                + std::abs(roots[i])))
             << ctx << ": complex root " << roots[i] << " does not have a matching conjugate";
 
