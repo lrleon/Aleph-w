@@ -54,6 +54,7 @@ Language: English | [Español](README.es.md)
   - [String Algorithms](#readme-string-algorithms)
   - [Sorting Algorithms](#readme-sorting-algorithms)
   - [Dynamic Programming Algorithms](#readme-dp-algorithms)
+  - [Signal Processing (FFT)](#readme-signal-processing)
 - [Memory Management](#readme-memory-management)
   - [Arena Allocators](#readme-arena-allocators)
 - [Parallel Computing](#readme-parallel-computing)
@@ -2970,6 +2971,27 @@ int main() {
 
 ---
 
+<a id="readme-signal-processing"></a>
+### Signal Processing (FFT)
+
+Aleph-w includes a comprehensive **Fast Fourier Transform** and digital signal processing toolkit in [`fft.H`](fft.H). Key capabilities:
+
+- **FFT/IFFT** for real and complex signals (Cooley-Tukey radix-2/4, Bluestein for arbitrary sizes)
+- **STFT/ISTFT** with streaming processors for time-frequency analysis
+- **FIR filter design**: window method (`firwin`), least-squares (`firls`), and Remez exchange
+- **IIR filter design**: Butterworth, Chebyshev I/II, Bessel, and Elliptic (Cauer) families
+- **Spectral estimation**: Welch PSD, cross spectral density, coherence
+- **Efficient convolution**: Overlap-Add, Overlap-Save, and partitioned convolution for low-latency streaming
+- **Resampling**: polyphase rational resampling (`resample_poly`, `upfirdn`)
+- **N-dimensional** transforms (2-D, 3-D)
+- **Polynomial root-finding** via companion matrix eigenvalues
+- **Parallel variants** of all methods via `ThreadPool` (prefixed with `p`)
+- **SIMD dispatch**: automatic AVX2/NEON selection at runtime
+
+For a detailed walkthrough with code examples, see the **[FFT & Digital Signal Processing Tutorial](docs/fft-tutorial.en.md)** ([Español](docs/fft-tutorial.md)).
+
+---
+
 <a id="readme-memory-management"></a>
 ## Memory Management
 
@@ -3489,7 +3511,7 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 
 | Header | Functions / Classes | Description |
 |--------|---------------------|-------------|
-| `fft.H` | `FFT<Real>` | Fast Fourier Transform for complex spectra plus optimized sequential real FFT/convolution and separate concurrent `ThreadPool` APIs over `Array` and compatible iterable containers |
+| `fft.H` | `FFT<Real>` | Fast Fourier Transform (FFT): Cooley-Tukey radix-2/4 and Bluestein for arbitrary sizes, STFT/ISTFT, FIR/IIR filter design (Butterworth, Chebyshev, Bessel, Elliptic), Welch PSD, resampling, polynomial roots, N-D transforms, and parallel `ThreadPool` APIs. See the [FFT & DSP Tutorial](docs/fft-tutorial.en.md) |
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
@@ -3693,7 +3715,7 @@ cmake --build build
 | Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
 | Combinatorics toolbox | `comb_example.C` | Cartesian-product traversal, transpose, and combinatorics helpers |
 | Gray code utilities | `gray_code_example.cc` | Binary to Gray conversion and sequence generation |
-| Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector` |
+| Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector`. Full tutorial: [FFT & DSP Tutorial](docs/fft-tutorial.en.md) |
 | Number theory toolbox | `math_nt_example.cc` | Safe mod multiplication, Miller-Rabin, Pollard's Rho, NTT, modular combinatorics and linalg |
 | Streaming algorithms | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
 | Lexicographic permutation/combination enumeration | `combinatorics_enumeration_example.cc` | Extended `next_permutation`, k-combinations by indices/bitmask, and materialized enumeration |

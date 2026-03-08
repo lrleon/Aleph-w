@@ -386,12 +386,14 @@ namespace Aleph
 
     static constexpr size_t twiddle_refresh_period = 32;
 
+    /** @brief Computes a single twiddle factor exp(j * angle * index). */
     [[nodiscard]] static Complex
     twiddle_at(const Real angle, const size_t index)
     {
       return std::polar(Real(1), angle * static_cast<Real>(index));
     }
 
+    /** @brief Returns log2(N) stages, used for numerical error scaling. */
     [[nodiscard]] static Real
     transform_stages(const size_t n) noexcept
     {
@@ -399,6 +401,9 @@ namespace Aleph
                       std::log2(static_cast<Real>(std::max(n, size_t(2)))));
     }
 
+    /** @brief Rationale: Estimates the maximum expected numerical noise for a value
+     *         after an N-point transform, used to validate real projections.
+     */
     [[nodiscard]] static Real
     real_projection_tolerance(const Complex & value, const size_t n) noexcept
     {
@@ -407,6 +412,9 @@ namespace Aleph
              * std::numeric_limits<Real>::epsilon() * scale;
     }
 
+    /** @brief Rationale: Numerical tolerance for Hermitian symmetry checks.
+     *         Determines if X[k] and X[N-k]* are "close enough".
+     */
     [[nodiscard]] static Real
     hermitian_tolerance(const Complex & lhs, const Complex & rhs,
                         const size_t n) noexcept
@@ -418,6 +426,9 @@ namespace Aleph
              * std::numeric_limits<Real>::epsilon() * scale;
     }
 
+    /** @brief Rationale: Ensures a complex spectrum has the Hermitian symmetry
+     *         (X[k] = X[N-k]*) required to be the transform of a real signal.
+     */
     static void
     validate_real_spectrum(const Array<Complex> & input, const char *ctx)
     {
@@ -450,6 +461,7 @@ namespace Aleph
         }
     }
 
+    /** @brief Internal generator for generalized cosine windows (Hann, Hamming, Blackman). */
     [[nodiscard]] static Array<Real>
     cosine_sum_window(const size_t n, const Real a0,
                       const Real a1 = Real(0),
@@ -476,6 +488,7 @@ namespace Aleph
       return window;
     }
 
+    /** @brief Functional reverse. */
     template <typename T>
     [[nodiscard]] static Array<T>
     reverse_copy(const Array<T> & input)
@@ -487,6 +500,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Functional prefix extraction. */
     template <typename T>
     [[nodiscard]] static Array<T>
     prefix_copy(const Array<T> & input, const size_t length)
@@ -502,6 +516,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Functional slice extraction. */
     template <typename T>
     [[nodiscard]] static Array<T>
     slice_copy(const Array<T> & input,
@@ -520,6 +535,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Rationale: Rule-of-thumb for filtfilt padding to allow transients to decay. */
     [[nodiscard]] static size_t
     default_filtfilt_pad_length(const size_t signal_size,
                                 const size_t coeff_size) noexcept
@@ -535,6 +551,9 @@ namespace Aleph
       return std::min(suggested, signal_size - 1);
     }
 
+    /** @brief Rationale: Applies reflection padding at signal edges to reduce
+     *         boundary artifacts during filtering.
+     */
     [[nodiscard]] static Array<Real>
     reflect_pad_signal(const Array<Real> & signal, const size_t pad_len)
     {
@@ -562,6 +581,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief functional zero-padding at both ends. */
     [[nodiscard]] static Array<Real>
     zero_pad_edges(const Array<Real> & signal,
                    const size_t left_pad,
@@ -580,6 +600,9 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Rationale: Computes the effective window product for a windowed
+     *         overlap-add process to validate reconstruction constraints.
+     */
     [[nodiscard]] static Array<Real>
     overlap_profile(const Array<Real> & analysis_window,
                     const Array<Real> & synthesis_window,
@@ -606,6 +629,9 @@ namespace Aleph
       return profile;
     }
 
+    /** @brief Rationale: Non-zero Overlap-Add (NOLA) ensures the signal can
+     *         be reconstructed (it's never multiplied by zero in all frames).
+     */
     [[nodiscard]] static bool
     overlap_profile_has_nola(const Array<Real> & profile) noexcept
     {
@@ -617,6 +643,9 @@ namespace Aleph
       return true;
     }
 
+    /** @brief Rationale: Constant Overlap-Add (COLA) ensures that OLA
+     *         reconstruction has no amplitude modulation artifacts.
+     */
     [[nodiscard]] static bool
     overlap_profile_has_cola(const Array<Real> & profile) noexcept
     {
@@ -632,6 +661,7 @@ namespace Aleph
       return true;
     }
 
+    /** @brief Rationale: Internal validator for STFT/ISTFT windowing parameters. */
     static void
     validate_overlap_constraints(const Array<Real> & analysis_window,
                                  const Array<Real> & synthesis_window,
@@ -659,6 +689,7 @@ namespace Aleph
           << hop_size;
     }
 
+    /** @brief Computes framing offsets. */
     [[nodiscard]] static Array<size_t>
     frame_offsets_impl(const size_t signal_size,
                        const size_t frame_size,
@@ -687,6 +718,7 @@ namespace Aleph
       return offsets;
     }
 
+    /** @brief L-infinity norm. */
     [[nodiscard]] static Real
     max_abs_value(const Array<Real> & input) noexcept
     {
@@ -696,6 +728,7 @@ namespace Aleph
       return max_value;
     }
 
+    /** @brief Sum reduction. */
     [[nodiscard]] static Real
     sum_values(const Array<Real> & input) noexcept
     {
@@ -705,6 +738,7 @@ namespace Aleph
       return total;
     }
 
+    /** @brief L2 norm squared. */
     [[nodiscard]] static Real
     sum_squares(const Array<Real> & input) noexcept
     {
@@ -714,6 +748,7 @@ namespace Aleph
       return total;
     }
 
+    /** @brief Returns a copy with DC offset removed. */
     [[nodiscard]] static Array<Real>
     demean_copy(const Array<Real> & input)
     {
@@ -727,6 +762,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Maps bin indices to frequency in Hz. */
     [[nodiscard]] static Array<Real>
     one_sided_frequency_grid(const size_t fft_size,
                              const Real sample_rate,
@@ -743,6 +779,7 @@ namespace Aleph
       return frequency;
     }
 
+    /** @brief Identifies non-redundant spectrum bins (excluding DC and Nyquist). */
     [[nodiscard]] static bool
     is_one_sided_interior_bin(const size_t bin,
                               const size_t fft_size) noexcept
@@ -754,6 +791,7 @@ namespace Aleph
       return true;
     }
 
+    /** @brief Default hop size for Welch analysis (50% overlap). */
     [[nodiscard]] static size_t
     resolve_welch_hop_size(const WelchOptions & options,
                            const size_t frame_size,
@@ -765,6 +803,7 @@ namespace Aleph
       return hop_size;
     }
 
+    /** @brief Default FFT size for Welch analysis (zero-padded to power of 2). */
     [[nodiscard]] static size_t
     resolve_welch_fft_size(const WelchOptions & options,
                            const size_t frame_size,
@@ -777,6 +816,9 @@ namespace Aleph
       return fft_size;
     }
 
+    /** @brief Rationale: Encapsulates frame extraction, detrending and windowing
+     *         common to Welch and other spectral estimators.
+     */
     [[nodiscard]] static Array<Array<Real>>
     prepare_welch_frames(const Array<Real> & signal,
                          const Array<Real> & window,
@@ -800,6 +842,9 @@ namespace Aleph
       return frames;
     }
 
+    /** @brief Rationale: Multiplies spectral densities by 2 for interior bins
+     *         to account for energy in the omitted negative frequency half.
+     */
     template <typename Density>
     static void
     apply_one_sided_density_scaling(Density & value,
@@ -810,6 +855,7 @@ namespace Aleph
         value *= Real(2);
     }
 
+    /** @brief Returns length excluding trailing insignificant zeros. */
     [[nodiscard]] static size_t
     effective_coeff_length(const Array<Real> & input) noexcept
     {
@@ -824,6 +870,7 @@ namespace Aleph
       return n;
     }
 
+    /** @brief Scalar scaling. */
     [[nodiscard]] static Array<Real>
     scaled_copy(const Array<Real> & input, const Real factor)
     {
@@ -1889,8 +1936,8 @@ namespace Aleph
           const size_t m = degree - k;
           const Real m_r = static_cast<Real>(m);
           Complex z = std::polar(Real(0.8) + Real(0.4)
-                                  * static_cast<Real>(k)
-                                  / static_cast<Real>(degree + 1),
+                                 * static_cast<Real>(k)
+                                 / static_cast<Real>(degree + 1),
                                  Real(2) * std::numbers::pi_v<Real>
                                  * (static_cast<Real>(k) + Real(0.5))
                                  / static_cast<Real>(degree));
@@ -1925,7 +1972,8 @@ namespace Aleph
               const Complex denom2 = G - disc;
               const Complex & best_denom =
                   std::abs(denom1) >= std::abs(denom2) ?
-                    denom1 : denom2;
+                    denom1 :
+                    denom2;
 
               Complex step;
               if (std::abs(best_denom) > tol)
@@ -1961,6 +2009,11 @@ namespace Aleph
       return true;
     }
 
+    /** @brief Rationale: Master implementation for polynomial root-finding.
+     *         It uses a multi-strategy approach (linear/quadratic solvers,
+     *         Aberth-Ehrlich, Durand-Kerner, and Laguerre) with polynomial
+     *         balancing and root polishing to ensure convergence and precision.
+     */
     [[nodiscard]] static Array<Complex>
     polynomial_roots_impl(const Array<Real> & coefficients,
                           const char *ctx)
@@ -2046,6 +2099,9 @@ namespace Aleph
       return roots;
     }
 
+    /** @brief Rationale: Copy utility that removes leading zero coefficients,
+     *         effectively normalizing the polynomial degree.
+     */
     [[nodiscard]] static Array<Real>
     trim_leading_zeros_copy(const Array<Real> & input) noexcept
     {
@@ -2066,6 +2122,7 @@ namespace Aleph
       return trimmed;
     }
 
+    /** @brief Internal storage for complex transfer function evaluation terms. */
     struct TransferTerms
     {
       Complex numerator = Complex(Real(0), Real(0));
@@ -2074,6 +2131,7 @@ namespace Aleph
       Complex denominator_derivative = Complex(Real(0), Real(0));
     };
 
+    /** @brief implementation helper for evaluating H(z) and its derivatives on the unit circle. */
     [[nodiscard]] static TransferTerms
     evaluate_transfer_terms_at(const Array<Real> & numerator,
                                const Array<Real> & denominator,
@@ -2102,6 +2160,10 @@ namespace Aleph
       return terms;
     }
 
+    /** @brief Rationale: Analytic calculation of group delay (-dphi/domega)
+     *         using the complex derivative of the transfer function, which
+     *         is more accurate than numerical differentiation.
+     */
     [[nodiscard]] static Array<Real>
     analytic_group_delay_impl(const Array<Real> & numerator,
                               const Array<Real> & denominator,
@@ -2135,6 +2197,7 @@ namespace Aleph
       return delay;
     }
 
+    /** @brief implementation of analytic group delay for SOS cascades. */
     [[nodiscard]] static Array<Real>
     analytic_sos_group_delay_impl(const Array<BiquadSection> & sections,
                                   const FrequencyResponse & response,
@@ -2174,6 +2237,7 @@ namespace Aleph
       return delay;
     }
 
+    /** @brief implementation of analytic phase delay calculation. */
     [[nodiscard]] static Array<Real>
     analytic_phase_delay_impl(const Array<Real> & numerator,
                               const Array<Real> & denominator,
@@ -2196,6 +2260,7 @@ namespace Aleph
       return delay;
     }
 
+    /** @brief Returns the magnitude of the largest root in the set. */
     [[nodiscard]] static Real
     max_root_radius(const Array<Complex> & roots) noexcept
     {
@@ -2205,6 +2270,9 @@ namespace Aleph
       return radius;
     }
 
+    /** @brief Rationale: Matches zeros and poles into pairs by minimizing
+     *         Euclidean distance, aiding in SOS decomposition.
+     */
     [[nodiscard]] static Array<PoleZeroPair>
     pole_zero_pairs_impl(const Array<Complex> & zeros,
                          const Array<Complex> & poles)
@@ -2277,6 +2345,9 @@ namespace Aleph
       return pairs;
     }
 
+    /** @brief Rationale: Estimates the minimum distance between any matched
+     *         pole and zero to identify potential cancellations.
+     */
     [[nodiscard]] static Real
     minimum_cancellation_distance_impl(const Array<PoleZeroPair> & pairs) noexcept
     {
@@ -2287,12 +2358,16 @@ namespace Aleph
       return best;
     }
 
+    /** @brief Rationale: Group of one or more roots (typically a conjugate pair)
+     *         sharing a common geometric center.
+     */
     struct RootGroup
     {
       Array<Complex> roots;
       Complex center = Complex(Real(0), Real(0));
     };
 
+    /** @brief Parameters for an analog filter prototype (S-domain). */
     struct AnalogPrototype
     {
       Array<Complex> zeros;
@@ -2300,6 +2375,7 @@ namespace Aleph
       Real gain = Real(1);
     };
 
+    /** @brief Value triplet for Jacobi elliptic functions (sn, cn, dn). */
     struct JacobiValues
     {
       Real sn = Real(0);
@@ -2307,6 +2383,7 @@ namespace Aleph
       Real dn = Real(1);
     };
 
+    /** @brief Frequency-domain grid with target values and importance weights. */
     struct WeightedFrequencyGrid
     {
       Array<Real> omega;
@@ -2314,6 +2391,7 @@ namespace Aleph
       Array<Real> weight;
     };
 
+    /** @brief Rationale: Standard polynomial multiplication (O(N*M)). */
     template <typename T>
     [[nodiscard]] static Array<T>
     polynomial_multiply(const Array<T> & lhs, const Array<T> & rhs)
@@ -2332,6 +2410,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Rationale: In-place addition of a scaled polynomial. */
     template <typename T>
     static void
     add_scaled_polynomial(Array<T> & dst,
@@ -2346,6 +2425,7 @@ namespace Aleph
         dst(i) += src[i] * scale;
     }
 
+    /** @brief Fast integer power utility. */
     [[nodiscard]] static Real
     integer_power(const Real base, const size_t exponent) noexcept
     {
@@ -2355,6 +2435,7 @@ namespace Aleph
       return result;
     }
 
+    /** @brief Rationale: Computes (1 + sign*x)^power coefficients. */
     [[nodiscard]] static Array<Real>
     signed_binomial(const size_t power, const Real sign)
     {
@@ -2368,6 +2449,9 @@ namespace Aleph
       return coeffs;
     }
 
+    /** @brief Rationale: Performs the bilinear substitution mapping from the
+     *         S-plane to the Z-domain: H(z) = H(s)|s=2*fs*(z-1)/(z+1).
+     */
     [[nodiscard]] static Array<Real>
     bilinear_substitute_polynomial(const Array<Real> & analog,
                                    const size_t order,
@@ -2402,6 +2486,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Rationale: Polynomial expansion (z-r1)(z-r2)... */
     [[nodiscard]] static Array<Complex>
     polynomial_from_roots_complex(const Array<Complex> & roots)
     {
@@ -2426,6 +2511,7 @@ namespace Aleph
       return coeffs;
     }
 
+    /** @brief Validation wrapper for @ref trim_leading_zeros_copy. */
     [[nodiscard]] static Array<Real>
     trim_polynomial_leading_zeros(const Array<Real> & input,
                                   const char *ctx)
@@ -2435,6 +2521,7 @@ namespace Aleph
       return trimmed;
     }
 
+    /** @brief implementation of P(x)^n via successive multiplication. */
     [[nodiscard]] static Array<Real>
     polynomial_power(const Array<Real> & poly,
                      const size_t exponent,
@@ -2448,6 +2535,10 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Rationale: Evaluates P(N(z)/D(z)) by scaling by the common
+     *         denominator D(z)^degree and evaluating the resulting nested
+     *         polynomial expansion.
+     */
     [[nodiscard]] static Array<Real>
     substitute_rational_polynomial(const Array<Real> & poly,
                                    const Array<Real> & numerator,
@@ -2501,6 +2592,10 @@ namespace Aleph
       return trim_polynomial_leading_zeros(output, ctx);
     }
 
+    /** @brief Rationale: Transforms an analog transfer function H(s) via rational
+     *         substitution s = N(z)/D(z), as used in bilinear or frequency-selective
+     *         mappings.
+     */
     [[nodiscard]] static IIRCoefficients
     apply_analog_rational_transform(const Array<Real> & numerator,
                                     const Array<Real> & denominator,
@@ -2554,6 +2649,9 @@ namespace Aleph
       return coeffs;
     }
 
+    /** @brief Rationale: Constructs a real-coefficient polynomial from a set
+     *         of complex roots, verifying that roots appear in conjugate pairs.
+     */
     [[nodiscard]] static Array<Real>
     real_polynomial_from_roots(const Array<Complex> & roots,
                                const char *ctx)
@@ -2577,6 +2675,7 @@ namespace Aleph
       return real_coeffs;
     }
 
+    /** @brief Geometric center of a root set. */
     [[nodiscard]] static Complex
     group_center(const Array<Complex> & roots) noexcept
     {
@@ -2626,9 +2725,9 @@ namespace Aleph
               const Real avg_re =
                   (result[i].real() + result[best].real()) / Real(2);
               const Real avg_im =
-                  (std::abs(result[i].imag())
-                   + std::abs(result[best].imag())) / Real(2);
-              result(i) = Complex(avg_re,  avg_im);
+              (std::abs(result[i].imag())
+               + std::abs(result[best].imag())) / Real(2);
+              result(i) = Complex(avg_re, avg_im);
               result(best) = Complex(avg_re, -avg_im);
               paired[i] = true;
               paired[best] = true;
@@ -2638,6 +2737,9 @@ namespace Aleph
       return result;
     }
 
+    /** @brief Rationale: Partitions a set of roots into real sections and
+     *         conjugate pairs to facilitate SOS decomposition.
+     */
     [[nodiscard]] static Array<RootGroup>
     root_groups_impl(const Array<Complex> & raw_roots,
                      const char *ctx)
@@ -2741,6 +2843,9 @@ namespace Aleph
       return groups;
     }
 
+    /** @brief Rationale: Converts generic IIR coefficients into a stabilized
+     *         BiquadSection structure, enforcing the second-order limit.
+     */
     [[nodiscard]] static BiquadSection
     section_from_coefficients(const Array<Real> & numerator,
                               const Array<Real> & denominator,
@@ -2775,6 +2880,7 @@ namespace Aleph
       return section;
     }
 
+    /** @brief implementation helper for the bilinear transform. */
     [[nodiscard]] static IIRCoefficients
     bilinear_transform_impl(const Array<Real> & analog_numerator,
                             const Array<Real> & analog_denominator,
@@ -2803,6 +2909,9 @@ namespace Aleph
                                         ctx);
     }
 
+    /** @brief Rationale: Prewarps an analog cutoff frequency to compensate for
+     *         the non-linear frequency mapping of the bilinear transform.
+     */
     [[nodiscard]] static Real
     prewarp_frequency(const Real cutoff_frequency,
                       const Real sample_rate,
@@ -2855,7 +2964,7 @@ namespace Aleph
       Real a = Real(1);
       Real b = std::sqrt(std::max(Real(0), Real(1) - k * k));
       for (size_t i = 0; i < 64 and std::abs(a - b) >
-             std::numeric_limits<Real>::epsilon() * a; ++i)
+                         std::numeric_limits<Real>::epsilon() * a; ++i)
         {
           const Real next_a = (a + b) / Real(2);
           b = std::sqrt(a * b);
@@ -2923,6 +3032,9 @@ namespace Aleph
 
 # endif // stdlib dispatch
 
+    /** @brief Rationale: Complete elliptic integral K(k) using the modulus
+     *         convention required by elliptic filter design.
+     */
     [[nodiscard]] static Real
     complete_elliptic_first_kind(const Real modulus,
                                  const char *ctx)
@@ -2932,6 +3044,9 @@ namespace Aleph
       return comp_ellint_1_impl(modulus);
     }
 
+    /** @brief Rationale: Simultanous calculation of Jacobi sn, cn, dn functions
+     *         using the descending Landen transformation or AGM.
+     */
     [[nodiscard]] static JacobiValues
     jacobi_sn_cn_dn(const Real argument,
                     const Real modulus,
@@ -3302,6 +3417,7 @@ namespace Aleph
       return prototype;
     }
 
+    /** @brief Rationale: Direct evaluation of |H(j*omega)| for an analog transfer function. */
     [[nodiscard]] static Real
     evaluate_analog_transfer_magnitude(const Array<Real> & numerator,
                                        const Array<Real> & denominator,
@@ -3324,6 +3440,9 @@ namespace Aleph
       return std::abs(num_eval.value / den_eval.value);
     }
 
+    /** @brief Rationale: Generates coefficients for the Reverse Bessel Polynomial
+     *         used in Bessel filter prototypes.
+     */
     [[nodiscard]] static Array<Real>
     reverse_bessel_polynomial(const size_t order,
                               const char *ctx)
@@ -3346,6 +3465,7 @@ namespace Aleph
       return coeffs;
     }
 
+    /** @brief implementation of the Bessel filter analog prototype. */
     [[nodiscard]] static AnalogPrototype
     bessel_prototype(const size_t order,
                      const char *ctx)
@@ -3395,6 +3515,7 @@ namespace Aleph
       return prototype;
     }
 
+    /** @brief internal helper for designing standard lowpass/highpass SOS filters. */
     [[nodiscard]] static Array<BiquadSection>
     design_low_high_sections(const AnalogPrototype & prototype,
                              const Real cutoff_frequency,
@@ -3470,6 +3591,7 @@ namespace Aleph
       return sections;
     }
 
+    /** @brief Prewarps a pair of band edges for bilinear transform. */
     [[nodiscard]] static std::pair<Real, Real>
     prewarp_band_edges(const Real low_cutoff_frequency,
                        const Real high_cutoff_frequency,
@@ -3492,6 +3614,9 @@ namespace Aleph
           };
     }
 
+    /** @brief Rationale: Decomposes a general IIR transfer function into a cascade
+     *         of Second-Order Sections (SOS) by pairing poles and zeros.
+     */
     [[nodiscard]] static Array<BiquadSection>
     transfer_function_to_sections(const IIRCoefficients & coeffs,
                                   const Array<RootGroup> & zero_groups,
@@ -3552,6 +3677,7 @@ namespace Aleph
       return sections;
     }
 
+    /** @brief overload of @ref transfer_function_to_sections using raw coefficients. */
     [[nodiscard]] static Array<BiquadSection>
     transfer_function_to_sections(const Array<Real> & numerator,
                                   const Array<Real> & denominator,
@@ -3565,6 +3691,7 @@ namespace Aleph
       return transfer_function_to_sections(coeffs, zero_groups, ctx);
     }
 
+    /** @brief Specialization for band-stop designs to handle zeros explicitly. */
     [[nodiscard]] static Array<BiquadSection>
     design_bandstop_sections_without_numerator_roots(const AnalogPrototype & prototype,
                                                      const size_t order,
@@ -3615,6 +3742,7 @@ namespace Aleph
       return transfer_function_to_sections(digital, zero_groups, ctx);
     }
 
+    /** @brief Generic implementation for designing transformed SOS cascades. */
     [[nodiscard]] static Array<BiquadSection>
     design_transformed_sections(const AnalogPrototype & prototype,
                                 const Array<Real> & map_numerator,
@@ -3648,6 +3776,7 @@ namespace Aleph
                                            ctx);
     }
 
+    /** @brief Standard Zeroth-order Modified Bessel function of the first kind. */
     [[nodiscard]] static Real
     modified_bessel_i0(const Real x) noexcept
     {
@@ -3666,6 +3795,7 @@ namespace Aleph
       return sum;
     }
 
+    /** @brief Standard normalized sinc function sin(pi*x)/(pi*x). */
     [[nodiscard]] static Real
     normalized_sinc(const Real x) noexcept
     {
@@ -3675,6 +3805,7 @@ namespace Aleph
       return std::sin(pix) / pix;
     }
 
+    /** @brief implementation helper for FIR frequency response magnitude. */
     [[nodiscard]] static Real
     evaluate_fir_response_magnitude(const Array<Real> & coeffs,
                                     const Real omega,
@@ -3686,6 +3817,7 @@ namespace Aleph
                                            ctx));
     }
 
+    /** @brief Normalizes FIR coefficients to have unit gain at frequency @p omega. */
     static void
     normalize_fir_at_omega(Array<Real> & coeffs,
                            const Real omega,
@@ -3699,6 +3831,7 @@ namespace Aleph
         coeffs(i) /= gain;
     }
 
+    /** @brief implementation of the window-method FIR design. */
     [[nodiscard]] static Array<Real>
     firwin_lowpass_impl(const size_t num_taps,
                         const Real cutoff_frequency,
@@ -3736,6 +3869,7 @@ namespace Aleph
       return coeffs;
     }
 
+    /** @brief Rationale: Evaluates integral of cos(k*w) from omega_lo to omega_hi. */
     [[nodiscard]] static Real
     integrate_cos_basis(const Real omega_lo,
                         const Real omega_hi,
@@ -3748,6 +3882,7 @@ namespace Aleph
       return (std::sin(k * omega_hi) - std::sin(k * omega_lo)) / k;
     }
 
+    /** @brief Rationale: Evaluates integral of cos(m*w)*cos(n*w). */
     [[nodiscard]] static Real
     integrate_cos_product(const Real omega_lo,
                           const Real omega_hi,
@@ -3761,6 +3896,7 @@ namespace Aleph
                                                 lhs_harmonic + rhs_harmonic));
     }
 
+    /** @brief implementation helper for firls slope integration. */
     [[nodiscard]] static Real
     integrate_offset_cos_basis(const Real omega_lo,
                                const Real omega_hi,
@@ -3775,6 +3911,7 @@ namespace Aleph
              + (std::cos(k * omega_hi) - std::cos(k * omega_lo)) / (k * k);
     }
 
+    /** @brief implementation helper for firls linear band integration. */
     [[nodiscard]] static Real
     integrate_linear_cos_basis(const Real omega_lo,
                                const Real omega_hi,
@@ -3793,6 +3930,7 @@ namespace Aleph
                                                   harmonic);
     }
 
+    /** @brief implementation of Least-Squares FIR design. */
     [[nodiscard]] static Array<Real>
     firls_impl(const size_t num_taps,
                const Array<Real> & bands,
@@ -4411,6 +4549,7 @@ namespace Aleph
       return info;
     }
 
+    /** @brief implementation helper for Gain Margin calculation. */
     [[nodiscard]] static GainMarginInfo
     gain_margin_impl(const FrequencyResponse & response)
     {
@@ -4483,6 +4622,7 @@ namespace Aleph
       return info;
     }
 
+    /** @brief implementation of refined Phase Margin calculation using analytic evaluation. */
     template <typename Evaluator>
     [[nodiscard]] static PhaseMarginInfo
     phase_margin_refined_impl(const FrequencyResponse & response,
@@ -4548,6 +4688,7 @@ namespace Aleph
       return info;
     }
 
+    /** @brief implementation of refined Gain Margin calculation using analytic evaluation. */
     template <typename Evaluator>
     [[nodiscard]] static GainMarginInfo
     gain_margin_refined_impl(const FrequencyResponse & response,
@@ -4631,6 +4772,7 @@ namespace Aleph
       return info;
     }
 
+    /** @brief implementation of phase unwrapping (removes +/- 2*pi jumps). */
     [[nodiscard]] static Array<Real>
     unwrap_phase(const Array<Real> & phase)
     {
@@ -4652,6 +4794,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief implementation of numeric group delay calculation. */
     [[nodiscard]] static Array<Real>
     group_delay_impl(const FrequencyResponse & response)
     {
@@ -4684,6 +4827,7 @@ namespace Aleph
       return delay;
     }
 
+    /** @brief implementation of numeric phase delay calculation. */
     [[nodiscard]] static Array<Real>
     phase_delay_impl(const FrequencyResponse & response)
     {
@@ -4706,6 +4850,9 @@ namespace Aleph
       return delay;
     }
 
+    /** @brief Rationale: Validates and normalizes ISTFT parameters, checking
+     *         window constraints and FFT size.
+     */
     static void
     validate_istft_configuration(const Array<Real> & analysis_window,
                                  const Array<Real> & synthesis_window,
@@ -4737,6 +4884,7 @@ namespace Aleph
                                    ctx);
     }
 
+    /** @brief implementation of the Inverse Short-Time Fourier Transform. */
     [[nodiscard]] static Array<Real>
     istft_impl(const Array<Array<Complex>> & spectrogram,
                const Array<Real> & analysis_window,
@@ -4816,6 +4964,7 @@ namespace Aleph
                slice_copy(normalized, 0, output_length);
     }
 
+    /** @brief Returns a copy of @p input zero-padded to size @p n. */
     [[nodiscard]] static Array<Complex>
     zero_padded_copy(const Array<Complex> & input, const size_t n)
     {
@@ -4832,6 +4981,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Returns a copy of @p input zero-padded to size @p n. */
     [[nodiscard]] static Array<Real>
     zero_padded_copy(const Array<Real> & input, const size_t n)
     {
@@ -4848,6 +4998,7 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Trims @p input to size @p n. */
     static void
     trim_to_size(Array<Complex> & input, const size_t n)
     {
@@ -4947,6 +5098,10 @@ namespace Aleph
       return max_offset;
     }
 
+    /** @brief Rationale: Validates a tensor layout and infers row-major strides
+     *         if they are not provided. Ensures the layout is compatible with
+     *         the actual flat buffer size.
+     */
     [[nodiscard]] static TensorLayout
     normalize_tensor_layout(const Array<Complex> & data,
                             const TensorLayout & layout,
@@ -4980,6 +5135,9 @@ namespace Aleph
       return normalized;
     }
 
+    /** @brief Rationale: Validates axis indices against the tensor rank and
+     *         ensures no axis is specified more than once.
+     */
     [[nodiscard]] static Array<size_t>
     normalize_axes(const Array<size_t> & axes,
                    const size_t rank,
@@ -5005,6 +5163,9 @@ namespace Aleph
       return normalized;
     }
 
+    /** @brief Rationale: Generates the base memory offsets for all 1D slices
+     *         along a specific axis in a multidimensional tensor.
+     */
     [[nodiscard]] static Array<size_t>
     axis_base_offsets(const Array<size_t> & shape,
                       const Array<size_t> & strides,
@@ -5056,6 +5217,9 @@ namespace Aleph
       return offsets;
     }
 
+    /** @brief Rationale: Extracts a non-contiguous slice of data along a tensor
+     *         axis into a contiguous array for FFT processing.
+     */
     [[nodiscard]] static Array<Complex>
     gather_axis_slice(const Array<Complex> & data,
                       const size_t base_offset,
@@ -5068,6 +5232,9 @@ namespace Aleph
       return slice;
     }
 
+    /** @brief Rationale: Writes back a transformed contiguous slice into its
+     *         original (potentially non-contiguous) memory locations.
+     */
     static void
     scatter_axis_slice(Array<Complex> & data,
                        const size_t base_offset,
@@ -5078,6 +5245,9 @@ namespace Aleph
         data(base_offset + i * axis_stride) = slice[i];
     }
 
+    /** @brief Rationale: Internal implementation of a 1D FFT along a single tensor
+     *         axis. It gathers slices, transforms them, and scatters them back.
+     */
     static void
     transform_axis_impl(Array<Complex> & data,
                         const TensorLayout & layout,
@@ -5129,6 +5299,9 @@ namespace Aleph
           transform_one(i);
     }
 
+    /** @brief Rationale: Internal implementation of a multi-axis tensor transform.
+     *         Applies the 1D transform sequentially along each requested axis.
+     */
     static void
     transform_axes_impl(Array<Complex> & data,
                         const TensorLayout & layout,
@@ -5150,17 +5323,18 @@ namespace Aleph
                             chunk_size);
     }
 
+    /** @brief Rationale: Validates that an Array of Arrays represents a rectangular
+     *         matrix and returns its {rows, cols} shape.
+     */
     [[nodiscard]] static Array<size_t>
     matrix_shape(const Array<Array<Complex>> & input,
                  const char *ctx)
     {
-      ah_invalid_argument_if(input.is_empty())
-        << ctx << ": matrix must be non-empty";
+      ah_invalid_argument_if(input.is_empty()) << ctx << ": matrix must be non-empty";
 
       const size_t rows = input.size();
       const size_t cols = input[0].size();
-      ah_invalid_argument_if(cols == 0)
-        << ctx << ": matrix rows must be non-empty";
+      ah_invalid_argument_if(cols == 0) << ctx << ": matrix rows must be non-empty";
 
       for (size_t i = 1; i < rows; ++i)
         ah_invalid_argument_if(input[i].size() != cols)
@@ -5170,6 +5344,7 @@ namespace Aleph
       return {rows, cols};
     }
 
+    /** @brief Rationale: Flattens a 2D matrix into a 1D row-major array. */
     [[nodiscard]] static Array<Complex>
     flatten_matrix_row_major(const Array<Array<Complex>> & input,
                              const char *ctx)
@@ -5183,6 +5358,7 @@ namespace Aleph
       return flat;
     }
 
+    /** @brief Rationale: Reshapes a 1D row-major array back into a 2D matrix. */
     [[nodiscard]] static Array<Array<Complex>>
     reshape_matrix_row_major(const Array<Complex> & input,
                              const size_t rows,
@@ -5205,6 +5381,9 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Rationale: Validates that a nested Array represents a 3D tensor
+     *         and returns its {d0, d1, d2} shape.
+     */
     [[nodiscard]] static Array<size_t>
     tensor3_shape(const Array<Array<Array<Complex>>> & input,
                   const char *ctx)
@@ -5234,6 +5413,7 @@ namespace Aleph
       return {dim0, dim1, dim2};
     }
 
+    /** @brief Rationale: Flattens a 3D tensor into a 1D row-major array. */
     [[nodiscard]] static Array<Complex>
     flatten_tensor3_row_major(const Array<Array<Array<Complex>>> & input,
                               const char *ctx)
@@ -5248,6 +5428,7 @@ namespace Aleph
       return flat;
     }
 
+    /** @brief Rationale: Reshapes a 1D row-major array back into a 3D tensor. */
     [[nodiscard]] static Array<Array<Array<Complex>>>
     reshape_tensor3_row_major(const Array<Complex> & input,
                               const size_t dim0,
@@ -5276,6 +5457,9 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Rationale: Internal implementation for transposing between
+     *         multichannel spectrogram layouts (e.g. Channel-major to Frame-major).
+     */
     [[nodiscard]] static Array<Array<Array<Complex>>>
     transpose_spectrogram_layout_impl(const Array<Array<Array<Complex>>> & input,
                                       const SpectrogramLayout source,
@@ -5353,6 +5537,10 @@ namespace Aleph
       return to_array<Complex>(input);
     }
 
+    /** @brief Rationale: Optimized FFT for real signals of size N (power-of-two).
+     *         Computes an N/2 complex FFT and uses symmetry to extract the
+     *         full N-point complex spectrum.
+     */
     [[nodiscard]] static Array<Complex>
     transform_real_optimized(const Array<Real> & input,
                              ThreadPool *pool = nullptr,
@@ -5405,6 +5593,10 @@ namespace Aleph
       return spectrum;
     }
 
+    /** @brief Rationale: Optimized Inverse FFT for real signals of size N (power-of-two).
+     *         Processes an N-point complex spectrum into an N/2 complex array,
+     *         applies IFFT, and extracts N real samples.
+     */
     template <typename InversePackedTransform>
     [[nodiscard]] static Array<Real>
     inverse_transform_real_optimized_impl(const Array<Complex> & input,
@@ -5467,6 +5659,10 @@ namespace Aleph
       return output;
     }
 
+    /** @brief Rationale: Efficiently multiplies two real sequences using a single
+     *         N-point complex FFT by packing one sequence into the real part
+     *         and the other into the imaginary part.
+     */
     [[nodiscard]] static Array<Real>
     multiply_real_optimized(const Array<Real> & a, const Array<Real> & b,
                             ThreadPool *pool = nullptr,
@@ -5513,6 +5709,7 @@ namespace Aleph
       return project_real_output(packed, "FFT::multiply");
     }
 
+    /** @brief Rationale: Linear convolution of two complex sequences via FFT. */
     [[nodiscard]] static Array<Complex>
     multiply_complex_impl(const Array<Complex> & a, const Array<Complex> & b,
                           ThreadPool *pool = nullptr,
@@ -5633,6 +5830,7 @@ namespace Aleph
       return power;
     }
 
+    /** @brief implementation of the power-of-two iterative FFT using mixed radix-2/4. */
     static void
     transform_impl(Array<Complex> & a, const bool invert,
                    ThreadPool *pool = nullptr,
@@ -5751,6 +5949,9 @@ namespace Aleph
         }
     }
 
+    /** @brief Rationale: Factors a number into small primes (2, 3, 4, 5) to
+     *         determine if a composite FFT kernel is applicable.
+     */
     [[nodiscard]] static Array<size_t>
     factor_small_radices(size_t n)
     {
@@ -7567,8 +7768,7 @@ namespace Aleph
                             const size_t chunk_size = 0)
     {
       const size_t n = a.size();
-      ah_invalid_argument_if(n == 0)
-        << "FFT::transform: input must be non-empty";
+      ah_invalid_argument_if(n == 0) << "FFT::transform: input must be non-empty";
 
       if (n == 1)
         return;
@@ -8492,8 +8692,8 @@ namespace Aleph
     inverse_transform_real(const Array<Complex> & input)
     {
       return is_power_of_two(input.size()) ?
-               inverse_transform_real_optimized_impl(
-                                                     input, "FFT::inverse_transform_real", nullptr, 0,
+               inverse_transform_real_optimized_impl(input,
+                                                     "FFT::inverse_transform_real", nullptr, 0,
                                                      [](Array<Complex> & packed, ThreadPool *inner_pool,
                                                         const size_t inner_chunk_size)
                                                        {
@@ -8511,8 +8711,8 @@ namespace Aleph
                             const size_t chunk_size = 0)
     {
       return is_power_of_two(input.size()) ?
-               inverse_transform_real_optimized_impl(
-                                                     input, "FFT::inverse_transform_real", &pool, chunk_size,
+               inverse_transform_real_optimized_impl(input,
+                                                     "FFT::inverse_transform_real", &pool, chunk_size,
                                                      [](Array<Complex> & packed, ThreadPool *inner_pool,
                                                         const size_t inner_chunk_size)
                                                        {
@@ -9305,8 +9505,7 @@ namespace Aleph
     [[nodiscard]] static Real
     window_energy(const Array<Real> & window)
     {
-      ah_invalid_argument_if(window.is_empty())
-        << "FFT::window_energy: window must be non-empty";
+      ah_invalid_argument_if(window.is_empty()) << "FFT::window_energy: window must be non-empty";
       return sum_squares(window);
     }
 
@@ -9470,7 +9669,7 @@ namespace Aleph
         const Real sample_rate,
         const WelchOptions & options = {})
     {
-      const char *ctx = "FFT::csd";
+      const auto ctx = "FFT::csd";
       ah_invalid_argument_if(x.size() != y.size())
         << ctx << ": signal sizes " << x.size()
         << " and " << y.size() << " do not match";
@@ -10044,8 +10243,7 @@ namespace Aleph
       void
       require_configured(const char *ctx) const
       {
-        ah_runtime_error_if(not configured_)
-          << ctx << ": processor is not configured";
+        ah_runtime_error_if(not configured_) << ctx << ": processor is not configured";
       }
 
       void
@@ -11259,26 +11457,31 @@ namespace Aleph
         : LFilter(build_real_input(numerator), build_real_input(denominator))
       {}
 
+      /** @brief Returns the filter order (number of feedback coefficients - 1). */
       [[nodiscard]] size_t order() const noexcept
       {
         return coeffs_.denominator.is_empty() ? 0 : coeffs_.denominator.size() - 1;
       }
 
+      /** @brief Returns whether the filter has been initialized with coefficients. */
       [[nodiscard]] bool configured() const noexcept
       {
         return configured_;
       }
 
+      /** @brief Returns the active normalized filter coefficients. */
       [[nodiscard]] const IIRCoefficients &coefficients() const noexcept
       {
         return coeffs_;
       }
 
+      /** @brief Returns the current internal delay-line state. */
       [[nodiscard]] const Array<Real> &state() const noexcept
       {
         return state_;
       }
 
+      /** @brief Resets the delay-line state to zero. */
       void reset()
       {
         require_configured("FFT::LFilter::reset");
@@ -11286,6 +11489,7 @@ namespace Aleph
           state_(i) = Real(0);
       }
 
+      /** @brief Manually overrides the delay-line state. */
       void set_state(const Array<Real> & new_state)
       {
         require_configured("FFT::LFilter::set_state");
@@ -11295,6 +11499,7 @@ namespace Aleph
         state_ = new_state;
       }
 
+      /** @brief Processes a signal block through the stateful filter. */
       [[nodiscard]] Array<Real>
       filter(const Array<Real> & signal)
       {
@@ -11307,6 +11512,7 @@ namespace Aleph
                                     &state_);
       }
 
+      /** @brief Processes a real-valued container through the stateful filter. */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -11369,16 +11575,19 @@ namespace Aleph
         : SOSFilter(to_array<BiquadSection>(sections))
       {}
 
+      /** @brief Returns the number of sections in the cascade. */
       [[nodiscard]] size_t num_sections() const noexcept
       {
         return sections_.size();
       }
 
+      /** @brief Returns whether the filter has been configured. */
       [[nodiscard]] bool configured() const noexcept
       {
         return configured_;
       }
 
+      /** @brief Returns the current delay-line state of section @p index. */
       [[nodiscard]] const Array<Real> &
       state(const size_t index) const
       {
@@ -11388,6 +11597,7 @@ namespace Aleph
         return states_[index];
       }
 
+      /** @brief Resets all internal delay lines to zero. */
       void reset()
       {
         require_configured("FFT::SOSFilter::reset");
@@ -11396,6 +11606,7 @@ namespace Aleph
             states_(i)(j) = Real(0);
       }
 
+      /** @brief Processes a signal block through the stateful SOS cascade. */
       [[nodiscard]] Array<Real>
       filter(const Array<Real> & signal)
       {
@@ -11415,6 +11626,7 @@ namespace Aleph
         return stage;
       }
 
+      /** @brief Processes a real-valued container through the stateful SOS cascade. */
       template <typename Container>
         requires Is_Real_Container<Container>
       [[nodiscard]] Array<Real>
@@ -11429,6 +11641,7 @@ namespace Aleph
     {
       Array<LFilter> filters_;
 
+      /** @brief Rationale: Internal safety guard. */
       void
       validate_channel_count(const size_t count, const char *ctx) const
       {
@@ -11548,6 +11761,7 @@ namespace Aleph
     {
       Array<SOSFilter> filters_;
 
+      /** @brief Rationale: Internal safety guard. */
       void
       validate_channel_count(const size_t count, const char *ctx) const
       {
@@ -12939,8 +13153,7 @@ namespace Aleph
                          const Real high_cutoff_frequency,
                          const Real sample_rate)
     {
-      return design_bandstop_sections_without_numerator_roots(
-                                                              butterworth_prototype(order, "FFT::butterworth_bandstop"),
+      return design_bandstop_sections_without_numerator_roots(butterworth_prototype(order, "FFT::butterworth_bandstop"),
                                                               order,
                                                               low_cutoff_frequency,
                                                               high_cutoff_frequency,
@@ -13166,8 +13379,7 @@ namespace Aleph
                     const Real high_cutoff_frequency,
                     const Real sample_rate)
     {
-      return design_bandstop_sections_without_numerator_roots(
-                                                              bessel_prototype(order, "FFT::bessel_bandstop"),
+      return design_bandstop_sections_without_numerator_roots(bessel_prototype(order, "FFT::bessel_bandstop"),
                                                               order,
                                                               low_cutoff_frequency,
                                                               high_cutoff_frequency,
@@ -13467,6 +13679,9 @@ namespace Aleph
         return next_power_of_two(std::max(kernel_size, size_t(1)));
       }
 
+      /** @brief Rationale: Prepares a chunk of signal for FFT by zero-padding it
+       *         to the internal @ref fft_size().
+       */
       [[nodiscard]] Array<Complex>
       build_signal_block(const Array<Real> & signal,
                          const size_t offset,
@@ -13482,6 +13697,9 @@ namespace Aleph
         return block;
       }
 
+      /** @brief Rationale: Applies the precomputed FIR kernel in the frequency
+       *         domain via element-wise multiplication.
+       */
       void
       pointwise_multiply(Array<Complex> & spectrum,
                          ThreadPool *pool,
@@ -13499,6 +13717,7 @@ namespace Aleph
             pointwise(i);
       }
 
+      /** @brief Rationale: Resets the overlap buffer between independent convolution runs. */
       void
       clear_overlap()
       {
@@ -13507,6 +13726,13 @@ namespace Aleph
         has_pending_tail_ = false;
       }
 
+      /** @brief Rationale: Implements the core Overlap-Add logic for a single block:
+       *         1. FFT of current signal block.
+       *         2. Pointwise multiplication with kernel spectrum.
+       *         3. Inverse FFT to time domain.
+       *         4. Add previous overlap and emit result.
+       *         5. Update overlap buffer with the new tail.
+       */
       [[nodiscard]] Array<Real>
       process_chunk_impl(const Array<Real> & block,
                          ThreadPool *pool,
@@ -13556,6 +13782,7 @@ namespace Aleph
         return emitted;
       }
 
+      /** @brief implementation of one-shot linear convolution. */
       [[nodiscard]] Array<Real>
       convolve_impl(const Array<Real> & signal,
                     ThreadPool *pool,
@@ -13766,6 +13993,9 @@ namespace Aleph
       Array<Array<Real>> overlaps_;
       Array<bool> has_pending_tail_;
 
+      /** @brief Rationale: Selects a block size that is at least as large as the
+       *         kernel to ensure efficient FFT processing (defaults to power of two).
+       */
       [[nodiscard]] static size_t
       default_block_size(const size_t kernel_size)
       {
@@ -13774,6 +14004,7 @@ namespace Aleph
         return next_power_of_two(std::max(kernel_size, size_t(1)));
       }
 
+      /** @brief Rationale: Internal safety guard. */
       void
       validate_channel_count(const size_t count, const char *ctx) const
       {
@@ -13782,6 +14013,7 @@ namespace Aleph
           << " does not match configured channel count " << overlaps_.size();
       }
 
+      /** @brief Returns the maximum signal length in a batch. */
       [[nodiscard]] static size_t
       max_batch_length(const Array<Array<Real>> & signals) noexcept
       {
@@ -13791,6 +14023,7 @@ namespace Aleph
         return length;
       }
 
+      /** @brief Returns a contiguous slice of @p input. */
       [[nodiscard]] static Array<Real>
       slice_chunk(const Array<Real> & input,
                   const size_t offset,
@@ -13803,6 +14036,7 @@ namespace Aleph
         return chunk;
       }
 
+      /** @brief implementation helper for preparing a signal block for FFT. */
       [[nodiscard]] Array<Complex>
       build_signal_block(const Array<Real> & signal,
                          const size_t offset = 0,
@@ -13825,6 +14059,7 @@ namespace Aleph
         return block;
       }
 
+      /** @brief implementation helper for preparing a batch of signal blocks. */
       [[nodiscard]] Array<Array<Complex>>
       build_signal_batch(const Array<Array<Real>> & block) const
       {
@@ -13834,6 +14069,7 @@ namespace Aleph
         return lifted;
       }
 
+      /** @brief implementation helper for preparing a subset of signal blocks. */
       [[nodiscard]] Array<Array<Complex>>
       build_signal_batch(const Array<Array<Real>> & source,
                          const Array<size_t> & channels,
@@ -13848,6 +14084,9 @@ namespace Aleph
         return lifted;
       }
 
+      /** @brief Rationale: Parallel pointwise multiplication of multiple signal
+       *         spectra with the shared kernel spectrum.
+       */
       void
       pointwise_multiply_batch(Array<Array<Complex>> & spectra,
                                ThreadPool *pool,
@@ -13866,6 +14105,7 @@ namespace Aleph
             multiply_one(channel);
       }
 
+      /** @brief Rationale: Resets the overlap buffer for a single channel. */
       void
       clear_channel_overlap(const size_t channel)
       {
@@ -14215,6 +14455,9 @@ namespace Aleph
       size_t total_input_size_ = 0;
       size_t emitted_output_size_ = 0;
 
+      /** @brief Rationale: Heuristic for choosing a block size that provides a good
+       *         balance between algorithmic latency and FFT efficiency.
+       */
       [[nodiscard]] static size_t
       default_block_size(const size_t kernel_size)
       {
@@ -14224,6 +14467,7 @@ namespace Aleph
                - kernel_size + 1;
       }
 
+      /** @brief Rationale: Resets the state for a new filtering process. */
       void
       clear_history()
       {
@@ -14231,6 +14475,10 @@ namespace Aleph
           history_(i) = Real(0);
       }
 
+      /** @brief Rationale: Maintains the sliding window of historical samples
+       *         required to correctly compute the linear convolution prefix
+       *         of the next block.
+       */
       void
       update_history(const Array<Real> & padded_chunk)
       {
@@ -14254,6 +14502,9 @@ namespace Aleph
         history_ = next_history;
       }
 
+      /** @brief Rationale: Prepares a frequency-domain segment by combining
+       *         historical samples with the current signal chunk.
+       */
       [[nodiscard]] Array<Complex>
       build_segment_spectrum(const Array<Real> & chunk) const
       {
@@ -14275,6 +14526,7 @@ namespace Aleph
         return segment;
       }
 
+      /** @brief Internal helper for zero-padding chunks. */
       [[nodiscard]] Array<Real>
       padded_chunk_copy(const Array<Real> & chunk) const
       {
@@ -14284,6 +14536,14 @@ namespace Aleph
         return padded_chunk;
       }
 
+      /** @brief Rationale: Implements the core Overlap-Save logic for one block:
+       *         1. Combine History + Chunk.
+       *         2. FFT to frequency domain.
+       *         3. Pointwise multiply with kernel spectrum.
+       *         4. Inverse FFT to time domain.
+       *         5. Discard corrupted (circular) samples and emit valid results.
+       *         6. Update history for next block.
+       */
       [[nodiscard]] Array<Real>
       process_chunk_impl(const Array<Real> & chunk)
       {
@@ -14478,6 +14738,9 @@ namespace Aleph
       size_t total_input_size_ = 0;
       size_t emitted_output_size_ = 0;
 
+      /** @brief Rationale: Selects a partition size that minimizes latency while
+       *         maintaining FFT efficiency (capped at 256 for low-latency).
+       */
       [[nodiscard]] static size_t
       default_partition_size(const size_t kernel_size)
       {
@@ -14486,6 +14749,7 @@ namespace Aleph
         return next_power_of_two(std::min(kernel_size, size_t(256)));
       }
 
+      /** @brief Rationale: Resets all delay-line history and overlap buffers. */
       void
       clear_state()
       {
@@ -14500,6 +14764,7 @@ namespace Aleph
         emitted_output_size_ = 0;
       }
 
+      /** @brief implementation helper for creating zero-filled complex spectra. */
       [[nodiscard]] Array<Complex>
       zero_spectrum() const
       {
@@ -14509,6 +14774,7 @@ namespace Aleph
         return spectrum;
       }
 
+      /** @brief implementation helper for preparing a padded partition. */
       [[nodiscard]] Array<Real>
       padded_partition(const Array<Real> & chunk) const
       {
@@ -14518,6 +14784,13 @@ namespace Aleph
         return padded;
       }
 
+      /** @brief Rationale: Implements the core frequency-domain partitioned
+       *         convolution logic:
+       *         1. FFT of current signal partition.
+       *         2. Update rotating input history.
+       *         3. Sum element-wise products of all history/kernel pairs.
+       *         4. Inverse FFT and overlap-add.
+       */
       [[nodiscard]] Array<Real>
       process_partition_impl(const Array<Real> & chunk)
       {
@@ -14892,6 +15165,7 @@ namespace Aleph
       return multiply_real_optimized(a, b);
     }
 
+    /** @brief Parallel version of @ref multiply(const Array<Real>&, const Array<Real>&). */
     [[nodiscard]] static Array<Real>
     pmultiply(ThreadPool & pool, const Array<Real> & a, const Array<Real> & b,
               const size_t chunk_size = 0)
@@ -14899,6 +15173,7 @@ namespace Aleph
       return multiply_real_optimized(a, b, &pool, chunk_size);
     }
 
+    /** @brief Multiplication for real-valued containers. */
     template <typename Container1, typename Container2>
       requires Is_Real_Container<Container1> and Is_Real_Container<Container2>
     [[nodiscard]] static Array<Real>
@@ -14907,6 +15182,7 @@ namespace Aleph
       return multiply(build_real_input(a), build_real_input(b));
     }
 
+    /** @brief Parallel version of @ref multiply(const Container1&, const Container2&). */
     template <typename Container1, typename Container2>
       requires Is_Real_Container<Container1> and Is_Real_Container<Container2>
     [[nodiscard]] static Array<Real>
