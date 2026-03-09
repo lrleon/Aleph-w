@@ -55,6 +55,7 @@ Language: English | [Español](README.es.md)
   - [Sorting Algorithms](#readme-sorting-algorithms)
   - [Dynamic Programming Algorithms](#readme-dp-algorithms)
   - [Signal Processing (FFT)](#readme-signal-processing)
+  - [Number Theoretic Transform (NTT)](#readme-number-theoretic-transform)
 - [Memory Management](#readme-memory-management)
   - [Arena Allocators](#readme-arena-allocators)
 - [Parallel Computing](#readme-parallel-computing)
@@ -223,6 +224,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Interval Tree (overlap/stabbing queries)                               │
 │  ├─ Heavy-Light Decomposition (path/subtree)                               │
 │  ├─ Centroid Decomposition (distance tricks)                               │
+│  ├─ Link-Cut Tree (dynamic forest + path queries)                          │
 │  └─ Mo's Algorithm (Offline)                                               │
 │                                                                            │
 │  LINEAR ALGEBRA                                                            │
@@ -1048,6 +1050,73 @@ Centroid_Decomposition<G> cd(g, root);
 cd.for_each_centroid_ancestor(x, [&](size_t c, size_t d, size_t k) {
     // c: centroid ancestor id, d: distance(x, c), k: index in centroid chain
 });
+```
+
+### Link-Cut Trees (Dynamic Forests)
+
+A **Link-Cut Tree** maintains a forest of rooted trees under dynamic `link` and `cut` operations, each in amortised O(log n) time.  It is the standard choice when you need all of the following at once:
+
+- **Dynamic connectivity** — merge and split trees on the fly
+- **Path aggregation** — query any monoid (sum, min, max, xor, ...) over tree paths
+- **Rerooting** — choose any vertex as the represented root
+- **LCA** — lowest common ancestor under the current rooting
+- **Lazy path updates** — deferred delta-based updates over paths
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          LINK-CUT TREE API                                   │
+├────────────────────┬─────────────────────────────────────────────────────────┤
+│  make_vertex(val)  │ Create an isolated vertex with payload                  │
+│  link(u, v)        │ Add edge merging two trees                              │
+│  cut(u, v)         │ Remove existing edge, splitting the tree                │
+│  connected(u, v)   │ Are u and v in the same tree?                           │
+│  make_root(x)      │ Reroot the tree at x                                    │
+│  find_root(x)      │ Root of the tree containing x                           │
+│  lca(u, v)         │ Lowest common ancestor                                  │
+│  path_query(u, v)  │ Monoid aggregate over the u–v path                      │
+│  path_size(u, v)   │ Number of vertices on the u–v path                      │
+│  path_apply(u,v,d) │ Lazy update: apply delta to all path vertices           │
+│  set_val(x, v)     │ Update a single vertex value                            │
+├────────────────────┼─────────────────────────────────────────────────────────┤
+│  All operations    │ Amortised O(log n) via splay-tree preferred paths       │
+└────────────────────┴─────────────────────────────────────────────────────────┘
+```
+
+**Built-in monoids and lazy tags:**
+
+| Typedef | Monoid / Tag | Use case |
+|---------|-------------|----------|
+| `SumMonoid<T>` | identity = 0, combine = + | Path sum |
+| `MinMonoid<T>` | identity = max, combine = min | Path minimum |
+| `MaxMonoid<T>` | identity = lowest, combine = max | Path maximum |
+| `XorMonoid<T>` | identity = 0, combine = ^ | Path XOR |
+| `AddLazyTag<T>` | tag = delta, apply += delta×count | Range add |
+
+#### Quick Start
+
+```cpp
+#include <tpl_link_cut_tree.H>
+
+// Connectivity only (no aggregates)
+Link_Cut_Tree lct;
+auto *a = lct.make_vertex(0), *b = lct.make_vertex(1);
+lct.link(a, b);
+bool ok = lct.connected(a, b);  // true
+lct.cut(a, b);
+
+// Path-sum queries
+Gen_Link_Cut_Tree<int, SumMonoid<int>> sum_lct;
+auto *u = sum_lct.make_vertex(10), *v = sum_lct.make_vertex(20);
+sum_lct.link(u, v);
+int s = sum_lct.path_query(u, v);  // 30
+sum_lct.set_val(u, 100);
+s = sum_lct.path_query(u, v);      // 120
+
+// Lazy path updates (add delta to every node on a path)
+Gen_Link_Cut_Tree<long long, SumMonoid<long long>,
+                  AddLazyTag<long long>> lazy_lct;
+// ... link nodes, then:
+lazy_lct.path_apply(u, v, +10LL);  // add 10 to all path vertices
 ```
 
 ### Mo's Algorithm (Offline Range Queries)
@@ -2992,6 +3061,28 @@ For a detailed walkthrough with code examples, see the **[FFT & Digital Signal P
 
 ---
 
+<a id="readme-number-theoretic-transform"></a>
+### Number Theoretic Transform (NTT)
+
+Aleph-w also includes an industrial **Number Theoretic Transform** toolkit in
+[`ntt.H`](ntt.H). Key capabilities:
+
+- **Exact modular transforms and products** under NTT-friendly primes
+- **Reusable plans** via `NTT<MOD, ROOT>::Plan`
+- **Bluestein support** for non-power-of-two sizes when the modulus admits the required roots
+- **Montgomery butterflies** for the modular hot loop
+- **Parallel `ThreadPool` variants** for transforms, products, and batches
+- **SIMD dispatch** with runtime AVX2/NEON selection on the power-of-two path
+- **Three-prime CRT reconstruction** in `__uint128_t` via `NTTExact`
+- **Formal polynomial algebra**: inverse, division, log, exp, sqrt, power, multipoint evaluation, interpolation
+- **Big integer multiplication** over base-`B` digits with carry propagation
+- **Negacyclic convolution** modulo `x^N + 1`
+
+For a detailed walkthrough with code examples, see the **[Number Theoretic
+Transform Tutorial](docs/ntt-tutorial.en.md)** ([Español](docs/ntt-tutorial.md)).
+
+---
+
 <a id="readme-memory-management"></a>
 ## Memory Management
 
@@ -3467,6 +3558,8 @@ int main() {
 | `tpl_mo_algorithm.H` | `Range_Mode_Mo<T>` | Range mode (most frequent element) |
 | `tpl_interval_tree.H` | `DynIntervalTree<T>` | Interval tree (overlap/stabbing queries) |
 | `tpl_interval_tree.H` | `Interval_Tree<T>` | Low-level interval treap (raw nodes) |
+| `tpl_link_cut_tree.H` | `Gen_Link_Cut_Tree<T, Monoid, LazyTag>` | Link-Cut Tree (dynamic forest + path queries) |
+| `tpl_link_cut_tree.H` | `Link_Cut_Tree` | Connectivity-only Link-Cut Tree (int values) |
 | `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
 | `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
 | `al-domain.H` | `AlDomain<T>` | Domain for vector/matrix indices |
@@ -3515,7 +3608,7 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
-| `ntt.H` | `NTT` | Number Theoretic Transform for fast polynomial multiplication |
+| `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform for exact modular polynomial multiplication with reusable plans, Bluestein support for non-power-of-two sizes when the modulus allows it, AVX2/NEON runtime SIMD dispatch on the power-of-two butterfly path, batch transforms, Montgomery-based butterflies, parallel `ThreadPool` APIs, formal polynomial operators (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, multipoint evaluation, interpolation), exact big-integer multiplication over base-`B` digits, negacyclic convolution modulo `x^N + 1`, and three-prime CRT reconstruction into `__uint128_t` when the coefficient bound fits. See the [NTT Tutorial](docs/ntt-tutorial.en.md) |
 | `modular_combinatorics.H` | `ModularCombinatorics` | $nCk \pmod p$ with precomputed factorials and Lucas Theorem |
 | `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
 
@@ -3712,10 +3805,12 @@ cmake --build build
 | Cartesian Tree/LCA/RMQ | `cartesian_tree_example.cc` | Cartesian Tree, LCA, RMQ reductions |
 | Heavy-Light decomposition | `heavy_light_decomposition_example.cc` | Path/subtree queries with dynamic point updates |
 | Centroid decomposition | `centroid_decomposition_example.cc` | Dynamic nearest active center queries on trees |
+| Link-Cut Trees | `link_cut_tree_example.cc` | Dynamic connectivity, rerooting, LCA, path aggregates, lazy updates |
 | Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
 | Combinatorics toolbox | `comb_example.C` | Cartesian-product traversal, transpose, and combinatorics helpers |
 | Gray code utilities | `gray_code_example.cc` | Binary to Gray conversion and sequence generation |
 | Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector`. Full tutorial: [FFT & DSP Tutorial](docs/fft-tutorial.en.md) |
+| Number Theoretic Transform | `ntt_example.cc` | Exact modular transforms, active SIMD backend reporting, reusable plans, Bluestein-based arbitrary supported sizes, three-prime CRT exact multiplication into `__uint128_t`, formal polynomial algebra, base-10 big integer multiplication, negacyclic convolution modulo `x^N + 1`, batch execution, and explicit parallel polynomial multiplication. Full tutorial: [NTT Tutorial](docs/ntt-tutorial.en.md) |
 | Number theory toolbox | `math_nt_example.cc` | Safe mod multiplication, Miller-Rabin, Pollard's Rho, NTT, modular combinatorics and linalg |
 | Streaming algorithms | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
 | Lexicographic permutation/combination enumeration | `combinatorics_enumeration_example.cc` | Extended `next_permutation`, k-combinations by indices/bitmask, and materialized enumeration |
@@ -3756,6 +3851,7 @@ cmake --build build
 | Tree LCA | `lca_example.cc` | Binary lifting + Euler/RMQ LCA with cross-backend parity (List/SGraph/Array) |
 | Tree Decomposition | `heavy_light_decomposition_example.cc`, `centroid_decomposition_example.cc` | Heavy-Light path/subtree queries and centroid-distance dynamic queries |
 | HLD convenience | `hld_example.cc` | HLD_Sum/Max/Min path queries, subtree queries, point updates, edge-weighted queries |
+| Link-Cut Tree | `link_cut_tree_example.cc` | Dynamic forest: link, cut, reroot, LCA, path sum/min/max, lazy updates |
 | Planarity + certificates | `planarity_test_example.cc` | LR planarity, dual metadata, geometric drawing, JSON/DOT/GraphML/GEXF certificate export + structural validation |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |

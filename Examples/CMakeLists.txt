@@ -94,6 +94,7 @@ set(EXAMPLE_PROGRAMS
     gray_code_example
     streaming_demo
     math_nt_example
+    ntt_example
     bipartite_example
     ranges_example
     dispatcher_example
@@ -191,6 +192,7 @@ set(EXAMPLE_PROGRAMS
     bidirectional_bfs_example
     ida_star_example
     two_sat_example
+    link_cut_tree_example
 )
 
 # Function to get source file from program name

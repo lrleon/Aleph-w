@@ -411,7 +411,7 @@ namespace Aleph
     T &push(T && data) noexcept
     {
       assert(head < dim);
-      std::swap(array[head++], data);
+      array[head++] = std::move(data);
       return array[head - 1];
     }
 

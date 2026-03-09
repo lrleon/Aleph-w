@@ -53,6 +53,7 @@ Idioma: Español | [English](README.md)
   - [Algoritmos de ordenamiento](#readme-es-algoritmos-de-ordenamiento)
   - [Algoritmos de programación dinámica](#readme-es-programacion-dinamica)
   - [Procesamiento de señales (FFT)](#readme-es-procesamiento-de-senales)
+  - [Transformada teórico-numérica (NTT)](#readme-es-ntt)
 - [Gestión de memoria](#readme-es-gestion-de-memoria)
   - [Allocators tipo arena](#readme-es-asignadores-arena)
 - [Cómputo paralelo](#readme-es-computacion-paralela)
@@ -218,6 +219,7 @@ Aleph-w ha sido usado para enseñar a **miles de estudiantes** en Latinoamérica
 │  ├─ Interval Tree (overlap/stabbing queries)                               │
 │  ├─ Heavy-Light Decomposition (path/subtree)                               │
 │  ├─ Centroid Decomposition (distance tricks)                               │
+│  ├─ Link-Cut Tree (bosque dinámico + consultas de camino)                  │
 │  └─ Mo's Algorithm (Offline)                                               │
 │                                                                            │
 │  GEOMETRÍA                                                                 │
@@ -1031,6 +1033,37 @@ Centroid_Decomposition<G> cd(g, root);
 cd.for_each_centroid_ancestor(x, [&](size_t c, size_t d, size_t k) {
     // c: centroid ancestor id, d: distance(x, c), k: index in centroid chain
 });
+```
+
+### Link-Cut Trees (Bosques Dinámicos)
+
+Un **Link-Cut Tree** mantiene un bosque de árboles enraizados bajo operaciones dinámicas `link` y `cut`, cada una en tiempo amortizado O(log n). Es la estructura estándar cuando se necesita:
+
+- **Conectividad dinámica** — unir y separar árboles al vuelo
+- **Agregación sobre caminos** — consultar cualquier monoide (suma, min, max, xor, ...) sobre caminos del árbol
+- **Re-enraizamiento** — elegir cualquier vértice como raíz representada
+- **LCA** — ancestro común más bajo bajo el enraizamiento actual
+- **Actualizaciones perezosas** — actualizaciones diferidas sobre caminos
+
+```cpp
+#include <tpl_link_cut_tree.H>
+
+// Solo conectividad
+Link_Cut_Tree lct;
+auto *a = lct.make_vertex(0), *b = lct.make_vertex(1);
+lct.link(a, b);
+bool ok = lct.connected(a, b);  // true
+lct.cut(a, b);
+
+// Consultas de suma sobre caminos
+Gen_Link_Cut_Tree<int, SumMonoid<int>> sum_lct;
+auto *u = sum_lct.make_vertex(10), *v = sum_lct.make_vertex(20);
+sum_lct.link(u, v);
+int s = sum_lct.path_query(u, v);  // 30
+
+// Actualizaciones perezosas (sumar delta a cada nodo del camino)
+Gen_Link_Cut_Tree<long long, SumMonoid<long long>,
+                  AddLazyTag<long long>> lazy_lct;
 ```
 
 ### Mo's Algorithm (Offline Range Queries)
@@ -2944,6 +2977,27 @@ Aleph-w incluye un completo toolkit de **Transformada Rápida de Fourier** y pro
 Para un recorrido detallado con ejemplos de código, ver el **[Tutorial FFT y Procesamiento Digital de Señales](docs/fft-tutorial.md)** ([English](docs/fft-tutorial.en.md)).
 
 ---
+<a id="readme-es-ntt"></a>
+### Transformada teórico-numérica (NTT)
+
+Aleph-w también incluye una implementación industrial de la **Number
+Theoretic Transform** en [`ntt.H`](ntt.H). Capacidades principales:
+
+- **Transformadas y productos modulares exactos** bajo primos NTT-friendly
+- **Planes reutilizables** via `NTT<MOD, ROOT>::Plan`
+- **Soporte Bluestein** para tamaños no potencia de dos cuando el módulo admite las raíces necesarias
+- **Butterflies Montgomery** para el hot loop modular
+- **Variantes paralelas con `ThreadPool`** para transformadas, productos y lotes
+- **Dispatch SIMD** con selección AVX2/NEON en tiempo de ejecución sobre el camino potencia-de-dos
+- **Reconstrucción CRT de tres primos** en `__uint128_t` mediante `NTTExact`
+- **Álgebra formal de polinomios**: inversa, división, log, exp, sqrt, potencia, evaluación multipunto e interpolación
+- **Multiplicación de enteros grandes** sobre dígitos en base `B` con propagación de carry
+- **Convolución negacíclica** módulo `x^N + 1`
+
+Para un recorrido detallado con ejemplos de código, consulta el **[Tutorial
+NTT](docs/ntt-tutorial.md)** ([English](docs/ntt-tutorial.en.md)).
+
+---
 <a id="readme-es-gestion-de-memoria"></a>
 ## Gestión de memoria
 
@@ -3417,6 +3471,8 @@ int main() {
 | `tpl_mo_algorithm.H` | `Range_Mode_Mo<T>` | Range mode (most frequent element) |
 | `tpl_interval_tree.H` | `DynIntervalTree<T>` | Interval tree (overlap/stabbing queries) |
 | `tpl_interval_tree.H` | `Interval_Tree<T>` | Low-level interval treap (raw nodes) |
+| `tpl_link_cut_tree.H` | `Gen_Link_Cut_Tree<T, Monoid, LazyTag>` | Link-Cut Tree (bosque dinámico + consultas de camino) |
+| `tpl_link_cut_tree.H` | `Link_Cut_Tree` | Link-Cut Tree solo conectividad (valores int) |
 | `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
 | `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
 | `al-domain.H` | `AlDomain<T>` | Domain for vector/matrix indices |
@@ -3465,7 +3521,7 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 | `modular_arithmetic.H` | `mod_mul()`, `mod_exp()`, `ext_gcd()`, `mod_inv()`, `crt()` | Safe 64-bit modular arithmetic, extended GCD, modular inverse, and Chinese Remainder Theorem |
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
-| `ntt.H` | `NTT` | Number Theoretic Transform for fast polynomial multiplication |
+| `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform para multiplicacion exacta de polinomios modulares, con planes reutilizables, soporte Bluestein para tamanos no potencia de dos cuando el modulo lo permite, dispatch SIMD AVX2/NEON en tiempo de ejecucion sobre el butterfly potencia-de-dos, lotes, butterflies basados en Montgomery, APIs paralelas con `ThreadPool`, algebra formal de polinomios (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, evaluacion multipunto e interpolacion), multiplicacion exacta de enteros grandes sobre digitos en base `B`, convolucion negaciclica modulo `x^N + 1` y reconstruccion CRT de tres primos en `__uint128_t` cuando la cota de coeficientes cabe. Ver el [Tutorial NTT](docs/ntt-tutorial.md) |
 | `modular_combinatorics.H` | `ModularCombinatorics` | $nCk \pmod p$ with precomputed factorials and Lucas Theorem |
 | `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
 
@@ -3664,10 +3720,12 @@ cmake --build build
 | Árbol cartesiano/LCA/RMQ | `cartesian_tree_example.cc` | Árbol cartesiano, LCA, reducciones RMQ |
 | Descomposición Heavy-Light | `heavy_light_decomposition_example.cc` | Consultas de camino/subárbol con actualizaciones dinámicas puntuales |
 | Descomposición por centroides | `centroid_decomposition_example.cc` | Consultas dinámicas de centro activo más cercano en árboles |
+| Link-Cut Trees | `link_cut_tree_example.cc` | Conectividad dinámica, re-enraizamiento, LCA, agregados de camino, actualizaciones perezosas |
 | Algoritmo de Mo | `mo_algorithm_example.cc` | Consultas offline de rango (distinct count, powerful array, mode) |
 | Caja de herramientas de combinatoria | `comb_example.C` | Recorrido de producto cartesiano, transposición y auxiliares de combinatoria |
 | Utilidades de código Gray | `gray_code_example.cc` | Conversión binario a Gray y generación de secuencias |
 | Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector`. Tutorial completo: [Tutorial FFT y DSP](docs/fft-tutorial.md) |
+| Number Theoretic Transform | `ntt_example.cc` | Transformadas modulares exactas, reporte del backend SIMD activo, planes reutilizables, tamanos arbitrarios soportados via Bluestein, multiplicacion exacta CRT de tres primos en `__uint128_t`, algebra formal de polinomios, multiplicacion de enteros grandes en base 10, convolucion negaciclica modulo `x^N + 1`, ejecucion por lotes y multiplicacion paralela explicita de polinomios. Tutorial completo: [Tutorial NTT](docs/ntt-tutorial.md) |
 | Caja de herramientas de teoría de números | `math_nt_example.cc` | Multiplicación modular segura, Miller-Rabin, Pollard's Rho, NTT, combinatoria modular y álgebra lineal |
 | Algoritmos de streaming | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
 | Enumeración lexicográfica de permutaciones/combinaciones | `combinatorics_enumeration_example.cc` | `next_permutation` extendida, k-combinaciones por índices/bitmask y enumeración materializada |
@@ -3708,6 +3766,7 @@ cmake --build build
 | LCA en árboles | `lca_example.cc` | Binary lifting + Euler/RMQ LCA con paridad cross-backend (List/SGraph/Array) |
 | Descomposición de árboles | `heavy_light_decomposition_example.cc`, `centroid_decomposition_example.cc` | Consultas Heavy-Light de camino/subárbol y consultas dinámicas de distancia a centroides |
 | Conveniencia HLD | `hld_example.cc` | Consultas de camino HLD_Sum/Max/Min, consultas de subárbol, actualizaciones puntuales, consultas con pesos en aristas |
+| Link-Cut Tree | `link_cut_tree_example.cc` | Bosque dinámico: link, cut, reroot, LCA, path sum/min/max, actualizaciones perezosas |
 | Planaridad + certificados | `planarity_test_example.cc` | Planaridad LR, metadatos del dual, dibujo geométrico, exportación de certificados JSON/DOT/GraphML/GEXF + validación estructural |
 | SCC | `tarjan_example.C` | Fuertemente conexas |
 | Ordenamiento topológico | `topological_sort_example.C` | Ordenamiento de DAG |
