@@ -51,21 +51,28 @@ namespace
   static_assert(kCtx9.mod() == 9);
 
   void
-  expect_round_trip(const uint64_t mod,
+  expect_round_trip(const MontgomeryCtx & ctx,
                     const Array<uint64_t> & values)
   {
-    const MontgomeryCtx ctx = montgomery_ctx(mod);
+    const uint64_t mod = ctx.mod();
     for (size_t i = 0; i < values.size(); ++i)
       EXPECT_EQ(from_mont(to_mont(values[i], ctx), ctx), values[i] % mod)
         << "mod=" << mod << " value=" << values[i];
   }
 
   void
-  expect_products(const uint64_t mod,
+  expect_round_trip(const uint64_t mod,
+                    const Array<uint64_t> & values)
+  {
+    expect_round_trip(montgomery_ctx(mod), values);
+  }
+
+  void
+  expect_products(const MontgomeryCtx & ctx,
                   const Array<uint64_t> & lhs_values,
                   const Array<uint64_t> & rhs_values)
   {
-    const MontgomeryCtx ctx = montgomery_ctx(mod);
+    const uint64_t mod = ctx.mod();
     for (size_t i = 0; i < lhs_values.size(); ++i)
       for (size_t j = 0; j < rhs_values.size(); ++j)
         {
@@ -76,6 +83,32 @@ namespace
                         ctx);
           EXPECT_EQ(got, mod_mul(lhs % mod, rhs % mod, mod))
             << "mod=" << mod << " lhs=" << lhs << " rhs=" << rhs;
+        }
+  }
+
+  void
+  expect_products(const uint64_t mod,
+                  const Array<uint64_t> & lhs_values,
+                  const Array<uint64_t> & rhs_values)
+  {
+    expect_products(montgomery_ctx(mod), lhs_values, rhs_values);
+  }
+
+  void
+  expect_powers(const MontgomeryCtx & ctx,
+                const Array<uint64_t> & bases,
+                const Array<uint64_t> & exponents)
+  {
+    const uint64_t mod = ctx.mod();
+    for (size_t j = 0; j < bases.size(); ++j)
+      for (size_t k = 0; k < exponents.size(); ++k)
+        {
+          const uint64_t base = bases[j];
+          const uint64_t exp = exponents[k];
+          const uint64_t got =
+              from_mont(mont_exp(to_mont(base, ctx), exp, ctx), ctx);
+          EXPECT_EQ(got, mod_exp(base % mod, exp, mod))
+            << "mod=" << mod << " base=" << base << " exp=" << exp;
         }
   }
 }
@@ -91,7 +124,7 @@ TEST(MontgomeryTest, RejectsInvalidModuli)
 TEST(MontgomeryTest, RoundTripOnFriendlyPrimes)
 {
   const Array<uint64_t> mods =
-      {998244353ULL, 469762049ULL, 1004535809ULL};
+      {9ULL, 998244353ULL, 469762049ULL, 1004535809ULL};
 
   for (size_t i = 0; i < mods.size(); ++i)
     {
@@ -104,7 +137,7 @@ TEST(MontgomeryTest, RoundTripOnFriendlyPrimes)
 TEST(MontgomeryTest, MultiplicationMatchesModMul)
 {
   const Array<uint64_t> mods =
-      {998244353ULL, 469762049ULL, 1004535809ULL};
+      {9ULL, 998244353ULL, 469762049ULL, 1004535809ULL};
 
   for (size_t i = 0; i < mods.size(); ++i)
     {
@@ -130,7 +163,7 @@ TEST(MontgomeryTest, MultiplicationMatchesModMul)
 TEST(MontgomeryTest, ExponentiationMatchesModExp)
 {
   const Array<uint64_t> mods =
-      {998244353ULL, 469762049ULL, 1004535809ULL};
+      {9ULL, 998244353ULL, 469762049ULL, 1004535809ULL};
   const Array<uint64_t> exponents =
       {0ULL, 1ULL, 2ULL, 7ULL, 31ULL, 123456ULL};
 
@@ -140,18 +173,18 @@ TEST(MontgomeryTest, ExponentiationMatchesModExp)
       const MontgomeryCtx ctx = montgomery_ctx(mod);
       const Array<uint64_t> bases =
           {0ULL, 1ULL, 2ULL, 5ULL, mod - 2, mod - 1, mod + 11};
-
-      for (size_t j = 0; j < bases.size(); ++j)
-        for (size_t k = 0; k < exponents.size(); ++k)
-          {
-            const uint64_t base = bases[j];
-            const uint64_t exp = exponents[k];
-            const uint64_t got =
-                from_mont(mont_exp(to_mont(base, ctx), exp, ctx), ctx);
-            EXPECT_EQ(got, mod_exp(base % mod, exp, mod))
-              << "mod=" << mod << " base=" << base << " exp=" << exp;
-          }
+      expect_powers(ctx, bases, exponents);
     }
+}
+
+TEST(MontgomeryTest, CompositeOddModulusRuntimePaths)
+{
+  const Array<uint64_t> bases = {0ULL, 1ULL, 2ULL, 5ULL, 7ULL, 8ULL, 9ULL, 17ULL};
+  const Array<uint64_t> exponents = {0ULL, 1ULL, 2ULL, 7ULL, 31ULL};
+
+  expect_round_trip(kCtx9, bases);
+  expect_products(kCtx9, bases, {0ULL, 1ULL, 3ULL, 4ULL, 8ULL, 9ULL, 14ULL});
+  expect_powers(kCtx9, bases, exponents);
 }
 
 TEST(MontgomeryTest, HandlesLargeOddModulusNearUint64Limit)
@@ -159,8 +192,8 @@ TEST(MontgomeryTest, HandlesLargeOddModulusNearUint64Limit)
   constexpr uint64_t mod = 18446744073709551557ULL;
   const MontgomeryCtx ctx = montgomery_ctx(mod);
 
-  expect_round_trip(mod, {0ULL, 1ULL, 2ULL, mod - 2, mod - 1});
-  expect_products(mod, {mod - 1, mod - 2, mod - 3},
+  expect_round_trip(ctx, {0ULL, 1ULL, 2ULL, mod - 2, mod - 1});
+  expect_products(ctx, {mod - 1, mod - 2, mod - 3},
                    {mod - 4, mod - 5, mod - 6});
 
   EXPECT_EQ(from_mont(mont_exp(to_mont(mod - 1, ctx), 5, ctx), ctx),

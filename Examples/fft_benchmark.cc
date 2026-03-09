@@ -44,6 +44,7 @@
 # include <numbers>
 # include <random>
 # include <sstream>
+# include <stdexcept>
 # include <string>
 # include <thread>
 
@@ -132,8 +133,21 @@ namespace
       {
         if (item.empty())
           continue;
-        const unsigned long long parsed = std::stoull(item);
-        sizes.append(static_cast<size_t>(parsed));
+        try
+          {
+            const unsigned long long parsed = std::stoull(item);
+            sizes.append(static_cast<size_t>(parsed));
+          }
+        catch (const std::invalid_argument &)
+          {
+            throw std::runtime_error("Invalid token '" + item
+                                     + "' in --sizes argument");
+          }
+        catch (const std::out_of_range &)
+          {
+            throw std::runtime_error("Out-of-range token '" + item
+                                     + "' in --sizes argument");
+          }
       }
     return sizes;
   }

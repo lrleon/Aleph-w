@@ -8,6 +8,8 @@ require 'shellwords'
 
 options = {
   build_dir: 'build-test-clean',
+  benchmark: nil,
+  probe: nil,
   perf_baseline: nil,
   warn_slowdown: 0.15,
   fail_slowdown: 0.30,
@@ -33,6 +35,12 @@ parser = OptionParser.new do |opts|
 
   opts.on('--build-dir DIR', 'Build directory (default: build-test-clean)') do |value|
     options[:build_dir] = value
+  end
+  opts.on('--fft-benchmark PATH', 'Explicit path to fft_benchmark') do |value|
+    options[:benchmark] = value
+  end
+  opts.on('--fft-reference PATH', 'Explicit path to fft_reference_probe') do |value|
+    options[:probe] = value
   end
   opts.on('--perf-baseline PATH', 'Optional baseline JSON for fft_perf_regression.rb') do |value|
     options[:perf_baseline] = value
@@ -66,8 +74,12 @@ parser.parse!(ARGV)
 
 repo_root = Pathname(__dir__).parent
 build_dir = repo_root.join(options[:build_dir])
-benchmark = build_dir.join('Examples', 'fft_benchmark')
-probe = build_dir.join('Examples', 'fft_reference_probe')
+benchmark = options[:benchmark] ?
+              Pathname(options[:benchmark]).expand_path :
+              build_dir.join('Examples', 'fft_benchmark')
+probe = options[:probe] ?
+          Pathname(options[:probe]).expand_path :
+          build_dir.join('Examples', 'fft_reference_probe')
 reference_script = repo_root.join('scripts', 'fft_reference_check.rb')
 perf_script = repo_root.join('scripts', 'fft_perf_regression.rb')
 
@@ -108,8 +120,13 @@ def run_step(label, command)
 end
 
 run_step('benchmark-validate', [benchmark.to_s, '--validate'])
-run_step('reference-cross-check',
-         ['ruby', reference_script.to_s, '--build-dir', options[:build_dir]])
+reference_command = ['ruby', reference_script.to_s]
+if options[:probe]
+  reference_command.concat(['--probe', probe.to_s])
+else
+  reference_command.concat(['--build-dir', options[:build_dir]])
+end
+run_step('reference-cross-check', reference_command)
 
 if options[:perf_baseline]
   command = [

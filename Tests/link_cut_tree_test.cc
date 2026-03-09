@@ -39,6 +39,7 @@
  */
 
 #include <algorithm>
+#include <chrono>
 #include <numeric>
 #include <random>
 #include <vector>
@@ -1077,6 +1078,19 @@ TEST(LinkCutTreePerf, LargePathStaysReasonable)
 
   lct.link(nd[N / 2], nd[N / 2 + 1]);
   EXPECT_TRUE(lct.connected(nd[0], nd[N - 1]));
+
+  constexpr int ITERS = 512;
+  const auto start = std::chrono::steady_clock::now();
+  for (int i = 0; i < ITERS; ++i)
+    {
+      EXPECT_TRUE(lct.connected(nd[0], nd[N - 1]));
+      EXPECT_EQ(lct.find_root(nd[0]), lct.find_root(nd[N - 1]));
+      EXPECT_EQ(lct.path_size(nd[0], nd[N - 1]), static_cast<size_t>(N));
+    }
+  const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now() - start);
+  EXPECT_LT(elapsed.count(), 1000) << "Link-cut path ops regressed: "
+                                   << elapsed.count() << " ms";
 }
 
 // ===================================================================
@@ -1099,6 +1113,23 @@ TEST_F(LinkCutTreeEdgesTest, SimpleLink)
   lct.link(u, v, 10);  // edge weight = 10
   EXPECT_TRUE(lct.connected(u, v));
   EXPECT_EQ(lct.size(), 2u);  // only 2 vertices, not the edge node
+}
+
+TEST_F(LinkCutTreeEdgesTest, VertexPayloadStoredSeparatelyFromEdgeWeights)
+{
+  auto * u = lct.make_vertex(10);
+  auto * v = lct.make_vertex(20);
+
+  EXPECT_EQ(lct.get_vertex_val(u), 10);
+  EXPECT_EQ(lct.get_vertex_val(v), 20);
+
+  lct.set_vertex_val(v, 25);
+  EXPECT_EQ(lct.get_vertex_val(v), 25);
+
+  lct.link(u, v, 7);
+  EXPECT_EQ(lct.path_query(u, v), 7);
+  EXPECT_EQ(lct.get_vertex_val(u), 10);
+  EXPECT_EQ(lct.get_vertex_val(v), 25);
 }
 
 TEST_F(LinkCutTreeEdgesTest, PathQueryEdges)
@@ -1495,18 +1526,21 @@ TEST_F(LinkCutTreeEdgesTest, ExportToTreeNodeEdges)
   auto * cb = tree->get_left_child();
   ASSERT_NE(cb, nullptr);
   EXPECT_EQ(cb->get_key().lct_node, b);
+  EXPECT_EQ(cb->get_key().vertex_value, 1);
   EXPECT_EQ(cb->get_key().parent_edge, 5);
 
   // b's only child is c with edge weight 3
   auto * cc = cb->get_left_child();
   ASSERT_NE(cc, nullptr);
   EXPECT_EQ(cc->get_key().lct_node, c);
+  EXPECT_EQ(cc->get_key().vertex_value, 2);
   EXPECT_EQ(cc->get_key().parent_edge, 3);
 
   // c's only child is d with edge weight 7
   auto * cd = cc->get_left_child();
   ASSERT_NE(cd, nullptr);
   EXPECT_EQ(cd->get_key().lct_node, d);
+  EXPECT_EQ(cd->get_key().vertex_value, 3);
   EXPECT_EQ(cd->get_key().parent_edge, 7);
   EXPECT_TRUE(cd->is_leaf());
 

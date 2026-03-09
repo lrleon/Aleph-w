@@ -63,7 +63,7 @@
 # define TPL_LINK_CUT_TREE_WITH_EDGES_H
 
 # include <functional>
-# include <unordered_map>
+# include <tpl_dynSetHash.H>
 # include <tpl_link_cut_tree.H>
 
 namespace Aleph
@@ -103,6 +103,33 @@ namespace Aleph
       }
     };
 
+    struct EdgeKeyEq
+    {
+      [[nodiscard]] bool operator()(const EdgeKey & lhs,
+                                    const EdgeKey & rhs) const noexcept
+      {
+        return lhs == rhs;
+      }
+    };
+
+    struct NodePtrEq
+    {
+      [[nodiscard]] bool operator()(Node * lhs, Node * rhs) const noexcept
+      {
+        return lhs == rhs;
+      }
+    };
+
+    [[nodiscard]] static size_t edge_key_hash(const EdgeKey & key) noexcept
+    {
+      return EdgeKeyHash{}(key);
+    }
+
+    [[nodiscard]] static size_t node_ptr_hash(Node * const & nd) noexcept
+    {
+      return std::hash<Node *>{}(nd);
+    }
+
     struct EdgeRec
     {
       Node * u;
@@ -112,7 +139,13 @@ namespace Aleph
 
     InternalLCT lct_;
     Array<EdgeRec> edge_recs_;
-    std::unordered_map<EdgeKey, size_t, EdgeKeyHash> edge_idx_;
+    // Use the project hash map here so the edge index stays on Aleph containers.
+    DynMapHash<EdgeKey, size_t, EdgeKeyEq> edge_idx_{
+      Primes::DefaultPrime, edge_key_hash, EdgeKeyEq()
+    };
+    DynMapHash<Node *, VT, NodePtrEq> vertex_vals_{
+      Primes::DefaultPrime, node_ptr_hash, NodePtrEq()
+    };
     size_t n_vertices_   = 0;
     size_t n_components_ = 0;
 
@@ -123,22 +156,30 @@ namespace Aleph
 
     size_t find_edge_idx(Node * u, Node * v) const noexcept
     {
-      const auto it = edge_idx_.find(make_edge_key(u, v));
-      return it == edge_idx_.end() ? edge_recs_.size() : it->second;
+      auto * it = edge_idx_.search(make_edge_key(u, v));
+      return it == nullptr ? edge_recs_.size() : it->second;
     }
 
     void remove_edge_at(size_t idx)
     {
       const auto removed = edge_recs_(idx);
-      edge_idx_.erase(make_edge_key(removed.u, removed.v));
+      edge_idx_.remove(make_edge_key(removed.u, removed.v));
 
       if (idx + 1 < edge_recs_.size())
         {
           edge_recs_(idx) = edge_recs_(edge_recs_.size() - 1);
           const auto & moved = edge_recs_(idx);
-          edge_idx_[make_edge_key(moved.u, moved.v)] = idx;
+          edge_idx_.find(make_edge_key(moved.u, moved.v)) = idx;
         }
       edge_recs_.remove_last();
+    }
+
+    [[nodiscard]] const VT & lookup_vertex_val(Node * nd) const
+    {
+      ah_invalid_argument_if(nd == nullptr) << "null handle";
+      auto * entry = vertex_vals_.search(nd);
+      ah_domain_error_if(entry == nullptr) << "vertex does not exist";
+      return entry->second;
     }
 
   public:
@@ -152,15 +193,25 @@ namespace Aleph
 
     /** @brief Create an isolated vertex.
      *
-     *  The vertex node carries `EdgeMonoid::identity()` internally so
-     *  that it is transparent to edge aggregation.
+     *  The vertex payload is stored in the wrapper while the internal
+     *  LCT node carries `EdgeMonoid::identity()` so it stays transparent
+     *  to edge aggregation.
      *
-     *  @param val Vertex payload (not used in aggregation; accepted for API convenience).
+     *  @param val Vertex payload stored alongside the opaque handle.
      *  @return Stable handle to the new vertex.
      */
-    Node * make_vertex(const VT & = VT{})
+    Node * make_vertex(const VT & val = VT{})
     {
       auto * nd = lct_.make_vertex(EdgeMonoid::identity());
+      try
+        {
+          vertex_vals_.insert(nd, val);
+        }
+      catch (...)
+        {
+          lct_.destroy_vertex(nd);
+          throw;
+        }
       ++n_vertices_;
       ++n_components_;
       return nd;
@@ -176,6 +227,27 @@ namespace Aleph
     /** @brief Number of edges in the forest. */
     [[nodiscard]] size_t num_edges() const noexcept
     { return edge_recs_.size(); }
+
+    /** @brief Read the stored payload of a user vertex.
+     *
+     *  @throws std::invalid_argument if `x` is null.
+     *  @throws std::domain_error     if `x` does not belong to this tree.
+     */
+    [[nodiscard]] const VT & get_vertex_val(Node * x) const
+    {
+      return lookup_vertex_val(x);
+    }
+
+    /** @brief Replace the stored payload of a user vertex.
+     *
+     *  @throws std::invalid_argument if `x` is null.
+     *  @throws std::domain_error     if `x` does not belong to this tree.
+     */
+    void set_vertex_val(Node * x, const VT & val)
+    {
+      ah_invalid_argument_if(x == nullptr) << "null handle";
+      vertex_vals_.find(x) = val;
+    }
 
     /** @brief Test whether `u` and `v` are in the same tree.
      *
@@ -207,23 +279,35 @@ namespace Aleph
       const auto key = make_edge_key(u, v);
 
       edge_recs_.reserve(idx + 1);
-      edge_idx_.reserve(idx + 1);
-
       edge_recs_.append({u, v, nullptr});
+
+      Node * e = nullptr;
+      bool linked_u = false;
+      bool linked_v = false;
 
       try
         {
-          edge_idx_.emplace(key, idx);
+          auto * entry = edge_idx_.insert(key, idx);
+          ah_domain_error_if(entry == nullptr) << "edge already exists";
 
-          auto * e = lct_.make_vertex(weight);
+          e = lct_.make_vertex(weight);
           lct_.link(u, e);
+          linked_u = true;
           lct_.link(e, v);
+          linked_v = true;
           edge_recs_(idx).edge_node = e;
         }
       catch (...)
         {
+          if (linked_v)
+            lct_.cut(e, v);
+          if (linked_u)
+            lct_.cut(u, e);
+          if (e != nullptr)
+            lct_.destroy_vertex(e);
           edge_recs_.remove_last();
-          edge_idx_.erase(key);
+          if (edge_idx_.contains(key))
+            edge_idx_.remove(key);
           throw;
         }
 
@@ -233,8 +317,8 @@ namespace Aleph
     /** @brief Remove the edge between `u` and `v`.
      *
      *  Finds the hidden edge node and cuts both internal links
-     *  `u — e` and `e — v`. The orphaned edge node is freed on
-     *  destruction of the underlying LCT.
+     *  `u — e` and `e — v`. The orphaned hidden edge node is then
+     *  destroyed immediately.
      *
      *  @throws std::invalid_argument if either handle is null.
      *  @throws std::domain_error     if no edge `(u, v)` exists.
@@ -249,6 +333,7 @@ namespace Aleph
       lct_.cut(u, e);
       lct_.cut(e, v);
       remove_edge_at(idx);
+      lct_.destroy_vertex(e);
       ++n_components_;
     }
 
@@ -331,6 +416,7 @@ namespace Aleph
     struct ExportData
     {
       Node * lct_node;    ///< Back-pointer to the original LCT vertex handle.
+      VT     vertex_value; ///< Stored payload associated with the vertex.
       ET     parent_edge; ///< Weight of the edge connecting this node to its parent.
     };
 
@@ -417,7 +503,8 @@ namespace Aleph
         tn(i) = nullptr;
 
       size_t root_idx = find_idx(root);
-      tn(root_idx) = new TN({root, EdgeMonoid::identity()});
+      tn(root_idx) = new TN({root, lookup_vertex_val(root),
+                             EdgeMonoid::identity()});
 
       // BFS queue (simple array-based)
       Array<size_t> queue;
@@ -432,7 +519,7 @@ namespace Aleph
               auto [ni, w] = adj(ci)(j);
               if (tn(ni) == nullptr)
                 {
-                  tn(ni) = new TN({verts(ni), w});
+                  tn(ni) = new TN({verts(ni), lookup_vertex_val(verts(ni)), w});
                   tn(ci)->insert_rightmost_child(tn(ni));
                   queue.append(ni);
                 }

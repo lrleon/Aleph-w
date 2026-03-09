@@ -135,17 +135,19 @@ public:
    *
    *  Maps `+k` to `pos_lit(k-1)` and `-k` to `neg_lit(k-1)`.
    *
-   *  @param v Signed variable index (non-zero).
+   *  @param v Signed variable index (must be non-zero and not LONG_MIN).
    *  @return Literal index.
    */
   [[nodiscard]] static constexpr size_t
   signed_to_lit(const long v) noexcept
   {
+    assert(v != 0);
+    assert(v != std::numeric_limits<long>::min());
+
     if (v > 0)
       return pos_lit(static_cast<size_t>(v - 1));
 
-    // Handle v < 0 safely, avoiding overflow for LONG_MIN
-    // -v - 1 is unsafe for LONG_MIN. Use magnitude subtraction.
+    // Handle v < 0 safely, avoiding overflow for LONG_MIN (guarded above).
     const size_t magnitude_minus_one = static_cast<size_t>(-(v + 1));
     return neg_lit(magnitude_minus_one);
   }

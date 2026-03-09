@@ -538,8 +538,10 @@ if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_benchmark AND TARGET fft_reference_probe
         NAME FFTRelease.Audit
         COMMAND ${ALEPH_RUBY_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fft_release_audit.rb
-                --build-dir
-                $<TARGET_FILE_DIR:fft_benchmark>/..
+                --fft-benchmark
+                $<TARGET_FILE:fft_benchmark>
+                --fft-reference
+                $<TARGET_FILE:fft_reference_probe>
     )
 endif()
 

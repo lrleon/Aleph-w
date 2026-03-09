@@ -367,10 +367,12 @@ namespace Aleph
 
     /// Copy constructor
     FixedStack(const FixedStack & s)
-      : array(new T [s.dim]), head(s.head), dim(s.dim)
+      : array(nullptr), head(s.head), dim(s.dim)
     {
+      std::unique_ptr<T[]> tmp(new T[s.dim]);
       for (size_t i = 0; i < head; ++i)
-        array[i] = s.array[i];
+        tmp[i] = s.array[i];
+      array = tmp.release();
     }
 
     Special_Ctors(FixedStack, T);
@@ -396,15 +398,8 @@ namespace Aleph
       if (this == &s)
         return *this;
 
-      T *ptr = new T [s.dim];
-
-      delete [] array;
-      array = ptr;
-      for (size_t i = 0; i < s.head; ++i)
-        array[i] = s.array[i];
-      head = s.head;
-      dim = s.dim;
-
+      FixedStack tmp(s);
+      swap(tmp);
       return *this;
     }
 
@@ -419,7 +414,7 @@ namespace Aleph
         @param[in] data
         @return a modifiable reference to the copied data.
      */
-    T &push(const T & data) noexcept
+    T &push(const T & data) noexcept(std::is_nothrow_copy_assignable_v<T>)
     {
       assert(head < dim);
       array[head++] = data;
@@ -431,7 +426,7 @@ namespace Aleph
         @param[in] data to be moved
         @return a modifiable reference to the moved data.
      */
-    T &push(T && data) noexcept
+    T &push(T && data) noexcept(std::is_nothrow_move_assignable_v<T>)
     {
       assert(head < dim);
       array[head++] = std::move(data);
@@ -439,16 +434,28 @@ namespace Aleph
     }
 
     /// \overload push(const T & data)
-    T &append(const T & data) noexcept { return push(data); }
+    T &append(const T & data) noexcept(std::is_nothrow_copy_assignable_v<T>)
+    {
+      return push(data);
+    }
 
     /// \overload push(T && data)
-    T &append(T && data) noexcept { return push(std::forward<T>(data)); }
+    T &append(T && data) noexcept(std::is_nothrow_move_assignable_v<T>)
+    {
+      return push(std::forward<T>(data));
+    }
 
     /// \overload push(const T & data)
-    T &insert(const T & data) noexcept { return push(data); }
+    T &insert(const T & data) noexcept(std::is_nothrow_copy_assignable_v<T>)
+    {
+      return push(data);
+    }
 
     /// \overload push(T && data)
-    T &insert(T && data) noexcept { return push(std::forward<T>(data)); }
+    T &insert(T && data) noexcept(std::is_nothrow_move_assignable_v<T>)
+    {
+      return push(std::forward<T>(data));
+    }
 
     /** Push in constant time `n`spaces into stack
 
@@ -457,7 +464,8 @@ namespace Aleph
      */
     T &pushn(const size_t & n = 1) noexcept
     {
-      assert(head + n <= dim);
+      assert(n > 0);
+      assert(n <= dim - head);
 
       head += n;
       return array[head - 1];
@@ -478,24 +486,37 @@ namespace Aleph
      */
     T popn(const int & n) noexcept
     {
-      assert((int (head - n)) >= 0);
+      assert(n >= 0);
+      const auto count = static_cast<size_t>(n);
+      assert(head >= count);
 
-      head -= n;
+      head -= count;
       return std::move(array[head]);
     }
 
     /// Return a modifiable reference to stack's top
-    T &top() const noexcept
+    T &top() noexcept
     {
       assert(head > 0);
 
       return array[head - 1];
     }
 
-    T &get_last() const noexcept { return top(); }
+    const T &top() const noexcept
+    {
+      assert(head > 0);
+
+      return array[head - 1];
+    }
+
+    T &get_last() noexcept { return top(); }
+
+    const T &get_last() const noexcept { return top(); }
 
     /// Return the internal array base
-    T &base() const noexcept { return array[0]; }
+    T &base() noexcept { return array[0]; }
+
+    const T &base() const noexcept { return array[0]; }
 
     /** Return a modifiable reference to item located `i` positions
         after top
@@ -504,7 +525,13 @@ namespace Aleph
         @return a modifiable reference to item located `i` positions
         after top.
     */
-    T &top(const size_t i) const noexcept
+    T &top(const size_t i) noexcept
+    {
+      assert(i < head);
+      return array[head - i - 1];
+    }
+
+    const T &top(const size_t i) const noexcept
     {
       assert(i < head);
       return array[head - i - 1];

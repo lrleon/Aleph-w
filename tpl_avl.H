@@ -117,9 +117,22 @@ namespace Aleph
     Node *& root;
     Compare cmp;
 
-    bool avl_stack_empty() noexcept { return avl_stack.top() == head_ptr; }
+    bool avl_stack_empty() noexcept
+    {
+      if (avl_stack.is_empty())
+        {
+          avl_stack.push(head_ptr);
+          return true;
+        }
+      return avl_stack.top() == head_ptr;
+    }
 
-    void clean_avl_stack() noexcept { avl_stack.popn(avl_stack.size() - 1); }
+    void clean_avl_stack() noexcept
+    {
+      const size_t to_pop = avl_stack.size() > 1 ? avl_stack.size() - 1 : 0;
+      if (to_pop > 0)
+        avl_stack.popn(static_cast<int>(to_pop));
+    }
 
     Node * search_and_stack_avl(const Key & key,
                                 signed char & cmp_result) noexcept
@@ -156,7 +169,11 @@ namespace Aleph
         {
           cmp_result = CmpEqual;
           // Truncate stack: remove nodes pushed after candidate
-          avl_stack.popn(avl_stack.size() - candidate_pos);
+          const size_t to_pop =
+              avl_stack.size() > candidate_pos ?
+              avl_stack.size() - candidate_pos : 0;
+          if (to_pop > 0)
+            avl_stack.popn(static_cast<int>(to_pop));
           return candidate;
         }
 

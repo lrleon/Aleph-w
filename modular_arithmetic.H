@@ -323,10 +323,11 @@ namespace Aleph
     const auto qmod_hi = static_cast<uint64_t>(qmod >> 64);
     const uint64_t carry = qmod_lo > UINT64_MAX - x_lo ? 1ULL : 0ULL;
 
-    __uint128_t t = static_cast<__uint128_t>(x_hi) + qmod_hi + carry;
-    while (t >= ctx.mod())
-      t -= ctx.mod();
-    return static_cast<uint64_t>(t);
+    const __uint128_t t = static_cast<__uint128_t>(x_hi) + qmod_hi + carry;
+    uint64_t reduced = static_cast<uint64_t>(t % ctx.mod());
+    if (reduced >= ctx.mod())
+      reduced -= ctx.mod();
+    return reduced;
   }
 
   /** @brief Montgomery multiplication.

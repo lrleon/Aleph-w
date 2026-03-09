@@ -130,6 +130,8 @@ namespace Aleph
   template <typename T>
   struct SumMonoid
   {
+    using supports_counted_lazy = std::true_type;
+
     static constexpr T identity() noexcept { return T{0}; }
 
     static constexpr T combine(const T & a, const T & b) noexcept
@@ -287,6 +289,22 @@ namespace Aleph
     }
   };
 
+  template <class Monoid, class = void>
+  struct monoid_supports_counted_lazy : std::false_type {};
+
+  template <class Monoid>
+  struct monoid_supports_counted_lazy<Monoid, std::void_t<typename Monoid::supports_counted_lazy>>
+      : std::bool_constant<Monoid::supports_counted_lazy::value> {};
+
+  template <class LazyTag, typename T>
+  struct is_counted_lazy_tag : std::false_type {};
+
+  template <typename T>
+  struct is_counted_lazy_tag<AddLazyTag<T>, T> : std::true_type {};
+
+  template <typename T>
+  struct is_counted_lazy_tag<AssignLazyTag<T>, T> : std::true_type {};
+
   // ---------------------------------------------------------------
   //  Gen_Link_Cut_Tree
   // ---------------------------------------------------------------
@@ -331,6 +349,11 @@ namespace Aleph
     requires LCTMonoid<Monoid, T> and LCTLazyTag<LazyTag, T>
   class Gen_Link_Cut_Tree
   {
+    static_assert(not is_counted_lazy_tag<LazyTag, T>::value
+                  or monoid_supports_counted_lazy<Monoid>::value,
+                  "AddLazyTag::apply and AssignLazyTag::apply require a monoid "
+                  "with supports_counted_lazy=true");
+
   public:
     /** @brief Internal node of the Link-Cut Tree (opaque handle).
      *  @details Users interact with vertices using pointers to this structure.
@@ -589,6 +612,32 @@ namespace Aleph
       nodes.append(nd);
       ++n_components;
       return nd;
+    }
+
+    /** @brief Destroy an isolated vertex.
+     *
+     *  @param x Handle to the isolated vertex to destroy.
+     *  @throws std::invalid_argument if `x` is null.
+     *  @throws std::domain_error if `x` is not isolated or does not belong to this tree.
+     */
+    void destroy_vertex(Node *x)
+    {
+      ah_invalid_argument_if(x == nullptr) << "null handle";
+      access(x);
+      ah_domain_error_if(x->left != nullptr or x->right != nullptr or x->parent != nullptr)
+        << "vertex must be isolated";
+
+      size_t idx = 0;
+      while (idx < nodes.size() and nodes(idx) != x)
+        ++idx;
+      ah_domain_error_if(idx == nodes.size())
+        << "vertex does not belong to this link-cut tree";
+
+      if (idx + 1 < nodes.size())
+        nodes(idx) = nodes(nodes.size() - 1);
+      nodes.remove_last();
+      delete x;
+      --n_components;
     }
 
     /** @brief Total number of vertices currently in the forest. */
