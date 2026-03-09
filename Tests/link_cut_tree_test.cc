@@ -1145,8 +1145,366 @@ TEST_F(LinkCutTreeEdgesTest, MultipleEdges)
   EXPECT_EQ(lct.size(), 4u);
 
   // Paths from b to other nodes
-  EXPECT_EQ(lct.path_query(b, c), 30);  // max(10, 20)
+  EXPECT_EQ(lct.path_query(b, c), 20);  // max(10, 20)
   EXPECT_EQ(lct.path_query(b, d), 30);  // max(10, 30)
+}
+
+// ===================================================================
+//  J. Edge-as-Node: edge value update and stress test
+// ===================================================================
+
+TEST_F(LinkCutTreeEdgesTest, SetEdgeVal)
+{
+  auto * u = lct.make_vertex(0);
+  auto * v = lct.make_vertex(1);
+  auto * w = lct.make_vertex(2);
+
+  lct.link(u, v, 5);
+  lct.link(v, w, 3);
+
+  EXPECT_EQ(lct.path_query(u, w), 5);  // max(5, 3) = 5
+
+  lct.set_edge_val(u, v, 1);
+  EXPECT_EQ(lct.path_query(u, w), 3);  // max(1, 3) = 3
+
+  EXPECT_EQ(lct.get_edge_val(u, v), 1);
+  EXPECT_EQ(lct.get_edge_val(v, w), 3);
+}
+
+TEST_F(LinkCutTreeEdgesTest, CutAndRelink)
+{
+  auto * a = lct.make_vertex(0);
+  auto * b = lct.make_vertex(1);
+  auto * c = lct.make_vertex(2);
+
+  lct.link(a, b, 10);
+  lct.link(b, c, 20);
+  EXPECT_EQ(lct.path_query(a, c), 20);
+
+  lct.cut(a, b);
+  EXPECT_FALSE(lct.connected(a, b));
+  EXPECT_TRUE(lct.connected(b, c));
+
+  lct.link(a, c, 5);
+  EXPECT_EQ(lct.path_query(a, b), 20);  // a-c(5)-b... wait: a--5--c--20--b => max(5, 20) = 20
+}
+
+TEST_F(LinkCutTreeEdgesTest, ErrorHandling)
+{
+  auto * u = lct.make_vertex(0);
+  auto * v = lct.make_vertex(1);
+
+  // self-loop
+  EXPECT_THROW(lct.link(u, u, 1), std::invalid_argument);
+
+  // null handle
+  EXPECT_THROW(lct.link(nullptr, v, 1), std::invalid_argument);
+
+  // link then double-link
+  lct.link(u, v, 5);
+  EXPECT_THROW(lct.link(u, v, 10), std::domain_error);
+
+  // cut non-existent edge
+  auto * w = lct.make_vertex(2);
+  EXPECT_THROW(lct.cut(u, w), std::domain_error);
+}
+
+// ===================================================================
+//  K. Edge-as-Node: randomised stress vs naive oracle
+// ===================================================================
+
+namespace
+{
+
+struct NaiveEdgeForest
+{
+  int n;
+  struct Edge { int u, v, w; };
+  std::vector<Edge> edges;
+  std::vector<std::vector<std::pair<int, int>>> adj; // adj[u] = {(v, edge_idx)}
+
+  explicit NaiveEdgeForest(int n) : n(n), adj(n) {}
+
+  void link(int u, int v, int w)
+  {
+    int idx = static_cast<int>(edges.size());
+    edges.push_back({u, v, w});
+    adj[u].push_back({v, idx});
+    adj[v].push_back({u, idx});
+  }
+
+  void cut(int u, int v)
+  {
+    for (auto it = adj[u].begin(); it != adj[u].end(); ++it)
+      if (it->first == v) { adj[u].erase(it); break; }
+    for (auto it = adj[v].begin(); it != adj[v].end(); ++it)
+      if (it->first == u) { adj[v].erase(it); break; }
+  }
+
+  bool connected(int u, int v) const
+  {
+    if (u == v) return true;
+    std::vector<bool> vis(n, false);
+    std::vector<int> stk = {u};
+    vis[u] = true;
+    while (not stk.empty())
+      {
+        int c = stk.back(); stk.pop_back();
+        for (auto [nb, _] : adj[c])
+          if (not vis[nb])
+            { if (nb == v) return true; vis[nb] = true; stk.push_back(nb); }
+      }
+    return false;
+  }
+
+  bool has_edge(int u, int v) const
+  {
+    for (auto [nb, _] : adj[u])
+      if (nb == v) return true;
+    return false;
+  }
+
+  int path_max(int u, int v) const
+  {
+    std::vector<int> par(n, -1);
+    std::vector<int> par_edge(n, -1);
+    std::vector<bool> vis(n, false);
+    std::vector<int> q = {u};
+    vis[u] = true;
+    while (not q.empty())
+      {
+        int c = q.back(); q.pop_back();
+        if (c == v) break;
+        for (auto [nb, eidx] : adj[c])
+          if (not vis[nb])
+            { vis[nb] = true; par[nb] = c; par_edge[nb] = eidx; q.push_back(nb); }
+      }
+    int mx = std::numeric_limits<int>::lowest();
+    for (int c = v; par[c] != -1; c = par[c])
+      mx = std::max(mx, edges[par_edge[c]].w);
+    return mx;
+  }
+};
+
+} // anonymous namespace
+
+TEST(LinkCutTreeEdgeStress, RandomLinkCutPathMax)
+{
+  constexpr int N = 100;
+  constexpr int OPS = 1500;
+
+  std::mt19937 rng(99887);
+
+  Gen_Link_Cut_Tree_WithEdges<int, int, MaxMonoid<int>> lct;
+  using NodePtr = Gen_Link_Cut_Tree_WithEdges<int, int, MaxMonoid<int>>::Node *;
+  std::vector<NodePtr> nd(N);
+  for (int i = 0; i < N; ++i)
+    nd[i] = lct.make_vertex(i);
+
+  NaiveEdgeForest oracle(N);
+  std::vector<std::pair<int, int>> user_edges;
+
+  for (int op = 0; op < OPS; ++op)
+    {
+      int choice = std::uniform_int_distribution<int>(0, 2)(rng);
+
+      if (choice == 0 and user_edges.size() < static_cast<size_t>(N - 1))
+        {
+          int u = std::uniform_int_distribution<int>(0, N - 1)(rng);
+          int v = std::uniform_int_distribution<int>(0, N - 1)(rng);
+          if (u != v and not oracle.connected(u, v))
+            {
+              int w = std::uniform_int_distribution<int>(1, 1000)(rng);
+              lct.link(nd[u], nd[v], w);
+              oracle.link(u, v, w);
+              user_edges.push_back({u, v});
+            }
+        }
+      else if (choice == 1 and not user_edges.empty())
+        {
+          size_t idx = std::uniform_int_distribution<size_t>(
+            0, user_edges.size() - 1)(rng);
+          auto [u, v] = user_edges[idx];
+          user_edges[idx] = user_edges.back();
+          user_edges.pop_back();
+
+          lct.cut(nd[u], nd[v]);
+          oracle.cut(u, v);
+        }
+      else
+        {
+          int u = std::uniform_int_distribution<int>(0, N - 1)(rng);
+          int v = std::uniform_int_distribution<int>(0, N - 1)(rng);
+          if (u != v and oracle.connected(u, v))
+            {
+              int got = lct.path_query(nd[u], nd[v]);
+              int expected = oracle.path_max(u, v);
+              EXPECT_EQ(got, expected)
+                << "path_max mismatch at op=" << op
+                << " u=" << u << " v=" << v;
+            }
+          else
+            {
+              EXPECT_EQ(lct.connected(nd[u], nd[v]),
+                        oracle.connected(u, v));
+            }
+        }
+    }
+}
+
+// ===================================================================
+//  L. export_to_tree_node — vertex-only LCT
+// ===================================================================
+
+TEST_F(LinkCutTreeStructTest, ExportToTreeNodePath)
+{
+  // path: 0-1-2-3-4
+  constexpr int N = 5;
+  std::vector<Link_Cut_Tree::Node *> nd(N);
+  for (int i = 0; i < N; ++i)
+    nd[i] = lct.make_vertex(i * 10);
+  for (int i = 0; i + 1 < N; ++i)
+    lct.link(nd[i], nd[i + 1]);
+
+  auto * tree = lct.export_to_tree_node(nd[0]);
+
+  // root should have value 0
+  EXPECT_EQ(tree->get_key(), 0);
+  EXPECT_TRUE(tree->is_root());
+
+  // root has one child (1), which has one child (2), etc.
+  auto * c = tree->get_left_child();
+  ASSERT_NE(c, nullptr);
+  EXPECT_EQ(c->get_key(), 10);
+
+  c = c->get_left_child();
+  ASSERT_NE(c, nullptr);
+  EXPECT_EQ(c->get_key(), 20);
+
+  c = c->get_left_child();
+  ASSERT_NE(c, nullptr);
+  EXPECT_EQ(c->get_key(), 30);
+
+  c = c->get_left_child();
+  ASSERT_NE(c, nullptr);
+  EXPECT_EQ(c->get_key(), 40);
+  EXPECT_TRUE(c->is_leaf());
+
+  destroy_tree(tree);
+}
+
+TEST_F(LinkCutTreeStructTest, ExportToTreeNodeStar)
+{
+  //       0
+  //     / | \          .
+  //    1  2  3
+  auto * center = lct.make_vertex(100);
+  auto * l1 = lct.make_vertex(10);
+  auto * l2 = lct.make_vertex(20);
+  auto * l3 = lct.make_vertex(30);
+
+  lct.make_root(center);
+  lct.link(l1, center);
+  lct.link(l2, center);
+  lct.link(l3, center);
+
+  auto * tree = lct.export_to_tree_node(center);
+  EXPECT_EQ(tree->get_key(), 100);
+  EXPECT_TRUE(tree->is_root());
+  EXPECT_FALSE(tree->is_leaf());
+
+  // Collect children values
+  std::vector<int> child_vals;
+  for (auto * c = tree->get_left_child(); c != nullptr;
+       c = c->get_right_sibling())
+    {
+      child_vals.push_back(c->get_key());
+      EXPECT_TRUE(c->is_leaf());
+    }
+
+  std::sort(child_vals.begin(), child_vals.end());
+  ASSERT_EQ(child_vals.size(), 3u);
+  EXPECT_EQ(child_vals[0], 10);
+  EXPECT_EQ(child_vals[1], 20);
+  EXPECT_EQ(child_vals[2], 30);
+
+  destroy_tree(tree);
+}
+
+// ===================================================================
+//  M. export_to_tree_node — edge-weighted LCT
+// ===================================================================
+
+TEST_F(LinkCutTreeEdgesTest, ExportToTreeNodeEdges)
+{
+  //  a --(5)-- b --(3)-- c --(7)-- d
+  auto * a = lct.make_vertex(0);
+  auto * b = lct.make_vertex(1);
+  auto * c = lct.make_vertex(2);
+  auto * d = lct.make_vertex(3);
+
+  lct.link(a, b, 5);
+  lct.link(b, c, 3);
+  lct.link(c, d, 7);
+
+  auto * tree = lct.export_to_tree_node(a);
+
+  // Root = a, parent_edge = identity (INT_MIN for MaxMonoid)
+  EXPECT_EQ(tree->get_key().lct_node, a);
+  EXPECT_TRUE(tree->is_root());
+
+  // a's only child is b with edge weight 5
+  auto * cb = tree->get_left_child();
+  ASSERT_NE(cb, nullptr);
+  EXPECT_EQ(cb->get_key().lct_node, b);
+  EXPECT_EQ(cb->get_key().parent_edge, 5);
+
+  // b's only child is c with edge weight 3
+  auto * cc = cb->get_left_child();
+  ASSERT_NE(cc, nullptr);
+  EXPECT_EQ(cc->get_key().lct_node, c);
+  EXPECT_EQ(cc->get_key().parent_edge, 3);
+
+  // c's only child is d with edge weight 7
+  auto * cd = cc->get_left_child();
+  ASSERT_NE(cd, nullptr);
+  EXPECT_EQ(cd->get_key().lct_node, d);
+  EXPECT_EQ(cd->get_key().parent_edge, 7);
+  EXPECT_TRUE(cd->is_leaf());
+
+  destroy_tree(tree);
+}
+
+TEST_F(LinkCutTreeEdgesTest, ExportToTreeNodeStar)
+{
+  //     center
+  //    /  |  \          .
+  //   x   y   z
+  //  (10)(20)(30)
+  auto * center = lct.make_vertex(0);
+  auto * x = lct.make_vertex(1);
+  auto * y = lct.make_vertex(2);
+  auto * z = lct.make_vertex(3);
+
+  lct.link(x, center, 10);
+  lct.link(y, center, 20);
+  lct.link(z, center, 30);
+
+  auto * tree = lct.export_to_tree_node(center);
+  EXPECT_EQ(tree->get_key().lct_node, center);
+
+  std::vector<int> child_weights;
+  for (auto * c = tree->get_left_child(); c != nullptr;
+       c = c->get_right_sibling())
+    child_weights.push_back(c->get_key().parent_edge);
+
+  std::sort(child_weights.begin(), child_weights.end());
+  ASSERT_EQ(child_weights.size(), 3u);
+  EXPECT_EQ(child_weights[0], 10);
+  EXPECT_EQ(child_weights[1], 20);
+  EXPECT_EQ(child_weights[2], 30);
+
+  destroy_tree(tree);
 }
 
 int main(int argc, char * argv[])

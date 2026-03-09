@@ -73,16 +73,16 @@
 # include <limits>
 # include <tpl_array.H>
 # include <tpl_arrayStack.H>
+# include <tpl_tree_node.H>
 # include <ah-errors.H>
 
 namespace Aleph
 {
-
   // ---------------------------------------------------------------
   //  Concepts
   // ---------------------------------------------------------------
 
-  /** @brief Concept for a monoidal combiner over path values. 
+  /** @brief Concept for a monoidal combiner over path values.
    *
    *  A Monoid requires an identity element and an associative binary
    *  operation `combine(a, b)`. It dictates how values on a path
@@ -90,29 +90,29 @@ namespace Aleph
    */
   template <typename M, typename T>
   concept LCTMonoid =
-    requires(const M & m, const T & a, const T & b)
-    {
-      { M::identity() } -> std::convertible_to<T>;
-      { M::combine(a, b) } -> std::convertible_to<T>;
-    };
+      requires(const M & m, const T & a, const T & b)
+        {
+          { M::identity() } -> std::convertible_to<T>;
+          { M::combine(a, b) } -> std::convertible_to<T>;
+        };
 
-  /** @brief Concept for a lazy-tag policy used in deferred path updates. 
+  /** @brief Concept for a lazy-tag policy used in deferred path updates.
    *
-   *  A Lazy Tag dictates how deferred (lazy) operations apply to nodes 
-   *  and how multiple deferred operations compose together. This is 
+   *  A Lazy Tag dictates how deferred (lazy) operations apply to nodes
+   *  and how multiple deferred operations compose together. This is
    *  essential for efficiently updating an entire path in O(log n) time.
    */
   template <typename L, typename T>
   concept LCTLazyTag =
-    requires(const typename L::tag_type & t1,
-             const typename L::tag_type & t2,
-             const T & val, size_t cnt)
-    {
-      typename L::tag_type;
-      { L::tag_identity() } -> std::convertible_to<typename L::tag_type>;
-      { L::apply(val, t1, cnt) } -> std::convertible_to<T>;
-      { L::compose(t1, t2) } -> std::convertible_to<typename L::tag_type>;
-    };
+      requires(const typename L::tag_type & t1,
+               const typename L::tag_type & t2,
+               const T & val, size_t cnt)
+        {
+          typename L::tag_type;
+          { L::tag_identity() } -> std::convertible_to<typename L::tag_type>;
+          { L::apply(val, t1, cnt) } -> std::convertible_to<T>;
+          { L::compose(t1, t2) } -> std::convertible_to<typename L::tag_type>;
+        };
 
   // ---------------------------------------------------------------
   //  Built-in monoids
@@ -131,8 +131,11 @@ namespace Aleph
   struct SumMonoid
   {
     static constexpr T identity() noexcept { return T{0}; }
+
     static constexpr T combine(const T & a, const T & b) noexcept
-    { return a + b; }
+    {
+      return a + b;
+    }
   };
 
   /** @brief Min monoid: identity = numeric max, combine = min(a, b). */
@@ -140,9 +143,14 @@ namespace Aleph
   struct MinMonoid
   {
     static constexpr T identity() noexcept
-    { return std::numeric_limits<T>::max(); }
+    {
+      return std::numeric_limits<T>::max();
+    }
+
     static constexpr T combine(const T & a, const T & b) noexcept
-    { return a < b ? a : b; }
+    {
+      return a < b ? a : b;
+    }
   };
 
   /** @brief Max monoid: identity = numeric lowest, combine = max(a, b). */
@@ -150,9 +158,14 @@ namespace Aleph
   struct MaxMonoid
   {
     static constexpr T identity() noexcept
-    { return std::numeric_limits<T>::lowest(); }
+    {
+      return std::numeric_limits<T>::lowest();
+    }
+
     static constexpr T combine(const T & a, const T & b) noexcept
-    { return a > b ? a : b; }
+    {
+      return a > b ? a : b;
+    }
   };
 
   /** @brief XOR monoid: identity = 0, combine = a ^ b. */
@@ -160,8 +173,11 @@ namespace Aleph
   struct XorMonoid
   {
     static constexpr T identity() noexcept { return T{0}; }
+
     static constexpr T combine(const T & a, const T & b) noexcept
-    { return a ^ b; }
+    {
+      return a ^ b;
+    }
   };
 
   /** @brief GCD monoid: identity = 0 (since gcd(0, x) = x), combine = gcd. */
@@ -169,6 +185,7 @@ namespace Aleph
   struct GcdMonoid
   {
     static constexpr T identity() noexcept { return T{0}; }
+
     static constexpr T combine(const T & a, const T & b) noexcept
     {
       T x = a < T{0} ? -a : a;
@@ -188,8 +205,11 @@ namespace Aleph
   struct ProductMonoid
   {
     static constexpr T identity() noexcept { return T{1}; }
+
     static constexpr T combine(const T & a, const T & b) noexcept
-    { return a * b; }
+    {
+      return a * b;
+    }
   };
 
   // ---------------------------------------------------------------
@@ -217,10 +237,16 @@ namespace Aleph
   {
     using tag_type = T;
     static constexpr T tag_identity() noexcept { return T{0}; }
+
     static constexpr T apply(const T & v, const T & tag, size_t cnt) noexcept
-    { return v + tag * static_cast<T>(cnt); }
+    {
+      return v + tag * static_cast<T>(cnt);
+    }
+
     static constexpr T compose(const T & a, const T & b) noexcept
-    { return a + b; }
+    {
+      return a + b;
+    }
   };
 
   /** @brief Assignment lazy tag: sets every node on a path to a fixed value.
@@ -237,22 +263,28 @@ namespace Aleph
   {
     struct tag_type
     {
-      T val     = {};
+      T val = {};
       bool active = false;
 
       constexpr bool operator==(const tag_type & o) const noexcept
-      { return active == o.active and (not active or val == o.val); }
+      {
+        return active == o.active and (not active or val == o.val);
+      }
     };
 
     static constexpr tag_type tag_identity() noexcept { return {}; }
 
     static constexpr T apply(const T & v, const tag_type & tag,
                              size_t cnt) noexcept
-    { return tag.active ? tag.val * static_cast<T>(cnt) : v; }
+    {
+      return tag.active ? tag.val * static_cast<T>(cnt) : v;
+    }
 
     static constexpr tag_type compose(const tag_type & existing,
                                       const tag_type & newer) noexcept
-    { return newer.active ? newer : existing; }
+    {
+      return newer.active ? newer : existing;
+    }
   };
 
   // ---------------------------------------------------------------
@@ -265,32 +297,32 @@ namespace Aleph
    *  @tparam Monoid   Associative combiner for path aggregation. Must satisfy `LCTMonoid`.
    *  @tparam LazyTag  Lazy-tag policy for deferred path updates. Must satisfy `LCTLazyTag`.
    *
-   *  @details 
-   *  The `Gen_Link_Cut_Tree` class allows you to manage a dynamic forest of nodes. 
-   *  It is particularly useful for problems where you need to answer connectivity 
-   *  queries or path aggregation queries (e.g., "what is the bottleneck edge on the 
-   *  path from A to B?") in a network that is constantly changing (edges being added 
+   *  @details
+   *  The `Gen_Link_Cut_Tree` class allows you to manage a dynamic forest of nodes.
+   *  It is particularly useful for problems where you need to answer connectivity
+   *  queries or path aggregation queries (e.g., "what is the bottleneck edge on the
+   *  path from A to B?") in a network that is constantly changing (edges being added
    *  and removed).
    *
    *  ### Lifecycle and Memory Management
-   *  Vertices are created via `make_vertex()`, returning an opaque `Node*` handle. 
-   *  The tree assumes ownership of all created nodes and will destroy them upon 
+   *  Vertices are created via `make_vertex()`, returning an opaque `Node*` handle.
+   *  The tree assumes ownership of all created nodes and will destroy them upon
    *  destruction. Handles remain stable as long as the tree is alive.
    *
    *  ### Typical Use Cases
-   *  1. **Dynamic Connectivity**: Use `Link_Cut_Tree` (which defaults to `int` and no-ops) 
+   *  1. **Dynamic Connectivity**: Use `Link_Cut_Tree` (which defaults to `int` and no-ops)
    *     simply to call `link()`, `cut()`, and `connected()`.
-   *  2. **Dynamic Minimum Spanning Forest**: Maintain edges with weights using a `MaxMonoid` 
-   *     or `MinMonoid`. When adding an edge that forms a cycle, find the max/min weight 
+   *  2. **Dynamic Minimum Spanning Forest**: Maintain edges with weights using a `MaxMonoid`
+   *     or `MinMonoid`. When adding an edge that forms a cycle, find the max/min weight
    *     edge on the cycle using `path_query()` and `cut()` it.
-   *  3. **Path Updates / Range Queries on Trees**: Use a `SumMonoid` and `AddLazyTag` 
+   *  3. **Path Updates / Range Queries on Trees**: Use a `SumMonoid` and `AddLazyTag`
    *     to dynamically add values to paths and query path sums.
    *
    *  @par Complexity
-   *  Every public operation runs in amortized \f$O(\log n)\f$ time, where \f$n\f$ is 
+   *  Every public operation runs in amortized \f$O(\log n)\f$ time, where \f$n\f$ is
    *  the number of nodes currently in the forest.
    *
-   *  @warning The behavior is undefined if handles from different `Gen_Link_Cut_Tree` 
+   *  @warning The behavior is undefined if handles from different `Gen_Link_Cut_Tree`
    *  instances are mixed.
    */
   template <typename T = int,
@@ -300,8 +332,7 @@ namespace Aleph
   class Gen_Link_Cut_Tree
   {
   public:
-
-    /** @brief Internal node of the Link-Cut Tree (opaque handle). 
+    /** @brief Internal node of the Link-Cut Tree (opaque handle).
      *  @details Users interact with vertices using pointers to this structure.
      */
     struct Node
@@ -309,20 +340,20 @@ namespace Aleph
       friend class Gen_Link_Cut_Tree;
 
       /** @brief Return the stored value. */
-      [[nodiscard]] const T & get_val() const noexcept { return val; }
+      [[nodiscard]] const T &get_val() const noexcept { return val; }
 
     private:
-      Node * left   = nullptr;
-      Node * right  = nullptr;
-      Node * parent = nullptr;
-      bool   rev    = false;
-      size_t sz     = 1;
+      Node *left = nullptr;
+      Node *right = nullptr;
+      Node *parent = nullptr;
+      bool rev = false;
+      size_t sz = 1;
 
       T val;
       T agg;
 
       using tag_type = typename LazyTag::tag_type;
-      tag_type lazy  = LazyTag::tag_identity();
+      tag_type lazy = LazyTag::tag_identity();
 
       Node() : val(T{}), agg(T{}) {}
       explicit Node(const T & v) : val(v), agg(v) {}
@@ -330,26 +361,25 @@ namespace Aleph
     };
 
   private:
-
     Array<Node *> nodes;
     size_t n_components = 0;
 
     // ---- auxiliary predicates ----
 
-    static bool is_root(const Node * x) noexcept
+    static bool is_root(const Node *x) noexcept
     {
       return x->parent == nullptr or
              (x->parent->left != x and x->parent->right != x);
     }
 
-    static bool is_left(const Node * x) noexcept
+    static bool is_left(const Node *x) noexcept
     {
       return x->parent and x->parent->left == x;
     }
 
     // ---- lazy propagation ----
 
-    static void push(Node * x) noexcept
+    static void push(Node *x) noexcept
     {
       if (not x)
         return;
@@ -357,7 +387,7 @@ namespace Aleph
       if (x->rev)
         {
           std::swap(x->left, x->right);
-          if (x->left)  x->left->rev  ^= true;
+          if (x->left) x->left->rev ^= true;
           if (x->right) x->right->rev ^= true;
           x->rev = false;
         }
@@ -366,14 +396,14 @@ namespace Aleph
         {
           if (not (x->lazy == LazyTag::tag_identity()))
             {
-              auto propagate = [&](Node * c)
-              {
-                if (not c)
-                  return;
-                c->val  = LazyTag::apply(c->val, x->lazy, 1);
-                c->agg  = LazyTag::apply(c->agg, x->lazy, c->sz);
-                c->lazy = LazyTag::compose(c->lazy, x->lazy);
-              };
+              auto propagate = [&](Node *c)
+                {
+                  if (not c)
+                    return;
+                  c->val = LazyTag::apply(c->val, x->lazy, 1);
+                  c->agg = LazyTag::apply(c->agg, x->lazy, c->sz);
+                  c->lazy = LazyTag::compose(c->lazy, x->lazy);
+                };
               propagate(x->left);
               propagate(x->right);
               x->lazy = LazyTag::tag_identity();
@@ -383,32 +413,32 @@ namespace Aleph
 
     // ---- aggregate recomputation ----
 
-    static void pull(Node * x) noexcept
+    static void pull(Node *x) noexcept
     {
       if (not x)
         return;
 
-      x->sz  = 1;
+      x->sz = 1;
       x->agg = x->val;
 
       if (x->left)
         {
-          x->sz  += x->left->sz;
+          x->sz += x->left->sz;
           x->agg = Monoid::combine(x->left->agg, x->agg);
         }
       if (x->right)
         {
-          x->sz  += x->right->sz;
+          x->sz += x->right->sz;
           x->agg = Monoid::combine(x->agg, x->right->agg);
         }
     }
 
     // ---- rotations ----
 
-    static void rotate(Node * x) noexcept
+    static void rotate(Node *x) noexcept
     {
-      Node * p = x->parent;
-      Node * g = p->parent;
+      Node *p = x->parent;
+      Node *g = p->parent;
 
       if (not is_root(p))
         {
@@ -420,7 +450,7 @@ namespace Aleph
 
       if (p->left == x)
         {
-          p->left  = x->right;
+          p->left = x->right;
           if (x->right)
             x->right->parent = p;
           x->right = p;
@@ -430,7 +460,7 @@ namespace Aleph
           p->right = x->left;
           if (x->left)
             x->left->parent = p;
-          x->left  = p;
+          x->left = p;
         }
 
       x->parent = g;
@@ -442,19 +472,19 @@ namespace Aleph
 
     // ---- splay ----
 
-    static void splay(Node * x) noexcept
+    static void splay(Node *x) noexcept
     {
       // collect ancestors within this auxiliary tree
       // and push lazy flags top-down
       {
-        Node * u = x;
+        Node *u = x;
         ArrayStack<Node *> stk;
         while (not is_root(u))
           {
             stk.push(u->parent);
             u = u->parent;
           }
-        push(u);  // push the aux-tree root
+        push(u); // push the aux-tree root
         while (not stk.is_empty())
           push(stk.pop());
         push(x);
@@ -462,16 +492,13 @@ namespace Aleph
 
       while (not is_root(x))
         {
-          Node * p = x->parent;
+          Node *p = x->parent;
           if (not is_root(p))
-            {
-              Node * g = p->parent;
-              // zig-zig or zig-zag
-              if ((g->left == p) == (p->left == x))
-                rotate(p);  // zig-zig: rotate parent first
-              else
-                rotate(x);  // zig-zag: rotate x first
-            }
+            // zig-zig or zig-zag
+            if (Node *g = p->parent; (g->left == p) == (p->left == x))
+              rotate(p); // zig-zig: rotate parent first
+            else
+              rotate(x); // zig-zag: rotate x first
           rotate(x);
         }
     }
@@ -481,10 +508,10 @@ namespace Aleph
     // Exposes the root-to-x preferred path.  Returns the last
     // node splayed during traversal (the LCA when preceded by
     // a prior access).
-    static Node * access(Node * x) noexcept
+    static Node * access(Node *x) noexcept
     {
-      Node * last = nullptr;
-      for (Node * u = x; u != nullptr; u = u->parent)
+      Node *last = nullptr;
+      for (Node *u = x; u != nullptr; u = u->parent)
         {
           splay(u);
           u->right = last;
@@ -498,10 +525,10 @@ namespace Aleph
     // ---- iterative in-order traversal of a splay subtree ----
 
     template <typename Op>
-    static void inorder_traverse(Node * root, Op && op)
+    static void inorder_traverse(Node *root, Op && op)
     {
       ArrayStack<Node *> stk;
-      Node * cur = root;
+      Node *cur = root;
       while (cur or not stk.is_empty())
         {
           while (cur)
@@ -517,7 +544,6 @@ namespace Aleph
     }
 
   public:
-
     Gen_Link_Cut_Tree() = default;
 
     ~Gen_Link_Cut_Tree()
@@ -528,9 +554,12 @@ namespace Aleph
 
     // Non-copyable, non-movable (internal pointers)
     Gen_Link_Cut_Tree(const Gen_Link_Cut_Tree &) = delete;
-    Gen_Link_Cut_Tree & operator=(const Gen_Link_Cut_Tree &) = delete;
+
+    Gen_Link_Cut_Tree &operator=(const Gen_Link_Cut_Tree &) = delete;
+
     Gen_Link_Cut_Tree(Gen_Link_Cut_Tree &&) = delete;
-    Gen_Link_Cut_Tree & operator=(Gen_Link_Cut_Tree &&) = delete;
+
+    Gen_Link_Cut_Tree &operator=(Gen_Link_Cut_Tree &&) = delete;
 
     /** @brief Create an isolated vertex with payload `val`.
      *
@@ -543,7 +572,7 @@ namespace Aleph
      */
     Node * make_vertex(const T & val = T{})
     {
-      auto * nd = new Node(val);
+      auto *nd = new Node(val);
       nodes.append(nd);
       ++n_components;
       return nd;
@@ -556,7 +585,7 @@ namespace Aleph
      */
     Node * make_vertex(T && val)
     {
-      auto * nd = new Node(std::move(val));
+      auto *nd = new Node(std::move(val));
       nodes.append(nd);
       ++n_components;
       return nd;
@@ -567,8 +596,8 @@ namespace Aleph
 
     /** @brief Make `x` the root of its represented tree.
      *
-     *  @details This operation changes the represented tree so that `x` becomes 
-     *  the new root. It exposes the path to `x` (bringing `x` to the root of its 
+     *  @details This operation changes the represented tree so that `x` becomes
+     *  the new root. It exposes the path to `x` (bringing `x` to the root of its
      *  auxiliary tree) and flips its `rev` lazy flag. This reverses the depth
      *  order of the path, making `x` the highest node (the new root).
      *  Does not create or destroy any edge. After this call `find_root(x) == x`.
@@ -576,7 +605,7 @@ namespace Aleph
      *  @param x Handle to the vertex to become the new root.
      *  @throws std::invalid_argument if `x` is null.
      */
-    void make_root(Node * x)
+    void make_root(Node *x)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       access(x);
@@ -595,7 +624,7 @@ namespace Aleph
      *  @return Handle to the root vertex of the tree containing `x`.
      *  @throws std::invalid_argument if `x` is null.
      */
-    [[nodiscard]] Node * find_root(Node * x)
+    [[nodiscard]] Node * find_root(Node *x)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       access(x);
@@ -618,7 +647,7 @@ namespace Aleph
      *  @return `true` if they are connected (in the same tree), `false` otherwise.
      *  @throws std::invalid_argument if `u` or `v` is null.
      */
-    [[nodiscard]] bool connected(Node * u, Node * v)
+    [[nodiscard]] bool connected(Node *u, Node *v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       if (u == v)
@@ -634,11 +663,11 @@ namespace Aleph
     /** @brief Add an edge between `u` and `v`, merging their trees.
      *
      *  @details This operation links the tree containing `u` to the tree containing `v`.
-     *  It does this by first making `u` the root of its tree (`make_root(u)`). 
+     *  It does this by first making `u` the root of its tree (`make_root(u)`).
      *  Then, it simply sets `v` as the parent of `u` in the represented forest.
-     *  
+     *
      *  The operation requires that `u` and `v` are currently in different trees.
-     *  If they are already connected, a cycle would be formed, which is not 
+     *  If they are already connected, a cycle would be formed, which is not
      *  allowed in a valid forest representation.
      *
      *  @param u Handle to the vertex that will become a child.
@@ -646,7 +675,7 @@ namespace Aleph
      *  @throws std::domain_error if `u` and `v` are already in the same tree.
      *  @throws std::invalid_argument if `u == v` or either handle is null.
      */
-    void link(Node * u, Node * v)
+    void link(Node *u, Node *v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       ah_invalid_argument_if(u == v) << "self-loop";
@@ -658,10 +687,10 @@ namespace Aleph
 
     /** @brief Remove the represented edge between `u` and `v`.
      *
-     *  @details Splits the tree containing `u` and `v` into two trees by 
-     *  deleting the edge between them. It achieves this by making `u` the 
-     *  root of the tree, and then accessing `v`. If `v` is adjacent to `u` 
-     *  in the represented tree, `u` will be the left child of `v` in the 
+     *  @details Splits the tree containing `u` and `v` into two trees by
+     *  deleting the edge between them. It achieves this by making `u` the
+     *  root of the tree, and then accessing `v`. If `v` is adjacent to `u`
+     *  in the represented tree, `u` will be the left child of `v` in the
      *  auxiliary tree. Breaking this child connection separates them.
      *
      *  @param u Handle to the first vertex of the edge.
@@ -669,15 +698,15 @@ namespace Aleph
      *  @throws std::domain_error if the edge (u, v) does not exist.
      *  @throws std::invalid_argument if either handle is null.
      */
-    void cut(Node * u, Node * v)
+    void cut(Node *u, Node *v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
       access(v);
       ah_domain_error_if(v->left != u or u->parent != v or u->right != nullptr)
         << "edge does not exist";
-      v->left    = nullptr;
-      u->parent  = nullptr;
+      v->left = nullptr;
+      u->parent = nullptr;
       pull(v);
       ++n_components;
     }
@@ -686,8 +715,8 @@ namespace Aleph
      *
      *  @details The LCA is relative to the current rooting of the tree.
      *  If the structure has been rerooted via `make_root()`, the LCA will reflect
-     *  that new hierarchy. Internally, it exposes the path from the root to `u`, 
-     *  and then begins exposing the path from the root to `v`. The point where 
+     *  that new hierarchy. Internally, it exposes the path from the root to `u`,
+     *  and then begins exposing the path from the root to `v`. The point where
      *  the `v` path intersects the `u` path is the LCA.
      *
      *  @param u Handle to the first vertex.
@@ -696,13 +725,13 @@ namespace Aleph
      *  @throws std::domain_error if `u` and `v` are not connected.
      *  @throws std::invalid_argument if either handle is null.
      */
-    [[nodiscard]] Node * lca(Node * u, Node * v)
+    [[nodiscard]] Node * lca(Node *u, Node *v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       if (u == v)
         return u;
       access(u);
-      Node * ans = access(v);
+      Node *ans = access(v);
       // verify they were connected: after access(v),
       // u should be reachable via parent chain from v
       // (access(u) already exposed the root-to-u path)
@@ -713,9 +742,9 @@ namespace Aleph
     /** @brief Aggregate (under Monoid) over all vertex values on the
      *         path from `u` to `v`.
      *
-     *  @details This method first makes `u` the root of the tree, and then 
-     *  exposes the path up to `v` by calling `access(v)`. The path from `u` 
-     *  to `v` is perfectly captured in the auxiliary tree rooted at `v`, 
+     *  @details This method first makes `u` the root of the tree, and then
+     *  exposes the path up to `v` by calling `access(v)`. The path from `u`
+     *  to `v` is perfectly captured in the auxiliary tree rooted at `v`,
      *  so the aggregate value is trivially available in `v->agg`.
      *
      *  @param u Start vertex of the path.
@@ -724,7 +753,7 @@ namespace Aleph
      *  @throws std::domain_error if `u` and `v` are not connected.
      *  @throws std::invalid_argument if either handle is null.
      */
-    [[nodiscard]] T path_query(Node * u, Node * v)
+    [[nodiscard]] T path_query(Node *u, Node *v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
@@ -740,7 +769,7 @@ namespace Aleph
      *  @throws std::domain_error if `u` and `v` are not connected.
      *  @throws std::invalid_argument if either handle is null.
      */
-    [[nodiscard]] size_t path_size(Node * u, Node * v)
+    [[nodiscard]] size_t path_size(Node *u, Node *v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
@@ -749,24 +778,24 @@ namespace Aleph
     }
 
     /** @brief Read the payload value of vertex `x`.
-     *  
+     *
      *  @param x Handle to the vertex.
      *  @return Constant reference to the stored value.
      *  @throws std::invalid_argument if `x` is null.
      */
-    [[nodiscard]] const T & get_val(Node * x) const
+    [[nodiscard]] const T &get_val(Node *x) const
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       return x->val;
     }
 
-    /** @brief Update the payload value of vertex `x` and recompute aggregates. 
+    /** @brief Update the payload value of vertex `x` and recompute aggregates.
      *
      *  @param x Handle to the vertex to update.
      *  @param val The new value to set.
      *  @throws std::invalid_argument if `x` is null.
      */
-    void set_val(Node * x, const T & val)
+    void set_val(Node *x, const T & val)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       access(x);
@@ -776,8 +805,8 @@ namespace Aleph
 
     /** @brief Apply a lazy tag to every vertex on the path from `u` to `v`.
      *
-     *  @details Exposes the path between `u` and `v`, then applies the given 
-     *  tag to the root of the auxiliary tree representing this path. The change 
+     *  @details Exposes the path between `u` and `v`, then applies the given
+     *  tag to the root of the auxiliary tree representing this path. The change
      *  will be pushed down efficiently (lazily) during subsequent operations.
      *
      *  Available only when `LazyTag` is not `NoLazyTag`.
@@ -788,14 +817,14 @@ namespace Aleph
      *  @throws std::domain_error if `u` and `v` are not connected.
      *  @throws std::invalid_argument if either handle is null.
      */
-    void path_apply(Node * u, Node * v, const typename LazyTag::tag_type & tag)
+    void path_apply(Node *u, Node *v, const typename LazyTag::tag_type & tag)
       requires (not std::is_same_v<LazyTag, NoLazyTag<T>>)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
       access(v);
-      v->val  = LazyTag::apply(v->val, tag, 1);
-      v->agg  = LazyTag::apply(v->agg, tag, v->sz);
+      v->val = LazyTag::apply(v->val, tag, 1);
+      v->agg = LazyTag::apply(v->agg, tag, v->sz);
       v->lazy = LazyTag::compose(v->lazy, tag);
     }
 
@@ -805,13 +834,15 @@ namespace Aleph
      *  @note O(1).
      */
     [[nodiscard]] size_t num_components() const noexcept
-    { return n_components; }
+    {
+      return n_components;
+    }
 
     /** @brief Number of vertices in the tree containing `x`.
      *
      *  @note O(n log n) — scans all vertices.  Use sparingly.
      */
-    [[nodiscard]] size_t tree_size(Node * x)
+    [[nodiscard]] size_t tree_size(Node *x)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       size_t count = 0;
@@ -826,7 +857,7 @@ namespace Aleph
      *  The depth is the number of edges on the path from the root
      *  to `x`.  O(log n) amortised.
      */
-    [[nodiscard]] size_t depth(Node * x)
+    [[nodiscard]] size_t depth(Node *x)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       access(x);
@@ -838,13 +869,13 @@ namespace Aleph
      *  Returns `nullptr` if `x` is the root of its tree.
      *  O(log n) amortised.
      */
-    [[nodiscard]] Node * parent(Node * x)
+    [[nodiscard]] Node * parent(Node *x)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       access(x);
       if (not x->left)
         return nullptr;
-      Node * p = x->left;
+      Node *p = x->left;
       push(p);
       while (p->right)
         {
@@ -871,7 +902,7 @@ namespace Aleph
      *  O(path_length) after the initial O(log n) access.
      */
     template <typename Op>
-    void for_each_on_path(Node * u, Node * v, Op && op)
+    void for_each_on_path(Node *u, Node *v, Op && op)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
@@ -895,10 +926,10 @@ namespace Aleph
     Array<Node *> make_path(std::initializer_list<T> vals)
     {
       Array<Node *> result;
-      Node * prev = nullptr;
-      for (const auto & v : vals)
+      Node *prev = nullptr;
+      for (const auto & v: vals)
         {
-          auto * nd = make_vertex(v);
+          auto *nd = make_vertex(v);
           if (prev)
             link(prev, nd);
           prev = nd;
@@ -914,7 +945,7 @@ namespace Aleph
     Array<Node *> make_vertices(std::initializer_list<T> vals)
     {
       Array<Node *> result;
-      for (const auto & v : vals)
+      for (const auto & v: vals)
         result.append(make_vertex(v));
       return result;
     }
@@ -926,18 +957,78 @@ namespace Aleph
     template <typename Container>
     void link_edges(const Container & edges)
     {
-      for (const auto & [u, v] : edges)
+      for (const auto & [u, v]: edges)
         link(u, v);
+    }
+
+    // ---- snapshot export ----
+
+    /** @brief Export the represented tree rooted at `root` as a `Tree_Node<T>`.
+     *
+     *  Materializes the current represented tree containing `root` into
+     *  an explicit n-ary tree of `Tree_Node<T>` nodes.  A `make_root(root)`
+     *  is performed internally to establish the rooting.
+     *
+     *  The caller owns the returned tree and must free it with
+     *  `destroy_tree(result)`.
+     *
+     *  @param root Vertex to use as root of the exported tree.
+     *  @return Newly allocated `Tree_Node<T> *` mirroring the represented tree.
+     *  @throws std::invalid_argument if `root` is null.
+     *
+     *  @par Complexity
+     *  O(n^2) where n is the number of vertices in the component
+     *  (dominated by the parent-lookup sweep).
+     */
+    [[nodiscard]] Tree_Node<T> * export_to_tree_node(Node * root)
+    {
+      ah_invalid_argument_if(root == nullptr) << "null handle";
+      make_root(root);
+
+      // Collect all nodes in root's component and create Tree_Node copies
+      Array<Node *> lct_nodes;
+      Array<Tree_Node<T> *> tree_nodes;
+
+      for_each_node([&](Node * nd)
+      {
+        if (connected(nd, root))
+          {
+            lct_nodes.append(nd);
+            tree_nodes.append(new Tree_Node<T>(nd->val));
+          }
+      });
+
+      auto find_idx = [&](Node * nd) -> size_t
+      {
+        for (size_t i = 0; i < lct_nodes.size(); ++i)
+          if (lct_nodes(i) == nd)
+            return i;
+        return lct_nodes.size();
+      };
+
+      size_t root_idx = find_idx(root);
+      for (size_t i = 0; i < lct_nodes.size(); ++i)
+        {
+          if (i == root_idx)
+            continue;
+          Node * par = parent(lct_nodes(i));
+          if (par != nullptr)
+            {
+              size_t pi = find_idx(par);
+              tree_nodes(pi)->insert_rightmost_child(tree_nodes(i));
+            }
+        }
+
+      return tree_nodes(root_idx);
     }
   };
 
-  /** @brief Convenience alias for a connectivity-only Link-Cut Tree. 
-   *  @details Uses the `DefaultMonoid` and `NoLazyTag`, meaning it only 
-   *  stores an `int` per vertex and is typically used just for structural 
+  /** @brief Convenience alias for a connectivity-only Link-Cut Tree.
+   *  @details Uses the `DefaultMonoid` and `NoLazyTag`, meaning it only
+   *  stores an `int` per vertex and is typically used just for structural
    *  operations (`link`, `cut`, `connected`, `lca`).
    */
   using Link_Cut_Tree = Gen_Link_Cut_Tree<int>;
-
 } // namespace Aleph
 
 # endif /* TPL_LINK_CUT_TREE_H */

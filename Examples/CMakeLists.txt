@@ -140,6 +140,7 @@ set(EXAMPLE_PROGRAMS
     segment_tree_example
     interval_tree_example
     cartesian_tree_example
+    tree_node_graphviz_example
     fft_benchmark
     fft_reference_probe
     fft_example

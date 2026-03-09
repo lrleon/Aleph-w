@@ -213,6 +213,53 @@ namespace Aleph
     For_Each_In_Order<Node>()(root, Write());
     out << std::endl;
   }
+
+  /** @brief Generate a Graphviz DOT specification for a tree.
+     *
+     *  Produces a DOT specification that can be rendered using Graphviz
+     *  tools (dot, neato, etc.) to visualize the tree structure.
+     *
+     *  @tparam Node Tree node type (e.g. Tree_Node)
+     *  @tparam Write Functor that converts node key to string for the node label.
+     *          Must provide: `std::string operator()(Node*)`
+     *
+     *  @param root Root of the tree to draw
+     *  @param out Output stream for the DOT specification
+     *
+     *  @see Dft_Write Default writer using to_str()
+     *
+     *  @ingroup Trees
+     */
+  template <typename Node, class Write = Dft_Write<Node>>
+  void generate_tree_graphviz(Node *root, std::ostream & out)
+  {
+    out << "digraph Tree {" << std::endl;
+    out << "  node [shape=circle, fontname=\"Helvetica\"];" << std::endl;
+    out << "  edge [fontname=\"Helvetica\"];" << std::endl;
+
+    if (root == nullptr)
+      {
+        out << "}" << std::endl;
+        return;
+      }
+
+    auto traverse = [&out](auto & self, Node * p) -> void {
+      if (p == nullptr)
+        return;
+
+      out << "  \"" << p << "\" [label=\"" << Write()(p) << "\"];" << std::endl;
+
+      for (typename Node::Children_Iterator it(p); it.has_curr(); it.next())
+        {
+          Node * child = it.get_curr();
+          out << "  \"" << p << "\" -> \"" << child << "\";" << std::endl;
+          self(self, child);
+        }
+    };
+
+    traverse(traverse, root);
+    out << "}" << std::endl;
+  }
 } // end namespace Aleph
 
 # endif // GENERATE_TREE_H

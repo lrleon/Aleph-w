@@ -30,29 +30,30 @@
 */
 
 /** @file tpl_link_cut_tree_with_edges.H
- *  @brief Link-Cut Tree with edge values (edge-as-node representation).
+ *  @brief Edge-weighted Link-Cut Tree using edge-as-node representation.
  *
- *  Extends Link-Cut Tree to support weighted edges by representing each
- *  edge as an internal node in the auxiliary tree structure.
+ *  Extends the Link-Cut Tree to support edge values (weights). Each edge
+ *  is internally represented as a hidden node in the underlying splay
+ *  forest, placed between its two endpoint vertices. Vertex nodes carry
+ *  the monoid identity so that path aggregations reflect edge values only.
  *
- *  **Topology**: An edge (u, v) with value e is stored as:
- *  ```
- *    u ← edge_node(val=e) → v
- *  ```
- *  where edge_node is an internal auxiliary node that stores the edge value.
+ *  ### Architecture
+ *  This class composes with `Gen_Link_Cut_Tree<ET, EdgeMonoid, LazyTag>`,
+ *  delegating all splay/access/link/cut mechanics to the proven
+ *  vertex-only implementation. An edge `(u, v)` with weight `w` becomes
+ *  three internal nodes linked as `u — edge_node(w) — v`, where vertex
+ *  nodes hold `EdgeMonoid::identity()` (transparent to aggregation).
  *
- *  **Path Aggregates**: `path_query(u, v)` returns the aggregate (sum, min, max, etc.)
- *  over all **edge values** on the path, not vertex values. This naturally supports
- *  algorithms like:
- *  - **Dynamic MST**: maintain maximum spanning forest; when adding an edge creates
- *    a cycle, remove the maximum-weight edge on the cycle.
- *  - **Bottleneck Paths**: find the minimum capacity on any u-v path.
- *  - **Path Compression**: aggregate costs along a path.
+ *  ### Typical Use Cases
+ *  - **Dynamic MST**: query the max-weight edge on a cycle to decide
+ *    which edge to swap (`MaxMonoid`).
+ *  - **Bottleneck Paths**: find the minimum-capacity edge on a path
+ *    (`MinMonoid`).
  *
- *  @tparam T         Value type for vertices (optional; not aggregated).
- *  @tparam EdgeT     Value type for edges (aggregated via Monoid).
- *  @tparam Monoid    Associative combiner for edge aggregation.
- *  @tparam LazyTag   Lazy-tag policy for deferred edge updates (currently unused).
+ *  @tparam VT         Vertex payload type (not aggregated).
+ *  @tparam ET         Edge value type (aggregated via EdgeMonoid).
+ *  @tparam EdgeMonoid Associative combiner for edge aggregation.
+ *  @tparam LazyTag    Lazy-tag policy for deferred edge updates.
  *
  *  @ingroup Trees
  *  @author Leandro Rabindranath León
@@ -61,493 +62,337 @@
 # ifndef TPL_LINK_CUT_TREE_WITH_EDGES_H
 # define TPL_LINK_CUT_TREE_WITH_EDGES_H
 
-# include <concepts>
-# include <limits>
-# include <tpl_array.H>
-# include <tpl_arrayStack.H>
-# include <ah-errors.H>
+# include <tpl_link_cut_tree.H>
 
 namespace Aleph
 {
 
-  // ---------------------------------------------------------------
-  //  Tag types and helpers
-  // ---------------------------------------------------------------
-
-  /** @brief Tag to disambiguate edge node constructors. */
-  struct EdgeNodeTag {};
-
-  // ---------------------------------------------------------------
-  //  Gen_Link_Cut_Tree_WithEdges
-  // ---------------------------------------------------------------
-
-  /** @brief Link-Cut Tree with edge values (edge-as-node model).
-   *
-   *  Each edge is represented as an internal node in the auxiliary tree.
-   *  Path aggregates are computed over edge values only.
-   *
-   *  @tparam T         Vertex value type (stored but not aggregated).
-   *  @tparam EdgeT     Edge value type (aggregated via Monoid).
-   *  @tparam Monoid    Must satisfy `LCTMonoid<Monoid, EdgeT>`.
-   *  @tparam LazyTag   Must satisfy `LCTLazyTag<LazyTag, EdgeT>`.
-   */
-  template <typename T = int,
-            typename EdgeT = int,
-            class Monoid = DefaultMonoid<EdgeT>,
-            class LazyTag = NoLazyTag<EdgeT>>
-    requires LCTMonoid<Monoid, EdgeT> and LCTLazyTag<LazyTag, EdgeT>
+  template <typename VT = int,
+            typename ET = int,
+            class EdgeMonoid = DefaultMonoid<ET>,
+            class LazyTag = NoLazyTag<ET>>
+    requires LCTMonoid<EdgeMonoid, ET> and LCTLazyTag<LazyTag, ET>
   class Gen_Link_Cut_Tree_WithEdges
   {
+    using InternalLCT = Gen_Link_Cut_Tree<ET, EdgeMonoid, LazyTag>;
+
   public:
 
-    /** @brief Node handle (opaque to user; can be vertex or internal edge node). */
-    struct Node
-    {
-      friend class Gen_Link_Cut_Tree_WithEdges;
-
-      /** @brief Get vertex value (only valid if not an edge node). */
-      [[nodiscard]] const T & get_vertex_val() const noexcept { return vertex_val; }
-
-      /** @brief Is this node an internal edge node? */
-      [[nodiscard]] bool is_edge_node() const noexcept { return is_edge; }
-
-    private:
-      Node * left   = nullptr;
-      Node * right  = nullptr;
-      Node * parent = nullptr;
-      bool   rev    = false;
-      size_t sz     = 1;
-
-      // Discriminate: vertex or edge
-      bool   is_edge = false;
-
-      // Payloads (one or the other)
-      T      vertex_val;           // only if !is_edge
-      EdgeT  edge_val;             // only if is_edge
-
-      // Aggregate (always over EdgeT)
-      EdgeT  agg;
-
-      // Lazy propagation
-      using tag_type = typename LazyTag::tag_type;
-      tag_type lazy  = LazyTag::tag_identity();
-
-      // Constructors
-      explicit Node(const T & v) : vertex_val(v), agg(EdgeT{}) {}
-
-      // Constructor for edge node (uses tag to disambiguate)
-      Node(const EdgeT & e, EdgeNodeTag) : edge_val(e), agg(e), is_edge(true) {}
-    };
+    /** @brief Opaque vertex handle (same type as internal LCT node). */
+    using Node = typename InternalLCT::Node;
 
   private:
 
-    Array<Node *> nodes;           // All nodes (vertices + internal edges)
-    Array<Node *> vertex_nodes;    // Vertices only (for user tracking)
-    size_t n_components = 0;
-
-    // ---- auxiliary predicates ----
-
-    static bool is_root(const Node * x) noexcept
+    struct EdgeRec
     {
-      return x->parent == nullptr or
-             (x->parent->left != x and x->parent->right != x);
+      Node * u;
+      Node * v;
+      Node * edge_node;
+    };
+
+    InternalLCT lct_;
+    Array<EdgeRec> edge_recs_;
+    size_t n_vertices_   = 0;
+    size_t n_components_ = 0;
+
+    // O(m) scan; acceptable for forests where m < n
+    size_t find_edge_idx(Node * u, Node * v) const noexcept
+    {
+      for (size_t i = 0; i < edge_recs_.size(); ++i)
+        {
+          const auto & e = edge_recs_(i);
+          if ((e.u == u and e.v == v) or (e.u == v and e.v == u))
+            return i;
+        }
+      return edge_recs_.size();
     }
 
-    // ---- lazy propagation ----
-
-    static void push(Node * x) noexcept
+    void remove_edge_at(size_t idx)
     {
-      if (not x)
-        return;
-
-      if (x->rev)
-        {
-          std::swap(x->left, x->right);
-          if (x->left)  x->left->rev  ^= true;
-          if (x->right) x->right->rev ^= true;
-          x->rev = false;
-        }
-
-      if constexpr (not std::is_same_v<LazyTag, NoLazyTag<EdgeT>>)
-        {
-          if (not (x->lazy == LazyTag::tag_identity()))
-            {
-              auto propagate = [&](Node * c)
-              {
-                if (not c)
-                  return;
-                if (c->is_edge)
-                  {
-                    c->edge_val = LazyTag::apply(c->edge_val, x->lazy, 1);
-                    c->agg      = LazyTag::apply(c->agg, x->lazy, c->sz);
-                  }
-                c->lazy = LazyTag::compose(c->lazy, x->lazy);
-              };
-              propagate(x->left);
-              propagate(x->right);
-              x->lazy = LazyTag::tag_identity();
-            }
-        }
-    }
-
-    // ---- aggregate recomputation ----
-
-    static void pull(Node * x) noexcept
-    {
-      if (not x)
-        return;
-
-      x->sz  = 1;
-      x->agg = x->is_edge ? x->edge_val : EdgeT{};  // vertices → identity
-
-      if (x->left)
-        {
-          x->sz  += x->left->sz;
-          x->agg = Monoid::combine(x->left->agg, x->agg);
-        }
-      if (x->right)
-        {
-          x->sz  += x->right->sz;
-          x->agg = Monoid::combine(x->agg, x->right->agg);
-        }
-    }
-
-    // ---- rotations ----
-
-    static void rotate(Node * x) noexcept
-    {
-      Node * p = x->parent;
-      Node * g = p->parent;
-
-      if (not is_root(p))
-        {
-          if (g->left == p)
-            g->left = x;
-          else
-            g->right = x;
-        }
-
-      if (p->left == x)
-        {
-          p->left  = x->right;
-          if (x->right)
-            x->right->parent = p;
-          x->right = p;
-        }
-      else
-        {
-          p->right = x->left;
-          if (x->left)
-            x->left->parent = p;
-          x->left  = p;
-        }
-
-      x->parent = g;
-      p->parent = x;
-
-      pull(p);
-      pull(x);
-    }
-
-    // ---- splay ----
-
-    static void splay(Node * x) noexcept
-    {
-      {
-        Node * u = x;
-        ArrayStack<Node *> stk;
-        while (not is_root(u))
-          {
-            stk.push(u->parent);
-            u = u->parent;
-          }
-        push(u);
-        while (not stk.is_empty())
-          push(stk.pop());
-        push(x);
-      }
-
-      while (not is_root(x))
-        {
-          Node * p = x->parent;
-          if (not is_root(p))
-            {
-              Node * g = p->parent;
-              if ((g->left == p) == (p->left == x))
-                rotate(p);
-              else
-                rotate(x);
-            }
-          rotate(x);
-        }
-    }
-
-    // ---- access ----
-
-    static Node * access(Node * x) noexcept
-    {
-      Node * last = nullptr;
-      for (Node * u = x; u != nullptr; u = u->parent)
-        {
-          splay(u);
-          u->right = last;
-          pull(u);
-          last = u;
-        }
-      splay(x);
-      return last;
-    }
-
-    // ---- find edge node between u and v ----
-
-    Node * find_edge_node_between(Node * u, Node * v)
-    {
-      make_root(u);
-      access(v);
-
-      // After access(v), v is splay root with path from u to v
-      // The edge node is the left child of v (if it exists)
-      if (not v->left)
-        return nullptr;
-
-      Node * p = v->left;
-      push(p);
-      while (p->right)
-        {
-          p = p->right;
-          push(p);
-        }
-      splay(p);
-
-      return p->is_edge ? p : nullptr;
+      if (idx + 1 < edge_recs_.size())
+        edge_recs_(idx) = edge_recs_(edge_recs_.size() - 1);
+      edge_recs_.remove_last();
     }
 
   public:
 
     Gen_Link_Cut_Tree_WithEdges() = default;
 
-    ~Gen_Link_Cut_Tree_WithEdges()
-    {
-      for (size_t i = 0; i < nodes.size(); ++i)
-        delete nodes(i);
-    }
-
     Gen_Link_Cut_Tree_WithEdges(const Gen_Link_Cut_Tree_WithEdges &) = delete;
     Gen_Link_Cut_Tree_WithEdges & operator=(const Gen_Link_Cut_Tree_WithEdges &) = delete;
     Gen_Link_Cut_Tree_WithEdges(Gen_Link_Cut_Tree_WithEdges &&) = delete;
     Gen_Link_Cut_Tree_WithEdges & operator=(Gen_Link_Cut_Tree_WithEdges &&) = delete;
 
-    /** @brief Create an isolated vertex with payload `val`. */
-    Node * make_vertex(const T & val = T{})
+    /** @brief Create an isolated vertex.
+     *
+     *  The vertex node carries `EdgeMonoid::identity()` internally so
+     *  that it is transparent to edge aggregation.
+     *
+     *  @param val Vertex payload (not used in aggregation; accepted for API convenience).
+     *  @return Stable handle to the new vertex.
+     */
+    Node * make_vertex(const VT & = VT{})
     {
-      auto * nd = new Node(val);
-      nodes.append(nd);
-      vertex_nodes.append(nd);
-      ++n_components;
+      auto * nd = lct_.make_vertex(EdgeMonoid::identity());
+      ++n_vertices_;
+      ++n_components_;
       return nd;
     }
 
-    /** @brief Create an isolated vertex (move semantics). */
-    Node * make_vertex(T && val)
-    {
-      auto * nd = new Node(std::move(val));
-      nodes.append(nd);
-      vertex_nodes.append(nd);
-      ++n_components;
-      return nd;
-    }
-
-    /** @brief Total number of vertices (excluding internal edge nodes). */
-    [[nodiscard]] size_t size() const noexcept { return vertex_nodes.size(); }
+    /** @brief Total number of user vertices (excluding internal edge nodes). */
+    [[nodiscard]] size_t size() const noexcept { return n_vertices_; }
 
     /** @brief Number of connected components. */
     [[nodiscard]] size_t num_components() const noexcept
-    { return n_components; }
+    { return n_components_; }
 
-    /** @brief Make `x` the root of its represented tree. */
-    void make_root(Node * x)
-    {
-      ah_invalid_argument_if(x == nullptr) << "null handle";
-      ah_domain_error_if(x->is_edge) << "cannot make_root on edge node";
-      access(x);
-      x->rev ^= true;
-      push(x);
-    }
+    /** @brief Number of edges in the forest. */
+    [[nodiscard]] size_t num_edges() const noexcept
+    { return edge_recs_.size(); }
 
-    /** @brief Find the root of the represented tree containing `x`. */
-    [[nodiscard]] Node * find_root(Node * x)
-    {
-      ah_invalid_argument_if(x == nullptr) << "null handle";
-      ah_domain_error_if(x->is_edge) << "cannot find_root from edge node";
-      access(x);
-      while (x->left)
-        {
-          push(x);
-          x = x->left;
-          if (x->is_edge)
-            {
-              push(x);
-              x = x->left;
-            }
-        }
-      splay(x);
-      return x;
-    }
-
-    /** @brief Test whether `u` and `v` are in the same represented tree. */
+    /** @brief Test whether `u` and `v` are in the same tree.
+     *
+     *  @throws std::invalid_argument if either handle is null.
+     */
     [[nodiscard]] bool connected(Node * u, Node * v)
     {
-      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
-      ah_domain_error_if(u->is_edge or v->is_edge) << "edge node in connected()";
-      if (u == v)
-        return true;
-      return find_root(u) == find_root(v);
+      return lct_.connected(u, v);
     }
 
-    /** @brief Add an edge between `u` and `v` with value `edge_val`.
+    /** @brief Add an edge `(u, v)` with weight `weight`.
      *
-     *  Creates an internal edge node: u ← edge_node → v.
+     *  Internally creates a hidden edge node `e` with value `weight`
+     *  and links the chain `u — e — v` in the underlying splay forest.
+     *
+     *  @param u      First endpoint.
+     *  @param v      Second endpoint.
+     *  @param weight Edge value / weight.
+     *  @throws std::invalid_argument if `u` or `v` is null, or `u == v`.
+     *  @throws std::domain_error     if `u` and `v` are already connected.
      */
-    void link(Node * u, Node * v, const EdgeT & edge_val = EdgeT{})
+    void link(Node * u, Node * v, const ET & weight)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       ah_invalid_argument_if(u == v) << "self-loop";
-      ah_domain_error_if(u->is_edge or v->is_edge) << "cannot link edge nodes";
+      ah_domain_error_if(lct_.connected(u, v)) << "already connected";
 
-      // Create edge node
-      auto * edge_node = new Node(edge_val, EdgeNodeTag{});
-      nodes.append(edge_node);
-      // vertex_nodes.append(edge_node);  // NO: internal nodes not visible
-
-      // Link: u ← edge_node → v
-      make_root(u);
-      ah_domain_error_if(find_root(v) == u) << "already connected";
-
-      u->parent = edge_node;
-      edge_node->parent = v;
-
-      --n_components;
+      auto * e = lct_.make_vertex(weight);
+      lct_.link(u, e);
+      lct_.link(e, v);
+      edge_recs_.append({u, v, e});
+      --n_components_;
     }
 
     /** @brief Remove the edge between `u` and `v`.
      *
-     *  Deletes the internal edge node that connects them.
+     *  Finds the hidden edge node and cuts both internal links
+     *  `u — e` and `e — v`. The orphaned edge node is freed on
+     *  destruction of the underlying LCT.
+     *
+     *  @throws std::invalid_argument if either handle is null.
+     *  @throws std::domain_error     if no edge `(u, v)` exists.
      */
     void cut(Node * u, Node * v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
-      ah_domain_error_if(u->is_edge or v->is_edge) << "cannot cut edge nodes";
+      size_t idx = find_edge_idx(u, v);
+      ah_domain_error_if(idx == edge_recs_.size()) << "edge does not exist";
 
-      Node * edge_node = find_edge_node_between(u, v);
-      ah_domain_error_if(edge_node == nullptr or not edge_node->is_edge)
-        << "edge does not exist";
-
-      // Unlink edge_node
-      Node * p = edge_node->parent;
-      Node * c = edge_node->left;
-
-      ah_domain_error_if(edge_node->right != nullptr) << "edge node corrupted";
-
-      if (c)
-        c->parent = p;
-      if (p)
-        {
-          if (p->left == edge_node)
-            p->left = c;
-          else if (p->right == edge_node)
-            p->right = c;
-        }
-
-      // Note: We don't remove from nodes array (Array doesn't support efficient removal)
-      // Just mark as deleted; the dangling pointer is OK since we delete the Node below
-
-      delete edge_node;
-      ++n_components;
+      Node * e = edge_recs_(idx).edge_node;
+      lct_.cut(u, e);
+      lct_.cut(e, v);
+      remove_edge_at(idx);
+      ++n_components_;
     }
 
-    /** @brief Lowest common ancestor of `u` and `v` (vertices only). */
-    [[nodiscard]] Node * lca(Node * u, Node * v)
+    /** @brief Aggregate edge values on the path from `u` to `v`.
+     *
+     *  Since vertex nodes carry `EdgeMonoid::identity()`, the returned
+     *  value reflects only edge weights along the path.
+     *
+     *  @throws std::invalid_argument if either handle is null.
+     *  @throws std::domain_error     if `u` and `v` are not connected.
+     */
+    [[nodiscard]] ET path_query(Node * u, Node * v)
     {
-      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
-      ah_domain_error_if(u->is_edge or v->is_edge) << "lca on edge node";
-      if (u == v)
-        return u;
-      access(u);
-      Node * ans = access(v);
-      ah_domain_error_if(find_root(u) != find_root(v)) << "not connected";
-      return ans;
+      return lct_.path_query(u, v);
     }
 
-    /** @brief Aggregate (sum, min, max, ...) of edge values on path from `u` to `v`. */
-    [[nodiscard]] EdgeT path_query(Node * u, Node * v)
+    /** @brief Make `x` the root of its represented tree.
+     *
+     *  @throws std::invalid_argument if `x` is null.
+     */
+    void make_root(Node * x)
     {
-      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
-      ah_domain_error_if(u->is_edge or v->is_edge) << "path_query on edge node";
-      make_root(u);
-      access(v);
-      return v->agg;
+      lct_.make_root(x);
     }
 
-    /** @brief Number of vertices (not edges) on the path from `u` to `v`. */
+    /** @brief Find the root of the tree containing `x`.
+     *
+     *  @note After rerooting via `make_root()`, the root is always a
+     *        vertex node.
+     *
+     *  @throws std::invalid_argument if `x` is null.
+     */
+    [[nodiscard]] Node * find_root(Node * x)
+    {
+      return lct_.find_root(x);
+    }
+
+    /** @brief Number of internal nodes (vertices + edge nodes) on the
+     *         path from `u` to `v`.
+     */
     [[nodiscard]] size_t path_size(Node * u, Node * v)
     {
-      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
-      ah_domain_error_if(u->is_edge or v->is_edge) << "path_size on edge node";
-      make_root(u);
-      access(v);
-      // Count only non-edge nodes
-      size_t count = 0;
-      for (size_t i = 0; i < vertex_nodes.size(); ++i)
-        if (connected(vertex_nodes(i), u) and connected(vertex_nodes(i), v))
-          if (connected(u, vertex_nodes(i)))
-            ++count;
-      return count;
+      return lct_.path_size(u, v);
     }
 
-    /** @brief Get the value of an edge node.
+    /** @brief Update the weight of an existing edge `(u, v)`.
      *
-     *  @throws std::domain_error if node is not an edge node.
+     *  @throws std::invalid_argument if either handle is null.
+     *  @throws std::domain_error     if no edge `(u, v)` exists.
      */
-    [[nodiscard]] const EdgeT & get_edge_val(Node * edge_node) const
+    void set_edge_val(Node * u, Node * v, const ET & new_weight)
     {
-      ah_invalid_argument_if(edge_node == nullptr) << "null handle";
-      ah_domain_error_if(not edge_node->is_edge) << "not an edge node";
-      return edge_node->edge_val;
+      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
+      size_t idx = find_edge_idx(u, v);
+      ah_domain_error_if(idx == edge_recs_.size()) << "edge does not exist";
+
+      lct_.set_val(edge_recs_(idx).edge_node, new_weight);
     }
 
-    /** @brief Update the value of an edge node. */
-    void set_edge_val(Node * edge_node, const EdgeT & val)
+    /** @brief Read the weight of an existing edge `(u, v)`.
+     *
+     *  @throws std::invalid_argument if either handle is null.
+     *  @throws std::domain_error     if no edge `(u, v)` exists.
+     */
+    [[nodiscard]] const ET & get_edge_val(Node * u, Node * v)
     {
-      ah_invalid_argument_if(edge_node == nullptr) << "null handle";
-      ah_domain_error_if(not edge_node->is_edge) << "not an edge node";
-      access(edge_node);
-      edge_node->edge_val = val;
-      pull(edge_node);
+      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
+      size_t idx = find_edge_idx(u, v);
+      ah_domain_error_if(idx == edge_recs_.size()) << "edge does not exist";
+
+      return lct_.get_val(edge_recs_(idx).edge_node);
     }
 
-    /** @brief Get vertex value (only if not an edge node). */
-    [[nodiscard]] const T & get_vertex_val(Node * vertex_node) const
-    {
-      ah_invalid_argument_if(vertex_node == nullptr) << "null handle";
-      ah_domain_error_if(vertex_node->is_edge) << "vertex_val on edge node";
-      return vertex_node->vertex_val;
-    }
+    // ---- snapshot export ----
 
-    /** @brief Update vertex value. */
-    void set_vertex_val(Node * vertex_node, const T & val)
+    /** @brief Data stored in each exported `Tree_Node`.
+     *
+     *  For the root node, `parent_edge` holds `EdgeMonoid::identity()`.
+     */
+    struct ExportData
     {
-      ah_invalid_argument_if(vertex_node == nullptr) << "null handle";
-      ah_domain_error_if(vertex_node->is_edge) << "set_vertex_val on edge node";
-      access(vertex_node);
-      vertex_node->vertex_val = val;
-    }
+      Node * lct_node;    ///< Back-pointer to the original LCT vertex handle.
+      ET     parent_edge; ///< Weight of the edge connecting this node to its parent.
+    };
 
-    /** @brief Iterate all vertices. */
-    template <typename Op>
-    void for_each_vertex(Op && op) const
+    /** @brief Export the represented tree rooted at `root` as a `Tree_Node`.
+     *
+     *  Materializes the forest component containing `root` into an
+     *  explicit n-ary tree of `Tree_Node<ExportData>`.  Each exported
+     *  node stores a back-pointer to the original LCT vertex and the
+     *  weight of the edge to its parent (the root stores
+     *  `EdgeMonoid::identity()`).
+     *
+     *  The caller owns the returned tree and must free it with
+     *  `destroy_tree(result)`.
+     *
+     *  @param root Vertex to use as the root.
+     *  @return Newly allocated `Tree_Node<ExportData> *`.
+     *  @throws std::invalid_argument if `root` is null.
+     *
+     *  @par Complexity
+     *  O(n^2) where n is the number of vertices in the component.
+     */
+    [[nodiscard]] Tree_Node<ExportData> * export_to_tree_node(Node * root)
     {
-      for (size_t i = 0; i < vertex_nodes.size(); ++i)
-        op(vertex_nodes(i));
+      ah_invalid_argument_if(root == nullptr) << "null handle";
+      make_root(root);
+
+      using TN = Tree_Node<ExportData>;
+
+      // Build adjacency from edge records (only edges in root's component)
+      // adj[i] = list of (neighbor_vertex_index, edge_weight)
+      struct AdjEntry { size_t neighbor; ET weight; };
+
+      // Collect vertices in root's component
+      Array<Node *> verts;
+      verts.append(root);
+      for (size_t i = 0; i < edge_recs_.size(); ++i)
+        {
+          const auto & er = edge_recs_(i);
+          if (lct_.connected(er.u, root))
+            {
+              // Ensure both endpoints are collected (avoid duplicates)
+              bool found_u = false, found_v = false;
+              for (size_t j = 0; j < verts.size(); ++j)
+                {
+                  if (verts(j) == er.u) found_u = true;
+                  if (verts(j) == er.v) found_v = true;
+                }
+              if (not found_u) verts.append(er.u);
+              if (not found_v) verts.append(er.v);
+            }
+        }
+
+      auto find_idx = [&](Node * nd) -> size_t
+      {
+        for (size_t i = 0; i < verts.size(); ++i)
+          if (verts(i) == nd)
+            return i;
+        return verts.size();
+      };
+
+      // Build adjacency lists
+      size_t nv = verts.size();
+      Array<Array<AdjEntry>> adj;
+      for (size_t i = 0; i < nv; ++i)
+        adj.append(Array<AdjEntry>());
+
+      for (size_t i = 0; i < edge_recs_.size(); ++i)
+        {
+          const auto & er = edge_recs_(i);
+          size_t ui = find_idx(er.u);
+          size_t vi = find_idx(er.v);
+          if (ui < nv and vi < nv)
+            {
+              ET w = lct_.get_val(er.edge_node);
+              adj(ui).append({vi, w});
+              adj(vi).append({ui, w});
+            }
+        }
+
+      // BFS from root to build Tree_Node tree
+      Array<TN *> tn(nv);
+      tn.putn(nv);
+      for (size_t i = 0; i < nv; ++i)
+        tn(i) = nullptr;
+
+      size_t root_idx = find_idx(root);
+      tn(root_idx) = new TN({root, EdgeMonoid::identity()});
+
+      // BFS queue (simple array-based)
+      Array<size_t> queue;
+      queue.append(root_idx);
+      size_t qfront = 0;
+
+      while (qfront < queue.size())
+        {
+          size_t ci = queue(qfront++);
+          for (size_t j = 0; j < adj(ci).size(); ++j)
+            {
+              auto [ni, w] = adj(ci)(j);
+              if (tn(ni) == nullptr)
+                {
+                  tn(ni) = new TN({verts(ni), w});
+                  tn(ci)->insert_rightmost_child(tn(ni));
+                  queue.append(ni);
+                }
+            }
+        }
+
+      return tn(root_idx);
     }
   };
 
