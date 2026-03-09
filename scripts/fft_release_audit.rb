@@ -139,7 +139,7 @@ if options[:perf_baseline]
     '--fail-slowdown', options[:fail_slowdown].to_s,
     '--warmup', options[:warmup].to_s,
     '--samples', options[:samples].to_s,
-    '--batch-count', options[:batch_count].to_s
+    '--batch-count', options[:batch_count].to_s,
   ]
   command.concat(['--sizes', options[:sizes]]) if options[:sizes]
   command.concat(['--threads', options[:threads].to_s]) if options[:threads]

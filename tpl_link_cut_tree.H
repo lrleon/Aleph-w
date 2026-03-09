@@ -836,7 +836,7 @@ namespace Aleph
      *  @return Constant reference to the stored value.
      *  @throws std::invalid_argument if `x` is null.
      */
-    [[nodiscard]] const T &get_val(Node *x) const
+    [[nodiscard]] const T &get_val(Node *x)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       access(x);

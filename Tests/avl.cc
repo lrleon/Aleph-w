@@ -424,6 +424,60 @@ TEST(AvlTree, WorksWithCustomComparator)
   EXPECT_TRUE(t.verify());
 }
 
+// Tests the candidate_pos == avl_stack.size() branch (zero-pop path).
+// This occurs when the duplicate key is the current maximum: the last
+// descend is always to the right so candidate_pos equals the stack size
+// at the end of the loop, making to_pop == 0 and popn() is never called.
+TEST(AvlTree, DuplicateMaxKeyZeroPopBranch)
+{
+  Avl_Tree<int> t;
+  NodePool<Avl_Tree<int>> pool;
+
+  // Tree: 10 -> 20 -> 30 (right-spine). 30 is the current maximum.
+  ASSERT_NE(t.insert(pool.make(10)), nullptr);
+  ASSERT_NE(t.insert(pool.make(20)), nullptr);
+  ASSERT_NE(t.insert(pool.make(30)), nullptr);
+  ASSERT_TRUE(t.verify());
+
+  // Duplicate of maximum: search goes 10->20->30->NullPtr,
+  // candidate_pos == avl_stack.size() at end, so to_pop == 0.
+  EXPECT_EQ(t.insert(pool.make(30)), nullptr);
+  EXPECT_TRUE(t.verify());
+
+  // search_or_insert must also find the existing node without corruption.
+  auto * dup = pool.make(30);
+  auto * found = t.search_or_insert(dup);
+  EXPECT_NE(found, dup);
+  EXPECT_EQ(KEY(found), 30);
+  EXPECT_TRUE(t.verify());
+}
+
+// Randomised variant: repeatedly insert many sequences that include a
+// duplicate of the current maximum to stress the zero-pop branch.
+TEST(AvlTree, Property_DuplicateMax_RandomisedStress)
+{
+  std::mt19937 rng(77777);
+  std::uniform_int_distribution<int> n_dist(1, 50);
+
+  for (int trial = 0; trial < 200; ++trial)
+    {
+      Avl_Tree<int> t;
+      NodePool<Avl_Tree<int>> pool;
+
+      int n = n_dist(rng);
+      int max_key = 0;
+      for (int i = 1; i <= n; ++i)
+        {
+          ASSERT_NE(t.insert(pool.make(i)), nullptr);
+          max_key = i;
+        }
+
+      // Insert a duplicate of the current maximum
+      EXPECT_EQ(t.insert(pool.make(max_key)), nullptr);
+      ASSERT_TRUE(t.verify()) << "Invariant violated after duplicate-max on trial " << trial;
+    }
+}
+
 // ============================================================================
 // STRESS TESTS / FUZZING
 // ============================================================================

@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -68,7 +67,6 @@
 
 namespace Aleph
 {
-
   template <typename VT = int,
             typename ET = int,
             class EdgeMonoid = DefaultMonoid<ET>,
@@ -79,16 +77,14 @@ namespace Aleph
     using InternalLCT = Gen_Link_Cut_Tree<ET, EdgeMonoid, LazyTag>;
 
   public:
-
     /** @brief Opaque vertex handle (same type as internal LCT node). */
     using Node = typename InternalLCT::Node;
 
   private:
-
     struct EdgeKey
     {
-      Node * a;
-      Node * b;
+      Node *a;
+      Node *b;
 
       [[nodiscard]] bool operator==(const EdgeKey &) const noexcept = default;
     };
@@ -114,7 +110,7 @@ namespace Aleph
 
     struct NodePtrEq
     {
-      [[nodiscard]] bool operator()(Node * lhs, Node * rhs) const noexcept
+      [[nodiscard]] bool operator()(Node *lhs, Node *rhs) const noexcept
       {
         return lhs == rhs;
       }
@@ -125,38 +121,38 @@ namespace Aleph
       return EdgeKeyHash{}(key);
     }
 
-    [[nodiscard]] static size_t node_ptr_hash(Node * const & nd) noexcept
+    [[nodiscard]] static size_t node_ptr_hash(Node *const & nd) noexcept
     {
       return std::hash<Node *>{}(nd);
     }
 
     struct EdgeRec
     {
-      Node * u;
-      Node * v;
-      Node * edge_node;
+      Node *u;
+      Node *v;
+      Node *edge_node;
     };
 
     InternalLCT lct_;
     Array<EdgeRec> edge_recs_;
     // Use the project hash map here so the edge index stays on Aleph containers.
     DynMapHash<EdgeKey, size_t, EdgeKeyEq> edge_idx_{
-      Primes::DefaultPrime, edge_key_hash, EdgeKeyEq()
-    };
+          Primes::DefaultPrime, edge_key_hash, EdgeKeyEq()
+        };
     DynMapHash<Node *, VT, NodePtrEq> vertex_vals_{
-      Primes::DefaultPrime, node_ptr_hash, NodePtrEq()
-    };
-    size_t n_vertices_   = 0;
+          Primes::DefaultPrime, node_ptr_hash, NodePtrEq()
+        };
+    size_t n_vertices_ = 0;
     size_t n_components_ = 0;
 
-    [[nodiscard]] static EdgeKey make_edge_key(Node * u, Node * v) noexcept
+    [[nodiscard]] static EdgeKey make_edge_key(Node *u, Node *v) noexcept
     {
       return std::less<Node *>{}(u, v) ? EdgeKey{u, v} : EdgeKey{v, u};
     }
 
-    size_t find_edge_idx(Node * u, Node * v) const noexcept
+    size_t find_edge_idx(Node *u, Node *v) const noexcept
     {
-      auto * it = edge_idx_.search(make_edge_key(u, v));
+      auto *it = edge_idx_.search(make_edge_key(u, v));
       return it == nullptr ? edge_recs_.size() : it->second;
     }
 
@@ -174,22 +170,24 @@ namespace Aleph
       edge_recs_.remove_last();
     }
 
-    [[nodiscard]] const VT & lookup_vertex_val(Node * nd) const
+    [[nodiscard]] const VT &lookup_vertex_val(Node *nd) const
     {
       ah_invalid_argument_if(nd == nullptr) << "null handle";
-      auto * entry = vertex_vals_.search(nd);
+      auto *entry = vertex_vals_.search(nd);
       ah_domain_error_if(entry == nullptr) << "vertex does not exist";
       return entry->second;
     }
 
   public:
-
     Gen_Link_Cut_Tree_WithEdges() = default;
 
     Gen_Link_Cut_Tree_WithEdges(const Gen_Link_Cut_Tree_WithEdges &) = delete;
-    Gen_Link_Cut_Tree_WithEdges & operator=(const Gen_Link_Cut_Tree_WithEdges &) = delete;
+
+    Gen_Link_Cut_Tree_WithEdges &operator=(const Gen_Link_Cut_Tree_WithEdges &) = delete;
+
     Gen_Link_Cut_Tree_WithEdges(Gen_Link_Cut_Tree_WithEdges &&) = delete;
-    Gen_Link_Cut_Tree_WithEdges & operator=(Gen_Link_Cut_Tree_WithEdges &&) = delete;
+
+    Gen_Link_Cut_Tree_WithEdges &operator=(Gen_Link_Cut_Tree_WithEdges &&) = delete;
 
     /** @brief Create an isolated vertex.
      *
@@ -202,7 +200,7 @@ namespace Aleph
      */
     Node * make_vertex(const VT & val = VT{})
     {
-      auto * nd = lct_.make_vertex(EdgeMonoid::identity());
+      auto *nd = lct_.make_vertex(EdgeMonoid::identity());
       try
         {
           vertex_vals_.insert(nd, val);
@@ -222,18 +220,22 @@ namespace Aleph
 
     /** @brief Number of connected components. */
     [[nodiscard]] size_t num_components() const noexcept
-    { return n_components_; }
+    {
+      return n_components_;
+    }
 
     /** @brief Number of edges in the forest. */
     [[nodiscard]] size_t num_edges() const noexcept
-    { return edge_recs_.size(); }
+    {
+      return edge_recs_.size();
+    }
 
     /** @brief Read the stored payload of a user vertex.
      *
      *  @throws std::invalid_argument if `x` is null.
      *  @throws std::domain_error     if `x` does not belong to this tree.
      */
-    [[nodiscard]] const VT & get_vertex_val(Node * x) const
+    [[nodiscard]] const VT &get_vertex_val(Node *x) const
     {
       return lookup_vertex_val(x);
     }
@@ -243,7 +245,7 @@ namespace Aleph
      *  @throws std::invalid_argument if `x` is null.
      *  @throws std::domain_error     if `x` does not belong to this tree.
      */
-    void set_vertex_val(Node * x, const VT & val)
+    void set_vertex_val(Node *x, const VT & val)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       vertex_vals_.find(x) = val;
@@ -253,7 +255,7 @@ namespace Aleph
      *
      *  @throws std::invalid_argument if either handle is null.
      */
-    [[nodiscard]] bool connected(Node * u, Node * v)
+    [[nodiscard]] bool connected(Node *u, Node *v)
     {
       return lct_.connected(u, v);
     }
@@ -269,7 +271,7 @@ namespace Aleph
      *  @throws std::invalid_argument if `u` or `v` is null, or `u == v`.
      *  @throws std::domain_error     if `u` and `v` are already connected.
      */
-    void link(Node * u, Node * v, const ET & weight)
+    void link(Node *u, Node *v, const ET & weight)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       ah_invalid_argument_if(u == v) << "self-loop";
@@ -281,13 +283,13 @@ namespace Aleph
       edge_recs_.reserve(idx + 1);
       edge_recs_.append({u, v, nullptr});
 
-      Node * e = nullptr;
+      Node *e = nullptr;
       bool linked_u = false;
       bool linked_v = false;
 
       try
         {
-          auto * entry = edge_idx_.insert(key, idx);
+          auto *entry = edge_idx_.insert(key, idx);
           ah_domain_error_if(entry == nullptr) << "edge already exists";
 
           e = lct_.make_vertex(weight);
@@ -323,13 +325,13 @@ namespace Aleph
      *  @throws std::invalid_argument if either handle is null.
      *  @throws std::domain_error     if no edge `(u, v)` exists.
      */
-    void cut(Node * u, Node * v)
+    void cut(Node *u, Node *v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       size_t idx = find_edge_idx(u, v);
       ah_domain_error_if(idx == edge_recs_.size()) << "edge does not exist";
 
-      Node * e = edge_recs_(idx).edge_node;
+      Node *e = edge_recs_(idx).edge_node;
       lct_.cut(u, e);
       lct_.cut(e, v);
       remove_edge_at(idx);
@@ -345,7 +347,7 @@ namespace Aleph
      *  @throws std::invalid_argument if either handle is null.
      *  @throws std::domain_error     if `u` and `v` are not connected.
      */
-    [[nodiscard]] ET path_query(Node * u, Node * v)
+    [[nodiscard]] ET path_query(Node *u, Node *v)
     {
       return lct_.path_query(u, v);
     }
@@ -354,7 +356,7 @@ namespace Aleph
      *
      *  @throws std::invalid_argument if `x` is null.
      */
-    void make_root(Node * x)
+    void make_root(Node *x)
     {
       lct_.make_root(x);
     }
@@ -366,7 +368,7 @@ namespace Aleph
      *
      *  @throws std::invalid_argument if `x` is null.
      */
-    [[nodiscard]] Node * find_root(Node * x)
+    [[nodiscard]] Node * find_root(Node *x)
     {
       return lct_.find_root(x);
     }
@@ -374,7 +376,7 @@ namespace Aleph
     /** @brief Number of internal nodes (vertices + edge nodes) on the
      *         path from `u` to `v`.
      */
-    [[nodiscard]] size_t path_size(Node * u, Node * v)
+    [[nodiscard]] size_t path_size(Node *u, Node *v)
     {
       return lct_.path_size(u, v);
     }
@@ -384,7 +386,7 @@ namespace Aleph
      *  @throws std::invalid_argument if either handle is null.
      *  @throws std::domain_error     if no edge `(u, v)` exists.
      */
-    void set_edge_val(Node * u, Node * v, const ET & new_weight)
+    void set_edge_val(Node *u, Node *v, const ET & new_weight)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       size_t idx = find_edge_idx(u, v);
@@ -398,7 +400,7 @@ namespace Aleph
      *  @throws std::invalid_argument if either handle is null.
      *  @throws std::domain_error     if no edge `(u, v)` exists.
      */
-    [[nodiscard]] const ET & get_edge_val(Node * u, Node * v)
+    [[nodiscard]] const ET &get_edge_val(Node *u, Node *v)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       size_t idx = find_edge_idx(u, v);
@@ -415,9 +417,9 @@ namespace Aleph
      */
     struct ExportData
     {
-      Node * lct_node;    ///< Back-pointer to the original LCT vertex handle.
-      VT     vertex_value; ///< Stored payload associated with the vertex.
-      ET     parent_edge; ///< Weight of the edge connecting this node to its parent.
+      Node *lct_node; ///< Back-pointer to the original LCT vertex handle.
+      VT vertex_value; ///< Stored payload associated with the vertex.
+      ET parent_edge; ///< Weight of the edge connecting this node to its parent.
     };
 
     /** @brief Export the represented tree rooted at `root` as a `Tree_Node`.
@@ -438,7 +440,7 @@ namespace Aleph
      *  @par Complexity
      *  O(n^2) where n is the number of vertices in the component.
      */
-    [[nodiscard]] Tree_Node<ExportData> * export_to_tree_node(Node * root)
+    [[nodiscard]] Tree_Node<ExportData> * export_to_tree_node(Node *root)
     {
       ah_invalid_argument_if(root == nullptr) << "null handle";
       make_root(root);
@@ -447,35 +449,30 @@ namespace Aleph
 
       // Build adjacency from edge records (only edges in root's component)
       // adj[i] = list of (neighbor_vertex_index, edge_weight)
-      struct AdjEntry { size_t neighbor; ET weight; };
-
-      // Collect vertices in root's component
-      Array<Node *> verts;
-      verts.append(root);
-      for (size_t i = 0; i < edge_recs_.size(); ++i)
-        {
-          const auto & er = edge_recs_(i);
-          if (lct_.connected(er.u, root))
-            {
-              // Ensure both endpoints are collected (avoid duplicates)
-              bool found_u = false, found_v = false;
-              for (size_t j = 0; j < verts.size(); ++j)
-                {
-                  if (verts(j) == er.u) found_u = true;
-                  if (verts(j) == er.v) found_v = true;
-                }
-              if (not found_u) verts.append(er.u);
-              if (not found_v) verts.append(er.v);
-            }
-        }
-
-      auto find_idx = [&](Node * nd) -> size_t
+      struct AdjEntry
       {
-        for (size_t i = 0; i < verts.size(); ++i)
-          if (verts(i) == nd)
-            return i;
-        return verts.size();
+        size_t neighbor;
+        ET weight;
       };
+
+      // Collect vertices in root's component; use a hash map for O(1) lookup
+      Array<Node *> verts;
+      DynMapHash<Node *, size_t, NodePtrEq> node_to_idx(
+          Primes::DefaultPrime, node_ptr_hash, NodePtrEq());
+      auto add_vert = [&](Node * nd) {
+        if (node_to_idx.search(nd) == nullptr)
+          {
+            node_to_idx.insert(nd, verts.size());
+            verts.append(nd);
+          }
+      };
+      add_vert(root);
+      for (size_t i = 0; i < edge_recs_.size(); ++i)
+        if (const auto & er = edge_recs_(i); lct_.connected(er.u, root))
+          {
+            add_vert(er.u);
+            add_vert(er.v);
+          }
 
       // Build adjacency lists
       size_t nv = verts.size();
@@ -486,13 +483,13 @@ namespace Aleph
       for (size_t i = 0; i < edge_recs_.size(); ++i)
         {
           const auto & er = edge_recs_(i);
-          size_t ui = find_idx(er.u);
-          size_t vi = find_idx(er.v);
-          if (ui < nv and vi < nv)
+          auto * up = node_to_idx.search(er.u);
+          auto * vp = node_to_idx.search(er.v);
+          if (up != nullptr and vp != nullptr)
             {
               ET w = lct_.get_val(er.edge_node);
-              adj(ui).append({vi, w});
-              adj(vi).append({ui, w});
+              adj(up->second).append({vp->second, w});
+              adj(vp->second).append({up->second, w});
             }
         }
 
@@ -502,9 +499,11 @@ namespace Aleph
       for (size_t i = 0; i < nv; ++i)
         tn(i) = nullptr;
 
-      size_t root_idx = find_idx(root);
-      tn(root_idx) = new TN({root, lookup_vertex_val(root),
-                             EdgeMonoid::identity()});
+      size_t root_idx = node_to_idx.search(root)->second;
+      tn(root_idx) = new TN({
+                              root, lookup_vertex_val(root),
+                              EdgeMonoid::identity()
+                            });
 
       // BFS queue (simple array-based)
       Array<size_t> queue;
@@ -515,15 +514,12 @@ namespace Aleph
         {
           size_t ci = queue(qfront++);
           for (size_t j = 0; j < adj(ci).size(); ++j)
-            {
-              auto [ni, w] = adj(ci)(j);
-              if (tn(ni) == nullptr)
-                {
-                  tn(ni) = new TN({verts(ni), lookup_vertex_val(verts(ni)), w});
-                  tn(ci)->insert_rightmost_child(tn(ni));
-                  queue.append(ni);
-                }
-            }
+            if (auto [ni, w] = adj(ci)(j); tn(ni) == nullptr)
+              {
+                tn(ni) = new TN({verts(ni), lookup_vertex_val(verts(ni)), w});
+                tn(ci)->insert_rightmost_child(tn(ni));
+                queue.append(ni);
+              }
         }
 
       return tn(root_idx);
@@ -533,7 +529,6 @@ namespace Aleph
   /** @brief Convenience alias for edge-weighted Link-Cut Tree. */
   template <typename EdgeT = int, class Monoid = DefaultMonoid<EdgeT>>
   using Link_Cut_Tree_WithEdges = Gen_Link_Cut_Tree_WithEdges<int, EdgeT, Monoid>;
-
 } // namespace Aleph
 
 # endif /* TPL_LINK_CUT_TREE_WITH_EDGES_H */

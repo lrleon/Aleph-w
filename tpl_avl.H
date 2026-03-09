@@ -119,18 +119,27 @@ namespace Aleph
 
     bool avl_stack_empty() noexcept
     {
-      if (avl_stack.is_empty())
-        {
-          avl_stack.push(head_ptr);
-          return true;
-        }
-      return avl_stack.top() == head_ptr;
+      return not avl_stack.is_empty()
+             and avl_stack.size() == 1
+             and avl_stack.base() == head_ptr;
     }
 
     void clean_avl_stack() noexcept
     {
-      const size_t to_pop = avl_stack.size() > 1 ? avl_stack.size() - 1 : 0;
-      if (to_pop > 0)
+      if (avl_stack.is_empty())
+        {
+          avl_stack.push(head_ptr);
+          return;
+        }
+
+      if (avl_stack.base() != head_ptr)
+        {
+          avl_stack.empty();
+          avl_stack.push(head_ptr);
+          return;
+        }
+
+      if (const size_t to_pop = avl_stack.size() - 1; to_pop > 0)
         avl_stack.popn(static_cast<int>(to_pop));
     }
 
@@ -493,9 +502,9 @@ namespace Aleph
     /// \overload key_comp()
     [[nodiscard]] constexpr Compare &get_compare() noexcept { return key_comp(); }
 
-    Gen_Avl_Tree(Compare __cmp = Compare()) noexcept
+    Gen_Avl_Tree(Compare _cmp = Compare()) noexcept
       : avl_stack(Node::MaxHeight), head_ptr(&head_node),
-        root(RLINK(head_ptr)), cmp(__cmp)
+        root(RLINK(head_ptr)), cmp(_cmp)
     {
       avl_stack.push(head_ptr);
     }

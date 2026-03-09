@@ -123,18 +123,27 @@ namespace Aleph
 
     bool avl_stack_empty() noexcept
     {
-      if (avl_stack.is_empty())
-        {
-          avl_stack.push(head_ptr);
-          return true;
-        }
-      return avl_stack.top() == head_ptr;
+      return not avl_stack.is_empty()
+             and avl_stack.size() == 1
+             and avl_stack.base() == head_ptr;
     }
 
     void clean_avl_stack() noexcept
     {
-      const size_t to_pop = avl_stack.size() > 1 ? avl_stack.size() - 1 : 0;
-      if (to_pop > 0)
+      if (avl_stack.is_empty())
+        {
+          avl_stack.push(head_ptr);
+          return;
+        }
+
+      if (avl_stack.base() != head_ptr)
+        {
+          avl_stack.empty();
+          avl_stack.push(head_ptr);
+          return;
+        }
+
+      if (const size_t to_pop = avl_stack.size() - 1; to_pop > 0)
         avl_stack.popn(static_cast<int>(to_pop));
     }
 
@@ -554,7 +563,7 @@ namespace Aleph
     /// Return a modifiable reference to tree's root
     [[nodiscard]] constexpr Node *&getRoot() noexcept { return root; }
 
-    /// Return a modifiable reference to tree's root
+    /// Return a modifiable reference to the tree's root
     [[nodiscard]] constexpr Node * getRoot() const noexcept { return root; }
 
     /// Return the number of nodes in the tree
@@ -720,7 +729,7 @@ namespace Aleph
 
         @param[in] key to be searched
         @return a pair with the inorder position and the node pointer.
-        If key is not found, position is -1.
+        If the key is not found, the position is -1.
     */
     std::pair<long, Node *> position(const Key & key) const noexcept
     {

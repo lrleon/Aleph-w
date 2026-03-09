@@ -324,10 +324,7 @@ namespace Aleph
     const uint64_t carry = qmod_lo > UINT64_MAX - x_lo ? 1ULL : 0ULL;
 
     const __uint128_t t = static_cast<__uint128_t>(x_hi) + qmod_hi + carry;
-    uint64_t reduced = static_cast<uint64_t>(t % ctx.mod());
-    if (reduced >= ctx.mod())
-      reduced -= ctx.mod();
-    return reduced;
+    return static_cast<uint64_t>(t % ctx.mod());
   }
 
   /** @brief Montgomery multiplication.

@@ -47,6 +47,7 @@
 #include <gtest/gtest.h>
 
 #include <tpl_link_cut_tree.H>
+#include <tpl_link_cut_tree_with_edges.H>
 
 using namespace Aleph;
 using namespace testing;
@@ -1096,8 +1097,6 @@ TEST(LinkCutTreePerf, LargePathStaysReasonable)
 // ===================================================================
 //  I. Edge-as-Node Link-Cut Tree
 // ===================================================================
-
-#include <tpl_link_cut_tree_with_edges.H>
 
 class LinkCutTreeEdgesTest : public Test
 {
