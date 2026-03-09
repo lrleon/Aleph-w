@@ -87,6 +87,26 @@
         "CMAKE_CXX_FLAGS_INIT": "-I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13 -nostdlib++",
         "CMAKE_EXE_LINKER_FLAGS_INIT": "/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
       }
+    },
+    {
+      "name": "clang-libcxx-ci",
+      "displayName": "Clang + libc++ CI Debug",
+      "description": "Debug build that mirrors the GitHub Actions clang + libc++ job",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-clang-libcxx-ci",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_FLAGS_INIT": "-stdlib=libc++",
+        "CMAKE_EXE_LINKER_FLAGS_INIT": "-lc++abi",
+        "CMAKE_SHARED_LINKER_FLAGS_INIT": "-lc++abi",
+        "BUILD_EXAMPLES": "OFF",
+        "BUILD_TESTS": "ON",
+        "ALEPH_USE_LIBCXX": "ON",
+        "ALEPH_FETCH_GTEST": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -113,6 +133,10 @@
     {
       "name": "clang-release",
       "configurePreset": "clang-release"
+    },
+    {
+      "name": "clang-libcxx-ci",
+      "configurePreset": "clang-libcxx-ci"
     }
   ],
   "testPresets": [
@@ -136,6 +160,12 @@
       "name": "clang-debug",
       "configurePreset": "clang-debug",
       "output": {"outputOnFailure": true}
+    },
+    {
+      "name": "clang-libcxx-ci",
+      "configurePreset": "clang-libcxx-ci",
+      "output": {"outputOnFailure": true},
+      "execution": {"jobs": 2}
     }
   ]
 }

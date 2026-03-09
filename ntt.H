@@ -555,10 +555,9 @@ namespace Aleph
       }
 
 # if ALEPH_NTT_HAS_X86_AVX2_DISPATCH
-      ALEPH_NTT_AVX2_TARGET
       [[nodiscard]] static __m256i
       avx2_cmp_ge_u64(const __m256i lhs,
-                      const __m256i rhs) noexcept
+                      const __m256i rhs) noexcept ALEPH_NTT_AVX2_TARGET
       {
         alignas(32) static const uint64_t sign_bits[4] = {
           0x8000000000000000ULL,
@@ -575,11 +574,10 @@ namespace Aleph
         return _mm256_or_si256(gt, eq);
       }
 
-      ALEPH_NTT_AVX2_TARGET
       static void
       avx2_apply_chunk(uint64_t * const low,
                        uint64_t * const high,
-                       const uint64_t * const twiddle_ptr)
+                       const uint64_t * const twiddle_ptr) ALEPH_NTT_AVX2_TARGET
       {
         alignas(32) uint64_t products[4];
         for (size_t lane = 0; lane < 4; ++lane)
@@ -609,10 +607,9 @@ namespace Aleph
         _mm256_storeu_si256(reinterpret_cast<__m256i *>(high), diff_result);
       }
 
-      ALEPH_NTT_AVX2_TARGET
       void
       apply_butterflies_avx2(Array<uint64_t> & a,
-                             const Array<uint64_t> & twiddles) const
+                             const Array<uint64_t> & twiddles) const ALEPH_NTT_AVX2_TARGET
       {
         for (size_t stage = 0; stage < log_n_; ++stage)
           {

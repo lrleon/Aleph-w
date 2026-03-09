@@ -5,12 +5,20 @@ project(Aleph-Tests CXX)
 # Set C++23 standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 
 # Compiler flags
 set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
 set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(COMMON_FLAGS "${COMMON_FLAGS} -D__extern_always_inline=\"extern __always_inline\"")
+endif()
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR
+   AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+   AND ALEPH_USE_LIBCXX)
+    add_compile_options(-stdlib=libc++)
+    add_link_options(-stdlib=libc++)
 endif()
 
 # Debug flags with sanitizers (optional)
