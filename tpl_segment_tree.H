@@ -474,22 +474,38 @@ namespace Aleph
       : Base(num, init_val, T())
     {}
 
-    /** @brief Construct from an initializer list. */
+    /** @brief Construct from an initializer list.
+     *
+     *  @param il source initializer list with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(std::initializer_list<T> il)
       : Base(il, T())
     {}
 
-    /** @brief Construct from an Array\<T\>. */
+    /** @brief Construct from an Array\<T\>.
+     *
+     *  @param values source array with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(const Array<T> & values)
       : Base(values, T())
     {}
 
-    /** @brief Construct from a std::vector\<T\>. */
+    /** @brief Construct from a std::vector\<T\>.
+     *
+     *  @param values source vector with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(const std::vector<T> & values)
       : Base(values, T())
     {}
 
-    /** @brief Construct from a DynList\<T\>. */
+    /** @brief Construct from a DynList\<T\>.
+     *
+     *  @param values source list with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(const DynList<T> & values)
       : Base(values, T())
     {}

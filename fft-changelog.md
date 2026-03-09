@@ -1,7 +1,8 @@
 # FFT Changelog
+Release: v2.0.0b — 2026-03-09
 
 This file records notable FFT-facing release changes for the current
-stabilization cycle.
+stabilization cycle (e.g., following the "Release: vX.Y.Z — YYYY-MM-DD" format).
 
 ## Current release highlights
 

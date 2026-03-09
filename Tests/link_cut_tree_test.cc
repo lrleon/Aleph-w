@@ -198,6 +198,23 @@ TEST_F(LinkCutTreeStructTest, MultipleReroots)
     }
 }
 
+TEST_F(LinkCutTreeStructTest, FindRootAcrossAllNodesAfterRepeatedReroots)
+{
+  constexpr int N = 8;
+  std::vector<Link_Cut_Tree::Node *> nd(N);
+  for (int i = 0; i < N; ++i)
+    nd[i] = lct.make_vertex(i);
+  for (int i = 0; i + 1 < N; ++i)
+    lct.link(nd[i], nd[i + 1]);
+
+  for (int r = N - 1; r >= 0; --r)
+    {
+      lct.make_root(nd[r]);
+      for (int i = 0; i < N; ++i)
+        EXPECT_EQ(lct.find_root(nd[i]), nd[r]);
+    }
+}
+
 // ===================================================================
 //  C. LCA
 // ===================================================================
@@ -299,6 +316,20 @@ TEST_F(LinkCutTreeStructTest, LcaDisconnectedThrows)
   auto * u = lct.make_vertex(1);
   auto * v = lct.make_vertex(2);
   EXPECT_THROW(lct.lca(u, v), std::domain_error);
+}
+
+TEST_F(LinkCutTreeStructTest, PathOperationsDisconnectedThrow)
+{
+  auto * u = lct.make_vertex(1);
+  auto * v = lct.make_vertex(2);
+
+  EXPECT_THROW(lct.path_query(u, v), std::domain_error);
+  EXPECT_THROW(lct.path_size(u, v), std::domain_error);
+
+  bool called = false;
+  EXPECT_THROW(lct.for_each_on_path(u, v, [&](auto *) { called = true; }),
+               std::domain_error);
+  EXPECT_FALSE(called);
 }
 
 // ===================================================================
@@ -704,6 +735,13 @@ TEST_F(LinkCutTreeLazyTest, PathApplyAndQuery)
 
   // query sub-path 1..3 => 15+15+15 = 45
   EXPECT_EQ(lct.path_query(nd[1], nd[3]), 45LL);
+}
+
+TEST_F(LinkCutTreeLazyTest, PathApplyDisconnectedThrows)
+{
+  auto * u = lct.make_vertex(1LL);
+  auto * v = lct.make_vertex(2LL);
+  EXPECT_THROW(lct.path_apply(u, v, 5LL), std::domain_error);
 }
 
 // ===================================================================

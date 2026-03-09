@@ -58,6 +58,7 @@
 # ifndef TWO_SAT_H
 # define TWO_SAT_H
 
+# include <cassert>
 # include <utility>
 # include <limits>
 
@@ -315,6 +316,18 @@ public:
       ++scc_id;
     });
 
+# ifndef NDEBUG
+    for (size_t lit = 0; lit < lit_nodes.size(); ++lit)
+      for (Out_Iterator<GT> it(lit_nodes(lit)); it.has_curr(); it.next_ne())
+        {
+          Node * const src = lit_nodes(lit);
+          Node * const tgt = ig.get_tgt_node(it.get_curr());
+          const long src_id = NODE_COUNTER(src);
+          const long tgt_id = NODE_COUNTER(tgt);
+          assert(src_id == tgt_id or src_id > tgt_id);
+        }
+# endif
+
     Array<bool> assignment = Array<bool>::create(num_vars);
 
     for (size_t i = 0; i < num_vars; ++i)
@@ -325,6 +338,8 @@ public:
         if (id_pos == id_neg)
           return {false, Array<bool>()};
 
+        // This depends on connected_components() returning SCCs in reverse
+        // topological order, which is then recorded in NODE_COUNTER(...).
         assignment(i) = id_pos < id_neg;
       }
 

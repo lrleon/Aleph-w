@@ -628,9 +628,11 @@ namespace Aleph
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
       access(x);
-      while (x->left)
+      while (true)
         {
           push(x);
+          if (x->left == nullptr)
+            break;
           x = x->left;
         }
       splay(x);
@@ -757,6 +759,7 @@ namespace Aleph
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
+      ah_domain_error_if(find_root(v) != u) << "vertices not connected";
       access(v);
       return v->agg;
     }
@@ -773,6 +776,7 @@ namespace Aleph
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
+      ah_domain_error_if(find_root(v) != u) << "vertices not connected";
       access(v);
       return v->sz;
     }
@@ -786,6 +790,7 @@ namespace Aleph
     [[nodiscard]] const T &get_val(Node *x) const
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
+      access(x);
       return x->val;
     }
 
@@ -822,6 +827,7 @@ namespace Aleph
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
+      ah_domain_error_if(find_root(v) != u) << "vertices not connected";
       access(v);
       v->val = LazyTag::apply(v->val, tag, 1);
       v->agg = LazyTag::apply(v->agg, tag, v->sz);
@@ -899,15 +905,21 @@ namespace Aleph
     /** @brief Call `op(Node *)` for every vertex on the path from `u` to `v`,
      *         in order from `u` to `v`.
      *
-     *  O(path_length) after the initial O(log n) access.
+     *  O(path_length log n) amortised.
      */
     template <typename Op>
     void for_each_on_path(Node *u, Node *v, Op && op)
     {
       ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
       make_root(u);
-      access(v);
-      inorder_traverse(v, std::forward<Op>(op));
+      ah_domain_error_if(find_root(v) != u) << "vertices not connected";
+
+      Array<Node *> rev_path;
+      for (Node *cur = v; cur != nullptr; cur = parent(cur))
+        rev_path.append(cur);
+
+      for (size_t i = rev_path.size(); i > 0; --i)
+        op(rev_path(i - 1));
     }
 
     // ---- batch construction ----

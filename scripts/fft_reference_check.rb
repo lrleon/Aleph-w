@@ -34,7 +34,7 @@ unless probe.exist?
   exit 1
 end
 
-stdout, stderr, status = Open3.capture3('python3', '-c', 'import numpy')
+_stdout, _stderr, status = Open3.capture3('python3', '-c', 'import numpy')
 unless status.success?
   warn 'NumPy is not available; external FFT cross-validation was skipped.'
   exit 0

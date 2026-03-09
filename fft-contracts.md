@@ -12,7 +12,7 @@ This document records the intended behavioral contracts of the FFT module.
 
 ## Input contracts
 
-- empty-input handling follows the behavior exercised by `Tests/fft_test.cc`
+- APIs in this module reject empty inputs by throwing `std::invalid_argument` (as specified in `fft.H` around lines 437-440 and exercised by `Tests/fft_test.cc`)
 - real compact-spectrum helpers require enough metadata to reconstruct the target size
 - STFT and ISTFT helpers require compatible frame, hop, and window parameters
 - filter-design helpers require valid band and sampling assumptions

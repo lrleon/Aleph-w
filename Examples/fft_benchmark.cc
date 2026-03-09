@@ -100,6 +100,28 @@ namespace
     long double max_compact_roundtrip_error = 0;
   };
 
+  template <typename Real>
+  [[nodiscard]] constexpr ValidationMetrics
+  validation_envelope() noexcept
+  {
+    if constexpr (std::is_same_v<Real, float>)
+      return {1.0e-4L, 1.0e-4L, 1.0e-4L, 1.0e-4L};
+    else if constexpr (std::is_same_v<Real, double>)
+      return {1.0e-12L, 1.0e-12L, 1.0e-12L, 1.0e-12L};
+    else
+      return {1.0e-15L, 1.0e-15L, 1.0e-15L, 1.0e-15L};
+  }
+
+  [[nodiscard]] constexpr bool
+  is_within_envelope(const ValidationMetrics & metrics,
+                     const ValidationMetrics & envelope) noexcept
+  {
+    return metrics.max_forward_error <= envelope.max_forward_error
+           and metrics.max_roundtrip_error <= envelope.max_roundtrip_error
+           and metrics.max_real_roundtrip_error <= envelope.max_real_roundtrip_error
+           and metrics.max_compact_roundtrip_error <= envelope.max_compact_roundtrip_error;
+  }
+
   [[nodiscard]] Array<size_t>
   parse_sizes(const std::string & csv)
   {
@@ -161,6 +183,13 @@ namespace
         std::cerr << "At least one benchmark size is required\n";
         std::exit(1);
       }
+
+    for (size_t i = 0; i < options.sizes.size(); ++i)
+      if (options.sizes[i] == 0)
+        {
+          std::cerr << "Benchmark sizes must be positive\n";
+          std::exit(1);
+        }
 
     if (options.repetitions == 0)
       {
@@ -860,12 +889,19 @@ namespace
     std::cout << "Benchmark sink: " << static_cast<long double>(benchmark_sink) << "\n";
   }
 
-  void
+  [[nodiscard]] bool
   print_validation(const bool json, const unsigned seed)
   {
     const auto float_metrics = compute_validation_metrics<float>(seed);
     const auto double_metrics = compute_validation_metrics<double>(seed);
     const auto long_double_metrics = compute_validation_metrics<long double>(seed);
+    const auto float_envelope = validation_envelope<float>();
+    const auto double_envelope = validation_envelope<double>();
+    const auto long_double_envelope = validation_envelope<long double>();
+    const bool valid = is_within_envelope(float_metrics, float_envelope)
+                       and is_within_envelope(double_metrics, double_envelope)
+                       and is_within_envelope(long_double_metrics,
+                                              long_double_envelope);
 
     auto print_metrics = [](const char * label, const ValidationMetrics & metrics)
     {
@@ -896,6 +932,7 @@ namespace
         std::cout << "{\n"
                   << "  \"schema_version\": 1,\n"
                   << "  \"mode\": \"validation\",\n"
+                  << "  \"valid\": " << (valid ? "true" : "false") << ",\n"
                   << "  \"metadata\": {\n"
                   << "    \"seed\": " << seed << "\n"
                   << "  },\n"
@@ -904,7 +941,7 @@ namespace
         emit("double", double_metrics, true);
         emit("long_double", long_double_metrics, false);
         std::cout << "  }\n}" << std::endl;
-        return;
+        return valid;
       }
 
     std::cout << "FFT validation envelope (max absolute error, seed=" << seed << ")\n";
@@ -918,6 +955,7 @@ namespace
     print_metrics("float", float_metrics);
     print_metrics("double", double_metrics);
     print_metrics("long double", long_double_metrics);
+    return valid;
   }
 }
 
@@ -927,7 +965,10 @@ main(int argc, char ** argv)
   const Options options = parse_options(argc, argv);
 
   if (options.validate)
-    print_validation(options.json, options.seed);
+    {
+      if (not print_validation(options.json, options.seed))
+        return 1;
+    }
   else
     print_benchmarks(run_benchmarks(options), options);
 

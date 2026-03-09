@@ -60,6 +60,29 @@ def validate_payload(payload, label)
 end
 
 
+def fetch_metadata_value(payload, *keys)
+  metadata = payload['metadata']
+  abort('payload: expected metadata object') unless metadata.is_a?(Hash)
+
+  keys.each do |key|
+    return metadata[key] if metadata.key?(key)
+  end
+
+  abort("payload metadata missing one of: #{keys.join(', ')}")
+end
+
+
+def compare_metadata(baseline_payload, current_payload, baseline_label, current_label)
+  baseline_threads = fetch_metadata_value(baseline_payload, 'threads')
+  current_threads = fetch_metadata_value(current_payload, 'threads')
+  abort("#{baseline_label} and #{current_label} use different thread counts: #{baseline_threads} vs #{current_threads}") unless baseline_threads == current_threads
+
+  baseline_simd = fetch_metadata_value(baseline_payload, 'simd_backend', 'simd')
+  current_simd = fetch_metadata_value(current_payload, 'simd_backend', 'simd')
+  abort("#{baseline_label} and #{current_label} use different SIMD backends: #{baseline_simd} vs #{current_simd}") unless baseline_simd == current_simd
+end
+
+
 def run_benchmark(options)
   cmd = [options[:benchmark], '--json']
   {
@@ -103,6 +126,7 @@ baseline = load_json(options[:baseline])
 validate_payload(baseline, 'baseline')
 current = options[:current] ? load_json(options[:current]) : run_benchmark(options)
 validate_payload(current, 'current')
+compare_metadata(baseline, current, 'baseline', 'current')
 
 baseline_rows = index_rows(baseline)
 current_rows = index_rows(current)

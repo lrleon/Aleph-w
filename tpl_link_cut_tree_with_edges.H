@@ -62,6 +62,8 @@
 # ifndef TPL_LINK_CUT_TREE_WITH_EDGES_H
 # define TPL_LINK_CUT_TREE_WITH_EDGES_H
 
+# include <functional>
+# include <unordered_map>
 # include <tpl_link_cut_tree.H>
 
 namespace Aleph
@@ -83,6 +85,24 @@ namespace Aleph
 
   private:
 
+    struct EdgeKey
+    {
+      Node * a;
+      Node * b;
+
+      [[nodiscard]] bool operator==(const EdgeKey &) const noexcept = default;
+    };
+
+    struct EdgeKeyHash
+    {
+      [[nodiscard]] size_t operator()(const EdgeKey & key) const noexcept
+      {
+        const size_t ha = std::hash<Node *>{}(key.a);
+        const size_t hb = std::hash<Node *>{}(key.b);
+        return ha ^ (hb + 0x9e3779b97f4a7c15ULL + (ha << 6) + (ha >> 2));
+      }
+    };
+
     struct EdgeRec
     {
       Node * u;
@@ -92,25 +112,32 @@ namespace Aleph
 
     InternalLCT lct_;
     Array<EdgeRec> edge_recs_;
+    std::unordered_map<EdgeKey, size_t, EdgeKeyHash> edge_idx_;
     size_t n_vertices_   = 0;
     size_t n_components_ = 0;
 
-    // O(m) scan; acceptable for forests where m < n
+    [[nodiscard]] static EdgeKey make_edge_key(Node * u, Node * v) noexcept
+    {
+      return std::less<Node *>{}(u, v) ? EdgeKey{u, v} : EdgeKey{v, u};
+    }
+
     size_t find_edge_idx(Node * u, Node * v) const noexcept
     {
-      for (size_t i = 0; i < edge_recs_.size(); ++i)
-        {
-          const auto & e = edge_recs_(i);
-          if ((e.u == u and e.v == v) or (e.u == v and e.v == u))
-            return i;
-        }
-      return edge_recs_.size();
+      const auto it = edge_idx_.find(make_edge_key(u, v));
+      return it == edge_idx_.end() ? edge_recs_.size() : it->second;
     }
 
     void remove_edge_at(size_t idx)
     {
+      const auto removed = edge_recs_(idx);
+      edge_idx_.erase(make_edge_key(removed.u, removed.v));
+
       if (idx + 1 < edge_recs_.size())
-        edge_recs_(idx) = edge_recs_(edge_recs_.size() - 1);
+        {
+          edge_recs_(idx) = edge_recs_(edge_recs_.size() - 1);
+          const auto & moved = edge_recs_(idx);
+          edge_idx_[make_edge_key(moved.u, moved.v)] = idx;
+        }
       edge_recs_.remove_last();
     }
 
@@ -176,10 +203,30 @@ namespace Aleph
       ah_invalid_argument_if(u == v) << "self-loop";
       ah_domain_error_if(lct_.connected(u, v)) << "already connected";
 
-      auto * e = lct_.make_vertex(weight);
-      lct_.link(u, e);
-      lct_.link(e, v);
-      edge_recs_.append({u, v, e});
+      const size_t idx = edge_recs_.size();
+      const auto key = make_edge_key(u, v);
+
+      edge_recs_.reserve(idx + 1);
+      edge_idx_.reserve(idx + 1);
+
+      edge_recs_.append({u, v, nullptr});
+
+      try
+        {
+          edge_idx_.emplace(key, idx);
+
+          auto * e = lct_.make_vertex(weight);
+          lct_.link(u, e);
+          lct_.link(e, v);
+          edge_recs_(idx).edge_node = e;
+        }
+      catch (...)
+        {
+          edge_recs_.remove_last();
+          edge_idx_.erase(key);
+          throw;
+        }
+
       --n_components_;
     }
 

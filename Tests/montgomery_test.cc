@@ -40,8 +40,16 @@
 
 using namespace Aleph;
 
+#if defined(__SIZEOF_INT128__)
+
 namespace
 {
+  inline constexpr MontgomeryCtx kCtx3 = montgomery_ctx_for_mod<3>();
+  inline constexpr MontgomeryCtx kCtx9 = montgomery_ctx_for_mod<9>();
+
+  static_assert(kCtx3.mod() == 3);
+  static_assert(kCtx9.mod() == 9);
+
   void
   expect_round_trip(const uint64_t mod,
                     const Array<uint64_t> & values)
@@ -158,3 +166,5 @@ TEST(MontgomeryTest, HandlesLargeOddModulusNearUint64Limit)
   EXPECT_EQ(from_mont(mont_exp(to_mont(mod - 1, ctx), 5, ctx), ctx),
             mod_exp(mod - 1, 5, mod));
 }
+
+#endif

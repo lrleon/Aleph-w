@@ -44,12 +44,43 @@
 # define GENERATE_TREE_H
 
 # include <fstream>
+# include <string>
 # include <tpl_tree_node.H>
 # include <tpl_binNodeUtils.H>
 # include <ah-errors.H>
 
 namespace Aleph
 {
+  inline std::string escape_dot_label(const std::string & text)
+  {
+    std::string escaped;
+    escaped.reserve(text.size());
+
+    for (const char ch : text)
+      switch (ch)
+        {
+        case '\\':
+          escaped += "\\\\";
+          break;
+        case '"':
+          escaped += "\\\"";
+          break;
+        case '\n':
+          escaped += "\\n";
+          break;
+        case '\r':
+          escaped += "\\r";
+          break;
+        case '\t':
+          escaped += "\\t";
+          break;
+        default:
+          escaped += ch;
+        }
+
+    return escaped;
+  }
+
   template <class Node>
   struct Dft_Write
   {
@@ -247,7 +278,8 @@ namespace Aleph
       if (p == nullptr)
         return;
 
-      out << "  \"" << p << "\" [label=\"" << Write()(p) << "\"];" << std::endl;
+      out << "  \"" << p << "\" [label=\""
+          << escape_dot_label(Write()(p)) << "\"];" << std::endl;
 
       for (typename Node::Children_Iterator it(p); it.has_curr(); it.next())
         {

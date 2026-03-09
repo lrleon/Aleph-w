@@ -668,7 +668,7 @@ namespace
  */
 int main()
 {
-  cout << "\n=== Aleph-w: Fast Fourier Transform (FFT) Demonstration ===\n\n";
+  std::cout << "\n=== Aleph-w: Fast Fourier Transform (FFT) Demonstration ===\n\n";
 
   // Case 1: Decomposing a signal into frequency components.
   demo_real_signal_spectrum();
@@ -691,6 +691,6 @@ int main()
   // Case 7: Production DSP helpers on top of the FFT core.
   demo_production_dsp_utilities();
 
-  cout << "All demonstrations completed successfully.\n";
+  std::cout << "All demonstrations completed successfully.\n";
   return 0;
 }

@@ -397,6 +397,26 @@ TEST_F(TreeGraphTest, GenerateTreeOutputsDeweyNotation)
   destroy_tree(treeRoot);
 }
 
+TEST(GenerateTreeGraphvizTest, EscapesSpecialCharactersInLabels)
+{
+  struct RawWriter
+  {
+    string operator()(Tree_Node<string> * p) { return p->get_key(); }
+  };
+
+  auto * root = new Tree_Node<string>;
+  root->get_key() = "say \"hi\"\npath\\leaf";
+
+  ostringstream out;
+  generate_tree_graphviz<Tree_Node<string>, RawWriter>(root, out);
+  const string result = out.str();
+
+  EXPECT_NE(result.find("label=\"say \\\"hi\\\"\\npath\\\\leaf\""), string::npos);
+  EXPECT_EQ(result.find("label=\"say \"hi\""), string::npos);
+
+  delete root;
+}
+
 // ============================================================================
 // Integration Tests
 // ============================================================================

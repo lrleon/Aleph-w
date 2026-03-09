@@ -46,6 +46,8 @@
 #define TPL_ARRAYSTACK_H
 
 #include <iostream>
+#include <memory>
+#include <type_traits>
 #include <aleph.H>
 #include <htlist.H>
 #include <tpl_dynDlist.H>
@@ -174,6 +176,7 @@ namespace Aleph
      */
     T &pushn(const size_t & n = 1)
     {
+      ah_invalid_argument_if(n == 0) << "ArrayStack::pushn: n must be positive";
       array.putn(n);
       return array.last();
     }
@@ -202,18 +205,29 @@ namespace Aleph
      */
     T popn(size_t n)
     {
+      ah_invalid_argument_if(n == 0) << "ArrayStack::popn: n must be positive";
       return array.get(n);
     }
 
     /// Return a modifiable reference to youngest element of stack
     /// (called the top)
-    T &top() const
+    T &top()
+    {
+      return array.last();
+    }
+
+    const T &top() const
     {
       return array.last();
     }
 
     /// Return a modifiable reference to first element of array
     T &base() noexcept
+    {
+      return array.first();
+    }
+
+    const T &base() const noexcept
     {
       return array.first();
     }
@@ -227,14 +241,23 @@ namespace Aleph
         @throw out_of_range if `i` is greater than the number of
         elements of stack
     */
-    T &top(size_t i) const
+    T &top(size_t i)
     {
       const size_t sz = array.size();
       ah_out_of_range_error_if(i >= sz) << "top index out of range";
       return array.access(sz - i - 1);
     }
 
-    T &get_last() const { return top(); }
+    const T &top(size_t i) const
+    {
+      const size_t sz = array.size();
+      ah_out_of_range_error_if(i >= sz) << "top index out of range";
+      return array(sz - i - 1);
+    }
+
+    T &get_last() { return top(); }
+
+    const T &get_last() const { return top(); }
 
     /// Empty the stack
     void empty() noexcept { array.empty(); }

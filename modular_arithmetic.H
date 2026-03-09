@@ -193,6 +193,14 @@ namespace Aleph
   }
 
 # if defined(__SIZEOF_INT128__)
+  struct MontgomeryCtx;
+
+  namespace detail
+  {
+    [[nodiscard]] constexpr MontgomeryCtx
+    montgomery_ctx_unchecked(const uint64_t mod) noexcept;
+  }
+
   /** @brief Precomputed Montgomery reduction state for a fixed odd modulus.
    *
    *  The Montgomery domain represents a value `x` as `xR mod p`, where
@@ -204,11 +212,37 @@ namespace Aleph
    */
   struct MontgomeryCtx
   {
-    uint64_t mod = 0; ///< Odd modulus `p`.
-    uint64_t mod2 = 0; ///< `2 * p` when it fits in `uint64_t`; otherwise 0.
-    uint64_t r = 0; ///< `R mod p`, with `R = 2^64`.
-    uint64_t r2 = 0; ///< `R^2 mod p`, used to lift values into Montgomery form.
-    uint64_t mod_inv_neg = 0; ///< `-p^{-1} mod 2^64`.
+  public:
+    MontgomeryCtx() = delete;
+
+    [[nodiscard]] constexpr uint64_t mod() const noexcept { return mod_; }
+    [[nodiscard]] constexpr uint64_t mod2() const noexcept { return mod2_; }
+    [[nodiscard]] constexpr uint64_t r() const noexcept { return r_; }
+    [[nodiscard]] constexpr uint64_t r2() const noexcept { return r2_; }
+    [[nodiscard]] constexpr uint64_t mod_inv_neg() const noexcept
+    {
+      return mod_inv_neg_;
+    }
+
+  private:
+    friend constexpr MontgomeryCtx
+    detail::montgomery_ctx_unchecked(const uint64_t mod) noexcept;
+
+    constexpr MontgomeryCtx(const uint64_t mod,
+                            const uint64_t mod2,
+                            const uint64_t r,
+                            const uint64_t r2,
+                            const uint64_t mod_inv_neg) noexcept
+      : mod_(mod), mod2_(mod2), r_(r), r2_(r2), mod_inv_neg_(mod_inv_neg)
+    {
+      /* empty */
+    }
+
+    uint64_t mod_; ///< Odd modulus `p`.
+    uint64_t mod2_; ///< `2 * p` when it fits in `uint64_t`; otherwise 0.
+    uint64_t r_; ///< `R mod p`, with `R = 2^64`.
+    uint64_t r2_; ///< `R^2 mod p`, used to lift values into Montgomery form.
+    uint64_t mod_inv_neg_; ///< `-p^{-1} mod 2^64`.
   };
 
   namespace detail
@@ -229,13 +263,11 @@ namespace Aleph
       const auto r = static_cast<uint64_t>(r128 % mod);
       const auto r2 = static_cast<uint64_t>((static_cast<__uint128_t>(r) * r) % mod);
 
-      MontgomeryCtx ctx;
-      ctx.mod = mod;
-      ctx.mod2 = mod <= UINT64_MAX - mod ? mod + mod : 0;
-      ctx.r = r;
-      ctx.r2 = r2;
-      ctx.mod_inv_neg = montgomery_neg_inverse(mod);
-      return ctx;
+      return MontgomeryCtx(mod,
+                           mod <= UINT64_MAX - mod ? mod + mod : 0,
+                           r,
+                           r2,
+                           montgomery_neg_inverse(mod));
     }
   }
 
@@ -283,17 +315,17 @@ namespace Aleph
   mont_reduce(const __uint128_t x,
               const MontgomeryCtx & ctx) noexcept
   {
-    const uint64_t q = static_cast<uint64_t>(x) * ctx.mod_inv_neg;
+    const uint64_t q = static_cast<uint64_t>(x) * ctx.mod_inv_neg();
     const auto x_lo = static_cast<uint64_t>(x);
     const auto x_hi = static_cast<uint64_t>(x >> 64);
-    const __uint128_t qmod = static_cast<__uint128_t>(q) * ctx.mod;
+    const __uint128_t qmod = static_cast<__uint128_t>(q) * ctx.mod();
     const auto qmod_lo = static_cast<uint64_t>(qmod);
     const auto qmod_hi = static_cast<uint64_t>(qmod >> 64);
     const uint64_t carry = qmod_lo > UINT64_MAX - x_lo ? 1ULL : 0ULL;
 
     __uint128_t t = static_cast<__uint128_t>(x_hi) + qmod_hi + carry;
-    if (t >= ctx.mod)
-      t -= ctx.mod;
+    while (t >= ctx.mod())
+      t -= ctx.mod();
     return static_cast<uint64_t>(t);
   }
 
@@ -324,7 +356,7 @@ namespace Aleph
   to_mont(const uint64_t a,
           const MontgomeryCtx & ctx) noexcept
   {
-    return mont_mul(a % ctx.mod, ctx.r2, ctx);
+    return mont_mul(a % ctx.mod(), ctx.r2(), ctx);
   }
 
   /** @brief Lower a Montgomery residue back to the standard domain.

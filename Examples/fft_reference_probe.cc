@@ -13,6 +13,7 @@
  * @brief Emits deterministic FFT reference cases as JSON.
  */
 
+# include <locale>
 # include <iomanip>
 # include <iostream>
 
@@ -57,6 +58,9 @@ namespace
 int
 main()
 {
+  std::locale::global(std::locale::classic());
+  std::cout.imbue(std::locale::classic());
+
   Array<Complex> complex_signal = {
     Complex(1.25, -0.5),
     Complex(-2.0, 1.75),

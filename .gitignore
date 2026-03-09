@@ -341,8 +341,8 @@ CHANGELOG_v3.md
 a.out
 
 # Doxygen generated output
-html/
-latex/
+/html/
+/latex/
 
 # Temporary planning/analysis docs
 ntt-industrial-plan.md

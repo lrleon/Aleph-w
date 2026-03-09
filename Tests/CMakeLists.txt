@@ -528,8 +528,8 @@ if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_reference_probe)
         NAME FFTRelease.ReferenceCrossCheck
         COMMAND ${ALEPH_RUBY_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fft_reference_check.rb
-                --build-dir
-                ${CMAKE_BINARY_DIR}
+                --probe
+                $<TARGET_FILE:fft_reference_probe>
     )
 endif()
 
@@ -539,7 +539,7 @@ if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_benchmark AND TARGET fft_reference_probe
         COMMAND ${ALEPH_RUBY_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fft_release_audit.rb
                 --build-dir
-                ${CMAKE_BINARY_DIR}
+                $<TARGET_FILE_DIR:fft_benchmark>/..
     )
 endif()
 
