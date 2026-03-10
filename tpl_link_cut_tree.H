@@ -70,8 +70,11 @@
 # define TPL_LINK_CUT_TREE_H
 
 # include <concepts>
+# include <initializer_list>
 # include <limits>
 # include <memory>
+# include <type_traits>
+# include <utility>
 # include <tpl_array.H>
 # include <tpl_arrayStack.H>
 # include <tpl_tree_node.H>
@@ -370,9 +373,6 @@ namespace Aleph
     {
       friend class Gen_Link_Cut_Tree;
 
-      /** @brief Return the stored value. */
-      [[nodiscard]] const T &get_val() const noexcept { return val; }
-
     private:
       Node *left = nullptr;
       Node *right = nullptr;
@@ -385,6 +385,9 @@ namespace Aleph
 
       using tag_type = typename LazyTag::tag_type;
       tag_type lazy = LazyTag::tag_identity();
+
+      /** @brief Return the raw stored value without forcing synchronization. */
+      [[nodiscard]] const T &get_val() const noexcept { return val; }
 
       Node() : val(T{}), agg(T{}) {}
       explicit Node(const T & v) : val(v), agg(v) {}

@@ -550,4 +550,7 @@ TEST(TwoSat, LiteralHelpers)
   EXPECT_EQ(Two_Sat<>::signed_to_lit(-1), 1U);  // -1 -> neg_lit(0)
   EXPECT_EQ(Two_Sat<>::signed_to_lit(3), 4U);   // +3 -> pos_lit(2)
   EXPECT_EQ(Two_Sat<>::signed_to_lit(-3), 5U);  // -3 -> neg_lit(2)
+  EXPECT_THROW(Two_Sat<>::signed_to_lit(0), std::domain_error);
+  EXPECT_THROW(Two_Sat<>::signed_to_lit(std::numeric_limits<long>::min()),
+               std::domain_error);
 }

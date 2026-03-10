@@ -22,8 +22,8 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR
 endif()
 
 # Debug flags with sanitizers (optional)
-option(USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
-if(USE_SANITIZERS)
+option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+if(ALEPH_USE_SANITIZERS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
 endif()
@@ -36,7 +36,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 if(NOT TARGET Aleph)
     set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES ON CACHE BOOL "" FORCE)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/aleph)
 endif()
 

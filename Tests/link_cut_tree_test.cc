@@ -485,7 +485,7 @@ TEST_F(LinkCutTreeStructTest, ForEachNode)
   lct.make_vertex(30);
 
   int sum = 0;
-  lct.for_each_node([&](Link_Cut_Tree::Node * n) { sum += n->get_val(); });
+  lct.for_each_node([&](Link_Cut_Tree::Node * n) { sum += lct.get_val(n); });
   EXPECT_EQ(sum, 60);
 }
 

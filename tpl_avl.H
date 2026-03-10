@@ -117,7 +117,7 @@ namespace Aleph
     Node *& root;
     Compare cmp;
 
-    bool avl_stack_empty() noexcept
+    bool avl_stack_at_base() noexcept
     {
       return not avl_stack.is_empty()
              and avl_stack.size() == 1
@@ -146,7 +146,7 @@ namespace Aleph
     Node * search_and_stack_avl(const Key & key,
                                 signed char & cmp_result) noexcept
     {
-      assert(avl_stack_empty());
+      assert(avl_stack_at_base());
 
       Node *p = root;
       Node *candidate = nullptr;  // Tracks potential duplicate when going right
@@ -192,7 +192,7 @@ namespace Aleph
     Node * search_dup_and_stack_avl(const Key & key,
                                     signed char & cmp_result) noexcept
     {
-      assert(avl_stack_empty());
+      assert(avl_stack_at_base());
       cmp_result = CmpEqual;
 
       Node *p = root;
@@ -392,7 +392,7 @@ namespace Aleph
           return;
         }
 
-      if (avl_stack_empty())
+      if (avl_stack_at_base())
         return; // pp is the root
       do // search a node whose balance factor becomes 0
         {
@@ -414,7 +414,7 @@ namespace Aleph
 
           pp = gpp; // AH_ERROR; add
         }
-      while (not avl_stack_empty());
+      while (not avl_stack_at_base());
 
       clean_avl_stack();
     }
@@ -520,7 +520,7 @@ namespace Aleph
       std::swap(cmp, tree.cmp);
     }
 
-    virtual ~Gen_Avl_Tree() noexcept { assert(avl_stack_empty()); }
+    virtual ~Gen_Avl_Tree() noexcept { assert(avl_stack_at_base()); }
 
     /// Return a modifiable reference to tree's root
     [[nodiscard]] constexpr Node *&getRoot() noexcept { return root; }

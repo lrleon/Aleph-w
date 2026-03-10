@@ -138,11 +138,12 @@ public:
    *  @param v Signed variable index (must be non-zero and not LONG_MIN).
    *  @return Literal index.
    */
-  [[nodiscard]] static constexpr size_t
-  signed_to_lit(const long v) noexcept
+  [[nodiscard]] static size_t signed_to_lit(const long v)
   {
-    assert(v != 0);
-    assert(v != std::numeric_limits<long>::min());
+    ah_domain_error_if(v == 0)
+      << "Two_Sat::signed_to_lit: variable index 0 is invalid";
+    ah_domain_error_if(v == std::numeric_limits<long>::min())
+      << "Two_Sat::signed_to_lit: variable index LONG_MIN is invalid";
 
     if (v > 0)
       return pos_lit(static_cast<size_t>(v - 1));

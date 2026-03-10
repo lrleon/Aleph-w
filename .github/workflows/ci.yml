@@ -267,10 +267,15 @@ jobs:
       - name: Build test and FFT example targets
         run: |
           # Build fft_test (always tracked). Build fft_benchmark and
-          # fft_reference_probe only if their sources are present.
+          # fft_reference_probe only if their targets are actually present.
           TARGETS="fft_test"
+          if [ -f build/build.ninja ]; then
+            TARGET_LIST="$(ninja -C build -t targets all 2>/dev/null)"
+          else
+            TARGET_LIST="$(cmake --build build --target help 2>/dev/null || true)"
+          fi
           for t in fft_benchmark fft_reference_probe; do
-            if cmake --build build --target help 2>/dev/null | grep -q "^${t}:"; then
+            if printf '%s\n' "$TARGET_LIST" | grep -q "^${t}:"; then
               TARGETS="$TARGETS $t"
             fi
           done
