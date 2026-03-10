@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 
 project(Aleph-Tests CXX)
 
-# Set C++23 standard
+# Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
@@ -24,8 +24,8 @@ endif()
 # Debug flags with sanitizers (optional)
 option(USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 if(USE_SANITIZERS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")

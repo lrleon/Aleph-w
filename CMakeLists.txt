@@ -58,7 +58,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
 
 if(ALEPH_USE_SANITIZERS)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        add_compile_options(-fsanitize=address,undefined)
+        add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
         add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
     else()
         message(WARNING "ALEPH_USE_SANITIZERS is only supported with GCC or Clang")

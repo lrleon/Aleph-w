@@ -28,13 +28,20 @@ probe = options[:probe] ?
           Pathname(options[:probe]).expand_path :
           repo_root.join(options[:build_dir], 'Examples', 'fft_reference_probe')
 
-unless probe.exist?
-  warn "fft_reference_probe not found at #{probe}. Build it first with:"
+unless probe.file? && probe.executable?
+  warn "fft_reference_probe is not an executable file at #{probe}. Build it first with:"
   warn "  cmake --build #{options[:build_dir]} -j4 --target fft_reference_probe"
   exit 1
 end
 
-_stdout, _stderr, status = Open3.capture3('python3', '-c', 'import numpy')
+def capture_python3(*args, **kwargs)
+  Open3.capture3('python3', *args, **kwargs)
+rescue Errno::ENOENT
+  warn 'python3 is not available; external FFT cross-validation was skipped.'
+  exit 0
+end
+
+_stdout, _stderr, status = capture_python3('-c', 'import numpy')
 unless status.success?
   warn 'NumPy is not available; external FFT cross-validation was skipped.'
   exit 0
@@ -83,7 +90,9 @@ python_script = <<~PY
   print(json.dumps(results))
 PY
 
-results_json, py_err, py_status = Open3.capture3('python3', '-c', python_script, stdin_data: JSON.generate(payload))
+results_json, py_err, py_status = capture_python3(
+  '-c', python_script, stdin_data: JSON.generate(payload)
+)
 unless py_status.success?
   warn py_err
   exit py_status.exitstatus || 1
