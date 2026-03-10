@@ -563,7 +563,7 @@ namespace Aleph
     /// Return a modifiable reference to tree's root
     [[nodiscard]] constexpr Node *&getRoot() noexcept { return root; }
 
-    /// Return a modifiable reference to the tree's root
+    /// Return a pointer to the tree's root
     [[nodiscard]] constexpr Node * getRoot() const noexcept { return root; }
 
     /// Return the number of nodes in the tree

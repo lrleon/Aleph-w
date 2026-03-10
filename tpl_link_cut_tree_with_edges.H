@@ -178,6 +178,13 @@ namespace Aleph
       return entry->second;
     }
 
+    void require_vertex(Node * x) const
+    {
+      ah_invalid_argument_if(x == nullptr) << "null handle";
+      ah_domain_error_if(vertex_vals_.search(x) == nullptr)
+        << "handle does not belong to this tree";
+    }
+
   public:
     Gen_Link_Cut_Tree_WithEdges() = default;
 
@@ -247,16 +254,19 @@ namespace Aleph
      */
     void set_vertex_val(Node *x, const VT & val)
     {
-      ah_invalid_argument_if(x == nullptr) << "null handle";
+      require_vertex(x);
       vertex_vals_.find(x) = val;
     }
 
     /** @brief Test whether `u` and `v` are in the same tree.
      *
      *  @throws std::invalid_argument if either handle is null.
+     *  @throws std::domain_error     if either handle does not belong to this tree.
      */
     [[nodiscard]] bool connected(Node *u, Node *v)
     {
+      require_vertex(u);
+      require_vertex(v);
       return lct_.connected(u, v);
     }
 
@@ -273,7 +283,8 @@ namespace Aleph
      */
     void link(Node *u, Node *v, const ET & weight)
     {
-      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
+      require_vertex(u);
+      require_vertex(v);
       ah_invalid_argument_if(u == v) << "self-loop";
       ah_domain_error_if(lct_.connected(u, v)) << "already connected";
 
@@ -327,7 +338,8 @@ namespace Aleph
      */
     void cut(Node *u, Node *v)
     {
-      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
+      require_vertex(u);
+      require_vertex(v);
       size_t idx = find_edge_idx(u, v);
       ah_domain_error_if(idx == edge_recs_.size()) << "edge does not exist";
 
@@ -349,15 +361,19 @@ namespace Aleph
      */
     [[nodiscard]] ET path_query(Node *u, Node *v)
     {
+      require_vertex(u);
+      require_vertex(v);
       return lct_.path_query(u, v);
     }
 
     /** @brief Make `x` the root of its represented tree.
      *
      *  @throws std::invalid_argument if `x` is null.
+     *  @throws std::domain_error     if `x` does not belong to this tree.
      */
     void make_root(Node *x)
     {
+      require_vertex(x);
       lct_.make_root(x);
     }
 
@@ -367,18 +383,29 @@ namespace Aleph
      *        vertex node.
      *
      *  @throws std::invalid_argument if `x` is null.
+     *  @throws std::domain_error     if `x` does not belong to this tree.
      */
     [[nodiscard]] Node * find_root(Node *x)
     {
+      require_vertex(x);
       return lct_.find_root(x);
     }
 
-    /** @brief Number of internal nodes (vertices + edge nodes) on the
-     *         path from `u` to `v`.
+    /** @brief Number of user vertices on the path from `u` to `v`.
+     *
+     *  Internally each represented edge becomes a hidden node, so the
+     *  wrapped LCT reports a path length of `2k - 1` for a visible path
+     *  with `k` vertices. This wrapper translates the internal count back
+     *  to the public vertex count.
+     *
+     *  @throws std::domain_error if either handle does not belong to this tree.
      */
     [[nodiscard]] size_t path_size(Node *u, Node *v)
     {
-      return lct_.path_size(u, v);
+      require_vertex(u);
+      require_vertex(v);
+      const size_t internal_size = lct_.path_size(u, v);
+      return (internal_size + 1) / 2;
     }
 
     /** @brief Update the weight of an existing edge `(u, v)`.
@@ -388,7 +415,8 @@ namespace Aleph
      */
     void set_edge_val(Node *u, Node *v, const ET & new_weight)
     {
-      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
+      require_vertex(u);
+      require_vertex(v);
       size_t idx = find_edge_idx(u, v);
       ah_domain_error_if(idx == edge_recs_.size()) << "edge does not exist";
 
@@ -402,7 +430,8 @@ namespace Aleph
      */
     [[nodiscard]] const ET &get_edge_val(Node *u, Node *v)
     {
-      ah_invalid_argument_if(u == nullptr or v == nullptr) << "null handle";
+      require_vertex(u);
+      require_vertex(v);
       size_t idx = find_edge_idx(u, v);
       ah_domain_error_if(idx == edge_recs_.size()) << "edge does not exist";
 
@@ -438,11 +467,12 @@ namespace Aleph
      *  @throws std::invalid_argument if `root` is null.
      *
      *  @par Complexity
-     *  O(n^2) where n is the number of vertices in the component.
+     *  O(E log V) where E is the number of managed edges and V is the number
+     *  of vertices in the component.
      */
     [[nodiscard]] Tree_Node<ExportData> * export_to_tree_node(Node *root)
     {
-      ah_invalid_argument_if(root == nullptr) << "null handle";
+      require_vertex(root);
       make_root(root);
 
       using TN = Tree_Node<ExportData>;
@@ -500,10 +530,19 @@ namespace Aleph
         tn(i) = nullptr;
 
       size_t root_idx = node_to_idx.search(root)->second;
-      tn(root_idx) = new TN({
-                              root, lookup_vertex_val(root),
-                              EdgeMonoid::identity()
-                            });
+
+      // RAII guard: calls destroy_tree on the root TN if an exception escapes.
+      // Each new TN is linked to its parent immediately after allocation, so
+      // destroy_tree(root) reaches all allocated nodes on any exception path.
+      struct ScopedTreeOwner
+      {
+        TN * root = nullptr;
+        ~ScopedTreeOwner() noexcept { if (root != nullptr) destroy_tree(root); }
+        TN * release() noexcept { TN * r = root; root = nullptr; return r; }
+      } guard;
+
+      guard.root = new TN({root, lookup_vertex_val(root), EdgeMonoid::identity()});
+      tn(root_idx) = guard.root;
 
       // BFS queue (simple array-based)
       Array<size_t> queue;
@@ -522,7 +561,7 @@ namespace Aleph
               }
         }
 
-      return tn(root_idx);
+      return guard.release();
     }
   };
 

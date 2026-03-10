@@ -2643,8 +2643,8 @@ namespace Aleph
 
     /** @brief Check whether a target product length is supported.
      *
-     *  The length refers to the final convolution length `a.size() + b.size()
-     *  - 1`.  Each internal prime transform may still use Bluestein or a
+     *  The length refers to the final convolution length `a.size() + b.size() - 1`.
+     *  Each internal prime transform may still use Bluestein or a
      *  larger power-of-two staging length.
      */
     [[nodiscard]] static constexpr bool

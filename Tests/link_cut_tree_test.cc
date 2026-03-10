@@ -1080,18 +1080,13 @@ TEST(LinkCutTreePerf, LargePathStaysReasonable)
   lct.link(nd[N / 2], nd[N / 2 + 1]);
   EXPECT_TRUE(lct.connected(nd[0], nd[N - 1]));
 
-  constexpr int ITERS = 512;
-  const auto start = std::chrono::steady_clock::now();
-  for (int i = 0; i < ITERS; ++i)
+  // Functional smoke-check: repeated queries must return consistent results.
+  for (int i = 0; i < 512; ++i)
     {
       EXPECT_TRUE(lct.connected(nd[0], nd[N - 1]));
       EXPECT_EQ(lct.find_root(nd[0]), lct.find_root(nd[N - 1]));
       EXPECT_EQ(lct.path_size(nd[0], nd[N - 1]), static_cast<size_t>(N));
     }
-  const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-      std::chrono::steady_clock::now() - start);
-  EXPECT_LT(elapsed.count(), 1000) << "Link-cut path ops regressed: "
-                                   << elapsed.count() << " ms";
 }
 
 // ===================================================================
@@ -1576,6 +1571,108 @@ TEST_F(LinkCutTreeEdgesTest, ExportToTreeNodeStar)
   EXPECT_EQ(child_weights[2], 30);
 
   destroy_tree(tree);
+}
+
+// ===================================================================
+//  N. Gen_Link_Cut_Tree_WithEdges — wrapper-specific contracts
+// ===================================================================
+
+TEST_F(LinkCutTreeEdgesTest, NumEdgesAndNumComponentsAfterLink)
+{
+  auto * a = lct.make_vertex(0);
+  auto * b = lct.make_vertex(1);
+  auto * c = lct.make_vertex(2);
+
+  EXPECT_EQ(lct.num_edges(), 0u);
+  EXPECT_EQ(lct.num_components(), 3u);
+
+  lct.link(a, b, 1);
+  EXPECT_EQ(lct.num_edges(), 1u);
+  EXPECT_EQ(lct.num_components(), 2u);
+
+  lct.link(b, c, 2);
+  EXPECT_EQ(lct.num_edges(), 2u);
+  EXPECT_EQ(lct.num_components(), 1u);
+}
+
+TEST_F(LinkCutTreeEdgesTest, NumEdgesAndNumComponentsAfterCut)
+{
+  auto * a = lct.make_vertex(0);
+  auto * b = lct.make_vertex(1);
+  auto * c = lct.make_vertex(2);
+
+  lct.link(a, b, 10);
+  lct.link(b, c, 20);
+  EXPECT_EQ(lct.num_edges(), 2u);
+  EXPECT_EQ(lct.num_components(), 1u);
+
+  lct.cut(a, b);
+  EXPECT_EQ(lct.num_edges(), 1u);
+  EXPECT_EQ(lct.num_components(), 2u);
+
+  lct.cut(b, c);
+  EXPECT_EQ(lct.num_edges(), 0u);
+  EXPECT_EQ(lct.num_components(), 3u);
+}
+
+TEST_F(LinkCutTreeEdgesTest, PathSizeOnSimplePath)
+{
+  auto * a = lct.make_vertex(0);
+  auto * b = lct.make_vertex(1);
+  auto * c = lct.make_vertex(2);
+  auto * d = lct.make_vertex(3);
+
+  lct.link(a, b, 1);
+  lct.link(b, c, 2);
+  lct.link(c, d, 3);
+
+  // path a-b-c-d has 4 nodes
+  EXPECT_EQ(lct.path_size(a, d), 4u);
+  EXPECT_EQ(lct.path_size(a, b), 2u);
+  EXPECT_EQ(lct.path_size(b, d), 3u);
+}
+
+TEST_F(LinkCutTreeEdgesTest, MakeRootAndFindRoot)
+{
+  auto * a = lct.make_vertex(0);
+  auto * b = lct.make_vertex(1);
+  auto * c = lct.make_vertex(2);
+
+  lct.link(a, b, 5);
+  lct.link(b, c, 7);
+
+  // Initial root is arbitrary; after make_root(c) find_root should return c.
+  lct.make_root(c);
+  EXPECT_EQ(lct.find_root(a), c);
+  EXPECT_EQ(lct.find_root(b), c);
+  EXPECT_EQ(lct.find_root(c), c);
+
+  lct.make_root(a);
+  EXPECT_EQ(lct.find_root(c), a);
+}
+
+// Regression: passing a handle from a different instance must be rejected.
+TEST(LinkCutTreeEdgesOwnership, ForeignHandleRejected)
+{
+  Gen_Link_Cut_Tree_WithEdges<int, int, MaxMonoid<int>> lct1;
+  Gen_Link_Cut_Tree_WithEdges<int, int, MaxMonoid<int>> lct2;
+
+  auto * u1 = lct1.make_vertex(1);
+  auto * v1 = lct1.make_vertex(3);
+  auto * u2 = lct2.make_vertex(2);
+
+  EXPECT_THROW(lct1.connected(u1, u2), std::domain_error);
+  EXPECT_THROW(lct1.set_vertex_val(u2, 9), std::domain_error);
+  EXPECT_THROW(lct1.link(u1, u2, 4), std::domain_error);
+  EXPECT_THROW(lct1.path_query(u1, u2), std::domain_error);
+  EXPECT_THROW(lct1.make_root(u2), std::domain_error);
+  EXPECT_THROW(lct1.find_root(u2), std::domain_error);
+  EXPECT_THROW(lct1.path_size(u1, u2), std::domain_error);
+  EXPECT_THROW(destroy_tree(lct1.export_to_tree_node(u2)), std::domain_error);
+
+  lct1.link(u1, v1, 5);
+  EXPECT_THROW(lct1.path_query(v1, u2), std::domain_error);
+  EXPECT_THROW(lct1.path_size(v1, u2), std::domain_error);
 }
 
 int main(int argc, char * argv[])

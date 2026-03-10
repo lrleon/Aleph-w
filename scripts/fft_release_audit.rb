@@ -98,14 +98,14 @@ unless missing_docs.empty?
   exit 1
 end
 
-unless benchmark.exist?
-  warn "fft_benchmark not found at #{benchmark}. Build it first with:"
+unless benchmark.file? && benchmark.executable?
+  warn "fft_benchmark not found or not executable at #{benchmark}. Build it first with:"
   warn "  cmake --build #{options[:build_dir]} -j4 --target fft_benchmark"
   exit 1
 end
 
-unless probe.exist?
-  warn "fft_reference_probe not found at #{probe}. Build it first with:"
+unless probe.file? && probe.executable?
+  warn "fft_reference_probe not found or not executable at #{probe}. Build it first with:"
   warn "  cmake --build #{options[:build_dir]} -j4 --target fft_reference_probe"
   exit 1
 end
@@ -113,14 +113,19 @@ end
 def run_step(label, command)
   puts "[audit] #{label}"
   puts "        #{command.shelljoin}"
-  stdout, stderr, status = Open3.capture3(*command)
+  begin
+    stdout, stderr, status = Open3.capture3(*command)
+  rescue SystemCallError => e
+    abort("[audit] #{label} failed: #{e.message}")
+  end
   print stdout unless stdout.empty?
   warn stderr unless stderr.empty?
   abort("[audit] #{label} failed") unless status.success?
 end
 
 run_step('benchmark-validate', [benchmark.to_s, '--validate'])
-reference_command = ['ruby', reference_script.to_s]
+require 'rbconfig'
+reference_command = [RbConfig.ruby, reference_script.to_s]
 if options[:probe]
   reference_command.concat(['--probe', probe.to_s])
 else
@@ -130,7 +135,7 @@ run_step('reference-cross-check', reference_command)
 
 if options[:perf_baseline]
   command = [
-    'ruby',
+    RbConfig.ruby,
     perf_script.to_s,
     '--baseline', options[:perf_baseline],
     '--benchmark', benchmark.to_s,

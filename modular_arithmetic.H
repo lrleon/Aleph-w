@@ -204,21 +204,46 @@ namespace Aleph
   /** @brief Precomputed Montgomery reduction state for a fixed odd modulus.
    *
    *  The Montgomery domain represents a value `x` as `xR mod p`, where
-   *  `R = 2^64`.  With a fixed odd modulus, multiplication can then be reduced
-   *  using only 64-bit multiplies, additions, and shifts.
+   *  `R = 2^64`.
    *
-   *  The field @ref mod2 is populated only when `2 * mod` fits in `uint64_t`;
-   *  otherwise it is set to zero and callers should use @ref mod instead.
+   *  When `2p < 2^64` (indicated by `mod2() != 0`), reduction uses only
+   *  64-bit multiplies, additions, shifts, and a single conditional subtraction
+   *  — no division.  This is the common case for NTT/FFT primes.
+   *
+   *  When `p ≥ 2^63` (`mod2() == 0`), the REDC intermediate `t` may exceed
+   *  `UINT64_MAX`, so a 128-bit `%` is used as a fallback.
+   *
+   *  The field @ref mod2 is `2 * mod` when it fits in `uint64_t`; otherwise
+   *  zero, signalling the large-prime fallback path in `mont_reduce`.
    */
   struct MontgomeryCtx
   {
   public:
     MontgomeryCtx() = delete;
 
+    /** @brief Returns the odd modulus `p`.
+     *  @return The odd modulus.
+     *  @throws none */
     [[nodiscard]] constexpr uint64_t mod() const noexcept { return mod_; }
+
+    /** @brief Returns `2 * p` when it fits in `uint64_t`, or 0 if it would overflow.
+     *  @return The `2 * p` helper value for reduction.
+     *  @throws none */
     [[nodiscard]] constexpr uint64_t mod2() const noexcept { return mod2_; }
+
+    /** @brief Returns `R mod p`, where `R = 2^64`.
+     *  @return The Montgomery `R` value.
+     *  @throws none */
     [[nodiscard]] constexpr uint64_t r() const noexcept { return r_; }
+
+    /** @brief Returns `R^2 mod p`, used to lift values into Montgomery form.
+     *  @return The Montgomery `R^2` value.
+     *  @throws none */
     [[nodiscard]] constexpr uint64_t r2() const noexcept { return r2_; }
+
+    /** @brief Returns `-p^{-1} mod 2^64`.
+     *  @return The negative modular inverse of `p` modulo `2^64`.
+     *  @throws none */
     [[nodiscard]] constexpr uint64_t mod_inv_neg() const noexcept
     {
       return mod_inv_neg_;
@@ -304,10 +329,24 @@ namespace Aleph
 
   /** @brief Montgomery reduction (`REDC`).
    *
-   *  Converts `x` from the redundant product domain back into Montgomery form:
-   *  `x * R^{-1} mod p`.
+   *  Computes `x * R^{-1} mod p`, converting an intermediate product back
+   *  to the standard residue domain.
    *
-   *  @param x 128-bit intermediate value.
+   *  **Precondition**: `0 ≤ x < p * R` where `R = 2^64`.  Both `mont_mul`
+   *  (where `x = a * b`, `a,b < p`) and `from_mont` (where `x = a < p`) satisfy
+   *  this precondition whenever operands are valid Montgomery residues.
+   *
+   *  Standard REDC guarantees the intermediate result `t = (x + q·p) / R`
+   *  satisfies `0 ≤ t < 2p`.
+   *
+   *  **Fast path** (`ctx.mod2() != 0`, i.e. `2p < 2^64`):  `t` fits in a
+   *  `uint64_t` and is reduced to `[0, p)` with a single conditional
+   *  subtraction — no division is performed.
+   *
+   *  **Fallback** (`ctx.mod2() == 0`, i.e. `p ≥ 2^63`):  `t` may reach
+   *  `2p - 1 > UINT64_MAX`; a 128-bit `%` is used to reduce it safely.
+   *
+   *  @param x  128-bit intermediate value satisfying `0 ≤ x < p * R`.
    *  @param ctx Montgomery context for the modulus.
    *  @return Reduced value in `[0, p)`.
    */
@@ -323,7 +362,19 @@ namespace Aleph
     const auto qmod_hi = static_cast<uint64_t>(qmod >> 64);
     const uint64_t carry = qmod_lo > UINT64_MAX - x_lo ? 1ULL : 0ULL;
 
+    // t = (x + q·p) / R; REDC guarantees 0 ≤ t < 2p.
     const __uint128_t t = static_cast<__uint128_t>(x_hi) + qmod_hi + carry;
+
+    // Fast path: 2p < 2^64 so t fits in uint64_t; one conditional subtraction
+    // reduces to [0, p) using only additions and comparisons.
+    if (ctx.mod2() != 0)
+      {
+        const uint64_t t64 = static_cast<uint64_t>(t);
+        return t64 >= ctx.mod() ? t64 - ctx.mod() : t64;
+      }
+
+    // Fallback for large primes (p ≥ 2^63): t may exceed UINT64_MAX, so keep
+    // it in __uint128_t and use a single 128-bit division to finish.
     return static_cast<uint64_t>(t % ctx.mod());
   }
 
