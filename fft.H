@@ -155,6 +155,12 @@ namespace Aleph
   public:
     using value_type = Real;
     using Complex = std::complex<Real>;
+
+    /** @brief Precomputed plans for FFT transforms.
+     *
+     *  Stores twiddle factors and auxiliary data (like bit-reversal tables
+     *  or Bluestein kernels) for a fixed transform size.
+     */
     class Plan;
 
     /** @brief SIMD hardware acceleration backends. */
@@ -10289,8 +10295,14 @@ namespace Aleph
       }
 
     public:
+      /** @brief Default constructor for an unconfigured processor. */
       STFTProcessor() = default;
 
+      /** @brief Construct an STFT processor with a fixed analysis window.
+       *
+       *  @param window Analysis window (e.g. Hann, Hamming).
+       *  @param options STFT parameters (hop size, centered, etc.).
+       */
       explicit STFTProcessor(const Array<Real> & window,
                              const STFTOptions & options)
         : window_(window),
@@ -10305,11 +10317,22 @@ namespace Aleph
         initialize_pending();
       }
 
+      /** @brief Construct an STFT processor using a Hann window.
+       *
+       *  @param frame_size Analysis window size.
+       *  @param options STFT parameters.
+       */
       explicit STFTProcessor(const size_t frame_size,
                              const STFTOptions & options)
         : STFTProcessor(FFT::hann_window(frame_size), options)
       {}
 
+      /** @brief Construct an STFT processor from any real container.
+       *
+       *  @tparam WindowContainer Container type (e.g. std::vector<double>).
+       *  @param window Analysis window.
+       *  @param options STFT parameters.
+       */
       template <typename WindowContainer>
         requires Is_Real_Container<WindowContainer>
       explicit STFTProcessor(const WindowContainer & window,
@@ -10659,8 +10682,16 @@ namespace Aleph
       }
 
     public:
+      /** @brief Default constructor for an unconfigured inverse processor. */
       ISTFTProcessor() = default;
 
+      /** @brief Construct an inverse STFT processor with custom windows.
+       *
+       *  @param fft_size Fixed FFT transform size.
+       *  @param analysis_window Analysis window used during STFT.
+       *  @param synthesis_window Synthesis window for reconstruction.
+       *  @param options Overlap-add parameters.
+       */
       explicit ISTFTProcessor(const size_t fft_size,
                               const Array<Real> & analysis_window,
                               const Array<Real> & synthesis_window,
@@ -10681,12 +10712,24 @@ namespace Aleph
         initialize_state();
       }
 
+      /** @brief Construct an inverse STFT processor with a single window.
+       *
+       *  @param fft_size Fixed FFT transform size.
+       *  @param window Window used for both analysis and synthesis.
+       *  @param options Overlap-add parameters.
+       */
       explicit ISTFTProcessor(const size_t fft_size,
                               const Array<Real> & window,
                               const ISTFTOptions & options)
         : ISTFTProcessor(fft_size, window, window, options)
       {}
 
+      /** @brief Construct an inverse STFT processor with a Hann window.
+       *
+       *  @param fft_size Fixed FFT transform size.
+       *  @param frame_size Hann window size.
+       *  @param options Overlap-add parameters.
+       */
       explicit ISTFTProcessor(const size_t fft_size,
                               const size_t frame_size,
                               const ISTFTOptions & options)
@@ -10696,6 +10739,15 @@ namespace Aleph
                          options)
       {}
 
+      /** @brief Construct an inverse STFT processor from any real containers.
+       *
+       *  @tparam AnalysisContainer Type for analysis window.
+       *  @tparam SynthesisContainer Type for synthesis window.
+       *  @param fft_size Fixed FFT transform size.
+       *  @param analysis_window Analysis window.
+       *  @param synthesis_window Synthesis window.
+       *  @param options Overlap-add parameters.
+       */
       template <typename AnalysisContainer, typename SynthesisContainer>
         requires Is_Real_Container<AnalysisContainer>
                  and Is_Real_Container<SynthesisContainer>
@@ -11430,8 +11482,16 @@ namespace Aleph
       }
 
     public:
+      /** @brief Default constructor for an unconfigured LFilter. */
       LFilter() = default;
 
+      /** @brief Construct a linear filter from numerator and denominator arrays.
+       *
+       *  The filter is normalized such that a[0] = 1.
+       *
+       *  @param numerator Feed-forward coefficients (B).
+       *  @param denominator Feed-back coefficients (A).
+       */
       explicit LFilter(const Array<Real> & numerator,
                        const Array<Real> & denominator)
         : coeffs_(FFT::normalize_iir_coefficients(numerator,
@@ -11442,14 +11502,25 @@ namespace Aleph
         initialize_state();
       }
 
+      /** @brief Construct a linear filter from IIRCoefficients.
+       *  @param coeffs IIR coefficients. */
       explicit LFilter(const IIRCoefficients & coeffs)
         : LFilter(coeffs.numerator, coeffs.denominator)
       {}
 
+      /** @brief Construct a linear filter from a single BiquadSection.
+       *  @param section Biquad section. */
       explicit LFilter(const BiquadSection & section)
         : LFilter(section.numerator(), section.denominator())
       {}
 
+      /** @brief Construct a linear filter from any real containers.
+       *
+       *  @tparam NumContainer Type for numerator.
+       *  @tparam DenContainer Type for denominator.
+       *  @param numerator Feed-forward coefficients.
+       *  @param denominator Feed-back coefficients.
+       */
       template <typename NumContainer, typename DenContainer>
         requires Is_Real_Container<NumContainer> and Is_Real_Container<DenContainer>
       explicit LFilter(const NumContainer & numerator,
@@ -11552,8 +11623,11 @@ namespace Aleph
       }
 
     public:
+      /** @brief Default constructor for an unconfigured SOSFilter. */
       SOSFilter() = default;
 
+      /** @brief Construct a cascade of second-order sections (SOS).
+       *  @param sections Array of biquad sections. */
       explicit SOSFilter(const Array<BiquadSection> & sections)
         : sections_(sections),
           configured_(true)
@@ -11569,6 +11643,9 @@ namespace Aleph
         initialize_states();
       }
 
+      /** @brief Construct a cascade of SOS from any biquad container.
+       *  @tparam SectionsContainer Container of BiquadSection.
+       *  @param sections Biquad sections. */
       template <typename SectionsContainer>
         requires Is_Biquad_Container<SectionsContainer>
       explicit SOSFilter(const SectionsContainer & sections)

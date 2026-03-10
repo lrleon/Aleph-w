@@ -263,6 +263,7 @@ namespace Aleph
   template <typename T>
   struct AssignLazyTag
   {
+    /** @brief Payload for the assignment lazy tag. */
     struct tag_type
     {
       T val = {};
@@ -289,19 +290,24 @@ namespace Aleph
     }
   };
 
+  /** @brief Metafunction to check if a monoid supports counted lazy tags. */
   template <class Monoid, class = void>
   struct monoid_supports_counted_lazy : std::false_type {};
 
+  /** @brief Specialization for monoids with supports_counted_lazy member. */
   template <class Monoid>
   struct monoid_supports_counted_lazy<Monoid, std::void_t<typename Monoid::supports_counted_lazy>>
       : std::bool_constant<Monoid::supports_counted_lazy::value> {};
 
+  /** @brief Metafunction to check if a tag is a counted lazy tag. */
   template <class LazyTag, typename T>
   struct is_counted_lazy_tag : std::false_type {};
 
+  /** @brief Specialization for AddLazyTag. */
   template <typename T>
   struct is_counted_lazy_tag<AddLazyTag<T>, T> : std::true_type {};
 
+  /** @brief Specialization for AssignLazyTag. */
   template <typename T>
   struct is_counted_lazy_tag<AssignLazyTag<T>, T> : std::true_type {};
 
@@ -567,21 +573,26 @@ namespace Aleph
     }
 
   public:
+    /** @brief Default constructor for an empty Link-Cut Tree. */
     Gen_Link_Cut_Tree() = default;
 
+    /** @brief Destructor. Frees all nodes managed by the LCT. */
     ~Gen_Link_Cut_Tree()
     {
       for (size_t i = 0; i < nodes.size(); ++i)
         delete nodes(i);
     }
 
-    // Non-copyable, non-movable (internal pointers)
+    /** @brief Deleted copy constructor. */
     Gen_Link_Cut_Tree(const Gen_Link_Cut_Tree &) = delete;
 
+    /** @brief Deleted copy assignment. */
     Gen_Link_Cut_Tree &operator=(const Gen_Link_Cut_Tree &) = delete;
 
+    /** @brief Deleted move constructor. */
     Gen_Link_Cut_Tree(Gen_Link_Cut_Tree &&) = delete;
 
+    /** @brief Deleted move assignment. */
     Gen_Link_Cut_Tree &operator=(Gen_Link_Cut_Tree &&) = delete;
 
     /** @brief Create an isolated vertex with payload `val`.

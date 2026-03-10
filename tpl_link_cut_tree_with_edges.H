@@ -67,6 +67,13 @@
 
 namespace Aleph
 {
+  /** @brief Link-Cut Tree with edge weights and path aggregations.
+   *
+   *  @tparam VT Vertex payload type (stored but not aggregated).
+   *  @tparam ET Edge value type (aggregated via EdgeMonoid).
+   *  @tparam EdgeMonoid Associative combiner for edge aggregation.
+   *  @tparam LazyTag Lazy-tag policy for deferred edge updates.
+   */
   template <typename VT = int,
             typename ET = int,
             class EdgeMonoid = DefaultMonoid<ET>,
@@ -186,14 +193,19 @@ namespace Aleph
     }
 
   public:
+    /** @brief Default constructor for an empty Link-Cut Tree with edges. */
     Gen_Link_Cut_Tree_WithEdges() = default;
 
+    /** @brief Deleted copy constructor. */
     Gen_Link_Cut_Tree_WithEdges(const Gen_Link_Cut_Tree_WithEdges &) = delete;
 
+    /** @brief Deleted copy assignment. */
     Gen_Link_Cut_Tree_WithEdges &operator=(const Gen_Link_Cut_Tree_WithEdges &) = delete;
 
+    /** @brief Deleted move constructor. */
     Gen_Link_Cut_Tree_WithEdges(Gen_Link_Cut_Tree_WithEdges &&) = delete;
 
+    /** @brief Deleted move assignment. */
     Gen_Link_Cut_Tree_WithEdges &operator=(Gen_Link_Cut_Tree_WithEdges &&) = delete;
 
     /** @brief Create an isolated vertex.

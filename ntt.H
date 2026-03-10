@@ -457,6 +457,11 @@ namespace Aleph
       return simd_backend_name(simd_backend());
     }
 
+    /** @brief Precomputed plans for NTT transforms.
+     *
+     *  Stores twiddle factors and auxiliary data (like bit-reversal tables
+     *  or Bluestein kernels) for a fixed transform size.
+     */
     class Plan
     {
       enum class Strategy

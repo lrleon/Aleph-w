@@ -193,10 +193,12 @@ namespace Aleph
   }
 
 # if defined(__SIZEOF_INT128__)
+  /** @brief Precomputed Montgomery reduction state for a fixed odd modulus. */
   struct MontgomeryCtx;
 
   namespace detail
   {
+    /** @brief Internal helper to create a MontgomeryCtx without validation. */
     [[nodiscard]] constexpr MontgomeryCtx
     montgomery_ctx_unchecked(const uint64_t mod) noexcept;
   }
@@ -253,6 +255,7 @@ namespace Aleph
     friend constexpr MontgomeryCtx
     detail::montgomery_ctx_unchecked(const uint64_t mod) noexcept;
 
+    /** @brief Internal constructor for precomputed Montgomery state. */
     constexpr MontgomeryCtx(const uint64_t mod,
                             const uint64_t mod2,
                             const uint64_t r,
