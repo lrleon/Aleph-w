@@ -336,3 +336,41 @@ CHANGELOG_v3.md
 
 !CMakeLists.txt
 !Tests/CMakeLists.txt
+
+# Compiled binaries
+a.out
+
+# Doxygen generated output
+/html/
+/latex/
+
+# Temporary planning/analysis docs
+ntt-industrial-plan.md
+linl-cut-tree.md
+fft-plan.md
+fft-elite-plan.md
+fft-changelog.md
+fft-contracts.md
+fft-support-matrix.md
+fft-validation.md
+analisis_implementacion.md
+ANALISIS_RAMA_UTILS.md
+reporte-faltantes.md
+falta.md
+EDGE_AS_NODE_STATUS.md
+
+# AI agent config files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+
+# Temp scripts in root
+fix-license-headers.rb
+show-example-change.rb
+test-license-fix.rb
+
+# Python planarity scripts (should be .rb)
+scripts/planarity_certificate_ci_batch.py
+scripts/planarity_certificate_ci_visual_diff.py
+scripts/planarity_certificate_validator.py
+scripts/planarity_visual_golden_manifest.json

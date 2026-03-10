@@ -31,6 +31,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(BUILD_OPTIMIZED "Build optimized version (-Ofast -DNDEBUG)" OFF)
 option(BUILD_EXAMPLES "Build examples" ON)
 option(BUILD_TESTS "Build tests" ON)
+option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 
 # Set build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
@@ -46,10 +48,22 @@ set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings 
 set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(COMMON_FLAGS "${COMMON_FLAGS} -D__extern_always_inline=\"extern __always_inline\"")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND ALEPH_USE_LIBCXX)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>)
+    add_link_options($<$<LINK_LANGUAGE:CXX>:-stdlib=libc++>)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
+
+if(ALEPH_USE_SANITIZERS)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+        add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+    else()
+        message(WARNING "ALEPH_USE_SANITIZERS is only supported with GCC or Clang")
+    endif()
+endif()
 
 # Debug flags
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -g3 -O0")
@@ -225,4 +239,5 @@ message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  C++ standard: C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  Build examples: ${BUILD_EXAMPLES}")
 message(STATUS "  Build tests: ${BUILD_TESTS}")
+message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")

@@ -57,11 +57,13 @@
  * - Dynamic programming (Knapsack, LIS, Matrix-Chain, Subset-Sum, Tree DP)
  * - Combinatorial algorithms (permutations, combinations)
  * - String algorithms
- * - Numerical algorithms
+ * - Numerical algorithms, including Fourier transforms (FFT and NTT)
  * - Generic algorithms operating on data structures
  *
  * Many of these algorithms are parameterized by comparison functors
  * and can work with various data structures.
+ *
+ * @see fft.H
  */
 
 /**

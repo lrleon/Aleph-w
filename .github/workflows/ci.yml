@@ -201,6 +201,162 @@ jobs:
             build/CMakeCache.txt
             build/test_artifacts/golden_svg
 
+  fft-simd-validation:
+    name: fft-simd-validation (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CC: gcc
+      CXX: g++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libgtest-dev \
+            ruby-full python3-numpy
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-fft-simd-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-fft-simd-ccache-
+
+      - name: Build and install GoogleTest
+        run: |
+          set -euo pipefail
+          if pkg-config --exists gtest gtest_main; then
+            echo "gtest found via pkg-config"
+            exit 0
+          fi
+          if [ -d /usr/src/googletest ]; then
+            sudo cmake -S /usr/src/googletest -B /usr/src/googletest/build -G Ninja
+            sudo cmake --build /usr/src/googletest/build
+            sudo cmake --install /usr/src/googletest/build
+            exit 0
+          fi
+          if [ -d /usr/src/gtest ]; then
+            sudo cmake -S /usr/src/gtest -B /usr/src/gtest/build -G Ninja
+            sudo cmake --build /usr/src/gtest/build
+            sudo cmake --install /usr/src/gtest/build
+            exit 0
+          fi
+          echo "No googletest sources found in /usr/src (expected /usr/src/googletest or /usr/src/gtest)"
+          exit 1
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=ON \
+            -DBUILD_TESTS=ON
+
+      - name: Build test and FFT example targets
+        run: |
+          # Build fft_test (always tracked). Build fft_benchmark and
+          # fft_reference_probe only if their targets are actually present.
+          TARGETS="fft_test"
+          if [ -f build/build.ninja ]; then
+            TARGET_LIST="$(ninja -C build -t targets all 2>/dev/null)"
+          else
+            TARGET_LIST="$(cmake --build build --target help 2>/dev/null || true)"
+          fi
+          for t in fft_benchmark fft_reference_probe; do
+            if printf '%s\n' "$TARGET_LIST" | grep -q "^${t}:"; then
+              TARGETS="$TARGETS $t"
+            fi
+          done
+          echo "Building targets: $TARGETS"
+          cmake --build build --parallel --target $TARGETS
+
+      - name: FFT tests (default SIMD policy)
+        run: |
+          ctest --test-dir build \
+            -R '^(FFT|FFTPlan|FFTLargeN|FFTSTFT|FFTOverlapAdd|FFTND|FFTIIR|FFTDSPUtilities|FFTOverlapSave|FFTPartitionedConvolver)' \
+            --output-on-failure --timeout 120
+
+      - name: FFT tests (forced scalar)
+        env:
+          ALEPH_FFT_SIMD: scalar
+        run: |
+          ctest --test-dir build \
+            -R '^(FFT|FFTPlan|FFTLargeN|FFTSTFT|FFTOverlapAdd|FFTND|FFTIIR|FFTDSPUtilities|FFTOverlapSave|FFTPartitionedConvolver)' \
+            --output-on-failure --timeout 120
+
+      - name: FFT tests (forced AVX2)
+        env:
+          ALEPH_FFT_SIMD: avx2
+        run: |
+          ctest --test-dir build \
+            -R '^(FFT|FFTPlan|FFTLargeN|FFTSTFT|FFTOverlapAdd|FFTND|FFTIIR|FFTDSPUtilities|FFTOverlapSave|FFTPartitionedConvolver)' \
+            --output-on-failure --timeout 120
+
+      - name: Benchmark validate and reference cross-check
+        run: |
+          if [ -x build/Examples/fft_benchmark ]; then
+            echo "--- Benchmark validate (scalar) ---"
+            ALEPH_FFT_SIMD=scalar ./build/Examples/fft_benchmark --validate
+            echo "--- Benchmark validate (AVX2) ---"
+            ALEPH_FFT_SIMD=avx2 ./build/Examples/fft_benchmark --validate
+          else
+            echo "fft_benchmark not available, skipping benchmark validation"
+          fi
+
+          if [ -x build/Examples/fft_reference_probe ]; then
+            echo "--- Reference cross-check ---"
+            ruby scripts/fft_reference_check.rb --build-dir build
+          else
+            echo "fft_reference_probe not available, skipping reference cross-check"
+          fi
+
+      - name: Collect benchmark artifacts
+        if: always()
+        run: |
+          if [ ! -x build/Examples/fft_benchmark ]; then
+            echo "fft_benchmark not available, skipping artifact collection"
+            exit 0
+          fi
+          mkdir -p build/fft_artifacts
+          ALEPH_FFT_SIMD=scalar ./build/Examples/fft_benchmark \
+            --json --warmup 3 --samples 5 --batch-count 8 \
+            > build/fft_artifacts/benchmark-scalar.json
+          ALEPH_FFT_SIMD=avx2 ./build/Examples/fft_benchmark \
+            --json --warmup 3 --samples 5 --batch-count 8 \
+            > build/fft_artifacts/benchmark-avx2.json
+          ALEPH_FFT_SIMD=auto ./build/Examples/fft_benchmark \
+            --json --warmup 3 --samples 5 --batch-count 8 \
+            > build/fft_artifacts/benchmark-auto.json
+
+      - name: Upload FFT artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fft-simd-benchmarks
+          if-no-files-found: ignore
+          path: build/fft_artifacts/
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-fft-simd
+          if-no-files-found: ignore
+          path: |
+            build/Testing/Temporary/LastTest.log
+
   planarity-visual-golden:
     name: planarity-visual-golden (ubuntu-24.04, gcc, Release)
     runs-on: ubuntu-24.04
@@ -467,7 +623,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_TESTS=ON \
-            -DUSE_SANITIZERS=ON
+            -DALEPH_USE_SANITIZERS=ON
 
       - name: Build
         run: |
@@ -567,6 +723,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - build-and-test
+      - fft-simd-validation
       - planarity-visual-golden
       - coverage
       - sanitizers
@@ -577,6 +734,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "fft-simd-validation result: ${{ needs.fft-simd-validation.result }}"
           echo "planarity-visual-golden result: ${{ needs.planarity-visual-golden.result }}"
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
@@ -599,6 +757,7 @@ jobs:
           }
 
           check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "fft-simd-validation" "${{ needs.fft-simd-validation.result }}"
           check_job "planarity-visual-golden" "${{ needs.planarity-visual-golden.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
@@ -616,6 +775,7 @@ jobs:
     needs:
       - policy-checks
       - build-and-test
+      - fft-simd-validation
       - planarity-visual-golden
       - coverage
       - sanitizers
@@ -627,6 +787,7 @@ jobs:
           set -euo pipefail
           echo "policy-checks result: ${{ needs.policy-checks.result }}"
           echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "fft-simd-validation result: ${{ needs.fft-simd-validation.result }}"
           echo "planarity-visual-golden result: ${{ needs.planarity-visual-golden.result }}"
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
@@ -650,6 +811,7 @@ jobs:
 
           check_job "policy-checks" "${{ needs.policy-checks.result }}"
           check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "fft-simd-validation" "${{ needs.fft-simd-validation.result }}"
           check_job "planarity-visual-golden" "${{ needs.planarity-visual-golden.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"

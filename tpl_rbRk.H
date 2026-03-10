@@ -156,7 +156,11 @@ private:
       {
         cmp_result = CmpEqual;
         // Truncate stack: remove nodes pushed after candidate
-        rb_stack.popn(rb_stack.size() - candidate_pos);
+        const size_t to_pop =
+            rb_stack.size() > candidate_pos ?
+            rb_stack.size() - candidate_pos : 0;
+        if (to_pop > 0)
+          rb_stack.popn(static_cast<int>(to_pop));
         return candidate;
       }
 

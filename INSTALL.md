@@ -174,6 +174,18 @@ cmake --build --preset default
 ctest --preset default
 ```
 
+To reproduce the GitHub Actions `clang + libc++` job locally on Ubuntu:
+
+```bash
+scripts/run_clang_libcxx_ci_local.sh
+```
+
+The script rebuilds GoogleTest with `clang++` and `libc++`, configures the
+`clang-libcxx-ci` preset, builds the project, and runs `ctest`. It expects a
+working Clang/libc++ toolchain and GoogleTest sources in `/usr/src` (as
+provided by `libgtest-dev`). If your libc++ installation lives outside the
+system paths, set `LIBCXX_SYSROOT=/path/to/sysroot` before running it.
+
 **Alternative using Make:**
 
 If you prefer Make over Ninja:
@@ -194,6 +206,7 @@ Aleph-w provides several CMake options to customize the build:
 | `BUILD_EXAMPLES` | `ON` | Build example programs |
 | `BUILD_TESTS` | `ON` | Build test suite |
 | `BUILD_OPTIMIZED` | `OFF` | Convenience switch: if `CMAKE_BUILD_TYPE` is unset, default to `Release` |
+| `ALEPH_USE_LIBCXX` | `OFF` | With Clang, link C++ targets against `libc++` instead of the default standard library |
 
 **Example with custom options:**
 

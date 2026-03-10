@@ -169,6 +169,19 @@ cmake --build --preset default
 ctest --preset default
 ```
 
+Para reproducir localmente el job de GitHub Actions `clang + libc++` en Ubuntu:
+
+```bash
+scripts/run_clang_libcxx_ci_local.sh
+```
+
+El script recompila GoogleTest con `clang++` y `libc++`, configura el preset
+`clang-libcxx-ci`, compila el proyecto y ejecuta `ctest`. Supone que existe un
+toolchain funcional de Clang/libc++ y que las fuentes de GoogleTest están en
+`/usr/src` (como ocurre al instalar `libgtest-dev`). Si tu instalación de
+`libc++` está fuera de las rutas del sistema, exporta
+`LIBCXX_SYSROOT=/ruta/al/sysroot` antes de ejecutarlo.
+
 **Alternativa usando Make:**
 
 ```bash
@@ -186,6 +199,7 @@ cmake --build build -j"$(nproc)"
 | `BUILD_EXAMPLES` | `ON` | compila ejemplos |
 | `BUILD_TESTS` | `ON` | compila suite de tests |
 | `BUILD_OPTIMIZED` | `OFF` | conveniencia: si no defines `CMAKE_BUILD_TYPE`, usa `Release` |
+| `ALEPH_USE_LIBCXX` | `OFF` | con Clang, enlaza los targets C++ contra `libc++` en lugar de la librería estándar por defecto |
 
 Ejemplo:
 

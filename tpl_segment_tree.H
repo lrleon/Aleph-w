@@ -465,22 +465,48 @@ namespace Aleph
   {
     using Base = Gen_Segment_Tree<T, Aleph::plus<T>>;
 
+    /** @brief Construct with @p num elements, all equal to @p init_val.
+     *
+     *  @param num      number of elements.
+     *  @param init_val initial value for each element.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(const size_t num, const T & init_val = T())
       : Base(num, init_val, T())
     {}
 
+    /** @brief Construct from an initializer list.
+     *
+     *  @param il source initializer list with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(std::initializer_list<T> il)
       : Base(il, T())
     {}
 
+    /** @brief Construct from an Array\<T\>.
+     *
+     *  @param values source array with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(const Array<T> & values)
       : Base(values, T())
     {}
 
+    /** @brief Construct from a std::vector\<T\>.
+     *
+     *  @param values source vector with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(const std::vector<T> & values)
       : Base(values, T())
     {}
 
+    /** @brief Construct from a DynList\<T\>.
+     *
+     *  @param values source list with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Sum_Segment_Tree(const DynList<T> & values)
       : Base(values, T())
     {}
@@ -512,23 +538,49 @@ namespace Aleph
   {
     using Base = Gen_Segment_Tree<T, Min_Op<T>>;
 
+    /** @brief Construct with @p num elements, all equal to @p init_val.
+     *
+     *  @param num      number of elements.
+     *  @param init_val initial value for each element.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Min_Segment_Tree(const size_t num,
                      const T & init_val = std::numeric_limits<T>::max())
       : Base(num, init_val, std::numeric_limits<T>::max())
     {}
 
+    /** @brief Construct from an initializer list.
+     *
+     *  @param il source initializer list with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Min_Segment_Tree(std::initializer_list<T> il)
       : Base(il, std::numeric_limits<T>::max())
     {}
 
+    /** @brief Construct from an Array\<T\>.
+     *
+     *  @param values source array with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Min_Segment_Tree(const Array<T> & values)
       : Base(values, std::numeric_limits<T>::max())
     {}
 
+    /** @brief Construct from a std::vector\<T\>.
+     *
+     *  @param values source vector with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Min_Segment_Tree(const std::vector<T> & values)
       : Base(values, std::numeric_limits<T>::max())
     {}
 
+    /** @brief Construct from a DynList\<T\>.
+     *
+     *  @param values source list with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Min_Segment_Tree(const DynList<T> & values)
       : Base(values, std::numeric_limits<T>::max())
     {}
@@ -561,23 +613,49 @@ namespace Aleph
   {
     using Base = Gen_Segment_Tree<T, Max_Op<T>>;
 
+    /** @brief Construct with @p num elements, all equal to @p init_val.
+     *
+     *  @param num      number of elements.
+     *  @param init_val initial value for each element.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Max_Segment_Tree(const size_t num,
                      const T & init_val = std::numeric_limits<T>::lowest())
       : Base(num, init_val, std::numeric_limits<T>::lowest())
     {}
 
+    /** @brief Construct from an initializer list.
+     *
+     *  @param il source initializer list with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Max_Segment_Tree(std::initializer_list<T> il)
       : Base(il, std::numeric_limits<T>::lowest())
     {}
 
+    /** @brief Construct from an Array\<T\>.
+     *
+     *  @param values source array with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Max_Segment_Tree(const Array<T> & values)
       : Base(values, std::numeric_limits<T>::lowest())
     {}
 
+    /** @brief Construct from a std::vector\<T\>.
+     *
+     *  @param values source vector with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Max_Segment_Tree(const std::vector<T> & values)
       : Base(values, std::numeric_limits<T>::lowest())
     {}
 
+    /** @brief Construct from a DynList\<T\>.
+     *
+     *  @param values source list with the initial element values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Max_Segment_Tree(const DynList<T> & values)
       : Base(values, std::numeric_limits<T>::lowest())
     {}
@@ -1498,18 +1576,28 @@ namespace Aleph
   public:
     using Item_Type = T;
 
-    /** @brief Construct with @p num elements, all equal to @p init_val. */
+    /** @brief Construct with @p num elements, all equal to @p init_val.
+     *
+     *  @param num number of elements to allocate in the tree.
+     *  @param init_val initial value assigned to every leaf.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Segment_Tree_Beats(const size_t num, const T & init_val = T())
-      : tree(num == 0 ? 1 : 4 * num), n(num)
+      : tree(Array<Node>::create(num == 0 ? 1 : 4 * num)), n(num)
     {
       init_all_nodes();
       if (n > 0)
         fill_and_build([&init_val](size_t) { return init_val; });
     }
 
-    /** @brief Construct from an initializer list. */
+    /** @brief Construct from an initializer list.
+     *
+     *  @param il source initializer list with the initial values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Segment_Tree_Beats(std::initializer_list<T> il)
-      : tree(il.size() == 0 ? 1 : 4 * il.size()), n(il.size())
+      : tree(Array<Node>::create(il.size() == 0 ? 1 : 4 * il.size())),
+        n(il.size())
     {
       init_all_nodes();
       if (n > 0)
@@ -1519,9 +1607,13 @@ namespace Aleph
         }
     }
 
-    /** @brief Construct from an Array\<T\>. */
+    /** @brief Construct from an Array\<T\>.
+     *
+     *  @param values source array with the initial values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Segment_Tree_Beats(const Array<T> & values)
-      : tree(values.size() == 0 ? 1 : 4 * values.size()),
+      : tree(Array<Node>::create(values.size() == 0 ? 1 : 4 * values.size())),
         n(values.size())
     {
       init_all_nodes();
@@ -1529,9 +1621,13 @@ namespace Aleph
         fill_and_build([&values](size_t i) { return values(i); });
     }
 
-    /** @brief Construct from a std::vector\<T\>. */
+    /** @brief Construct from a std::vector\<T\>.
+     *
+     *  @param values source vector with the initial values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Segment_Tree_Beats(const std::vector<T> & values)
-      : tree(values.size() == 0 ? 1 : 4 * values.size()),
+      : tree(Array<Node>::create(values.size() == 0 ? 1 : 4 * values.size())),
         n(values.size())
     {
       init_all_nodes();
@@ -1539,8 +1635,13 @@ namespace Aleph
         fill_and_build([&values](size_t i) { return values[i]; });
     }
 
+    /** @brief Construct from a DynList\<T\>.
+     *
+     *  @param values source list with the initial values.
+     *  @throws std::bad_alloc if internal storage allocation fails.
+     */
     Segment_Tree_Beats(const DynList<T> & values)
-      : tree(values.size() == 0 ? 1 : 4 * values.size()),
+      : tree(Array<Node>::create(values.size() == 0 ? 1 : 4 * values.size())),
         n(values.size())
     {
       init_all_nodes();
