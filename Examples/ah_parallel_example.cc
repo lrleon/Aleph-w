@@ -1,18 +1,20 @@
 /**
  * @file ah_parallel_example.cc
- * @brief Parallel functional programming utilities (ah-parallel.H): map/filter/fold/predicates/zip/sort.
+ * @brief Parallel functional programming utilities (ah-parallel.H): map/filter/fold/predicates/scan/merge/zip/sort.
  *
  * ## Overview
  *
  * This example demonstrates Aleph-w's **parallel functional programming** helpers
  * from `ah-parallel.H`. The API provides ML-style operations (map, filter, fold,
- * predicates, etc.) that execute in parallel using an `Aleph::ThreadPool`.
+ * predicates, etc.) that execute in parallel using an `Aleph::ThreadPool`
+ * or a `ParallelOptions` configuration object.
  *
  * The file is structured as a series of demos covering:
  *
  * - parallel map/filter/fold
  * - parallel predicates and find
  * - aggregations (sum/product/min/max)
+ * - partition, prefix scan, and sorted merge wrappers
  * - parallel sort
  * - parallel zip / enumerate
  * - a simple parallel vs sequential performance comparison
@@ -34,17 +36,19 @@
  *
  * Common signature pattern:
  *
- * - the first parameter is always a `ThreadPool&`
+ * - the classic overloads take a `ThreadPool&`
+ * - the newer overloads accept a `ParallelOptions` object
  * - the remaining parameters are similar to the sequential counterparts
  *
  * Core operations demonstrated:
  *
- * - `pmaps(pool, container, f)`
- * - `pfilter(pool, container, pred)`
- * - `pfoldl(pool, container, init, op)`
+ * - `pmaps(pool, container, f)` / `pmaps(container, f, options)`
+ * - `pfilter(pool, container, pred)` / `pfilter(container, pred, options)`
+ * - `pfoldl(pool, container, init, op)` / `pfoldl(container, init, op, options)`
  * - `pall` / `pexists` / `pnone` / `pcount_if`
  * - `pfind` / `pfind_value`
  * - `psum` / `pproduct` / `pmin` / `pmax`
+ * - `pscan` / `pexclusive_scan` / `pmerge`
  * - `psort`
  * - `pzip_*`, `penumerate_*`
  *
@@ -106,8 +110,9 @@ void print_header(const std::string& title)
 // This is the parallel equivalent of std::transform or Haskell's map.
 //
 // SIGNATURE:
-//   pmaps<ResultT>(pool, container, func) → std::vector<ResultT>
-//   pmaps(pool, container, func)          → std::vector<auto>  (type deduced)
+//   pmaps<ResultT>(pool, container, func)    → std::vector<ResultT>
+//   pmaps(pool, container, func)             → std::vector<auto>
+//   pmaps(container, func, ParallelOptions)  → std::vector<auto>
 //
 
 void example_parallel_map()
@@ -117,6 +122,10 @@ void example_parallel_map()
   std::cout << "GOAL: Transform a large dataset in parallel.\n\n";
   
   ThreadPool pool(std::thread::hardware_concurrency());
+  ParallelOptions options;
+  options.pool = &pool;
+  options.min_size = 1024;
+  options.max_tasks = pool.num_threads() * 2;
   std::cout << "Using ThreadPool with " << pool.num_threads() << " workers\n\n";
   
   // Create input data: 1 million integers
@@ -125,13 +134,12 @@ void example_parallel_map()
   
   std::cout << "Input: " << numbers.size() << " integers\n";
   
-  // PARALLEL MAP: Square each number (with type conversion)
   auto start = std::chrono::high_resolution_clock::now();
   
   // Type deduction: returns vector<long long> because lambda returns long long
-  auto squares = pmaps(pool, numbers, [](int x) {
+  auto squares = pmaps(numbers, [](int x) {
     return static_cast<long long>(x) * x;
-  });
+  }, options);
   
   auto end = std::chrono::high_resolution_clock::now();
   auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -408,6 +416,10 @@ void example_parallel_sort()
   std::cout << "GOAL: Sort large datasets using parallel merge sort.\n\n";
   
   ThreadPool pool(std::thread::hardware_concurrency());
+  ParallelOptions options;
+  options.pool = &pool;
+  options.min_size = 4096;
+  options.max_tasks = pool.num_threads();
   
   // Create random data
   std::vector<int> data(500000);
@@ -423,7 +435,7 @@ void example_parallel_sort()
   
   auto start = std::chrono::high_resolution_clock::now();
   
-  psort(pool, data);  // In-place parallel sort
+  psort(data, std::less<int>{}, options);  // In-place parallel sort
   
   auto end = std::chrono::high_resolution_clock::now();
   auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -462,6 +474,9 @@ void example_parallel_zip()
   std::cout << "GOAL: Process corresponding elements from two containers.\n\n";
   
   ThreadPool pool(std::thread::hardware_concurrency());
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 4096;
   
   // Create two vectors
   std::vector<double> a(100000);
@@ -475,9 +490,9 @@ void example_parallel_zip()
   std::cout << "Vectors a and b, each with " << a.size() << " elements\n\n";
   
   // pzip_maps: Element-wise product
-  auto products = pzip_maps(pool, a, b, [](double x, double y) { 
+  auto products = pzip_maps(a, b, [](double x, double y) {
     return x * y; 
-  });
+  }, options);
   
   std::cout << "Element-wise products (first 5): ";
   for (size_t i = 0; i < 5; ++i)
@@ -485,17 +500,17 @@ void example_parallel_zip()
   std::cout << "\n\n";
   
   // pzip_foldl: Dot product
-  double dot_product = pzip_foldl(pool, a, b, 0.0,
-    [](double acc, double x, double y) { return acc + x * y; });
+  double dot_product = pzip_foldl(a, b, 0.0,
+    [](double acc, double x, double y) { return acc + x * y; }, options);
   
   std::cout << "Dot product: " << std::fixed << std::setprecision(0) 
             << dot_product << "\n\n";
   
   // pzip_for_each with side effects
   std::atomic<double> sum{0};
-  pzip_for_each(pool, a, b, [&sum](double x, double y) {
+  pzip_for_each(a, b, [&sum](double x, double y) {
     sum += x + y;
-  });
+  }, options);
   
   std::cout << "Sum of all pairs: " << sum.load() << "\n\n";
   
@@ -520,6 +535,9 @@ void example_variadic_zip()
   std::cout << "GOAL: Process corresponding elements from 3+ containers.\n\n";
   
   ThreadPool pool(std::thread::hardware_concurrency());
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 2;
   
   // Three vectors
   std::vector<int> x = {1, 2, 3, 4, 5};
@@ -531,9 +549,9 @@ void example_variadic_zip()
   std::cout << "z = {100, 200, 300, 400, 500}\n\n";
   
   // pzip_maps_n: Sum triplets
-  auto sums = pzip_maps_n(pool, [](int a, int b, int c) {
+  auto sums = pzip_maps_n([](int a, int b, int c) {
     return a + b + c;
-  }, x, y, z);
+  }, options, x, y, z);
   
   std::cout << "x + y + z = ";
   for (auto v : sums)
@@ -541,16 +559,16 @@ void example_variadic_zip()
   std::cout << "\n\n";
   
   // pzip_all_n: Check if all triplets satisfy condition
-  bool all_ordered = pzip_all_n(pool, [](int a, int b, int c) {
+  bool all_ordered = pzip_all_n([](int a, int b, int c) {
     return a < b && b < c;
-  }, x, y, z);
+  }, options, x, y, z);
   
   std::cout << "All x[i] < y[i] < z[i]? " << (all_ordered ? "YES" : "NO") << "\n";
   
   // pzip_count_if_n: Count triplets with sum > 100
-  size_t count = pzip_count_if_n(pool, [](int a, int b, int c) {
+  size_t count = pzip_count_if_n([](int a, int b, int c) {
     return a + b + c > 100;
-  }, x, y, z);
+  }, options, x, y, z);
   
   std::cout << "Triplets with sum > 100: " << count << "\n\n";
   
@@ -560,9 +578,9 @@ void example_variadic_zip()
   std::vector<double> v3 = {1.0, 2.0, 3.0};
   std::vector<double> v4 = {1.0, 2.0, 3.0};
   
-  auto products = pzip_maps_n(pool, [](double a, double b, double c, double d) {
+  auto products = pzip_maps_n([](double a, double b, double c, double d) {
     return a * b * c * d;
-  }, v1, v2, v3, v4);
+  }, options, v1, v2, v3, v4);
   
   std::cout << "v1 * v2 * v3 * v4 = ";
   for (auto v : products)
@@ -588,14 +606,17 @@ void example_parallel_enumerate()
   std::cout << "GOAL: Process elements along with their indices in parallel.\n\n";
   
   ThreadPool pool(std::thread::hardware_concurrency());
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 4;
   
   // Initialize vector with indices
   std::vector<int> data(10, 0);
   
   // penumerate_for_each: Set each element to its index * 10
-  penumerate_for_each(pool, data, [](size_t i, int& x) {
+  penumerate_for_each(data, [](size_t i, int& x) {
     x = static_cast<int>(i * 10);
-  });
+  }, options);
   
   std::cout << "After penumerate_for_each (x = i * 10): ";
   for (auto x : data)
@@ -605,10 +626,10 @@ void example_parallel_enumerate()
   // penumerate_maps: Create indexed strings
   std::vector<std::string> words = {"apple", "banana", "cherry", "date", "elderberry"};
   
-  auto indexed = penumerate_maps(pool, words, 
+  auto indexed = penumerate_maps(words,
     [](size_t i, const std::string& s) {
       return "[" + std::to_string(i) + "] " + s;
-    });
+    }, options);
   
   std::cout << "Indexed strings:\n";
   for (const auto& s : indexed)
@@ -619,12 +640,64 @@ void example_parallel_enumerate()
 }
 
 // =============================================================================
-// EXAMPLE 11: Performance Comparison
+// EXAMPLE 11: Scan / Merge / Partition Wrappers
+// =============================================================================
+//
+// These wrappers expose the foundational primitives from thread_pool.H using the
+// same container-oriented style as the rest of ah-parallel.H.
+//
+
+void example_parallel_scan_merge_partition()
+{
+  print_header("Example 11: Scan / Merge / Partition Wrappers");
+
+  std::cout << "GOAL: Use container-level wrappers for scan, merge, and partition.\n\n";
+
+  ThreadPool pool(std::thread::hardware_concurrency());
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 4;
+
+  std::vector<int> values = {1, 2, 3, 4, 5, 6};
+  auto inclusive = pscan(values, std::plus<int>{}, options);
+  auto exclusive = pexclusive_scan(values, 0, std::plus<int>{}, options);
+
+  std::cout << "Inclusive scan: ";
+  for (int x : inclusive)
+    std::cout << x << " ";
+  std::cout << "\nExclusive scan: ";
+  for (int x : exclusive)
+    std::cout << x << " ";
+  std::cout << "\n\n";
+
+  std::vector<int> left = {1, 3, 5, 7};
+  std::vector<int> right = {2, 4, 6, 8};
+  auto merged = pmerge(left, right, std::less<int>{}, options);
+
+  std::cout << "Merged sorted ranges: ";
+  for (int x : merged)
+    std::cout << x << " ";
+  std::cout << "\n\n";
+
+  auto [evens, odds] = ppartition(values, [](int x) { return x % 2 == 0; }, options);
+  std::cout << "Partitioned evens: ";
+  for (int x : evens)
+    std::cout << x << " ";
+  std::cout << "\nPartitioned odds:  ";
+  for (int x : odds)
+    std::cout << x << " ";
+  std::cout << "\n\n";
+
+  std::cout << "✓ Scan / merge / partition wrappers completed\n";
+}
+
+// =============================================================================
+// EXAMPLE 12: Performance Comparison
 // =============================================================================
 
 void example_performance_comparison()
 {
-  print_header("Example 11: Performance Comparison");
+  print_header("Example 12: Performance Comparison");
   
   std::cout << "GOAL: Compare parallel vs sequential execution times.\n\n";
   
@@ -699,7 +772,7 @@ int main()
   std::cout << "║                                                                    ║\n";
   std::cout << "╚════════════════════════════════════════════════════════════════════╝\n";
   
-  std::cout << "\nThis program demonstrates 11 parallel functional programming patterns.\n";
+  std::cout << "\nThis program demonstrates 12 parallel functional programming patterns.\n";
   std::cout << "Read the source code comments for detailed explanations.\n";
   
   example_parallel_map();
@@ -712,6 +785,7 @@ int main()
   example_parallel_zip();
   example_variadic_zip();
   example_parallel_enumerate();
+  example_parallel_scan_merge_partition();
   example_performance_comparison();
   
   std::cout << "\n";
@@ -726,6 +800,9 @@ int main()
   std::cout << "║    pall/pexists/pnone         → parallel predicates                ║\n";
   std::cout << "║    pfind/pfind_value          → parallel search                    ║\n";
   std::cout << "║    psum/pproduct/pmin/pmax    → parallel aggregations              ║\n";
+  std::cout << "║    ppartition                 → parallel stable partition          ║\n";
+  std::cout << "║    pscan/pexclusive_scan      → parallel prefix scans              ║\n";
+  std::cout << "║    pmerge                     → parallel merge of sorted inputs    ║\n";
   std::cout << "║    psort                      → parallel merge sort                ║\n";
   std::cout << "║    pzip_*                     → parallel zip (2 containers)        ║\n";
   std::cout << "║    pzip_*_n                   → parallel zip (N containers)        ║\n";

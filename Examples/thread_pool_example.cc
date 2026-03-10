@@ -46,7 +46,17 @@
  * - **Load shedding**: Reject when overloaded
  * - **Non-blocking**: Don't wait if queue full
  *
- * ### Example 6: Performance Comparison
+ * ### Example 6: Structured Tasks and Cooperative Cancellation
+ * - **`TaskGroup`**: launch related tasks and wait as a unit
+ * - **`CancellationSource` / `CancellationToken`**: cooperative stop requests
+ * - **Structured concurrency**: exceptions propagate from `wait()`
+ *
+ * ### Example 7: Foundational Parallel Building Blocks
+ * - **`parallel_invoke()`**: launch a small related set of tasks
+ * - **`pscan()` / `pexclusive_scan()`**: prefix sums in parallel
+ * - **`pmerge()`**: merge sorted ranges with the same pool/options machinery
+ *
+ * ### Example 8: Performance Comparison
  * - **Benchmarking**: Compare parallel vs sequential
  * - **Speedup**: Measure performance gains
  * - **Scalability**: Test with different thread counts
@@ -486,7 +496,108 @@ void example_load_shedding()
 }
 
 // =============================================================================
-// EXAMPLE 6: Performance Comparison
+// EXAMPLE 6: Structured Tasks and Cooperative Cancellation
+// =============================================================================
+//
+// TaskGroup groups related tasks and joins them as a unit. Cancellation remains
+// cooperative: tasks observe a token and exit on their own.
+//
+
+void example_structured_concurrency()
+{
+  print_header("Example 6: Structured Tasks and Cooperative Cancellation");
+
+  ThreadPool pool(4);
+  TaskGroup group(pool);
+  CancellationSource cancel;
+  std::atomic<int> completed{0};
+
+  for (int task_id = 0; task_id < 8; ++task_id)
+    group.launch([task_id, token = cancel.token(), &completed] {
+      for (int step = 0; step < 20; ++step)
+        {
+          if (token.stop_requested())
+            return;
+          std::this_thread::sleep_for(1ms);
+        }
+      ++completed;
+      if (task_id == 2)
+        throw std::runtime_error("TaskGroup demo exception");
+    });
+
+  std::cout << "Cancelling remaining work before wait()...\n";
+  cancel.request_cancel();
+
+  try
+    {
+      group.wait();
+    }
+  catch (const std::exception & e)
+    {
+      std::cout << "Caught structured exception: " << e.what() << "\n";
+    }
+
+  std::cout << "Tasks completed before cancellation/exception: "
+            << completed.load() << "\n";
+}
+
+// =============================================================================
+// EXAMPLE 7: Foundational Parallel Building Blocks
+// =============================================================================
+//
+// These low-level helpers are meant to compose larger parallel algorithms
+// without exposing users to queue plumbing.
+//
+
+void example_parallel_building_blocks()
+{
+  print_header("Example 7: parallel_invoke / pscan / pmerge");
+
+  ThreadPool pool(std::thread::hardware_concurrency());
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 4;
+  const std::vector<int> seed = {1, 2, 3, 4};
+
+  int sum = 0;
+  int product = 1;
+  parallel_invoke(options,
+                  [&] { sum = std::accumulate(seed.begin(), seed.end(), 0); },
+                  [&] { product = std::accumulate(seed.begin(), seed.end(), 1,
+                                                  std::multiplies<int>{}); });
+
+  std::cout << "parallel_invoke results: sum=" << sum
+            << ", product=" << product << "\n";
+
+  std::vector<int> values = {1, 2, 3, 4, 5, 6};
+  std::vector<int> inclusive(values.size());
+  std::vector<int> exclusive(values.size());
+  pscan(values.begin(), values.end(), inclusive.begin(), std::plus<int>{}, options);
+  pexclusive_scan(values.begin(), values.end(), exclusive.begin(), 0,
+                  std::plus<int>{}, options);
+
+  std::cout << "Inclusive scan: ";
+  for (int x : inclusive)
+    std::cout << x << " ";
+  std::cout << "\nExclusive scan: ";
+  for (int x : exclusive)
+    std::cout << x << " ";
+  std::cout << "\n";
+
+  std::vector<int> left = {1, 3, 5, 7};
+  std::vector<int> right = {2, 4, 6, 8};
+  std::vector<int> merged(left.size() + right.size());
+  pmerge(left.begin(), left.end(), right.begin(), right.end(),
+         merged.begin(), std::less<int>{}, options);
+
+  std::cout << "Merged range: ";
+  for (int x : merged)
+    std::cout << x << " ";
+  std::cout << "\n";
+}
+
+// =============================================================================
+// EXAMPLE 8: Performance Comparison
 // =============================================================================
 //
 // This example demonstrates the speedup achieved by parallel execution.
@@ -498,7 +609,7 @@ void example_load_shedding()
 
 void example_performance()
 {
-  print_header("Example 6: Performance Comparison");
+  print_header("Example 8: Performance Comparison");
   
   std::cout << "GOAL: Compare parallel execution vs sequential execution.\n\n";
   
@@ -574,7 +685,7 @@ int main()
   std::cout << "║                                                                ║\n";
   std::cout << "╚════════════════════════════════════════════════════════════════╝\n";
   
-  std::cout << "\nThis program demonstrates 6 common ThreadPool usage patterns.\n";
+  std::cout << "\nThis program demonstrates 8 common ThreadPool usage patterns.\n";
   std::cout << "Read the source code comments for detailed explanations.\n";
   
   example_basic_parallel();
@@ -582,6 +693,8 @@ int main()
   example_fire_and_forget();
   example_backpressure();
   example_load_shedding();
+  example_structured_concurrency();
+  example_parallel_building_blocks();
   example_performance();
   
   std::cout << "\n";
@@ -594,6 +707,8 @@ int main()
   std::cout << "║    enqueue_bounded(f, args...)  → std::future<T> (backpressure)║\n";
   std::cout << "║    try_enqueue(f, args...)      → optional<future> (non-block) ║\n";
   std::cout << "║    enqueue_bulk(f, container)   → vector<future> (batch)       ║\n";
+  std::cout << "║    TaskGroup / Cancellation*    → structured parallel tasks    ║\n";
+  std::cout << "║    parallel_invoke / pscan      → composable parallel blocks   ║\n";
   std::cout << "╚════════════════════════════════════════════════════════════════╝\n\n";
   
   return 0;

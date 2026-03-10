@@ -1159,7 +1159,7 @@ namespace Aleph
 
     // Split by position recursively
     // Nodes with position < pos go to t1, nodes with position >= pos go to t2
-    void split_pos_rec(Node *p, size_t pos, Node *& t1, Node *& t2) noexcept
+    void split_pos_rec(Node *p, const size_t pos, Node *& t1, Node *& t2) noexcept
     {
       if (p == Node::NullPtr)
         {

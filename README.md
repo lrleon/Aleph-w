@@ -3226,69 +3226,115 @@ int main() {
 
 ```cpp
 #include <thread_pool.H>
-#include <future>
 #include <vector>
 
 int main() {
-    // Create pool with hardware concurrency
-    ThreadPool pool(std::thread::hardware_concurrency());
+    Aleph::ThreadPool pool(std::thread::hardware_concurrency());
+    Aleph::TaskGroup group(pool);
+    Aleph::CancellationSource cancel;
 
-    // Submit tasks and get futures
-    std::vector<std::future<int>> futures;
-
-    for (int i = 0; i < 100; ++i) {
-        futures.push_back(
-            pool.enqueue([i] {
-                // Expensive computation
-                return compute_something(i);
-            })
-        );
+    std::vector<int> out(100);
+    for (size_t i = 0; i < out.size(); ++i) {
+        group.launch([&, i, token = cancel.token()] {
+            if (token.stop_requested()) return;
+            out[i] = compute_something(static_cast<int>(i));
+        });
     }
 
-    // Collect results
-    int total = 0;
-    for (auto& future : futures) {
-        total += future.get();  // Blocks until result ready
-    }
-
-    std::cout << "Total: " << total << "\n";
-
+    group.wait();  // waits for all tasks, rethrows the first exception
     return 0;
-}  // Pool automatically joins all threads
+}
+```
+
+### Parallel Building Blocks
+
+```cpp
+#include <thread_pool.H>
+#include <vector>
+
+int main() {
+    Aleph::ThreadPool pool(4);
+    Aleph::ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = 256;
+
+    int left = 0;
+    int right = 0;
+    Aleph::parallel_invoke(options,
+        [&] { left = 21; },
+        [&] { right = 21; });
+
+    std::vector<int> values = {1, 2, 3, 4, 5};
+    std::vector<int> prefix(values.size());
+    Aleph::pscan(values.begin(), values.end(), prefix.begin(),
+                 std::plus<int>{}, options);
+
+    std::vector<int> merged(6);
+    Aleph::pmerge(values.begin(), values.begin() + 3,
+                  values.begin() + 3, values.end(),
+                  merged.begin(), std::less<int>{}, options);
+
+    return left + right == 42 ? 0 : 1;
+}
 ```
 
 ### Parallel Functional Operations
 
 ```cpp
 #include <ah-parallel.H>
-#include <tpl_dynList.H>
+#include <vector>
 
 int main() {
-    DynList<int> numbers = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::vector<int> numbers = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    Aleph::ParallelOptions options;
+    options.min_size = 4;
+    options.max_tasks = 4;
 
-    // Parallel map: transform all elements concurrently
-    auto squared = pmap(numbers, [](int x) {
+    auto squared = Aleph::pmaps(numbers, [](int x) {
         return x * x;
-    });
+    }, options);
 
-    // Parallel filter: filter elements concurrently
-    auto evens = pfilter(numbers, [](int x) {
+    auto evens = Aleph::pfilter(numbers, [](int x) {
         return x % 2 == 0;
-    });
+    }, options);
 
-    // Parallel fold: reduce with parallel partial results
-    int sum = pfold(numbers, 0, [](int a, int b) {
+    int sum = Aleph::pfoldl(numbers, 0, [](int a, int b) {
         return a + b;
-    });
+    }, options);
 
-    // Parallel for_each: apply operation to all elements
-    pfor_each(numbers, [](int& x) {
+    auto prefix = Aleph::pscan(numbers, std::plus<int>{}, options);
+    auto merged = Aleph::pmerge(numbers, numbers, std::less<int>{}, options);
+
+    Aleph::pfor_each(numbers, [](int& x) {
         x *= 2;
-    });
+    }, options);
+
+    Aleph::psort(numbers, std::less<int>{}, options);
+
+    auto pairwise = Aleph::pzip_maps(numbers, numbers, [](int a, int b) {
+        return a + b;
+    }, options);
+
+    auto indexed = Aleph::penumerate_maps(pairwise,
+        [](size_t i, int x) {
+            return std::to_string(i) + ":" + std::to_string(x);
+        }, options);
 
     return 0;
 }
 ```
+
+`ParallelOptions` centralizes chunking, minimum parallel size, maximum task
+count, selected executor, and cooperative cancellation for the main parallel
+algorithms, including `psort()`, `ppartition()`, scan/merge wrappers, zip
+helpers, and enumerate helpers. Existing `ThreadPool&` overloads remain
+available.
+
+If a `CancellationToken` stored in `ParallelOptions::cancel_token` is signaled,
+the operation stops cooperatively and throws `Aleph::operation_canceled`.
+
+An opt-in work-stealing backend was evaluated for this phase and intentionally
+deferred; see [docs/work_stealing_backend_note.md](/home/lrleon/Insync/leandro.r.leon@gmail.com/Google%20Drive/Aleph-w/docs/work_stealing_backend_note.md).
 
 ---
 
