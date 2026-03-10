@@ -71,6 +71,7 @@
 
 # include <concepts>
 # include <limits>
+# include <memory>
 # include <tpl_array.H>
 # include <tpl_arrayStack.H>
 # include <tpl_tree_node.H>
@@ -104,6 +105,7 @@ namespace Aleph
    */
   template <typename L, typename T>
   concept LCTLazyTag =
+      std::equality_comparable<typename L::tag_type> and
       requires(const typename L::tag_type & t1,
                const typename L::tag_type & t2,
                const T & val, size_t cnt)
@@ -634,15 +636,16 @@ namespace Aleph
     void destroy_vertex(Node *x)
     {
       ah_invalid_argument_if(x == nullptr) << "null handle";
-      access(x);
-      ah_domain_error_if(x->left != nullptr or x->right != nullptr or x->parent != nullptr)
-        << "vertex must be isolated";
 
       size_t idx = 0;
       while (idx < nodes.size() and nodes(idx) != x)
         ++idx;
       ah_domain_error_if(idx == nodes.size())
         << "vertex does not belong to this link-cut tree";
+
+      access(x);
+      ah_domain_error_if(x->left != nullptr or x->right != nullptr or x->parent != nullptr)
+        << "vertex must be isolated";
 
       if (idx + 1 < nodes.size())
         nodes(idx) = nodes(nodes.size() - 1);
@@ -1059,16 +1062,18 @@ namespace Aleph
 
       // Collect all nodes in root's component and create Tree_Node copies
       Array<Node *> lct_nodes;
-      Array<Tree_Node<T> *> tree_nodes;
+      using TN = Tree_Node<T>;
 
       for_each_node([&](Node * nd)
       {
         if (connected(nd, root))
-          {
-            lct_nodes.append(nd);
-            tree_nodes.append(new Tree_Node<T>(nd->val));
-          }
+          lct_nodes.append(nd);
       });
+
+      Array<TN *> tree_nodes(lct_nodes.size());
+      tree_nodes.putn(lct_nodes.size());
+      for (size_t i = 0; i < tree_nodes.size(); ++i)
+        tree_nodes(i) = nullptr;
 
       auto find_idx = [&](Node * nd) -> size_t
       {
@@ -1079,6 +1084,17 @@ namespace Aleph
       };
 
       size_t root_idx = find_idx(root);
+      struct DestroyTreeDeleter
+      {
+        void operator()(TN * nd) const noexcept
+        {
+          if (nd != nullptr)
+            destroy_tree(nd);
+        }
+      };
+      std::unique_ptr<TN, DestroyTreeDeleter> root_guard(new TN(root->val));
+      tree_nodes(root_idx) = root_guard.get();
+
       for (size_t i = 0; i < lct_nodes.size(); ++i)
         {
           if (i == root_idx)
@@ -1087,11 +1103,13 @@ namespace Aleph
           if (par != nullptr)
             {
               size_t pi = find_idx(par);
-              tree_nodes(pi)->insert_rightmost_child(tree_nodes(i));
+              std::unique_ptr<TN> child(new TN(lct_nodes(i)->val));
+              tree_nodes(pi)->insert_rightmost_child(child.get());
+              tree_nodes(i) = child.release();
             }
         }
 
-      return tree_nodes(root_idx);
+      return root_guard.release();
     }
   };
 

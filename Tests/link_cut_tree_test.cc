@@ -70,6 +70,19 @@ TEST_F(LinkCutTreeStructTest, SingleNodeIsItsOwnRoot)
   EXPECT_EQ(lct.size(), 1u);
 }
 
+TEST(LinkCutTreeOwnership, DestroyForeignHandleRejected)
+{
+  Link_Cut_Tree lct1;
+  Link_Cut_Tree lct2;
+
+  auto * u1 = lct1.make_vertex(1);
+  auto * u2 = lct2.make_vertex(2);
+
+  EXPECT_THROW(lct1.destroy_vertex(u2), std::domain_error);
+  EXPECT_EQ(lct1.find_root(u1), u1);
+  EXPECT_EQ(lct2.find_root(u2), u2);
+}
+
 TEST_F(LinkCutTreeStructTest, LinkTwoNodesConnectsThem)
 {
   auto * u = lct.make_vertex(1);
