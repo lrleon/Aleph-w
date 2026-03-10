@@ -192,6 +192,264 @@ namespace Aleph
     return t0;
   }
 
+# if defined(__SIZEOF_INT128__)
+  /** @brief Precomputed Montgomery reduction state for a fixed odd modulus. */
+  struct MontgomeryCtx;
+
+  namespace detail
+  {
+    /** @brief Internal helper to create a MontgomeryCtx without validation. */
+    [[nodiscard]] constexpr MontgomeryCtx
+    montgomery_ctx_unchecked(const uint64_t mod) noexcept;
+  }
+
+  /** @brief Precomputed Montgomery reduction state for a fixed odd modulus.
+   *
+   *  The Montgomery domain represents a value `x` as `xR mod p`, where
+   *  `R = 2^64`.
+   *
+   *  When `2p < 2^64` (indicated by `mod2() != 0`), reduction uses only
+   *  64-bit multiplies, additions, shifts, and a single conditional subtraction
+   *  — no division.  This is the common case for NTT/FFT primes.
+   *
+   *  When `p ≥ 2^63` (`mod2() == 0`), the REDC intermediate `t` may exceed
+   *  `UINT64_MAX`, so a 128-bit `%` is used as a fallback.
+   *
+   *  The field @ref mod2 is `2 * mod` when it fits in `uint64_t`; otherwise
+   *  zero, signalling the large-prime fallback path in `mont_reduce`.
+   */
+  struct MontgomeryCtx
+  {
+  public:
+    MontgomeryCtx() = delete;
+
+    /** @brief Returns the odd modulus `p`.
+     *  @return The odd modulus.
+     *  @throws none */
+    [[nodiscard]] constexpr uint64_t mod() const noexcept { return mod_; }
+
+    /** @brief Returns `2 * p` when it fits in `uint64_t`, or 0 if it would overflow.
+     *  @return The `2 * p` helper value for reduction.
+     *  @throws none */
+    [[nodiscard]] constexpr uint64_t mod2() const noexcept { return mod2_; }
+
+    /** @brief Returns `R mod p`, where `R = 2^64`.
+     *  @return The Montgomery `R` value.
+     *  @throws none */
+    [[nodiscard]] constexpr uint64_t r() const noexcept { return r_; }
+
+    /** @brief Returns `R^2 mod p`, used to lift values into Montgomery form.
+     *  @return The Montgomery `R^2` value.
+     *  @throws none */
+    [[nodiscard]] constexpr uint64_t r2() const noexcept { return r2_; }
+
+    /** @brief Returns `-p^{-1} mod 2^64`.
+     *  @return The negative modular inverse of `p` modulo `2^64`.
+     *  @throws none */
+    [[nodiscard]] constexpr uint64_t mod_inv_neg() const noexcept
+    {
+      return mod_inv_neg_;
+    }
+
+  private:
+    friend constexpr MontgomeryCtx
+    detail::montgomery_ctx_unchecked(const uint64_t mod) noexcept;
+
+    /** @brief Internal constructor for precomputed Montgomery state. */
+    constexpr MontgomeryCtx(const uint64_t mod,
+                            const uint64_t mod2,
+                            const uint64_t r,
+                            const uint64_t r2,
+                            const uint64_t mod_inv_neg) noexcept
+      : mod_(mod), mod2_(mod2), r_(r), r2_(r2), mod_inv_neg_(mod_inv_neg)
+    {
+      /* empty */
+    }
+
+    uint64_t mod_; ///< Odd modulus `p`.
+    uint64_t mod2_; ///< `2 * p` when it fits in `uint64_t`; otherwise 0.
+    uint64_t r_; ///< `R mod p`, with `R = 2^64`.
+    uint64_t r2_; ///< `R^2 mod p`, used to lift values into Montgomery form.
+    uint64_t mod_inv_neg_; ///< `-p^{-1} mod 2^64`.
+  };
+
+  namespace detail
+  {
+    [[nodiscard]] constexpr uint64_t
+    montgomery_neg_inverse(const uint64_t mod) noexcept
+    {
+      uint64_t inv = 1;
+      for (size_t i = 0; i < 6; ++i)
+        inv *= 2 - mod * inv;
+      return ~inv + 1;
+    }
+
+    [[nodiscard]] constexpr MontgomeryCtx
+    montgomery_ctx_unchecked(const uint64_t mod) noexcept
+    {
+      const __uint128_t r128 = static_cast<__uint128_t>(1) << 64;
+      const auto r = static_cast<uint64_t>(r128 % mod);
+      const auto r2 = static_cast<uint64_t>((static_cast<__uint128_t>(r) * r) % mod);
+
+      return MontgomeryCtx(mod,
+                           mod <= UINT64_MAX - mod ? mod + mod : 0,
+                           r,
+                           r2,
+                           montgomery_neg_inverse(mod));
+    }
+  }
+
+  /** @brief Build a Montgomery context for an odd runtime modulus.
+   *
+   *  @param mod Odd modulus greater than one.
+   *  @return Precomputed Montgomery context for @p mod.
+   *  @throws std::invalid_argument if @p mod is not an odd number > 1.
+   */
+  [[nodiscard]] inline MontgomeryCtx
+  montgomery_ctx(const uint64_t mod)
+  {
+    ah_invalid_argument_if(mod <= 1)
+      << "montgomery_ctx: modulus must be > 1";
+    ah_invalid_argument_if((mod & 1ULL) == 0)
+      << "montgomery_ctx: modulus " << mod << " must be odd";
+    return detail::montgomery_ctx_unchecked(mod);
+  }
+
+  /** @brief Build a compile-time Montgomery context for a template modulus.
+   *
+   *  @tparam Mod Odd modulus greater than one.
+   *  @return Precomputed Montgomery context for @p Mod.
+   */
+  template <uint64_t Mod>
+  [[nodiscard]] consteval MontgomeryCtx
+  montgomery_ctx_for_mod()
+  {
+    static_assert(Mod > 1, "montgomery_ctx_for_mod: modulus must be > 1");
+    static_assert((Mod & 1ULL) == 1ULL,
+                  "montgomery_ctx_for_mod: modulus must be odd");
+    return detail::montgomery_ctx_unchecked(Mod);
+  }
+
+  /** @brief Montgomery reduction (`REDC`).
+   *
+   *  Computes `x * R^{-1} mod p`, converting an intermediate product back
+   *  to the standard residue domain.
+   *
+   *  **Precondition**: `0 ≤ x < p * R` where `R = 2^64`.  Both `mont_mul`
+   *  (where `x = a * b`, `a,b < p`) and `from_mont` (where `x = a < p`) satisfy
+   *  this precondition whenever operands are valid Montgomery residues.
+   *
+   *  Standard REDC guarantees the intermediate result `t = (x + q·p) / R`
+   *  satisfies `0 ≤ t < 2p`.
+   *
+   *  **Fast path** (`ctx.mod2() != 0`, i.e. `2p < 2^64`):  `t` fits in a
+   *  `uint64_t` and is reduced to `[0, p)` with a single conditional
+   *  subtraction — no division is performed.
+   *
+   *  **Fallback** (`ctx.mod2() == 0`, i.e. `p ≥ 2^63`):  `t` may reach
+   *  `2p - 1 > UINT64_MAX`; a 128-bit `%` is used to reduce it safely.
+   *
+   *  @param x  128-bit intermediate value satisfying `0 ≤ x < p * R`.
+   *  @param ctx Montgomery context for the modulus.
+   *  @return Reduced value in `[0, p)`.
+   */
+  [[nodiscard]] constexpr uint64_t
+  mont_reduce(const __uint128_t x,
+              const MontgomeryCtx & ctx) noexcept
+  {
+    const uint64_t q = static_cast<uint64_t>(x) * ctx.mod_inv_neg();
+    const auto x_lo = static_cast<uint64_t>(x);
+    const auto x_hi = static_cast<uint64_t>(x >> 64);
+    const __uint128_t qmod = static_cast<__uint128_t>(q) * ctx.mod();
+    const auto qmod_lo = static_cast<uint64_t>(qmod);
+    const auto qmod_hi = static_cast<uint64_t>(qmod >> 64);
+    const uint64_t carry = qmod_lo > UINT64_MAX - x_lo ? 1ULL : 0ULL;
+
+    // t = (x + q·p) / R; REDC guarantees 0 ≤ t < 2p.
+    const __uint128_t t = static_cast<__uint128_t>(x_hi) + qmod_hi + carry;
+
+    // Fast path: 2p < 2^64 so t fits in uint64_t; one conditional subtraction
+    // reduces to [0, p) using only additions and comparisons.
+    if (ctx.mod2() != 0)
+      {
+        const uint64_t t64 = static_cast<uint64_t>(t);
+        return t64 >= ctx.mod() ? t64 - ctx.mod() : t64;
+      }
+
+    // Fallback for large primes (p ≥ 2^63): t may exceed UINT64_MAX, so keep
+    // it in __uint128_t and use a single 128-bit division to finish.
+    return static_cast<uint64_t>(t % ctx.mod());
+  }
+
+  /** @brief Montgomery multiplication.
+   *
+   *  Both operands are assumed to already be in Montgomery form.
+   *
+   *  @param a Left operand in Montgomery form.
+   *  @param b Right operand in Montgomery form.
+   *  @param ctx Montgomery context for the modulus.
+   *  @return `a * b` in Montgomery form.
+   */
+  [[nodiscard]] constexpr uint64_t
+  mont_mul(const uint64_t a,
+           const uint64_t b,
+           const MontgomeryCtx & ctx) noexcept
+  {
+    return mont_reduce(static_cast<__uint128_t>(a) * b, ctx);
+  }
+
+  /** @brief Lift a standard residue into Montgomery form.
+   *
+   *  @param a Standard residue.
+   *  @param ctx Montgomery context for the modulus.
+   *  @return `aR mod p`.
+   */
+  [[nodiscard]] constexpr uint64_t
+  to_mont(const uint64_t a,
+          const MontgomeryCtx & ctx) noexcept
+  {
+    return mont_mul(a % ctx.mod(), ctx.r2(), ctx);
+  }
+
+  /** @brief Lower a Montgomery residue back to the standard domain.
+   *
+   *  @param a Value in Montgomery form.
+   *  @param ctx Montgomery context for the modulus.
+   *  @return Standard residue in `[0, p)`.
+   */
+  [[nodiscard]] constexpr uint64_t
+  from_mont(const uint64_t a,
+            const MontgomeryCtx & ctx) noexcept
+  {
+    return mont_reduce(a, ctx);
+  }
+
+  /** @brief Exponentiation in Montgomery form.
+   *
+   *  The base must already be represented in Montgomery form.
+   *
+   *  @param base Base in Montgomery form.
+   *  @param exp Exponent.
+   *  @param ctx Montgomery context for the modulus.
+   *  @return `base^exp` in Montgomery form.
+   */
+  [[nodiscard]] constexpr uint64_t
+  mont_exp(uint64_t base,
+           uint64_t exp,
+           const MontgomeryCtx & ctx) noexcept
+  {
+    uint64_t result = to_mont(1, ctx);
+    while (exp > 0)
+      {
+        if (exp & 1ULL)
+          result = mont_mul(result, base, ctx);
+        base = mont_mul(base, base, ctx);
+        exp >>= 1;
+      }
+    return result;
+  }
+# endif
+
   /** @brief Chinese Remainder Theorem (CRT).
    *
    *  Finds a number x such that x = rem[i] (mod mod[i]) for all i.

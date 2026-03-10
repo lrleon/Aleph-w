@@ -121,14 +121,36 @@ namespace Aleph
     Node *& root;
     Compare cmp;
 
-    bool avl_stack_empty() noexcept { return avl_stack.top() == head_ptr; }
+    bool avl_stack_at_base() noexcept
+    {
+      return not avl_stack.is_empty()
+             and avl_stack.size() == 1
+             and avl_stack.base() == head_ptr;
+    }
 
-    void clean_avl_stack() noexcept { avl_stack.popn(avl_stack.size() - 1); }
+    void clean_avl_stack() noexcept
+    {
+      if (avl_stack.is_empty())
+        {
+          avl_stack.push(head_ptr);
+          return;
+        }
+
+      if (avl_stack.base() != head_ptr)
+        {
+          avl_stack.empty();
+          avl_stack.push(head_ptr);
+          return;
+        }
+
+      if (const size_t to_pop = avl_stack.size() - 1; to_pop > 0)
+        avl_stack.popn(static_cast<int>(to_pop));
+    }
 
     Node * search_and_stack_avl(const Key & key,
                                 signed char & cmp_result) noexcept
     {
-      assert(avl_stack_empty());
+      assert(avl_stack_at_base());
 
       Node *p = root;
       Node *candidate = nullptr;  // Tracks potential duplicate when going right
@@ -160,7 +182,11 @@ namespace Aleph
         {
           cmp_result = CmpEqual;
           // Truncate stack: remove nodes pushed after candidate
-          avl_stack.popn(avl_stack.size() - candidate_pos);
+          const size_t to_pop =
+              avl_stack.size() > candidate_pos ?
+              avl_stack.size() - candidate_pos : 0;
+          if (to_pop > 0)
+            avl_stack.popn(static_cast<int>(to_pop));
           return candidate;
         }
 
@@ -170,7 +196,7 @@ namespace Aleph
     Node * search_dup_and_stack_avl(const Key & key,
                                     signed char & cmp_result) noexcept
     {
-      assert(avl_stack_empty());
+      assert(avl_stack_at_base());
       cmp_result = CmpEqual;
 
       Node *p = root;
@@ -383,7 +409,7 @@ namespace Aleph
           return;
         }
 
-      if (avl_stack_empty())
+      if (avl_stack_at_base())
         return;
 
       do
@@ -405,7 +431,7 @@ namespace Aleph
 
           pp = gpp;
         }
-      while (not avl_stack_empty());
+      while (not avl_stack_at_base());
 
       clean_avl_stack();
     }
@@ -532,12 +558,12 @@ namespace Aleph
       std::swap(cmp, tree.cmp);
     }
 
-    virtual ~Gen_Avl_Tree_Rk() noexcept { assert(avl_stack_empty()); }
+    virtual ~Gen_Avl_Tree_Rk() noexcept { assert(avl_stack_at_base()); }
 
     /// Return a modifiable reference to tree's root
     [[nodiscard]] constexpr Node *&getRoot() noexcept { return root; }
 
-    /// Return a modifiable reference to tree's root
+    /// Return a pointer to the tree's root
     [[nodiscard]] constexpr Node * getRoot() const noexcept { return root; }
 
     /// Return the number of nodes in the tree
@@ -703,7 +729,7 @@ namespace Aleph
 
         @param[in] key to be searched
         @return a pair with the inorder position and the node pointer.
-        If key is not found, position is -1.
+        If the key is not found, the position is -1.
     */
     std::pair<long, Node *> position(const Key & key) const noexcept
     {

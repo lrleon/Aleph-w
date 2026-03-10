@@ -353,6 +353,57 @@ TEST_F(RbTreeTest, HeightIsLogarithmic)
 }
 
 // =============================================================================
+// Regression: candidate_pos == rb_stack.size() (zero-pop branch)
+// =============================================================================
+
+// When the duplicate key equals the current maximum, every descent goes
+// right so candidate_pos equals rb_stack.size() at loop exit, making
+// to_pop == 0 and rb_stack.popn() is never called.
+TEST_F(RbTreeTest, DuplicateMaxKeyZeroPopBranch)
+{
+  // Right-spine: 10 -> 20 -> 30.  30 is the current maximum.
+  insert_values({10, 20, 30});
+  ASSERT_TRUE(verify_rb_properties(tree));
+
+  // Duplicate of maximum: candidate_pos == rb_stack.size(), to_pop == 0.
+  Node * dup = pool.make(30);
+  Node * res = tree.insert(dup);
+  EXPECT_EQ(res, nullptr);
+  pool.forget(dup);
+  delete dup;
+
+  EXPECT_TRUE(verify_rb_properties(tree));
+  EXPECT_EQ(tree.size(), 3);
+}
+
+// Randomised variant: build trees of increasing size and insert a
+// duplicate of the maximum to reliably exercise the zero-pop path.
+TEST_F(RbTreeTest, Property_DuplicateMax_RandomisedStress)
+{
+  std::mt19937 rng(54321);
+  std::uniform_int_distribution<int> n_dist(1, 50);
+
+  for (int trial = 0; trial < 200; ++trial)
+    {
+      Tree t;
+      NodePool<Tree> lpool;
+
+      int n = n_dist(rng);
+      for (int i = 1; i <= n; ++i)
+        t.insert(lpool.make(i));
+
+      // Insert duplicate of current maximum
+      Node * dup = lpool.make(n);
+      Node * res = t.insert(dup);
+      EXPECT_EQ(res, nullptr) << "trial " << trial;
+      lpool.forget(dup);
+      delete dup;
+
+      ASSERT_TRUE(verify_rb_properties(t)) << "trial " << trial;
+    }
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 

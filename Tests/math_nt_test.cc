@@ -43,7 +43,6 @@
 
 # include <primality.H>
 # include <pollard_rho.H>
-# include <ntt.H>
 # include <modular_combinatorics.H>
 # include <modular_linalg.H>
 # include <tpl_dynMat.H>
@@ -172,74 +171,6 @@ TEST(MathNT, PerformanceRegression)
   
   EXPECT_LE(duration, 500) << "Pollard-Rho performance regression detected";
 
-  // 2. NTT on large vectors
-  const size_t sz = 1 << 16;
-  Array<uint64_t> a = Array<uint64_t>::create(sz);
-  Array<uint64_t> b = Array<uint64_t>::create(sz);
-  for (size_t i = 0; i < sz; ++i) { a[i] = i; b[i] = sz - i; }
-
-  start = std::chrono::steady_clock::now();
-  auto res = NTT<>::multiply(a, b);
-  end = std::chrono::steady_clock::now();
-  
-  duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-  EXPECT_LE(duration, 1000) << "NTT performance regression detected";
-}
-
-TEST(MathNT, NTT)
-{
-  // Multiply (1 + 2x) * (3 + 4x) = 3 + 10x + 8x^2
-  Array<uint64_t> a = {1, 2};
-  Array<uint64_t> b = {3, 4};
-  auto c = NTT<>::multiply(a, b);
-  ASSERT_EQ(c.size(), 3u);
-  EXPECT_EQ(c[0], 3);
-  EXPECT_EQ(c[1], 10);
-  EXPECT_EQ(c[2], 8);
-
-  // Edge cases
-  EXPECT_TRUE(NTT<>::multiply({}, {1}).is_empty());
-  EXPECT_TRUE(NTT<>::multiply({1}, {}).is_empty());
-  
-  Array<uint64_t> s1 = {5};
-  Array<uint64_t> s2 = {7};
-  Array<uint64_t> res_s = NTT<>::multiply(s1, s2);
-  ASSERT_EQ(res_s.size(), 1u);
-  EXPECT_EQ(res_s[0], 35);
-
-  // Error paths: transform with non-power-of-2 size
-  Array<uint64_t> bad = {1, 2, 3};
-  EXPECT_THROW(NTT<>::transform(bad, false), std::invalid_argument);
-}
-
-TEST(MathNT, NTTForwardInverseRoundTrip)
-{
-  constexpr uint64_t MOD = 998244353ULL;
-
-  auto check_round_trip = [&](const Array<uint64_t> & input)
-    {
-      Array<uint64_t> work = input;
-      Array<uint64_t> expected;
-      expected.reserve(input.size());
-      for (size_t i = 0; i < input.size(); ++i)
-        expected.append(input[i] % MOD);
-
-      NTT<>::transform(work, false);
-      NTT<>::transform(work, true);
-
-      ASSERT_EQ(work.size(), expected.size());
-      for (size_t i = 0; i < work.size(); ++i)
-        EXPECT_EQ(work[i], expected[i]);
-    };
-
-  // n = 1 (degenerate no-op path)
-  check_round_trip(Array<uint64_t>({MOD - 5}));
-
-  // Small powers of two with values near MOD
-  check_round_trip(Array<uint64_t>({MOD - 1, MOD - 2}));
-  check_round_trip(Array<uint64_t>({0, 1, MOD - 1, MOD - 7}));
-  check_round_trip(Array<uint64_t>({MOD - 1, MOD - 2, MOD - 3, MOD - 4,
-                                    1, 2, 3, 4}));
 }
 
 TEST(MathNT, ModularCombinatorics)

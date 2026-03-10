@@ -2,9 +2,10 @@ cmake_minimum_required(VERSION 3.18)
 
 project(Aleph-Tests CXX)
 
-# Set C++23 standard
+# Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 
 # Compiler flags
 set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
@@ -13,11 +14,18 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(COMMON_FLAGS "${COMMON_FLAGS} -D__extern_always_inline=\"extern __always_inline\"")
 endif()
 
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR
+   AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+   AND ALEPH_USE_LIBCXX)
+    add_compile_options(-stdlib=libc++)
+    add_link_options(-stdlib=libc++)
+endif()
+
 # Debug flags with sanitizers (optional)
-option(USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
-if(USE_SANITIZERS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
+option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+if(ALEPH_USE_SANITIZERS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
@@ -28,7 +36,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 if(NOT TARGET Aleph)
     set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES ON CACHE BOOL "" FORCE)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/aleph)
 endif()
 
@@ -304,6 +312,8 @@ set(TEST_PROGRAMS
     random_tree_test
     streaming_algorithms_test
     math_nt_test
+    fft_test
+    two_sat_test
     random_net_test
     euclidian_graph_test
     find_path_test
@@ -336,6 +346,7 @@ set(TEST_PROGRAMS
     test_dial
     test_bidirectional_bfs
     test_ida_star
+    link_cut_tree_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++
@@ -503,6 +514,38 @@ add_custom_target(aleph_check
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
     DEPENDS aleph_build_tests
 )
+
+find_program(ALEPH_RUBY_EXECUTABLE ruby)
+if(TARGET fft_benchmark)
+    add_dependencies(aleph_build_tests fft_benchmark)
+    add_test(
+        NAME FFTRelease.BenchmarkValidate
+        COMMAND fft_benchmark --validate
+    )
+endif()
+
+if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_reference_probe)
+    add_dependencies(aleph_build_tests fft_reference_probe)
+    add_test(
+        NAME FFTRelease.ReferenceCrossCheck
+        COMMAND ${ALEPH_RUBY_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fft_reference_check.rb
+                --probe
+                $<TARGET_FILE:fft_reference_probe>
+    )
+endif()
+
+if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_benchmark AND TARGET fft_reference_probe)
+    add_test(
+        NAME FFTRelease.Audit
+        COMMAND ${ALEPH_RUBY_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fft_release_audit.rb
+                --fft-benchmark
+                $<TARGET_FILE:fft_benchmark>
+                --fft-reference
+                $<TARGET_FILE:fft_reference_probe>
+    )
+endif()
 
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")
