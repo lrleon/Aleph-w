@@ -147,6 +147,35 @@ namespace Aleph
   struct CancellationState
   {
     std::atomic<bool> stop_requested{false};
+    std::mutex observer_mutex;
+    std::vector<std::condition_variable *> observers;
+
+    void register_condition_variable(std::condition_variable * cv)
+    {
+      std::lock_guard<std::mutex> lock(observer_mutex);
+      observers.push_back(cv);
+    }
+
+    void unregister_condition_variable(std::condition_variable * cv)
+    {
+      std::lock_guard<std::mutex> lock(observer_mutex);
+      auto it = std::find(observers.begin(), observers.end(), cv);
+      if (it != observers.end())
+        observers.erase(it);
+    }
+
+    void notify_observers() noexcept
+    {
+      std::vector<std::condition_variable *> to_notify;
+      {
+        std::lock_guard<std::mutex> lock(observer_mutex);
+        to_notify = observers;
+      }
+
+      for (auto * cv : to_notify)
+        if (cv != nullptr)
+          cv->notify_all();
+    }
   };
 
   /** @brief Read-only cooperative cancellation token.
@@ -165,6 +194,53 @@ namespace Aleph
     friend class CancellationSource;
 
   public:
+    class ConditionVariableRegistration
+    {
+      std::shared_ptr<CancellationState> state_;
+      std::condition_variable *cv_ = nullptr;
+
+      void unregister() noexcept
+      {
+        if (state_ != nullptr and cv_ != nullptr)
+          state_->unregister_condition_variable(cv_);
+        cv_ = nullptr;
+      }
+
+    public:
+      ConditionVariableRegistration() = default;
+
+      ConditionVariableRegistration(std::shared_ptr<CancellationState> state,
+                                    std::condition_variable * cv) noexcept
+        : state_(std::move(state)), cv_(cv) {}
+
+      ConditionVariableRegistration(const ConditionVariableRegistration &) = delete;
+      ConditionVariableRegistration & operator =
+          (const ConditionVariableRegistration &) = delete;
+
+      ConditionVariableRegistration(ConditionVariableRegistration && other) noexcept
+        : state_(std::move(other.state_)), cv_(other.cv_)
+      {
+        other.cv_ = nullptr;
+      }
+
+      ConditionVariableRegistration & operator =
+          (ConditionVariableRegistration && other) noexcept
+      {
+        if (this == &other)
+          return *this;
+        unregister();
+        state_ = std::move(other.state_);
+        cv_ = other.cv_;
+        other.cv_ = nullptr;
+        return *this;
+      }
+
+      ~ConditionVariableRegistration()
+      {
+        unregister();
+      }
+    };
+
     CancellationToken() = default;
 
     /** @brief Return true if cancellation has been requested. */
@@ -188,6 +264,26 @@ namespace Aleph
 
     /** @brief Return true if the token is connected to a source. */
     [[nodiscard]] bool valid() const noexcept { return state_ != nullptr; }
+
+    /** @brief Request notification of a condition variable on cancellation.
+     *
+     *  This is primarily intended for blocking helpers that need to wake up
+     *  promptly when cooperative cancellation is requested.
+     */
+    [[nodiscard]] ConditionVariableRegistration notify_on_cancel(
+        std::condition_variable & cv) const
+    {
+      if (state_ == nullptr or stop_requested())
+        return {};
+      state_->register_condition_variable(&cv);
+      if (stop_requested())
+        {
+          state_->unregister_condition_variable(&cv);
+          cv.notify_all();
+          return {};
+        }
+      return ConditionVariableRegistration(state_, &cv);
+    }
   };
 
   /** @brief Cooperative cancellation source paired with CancellationToken. */
@@ -209,6 +305,7 @@ namespace Aleph
     void request_cancel() noexcept
     {
       state_->stop_requested.store(true, std::memory_order_relaxed);
+      state_->notify_observers();
     }
 
     /** @brief Synonym for request_cancel(). */

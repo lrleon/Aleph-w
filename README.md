@@ -3278,6 +3278,47 @@ int main() {
 }
 ```
 
+### Channels and Synchronized Shared State
+
+```cpp
+#include <concurrency_utils.H>
+#include <thread_pool.H>
+#include <vector>
+
+int main() {
+    Aleph::bounded_channel<int> jobs(8);
+    Aleph::synchronized<std::vector<int>> results(std::in_place);
+    Aleph::rw_synchronized<int> processed(0);
+    Aleph::ThreadPool pool(4);
+    Aleph::TaskGroup group(pool);
+
+    group.launch([&] {
+        for (int i = 1; i <= 10; ++i)
+            jobs.send(i);
+        jobs.close();
+    });
+
+    for (int w = 0; w < 2; ++w) {
+        group.launch([&] {
+            while (auto job = jobs.recv()) {
+                results.with_lock([&](auto &out) { out.push_back(*job * 2); });
+                processed.with_write_lock([](int &value) { ++value; });
+            }
+        });
+    }
+
+    group.wait();
+    return processed.with_read_lock([](const int &value) { return value; }) == 10 ? 0 : 1;
+}
+```
+
+`bounded_channel<T>` also has cancellation-aware blocking overloads that accept
+`CancellationToken` and throw `Aleph::operation_canceled` if cancellation is
+requested while a sender or receiver is blocked.
+
+See `Examples/concurrency_utils_example.cc` for a focused runnable example of
+channels, synchronized shared state, and SPSC handoff.
+
 ### Parallel Functional Operations
 
 ```cpp
@@ -3703,6 +3744,7 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | Header | Type/Function | Description |
 |--------|---------------|-------------|
 | `thread_pool.H` | `ThreadPool` | Thread pool with futures |
+| `concurrency_utils.H` | `bounded_channel<T>`, `synchronized<T>` | Modern channels and shared-state wrappers |
 | `ah-parallel.H` | `pmap()` | Parallel map |
 | `ah-parallel.H` | `pfilter()` | Parallel filter |
 | `ah-parallel.H` | `pfold()` | Parallel reduce |

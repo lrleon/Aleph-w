@@ -56,7 +56,13 @@
  * - **`pscan()` / `pexclusive_scan()`**: prefix sums in parallel
  * - **`pmerge()`**: merge sorted ranges with the same pool/options machinery
  *
- * ### Example 8: Performance Comparison
+ * ### Example 8: Channels and Synchronized Shared State
+ * - **`bounded_channel<T>`**: bounded producer-consumer handoff with close
+ * - **`synchronized<T>`**: mutex-protected shared objects
+ * - **`rw_synchronized<T>`**: read/write-lock protected shared objects
+ * - **`spsc_queue<T>`**: bounded single-producer/single-consumer handoff
+ *
+ * ### Example 9: Performance Comparison
  * - **Benchmarking**: Compare parallel vs sequential
  * - **Speedup**: Measure performance gains
  * - **Scalability**: Test with different thread counts
@@ -128,9 +134,11 @@
  */
 
 #include <thread_pool.H>
+#include <concurrency_utils.H>
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include <algorithm>
 #include <cmath>
 #include <chrono>
 #include <fstream>
@@ -597,7 +605,80 @@ void example_parallel_building_blocks()
 }
 
 // =============================================================================
-// EXAMPLE 8: Performance Comparison
+// EXAMPLE 8: Channels and Synchronized Shared State
+// =============================================================================
+//
+// This example shows how the small coordination helpers can sit on top of the
+// existing thread-pool machinery.
+//
+
+void example_channels_and_shared_state()
+{
+  print_header("Example 8: bounded_channel / synchronized / spsc_queue");
+
+  ThreadPool pool(4);
+  bounded_channel<int> jobs(4);
+  synchronized<std::vector<int>> results(std::in_place);
+  rw_synchronized<int> processed(0);
+  TaskGroup group(pool);
+
+  group.launch([&] {
+    for (int i = 1; i <= 8; ++i)
+      jobs.send(i);
+    jobs.close();
+  });
+
+  for (int worker = 0; worker < 2; ++worker)
+    group.launch([&] {
+      while (auto job = jobs.recv())
+        {
+          results.with_lock([&](auto &out) {
+            out.push_back(*job * *job);
+          });
+          processed.with_write_lock([](int &count) { ++count; });
+        }
+    });
+
+  group.wait();
+
+  auto sorted_results = results.with_lock([](const auto &out) {
+    auto copy = out;
+    std::sort(copy.begin(), copy.end());
+    return copy;
+  });
+
+  std::cout << "Squares received through bounded_channel: ";
+  for (const int value : sorted_results)
+    std::cout << value << " ";
+  std::cout << "\n";
+  std::cout << "Items processed: "
+            << processed.with_read_lock([](const int &count) { return count; })
+            << "\n";
+
+  spsc_queue<int> handoff(4);
+  handoff.try_push(10);
+  handoff.try_push(20);
+  auto first = handoff.try_pop();
+  auto second = handoff.try_pop();
+  std::cout << "SPSC queue sample: "
+            << (first.has_value() ? *first : -1) << ", "
+            << (second.has_value() ? *second : -1) << "\n";
+
+  bounded_channel<int> cancel_demo(1);
+  CancellationSource cancel;
+  cancel.request_cancel();
+  try
+    {
+      (void) cancel_demo.recv(cancel.token());
+    }
+  catch (const operation_canceled &)
+    {
+      std::cout << "Cancellation-aware recv interrupted as expected\n";
+    }
+}
+
+// =============================================================================
+// EXAMPLE 9: Performance Comparison
 // =============================================================================
 //
 // This example demonstrates the speedup achieved by parallel execution.
@@ -609,7 +690,7 @@ void example_parallel_building_blocks()
 
 void example_performance()
 {
-  print_header("Example 8: Performance Comparison");
+  print_header("Example 9: Performance Comparison");
   
   std::cout << "GOAL: Compare parallel execution vs sequential execution.\n\n";
   
@@ -685,7 +766,7 @@ int main()
   std::cout << "║                                                                ║\n";
   std::cout << "╚════════════════════════════════════════════════════════════════╝\n";
   
-  std::cout << "\nThis program demonstrates 8 common ThreadPool usage patterns.\n";
+  std::cout << "\nThis program demonstrates 9 common ThreadPool/concurrency usage patterns.\n";
   std::cout << "Read the source code comments for detailed explanations.\n";
   
   example_basic_parallel();
@@ -695,6 +776,7 @@ int main()
   example_load_shedding();
   example_structured_concurrency();
   example_parallel_building_blocks();
+  example_channels_and_shared_state();
   example_performance();
   
   std::cout << "\n";
@@ -709,6 +791,7 @@ int main()
   std::cout << "║    enqueue_bulk(f, container)   → vector<future> (batch)       ║\n";
   std::cout << "║    TaskGroup / Cancellation*    → structured parallel tasks    ║\n";
   std::cout << "║    parallel_invoke / pscan      → composable parallel blocks   ║\n";
+  std::cout << "║    bounded_channel / sync*      → producer-consumer helpers    ║\n";
   std::cout << "╚════════════════════════════════════════════════════════════════╝\n\n";
   
   return 0;

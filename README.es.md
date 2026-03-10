@@ -3570,6 +3570,7 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 | Header | Type/Function | Description |
 |--------|---------------|-------------|
 | `thread_pool.H` | `ThreadPool` | Thread pool with futures |
+| `concurrency_utils.H` | `bounded_channel<T>`, `synchronized<T>` | Canales modernos y wrappers para estado compartido |
 | `ah-parallel.H` | `pmap()` | Parallel map |
 | `ah-parallel.H` | `pfilter()` | Parallel filter |
 | `ah-parallel.H` | `pfold()` | Parallel reduce |

@@ -32,11 +32,15 @@
 
 /**
  * @file useMutex.H
- * @brief RAII-style wrapper for POSIX mutexes
+ * @brief Legacy RAII-style wrapper for POSIX mutexes
  * 
- * This file provides utilities for working with POSIX mutexes in a
+ * This file provides legacy utilities for working with POSIX mutexes in a
  * C++ RAII style, ensuring automatic lock release and simplifying
  * critical section management.
+ *
+ * @deprecated New code should generally prefer `std::mutex`,
+ * `std::lock_guard`, `std::unique_lock`, or the modern wrappers from
+ * `concurrency_utils.H`.
  * 
  * ## Features
  * 
@@ -89,7 +93,9 @@
  * - `CTOR_USE_MUTEX(name, mutex)`: For member initializer lists
  * - `CTOR_INH_USE_MUTEX(mutex)`: For base class initialization
  * 
- * @note Consider using std::lock_guard or std::unique_lock for modern C++.
+ * @note Legacy POSIX wrapper kept for backward compatibility.
+ *       Prefer `concurrency_utils.H` or standard C++ locking primitives in
+ *       new code.
  * 
  * @see useCondVar.H For condition variable support
  * 
@@ -125,10 +131,13 @@ using namespace Aleph;
 
 /**
  * @class UseMutex
- * @brief RAII-style mutex lock guard
+ * @brief Legacy RAII-style mutex lock guard
  * 
  * Automatically acquires a lock on construction and releases it on
  * destruction, unless explicitly disabled.
+ *
+ * @deprecated Prefer `Aleph::synchronized<T>`, `std::lock_guard`, or
+ * `std::unique_lock` in new code.
  * 
  * ## Thread Safety
  * 
@@ -233,6 +242,5 @@ public:
 # define CRITICAL_SECTION(mutex) UseMutex critical_section(mutex)
 
 # endif // USEMUTEX_H
-
 
 

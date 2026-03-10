@@ -14,6 +14,7 @@ set(EXAMPLE_PROGRAMS
     ah_parallel_example
     astar_example
     bfs_dfs_example
+    concurrency_utils_example
     set_structures_benchmark
     bellman_ford_example
     kosaraju_example
