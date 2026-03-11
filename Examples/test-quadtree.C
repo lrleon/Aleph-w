@@ -105,6 +105,13 @@ int main()
 
   tree.insert(Point(20, 20));
 
+  // Re-acquire root pointer after mutations
+  root = tree.get_root();
+  root_nw_child = NW_CHILD(root);
+  root_ne_child = NE_CHILD(root);
+  root_sw_child = SW_CHILD(root);
+  root_se_child = SE_CHILD(root);
+
   assert(root->get_num_points() == 8);
 
   assert(root_nw_child->get_num_points() == 5);

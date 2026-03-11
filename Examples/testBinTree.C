@@ -87,9 +87,16 @@ int main(int argn, char *argc[])
   BinTree<int>::Node *node;
   int value;
 
-  cout << "Inserting " << n << " random values in treee ...\n";
-
   int ins_count = 0;
+
+  // Validate input to prevent infinite loops
+  if (n > 1000)
+    {
+      cerr << "Error: n must be <= 1000 to avoid infinite loops with current RNG range." << endl;
+      return 1;
+    }
+
+  cout << "Inserting " << n << " random values in treee ...\n";
 
   for (i = 0; i < n; i++)
     {
@@ -111,8 +118,14 @@ int main(int argn, char *argc[])
   Tree_Node<int> * ttree = 
     bin_to_forest<Tree_Node<int>, BinTree<int>::Node>(tree.getRoot());
 
-  std::ofstream * o = (std::ofstream *)&cout;
-  generate_forest<Tree_Node<int>, Write> (ttree, *o);
+  // Check if forest conversion succeeded before proceeding
+  if (ttree == nullptr)
+    {
+      cout << "Warning: Empty tree, no forest to process." << endl;
+      return 0;
+    }
+
+  generate_forest<Tree_Node<int>, Write> (ttree, std::cout);
 
   cout << endl << "Secuencia paréntesis: ";  
   print_forest_par(ttree);

@@ -27,6 +27,9 @@
 
 # include <iostream>
 # include <string>
+# include <cstdlib>
+# include <cerrno>
+# include <climits>
 # include <tpl_arrayQueue.H>
 
 using namespace std;
@@ -70,7 +73,21 @@ struct Foo
     if (this == &f)
       return *this;
 
-    *ptr = *f.ptr;
+    // Handle null pointers safely
+    if (f.ptr == nullptr)
+      {
+        delete ptr;
+        ptr = nullptr;
+      }
+    else if (ptr == nullptr)
+      {
+        ptr = new int;
+        *ptr = *f.ptr;
+      }
+    else
+      {
+        *ptr = *f.ptr;
+      }
 
     return *this;
   }
@@ -123,9 +140,29 @@ ArrayQueue<T> create_queue(int n)
   return q;
 }
 
-int main(int, char * argc[])
+int main(int argc, char * argv[])
 {
-  size_t n = atoi(argc[1]);
+  // Check argument count
+  if (argc < 3)
+    {
+      cerr << "Usage: " << argv[0] << " <queue-size> <items-to-delete>" << endl;
+      cerr << "Both arguments must be non-negative integers." << endl;
+      return 1;
+    }
+
+  // Parse first argument (queue size)
+  char *endptr1;
+  errno = 0;
+  long n_long = strtol(argv[1], &endptr1, 10);
+  
+  // Validate first argument
+  if (errno != 0 || *endptr1 != '\0' || n_long < 0 || n_long > SIZE_MAX)
+    {
+      cerr << "Error: Invalid queue size argument. Must be a non-negative integer fitting in size_t." << endl;
+      return 1;
+    }
+  
+  size_t n = static_cast<size_t>(n_long);
   ArrayQueue<int> q(n);
 
   print(q);
@@ -177,7 +214,19 @@ int main(int, char * argc[])
 
   print(q);
 
-  int m = atoi(argc[2]);
+  // Parse second argument (items to delete)
+  char *endptr2;
+  errno = 0;
+  long m_long = strtol(argv[2], &endptr2, 10);
+  
+  // Validate second argument
+  if (errno != 0 || *endptr2 != '\0' || m_long < 0 || m_long > INT_MAX)
+    {
+      cerr << "Error: Invalid items-to-delete argument. Must be a non-negative integer fitting in int." << endl;
+      return 1;
+    }
+  
+  int m = static_cast<int>(m_long);
 
   cout << "Deleting " << m << " items" << endl;
   for (int i = 0; i < m; i++)

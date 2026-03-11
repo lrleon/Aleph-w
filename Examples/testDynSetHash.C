@@ -295,7 +295,7 @@ unsigned long insert_n_random_items_in_map(HashTable & table,
 template <template <typename, typename, class> class HashTable>
 void test_DynMapLinHash(size_t n)
 {
-  using MapType = DynMapHash<unsigned long, long>;
+  using MapType = HashTable<unsigned long, long, Aleph::equal_to<unsigned long>>;
   MapType table; 
   DynArray<unsigned long> keys;
   unsigned int dup_counter = insert_n_random_items_in_map(table, keys, n);

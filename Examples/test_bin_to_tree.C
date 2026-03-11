@@ -38,7 +38,7 @@ int random(int l, int r)
 {
   assert(l <= r);
 
-  int n = r - l;
+  int n = r - l + 1;
 
   int rd = 1 + (int) (1.0*n*rand()/(RAND_MAX+1.0));
 
@@ -97,4 +97,9 @@ int main(int argn, char *argc[])
   BinNode<int> * prb = forest_to_bin< Tree_Node<int>, BinNode<int> > (tree);
 
   assert(areEquivalents(prb, bp));
+
+  // Clean up dynamically allocated resources
+  destroyRec(bp);
+  destroyRec(tree);
+  destroyRec(prb);
 }

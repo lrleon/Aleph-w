@@ -44,7 +44,7 @@ void foo(int& i) { i = 5; }
 
 int main()
 {
-  BitArray array(20);
+  BitArray array(40);
 
   for (int i = 0; i < 20; i++)
     {
@@ -67,7 +67,7 @@ int main()
   ofstream out("test.bits");
   array.save(out);
 
-  ifstream in("test-aux.bits");
+  ifstream in("test.bits");
   array.load(in);
 
   print(array);

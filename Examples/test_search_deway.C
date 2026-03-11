@@ -70,7 +70,7 @@ struct Via
   int distancia; 
   Tipo_Via tipo;
 
-  Via() : tipo(DESCONOCIDO) {}
+  Via() : nombre("Desconocido"), distancia(0), tipo(DESCONOCIDO) {}
 
   Via(int d) 
     : nombre("Desconocido"), distancia(d), tipo(DESCONOCIDO) { /* empty */ }
@@ -255,10 +255,15 @@ int main()
     {
       cout << "Ingrese clave a buscar (escriba \"salir\"): ";
       string clave;
-      cin >> clave;
+      if (not std::getline(std::cin, clave))
+        break;
 
-      if (clave == "salir")
-	break;
+      // Remove trailing CR if present (e.g. on Windows)
+      if (not clave.empty() and clave.back() == '\r')
+        clave.pop_back();
+
+      if (clave.empty() or clave == "salir")
+        break;
 
       const size_t Buf_Size = 512;
       int deway[Buf_Size];

@@ -59,7 +59,14 @@ int main(int argn, char *argc[])
   int value;
   int ins_count = 0;
 
-  for (i = 1; i < n - 1; i++)
+  // Guard against tiny inputs that would make splitting impossible
+  if (n <= 2)
+    {
+      cerr << "Error: n must be greater than 2 for meaningful tree splitting." << endl;
+      return 1;
+    }
+
+  for (i = 0; i < n; i++)
     {
       value = (int) (10.0*n*rand()/(RAND_MAX+1.0));    
       p = new BinNode<int> (value);

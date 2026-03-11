@@ -42,12 +42,13 @@ void test(size_t n, unsigned long seed)
   gsl_rng_set(r, seed % gsl_rng_max(r));
 
   Tree tree;
-  for (auto i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     {
       auto val = gsl_rng_get(r);
-      auto p = tree.insert(new typename Tree::Node(val));
+      auto node = new typename Tree::Node(val);
+      auto p = tree.insert(node);
       if (p == nullptr)
-	delete p;
+	delete node;
     }
 
   {

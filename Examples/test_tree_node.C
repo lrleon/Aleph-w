@@ -26,8 +26,10 @@
 */
 
 # include <iostream>
+# include <memory>
 # include <string>
 # include <stdexcept>
+# include <ah-errors.H>
 # include <tpl_tree_node.H>
 # include <tpl_dynArray.H>
 
@@ -69,8 +71,7 @@ int * string_to_deway(const string& str, size_t & size)
       const string number_str = 
 	str.substr(begin_index, number_str_len).c_str();
 
-      if (not is_string_an_int(number_str))
-	throw invalid_argument("character is not a digit");
+      ah_invalid_argument_if(not is_string_an_int(number_str), "character is not a digit");
       
       a[a.size()] = atoi(number_str.c_str());
 
@@ -108,9 +109,9 @@ int main()
 	  string deway_string;
 	  size_t deway_size;
 	  cin >> deway_string;
-	  int * deway = string_to_deway(deway_string, deway_size);
+	  unique_ptr<int[]> deway(string_to_deway(deway_string, deway_size));
 
-	  Tree_Node<int> * node = deway_search(root, deway, deway_size);
+	  Tree_Node<int> * node = deway_search(root, deway.get(), deway_size);
 
 	  if (node == NULL)
 	    {
@@ -129,8 +130,6 @@ int main()
 
 	  //	  assert(check_tree(root));
 
-	  delete [] deway;
-	  
 	  cout << endl;
 	}
       catch (invalid_argument & e)

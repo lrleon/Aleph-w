@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
   cout << argv[0] << " " << n << " " << seed << endl;
 
   r = gsl_rng_alloc (gsl_rng_mt19937);
+  gsl_rng_set(r, seed);
 
   DynList<int> l1({1,2,3,4,5,6,7,8,9});
 

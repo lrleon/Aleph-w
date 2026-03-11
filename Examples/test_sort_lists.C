@@ -27,6 +27,9 @@
 
 # include <gsl/gsl_rng.h>
 # include <cassert>
+# include <cerrno>
+# include <climits>
+# include <cstdlib>
 # include <iostream>
 # include <ahSort.H>
 # include <tpl_sort_utils.H>
@@ -94,7 +97,21 @@ void free_ptr_list(List<T*> & list)
 
 int main(int argc, char *argv[])
 {
-  unsigned long n = argc > 1 ? atoi(argv[1]) : 1000;
+  unsigned long n = 1000;
+  if (argc > 1)
+    {
+      errno = 0;
+      char * endptr = nullptr;
+      const unsigned long parsed = strtoul(argv[1], &endptr, 10);
+      if (errno != 0 or endptr == argv[1] or *endptr != '\0' or
+          parsed > static_cast<unsigned long>(INT_MAX))
+        {
+          cerr << "Invalid n: must be a non-negative integer <= "
+               << INT_MAX << endl;
+          return 1;
+        }
+      n = parsed;
+    }
   unsigned int  t = argc > 2 ? atoi(argv[2]) : time(NULL);
 
   cout << argv[0] << " " << n << " " << t << endl;

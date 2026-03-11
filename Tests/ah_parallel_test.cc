@@ -972,8 +972,20 @@ TEST_F(ParallelTest, CorrectnessFoldVsSequential)
 // Performance Benchmarks
 // =============================================================================
 
+namespace
+{
+  [[nodiscard]] bool parallel_benchmarks_enabled()
+  {
+    return std::getenv("ALEPH_RUN_PARALLEL_BENCHMARKS") != nullptr;
+  }
+}
+
 TEST_F(ParallelTest, BenchmarkMapSpeedup)
 {
+  if (not parallel_benchmarks_enabled())
+    GTEST_SKIP() << "Skipping timing-sensitive parallel benchmarks; "
+                 << "set ALEPH_RUN_PARALLEL_BENCHMARKS=1 to enable";
+
   std::vector<int> data(1000000);
   std::iota(data.begin(), data.end(), 0);
   
@@ -1014,6 +1026,10 @@ TEST_F(ParallelTest, BenchmarkMapSpeedup)
 
 TEST_F(ParallelTest, BenchmarkFilterSpeedup)
 {
+  if (not parallel_benchmarks_enabled())
+    GTEST_SKIP() << "Skipping timing-sensitive parallel benchmarks; "
+                 << "set ALEPH_RUN_PARALLEL_BENCHMARKS=1 to enable";
+
   std::vector<int> data(1000000);
   std::iota(data.begin(), data.end(), 0);
   
@@ -1049,6 +1065,10 @@ TEST_F(ParallelTest, BenchmarkFilterSpeedup)
 
 TEST_F(ParallelTest, BenchmarkSortSpeedup)
 {
+  if (not parallel_benchmarks_enabled())
+    GTEST_SKIP() << "Skipping timing-sensitive parallel benchmarks; "
+                 << "set ALEPH_RUN_PARALLEL_BENCHMARKS=1 to enable";
+
   std::vector<int> data(100000);
   std::iota(data.begin(), data.end(), 0);
   std::mt19937 rng(123);  // Fixed seed for reproducibility

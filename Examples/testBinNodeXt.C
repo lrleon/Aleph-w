@@ -53,6 +53,13 @@ int main(int argn, char *argc[])
 {
   int i, n = argc[1] ? atoi(argc[1]) : 10;
 
+  // Validate input to prevent null root dereferencing
+  if (n <= 1)
+    {
+      cerr << "Error: n must be greater than 1 for meaningful tree operations." << endl;
+      return 1;
+    }
+
   unsigned int t = time(0);
 
   if (argn > 2)

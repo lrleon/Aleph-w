@@ -43,6 +43,13 @@ int main(int argn, char *argc[])
 {
   int n = argc[1] ? atoi(argc[1]) : 1000;
 
+  // Validate input to prevent invalid operations
+  if (n <= 0)
+    {
+      cerr << "Error: n must be a positive integer." << endl;
+      return 1;
+    }
+
   unsigned int t = time(0);
 
   if (argn > 2)

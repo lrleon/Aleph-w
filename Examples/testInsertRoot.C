@@ -91,7 +91,8 @@ int main(int argn, char *argc[])
   preOrderThreaded(root, printNode);
   cout << endl;
 
-  for (i = 0; i < 10; i++)
+  int removals = (n < 10) ? n : 10;
+  for (i = 0; i < removals; i++)
     {
       int idx;
       do
@@ -110,6 +111,7 @@ int main(int argn, char *argc[])
       p = remove_from_bst(root, value);
 
       assert(p != NULL);
+      delete p; // Free the detached node to prevent memory leak
     }
 
   cout << endl;

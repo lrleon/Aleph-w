@@ -144,6 +144,7 @@ int main(int argn, char *argc[])
   tex_file << "~\\ ";
 
   destroyRec(tree.getRoot()); 
+  tree.getRoot() = nullptr; // Reset tree state after destruction 
 
   for (i = 0; i < n; i++)
     {

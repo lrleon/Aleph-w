@@ -57,7 +57,7 @@ int main(int argc,char *argv[])
   const unsigned long NUM_ITE = argc > 1 ? atoi(argv[1]) : 1000;
   
   if (argc > 2)
-    seed = atol(argv[1]);
+    seed = atol(argv[2]);
   else
     seed = time(NULL);
 

@@ -92,16 +92,16 @@ int main()
 
   merge_lists<List, Menor_Que>(list1, list2, list3);
 
-  printList(list1); 
+  printList(list3); 
   printList(list2); 
 
-  quicksort(list1);
+  quicksort(list3);
 
   printf("Lists apparently merged and sorted\n");
 
-  printList(list1); 
+  printList(list3); 
 
-  list1.remove_all_and_delete();
+  list3.remove_all_and_delete();
 
   printf("Ending .... \n\n");
 }

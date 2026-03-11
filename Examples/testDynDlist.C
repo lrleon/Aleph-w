@@ -64,6 +64,13 @@ int main(int argn, char *argc[])
   if (argn > 2)
     m = atoi(argc[2]);
 
+  // Validate inputs
+  if (n <= 0 || m <= 0)
+    {
+      cerr << "Error: n and m must be positive integers." << endl;
+      return 1;
+    }
+
   unsigned int t = time(0);
 
   if (argn > 3)
@@ -85,6 +92,13 @@ int main(int argn, char *argc[])
     }
 
   imprime(list);
+
+  // Guard against empty list before calling get_first()
+  if (list.is_empty())
+    {
+      cerr << "Error: List is empty, cannot get first element." << endl;
+      return 1;
+    }
 
   //  DynDlist<int> te ( DynDlist<int>(list.get_first()) ); 
   DynDlist<int> te = DynDlist<int>(); 

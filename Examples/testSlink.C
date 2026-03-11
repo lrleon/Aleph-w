@@ -56,7 +56,7 @@ int main()
     Record1 head;
     unsigned i;
     Record1 *node; 
-    Slink *aux;
+    Record1 *aux;
 
     for (i = 0; i < NumItems; i++)
       {
@@ -73,7 +73,7 @@ int main()
 
     while (not head.is_empty())
       {
-	aux = head.remove_next();
+	aux = static_cast<Record1*>(head.remove_next());
 	delete aux;
       }
   }

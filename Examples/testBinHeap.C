@@ -137,9 +137,9 @@ int main(int argn, char *argc[])
     assert(heap.size() == 0);
 
 
-    DynArray<BinHeap<int>::Node*> nodes(n);
-    //    BinHeap<int>::Node* nodes[n];
     n = 4;
+    DynArray<BinHeap<int>::Node*> nodes(2*n);
+    //    BinHeap<int>::Node* nodes[2*n];
     for (i = 2*n - 1; i >= 0; i--)
       {
 	node = new BinHeap<int>::Node (i);

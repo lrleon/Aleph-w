@@ -127,7 +127,7 @@ int main(int, char * argc[])
 
   print(s);
 
-  int n = atoi(argc[1]);
+  int n = argc[1] ? atoi(argc[1]) : 1000;
 
   for (int i = 0; i < n; ++i)
     s.put(i);

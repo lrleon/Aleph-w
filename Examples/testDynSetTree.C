@@ -168,6 +168,10 @@ void test_DynSet(size_t n)
 
     cout << "done" << endl
          << "Reinserting ...." << endl;
+    
+    // Clear table to ensure reinsertion tests against an empty set
+    table.empty();
+    
     for (int i = 0; i < n; ++i)
       if (table.insert(keys(i)) == NULL)
         dups.append(i);

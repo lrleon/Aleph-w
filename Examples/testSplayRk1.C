@@ -72,7 +72,10 @@ int main(int argn, char *argc[]) {
   if (Aleph::check_rank_tree(tree.getRoot()))
 		cout << "arbol equilibrado" << endl;
 	else
-		cout << "error de equilibrio en el arbol" << endl;
+		{
+			cout << "error de equilibrio en el arbol" << endl;
+			return EXIT_FAILURE;
+		}
 
 /*
   for (i = 0; i < n; i++) {

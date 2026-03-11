@@ -382,9 +382,29 @@ namespace Aleph
 
     /** @brief Move-only awaitable result of work scheduled on a `ThreadPool`.
      *
-     *  `scheduled_operation<T>` intentionally behaves like a tiny
-     *  `std::future<T>`-style bridge. It supports blocking `wait()` / `get()`
-     *  and also `co_await` in user-defined coroutine types.
+     *  `scheduled_operation<T>` behaves like a tiny move-only
+     *  `std::future<T>`-style bridge for a single scheduled result.
+     *  Callers may:
+     *
+     *  - poll readiness with `valid()` / `is_ready()`,
+     *  - block with `wait()` / `get()`,
+     *  - or `co_await` the operation inside their own coroutine type.
+     *
+     *  Handles are move-only and single-consumer. Consuming operations
+     *  (`get()` and `await_resume()`) detach the shared state from the handle,
+     *  after which `valid()` returns false. Any public operation except
+     *  `valid()` throws via `throw_no_state()` when invoked on a moved-from or
+     *  otherwise empty handle.
+     *
+     *  @tparam T Result type produced by the scheduled callable.
+     *  @thread_safety Safe to observe completion (`valid()`, `is_ready()`,
+     *                 `wait()`, `await_ready()`) concurrently with task
+     *                 completion.
+     *  @thread_safety Not safe to call consuming or mutating operations
+     *                 concurrently on the same handle object.
+     *  @thread_safety Destroying the handle while a coroutine is suspended on
+     *                 it safely unregisters the continuation so completion will
+     *                 not resume a dead frame.
      */
     template <typename T>
     class scheduled_operation
@@ -433,8 +453,8 @@ namespace Aleph
 
     public:
       /** @brief Construct an empty operation handle.
-       *  @note Thread-safe for independent objects. Concurrent access to the
-       *        same handle instance is not synchronized.
+       *  @thread_safety Thread-safe for independent objects. Concurrent access
+       *                 to the same handle instance is not synchronized.
        */
       scheduled_operation() = default;
       scheduled_operation(const scheduled_operation &) = delete;
@@ -442,23 +462,26 @@ namespace Aleph
       scheduled_operation(scheduled_operation &&) noexcept = default;
       scheduled_operation & operator = (scheduled_operation &&) noexcept = default;
       /** @brief Destroy the handle and unregister any suspended continuation.
-       *  @note Thread-safe with respect to task completion. Not safe for
-       *        concurrent use with other member functions on the same object.
+       *  @thread_safety Safe with respect to task completion. Not safe for
+       *                 concurrent use with other member functions on the same
+       *                 object.
        */
       ~scheduled_operation() { unregister_continuation(); }
 
       /** @brief Check whether this handle still owns an unconsumed state.
        *  @return true if the operation can still be waited on or consumed.
+       *  @throws Nothing.
        *  @note Returns false after `get()` or `await_resume()` consumes the state.
-       *  @note Thread-safe for read-only observation if no other thread mutates
-       *        the same handle object concurrently.
+       *  @thread_safety Safe for concurrent read-only observation if no other
+       *                 thread mutates the same handle object concurrently.
        */
       [[nodiscard]] bool valid() const noexcept { return state_ != nullptr; }
 
       /** @brief Check whether the scheduled work has completed.
        *  @return true if a value or exception is ready.
-       *  @throws std::runtime_error if the handle has no state.
-       *  @note Thread-safe with respect to task completion.
+       *  @throws std::runtime_error if the handle is empty or moved-from.
+       *  @thread_safety Safe to call concurrently with task completion and
+       *                 other const observers on the same shared state.
        */
       [[nodiscard]] bool is_ready() const
       {
@@ -466,8 +489,10 @@ namespace Aleph
       }
 
       /** @brief Block until the scheduled work completes.
-       *  @throws std::runtime_error if the handle has no state.
-       *  @note Thread-safe with respect to task completion.
+       *  @throws std::runtime_error if the handle is empty or moved-from.
+       *  @thread_safety Safe to call concurrently with task completion.
+       *  @thread_safety Not safe to race with `get()`, `await_suspend()`, or
+       *                 `await_resume()` on the same handle object.
        */
       void wait() const
       {
@@ -476,10 +501,13 @@ namespace Aleph
 
       /** @brief Consume the result of the scheduled work.
        *  @return The computed value.
-       *  @throws std::runtime_error if the handle has no state or was already consumed.
+       *  @throws std::runtime_error if the handle is empty, moved-from, or was
+       *          already consumed.
        *  @throws Any exception captured from the scheduled callable.
        *  @note Invalidates this handle; `valid()` returns false afterward.
-       *  @note Not safe for concurrent calls on the same handle object.
+       *  @thread_safety Single-consumer only. Do not call concurrently with
+       *                 any other consuming or mutating operation on the same
+       *                 handle object.
        */
       T get()
       {
@@ -488,8 +516,9 @@ namespace Aleph
 
       /** @brief Check whether `co_await` can continue without suspension.
        *  @return true if the result is already ready.
-       *  @throws std::runtime_error if the handle has no state.
-       *  @note Thread-safe with respect to task completion.
+       *  @throws std::runtime_error if the handle is empty or moved-from.
+       *  @thread_safety Safe to call concurrently with task completion and
+       *                 other const observers on the same shared state.
        */
       [[nodiscard]] bool await_ready() const
       {
@@ -499,11 +528,13 @@ namespace Aleph
       /** @brief Register the awaiting coroutine for resumption on completion.
        *  @param continuation Coroutine to resume when the operation completes.
        *  @return true if the coroutine should suspend, false if already ready.
-       *  @throws std::runtime_error if the handle has no state.
+       *  @throws std::runtime_error if the handle is empty or moved-from.
        *  @throws std::logic_error if a second coroutine tries to await the same operation.
        *  @note Safe against awaiter destruction before completion; destruction
        *        unregisters the continuation.
-       *  @note Not safe for concurrent calls on the same handle object.
+       *  @thread_safety Handles races with completion internally.
+       *  @thread_safety Single-awaiter only. Do not call concurrently with
+       *                 other mutating operations on the same handle object.
        */
       bool await_suspend(std::coroutine_handle<> continuation)
       {
@@ -520,10 +551,13 @@ namespace Aleph
 
       /** @brief Consume the awaited result after coroutine resumption.
        *  @return The computed value.
-       *  @throws std::runtime_error if the handle has no state or was already consumed.
+       *  @throws std::runtime_error if the handle is empty, moved-from, or was
+       *          already consumed.
        *  @throws Any exception captured from the scheduled callable.
        *  @note Invalidates this handle; `valid()` returns false afterward.
-       *  @note Not safe for concurrent calls on the same handle object.
+       *  @thread_safety Single-consumer only. Do not call concurrently with
+       *                 any other consuming or mutating operation on the same
+       *                 handle object.
        */
       T await_resume()
       {
@@ -534,17 +568,24 @@ namespace Aleph
     /** @brief Move-only awaitable result of work scheduled on a `ThreadPool`
      *         for `void`-returning callables.
      *
-     *  `scheduled_operation<void>` behaves like a tiny move-only
-     *  `std::future<void>`-style bridge. Callers may block with `wait()` or
-     *  `get()`, or `co_await` the operation inside their own coroutine type.
+     *  `scheduled_operation<void>` exposes the same move-only, single-consumer
+     *  contract as `scheduled_operation<T>`, but models completion without a
+     *  value. Callers may poll readiness, block with `wait()` / `get()`, or
+     *  `co_await` the operation inside their own coroutine type.
      *
-     *  Thread-safety:
-     *  - Safe to observe completion (`is_ready()`, `wait()`) concurrently with
-     *    task completion.
-     *  - Not safe to call mutating/consuming operations concurrently on the
-     *    same handle object.
-     *  - Destroying the handle while a coroutine is suspended on it safely
-     *    unregisters the continuation so completion will not resume a dead frame.
+     *  Consuming operations (`get()` and `await_resume()`) detach the shared
+     *  state from the handle, after which `valid()` returns false. Any public
+     *  operation except `valid()` throws via `throw_no_state()` when invoked
+     *  on a moved-from or otherwise empty handle.
+     *
+     *  @thread_safety Safe to observe completion (`valid()`, `is_ready()`,
+     *                 `wait()`, `await_ready()`) concurrently with task
+     *                 completion.
+     *  @thread_safety Not safe to call consuming or mutating operations
+     *                 concurrently on the same handle object.
+     *  @thread_safety Destroying the handle while a coroutine is suspended on
+     *                 it safely unregisters the continuation so completion will
+     *                 not resume a dead frame.
      */
     template <>
     class scheduled_operation<void>
@@ -593,8 +634,8 @@ namespace Aleph
 
     public:
       /** @brief Construct an empty operation handle.
-       *  @note Thread-safe for independent objects. Concurrent access to the
-       *        same handle instance is not synchronized.
+       *  @thread_safety Thread-safe for independent objects. Concurrent access
+       *                 to the same handle instance is not synchronized.
        */
       scheduled_operation() = default;
       scheduled_operation(const scheduled_operation &) = delete;
@@ -602,8 +643,9 @@ namespace Aleph
       scheduled_operation(scheduled_operation &&) noexcept = default;
       scheduled_operation & operator = (scheduled_operation &&) noexcept = default;
       /** @brief Destroy the handle and unregister any suspended continuation.
-       *  @note Thread-safe with respect to task completion. Not safe for
-       *        concurrent use with other member functions on the same object.
+       *  @thread_safety Safe with respect to task completion. Not safe for
+       *                 concurrent use with other member functions on the same
+       *                 object.
        */
       ~scheduled_operation() { unregister_continuation(); }
 
@@ -611,15 +653,16 @@ namespace Aleph
        *  @return true if the operation can still be waited on or consumed.
        *  @throws Nothing.
        *  @note Returns false after `get()` or `await_resume()` consumes the state.
-       *  @note Thread-safe for read-only observation if no other thread mutates
-       *        the same handle object concurrently.
+       *  @thread_safety Safe for concurrent read-only observation if no other
+       *                 thread mutates the same handle object concurrently.
        */
       [[nodiscard]] bool valid() const noexcept { return state_ != nullptr; }
 
       /** @brief Check whether the scheduled work has completed.
        *  @return true if completion or an exception is ready.
-       *  @throws std::runtime_error if the handle has no state.
-       *  @note Thread-safe with respect to task completion.
+       *  @throws std::runtime_error if the handle is empty or moved-from.
+       *  @thread_safety Safe to call concurrently with task completion and
+       *                 other const observers on the same shared state.
        */
       [[nodiscard]] bool is_ready() const
       {
@@ -627,8 +670,10 @@ namespace Aleph
       }
 
       /** @brief Block until the scheduled work completes.
-       *  @throws std::runtime_error if the handle has no state.
-       *  @note Thread-safe with respect to task completion.
+       *  @throws std::runtime_error if the handle is empty or moved-from.
+       *  @thread_safety Safe to call concurrently with task completion.
+       *  @thread_safety Not safe to race with `get()`, `await_suspend()`, or
+       *                 `await_resume()` on the same handle object.
        */
       void wait() const
       {
@@ -636,10 +681,13 @@ namespace Aleph
       }
 
       /** @brief Consume completion of the scheduled work.
-       *  @throws std::runtime_error if the handle has no state or was already consumed.
+       *  @throws std::runtime_error if the handle is empty, moved-from, or was
+       *          already consumed.
        *  @throws Any exception captured from the scheduled callable.
        *  @note Invalidates this handle; `valid()` returns false afterward.
-       *  @note Not safe for concurrent calls on the same handle object.
+       *  @thread_safety Single-consumer only. Do not call concurrently with
+       *                 any other consuming or mutating operation on the same
+       *                 handle object.
        */
       void get()
       {
@@ -648,8 +696,9 @@ namespace Aleph
 
       /** @brief Check whether `co_await` can continue without suspension.
        *  @return true if completion is already ready.
-       *  @throws std::runtime_error if the handle has no state.
-       *  @note Thread-safe with respect to task completion.
+       *  @throws std::runtime_error if the handle is empty or moved-from.
+       *  @thread_safety Safe to call concurrently with task completion and
+       *                 other const observers on the same shared state.
        */
       [[nodiscard]] bool await_ready() const
       {
@@ -659,11 +708,13 @@ namespace Aleph
       /** @brief Register the awaiting coroutine for resumption on completion.
        *  @param continuation Coroutine to resume when the operation completes.
        *  @return true if the coroutine should suspend, false if already ready.
-       *  @throws std::runtime_error if the handle has no state.
+       *  @throws std::runtime_error if the handle is empty or moved-from.
        *  @throws std::logic_error if a second coroutine tries to await the same operation.
        *  @note Safe against awaiter destruction before completion; destruction
        *        unregisters the continuation.
-       *  @note Not safe for concurrent calls on the same handle object.
+       *  @thread_safety Handles races with completion internally.
+       *  @thread_safety Single-awaiter only. Do not call concurrently with
+       *                 other mutating operations on the same handle object.
        */
       bool await_suspend(std::coroutine_handle<> continuation)
       {
@@ -679,10 +730,14 @@ namespace Aleph
       }
 
       /** @brief Consume completion after coroutine resumption.
-       *  @throws std::runtime_error if the handle has no state or was already consumed.
+       *  @return Nothing.
+       *  @throws std::runtime_error if the handle is empty, moved-from, or was
+       *          already consumed.
        *  @throws Any exception captured from the scheduled callable.
        *  @note Invalidates this handle; `valid()` returns false afterward.
-       *  @note Not safe for concurrent calls on the same handle object.
+       *  @thread_safety Single-consumer only. Do not call concurrently with
+       *                 any other consuming or mutating operation on the same
+       *                 handle object.
        */
       void await_resume()
       {

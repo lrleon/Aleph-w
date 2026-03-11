@@ -25,6 +25,8 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <iostream>
+# include <fstream>
+# include <string>
 # include <tpl_graph.H>
 # include <graph_to_tree.H>
 # include <generate_tree.H>
@@ -68,7 +70,7 @@ struct Via
   int distancia; 
   Tipo_Via tipo;
 
-  Via() : tipo(DESCONOCIDO) {}
+  Via() : nombre("Desconocido"), distancia(0), tipo(DESCONOCIDO) {}
 
   Via(int d) 
     : nombre("Desconocido"), distancia(d), tipo(DESCONOCIDO) { /* empty */ }

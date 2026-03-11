@@ -189,6 +189,10 @@ int main(int argn, char *argc[])
   assert(is_treap(tree.getRoot()));
   assert(is_treap(removed_tree));
 
+  // Verify rank metadata is correctly updated after removal
+  assert(check_rank_tree(tree.getRoot()));
+  assert(check_rank_tree(removed_tree));
+
   cout << "Arbol restante" << endl;
   inOrderRec(tree.getRoot(), printNode);
   cout << endl;
