@@ -51,7 +51,7 @@ BinNode<int> * random_tree(int l, int r)
   if (l > r)
     return NULL;
 
-  BinNode<int> * root = new BinNode<int> (random(l, r));
+  auto * root = new BinNode<int> (random(l, r));
 
   LLINK(root) = random_tree(l, KEY(root) - 1);
   RLINK(root) = random_tree(KEY(root) + 1, r);
@@ -100,6 +100,6 @@ int main(int argn, char *argc[])
 
   // Clean up dynamically allocated resources
   destroyRec(bp);
-  destroyRec(tree);
+  destroy_forest(tree);
   destroyRec(prb);
 }

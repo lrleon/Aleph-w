@@ -438,8 +438,8 @@ namespace Aleph
      *        a control token rather than a payload constructor argument.
      */
     template <typename First, typename... Args>
-      requires std::same_as<std::remove_cvref_t<First>, CancellationToken> and
-               (not std::constructible_from<T, First, Args...>) and
+      requires std::same_as<std::remove_cvref_t<First>, CancellationToken> &&
+               (not std::constructible_from<T, First, Args...>) &&
                std::constructible_from<T, Args...>
     bool emplace(First && token, Args && ... args)
     {
@@ -716,7 +716,6 @@ namespace Aleph
       /** @brief Construct a guard and acquire the lock.
        *  @param mutex Mutex protecting the value.
        *  @param value Protected object to expose through the guard.
-       *  @return Constructs a guard that owns the lock.
        *  @throws Any exception thrown while locking `mutex`.
        */
       LockedPtr(Mutex & mutex, T & value)
@@ -752,7 +751,6 @@ namespace Aleph
       /** @brief Construct a guard and acquire the lock.
        *  @param mutex Mutex protecting the value.
        *  @param value Protected object to expose through the guard.
-       *  @return Constructs a guard that owns the lock.
        *  @throws Any exception thrown while locking `mutex`.
        */
       ConstLockedPtr(Mutex & mutex, const T & value)
@@ -908,7 +906,6 @@ namespace Aleph
       /** @brief Construct a guard and acquire a shared lock.
        *  @param mutex Shared mutex protecting the value.
        *  @param value Protected object to expose through the guard.
-       *  @return Constructs a guard that owns the shared lock.
        *  @throws Any exception thrown while locking `mutex`.
        */
       ReadLockedPtr(SharedMutex & mutex, const T & value)
@@ -943,7 +940,6 @@ namespace Aleph
       /** @brief Construct a guard and acquire an exclusive lock.
        *  @param mutex Shared mutex protecting the value.
        *  @param value Protected object to expose through the guard.
-       *  @return Constructs a guard that owns the exclusive lock.
        *  @throws Any exception thrown while locking `mutex`.
        */
       WriteLockedPtr(SharedMutex & mutex, T & value)

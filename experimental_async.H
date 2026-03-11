@@ -35,9 +35,9 @@
  *  redesign Aleph-w around coroutines or provide a full sender/receiver
  *  framework. Instead it offers:
  *
- *  - \ref Aleph::experimental::scheduled_operation: a move-only awaitable
+ *  - \ref Aleph::experimental::scheduled_operation : a move-only awaitable
  *    result handle for work scheduled on a `ThreadPool`
- *  - \ref Aleph::experimental::schedule: submit a callable to a pool and
+ *  - \ref Aleph::experimental::schedule : submit a callable to a pool and
  *    obtain a `scheduled_operation`
  *
  *  The bridge is disabled by default. To enable it, build or compile with
