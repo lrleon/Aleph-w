@@ -141,7 +141,7 @@ int main(int argn, char *argc[])
 	{
 	  value = 1 + (int) (100.0*rand()/(RAND_MAX+1.0));
 	  node = tree.search(value);
-	  if (node == NULL)
+	  if (node == nullptr)
 	    break;
 	}
       node = new Treap<int>::Node (value);
@@ -173,7 +173,7 @@ int main(int argn, char *argc[])
     {
       value = (int) (n*10.0*rand()/(RAND_MAX+1.0));
       node = tree.search(value);
-      if (node == NULL)
+      if (node == nullptr)
 	{
           node = new Treap<int>::Node (value); 
           tree.insert(node);

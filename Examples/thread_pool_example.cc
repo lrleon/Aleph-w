@@ -140,7 +140,9 @@
 #include <iomanip>
 #include <vector>
 #include <algorithm>
+#include <functional>
 #include <numeric>
+#include <stdexcept>
 #include <cmath>
 #include <chrono>
 #include <fstream>
@@ -535,24 +537,18 @@ void example_structured_concurrency()
         ah_runtime_error() << "TaskGroup demo exception";
     });
 
-  // Give task 2 (which throws after 20 × 1 ms) enough time to reach its throw 
-  // before cancelling the remaining tasks. We wait 50ms to ensure the 
-  // 20ms loop finishes and the exception is thrown.
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-  std::cout << "Cancelling remaining work before wait()...\n";
-  cancel.request_cancel(); // Signal remaining tasks to stop early
-
   try
     {
-      // wait() propagates the exception from task 2 while ensuring all
-      // cancelled tasks have finished.
+      // wait() propagates the exception from task 2.
       group.wait();
     }
   catch (const std::exception & e)
     {
       std::cout << "Caught structured exception: " << e.what() << "\n";
     }
+
+  std::cout << "Cancelling remaining work after wait()...\n";
+  cancel.request_cancel();
 
   std::cout << "Tasks completed before cancellation/exception: "
             << completed.load() << "\n";
@@ -651,10 +647,9 @@ void example_channels_and_shared_state()
   group.wait();
 
   auto sorted_results = results.with_lock([](const auto &out) {
-    auto copy = out;
-    std::sort(copy.begin(), copy.end());
-    return copy;
+    return out;
   });
+  std::sort(sorted_results.begin(), sorted_results.end());
 
   std::cout << "Squares received through bounded_channel: ";
   for (const int value : sorted_results)

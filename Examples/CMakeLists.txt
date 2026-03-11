@@ -25,7 +25,7 @@ foreach(source_file IN LISTS EXAMPLE_SOURCES)
 
     get_filename_component(_ext "${source_file}" EXT)
     if(_ext STREQUAL ".c")
-        set_target_properties(${program} PROPERTIES LINKER_LANGUAGE CXX)
+        set_source_files_properties("${source_file}" PROPERTIES LANGUAGE CXX)
     endif()
 endforeach()
 

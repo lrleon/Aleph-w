@@ -105,18 +105,35 @@ namespace Aleph
 {
   /** @brief Bounded blocking channel for producer-consumer workflows.
    *
-   *  `BoundedChannel` provides a thread-safe, fixed-capacity queue for
-   *  communicating between multiple producer and consumer threads.
+   *  `BoundedChannel` provides a fixed-capacity FIFO queue for passing values
+   *  between any number of producer threads and any number of consumer
+   *  threads. All public member functions are thread-safe. Distinct senders
+   *  and receivers may operate concurrently, but individual calls are not
+   *  reentrant on the same object because they synchronize through an internal
+   *  mutex and condition variables.
    *
-   *  - `send()` blocks while the channel is full.
+   *  Blocking operations wait for space or data:
+   *  - `send()` / `emplace()` block while the channel is full.
    *  - `recv()` blocks while the channel is empty.
-   *  - Once `close()` is called, pending receivers drain any queued items
-   *    and then observe end-of-stream (returns `false` or `std::nullopt`).
-   *  - Pending senders are woken up and return `false` on closure.
+   *  - `try_*` operations never block.
    *
-   *  The channel is thread-safe for any number of concurrent senders and
-   *  receivers. Methods that block also support \ref Aleph::CancellationToken
-   *  for cooperative cancellation.
+   *  Close semantics:
+   *  - `close()` wakes all blocked senders and receivers.
+   *  - Once closed, future sends fail and return `false`.
+   *  - Receivers continue draining already queued items.
+   *  - After the queue is drained, receives report end-of-stream by returning
+   *    `false` or `std::nullopt`.
+   *
+   *  Cancellation-aware overloads accept a \ref Aleph::CancellationToken. They
+   *  preserve the same close semantics and throw
+   *  \ref Aleph::operation_canceled if cancellation is requested while the
+   *  caller is blocked waiting for progress.
+   *
+   *  Exception safety:
+   *  - If element construction or assignment throws, the channel remains in a
+   *    valid state and the element stays queued until extraction succeeds.
+   *  - Methods marked `noexcept` do not throw; all others may propagate
+   *    exceptions from user-supplied element operations or cancellation.
    *
    *  @tparam T The type of elements stored in the channel.
    */
@@ -198,7 +215,10 @@ namespace Aleph
   public:
     /** @brief Construct a channel with a fixed capacity.
      *  @param capacity Maximum number of items the channel can hold.
-     *  @throws std::invalid_argument if capacity is zero.
+     *  @return Constructs a ready-to-use open channel.
+     *  @throws std::invalid_argument if @p capacity is zero.
+     *  @note This constructor does not block and is not thread-safe against
+     *        concurrent access to the object being constructed.
      */
     explicit BoundedChannel(size_t capacity)
       : capacity_(capacity)
@@ -211,13 +231,19 @@ namespace Aleph
     BoundedChannel & operator = (const BoundedChannel &) = delete;
 
     /** @brief Return the maximum number of queued items.
+     *  @param None.
      *  @return The channel's capacity.
+     *  @throws Nothing.
+     *  @note Thread-safe, non-blocking, reentrant, and `noexcept`.
      */
     [[nodiscard]] size_t capacity() const noexcept { return capacity_; }
 
-    /** @brief Check if the channel is closed.
-     *  @return true if close() has been called.
-     *  @note Thread-safe.
+    /** @brief Check whether the channel has been closed.
+     *  @param None.
+     *  @return `true` if `close()` has been called, otherwise `false`.
+     *  @throws Nothing unless locking the internal mutex throws.
+     *  @note Thread-safe, non-reentrant on the same object, and does not block
+     *        except to acquire the internal mutex.
      */
     [[nodiscard]] bool is_closed() const
     {
@@ -226,8 +252,11 @@ namespace Aleph
     }
 
     /** @brief Return the number of currently queued items.
+     *  @param None.
      *  @return Current size of the internal queue.
-     *  @note Thread-safe.
+     *  @throws Nothing unless locking the internal mutex throws.
+     *  @note Thread-safe, non-reentrant on the same object, and does not block
+     *        except to acquire the internal mutex.
      */
     [[nodiscard]] size_t size() const
     {
@@ -235,9 +264,12 @@ namespace Aleph
       return queue_.size();
     }
 
-    /** @brief Check if the channel is empty.
-     *  @return true if there are no items in the queue.
-     *  @note Thread-safe.
+    /** @brief Check whether the channel currently holds no queued items.
+     *  @param None.
+     *  @return `true` if there are no queued items, otherwise `false`.
+     *  @throws Nothing unless locking the internal mutex throws.
+     *  @note Thread-safe, non-reentrant on the same object, and does not block
+     *        except to acquire the internal mutex.
      */
     [[nodiscard]] bool empty() const
     {
@@ -251,7 +283,14 @@ namespace Aleph
      *  subsequently return `false`. Blocked receivers will drain any remaining
      *  items before returning `false` or `std::nullopt`.
      *
-     *  Calling close() on an already closed channel is a no-op.
+     *  Calling `close()` on an already closed channel is a no-op.
+     *
+     *  @param None.
+     *  @return Nothing.
+     *  @throws Nothing unless locking the internal mutex throws.
+     *  @note Thread-safe, non-reentrant on the same object, and non-blocking
+     *        apart from internal mutex acquisition. After closure, no send or
+     *        emplace operation can succeed.
      */
     void close()
     {
@@ -269,7 +308,11 @@ namespace Aleph
      *  available or the channel is closed.
      *
      *  @param value The item to send.
-     *  @return true if successfully sent, false if the channel was closed.
+     *  @return `true` if the value was queued, `false` if the channel was
+     *          already closed before space became available.
+     *  @throws Any exception thrown while copying `T` into the queue.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        On close, blocked senders wake and return `false`.
      */
     bool send(const T & value) { return send_impl(value); }
 
@@ -279,7 +322,11 @@ namespace Aleph
      *  available or the channel is closed.
      *
      *  @param value The item to send.
-     *  @return true if successfully sent, false if the channel was closed.
+     *  @return `true` if the value was queued, `false` if the channel was
+     *          already closed before space became available.
+     *  @throws Any exception thrown while moving `T` into the queue.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        On close, blocked senders wake and return `false`.
      */
     bool send(T && value) { return send_impl(std::move(value)); }
 
@@ -289,8 +336,14 @@ namespace Aleph
      *
      *  @param value The item to send.
      *  @param token Token for cooperative cancellation.
-     *  @return true if successfully sent, false if the channel was closed.
-     *  @throws Aleph::operation_canceled if cancellation is requested while blocked.
+     *  @return `true` if the value was queued, `false` if the channel was
+     *          closed before space became available.
+     *  @throws Aleph::operation_canceled if cancellation is requested while the
+     *          call is blocked waiting for space.
+     *  @throws Any exception thrown while copying `T` into the queue.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        If the channel closes first, blocked senders return `false`
+     *        instead of throwing.
      */
     bool send(const T & value, const CancellationToken & token)
     {
@@ -303,8 +356,14 @@ namespace Aleph
      *
      *  @param value The item to send.
      *  @param token Token for cooperative cancellation.
-     *  @return true if successfully sent, false if the channel was closed.
-     *  @throws Aleph::operation_canceled if cancellation is requested while blocked.
+     *  @return `true` if the value was queued, `false` if the channel was
+     *          closed before space became available.
+     *  @throws Aleph::operation_canceled if cancellation is requested while the
+     *          call is blocked waiting for space.
+     *  @throws Any exception thrown while moving `T` into the queue.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        If the channel closes first, blocked senders return `false`
+     *        instead of throwing.
      */
     bool send(T && value, const CancellationToken & token)
     {
@@ -315,7 +374,12 @@ namespace Aleph
      *
      *  Blocks if full. Returns false if closed.
      *
-     *  @return true if successfully emplaced, false if closed.
+     *  @param args Constructor arguments for `T` (empty by construction).
+     *  @return `true` if the element was queued, `false` if the channel was
+     *          closed before space became available.
+     *  @throws Any exception thrown while constructing `T` in-place.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        On close, blocked callers wake and return `false`.
      */
     template <typename... Args>
       requires (sizeof...(Args) == 0)
@@ -339,7 +403,13 @@ namespace Aleph
      *  @tparam Rest Remaining argument types.
      *  @param first First constructor argument.
      *  @param rest Remaining constructor arguments.
-     *  @return true if successfully emplaced, false if closed.
+     *  @return `true` if the element was queued, `false` if the channel was
+     *          closed before space became available.
+     *  @throws Any exception thrown while constructing `T` in-place.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        If `T` itself is constructible from `CancellationToken`, this
+     *        overload remains eligible and is preferred for payload
+     *        construction.
      */
     template <typename First, typename... Rest>
       requires std::constructible_from<T, First, Rest...>
@@ -364,8 +434,14 @@ namespace Aleph
      *  @tparam Args Types of constructor arguments.
      *  @param token Token for cooperative cancellation.
      *  @param args Constructor arguments.
-     *  @return true if successfully emplaced, false if closed.
-     *  @throws Aleph::operation_canceled if cancellation is requested while blocked.
+     *  @return `true` if the element was queued, `false` if the channel was
+     *          closed before space became available.
+     *  @throws Aleph::operation_canceled if cancellation is requested while the
+     *          call is blocked waiting for space.
+     *  @throws Any exception thrown while constructing `T` in-place.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        This overload only participates when the first argument is used as
+     *        a control token rather than a payload constructor argument.
      */
     template <typename First, typename... Args>
       requires std::same_as<std::remove_cvref_t<First>, CancellationToken> and
@@ -388,7 +464,11 @@ namespace Aleph
     /** @brief Attempt to send a value without blocking.
      *
      *  @param value Value to send.
-     *  @return true if sent, false if the channel is full or closed.
+     *  @return `true` if the value was queued immediately, `false` if the
+     *          channel is full or closed.
+     *  @throws Any exception thrown while copying `T` into the queue.
+     *  @note Thread-safe, not reentrant on the same object, and never blocks
+     *        waiting for capacity. Close is observed immediately.
      */
     bool try_send(const T & value)
     {
@@ -403,7 +483,11 @@ namespace Aleph
     /** @brief Attempt to send a value without blocking (move).
      *
      *  @param value Value to send.
-     *  @return true if sent, false if the channel is full or closed.
+     *  @return `true` if the value was queued immediately, `false` if the
+     *          channel is full or closed.
+     *  @throws Any exception thrown while moving `T` into the queue.
+     *  @note Thread-safe, not reentrant on the same object, and never blocks
+     *        waiting for capacity. Close is observed immediately.
      */
     bool try_send(T && value)
     {
@@ -421,7 +505,12 @@ namespace Aleph
      *  available or the channel is closed and drained.
      *
      *  @param out Reference where the received item will be moved.
-     *  @return true if an item was received, false if closed and empty.
+     *  @return `true` if an item was received, `false` if the channel is
+     *          closed and empty.
+     *  @throws Any exception thrown while copying or moving the queued value
+     *          into a temporary or assigning into @p out.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        If extraction throws, the queued element remains present.
      */
     bool recv(T & out)
     {
@@ -443,8 +532,14 @@ namespace Aleph
      *
      *  @param out Reference where the received item will be moved.
      *  @param token Token for cooperative cancellation.
-     *  @return true if an item was received, false if closed and empty.
-     *  @throws Aleph::operation_canceled if cancellation is requested while blocked.
+     *  @return `true` if an item was received, `false` if the channel is
+     *          closed and empty.
+     *  @throws Aleph::operation_canceled if cancellation is requested while the
+     *          call is blocked waiting for data.
+     *  @throws Any exception thrown while copying or moving the queued value
+     *          into a temporary or assigning into @p out.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        If extraction throws, the queued element remains present.
      */
     bool recv(T & out, const CancellationToken & token)
     {
@@ -462,10 +557,18 @@ namespace Aleph
       return true;
     }
 
-    /** @brief Blocking receive.
+    /** @brief Receive the next item from the channel.
      *
-     *  @return An item wrapped in `std::optional`, or `std::nullopt` if the
-     *          channel is closed and empty.
+     *  Blocks until an item becomes available or the channel closes and drains.
+     *
+     *  @param None.
+     *  @return The next queued item wrapped in `std::optional`, or
+     *          `std::nullopt` if the channel is closed and empty.
+     *  @throws Any exception thrown while copying or moving the queued value
+     *          into the returned optional.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        If optional construction throws, the queued element remains
+     *        present.
      */
     [[nodiscard]] std::optional<T> recv()
     {
@@ -474,22 +577,36 @@ namespace Aleph
       if (queue_.empty())
         return std::nullopt;
       T value(std::move_if_noexcept(queue_.front()));
+      std::optional<T> result;
+      if constexpr (std::is_nothrow_move_constructible_v<T> or
+                    not std::is_copy_constructible_v<T>)
+        result.emplace(std::move(value));
+      else
+        result.emplace(value);
       queue_.pop_front();
       lock.unlock();
       not_full_.notify_one();
       if constexpr (std::is_nothrow_move_constructible_v<T> or
                     not std::is_copy_constructible_v<T>)
-        return std::optional<T>(std::in_place, std::move(value));
+        return result;
       else
-        return std::optional<T>(std::in_place, value);
+        return static_cast<const std::optional<T> &>(result);
     }
 
-    /** @brief Cancellation-aware blocking receive.
+    /** @brief Cancellation-aware receive of the next item from the channel.
+     *
+     *  Blocks like `recv()` but monitors @p token for cancellation.
      *
      *  @param token Token for cooperative cancellation.
-     *  @return An item wrapped in `std::optional`, or `std::nullopt` if the
-     *          channel is closed and empty.
-     *  @throws Aleph::operation_canceled if cancellation is requested while blocked.
+     *  @return The next queued item wrapped in `std::optional`, or
+     *          `std::nullopt` if the channel is closed and empty.
+     *  @throws Aleph::operation_canceled if cancellation is requested while the
+     *          call is blocked waiting for data.
+     *  @throws Any exception thrown while copying or moving the queued value
+     *          into the returned optional.
+     *  @note Thread-safe, not reentrant on the same object, and may block.
+     *        If optional construction throws, the queued element remains
+     *        present.
      */
     [[nodiscard]] std::optional<T> recv(const CancellationToken & token)
     {
@@ -500,20 +617,32 @@ namespace Aleph
       if (queue_.empty())
         return std::nullopt;
       T value(std::move_if_noexcept(queue_.front()));
+      std::optional<T> result;
+      if constexpr (std::is_nothrow_move_constructible_v<T> or
+                    not std::is_copy_constructible_v<T>)
+        result.emplace(std::move(value));
+      else
+        result.emplace(value);
       queue_.pop_front();
       lock.unlock();
       not_full_.notify_one();
       if constexpr (std::is_nothrow_move_constructible_v<T> or
                     not std::is_copy_constructible_v<T>)
-        return std::optional<T>(std::in_place, std::move(value));
+        return result;
       else
-        return std::optional<T>(std::in_place, value);
+        return static_cast<const std::optional<T> &>(result);
     }
 
     /** @brief Attempt to receive an item into @p out without blocking.
      *
      *  @param out Reference where the received item will be moved.
-     *  @return true if an item was received, false if empty.
+     *  @return `true` if an item was received immediately, `false` if the
+     *          channel is empty.
+     *  @throws Any exception thrown while copying or moving the queued value
+     *          into a temporary or assigning into @p out.
+     *  @note Thread-safe, not reentrant on the same object, and never blocks
+     *        waiting for data. If extraction throws, the queued element remains
+     *        present.
      */
     bool try_recv(T & out)
     {
@@ -529,7 +658,14 @@ namespace Aleph
 
     /** @brief Attempt to receive an item without blocking.
      *
-     *  @return An item wrapped in `std::optional`, or `std::nullopt` if empty.
+     *  @param None.
+     *  @return The next queued item wrapped in `std::optional`, or
+     *          `std::nullopt` if the channel is empty.
+     *  @throws Any exception thrown while copying or moving the queued value
+     *          into the returned optional.
+     *  @note Thread-safe, not reentrant on the same object, and never blocks
+     *        waiting for data. If optional construction throws, the queued
+     *        element remains present.
      */
     [[nodiscard]] std::optional<T> try_recv()
     {
@@ -537,13 +673,19 @@ namespace Aleph
       if (queue_.empty())
         return std::nullopt;
       T value(std::move_if_noexcept(queue_.front()));
+      std::optional<T> result;
+      if constexpr (std::is_nothrow_move_constructible_v<T> or
+                    not std::is_copy_constructible_v<T>)
+        result.emplace(std::move(value));
+      else
+        result.emplace(value);
       queue_.pop_front();
       not_full_.notify_one();
       if constexpr (std::is_nothrow_move_constructible_v<T> or
                     not std::is_copy_constructible_v<T>)
-        return std::optional<T>(std::in_place, std::move(value));
+        return result;
       else
-        return std::optional<T>(std::in_place, value);
+        return static_cast<const std::optional<T> &>(result);
     }
   };
 
@@ -551,7 +693,8 @@ namespace Aleph
    *
    *  `Synchronized<T>` encapsulates a value of type `T` and a mutex. Access to
    *  the value is only possible by acquiring a lock, ensuring thread-safe
-   *  concurrent access.
+   *  concurrent access. All public member functions are thread-safe. Calls are
+   *  not reentrant on the same object unless `Mutex` itself is recursive.
    *
    *  The recommended interface is `with_lock()` for short critical sections.
    *  When the caller needs to hold the lock across multiple operations,
@@ -568,41 +711,81 @@ namespace Aleph
   class Synchronized
   {
   public:
-    /** @brief RAII guard for exclusive access to the synchronized value. */
+    /** @brief RAII guard for exclusive access to the synchronized value.
+     *  @note Thread-safe to use only while the guard object remains alive on
+     *        the thread that acquired it. The destructor releases the lock.
+     */
     class LockedPtr
     {
       std::unique_lock<Mutex> lock_;
       T *ptr_;
 
     public:
-      /** @brief Construct a guard and acquire the lock. */
+      /** @brief Construct a guard and acquire the lock.
+       *  @param mutex Mutex protecting the value.
+       *  @param value Protected object to expose through the guard.
+       *  @return Constructs a guard that owns the lock.
+       *  @throws Any exception thrown while locking `mutex`.
+       */
       LockedPtr(Mutex & mutex, T & value)
         : lock_(mutex), ptr_(&value) {}
 
-      /** @brief Access the protected value. */
+      /** @brief Access the protected value.
+       *  @param None.
+       *  @return A mutable reference to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] T & get() noexcept { return *ptr_; }
-      /** @brief Access members of the protected value. */
+      /** @brief Access members of the protected value.
+       *  @param None.
+       *  @return A mutable pointer to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] T * operator -> () noexcept { return ptr_; }
-      /** @brief Access the protected value. */
+      /** @brief Access the protected value.
+       *  @param None.
+       *  @return A mutable reference to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] T & operator * () noexcept { return *ptr_; }
     };
 
-    /** @brief RAII guard for read-only access to the synchronized value. */
+    /** @brief RAII guard for read-only access to the synchronized value.
+     *  @note Thread-safe to use only while the guard object remains alive on
+     *        the thread that acquired it. The destructor releases the lock.
+     */
     class ConstLockedPtr
     {
       std::unique_lock<Mutex> lock_;
       const T *ptr_;
 
     public:
-      /** @brief Construct a guard and acquire the lock. */
+      /** @brief Construct a guard and acquire the lock.
+       *  @param mutex Mutex protecting the value.
+       *  @param value Protected object to expose through the guard.
+       *  @return Constructs a guard that owns the lock.
+       *  @throws Any exception thrown while locking `mutex`.
+       */
       ConstLockedPtr(Mutex & mutex, const T & value)
         : lock_(mutex), ptr_(&value) {}
 
-      /** @brief Access the protected value. */
+      /** @brief Access the protected value.
+       *  @param None.
+       *  @return A const reference to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] const T & get() const noexcept { return *ptr_; }
-      /** @brief Access members of the protected value. */
+      /** @brief Access members of the protected value.
+       *  @param None.
+       *  @return A const pointer to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] const T * operator -> () const noexcept { return ptr_; }
-      /** @brief Access the protected value. */
+      /** @brief Access the protected value.
+       *  @param None.
+       *  @return A const reference to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] const T & operator * () const noexcept { return *ptr_; }
     };
 
@@ -611,32 +794,55 @@ namespace Aleph
     T value_;
 
   public:
-    /** @brief Default constructor. Available if T is default initializable. */
+    /** @brief Default-construct the protected value.
+     *  @param None.
+     *  @return Constructs a wrapper containing a default-initialized `T`.
+     *  @throws Any exception thrown by `T`'s default constructor.
+     */
     Synchronized() requires std::default_initializable<T> = default;
 
-    /** @brief Construct from a copy of @p value. */
+    /** @brief Construct from a copy of @p value.
+     *  @param value Initial value to copy into the wrapper.
+     *  @return Constructs a wrapper containing a copy of @p value.
+     *  @throws Any exception thrown while copying `T`.
+     */
     explicit Synchronized(const T & value)
       : value_(value) {}
 
-    /** @brief Construct by moving from @p value. */
+    /** @brief Construct by moving from @p value.
+     *  @param value Initial value to move into the wrapper.
+     *  @return Constructs a wrapper containing the moved-from value.
+     *  @throws Any exception thrown while moving `T`.
+     */
     explicit Synchronized(T && value)
       : value_(std::move(value)) {}
 
     /** @brief Construct the protected value in-place.
      *  @tparam Args Constructor argument types.
      *  @param args Arguments to pass to the constructor of T.
+     *  @return Constructs a wrapper containing an in-place `T`.
+     *  @throws Any exception thrown by `T`'s constructor.
      */
     template <typename... Args>
     explicit Synchronized(std::in_place_t, Args && ... args)
       : value_(std::forward<Args>(args)...) {}
 
     /** @brief Acquire an exclusive lock and return a guard.
-     *  @return A LockedPtr guard.
+     *  @param None.
+     *  @return A `LockedPtr` that keeps the mutex locked until destruction.
+     *  @throws Any exception thrown while locking `Mutex`.
+     *  @note Thread-safe. This call may block until another holder releases the
+     *        lock. Reentrancy depends on `Mutex`.
      */
     [[nodiscard]] LockedPtr lock() { return LockedPtr(mutex_, value_); }
 
     /** @brief Acquire an exclusive lock (for const access) and return a guard.
-     *  @return A ConstLockedPtr guard.
+     *  @param None.
+     *  @return A `ConstLockedPtr` that keeps the mutex locked until
+     *          destruction.
+     *  @throws Any exception thrown while locking `Mutex`.
+     *  @note Thread-safe. This call may block until another holder releases the
+     *        lock. Reentrancy depends on `Mutex`.
      */
     [[nodiscard]] ConstLockedPtr lock() const
     {
@@ -650,8 +856,13 @@ namespace Aleph
      *
      *  @tparam F Callback type.
      *  @param f The callback to execute.
-     *  @return The result of the callback.
-     *  @note Reentrancy depends on the @c Mutex type.
+     *  @return The value returned by @p f.
+     *  @throws Any exception thrown while locking `Mutex` or by the callback
+     *          itself.
+     *  @note Thread-safe and may block waiting for the mutex. Not reentrant on
+     *        the same object unless `Mutex` allows recursive locking. The
+     *        callback must not return a reference; otherwise compilation fails
+     *        to prevent dangling references after the lock is released.
      */
     template <typename F>
     decltype(auto) with_lock(F && f)
@@ -670,7 +881,13 @@ namespace Aleph
      *
      *  @tparam F Callback type.
      *  @param f The callback to execute.
-     *  @return The result of the callback.
+     *  @return The value returned by @p f.
+     *  @throws Any exception thrown while locking `Mutex` or by the callback
+     *          itself.
+     *  @note Thread-safe and may block waiting for the mutex. Not reentrant on
+     *        the same object unless `Mutex` allows recursive locking. The
+     *        callback must not return a reference; otherwise compilation fails
+     *        to prevent dangling references after the lock is released.
      */
     template <typename F>
     decltype(auto) with_lock(F && f) const
@@ -686,7 +903,9 @@ namespace Aleph
   /** @brief Read/write-lock protected shared object wrapper.
    *
    *  `RwSynchronized<T>` encapsulates a value and a shared mutex, allowing
-   *  multiple concurrent readers OR a single exclusive writer.
+   *  multiple concurrent readers OR a single exclusive writer. All public
+   *  member functions are thread-safe. Calls are not reentrant on the same
+   *  object unless `SharedMutex` itself supports recursive acquisition.
    *
    *  Readers acquire a shared lock through `read()` / `with_read_lock()`.
    *  Writers acquire an exclusive lock through `write()` / `with_write_lock()`.
@@ -698,41 +917,79 @@ namespace Aleph
   class RwSynchronized
   {
   public:
-    /** @brief RAII guard for shared (read-only) access. */
+    /** @brief RAII guard for shared (read-only) access.
+     *  @note The guard holds a shared lock until destruction.
+     */
     class ReadLockedPtr
     {
       std::shared_lock<SharedMutex> lock_;
       const T *ptr_;
 
     public:
-      /** @brief Construct a guard and acquire a shared lock. */
+      /** @brief Construct a guard and acquire a shared lock.
+       *  @param mutex Shared mutex protecting the value.
+       *  @param value Protected object to expose through the guard.
+       *  @return Constructs a guard that owns the shared lock.
+       *  @throws Any exception thrown while locking `mutex`.
+       */
       ReadLockedPtr(SharedMutex & mutex, const T & value)
         : lock_(mutex), ptr_(&value) {}
 
-      /** @brief Access the protected value. */
+      /** @brief Access the protected value.
+       *  @param None.
+       *  @return A const reference to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] const T & get() const noexcept { return *ptr_; }
-      /** @brief Access members of the protected value. */
+      /** @brief Access members of the protected value.
+       *  @param None.
+       *  @return A const pointer to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] const T * operator -> () const noexcept { return ptr_; }
-      /** @brief Access the protected value. */
+      /** @brief Access the protected value.
+       *  @param None.
+       *  @return A const reference to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] const T & operator * () const noexcept { return *ptr_; }
     };
 
-    /** @brief RAII guard for exclusive (write) access. */
+    /** @brief RAII guard for exclusive (write) access.
+     *  @note The guard holds an exclusive lock until destruction.
+     */
     class WriteLockedPtr
     {
       std::unique_lock<SharedMutex> lock_;
       T *ptr_;
 
     public:
-      /** @brief Construct a guard and acquire an exclusive lock. */
+      /** @brief Construct a guard and acquire an exclusive lock.
+       *  @param mutex Shared mutex protecting the value.
+       *  @param value Protected object to expose through the guard.
+       *  @return Constructs a guard that owns the exclusive lock.
+       *  @throws Any exception thrown while locking `mutex`.
+       */
       WriteLockedPtr(SharedMutex & mutex, T & value)
         : lock_(mutex), ptr_(&value) {}
 
-      /** @brief Access the protected value. */
+      /** @brief Access the protected value.
+       *  @param None.
+       *  @return A mutable reference to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] T & get() noexcept { return *ptr_; }
-      /** @brief Access members of the protected value. */
+      /** @brief Access members of the protected value.
+       *  @param None.
+       *  @return A mutable pointer to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] T * operator -> () noexcept { return ptr_; }
-      /** @brief Access the protected value. */
+      /** @brief Access the protected value.
+       *  @param None.
+       *  @return A mutable reference to the protected object.
+       *  @throws Nothing.
+       */
       [[nodiscard]] T & operator * () noexcept { return *ptr_; }
     };
 
@@ -741,14 +998,26 @@ namespace Aleph
     T value_;
 
   public:
-    /** @brief Default constructor. Available if T is default initializable. */
+    /** @brief Default-construct the protected value.
+     *  @param None.
+     *  @return Constructs a wrapper containing a default-initialized `T`.
+     *  @throws Any exception thrown by `T`'s default constructor.
+     */
     RwSynchronized() requires std::default_initializable<T> = default;
 
-    /** @brief Construct from a copy of @p value. */
+    /** @brief Construct from a copy of @p value.
+     *  @param value Initial value to copy into the wrapper.
+     *  @return Constructs a wrapper containing a copy of @p value.
+     *  @throws Any exception thrown while copying `T`.
+     */
     explicit RwSynchronized(const T & value)
       : value_(value) {}
 
-    /** @brief Construct by moving from @p value. */
+    /** @brief Construct by moving from @p value.
+     *  @param value Initial value to move into the wrapper.
+     *  @return Constructs a wrapper containing the moved-from value.
+     *  @throws Any exception thrown while moving `T`.
+     */
     explicit RwSynchronized(T && value)
       : value_(std::move(value)) {}
 
@@ -761,7 +1030,10 @@ namespace Aleph
       : value_(std::forward<Args>(args)...) {}
 
     /** @brief Acquire a shared lock and return a guard.
-     *  @return A ReadLockedPtr guard.
+     *  @param None.
+     *  @return A `ReadLockedPtr` that keeps a shared lock until destruction.
+     *  @throws Any exception thrown while locking `SharedMutex`.
+     *  @note Thread-safe. This call may block until there is no active writer.
      */
     [[nodiscard]] ReadLockedPtr read() const
     {
@@ -769,7 +1041,12 @@ namespace Aleph
     }
 
     /** @brief Acquire an exclusive lock and return a guard.
-     *  @return A WriteLockedPtr guard.
+     *  @param None.
+     *  @return A `WriteLockedPtr` that keeps an exclusive lock until
+     *          destruction.
+     *  @throws Any exception thrown while locking `SharedMutex`.
+     *  @note Thread-safe. This call may block until all readers and writers
+     *        have released the mutex.
      */
     [[nodiscard]] WriteLockedPtr write()
     {
@@ -780,7 +1057,12 @@ namespace Aleph
      *
      *  @tparam F Callback type.
      *  @param f The callback to execute.
-     *  @return The result of the callback.
+     *  @return The value returned by @p f.
+     *  @throws Any exception thrown while locking `SharedMutex` or by the
+     *          callback itself.
+     *  @note Thread-safe and may block waiting for active writers. The
+     *        callback must not return a reference; otherwise compilation fails
+     *        to prevent dangling references after the lock is released.
      */
     template <typename F>
     decltype(auto) with_read_lock(F && f) const
@@ -796,7 +1078,12 @@ namespace Aleph
      *
      *  @tparam F Callback type.
      *  @param f The callback to execute.
-     *  @return The result of the callback.
+     *  @return The value returned by @p f.
+     *  @throws Any exception thrown while locking `SharedMutex` or by the
+     *          callback itself.
+     *  @note Thread-safe and may block waiting for other readers or writers.
+     *        The callback must not return a reference; otherwise compilation
+     *        fails to prevent dangling references after the lock is released.
      */
     template <typename F>
     decltype(auto) with_write_lock(F && f)
@@ -813,10 +1100,17 @@ namespace Aleph
    *
    *  This queue is a lock-free, bounded circular buffer designed for high-
    *  performance handoff between exactly one producer thread and one
-   *  consumer thread.
+   *  consumer thread. It is thread-safe only for that single-producer /
+   *  single-consumer usage pattern. Concurrent calls from multiple producers
+   *  or multiple consumers are not supported.
    *
    *  @warning This class is NOT thread-safe for multiple producers or multiple
    *           consumers. Use \ref Aleph::BoundedChannel for MPMC scenarios.
+   *
+   *  Operations are non-blocking and never close. Producers observe failure by
+   *  receiving `false` when the ring is full; consumers observe emptiness by
+   *  receiving `false` or `std::nullopt`. If element extraction throws, the
+   *  slot remains occupied until extraction succeeds.
    *
    *  @tparam T The type of elements stored in the queue.
    */
@@ -850,7 +1144,10 @@ namespace Aleph
   public:
     /** @brief Construct a queue with the specified capacity.
      *  @param capacity Maximum number of items the queue can hold.
-     *  @throws std::invalid_argument if capacity is zero.
+     *  @return Constructs an empty queue.
+     *  @throws std::invalid_argument if @p capacity is zero.
+     *  @note This constructor does not block and is not thread-safe against
+     *        concurrent access to the object being constructed.
      */
     explicit SpscQueue(size_t capacity)
       : slots_(capacity + 1), storage_size_(capacity + 1)
@@ -862,10 +1159,19 @@ namespace Aleph
     SpscQueue(const SpscQueue &) = delete;
     SpscQueue & operator = (const SpscQueue &) = delete;
 
-    /** @brief Return the queue's capacity. */
+    /** @brief Return the queue's capacity.
+     *  @param None.
+     *  @return The maximum number of user-visible items.
+     *  @throws Nothing.
+     *  @note Safe to call from either the producer or consumer thread,
+     *        non-blocking, reentrant, and `noexcept`.
+     */
     [[nodiscard]] size_t capacity() const noexcept { return storage_size_ - 1; }
 
     /** @brief Check if the queue is empty.
+     *  @param None.
+     *  @return `true` if the queue currently contains no items.
+     *  @throws Nothing.
      *  @note Safe to call from either the producer or consumer thread.
      */
     [[nodiscard]] bool empty() const noexcept
@@ -875,6 +1181,9 @@ namespace Aleph
     }
 
     /** @brief Check if the queue is full.
+     *  @param None.
+     *  @return `true` if the queue currently has no free slots.
+     *  @throws Nothing.
      *  @note Safe to call from either the producer or consumer thread.
      */
     [[nodiscard]] bool full() const noexcept
@@ -884,6 +1193,9 @@ namespace Aleph
     }
 
     /** @brief Return the number of items currently in the queue.
+     *  @param None.
+     *  @return The current number of queued items.
+     *  @throws Nothing.
      *  @note Safe to call from either the producer or consumer thread.
      */
     [[nodiscard]] size_t size() const noexcept
@@ -897,23 +1209,29 @@ namespace Aleph
 
     /** @brief Attempt to push an item (copy) into the queue.
      *  @param value The item to push.
-     *  @return true if successfully pushed, false if the queue is full.
-     *  @note Only call from the producer thread.
+     *  @return `true` if the item was enqueued, `false` if the queue is full.
+     *  @throws Any exception thrown while copying `T` into the ring buffer.
+     *  @note Non-blocking and only safe to call from the single producer
+     *        thread.
      */
     bool try_push(const T & value) { return emplace_impl(value); }
 
     /** @brief Attempt to push an item (move) into the queue.
      *  @param value The item to push.
-     *  @return true if successfully pushed, false if the queue is full.
-     *  @note Only call from the producer thread.
+     *  @return `true` if the item was enqueued, `false` if the queue is full.
+     *  @throws Any exception thrown while moving `T` into the ring buffer.
+     *  @note Non-blocking and only safe to call from the single producer
+     *        thread.
      */
     bool try_push(T && value) { return emplace_impl(std::move(value)); }
 
     /** @brief Construct an item in-place at the tail of the queue.
      *  @tparam Args Constructor argument types.
      *  @param args Constructor arguments.
-     *  @return true if successfully emplaced, false if full.
-     *  @note Only call from the producer thread.
+     *  @return `true` if the item was enqueued, `false` if the queue is full.
+     *  @throws Any exception thrown while constructing `T` in-place.
+     *  @note Non-blocking and only safe to call from the single producer
+     *        thread.
      */
     template <typename... Args>
     bool emplace(Args && ... args)
@@ -923,8 +1241,11 @@ namespace Aleph
 
     /** @brief Attempt to pop an item from the queue into @p out.
      *  @param out Reference where the popped item will be moved.
-     *  @return true if an item was popped, false if the queue is empty.
-     *  @note Only call from the consumer thread.
+     *  @return `true` if an item was extracted, `false` if the queue is empty.
+     *  @throws Any exception thrown while copying or moving the queued value
+     *          into a temporary or assigning into @p out.
+     *  @note Non-blocking and only safe to call from the single consumer
+     *        thread. If extraction throws, the slot remains occupied.
      */
     bool try_pop(T & out)
     {
@@ -939,8 +1260,14 @@ namespace Aleph
     }
 
     /** @brief Attempt to pop an item from the queue.
-     *  @return An item wrapped in `std::optional`, or `std::nullopt` if empty.
-     *  @note Only call from the consumer thread.
+     *  @param None.
+     *  @return The next item wrapped in `std::optional`, or `std::nullopt` if
+     *          the queue is empty.
+     *  @throws Any exception thrown while copying or moving the queued value
+     *          into the returned optional.
+     *  @note Non-blocking and only safe to call from the single consumer
+     *        thread. If optional construction throws, the slot remains
+     *        occupied.
      */
     [[nodiscard]] std::optional<T> try_pop()
     {
@@ -948,29 +1275,53 @@ namespace Aleph
       if (head == tail_.load(std::memory_order_acquire))
         return std::nullopt;
       T value(std::move_if_noexcept(*slots_[head]));
+      std::optional<T> result;
+      if constexpr (std::is_nothrow_move_constructible_v<T> or
+                    not std::is_copy_constructible_v<T>)
+        result.emplace(std::move(value));
+      else
+        result.emplace(value);
       slots_[head].reset();
       head_.store(advance(head), std::memory_order_release);
       if constexpr (std::is_nothrow_move_constructible_v<T> or
                     not std::is_copy_constructible_v<T>)
-        return std::optional<T>(std::in_place, std::move(value));
+        return result;
       else
-        return std::optional<T>(std::in_place, value);
+        return static_cast<const std::optional<T> &>(result);
     }
   };
 
-  /** @brief Alias for BoundedChannel. */
+  /** @brief Alias for \ref Aleph::BoundedChannel.
+   *  @tparam T Value type stored in the channel.
+   *  @note Inherits the same thread-safety, blocking, close, and cancellation
+   *        semantics as `BoundedChannel<T>`.
+   */
   template <typename T>
   using bounded_channel = BoundedChannel<T>;
 
-  /** @brief Alias for Synchronized. */
+  /** @brief Alias for \ref Aleph::Synchronized.
+   *  @tparam T Protected value type.
+   *  @tparam Mutex Mutex type guarding the value.
+   *  @note Inherits the same thread-safety and callback lifetime rules as
+   *        `Synchronized<T, Mutex>`.
+   */
   template <typename T, typename Mutex = std::mutex>
   using synchronized = Synchronized<T, Mutex>;
 
-  /** @brief Alias for RwSynchronized. */
+  /** @brief Alias for \ref Aleph::RwSynchronized.
+   *  @tparam T Protected value type.
+   *  @tparam SharedMutex Shared mutex type guarding the value.
+   *  @note Inherits the same reader/writer concurrency and callback lifetime
+   *        rules as `RwSynchronized<T, SharedMutex>`.
+   */
   template <typename T, typename SharedMutex = std::shared_mutex>
   using rw_synchronized = RwSynchronized<T, SharedMutex>;
 
-  /** @brief Alias for SpscQueue. */
+  /** @brief Alias for \ref Aleph::SpscQueue.
+   *  @tparam T Value type stored in the queue.
+   *  @note Inherits the same non-blocking single-producer/single-consumer
+   *        semantics as `SpscQueue<T>`.
+   */
   template <typename T>
   using spsc_queue = SpscQueue<T>;
 }

@@ -121,22 +121,22 @@ MemArray<T> create_memarray(int n)
   return ret;
 }
 
-int main(int, char * argc[])
+int main(int argc, char * argv[])
 {
   MemArray<int> s;
 
   print(s);
 
-  int n = argc[1] ? atoi(argc[1]) : 1000;
+  int n = argc > 1 ? atoi(argv[1]) : 1000;
 
   for (int i = 0; i < n; ++i)
     s.put(i);
 
   print(s);
 
-  int m = n/4;
-  if (argc[2] != NULL)
-    m = atoi(argc[2]);
+  int m = n / 4;
+  if (argc > 2)
+    m = atoi(argv[2]);
   
   cout << "Extracting " << m << " items" << endl;
   for (int i = 0; i < m; ++i)

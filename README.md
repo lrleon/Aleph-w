@@ -3745,9 +3745,9 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 |--------|---------------|-------------|
 | `thread_pool.H` | `ThreadPool` | Thread pool with futures |
 | `concurrency_utils.H` | `bounded_channel<T>`, `synchronized<T>` | Modern channels and shared-state wrappers |
-| `ah-parallel.H` | `pmap()` | Parallel map |
+| `ah-parallel.H` | `pmaps()` | Parallel map |
 | `ah-parallel.H` | `pfilter()` | Parallel filter |
-| `ah-parallel.H` | `pfold()` | Parallel reduce |
+| `ah-parallel.H` | `pfoldl()` | Parallel reduce |
 | `ah-parallel.H` | `pfor_each()` | Parallel iteration |
 
 #### Functional Programming
