@@ -26,6 +26,7 @@
 */
 # include <iostream>
 # include <fstream>
+# include <memory>
 # include <string>
 # include <tpl_graph.H>
 # include <graph_to_tree.H>
@@ -122,12 +123,12 @@ void insert_via(Mapa& mapa,
 {
   Mapa::Node * n1 = buscar_ciudad(mapa, c1);
 
-  if (n1 == NULL)
+  if (n1 == nullptr)
     n1 = mapa.insert_node(c1);
 
   Mapa::Node * n2 = buscar_ciudad(mapa, c2);
 
-  if (n2 == NULL)
+  if (n2 == nullptr)
     n2 = mapa.insert_node(c2);
 
   string nombre_arco = n1->get_info().nombre + "--" + n2->get_info().nombre;
@@ -237,13 +238,21 @@ int main()
   imprimir_mapa(tree);
 
   Mapa::Node * c = buscar_ciudad(tree, "Merida");
+  if (c == nullptr)
+    {
+      cerr << "Error: buscar_ciudad(tree, \"Merida\") returned nullptr" << endl;
+      return 1;
+    }
 
-  Tree_Node<string> * t = 
-    Graph_To_Tree_Node <Mapa, string, GT_Tree<Mapa> > () (tree, c);
+  std::unique_ptr<Tree_Node<string>> t(
+    Graph_To_Tree_Node <Mapa, string, GT_Tree<Mapa> > () (tree, c));
 
   ofstream test("prueba.Tree", ios::trunc);
+  if (not test)
+    {
+      cerr << "Error: could not open prueba.Tree for writing" << endl;
+      return 1;
+    }
 
-  Aleph::generate_tree<Tree_Node<string>, Write_Ciudad> (t, test);
-
-  delete t;
+  Aleph::generate_tree<Tree_Node<string>, Write_Ciudad> (t.get(), test);
 }

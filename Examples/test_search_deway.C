@@ -24,7 +24,11 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <fstream>
 # include <iostream>
+# include <memory>
+# include <string>
+# include <ah-errors.H>
 # include <tpl_graph.H>
 # include <graph_to_tree.H>
 # include <generate_tree.H>
@@ -122,12 +126,12 @@ void insert_via(Mapa & mapa,
 {
   Mapa::Node * n1 = buscar_ciudad(mapa, c1);
 
-  if (n1 == NULL)
+  if (n1 == nullptr)
     n1 = mapa.insert_node(c1);
 
   Mapa::Node * n2 = buscar_ciudad(mapa, c2);
 
-  if (n2 == NULL)
+  if (n2 == nullptr)
     n2 = mapa.insert_node(c2);
 
   string nombre_arco = n1->get_info().nombre + "--" + n2->get_info().nombre;
@@ -247,9 +251,11 @@ int main()
   imprimir_mapa(tree);
 
   Mapa::Node * c = buscar_ciudad(tree, "Merida");
+  ah_runtime_error_if(c == nullptr)
+    << "buscar_ciudad(tree, \"Merida\") returned nullptr";
 
-  Tree_Node<string> * t = 
-    Aleph::Graph_To_Tree_Node <Mapa, string, GT_Tree<Mapa> > () (tree, c);
+  std::unique_ptr<Tree_Node<string>> t(
+    Aleph::Graph_To_Tree_Node <Mapa, string, GT_Tree<Mapa> > () (tree, c));
 
   while (true)
     {
@@ -270,10 +276,11 @@ int main()
       size_t dw_size = 0;
 
       Tree_Node<string> * p = 
-	search_deway <Tree_Node<string> >(t, clave, deway, Buf_Size, dw_size);
+		search_deway <Tree_Node<string> >(t.get(), clave, deway, Buf_Size,
+		                                 dw_size);
 
-      if (p == NULL)
-	cout << clave << " no fue encontrada en el arbol" << endl;
+	      if (p == nullptr)
+		cout << clave << " no fue encontrada en el arbol" << endl;
       else
 	{
 	  cout << clave << " tiene numero de Deway: ";
@@ -282,11 +289,11 @@ int main()
 	}
     } 
 
-  cout << "Saliendo ... " << endl;
+	  cout << "Saliendo ... " << endl;
 
-  ofstream test("prueba.Tree", ios::trunc);
+	  ofstream test("prueba.Tree", ios::trunc);
+	  ah_runtime_error_if(not test)
+	    << "could not open prueba.Tree for writing";
 
-  Aleph::generate_tree<Tree_Node<string>, Write_Ciudad> (t, test);
-
-  delete t;
+	  Aleph::generate_tree<Tree_Node<string>, Write_Ciudad> (t.get(), test);
 }

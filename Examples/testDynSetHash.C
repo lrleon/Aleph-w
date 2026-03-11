@@ -211,8 +211,12 @@ void test_DynSetLinHash(size_t n)
       {
         unsigned long * ptr = table.search(keys(i));
         assert(ptr != NULL);
-        if (dups.size() > 0 and dups(binary_search(dups, i)) == i) 
-          continue; // keys[] contains a dup entry
+        if (dups.size() > 0)
+          {
+            const auto dup_idx = binary_search(dups, i);
+            if (dup_idx < dups.size() and dups(dup_idx) == i)
+              continue; // keys[] contains a dup entry
+          }
       }
   }
 
@@ -282,8 +286,6 @@ unsigned long insert_n_random_items_in_map(HashTable & table,
 
   for (auto i = 0; i < n; i++)
     assert(table.search(keys(i)));
-
-  assert(table.search(keys(1)));
 
   assert(keys.all([&table] (auto k) { return table.search(k) != nullptr; }));
   cout << "Passed" << endl

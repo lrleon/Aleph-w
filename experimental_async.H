@@ -160,7 +160,7 @@ namespace Aleph
           return active_ and static_cast<bool>(handle_);
         }
 
-        void cancel() noexcept
+        void unregister() noexcept
         {
           std::lock_guard<std::mutex> lock(mutex_);
           active_ = false;
@@ -420,7 +420,7 @@ namespace Aleph
         if (state_ != nullptr and continuation_registration_ != nullptr)
           state_->detach_continuation(continuation_registration_);
         if (continuation_registration_ != nullptr)
-          continuation_registration_->cancel();
+          continuation_registration_->unregister();
         continuation_registration_.reset();
       }
 
@@ -538,14 +538,25 @@ namespace Aleph
        */
       bool await_suspend(std::coroutine_handle<> continuation)
       {
-        unregister_continuation();
         auto registration =
             std::make_shared<detail::ContinuationRegistration>(continuation);
-        if (state().attach_continuation(registration))
+        auto previous = std::move(continuation_registration_);
+        continuation_registration_ = registration;
+        try
           {
-            continuation_registration_ = std::move(registration);
-            return true;
+            if (state().attach_continuation(registration))
+              {
+                if (previous)
+                  previous->unregister();
+                return true;
+              }
           }
+        catch (...)
+          {
+            continuation_registration_ = std::move(previous);
+            throw;
+          }
+        continuation_registration_ = std::move(previous);
         return false;
       }
 
@@ -601,7 +612,7 @@ namespace Aleph
         if (state_ != nullptr and continuation_registration_ != nullptr)
           state_->detach_continuation(continuation_registration_);
         if (continuation_registration_ != nullptr)
-          continuation_registration_->cancel();
+          continuation_registration_->unregister();
         continuation_registration_.reset();
       }
 
@@ -718,14 +729,25 @@ namespace Aleph
        */
       bool await_suspend(std::coroutine_handle<> continuation)
       {
-        unregister_continuation();
         auto registration =
             std::make_shared<detail::ContinuationRegistration>(continuation);
-        if (state().attach_continuation(registration))
+        auto previous = std::move(continuation_registration_);
+        continuation_registration_ = registration;
+        try
           {
-            continuation_registration_ = std::move(registration);
-            return true;
+            if (state().attach_continuation(registration))
+              {
+                if (previous)
+                  previous->unregister();
+                return true;
+              }
           }
+        catch (...)
+          {
+            continuation_registration_ = std::move(previous);
+            throw;
+          }
+        continuation_registration_ = std::move(previous);
         return false;
       }
 
@@ -751,8 +773,20 @@ namespace Aleph
      *  Callers may block with `get()`/`wait()` or `co_await` the returned
      *  `scheduled_operation<T>`.
      *
+     *  @param pool Thread pool used to enqueue detached execution.
+     *  @param f Callable to execute asynchronously.
+     *  @param args Arguments forwarded to `f`.
+     *  @return A single-consumer `scheduled_operation<T>` representing the
+     *          eventual completion of the scheduled callable.
+     *  @throws Any exception thrown by `ThreadPool::enqueue_detached` while
+     *          scheduling the work.
+     *  @throws No exception from the callable itself escapes here; callable
+     *          failures are captured into the returned state and rethrown by
+     *          `get()` or `co_await`.
      *  @note Awaiting resumes on the worker thread that completes the callable.
      *  @note Results are single-consumer, just like `std::future<T>`.
+     *  @thread_safety Safe to call concurrently as long as `pool` itself is
+     *                 safe for concurrent `enqueue_detached()` calls.
      */
     template <typename F, typename... Args>
     [[nodiscard]] auto schedule(ThreadPool & pool, F && f, Args && ... args)
@@ -789,7 +823,21 @@ namespace Aleph
       return scheduled_operation<return_type>(std::move(state));
     }
 
-    /** @brief Convenience overload that uses the global default pool. */
+    /** @brief Submit work to the global default pool.
+     *
+     *  @param f Callable to execute asynchronously.
+     *  @param args Arguments forwarded to `f`.
+     *  @return A single-consumer `scheduled_operation<T>` representing the
+     *          eventual completion of the scheduled callable.
+     *  @throws Any exception thrown while enqueuing work into `default_pool()`.
+     *  @throws No exception from the callable itself escapes here; callable
+     *          failures are captured into the returned state and rethrown by
+     *          `get()` or `co_await`.
+     *  @note Awaiting resumes on the worker thread that completes the callable.
+     *  @note Results are single-consumer, just like `std::future<T>`.
+     *  @thread_safety Safe to call concurrently if `default_pool()` remains
+     *                 alive for the lifetime of the returned operation state.
+     */
     template <typename F, typename... Args>
     [[nodiscard]] auto schedule(F && f, Args && ... args)
       -> scheduled_operation<std::invoke_result_t<F, Args...>>

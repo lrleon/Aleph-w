@@ -25,11 +25,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+# include <cerrno>
+# include <climits>
+# include <cstdlib>
+# include <ctime>
 # include <iostream>
-# include <stdlib.h>
-# include <time.h>
 # include <math.h>
-# include <iostream>
 
 # include <tpl_dynarray_set.H>
 
@@ -54,7 +55,20 @@ int main(int argc,char *argv[])
   unsigned long seed,index;
   unsigned long i, value, val;
 
-  const unsigned long NUM_ITE = argc > 1 ? atoi(argv[1]) : 1000;
+  unsigned long NUM_ITE = 1000;
+  if (argc > 1)
+    {
+      char * endptr = nullptr;
+      errno = 0;
+      const unsigned long parsed = strtoul(argv[1], &endptr, 10);
+      if (errno != 0 or endptr == argv[1] or *endptr != '\0'
+          or parsed > static_cast<unsigned long>(INT_MAX))
+        {
+          cerr << "Invalid iteration count: " << argv[1] << endl;
+          return 1;
+        }
+      NUM_ITE = parsed;
+    }
   
   if (argc > 2)
     seed = atol(argv[2]);
@@ -169,7 +183,6 @@ int main(int argc,char *argv[])
     cout << it.get_curr() << " ";
   cout << endl;
 }
-
 
 
 

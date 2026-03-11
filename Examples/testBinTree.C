@@ -25,7 +25,6 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <iostream>
-# include <iostream>
 
 # include <aleph.H>
 # include <tpl_binTree.H>
@@ -69,19 +68,20 @@ void print_forest_deway(Tree_Node<int> * p, const string & idx)
     });
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int i, n = argc[1] ? stoi(argc[1]) : 1000;
+  int i;
+  int n = argc > 1 ? stoi(argv[1]) : 1000;
 
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = stoi(argc[2]);
+  if (argc > 2)
+    t = stoi(argv[2]);
 
   gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
   gsl_rng_set(rng, t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   BinTree<int>  tree;
   BinTree<int>::Node *node;
@@ -96,7 +96,7 @@ int main(int argn, char *argc[])
       return 1;
     }
 
-  cout << "Inserting " << n << " random values in treee ...\n";
+  cout << "Inserting " << n << " random values in tree ...\n";
 
   for (i = 0; i < n; i++)
     {
@@ -216,7 +216,7 @@ int main(int argn, char *argc[])
   destroyRec(t1);
   destroyRec(t2); 
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 }
 
 // 1018058241

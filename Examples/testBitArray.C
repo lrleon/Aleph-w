@@ -25,6 +25,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+# include <fstream>
 # include <iostream>
 # include <bitArray.H>
 
@@ -35,12 +36,10 @@ void print(BitArray & array)
 {
   cout << "size = " << array.size() << endl;
 
-  for (int i = 0; i < array.size(); i++)
+  for (size_t i = 0; i < array.size(); ++i)
     cout << array[i] << " ";
   cout << endl;
 }
-
-void foo(int& i) { i = 5; }
 
 int main()
 {
@@ -64,8 +63,10 @@ int main()
 
   cout << endl;  
 
-  ofstream out("test.bits");
-  array.save(out);
+  {
+    ofstream out("test.bits");
+    array.save(out);
+  }
 
   ifstream in("test.bits");
   array.load(in);

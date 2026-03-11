@@ -30,6 +30,7 @@
 # include <cstdlib>
 # include <cerrno>
 # include <climits>
+# include <stdexcept>
 # include <tpl_arrayQueue.H>
 
 using namespace std;
@@ -45,25 +46,25 @@ struct Foo
     std::swap(ptr, f.ptr);
   }
 
-  Foo() : ptr(NULL)
+  Foo() : ptr(nullptr)
   {
     ptr = new int;
     *ptr = ::count--;
   }
 
-  Foo(int i) : ptr(NULL)
+  Foo(int i) : ptr(nullptr)
   {
     ptr = new int;
     *ptr = i;
   }
 
-  Foo(const Foo & f) : ptr(NULL)
+  Foo(const Foo & f) : ptr(nullptr)
   {
     ptr = new int;
     *ptr = *f.ptr;
   }
 
-  Foo(Foo && f) : ptr(NULL)
+  Foo(Foo && f) : ptr(nullptr)
   {
     std::swap(ptr, f.ptr);
   }
@@ -100,16 +101,21 @@ struct Foo
 
   ~Foo()
   {
-    if (ptr != NULL)
+    if (ptr != nullptr)
       {
 	delete ptr;
-	ptr = NULL;
+	ptr = nullptr;
       }
   }
 
   // operator int () { return *ptr; }
 
-  operator int () const { return *ptr; }
+  operator int () const
+  {
+    if (ptr == nullptr)
+      throw std::logic_error("attempt to access value of moved-from Foo");
+    return *ptr;
+  }
 };
 
 template <typename T>
@@ -118,11 +124,11 @@ void print(const ArrayQueue<T> & q)
   cout << "capacity = " << q.capacity() << endl
        << "size     = " << q.size() << endl;
 
-  for (int i = 0; i < q.size(); ++i)
+  for (size_t i = 0; i < q.size(); ++i)
     cout << (T) q.front(i) << " ";
   cout << endl ;
 
-  for (int i = 0; i < q.size(); ++i)
+  for (size_t i = 0; i < q.size(); ++i)
     cout << (T) q.rear(i) << " ";
   cout << endl
        << endl;
@@ -156,7 +162,7 @@ int main(int argc, char * argv[])
   long n_long = strtol(argv[1], &endptr1, 10);
   
   // Validate first argument
-  if (errno != 0 || *endptr1 != '\0' || n_long < 0 || n_long > SIZE_MAX)
+  if (errno != 0 or *endptr1 != '\0' or n_long < 0 or n_long > SIZE_MAX)
     {
       cerr << "Error: Invalid queue size argument. Must be a non-negative integer fitting in size_t." << endl;
       return 1;
@@ -168,7 +174,7 @@ int main(int argc, char * argv[])
   print(q);
 
   cout << "Inserting " << n << " values ";
-  for (int i = 0; i < n; i++)
+  for (size_t i = 0; i < n; ++i)
     cout << q.put(i) << " ";
   cout << " done!" << endl << endl;
 
@@ -208,7 +214,7 @@ int main(int argc, char * argv[])
   print(q);
 
   cout << "Inserting " << n << " values " << endl;
-  for (int i = 0; i < n; i++)
+  for (size_t i = 0; i < n; ++i)
     cout << q.put(i) << " ";
   cout << " done!" << endl << endl;
 
@@ -220,7 +226,7 @@ int main(int argc, char * argv[])
   long m_long = strtol(argv[2], &endptr2, 10);
   
   // Validate second argument
-  if (errno != 0 || *endptr2 != '\0' || m_long < 0 || m_long > INT_MAX)
+  if (errno != 0 or *endptr2 != '\0' or m_long < 0 or m_long > INT_MAX)
     {
       cerr << "Error: Invalid items-to-delete argument. Must be a non-negative integer fitting in int." << endl;
       return 1;
@@ -230,7 +236,17 @@ int main(int argc, char * argv[])
 
   cout << "Deleting " << m << " items" << endl;
   for (int i = 0; i < m; i++)
-    cout << q.get() << " ";
+    {
+      try
+        {
+          cout << q.get() << " ";
+        }
+      catch (std::underflow_error & exc)
+        {
+          cout << endl << exc.what() << endl;
+          break;
+        }
+    }
 
   cout << "done!" << endl << endl;
 

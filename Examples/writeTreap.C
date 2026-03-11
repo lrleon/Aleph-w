@@ -24,9 +24,12 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <iostream>
+# include <charconv>
+# include <ctime>
 # include <fstream>
-# include <time.h>
+# include <iostream>
+# include <string_view>
+# include <ah-errors.H>
 # include <aleph.H>
 # include <tpl_treap.H>
 # include <gmpfrxx.h> 
@@ -42,7 +45,7 @@ long randomLong()
   return (long) (100.0*rand()/(RAND_MAX+1.0));
 }
 
-ofstream output("treap-aux.Tree", ios::out); 
+ofstream output;
 fstream fig_file;
 fstream tex_file;
 
@@ -96,16 +99,37 @@ int main(int argn, char *argc[])
   int value;
 
   if (argn > 1)
-    n = atoi(argc[1]);
+    {
+      const std::string_view arg = argc[1];
+      auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), n);
+      ah_invalid_argument_if(ec != std::errc{} or ptr != arg.data() + arg.size())
+        << "Invalid or out-of-range value for n";
+    }
 
   if (argn > 2)
-    t = atoi(argc[2]);
+    {
+      const std::string_view arg = argc[2];
+      auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), t);
+      ah_invalid_argument_if(ec != std::errc{} or ptr != arg.data() + arg.size())
+        << "Invalid or out-of-range value for t";
+    }
 
   srand(t);
+
+  output.open("treap-aux.Tree", ios::out | ios::trunc);
+  ah_runtime_error_if(not output.is_open())
+    << "Could not open treap-aux.Tree";
+  fig_file.open("bal-04-aux.Tree", ios::out | ios::trunc);
+  ah_runtime_error_if(not fig_file.is_open())
+    << "Could not open bal-04-aux.Tree";
+  tex_file.open("treap-aux.tex", ios::out | ios::trunc);
+  ah_runtime_error_if(not tex_file.is_open())
+    << "Could not open treap-aux.tex";
 
   cout << "writeTreap " << n << " " << t << endl;
 
   Treap<int> tree;
+  tree.set_seed(t);
   Treap<int>::Node *node;
   int i;
 
@@ -131,20 +155,19 @@ int main(int argn, char *argc[])
   cout << "Min = " << gsl_rng_min(rand_gen) << endl
        << "Max = " << gsl_rng_max(rand_gen) << endl;
 
-  fig_file.open("bal-04-aux.Tree", ios::out);  
   preOrderRec(tree.getRoot(), print_key); 
   fig_file << endl << "START-AUX " << endl;
   inOrderRec(tree.getRoot(), print_prio); 
 
   last_node = find_max(tree.getRoot());
 
-  tex_file.open("treap-aux.tex", ios::out); 
   tex_file << "~\\ ";
   inOrderRec(tree.getRoot(), print_pair); 
   tex_file << "~\\ ";
 
   destroyRec(tree.getRoot()); 
   tree.getRoot() = nullptr; // Reset tree state after destruction 
+  tree.set_seed(t);
 
   for (i = 0; i < n; i++)
     {
@@ -158,10 +181,9 @@ int main(int argn, char *argc[])
     }
 
   assert(is_treap(tree.getRoot()));
-  fstream output("treap-aux.Tree");
+
   preOrderRec(tree.getRoot(), print_treap);
 }
-
 
 
 

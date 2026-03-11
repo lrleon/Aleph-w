@@ -104,6 +104,7 @@ int main(int argn, char *argc[])
   cout << endl << "Join(T1, T2)" << endl;
   preOrderRec(root, &print_node); cout << endl << endl;
   destroyRec(root);
+  destroyRec(dup); // Clean up duplicate nodes from first join
 
   Node * r = join(r2, r1, dup);
   assert(check_bst(r));
