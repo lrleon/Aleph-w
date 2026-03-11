@@ -1967,7 +1967,7 @@ namespace Aleph
   OutputIt pscan(InputIt first, InputIt last, OutputIt d_first,
                  BinaryOp op, const ParallelOptions & options = {})
   {
-    using Value = std::decay_t<decltype(*first)>;
+    using Value = std::decay_t<std::invoke_result_t<BinaryOp, decltype(*first), decltype(*first)>>;
 
     ThreadPool & pool = parallel_detail::select_pool(options);
     const size_t total = std::distance(first, last);
@@ -2111,7 +2111,7 @@ namespace Aleph
   OutputIt pexclusive_scan(InputIt first, InputIt last, OutputIt d_first,
                            T init, BinaryOp op, const ParallelOptions & options = {})
   {
-    using Value = std::decay_t<decltype(*first)>;
+    using Value = std::decay_t<T>;
 
     ThreadPool & pool = parallel_detail::select_pool(options);
     const size_t total = std::distance(first, last);

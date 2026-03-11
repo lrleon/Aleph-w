@@ -135,10 +135,12 @@
 
 #include <thread_pool.H>
 #include <concurrency_utils.H>
+#include <ah-errors.H>
 #include <iostream>
 #include <iomanip>
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <cmath>
 #include <chrono>
 #include <fstream>
@@ -530,14 +532,21 @@ void example_structured_concurrency()
         }
       ++completed;
       if (task_id == 2)
-        throw std::runtime_error("TaskGroup demo exception");
+        ah_runtime_error() << "TaskGroup demo exception";
     });
 
+  // Give task 2 (which throws after 20 × 1 ms) enough time to reach its throw 
+  // before cancelling the remaining tasks. We wait 50ms to ensure the 
+  // 20ms loop finishes and the exception is thrown.
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
   std::cout << "Cancelling remaining work before wait()...\n";
-  cancel.request_cancel();
+  cancel.request_cancel(); // Signal remaining tasks to stop early
 
   try
     {
+      // wait() propagates the exception from task 2 while ensuring all
+      // cancelled tasks have finished.
       group.wait();
     }
   catch (const std::exception & e)

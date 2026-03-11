@@ -39,6 +39,10 @@ This is intentionally an interop layer, not a framework.
 - The returned object supports `wait()`, `get()`, and `co_await`.
 - Awaiting resumes on the worker thread that completes the scheduled callable.
 - Results are single-consumer.
+- `get()` / `await_resume()` consume the state, so `valid()` becomes false
+  afterward.
+- Destroying a suspended awaiter unregisters its continuation so completion
+  will not resume a dead coroutine frame.
 - Return-by-reference is rejected on purpose; use values or
   `std::reference_wrapper<T>` instead.
 

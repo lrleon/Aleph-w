@@ -289,18 +289,11 @@ namespace Aleph
     if (n == 0)
       return std::vector<ActualResultT>{};
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    // Ensure random access for parallel processing
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
         std::vector<ActualResultT> result;
         result.reserve(n);
-        for (auto it = std::begin(data); it != std::end(data); ++it)
+        for (auto it = std::begin(c); it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             result.push_back(op(*it));
@@ -309,7 +302,14 @@ namespace Aleph
         return result;
       }
 
-    std::vector<ActualResultT> result(n);
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    // Ensure random access for parallel processing
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
+
+    std::vector<std::optional<ActualResultT>> slots(n);
     std::vector<std::future<void>> futures;
 
     size_t offset = 0;
@@ -318,7 +318,7 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&result, &data, op, offset, chunk_end,
+        futures.push_back(pool.enqueue([&slots, &data, op, offset, chunk_end,
                                          token = options.cancel_token]()
                                          {
                                            auto in_it = std::begin(data);
@@ -326,17 +326,27 @@ namespace Aleph
                                            for (size_t i = offset; i < chunk_end; ++i, ++in_it)
                                              {
                                                parallel_detail::throw_if_parallel_canceled(token);
-                                               result[i] = op(*in_it);
+                                               slots[i] = op(*in_it);
                                              }
                                          }));
 
         offset = chunk_end;
       }
 
-    for (auto & f: futures)
-      f.get();
+    {
+      std::exception_ptr ep;
+      for (auto & f: futures)
+        try { f.get(); } catch (...) { if (not ep) ep = std::current_exception(); }
+      if (ep)
+        std::rethrow_exception(ep);
+    }
 
     parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+
+    std::vector<ActualResultT> result;
+    result.reserve(n);
+    for (auto & slot : slots)
+      result.push_back(std::move(*slot));
 
     return result;
   }
@@ -393,16 +403,10 @@ namespace Aleph
     if (n == 0)
       return std::vector<T>{};
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
         std::vector<T> result;
-        for (auto it = std::begin(data); it != std::end(data); ++it)
+        for (auto it = std::begin(c); it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             if (pred(*it))
@@ -411,6 +415,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return result;
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     std::vector<std::future<std::vector<T>>> futures;
     const size_t num_chunks = parallel_detail::chunk_count(n, chunk_size);
@@ -512,16 +522,10 @@ namespace Aleph
     if (n == 0)
       return init;
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
         T result = init;
-        for (auto it = std::begin(data); it != std::end(data); ++it)
+        for (auto it = std::begin(c); it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             result = op(result, *it);
@@ -529,6 +533,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return result;
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     std::vector<std::future<T>> futures;
 
@@ -687,15 +697,9 @@ namespace Aleph
     if (n == 0)
       return;
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
-        for (auto it = std::begin(data); it != std::end(data); ++it)
+        for (auto it = std::begin(c); it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             op(*it);
@@ -703,6 +707,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return;
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     std::vector<std::future<void>> futures;
 
@@ -777,15 +787,9 @@ namespace Aleph
     if (n == 0)
       return true;
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
-        for (auto it = std::begin(data); it != std::end(data); ++it)
+        for (auto it = std::begin(c); it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             if (not pred(*it))
@@ -794,6 +798,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return true;
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     std::atomic<bool> found_false{false};
     std::vector<std::future<void>> futures;
@@ -875,15 +885,9 @@ namespace Aleph
     if (n == 0)
       return false;
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
-        for (auto it = std::begin(data); it != std::end(data); ++it)
+        for (auto it = std::begin(c); it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             if (pred(*it))
@@ -892,6 +896,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return false;
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     std::atomic<bool> found{false};
     std::vector<std::future<void>> futures;
@@ -1004,16 +1014,10 @@ namespace Aleph
     if (n == 0)
       return 0;
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
         size_t total = 0;
-        for (auto it = std::begin(data); it != std::end(data); ++it)
+        for (auto it = std::begin(c); it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             if (pred(*it))
@@ -1022,6 +1026,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return total;
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     std::vector<std::future<size_t>> futures;
 
@@ -1105,16 +1115,10 @@ namespace Aleph
     if (n == 0)
       return std::nullopt;
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
         size_t idx = 0;
-        for (auto it = std::begin(data); it != std::end(data); ++it, ++idx)
+        for (auto it = std::begin(c); it != std::end(c); ++it, ++idx)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             if (pred(*it))
@@ -1123,6 +1127,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return std::nullopt;
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     // Track minimum found index
     std::atomic<size_t> min_index{n}; // n means not found
@@ -1316,17 +1326,11 @@ namespace Aleph
     if (n == 0)
       return std::optional<T>{std::nullopt};
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
-        auto it = std::begin(data);
+        auto it = std::begin(c);
         T result = *it++;
-        for (; it != std::end(data); ++it)
+        for (; it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             if (*it < result)
@@ -1335,6 +1339,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return std::optional<T>{result};
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     std::vector<std::future<T>> futures;
 
@@ -1403,17 +1413,11 @@ namespace Aleph
     if (n == 0)
       return std::optional<T>{std::nullopt};
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
-        auto it = std::begin(data);
+        auto it = std::begin(c);
         T result = *it++;
-        for (; it != std::end(data); ++it)
+        for (; it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             if (*it > result)
@@ -1422,6 +1426,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return std::optional<T>{result};
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     std::vector<std::future<T>> futures;
 
@@ -1612,7 +1622,7 @@ namespace Aleph
 
     // Merge sorted chunks
     using T = std::decay_t<decltype(*std::begin(c))>;
-    std::vector<T> buffer(n);
+    std::vector<std::optional<T>> buffer(n);
 
     ParallelOptions merge_options = options;
     merge_options.pool = &pool;
@@ -1651,7 +1661,7 @@ namespace Aleph
         // Swap buffer back to container
         auto it = std::begin(c);
         for (size_t i = 0; i < n; ++i, ++it)
-          *it = std::move(buffer[i]);
+          *it = std::move(*buffer[i]);
       }
   }
 
@@ -1831,7 +1841,7 @@ namespace Aleph
     const auto & d1 = parallel_detail::deref(h1);
     const auto & d2 = parallel_detail::deref(h2);
 
-    std::vector<ResultT> result(n);
+    std::vector<std::optional<ResultT>> slots(n);
     std::vector<std::future<void>> futures;
 
     size_t offset = 0;
@@ -1840,7 +1850,7 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&result, &d1, &d2, op, offset, chunk_end,
+        futures.push_back(pool.enqueue([&slots, &d1, &d2, op, offset, chunk_end,
                                          token = options.cancel_token]()
                                          {
                                            auto it1 = std::begin(d1);
@@ -1850,7 +1860,7 @@ namespace Aleph
                                            for (size_t i = offset; i < chunk_end; ++i, ++it1, ++it2)
                                              {
                                                parallel_detail::throw_if_parallel_canceled(token);
-                                               result[i] = op(*it1, *it2);
+                                               slots[i] = op(*it1, *it2);
                                              }
                                          }));
 
@@ -1859,6 +1869,11 @@ namespace Aleph
 
     for (auto & f: futures)
       f.get();
+
+    std::vector<ResultT> result;
+    result.reserve(n);
+    for (auto & slot : slots)
+      result.push_back(std::move(*slot));
 
     return result;
   }
@@ -2024,16 +2039,10 @@ namespace Aleph
     if (n == 0)
       return std::make_pair(std::vector<T>{}, std::vector<T>{});
 
-    const size_t chunk_size =
-        parallel_detail::effective_parallel_chunk_size(n, pool, options);
-
-    auto data_holder = parallel_detail::ensure_random_access(c);
-    const auto & data = parallel_detail::deref(data_holder);
-
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
         std::vector<T> yes_result, no_result;
-        for (auto it = std::begin(data); it != std::end(data); ++it)
+        for (auto it = std::begin(c); it != std::end(c); ++it)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             if (pred(*it))
@@ -2044,6 +2053,12 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         return std::make_pair(std::move(yes_result), std::move(no_result));
       }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    auto data_holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(data_holder);
 
     const size_t num_chunks = parallel_detail::chunk_count(n, chunk_size);
     std::vector<size_t> yes_counts(num_chunks, 0);
@@ -2151,8 +2166,26 @@ namespace Aleph
 
   /** @brief Parallel inclusive scan over a container.
 
-      Returns a vector containing inclusive prefixes of the input container.
-      The result has the same size as the input.
+      Computes an inclusive prefix scan of @p c using binary operation @p op
+      and returns the result as a `std::vector`.  Element @c result[i] equals
+      @c op(op(...op(c[0], c[1])...), c[i]).
+
+      @param pool       Thread pool to use for parallel execution.
+      @param c          Input container.  Must be non-mutating during the call.
+      @param op         Associative binary operation.
+      @param chunk_size Optional override for the number of elements per chunk;
+                        0 (default) lets the implementation choose.  When set
+                        it overrides @c ParallelOptions::chunk_size.
+      @return `std::vector` of the same value type as @p c, containing the
+              inclusive prefix sums.  Empty if @p c is empty.
+      @throws Any exception propagated from Aleph::pscan, from @p op, or from
+              element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the derived
+              ParallelOptions is canceled before or during execution.
+      @complexity Total work O(n), parallelized across @p pool threads and chunks.
+      @thread_safety Does not modify @p c.  Safe to call concurrently on
+                     different containers.  @p pool must be a properly
+                     synchronized shared ThreadPool if shared.
   */
   template <typename Container, typename BinaryOp>
   [[nodiscard]] auto pscan(ThreadPool & pool, const Container & c, BinaryOp op,
@@ -2164,7 +2197,26 @@ namespace Aleph
     return pscan(c, op, options);
   }
 
-  /** @brief Parallel inclusive scan over a container with explicit options. */
+  /** @brief Parallel inclusive scan over a container with explicit options.
+
+      Overload that accepts a fully specified @c ParallelOptions instead of a
+      bare @c ThreadPool.
+
+      @param c          Input container.  Must be non-mutating during the call.
+      @param op         Associative binary operation.
+      @param options    Parallel execution options (pool, chunk_size, cancel token…).
+      @return `std::vector` of the same value type as @p c, containing the
+              inclusive prefix sums.  Empty if @p c is empty.
+      @throws Any exception propagated from Aleph::pscan, from @p op, or from
+              element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the @p options
+              is canceled before or during execution.
+      @complexity Total work O(n), parallelized across the threads in the pool
+                  and chunks.
+      @thread_safety Does not modify @p c.  Safe to call concurrently on
+                     different containers.  The pool in @p options must be a
+                     properly synchronized shared ThreadPool if shared.
+  */
   template <typename Container, typename BinaryOp>
   [[nodiscard]] auto pscan(const Container & c, BinaryOp op,
                            const ParallelOptions & options = {})
@@ -2187,8 +2239,29 @@ namespace Aleph
 
   /** @brief Parallel exclusive scan over a container.
 
-      Returns a vector containing exclusive prefixes of the input container.
-      The first result element is `init`.
+      Computes an exclusive prefix scan of @p c starting from @p init and
+      returns the result as a `std::vector<T>`.  Element @c result[0] is
+      @p init; element @c result[i] (i > 0) equals
+      @c op(init, op(...op(c[0], c[1])..., c[i-1])).
+
+      @param pool       Thread pool to use for parallel execution.
+      @param c          Input container.  Must be non-mutating during the call.
+      @param init       Initial value (identity for @p op).  Also determines
+                        the accumulator/result type @c T.
+      @param op         Associative binary operation.
+      @param chunk_size Optional override for the number of elements per chunk;
+                        0 (default) lets the implementation choose.  When set
+                        it overrides @c ParallelOptions::chunk_size.
+      @return `std::vector<T>` of exclusive prefix values.  Empty if @p c is
+              empty.
+      @throws Any exception propagated from Aleph::pexclusive_scan, from @p op,
+              or from element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the derived
+              ParallelOptions is canceled before or during execution.
+      @complexity Total work O(n), parallelized across @p pool threads and chunks.
+      @thread_safety Does not modify @p c.  Safe to call concurrently on
+                     different containers.  @p pool must be a properly
+                     synchronized shared ThreadPool if shared.
   */
   template <typename Container, typename T, typename BinaryOp>
   [[nodiscard]] auto pexclusive_scan(ThreadPool & pool, const Container & c, T init,
@@ -2200,7 +2273,26 @@ namespace Aleph
     return pexclusive_scan(c, init, op, options);
   }
 
-  /** @brief Parallel exclusive scan over a container with explicit options. */
+  /** @brief Parallel exclusive scan over a container with explicit options.
+
+      Overload that accepts a fully specified @c ParallelOptions instead of a
+      bare @c ThreadPool.
+
+      @param c          Input container.  Must be non-mutating during the call.
+      @param init       Initial value (identity for @p op); sets accumulator type.
+      @param op         Associative binary operation.
+      @param options    Parallel execution options (pool, chunk_size, cancel token…).
+      @return `std::vector<T>` of exclusive prefix values.
+      @throws Any exception propagated from Aleph::pexclusive_scan, from @p op,
+              or from element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the @p options
+              is canceled before or during execution.
+      @complexity Total work O(n), parallelized across the threads in the pool
+                  and chunks.
+      @thread_safety Does not modify @p c.  Safe to call concurrently on
+                     different containers.  The pool in @p options must be a
+                     properly synchronized shared ThreadPool if shared.
+  */
   template <typename Container, typename T, typename BinaryOp>
   [[nodiscard]] auto pexclusive_scan(const Container & c, T init, BinaryOp op,
                                      const ParallelOptions & options = {})
@@ -2222,7 +2314,28 @@ namespace Aleph
 
   /** @brief Parallel merge of two sorted containers.
 
-      Both containers must already be sorted according to `comp`.
+      Merges two sorted ranges @p c1 and @p c2 into a single sorted
+      `std::vector` using comparator @p comp.  Both containers must already be
+      sorted in ascending order according to @p comp.
+
+      @param pool       Thread pool to use for parallel execution.
+      @param c1         First sorted input container.
+      @param c2         Second sorted input container.
+      @param comp       Strict-weak-order comparator (default: `std::less<>`).
+      @param chunk_size Optional override for the merge task granularity;
+                        0 (default) lets the implementation choose.  When set
+                        it overrides @c ParallelOptions::chunk_size.
+      @return `std::vector` with element type `std::common_type_t<T1,T2>`
+              containing all elements from @p c1 and @p c2 in sorted order.
+              Size equals `c1.size() + c2.size()`.
+      @throws Any exception propagated from Aleph::pmerge, from @p comp, or
+              from element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the derived
+              ParallelOptions is canceled before or during execution.
+      @complexity Total work O(n), parallelized across @p pool threads and chunks.
+      @thread_safety Does not modify @p c1 or @p c2.  Safe to call concurrently
+                     on different container pairs.  @p pool must be a properly
+                     synchronized shared ThreadPool if shared.
   */
   template <typename Container1, typename Container2, typename Compare = std::less<>>
   [[nodiscard]] auto pmerge(ThreadPool & pool, const Container1 & c1, const Container2 & c2,
@@ -2234,7 +2347,26 @@ namespace Aleph
     return pmerge(c1, c2, std::move(comp), options);
   }
 
-  /** @brief Parallel merge of two sorted containers with explicit options. */
+  /** @brief Parallel merge of two sorted containers with explicit options.
+
+      Overload that accepts a fully specified @c ParallelOptions instead of a
+      bare @c ThreadPool.
+
+      @param c1         First sorted input container.
+      @param c2         Second sorted input container.
+      @param comp       Strict-weak-order comparator.
+      @param options    Parallel execution options (pool, chunk_size, cancel token…).
+      @return `std::vector` with all elements merged in sorted order.
+      @throws Any exception propagated from Aleph::pmerge, from @p comp, or
+              from element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the @p options
+              is canceled before or during execution.
+      @complexity Total work O(n), parallelized across the threads in the pool
+                  and chunks.
+      @thread_safety Does not modify @p c1 or @p c2.  Safe to call concurrently
+                     on different container pairs.  The pool in @p options must
+                     be a properly synchronized shared ThreadPool if shared.
+  */
   template <typename Container1, typename Container2, typename Compare = std::less<>>
   [[nodiscard]] auto pmerge(const Container1 & c1, const Container2 & c2,
                             Compare comp = Compare{},
@@ -2532,56 +2664,64 @@ namespace Aleph
     if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
-        std::vector<ResultT> result(n);
+        std::vector<std::optional<ResultT>> slots(n);
         constexpr size_t N = sizeof...(Containers);
         auto iters = parallel_zip_detail::make_iterators_at(
                                                             0, holders, std::make_index_sequence<N>{});
         for (size_t i = 0; i < n; ++i)
           {
             parallel_detail::throw_if_parallel_canceled(options.cancel_token);
-            result[i] = std::apply(op, parallel_zip_detail::deref_all_iters(
+            slots[i] = std::apply(op, parallel_zip_detail::deref_all_iters(
                                                                             iters, std::make_index_sequence<N>{}));
             parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
           }
+
+        std::vector<ResultT> result;
+        result.reserve(n);
+        for (auto & slot: slots)
+          result.push_back(std::move(*slot));
         return result;
-      }
+        }
 
-    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
-                                                                       pool.num_threads());
+        size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                           pool.num_threads());
 
-    std::vector<ResultT> result(n);
-    std::vector<std::future<void>> futures;
+        std::vector<std::optional<ResultT>> slots(n);
+        std::vector<std::future<void>> futures;
 
-    size_t offset = 0;
-    while (offset < n)
-      {
-        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
-        size_t chunk_end = std::min(offset + chunk_size, n);
+        size_t offset = 0;
+        while (offset < n)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&result, &holders, op, offset, chunk_end,
-                                         token = options.cancel_token]()
-                                         {
-                                           constexpr size_t N = sizeof...(Containers);
-                                           auto iters = parallel_zip_detail::make_iterators_at(
-                                              offset, holders, std::make_index_sequence<N>{});
-
-                                           for (size_t i = offset; i < chunk_end; ++i)
+            futures.push_back(pool.enqueue([&slots, &holders, op, offset, chunk_end,
+                                             token = options.cancel_token]()
                                              {
-                                               parallel_detail::throw_if_parallel_canceled(token);
-                                               result[i] = std::apply(op, parallel_zip_detail::deref_all_iters(
-                                                                         iters, std::make_index_sequence<N>{}));
-                                               parallel_zip_detail::advance_all_iters(
-                                                  iters, std::make_index_sequence<N>{});
-                                             }
-                                         }));
+                                               constexpr size_t N = sizeof...(Containers);
+                                               auto iters = parallel_zip_detail::make_iterators_at(
+                                                  offset, holders, std::make_index_sequence<N>{});
 
-        offset = chunk_end;
-      }
+                                               for (size_t i = offset; i < chunk_end; ++i)
+                                                 {
+                                                   parallel_detail::throw_if_parallel_canceled(token);
+                                                   slots[i] = std::apply(op, parallel_zip_detail::deref_all_iters(
+                                                      iters, std::make_index_sequence<N>{}));
+                                                   parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
+                                                 }
+                                             }));
+            offset = chunk_end;
+          }
 
-    for (auto & f: futures)
-      f.get();
+        for (auto & f: futures)
+          f.get();
 
-    return result;
+        std::vector<ResultT> result;
+        result.reserve(n);
+        for (auto & slot: slots)
+          result.push_back(std::move(*slot));
+        return result;
+
   }
 
   /** @brief Parallel fold/reduce over N zipped containers (variadic).
@@ -3298,7 +3438,7 @@ namespace Aleph
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
 
-    std::vector<ResultT> result(n);
+    std::vector<std::optional<ResultT>> slots(n);
     std::vector<std::future<void>> futures;
 
     size_t offset = 0;
@@ -3307,7 +3447,7 @@ namespace Aleph
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&result, &data, op, offset, chunk_end,
+        futures.push_back(pool.enqueue([&slots, &data, op, offset, chunk_end,
                                          token = options.cancel_token]()
                                          {
                                            auto it = std::begin(data);
@@ -3315,17 +3455,21 @@ namespace Aleph
                                            for (size_t i = offset; i < chunk_end; ++i, ++it)
                                              {
                                                parallel_detail::throw_if_parallel_canceled(token);
-                                               result[i] = op(i, *it);
+                                               slots[i] = op(i, *it);
                                              }
                                          }));
-
         offset = chunk_end;
       }
 
     for (auto & f: futures)
       f.get();
 
+    std::vector<ResultT> result;
+    result.reserve(n);
+    for (auto & slot: slots)
+      result.push_back(std::move(*slot));
     return result;
+
   }
 
   // =============================================================================

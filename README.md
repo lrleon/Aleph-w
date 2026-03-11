@@ -3375,7 +3375,7 @@ If a `CancellationToken` stored in `ParallelOptions::cancel_token` is signaled,
 the operation stops cooperatively and throws `Aleph::operation_canceled`.
 
 An opt-in work-stealing backend was evaluated for this phase and intentionally
-deferred; see [docs/work_stealing_backend_note.md](/home/lrleon/Insync/leandro.r.leon@gmail.com/Google%20Drive/Aleph-w/docs/work_stealing_backend_note.md).
+deferred; see [docs/work_stealing_backend_note.md](docs/work_stealing_backend_note.md).
 
 ---
 

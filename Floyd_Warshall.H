@@ -197,9 +197,9 @@ namespace Aleph
 
         Returns the sorted array of node pointers used for matrix indexing.
 
-        @return Const copy of the node pointer array.
+        @return Const reference to the node pointer array.
      */
-    DynArray<Node *> get_nodes() const noexcept { return nodes; }
+    const DynArray<Node *> & get_nodes() const noexcept { return nodes; }
 
     /**
         Get the graph node at a given matrix index.

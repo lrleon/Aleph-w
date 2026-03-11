@@ -344,15 +344,121 @@ TEST_F(ThreadPoolTest, PmergeHonorsCancellation)
                operation_canceled);
 }
 
+// ============================================================================
+// Boundary Cases: empty / single-element
+// ============================================================================
+
+TEST_F(ThreadPoolTest, PscanEmptyInput)
+{
+  ThreadPool pool(4);
+  std::vector<int> input, output;
+  pscan(pool, input.begin(), input.end(), output.begin(), std::plus<int>{});
+  EXPECT_TRUE(output.empty());
+
+  ParallelOptions options;
+  options.pool = &pool;
+  pscan(input.begin(), input.end(), output.begin(), std::plus<int>{}, options);
+  EXPECT_TRUE(output.empty());
+}
+
+TEST_F(ThreadPoolTest, PscanSingleElement)
+{
+  ThreadPool pool(4);
+  std::vector<int> input = {42};
+  std::vector<int> output(1);
+  pscan(pool, input.begin(), input.end(), output.begin(), std::plus<int>{});
+  EXPECT_EQ(output, (std::vector<int>{42}));
+
+  ParallelOptions options;
+  options.pool = &pool;
+  std::fill(output.begin(), output.end(), 0);
+  pscan(input.begin(), input.end(), output.begin(), std::plus<int>{}, options);
+  EXPECT_EQ(output, (std::vector<int>{42}));
+}
+
+TEST_F(ThreadPoolTest, PexclusiveScanEmptyInput)
+{
+  ThreadPool pool(4);
+  std::vector<int> input, output;
+  pexclusive_scan(pool, input.begin(), input.end(), output.begin(), 0, std::plus<int>{});
+  EXPECT_TRUE(output.empty());
+
+  ParallelOptions options;
+  options.pool = &pool;
+  pexclusive_scan(input.begin(), input.end(), output.begin(), 0, std::plus<int>{}, options);
+  EXPECT_TRUE(output.empty());
+}
+
+TEST_F(ThreadPoolTest, PexclusiveScanSingleElement)
+{
+  ThreadPool pool(4);
+  std::vector<int> input = {7};
+  std::vector<int> output(1);
+  pexclusive_scan(pool, input.begin(), input.end(), output.begin(), 0, std::plus<int>{});
+  EXPECT_EQ(output, (std::vector<int>{0}));
+
+  ParallelOptions options;
+  options.pool = &pool;
+  std::fill(output.begin(), output.end(), -1);
+  pexclusive_scan(input.begin(), input.end(), output.begin(), 0, std::plus<int>{}, options);
+  EXPECT_EQ(output, (std::vector<int>{0}));
+}
+
+TEST_F(ThreadPoolTest, PmergeEmptyLeft)
+{
+  ThreadPool pool(4);
+  std::vector<int> left, right = {1, 2, 3};
+  std::vector<int> merged(right.size());
+  pmerge(pool, left.begin(), left.end(), right.begin(), right.end(), merged.begin());
+  EXPECT_EQ(merged, right);
+
+  ParallelOptions options;
+  options.pool = &pool;
+  std::fill(merged.begin(), merged.end(), 0);
+  pmerge(left.begin(), left.end(), right.begin(), right.end(),
+         merged.begin(), std::less<int>{}, options);
+  EXPECT_EQ(merged, right);
+}
+
+TEST_F(ThreadPoolTest, PmergeEmptyRight)
+{
+  ThreadPool pool(4);
+  std::vector<int> left = {1, 2, 3}, right;
+  std::vector<int> merged(left.size());
+  pmerge(pool, left.begin(), left.end(), right.begin(), right.end(), merged.begin());
+  EXPECT_EQ(merged, left);
+
+  ParallelOptions options;
+  options.pool = &pool;
+  std::fill(merged.begin(), merged.end(), 0);
+  pmerge(left.begin(), left.end(), right.begin(), right.end(),
+         merged.begin(), std::less<int>{}, options);
+  EXPECT_EQ(merged, left);
+}
+
+TEST_F(ThreadPoolTest, PmergeBothEmpty)
+{
+  ThreadPool pool(4);
+  std::vector<int> left, right, merged;
+  pmerge(pool, left.begin(), left.end(), right.begin(), right.end(), merged.begin());
+  EXPECT_TRUE(merged.empty());
+
+  ParallelOptions options;
+  options.pool = &pool;
+  pmerge(left.begin(), left.end(), right.begin(), right.end(),
+         merged.begin(), std::less<int>{}, options);
+  EXPECT_TRUE(merged.empty());
+}
+
 TEST_F(ThreadPoolTest, BenchmarkScanAndMerge)
 {
   ThreadPool pool(4);
-  std::vector<int> scan_input(200000);
-  std::iota(scan_input.begin(), scan_input.end(), 1);
-  std::vector<int> scan_output(scan_input.size());
+  std::vector<long long> scan_input(200000);
+  std::iota(scan_input.begin(), scan_input.end(), 1LL);
+  std::vector<long long> scan_output(scan_input.size());
 
   auto scan_start = std::chrono::high_resolution_clock::now();
-  pscan(pool, scan_input.begin(), scan_input.end(), scan_output.begin(), std::plus<int>{});
+  pscan(pool, scan_input.begin(), scan_input.end(), scan_output.begin(), std::plus<long long>{});
   auto scan_end = std::chrono::high_resolution_clock::now();
 
   std::vector<int> left(100000), right(100000), merged(200000);
@@ -369,7 +475,8 @@ TEST_F(ThreadPoolTest, BenchmarkScanAndMerge)
       merge_end - merge_start).count();
 
   EXPECT_TRUE(std::is_sorted(merged.begin(), merged.end()));
-  EXPECT_EQ(scan_output.back(), std::accumulate(scan_input.begin(), scan_input.end(), 0));
+  EXPECT_EQ(scan_output.back(),
+            std::accumulate(scan_input.begin(), scan_input.end(), 0LL));
 
   std::cout << "\n=== Benchmark: pscan / pmerge ===\n";
   std::cout << "pscan(200K):  " << scan_ms << " ms\n";

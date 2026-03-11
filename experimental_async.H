@@ -8,7 +8,7 @@
   This file is part of Aleph-w library
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
-
+1
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
   in the Software without restriction, including without limitation the rights
@@ -87,6 +87,7 @@
 #ifndef ALEPH_EXPERIMENTAL_ASYNC_H
 #define ALEPH_EXPERIMENTAL_ASYNC_H
 
+#include <ah-errors.H>
 #include <thread_pool.H>
 
 #ifndef ALEPH_ENABLE_EXPERIMENTAL_ASYNC
@@ -126,7 +127,6 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <stdexcept>
 #include <system_error>
 #include <tuple>
 #include <type_traits>
@@ -140,8 +140,46 @@ namespace Aleph
     {
       [[noreturn]] inline void throw_no_state()
       {
-        throw std::runtime_error("scheduled_operation has no state");
+        ah_runtime_error() << "scheduled_operation has no state";
+        std::terminate();
       }
+
+      class ContinuationRegistration
+      {
+        mutable std::mutex mutex_;
+        std::coroutine_handle<> handle_{};
+        bool active_ = true;
+
+      public:
+        explicit ContinuationRegistration(std::coroutine_handle<> handle) noexcept
+          : handle_(handle) {}
+
+        [[nodiscard]] bool is_active() const noexcept
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          return active_ and static_cast<bool>(handle_);
+        }
+
+        void cancel() noexcept
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          active_ = false;
+          handle_ = std::coroutine_handle<>{};
+        }
+
+        void resume_if_active()
+        {
+          std::coroutine_handle<> handle;
+          {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (not active_ or not handle_)
+              return;
+            active_ = false;
+            handle = std::exchange(handle_, std::coroutine_handle<>{});
+          }
+          handle.resume();
+        }
+      };
 
       template <typename F, typename... Args>
       auto make_invocable(F && f, Args && ... args)
@@ -166,23 +204,23 @@ namespace Aleph
         bool consumed_ = false;
         std::exception_ptr exception_;
         std::optional<T> value_;
-        std::coroutine_handle<> continuation_{};
+        std::weak_ptr<ContinuationRegistration> continuation_;
 
         template <typename F>
         void complete(F && fill)
         {
-          std::coroutine_handle<> continuation;
+          std::weak_ptr<ContinuationRegistration> continuation;
           {
             std::lock_guard<std::mutex> lock(mutex_);
             if (ready_)
               return;
             fill();
             ready_ = true;
-            continuation = std::exchange(continuation_, std::coroutine_handle<>{});
+            continuation = std::exchange(continuation_, {});
           }
           ready_cv_.notify_all();
-          if (continuation)
-            continuation.resume();
+          if (auto registration = continuation.lock(); registration != nullptr)
+            registration->resume_if_active();
         }
 
       public:
@@ -218,15 +256,25 @@ namespace Aleph
         }
 
         [[nodiscard]] bool attach_continuation(
-            std::coroutine_handle<> continuation)
+            const std::shared_ptr<ContinuationRegistration> & continuation)
         {
           std::lock_guard<std::mutex> lock(mutex_);
           if (ready_)
             return false;
-          if (continuation_)
-            throw std::logic_error("scheduled_operation already has a waiting coroutine");
+          if (auto registered = continuation_.lock();
+              registered != nullptr and registered->is_active())
+            ah_logic_error_if(true)
+              << "scheduled_operation already has a waiting coroutine";
           continuation_ = continuation;
           return true;
+        }
+
+        void detach_continuation(
+            const std::shared_ptr<ContinuationRegistration> & continuation) noexcept
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          if (auto registered = continuation_.lock(); registered == continuation)
+            continuation_.reset();
         }
 
         T take()
@@ -250,23 +298,23 @@ namespace Aleph
         bool ready_ = false;
         bool consumed_ = false;
         std::exception_ptr exception_;
-        std::coroutine_handle<> continuation_{};
+        std::weak_ptr<ContinuationRegistration> continuation_;
 
         template <typename F>
         void complete(F && fill)
         {
-          std::coroutine_handle<> continuation;
+          std::weak_ptr<ContinuationRegistration> continuation;
           {
             std::lock_guard<std::mutex> lock(mutex_);
             if (ready_)
               return;
             fill();
             ready_ = true;
-            continuation = std::exchange(continuation_, std::coroutine_handle<>{});
+            continuation = std::exchange(continuation_, {});
           }
           ready_cv_.notify_all();
-          if (continuation)
-            continuation.resume();
+          if (auto registration = continuation.lock(); registration != nullptr)
+            registration->resume_if_active();
         }
 
       public:
@@ -298,15 +346,25 @@ namespace Aleph
         }
 
         [[nodiscard]] bool attach_continuation(
-            std::coroutine_handle<> continuation)
+            const std::shared_ptr<ContinuationRegistration> & continuation)
         {
           std::lock_guard<std::mutex> lock(mutex_);
           if (ready_)
             return false;
-          if (continuation_)
-            throw std::logic_error("scheduled_operation already has a waiting coroutine");
+          if (auto registered = continuation_.lock();
+              registered != nullptr and registered->is_active())
+            ah_logic_error_if(true)
+              << "scheduled_operation already has a waiting coroutine";
           continuation_ = continuation;
           return true;
+        }
+
+        void detach_continuation(
+            const std::shared_ptr<ContinuationRegistration> & continuation) noexcept
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          if (auto registered = continuation_.lock(); registered == continuation)
+            continuation_.reset();
         }
 
         void take()
@@ -332,9 +390,28 @@ namespace Aleph
     class scheduled_operation
     {
       std::shared_ptr<detail::OperationState<T>> state_;
+      std::shared_ptr<detail::ContinuationRegistration> continuation_registration_;
 
       explicit scheduled_operation(std::shared_ptr<detail::OperationState<T>> state)
         : state_(std::move(state)) {}
+
+      void unregister_continuation() noexcept
+      {
+        if (state_ != nullptr and continuation_registration_ != nullptr)
+          state_->detach_continuation(continuation_registration_);
+        if (continuation_registration_ != nullptr)
+          continuation_registration_->cancel();
+        continuation_registration_.reset();
+      }
+
+      std::shared_ptr<detail::OperationState<T>> consume_state()
+      {
+        unregister_continuation();
+        auto state = std::exchange(state_, nullptr);
+        if (state == nullptr)
+          detail::throw_no_state();
+        return state;
+      }
 
       detail::OperationState<T> & state()
       {
@@ -355,52 +432,146 @@ namespace Aleph
         -> scheduled_operation<std::invoke_result_t<F, Args...>>;
 
     public:
+      /** @brief Construct an empty operation handle.
+       *  @note Thread-safe for independent objects. Concurrent access to the
+       *        same handle instance is not synchronized.
+       */
       scheduled_operation() = default;
       scheduled_operation(const scheduled_operation &) = delete;
       scheduled_operation & operator = (const scheduled_operation &) = delete;
       scheduled_operation(scheduled_operation &&) noexcept = default;
       scheduled_operation & operator = (scheduled_operation &&) noexcept = default;
+      /** @brief Destroy the handle and unregister any suspended continuation.
+       *  @note Thread-safe with respect to task completion. Not safe for
+       *        concurrent use with other member functions on the same object.
+       */
+      ~scheduled_operation() { unregister_continuation(); }
 
+      /** @brief Check whether this handle still owns an unconsumed state.
+       *  @return true if the operation can still be waited on or consumed.
+       *  @note Returns false after `get()` or `await_resume()` consumes the state.
+       *  @note Thread-safe for read-only observation if no other thread mutates
+       *        the same handle object concurrently.
+       */
       [[nodiscard]] bool valid() const noexcept { return state_ != nullptr; }
 
+      /** @brief Check whether the scheduled work has completed.
+       *  @return true if a value or exception is ready.
+       *  @throws std::runtime_error if the handle has no state.
+       *  @note Thread-safe with respect to task completion.
+       */
       [[nodiscard]] bool is_ready() const
       {
         return state().is_ready();
       }
 
+      /** @brief Block until the scheduled work completes.
+       *  @throws std::runtime_error if the handle has no state.
+       *  @note Thread-safe with respect to task completion.
+       */
       void wait() const
       {
         state().wait();
       }
 
+      /** @brief Consume the result of the scheduled work.
+       *  @return The computed value.
+       *  @throws std::runtime_error if the handle has no state or was already consumed.
+       *  @throws Any exception captured from the scheduled callable.
+       *  @note Invalidates this handle; `valid()` returns false afterward.
+       *  @note Not safe for concurrent calls on the same handle object.
+       */
       T get()
       {
-        return state().take();
+        return consume_state()->take();
       }
 
+      /** @brief Check whether `co_await` can continue without suspension.
+       *  @return true if the result is already ready.
+       *  @throws std::runtime_error if the handle has no state.
+       *  @note Thread-safe with respect to task completion.
+       */
       [[nodiscard]] bool await_ready() const
       {
         return state().is_ready();
       }
 
+      /** @brief Register the awaiting coroutine for resumption on completion.
+       *  @param continuation Coroutine to resume when the operation completes.
+       *  @return true if the coroutine should suspend, false if already ready.
+       *  @throws std::runtime_error if the handle has no state.
+       *  @throws std::logic_error if a second coroutine tries to await the same operation.
+       *  @note Safe against awaiter destruction before completion; destruction
+       *        unregisters the continuation.
+       *  @note Not safe for concurrent calls on the same handle object.
+       */
       bool await_suspend(std::coroutine_handle<> continuation)
       {
-        return state().attach_continuation(continuation);
+        unregister_continuation();
+        auto registration =
+            std::make_shared<detail::ContinuationRegistration>(continuation);
+        if (state().attach_continuation(registration))
+          {
+            continuation_registration_ = std::move(registration);
+            return true;
+          }
+        return false;
       }
 
+      /** @brief Consume the awaited result after coroutine resumption.
+       *  @return The computed value.
+       *  @throws std::runtime_error if the handle has no state or was already consumed.
+       *  @throws Any exception captured from the scheduled callable.
+       *  @note Invalidates this handle; `valid()` returns false afterward.
+       *  @note Not safe for concurrent calls on the same handle object.
+       */
       T await_resume()
       {
-        return state().take();
+        return consume_state()->take();
       }
     };
 
+    /** @brief Move-only awaitable result of work scheduled on a `ThreadPool`
+     *         for `void`-returning callables.
+     *
+     *  `scheduled_operation<void>` behaves like a tiny move-only
+     *  `std::future<void>`-style bridge. Callers may block with `wait()` or
+     *  `get()`, or `co_await` the operation inside their own coroutine type.
+     *
+     *  Thread-safety:
+     *  - Safe to observe completion (`is_ready()`, `wait()`) concurrently with
+     *    task completion.
+     *  - Not safe to call mutating/consuming operations concurrently on the
+     *    same handle object.
+     *  - Destroying the handle while a coroutine is suspended on it safely
+     *    unregisters the continuation so completion will not resume a dead frame.
+     */
     template <>
     class scheduled_operation<void>
     {
       std::shared_ptr<detail::OperationState<void>> state_;
+      std::shared_ptr<detail::ContinuationRegistration> continuation_registration_;
 
       explicit scheduled_operation(std::shared_ptr<detail::OperationState<void>> state)
         : state_(std::move(state)) {}
+
+      void unregister_continuation() noexcept
+      {
+        if (state_ != nullptr and continuation_registration_ != nullptr)
+          state_->detach_continuation(continuation_registration_);
+        if (continuation_registration_ != nullptr)
+          continuation_registration_->cancel();
+        continuation_registration_.reset();
+      }
+
+      std::shared_ptr<detail::OperationState<void>> consume_state()
+      {
+        unregister_continuation();
+        auto state = std::exchange(state_, nullptr);
+        if (state == nullptr)
+          detail::throw_no_state();
+        return state;
+      }
 
       detail::OperationState<void> & state()
       {
@@ -421,42 +592,101 @@ namespace Aleph
         -> scheduled_operation<std::invoke_result_t<F, Args...>>;
 
     public:
+      /** @brief Construct an empty operation handle.
+       *  @note Thread-safe for independent objects. Concurrent access to the
+       *        same handle instance is not synchronized.
+       */
       scheduled_operation() = default;
       scheduled_operation(const scheduled_operation &) = delete;
       scheduled_operation & operator = (const scheduled_operation &) = delete;
       scheduled_operation(scheduled_operation &&) noexcept = default;
       scheduled_operation & operator = (scheduled_operation &&) noexcept = default;
+      /** @brief Destroy the handle and unregister any suspended continuation.
+       *  @note Thread-safe with respect to task completion. Not safe for
+       *        concurrent use with other member functions on the same object.
+       */
+      ~scheduled_operation() { unregister_continuation(); }
 
+      /** @brief Check whether this handle still owns an unconsumed state.
+       *  @return true if the operation can still be waited on or consumed.
+       *  @throws Nothing.
+       *  @note Returns false after `get()` or `await_resume()` consumes the state.
+       *  @note Thread-safe for read-only observation if no other thread mutates
+       *        the same handle object concurrently.
+       */
       [[nodiscard]] bool valid() const noexcept { return state_ != nullptr; }
 
+      /** @brief Check whether the scheduled work has completed.
+       *  @return true if completion or an exception is ready.
+       *  @throws std::runtime_error if the handle has no state.
+       *  @note Thread-safe with respect to task completion.
+       */
       [[nodiscard]] bool is_ready() const
       {
         return state().is_ready();
       }
 
+      /** @brief Block until the scheduled work completes.
+       *  @throws std::runtime_error if the handle has no state.
+       *  @note Thread-safe with respect to task completion.
+       */
       void wait() const
       {
         state().wait();
       }
 
+      /** @brief Consume completion of the scheduled work.
+       *  @throws std::runtime_error if the handle has no state or was already consumed.
+       *  @throws Any exception captured from the scheduled callable.
+       *  @note Invalidates this handle; `valid()` returns false afterward.
+       *  @note Not safe for concurrent calls on the same handle object.
+       */
       void get()
       {
-        state().take();
+        consume_state()->take();
       }
 
+      /** @brief Check whether `co_await` can continue without suspension.
+       *  @return true if completion is already ready.
+       *  @throws std::runtime_error if the handle has no state.
+       *  @note Thread-safe with respect to task completion.
+       */
       [[nodiscard]] bool await_ready() const
       {
         return state().is_ready();
       }
 
+      /** @brief Register the awaiting coroutine for resumption on completion.
+       *  @param continuation Coroutine to resume when the operation completes.
+       *  @return true if the coroutine should suspend, false if already ready.
+       *  @throws std::runtime_error if the handle has no state.
+       *  @throws std::logic_error if a second coroutine tries to await the same operation.
+       *  @note Safe against awaiter destruction before completion; destruction
+       *        unregisters the continuation.
+       *  @note Not safe for concurrent calls on the same handle object.
+       */
       bool await_suspend(std::coroutine_handle<> continuation)
       {
-        return state().attach_continuation(continuation);
+        unregister_continuation();
+        auto registration =
+            std::make_shared<detail::ContinuationRegistration>(continuation);
+        if (state().attach_continuation(registration))
+          {
+            continuation_registration_ = std::move(registration);
+            return true;
+          }
+        return false;
       }
 
+      /** @brief Consume completion after coroutine resumption.
+       *  @throws std::runtime_error if the handle has no state or was already consumed.
+       *  @throws Any exception captured from the scheduled callable.
+       *  @note Invalidates this handle; `valid()` returns false afterward.
+       *  @note Not safe for concurrent calls on the same handle object.
+       */
       void await_resume()
       {
-        state().take();
+        consume_state()->take();
       }
     };
 

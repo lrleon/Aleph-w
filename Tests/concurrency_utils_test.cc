@@ -39,11 +39,88 @@
 #include <future>
 #include <memory>
 #include <numeric>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
 using namespace Aleph;
 using namespace std::chrono_literals;
+
+namespace
+{
+  template <typename Sync>
+  concept SupportsValueReturningWithLock =
+      requires(Sync sync)
+      {
+        sync.with_lock([](auto & value) { return value; });
+      };
+
+  template <typename Sync>
+  concept SupportsValueReturningWithReadLock =
+      requires(Sync sync)
+      {
+        sync.with_read_lock([](const auto & value) { return value; });
+      };
+
+  template <typename Sync>
+  concept SupportsValueReturningWithWriteLock =
+      requires(Sync sync)
+      {
+        sync.with_write_lock([](auto & value) { return value; });
+      };
+
+  struct TokenPayload
+  {
+    CancellationToken token;
+    int value;
+
+    TokenPayload(CancellationToken token_arg, int value_arg)
+      : token(std::move(token_arg)), value(value_arg) {}
+  };
+
+  struct ExceptionSafePayload
+  {
+    static inline bool throw_on_move_construction = false;
+    static inline bool throw_on_move_assignment = false;
+
+    int value = 0;
+
+    ExceptionSafePayload() = default;
+
+    explicit ExceptionSafePayload(int value_arg)
+      : value(value_arg) {}
+
+    ExceptionSafePayload(const ExceptionSafePayload &) = default;
+    ExceptionSafePayload & operator = (const ExceptionSafePayload &) = default;
+
+    ExceptionSafePayload(ExceptionSafePayload && other)
+      : value(other.value)
+    {
+      other.value = -1;
+      if (throw_on_move_construction)
+        throw std::runtime_error("move construction failed");
+    }
+
+    ExceptionSafePayload & operator = (ExceptionSafePayload && other)
+    {
+      value = other.value;
+      other.value = -1;
+      if (throw_on_move_assignment)
+        throw std::runtime_error("move assignment failed");
+      return *this;
+    }
+
+    static void reset_failures() noexcept
+    {
+      throw_on_move_construction = false;
+      throw_on_move_assignment = false;
+    }
+  };
+}
+
+static_assert(SupportsValueReturningWithLock<synchronized<int>>);
+static_assert(SupportsValueReturningWithReadLock<rw_synchronized<int>>);
+static_assert(SupportsValueReturningWithWriteLock<rw_synchronized<int>>);
 
 TEST(ConcurrencyUtils, BoundedChannelCloseDrainsQueuedItems)
 {
@@ -267,6 +344,56 @@ TEST(ConcurrencyUtils, BoundedChannelCancellationAppliesToEmplace)
   producer.join();
 }
 
+TEST(ConcurrencyUtils, BoundedChannelEmplaceAcceptsCancellationTokenPayloads)
+{
+  bounded_channel<TokenPayload> ch(1);
+  CancellationSource source;
+  auto token = source.token();
+
+  ASSERT_TRUE(ch.emplace(token, 42));
+
+  auto received = ch.recv();
+  ASSERT_TRUE(received.has_value());
+  EXPECT_EQ(received->value, 42);
+  EXPECT_FALSE(received->token.stop_requested());
+
+  source.request_cancel();
+
+  EXPECT_TRUE(received->token.stop_requested());
+}
+
+TEST(ConcurrencyUtils, BoundedChannelRecvUsesCopyFallbackForThrowingMoves)
+{
+  ExceptionSafePayload::reset_failures();
+
+  bounded_channel<ExceptionSafePayload> ch(1);
+  ASSERT_TRUE(ch.send(ExceptionSafePayload(23)));
+
+  ExceptionSafePayload::throw_on_move_construction = true;
+  auto received = ch.recv();
+  ExceptionSafePayload::reset_failures();
+
+  ASSERT_TRUE(received.has_value());
+  EXPECT_EQ(received->value, 23);
+}
+
+TEST(ConcurrencyUtils, BoundedChannelTryRecvPreservesQueuedValueOnAssignmentFailure)
+{
+  ExceptionSafePayload::reset_failures();
+
+  bounded_channel<ExceptionSafePayload> ch(1);
+  ASSERT_TRUE(ch.send(ExceptionSafePayload(17)));
+
+  ExceptionSafePayload out;
+  ExceptionSafePayload::throw_on_move_assignment = true;
+  EXPECT_THROW((void) ch.try_recv(out), std::runtime_error);
+  ExceptionSafePayload::reset_failures();
+
+  auto recovered = ch.recv();
+  ASSERT_TRUE(recovered.has_value());
+  EXPECT_EQ(recovered->value, 17);
+}
+
 TEST(ConcurrencyUtils, SynchronizedWithLockAndGuard)
 {
   synchronized<std::vector<int>> values(std::in_place);
@@ -423,4 +550,19 @@ TEST(ConcurrencyUtils, SpscQueueSupportsMoveOnlyValues)
   ASSERT_TRUE(item.has_value());
   ASSERT_TRUE(item->get() != nullptr);
   EXPECT_EQ(**item, 42);
+}
+
+TEST(ConcurrencyUtils, SpscQueueTryPopUsesCopyFallbackForThrowingMoves)
+{
+  ExceptionSafePayload::reset_failures();
+
+  spsc_queue<ExceptionSafePayload> queue(1);
+  ASSERT_TRUE(queue.try_push(ExceptionSafePayload(31)));
+
+  ExceptionSafePayload::throw_on_move_construction = true;
+  auto item = queue.try_pop();
+  ExceptionSafePayload::reset_failures();
+
+  ASSERT_TRUE(item.has_value());
+  EXPECT_EQ(item->value, 31);
 }

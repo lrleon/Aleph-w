@@ -46,6 +46,57 @@ using namespace Aleph;
 #if ALEPH_HAS_EXPERIMENTAL_ASYNC
 namespace
 {
+  class detached_task
+  {
+  public:
+    struct promise_type
+    {
+      detached_task get_return_object()
+      {
+        return detached_task(
+            std::coroutine_handle<promise_type>::from_promise(*this));
+      }
+
+      std::suspend_never initial_suspend() noexcept { return {}; }
+      std::suspend_always final_suspend() noexcept { return {}; }
+      void return_void() noexcept {}
+      void unhandled_exception() { std::terminate(); }
+    };
+
+  private:
+    std::coroutine_handle<promise_type> handle_;
+
+    explicit detached_task(std::coroutine_handle<promise_type> handle) noexcept
+      : handle_(handle) {}
+
+  public:
+    detached_task(const detached_task &) = delete;
+    detached_task & operator = (const detached_task &) = delete;
+
+    detached_task(detached_task && other) noexcept
+      : handle_(other.handle_)
+    {
+      other.handle_ = {};
+    }
+
+    detached_task & operator = (detached_task && other) noexcept
+    {
+      if (this == &other)
+        return *this;
+      if (handle_)
+        handle_.destroy();
+      handle_ = other.handle_;
+      other.handle_ = {};
+      return *this;
+    }
+
+    ~detached_task()
+    {
+      if (handle_)
+        handle_.destroy();
+    }
+  };
+
   template <typename T>
   class sync_task
   {
@@ -125,6 +176,19 @@ namespace
     });
     co_return second;
   }
+
+  detached_task await_and_mark(ThreadPool & pool,
+                               std::shared_future<void> gate,
+                               std::promise<void> started,
+                               std::atomic<bool> & resumed)
+  {
+    co_await experimental::schedule(pool, [gate, started = std::move(started)]() mutable {
+      started.set_value();
+      gate.wait();
+      return 11;
+    });
+    resumed.store(true, std::memory_order_release);
+  }
 } // namespace
 
 TEST(ExperimentalAsync, ScheduleGetReturnsValue)
@@ -169,8 +233,41 @@ TEST(ExperimentalAsync, ScheduleHasSingleConsumerSemantics)
   ThreadPool pool(2);
   auto op = experimental::schedule(pool, [] { return 5; });
 
+  EXPECT_TRUE(op.valid());
   EXPECT_EQ(op.get(), 5);
+  EXPECT_FALSE(op.valid());
   EXPECT_THROW((void) op.get(), std::runtime_error);
+}
+
+TEST(ExperimentalAsync, ScheduleVoidInvalidAfterConsumption)
+{
+  ThreadPool pool(2);
+  auto op = experimental::schedule(pool, [] {});
+
+  EXPECT_TRUE(op.valid());
+  op.get();
+  EXPECT_FALSE(op.valid());
+  EXPECT_THROW(op.get(), std::runtime_error);
+}
+
+TEST(ExperimentalAsync, DestroyedAwaiterUnregistersContinuation)
+{
+  ThreadPool pool(2);
+  std::promise<void> gate_promise;
+  auto gate = gate_promise.get_future().share();
+  std::promise<void> started;
+  auto started_future = started.get_future();
+  std::atomic<bool> resumed{false};
+
+  {
+    auto task = await_and_mark(pool, gate, std::move(started), resumed);
+    started_future.wait();
+  }
+
+  gate_promise.set_value();
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+  EXPECT_FALSE(resumed.load(std::memory_order_acquire));
 }
 #else
 TEST(ExperimentalAsync, DisabledWithoutOptIn)
