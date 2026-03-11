@@ -143,6 +143,7 @@ FILE_PATTERNS          = *.H \
 RECURSIVE              = YES
 EXCLUDE                = build \
                          docs \
+                         doc \
                          .git \
                          cmake-build-debug \
                          cmake-build-release \

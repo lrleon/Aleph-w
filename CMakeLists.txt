@@ -99,8 +99,8 @@ set(HLIST
     point.H tpl_treapRk.H Set.H Map.H array_it.H al-domain.H
     Multiset.H Multimap.H Vector.H ahAlgo.H
         tpl_odhash.H tpl_nodePool.H random_graph.H
-        tpl_olhash.H tpl_dynSetHash.H ahSort.H ahSearch.H
-    tpl_random_queue.H tpl_net_sup_dem.H tpl_bipartite.H Blossom.H Blossom_Weighted.H
+        tpl_olhash.H tpl_dynSetHash.H ahSort.H
+        tpl_random_queue.H tpl_net_sup_dem.H tpl_bipartite.H Blossom.H Blossom_Weighted.H
     Min_Cost_Matching.H
     blossom_weighted_mwmatching.H graph-traverse.H
     tpl_dynarray_set.H tpl_kgraph.H tpl_dynMat.H
@@ -109,7 +109,7 @@ set(HLIST
     tpl_skipList.H tpl_tdRbTree.H tpl_splay_tree.H
     tpl_dynTreap.H tpl_union.H tpl_binNode.H tpl_splay_treeRk.H
     useMutex.H socket_wrappers.H tpl_dynListStack.H
-    tpl_autoPtr.H trace.H tpl_cache.H format.H random_net.H
+    tpl_autoPtr.H trace.H tpl_cache.H random_net.H
         log.H useCondVar.H
     tpl_dynListQueue.H al-vector.H ahSingleton.H comb.H
     treepic_utils.H driven_table.H pointer_table.H Karger.H al-matrix.H
