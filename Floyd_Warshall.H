@@ -212,7 +212,7 @@ namespace Aleph
 
         @return Owning copy of the node pointer array.
      */
-    DynArray<Node *> get_nodes_copy() const noexcept { return nodes; }
+    DynArray<Node *> get_nodes_copy() const { return nodes; }
 
     /**
         Get the graph node at a given matrix index.

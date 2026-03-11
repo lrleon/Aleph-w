@@ -118,17 +118,17 @@ void test_map_tree(int n)
   Tree tree = (*create)(n);
 } 
 
-int main(int, char * argc[])
+int main(int argc, char * argv[])
 {
-  int n = atoi(argc[1]);
+  int n = argc > 1 ? atoi(argv[1]) : 1000;
 
   test_map_tree<DynMapTree<int, int, Avl_Tree>>(n);
-
-  return 0;
 
   test_container <DynList, int> (n);
 
   test_container <DynDlist, int> (n);
 
   test_tree <Avl_Tree, int> (n);
+
+  return 0;
 }

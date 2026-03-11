@@ -34,7 +34,7 @@ using namespace std;
 
 int keys [] = { 36, 32, 4, 12, 52, 59, 2, 2, 26, 1 };
 
-# include <string.h>
+# include <cstring>
 
 struct Record
 {
@@ -43,7 +43,7 @@ struct Record
 
   Record (int n) : i(n) 
   { 
-    bzero(buf, sizeof(buf[10]));
+    std::memset(buf, 0, sizeof(buf));
   }
 
   virtual ~Record() { }

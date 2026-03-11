@@ -2182,8 +2182,8 @@ namespace Aleph
               element move/copy construction into the result vector.
       @throws Aleph::operation_canceled if the token inside the derived
               ParallelOptions is canceled before or during execution.
-      @complexity Total work O(n), parallelized across @p pool threads and chunks.
-      @thread_safety Does not modify @p c.  Safe to call concurrently on
+      @note **Complexity:**  Total work O(n), parallelized across @p pool threads and chunks.
+      @note **Thread Safety:**  Does not modify @p c.  Safe to call concurrently on
                      different containers.  @p pool must be a properly
                      synchronized shared ThreadPool if shared.
   */
@@ -2211,9 +2211,9 @@ namespace Aleph
               element move/copy construction into the result vector.
       @throws Aleph::operation_canceled if the token inside the @p options
               is canceled before or during execution.
-      @complexity Total work O(n), parallelized across the threads in the pool
+      @note **Complexity:**  Total work O(n), parallelized across the threads in the pool
                   and chunks.
-      @thread_safety Does not modify @p c.  Safe to call concurrently on
+      @note **Thread Safety:**  Does not modify @p c.  Safe to call concurrently on
                      different containers.  The pool in @p options must be a
                      properly synchronized shared ThreadPool if shared.
   */
@@ -2258,8 +2258,8 @@ namespace Aleph
               or from element move/copy construction into the result vector.
       @throws Aleph::operation_canceled if the token inside the derived
               ParallelOptions is canceled before or during execution.
-      @complexity Total work O(n), parallelized across @p pool threads and chunks.
-      @thread_safety Does not modify @p c.  Safe to call concurrently on
+      @note **Complexity:**  Total work O(n), parallelized across @p pool threads and chunks.
+      @note **Thread Safety:**  Does not modify @p c.  Safe to call concurrently on
                      different containers.  @p pool must be a properly
                      synchronized shared ThreadPool if shared.
   */
@@ -2287,9 +2287,9 @@ namespace Aleph
               or from element move/copy construction into the result vector.
       @throws Aleph::operation_canceled if the token inside the @p options
               is canceled before or during execution.
-      @complexity Total work O(n), parallelized across the threads in the pool
+      @note **Complexity:**  Total work O(n), parallelized across the threads in the pool
                   and chunks.
-      @thread_safety Does not modify @p c.  Safe to call concurrently on
+      @note **Thread Safety:**  Does not modify @p c.  Safe to call concurrently on
                      different containers.  The pool in @p options must be a
                      properly synchronized shared ThreadPool if shared.
   */
@@ -2332,8 +2332,8 @@ namespace Aleph
               from element move/copy construction into the result vector.
       @throws Aleph::operation_canceled if the token inside the derived
               ParallelOptions is canceled before or during execution.
-      @complexity Total work O(n), parallelized across @p pool threads and chunks.
-      @thread_safety Does not modify @p c1 or @p c2.  Safe to call concurrently
+      @note **Complexity:**  Total work O(n), parallelized across @p pool threads and chunks.
+      @note **Thread Safety:**  Does not modify @p c1 or @p c2.  Safe to call concurrently
                      on different container pairs.  @p pool must be a properly
                      synchronized shared ThreadPool if shared.
   */
@@ -2361,9 +2361,9 @@ namespace Aleph
               from element move/copy construction into the result vector.
       @throws Aleph::operation_canceled if the token inside the @p options
               is canceled before or during execution.
-      @complexity Total work O(n), parallelized across the threads in the pool
+      @note **Complexity:**  Total work O(n), parallelized across the threads in the pool
                   and chunks.
-      @thread_safety Does not modify @p c1 or @p c2.  Safe to call concurrently
+      @note **Thread Safety:**  Does not modify @p c1 or @p c2.  Safe to call concurrently
                      on different container pairs.  The pool in @p options must
                      be a properly synchronized shared ThreadPool if shared.
   */

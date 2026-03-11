@@ -71,7 +71,8 @@ int * string_to_deway(const string& str, size_t & size)
       const string number_str = 
 	str.substr(begin_index, number_str_len).c_str();
 
-      ah_invalid_argument_if(not is_string_an_int(number_str), "character is not a digit");
+      ah_invalid_argument_if(not is_string_an_int(number_str))
+        << "character is not a digit";
       
       a[a.size()] = atoi(number_str.c_str());
 

@@ -752,7 +752,7 @@ namespace Aleph
       }
 
       /** @brief Consume completion after coroutine resumption.
-       *  @return Nothing.
+       *  @note **Returns:** Nothing. 
        *  @throws std::runtime_error if the handle is empty, moved-from, or was
        *          already consumed.
        *  @throws Any exception captured from the scheduled callable.

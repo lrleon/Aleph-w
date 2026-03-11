@@ -12,7 +12,7 @@ It covers:
 - \ref thread_pool.H (\ref Aleph::CancellationSource, \ref Aleph::CancellationToken): cooperative cancellation primitives.
 - \ref thread_pool.H (\ref Aleph::ParallelOptions): shared tuning/cancellation options for parallel helpers.
 - \ref thread_pool.H (`parallel_invoke`, `pscan`, `pexclusive_scan`, `pmerge`): foundational parallel building blocks for composing higher-level algorithms.
-- \ref concurrency_utils.H (\ref Aleph::BoundedChannel, \ref Aleph::Synchronized, \ref Aleph::RwSynchronized, \ref Aleph::SpscQueue): modern coordination helpers for channels, shared state, and SPSC handoff.
+- \ref concurrency_utils.H (\ref Aleph::bounded_channel, \ref Aleph::synchronized, \ref Aleph::rw_synchronized, \ref Aleph::spsc_queue): modern coordination helpers for channels, shared state, and SPSC handoff.
 - \ref worker_pool.H (\ref WorkersSet): worker-function pool for processing queued `void*` work items.
 - \ref timeoutQueue.H (\ref TimeoutQueue): timed event scheduler running a background thread.
 - \ref useMutex.H (\ref UseMutex): legacy POSIX mutex wrapper.

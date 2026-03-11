@@ -26,11 +26,11 @@
 */
 
 # include <gsl/gsl_rng.h>
-# include <stdlib.h>
+# include <cstdlib>
 # include <cassert>
 # include <iostream>
 # include <ahFunctional.H>
-# include <ahSearch.H>
+# include <ahSort.H>
 # include <htlist.H>
 # include <tpl_dynDlist.H>
 # include <tpl_dynSetTree.H>

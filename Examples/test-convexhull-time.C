@@ -75,8 +75,12 @@ int main()
 	  now.start();
 	  QuickHull()(points);
 	  qh[i] += now.elapsed();
+	  
+	  now.start();
 	  GiftWrappingConvexHull()(points);
 	  gw[i] += now.elapsed();
+
+	  now.start();
 	  BruteForceConvexHull()(points);
 	  bf[i] += now.elapsed();	  
 	}

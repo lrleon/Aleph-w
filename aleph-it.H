@@ -23,7 +23,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 # ifndef ALEPH_IT_H
@@ -72,7 +71,7 @@ class Iterator_Name : public Base_Name \
      *  @thread_safety Not thread-safe for concurrent mutation of the same \
      *                 iterator instance. \
      */ \
-    Iterator_Name() { /* empty */ } \
+    Iterator_Name() = default; \
  \
     /** @brief Construct an iterator for the given container. \
      *  @param g The container to iterate over. \
@@ -86,13 +85,13 @@ class Iterator_Name : public Base_Name \
     } \
  \
     /** @brief Return the current item from the container. \
-     *  @return The current item. \
+     *  @return The current item as returned by the base iterator. \
      *  @throws Any exception thrown by `Base_Name::get_curr()`. \
      *  @note Behavior is undefined if has_curr() is false. \
      *  @thread_safety Not thread-safe for concurrent mutation of the same \
      *                 iterator instance or underlying container. \
      */ \
-    Item_Type get_current_node() \
+    decltype(auto) get_current_node() const \
     { \
       return Base_Name::get_curr(); \
     } \

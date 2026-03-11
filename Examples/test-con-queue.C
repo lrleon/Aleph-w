@@ -54,6 +54,12 @@ struct Event2 : QueueTheadsPool<int>::Event
 
 int main(int argc, char *argv[])
 {
+  if (argc < 4)
+    {
+      cerr << "Usage: " << argv[0] << " <num_threads> <num_items> <secs>" << endl;
+      return 1;
+    }
+
   const size_t num_threads = atoi(argv[1]);
   const size_t num_items = atoi(argv[2]);
   const size_t secs = atoi(argv[3]);

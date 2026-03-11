@@ -215,7 +215,6 @@ namespace Aleph
   public:
     /** @brief Construct a channel with a fixed capacity.
      *  @param capacity Maximum number of items the channel can hold.
-     *  @return Constructs a ready-to-use open channel.
      *  @throws std::invalid_argument if @p capacity is zero.
      *  @note This constructor does not block and is not thread-safe against
      *        concurrent access to the object being constructed.
@@ -231,7 +230,6 @@ namespace Aleph
     BoundedChannel & operator = (const BoundedChannel &) = delete;
 
     /** @brief Return the maximum number of queued items.
-     *  @param None.
      *  @return The channel's capacity.
      *  @throws Nothing.
      *  @note Thread-safe, non-blocking, reentrant, and `noexcept`.
@@ -239,7 +237,6 @@ namespace Aleph
     [[nodiscard]] size_t capacity() const noexcept { return capacity_; }
 
     /** @brief Check whether the channel has been closed.
-     *  @param None.
      *  @return `true` if `close()` has been called, otherwise `false`.
      *  @throws Nothing unless locking the internal mutex throws.
      *  @note Thread-safe, non-reentrant on the same object, and does not block
@@ -252,7 +249,6 @@ namespace Aleph
     }
 
     /** @brief Return the number of currently queued items.
-     *  @param None.
      *  @return Current size of the internal queue.
      *  @throws Nothing unless locking the internal mutex throws.
      *  @note Thread-safe, non-reentrant on the same object, and does not block
@@ -265,7 +261,6 @@ namespace Aleph
     }
 
     /** @brief Check whether the channel currently holds no queued items.
-     *  @param None.
      *  @return `true` if there are no queued items, otherwise `false`.
      *  @throws Nothing unless locking the internal mutex throws.
      *  @note Thread-safe, non-reentrant on the same object, and does not block
@@ -285,8 +280,7 @@ namespace Aleph
      *
      *  Calling `close()` on an already closed channel is a no-op.
      *
-     *  @param None.
-     *  @return Nothing.
+     *  @note **Returns:** Nothing. 
      *  @throws Nothing unless locking the internal mutex throws.
      *  @note Thread-safe, non-reentrant on the same object, and non-blocking
      *        apart from internal mutex acquisition. After closure, no send or
@@ -561,7 +555,6 @@ namespace Aleph
      *
      *  Blocks until an item becomes available or the channel closes and drains.
      *
-     *  @param None.
      *  @return The next queued item wrapped in `std::optional`, or
      *          `std::nullopt` if the channel is closed and empty.
      *  @throws Any exception thrown while copying or moving the queued value
@@ -658,7 +651,6 @@ namespace Aleph
 
     /** @brief Attempt to receive an item without blocking.
      *
-     *  @param None.
      *  @return The next queued item wrapped in `std::optional`, or
      *          `std::nullopt` if the channel is empty.
      *  @throws Any exception thrown while copying or moving the queued value
@@ -731,19 +723,16 @@ namespace Aleph
         : lock_(mutex), ptr_(&value) {}
 
       /** @brief Access the protected value.
-       *  @param None.
        *  @return A mutable reference to the protected object.
        *  @throws Nothing.
        */
       [[nodiscard]] T & get() noexcept { return *ptr_; }
       /** @brief Access members of the protected value.
-       *  @param None.
        *  @return A mutable pointer to the protected object.
        *  @throws Nothing.
        */
       [[nodiscard]] T * operator -> () noexcept { return ptr_; }
       /** @brief Access the protected value.
-       *  @param None.
        *  @return A mutable reference to the protected object.
        *  @throws Nothing.
        */
@@ -770,19 +759,16 @@ namespace Aleph
         : lock_(mutex), ptr_(&value) {}
 
       /** @brief Access the protected value.
-       *  @param None.
        *  @return A const reference to the protected object.
        *  @throws Nothing.
        */
       [[nodiscard]] const T & get() const noexcept { return *ptr_; }
       /** @brief Access members of the protected value.
-       *  @param None.
        *  @return A const pointer to the protected object.
        *  @throws Nothing.
        */
       [[nodiscard]] const T * operator -> () const noexcept { return ptr_; }
       /** @brief Access the protected value.
-       *  @param None.
        *  @return A const reference to the protected object.
        *  @throws Nothing.
        */
@@ -795,15 +781,12 @@ namespace Aleph
 
   public:
     /** @brief Default-construct the protected value.
-     *  @param None.
-     *  @return Constructs a wrapper containing a default-initialized `T`.
      *  @throws Any exception thrown by `T`'s default constructor.
      */
     Synchronized() requires std::default_initializable<T> = default;
 
     /** @brief Construct from a copy of @p value.
      *  @param value Initial value to copy into the wrapper.
-     *  @return Constructs a wrapper containing a copy of @p value.
      *  @throws Any exception thrown while copying `T`.
      */
     explicit Synchronized(const T & value)
@@ -811,7 +794,6 @@ namespace Aleph
 
     /** @brief Construct by moving from @p value.
      *  @param value Initial value to move into the wrapper.
-     *  @return Constructs a wrapper containing the moved-from value.
      *  @throws Any exception thrown while moving `T`.
      */
     explicit Synchronized(T && value)
@@ -820,7 +802,6 @@ namespace Aleph
     /** @brief Construct the protected value in-place.
      *  @tparam Args Constructor argument types.
      *  @param args Arguments to pass to the constructor of T.
-     *  @return Constructs a wrapper containing an in-place `T`.
      *  @throws Any exception thrown by `T`'s constructor.
      */
     template <typename... Args>
@@ -828,7 +809,6 @@ namespace Aleph
       : value_(std::forward<Args>(args)...) {}
 
     /** @brief Acquire an exclusive lock and return a guard.
-     *  @param None.
      *  @return A `LockedPtr` that keeps the mutex locked until destruction.
      *  @throws Any exception thrown while locking `Mutex`.
      *  @note Thread-safe. This call may block until another holder releases the
@@ -837,7 +817,6 @@ namespace Aleph
     [[nodiscard]] LockedPtr lock() { return LockedPtr(mutex_, value_); }
 
     /** @brief Acquire an exclusive lock (for const access) and return a guard.
-     *  @param None.
      *  @return A `ConstLockedPtr` that keeps the mutex locked until
      *          destruction.
      *  @throws Any exception thrown while locking `Mutex`.
@@ -936,19 +915,16 @@ namespace Aleph
         : lock_(mutex), ptr_(&value) {}
 
       /** @brief Access the protected value.
-       *  @param None.
        *  @return A const reference to the protected object.
        *  @throws Nothing.
        */
       [[nodiscard]] const T & get() const noexcept { return *ptr_; }
       /** @brief Access members of the protected value.
-       *  @param None.
        *  @return A const pointer to the protected object.
        *  @throws Nothing.
        */
       [[nodiscard]] const T * operator -> () const noexcept { return ptr_; }
       /** @brief Access the protected value.
-       *  @param None.
        *  @return A const reference to the protected object.
        *  @throws Nothing.
        */
@@ -974,19 +950,16 @@ namespace Aleph
         : lock_(mutex), ptr_(&value) {}
 
       /** @brief Access the protected value.
-       *  @param None.
        *  @return A mutable reference to the protected object.
        *  @throws Nothing.
        */
       [[nodiscard]] T & get() noexcept { return *ptr_; }
       /** @brief Access members of the protected value.
-       *  @param None.
        *  @return A mutable pointer to the protected object.
        *  @throws Nothing.
        */
       [[nodiscard]] T * operator -> () noexcept { return ptr_; }
       /** @brief Access the protected value.
-       *  @param None.
        *  @return A mutable reference to the protected object.
        *  @throws Nothing.
        */
@@ -999,15 +972,12 @@ namespace Aleph
 
   public:
     /** @brief Default-construct the protected value.
-     *  @param None.
-     *  @return Constructs a wrapper containing a default-initialized `T`.
      *  @throws Any exception thrown by `T`'s default constructor.
      */
     RwSynchronized() requires std::default_initializable<T> = default;
 
     /** @brief Construct from a copy of @p value.
      *  @param value Initial value to copy into the wrapper.
-     *  @return Constructs a wrapper containing a copy of @p value.
      *  @throws Any exception thrown while copying `T`.
      */
     explicit RwSynchronized(const T & value)
@@ -1015,7 +985,6 @@ namespace Aleph
 
     /** @brief Construct by moving from @p value.
      *  @param value Initial value to move into the wrapper.
-     *  @return Constructs a wrapper containing the moved-from value.
      *  @throws Any exception thrown while moving `T`.
      */
     explicit RwSynchronized(T && value)
@@ -1030,7 +999,6 @@ namespace Aleph
       : value_(std::forward<Args>(args)...) {}
 
     /** @brief Acquire a shared lock and return a guard.
-     *  @param None.
      *  @return A `ReadLockedPtr` that keeps a shared lock until destruction.
      *  @throws Any exception thrown while locking `SharedMutex`.
      *  @note Thread-safe. This call may block until there is no active writer.
@@ -1041,7 +1009,6 @@ namespace Aleph
     }
 
     /** @brief Acquire an exclusive lock and return a guard.
-     *  @param None.
      *  @return A `WriteLockedPtr` that keeps an exclusive lock until
      *          destruction.
      *  @throws Any exception thrown while locking `SharedMutex`.
@@ -1144,7 +1111,6 @@ namespace Aleph
   public:
     /** @brief Construct a queue with the specified capacity.
      *  @param capacity Maximum number of items the queue can hold.
-     *  @return Constructs an empty queue.
      *  @throws std::invalid_argument if @p capacity is zero.
      *  @note This constructor does not block and is not thread-safe against
      *        concurrent access to the object being constructed.
@@ -1160,7 +1126,6 @@ namespace Aleph
     SpscQueue & operator = (const SpscQueue &) = delete;
 
     /** @brief Return the queue's capacity.
-     *  @param None.
      *  @return The maximum number of user-visible items.
      *  @throws Nothing.
      *  @note Safe to call from either the producer or consumer thread,
@@ -1169,7 +1134,6 @@ namespace Aleph
     [[nodiscard]] size_t capacity() const noexcept { return storage_size_ - 1; }
 
     /** @brief Check if the queue is empty.
-     *  @param None.
      *  @return `true` if the queue currently contains no items.
      *  @throws Nothing.
      *  @note Safe to call from either the producer or consumer thread.
@@ -1181,7 +1145,6 @@ namespace Aleph
     }
 
     /** @brief Check if the queue is full.
-     *  @param None.
      *  @return `true` if the queue currently has no free slots.
      *  @throws Nothing.
      *  @note Safe to call from either the producer or consumer thread.
@@ -1193,7 +1156,6 @@ namespace Aleph
     }
 
     /** @brief Return the number of items currently in the queue.
-     *  @param None.
      *  @return The current number of queued items.
      *  @throws Nothing.
      *  @note Safe to call from either the producer or consumer thread.
@@ -1260,7 +1222,6 @@ namespace Aleph
     }
 
     /** @brief Attempt to pop an item from the queue.
-     *  @param None.
      *  @return The next item wrapped in `std::optional`, or `std::nullopt` if
      *          the queue is empty.
      *  @throws Any exception thrown while copying or moving the queued value

@@ -29,7 +29,7 @@
 # include <gsl/gsl_rng.h>
 # include <cassert>
 # include <iostream>
-# include <ahSearch.H>
+# include <ahFunctional.H>
 # include <ahSort.H>
 # include <tpl_sort_utils.H>
 # include <tpl_dynMapTree.H>
