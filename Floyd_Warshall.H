@@ -177,7 +177,7 @@ namespace Aleph
 
         @return Const reference to the path reconstruction matrix.
      */
-    const DynMatrix<long> &get_path_mat() const noexcept { return path_mat; }
+    [[nodiscard]] const DynMatrix<long> &get_path_mat() const noexcept { return path_mat; }
 
     /**
         Get the distance matrix.
@@ -199,6 +199,9 @@ namespace Aleph
         This provides O(1) access to the underlying storage but requires
         the caller to ensure the Floyd_All_Shortest_Paths instance remains alive.
 
+        @warning The returned reference is valid only as long as the Floyd_All_Shortest_Paths
+        instance exists. Do not store this reference if the instance may be destroyed.
+
         @return Const reference to the node pointer array.
      */
     const DynArray<Node *> & get_nodes() const noexcept { return nodes; }
@@ -209,6 +212,12 @@ namespace Aleph
         Returns a copy of the sorted array of node pointers. This is safer for
         long-term storage or if the Floyd_All_Shortest_Paths instance is destroyed,
         but incurs an O(n) copy cost.
+
+        @warning This method returns a copy of the node array. Modifying
+        the returned array does not affect the internal state of the
+        Floyd_All_Shortest_Paths instance.
+
+        @warning The pointers are valid as the received graph is alive
 
         @return Owning copy of the node pointer array.
      */

@@ -25,6 +25,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <iostream>
+# include <cassert>
 
 # include <quadtree.H>
 
@@ -72,6 +73,9 @@ int main()
   write_tree(root, 2);
 
   tree.insert(Point(5, 45));
+
+  // Re-acquire root pointer and its children after mutation
+  root = tree.get_root();
 
   assert(not root->is_leaf());
   assert(root->get_num_points() == 5);
@@ -153,6 +157,17 @@ int main()
   tree.insert(Point(30, 45));
   tree.insert(Point(30, 40));
 
+  // Re-acquire pointers after mutations
+  root = tree.get_root();
+  root_nw_child = NW_CHILD(root);
+  root_ne_child = NE_CHILD(root);
+  root_sw_child = SW_CHILD(root);
+  root_se_child = SE_CHILD(root);
+  root_nw_child_nw_child = NW_CHILD(root_nw_child);
+  root_nw_child_ne_child = NE_CHILD(root_nw_child);
+  root_nw_child_sw_child = SW_CHILD(root_nw_child);
+  root_nw_child_se_child = SE_CHILD(root_nw_child);
+
   assert(not root->is_leaf());
   assert(not root_nw_child->is_leaf());
   assert(root_nw_child_nw_child->is_leaf());
@@ -196,6 +211,17 @@ int main()
 
   tree.remove(Point(20, 20));
 
+  // Re-acquire pointers after removal
+  root = tree.get_root();
+  root_nw_child = NW_CHILD(root);
+  root_ne_child = NE_CHILD(root);
+  root_sw_child = SW_CHILD(root);
+  root_se_child = SE_CHILD(root);
+  root_nw_child_nw_child = NW_CHILD(root_nw_child);
+  root_nw_child_ne_child = NE_CHILD(root_nw_child);
+  root_nw_child_sw_child = SW_CHILD(root_nw_child);
+  root_nw_child_se_child = SE_CHILD(root_nw_child);
+
   assert(not root->is_leaf());
   assert(not root_nw_child->is_leaf());
   assert(root_nw_child_nw_child->is_leaf());
@@ -222,6 +248,17 @@ int main()
   write_tree(root, 2);
 
   tree.remove(Point(45, 45));
+
+  // Re-acquire pointers after removal
+  root = tree.get_root();
+  root_nw_child = NW_CHILD(root);
+  root_ne_child = NE_CHILD(root);
+  root_sw_child = SW_CHILD(root);
+  root_se_child = SE_CHILD(root);
+  root_nw_child_nw_child = NW_CHILD(root_nw_child);
+  root_nw_child_ne_child = NE_CHILD(root_nw_child);
+  root_nw_child_sw_child = SW_CHILD(root_nw_child);
+  root_nw_child_se_child = SE_CHILD(root_nw_child);
 
   assert(not root->is_leaf());
   assert(not root_nw_child->is_leaf());

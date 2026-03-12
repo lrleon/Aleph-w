@@ -32,23 +32,21 @@ using namespace std;
 
 struct Event1 : QueueTheadsPool<int>::Event
 {
-  size_t count = 0;
-  void run()
+  void run() override
   {
     // cout << "Event 1 " << item << endl;
-    for (size_t i = 0; i < 100000000; ++i);
-    ++count; 
+    for (volatile size_t i = 0; i < 10000000; ++i);
+    increment_count(); 
   }
 };
 
 struct Event2 : QueueTheadsPool<int>::Event
 {
-  size_t count = 0;
-  void run()
+  void run() override
   {
     // cout << "Event 2 " << item << endl;
-    for (size_t i = 0; i < 100000000; ++i);
-    ++count; 
+    for (volatile size_t i = 0; i < 10000000; ++i);
+    increment_count(); 
   }
 };
 
@@ -96,7 +94,7 @@ int main(int argc, char *argv[])
        << "List of event counters" << endl;
   event_list.for_each([] (auto e) 
     {
-      cout << "    Event count = " << ((Event1*) e)->count << endl; 
+      cout << "    Event count = " << e->get_count() << endl; 
     });
 
   cout << "done" << endl
@@ -119,7 +117,7 @@ int main(int argc, char *argv[])
        << "List of event counters" << endl;
   event_list.for_each([] (auto e) 
     {
-      cout << "    Event count = " << ((Event1*) e)->count << endl; 
+      cout << "    Event count = " << e->get_count() << endl; 
     });
 
   cout << "done" << endl

@@ -97,29 +97,33 @@ Node * luka_to_tree(char *& cod)
   return p;
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 { 
-  const size_t n = argc[1] ? atol(argc[1]) : 10;
+  const size_t n = argc > 1 ? atol(argv[1]) : 10;
 
   int t = time(NULL);
 
-  if (argn > 2)
-    t = atol(argc[2]);
+  if (argc > 2)
+    t = atol(argv[2]);
 
   cout << "testLuka " << n << " " << t << endl;
 
   init_random(t);
 
-  BinNode<int> * r = random_tree< BinNode<int> >(n);
+  BinNode<int> * tree_root = random_tree< BinNode<int> >(n);
 
-  cout << "luka(r) = " << luka(r) << endl;
+  string s = luka(tree_root);
+  cout << "luka(tree_root) = " << s << endl;
 
-  char * cod = strdup(luka(r).c_str());
+  char * cod_orig = strdup(s.c_str());
+  char * cod = cod_orig;
 
   BinNode<int> * aux =  luka_to_tree< BinNode<int> >(cod);
 
-  assert(areSimilar(aux, r));
+  assert(areSimilar(aux, tree_root));
 
   destroyRec(aux);
-  destroyRec(r);
+  destroyRec(tree_root);
+  free(cod_orig);
+  gsl_rng_free(r);
 }

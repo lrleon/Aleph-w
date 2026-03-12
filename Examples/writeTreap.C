@@ -92,23 +92,23 @@ void print_prio(Treap<int>::Node *node, int, int)
 } 
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 10;
   unsigned int t = time(0);
   int value;
 
-  if (argn > 1)
+  if (argc > 1)
     {
-      const std::string_view arg = argc[1];
+      const std::string_view arg = argv[1];
       auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), n);
-      ah_invalid_argument_if(ec != std::errc{} or ptr != arg.data() + arg.size())
+      ah_invalid_argument_if(ec != std::errc{} or ptr != arg.data() + arg.size() or n < 0)
         << "Invalid or out-of-range value for n";
     }
 
-  if (argn > 2)
+  if (argc > 2)
     {
-      const std::string_view arg = argc[2];
+      const std::string_view arg = argv[2];
       auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), t);
       ah_invalid_argument_if(ec != std::errc{} or ptr != arg.data() + arg.size())
         << "Invalid or out-of-range value for t";
@@ -133,7 +133,7 @@ int main(int argn, char *argc[])
   Treap<int>::Node *node;
   int i;
 
-  cout << "Inserting " << n << " random values in treee ...\n";
+  cout << "Inserting " << n << " random values in tree ...\n";
 
   for (i = 0; i < 30; i++)
     {

@@ -53,9 +53,9 @@ int main(int argn, char *argc[]) {
   Splay_Tree_Rk<int>::Node *node;
   int i;
 
-  cout << "Inserting " << n << " random values in treee ...\n";
+  cout << "Inserting " << n << " random values in tree ...\n";
 
-  unsigned int insCount = 0, delCount = 0;
+  unsigned int insCount = 0;
 
   for (i = 0; i < n; i++) {
     value = 1+(int) (n*100.0*rand()/(RAND_MAX+1.0));

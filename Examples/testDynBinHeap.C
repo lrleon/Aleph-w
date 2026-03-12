@@ -25,16 +25,15 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <stdlib.h>
+# include <cstdlib>
+# include <ctime>
+# include <cstring>
 # include <iostream>
-# include <time.h>
 # include <tpl_dynBinHeap.H>
 
 using namespace std;
 
 int keys [] = { 36, 32, 4, 12, 52, 59, 2, 2, 26, 1 };
-
-# include <cstring>
 
 struct Record
 {
@@ -86,14 +85,24 @@ struct Cmp_Ptr
 };
 
 
-int main(int argn, char* argc[])
+int main(int argc, char* argv[])
 {
   MESSAGE("main()");
-  srand(time(0));
+  srand(time(nullptr));
   unsigned int n = 10;
 
-  if (argn > 1)
-    n = atoi(argc[1]);
+  if (argc > 1)
+    n = static_cast<unsigned int>(atoi(argv[1]));
+
+  {
+    cout << "Testing with predefined keys array" << endl;
+    DynBinHeap<int> heap;
+    for (int key : keys)
+      heap.insert(key);
+
+    assert(heap.verify_heap());
+    cout << "Predefined keys heap size: " << heap.size() << endl;
+  }
 
   {
     DynBinHeap<int> heap;
@@ -101,7 +110,7 @@ int main(int argn, char* argc[])
 
     for (i = 0; i < n; i++)
       {
-	value = (int) ((10.0*n*rand())/(RAND_MAX+1.0));
+	value = (unsigned int) ((10.0*n*rand())/(RAND_MAX+1.0));
 	cout << value << ", ";
 	heap.insert(value);
       }
@@ -126,7 +135,7 @@ int main(int argn, char* argc[])
 
     for (i = 0; i < n; i++)
       {
-	value = (int) ((10.0*n*rand())/(RAND_MAX+1.0));
+	value = (unsigned int) ((10.0*n*rand())/(RAND_MAX+1.0));
 	ptr = new unsigned int;
 	*ptr = value;
 	cout << value << ", ";
@@ -156,7 +165,7 @@ int main(int argn, char* argc[])
 
     for (i = 0; i < n; i++)
       {
-	value = (int) ((10.0*n*rand())/(RAND_MAX+1.0));
+	value = (unsigned int) ((10.0*n*rand())/(RAND_MAX+1.0));
 	ptr = new Rec(value);
 	cout << value << ", ";
 	heap.insert(ptr);

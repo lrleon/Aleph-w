@@ -312,12 +312,36 @@ void test_DynMap(size_t n)
        << endl;
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  unsigned long n = argn > 1 ? atoi(argc[1]) : NumItems;
-  unsigned int  t = argn > 2 ? atoi(argc[2]) : time(NULL);
+  unsigned long n = NumItems;
+  if (argc > 1)
+    {
+      char * endptr = nullptr;
+      errno = 0;
+      n = strtoul(argv[1], &endptr, 10);
+      if (errno != 0 or endptr == argv[1] or *endptr != '\0')
+        {
+          cerr << "Invalid n: " << argv[1] << endl;
+          return 1;
+        }
+    }
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  unsigned int t = time(NULL);
+  if (argc > 2)
+    {
+      char * endptr = nullptr;
+      errno = 0;
+      const unsigned long parsed_t = strtoul(argv[2], &endptr, 10);
+      if (errno != 0 or endptr == argv[2] or *endptr != '\0' or parsed_t > UINT_MAX)
+        {
+          cerr << "Invalid t: " << argv[2] << endl;
+          return 1;
+        }
+      t = static_cast<unsigned int>(parsed_t);
+    }
+
+  cout << argv[0] << " " << n << " " << t << endl;
 
   r = gsl_rng_alloc (gsl_rng_mt19937);
   gsl_rng_set(r, t % gsl_rng_max(r));

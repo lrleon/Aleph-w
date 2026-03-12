@@ -783,6 +783,11 @@ namespace Aleph
      */
     Synchronized() requires std::default_initializable<T> = default;
 
+    Synchronized(const Synchronized &) = delete;
+    Synchronized & operator = (const Synchronized &) = delete;
+    Synchronized(Synchronized &&) = delete;
+    Synchronized & operator = (Synchronized &&) = delete;
+
     /** @brief Construct from a copy of @p value.
      *  @param value Initial value to copy into the wrapper.
      *  @throws Any exception thrown while copying `T`.
@@ -971,6 +976,11 @@ namespace Aleph
      *  @throws Any exception thrown by `T`'s default constructor.
      */
     RwSynchronized() requires std::default_initializable<T> = default;
+
+    RwSynchronized(const RwSynchronized &) = delete;
+    RwSynchronized & operator = (const RwSynchronized &) = delete;
+    RwSynchronized(RwSynchronized &&) = delete;
+    RwSynchronized & operator = (RwSynchronized &&) = delete;
 
     /** @brief Construct from a copy of @p value.
      *  @param value Initial value to copy into the wrapper.

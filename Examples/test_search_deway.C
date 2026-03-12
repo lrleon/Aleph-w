@@ -39,8 +39,6 @@ using namespace Aleph;
 
 # define INDENT "    "
 
-using namespace Aleph;
-
 struct Ciudad 
 {
   enum Tipo_Ciudad { CAPITAL, CIUDAD, PUEBLO, CASERIO, CRUZ, DESCONOCIDO };
@@ -105,7 +103,7 @@ typedef List_Digraph<Nodo_Ciudad, Arco_Via> Dimapa;
 
 struct Ciudad_Igual
 {
-  bool operator () (const Ciudad & c1, const Ciudad & c2)
+  bool operator () (const Ciudad & c1, const Ciudad & c2) const
   {
     return c1.nombre == c2.nombre;
   }
@@ -114,7 +112,7 @@ struct Ciudad_Igual
 
 Mapa::Node * buscar_ciudad(Mapa& mapa, const string & nombre)
 {
-  return mapa.search_node([nombre] (Mapa::Node * p)
+  return mapa.search_node([&nombre] (Mapa::Node * p)
 			{
 			  return p->get_info().nombre == nombre;
 			});
@@ -233,7 +231,7 @@ struct Write_Ciudad
 
 void escribir_deway(int deway[], const size_t & n)
 {
-  for (int i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     {
       cout << deway[i];
 

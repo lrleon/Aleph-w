@@ -35,6 +35,7 @@
 */
 
 #include <gtest/gtest.h>
+#include <cstdlib>
 #include <ah-parallel.H>
 #include <vector>
 #include <list>

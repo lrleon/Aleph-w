@@ -70,7 +70,7 @@ List<T*> build_ptr_list(int n)
   for (int i = 0; i < n; ++i)
     ret_val.append(new T(gsl_rng_get(r)));
   
-  return std::move(ret_val);
+  return ret_val;
 }
 
 template <template <typename T> class List,
@@ -112,7 +112,21 @@ int main(int argc, char *argv[])
         }
       n = parsed;
     }
-  unsigned int  t = argc > 2 ? atoi(argv[2]) : time(NULL);
+
+  unsigned int t = time(NULL);
+  if (argc > 2)
+    {
+      errno = 0;
+      char * endptr = nullptr;
+      const unsigned long parsed_t = strtoul(argv[2], &endptr, 10);
+      if (errno != 0 or endptr == argv[2] or *endptr != '\0' or
+          parsed_t > UINT_MAX)
+        {
+          cerr << "Invalid t: " << argv[2] << endl;
+          return 1;
+        }
+      t = static_cast<unsigned int>(parsed_t);
+    }
 
   cout << argv[0] << " " << n << " " << t << endl;
 
@@ -188,10 +202,11 @@ int main(int argc, char *argv[])
 	<< "Building list ... " << endl;
    DynList<long> l = build_int_list<DynList>(n);
    cout << "sorting it ..." << endl;
+   auto sorted = sort(l);
    cout << "done! " << endl
 	<< "Verifying ... " << endl;
-   assert(verify_sort(sort(DynList<long>(l))));
-   assert(sort(l).length() == n);
+   assert(verify_sort(sorted));
+   assert(sorted.length() == n);
    cout << "done!" << endl
 	<< endl;
  }

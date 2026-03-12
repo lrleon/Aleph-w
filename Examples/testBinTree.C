@@ -25,6 +25,9 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <iostream>
+# include <vector>
+# include <algorithm>
+# include <random>
 
 # include <aleph.H>
 # include <tpl_binTree.H>
@@ -70,7 +73,6 @@ void print_forest_deway(Tree_Node<int> * p, const string & idx)
 
 int main(int argc, char *argv[])
 {
-  int i;
   int n = argc > 1 ? stoi(argv[1]) : 1000;
 
   unsigned int t = time(0);
@@ -84,8 +86,6 @@ int main(int argc, char *argv[])
   cout << argv[0] << " " << n << " " << t << endl;
 
   BinTree<int>  tree;
-  BinTree<int>::Node *node;
-  int value;
 
   int ins_count = 0;
 
@@ -93,13 +93,16 @@ int main(int argc, char *argv[])
   if (n > 1000)
     {
       cerr << "Error: n must be <= 1000 to avoid infinite loops with current RNG range." << endl;
+      gsl_rng_free(rng);
       return 1;
     }
 
   cout << "Inserting " << n << " random values in tree ...\n";
 
-  for (i = 0; i < n; i++)
+  for (int i = 0; i < n; i++)
     {
+      int value;
+      BinTree<int>::Node *node;
       do 
 	{
 	  value = gsl_rng_uniform_int(rng, 1000);
@@ -188,21 +191,23 @@ int main(int argc, char *argv[])
 
   cout << "Removing " << n/4 << " keys" << endl;
 
-  for (i = 0; i < n/4; i++)
-    do 
-      {
-	value = gsl_rng_uniform_int(rng, 1000);
-	node = tree.search(value);
-	if (node != nullptr)
-	  {
-	    node = tree.remove(value);
-	    assert(node != nullptr);
-	    del_count++;
-	    cout << node->get_key() << " ";
-	    delete node;
-	  }
-      }
-    while (node == nullptr);
+  std::vector<int> keys;
+  Aleph::for_each_in_order<BinTree<int>::Node>(tree.getRoot(), [&keys](auto node) {
+      keys.push_back(node->get_key());
+  });
+  std::shuffle(keys.begin(), keys.end(), std::mt19937(t));
+
+  for (size_t i = 0; i < (size_t)(n/4) && i < keys.size(); i++)
+    {
+      int value = keys[i];
+      BinTree<int>::Node * node = tree.remove(value);
+      if (node != nullptr)
+	{
+	  del_count++;
+	  cout << node->get_key() << " ";
+	  delete node;
+	}
+    }
   
   cout << endl << del_count << " deletions" << endl
        << "prefijo: ";
@@ -215,6 +220,8 @@ int main(int argc, char *argv[])
   destroyRec(tree.getRoot());
   destroyRec(t1);
   destroyRec(t2); 
+
+  gsl_rng_free(rng);
 
   cout << argv[0] << " " << n << " " << t << endl;
 }

@@ -35,7 +35,7 @@
 
 using namespace std;
 
-int count = -1;
+int g_count = -1;
 
 struct Foo
 {
@@ -49,7 +49,7 @@ struct Foo
   Foo() : ptr(nullptr)
   {
     ptr = new int;
-    *ptr = ::count--;
+    *ptr = ::g_count--;
   }
 
   Foo(int i) : ptr(nullptr)
@@ -60,8 +60,11 @@ struct Foo
 
   Foo(const Foo & f) : ptr(nullptr)
   {
-    ptr = new int;
-    *ptr = *f.ptr;
+    if (f.ptr != nullptr)
+      {
+        ptr = new int;
+        *ptr = *f.ptr;
+      }
   }
 
   Foo(Foo && f) : ptr(nullptr)

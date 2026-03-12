@@ -31,7 +31,7 @@
 using namespace std;
 using namespace Aleph;
 
-int count = -1;
+int g_count = -1;
 
 struct Foo
 {
@@ -42,25 +42,28 @@ struct Foo
     std::swap(ptr, f.ptr);
   }
 
-  Foo() : ptr(NULL)
+  Foo() : ptr(nullptr)
   {
     ptr = new int;
-    *ptr = ::count--;
+    *ptr = ::g_count--;
   }
 
-  Foo(int i) : ptr(NULL)
+  Foo(int i) : ptr(nullptr)
   {
     ptr = new int;
     *ptr = i;
   }
 
-  Foo(const Foo & f) : ptr(NULL)
+  Foo(const Foo & f) : ptr(nullptr)
   {
-    ptr = new int;
-    *ptr = *f.ptr;
+    if (f.ptr != nullptr)
+      {
+        ptr = new int;
+        *ptr = *f.ptr;
+      }
   }
 
-  Foo(Foo && f) : ptr(NULL)
+  Foo(Foo && f) : ptr(nullptr)
   {
     std::swap(ptr, f.ptr);
   }
@@ -70,7 +73,17 @@ struct Foo
     if (this == &f)
       return *this;
 
-    *ptr = *f.ptr;
+    if (f.ptr == nullptr)
+      {
+        delete ptr;
+        ptr = nullptr;
+      }
+    else
+      {
+        if (ptr == nullptr)
+          ptr = new int;
+        *ptr = *f.ptr;
+      }
 
     return *this;
   }
@@ -83,10 +96,10 @@ struct Foo
 
   ~Foo()
   {
-    if (ptr != NULL)
+    if (ptr != nullptr)
       {
 	delete ptr;
-	ptr = NULL;
+	ptr = nullptr;
       }
   }
 
@@ -101,7 +114,7 @@ void print(const MemArray<T> & s)
   cout << "capacity = " << s.capacity() << endl
        << "size     = " << s.size() << endl;
 
-  for (int i = 0; i < s.size(); ++i)
+  for (size_t i = 0; i < s.size(); ++i)
     {
       int val = s[i];
       cout << val << " ";
@@ -127,7 +140,12 @@ int main(int argc, char * argv[])
 
   print(s);
 
-  int n = argc > 1 ? atoi(argv[1]) : 1000;
+  int n = 1000;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); }
+      catch (...) { n = 1000; }
+    }
 
   for (int i = 0; i < n; ++i)
     s.put(i);
@@ -136,7 +154,10 @@ int main(int argc, char * argv[])
 
   int m = n / 4;
   if (argc > 2)
-    m = atoi(argv[2]);
+    {
+      try { m = stoi(argv[2]); }
+      catch (...) { m = n / 4; }
+    }
   
   cout << "Extracting " << m << " items" << endl;
   for (int i = 0; i < m; ++i)

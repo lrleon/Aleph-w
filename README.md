@@ -3743,12 +3743,14 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 
 | Header | Type/Function | Description |
 |--------|---------------|-------------|
-| `thread_pool.H` | `ThreadPool` | Thread pool with futures |
-| `concurrency_utils.H` | `bounded_channel<T>`, `synchronized<T>` | Modern channels and shared-state wrappers |
-| `ah-parallel.H` | `pmaps()` | Parallel map |
-| `ah-parallel.H` | `pfilter()` | Parallel filter |
-| `ah-parallel.H` | `pfoldl()` | Parallel reduce |
-| `ah-parallel.H` | `pfor_each()` | Parallel iteration |
+| `thread_pool.H` | `ThreadPool`, `TaskGroup` | Thread pool and structured task groups |
+| `thread_pool.H` | `CancellationSource`, `CancellationToken` | Cooperative task cancellation |
+| `concurrency_utils.H` | `bounded_channel<T>`, `spsc_queue<T>` | Concurrent message channels and queues |
+| `concurrency_utils.H` | `synchronized<T>`, `rw_synchronized<T>` | Mutex and RW-lock protected shared state |
+| `ah-parallel.H` | `pmaps()`, `pfilter()` | Parallel map and filter |
+| `ah-parallel.H` | `pfoldl()`, `pfor_each()` | Parallel reduce and iteration |
+| `ah-parallel.H` | `pscan()`, `pmerge()` | Parallel prefix sums and merging |
+| `ah-parallel.H` | `parallel_invoke()`, `ParallelOptions` | Composable parallel execution and options |
 
 #### Functional Programming
 

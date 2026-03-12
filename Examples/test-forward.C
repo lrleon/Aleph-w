@@ -112,7 +112,7 @@ void test_map_tree(int n)
       Tree t;
       for (int i = 0; i < n; ++i)
 	t.insert(i, i + 2);
-      return std::move(t);
+      return t;
     };
 
   Tree tree = (*create)(n);

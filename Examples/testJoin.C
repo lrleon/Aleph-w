@@ -42,20 +42,20 @@ void print_node(Node * p, int, int)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int i, n = argc[1] ? atoi(argc[1]) : 10;
+  int n = argc > 1 ? atoi(argv[1]) : 10;
 
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    t = atoi(argv[2]);
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
-  int value;
+  int i, value;
   Node * root1 = Node::NullPtr;
 
   for (i = 0; i < n; i++)

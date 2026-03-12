@@ -537,6 +537,12 @@ void example_structured_concurrency()
         ah_runtime_error() << "TaskGroup demo exception";
     });
 
+  // Request cancellation while tasks are still running to demonstrate
+  // cooperative interruption.
+  std::this_thread::sleep_for(5ms);
+  std::cout << "Requesting cancellation of remaining work...\n";
+  cancel.request_cancel();
+
   try
     {
       // wait() propagates the exception from task 2.
@@ -546,9 +552,6 @@ void example_structured_concurrency()
     {
       std::cout << "Caught structured exception: " << e.what() << "\n";
     }
-
-  std::cout << "Cancelling remaining work after wait()...\n";
-  cancel.request_cancel();
 
   std::cout << "Tasks completed before cancellation/exception: "
             << completed.load() << "\n";

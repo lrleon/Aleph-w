@@ -460,7 +460,16 @@ namespace Aleph
       scheduled_operation(const scheduled_operation &) = delete;
       scheduled_operation & operator = (const scheduled_operation &) = delete;
       scheduled_operation(scheduled_operation &&) noexcept = default;
-      scheduled_operation & operator = (scheduled_operation &&) noexcept = default;
+      scheduled_operation & operator = (scheduled_operation && other) noexcept
+      {
+        if (this != &other)
+          {
+            unregister_continuation();
+            state_ = std::move(other.state_);
+            continuation_registration_ = std::move(other.continuation_registration_);
+          }
+        return *this;
+      }
       /** @brief Destroy the handle and unregister any suspended continuation.
        *  @thread_safety Safe with respect to task completion. Not safe for
        *                 concurrent use with other member functions on the same
@@ -652,7 +661,16 @@ namespace Aleph
       scheduled_operation(const scheduled_operation &) = delete;
       scheduled_operation & operator = (const scheduled_operation &) = delete;
       scheduled_operation(scheduled_operation &&) noexcept = default;
-      scheduled_operation & operator = (scheduled_operation &&) noexcept = default;
+      scheduled_operation & operator = (scheduled_operation && other) noexcept
+      {
+        if (this != &other)
+          {
+            unregister_continuation();
+            state_ = std::move(other.state_);
+            continuation_registration_ = std::move(other.continuation_registration_);
+          }
+        return *this;
+      }
       /** @brief Destroy the handle and unregister any suspended continuation.
        *  @thread_safety Safe with respect to task completion. Not safe for
        *                 concurrent use with other member functions on the same

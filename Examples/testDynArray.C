@@ -30,7 +30,7 @@
 # include <cstdlib>
 # include <ctime>
 # include <iostream>
-# include <math.h>
+# include <cmath>
 
 # include <tpl_dynarray_set.H>
 
@@ -122,19 +122,19 @@ int main(int argc,char *argv[])
 
     v.reserve(NUM_ITE, 4*NUM_ITE);
   }
-  catch(std::overflow_error)
+  catch(const std::overflow_error&)
     {
       cout << "Overflow!" << endl;
     }
-  catch(std::bad_alloc)
+  catch(const std::bad_alloc&)
     {
       cout << "Not enough memory!" << endl;
     }
-  catch(std::invalid_argument)
+  catch(const std::invalid_argument&)
     {
       cout << "invalid_argument!" << endl;  
     }
-  catch (std::exception & e)
+  catch (const std::exception & e)
     {
       cout << e.what() << endl;
     }
@@ -171,7 +171,7 @@ int main(int argc,char *argv[])
   }
  
   DynArray<int> a;
-  for (int i = 0; i < NUM_ITE; ++i)
+  for (size_t i = 0; i < NUM_ITE; ++i)
     a.touch(i) = i;
 
   for (DynArray<int>::Iterator it(a); it.has_curr(); it.next())

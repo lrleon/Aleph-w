@@ -27,24 +27,31 @@
 
 # include <gsl/gsl_rng.h>
 # include <iostream>
+# include <memory>
 # include <tpl_dynBinHeap.H>
 # include <tpl_dynSetTree.H>
 
 using namespace std;
 
+struct GslRngDeleter
+{
+  void operator()(gsl_rng * r) const { gsl_rng_free(r); }
+};
+
+using GslRngHandle = std::unique_ptr<gsl_rng, GslRngDeleter>;
 
 template <class Tree>
 void test(size_t n, unsigned long seed)
 {
   cout << "Testing for " << typeid(Tree).name() << endl
        << endl;
-  auto r= gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, seed % gsl_rng_max(r));
+  GslRngHandle r(gsl_rng_alloc (gsl_rng_mt19937));
+  gsl_rng_set(r.get(), seed % gsl_rng_max(r.get()));
 
   Tree tree;
   for (size_t i = 0; i < n; ++i)
     {
-      auto val = gsl_rng_get(r);
+      auto val = gsl_rng_get(r.get());
       auto node = new typename Tree::Node(val);
       auto p = tree.insert(node);
       if (p == nullptr)
@@ -62,7 +69,6 @@ void test(size_t n, unsigned long seed)
   cout << endl;
 
   destroyRec(tree.getRoot());
-  gsl_rng_free(r);
 }
 
 void usage()
@@ -74,8 +80,20 @@ void usage()
 
 int main(int argc, char *argv[])
 {
-  size_t n = argc > 1 ? atoi(argv[1]) : 10;
-  unsigned long seed = argc > 2 ? atoi(argv[2]) : 0;
+  size_t n = 10;
+  unsigned long seed = 0;
+
+  try
+    {
+      if (argc > 1)
+        n = static_cast<size_t>(stoul(argv[1]));
+      if (argc > 2)
+        seed = stoul(argv[2]);
+    }
+  catch (...)
+    {
+      // Fallback to defaults
+    }
 
   test<BinTree<long>>(n, seed); 
   test<Avl_Tree<long>>(n, seed); 

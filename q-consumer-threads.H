@@ -52,6 +52,7 @@
 # include <thread>
 # include <condition_variable>
 # include <mutex>
+# include <atomic>
 # include <tpl_dynListQueue.H>
 # include <ah-errors.H>
 
@@ -94,6 +95,10 @@ public:
 
     Status status = Status::Ready;
 
+  protected:
+
+    std::atomic<size_t> count = 0;
+
   public:
 
     T item; /// this is a item extracted from the queue
@@ -107,6 +112,10 @@ public:
 	indicates that the thread must finish
     */
     virtual void run() = 0;
+
+    size_t get_count() const noexcept { return count.load(); }
+
+    void increment_count() noexcept { ++count; }
 
     virtual ~ConsumerQueueEvent() {}
   };

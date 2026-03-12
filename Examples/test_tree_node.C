@@ -95,7 +95,11 @@ int main()
 {
   int number;
   cout << "Ingrese el valor de la raiz: ";
-  cin >> number;
+  if (not (cin >> number))
+    {
+      cout << "Error: Invalid input for root value." << endl;
+      return 1;
+    }
 
   Tree_Node<int> * root = new Tree_Node<int> (number);
 
@@ -109,7 +113,9 @@ int main()
 	  cout << "    Numero de Deway del padre = ";
 	  string deway_string;
 	  size_t deway_size;
-	  cin >> deway_string;
+	  if (not (cin >> deway_string))
+            break;
+
 	  unique_ptr<int[]> deway(string_to_deway(deway_string, deway_size));
 
 	  Tree_Node<int> * node = deway_search(root, deway.get(), deway_size);
@@ -125,7 +131,9 @@ int main()
 	       << "    Clave del nuevo nodo = ";
 
 	  int key;
-	  cin >> key;
+	  if (not (cin >> key))
+            break;
+
 	  Tree_Node<int> * p = new Tree_Node<int> (key);
 	  node->insert_rightmost_child(p);
 
