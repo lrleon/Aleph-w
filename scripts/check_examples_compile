@@ -1,0 +1,175 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'fileutils'
+require 'open3'
+require 'optparse'
+
+options = {
+  build_dir: 'build-examples-check',
+  build_type: 'Release',
+  jobs: nil,
+  clean: false,
+  build_tests: false,
+  log: nil,
+  verbose: false
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{File.basename($PROGRAM_NAME)} [options]"
+
+  opts.on('-B', '--build-dir DIR', 'Build directory (default: build-examples-check)') do |v|
+    options[:build_dir] = v
+  end
+
+  opts.on('--build-type TYPE', 'CMake build type (default: Release)') do |v|
+    options[:build_type] = v
+  end
+
+  opts.on('-j', '--jobs N', Integer, 'Parallel build jobs (default: let CMake decide)') do |v|
+    options[:jobs] = v
+  end
+
+  opts.on('--clean', 'Delete build dir before configuring') do
+    options[:clean] = true
+  end
+
+  opts.on('--build-tests', 'Also enable BUILD_TESTS (default: OFF)') do
+    options[:build_tests] = true
+  end
+
+  opts.on('-l', '--log FILE', 'Write full configure+build log to FILE') do |v|
+    options[:log] = v
+  end
+
+  opts.on('-v', '--verbose', 'Print commands and build output to the console') do
+    options[:verbose] = true
+  end
+
+  opts.on('-h', '--help', 'Show help') do
+    puts opts
+    exit 0
+  end
+end.parse!
+
+repo_root = File.expand_path('..', __dir__)
+build_dir = File.expand_path(options[:build_dir], repo_root)
+log_path = options[:log] ? File.expand_path(options[:log], repo_root) : File.join(build_dir, 'examples_build.log')
+
+if options[:clean]
+  FileUtils.rm_rf(build_dir)
+end
+
+FileUtils.mkdir_p(build_dir)
+
+cmake_configure = [
+  'cmake',
+  '-S', repo_root,
+  '-B', build_dir,
+  "-DCMAKE_BUILD_TYPE=#{options[:build_type]}",
+  '-DBUILD_EXAMPLES=ON',
+  "-DBUILD_TESTS=#{options[:build_tests] ? 'ON' : 'OFF'}"
+]
+
+cmake_build = ['cmake', '--build', build_dir, '--parallel']
+cmake_build << options[:jobs].to_s if options[:jobs]
+
+all_output = +''
+
+run = lambda do |cmd|
+  out = +''
+  status = nil
+
+  header = "$ #{cmd.join(' ')}\n"
+  out << header
+  puts header if options[:verbose]
+
+  Open3.popen2e(*cmd) do |_stdin, stdout_err, wait_thr|
+    stdout_err.each_line do |line|
+      out << line
+      print line if options[:verbose]
+    end
+    status = wait_thr.value
+  end
+  [out, status]
+end
+
+FileUtils.mkdir_p(File.dirname(log_path))
+
+out1, st1 = run.call(cmake_configure)
+all_output << out1 << "\n"
+File.write(log_path, all_output)
+
+unless st1.success?
+  warn "CMake configure failed (exit=#{st1.exitstatus}). See log: #{log_path}"
+  exit st1.exitstatus || 1
+end
+
+out2, st2 = run.call(cmake_build)
+all_output << out2 << "\n"
+File.write(log_path, all_output)
+
+if st2.success?
+  puts "OK: All Examples targets compiled successfully."
+  puts "Log: #{log_path}"
+  exit 0
+end
+
+# Summarize build failures.
+# We try to associate errors with the current CMake target being built.
+errors_by_target = Hash.new { |h, k| h[k] = [] }
+failed_targets = {}
+current_target = nil
+
+out2.each_line do |line|
+  if (m = line.match(%r{\[.*%\]\s+Building\s+CXX\s+object\s+Examples/CMakeFiles/([^./]+)\.dir/}))
+    current_target = m[1]
+  elsif (m = line.match(%r{\[.*%\]\s+Building\s+C\s+object\s+Examples/CMakeFiles/([^./]+)\.dir/}))
+    current_target = m[1]
+  elsif (m = line.match(%r{\bLinking\s+CXX\s+executable\s+([^\s]+)}))
+    current_target = m[1]
+  elsif (m = line.match(%r{\bLinking\s+C\s+executable\s+([^\s]+)}))
+    current_target = m[1]
+  end
+
+  # Capture explicit make failure lines that identify the target.
+  if (m = line.match(%r{Examples/CMakeFiles/([^./]+)\.dir/[^\]]+\]\s+Error\s+\d+}))
+    failed_targets[m[1]] = true
+  end
+  if (m = line.match(%r{gmake\[\d+\]: \*\*\* \[CMakeFiles/Makefile2:\d+: Examples/CMakeFiles/([^./]+)\.dir/all\]\s+Error\s+\d+}))
+    failed_targets[m[1]] = true
+  end
+
+  # Match typical compiler/linker errors.
+  if line.include?('fatal error:') || line.include?(' error:') ||
+     line.include?('undefined reference') || line.include?('collect2: error') ||
+     line.include?('ld: error')
+    tgt = current_target || '<unknown>'
+    s = line.strip
+    errors_by_target[tgt] << s unless errors_by_target[tgt].include?(s)
+  end
+end
+
+warn "FAIL: Some Examples targets did not compile (exit=#{st2.exitstatus})."
+warn "Log: #{log_path}"
+
+targets = (errors_by_target.keys + failed_targets.keys).uniq
+targets.delete('<unknown>') if targets.size > 1
+
+if targets.empty?
+  warn 'No target-specific failures were detected in the output. Inspect the log for details.'
+else
+  warn "\nFailure report per target:"
+  targets.sort.each do |tgt|
+    lines = errors_by_target[tgt]
+    if lines.empty?
+      warn "- #{tgt}: (no compiler/linker error line captured; see full log)"
+    else
+      warn "- #{tgt}:"
+      lines.first(8).each { |l| warn "    #{l}" }
+      warn "    ... (#{lines.size - 8} more)" if lines.size > 8
+    end
+  end
+end
+
+exit st2.exitstatus || 1

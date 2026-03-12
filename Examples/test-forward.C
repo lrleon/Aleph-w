@@ -120,7 +120,12 @@ void test_map_tree(int n)
 
 int main(int argc, char * argv[])
 {
-  int n = argc > 1 ? atoi(argv[1]) : 1000;
+  int n = 1000;
+  if (argc > 1)
+    {
+      try { n = std::stoi(argv[1]); }
+      catch (...) { n = 1000; }
+    }
 
   test_map_tree<DynMapTree<int, int, Avl_Tree>>(n);
 

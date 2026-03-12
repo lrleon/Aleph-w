@@ -5,11 +5,11 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+		 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,70 +25,85 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <stdlib.h>
-# include <time.h>
-# include <iostream>
-# include <tpl_splay_treeRk.H>
-# include <tpl_binNodeXt.H>
-
+#include <stdlib.h>
+#include <time.h>
+#include <iostream>
+#include <tpl_splay_treeRk.H>
+#include <tpl_binNodeXt.H>
 
 using namespace std;
 
-int main(int argn, char *argc[]) {
+int
+main (int argc, char *argv[])
+{
   int n = 1000;
-  unsigned int t = time(0);
-  int value;
+  if (argc > 1)
+    {
+      char *endptr = nullptr;
+      n = (int) strtol (argv[1], &endptr, 10);
+      if (*endptr != '\0' or n < 0)
+	{
+	  cerr << "Invalid value for n: " << argv[1] << endl;
+	  exit (1);
+	}
+    }
 
-  if (argn > 1)
-    n = atoi(argc[1]);
+  auto t = static_cast<unsigned int> (time (nullptr));
+  if (argc > 2)
+    {
+      char *endptr = nullptr;
+      t = static_cast<unsigned int> (strtoul (argv[2], &endptr, 10));
+      if (*endptr != '\0')
+	{
+	  cerr << "Invalid value for t: " << argv[2] << endl;
+	  exit (1);
+	}
+    }
 
-  if (argn > 2)
-    t = atoi(argc[2]);
-
-  srand(t);
+  srand (t);
 
   cout << "testSplayTree " << n << " " << t << endl;
 
   Splay_Tree_Rk<int> tree;
-  Splay_Tree_Rk<int>::Node *node;
   int i;
 
   cout << "Inserting " << n << " random values in tree ...\n";
 
   unsigned int insCount = 0;
 
-  for (i = 0; i < n; i++) {
-    value = 1+(int) (n*100.0*rand()/(RAND_MAX+1.0));
-    node = tree.search(value);
-    if (node == NULL) {
-      insCount++;
-      node = new Splay_Tree_Rk<int>::Node (value);
-      tree.insert(node);
-      }
+  for (i = 0; i < n; i++)
+    {
+      auto value = 1 + (int) (n * 100.0 * rand () / (RAND_MAX + 1.0));
+      if (Splay_Tree_Rk<int>::Node *node = tree.search (value); node == nullptr)
+	{
+	  insCount++;
+	  node = new Splay_Tree_Rk<int>::Node (value);
+	  tree.insert (node);
+	}
     }
-  
+
   cout << insCount << " Items inserted" << endl;
 
-  if (Aleph::check_rank_tree(tree.getRoot()))
-		cout << "arbol equilibrado" << endl;
-	else
-		{
-			cout << "error de equilibrio en el arbol" << endl;
-			return EXIT_FAILURE;
-		}
-
-/*
-  for (i = 0; i < n; i++) {
-    value = 1+(int) (n*100.0*rand()/(RAND_MAX+1.0));
-    node = tree.remove(value);
-    if (node != NULL) {
-      delCount++;
-      delete node;
-      }
+  if (tree.verify ())
+    cout << "arbol equilibrado" << endl;
+  else
+    {
+      cout << "error de equilibrio en el arbol" << endl;
+      return EXIT_FAILURE;
     }
 
-  cout << delCount << " Items removed" << endl;
-*/
-  destroyRec(tree.getRoot());
+  /*
+    for (i = 0; i < n; i++) {
+      value = 1+(int) (n*100.0*rand()/(RAND_MAX+1.0));
+      node = tree.remove(value);
+      if (node != NULL) {
+	delCount++;
+	delete node;
+	}
+      }
+
+    cout << delCount << " Items removed" << endl;
+  */
+  destroyRec (tree.getRoot ());
   cout << "testSplayTree " << n << " " << t << endl;
-  }
+}

@@ -3749,8 +3749,8 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | `concurrency_utils.H` | `synchronized<T>`, `rw_synchronized<T>` | Mutex and RW-lock protected shared state |
 | `ah-parallel.H` | `pmaps()`, `pfilter()` | Parallel map and filter |
 | `ah-parallel.H` | `pfoldl()`, `pfor_each()` | Parallel reduce and iteration |
-| `ah-parallel.H` | `pscan()`, `pmerge()` | Parallel prefix sums and merging |
-| `ah-parallel.H` | `parallel_invoke()`, `ParallelOptions` | Composable parallel execution and options |
+| `thread_pool.H` | `pscan()`, `pmerge()` | Parallel prefix sums and merging |
+| `thread_pool.H` | `parallel_invoke()`, `ParallelOptions` | Composable parallel execution and options |
 
 #### Functional Programming
 

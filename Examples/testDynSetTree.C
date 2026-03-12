@@ -26,6 +26,8 @@
 */
 
 # include <time.h>
+# include <cerrno>
+# include <climits>
 # include <gsl/gsl_rng.h>
 # include <cassert>
 # include <iostream>
@@ -48,7 +50,7 @@ unsigned long insert_n_random_items_in_set(DynSetTree<unsigned long> & table,
 
   cout << "Testing simple insertions and searches ...." << endl;
 
-  for (int i = 0; i < n; i++)
+  for (unsigned long i = 0; i < n; i++)
     {
       keys[i] = gsl_rng_get(r);
       if (not table.has(keys(i)))
@@ -76,11 +78,11 @@ void test_DynSet(size_t n)
   DynSetTreap<unsigned long> t = { 1, 2, 3, 4, 5};
   DynSetTree<unsigned long> table;
   DynArray<unsigned long> keys;
-  unsigned int dup_counter = insert_n_random_items_in_set(table, keys, n);
+  unsigned long dup_counter = insert_n_random_items_in_set(table, keys, n);
 
   unsigned long removed_counter = 0;
   size_t num_inserted = table.size();
-  for (int i = 0; i < n; i++)
+  for (size_t i = 0; i < n; i++)
     if (table.search(keys(i)) != NULL)
       {
         table.remove(keys(i));
@@ -101,7 +103,7 @@ void test_DynSet(size_t n)
 
   unsigned long repeated_counter = 0;
   cout << "Reinserting keys ...." << endl;
-  for (int i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     if (table.insert(keys(i)) == NULL)
       ++repeated_counter;
 
@@ -137,7 +139,7 @@ void test_DynSet(size_t n)
   {
     cout << "testing lvalue assigment...." << endl;
     DynSetTree<unsigned long> aux;
-    for (int i = 0; i < n/2; ++i)
+    for (size_t i = 0; i < n/2; ++i)
       {
         unsigned long key = gsl_rng_get(r);
         while (aux.has(key))
@@ -172,7 +174,7 @@ void test_DynSet(size_t n)
     // Clear table to ensure reinsertion tests against an empty set
     table.empty();
     
-    for (int i = 0; i < n; ++i)
+    for (size_t i = 0; i < n; ++i)
       if (table.insert(keys(i)) == NULL)
         dups.append(i);
 
@@ -231,7 +233,7 @@ insert_n_random_items_in_map(DynMapTree<unsigned long, long> & table,
 {
   unsigned long dup_counter = 0;
   cout << "Testing simple insertions and searches ...." << endl;
-  for (long i = 0; i < n; i++)
+  for (unsigned long i = 0; i < n; i++)
     {
       keys[i] = gsl_rng_get(r);
       if (not table.has(keys(i)))
@@ -247,11 +249,11 @@ void test_DynMap(size_t n)
   typedef DynMapTree<unsigned long, long> MapType;
   MapType table;
   DynArray<unsigned long> keys;
-  unsigned int dup_counter = insert_n_random_items_in_map(table, keys, n);
+  unsigned long dup_counter = insert_n_random_items_in_map(table, keys, n);
 
   unsigned long removed_counter = 0;
   size_t num_inserted = table.size();
-  for (int i = 0; i < n; i++)
+  for (size_t i = 0; i < n; i++)
     if (table.search(keys(i)) != NULL)
       {
         table.remove(keys(i));
@@ -272,7 +274,7 @@ void test_DynMap(size_t n)
 
   unsigned long repeated_counter = 0;
   cout << "Reinserting keys ...." << endl;
-  for (int i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     if (table.insert(keys(i), i) == NULL)
       ++repeated_counter;
 
@@ -317,6 +319,11 @@ int main(int argc, char *argv[])
   unsigned long n = NumItems;
   if (argc > 1)
     {
+      if (argv[1][0] == '-')
+        {
+          cerr << "Invalid n: " << argv[1] << endl;
+          return 1;
+        }
       char * endptr = nullptr;
       errno = 0;
       n = strtoul(argv[1], &endptr, 10);
@@ -330,6 +337,11 @@ int main(int argc, char *argv[])
   unsigned int t = time(NULL);
   if (argc > 2)
     {
+      if (argv[2][0] == '-')
+        {
+          cerr << "Invalid t: " << argv[2] << endl;
+          return 1;
+        }
       char * endptr = nullptr;
       errno = 0;
       const unsigned long parsed_t = strtoul(argv[2], &endptr, 10);

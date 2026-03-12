@@ -87,7 +87,7 @@ struct Via
 
   Distance_Type& get_distance() { return distancia; }
 
-  static const Distance_Type Zero_Distance = 0;
+  static constexpr Distance_Type Zero_Distance = 0;
 };
 
 typedef Graph_Node<Ciudad> Nodo_Ciudad;

@@ -718,6 +718,41 @@ jobs:
             build-tsan/CMakeCache.txt
             build-tsan/test_artifacts/golden_svg
 
+  check-examples:
+    name: check-examples (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CC: gcc
+      CXX: g++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            ruby-full
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-examples-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-examples-ccache-
+
+      - name: Check examples compilation
+        run: |
+          ruby scripts/check_examples_compile --verbose
+
   ci-success-push:
     name: CI Success
     runs-on: ubuntu-24.04
@@ -728,6 +763,7 @@ jobs:
       - coverage
       - sanitizers
       - tsan
+      - check-examples
     if: always() && github.event_name == 'push'
     steps:
       - name: Check results
@@ -739,6 +775,7 @@ jobs:
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
+          echo "check-examples result: ${{ needs.check-examples.result }}"
 
           is_ok() {
             [ "$1" = "success" ] || [ "$1" = "skipped" ]
@@ -762,6 +799,7 @@ jobs:
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
+          check_job "check-examples" "${{ needs.check-examples.result }}"
 
           if [ "$all_ok" -ne 1 ]; then
             echo "CI failed"
@@ -780,6 +818,7 @@ jobs:
       - coverage
       - sanitizers
       - tsan
+      - check-examples
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Check results
@@ -792,6 +831,7 @@ jobs:
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
+          echo "check-examples result: ${{ needs.check-examples.result }}"
 
           is_ok() {
             [ "$1" = "success" ] || [ "$1" = "skipped" ]
@@ -816,6 +856,7 @@ jobs:
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
+          check_job "check-examples" "${{ needs.check-examples.result }}"
 
           if [ "$all_ok" -ne 1 ]; then
             echo "CI failed"

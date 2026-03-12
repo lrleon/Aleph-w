@@ -28,6 +28,7 @@
 # include <vector>
 # include <algorithm>
 # include <random>
+# include <memory>
 
 # include <aleph.H>
 # include <tpl_binTree.H>
@@ -38,6 +39,13 @@
 
 using namespace std;
 using namespace Aleph;
+
+struct GslRngDeleter
+{
+  void operator()(gsl_rng * r) const { gsl_rng_free(r); }
+};
+
+using GslRngHandle = std::unique_ptr<gsl_rng, GslRngDeleter>;
 
 static void printNode(BinTree<int>::Node* node, int, int)
 {
@@ -80,8 +88,8 @@ int main(int argc, char *argv[])
   if (argc > 2)
     t = stoi(argv[2]);
 
-  gsl_rng * rng = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(rng, t);
+  GslRngHandle rng(gsl_rng_alloc(gsl_rng_mt19937));
+  gsl_rng_set(rng.get(), t);
 
   cout << argv[0] << " " << n << " " << t << endl;
 
@@ -93,7 +101,6 @@ int main(int argc, char *argv[])
   if (n > 1000)
     {
       cerr << "Error: n must be <= 1000 to avoid infinite loops with current RNG range." << endl;
-      gsl_rng_free(rng);
       return 1;
     }
 
@@ -105,7 +112,7 @@ int main(int argc, char *argv[])
       BinTree<int>::Node *node;
       do 
 	{
-	  value = gsl_rng_uniform_int(rng, 1000);
+	  value = gsl_rng_uniform_int(rng.get(), 1000);
 	  node = tree.search(value);
 	}
       while (node not_eq nullptr);
@@ -220,8 +227,6 @@ int main(int argc, char *argv[])
   destroyRec(tree.getRoot());
   destroyRec(t1);
   destroyRec(t2); 
-
-  gsl_rng_free(rng);
 
   cout << argv[0] << " " << n << " " << t << endl;
 }

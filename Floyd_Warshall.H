@@ -204,7 +204,7 @@ namespace Aleph
 
         @return Const reference to the node pointer array.
      */
-    const DynArray<Node *> & get_nodes() const noexcept { return nodes; }
+    [[nodiscard]] const DynArray<Node *> & get_nodes() const noexcept { return nodes; }
 
     /**
         Get an owning copy of the graph nodes array.
@@ -221,7 +221,7 @@ namespace Aleph
 
         @return Owning copy of the node pointer array.
      */
-    DynArray<Node *> get_nodes_copy() const { return nodes; }
+    [[nodiscard]] DynArray<Node *> get_nodes_copy() const { return nodes; }
 
     /**
         Get the graph node at a given matrix index.

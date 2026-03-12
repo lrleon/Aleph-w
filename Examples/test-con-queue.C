@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <cerrno>
 # include <q-consumer-threads.H>
 
 using namespace std;
@@ -58,9 +59,28 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-  const size_t num_threads = atoi(argv[1]);
-  const size_t num_items = atoi(argv[2]);
-  const size_t secs = atoi(argv[3]);
+  char * endptr = nullptr;
+  errno = 0;
+  const size_t num_threads = strtoul(argv[1], &endptr, 10);
+  if (errno != 0 or endptr == argv[1] or *endptr != '\0' or num_threads == 0)
+    {
+      cerr << "Invalid num_threads: " << argv[1] << endl;
+      return 1;
+    }
+
+  const size_t num_items = strtoul(argv[2], &endptr, 10);
+  if (errno != 0 or endptr == argv[2] or *endptr != '\0')
+    {
+      cerr << "Invalid num_items: " << argv[2] << endl;
+      return 1;
+    }
+
+  const size_t secs = strtoul(argv[3], &endptr, 10);
+  if (errno != 0 or endptr == argv[3] or *endptr != '\0')
+    {
+      cerr << "Invalid secs: " << argv[3] << endl;
+      return 1;
+    }
 
   QueueTheadsPool<int> qpool;
   DynList<QueueTheadsPool<int>::Event*> event_list;

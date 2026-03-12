@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
       while (1)
 	{
 	  value = (int) (10.0*n*rand()/(RAND_MAX+1.0));
-	  if (searchInBinTree(root1, value) == NULL)
+	  if (searchInBinTree(root1, value) == Node::NullPtr)
 	    break;
 	}
       Node * p = new Node (value);
@@ -81,8 +81,8 @@ int main(int argc, char *argv[])
       while (1)
 	{
 	  value = (int) (10.0*n*rand()/(RAND_MAX+1.0));
-	  if (searchInBinTree(root1, value) == NULL and
-	      searchInBinTree(root2, value) == NULL)
+	  if (searchInBinTree(root1, value) == Node::NullPtr and
+	      searchInBinTree(root2, value) == Node::NullPtr)
 	    break;
 	}
       Node * p = new Node (value);
@@ -97,23 +97,25 @@ int main(int argc, char *argv[])
   Node * r1 = copyRec(root1);
   Node * r2 = copyRec(root2);
 
-  Node * dup;
+  Node * dup = Node::NullPtr;
 
   Node * root = join(root1, root2, dup);
   assert(check_bst(root));
   cout << endl << "Join(T1, T2)" << endl;
   preOrderRec(root, &print_node); cout << endl << endl;
   destroyRec(root);
-  destroyRec(dup); // Clean up duplicate nodes from first join
+  destroyRec(dup); 
+  dup = Node::NullPtr; // Reinitialize dup to avoid dangling pointer
 
-  Node * r = join(r2, r1, dup);
-  assert(check_bst(r));
+  Node * res = join(r2, r1, dup); // renamed r to res to avoid confusion with r1/r2
+  assert(check_bst(res));
   cout << endl << "Join(T2, T1)" << endl;
-  preOrderRec(r, &print_node); cout << endl << endl;
-  destroyRec(r);
+  preOrderRec(res, &print_node); cout << endl << endl;
+  destroyRec(res);
+  destroyRec(dup);
 
   {
-    Node * t1 = NULL, * t2 = NULL;
+    Node * t1 = Node::NullPtr, * t2 = Node::NullPtr;
 
     for (i = 0; i < n; ++i)
       {
@@ -127,16 +129,16 @@ int main(int argc, char *argv[])
     cout << "t2: ";
     preOrderRec(t2, &print_node); cout << endl << endl;
 
-    Node * dup = NULL;
-    Node * j = join(t1, t2, dup);
+    Node * dup_inner = Node::NullPtr;
+    Node * j = join(t1, t2, dup_inner);
 
     cout << "join(t1, t2, dup): ";
     preOrderRec(j, &print_node); cout << endl << endl;
 
     cout << "dup: ";
-    preOrderRec(dup, &print_node); cout << endl << endl;
+    preOrderRec(dup_inner, &print_node); cout << endl << endl;
 
     destroyRec(j);
-    destroyRec(dup);
+    destroyRec(dup_inner);
   }
 }

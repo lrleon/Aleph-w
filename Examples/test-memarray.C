@@ -63,7 +63,7 @@ struct Foo
       }
   }
 
-  Foo(Foo && f) : ptr(nullptr)
+  Foo(Foo && f) noexcept : ptr(nullptr)
   {
     std::swap(ptr, f.ptr);
   }
@@ -88,7 +88,7 @@ struct Foo
     return *this;
   }
 
-  Foo & operator = (Foo && f)
+  Foo & operator = (Foo && f) noexcept
   {
     swap(f);
     return *this;
