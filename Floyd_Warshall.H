@@ -199,7 +199,11 @@ namespace Aleph
         long-term storage or if the Floyd_All_Shortest_Paths instance is destroyed,
         but incurs an O(n) copy cost.
 
-        @return Owning copy of the node pointer array.
+        @note This method returns a shallow copy of the container; the Node* 
+        elements are borrowed from the graph and caller does not gain ownership.
+        Pointer validity depends on the graph nodes remaining alive.
+
+        @return Owning copy of the node pointer array container.
      */
     [[nodiscard]] DynArray<Node *> get_nodes() const { return nodes; }
 
@@ -210,8 +214,9 @@ namespace Aleph
         This provides O(1) access to the underlying storage but requires
         the caller to ensure the Floyd_All_Shortest_Paths instance remains alive.
 
-        @warning The returned reference is valid only as long as the Floyd_All_Shortest_Paths
-        instance exists. Do not store this reference if the instance may be destroyed.
+        @warning The returned reference and its contained pointers are valid 
+        only as long as the Floyd_All_Shortest_Paths instance and the underlying 
+        graph nodes exist. Not thread-safe if the container is mutated.
 
         @return Const reference to the node pointer array.
      */

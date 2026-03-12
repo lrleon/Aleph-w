@@ -727,7 +727,7 @@ jobs:
   check-examples:
     name: check-examples (ubuntu-24.04, ${{ matrix.compiler }}, Release)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -756,16 +756,20 @@ jobs:
 
       - name: Install Clang toolchain
         if: matrix.compiler == 'clang'
-        run: sudo apt-get install -y clang
+        run: sudo apt-get install -y clang libc++-dev libc++abi-dev
 
       - name: Configure compiler
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ]; then
             echo "CC=clang" >> "$GITHUB_ENV"
             echo "CXX=clang++" >> "$GITHUB_ENV"
+            echo "CXXFLAGS_STDLIB=-stdlib=libc++" >> "$GITHUB_ENV"
+            echo "LDFLAGS=-lc++abi" >> "$GITHUB_ENV"
           else
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
+            echo "CXXFLAGS_STDLIB=" >> "$GITHUB_ENV"
+            echo "LDFLAGS=" >> "$GITHUB_ENV"
           fi
 
       - name: Cache ccache
@@ -778,7 +782,13 @@ jobs:
 
       - name: Check examples compilation
         run: |
-          ruby scripts/check_examples_compile --verbose --build-dir "build-examples-${{ matrix.compiler }}"
+          ruby scripts/check_examples_compile --verbose --jobs 2 --build-dir "build-examples-${{ matrix.compiler }}"
+
+      - name: TSAN smoke pass for concurrency examples
+        run: |
+          # Build a selected set of concurrency-heavy examples with TSAN
+          ruby scripts/check_examples_compile --verbose --jobs 2 --tsan \
+            --build-dir "build-examples-${{ matrix.compiler }}-tsan"
 
       - name: Upload examples build log on failure
         if: failure()

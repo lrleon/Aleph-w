@@ -132,9 +132,9 @@ static void example_lca()
   //  Build a tree:
   //
   //          0
-  //         / \
+  //         / \ 
   //        1   2
-  //       / \   \
+  //       / \   \ 
   //      3   4   5
   //
   Link_Cut_Tree lct;

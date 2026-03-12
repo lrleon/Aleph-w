@@ -29,6 +29,7 @@
 # include <memory>
 # include <concepts>
 # include <stdexcept>
+# include <ah-errors.H>
 # include <tpl_memArray.H>
 
 using namespace std;
@@ -61,8 +62,7 @@ struct Foo
 
   operator int () const 
   { 
-    if (not ptr)
-      throw std::runtime_error("Attempt to access null Foo");
+    ah_domain_error_if(not ptr) << "Attempt to access null Foo";
     return *ptr; 
   }
 };
@@ -104,13 +104,10 @@ int main(int argc, char * argv[])
   int n = 1000;
   if (argc > 1)
     {
-      try 
-        { 
-          n = stoi(argv[1]); 
-          ah_invalid_argument_if(n <= 0) << "n must be > 0";
-        }
+      try { n = stoi(argv[1]); }
       catch (const std::invalid_argument &) { n = 1000; }
       catch (const std::out_of_range &) { n = 1000; }
+      ah_invalid_argument_if(n <= 0) << "n must be > 0";
     }
 
   for (int i = 0; i < n; ++i)
@@ -121,13 +118,10 @@ int main(int argc, char * argv[])
   int m = n / 4;
   if (argc > 2)
     {
-      try 
-        { 
-          m = stoi(argv[2]); 
-          ah_invalid_argument_if(m < 0 or m > n) << "m must be between 0 and n";
-        }
+      try { m = stoi(argv[2]); }
       catch (const std::invalid_argument &) { m = n / 4; }
       catch (const std::out_of_range &) { m = n / 4; }
+      ah_invalid_argument_if(m < 0 or m > n) << "m must be between 0 and n";
     }
   
   cout << "Extracting " << m << " items" << endl;

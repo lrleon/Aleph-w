@@ -11,6 +11,7 @@ options = {
   jobs: nil,
   clean: false,
   build_tests: false,
+  tsan: false,
   log: nil,
   verbose: false
 }
@@ -38,7 +39,12 @@ OptionParser.new do |opts|
     options[:build_tests] = true
   end
 
-  opts.on('-l', '--log FILE', 'Write full configure+build log to FILE') do |v|
+  opts.on('--tsan', 'Enable ThreadSanitizer flags') do
+    options[:tsan] = true
+  end
+
+  opts.on('-l', '--log FILE', 'Write full configure+build log to FILE') do
+ |v|
     options[:log] = v
   end
 
@@ -70,6 +76,25 @@ cmake_configure = [
   '-DBUILD_EXAMPLES=ON',
   "-DBUILD_TESTS=#{options[:build_tests] ? 'ON' : 'OFF'}"
 ]
+
+# If CC or CXX environment variables point to clang, add libc++ flags
+cc_env = ENV['CC'] || ''
+cxx_env = ENV['CXX'] || ''
+if cc_env.include?('clang') || cxx_env.include?('clang')
+  cxxflags = ENV['CXXFLAGS_STDLIB'] || '-stdlib=libc++'
+  ldflags = ENV['LDFLAGS'] || '-lc++abi'
+
+  if options[:tsan]
+    cxxflags += ' -fsanitize=thread -fno-omit-frame-pointer'
+    ldflags += ' -fsanitize=thread'
+  end
+
+  cmake_configure << "-DCMAKE_CXX_FLAGS=#{cxxflags}"
+  cmake_configure << "-DCMAKE_EXE_LINKER_FLAGS=#{ldflags}"
+elsif options[:tsan] && (cc_env.include?('gcc') || cxx_env.include?('g++'))
+  cmake_configure << '-DCMAKE_CXX_FLAGS=-fsanitize=thread -fno-omit-frame-pointer'
+  cmake_configure << '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread'
+end
 
 cmake_build = ['cmake', '--build', build_dir, '--parallel']
 cmake_build << options[:jobs].to_s if options[:jobs]

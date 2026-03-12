@@ -3591,7 +3591,7 @@ int main() {
         strengths.append(arc->get_info().strength);
     });
 
-    int total_strength = pfold(strengths, 0,
+    int total_strength = pfoldl(strengths, 0,
         [](int a, int b) { return a + b; });
 
     std::cout << "\nAverage connection strength: "
