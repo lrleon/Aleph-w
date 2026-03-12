@@ -193,6 +193,17 @@ namespace Aleph
     }
 
     /**
+        Get an owning copy of the graph nodes array.
+
+        Returns a copy of the sorted array of node pointers. This is safer for
+        long-term storage or if the Floyd_All_Shortest_Paths instance is destroyed,
+        but incurs an O(n) copy cost.
+
+        @return Owning copy of the node pointer array.
+     */
+    [[nodiscard]] DynArray<Node *> get_nodes() const { return nodes; }
+
+    /**
         Get the array of graph nodes as a constant reference.
 
         Returns the sorted array of node pointers used for matrix indexing.
@@ -204,7 +215,7 @@ namespace Aleph
 
         @return Const reference to the node pointer array.
      */
-    [[nodiscard]] const DynArray<Node *> & get_nodes() const noexcept { return nodes; }
+    [[nodiscard]] const DynArray<Node *> & get_nodes_ref() const noexcept { return nodes; }
 
     /**
         Get an owning copy of the graph nodes array.

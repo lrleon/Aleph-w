@@ -27,16 +27,20 @@
 
 # include <iostream>
 # include <cerrno>
+# include <chrono>
+# include <thread>
 # include <q-consumer-threads.H>
 
 using namespace std;
+
+static constexpr size_t WORK_DELAY_MS = 10;
 
 struct Event1 : QueueTheadsPool<int>::Event
 {
   void run() override
   {
     // cout << "Event 1 " << item << endl;
-    for (volatile size_t i = 0; i < 10000000; ++i);
+    this_thread::sleep_for(chrono::milliseconds(WORK_DELAY_MS));
     increment_count(); 
   }
 };
@@ -46,7 +50,7 @@ struct Event2 : QueueTheadsPool<int>::Event
   void run() override
   {
     // cout << "Event 2 " << item << endl;
-    for (volatile size_t i = 0; i < 10000000; ++i);
+    this_thread::sleep_for(chrono::milliseconds(WORK_DELAY_MS));
     increment_count(); 
   }
 };
@@ -61,6 +65,11 @@ int main(int argc, char *argv[])
 
   char * endptr = nullptr;
   errno = 0;
+  if (argv[1][0] == '-')
+    {
+      cerr << "Invalid num_threads: " << argv[1] << endl;
+      return 1;
+    }
   const size_t num_threads = strtoul(argv[1], &endptr, 10);
   if (errno != 0 or endptr == argv[1] or *endptr != '\0' or num_threads == 0)
     {
@@ -68,6 +77,11 @@ int main(int argc, char *argv[])
       return 1;
     }
 
+  if (argv[2][0] == '-')
+    {
+      cerr << "Invalid num_items: " << argv[2] << endl;
+      return 1;
+    }
   const size_t num_items = strtoul(argv[2], &endptr, 10);
   if (errno != 0 or endptr == argv[2] or *endptr != '\0')
     {
@@ -75,6 +89,11 @@ int main(int argc, char *argv[])
       return 1;
     }
 
+  if (argv[3][0] == '-')
+    {
+      cerr << "Invalid secs: " << argv[3] << endl;
+      return 1;
+    }
   const size_t secs = strtoul(argv[3], &endptr, 10);
   if (errno != 0 or endptr == argv[3] or *endptr != '\0')
     {
@@ -119,7 +138,7 @@ int main(int argc, char *argv[])
 
   cout << "done" << endl
        << endl
-       << "Suspending" << endl;
+       << "Suspending (cooperative: in-flight tasks continue in run())" << endl;
   qpool.suspend();
   cout << "Done" << endl
        << endl

@@ -26,6 +26,9 @@
 */
 
 # include <iostream>
+# include <memory>
+# include <concepts>
+# include <stdexcept>
 # include <tpl_memArray.H>
 
 using namespace std;
@@ -35,80 +38,37 @@ int g_count = -1;
 
 struct Foo
 {
-  int * ptr;
+  std::unique_ptr<int> ptr;
 
-  void swap(Foo & f)
-  {
-    std::swap(ptr, f.ptr);
-  }
+  Foo() : ptr(std::make_unique<int>(::g_count--)) {}
 
-  Foo() : ptr(nullptr)
-  {
-    ptr = new int;
-    *ptr = ::g_count--;
-  }
+  Foo(int i) : ptr(std::make_unique<int>(i)) {}
 
-  Foo(int i) : ptr(nullptr)
-  {
-    ptr = new int;
-    *ptr = i;
-  }
+  Foo(const Foo & f) : ptr(f.ptr ? std::make_unique<int>(*f.ptr) : nullptr) {}
 
-  Foo(const Foo & f) : ptr(nullptr)
-  {
-    if (f.ptr != nullptr)
-      {
-        ptr = new int;
-        *ptr = *f.ptr;
-      }
-  }
-
-  Foo(Foo && f) noexcept : ptr(nullptr)
-  {
-    std::swap(ptr, f.ptr);
-  }
+  Foo(Foo && f) noexcept = default;
 
   Foo & operator = (const Foo & f)
   {
-    if (this == &f)
-      return *this;
-
-    if (f.ptr == nullptr)
-      {
-        delete ptr;
-        ptr = nullptr;
-      }
-    else
-      {
-        if (ptr == nullptr)
-          ptr = new int;
-        *ptr = *f.ptr;
-      }
-
+    if (this != &f)
+      ptr = f.ptr ? std::make_unique<int>(*f.ptr) : nullptr;
     return *this;
   }
 
-  Foo & operator = (Foo && f) noexcept
-  {
-    swap(f);
-    return *this;
+  Foo & operator = (Foo && f) noexcept = default;
+
+  ~Foo() = default;
+
+  operator int () const 
+  { 
+    if (not ptr)
+      throw std::runtime_error("Attempt to access null Foo");
+    return *ptr; 
   }
-
-  ~Foo()
-  {
-    if (ptr != nullptr)
-      {
-	delete ptr;
-	ptr = nullptr;
-      }
-  }
-
-  // operator int () { return *ptr; }
-
-  operator int () const { return *ptr; }
 };
 
-    template <typename T>
+template <typename T>
+  requires std::convertible_to<T, int>
 void print(const MemArray<T> & s)
 {
   cout << "capacity = " << s.capacity() << endl
@@ -124,6 +84,7 @@ void print(const MemArray<T> & s)
 }
 
 template <typename T>
+  requires std::constructible_from<T, int>
 MemArray<T> create_memarray(int n)
 {
   MemArray<T> ret(n);
@@ -143,8 +104,13 @@ int main(int argc, char * argv[])
   int n = 1000;
   if (argc > 1)
     {
-      try { n = stoi(argv[1]); }
-      catch (...) { n = 1000; }
+      try 
+        { 
+          n = stoi(argv[1]); 
+          ah_invalid_argument_if(n <= 0) << "n must be > 0";
+        }
+      catch (const std::invalid_argument &) { n = 1000; }
+      catch (const std::out_of_range &) { n = 1000; }
     }
 
   for (int i = 0; i < n; ++i)
@@ -155,8 +121,13 @@ int main(int argc, char * argv[])
   int m = n / 4;
   if (argc > 2)
     {
-      try { m = stoi(argv[2]); }
-      catch (...) { m = n / 4; }
+      try 
+        { 
+          m = stoi(argv[2]); 
+          ah_invalid_argument_if(m < 0 or m > n) << "m must be between 0 and n";
+        }
+      catch (const std::invalid_argument &) { m = n / 4; }
+      catch (const std::out_of_range &) { m = n / 4; }
     }
   
   cout << "Extracting " << m << " items" << endl;

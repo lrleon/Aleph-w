@@ -71,6 +71,7 @@ jobs:
             cmake ninja-build pkg-config ccache \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
             libgtest-dev \
             ruby-full
 
@@ -222,6 +223,7 @@ jobs:
             g++ \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
             libgtest-dev \
             ruby-full python3-numpy
 
@@ -377,7 +379,8 @@ jobs:
             ruby-full \
             g++ \
             libgmp-dev libmpfr-dev libgsl-dev \
-            libx11-dev libpthread-stubs0-dev
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev
 
       - name: Configure
         run: |
@@ -448,6 +451,7 @@ jobs:
             g++ \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
             libgtest-dev
 
       - name: Cache ccache
@@ -604,6 +608,7 @@ jobs:
             g++ \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
             libgtest-dev
 
       - name: Cache ccache
@@ -669,6 +674,7 @@ jobs:
             clang \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
             libgtest-dev
 
       - name: Cache ccache
@@ -719,12 +725,15 @@ jobs:
             build-tsan/test_artifacts/golden_svg
 
   check-examples:
-    name: check-examples (ubuntu-24.04, gcc, Release)
+    name: check-examples (ubuntu-24.04, ${{ matrix.compiler }}, Release)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+
     env:
-      CC: gcc
-      CXX: g++
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
@@ -736,22 +745,47 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake ninja-build pkg-config ccache \
-            g++ \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
             ruby-full
+
+      - name: Install GCC toolchain
+        if: matrix.compiler == 'gcc'
+        run: sudo apt-get install -y g++
+
+      - name: Install Clang toolchain
+        if: matrix.compiler == 'clang'
+        run: sudo apt-get install -y clang
+
+      - name: Configure compiler
+        run: |
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+          else
+            echo "CC=gcc" >> "$GITHUB_ENV"
+            echo "CXX=g++" >> "$GITHUB_ENV"
+          fi
 
       - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-examples-ccache-${{ github.sha }}
+          key: ${{ runner.os }}-examples-${{ matrix.compiler }}-ccache-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-examples-ccache-
+            ${{ runner.os }}-examples-${{ matrix.compiler }}-ccache-
 
       - name: Check examples compilation
         run: |
-          ruby scripts/check_examples_compile --verbose
+          ruby scripts/check_examples_compile --verbose --build-dir "build-examples-${{ matrix.compiler }}"
+
+      - name: Upload examples build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: examples-build-log-${{ matrix.compiler }}
+          path: build-examples-${{ matrix.compiler }}/examples_build.log
 
   ci-success-push:
     name: CI Success

@@ -40,7 +40,7 @@
 
 using namespace std;
 
-gsl_rng * r = NULL;
+gsl_rng * r = nullptr;
 
 unsigned long insert_n_random_items_in_set(DynSetTree<unsigned long> & table,
 					   DynArray<unsigned long> & keys,
@@ -83,7 +83,7 @@ void test_DynSet(size_t n)
   unsigned long removed_counter = 0;
   size_t num_inserted = table.size();
   for (size_t i = 0; i < n; i++)
-    if (table.search(keys(i)) != NULL)
+    if (table.search(keys(i)) != nullptr)
       {
         table.remove(keys(i));
         ++removed_counter;
@@ -104,11 +104,11 @@ void test_DynSet(size_t n)
   unsigned long repeated_counter = 0;
   cout << "Reinserting keys ...." << endl;
   for (size_t i = 0; i < n; ++i)
-    if (table.insert(keys(i)) == NULL)
+    if (table.insert(keys(i)) == nullptr)
       ++repeated_counter;
 
   cout << repeated_counter << " duplicated numbers" << endl
-       << dup_counter << " was the previus value" << endl;
+       << dup_counter << " was the previous value" << endl;
 
   assert(dup_counter == repeated_counter);
 
@@ -124,7 +124,7 @@ void test_DynSet(size_t n)
       });
 
     for (DynList<unsigned long>::Iterator it(l); it.has_curr(); it.next())
-      assert(table.search(it.get_curr()) != NULL);
+      assert(table.search(it.get_curr()) != nullptr);
 
     cout << "done!" << endl;
   }
@@ -175,14 +175,14 @@ void test_DynSet(size_t n)
     table.empty();
     
     for (size_t i = 0; i < n; ++i)
-      if (table.insert(keys(i)) == NULL)
+      if (table.insert(keys(i)) == nullptr)
         dups.append(i);
 
     cout << "Searching inserted keys ...." << endl;
     for (size_t i = 0; i < n; ++i)
       {
         unsigned long * ptr = table.search(keys(i));
-        assert(ptr != NULL);
+        assert(ptr != nullptr);
         if (dups.size() > 0)
           {
             const auto dup_idx = binary_search(dups, i);
@@ -197,7 +197,7 @@ void test_DynSet(size_t n)
          << endl;
     DynList<unsigned long> the_keys = table.keys();
     assert(the_keys.size() == table.size());
-    assert(all(the_keys, /* Lambda */ [&table] (const size_t & key)
+    assert(all(the_keys, /* Lambda */ [&table] (const unsigned long & key)
                {
                  return table.has(key);
                }));
@@ -254,7 +254,7 @@ void test_DynMap(size_t n)
   unsigned long removed_counter = 0;
   size_t num_inserted = table.size();
   for (size_t i = 0; i < n; i++)
-    if (table.search(keys(i)) != NULL)
+    if (table.search(keys(i)) != nullptr)
       {
         table.remove(keys(i));
         ++removed_counter;
@@ -275,11 +275,11 @@ void test_DynMap(size_t n)
   unsigned long repeated_counter = 0;
   cout << "Reinserting keys ...." << endl;
   for (size_t i = 0; i < n; ++i)
-    if (table.insert(keys(i), i) == NULL)
+    if (table.insert(keys(i), i) == nullptr)
       ++repeated_counter;
 
   cout << repeated_counter << " duplicated numbers" << endl
-       << dup_counter << " was the previus value" << endl;
+       << dup_counter << " was the previous value" << endl;
 
   assert(dup_counter == repeated_counter);
 
@@ -305,7 +305,7 @@ void test_DynMap(size_t n)
 
   cout << "done!" << endl
        << endl
-       << "Testing items() method and othet stuff ...." << endl;
+       << "Testing items() method and other stuff ...." << endl;
   DynList<std::pair<unsigned long, long>> items = table.items();
   assert(all(items, /* Lambda */ [&table]
              (std::pair<unsigned long, long> p)
@@ -334,7 +334,7 @@ int main(int argc, char *argv[])
         }
     }
 
-  unsigned int t = time(NULL);
+  unsigned int t = (unsigned int) time(nullptr);
   if (argc > 2)
     {
       if (argv[2][0] == '-')

@@ -26,6 +26,10 @@
 */
 
 # include <iostream>
+# include <vector>
+# include <string>
+# include <cmath>
+# include <ctime>
 # include <tpl_binTree.H>
 # include <tpl_binNodeUtils.H>
 # include <opBinTree.H>
@@ -40,45 +44,32 @@ void print(BinNode<int>* node, int, int)
 }
 
 
-int * k;
-int counter = 0;
+static int * k;
 
-void assign(BinNode<int>* node, int, int)
+void assign(BinTree<int>::Node* node, int, int)
 {
-  cout << node->get_key() << " ";
-  k[counter++] = node->get_key();
+  *k++ = node->get_key();
 }
 
 
-double bin_coef(int n, int m)
+double bin_coef(int n, int k)
 {
+  if (k < 0 or k > n)
+    return 0;
+
+  if (k == 0 or k == n)
+    return 1;
+
+  if (k > n / 2)
+    k = n - k;
+
   double result = 1;
-
-  if (m == 0 or n == m)
-    return result;
-
-  int nm = n - m;
-
-  int max, min;
-  if (nm > m)
-    {
-      max = nm; min = m;
-    }
-  else
-    {
-      max = m; min = nm;
-    }
-
-  while (n > max and min > 1)
-    {
-      result *= (1.0*n) / (1.0*min);
-      n--; min--;
-    }
-
-  while (n > max)
+  int min = k;
+  while (k > 0)
     {
       result *= n;
       n--;
+      k--;
     }
 
   while (min > 1)
@@ -91,26 +82,40 @@ double bin_coef(int n, int m)
 }
 
 
-int main(int argn, char * argc[])
+int main(int argc, char * argv[])
 {
-  unsigned int t;
   int n = 10;
-  if (argn > 1)
-    n = atoi(argc[1]);
+  if (argc > 1)
+    {
+      try { n = std::stoi(argv[1]); }
+      catch (...) { n = 10; }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "n must be greater than 0" << endl;
+      return 1;
+    }
 
   double prob = 0.5;
-  if (argn > 2)
-    prob = atof(argc[2]);
+  if (argc > 2)
+    {
+      try { prob = std::stod(argv[2]); }
+      catch (...) { prob = 0.5; }
+    }
 
-  t = time(NULL);
-  if (argn > 3)
-    t = atoi(argc[3]);
+  unsigned int t = static_cast<unsigned int>(time(nullptr));
+  if (argc > 3)
+    {
+      try { t = static_cast<unsigned int>(std::stoul(argv[3])); }
+      catch (...) { t = static_cast<unsigned int>(time(nullptr)); }
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << prob << " " << t << " " << endl;
+  cout << argv[0] << " " << n << " " << prob << " " << t << " " << endl;
 
-  int keys[n];
+  std::vector<int> keys(static_cast<size_t>(n));
 
   BinTree<int> tree;
   BinTree<int>::Node * node;
@@ -120,33 +125,35 @@ int main(int argn, char * argc[])
     {
       do
 	{
-	  value = (int) (10.0*n*rand()/(RAND_MAX+1.0));
+	  value = static_cast<int>(10.0 * n * rand() / (RAND_MAX + 1.0));
 	}
-      while (tree.search(value) not_eq NULL);
+      while (tree.search(value) not_eq nullptr);
 
       node = new BinTree<int>::Node (value);
       tree.insert(node);
     }
 
   /* Coloca las claves del arbol en el arreglo keys */
-  k = &keys[0];
+  k = keys.data();
   inOrderRec(tree.getRoot(), assign);
   cout << endl;
 
   /* construye arreglo de probabilidades segun dist binomial */
-  double p[n];
+  std::vector<double> p(static_cast<size_t>(n));
   for (int i = 0; i < n; i++)
     {
-      p[i] = bin_coef(n, i) * pow(prob, i) * pow((1 - prob), n - i);
-      printf("%.5f ", p[i]);
+      p[static_cast<size_t>(i)] = bin_coef(n, i) * pow(prob, i) * pow((1 - prob), n - i);
+      printf("%.5f ", p[static_cast<size_t>(i)]);
     }
 
   BinNode<int> * optimal_tree = 
-    build_optimal_tree<BinNode<int>, int>(keys, p, n);
+    build_optimal_tree<BinNode<int>, int>(keys.data(), p.data(), static_cast<size_t>(n));
 
   cout << endl;
   preOrderRec(optimal_tree, print); cout << endl;
 
   destroyRec(tree.getRoot());
   destroyRec(optimal_tree);
+
+  return 0;
 }

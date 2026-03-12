@@ -30,9 +30,14 @@ echo "[geometry-examples] building targets..."
 cmake --build "$BUILD_DIR" --target "${TARGETS[@]}"
 
 run_cmd() {
-  echo
-  echo ">>> $*"
-  "$@"
+  if [[ -x "$1" ]]; then
+    echo
+    echo ">>> $*"
+    "$@"
+  else
+    echo
+    echo ">>> Skipping missing or non-executable: $1"
+  fi
 }
 
 run_cmd "$BUILD_DIR/Examples/geom_example" -s advanced
