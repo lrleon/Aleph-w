@@ -202,7 +202,9 @@
 # include <tclap/CmdLine.h>
 # include <tpl_arrayHeap.H>
 
+# include <cassert>
 using namespace std;
+# include <cassert>
 using namespace Aleph;
 
 // Local macros for heap navigation (1-indexed array)

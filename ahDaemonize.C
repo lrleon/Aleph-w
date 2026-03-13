@@ -40,7 +40,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <string.h>     // for strerror
+# include <cstring>     // for strerror
 #include <ah-signal.H>  // for Signal
 #include <ah-errors.H>  // for error handling macros
 #include <ahDaemonize.H>

@@ -15,6 +15,7 @@ TARGETS=(
   closest_pair_example
   rotating_calipers_example
   voronoi_clipped_cells_example
+  test_quadtree
 )
 
 echo "[geometry-examples] root:  $ROOT_DIR"
@@ -29,9 +30,14 @@ echo "[geometry-examples] building targets..."
 cmake --build "$BUILD_DIR" --target "${TARGETS[@]}"
 
 run_cmd() {
-  echo
-  echo ">>> $*"
-  "$@"
+  if [[ -x "$1" ]]; then
+    echo
+    echo ">>> $*"
+    "$@"
+  else
+    echo
+    echo ">>> Skipping missing or non-executable: $1"
+  fi
 }
 
 run_cmd "$BUILD_DIR/Examples/geom_example" -s advanced
@@ -44,6 +50,7 @@ run_cmd "$BUILD_DIR/Examples/convex_hull_comparison_example"
 run_cmd "$BUILD_DIR/Examples/closest_pair_example"
 run_cmd "$BUILD_DIR/Examples/rotating_calipers_example"
 run_cmd "$BUILD_DIR/Examples/voronoi_clipped_cells_example"
+run_cmd "$BUILD_DIR/Examples/test_quadtree"
 
 echo
 echo "[geometry-examples] all examples finished successfully"

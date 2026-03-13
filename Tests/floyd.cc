@@ -376,3 +376,43 @@ TEST(FloydStress, handles_single_node_graph)
   EXPECT_EQ(path.size(), 1u);
   EXPECT_EQ(path.get_first_node()->get_info(), 42);
 }
+
+// Test accessors for node array
+TEST(FloydAccessors, node_accessors_behavior)
+{
+  Grafo g;
+  auto* n1 = g.insert_node(1);
+  auto* n2 = g.insert_node(2);
+  auto* n3 = g.insert_node(3);
+  
+  Floyd_All_Shortest_Paths<Grafo> floyd(g);
+  
+  // 1. Test get_nodes_ref() - should return a reference to internal state
+  const auto& nodes_ref1 = floyd.get_nodes_ref();
+  const auto& nodes_ref2 = floyd.get_nodes_ref();
+  EXPECT_EQ(&nodes_ref1, &nodes_ref2); // Verify they point to the same object
+  EXPECT_EQ(nodes_ref1.size(), 3u);
+  
+  // 2. Test get_nodes_copy() - should return an independent copy
+  auto nodes_copy = floyd.get_nodes_copy();
+  EXPECT_EQ(nodes_copy.size(), 3u);
+  
+  // 3. Test get_nodes() - should return an independent copy (Snapshot)
+  auto nodes_val = floyd.get_nodes();
+  EXPECT_EQ(nodes_val.size(), 3u);
+  
+  // 4. Verify ordering stability across all accessors
+  for (size_t i = 0; i < 3; ++i) {
+    EXPECT_EQ(nodes_ref1(i), nodes_copy(i));
+    EXPECT_EQ(nodes_ref1(i), nodes_val(i));
+  }
+  
+  // 5. Verify that mutating a copy doesn't affect the original
+  nodes_copy(0) = nullptr;
+  EXPECT_NE(floyd.get_nodes_ref()(0), nullptr);
+  
+  // 6. Verify pointer validity (non-owning) using the solver's own index map.
+  EXPECT_EQ(nodes_ref1(floyd.index_node(n1)), n1);
+  EXPECT_EQ(nodes_ref1(floyd.index_node(n2)), n2);
+  EXPECT_EQ(nodes_ref1(floyd.index_node(n3)), n3);
+}

@@ -103,7 +103,11 @@
 # include <generate_tree.H>
 # include <ah-errors.H>
 
+# include <cstdlib>
+# include <cassert>
 using namespace std;
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
 
 /**

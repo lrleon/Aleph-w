@@ -30,7 +30,7 @@
 */
 
 
-# include <errno.h>
+# include <cerrno>
 # include <aleph.H>
 # include <socket_wrappers.H>
 

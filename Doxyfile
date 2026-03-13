@@ -42,7 +42,7 @@ PYTHON_DOCSTRING       = YES
 INHERIT_DOCS           = YES
 SEPARATE_MEMBER_PAGES  = NO
 TAB_SIZE               = 2
-ALIASES                =
+ALIASES                = "thread_safety=@note **Thread Safety:**"
 OPTIMIZE_OUTPUT_FOR_C  = NO
 OPTIMIZE_OUTPUT_JAVA   = NO
 OPTIMIZE_FOR_FORTRAN   = NO
@@ -143,6 +143,7 @@ FILE_PATTERNS          = *.H \
 RECURSIVE              = YES
 EXCLUDE                = build \
                          docs \
+                         doc \
                          .git \
                          cmake-build-debug \
                          cmake-build-release \

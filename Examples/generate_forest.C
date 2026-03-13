@@ -166,7 +166,9 @@
 # include <generate_tree.H>
 # include <tpl_binTree.H>
 
+# include <cassert>
 using namespace Aleph;
+# include <cassert>
 using namespace std;
 
 static void printNode(BinTreeVtl<int>::Node* node, int, int)

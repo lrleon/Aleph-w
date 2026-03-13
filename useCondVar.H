@@ -31,10 +31,14 @@
 
 /**
  * @file useCondVar.H
- * @brief Wrapper class for POSIX condition variables
+ * @brief Legacy wrapper class for POSIX condition variables
  * 
- * This file provides a simple C++ wrapper around pthread condition
+ * This file provides a simple legacy C++ wrapper around pthread condition
  * variables, offering a cleaner interface for thread synchronization.
+ *
+ * @deprecated New code should generally prefer `std::condition_variable` or
+ * higher-level coordination helpers such as `Aleph::bounded_channel<T>` from
+ * `concurrency_utils.H`.
  * 
  * ## Features
  * 
@@ -69,7 +73,8 @@
  * ```
  * 
  * @note Always hold the associated mutex when calling wait/signal/broadcast.
- * @note Consider using std::condition_variable for modern C++ code.
+ * @note Legacy POSIX wrapper kept for backward compatibility.
+ *       Prefer `std::condition_variable` or `concurrency_utils.H` in new code.
  * 
  * @see useMutex.H For the companion mutex wrapper
  * 
@@ -87,11 +92,13 @@
 
 /**
  * @class UseCondVar
- * @brief Wrapper class for POSIX condition variables
+ * @brief Legacy wrapper class for POSIX condition variables
  * 
  * Provides a simple interface for pthread condition variable operations.
  * Does not own the condition variable or mutex - they must be managed
  * separately. *
+ * @deprecated Prefer `std::condition_variable` or `Aleph::bounded_channel<T>`
+ * in new code.
  *  @ingroup Utilities
  *  @ingroup ThreadsAndConcurrency
  * @par Thread safety
@@ -169,4 +176,3 @@ public:
   }
 };
 #endif
-

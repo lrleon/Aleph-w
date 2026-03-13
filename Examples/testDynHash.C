@@ -1,0 +1,135 @@
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+# include <tpl_dynLhash.H>
+# include <tpl_dynArray.H>
+# include <iostream>
+# include <string>
+# include <ctime>
+# include <cstdlib>
+
+# define NumItems 10000
+
+# include <cassert>
+using namespace std;
+
+typedef DynLhashTable<unsigned, unsigned> HTable;
+
+static size_t hashFct(const unsigned & key)
+{
+  return key;
+}
+
+static void testResize(HTable& table)
+{
+  if (table.get_num_busy_slots() > (99*table.capacity())/100 
+      and table.size()/table.capacity() > 3)
+    {
+      unsigned long currSize = table.capacity();
+      cout << "Resizing hash table from " << currSize << " ... ";
+      cout << table.resize(1.5 * table.capacity()) << endl;
+    }
+}
+
+static void printPars(const HTable& table)
+{
+  cout << "Table length = " << table.capacity() << endl
+       << "Busy slots   = " << table.get_num_busy_slots() << endl
+       << "Num items    = " << table.size() << endl;
+}
+
+int main(int argc, char *argv[])
+{
+  Primes::check_primes_database();
+
+  int n = NumItems;
+  unsigned int t = std::time(NULL);
+
+  try 
+    {
+      if (argc > 1)
+	n = std::stoi(argv[1]);
+
+      if (argc > 2)
+	t = std::stoi(argv[2]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (n <= 0)
+    {
+      cout << "n must be positive" << endl;
+      return 1;
+    }
+
+  srand(t);
+
+  cout << argv[0] << " " << n << " " << t << endl;
+
+  HTable table(1.15*n, hashFct);
+  DynArray<unsigned int> keys(n);
+  unsigned int i;
+  unsigned int foundCounter = 0;
+
+  for (i = 0; i < n/2; i++)
+    {
+      keys[i] = rand();
+      testResize(table);
+      if (table.search(keys(i)) == NULL)
+	  assert(table.insert(keys[i], i) != NULL);
+      else
+	foundCounter++;
+    }
+
+  cout << foundCounter << " duplicated numbers" << endl;
+
+  assert( table.size() + foundCounter == n/2);
+  printPars(table);
+
+  for (i = n/2; i < n; i++)
+    {
+      keys[i] = rand();
+      testResize(table);
+      table[keys[i]] = i;
+      table[keys[i]] = table[keys[i]];
+    }
+    
+  printPars(table);
+    
+  unsigned * ptr;
+  foundCounter = 0;
+  for (i = 0; i < n; i++)
+    {
+      ptr = table.search(keys[i]);
+      if (ptr != NULL)
+	table.remove(ptr);
+      else
+	foundCounter++;
+    }
+}

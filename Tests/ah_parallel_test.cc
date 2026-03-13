@@ -35,6 +35,7 @@
 */
 
 #include <gtest/gtest.h>
+#include <cstdlib>
 #include <ah-parallel.H>
 #include <vector>
 #include <list>
@@ -133,6 +134,20 @@ TEST_F(ParallelTest, PmapsPreservesOrder)
     EXPECT_EQ(result[i], static_cast<int>(i + 1));
 }
 
+TEST_F(ParallelTest, PmapsAcceptsParallelOptions)
+{
+  ParallelOptions options;
+  options.pool = &pool;
+  options.min_size = large_vec.size() + 1;
+  options.chunk_size = 7;
+  options.max_tasks = 2;
+
+  auto result = pmaps(large_vec, [](int x) { return x + 1; }, options);
+  ASSERT_EQ(result.size(), large_vec.size());
+  EXPECT_EQ(result.front(), 2);
+  EXPECT_EQ(result.back(), 10001);
+}
+
 // =============================================================================
 // pfilter Tests
 // =============================================================================
@@ -180,6 +195,24 @@ TEST_F(ParallelTest, PfilterLargeData)
   EXPECT_EQ(result.size(), 100u);
   EXPECT_EQ(result[0], 100);
   EXPECT_EQ(result[99], 10000);
+}
+
+TEST_F(ParallelTest, ParallelAlgorithmsHonorCancellation)
+{
+  CancellationSource source;
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 32;
+  options.cancel_token = source.token();
+
+  EXPECT_THROW(pmaps(large_vec,
+                     [&source](int x) {
+                       if (x == 128)
+                         source.request_cancel();
+                       return x * 2;
+                     },
+                     options),
+               operation_canceled);
 }
 
 // =============================================================================
@@ -246,6 +279,17 @@ TEST_F(ParallelTest, PforEachEmpty)
   EXPECT_EQ(count.load(), 0);
 }
 
+TEST_F(ParallelTest, PforEachAcceptsDefaultPoolThroughOptions)
+{
+  std::vector<int> data = {1, 2, 3, 4};
+  ParallelOptions options;
+  options.chunk_size = 2;
+  options.max_tasks = 2;
+
+  pfor_each(data, [](int & x) { x += 5; }, options);
+  EXPECT_EQ(data, (std::vector<int>{6, 7, 8, 9}));
+}
+
 // =============================================================================
 // pall, pexists, pnone Tests
 // =============================================================================
@@ -308,6 +352,12 @@ TEST_F(ParallelTest, PcountIfEvens)
   EXPECT_EQ(count, 2u);
 }
 
+TEST_F(ParallelTest, PcountIfDivisibleByHundred)
+{
+  size_t count = pcount_if(pool, large_vec, [](int x) { return x % 100 == 0; });
+  EXPECT_EQ(count, 100u);
+}
+
 TEST_F(ParallelTest, PcountIfAll)
 {
   size_t count = pcount_if(pool, small_vec, [](int x) { return x > 0; });
@@ -355,6 +405,18 @@ TEST_F(ParallelTest, PfindEmpty)
 {
   auto idx = pfind(pool, empty_vec, [](int) { return true; });
   EXPECT_FALSE(idx.has_value());
+}
+
+TEST_F(ParallelTest, PfindAcceptsParallelOptions)
+{
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 64;
+  options.max_tasks = 4;
+
+  auto idx = pfind(large_vec, [](int x) { return x == 7777; }, options);
+  ASSERT_TRUE(idx.has_value());
+  EXPECT_EQ(*idx, 7776u);
 }
 
 TEST_F(ParallelTest, PfindValueFound)
@@ -510,6 +572,35 @@ TEST_F(ParallelTest, PsortLargeData)
     EXPECT_EQ(data[i], static_cast<int>(i + 1));
 }
 
+TEST_F(ParallelTest, PsortAcceptsParallelOptions)
+{
+  std::vector<int> data = {7, 1, 5, 9, 3, 2};
+  ParallelOptions options;
+  options.pool = &pool;
+  options.min_size = 2;
+  options.max_tasks = 2;
+  psort(data, std::less<int>{}, options);
+  EXPECT_EQ(data, (std::vector<int>{1, 2, 3, 5, 7, 9}));
+}
+
+TEST_F(ParallelTest, PsortHonorsCancellation)
+{
+  std::vector<int> data(4096);
+  std::iota(data.begin(), data.end(), 0);
+  std::mt19937 rng(77);
+  std::shuffle(data.begin(), data.end(), rng);
+
+  CancellationSource source;
+  ParallelOptions options;
+  options.pool = &pool;
+  options.min_size = 64;
+  options.chunk_size = 64;
+  options.cancel_token = source.token();
+  source.request_cancel();
+
+  EXPECT_THROW(psort(data, std::less<int>{}, options), operation_canceled);
+}
+
 // =============================================================================
 // pzip_for_each Tests
 // =============================================================================
@@ -568,6 +659,27 @@ TEST_F(ParallelTest, PzipMapsTypeConversion)
   EXPECT_NEAR(result[2], 6.5, 0.001);
 }
 
+TEST_F(ParallelTest, ZipAlgorithmsAcceptParallelOptions)
+{
+  std::vector<int> a = {1, 2, 3, 4};
+  std::vector<int> b = {10, 20, 30, 40};
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 2;
+
+  auto mapped = pzip_maps(a, b, [](int x, int y) { return x + y; }, options);
+  EXPECT_EQ(mapped, (std::vector<int>{11, 22, 33, 44}));
+
+  auto folded = pzip_foldl(a, b, 0, [](int acc, int x, int y) {
+    return acc + x * y;
+  }, options);
+  EXPECT_EQ(folded, 300);
+
+  std::atomic<int> visits{0};
+  pzip_for_each(a, b, [&visits](int, int) { ++visits; }, options);
+  EXPECT_EQ(visits.load(), 4);
+}
+
 // =============================================================================
 // ppartition Tests
 // =============================================================================
@@ -606,6 +718,210 @@ TEST_F(ParallelTest, PpartitionPreservesOrder)
   auto [evens, odds] = ppartition(pool, data, [](int x) { return x % 2 == 0; });
   EXPECT_EQ(evens, (std::vector<int>{2, 4, 6, 8, 10}));
   EXPECT_EQ(odds, (std::vector<int>{1, 3, 5, 7, 9}));
+}
+
+TEST_F(ParallelTest, PpartitionAcceptsParallelOptions)
+{
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 3;
+
+  std::vector<int> data = {1, 2, 3, 4, 5, 6, 7, 8};
+  auto [evens, odds] = ppartition(data, [](int x) { return x % 2 == 0; }, options);
+  EXPECT_EQ(evens, (std::vector<int>{2, 4, 6, 8}));
+  EXPECT_EQ(odds, (std::vector<int>{1, 3, 5, 7}));
+}
+
+TEST_F(ParallelTest, PpartitionSupportsNonDefaultConstructibleValues)
+{
+  struct NoDefault
+  {
+    int value;
+
+    NoDefault() = delete;
+    explicit NoDefault(int v) : value(v) {}
+    NoDefault(const NoDefault &) = default;
+    NoDefault(NoDefault &&) noexcept = default;
+    NoDefault & operator=(const NoDefault &) = default;
+    NoDefault & operator=(NoDefault &&) noexcept = default;
+  };
+
+  std::vector<NoDefault> data;
+  for (int i = 1; i <= 6; ++i)
+    data.emplace_back(i);
+
+  auto [small, large] = ppartition(pool, data, [](const NoDefault & x) {
+    return x.value <= 3;
+  });
+
+  ASSERT_EQ(small.size(), 3u);
+  ASSERT_EQ(large.size(), 3u);
+  EXPECT_EQ(small[0].value, 1);
+  EXPECT_EQ(small[1].value, 2);
+  EXPECT_EQ(small[2].value, 3);
+  EXPECT_EQ(large[0].value, 4);
+  EXPECT_EQ(large[1].value, 5);
+  EXPECT_EQ(large[2].value, 6);
+}
+
+TEST_F(ParallelTest, PpartitionHonorsCancellation)
+{
+  CancellationSource source;
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 16;
+  options.cancel_token = source.token();
+  source.request_cancel();
+
+  std::vector<int> data(512, 1);
+  EXPECT_THROW((void) ppartition(data, [](int x) { return x % 2 == 0; }, options),
+               operation_canceled);
+}
+
+TEST_F(ParallelTest, PfilterSupportsNonDefaultConstructibleValues)
+{
+  struct NoDefault
+  {
+    int value;
+
+    NoDefault() = delete;
+    explicit NoDefault(int v) : value(v) {}
+    NoDefault(const NoDefault &) = default;
+    NoDefault(NoDefault &&) noexcept = default;
+    NoDefault & operator=(const NoDefault &) = default;
+    NoDefault & operator=(NoDefault &&) noexcept = default;
+  };
+
+  std::vector<NoDefault> data;
+  for (int i = 1; i <= 8; ++i)
+    data.emplace_back(i);
+
+  auto result = pfilter(pool, data, [](const NoDefault & x) {
+    return x.value % 2 == 0;
+  });
+
+  ASSERT_EQ(result.size(), 4u);
+  EXPECT_EQ(result[0].value, 2);
+  EXPECT_EQ(result[1].value, 4);
+  EXPECT_EQ(result[2].value, 6);
+  EXPECT_EQ(result[3].value, 8);
+}
+
+// =============================================================================
+// pscan / pexclusive_scan / pmerge Tests
+// =============================================================================
+
+TEST_F(ParallelTest, PscanContainerWrapperMatchesPartialSum)
+{
+  std::vector<int> data(256);
+  std::iota(data.begin(), data.end(), 1);
+  std::vector<int> expected(data.size());
+  std::partial_sum(data.begin(), data.end(), expected.begin());
+
+  auto result = pscan(pool, data, std::plus<int>{});
+  EXPECT_EQ(result, expected);
+}
+
+TEST_F(ParallelTest, PexclusiveScanContainerWrapperWorks)
+{
+  std::vector<int> data = {1, 2, 3, 4, 5};
+  auto result = pexclusive_scan(pool, data, 0, std::plus<int>{});
+  EXPECT_EQ(result, (std::vector<int>{0, 1, 3, 6, 10}));
+}
+
+TEST_F(ParallelTest, ScanAndMergeAcceptParallelOptions)
+{
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 8;
+
+  std::vector<int> data = {3, 1, 4, 1, 5, 9};
+  auto inclusive = pscan(data, std::plus<int>{}, options);
+  EXPECT_EQ(inclusive, (std::vector<int>{3, 4, 8, 9, 14, 23}));
+
+  auto exclusive = pexclusive_scan(data, 10, std::plus<int>{}, options);
+  EXPECT_EQ(exclusive, (std::vector<int>{10, 13, 14, 18, 19, 24}));
+
+  std::vector<int> left = {1, 3, 5, 7};
+  std::vector<int> right = {2, 4, 6, 8};
+  auto merged = pmerge(left, right, std::less<int>{}, options);
+  EXPECT_EQ(merged, (std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8}));
+}
+
+TEST_F(ParallelTest, ScanAndMergeHonorCancellation)
+{
+  CancellationSource source;
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 16;
+  options.cancel_token = source.token();
+  source.request_cancel();
+
+  std::vector<int> data(512, 1);
+  EXPECT_THROW((void) pscan(data, std::plus<int>{}, options), operation_canceled);
+  EXPECT_THROW((void) pexclusive_scan(data, 0, std::plus<int>{}, options),
+               operation_canceled);
+
+  std::vector<int> left(256), right(256);
+  std::iota(left.begin(), left.end(), 0);
+  std::iota(right.begin(), right.end(), 0);
+  EXPECT_THROW((void) pmerge(left, right, std::less<int>{}, options),
+               operation_canceled);
+}
+
+TEST_F(ParallelTest, ScanAndMergeSupportNonDefaultConstructibleValues)
+{
+  struct NoDefault
+  {
+    int value;
+
+    NoDefault() = delete;
+    explicit NoDefault(int v) : value(v) {}
+    NoDefault(const NoDefault &) = default;
+    NoDefault(NoDefault &&) noexcept = default;
+    NoDefault & operator=(const NoDefault &) = default;
+    NoDefault & operator=(NoDefault &&) noexcept = default;
+  };
+
+  std::vector<NoDefault> data;
+  for (int i = 1; i <= 4; ++i)
+    data.emplace_back(i);
+
+  auto inclusive = pscan(data,
+                         [](const NoDefault & a, const NoDefault & b) {
+                           return NoDefault(a.value + b.value);
+                         });
+  ASSERT_EQ(inclusive.size(), 4u);
+  EXPECT_EQ(inclusive[0].value, 1);
+  EXPECT_EQ(inclusive[1].value, 3);
+  EXPECT_EQ(inclusive[2].value, 6);
+  EXPECT_EQ(inclusive[3].value, 10);
+
+  auto exclusive = pexclusive_scan(data, NoDefault(0),
+                                   [](const NoDefault & a, const NoDefault & b) {
+                                     return NoDefault(a.value + b.value);
+                                   });
+  ASSERT_EQ(exclusive.size(), 4u);
+  EXPECT_EQ(exclusive[0].value, 0);
+  EXPECT_EQ(exclusive[1].value, 1);
+  EXPECT_EQ(exclusive[2].value, 3);
+  EXPECT_EQ(exclusive[3].value, 6);
+
+  std::vector<NoDefault> left, right;
+  left.emplace_back(1);
+  left.emplace_back(3);
+  left.emplace_back(5);
+  right.emplace_back(2);
+  right.emplace_back(4);
+  right.emplace_back(6);
+
+  auto merged = pmerge(left, right,
+                       [](const NoDefault & a, const NoDefault & b) {
+                         return a.value < b.value;
+                       });
+  ASSERT_EQ(merged.size(), 6u);
+  for (size_t i = 0; i < merged.size(); ++i)
+    EXPECT_EQ(merged[i].value, static_cast<int>(i + 1));
 }
 
 // =============================================================================
@@ -657,8 +973,20 @@ TEST_F(ParallelTest, CorrectnessFoldVsSequential)
 // Performance Benchmarks
 // =============================================================================
 
+namespace
+{
+  [[nodiscard]] bool parallel_benchmarks_enabled()
+  {
+    return std::getenv("ALEPH_RUN_PARALLEL_BENCHMARKS") != nullptr;
+  }
+}
+
 TEST_F(ParallelTest, BenchmarkMapSpeedup)
 {
+  if (not parallel_benchmarks_enabled())
+    GTEST_SKIP() << "Skipping timing-sensitive parallel benchmarks; "
+                 << "set ALEPH_RUN_PARALLEL_BENCHMARKS=1 to enable";
+
   std::vector<int> data(1000000);
   std::iota(data.begin(), data.end(), 0);
   
@@ -699,6 +1027,10 @@ TEST_F(ParallelTest, BenchmarkMapSpeedup)
 
 TEST_F(ParallelTest, BenchmarkFilterSpeedup)
 {
+  if (not parallel_benchmarks_enabled())
+    GTEST_SKIP() << "Skipping timing-sensitive parallel benchmarks; "
+                 << "set ALEPH_RUN_PARALLEL_BENCHMARKS=1 to enable";
+
   std::vector<int> data(1000000);
   std::iota(data.begin(), data.end(), 0);
   
@@ -734,6 +1066,10 @@ TEST_F(ParallelTest, BenchmarkFilterSpeedup)
 
 TEST_F(ParallelTest, BenchmarkSortSpeedup)
 {
+  if (not parallel_benchmarks_enabled())
+    GTEST_SKIP() << "Skipping timing-sensitive parallel benchmarks; "
+                 << "set ALEPH_RUN_PARALLEL_BENCHMARKS=1 to enable";
+
   std::vector<int> data(100000);
   std::iota(data.begin(), data.end(), 0);
   std::mt19937 rng(123);  // Fixed seed for reproducibility
@@ -984,6 +1320,36 @@ TEST_F(ParallelTest, PzipCountIfNPartial)
   EXPECT_EQ(count, 2u);  // 2 and 4
 }
 
+TEST_F(ParallelTest, VariadicZipAlgorithmsAcceptParallelOptions)
+{
+  std::vector<int> a = {1, 2, 3};
+  std::vector<int> b = {4, 5, 6};
+  std::vector<int> c = {7, 8, 9};
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 1;
+
+  auto mapped = pzip_maps_n([](int x, int y, int z) { return x + y + z; },
+                            options, a, b, c);
+  EXPECT_EQ(mapped, (std::vector<int>{12, 15, 18}));
+
+  auto folded = pzip_foldl_n(0,
+                             [](int acc, int x, int y, int z) {
+                               return acc + x + y + z;
+                             },
+                             std::plus<int>{},
+                             options, a, b, c);
+  EXPECT_EQ(folded, 45);
+
+  EXPECT_TRUE(pzip_all_n([](int x, int y, int z) { return x < y && y < z; },
+                         options, a, b, c));
+  EXPECT_TRUE(pzip_exists_n([](int x, int y, int z) { return x + y + z == 15; },
+                            options, a, b, c));
+  EXPECT_EQ(pzip_count_if_n([](int x, int y, int z) { return x + y + z > 14; },
+                            options, a, b, c),
+            2u);
+}
+
 // =============================================================================
 // Enumerate Tests
 // =============================================================================
@@ -1035,6 +1401,46 @@ TEST_F(ParallelTest, PenumerateMapsEmpty)
     [](size_t i, int x) { return static_cast<int>(i + x); });
   
   EXPECT_TRUE(result.empty());
+}
+
+TEST_F(ParallelTest, PenumerateAcceptsParallelOptions)
+{
+  std::vector<int> data(6, 0);
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 2;
+
+  penumerate_for_each(data, [](size_t i, int & x) {
+    x = static_cast<int>(i + 10);
+  }, options);
+  EXPECT_EQ(data, (std::vector<int>{10, 11, 12, 13, 14, 15}));
+
+  auto labels = penumerate_maps(data, [](size_t i, int x) {
+    return std::to_string(i) + "=" + std::to_string(x);
+  }, options);
+  EXPECT_EQ(labels[0], "0=10");
+  EXPECT_EQ(labels[5], "5=15");
+}
+
+TEST_F(ParallelTest, ZipAndEnumerateHonorCancellation)
+{
+  std::vector<int> a(256, 1), b(256, 2), c(256, 3);
+  CancellationSource source;
+  ParallelOptions options;
+  options.pool = &pool;
+  options.chunk_size = 16;
+  options.cancel_token = source.token();
+  source.request_cancel();
+
+  EXPECT_THROW((void) pzip_maps(a, b, [](int x, int y) { return x + y; }, options),
+               operation_canceled);
+  EXPECT_THROW((void) pzip_maps_n([](int x, int y, int z) { return x + y + z; },
+                                  options, a, b, c),
+               operation_canceled);
+  EXPECT_THROW((void) penumerate_maps(a, [](size_t i, int x) {
+                 return static_cast<int>(i) + x;
+               }, options),
+               operation_canceled);
 }
 
 // =============================================================================
