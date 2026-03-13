@@ -25,7 +25,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <time.h>
+# include <ctime>
 # include <iostream>
 # include <aleph.H>
 # include <tpl_dynArray.H>
@@ -33,7 +33,11 @@
 # include <tpl_binNodeUtils.H>
 # include <string>
 
+# include <cstdlib>
+# include <cassert>
 using namespace std;
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
 
 
@@ -58,19 +62,18 @@ int main(int argc, char * argv[])
       return 1;
     }
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   if (argc > 2)
     {
-      try { t = stoul(argv[2]); } catch (...) { t = time(0); }
+      try { t = stoul(argv[2]); } catch (...) { t = std::time(0); }
     }
 
   srand(t);
 
   DynArray<int> array;
 
-  if (argc > 0)
-    cout << argv[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   BinNode<int> *root = new BinNode<int> ((int) (10.0*n*rand()/(RAND_MAX+1.0)));
   cout << root->get_key() << " ";

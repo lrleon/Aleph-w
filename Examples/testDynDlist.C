@@ -24,6 +24,9 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <ctime>
+# include <cstdlib>
+# include <cassert>
 
 # include <iostream>
 # include <string>
@@ -90,7 +93,7 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   if (argc > 3)
     {
@@ -100,7 +103,7 @@ int main(int argc, char *argv[])
         }
       catch (...)
         {
-          t = time(0);
+          t = std::time(0);
         }
     }
 
@@ -142,6 +145,7 @@ int main(int argc, char *argv[])
     DynDlist<int> l1 = range(10);
     // DynDlist<int> l2 = range(10, 20);
     l1.append(range(10, 20));
+    // expected output: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 
     l1.for_each([] (auto i) { cout << i << " "; }); cout << endl;
     // assert(l2.is_empty() and l2.size() == 0);
     int i = 0;

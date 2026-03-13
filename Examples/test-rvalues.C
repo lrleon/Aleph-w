@@ -267,17 +267,26 @@ void test_map_tree(size_t n)
 
 int main(int argc, char *argv[])
 {
-  try 
+  if (argc > 1)
     {
-      if (argc > 1)
-	V = std::stoi(argv[1]);
-    }
-  catch (...)
-    {
-      // ignore
+      try 
+	{
+	  const int tmp = std::stoi(argv[1]);
+	  if (tmp <= 0)
+	    {
+	      std::cout << "V must be positive" << std::endl;
+	      return 1;
+	    }
+	  V = static_cast<size_t>(tmp);
+	}
+      catch (const std::exception & e)
+	{
+	  std::cerr << "Error parsing V: " << e.what() << std::endl;
+	  return 1;
+	}
     }
 
-  if (V <= 0)
+  if (V == 0) // Should not happen with default V=1000 and above check
     {
       cout << "V must be positive" << endl;
       return 1;
@@ -289,7 +298,7 @@ int main(int argc, char *argv[])
 
   cout << "Testing DynList" << endl;
   test_list <DynList<>> ();
-  cout << endl; exit(0);
+  cout << endl;
   
   cout << "Testing List_Graph" << endl;
   test <List_Graph<>> ();

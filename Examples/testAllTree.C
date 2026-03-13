@@ -34,7 +34,7 @@
 # include <tpl_rand_tree.H>
 # include <tpl_dynMapTree.H>
 # include <ran_array.h>
-# include <time.h>
+# include <ctime>
 # include <gsl/gsl_rng.h>
 # include <argp.h>
 
@@ -212,7 +212,7 @@ static struct argp argDefs = { options, parser_opt, argDoc, doc, 0, 0, 0 };
 
 int main(int argc, char *argv[])
 { 
-  Parameters pars(1000, time(0));
+  Parameters pars(1000, std::time(0));
   
   error_t status = argp_parse(&argDefs, argc, argv, 0, 0, &pars);
 

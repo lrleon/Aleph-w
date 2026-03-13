@@ -24,8 +24,8 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <stdlib.h>
-# include <time.h>
+# include <cstdlib>
+# include <ctime>
 # include <iostream>
 # include <string>
 # include <tpl_dynArray.H>
@@ -33,7 +33,9 @@
 # include <tpl_binNodeUtils.H>
 
 
+# include <cassert>
 using namespace std;
+# include <cassert>
 using namespace Aleph;
 
 
@@ -98,7 +100,7 @@ struct Cargar_Clave
 int main(int argc, char *argv[])
 {
   int n = 1000;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
 
   try 
@@ -145,8 +147,8 @@ int main(int argc, char *argv[])
 
   cout << endl << insCount << " Items inserted" << endl;
 
-  /* LLena el arreglo prefijo */
-  cout << "Prefijo :";
+  /* Fills the prefix array */
+  cout << "Prefix :";
   int n_preorder = preOrderRec(tree.getRoot(), fill_preorder);
   preOrderRec(tree.getRoot(), printNode);
   cout << endl;
@@ -158,14 +160,14 @@ int main(int argc, char *argv[])
 
   destroyRec(tree_copy);
 
-  /* LLena el arreglo infijo */
+  /* Fills the infix array */
   inOrderRec(tree.getRoot(), fill_inorder);
-  cout << "Infijo: ";
+  cout << "Infix: ";
   int n_inorder = inOrderRec(tree.getRoot(), print_node);
   cout << endl;
 
-  /* LLena el arreglo sufijo */
-  cout << "Sufijo: ";
+  /* Fills the suffix array */
+  cout << "Suffix: ";
   postOrderRec(tree.getRoot(), fill_postorder);
   int n_postorder = postOrderRec(tree.getRoot(), print_node);
   cout << endl;
@@ -174,7 +176,7 @@ int main(int argc, char *argv[])
   assert(n_inorder == insCount);
   assert(n_postorder == insCount);
 
-  try /* Copia el arbol binario */
+  try /* Copy binary tree */
     {
       BinNode<int> * aux = copyRec(tree.getRoot());
  
@@ -185,7 +187,7 @@ int main(int argc, char *argv[])
   catch (exception & e) { cout << e.what() << endl; }
   catch (...) { cout << "Unknown exception" << endl; }
 
-  cout << "Recorrido por niveles" << endl;
+  cout << "Level traverse" << endl;
   level_traverse(tree.getRoot(), [] (BinNode<int> * p)
 		 {
 		   cout << p->get_key() << " ";
@@ -193,7 +195,7 @@ int main(int argc, char *argv[])
 		 });
   cout << endl << endl;
 
-  /* construye un arbol a partir de los recorridos prefijo e infijo */
+  /* build a tree from prefix and infix traverses */
   BinNode<int> * new_root = build_tree<BinNode, int>
     (preorder, 0, n_preorder - 1, inorder, 0, n_inorder - 1); 
 
@@ -204,7 +206,7 @@ int main(int argc, char *argv[])
 
   assert(areEquivalents(n_root, tree.getRoot()));
 
-  /* Elimina items al azar */
+  /* Randomly remove items */
   for (i = 0; i < n; i++)
     {
       value = 1+(int) (n*100.0*rand()/(RAND_MAX+1.0));
@@ -218,14 +220,14 @@ int main(int argc, char *argv[])
     
   cout << delCount << " Items removed" << endl;
 
-  /* Libera la memoria del arbol original */
+  /* Free memory of the original tree */
   try { destroyRec(tree.getRoot()); }
   catch (exception & e) { cout << e.what() << endl; }
   catch (...) { cout << "Unknown exception" << endl; }
 
   BinNode<int> * t1_rec = NULL, * t2_rec = NULL;
 
-  /* Busque un numero que no este dentro del arbol para particionar */
+  /* Search for a number not in the tree for partitioning */
   while (true)
     {
       value = 1+(int) (n*100.0*rand()/(RAND_MAX+1.0));
@@ -233,12 +235,12 @@ int main(int argc, char *argv[])
 	break;
     }
 
-  cout << "Arbol ";
+  cout << "Tree ";
   inOrderRec(new_root, print_node); 
   cout << endl
-       << "sera particionado recursivamente segun clave " << value << endl;
+       << "will be recursively partitioned according to key " << value << endl;
 
-  /* particione recursivamente */
+  /* recursively partition */
   split_key_rec(new_root, value, t1_rec, t2_rec); new_root = NULL;
 
   BinNode<int> * t1_it = NULL, * t2_it = NULL;
@@ -248,16 +250,16 @@ int main(int argc, char *argv[])
   inOrderRec(t2_rec, print_node); 
   cout << endl << endl;
 
-  /* construye un arbol a partir de los recorridos prefijo e infijo */
+  /* build a tree from prefix and infix traverses */
   new_root = build_tree<BinNode, int>
     (preorder, 0, n_preorder - 1, inorder, 0, n_inorder - 1); 
 
-  cout << "Arbol ";
+  cout << "Tree ";
   inOrderRec(new_root, print_node); 
   cout << endl
-       << "sera particionado iterativamente segun clave " << value << endl;
+       << "will be iteratively partitioned according to key " << value << endl;
 
-  /* particion recursivamente */
+  /* recursively partition */
   split_key(new_root, value, t1_it, t2_it);
 
   inOrderRec(t1_it, print_node); 
@@ -266,13 +268,13 @@ int main(int argc, char *argv[])
   cout << endl << endl;
 
   if (not areEquivalents(t1_rec, t1_it))
-    AH_ERROR("Lados izquierdos de las particiones no son iguales");
+    AH_ERROR("Left sides of partitions are not equal");
 
   if (not areEquivalents(t2_rec, t2_it))
-    AH_ERROR("Lados derechos de las particiones no son iguales");
+    AH_ERROR("Right sides of partitions are not equal");
 
   cout << 
-    "Resultado de la particion recursiva es identico a la particion iterativa" 
+    "Recursive partition result is identical to iterative partition" 
        << endl;
 
   if (t1_rec not_eq NULL)
@@ -288,7 +290,7 @@ int main(int argc, char *argv[])
   {
     BinNode<int> * t_rot = NULL;
     DynArray<int> values(n);
-    cout << "Insercion recursiva de " << n << " nodos en la raiz ..." << endl;
+    cout << "Recursive insertion of " << n << " nodes at root ..." << endl;
 
     for (i = 0; i < n; i++)
       {
@@ -304,10 +306,10 @@ int main(int argc, char *argv[])
 
     assert(check_bst(t_rot));
 
-    cout << endl << "Terminado" << endl;
+    cout << endl << "Finished" << endl;
 
     BinNode<int> * t_it = NULL;
-    cout << "Insercion iterativa de " << n << " nodos en la raiz ..." << endl;
+    cout << "Iterative insertion of " << n << " nodes at root ..." << endl;
 
     for (i = 0; i < n; i++)
       {
@@ -322,13 +324,13 @@ int main(int argc, char *argv[])
 
     assert(check_bst(t_it));
 
-    cout << endl << "Terminado" << endl;
+    cout << endl << "Finished" << endl;
 
-    cout << "Comparando resultado recursivo con el iterativo ... " << endl;
+    cout << "Comparing recursive result with iterative ... " << endl;
     if (areEquivalents(t_rot, t_it))
-      cout << "Arboles resultantes son iguales" << endl;
+      cout << "Resulting trees are equal" << endl;
     else
-      cout << "Arboles resultantes son diferentes" << endl;
+      cout << "Resulting trees are different" << endl;
 
     {
       ofstream out("bintree.tree");
@@ -338,11 +340,11 @@ int main(int argc, char *argv[])
     ifstream input("bintree.tree");
     BinNode<int> * t_load = load_tree<BinNode<int>>(input);
 
-    cout << "Comparando arbol cargado con el iterativo ... " << endl;
+    cout << "Comparing loaded tree with iterative ... " << endl;
     if (areEquivalents(t_load, t_it))
-      cout << "Arboles resultantes son iguales" << endl;
+      cout << "Resulting trees are equal" << endl;
     else
-      cout << "Arboles resultantes son diferentes" << endl;
+      cout << "Resulting trees are different" << endl;
     
     destroyRec(t_rot);
     destroyRec(t_it);

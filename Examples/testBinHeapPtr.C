@@ -24,6 +24,9 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <ctime>
+# include <cstdlib>
+# include <cassert>
 
 # include <iostream>
 # include <string>
@@ -55,7 +58,7 @@ struct Foo
 int main(int argc, char *argv[])
 {
   int n = 1000;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   try 
     {
@@ -78,7 +81,7 @@ int main(int argc, char *argv[])
 
   srand(t);
 
-  cout << "testBinHeap " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   BinHeap<Foo*> heap;
   BinHeap<Foo*>::Node *node;

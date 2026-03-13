@@ -24,8 +24,8 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <stdlib.h>
-# include <time.h>
+# include <cstdlib>
+# include <ctime>
 # include <iostream>
 # include <string>
 # include <aleph.H>
@@ -46,7 +46,7 @@ static int r[] = { 776, 846, 736, 515, 528, 677, 404, 629, 879,  762 };
 int main(int argc, char *argv[])
 {
   int n = 1000;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
 
   if (argc > 1)
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
         }
       catch (...)
         {
-          t = time(0);
+          t = std::time(0);
         }
     }
 

@@ -107,7 +107,7 @@ Language: English | [Español](README.es.md)
 
 Aleph-w was born in 2002 at **Universidad de Los Andes** in Mérida, Venezuela, created by **Leandro Rabindranath León** as a teaching tool for algorithms and data structures courses.
 
-The name "**Aleph**" (א) references Jorge Luis Borges' short story "[The Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))" — a point in space containing all other points. This symbolizes the library's goal: to be a single point containing all fundamental algorithms.
+The name "**Aleph**" (א) references Jorge Luis Borges' short story "[The Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))" — a point in space containing all other points — and Georg Cantor's first transfinite cardinal number. The “-w” is the Greek letter omega (ω), the largest infinite ordinal. Together, א‑ω captures a simple ambition: a single library spanning the full universe of fundamental algorithms.
 
 The "**-w**" suffix stands for "**with**" — emphasizing that this library comes *with* everything you need: implementations, examples, tests, and documentation.
 

@@ -25,8 +25,8 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
  
-# include <stdlib.h>
-# include <time.h>
+# include <cstdlib>
+# include <ctime>
 # include <iostream>
 # include <string>
 # include <fstream>
@@ -34,37 +34,37 @@
 # include <tpl_rb_tree.H>
 # include <tpl_binNodeUtils.H>
 
+# include <cassert>
 using namespace std;
+# include <cassert>
 using namespace Aleph;
 
 
-ofstream output("rb-example-aux.Tree", ios::out); 
-
-int position = 0;
+ofstream output;
 
 
-ofstream file("rb-tree-aux.Tree", ios::out); 
+ofstream file;
 
-static void print_key(Rb_Tree<int>::Node *p, int, int) 
+static void print_key(const Rb_Tree<int>::Node *p, int, int) 
 {
   file << p->get_key() << " ";
 }
 
 
-static void print_color(Rb_Tree<int>::Node *p, int, int pos) 
+static void print_color(const Rb_Tree<int>::Node *p, int, int pos) 
 {
   if (COLOR(p) == RED)
     file << pos << " ";
 }
 
 
-static void print_key_ex(Rb_Tree<int>::Node *p, int, int) 
+static void print_key_ex(const Rb_Tree<int>::Node *p, int, int) 
 {
   output << p->get_key() << " ";
 }
 
 
-static void print_color_ex(Rb_Tree<int>::Node *p, int, int pos) 
+static void print_color_ex(const Rb_Tree<int>::Node *p, int, int pos) 
 {
   if (COLOR(p) == RED)
     output << pos << " ";
@@ -74,20 +74,27 @@ static void print_color_ex(Rb_Tree<int>::Node *p, int, int pos)
 int main(int argc, char *argv[])
 {
   int n = 1000;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
 
-  try 
+  if (argc > 1)
     {
-      if (argc > 1)
-	n = std::stoi(argv[1]);
-
-      if (argc > 2)
-	t = std::stoi(argv[2]);
+      try { n = std::stoi(argv[1]); }
+      catch (const std::exception & e)
+	{
+	  cerr << "Warning: could not parse n from '" << argv[1] 
+	       << "': " << e.what() << ". Using default n=1000" << endl;
+	}
     }
-  catch (...)
+
+  if (argc > 2)
     {
-      // ignore
+      try { t = std::stoi(argv[2]); }
+      catch (const std::exception & e)
+	{
+	  cerr << "Warning: could not parse t from '" << argv[2] 
+	       << "': " << e.what() << ". Using default t=" << t << endl;
+	}
     }
 
   if (n <= 0)
@@ -96,7 +103,21 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-  srand(t);
+  std::srand(t);
+
+  output.open("rb-example-aux.Tree", ios::out);
+  if (not output.is_open())
+    {
+      cerr << "Error: could not open rb-example-aux.Tree for writing" << endl;
+      return 1;
+    }
+
+  file.open("rb-tree-aux.Tree", ios::out);
+  if (not file.is_open())
+    {
+      cerr << "Error: could not open rb-tree-aux.Tree for writing" << endl;
+      return 1;
+    }
 
   cout << "writeRb " << n << " " << t << endl;
 
@@ -109,7 +130,7 @@ int main(int argc, char *argv[])
       {
 	do
 	  {
-	    value = (int) (100.0*rand()/(RAND_MAX+1.0));
+	    value = (int) (100.0*std::rand()/(RAND_MAX+1.0));
 	    node = tree.search(value);
 	  } while (node not_eq NULL);
 	node = new Rb_Tree<int>::Node (value);
@@ -118,9 +139,9 @@ int main(int argc, char *argv[])
 
     assert(is_red_black(tree.getRoot())); 
 
-    preOrderRec(tree.getRoot(), print_key_ex);
+    preOrderRec<const Rb_Tree<int>::Node>(tree.getRoot(), print_key_ex);
     output << endl << "START-SHADOW "; 
-    position = 0; inOrderRec(tree.getRoot(), print_color_ex);
+    inOrderRec<const Rb_Tree<int>::Node>(tree.getRoot(), print_color_ex);
     output << endl;
     
     destroyRec(tree.getRoot());
@@ -134,7 +155,7 @@ int main(int argc, char *argv[])
       {
 	do
 	  {
-	    value = (int) (n*10.0*rand()/(RAND_MAX+1.0));
+	    value = (int) (n*10.0*std::rand()/(RAND_MAX+1.0));
 	    node = tree.search(value);
 	  } while (node not_eq NULL);
 	node = new Rb_Tree<int>::Node (value);
@@ -143,9 +164,10 @@ int main(int argc, char *argv[])
 
     assert(is_red_black(tree.getRoot())); 
 
-    preOrderRec(tree.getRoot(), print_key);
+    preOrderRec<const Rb_Tree<int>::Node>(tree.getRoot(), print_key);
     file << "START-SHADOW ";
-    position = 0; inOrderRec(tree.getRoot(), print_color);
+    inOrderRec<const Rb_Tree<int>::Node>(tree.getRoot(), print_color);
+    file << endl;
 
     destroyRec(tree.getRoot());
   }

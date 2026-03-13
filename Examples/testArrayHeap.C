@@ -25,9 +25,9 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <stdlib.h>
+# include <cstdlib>
 # include <iostream>
-# include <time.h>
+# include <ctime>
 # include <string>
 # include <tpl_arrayHeap.H>
 
@@ -71,7 +71,7 @@ void inorder(int v[], int n, int i)
 
 int main(int argc, char* argv[])
 {
-  srand(time(0));
+  srand(std::time(0));
   int n = 10;
 
   if (argc > 1)

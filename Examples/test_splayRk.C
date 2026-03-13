@@ -33,10 +33,10 @@
 # include <tpl_binNodeUtils.H>
 # include <tpl_sort_utils.H>
 
+# include <cassert>
 using namespace std;
+# include <cassert>
 using namespace Aleph;
-
-DynArray<unsigned long> rand_sequence;
 
 
 void printNode(Splay_Tree_Rk<int>::Node *node, int, int)
@@ -64,17 +64,17 @@ int main(int argc, char *argv[])
       try { seed = stoul(argv[2]); } catch (...) { seed = 0; }
     }
 
-  gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);;
+  gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
   gsl_rng_set(r, seed % gsl_rng_max(r));
 
-  if (argc > 0)
+  if (argc > 1)
     cout << argv[0] << " " << n << " " << seed << endl;
 
   DynArray_Set<int> keys; keys.reserve(n);
   Splay_Tree_Rk<int> tree;
   Splay_Tree_Rk<int>::Node *node;
 
-  cout << "Inserting " << n << " random values in treee ...\n";
+  cout << "Inserting " << n << " random values in tree ...\n";
 
   for (int i = 0; i < n; i++)
     { 
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
       assert(pos.second->get_key() == keys(idx));
       assert(idx == pos.first);
       cout << idx << "<-->" << pos.first << endl
-	   << keys(i) << "<-->" << pos.second->get_key() << " " << endl;
+	   << keys(idx) << "<-->" << pos.second->get_key() << " " << endl;
     }
 
   for (int i = 0; i < n/2; i++)
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
   assert(check_rank_tree(tree.getRoot()));
   cout << " done" << endl;
 
-  cout << "Preorden" << endl;
+  cout << "Inorden" << endl;
   inOrderRec(tree.getRoot(), printNode);
   cout << endl;
 
@@ -160,8 +160,9 @@ int main(int argc, char *argv[])
        << endl;
 
   destroyRec(tree.getRoot()); 
+  tree.getRoot() = Splay_Tree_Rk<int>::Node::NullPtr;
 
-  if (argc > 0)
+  if (argc > 1)
     cout << endl << argv[0] << " " << n << " " << seed << endl;
  
   gsl_rng_free(r);

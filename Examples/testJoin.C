@@ -24,6 +24,9 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <ctime>
+# include <cstdlib>
+# include <cassert>
 
 # include <iostream>
 # include <aleph.H>
@@ -46,7 +49,7 @@ int main(int argc, char *argv[])
 {
   int n = argc > 1 ? atoi(argv[1]) : 10;
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   if (argc > 2)
     t = atoi(argv[2]);

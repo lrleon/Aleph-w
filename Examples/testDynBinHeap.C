@@ -31,6 +31,7 @@
 # include <iostream>
 # include <tpl_dynBinHeap.H>
 
+# include <cassert>
 using namespace std;
 
 int keys [] = { 36, 32, 4, 12, 52, 59, 2, 2, 26, 1 };

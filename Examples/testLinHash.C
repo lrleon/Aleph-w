@@ -27,8 +27,8 @@
 
 # include <iostream>
 # include <string>
-# include <time.h>
-# include <stdlib.h>
+# include <ctime>
+# include <cstdlib>
 # include <aleph.H>
 # include <tpl_linHash.H>
 
@@ -37,8 +37,10 @@
 
 */
 
+# include <cassert>
 using namespace std;
 
+# include <cassert>
 using namespace Aleph;
 
 struct Entry : public LinearHashTableVtl<unsigned long>::Bucket
@@ -69,7 +71,7 @@ int main(int argc, char *argv[])
 
   unsigned long  value;
 
-  unsigned int t = time(NULL);
+  unsigned int t = std::time(NULL);
 
   try 
     {

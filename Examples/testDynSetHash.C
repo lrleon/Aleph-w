@@ -24,7 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <time.h>
+# include <ctime>
 # include <gsl/gsl_rng.h> 
 # include <cassert>
 # include <iostream>
@@ -419,14 +419,13 @@ int main(int argc, char * argv[])
       return 1;
     }
 
-  unsigned int t = time(NULL);
+  unsigned int t = std::time(NULL);
   if (argc > 2)
     {
-      try { t = stoul(argv[2]); } catch (...) { t = time(NULL); }
+      try { t = stoul(argv[2]); } catch (...) { t = std::time(NULL); }
     }
 
-  if (argc > 0)
-    cout << argv[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   r = gsl_rng_alloc (gsl_rng_mt19937);
   gsl_rng_set(r, t % gsl_rng_max(r));

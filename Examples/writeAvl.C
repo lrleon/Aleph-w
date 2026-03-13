@@ -25,8 +25,8 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <stdlib.h>
-# include <time.h>
+# include <cstdlib>
+# include <ctime>
 # include <iostream>
 # include <fstream>
 # include <string>
@@ -34,7 +34,9 @@
 # include <tpl_avl.H>
 # include <tpl_binNodeUtils.H>
 
+# include <cassert>
 using namespace std;
+# include <cassert>
 using namespace Aleph;
 
 ofstream file("avl-tree-aux.Tree", ios::out); 
@@ -60,10 +62,10 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   if (argc > 2)
     {
-      try { t = stoul(argv[2]); } catch (...) { t = time(0); }
+      try { t = stoul(argv[2]); } catch (...) { t = std::time(0); }
     }
 
   srand(t);

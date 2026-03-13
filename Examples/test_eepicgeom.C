@@ -33,6 +33,7 @@
 
 bool tiny_keys;
 
+# include <ctime>
 using namespace std;
 
     // construye un poligono aleatorio de n lados cuyos puntos no sobrepasan
@@ -42,7 +43,7 @@ Polygon make_random_polygon(const size_t & n,
 			    double min_y, double max_y)
 {
   gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, time(NULL) % gsl_rng_max(r));
+  gsl_rng_set(r, std::time(NULL) % gsl_rng_max(r));
 
  again:
 

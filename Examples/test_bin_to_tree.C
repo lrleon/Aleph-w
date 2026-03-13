@@ -27,29 +27,30 @@
 # include <cstdlib>
 # include <ctime>
 # include <iostream>
+# include <random>
+# include <memory>
 # include <tpl_binNodeUtils.H>
 # include <tpl_tree_node.H>
 
 
+# include <cassert>
 using namespace std;
 using namespace Aleph;
+
+static mt19937 engine;
 
 int random(int l, int r)
 {
   assert(l <= r);
-
-  int n = r - l + 1;
-
-  int rd = 1 + (int) (1.0*n*rand()/(RAND_MAX+1.0));
-
-  return l + rd - 1;
+  uniform_int_distribution<int> dist(l, r);
+  return dist(engine);
 }
 
 
 BinNode<int> * random_tree(int l, int r)
 {
   if (l > r)
-    return NULL;
+    return nullptr;
 
   auto * root = new BinNode<int> (random(l, r));
 
@@ -82,19 +83,21 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   if (argc > 2)
     {
       try { t = static_cast<unsigned int>(stoul(argv[2])); }
-      catch (...) { t = time(0); }
+      catch (...) { t = std::time(0); }
     }
 
-  srand(t);
+  engine.seed(t);
 
   cout << argv[0] << " " << n << " " << t << endl;
 
-  BinNode<int> * bp = random_tree(1, n);
+  auto bp_deleter = [](BinNode<int> * p) { destroyRec(p); };
+  unique_ptr<BinNode<int>, decltype(bp_deleter)> bp_ptr(random_tree(1, n), bp_deleter);
+  BinNode<int> * bp = bp_ptr.get();
 
   cout << "Prefijo:";
   preOrderRec(bp,  printNode);
@@ -104,16 +107,16 @@ int main(int argc, char *argv[])
   inOrderRec(bp,  printNode);
   cout << endl << endl;
   
-  Tree_Node<int> * tree = bin_to_forest< Tree_Node<int>, BinNode<int> > (bp);
+  auto forest_deleter = [](Tree_Node<int> * p) { destroy_forest(p); };
+  unique_ptr<Tree_Node<int>, decltype(forest_deleter)> 
+    tree_ptr(bin_to_forest< Tree_Node<int>, BinNode<int> > (bp), forest_deleter);
+  Tree_Node<int> * tree = tree_ptr.get();
 
   forest_preorder_traversal(tree, printNode);
 
-  BinNode<int> * prb = forest_to_bin< Tree_Node<int>, BinNode<int> > (tree);
+  unique_ptr<BinNode<int>, decltype(bp_deleter)> 
+    prb_ptr(forest_to_bin< Tree_Node<int>, BinNode<int> > (tree), bp_deleter);
+  BinNode<int> * prb = prb_ptr.get();
 
   assert(areEquivalents(prb, bp));
-
-  // Clean up dynamically allocated resources
-  destroyRec(bp);
-  destroy_forest(tree);
-  destroyRec(prb);
 }

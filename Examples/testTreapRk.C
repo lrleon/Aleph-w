@@ -25,40 +25,20 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <iostream>
-# include <time.h>
+# include <ctime>
 # include <string>
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <tpl_treapRk.H>
 # include <tpl_binNodeUtils.H>
 
+# include <cstdlib>
+# include <cassert>
 using namespace std;
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
 
-DynArray<unsigned long> rand_sequence;
-
-long aleatorio()
-{
-  // entre 1 y 1000
-  unsigned long r = 1+ (int) (1000.0*rand()/(RAND_MAX+1.0));
-
-  rand_sequence[rand_sequence.size()] = r;
-
-  return r;
-}
-
-void print_aleatorio_and_reset_dynarray()
-{
-  cout << endl
-       << "Secuencia aleatorios: ";
-
-  for (int i = 0; i < rand_sequence.size(); i++)
-    cout << " " << (long) rand_sequence[i];
-  
-  cout << endl;
-
-  rand_sequence.cut(0);
-}
 
 void printNode(Treap_Rk<int>::Node *node, int, int)
 {
@@ -85,10 +65,10 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   if (argc > 2)
     {
-      try { t = stoul(argv[2]); } catch (...) { t = time(0); }
+      try { t = stoul(argv[2]); } catch (...) { t = std::time(0); }
     }
 
   srand(t);
@@ -100,7 +80,7 @@ int main(int argc, char *argv[])
   Treap_Rk<int>::Node *node;
   int i, value;
 
-  cout << "Inserting " << n << " random values in treee ...\n";
+  cout << "Inserting " << n << " random values in tree ...\n";
 
   for (i = 0; i < n; i++)
     { 
@@ -114,7 +94,7 @@ int main(int argc, char *argv[])
       cout << value << " ";
       node = new Treap_Rk<int>::Node (value);
       tree.insert(node);
-      keys[i] = value;
+      keys.append(value);
     }
 
   assert(is_treap(tree.getRoot()));
@@ -148,20 +128,13 @@ int main(int argc, char *argv[])
       cout << keys[i] << "<-->" << pos.first << endl;
     }
 
-  tree.position(rand());
-
-  print_aleatorio_and_reset_dynarray(); 
-
   cout << endl << endl;
 
   for (i = 0; i < n/2; i++)
     { 
-      do
-	{
-	  value = (int) (10.0*n*rand()/(RAND_MAX+1.0));
-	  node = tree.remove(value);
-	} 
-      while (node == NULL);
+      value = keys[i];
+      node = tree.remove(value);
+      assert(node != NULL);
 
       cout << value << " ";
       delete node;
@@ -212,6 +185,7 @@ int main(int argc, char *argv[])
 
   destroyRec(removed_tree); 
   destroyRec(tree.getRoot()); 
+  tree.getRoot() = nullptr;
 
   cout << endl << "testTreap_Rk " << n << " " << t << endl;
 }

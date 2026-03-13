@@ -73,11 +73,11 @@ int main(int argc, char *argv[])
       catch (...) { n = 1000; }
     }
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   if (argc > 2)
     {
       try { t = static_cast<unsigned int>(stoul(argv[2])); }
-      catch (...) { t = time(0); }
+      catch (...) { t = std::time(0); }
     }
 
   std::mt19937 rng(t);

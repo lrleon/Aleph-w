@@ -248,7 +248,7 @@
  * @ingroup Examples
  */
 
-# include <stdlib.h>
+# include <cstdlib>
 # include <iostream>
 # include <tpl_arrayStack.H>
 
@@ -372,7 +372,11 @@ int main(int argc, char * argv[])
   if (argc > 1)
     {
       try { n = std::stoi(argv[1]); }
-      catch (...) { n = 10; }
+      catch (const std::exception& e) 
+	{ 
+	  std::cerr << "Warning: could not parse n, using default n=10" << std::endl;
+	  n = 10; 
+	}
     }
 
   if (n < 0)

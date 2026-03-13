@@ -24,8 +24,11 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <ctime>
+# include <cstdlib>
+# include <cassert>
 # include <gsl/gsl_rng.h> 
-# include <string.h>
+# include <cstring>
 # include <iostream>
 # include <ah-errors.H>
 # include <tpl_binNode.H>
@@ -101,7 +104,7 @@ int main(int argc, char *argv[])
 { 
   const size_t n = argc > 1 ? atol(argv[1]) : 10;
 
-  int t = time(NULL);
+  int t = std::time(NULL);
 
   if (argc > 2)
     t = atol(argv[2]);

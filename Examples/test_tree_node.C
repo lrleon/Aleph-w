@@ -33,6 +33,7 @@
 # include <tpl_tree_node.H>
 # include <tpl_dynArray.H>
 
+# include <cassert>
 using namespace std;
 
 void print_node(Tree_Node<int> * node, int level, int index)
@@ -94,7 +95,7 @@ int * string_to_deway(const string& str, size_t & size)
 int main()
 {
   int number;
-  cout << "Ingrese el valor de la raiz: ";
+  cout << "Enter the root value: ";
   if (not (cin >> number))
     {
       cout << "Error: Invalid input for root value." << endl;
@@ -103,14 +104,14 @@ int main()
 
   Tree_Node<int> * root = new Tree_Node<int> (number);
 
-  cout << "Ingreso de nodos del arbol (deway luego numero) (letra termina)" 
+  cout << "Entering tree nodes (deway then number) (any letter to finish)" 
        << endl;
 
   while (true)
     {
       try
 	{
-	  cout << "    Numero de Deway del padre = ";
+	  cout << "    Parent Deway number = ";
 	  string deway_string;
 	  size_t deway_size;
 	  if (not (cin >> deway_string))
@@ -122,13 +123,13 @@ int main()
 
 	  if (node == NULL)
 	    {
-	      cout << "No existe el nodo " << deway_string << endl;
+	      cout << "Node " << deway_string << " does not exist" << endl;
 	      continue;
 	    }
 
-	  cout << "    Insercion de hijo derecho en " << deway_string 
+	  cout << "    Inserting rightmost child in " << deway_string 
 	       << " - " << node->get_data() << endl
-	       << "    Clave del nuevo nodo = ";
+	       << "    New node key = ";
 
 	  int key;
 	  if (not (cin >> key))
@@ -144,12 +145,12 @@ int main()
       catch (invalid_argument & e)
 	{
 	  cout << e.what() << endl
-	       << "Terminando " << endl;
+	       << "Finishing " << endl;
 	  break;
 	}      
       catch (bad_alloc)
 	{
-	  cout << "No hay memoria";
+	  cout << "Out of memory";
 	}
     }
 

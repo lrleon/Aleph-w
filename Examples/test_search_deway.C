@@ -141,7 +141,7 @@ void insert_via(Mapa & mapa,
 void imprimir_camino(Path<Mapa> & path)
 {
   cout << endl
-       << "Camino: ";
+       << "Path: ";
   for (Path<Mapa>::Iterator itor(path); itor.has_curr(); itor.next())
     cout << itor.get_current_node()->get_info().nombre << "-";
 
@@ -152,7 +152,7 @@ void imprimir_camino(Path<Mapa> & path)
 void imprimir_mapa(Mapa & g)
 {
   cout << endl
-       << "Listado de nodos (" << g.get_num_nodes() << ")" << endl;
+       << "Node list (" << g.get_num_nodes() << ")" << endl;
 
   for (Mapa::Node_Iterator node_itor(g); node_itor.has_curr(); 
        node_itor.next())
@@ -160,7 +160,7 @@ void imprimir_mapa(Mapa & g)
 
   cout << endl
        << endl
-       << "Listado de arcos (" << g.get_num_arcs() << ")"
+       << "Arc list (" << g.get_num_arcs() << ")"
        << endl;
 
   for (Mapa::Arc_Iterator arc_itor(g); arc_itor.has_curr();
@@ -168,13 +168,13 @@ void imprimir_mapa(Mapa & g)
     {
       Mapa::Arc * arc = arc_itor.get_current_arc();
       cout << arc->get_info().nombre << " " << arc->get_info().distancia 
-	   << " de " << g.get_src_node(arc)->get_info().nombre 
-	   << " a " << g.get_tgt_node(arc)->get_info().nombre << endl;
+	   << " from " << g.get_src_node(arc)->get_info().nombre 
+	   << " to " << g.get_tgt_node(arc)->get_info().nombre << endl;
     }
 
   cout << endl
        << endl
-       << "Listado del grafo por nodos y en cada nodo por arcos" 
+       << "Graph listing by nodes and for each node by arcs" 
        << endl;
   for (Mapa::Node_Iterator node_itor(g); node_itor.has_curr(); 
        node_itor.next())
@@ -257,7 +257,7 @@ int main()
 
   while (true)
     {
-      cout << "Ingrese clave a buscar (escriba \"salir\"): ";
+      cout << "Enter key to search (type \"quit\"): ";
       string clave;
       if (not std::getline(std::cin, clave))
         break;
@@ -266,7 +266,7 @@ int main()
       if (not clave.empty() and clave.back() == '\r')
         clave.pop_back();
 
-      if (clave.empty() or clave == "salir")
+      if (clave.empty() or clave == "quit")
         break;
 
       const size_t Buf_Size = 512;
@@ -278,16 +278,16 @@ int main()
 		                                 dw_size);
 
 	      if (p == nullptr)
-		cout << clave << " no fue encontrada en el arbol" << endl;
+		cout << clave << " was not found in the tree" << endl;
       else
 	{
-	  cout << clave << " tiene numero de Deway: ";
+	  cout << clave << " has Deway number: ";
 	  escribir_deway(deway, dw_size);
 	  cout << endl;
 	}
     } 
 
-	  cout << "Saliendo ... " << endl;
+	  cout << "Exiting ... " << endl;
 
 	  ofstream test("prueba.Tree", ios::trunc);
 	  ah_runtime_error_if(not test)

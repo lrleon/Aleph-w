@@ -43,8 +43,10 @@
 # include <tpl_dynarray_set.H>
 # include <tpl_random_queue.H>
 
+# include <cassert>
 using namespace std;
 
+# include <cassert>
 using namespace Aleph;
 
 template <class C>

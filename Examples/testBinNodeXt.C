@@ -24,6 +24,9 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <ctime>
+# include <cstdlib>
+# include <cassert>
 
 # include <iostream>
 # include <string>
@@ -72,7 +75,7 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   if (argc > 2)
     {
@@ -82,7 +85,7 @@ int main(int argc, char *argv[])
         }
       catch (...)
         {
-          t = time(0);
+          t = std::time(0);
         }
     }
 

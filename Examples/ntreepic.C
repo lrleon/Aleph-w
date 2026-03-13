@@ -213,6 +213,7 @@ bool generate_binary_tree = false;
 bool not_nodes = false;
 
 
+# include <cassert>
 using namespace std;
 
 enum Token_Type

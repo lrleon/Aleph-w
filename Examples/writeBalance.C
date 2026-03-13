@@ -181,7 +181,11 @@
 # include <tpl_dynArray.H>
 # include <tpl_balanceXt.H>
 
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
+# include <cstdlib>
+# include <cassert>
 using namespace std;
 
 typedef BinNodeXt<int> Node;

@@ -36,13 +36,24 @@
 # include <tpl_olhash.H>
 # include <tpl_odhash.H>
 
+# include <ctime>
 using namespace std;
 
 static unsigned long tbl_size = 0;
 
-gsl_rng * r = NULL;
+struct gsl_rng_holder 
+{
+  gsl_rng * r;
+  gsl_rng_holder(unsigned int seed) 
+  {
+    r = gsl_rng_alloc(gsl_rng_mt19937);
+    gsl_rng_set(r, seed % gsl_rng_max(r));
+  }
+  ~gsl_rng_holder() { gsl_rng_free(r); }
+  operator gsl_rng*() { return r; }
+};
 
-# define DEFAULT_N 100
+constexpr int DEFAULT_N = 100;
 
 template <template <typename,class> class HashTable, typename Key,
           class Cmp = Aleph::equal_to<Key>> 
@@ -58,7 +69,7 @@ HashTable<Key, Cmp> create_table(const HashTable<Key, Cmp> & s)
 
 template <template <typename, class> class HashTable, typename Key,
           class Cmp = Aleph::equal_to<Key>>
-void test_hash_table(size_t n)
+void test_hash_table(size_t n, gsl_rng * r)
 {
   typedef HashTable<Key, Cmp> Hset;
   DynArray<Key> keys(n);
@@ -77,7 +88,7 @@ void test_hash_table(size_t n)
           while (true)
             {
               keys[i] = gsl_rng_get(r);
-              if (table.search(keys(i)) == NULL)
+              if (table.search(keys(i)) == nullptr)
                 break;
             }
 	  
@@ -98,7 +109,7 @@ void test_hash_table(size_t n)
 
           ptr = table.search(k);
 
-          assert(ptr != NULL);
+          assert(ptr != nullptr);
           assert(*ptr == keys(i));
         }
       cout << "done!" << endl
@@ -108,7 +119,7 @@ void test_hash_table(size_t n)
         {
           ptr = table.search(keys(i));
 	  
-          assert(ptr != NULL);
+          assert(ptr != nullptr);
 
           table.remove_ptr(ptr);
         }
@@ -120,7 +131,7 @@ void test_hash_table(size_t n)
           while (true)
             {
               keys[i] = gsl_rng_get(r);
-              if (table.search(keys(i)) == NULL)
+              if (table.search(keys(i)) == nullptr)
                 break;
             }
           table.insert(keys(i));
@@ -132,7 +143,7 @@ void test_hash_table(size_t n)
         {
           const Key & key = keys(i);
           ptr = table.search(key);
-          assert(ptr != NULL);
+          assert(ptr != nullptr);
           table.remove_ptr(ptr);
         }
 
@@ -211,7 +222,7 @@ void test_hash_table(size_t n)
       const Key & key = keys(idx);
       
       Key * ptr = table.search(key);
-      if (ptr == NULL)
+      if (ptr == nullptr)
         continue;
 
       table.remove_ptr(ptr);
@@ -226,7 +237,7 @@ void test_hash_table(size_t n)
     for (typename Hset::Iterator it(table); it.has_curr(); it.next())
       {
         Key * key_ptr = aux.search(it.get_curr());
-        assert(key_ptr != NULL);
+        assert(key_ptr != nullptr);
         assert(*key_ptr == it.get_curr());
       }
     cout << "done!" << endl;
@@ -250,7 +261,7 @@ void test_hash_table(size_t n)
 int main(int argc, char *argv[])
 { 
   int n = DEFAULT_N;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   try 
     {
@@ -273,12 +284,9 @@ int main(int argc, char *argv[])
 
   cout << "testOhash " << n << " " << t << endl;
 
-  r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, t % gsl_rng_max(r));
+  gsl_rng_holder r(t);
 
-  test_hash_table<ODhashTable, unsigned int>(n);
+  test_hash_table<ODhashTable, unsigned int>(n, r);
 
-  //test_hash_table<OLhashTable, unsigned int>(n);
-  
-  gsl_rng_free(r);
+  //test_hash_table<OLhashTable, unsigned int>(n, r);
 }

@@ -33,12 +33,16 @@
 # include <iostream>
 # include <string>
 # include <fstream>
-# include <time.h>
+# include <ctime>
 # include <aleph.H>
 # include <tpl_binNodeUtils.H>
 
 
+# include <cstdlib>
+# include <cassert>
 using namespace std;
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
 
 
@@ -71,7 +75,7 @@ fstream file[12];
 int main(int argc, char *argv[])
 {
   int n = 15;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
   int val_del = 0;
 

@@ -29,11 +29,12 @@
 # include <tpl_dynArray.H>
 # include <iostream>
 # include <string>
-# include <time.h>
-# include <stdlib.h>
+# include <ctime>
+# include <cstdlib>
 
 # define NumItems 10000
 
+# include <cassert>
 using namespace std;
 
 typedef DynLhashTable<unsigned, unsigned> HTable;
@@ -66,7 +67,7 @@ int main(int argc, char *argv[])
   Primes::check_primes_database();
 
   int n = NumItems;
-  unsigned int t = time(NULL);
+  unsigned int t = std::time(NULL);
 
   try 
     {

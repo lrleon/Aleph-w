@@ -36,6 +36,7 @@
 # include <tpl_dynSetTree.H>
 # include <tpl_hash.H>
 
+# include <ctime>
 using namespace std;
 
 gsl_rng * r;
@@ -52,7 +53,7 @@ void print_seq(const C<T> & c)
 int main(int argc, char *argv[])
 {
   int n = argc > 1 ? atoi(argv[1]) : 100;
-  unsigned long seed = argc > 2 ? atoi(argv[2]) : time(NULL);
+  unsigned long seed = argc > 2 ? atoi(argv[2]) : std::time(NULL);
 
   cout << argv[0] << " " << n << " " << seed << endl;
 

@@ -34,7 +34,9 @@
 # include <tpl_binNodeUtils.H>
 # include <opBinTree.H>
 
+# include <cstdlib>
 using namespace std;
+# include <cstdlib>
 using namespace Aleph;
 
 

@@ -25,15 +25,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <stdlib.h>
-# include <time.h>
+# include <cstdlib>
+# include <ctime>
 # include <iostream>
 # include <string>
 # include <aleph.H>
 # include <tpl_avl.H>
 # include <tpl_binNodeUtils.H>
 
+# include <cassert>
 using namespace std;
+# include <cassert>
 using namespace Aleph;
 
 static void print_pair(Avl_Tree<int>::Node *p, int, int) 
@@ -49,7 +51,7 @@ static void print(Avl_Tree<int>::Node *p, int, int)
 int main(int argc, char *argv[])
 {
   int n = 1000;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
 
   if (argc > 1)
@@ -78,7 +80,7 @@ int main(int argc, char *argv[])
         }
       catch (...)
         {
-          t = time(0);
+          t = std::time(0);
         }
     }
 
@@ -88,9 +90,10 @@ int main(int argc, char *argv[])
 
   Avl_Tree<int> tree;
   Avl_Tree<int>::Node *node;
+  DynArray<int> keys;
   int i;
 
-  cout << "Inserting " << n << " random values in treee ...\n";
+  cout << "Inserting " << n << " random values in tree ...\n";
 
   for (i = 0; i < n; i++)
     {
@@ -99,11 +102,12 @@ int main(int argc, char *argv[])
 	  value = (int) (n*10.0*rand()/(RAND_MAX+1.0));
 	  node = tree.search(value);
 	}
-      while (node not_eq NULL);
+      while (node not_eq nullptr);
 
       cout << value << " ";
       node = new Avl_Tree<int>::Node (value);
       tree.insert(node);
+      keys.append(value);
     }
   cout << endl << "verifying avl tree after insertions ... " 
        << endl;
@@ -122,12 +126,9 @@ int main(int argc, char *argv[])
   
   for (i = 0; i < n/2; i++)
     { 
-      do
-	{
-	  value = (int) (10.0*n*rand()/(RAND_MAX+1.0));
-	  node = tree.remove(value);
-	} 
-      while (node == NULL);
+      value = keys[i];
+      node = tree.remove(value);
+      assert(node != nullptr);
 
       cout << value << " ";
       delete node;

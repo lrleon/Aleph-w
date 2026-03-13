@@ -24,6 +24,9 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <ctime>
+# include <cstdlib>
+# include <cassert>
 # include <iostream>
 # include <vector>
 # include <algorithm>
@@ -83,7 +86,7 @@ int main(int argc, char *argv[])
 {
   int n = argc > 1 ? stoi(argv[1]) : 1000;
 
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   if (argc > 2)
     t = stoi(argv[2]);
@@ -226,9 +229,8 @@ int main(int argc, char *argv[])
 
   destroyRec(tree.getRoot());
   destroyRec(t1);
-  destroyRec(t2); 
+  destroyRec(t2);
 
   cout << argv[0] << " " << n << " " << t << endl;
-}
+  }
 
-// 1018058241

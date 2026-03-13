@@ -34,6 +34,7 @@
 # include <ahSort.H>
 # include <tpl_sort_utils.H>
 
+# include <ctime>
 using namespace std;
 
 gsl_rng * r = NULL;
@@ -113,7 +114,7 @@ int main(int argc, char *argv[])
       n = parsed;
     }
 
-  unsigned int t = time(NULL);
+  unsigned int t = std::time(NULL);
   if (argc > 2)
     {
       errno = 0;

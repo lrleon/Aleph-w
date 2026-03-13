@@ -138,7 +138,9 @@
 #include <geom_algorithms.H>
 #include <tpl_dynArray.H>
 
+# include <cstdlib>
 using namespace std;
+# include <cstdlib>
 using namespace Aleph;
 
 // ============================================================================

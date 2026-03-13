@@ -24,6 +24,11 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <ctime>
+# include <cstdlib>
+# include <cassert>
+# include <cstdio>
+# include <random>
 
 # include <iostream>
 # include <string>
@@ -45,12 +50,14 @@ void print_list(Test * link)
 }
 
 
-void create_random_list(Test * link, int n)
+void create_random_list(Test * link, int n, unsigned int seed)
 {
+  std::mt19937 rng(seed);
+  std::uniform_int_distribution<int> dist(1, 10 * n);
   Test* testPtr;
   for (int i = 0; i < n; i++)
     {
-      testPtr = new Test (1 + (int) (10.0*n*rand()/(RAND_MAX+1.0)));
+      testPtr = new Test (dist(rng));
       link->append(testPtr);
     }
 }
@@ -58,7 +65,7 @@ void create_random_list(Test * link, int n)
 int main(int argc, char *argv[])
 {
   int n = 1000;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
 
   try 
     {
@@ -165,7 +172,7 @@ int main(int argc, char *argv[])
 
   Test list;
 
-  create_random_list(&list, n);
+  create_random_list(&list, n, t);
 
   print_list(&list);
 

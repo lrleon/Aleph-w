@@ -37,7 +37,11 @@
 
 
 
+# include <cstdlib>
+# include <cassert>
 using namespace std;
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
 
 long randomLong()
@@ -49,10 +53,10 @@ ofstream output;
 fstream fig_file;
 fstream tex_file;
 
-Treap<int>::Node * last_node = NULL;
+Treap<int>::Node * last_node = nullptr;
 
 
-gsl_rng * rand_gen = NULL;
+gsl_rng * rand_gen = nullptr;
 
 void print_pair(Treap<int>::Node *node, int, int) 
 {
@@ -95,7 +99,7 @@ void print_prio(Treap<int>::Node *node, int, int)
 int main(int argc, char *argv[])
 {
   int n = 10;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
 
   if (argc > 1)
@@ -104,6 +108,12 @@ int main(int argc, char *argv[])
       auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), n);
       ah_invalid_argument_if(ec != std::errc{} or ptr != arg.data() + arg.size() or n < 0)
         << "Invalid or out-of-range value for n";
+    }
+
+  if (n <= 0)
+    {
+      cerr << "n must be positive" << endl;
+      return 1;
     }
 
   if (argc > 2)
@@ -139,7 +149,7 @@ int main(int argc, char *argv[])
     {
       while (true)
 	{
-	  value = 1 + (int) (100.0*rand()/(RAND_MAX+1.0));
+	  value = 1 + (int) (10.0*n*rand()/(RAND_MAX+1.0));
 	  node = tree.search(value);
 	  if (node == nullptr)
 	    break;

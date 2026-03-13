@@ -199,7 +199,7 @@ namespace Aleph
         the sorted array of node pointers. Prefer get_nodes_copy() when you want
         an explicit snapshot name in new code.
 
-        @note This method returns a reference to the nodes; the Node*
+        @note This method returns a shallow copy of the container; the Node*
         elements are borrowed from the graph and caller does not gain ownership.
         Pointer validity depends on the graph nodes remaining alive.
 

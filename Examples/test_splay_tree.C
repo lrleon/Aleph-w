@@ -31,6 +31,7 @@
 # include <tpl_splay_tree.H>
 # include <string>
 
+# include <cassert>
 using namespace std;
 
 

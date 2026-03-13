@@ -35,12 +35,15 @@
 # include <tpl_dynarray_set.H>
 
 
+# include <cassert>
 using namespace std;
 
 # define RAND( x  ) (unsigned long) ( x * ( rand() / (RAND_MAX+1.0) ) ) 
 
 
+# include <cassert>
 using namespace Aleph;
+# include <cassert>
 using namespace std;
 
 struct Test
@@ -73,7 +76,7 @@ int main(int argc,char *argv[])
   if (argc > 2)
     seed = atol(argv[2]);
   else
-    seed = time(NULL);
+    seed = std::time(NULL);
 
   srand (seed);
 

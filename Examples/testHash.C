@@ -35,7 +35,9 @@
 # include <aleph.H>
 # include <tpl_dynSetHash.H>
 
+# include <cassert>
 using namespace std;
+# include <cassert>
 using namespace TCLAP;
 
 CmdLine cmd = { "testHash", ' ', "0" };

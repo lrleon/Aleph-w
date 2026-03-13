@@ -25,7 +25,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <time.h>
+# include <ctime>
 # include <cerrno>
 # include <climits>
 # include <gsl/gsl_rng.h>

@@ -25,8 +25,8 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <stdlib.h>
-# include <time.h>
+# include <cstdlib>
+# include <ctime>
 # include <iostream>
 # include <fstream>
 # include <string>
@@ -95,7 +95,7 @@ void print_treap(Treap<int>::Node * p, int, int)
 int main(int argc, char *argv[])
 {
   int n = 512;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
 
   if (argc > 1)
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
         }
       catch (...)
         {
-          t = time(0);
+          t = std::time(0);
         }
     }
 

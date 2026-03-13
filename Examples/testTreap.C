@@ -26,14 +26,18 @@
 */
 # include <iostream>
 # include <string>
-# include <time.h>
+# include <ctime>
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <tpl_sort_utils.H>
 # include <tpl_treap.H>
 # include <tpl_binNodeUtils.H>
 
+# include <cstdlib>
+# include <cassert>
 using namespace std;
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
 
 DynArray<unsigned long> rand_sequence;
@@ -90,7 +94,7 @@ void printPair(Treap<int>::Node *node, int, int)
 int main(int argc, char *argv[])
 {
   int n = 10;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
 
   try 

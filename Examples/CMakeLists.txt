@@ -9,12 +9,29 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+# Use glob-based discovery for EXAMPLE_SOURCES instead of a hardcoded list
+# to improve maintainability. The CONFIGURE_DEPENDS flag enables automatic
+# re-configuration of the build system when new files are added or removed
+# from the directory. Note that while this simplifies adding new examples,
+# it may have minor performance impacts on some build systems and behavior
+# can be platform-dependent.
 file(GLOB EXAMPLE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.C"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.CC"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.c"
 )
+
+# Exclude known non-standalone or helper files that should not be built 
+# as individual executables.
+set(EXCLUDED_EXAMPLES
+    "${CMAKE_CURRENT_SOURCE_DIR}/fft_benchmark.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/fft_reference_probe.cc"
+)
+
+foreach(excluded_file IN LISTS EXCLUDED_EXAMPLES)
+    list(REMOVE_ITEM EXAMPLE_SOURCES "${excluded_file}")
+endforeach()
 
 foreach(source_file IN LISTS EXAMPLE_SOURCES)
     get_filename_component(program "${source_file}" NAME_WE)
