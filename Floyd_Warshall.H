@@ -95,6 +95,7 @@
 # ifndef FLOYD_WARSHALL_H
 # define FLOYD_WARSHALL_H
 
+# include <type_traits>
 # include <sstream>
 # include <iostream>
 # include <limits>
@@ -177,7 +178,7 @@ namespace Aleph
 
         @return Const reference to the path reconstruction matrix.
      */
-    const DynMatrix<long> &get_path_mat() const noexcept { return path_mat; }
+    [[nodiscard]] const DynMatrix<long> &get_path_mat() const noexcept { return path_mat; }
 
     /**
         Get the distance matrix.
@@ -193,13 +194,55 @@ namespace Aleph
     }
 
     /**
-        Get the array of graph nodes.
+        Get an owning copy of the graph nodes array.
+
+        Returns a copy of the sorted array of node pointers. This method is
+        equivalent to get_nodes_copy() and provides a safe snapshot for
+        long-term storage or when the Floyd_All_Shortest_Paths instance may be
+        destroyed.
+
+        @note This method returns a copy of the DynArray container; the Node*
+        elements are borrowed from the graph and caller does not gain ownership
+        of the nodes themselves. Pointer validity depends on the graph nodes
+        remaining alive.
+
+        @return Owning copy of the node pointer array container.
+        @see get_nodes_copy() for the same functionality with an explicit name
+        @see get_nodes_ref() for a constant reference (no copy)
+     */
+    [[nodiscard]] DynArray<Node *> get_nodes() const { return get_nodes_copy(); }
+
+    /**
+        Get the array of graph nodes as a constant reference.
 
         Returns the sorted array of node pointers used for matrix indexing.
+        This provides O(1) access to the underlying storage but requires
+        the caller to ensure the Floyd_All_Shortest_Paths instance remains alive.
 
-        @return Const copy of the node pointer array.
+        @warning The returned reference and its contained pointers are valid 
+        only as long as the Floyd_All_Shortest_Paths instance and the underlying 
+        graph nodes exist. Not thread-safe if the container is mutated.
+
+        @return Const reference to the node pointer array.
      */
-    DynArray<Node *> get_nodes() const noexcept { return nodes; }
+    [[nodiscard]] const DynArray<Node *> & get_nodes_ref() const noexcept { return nodes; }
+
+    /**
+        Get an owning copy of the graph nodes array.
+
+        Returns a copy of the sorted array of node pointers. This is safer for
+        long-term storage or if the Floyd_All_Shortest_Paths instance is destroyed,
+        but incurs an O(n) copy cost.
+
+        @warning This method returns a copy of the node array. Modifying
+        the returned array does not affect the internal state of the
+        Floyd_All_Shortest_Paths instance.
+
+        @warning The pointers are valid as long as the received graph is alive.
+
+        @return Owning copy of the node pointer array.
+     */
+    [[nodiscard]] DynArray<Node *> get_nodes_copy() const { return nodes; }
 
     /**
         Get the graph node at a given matrix index.

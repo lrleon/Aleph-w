@@ -89,7 +89,7 @@
  * Options:
  *
  * - `--nodes` / `-n <num_nodes>`: number of inserted nodes (default 1000).
- * - `--seed` / `-m <seed_for_random>`: RNG seed (default `time(0)`).
+ * - `--seed` / `-m <seed_for_random>`: RNG seed (default `std::time(0)`).
  *
  * If no tree types are selected (and `--all` is not provided), the program aborts.
  *
@@ -176,6 +176,7 @@
 # include <argp.h>
 
 
+# include <ctime>
 using namespace std;
 
 template <class Node>
@@ -556,7 +557,7 @@ static struct argp argDefs = {options, parser_opt, argDoc, doc, 0, 0, 0};
 
 int main(int argc, char *argv[])
 {
-  Parameters pars(1000, time(0));
+  Parameters pars(1000, std::time(0));
 
   if (error_t status = argp_parse(&argDefs, argc, argv, 0, 0, &pars); status != 0)
     AH_ERROR(("Internal error"));

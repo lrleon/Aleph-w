@@ -215,7 +215,11 @@
 # include <tpl_binNodeUtils.H>
 # include <tpl_binNodeXt.H>
 
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
+# include <cstdlib>
+# include <cassert>
 using namespace std;
 
 typedef BinNode<int> Node;

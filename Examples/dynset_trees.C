@@ -128,7 +128,9 @@
 # include <tclap/CmdLine.h>
 # include <tpl_dynSetTree.H>
 
+# include <cstdlib>
 using namespace std;
+# include <cstdlib>
 using namespace Aleph;
 
 // =============================================================================

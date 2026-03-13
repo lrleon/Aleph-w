@@ -30,7 +30,7 @@
 */
 
 
-# include <time.h>
+# include <ctime>
 # include <gsl/gsl_rng.h>
 # include <stdexcept>
 # include "hash-fct.H"

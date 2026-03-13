@@ -9,7 +9,7 @@ Language: English | [Español](README.es.md)
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / /
    / ___ \| |  __/ |_) | | | |_____\ V  V /
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/
-                 |_|
+               |_|
 ```
 
 **A Comprehensive C++20 Library for Data Structures and Algorithms**
@@ -107,7 +107,7 @@ Language: English | [Español](README.es.md)
 
 Aleph-w was born in 2002 at **Universidad de Los Andes** in Mérida, Venezuela, created by **Leandro Rabindranath León** as a teaching tool for algorithms and data structures courses.
 
-The name "**Aleph**" (א) references Jorge Luis Borges' short story "[The Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))" — a point in space containing all other points. This symbolizes the library's goal: to be a single point containing all fundamental algorithms.
+The name "**Aleph**" (א) references Jorge Luis Borges' short story "[The Aleph](https://en.wikipedia.org/wiki/The_Aleph_(short_story))" — a point in space containing all other points — and Georg Cantor's first transfinite cardinal number. The “-w” is the Greek letter omega (ω), the largest infinite ordinal. Together, א‑ω captures a simple ambition: a single library spanning the full universe of fundamental algorithms.
 
 The "**-w**" suffix stands for "**with**" — emphasizing that this library comes *with* everything you need: implementations, examples, tests, and documentation.
 
@@ -3226,69 +3226,156 @@ int main() {
 
 ```cpp
 #include <thread_pool.H>
-#include <future>
 #include <vector>
 
 int main() {
-    // Create pool with hardware concurrency
-    ThreadPool pool(std::thread::hardware_concurrency());
+    Aleph::ThreadPool pool(std::thread::hardware_concurrency());
+    Aleph::TaskGroup group(pool);
+    Aleph::CancellationSource cancel;
 
-    // Submit tasks and get futures
-    std::vector<std::future<int>> futures;
-
-    for (int i = 0; i < 100; ++i) {
-        futures.push_back(
-            pool.enqueue([i] {
-                // Expensive computation
-                return compute_something(i);
-            })
-        );
+    std::vector<int> out(100);
+    for (size_t i = 0; i < out.size(); ++i) {
+        group.launch([&, i, token = cancel.token()] {
+            if (token.stop_requested()) return;
+            out[i] = compute_something(static_cast<int>(i));
+        });
     }
 
-    // Collect results
-    int total = 0;
-    for (auto& future : futures) {
-        total += future.get();  // Blocks until result ready
-    }
-
-    std::cout << "Total: " << total << "\n";
-
+    group.wait();  // waits for all tasks, rethrows the first exception
     return 0;
-}  // Pool automatically joins all threads
+}
 ```
+
+### Parallel Building Blocks
+
+```cpp
+#include <thread_pool.H>
+#include <vector>
+
+int main() {
+    Aleph::ThreadPool pool(4);
+    Aleph::ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = 256;
+
+    int left = 0;
+    int right = 0;
+    Aleph::parallel_invoke(options,
+        [&] { left = 21; },
+        [&] { right = 21; });
+
+    std::vector<int> values = {1, 2, 3, 4, 5};
+    std::vector<int> prefix(values.size());
+    Aleph::pscan(values.begin(), values.end(), prefix.begin(),
+                 std::plus<int>{}, options);
+
+    std::vector<int> merged(values.size());
+    Aleph::pmerge(values.begin(), values.begin() + 3,
+                  values.begin() + 3, values.end(),
+                  merged.begin(), std::less<int>{}, options);
+
+    return left + right == 42 ? 0 : 1;
+}
+```
+
+### Channels and Synchronized Shared State
+
+```cpp
+#include <concurrency_utils.H>
+#include <thread_pool.H>
+#include <vector>
+
+int main() {
+    Aleph::bounded_channel<int> jobs(8);
+    Aleph::synchronized<std::vector<int>> results(std::in_place);
+    Aleph::rw_synchronized<int> processed(0);
+    Aleph::ThreadPool pool(4);
+    Aleph::TaskGroup group(pool);
+
+    group.launch([&] {
+        for (int i = 1; i <= 10; ++i)
+            jobs.send(i);
+        jobs.close();
+    });
+
+    for (int w = 0; w < 2; ++w) {
+        group.launch([&] {
+            while (auto job = jobs.recv()) {
+                results.with_lock([&](auto &out) { out.push_back(*job * 2); });
+                processed.with_write_lock([](int &value) { ++value; });
+            }
+        });
+    }
+
+    group.wait();
+    return processed.with_read_lock([](const int &value) { return value; }) == 10 ? 0 : 1;
+}
+```
+
+`bounded_channel<T>` also has cancellation-aware blocking overloads that accept
+`CancellationToken` and throw `Aleph::operation_canceled` if cancellation is
+requested while a sender or receiver is blocked.
+
+See `Examples/concurrency_utils_example.cc` for a focused runnable example of
+channels, synchronized shared state, and SPSC handoff.
 
 ### Parallel Functional Operations
 
 ```cpp
 #include <ah-parallel.H>
-#include <tpl_dynList.H>
+#include <vector>
 
 int main() {
-    DynList<int> numbers = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::vector<int> numbers = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    Aleph::ParallelOptions options;
+    options.min_size = 4;
+    options.max_tasks = 4;
 
-    // Parallel map: transform all elements concurrently
-    auto squared = pmap(numbers, [](int x) {
+    auto squared = Aleph::pmaps(numbers, [](int x) {
         return x * x;
-    });
+    }, options);
 
-    // Parallel filter: filter elements concurrently
-    auto evens = pfilter(numbers, [](int x) {
+    auto evens = Aleph::pfilter(numbers, [](int x) {
         return x % 2 == 0;
-    });
+    }, options);
 
-    // Parallel fold: reduce with parallel partial results
-    int sum = pfold(numbers, 0, [](int a, int b) {
+    int sum = Aleph::pfoldl(numbers, 0, [](int a, int b) {
         return a + b;
-    });
+    }, options);
 
-    // Parallel for_each: apply operation to all elements
-    pfor_each(numbers, [](int& x) {
+    auto prefix = Aleph::pscan(numbers, std::plus<int>{}, options);
+    auto merged = Aleph::pmerge(numbers, numbers, std::less<int>{}, options);
+
+    Aleph::pfor_each(numbers, [](int& x) {
         x *= 2;
-    });
+    }, options);
+
+    Aleph::psort(numbers, std::less<int>{}, options);
+
+    auto pairwise = Aleph::pzip_maps(numbers, numbers, [](int a, int b) {
+        return a + b;
+    }, options);
+
+    auto indexed = Aleph::penumerate_maps(pairwise,
+        [](size_t i, int x) {
+            return std::to_string(i) + ":" + std::to_string(x);
+        }, options);
 
     return 0;
 }
 ```
+
+`ParallelOptions` centralizes chunking, minimum parallel size, maximum task
+count, selected executor, and cooperative cancellation for the main parallel
+algorithms, including `psort()`, `ppartition()`, scan/merge wrappers, zip
+helpers, and enumerate helpers. Existing `ThreadPool&` overloads remain
+available.
+
+If a `CancellationToken` stored in `ParallelOptions::cancel_token` is signaled,
+the operation stops cooperatively and throws `Aleph::operation_canceled`.
+
+An opt-in work-stealing backend was evaluated for this phase and intentionally
+deferred; see [docs/work_stealing_backend_note.md](docs/work_stealing_backend_note.md).
 
 ---
 
@@ -3504,7 +3591,7 @@ int main() {
         strengths.append(arc->get_info().strength);
     });
 
-    int total_strength = pfold(strengths, 0,
+    int total_strength = pfoldl(strengths, 0,
         [](int a, int b) { return a + b; });
 
     std::cout << "\nAverage connection strength: "
@@ -3656,11 +3743,16 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 
 | Header | Type/Function | Description |
 |--------|---------------|-------------|
-| `thread_pool.H` | `ThreadPool` | Thread pool with futures |
-| `ah-parallel.H` | `pmap()` | Parallel map |
-| `ah-parallel.H` | `pfilter()` | Parallel filter |
-| `ah-parallel.H` | `pfold()` | Parallel reduce |
-| `ah-parallel.H` | `pfor_each()` | Parallel iteration |
+| `thread_pool.H` | `ThreadPool`, `TaskGroup` | Thread pool and structured task groups |
+| `thread_pool.H` | `CancellationSource`, `CancellationToken` | Cooperative task cancellation |
+| `concurrency_utils.H` | `bounded_channel<T>`, `spsc_queue<T>` | Concurrent message channels and queues |
+| `concurrency_utils.H` | `synchronized<T>`, `rw_synchronized<T>` | Mutex and RW-lock protected shared state |
+| `ah-parallel.H` | `pmaps()`, `pfilter()` | Parallel map and filter |
+| `ah-parallel.H` | `pfoldl()`, `pfor_each()` | Parallel reduce and iteration |
+| `ah-parallel.H` | `psort()`, `ppartition()` | Parallel sort and partition |
+| `ah-parallel.H` | `pzip_maps()`, `penumerate_maps()` | Parallel zip and enumerate |
+| `thread_pool.H` | `pscan()`, `pmerge()` | Parallel prefix sums and merging |
+| `thread_pool.H` | `parallel_invoke()`, `ParallelOptions` | Composable parallel execution and options |
 
 #### Functional Programming
 

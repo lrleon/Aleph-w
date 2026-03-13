@@ -31,12 +31,29 @@
 
 
 # include <ipcClient.H>
+# include <string>
 
 # define NUM_MESSAGES 1
 
-int main(int argv, char* argc[])
+int main(int argc, char* argv[])
 {
-  int num_messages = argv == 2 ? atoi(argc[1]) : NUM_MESSAGES;
+  int num_messages = NUM_MESSAGES;
+
+  try 
+    {
+      if (argc > 1)
+	num_messages = std::stoi(argv[1]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (num_messages <= 0)
+    {
+      cout << "num_messages must be positive" << endl;
+      return 1;
+    }
 
   for (int i = 0; i < num_messages; i++)
     {

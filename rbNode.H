@@ -100,6 +100,9 @@ public:
   /// Get reference to node color
   Color & getColor() { return color; }
 
+  /// Get node color
+  Color getColor() const { return color; }
+
   /// Reset node to red (for reinsertion)
   void reset() { color = RED; }
 

@@ -31,13 +31,18 @@
 
 
 # include <iostream>
+# include <string>
 # include <fstream>
-# include <time.h>
+# include <ctime>
 # include <aleph.H>
 # include <tpl_binNodeUtils.H>
 
 
+# include <cstdlib>
+# include <cassert>
 using namespace std;
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
 
 
@@ -67,21 +72,34 @@ void print_prio(TreapTreeVtl<int>::Node *node)
 fstream file[12];
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 15;
-  unsigned int t = time(0);
+  unsigned int t = std::time(0);
   int value;
   int val_del = 0;
 
-  if (argn > 1)
-    n = atoi(argc[1]);
+  try 
+    {
+      if (argc > 1)
+	n = std::stoi(argv[1]);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+      if (argc > 2)
+	t = std::stoi(argv[2]);
 
-  if (argn > 3)
-    val_del = atoi(argc[3]);
+      if (argc > 3)
+	val_del = std::stoi(argv[3]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (n <= 0)
+    {
+      cout << "n must be positive" << endl;
+      return 1;
+    }
 
   srand(t);
 

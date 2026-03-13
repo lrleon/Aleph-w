@@ -66,6 +66,10 @@
     | `psum` | Parallel sum | O(n/p + p) |
     | `pproduct` | Parallel product | O(n/p + p) |
     | `pminmax` | Parallel min/max | O(n/p + p) |
+    | `ppartition` | Parallel stable partition | O(n/p + p) |
+    | `pscan` | Parallel inclusive scan | O(n/p + p) |
+    | `pexclusive_scan` | Parallel exclusive scan | O(n/p + p) |
+    | `pmerge` | Parallel merge of sorted containers | O(n/p + p) |
 
     Where n = elements, p = threads.
 
@@ -126,6 +130,29 @@ namespace Aleph
 
   namespace parallel_detail
   {
+    struct chunk_bounds
+    {
+      size_t offset;
+      size_t end;
+    };
+
+    inline ThreadPool &selected_parallel_pool(const ParallelOptions & options)
+    {
+      return options.pool == nullptr ? default_pool() : *options.pool;
+    }
+
+    inline size_t chunk_count(const size_t n, const size_t chunk_size) noexcept
+    {
+      return n == 0 ? 0 : (n + chunk_size - 1) / chunk_size;
+    }
+
+    inline chunk_bounds bounds_for_chunk(const size_t idx, const size_t n,
+                                         const size_t chunk_size) noexcept
+    {
+      const size_t offset = idx * chunk_size;
+      return {offset, std::min(offset + chunk_size, n)};
+    }
+
     /// Calculate optimal chunk size based on data size and thread count
     inline size_t chunk_size(const size_t n, const size_t num_threads, const size_t min_chunk = 64)
     {
@@ -164,6 +191,42 @@ namespace Aleph
         return *ptr;
       else
         return *ptr; // unique_ptr also supports *
+    }
+
+    inline size_t effective_parallel_chunk_size(const size_t n,
+                                                const ThreadPool & pool,
+                                                const ParallelOptions & options,
+                                                const size_t min_chunk = 64)
+    {
+      size_t effective = options.chunk_size == 0 ? chunk_size(n, pool.num_threads(), min_chunk) : options.chunk_size;
+
+      if (options.max_tasks > 0)
+        {
+          const size_t min_for_cap = (n + options.max_tasks - 1) / options.max_tasks;
+          effective = std::max(effective, std::max(min_chunk, min_for_cap));
+        }
+
+      return std::max<size_t>(1, effective);
+    }
+
+    inline bool use_sequential_parallel_path(const size_t n,
+                                             const ThreadPool & pool,
+                                             const ParallelOptions & options) noexcept
+    {
+      if (n == 0)
+        return true;
+      if (options.cancel_token.stop_requested())
+        return true;
+      if (options.max_tasks == 1)
+        return true;
+      if (options.min_size > 0 and n < options.min_size)
+        return true;
+      return pool.num_threads() <= 1;
+    }
+
+    inline void throw_if_parallel_canceled(const CancellationToken & token)
+    {
+      token.throw_if_cancellation_requested();
     }
   } // namespace parallel_detail
 
@@ -205,6 +268,17 @@ namespace Aleph
   [[nodiscard]] auto pmaps(ThreadPool & pool, const Container & c, Op op,
                            size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pmaps<ResultT>(c, op, options);
+  }
+
+  template <typename ResultT = void, typename Container, typename Op>
+  [[nodiscard]] auto pmaps(const Container & c, Op op,
+                           const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     using InputT = std::decay_t<decltype(*std::begin(c))>;
     using ActualResultT = std::conditional_t<
       std::is_void_v<ResultT>,
@@ -215,14 +289,27 @@ namespace Aleph
     if (n == 0)
       return std::vector<ActualResultT>{};
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        std::vector<ActualResultT> result;
+        result.reserve(n);
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            result.push_back(op(*it));
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return result;
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     // Ensure random access for parallel processing
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
 
-    std::vector<ActualResultT> result(n);
+    std::vector<std::optional<ActualResultT>> slots(n);
     std::vector<std::future<void>> futures;
 
     size_t offset = 0;
@@ -231,19 +318,35 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&result, &data, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&slots, &data, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto in_it = std::begin(data);
                                            std::advance(in_it, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++in_it)
-                                             result[i] = op(*in_it);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               slots[i] = op(*in_it);
+                                             }
                                          }));
 
         offset = chunk_end;
       }
 
-    for (auto & f: futures)
-      f.get();
+    {
+      std::exception_ptr ep;
+      for (auto & f: futures)
+        try { f.get(); } catch (...) { if (not ep) ep = std::current_exception(); }
+      if (ep)
+        std::rethrow_exception(ep);
+    }
+
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+
+    std::vector<ActualResultT> result;
+    result.reserve(n);
+    for (auto & slot : slots)
+      result.push_back(std::move(*slot));
 
     return result;
   }
@@ -283,41 +386,68 @@ namespace Aleph
   [[nodiscard]] auto pfilter(ThreadPool & pool, const Container & c, Pred pred,
                              size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pfilter(c, pred, options);
+  }
+
+  template <typename Container, typename Pred>
+  [[nodiscard]] auto pfilter(const Container & c, Pred pred,
+                             const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     using T = std::decay_t<decltype(*std::begin(c))>;
 
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return std::vector<T>{};
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        std::vector<T> result;
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            if (pred(*it))
+              result.push_back(*it);
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return result;
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
 
-    // Each chunk produces its own filtered result
     std::vector<std::future<std::vector<T>>> futures;
+    const size_t num_chunks = parallel_detail::chunk_count(n, chunk_size);
+    futures.reserve(num_chunks);
 
-    size_t offset = 0;
-    while (offset < n)
+    for (size_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx)
       {
-        size_t chunk_end = std::min(offset + chunk_size, n);
+        const auto bounds = parallel_detail::bounds_for_chunk(chunk_idx, n, chunk_size);
 
-        futures.push_back(pool.enqueue([&data, pred, offset, chunk_end]()
-                                         {
-                                           std::vector<T> chunk_result;
-                                           auto it = std::begin(data);
-                                           std::advance(it, offset);
-                                           for (size_t i = offset; i < chunk_end; ++i, ++it)
-                                             if (pred(*it))
-                                               chunk_result.push_back(*it);
-                                           return chunk_result;
-                                         }));
-
-        offset = chunk_end;
+        futures.push_back(pool.enqueue([&data, pred,
+                                        offset = bounds.offset,
+                                        chunk_end = bounds.end,
+                                        token = options.cancel_token]()
+          {
+            std::vector<T> chunk_result;
+            auto it = std::begin(data);
+            std::advance(it, offset);
+            for (size_t i = offset; i < chunk_end; ++i, ++it)
+              {
+                parallel_detail::throw_if_parallel_canceled(token);
+                if (pred(*it))
+                  chunk_result.push_back(*it);
+              }
+            return chunk_result;
+          }));
       }
 
-    // Merge results in order
     std::vector<T> result;
     for (auto & f: futures)
       {
@@ -326,6 +456,8 @@ namespace Aleph
                       std::make_move_iterator(chunk_result.begin()),
                       std::make_move_iterator(chunk_result.end()));
       }
+
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
 
     return result;
   }
@@ -375,12 +507,35 @@ namespace Aleph
   [[nodiscard]] T pfoldl(ThreadPool & pool, const Container & c, T init, BinaryOp op,
                          size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pfoldl(c, init, op, options);
+  }
+
+  template <typename T, typename Container, typename BinaryOp>
+  [[nodiscard]] T pfoldl(const Container & c, T init, BinaryOp op,
+                         const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return init;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        T result = init;
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            result = op(result, *it);
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return result;
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -392,13 +547,18 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it = std::begin(data);
                                            std::advance(it, offset);
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            T local = *it++;
                                            for (size_t i = offset + 1; i < chunk_end; ++i, ++it)
-                                             local = op(local, *it);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               local = op(local, *it);
+                                             }
                                            return local;
                                          }));
 
@@ -409,6 +569,8 @@ namespace Aleph
     T result = init;
     for (auto & f: futures)
       result = op(result, f.get());
+
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
 
     return result;
   }
@@ -450,12 +612,33 @@ namespace Aleph
   template <typename Container, typename Op>
   void pfor_each(ThreadPool & pool, Container & c, Op op, size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    pfor_each(c, op, options);
+  }
+
+  template <typename Container, typename Op>
+  void pfor_each(Container & c, Op op, const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
+
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            op(*it);
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return;
+      }
 
     std::vector<std::future<void>> futures;
     size_t offset = 0;
@@ -464,12 +647,16 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&c, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&c, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it = std::begin(c);
                                            std::advance(it, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++it)
-                                             op(*it);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               op(*it);
+                                             }
                                          }));
 
         offset = chunk_end;
@@ -477,6 +664,8 @@ namespace Aleph
 
     for (auto & f: futures)
       f.get();
+
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
   }
 
   /** \overload
@@ -494,12 +683,33 @@ namespace Aleph
   template <typename Container, typename Op>
   void pfor_each(ThreadPool & pool, const Container & c, Op op, size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    pfor_each(c, op, options);
+  }
+
+  template <typename Container, typename Op>
+  void pfor_each(const Container & c, Op op, const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            op(*it);
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return;
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -511,12 +721,16 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it = std::begin(data);
                                            std::advance(it, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++it)
-                                             op(*it);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               op(*it);
+                                             }
                                          }));
 
         offset = chunk_end;
@@ -524,6 +738,8 @@ namespace Aleph
 
     for (auto & f: futures)
       f.get();
+
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
   }
 
   // =============================================================================
@@ -556,12 +772,35 @@ namespace Aleph
   [[nodiscard]] bool pall(ThreadPool & pool, const Container & c, Pred pred,
                           size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pall(c, pred, options);
+  }
+
+  template <typename Container, typename Pred>
+  [[nodiscard]] bool pall(const Container & c, Pred pred,
+                          const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return true;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            if (not pred(*it))
+              return false;
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return true;
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -574,8 +813,10 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, pred, &found_false, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, pred, &found_false, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            if (found_false.load(std::memory_order_relaxed))
                                              return; // Short-circuit
 
@@ -588,6 +829,7 @@ namespace Aleph
                                                    found_false.store(true, std::memory_order_relaxed);
                                                    return;
                                                  }
+                                               parallel_detail::throw_if_parallel_canceled(token);
                                                if (found_false.load(std::memory_order_relaxed))
                                                  return;
                                              }
@@ -599,6 +841,7 @@ namespace Aleph
     for (auto & f: futures)
       f.get();
 
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
     return not found_false.load();
   }
 
@@ -627,12 +870,35 @@ namespace Aleph
   [[nodiscard]] bool pexists(ThreadPool & pool, const Container & c, Pred pred,
                              size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pexists(c, pred, options);
+  }
+
+  template <typename Container, typename Pred>
+  [[nodiscard]] bool pexists(const Container & c, Pred pred,
+                             const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return false;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            if (pred(*it))
+              return true;
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return false;
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -645,8 +911,10 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, pred, &found, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, pred, &found, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            if (found.load(std::memory_order_relaxed))
                                              return; // Short-circuit
 
@@ -659,6 +927,7 @@ namespace Aleph
                                                    found.store(true, std::memory_order_relaxed);
                                                    return;
                                                  }
+                                               parallel_detail::throw_if_parallel_canceled(token);
                                                if (found.load(std::memory_order_relaxed))
                                                  return;
                                              }
@@ -670,6 +939,7 @@ namespace Aleph
     for (auto & f: futures)
       f.get();
 
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
     return found.load();
   }
 
@@ -691,6 +961,13 @@ namespace Aleph
                            size_t chunk_size = 0)
   {
     return not pexists(pool, c, pred, chunk_size);
+  }
+
+  template <typename Container, typename Pred>
+  [[nodiscard]] bool pnone(const Container & c, Pred pred,
+                           const ParallelOptions & options = {})
+  {
+    return not pexists(c, pred, options);
   }
 
   // =============================================================================
@@ -722,12 +999,36 @@ namespace Aleph
   [[nodiscard]] size_t pcount_if(ThreadPool & pool, const Container & c, Pred pred,
                                  size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pcount_if(c, pred, options);
+  }
+
+  template <typename Container, typename Pred>
+  [[nodiscard]] size_t pcount_if(const Container & c, Pred pred,
+                                 const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return 0;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        size_t total = 0;
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            if (pred(*it))
+              ++total;
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return total;
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -739,14 +1040,18 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, pred, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, pred, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            size_t count = 0;
                                            auto it = std::begin(data);
                                            std::advance(it, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++it)
-                                             if (pred(*it))
-                                               ++count;
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               if (pred(*it))
+                                                 ++count;
+                                             }
                                            return count;
                                          }));
 
@@ -757,6 +1062,7 @@ namespace Aleph
     for (auto & f: futures)
       total += f.get();
 
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
     return total;
   }
 
@@ -793,12 +1099,37 @@ namespace Aleph
   [[nodiscard]] std::optional<size_t> pfind(ThreadPool & pool, const Container & c,
                                             Pred pred, size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pfind(c, pred, options);
+  }
+
+  template <typename Container, typename Pred>
+  [[nodiscard]] std::optional<size_t> pfind(const Container & c,
+                                            Pred pred,
+                                            const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return std::nullopt;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        size_t idx = 0;
+        for (auto it = std::begin(c); it != std::end(c); ++it, ++idx)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            if (pred(*it))
+              return idx;
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return std::nullopt;
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -812,8 +1143,10 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, pred, &min_index, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, pred, &min_index, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            // Skip if we already found something earlier
                                            if (min_index.load(std::memory_order_relaxed) <= offset)
                                              return;
@@ -826,6 +1159,7 @@ namespace Aleph
                                                if (min_index.load(std::memory_order_relaxed) <= i)
                                                  return;
 
+                                               parallel_detail::throw_if_parallel_canceled(token);
                                                if (pred(*it))
                                                  {
                                                    // Atomically update minimum
@@ -844,6 +1178,7 @@ namespace Aleph
     for (auto & f: futures)
       f.get();
 
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
     if (size_t result = min_index.load(); result < n)
       return result;
     return std::nullopt;
@@ -876,9 +1211,20 @@ namespace Aleph
   [[nodiscard]] auto pfind_value(ThreadPool & pool, const Container & c,
                                  Pred pred, size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pfind_value(c, pred, options);
+  }
+
+  template <typename Container, typename Pred>
+  [[nodiscard]] auto pfind_value(const Container & c,
+                                 Pred pred,
+                                 const ParallelOptions & options = {})
+  {
     using T = std::decay_t<decltype(*std::begin(c))>;
 
-    auto idx = pfind(pool, c, pred, chunk_size);
+    auto idx = pfind(c, pred, options);
     if (not idx)
       return std::optional<T>{std::nullopt};
 
@@ -918,6 +1264,13 @@ namespace Aleph
     return pfoldl(pool, c, init, std::plus<T>{}, chunk_size);
   }
 
+  template <typename Container,
+            typename T = std::decay_t<decltype(*std::begin(std::declval<Container>()))>>
+  [[nodiscard]] T psum(const Container & c, T init, const ParallelOptions & options)
+  {
+    return pfoldl(c, init, std::plus<T>{}, options);
+  }
+
   /** @brief Parallel product of elements.
 
       @param pool Thread pool to use.
@@ -937,6 +1290,13 @@ namespace Aleph
     return pfoldl(pool, c, init, std::multiplies<T>{}, chunk_size);
   }
 
+  template <typename Container,
+            typename T = std::decay_t<decltype(*std::begin(std::declval<Container>()))>>
+  [[nodiscard]] T pproduct(const Container & c, T init, const ParallelOptions & options)
+  {
+    return pfoldl(c, init, std::multiplies<T>{}, options);
+  }
+
   /** @brief Parallel minimum element.
 
       @param pool Thread pool to use.
@@ -950,14 +1310,38 @@ namespace Aleph
   template <typename Container>
   [[nodiscard]] auto pmin(ThreadPool & pool, const Container & c, size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pmin(c, options);
+  }
+
+  template <typename Container>
+  [[nodiscard]] auto pmin(const Container & c, const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     using T = std::decay_t<decltype(*std::begin(c))>;
 
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return std::optional<T>{std::nullopt};
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        auto it = std::begin(c);
+        T result = *it++;
+        for (; it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            if (*it < result)
+              result = *it;
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return std::optional<T>{result};
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -969,14 +1353,19 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it = std::begin(data);
                                            std::advance(it, offset);
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            T local_min = *it++;
                                            for (size_t i = offset + 1; i < chunk_end; ++i, ++it)
-                                             if (*it < local_min)
-                                               local_min = *it;
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               if (*it < local_min)
+                                                 local_min = *it;
+                                             }
                                            return local_min;
                                          }));
 
@@ -991,6 +1380,7 @@ namespace Aleph
           result = val;
       }
 
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
     return std::optional<T>{result};
   }
 
@@ -1007,14 +1397,38 @@ namespace Aleph
   template <typename Container>
   [[nodiscard]] auto pmax(ThreadPool & pool, const Container & c, size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pmax(c, options);
+  }
+
+  template <typename Container>
+  [[nodiscard]] auto pmax(const Container & c, const ParallelOptions & options = {})
+  {
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
     using T = std::decay_t<decltype(*std::begin(c))>;
 
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return std::optional<T>{std::nullopt};
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        auto it = std::begin(c);
+        T result = *it++;
+        for (; it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            if (*it > result)
+              result = *it;
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return std::optional<T>{result};
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -1026,14 +1440,19 @@ namespace Aleph
       {
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it = std::begin(data);
                                            std::advance(it, offset);
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            T local_max = *it++;
                                            for (size_t i = offset + 1; i < chunk_end; ++i, ++it)
-                                             if (*it > local_max)
-                                               local_max = *it;
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               if (*it > local_max)
+                                                 local_max = *it;
+                                             }
                                            return local_max;
                                          }));
 
@@ -1048,6 +1467,7 @@ namespace Aleph
           result = val;
       }
 
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
     return std::optional<T>{result};
   }
 
@@ -1146,33 +1566,53 @@ namespace Aleph
   void psort(ThreadPool & pool, Container & c, Compare cmp = Compare{},
              const size_t min_parallel_size = 1024)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.min_size = min_parallel_size;
+    psort(c, std::move(cmp), options);
+  }
+
+  template <typename Container, typename Compare = std::less<>>
+  void psort(Container & c, Compare cmp = Compare{},
+             const ParallelOptions & options = {})
+  {
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n <= 1)
       return;
 
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    const size_t min_parallel_size = options.min_size == 0 ? 1024 : options.min_size;
+
     // For small sizes, use regular sort
-    if (n <= min_parallel_size or pool.num_threads() <= 1)
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options)
+        or n <= min_parallel_size)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         std::sort(std::begin(c), std::end(c), cmp);
         return;
       }
 
     // Split into chunks, sort each in parallel, then merge
-    const size_t num_chunks = std::min(pool.num_threads() * 2, n / min_parallel_size);
+    size_t num_chunks = std::min(pool.num_threads() * 2, n / min_parallel_size);
+    if (options.max_tasks > 0)
+      num_chunks = std::min(num_chunks, options.max_tasks);
+    num_chunks = std::max<size_t>(1, num_chunks);
     const size_t chunk_size = (n + num_chunks - 1) / num_chunks;
 
     // Sort chunks in parallel
     std::vector<std::future<void>> futures;
     for (size_t i = 0; i < n; i += chunk_size)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t end = std::min(i + chunk_size, n);
         auto begin_it = std::begin(c);
         std::advance(begin_it, i);
         auto end_it = std::begin(c);
         std::advance(end_it, end);
 
-        futures.push_back(pool.enqueue([begin_it, end_it, cmp]()
+        futures.push_back(pool.enqueue([begin_it, end_it, cmp, token = options.cancel_token]()
                                          {
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            std::sort(begin_it, end_it, cmp);
                                          }));
       }
@@ -1182,14 +1622,16 @@ namespace Aleph
 
     // Merge sorted chunks
     using T = std::decay_t<decltype(*std::begin(c))>;
-    std::vector<T> buffer(n);
+    std::vector<std::optional<T>> buffer(n);
+
+    ParallelOptions merge_options = options;
+    merge_options.pool = &pool;
 
     for (size_t width = chunk_size; width < n; width *= 2)
       {
-        std::vector<std::future<void>> merge_futures;
-
         for (size_t i = 0; i < n; i += 2 * width)
           {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
             size_t mid = std::min(i + width, n);
             size_t end = std::min(i + 2 * width, n);
 
@@ -1202,11 +1644,8 @@ namespace Aleph
                 auto end_it = std::begin(c);
                 std::advance(end_it, end);
 
-                merge_futures.push_back(pool.enqueue([begin_it, mid_it, end_it, &buffer, i, cmp]()
-                                                       {
-                                                         std::merge(begin_it, mid_it, mid_it, end_it,
-                                                                    buffer.begin() + i, cmp);
-                                                       }));
+                Aleph::pmerge(begin_it, mid_it, mid_it, end_it,
+                              buffer.begin() + i, cmp, merge_options);
               }
             else
               {
@@ -1219,13 +1658,10 @@ namespace Aleph
               }
           }
 
-        for (auto & f: merge_futures)
-          f.get();
-
         // Swap buffer back to container
         auto it = std::begin(c);
         for (size_t i = 0; i < n; ++i, ++it)
-          *it = std::move(buffer[i]);
+          *it = std::move(*buffer[i]);
       }
   }
 
@@ -1264,6 +1700,16 @@ namespace Aleph
   void pzip_for_each(ThreadPool & pool, const Container1 & c1, const Container2 & c2,
                      Op op, size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    pzip_for_each(c1, c2, op, options);
+  }
+
+  template <typename Container1, typename Container2, typename Op>
+  void pzip_for_each(const Container1 & c1, const Container2 & c2, Op op,
+                     const ParallelOptions & options = {})
+  {
     const size_t n1 = std::distance(std::begin(c1), std::end(c1));
     const size_t n2 = std::distance(std::begin(c2), std::end(c2));
     const size_t n = std::min(n1, n2);
@@ -1271,8 +1717,22 @@ namespace Aleph
     if (n == 0)
       return;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        auto it1 = std::begin(c1);
+        auto it2 = std::begin(c2);
+        for (size_t i = 0; i < n; ++i, ++it1, ++it2)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            op(*it1, *it2);
+          }
+        return;
+      }
+
+    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                       pool.num_threads());
 
     auto h1 = parallel_detail::ensure_random_access(c1);
     auto h2 = parallel_detail::ensure_random_access(c2);
@@ -1284,16 +1744,21 @@ namespace Aleph
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&d1, &d2, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&d1, &d2, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it1 = std::begin(d1);
                                            auto it2 = std::begin(d2);
                                            std::advance(it1, offset);
                                            std::advance(it2, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++it1, ++it2)
-                                             op(*it1, *it2);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               op(*it1, *it2);
+                                             }
                                          }));
 
         offset = chunk_end;
@@ -1331,6 +1796,16 @@ namespace Aleph
   [[nodiscard]] auto pzip_maps(ThreadPool & pool, const Container1 & c1,
                                const Container2 & c2, Op op, size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pzip_maps(c1, c2, op, options);
+  }
+
+  template <typename Container1, typename Container2, typename Op>
+  [[nodiscard]] auto pzip_maps(const Container1 & c1, const Container2 & c2, Op op,
+                               const ParallelOptions & options = {})
+  {
     using T1 = std::decay_t<decltype(*std::begin(c1))>;
     using T2 = std::decay_t<decltype(*std::begin(c2))>;
     using ResultT = std::invoke_result_t<Op, const T1 &, const T2 &>;
@@ -1342,30 +1817,51 @@ namespace Aleph
     if (n == 0)
       return std::vector<ResultT>{};
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        std::vector<ResultT> result;
+        result.reserve(n);
+        auto it1 = std::begin(c1);
+        auto it2 = std::begin(c2);
+        for (size_t i = 0; i < n; ++i, ++it1, ++it2)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            result.push_back(op(*it1, *it2));
+          }
+        return result;
+      }
+
+    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                       pool.num_threads());
 
     auto h1 = parallel_detail::ensure_random_access(c1);
     auto h2 = parallel_detail::ensure_random_access(c2);
     const auto & d1 = parallel_detail::deref(h1);
     const auto & d2 = parallel_detail::deref(h2);
 
-    std::vector<ResultT> result(n);
+    std::vector<std::optional<ResultT>> slots(n);
     std::vector<std::future<void>> futures;
 
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&result, &d1, &d2, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&slots, &d1, &d2, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it1 = std::begin(d1);
                                            auto it2 = std::begin(d2);
                                            std::advance(it1, offset);
                                            std::advance(it2, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++it1, ++it2)
-                                             result[i] = op(*it1, *it2);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               slots[i] = op(*it1, *it2);
+                                             }
                                          }));
 
         offset = chunk_end;
@@ -1373,6 +1869,11 @@ namespace Aleph
 
     for (auto & f: futures)
       f.get();
+
+    std::vector<ResultT> result;
+    result.reserve(n);
+    for (auto & slot : slots)
+      result.push_back(std::move(*slot));
 
     return result;
   }
@@ -1410,6 +1911,16 @@ namespace Aleph
                              const Container2 & c2, T init, Op op,
                              size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pzip_foldl(c1, c2, init, op, options);
+  }
+
+  template <typename Container1, typename Container2, typename T, typename Op>
+  [[nodiscard]] T pzip_foldl(const Container1 & c1, const Container2 & c2, T init, Op op,
+                             const ParallelOptions & options = {})
+  {
     const size_t n1 = std::distance(std::begin(c1), std::end(c1));
     const size_t n2 = std::distance(std::begin(c2), std::end(c2));
     const size_t n = std::min(n1, n2);
@@ -1417,8 +1928,23 @@ namespace Aleph
     if (n == 0)
       return init;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        auto it1 = std::begin(c1);
+        auto it2 = std::begin(c2);
+        T result = init;
+        for (size_t i = 0; i < n; ++i, ++it1, ++it2)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            result = op(result, *it1, *it2);
+          }
+        return result;
+      }
+
+    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                       pool.num_threads());
 
     auto h1 = parallel_detail::ensure_random_access(c1);
     auto h2 = parallel_detail::ensure_random_access(c2);
@@ -1430,18 +1956,24 @@ namespace Aleph
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&d1, &d2, &init, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&d1, &d2, &init, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it1 = std::begin(d1);
                                            auto it2 = std::begin(d2);
                                            std::advance(it1, offset);
                                            std::advance(it2, offset);
 
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            T local = op(init, *it1++, *it2++);
                                            for (size_t i = offset + 1; i < chunk_end; ++i, ++it1, ++it2)
-                                             local = op(local, *it1, *it2);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               local = op(local, *it1, *it2);
+                                             }
                                            return local;
                                          }));
 
@@ -1490,58 +2022,378 @@ namespace Aleph
   [[nodiscard]] auto ppartition(ThreadPool & pool, const Container & c, Pred pred,
                                 size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return ppartition(c, pred, options);
+  }
+
+  template <typename Container, typename Pred>
+  [[nodiscard]] auto ppartition(const Container & c, Pred pred,
+                                const ParallelOptions & options = {})
+  {
     using T = std::decay_t<decltype(*std::begin(c))>;
+    ThreadPool & pool = parallel_detail::selected_parallel_pool(options);
 
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return std::make_pair(std::vector<T>{}, std::vector<T>{});
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        std::vector<T> yes_result, no_result;
+        for (auto it = std::begin(c); it != std::end(c); ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            if (pred(*it))
+              yes_result.push_back(*it);
+            else
+              no_result.push_back(*it);
+          }
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        return std::make_pair(std::move(yes_result), std::move(no_result));
+      }
+
+    const size_t chunk_size =
+        parallel_detail::effective_parallel_chunk_size(n, pool, options);
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
 
-    using ChunkResult = std::pair<std::vector<T>, std::vector<T>>;
-    std::vector<std::future<ChunkResult>> futures;
+    const size_t num_chunks = parallel_detail::chunk_count(n, chunk_size);
+    std::vector<size_t> yes_counts(num_chunks, 0);
+    std::vector<size_t> no_counts(num_chunks, 0);
+    std::vector<std::future<void>> count_futures;
+    count_futures.reserve(num_chunks);
 
-    size_t offset = 0;
-    while (offset < n)
+    for (size_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx)
       {
-        size_t chunk_end = std::min(offset + chunk_size, n);
+        const auto bounds = parallel_detail::bounds_for_chunk(chunk_idx, n, chunk_size);
 
-        futures.push_back(pool.enqueue([&data, pred, offset, chunk_end]()
-                                         {
-                                           std::vector<T> yes, no;
-                                           auto it = std::begin(data);
-                                           std::advance(it, offset);
-                                           for (size_t i = offset; i < chunk_end; ++i, ++it)
-                                             {
-                                               if (pred(*it))
-                                                 yes.push_back(*it);
-                                               else
-                                                 no.push_back(*it);
-                                             }
-                                           return std::make_pair(std::move(yes), std::move(no));
-                                         }));
-
-        offset = chunk_end;
+        count_futures.push_back(pool.enqueue([&data, &yes_counts, &no_counts, pred,
+                                              chunk_idx,
+                                              offset = bounds.offset,
+                                              chunk_end = bounds.end,
+                                              token = options.cancel_token]()
+          {
+            size_t yes = 0;
+            size_t no = 0;
+            auto it = std::begin(data);
+            std::advance(it, offset);
+            for (size_t i = offset; i < chunk_end; ++i, ++it)
+              {
+                parallel_detail::throw_if_parallel_canceled(token);
+                if (pred(*it))
+                  ++yes;
+                else
+                  ++no;
+              }
+            yes_counts[chunk_idx] = yes;
+            no_counts[chunk_idx] = no;
+          }));
       }
 
-    // Merge results in order
+    for (auto & f: count_futures)
+      f.get();
+
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+
+    std::vector<size_t> yes_offsets(num_chunks, 0);
+    std::vector<size_t> no_offsets(num_chunks, 0);
+    if (num_chunks > 0)
+      {
+        Aleph::pexclusive_scan(yes_counts.begin(), yes_counts.end(), yes_offsets.begin(),
+                               size_t{0}, std::plus<size_t>{}, options);
+        Aleph::pexclusive_scan(no_counts.begin(), no_counts.end(), no_offsets.begin(),
+                               size_t{0}, std::plus<size_t>{}, options);
+      }
+
+    const size_t yes_total = num_chunks == 0 ? 0 : yes_offsets.back() + yes_counts.back();
+    const size_t no_total = num_chunks == 0 ? 0 : no_offsets.back() + no_counts.back();
+
+    std::vector<std::optional<T>> yes_slots(yes_total);
+    std::vector<std::optional<T>> no_slots(no_total);
+    std::vector<std::future<void>> fill_futures;
+    fill_futures.reserve(num_chunks);
+
+    for (size_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx)
+      {
+        const auto bounds = parallel_detail::bounds_for_chunk(chunk_idx, n, chunk_size);
+        const size_t yes_offset = yes_offsets[chunk_idx];
+        const size_t no_offset = no_offsets[chunk_idx];
+
+        fill_futures.push_back(pool.enqueue([&data, &yes_slots, &no_slots, pred,
+                                             offset = bounds.offset,
+                                             chunk_end = bounds.end,
+                                             yes_offset, no_offset,
+                                             token = options.cancel_token]()
+          {
+            auto it = std::begin(data);
+            std::advance(it, offset);
+            size_t yes_pos = yes_offset;
+            size_t no_pos = no_offset;
+            for (size_t i = offset; i < chunk_end; ++i, ++it)
+              {
+                parallel_detail::throw_if_parallel_canceled(token);
+                if (pred(*it))
+                  yes_slots[yes_pos++].emplace(*it);
+                else
+                  no_slots[no_pos++].emplace(*it);
+              }
+          }));
+      }
+
+    for (auto & f: fill_futures)
+      f.get();
+
+    parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+
     std::vector<T> yes_result, no_result;
-    for (auto & f: futures)
-      {
-        auto [yes, no] = f.get();
-        yes_result.insert(yes_result.end(),
-                          std::make_move_iterator(yes.begin()),
-                          std::make_move_iterator(yes.end()));
-        no_result.insert(no_result.end(),
-                         std::make_move_iterator(no.begin()),
-                         std::make_move_iterator(no.end()));
-      }
+    yes_result.reserve(yes_total);
+    no_result.reserve(no_total);
+
+    for (auto & slot: yes_slots)
+      yes_result.push_back(std::move(*slot));
+    for (auto & slot: no_slots)
+      no_result.push_back(std::move(*slot));
 
     return std::make_pair(std::move(yes_result), std::move(no_result));
+  }
+
+  // =============================================================================
+  // Parallel Scan and Merge Wrappers
+  // =============================================================================
+
+  /** @brief Parallel inclusive scan over a container.
+
+      Computes an inclusive prefix scan of @p c using binary operation @p op
+      and returns the result as a `std::vector`.  Element @c result[i] equals
+      @c op(op(...op(c[0], c[1])...), c[i]).
+
+      @param pool       Thread pool to use for parallel execution.
+      @param c          Input container.  Must be non-mutating during the call.
+      @param op         Associative binary operation.
+      @param chunk_size Optional override for the number of elements per chunk;
+                        0 (default) lets the implementation choose.  When set
+                        it overrides @c ParallelOptions::chunk_size.
+      @return `std::vector` of the same value type as @p c, containing the
+              inclusive prefix sums.  Empty if @p c is empty.
+      @throws Any exception propagated from Aleph::pscan, from @p op, or from
+              element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the derived
+              ParallelOptions is canceled before or during execution.
+      @note **Complexity:**  Total work O(n), parallelized across @p pool threads and chunks.
+      @note **Thread Safety:**  Does not modify @p c.  Safe to call concurrently on
+                     different containers.  @p pool must be a properly
+                     synchronized shared ThreadPool if shared.
+  */
+  template <typename Container, typename BinaryOp>
+  [[nodiscard]] auto pscan(ThreadPool & pool, const Container & c, BinaryOp op,
+                           size_t chunk_size = 0)
+  {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pscan(c, op, options);
+  }
+
+  /** @brief Parallel inclusive scan over a container with explicit options.
+
+      Overload that accepts a fully specified @c ParallelOptions instead of a
+      bare @c ThreadPool.
+
+      @param c          Input container.  Must be non-mutating during the call.
+      @param op         Associative binary operation.
+      @param options    Parallel execution options (pool, chunk_size, cancel token…).
+      @return `std::vector` of the same value type as @p c, containing the
+              inclusive prefix sums.  Empty if @p c is empty.
+      @throws Any exception propagated from Aleph::pscan, from @p op, or from
+              element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the @p options
+              is canceled before or during execution.
+      @note **Complexity:**  Total work O(n), parallelized across the threads in the pool
+                  and chunks.
+      @note **Thread Safety:**  Does not modify @p c.  Safe to call concurrently on
+                     different containers.  The pool in @p options must be a
+                     properly synchronized shared ThreadPool if shared.
+  */
+  template <typename Container, typename BinaryOp>
+  [[nodiscard]] auto pscan(const Container & c, BinaryOp op,
+                           const ParallelOptions & options = {})
+  {
+    using T = std::decay_t<decltype(*std::begin(c))>;
+
+    auto holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(holder);
+    const size_t n = static_cast<size_t>(std::distance(std::begin(data), std::end(data)));
+    std::vector<std::optional<T>> slots(n);
+
+    Aleph::pscan(std::begin(data), std::end(data), slots.begin(), op, options);
+
+    std::vector<T> result;
+    result.reserve(n);
+    for (auto & slot: slots)
+      result.push_back(std::move(*slot));
+    return result;
+  }
+
+  /** @brief Parallel exclusive scan over a container.
+
+      Computes an exclusive prefix scan of @p c starting from @p init and
+      returns the result as a `std::vector<T>`.  Element @c result[0] is
+      @p init; element @c result[i] (i > 0) equals
+      @c op(init, op(...op(c[0], c[1])..., c[i-1])).
+
+      @param pool       Thread pool to use for parallel execution.
+      @param c          Input container.  Must be non-mutating during the call.
+      @param init       Initial value (identity for @p op).  Also determines
+                        the accumulator/result type @c T.
+      @param op         Associative binary operation.
+      @param chunk_size Optional override for the number of elements per chunk;
+                        0 (default) lets the implementation choose.  When set
+                        it overrides @c ParallelOptions::chunk_size.
+      @return `std::vector<T>` of exclusive prefix values.  Empty if @p c is
+              empty.
+      @throws Any exception propagated from Aleph::pexclusive_scan, from @p op,
+              or from element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the derived
+              ParallelOptions is canceled before or during execution.
+      @note **Complexity:**  Total work O(n), parallelized across @p pool threads and chunks.
+      @note **Thread Safety:**  Does not modify @p c.  Safe to call concurrently on
+                     different containers.  @p pool must be a properly
+                     synchronized shared ThreadPool if shared.
+  */
+  template <typename Container, typename T, typename BinaryOp>
+  [[nodiscard]] auto pexclusive_scan(ThreadPool & pool, const Container & c, T init,
+                                     BinaryOp op, size_t chunk_size = 0)
+  {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pexclusive_scan(c, init, op, options);
+  }
+
+  /** @brief Parallel exclusive scan over a container with explicit options.
+
+      Overload that accepts a fully specified @c ParallelOptions instead of a
+      bare @c ThreadPool.
+
+      @param c          Input container.  Must be non-mutating during the call.
+      @param init       Initial value (identity for @p op); sets accumulator type.
+      @param op         Associative binary operation.
+      @param options    Parallel execution options (pool, chunk_size, cancel token…).
+      @return `std::vector<T>` of exclusive prefix values.
+      @throws Any exception propagated from Aleph::pexclusive_scan, from @p op,
+              or from element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the @p options
+              is canceled before or during execution.
+      @note **Complexity:**  Total work O(n), parallelized across the threads in the pool
+                  and chunks.
+      @note **Thread Safety:**  Does not modify @p c.  Safe to call concurrently on
+                     different containers.  The pool in @p options must be a
+                     properly synchronized shared ThreadPool if shared.
+  */
+  template <typename Container, typename T, typename BinaryOp>
+  [[nodiscard]] auto pexclusive_scan(const Container & c, T init, BinaryOp op,
+                                     const ParallelOptions & options = {})
+  {
+    auto holder = parallel_detail::ensure_random_access(c);
+    const auto & data = parallel_detail::deref(holder);
+    const size_t n = static_cast<size_t>(std::distance(std::begin(data), std::end(data)));
+    std::vector<std::optional<T>> slots(n);
+
+    Aleph::pexclusive_scan(std::begin(data), std::end(data), slots.begin(),
+                           init, op, options);
+
+    std::vector<T> result;
+    result.reserve(n);
+    for (auto & slot: slots)
+      result.push_back(std::move(*slot));
+    return result;
+  }
+
+  /** @brief Parallel merge of two sorted containers.
+
+      Merges two sorted ranges @p c1 and @p c2 into a single sorted
+      `std::vector` using comparator @p comp.  Both containers must already be
+      sorted in ascending order according to @p comp.
+
+      @param pool       Thread pool to use for parallel execution.
+      @param c1         First sorted input container.
+      @param c2         Second sorted input container.
+      @param comp       Strict-weak-order comparator (default: `std::less<>`).
+      @param chunk_size Optional override for the merge task granularity;
+                        0 (default) lets the implementation choose.  When set
+                        it overrides @c ParallelOptions::chunk_size.
+      @return `std::vector` with element type `std::common_type_t<T1,T2>`
+              containing all elements from @p c1 and @p c2 in sorted order.
+              Size equals `c1.size() + c2.size()`.
+      @throws Any exception propagated from Aleph::pmerge, from @p comp, or
+              from element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the derived
+              ParallelOptions is canceled before or during execution.
+      @note **Complexity:**  Total work O(n), parallelized across @p pool threads and chunks.
+      @note **Thread Safety:**  Does not modify @p c1 or @p c2.  Safe to call concurrently
+                     on different container pairs.  @p pool must be a properly
+                     synchronized shared ThreadPool if shared.
+  */
+  template <typename Container1, typename Container2, typename Compare = std::less<>>
+  [[nodiscard]] auto pmerge(ThreadPool & pool, const Container1 & c1, const Container2 & c2,
+                            Compare comp = Compare{}, size_t chunk_size = 0)
+  {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return pmerge(c1, c2, std::move(comp), options);
+  }
+
+  /** @brief Parallel merge of two sorted containers with explicit options.
+
+      Overload that accepts a fully specified @c ParallelOptions instead of a
+      bare @c ThreadPool.
+
+      @param c1         First sorted input container.
+      @param c2         Second sorted input container.
+      @param comp       Strict-weak-order comparator.
+      @param options    Parallel execution options (pool, chunk_size, cancel token…).
+      @return `std::vector` with all elements merged in sorted order.
+      @throws Any exception propagated from Aleph::pmerge, from @p comp, or
+              from element move/copy construction into the result vector.
+      @throws Aleph::operation_canceled if the token inside the @p options
+              is canceled before or during execution.
+      @note **Complexity:**  Total work O(n), parallelized across the threads in the pool
+                  and chunks.
+      @note **Thread Safety:**  Does not modify @p c1 or @p c2.  Safe to call concurrently
+                     on different container pairs.  The pool in @p options must
+                     be a properly synchronized shared ThreadPool if shared.
+  */
+  template <typename Container1, typename Container2, typename Compare = std::less<>>
+  [[nodiscard]] auto pmerge(const Container1 & c1, const Container2 & c2,
+                            Compare comp = Compare{},
+                            const ParallelOptions & options = {})
+  {
+    using T1 = std::decay_t<decltype(*std::begin(c1))>;
+    using T2 = std::decay_t<decltype(*std::begin(c2))>;
+    using ResultT = std::common_type_t<T1, T2>;
+
+    auto h1 = parallel_detail::ensure_random_access(c1);
+    auto h2 = parallel_detail::ensure_random_access(c2);
+    const auto & d1 = parallel_detail::deref(h1);
+    const auto & d2 = parallel_detail::deref(h2);
+
+    const size_t total = static_cast<size_t>(std::distance(std::begin(d1), std::end(d1))
+                                             + std::distance(std::begin(d2), std::end(d2)));
+    std::vector<std::optional<ResultT>> slots(total);
+
+    Aleph::pmerge(std::begin(d1), std::end(d1),
+                  std::begin(d2), std::end(d2),
+                  slots.begin(), comp, options);
+
+    std::vector<ResultT> result;
+    result.reserve(total);
+    for (auto & slot: slots)
+      result.push_back(std::move(*slot));
+    return result;
   }
 
   // =============================================================================
@@ -1678,6 +2530,14 @@ namespace Aleph
   template <typename Op, typename... Containers>
   void pzip_for_each_n(ThreadPool & pool, Op op, const Containers &... cs)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    pzip_for_each_n(op, options, cs...);
+  }
+
+  template <typename Op, typename... Containers>
+  void pzip_for_each_n(Op op, const ParallelOptions & options, const Containers &... cs)
+  {
     static_assert(sizeof...(Containers) >= 2,
                   "pzip_for_each requires at least 2 containers");
 
@@ -1690,16 +2550,36 @@ namespace Aleph
     if (n == 0)
       return;
 
-    const size_t chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        constexpr size_t N = sizeof...(Containers);
+        auto iters = parallel_zip_detail::make_iterators_at(
+                                                            0, holders, std::make_index_sequence<N>{});
+        for (size_t i = 0; i < n; ++i)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            std::apply(op, parallel_zip_detail::deref_all_iters(
+                                                                iters, std::make_index_sequence<N>{}));
+            parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
+          }
+        return;
+      }
+
+    const size_t chunk_size = parallel_detail::effective_parallel_chunk_size(
+                                                                             n, pool, options, pool.num_threads());
 
     std::vector<std::future<void>> futures;
 
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&holders, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&holders, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            constexpr size_t N = sizeof...(Containers);
                                            auto iters = parallel_zip_detail::make_iterators_at(
@@ -1707,6 +2587,7 @@ namespace Aleph
 
                                            for (size_t i = offset; i < chunk_end; ++i)
                                              {
+                                               parallel_detail::throw_if_parallel_canceled(token);
                                                std::apply(op, parallel_zip_detail::deref_all_iters(
                                                              iters, std::make_index_sequence<N>{}));
                                                parallel_zip_detail::advance_all_iters(
@@ -1755,6 +2636,15 @@ namespace Aleph
   template <typename Op, typename... Containers>
   [[nodiscard]] auto pzip_maps_n(ThreadPool & pool, Op op, const Containers &... cs)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    return pzip_maps_n(op, options, cs...);
+  }
+
+  template <typename Op, typename... Containers>
+  [[nodiscard]] auto pzip_maps_n(Op op, const ParallelOptions & options,
+                                 const Containers &... cs)
+  {
     static_assert(sizeof...(Containers) >= 2,
                   "pzip_maps requires at least 2 containers");
 
@@ -1770,38 +2660,68 @@ namespace Aleph
     if (n == 0)
       return std::vector<ResultT>{};
 
-    size_t chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
-
-    std::vector<ResultT> result(n);
-    std::vector<std::future<void>> futures;
-
-    size_t offset = 0;
-    while (offset < n)
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
       {
-        size_t chunk_end = std::min(offset + chunk_size, n);
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        std::vector<std::optional<ResultT>> slots(n);
+        constexpr size_t N = sizeof...(Containers);
+        auto iters = parallel_zip_detail::make_iterators_at(
+                                                            0, holders, std::make_index_sequence<N>{});
+        for (size_t i = 0; i < n; ++i)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            slots[i] = std::apply(op, parallel_zip_detail::deref_all_iters(
+                                                                            iters, std::make_index_sequence<N>{}));
+            parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
+          }
 
-        futures.push_back(pool.enqueue([&result, &holders, op, offset, chunk_end]()
-                                         {
-                                           constexpr size_t N = sizeof...(Containers);
-                                           auto iters = parallel_zip_detail::make_iterators_at(
-                                              offset, holders, std::make_index_sequence<N>{});
+        std::vector<ResultT> result;
+        result.reserve(n);
+        for (auto & slot: slots)
+          result.push_back(std::move(*slot));
+        return result;
+        }
 
-                                           for (size_t i = offset; i < chunk_end; ++i)
+        size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                           pool.num_threads());
+
+        std::vector<std::optional<ResultT>> slots(n);
+        std::vector<std::future<void>> futures;
+
+        size_t offset = 0;
+        while (offset < n)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            size_t chunk_end = std::min(offset + chunk_size, n);
+
+            futures.push_back(pool.enqueue([&slots, &holders, op, offset, chunk_end,
+                                             token = options.cancel_token]()
                                              {
-                                               result[i] = std::apply(op, parallel_zip_detail::deref_all_iters(
-                                                                         iters, std::make_index_sequence<N>{}));
-                                               parallel_zip_detail::advance_all_iters(
-                                                  iters, std::make_index_sequence<N>{});
-                                             }
-                                         }));
+                                               constexpr size_t N = sizeof...(Containers);
+                                               auto iters = parallel_zip_detail::make_iterators_at(
+                                                  offset, holders, std::make_index_sequence<N>{});
 
-        offset = chunk_end;
-      }
+                                               for (size_t i = offset; i < chunk_end; ++i)
+                                                 {
+                                                   parallel_detail::throw_if_parallel_canceled(token);
+                                                   slots[i] = std::apply(op, parallel_zip_detail::deref_all_iters(
+                                                      iters, std::make_index_sequence<N>{}));
+                                                   parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
+                                                 }
+                                             }));
+            offset = chunk_end;
+          }
 
-    for (auto & f: futures)
-      f.get();
+        for (auto & f: futures)
+          f.get();
 
-    return result;
+        std::vector<ResultT> result;
+        result.reserve(n);
+        for (auto & slot: slots)
+          result.push_back(std::move(*slot));
+        return result;
+
   }
 
   /** @brief Parallel fold/reduce over N zipped containers (variadic).
@@ -1846,6 +2766,15 @@ namespace Aleph
   [[nodiscard]] T pzip_foldl_n(ThreadPool & pool, T init, Op op, Combiner combiner,
                                const Containers &... cs)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    return pzip_foldl_n(init, op, combiner, options, cs...);
+  }
+
+  template <typename T, typename Op, typename Combiner, typename... Containers>
+  [[nodiscard]] T pzip_foldl_n(T init, Op op, Combiner combiner,
+                               const ParallelOptions & options, const Containers &... cs)
+  {
     static_assert(sizeof...(Containers) >= 2,
                   "pzip_foldl requires at least 2 containers");
 
@@ -1857,22 +2786,47 @@ namespace Aleph
     if (n == 0)
       return init;
 
-    size_t chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        constexpr size_t N = sizeof...(Containers);
+        auto iters = parallel_zip_detail::make_iterators_at(
+                                                            0, holders, std::make_index_sequence<N>{});
+        T result = init;
+        for (size_t i = 0; i < n; ++i)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            auto tuple = parallel_zip_detail::deref_all_iters(iters, std::make_index_sequence<N>{});
+            result = std::apply([&op, &result](auto &&... args)
+                                  {
+                                    return op(result, std::forward<decltype(args)>(args)...);
+                                  }, tuple);
+            parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
+          }
+        return result;
+      }
+
+    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                       pool.num_threads());
 
     std::vector<std::future<T>> futures;
 
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&holders, init, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&holders, init, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            constexpr size_t N = sizeof...(Containers);
                                            auto iters = parallel_zip_detail::make_iterators_at(
                                               offset, holders, std::make_index_sequence<N>{});
 
                                            // First element
+                                           parallel_detail::throw_if_parallel_canceled(token);
                                            auto first_tuple = parallel_zip_detail::deref_all_iters(
                                               iters, std::make_index_sequence<N>{});
                                            T local = std::apply([&op, &init](auto &&... args)
@@ -1886,6 +2840,7 @@ namespace Aleph
                                            // Remaining elements
                                            for (size_t i = offset + 1; i < chunk_end; ++i)
                                              {
+                                               parallel_detail::throw_if_parallel_canceled(token);
                                                auto tuple = parallel_zip_detail::deref_all_iters(
                                                   iters, std::make_index_sequence<N>{});
                                                local = std::apply([&op, &local](auto &&... args)
@@ -1943,6 +2898,15 @@ namespace Aleph
   template <typename Pred, typename... Containers>
   [[nodiscard]] bool pzip_all_n(ThreadPool & pool, Pred pred, const Containers &... cs)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    return pzip_all_n(pred, options, cs...);
+  }
+
+  template <typename Pred, typename... Containers>
+  [[nodiscard]] bool pzip_all_n(Pred pred, const ParallelOptions & options,
+                                const Containers &... cs)
+  {
     static_assert(sizeof...(Containers) >= 2,
                   "pzip_all requires at least 2 containers");
 
@@ -1955,7 +2919,26 @@ namespace Aleph
     if (n == 0)
       return true; // Vacuous truth
 
-    const size_t chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        constexpr size_t N = sizeof...(Containers);
+        auto iters = parallel_zip_detail::make_iterators_at(
+                                                            0, holders, std::make_index_sequence<N>{});
+        for (size_t i = 0; i < n; ++i)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            auto tuple = parallel_zip_detail::deref_all_iters(iters, std::make_index_sequence<N>{});
+            if (! std::apply(pred, tuple))
+              return false;
+            parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
+          }
+        return true;
+      }
+
+    const size_t chunk_size = parallel_detail::effective_parallel_chunk_size(
+                                                                             n, pool, options, pool.num_threads());
 
     std::atomic<bool> found_false{false};
     std::vector<std::future<void>> futures;
@@ -1963,9 +2946,11 @@ namespace Aleph
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&holders, pred, &found_false, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&holders, pred, &found_false, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            if (found_false.load(std::memory_order_relaxed))
                                              return;
@@ -1976,6 +2961,7 @@ namespace Aleph
 
                                            for (size_t i = offset; i < chunk_end; ++i)
                                              {
+                                               parallel_detail::throw_if_parallel_canceled(token);
                                                auto tuple = parallel_zip_detail::deref_all_iters(
                                                   iters, std::make_index_sequence<N>{});
                                                if (! std::apply(pred, tuple))
@@ -2030,6 +3016,15 @@ namespace Aleph
   template <typename Pred, typename... Containers>
   [[nodiscard]] bool pzip_exists_n(ThreadPool & pool, Pred pred, const Containers &... cs)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    return pzip_exists_n(pred, options, cs...);
+  }
+
+  template <typename Pred, typename... Containers>
+  [[nodiscard]] bool pzip_exists_n(Pred pred, const ParallelOptions & options,
+                                   const Containers &... cs)
+  {
     static_assert(sizeof...(Containers) >= 2,
                   "pzip_exists requires at least 2 containers");
 
@@ -2041,7 +3036,26 @@ namespace Aleph
     if (n == 0)
       return false;
 
-    const size_t chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        constexpr size_t N = sizeof...(Containers);
+        auto iters = parallel_zip_detail::make_iterators_at(
+                                                            0, holders, std::make_index_sequence<N>{});
+        for (size_t i = 0; i < n; ++i)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            auto tuple = parallel_zip_detail::deref_all_iters(iters, std::make_index_sequence<N>{});
+            if (std::apply(pred, tuple))
+              return true;
+            parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
+          }
+        return false;
+      }
+
+    const size_t chunk_size = parallel_detail::effective_parallel_chunk_size(
+                                                                             n, pool, options, pool.num_threads());
 
     std::atomic<bool> found{false};
     std::vector<std::future<void>> futures;
@@ -2049,9 +3063,11 @@ namespace Aleph
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&holders, pred, &found, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&holders, pred, &found, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            if (found.load(std::memory_order_relaxed))
                                              return;
@@ -2062,6 +3078,7 @@ namespace Aleph
 
                                            for (size_t i = offset; i < chunk_end; ++i)
                                              {
+                                               parallel_detail::throw_if_parallel_canceled(token);
                                                auto tuple = parallel_zip_detail::deref_all_iters(
                                                   iters, std::make_index_sequence<N>{});
                                                if (std::apply(pred, tuple))
@@ -2104,6 +3121,15 @@ namespace Aleph
   [[nodiscard]] size_t pzip_count_if_n(ThreadPool & pool, Pred pred,
                                        const Containers &... cs)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    return pzip_count_if_n(pred, options, cs...);
+  }
+
+  template <typename Pred, typename... Containers>
+  [[nodiscard]] size_t pzip_count_if_n(Pred pred, const ParallelOptions & options,
+                                       const Containers &... cs)
+  {
     static_assert(sizeof...(Containers) >= 2,
                   "pzip_count_if requires at least 2 containers");
 
@@ -2115,16 +3141,38 @@ namespace Aleph
     if (n == 0)
       return 0;
 
-    size_t chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        constexpr size_t N = sizeof...(Containers);
+        auto iters = parallel_zip_detail::make_iterators_at(
+                                                            0, holders, std::make_index_sequence<N>{});
+        size_t count = 0;
+        for (size_t i = 0; i < n; ++i)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            auto tuple = parallel_zip_detail::deref_all_iters(iters, std::make_index_sequence<N>{});
+            if (std::apply(pred, tuple))
+              ++count;
+            parallel_zip_detail::advance_all_iters(iters, std::make_index_sequence<N>{});
+          }
+        return count;
+      }
+
+    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                       pool.num_threads());
 
     std::vector<std::future<size_t>> futures;
 
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&holders, pred, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&holders, pred, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            constexpr size_t N = sizeof...(Containers);
                                            auto iters = parallel_zip_detail::make_iterators_at(
@@ -2133,6 +3181,7 @@ namespace Aleph
                                            size_t count = 0;
                                            for (size_t i = offset; i < chunk_end; ++i)
                                              {
+                                               parallel_detail::throw_if_parallel_canceled(token);
                                                auto tuple = parallel_zip_detail::deref_all_iters(
                                                   iters, std::make_index_sequence<N>{});
                                                if (std::apply(pred, tuple))
@@ -2186,26 +3235,54 @@ namespace Aleph
   void penumerate_for_each(ThreadPool & pool, Container & c, Op op,
                            size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    penumerate_for_each(c, op, options);
+  }
+
+  template <typename Container, typename Op>
+  void penumerate_for_each(Container & c, Op op,
+                           const ParallelOptions & options = {})
+  {
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        auto it = std::begin(c);
+        for (size_t i = 0; i < n; ++i, ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            op(i, *it);
+          }
+        return;
+      }
+
+    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                       pool.num_threads());
 
     std::vector<std::future<void>> futures;
 
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&c, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&c, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it = std::begin(c);
                                            std::advance(it, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++it)
-                                             op(i, *it);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               op(i, *it);
+                                             }
                                          }));
 
         offset = chunk_end;
@@ -2231,12 +3308,35 @@ namespace Aleph
   void penumerate_for_each(ThreadPool & pool, const Container & c, Op op,
                            size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    penumerate_for_each(c, op, options);
+  }
+
+  template <typename Container, typename Op>
+  void penumerate_for_each(const Container & c, Op op,
+                           const ParallelOptions & options = {})
+  {
     const size_t n = std::distance(std::begin(c), std::end(c));
     if (n == 0)
       return;
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        auto it = std::begin(c);
+        for (size_t i = 0; i < n; ++i, ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            op(i, *it);
+          }
+        return;
+      }
+
+    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                       pool.num_threads());
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
@@ -2246,14 +3346,19 @@ namespace Aleph
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&data, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&data, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it = std::begin(data);
                                            std::advance(it, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++it)
-                                             op(i, *it);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               op(i, *it);
+                                             }
                                          }));
 
         offset = chunk_end;
@@ -2295,6 +3400,16 @@ namespace Aleph
   [[nodiscard]] auto penumerate_maps(ThreadPool & pool, const Container & c, Op op,
                                      size_t chunk_size = 0)
   {
+    ParallelOptions options;
+    options.pool = &pool;
+    options.chunk_size = chunk_size;
+    return penumerate_maps(c, op, options);
+  }
+
+  template <typename Container, typename Op>
+  [[nodiscard]] auto penumerate_maps(const Container & c, Op op,
+                                     const ParallelOptions & options = {})
+  {
     using T = std::decay_t<decltype(*std::begin(c))>;
     using ResultT = std::invoke_result_t<Op, size_t, const T &>;
 
@@ -2302,35 +3417,59 @@ namespace Aleph
     if (n == 0)
       return std::vector<ResultT>{};
 
-    if (chunk_size == 0)
-      chunk_size = parallel_detail::chunk_size(n, pool.num_threads());
+    auto & pool = parallel_detail::selected_parallel_pool(options);
+    if (parallel_detail::use_sequential_parallel_path(n, pool, options))
+      {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+        std::vector<ResultT> result;
+        result.reserve(n);
+        auto it = std::begin(c);
+        for (size_t i = 0; i < n; ++i, ++it)
+          {
+            parallel_detail::throw_if_parallel_canceled(options.cancel_token);
+            result.push_back(op(i, *it));
+          }
+        return result;
+      }
+
+    size_t chunk_size = parallel_detail::effective_parallel_chunk_size(n, pool, options,
+                                                                       pool.num_threads());
 
     auto data_holder = parallel_detail::ensure_random_access(c);
     const auto & data = parallel_detail::deref(data_holder);
 
-    std::vector<ResultT> result(n);
+    std::vector<std::optional<ResultT>> slots(n);
     std::vector<std::future<void>> futures;
 
     size_t offset = 0;
     while (offset < n)
       {
+        parallel_detail::throw_if_parallel_canceled(options.cancel_token);
         size_t chunk_end = std::min(offset + chunk_size, n);
 
-        futures.push_back(pool.enqueue([&result, &data, op, offset, chunk_end]()
+        futures.push_back(pool.enqueue([&slots, &data, op, offset, chunk_end,
+                                         token = options.cancel_token]()
                                          {
                                            auto it = std::begin(data);
                                            std::advance(it, offset);
                                            for (size_t i = offset; i < chunk_end; ++i, ++it)
-                                             result[i] = op(i, *it);
+                                             {
+                                               parallel_detail::throw_if_parallel_canceled(token);
+                                               slots[i] = op(i, *it);
+                                             }
                                          }));
-
         offset = chunk_end;
       }
 
     for (auto & f: futures)
       f.get();
 
+    std::vector<ResultT> result;
+    result.reserve(n);
+    for (auto & slot: slots)
+      result.push_back(std::move(*slot));
     return result;
+
   }
 
   // =============================================================================

@@ -213,6 +213,9 @@
  * @ingroup Examples
  */
 
+# include <cstdlib>
+# include <cassert>
+
 # include <iostream>
 # include <fstream>
 # include <tclap/CmdLine.h>
@@ -223,6 +226,7 @@
 # include <tpl_binTree.H>
 
 using namespace Aleph;
+
 using namespace std;
 
 typedef BinNodeXt<int> Node;

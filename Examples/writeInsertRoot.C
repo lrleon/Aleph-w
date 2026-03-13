@@ -209,7 +209,11 @@
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
 
+# include <cstdlib>
+# include <cassert>
 using namespace std;
+# include <cstdlib>
+# include <cassert>
 using namespace Aleph;
 
 ofstream output;
