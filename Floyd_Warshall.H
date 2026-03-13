@@ -193,17 +193,18 @@ namespace Aleph
     }
 
     /**
-        Get an owning copy of the graph nodes array.
+        Get a value copy of the graph nodes array container.
 
         This is a compatibility alias for get_nodes_copy() and returns a copy of
         the sorted array of node pointers. Prefer get_nodes_copy() when you want
         an explicit snapshot name in new code.
 
         @note This method returns a shallow copy of the container; the Node*
-        elements are borrowed from the graph and caller does not gain ownership.
-        Pointer validity depends on the graph nodes remaining alive.
+        elements are borrowed from the graph and the caller does not gain
+        ownership of the underlying nodes. Pointer validity depends on the graph
+        nodes remaining alive.
 
-        @return Owning copy of the node pointer array container.
+        @return Value copy of the node pointer array (shallow container copy).
         @see get_nodes_copy()
      */
     [[nodiscard]] DynArray<Node *> get_nodes() const { return get_nodes_copy(); }
@@ -224,19 +225,20 @@ namespace Aleph
     [[nodiscard]] const DynArray<Node *> & get_nodes_ref() const noexcept { return nodes; }
 
     /**
-        Get an owning copy of the graph nodes array.
+        Get a value copy of the graph nodes array container.
 
         Returns a copy of the sorted array of node pointers. This is safer for
         long-term storage or if the Floyd_All_Shortest_Paths instance is destroyed,
         but incurs an O(n) copy cost.
 
-        @warning This method returns a copy of the node array. Modifying
-        the returned array does not affect the internal state of the
+        @warning This method returns a shallow copy of the node pointer array.
+        Modifying the returned container does not affect the internal state of the
         Floyd_All_Shortest_Paths instance.
 
-        @warning The pointers are valid as long as the received graph is alive.
+        @warning The Node* elements are borrowed from the graph and remain valid
+        only as long as the underlying graph nodes are alive.
 
-        @return Owning copy of the node pointer array.
+        @return Value copy of the node pointer array (shallow container copy).
      */
     [[nodiscard]] DynArray<Node *> get_nodes_copy() const { return nodes; }
 
