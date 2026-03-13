@@ -40,14 +40,10 @@ using namespace std;
 
 ofstream output("splay-tree-aux.Tree", ios::out);
 
-
-
 void print_key(Splay_Tree<int>::Node * p, int, int)
 {
   output << p->get_key() << " ";
 }
-
-
 
 int main(int argc, char *argv[])
 {
@@ -77,15 +73,15 @@ int main(int argc, char *argv[])
   Splay_Tree<int>::Node *node;
   int i, value;
 
-  cout << "Inserting " << n << " random values in treee ...\n";
+  cout << "Inserting " << n << " random values in tree ...\n";
 
   for (i = 0; i < n; i++)
     {
       while (true)
 	{
-	  value = 1+(int) (n*1.0*rand()/(RAND_MAX+1.0));
+	  value = 1+ static_cast<int> (n * 1.0 * rand () / (RAND_MAX + 1.0));
 	  node = tree.search(value);
-	  if (node == NULL)
+	  if (node == nullptr)
 	    break;
 	}
       node = new Splay_Tree<int>::Node (value);

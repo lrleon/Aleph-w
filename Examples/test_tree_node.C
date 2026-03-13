@@ -48,7 +48,7 @@ bool is_string_an_int(const string& str)
   string::size_type len = str.size();
 
   for (string::size_type i = 0; i < len; i++)
-    if (not isdigit(str[i]))
+    if (not std::isdigit(static_cast<unsigned char>(str[i])))
       return false;
 
   return true;

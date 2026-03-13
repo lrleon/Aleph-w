@@ -226,7 +226,9 @@ namespace Aleph
         throw std::invalid_argument("BoundedChannel capacity must be greater than zero");
     }
 
+    /// @brief Deleted copy constructor.
     BoundedChannel(const BoundedChannel &) = delete;
+    /// @brief Deleted copy assignment operator.
     BoundedChannel & operator = (const BoundedChannel &) = delete;
 
     /** @brief Return the maximum number of queued items.
@@ -783,9 +785,13 @@ namespace Aleph
      */
     Synchronized() requires std::default_initializable<T> = default;
 
+    /// @brief Deleted copy constructor.
     Synchronized(const Synchronized &) = delete;
+    /// @brief Deleted copy assignment operator.
     Synchronized & operator = (const Synchronized &) = delete;
+    /// @brief Deleted move constructor.
     Synchronized(Synchronized &&) = delete;
+    /// @brief Deleted move assignment operator.
     Synchronized & operator = (Synchronized &&) = delete;
 
     /** @brief Construct from a copy of @p value.
@@ -977,9 +983,13 @@ namespace Aleph
      */
     RwSynchronized() requires std::default_initializable<T> = default;
 
+    /// @brief Deleted copy constructor.
     RwSynchronized(const RwSynchronized &) = delete;
+    /// @brief Deleted copy assignment operator.
     RwSynchronized & operator = (const RwSynchronized &) = delete;
+    /// @brief Deleted move constructor.
     RwSynchronized(RwSynchronized &&) = delete;
+    /// @brief Deleted move assignment operator.
     RwSynchronized & operator = (RwSynchronized &&) = delete;
 
     /** @brief Construct from a copy of @p value.
@@ -1128,7 +1138,9 @@ namespace Aleph
         throw std::invalid_argument("SpscQueue capacity must be greater than zero");
     }
 
+    /// @brief Deleted copy constructor.
     SpscQueue(const SpscQueue &) = delete;
+    /// @brief Deleted copy assignment operator.
     SpscQueue & operator = (const SpscQueue &) = delete;
 
     /** @brief Return the queue's capacity.

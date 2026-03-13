@@ -131,19 +131,31 @@
 
 namespace Aleph
 {
-  class ThreadPool;
-
-  ThreadPool &default_pool();
-
-  /** @brief Exception thrown when a cooperative cancellation request stops work. */
+  /** @brief Exception thrown when cooperative cancellation is observed.
+   *
+   *  This exception is used by `CancellationToken` and higher-level helpers
+   *  such as channels or parallel algorithms when an operation stops because a
+   *  cancellation request was signaled.
+   */
   class operation_canceled : public std::runtime_error
   {
   public:
-    explicit operation_canceled(const std::string & what_arg =
-        "parallel operation canceled")
-      : std::runtime_error(what_arg) {}
+    operation_canceled()
+      : std::runtime_error("operation canceled") {}
+
+    explicit operation_canceled(const std::string & message)
+      : std::runtime_error(message) {}
   };
 
+  /// @brief Forward declaration of ThreadPool.
+  class ThreadPool;
+
+  /** @brief Return the default shared thread pool instance.
+   *  @return A reference to the global thread pool.
+   */
+  ThreadPool &default_pool();
+
+  /** @brief Shared state for cooperative cancellation. */
   struct CancellationState
   {
     std::atomic<bool> stop_requested{false};
@@ -194,6 +206,7 @@ namespace Aleph
     friend class CancellationSource;
 
   public:
+    /** @brief RAII guard for condition variable cancellation registration. */
     class ConditionVariableRegistration
     {
       std::shared_ptr<CancellationState> state_;
@@ -207,13 +220,20 @@ namespace Aleph
       }
 
     public:
+      /// @brief Default constructor.
       ConditionVariableRegistration() = default;
 
+      /** @brief Construct with shared state and condition variable.
+       *  @param state Shared cancellation state.
+       *  @param cv Condition variable to register.
+       */
       ConditionVariableRegistration(std::shared_ptr<CancellationState> state,
                                     std::condition_variable * cv) noexcept
         : state_(std::move(state)), cv_(cv) {}
 
+      /// @brief Deleted copy constructor.
       ConditionVariableRegistration(const ConditionVariableRegistration &) = delete;
+      /// @brief Deleted copy assignment operator.
       ConditionVariableRegistration & operator =
           (const ConditionVariableRegistration &) = delete;
 
@@ -241,6 +261,7 @@ namespace Aleph
       }
     };
 
+    /// @brief Default constructor.
     CancellationToken() = default;
 
     /** @brief Return true if cancellation has been requested. */
@@ -293,6 +314,7 @@ namespace Aleph
         std::make_shared<CancellationState>();
 
   public:
+    /// @brief Default constructor.
     CancellationSource() = default;
 
     /** @brief Return a token observing this source. */
@@ -418,6 +440,7 @@ namespace Aleph
     /// Type-erased task wrapper
     struct TaskBase
     {
+      /// @brief Virtual destructor.
       virtual ~TaskBase() = default;
 
       virtual void execute() = 0;
@@ -549,14 +572,16 @@ namespace Aleph
       start_workers(n_threads);
     }
 
-    /// Non-copyable
+    /// @brief Deleted copy constructor.
     ThreadPool(const ThreadPool &) = delete;
 
+    /// @brief Deleted copy assignment operator.
     ThreadPool &operator=(const ThreadPool &) = delete;
 
-    /// Non-movable (due to mutex and condition_variable)
+    /// @brief Deleted move constructor.
     ThreadPool(ThreadPool &&) = delete;
 
+    /// @brief Deleted move assignment operator.
     ThreadPool &operator=(ThreadPool &&) = delete;
 
     /** @brief Destructor - stops all workers and waits for completion.
@@ -2345,12 +2370,16 @@ namespace Aleph
     explicit TaskGroup(ThreadPool & pool = default_pool()) noexcept
       : pool_(&pool) {}
 
+    /// @brief Deleted copy constructor.
     TaskGroup(const TaskGroup &) = delete;
 
+    /// @brief Deleted copy assignment operator.
     TaskGroup &operator=(const TaskGroup &) = delete;
 
+    /// @brief Deleted move constructor.
     TaskGroup(TaskGroup &&) = delete;
 
+    /// @brief Deleted move assignment operator.
     TaskGroup &operator=(TaskGroup &&) = delete;
 
     ~TaskGroup() { drain(false); }

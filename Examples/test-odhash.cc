@@ -33,7 +33,7 @@ using namespace std;
 
 struct Foo
 {
-  string a = "hello word";
+  string a = "hello world";
   Foo() {}
   Foo(const string & str) : a(str) {}
 };

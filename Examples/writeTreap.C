@@ -24,8 +24,12 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+# include <cstdlib>
+# include <cassert>
 # include <charconv>
 # include <ctime>
+# include <gsl/gsl_rng.h>
 # include <fstream>
 # include <iostream>
 # include <string_view>
@@ -36,12 +40,7 @@
 # include <tpl_binNodeUtils.H>
 
 
-
-# include <cstdlib>
-# include <cassert>
 using namespace std;
-# include <cstdlib>
-# include <cassert>
 using namespace Aleph;
 
 long randomLong()

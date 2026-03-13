@@ -95,6 +95,7 @@
 # ifndef FLOYD_WARSHALL_H
 # define FLOYD_WARSHALL_H
 
+# include <type_traits>
 # include <sstream>
 # include <iostream>
 # include <limits>
@@ -195,16 +196,19 @@ namespace Aleph
     /**
         Get an owning copy of the graph nodes array.
 
-        This is a compatibility alias for get_nodes_copy() and returns a copy of
-        the sorted array of node pointers. Prefer get_nodes_copy() when you want
-        an explicit snapshot name in new code.
+        Returns a copy of the sorted array of node pointers. This method is
+        equivalent to get_nodes_copy() and provides a safe snapshot for
+        long-term storage or when the Floyd_All_Shortest_Paths instance may be
+        destroyed.
 
-        @note This method returns a shallow copy of the container; the Node*
-        elements are borrowed from the graph and caller does not gain ownership.
-        Pointer validity depends on the graph nodes remaining alive.
+        @note This method returns a copy of the DynArray container; the Node*
+        elements are borrowed from the graph and caller does not gain ownership
+        of the nodes themselves. Pointer validity depends on the graph nodes
+        remaining alive.
 
         @return Owning copy of the node pointer array container.
-        @see get_nodes_copy()
+        @see get_nodes_copy() for the same functionality with an explicit name
+        @see get_nodes_ref() for a constant reference (no copy)
      */
     [[nodiscard]] DynArray<Node *> get_nodes() const { return get_nodes_copy(); }
 

@@ -76,7 +76,7 @@ int main(int argc,char *argv[])
   if (argc > 2)
     seed = atol(argv[2]);
   else
-    seed = std::time(NULL);
+    seed = std::time(nullptr);
 
   srand (seed);
 

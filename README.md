@@ -9,7 +9,7 @@ Language: English | [Español](README.es.md)
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / /
    / ___ \| |  __/ |_) | | | |_____\ V  V /
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/
-                 |_|
+               |_|
 ```
 
 **A Comprehensive C++20 Library for Data Structures and Algorithms**
