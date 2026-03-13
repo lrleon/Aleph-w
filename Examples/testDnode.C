@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <string>
 # include <tpl_dnode.H>
 
 typedef Dnode<int> Test;
@@ -54,18 +55,33 @@ void create_random_list(Test * link, int n)
     }
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int n = argc[1] ? atoi(argc[1]) : 1000;
-
+  int n = 1000;
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  try 
+    {
+      if (argc > 1)
+	n = std::stoi(argv[1]);
+
+      if (argc > 2)
+	t = std::stoi(argv[2]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (n <= 0)
+    {
+      cout << "n must be positive" << endl;
+      return 1;
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   Test* testPtr;
   Test* headPtr;
@@ -76,7 +92,7 @@ int main(int argn, char *argc[])
 
   unsigned long i;
 
-  for (i = 0; i < n; i++)
+  for (i = 0; i < (unsigned long) n; i++)
     {
       testPtr = new Test;
 
@@ -87,7 +103,7 @@ int main(int argn, char *argc[])
 
   cout << endl;
 
-  for (i = 0, testPtr = headPtr->get_next(); i < n; 
+  for (i = 0, testPtr = headPtr->get_next(); i < (unsigned long) n; 
        i++, testPtr = testPtr->get_next())
     cout << testPtr->get_data() << " ";
 
@@ -109,7 +125,7 @@ int main(int argn, char *argc[])
 
   cout << endl;
 
-  for (i = 0; i < n; i++)
+  for (i = 0; i < (unsigned long) n; i++)
     {
       testPtr = new Test;
 
@@ -131,7 +147,7 @@ int main(int argn, char *argc[])
 
   cout << endl;
 
-  for (i = 0; i < n; i++)
+  for (i = 0; i < (unsigned long) n; i++)
     {
       testPtr = new Test;
 
@@ -143,7 +159,7 @@ int main(int argn, char *argc[])
   for (Dnode<unsigned>::Iterator itor(headPtr); itor.has_curr(); )
     delete itor.del();
 
-  assert(headPtr == headPtr->get_prev() && headPtr == headPtr->get_next());
+  assert(headPtr == headPtr->get_prev() and headPtr == headPtr->get_next());
 
   cout << endl << endl;
 

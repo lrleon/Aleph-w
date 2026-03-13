@@ -28,6 +28,7 @@
 # include <tpl_dynLhash.H>
 # include <tpl_dynArray.H>
 # include <iostream>
+# include <string>
 # include <time.h>
 # include <stdlib.h>
 
@@ -45,7 +46,7 @@ static size_t hashFct(const unsigned & key)
 static void testResize(HTable& table)
 {
   if (table.get_num_busy_slots() > (99*table.capacity())/100 
-      && table.size()/table.capacity() > 3)
+      and table.size()/table.capacity() > 3)
     {
       unsigned long currSize = table.capacity();
       cout << "Resizing hash table from " << currSize << " ... ";
@@ -60,15 +61,35 @@ static void printPars(const HTable& table)
        << "Num items    = " << table.size() << endl;
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   Primes::check_primes_database();
 
-  unsigned long n = argn > 1 ? atoi(argc[1]) : NumItems;
-  unsigned int  t = argn > 2 ? atoi(argc[2]) : time(NULL);
+  int n = NumItems;
+  unsigned int t = time(NULL);
+
+  try 
+    {
+      if (argc > 1)
+	n = std::stoi(argv[1]);
+
+      if (argc > 2)
+	t = std::stoi(argv[2]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (n <= 0)
+    {
+      cout << "n must be positive" << endl;
+      return 1;
+    }
+
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   HTable table(1.15*n, hashFct);
   DynArray<unsigned int> keys(n);

@@ -29,6 +29,7 @@
 
 # include <cassert>
 # include <iostream>
+# include <string>
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <tpl_sort_utils.H>
@@ -246,14 +247,29 @@ void test_hash_table(size_t n)
   }
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 { 
-  int n = argc[1] ? atoi(argc[1]) : DEFAULT_N;
-
+  int n = DEFAULT_N;
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  try 
+    {
+      if (argc > 1)
+	n = std::stoi(argv[1]);
+
+      if (argc > 2)
+	t = std::stoi(argv[2]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (n <= 0)
+    {
+      cout << "n must be positive" << endl;
+      return 1;
+    }
 
   cout << "testOhash " << n << " " << t << endl;
 

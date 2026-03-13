@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <string>
 # include <time.h>
 # include <stdlib.h>
 # include <aleph.H>
@@ -60,20 +61,36 @@ void print_stats( LinearHashTableVtl<unsigned long> & table)
        << "alpha      = " << 1.0*table.size()/table.capacity() << endl;
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 { 
   const unsigned long numNodes = 10000;
 
-  unsigned long  i, n = argc[1] ? atol(argc[1]) : numNodes;
+  unsigned long  i, n = numNodes;
 
   unsigned long  value;
 
-  DynArray<unsigned int> keys(n);
-
   unsigned int t = time(NULL);
 
-  if (argn > 2)
-    t = atol(argc[2]);
+  try 
+    {
+      if (argc > 1)
+	n = std::stoul(argv[1]);
+
+      if (argc > 2)
+	t = std::stoul(argv[2]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (n <= 0)
+    {
+      cout << "n must be positive" << endl;
+      return 1;
+    }
+
+  DynArray<unsigned int> keys(n);
 
   cout << "testDynamicHash " << n << " " << t << endl;
 

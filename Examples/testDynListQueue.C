@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <string>
 # include <aleph.H>
 # include <tpl_dynListQueue.H>
 
@@ -35,22 +36,48 @@ using namespace Aleph;
 
 # define NumItems 1000
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int i, n = argc[1] ? atoi(argc[1]) : NumItems;
+  int n = NumItems;
+  if (argc > 1)
+    {
+      try
+        {
+          n = stoi(argv[1]);
+        }
+      catch (...)
+        {
+          n = NumItems;
+        }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "Error: n must be a positive integer." << endl;
+      return 1;
+    }
 
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try
+        {
+          t = stoi(argv[2]);
+        }
+      catch (...)
+        {
+          t = time(0);
+        }
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   DynListQueue<int> q;
   
-  for (i = 0; i < n; i++)
+  for (int i = 0; i < n; i++)
     {
       q.put(i);
       cout << q.rear() << " ";

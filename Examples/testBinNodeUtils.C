@@ -27,6 +27,7 @@
 # include <stdlib.h>
 # include <time.h>
 # include <iostream>
+# include <string>
 # include <tpl_dynArray.H>
 # include <tpl_binTree.H>
 # include <tpl_binNodeUtils.H>
@@ -94,17 +95,30 @@ struct Cargar_Clave
 };
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 1000;
   unsigned int t = time(0);
   int value;
 
-  if (argn > 1)
-    n = atoi(argc[1]);
+  try 
+    {
+      if (argc > 1)
+	n = std::stoi(argv[1]);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+      if (argc > 2)
+	t = std::stoi(argv[2]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (n <= 0)
+    {
+      cout << "n must be positive" << endl;
+      return 1;
+    }
 
   srand(t);
 

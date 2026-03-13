@@ -26,6 +26,7 @@
 */
 # include <iostream>
 # include <time.h>
+# include <string>
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <tpl_treapRk.H>
@@ -70,17 +71,25 @@ void printPrio(Treap_Rk<int>::Node *node, int, int)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 10;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); } catch (...) { n = 10; }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "n must be positive" << endl;
+      return 1;
+    }
+
   unsigned int t = time(0);
-  int value;
-
-  if (argn > 1)
-    n = atoi(argc[1]);
-
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { t = stoul(argv[2]); } catch (...) { t = time(0); }
+    }
 
   srand(t);
 
@@ -89,7 +98,7 @@ int main(int argn, char *argc[])
   DynArray<int> keys;
   Treap_Rk<int> tree;
   Treap_Rk<int>::Node *node;
-  int i;
+  int i, value;
 
   cout << "Inserting " << n << " random values in treee ...\n";
 

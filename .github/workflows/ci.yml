@@ -797,6 +797,13 @@ jobs:
           name: examples-build-log-${{ matrix.compiler }}
           path: build-examples-${{ matrix.compiler }}/examples_build.log
 
+      - name: Upload TSAN examples build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: examples-build-log-${{ matrix.compiler }}-tsan
+          path: build-examples-${{ matrix.compiler }}-tsan/examples_build.log
+
   ci-success-push:
     name: CI Success
     runs-on: ubuntu-24.04

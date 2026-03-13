@@ -195,17 +195,18 @@ namespace Aleph
     /**
         Get an owning copy of the graph nodes array.
 
-        Returns a copy of the sorted array of node pointers. This is safer for
-        long-term storage or if the Floyd_All_Shortest_Paths instance is destroyed,
-        but incurs an O(n) copy cost.
+        This is a compatibility alias for get_nodes_copy() and returns a copy of
+        the sorted array of node pointers. Prefer get_nodes_copy() when you want
+        an explicit snapshot name in new code.
 
-        @note This method returns a shallow copy of the container; the Node* 
+        @note This method returns a reference to the nodes; the Node*
         elements are borrowed from the graph and caller does not gain ownership.
         Pointer validity depends on the graph nodes remaining alive.
 
         @return Owning copy of the node pointer array container.
+        @see get_nodes_copy()
      */
-    [[nodiscard]] DynArray<Node *> get_nodes() const { return nodes; }
+    [[nodiscard]] DynArray<Node *> get_nodes() const { return get_nodes_copy(); }
 
     /**
         Get the array of graph nodes as a constant reference.
@@ -233,7 +234,7 @@ namespace Aleph
         the returned array does not affect the internal state of the
         Floyd_All_Shortest_Paths instance.
 
-        @warning The pointers are valid as the received graph is alive
+        @warning The pointers are valid as long as the received graph is alive.
 
         @return Owning copy of the node pointer array.
      */

@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 
   cout << "Inserting " << n << " random values in tree ...\n";
 
-  for (i = 0; i < 30; i++)
+  for (i = 0; i < n; i++)
     {
       while (true)
 	{

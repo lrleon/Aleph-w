@@ -31,6 +31,7 @@
 # include <tpl_dynArray.H>
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
+# include <string>
 
 using namespace std;
 using namespace Aleph;
@@ -42,20 +43,34 @@ static void printNode(BinNode<int>* node)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char * argv[])
 {
-  int i, n = argc[1] ? atoi(argc[1]) : 1000;
+  int i;
+  int n = 1000;
+  if (argc > 1) 
+    {
+      try { n = stoi(argv[1]); } catch (...) { n = 1000; }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "n must be positive" << endl;
+      return 1;
+    }
 
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { t = stoul(argv[2]); } catch (...) { t = time(0); }
+    }
 
   srand(t);
 
   DynArray<int> array;
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  if (argc > 0)
+    cout << argv[0] << " " << n << " " << t << endl;
 
   BinNode<int> *root = new BinNode<int> ((int) (10.0*n*rand()/(RAND_MAX+1.0)));
   cout << root->get_key() << " ";

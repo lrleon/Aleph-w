@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <string>
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <tpl_binHeap.H>
@@ -40,16 +41,25 @@ static void printNode(BinHeap<int>::Node* node, int, int)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 1000;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); } catch (...) { n = 1000; }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "n must be positive" << endl;
+      return 1;
+    }
+
   unsigned int t = time(0);
-
-  if (argn > 1)
-    n = atoi(argc[1]);
-
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { t = stoul(argv[2]); } catch (...) { t = time(0); }
+    }
 
   srand(t);
 

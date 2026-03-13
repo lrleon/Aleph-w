@@ -39,9 +39,14 @@ struct Cmp
 };
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int n = argc[1] ? atoi(argc[1]) : 1000;
+  int n = 1000;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); }
+      catch (...) { n = 1000; }
+    }
 
   // Validate input to prevent invalid operations
   if (n <= 0)
@@ -52,12 +57,15 @@ int main(int argn, char *argc[])
 
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { t = static_cast<unsigned int>(stoul(argv[2])); }
+      catch (...) { t = time(0); }
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   Dnode<int> list;
 

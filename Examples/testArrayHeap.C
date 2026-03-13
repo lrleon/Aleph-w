@@ -28,6 +28,7 @@
 # include <stdlib.h>
 # include <iostream>
 # include <time.h>
+# include <string>
 # include <tpl_arrayHeap.H>
 
 int keys [] = { 36, 32, 4, 12, 52, 59, 2, 2, 26, 1 };
@@ -68,13 +69,28 @@ void inorder(int v[], int n, int i)
 
 
 
-int main(int argn, char* argc[])
+int main(int argc, char* argv[])
 {
   srand(time(0));
-  unsigned int n = 10;
+  int n = 10;
 
-  if (argn > 1)
-    n = atoi(argc[1]);
+  if (argc > 1)
+    {
+      try
+        {
+          n = stoi(argv[1]);
+        }
+      catch (...)
+        {
+          n = 10;
+        }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "Error: n must be a positive integer." << endl;
+      return 1;
+    }
 
   {
     // ArrayHeap<int*> heap(n, [] (int * ptr1, int * ptr2)

@@ -27,6 +27,7 @@
 # include <stdlib.h>
 # include <time.h>
 # include <iostream>
+# include <string>
 # include <aleph.H>
 # include <tpl_splay_tree.H>
 # include <tpl_binNodeUtils.H>
@@ -42,17 +43,41 @@ static void print(Splay_Tree<int>::Node *p, int, int)
 
 static int r[] = { 776, 846, 736, 515, 528, 677, 404, 629, 879,  762 };
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 1000;
   unsigned int t = time(0);
   int value;
 
-  if (argn > 1)
-    n = atoi(argc[1]);
+  if (argc > 1)
+    {
+      try
+        {
+          n = stoi(argv[1]);
+        }
+      catch (...)
+        {
+          n = 1000;
+        }
+    }
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (n <= 0)
+    {
+      cerr << "Error: n must be a positive integer." << endl;
+      return 1;
+    }
+
+  if (argc > 2)
+    {
+      try
+        {
+          t = stoi(argv[2]);
+        }
+      catch (...)
+        {
+          t = time(0);
+        }
+    }
 
   srand(t);
 

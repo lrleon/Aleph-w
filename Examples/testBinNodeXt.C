@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <string>
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <tpl_binNodeXt.H>
@@ -49,9 +50,20 @@ void print_key(Node * p, int, int)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int i, n = argc[1] ? atoi(argc[1]) : 10;
+  int n = 10;
+  if (argc > 1)
+    {
+      try
+        {
+          n = stoi(argv[1]);
+        }
+      catch (...)
+        {
+          n = 10;
+        }
+    }
 
   // Validate input to prevent null root dereferencing
   if (n <= 1)
@@ -62,17 +74,26 @@ int main(int argn, char *argc[])
 
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try
+        {
+          t = stoi(argv[2]);
+        }
+      catch (...)
+        {
+          t = time(0);
+        }
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   int value = (int) (100.0*n*rand()/(RAND_MAX+1.0));
   Node * root = Node::NullPtr;
 
-  for (i = 0; i < n - 1; i++)
+  for (int i = 0; i < n - 1; i++)
     {
       value = (int) (100.0*n*rand()/(RAND_MAX+1.0));
       if (searchInBinTree(root, value) == Node::NullPtr)
@@ -97,14 +118,14 @@ int main(int argn, char *argc[])
 
   int num_nodes = root->getCount();
 
-  for (i = 0; i < num_nodes; i++)
+  for (int i = 0; i < num_nodes; i++)
     {
       Node * p = select_rec(root, i);
       cout << p->get_key() << " ";
       assert(inorder_position(root, p->get_key(), p) == i);
     }
 
-  for (i = 0; i < num_nodes; i++)
+  for (int i = 0; i < num_nodes; i++)
     {
       auto value = (int) (100.0*n*rand()/(RAND_MAX+1.0));
       auto p = searchInBinTree(root, value);
@@ -114,7 +135,7 @@ int main(int argn, char *argc[])
 
   cout << endl << endl;
 
-  for (i = 0; i < num_nodes; i++)
+  for (int i = 0; i < num_nodes; i++)
     cout << select(root, i)->get_key() << " ";
 
   {
@@ -150,12 +171,12 @@ int main(int argn, char *argc[])
   }
 
   DynArray<int> keys(num_nodes);
-  for (i = 0; i < num_nodes; i++)
+  for (int i = 0; i < num_nodes; i++)
     keys[i] = select(root, i)->get_key();
 
   cout << "Eliminando e insertando por clave " << num_nodes << endl;
 
-  for (i = 0; i < num_nodes; i++)
+  for (int i = 0; i < num_nodes; i++)
     {
       Node * p = remove_by_pos_xt(root, i);
       insert_by_key_xt(root, p);
@@ -166,7 +187,7 @@ int main(int argn, char *argc[])
 
   cout << "Eliminando e insertando por posicion " << num_nodes << endl;
 
-  for (i = 0; i < num_nodes; i++)
+  for (int i = 0; i < num_nodes; i++)
     {
       Node * p = remove_by_pos_xt(root, i);
       insert_by_pos_xt(root, p, i);
@@ -177,7 +198,7 @@ int main(int argn, char *argc[])
 
   cout << "Eliminando e insertando por clave " << num_nodes << endl;
 
-  for (i = 0; i < num_nodes; i++)
+  for (int i = 0; i < num_nodes; i++)
     {
       Node * p = select(root, i);
       remove_by_key_xt(root, p->get_key());

@@ -29,6 +29,7 @@
 # include <time.h>
 # include <iostream>
 # include <fstream>
+# include <string>
 # include <aleph.H>
 # include <tpl_avl.H>
 # include <tpl_binNodeUtils.H>
@@ -45,17 +46,25 @@ static void print_key(Avl_Tree<int>::Node *p, int, int)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 1000;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); } catch (...) { n = 1000; }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "n must be positive" << endl;
+      return 1;
+    }
+
   unsigned int t = time(0);
-  int value;
-
-  if (argn > 1)
-    n = atoi(argc[1]);
-
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { t = stoul(argv[2]); } catch (...) { t = time(0); }
+    }
 
   srand(t);
 
@@ -63,7 +72,7 @@ int main(int argn, char *argc[])
 
   Avl_Tree<int> tree;
   Avl_Tree<int>::Node *node;
-  int i;
+  int i, value;
 
   cout << "Inserting " << n << " random values in treee ...\n";
 

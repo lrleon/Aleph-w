@@ -18,7 +18,6 @@ file(GLOB EXAMPLE_SOURCES CONFIGURE_DEPENDS
 
 foreach(source_file IN LISTS EXAMPLE_SOURCES)
     get_filename_component(program "${source_file}" NAME_WE)
-    string(REPLACE "-" "_" program "${program}")
 
     add_executable(${program} "${source_file}")
     target_link_libraries(${program} PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})

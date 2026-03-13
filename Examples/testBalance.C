@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <string>
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <tpl_balanceXt.H>
@@ -48,23 +49,49 @@ void print_key(Node * p, int, int)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int i, n = argc[1] ? atoi(argc[1]) : 10;
+  int n = 10;
+  if (argc > 1)
+    {
+      try
+        {
+          n = stoi(argv[1]);
+        }
+      catch (...)
+        {
+          n = 10;
+        }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "Error: n must be a positive integer." << endl;
+      return 1;
+    }
 
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try
+        {
+          t = stoi(argv[2]);
+        }
+      catch (...)
+        {
+          t = time(0);
+        }
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   int value = (int) (100.0*n*rand()/(RAND_MAX+1.0));
   Node * root = Node::NullPtr;
 
-  for (i = 0; i < n - 1; i++)
+  for (int i = 0; i < n - 1; i++)
     {
       while (1)
 	{

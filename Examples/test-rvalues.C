@@ -25,6 +25,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <iostream>
+# include <string>
 # include <tpl_agraph.H>
 # include <tpl_dynMapTree.H>
 
@@ -37,13 +38,13 @@ GT create_graph()
 {
   GT g;
   DynArray<typename GT::Node*> nodes; nodes.reserve(V);
-  for (int i = 0; i < V; ++i)
+  for (int i = 0; i < (int) V; ++i)
     nodes(i) = g.insert_node(i);
 
-  for (int i = 0; i < V - 1; ++i)
+  for (int i = 0; i < (int) V - 1; ++i)
     {
       typename GT::Node * src = nodes(i);
-      for (int j = i + 1; j < V; ++j)
+      for (int j = i + 1; j < (int) V; ++j)
 	g.insert_arc(src, nodes(j), i + j);
     }
 
@@ -225,7 +226,7 @@ void test_map_tree(size_t n)
 
   
   Tree tree;
-  for (int i = 0; i < n; ++i)
+  for (int i = 0; i < (int) n; ++i)
     tree.insert(i, i);
 
   Tree t1 = tree;
@@ -264,10 +265,23 @@ void test_map_tree(size_t n)
   (*print)(tt); cout << endl;
 }
 
-int main(int, char * argc[])
+int main(int argc, char *argv[])
 {
-  if (argc[1])
-    V = atoi(argc[1]);
+  try 
+    {
+      if (argc > 1)
+	V = std::stoi(argv[1]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (V <= 0)
+    {
+      cout << "V must be positive" << endl;
+      return 1;
+    }
 
   test_map_tree <DynMapBinTree<int,int>> (V);
 

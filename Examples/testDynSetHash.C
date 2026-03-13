@@ -33,6 +33,7 @@
 # include <tpl_sort_utils.H>
 # include <tpl_dynSetHash.H>
 # include <tpl_dynMapOhash.H>
+# include <string>
 
 # define NumItems 10000
 
@@ -401,15 +402,31 @@ void test_DynMapLinHash(size_t n)
 
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char * argv[])
 {
   assert(Primes::check_primes_database());
   assert(next_prime(5) == 5);
 
-  unsigned long n = argn > 1 ? atoi(argc[1]) : NumItems;
-  unsigned int  t = argn > 2 ? atoi(argc[2]) : time(NULL);
+  unsigned long n = NumItems;
+  if (argc > 1) 
+    {
+      try { n = stoul(argv[1]); } catch (...) { n = NumItems; }
+    }
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  if (n <= 0)
+    {
+      cerr << "n must be positive" << endl;
+      return 1;
+    }
+
+  unsigned int t = time(NULL);
+  if (argc > 2)
+    {
+      try { t = stoul(argv[2]); } catch (...) { t = time(NULL); }
+    }
+
+  if (argc > 0)
+    cout << argv[0] << " " << n << " " << t << endl;
 
   r = gsl_rng_alloc (gsl_rng_mt19937);
   gsl_rng_set(r, t % gsl_rng_max(r));

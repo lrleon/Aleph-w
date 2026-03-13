@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -25,7 +24,8 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <iostream>
-# include <time.h>
+# include <ctime>
+# include <string>
 # include <gsl/gsl_rng.h>
 # include <aleph.H>
 # include <tpl_dynarray_set.H>
@@ -44,21 +44,31 @@ void printNode(Splay_Tree_Rk<int>::Node *node, int, int)
   cout << node->get_key() << " ";
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 10;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); } catch (...) { n = 10; }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "n must be positive" << endl;
+      return 1;
+    }
+
   unsigned int seed = 0;
-
-  if (argn > 1)
-    n = atoi(argc[1]);
-
-  if (argn > 2)
-    seed = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { seed = stoul(argv[2]); } catch (...) { seed = 0; }
+    }
 
   gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);;
   gsl_rng_set(r, seed % gsl_rng_max(r));
 
-  cout << argc[0] << " " << n << " " << seed << endl;
+  if (argc > 0)
+    cout << argv[0] << " " << n << " " << seed << endl;
 
   DynArray_Set<int> keys; keys.reserve(n);
   Splay_Tree_Rk<int> tree;
@@ -151,7 +161,8 @@ int main(int argn, char *argc[])
 
   destroyRec(tree.getRoot()); 
 
-  cout << endl << argc[0] << " " << n << " " << seed << endl;
+  if (argc > 0)
+    cout << endl << argv[0] << " " << n << " " << seed << endl;
  
   gsl_rng_free(r);
 }

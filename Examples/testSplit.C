@@ -27,6 +27,7 @@
 
 # include <time.h>
 # include <iostream>
+# include <string>
 # include <aleph.H>
 # include <tpl_binTree.H>
 # include <tpl_binNodeUtils.H>
@@ -41,18 +42,24 @@ static void printNode(BinNode<int>* node)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int i, n = argc[1] ? atoi(argc[1]) : 1000;
+  int n = 1000;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); } catch (...) { n = 1000; }
+    }
 
   unsigned int t = time(0);
-
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { t = stoul(argv[2]); } catch (...) { t = time(0); }
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  if (argc > 0)
+    cout << argv[0] << " " << n << " " << t << endl;
 
   BinTree<int> tree;
   BinTree<int>::Node * p;
@@ -66,7 +73,7 @@ int main(int argn, char *argc[])
       return 1;
     }
 
-  for (i = 0; i < n; i++)
+  for (int i = 0; i < n; i++)
     {
       value = (int) (10.0*n*rand()/(RAND_MAX+1.0));    
       p = new BinNode<int> (value);

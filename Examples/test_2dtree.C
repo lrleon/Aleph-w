@@ -28,7 +28,7 @@
 
 
 
-int main(int argn, char *argc[])
+int main(int argc, char * argv[])
 {
 
 

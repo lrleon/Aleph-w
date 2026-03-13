@@ -26,6 +26,9 @@
 */
 
 #include <iostream>
+#include <cstdlib>
+#include <cstdint>
+#include <ctime>
 #include <random>
 #include <cerrno>
 #include <climits>
@@ -87,14 +90,14 @@ main (int argc, char *argv[])
 
   unsigned int insCount = 0;
 
-  for (int i = 0; i < n; i++)
+  while (insCount < static_cast<unsigned int>(n))
     {
       const int value = dist(rng);
       if (Splay_Tree_Rk<int>::Node *node = tree.search (value); node == nullptr)
 	{
-	  insCount++;
 	  node = new Splay_Tree_Rk<int>::Node (value);
 	  tree.insert (node);
+	  insCount++;
 	}
     }
 
@@ -105,6 +108,7 @@ main (int argc, char *argv[])
   else
     {
       cout << "error de equilibrio en el arbol" << endl;
+      destroyRec (tree.getRoot ());
       return EXIT_FAILURE;
     }
 

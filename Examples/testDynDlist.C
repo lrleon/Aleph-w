@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <string>
 
 # include <ahFunctional.H>
 # include <htlist.H>
@@ -54,18 +55,36 @@ void imprime(DynDlist< DynDlist<int> > & l)
     }
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 1000;
-  if (argn > 1)
-    n = atoi(argc[1]);
+  if (argc > 1)
+    {
+      try
+        {
+          n = stoi(argv[1]);
+        }
+      catch (...)
+        {
+          n = 1000;
+        }
+    }
 
   int m = 1000;
-  if (argn > 2)
-    m = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try
+        {
+          m = stoi(argv[2]);
+        }
+      catch (...)
+        {
+          m = 1000;
+        }
+    }
 
   // Validate inputs
-  if (n <= 0 || m <= 0)
+  if (n <= 0 or m <= 0)
     {
       cerr << "Error: n and m must be positive integers." << endl;
       return 1;
@@ -73,12 +92,21 @@ int main(int argn, char *argc[])
 
   unsigned int t = time(0);
 
-  if (argn > 3)
-    t = atoi(argc[3]);
+  if (argc > 3)
+    {
+      try
+        {
+          t = stoi(argv[3]);
+        }
+      catch (...)
+        {
+          t = time(0);
+        }
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << m << " " << t << endl;
+  cout << argv[0] << " " << n << " " << m << " " << t << endl;
 
   DynDlist< DynDlist<int>> list;
   int i;

@@ -395,12 +395,10 @@ TEST(FloydAccessors, node_accessors_behavior)
   
   // 2. Test get_nodes_copy() - should return an independent copy
   auto nodes_copy = floyd.get_nodes_copy();
-  EXPECT_NE(&nodes_copy, &nodes_ref1); // Verify it's a different object
   EXPECT_EQ(nodes_copy.size(), 3u);
   
   // 3. Test get_nodes() - should return an independent copy (Snapshot)
   auto nodes_val = floyd.get_nodes();
-  EXPECT_NE(&nodes_val, &nodes_ref1);
   EXPECT_EQ(nodes_val.size(), 3u);
   
   // 4. Verify ordering stability across all accessors
@@ -413,8 +411,8 @@ TEST(FloydAccessors, node_accessors_behavior)
   nodes_copy(0) = nullptr;
   EXPECT_NE(floyd.get_nodes_ref()(0), nullptr);
   
-  // 6. Verify pointer validity (non-owning)
-  EXPECT_EQ(nodes_ref1(0)->get_info(), n1->get_info());
-  EXPECT_EQ(nodes_ref1(1)->get_info(), n2->get_info());
-  EXPECT_EQ(nodes_ref1(2)->get_info(), n3->get_info());
+  // 6. Verify pointer validity (non-owning) using the solver's own index map.
+  EXPECT_EQ(nodes_ref1(floyd.index_node(n1)), n1);
+  EXPECT_EQ(nodes_ref1(floyd.index_node(n2)), n2);
+  EXPECT_EQ(nodes_ref1(floyd.index_node(n3)), n3);
 }

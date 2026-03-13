@@ -67,18 +67,32 @@ static void printNode(Node * node, int, int)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int n = argc[1] ? atoi(argc[1]) : 2;
+  int n = 2;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); }
+      catch (...) { n = 2; }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "Error: n must be a positive integer." << endl;
+      return 1;
+    }
 
   unsigned int t = time(0);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { t = static_cast<unsigned int>(stoul(argv[2])); }
+      catch (...) { t = time(0); }
+    }
 
   srand(t);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+  cout << argv[0] << " " << n << " " << t << endl;
 
   BinNode<int> * bp = random_tree(1, n);
 

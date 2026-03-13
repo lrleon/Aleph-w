@@ -26,6 +26,7 @@
 */
 
 # include <iostream>
+# include <string>
 # include <htlist.H>
 # include <filter_iterator.H>
 
@@ -55,11 +56,26 @@ struct Par
 typedef Filter_Iterator<DynList<int>, DynList<int>::Iterator, Par> It;
 
 
-int main(int argn, char * argc[])
+int main(int argc, char * argv[])
 {
-  size_t n = 10;
-  if (argn > 1)
-    n = atoi(argc[1]);
+  int n = 10;
+  if (argc > 1)
+    {
+      try
+        {
+          n = stoi(argv[1]);
+        }
+      catch (...)
+        {
+          n = 10;
+        }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "Error: n must be a positive integer." << endl;
+      return 1;
+    }
 
   HTList list;
 

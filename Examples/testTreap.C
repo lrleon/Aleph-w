@@ -25,6 +25,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <iostream>
+# include <string>
 # include <time.h>
 # include <aleph.H>
 # include <tpl_dynArray.H>
@@ -86,17 +87,30 @@ void printPair(Treap<int>::Node *node, int, int)
   cout << "(" << node->get_key() << "," << node->getPriority() << ") ";
 }
 
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
   int n = 10;
   unsigned int t = time(0);
   int value;
 
-  if (argn > 1)
-    n = atoi(argc[1]);
+  try 
+    {
+      if (argc > 1)
+	n = std::stoi(argv[1]);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+      if (argc > 2)
+	t = std::stoi(argv[2]);
+    }
+  catch (...)
+    {
+      // ignore
+    }
+
+  if (n <= 0)
+    {
+      cout << "n must be positive" << endl;
+      return 1;
+    }
 
   srand(t);
 

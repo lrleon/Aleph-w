@@ -29,6 +29,7 @@
 # include <gsl/gsl_rng.h>
 # include <tpl_dynarray_set.H>
 # include <tpl_splay_tree.H>
+# include <string>
 
 using namespace std;
 
@@ -45,16 +46,27 @@ void write_node(Splay_Tree<int>::Node * p, int, int)
 }
 
 
-int main(int argn, char *argc[])
+int main(int argc, char * argv[])
 {
   int n = 1000;
+  if (argc > 1)
+    {
+      try { n = stoi(argv[1]); }
+      catch (...) { n = 1000; }
+    }
+
+  if (n <= 0)
+    {
+      cerr << "Error: n must be a positive integer." << endl;
+      return 1;
+    }
+
   unsigned int seed = 0;
-
-  if (argn > 1)
-    n = atoi(argc[1]);
-
-  if (argn > 2)
-    seed = atoi(argc[2]);
+  if (argc > 2)
+    {
+      try { seed = static_cast<unsigned int>(stoul(argv[2])); }
+      catch (...) { seed = 0; }
+    }
 
   gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);;
   gsl_rng_set(r, seed % gsl_rng_max(r));

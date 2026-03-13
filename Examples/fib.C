@@ -366,13 +366,20 @@ int fib_st(int n)
 
 
 
-int main(int argn, char * argv[])
+int main(int argc, char * argv[])
 {
-  if (argn != 2) {
-    cout << "usage: " << argv[0] << " n" << endl;
-    return 1;
-  }
-  int n = atoi(argv[1]);
+  int n = 10;
+  if (argc > 1)
+    {
+      try { n = std::stoi(argv[1]); }
+      catch (...) { n = 10; }
+    }
+
+  if (n < 0)
+    {
+      std::cerr << "n must be non-negative" << std::endl;
+      return 1;
+    }
 
   cout << "fib(" << n << ") = " << fib_rec(n) << " = " << fib_it(n)
        << " = " << fib_st(n) << endl;
