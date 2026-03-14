@@ -194,15 +194,17 @@ void init_jsw() noexcept
 void init_jsw(std::uint32_t seed) noexcept
 {
   std::lock_guard<std::mutex> lock(jsw_mtx);
-  
-  gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
+
+  gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
   gsl_rng_set(r, seed % gsl_rng_max(r));
 
   for (int i = 0; i < 256; ++i)
     tab[i] = gsl_rng_get(r);
 
-  gsl_rng_free(r); 
+  gsl_rng_free(r);
 
+  // Release store: any thread that subsequently sees init==true with an
+  // acquire load is guaranteed to observe the fully populated tab[].
   init.store(true, std::memory_order_release);
 }
 

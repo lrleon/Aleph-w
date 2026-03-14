@@ -280,7 +280,6 @@ namespace Aleph
       }
 
       /** @brief Advance to the next item.
-       *  @return Nothing.
        *  @throws std::underflow_error If the iterator is exhausted.
        */
       void next_ne()
@@ -289,7 +288,6 @@ namespace Aleph
       }
 
       /** @brief Synonym for next_ne().
-       *  @return Nothing.
        *  @throws std::underflow_error If the iterator is exhausted.
        */
       void next()
@@ -393,7 +391,6 @@ namespace Aleph
 
     /** @brief Enable or disable automatic synchronization.
      *  @param enabled New auto-sync mode.
-     *  @return Nothing.
      *  @throws Nothing.
      */
     void set_auto_sync(const bool enabled) noexcept
@@ -465,7 +462,6 @@ namespace Aleph
     }
 
     /** @brief Flush pending changes to the backing file.
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be synchronized.
      */
     void sync() const
@@ -474,7 +470,6 @@ namespace Aleph
     }
 
     /** @brief Synonym for sync().
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be synchronized.
      */
     void checkpoint() const
@@ -483,7 +478,6 @@ namespace Aleph
     }
 
     /** @brief Discard unsynchronized changes and reload the file.
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be reopened or validated.
      */
     void reload()
@@ -492,7 +486,6 @@ namespace Aleph
     }
 
     /** @brief Remove every key/value pair from the map.
-     *  @return Nothing.
      *  @throws std::runtime_error If the backing tree rejects the mutation.
      */
     void clear()
@@ -566,6 +559,17 @@ namespace Aleph
      *          existing value.
      *  @throws std::runtime_error If the backing tree rejects the mutation.
      *  @throws std::bad_alloc If the page cache cannot grow.
+     *
+     *  @note **Crash-recovery limitation.**  When the key already exists the
+     *  implementation issues two separate WAL-protected operations:
+     *  `tree_.remove(probe)` followed by `tree_.insert(record)`.  Each
+     *  individual operation is crash-safe (the WAL guarantees redo on the next
+     *  open), but a process crash *between* the two leaves the key permanently
+     *  deleted.  `File_BPlus_Tree` does not currently expose a single-WAL-
+     *  transaction replace primitive, so full atomicity of the pair cannot be
+     *  guaranteed without adding such a primitive.  Callers that require
+     *  all-or-nothing replace semantics should wrap the two operations in their
+     *  own application-level recovery logic.
      */
     bool insert_or_assign(const Key & key, const Value & value)
     {

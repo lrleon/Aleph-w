@@ -217,8 +217,6 @@ public:
       num_buckets = 1;
     bucket_mask = num_buckets - 1;
     buckets.putn(num_buckets);
-    for (size_t i = 0; i < num_buckets; ++i)
-      buckets(i).clear();
   }
 
   /** @brief Return the number of items currently in the filter. */

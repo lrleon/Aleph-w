@@ -597,7 +597,7 @@ namespace Aleph
     /** @brief Move constructor.
      *  @param other Tree to move from.
      */
-    Gen_B_Tree(Gen_B_Tree&&) noexcept = default;
+    Gen_B_Tree(Gen_B_Tree&& other) noexcept = default;
 
     /** @brief Copy assignment.
      *  @param other Tree to copy from.
@@ -608,9 +608,12 @@ namespace Aleph
       if (this == &other)
         return *this;
 
-      root_ = clone_node(other.root_.get());
-      size_ = other.size_;
-      cmp_ = other.cmp_;
+      // Copy-and-swap: build a full copy first so that if cmp_'s copy-assignment
+      // (or clone_node) throws, *this is left unchanged.
+      Gen_B_Tree tmp(other);
+      std::swap(root_, tmp.root_);
+      std::swap(size_, tmp.size_);
+      std::swap(cmp_,  tmp.cmp_);
       return *this;
     }
 
@@ -618,7 +621,7 @@ namespace Aleph
      *  @param other Tree to move from.
      *  @return `*this`.
      */
-    Gen_B_Tree& operator =(Gen_B_Tree&&) noexcept = default;
+    Gen_B_Tree& operator =(Gen_B_Tree&& other) noexcept = default;
 
     /** @brief Return the comparison object.
      *  @return Mutable reference to the comparison functor.
@@ -669,7 +672,6 @@ namespace Aleph
     [[nodiscard]] size_t height() const noexcept { return height_of(root_.get()); }
 
     /** @brief Remove every key from the tree.
-     *  @return Nothing.
      *  @throws Nothing.
      */
     void clear() noexcept

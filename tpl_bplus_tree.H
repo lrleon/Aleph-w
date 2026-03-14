@@ -660,7 +660,7 @@ public:
       : tree_(&tree), leaf_(nullptr), idx_(0), last_(last)
     {
       ah_invalid_argument_if(tree.cmp_(last, first))
-        << "BPlus_Tree::Iterator(): invalid range [" << first << ", " << last << "]";
+        << "BPlus_Tree::Iterator(): invalid range (last < first)";
 
       leaf_ = tree.find_leaf(first);
       if (leaf_ != nullptr)
@@ -688,7 +688,6 @@ public:
     }
 
     /** @brief Advance to the next key.
-     *  @return Nothing.
      *  @throws std::underflow_error If the iterator is exhausted.
      *  @throws Any exception propagated by `Compare`.
      */
@@ -700,7 +699,6 @@ public:
     }
 
     /** @brief Synonym for next_ne().
-     *  @return Nothing.
      *  @throws std::underflow_error If the iterator is exhausted.
      *  @throws Any exception propagated by `Compare`.
      */
@@ -767,7 +765,7 @@ public:
   /** @brief Move constructor.
    *  @param other Tree to move from.
    */
-  Gen_BPlus_Tree(Gen_BPlus_Tree &&) noexcept = default;
+  Gen_BPlus_Tree(Gen_BPlus_Tree &&other) noexcept = default;
 
   /** @brief Copy assignment.
    *  @param other Tree to copy from.
@@ -778,10 +776,12 @@ public:
     if (this == &other)
       return *this;
 
-    Node *prev_leaf = nullptr;
-    root_           = clone_node(other.root_.get(), prev_leaf);
-    size_           = other.size_;
-    cmp_            = other.cmp_;
+    // Copy-and-swap: build a complete copy first so that if cmp_'s
+    // copy-assignment (or clone_node) throws, *this is left unchanged.
+    Gen_BPlus_Tree tmp(other);
+    std::swap(root_, tmp.root_);
+    std::swap(size_, tmp.size_);
+    std::swap(cmp_,  tmp.cmp_);
     return *this;
   }
 
@@ -789,7 +789,7 @@ public:
    *  @param other Tree to move from.
    *  @return `*this`.
    */
-  Gen_BPlus_Tree &operator=(Gen_BPlus_Tree &&) noexcept = default;
+  Gen_BPlus_Tree &operator=(Gen_BPlus_Tree &&other) noexcept = default;
 
   /** @brief Return the comparison object.
    *  @return Mutable reference to the comparison functor.

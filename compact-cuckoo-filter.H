@@ -31,7 +31,7 @@
 /** @file compact-cuckoo-filter.H
  *  @brief Memory-optimized Cuckoo filter with bit-packed fingerprints.
  *
- *  This is a space-optimized variant of \ref Cuckoo_Filter that uses
+ *  This is a space-optimized variant of \ref Aleph::Cuckoo_Filter that uses
  *  bit-packing to store fingerprints compactly. Instead of storing each
  *  fingerprint in a full `uint32_t`, fingerprints are packed into a
  *  `BitArray` using exactly `FingerprintBits` bits per entry.
@@ -98,8 +98,6 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
 
     Bucket() : bits(EntriesPerBucket * FingerprintBits)
     {
-      for (size_t i = 0; i < EntriesPerBucket * FingerprintBits; ++i)
-        bits.write_bit(i, 0);
     }
 
     void clear()
@@ -242,8 +240,6 @@ public:
       num_buckets = 1;
     bucket_mask = num_buckets - 1;
     buckets.putn(num_buckets);
-    for (size_t i = 0; i < num_buckets; ++i)
-      buckets(i).clear();
   }
 
   /** @brief Return the number of items currently in the filter. */

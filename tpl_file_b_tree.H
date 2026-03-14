@@ -2259,7 +2259,6 @@ namespace Aleph
 
     /** @brief Enable or disable automatic flushing of dirty pages.
      *  @param enabled New auto-sync mode.
-     *  @return Nothing.
      *  @throws Nothing.
      */
     void set_auto_sync(const bool enabled) noexcept
@@ -2295,7 +2294,6 @@ namespace Aleph
     }
 
     /** @brief Synonym for sync().
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be written or flushed.
      */
     void checkpoint() const
@@ -2304,7 +2302,6 @@ namespace Aleph
     }
 
     /** @brief Flush the current tree image using redo WAL or full-image fallback.
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be written or flushed.
      */
     void sync() const
@@ -2335,7 +2332,6 @@ namespace Aleph
     }
 
     /** @brief Discard unsynchronized changes and reload pages from disk.
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be reopened or validated.
      *  @throws std::bad_alloc If reloading the page cache exhausts memory.
      */
@@ -2383,7 +2379,6 @@ namespace Aleph
     }
 
     /** @brief Remove every key from the tree.
-     *  @return Nothing.
      *  @throws std::runtime_error If `auto_sync` is enabled and flushing fails.
      */
     void clear()

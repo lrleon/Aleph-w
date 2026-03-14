@@ -739,51 +739,55 @@ inline std::uint16_t get16bits(const void * p) noexcept
     return siphash24_hash(key, strlen(key), key0, key1);
   }
 
+  // String overloads use data()+size() so that embedded NUL bytes are hashed
+  // correctly.  Calling c_str() delegates to the NUL-terminated char* overload
+  // which would stop at the first '\0'.
+
   inline size_t add_hash(const std::string & key) noexcept
   {
-    return add_hash(key.c_str());
+    return add_hash(key.data(), key.size());
   }
 
   inline size_t xor_hash(const std::string & key) noexcept
   {
-    return xor_hash(key.c_str());
+    return xor_hash(key.data(), key.size());
   }
 
   inline size_t rot_hash(const std::string & key) noexcept
   {
-    return rot_hash(key.c_str());
+    return rot_hash(key.data(), key.size());
   }
 
   inline size_t djb_hash(const std::string & key) noexcept
   {
-    return djb_hash(key.c_str());
+    return djb_hash(key.data(), key.size());
   }
 
   inline size_t sax_hash(const std::string & key) noexcept
   {
-    return sax_hash(key.c_str());
+    return sax_hash(key.data(), key.size());
   }
 
   inline size_t fnv_hash(const std::string & key) noexcept
   {
-    return fnv_hash(key.c_str());
+    return fnv_hash(key.data(), key.size());
   }
 
   inline size_t oat_hash(const std::string & key) noexcept
   {
-    return oat_hash(key.c_str());
+    return oat_hash(key.data(), key.size());
   }
 
   /// JSW hash for std::string
   /// @ingroup Hash
   inline size_t jsw_hash(const std::string & key) noexcept
   {
-    return jsw_hash(key.c_str());
+    return jsw_hash(key.data(), key.size());
   }
 
   inline size_t elf_hash(const std::string & key) noexcept
   {
-    return elf_hash(key.c_str());
+    return elf_hash(key.data(), key.size());
   }
 
   inline size_t jen_hash(const std::string & key, unsigned initval) noexcept

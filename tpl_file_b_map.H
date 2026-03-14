@@ -314,7 +314,6 @@ namespace Aleph
 
     /** @brief Enable or disable automatic synchronization.
      *  @param enabled New auto-sync mode.
-     *  @return Nothing.
      *  @throws Nothing.
      */
     void set_auto_sync(const bool enabled) noexcept
@@ -386,7 +385,6 @@ namespace Aleph
     }
 
     /** @brief Flush pending changes to the backing file.
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be synchronized.
      */
     void sync() const
@@ -395,7 +393,6 @@ namespace Aleph
     }
 
     /** @brief Synonym for sync().
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be synchronized.
      */
     void checkpoint() const
@@ -404,7 +401,6 @@ namespace Aleph
     }
 
     /** @brief Discard unsynchronized changes and reload the file.
-     *  @return Nothing.
      *  @throws std::runtime_error If the file cannot be reopened or validated.
      */
     void reload()
@@ -413,7 +409,6 @@ namespace Aleph
     }
 
     /** @brief Remove every key/value pair from the map.
-     *  @return Nothing.
      *  @throws std::runtime_error If the backing tree rejects the mutation.
      */
     void clear()
