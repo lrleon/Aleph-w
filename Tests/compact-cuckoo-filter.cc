@@ -77,12 +77,12 @@ TEST(CompactCuckooFilterCtor, memory_usage_is_compact)
   // Standard: 4 entries × 32 bits = 16 bytes/bucket
   // Compact with 8-bit FP: 4 entries × 8 bits = 4 bytes/bucket
   Compact_Cuckoo_Filter<int, 8, 4> cf(1000);
-  
+
   size_t num_buckets = cf.capacity() / 4;
   size_t expected_bytes = (num_buckets * 4 * 8 + 7) / 8;  // 4 entries × 8 bits
-  
+
   EXPECT_LE(cf.memory_usage(), expected_bytes + 100);  // Allow small overhead
-  
+
   // Should be much less than standard (16 bytes/bucket)
   EXPECT_LT(cf.memory_usage(), num_buckets * 10);
 }
@@ -118,8 +118,7 @@ TEST(CompactCuckooFilterBasic, absent_elements_usually_not_found)
 
   // With 8-bit FP and 4 entries/bucket, FP rate ≈ 3.1%
   // Testing 1000 elements: expect < 50 false positives
-  EXPECT_LT(false_positives, 60u)
-    << "Too many false positives: " << false_positives;
+  EXPECT_LT(false_positives, 60u) << "Too many false positives: " << false_positives;
 }
 
 TEST(CompactCuckooFilterBasic, duplicate_insert_stores_twice)
@@ -155,10 +154,10 @@ TEST(CompactCuckooFilterBasic, small_fingerprint_bits)
 {
   // 4-bit fingerprints → high FP rate but minimal memory
   Compact_Cuckoo_Filter<int, 4> cf(1000);
-  
+
   for (int i = 0; i < 50; ++i)
     cf.insert(i);
-  
+
   for (int i = 0; i < 50; ++i)
     EXPECT_TRUE(cf.contains(i));
 }
@@ -167,10 +166,10 @@ TEST(CompactCuckooFilterBasic, large_fingerprint_bits)
 {
   // 16-bit fingerprints → very low FP rate
   Compact_Cuckoo_Filter<int, 16> cf(1000);
-  
+
   for (int i = 0; i < 50; ++i)
     cf.insert(i);
-  
+
   for (int i = 0; i < 50; ++i)
     EXPECT_TRUE(cf.contains(i));
 }
@@ -238,20 +237,20 @@ TEST(CompactCuckooFilterDelete, insert_after_remove)
 TEST(CompactCuckooFilterDelete, interleaved_insert_remove)
 {
   Compact_Cuckoo_Filter<int> cf(2000);
-  
+
   for (int i = 0; i < 100; ++i)
     cf.insert(i);
-  
+
   // Remove every other element
   for (int i = 0; i < 100; i += 2)
     EXPECT_TRUE(cf.remove(i));
-  
+
   EXPECT_EQ(cf.size(), 50u);
-  
+
   // Verify odd elements remain
   for (int i = 1; i < 100; i += 2)
     EXPECT_TRUE(cf.contains(i)) << "Lost i=" << i;
-  
+
   // Verify even elements removed
   for (int i = 0; i < 100; i += 2)
     EXPECT_FALSE(cf.contains(i)) << "Still has i=" << i;
@@ -279,15 +278,15 @@ TEST(CompactCuckooFilterCapacity, load_factor_computed_correctly)
 TEST(CompactCuckooFilterCapacity, high_load_factor_still_works)
 {
   Compact_Cuckoo_Filter<int> cf(1000);
-  
+
   std::set<int> inserted_set;
   // Fill to ~90% capacity
   for (int i = 0; i < 1000; ++i)
     if (cf.insert(i))
       inserted_set.insert(i);
-  
+
   EXPECT_GT(inserted_set.size(), 800u);
-  
+
   // All inserted elements should still be found
   for (int val : inserted_set)
     EXPECT_TRUE(cf.contains(val)) << "Lost val=" << val;
@@ -296,12 +295,12 @@ TEST(CompactCuckooFilterCapacity, high_load_factor_still_works)
 TEST(CompactCuckooFilterCapacity, insert_fails_when_full)
 {
   Compact_Cuckoo_Filter<int> cf(100);
-  
+
   int successful = 0;
   for (int i = 0; i < 200; ++i)
     if (cf.insert(i))
       ++successful;
-  
+
   // Should have inserted most but not all
   EXPECT_GT(successful, 80);
   EXPECT_LT(successful, 200);
@@ -314,21 +313,21 @@ TEST(CompactCuckooFilterCapacity, insert_fails_when_full)
 TEST(CompactCuckooFilterIntrospection, memory_usage)
 {
   Compact_Cuckoo_Filter<int, 8, 4> cf(1000);
-  
+
   // Should use ~4 bytes/bucket (4 × 8 bits)
   size_t num_buckets = cf.capacity() / 4;
   size_t expected = (num_buckets * 4 * 8 + 7) / 8;
-  
+
   EXPECT_LE(cf.memory_usage(), expected + 100);  // Allow small overhead
 }
 
 TEST(CompactCuckooFilterIntrospection, load_factor)
 {
   Compact_Cuckoo_Filter<int> cf(1000);
-  
+
   for (int i = 0; i < 100; ++i)
     cf.insert(i);
-  
+
   double lf = cf.load_factor();
   EXPECT_GT(lf, 0.05);
   EXPECT_LT(lf, 0.15);
@@ -387,15 +386,15 @@ TEST(CompactCuckooFilterClear, clears_all_state)
 TEST(CompactCuckooFilterClear, can_reuse_after_clear)
 {
   Compact_Cuckoo_Filter<int> cf(1000);
-  
+
   for (int i = 0; i < 20; ++i)
     cf.insert(i);
-  
+
   cf.clear();
-  
+
   for (int i = 100; i < 120; ++i)
     cf.insert(i);
-  
+
   EXPECT_EQ(cf.size(), 20u);
   for (int i = 100; i < 120; ++i)
     EXPECT_TRUE(cf.contains(i));
@@ -420,7 +419,7 @@ TEST(CompactCuckooFilterFPRate, empirical_fp_rate_within_bounds)
       ++fps;
 
   double empirical = static_cast<double>(fps) / test_count;
-  
+
   // With 8-bit FP and 4 entries/bucket, theoretical FP ≈ 3.1%
   // Empirical should be reasonably close
   EXPECT_LT(empirical, 0.10)  // < 10%
@@ -430,15 +429,15 @@ TEST(CompactCuckooFilterFPRate, empirical_fp_rate_within_bounds)
 TEST(CompactCuckooFilterFPRate, low_fp_rate_with_large_fingerprint)
 {
   Compact_Cuckoo_Filter<int, 16> cf(1000);
-  
+
   for (int i = 0; i < 200; ++i)
     cf.insert(i);
-  
+
   size_t fps = 0;
   for (int i = 10000; i < 20000; ++i)
     if (cf.contains(i))
       ++fps;
-  
+
   // With 16-bit FP, expect very few false positives
   EXPECT_LT(fps, 20u);
 }
@@ -452,9 +451,9 @@ TEST(CompactCuckooFilterStress, random_insertions_and_lookups)
   Compact_Cuckoo_Filter<int> cf(5000);
   std::mt19937 rng(42);
   std::uniform_int_distribution<int> dist(0, 1000000);
-  
+
   std::set<int> inserted;
-  
+
   // Insert 2000 random elements
   for (int i = 0; i < 2000; ++i)
     {
@@ -462,7 +461,7 @@ TEST(CompactCuckooFilterStress, random_insertions_and_lookups)
       if (cf.insert(val))
         inserted.insert(val);
     }
-  
+
   // All inserted elements must be found
   for (int val : inserted)
     EXPECT_TRUE(cf.contains(val)) << "Lost value " << val;
@@ -471,45 +470,44 @@ TEST(CompactCuckooFilterStress, random_insertions_and_lookups)
 TEST(CompactCuckooFilterStress, sequential_insert_remove_cycles)
 {
   Compact_Cuckoo_Filter<int> cf(2000);
-  
+
   for (int cycle = 0; cycle < 5; ++cycle)
     {
       cf.clear();
-      
+
       // Insert 200 elements
       for (int i = 0; i < 200; ++i)
         cf.insert(cycle * 1000 + i);
-      
+
       // Remove half
       for (int i = 0; i < 100; ++i)
         cf.remove(cycle * 1000 + i);
-      
+
       // Verify remaining half
       for (int i = 100; i < 200; ++i)
-        EXPECT_TRUE(cf.contains(cycle * 1000 + i)) 
-          << "Cycle " << cycle << ", lost i=" << i;
+        EXPECT_TRUE(cf.contains(cycle * 1000 + i)) << "Cycle " << cycle << ", lost i=" << i;
     }
 }
 
 TEST(CompactCuckooFilterStress, many_duplicates)
 {
   Compact_Cuckoo_Filter<int> cf(1000);
-  
+
   // Insert same element multiple times (some may fail due to cuckoo hashing)
   int successful_inserts = 0;
   for (int i = 0; i < 10; ++i)
     if (cf.insert(42))
       ++successful_inserts;
-  
+
   EXPECT_GE(successful_inserts, 5);  // At least half should succeed
   EXPECT_EQ(cf.size(), static_cast<size_t>(successful_inserts));
   EXPECT_TRUE(cf.contains(42));
-  
+
   // Remove half
   int removals = successful_inserts / 2;
   for (int i = 0; i < removals; ++i)
     EXPECT_TRUE(cf.remove(42));
-  
+
   EXPECT_EQ(cf.size(), static_cast<size_t>(successful_inserts - removals));
   if (successful_inserts > removals)
     EXPECT_TRUE(cf.contains(42));  // Still has copies remaining
@@ -522,10 +520,10 @@ TEST(CompactCuckooFilterStress, many_duplicates)
 TEST(CompactCuckooFilterEdge, tiny_filter)
 {
   Compact_Cuckoo_Filter<int> cf(10);
-  
+
   cf.insert(1);
   EXPECT_TRUE(cf.contains(1));
-  
+
   cf.insert(2);
   EXPECT_TRUE(cf.contains(1));
   EXPECT_TRUE(cf.contains(2));
@@ -534,10 +532,10 @@ TEST(CompactCuckooFilterEdge, tiny_filter)
 TEST(CompactCuckooFilterEdge, minimal_fingerprint_bits)
 {
   Compact_Cuckoo_Filter<int, 1> cf(1000);  // 1-bit FP
-  
+
   for (int i = 0; i < 50; ++i)
     cf.insert(i);
-  
+
   for (int i = 0; i < 50; ++i)
     EXPECT_TRUE(cf.contains(i));
 }
@@ -545,7 +543,7 @@ TEST(CompactCuckooFilterEdge, minimal_fingerprint_bits)
 TEST(CompactCuckooFilterEdge, maximal_fingerprint_bits)
 {
   Compact_Cuckoo_Filter<int, 32> cf(1000);  // 32-bit FP
-  
+
   cf.insert(42);
   EXPECT_TRUE(cf.contains(42));
   EXPECT_FALSE(cf.contains(43));
@@ -554,10 +552,10 @@ TEST(CompactCuckooFilterEdge, maximal_fingerprint_bits)
 TEST(CompactCuckooFilterEdge, single_entry_per_bucket)
 {
   Compact_Cuckoo_Filter<int, 8, 1> cf(1000);  // 1 entry/bucket
-  
+
   for (int i = 0; i < 50; ++i)
     cf.insert(i);
-  
+
   for (int i = 0; i < 50; ++i)
     EXPECT_TRUE(cf.contains(i));
 }
@@ -570,22 +568,22 @@ TEST(CompactCuckooFilterComparison, same_behavior_as_standard)
 {
   Cuckoo_Filter<int> standard(1000);
   Compact_Cuckoo_Filter<int> compact(1000);
-  
+
   std::vector<int> values = {1, 5, 10, 42, 99, 123, 456, 789};
-  
+
   for (int val : values)
     {
       standard.insert(val);
       compact.insert(val);
     }
-  
+
   // Both should find all inserted elements
   for (int val : values)
     {
       EXPECT_TRUE(standard.contains(val));
       EXPECT_TRUE(compact.contains(val));
     }
-  
+
   // Both should have same size
   EXPECT_EQ(standard.size(), compact.size());
 }
@@ -593,18 +591,18 @@ TEST(CompactCuckooFilterComparison, same_behavior_as_standard)
 TEST(CompactCuckooFilterComparison, memory_savings_verified)
 {
   Compact_Cuckoo_Filter<int, 8, 4> compact(1000);
-  
+
   size_t compact_mem = compact.memory_usage();
-  
+
   // Compact uses ~4 bytes/bucket (4 × 8 bits)
   // Standard would use ~16 bytes/bucket (4 × 32 bits)
   size_t num_buckets = compact.capacity() / 4;
   size_t expected_compact = (num_buckets * 4 * 8 + 7) / 8;  // 4 entries × 8 bits
-  size_t expected_standard = num_buckets * 16;  // 4 entries × 32 bits
-  
+  size_t expected_standard = num_buckets * 16;              // 4 entries × 32 bits
+
   // Verify compact is close to theoretical minimum
   EXPECT_LE(compact_mem, expected_compact + 100);  // Allow small overhead
-  
+
   // Verify it's much less than standard would be
   EXPECT_LT(compact_mem, expected_standard / 3);  // < 33% of standard
 }
@@ -614,17 +612,17 @@ TEST(CompactCuckooFilterComparison, performance_characteristics)
   // This test just verifies both work correctly under load
   Cuckoo_Filter<int> standard(5000);
   Compact_Cuckoo_Filter<int> compact(5000);
-  
+
   for (int i = 0; i < 1000; ++i)
     {
       standard.insert(i);
       compact.insert(i);
     }
-  
+
   // Both should have similar success rates
   EXPECT_EQ(standard.size(), 1000u);
   EXPECT_EQ(compact.size(), 1000u);
-  
+
   // Both should find all elements
   for (int i = 0; i < 1000; ++i)
     {

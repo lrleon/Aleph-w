@@ -44,8 +44,8 @@
     (like FNV, DJB, ELF) to modern ones (like Murmur3, xxHash64, wyhash, SipHash).
     
     The default policy is defined by:
-    - `dft_hash_fct()` - Default hash function (uses SuperFastHash)
-    - `snd_hash_fct()` - Second hash function for double hashing (uses SuperFastHash with fixed seed)
+    - `dft_hash_fct()` - Default hash function (uses xxHash64)
+    - `snd_hash_fct()` - Second hash function for double hashing (uses xxHash64 with a fixed alternate seed)
     
     Key highlights:
     - Classical: `add_hash()`, `xor_hash()`, `rot_hash()`, `djb_hash()`, `sax_hash()`, `fnv_hash()`, `oat_hash()`, `elf_hash()`.
@@ -815,12 +815,124 @@ inline std::uint16_t get16bits(const void * p) noexcept
     return siphash24_hash(key.data(), key.size(), key0, key1);
   }
 
+  // ──────────────────────────────────────────────────────────────────────
+  // hash_combine  (non-commutative fold used by pair helpers and Aleph_Hash)
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * @brief Non-commutative hash combiner (Boost-style golden-ratio mix).
+   *
+   * Folds @p h into @p seed:
+   *   seed ^= h + 0x9e3779b97f4a7c15 + (seed << 12) + (seed >> 4)
+   *
+   * The magic constant is the nearest prime to 2^64 / phi.
+   *
+   * @param seed  Accumulator; updated in place.
+   * @param h     Hash value to fold in.
+   */
+  inline void hash_combine(size_t & seed, size_t h) noexcept
+  {
+    seed ^= h + size_t{0x9e3779b97f4a7c15ULL} + (seed << 12) + (seed >> 4);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Semantic Hash Customization Layer  (HASH-005)
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * @brief Concept: T provides a semantic hash via ADL.
+   *
+   * To opt in, define in T's own namespace:
+   * @code
+   *   inline size_t aleph_hash_value(const MyType & key) noexcept { ... }
+   * @endcode
+   * This is the preferred way to add hashing for user-defined types.
+   */
+  template <typename T>
+  concept HashableByADL = requires(const T & t)
+  {
+    { aleph_hash_value(t) } -> std::convertible_to<size_t>;
+  };
+
+  /**
+   * @brief Primary hash functor used internally by `dft_hash_fct` / `snd_hash_fct`.
+   *
+   * Resolution order (in priority):
+   *  1. **ADL** — calls `aleph_hash_value(key)` if found in T's namespace.
+   *               This is the semantic path for user-defined types.
+   *  2. **Byte** — calls `xxhash64_hash` for trivially-copyable, non-pointer T.
+   *               This is the default path for scalars and POD structs.
+   *  3. **Error** — `static_assert` for any other T, with an actionable message.
+   *
+   * Users may also fully specialize `Aleph_Hash<MyType>` as an alternative to ADL.
+   *
+   * @tparam T Key type.
+   */
+  template <typename T>
+  struct Aleph_Hash
+  {
+    static_assert(
+      HashableByADL<T> or
+      (std::is_trivially_copyable_v<T> and not std::is_pointer_v<T>),
+      "Aleph_Hash<T>: T is not trivially copyable and has no aleph_hash_value() "
+      "in its namespace.  Define:\n"
+      "  size_t aleph_hash_value(const T &) noexcept;\n"
+      "in T's namespace, or specialize Aleph_Hash<T>."
+    );
+
+    [[nodiscard]] size_t operator()(const T & key) const noexcept
+    {
+      if constexpr (HashableByADL<T>)
+        return aleph_hash_value(key);
+      else
+        return xxhash64_hash(key);
+    }
+
+    [[nodiscard]] size_t operator()(const T & key, std::uint32_t seed) const noexcept
+    {
+      if constexpr (HashableByADL<T>)
+        {
+          size_t h = aleph_hash_value(key);
+          hash_combine(h, static_cast<size_t>(seed));
+          return h;
+        }
+      else
+        return xxhash64_hash(key, seed);
+    }
+  };
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Default hash functions  (route through Aleph_Hash)
+  // ──────────────────────────────────────────────────────────────────────
+
+  /// Fixed seed used by the secondary hash function.
+  static constexpr std::uint32_t Aleph_Snd_Hash_Seed = 0x9e3779b9u;
+
+  /**
+   * @brief Primary default hash: best speed/quality trade-off.
+   *
+   * Routes through `Aleph_Hash<Key>`:
+   *  - ADL path for user types (semantic, O(T::hash))
+   *  - `xxhash64_hash` for trivially-copyable types and strings
+   *  - `SuperFastHash(&key, sizeof(key))` for pointer keys
+   *  - Compile-time error for unknown non-trivial types
+   *
+   * @warning This dispatch is operationally delicate.  Changing the backend
+   * for pointers, changing the seeded/secondary path, or changing pair
+   * combiners can silently break `OLhashTable` / `ODhashTable` / `Map*Hash`
+   * users that depend on stable probe sequences or on consistent hashing
+   * across wrapper call paths (`dft_hash_fct`, `dft_hash_ptr_fct`,
+   * `pair_dft_hash_fct`, etc.).  If you touch this policy, rerun at least:
+   * `hash_fct_test`, `hash_statistical_test`, `hash-it`, `tree_dp_test`,
+   * `tree_decomposition_test`, and cuckoo-filter tests.
+   */
   template <typename Key>
-    requires (std::is_trivially_copyable_v<Key> and
-              (not std::is_pointer_v<Key>) and (not std::is_array_v<Key>))
+    requires (not std::is_pointer_v<Key> and
+              not std::is_array_v<Key> and
+              not std::is_same_v<std::remove_cvref_t<Key>, std::string>)
   inline size_t dft_hash_fct(const Key & key) noexcept
   {
-    return SuperFastHash(key);
+    return Aleph_Hash<Key>{}(key);
   }
 
   template <typename Key>
@@ -830,17 +942,26 @@ inline std::uint16_t get16bits(const void * p) noexcept
     return SuperFastHash(&key, sizeof(key));
   }
 
-  inline size_t dft_hash_fct(const std::string & key) noexcept
+  inline size_t dft_hash_fct(const char * key) noexcept
   {
-    return SuperFastHash(key);
+    return xxhash64_hash(key);
   }
 
+  inline size_t dft_hash_fct(const std::string & key) noexcept
+  {
+    return xxhash64_hash(key);
+  }
+
+  /**
+   * @brief Primary default hash with explicit seed.
+   */
   template <typename Key>
-    requires (std::is_trivially_copyable_v<Key> and
-              (not std::is_pointer_v<Key>) and (not std::is_array_v<Key>))
+    requires (not std::is_pointer_v<Key> and
+              not std::is_array_v<Key> and
+              not std::is_same_v<std::remove_cvref_t<Key>, std::string>)
   inline size_t dft_hash_fct(const Key & key, std::uint32_t seed) noexcept
   {
-    return SuperFastHash(key, seed);
+    return Aleph_Hash<Key>{}(key, seed);
   }
 
   template <typename Key>
@@ -850,9 +971,14 @@ inline std::uint16_t get16bits(const void * p) noexcept
     return SuperFastHash(&key, sizeof(key), seed);
   }
 
+  inline size_t dft_hash_fct(const char * key, std::uint32_t seed) noexcept
+  {
+    return xxhash64_hash(key, seed);
+  }
+
   inline size_t dft_hash_fct(const std::string & key, std::uint32_t seed) noexcept
   {
-    return SuperFastHash(key, seed);
+    return xxhash64_hash(key, seed);
   }
 
   template <typename Key>
@@ -862,30 +988,46 @@ inline std::uint16_t get16bits(const void * p) noexcept
   }
 
   template <typename Key>
-  inline size_t dft_seed_hash_ptr_fct(const Key & key,
-                                      unsigned long seed) noexcept
+  inline size_t dft_seed_hash_ptr_fct(const Key & key, const unsigned long seed) noexcept
   {
     return dft_hash_fct(key, static_cast<std::uint32_t>(seed));
   }
 
+  /**
+   * @brief Secondary default hash: different distribution from `dft_hash_fct`.
+   *
+   * Uses `Aleph_Hash<Key>` with a fixed secondary seed so that
+   * `snd_hash_fct(x) != dft_hash_fct(x)` for virtually all inputs.
+   * Suitable as the second hash in double-hashing schemes.
+   *
+   * @note Pointer keys intentionally stay on the historical
+   * `SuperFastHash(&key, sizeof(key), Aleph_Snd_Hash_Seed)` path to preserve
+   * consistency with the open-addressing hash tables used across the repo.
+   */
   template <typename Key>
-    requires (std::is_trivially_copyable_v<Key> and
-              (not std::is_pointer_v<Key>) and (not std::is_array_v<Key>))
+    requires (not std::is_pointer_v<Key> and
+              not std::is_array_v<Key> and
+              not std::is_same_v<std::remove_cvref_t<Key>, std::string>)
   inline size_t snd_hash_fct(const Key & key) noexcept
   {
-    return SuperFastHash(key, 52679987);
+    return Aleph_Hash<Key>{}(key, Aleph_Snd_Hash_Seed);
   }
 
   template <typename Key>
     requires std::is_pointer_v<Key>
   inline size_t snd_hash_fct(const Key & key) noexcept
   {
-    return SuperFastHash(&key, sizeof(key), 52679987);
+    return SuperFastHash(&key, sizeof(key), Aleph_Snd_Hash_Seed);
+  }
+
+  inline size_t snd_hash_fct(const char * key) noexcept
+  {
+    return xxhash64_hash(key, Aleph_Snd_Hash_Seed);
   }
 
   inline size_t snd_hash_fct(const std::string & key) noexcept
   {
-    return SuperFastHash(key, 52679987);
+    return xxhash64_hash(key, Aleph_Snd_Hash_Seed);
   }
 
   template <typename Key>
@@ -908,7 +1050,9 @@ inline std::uint16_t get16bits(const void * p) noexcept
     }
   inline size_t pair_dft_hash_fct(const std::pair<K1, K2> & p) noexcept
   {
-    return dft_hash_fct(p.first) + dft_hash_fct(p.second);
+    size_t seed = dft_hash_fct(p.first);
+    hash_combine(seed, dft_hash_fct(p.second));
+    return seed;
   }
 
   template <typename K1, typename K2>
@@ -919,8 +1063,17 @@ inline std::uint16_t get16bits(const void * p) noexcept
     }
   inline size_t pair_snd_hash_fct(const std::pair<K1, K2> & p) noexcept
   {
-    return dft_hash_fct(p.first) + snd_hash_fct(p.second);
+    size_t seed = dft_hash_fct(p.first);
+    hash_combine(seed, snd_hash_fct(p.second));
+    return seed;
   }
+
+  /**
+   * @note Pair hash combiners are also compatibility-sensitive.  `Map*Hash`
+   * adaptors hash only `pair.first`, while generic pair hashing folds both
+   * elements with `hash_combine()`.  Do not change this behavior casually:
+   * it affects lookup compatibility and collision structure in existing tables.
+   */
 
   template <typename K1, typename K2>
   inline size_t pair_dft_hash_ptr_fct(const std::pair<K1, K2> & p) noexcept

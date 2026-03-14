@@ -271,6 +271,17 @@ TEST_F(HashConsistencyTest, DftHashFctConsistency)
   EXPECT_EQ(h3, h4);
 }
 
+TEST_F(HashConsistencyTest, DftHashUsesXxHash64Backend)
+{
+  EXPECT_EQ(dft_hash_fct(test_std_string), xxhash64_hash(test_std_string));
+  EXPECT_EQ(dft_hash_fct(test_int), xxhash64_hash(test_int));
+
+  const auto seeded = dft_hash_fct(test_std_string, 99u);
+  EXPECT_EQ(seeded, xxhash64_hash(test_std_string, 99u));
+  EXPECT_EQ(snd_hash_fct(test_std_string),
+            xxhash64_hash(test_std_string, Aleph_Snd_Hash_Seed));
+}
+
 TEST_F(HashConsistencyTest, XxHash64Consistency)
 {
   auto h1 = xxhash64_hash(test_string);
@@ -594,9 +605,8 @@ TEST(PairHashTest, PairDftHashFct)
   auto h3 = pair_dft_hash_fct(p3);
 
   EXPECT_EQ(h1, h2);
-  // Note: pair_dft_hash_fct uses addition, so {1,2} and {2,1} might collide
-  // This is a known limitation of simple combination functions
-  (void)h3;  // Suppress unused variable warning - see comment above
+  // hash_combine is non-commutative: {1,2} and {2,1} must differ
+  EXPECT_NE(h1, h3);
 }
 
 TEST(PairHashTest, PairSndHashFct)
@@ -631,6 +641,63 @@ TEST(PairHashTest, PointerWrappersMatchDirectCalls)
 
   EXPECT_EQ(h1, h2);
   EXPECT_EQ(h3, h4);
+}
+
+// ==================== Aleph_Hash / ADL Customization ====================
+
+namespace UserTypeNS
+{
+  // A non-trivially-copyable type that opts into Aleph hashing via ADL.
+  struct Point3D
+  {
+    double x, y, z;
+    std::string label;  // makes it non-trivially-copyable
+    Point3D(double x, double y, double z, std::string l)
+      : x(x), y(y), z(z), label(std::move(l)) {}
+  };
+
+  inline size_t aleph_hash_value(const Point3D & p) noexcept
+  {
+    size_t h = Aleph::dft_hash_fct(p.label);
+    Aleph::hash_combine(h, Aleph::dft_hash_fct(p.x));
+    Aleph::hash_combine(h, Aleph::dft_hash_fct(p.y));
+    Aleph::hash_combine(h, Aleph::dft_hash_fct(p.z));
+    return h;
+  }
+} // namespace UserTypeNS
+
+TEST(AlephHashADL, UserTypeDeterministic)
+{
+  UserTypeNS::Point3D p1{1.0, 2.0, 3.0, "origin"};
+  UserTypeNS::Point3D p2{1.0, 2.0, 3.0, "origin"};
+
+  EXPECT_EQ(Aleph::dft_hash_fct(p1), Aleph::dft_hash_fct(p2));
+  EXPECT_EQ(Aleph::snd_hash_fct(p1), Aleph::snd_hash_fct(p2));
+}
+
+TEST(AlephHashADL, UserTypeDftAndSndDiffer)
+{
+  UserTypeNS::Point3D p{1.0, 2.0, 3.0, "test"};
+
+  EXPECT_NE(Aleph::dft_hash_fct(p), Aleph::snd_hash_fct(p));
+}
+
+TEST(AlephHashADL, UserTypeDistinctPointsDistinctHashes)
+{
+  UserTypeNS::Point3D a{1.0, 0.0, 0.0, "a"};
+  UserTypeNS::Point3D b{0.0, 1.0, 0.0, "b"};
+
+  EXPECT_NE(Aleph::dft_hash_fct(a), Aleph::dft_hash_fct(b));
+}
+
+TEST(AlephHashADL, ConceptDetectedCorrectly)
+{
+  // Point3D has aleph_hash_value → HashableByADL should be true
+  EXPECT_TRUE((Aleph::HashableByADL<UserTypeNS::Point3D>));
+  // int has no aleph_hash_value → HashableByADL should be false
+  EXPECT_FALSE((Aleph::HashableByADL<int>));
+  // std::string has no aleph_hash_value → HashableByADL should be false
+  EXPECT_FALSE((Aleph::HashableByADL<std::string>));
 }
 
 // ==================== Distribution Quality Tests ====================
@@ -972,6 +1039,19 @@ TEST(HashTypeSafetyTest, ConstCharPtrAndStringConsistency)
   EXPECT_EQ(djb_hash(ptr), djb_hash(str));
   EXPECT_EQ(sax_hash(ptr), sax_hash(str));
   EXPECT_EQ(SuperFastHash(ptr), SuperFastHash(str));
+  EXPECT_EQ(dft_hash_fct(ptr), dft_hash_fct(str));
+}
+
+TEST(HashTypeSafetyTest, PointerHashIsStableAcrossCallPaths)
+{
+  int value = 42;
+  int * ptr = &value;
+
+  EXPECT_EQ(dft_hash_fct(ptr), dft_hash_ptr_fct(ptr));
+  EXPECT_EQ(dft_hash_fct(ptr), SuperFastHash(&ptr, sizeof(ptr)));
+
+  EXPECT_EQ(snd_hash_fct(ptr), snd_hash_ptr_fct(ptr));
+  EXPECT_EQ(snd_hash_fct(ptr), SuperFastHash(&ptr, sizeof(ptr), Aleph_Snd_Hash_Seed));
 }
 
 // ==================== Performance Sanity Checks ====================

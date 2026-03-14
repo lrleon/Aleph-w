@@ -32,6 +32,8 @@
 # include <ctime>
 # include <gsl/gsl_rng.h>
 # include <stdexcept>
+# include <mutex>
+# include <atomic>
 # include "hash-fct.H"
 
 # include <ah-errors.H>
@@ -43,7 +45,9 @@ const unsigned Default_Hash_Seed = 52679987;
 
 static long tab[256];
 
-static bool init = false; 
+static std::atomic<bool> init = false; 
+
+static std::mutex jsw_mtx;
 
 // ============================================================================
 // Helpers
@@ -179,16 +183,18 @@ static FORCE_INLINE std::uint64_t wyhash_mix(std::uint64_t lhs,
 
 bool is_jsw_initialized() noexcept
 {
-  return init;
+  return init.load(std::memory_order_acquire);
 }
  
 void init_jsw() noexcept
 {
-  init_jsw(static_cast<std::uint32_t>(time(nullptr)));
+  init_jsw(Default_Hash_Seed);
 }
 
 void init_jsw(std::uint32_t seed) noexcept
 {
+  std::lock_guard<std::mutex> lock(jsw_mtx);
+  
   gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
   gsl_rng_set(r, seed % gsl_rng_max(r));
 
@@ -197,12 +203,12 @@ void init_jsw(std::uint32_t seed) noexcept
 
   gsl_rng_free(r); 
 
-  init = true; 
+  init.store(true, std::memory_order_release);
 }
 
 size_t jsw_hash(const void * key, size_t len) noexcept
 {
-  if (not init)
+  if (not init.load(std::memory_order_acquire))
     init_jsw();
 
   const unsigned char *p = (const unsigned char*) key;
@@ -216,7 +222,7 @@ size_t jsw_hash(const void * key, size_t len) noexcept
 
 size_t jsw_hash(const char * key) noexcept
 {
-  if (not init)
+  if (not init.load(std::memory_order_acquire))
     init_jsw();
 
   const unsigned char * p = (const unsigned char*) key;
