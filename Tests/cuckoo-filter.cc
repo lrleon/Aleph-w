@@ -146,7 +146,7 @@ TEST(CuckooFilterTest, StressTest) {
 TEST(CuckooFilterTest, HighLoadRefined) {
     // 512 buckets * 4 slots = 2048 capacity
     const size_t capacity = 1800;
-    Cuckoo_Filter<size_t, 12, 4> filter(capacity);
+    Cuckoo_Filter<size_t, 12, 4> filter(capacity, 42u);
 
     // Record which keys were actually accepted — some may fail if the filter
     // reaches capacity, so we cannot assume insert(i) succeeded for all i < N.

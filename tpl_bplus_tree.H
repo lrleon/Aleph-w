@@ -320,7 +320,7 @@ class Gen_BPlus_Tree
     return copy;
   }
 
-  [[nodiscard]] const Node *find_leaf(const Key &key) const noexcept
+  [[nodiscard]] const Node *find_leaf(const Key &key) const
   {
     const Node *curr = root_.get();
     while (curr != nullptr and not curr->leaf)
@@ -765,7 +765,7 @@ public:
   /** @brief Move constructor.
    *  @param other Tree to move from.
    */
-  Gen_BPlus_Tree(Gen_BPlus_Tree &&other) noexcept = default;
+  Gen_BPlus_Tree(Gen_BPlus_Tree &&other) = default;
 
   /** @brief Copy assignment.
    *  @param other Tree to copy from.
@@ -789,7 +789,7 @@ public:
    *  @param other Tree to move from.
    *  @return `*this`.
    */
-  Gen_BPlus_Tree &operator=(Gen_BPlus_Tree &&other) noexcept = default;
+  Gen_BPlus_Tree &operator=(Gen_BPlus_Tree &&other) = default;
 
   /** @brief Return the comparison object.
    *  @return Mutable reference to the comparison functor.

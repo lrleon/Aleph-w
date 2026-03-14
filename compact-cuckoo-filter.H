@@ -75,6 +75,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cmath>
+#include <optional>
 #include <random>
 #include <algorithm>
 #include <hash-fct.H>
@@ -106,7 +107,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
         bits.write_bit(i, 0);
     }
 
-    [[nodiscard]] Fingerprint get_slot(size_t idx) const
+    [[nodiscard]] Fingerprint get_slot(const size_t idx) const
     {
       const size_t bit_offset = idx * FingerprintBits;
       Fingerprint fp = 0;
@@ -139,7 +140,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
       return false;
     }
 
-    [[nodiscard]] bool contains(Fingerprint fp) const
+    [[nodiscard]] bool contains(const Fingerprint fp) const
     {
       for (size_t i = 0; i < EntriesPerBucket; ++i)
         if (get_slot(i) == fp)
@@ -194,7 +195,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
   size_t num_items = 0;
   size_t num_buckets = 0;
   size_t bucket_mask = 0;
-  mutable std::mt19937 rng_{std::random_device{}()};
+  mutable std::mt19937 rng_;
 
   static constexpr size_t max_kicks = 500;
   static constexpr size_t stash_size = 4;
@@ -217,7 +218,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
     return dft_hash_fct(item) & bucket_mask;
   }
 
-  [[nodiscard]] size_t alt_index(size_t i, Fingerprint fp) const
+  [[nodiscard]] size_t alt_index(const size_t i, Fingerprint fp) const
   {
     // h2(x) = h1(x) XOR hash(fp)
     // Both operands are in [0, bucket_mask], so the XOR result
@@ -229,8 +230,13 @@ public:
   /**
    * @brief Construct a Compact Cuckoo Filter with a given capacity.
    * @param capacity Minimum number of items to support.
+   * @param seed Optional RNG seed for deterministic kick sequences.
+   *             Pass a fixed value in tests to eliminate flakiness.
+   *             Defaults to a non-deterministic device seed.
    */
-  explicit Compact_Cuckoo_Filter(size_t capacity)
+  explicit Compact_Cuckoo_Filter(size_t capacity, const std::optional<std::uint32_t> seed = std::nullopt)
+    : rng_(seed.has_value() ? std::mt19937(seed.value())
+                            : std::mt19937(std::random_device{}()))
   {
     // Compute how many buckets are needed for the requested capacity
     const size_t needed_buckets = static_cast<size_t>(std::ceil(1.0 * capacity / EntriesPerBucket));

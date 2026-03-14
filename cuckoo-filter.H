@@ -80,6 +80,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cmath>
+#include <optional>
 #include <random>
 #include <algorithm>
 #include <hash-fct.H>
@@ -171,7 +172,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
   size_t num_items = 0;
   size_t num_buckets = 0;
   size_t bucket_mask = 0;
-  mutable std::mt19937 rng_{std::random_device{}()};
+  mutable std::mt19937 rng_;
 
   static constexpr size_t max_kicks = 500;
   static constexpr size_t stash_size = 4;
@@ -206,8 +207,14 @@ public:
   /**
    * @brief Construct a Cuckoo Filter with a given capacity.
    * @param capacity Minimum number of items to support.
+   * @param seed Optional RNG seed for deterministic kick sequences.
+   *             Pass a fixed value in tests to eliminate flakiness.
+   *             Defaults to a non-deterministic device seed.
    */
-  explicit Cuckoo_Filter(size_t capacity)
+  explicit Cuckoo_Filter(size_t capacity,
+                         std::optional<std::uint32_t> seed = std::nullopt)
+    : rng_(seed.has_value() ? std::mt19937(seed.value())
+                            : std::mt19937(std::random_device{}()))
   {
     // Compute how many buckets are needed for the requested capacity
     const size_t needed_buckets = static_cast<size_t>(std::ceil(1.0 * capacity / EntriesPerBucket));

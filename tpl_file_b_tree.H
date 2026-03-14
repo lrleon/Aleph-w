@@ -137,6 +137,17 @@ namespace Aleph
    *  `Compare`, `MinDegree`, and `Codec::storage_id`. Legacy native formats
    *  (`v1`-`v4`) remain readable only when `Key` is trivially copyable.
    */
+  /** @brief Generic paged persistent B-Tree container.
+   *
+   *  This class implements a file-backed B-Tree with a page cache. It is
+   *  optimized for large datasets that cannot fit entirely in RAM,
+   *  providing persistent sorted storage with O(log n) performance.
+   *
+   *  @tparam Key Type of stored elements.
+   *  @tparam Compare Strict weak ordering used to sort keys.
+   *  @tparam MinDegree Minimum degree `t` determining the branching factor.
+   *  @tparam Codec Fixed-size codec used for serialization.
+   */
   template <typename Key,
             class Compare = Aleph::less<Key>,
             size_t MinDegree = 16,
@@ -1302,16 +1313,33 @@ namespace Aleph
       bool stale_wal = false;
       if (storage_format_version_on_disk() == std::optional<std::uint32_t>(FormatVersion))
         {
-          stale_wal = true;
-          for (size_t i = 0; i < recovered_records.size(); ++i)
+          // Verify the on-disk header already reflects wal_checkpoint_sequence
+          // before treating the WAL as stale.  When recovered_records is empty
+          // (dirty_count == 0) the per-page loop below does not execute, which
+          // would wrongly leave stale_wal=true even when the header write had
+          // not yet been flushed to disk at crash time.
+          bool header_current = false;
+          try
             {
-              const auto persisted =
-                read_storage_page_if_current(recovered_records[i].page_id);
-              if (not persisted.has_value()
-                  or persisted->checkpoint_sequence < wal_checkpoint_sequence)
+              const Loaded_Image disk = read_image(file_path_);
+              header_current =
+                disk.checkpoint_sequence >= wal_checkpoint_sequence;
+            }
+          catch (...) {}
+
+          if (header_current)
+            {
+              stale_wal = true;
+              for (size_t i = 0; i < recovered_records.size(); ++i)
                 {
-                  stale_wal = false;
-                  break;
+                  const auto persisted =
+                    read_storage_page_if_current(recovered_records[i].page_id);
+                  if (not persisted.has_value()
+                      or persisted->checkpoint_sequence < wal_checkpoint_sequence)
+                    {
+                      stale_wal = false;
+                      break;
+                    }
                 }
             }
         }
@@ -2171,9 +2199,16 @@ namespace Aleph
                                              : std::string(file_path),
                         open_mode, auto_sync, cmp) {}
 
+    /** @brief Copying is disabled. */
     Gen_File_B_Tree(const Gen_File_B_Tree &) = delete;
+
+    /** @brief Assignment is disabled. */
     Gen_File_B_Tree & operator = (const Gen_File_B_Tree &) = delete;
+
+    /** @brief Moving is disabled. */
     Gen_File_B_Tree(Gen_File_B_Tree &&) = delete;
+
+    /** @brief Move assignment is disabled. */
     Gen_File_B_Tree & operator = (Gen_File_B_Tree &&) = delete;
 
     /** @brief Close the backing file.
@@ -2186,22 +2221,14 @@ namespace Aleph
     }
 
     /** @brief Return the comparison object.
-     *  @return Mutable reference to the comparison functor.
-     *  @throws Nothing.
-     */
-    Compare & key_comp() noexcept { return cmp_; }
-
-    /** @brief Return the comparison object.
      *  @return Constant reference to the comparison functor.
+     *  @note The comparator is immutable once the tree is persisted; no
+     *        mutable accessor is provided to prevent callers from replacing
+     *        the comparator after page splits/merges have been written to
+     *        disk.
      *  @throws Nothing.
      */
     [[nodiscard]] const Compare & key_comp() const noexcept { return cmp_; }
-
-    /** @brief Return the comparison object.
-     *  @return Mutable reference to the comparison functor.
-     *  @throws Nothing.
-     */
-    Compare & get_compare() noexcept { return key_comp(); }
 
     /** @brief Return the comparison object.
      *  @return Constant reference to the comparison functor.

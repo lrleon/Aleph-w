@@ -285,6 +285,7 @@ set(TEST_PROGRAMS
     jsw_init_test
     hash_restriction_test
     hash_statistical_test
+    hash_validation_test
     point_test
     segment_test
     ranges_iterator_test

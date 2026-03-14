@@ -271,15 +271,15 @@ TEST_F(HashConsistencyTest, DftHashFctConsistency)
   EXPECT_EQ(h3, h4);
 }
 
-TEST_F(HashConsistencyTest, DftHashUsesXxHash64Backend)
+TEST_F(HashConsistencyTest, DftHashUsesWyhashBackend)
 {
-  EXPECT_EQ(dft_hash_fct(test_std_string), xxhash64_hash(test_std_string));
-  EXPECT_EQ(dft_hash_fct(test_int), xxhash64_hash(test_int));
+  EXPECT_EQ(dft_hash_fct(test_std_string), wyhash_hash(test_std_string));
+  EXPECT_EQ(dft_hash_fct(test_int), wyhash_hash(test_int));
 
   const auto seeded = dft_hash_fct(test_std_string, 99u);
-  EXPECT_EQ(seeded, xxhash64_hash(test_std_string, 99u));
+  EXPECT_EQ(seeded, wyhash_hash(test_std_string, 99u));
   EXPECT_EQ(snd_hash_fct(test_std_string),
-            xxhash64_hash(test_std_string, Aleph_Snd_Hash_Seed));
+            wyhash_hash(test_std_string, Aleph_Snd_Hash_Seed));
 }
 
 TEST_F(HashConsistencyTest, XxHash64Consistency)

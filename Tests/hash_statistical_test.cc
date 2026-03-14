@@ -165,8 +165,11 @@ Array<std::string> make_prefix_samples(size_t count,
   for (size_t i = 0; i < count; ++i)
     {
       std::string sample = prefix;
+      // Use a 64-bit counter so shifts up to 56 bits are well-defined on
+      // 32-bit platforms where size_t is only 32 bits.
+      const std::uint64_t v = static_cast<std::uint64_t>(i);
       for (size_t j = 0; j < suffix_len; ++j)
-        sample.push_back(static_cast<char>((i >> (j * 8)) & 0xff));
+        sample.push_back(static_cast<char>((v >> (j * 8)) & 0xff));
       out.append(std::move(sample));
     }
 
@@ -689,8 +692,11 @@ TEST_F(HashStatisticalTest, CollisionScalingByBitWidth)
                 << std::setw(14) << std::fixed << std::setprecision(6) << exp64
                 << '\n';
 
-      // 64-bit output must have zero collisions for all tested sizes.
-      EXPECT_EQ(coll64, 0u) << "64-bit hash unexpectedly collided at N=" << n;
+      // 64-bit collision check is only meaningful when size_t is 64 bits.
+      // On 32-bit platforms wyhash_hash() returns a 32-bit size_t truncated
+      // to the same width as the 32-bit column, making coll64 == coll32.
+      if constexpr (sizeof(size_t) >= 8)
+        EXPECT_EQ(coll64, 0u) << "64-bit hash unexpectedly collided at N=" << n;
     }
 
   // Theoretical projection to N = 4 × 10^9 (representative "large table").

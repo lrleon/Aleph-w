@@ -76,6 +76,19 @@ namespace Aleph
    *  types and `std::array`; bounded strings can be supported with
    *  \ref Aleph::detail::Paged_Bounded_String_Codec.
    */
+  /** @brief Generic paged persistent B-Tree map with fixed-size records.
+   *
+   *  This class provides a map-like interface (associative keys to values)
+   *  backed by a persistent \ref Aleph::File_B_Tree. It supports O(log n)
+   *  access with on-disk persistence and efficient page caching.
+   *
+   *  @tparam Key Type of unique keys.
+   *  @tparam Value Type of mapped values.
+   *  @tparam Compare Strict weak ordering used to sort keys.
+   *  @tparam MinDegree Minimum degree `t` of the underlying persistent B-Tree.
+   *  @tparam KeyCodec Fixed-size codec used to persist keys.
+   *  @tparam ValueCodec Fixed-size codec used to persist mapped values.
+   */
   template <typename Key,
             typename Value,
             class Compare = Aleph::less<Key>,
@@ -271,9 +284,16 @@ namespace Aleph
                             const Compare & cmp = Compare())
       : tree_(file_path, open_mode, auto_sync, Record_Compare{cmp}) {}
 
+    /** @brief Copying is disabled. */
     Gen_File_B_Map(const Gen_File_B_Map &) = delete;
+
+    /** @brief Assignment is disabled. */
     Gen_File_B_Map & operator = (const Gen_File_B_Map &) = delete;
+
+    /** @brief Moving is disabled. */
     Gen_File_B_Map(Gen_File_B_Map &&) = delete;
+
+    /** @brief Move assignment is disabled. */
     Gen_File_B_Map & operator = (Gen_File_B_Map &&) = delete;
 
     /** @brief Return the file path.
@@ -319,15 +339,6 @@ namespace Aleph
     void set_auto_sync(const bool enabled) noexcept
     {
       tree_.set_auto_sync(enabled);
-    }
-
-    /** @brief Return the key comparator.
-     *  @return Mutable reference to the key comparator.
-     *  @throws Nothing.
-     */
-    Compare & key_comp() noexcept
-    {
-      return tree_.key_comp().cmp;
     }
 
     /** @brief Return the key comparator.
@@ -482,6 +493,17 @@ namespace Aleph
      *          existing value.
      *  @throws std::runtime_error If the backing tree rejects the mutation.
      *  @throws std::bad_alloc If the page cache cannot grow.
+     *
+     *  @note **Crash-recovery limitation.**  When the key already exists the
+     *  implementation issues two separate WAL-protected operations:
+     *  `tree_.remove(probe)` followed by `tree_.insert(record)`.  Each
+     *  individual operation is crash-safe (the WAL guarantees redo on the next
+     *  open), but a process crash *between* the two leaves the key permanently
+     *  deleted.  `Gen_File_B_Tree` does not expose a single-WAL-transaction
+     *  replace primitive, so full atomicity of the pair cannot be guaranteed
+     *  without adding such a primitive.  Callers that require all-or-nothing
+     *  replace semantics should wrap the two operations in their own
+     *  application-level recovery logic.
      */
     bool insert_or_assign(const Key & key, const Value & value)
     {

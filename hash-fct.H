@@ -34,6 +34,7 @@
 # include <cstddef>
 # include <cstring>
 # include <string>
+# include <concepts>
 # include <type_traits>
 # include <cstdint>
 
@@ -490,11 +491,18 @@ inline std::uint16_t get16bits(const void * p) noexcept
 
   /** SipHash-2-4 keyed hash.
 
-      This function implements SipHash-2-4, a keyed PRF-style hash suitable
-      for adversarial or untrusted keys.
+      This function implements SipHash-2-4, a keyed PRF-style hash.  When
+      called with **secret, per-process keys** it provides protection against
+      hash-flooding attacks from adversarial inputs.
 
-      @param key Pointer to the input bytes.
-      @param len Length of the input in bytes.
+      @warning The default key values (`key0 = 0x0706050403020100`, `key1 =
+      0x0f0e0d0c0b0a0908`) are **public constants**.  Overloads that use these
+      defaults are deterministic and do **not** provide adversarial resistance.
+      For hash-flooding protection, generate secret keys at process startup
+      (e.g., via `std::random_device`) and pass them explicitly on every call.
+
+      @param key  Pointer to the input bytes.
+      @param len  Length of the input in bytes.
       @param key0 First 64-bit secret key word.
       @param key1 Second 64-bit secret key word.
       @return Hash value truncated to size_t.
@@ -694,6 +702,11 @@ inline std::uint16_t get16bits(const void * p) noexcept
     return h;
   }
 
+  /** @brief Compute a 32-bit JSW hash for a null-terminated string.
+   *  @param key Null-terminated string to hash.
+   *  @return 32-bit hash value.
+   *  @throws Nothing.
+   */
   extern size_t jsw_hash(const char * key) noexcept;
 
   inline size_t elf_hash(const char * key) noexcept
@@ -864,7 +877,7 @@ inline std::uint16_t get16bits(const void * p) noexcept
    * Resolution order (in priority):
    *  1. **ADL** — calls `aleph_hash_value(key)` if found in T's namespace.
    *               This is the semantic path for user-defined types.
-   *  2. **Byte** — calls `xxhash64_hash` for trivially-copyable, non-pointer T.
+   *  2. **Byte** — calls `wyhash_hash` for trivially-copyable, non-pointer T.
    *               This is the default path for scalars and POD structs.
    *  3. **Error** — `static_assert` for any other T, with an actionable message.
    *
@@ -875,11 +888,18 @@ inline std::uint16_t get16bits(const void * p) noexcept
   template <typename T>
   struct Aleph_Hash
   {
+    // Floating-point types are excluded from the raw-byte fallback because equal
+    // values can have different bit patterns (e.g., -0.0 == +0.0, NaN != NaN
+    // but multiple bit representations exist).  Implement aleph_hash_value() or
+    // specialize Aleph_Hash<> for float/double.
     static_assert(
       HashableByADL<T> or
-      (std::is_trivially_copyable_v<T> and not std::is_pointer_v<T>),
-      "Aleph_Hash<T>: T is not trivially copyable and has no aleph_hash_value() "
-      "in its namespace.  Define:\n"
+      (std::is_trivially_copyable_v<T>
+       and not std::is_pointer_v<T>
+       and not std::is_floating_point_v<T>),
+      "Aleph_Hash<T>: T has no aleph_hash_value() in its namespace and cannot "
+      "be safely byte-hashed (pointer, floating-point, or non-trivially-copyable "
+      "type).  Define:\n"
       "  size_t aleph_hash_value(const T &) noexcept;\n"
       "in T's namespace, or specialize Aleph_Hash<T>."
     );
@@ -889,7 +909,7 @@ inline std::uint16_t get16bits(const void * p) noexcept
       if constexpr (HashableByADL<T>)
         return aleph_hash_value(key);
       else
-        return xxhash64_hash(key);
+        return wyhash_hash(key);
     }
 
     [[nodiscard]] size_t operator()(const T & key, std::uint32_t seed) const noexcept
@@ -901,7 +921,50 @@ inline std::uint16_t get16bits(const void * p) noexcept
           return h;
         }
       else
-        return xxhash64_hash(key, seed);
+        return wyhash_hash(key, seed);
+    }
+  };
+
+  // Explicit specializations for floating-point types.
+  // The raw-byte fallback is excluded for floats because equal values can have
+  // different bit patterns (-0.0 == +0.0, multiple NaN encodings).  These
+  // specializations normalize -0.0 to +0.0 before hashing the bits.
+
+  template <>
+  struct Aleph_Hash<float>
+  {
+    [[nodiscard]] size_t operator()(float key) const noexcept
+    {
+      if (key == 0.0f) key = 0.0f;  // normalize -0.0
+      std::uint32_t bits = 0;
+      std::memcpy(&bits, &key, sizeof(bits));
+      return SuperFastHash(&bits, sizeof(bits));
+    }
+    [[nodiscard]] size_t operator()(float key, std::uint32_t seed) const noexcept
+    {
+      if (key == 0.0f) key = 0.0f;
+      std::uint32_t bits = 0;
+      std::memcpy(&bits, &key, sizeof(bits));
+      return SuperFastHash(&bits, sizeof(bits), seed);
+    }
+  };
+
+  template <>
+  struct Aleph_Hash<double>
+  {
+    [[nodiscard]] size_t operator()(double key) const noexcept
+    {
+      if (key == 0.0) key = 0.0;  // normalize -0.0
+      std::uint64_t bits = 0;
+      std::memcpy(&bits, &key, sizeof(bits));
+      return wyhash_hash(bits);  // pass by value → wyhash_hash<uint64_t> overload
+    }
+    [[nodiscard]] size_t operator()(double key, std::uint32_t seed) const noexcept
+    {
+      if (key == 0.0) key = 0.0;
+      std::uint64_t bits = 0;
+      std::memcpy(&bits, &key, sizeof(bits));
+      return wyhash_hash(bits, seed);
     }
   };
 
@@ -917,7 +980,7 @@ inline std::uint16_t get16bits(const void * p) noexcept
    *
    * Routes through `Aleph_Hash<Key>`:
    *  - ADL path for user types (semantic, O(T::hash))
-   *  - `xxhash64_hash` for trivially-copyable types and strings
+   *  - `wyhash_hash` for trivially-copyable types and strings (64-bit, ~1045 MiB/s)
    *  - `SuperFastHash(&key, sizeof(key))` for pointer keys
    *  - Compile-time error for unknown non-trivial types
    *
@@ -948,12 +1011,12 @@ inline std::uint16_t get16bits(const void * p) noexcept
 
   inline size_t dft_hash_fct(const char * key) noexcept
   {
-    return xxhash64_hash(key);
+    return wyhash_hash(key);
   }
 
   inline size_t dft_hash_fct(const std::string & key) noexcept
   {
-    return xxhash64_hash(key);
+    return wyhash_hash(key);
   }
 
   /**
@@ -977,12 +1040,12 @@ inline std::uint16_t get16bits(const void * p) noexcept
 
   inline size_t dft_hash_fct(const char * key, std::uint32_t seed) noexcept
   {
-    return xxhash64_hash(key, seed);
+    return wyhash_hash(key, seed);
   }
 
   inline size_t dft_hash_fct(const std::string & key, std::uint32_t seed) noexcept
   {
-    return xxhash64_hash(key, seed);
+    return wyhash_hash(key, seed);
   }
 
   template <typename Key>
@@ -1026,12 +1089,12 @@ inline std::uint16_t get16bits(const void * p) noexcept
 
   inline size_t snd_hash_fct(const char * key) noexcept
   {
-    return xxhash64_hash(key, Aleph_Snd_Hash_Seed);
+    return wyhash_hash(key, Aleph_Snd_Hash_Seed);
   }
 
   inline size_t snd_hash_fct(const std::string & key) noexcept
   {
-    return xxhash64_hash(key, Aleph_Snd_Hash_Seed);
+    return wyhash_hash(key, Aleph_Snd_Hash_Seed);
   }
 
   template <typename Key>

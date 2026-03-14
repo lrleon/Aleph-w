@@ -78,6 +78,19 @@ namespace Aleph
    *  arithmetic types and `std::array`; bounded strings can be supported with
    *  \ref Aleph::detail::Paged_Bounded_String_Codec.
    */
+  /** @brief Generic paged persistent B+ Tree map with fixed-size records.
+   *
+   *  This class provides a map-like interface (associative keys to values)
+   *  backed by a persistent \ref Aleph::File_BPlus_Tree. It supports O(log n)
+   *  access with on-disk persistence and efficient page caching.
+   *
+   *  @tparam Key Type of unique keys.
+   *  @tparam Value Type of mapped values.
+   *  @tparam Compare Strict weak ordering used to sort keys.
+   *  @tparam MinDegree Minimum degree `t` of the underlying persistent B+ Tree.
+   *  @tparam KeyCodec Fixed-size codec used to persist keys.
+   *  @tparam ValueCodec Fixed-size codec used to persist mapped values.
+   */
   template <typename Key,
             typename Value,
             class Compare = Aleph::less<Key>,
@@ -348,9 +361,16 @@ namespace Aleph
                                 const Compare & cmp = Compare())
       : tree_(file_path, open_mode, auto_sync, Record_Compare{cmp}) {}
 
+    /** @brief Copying is disabled. */
     Gen_File_BPlus_Map(const Gen_File_BPlus_Map &) = delete;
+
+    /** @brief Assignment is disabled. */
     Gen_File_BPlus_Map & operator = (const Gen_File_BPlus_Map &) = delete;
+
+    /** @brief Moving is disabled. */
     Gen_File_BPlus_Map(Gen_File_BPlus_Map &&) = delete;
+
+    /** @brief Move assignment is disabled. */
     Gen_File_BPlus_Map & operator = (Gen_File_BPlus_Map &&) = delete;
 
     /** @brief Return the file path.
@@ -396,15 +416,6 @@ namespace Aleph
     void set_auto_sync(const bool enabled) noexcept
     {
       tree_.set_auto_sync(enabled);
-    }
-
-    /** @brief Return the key comparator.
-     *  @return Mutable reference to the key comparator.
-     *  @throws Nothing.
-     */
-    Compare & key_comp() noexcept
-    {
-      return tree_.key_comp().cmp;
     }
 
     /** @brief Return the key comparator.

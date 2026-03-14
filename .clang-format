@@ -1,5 +1,5 @@
 # Aleph-w C++ Code Style
-# Based on project conventions: 2 spaces, K&R braces, prefer and/or/not
+# Based on project conventions: 2 spaces, next-line indented braces, prefer and/or/not
 
 BasedOnStyle: LLVM
 
@@ -12,7 +12,7 @@ AccessModifierOffset: -2
 IndentCaseLabels: false
 NamespaceIndentation: None
 
-# Braces (GNU style: nueva línea e indentadas)
+# Braces (Next-line indented: Custom style with IndentBraces: true)
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterClass: true

@@ -45,9 +45,13 @@ const unsigned Default_Hash_Seed = 52679987;
 
 static long tab[256];
 
-static std::atomic<bool> init = false; 
+// once_flag guards the one-time population of tab[].
+// is_jsw_initialized() needs a separate atomic so it can be queried without
+// re-entering the once_flag.
+static std::once_flag  jsw_init_flag;
+static std::atomic<bool> init{false};
 
-static std::mutex jsw_mtx;
+static std::mutex jsw_mtx;  // kept for the re-seeding path in init_jsw(seed)
 
 // ============================================================================
 // Helpers
@@ -141,10 +145,16 @@ static FORCE_INLINE std::uint64_t mul_xor_fold64(std::uint64_t lhs,
   const std::uint64_t lh = lhs_lo * rhs_hi;
   const std::uint64_t hl = lhs_hi * rhs_lo;
   const std::uint64_t hh = lhs_hi * rhs_hi;
-  std::uint64_t low = ll + (lh << 32) + (hl << 32);
-  std::uint64_t high = hh + (lh >> 32) + (hl >> 32);
-  if (low < ll)
-    ++high;
+  // Accumulate the low 64 bits in two separate additions and track carries
+  // individually.  A single `if (low < ll)` would miss a carry from the
+  // second addition when both additions overflow.
+  const std::uint64_t mid = lh << 32;
+  std::uint64_t low = ll + mid;
+  std::uint64_t carry = low < ll ? 1u : 0u;
+  const std::uint64_t mid2 = hl << 32;
+  low += mid2;
+  carry += low < mid2 ? 1u : 0u;
+  std::uint64_t high = hh + (lh >> 32) + (hl >> 32) + carry;
   return low ^ high;
 #endif
 }
@@ -181,37 +191,50 @@ static FORCE_INLINE std::uint64_t wyhash_mix(std::uint64_t lhs,
 // Initialization and classic hashes
 // ============================================================================
 
-bool is_jsw_initialized() noexcept
+// Internal helper: populate tab[] from a given seed.
+// Must be called either via std::call_once or with jsw_mtx held.
+static void jsw_fill_table(std::uint32_t seed) noexcept
 {
-  return init.load(std::memory_order_acquire);
-}
- 
-void init_jsw() noexcept
-{
-  init_jsw(Default_Hash_Seed);
-}
-
-void init_jsw(std::uint32_t seed) noexcept
-{
-  std::lock_guard<std::mutex> lock(jsw_mtx);
-
   gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
   gsl_rng_set(r, seed % gsl_rng_max(r));
-
   for (int i = 0; i < 256; ++i)
     tab[i] = gsl_rng_get(r);
-
   gsl_rng_free(r);
-
-  // Release store: any thread that subsequently sees init==true with an
+  // Release store: any thread that subsequently reads init==true with an
   // acquire load is guaranteed to observe the fully populated tab[].
   init.store(true, std::memory_order_release);
 }
 
+bool is_jsw_initialized() noexcept
+{
+  return init.load(std::memory_order_acquire);
+}
+
+// No-arg overload uses a fixed deterministic seed so results are
+// reproducible across runs.  Call init_jsw(custom_seed) before first
+// hash use if a custom seed is required.
+void init_jsw() noexcept
+{
+  // std::call_once guarantees exactly-once, race-free execution even when
+  // multiple threads call jsw_hash() for the first time concurrently.
+  std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
+}
+
+void init_jsw(std::uint32_t seed) noexcept
+{
+  // Explicit re-seed: use the mutex so concurrent jsw_hash() readers cannot
+  // observe a partially-written tab[].  The once_flag is bypassed here because
+  // re-seeding is an intentional reset, not a first-init guard.
+  std::lock_guard<std::mutex> lock(jsw_mtx);
+  jsw_fill_table(seed);
+}
+
 size_t jsw_hash(const void * key, size_t len) noexcept
 {
+  // Fast path: if init_jsw(seed) was already called, skip call_once.
+  // call_once is only for the truly-first-use lazy-init case.
   if (not init.load(std::memory_order_acquire))
-    init_jsw();
+    std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
 
   const unsigned char *p = (const unsigned char*) key;
   size_t h = 16777551;
@@ -225,14 +248,14 @@ size_t jsw_hash(const void * key, size_t len) noexcept
 size_t jsw_hash(const char * key) noexcept
 {
   if (not init.load(std::memory_order_acquire))
-    init_jsw();
+    std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
 
   const unsigned char * p = (const unsigned char*) key;
   size_t h = 16777551;
-  
+
   while (*p)
     h = (h << 1 | h >> 31) ^ tab[*p++];
-  
+
   return h;
 }
 
