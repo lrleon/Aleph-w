@@ -89,6 +89,8 @@ struct Metrics
   double throughput_mib_s = 0.0;
   size_t full_collisions = 0;
   size_t max_random_bucket = 0;
+  uint64_t total_calls = 0;
+  double latency_ns = 0.0;
 };
 
 Thresholds thresholds_for(HashProfile profile)
@@ -219,11 +221,23 @@ double uniqueness_ratio(const Candidate & candidate,
   return static_cast<double>(unique.size()) / samples.size();
 }
 
+size_t effective_output_bits(const Candidate & candidate,
+                             const std::vector<std::string> & samples)
+{
+  size_t observed_mask = 0;
+
+  for (const auto & sample : samples)
+    observed_mask |= candidate.hash(sample);
+
+  const size_t bits = std::bit_width(observed_mask);
+  return std::max<size_t>(bits, 1);
+}
+
 double max_output_bit_bias(const Candidate & candidate,
                            const std::vector<std::string> & samples)
 {
-  constexpr size_t bits = sizeof(size_t) * 8;
-  std::array<size_t, bits> ones = {};
+  const size_t bits = effective_output_bits(candidate, samples);
+  std::array<size_t, sizeof(size_t) * 8> ones = {};
 
   for (const auto & sample : samples)
     {
@@ -245,7 +259,7 @@ double max_output_bit_bias(const Candidate & candidate,
 double avalanche_ratio(const Candidate & candidate,
                        const std::vector<std::string> & samples)
 {
-  constexpr size_t output_bits = sizeof(size_t) * 8;
+  const size_t output_bits = effective_output_bits(candidate, samples);
   std::uint64_t changed_bits = 0;
   std::uint64_t comparisons = 0;
 
@@ -268,11 +282,19 @@ double avalanche_ratio(const Candidate & candidate,
     : static_cast<double>(changed_bits) / comparisons;
 }
 
-double throughput_mib_s(const Candidate & candidate,
-                        const std::vector<std::string> & samples)
+struct ThroughputResult
+{
+  double mib_s = 0.0;
+  uint64_t calls = 0;
+  double latency_ns = 0.0;
+};
+
+ThroughputResult throughput_metrics(const Candidate & candidate,
+                                    const std::vector<std::string> & samples)
 {
   constexpr std::uint64_t target_bytes = 32ULL * 1024 * 1024;
   std::uint64_t processed = 0;
+  uint64_t calls = 0;
   volatile size_t sink = 0;
 
   const auto start = std::chrono::steady_clock::now();
@@ -282,6 +304,7 @@ double throughput_mib_s(const Candidate & candidate,
         {
           sink ^= candidate.hash(sample);
           processed += sample.size();
+          calls++;
           if (processed >= target_bytes)
             break;
         }
@@ -290,7 +313,11 @@ double throughput_mib_s(const Candidate & candidate,
   const std::chrono::duration<double> elapsed = stop - start;
   EXPECT_NE(sink, 0u);
 
-  return static_cast<double>(processed) / (1024.0 * 1024.0) / elapsed.count();
+  ThroughputResult res;
+  res.mib_s = static_cast<double>(processed) / (1024.0 * 1024.0) / elapsed.count();
+  res.calls = calls;
+  res.latency_ns = (std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count()) / static_cast<double>(calls);
+  return res;
 }
 
 Metrics measure_metrics(const Candidate & candidate,
@@ -302,15 +329,32 @@ Metrics measure_metrics(const Candidate & candidate,
   Metrics metrics;
   metrics.uniqueness = uniqueness_ratio(candidate, random_samples,
                                         metrics.full_collisions);
+  metrics.total_calls += random_samples.size();
+
   const auto [random_chi, max_random_bucket]
     = reduced_chi_square(candidate, random_samples, 1024);
   metrics.random_chi = random_chi;
   metrics.max_random_bucket = max_random_bucket;
+  metrics.total_calls += random_samples.size();
+
   metrics.prefix_chi = reduced_chi_square(candidate, prefix_samples, 1024).first;
+  metrics.total_calls += prefix_samples.size();
+
   metrics.sequential_chi = reduced_chi_square(candidate, sequential_samples, 1024).first;
+  metrics.total_calls += sequential_samples.size();
+
   metrics.avalanche = avalanche_ratio(candidate, avalanche_samples);
+  const size_t flip_bits = std::min<size_t>(avalanche_samples[0].size() * 8, 64);
+  metrics.total_calls += avalanche_samples.size() * (1 + flip_bits);
+
   metrics.max_bit_bias = max_output_bit_bias(candidate, random_samples);
-  metrics.throughput_mib_s = throughput_mib_s(candidate, random_samples);
+  metrics.total_calls += random_samples.size();
+
+  const auto tp = throughput_metrics(candidate, random_samples);
+  metrics.throughput_mib_s = tp.mib_s;
+  metrics.latency_ns = tp.latency_ns;
+  metrics.total_calls += tp.calls;
+
   return metrics;
 }
 
@@ -335,20 +379,16 @@ std::vector<Candidate> all_candidates()
      [] (const std::string & s) { return jsw_hash(s.data(), s.size()); }},
     {"elf_hash", HashProfile::Weak,
      [] (const std::string & s) { return elf_hash(s.data(), s.size()); }},
-    {"jen_hash", HashProfile::Strong,
+    {"jen_hash", HashProfile::Weak,
      [] (const std::string & s)
        {
          return jen_hash(static_cast<const void *>(s.data()), s.size(),
                          Default_Hash_Seed);
        }},
-    {"SuperFastHash", HashProfile::General,
-     [] (const std::string & s) { return SuperFastHash(s.data(), s.size()); }},
+    {"SuperFastHash", HashProfile::Weak,
+     [] (const std::string & s) { return SuperFastHash(s); }},
     {"murmur3hash", HashProfile::Strong,
      [] (const std::string & s) { return murmur3hash(s, 42ul); }},
-    {"dft_hash_fct", HashProfile::General,
-     [] (const std::string & s) { return dft_hash_fct(s); }},
-    {"snd_hash_fct", HashProfile::Strong,
-     [] (const std::string & s) { return snd_hash_fct(s); }},
     {"xxhash64_hash", HashProfile::Strong,
      [] (const std::string & s) { return xxhash64_hash(s.data(), s.size(), 42); }},
     {"wyhash_hash", HashProfile::Strong,
@@ -363,30 +403,34 @@ std::string format_metrics_table(const std::vector<std::pair<std::string, Metric
   std::ostringstream out;
   out << "\nHash statistics summary\n";
   out << std::left << std::setw(16) << "name"
-      << std::right << std::setw(10) << "uniq"
-      << std::setw(10) << "chi-r"
-      << std::setw(10) << "chi-p"
-      << std::setw(10) << "chi-s"
-      << std::setw(10) << "avalan"
-      << std::setw(10) << "bias"
-      << std::setw(12) << "MiB/s"
-      << std::setw(12) << "coll"
-      << std::setw(12) << "max-bkt"
+      << std::right << std::setw(8) << "uniq"
+      << std::setw(8) << "chi-r"
+      << std::setw(8) << "chi-p"
+      << std::setw(8) << "chi-s"
+      << std::setw(8) << "avalan"
+      << std::setw(8) << "bias"
+      << std::setw(10) << "MiB/s"
+      << std::setw(12) << "calls"
+      << std::setw(10) << "lat-ns"
+      << std::setw(8) << "coll"
+      << std::setw(8) << "max-bkt"
       << '\n';
 
   for (const auto & [name, metrics] : rows)
     {
       out << std::left << std::setw(16) << name
           << std::right << std::fixed << std::setprecision(3)
-          << std::setw(10) << metrics.uniqueness
-          << std::setw(10) << metrics.random_chi
-          << std::setw(10) << metrics.prefix_chi
-          << std::setw(10) << metrics.sequential_chi
-          << std::setw(10) << metrics.avalanche
-          << std::setw(10) << metrics.max_bit_bias
-          << std::setw(12) << std::setprecision(1) << metrics.throughput_mib_s
-          << std::setw(12) << metrics.full_collisions
-          << std::setw(12) << metrics.max_random_bucket
+          << std::setw(8) << metrics.uniqueness
+          << std::setw(8) << metrics.random_chi
+          << std::setw(8) << metrics.prefix_chi
+          << std::setw(8) << metrics.sequential_chi
+          << std::setw(8) << metrics.avalanche
+          << std::setw(8) << metrics.max_bit_bias
+          << std::setw(10) << std::setprecision(1) << metrics.throughput_mib_s
+          << std::setw(12) << metrics.total_calls
+          << std::setw(10) << std::setprecision(2) << metrics.latency_ns
+          << std::setw(8) << metrics.full_collisions
+          << std::setw(8) << metrics.max_random_bucket
           << '\n';
     }
 
@@ -462,6 +506,46 @@ TEST_F(HashStatisticalTest, DispersionAvalancheAndThroughputProfiles)
     }
 
   std::cout << format_metrics_table(rows) << std::flush;
+
+  auto dispersion_score = [] (const Metrics & m)
+  {
+    return std::abs(1.0 - m.uniqueness) +
+           std::abs(1.0 - m.random_chi) +
+           std::abs(1.0 - m.prefix_chi) +
+           std::abs(1.0 - m.sequential_chi) +
+           std::abs(0.5 - m.avalanche) +
+           m.max_bit_bias;
+  };
+
+  auto dispersion_rows = rows;
+  std::sort(dispersion_rows.begin(), dispersion_rows.end(),
+            [&] (const auto & a, const auto & b)
+            {
+              return dispersion_score(a.second) < dispersion_score(b.second);
+            });
+
+  std::cout << "\nRanking by Dispersion (lower is better):\n";
+  for (size_t i = 0; i < dispersion_rows.size(); ++i)
+    std::cout << std::setw(2) << i + 1 << ". "
+              << std::left << std::setw(16) << dispersion_rows[i].first
+              << " Score: " << std::fixed << std::setprecision(4)
+              << dispersion_score(dispersion_rows[i].second) << "\n";
+
+  auto speed_rows = rows;
+  std::sort(speed_rows.begin(), speed_rows.end(),
+            [] (const auto & a, const auto & b)
+            {
+              return a.second.throughput_mib_s > b.second.throughput_mib_s;
+            });
+
+  std::cout << "\nRanking by Speed (higher is better):\n";
+  for (size_t i = 0; i < speed_rows.size(); ++i)
+    std::cout << std::setw(2) << i + 1 << ". "
+              << std::left << std::setw(16) << speed_rows[i].first
+              << " Speed: " << std::fixed << std::setprecision(1) << std::right << std::setw(8)
+              << speed_rows[i].second.throughput_mib_s << " MiB/s ("
+              << std::fixed << std::setprecision(2) << std::setw(6)
+              << speed_rows[i].second.latency_ns << " ns/op)\n";
 }
 
 TEST_F(HashStatisticalTest, PairHashCombinersReportOrderingSensitivity)

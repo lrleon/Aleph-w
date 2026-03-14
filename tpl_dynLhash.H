@@ -196,7 +196,7 @@ namespace Aleph
      *  @throw std::bad_alloc If memory allocation fails.
      */
     DynLhashTable(size_t len = DefaultPrime,
-                  Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>)
+                  Hash_Fct_Ptr hash_fct = dft_hash_ptr_fct<Key>)
       : LhashTableVtl<Key>(len, hash_fct)
     {
       // Empty

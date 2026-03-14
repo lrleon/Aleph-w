@@ -259,7 +259,7 @@ namespace Aleph
       : OLhashTable(len, hash_fct, cmp, lower_alpha, upper_alpha, with_resize) {}
 
     OLhashTable(size_t len = Primes::DefaultPrime,
-                Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>,
+                Hash_Fct_Ptr hash_fct = Aleph::dft_hash_ptr_fct<Key>,
                 Cmp cmp = Cmp(),
                 float lower_alpha = hash_default_lower_alpha,
                 float upper_alpha = 0.70f,

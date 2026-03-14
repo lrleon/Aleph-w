@@ -219,7 +219,7 @@ namespace Aleph
         @throw bad_alloc if there is not enough memory to allocate the table.
     */
     GenLhashTable(size_t table_size = Primes::DefaultPrime,
-                  Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>,
+                  Hash_Fct_Ptr hash_fct = Aleph::dft_hash_ptr_fct<Key>,
                   Cmp cmp = Cmp(),
                   float lower_alpha = hash_default_lower_alpha,
                   float upper_alpha = hash_default_upper_alpha,

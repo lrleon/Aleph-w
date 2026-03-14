@@ -282,6 +282,9 @@ set(TEST_PROGRAMS
     tdrbtreerk_test
     htdrbtreerk_test
     hash_fct_test
+    jsw_init_test
+    hash_restriction_test
+    hash_statistical_test
     point_test
     segment_test
     ranges_iterator_test

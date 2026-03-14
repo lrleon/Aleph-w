@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -29,124 +28,34 @@
   SOFTWARE.
 */
 
-
-/** @file hash-fct.H
-    @brief Collection of general-purpose hash functions.
-
-    This file provides a comprehensive collection of hash functions suitable
-    for use in hash tables, bloom filters, checksums, and other applications
-    requiring hash computation.
-
-    ## Hash Function Categories
-
-    The functions are organized into several categories:
-
-    ### Simple Hash Functions (Educational/Legacy)
-    - `add_hash()` - Simple additive hash (poor distribution)
-    - `xor_hash()` - XOR folding hash (poor distribution)
-    - `rot_hash()` - Rotating hash (acceptable minimum)
-
-    ### Production-Quality Hash Functions
-    - `djb_hash()` - Dan Bernstein's hash (good for small strings)
-    - `sax_hash()` - Shift-Add-XOR hash (flexible, good distribution)
-    - `fnv_hash()` - Fowler-Noll-Vo hash (simple, effective)
-    - `oat_hash()` - One-at-a-Time hash by Bob Jenkins
-    - `jsw_hash()` - Julienne Walker's hash (uses random table)
-    - `elf_hash()` - ELF object file hash (well-tested)
-
-    ### High-Quality Hash Functions
-    - `jen_hash()` - Jenkins hash (excellent avalanche properties)
-    - `SuperFastHash()` - Paul Hsieh's fast hash
-    - `murmur3hash()` - MurmurHash3 (modern, high-quality)
-    - `xxhash64_hash()` - xxHash64 from the xxHash family
-    - `wyhash_hash()` - wyhash (very fast modern hash)
-    - `siphash24_hash()` - SipHash-2-4 keyed hash
-
-    ## Usage Examples
-
-    @code
-    #include <hash-fct.H>
-    using namespace Aleph;
-
-    // Hash a string
-    std::string key = "example";
-    size_t h1 = dft_hash_fct(key);  // Uses SuperFastHash
-    size_t h2 = fnv_hash(key);      // Uses FNV hash
-
-    // Hash an integer
-    int value = 42;
-    size_t h3 = djb_hash(value);
-
-    // Hash raw bytes
-    char data[] = {1, 2, 3, 4};
-    size_t h4 = jen_hash(data, sizeof(data));
-
-    // Hash with seed (for double hashing)
-    size_t h5 = murmur3hash(key, 12345);
-    @endcode
-
-    ## References
-
-    Most simple hash functions are adapted from Julienne Walker's tutorial:
-    http://eternallyconfuzzled.com/tuts/algorithms/jsw_tut_hashing.aspx
-
-    MurmurHash3 is ported from Austin Appleby's implementation:
-    https://github.com/aappleby/smhasher
-
-    SuperFastHash is by Paul Hsieh:
-    http://www.azillionmonkeys.com/qed/hash.html
-
-    xxHash is by Yann Collet:
-    https://github.com/Cyan4973/xxHash
-
-    wyhash is by Wang Yi:
-    https://github.com/wangyi-fudan/wyhash
-
-    SipHash reference material is by Jean-Philippe Aumasson and
-    Daniel J. Bernstein:
-    https://github.com/veorq/SipHash
-
-    @author Julienne Walker (original simple hashes)
-    @author Bob Jenkins (Jenkins hash, One-at-a-Time)
-    @author Austin Appleby (MurmurHash3)
-    @author Paul Hsieh (SuperFastHash)
-    @author Yann Collet (xxHash)
-    @author Wang Yi (wyhash)
-    @author Jean-Philippe Aumasson and Daniel J. Bernstein (SipHash)
-    @author Leandro Rabindranath Leon (adaptation and integration)
-
-    @ingroup Hash
-*/
-
-
 # ifndef HASH_FCT_H
 # define HASH_FCT_H
 
-# include <cstdint>
-# include <cstdlib>
+# include <cstddef>
 # include <cstring>
 # include <string>
 # include <type_traits>
-# include <primes.H>
+# include <cstdint>
+
+/** @defgroup Hash Hash functions
+    @brief Collection of high-performance hash functions for various data types.
+    
+    Aleph-w provides a wide range of hash functions, from classical ones
+    (like FNV, DJB, ELF) to modern ones (like Murmur3, xxHash64, wyhash, SipHash).
+    
+    The default policy is defined by:
+    - `dft_hash_fct()` - Default hash function (uses SuperFastHash)
+    - `snd_hash_fct()` - Second hash function for double hashing (uses SuperFastHash with fixed seed)
+    
+    Key highlights:
+    - Classical: `add_hash()`, `xor_hash()`, `rot_hash()`, `djb_hash()`, `sax_hash()`, `fnv_hash()`, `oat_hash()`, `elf_hash()`.
+    - Randomized: `jsw_hash()` (Julienne Walker).
+    - Modern non-cryptographic: `SuperFastHash()`, `murmur3hash()`, `xxhash64_hash()`, `wyhash_hash()`.
+    - Cryptographically strong (keyed): `siphash24_hash()`.
+*/
 
 namespace Aleph
 {
-
-  /** @brief Hash functions (implementaciones concretas).
-   *
-   *  Este header aporta implementaciones de funciones hash (educativas y
-   *  de uso general) para usarlas con las distintas tablas hash de Aleph-w.
-   *
-   *  @ingroup Hash
-   */
-
-  /** Default seed value for seeded hash functions.
-
-      This value is used as the default initialization for hash functions
-      that support seeding, such as Jenkins hash and MurmurHash3.
-
-      @ingroup Hash
-  */
   extern const unsigned Default_Hash_Seed;
 
   /** Initializes the randomized lookup table used by jsw_hash().
@@ -167,6 +76,13 @@ namespace Aleph
       @ingroup Hash
   */
   void init_jsw(std::uint32_t seed) noexcept;
+
+  /** Checks if the jsw_hash() lookup table has been initialized.
+
+      @return true if initialized, false otherwise.
+      @ingroup Hash
+  */
+  bool is_jsw_initialized() noexcept;
 
   /** Additive hash
 
@@ -213,18 +129,12 @@ namespace Aleph
     return h;
   }
 
-
   /** Rotating hash
 
-      "The rotating hash is identical to the XOR hash except instead of
-      simply folding each byte of the input into the internal state, it
-      also performs a fold of the internal state before combining it with
-      the byte of the input. This extra mixing step is enough to give
-      the rotating hash a much better distribution. Much of the time, the
-      rotating hash is sufficient, and can be considered the minimal
-      acceptable algorithm. Notice that with each improvement, the
-      internal state is being mixed up more and more. This is a key
-      element in a good hash function" 
+      "The rotating hash is identical to the XOR hash except that it
+      incorporates a shift and the addition of the next byte into the loop
+      instead of just XORing it. Many people mistakenly call this hash the
+      DJB hash"
 
       @author Julienne Walker
       @ingroup Hash
@@ -233,63 +143,38 @@ namespace Aleph
   {
     const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;
-  
+
     for (size_t i = 0; i < len; i++)
-      h = (h << 4) ^(h >> 28) ^ p[i];
-  
+      h = (h << 4) ^ (h >> 28) ^ p[i];
+
     return h;
   }
 
+  /** Bernstein's hash (DJB hash)
 
-  /** Modified Bernstein hash
+      "The DJB hash is a simple and effective hash function that works well
+      on many types of data. It was first published by Daniel J. Bernstein
+      on comp.lang.c"
 
-      "Dan Bernstein created this algorithm and posted it in a
-      newsgroup. It is known by many as the Chris Torek hash because Chris
-      went a long way toward popularizing it. Since then, it has been used
-      successfully by many, but despite that the algorithm itself is not
-      very sound when it comes to avalanche and permutation of the
-      internal state. It has proven very good for small character keys,
-      where it can outperform algorithms that result in a more random
-      distribution" 
-
-      "Bernstein's hash should be used with caution. It performs very well
-      in practice, for no apparently known reasons (much like how the
-      constant 33 does better than more logical constants for no apparent
-      reason), but in theory it is not up to snuff. Always test this
-      function with sample data for every application to ensure that it
-      does not encounter a degenerate case and cause excessive
-      collisions." 
-
-      "A minor update to Bernstein's hash replaces addition with XOR for
-      the combining step. This change does not appear to be well known or
-      often used, the original algorithm is still recommended by nearly
-      everyone, but the new algorithm typically results in a better
-      distribution:" 
-
-      @author Julienne Walker
+      @author Daniel J. Bernstein
       @ingroup Hash
   */
   inline size_t djb_hash(const void * key, const size_t len) noexcept
   {
     const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;
-  
+
     for (size_t i = 0; i < len; i++)
       h = 33 * h ^ p[i];
-  
+
     return h;
   }
 
-  /** Shift-Add-XOR hash
+  /** Shift-Add-XOR hash (SAX hash)
 
-      "The shift-add-XOR hash was designed as a string hashing function,
-      but because it is so effective, it works for any data as well with
-      similar efficiency. The algorithm is surprisingly similar to the
-      rotating hash except a different choice of constants for the
-      rotation is used, and addition is a preferred operation for
-      mixing. All in all, this is a surprisingly powerful and flexible
-      hash. Like many effective hashes, it will fail tests for avalanche,
-      but that does not seem to affect its performance in practice." 
+      "The SAX hash is a simple hash function that works well on many types
+      of data. It is similar to the rotating hash except that it uses
+      addition instead of XOR to mix the bits"
 
       @author Julienne Walker
       @ingroup Hash
@@ -297,39 +182,21 @@ namespace Aleph
   inline size_t sax_hash(const void * key, const size_t len) noexcept
   {
     const auto *p = static_cast<const unsigned char *>(key);
-    size_t h = 0;  
-  
+    size_t h = 0;
+
     for (size_t i = 0; i < len; i++)
-      h ^= (h << 5) +(h >> 2) + p[i];
-  
+      h ^= (h << 5) + (h >> 2) + p[i];
+
     return h;
   }
 
-  /** Fowler-Noll-Vo (FNV-1) hash function.
+  /** FNV-1a hash
 
-      "The FNV hash, short for Fowler/Noll/Vo in honor of the creators, is
-      a very powerful algorithm that, not surprisingly, follows the same
-      lines as Bernstein's modified hash with carefully chosen
-      constants. This algorithm has been used in many applications with
-      wonderful results, and for its simplicity, the FNV hash should be
-      one of the first hashes tried in an application. It is also
-      recommended that the FNV website be visited for useful descriptions
-      of how to modify the algorithm for various uses."
+      "The FNV-1a hash is a high-performance hash function that is designed
+      to be fast while maintaining a low collision rate. It is widely used
+      in many applications"
 
-      The magic constants are:
-      - 2166136261 (0x811c9dc5) - FNV offset basis for 32-bit
-      - 16777619 (0x01000193) - FNV prime for 32-bit
-
-      @param[in] key Pointer to the data to hash.
-      @param[in] len Length of the data in bytes.
-      @return The computed hash value.
-
-      @note This implements FNV-1. The FNV-1a variant (which XORs before
-            multiplying) is slightly better for short strings but this
-            version is kept for compatibility.
-
-      @see http://www.isthe.com/chongo/tech/comp/fnv/
-      @author Julienne Walker
+      @author Fowler, Noll, and Vo
       @ingroup Hash
   */
   inline size_t fnv_hash(const void * key, const size_t len) noexcept
@@ -343,49 +210,57 @@ namespace Aleph
     return h;
   }
 
+  /** One-at-a-Time hash (OAT hash)
 
-  /** One-at-a-Time hash by Bob Jenkins.
+      "The One-at-a-Time hash is a simple and effective hash function
+      designed by Bob Jenkins. It is used in many applications, including
+      the Perl interpreter"
 
-      This hash function processes one byte at a time with thorough mixing,
-      providing excellent distribution properties. It was designed by Bob
-      Jenkins and is known for its simplicity and effectiveness.
-
-      The algorithm performs three operations per byte:
-      1. Add the byte value
-      2. Add shifted hash (mix in)
-      3. XOR with right-shifted hash (fold)
-
-      A final mixing step ensures good avalanche behavior.
-
-      @param[in] key Pointer to the data to hash.
-      @param[in] len Length of the data in bytes.
-      @return The computed hash value.
-
-      @see http://burtleburtle.net/bob/hash/doobs.html
       @author Bob Jenkins
       @ingroup Hash
   */
   inline size_t oat_hash(const void * key, const size_t len) noexcept
   {
     const auto *p = static_cast<const unsigned char *>(key);
-    size_t h = 0;  
-  
-    for (size_t i = 0; i < len; i++) 
+    size_t h = 0;
+
+    for (size_t i = 0; i < len; i++)
       {
         h += p[i];
         h += (h << 10);
         h ^= (h >> 6);
       }
- 
+
     h += (h << 3);
     h ^= (h >> 11);
     h += (h << 15);
- 
+
     return h;
   }
 
-  extern size_t jsw_hash(const void * key, size_t len);
+  /** JSW hash (Julienne Walker)
 
+      "This is a hash of my own devising that combines a rotating hash with
+      a table of randomly generated numbers. The algorithm walks through
+      each byte of the input, and uses it as an index into a table of
+      random integers generated by a good random number generator. The
+      internal state is rotated to mix it up a bit, then XORed with the
+      random number from the table. The result is a uniform distribution
+      if the random numbers are uniform. The size of the table should
+      match the values in a byte. For example, if a byte is eight bits
+      then the table would hold 256 random numbers"
+
+      @note If init_jsw() has not been called, it will be lazily
+            initialized with a non-deterministic seed (time-based).
+
+      @param key Pointer to the data to hash
+      @param len Length of the data in bytes
+      @return Hash value
+
+      @author Julienne Walker
+      @ingroup Hash
+  */
+  extern size_t jsw_hash(const void * key, size_t len) noexcept;
 
   /** ELF hash
 
@@ -404,108 +279,38 @@ namespace Aleph
   {
     const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;
-  
-    for (size_t i = 0; i < len; i++) 
+
+    for (size_t i = 0; i < len; i++)
       {
         h = (h << 4) + p[i];
         size_t g = h & 0xf0000000L;
- 
-        if(g != 0)
+
+        if (g != 0)
           h ^= g >> 24;
- 
+
         h &= ~g;
       }
- 
+
     return h;
   }
 
+  /** Jenkins hash (lookup3)
 
-#define hashsize(n)(1U << (n))
-#define hashmask(n)(hashsize(n) - 1)
-  
-  inline void  mix(size_t & a, size_t & b, size_t & c) noexcept
-  { 
-    a -= b; a -= c; a ^=(c >> 13); 
-    b -= c; b -= a; b ^=(a << 8);			
-    c -= a; c -= b; c ^=(b >> 13); 
-    a -= b; a -= c; a ^=(c >> 12);
-    b -= c; b -= a; b ^=(a << 16);
-    c -= a; c -= b; c ^=(b >> 5);
-    a -= b; a -= c; a ^=(c >> 3);
-    b -= c; b -= a; b ^=(a << 10);
-    c -= a; c -= b; c ^=(b >> 15);
-  }
+      "Bob Jenkins' lookup3.c, is the result of many years of research and
+      testing. It is considered one of the best general-purpose hash
+      functions available"
 
-
-  /** Jenkins hash
-
-      "The dreaded Jenkins hash has been thoroughly tested and passes all
-      kinds of tests for avalanche and permutations. As such it is
-      considered to be one of the best and most thoroughly analyzed
-      algorithms on the market presently. Unfortunately, it is also
-      ridiculously complicated compared to the other hashes examined in
-      this tutorial"
-
-      @author Julienne Walker
+      @author Bob Jenkins
       @ingroup Hash
   */
-  inline size_t jen_hash(const void * key, const size_t length,
-                         const unsigned initval = Default_Hash_Seed) noexcept
-  {
-    const auto * k = static_cast<const unsigned char *>(key);
-    size_t b;
-    size_t c = initval;
-    size_t len = length;
+  extern size_t jen_hash(const void *key, size_t len, unsigned initval) noexcept;
 
-    size_t a = b = 0x9e3779b9;
-
-    while (len >= 12)
-      {
-        a += (k[0] +(static_cast<size_t>(k[1]) << 8) + (static_cast<size_t>(k[2]) << 16) +
-              (static_cast<size_t>(k[3]) << 24));
-        b += (k[4] +(static_cast<size_t>(k[5]) << 8) + (static_cast<size_t>(k[6]) << 16) +
-              (static_cast<size_t>(k[7]) << 24));
-        c += (k[8] +(static_cast<size_t>(k[9]) << 8) + (static_cast<size_t>(k[10]) << 16) +
-              (static_cast<size_t>(k[11]) << 24));
-
-        mix(a, b, c);
-
-        k += 12;
-        len -= 12;
-      }
-
-    c += length;
-
-    switch(len)
-      {
-      case 11: c += (static_cast<size_t>(k[10]) << 24); [[fallthrough]];
-      case 10: c += (static_cast<size_t>(k[9]) << 16);  [[fallthrough]];
-      case 9 : c += (static_cast<size_t>(k[8]) << 8);   [[fallthrough]];
-        /* First byte of c reserved for length */
-      case 8 : b += (static_cast<size_t>(k[7]) << 24);  [[fallthrough]];
-      case 7 : b += (static_cast<size_t>(k[6]) << 16);  [[fallthrough]];
-      case 6 : b += (static_cast<size_t>(k[5]) << 8);   [[fallthrough]];
-      case 5 : b += k[4];                  [[fallthrough]];
-      case 4 : a += (static_cast<size_t>(k[3]) << 24);  [[fallthrough]];
-      case 3 : a += (static_cast<size_t>(k[2]) << 16);  [[fallthrough]];
-      case 2 : a += (static_cast<size_t>(k[1]) << 8);   [[fallthrough]];
-      case 1 : a += k[0];                  break;
-      default: break;
-      }
-
-    mix(a, b, c);
-
-    return c;
-  }
-
-  /* The following three functions were taken from
+  /* The following is just a exact copy of functions implemented by Peter
+     Scott. They are at:
 
      https://github.com/PeterScott/murmur3
 
-     They are a port of MurmurHash created by Austin Appleby and written
-     by Peter Scott
-
-     See at
+     They are a port of MurmurHash  by Austin Appleby. See
 
      http://en.wikipedia.org/wiki/MurmurHash
 
@@ -523,8 +328,9 @@ namespace Aleph
     std::uint32_t a[4];
   };
 
-  template <typename Key> inline
-  size_t murmur3hash(const Key & key, unsigned long seed)
+  template <typename Key>
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t murmur3hash(const Key & key, std::uint32_t seed)
   {
 # ifdef __x86_64__
     Buf128Bits buf;
@@ -541,7 +347,7 @@ namespace Aleph
   }
 
 
-  inline size_t murmur3hash(const char * key, const unsigned long seed)
+  inline size_t murmur3hash(const char * key, const std::uint32_t seed)
   {
     const size_t len = strlen(key);
 # ifdef __x86_64__
@@ -558,8 +364,7 @@ namespace Aleph
     return ret;
   }
 
-  template <> inline
-  size_t murmur3hash(const std::string & key, const unsigned long seed)
+  inline size_t murmur3hash(const std::string & key, const std::uint32_t seed)
   {
 # ifdef __x86_64__
     Buf128Bits buf;
@@ -584,37 +389,37 @@ namespace Aleph
   */
 
 #undef get16bits
-#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__)    \
-  || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
-#define get16bits(d) (*((const uint16_t *) (d)))
-#endif
-
-#if !defined (get16bits)
-#define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8)	\
-                      +(uint32_t)(((const uint8_t *)(d))[0]) )
-#endif
+inline std::uint16_t get16bits(const void * p) noexcept
+{
+  std::uint16_t val;
+  memcpy(&val, p, sizeof(val));
+  return val;
+}
 
   /** Paul Hsieh super fast hash function.
 
+      @param key Pointer to the data to hash.
+      @param len Length of the data in bytes.
+      @param seed Optional seed to randomize the hash.
       @author Paul Hsieh
       @ingroup Hash
   */
-  inline size_t SuperFastHash(const void * key, size_t len) noexcept
+  inline size_t SuperFastHash(const void * key, size_t len, std::uint32_t seed = 0) noexcept
   {
     const auto * data = static_cast<const unsigned char *>(key);
-    size_t hash = len;
+    std::uint32_t hash = static_cast<std::uint32_t>(len) ^ seed;
 
     if (len <= 0 || data == nullptr)
-      return 0;
+      return static_cast<size_t>(hash);
 
     const int rem = len & 3;
-    len >>= 2;
+    const size_t nblocks = len >> 2;
 
     /* Main loop */
-    for (;len > 0; --len)
+    for (size_t i = 0; i < nblocks; ++i)
       {
         hash  += get16bits (data);
-        const size_t tmp = (get16bits(data+2) << 11) ^ hash;
+        const std::uint32_t tmp = (static_cast<std::uint32_t>(get16bits(data+2)) << 11) ^ hash;
         hash   = (hash << 16) ^ tmp;
         data  += 2*sizeof (uint16_t);
         hash  += hash >> 11;
@@ -651,7 +456,7 @@ namespace Aleph
     hash ^= hash << 25;
     hash += hash >> 6;
 
-    return hash;
+    return static_cast<size_t>(hash);
   }
 
   /** xxHash64 from the xxHash family.
@@ -699,44 +504,51 @@ namespace Aleph
                         std::uint64_t key0 = 0x0706050403020100ULL,
                         std::uint64_t key1 = 0x0f0e0d0c0b0a0908ULL) noexcept;
 
-  template <typename Key> inline
-  size_t add_hash(const Key & key) noexcept
+  template <typename Key>
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t add_hash(const Key & key) noexcept
   {
     return add_hash(&key, sizeof(key));
   }
 
-  template <typename Key> inline
-  size_t xor_hash(const Key & key) noexcept
+  template <typename Key>
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t xor_hash(const Key & key) noexcept
   {
     return xor_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  size_t rot_hash(const Key & key) noexcept
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t rot_hash(const Key & key) noexcept
   {
     return rot_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  size_t djb_hash(const Key & key) noexcept
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t djb_hash(const Key & key) noexcept
   {
     return djb_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  size_t sax_hash(const Key & key) noexcept
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t sax_hash(const Key & key) noexcept
   {
     return sax_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  size_t fnv_hash(const Key & key) noexcept
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t fnv_hash(const Key & key) noexcept
   {
     return fnv_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  size_t oat_hash(const Key & key) noexcept
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t oat_hash(const Key & key) noexcept
   {
     return oat_hash(&key, sizeof(key));
   }
@@ -744,27 +556,32 @@ namespace Aleph
   /// JSW hash for arbitrary key types
   /// @ingroup Hash
   template <typename Key>
-  size_t jsw_hash(const Key & key)
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t jsw_hash(const Key & key) noexcept
   {
     return jsw_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  size_t elf_hash(const Key & key) noexcept
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t elf_hash(const Key & key) noexcept
   {
     return elf_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  size_t jen_hash(const Key &  key, const unsigned initval) noexcept
+    requires std::is_trivially_copyable_v<Key>
+  inline size_t jen_hash(const Key &  key, const unsigned initval) noexcept
   {
     return jen_hash(&key, sizeof(key), initval);
   }
 
   template <typename Key>
-  size_t SuperFastHash(const Key &  key) noexcept
+    requires (std::is_trivially_copyable_v<Key> and 
+              (not std::is_pointer_v<Key>) and (not std::is_array_v<Key>))
+  inline size_t SuperFastHash(const Key & key, std::uint32_t seed = 0) noexcept
   {
-    return SuperFastHash(&key, sizeof(key));
+    return SuperFastHash(&key, sizeof(key), seed);
   }
 
   template <typename Key>
@@ -877,7 +694,7 @@ namespace Aleph
     return h;
   }
 
-  extern size_t jsw_hash(const char * key);
+  extern size_t jsw_hash(const char * key) noexcept;
 
   inline size_t elf_hash(const char * key) noexcept
   {
@@ -898,9 +715,9 @@ namespace Aleph
     return h;
   }
 
-  inline size_t SuperFastHash(const char * key) noexcept
+  inline size_t SuperFastHash(const char * key, std::uint32_t seed = 0) noexcept
   {
-    return SuperFastHash(key, strlen(key));
+    return SuperFastHash(key, strlen(key), seed);
   }
 
   inline size_t xxhash64_hash(const char * key,
@@ -922,7 +739,6 @@ namespace Aleph
     return siphash24_hash(key, strlen(key), key0, key1);
   }
 
-  template <>
   inline size_t add_hash(const std::string & key) noexcept
   {
     return add_hash(key.c_str());
@@ -960,7 +776,7 @@ namespace Aleph
 
   /// JSW hash for std::string
   /// @ingroup Hash
-  inline size_t jsw_hash(const std::string & key)
+  inline size_t jsw_hash(const std::string & key) noexcept
   {
     return jsw_hash(key.c_str());
   }
@@ -975,9 +791,9 @@ namespace Aleph
     return jen_hash(key.c_str(), key.size(), initval);
   }
 
-  inline size_t SuperFastHash(const std::string & key) noexcept
+  inline size_t SuperFastHash(const std::string & key, std::uint32_t seed = 0) noexcept
   {
-    return SuperFastHash(key.c_str(), key.size());
+    return SuperFastHash(key.c_str(), key.size(), seed);
   }
 
   inline size_t xxhash64_hash(const std::string & key,
@@ -999,22 +815,83 @@ namespace Aleph
     return siphash24_hash(key.data(), key.size(), key0, key1);
   }
 
-  template <typename Key> inline
-  size_t dft_hash_fct(const Key & key) noexcept
+  template <typename Key>
+    requires (std::is_trivially_copyable_v<Key> and
+              (not std::is_pointer_v<Key>) and (not std::is_array_v<Key>))
+  inline size_t dft_hash_fct(const Key & key) noexcept
   {
     return SuperFastHash(key);
   }
 
-  template <typename Key> inline
-  size_t snd_hash_fct(const Key & key) noexcept
+  template <typename Key>
+    requires std::is_pointer_v<Key>
+  inline size_t dft_hash_fct(const Key & key) noexcept
   {
-    return murmur3hash(key, 52679987);
+    return SuperFastHash(&key, sizeof(key));
   }
 
-  template <typename Key> inline
-  size_t dft_hash_fct(const Key & key, unsigned long seed) noexcept
+  inline size_t dft_hash_fct(const std::string & key) noexcept
   {
-    return murmur3hash(key, seed);
+    return SuperFastHash(key);
+  }
+
+  template <typename Key>
+    requires (std::is_trivially_copyable_v<Key> and
+              (not std::is_pointer_v<Key>) and (not std::is_array_v<Key>))
+  inline size_t dft_hash_fct(const Key & key, std::uint32_t seed) noexcept
+  {
+    return SuperFastHash(key, seed);
+  }
+
+  template <typename Key>
+    requires std::is_pointer_v<Key>
+  inline size_t dft_hash_fct(const Key & key, std::uint32_t seed) noexcept
+  {
+    return SuperFastHash(&key, sizeof(key), seed);
+  }
+
+  inline size_t dft_hash_fct(const std::string & key, std::uint32_t seed) noexcept
+  {
+    return SuperFastHash(key, seed);
+  }
+
+  template <typename Key>
+  inline size_t dft_hash_ptr_fct(const Key & key) noexcept
+  {
+    return dft_hash_fct(key);
+  }
+
+  template <typename Key>
+  inline size_t dft_seed_hash_ptr_fct(const Key & key,
+                                      unsigned long seed) noexcept
+  {
+    return dft_hash_fct(key, static_cast<std::uint32_t>(seed));
+  }
+
+  template <typename Key>
+    requires (std::is_trivially_copyable_v<Key> and
+              (not std::is_pointer_v<Key>) and (not std::is_array_v<Key>))
+  inline size_t snd_hash_fct(const Key & key) noexcept
+  {
+    return SuperFastHash(key, 52679987);
+  }
+
+  template <typename Key>
+    requires std::is_pointer_v<Key>
+  inline size_t snd_hash_fct(const Key & key) noexcept
+  {
+    return SuperFastHash(&key, sizeof(key), 52679987);
+  }
+
+  inline size_t snd_hash_fct(const std::string & key) noexcept
+  {
+    return SuperFastHash(key, 52679987);
+  }
+
+  template <typename Key>
+  inline size_t snd_hash_ptr_fct(const Key & key) noexcept
+  {
+    return snd_hash_fct(key);
   }
 
   template<typename Key, typename Data, typename Fct>
@@ -1023,16 +900,38 @@ namespace Aleph
     return fct(p.first);
   }
 
-  template <typename K1, typename K2> inline
-  size_t pair_dft_hash_fct(const std::pair<K1, K2> & p) noexcept
+  template <typename K1, typename K2>
+    requires requires(const K1 & k1, const K2 & k2)
+    {
+      dft_hash_fct(k1);
+      dft_hash_fct(k2);
+    }
+  inline size_t pair_dft_hash_fct(const std::pair<K1, K2> & p) noexcept
   {
     return dft_hash_fct(p.first) + dft_hash_fct(p.second);
   }
 
-  template <typename K1, typename K2> inline
-  size_t pair_snd_hash_fct(const std::pair<K1, K2> & p) noexcept
+  template <typename K1, typename K2>
+    requires requires(const K1 & k1, const K2 & k2)
+    {
+      dft_hash_fct(k1);
+      snd_hash_fct(k2);
+    }
+  inline size_t pair_snd_hash_fct(const std::pair<K1, K2> & p) noexcept
   {
     return dft_hash_fct(p.first) + snd_hash_fct(p.second);
+  }
+
+  template <typename K1, typename K2>
+  inline size_t pair_dft_hash_ptr_fct(const std::pair<K1, K2> & p) noexcept
+  {
+    return pair_dft_hash_fct(p);
+  }
+
+  template <typename K1, typename K2>
+  inline size_t pair_snd_hash_ptr_fct(const std::pair<K1, K2> & p) noexcept
+  {
+    return pair_snd_hash_fct(p);
   }
 
 } // end namespace Aleph

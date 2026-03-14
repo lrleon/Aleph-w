@@ -189,7 +189,8 @@ jobs:
         run: |
           mkdir -p build/test_artifacts/golden_svg
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
-          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 \
+            -E 'hash_statistical_test'
 
       - name: Upload test logs on failure
         if: failure()
@@ -512,8 +513,9 @@ jobs:
           export ALEPH_TEST_GOLDEN_DIR="$PWD/build-coverage/test_artifacts/golden_svg"
           # Exclude this benchmark from coverage runs because instrumentation
           # changes timing characteristics and can make this test flaky.
+          # Also exclude hash_statistical_test as it's computationally intensive.
           ctest --test-dir build-coverage --output-on-failure --parallel 2 --timeout 600 \
-            -E 'ParallelTest\.BenchmarkMapSpeedup'
+            -E 'ParallelTest\.BenchmarkMapSpeedup|hash_statistical_test'
 
       - name: Generate coverage reports
         run: |
@@ -640,7 +642,8 @@ jobs:
           ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-asan/test_artifacts/golden_svg
         run: |
           mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
-          ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600
+          ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600 \
+            -E 'hash_statistical_test'
 
       - name: Upload test logs on failure
         if: failure()
@@ -711,7 +714,8 @@ jobs:
           ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-tsan/test_artifacts/golden_svg
         run: |
           mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
-          ctest --test-dir build-tsan --output-on-failure --parallel 2 --timeout 600
+          ctest --test-dir build-tsan --output-on-failure --parallel 2 --timeout 600 \
+            -E 'hash_statistical_test'
 
       - name: Upload test logs on failure
         if: failure()

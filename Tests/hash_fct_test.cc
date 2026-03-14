@@ -610,6 +610,29 @@ TEST(PairHashTest, PairSndHashFct)
   EXPECT_EQ(h1, h2);
 }
 
+TEST(PairHashTest, MixedPairComponents)
+{
+  std::pair<char, std::string> p1{'a', "world"};
+  std::pair<std::string, char> p2{"hello", 'z'};
+
+  EXPECT_EQ(pair_dft_hash_fct(p1), pair_dft_hash_fct(p1));
+  EXPECT_EQ(pair_snd_hash_fct(p2), pair_snd_hash_fct(p2));
+}
+
+TEST(PairHashTest, PointerWrappersMatchDirectCalls)
+{
+  std::pair<char, std::string> p1{'a', "world"};
+  std::pair<std::string, char> p2{"hello", 'z'};
+
+  const auto h1 = pair_dft_hash_fct(p1);
+  const auto h2 = pair_dft_hash_ptr_fct<char, std::string>(p1);
+  const auto h3 = pair_snd_hash_fct(p2);
+  const auto h4 = pair_snd_hash_ptr_fct<std::string, char>(p2);
+
+  EXPECT_EQ(h1, h2);
+  EXPECT_EQ(h3, h4);
+}
+
 // ==================== Distribution Quality Tests ====================
 
 class HashDistributionTest : public ::testing::Test

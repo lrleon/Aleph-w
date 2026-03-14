@@ -20,12 +20,26 @@
 #include <vector>
 #include <chrono>
 #include <iomanip>
+#include <cmath>
 
 #include <compact-cuckoo-filter.H>
 #include <cuckoo-filter.H>
 
 using namespace Aleph;
 using namespace std;
+
+template <size_t FingerprintBits, size_t EntriesPerBucket>
+double cuckoo_theoretical_fp_rate()
+{
+  return (2.0 * EntriesPerBucket) / std::ldexp(1.0, FingerprintBits);
+}
+
+template <size_t EntriesPerBucket>
+size_t standard_cuckoo_memory_usage(size_t capacity)
+{
+  static_cast<void>(EntriesPerBucket);
+  return capacity * sizeof(uint32_t);
+}
 
 // =====================================================================
 // Example 1: Basic usage
@@ -40,9 +54,10 @@ void example_basic_usage()
   
   cout << "Created filter with:\n";
   cout << "  - Capacity: " << cf.capacity() << " entries\n";
-  cout << "  - Fingerprint bits: " << cf.fingerprint_bits() << "\n";
-  cout << "  - Entries per bucket: " << cf.entries_per_bucket() << "\n";
-  cout << "  - False positive rate: " << (cf.false_positive_rate() * 100) << "%\n";
+  cout << "  - Fingerprint bits: " << 8 << "\n";
+  cout << "  - Entries per bucket: " << 4 << "\n";
+  cout << "  - Theoretical false positive rate: "
+       << (cuckoo_theoretical_fp_rate<8, 4>() * 100) << "%\n";
   cout << "  - Memory usage: " << cf.memory_usage() << " bytes\n";
   
   // Insert elements
@@ -92,9 +107,10 @@ void example_memory_optimization()
   cout << "For " << num_elements << " expected elements:\n\n";
   
   cout << "Standard Cuckoo_Filter:\n";
-  cout << "  - Memory: " << standard.memory_usage() << " bytes ("
-       << (standard.memory_usage() / 1024.0 / 1024.0) << " MB)\n";
-  cout << "  - Fingerprint size: 32 bits\n";
+  const size_t standard_memory = standard_cuckoo_memory_usage<4>(standard.capacity());
+  cout << "  - Memory: " << standard_memory << " bytes ("
+       << (standard_memory / 1024.0 / 1024.0) << " MB)\n";
+  cout << "  - Fingerprint size: 8 bits stored in 32-bit slots\n";
   
   cout << "\nCompact_Cuckoo_Filter (8-bit FP):\n";
   cout << "  - Memory: " << compact.memory_usage() << " bytes ("
@@ -102,7 +118,7 @@ void example_memory_optimization()
   cout << "  - Fingerprint size: 8 bits\n";
   
   double savings = 100.0 * (1.0 - static_cast<double>(compact.memory_usage()) 
-                                  / standard.memory_usage());
+                                  / standard_memory);
   cout << "\n*** Memory savings: " << fixed << setprecision(1) 
        << savings << "% ***\n";
 }
@@ -127,15 +143,15 @@ void example_custom_fingerprints()
   cout << "Fingerprint size comparison:\n\n";
   
   cout << "4-bit fingerprints:\n";
-  cout << "  - FP rate: " << (tiny.false_positive_rate() * 100) << "%\n";
+  cout << "  - Theoretical FP rate: " << (cuckoo_theoretical_fp_rate<4, 4>() * 100) << "%\n";
   cout << "  - Memory: " << tiny.memory_usage() << " bytes\n";
   
   cout << "\n12-bit fingerprints:\n";
-  cout << "  - FP rate: " << (balanced.false_positive_rate() * 100) << "%\n";
+  cout << "  - Theoretical FP rate: " << (cuckoo_theoretical_fp_rate<12, 4>() * 100) << "%\n";
   cout << "  - Memory: " << balanced.memory_usage() << " bytes\n";
   
   cout << "\n16-bit fingerprints:\n";
-  cout << "  - FP rate: " << (precise.false_positive_rate() * 100) << "%\n";
+  cout << "  - Theoretical FP rate: " << (cuckoo_theoretical_fp_rate<16, 4>() * 100) << "%\n";
   cout << "  - Memory: " << precise.memory_usage() << " bytes\n";
 }
 
@@ -226,9 +242,9 @@ void example_performance()
   cout << "\n=== Example 6: Performance Comparison ===\n";
   
   const size_t n = 50000;
-  const unsigned long seed = 12345;
+  size_t hits = 0;
   
-  Cuckoo_Filter<int> standard(100000, seed);
+  Cuckoo_Filter<int> standard(100000);
   Compact_Cuckoo_Filter<int> compact(100000);
   
   // Benchmark insertions
@@ -247,13 +263,13 @@ void example_performance()
   // Benchmark lookups
   start = chrono::high_resolution_clock::now();
   for (size_t i = 0; i < n; ++i)
-    standard.contains(static_cast<int>(i));
+    hits += standard.contains(static_cast<int>(i)) ? 1u : 0u;
   end = chrono::high_resolution_clock::now();
   auto standard_lookup_us = chrono::duration_cast<chrono::microseconds>(end - start).count();
   
   start = chrono::high_resolution_clock::now();
   for (size_t i = 0; i < n; ++i)
-    compact.contains(static_cast<int>(i));
+    hits += compact.contains(static_cast<int>(i)) ? 1u : 0u;
   end = chrono::high_resolution_clock::now();
   auto compact_lookup_us = chrono::duration_cast<chrono::microseconds>(end - start).count();
   
@@ -262,7 +278,8 @@ void example_performance()
   cout << "Standard Cuckoo_Filter:\n";
   cout << "  - Insert time: " << standard_insert_us << " μs\n";
   cout << "  - Lookup time: " << standard_lookup_us << " μs\n";
-  cout << "  - Memory: " << standard.memory_usage() << " bytes\n";
+  const size_t standard_memory = standard_cuckoo_memory_usage<4>(standard.capacity());
+  cout << "  - Memory: " << standard_memory << " bytes\n";
   
   cout << "\nCompact_Cuckoo_Filter:\n";
   cout << "  - Insert time: " << compact_insert_us << " μs\n";
@@ -271,12 +288,13 @@ void example_performance()
   
   double insert_overhead = 100.0 * (static_cast<double>(compact_insert_us) / standard_insert_us - 1.0);
   double lookup_overhead = 100.0 * (static_cast<double>(compact_lookup_us) / standard_lookup_us - 1.0);
-  double memory_savings = 100.0 * (1.0 - static_cast<double>(compact.memory_usage()) / standard.memory_usage());
+  double memory_savings = 100.0 * (1.0 - static_cast<double>(compact.memory_usage()) / standard_memory);
   
   cout << "\nTrade-offs:\n";
   cout << "  - Insert overhead: " << fixed << setprecision(1) << insert_overhead << "%\n";
   cout << "  - Lookup overhead: " << lookup_overhead << "%\n";
   cout << "  - Memory savings: " << memory_savings << "%\n";
+  cout << "  - Successful lookups observed: " << hits << "\n";
 }
 
 // =====================================================================
@@ -292,7 +310,8 @@ void example_packet_deduplication()
   
   cout << "Network packet deduplication filter:\n";
   cout << "  - Expected packets: 1M\n";
-  cout << "  - FP rate: " << (seen_packets.false_positive_rate() * 100) << "%\n";
+  cout << "  - Theoretical FP rate: "
+       << (cuckoo_theoretical_fp_rate<12, 4>() * 100) << "%\n";
   cout << "  - Memory: " << (seen_packets.memory_usage() / 1024.0 / 1024.0) << " MB\n";
   
   vector<uint64_t> packet_stream = {
@@ -332,7 +351,8 @@ void example_embedded_systems()
   cout << "Embedded device filter (6-bit fingerprints):\n";
   cout << "  - Capacity: " << tiny_filter.capacity() << " entries\n";
   cout << "  - Memory: " << tiny_filter.memory_usage() << " bytes\n";
-  cout << "  - FP rate: " << (tiny_filter.false_positive_rate() * 100) << "%\n";
+  cout << "  - Theoretical FP rate: "
+       << (cuckoo_theoretical_fp_rate<6, 4>() * 100) << "%\n";
   
   // Simulate sensor readings
   cout << "\nTracking sensor events:\n";

@@ -111,7 +111,7 @@ namespace Aleph
         load factor goes above this value.
     */
     DynHashTable(size_t len = Primes::DefaultPrime,
-                 Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>,
+                 Hash_Fct_Ptr hash_fct = Aleph::dft_hash_ptr_fct<Key>,
                  Cmp cmp = Cmp(),
                  float lower_alpha = hash_default_lower_alpha,
                  float upper_alpha = hash_default_upper_alpha)
@@ -504,7 +504,7 @@ namespace Aleph
     using Iterator = typename Base::Iterator;
 
     DynMapHashTable(size_t len = Primes::DefaultPrime,
-                    Hash_Fct_Ptr hash_fct = dft_hash_fct,
+                    Hash_Fct_Ptr hash_fct = dft_hash_ptr_fct<Key>,
                     Cmp cmp = Cmp(),
                     float lower_alpha = hash_default_lower_alpha,
                     float upper_alpha = hash_default_upper_alpha)

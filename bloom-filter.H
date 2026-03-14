@@ -241,7 +241,7 @@ namespace Aleph
         @throw std::bad_alloc if the internal random generator cannot be allocated.
     */
     Bloom_Filter(const size_t dim, size_t num_hashes,
-                 Hash_Fct hash_fn = dft_hash_fct,
+                 Hash_Fct hash_fn = dft_seed_hash_ptr_fct<T>,
                  const unsigned long seed = static_cast<unsigned long>(std::time(nullptr)))
       : bits(0), hash_fct(hash_fn), num_hash(num_hashes),
         seeds(num_hashes)
@@ -272,7 +272,7 @@ namespace Aleph
     */
     Bloom_Filter(const size_t n, const double p,
                  unsigned long seed = static_cast<unsigned long>(std::time(nullptr)),
-                 Hash_Fct hash_fn = dft_hash_fct)
+                 Hash_Fct hash_fn = dft_seed_hash_ptr_fct<T>)
       : Bloom_Filter([&] {
           const auto [m, k] = estimate(n, p);
           return Bloom_Filter(m, k, hash_fn, seed);
