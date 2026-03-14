@@ -52,6 +52,7 @@
 #include <gtest/gtest.h>
 #include <hash-fct.H>
 
+#include <array>
 #include <cstring>
 #include <random>
 #include <set>
@@ -60,17 +61,12 @@
 
 using namespace Aleph;
 
-// JSW hash requires initialization (defined in Aleph namespace in hash-fct.C)
-namespace Aleph {
-  extern void init_jsw() noexcept;
-}
-
 class HashTestEnvironment : public ::testing::Environment
 {
 public:
   void SetUp() override
   {
-    init_jsw();
+    init_jsw(42);
   }
 };
 
@@ -275,6 +271,48 @@ TEST_F(HashConsistencyTest, DftHashFctConsistency)
   EXPECT_EQ(h3, h4);
 }
 
+TEST_F(HashConsistencyTest, XxHash64Consistency)
+{
+  auto h1 = xxhash64_hash(test_string);
+  auto h2 = xxhash64_hash(test_string);
+  EXPECT_EQ(h1, h2);
+
+  auto h3 = xxhash64_hash(test_std_string);
+  EXPECT_EQ(h1, h3);
+
+  auto h4 = xxhash64_hash(test_int, 99);
+  auto h5 = xxhash64_hash(test_int, 99);
+  EXPECT_EQ(h4, h5);
+}
+
+TEST_F(HashConsistencyTest, WyHashConsistency)
+{
+  auto h1 = wyhash_hash(test_string);
+  auto h2 = wyhash_hash(test_string);
+  EXPECT_EQ(h1, h2);
+
+  auto h3 = wyhash_hash(test_std_string);
+  EXPECT_EQ(h1, h3);
+
+  auto h4 = wyhash_hash(test_double, 77);
+  auto h5 = wyhash_hash(test_double, 77);
+  EXPECT_EQ(h4, h5);
+}
+
+TEST_F(HashConsistencyTest, SipHashConsistency)
+{
+  auto h1 = siphash24_hash(test_string);
+  auto h2 = siphash24_hash(test_string);
+  EXPECT_EQ(h1, h2);
+
+  auto h3 = siphash24_hash(test_std_string);
+  EXPECT_EQ(h1, h3);
+
+  auto h4 = siphash24_hash(test_int, 1, 2);
+  auto h5 = siphash24_hash(test_int, 1, 2);
+  EXPECT_EQ(h4, h5);
+}
+
 // ==================== Edge Case Tests ====================
 
 class HashEdgeCaseTest : public ::testing::Test
@@ -345,6 +383,18 @@ TEST_F(HashEdgeCaseTest, LargeStringHash)
   auto h7 = murmur3hash(large_string, 42ul);
   auto h8 = murmur3hash(large_string, 42ul);
   EXPECT_EQ(h7, h8);
+
+  auto h9 = xxhash64_hash(large_string, 42);
+  auto h10 = xxhash64_hash(large_string, 42);
+  EXPECT_EQ(h9, h10);
+
+  auto h11 = wyhash_hash(large_string, 42);
+  auto h12 = wyhash_hash(large_string, 42);
+  EXPECT_EQ(h11, h12);
+
+  auto h13 = siphash24_hash(large_string);
+  auto h14 = siphash24_hash(large_string);
+  EXPECT_EQ(h13, h14);
 }
 
 TEST_F(HashEdgeCaseTest, BinaryDataWithNulls)
@@ -421,6 +471,18 @@ TEST_F(HashDifferenceTest, DifferentSeedsDifferentHashes)
   EXPECT_NE(m1, m2);
   EXPECT_NE(m1, m3);
   EXPECT_NE(m2, m3);
+
+  auto x1 = xxhash64_hash(key, 1);
+  auto x2 = xxhash64_hash(key, 2);
+  EXPECT_NE(x1, x2);
+
+  auto w1 = wyhash_hash(key, 1);
+  auto w2 = wyhash_hash(key, 2);
+  EXPECT_NE(w1, w2);
+
+  auto s1 = siphash24_hash(key, 1, 2);
+  auto s2 = siphash24_hash(key, 3, 4);
+  EXPECT_NE(s1, s2);
 }
 
 // ==================== Void Pointer API Tests ====================
@@ -651,6 +713,39 @@ TEST_F(HashDistributionTest, DftHashFctUniqueness)
   EXPECT_GT(uniqueness, 0.90) << "dft_hash_fct uniqueness: " << uniqueness;
 }
 
+TEST_F(HashDistributionTest, XxHash64Uniqueness)
+{
+  std::vector<size_t> hashes;
+  hashes.reserve(NUM_KEYS);
+  for (const auto& key : keys)
+    hashes.push_back(xxhash64_hash(key, 42));
+
+  double uniqueness = measureHashUniqueness(hashes);
+  EXPECT_GT(uniqueness, 0.90) << "xxhash64 uniqueness: " << uniqueness;
+}
+
+TEST_F(HashDistributionTest, WyHashUniqueness)
+{
+  std::vector<size_t> hashes;
+  hashes.reserve(NUM_KEYS);
+  for (const auto& key : keys)
+    hashes.push_back(wyhash_hash(key, 42));
+
+  double uniqueness = measureHashUniqueness(hashes);
+  EXPECT_GT(uniqueness, 0.90) << "wyhash uniqueness: " << uniqueness;
+}
+
+TEST_F(HashDistributionTest, SipHashUniqueness)
+{
+  std::vector<size_t> hashes;
+  hashes.reserve(NUM_KEYS);
+  for (const auto& key : keys)
+    hashes.push_back(siphash24_hash(key));
+
+  double uniqueness = measureHashUniqueness(hashes);
+  EXPECT_GT(uniqueness, 0.90) << "siphash24 uniqueness: " << uniqueness;
+}
+
 // ==================== Avalanche Property Tests ====================
 // Small changes in input should cause large changes in output
 
@@ -702,6 +797,48 @@ TEST_F(HashAvalancheTest, SingleBitChangeMurmur3)
       << "MurmurHash3 has poor avalanche property";
 }
 
+TEST_F(HashAvalancheTest, SingleBitChangeXxHash64)
+{
+  unsigned char data1[16] = {0};
+  unsigned char data2[16] = {0};
+  data2[0] = 1;
+
+  auto h1 = xxhash64_hash(data1, 16, 42);
+  auto h2 = xxhash64_hash(data2, 16, 42);
+
+  int bit_diff = bitDifference(h1, h2);
+  EXPECT_GT(bit_diff, (int)(sizeof(size_t) * 8 * 0.2))
+      << "xxhash64 has poor avalanche property";
+}
+
+TEST_F(HashAvalancheTest, SingleBitChangeWyHash)
+{
+  unsigned char data1[16] = {0};
+  unsigned char data2[16] = {0};
+  data2[0] = 1;
+
+  auto h1 = wyhash_hash(data1, 16, 42);
+  auto h2 = wyhash_hash(data2, 16, 42);
+
+  int bit_diff = bitDifference(h1, h2);
+  EXPECT_GT(bit_diff, (int)(sizeof(size_t) * 8 * 0.2))
+      << "wyhash has poor avalanche property";
+}
+
+TEST_F(HashAvalancheTest, SingleBitChangeSipHash)
+{
+  unsigned char data1[16] = {0};
+  unsigned char data2[16] = {0};
+  data2[0] = 1;
+
+  auto h1 = siphash24_hash(data1, 16);
+  auto h2 = siphash24_hash(data2, 16);
+
+  int bit_diff = bitDifference(h1, h2);
+  EXPECT_GT(bit_diff, (int)(sizeof(size_t) * 8 * 0.2))
+      << "siphash24 has poor avalanche property";
+}
+
 TEST_F(HashAvalancheTest, SingleBitChangeOat)
 {
   unsigned char data1[16] = {0};
@@ -737,6 +874,33 @@ TEST(HashKnownValuesTest, FnvHashStartValue)
   // Since our implementation iterates while (*p), empty string returns
   // initial value
   EXPECT_EQ(fnv_hash(""), 2166136261u);
+}
+
+TEST(HashKnownValuesTest, SipHashOfficialVectors)
+{
+  static constexpr std::array<std::uint64_t, 16> expected =
+    {
+      0x726fdb47dd0e0e31ULL, 0x74f839c593dc67fdULL,
+      0x0d6c8009d9a94f5aULL, 0x85676696d7fb7e2dULL,
+      0xcf2794e0277187b7ULL, 0x18765564cd99a68dULL,
+      0xcbc9466e58fee3ceULL, 0xab0200f58b01d137ULL,
+      0x93f5f5799a932462ULL, 0x9e0082df0ba9e4b0ULL,
+      0x7a5dbbc594ddb9f3ULL, 0xf4b32f46226bada7ULL,
+      0x751e8fbc860ee5fbULL, 0x14ea5627c0843d90ULL,
+      0xf723ca908e7af2eeULL, 0xa129ca6149be45e5ULL
+    };
+
+  std::array<unsigned char, 16> msg = {};
+  for (size_t i = 0; i < msg.size(); ++i)
+    msg[i] = static_cast<unsigned char>(i);
+
+  for (size_t len = 0; len < expected.size(); ++len)
+    {
+      EXPECT_EQ(siphash24_hash(msg.data(), len,
+                               0x0706050403020100ULL,
+                               0x0f0e0d0c0b0a0908ULL),
+                static_cast<size_t>(expected[len]));
+    }
 }
 
 // ==================== Seeded Hash Tests ====================
@@ -801,11 +965,17 @@ TEST(HashPerformanceTest, LargeDataHashing)
   auto h2 = oat_hash(large_data);
   auto h3 = SuperFastHash(large_data);
   auto h4 = murmur3hash(large_data, 42ul);
+  auto h5 = xxhash64_hash(large_data, 42);
+  auto h6 = wyhash_hash(large_data, 42);
+  auto h7 = siphash24_hash(large_data);
 
   EXPECT_NE(h1, 0u);
   EXPECT_NE(h2, 0u);
   EXPECT_NE(h3, 0u);
   EXPECT_NE(h4, 0u);
+  EXPECT_NE(h5, 0u);
+  EXPECT_NE(h6, 0u);
+  EXPECT_NE(h7, 0u);
 }
 
 TEST(HashPerformanceTest, ManySmallHashes)

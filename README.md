@@ -37,6 +37,7 @@ Language: English | [Español](README.es.md)
 - [Quick Start](#readme-quick-start)
 - [Data Structures](#readme-data-structures-main)
   - [Balanced Search Trees](#readme-balanced-search-trees)
+  - [Multiway Search Trees](#readme-multiway-search-trees)
   - [Hash Tables](#readme-hash-tables)
   - [Heaps and Priority Queues](#readme-heaps-and-priority-queues)
   - [Lists and Sequential Structures](#readme-lists-and-sequential-structures)
@@ -74,13 +75,14 @@ Language: English | [Español](README.es.md)
 <a id="readme-overview"></a>
 ## Overview
 
-**Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **238 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
+**Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **240 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
 
 ### Why Aleph-w?
 
 | Feature | STL | Boost | Aleph-w |
 |---------|-----|-------|---------|
 | Balanced Trees (AVL, RB, Splay, Treap) | Limited | Partial | **8 variants** |
+| Multiway Search Trees (B-Tree, B+ Tree) | None | Partial | **2 page-oriented variants** |
 | Order Statistics (k-th element, rank) | None | None | **All trees** |
 | Graph Algorithms | None | BGL | **50+ algorithms** |
 | Network Flows (max-flow, min-cost) | None | None | **Complete suite** |
@@ -91,7 +93,7 @@ Language: English | [Español](README.es.md)
 
 ### Key Statistics
 
-- **238 header files** covering classic and modern algorithms
+- **240 header files** covering classic and modern algorithms
 - **90+ data structures** with multiple implementation variants
 - **50+ graph algorithms** including flows, cuts, and paths
 - **80+ example programs** with detailed comments
@@ -212,8 +214,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │                                                                            │
 │  SPECIAL                  SPATIAL                  PROBABILISTIC           │
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
-│  ├─ LRU Cache            ├─ 2D-Tree               ├─ Count-Min Sketch      │
-│  └─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir Sampling │
+│  ├─ LRU Cache            ├─ 2D-Tree               ├─ Cuckoo Filter         │
+│  └─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir/CMS │
 │                                                                            │
 │  RANGE QUERIES                                                             │
 │  ├─ Fenwick Tree (BIT)                                                     │
@@ -651,8 +653,71 @@ int main() {
                                 /    \
                              [40]    [70]
                                      /  \
-                                  [60]  [80]
+                                 [60]  [80]
 ```
+
+<a id="readme-multiway-search-trees"></a>
+### Multiway Search Trees (B-Tree / B+ Tree)
+
+Aleph-w also provides two page-oriented ordered-set containers for workloads
+where wide nodes and range scans are more important than binary-tree rotations.
+
+| Structure | Header | Best For | Notes |
+|-----------|--------|----------|-------|
+| `B_Tree<Key, Compare, MinDegree>` | `tpl_b_tree.H` | General ordered sets with wide fanout | Internal nodes also store user keys |
+| `BPlus_Tree<Key, Compare, MinDegree>` | `tpl_bplus_tree.H` | Range scans and index-style workloads | Leaves store all user keys and are linked |
+| `File_B_Tree<Key, Compare, MinDegree, Codec>` | `tpl_file_b_tree.H` | Durable ordered sets with explicit file path | Real paged B-Tree file with reusable pages, shared/exclusive advisory sidecar locking, page-level WAL with commit trailer, and per-page checkpointed checksums |
+| `File_BPlus_Tree<Key, Compare, MinDegree, Codec>` | `tpl_file_bplus_tree.H` | Durable range scans with explicit file path | Real paged B+ Tree file with linked leaves, shared/exclusive advisory sidecar locking, page-level WAL with commit trailer, and per-page checkpointed checksums |
+| `File_B_Map<Key, Value, Compare, MinDegree, KeyCodec, ValueCodec>` | `tpl_file_b_map.H` | Durable ordered maps on disk | Persistent key/value map built on the paged B-Tree backend |
+| `File_BPlus_Map<Key, Value, Compare, MinDegree, KeyCodec, ValueCodec>` | `tpl_file_bplus_map.H` | Durable ordered maps with range scans | Persistent key/value map built on the paged B+ Tree backend |
+
+```cpp
+#include <tpl_b_tree.H>
+#include <tpl_bplus_tree.H>
+#include <tpl_file_bplus_tree.H>
+#include <tpl_file_bplus_map.H>
+
+int main() {
+    B_Tree<int, Aleph::less<int>, 4> pages = {40, 10, 90, 20, 70, 60, 30};
+    BPlus_Tree<int, Aleph::less<int>, 4> index = {
+        105, 110, 115, 120, 125, 130, 135, 140
+    };
+    File_BPlus_Tree<int, Aleph::less<int>, 4> disk_index("orders.idx");
+    File_BPlus_Map<int, int, Aleph::less<int>, 4> price_index("prices.idx");
+
+    pages.insert(50);
+    auto next = pages.lower_bound(55);      // 60
+
+    auto band = index.range(115, 130);      // 115, 120, 125, 130
+    auto first_after = index.upper_bound(130); // 135
+    disk_index.insert(145);
+    disk_index.sync();
+    price_index.insert_or_assign(120, 990);
+
+    return next.has_value() && band.size() > 0
+        && first_after.has_value() && disk_index.contains(145)
+        && price_index.contains(120) ? 0 : 1;
+}
+```
+
+Use `B_Tree` when you want a classic B-Tree where internal nodes keep keys, and
+`BPlus_Tree` when leaf-linked scans are the main feature. A longer discussion is
+available in [docs/b_tree_family.md](docs/b_tree_family.md). If you need to
+specify a backing file, use `File_B_Tree("path.idx")` or
+`File_BPlus_Tree("path.idx")`. `File_B_Tree` stores a real paged B-Tree on
+disk, while `File_BPlus_Tree` stores a real paged B+ Tree with linked leaves.
+Current writes use a portable format-version-5 layout with checksummed pages,
+codec metadata, and page-level WAL; readers still accept legacy native
+versions 1 through 4.
+If you need mapped values instead of bare keys, use `File_B_Map` or
+`File_BPlus_Map`. The B+ persistent variants also expose lazy ordered scans
+through `get_it()` and `get_range_it()` so callers can walk leaf chains
+without materializing intermediate arrays.
+The in-memory `BPlus_Tree` now exposes the same lazy scan API.
+If you need fixed-size non-arithmetic payloads, pass explicit codecs such as
+`Aleph::detail::Paged_Bounded_String_Codec<32>` for keys or values; legacy
+native stores from versions 1 through 4 still require trivially copyable keys
+when reopened.
 
 ### Fenwick Trees (Binary Indexed Trees)
 
@@ -3653,8 +3718,8 @@ int main() {
 
 #### Tree Types
 
-| Selector | Header | Description |
-|----------|--------|-------------|
+| Tree / Selector | Header | Description |
+|-----------------|--------|-------------|
 | `Avl_Tree` | `tpl_avl.H` | AVL tree |
 | `Avl_Tree_Rk` | `tpl_avlRk.H` | AVL with rank |
 | `Rb_Tree` | `tpl_rb_tree.H` | Red-Black tree |
@@ -3665,6 +3730,21 @@ int main() {
 | `Treap_Rk` | `tpl_treapRk.H` | Treap with rank |
 | `Rand_Tree` | `tpl_rand_tree.H` | Randomized search tree |
 | `Rand_Tree_Rk` | `tpl_rand_tree.H` | Randomized tree with rank |
+| `B_Tree` | `tpl_b_tree.H` | Standalone B-Tree ordered set |
+| `BPlus_Tree` | `tpl_bplus_tree.H` | Standalone B+ Tree with linked leaves |
+| `File_B_Tree` | `tpl_file_b_tree.H` | Page-managed persistent B-Tree with shared/exclusive advisory lock/WAL sidecars, commit trailers, and per-page checkpointed records |
+| `File_BPlus_Tree` | `tpl_file_bplus_tree.H` | Page-managed persistent B+ Tree with shared/exclusive advisory lock/WAL sidecars, commit trailers, and per-page checkpointed records |
+| `File_B_Map` | `tpl_file_b_map.H` | Page-managed persistent B-Tree map with key/value records |
+| `File_BPlus_Map` | `tpl_file_bplus_map.H` | Page-managed persistent B+ Tree map with key/value range scans |
+
+Read-only snapshots can be opened with `File_B_Tree<...>::Read_Only` or
+`File_BPlus_Tree<...>::Read_Only`, and the map wrappers forward that same mode.
+Those handles take shared advisory locks, reject pending recovery sidecars, and
+throw on mutation or `sync()`. The lock semantics are covered by same-process
+and fork-based regression tests.
+
+`B_Tree`, `BPlus_Tree`, `File_B_Tree`, and `File_BPlus_Tree` are owning
+containers, not `DynSetTree` selectors.
 
 #### String Algorithms
 
@@ -3987,10 +4067,91 @@ Aleph-w provides a set of modern algorithms for processing data streams with low
 | Header | Class | Purpose |
 |---|---|---|
 | `reservoir-sampling.H` | `Reservoir_Sampler` | Randomly sample `k` elements from a stream of unknown length |
+| `bloom-filter.H` | `Bloom_Filter` | Standard probabilistic membership (no deletion) |
+| `cuckoo-filter.H` | `Cuckoo_Filter` | High-performance membership with deletion support |
+| `compact-cuckoo-filter.H` | `Compact_Cuckoo_Filter` | Memory-optimized Cuckoo filter with bit-packed fingerprints (75% less memory) |
+| `quotient-filter.H` | `Quotient_Filter` | Cache-friendly membership with deletion and merging |
+| `compact-quotient-filter.H` | `Compact_Quotient_Filter` | Memory-optimized Quotient filter with bit-packed slots (82% less memory) |
 | `count-min-sketch.H` | `Count_Min_Sketch` | Approximate frequency estimation (O(1) updates/queries) |
 | `hyperloglog.H` | `HyperLogLog` | Cardinality estimation (count unique elements) with low error |
 | `minhash.H` | `MinHash` | Jaccard similarity estimation between sets |
 | `simhash.H` | `SimHash` | Cosine similarity estimation using bitwise fingerprints |
+
+#### Cuckoo Filters: Standard vs Compact
+
+Aleph-w provides two Cuckoo filter variants with different memory/performance trade-offs:
+
+| Variant | Memory per bucket | Speed | Use when |
+|---------|-------------------|-------|----------|
+| `Cuckoo_Filter` | 16 bytes (4 × 32-bit slots) | Fast | Performance matters, memory is not constrained |
+| `Compact_Cuckoo_Filter` | 4 bytes (bit-packed) | 10-30% slower | Memory is limited (embedded systems, large filters) |
+
+**Example:**
+
+```cpp
+#include <cuckoo-filter.H>
+#include <compact-cuckoo-filter.H>
+
+int main() {
+    // Standard variant: fast, uses more memory
+    Cuckoo_Filter<int> fast_filter(1000000);
+    fast_filter.insert(42);
+    fast_filter.insert(100);
+    if (fast_filter.contains(42)) {
+        fast_filter.remove(42);  // Deletion supported
+    }
+    
+    // Compact variant: 75% less memory, slightly slower
+    Compact_Cuckoo_Filter<std::string> compact_filter(1000000);
+    compact_filter.insert("user_12345");
+    std::cout << "Memory: " << compact_filter.memory_usage() 
+              << " bytes\n";  // ~1 MB vs ~4 MB for standard
+    
+    // Both have ~3.1% false positive rate with defaults
+    // (8-bit fingerprints, 4 entries per bucket)
+}
+```
+
+#### Quotient Filters: Standard vs Compact
+
+Aleph-w provides two Quotient filter variants optimized for different constraints:
+
+| Variant | Memory per slot | Speed | Use when |
+|---------|-----------------|-------|----------|
+| `Quotient_Filter` | 64 bits (uint64_t) | Fast | Performance matters, cache locality critical |
+| `Compact_Quotient_Filter` | 3+r bits (bit-packed) | 15-30% slower | Memory is limited, r is small (≤16 bits) |
+
+**Memory savings with r=8 remainder bits:**
+- Standard: 64 bits/slot → 8 MB for 1M slots
+- Compact: 11 bits/slot → 1.4 MB for 1M slots
+- **82% reduction**
+
+**Example:**
+
+```cpp
+#include <quotient-filter.H>
+#include <compact-quotient-filter.H>
+
+int main() {
+    // Standard variant: fast, cache-friendly
+    Quotient_Filter<int> qf(20, 8);  // 2^20 slots, 8-bit remainders
+    qf.insert(42);
+    qf.insert(100);
+    qf.remove(42);  // Deletion supported
+    
+    // Compact variant: 82% less memory
+    auto compact = Compact_Quotient_Filter<std::string>::from_capacity(
+        1000000, 0.004);  // 1M elements, ~0.4% FP rate
+    compact.insert("user_12345");
+    std::cout << "Memory: " << compact.memory_usage() 
+              << " bytes\n";  // ~1.4 MB vs ~8 MB for standard
+    
+    // Both support merging (unlike Bloom filters)
+    Quotient_Filter<int> qf2(20, 8);
+    qf2.insert(200);
+    qf.merge(qf2);  // qf now contains 100 and 200
+}
+```
 
 #### Streaming Usage Example
 

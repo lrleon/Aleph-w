@@ -48,8 +48,13 @@ static bool init = false;
  
 void init_jsw() noexcept
 {
+  init_jsw(static_cast<std::uint32_t>(time(nullptr)));
+}
+
+void init_jsw(std::uint32_t seed) noexcept
+{
   gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, time(nullptr) % gsl_rng_max(r));
+  gsl_rng_set(r, seed % gsl_rng_max(r));
 
   for (int i = 0; i < 256; ++i)
     tab[i] = gsl_rng_get(r);
@@ -179,6 +184,90 @@ static FORCE_INLINE uint64_t fmix64 ( uint64_t k )
 
   return k;
 }
+
+static FORCE_INLINE std::uint32_t read_le32(const std::uint8_t * p) noexcept
+{
+  return static_cast<std::uint32_t>(p[0])
+    | (static_cast<std::uint32_t>(p[1]) << 8)
+    | (static_cast<std::uint32_t>(p[2]) << 16)
+    | (static_cast<std::uint32_t>(p[3]) << 24);
+}
+
+static FORCE_INLINE std::uint64_t read_le64(const std::uint8_t * p) noexcept
+{
+  return static_cast<std::uint64_t>(p[0])
+    | (static_cast<std::uint64_t>(p[1]) << 8)
+    | (static_cast<std::uint64_t>(p[2]) << 16)
+    | (static_cast<std::uint64_t>(p[3]) << 24)
+    | (static_cast<std::uint64_t>(p[4]) << 32)
+    | (static_cast<std::uint64_t>(p[5]) << 40)
+    | (static_cast<std::uint64_t>(p[6]) << 48)
+    | (static_cast<std::uint64_t>(p[7]) << 56);
+}
+
+static FORCE_INLINE std::uint64_t mul_xor_fold64(std::uint64_t lhs,
+                                                 std::uint64_t rhs) noexcept
+{
+#ifdef __SIZEOF_INT128__
+  const __uint128_t prod = static_cast<__uint128_t>(lhs) * rhs;
+  return static_cast<std::uint64_t>(prod)
+    ^ static_cast<std::uint64_t>(prod >> 64);
+#else
+  const std::uint64_t lhs_lo = lhs & 0xffffffffULL;
+  const std::uint64_t lhs_hi = lhs >> 32;
+  const std::uint64_t rhs_lo = rhs & 0xffffffffULL;
+  const std::uint64_t rhs_hi = rhs >> 32;
+  const std::uint64_t ll = lhs_lo * rhs_lo;
+  const std::uint64_t lh = lhs_lo * rhs_hi;
+  const std::uint64_t hl = lhs_hi * rhs_lo;
+  const std::uint64_t hh = lhs_hi * rhs_hi;
+  std::uint64_t low = ll + (lh << 32) + (hl << 32);
+  std::uint64_t high = hh + (lh >> 32) + (hl >> 32);
+  if (low < ll)
+    ++high;
+  return low ^ high;
+#endif
+}
+
+static FORCE_INLINE std::uint64_t xxh64_round(std::uint64_t acc,
+                                              std::uint64_t input) noexcept
+{
+  constexpr std::uint64_t prime2 = 14029467366897019727ULL;
+  constexpr std::uint64_t prime1 = 11400714785074694791ULL;
+  acc += input * prime2;
+  acc = ROTL64(acc, 31);
+  acc *= prime1;
+  return acc;
+}
+
+static FORCE_INLINE std::uint64_t xxh64_merge_round(std::uint64_t acc,
+                                                    std::uint64_t value) noexcept
+{
+  constexpr std::uint64_t prime1 = 11400714785074694791ULL;
+  constexpr std::uint64_t prime4 =  9650029242287828579ULL;
+  value = xxh64_round(0, value);
+  acc ^= value;
+  acc = acc * prime1 + prime4;
+  return acc;
+}
+
+static FORCE_INLINE std::uint64_t wyhash_mix(std::uint64_t lhs,
+                                             std::uint64_t rhs) noexcept
+{
+  return mul_xor_fold64(lhs, rhs);
+}
+
+/* The following modern hashes are compact Aleph integrations derived from
+   the published algorithms and reference code for:
+
+   - xxHash / xxHash64 by Yann Collet (BSD-2-Clause)
+   - wyhash by Wang Yi (Unlicense)
+   - SipHash-2-4 by Jean-Philippe Aumasson and Daniel J. Bernstein
+     (the upstream reference repository is multi-licensed, including MIT)
+
+   The implementations below are kept small to fit Aleph's existing
+   hash-fct.C style while preserving the published mixing/finalization
+   schemes of those algorithms. */
 
 //-----------------------------------------------------------------------------
 
@@ -423,6 +512,212 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
 
   ((uint64_t*)out)[0] = h1;
   ((uint64_t*)out)[1] = h2;
+}
+
+size_t xxhash64_hash(const void * key, size_t len, std::uint64_t seed) noexcept
+{
+  constexpr std::uint64_t prime1 = 11400714785074694791ULL;
+  constexpr std::uint64_t prime2 = 14029467366897019727ULL;
+  constexpr std::uint64_t prime3 =  1609587929392839161ULL;
+  constexpr std::uint64_t prime4 =  9650029242287828579ULL;
+  constexpr std::uint64_t prime5 =  2870177450012600261ULL;
+
+  const auto * p = static_cast<const std::uint8_t *>(key);
+  const auto * const end = p + len;
+  std::uint64_t hash = 0;
+
+  if (len >= 32)
+    {
+      const auto * const limit = end - 32;
+      std::uint64_t v1 = seed + prime1 + prime2;
+      std::uint64_t v2 = seed + prime2;
+      std::uint64_t v3 = seed + 0;
+      std::uint64_t v4 = seed - prime1;
+
+      do
+        {
+          v1 = xxh64_round(v1, read_le64(p)); p += 8;
+          v2 = xxh64_round(v2, read_le64(p)); p += 8;
+          v3 = xxh64_round(v3, read_le64(p)); p += 8;
+          v4 = xxh64_round(v4, read_le64(p)); p += 8;
+        }
+      while (p <= limit);
+
+      hash = ROTL64(v1, 1) + ROTL64(v2, 7) + ROTL64(v3, 12) + ROTL64(v4, 18);
+      hash = xxh64_merge_round(hash, v1);
+      hash = xxh64_merge_round(hash, v2);
+      hash = xxh64_merge_round(hash, v3);
+      hash = xxh64_merge_round(hash, v4);
+    }
+  else
+    hash = seed + prime5;
+
+  hash += len;
+
+  while (p + 8 <= end)
+    {
+      const std::uint64_t k1 = xxh64_round(0, read_le64(p));
+      hash ^= k1;
+      hash = ROTL64(hash, 27) * prime1 + prime4;
+      p += 8;
+    }
+
+  if (p + 4 <= end)
+    {
+      hash ^= static_cast<std::uint64_t>(read_le32(p)) * prime1;
+      hash = ROTL64(hash, 23) * prime2 + prime3;
+      p += 4;
+    }
+
+  while (p < end)
+    {
+      hash ^= static_cast<std::uint64_t>(*p++) * prime5;
+      hash = ROTL64(hash, 11) * prime1;
+    }
+
+  hash ^= hash >> 33;
+  hash *= prime2;
+  hash ^= hash >> 29;
+  hash *= prime3;
+  hash ^= hash >> 32;
+
+  return static_cast<size_t>(hash);
+}
+
+size_t wyhash_hash(const void * key, size_t len, std::uint64_t seed) noexcept
+{
+  static constexpr std::uint64_t secret[] =
+    {
+      0xa0761d6478bd642fULL,
+      0xe7037ed1a0b428dbULL,
+      0x8ebc6af09c88c6e3ULL,
+      0x589965cc75374cc3ULL
+    };
+
+  const auto * p = static_cast<const std::uint8_t *>(key);
+  std::uint64_t a = 0;
+  std::uint64_t b = 0;
+  std::uint64_t remaining = len;
+
+  seed ^= secret[0];
+
+  auto read_wyr3 = [] (const std::uint8_t * data, size_t n) noexcept
+    {
+      return (static_cast<std::uint64_t>(data[0]) << 16)
+        | (static_cast<std::uint64_t>(data[n >> 1]) << 8)
+        | static_cast<std::uint64_t>(data[n - 1]);
+    };
+
+  if (remaining <= 16)
+    {
+      if (remaining >= 4)
+        {
+          const size_t delta = (remaining >> 3) << 2;
+          a = (static_cast<std::uint64_t>(read_le32(p)) << 32)
+            | read_le32(p + delta);
+          b = (static_cast<std::uint64_t>(read_le32(p + remaining - 4)) << 32)
+            | read_le32(p + remaining - 4 - delta);
+        }
+      else if (remaining > 0)
+        a = read_wyr3(p, remaining);
+    }
+  else
+    {
+      if (remaining > 48)
+        {
+          std::uint64_t see1 = seed;
+          std::uint64_t see2 = seed;
+          do
+            {
+              seed = wyhash_mix(read_le64(p) ^ secret[1], read_le64(p + 8) ^ seed);
+              see1 = wyhash_mix(read_le64(p + 16) ^ secret[2],
+                                read_le64(p + 24) ^ see1);
+              see2 = wyhash_mix(read_le64(p + 32) ^ secret[3],
+                                read_le64(p + 40) ^ see2);
+              p += 48;
+              remaining -= 48;
+            }
+          while (remaining > 48);
+          seed ^= see1 ^ see2;
+        }
+
+      while (remaining > 16)
+        {
+          seed = wyhash_mix(read_le64(p) ^ secret[1], read_le64(p + 8) ^ seed);
+          p += 16;
+          remaining -= 16;
+        }
+
+      a = read_le64(p + remaining - 16);
+      b = read_le64(p + remaining - 8);
+    }
+
+  return static_cast<size_t>(
+      wyhash_mix(secret[1] ^ len, wyhash_mix(a ^ secret[1], b ^ seed)));
+}
+
+size_t siphash24_hash(const void * key, size_t len,
+                      std::uint64_t key0, std::uint64_t key1) noexcept
+{
+  const auto * in = static_cast<const std::uint8_t *>(key);
+  const auto * const end = in + (len - (len & 7));
+
+  std::uint64_t v0 = 0x736f6d6570736575ULL ^ key0;
+  std::uint64_t v1 = 0x646f72616e646f6dULL ^ key1;
+  std::uint64_t v2 = 0x6c7967656e657261ULL ^ key0;
+  std::uint64_t v3 = 0x7465646279746573ULL ^ key1;
+
+  auto sipround = [&]() noexcept
+    {
+      v0 += v1;
+      v1 = ROTL64(v1, 13);
+      v1 ^= v0;
+      v0 = ROTL64(v0, 32);
+      v2 += v3;
+      v3 = ROTL64(v3, 16);
+      v3 ^= v2;
+      v0 += v3;
+      v3 = ROTL64(v3, 21);
+      v3 ^= v0;
+      v2 += v1;
+      v1 = ROTL64(v1, 17);
+      v1 ^= v2;
+      v2 = ROTL64(v2, 32);
+    };
+
+  for (; in != end; in += 8)
+    {
+      const std::uint64_t m = read_le64(in);
+      v3 ^= m;
+      sipround();
+      sipround();
+      v0 ^= m;
+    }
+
+  std::uint64_t b = static_cast<std::uint64_t>(len) << 56;
+  switch (len & 7)
+    {
+    case 7: b |= static_cast<std::uint64_t>(in[6]) << 48; [[fallthrough]];
+    case 6: b |= static_cast<std::uint64_t>(in[5]) << 40; [[fallthrough]];
+    case 5: b |= static_cast<std::uint64_t>(in[4]) << 32; [[fallthrough]];
+    case 4: b |= static_cast<std::uint64_t>(in[3]) << 24; [[fallthrough]];
+    case 3: b |= static_cast<std::uint64_t>(in[2]) << 16; [[fallthrough]];
+    case 2: b |= static_cast<std::uint64_t>(in[1]) << 8;  [[fallthrough]];
+    case 1: b |= static_cast<std::uint64_t>(in[0]);       [[fallthrough]];
+    default: break;
+    }
+
+  v3 ^= b;
+  sipround();
+  sipround();
+  v0 ^= b;
+  v2 ^= 0xff;
+  sipround();
+  sipround();
+  sipround();
+  sipround();
+
+  return static_cast<size_t>(v0 ^ v1 ^ v2 ^ v3);
 }
 
 } // end namespace Aleph

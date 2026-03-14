@@ -130,6 +130,10 @@ set(TEST_PROGRAMS
     array-it
     bitarray
     bloom-filter
+    cuckoo-filter
+    compact-cuckoo-filter
+    quotient-filter
+    compact-quotient-filter
     dynarray
     floyd
     karger
@@ -154,6 +158,8 @@ set(TEST_PROGRAMS
     splay-tree
     splay-tree-rk
     rb-tree
+    file_b_map_test
+    file_bplus_map_test
     dynsettree
     dynsethash
     rand-tree

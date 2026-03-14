@@ -108,10 +108,8 @@
 # include <vector>
 # include <limits>
 # include <ctime>
-# include <utility>
 # include <gsl/gsl_rng.h>
 # include <cmath>
-# include <iostream>
 # include <ahFunctional.H>
 # include <bitArray.H>
 # include <hash-fct.H>
@@ -120,7 +118,6 @@
 
 namespace Aleph
 {
-  template <typename T>
   /**
       Bloom filter implementation.
 
@@ -134,6 +131,7 @@ namespace Aleph
 
       @tparam T Item type.
    */
+  template <typename T>
   class Bloom_Filter
   {
   public:
@@ -167,7 +165,7 @@ namespace Aleph
         @param[in] p Desired false positive probability. Must satisfy 0 < p < 1.
         @return `(m, k)` pair.
      */
-    static std::tuple<size_t, size_t> estimate(const size_t n, const double p)
+    [[nodiscard]] static std::tuple<size_t, size_t> estimate(const size_t n, const double p)
     {
       assert(n > 0);
       assert(p > 0 and p < 1);
@@ -182,28 +180,28 @@ namespace Aleph
 
         This is the Bloom filter capacity in bits ("m" in the literature).
      */
-    size_t get_m() const noexcept { return bits.size(); }
+    [[nodiscard]] size_t get_m() const noexcept { return bits.size(); }
 
     /**
         Return the number of hash functions used by the filter.
 
         This is "k" in the literature.
      */
-    size_t get_k() const noexcept { return num_hash; }
+    [[nodiscard]] size_t get_k() const noexcept { return num_hash; }
 
     /**
         Return the number of insertions performed on the filter.
 
         Note: this is a counter of insertions, not the number of distinct items.
      */
-    size_t get_n() const noexcept { return num_ins; }
+    [[nodiscard]] size_t get_n() const noexcept { return num_ins; }
 
     /**
         Return the number of bits set to 1.
 
         This is commonly denoted as "x" in Bloom filter formulas.
      */
-    size_t get_x() const noexcept
+    [[nodiscard]] size_t get_x() const noexcept
     {
       size_t x = 0;
       for (size_t i = 0; i < bits.size(); ++i)
@@ -219,7 +217,7 @@ namespace Aleph
 
         @return Number of insertions.
      */
-    size_t size() const noexcept { return get_n(); }
+    [[nodiscard]] size_t size() const noexcept { return get_n(); }
 
     /**
         @brief Return the capacity in bits.
@@ -228,25 +226,25 @@ namespace Aleph
 
         @return Number of bits.
      */
-    size_t capacity() const noexcept { return get_m(); }
+    [[nodiscard]] size_t capacity() const noexcept { return get_m(); }
 
     /**
         Construct a Bloom filter with explicit parameters.
 
         @param[in] dim Number of bits of the filter.
-        @param[in] __num_hash Number of hash functions.
-        @param[in] __hash_fct Hash function of signature `(item, seed) -> size_t`.
+        @param[in] num_hashes Number of hash functions.
+        @param[in] hash_fn Hash function of signature `(item, seed) -> size_t`.
         @param[in] seed Seed used to generate internal per-hash seeds.
 
-        @throw std::invalid_argument if `dim == 0`, `__num_hash == 0` or
-        `__hash_fct == nullptr`.
+        @throw std::invalid_argument if `dim == 0`, `num_hashes == 0` or
+        `hash_fn == nullptr`.
         @throw std::bad_alloc if the internal random generator cannot be allocated.
     */
-    Bloom_Filter(const size_t dim, size_t __num_hash,
-                 Hash_Fct __hash_fct = dft_hash_fct,
+    Bloom_Filter(const size_t dim, size_t num_hashes,
+                 Hash_Fct hash_fn = dft_hash_fct,
                  const unsigned long seed = static_cast<unsigned long>(std::time(nullptr)))
-      : bits(0), hash_fct(__hash_fct), num_hash(__num_hash),
-        seeds(__num_hash)
+      : bits(0), hash_fct(hash_fn), num_hash(num_hashes),
+        seeds(num_hashes)
     {
       ah_invalid_argument_if(dim == 0) << "Bloom filter dimension must be > 0";
       ah_invalid_argument_if(num_hash == 0) << "Bloom filter number of hashes must be > 0";
@@ -270,13 +268,15 @@ namespace Aleph
         @param[in] n Expected number of inserted items.
         @param[in] p Desired false positive probability.
         @param[in] seed Seed used to generate internal per-hash seeds.
-        @param[in] __hash_fct Hash function of signature `(item, seed) -> size_t`.
+        @param[in] hash_fn Hash function of signature `(item, seed) -> size_t`.
     */
     Bloom_Filter(const size_t n, const double p,
                  unsigned long seed = static_cast<unsigned long>(std::time(nullptr)),
-                 Hash_Fct __hash_fct = dft_hash_fct)
-      : Bloom_Filter(std::get<0>(estimate(n, p)), std::get<1>(estimate(n, p)),
-                     __hash_fct, seed)
+                 Hash_Fct hash_fn = dft_hash_fct)
+      : Bloom_Filter([&] {
+          const auto [m, k] = estimate(n, p);
+          return Bloom_Filter(m, k, hash_fn, seed);
+        }())
     {
       // empty
     }
@@ -342,7 +342,7 @@ namespace Aleph
     }
 
     /** @brief Destructor. */
-    virtual ~Bloom_Filter() = default;
+    ~Bloom_Filter() = default;
 
     /**
         Insert an item.
@@ -350,9 +350,9 @@ namespace Aleph
         This operation never produces false negatives: an inserted item
         will always be reported as present by contains().
     */
-    auto &insert(const T & item) noexcept
+    auto &insert(const T & item)
     {
-      const size_t & m = bits.size();
+      const size_t m = bits.size();
       for (const auto & seed: seeds)
         bits.fast_write((*hash_fct)(item, seed) % m, 1);
 
@@ -367,16 +367,16 @@ namespace Aleph
         @param[in] item Item to insert.
         @return `*this`.
      */
-    auto &append(const T & item) noexcept { return insert(item); }
+    auto &append(const T & item) { return insert(item); }
 
     /**
         Test membership.
 
         This operation may return false positives but never false negatives.
     */
-    bool contains(const T & item) const noexcept
+    [[nodiscard]] bool contains(const T & item) const
     {
-      const size_t & m = bits.size();
+      const size_t m = bits.size();
       for (const auto & seed: seeds)
         if (not bits.fast_read((*hash_fct)(item, seed) % m))
           return false;
@@ -389,7 +389,7 @@ namespace Aleph
 
         The returned list has size `get_k()`.
      */
-    DynList<size_t> hash_seeds() const
+    [[nodiscard]] DynList<size_t> hash_seeds() const
     {
       DynList<size_t> ret;
       for (const auto & seed: seeds)
@@ -402,10 +402,10 @@ namespace Aleph
 
         @return A list of size `get_k()`, with values in `[0, get_m())`.
      */
-    DynList<size_t> hashes(const T & item) const
+    [[nodiscard]] DynList<size_t> hashes(const T & item) const
     {
       DynList<size_t> ret;
-      const size_t & m = bits.size();
+      const size_t m = bits.size();
       for (const auto & seed: seeds)
         ret.append((*hash_fct)(item, seed) % m);
       return ret;
@@ -418,7 +418,7 @@ namespace Aleph
         @param[in] i2 Second item.
         @return List of bit positions common to both items.
      */
-    DynList<size_t> common_hashes(const T & i1, const T & i2) const
+    [[nodiscard]] DynList<size_t> common_hashes(const T & i1, const T & i2) const
     {
       return intercept(hashes(i1), hashes(i2));
     }
@@ -428,7 +428,7 @@ namespace Aleph
 
         This is an O(m) operation.
      */
-    DynList<size_t> set_bits() const
+    [[nodiscard]] DynList<size_t> set_bits() const
     {
       DynList<size_t> ret;
       for (size_t i = 0; i < bits.size(); ++i)
@@ -447,7 +447,7 @@ namespace Aleph
      * @param[in] x Number of bits set to 1.
      * @return Estimated insertion count.
      */
-    size_t expected_size(const size_t x) const noexcept
+    [[nodiscard]] size_t expected_size(const size_t x) const noexcept
     {
       const auto m = static_cast<double>(capacity());
       const auto k = static_cast<double>(get_k());
@@ -470,7 +470,7 @@ namespace Aleph
 
         Equivalent to `expected_size(get_x())`.
      */
-    size_t expected_size() const noexcept
+    [[nodiscard]] size_t expected_size() const noexcept
     {
       return expected_size(get_x());
     }
@@ -507,9 +507,7 @@ namespace Aleph
 
       bits &= f.bits;
 
-      const auto est = expected_size();
-      const auto sum = num_ins + f.num_ins;
-      num_ins = sum >= est ? sum - est : 0;
+      num_ins = expected_size();
 
       return *this;
     }
