@@ -44,6 +44,7 @@
 # include <bit>
 # include <cstddef>
 # include <cstring>
+# include <exception>
 # include <optional>
 # include <ostream>
 # include <string>
@@ -217,6 +218,12 @@ namespace Aleph
       return std::nullopt;
     }
 
+    [[nodiscard]] static const char * validated_path(const char * p)
+    {
+      ah_invalid_argument_if(p == nullptr) << "Gen_File_B_Map: file_path must not be null";
+      return p;
+    }
+
   public:
     using key_type = Key;
     using mapped_type = Value;
@@ -267,7 +274,7 @@ namespace Aleph
     explicit Gen_File_B_Map(const char * file_path,
                             const bool auto_sync = true,
                             const Compare & cmp = Compare())
-      : tree_(file_path, auto_sync, Record_Compare{cmp}) {}
+      : tree_(validated_path(file_path), auto_sync, Record_Compare{cmp}) {}
 
     /** @brief Open or create a persistent B-Tree map with an explicit mode.
      *  @param file_path Path to the backing file.
@@ -282,7 +289,7 @@ namespace Aleph
                             const open_mode_type open_mode,
                             const bool auto_sync = true,
                             const Compare & cmp = Compare())
-      : tree_(file_path, open_mode, auto_sync, Record_Compare{cmp}) {}
+      : tree_(validated_path(file_path), open_mode, auto_sync, Record_Compare{cmp}) {}
 
     /** @brief Copying is disabled. */
     Gen_File_B_Map(const Gen_File_B_Map &) = delete;

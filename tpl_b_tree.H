@@ -525,6 +525,8 @@ class Gen_B_Tree
 
     if (node->leaf)
       {
+        if (not node->children.is_empty())
+          return false;
         if (leaf_depth == static_cast<size_t>(-1))
           leaf_depth = depth;
         return leaf_depth == depth;
