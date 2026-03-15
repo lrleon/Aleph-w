@@ -511,10 +511,17 @@ namespace Aleph
       const auto record = make_record(key, value);
       if (tree_.insert(record))
         return true;
+      // Suppress intermediate syncs so the remove+insert pair is written as a
+      // single WAL-flushed unit; restore and sync once at the end.
+      const bool was_sync = auto_sync_enabled();
+      set_auto_sync(false);
       ah_runtime_error_unless(tree_.remove(probe))
         << "File_B_Map::insert_or_assign(): internal replace failed";
       ah_runtime_error_unless(tree_.insert(record))
         << "File_B_Map::insert_or_assign(): internal reinsert failed";
+      set_auto_sync(was_sync);
+      if (was_sync)
+        sync();
       return false;
     }
 

@@ -48,6 +48,7 @@
 # include <fstream>
 # include <optional>
 # include <string>
+# include <unordered_set>
 # include <type_traits>
 # include <utility>
 
@@ -2018,13 +2019,20 @@ namespace Aleph
                                    const std::optional<Key> & max_key,
                                    const size_t depth,
                                    size_t & leaf_depth,
-                                   size_t & counted) const
+                                   size_t & counted,
+                                   std::unordered_set<page_id_t> & visited) const
     {
       if (page_id == 0 or page_id >= pages_.size())
         return false;
 
+      // Cycle detection: reject any page visited more than once in this traversal.
+      if (not visited.insert(page_id).second)
+        return false;
+
       const Page & p = page(page_id);
-      if (is_free(p))
+
+      // Only Leaf and Internal pages are structurally valid here.
+      if (not is_leaf(p) and not is_internal(p))
         return false;
 
       if (page_id != root_page_)
@@ -2073,7 +2081,7 @@ namespace Aleph
             child_max = p.keys[i];
 
           if (not verify_node(p.children[i], child_min, child_max,
-                              depth + 1, leaf_depth, counted))
+                              depth + 1, leaf_depth, counted, visited))
             return false;
         }
 
@@ -2638,8 +2646,10 @@ namespace Aleph
 
       size_t leaf_depth = static_cast<size_t>(-1);
       size_t counted = 0;
+      std::unordered_set<page_id_t> visited;
+      visited.reserve(pages_.size());
       return verify_node(root_page_, std::nullopt, std::nullopt, 1,
-                         leaf_depth, counted)
+                         leaf_depth, counted, visited)
              and counted == size_;
     }
   };

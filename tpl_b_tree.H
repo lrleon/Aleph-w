@@ -493,8 +493,13 @@ class Gen_B_Tree
     else if (node->keys.size() > MaxKeys)
       return false;
 
-    if (not Aleph::is_sorted(node->keys, cmp_))
-      return false;
+    // Keys must be strictly increasing — no equal adjacent entries are allowed.
+    {
+      const auto & ks = node->keys;
+      for (size_t ki = 0; ki + 1 < ks.size(); ++ki)
+        if (not cmp_(ks[ki], ks[ki + 1]))
+          return false;
+    }
 
     if (min_key.has_value() and not node->keys.is_empty() and not cmp_(*min_key, node->keys.get_first()))
       return false;
@@ -593,17 +598,9 @@ public:
    */
   Gen_B_Tree &operator=(Gen_B_Tree &&other) = default;
 
-  /** @brief Return the comparison object.
-   *  @return Mutable reference to the comparison functor.
-   *  @throws Nothing.
-   */
-  Compare &key_comp() noexcept
-  {
-    return cmp_;
-  }
-
-  /** @brief Return the comparison object.
+  /** @brief Return the comparison object (read-only).
    *  @return Constant reference to the comparison functor.
+   *  @note The comparator is immutable after construction to preserve tree order.
    *  @throws Nothing.
    */
   [[nodiscard]] const Compare &key_comp() const noexcept
@@ -611,17 +608,9 @@ public:
     return cmp_;
   }
 
-  /** @brief Return the comparison object.
-   *  @return Mutable reference to the comparison functor.
-   *  @throws Nothing.
-   */
-  Compare &get_compare() noexcept
-  {
-    return key_comp();
-  }
-
-  /** @brief Return the comparison object.
+  /** @brief Return the comparison object (read-only).
    *  @return Constant reference to the comparison functor.
+   *  @note Alias for key_comp(). Immutable after construction.
    *  @throws Nothing.
    */
   [[nodiscard]] const Compare &get_compare() const noexcept

@@ -238,8 +238,12 @@ public:
     : rng_(seed.has_value() ? std::mt19937(seed.value())
                             : std::mt19937(std::random_device{}()))
   {
-    // Compute how many buckets are needed for the requested capacity
-    const size_t needed_buckets = static_cast<size_t>(std::ceil(1.0 * capacity / EntriesPerBucket));
+    // Allocate with a safety margin so bounded cuckoo kick sequences succeed.
+    // At 100% load the filter cannot insert reliably; kTargetLoad = 0.9 gives
+    // ~11% extra slots so insertions stay well below the kick-cycle limit.
+    constexpr double kTargetLoad = 0.9;
+    const size_t needed_buckets =
+      static_cast<size_t>(std::ceil(capacity / (EntriesPerBucket * kTargetLoad)));
     // Round up to a power of 2 so that bucket_mask works as a modulo
     num_buckets = next_power_of_2(needed_buckets);
     if (num_buckets == 0)

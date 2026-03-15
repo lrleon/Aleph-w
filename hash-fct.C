@@ -33,6 +33,7 @@
 # include <gsl/gsl_rng.h>
 # include <stdexcept>
 # include <mutex>
+# include <shared_mutex>
 # include <atomic>
 # include "hash-fct.H"
 
@@ -51,7 +52,9 @@ static long tab[256];
 static std::once_flag  jsw_init_flag;
 static std::atomic<bool> init{false};
 
-static std::mutex jsw_mtx;  // kept for the re-seeding path in init_jsw(seed)
+// shared_mutex: readers (jsw_hash) acquire shared lock; writer (init_jsw(seed))
+// acquires exclusive lock, preventing data races during re-seed.
+static std::shared_mutex jsw_mtx;
 
 // ============================================================================
 // Helpers
@@ -222,20 +225,19 @@ void init_jsw() noexcept
 
 void init_jsw(std::uint32_t seed) noexcept
 {
-  // Explicit re-seed: use the mutex so concurrent jsw_hash() readers cannot
-  // observe a partially-written tab[].  The once_flag is bypassed here because
-  // re-seeding is an intentional reset, not a first-init guard.
-  std::lock_guard<std::mutex> lock(jsw_mtx);
+  // Exclusive lock: blocks all concurrent jsw_hash() readers until the new
+  // table is fully written, preventing data races during re-seed.
+  std::unique_lock<std::shared_mutex> lock(jsw_mtx);
   jsw_fill_table(seed);
 }
 
 size_t jsw_hash(const void * key, size_t len) noexcept
 {
-  // Fast path: if init_jsw(seed) was already called, skip call_once.
-  // call_once is only for the truly-first-use lazy-init case.
   if (not init.load(std::memory_order_acquire))
     std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
 
+  // Shared lock: allows concurrent readers; excluded only during init_jsw(seed).
+  std::shared_lock<std::shared_mutex> lock(jsw_mtx);
   const unsigned char *p = (const unsigned char*) key;
   size_t h = 16777551;
 
@@ -250,6 +252,7 @@ size_t jsw_hash(const char * key) noexcept
   if (not init.load(std::memory_order_acquire))
     std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
 
+  std::shared_lock<std::shared_mutex> lock(jsw_mtx);
   const unsigned char * p = (const unsigned char*) key;
   size_t h = 16777551;
 

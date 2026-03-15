@@ -276,9 +276,10 @@ double max_output_bit_bias(const Candidate & candidate,
 double avalanche_ratio(const Candidate & candidate,
                        const Array<std::string> & samples)
 {
-  // Compute effective output bits from the *same* samples used for flipping,
-  // not from a different sample set.  Using a different set can undercount bits
-  // for 32-bit hashes and inflate/deflate the ratio unpredictably.
+  // effective_output_bits is computed from the same sample set used for
+  // flipping so it captures the true output width (32 for SuperFastHash,
+  // 64 for xxhash64/wyhash/etc.) without inflating comparisons for
+  // 32-bit hashes or deflating them for 64-bit ones.
   const size_t output_bits = effective_output_bits(candidate, samples);
   std::uint64_t changed_bits = 0;
   std::uint64_t comparisons = 0;
@@ -293,8 +294,6 @@ double avalanche_ratio(const Candidate & candidate,
           std::string mutated = base;
           mutated[bit / 8] ^= static_cast<char>(1u << (bit % 8));
           const size_t hashed = candidate.hash(mutated);
-          // popcount counts only the bits that actually differ; dividing by
-          // output_bits (from this same sample set) gives the correct ratio.
           changed_bits += std::popcount(original ^ hashed);
           comparisons += output_bits;
         }

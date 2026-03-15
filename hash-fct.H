@@ -930,12 +930,15 @@ inline std::uint16_t get16bits(const void * p) noexcept
   // different bit patterns (-0.0 == +0.0, multiple NaN encodings).  These
   // specializations normalize -0.0 to +0.0 before hashing the bits.
 
+  // Note on NaN: distinct NaN bit-patterns hash differently because NaN != NaN
+  // is not handled here — normalization is applied only to -0.0 (mapped to +0.0).
+  // Callers that store NaN keys must canonicalize them before hashing.
   template <>
   struct Aleph_Hash<float>
   {
     [[nodiscard]] size_t operator()(float key) const noexcept
     {
-      if (key == 0.0f) key = 0.0f;  // normalize -0.0
+      if (key == 0.0f) key = 0.0f;  // normalize -0.0 → +0.0
       std::uint32_t bits = 0;
       std::memcpy(&bits, &key, sizeof(bits));
       return SuperFastHash(&bits, sizeof(bits));

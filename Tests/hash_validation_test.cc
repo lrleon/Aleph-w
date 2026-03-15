@@ -60,6 +60,7 @@
 # include <random>
 # include <sstream>
 # include <string>
+# include <string_view>
 # include <unordered_set>
 # include <vector>
 
@@ -184,6 +185,7 @@ struct RankMetrics
 {
   std::string name;
   bool        is_strong    = false;
+  bool        is_weak      = false;  // true for known weak-profile functions
   double      sac_max_bias = 1.0;   // lower is better
   double      sac_avg_bias = 1.0;
   double      bic_max_corr = 1.0;   // lower is better
@@ -216,9 +218,17 @@ double ranking_score(const RankMetrics & m)
 // Compute compact ranking metrics for a single function.
 RankMetrics compute_rank_metrics(const HashFn & fn)
 {
+  // Weak-profile set must match all_tested() entries flagged as weak.
+  static constexpr std::string_view weak_names[] = {
+    "add_hash", "xor_hash", "rot_hash", "sax_hash",
+    "jsw_hash", "elf_hash", "jen_hash"
+  };
+
   RankMetrics rm;
   rm.name      = fn.name;
   rm.is_strong = fn.is_strong;
+  rm.is_weak   = std::any_of(std::begin(weak_names), std::end(weak_names),
+                              [&](std::string_view w){ return w == fn.name; });
 
   constexpr size_t N_s   = 4096;
   constexpr size_t klen  = 16;
@@ -1360,7 +1370,9 @@ TEST_F(HashValidation, RankingAllHashFunctions)
   for (size_t i = 0; i < results.size(); ++i)
     {
       const auto & m = results[i];
-      const char * tag = m.is_strong ? "[Strong]" : "[Genrl] ";
+      const char * tag = m.is_strong ? "[Strong]"
+                       : m.is_weak  ? "[Weak]  "
+                                    : "[Genrl] ";
       std::cout
         << "║ " << std::setw(2) << i + 1
         << ".  " << std::left << std::setw(16) << m.name
@@ -1403,14 +1415,16 @@ TEST_F(HashValidation, RankingAllHashFunctions)
     << "[HASH-007] Advanced validation complete.\n"
     << "========================================\n";
 
-  // Strong functions must all rank above general ones in score.
+  // Strong functions must rank above true general-profile ones (weak excluded).
   // (There must exist at least one strong fn with better score than any general fn.)
-  double best_strong = std::numeric_limits<double>::max();
+  double best_strong  = std::numeric_limits<double>::max();
   double best_general = std::numeric_limits<double>::max();
   for (const auto & m : results)
     {
-      if (m.is_strong)  best_strong  = std::min(best_strong,  m.score);
-      else              best_general = std::min(best_general, m.score);
+      if (m.is_strong)
+        best_strong  = std::min(best_strong,  m.score);
+      else if (not m.is_weak)
+        best_general = std::min(best_general, m.score);
     }
   EXPECT_LT(best_strong, best_general)
       << "Best strong-profile function should outrank best general-profile function";

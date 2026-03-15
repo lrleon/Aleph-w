@@ -791,17 +791,9 @@ public:
    */
   Gen_BPlus_Tree &operator=(Gen_BPlus_Tree &&other) = default;
 
-  /** @brief Return the comparison object.
-   *  @return Mutable reference to the comparison functor.
-   *  @throws Nothing.
-   */
-  Compare &key_comp() noexcept
-  {
-    return cmp_;
-  }
-
-  /** @brief Return the comparison object.
+  /** @brief Return the comparison object (read-only).
    *  @return Constant reference to the comparison functor.
+   *  @note The comparator is immutable after construction to preserve tree order.
    *  @throws Nothing.
    */
   [[nodiscard]] const Compare &key_comp() const noexcept
@@ -809,17 +801,9 @@ public:
     return cmp_;
   }
 
-  /** @brief Return the comparison object.
-   *  @return Mutable reference to the comparison functor.
-   *  @throws Nothing.
-   */
-  Compare &get_compare() noexcept
-  {
-    return key_comp();
-  }
-
-  /** @brief Return the comparison object.
+  /** @brief Return the comparison object (read-only).
    *  @return Constant reference to the comparison functor.
+   *  @note Alias for key_comp(). Immutable after construction.
    *  @throws Nothing.
    */
   [[nodiscard]] const Compare &get_compare() const noexcept
