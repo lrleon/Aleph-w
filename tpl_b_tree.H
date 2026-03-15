@@ -537,6 +537,7 @@ public:
   /** @brief Construct an empty B-Tree.
    *  @param cmp Comparison functor used to sort keys.
    *  @throws Nothing.
+   *  @note O(1).
    */
   explicit Gen_B_Tree(const Compare &cmp = Compare()) : cmp_(cmp) {}
 
@@ -545,6 +546,7 @@ public:
    *  @param last One-past-the-end iterator.
    *  @param cmp Comparison functor used to sort keys.
    *  @throws std::bad_alloc if internal storage allocation fails.
+   *  @note O(m log m) where m = distance(first, last).
    */
   template <std::input_iterator It> Gen_B_Tree(It first, It last, const Compare &cmp = Compare()) : cmp_(cmp)
   {
@@ -555,6 +557,7 @@ public:
    *  @param init Keys to insert.
    *  @param cmp Comparison functor used to sort keys.
    *  @throws std::bad_alloc if internal storage allocation fails.
+   *  @note O(m log m) where m = init.size().
    */
   Gen_B_Tree(std::initializer_list<Key> init, const Compare &cmp = Compare())
     : Gen_B_Tree(init.begin(), init.end(), cmp)
@@ -563,17 +566,20 @@ public:
   /** @brief Copy constructor performing a deep copy.
    *  @param other Tree to copy.
    *  @throws std::bad_alloc if cloning internal nodes fails.
+   *  @note O(n) time and space.
    */
   Gen_B_Tree(const Gen_B_Tree &other) : root_(clone_node(other.root_.get())), size_(other.size_), cmp_(other.cmp_) {}
 
   /** @brief Move constructor.
    *  @param other Tree to move from.
+   *  @note O(1).
    */
   Gen_B_Tree(Gen_B_Tree &&other) = default;
 
   /** @brief Copy assignment.
    *  @param other Tree to copy from.
    *  @return `*this`.
+   *  @note O(n) time and space (copy-and-swap).
    */
   Gen_B_Tree &operator=(const Gen_B_Tree &other)
   {
@@ -592,6 +598,7 @@ public:
   /** @brief Move assignment.
    *  @param other Tree to move from.
    *  @return `*this`.
+   *  @note O(1).
    */
   Gen_B_Tree &operator=(Gen_B_Tree &&other) = default;
 
@@ -618,6 +625,7 @@ public:
   /** @brief Return whether the tree has no keys.
    *  @return `true` if empty, otherwise `false`.
    *  @throws Nothing.
+   *  @note O(1).
    */
   [[nodiscard]] bool empty() const noexcept
   {
@@ -627,6 +635,7 @@ public:
   /** @brief Synonym for empty() in traditional Aleph style.
    *  @return `true` if empty, otherwise `false`.
    *  @throws Nothing.
+   *  @note O(1).
    */
   [[nodiscard]] bool is_empty() const noexcept
   {
@@ -636,6 +645,7 @@ public:
   /** @brief Return the number of stored keys.
    *  @return Number of unique keys stored in the tree.
    *  @throws Nothing.
+   *  @note O(1).
    */
   [[nodiscard]] size_t size() const noexcept
   {
@@ -645,6 +655,7 @@ public:
   /** @brief Return the current tree height.
    *  @return `0` for an empty tree, otherwise the number of node levels.
    *  @throws Nothing.
+   *  @note O(log n).
    */
   [[nodiscard]] size_t height() const noexcept
   {
@@ -653,6 +664,7 @@ public:
 
   /** @brief Remove every key from the tree.
    *  @throws Nothing.
+   *  @note O(n).
    */
   void clear() noexcept
   {
@@ -664,6 +676,7 @@ public:
    *  @param key Key to search.
    *  @return `true` if the key exists, otherwise `false`.
    *  @throws Any exception propagated by `Compare`.
+   *  @note O(log n).
    */
   [[nodiscard]] bool contains(const Key &key) const
   {
@@ -674,6 +687,7 @@ public:
    *  @param key Key to search.
    *  @return `true` if the key exists, otherwise `false`.
    *  @throws Any exception propagated by `Compare`.
+   *  @note O(log n).
    */
   [[nodiscard]] bool search(const Key &key) const
   {
@@ -685,6 +699,7 @@ public:
    *  @return `true` if insertion happened, `false` if it was duplicate.
    *  @throws std::bad_alloc if node growth fails.
    *  @throws Any exception propagated by `Compare` or `Key` copy/move operations.
+   *  @note O(log n).
    */
   bool insert(const Key &key)
   {
@@ -717,6 +732,7 @@ public:
    *  @return `true` if insertion happened, `false` if it was duplicate.
    *  @throws std::bad_alloc if node growth fails.
    *  @throws Any exception propagated by `Compare` or `Key` move/copy operations.
+   *  @note O(log n).
    */
   bool insert(Key &&key)
   {
@@ -728,6 +744,7 @@ public:
    *  @param key Key to erase.
    *  @return `true` if the key was removed, otherwise `false`.
    *  @throws Any exception propagated by `Compare` or `Key` assignments.
+   *  @note O(log n).
    */
   bool remove(const Key &key)
   {
@@ -763,6 +780,7 @@ public:
   /** @brief Return the minimum key, if any.
    *  @return Smallest key in the tree or `std::nullopt` if empty.
    *  @throws Any exception propagated by `Key` copy construction.
+   *  @note O(log n).
    */
   [[nodiscard]] std::optional<Key> min_key() const
   {
@@ -772,6 +790,7 @@ public:
   /** @brief Return the maximum key, if any.
    *  @return Largest key in the tree or `std::nullopt` if empty.
    *  @throws Any exception propagated by `Key` copy construction.
+   *  @note O(log n).
    */
   [[nodiscard]] std::optional<Key> max_key() const
   {
@@ -782,6 +801,7 @@ public:
    *  @param key Probe key.
    *  @return Matching lower bound or `std::nullopt` if none exists.
    *  @throws Any exception propagated by `Compare` or `Key` copy construction.
+   *  @note O(log n).
    */
   [[nodiscard]] std::optional<Key> lower_bound(const Key &key) const
   {
@@ -805,6 +825,7 @@ public:
    *  @param key Probe key.
    *  @return Matching upper bound or `std::nullopt` if none exists.
    *  @throws Any exception propagated by `Compare` or `Key` copy construction.
+   *  @note O(log n).
    */
   [[nodiscard]] std::optional<Key> upper_bound(const Key &key) const
   {
@@ -828,6 +849,7 @@ public:
    *  @return Ordered array containing every stored key.
    *  @throws std::bad_alloc if the result array cannot grow.
    *  @throws Any exception propagated by `Key` copy construction.
+   *  @note O(n) time and space.
    */
   [[nodiscard]] Array<Key> keys() const
   {
@@ -840,6 +862,7 @@ public:
   /** @brief Verify structural B-Tree invariants.
    *  @return `true` if the tree is structurally valid, otherwise `false`.
    *  @throws Any exception propagated by `Compare`.
+   *  @note O(n).
    */
   [[nodiscard]] bool verify() const
   {

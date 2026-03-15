@@ -4,6 +4,7 @@
 require 'fileutils'
 require 'open3'
 require 'optparse'
+require 'pathname'
 require 'timeout'
 
 options = {
@@ -96,6 +97,19 @@ source_basenames = Dir.children(examples_dir)
   .reject { |name| excluded_sources.include?(name) }
   .sort
 
+unknown_only = options[:only] - source_basenames
+unknown_exclude = options[:exclude] - source_basenames
+
+unless unknown_only.empty?
+  warn "Unknown --only names: #{unknown_only.join(', ')}"
+  exit 1
+end
+
+unless unknown_exclude.empty?
+  warn "Unknown --exclude names: #{unknown_exclude.join(', ')}"
+  exit 1
+end
+
 selected = source_basenames
 selected &= options[:only] unless options[:only].empty?
 selected -= options[:exclude]
@@ -105,7 +119,16 @@ if selected.empty?
   exit 1
 end
 
-FileUtils.rm_rf(build_dir) if options[:clean]
+if options[:clean]
+  build_path = Pathname.new(build_dir).cleanpath
+  repo_root_path = Pathname.new(repo_root).cleanpath
+  if build_path == Pathname.new('/') or
+     build_path == repo_root_path or
+     repo_root_path.to_s.start_with?(build_path.to_s + File::SEPARATOR)
+    abort "Refusing --clean: build_dir #{build_dir} is root, repo root, or an ancestor of it"
+  end
+  FileUtils.rm_rf(build_dir)
+end
 FileUtils.mkdir_p(build_dir)
 FileUtils.mkdir_p(log_dir)
 
