@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
            << "Usage:\n"
            << "  " << argv[0] << " -<tree> [-n num_nodes] [-m seed]\n"
            << "\n"
-           << "Tree type (exactly one required):\n"
+           << "Tree type (required; last wins if repeated):\n"
            << "  -b, --bin        Pure (unbalanced) binary tree\n"
            << "  -a, --avl        AVL tree\n"
            << "  -s, --splay      Splay tree\n"

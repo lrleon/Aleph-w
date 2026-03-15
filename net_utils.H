@@ -372,6 +372,11 @@ Net generate_layered_network(const std::vector<size_t>& layer_sizes,
   if (layer_sizes.size() < 2)
     return net;
 
+  for (size_t l = 1; l + 1 < layer_sizes.size(); ++l)
+    ah_invalid_argument_if(layer_sizes[l] == 0)
+      << "Intermediate layers must be non-empty";
+
+
   if (seed == 0)
     seed = static_cast<unsigned>(
         std::chrono::system_clock::now().time_since_epoch().count());

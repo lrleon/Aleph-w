@@ -186,13 +186,13 @@ int main(int argc, char * argv[])
   long n_long = strtol(argv[1], &endptr1, 10);
   
   // Validate first argument
-  if (errno != 0 or *endptr1 != '\0' or n_long < 0 or n_long > SIZE_MAX)
+  if (errno != 0 or *endptr1 != '\0' or n_long < 0 or n_long > INT_MAX)
     {
-      cerr << "Error: Invalid queue size argument. Must be a non-negative integer fitting in size_t." << endl;
+      cerr << "Error: Invalid queue size argument. Must be a non-negative integer fitting in int." << endl;
       return 1;
     }
-  
-  size_t n = static_cast<size_t>(n_long);
+
+  int n = static_cast<int>(n_long);
   ArrayQueue<int> q(n);
 
   print(q);

@@ -75,19 +75,15 @@ namespace Aleph
    *  \ref Aleph::File_B_Tree. The default codecs cover fixed-size arithmetic
    *  types and `std::array`; bounded strings can be supported with
    *  \ref Aleph::detail::Paged_Bounded_String_Codec.
-   */
-  /** @brief Generic paged persistent B-Tree map with fixed-size records.
    *
-   *  This class provides a map-like interface (associative keys to values)
-   *  backed by a persistent \ref Aleph::File_B_Tree. It supports O(log n)
-   *  access with on-disk persistence and efficient page caching.
-   *
-   *  @tparam Key Type of unique keys.
-   *  @tparam Value Type of mapped values.
-   *  @tparam Compare Strict weak ordering used to sort keys.
-   *  @tparam MinDegree Minimum degree `t` of the underlying persistent B-Tree.
-   *  @tparam KeyCodec Fixed-size codec used to persist keys.
-   *  @tparam ValueCodec Fixed-size codec used to persist mapped values.
+   *  @note **Thread-safety:** const observers (accessors, `find`, `contains`,
+   *  `at`, `min_item`, `max_item`, bounds, and materialization methods) are
+   *  safe for concurrent access from multiple readers when the map is opened
+   *  in `Read_Only` mode.  Mutating methods (`insert`, `insert_or_assign`,
+   *  `remove`, `clear`, `sync`, `checkpoint`, `reload`, `set_auto_sync`)
+   *  require external synchronization.  No method is individually atomic with
+   *  respect to the backing file unless `auto_sync` is enabled or `sync()` is
+   *  called explicitly after mutation.
    */
   template <typename Key,
             typename Value,
@@ -251,6 +247,7 @@ namespace Aleph
      *  @param cmp Comparison functor used to order keys.
      *  @throws std::runtime_error If the backing file cannot be used.
      *  @throws std::bad_alloc If the page cache cannot be allocated.
+     *  @note O(page_count) I/O to read the file header and root page.
      */
     explicit Gen_File_B_Map(std::string file_path,
                             const open_mode_type open_mode,
@@ -264,6 +261,7 @@ namespace Aleph
      *  @param cmp Comparison functor used to order keys.
      *  @throws std::runtime_error If the backing file cannot be used.
      *  @throws std::bad_alloc If the page cache cannot be allocated.
+     *  @note O(page_count) I/O to read the file header and root page.
      */
     explicit Gen_File_B_Map(const char * file_path,
                             const bool auto_sync = true,
@@ -277,6 +275,7 @@ namespace Aleph
      *  @param cmp Comparison functor used to order keys.
      *  @throws std::runtime_error If the backing file cannot be used.
      *  @throws std::bad_alloc If the page cache cannot be allocated.
+     *  @note O(page_count) I/O to read the file header and root page.
      */
     explicit Gen_File_B_Map(const char * file_path,
                             const open_mode_type open_mode,
@@ -299,6 +298,7 @@ namespace Aleph
     /** @brief Return the file path.
      *  @return Constant reference to the backing file path.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] const std::string & file_path() const noexcept
     {
@@ -308,6 +308,7 @@ namespace Aleph
     /** @brief Return the open mode.
      *  @return `Read_Write` or `Read_Only`.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] open_mode_type open_mode() const noexcept
     {
@@ -317,6 +318,7 @@ namespace Aleph
     /** @brief Return whether the map handle is read-only.
      *  @return `true` if opened in `Read_Only` mode.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] bool is_read_only() const noexcept
     {
@@ -326,6 +328,7 @@ namespace Aleph
     /** @brief Return whether automatic synchronization is enabled.
      *  @return `true` if successful mutations call `sync()`.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] bool auto_sync_enabled() const noexcept
     {
@@ -335,6 +338,7 @@ namespace Aleph
     /** @brief Enable or disable automatic synchronization.
      *  @param enabled New auto-sync mode.
      *  @throws Nothing.
+     *  @note O(1).  Requires external synchronization.
      */
     void set_auto_sync(const bool enabled) noexcept
     {
@@ -344,6 +348,7 @@ namespace Aleph
     /** @brief Return the key comparator.
      *  @return Constant reference to the key comparator.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] const Compare & key_comp() const noexcept
     {
@@ -353,24 +358,28 @@ namespace Aleph
     /** @brief Return whether the map is empty.
      *  @return `true` if empty, otherwise `false`.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] bool empty() const noexcept { return tree_.empty(); }
 
     /** @brief Return the number of stored key/value pairs.
      *  @return Number of unique keys stored in the map.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] size_t size() const noexcept { return tree_.size(); }
 
     /** @brief Return the current tree height.
      *  @return `0` for an empty file, otherwise the number of page levels.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] size_t height() const noexcept { return tree_.height(); }
 
     /** @brief Return the serialized page size of the backing tree.
      *  @return Number of bytes used by each page record.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] size_t page_size_bytes() const noexcept
     {
@@ -380,6 +389,7 @@ namespace Aleph
     /** @brief Return the number of allocated pages.
      *  @return Page count in the backing tree.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] size_t page_count() const noexcept
     {
@@ -389,6 +399,7 @@ namespace Aleph
     /** @brief Return the latest durable checkpoint sequence.
      *  @return Monotonic checkpoint sequence stored by the backing tree.
      *  @throws Nothing.
+     *  @note O(1).
      */
     [[nodiscard]] std::uint64_t checkpoint_sequence() const noexcept
     {
@@ -397,6 +408,8 @@ namespace Aleph
 
     /** @brief Flush pending changes to the backing file.
      *  @throws std::runtime_error If the file cannot be synchronized.
+     *  @note O(dirty pages) I/O.  Not atomic; requires external
+     *  synchronization.  Durability is guaranteed only after this call returns.
      */
     void sync() const
     {
@@ -405,6 +418,7 @@ namespace Aleph
 
     /** @brief Synonym for sync().
      *  @throws std::runtime_error If the file cannot be synchronized.
+     *  @note O(dirty pages) I/O.  See sync().
      */
     void checkpoint() const
     {
@@ -413,6 +427,7 @@ namespace Aleph
 
     /** @brief Discard unsynchronized changes and reload the file.
      *  @throws std::runtime_error If the file cannot be reopened or validated.
+     *  @note O(n) I/O where n is the number of stored records.
      */
     void reload()
     {
@@ -421,6 +436,8 @@ namespace Aleph
 
     /** @brief Remove every key/value pair from the map.
      *  @throws std::runtime_error If the backing tree rejects the mutation.
+     *  @note O(n) I/O.  Requires external synchronization; call sync()
+     *  afterwards for durability when auto_sync is disabled.
      */
     void clear()
     {
@@ -431,6 +448,7 @@ namespace Aleph
      *  @param key Key to search.
      *  @return `true` if the key is present.
      *  @throws Any exception propagated by `Compare` or `Key` copies.
+     *  @note O(log n) with I/O per page traversed.
      */
     [[nodiscard]] bool contains(const Key & key) const
     {
@@ -441,6 +459,7 @@ namespace Aleph
      *  @param key Key to search.
      *  @return `true` if the key is present.
      *  @throws Any exception propagated by `Compare` or `Key` copies.
+     *  @note O(log n) with I/O per page traversed.
      */
     [[nodiscard]] bool search(const Key & key) const
     {
@@ -451,6 +470,7 @@ namespace Aleph
      *  @param key Key to search.
      *  @return Stored mapped value or `std::nullopt` if missing.
      *  @throws Any exception propagated by `Compare`, `Key`, or `Value`.
+     *  @note O(log n) with I/O per page traversed.
      */
     [[nodiscard]] std::optional<Value> find(const Key & key) const
     {
@@ -465,6 +485,7 @@ namespace Aleph
      *  @return Copy of the stored mapped value.
      *  @throws std::domain_error If the key is absent.
      *  @throws Any exception propagated by `Compare`, `Key`, or `Value`.
+     *  @note O(log n) with I/O per page traversed.
      */
     [[nodiscard]] Value at(const Key & key) const
     {
@@ -480,6 +501,8 @@ namespace Aleph
      *  @return `true` if insertion happened, otherwise `false`.
      *  @throws std::runtime_error If the backing tree rejects the mutation.
      *  @throws std::bad_alloc If the page cache cannot grow.
+     *  @note O(log n) I/O.  Durable after return when auto_sync is enabled;
+     *  otherwise call sync() explicitly.
      */
     bool insert(const Key & key, const Value & value)
     {
@@ -515,10 +538,19 @@ namespace Aleph
       set_auto_sync(false);
       try
         {
+          auto old_record = probe;
           ah_runtime_error_unless(tree_.remove(probe))
             << "File_B_Map::insert_or_assign(): internal replace failed";
-          ah_runtime_error_unless(tree_.insert(record))
-            << "File_B_Map::insert_or_assign(): internal reinsert failed";
+          try
+            {
+              ah_runtime_error_unless(tree_.insert(record))
+                << "File_B_Map::insert_or_assign(): internal reinsert failed";
+            }
+          catch (...)
+            {
+              tree_.insert(old_record); // rollback: restore the removed entry
+              throw;
+            }
         }
       catch (...)
         {
@@ -535,6 +567,8 @@ namespace Aleph
      *  @param key Key to erase.
      *  @return `true` if the key existed and was removed.
      *  @throws std::runtime_error If the backing tree rejects the mutation.
+     *  @note O(log n) I/O.  Durable after return when auto_sync is enabled;
+     *  otherwise call sync() explicitly.
      */
     bool remove(const Key & key)
     {
@@ -544,6 +578,7 @@ namespace Aleph
     /** @brief Return the smallest stored key/value pair.
      *  @return Smallest pair or `std::nullopt` if empty.
      *  @throws Any exception propagated by `Key` or `Value`.
+     *  @note O(log n) with I/O per page traversed.
      */
     [[nodiscard]] std::optional<value_type> min_item() const
     {
@@ -556,6 +591,7 @@ namespace Aleph
     /** @brief Return the largest stored key/value pair.
      *  @return Largest pair or `std::nullopt` if empty.
      *  @throws Any exception propagated by `Key` or `Value`.
+     *  @note O(log n) with I/O per page traversed.
      */
     [[nodiscard]] std::optional<value_type> max_item() const
     {
@@ -569,6 +605,7 @@ namespace Aleph
      *  @param key Probe key.
      *  @return Matching lower bound or `std::nullopt` if none exists.
      *  @throws Any exception propagated by `Compare`, `Key`, or `Value`.
+     *  @note O(log n) with I/O per page traversed.
      */
     [[nodiscard]] std::optional<value_type> lower_bound(const Key & key) const
     {
@@ -582,6 +619,7 @@ namespace Aleph
      *  @param key Probe key.
      *  @return Matching upper bound or `std::nullopt` if none exists.
      *  @throws Any exception propagated by `Compare`, `Key`, or `Value`.
+     *  @note O(log n) with I/O per page traversed.
      */
     [[nodiscard]] std::optional<value_type> upper_bound(const Key & key) const
     {
@@ -594,6 +632,7 @@ namespace Aleph
     /** @brief Materialize all keys in sorted order.
      *  @return Ordered array containing every stored key.
      *  @throws std::bad_alloc If the result array cannot grow.
+     *  @note O(n) time and space.
      */
     [[nodiscard]] Array<Key> keys() const
     {
@@ -608,6 +647,7 @@ namespace Aleph
     /** @brief Materialize all mapped values in key order.
      *  @return Ordered array containing every stored mapped value.
      *  @throws std::bad_alloc If the result array cannot grow.
+     *  @note O(n) time and space.
      */
     [[nodiscard]] Array<Value> values() const
     {
@@ -622,6 +662,7 @@ namespace Aleph
     /** @brief Materialize all key/value pairs in sorted order.
      *  @return Ordered array containing every stored key/value pair.
      *  @throws std::bad_alloc If the result array cannot grow.
+     *  @note O(n) time and space.
      */
     [[nodiscard]] Array<value_type> items() const
     {
@@ -632,6 +673,7 @@ namespace Aleph
     /** @brief Verify the structural invariants of the backing tree.
      *  @return `true` if the underlying persistent tree is valid.
      *  @throws Any exception propagated by the underlying comparator.
+     *  @note O(n) I/O — reads every page.
      */
     [[nodiscard]] bool verify() const
     {

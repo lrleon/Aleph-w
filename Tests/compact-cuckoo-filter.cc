@@ -277,7 +277,7 @@ TEST(CompactCuckooFilterCapacity, load_factor_computed_correctly)
 
 TEST(CompactCuckooFilterCapacity, high_load_factor_still_works)
 {
-  Compact_Cuckoo_Filter<int> cf(1000);
+  Compact_Cuckoo_Filter<int> cf(1000, 42);
 
   std::set<int> inserted_set;
   // Fill to ~90% capacity
@@ -448,7 +448,7 @@ TEST(CompactCuckooFilterFPRate, low_fp_rate_with_large_fingerprint)
 
 TEST(CompactCuckooFilterStress, random_insertions_and_lookups)
 {
-  Compact_Cuckoo_Filter<int> cf(5000);
+  Compact_Cuckoo_Filter<int> cf(5000, 42);
   std::mt19937 rng(42);
   std::uniform_int_distribution<int> dist(0, 1000000);
 
@@ -469,7 +469,7 @@ TEST(CompactCuckooFilterStress, random_insertions_and_lookups)
 
 TEST(CompactCuckooFilterStress, sequential_insert_remove_cycles)
 {
-  Compact_Cuckoo_Filter<int> cf(2000);
+  Compact_Cuckoo_Filter<int> cf(2000, 42);
 
   for (int cycle = 0; cycle < 5; ++cycle)
     {
@@ -491,7 +491,7 @@ TEST(CompactCuckooFilterStress, sequential_insert_remove_cycles)
 
 TEST(CompactCuckooFilterStress, many_duplicates)
 {
-  Compact_Cuckoo_Filter<int> cf(1000);
+  Compact_Cuckoo_Filter<int> cf(1000, 42);
 
   // Insert same element multiple times (some may fail due to cuckoo hashing)
   int successful_inserts = 0;

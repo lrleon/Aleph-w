@@ -78,18 +78,18 @@ bool check(GT & g)
       ++count;
     }
 
-  if (count != V)
-    {
-      cout << "Cantidad incorrecta de nodos " << count << endl;
-      abort();
-    }
-
   for (size_t i = 0; i < V; ++i)
     if (not seen(i))
       {
 	cout << "Falta el nodo " << i << endl;
 	abort();
       }
+
+  if (count != V)
+    {
+      cout << "Cantidad incorrecta de nodos " << count << endl;
+      abort();
+    }
 
   for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next())
     {

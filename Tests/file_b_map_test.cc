@@ -12,6 +12,7 @@
 #include <chrono>
 #include <filesystem>
 #include <optional>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,8 +28,25 @@ namespace
   fs::path make_temp_path()
   {
     static std::atomic<unsigned long long> counter{0};
+    // Use a per-process random generator to avoid filename collisions
+    // across parallel processes.
+    static std::mt19937_64 rng{[] {
+        std::random_device rd;
+        const auto now_seed =
+          static_cast<unsigned long long>
+          (std::chrono::steady_clock::now().time_since_epoch().count());
+        return std::mt19937_64{now_seed ^
+          (static_cast<unsigned long long>(rd()) << 1u)};
+      }()};
+
     const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
-    const auto id = std::to_string(now) + "_" + std::to_string(counter++);
+    std::uniform_int_distribution<unsigned long long> dist;
+    const auto random_value = dist(rng);
+
+    const auto id = std::to_string(now) + "_" +
+                    std::to_string(random_value) + "_" +
+                    std::to_string(counter++);
+
     const fs::path dir = fs::temp_directory_path() / "aleph_file_bmap_tests";
     fs::create_directories(dir);
     return dir / (id + ".idx");

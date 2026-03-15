@@ -209,6 +209,14 @@ TEST_F(NetUtilsTest, GenerateLayeredNetworkFlow)
   EXPECT_GT(flow, 0.0);
 }
 
+TEST_F(NetUtilsTest, GenerateLayeredNetworkRejectsEmptyInteriorLayer)
+{
+  std::vector<size_t> layers = {1, 0, 1};
+  EXPECT_THROW(
+    (generate_layered_network<TestNet>(layers, 10.0, 0.5, 42)),
+    std::invalid_argument);
+}
+
 
 //==============================================================================
 // DOT Export Tests
