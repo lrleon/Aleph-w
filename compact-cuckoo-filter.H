@@ -85,7 +85,12 @@
 #include <bitArray.H>
 
 namespace Aleph {
-/** @brief Memory-optimized Cuckoo Filter with bit-packed fingerprints. */
+/** @brief Memory-optimized Cuckoo Filter with bit-packed fingerprints.
+ *
+ *  @note Not thread-safe.  Concurrent reads (contains / size / etc.)
+ *  are safe; any concurrent write (insert / remove / clear) requires
+ *  external synchronisation.
+ */
 template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> class Compact_Cuckoo_Filter
 {
   static_assert(FingerprintBits > 0 and FingerprintBits <= 32, "Fingerprint bits must be between 1 and 32");
@@ -199,6 +204,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
 
   static constexpr size_t max_kicks = 500;
   static constexpr size_t stash_size = 4;
+  static constexpr double kTargetLoad = 0.9;
   Victim stash_[stash_size] = {};
   size_t stash_count_ = 0;
 
@@ -207,7 +213,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
 
   [[nodiscard]] Fingerprint get_fingerprint(const T &item) const
   {
-    auto fp = static_cast<Fingerprint>(murmur3hash(item, 0x12345678) & fp_mask);
+    auto fp = static_cast<Fingerprint>(dft_hash_fct(item, 0x12345678) & fp_mask);
     if (fp == 0)
       fp = 1;  // 0 is reserved for empty slot
     return fp;
@@ -233,15 +239,13 @@ public:
    * @param seed Optional RNG seed for deterministic kick sequences.
    *             Pass a fixed value in tests to eliminate flakiness.
    *             Defaults to a non-deterministic device seed.
+   * @throws std::bad_alloc if memory allocation fails.
+   * @note O(capacity / EntriesPerBucket).
    */
   explicit Compact_Cuckoo_Filter(size_t capacity, const std::optional<std::uint32_t> seed = std::nullopt)
     : rng_(seed.has_value() ? std::mt19937(seed.value())
                             : std::mt19937(std::random_device{}()))
   {
-    // Allocate with a safety margin so bounded cuckoo kick sequences succeed.
-    // At 100% load the filter cannot insert reliably; kTargetLoad = 0.9 gives
-    // ~11% extra slots so insertions stay well below the kick-cycle limit.
-    constexpr double kTargetLoad = 0.9;
     const size_t needed_buckets =
       static_cast<size_t>(std::ceil(capacity / (EntriesPerBucket * kTargetLoad)));
     // Round up to a power of 2 so that bucket_mask works as a modulo
@@ -252,37 +256,55 @@ public:
     buckets.putn(num_buckets);
   }
 
-  /** @brief Return the number of items currently in the filter. */
+  /** @brief Return the number of items currently in the filter.
+   *  @return Current item count.
+   *  @throws none.
+   */
   [[nodiscard]] size_t size() const noexcept
   {
     return num_items;
   }
 
-  /** @brief Return whether the filter contains no items. */
+  /** @brief Return whether the filter contains no items.
+   *  @return `true` if the filter has no items.
+   *  @throws none.
+   */
   [[nodiscard]] bool empty() const noexcept
   {
     return num_items == 0;
   }
 
-  /** @brief Synonym for empty() in traditional Aleph style. */
+  /** @brief Synonym for empty() in traditional Aleph style.
+   *  @return `true` if the filter has no items.
+   *  @throws none.
+   */
   [[nodiscard]] bool is_empty() const noexcept
   {
     return empty();
   }
 
-  /** @brief Return the total number of fingerprint slots (including stash). */
+  /** @brief Return the total number of fingerprint slots (including stash).
+   *  @return Total slot count.
+   *  @throws none.
+   */
   [[nodiscard]] size_t capacity() const noexcept
   {
     return num_buckets * EntriesPerBucket + stash_size;
   }
 
-  /** @brief Return the load factor of the filter (relative to capacity()). */
+  /** @brief Return the load factor of the filter (relative to capacity()).
+   *  @return Ratio of stored items to total slots.
+   *  @throws none.
+   */
   [[nodiscard]] double load_factor() const noexcept
   {
     return 1.0 * num_items / capacity();
   }
 
-  /** @brief Return approximate memory usage in bytes. */
+  /** @brief Return approximate memory usage in bytes.
+   *  @return Byte count used by the bucket array.
+   *  @throws none.
+   */
   [[nodiscard]] size_t memory_usage() const noexcept
   {
     // Each bucket uses FingerprintBits * EntriesPerBucket bits
@@ -295,6 +317,8 @@ public:
    * @brief Insert an item into the filter.
    * @param item Item to insert.
    * @return `true` if insertion succeeded, `false` if filter is full.
+   * @throws none.
+   * @note Amortised O(1).
    */
   bool insert(const T &item)
   {
@@ -356,7 +380,9 @@ public:
     return false;  // Filter and stash both full
   }
 
-  /** @brief Alias for insert(). */
+  /** @brief Alias for insert().
+   *  @throws none.
+   */
   bool append(const T &item)
   {
     return insert(item);
@@ -366,6 +392,8 @@ public:
    * @brief Test membership.
    * @param item Item to check.
    * @return `true` if item is likely present, `false` if definitely not.
+   * @throws none.
+   * @note O(1).
    */
   [[nodiscard]] bool contains(const T &item) const
   {
@@ -387,6 +415,8 @@ public:
    * @brief Remove an item from the filter.
    * @param item Item to remove.
    * @return `true` if an instance of the item was removed.
+   * @throws none.
+   * @note O(1).
    */
   bool remove(const T &item)
   {
@@ -412,7 +442,10 @@ public:
     return false;
   }
 
-  /** @brief Clear the filter. */
+  /** @brief Clear the filter.
+   *  @throws none.
+   *  @note O(num_buckets * EntriesPerBucket).
+   */
   void clear()
   {
     for (size_t i = 0; i < num_buckets; ++i)

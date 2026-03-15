@@ -197,8 +197,8 @@ namespace Aleph
     {
       Array<std::pair<Key, Value>> out;
       out.reserve(records.size());
-      for (size_t i = 0; i < records.size(); ++i)
-        out.append(to_pair(records[i]));
+      for (const auto & rec : records)
+        out.append(to_pair(rec));
       return out;
     }
 
@@ -645,8 +645,8 @@ namespace Aleph
       Array<Key> out;
       const auto records = tree_.keys();
       out.reserve(records.size());
-      for (size_t i = 0; i < records.size(); ++i)
-        out.append(records[i].get_key());
+      for (const auto & rec : records)
+        out.append(rec.get_key());
       return out;
     }
 
@@ -660,8 +660,8 @@ namespace Aleph
       Array<Value> out;
       const auto records = tree_.keys();
       out.reserve(records.size());
-      for (size_t i = 0; i < records.size(); ++i)
-        out.append(records[i].get_value());
+      for (const auto & rec : records)
+        out.append(rec.get_value());
       return out;
     }
 

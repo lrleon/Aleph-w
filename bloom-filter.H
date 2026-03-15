@@ -101,7 +101,6 @@
 # ifndef BLOOM_FILTER_H
 # define BLOOM_FILTER_H
 
-# include <cassert>
 # include <cstddef>
 # include <memory>
 # include <tuple>
@@ -151,6 +150,13 @@ namespace Aleph
              hash_fct == f.hash_fct and seeds == f.seeds;
     }
 
+    /// Private delegating constructor to avoid calling estimate() twice.
+    Bloom_Filter(std::tuple<size_t, size_t> mk,
+                 Hash_Fct hash_fn, unsigned long seed)
+      : Bloom_Filter(std::get<0>(mk), std::get<1>(mk), hash_fn, seed)
+    {
+    }
+
   public:
     /**
         Estimate the parameters of a Bloom filter.
@@ -167,8 +173,8 @@ namespace Aleph
      */
     [[nodiscard]] static std::tuple<size_t, size_t> estimate(const size_t n, const double p)
     {
-      assert(n > 0);
-      assert(p > 0 and p < 1);
+      ah_invalid_argument_if(n == 0) << "n must be > 0";
+      ah_invalid_argument_if(p <= 0 or p >= 1) << "p must be in (0, 1)";
       const double log2 = std::log(2);
       const auto m = static_cast<size_t>(std::ceil(-(n * std::log(p)) / (log2 * log2)));
       const auto k = static_cast<size_t>(std::ceil((1.0 * m / n) * log2));
@@ -273,12 +279,8 @@ namespace Aleph
     Bloom_Filter(const size_t n, const double p,
                  unsigned long seed = static_cast<unsigned long>(std::time(nullptr)),
                  Hash_Fct hash_fn = dft_seed_hash_ptr_fct<T>)
-      : Bloom_Filter(std::get<0>(estimate(n, p)),
-                     std::get<1>(estimate(n, p)),
-                     hash_fn,
-                     seed)
+      : Bloom_Filter(estimate(n, p), hash_fn, seed)
     {
-      // empty
     }
 
     /**
@@ -451,7 +453,7 @@ namespace Aleph
     {
       const auto m = static_cast<double>(capacity());
       const auto k = static_cast<double>(get_k());
-      if (m <= 0 or k <= 0)
+      if (m == 0 or k == 0)
         return 0;
 
       const double p0 = 1.0 - (static_cast<double>(x) / m);

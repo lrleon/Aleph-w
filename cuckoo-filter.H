@@ -176,6 +176,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
 
   static constexpr size_t max_kicks = 500;
   static constexpr size_t stash_size = 4;
+  static constexpr double kTargetLoad = 0.9;
   Victim stash_[stash_size] = {};
   size_t stash_count_ = 0;
 
@@ -184,7 +185,7 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
 
   [[nodiscard]] Fingerprint get_fingerprint(const T &item) const
   {
-    auto fp = static_cast<Fingerprint>(murmur3hash(item, 0x12345678) & fp_mask);
+    auto fp = static_cast<Fingerprint>(dft_hash_fct(item, 0x12345678) & fp_mask);
     if (fp == 0)
       fp = 1;  // 0 is reserved for empty slot
     return fp;
@@ -216,10 +217,6 @@ public:
     : rng_(seed.has_value() ? std::mt19937(seed.value())
                             : std::mt19937(std::random_device{}()))
   {
-    // Allocate with a safety margin so bounded cuckoo kick sequences succeed.
-    // At 100% load the filter cannot insert reliably; kTargetLoad = 0.9 gives
-    // ~11% extra slots so insertions stay well below the kick-cycle limit.
-    constexpr double kTargetLoad = 0.9;
     const size_t needed_buckets =
       static_cast<size_t>(std::ceil(capacity / (EntriesPerBucket * kTargetLoad)));
     // Round up to a power of 2 so that bucket_mask works as a modulo

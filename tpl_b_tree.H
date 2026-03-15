@@ -146,18 +146,30 @@ class Gen_B_Tree
 
   [[nodiscard]] size_t lower_bound_index(const Array<Key> &keys, const Key &key) const
   {
-    size_t idx = 0;
-    while (idx < keys.size() and cmp_(keys[idx], key))
-      ++idx;
-    return idx;
+    size_t lo = 0, hi = keys.size();
+    while (lo < hi)
+      {
+        const size_t mid = lo + (hi - lo) / 2;
+        if (cmp_(keys[mid], key))
+          lo = mid + 1;
+        else
+          hi = mid;
+      }
+    return lo;
   }
 
   [[nodiscard]] size_t upper_bound_index(const Array<Key> &keys, const Key &key) const
   {
-    size_t idx = 0;
-    while (idx < keys.size() and (cmp_(keys[idx], key) or equals(keys[idx], key)))
-      ++idx;
-    return idx;
+    size_t lo = 0, hi = keys.size();
+    while (lo < hi)
+      {
+        const size_t mid = lo + (hi - lo) / 2;
+        if (cmp_(key, keys[mid]))
+          hi = mid;
+        else
+          lo = mid + 1;
+      }
+    return lo;
   }
 
   [[nodiscard]] bool equals(const Key &lhs, const Key &rhs) const
