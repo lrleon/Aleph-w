@@ -173,9 +173,6 @@ class Gen_BPlus_Tree
 
   [[nodiscard]] bool strictly_sorted(const Array<Key> &keys) const
   {
-    if (not Aleph::is_sorted(keys, cmp_))
-      return false;
-
     for (size_t i = 1; i < keys.size(); ++i)
       if (not cmp_(keys[i - 1], keys[i]))
         return false;

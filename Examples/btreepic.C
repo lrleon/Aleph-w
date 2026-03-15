@@ -2217,6 +2217,49 @@ void print_parameters()
 
 int main(int argc, char *argv[])
 {
+  if (argc == 1)
+    {
+      cout <<
+        "btreepic -- Binary tree visualizer (LaTeX/eepic output)\n"
+        "\n"
+        "Reads a textual binary tree description (.Tree file) and emits LaTeX\n"
+        "code using eepic drawing primitives, suitable for inclusion in\n"
+        "publication-quality documents.\n"
+        "\n"
+        "Usage:\n"
+        "  btreepic -f <input.Tree> [-o <output.eepic>] [options]\n"
+        "  btreepic -i <input.Tree> [-o <output.eepic>] [options]\n"
+        "\n"
+        "Required:\n"
+        "  -f, --file <file>        Input .Tree file\n"
+        "  -i, --input-file <file>  Input .Tree file (alias for -f)\n"
+        "\n"
+        "Common options:\n"
+        "  -o, --output <file>      Output file (default: input name + .eepic)\n"
+        "  -r, --radius <double>    Circle fit radius\n"
+        "  -w, --width <double>     Horizontal node separation\n"
+        "  -h, --height <double>    Vertical node separation\n"
+        "  -k, --with-key           Print node keys\n"
+        "  -K, --tiny-keys          Print node keys in tiny font (output: .eepicaux)\n"
+        "  -a, --latex              Wrap output in a full LaTeX header\n"
+        "  -p, --landscape          LaTeX landscape mode (implies -a)\n"
+        "  -t, --fit                Fit tree in a rectangle\n"
+        "  -A, --arrows             Draw arcs with arrows\n"
+        "  -D, --threaded           Draw threaded pointers as dashed lines\n"
+        "  -e, --external-nodes     Draw external (null) nodes\n"
+        "  -F, --vertical-flip      Flip tree along the y axis\n"
+        "  -R, --print              Print current parameters and exit\n"
+        "  -V, --version            Print version and exit\n"
+        "  -C, --license            Print license and exit\n"
+        "      --help               Print full help and exit\n"
+        "\n"
+        "Example:\n"
+        "  btreepic -f mytree.Tree -o mytree.eepic -k -a\n"
+        "\n"
+        "Run 'btreepic --help' for the complete list of options.\n";
+      return 0;
+    }
+
   command_line = command_line_to_string(argc, argv);
 
   read_parameters();

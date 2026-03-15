@@ -208,11 +208,19 @@ selected.each do |name|
             end
           rescue Timeout::Error
             timed_out = true
-            Process.kill('TERM', pid)
+            begin
+              Process.kill('TERM', pid)
+            rescue Errno::ESRCH, Errno::EPERM
+              # Process already exited or cannot be signaled; ignore.
+            end
             begin
               Timeout.timeout(2) { thr.value }
             rescue Timeout::Error
-              Process.kill('KILL', pid)
+              begin
+                Process.kill('KILL', pid)
+              rescue Errno::ESRCH, Errno::EPERM
+                # Process already exited or cannot be signaled; ignore.
+              end
               thr.value
             end
           ensure

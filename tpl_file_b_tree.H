@@ -48,7 +48,6 @@
 # include <fstream>
 # include <optional>
 # include <string>
-# include <unordered_set>
 # include <type_traits>
 # include <utility>
 
@@ -2020,14 +2019,15 @@ namespace Aleph
                                    const size_t depth,
                                    size_t & leaf_depth,
                                    size_t & counted,
-                                   std::unordered_set<page_id_t> & visited) const
+                                   Array<unsigned char> & visited) const
     {
       if (page_id == 0 or page_id >= pages_.size())
         return false;
 
       // Cycle detection: reject any page visited more than once in this traversal.
-      if (not visited.insert(page_id).second)
+      if (visited[page_id] != 0)
         return false;
+      visited[page_id] = 1;
 
       const Page & p = page(page_id);
 
@@ -2298,7 +2298,7 @@ namespace Aleph
      */
     void set_auto_sync(const bool enabled) noexcept
     {
-      auto_sync_ = enabled;
+      auto_sync_ = enabled and not read_only();
     }
 
     /** @brief Return the fixed serialized page size.
@@ -2646,8 +2646,7 @@ namespace Aleph
 
       size_t leaf_depth = static_cast<size_t>(-1);
       size_t counted = 0;
-      std::unordered_set<page_id_t> visited;
-      visited.reserve(pages_.size());
+      Array<unsigned char> visited(pages_.size(), 0);
       return verify_node(root_page_, std::nullopt, std::nullopt, 1,
                          leaf_depth, counted, visited)
              and counted == size_;

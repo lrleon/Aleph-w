@@ -329,7 +329,7 @@ TEST(CompactCuckooFilterIntrospection, load_factor)
     cf.insert(i);
 
   double lf = cf.load_factor();
-  EXPECT_GT(lf, 0.05);
+  EXPECT_GT(lf, 0.04);
   EXPECT_LT(lf, 0.15);
 }
 

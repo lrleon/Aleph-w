@@ -2154,6 +2154,58 @@ static struct argp arg_defs = {options, parser_opt, arg_doc, doc, 0, 0, 0};
 
 int main(int argc, char *argv[])
 {
+  if (argc == 1)
+    {
+      cout <<
+        "ntreepic -- General rooted tree visualizer (LaTeX/eepic output)\n"
+        "\n"
+        "Reads a textual general rooted tree description (.Tree file) and emits\n"
+        "LaTeX code using eepic drawing primitives, suitable for inclusion in\n"
+        "publication-quality documents. Supports n-ary trees, forests, and\n"
+        "linked-list representations.\n"
+        "\n"
+        "Usage:\n"
+        "  ntreepic -f <input.Tree> [-o <output.eepic>] [options]\n"
+        "  ntreepic -i <input.Tree> [-o <output.eepic>] [options]\n"
+        "\n"
+        "Required:\n"
+        "  -f, -i <file>    Input .Tree file\n"
+        "\n"
+        "Common options:\n"
+        "  -o <file>        Output file (default: input name + .eepic)\n"
+        "  -r <double>      Node circle radius (sets horizontal and vertical)\n"
+        "  -x <double>      Horizontal radius of node ellipse\n"
+        "  -y <double>      Vertical radius of node ellipse\n"
+        "  -w <double>      Horizontal gap between siblings\n"
+        "  -h <double>      Vertical gap between levels\n"
+        "  -t <double>      Gap between subtrees\n"
+        "  -l <double>      Resolution in mm\n"
+        "  -a               Wrap output in a full LaTeX header\n"
+        "  -e               Draw nodes as ellipses (default)\n"
+        "  -q               Draw nodes as rectangles\n"
+        "  -n               Minimum-radius mode (no node bodies, arcs only)\n"
+        "  -b               Generate binary tree layout\n"
+        "  -L               Draw linked-list representation (with arrows)\n"
+        "  -T               Draw forest layout (no linked-list representation)\n"
+        "  -A               Draw arcs with arrows\n"
+        "  -B               Fill nodes with black\n"
+        "  -S               Fill nodes with shade\n"
+        "  -F               Flip tree along the y axis\n"
+        "  -X <double>      Horizontal label offset\n"
+        "  -Y <double>      Vertical label offset\n"
+        "  -O <double>      Horizontal global picture offset\n"
+        "  -P <double>      Vertical global picture offset\n"
+        "  -R               Print current parameters and exit\n"
+        "  -V               Print version and exit\n"
+        "  -C               Print license and exit\n"
+        "\n"
+        "Example:\n"
+        "  ntreepic -f mytree.Tree -o mytree.eepic -a -e\n"
+        "\n"
+        "Run 'ntreepic --help' for the complete list of options.\n";
+      return 0;
+    }
+
   command_line = command_line_to_string(argc, argv);
 
   read_parameters();

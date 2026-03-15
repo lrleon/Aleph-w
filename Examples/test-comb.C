@@ -36,7 +36,7 @@ void test()
 {
   DynList<char> l1 = { 'a', 'b', 'c' };
   DynList<char> l2 = { 'A', 'B', 'C' };
-  DynList<char> l3 = { '1', '2', '3', '4' };
+  DynList<char> l3 = { '1', '2', '3' };
   DynList<char> l4 = { '5', '6', '7'};
 
   DynList<DynList<char>> l = { l1, l2, l3, l4 };

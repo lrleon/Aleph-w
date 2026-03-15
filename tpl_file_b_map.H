@@ -494,16 +494,14 @@ namespace Aleph
      *  @throws std::runtime_error If the backing tree rejects the mutation.
      *  @throws std::bad_alloc If the page cache cannot grow.
      *
-     *  @note **Crash-recovery limitation.**  When the key already exists the
-     *  implementation issues two separate WAL-protected operations:
-     *  `tree_.remove(probe)` followed by `tree_.insert(record)`.  Each
-     *  individual operation is crash-safe (the WAL guarantees redo on the next
-     *  open), but a process crash *between* the two leaves the key permanently
-     *  deleted.  `Gen_File_B_Tree` does not expose a single-WAL-transaction
-     *  replace primitive, so full atomicity of the pair cannot be guaranteed
-     *  without adding such a primitive.  Callers that require all-or-nothing
-     *  replace semantics should wrap the two operations in their own
-     *  application-level recovery logic.
+     *  @note **Crash-recovery note.**  When the key already exists the
+     *  implementation suppresses `auto_sync` for the `tree_.remove(probe)` +
+     *  `tree_.insert(record)` pair so both operations are batched into a single
+     *  WAL write; the pair is either both present or both absent after recovery.
+     *  A crash before the final `sync()` call leaves the key with its old value
+     *  (WAL replay re-applies the last complete transaction).  Callers that
+     *  require strict all-or-nothing durability should call `sync()` explicitly
+     *  after `insert_or_assign` returns.
      */
     bool insert_or_assign(const Key & key, const Value & value)
     {
@@ -515,10 +513,18 @@ namespace Aleph
       // single WAL-flushed unit; restore and sync once at the end.
       const bool was_sync = auto_sync_enabled();
       set_auto_sync(false);
-      ah_runtime_error_unless(tree_.remove(probe))
-        << "File_B_Map::insert_or_assign(): internal replace failed";
-      ah_runtime_error_unless(tree_.insert(record))
-        << "File_B_Map::insert_or_assign(): internal reinsert failed";
+      try
+        {
+          ah_runtime_error_unless(tree_.remove(probe))
+            << "File_B_Map::insert_or_assign(): internal replace failed";
+          ah_runtime_error_unless(tree_.insert(record))
+            << "File_B_Map::insert_or_assign(): internal reinsert failed";
+        }
+      catch (...)
+        {
+          set_auto_sync(was_sync);
+          throw;
+        }
       set_auto_sync(was_sync);
       if (was_sync)
         sync();

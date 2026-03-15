@@ -211,9 +211,37 @@ static error_t parser_opt(int key, char *, struct argp_state *state)
 static struct argp argDefs = { options, parser_opt, argDoc, doc, 0, 0, 0 };
 
 int main(int argc, char *argv[])
-{ 
+{
+  if (argc == 1)
+    {
+      cout << "testAllTree -- stress-test for Aleph-w binary search trees\n"
+           << "\n"
+           << "Inserts, searches, and removes random keys in a DynMapTree backed by\n"
+           << "the chosen tree type, then reports path length, height, and counts.\n"
+           << "\n"
+           << "Usage:\n"
+           << "  " << argv[0] << " -<tree> [-n num_nodes] [-m seed]\n"
+           << "\n"
+           << "Tree type (exactly one required):\n"
+           << "  -b, --bin        Pure (unbalanced) binary tree\n"
+           << "  -a, --avl        AVL tree\n"
+           << "  -s, --splay      Splay tree\n"
+           << "  -r, --redblack   Red-black tree\n"
+           << "  -p, --treap      Treap (randomized BST with priorities)\n"
+           << "  -d, --rand       Randomized tree\n"
+           << "\n"
+           << "Options:\n"
+           << "  -n num_nodes     Number of keys to insert (default: 1000)\n"
+           << "  -m seed          Seed for the random number generator (default: current time)\n"
+           << "\n"
+           << "Examples:\n"
+           << "  " << argv[0] << " -a -n 5000          # AVL tree with 5000 nodes\n"
+           << "  " << argv[0] << " -p -n 10000 -m 42   # Treap, 10000 nodes, seed 42\n";
+      return 0;
+    }
+
   Parameters pars(1000, std::time(0));
-  
+
   error_t status = argp_parse(&argDefs, argc, argv, 0, 0, &pars);
 
   if (status != 0)

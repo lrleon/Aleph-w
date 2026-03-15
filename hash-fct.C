@@ -220,13 +220,26 @@ void init_jsw() noexcept
 {
   // std::call_once guarantees exactly-once, race-free execution even when
   // multiple threads call jsw_hash() for the first time concurrently.
-  std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
+  try
+    {
+      std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
+    }
+  catch (const std::system_error &)
+    {
+      // call_once failed to acquire its internal synchronization primitive;
+      // fall back to a mutex-protected direct init so this noexcept function
+      // does not terminate the process.
+      std::unique_lock<std::shared_mutex> lock(jsw_mtx);
+      if (not init.load(std::memory_order_acquire))
+        jsw_fill_table(Default_Hash_Seed);
+    }
 }
 
 void init_jsw(std::uint32_t seed) noexcept
 {
-  // Exclusive lock: blocks all concurrent jsw_hash() readers until the new
-  // table is fully written, preventing data races during re-seed.
+  // Exclusive lock: blocks all concurrent jsw_hash() readers (shared_lock)
+  // until the new table is fully written, preventing data races during re-seed.
+  // Bypasses call_once intentionally so re-seeding with a different seed works.
   std::unique_lock<std::shared_mutex> lock(jsw_mtx);
   jsw_fill_table(seed);
 }
@@ -234,9 +247,23 @@ void init_jsw(std::uint32_t seed) noexcept
 size_t jsw_hash(const void * key, size_t len) noexcept
 {
   if (not init.load(std::memory_order_acquire))
-    std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
+    {
+      // Serialize lazy init with init_jsw(seed) by acquiring the exclusive lock
+      // before call_once, so both paths go through the same mutex+once-flag.
+      std::unique_lock<std::shared_mutex> init_lock(jsw_mtx);
+      try
+        {
+          std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
+        }
+      catch (const std::system_error &)
+        {
+          // Mutex already held; call directly as fallback to stay noexcept.
+          if (not init.load(std::memory_order_acquire))
+            jsw_fill_table(Default_Hash_Seed);
+        }
+    }
 
-  // Shared lock: allows concurrent readers; excluded only during init_jsw(seed).
+  // Shared lock: allows concurrent readers; excluded only during init.
   std::shared_lock<std::shared_mutex> lock(jsw_mtx);
   const unsigned char *p = (const unsigned char*) key;
   size_t h = 16777551;
@@ -250,7 +277,19 @@ size_t jsw_hash(const void * key, size_t len) noexcept
 size_t jsw_hash(const char * key) noexcept
 {
   if (not init.load(std::memory_order_acquire))
-    std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
+    {
+      std::unique_lock<std::shared_mutex> init_lock(jsw_mtx);
+      try
+        {
+          std::call_once(jsw_init_flag, jsw_fill_table, Default_Hash_Seed);
+        }
+      catch (const std::system_error &)
+        {
+          // Mutex already held; call directly as fallback to stay noexcept.
+          if (not init.load(std::memory_order_acquire))
+            jsw_fill_table(Default_Hash_Seed);
+        }
+    }
 
   std::shared_lock<std::shared_mutex> lock(jsw_mtx);
   const unsigned char * p = (const unsigned char*) key;
@@ -578,6 +617,19 @@ size_t xxhash64_hash(const void * key, size_t len, std::uint64_t seed) noexcept
   constexpr std::uint64_t prime5 =  2870177450012600261ULL;
 
   const auto * p = static_cast<const std::uint8_t *>(key);
+
+  // Guard against nullptr + 0 UB; compute canonical empty-buffer result.
+  if (len == 0)
+    {
+      std::uint64_t hash = seed + prime5;
+      hash ^= hash >> 33;
+      hash *= prime2;
+      hash ^= hash >> 29;
+      hash *= prime3;
+      hash ^= hash >> 32;
+      return static_cast<size_t>(hash);
+    }
+
   const auto * const end = p + len;
   std::uint64_t hash = 0;
 
@@ -715,7 +767,6 @@ size_t siphash24_hash(const void * key, size_t len,
                       std::uint64_t key0, std::uint64_t key1) noexcept
 {
   const auto * in = static_cast<const std::uint8_t *>(key);
-  const auto * const end = in + (len - (len & 7));
 
   std::uint64_t v0 = 0x736f6d6570736575ULL ^ key0;
   std::uint64_t v1 = 0x646f72616e646f6dULL ^ key1;
@@ -739,6 +790,20 @@ size_t siphash24_hash(const void * key, size_t len,
       v1 ^= v2;
       v2 = ROTL64(v2, 32);
     };
+
+  // Guard against nullptr + 0 UB when computing end; also handles empty input.
+  if (len == 0)
+    {
+      const std::uint64_t b = 0; // len << 56 where len = 0
+      v3 ^= b;
+      sipround(); sipround();
+      v0 ^= b;
+      v2 ^= 0xff;
+      sipround(); sipround(); sipround(); sipround();
+      return static_cast<size_t>(v0 ^ v1 ^ v2 ^ v3);
+    }
+
+  const auto * const end = in + (len - (len & 7));
 
   for (; in != end; in += 8)
     {

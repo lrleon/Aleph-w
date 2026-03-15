@@ -126,15 +126,6 @@ template <typename Key> struct BTreeNode
  *  middle of internal node updates; allocation failures propagate as
  *  `std::bad_alloc`.
  */
-/** @brief Generic in-memory balanced B-Tree container.
- *  @tparam Key Type of stored elements.
- *  @tparam Compare Strict weak ordering used to sort keys.
- *  @tparam MinDegree Minimum degree `t` determining the branching factor.
- *
- *  This class implements a classic in-memory B-Tree that maintains keys
- *  sorted and balanced. All basic search, insert, and remove operations
- *  guarantee O(log n) worst-case time complexity.
- */
 template <typename Key,
           class Compare = Aleph::less<Key>,
           size_t MinDegree = 16>
@@ -436,14 +427,20 @@ class Gen_B_Tree
 
         if (node->children[idx]->keys.size() >= MinDegree)
           {
-            const Key pred  = *max_in(node->children[idx].get());
+            auto pred_opt = max_in(node->children[idx].get());
+            ah_runtime_error_unless(pred_opt.has_value())
+              << "max_in returned nullopt on non-empty child in remove_from";
+            const Key pred  = *pred_opt;
             node->keys[idx] = pred;
             return remove_from(node->children[idx].get(), pred);
           }
 
         if (node->children[idx + 1]->keys.size() >= MinDegree)
           {
-            const Key succ  = *min_in(node->children[idx + 1].get());
+            auto succ_opt = min_in(node->children[idx + 1].get());
+            ah_runtime_error_unless(succ_opt.has_value())
+              << "min_in returned nullopt on non-empty child in remove_from";
+            const Key succ  = *succ_opt;
             node->keys[idx] = succ;
             return remove_from(node->children[idx + 1].get(), succ);
           }

@@ -128,7 +128,7 @@ TEST(CuckooFilterTest, TemplateConfigurations) {
 // 7. Prueba de Estrés
 TEST(CuckooFilterTest, StressTest) {
     const size_t num_ops = 1000; // Reducido para evitar saturación excesiva
-    Cuckoo_Filter<int, 16, 4> filter(num_ops * 2); // Más margen para evitar fallos de kicking
+    Cuckoo_Filter<int, 16, 4> filter(num_ops * 2, 42u); // fixed seed for determinism
     std::vector<int> inserted_list;
     
     std::mt19937 rng(42);

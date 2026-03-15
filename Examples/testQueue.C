@@ -151,7 +151,28 @@ ArrayQueue<T> create_queue(int n)
 
 int main(int argc, char * argv[])
 {
-  // Check argument count
+  if (argc == 1)
+    {
+      cout << "testQueue -- exercises ArrayQueue with insert, consult, and delete operations\n"
+           << "\n"
+           << "Creates an ArrayQueue<int> of the given size, fills it, reads back\n"
+           << "elements, drains in steps of 3 until underflow, refills, then deletes\n"
+           << "a specified number of items. Finally tests copy and move constructors\n"
+           << "with both int and a heap-allocating Foo type.\n"
+           << "\n"
+           << "Usage:\n"
+           << "  " << argv[0] << " <queue-size> <items-to-delete>\n"
+           << "\n"
+           << "Arguments:\n"
+           << "  queue-size       Capacity of the queue and number of items to insert\n"
+           << "  items-to-delete  Number of items to remove in the second phase\n"
+           << "\n"
+           << "Example:\n"
+           << "  " << argv[0] << " 20 7\n"
+           << "      Creates a queue of capacity 20, inserts 20 items, then deletes 7.\n";
+      return 0;
+    }
+
   if (argc < 3)
     {
       cerr << "Usage: " << argv[0] << " <queue-size> <items-to-delete>" << endl;

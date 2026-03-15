@@ -45,8 +45,8 @@
     (like FNV, DJB, ELF) to modern ones (like Murmur3, xxHash64, wyhash, SipHash).
     
     The default policy is defined by:
-    - `dft_hash_fct()` - Default hash function (uses xxHash64)
-    - `snd_hash_fct()` - Second hash function for double hashing (uses xxHash64 with a fixed alternate seed)
+    - `dft_hash_fct()` - Default hash function (routes through `wyhash_hash`)
+    - `snd_hash_fct()` - Second hash function for double hashing (routes through `wyhash_hash` with the deterministic alternate seed `Aleph_Snd_Hash_Seed`)
     
     Key highlights:
     - Classical: `add_hash()`, `xor_hash()`, `rot_hash()`, `djb_hash()`, `sax_hash()`, `fnv_hash()`, `oat_hash()`, `elf_hash()`.
@@ -61,8 +61,8 @@ namespace Aleph
 
   /** Initializes the randomized lookup table used by jsw_hash().
 
-      This overload preserves the historical behavior and derives the seed
-      from the current time.
+      This overload uses the fixed `Default_Hash_Seed` so results are
+      deterministic and reproducible across runs.
 
       @ingroup Hash
   */
@@ -252,7 +252,7 @@ namespace Aleph
       then the table would hold 256 random numbers"
 
       @note If init_jsw() has not been called, it will be lazily
-            initialized with a non-deterministic seed (time-based).
+            initialized with `Default_Hash_Seed` (deterministic).
 
       @param key Pointer to the data to hash
       @param len Length of the data in bytes

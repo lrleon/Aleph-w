@@ -54,11 +54,40 @@ GT create_graph()
 template <class GT>
 bool check(GT & g)
 {
-  int i = 0;
+  DynArray<bool> seen; seen.reserve(V);
+  for (size_t i = 0; i < V; ++i)
+    seen(i) = false;
+
+  size_t count = 0;
   for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
-    if (it.get_curr()->get_info() != i++)
+    {
+      const auto info = it.get_curr()->get_info();
+      if (info >= V)
+        {
+          cout << "Inconsistencia en el nodo " << info << endl;
+          abort();
+        }
+
+      if (seen(info))
+        {
+          cout << "Nodo duplicado " << info << endl;
+          abort();
+        }
+
+      seen(info) = true;
+      ++count;
+    }
+
+  if (count != V)
+    {
+      cout << "Cantidad incorrecta de nodos " << count << endl;
+      abort();
+    }
+
+  for (size_t i = 0; i < V; ++i)
+    if (not seen(i))
       {
-	cout << "Inconsistencia en el nodo " << i - 1 << endl;
+	cout << "Falta el nodo " << i << endl;
 	abort();
       }
 
