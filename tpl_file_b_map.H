@@ -196,7 +196,7 @@ namespace Aleph
     to_pairs(const Array<Record> & records)
     {
       Array<std::pair<Key, Value>> out;
-      out.reserve(records.size() == 0 ? 1 : records.size());
+      out.reserve(records.size());
       for (size_t i = 0; i < records.size(); ++i)
         out.append(to_pair(records[i]));
       return out;
@@ -234,6 +234,7 @@ namespace Aleph
      *  @param cmp Comparison functor used to order keys.
      *  @throws std::runtime_error If the backing file cannot be used.
      *  @throws std::bad_alloc If the page cache cannot be allocated.
+     *  @note O(page_count) I/O to read the file header and root page.
      */
     explicit Gen_File_B_Map(std::string file_path,
                             const bool auto_sync = true,
@@ -552,8 +553,9 @@ namespace Aleph
             }
           catch (...)
             {
-              tree_.insert(*old_record); // rollback: restore the removed entry
-              throw;
+              auto ep = std::current_exception();
+              try { tree_.insert(*old_record); } catch (...) { /* rollback failed; propagate original */ }
+              std::rethrow_exception(ep);
             }
         }
       catch (...)
@@ -642,7 +644,7 @@ namespace Aleph
     {
       Array<Key> out;
       const auto records = tree_.keys();
-      out.reserve(records.size() == 0 ? 1 : records.size());
+      out.reserve(records.size());
       for (size_t i = 0; i < records.size(); ++i)
         out.append(records[i].get_key());
       return out;
@@ -657,7 +659,7 @@ namespace Aleph
     {
       Array<Value> out;
       const auto records = tree_.keys();
-      out.reserve(records.size() == 0 ? 1 : records.size());
+      out.reserve(records.size());
       for (size_t i = 0; i < records.size(); ++i)
         out.append(records[i].get_value());
       return out;

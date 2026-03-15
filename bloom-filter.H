@@ -273,10 +273,10 @@ namespace Aleph
     Bloom_Filter(const size_t n, const double p,
                  unsigned long seed = static_cast<unsigned long>(std::time(nullptr)),
                  Hash_Fct hash_fn = dft_seed_hash_ptr_fct<T>)
-      : Bloom_Filter([&] {
-          const auto [m, k] = estimate(n, p);
-          return Bloom_Filter(m, k, hash_fn, seed);
-        }())
+      : Bloom_Filter(std::get<0>(estimate(n, p)),
+                     std::get<1>(estimate(n, p)),
+                     hash_fn,
+                     seed)
     {
       // empty
     }

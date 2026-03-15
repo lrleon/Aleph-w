@@ -487,8 +487,13 @@ class Gen_B_Tree
         if (node->keys.size() < MinKeys or node->keys.size() > MaxKeys)
           return false;
       }
-    else if (node->keys.size() > MaxKeys)
-      return false;
+    else
+      {
+        if (node->keys.size() > MaxKeys)
+          return false;
+        if (not node->leaf and node->keys.size() < 1)
+          return false;
+      }
 
     // Keys must be strictly increasing — no equal adjacent entries are allowed.
     {
@@ -752,11 +757,11 @@ public:
       return false;
 
     const bool removed = remove_from(root_.get(), key);
-    if (not removed)
-      return false;
 
-    --size_;
-
+    // The search path in remove_from may trigger merges (via
+    // ensure_child_has_extra) that leave the root with zero keys even
+    // when the key is not found.  Promote the sole child regardless
+    // so the invariant "non-leaf root has >= 1 key" is preserved.
     while (root_ != nullptr and root_->keys.is_empty())
       {
         if (root_->leaf)
@@ -774,6 +779,10 @@ public:
         root_ = std::move(root_->children.get_first());
       }
 
+    if (not removed)
+      return false;
+
+    --size_;
     return true;
   }
 

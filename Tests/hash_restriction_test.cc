@@ -1,8 +1,10 @@
 
 #include <gtest/gtest.h>
 #include <hash-fct.H>
-#include <vector>
+#include <string>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 using namespace Aleph;
 

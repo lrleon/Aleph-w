@@ -248,16 +248,16 @@ public:
     return empty();
   }
 
-  /** @brief Return the total number of fingerprint slots. */
+  /** @brief Return the total number of fingerprint slots (including stash). */
   [[nodiscard]] size_t capacity() const noexcept
   {
-    return num_buckets * EntriesPerBucket;
+    return num_buckets * EntriesPerBucket + stash_size;
   }
 
-  /** @brief Return the load factor of the filter. */
+  /** @brief Return the load factor of the filter (relative to capacity()). */
   [[nodiscard]] double load_factor() const noexcept
   {
-    return 1.0 * num_items / (num_buckets * EntriesPerBucket);
+    return 1.0 * num_items / capacity();
   }
 
   /**
