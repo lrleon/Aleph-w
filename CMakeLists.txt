@@ -108,6 +108,10 @@ set(HLIST
     tpl_linearHash.H signal.H ahUtils.H ran_array.h tpl_dynDlist.H
     tpl_skipList.H tpl_tdRbTree.H tpl_splay_tree.H
     tpl_dynTreap.H tpl_union.H tpl_binNode.H tpl_splay_treeRk.H
+    tpl_b_tree.H tpl_bplus_tree.H tpl_tree_snapshot.H
+    tpl_paged_tree_durability.H tpl_paged_value_codec.H
+    tpl_file_b_tree.H tpl_file_bplus_tree.H
+    tpl_file_b_map.H tpl_file_bplus_map.H
     useMutex.H socket_wrappers.H tpl_dynListStack.H
     tpl_autoPtr.H trace.H tpl_cache.H random_net.H
         log.H useCondVar.H

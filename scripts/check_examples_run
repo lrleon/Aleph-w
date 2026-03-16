@@ -1,0 +1,293 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'fileutils'
+require 'open3'
+require 'optparse'
+require 'pathname'
+require 'timeout'
+
+options = {
+  build_dir: 'build',
+  build_type: 'Debug',
+  jobs: nil,
+  clean: false,
+  configure: false,
+  rebuild: false,
+  timeout: 15,
+  build_tests: false,
+  only: [],
+  exclude: [],
+  verbose: false,
+  log_dir: nil
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{File.basename($PROGRAM_NAME)} [options]"
+
+  opts.on('-B', '--build-dir DIR', 'Build directory (default: build)') do |v|
+    options[:build_dir] = v
+  end
+
+  opts.on('--build-type TYPE', 'CMake build type used when configuring (default: Debug)') do |v|
+    options[:build_type] = v
+  end
+
+  opts.on('-j', '--jobs N', Integer, 'Parallel build jobs') do |v|
+    options[:jobs] = v
+  end
+
+  opts.on('--clean', 'Delete build dir before configuring') do
+    options[:clean] = true
+    options[:configure] = true
+  end
+
+  opts.on('--configure', 'Run CMake configure step before building') do
+    options[:configure] = true
+  end
+
+  opts.on('--rebuild', 'Build all examples before running them') do
+    options[:rebuild] = true
+  end
+
+  opts.on('--build-tests', 'Also enable BUILD_TESTS while configuring') do
+    options[:build_tests] = true
+  end
+
+  opts.on('--timeout SECONDS', Integer, 'Per-example timeout in seconds (default: 15)') do |v|
+    options[:timeout] = v
+  end
+
+  opts.on('--only NAME[,NAME...]', Array, 'Run only the selected examples') do |v|
+    options[:only].concat(v)
+  end
+
+  opts.on('--exclude NAME[,NAME...]', Array, 'Skip the selected examples') do |v|
+    options[:exclude].concat(v)
+  end
+
+  opts.on('--log-dir DIR', 'Directory for per-example stdout/stderr logs') do |v|
+    options[:log_dir] = v
+  end
+
+  opts.on('-v', '--verbose', 'Print command output while running') do
+    options[:verbose] = true
+  end
+
+  opts.on('-h', '--help', 'Show help') do
+    puts opts
+    exit 0
+  end
+end.parse!
+
+repo_root = File.expand_path('..', __dir__)
+examples_dir = File.join(repo_root, 'Examples')
+build_dir = File.expand_path(options[:build_dir], repo_root)
+examples_build_dir = File.join(build_dir, 'Examples')
+log_dir = options[:log_dir] ? File.expand_path(options[:log_dir], repo_root) : File.join(build_dir, 'examples_run_logs')
+
+excluded_sources = %w[
+  fft_benchmark
+  fft_reference_probe
+].freeze
+
+source_basenames = Dir.children(examples_dir)
+  .select { |name| name.match?(/\.(?:C|CC|cc|c)\z/) }
+  .map { |name| File.basename(name, File.extname(name)) }
+  .reject { |name| excluded_sources.include?(name) }
+  .sort
+
+unknown_only = options[:only] - source_basenames
+unknown_exclude = options[:exclude] - source_basenames
+
+unless unknown_only.empty?
+  warn "Unknown --only names: #{unknown_only.join(', ')}"
+  exit 1
+end
+
+unless unknown_exclude.empty?
+  warn "Unknown --exclude names: #{unknown_exclude.join(', ')}"
+  exit 1
+end
+
+selected = source_basenames
+selected &= options[:only] unless options[:only].empty?
+selected -= options[:exclude]
+
+if selected.empty?
+  warn 'No examples selected.'
+  exit 1
+end
+
+if options[:clean]
+  build_path = Pathname.new(build_dir).cleanpath
+  repo_root_path = Pathname.new(repo_root).cleanpath
+  if build_path == Pathname.new('/') or
+     build_path == repo_root_path or
+     repo_root_path.to_s.start_with?(build_path.to_s + File::SEPARATOR)
+    abort "Refusing --clean: build_dir #{build_dir} is root, repo root, or an ancestor of it"
+  end
+  FileUtils.rm_rf(build_dir)
+end
+FileUtils.mkdir_p(build_dir)
+FileUtils.mkdir_p(log_dir)
+
+run_command = lambda do |cmd, chdir: repo_root|
+  output = +''
+  status = nil
+
+  Open3.popen2e(*cmd, chdir: chdir) do |_stdin, out, wait_thr|
+    out.each_line do |line|
+      output << line
+      print line if options[:verbose]
+    end
+    status = wait_thr.value
+  end
+
+  [output, status]
+end
+
+if options[:configure] || !File.exist?(File.join(build_dir, 'CMakeCache.txt'))
+  configure_cmd = [
+    'cmake',
+    '-S', repo_root,
+    '-B', build_dir,
+    "-DCMAKE_BUILD_TYPE=#{options[:build_type]}",
+    '-DBUILD_EXAMPLES=ON',
+    "-DBUILD_TESTS=#{options[:build_tests] ? 'ON' : 'OFF'}"
+  ]
+
+  output, status = run_command.call(configure_cmd)
+  File.write(File.join(log_dir, 'configure.log'), output)
+
+  unless status.success?
+    warn "CMake configure failed. See #{File.join(log_dir, 'configure.log')}"
+    exit status.exitstatus || 1
+  end
+end
+
+if options[:rebuild]
+  build_cmd = ['cmake', '--build', build_dir, '--target', *selected]
+  build_cmd += ['--parallel', options[:jobs].to_s] if options[:jobs]
+
+  output, status = run_command.call(build_cmd)
+  File.write(File.join(log_dir, 'build.log'), output)
+
+  unless status.success?
+    warn "Build failed. See #{File.join(log_dir, 'build.log')}"
+    exit status.exitstatus || 1
+  end
+end
+
+results = []
+width = selected.map(&:length).max
+
+selected.each do |name|
+  exe = File.join(examples_build_dir, name)
+  stdout_path = File.join(log_dir, "#{name}.stdout.log")
+  stderr_path = File.join(log_dir, "#{name}.stderr.log")
+
+  unless File.exist?(exe)
+    results << { name: name, status: 'missing', exit_code: nil, seconds: nil }
+    next
+  end
+
+  unless File.executable?(exe)
+    results << { name: name, status: 'not_executable', exit_code: nil, seconds: nil }
+    next
+  end
+
+  start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  pid = nil
+  wait_thr = nil
+  timed_out = false
+  exit_status = nil
+
+  File.open(stdout_path, 'w') do |stdout_file|
+    File.open(stderr_path, 'w') do |stderr_file|
+      begin
+        Open3.popen3([exe, exe], chdir: repo_root) do |stdin, stdout, stderr, thr|
+          pid = thr.pid
+          wait_thr = thr
+          stdin.close
+
+          stdout_thread = Thread.new do
+            stdout.each_line do |line|
+              stdout_file.write(line)
+              print line if options[:verbose]
+            end
+          end
+
+          stderr_thread = Thread.new do
+            stderr.each_line do |line|
+              stderr_file.write(line)
+              warn line if options[:verbose]
+            end
+          end
+
+          begin
+            Timeout.timeout(options[:timeout]) do
+              exit_status = thr.value
+            end
+          rescue Timeout::Error
+            timed_out = true
+            begin
+              Process.kill('TERM', pid)
+            rescue Errno::ESRCH, Errno::EPERM
+              # Process already exited or cannot be signaled; ignore.
+            end
+            begin
+              Timeout.timeout(2) { thr.value }
+            rescue Timeout::Error
+              begin
+                Process.kill('KILL', pid)
+              rescue Errno::ESRCH, Errno::EPERM
+                # Process already exited or cannot be signaled; ignore.
+              end
+              thr.value
+            end
+          ensure
+            stdout_thread.join
+            stderr_thread.join
+          end
+        end
+      rescue StandardError => e
+        stderr_file.puts(e.full_message)
+        results << { name: name, status: 'error', exit_code: nil, seconds: nil, error: e.message }
+        next
+      end
+    end
+  end
+
+  seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
+
+  if timed_out
+    results << { name: name, status: 'timed_out', exit_code: nil, seconds: seconds }
+  elsif exit_status&.success?
+    results << { name: name, status: 'completed', exit_code: exit_status.exitstatus, seconds: seconds }
+  else
+    results << { name: name, status: 'failed', exit_code: exit_status&.exitstatus, seconds: seconds }
+  end
+end
+
+puts
+puts 'Examples execution summary'
+puts '-' * (width + 32)
+results.each do |result|
+  duration = result[:seconds] ? format('%.2fs', result[:seconds]) : '-'
+  code = result[:exit_code] ? result[:exit_code].to_s : '-'
+  puts format("%-#{width}s  %-14s  exit=%-4s  %s", result[:name], result[:status], code, duration)
+end
+puts '-' * (width + 32)
+
+counts = results.group_by { |r| r[:status] }.transform_values(&:size)
+puts "completed: #{counts.fetch('completed', 0)}"
+puts "failed: #{counts.fetch('failed', 0)}"
+puts "timed_out: #{counts.fetch('timed_out', 0)}"
+puts "missing: #{counts.fetch('missing', 0)}"
+puts "not_executable: #{counts.fetch('not_executable', 0)}"
+puts "error: #{counts.fetch('error', 0)}"
+puts "logs: #{log_dir}"
+
+bad = results.any? { |r| r[:status] != 'completed' }
+exit(bad ? 1 : 0)

@@ -100,6 +100,7 @@ void example_maximization()
   cout << endl;
 
   auto mat = DynMatrix<int>(3, 3, 0);
+  mat.allocate();
   int data[3][3] = {{10, 5, 13}, {3, 9, 18}, {10, 6, 12}};
   for (size_t i = 0; i < 3; ++i)
     for (size_t j = 0; j < 3; ++j)

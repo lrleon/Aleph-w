@@ -57,6 +57,30 @@ struct Event2 : QueueTheadsPool<int>::Event
 
 int main(int argc, char *argv[])
 {
+  if (argc == 1)
+    {
+      cout << "test-con-queue -- demonstrates QueueTheadsPool concurrent processing\n"
+           << "\n"
+           << "Creates a pool of worker threads backed by a shared queue. Each thread\n"
+           << "runs one of two event types (Event1 / Event2), both of which sleep for\n"
+           << WORK_DELAY_MS << " ms to simulate work. The test enqueues items, lets workers\n"
+           << "run for a while, then suspends, sleeps, resumes, and finally shuts down.\n"
+           << "\n"
+           << "Usage:\n"
+           << "  " << argv[0] << " <num_threads> <num_items> <secs>\n"
+           << "\n"
+           << "Arguments:\n"
+           << "  num_threads  Number of worker threads to create (positive integer)\n"
+           << "  num_items    Number of integer items to enqueue\n"
+           << "  secs         Seconds to let workers run in each active phase\n"
+           << "\n"
+           << "Example:\n"
+           << "  " << argv[0] << " 4 100 3\n"
+           << "      Creates 4 threads, enqueues 100 items, runs for 3 s, suspends,\n"
+           << "      sleeps 5 s, resumes for another 3 s, then shuts down.\n";
+      return 0;
+    }
+
   if (argc < 4)
     {
       cerr << "Usage: " << argv[0] << " <num_threads> <num_items> <secs>" << endl;

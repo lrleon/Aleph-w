@@ -131,8 +131,8 @@ namespace Aleph
            const NumType & e = default_epsilon)
       : rdomain_ptr(std::move(rdomain)),
         cdomain_ptr(std::move(cdomain)),
-        entries(10, Aleph::pair_dft_hash_fct<Trow, Tcol>,
-                Aleph::pair_snd_hash_fct<Trow, Tcol>)
+        entries(10, Aleph::pair_dft_hash_ptr_fct<Trow, Tcol>,
+                Aleph::pair_snd_hash_ptr_fct<Trow, Tcol>)
     {
       set_epsilon(e);
     }
@@ -147,8 +147,8 @@ namespace Aleph
            const NumType & e = default_epsilon)
       : rdomain_ptr(RDomainPtr(&const_cast<RDomain &>(rdomain), [](RDomain *) {})),
         cdomain_ptr(CDomainPtr(&const_cast<CDomain &>(cdomain), [](CDomain *) {})),
-        entries(10, Aleph::pair_dft_hash_fct<Trow, Tcol>,
-                Aleph::pair_snd_hash_fct<Trow, Tcol>)
+        entries(10, Aleph::pair_dft_hash_ptr_fct<Trow, Tcol>,
+                Aleph::pair_snd_hash_ptr_fct<Trow, Tcol>)
     {
       set_epsilon(e);
     }
