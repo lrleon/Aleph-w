@@ -164,15 +164,6 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
       return false;
     }
 
-    void swap_random(Fingerprint &fp, std::mt19937 &rng)
-    {
-      std::uniform_int_distribution<size_t> dist(0, EntriesPerBucket - 1);
-      const size_t idx = dist(rng);
-      const Fingerprint old_fp = get_slot(idx);
-      set_slot(idx, fp);
-      fp = old_fp;
-    }
-
     void restore(Fingerprint fp, size_t idx)
     {
       set_slot(idx, fp);

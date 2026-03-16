@@ -549,7 +549,8 @@ namespace Aleph
           // Retrieve the full record (key+value) before removing so we can
           // rollback to it if the subsequent insert throws.
           auto old_record = tree_.lower_bound(probe);
-          ah_runtime_error_unless(old_record.has_value())
+          ah_runtime_error_unless(old_record.has_value() and
+                                  equals_key(old_record->get_key(), key))
             << "File_B_Map::insert_or_assign(): existing record not found";
           ah_runtime_error_unless(tree_.remove(probe))
             << "File_B_Map::insert_or_assign(): internal replace failed";

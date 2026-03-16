@@ -146,12 +146,6 @@ template <typename T, size_t FingerprintBits = 8, size_t EntriesPerBucket = 4> c
       return false;
     }
 
-    void swap_random(Fingerprint &fp, std::mt19937 &rng)
-    {
-      std::uniform_int_distribution<size_t> dist(0, EntriesPerBucket - 1);
-      std::swap(fp, slots[dist(rng)]);
-    }
-
     void restore(Fingerprint fp, size_t idx)
     {
       slots[idx] = fp;
@@ -347,6 +341,8 @@ public:
   }
 
   /** @brief Alias for insert().
+   *  @param item Item to insert.
+   *  @return `true` if insertion succeeded, `false` if filter is full.
    *  @throws none.
    */
   bool append(const T &item)
