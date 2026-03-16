@@ -62,9 +62,11 @@
  *
  * ## State safety
  *
- * Coloring algorithms leave pre-existing node cookies untouched, so you can
- * run them on graphs that are also being used by other cookie-based
- * algorithms.
+ * Coloring algorithms temporarily reuse `NODE_COOKIE` internally while
+ * running, and restore any pre-existing node cookies on exit. However, they
+ * are not thread-safe or reentrant with respect to cookie usage: concurrent
+ * executions, nested cookie users, or other simultaneous cookie-based
+ * algorithms require external synchronization.
  *
  * ## Usage
  *
@@ -82,6 +84,7 @@
 # include <iostream>
 # include <iomanip>
 # include <string>
+# include <cstdio>
 
 # include <Graph_Coloring.H>
 # include <tpl_graph.H>
@@ -417,10 +420,12 @@ static void demo_algorithm_comparison()
  */
 static void demo_cookie_safety()
 {
-  separator("Part 5: State Safety — Algorithms Leave Existing Cookies Untouched");
+  separator("Part 5: State Safety — Cookies Are Restored on Completion");
 
-  cout << "This implementation does not reuse NODE_COOKIE for coloring state,\n";
-  cout << "so any existing cookie values remain untouched.\n\n";
+  cout << "This implementation temporarily reuses NODE_COOKIE for coloring state,\n";
+  cout << "but restores any pre-existing cookie values when it finishes.\n";
+  cout << "It is not thread-safe, reentrant, or safe for nested/concurrent\n";
+  cout << "cookie users without external synchronization.\n\n";
 
   G g;
   auto *a = g.insert_node("a");
@@ -484,7 +489,8 @@ int main()
   cout << "└─────────────────────────┴──────────────────────┴─────────────────┘\n\n";
   cout << "All algorithms:\n";
   cout << "  • Return colors as DynMapTree<Node*, size_t> (0-based indices)\n";
-  cout << "  • Leave existing NODE_COOKIE values untouched\n";
+  cout << "  • Temporarily reuse NODE_COOKIE, then restore prior values on completion\n";
+  cout << "  • Are not thread-safe/reentrant for concurrent or nested cookie users\n";
   cout << "  • Work on List_Graph, List_SGraph, Array_Graph and digraph variants\n";
   cout << "  • Accept any arc filter via template parameter SA\n\n";
 

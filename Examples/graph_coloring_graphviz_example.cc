@@ -55,9 +55,9 @@
 
 #include <fstream>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 
+#include <ah-errors.H>
 #include <Graph_Coloring.H>
 #include <tpl_graph.H>
 
@@ -175,7 +175,7 @@ static void locate_node(Node *node,
         }
     }
 
-  throw runtime_error("node not found in crown graph export");
+  ah_runtime_error("node not found in crown graph export");
 }
 
 static void write_colored_node(ostream &out,
@@ -203,7 +203,7 @@ static void write_coloring_dot(const string &filename,
 {
   ofstream out(filename);
   if (not out)
-    throw runtime_error("cannot open output file " + filename);
+    ah_runtime_error("cannot open output file " + filename);
 
   out << "graph CrownColoring {\n"
       << "  layout=neato;\n"

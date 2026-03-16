@@ -629,6 +629,20 @@ TEST(GraphColoring, ChromaticNumberTooManyNodes)
   EXPECT_THROW(chromatic_number(g, colors), std::domain_error);
 }
 
+TEST(GraphColoring, ChromaticNumber64Nodes)
+{
+  Graph g;
+  for (int i = 0; i < 64; ++i)
+    g.insert_node("v" + std::to_string(i));
+
+  DynMapTree<Graph::Node *, size_t> colors;
+  EXPECT_NO_THROW({
+    size_t chi = chromatic_number(g, colors);
+    EXPECT_EQ(chi, 1u); // No edges, so chromatic number is 1
+    EXPECT_EQ(colors.size(), 64u);
+  });
+}
+
 // ===================================================================
 // Tests: List_SGraph type
 // ===================================================================
@@ -677,6 +691,31 @@ TEST(GraphColoring, DigraphSingleArcUsesTwoColors)
   g.insert_arc(a, b);
 
   DynMapTree<DGraph::Node *, size_t> colors;
+
+  EXPECT_EQ(greedy_coloring(g, colors), 2u);
+  EXPECT_TRUE(is_valid_coloring(g, colors));
+
+  EXPECT_EQ(welsh_powell_coloring(g, colors), 2u);
+  EXPECT_TRUE(is_valid_coloring(g, colors));
+
+  EXPECT_EQ(dsatur_coloring(g, colors), 2u);
+  EXPECT_TRUE(is_valid_coloring(g, colors));
+
+  EXPECT_EQ(chromatic_number(g, colors), 2u);
+  EXPECT_TRUE(is_valid_coloring(g, colors));
+}
+
+TEST(GraphColoring, DigraphReverseOrderStillUsesTwoColors)
+{
+  DGraph g;
+  auto *a = g.insert_node("a");
+  auto *b = g.insert_node("b");
+  g.insert_arc(a, b);
+
+  DynMapTree<DGraph::Node *, size_t> colors;
+  colors.insert(b, 0);
+
+  EXPECT_FALSE(is_valid_coloring(g, colors));
 
   EXPECT_EQ(greedy_coloring(g, colors), 2u);
   EXPECT_TRUE(is_valid_coloring(g, colors));
