@@ -151,7 +151,28 @@ ArrayQueue<T> create_queue(int n)
 
 int main(int argc, char * argv[])
 {
-  // Check argument count
+  if (argc == 1)
+    {
+      cout << "testQueue -- exercises ArrayQueue with insert, consult, and delete operations\n"
+           << "\n"
+           << "Creates an ArrayQueue<int> of the given size, fills it, reads back\n"
+           << "elements, drains in steps of 3 until underflow, refills, then deletes\n"
+           << "a specified number of items. Finally tests copy and move constructors\n"
+           << "with both int and a heap-allocating Foo type.\n"
+           << "\n"
+           << "Usage:\n"
+           << "  " << argv[0] << " <queue-size> <items-to-delete>\n"
+           << "\n"
+           << "Arguments:\n"
+           << "  queue-size       Capacity of the queue and number of items to insert\n"
+           << "  items-to-delete  Number of items to remove in the second phase\n"
+           << "\n"
+           << "Example:\n"
+           << "  " << argv[0] << " 20 7\n"
+           << "      Creates a queue of capacity 20, inserts 20 items, then deletes 7.\n";
+      return 0;
+    }
+
   if (argc < 3)
     {
       cerr << "Usage: " << argv[0] << " <queue-size> <items-to-delete>" << endl;
@@ -165,13 +186,13 @@ int main(int argc, char * argv[])
   long n_long = strtol(argv[1], &endptr1, 10);
   
   // Validate first argument
-  if (errno != 0 or *endptr1 != '\0' or n_long < 0 or n_long > SIZE_MAX)
+  if (errno != 0 or *endptr1 != '\0' or n_long < 0 or n_long > INT_MAX)
     {
-      cerr << "Error: Invalid queue size argument. Must be a non-negative integer fitting in size_t." << endl;
+      cerr << "Error: Invalid queue size argument. Must be a non-negative integer fitting in int." << endl;
       return 1;
     }
-  
-  size_t n = static_cast<size_t>(n_long);
+
+  int n = static_cast<int>(n_long);
   ArrayQueue<int> q(n);
 
   print(q);

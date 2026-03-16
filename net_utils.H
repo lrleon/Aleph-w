@@ -372,6 +372,11 @@ Net generate_layered_network(const std::vector<size_t>& layer_sizes,
   if (layer_sizes.size() < 2)
     return net;
 
+  for (size_t l = 1; l + 1 < layer_sizes.size(); ++l)
+    ah_invalid_argument_if(layer_sizes[l] == 0)
+      << "Intermediate layers must be non-empty";
+
+
   if (seed == 0)
     seed = static_cast<unsigned>(
         std::chrono::system_clock::now().time_since_epoch().count());
@@ -391,23 +396,40 @@ Net generate_layered_network(const std::vector<size_t>& layer_sizes,
   // Connect adjacent layers
   for (size_t l = 0; l < layer_sizes.size() - 1; ++l)
     {
+      // Track which nodes in layer l+1 received at least one incoming arc
+      // so we can guarantee no intermediate node has in-degree 0 (which
+      // would make it an extra source and break is_single_source()).
+      std::vector<bool> reached(layers[l+1].size(), false);
+
       for (size_t i = 0; i < layers[l].size(); ++i)
         {
           bool connected = false;
           for (size_t j = 0; j < layers[l+1].size(); ++j)
-              if (prob_dist(gen) < edge_prob)
-                {
-                  net.insert_arc(layers[l][i], layers[l+1][j], capacity);
-                  connected = true;
-                }
-            
-          // Ensure at least one connection
+            if (prob_dist(gen) < edge_prob)
+              {
+                net.insert_arc(layers[l][i], layers[l+1][j], capacity);
+                connected = true;
+                reached[j] = true;
+              }
+
+          // Ensure every node in layer l has at least one outgoing arc
           if (not connected and not layers[l+1].empty())
             {
               size_t j = gen() % layers[l+1].size();
               net.insert_arc(layers[l][i], layers[l+1][j], capacity);
+              reached[j] = true;
             }
         }
+
+      // Ensure every node in layer l+1 has at least one incoming arc;
+      // otherwise it would be an extra source and fail is_single_source().
+      if (not layers[l].empty())
+        for (size_t j = 0; j < layers[l+1].size(); ++j)
+          if (not reached[j])
+            {
+              size_t i = gen() % layers[l].size();
+              net.insert_arc(layers[l][i], layers[l+1][j], capacity);
+            }
     }
 
   // Source and sink are detected automatically

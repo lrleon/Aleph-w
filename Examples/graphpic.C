@@ -1526,6 +1526,56 @@ void generate_graph(Graph *g, ofstream & output)
 
 int main(int argc, char *argv[])
 {
+  if (argc == 1)
+    {
+      cout <<
+        "graphpic -- Graph and digraph visualizer (LaTeX/eepic output)\n"
+        "\n"
+        "Reads a graph specification file (DSL) and emits LaTeX code using\n"
+        "eepic drawing primitives, suitable for publication-quality diagrams\n"
+        "of undirected graphs, directed graphs (digraphs), layered networks,\n"
+        "and polygon layouts.\n"
+        "\n"
+        "Usage:\n"
+        "  graphpic -f <input.graph> [-o <output.eepic>] [options]\n"
+        "\n"
+        "Required:\n"
+        "  -f, --file <file>         Input graph specification file\n"
+        "\n"
+        "Common options:\n"
+        "  -o, --output <file>       Output file (default: input name + .eepic)\n"
+        "  -r, --radius <double>     Node circle radius (sets horizontal and vertical)\n"
+        "  -x, --h-radius <double>   Horizontal radius of node ellipse\n"
+        "  -y, --v-radius <double>   Vertical radius of node ellipse\n"
+        "  -W, --width <double>      Picture width\n"
+        "  -H, --height <double>     Picture height\n"
+        "  -Z, --zoom <double>       Zoom factor\n"
+        "  -l, --resolution <double> Resolution in mm\n"
+        "  -a, --latex               Wrap output in a full LaTeX document header\n"
+        "  -N, --no-nodes            Do not draw node ellipses (edges only)\n"
+        "  -S, --no-squarize         Do not auto-fit picture scale\n"
+        "  -t, --tiny-keys           Use tiny font for node labels\n"
+        "  -X, --key-x-offset        Horizontal label offset\n"
+        "  -Y, --key-y-offset        Vertical label offset\n"
+        "  -O, --x-pic-offset        Horizontal global picture offset\n"
+        "  -P, --y-pic-offset        Vertical global picture offset\n"
+        "  -R, --print-params        Print current parameters and exit\n"
+        "\n"
+        "Input DSL highlights:\n"
+        "  GRAPH <n>       Undirected graph with n nodes\n"
+        "  DIGRAPH <n>     Directed graph with n nodes\n"
+        "  NET-* / CROSS-NET-*  Layered network layouts\n"
+        "  POLY-*          Regular polygon layouts\n"
+        "  NODE <id> <name> <x> <y>   Place node at coordinates\n"
+        "  ARC <src> <dst>            Add edge or directed arc\n"
+        "\n"
+        "Example:\n"
+        "  graphpic -f mygraph.graph -o mygraph.eepic -a\n"
+        "\n"
+        "Run 'graphpic --help' for the complete list of options.\n";
+      return 0;
+    }
+
   try
   {
     TCLAP::CmdLine cmd(

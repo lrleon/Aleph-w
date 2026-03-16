@@ -207,7 +207,9 @@ TEST(OLhashTable, NoResizeFillAndSearchMiss)
 
 TEST(OLhashTable, StatsWithDeletedAndBusy)
 {
-  OLhashTable<int> tbl(7, Aleph::dft_hash_fct<int>, Aleph::equal_to<int>(),
+  auto constant_hash = [] (const int &) noexcept -> size_t { return 0u; };
+  OLhashTable<int> tbl(7, OLhashTable<int>::Hash_Fct(constant_hash),
+                       Aleph::equal_to<int>(),
                        hash_default_lower_alpha, hash_default_upper_alpha, false);
   auto *p1 = tbl.insert(1);
   auto *p2 = tbl.insert(2);

@@ -207,8 +207,8 @@ Aleph-w ha sido usado para enseñar a **miles de estudiantes** en Latinoamérica
 │                                                                            │
 │  ESPECIALES               ESPACIALES               PROBABILÍSTICAS         │
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
-│  ├─ LRU Cache            ├─ 2D-Tree               ├─ Count-Min Sketch      │
-│  └─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir │
+│  ├─ LRU Cache            ├─ 2D-Tree               ├─ Cuckoo Filter         │
+│  └─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir/CMS │
 │                                                                            │
 │  CONSULTAS POR RANGO                                                       │
 │  ├─ Fenwick Tree (BIT)                                                     │
@@ -3811,11 +3811,13 @@ Aleph-w proporciona un conjunto de algoritmos modernos para procesar flujos de d
 
 | Header | Class | Purpose |
 |---|---|---|
-| `reservoir-sampling.H` | `Reservoir_Sampler` | Randomly sample `k` elements from a stream of unknown length |
-| `count-min-sketch.H` | `Count_Min_Sketch` | Approximate frequency estimation (O(1) updates/queries) |
-| `hyperloglog.H` | `HyperLogLog` | Cardinality estimation (count unique elements) with low error |
-| `minhash.H` | `MinHash` | Jaccard similarity estimation between sets |
-| `simhash.H` | `SimHash` | Cosine similarity estimation using bitwise fingerprints |
+| `reservoir-sampling.H` | `Reservoir_Sampler` | Muestreo aleatorio de `k` elementos en un flujo de datos |
+| `bloom-filter.H` | `Bloom_Filter` | Membresía probabilística estándar (sin eliminación) |
+| `cuckoo-filter.H` | `Cuckoo_Filter` | Membresía de alto rendimiento con soporte de eliminación |
+| `count-min-sketch.H` | `Count_Min_Sketch` | Estimación de frecuencia aproximada (O(1)) |
+| `hyperloglog.H` | `HyperLogLog` | Estimación de cardinalidad (conteo de elementos únicos) con bajo error |
+| `minhash.H` | `MinHash` | Estimación de similitud de Jaccard entre conjuntos |
+| `simhash.H` | `SimHash` | Estimación de similitud de coseno usando huellas digitales de bits |
 
 #### Ejemplo de uso de streaming
 

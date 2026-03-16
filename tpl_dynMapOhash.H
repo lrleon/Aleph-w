@@ -161,8 +161,8 @@ struct MapOpenHash :
    *  @throw std::bad_alloc If memory allocation fails.
    */
   MapOpenHash(size_t len                   = Primes::DefaultPrime,
-              Hash_Fct_Ptr first_hash_fct  = dft_hash_fct<Key>,
-              Hash_Fct_Ptr second_hash_fct = snd_hash_fct<Key>,
+              Hash_Fct_Ptr first_hash_fct  = dft_hash_ptr_fct<Key>,
+              Hash_Fct_Ptr second_hash_fct = snd_hash_ptr_fct<Key>,
               Cmp  cmp                     = Cmp(),
               float lower_alpha            = hash_default_lower_alpha,
               float upper_alpha            = hash_default_upper_alpha,

@@ -557,6 +557,43 @@ static struct argp argDefs = {options, parser_opt, argDoc, doc, 0, 0, 0};
 
 int main(int argc, char *argv[])
 {
+  if (argc == 1)
+    {
+      cout << "timeAllTree -- benchmark Aleph-w binary search tree implementations\n"
+           << "\n"
+           << "Grows a tree to n keys (sampling at each power of 2) and reports\n"
+           << "height, internal path length (IPL), and insertion/removal timing\n"
+           << "statistics (min / avg / median / sigma / max).\n"
+           << "\n"
+           << "Usage:\n"
+           << "  " << argv[0] << " <tree-flags> [-n num_nodes] [-m seed]\n"
+           << "\n"
+           << "Tree type flags (at least one required, or use --all):\n"
+           << "  -b, --bin          Unbalanced BST (BinTree)\n"
+           << "  -a, --avl          AVL tree\n"
+           << "      --avlrk        AVL tree (ranked)\n"
+           << "  -s, --splay        Splay tree\n"
+           << "      --splayrk      Splay tree (ranked)\n"
+           << "  -r, --redblack     Red-black tree\n"
+           << "      --redblackrk   Red-black tree (ranked)\n"
+           << "      --tdrb         Top-down red-black tree\n"
+           << "      --tdrbrk       Top-down red-black tree (ranked)\n"
+           << "  -p, --treap        Treap\n"
+           << "      --treaprk      Treap (ranked)\n"
+           << "  -d, --rand         Randomized tree\n"
+           << "  -l, --all          Benchmark all tree types\n"
+           << "\n"
+           << "Options:\n"
+           << "  -n num_nodes       Number of keys to insert (default: 1000)\n"
+           << "  -m seed            RNG seed (default: current time)\n"
+           << "\n"
+           << "Examples:\n"
+           << "  " << argv[0] << " --all -n 10000 -m 42\n"
+           << "  " << argv[0] << " -a -r -n 50000\n"
+           << "  " << argv[0] << " --avlrk --treaprk -n 20000 -m 456\n";
+      return 0;
+    }
+
   Parameters pars(1000, std::time(0));
 
   if (error_t status = argp_parse(&argDefs, argc, argv, 0, 0, &pars); status != 0)
