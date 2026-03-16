@@ -44,17 +44,17 @@
  *  - **DSatur (Degree of Saturation)**: An adaptive heuristic that selects the
  *    next node based on its "saturation degree". One of the best general-purpose
  *    heuristics.
- *  - **Chromatic Number**: Computes the exact chromatic number ($\chi(G)$) for
+ *  - **Chromatic Number**: Computes the exact chromatic number (@f$\chi(G)@f$) for
  *    small graphs (up to 64 nodes) using backtracking and DSatur bounds.
  *
  *  ## Implementation Details
  *
  *  All algorithms use the `NODE_COOKIE` field of the graph nodes to temporarily
  *  store colors efficiently ($O(1)$). To guarantee exception safety and
- *  avoid destroying previous data, @ref Cookie_Saver is employed, which
+ *  avoid destroying previous data, @ref Aleph::Cookie_Saver is employed, which
  *  automatically restores the original cookies upon function exit.
  *
- *  Results are returned in a @ref DynMapTree that maps each node pointer to its
+ *  Results are returned in a @ref Aleph::DynMapTree that maps each node pointer to its
  *  color index (0-based).
  *
  *  @ingroup Graphs
@@ -113,7 +113,7 @@ inline size_t decode_color(void *cookie) noexcept
 /** @brief Finds the smallest non-negative integer (color) not in the `used` set.
  *  @param[in] used Set of colors already used by neighbors.
  *  @return The lowest available color.
- *  @note Complexity: $O(k \log k)$ where $k$ is the number of used colors.
+ *  @note Complexity: @f$O(k \log k)@f$ where @f$k@f$ is the number of used colors.
  */
 inline size_t smallest_available(const DynSetTree<size_t> &used)
 {
@@ -200,7 +200,7 @@ void validate_no_self_loops(const GT &g)
  *  @pre The graph must be valid and `colors` must be ready to receive data.
  *  @post `is_valid_coloring(g, colors)` will be `true`.
  *
- *  @note **Complexity**: $O((V+E) \log \Delta)$, where $\Delta$ is the maximum degree.
+ *  @note **Complexity**: @f$O((V+E) \log \Delta)@f$, where @f$\Delta@f$ is the maximum degree.
  *  @note The result critically depends on the iteration order of the nodes.
  *
  *  @see welsh_powell_coloring, dsatur_coloring, is_valid_coloring
@@ -263,7 +263,7 @@ size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *  @param[out] colors Map with the coloring result.
  *  @return The total number of colors used.
  *
- *  @note **Complexity**: $O((V+E) \log \Delta + V \log V)$ due to sorting.
+ *  @note **Complexity**: @f$O((V+E) \log \Delta + V \log V)@f$ due to sorting.
  *
  *  @see greedy_coloring, dsatur_coloring
  *  @ingroup Graphs
@@ -335,7 +335,7 @@ size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t
  *  @param[out] colors Map with the result.
  *  @return The total number of colors used.
  *
- *  @note **Complexity**: $O(V \cdot (V+E))$ in this implementation.
+ *  @note **Complexity**: @f$O(V \cdot (V+E))@f$ in this implementation.
  *
  *  @see chromatic_number, welsh_powell_coloring
  *  @ingroup Graphs
@@ -425,7 +425,7 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *  @param[in] colors Color map to validate.
  *  @return `true` if the coloring is valid, `false` otherwise.
  *
- *  @note **Complexity**: $O(V + E)$.
+ *  @note **Complexity**: @f$O(V + E)@f$.
  *  @note The presence of self-loops makes any valid coloring impossible, so the 
  *        function returns false if any are detected.
  *
@@ -469,14 +469,14 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 
 /** @brief Computes the exact chromatic number of a small graph.
  *
- *  The chromatic number $\chi(G)$ is the minimum number of colors required to
+ *  The chromatic number @f$\chi(G)@f$ is the minimum number of colors required to
  *  color the graph. This problem is NP-hard.
  *
  *  The function uses a hybrid approach:
  *  1. Obtains an upper bound using DSatur.
- *  2. Performs a binary search over the number of colors $k \in [2, \text{bound}]$.
- *  3. For each $k$, uses a backtracking algorithm to determine if the graph
- *     is $k$-colorable.
+ *  2. Performs a binary search over the number of colors @f$k \in \{2, \dots, \text{upper\_bound}\}@f$.
+ *  3. For each @f$k@f$, uses a backtracking algorithm to determine if the graph
+ *     is @f$k@f$-colorable.
  *
  *  @tparam GT Graph type.
  *  @tparam SA Arc filter (defaults to @ref Dft_Show_Arc<GT>).
@@ -486,7 +486,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
  *
  *  @throws std::domain_error If the graph has more than 64 nodes.
  *
- *  @note **Complexity**: Exponential in the worst case. It is limited to $V \le 64$
+ *  @note **Complexity**: Exponential in the worst case. It is limited to @f$V \le 64@f$
  *        to avoid excessive execution times.
  *
  *  @see dsatur_coloring, is_valid_coloring
@@ -546,7 +546,7 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
 
     for (size_t i = 0; i < n; ++i)
       graph_coloring_detail::for_each_adjacent_node<GT, SA>(g, nodes[i], [&](Node *w) {
-        size_t j = reinterpret_cast<uintptr_t>(NODE_COOKIE(w));
+        size_t j = (size_t)reinterpret_cast<uintptr_t>(NODE_COOKIE(w));
         if (j != i)
           adj[i].append(j);
       });
