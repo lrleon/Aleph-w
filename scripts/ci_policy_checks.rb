@@ -51,6 +51,27 @@ def mit_license_header?(path)
 end
 
 
+def english_documentation?(path)
+  content = File.read(path) rescue return true
+  # Extract Doxygen blocks (/** ... */)
+  docs = content.scan(%r{/\*\*.*?\*/}m).join(' ')
+  return true if docs.empty?
+
+  # Check for common Spanish words that shouldn't be in English documentation
+  # (avoiding very short words or those that overlap with English/technical terms)
+  spanish_words = %w[
+    algoritmo biblioteca cabecera función parámetro retorno estructura
+    herencia polimorfismo puntero memoria asignación búscqueda ordenamiento
+    grafo nodo arista camino ciclo árbol hoja raíz
+    implementación descripción ejemplo advertencia nota opcional requerido
+    devuelve booleano entero real cadena carácter
+  ]
+  
+  # Case-insensitive word-boundary search
+  spanish_words.any? { |w| docs.match?(/\b#{Regexp.escape(w)}\b/i) } ? false : true
+end
+
+
 def main
   if github_event_name != 'pull_request'
     puts '[skip] not a pull_request event'
@@ -61,15 +82,17 @@ def main
   files = changed_files(base)
 
   headers_changed = files.select { |f| HEADER_EXTS.include?(File.extname(f)) }
+  sources_changed = files.select { |f| %w[.C .cc .cpp].include?(File.extname(f)) }
   tests_changed = files.select { |f| f.start_with?('Tests/') && TEST_EXTS.include?(File.extname(f)) }
 
   failures = []
 
-  headers_changed.each do |hf|
-    p = Pathname.new(hf)
+  (headers_changed + sources_changed).each do |file|
+    p = Pathname.new(file)
     next unless p.exist?
 
-    failures << "missing/invalid MIT license header: #{hf}" unless mit_license_header?(p)
+    failures << "missing/invalid MIT license header: #{file}" if HEADER_EXTS.include?(File.extname(file)) && !mit_license_header?(p)
+    failures << "documentation seems to be in Spanish (must be English): #{file}" unless english_documentation?(p)
   end
 
   if !headers_changed.empty? && tests_changed.empty?
