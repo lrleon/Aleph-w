@@ -114,7 +114,7 @@ static const char * color_name(size_t c)
   constexpr size_t N = sizeof(color_names) / sizeof(color_names[0]);
   if (c < N) return color_names[c];
   static char buf[32];
-  snprintf(buf, sizeof(buf), "Color%zu", c);
+  std::snprintf(buf, sizeof(buf), "Color%zu", c);
   return buf;
 }
 

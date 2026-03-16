@@ -13,6 +13,8 @@
 */
 
 # include <gtest/gtest.h>
+# include <random>
+# include <vector>
 # include <Graph_Coloring.H>
 # include <tpl_sgraph.H>
 # include <tpl_agraph.H>
@@ -909,4 +911,94 @@ TEST(GraphColoring, ChromaticNumberWheelOddRing)
 
   EXPECT_EQ(chromatic_number(g, colors), 4u);
   EXPECT_TRUE(is_valid_coloring(g, colors));
+}
+
+// ===================================================================
+// Tests: Randomized/Property-based testing
+// ===================================================================
+
+TEST(GraphColoring, RandomGraphsPropertyBased)
+{
+  // Fixed seed for reproducibility
+  std::mt19937 rng(42);
+  
+  auto build_random_graph = [&](size_t num_nodes, double edge_prob) -> Graph {
+    Graph g;
+    std::vector<Graph::Node *> nodes;
+    
+    for (size_t i = 0; i < num_nodes; ++i)
+      nodes.push_back(g.insert_node("v" + std::to_string(i)));
+    
+    std::uniform_real_distribution<> dist(0.0, 1.0);
+    for (size_t i = 0; i < num_nodes; ++i)
+      for (size_t j = i + 1; j < num_nodes; ++j)
+        if (dist(rng) < edge_prob)
+          g.insert_arc(nodes[i], nodes[j]);
+    
+    return g;
+  };
+  
+  auto max_degree = [](const Graph &g) -> size_t {
+    size_t delta = 0;
+    for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+      delta = std::max(delta, g.get_num_arcs(it.get_curr()));
+    return delta;
+  };
+  
+  // Test cases: sparse, medium, dense, disconnected
+  struct TestCase {
+    size_t nodes;
+    double edge_prob;
+    std::string description;
+  };
+  
+  std::vector<TestCase> test_cases = {
+    {10, 0.1, "sparse"},
+    {15, 0.3, "medium"},
+    {12, 0.6, "dense"},
+    {20, 0.05, "disconnected components"},
+    {8, 0.8, "very dense"}
+  };
+  
+  for (const auto &tc : test_cases)
+    {
+      for (int trial = 0; trial < 20; ++trial)
+        {
+          Graph g = build_random_graph(tc.nodes, tc.edge_prob);
+          
+          if (g.get_num_nodes() == 0)
+            continue;
+          
+          size_t delta = max_degree(g);
+          DynMapTree<Graph::Node *, size_t> colors;
+          
+          // Test DSatur
+          size_t k = dsatur_coloring(g, colors);
+          
+          // Invariant 1: coloring must be valid
+          EXPECT_TRUE(is_valid_coloring(g, colors))
+            << "DSatur produced invalid coloring for " << tc.description
+            << " graph (trial " << trial << ")";
+          
+          // Invariant 2: k <= Δ + 1 (Brooks' theorem bound)
+          EXPECT_LE(k, delta + 1)
+            << "DSatur used " << k << " colors but max degree is " << delta
+            << " for " << tc.description << " graph (trial " << trial << ")";
+          
+          // Test chromatic_number for small graphs
+          if (g.get_num_nodes() <= 15)
+            {
+              DynMapTree<Graph::Node *, size_t> exact_colors;
+              size_t chi = chromatic_number(g, exact_colors);
+              
+              EXPECT_TRUE(is_valid_coloring(g, exact_colors))
+                << "chromatic_number produced invalid coloring for " << tc.description
+                << " graph (trial " << trial << ")";
+              
+              EXPECT_LE(chi, k)
+                << "Exact chromatic number " << chi << " exceeds DSatur result " << k
+                << " for " << tc.description << " graph (trial " << trial << ")";
+            }
+        }
+    }
 }

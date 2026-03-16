@@ -20,6 +20,7 @@ BraceWrapping:
   AfterEnum: true
   AfterFunction: true
   AfterNamespace: false
+  BeforeLambdaBody: true
   AfterStruct: true
   AfterUnion: true
   BeforeCatch: true
@@ -32,9 +33,11 @@ ColumnLimit: 120
 BreakBeforeBinaryOperators: All
 BreakBeforeTernaryOperators: true
 AlwaysBreakAfterReturnType: None
-AlwaysBreakTemplateDeclarations: MultiLine
+AlwaysBreakTemplateDeclarations: Yes
 PenaltyBreakString: 1000
-PenaltyExcessCharacter: 1000000
+PenaltyExcessCharacter: 10
+PenaltyBreakBeforeFirstCallParameter: 100
+PenaltyReturnTypeOnItsOwnLine: 200
 
 # Spacing
 SpaceBeforeParens: ControlStatements
@@ -44,6 +47,9 @@ SpacesBeforeTrailingComments: 2
 SpaceInEmptyParentheses: false
 
 # Alignment
+AlignAfterOpenBracket: Align
+BinPackArguments: true
+BinPackParameters: true
 AlignOperands: AlignAfterOperator
 AlignTrailingComments: true
 AlignEscapedNewlines: Right
@@ -54,6 +60,7 @@ AlignConsecutiveDeclarations: AcrossComments
 # Other
 SortIncludes: false
 AllowShortFunctionsOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: Inline
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 1
 Standard: c++20

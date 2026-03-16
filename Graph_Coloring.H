@@ -130,8 +130,17 @@ inline size_t smallest_available(const DynSetTree<size_t> &used)
  *  @param[in] g Graph.
  *  @param[in] v Node whose neighbors to iterate.
  *  @param[in] op Operation to apply.
+ *
  *  @note For directed graphs (List_Digraph), this correctly handles both incoming
  *        and outgoing arcs by combining Out_Iterator with a full arc scan.
+ *
+ *  @warning **Complexity trade-off**: Outgoing arcs are iterated efficiently via
+ *        Out_Iterator (@f$O(\text{out-degree})@f$), but incoming arcs require a full
+ *        graph scan using Arc_Iterator + get_tgt_node/get_src_node (@f$O(E)@f$ per call).
+ *        This results in @f$O(V \cdot E)@f$ complexity when called for all nodes (e.g., in
+ *        DSatur). A DynSetTree is used to avoid duplicate neighbors. For large dense graphs,
+ *        consider using undirected graph types or algorithms that don't require reverse
+ *        adjacency iteration.
  */
 template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
 void for_each_adjacent_node(const GT &g, typename GT::Node *v, Op &&op)
@@ -140,28 +149,25 @@ void for_each_adjacent_node(const GT &g, typename GT::Node *v, Op &&op)
 
   // Outgoing arcs from v
   for (Out_Iterator<GT, SA> ait(v); ait.has_curr(); ait.next_ne())
-    {
-      auto *w = ait.get_node_ne();
-      if (seen.search(w) == nullptr)
-        {
-          seen.insert(w);
-          op(w);
-        }
-    }
+    if (auto *w = ait.get_node_ne(); seen.search(w) == nullptr)
+      {
+        seen.insert(w);
+        op(w);
+      }
 
   // Incoming arcs to v: iterate all graph arcs
+  // NOTE: We cannot use In_Iterator<GT, SA>(v) here because List_Digraph
+  // stores arcs only at the source node, making In_Iterator ineffective.
+  // This O(E) scan is necessary for correct bidirectional adjacency in digraphs.
   for (Arc_Iterator<GT, SA> ait(g); ait.has_curr(); ait.next_ne())
     {
       auto *arc = ait.get_curr();
       if (g.get_tgt_node(arc) == v)
-        {
-          auto *w = g.get_src_node(arc);
-          if (seen.search(w) == nullptr)
-            {
-              seen.insert(w);
-              op(w);
-            }
-        }
+        if (auto *w = g.get_src_node(arc); seen.search(w) == nullptr)
+          {
+            seen.insert(w);
+            op(w);
+          }
     }
 }
 
@@ -179,9 +185,8 @@ void validate_no_self_loops(const GT &g)
   for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
     {
       auto *v = it.get_curr();
-      for_each_adjacent_node<GT, SA>(g, v, [&v](auto *w) {
-        ah_domain_error_if(w == v) << "graph coloring does not support self-loops";
-      });
+      for_each_adjacent_node<GT, SA>(g, v, [&v](auto *w)
+                                     { ah_domain_error_if(w == v) << "graph coloring does not support self-loops"; });
     }
 }
 }  // end namespace graph_coloring_detail
@@ -234,10 +239,12 @@ size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
       DynSetTree<size_t> used;
 
       // Collect colors from neighbors
-      for_each_adjacent_node<GT, SA>(g, v, [&used](Node *w) {
-        if (is_colored(NODE_COOKIE(w)))
-          used.insert(decode_color(NODE_COOKIE(w)));
-      });
+      for_each_adjacent_node<GT, SA>(g, v,
+                                     [&used](Node *w)
+                                     {
+                                       if (is_colored(NODE_COOKIE(w)))
+                                         used.insert(decode_color(NODE_COOKIE(w)));
+                                     });
 
       // Assign the smallest available color
       size_t c       = smallest_available(used);
@@ -292,8 +299,18 @@ size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t
       nodes.append(p);
     }
 
-  // Sort by decreasing degree
-  mergesort(nodes, [&g](Node *a, Node *b) { return g.get_num_arcs(a) > g.get_num_arcs(b); });
+  // Sort by decreasing degree, using the same adjacency notion as for coloring
+  mergesort(nodes,
+            [&g](Node *a, Node *b)
+            {
+              size_t deg_a = 0;
+              size_t deg_b = 0;
+
+              for_each_adjacent_node<GT, SA>(g, a, [&deg_a](Node *) { ++deg_a; });
+              for_each_adjacent_node<GT, SA>(g, b, [&deg_b](Node *) { ++deg_b; });
+
+              return deg_a > deg_b;
+            });
 
   size_t num_colors = 0;
 
@@ -303,10 +320,12 @@ size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t
       Node              *v = nit.get_curr();
       DynSetTree<size_t> used;
 
-      for_each_adjacent_node<GT, SA>(g, v, [&used](Node *w) {
-        if (is_colored(NODE_COOKIE(w)))
-          used.insert(decode_color(NODE_COOKIE(w)));
-      });
+      for_each_adjacent_node<GT, SA>(g, v,
+                                     [&used](Node *w)
+                                     {
+                                       if (is_colored(NODE_COOKIE(w)))
+                                         used.insert(decode_color(NODE_COOKIE(w)));
+                                     });
 
       size_t c       = smallest_available(used);
       NODE_COOKIE(v) = encode_color(c);
@@ -375,15 +394,23 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
           if (is_colored(NODE_COOKIE(v)))
             continue;
 
-          // Saturation degree: count of distinct colors among neighbors
+          // Saturation degree: count of distinct colors among neighbors.
+          // Also count unique adjacent nodes for the degree tie-breaker
+          // (g.get_num_arcs(v) only returns out-degree for digraphs, which
+          // is inconsistent with for_each_adjacent_node that visits both
+          // in- and out-neighbors).
+          DynSetTree<Node *> neighbors;
           DynSetTree<size_t> neighbor_colors;
-          for_each_adjacent_node<GT, SA>(g, v, [&neighbor_colors](Node *w) {
-            if (is_colored(NODE_COOKIE(w)))
-              neighbor_colors.insert(decode_color(NODE_COOKIE(w)));
-          });
+          for_each_adjacent_node<GT, SA>(g, v,
+                                         [&neighbor_colors, &neighbors](Node *w)
+                                         {
+                                           neighbors.insert(w);
+                                           if (is_colored(NODE_COOKIE(w)))
+                                             neighbor_colors.insert(decode_color(NODE_COOKIE(w)));
+                                         });
 
           size_t sat = neighbor_colors.size();
-          size_t deg = g.get_num_arcs(v);
+          size_t deg = neighbors.size();  // consistent with for_each_adjacent_node
 
           // Priority: highest saturation, then highest degree.
           if (best == nullptr or sat > best_sat or (sat == best_sat and deg > best_deg))
@@ -396,10 +423,12 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
 
       // Color the chosen node
       DynSetTree<size_t> used;
-      for_each_adjacent_node<GT, SA>(g, best, [&used](Node *w) {
-        if (is_colored(NODE_COOKIE(w)))
-          used.insert(decode_color(NODE_COOKIE(w)));
-      });
+      for_each_adjacent_node<GT, SA>(g, best,
+                                     [&used](Node *w)
+                                     {
+                                       if (is_colored(NODE_COOKIE(w)))
+                                         used.insert(decode_color(NODE_COOKIE(w)));
+                                     });
 
       size_t c          = smallest_available(used);
       NODE_COOKIE(best) = encode_color(c);
@@ -426,7 +455,7 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *  @return `true` if the coloring is valid, `false` otherwise.
  *
  *  @note **Complexity**: @f$O(V + E)@f$.
- *  @note The presence of self-loops makes any valid coloring impossible, so the 
+ *  @note The presence of self-loops makes any valid coloring impossible, so the
  *        function returns false if any are detected.
  *
  *  @ingroup Graphs
@@ -448,17 +477,18 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
       size_t cv = colors.find(v);
 
       bool valid = true;
-      graph_coloring_detail::for_each_adjacent_node<GT, SA>(g, v, [&](Node *w) {
-        if (w == v)
-          {
-            valid = false;
-            return;
-          }
+      graph_coloring_detail::for_each_adjacent_node<GT, SA>(g, v,
+                                                            [&](Node *w)
+                                                            {
+                                                              if (w == v)
+                                                                {
+                                                                  valid = false;
+                                                                  return;
+                                                                }
 
-        size_t cw = colors.find(w);
-        if (cv == cw)
-          valid = false;
-      });
+                                                              if (size_t cw = colors.find(w); cv == cw)
+                                                                valid = false;
+                                                            });
 
       if (not valid)
         return false;
@@ -499,8 +529,7 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
 
   graph_coloring_detail::validate_no_self_loops<GT, SA>(g);
 
-  ah_domain_error_if(g.get_num_nodes() > 64)
-    << "chromatic_number: graph has " << g.get_num_nodes() << " nodes (max 64)";
+  ah_domain_error_if(g.get_num_nodes() > 64) << "chromatic_number: graph has " << g.get_num_nodes() << " nodes (max 64)";
 
   colors = {};
 
@@ -531,9 +560,9 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
   for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
     node_list.append(it.get_curr());
 
-  const size_t n = node_list.size();
+  const size_t  n = node_list.size();
   Array<Node *> nodes(n, nullptr);
-  size_t idx = 0;
+  size_t        idx = 0;
   for (auto it = node_list.get_it(); it.has_curr(); it.next_ne())
     nodes[idx++] = it.get_curr();
 
@@ -545,24 +574,28 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
       NODE_COOKIE(nodes[i]) = reinterpret_cast<void *>(static_cast<uintptr_t>(i));
 
     for (size_t i = 0; i < n; ++i)
-      graph_coloring_detail::for_each_adjacent_node<GT, SA>(g, nodes[i], [&](Node *w) {
-        size_t j = (size_t)reinterpret_cast<uintptr_t>(NODE_COOKIE(w));
-        if (j != i)
-          adj[i].append(j);
-      });
+      graph_coloring_detail::for_each_adjacent_node<GT, SA>(g, nodes[i],
+                                                            [&](Node *w)
+                                                            {
+                                                              size_t j
+                                                                = (size_t) reinterpret_cast<uintptr_t>(NODE_COOKIE(w));
+                                                              if (j != i)
+                                                                adj[i].append(j);
+                                                            });
   }
 
   // Coloring state for backtracking
   Array<size_t> coloring(n, static_cast<size_t>(0));
 
   auto reset_coloring = [&]()
-    {
-      for (size_t i = 0; i < n; ++i)
-        coloring[i] = 0;
-    };
+  {
+    for (size_t i = 0; i < n; ++i)
+      coloring[i] = 0;
+  };
 
   // Internal backtracking function to verify k-colorability.
-  auto try_k_coloring = [&](size_t k, auto &self, size_t node_idx) -> bool {
+  auto try_k_coloring = [&](size_t k, auto &self, size_t node_idx) -> bool
+  {
     if (node_idx == n)
       return true;
 
@@ -629,7 +662,8 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
  *  @tparam SA Arc filter.
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>> class Greedy_Coloring
+template <class GT, class SA = Dft_Show_Arc<GT>>
+class Greedy_Coloring
 {
 public:
   /** @brief Executes greedy coloring.
@@ -649,7 +683,8 @@ public:
  *  @tparam SA Arc filter.
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>> class Welsh_Powell_Coloring
+template <class GT, class SA = Dft_Show_Arc<GT>>
+class Welsh_Powell_Coloring
 {
 public:
   /** @brief Executes Welsh-Powell.
@@ -669,7 +704,8 @@ public:
  *  @tparam SA Arc filter.
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>> class DSatur_Coloring
+template <class GT, class SA = Dft_Show_Arc<GT>>
+class DSatur_Coloring
 {
 public:
   /** @brief Executes DSatur.

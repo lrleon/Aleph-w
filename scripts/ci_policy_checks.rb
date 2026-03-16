@@ -52,23 +52,31 @@ end
 
 
 def english_documentation?(path)
-  content = File.read(path) rescue return true
-  # Extract Doxygen blocks (/** ... */)
-  docs = content.scan(%r{/\*\*.*?\*/}m).join(' ')
+  begin
+    content = File.read(path)
+  rescue StandardError
+    return true
+  end
+  block_docs = content.scan(%r{/\*\*.*?\*/}m).join(' ')
+  line_docs = content.scan(%r{^\s*///.*$}).join(' ')
+  docs = [block_docs, line_docs].reject(&:empty?).join(' ')
   return true if docs.empty?
 
   # Check for common Spanish words that shouldn't be in English documentation
   # (avoiding very short words or those that overlap with English/technical terms)
   spanish_words = %w[
     algoritmo biblioteca cabecera función parámetro retorno estructura
-    herencia polimorfismo puntero memoria asignación búscqueda ordenamiento
+    herencia polimorfismo puntero memoria asignación búsqueda busqueda ordenamiento
     grafo nodo arista camino ciclo árbol hoja raíz
     implementación descripción ejemplo advertencia nota opcional requerido
     devuelve booleano entero real cadena carácter
   ]
   
-  # Case-insensitive word-boundary search
-  spanish_words.any? { |w| docs.match?(/\b#{Regexp.escape(w)}\b/i) } ? false : true
+  has_spanish = spanish_words.any? do |w|
+    docs.match?(/(^|[^\p{L}])#{Regexp.escape(w)}([^\p{L}]|$)/iu)
+  end
+
+  !has_spanish
 end
 
 
