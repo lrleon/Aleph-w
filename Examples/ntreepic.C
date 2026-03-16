@@ -2184,7 +2184,7 @@ int main(int argc, char *argv[])
         "  -e               Draw nodes as ellipses (default)\n"
         "  -q               Draw nodes as rectangles\n"
         "  -n               Minimum-radius mode (no node bodies, arcs only)\n"
-        "  -b               Emit textual start-prefix/start-key representation\n"
+        "  -b               Emit textual start-prefix/start-key representation of binary tree (via generate_bin_tree())\n"
         "  -L               Draw linked-list representation (with arrows)\n"
         "  -T               Draw forest layout (no linked-list representation)\n"
         "  -A               Draw arcs with arrows\n"

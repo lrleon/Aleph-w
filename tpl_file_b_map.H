@@ -267,6 +267,8 @@ namespace Aleph
      *  @param file_path Path to the backing file.
      *  @param auto_sync If `true`, successful mutations synchronize the file.
      *  @param cmp Comparison functor used to order keys.
+     *  @pre file_path != nullptr.
+     *  @throws std::invalid_argument If file_path is null or otherwise invalid (propagated from validated_path())
      *  @throws std::runtime_error If the backing file cannot be used.
      *  @throws std::bad_alloc If the page cache cannot be allocated.
      *  @note O(page_count) I/O to read the file header and root page.
@@ -274,13 +276,18 @@ namespace Aleph
     explicit Gen_File_B_Map(const char * file_path,
                             const bool auto_sync = true,
                             const Compare & cmp = Compare())
-      : tree_(validated_path(file_path), auto_sync, Record_Compare{cmp}) {}
+      : tree_(validated_path(file_path), auto_sync, Record_Compare{cmp})
+    {
+      ah_invalid_argument_if(file_path == nullptr) << "Gen_File_B_Map: file_path must not be null";
+    }
 
     /** @brief Open or create a persistent B-Tree map with an explicit mode.
      *  @param file_path Path to the backing file.
      *  @param open_mode `Read_Write` or `Read_Only`.
      *  @param auto_sync If `true`, successful mutations synchronize the file.
      *  @param cmp Comparison functor used to order keys.
+     *  @pre file_path != nullptr.
+     *  @throws std::invalid_argument If file_path is null or otherwise invalid (propagated from validated_path())
      *  @throws std::runtime_error If the backing file cannot be used.
      *  @throws std::bad_alloc If the page cache cannot be allocated.
      *  @note O(page_count) I/O to read the file header and root page.
@@ -289,7 +296,10 @@ namespace Aleph
                             const open_mode_type open_mode,
                             const bool auto_sync = true,
                             const Compare & cmp = Compare())
-      : tree_(validated_path(file_path), open_mode, auto_sync, Record_Compare{cmp}) {}
+      : tree_(validated_path(file_path), open_mode, auto_sync, Record_Compare{cmp})
+    {
+      ah_invalid_argument_if(file_path == nullptr) << "Gen_File_B_Map: file_path must not be null";
+    }
 
     /** @brief Copying is disabled. */
     Gen_File_B_Map(const Gen_File_B_Map &) = delete;

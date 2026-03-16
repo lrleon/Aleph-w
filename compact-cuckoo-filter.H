@@ -372,6 +372,8 @@ public:
   }
 
   /** @brief Alias for insert().
+   *  @param item Item to insert.
+   *  @return `true` if insertion succeeded, `false` if filter is full.
    *  @throws none.
    */
   bool append(const T &item)

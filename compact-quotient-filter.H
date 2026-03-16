@@ -377,7 +377,9 @@ public:
    *  @param[in] expected_n Expected number of elements.
    *  @param[in] fp_rate    Target false positive probability.
    *  @param[in] seed       Hash seed.
-   *  @throws std::domain_error if expected_n == 0 or fp_rate not in (0,1).
+   *  @throws std::domain_error if expected_n == 0, fp_rate not in (0,1),
+   *          or the requested (expected_n, fp_rate) cannot be represented
+   *          within the supported parameter ranges.
    */
   static Compact_Quotient_Filter from_capacity(size_t expected_n, double fp_rate, uint32_t seed = 0x5F3759DF)
   {
@@ -386,11 +388,24 @@ public:
       << "Compact_Quotient_Filter::from_capacity: fp_rate must be in (0, 1) (got " << fp_rate << ")";
 
     const double slots_needed = static_cast<double>(expected_n) / 0.75;
-    auto         q_v          = static_cast<uint8_t>(std::max(1.0, std::ceil(std::log2(slots_needed))));
-    auto         r_v          = static_cast<uint8_t>(std::max(1.0, std::ceil(-std::log2(fp_rate))));
+    const auto q_d = std::max(1.0, std::ceil(std::log2(slots_needed)));
+    const auto r_d = std::max(1.0, std::ceil(-std::log2(fp_rate)));
+
+    int q_v = static_cast<int>(q_d);
+    int r_v = static_cast<int>(r_d);
+
+    ah_domain_error_if(r_v < 1 or r_v > 60)
+      << "Compact_Quotient_Filter::from_capacity: requested fp_rate requires r = " << r_v
+      << " remainder bits, which is outside the supported range [1, 60]";
+
     if (q_v + r_v > 64)
-      q_v = static_cast<uint8_t>(64 - r_v);
-    return Compact_Quotient_Filter(q_v, r_v, seed);
+      q_v = 64 - r_v;
+
+    ah_domain_error_if(q_v < 1 or q_v > 32)
+      << "Compact_Quotient_Filter::from_capacity: requested (expected_n, fp_rate) leads to q = " << q_v
+      << ", which is outside the supported range [1, 32]";
+
+    return Compact_Quotient_Filter(static_cast<uint8_t>(q_v), static_cast<uint8_t>(r_v), seed);
   }
 
   /** @brief Insert an element.
