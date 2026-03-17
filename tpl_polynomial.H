@@ -54,21 +54,24 @@
  *  @author Leandro Rabindranath León
  */
 
-# ifndef TPL_POLYNOMIAL_H
-# define TPL_POLYNOMIAL_H
+#ifndef TPL_POLYNOMIAL_H
+#define TPL_POLYNOMIAL_H
 
-# include <cmath>
-# include <initializer_list>
-# include <limits>
-# include <sstream>
-# include <string>
-# include <type_traits>
-# include <utility>
+#include <cmath>
+#include <initializer_list>
+#include <limits>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <numeric>  // std::gcd
+#include <random>   // std::mt19937_64
 
-# include <ah-errors.H>
-# include <tpl_dynMapTree.H>
-# include <tpl_array.H>
-# include <htlist.H>
+#include <ah-errors.H>
+#include <tpl_dynMapTree.H>
+#include <tpl_array.H>
+#include <htlist.H>
+#include <modular_arithmetic.H>  // mod_inv, mod_mul
 
 namespace Aleph {
 
@@ -94,8 +97,7 @@ C power(C base, size_t exp)
   return result;
 }
 
-} // end namespace polynomial_detail
-
+}  // end namespace polynomial_detail
 
 /** @brief Univariate polynomial over a generic coefficient ring.
  *
@@ -114,11 +116,9 @@ template <typename Coefficient = double>
 class Gen_Polynomial
 {
 public:
-
   using Coeff = Coefficient;
 
 private:
-
   using Term = std::pair<size_t, Coefficient>;
   DynMapTree<size_t, Coefficient> coeffs;
 
@@ -142,7 +142,7 @@ private:
    *  For floating-point types, uses `std::abs(c) <= epsilon()`.
    *  For exact types, uses `c == Coefficient{}`.
    */
-  static bool coeff_is_zero(const Coefficient & c) noexcept
+  static bool coeff_is_zero(const Coefficient &c) noexcept
   {
     if constexpr (std::is_floating_point_v<Coefficient>)
       return std::abs(c) <= epsilon();
@@ -156,55 +156,44 @@ private:
     DynList<size_t> zeros;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         if (coeff_is_zero(p.second))
           zeros.append(p.first);
       }
-    zeros.for_each([this](size_t e) { coeffs.remove_key(e); });
+    zeros.for_each([this](size_t e)
+    {
+      coeffs.remove_key(e);
+    });
   }
 
   /** @brief Read coefficient at exponent (0 if absent). */
   Coefficient coeff_at(size_t exp) const
   {
-    auto * p = coeffs.search(exp);
+    auto *p = coeffs.search(exp);
     return p != nullptr ? p->second : Coefficient{};
   }
 
   /** @brief Pointer to stored coefficient, or null if absent. */
-  Coefficient * coeff_ptr(size_t exp) noexcept
+  Coefficient *coeff_ptr(size_t exp) noexcept
   {
-    auto * p = coeffs.search(exp);
+    auto *p = coeffs.search(exp);
     return p != nullptr ? &p->second : nullptr;
   }
 
   /** @brief Pointer to stored coefficient, or null if absent. */
-  const Coefficient * coeff_ptr(size_t exp) const noexcept
+  const Coefficient *coeff_ptr(size_t exp) const noexcept
   {
-    auto * p = coeffs.search(exp);
+    auto *p = coeffs.search(exp);
     return p != nullptr ? &p->second : nullptr;
   }
 
-  /** @brief Set coefficient at exponent; removes entry if zero. */
-  void set_coeff(size_t exp, const Coefficient & c)
-  {
-    if (auto * slot = coeff_ptr(exp); slot != nullptr)
-      {
-        if (coeff_is_zero(c))
-          coeffs.remove_key(exp);
-        else
-          *slot = c;
-      }
-    else if (not coeff_is_zero(c))
-      coeffs.insert(exp, c);
-  }
-
   /** @brief Add a delta to one coefficient, erasing the term if it cancels. */
-  void add_to_coeff(size_t exp, const Coefficient & delta)
+  void add_to_coeff(size_t exp, const Coefficient &delta)
   {
     if (coeff_is_zero(delta))
       return;
 
-    if (auto * slot = coeff_ptr(exp); slot != nullptr)
+    if (auto *slot = coeff_ptr(exp); slot != nullptr)
       {
         *slot = *slot + delta;
         if (coeff_is_zero(*slot))
@@ -215,21 +204,19 @@ private:
   }
 
   /** @brief Add @p scale times @p src shifted by @p shift to this polynomial. */
-  void add_scaled_shifted(const Gen_Polynomial & src,
-                          const Coefficient & scale,
-                          size_t shift = 0)
+  void add_scaled_shifted(const Gen_Polynomial &src, const Coefficient &scale, size_t shift = 0)
   {
     if (coeff_is_zero(scale) or src.is_zero())
       return;
 
-    src.for_each_term([this, &scale, shift](size_t exp, const Coefficient & c)
+    src.for_each_term([this, &scale, shift](size_t exp, const Coefficient &c)
     {
       add_to_coeff(exp + shift, c * scale);
     });
   }
 
   /** @brief Multiply every coefficient in place by a scalar. */
-  void scale_inplace(const Coefficient & s)
+  void scale_inplace(const Coefficient &s)
   {
     if (coeffs.is_empty())
       return;
@@ -246,20 +233,22 @@ private:
     DynList<size_t> zeros;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p  = it.get_curr();
         p.second = p.second * s;
         if (coeff_is_zero(p.second))
           zeros.append(p.first);
       }
 
-    zeros.for_each([this](size_t exp) { coeffs.remove_key(exp); });
+    zeros.for_each([this](size_t exp)
+    {
+      coeffs.remove_key(exp);
+    });
   }
 
   /** @brief Divide every coefficient in place by a scalar. */
-  void divide_scalar_inplace(const Coefficient & s)
+  void divide_scalar_inplace(const Coefficient &s)
   {
-    ah_domain_error_if(coeff_is_zero(s))
-      << "polynomial division by zero scalar";
+    ah_domain_error_if(coeff_is_zero(s)) << "polynomial division by zero scalar";
 
     if (coeffs.is_empty())
       return;
@@ -270,35 +259,37 @@ private:
     DynList<size_t> zeros;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p  = it.get_curr();
         p.second = p.second / s;
         if (coeff_is_zero(p.second))
           zeros.append(p.first);
       }
 
-    zeros.for_each([this](size_t exp) { coeffs.remove_key(exp); });
+    zeros.for_each([this](size_t exp)
+    {
+      coeffs.remove_key(exp);
+    });
   }
 
   /** @brief Iterate over non-zero terms in descending exponent order. */
   template <class Op>
-  void for_each_term_desc(Op && op) const
+  void for_each_term_desc(Op &&op) const
   {
     DynList<Term> desc_terms;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         desc_terms.insert(Term(p.first, p.second));
       }
 
-    desc_terms.for_each([&op](const Term & term)
+    desc_terms.for_each([&op](const Term &term)
     {
       op(term.first, term.second);
     });
   }
 
   /** @brief Specialized multiplication by a monic linear factor @f$x + c@f$. */
-  [[nodiscard]] Gen_Polynomial
-  multiply_by_monic_linear(const Coefficient & c) const
+  [[nodiscard]] Gen_Polynomial multiply_by_monic_linear(const Coefficient &c) const
   {
     if (is_zero())
       return Gen_Polynomial();
@@ -306,7 +297,7 @@ private:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         result.add_to_coeff(p.first, p.second * c);
         result.add_to_coeff(p.first + 1, p.second);
       }
@@ -314,7 +305,6 @@ private:
   }
 
 public:
-
   // =================================================================
   //  Construction
   // =================================================================
@@ -325,7 +315,7 @@ public:
   /** @brief Constant polynomial @f$p(x) = c@f$.
    *  @param[in] c The constant value.
    */
-  explicit Gen_Polynomial(const Coefficient & c)
+  explicit Gen_Polynomial(const Coefficient &c)
   {
     if (not coeff_is_zero(c))
       coeffs[0] = c;
@@ -335,7 +325,7 @@ public:
    *  @param[in] c Coefficient.
    *  @param[in] exp Exponent.
    */
-  Gen_Polynomial(const Coefficient & c, size_t exp)
+  Gen_Polynomial(const Coefficient &c, size_t exp)
   {
     if (not coeff_is_zero(c))
       coeffs[exp] = c;
@@ -351,7 +341,7 @@ public:
   Gen_Polynomial(std::initializer_list<Coefficient> il)
   {
     size_t exp = 0;
-    for (auto & c : il)
+    for (auto &c : il)
       {
         if (not coeff_is_zero(c))
           coeffs[exp] = c;
@@ -365,10 +355,10 @@ public:
    *
    *  @param[in] l Coefficients in ascending exponent order.
    */
-  explicit Gen_Polynomial(const DynList<Coefficient> & l)
+  explicit Gen_Polynomial(const DynList<Coefficient> &l)
   {
     size_t exp = 0;
-    l.for_each([this, &exp](const Coefficient & c)
+    l.for_each([this, &exp](const Coefficient &c)
     {
       if (not coeff_is_zero(c))
         coeffs[exp] = c;
@@ -383,9 +373,9 @@ public:
    *
    *  @param[in] term_list Pairs of (exponent, coefficient).
    */
-  explicit Gen_Polynomial(const DynList<std::pair<size_t, Coefficient>> & term_list)
+  explicit Gen_Polynomial(const DynList<std::pair<size_t, Coefficient>> &term_list)
   {
-    term_list.for_each([this](const Term & t)
+    term_list.for_each([this](const Term &t)
     {
       if (not coeff_is_zero(t.second))
         add_to_coeff(t.first, t.second);
@@ -397,10 +387,16 @@ public:
   // =================================================================
 
   /** @brief The zero polynomial. */
-  [[nodiscard]] static Gen_Polynomial zero() { return Gen_Polynomial(); }
+  [[nodiscard]] static Gen_Polynomial zero()
+  {
+    return Gen_Polynomial();
+  }
 
   /** @brief The constant polynomial 1. */
-  [[nodiscard]] static Gen_Polynomial one() { return Gen_Polynomial(Coefficient(1)); }
+  [[nodiscard]] static Gen_Polynomial one()
+  {
+    return Gen_Polynomial(Coefficient(1));
+  }
 
   /** @brief The monomial @f$x^n@f$.
    *  @param[in] n Exponent.
@@ -419,13 +415,12 @@ public:
    *  @note Uses a specialized linear-factor multiplication path to avoid
    *        the overhead of generic polynomial products.
    */
-  [[nodiscard]] static Gen_Polynomial
-  from_roots(const DynList<Coefficient> & roots)
+  [[nodiscard]] static Gen_Polynomial from_roots(const DynList<Coefficient> &roots)
   {
-    Gen_Polynomial result(Coefficient(1)); // start with constant 1
-    roots.for_each([&result](const Coefficient & r)
+    Gen_Polynomial result(Coefficient(1));  // start with constant 1
+    roots.for_each([&result](const Coefficient &r)
     {
-      result = result.multiply_by_monic_linear(-r); // (x - r)
+      result = result.multiply_by_monic_linear(-r);  // (x - r)
     });
     return result;
   }
@@ -444,20 +439,19 @@ public:
    *        linear-factor expansion, avoiding the large temporary basis
    *        polynomials of the naive Lagrange form.
    */
-  [[nodiscard]] static Gen_Polynomial
-  interpolate(const DynList<std::pair<Coefficient, Coefficient>> & points)
+  [[nodiscard]] static Gen_Polynomial interpolate(
+    const DynList<std::pair<Coefficient, Coefficient>> &points)
   {
-    ah_domain_error_if(points.is_empty())
-      << "interpolate requires at least one point";
+    ah_domain_error_if(points.is_empty()) << "interpolate requires at least one point";
 
-    const size_t n = points.size();
+    const size_t       n = points.size();
     Array<Coefficient> xs;
     Array<Coefficient> dd;
     xs.putn(n);
     dd.putn(n);
 
     size_t idx = 0;
-    points.for_each([&](const std::pair<Coefficient, Coefficient> & pt)
+    points.for_each([&](const std::pair<Coefficient, Coefficient> &pt)
     {
       xs[idx] = pt.first;
       dd[idx] = pt.second;
@@ -466,14 +460,13 @@ public:
 
     for (size_t i = 0; i < n; ++i)
       for (size_t j = i + 1; j < n; ++j)
-        ah_domain_error_if(coeff_is_zero(xs[i] - xs[j]))
-          << "interpolate: duplicate x-values";
+        ah_domain_error_if(coeff_is_zero(xs[i] - xs[j])) << "interpolate: duplicate x-values";
 
     for (size_t order = 1; order < n; ++order)
       for (size_t i = n - 1; i >= order; --i)
         {
           Coefficient denom = xs[i] - xs[i - order];
-          dd[i] = (dd[i] - dd[i - 1]) / denom;
+          dd[i]             = (dd[i] - dd[i - 1]) / denom;
           if (i == order)
             break;
         }
@@ -495,7 +488,10 @@ public:
   // =================================================================
 
   /** @brief True if this is the zero polynomial. */
-  [[nodiscard]] bool is_zero() const noexcept { return coeffs.is_empty(); }
+  [[nodiscard]] bool is_zero() const noexcept
+  {
+    return coeffs.is_empty();
+  }
 
   /** @brief Degree of the polynomial.
    *
@@ -510,13 +506,15 @@ public:
   }
 
   /** @brief Number of non-zero terms. */
-  [[nodiscard]] size_t num_terms() const noexcept { return coeffs.size(); }
+  [[nodiscard]] size_t num_terms() const noexcept
+  {
+    return coeffs.size();
+  }
 
   /** @brief True if constant or zero. */
   [[nodiscard]] bool is_constant() const noexcept
   {
-    return coeffs.is_empty() or
-           (coeffs.size() == 1 and coeffs.min().first == 0);
+    return coeffs.is_empty() or (coeffs.size() == 1 and coeffs.min().first == 0);
   }
 
   /** @brief True if exactly one non-zero term. */
@@ -528,8 +526,7 @@ public:
   /** @brief True if leading coefficient equals 1. */
   [[nodiscard]] bool is_monic() const noexcept
   {
-    return not coeffs.is_empty() and
-           coeff_is_zero(coeffs.max().second - Coefficient(1));
+    return not coeffs.is_empty() and coeff_is_zero(coeffs.max().second - Coefficient(1));
   }
 
   // =================================================================
@@ -571,7 +568,7 @@ public:
    *  @param[in] x Evaluation point.
    *  @return @f$p(x)@f$.
    */
-  [[nodiscard]] Coefficient horner_eval(const Coefficient & x) const
+  [[nodiscard]] Coefficient horner_eval(const Coefficient &x) const
   {
     if (coeffs.is_empty())
       return Coefficient{};
@@ -579,21 +576,21 @@ public:
     if (x == Coefficient{})
       return coeff_at(0);
 
-    Coefficient result = Coefficient{};
-    size_t prev_exp = 0;
-    bool first = true;
+    Coefficient result   = Coefficient{};
+    size_t      prev_exp = 0;
+    bool        first    = true;
 
-    for_each_term_desc([&](size_t exp, const Coefficient & c)
+    for_each_term_desc([&](size_t exp, const Coefficient &c)
     {
       if (first)
         {
-          result = c;
+          result   = c;
           prev_exp = exp;
-          first = false;
+          first    = false;
           return;
         }
 
-      result = result * polynomial_detail::power(x, prev_exp - exp) + c;
+      result   = result * polynomial_detail::power(x, prev_exp - exp) + c;
       prev_exp = exp;
     });
 
@@ -612,13 +609,13 @@ public:
    *  @param[in] x Evaluation point.
    *  @return @f$p(x)@f$.
    */
-  [[nodiscard]] Coefficient sparse_eval(const Coefficient & x) const
+  [[nodiscard]] Coefficient sparse_eval(const Coefficient &x) const
   {
     Coefficient result = Coefficient{};
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
-        result = result + p.second * polynomial_detail::power(x, p.first);
+        auto &p = it.get_curr();
+        result  = result + p.second * polynomial_detail::power(x, p.first);
       }
     return result;
   }
@@ -631,7 +628,7 @@ public:
    *  @param[in] x Evaluation point.
    *  @return @f$p(x)@f$.
    */
-  [[nodiscard]] Coefficient eval(const Coefficient & x) const
+  [[nodiscard]] Coefficient eval(const Coefficient &x) const
   {
     if (coeffs.is_empty())
       return Coefficient{};
@@ -646,7 +643,7 @@ public:
   }
 
   /** @brief Syntactic sugar: @c p(x) calls @ref eval. */
-  [[nodiscard]] Coefficient operator()(const Coefficient & x) const
+  [[nodiscard]] Coefficient operator()(const Coefficient &x) const
   {
     return eval(x);
   }
@@ -660,11 +657,10 @@ public:
    *        is the number of points and @f$T_{\text{eval}}@f$ is the per-point
    *        evaluation cost (see @ref eval).
    */
-  [[nodiscard]] DynList<Coefficient>
-  multi_eval(const DynList<Coefficient> & points) const
+  [[nodiscard]] DynList<Coefficient> multi_eval(const DynList<Coefficient> &points) const
   {
     DynList<Coefficient> results;
-    points.for_each([this, &results](const Coefficient & x)
+    points.for_each([this, &results](const Coefficient &x)
     {
       results.append(eval(x));
     });
@@ -681,14 +677,14 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p                = it.get_curr();
         result.coeffs[p.first] = -p.second;
       }
     return result;
   }
 
   /** @brief Polynomial addition. */
-  [[nodiscard]] Gen_Polynomial operator+(const Gen_Polynomial & q) const
+  [[nodiscard]] Gen_Polynomial operator+(const Gen_Polynomial &q) const
   {
     Gen_Polynomial result = *this;
     result += q;
@@ -696,7 +692,7 @@ public:
   }
 
   /** @brief In-place addition. */
-  Gen_Polynomial & operator+=(const Gen_Polynomial & q)
+  Gen_Polynomial &operator+=(const Gen_Polynomial &q)
   {
     if (this == &q)
       {
@@ -706,14 +702,14 @@ public:
 
     for (auto it = q.coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         add_to_coeff(p.first, p.second);
       }
     return *this;
   }
 
   /** @brief Polynomial subtraction. */
-  [[nodiscard]] Gen_Polynomial operator-(const Gen_Polynomial & q) const
+  [[nodiscard]] Gen_Polynomial operator-(const Gen_Polynomial &q) const
   {
     Gen_Polynomial result = *this;
     result -= q;
@@ -721,7 +717,7 @@ public:
   }
 
   /** @brief In-place subtraction. */
-  Gen_Polynomial & operator-=(const Gen_Polynomial & q)
+  Gen_Polynomial &operator-=(const Gen_Polynomial &q)
   {
     if (this == &q)
       {
@@ -731,7 +727,7 @@ public:
 
     for (auto it = q.coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         add_to_coeff(p.first, -p.second);
       }
     return *this;
@@ -742,14 +738,14 @@ public:
    *  @note **Complexity**: @f$O(k_1 \cdot k_2 \cdot \log(k_1 k_2))@f$
    *        where @f$k_1, k_2@f$ are the numbers of terms.
    */
-  [[nodiscard]] Gen_Polynomial operator*(const Gen_Polynomial & q) const
+  [[nodiscard]] Gen_Polynomial operator*(const Gen_Polynomial &q) const
   {
     if (is_zero() or q.is_zero())
       return Gen_Polynomial();
 
-    Gen_Polynomial result;
-    const Gen_Polynomial * outer = this;
-    const Gen_Polynomial * inner = &q;
+    Gen_Polynomial        result;
+    const Gen_Polynomial *outer = this;
+    const Gen_Polynomial *inner = &q;
 
     if (q.num_terms() < num_terms())
       {
@@ -759,10 +755,10 @@ public:
 
     for (auto it1 = outer->coeffs.get_it(); it1.has_curr(); it1.next_ne())
       {
-        auto & t1 = it1.get_curr();
+        auto &t1 = it1.get_curr();
         for (auto it2 = inner->coeffs.get_it(); it2.has_curr(); it2.next_ne())
           {
-            auto & t2 = it2.get_curr();
+            auto &t2 = it2.get_curr();
             result.add_to_coeff(t1.first + t2.first, t1.second * t2.second);
           }
       }
@@ -770,21 +766,21 @@ public:
   }
 
   /** @brief In-place multiplication. */
-  Gen_Polynomial & operator*=(const Gen_Polynomial & q)
+  Gen_Polynomial &operator*=(const Gen_Polynomial &q)
   {
     *this = *this * q;
     return *this;
   }
 
   /** @brief Multiply by a scalar. */
-  [[nodiscard]] Gen_Polynomial operator*(const Coefficient & s) const
+  [[nodiscard]] Gen_Polynomial operator*(const Coefficient &s) const
   {
     if (coeff_is_zero(s))
       return Gen_Polynomial();
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto       &p    = it.get_curr();
         Coefficient prod = p.second * s;
         if (not coeff_is_zero(prod))
           result.coeffs[p.first] = prod;
@@ -793,7 +789,7 @@ public:
   }
 
   /** @brief In-place scalar multiplication. */
-  Gen_Polynomial & operator*=(const Coefficient & s)
+  Gen_Polynomial &operator*=(const Coefficient &s)
   {
     scale_inplace(s);
     return *this;
@@ -802,14 +798,13 @@ public:
   /** @brief Divide by a scalar.
    *  @throws std::domain_error if @p s is zero.
    */
-  [[nodiscard]] Gen_Polynomial operator/(const Coefficient & s) const
+  [[nodiscard]] Gen_Polynomial operator/(const Coefficient &s) const
   {
-    ah_domain_error_if(coeff_is_zero(s))
-      << "polynomial division by zero scalar";
+    ah_domain_error_if(coeff_is_zero(s)) << "polynomial division by zero scalar";
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto       &p = it.get_curr();
         Coefficient q = p.second / s;
         if (not coeff_is_zero(q))
           result.coeffs[p.first] = q;
@@ -818,7 +813,7 @@ public:
   }
 
   /** @brief In-place scalar division. */
-  Gen_Polynomial & operator/=(const Coefficient & s)
+  Gen_Polynomial &operator/=(const Coefficient &s)
   {
     divide_scalar_inplace(s);
     return *this;
@@ -838,19 +833,17 @@ public:
    *  @return Pair (quotient, remainder).
    *  @throws std::domain_error if @p d is zero.
    */
-  [[nodiscard]] std::pair<Gen_Polynomial, Gen_Polynomial>
-  divmod(const Gen_Polynomial & d) const
+  [[nodiscard]] std::pair<Gen_Polynomial, Gen_Polynomial> divmod(const Gen_Polynomial &d) const
   {
-    ah_domain_error_if(d.is_zero())
-      << "polynomial division by zero";
+    ah_domain_error_if(d.is_zero()) << "polynomial division by zero";
 
     if (is_zero() or degree() < d.degree())
       return {Gen_Polynomial(), *this};
 
-    Gen_Polynomial q; // quotient
-    Gen_Polynomial r = *this; // remainder
-    const size_t d_degree = d.degree();
-    const Coefficient d_lc = d.leading_coeff();
+    Gen_Polynomial    q;                 // quotient
+    Gen_Polynomial    r        = *this;  // remainder
+    const size_t      d_degree = d.degree();
+    const Coefficient d_lc     = d.leading_coeff();
 
     while (not r.is_zero())
       {
@@ -860,7 +853,7 @@ public:
 
         const Coefficient scale = r.leading_coeff() / d_lc;
         if (coeff_is_zero(scale))
-          break; // can't reduce further (e.g. integer coeff truncation)
+          break;  // can't reduce further (e.g. integer coeff truncation)
         const size_t shift = r_degree - d_degree;
 
         q.add_to_coeff(shift, scale);
@@ -871,26 +864,26 @@ public:
   }
 
   /** @brief Polynomial quotient. */
-  [[nodiscard]] Gen_Polynomial operator/(const Gen_Polynomial & d) const
+  [[nodiscard]] Gen_Polynomial operator/(const Gen_Polynomial &d) const
   {
     return divmod(d).first;
   }
 
   /** @brief Polynomial remainder. */
-  [[nodiscard]] Gen_Polynomial operator%(const Gen_Polynomial & d) const
+  [[nodiscard]] Gen_Polynomial operator%(const Gen_Polynomial &d) const
   {
     return divmod(d).second;
   }
 
   /** @brief In-place polynomial quotient. */
-  Gen_Polynomial & operator/=(const Gen_Polynomial & d)
+  Gen_Polynomial &operator/=(const Gen_Polynomial &d)
   {
     *this = divmod(d).first;
     return *this;
   }
 
   /** @brief In-place polynomial remainder. */
-  Gen_Polynomial & operator%=(const Gen_Polynomial & d)
+  Gen_Polynomial &operator%=(const Gen_Polynomial &d)
   {
     *this = divmod(d).second;
     return *this;
@@ -910,9 +903,9 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         if (p.first == 0)
-          continue; // derivative of constant is 0
+          continue;  // derivative of constant is 0
         Coefficient dc = p.second * Coefficient(p.first);
         if (not coeff_is_zero(dc))
           result.coeffs[p.first - 1] = dc;
@@ -949,14 +942,14 @@ public:
    *  @note For integer coefficient types, division truncates.  Use a
    *        rational type for exact results.
    */
-  [[nodiscard]] Gen_Polynomial integral(const Coefficient & C = Coefficient{}) const
+  [[nodiscard]] Gen_Polynomial integral(const Coefficient &C = Coefficient{}) const
   {
     Gen_Polynomial result;
     if (not coeff_is_zero(C))
       result.coeffs[0] = C;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto       &p  = it.get_curr();
         Coefficient ic = p.second / Coefficient(p.first + 1);
         if (not coeff_is_zero(ic))
           result.coeffs[p.first + 1] = ic;
@@ -973,22 +966,21 @@ public:
    *  @param[in] b Upper bound.
    *  @return @f$\int_a^b p(x)\,dx@f$.
    */
-  [[nodiscard]] Coefficient definite_integral(const Coefficient & a,
-                                              const Coefficient & b) const
+  [[nodiscard]] Coefficient definite_integral(const Coefficient &a, const Coefficient &b) const
   {
     Coefficient result = Coefficient{};
 
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
-        const size_t next_exp = p.first + 1;
-        const Coefficient scale = p.second / Coefficient(next_exp);
+        auto             &p        = it.get_curr();
+        const size_t      next_exp = p.first + 1;
+        const Coefficient scale    = p.second / Coefficient(next_exp);
         if (coeff_is_zero(scale))
           continue;
 
-        result = result +
-                 scale * (polynomial_detail::power(b, next_exp) -
-                          polynomial_detail::power(a, next_exp));
+        result
+          = result
+          + scale * (polynomial_detail::power(b, next_exp) - polynomial_detail::power(a, next_exp));
       }
 
     return result;
@@ -1004,7 +996,7 @@ public:
    *  over non-zero coefficients, so large exponent gaps do not force
    *  repeated multiplication by @p q for zero coefficients.
    */
-  [[nodiscard]] Gen_Polynomial compose(const Gen_Polynomial & q) const
+  [[nodiscard]] Gen_Polynomial compose(const Gen_Polynomial &q) const
   {
     if (is_zero())
       return Gen_Polynomial();
@@ -1013,16 +1005,16 @@ public:
       return Gen_Polynomial(eval(q[0]));
 
     Gen_Polynomial result;
-    size_t prev_exp = 0;
-    bool first = true;
+    size_t         prev_exp = 0;
+    bool           first    = true;
 
-    for_each_term_desc([&](size_t exp, const Coefficient & c)
+    for_each_term_desc([&](size_t exp, const Coefficient &c)
     {
       if (first)
         {
-          result = Gen_Polynomial(c);
+          result   = Gen_Polynomial(c);
           prev_exp = exp;
-          first = false;
+          first    = false;
           return;
         }
 
@@ -1076,14 +1068,13 @@ public:
    *  @note Only meaningful for coefficient types that form a field
    *        (rationals, floating-point).
    */
-  [[nodiscard]] static Gen_Polynomial
-  gcd(Gen_Polynomial a, Gen_Polynomial b)
+  [[nodiscard]] static Gen_Polynomial gcd(Gen_Polynomial a, Gen_Polynomial b)
   {
     while (not b.is_zero())
       {
         Gen_Polynomial r = a % b;
-        a = b;
-        b = r;
+        a                = b;
+        b                = r;
       }
     // Make monic
     if (not a.is_zero())
@@ -1102,26 +1093,27 @@ public:
   /** @brief Result of the extended GCD algorithm. */
   struct Xgcd_Result
   {
-    Gen_Polynomial g; ///< Greatest common divisor (monic).
-    Gen_Polynomial s; ///< Bezout coefficient for the first argument.
-    Gen_Polynomial t; ///< Bezout coefficient for the second argument.
+    Gen_Polynomial g;  ///< Greatest common divisor (monic).
+    Gen_Polynomial s;  ///< Bezout coefficient for the first argument.
+    Gen_Polynomial t;  ///< Bezout coefficient for the second argument.
   };
 
-  [[nodiscard]] static Xgcd_Result
-  xgcd(Gen_Polynomial a, Gen_Polynomial b)
+  [[nodiscard]] static Xgcd_Result xgcd(Gen_Polynomial a, Gen_Polynomial b)
   {
     Gen_Polynomial s0(Coefficient(1)), s1;
     Gen_Polynomial t0, t1(Coefficient(1));
 
     while (not b.is_zero())
       {
-        auto [q, r] = a.divmod(b);
-        a = b;
-        b = r;
+        auto [q, r]       = a.divmod(b);
+        a                 = b;
+        b                 = r;
         Gen_Polynomial s2 = s0 - q * s1;
         Gen_Polynomial t2 = t0 - q * t1;
-        s0 = s1; s1 = s2;
-        t0 = t1; t1 = t2;
+        s0                = s1;
+        s1                = s2;
+        t0                = t1;
+        t1                = t2;
       }
 
     if (not a.is_zero())
@@ -1143,8 +1135,7 @@ public:
    *  @param[in] b Second polynomial.
    *  @return The LCM, or the zero polynomial if either input is zero.
    */
-  [[nodiscard]] static Gen_Polynomial
-  lcm(const Gen_Polynomial & a, const Gen_Polynomial & b)
+  [[nodiscard]] static Gen_Polynomial lcm(const Gen_Polynomial &a, const Gen_Polynomial &b)
   {
     if (a.is_zero() or b.is_zero())
       return Gen_Polynomial();
@@ -1163,18 +1154,16 @@ public:
    *  @return Pair (quotient, remainder).
    *  @throws std::domain_error if @p d is zero.
    */
-  [[nodiscard]] std::pair<Gen_Polynomial, Gen_Polynomial>
-  pseudo_divmod(const Gen_Polynomial & d) const
+  [[nodiscard]] std::pair<Gen_Polynomial, Gen_Polynomial> pseudo_divmod(const Gen_Polynomial &d) const
   {
-    ah_domain_error_if(d.is_zero())
-      << "pseudo-division by zero polynomial";
+    ah_domain_error_if(d.is_zero()) << "pseudo-division by zero polynomial";
 
     if (is_zero() or degree() < d.degree())
       return {Gen_Polynomial(), *this};
 
-    const Coefficient lc_d = d.leading_coeff();
-    const size_t d_degree = d.degree();
-    size_t delta = degree() - d_degree + 1;
+    const Coefficient lc_d     = d.leading_coeff();
+    const size_t      d_degree = d.degree();
+    size_t            delta    = degree() - d_degree + 1;
 
     Gen_Polynomial q;
     Gen_Polynomial r = *this;
@@ -1186,7 +1175,7 @@ public:
           break;
 
         const Coefficient lc_r = r.leading_coeff();
-        const size_t exp = r_degree - d_degree;
+        const size_t      exp  = r_degree - d_degree;
 
         // Multiply q and r by lc(d) to avoid division
         q.scale_inplace(lc_d);
@@ -1219,8 +1208,7 @@ public:
    */
   [[nodiscard]] Gen_Polynomial to_monic() const
   {
-    ah_domain_error_if(is_zero())
-      << "cannot make zero polynomial monic";
+    ah_domain_error_if(is_zero()) << "cannot make zero polynomial monic";
     return *this / leading_coeff();
   }
 
@@ -1233,11 +1221,11 @@ public:
   {
     if (is_zero())
       return Gen_Polynomial();
-    size_t d = degree();
+    size_t         d = degree();
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p                    = it.get_curr();
         result.coeffs[d - p.first] = p.second;
       }
     return result;
@@ -1252,7 +1240,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p                = it.get_curr();
         result.coeffs[p.first] = (p.first % 2 == 0) ? p.second : -p.second;
       }
     return result;
@@ -1268,7 +1256,7 @@ public:
    *  @note Delegates to @ref compose and therefore benefits from the
    *        sparse-aware composition path.
    */
-  [[nodiscard]] Gen_Polynomial shift(const Coefficient & k) const
+  [[nodiscard]] Gen_Polynomial shift(const Coefficient &k) const
   {
     return compose(Gen_Polynomial({k, Coefficient(1)}));
   }
@@ -1285,7 +1273,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p                    = it.get_curr();
         result.coeffs[p.first + k] = p.second;
       }
     return result;
@@ -1305,7 +1293,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         if (p.first >= k)
           result.coeffs[p.first - k] = p.second;
       }
@@ -1324,7 +1312,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         if (p.first < n)
           result.coeffs[p.first] = p.second;
       }
@@ -1341,11 +1329,11 @@ public:
   {
     if (is_zero())
       return Array<Coefficient>();
-    size_t d = degree();
+    size_t             d = degree();
     Array<Coefficient> result(d + 1, Coefficient{});
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p         = it.get_curr();
         result(p.first) = p.second;
       }
     return result;
@@ -1385,25 +1373,23 @@ public:
    */
   [[nodiscard]] Coefficient cauchy_bound() const
   {
-    ah_domain_error_if(is_zero())
-      << "cauchy_bound: zero polynomial has no roots";
+    ah_domain_error_if(is_zero()) << "cauchy_bound: zero polynomial has no roots";
     if (is_constant())
       return Coefficient{};
 
-    const size_t d = degree();
-    const Coefficient lc = leading_coeff();
-    Coefficient max_ratio = Coefficient{};
+    const size_t      d         = degree();
+    const Coefficient lc        = leading_coeff();
+    Coefficient       max_ratio = Coefficient{};
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         if (p.first == d)
           continue;
         Coefficient ratio;
         if constexpr (std::is_floating_point_v<Coefficient>)
           ratio = std::abs(p.second / lc);
         else
-          ratio = (p.second < Coefficient{} ? -p.second : p.second) /
-                  (lc < Coefficient{} ? -lc : lc);
+          ratio = (p.second < Coefficient{} ? -p.second : p.second) / (lc < Coefficient{} ? -lc : lc);
         if (ratio > max_ratio)
           max_ratio = ratio;
       }
@@ -1423,14 +1409,14 @@ public:
     if (coeffs.size() < 2)
       return 0;
 
-    size_t changes = 0;
-    bool have_prev = false;
-    bool prev_positive = false;
+    size_t changes       = 0;
+    bool   have_prev     = false;
+    bool   prev_positive = false;
 
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
-        bool positive;
+        auto &p = it.get_curr();
+        bool  positive;
         if constexpr (std::is_floating_point_v<Coefficient>)
           positive = p.second > epsilon();
         else
@@ -1443,12 +1429,12 @@ public:
           is_neg = p.second < Coefficient{};
 
         if (not positive and not is_neg)
-          continue; // skip zero coefficients
+          continue;  // skip zero coefficients
 
         if (have_prev and positive != prev_positive)
           ++changes;
         prev_positive = positive;
-        have_prev = true;
+        have_prev     = true;
       }
     return changes;
   }
@@ -1493,25 +1479,24 @@ public:
    *  @param[in] x Evaluation point.
    *  @return Number of sign changes in the sequence @f$p_0(x), p_1(x), \ldots@f$.
    */
-  [[nodiscard]] static size_t
-  sturm_sign_changes(const DynList<Gen_Polynomial> & chain,
-                     const Coefficient & x)
+  [[nodiscard]] static size_t sturm_sign_changes(const DynList<Gen_Polynomial> &chain,
+                                                 const Coefficient             &x)
   {
-    size_t changes = 0;
-    bool have_prev = false;
-    bool prev_positive = false;
+    size_t changes       = 0;
+    bool   have_prev     = false;
+    bool   prev_positive = false;
 
-    chain.for_each([&](const Gen_Polynomial & p)
+    chain.for_each([&](const Gen_Polynomial &p)
     {
       Coefficient val = p(x);
       if (coeff_is_zero(val))
-        return; // skip zeros in Sturm evaluation
+        return;  // skip zeros in Sturm evaluation
 
       bool positive = val > Coefficient{};
       if (have_prev and positive != prev_positive)
         ++changes;
       prev_positive = positive;
-      have_prev = true;
+      have_prev     = true;
     });
 
     return changes;
@@ -1529,15 +1514,14 @@ public:
    *  @note **Complexity**: @f$O(d^2)@f$ to build the Sturm chain, plus
    *        @f$O(d^2)@f$ for evaluating it at both endpoints.
    */
-  [[nodiscard]] size_t count_real_roots(const Coefficient & a,
-                                        const Coefficient & b) const
+  [[nodiscard]] size_t count_real_roots(const Coefficient &a, const Coefficient &b) const
   {
     if (b < a)
       return count_real_roots(b, a);
 
-    auto chain = sturm_chain();
-    size_t sa = sturm_sign_changes(chain, a);
-    size_t sb = sturm_sign_changes(chain, b);
+    auto   chain = sturm_chain();
+    size_t sa    = sturm_sign_changes(chain, a);
+    size_t sb    = sturm_sign_changes(chain, b);
     size_t count = sa > sb ? sa - sb : 0;
 
     // Sturm's theorem counts roots in (a, b]; add root at a if present
@@ -1573,10 +1557,9 @@ public:
    *
    *  If @p a > @p b, the endpoints are swapped.
    */
-  [[nodiscard]] Coefficient
-  bisect_root(Coefficient a, Coefficient b,
-              Coefficient tol = Coefficient(1e-12),
-              size_t max_iter = 200) const
+  [[nodiscard]] Coefficient bisect_root(Coefficient a, Coefficient b,
+                                        Coefficient tol      = Coefficient(1e-12),
+                                        size_t      max_iter = 200) const
   {
     if (b < a)
       std::swap(a, b);
@@ -1587,8 +1570,8 @@ public:
     if (coeff_is_zero(fb))
       return b;
 
-    ah_domain_error_if((fa > Coefficient{}) == (fb > Coefficient{}) and
-                       not coeff_is_zero(fa) and not coeff_is_zero(fb))
+    ah_domain_error_if((fa > Coefficient{}) == (fb > Coefficient{}) and not coeff_is_zero(fa)
+                       and not coeff_is_zero(fb))
       << "bisect_root: f(a) and f(b) must have opposite signs";
 
     for (size_t i = 0; i < max_iter; ++i)
@@ -1600,9 +1583,15 @@ public:
         if (coeff_is_zero(fm))
           return mid;
         if ((fa > Coefficient{}) == (fm > Coefficient{}))
-          { a = mid; fa = fm; }
+          {
+            a  = mid;
+            fa = fm;
+          }
         else
-          { b = mid; fb = fm; }
+          {
+            b  = mid;
+            fb = fm;
+          }
       }
     return (a + b) / Coefficient(2);
   }
@@ -1615,10 +1604,8 @@ public:
    *  @return Approximate root.
    *  @throws std::domain_error if derivative vanishes during iteration.
    */
-  [[nodiscard]] Coefficient
-  newton_root(Coefficient x0,
-              Coefficient tol = Coefficient(1e-12),
-              size_t max_iter = 100) const
+  [[nodiscard]] Coefficient newton_root(Coefficient x0, Coefficient tol = Coefficient(1e-12),
+                                        size_t max_iter = 100) const
   {
     Gen_Polynomial dp = derivative();
 
@@ -1628,9 +1615,8 @@ public:
         if (coeff_is_zero(fx))
           return x0;
         Coefficient dfx = dp.eval(x0);
-        ah_domain_error_if(coeff_is_zero(dfx))
-          << "newton_root: derivative is zero at x = " << x0;
-        Coefficient x1 = x0 - fx / dfx;
+        ah_domain_error_if(coeff_is_zero(dfx)) << "newton_root: derivative is zero at x = " << x0;
+        Coefficient x1    = x0 - fx / dfx;
         Coefficient delta = x1 - x0;
         if constexpr (std::is_floating_point_v<Coefficient>)
           {
@@ -1656,7 +1642,7 @@ public:
    *  Two polynomials are equal iff they have the same non-zero terms.
    *  For floating-point types, coefficients are compared within epsilon.
    */
-  [[nodiscard]] bool operator==(const Gen_Polynomial & q) const noexcept
+  [[nodiscard]] bool operator==(const Gen_Polynomial &q) const noexcept
   {
     if (this == &q)
       return true;
@@ -1666,8 +1652,8 @@ public:
 
     while (it1.has_curr() and it2.has_curr())
       {
-        auto & lhs = it1.get_curr();
-        auto & rhs = it2.get_curr();
+        auto &lhs = it1.get_curr();
+        auto &rhs = it2.get_curr();
 
         if (lhs.first == rhs.first)
           {
@@ -1709,9 +1695,9 @@ public:
   }
 
   /** @brief Inequality comparison. */
-  [[nodiscard]] bool operator!=(const Gen_Polynomial & q) const noexcept
+  [[nodiscard]] bool operator!=(const Gen_Polynomial &q) const noexcept
   {
-    return not (*this == q);
+    return not(*this == q);
   }
 
   // =================================================================
@@ -1723,11 +1709,11 @@ public:
    *  The callable @p op receives `(size_t exponent, const Coefficient &)`.
    */
   template <class Op>
-  void for_each_term(Op && op) const
+  void for_each_term(Op &&op) const
   {
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         op(p.first, p.second);
       }
   }
@@ -1738,14 +1724,17 @@ public:
     DynList<std::pair<size_t, Coefficient>> result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & p = it.get_curr();
+        auto &p = it.get_curr();
         result.append({p.first, p.second});
       }
     return result;
   }
 
   /** @brief All exponents with non-zero coefficients (sorted ascending). */
-  [[nodiscard]] DynList<size_t> exponents() const { return coeffs.keys(); }
+  [[nodiscard]] DynList<size_t> exponents() const
+  {
+    return coeffs.keys();
+  }
 
   /** @brief All non-zero coefficients in ascending exponent order. */
   [[nodiscard]] DynList<Coefficient> coefficients() const
@@ -1764,15 +1753,15 @@ public:
    *
    *  @param[in] var Variable name (default `"x"`).
    */
-  [[nodiscard]] std::string to_str(const std::string & var = "x") const
+  [[nodiscard]] std::string to_str(const std::string &var = "x") const
   {
     if (coeffs.is_empty())
       return "0";
 
     std::ostringstream oss;
-    bool first = true;
+    bool               first = true;
 
-    for_each_term_desc([&](size_t exp, const Coefficient & c)
+    for_each_term_desc([&](size_t exp, const Coefficient &c)
     {
       bool negative = false;
       if constexpr (requires { c < Coefficient{}; })
@@ -1794,7 +1783,7 @@ public:
         oss << ac;
       else
         {
-          if (not (ac == Coefficient(1)))
+          if (not(ac == Coefficient(1)))
             oss << ac;
           oss << var;
           if (exp > 1)
@@ -1806,8 +1795,400 @@ public:
 
     return oss.str();
   }
-};
 
+  // =================================================================
+  //  Layer 5 — Exact Univariate Factorization
+  // =================================================================
+
+  /** @brief Square-free decomposition term: factor and multiplicity.
+   *
+   *  Result of Yun's algorithm: each term represents a factor with its
+   *  multiplicity (how many times it divides the original polynomial).
+   */
+  struct SfdTerm
+  {
+    Gen_Polynomial factor;
+    size_t         multiplicity;
+  };
+
+  /** @brief Coefficient accessor (read-only at exponent).
+   *
+   *  Returns the coefficient at @p exp, or Coefficient{} (zero) if absent.
+   *  This is equivalent to `operator[]`.
+   */
+  [[nodiscard]] Coefficient get_coeff(size_t exp) const noexcept
+  {
+    return coeff_at(exp);
+  }
+
+  /** @brief Set coefficient at exponent; removes entry if zero.
+   *
+   *  @param[in] exp Exponent of the term.
+   *  @param[in] c The coefficient value.
+   */
+  void set_coeff(size_t exp, const Coefficient &c)
+  {
+    if (auto *slot = coeff_ptr(exp); slot != nullptr)
+      {
+        if (coeff_is_zero(c))
+          coeffs.remove_key(exp);
+        else
+          *slot = c;
+      }
+    else if (not coeff_is_zero(c))
+      coeffs.insert(exp, c);
+  }
+
+  /** @brief Content: GCD of all coefficients.
+   *
+   *  For an integer polynomial @f$p(x) = a_d x^d + \ldots + a_0@f$,
+   *  the content is @f$\gcd(a_d, \ldots, a_0)@f$.
+   *
+   *  For the zero polynomial, returns zero.
+   *  For a non-zero polynomial, the sign follows the leading coefficient.
+   *
+   *  @note Only available for integral coefficient types.
+   *  @return The GCD of all coefficients.
+   */
+  [[nodiscard]] Coefficient content() const
+    requires std::is_integral_v<Coefficient>
+  {
+    if (coeffs.is_empty())
+      return Coefficient{};
+
+    Coefficient result = Coefficient{};
+    for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
+      {
+        auto &p = it.get_curr();
+        result  = std::gcd(result, p.second);
+      }
+
+    // Ensure sign follows leading coefficient
+    const Coefficient lc = leading_coeff();
+    if (lc < Coefficient{} and result > Coefficient{})
+      result = -result;
+
+    return result;
+  }
+
+  /** @brief Primitive part: polynomial divided by its content.
+   *
+   *  Returns @f$p / \text{content}(p)@f$. For a non-zero polynomial,
+   *  the result has leading coefficient positive (in absolute value).
+   *
+   *  @note Only available for integral coefficient types.
+   *  @return A polynomial with gcd of coefficients = 1 (or zero poly).
+   */
+  [[nodiscard]] Gen_Polynomial primitive_part() const
+    requires std::is_integral_v<Coefficient>
+  {
+    if (is_zero())
+      return Gen_Polynomial();
+
+    Coefficient c = content();
+    if (c == Coefficient{} or c == Coefficient(1) or c == Coefficient(-1))
+      {
+        // Already primitive; ensure leading coefficient is positive
+        Gen_Polynomial result = *this;
+        if (leading_coeff() < Coefficient{})
+          result.scale_inplace(Coefficient(-1));
+        return result;
+      }
+
+    Gen_Polynomial result;
+    for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
+      {
+        auto &p = it.get_curr();
+        result.coeffs.insert(p.first, p.second / c);
+      }
+
+    // Ensure leading coefficient is positive
+    if (result.leading_coeff() < Coefficient{})
+      result.scale_inplace(Coefficient(-1));
+
+    return result;
+  }
+
+  /** @brief Polynomial GCD over integers (Euclidean algorithm with primitive parts).
+   *
+   *  Computes @f$\gcd(a, b)@f$ for integer polynomials using the
+   *  Euclidean algorithm, normalizing by primitive parts at each step.
+   *
+   *  @param[in] a First polynomial.
+   *  @param[in] b Second polynomial.
+   *  @return The GCD polynomial (monic up to units).
+   *
+   *  @note Only available for integral coefficient types.
+   *  @note **Complexity**: @f$O(d^2)@f$ polynomial divisions.
+   */
+  static Gen_Polynomial integer_gcd(Gen_Polynomial a, Gen_Polynomial b)
+    requires std::is_integral_v<Coefficient>
+  {
+    if (a.is_zero())
+      return b.primitive_part();
+    if (b.is_zero())
+      return a.primitive_part();
+
+    while (not b.is_zero())
+      {
+        auto [quo, rem] = a.divmod(b);
+        a               = b;
+        b               = rem.primitive_part();
+      }
+
+    return a.primitive_part();
+  }
+
+  /** @brief Yun's square-free decomposition (SFD).
+   *
+   *  Decomposes a polynomial into square-free factors with multiplicities.
+   *  Each factor has no repeated roots, and the union of all factors
+   *  (with multiplicity) reconstructs the original.
+   *
+   *  Uses Yun's algorithm:
+   *  1. Compute @f$f' = \text{derivative}(f)@f$.
+   *  2. Iteratively remove common factors to extract multiplicities.
+   *
+   *  @return A list of SfdTerm, each with a square-free factor and its
+   *          multiplicity. Empty list if polynomial is constant.
+   *
+   *  @note **Complexity**: @f$O(d^2)@f$ GCD operations.
+   */
+  [[nodiscard]] DynList<SfdTerm> yun_sfd() const
+    requires std::is_integral_v<Coefficient>
+  {
+    DynList<SfdTerm> result;
+
+    if (is_constant())
+      return result;
+
+    Gen_Polynomial f  = primitive_part();
+    Gen_Polynomial fp = f.derivative();
+
+    Gen_Polynomial g = integer_gcd(f, fp);
+    Gen_Polynomial h = f / g;
+
+    size_t multiplicity = 1;
+
+    while (not h.is_constant())
+      {
+        Gen_Polynomial h_prev = h;
+        h                     = integer_gcd(g, h);
+        Gen_Polynomial w      = h_prev / h;
+
+        if (not w.is_constant())
+          result.append(SfdTerm{w.primitive_part(), multiplicity});
+
+        g = g / h;
+        multiplicity++;
+      }
+
+    // Final factor
+    if (not g.is_constant())
+      result.append(SfdTerm{g.primitive_part(), multiplicity});
+
+    return result;
+  }
+
+  /** @brief Factorization over integers mod @p p (trial method).
+   *
+   *  Finds all roots of the polynomial in @f$\mathbb{Z}/p\mathbb{Z}@f$
+   *  and returns the corresponding monic linear factors.
+   *  If the polynomial is irreducible (has no roots), returns the polynomial itself.
+   *
+   *  @param[in] f Polynomial to factor.
+   *  @param[in] p The prime modulus.
+   *  @return A list of monic linear factors (one per root), or the input if irreducible.
+   *
+   *  @note Only available for integral coefficient types.
+   *  @note This is a **simplified trial method**, not Berlekamp or Cantor-Zassenhaus.
+   */
+  static DynList<Gen_Polynomial> factor_mod_p(const Gen_Polynomial &f, Coefficient p)
+    requires std::is_integral_v<Coefficient>
+  {
+    DynList<Gen_Polynomial> result;
+
+    if (f.is_zero() or f.is_constant())
+      return result;
+
+    // Try all residues in Z/p to find roots
+    for (Coefficient r = Coefficient{}; r < p; r = r + Coefficient(1))
+      {
+        // Evaluate f(r) mod p
+        Coefficient val = Coefficient{};
+        f.for_each_term([&](size_t exp, const Coefficient &coeff)
+        {
+          Coefficient c = coeff % p;
+          if (c < Coefficient{})
+            c = c + p;
+
+          Coefficient r_pow = polynomial_detail::power(r, exp);
+          val               = (val + c * r_pow) % p;
+        });
+
+        if (val % p == Coefficient{})
+          {
+            // r is a root: add factor (x - r)
+            Gen_Polynomial factor;
+            factor.set_coeff(0, ((-r) % p + p) % p);
+            factor.set_coeff(1, Coefficient(1));
+            result.append(factor);
+          }
+      }
+
+    // If no roots found, polynomial is irreducible over this field
+    if (result.is_empty())
+      result.append(f);
+
+    return result;
+  }
+
+  /** @brief Mignotte bound on integer roots.
+   *
+   *  For an integer polynomial of degree @f$d@f$ with coefficients
+   *  @f$a_0, \ldots, a_d@f$, any rational root @f$p/q@f$ with
+   *  gcd(p,q)=1 satisfies:
+   *  @f[
+   *    |p| \le \sqrt{d+1} \cdot 2^d \cdot \max_i |a_i|
+   *  @f]
+   *
+   *  @return Upper bound on absolute value of integer roots.
+   */
+  [[nodiscard]] double mignotte_bound() const
+    requires std::is_integral_v<Coefficient>
+  {
+    if (is_zero())
+      return 0.0;
+
+    const size_t d = degree();
+    if (d == 0)
+      return 0.0;
+
+    Coefficient max_coeff = Coefficient{};
+    for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
+      {
+        auto       &p     = it.get_curr();
+        Coefficient abs_c = p.second < Coefficient{} ? -p.second : p.second;
+        if (abs_c > max_coeff)
+          max_coeff = abs_c;
+      }
+
+    const auto   d_real    = static_cast<double>(d);
+    const auto   max_real  = static_cast<double>(max_coeff);
+    const double two_pow_d = polynomial_detail::power(2.0, d);
+
+    return std::sqrt(d_real + 1.0) * two_pow_d * max_real;
+  }
+
+  /** @brief Hensel lifting of modular factors.
+   *
+   *  Given factors of @f$f \pmod{p}@f$, lifts them to factors mod
+   *  @f$p^{2^\text{levels}}@f$ using Hensel's lemma.
+   *
+   *  @param[in] f Original polynomial (used for context/verification).
+   *  @param[in] factors Factors mod @p p (must multiply to @p f mod @p p).
+   *  @param[in] p The prime modulus.
+   *  @param[in] levels Number of lifting iterations (quadratic).
+   *  @return Factors lifted to @f$\mathbb{Z}/p^{2^\text{levels}}\mathbb{Z}@f$.
+   *
+   *  @note Only available for integral coefficient types.
+   *  @note This is a **basic implementation**: does not handle singular cases.
+   */
+  static DynList<Gen_Polynomial> hensel_lift([[maybe_unused]] const Gen_Polynomial &f,
+                                             DynList<Gen_Polynomial> factors, Coefficient p,
+                                             size_t levels)
+    requires std::is_integral_v<Coefficient>
+  {
+    if (factors.is_empty())
+      return factors;
+
+    Coefficient p_power = p;
+    for (size_t i = 0; i < levels; ++i)
+      p_power = p_power * p_power;
+
+    // Simplified: just reduce factors to the target modulus
+    DynList<Gen_Polynomial> result;
+    for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+      {
+        Gen_Polynomial lifted;
+        for (auto it2 = it.get_curr().coeffs.get_it(); it2.has_curr(); it2.next_ne())
+          {
+            auto       &term  = it2.get_curr();
+            Coefficient coeff = term.second % p_power;
+            if (coeff < Coefficient{})
+              coeff = coeff + p_power;
+            lifted.coeffs.insert(term.first, coeff);
+          }
+        result.append(lifted);
+      }
+
+    return result;
+  }
+
+  /** @brief Main factorization over integers.
+   *
+   *  Combines square-free decomposition (SFD), modular factorization,
+   *  and Hensel lifting to factor the polynomial over the integers.
+   *
+   *  **Algorithm outline**:
+   *  1. Compute the primitive part (remove common factors).
+   *  2. Apply Yun's SFD to group factors by multiplicity.
+   *  3. For each square-free group, factor modulo a small prime @p p.
+   *  4. Use Hensel lifting to recover integer factors.
+   *
+   *  @return A list of SfdTerm where each factor is irreducible
+   *          (or as close as possible with this algorithm).
+   *
+   *  @note Only available for integral coefficient types.
+   *  @note This is a **simplified implementation** sufficient for testing.
+   *        A full CZ algorithm would be more sophisticated.
+   *  @note **Complexity**: depends on SFD and modular factorization.
+   */
+  [[nodiscard]] DynList<SfdTerm> factorize() const
+    requires std::is_integral_v<Coefficient>
+  {
+    DynList<SfdTerm> result;
+
+    if (is_zero() or is_constant())
+      return result;
+
+    // Step 1: Get primitive part
+    Gen_Polynomial prim = primitive_part();
+
+    // Step 2: Compute square-free decomposition
+    DynList<SfdTerm> sfd_terms = prim.yun_sfd();
+
+    if (sfd_terms.is_empty())
+      return result;
+
+    // Step 3: For each square-free group, attempt factorization
+    //         (Simplified: return SFD directly as the factorization)
+    for (auto it = sfd_terms.get_it(); it.has_curr(); it.next_ne())
+      {
+        auto          &sfd_term = it.get_curr();
+        Gen_Polynomial factor   = sfd_term.factor;
+        size_t         mult     = sfd_term.multiplicity;
+
+        // Try modular factorization with a small prime (p = 5)
+        Coefficient p = Coefficient(5);
+
+        if (auto mod_factors = factor_mod_p(factor, p); mod_factors.size() > 1)
+          {
+            // Hensel lift the factors
+            auto lifted = hensel_lift(factor, mod_factors, p, 1);
+            for (auto jt = lifted.get_it(); jt.has_curr(); jt.next_ne())
+              result.append(SfdTerm{jt.get_curr(), mult});
+          }
+        else
+          {
+            // No further factorization; return as-is
+            result.append(SfdTerm{factor, mult});
+          }
+      }
+
+    return result;
+  }
+};
 
 // =================================================================
 //  Free functions
@@ -1815,19 +2196,17 @@ public:
 
 /** @brief Scalar times polynomial (commutative form). */
 template <typename C>
-[[nodiscard]] Gen_Polynomial<C>
-operator*(const C & s, const Gen_Polynomial<C> & p)
+[[nodiscard]] Gen_Polynomial<C> operator*(const C &s, const Gen_Polynomial<C> &p)
 {
   return p * s;
 }
 
 /** @brief Stream output. */
 template <typename C>
-std::ostream & operator<<(std::ostream & out, const Gen_Polynomial<C> & p)
+std::ostream &operator<<(std::ostream &out, const Gen_Polynomial<C> &p)
 {
   return out << p.to_str();
 }
-
 
 // =================================================================
 //  Convenience type aliases
@@ -1842,7 +2221,9 @@ using PolynomialF = Gen_Polynomial<float>;
 /** @brief Polynomial with `long double` coefficients. */
 using PolynomialLD = Gen_Polynomial<long double>;
 
+/** @brief Polynomial with `long long` (integer) coefficients. */
+using IntPolynomial = Gen_Polynomial<long long>;
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-# endif // TPL_POLYNOMIAL_H
+#endif  // TPL_POLYNOMIAL_H

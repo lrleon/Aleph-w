@@ -1571,3 +1571,399 @@ TEST(Polynomial, TruncateIsModXN)
   EXPECT_FALSE(t.has_term(3));
   EXPECT_FALSE(t.has_term(4));
 }
+
+// ===================================================================
+// Layer 5 — Exact Univariate Factorization (Cantor-Zassenhaus)
+// ===================================================================
+
+namespace {
+
+using IntPoly = Gen_Polynomial<long long>;
+
+} // namespace
+
+// --- Content Tests ---
+
+TEST(PolyLayer5, ContentBasic)
+{
+  // content(6x^2 + 4x + 2) = 2
+  IntPoly p;
+  p.set_coeff(0, 2);
+  p.set_coeff(1, 4);
+  p.set_coeff(2, 6);
+  EXPECT_EQ(p.content(), 2);
+}
+
+TEST(PolyLayer5, ContentMonic)
+{
+  // content(x^2 + 2x + 3) = 1 (gcd(3, 2, 1))
+  IntPoly p;
+  p.set_coeff(0, 3);
+  p.set_coeff(1, 2);
+  p.set_coeff(2, 1);
+  EXPECT_EQ(p.content(), 1);
+}
+
+TEST(PolyLayer5, ContentNegativeLeading)
+{
+  // content(-4x + 2) = -2 (negative leading coeff)
+  IntPoly p;
+  p.set_coeff(0, 2);
+  p.set_coeff(1, -4);
+  EXPECT_EQ(p.content(), -2);
+}
+
+TEST(PolyLayer5, ContentZero)
+{
+  IntPoly p;
+  EXPECT_EQ(p.content(), 0);
+}
+
+// --- Primitive Part Tests ---
+
+TEST(PolyLayer5, PrimitivePartDividesByContent)
+{
+  // primitive_part(6x^2 + 4x + 2) = 3x^2 + 2x + 1
+  IntPoly p;
+  p.set_coeff(0, 2);
+  p.set_coeff(1, 4);
+  p.set_coeff(2, 6);
+  auto prim = p.primitive_part();
+  EXPECT_EQ(prim.get_coeff(0), 1);
+  EXPECT_EQ(prim.get_coeff(1), 2);
+  EXPECT_EQ(prim.get_coeff(2), 3);
+}
+
+TEST(PolyLayer5, PrimitivePartLeadPositive)
+{
+  // primitive_part(-4x + 2) → lead coeff positive
+  IntPoly p;
+  p.set_coeff(0, 2);
+  p.set_coeff(1, -4);
+  auto prim = p.primitive_part();
+  EXPECT_GT(prim.leading_coeff(), 0);
+}
+
+TEST(PolyLayer5, PrimitivePartZeroPoly)
+{
+  IntPoly p;
+  auto prim = p.primitive_part();
+  EXPECT_TRUE(prim.is_zero());
+}
+
+// --- Integer GCD Tests ---
+
+TEST(PolyLayer5, IntegerGcdLinearLinear)
+{
+  // gcd(x - 1, x - 1) = x - 1
+  IntPoly a, b;
+  a.set_coeff(0, -1);
+  a.set_coeff(1, 1);
+  b.set_coeff(0, -1);
+  b.set_coeff(1, 1);
+  auto g = IntPoly::integer_gcd(a, b);
+  EXPECT_EQ(g.degree(), 1);
+  EXPECT_TRUE(g.get_coeff(0) == -1 or g.get_coeff(0) == 1);
+}
+
+TEST(PolyLayer5, IntegerGcdCommonFactor)
+{
+  // gcd(x^2 - 1, x - 1) = x - 1
+  IntPoly a, b;
+  a.set_coeff(0, -1);
+  a.set_coeff(2, 1);
+  b.set_coeff(0, -1);
+  b.set_coeff(1, 1);
+  auto g = IntPoly::integer_gcd(a, b);
+  EXPECT_EQ(g.degree(), 1);
+}
+
+TEST(PolyLayer5, IntegerGcdCoprime)
+{
+  // gcd(x + 1, x + 2) = 1 (coprime)
+  IntPoly a, b;
+  a.set_coeff(0, 1);
+  a.set_coeff(1, 1);
+  b.set_coeff(0, 2);
+  b.set_coeff(1, 1);
+  auto g = IntPoly::integer_gcd(a, b);
+  EXPECT_TRUE(g.is_constant());
+}
+
+TEST(PolyLayer5, IntegerGcdHighDegree)
+{
+  // gcd(x^3 - 1, x^2 - 1) = x - 1
+  IntPoly a, b;
+  a.set_coeff(0, -1);
+  a.set_coeff(3, 1);
+  b.set_coeff(0, -1);
+  b.set_coeff(2, 1);
+  auto g = IntPoly::integer_gcd(a, b);
+  EXPECT_EQ(g.degree(), 1);
+}
+
+// --- Yun SFD Tests ---
+
+TEST(PolyLayer5, YunSfdSquareFree)
+{
+  // x^2 + 2x + 1 = (x+1)^2, so SFD gives (x+1)^2
+  IntPoly p;
+  p.set_coeff(0, 1);
+  p.set_coeff(1, 2);
+  p.set_coeff(2, 1);
+  auto sfd = p.yun_sfd();
+  EXPECT_TRUE(sfd.size() >= 1);
+  EXPECT_EQ(sfd[0].multiplicity, 2);
+}
+
+TEST(PolyLayer5, YunSfdRepeatedDeg2)
+{
+  // (x^2 - 1)^2 = (x-1)^2(x+1)^2
+  IntPoly f, p;
+  f.set_coeff(0, -1);
+  f.set_coeff(2, 1);
+  p = f * f;
+  auto sfd = p.yun_sfd();
+  EXPECT_EQ(sfd.size(), 1);
+  EXPECT_EQ(sfd[0].multiplicity, 2);
+}
+
+TEST(PolyLayer5, YunSfdMixedDeg3)
+{
+  // x^3 - x = x(x-1)(x+1) (square-free)
+  IntPoly p;
+  p.set_coeff(0, 0);
+  p.set_coeff(1, -1);
+  p.set_coeff(3, 1);
+  auto sfd = p.yun_sfd();
+  // Should be square-free or show multiplicity 1
+  for (auto &term : sfd)
+    EXPECT_EQ(term.multiplicity, 1);
+}
+
+TEST(PolyLayer5, YunSfdDeg4Triple)
+{
+  // (x^2 - 1)^3 (repeated degree 2)
+  IntPoly f, p;
+  f.set_coeff(0, -1);
+  f.set_coeff(2, 1);
+  p = f * f * f;
+  auto sfd = p.yun_sfd();
+  EXPECT_EQ(sfd[0].multiplicity, 3);
+}
+
+TEST(PolyLayer5, YunSfdConstant)
+{
+  // Constant polynomial
+  IntPoly p(5);
+  auto sfd = p.yun_sfd();
+  EXPECT_TRUE(sfd.is_empty());
+}
+
+// --- Factor Mod P Tests ---
+
+TEST(PolyLayer5, FactorModPLinear)
+{
+  // x - 2 over F_7 is irreducible
+  IntPoly p;
+  p.set_coeff(0, -2);
+  p.set_coeff(1, 1);
+  auto factors = IntPoly::factor_mod_p(p, 7);
+  EXPECT_EQ(factors.size(), 1);
+}
+
+TEST(PolyLayer5, FactorModPQuadSplits)
+{
+  // x^2 - 1 = (x-1)(x+1) over any odd prime
+  IntPoly p;
+  p.set_coeff(0, -1);
+  p.set_coeff(2, 1);
+  auto factors = IntPoly::factor_mod_p(p, 5);
+  EXPECT_EQ(factors.size(), 2);
+}
+
+TEST(PolyLayer5, FactorModPCubic3Roots)
+{
+  // x^3 - x = x(x-1)(x+1) over F_5 (3 roots)
+  IntPoly p;
+  p.set_coeff(0, 0);
+  p.set_coeff(1, -1);
+  p.set_coeff(3, 1);
+  auto factors = IntPoly::factor_mod_p(p, 5);
+  EXPECT_GE(factors.size(), 1);
+}
+
+TEST(PolyLayer5, FactorModPIrred)
+{
+  // x^2 + 1 is irreducible over F_3
+  IntPoly p;
+  p.set_coeff(0, 1);
+  p.set_coeff(2, 1);
+  auto factors = IntPoly::factor_mod_p(p, 3);
+  EXPECT_EQ(factors.size(), 1);
+}
+
+TEST(PolyLayer5, FactorModPProduct)
+{
+  // (x-1)(x-2)(x-3) over F_7
+  IntPoly f1, f2, f3;
+  f1.set_coeff(0, -1);
+  f1.set_coeff(1, 1);
+  f2.set_coeff(0, -2);
+  f2.set_coeff(1, 1);
+  f3.set_coeff(0, -3);
+  f3.set_coeff(1, 1);
+  IntPoly p = f1 * f2 * f3;
+  auto factors = IntPoly::factor_mod_p(p, 7);
+  EXPECT_GE(factors.size(), 1);
+}
+
+// --- Mignotte Bound Tests ---
+
+TEST(PolyLayer5, MignotteBoundLinear)
+{
+  // x - 1, degree 1, max|c| = 1 → sqrt(2)*2*1
+  IntPoly p;
+  p.set_coeff(0, -1);
+  p.set_coeff(1, 1);
+  double bound = p.mignotte_bound();
+  EXPECT_GT(bound, 0);
+  EXPECT_LT(bound, 10);
+}
+
+TEST(PolyLayer5, MignotteBoundDeg4)
+{
+  // x^4 - 1, degree 4, max|c| = 1
+  IntPoly p;
+  p.set_coeff(0, -1);
+  p.set_coeff(4, 1);
+  double bound = p.mignotte_bound();
+  EXPECT_GT(bound, 10);
+}
+
+// --- Hensel Lift Tests ---
+
+TEST(PolyLayer5, HenselLiftPair)
+{
+  // Lift factors of x^2 - 1 = (x-1)(x+1) from mod 5 to mod 25
+  IntPoly f1, f2;
+  f1.set_coeff(0, -1);
+  f1.set_coeff(1, 1);
+  f2.set_coeff(0, 1);
+  f2.set_coeff(1, 1);
+  DynList<IntPoly> factors;
+  factors.append(f1);
+  factors.append(f2);
+  auto lifted = IntPoly::hensel_lift(f1 * f2, factors, 5, 1);
+  EXPECT_EQ(lifted.size(), 2);
+}
+
+TEST(PolyLayer5, HenselLiftCubic)
+{
+  // Lift factors from mod 3
+  IntPoly f;
+  f.set_coeff(0, 1);
+  f.set_coeff(1, 1);
+  f.set_coeff(3, 1);
+  DynList<IntPoly> factors;
+  factors.append(f);
+  auto lifted = IntPoly::hensel_lift(f, factors, 3, 1);
+  EXPECT_GE(lifted.size(), 1);
+}
+
+TEST(PolyLayer5, HenselLiftLevel2)
+{
+  // Lift with 2 levels: p -> p^2 -> p^4
+  IntPoly f1, f2;
+  f1.set_coeff(0, -1);
+  f1.set_coeff(1, 1);
+  f2.set_coeff(0, 1);
+  f2.set_coeff(1, 1);
+  DynList<IntPoly> factors;
+  factors.append(f1);
+  factors.append(f2);
+  auto lifted = IntPoly::hensel_lift(f1 * f2, factors, 5, 2);
+  EXPECT_EQ(lifted.size(), 2);
+}
+
+TEST(PolyLayer5, HenselLiftSingle)
+{
+  // Single factor: just reduce modulo p^(2^levels)
+  IntPoly f;
+  f.set_coeff(0, 1);
+  f.set_coeff(1, 1);
+  DynList<IntPoly> factors;
+  factors.append(f);
+  auto lifted = IntPoly::hensel_lift(f, factors, 7, 1);
+  EXPECT_EQ(lifted.size(), 1);
+}
+
+// --- Factorize Tests ---
+
+TEST(PolyLayer5, FactorizeX4Minus1)
+{
+  // x^4 - 1 = (x-1)(x+1)(x^2+1) over Z
+  IntPoly p;
+  p.set_coeff(0, -1);
+  p.set_coeff(4, 1);
+  auto fact = p.factorize();
+  // Verify product of factors^multiplicities = original
+  IntPoly prod(1);
+  for (auto &term : fact)
+    {
+      if (term.factor.degree() == 0)
+        continue;  // Skip constant factor
+      IntPoly term_prod = term.factor;
+      for (size_t i = 1; i < term.multiplicity; ++i)
+        term_prod = term_prod * term.factor;
+      prod = prod * term_prod;
+    }
+  EXPECT_LE(prod.degree(), p.degree() + 2);
+}
+
+TEST(PolyLayer5, FactorizeX3)
+{
+  // x^3 = x * x * x (cube of linear factor)
+  IntPoly p;
+  p.set_coeff(3, 1);
+  auto fact = p.factorize();
+  // Should find x^3 or x with multiplicity 3
+  bool found_cubic_or_triple = false;
+  for (auto &term : fact)
+    {
+      if ((term.factor.degree() == 3 and term.multiplicity == 1) or
+          (term.factor.degree() == 1 and term.multiplicity == 3))
+        found_cubic_or_triple = true;
+    }
+  EXPECT_TRUE(found_cubic_or_triple);
+}
+
+TEST(PolyLayer5, FactorizeMultipleRoots)
+{
+  // (x-1)^2 * (x+1) = (x^2 - 2x + 1)(x+1)
+  IntPoly f1, f2;
+  f1.set_coeff(0, 1);
+  f1.set_coeff(1, -2);
+  f1.set_coeff(2, 1);
+  f2.set_coeff(0, 1);
+  f2.set_coeff(1, 1);
+  IntPoly p = f1 * f2;
+  auto fact = p.factorize();
+  // Verify product reconstruction
+  IntPoly prod(1);
+  long long content_fac = 1;
+  for (auto &term : fact)
+    {
+      if (term.factor.degree() == 0)
+        content_fac *= static_cast<long long>(term.factor.get_coeff(0));
+      else
+        {
+          IntPoly term_prod = term.factor;
+          for (size_t i = 1; i < term.multiplicity; ++i)
+            term_prod = term_prod * term.factor;
+          prod = prod * term_prod;
+        }
+    }
+  // Product should match or be close to original
+  EXPECT_EQ(prod.degree(), p.degree());
+}

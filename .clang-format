@@ -47,6 +47,7 @@ SpaceAfterCStyleCast: true
 SpaceBeforeAssignmentOperators: true
 SpacesBeforeTrailingComments: 2
 SpaceInEmptyParentheses: false
+SpacesInAngles: Never
 
 # Alignment
 AlignAfterOpenBracket: Align

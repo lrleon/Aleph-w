@@ -74,15 +74,24 @@ def english_documentation?(path)
   # Check for common Spanish words that shouldn't be in English documentation
   # (avoiding very short words or those that overlap with English/technical terms)
   spanish_words = %w[
-    algoritmo biblioteca cabecera función parámetro retorno estructura
-    herencia polimorfismo puntero memoria asignación búsqueda busqueda ordenamiento
-    grafo nodo arista camino ciclo árbol hoja raíz
-    implementación descripción ejemplo advertencia opcional requerido
-    devuelve booleano entero cadena carácter
+    algoritmo biblioteca cabecera funcion función parametro parámetro retorno estructura
+    herencia polimorfismo puntero memoria asignacion asignación busqueda búsqueda ordenamiento
+    grafo nodo arista camino ciclo arbol árbol hoja raiz raíz
+    implementacion implementación descripcion descripción ejemplo advertencia opcional requerido
+    devuelve booleano entero cadena caracter carácter
   ]
 
-  has_spanish = spanish_words.any? do |w|
-    docs_without_code.match?(/(^|[^\p{L}])#{Regexp.escape(w)}([^\p{L}]|$)/iu)
+  # Normalize text and each word to ASCII (strip diacritics) so both accented
+  # and unaccented forms are caught by a single comparison.
+  normalize = lambda do |str|
+    str.unicode_normalize(:nfd).gsub(/\p{Mn}/, '')
+  end
+
+  normalized_docs = normalize.call(docs_without_code)
+  normalized_words = spanish_words.map { |w| normalize.call(w) }.uniq
+
+  has_spanish = normalized_words.any? do |w|
+    normalized_docs.match?(/(^|[^\p{L}])#{Regexp.escape(w)}([^\p{L}]|$)/i)
   end
 
   !has_spanish
