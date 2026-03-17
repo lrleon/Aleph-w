@@ -209,7 +209,7 @@ static void roots_and_interpolation()
 
   // --- (b) Polynomial interpolation via Newton divided differences ---
   // Fit a quadratic through (0, 1), (1, 0), (2, 1)
-  // Expected: x^2 - x + 1... let's see
+  // Expected: (x - 1)^2 = x^2 - 2x + 1
   cout << "\n  Polynomial interpolation through (0,1), (1,0), (2,1)"
        << " using Newton divided differences:\n";
 
@@ -288,6 +288,9 @@ static void transfer_function()
   freqs.append(5.0);
   freqs.append(10.0);
 
+  ios::fmtflags saved_flags = cout.flags();
+  streamsize saved_precision = cout.precision();
+
   freqs.for_each([&](double w)
   {
     double n2 = mag_squared(num, w);
@@ -298,6 +301,9 @@ static void transfer_function()
          << setw(15) << d2
          << setw(15) << h2 << "\n";
   });
+
+  cout.flags(saved_flags);
+  cout.precision(saved_precision);
 
   cout << "\n  At w=1 (cutoff), |H(j)|^2 should be ~0.5 (-3dB).\n";
 }
@@ -352,10 +358,10 @@ static void sparse_polynomials()
   cout << "  p(1) = " << p(1.0) << "\n";
   cout << "  p(0) = " << p(0.0) << "\n";
 
-  // Composition: p(2x+1) — still sparse in stored terms
-  Polynomial linear({1, 2}); // 2x + 1
+  // Composition: p(2x) preserves sparsity because each term only shifts degree
+  Polynomial linear({0, 2}); // 2x
   Polynomial composed = p.compose(linear);
-  cout << "\n  p(2x+1) has degree " << composed.degree()
+  cout << "\n  p(2x) has degree " << composed.degree()
        << " with " << composed.num_terms() << " terms\n";
 }
 
@@ -403,6 +409,8 @@ static void root_analysis()
   double r1 = p.bisect_root(0.5, 1.5);
   double r2 = p.bisect_root(1.5, 3.0);
   double r3 = p.bisect_root(-5.0, -1.0);
+  ios::fmtflags saved_flags = cout.flags();
+  streamsize saved_precision = cout.precision();
   cout << "    root in [0.5, 1.5]:  " << fixed << setprecision(10)
        << r1 << "\n";
   cout << "    root in [1.5, 3.0]:  " << r2 << "\n";
@@ -416,6 +424,8 @@ static void root_analysis()
   cout << "    from x0=0.5:  " << r1 << "\n";
   cout << "    from x0=2.5:  " << r2 << "\n";
   cout << "    from x0=-2.0: " << r3 << "\n";
+  cout.flags(saved_flags);
+  cout.precision(saved_precision);
 }
 
 

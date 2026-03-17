@@ -362,7 +362,7 @@ EDGE_AS_NODE_STATUS.md
 # AI agent config files
 AGENTS.md
 CLAUDE.md
-GEMINI.md
+#GEMINI.md
 
 # Temp scripts in root
 fix-license-headers.rb

@@ -451,38 +451,40 @@ public:
       << "interpolate requires at least one point";
 
     const size_t n = points.size();
-    Array<Coefficient> xs(n);
-    Array<Coefficient> dd(n);
+    Array<Coefficient> xs;
+    Array<Coefficient> dd;
+    xs.putn(n);
+    dd.putn(n);
 
     size_t idx = 0;
     points.for_each([&](const std::pair<Coefficient, Coefficient> & pt)
     {
-      xs(idx) = pt.first;
-      dd(idx) = pt.second;
+      xs[idx] = pt.first;
+      dd[idx] = pt.second;
       ++idx;
     });
 
     for (size_t i = 0; i < n; ++i)
       for (size_t j = i + 1; j < n; ++j)
-        ah_domain_error_if(coeff_is_zero(xs(i) - xs(j)))
+        ah_domain_error_if(coeff_is_zero(xs[i] - xs[j]))
           << "interpolate: duplicate x-values";
 
     for (size_t order = 1; order < n; ++order)
       for (size_t i = n - 1; i >= order; --i)
         {
-          Coefficient denom = xs(i) - xs(i - order);
-          dd(i) = (dd(i) - dd(i - 1)) / denom;
+          Coefficient denom = xs[i] - xs[i - order];
+          dd[i] = (dd[i] - dd[i - 1]) / denom;
           if (i == order)
             break;
         }
 
-    Gen_Polynomial result(dd(0));
+    Gen_Polynomial result(dd[0]);
     Gen_Polynomial basis(Coefficient(1));
     for (size_t i = 1; i < n; ++i)
       {
-        basis = basis.multiply_by_monic_linear(-xs(i - 1));
-        if (not coeff_is_zero(dd(i)))
-          result.add_scaled_shifted(basis, dd(i));
+        basis = basis.multiply_by_monic_linear(-xs[i - 1]);
+        if (not coeff_is_zero(dd[i]))
+          result.add_scaled_shifted(basis, dd[i]);
       }
 
     return result;

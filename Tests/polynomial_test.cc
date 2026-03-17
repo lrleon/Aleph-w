@@ -13,13 +13,41 @@
 */
 
 # include <gtest/gtest.h>
+# include <chrono>
 # include <cmath>
+# include <random>
 # include <string>
 # include <sstream>
 # include <stdexcept>
 # include <tpl_polynomial.H>
 
 using namespace Aleph;
+
+namespace {
+
+Polynomial
+make_random_polynomial(std::mt19937 & rng, size_t max_degree = 4,
+                       int min_coeff = -2, int max_coeff = 2,
+                       bool require_nonzero = false)
+{
+  std::uniform_int_distribution<size_t> degree_dist(0, max_degree);
+  std::uniform_int_distribution<int> coeff_dist(min_coeff, max_coeff);
+
+  while (true)
+    {
+      const size_t degree = degree_dist(rng);
+      DynList<double> coeffs;
+
+      for (size_t exp = 0; exp <= degree; ++exp)
+        coeffs.append(static_cast<double>(coeff_dist(rng)));
+
+      Polynomial p(coeffs);
+      if (not require_nonzero or not p.is_zero())
+        return p;
+    }
+}
+
+} // namespace
 
 // ===================================================================
 // Construction
@@ -442,6 +470,45 @@ TEST(Polynomial, QuotientAndModOperators)
   EXPECT_TRUE(r.is_zero());
 }
 
+TEST(Polynomial, RandomizedPolynomialProperties)
+{
+  std::mt19937 rng(0xA13F2026u);
+  std::uniform_int_distribution<int> scalar_dist(-3, 3);
+  std::uniform_int_distribution<int> x_dist(-2, 2);
+
+  for (size_t i = 0; i < 100; ++i)
+    {
+      Polynomial a = make_random_polynomial(rng);
+      Polynomial b = make_random_polynomial(rng, 3, -2, 2, true);
+      Polynomial c = make_random_polynomial(rng);
+      const double scalar = static_cast<double>(scalar_dist(rng));
+      const double x = static_cast<double>(x_dist(rng));
+
+      EXPECT_EQ(a * (b + c), a * b + a * c);
+      EXPECT_EQ((a + b) + c, a + (b + c));
+      EXPECT_EQ(scalar * a, a * scalar);
+
+      auto [q, r] = a.divmod(b);
+      EXPECT_EQ(q, a / b);
+      EXPECT_EQ(r, a % b);
+      EXPECT_EQ(a, q * b + r);
+      EXPECT_TRUE(r.is_zero() or r.degree() < b.degree());
+
+      Polynomial sum = a + b;
+      Polynomial diff = sum - b;
+      EXPECT_EQ(sum[0], a[0] + b[0]);
+      EXPECT_EQ(diff, a);
+      EXPECT_TRUE((a - a).is_zero());
+      EXPECT_TRUE(sum.is_zero() or sum[sum.degree()] != 0.0);
+
+      Polynomial composed = a.compose(c);
+      EXPECT_TRUE(std::abs(composed.eval(x) - a.eval(c.eval(x))) <= 1e-9);
+
+      Polynomial zero;
+      EXPECT_THROW(a.divmod(zero), std::domain_error);
+    }
+}
+
 // ===================================================================
 // Calculus
 // ===================================================================
@@ -815,6 +882,42 @@ TEST(Polynomial, HighDegreeSparse)
   EXPECT_EQ(p.num_terms(), 2u);
   EXPECT_DOUBLE_EQ(p.eval(1.0), 2.0);
   EXPECT_DOUBLE_EQ(p.eval(0.0), 1.0);
+
+  using Clock = std::chrono::steady_clock;
+  constexpr long long eval_limit_ms = 25;
+  constexpr long long op_limit_ms = 100;
+
+  const auto eval_start = Clock::now();
+  const double value = p.eval(1.5);
+  const auto eval_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+    (Clock::now() - eval_start);
+  EXPECT_GT(value, 1.0);
+  EXPECT_LT(eval_ms.count(), eval_limit_ms);
+
+  const auto multiply_start = Clock::now();
+  Polynomial squared = p * p;
+  const auto multiply_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+    (Clock::now() - multiply_start);
+  EXPECT_EQ(squared.degree(), 2000u);
+  EXPECT_EQ(squared.num_terms(), 3u);
+  EXPECT_LT(multiply_ms.count(), op_limit_ms);
+
+  const auto divmod_start = Clock::now();
+  auto [quotient, remainder] = squared.divmod(p);
+  const auto divmod_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+    (Clock::now() - divmod_start);
+  EXPECT_EQ(quotient, p);
+  EXPECT_TRUE(remainder.is_zero());
+  EXPECT_LT(divmod_ms.count(), op_limit_ms);
+
+  Polynomial linear({0, 2}); // 2x
+  const auto compose_start = Clock::now();
+  Polynomial composed = p.compose(linear);
+  const auto compose_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+    (Clock::now() - compose_start);
+  EXPECT_EQ(composed.degree(), 1000u);
+  EXPECT_EQ(composed.num_terms(), 2u);
+  EXPECT_LT(compose_ms.count(), op_limit_ms);
 }
 
 TEST(Polynomial, SelfMultiply)
