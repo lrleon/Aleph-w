@@ -54,6 +54,7 @@ Idioma: Español | [English](README.md)
   - [Algoritmos de programación dinámica](#readme-es-programacion-dinamica)
   - [Procesamiento de señales (FFT)](#readme-es-procesamiento-de-senales)
   - [Transformada teórico-numérica (NTT)](#readme-es-ntt)
+  - [Aritmética de polinomios](#readme-es-aritmetica-de-polinomios)
 - [Gestión de memoria](#readme-es-gestion-de-memoria)
   - [Allocators tipo arena](#readme-es-asignadores-arena)
 - [Cómputo paralelo](#readme-es-computacion-paralela)
@@ -267,6 +268,7 @@ Aleph-w ha sido usado para enseñar a **miles de estudiantes** en Latinoamérica
 │  ├─ Union-Find           ├─ Huffman Coding        ├─ Simplex (LP)          │
 │  ├─ RMQ/LCA/HLD/Centroid ├─ BitArray                                       │
 │  └─ Sketches streaming    └─ (HLL/CMS/MinHash/SimHash/Reservoir)           │
+│                           └─ Aritmética de polinomios dispersos            │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -2998,6 +3000,66 @@ Para un recorrido detallado con ejemplos de código, consulta el **[Tutorial
 NTT](docs/ntt-tutorial.md)** ([English](docs/ntt-tutorial.en.md)).
 
 ---
+
+<a id="readme-es-aritmetica-de-polinomios"></a>
+### Aritmética de polinomios
+
+Aleph-w proporciona una clase genérica de **polinomios univariados dispersos** en
+[`tpl_polynomial.H`](tpl_polynomial.H). El tipo de coeficiente es un
+parámetro de plantilla (por defecto `double`). Solo los coeficientes no nulos se
+almacenan en un `DynMapTree<size_t, Coefficient>`, haciendo las operaciones
+eficientes en polinomios dispersos de alto grado como `x^1000 + 1`.
+
+**Aritmética**: `+`, `-`, `*`, `/`, `%`, `divmod`, `*` y `/` escalar,
+negación unaria, variantes in-place (`+=`, `-=`, `*=`, `/=`, `%=`).
+
+**Cálculo**: `derivative`, `nth_derivative`, `integral` (indefinida),
+`definite_integral(a, b)`.
+
+**Evaluación**: `eval(x)` adaptativa (Horner para densos, potencia directa
+para ultra-dispersos), `horner_eval`, `sparse_eval`, `multi_eval(points)`,
+`operator()(x)`.
+
+**Composición y potencia**: `compose(q)` (Horner sparse-aware), `pow(n)`
+(cuadratura repetida).
+
+**Fábricas**: `zero()`, `one()`, `x_to(n)`, `from_roots(lista)`,
+`interpolate(puntos)` (diferencias divididas de Newton).
+
+**Familia GCD**: `gcd(a, b)`, `xgcd(a, b)` (extendido, retorna coeficientes
+de Bezout), `lcm(a, b)`, `pseudo_divmod(d)` para coeficientes enteros exactos.
+
+**Transformaciones algebraicas**: `to_monic()`, `square_free()`,
+`reverse()`, `negate_arg()`, `shift(k)` (desplazamiento de Taylor p(x+k)),
+`shift_up(k)`, `shift_down(k)`, `truncate(n)`, `to_dense()`.
+
+**Análisis de raíces** (punto flotante): `cauchy_bound()`,
+`sign_variations()` (Descartes), `sturm_chain()`,
+`count_real_roots(a, b)`, `count_all_real_roots()`,
+`bisect_root(a, b)`, `newton_root(x0)`.
+
+**Alias de tipo**: `Polynomial` (`double`), `PolynomialF` (`float`),
+`PolynomialLD` (`long double`).
+
+```cpp
+using namespace Aleph;
+
+// Denso: 2 + 3x + x^2
+Polynomial p({2, 3, 1});
+
+// Desde raíces: (x-1)(x-2)(x-3) = x^3 - 6x^2 + 11x - 6
+auto q = Polynomial::from_roots({1.0, 2.0, 3.0});
+
+std::cout << "p(5) = " << p(5.0) << "\n";            // 42
+std::cout << "p'(x) = " << p.derivative() << "\n";    // 2x + 3
+std::cout << "raíces de q: " << q.count_all_real_roots() << "\n"; // 3
+
+double raiz = q.newton_root(0.5);                     // 1.0
+auto [cociente, resto] = q.divmod(Polynomial({-1, 1})); // dividir por (x-1)
+std::cout << cociente << "\n";                         // x^2 - 5x + 6
+```
+
+---
 <a id="readme-es-gestion-de-memoria"></a>
 ## Gestión de memoria
 
@@ -3522,6 +3584,7 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
 | `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform para multiplicacion exacta de polinomios modulares, con planes reutilizables, soporte Bluestein para tamanos no potencia de dos cuando el modulo lo permite, dispatch SIMD AVX2/NEON en tiempo de ejecucion sobre el butterfly potencia-de-dos, lotes, butterflies basados en Montgomery, APIs paralelas con `ThreadPool`, algebra formal de polinomios (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, evaluacion multipunto e interpolacion), multiplicacion exacta de enteros grandes sobre digitos en base `B`, convolucion negaciclica modulo `x^N + 1` y reconstruccion CRT de tres primos en `__uint128_t` cuando la cota de coeficientes cabe. Ver el [Tutorial NTT](docs/ntt-tutorial.md) |
+| `tpl_polynomial.H` | `Gen_Polynomial<C>`, `Polynomial` | Anillo de polinomios univariados dispersos: aritmética (+, -, *, /, %), cálculo (derivada, integral), evaluación (Horner/dispersa adaptativa), composición, GCD/XGCD/LCM, factorización libre de cuadrados, conteo de raíces (Sturm), búsqueda de raíces (bisección/Newton), interpolación de Lagrange |
 | `modular_combinatorics.H` | `ModularCombinatorics` | $nCk \pmod p$ with precomputed factorials and Lucas Theorem |
 | `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
 
@@ -3727,6 +3790,7 @@ cmake --build build
 | Utilidades de código Gray | `gray_code_example.cc` | Conversión binario a Gray y generación de secuencias |
 | Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector`. Tutorial completo: [Tutorial FFT y DSP](docs/fft-tutorial.md) |
 | Number Theoretic Transform | `ntt_example.cc` | Transformadas modulares exactas, reporte del backend SIMD activo, planes reutilizables, tamanos arbitrarios soportados via Bluestein, multiplicacion exacta CRT de tres primos en `__uint128_t`, algebra formal de polinomios, multiplicacion de enteros grandes en base 10, convolucion negaciclica modulo `x^N + 1`, ejecucion por lotes y multiplicacion paralela explicita de polinomios. Tutorial completo: [Tutorial NTT](docs/ntt-tutorial.md) |
+| Aritmética de polinomios | `polynomial_example.cc` | Álgebra de polinomios dispersos, cálculo simbólico, análisis de raíces (Sturm/bisección/Newton), interpolación de Lagrange, funciones de transferencia y operaciones dispersas de alto grado |
 | Caja de herramientas de teoría de números | `math_nt_example.cc` | Multiplicación modular segura, Miller-Rabin, Pollard's Rho, NTT, combinatoria modular y álgebra lineal |
 | Algoritmos de streaming | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
 | Enumeración lexicográfica de permutaciones/combinaciones | `combinatorics_enumeration_example.cc` | `next_permutation` extendida, k-combinaciones por índices/bitmask y enumeración materializada |
