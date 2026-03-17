@@ -160,7 +160,7 @@ private:
         if (coeff_is_zero(p.second))
           zeros.append(p.first);
       }
-    zeros.for_each([this](size_t e) { coeffs.remove(e); });
+    zeros.for_each([this](size_t e) { coeffs.remove_key(e); });
   }
 
   /** @brief Read coefficient at exponent (0 if absent). */
@@ -857,6 +857,8 @@ public:
           break;
 
         const Coefficient scale = r.leading_coeff() / d_lc;
+        if (coeff_is_zero(scale))
+          break; // can't reduce further (e.g. integer coeff truncation)
         const size_t shift = r_degree - d_degree;
 
         q.add_to_coeff(shift, scale);
@@ -1534,7 +1536,13 @@ public:
     auto chain = sturm_chain();
     size_t sa = sturm_sign_changes(chain, a);
     size_t sb = sturm_sign_changes(chain, b);
-    return sa > sb ? sa - sb : 0;
+    size_t count = sa > sb ? sa - sb : 0;
+
+    // Sturm's theorem counts roots in (a, b]; add root at a if present
+    if (coeff_is_zero((*this)(a)))
+      ++count;
+
+    return count;
   }
 
   /** @brief Total number of distinct real roots.

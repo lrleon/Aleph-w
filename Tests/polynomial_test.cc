@@ -15,6 +15,7 @@
 # include <gtest/gtest.h>
 # include <cmath>
 # include <string>
+# include <sstream>
 # include <stdexcept>
 # include <tpl_polynomial.H>
 

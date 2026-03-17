@@ -218,6 +218,7 @@ set(TEST_PROGRAMS
     ah-comb
     ah-convert
     polygon_test
+    polynomial_test
     parse_csv_test
     line_test
     mat_latex_path_test

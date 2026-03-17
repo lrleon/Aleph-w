@@ -77,8 +77,8 @@ def english_documentation?(path)
     algoritmo biblioteca cabecera función parámetro retorno estructura
     herencia polimorfismo puntero memoria asignación búsqueda busqueda ordenamiento
     grafo nodo arista camino ciclo árbol hoja raíz
-    implementación descripción ejemplo advertencia nota opcional requerido
-    devuelve booleano entero real cadena carácter
+    implementación descripción ejemplo advertencia opcional requerido
+    devuelve booleano entero cadena carácter
   ]
 
   has_spanish = spanish_words.any? do |w|
