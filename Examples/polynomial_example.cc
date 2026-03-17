@@ -49,7 +49,8 @@
  * 2. **Calculus** — symbolic differentiation, integration, and the
  *    Fundamental Theorem verification.
  * 3. **Root finding and interpolation** — building polynomials from
- *    known roots and from data points via polynomial interpolation (Newton).
+ *    known roots and from data points via interpolation
+ *    using Newton divided differences (`Polynomial::interpolate()`).
  * 4. **Signal processing** — representing a transfer function as a
  *    ratio of polynomials and evaluating frequency response.
  * 5. **Sparse polynomials** — demonstrating efficiency on polynomials
@@ -181,7 +182,8 @@ static void calculus_example()
 /**
  * Two ways to build polynomials from known data:
  *   (a) from_roots: given roots r1, r2, ..., builds (x - r1)(x - r2)...
- *   (b) interpolate: polynomial interpolation (Newton divided differences)
+ *   (b) interpolate: polynomial interpolation through given (x, y)
+ *         points using Newton divided differences
  */
 static void roots_and_interpolation()
 {
@@ -205,10 +207,11 @@ static void roots_and_interpolation()
     cout << "    p(" << r << ") = " << p(r) << "\n";
   });
 
-  // --- (b) Polynomial interpolation (Newton) ---
+  // --- (b) Polynomial interpolation via Newton divided differences ---
   // Fit a quadratic through (0, 1), (1, 0), (2, 1)
   // Expected: x^2 - x + 1... let's see
-  cout << "\n  Polynomial interpolation through (0,1), (1,0), (2,1):\n";
+  cout << "\n  Polynomial interpolation through (0,1), (1,0), (2,1)"
+       << " using Newton divided differences:\n";
 
   DynList<std::pair<double, double>> points;
   points.append(std::make_pair(0.0, 1.0));
