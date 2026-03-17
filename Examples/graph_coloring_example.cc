@@ -55,9 +55,9 @@
  * | Function                | Strategy                                   | Complexity        |
  * |-------------------------|--------------------------------------------|-------------------|
  * | `greedy_coloring`       | First-fit in iteration order               | O((V+E) log V)    |
- * | `welsh_powell_coloring` | First-fit, decreasing degree order         | O((V+E)logV+VlogV)|
- * | `dsatur_coloring`       | Most-saturated vertex first (adaptive)     | O(V^2+ElogV)      |
- * | `is_valid_coloring`     | Validation                                 | O(V+E)            |
+ * | `welsh_powell_coloring` | First-fit, decreasing degree order         | O((V+E) log V)    |
+ * | `dsatur_coloring`       | Most-saturated vertex first (adaptive)     | O(V^2 + E log V)  |
+ * | `is_valid_coloring`     | Validation                                 | O(E log V)        |
  * | `chromatic_number`      | Exact (branch-and-bound, max 64 nodes)     | Exponential       |
  *
  * ## State safety
@@ -482,9 +482,9 @@ int main()
   cout << "│ Function                │ Complexity           │ Quality         │\n";
   cout << "├─────────────────────────┼──────────────────────┼─────────────────┤\n";
   cout << "│ greedy_coloring         │ O((V+E) log V)       │ ≤ Δ+1 colors   │\n";
-  cout << "│ welsh_powell_coloring   │ O((V+E)logV + VlogV) │ Often better   │\n";
-  cout << "│ dsatur_coloring         │ O(V^2 + ElogV)       │ Near-optimal   │\n";
-  cout << "│ is_valid_coloring       │ O(V+E)               │ Validation     │\n";
+  cout << "│ welsh_powell_coloring   │ O((V+E) log V)       │ Often better   │\n";
+  cout << "│ dsatur_coloring         │ O(V^2 + E log V)     │ Near-optimal   │\n";
+  cout << "│ is_valid_coloring       │ O(E log V)           │ Validation     │\n";
   cout << "│ chromatic_number        │ Exponential (≤64 V)  │ Exact χ(G)     │\n";
   cout << "└─────────────────────────┴──────────────────────┴─────────────────┘\n\n";
   cout << "All algorithms:\n";

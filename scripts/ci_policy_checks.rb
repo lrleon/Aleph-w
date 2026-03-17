@@ -54,13 +54,22 @@ end
 def english_documentation?(path)
   begin
     content = File.read(path)
-  rescue StandardError
-    return true
+  rescue StandardError => e
+    $stderr.puts "english_documentation?: could not read #{path}: #{e.message}"
+    return false
   end
   block_docs = content.scan(%r{/\*\*.*?\*/}m).join(' ')
   line_docs = content.scan(%r{^\s*///.*$}).join(' ')
   docs = [block_docs, line_docs].reject(&:empty?).join(' ')
   return true if docs.empty?
+
+  # Strip code blocks before scanning for Spanish words to avoid false positives
+  # from identifiers or examples inside fenced blocks, @code...@endcode, or
+  # inline backtick spans.
+  docs_without_code = docs
+    .gsub(/```.*?```/m, ' ')
+    .gsub(/@code\b.*?@endcode\b/m, ' ')
+    .gsub(/`[^`]*`/, ' ')
 
   # Check for common Spanish words that shouldn't be in English documentation
   # (avoiding very short words or those that overlap with English/technical terms)
@@ -71,9 +80,9 @@ def english_documentation?(path)
     implementación descripción ejemplo advertencia nota opcional requerido
     devuelve booleano entero real cadena carácter
   ]
-  
+
   has_spanish = spanish_words.any? do |w|
-    docs.match?(/(^|[^\p{L}])#{Regexp.escape(w)}([^\p{L}]|$)/iu)
+    docs_without_code.match?(/(^|[^\p{L}])#{Regexp.escape(w)}([^\p{L}]|$)/iu)
   end
 
   !has_spanish
@@ -90,7 +99,7 @@ def main
   files = changed_files(base)
 
   headers_changed = files.select { |f| HEADER_EXTS.include?(File.extname(f)) }
-  sources_changed = files.select { |f| %w[.C .cc .cpp].include?(File.extname(f)) }
+  sources_changed = files.select { |f| %w[.C .cc .cpp .cxx].include?(File.extname(f)) }
   tests_changed = files.select { |f| f.start_with?('Tests/') && TEST_EXTS.include?(File.extname(f)) }
 
   failures = []

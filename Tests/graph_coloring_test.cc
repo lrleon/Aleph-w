@@ -13,6 +13,9 @@
 */
 
 # include <gtest/gtest.h>
+# include <stdexcept>
+# include <string>
+# include <algorithm>
 # include <random>
 # include <vector>
 # include <Graph_Coloring.H>
@@ -552,6 +555,37 @@ TEST(GraphColoring, ValidationRejectsSelfLoop)
   EXPECT_THROW(chromatic_number(g, colors), std::domain_error);
 }
 
+TEST(GraphColoring, ValidationRejectsParallelEdge)
+{
+  // Two nodes connected by two parallel arcs (multigraph).
+  Graph g;
+  auto *a = g.insert_node("a");
+  auto *b = g.insert_node("b");
+  g.insert_arc(a, b);
+  g.insert_arc(a, b);
+
+  // A coloring that assigns the same color to both endpoints is invalid.
+  DynMapTree<Graph::Node *, size_t> colors;
+  colors.insert(a, 0);
+  colors.insert(b, 0);
+  EXPECT_FALSE(is_valid_coloring(g, colors));
+
+  // The algorithms should still produce a valid coloring (parallel edges are
+  // handled correctly — they are treated like a single edge for coloring).
+  DynMapTree<Graph::Node *, size_t> result;
+  EXPECT_NO_THROW(greedy_coloring(g, result));
+  EXPECT_TRUE(is_valid_coloring(g, result));
+
+  EXPECT_NO_THROW(welsh_powell_coloring(g, result));
+  EXPECT_TRUE(is_valid_coloring(g, result));
+
+  EXPECT_NO_THROW(dsatur_coloring(g, result));
+  EXPECT_TRUE(is_valid_coloring(g, result));
+
+  EXPECT_NO_THROW(chromatic_number(g, result));
+  EXPECT_TRUE(is_valid_coloring(g, result));
+}
+
 // ===================================================================
 // Tests: chromatic number (exact, small graphs)
 // ===================================================================
@@ -634,13 +668,18 @@ TEST(GraphColoring, ChromaticNumberTooManyNodes)
 TEST(GraphColoring, ChromaticNumber64Nodes)
 {
   Graph g;
+  std::vector<Graph::Node *> ns;
   for (int i = 0; i < 64; ++i)
-    g.insert_node("v" + std::to_string(i));
+    ns.push_back(g.insert_node("v" + std::to_string(i)));
+
+  // Add an edge between the first and last node so adjacency around
+  // the highest index (63) is exercised.
+  g.insert_arc(ns[0], ns[63]);
 
   DynMapTree<Graph::Node *, size_t> colors;
   EXPECT_NO_THROW({
     size_t chi = chromatic_number(g, colors);
-    EXPECT_EQ(chi, 1u); // No edges, so chromatic number is 1
+    EXPECT_EQ(chi, 2u); // One edge → 2 colors needed
     EXPECT_EQ(colors.size(), 64u);
   });
 }
@@ -972,29 +1011,53 @@ TEST(GraphColoring, RandomGraphsPropertyBased)
           size_t delta = max_degree(g);
           DynMapTree<Graph::Node *, size_t> colors;
           
+          // Test Greedy
+          size_t k_greedy = greedy_coloring(g, colors);
+          EXPECT_TRUE(is_valid_coloring(g, colors))
+            << "Greedy produced invalid coloring for " << tc.description
+            << " graph (trial " << trial << ")";
+          EXPECT_LE(k_greedy, delta + 1)
+            << "Greedy used " << k_greedy << " colors but max degree is " << delta
+            << " for " << tc.description << " graph (trial " << trial << ")";
+
+          // Test Welsh-Powell
+          size_t k_wp = welsh_powell_coloring(g, colors);
+          EXPECT_TRUE(is_valid_coloring(g, colors))
+            << "Welsh-Powell produced invalid coloring for " << tc.description
+            << " graph (trial " << trial << ")";
+          EXPECT_LE(k_wp, delta + 1)
+            << "Welsh-Powell used " << k_wp << " colors but max degree is " << delta
+            << " for " << tc.description << " graph (trial " << trial << ")";
+
           // Test DSatur
           size_t k = dsatur_coloring(g, colors);
-          
+
           // Invariant 1: coloring must be valid
           EXPECT_TRUE(is_valid_coloring(g, colors))
             << "DSatur produced invalid coloring for " << tc.description
             << " graph (trial " << trial << ")";
-          
+
           // Invariant 2: k <= Δ + 1 (Brooks' theorem bound)
           EXPECT_LE(k, delta + 1)
             << "DSatur used " << k << " colors but max degree is " << delta
             << " for " << tc.description << " graph (trial " << trial << ")";
-          
+
           // Test chromatic_number for small graphs
           if (g.get_num_nodes() <= 15)
             {
               DynMapTree<Graph::Node *, size_t> exact_colors;
               size_t chi = chromatic_number(g, exact_colors);
-              
+
               EXPECT_TRUE(is_valid_coloring(g, exact_colors))
                 << "chromatic_number produced invalid coloring for " << tc.description
                 << " graph (trial " << trial << ")";
-              
+
+              EXPECT_LE(chi, k_greedy)
+                << "Exact chromatic number " << chi << " exceeds Greedy result " << k_greedy
+                << " for " << tc.description << " graph (trial " << trial << ")";
+              EXPECT_LE(chi, k_wp)
+                << "Exact chromatic number " << chi << " exceeds Welsh-Powell result " << k_wp
+                << " for " << tc.description << " graph (trial " << trial << ")";
               EXPECT_LE(chi, k)
                 << "Exact chromatic number " << chi << " exceeds DSatur result " << k
                 << " for " << tc.description << " graph (trial " << trial << ")";
