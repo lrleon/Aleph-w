@@ -539,6 +539,52 @@ TEST(GraphColoring, ValidationRejectsMissingNode)
   EXPECT_FALSE(is_valid_coloring(g, colors));
 }
 
+// Regression: edgeless graph where the colors map is keyed with a foreign
+// pointer not belonging to the graph.  A size match alone would pass
+// incorrectly; the per-node check must catch this.
+TEST(GraphColoring, ValidationRejectsForeignKeyedMap)
+{
+  Graph g;
+  auto *a = g.insert_node("a"); // sole graph node
+
+  // Create a dummy node in a separate graph and use it as a foreign key.
+  Graph other;
+  auto *foreign = other.insert_node("foreign");
+
+  DynMapTree<Graph::Node *, size_t> colors;
+  colors.insert(foreign, 0); // same size (1) but wrong key
+
+  EXPECT_FALSE(is_valid_coloring(g, colors));
+
+  // A properly keyed map must pass.
+  DynMapTree<Graph::Node *, size_t> good_colors;
+  good_colors.insert(a, 0);
+  EXPECT_TRUE(is_valid_coloring(g, good_colors));
+}
+
+// Regression: isolated node (no incident arcs) missing from colors.
+// The arc loop would never visit it, so without the per-node check the
+// function would incorrectly return true.
+TEST(GraphColoring, ValidationRejectsIsolatedNodeMissingFromColors)
+{
+  Graph g;
+  auto *a    = g.insert_node("a");
+  auto *b    = g.insert_node("b");
+  auto *lone = g.insert_node("lone"); // no arcs
+  g.insert_arc(a, b);
+
+  DynMapTree<Graph::Node *, size_t> colors;
+  colors.insert(a, 0);
+  colors.insert(b, 1);
+  // lone is intentionally absent
+
+  EXPECT_FALSE(is_valid_coloring(g, colors));
+
+  // Adding the isolated node makes it valid.
+  colors.insert(lone, 0);
+  EXPECT_TRUE(is_valid_coloring(g, colors));
+}
+
 TEST(GraphColoring, ValidationRejectsSelfLoop)
 {
   Graph g;

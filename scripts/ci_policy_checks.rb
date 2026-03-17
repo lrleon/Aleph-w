@@ -58,8 +58,8 @@ def english_documentation?(path)
     $stderr.puts "english_documentation?: could not read #{path}: #{e.message}"
     return false
   end
-  block_docs = content.scan(%r{/\*\*.*?\*/}m).join(' ')
-  line_docs = content.scan(%r{^\s*///.*$}).join(' ')
+  block_docs = content.scan(%r{/\*[*!].*?\*/}m).join(' ')
+  line_docs = content.scan(%r{^\s*(?:///|//!).*$}).join(' ')
   docs = [block_docs, line_docs].reject(&:empty?).join(' ')
   return true if docs.empty?
 
