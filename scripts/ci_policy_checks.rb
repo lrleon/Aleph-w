@@ -51,6 +51,44 @@ def mit_license_header?(path)
 end
 
 
+def english_documentation?(path)
+  begin
+    content = File.read(path)
+  rescue StandardError => e
+    $stderr.puts "english_documentation?: could not read #{path}: #{e.message}"
+    return false
+  end
+  block_docs = content.scan(%r{/\*[*!].*?\*/}m).join(' ')
+  line_docs = content.scan(%r{^\s*(?:///|//!).*$}).join(' ')
+  docs = [block_docs, line_docs].reject(&:empty?).join(' ')
+  return true if docs.empty?
+
+  # Strip code blocks before scanning for Spanish words to avoid false positives
+  # from identifiers or examples inside fenced blocks, @code...@endcode, or
+  # inline backtick spans.
+  docs_without_code = docs
+    .gsub(/```.*?```/m, ' ')
+    .gsub(/@code\b.*?@endcode\b/m, ' ')
+    .gsub(/`[^`]*`/, ' ')
+
+  # Check for common Spanish words that shouldn't be in English documentation
+  # (avoiding very short words or those that overlap with English/technical terms)
+  spanish_words = %w[
+    algoritmo biblioteca cabecera función parámetro retorno estructura
+    herencia polimorfismo puntero memoria asignación búsqueda busqueda ordenamiento
+    grafo nodo arista camino ciclo árbol hoja raíz
+    implementación descripción ejemplo advertencia nota opcional requerido
+    devuelve booleano entero real cadena carácter
+  ]
+
+  has_spanish = spanish_words.any? do |w|
+    docs_without_code.match?(/(^|[^\p{L}])#{Regexp.escape(w)}([^\p{L}]|$)/iu)
+  end
+
+  !has_spanish
+end
+
+
 def main
   if github_event_name != 'pull_request'
     puts '[skip] not a pull_request event'
@@ -61,15 +99,17 @@ def main
   files = changed_files(base)
 
   headers_changed = files.select { |f| HEADER_EXTS.include?(File.extname(f)) }
+  sources_changed = files.select { |f| %w[.C .cc .cpp .cxx].include?(File.extname(f)) }
   tests_changed = files.select { |f| f.start_with?('Tests/') && TEST_EXTS.include?(File.extname(f)) }
 
   failures = []
 
-  headers_changed.each do |hf|
-    p = Pathname.new(hf)
+  (headers_changed + sources_changed).each do |file|
+    p = Pathname.new(file)
     next unless p.exist?
 
-    failures << "missing/invalid MIT license header: #{hf}" unless mit_license_header?(p)
+    failures << "missing/invalid MIT license header: #{file}" if HEADER_EXTS.include?(File.extname(file)) && !mit_license_header?(p)
+    failures << "documentation seems to be in Spanish (must be English): #{file}" unless english_documentation?(p)
   end
 
   if !headers_changed.empty? && tests_changed.empty?

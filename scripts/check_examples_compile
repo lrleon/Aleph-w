@@ -184,7 +184,11 @@ targets.delete('<unknown>') if targets.size > 1
 if targets.empty?
   warn 'No target-specific failures were detected in the output. Inspect the log for details.'
 else
-  warn "\nFailure report per target:"
+  warn "\n--- FAILED EXAMPLES SUMMARY ---"
+  targets.sort.each { |tgt| warn "  [FAIL] #{tgt}" }
+  warn "-------------------------------\n"
+
+  warn "\nDetailed failure report per target:"
   targets.sort.each do |tgt|
     lines = errors_by_target[tgt]
     if lines.empty?
