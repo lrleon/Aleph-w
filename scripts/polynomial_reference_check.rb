@@ -115,15 +115,21 @@ python_script = <<~'PY'
       if case["name"] == "sum_mul_divmod":
           a = uni_poly(case["a"])
           b = uni_poly(case["b"])
-          assert sp.expand(a + b) == uni_poly(case["sum"])
-          assert sp.expand(a * b) == uni_poly(case["product"])
+          expected_sum = uni_poly(case["sum"])
+          if sp.expand(a + b) != expected_sum:
+              raise AssertionError("sum_mul_divmod: incorrect sum")
+          expected_product = uni_poly(case["product"])
+          if sp.expand(a * b) != expected_product:
+              raise AssertionError("sum_mul_divmod: incorrect product")
           q = uni_poly(case["quotient"])
           r = uni_poly(case["remainder"])
-          assert sp.expand(q * b + r) == uni_poly(case["product"])
+          if sp.expand(q * b + r) != expected_product:
+              raise AssertionError("sum_mul_divmod: quotient * divisor + remainder mismatch")
       elif case["name"] == "compose_sparse":
           outer = uni_poly(case["outer"])
           inner = uni_poly(case["inner"])
-          assert sp.expand(outer.subs(x, inner)) == uni_poly(case["composed"])
+          if sp.expand(outer.subs(x, inner)) != uni_poly(case["composed"]):
+              raise AssertionError("compose_sparse: incorrect composition")
       elif case["name"] == "factorize_integer":
           poly = uni_poly(case["poly"])
           library = normalize_factor_list(case["factors"], (x,))
@@ -134,7 +140,8 @@ python_script = <<~'PY'
           for factor, multiplicity in factors:
               expected.append((normalize_poly(factor.as_expr(), (x,)), int(multiplicity)))
           expected.sort()
-          assert library == expected, (library, expected)
+          if library != expected:
+              raise AssertionError((library, expected))
       else:
           raise AssertionError(f"unknown univariate case {case['name']}")
 
@@ -149,7 +156,8 @@ python_script = <<~'PY'
           for factor, multiplicity in factors:
               expected.append((normalize_poly(factor.as_expr(), (x, y)), int(multiplicity)))
           expected.sort()
-          assert library == expected, (library, expected)
+          if library != expected:
+              raise AssertionError((library, expected))
       elif case["name"] == "factorize_same_degree_non_monic":
           poly = term_poly(case["poly"], (x, y))
           library = normalize_factor_list(case["factors"], (x, y))
@@ -160,14 +168,16 @@ python_script = <<~'PY'
           for factor, multiplicity in factors:
               expected.append((normalize_poly(factor.as_expr(), (x, y)), int(multiplicity)))
           expected.sort()
-          assert library == expected, (library, expected)
+          if library != expected:
+              raise AssertionError((library, expected))
       elif case["name"] == "groebner_reduced_lex":
           generators = [term_poly(poly_terms, (x, y)) for poly_terms in case["generators"]]
           basis = [term_poly(poly_terms, (x, y)) for poly_terms in case["basis"]]
           gb = sp.groebner(generators, x, y, order="lex")
           expected = sorted(normalize_poly(poly, (x, y)) for poly in gb.polys)
           got = sorted(normalize_poly(poly, (x, y)) for poly in basis)
-          assert got == expected, (got, expected)
+          if got != expected:
+              raise AssertionError((got, expected))
       else:
           raise AssertionError(f"unknown multivariate case {case['name']}")
 

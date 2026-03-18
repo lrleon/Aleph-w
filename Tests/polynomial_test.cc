@@ -15,6 +15,7 @@
 # include <gtest/gtest.h>
 # include <chrono>
 # include <cmath>
+# include <limits>
 # include <random>
 # include <string>
 # include <sstream>
@@ -59,6 +60,13 @@ TEST(Polynomial, DefaultIsZero)
   EXPECT_TRUE(p.is_zero());
   EXPECT_EQ(p.degree(), 0u);
   EXPECT_EQ(p.num_terms(), 0u);
+}
+
+TEST(Polynomial, AbsToU64HandlesSignedMinimum)
+{
+  const auto value = std::numeric_limits<long long>::min();
+  const auto expected = static_cast<uint64_t>(std::numeric_limits<long long>::max()) + 1ULL;
+  EXPECT_EQ(polynomial_detail::abs_to_u64(value), expected);
 }
 
 TEST(Polynomial, ConstantPolynomial)
@@ -1705,6 +1713,53 @@ TEST(PolyLayer5, PrimitivePartZeroPoly)
   EXPECT_TRUE(prim.is_zero());
 }
 
+// --- Integer Exact Quotient Tests ---
+
+TEST(PolyLayer5, IntegerExactQuotZeroDivisorThrows)
+{
+  IntPoly a;
+  a.set_coeff(0, 1);
+  a.set_coeff(1, 2);
+
+  IntPoly zero;
+  EXPECT_THROW(IntPoly::_integer_exact_quot(a, zero), std::domain_error);
+}
+
+TEST(PolyLayer5, IntegerExactQuotConstantDivisorPreservesExactQuotient)
+{
+  IntPoly a;
+  a.set_coeff(0, 2);
+  a.set_coeff(1, 4);
+  a.set_coeff(2, 6);
+
+  IntPoly q = IntPoly::_integer_exact_quot(a, IntPoly(2));
+  EXPECT_EQ(q.get_coeff(0), 1);
+  EXPECT_EQ(q.get_coeff(1), 2);
+  EXPECT_EQ(q.get_coeff(2), 3);
+}
+
+TEST(PolyLayer5, IntegerExactQuotConstantDivisorRejectsInexactDivision)
+{
+  IntPoly a;
+  a.set_coeff(0, 1);
+  a.set_coeff(1, 4);
+
+  EXPECT_THROW(IntPoly::_integer_exact_quot(a, IntPoly(2)), std::domain_error);
+}
+
+TEST(PolyLayer5, IntegerExactQuotRejectsNonZeroPseudoDivisionRemainder)
+{
+  IntPoly a;
+  a.set_coeff(0, 1);
+  a.set_coeff(2, 1);
+
+  IntPoly b;
+  b.set_coeff(0, 2);
+  b.set_coeff(1, 1);
+
+  EXPECT_THROW(IntPoly::_integer_exact_quot(a, b), std::domain_error);
+}
+
 // --- Integer GCD Tests ---
 
 TEST(PolyLayer5, IntegerGcdLinearLinear)
@@ -1889,6 +1944,17 @@ TEST(PolyLayer5, FactorModPRepeatedRootMultiplicity)
     }
 }
 
+TEST(PolyLayer5, FactorModPRejectsInvalidModulus)
+{
+  IntPoly p;
+  p.set_coeff(0, -2);
+  p.set_coeff(1, 1);
+
+  EXPECT_THROW(IntPoly::factor_mod_p(p, 1), std::domain_error);
+  EXPECT_THROW(IntPoly::factor_mod_p(p, 0), std::domain_error);
+  EXPECT_THROW(IntPoly::factor_mod_p(p, -5), std::domain_error);
+}
+
 // --- Mignotte Bound Tests ---
 
 TEST(PolyLayer5, MignotteBoundLinear)
@@ -1989,6 +2055,27 @@ TEST(PolyLayer5, HenselLiftSingle)
   factors.append(f);
   auto lifted = IntPoly::hensel_lift(f, factors, 7, 1);
   EXPECT_EQ(lifted.size(), 1);
+}
+
+TEST(PolyLayer5, HenselLiftRejectsInvalidParameters)
+{
+  IntPoly f;
+  f.set_coeff(0, -6);
+  f.set_coeff(2, 1);
+
+  IntPoly f1, f2;
+  f1.set_coeff(0, -1);
+  f1.set_coeff(1, 1);
+  f2.set_coeff(0, 1);
+  f2.set_coeff(1, 1);
+
+  DynList<IntPoly> factors;
+  factors.append(f1);
+  factors.append(f2);
+
+  EXPECT_THROW(IntPoly::hensel_lift(f, factors, 1, 1), std::domain_error);
+  EXPECT_THROW(IntPoly::hensel_lift(f, factors, 0, 1), std::domain_error);
+  EXPECT_THROW(IntPoly::hensel_lift(f, factors, 5, 0), std::domain_error);
 }
 
 // --- Factorize Tests ---

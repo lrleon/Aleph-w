@@ -77,6 +77,10 @@ end
 def index_rows(payload)
   payload.fetch('rows').each_with_object({}) do |row, map|
     key = [row.fetch('case'), row.fetch('size')]
+    if map.key?(key)
+      existing = map[key]
+      abort("duplicate benchmark row for #{key.inspect}: existing=#{existing.inspect} new=#{row.inspect}")
+    end
     map[key] = row
   end
 end
@@ -90,10 +94,19 @@ end
 
 baseline = load_json(options[:baseline])
 validate_payload(baseline, 'baseline')
-current = options[:current] ? load_json(options[:current]) : run_benchmark(options)
-validate_payload(current, 'current')
-
 baseline_rows = index_rows(baseline)
+current =
+  if options[:current]
+    load_json(options[:current])
+  else
+    if options[:sizes].nil?
+      baseline_sizes = baseline['sizes'] if baseline['sizes'].is_a?(Array)
+      baseline_sizes ||= baseline_rows.keys.map { |(_, size)| size }.uniq
+      options[:sizes] = baseline_sizes.join(',')
+    end
+    run_benchmark(options)
+  end
+validate_payload(current, 'current')
 current_rows = index_rows(current)
 
 missing = baseline_rows.keys - current_rows.keys

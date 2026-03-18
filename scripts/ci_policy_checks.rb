@@ -2,6 +2,7 @@
 
 require 'open3'
 require 'pathname'
+require 'unicode_normalize'
 
 HEADER_EXTS = %w[.h .H .hpp .hxx .hh].freeze
 TEST_EXTS = %w[.cc .cpp .C .cxx].freeze

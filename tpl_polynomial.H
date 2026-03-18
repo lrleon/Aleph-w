@@ -103,9 +103,10 @@ template <typename Int>
 {
   if constexpr (std::is_signed_v<Int>)
     {
-      using Signed = std::make_signed_t<Int>;
-      return value < Int{} ? static_cast<uint64_t>(-(static_cast<Signed>(value)))
-                           : static_cast<uint64_t>(value);
+      using Unsigned = std::make_unsigned_t<Int>;
+      const Unsigned magnitude = value < Int{} ? Unsigned{} - static_cast<Unsigned>(value)
+                                               : static_cast<Unsigned>(value);
+      return static_cast<uint64_t>(magnitude);
     }
   else
     return static_cast<uint64_t>(value);
@@ -2087,12 +2088,12 @@ public:
    *  @param[in] a Dividend.
    *  @param[in] b Divisor (must divide a exactly).
    *  @return The primitive part of the quotient.
+   *  @throws std::domain_error if @p b is zero or does not divide @p a exactly.
    */
   static Gen_Polynomial _integer_exact_quot(const Gen_Polynomial &a, const Gen_Polynomial &b)
     requires std::is_integral_v<Coefficient>
   {
-    if (b.is_zero())
-      return Gen_Polynomial();
+    ah_domain_error_if(b.is_zero()) << "_integer_exact_quot: zero divisor";
     if (b.is_constant())
       {
         Coefficient d = b.leading_coeff();
@@ -2100,11 +2101,16 @@ public:
         for (auto it = a.coeffs.get_it(); it.has_curr(); it.next_ne())
           {
             auto &p = it.get_curr();
+            ah_domain_error_if(not coeff_is_zero(p.second % d))
+              << "_integer_exact_quot: inexact constant division for coefficient "
+              << p.second << " and divisor " << d;
             r.coeffs.insert(p.first, p.second / d);
           }
         return r;
       }
     auto [q, rem] = a.pseudo_divmod(b);
+    ah_domain_error_if(not rem.is_zero())
+      << "_integer_exact_quot: divisor does not divide dividend exactly";
     return q.is_zero() ? q : q.primitive_part();
   }
 
@@ -2596,6 +2602,8 @@ public:
     requires std::is_integral_v<Coefficient>
   {
     ah_domain_error_if(p <= Coefficient(1)) << "hensel_lift: modulus p must be > 1, got " << p;
+    ah_domain_error_if(levels == 0)
+      << "hensel_lift: levels must be >= 1, got " << levels;
     ah_domain_error_if(levels > 30)
       << "hensel_lift: levels must be <= 30 to avoid overflow, got " << levels;
 
