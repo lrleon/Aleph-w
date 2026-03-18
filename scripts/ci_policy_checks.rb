@@ -73,12 +73,13 @@ def english_documentation?(path)
 
   # Check for common Spanish words that shouldn't be in English documentation
   # (avoiding very short words or those that overlap with English/technical terms)
+  # Note: accented variants are normalized to ASCII during comparison
   spanish_words = %w[
-    algoritmo biblioteca cabecera funcion función parametro parámetro retorno estructura
-    herencia polimorfismo puntero memoria asignacion asignación busqueda búsqueda ordenamiento
-    grafo nodo arista camino ciclo arbol árbol hoja raiz raíz
-    implementacion implementación descripcion descripción ejemplo advertencia opcional requerido
-    devuelve booleano entero cadena caracter carácter
+    algoritmo biblioteca cabecera funcion parametro retorno estructura
+    herencia polimorfismo puntero memoria asignacion busqueda ordenamiento
+    grafo nodo arista camino ciclo arbol hoja raiz
+    implementacion descripcion ejemplo advertencia opcional requerido
+    devuelve booleano entero cadena caracter
   ]
 
   # Normalize text and each word to ASCII (strip diacritics) so both accented

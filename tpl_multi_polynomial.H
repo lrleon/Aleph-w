@@ -1744,6 +1744,11 @@ public:
    *  @note **Use case**: Ill-conditioned or noisy data. Automatic lambda selection via GCV.
    *        **Complexity**: @f$O(m \cdot b^2 + b^3 + \text{trials})@f$ where m=data points, b=basis size.
    *        **Reference**: Golub & Kahan (1965), Wahba (1990).
+   *  @warning The GCV implementation uses b (basis size) as an upper bound approximation
+   *           for the effective degrees of freedom trace(A(A^T A + lambda I)^{-1}A^T).
+   *           This can overestimate the trace for ill-conditioned systems or when b≈m.
+   *           For higher accuracy, consider implementing exact trace computation or
+   *           stochastic trace estimation (e.g., Hutchinson estimator).
    */
   [[nodiscard]] static Gen_MultiPolynomial fit_ridge(
     const Array<std::pair<Array<Coefficient>, Coefficient>> &data, size_t nvars,
@@ -2216,7 +2221,7 @@ public:
     return oss.str();
   }
 
-  /** @brief Deserialize polynomial from JSON string.
+  /** @brief Deserialize from JSON.
    *
    *  Parses format created by @ref to_json().
    *
@@ -2224,6 +2229,10 @@ public:
    *  @return Reconstructed polynomial.
    *
    *  @throws std::domain_error if JSON format is invalid.
+   *  @throws std::invalid_argument if coefficient conversion fails (from std::stod).
+   *  @throws std::out_of_range if coefficient value is out of range (from std::stod).
+   *
+   *  @note This parser only supports the exact format produced by to_json().
    */
   [[nodiscard]] static Gen_MultiPolynomial from_json(const std::string &s)
   {
@@ -2648,7 +2657,7 @@ public:
     const Array<Gen_MultiPolynomial> &generators)
     requires (not std::is_integral_v<Coefficient>)
   {
-    size_t gen_count = generators.size();
+    const size_t gen_count = generators.size();
     ah_domain_error_if(gen_count == 0) << "groebner_basis: empty generators";
 
     for (size_t i = 0; i < gen_count; ++i)
@@ -3074,9 +3083,8 @@ public:
     size_t nv = gens(0).nvars_;
 
     // Check nvars consistency (f.nvars_ == 0 is OK for zero polynomial)
-    if (not f.is_zero() and f.nvars_ != nv)
-      ah_invalid_argument_if(not f.is_zero() and f.nvars_ != nv)
-        << "radical_member: f nvars mismatch: expected " << nv << ", got " << f.nvars_;
+    ah_invalid_argument_if(not f.is_zero() and f.nvars_ != nv)
+      << "radical_member: f nvars mismatch: expected " << nv << ", got " << f.nvars_;
 
     // Special case: 0 ∈ √I always
     if (f.is_zero())

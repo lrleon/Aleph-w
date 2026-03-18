@@ -324,17 +324,18 @@ private:
   template <class Op>
   void for_each_term_desc(Op &&op) const
   {
-    DynList<Term> desc_terms;
+    Array<const Term *> desc_terms(coeffs.size());
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto &p = it.get_curr();
-        desc_terms.insert(Term(p.first, p.second));
+        const auto &p = it.get_curr();
+        desc_terms.append(&p);
       }
 
-    desc_terms.for_each([&op](const Term &term)
-    {
-      op(term.first, term.second);
-    });
+    for (size_t i = desc_terms.size(); i > 0; --i)
+      {
+        const Term &term = *desc_terms(i - 1);
+        op(term.first, term.second);
+      }
   }
 
   /** @brief Specialized multiplication by a monic linear factor @f$x + c@f$. */
@@ -931,8 +932,10 @@ public:
           break;
 
         const Coefficient scale = r.leading_coeff() / d_lc;
-        if (coeff_is_zero(scale))
-          break;  // can't reduce further (e.g. integer coeff truncation)
+        ah_domain_error_if(coeff_is_zero(scale))
+          << "divmod: inexact coefficient division (leading_coeff=" << r.leading_coeff()
+          << " / divisor_lc=" << d_lc << " = 0). "
+          << "For integral/non-field coefficients, use pseudo_divmod() instead.";
         const size_t shift = r_degree - d_degree;
 
         q.add_to_coeff(shift, scale);
@@ -1682,9 +1685,11 @@ public:
    *  @param[in] max_iter Maximum iterations (default 100).
    *  @return Approximate root.
    *  @throws std::domain_error if derivative vanishes during iteration.
+   *  @note Only available for floating-point coefficient types.
    */
   [[nodiscard]] Coefficient newton_root(Coefficient x0, Coefficient tol = Coefficient(1e-12),
                                         size_t max_iter = 100) const
+    requires std::is_floating_point_v<Coefficient>
   {
     Gen_Polynomial dp = derivative();
 
@@ -2186,6 +2191,32 @@ public:
     return result;
   }
 
+  /** @brief Try exact division but treat inexact integral division as a rejected candidate.
+   *
+   *  Exhaustive integer factor searches intentionally test many polynomials
+   *  that are not actual divisors. After hardening @c divmod() to throw on
+   *  inexact leading-coefficient division, these search paths must convert that
+   *  condition back into a simple "candidate does not divide" result.
+   */
+  [[nodiscard]] static bool try_exact_candidate_division(const Gen_Polynomial &f,
+                                                         const Gen_Polynomial &candidate,
+                                                         Gen_Polynomial       &quotient)
+    requires std::is_integral_v<Coefficient>
+  {
+    try
+      {
+        auto [q, r] = f.divmod(candidate);
+        if (not r.is_zero())
+          return false;
+        quotient = std::move(q);
+        return true;
+      }
+    catch (const std::domain_error &)
+      {
+        return false;
+      }
+  }
+
   [[nodiscard]] static bool try_divide_by_linear_factor(const Gen_Polynomial &f,
                                                         Coefficient          a,
                                                         Coefficient          b,
@@ -2343,8 +2374,8 @@ public:
                       candidate.set_coeff(1, b);
                     candidate.set_coeff(2, a);
 
-                    auto [q, r] = f.divmod(candidate);
-                    if (r.is_zero())
+                    Gen_Polynomial q;
+                    if (try_exact_candidate_division(f, candidate, q))
                       {
                         factor   = candidate.primitive_part();
                         quotient = q.is_zero() ? q : q.primitive_part();
@@ -2435,8 +2466,8 @@ public:
                           candidate.set_coeff(2, b);
                         candidate.set_coeff(3, a);
 
-                        auto [q, r] = f.divmod(candidate);
-                        if (r.is_zero())
+                        Gen_Polynomial q;
+                        if (try_exact_candidate_division(f, candidate, q))
                           {
                             factor   = candidate.primitive_part();
                             quotient = q.is_zero() ? q : q.primitive_part();
@@ -2462,6 +2493,8 @@ public:
    *  @return A list of monic linear factors (with multiplicity), plus
    *          a final residual factor if non-constant.
    *
+   *  @throws std::domain_error if p <= 1.
+   *
    *  @note Only available for integral coefficient types.
    *  @note This is still a root-search method, not Berlekamp or
    *        Cantor-Zassenhaus; non-linear irreducible factors remain grouped.
@@ -2469,6 +2502,9 @@ public:
   static DynList<Gen_Polynomial> factor_mod_p(const Gen_Polynomial &f, Coefficient p)
     requires std::is_integral_v<Coefficient>
   {
+    ah_domain_error_if(p <= Coefficient(1))
+      << "factor_mod_p: modulus p must be > 1, got " << p;
+
     DynList<Gen_Polynomial> result;
 
     if (f.is_zero() or f.is_constant())
@@ -2548,15 +2584,23 @@ public:
    *  @param[in] levels Number of lifting iterations (quadratic).
    *  @return Factors lifted to @f$\mathbb{Z}/p^{2^\text{levels}}\mathbb{Z}@f$.
    *
+   *  @throws std::domain_error if p <= 1 or levels > 30.
+   *
    *  @note Only available for integral coefficient types.
    *  @note Singular roots are not lifted; such factors are returned only
    *        normalized modulo the target modulus.
+   *  @warning levels > 30 is rejected to prevent overflow in (1 << levels).
    */
   static DynList<Gen_Polynomial> hensel_lift(const Gen_Polynomial &f,
                                              DynList<Gen_Polynomial> factors, Coefficient p,
                                              size_t levels)
     requires std::is_integral_v<Coefficient>
   {
+    ah_domain_error_if(p <= Coefficient(1))
+      << "hensel_lift: modulus p must be > 1, got " << p;
+    ah_domain_error_if(levels > 30)
+      << "hensel_lift: levels must be <= 30 to avoid overflow, got " << levels;
+
     if (factors.is_empty())
       return factors;
 

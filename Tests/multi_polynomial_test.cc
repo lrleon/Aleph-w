@@ -6,15 +6,15 @@
   MIT License (see tpl_multi_polynomial.H for full text)
 */
 
-# include <gtest/gtest.h>
-# include <chrono>
-# include <concepts>
-# include <cmath>
-# include <string>
-# include <sstream>
-# include <stdexcept>
-# include <random>
-# include <tpl_multi_polynomial.H>
+#include <gtest/gtest.h>
+#include <chrono>
+#include <concepts>
+#include <cmath>
+#include <string>
+#include <sstream>
+#include <stdexcept>
+#include <random>
+#include <tpl_multi_polynomial.H>
 
 using namespace Aleph;
 
@@ -913,34 +913,19 @@ TEST(MultiPoly, SparseHighDegreePerformance)
   EXPECT_EQ(p.degree(), 1000u);
   EXPECT_EQ(p.num_terms(), 3u);
 
-  using Clock = std::chrono::steady_clock;
-  constexpr long long eval_limit_ms = 50;
-  constexpr long long op_limit_ms = 250;
-
+  // Functional correctness checks (timing moved to benchmark suite)
   Array<double> pt{1.01, 0.99, 1.02};
-  const auto eval_start = Clock::now();
   const double value = p.eval(pt);
-  const auto eval_ms = std::chrono::duration_cast<std::chrono::milliseconds>
-    (Clock::now() - eval_start);
   EXPECT_GT(value, 0.0);
-  EXPECT_LT(eval_ms.count(), eval_limit_ms);
 
-  const auto multiply_start = Clock::now();
   MultiPolynomial squared = p * p;
-  const auto multiply_ms = std::chrono::duration_cast<std::chrono::milliseconds>
-    (Clock::now() - multiply_start);
   EXPECT_EQ(squared.degree(), 2000u);
   EXPECT_LE(squared.num_terms(), 6u);
-  EXPECT_LT(multiply_ms.count(), op_limit_ms);
 
   Array<MultiPolynomial> divisors(1, p);
-  const auto divmod_start = Clock::now();
   auto [q, r] = squared.divmod(divisors);
-  const auto divmod_ms = std::chrono::duration_cast<std::chrono::milliseconds>
-    (Clock::now() - divmod_start);
   EXPECT_EQ(q(0), p);
   EXPECT_TRUE(r.is_zero());
-  EXPECT_LT(divmod_ms.count(), op_limit_ms);
 }
 
 // ===================================================================
@@ -2363,7 +2348,6 @@ TEST(MultiPolyLayer3, ReducedBasisLexPropagationChain)
 TEST(MultiPolyLayer3, ReducedBasisRedundantLexSystemPerformance)
 {
   using LexPoly = Gen_MultiPolynomial<double, Lex_Order>;
-  using Clock   = std::chrono::steady_clock;
 
   auto x = LexPoly::variable(5, 0);
   auto y = LexPoly::variable(5, 1);
@@ -2381,10 +2365,8 @@ TEST(MultiPolyLayer3, ReducedBasisRedundantLexSystemPerformance)
   gens(6) = y * z - LexPoly(5, 1.0);
   gens(7) = z * w - LexPoly(5, 1.0);
 
-  const auto start = Clock::now();
+  // Functional correctness check (timing moved to benchmark suite)
   Array<LexPoly> basis = LexPoly::reduced_groebner_basis(gens);
-  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>
-    (Clock::now() - start);
 
   ASSERT_EQ(basis.size(), 5u);
 
@@ -2400,8 +2382,6 @@ TEST(MultiPolyLayer3, ReducedBasisRedundantLexSystemPerformance)
 
   for (size_t i = 0; i < basis.size(); ++i)
     EXPECT_TRUE(basis(i).reduce_modulo(expected).is_zero());
-
-  EXPECT_LT(elapsed_ms.count(), 1500);
 }
 
 TEST(MultiPolyLayer3, ReducedBasisIdealPreserved)

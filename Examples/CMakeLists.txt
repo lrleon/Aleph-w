@@ -54,4 +54,5 @@ add_executable(polynomial_reference_probe "${CMAKE_CURRENT_SOURCE_DIR}/polynomia
 target_link_libraries(polynomial_reference_probe PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})
 
 list(LENGTH EXAMPLE_SOURCES _examples_count)
-message(STATUS "Configured ${CMAKE_PROJECT_NAME} examples (${_examples_count} targets)")
+math(EXPR _total_examples "${_examples_count} + 2")
+message(STATUS "Configured ${CMAKE_PROJECT_NAME} examples (${_total_examples} targets)")
