@@ -78,7 +78,8 @@ def english_documentation?(path)
 
   # Check for common Spanish words that shouldn't be in English documentation
   # (avoiding very short words or those that overlap with English/technical terms)
-  # Note: accented variants are normalized to ASCII during comparison
+  # Note: accented variants are normalized to ASCII during comparison when
+  # unicode_normalize is available (best-effort otherwise).
   spanish_words = %w[
     algoritmo biblioteca cabecera funcion parametro retorno estructura
     herencia polimorfismo puntero memoria asignacion busqueda ordenamiento

@@ -38,6 +38,7 @@
 # include <iostream>
 # include <sstream>
 # include <string>
+# include <type_traits>
 
 # include <tpl_polynomial.H>
 # include <tpl_multi_polynomial.H>
@@ -100,7 +101,8 @@ namespace
         first = false;
         const auto &term = it.get_curr();
         std::cout << "{\"multiplicity\": " << term.multiplicity << ", \"factor\": ";
-        if constexpr (std::is_same_v<decltype(term.factor), IntPoly>)
+        using FactorType = std::remove_cvref_t<decltype(term.factor)>;
+        if constexpr (std::is_same_v<FactorType, IntPoly>)
           print_coeff_array(term.factor);
         else
           print_term_array(term.factor);

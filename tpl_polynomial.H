@@ -1462,21 +1462,35 @@ public:
 
     const size_t d = degree();
     const Coefficient lc = leading_coeff();
-    Coefficient max_ratio = Coefficient{};
-    for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
+    if constexpr (std::is_floating_point_v<Coefficient>)
       {
-        auto &p = it.get_curr();
-        if (p.first == d)
-          continue;
-        Coefficient ratio;
-        if constexpr (std::is_floating_point_v<Coefficient>)
-          ratio = std::abs(p.second / lc);
-        else
-          ratio = (p.second < Coefficient{} ? -p.second : p.second) / (lc < Coefficient{} ? -lc : lc);
-        if (ratio > max_ratio)
-          max_ratio = ratio;
+        Coefficient max_ratio = Coefficient{};
+        for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
+          {
+            auto &p = it.get_curr();
+            if (p.first == d)
+              continue;
+            const Coefficient ratio = std::abs(p.second / lc);
+            if (ratio > max_ratio)
+              max_ratio = ratio;
+          }
+        return Coefficient(1) + max_ratio;
       }
-    return Coefficient(1) + max_ratio;
+    else
+      {
+        long double max_ratio_ld = 0.0L;
+        for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
+          {
+            auto &p = it.get_curr();
+            if (p.first == d)
+              continue;
+            const long double ratio
+              = std::fabs(static_cast<long double>(p.second) / static_cast<long double>(lc));
+            if (ratio > max_ratio_ld)
+              max_ratio_ld = ratio;
+          }
+        return Coefficient(1) + static_cast<Coefficient>(std::ceil(max_ratio_ld));
+      }
   }
 
   /** @brief Count sign changes in the coefficient sequence.
@@ -2715,6 +2729,9 @@ public:
    *          (or as close as possible with this algorithm).
    *
    *  @note Only available for integral coefficient types.
+   *  @note If the polynomial has non-unit content, the returned list
+   *        includes that constant factor with multiplicity 1 so the
+   *        original polynomial reconstructs exactly.
    *  @note This remains a lightweight implementation. It is strong on
    *        exact linear, quadratic, and cubic factors and conservative on
    *        higher-degree residuals.
@@ -2731,6 +2748,10 @@ public:
 
     if (is_zero() or is_constant())
       return result;
+
+    const Coefficient c = content();
+    if (c != Coefficient(1))
+      result.append(SfdTerm{Gen_Polynomial(c), 1});
 
     // Step 1: Get primitive part
     Gen_Polynomial prim = primitive_part();

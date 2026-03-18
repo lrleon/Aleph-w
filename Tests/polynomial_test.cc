@@ -869,6 +869,15 @@ TEST(Polynomial, Exponents)
   EXPECT_EQ(exps.size(), 2u);
 }
 
+TEST(Polynomial, Coefficients)
+{
+  Polynomial p({1, 0, 3});
+  auto coeffs = p.coefficients();
+  ASSERT_EQ(coeffs.size(), 2u);
+  EXPECT_DOUBLE_EQ(coeffs[0], 1.0);
+  EXPECT_DOUBLE_EQ(coeffs[1], 3.0);
+}
+
 // ===================================================================
 // String representation
 // ===================================================================
@@ -1426,6 +1435,15 @@ TEST(Polynomial, CauchyBoundZeroThrows)
 {
   Polynomial p;
   EXPECT_THROW(p.cauchy_bound(), std::domain_error);
+}
+
+TEST(Polynomial, CauchyBoundIntegralRoundsUpFractionalRatio)
+{
+  Gen_Polynomial<int> p;
+  p.set_coeff(0, 1);
+  p.set_coeff(1, 3);
+  p.set_coeff(2, 2);
+  EXPECT_EQ(p.cauchy_bound(), 3);
 }
 
 // ===================================================================
@@ -2243,4 +2261,61 @@ TEST(PolyLayer5, FactorizeRationalLinearFactors)
 
   EXPECT_TRUE(found_two_x_plus_one);
   EXPECT_TRUE(found_x_minus_three);
+}
+
+TEST(PolyLayer5, FactorizePreservesOverallContent)
+{
+  {
+    IntPoly p;
+    p.set_coeff(0, 2);
+    p.set_coeff(1, 2);
+
+    IntPoly x_plus_one;
+    x_plus_one.set_coeff(0, 1);
+    x_plus_one.set_coeff(1, 1);
+
+    auto fact = p.factorize();
+
+    EXPECT_EQ(reconstruct_factorization(fact), p);
+
+    bool found_content = false;
+    bool found_linear = false;
+    for (const auto &term : fact)
+      {
+        if (term.multiplicity != 1)
+          continue;
+        found_content = found_content or (term.factor == IntPoly(2));
+        found_linear = found_linear or (term.factor == x_plus_one);
+      }
+
+    EXPECT_TRUE(found_content);
+    EXPECT_TRUE(found_linear);
+  }
+
+  {
+    IntPoly p;
+    p.set_coeff(0, -1);
+    p.set_coeff(1, -1);
+
+    IntPoly x_plus_one;
+    x_plus_one.set_coeff(0, 1);
+    x_plus_one.set_coeff(1, 1);
+
+    auto fact = p.factorize();
+
+    EXPECT_EQ(reconstruct_factorization(fact), p);
+
+    bool found_content = false;
+    bool found_linear = false;
+    for (const auto &term : fact)
+      {
+        if (term.multiplicity != 1)
+          continue;
+        found_content = found_content or (term.factor == IntPoly(-1));
+        found_linear = found_linear or (term.factor == x_plus_one);
+      }
+
+    EXPECT_TRUE(found_content);
+    EXPECT_TRUE(found_linear);
+  }
 }

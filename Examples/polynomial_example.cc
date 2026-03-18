@@ -256,11 +256,12 @@ static void transfer_function()
        << setw(15) << "|D(jw)|^2" << setw(15) << "|H(jw)|^2" << "\n";
   cout << "  " << string(55, '-') << "\n";
 
-  // For a polynomial P(s) evaluated at s = jw:
-  // P(jw) = sum(c_k * (jw)^k).  For magnitude, we compute real/imag parts.
-  // Simpler approach: evaluate |P(jw)|^2 by noting:
-  //   P(jw) = P_even(w^2) + jw * P_odd(w^2)
-  //   |P(jw)|^2 = P_even(w^2)^2 + w^2 * P_odd(w^2)^2
+  // For a polynomial P(s) evaluated at s = jw we decompose P(jw)
+  // into real and imaginary parts by cycling powers of j (j^0 = 1, j^1 = j,
+  // j^2 = -1, j^3 = -j).  The code below accumulates these parts in
+  // even_sum (real) and odd_sum (imag) so that |P(jw)|^2 = Re^2 + Im^2.
+  // Algebraically this matches the identity P(jw) = P_even(w^2) + jw * P_odd(w^2)
+  // because Re = P_even(w^2) and Im = w * P_odd(w^2).
 
   auto mag_squared = [](const Polynomial & p, double w) -> double
   {
