@@ -121,7 +121,7 @@ template <typename Int>
   if constexpr (std::is_signed_v<Int>)
     {
       const auto mod_i64 = static_cast<int64_t>(modulus);
-      auto       rem     = static_cast<int64_t>(value % static_cast<Int>(mod_i64));
+      auto rem = static_cast<int64_t>(value % static_cast<Int>(mod_i64));
       if (rem < 0)
         rem += mod_i64;
       return static_cast<uint64_t>(rem);
@@ -137,7 +137,7 @@ template <typename Int>
   if constexpr (std::is_signed_v<Int>)
     {
       const uint64_t canonical = modulus == 0 ? 0 : value % modulus;
-      const uint64_t half      = modulus / 2;
+      const uint64_t half = modulus / 2;
       if (canonical > half)
         return static_cast<Int>(static_cast<int64_t>(canonical) - static_cast<int64_t>(modulus));
       return static_cast<Int>(canonical);
@@ -282,7 +282,7 @@ private:
     DynList<size_t> zeros;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto &p  = it.get_curr();
+        auto &p = it.get_curr();
         p.second = p.second * s;
         if (coeff_is_zero(p.second))
           zeros.append(p.first);
@@ -308,7 +308,7 @@ private:
     DynList<size_t> zeros;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto &p  = it.get_curr();
+        auto &p = it.get_curr();
         p.second = p.second / s;
         if (coeff_is_zero(p.second))
           zeros.append(p.first);
@@ -494,7 +494,7 @@ public:
   {
     ah_domain_error_if(points.is_empty()) << "interpolate requires at least one point";
 
-    const size_t       n = points.size();
+    const size_t n = points.size();
     Array<Coefficient> xs;
     Array<Coefficient> dd;
     xs.putn(n);
@@ -516,7 +516,7 @@ public:
       for (size_t i = n - 1; i >= order; --i)
         {
           Coefficient denom = xs[i] - xs[i - order];
-          dd[i]             = (dd[i] - dd[i - 1]) / denom;
+          dd[i] = (dd[i] - dd[i - 1]) / denom;
           if (i == order)
             break;
         }
@@ -626,21 +626,21 @@ public:
     if (x == Coefficient{})
       return coeff_at(0);
 
-    Coefficient result   = Coefficient{};
-    size_t      prev_exp = 0;
-    bool        first    = true;
+    Coefficient result = Coefficient{};
+    size_t prev_exp = 0;
+    bool first = true;
 
     for_each_term_desc([&](size_t exp, const Coefficient &c)
     {
       if (first)
         {
-          result   = c;
+          result = c;
           prev_exp = exp;
-          first    = false;
+          first = false;
           return;
         }
 
-      result   = result * polynomial_detail::power(x, prev_exp - exp) + c;
+      result = result * polynomial_detail::power(x, prev_exp - exp) + c;
       prev_exp = exp;
     });
 
@@ -665,7 +665,7 @@ public:
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
         auto &p = it.get_curr();
-        result  = result + p.second * polynomial_detail::power(x, p.first);
+        result = result + p.second * polynomial_detail::power(x, p.first);
       }
     return result;
   }
@@ -727,7 +727,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto &p                = it.get_curr();
+        auto &p = it.get_curr();
         result.coeffs[p.first] = -p.second;
       }
     return result;
@@ -823,7 +823,7 @@ public:
     if (is_zero() or q.is_zero())
       return Gen_Polynomial();
 
-    Gen_Polynomial        result;
+    Gen_Polynomial result;
     const Gen_Polynomial *outer = this;
     const Gen_Polynomial *inner = &q;
 
@@ -860,7 +860,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto       &p    = it.get_curr();
+        auto &p = it.get_curr();
         Coefficient prod = p.second * s;
         if (not coeff_is_zero(prod))
           result.coeffs[p.first] = prod;
@@ -884,7 +884,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto       &p = it.get_curr();
+        auto &p = it.get_curr();
         Coefficient q = p.second / s;
         if (not coeff_is_zero(q))
           result.coeffs[p.first] = q;
@@ -920,10 +920,10 @@ public:
     if (is_zero() or degree() < d.degree())
       return {Gen_Polynomial(), *this};
 
-    Gen_Polynomial    q;                 // quotient
-    Gen_Polynomial    r        = *this;  // remainder
-    const size_t      d_degree = d.degree();
-    const Coefficient d_lc     = d.leading_coeff();
+    Gen_Polynomial q;          // quotient
+    Gen_Polynomial r = *this;  // remainder
+    const size_t d_degree = d.degree();
+    const Coefficient d_lc = d.leading_coeff();
 
     while (not r.is_zero())
       {
@@ -1031,7 +1031,7 @@ public:
       result.coeffs[0] = C;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto       &p  = it.get_curr();
+        auto &p = it.get_curr();
         Coefficient ic = p.second / Coefficient(p.first + 1);
         if (not coeff_is_zero(ic))
           result.coeffs[p.first + 1] = ic;
@@ -1054,9 +1054,9 @@ public:
 
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto             &p        = it.get_curr();
-        const size_t      next_exp = p.first + 1;
-        const Coefficient scale    = p.second / Coefficient(next_exp);
+        auto &p = it.get_curr();
+        const size_t next_exp = p.first + 1;
+        const Coefficient scale = p.second / Coefficient(next_exp);
         if (coeff_is_zero(scale))
           continue;
 
@@ -1087,16 +1087,16 @@ public:
       return Gen_Polynomial(eval(q[0]));
 
     Gen_Polynomial result;
-    size_t         prev_exp = 0;
-    bool           first    = true;
+    size_t prev_exp = 0;
+    bool first = true;
 
     for_each_term_desc([&](size_t exp, const Coefficient &c)
     {
       if (first)
         {
-          result   = Gen_Polynomial(c);
+          result = Gen_Polynomial(c);
           prev_exp = exp;
-          first    = false;
+          first = false;
           return;
         }
 
@@ -1155,8 +1155,8 @@ public:
     while (not b.is_zero())
       {
         Gen_Polynomial r = a % b;
-        a                = b;
-        b                = r;
+        a = b;
+        b = r;
       }
     // Make monic
     if (not a.is_zero())
@@ -1187,15 +1187,15 @@ public:
 
     while (not b.is_zero())
       {
-        auto [q, r]       = a.divmod(b);
-        a                 = b;
-        b                 = r;
+        auto [q, r] = a.divmod(b);
+        a = b;
+        b = r;
         Gen_Polynomial s2 = s0 - q * s1;
         Gen_Polynomial t2 = t0 - q * t1;
-        s0                = s1;
-        s1                = s2;
-        t0                = t1;
-        t1                = t2;
+        s0 = s1;
+        s1 = s2;
+        t0 = t1;
+        t1 = t2;
       }
 
     if (not a.is_zero())
@@ -1243,9 +1243,9 @@ public:
     if (is_zero() or degree() < d.degree())
       return {Gen_Polynomial(), *this};
 
-    const Coefficient lc_d     = d.leading_coeff();
-    const size_t      d_degree = d.degree();
-    size_t            delta    = degree() - d_degree + 1;
+    const Coefficient lc_d = d.leading_coeff();
+    const size_t d_degree = d.degree();
+    size_t delta = degree() - d_degree + 1;
 
     Gen_Polynomial q;
     Gen_Polynomial r = *this;
@@ -1257,7 +1257,7 @@ public:
           break;
 
         const Coefficient lc_r = r.leading_coeff();
-        const size_t      exp  = r_degree - d_degree;
+        const size_t exp = r_degree - d_degree;
 
         // Multiply q and r by lc(d) to avoid division
         q.scale_inplace(lc_d);
@@ -1303,11 +1303,11 @@ public:
   {
     if (is_zero())
       return Gen_Polynomial();
-    size_t         d = degree();
+    size_t d = degree();
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto &p                    = it.get_curr();
+        auto &p = it.get_curr();
         result.coeffs[d - p.first] = p.second;
       }
     return result;
@@ -1322,7 +1322,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto &p                = it.get_curr();
+        auto &p = it.get_curr();
         result.coeffs[p.first] = (p.first % 2 == 0) ? p.second : -p.second;
       }
     return result;
@@ -1355,7 +1355,7 @@ public:
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto &p                    = it.get_curr();
+        auto &p = it.get_curr();
         result.coeffs[p.first + k] = p.second;
       }
     return result;
@@ -1411,11 +1411,11 @@ public:
   {
     if (is_zero())
       return Array<Coefficient>();
-    size_t             d = degree();
+    size_t d = degree();
     Array<Coefficient> result(d + 1, Coefficient{});
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto &p         = it.get_curr();
+        auto &p = it.get_curr();
         result(p.first) = p.second;
       }
     return result;
@@ -1459,9 +1459,9 @@ public:
     if (is_constant())
       return Coefficient{};
 
-    const size_t      d         = degree();
-    const Coefficient lc        = leading_coeff();
-    Coefficient       max_ratio = Coefficient{};
+    const size_t d = degree();
+    const Coefficient lc = leading_coeff();
+    Coefficient max_ratio = Coefficient{};
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
         auto &p = it.get_curr();
@@ -1491,14 +1491,14 @@ public:
     if (coeffs.size() < 2)
       return 0;
 
-    size_t changes       = 0;
-    bool   have_prev     = false;
-    bool   prev_positive = false;
+    size_t changes = 0;
+    bool have_prev = false;
+    bool prev_positive = false;
 
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
         auto &p = it.get_curr();
-        bool  positive;
+        bool positive;
         if constexpr (std::is_floating_point_v<Coefficient>)
           positive = p.second > epsilon();
         else
@@ -1516,7 +1516,7 @@ public:
         if (have_prev and positive != prev_positive)
           ++changes;
         prev_positive = positive;
-        have_prev     = true;
+        have_prev = true;
       }
     return changes;
   }
@@ -1562,11 +1562,11 @@ public:
    *  @return Number of sign changes in the sequence @f$p_0(x), p_1(x), \ldots@f$.
    */
   [[nodiscard]] static size_t sturm_sign_changes(const DynList<Gen_Polynomial> &chain,
-                                                 const Coefficient             &x)
+                                                 const Coefficient &x)
   {
-    size_t changes       = 0;
-    bool   have_prev     = false;
-    bool   prev_positive = false;
+    size_t changes = 0;
+    bool have_prev = false;
+    bool prev_positive = false;
 
     chain.for_each([&](const Gen_Polynomial &p)
     {
@@ -1578,7 +1578,7 @@ public:
       if (have_prev and positive != prev_positive)
         ++changes;
       prev_positive = positive;
-      have_prev     = true;
+      have_prev = true;
     });
 
     return changes;
@@ -1601,9 +1601,9 @@ public:
     if (b < a)
       return count_real_roots(b, a);
 
-    auto   chain = sturm_chain();
-    size_t sa    = sturm_sign_changes(chain, a);
-    size_t sb    = sturm_sign_changes(chain, b);
+    auto chain = sturm_chain();
+    size_t sa = sturm_sign_changes(chain, a);
+    size_t sb = sturm_sign_changes(chain, b);
     size_t count = sa > sb ? sa - sb : 0;
 
     // Sturm's theorem counts roots in (a, b]; add root at a if present
@@ -1639,9 +1639,10 @@ public:
    *
    *  If @p a > @p b, the endpoints are swapped.
    */
-  [[nodiscard]] Coefficient bisect_root(Coefficient a, Coefficient b,
-                                        Coefficient tol      = Coefficient(1e-12),
-                                        size_t      max_iter = 200) const
+  [[nodiscard]] Coefficient bisect_root(Coefficient a,
+                                        Coefficient b,
+                                        Coefficient tol = Coefficient(1e-12),
+                                        size_t max_iter = 200) const
   {
     if (b < a)
       std::swap(a, b);
@@ -1666,12 +1667,12 @@ public:
           return mid;
         if (fa > Coefficient{} == fm > Coefficient{})
           {
-            a  = mid;
+            a = mid;
             fa = fm;
           }
         else
           {
-            b  = mid;
+            b = mid;
             fb = fm;
           }
       }
@@ -1687,7 +1688,8 @@ public:
    *  @throws std::domain_error if derivative vanishes during iteration.
    *  @note Only available for floating-point coefficient types.
    */
-  [[nodiscard]] Coefficient newton_root(Coefficient x0, Coefficient tol = Coefficient(1e-12),
+  [[nodiscard]] Coefficient newton_root(Coefficient x0,
+                                        Coefficient tol = Coefficient(1e-12),
                                         size_t max_iter = 100) const
     requires std::is_floating_point_v<Coefficient>
   {
@@ -1700,7 +1702,7 @@ public:
           return x0;
         Coefficient dfx = dp.eval(x0);
         ah_domain_error_if(coeff_is_zero(dfx)) << "newton_root: derivative is zero at x = " << x0;
-        Coefficient x1    = x0 - fx / dfx;
+        Coefficient x1 = x0 - fx / dfx;
         Coefficient delta = x1 - x0;
         if constexpr (std::is_floating_point_v<Coefficient>)
           {
@@ -1843,7 +1845,7 @@ public:
       return "0";
 
     std::ostringstream oss;
-    bool               first = true;
+    bool first = true;
 
     for_each_term_desc([&](size_t exp, const Coefficient &c)
     {
@@ -1892,7 +1894,7 @@ public:
   struct SfdTerm
   {
     Gen_Polynomial factor;
-    size_t         multiplicity;
+    size_t multiplicity;
   };
 
   /** @brief Coefficient accessor (read-only at exponent).
@@ -1944,7 +1946,7 @@ public:
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
         auto &p = it.get_curr();
-        result  = std::gcd(result, p.second);
+        result = std::gcd(result, p.second);
       }
 
     // Ensure sign follows leading coefficient
@@ -2019,8 +2021,8 @@ public:
     while (not b.is_zero())
       {
         auto [quo, rem] = a.pseudo_divmod(b);
-        a               = b;
-        b               = rem.is_zero() ? rem : rem.primitive_part();
+        a = b;
+        b = rem.is_zero() ? rem : rem.primitive_part();
       }
 
     return a.primitive_part();
@@ -2049,7 +2051,7 @@ public:
     if (is_constant())
       return result;
 
-    Gen_Polynomial f  = primitive_part();
+    Gen_Polynomial f = primitive_part();
     Gen_Polynomial fp = f.derivative();
 
     Gen_Polynomial g = integer_gcd(f, fp);
@@ -2060,8 +2062,8 @@ public:
     while (not h.is_constant())
       {
         Gen_Polynomial h_prev = h;
-        h                     = integer_gcd(g, h);
-        Gen_Polynomial w      = _integer_exact_quot(h_prev, h);
+        h = integer_gcd(g, h);
+        Gen_Polynomial w = _integer_exact_quot(h_prev, h);
 
         if (not w.is_constant())
           result.append(SfdTerm{w.primitive_part(), multiplicity});
@@ -2086,8 +2088,7 @@ public:
    *  @param[in] b Divisor (must divide a exactly).
    *  @return The primitive part of the quotient.
    */
-  static Gen_Polynomial _integer_exact_quot(const Gen_Polynomial &a,
-                                            const Gen_Polynomial &b)
+  static Gen_Polynomial _integer_exact_quot(const Gen_Polynomial &a, const Gen_Polynomial &b)
     requires std::is_integral_v<Coefficient>
   {
     if (b.is_zero())
@@ -2131,24 +2132,24 @@ public:
     uint64_t result = 0;
     f.for_each_term([&result, x, mod](size_t exp, const Coefficient &coeff)
     {
-      const uint64_t c    = polynomial_detail::normalize_mod_u64(coeff, mod);
+      const uint64_t c = polynomial_detail::normalize_mod_u64(coeff, mod);
       const uint64_t xpow = mod_exp(x, exp, mod);
       const uint64_t term = mod_mul(c, xpow, mod);
-      result              = (result + term) % mod;
+      result = (result + term) % mod;
     });
     return result;
   }
 
   [[nodiscard]] static Gen_Polynomial divide_by_monic_linear_mod(const Gen_Polynomial &f,
-                                                                 Coefficient          root,
-                                                                 Coefficient          mod)
+                                                                 Coefficient root,
+                                                                 Coefficient mod)
     requires std::is_integral_v<Coefficient>
   {
     ah_domain_error_if(f.degree() == 0)
       << "divide_by_monic_linear_mod: constant polynomial is not divisible by x - r";
 
     const size_t degree = f.degree();
-    Array<Coefficient>  synthetic(degree + 1, Coefficient{});
+    Array<Coefficient> synthetic(degree + 1, Coefficient{});
 
     synthetic(degree) = ((f.get_coeff(degree) % mod) + mod) % mod;
 
@@ -2156,7 +2157,7 @@ public:
       {
         Coefficient term = (f.get_coeff(idx) % mod + mod) % mod;
         Coefficient next = (term + (synthetic(idx + 1) * root) % mod) % mod;
-        synthetic(idx)   = next;
+        synthetic(idx) = next;
       }
 
     ah_domain_error_if(synthetic(0) != Coefficient{})
@@ -2200,7 +2201,7 @@ public:
    */
   [[nodiscard]] static bool try_exact_candidate_division(const Gen_Polynomial &f,
                                                          const Gen_Polynomial &candidate,
-                                                         Gen_Polynomial       &quotient)
+                                                         Gen_Polynomial &quotient)
     requires std::is_integral_v<Coefficient>
   {
     try
@@ -2218,9 +2219,9 @@ public:
   }
 
   [[nodiscard]] static bool try_divide_by_linear_factor(const Gen_Polynomial &f,
-                                                        Coefficient          a,
-                                                        Coefficient          b,
-                                                        Gen_Polynomial      &quotient)
+                                                        Coefficient a,
+                                                        Coefficient b,
+                                                        Gen_Polynomial &quotient)
     requires std::is_integral_v<Coefficient>
   {
     if (f.is_zero() or f.degree() == 0)
@@ -2230,7 +2231,7 @@ public:
       return false;
 
     const size_t degree = f.degree();
-    Array<Coefficient>  q_coeffs(degree, Coefficient{});
+    Array<Coefficient> q_coeffs(degree, Coefficient{});
 
     const Coefficient leading = f.get_coeff(degree);
     if (leading % a != Coefficient{})
@@ -2258,8 +2259,8 @@ public:
   }
 
   [[nodiscard]] static bool try_extract_rational_linear_factor(const Gen_Polynomial &f,
-                                                               Gen_Polynomial      &factor,
-                                                               Gen_Polynomial      &quotient)
+                                                               Gen_Polynomial &factor,
+                                                               Gen_Polynomial &quotient)
     requires std::is_integral_v<Coefficient>
   {
     if (f.is_zero() or f.degree() == 0)
@@ -2275,7 +2276,7 @@ public:
         return false;
       }
 
-    DynList<Coefficient> numerator_divs   = positive_divisors(f.get_coeff(0));
+    DynList<Coefficient> numerator_divs = positive_divisors(f.get_coeff(0));
     DynList<Coefficient> denominator_divs = positive_divisors(f.leading_coeff());
 
     for (auto den_it = denominator_divs.get_it(); den_it.has_curr(); den_it.next_ne())
@@ -2289,8 +2290,8 @@ public:
             for (Coefficient sign : {Coefficient(1), Coefficient(-1)})
               {
                 const Coefficient num = sign * num_abs;
-                if (std::gcd(polynomial_detail::abs_to_u64(num),
-                             polynomial_detail::abs_to_u64(den)) != 1)
+                if (std::gcd(polynomial_detail::abs_to_u64(num), polynomial_detail::abs_to_u64(den))
+                    != 1)
                   continue;
 
                 if (try_divide_by_linear_factor(f, den, -num, quotient))
@@ -2315,10 +2316,9 @@ public:
    *  bounded using a Cauchy-style root bound and verified by exact polynomial
    *  division.
    */
-  [[nodiscard]] static bool try_extract_primitive_quadratic_factor(
-    const Gen_Polynomial &f,
-    Gen_Polynomial       &factor,
-    Gen_Polynomial       &quotient)
+  [[nodiscard]] static bool try_extract_primitive_quadratic_factor(const Gen_Polynomial &f,
+                                                                   Gen_Polynomial &factor,
+                                                                   Gen_Polynomial &quotient)
     requires std::is_integral_v<Coefficient>
   {
     if (f.is_zero() or f.degree() < 2)
@@ -2327,13 +2327,13 @@ public:
     if (f.get_coeff(0) == Coefficient{})
       return false;
 
-    DynList<Coefficient> leading_divs  = positive_divisors(f.leading_coeff());
+    DynList<Coefficient> leading_divs = positive_divisors(f.leading_coeff());
     DynList<Coefficient> constant_divs = positive_divisors(f.get_coeff(0));
     if (leading_divs.is_empty() or constant_divs.is_empty())
       return false;
 
     const double abs_lc = std::abs(static_cast<double>(f.leading_coeff()));
-    double       max_ratio = 0.0;
+    double max_ratio = 0.0;
     for (auto it = f.coeffs.get_it(); it.has_curr(); it.next_ne())
       {
         const auto &term = it.get_curr();
@@ -2349,8 +2349,8 @@ public:
     for (auto a_it = leading_divs.get_it(); a_it.has_curr(); a_it.next_ne())
       {
         const Coefficient a = a_it.get_curr();
-        const int64_t b_bound = static_cast<int64_t>(
-          std::ceil(2.0 * std::abs(static_cast<double>(a)) * root_bound));
+        const int64_t b_bound
+          = static_cast<int64_t>(std::ceil(2.0 * std::abs(static_cast<double>(a)) * root_bound));
 
         for (auto c_it = constant_divs.get_it(); c_it.has_curr(); c_it.next_ne())
           {
@@ -2363,8 +2363,8 @@ public:
                 for (int64_t b_i = -b_bound; b_i <= b_bound; ++b_i)
                   {
                     const Coefficient b = static_cast<Coefficient>(b_i);
-                    const uint64_t gcd_ab = std::gcd(polynomial_detail::abs_to_u64(a),
-                                                     polynomial_detail::abs_to_u64(b));
+                    const uint64_t gcd_ab
+                      = std::gcd(polynomial_detail::abs_to_u64(a), polynomial_detail::abs_to_u64(b));
                     if (std::gcd(gcd_ab, polynomial_detail::abs_to_u64(c)) != 1)
                       continue;
 
@@ -2377,7 +2377,7 @@ public:
                     Gen_Polynomial q;
                     if (try_exact_candidate_division(f, candidate, q))
                       {
-                        factor   = candidate.primitive_part();
+                        factor = candidate.primitive_part();
                         quotient = q.is_zero() ? q : q.primitive_part();
                         return true;
                       }
@@ -2397,10 +2397,9 @@ public:
    *  coefficients are bounded with a Landau-Mignotte style estimate, and
    *  each candidate is verified by exact division.
    */
-  [[nodiscard]] static bool try_extract_primitive_cubic_factor(
-    const Gen_Polynomial &f,
-    Gen_Polynomial       &factor,
-    Gen_Polynomial       &quotient)
+  [[nodiscard]] static bool try_extract_primitive_cubic_factor(const Gen_Polynomial &f,
+                                                               Gen_Polynomial &factor,
+                                                               Gen_Polynomial &quotient)
     requires std::is_integral_v<Coefficient>
   {
     if (f.is_zero() or f.degree() < 3)
@@ -2409,13 +2408,13 @@ public:
     if (f.get_coeff(0) == Coefficient{})
       return false;
 
-    DynList<Coefficient> leading_divs  = positive_divisors(f.leading_coeff());
+    DynList<Coefficient> leading_divs = positive_divisors(f.leading_coeff());
     DynList<Coefficient> constant_divs = positive_divisors(f.get_coeff(0));
     if (leading_divs.is_empty() or constant_divs.is_empty())
       return false;
 
     const double abs_lc = std::abs(static_cast<double>(f.leading_coeff()));
-    double       l2_norm_sq = 0.0;
+    double l2_norm_sq = 0.0;
     for (auto it = f.coeffs.get_it(); it.has_curr(); it.next_ne())
       {
         const auto &term = it.get_curr();
@@ -2423,8 +2422,7 @@ public:
         l2_norm_sq += coeff_abs * coeff_abs;
       }
 
-    const int64_t coeff_bound = static_cast<int64_t>(
-      std::ceil(8.0 * std::sqrt(l2_norm_sq) / abs_lc));
+    const int64_t coeff_bound = static_cast<int64_t>(std::ceil(8.0 * std::sqrt(l2_norm_sq) / abs_lc));
     if (coeff_bound <= 0)
       return false;
 
@@ -2447,14 +2445,13 @@ public:
                 for (int64_t b_i = -coeff_bound; b_i <= coeff_bound; ++b_i)
                   {
                     const Coefficient b = static_cast<Coefficient>(b_i);
-                    const uint64_t gcd_ab = std::gcd(polynomial_detail::abs_to_u64(a),
-                                                     polynomial_detail::abs_to_u64(b));
+                    const uint64_t gcd_ab
+                      = std::gcd(polynomial_detail::abs_to_u64(a), polynomial_detail::abs_to_u64(b));
 
                     for (int64_t c_i = -coeff_bound; c_i <= coeff_bound; ++c_i)
                       {
                         const Coefficient c = static_cast<Coefficient>(c_i);
-                        const uint64_t gcd_abc = std::gcd(gcd_ab,
-                                                          polynomial_detail::abs_to_u64(c));
+                        const uint64_t gcd_abc = std::gcd(gcd_ab, polynomial_detail::abs_to_u64(c));
                         if (std::gcd(gcd_abc, polynomial_detail::abs_to_u64(d)) != 1)
                           continue;
 
@@ -2469,7 +2466,7 @@ public:
                         Gen_Polynomial q;
                         if (try_exact_candidate_division(f, candidate, q))
                           {
-                            factor   = candidate.primitive_part();
+                            factor = candidate.primitive_part();
                             quotient = q.is_zero() ? q : q.primitive_part();
                             return true;
                           }
@@ -2502,8 +2499,7 @@ public:
   static DynList<Gen_Polynomial> factor_mod_p(const Gen_Polynomial &f, Coefficient p)
     requires std::is_integral_v<Coefficient>
   {
-    ah_domain_error_if(p <= Coefficient(1))
-      << "factor_mod_p: modulus p must be > 1, got " << p;
+    ah_domain_error_if(p <= Coefficient(1)) << "factor_mod_p: modulus p must be > 1, got " << p;
 
     DynList<Gen_Polynomial> result;
 
@@ -2514,10 +2510,12 @@ public:
 
     for (Coefficient r = Coefficient{}; r < p; r = r + Coefficient(1))
       {
-        while (not remaining.is_zero() and remaining.degree() > 0 and
-               eval_mod_u64(remaining,
-                            polynomial_detail::normalize_mod_u64(r, polynomial_detail::abs_to_u64(p)),
-                            polynomial_detail::abs_to_u64(p)) == 0)
+        while (
+          not remaining.is_zero() and remaining.degree() > 0
+          and eval_mod_u64(remaining,
+                           polynomial_detail::normalize_mod_u64(r, polynomial_detail::abs_to_u64(p)),
+                           polynomial_detail::abs_to_u64(p))
+                == 0)
           {
             Gen_Polynomial factor;
             factor.set_coeff(0, ((-r) % p + p) % p);
@@ -2557,14 +2555,14 @@ public:
     Coefficient max_coeff = Coefficient{};
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
       {
-        auto       &p     = it.get_curr();
+        auto &p = it.get_curr();
         Coefficient abs_c = p.second < Coefficient{} ? -p.second : p.second;
         if (abs_c > max_coeff)
           max_coeff = abs_c;
       }
 
-    const auto   d_real    = static_cast<double>(d);
-    const auto   max_real  = static_cast<double>(max_coeff);
+    const auto d_real = static_cast<double>(d);
+    const auto max_real = static_cast<double>(max_coeff);
     const double two_pow_d = polynomial_detail::power(2.0, d);
 
     return std::sqrt(d_real + 1.0) * two_pow_d * max_real;
@@ -2592,12 +2590,12 @@ public:
    *  @warning levels > 30 is rejected to prevent overflow in (1 << levels).
    */
   static DynList<Gen_Polynomial> hensel_lift(const Gen_Polynomial &f,
-                                             DynList<Gen_Polynomial> factors, Coefficient p,
+                                             DynList<Gen_Polynomial> factors,
+                                             Coefficient p,
                                              size_t levels)
     requires std::is_integral_v<Coefficient>
   {
-    ah_domain_error_if(p <= Coefficient(1))
-      << "hensel_lift: modulus p must be > 1, got " << p;
+    ah_domain_error_if(p <= Coefficient(1)) << "hensel_lift: modulus p must be > 1, got " << p;
     ah_domain_error_if(levels > 30)
       << "hensel_lift: levels must be <= 30 to avoid overflow, got " << levels;
 
@@ -2609,26 +2607,26 @@ public:
     for (size_t i = 1; i < target_steps; ++i)
       p_power = p_power * p;
 
-    const uint64_t p_u64       = polynomial_detail::abs_to_u64(p);
-    const uint64_t target_u64  = polynomial_detail::abs_to_u64(p_power);
-    Gen_Polynomial derivative  = f.derivative();
+    const uint64_t p_u64 = polynomial_detail::abs_to_u64(p);
+    const uint64_t target_u64 = polynomial_detail::abs_to_u64(p_power);
+    Gen_Polynomial derivative = f.derivative();
 
     DynList<Gen_Polynomial> result;
     for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
       {
         const Gen_Polynomial &factor = it.get_curr();
-        bool                  lifted_linear_factor = false;
+        bool lifted_linear_factor = false;
 
         if (factor.degree() == 1 and factor.get_coeff(1) == Coefficient(1))
           {
-            uint64_t root    = polynomial_detail::normalize_mod_u64(-factor.get_coeff(0), p_u64);
+            uint64_t root = polynomial_detail::normalize_mod_u64(-factor.get_coeff(0), p_u64);
             uint64_t modulus = p_u64;
-            bool     simple  = true;
+            bool simple = true;
 
             for (size_t step = 1; step < target_steps; ++step)
               {
-                const uint64_t next_mod   = modulus * p_u64;
-                const uint64_t f_val      = eval_mod_u64(f, root, next_mod);
+                const uint64_t next_mod = modulus * p_u64;
+                const uint64_t f_val = eval_mod_u64(f, root, next_mod);
                 const uint64_t deriv_modp = eval_mod_u64(derivative, root % p_u64, p_u64);
 
                 if (f_val % modulus != 0 or std::gcd(deriv_modp, p_u64) != 1)
@@ -2637,19 +2635,20 @@ public:
                     break;
                   }
 
-                const uint64_t e   = (f_val / modulus) % p_u64;
+                const uint64_t e = (f_val / modulus) % p_u64;
                 const uint64_t inv = mod_inv(deriv_modp, p_u64);
-                const uint64_t t   = (p_u64 - mod_mul(e, inv, p_u64)) % p_u64;
+                const uint64_t t = (p_u64 - mod_mul(e, inv, p_u64)) % p_u64;
 
-                root    = (root + modulus * t) % next_mod;
+                root = (root + modulus * t) % next_mod;
                 modulus = next_mod;
               }
 
             if (simple)
               {
                 Gen_Polynomial lifted;
-                lifted.set_coeff(0, polynomial_detail::centered_from_mod_u64<Coefficient>(
-                                      (target_u64 - (root % target_u64)) % target_u64, target_u64));
+                lifted.set_coeff(0,
+                                 polynomial_detail::centered_from_mod_u64<Coefficient>(
+                                   (target_u64 - (root % target_u64)) % target_u64, target_u64));
                 lifted.set_coeff(1, Coefficient(1));
                 result.append(lifted);
                 lifted_linear_factor = true;
@@ -2721,9 +2720,9 @@ public:
     // Step 3: For each square-free group, attempt factorization
     for (auto it = sfd_terms.get_it(); it.has_curr(); it.next_ne())
       {
-        auto          &sfd_term = it.get_curr();
-        Gen_Polynomial factor   = sfd_term.factor;
-        size_t         mult     = sfd_term.multiplicity;
+        auto &sfd_term = it.get_curr();
+        Gen_Polynomial factor = sfd_term.factor;
+        size_t mult = sfd_term.multiplicity;
         Gen_Polynomial remaining = factor.primitive_part();
 
         while (remaining.degree() > 0)
@@ -2779,15 +2778,13 @@ public:
                   continue;
 
                 Gen_Polynomial quotient;
-                if (not try_divide_by_linear_factor(remaining,
-                                                   cand.get_coeff(1),
-                                                   cand.get_coeff(0),
-                                                   quotient))
+                if (not try_divide_by_linear_factor(
+                      remaining, cand.get_coeff(1), cand.get_coeff(0), quotient))
                   continue;
 
                 result.append(SfdTerm{cand, mult});
                 remaining = quotient.is_zero() ? quotient : quotient.primitive_part();
-                changed   = true;
+                changed = true;
 
                 if (remaining.is_constant())
                   break;

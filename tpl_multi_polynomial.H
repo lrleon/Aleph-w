@@ -93,7 +93,7 @@ inline bool is_zero_index(const Array<size_t> &idx) noexcept
  */
 inline Array<size_t> add_indices(const Array<size_t> &a, const Array<size_t> &b)
 {
-  const size_t  n = std::max(a.size(), b.size());
+  const size_t n = std::max(a.size(), b.size());
   Array<size_t> r(n, size_t{0});
   for (size_t i = 0; i < a.size(); ++i)
     r(i) += a(i);
@@ -118,7 +118,7 @@ template <typename T>
 T int_power(const T &base, size_t exp)
 {
   T result = T(1);
-  T b      = base;
+  T b = base;
   while (exp > 0)
     {
       if (exp & 1)
@@ -134,7 +134,7 @@ T int_power(const T &base, size_t exp)
 // ===================================================================
 
 /** @brief Decrement exponent at a specific variable. */
-inline Array<size_t> decrement_index_at(const Array<size_t> &idx, size_t var, size_t n = 1)
+inline Array<size_t> decrement_index_at(const Array<size_t> &idx, const size_t var, const size_t n = 1)
 {
   Array<size_t> r = idx;
   r(var) -= n;
@@ -145,7 +145,7 @@ inline Array<size_t> decrement_index_at(const Array<size_t> &idx, size_t var, si
  *  @return k!/(k-n)! if k >= n, else 0 (when k < n or n==0 -> 1).
  */
 template <typename T>
-T falling_factorial(size_t k, size_t n)
+T falling_factorial(const size_t k, const size_t n)
 {
   if (n == 0)
     return T(1);
@@ -162,7 +162,7 @@ T falling_factorial(size_t k, size_t n)
  */
 inline Array<size_t> flat_to_multi_index(size_t flat, const Array<size_t> &sizes)
 {
-  const size_t  n = sizes.size();
+  const size_t n = sizes.size();
   Array<size_t> r(n, size_t{0});
   for (size_t i = n; i > 0; --i)
     {
@@ -175,7 +175,7 @@ inline Array<size_t> flat_to_multi_index(size_t flat, const Array<size_t> &sizes
 /** @brief Convert multi-index to flat index given sizes per dimension. */
 inline size_t multi_to_flat_index(const Array<size_t> &midx, const Array<size_t> &sizes)
 {
-  size_t       flat = 0, stride = 1;
+  size_t flat = 0, stride = 1;
   const size_t n = sizes.size();
   for (size_t i = n; i > 0; --i)
     {
@@ -210,7 +210,7 @@ inline bool divides_index(const Array<size_t> &alpha, const Array<size_t> &beta,
 }
 
 /** @brief Component-wise max = monomial LCM. */
-inline Array<size_t> lcm_indices(const Array<size_t> &a, const Array<size_t> &b, size_t nvars)
+inline Array<size_t> lcm_indices(const Array<size_t> &a, const Array<size_t> &b, const size_t nvars)
 {
   Array<size_t> r(nvars, size_t{0});
   for (size_t i = 0; i < nvars; ++i)
@@ -219,7 +219,9 @@ inline Array<size_t> lcm_indices(const Array<size_t> &a, const Array<size_t> &b,
 }
 
 /** @brief Component-wise subtraction beta - alpha (requires alpha divides beta). */
-inline Array<size_t> sub_indices(const Array<size_t> &beta, const Array<size_t> &alpha, size_t nvars)
+inline Array<size_t> sub_indices(const Array<size_t> &beta,
+                                 const Array<size_t> &alpha,
+                                 const size_t nvars)
 {
   Array<size_t> r(nvars, size_t{0});
   for (size_t i = 0; i < nvars; ++i)
@@ -290,8 +292,8 @@ struct Grevlex_Order
     const size_t n = std::max(a.size(), b.size());
     for (size_t i = n; i > 0; --i)
       {
-        const size_t ai = (i - 1) < a.size() ? a(i - 1) : 0;
-        const size_t bi = (i - 1) < b.size() ? b(i - 1) : 0;
+        const size_t ai = i - 1 < a.size() ? a(i - 1) : 0;
+        const size_t bi = i - 1 < b.size() ? b(i - 1) : 0;
         if (ai > bi)
           return true;  // larger last exp → smaller in grevlex
         if (ai < bi)
@@ -330,7 +332,7 @@ class Gen_MultiPolynomial
   }
 
   static void make_monic_inplace(Gen_MultiPolynomial &p)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     if (p.is_zero())
       return;
@@ -341,7 +343,7 @@ class Gen_MultiPolynomial
   }
 
   [[nodiscard]] static bool contains_equal_polynomial(const Array<Gen_MultiPolynomial> &basis,
-                                                      const Gen_MultiPolynomial        &p)
+                                                      const Gen_MultiPolynomial &p)
   {
     for (size_t i = 0; i < basis.size(); ++i)
       if (basis(i) == p)
@@ -351,7 +353,7 @@ class Gen_MultiPolynomial
 
   [[nodiscard]] static bool leading_monomials_coprime(const Array<size_t> &a,
                                                       const Array<size_t> &b,
-                                                      size_t               nvars) noexcept
+                                                      const size_t nvars) noexcept
   {
     for (size_t v = 0; v < nvars; ++v)
       {
@@ -373,14 +375,13 @@ class Gen_MultiPolynomial
 
   struct Pair_Candidate
   {
-    size_t       i = 0;
-    size_t       j = 0;
+    size_t i = 0;
+    size_t j = 0;
     Array<size_t> lcm;
-    size_t       lcm_degree = 0;
+    size_t lcm_degree = 0;
   };
 
-  [[nodiscard]] static bool lcm_pair_less(const Pair_Candidate &lhs,
-                                          const Pair_Candidate &rhs)
+  [[nodiscard]] static bool lcm_pair_less(const Pair_Candidate &lhs, const Pair_Candidate &rhs)
   {
     if (lhs.lcm_degree != rhs.lcm_degree)
       return lhs.lcm_degree < rhs.lcm_degree;
@@ -396,8 +397,7 @@ class Gen_MultiPolynomial
 
   struct Pair_Candidate_Less
   {
-    [[nodiscard]] bool operator () (const Pair_Candidate &lhs,
-                                    const Pair_Candidate &rhs) const
+    [[nodiscard]] bool operator()(const Pair_Candidate &lhs, const Pair_Candidate &rhs) const
     {
       return lcm_pair_less(lhs, rhs);
     }
@@ -405,41 +405,32 @@ class Gen_MultiPolynomial
 
   using Pair_Queue = DynBinHeap<Pair_Candidate, Pair_Candidate_Less>;
 
-  [[nodiscard]] static bool pair_is_recorded(const Pair_Registry &pairs,
-                                             size_t               i,
-                                             size_t               j)
+  [[nodiscard]] static bool pair_is_recorded(const Pair_Registry &pairs, size_t i, size_t j)
   {
     return pairs.contains(canonical_pair(i, j));
   }
 
-  [[nodiscard]] static bool pair_is_zero_known(const Pair_Registry &zero_pairs,
-                                               size_t               i,
-                                               size_t               j)
+  [[nodiscard]] static bool pair_is_zero_known(const Pair_Registry &zero_pairs, size_t i, size_t j)
   {
     return pair_is_recorded(zero_pairs, i, j);
   }
 
-  [[nodiscard]] static Pair_Candidate make_pair_candidate(size_t                       i,
-                                                          size_t                       j,
-                                                          const Array<Array<size_t>>  &leading_monomials,
-                                                          size_t                       nvars)
+  [[nodiscard]] static Pair_Candidate make_pair_candidate(
+    size_t i, size_t j, const Array<Array<size_t>> &leading_monomials, size_t nvars)
   {
     const auto [a, b] = canonical_pair(i, j);
     Pair_Candidate candidate;
-    candidate.i          = a;
-    candidate.j          = b;
-    candidate.lcm        = multi_poly_detail::lcm_indices(leading_monomials(a),
-                                                          leading_monomials(b),
-                                                          nvars);
+    candidate.i = a;
+    candidate.j = b;
+    candidate.lcm = multi_poly_detail::lcm_indices(leading_monomials(a), leading_monomials(b), nvars);
     candidate.lcm_degree = multi_poly_detail::total_degree(candidate.lcm);
     return candidate;
   }
 
-  [[nodiscard]] static bool redundant_pair_by_chain_criterion(
-    const Pair_Candidate                              &candidate,
-    const Array<Array<size_t>>                       &leading_monomials,
-    const Pair_Registry                              &zero_pairs,
-    size_t                                            nvars)
+  [[nodiscard]] static bool redundant_pair_by_chain_criterion(const Pair_Candidate &candidate,
+                                                              const Array<Array<size_t>> &leading_monomials,
+                                                              const Pair_Registry &zero_pairs,
+                                                              const size_t nvars)
   {
     for (size_t k = 0; k < leading_monomials.size(); ++k)
       {
@@ -449,16 +440,15 @@ class Gen_MultiPolynomial
         if (not multi_poly_detail::divides_index(leading_monomials(k), candidate.lcm, nvars))
           continue;
 
-        if (pair_is_zero_known(zero_pairs, candidate.i, k) and
-            pair_is_zero_known(zero_pairs, candidate.j, k))
+        if (pair_is_zero_known(zero_pairs, candidate.i, k)
+            and pair_is_zero_known(zero_pairs, candidate.j, k))
           return true;
       }
 
     return false;
   }
 
-  [[nodiscard]] static Pair_Candidate pop_best_pair(Pair_Queue    &queue,
-                                                    Pair_Registry &queued_pairs)
+  [[nodiscard]] static Pair_Candidate pop_best_pair(Pair_Queue &queue, Pair_Registry &queued_pairs)
   {
     ah_domain_error_if(queue.is_empty()) << "pop_best_pair: empty pair queue";
 
@@ -467,12 +457,12 @@ class Gen_MultiPolynomial
     return best;
   }
 
-  static void enqueue_pair_if_needed(Pair_Queue                 &queue,
-                                     Pair_Registry              &queued_pairs,
-                                     const Pair_Candidate       &candidate,
+  static void enqueue_pair_if_needed(Pair_Queue &queue,
+                                     Pair_Registry &queued_pairs,
+                                     const Pair_Candidate &candidate,
                                      const Array<Array<size_t>> &leading_monomials,
-                                     Pair_Registry              &zero_pairs,
-                                     size_t                      nvars)
+                                     Pair_Registry &zero_pairs,
+                                     const size_t nvars)
   {
     if (pair_is_recorded(queued_pairs, candidate.i, candidate.j))
       return;
@@ -495,7 +485,7 @@ class Gen_MultiPolynomial
 
   [[nodiscard]] static Array<Gen_MultiPolynomial> autoreduced_generators(
     const Array<Gen_MultiPolynomial> &generators)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     Array<Gen_MultiPolynomial> reduced;
 
@@ -522,14 +512,13 @@ class Gen_MultiPolynomial
     return reduced;
   }
 
-  [[nodiscard]] static Array<Gen_MultiPolynomial> minimize_groebner_basis(
-    Array<Gen_MultiPolynomial> basis)
-    requires (not std::is_integral_v<Coefficient>)
+  [[nodiscard]] static Array<Gen_MultiPolynomial> minimize_groebner_basis(Array<Gen_MultiPolynomial> basis)
+    requires(not std::is_integral_v<Coefficient>)
   {
     bool changed = true;
     while (changed)
       {
-        changed              = false;
+        changed = false;
         size_t idx_to_remove = basis.size();
 
         for (size_t i = 0; i < basis.size(); ++i)
@@ -559,7 +548,7 @@ class Gen_MultiPolynomial
             for (size_t i = 0; i < basis.size(); ++i)
               if (i != idx_to_remove)
                 compact.append(std::move(basis(i)));
-            basis   = std::move(compact);
+            basis = std::move(compact);
             changed = true;
           }
       }
@@ -584,7 +573,7 @@ class Gen_MultiPolynomial
 
   [[nodiscard]] static Array<Gen_MultiPolynomial> autoreduce_groebner_basis(
     Array<Gen_MultiPolynomial> basis)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     bool changed = true;
     while (changed)
@@ -642,7 +631,7 @@ class Gen_MultiPolynomial
             if (r != basis(i))
               {
                 basis(i) = std::move(r);
-                changed  = true;
+                changed = true;
                 break;
               }
           }
@@ -655,19 +644,19 @@ class Gen_MultiPolynomial
   }
 
   static void rebuild_groebner_pair_state(const Array<Gen_MultiPolynomial> &basis,
-                                          Array<Array<size_t>>             &leading_monomials,
-                                          Pair_Queue                       &queue,
-                                          Pair_Registry                    &queued_pairs,
-                                          Pair_Registry                    &zero_pairs)
-    requires (not std::is_integral_v<Coefficient>)
+                                          Array<Array<size_t>> &leading_monomials,
+                                          Pair_Queue &queue,
+                                          Pair_Registry &queued_pairs,
+                                          Pair_Registry &zero_pairs)
+    requires(not std::is_integral_v<Coefficient>)
   {
     leading_monomials = Array<Array<size_t>>();
     for (size_t i = 0; i < basis.size(); ++i)
       leading_monomials.append(basis(i).leading_monomial());
 
-    queue        = Pair_Queue();
+    queue = Pair_Queue();
     queued_pairs = Pair_Registry();
-    zero_pairs   = Pair_Registry();
+    zero_pairs = Pair_Registry();
 
     if (basis.size() < 2)
       return;
@@ -729,7 +718,8 @@ public:
    *  @param[in] nvars Number of variables.
    *  @param[in] c     Constant value (default 0).
    */
-  explicit Gen_MultiPolynomial(size_t nvars, const Coefficient &c = Coefficient{}) : nvars_(nvars)
+  explicit Gen_MultiPolynomial(const size_t nvars, const Coefficient &c = Coefficient{})
+    : nvars_(nvars)
   {
     if (not coeff_is_zero(c))
       coeffs.insert(Array<size_t>(nvars_, size_t{0}), c);
@@ -740,7 +730,8 @@ public:
    *  @param[in] idx   Exponent vector.
    *  @param[in] c     Coefficient.
    */
-  Gen_MultiPolynomial(size_t nvars, const Array<size_t> &idx, const Coefficient &c) : nvars_(nvars)
+  Gen_MultiPolynomial(const size_t nvars, const Array<size_t> &idx, const Coefficient &c)
+    : nvars_(nvars)
   {
     if (not coeff_is_zero(c))
       coeffs.insert(norm(idx), c);
@@ -750,7 +741,7 @@ public:
    *  @param[in] nvars Number of variables.
    *  @param[in] ts    Term list.
    */
-  Gen_MultiPolynomial(size_t nvars, const DynList<std::pair<Array<size_t>, Coefficient>> &ts)
+  Gen_MultiPolynomial(const size_t nvars, const DynList<std::pair<Array<size_t>, Coefficient>> &ts)
     : nvars_(nvars)
   {
     ts.for_each([this](const std::pair<Array<size_t>, Coefficient> &t)
@@ -763,7 +754,8 @@ public:
    *  @param[in] nvars Number of variables.
    *  @param[in] ts    Initializer list of {exponent-vector, coefficient}.
    */
-  Gen_MultiPolynomial(size_t nvars, std::initializer_list<std::pair<Array<size_t>, Coefficient>> ts)
+  Gen_MultiPolynomial(const size_t nvars,
+                      std::initializer_list<std::pair<Array<size_t>, Coefficient>> ts)
     : nvars_(nvars)
   {
     for (const auto &t : ts)
@@ -779,7 +771,7 @@ public:
    *  @param[in] var      Variable index (0-based).
    *  @return Polynomial whose only term is @f$x_{\text{var}}@f$.
    */
-  [[nodiscard]] static Gen_MultiPolynomial variable(size_t nvars, size_t var)
+  [[nodiscard]] static Gen_MultiPolynomial variable(size_t nvars, const size_t var)
   {
     ah_domain_error_if(var >= nvars) << "variable index " << var << " >= nvars " << nvars;
     Array<size_t> idx(nvars, size_t{0});
@@ -793,7 +785,8 @@ public:
    *  @param[in] c     Coefficient (default 1).
    *  @return The monomial @f$c \, x_0^{\alpha_0} \cdots x_{n-1}^{\alpha_{n-1}}@f$.
    */
-  [[nodiscard]] static Gen_MultiPolynomial monomial(size_t nvars, const Array<size_t> &idx,
+  [[nodiscard]] static Gen_MultiPolynomial monomial(size_t nvars,
+                                                    const Array<size_t> &idx,
                                                     const Coefficient &c = Coefficient(1))
   {
     return Gen_MultiPolynomial(nvars, idx, c);
@@ -970,8 +963,8 @@ public:
     if (coeff_is_zero(delta))
       return;
 
-    auto  nidx = norm(idx);
-    auto *p    = coeffs.search(nidx);
+    auto nidx = norm(idx);
+    auto *p = coeffs.search(nidx);
     if (p != nullptr)
       {
         p->second = p->second + delta;
@@ -1194,7 +1187,7 @@ public:
       inner->for_each_term([&](const Array<size_t> &bi, const Coefficient &bc)
       {
         auto si = multi_poly_detail::add_indices(ai, bi);
-        si      = multi_poly_detail::extend_index(si, nv);
+        si = multi_poly_detail::extend_index(si, nv);
         r.add_to_coeff(si, ac * bc);
       });
     });
@@ -1408,17 +1401,17 @@ public:
         vn.append("x" + std::to_string(vn.size()));
 
     std::ostringstream oss;
-    bool               first = true;
+    bool first = true;
 
     for_each_term_desc([&](const Array<size_t> &idx, const Coefficient &c)
     {
-      Coefficient ac  = c;
-      bool        neg = false;
+      Coefficient ac = c;
+      bool neg = false;
       if constexpr (std::is_floating_point_v<Coefficient>)
         {
           if (c < 0)
             {
-              ac  = -c;
+              ac = -c;
               neg = true;
             }
         }
@@ -1426,12 +1419,12 @@ public:
         {
           if (c < Coefficient{})
             {
-              ac  = -c;
+              ac = -c;
               neg = true;
             }
         }
 
-      bool has_vars = not multi_poly_detail::is_zero_index(idx);
+      const bool has_vars = not multi_poly_detail::is_zero_index(idx);
 
       // Sign
       if (first)
@@ -1521,7 +1514,8 @@ public:
    *        **For production**: Use @ref fit_weighted() for importance weighting support.
    */
   [[nodiscard]] static Gen_MultiPolynomial fit(
-    const Array<std::pair<Array<Coefficient>, Coefficient>> &data, size_t nvars,
+    const Array<std::pair<Array<Coefficient>, Coefficient>> &data,
+    const size_t nvars,
     const Array<Array<size_t>> &basis)
   {
     const size_t m = data.size();
@@ -1532,7 +1526,7 @@ public:
 
     // Build design matrix A [m x b]
     Array<Array<Coefficient>> A(m, Array<Coefficient>(b, Coefficient{}));
-    Array<Coefficient>        y(m, Coefficient{});
+    Array<Coefficient> y(m, Coefficient{});
 
     for (size_t i = 0; i < m; ++i)
       {
@@ -1543,7 +1537,7 @@ public:
 
     // Normal equations: (A^T A) c = A^T y
     Array<Array<Coefficient>> AtA(b, Array<Coefficient>(b, Coefficient{}));
-    Array<Coefficient>        Aty(b, Coefficient{});
+    Array<Coefficient> Aty(b, Coefficient{});
 
     for (size_t i = 0; i < b; ++i)
       {
@@ -1564,7 +1558,7 @@ public:
     for (size_t col = 0; col < b; ++col)
       {
         // Partial pivoting
-        size_t      prow = col;
+        size_t prow = col;
         Coefficient pval = std::abs(AtA(col)(col));
         for (size_t row = col + 1; row < b; ++row)
           {
@@ -1632,8 +1626,10 @@ public:
    *        **Complexity**: @f$O(m \cdot b^2 + b^3)@f$ where m=data points, b=basis size.
    */
   [[nodiscard]] static Gen_MultiPolynomial fit_weighted(
-    const Array<std::pair<Array<Coefficient>, Coefficient>> &data, size_t nvars,
-    const Array<Array<size_t>> &basis, const Array<Coefficient> &weights)
+    const Array<std::pair<Array<Coefficient>, Coefficient>> &data,
+    size_t nvars,
+    const Array<Array<size_t>> &basis,
+    const Array<Coefficient> &weights)
   {
     const size_t m = data.size();
     const size_t b = basis.size();
@@ -1645,7 +1641,7 @@ public:
 
     // Build weighted design matrix: A_ij = sqrt(w_i) * basis_j(x_i)
     Array<Array<Coefficient>> A(m, Array<Coefficient>(b, Coefficient{}));
-    Array<Coefficient>        y_w(m, Coefficient{});
+    Array<Coefficient> y_w(m, Coefficient{});
 
     for (size_t i = 0; i < m; ++i)
       {
@@ -1657,7 +1653,7 @@ public:
 
     // Normal equations: (A^T A) c = A^T y
     Array<Array<Coefficient>> AtA(b, Array<Coefficient>(b, Coefficient{}));
-    Array<Coefficient>        Aty(b, Coefficient{});
+    Array<Coefficient> Aty(b, Coefficient{});
 
     for (size_t i = 0; i < b; ++i)
       {
@@ -1678,7 +1674,7 @@ public:
     for (size_t col = 0; col < b; ++col)
       {
         // Partial pivoting
-        size_t      prow = col;
+        size_t prow = col;
         Coefficient pval = std::abs(AtA(col)(col));
         for (size_t row = col + 1; row < b; ++row)
           {
@@ -1751,8 +1747,10 @@ public:
    *           stochastic trace estimation (e.g., Hutchinson estimator).
    */
   [[nodiscard]] static Gen_MultiPolynomial fit_ridge(
-    const Array<std::pair<Array<Coefficient>, Coefficient>> &data, size_t nvars,
-    const Array<Array<size_t>> &basis, Coefficient *lambda_used = nullptr,
+    const Array<std::pair<Array<Coefficient>, Coefficient>> &data,
+    size_t nvars,
+    const Array<Array<size_t>> &basis,
+    Coefficient *lambda_used = nullptr,
     double *gcv_score = nullptr)
   {
     const size_t m = data.size();
@@ -1763,7 +1761,7 @@ public:
 
     // Build design matrix A [m x b]
     Array<Array<Coefficient>> A(m, Array<Coefficient>(b, Coefficient{}));
-    Array<Coefficient>        y(m, Coefficient{});
+    Array<Coefficient> y(m, Coefficient{});
 
     for (size_t i = 0; i < m; ++i)
       {
@@ -1774,7 +1772,7 @@ public:
 
     // Compute A^T A and A^T y
     Array<Array<Coefficient>> AtA(b, Array<Coefficient>(b, Coefficient{}));
-    Array<Coefficient>        Aty(b, Coefficient{});
+    Array<Coefficient> Aty(b, Coefficient{});
 
     for (size_t i = 0; i < b; ++i)
       {
@@ -1792,18 +1790,18 @@ public:
 
     // GCV-based lambda selection: test a range
     Coefficient best_lambda = Coefficient{};
-    double      best_gcv    = std::numeric_limits<double>::max();
-    const int   nlambda     = 50;
+    double best_gcv = std::numeric_limits<double>::max();
+    constexpr int nlambda = 50;
 
     for (int trial = 0; trial < nlambda; ++trial)
       {
         // Logarithmically spaced lambdas: 1e-6 to 1e6
         const double log_lambda = -6.0 + 12.0 * trial / (nlambda - 1.0);
-        Coefficient  lambda_try = Coefficient(std::pow(10.0, log_lambda));
+        Coefficient lambda_try = Coefficient(std::pow(10.0, log_lambda));
 
         // Solve (A^T A + lambda I) c = A^T y via Gaussian elimination
         Array<Array<Coefficient>> sys = AtA;
-        Array<Coefficient>        rhs = Aty;
+        Array<Coefficient> rhs = Aty;
 
         // Add lambda to diagonal
         for (size_t i = 0; i < b; ++i)
@@ -1811,12 +1809,12 @@ public:
 
         // Gaussian elimination with pivoting
         Array<Coefficient> c(b);
-        bool               singular = false;
+        bool singular = false;
 
         for (size_t col = 0; col < b; ++col)
           {
             // Partial pivoting
-            size_t      prow = col;
+            size_t prow = col;
             Coefficient pval = std::abs(sys(col)(col));
             for (size_t row = col + 1; row < b; ++row)
               if (Coefficient av = std::abs(sys(row)(col)); av > pval)
@@ -1880,21 +1878,21 @@ public:
 
         if (gcv_val < best_gcv)
           {
-            best_gcv    = gcv_val;
+            best_gcv = gcv_val;
             best_lambda = lambda_try;
           }
       }
 
     // Solve final system with best_lambda
     Array<Array<Coefficient>> final_sys = AtA;
-    Array<Coefficient>        final_rhs = Aty;
+    Array<Coefficient> final_rhs = Aty;
     for (size_t i = 0; i < b; ++i)
       final_sys(i)(i) += best_lambda;
 
     Array<Coefficient> c_final(b);
     for (size_t col = 0; col < b; ++col)
       {
-        size_t      prow = col;
+        size_t prow = col;
         Coefficient pval = std::abs(final_sys(col)(col));
         for (size_t row = col + 1; row < b; ++row)
           if (Coefficient av = std::abs(final_sys(row)(col)); av > pval)
@@ -1979,7 +1977,7 @@ public:
       if (result.coeff_is_zero(ff))
         return;
 
-      const Coefficient   new_c   = c * ff;
+      const Coefficient new_c = c * ff;
       const Array<size_t> new_idx = multi_poly_detail::decrement_index_at(alpha, var, n);
       result.add_to_coeff(new_idx, new_c);
     });
@@ -2010,7 +2008,7 @@ public:
    */
   [[nodiscard]] Array<Array<Gen_MultiPolynomial>> hessian() const
   {
-    const size_t                      n = nvars_;
+    const size_t n = nvars_;
     Array<Array<Gen_MultiPolynomial>> H(n,
                                         Array<Gen_MultiPolynomial>(n, Gen_MultiPolynomial(nvars_)));
     for (size_t i = 0; i < n; ++i)
@@ -2039,7 +2037,7 @@ public:
     ah_domain_error_if(pt.size() < nvars_)
       << "eval_gradient: point size " << pt.size() << " < nvars " << nvars_;
 
-    const auto         g = gradient();
+    const auto g = gradient();
     Array<Coefficient> result(nvars_, Coefficient{});
     for (size_t k = 0; k < nvars_; ++k)
       result(k) = g(k).eval(pt);
@@ -2060,8 +2058,8 @@ public:
     ah_domain_error_if(pt.size() < nvars_)
       << "eval_hessian: point size " << pt.size() << " < nvars " << nvars_;
 
-    const auto                H = hessian();
-    const size_t              n = nvars_;
+    const auto H = hessian();
+    const size_t n = nvars_;
     Array<Array<Coefficient>> result(n, Array<Coefficient>(n, Coefficient{}));
     for (size_t i = 0; i < n; ++i)
       for (size_t j = 0; j < n; ++j)
@@ -2090,7 +2088,8 @@ public:
    *  @note **Grid order**: values are in row-major (rightmost dimension varies fastest).
    */
   [[nodiscard]] static Gen_MultiPolynomial interpolate(const Array<Array<Coefficient>> &grid,
-                                                       const Array<Coefficient> &values, size_t nvars)
+                                                       const Array<Coefficient> &values,
+                                                       size_t nvars)
   {
     // Validate grid
     ah_domain_error_if(grid.size() != nvars)
@@ -2098,7 +2097,7 @@ public:
 
     // Compute sizes and total points
     Array<size_t> sizes(nvars, size_t{0});
-    size_t        total = 1;
+    size_t total = 1;
     for (size_t d = 0; d < nvars; ++d)
       {
         sizes(d) = grid(d).size();
@@ -2127,7 +2126,7 @@ public:
     // Process each dimension
     for (size_t dim = 0; dim < nvars; ++dim)
       {
-        const size_t              m     = sizes(dim);
+        const size_t m = sizes(dim);
         const Array<Coefficient> &nodes = grid(dim);
 
         // Compute stride for iterating in this dimension
@@ -2143,8 +2142,8 @@ public:
           {
             // Compute the base flat index for this slice
             size_t slice_flat = 0;
-            size_t tmp        = slice;
-            size_t mult       = 1;
+            size_t tmp = slice;
+            size_t mult = 1;
             for (size_t d = nvars; d > 0; --d)
               {
                 if (d - 1 == dim)
@@ -2165,16 +2164,16 @@ public:
               for (size_t i = m; i > order; --i)
                 {
                   const Coefficient denom = nodes(i - 1) - nodes(i - 1 - order);
-                  dd(i - 1)               = (dd(i - 1) - dd(i - 2)) / denom;
+                  dd(i - 1) = (dd(i - 1) - dd(i - 2)) / denom;
                 }
 
             // Reconstruct Newton polynomial in this dimension
-            const auto          xd     = Gen_MultiPolynomial::variable(nvars, dim);
+            const auto xd = Gen_MultiPolynomial::variable(nvars, dim);
             Gen_MultiPolynomial result = dd(0);
-            Gen_MultiPolynomial basis  = Gen_MultiPolynomial(nvars, Coefficient(1));
+            Gen_MultiPolynomial basis = Gen_MultiPolynomial(nvars, Coefficient(1));
             for (size_t i = 1; i < m; ++i)
               {
-                basis  = basis * (xd - Gen_MultiPolynomial(nvars, nodes(i - 1)));
+                basis = basis * (xd - Gen_MultiPolynomial(nvars, nodes(i - 1)));
                 result = result + dd(i) * basis;
               }
 
@@ -2237,7 +2236,7 @@ public:
   [[nodiscard]] static Gen_MultiPolynomial from_json(const std::string &s)
   {
     // Simple parser for our JSON format
-    size_t              nvars = 0;
+    size_t nvars = 0;
     Gen_MultiPolynomial result;
 
     // Find "nvars":n
@@ -2245,8 +2244,8 @@ public:
     ah_domain_error_if(pos == std::string::npos) << "from_json: missing nvars";
     pos += 8;
     size_t pos_comma = s.find(',', pos);
-    nvars            = std::stoul(s.substr(pos, pos_comma - pos));
-    result.nvars_    = nvars;
+    nvars = std::stoul(s.substr(pos, pos_comma - pos));
+    result.nvars_ = nvars;
 
     // Parse terms
     pos = s.find("\"terms\":[");
@@ -2260,14 +2259,14 @@ public:
         if (e_pos == std::string::npos)
           break;
         e_pos += 5;
-        size_t      e_end = s.find(']', e_pos);
+        size_t e_end = s.find(']', e_pos);
         std::string e_str = s.substr(e_pos, e_end - e_pos);
 
         // Parse exponents
-        Array<size_t>      idx(nvars, size_t{0});
-        size_t             idx_i = 0;
+        Array<size_t> idx(nvars, size_t{0});
+        size_t idx_i = 0;
         std::istringstream iss_e(e_str);
-        std::string        token;
+        std::string token;
         while (std::getline(iss_e, token, ',') and idx_i < nvars)
           idx(idx_i++) = std::stoul(token);
 
@@ -2275,7 +2274,7 @@ public:
         size_t c_pos = s.find("\"c\":", e_end);
         ah_domain_error_if(c_pos == std::string::npos) << "from_json: missing c";
         c_pos += 4;
-        size_t      c_end = s.find('}', c_pos);
+        const size_t c_end = s.find('}', c_pos);
         Coefficient c_val = Coefficient(std::stod(s.substr(c_pos, c_end - c_pos)));
 
         result.add_to_coeff(idx, c_val);
@@ -2300,10 +2299,10 @@ public:
    */
   void to_binary(std::ostream &out) const
   {
-    uint64_t nv = nvars_;
+    const uint64_t nv = nvars_;
     out.write(reinterpret_cast<const char *>(&nv), sizeof(nv));
 
-    uint64_t nt = num_terms();
+    const uint64_t nt = num_terms();
     out.write(reinterpret_cast<const char *>(&nt), sizeof(nt));
 
     for_each_term([&](const Array<size_t> &idx, const Coefficient &c)
@@ -2372,7 +2371,7 @@ public:
    */
   [[nodiscard]] Array<Coefficient> eval_batch(const Array<Array<Coefficient>> &pts) const
   {
-    const size_t       n = pts.size();
+    const size_t n = pts.size();
     Array<Coefficient> results(n, Coefficient{});
 
     // Sequential evaluation (parallelism can be added via pmaps in future)
@@ -2397,7 +2396,8 @@ public:
    *  @note Parallelism applies to row construction; normal equations solved sequentially.
    */
   [[nodiscard]] static Gen_MultiPolynomial fit_parallel(
-    const Array<std::pair<Array<Coefficient>, Coefficient>> &data, size_t nvars,
+    const Array<std::pair<Array<Coefficient>, Coefficient>> &data,
+    size_t nvars,
     const Array<Array<size_t>> &basis)
   {
     const size_t m = data.size();
@@ -2417,7 +2417,8 @@ public:
       basis_vec[i] = basis(i);
 
     // Build design matrix rows in parallel
-    auto rows = pmaps(data_vec, [&basis_vec, b](const std::pair<Array<Coefficient>, Coefficient> &p)
+    auto rows = pmaps(data_vec,
+                      [&basis_vec, b](const std::pair<Array<Coefficient>, Coefficient> &p)
     {
       Array<Coefficient> row(b, Coefficient{});
       for (size_t j = 0; j < b; ++j)
@@ -2427,7 +2428,7 @@ public:
 
     // Normal equations (sequential — bottleneck is row construction)
     Array<Array<Coefficient>> A(m);
-    Array<Coefficient>        y(m, Coefficient{});
+    Array<Coefficient> y(m, Coefficient{});
     for (size_t i = 0; i < m; ++i)
       {
         A(i) = rows[i];
@@ -2436,7 +2437,7 @@ public:
 
     // Compute A^T A and A^T y
     Array<Array<Coefficient>> AtA(b, Array<Coefficient>(b, Coefficient{}));
-    Array<Coefficient>        Aty(b, Coefficient{});
+    Array<Coefficient> Aty(b, Coefficient{});
 
     for (size_t i = 0; i < b; ++i)
       {
@@ -2456,7 +2457,7 @@ public:
     Array<Coefficient> c(b);
     for (size_t col = 0; col < b; ++col)
       {
-        size_t      prow = col;
+        size_t prow = col;
         Coefficient pval = std::abs(AtA(col)(col));
         for (size_t row = col + 1; row < b; ++row)
           {
@@ -2543,14 +2544,14 @@ public:
 
     // Initialize quotient array and remainder
     Array<Gen_MultiPolynomial> q(s, Gen_MultiPolynomial(nvars_));
-    Gen_MultiPolynomial        r(nvars_);
-    Gen_MultiPolynomial        p = *this;
+    Gen_MultiPolynomial r(nvars_);
+    Gen_MultiPolynomial p = *this;
 
     // Buchberger's multivariate division algorithm
     while (not p.is_zero())
       {
         auto [lm_p, lc_p] = p.leading_term();
-        bool found        = false;
+        bool found = false;
 
         for (size_t i = 0; i < s; ++i)
           {
@@ -2567,8 +2568,8 @@ public:
                       continue;
                   }
 
-                Array<size_t> t_idx   = multi_poly_detail::sub_indices(lm_p, lm_fi, nvars_);
-                Coefficient   t_coeff = lc_p / lc_fi;
+                Array<size_t> t_idx = multi_poly_detail::sub_indices(lm_p, lm_fi, nvars_);
+                Coefficient t_coeff = lc_p / lc_fi;
                 if (coeff_is_zero(t_coeff))
                   continue;
                 q(i).add_to_coeff(t_idx, t_coeff);
@@ -2604,26 +2605,26 @@ public:
    */
   [[nodiscard]] static Gen_MultiPolynomial s_poly(const Gen_MultiPolynomial &f,
                                                   const Gen_MultiPolynomial &g)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     ah_domain_error_if(f.is_zero()) << "s_poly: first argument is zero";
     ah_domain_error_if(g.is_zero()) << "s_poly: second argument is zero";
     ah_invalid_argument_if(f.nvars_ != g.nvars_)
       << "s_poly: incompatible number of variables (" << f.nvars_ << " vs " << g.nvars_ << ")";
 
-    const size_t nv   = f.nvars_;
+    const size_t nv = f.nvars_;
     auto [lm_f, lc_f] = f.leading_term();
     auto [lm_g, lc_g] = g.leading_term();
 
     Array<size_t> gamma = multi_poly_detail::lcm_indices(lm_f, lm_g, nv);
 
-    Array<size_t>       t_f_idx   = multi_poly_detail::sub_indices(gamma, lm_f, nv);
-    Coefficient         t_f_coeff = Coefficient(1) / lc_f;
-    Gen_MultiPolynomial t_f       = monomial(nv, t_f_idx, t_f_coeff);
+    const Array<size_t> t_f_idx = multi_poly_detail::sub_indices(gamma, lm_f, nv);
+    Coefficient t_f_coeff = Coefficient(1) / lc_f;
+    Gen_MultiPolynomial t_f = monomial(nv, t_f_idx, t_f_coeff);
 
-    Array<size_t>       t_g_idx   = multi_poly_detail::sub_indices(gamma, lm_g, nv);
-    Coefficient         t_g_coeff = Coefficient(1) / lc_g;
-    Gen_MultiPolynomial t_g       = monomial(nv, t_g_idx, t_g_coeff);
+    const Array<size_t> t_g_idx = multi_poly_detail::sub_indices(gamma, lm_g, nv);
+    Coefficient t_g_coeff = Coefficient(1) / lc_g;
+    Gen_MultiPolynomial t_g = monomial(nv, t_g_idx, t_g_coeff);
 
     return t_f * f - t_g * g;
   }
@@ -2655,7 +2656,7 @@ public:
    */
   [[nodiscard]] static Array<Gen_MultiPolynomial> groebner_basis(
     const Array<Gen_MultiPolynomial> &generators)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     const size_t gen_count = generators.size();
     ah_domain_error_if(gen_count == 0) << "groebner_basis: empty generators";
@@ -2665,27 +2666,26 @@ public:
 
     Array<Gen_MultiPolynomial> G = autoreduce_groebner_basis(autoreduced_generators(generators));
 
-    ah_domain_error_if(G.is_empty())
-      << "groebner_basis: generators reduce to the zero basis";
+    ah_domain_error_if(G.is_empty()) << "groebner_basis: generators reduce to the zero basis";
 
     Array<Array<size_t>> leading_monomials;
-    Pair_Queue           P;
-    Pair_Registry        queued_pairs;
-    Pair_Registry        zero_pairs;
+    Pair_Queue P;
+    Pair_Registry queued_pairs;
+    Pair_Registry zero_pairs;
     rebuild_groebner_pair_state(G, leading_monomials, P, queued_pairs, zero_pairs);
 
-    size_t       iteration      = 0;
-    const size_t max_iterations = 10000;
+    size_t iteration = 0;
 
     // Main Buchberger loop
     while (not P.is_empty())
       {
+        constexpr size_t max_iterations = 10000;
         ah_domain_error_if(++iteration > max_iterations)
           << "groebner_basis: iteration limit (" << max_iterations << ") exceeded";
 
         Pair_Candidate candidate = pop_best_pair(P, queued_pairs);
-        const size_t   i         = candidate.i;
-        const size_t   j         = candidate.j;
+        const size_t i = candidate.i;
+        const size_t j = candidate.j;
 
         // B1 criterion: if LMs are coprime (all min(lm_i, lm_j) = 0), skip
         const Array<size_t> &lm_i = leading_monomials(i);
@@ -2697,8 +2697,7 @@ public:
             continue;
           }
 
-        if (redundant_pair_by_chain_criterion(candidate, leading_monomials, zero_pairs,
-                                              G(i).nvars_))
+        if (redundant_pair_by_chain_criterion(candidate, leading_monomials, zero_pairs, G(i).nvars_))
           {
             zero_pairs.insert(canonical_pair(i, j), true);
             continue;
@@ -2706,7 +2705,7 @@ public:
 
         // Reduce S-polynomial
         Gen_MultiPolynomial s = s_poly(G(i), G(j));
-        auto [qs, rs]         = s.divmod(G);
+        auto [qs, rs] = s.divmod(G);
         Gen_MultiPolynomial r = rs;
 
         // If remainder is non-zero, add to basis and pair with all existing elements
@@ -2723,8 +2722,7 @@ public:
             rebuild_groebner_pair_state(G, leading_monomials, P, queued_pairs, zero_pairs);
             continue;
           }
-        else
-          zero_pairs.insert(canonical_pair(i, j), true);
+        zero_pairs.insert(canonical_pair(i, j), true);
       }
 
     return G;
@@ -2747,7 +2745,7 @@ public:
    */
   [[nodiscard]] static Array<Gen_MultiPolynomial> reduced_groebner_basis(
     const Array<Gen_MultiPolynomial> &generators)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     // Phase 1: Compute Gröbner basis and drop redundant leading monomials.
     Array<Gen_MultiPolynomial> G = minimize_groebner_basis(groebner_basis(generators));
@@ -2764,7 +2762,7 @@ public:
 
         // Build G_minus_i: all elements except i
         Array<Gen_MultiPolynomial> G_minus_i(G.size() - 1, Gen_MultiPolynomial(G(i).nvars_));
-        size_t                     idx = 0;
+        size_t idx = 0;
         for (size_t j = 0; j < G.size(); ++j)
           if (j != i)
             G_minus_i(idx++) = G(j);
@@ -2772,7 +2770,7 @@ public:
         if (not G_minus_i.is_empty())
           {
             auto [q, r] = G(i).divmod(G_minus_i);
-            G(i)        = std::move(r);
+            G(i) = std::move(r);
             make_monic_inplace(G(i));
           }
       }
@@ -2814,9 +2812,9 @@ public:
    *  @note Available only for non-integral coefficient types because it
    *        relies on @ref groebner_basis.
    */
-  [[nodiscard]] static bool ideal_member(const Gen_MultiPolynomial        &f,
+  [[nodiscard]] static bool ideal_member(const Gen_MultiPolynomial &f,
                                          const Array<Gen_MultiPolynomial> &generators)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     if (f.is_zero())
       return true;
@@ -2840,9 +2838,8 @@ public:
    *  @throws std::invalid_argument if nvars mismatch between @p a and @p b
    *  @note Complexity: O(n + m). No reduction applied.
    */
-  [[nodiscard]] static Array<Gen_MultiPolynomial> ideal_sum(
-    const Array<Gen_MultiPolynomial> &a,
-    const Array<Gen_MultiPolynomial> &b)
+  [[nodiscard]] static Array<Gen_MultiPolynomial> ideal_sum(const Array<Gen_MultiPolynomial> &a,
+                                                            const Array<Gen_MultiPolynomial> &b)
   {
     ah_domain_error_if(a.size() == 0) << "ideal_sum: first array is empty";
     ah_domain_error_if(b.size() == 0) << "ideal_sum: second array is empty";
@@ -2855,12 +2852,12 @@ public:
 
     size_t nv = a(0).nvars_;
     for (size_t i = 1; i < a.size(); ++i)
-      ah_invalid_argument_if(a(i).nvars_ != nv)
-        << "ideal_sum: nvars mismatch in a[" << i << "]: expected " << nv << ", got " << a(i).nvars_;
+      ah_invalid_argument_if(a(i).nvars_ != nv) << "ideal_sum: nvars mismatch in a[" << i
+                                                << "]: expected " << nv << ", got " << a(i).nvars_;
 
     for (size_t j = 0; j < b.size(); ++j)
-      ah_invalid_argument_if(b(j).nvars_ != nv)
-        << "ideal_sum: nvars mismatch in b[" << j << "]: expected " << nv << ", got " << b(j).nvars_;
+      ah_invalid_argument_if(b(j).nvars_ != nv) << "ideal_sum: nvars mismatch in b[" << j
+                                                << "]: expected " << nv << ", got " << b(j).nvars_;
 
     Array<Gen_MultiPolynomial> result(a.size() + b.size(), Gen_MultiPolynomial(nv));
     for (size_t i = 0; i < a.size(); ++i)
@@ -2884,9 +2881,8 @@ public:
    *  @throws std::invalid_argument if nvars mismatch
    *  @note Complexity: O(|a| · |b| · T_mult). Result may grow large for large inputs.
    */
-  [[nodiscard]] static Array<Gen_MultiPolynomial> ideal_product(
-    const Array<Gen_MultiPolynomial> &a,
-    const Array<Gen_MultiPolynomial> &b)
+  [[nodiscard]] static Array<Gen_MultiPolynomial> ideal_product(const Array<Gen_MultiPolynomial> &a,
+                                                                const Array<Gen_MultiPolynomial> &b)
   {
     ah_domain_error_if(a.size() == 0) << "ideal_product: first array is empty";
     ah_domain_error_if(b.size() == 0) << "ideal_product: second array is empty";
@@ -2899,15 +2895,15 @@ public:
 
     size_t nv = a(0).nvars_;
     for (size_t i = 1; i < a.size(); ++i)
-      ah_invalid_argument_if(a(i).nvars_ != nv)
-        << "ideal_product: nvars mismatch in a[" << i << "]: expected " << nv << ", got " << a(i).nvars_;
+      ah_invalid_argument_if(a(i).nvars_ != nv) << "ideal_product: nvars mismatch in a[" << i
+                                                << "]: expected " << nv << ", got " << a(i).nvars_;
 
     for (size_t j = 0; j < b.size(); ++j)
-      ah_invalid_argument_if(b(j).nvars_ != nv)
-        << "ideal_product: nvars mismatch in b[" << j << "]: expected " << nv << ", got " << b(j).nvars_;
+      ah_invalid_argument_if(b(j).nvars_ != nv) << "ideal_product: nvars mismatch in b[" << j
+                                                << "]: expected " << nv << ", got " << b(j).nvars_;
 
     Array<Gen_MultiPolynomial> result(a.size() * b.size(), Gen_MultiPolynomial(nv));
-    size_t                     k = 0;
+    size_t k = 0;
     for (size_t i = 0; i < a.size(); ++i)
       for (size_t j = 0; j < b.size(); ++j)
         result(k++) = a(i) * b(j);
@@ -2928,9 +2924,8 @@ public:
    *        Use only for small n and |gens| to avoid exponential explosion.
    *  @warning Result array size can be exponential in @p n.
    */
-  [[nodiscard]] static Array<Gen_MultiPolynomial> ideal_power(
-    const Array<Gen_MultiPolynomial> &gens,
-    size_t                            n)
+  [[nodiscard]] static Array<Gen_MultiPolynomial> ideal_power(const Array<Gen_MultiPolynomial> &gens,
+                                                              size_t n)
   {
     ah_domain_error_if(gens.size() == 0) << "ideal_power: empty generators";
 
@@ -2977,7 +2972,7 @@ public:
    */
   [[nodiscard]] static bool contains_ideal(const Array<Gen_MultiPolynomial> &I_gens,
                                            const Array<Gen_MultiPolynomial> &J_gens)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     ah_domain_error_if(I_gens.size() == 0) << "contains_ideal: I is empty";
     ah_domain_error_if(J_gens.size() == 0) << "contains_ideal: J is empty";
@@ -3029,7 +3024,7 @@ public:
    */
   [[nodiscard]] static bool ideals_equal(const Array<Gen_MultiPolynomial> &I_gens,
                                          const Array<Gen_MultiPolynomial> &J_gens)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     ah_domain_error_if(I_gens.size() == 0) << "ideals_equal: I is empty";
     ah_domain_error_if(J_gens.size() == 0) << "ideals_equal: J is empty";
@@ -3071,9 +3066,9 @@ public:
    *  @note Available only for non-integral coefficient types because it
    *        reduces ideal membership to Gröbner-basis computations.
    */
-  [[nodiscard]] static bool radical_member(const Gen_MultiPolynomial        &f,
+  [[nodiscard]] static bool radical_member(const Gen_MultiPolynomial &f,
                                            const Array<Gen_MultiPolynomial> &gens)
-    requires (not std::is_integral_v<Coefficient>)
+    requires(not std::is_integral_v<Coefficient>)
   {
     ah_domain_error_if(gens.size() == 0) << "radical_member: empty generators";
 
@@ -3100,7 +3095,7 @@ public:
 
     // Create the polynomial (1 - y·f) in the augmented ring
     //   y = monomial with exponent [0, ..., 0, 1] at index nv
-    Array<size_t> y_exp(nv_aug, size_t(0));
+    Array<size_t> y_exp(nv_aug, static_cast<size_t>(0));
     y_exp(nv) = 1;
     Gen_MultiPolynomial y_poly = monomial(nv_aug, y_exp, Coefficient(1));
 
@@ -3127,7 +3122,7 @@ public:
   struct FactorTerm
   {
     Gen_MultiPolynomial factor;
-    size_t              multiplicity;
+    size_t multiplicity;
   };
 
   /** @brief Content of a multivariate polynomial: GCD of all coefficients.
@@ -3155,7 +3150,7 @@ public:
       {
         const auto &p = it.get_curr();
         Coefficient a = p.second < Coefficient{} ? -p.second : p.second;
-        result        = std::gcd(result, a);
+        result = std::gcd(result, a);
       }
 
     // Sign follows leading coefficient
@@ -3206,8 +3201,7 @@ public:
     Gen_MultiPolynomial result(nvars_);
     for_each_term([&](const Array<size_t> &idx, const Coefficient &coeff)
     {
-      Coefficient q = coeff / c;
-      if (not coeff_is_zero(q))
+      if (Coefficient q = coeff / c; not coeff_is_zero(q))
         result.coeffs.insert(idx, q);
     });
     return result;
@@ -3228,21 +3222,20 @@ public:
    *
    *  @note **Complexity**: @f$O(k \cdot n)@f$ where k = num_terms, n = num_vars.
    */
-  [[nodiscard]] Gen_Polynomial<Coefficient> homomorphic_eval(
-    size_t keep_var, const Array<Coefficient> &eval_pts) const
+  [[nodiscard]] Gen_Polynomial<Coefficient> homomorphic_eval(size_t keep_var,
+                                                             const Array<Coefficient> &eval_pts) const
   {
     ah_domain_error_if(keep_var >= nvars_)
       << "homomorphic_eval: keep_var " << keep_var << " >= nvars " << nvars_;
     ah_domain_error_if(eval_pts.size() != nvars_ - 1)
-      << "homomorphic_eval: eval_pts size " << eval_pts.size()
-      << " != nvars-1 " << (nvars_ - 1);
+      << "homomorphic_eval: eval_pts size " << eval_pts.size() << " != nvars-1 " << (nvars_ - 1);
 
     Gen_Polynomial<Coefficient> result;
 
     for_each_term([&](const Array<size_t> &idx, const Coefficient &c)
     {
       Coefficient term_val = c;
-      size_t      pt_idx   = 0;
+      size_t pt_idx = 0;
       for (size_t v = 0; v < nvars_; ++v)
         {
           if (v == keep_var)
@@ -3253,8 +3246,7 @@ public:
         }
 
       if (not coeff_is_zero(term_val))
-        result.set_coeff(idx(keep_var),
-                         result.get_coeff(idx(keep_var)) + term_val);
+        result.set_coeff(idx(keep_var), result.get_coeff(idx(keep_var)) + term_val);
     });
 
     return result;
@@ -3267,11 +3259,12 @@ public:
    *  @param[in] x_var  Variable index for the univariate variable.
    *  @return Multivariate polynomial equivalent to @p u in variable @p x_var.
    */
-  [[nodiscard]] static Gen_MultiPolynomial _embed_univariate(
-    const Gen_Polynomial<Coefficient> &u, size_t nv, size_t x_var)
+  [[nodiscard]] static Gen_MultiPolynomial _embed_univariate(const Gen_Polynomial<Coefficient> &u,
+                                                             size_t nv,
+                                                             const size_t x_var)
   {
     Gen_MultiPolynomial result(nv);
-    u.for_each_term([&](size_t exp, const Coefficient &c)
+    u.for_each_term([&](const size_t exp, const Coefficient &c)
     {
       Array<size_t> idx(nv, size_t{0});
       idx(x_var) = exp;
@@ -3299,8 +3292,7 @@ public:
   /** @brief Deterministic ordering of primitive univariate linear factors. */
   struct Uni_Linear_Factor_Data_Less
   {
-    bool operator()(const Uni_Linear_Factor_Data &lhs,
-                    const Uni_Linear_Factor_Data &rhs) const
+    bool operator()(const Uni_Linear_Factor_Data &lhs, const Uni_Linear_Factor_Data &rhs) const
     {
       if (lhs.main_coeff < rhs.main_coeff)
         return true;
@@ -3327,8 +3319,7 @@ public:
 
         UniPoly primitive = term.factor.primitive_part();
         for (size_t m = 0; m < term.multiplicity; ++m)
-          result.append(Uni_Linear_Factor_Data{primitive.leading_coeff(),
-                                               primitive.get_coeff(0)});
+          result.append(Uni_Linear_Factor_Data{primitive.leading_coeff(), primitive.get_coeff(0)});
       }
 
     if (result.size() > 1)
@@ -3361,8 +3352,7 @@ public:
   }
 
   /** @brief Count active variables (positive degree) and remember the last one seen. */
-  [[nodiscard]] static size_t _count_active_vars(const Gen_MultiPolynomial &p,
-                                                 size_t                    &last_active_var)
+  [[nodiscard]] static size_t _count_active_vars(const Gen_MultiPolynomial &p, size_t &last_active_var)
   {
     size_t count = 0;
     last_active_var = 0;
@@ -3386,13 +3376,13 @@ public:
    *  incrementing the corresponding variable by one.
    */
   [[nodiscard]] static Gen_MultiPolynomial _build_affine_factor_from_linear_data(
-    size_t                     nvars,
-    size_t                     main_var,
-    const Array<size_t>       &other_vars,
-    const Array<Coefficient>  &base_eval_pts,
-    const Coefficient         &main_coeff,
-    const Array<Coefficient>  &other_coeffs,
-    const Coefficient         &base_constant_term)
+    size_t nvars,
+    size_t main_var,
+    const Array<size_t> &other_vars,
+    const Array<Coefficient> &base_eval_pts,
+    const Coefficient &main_coeff,
+    const Array<Coefficient> &other_coeffs,
+    const Coefficient &base_constant_term)
     requires std::is_integral_v<Coefficient>
   {
     Gen_MultiPolynomial factor(nvars);
@@ -3422,18 +3412,16 @@ public:
   }
 
   /** @brief Try to lift a primitive affine linear factor from specialized coefficients. */
-  static bool _try_lift_primitive_affine_linear_factor_for_main_var(
-    const Gen_MultiPolynomial &p,
-    size_t                     main_var,
-    const Array<Coefficient>  &base_eval_pts,
-    Gen_MultiPolynomial       &factor)
+  static bool _try_lift_primitive_affine_linear_factor_for_main_var(const Gen_MultiPolynomial &p,
+                                                                    size_t main_var,
+                                                                    const Array<Coefficient> &base_eval_pts,
+                                                                    Gen_MultiPolynomial &factor)
     requires std::is_integral_v<Coefficient>
   {
     using UniPoly = Gen_Polynomial<Coefficient>;
 
     UniPoly base_univ = p.homomorphic_eval(main_var, base_eval_pts);
-    Array<Uni_Linear_Factor_Data> base_factors =
-      _collect_sorted_primitive_linear_factors(base_univ);
+    Array<Uni_Linear_Factor_Data> base_factors = _collect_sorted_primitive_linear_factors(base_univ);
     if (base_factors.is_empty())
       return false;
 
@@ -3480,9 +3468,13 @@ public:
         if (not consistent)
           continue;
 
-        Gen_MultiPolynomial candidate = _build_affine_factor_from_linear_data(
-          p.num_vars(), main_var, other_vars, base_eval_pts, main_coeff, other_coeffs,
-          base_constant_term);
+        Gen_MultiPolynomial candidate = _build_affine_factor_from_linear_data(p.num_vars(),
+                                                                              main_var,
+                                                                              other_vars,
+                                                                              base_eval_pts,
+                                                                              main_coeff,
+                                                                              other_coeffs,
+                                                                              base_constant_term);
 
         if (candidate.is_constant())
           continue;
@@ -3503,13 +3495,12 @@ public:
    *  remaining variables, constructs:
    *  `x_main - (sum_i slope_i * x_i + intercept)`.
    */
-  [[nodiscard]] static Gen_MultiPolynomial _build_affine_factor(
-    size_t                     nvars,
-    size_t                     main_var,
-    const Array<size_t>       &other_vars,
-    const Array<Coefficient>  &base_eval_pts,
-    const Array<Coefficient>  &slopes,
-    const Coefficient         &base_root)
+  [[nodiscard]] static Gen_MultiPolynomial _build_affine_factor(size_t nvars,
+                                                                size_t main_var,
+                                                                const Array<size_t> &other_vars,
+                                                                const Array<Coefficient> &base_eval_pts,
+                                                                const Array<Coefficient> &slopes,
+                                                                const Coefficient &base_root)
     requires std::is_integral_v<Coefficient>
   {
     Gen_MultiPolynomial factor(nvars);
@@ -3538,22 +3529,21 @@ public:
   }
 
   /** @brief Recursive search for an affine linear multivariate lift. */
-  static bool _search_affine_lift_options(
-    const Gen_MultiPolynomial       &p,
-    size_t                           main_var,
-    const Array<size_t>             &other_vars,
-    const Array<Array<Coefficient>> &root_options,
-    const Array<Coefficient>        &base_eval_pts,
-    const Coefficient               &base_root,
-    size_t                           pos,
-    Array<Coefficient>              &slopes,
-    Gen_MultiPolynomial             &factor)
+  static bool _search_affine_lift_options(const Gen_MultiPolynomial &p,
+                                          size_t main_var,
+                                          const Array<size_t> &other_vars,
+                                          const Array<Array<Coefficient>> &root_options,
+                                          const Array<Coefficient> &base_eval_pts,
+                                          const Coefficient &base_root,
+                                          size_t pos,
+                                          Array<Coefficient> &slopes,
+                                          Gen_MultiPolynomial &factor)
     requires std::is_integral_v<Coefficient>
   {
     if (pos == other_vars.size())
       {
-        Gen_MultiPolynomial candidate =
-          _build_affine_factor(p.num_vars(), main_var, other_vars, base_eval_pts, slopes, base_root);
+        Gen_MultiPolynomial candidate
+          = _build_affine_factor(p.num_vars(), main_var, other_vars, base_eval_pts, slopes, base_root);
 
         if (candidate.is_constant())
           return false;
@@ -3570,8 +3560,8 @@ public:
     for (size_t i = 0; i < root_options(pos).size(); ++i)
       {
         slopes(pos) = root_options(pos)(i) - base_root;
-        if (_search_affine_lift_options(p, main_var, other_vars, root_options, base_eval_pts,
-                                        base_root, pos + 1, slopes, factor))
+        if (_search_affine_lift_options(
+              p, main_var, other_vars, root_options, base_eval_pts, base_root, pos + 1, slopes, factor))
           return true;
       }
 
@@ -3579,11 +3569,10 @@ public:
   }
 
   /** @brief Try to lift a monic affine linear factor for a fixed main variable. */
-  static bool _try_lift_affine_linear_factor_for_main_var(
-    const Gen_MultiPolynomial &p,
-    size_t                     main_var,
-    const Array<Coefficient>  &base_eval_pts,
-    Gen_MultiPolynomial       &factor)
+  static bool _try_lift_affine_linear_factor_for_main_var(const Gen_MultiPolynomial &p,
+                                                          size_t main_var,
+                                                          const Array<Coefficient> &base_eval_pts,
+                                                          Gen_MultiPolynomial &factor)
     requires std::is_integral_v<Coefficient>
   {
     using UniPoly = Gen_Polynomial<Coefficient>;
@@ -3618,8 +3607,8 @@ public:
 
     Array<Coefficient> slopes(other_vars.size(), Coefficient{});
     for (size_t i = 0; i < base_roots.size(); ++i)
-      if (_search_affine_lift_options(p, main_var, other_vars, root_options, base_eval_pts,
-                                      base_roots(i), 0, slopes, factor))
+      if (_search_affine_lift_options(
+            p, main_var, other_vars, root_options, base_eval_pts, base_roots(i), 0, slopes, factor))
         return true;
 
     return false;
@@ -3627,7 +3616,7 @@ public:
 
   /** @brief Try to extract a monic affine linear factor via multivariate lifting. */
   static bool _try_extract_affine_linear_factor(const Gen_MultiPolynomial &p,
-                                                Gen_MultiPolynomial       &factor)
+                                                Gen_MultiPolynomial &factor)
     requires std::is_integral_v<Coefficient>
   {
     for (size_t main_var = 0; main_var < p.num_vars(); ++main_var)
@@ -3657,11 +3646,11 @@ public:
 
   /** @brief Build a regular interpolation grid for the active non-main variables. */
   static bool _build_interpolation_grid(const Gen_MultiPolynomial &p,
-                                        const Array<size_t>       &other_vars,
-                                        Coefficient                start,
-                                        Coefficient                step,
+                                        const Array<size_t> &other_vars,
+                                        Coefficient start,
+                                        Coefficient step,
                                         Array<Array<Coefficient>> &grid,
-                                        size_t                    &total_points)
+                                        size_t &total_points)
     requires std::is_integral_v<Coefficient>
   {
     static constexpr size_t max_grid_points = 81;
@@ -3672,7 +3661,7 @@ public:
     for (size_t pos = 0; pos < other_vars.size(); ++pos)
       {
         const size_t degree_bound = p.degree_in(other_vars(pos));
-        const size_t node_count   = degree_bound + 1;
+        const size_t node_count = degree_bound + 1;
         if (node_count == 0)
           return false;
 
@@ -3693,11 +3682,11 @@ public:
   }
 
   /** @brief Decode a flat tensor-grid index into coordinates (last dimension fastest). */
-  [[nodiscard]] static Array<Coefficient> _decode_grid_point(
-    const Array<Array<Coefficient>> &grid, size_t flat_index)
+  [[nodiscard]] static Array<Coefficient> _decode_grid_point(const Array<Array<Coefficient>> &grid,
+                                                             size_t flat_index)
   {
     Array<Coefficient> point(grid.size(), Coefficient{});
-    size_t             remaining = flat_index;
+    size_t remaining = flat_index;
     for (size_t pos = grid.size(); pos > 0; --pos)
       {
         const size_t idx = remaining % grid(pos - 1).size();
@@ -3708,11 +3697,10 @@ public:
   }
 
   /** @brief Build the full homomorphic-evaluation point from active-variable coordinates. */
-  [[nodiscard]] static Array<Coefficient> _build_eval_point(
-    size_t                           nvars,
-    size_t                           main_var,
-    const Array<size_t>             &other_vars,
-    const Array<Coefficient>        &coords)
+  [[nodiscard]] static Array<Coefficient> _build_eval_point(size_t nvars,
+                                                            size_t main_var,
+                                                            const Array<size_t> &other_vars,
+                                                            const Array<Coefficient> &coords)
   {
     Array<Coefficient> eval_pts(nvars - 1, Coefficient{});
     for (size_t pos = 0; pos < other_vars.size(); ++pos)
@@ -3741,8 +3729,7 @@ public:
   /** @brief Deterministic ordering of primitive univariate factors by normalized signature. */
   struct Uni_Factor_Signature_Less
   {
-    bool operator()(const Gen_Polynomial<Coefficient> &lhs,
-                    const Gen_Polynomial<Coefficient> &rhs) const
+    bool operator()(const Gen_Polynomial<Coefficient> &lhs, const Gen_Polynomial<Coefficient> &rhs) const
     {
       if (lhs.degree() != rhs.degree())
         return lhs.degree() < rhs.degree();
@@ -3768,10 +3755,9 @@ public:
   };
 
   /** @brief Expand, primitive-normalize, and group factors by degree in a stable order. */
-  static bool _collect_sorted_primitive_factor_groups(
-    const Gen_Polynomial<Coefficient>     &u,
-    size_t                                 max_degree,
-    Array<Array<Gen_Polynomial<Coefficient>>> &groups)
+  static bool _collect_sorted_primitive_factor_groups(const Gen_Polynomial<Coefficient> &u,
+                                                      size_t max_degree,
+                                                      Array<Array<Gen_Polynomial<Coefficient>>> &groups)
     requires std::is_integral_v<Coefficient>
   {
     using UniPoly = Gen_Polynomial<Coefficient>;
@@ -3798,11 +3784,11 @@ public:
 
   /** @brief Embed a coefficient polynomial in the ambient ring and multiply by x_main^exp. */
   [[nodiscard]] static Gen_MultiPolynomial _embed_coeff_poly_as_x_term(
-    const Gen_MultiPolynomial       &coeff_poly,
-    size_t                           nvars,
-    size_t                           main_var,
-    const Array<size_t>             &other_vars,
-    size_t                           exp)
+    const Gen_MultiPolynomial &coeff_poly,
+    size_t nvars,
+    size_t main_var,
+    const Array<size_t> &other_vars,
+    size_t exp)
   {
     Gen_MultiPolynomial result(nvars);
     coeff_poly.for_each_term([&](const Array<size_t> &idx_sub, const Coefficient &c)
@@ -3825,10 +3811,7 @@ public:
    *  and then verified by exact division.
    */
   [[nodiscard]] static Array<Gen_MultiPolynomial> _interpolated_factors_for_main_var(
-    const Gen_MultiPolynomial &p,
-    size_t                     main_var,
-    Coefficient                grid_start,
-    Coefficient                grid_step)
+    const Gen_MultiPolynomial &p, size_t main_var, Coefficient grid_start, Coefficient grid_step)
     requires std::is_integral_v<Coefficient>
   {
     using UniPoly = Gen_Polynomial<Coefficient>;
@@ -3844,14 +3827,15 @@ public:
       return result;
 
     Array<Array<Coefficient>> grid;
-    size_t                    total_points = 0;
+    size_t total_points = 0;
     if (not _build_interpolation_grid(p, other_vars, grid_start, grid_step, grid, total_points))
       return result;
 
     Array<Array<UniPoly>> base_groups;
     {
       Array<Coefficient> base_coords = _decode_grid_point(grid, 0);
-      Array<Coefficient> eval_pts = _build_eval_point(p.num_vars(), main_var, other_vars, base_coords);
+      Array<Coefficient> eval_pts
+        = _build_eval_point(p.num_vars(), main_var, other_vars, base_coords);
       UniPoly base_univ = p.homomorphic_eval(main_var, eval_pts);
       if (base_univ.is_zero() or base_univ.is_constant())
         return result;
@@ -3871,7 +3855,8 @@ public:
     if (target_degrees.is_empty())
       return result;
 
-    Array<Array<Array<Coefficient>>> coeff_samples(target_degrees.size(), Array<Array<Coefficient>>());
+    Array<Array<Array<Coefficient>>> coeff_samples(target_degrees.size(),
+                                                   Array<Array<Coefficient>>());
     for (size_t t = 0; t < target_degrees.size(); ++t)
       {
         const size_t degree = target_degrees(t);
@@ -3882,9 +3867,9 @@ public:
 
     for (size_t flat = 0; flat < total_points; ++flat)
       {
-        Array<Coefficient> coords   = _decode_grid_point(grid, flat);
+        Array<Coefficient> coords = _decode_grid_point(grid, flat);
         Array<Coefficient> eval_pts = _build_eval_point(p.num_vars(), main_var, other_vars, coords);
-        UniPoly            u        = p.homomorphic_eval(main_var, eval_pts);
+        UniPoly u = p.homomorphic_eval(main_var, eval_pts);
         if (u.is_zero() or u.is_constant())
           return Array<Gen_MultiPolynomial>();
 
@@ -3913,10 +3898,10 @@ public:
         Gen_MultiPolynomial candidate(p.num_vars());
         for (size_t exp = 0; exp <= degree; ++exp)
           {
-            Gen_MultiPolynomial coeff_poly =
-              Gen_MultiPolynomial::interpolate(grid, coeff_samples(t)(exp), other_vars.size());
-            candidate += _embed_coeff_poly_as_x_term(coeff_poly, p.num_vars(), main_var,
-                                                     other_vars, exp);
+            Gen_MultiPolynomial coeff_poly
+              = Gen_MultiPolynomial::interpolate(grid, coeff_samples(t)(exp), other_vars.size());
+            candidate
+              += _embed_coeff_poly_as_x_term(coeff_poly, p.num_vars(), main_var, other_vars, exp);
           }
 
         if (_divides_exactly(p, candidate))
@@ -3928,7 +3913,7 @@ public:
 
   /** @brief Try to extract an exact non-linear factor via coefficient interpolation. */
   static bool _try_extract_interpolated_factor(const Gen_MultiPolynomial &p,
-                                               Gen_MultiPolynomial       &factor)
+                                               Gen_MultiPolynomial &factor)
     requires std::is_integral_v<Coefficient>
   {
     for (size_t main_var = 0; main_var < p.num_vars(); ++main_var)
@@ -3940,8 +3925,8 @@ public:
              {Coefficient(0), Coefficient(1), Coefficient(2), Coefficient(-1), Coefficient(-2)})
           for (Coefficient grid_step : {Coefficient(1), Coefficient(2), Coefficient(3)})
             {
-              Array<Gen_MultiPolynomial> candidates =
-                _interpolated_factors_for_main_var(p, main_var, grid_start, grid_step);
+              Array<Gen_MultiPolynomial> candidates
+                = _interpolated_factors_for_main_var(p, main_var, grid_start, grid_step);
               for (size_t i = 0; i < candidates.size(); ++i)
                 if (not candidates(i).is_constant())
                   {
@@ -3960,8 +3945,8 @@ public:
    *  univariate integer factorizer, and embeds the factors back into the
    *  ambient multivariate ring while preserving multiplicities.
    */
-  [[nodiscard]] static DynList<FactorTerm> _factorize_as_univariate_in_var(
-    const Gen_MultiPolynomial &p, size_t active_var)
+  [[nodiscard]] static DynList<FactorTerm> _factorize_as_univariate_in_var(const Gen_MultiPolynomial &p,
+                                                                           size_t active_var)
     requires std::is_integral_v<Coefficient>
   {
     using UniPoly = Gen_Polynomial<Coefficient>;
@@ -3978,8 +3963,8 @@ public:
     for (auto it = sfd_terms.get_it(); it.has_curr(); it.next_ne())
       {
         const auto &st = it.get_curr();
-        result.append(FactorTerm{_embed_univariate(st.factor, p.num_vars(), active_var),
-                                 st.multiplicity});
+        result.append(
+          FactorTerm{_embed_univariate(st.factor, p.num_vars(), active_var), st.multiplicity});
       }
     return result;
   }
@@ -4000,11 +3985,10 @@ public:
    *        candidate list.
    */
   [[nodiscard]] static DynList<FactorTerm> factor_recombination(
-    Gen_MultiPolynomial              f,
-    const Array<Gen_MultiPolynomial> &candidates)
+    Gen_MultiPolynomial f, const Array<Gen_MultiPolynomial> &candidates)
   {
     DynList<FactorTerm> result;
-    const size_t        k  = candidates.size();
+    const size_t k = candidates.size();
     if (k == 0)
       {
         if (not f.is_zero() and not f.is_constant())
@@ -4054,8 +4038,8 @@ public:
             if (_divides_exactly(f, cand))
               {
                 result.append(FactorTerm{cand, 1});
-                f            = _exact_quotient(f, cand);
-                used(i)      = true;
+                f = _exact_quotient(f, cand);
+                used(i) = true;
                 found_factor = true;
 
                 if (f.is_constant())
@@ -4081,9 +4065,9 @@ public:
                 if (_divides_exactly(f, product))
                   {
                     result.append(FactorTerm{product, 1});
-                    f            = _exact_quotient(f, product);
-                    used(i)      = true;
-                    used(j)      = true;
+                    f = _exact_quotient(f, product);
+                    used(i) = true;
+                    used(j) = true;
                     found_factor = true;
 
                     if (f.is_constant())
@@ -4148,7 +4132,7 @@ public:
     if (scalar_content != Coefficient(1))
       result.append(FactorTerm{Gen_MultiPolynomial(nvars_, scalar_content), 1});
 
-    size_t active_var  = 0;
+    size_t active_var = 0;
     size_t active_vars = _count_active_vars(remaining, active_var);
 
     // Special case: effectively univariate even if embedded in a larger ring.
@@ -4164,14 +4148,14 @@ public:
     while (true)
       {
         Gen_MultiPolynomial lifted_factor(nvars_);
-        if (not _try_extract_affine_linear_factor(remaining, lifted_factor) and
-            not _try_extract_interpolated_factor(remaining, lifted_factor))
+        if (not _try_extract_affine_linear_factor(remaining, lifted_factor)
+            and not _try_extract_interpolated_factor(remaining, lifted_factor))
           break;
 
         size_t multiplicity = 1;
         remaining = _exact_quotient(remaining, lifted_factor);
-        while (not remaining.is_zero() and not remaining.is_constant() and
-               _divides_exactly(remaining, lifted_factor))
+        while (not remaining.is_zero() and not remaining.is_constant()
+               and _divides_exactly(remaining, lifted_factor))
           {
             remaining = _exact_quotient(remaining, lifted_factor);
             ++multiplicity;
@@ -4196,7 +4180,7 @@ public:
 
     // Step 3: Choose main variable among variables that actually appear.
     size_t main_var = nvars_;
-    size_t min_deg  = std::numeric_limits<size_t>::max();
+    size_t min_deg = std::numeric_limits<size_t>::max();
     for (size_t v = 0; v < nvars_; ++v)
       {
         size_t dv = remaining.degree_in(v);
@@ -4205,19 +4189,18 @@ public:
 
         if (dv < min_deg)
           {
-            min_deg  = dv;
+            min_deg = dv;
             main_var = v;
           }
       }
 
-    ah_domain_error_if(main_var >= nvars_)
-      << "factorize: primitive part has no active variable";
+    ah_domain_error_if(main_var >= nvars_) << "factorize: primitive part has no active variable";
 
     // Step 3: Choose evaluation points (small integers, avoiding roots)
     Array<Coefficient> eval_pts(nvars_ - 1, Coefficient{});
     {
       Coefficient val(0);
-      size_t      pt_idx = 0;
+      size_t pt_idx = 0;
       for (size_t v = 0; v < nvars_; ++v)
         {
           if (v == main_var)
@@ -4236,7 +4219,7 @@ public:
         // Evaluation collapsed; try different points
         {
           Coefficient val(1);
-          size_t      pt_idx = 0;
+          size_t pt_idx = 0;
           for (size_t v = 0; v < nvars_; ++v)
             {
               if (v == main_var)
@@ -4268,7 +4251,7 @@ public:
           univ_factors.append(term.factor);
       }
 
-        if (_list_size(univ_factors) <= 1)
+    if (_list_size(univ_factors) <= 1)
       {
         // Univariate is irreducible; original is likely irreducible
         result.append(FactorTerm{remaining, 1});
@@ -4309,8 +4292,8 @@ private:
 
   /** @brief Substitute a single variable with a scalar value. */
   static Gen_MultiPolynomial _substitute_var(const Gen_MultiPolynomial &p,
-                                             size_t                     var,
-                                             const Coefficient         &val)
+                                             size_t var,
+                                             const Coefficient &val)
   {
     Gen_MultiPolynomial result(p.nvars_);
     p.for_each_term([&](const Array<size_t> &idx, const Coefficient &c)
@@ -4320,7 +4303,7 @@ private:
         coeff *= multi_poly_detail::int_power(val, idx(var));
 
       Array<size_t> new_idx = idx;
-      new_idx(var)          = 0;
+      new_idx(var) = 0;
       result.add_to_coeff(new_idx, coeff);
     });
     return result;
@@ -4341,8 +4324,7 @@ private:
    *  Uses the multivariate division algorithm directly and accepts the divisor
    *  only when the remainder is exactly zero.
    */
-  static bool _divides_exactly(const Gen_MultiPolynomial &f,
-                               const Gen_MultiPolynomial &divisor)
+  static bool _divides_exactly(const Gen_MultiPolynomial &f, const Gen_MultiPolynomial &divisor)
   {
     if (divisor.is_zero())
       return false;
@@ -4370,7 +4352,8 @@ private:
 
     Array<Gen_MultiPolynomial> divisors(1, divisor);
     auto [q, r] = f.divmod(divisors);
-    ah_domain_error_if(not r.is_zero()) << "_exact_quotient: divisor does not divide polynomial exactly";
+    ah_domain_error_if(not r.is_zero())
+      << "_exact_quotient: divisor does not divide polynomial exactly";
     return q(0);
   }
 
@@ -4393,13 +4376,13 @@ private:
 template <typename C>
 struct PolyFitAnalysis
 {
-  double   r_squared = 0.0;  ///< Coefficient of determination (0--1)
-  double   rmse      = 0.0;  ///< Root mean squared error
-  double   rss       = 0.0;  ///< Residual sum of squares
-  double   tss       = 0.0;  ///< Total sum of squares
-  double   ess       = 0.0;  ///< Explained sum of squares
-  Array<C> residuals;        ///< Per-point residuals
-  double   mean_y = 0.0;     ///< Mean of y values
+  double r_squared = 0.0;  ///< Coefficient of determination (0--1)
+  double rmse = 0.0;       ///< Root mean squared error
+  double rss = 0.0;        ///< Residual sum of squares
+  double tss = 0.0;        ///< Total sum of squares
+  double ess = 0.0;        ///< Explained sum of squares
+  Array<C> residuals;      ///< Per-point residuals
+  double mean_y = 0.0;     ///< Mean of y values
 };
 
 /** @brief Compute residual analysis for a polynomial fit.
@@ -4411,11 +4394,11 @@ struct PolyFitAnalysis
  *  @return Structure containing R², RMSE, residuals, etc.
  */
 template <typename C, class M>
-[[nodiscard]] PolyFitAnalysis<C> analyze_fit(const Gen_MultiPolynomial<C, M>     &poly,
+[[nodiscard]] PolyFitAnalysis<C> analyze_fit(const Gen_MultiPolynomial<C, M> &poly,
                                              const Array<std::pair<Array<C>, C>> &data)
 {
   PolyFitAnalysis<C> result;
-  const size_t       m = data.size();
+  const size_t m = data.size();
 
   if (m == 0)
     return result;
@@ -4428,13 +4411,13 @@ template <typename C, class M>
 
   // Compute residuals, TSS, RSS
   result.residuals = Array<C>(m, C{});
-  result.tss       = 0.0;
-  result.rss       = 0.0;
+  result.tss = 0.0;
+  result.rss = 0.0;
 
   for (size_t i = 0; i < m; ++i)
     {
-      C pred              = poly.eval(data(i).first);
-      C res               = data(i).second - pred;
+      C pred = poly.eval(data(i).first);
+      C res = data(i).second - pred;
       result.residuals(i) = res;
 
       const auto dev_y = static_cast<double>(data(i).second) - result.mean_y;
@@ -4453,7 +4436,7 @@ template <typename C, class M>
     result.r_squared = 0.0;
 
   // Compute RMSE
-  result.rmse = std::sqrt(result.rss / (double) m);
+  result.rmse = std::sqrt(result.rss / static_cast<double>(m));
 
   return result;
 }
