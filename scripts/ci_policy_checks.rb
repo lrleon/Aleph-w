@@ -2,7 +2,11 @@
 
 require 'open3'
 require 'pathname'
-require 'unicode_normalize'
+begin
+  require 'unicode_normalize'
+rescue LoadError
+  warn '[warn] unicode_normalize extension not available; documentation language check is best-effort.'
+end
 
 HEADER_EXTS = %w[.h .H .hpp .hxx .hh].freeze
 TEST_EXTS = %w[.cc .cpp .C .cxx].freeze
@@ -85,7 +89,10 @@ def english_documentation?(path)
 
   # Normalize text and each word to ASCII (strip diacritics) so both accented
   # and unaccented forms are caught by a single comparison.
+  unicode_normalize_supported = ''.respond_to?(:unicode_normalize)
   normalize = lambda do |str|
+    return str unless unicode_normalize_supported
+
     str.unicode_normalize(:nfd).gsub(/\p{Mn}/, '')
   end
 

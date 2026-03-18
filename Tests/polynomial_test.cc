@@ -1497,6 +1497,14 @@ TEST(Polynomial, CountAllRealRoots)
   EXPECT_EQ(p.count_all_real_roots(), 4u);
 }
 
+TEST(Polynomial, CountRealRootsZeroPolynomial)
+{
+  Polynomial p;
+  EXPECT_EQ(p.count_real_roots(-10.0, 10.0), 0u);
+  EXPECT_EQ(p.count_real_roots(10.0, -10.0), 0u);
+  EXPECT_EQ(p.count_all_real_roots(), 0u);
+}
+
 TEST(Polynomial, CountRealRootsNoReal)
 {
   // x^2 + 1: no real roots
@@ -2076,6 +2084,19 @@ TEST(PolyLayer5, HenselLiftRejectsInvalidParameters)
   EXPECT_THROW(IntPoly::hensel_lift(f, factors, 1, 1), std::domain_error);
   EXPECT_THROW(IntPoly::hensel_lift(f, factors, 0, 1), std::domain_error);
   EXPECT_THROW(IntPoly::hensel_lift(f, factors, 5, 0), std::domain_error);
+}
+
+TEST(PolyLayer5, HenselLiftRejectsModulusGrowthOverflow)
+{
+  IntPoly f;
+  f.set_coeff(0, 1);
+  f.set_coeff(1, 1);
+
+  DynList<IntPoly> factors;
+  factors.append(f);
+
+  EXPECT_THROW(IntPoly::hensel_lift(f, factors, std::numeric_limits<long long>::max(), 1),
+               std::domain_error);
 }
 
 // --- Factorize Tests ---

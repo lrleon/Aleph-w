@@ -1593,6 +1593,7 @@ public:
    *
    *  @note Only meaningful for floating-point coefficient types.
    *  If @p a > @p b, the endpoints are swapped.
+   *  The zero polynomial is treated as having 0 countable distinct roots.
    *
    *  @note **Complexity**: @f$O(d^2)@f$ to build the Sturm chain, plus
    *        @f$O(d^2)@f$ for evaluating it at both endpoints.
@@ -1601,6 +1602,9 @@ public:
   {
     if (b < a)
       return count_real_roots(b, a);
+
+    if (is_zero())
+      return 0;
 
     auto chain = sturm_chain();
     size_t sa = sturm_sign_changes(chain, a);
@@ -2610,13 +2614,23 @@ public:
     if (factors.is_empty())
       return factors;
 
-    Coefficient p_power = p;
     const size_t target_steps = static_cast<size_t>(1) << levels;
-    for (size_t i = 1; i < target_steps; ++i)
-      p_power = p_power * p;
-
     const uint64_t p_u64 = polynomial_detail::abs_to_u64(p);
-    const uint64_t target_u64 = polynomial_detail::abs_to_u64(p_power);
+    const auto checked_mul_u64 = [](uint64_t lhs, uint64_t rhs, const char *name) -> uint64_t
+    {
+      ah_domain_error_if(rhs != 0 and lhs > std::numeric_limits<uint64_t>::max() / rhs)
+        << "hensel_lift: overflow computing " << name << " (" << lhs << " * " << rhs << ")";
+      return lhs * rhs;
+    };
+
+    uint64_t target_u64 = p_u64;
+    for (size_t i = 1; i < target_steps; ++i)
+      target_u64 = checked_mul_u64(target_u64, p_u64, "target_u64");
+
+    ah_domain_error_if(target_u64 > static_cast<uint64_t>(std::numeric_limits<Coefficient>::max()))
+      << "hensel_lift: target modulus " << target_u64
+      << " does not fit in coefficient type";
+    const Coefficient p_power = static_cast<Coefficient>(target_u64);
     Gen_Polynomial derivative = f.derivative();
 
     DynList<Gen_Polynomial> result;
@@ -2633,7 +2647,7 @@ public:
 
             for (size_t step = 1; step < target_steps; ++step)
               {
-                const uint64_t next_mod = modulus * p_u64;
+                const uint64_t next_mod = checked_mul_u64(modulus, p_u64, "next_mod");
                 const uint64_t f_val = eval_mod_u64(f, root, next_mod);
                 const uint64_t deriv_modp = eval_mod_u64(derivative, root % p_u64, p_u64);
 
@@ -2647,7 +2661,9 @@ public:
                 const uint64_t inv = mod_inv(deriv_modp, p_u64);
                 const uint64_t t = (p_u64 - mod_mul(e, inv, p_u64)) % p_u64;
 
-                root = (root + modulus * t) % next_mod;
+                const uint64_t increment = checked_mul_u64(modulus, t, "root increment");
+                root = static_cast<uint64_t>((static_cast<unsigned __int128>(root) + increment)
+                                             % next_mod);
                 modulus = next_mod;
               }
 
