@@ -312,6 +312,24 @@ TEST(Polynomial, AddInPlaceSelf)
   EXPECT_DOUBLE_EQ(p[2], 6.0);
 }
 
+TEST(Polynomial, AddScalarRight)
+{
+  Polynomial p({1, 2, 3});
+  Polynomial q = p + 4.0;
+  EXPECT_DOUBLE_EQ(q[0], 5.0);
+  EXPECT_DOUBLE_EQ(q[1], 2.0);
+  EXPECT_DOUBLE_EQ(q[2], 3.0);
+}
+
+TEST(Polynomial, AddScalarLeft)
+{
+  Polynomial p({1, 2, 3});
+  Polynomial q = 4.0 + p;
+  EXPECT_DOUBLE_EQ(q[0], 5.0);
+  EXPECT_DOUBLE_EQ(q[1], 2.0);
+  EXPECT_DOUBLE_EQ(q[2], 3.0);
+}
+
 TEST(Polynomial, SubtractPolynomials)
 {
   Polynomial p({5, 3});
@@ -333,6 +351,24 @@ TEST(Polynomial, SubtractInPlaceSelf)
   Polynomial p({1, 2, 3});
   p -= p;
   EXPECT_TRUE(p.is_zero());
+}
+
+TEST(Polynomial, SubtractScalarRight)
+{
+  Polynomial p({1, 2, 3});
+  Polynomial q = p - 4.0;
+  EXPECT_DOUBLE_EQ(q[0], -3.0);
+  EXPECT_DOUBLE_EQ(q[1], 2.0);
+  EXPECT_DOUBLE_EQ(q[2], 3.0);
+}
+
+TEST(Polynomial, SubtractScalarLeft)
+{
+  Polynomial p({1, 2, 3});
+  Polynomial q = 4.0 - p;
+  EXPECT_DOUBLE_EQ(q[0], 3.0);
+  EXPECT_DOUBLE_EQ(q[1], -2.0);
+  EXPECT_DOUBLE_EQ(q[2], -3.0);
 }
 
 TEST(Polynomial, UnaryNegation)
@@ -1580,6 +1616,36 @@ namespace {
 
 using IntPoly = Gen_Polynomial<long long>;
 
+IntPoly reconstruct_factorization(const DynList<IntPoly::SfdTerm> &factors)
+{
+  IntPoly product(1);
+
+  for (const auto &term : factors)
+    {
+      IntPoly block(1);
+      for (size_t i = 0; i < term.multiplicity; ++i)
+        block *= term.factor;
+      product *= block;
+    }
+
+  return product;
+}
+
+bool congruent_mod(const IntPoly &a, const IntPoly &b, long long mod)
+{
+  const size_t max_degree = std::max(a.degree(), b.degree());
+  for (size_t exp = 0; exp <= max_degree; ++exp)
+    {
+      long long diff = (a.get_coeff(exp) - b.get_coeff(exp)) % mod;
+      if (diff < 0)
+        diff += mod;
+      if (diff != 0)
+        return false;
+    }
+
+  return true;
+}
+
 } // namespace
 
 // --- Content Tests ---
@@ -1818,6 +1884,23 @@ TEST(PolyLayer5, FactorModPProduct)
   EXPECT_GE(factors.size(), 1);
 }
 
+TEST(PolyLayer5, FactorModPRepeatedRootMultiplicity)
+{
+  // (x - 1)^2 should expose the repeated linear factor over F_5.
+  IntPoly linear;
+  linear.set_coeff(0, -1);
+  linear.set_coeff(1, 1);
+
+  auto factors = IntPoly::factor_mod_p(linear * linear, 5);
+  ASSERT_EQ(factors.size(), 2);
+  for (const auto &factor : factors)
+    {
+      EXPECT_EQ(factor.degree(), 1u);
+      EXPECT_EQ(factor.get_coeff(1), 1);
+      EXPECT_EQ(factor.get_coeff(0), 4);
+    }
+}
+
 // --- Mignotte Bound Tests ---
 
 TEST(PolyLayer5, MignotteBoundLinear)
@@ -1845,17 +1928,28 @@ TEST(PolyLayer5, MignotteBoundDeg4)
 
 TEST(PolyLayer5, HenselLiftPair)
 {
-  // Lift factors of x^2 - 1 = (x-1)(x+1) from mod 5 to mod 25
+  // x^2 - 6 ≡ (x-1)(x+1) mod 5, and the lifted roots mod 25 are ±9.
   IntPoly f1, f2;
   f1.set_coeff(0, -1);
   f1.set_coeff(1, 1);
   f2.set_coeff(0, 1);
   f2.set_coeff(1, 1);
+
+  IntPoly f;
+  f.set_coeff(0, -6);
+  f.set_coeff(2, 1);
+
   DynList<IntPoly> factors;
   factors.append(f1);
   factors.append(f2);
-  auto lifted = IntPoly::hensel_lift(f1 * f2, factors, 5, 1);
+  auto lifted = IntPoly::hensel_lift(f, factors, 5, 1);
   EXPECT_EQ(lifted.size(), 2);
+
+  IntPoly product(1);
+  for (const auto &factor : lifted)
+    product *= factor;
+
+  EXPECT_TRUE(congruent_mod(product, f, 25));
 }
 
 TEST(PolyLayer5, HenselLiftCubic)
@@ -1873,17 +1967,28 @@ TEST(PolyLayer5, HenselLiftCubic)
 
 TEST(PolyLayer5, HenselLiftLevel2)
 {
-  // Lift with 2 levels: p -> p^2 -> p^4
+  // Lift to modulus 5^4 = 625 and preserve congruence.
   IntPoly f1, f2;
   f1.set_coeff(0, -1);
   f1.set_coeff(1, 1);
   f2.set_coeff(0, 1);
   f2.set_coeff(1, 1);
+
+  IntPoly f;
+  f.set_coeff(0, -6);
+  f.set_coeff(2, 1);
+
   DynList<IntPoly> factors;
   factors.append(f1);
   factors.append(f2);
-  auto lifted = IntPoly::hensel_lift(f1 * f2, factors, 5, 2);
+  auto lifted = IntPoly::hensel_lift(f, factors, 5, 2);
   EXPECT_EQ(lifted.size(), 2);
+
+  IntPoly product(1);
+  for (const auto &factor : lifted)
+    product *= factor;
+
+  EXPECT_TRUE(congruent_mod(product, f, 625));
 }
 
 TEST(PolyLayer5, HenselLiftSingle)
@@ -1907,18 +2012,57 @@ TEST(PolyLayer5, FactorizeX4Minus1)
   p.set_coeff(0, -1);
   p.set_coeff(4, 1);
   auto fact = p.factorize();
-  // Verify product of factors^multiplicities = original
-  IntPoly prod(1);
-  for (auto &term : fact)
+  EXPECT_EQ(reconstruct_factorization(fact), p);
+}
+
+TEST(PolyLayer5, FactorizeQuarticIntoQuadratics)
+{
+  // x^4 + 4x^2 + 3 = (x^2 + 1)(x^2 + 3)
+  IntPoly q1({1, 0, 1});
+  IntPoly q2({3, 0, 1});
+  IntPoly p = q1 * q2;
+
+  auto fact = p.factorize();
+
+  EXPECT_EQ(reconstruct_factorization(fact), p);
+
+  bool found_q1 = false;
+  bool found_q2 = false;
+  for (const auto &term : fact)
     {
-      if (term.factor.degree() == 0)
-        continue;  // Skip constant factor
-      IntPoly term_prod = term.factor;
-      for (size_t i = 1; i < term.multiplicity; ++i)
-        term_prod = term_prod * term.factor;
-      prod = prod * term_prod;
+      if (term.multiplicity != 1)
+        continue;
+      found_q1 = found_q1 or (term.factor == q1);
+      found_q2 = found_q2 or (term.factor == q2);
     }
-  EXPECT_LE(prod.degree(), p.degree() + 2);
+
+  EXPECT_TRUE(found_q1);
+  EXPECT_TRUE(found_q2);
+}
+
+TEST(PolyLayer5, FactorizeSexticIntoCubics)
+{
+  // (x^3 + x + 1)(x^3 + x + 3)
+  IntPoly c1({1, 1, 0, 1});
+  IntPoly c2({3, 1, 0, 1});
+  IntPoly p = c1 * c2;
+
+  auto fact = p.factorize();
+
+  EXPECT_EQ(reconstruct_factorization(fact), p);
+
+  bool found_c1 = false;
+  bool found_c2 = false;
+  for (const auto &term : fact)
+    {
+      if (term.multiplicity != 1)
+        continue;
+      found_c1 = found_c1 or (term.factor == c1);
+      found_c2 = found_c2 or (term.factor == c2);
+    }
+
+  EXPECT_TRUE(found_c1);
+  EXPECT_TRUE(found_c2);
 }
 
 TEST(PolyLayer5, FactorizeX3)
@@ -1949,21 +2093,33 @@ TEST(PolyLayer5, FactorizeMultipleRoots)
   f2.set_coeff(1, 1);
   IntPoly p = f1 * f2;
   auto fact = p.factorize();
-  // Verify product reconstruction
-  IntPoly prod(1);
-  long long content_fac = 1;
-  for (auto &term : fact)
+  EXPECT_EQ(reconstruct_factorization(fact), p);
+}
+
+TEST(PolyLayer5, FactorizeRationalLinearFactors)
+{
+  // (2x + 1)(x - 3) should be recovered exactly over Z.
+  IntPoly f1, f2;
+  f1.set_coeff(0, 1);
+  f1.set_coeff(1, 2);
+  f2.set_coeff(0, -3);
+  f2.set_coeff(1, 1);
+
+  IntPoly p = f1 * f2;
+  auto    fact = p.factorize();
+
+  EXPECT_EQ(reconstruct_factorization(fact), p);
+
+  bool found_two_x_plus_one = false;
+  bool found_x_minus_three  = false;
+  for (const auto &term : fact)
     {
-      if (term.factor.degree() == 0)
-        content_fac *= static_cast<long long>(term.factor.get_coeff(0));
-      else
-        {
-          IntPoly term_prod = term.factor;
-          for (size_t i = 1; i < term.multiplicity; ++i)
-            term_prod = term_prod * term.factor;
-          prod = prod * term_prod;
-        }
+      if (term.multiplicity != 1)
+        continue;
+      found_two_x_plus_one = found_two_x_plus_one or (term.factor == f1);
+      found_x_minus_three  = found_x_minus_three or (term.factor == f2);
     }
-  // Product should match or be close to original
-  EXPECT_EQ(prod.degree(), p.degree());
+
+  EXPECT_TRUE(found_two_x_plus_one);
+  EXPECT_TRUE(found_x_minus_three);
 }

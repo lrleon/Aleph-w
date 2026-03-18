@@ -48,6 +48,7 @@ using Multipoly = Gen_MultiPolynomial<double>;
 using Multipoly_Lex = Gen_MultiPolynomial<double, Lex_Order>;
 using Multipoly_Grlex = Gen_MultiPolynomial<double, Grlex_Order>;
 using Multipoly_Grevlex = Gen_MultiPolynomial<double, Grevlex_Order>;
+using IntMultipoly = Gen_MultiPolynomial<long long>;
 
 // Helper function to print section headers
 void print_section(const string& title) {
@@ -368,6 +369,134 @@ int main() {
   cout << "one_poly.is_constant() = " << (one_poly.is_constant() ? "true" : "false") << "\n";
 
   // ========================================================================
+  // Example 17: Gröbner Basis and Ideal Membership
+  // ========================================================================
+  print_section("Example 17: Groebner Basis and Ideal Membership");
+
+  Multipoly_Lex xlex = Multipoly_Lex::variable(2, 0);
+  Multipoly_Lex ylex = Multipoly_Lex::variable(2, 1);
+
+  Array<Multipoly_Lex> gens(2, Multipoly_Lex(2));
+  gens(0) = xlex * xlex - ylex;
+  gens(1) = xlex * ylex - 1.0;
+
+  auto gb_raw = Multipoly_Lex::groebner_basis(gens);
+  auto gb = Multipoly_Lex::reduced_groebner_basis(gens);
+
+  cout << "Generators:\n";
+  cout << "  g1 = " << gens(0).to_str() << "\n";
+  cout << "  g2 = " << gens(1).to_str() << "\n";
+  cout << "\nAutoreduced Groebner basis (Lex):\n";
+  for (size_t i = 0; i < gb_raw.size(); ++i)
+    cout << "  H[" << i << "] = " << gb_raw(i).to_str() << "\n";
+  cout << "\nReduced Groebner basis (Lex):\n";
+  for (size_t i = 0; i < gb.size(); ++i)
+    cout << "  G[" << i << "] = " << gb(i).to_str() << "\n";
+
+  Multipoly_Lex member     = xlex * xlex * ylex - xlex;
+  Multipoly_Lex not_member = xlex + ylex;
+
+  cout << "\nNormal form of x^2*y - x: " << member.reduce_modulo(gb).to_str() << "\n";
+  cout << "ideal_member(x^2*y - x) = "
+       << (Multipoly_Lex::ideal_member(member, gens) ? "true" : "false") << "\n";
+  cout << "ideal_member(x + y) = "
+       << (Multipoly_Lex::ideal_member(not_member, gens) ? "true" : "false") << "\n";
+
+  // ========================================================================
+  // Example 18: Integer Factorization in an Ambient Multivariate Ring
+  // ========================================================================
+  print_section("Example 18: Integer Factorization with Inactive Variables");
+
+  IntMultipoly xi = IntMultipoly::variable(2, 0);
+  IntMultipoly yi = IntMultipoly::variable(2, 1);
+  (void) yi; // Explicitly keep the ambient ring at 2 variables.
+
+  IntMultipoly split = xi * xi - IntMultipoly(2, 1LL);
+  auto split_factors = split.factorize();
+
+  cout << "Factorization of x^2 - 1 in Z[x,y]:\n";
+  for (auto it = split_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  IntMultipoly repeated = xi * xi + 2LL * xi + IntMultipoly(2, 1LL);
+  auto repeated_factors = repeated.factorize();
+
+  cout << "\nFactorization of (x + 1)^2 in Z[x,y]:\n";
+  for (auto it = repeated_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  IntMultipoly diff_sq = xi * xi - yi * yi;
+  auto diff_sq_factors = diff_sq.factorize();
+
+  cout << "\nFactorization of x^2 - y^2 in Z[x,y]:\n";
+  for (auto it = diff_sq_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  auto scaled_diff_sq_factors = (-6LL * diff_sq).factorize();
+
+  cout << "\nFactorization of -6*(x^2 - y^2) in Z[x,y]:\n";
+  for (auto it = scaled_diff_sq_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  IntMultipoly embedded_univariate = 6LL * (xi * xi - IntMultipoly(2, 1LL));
+  auto embedded_univariate_factors = embedded_univariate.factorize();
+
+  cout << "\nFactorization of 6*(x^2 - 1) viewed in Z[x,y]:\n";
+  for (auto it = embedded_univariate_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  IntMultipoly non_monic_affine_f1 = 2LL * xi + 3LL * yi + IntMultipoly(2, 1LL);
+  IntMultipoly non_monic_affine_f2 = 4LL * xi + 5LL * yi + IntMultipoly(2, 2LL);
+  auto non_monic_affine_factors = (non_monic_affine_f1 * non_monic_affine_f2).factorize();
+
+  cout << "\nFactorization of (2*x + 3*y + 1)(4*x + 5*y + 2) in Z[x,y]:\n";
+  for (auto it = non_monic_affine_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  IntMultipoly non_monic_same_degree_f1 = 2LL * xi * xi + 3LL * yi + IntMultipoly(2, 1LL);
+  IntMultipoly non_monic_same_degree_f2 = 3LL * xi * xi + 5LL * yi + IntMultipoly(2, 2LL);
+  auto non_monic_same_degree_factors =
+    (non_monic_same_degree_f1 * non_monic_same_degree_f2).factorize();
+
+  cout << "\nFactorization of (2*x^2 + 3*y + 1)(3*x^2 + 5*y + 2) in Z[x,y]:\n";
+  for (auto it = non_monic_same_degree_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  IntMultipoly nonlinear_f1 = xi * xi + yi + IntMultipoly(2, 1LL);
+  IntMultipoly nonlinear_f2 = xi + yi * yi + IntMultipoly(2, 2LL);
+  auto nonlinear_factors = (nonlinear_f1 * nonlinear_f2).factorize();
+
+  cout << "\nFactorization of (x^2 + y + 1)(x + y^2 + 2) in Z[x,y]:\n";
+  for (auto it = nonlinear_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  IntMultipoly same_degree_f1 = xi * xi + 2LL * yi + IntMultipoly(2, 1LL);
+  IntMultipoly same_degree_f2 = xi * xi + 2LL * yi + IntMultipoly(2, 3LL);
+  auto same_degree_factors = (same_degree_f1 * same_degree_f2).factorize();
+
+  cout << "\nFactorization of (x^2 + 2*y + 1)(x^2 + 2*y + 3) in Z[x,y]:\n";
+  for (auto it = same_degree_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  IntMultipoly cubic_same_degree_f1 = xi * xi * xi + xi + 2LL * yi + IntMultipoly(2, 1LL);
+  IntMultipoly cubic_same_degree_f2 = xi * xi * xi + xi + 2LL * yi + IntMultipoly(2, 3LL);
+  auto cubic_same_degree_factors = (cubic_same_degree_f1 * cubic_same_degree_f2).factorize();
+
+  cout << "\nFactorization of (x^3 + x + 2*y + 1)(x^3 + x + 2*y + 3) in Z[x,y]:\n";
+  for (auto it = cubic_same_degree_factors.get_it(); it.has_curr(); it.next_ne())
+    cout << "  factor = " << it.get_curr().factor.to_str()
+         << ", multiplicity = " << it.get_curr().multiplicity << "\n";
+
+  // ========================================================================
   // Summary
   // ========================================================================
   print_section("Summary");
@@ -379,6 +508,7 @@ int main() {
        << "  • Degree queries and term inspection\n"
        << "  • Three monomial orderings (Lex, Grlex, Grevlex)\n"
        << "  • Promotion to higher variable counts\n"
+       << "  • Groebner bases, ideal membership, and normal forms\n"
        << "  • Pretty-printing with automatic variable names\n"
        << "\nUse cases:\n"
        << "  • Algebraic computation and symbolic manipulation\n"

@@ -27,6 +27,8 @@ file(GLOB EXAMPLE_SOURCES CONFIGURE_DEPENDS
 set(EXCLUDED_EXAMPLES
     "${CMAKE_CURRENT_SOURCE_DIR}/fft_benchmark.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/fft_reference_probe.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_benchmark.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_reference_probe.cc"
 )
 
 foreach(excluded_file IN LISTS EXCLUDED_EXAMPLES)
@@ -45,6 +47,11 @@ foreach(source_file IN LISTS EXAMPLE_SOURCES)
     endif()
 endforeach()
 
+add_executable(polynomial_benchmark "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_benchmark.cc")
+target_link_libraries(polynomial_benchmark PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})
+
+add_executable(polynomial_reference_probe "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_reference_probe.cc")
+target_link_libraries(polynomial_reference_probe PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})
+
 list(LENGTH EXAMPLE_SOURCES _examples_count)
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} examples (${_examples_count} targets)")
-

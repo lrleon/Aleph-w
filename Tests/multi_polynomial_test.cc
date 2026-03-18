@@ -7,16 +7,89 @@
 */
 
 # include <gtest/gtest.h>
+# include <chrono>
+# include <concepts>
 # include <cmath>
 # include <string>
 # include <sstream>
 # include <stdexcept>
+# include <random>
 # include <tpl_multi_polynomial.H>
 
 using namespace Aleph;
 
 // Shorthand for multi-indices
 using Idx = Array<size_t>;
+
+template <typename MP>
+concept HasSPoly = requires(const MP &f, const MP &g)
+{
+  { MP::s_poly(f, g) } -> std::same_as<MP>;
+};
+
+template <typename MP>
+concept HasGroebnerBasis = requires(const Array<MP> &gens)
+{
+  { MP::groebner_basis(gens) } -> std::same_as<Array<MP>>;
+};
+
+template <typename MP>
+concept HasIdealMember = requires(const MP &f, const Array<MP> &gens)
+{
+  { MP::ideal_member(f, gens) } -> std::same_as<bool>;
+};
+
+template <typename MP>
+concept HasRadicalMember = requires(const MP &f, const Array<MP> &gens)
+{
+  { MP::radical_member(f, gens) } -> std::same_as<bool>;
+};
+
+static_assert(HasSPoly<MultiPolynomial>);
+static_assert(HasGroebnerBasis<MultiPolynomial>);
+static_assert(HasIdealMember<MultiPolynomial>);
+static_assert(HasRadicalMember<MultiPolynomial>);
+
+using IntGrevlexPoly = Gen_MultiPolynomial<long long, Grevlex_Order>;
+
+template <typename MP>
+static void expect_buchberger_criterion(const Array<MP> &basis)
+{
+  for (size_t i = 0; i < basis.size(); ++i)
+    for (size_t j = i + 1; j < basis.size(); ++j)
+      {
+        MP s = MP::s_poly(basis(i), basis(j));
+        auto [q, r] = s.divmod(basis);
+        (void) q;
+        EXPECT_TRUE(r.is_zero())
+          << "Non-zero S-polynomial remainder for pair (" << i << ", " << j << ")";
+      }
+}
+
+template <typename MP>
+static void expect_autoreduced_basis(const Array<MP> &basis)
+{
+  for (size_t i = 0; i < basis.size(); ++i)
+    {
+      Array<MP> others;
+      for (size_t j = 0; j < basis.size(); ++j)
+        if (i != j)
+          others.append(basis(j));
+
+      if (others.is_empty())
+        continue;
+
+      auto [q, r] = basis(i).divmod(others);
+      (void) q;
+      EXPECT_TRUE((r - basis(i)).is_zero())
+        << "Basis element " << i << " is still reducible by the rest of the basis";
+    }
+}
+
+static_assert(not HasSPoly<IntGrevlexPoly>);
+static_assert(not HasGroebnerBasis<IntGrevlexPoly>);
+static_assert(not HasIdealMember<IntGrevlexPoly>);
+static_assert(not HasRadicalMember<IntGrevlexPoly>);
 
 // ===================================================================
 // Construction
@@ -220,6 +293,28 @@ TEST(MultiPoly, SelfAddition)
   EXPECT_EQ(q, 2.0 * p);
 }
 
+TEST(MultiPoly, AddScalarRight)
+{
+  auto x = MultiPolynomial::variable(2, 0);
+  MultiPolynomial p = x + 2.0;
+
+  EXPECT_EQ(p.num_vars(), 2u);
+  EXPECT_EQ(p.num_terms(), 2u);
+  EXPECT_DOUBLE_EQ(p.coeff_at(Idx{1, 0}), 1.0);
+  EXPECT_DOUBLE_EQ(p.coeff_at(Idx{0, 0}), 2.0);
+}
+
+TEST(MultiPoly, AddScalarLeft)
+{
+  auto x = MultiPolynomial::variable(2, 0);
+  MultiPolynomial p = 2.0 + x;
+
+  EXPECT_EQ(p.num_vars(), 2u);
+  EXPECT_EQ(p.num_terms(), 2u);
+  EXPECT_DOUBLE_EQ(p.coeff_at(Idx{1, 0}), 1.0);
+  EXPECT_DOUBLE_EQ(p.coeff_at(Idx{0, 0}), 2.0);
+}
+
 TEST(MultiPoly, Cancellation)
 {
   auto x = MultiPolynomial::variable(2, 0);
@@ -235,6 +330,28 @@ TEST(MultiPoly, SelfSubtraction)
   });
   p -= p;
   EXPECT_TRUE(p.is_zero());
+}
+
+TEST(MultiPoly, SubtractScalarRight)
+{
+  auto y = MultiPolynomial::variable(2, 1);
+  MultiPolynomial p = y - 3.0;
+
+  EXPECT_EQ(p.num_vars(), 2u);
+  EXPECT_EQ(p.num_terms(), 2u);
+  EXPECT_DOUBLE_EQ(p.coeff_at(Idx{0, 1}), 1.0);
+  EXPECT_DOUBLE_EQ(p.coeff_at(Idx{0, 0}), -3.0);
+}
+
+TEST(MultiPoly, SubtractScalarLeft)
+{
+  auto x = MultiPolynomial::variable(2, 0);
+  MultiPolynomial p = 1.0 - x;
+
+  EXPECT_EQ(p.num_vars(), 2u);
+  EXPECT_EQ(p.num_terms(), 2u);
+  EXPECT_DOUBLE_EQ(p.coeff_at(Idx{1, 0}), -1.0);
+  EXPECT_DOUBLE_EQ(p.coeff_at(Idx{0, 0}), 1.0);
 }
 
 TEST(MultiPoly, UnaryNegation)
@@ -785,6 +902,47 @@ TEST(MultiPoly, HighDegreeMonomial)
   EXPECT_DOUBLE_EQ(f.eval(pt), 60466176.0);
 }
 
+TEST(MultiPoly, SparseHighDegreePerformance)
+{
+  MultiPolynomial p(3, {
+    {Idx{1000, 0, 0}, 1.0},
+    {Idx{0, 750, 1}, 2.0},
+    {Idx{0, 0, 0}, 3.0},
+  });
+
+  EXPECT_EQ(p.degree(), 1000u);
+  EXPECT_EQ(p.num_terms(), 3u);
+
+  using Clock = std::chrono::steady_clock;
+  constexpr long long eval_limit_ms = 50;
+  constexpr long long op_limit_ms = 250;
+
+  Array<double> pt{1.01, 0.99, 1.02};
+  const auto eval_start = Clock::now();
+  const double value = p.eval(pt);
+  const auto eval_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+    (Clock::now() - eval_start);
+  EXPECT_GT(value, 0.0);
+  EXPECT_LT(eval_ms.count(), eval_limit_ms);
+
+  const auto multiply_start = Clock::now();
+  MultiPolynomial squared = p * p;
+  const auto multiply_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+    (Clock::now() - multiply_start);
+  EXPECT_EQ(squared.degree(), 2000u);
+  EXPECT_LE(squared.num_terms(), 6u);
+  EXPECT_LT(multiply_ms.count(), op_limit_ms);
+
+  Array<MultiPolynomial> divisors(1, p);
+  const auto divmod_start = Clock::now();
+  auto [q, r] = squared.divmod(divisors);
+  const auto divmod_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+    (Clock::now() - divmod_start);
+  EXPECT_EQ(q(0), p);
+  EXPECT_TRUE(r.is_zero());
+  EXPECT_LT(divmod_ms.count(), op_limit_ms);
+}
+
 // ===================================================================
 // Layer 2: Industrial Fitting (Weighted Least-Squares)
 // ===================================================================
@@ -1015,6 +1173,21 @@ TEST(MultiPolyPhase1ResidualAnalysis, MeanAndSSCalculations)
 
   // Verify TSS = ESS + RSS
   EXPECT_NEAR(stats.tss, stats.ess + stats.rss, 1e-10);
+}
+
+TEST(MultiPolyPhase1ResidualAnalysis, IntegerMeanUsesFloatingPointAverage)
+{
+  Array<std::pair<Array<long long>, long long>> data(2, {Array<long long>(), 0LL});
+  data(0) = {Array<long long>{0LL}, 0LL};
+  data(1) = {Array<long long>{1LL}, 1LL};
+
+  Gen_MultiPolynomial<long long, Grevlex_Order> p(1, 0LL);
+  PolyFitAnalysis<long long> stats = analyze_fit(p, data);
+
+  EXPECT_DOUBLE_EQ(stats.mean_y, 0.5);
+  EXPECT_DOUBLE_EQ(stats.tss, 0.5);
+  EXPECT_EQ(stats.residuals(0), 0LL);
+  EXPECT_EQ(stats.residuals(1), 1LL);
 }
 
 TEST(MultiPolyPhase1Integration, RidgeAndAnalysis)
@@ -1688,6 +1861,19 @@ TEST(MultiPolyLayer3, DivmodIdentityCheck)
   EXPECT_EQ(reconstructed.num_terms(), f.num_terms());
 }
 
+TEST(MultiPolyLayer3, IntegerDivisionNonExactLeadingCoeffFallsToRemainder)
+{
+  Gen_MultiPolynomial<long long, Grevlex_Order> f(1, Idx{1}, 1LL);
+  Array<Gen_MultiPolynomial<long long, Grevlex_Order>> divisors(
+    1, Gen_MultiPolynomial<long long, Grevlex_Order>(1));
+  divisors(0) = Gen_MultiPolynomial<long long, Grevlex_Order>(1, Idx{1}, 2LL);
+
+  auto [q, r] = f.divmod(divisors);
+
+  EXPECT_TRUE(q(0).is_zero());
+  EXPECT_EQ(r, f);
+}
+
 // ---
 // s_poly tests (5)
 // ---
@@ -1772,6 +1958,22 @@ TEST(MultiPolyLayer3, GroebnerLinearIdeal)
   EXPECT_GE(basis.size(), 2u);
 }
 
+TEST(MultiPolyLayer3, GroebnerAutoreducesInitialGenerators)
+{
+  auto x = MultiPolynomial::variable(1, 0);
+
+  Array<MultiPolynomial> gens(3, MultiPolynomial(1));
+  gens(0) = x;
+  gens(1) = 2.0 * x;
+  gens(2) = x;
+
+  Array<MultiPolynomial> basis = MultiPolynomial::groebner_basis(gens);
+
+  ASSERT_EQ(basis.size(), 1u);
+  EXPECT_NEAR(basis(0).leading_coeff(), 1.0, 1e-12);
+  EXPECT_TRUE((basis(0) - x).is_zero());
+}
+
 TEST(MultiPolyLayer3, GroebnerQuadratic2D)
 {
   // Quadratic: x^2 - y, xy - 1
@@ -1786,6 +1988,111 @@ TEST(MultiPolyLayer3, GroebnerQuadratic2D)
 
   EXPECT_GE(basis.size(), 1u);
   EXPECT_EQ(basis(0).num_vars(), 2u);
+}
+
+TEST(MultiPolyLayer3, GroebnerBasisAutoreducesIntermediateElements)
+{
+  using LexPoly = Gen_MultiPolynomial<double, Lex_Order>;
+
+  auto x = LexPoly::variable(2, 0);
+  auto y = LexPoly::variable(2, 1);
+
+  Array<LexPoly> gens(2, LexPoly(2));
+  gens(0) = x * x - y;
+  gens(1) = x * y - LexPoly(2, 1.0);
+
+  Array<LexPoly> basis = LexPoly::groebner_basis(gens);
+
+  ASSERT_EQ(basis.size(), 2u);
+
+  bool found_x_minus_y2 = false;
+  bool found_y3_minus_1 = false;
+  for (size_t i = 0; i < basis.size(); ++i)
+    {
+      EXPECT_NEAR(basis(i).leading_coeff(), 1.0, 1e-12);
+      if ((basis(i) - (x - y * y)).is_zero())
+        found_x_minus_y2 = true;
+      if ((basis(i) - (y * y * y - LexPoly(2, 1.0))).is_zero())
+        found_y3_minus_1 = true;
+    }
+
+  EXPECT_TRUE(found_x_minus_y2);
+  EXPECT_TRUE(found_y3_minus_1);
+  expect_autoreduced_basis(basis);
+  expect_buchberger_criterion(basis);
+}
+
+TEST(MultiPolyLayer3, GroebnerLexEliminationSystem)
+{
+  using LexPoly = Gen_MultiPolynomial<double, Lex_Order>;
+
+  auto x = LexPoly::variable(3, 0);
+  auto y = LexPoly::variable(3, 1);
+  auto z = LexPoly::variable(3, 2);
+
+  Array<LexPoly> gens(3, LexPoly(3));
+  gens(0) = x * y - LexPoly(3, 1.0);
+  gens(1) = y - z;
+  gens(2) = x - LexPoly(3, 1.0);
+
+  Array<LexPoly> basis = LexPoly::groebner_basis(gens);
+
+  EXPECT_TRUE((x - LexPoly(3, 1.0)).reduce_modulo(basis).is_zero());
+  EXPECT_TRUE((y - LexPoly(3, 1.0)).reduce_modulo(basis).is_zero());
+  EXPECT_TRUE((z - LexPoly(3, 1.0)).reduce_modulo(basis).is_zero());
+}
+
+TEST(MultiPolyLayer3, GroebnerBasisSatisfiesBuchbergerCriterionRandomized)
+{
+  using LexPoly = Gen_MultiPolynomial<double, Lex_Order>;
+
+  std::mt19937 rng(20260317u);
+  std::uniform_int_distribution<int> coeff_dist(-2, 2);
+  std::uniform_int_distribution<int> keep_dist(0, 1);
+
+  Array<Idx> monomials(6, Idx{});
+  monomials(0) = Idx{2, 0};
+  monomials(1) = Idx{1, 1};
+  monomials(2) = Idx{0, 2};
+  monomials(3) = Idx{1, 0};
+  monomials(4) = Idx{0, 1};
+  monomials(5) = Idx{0, 0};
+
+  for (size_t trial = 0; trial < 10; ++trial)
+    {
+      Array<LexPoly> gens(3, LexPoly(2));
+
+      for (size_t g = 0; g < gens.size(); ++g)
+        {
+          LexPoly p(2);
+          do
+            {
+              p = LexPoly(2);
+              for (size_t m = 0; m < monomials.size(); ++m)
+                {
+                  if (keep_dist(rng) == 0)
+                    continue;
+
+                  const int coeff = coeff_dist(rng);
+                  if (coeff == 0)
+                    continue;
+
+                  p.add_to_coeff(monomials(m), static_cast<double>(coeff));
+                }
+            }
+          while (p.is_zero() or p.degree() == 0);
+
+          gens(g) = std::move(p);
+        }
+
+      Array<LexPoly> basis = LexPoly::groebner_basis(gens);
+
+      for (size_t g = 0; g < gens.size(); ++g)
+        EXPECT_TRUE(gens(g).reduce_modulo(basis).is_zero())
+          << "Generator " << g << " did not reduce to zero in trial " << trial;
+
+      expect_buchberger_criterion(basis);
+    }
 }
 
 TEST(MultiPolyLayer3, GroebnerEmptyThrows)
@@ -1970,6 +2277,131 @@ TEST(MultiPolyLayer3, ReducedBasisMonicOutput)
   for (size_t i = 0; i < basis.size(); ++i)
     if (not basis(i).is_zero())
       EXPECT_NEAR(basis(i).leading_coeff(), 1.0, 1e-12);
+}
+
+TEST(MultiPolyLayer3, ReducedBasisInterreductionRenormalizes)
+{
+  auto x = MultiPolynomial::variable(2, 0);
+  auto y = MultiPolynomial::variable(2, 1);
+
+  Array<MultiPolynomial> gens(2, MultiPolynomial(2));
+  gens(0) = 2.0 * x + y;
+  gens(1) = x;
+
+  Array<MultiPolynomial> basis = MultiPolynomial::reduced_groebner_basis(gens);
+
+  ASSERT_EQ(basis.size(), 2u);
+  for (size_t i = 0; i < basis.size(); ++i)
+    EXPECT_NEAR(basis(i).leading_coeff(), 1.0, 1e-12);
+
+  EXPECT_TRUE((2.0 * x + y).reduce_modulo(basis).is_zero());
+  EXPECT_TRUE(x.reduce_modulo(basis).is_zero());
+  EXPECT_TRUE(y.reduce_modulo(basis).is_zero());
+}
+
+TEST(MultiPolyLayer3, ReducedBasisLexTriangularElimination)
+{
+  using LexPoly = Gen_MultiPolynomial<double, Lex_Order>;
+
+  auto x = LexPoly::variable(3, 0);
+  auto y = LexPoly::variable(3, 1);
+  auto z = LexPoly::variable(3, 2);
+
+  Array<LexPoly> gens(3, LexPoly(3));
+  gens(0) = x * y - LexPoly(3, 1.0);
+  gens(1) = y - z;
+  gens(2) = x - LexPoly(3, 1.0);
+
+  Array<LexPoly> basis = LexPoly::reduced_groebner_basis(gens);
+
+  ASSERT_EQ(basis.size(), 3u);
+
+  Array<LexPoly> expected(3, LexPoly(3));
+  expected(0) = x - LexPoly(3, 1.0);
+  expected(1) = y - LexPoly(3, 1.0);
+  expected(2) = z - LexPoly(3, 1.0);
+
+  for (size_t i = 0; i < expected.size(); ++i)
+    EXPECT_TRUE(expected(i).reduce_modulo(basis).is_zero());
+
+  for (size_t i = 0; i < basis.size(); ++i)
+    EXPECT_TRUE(basis(i).reduce_modulo(expected).is_zero());
+}
+
+TEST(MultiPolyLayer3, ReducedBasisLexPropagationChain)
+{
+  using LexPoly = Gen_MultiPolynomial<double, Lex_Order>;
+
+  auto x = LexPoly::variable(4, 0);
+  auto y = LexPoly::variable(4, 1);
+  auto z = LexPoly::variable(4, 2);
+  auto w = LexPoly::variable(4, 3);
+
+  Array<LexPoly> gens(4, LexPoly(4));
+  gens(0) = x * y - LexPoly(4, 1.0);
+  gens(1) = y - z;
+  gens(2) = z - w;
+  gens(3) = x - LexPoly(4, 1.0);
+
+  Array<LexPoly> basis = LexPoly::reduced_groebner_basis(gens);
+
+  ASSERT_EQ(basis.size(), 4u);
+
+  Array<LexPoly> expected(4, LexPoly(4));
+  expected(0) = x - LexPoly(4, 1.0);
+  expected(1) = y - LexPoly(4, 1.0);
+  expected(2) = z - LexPoly(4, 1.0);
+  expected(3) = w - LexPoly(4, 1.0);
+
+  for (size_t i = 0; i < expected.size(); ++i)
+    EXPECT_TRUE(expected(i).reduce_modulo(basis).is_zero());
+
+  for (size_t i = 0; i < basis.size(); ++i)
+    EXPECT_TRUE(basis(i).reduce_modulo(expected).is_zero());
+}
+
+TEST(MultiPolyLayer3, ReducedBasisRedundantLexSystemPerformance)
+{
+  using LexPoly = Gen_MultiPolynomial<double, Lex_Order>;
+  using Clock   = std::chrono::steady_clock;
+
+  auto x = LexPoly::variable(5, 0);
+  auto y = LexPoly::variable(5, 1);
+  auto z = LexPoly::variable(5, 2);
+  auto w = LexPoly::variable(5, 3);
+  auto u = LexPoly::variable(5, 4);
+
+  Array<LexPoly> gens(8, LexPoly(5));
+  gens(0) = x - LexPoly(5, 1.0);
+  gens(1) = y - x;
+  gens(2) = z - y;
+  gens(3) = w - z;
+  gens(4) = u - w;
+  gens(5) = x * y - LexPoly(5, 1.0);
+  gens(6) = y * z - LexPoly(5, 1.0);
+  gens(7) = z * w - LexPoly(5, 1.0);
+
+  const auto start = Clock::now();
+  Array<LexPoly> basis = LexPoly::reduced_groebner_basis(gens);
+  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+    (Clock::now() - start);
+
+  ASSERT_EQ(basis.size(), 5u);
+
+  Array<LexPoly> expected(5, LexPoly(5));
+  expected(0) = x - LexPoly(5, 1.0);
+  expected(1) = y - LexPoly(5, 1.0);
+  expected(2) = z - LexPoly(5, 1.0);
+  expected(3) = w - LexPoly(5, 1.0);
+  expected(4) = u - LexPoly(5, 1.0);
+
+  for (size_t i = 0; i < expected.size(); ++i)
+    EXPECT_TRUE(expected(i).reduce_modulo(basis).is_zero());
+
+  for (size_t i = 0; i < basis.size(); ++i)
+    EXPECT_TRUE(basis(i).reduce_modulo(expected).is_zero());
+
+  EXPECT_LT(elapsed_ms.count(), 1500);
 }
 
 TEST(MultiPolyLayer3, ReducedBasisIdealPreserved)
@@ -2367,4 +2799,916 @@ TEST(MultiPolyLayer4, RadicalEmptyThrows)
   Array<MultiPolynomial> gens_empty(0, MultiPolynomial(1));
 
   EXPECT_THROW(MultiPolynomial::radical_member(x, gens_empty), std::domain_error);
+}
+
+// ===================================================================
+// Layer 6 — Multivariate Factorization
+// ===================================================================
+
+using IntMPoly = Gen_MultiPolynomial<long long, Grevlex_Order>;
+using IntPoly  = Gen_Polynomial<long long>;
+
+// -----------------------------------------------------------------
+//  Content
+// -----------------------------------------------------------------
+
+TEST(MultiPolyLayer6, ContentZero)
+{
+  IntMPoly p(2);
+  EXPECT_EQ(p.content(), 0LL);
+}
+
+TEST(MultiPolyLayer6, ContentConstant)
+{
+  IntMPoly p(2, 6LL);
+  EXPECT_EQ(p.content(), 6LL);
+}
+
+TEST(MultiPolyLayer6, ContentNegativeConstant)
+{
+  IntMPoly p(2, -6LL);
+  // Leading coeff is negative, so content follows that sign
+  EXPECT_EQ(p.content(), -6LL);
+}
+
+TEST(MultiPolyLayer6, ContentGcdOfCoeffs)
+{
+  // 6x^2 + 4x + 2  ->  content = 2
+  IntMPoly p(1);
+  p.add_to_coeff(Idx({2}), 6LL);
+  p.add_to_coeff(Idx({1}), 4LL);
+  p.add_to_coeff(Idx({0}), 2LL);
+  EXPECT_EQ(p.content(), 2LL);
+}
+
+TEST(MultiPolyLayer6, ContentBivariate)
+{
+  // 6xy + 9x + 12y  ->  content = gcd(6, 9, 12) = 3
+  IntMPoly p(2);
+  p.add_to_coeff(Idx({1, 1}), 6LL);
+  p.add_to_coeff(Idx({1, 0}), 9LL);
+  p.add_to_coeff(Idx({0, 1}), 12LL);
+  EXPECT_EQ(p.content(), 3LL);
+}
+
+TEST(MultiPolyLayer6, ContentPrimitive)
+{
+  // x + y  -> content = 1
+  IntMPoly p(2);
+  p.add_to_coeff(Idx({1, 0}), 1LL);
+  p.add_to_coeff(Idx({0, 1}), 1LL);
+  EXPECT_EQ(p.content(), 1LL);
+}
+
+TEST(MultiPolyLayer6, ContentMixedSigns)
+{
+  // 4x - 6y  ->  content = 2 (sign follows leading coeff)
+  IntMPoly p(2);
+  p.add_to_coeff(Idx({1, 0}), 4LL);
+  p.add_to_coeff(Idx({0, 1}), -6LL);
+  auto c = p.content();
+  EXPECT_EQ(std::abs(c), 2LL);
+}
+
+// -----------------------------------------------------------------
+//  Primitive Part
+// -----------------------------------------------------------------
+
+TEST(MultiPolyLayer6, PrimitivePartZero)
+{
+  IntMPoly p(2);
+  IntMPoly pp = p.primitive_part();
+  EXPECT_TRUE(pp.is_zero());
+}
+
+TEST(MultiPolyLayer6, PrimitivePartAlreadyPrimitive)
+{
+  // x + y  -> already primitive
+  IntMPoly p(2);
+  p.add_to_coeff(Idx({1, 0}), 1LL);
+  p.add_to_coeff(Idx({0, 1}), 1LL);
+  IntMPoly pp = p.primitive_part();
+  EXPECT_EQ(pp.coeff_at(Idx({1, 0})), 1LL);
+  EXPECT_EQ(pp.coeff_at(Idx({0, 1})), 1LL);
+}
+
+TEST(MultiPolyLayer6, PrimitivePartDividesContent)
+{
+  // 6xy + 9x + 12y  ->  pp = 2xy + 3x + 4y
+  IntMPoly p(2);
+  p.add_to_coeff(Idx({1, 1}), 6LL);
+  p.add_to_coeff(Idx({1, 0}), 9LL);
+  p.add_to_coeff(Idx({0, 1}), 12LL);
+  IntMPoly pp = p.primitive_part();
+  EXPECT_EQ(pp.coeff_at(Idx({1, 1})), 2LL);
+  EXPECT_EQ(pp.coeff_at(Idx({1, 0})), 3LL);
+  EXPECT_EQ(pp.coeff_at(Idx({0, 1})), 4LL);
+}
+
+TEST(MultiPolyLayer6, PrimitivePartContentIsOne)
+{
+  // After taking primitive part, content should be 1
+  IntMPoly p(2);
+  p.add_to_coeff(Idx({2, 0}), 10LL);
+  p.add_to_coeff(Idx({1, 1}), 15LL);
+  p.add_to_coeff(Idx({0, 2}), 20LL);
+  IntMPoly pp = p.primitive_part();
+  EXPECT_EQ(pp.content(), 1LL);
+}
+
+TEST(MultiPolyLayer6, PrimitivePartNegativeLeading)
+{
+  // -4x^2 - 6x  ->  content = -2, pp = 2x^2 + 3x
+  IntMPoly p(1);
+  p.add_to_coeff(Idx({2}), -4LL);
+  p.add_to_coeff(Idx({1}), -6LL);
+  IntMPoly pp = p.primitive_part();
+  // Leading coefficient of pp should be positive
+  EXPECT_GT(pp.leading_coeff(), 0LL);
+  EXPECT_EQ(pp.content(), 1LL);
+}
+
+// -----------------------------------------------------------------
+//  Homomorphic Evaluation
+// -----------------------------------------------------------------
+
+TEST(MultiPolyLayer6, HomomorphicEvalSimple)
+{
+  // f(x, y) = x^2 + 2xy + y^2  =  (x+y)^2
+  // Evaluate y = 3:  f(x, 3) = x^2 + 6x + 9
+  IntMPoly f(2);
+  f.add_to_coeff(Idx({2, 0}), 1LL);
+  f.add_to_coeff(Idx({1, 1}), 2LL);
+  f.add_to_coeff(Idx({0, 2}), 1LL);
+
+  Array<long long> pts(1, 3LL);
+  IntPoly g = f.homomorphic_eval(0, pts);
+
+  EXPECT_EQ(g.get_coeff(2), 1LL);   // x^2
+  EXPECT_EQ(g.get_coeff(1), 6LL);   // 6x
+  EXPECT_EQ(g.get_coeff(0), 9LL);   // 9
+}
+
+TEST(MultiPolyLayer6, HomomorphicEvalKeepSecondVar)
+{
+  // f(x, y) = x^2 + 2xy + y^2
+  // Keep y, evaluate x = 1:  f(1, y) = 1 + 2y + y^2
+  IntMPoly f(2);
+  f.add_to_coeff(Idx({2, 0}), 1LL);
+  f.add_to_coeff(Idx({1, 1}), 2LL);
+  f.add_to_coeff(Idx({0, 2}), 1LL);
+
+  Array<long long> pts(1, 1LL);
+  IntPoly g = f.homomorphic_eval(1, pts);
+
+  EXPECT_EQ(g.get_coeff(2), 1LL);
+  EXPECT_EQ(g.get_coeff(1), 2LL);
+  EXPECT_EQ(g.get_coeff(0), 1LL);
+}
+
+TEST(MultiPolyLayer6, HomomorphicEvalZeroPoint)
+{
+  // f(x, y) = x^2 + xy + y
+  // Evaluate y = 0:  f(x, 0) = x^2
+  IntMPoly f(2);
+  f.add_to_coeff(Idx({2, 0}), 1LL);
+  f.add_to_coeff(Idx({1, 1}), 1LL);
+  f.add_to_coeff(Idx({0, 1}), 1LL);
+
+  Array<long long> pts(1, 0LL);
+  IntPoly g = f.homomorphic_eval(0, pts);
+
+  EXPECT_EQ(g.get_coeff(2), 1LL);
+  EXPECT_EQ(g.get_coeff(1), 0LL);
+  EXPECT_EQ(g.get_coeff(0), 0LL);
+}
+
+TEST(MultiPolyLayer6, HomomorphicEvalTrivariate)
+{
+  // f(x, y, z) = x + y + z
+  // Keep x, evaluate y=2, z=3:  f(x, 2, 3) = x + 5
+  IntMPoly f(3);
+  f.add_to_coeff(Idx({1, 0, 0}), 1LL);
+  f.add_to_coeff(Idx({0, 1, 0}), 1LL);
+  f.add_to_coeff(Idx({0, 0, 1}), 1LL);
+
+  Array<long long> pts(2, 0LL);
+  pts(0) = 2LL;
+  pts(1) = 3LL;
+  IntPoly g = f.homomorphic_eval(0, pts);
+
+  EXPECT_EQ(g.get_coeff(1), 1LL);
+  EXPECT_EQ(g.get_coeff(0), 5LL);
+}
+
+TEST(MultiPolyLayer6, HomomorphicEvalBadKeepVar)
+{
+  IntMPoly f(2, 1LL);
+  Array<long long> pts(1, 0LL);
+  EXPECT_THROW(f.homomorphic_eval(2, pts), std::domain_error);
+}
+
+TEST(MultiPolyLayer6, HomomorphicEvalBadPtsSize)
+{
+  IntMPoly f(3, 1LL);
+  Array<long long> pts(1, 0LL);  // should be 2
+  EXPECT_THROW(f.homomorphic_eval(0, pts), std::domain_error);
+}
+
+TEST(MultiPolyLayer6, HomomorphicEvalRoundtrip)
+{
+  // f(x, y) = 3x^2y + 2x - y + 5
+  IntMPoly f(2);
+  f.add_to_coeff(Idx({2, 1}), 3LL);
+  f.add_to_coeff(Idx({1, 0}), 2LL);
+  f.add_to_coeff(Idx({0, 1}), -1LL);
+  f.add_to_coeff(Idx({0, 0}), 5LL);
+
+  // Evaluate y = 2:  f(x, 2) = 6x^2 + 2x - 2 + 5 = 6x^2 + 2x + 3
+  Array<long long> pts(1, 2LL);
+  IntPoly g = f.homomorphic_eval(0, pts);
+
+  EXPECT_EQ(g.get_coeff(2), 6LL);
+  EXPECT_EQ(g.get_coeff(1), 2LL);
+  EXPECT_EQ(g.get_coeff(0), 3LL);
+
+  // Verify by evaluating at x = 1: f(1, 2) = 6 + 2 + 3 = 11
+  EXPECT_EQ(g(1LL), 11LL);
+
+  // Cross-check with multivariate eval
+  Array<long long> pt2(2, 0LL);
+  pt2(0) = 1LL;
+  pt2(1) = 2LL;
+  EXPECT_EQ(f.eval(pt2), 11LL);
+}
+
+// -----------------------------------------------------------------
+//  Factor Recombination
+// -----------------------------------------------------------------
+
+TEST(MultiPolyLayer6, RecombinationSingleFactor)
+{
+  // f = x + 1, candidates = {x + 1}
+  IntMPoly f(1);
+  f.add_to_coeff(Idx({1}), 1LL);
+  f.add_to_coeff(Idx({0}), 1LL);
+
+  Array<IntMPoly> cands(1, f);
+  auto result = IntMPoly::factor_recombination(f, cands);
+
+  size_t count = 0;
+  for (auto it = result.get_it(); it.has_curr(); it.next_ne())
+    ++count;
+  EXPECT_EQ(count, 1u);
+}
+
+TEST(MultiPolyLayer6, RecombinationTwoFactors)
+{
+  // f = (x + 1)(x - 1) = x^2 - 1
+  IntMPoly f1(1);
+  f1.add_to_coeff(Idx({1}), 1LL);
+  f1.add_to_coeff(Idx({0}), 1LL);
+
+  IntMPoly f2(1);
+  f2.add_to_coeff(Idx({1}), 1LL);
+  f2.add_to_coeff(Idx({0}), -1LL);
+
+  IntMPoly f = f1 * f2;
+
+  Array<IntMPoly> cands(2, IntMPoly(1));
+  cands(0) = f1;
+  cands(1) = f2;
+
+  auto result = IntMPoly::factor_recombination(f, cands);
+
+  // Should find both factors
+  size_t count = 0;
+  for (auto it = result.get_it(); it.has_curr(); it.next_ne())
+    ++count;
+  EXPECT_GE(count, 1u);
+  EXPECT_LE(count, 2u);
+
+  // Product of result factors should equal f (up to constant)
+  IntMPoly product(1, 1LL);
+  for (auto it = result.get_it(); it.has_curr(); it.next_ne())
+    product = product * it.get_curr().factor;
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+// -----------------------------------------------------------------
+//  Factorize (main method)
+// -----------------------------------------------------------------
+
+TEST(MultiPolyLayer6, FactorizeZero)
+{
+  IntMPoly p(2);
+  auto factors = p.factorize();
+  EXPECT_TRUE(factors.is_empty());
+}
+
+TEST(MultiPolyLayer6, FactorizeConstant)
+{
+  IntMPoly p(2, 5LL);
+  auto factors = p.factorize();
+  EXPECT_TRUE(factors.is_empty());
+}
+
+TEST(MultiPolyLayer6, FactorizeLinear)
+{
+  // f(x, y) = 2x + 3y  -> irreducible (should return as one factor)
+  IntMPoly f(2);
+  f.add_to_coeff(Idx({1, 0}), 2LL);
+  f.add_to_coeff(Idx({0, 1}), 3LL);
+
+  auto factors = f.factorize();
+  // Should have at least 1 factor
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    ++count;
+  EXPECT_GE(count, 1u);
+}
+
+TEST(MultiPolyLayer6, DivmodExactSameMainDegreeFactor)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+
+  IntMPoly f1 = x * x + 2LL * y + IntMPoly(2, 1LL);
+  IntMPoly f2 = x * x + 2LL * y + IntMPoly(2, 3LL);
+  IntMPoly f  = f1 * f2;
+
+  Array<IntMPoly> divisors(1, f1);
+  auto [q, r] = f.divmod(divisors);
+
+  EXPECT_TRUE(r.is_zero());
+  EXPECT_TRUE((q(0) - f2).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeUnivariate)
+{
+  // f(x) = x^2 - 1 = (x-1)(x+1)  in 1 variable
+  IntMPoly f(1);
+  f.add_to_coeff(Idx({2}), 1LL);
+  f.add_to_coeff(Idx({0}), -1LL);
+
+  auto factors = f.factorize();
+
+  // Product of factors should reproduce f (up to sign/constant)
+  IntMPoly product(1, 1LL);
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  // Check that product evaluates the same as f at several points
+  for (long long v = -3; v <= 3; ++v)
+    {
+      Array<long long> pt(1, v);
+      EXPECT_EQ(product.eval(pt), f.eval(pt))
+        << "Mismatch at x = " << v;
+    }
+}
+
+TEST(MultiPolyLayer6, FactorizeEmbeddedUnivariate)
+{
+  auto x = IntMPoly::variable(2, 0);
+  IntMPoly f = x * x - IntMPoly(2, 1LL);
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  size_t   count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeEmbeddedUnivariateMultiplicity)
+{
+  auto x = IntMPoly::variable(2, 0);
+  IntMPoly f = x * x + 2LL * x + IntMPoly(2, 1LL);
+
+  auto factors = f.factorize();
+
+  ASSERT_FALSE(factors.is_empty());
+  auto it = factors.get_it();
+  ASSERT_TRUE(it.has_curr());
+  const auto &ft = it.get_curr();
+  EXPECT_EQ(ft.multiplicity, 2u);
+  EXPECT_TRUE((ft.factor - (x + IntMPoly(2, 1LL))).is_zero());
+  it.next_ne();
+  EXPECT_FALSE(it.has_curr());
+}
+
+TEST(MultiPolyLayer6, FactorizeEmbeddedUnivariatePreservesScalarContent)
+{
+  auto x = IntMPoly::variable(2, 0);
+  IntMPoly f = 6LL * (x * x - IntMPoly(2, 1LL));
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_content = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and ft.factor.is_constant() and ft.factor.leading_coeff() == 6LL)
+        found_content = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 3u);
+  EXPECT_TRUE(found_content);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeEmbeddedUnivariatePreservesNegativeSign)
+{
+  auto x = IntMPoly::variable(2, 0);
+  IntMPoly f = -((x + IntMPoly(2, 1LL)) * (x - IntMPoly(2, 2LL)));
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_minus_one = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and ft.factor.is_constant() and ft.factor.leading_coeff() == -1LL)
+        found_minus_one = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 3u);
+  EXPECT_TRUE(found_minus_one);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeProductOfLinears)
+{
+  // f(x) = (x - 1)(x - 2)(x - 3) = x^3 - 6x^2 + 11x - 6
+  IntMPoly f(1);
+  f.add_to_coeff(Idx({3}), 1LL);
+  f.add_to_coeff(Idx({2}), -6LL);
+  f.add_to_coeff(Idx({1}), 11LL);
+  f.add_to_coeff(Idx({0}), -6LL);
+
+  auto factors = f.factorize();
+
+  // Product of factors should reproduce f
+  IntMPoly product(1, 1LL);
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  for (long long v = -2; v <= 5; ++v)
+    {
+      Array<long long> pt(1, v);
+      EXPECT_EQ(product.eval(pt), f.eval(pt))
+        << "Mismatch at x = " << v;
+    }
+}
+
+TEST(MultiPolyLayer6, FactorizeWithContent)
+{
+  // f(x) = 6x^2 - 6 = 6(x^2 - 1) = 6(x-1)(x+1)
+  IntMPoly f(1);
+  f.add_to_coeff(Idx({2}), 6LL);
+  f.add_to_coeff(Idx({0}), -6LL);
+
+  EXPECT_EQ(f.content(), 6LL);
+
+  IntMPoly pp = f.primitive_part();
+  EXPECT_EQ(pp.content(), 1LL);
+
+  auto factors = pp.factorize();
+  // Should factorize the primitive part
+  EXPECT_FALSE(factors.is_empty());
+}
+
+TEST(MultiPolyLayer6, FactorizePreservesScalarContent)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+  IntMPoly f = 6LL * (x * x - y * y);
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_content = false;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      if (ft.multiplicity == 1 and ft.factor.is_constant() and ft.factor.leading_coeff() == 6LL)
+        found_content = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_TRUE(found_content);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizePreservesGlobalNegativeSign)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+  IntMPoly f = -((x + y) * (x - y));
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_minus_one = false;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      if (ft.multiplicity == 1 and ft.factor.is_constant() and ft.factor.leading_coeff() == -1LL)
+        found_minus_one = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_TRUE(found_minus_one);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeBivariateProduct)
+{
+  // f(x, y) = (x + y)(x - y) = x^2 - y^2
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+  IntMPoly f = x * x - y * y;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_x_minus_y = false;
+  bool found_x_plus_y  = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - (x - y)).is_zero())
+        found_x_minus_y = true;
+      if (ft.multiplicity == 1 and (ft.factor - (x + y)).is_zero())
+        found_x_plus_y = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_x_minus_y);
+  EXPECT_TRUE(found_x_plus_y);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeBivariateAffineMultiplicity)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+  IntMPoly f = (x + y) * (x + y);
+
+  auto factors = f.factorize();
+
+  ASSERT_FALSE(factors.is_empty());
+  auto it = factors.get_it();
+  ASSERT_TRUE(it.has_curr());
+  const auto &ft = it.get_curr();
+  EXPECT_EQ(ft.multiplicity, 2u);
+  EXPECT_TRUE((ft.factor - (x + y)).is_zero());
+  it.next_ne();
+  EXPECT_FALSE(it.has_curr());
+}
+
+TEST(MultiPolyLayer6, FactorizeAffineTrivariateProduct)
+{
+  auto x = IntMPoly::variable(3, 0);
+  auto y = IntMPoly::variable(3, 1);
+  auto z = IntMPoly::variable(3, 2);
+
+  IntMPoly f1 = x + y + z + IntMPoly(3, 1LL);
+  IntMPoly f2 = x - 2LL * y + z - IntMPoly(3, 3LL);
+  IntMPoly f  = f1 * f2;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(3, 1LL);
+  bool found_f1 = false;
+  bool found_f2 = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - f1).is_zero())
+        found_f1 = true;
+      if (ft.multiplicity == 1 and (ft.factor - f2).is_zero())
+        found_f2 = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_f1);
+  EXPECT_TRUE(found_f2);
+  EXPECT_TRUE((product - f).is_zero());
+
+  for (long long xv = -2; xv <= 2; ++xv)
+    for (long long yv = -2; yv <= 2; ++yv)
+      for (long long zv = -2; zv <= 2; ++zv)
+        {
+          Array<long long> pt(3, 0LL);
+          pt(0) = xv;
+          pt(1) = yv;
+          pt(2) = zv;
+          EXPECT_EQ(product.eval(pt), f.eval(pt))
+            << "Mismatch at (" << xv << ", " << yv << ", " << zv << ")";
+        }
+}
+
+TEST(MultiPolyLayer6, FactorizeAffineBivariateNonMonicProduct)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+
+  IntMPoly f1 = 2LL * x + 3LL * y + IntMPoly(2, 1LL);
+  IntMPoly f2 = 4LL * x + 5LL * y + IntMPoly(2, 2LL);
+  IntMPoly f  = f1 * f2;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_f1 = false;
+  bool found_f2 = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - f1).is_zero())
+        found_f1 = true;
+      if (ft.multiplicity == 1 and (ft.factor - f2).is_zero())
+        found_f2 = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_f1);
+  EXPECT_TRUE(found_f2);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeNonlinearBivariateSameMainDegreeNonMonic)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+
+  IntMPoly f1 = 2LL * x * x + 3LL * y + IntMPoly(2, 1LL);
+  IntMPoly f2 = 3LL * x * x + 5LL * y + IntMPoly(2, 2LL);
+  IntMPoly f  = f1 * f2;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_f1 = false;
+  bool found_f2 = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - f1).is_zero())
+        found_f1 = true;
+      if (ft.multiplicity == 1 and (ft.factor - f2).is_zero())
+        found_f2 = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_f1);
+  EXPECT_TRUE(found_f2);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeNonlinearBivariateDistinctMainDegrees)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+
+  IntMPoly f1 = x * x + y + IntMPoly(2, 1LL);
+  IntMPoly f2 = x + y * y + IntMPoly(2, 2LL);
+  IntMPoly f  = f1 * f2;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_f1 = false;
+  bool found_f2 = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - f1).is_zero())
+        found_f1 = true;
+      if (ft.multiplicity == 1 and (ft.factor - f2).is_zero())
+        found_f2 = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_f1);
+  EXPECT_TRUE(found_f2);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeNonlinearTrivariateDistinctMainDegrees)
+{
+  auto x = IntMPoly::variable(3, 0);
+  auto y = IntMPoly::variable(3, 1);
+  auto z = IntMPoly::variable(3, 2);
+
+  IntMPoly f1 = x * x + y * z + y + IntMPoly(3, 1LL);
+  IntMPoly f2 = x + y + z + IntMPoly(3, 2LL);
+  IntMPoly f  = f1 * f2;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(3, 1LL);
+  bool found_f1 = false;
+  bool found_f2 = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - f1).is_zero())
+        found_f1 = true;
+      if (ft.multiplicity == 1 and (ft.factor - f2).is_zero())
+        found_f2 = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_f1);
+  EXPECT_TRUE(found_f2);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeNonlinearBivariateSameMainDegree)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+
+  IntMPoly f1 = x * x + 2LL * y + IntMPoly(2, 1LL);
+  IntMPoly f2 = x * x + 2LL * y + IntMPoly(2, 3LL);
+  IntMPoly f  = f1 * f2;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_f1 = false;
+  bool found_f2 = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - f1).is_zero())
+        found_f1 = true;
+      if (ft.multiplicity == 1 and (ft.factor - f2).is_zero())
+        found_f2 = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_f1);
+  EXPECT_TRUE(found_f2);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeNonlinearTrivariateSameMainDegree)
+{
+  auto x = IntMPoly::variable(3, 0);
+  auto y = IntMPoly::variable(3, 1);
+  auto z = IntMPoly::variable(3, 2);
+
+  IntMPoly f1 = x * x + y + 3LL * z + IntMPoly(3, 2LL);
+  IntMPoly f2 = x * x + y + 3LL * z + IntMPoly(3, 11LL);
+  IntMPoly f  = f1 * f2;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(3, 1LL);
+  bool found_f1 = false;
+  bool found_f2 = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - f1).is_zero())
+        found_f1 = true;
+      if (ft.multiplicity == 1 and (ft.factor - f2).is_zero())
+        found_f2 = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_f1);
+  EXPECT_TRUE(found_f2);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeNonlinearBivariateSameMainDegreeCubic)
+{
+  auto x = IntMPoly::variable(2, 0);
+  auto y = IntMPoly::variable(2, 1);
+
+  IntMPoly f1 = x * x * x + x + 2LL * y + IntMPoly(2, 1LL);
+  IntMPoly f2 = x * x * x + x + 2LL * y + IntMPoly(2, 3LL);
+  IntMPoly f  = f1 * f2;
+
+  auto factors = f.factorize();
+
+  IntMPoly product(2, 1LL);
+  bool found_f1 = false;
+  bool found_f2 = false;
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      ++count;
+      if (ft.multiplicity == 1 and (ft.factor - f1).is_zero())
+        found_f1 = true;
+      if (ft.multiplicity == 1 and (ft.factor - f2).is_zero())
+        found_f2 = true;
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  EXPECT_EQ(count, 2u);
+  EXPECT_TRUE(found_f1);
+  EXPECT_TRUE(found_f2);
+  EXPECT_TRUE((product - f).is_zero());
+}
+
+TEST(MultiPolyLayer6, FactorizeIrreducible)
+{
+  // f(x, y) = x^2 + y^2 + 1  (irreducible over Z)
+  IntMPoly f(2);
+  f.add_to_coeff(Idx({2, 0}), 1LL);
+  f.add_to_coeff(Idx({0, 2}), 1LL);
+  f.add_to_coeff(Idx({0, 0}), 1LL);
+
+  auto factors = f.factorize();
+
+  // Should return exactly 1 factor (the polynomial itself)
+  size_t count = 0;
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    ++count;
+  EXPECT_GE(count, 1u);
+
+  // Product should match f at sample points
+  IntMPoly product(2, 1LL);
+  for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
+    {
+      const auto &ft = it.get_curr();
+      for (size_t m = 0; m < ft.multiplicity; ++m)
+        product = product * ft.factor;
+    }
+
+  for (long long xv = -2; xv <= 2; ++xv)
+    for (long long yv = -2; yv <= 2; ++yv)
+      {
+        Array<long long> pt(2, 0LL);
+        pt(0) = xv;
+        pt(1) = yv;
+        EXPECT_EQ(product.eval(pt), f.eval(pt));
+      }
 }

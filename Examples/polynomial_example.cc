@@ -77,6 +77,8 @@
 using namespace std;
 using namespace Aleph;
 
+using IntPolynomial = Gen_Polynomial<long long>;
+
 
 // ─────────────────────────────────────────────────────────────────────
 // Helper: print a section header
@@ -454,6 +456,74 @@ static void algebraic_transformations()
   Polynomial sf = p.square_free();
   cout << "  Square-free part: " << sf << "\n";
   cout << "  degree = " << sf.degree() << " (repeated roots removed)\n\n";
+
+  // --- Exact factorization over the integers ---
+  IntPolynomial z1({1, 2});   // 2x + 1
+  IntPolynomial z2({-3, 1});  // x - 3
+  IntPolynomial z = z1 * z2;
+  auto          z_fact = z.factorize();
+
+  cout << "  Integer factorization:\n";
+  cout << "    z(x) = " << z << "\n";
+  cout << "    factors:\n";
+
+  IntPolynomial z_rebuilt(1);
+  for (const auto &term : z_fact)
+    {
+      cout << "      (" << term.factor << ")^" << term.multiplicity << "\n";
+
+      IntPolynomial block(1);
+      for (size_t i = 0; i < term.multiplicity; ++i)
+        block *= term.factor;
+      z_rebuilt *= block;
+    }
+
+  cout << "    reconstructed = " << z_rebuilt
+       << (z_rebuilt == z ? "  [factorization OK]" : "  [FAIL]") << "\n\n";
+
+  IntPolynomial q1({1, 0, 1});  // x^2 + 1
+  IntPolynomial q2({3, 0, 1});  // x^2 + 3
+  IntPolynomial z_quartic = q1 * q2;
+  auto          q_fact = z_quartic.factorize();
+
+  cout << "    quartic z2(x) = " << z_quartic << "\n";
+  cout << "    quadratic factors:\n";
+
+  IntPolynomial q_rebuilt(1);
+  for (const auto &term : q_fact)
+    {
+      cout << "      (" << term.factor << ")^" << term.multiplicity << "\n";
+
+      IntPolynomial block(1);
+      for (size_t i = 0; i < term.multiplicity; ++i)
+        block *= term.factor;
+      q_rebuilt *= block;
+    }
+
+  cout << "    reconstructed = " << q_rebuilt
+       << (q_rebuilt == z_quartic ? "  [factorization OK]" : "  [FAIL]") << "\n\n";
+
+  IntPolynomial c1({1, 1, 0, 1});  // x^3 + x + 1
+  IntPolynomial c2({3, 1, 0, 1});  // x^3 + x + 3
+  IntPolynomial z_sextic = c1 * c2;
+  auto          c_fact = z_sextic.factorize();
+
+  cout << "    sextic z3(x) = " << z_sextic << "\n";
+  cout << "    cubic factors:\n";
+
+  IntPolynomial c_rebuilt(1);
+  for (const auto &term : c_fact)
+    {
+      cout << "      (" << term.factor << ")^" << term.multiplicity << "\n";
+
+      IntPolynomial block(1);
+      for (size_t i = 0; i < term.multiplicity; ++i)
+        block *= term.factor;
+      c_rebuilt *= block;
+    }
+
+  cout << "    reconstructed = " << c_rebuilt
+       << (c_rebuilt == z_sextic ? "  [factorization OK]" : "  [FAIL]") << "\n\n";
 
   // --- Extended GCD (Bezout identity) ---
   Polynomial a({-1, 0, 1});  // x^2 - 1

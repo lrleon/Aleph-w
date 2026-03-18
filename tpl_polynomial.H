@@ -97,6 +97,55 @@ C power(C base, size_t exp)
   return result;
 }
 
+template <typename Int>
+  requires std::is_integral_v<Int>
+[[nodiscard]] uint64_t abs_to_u64(Int value) noexcept
+{
+  if constexpr (std::is_signed_v<Int>)
+    {
+      using Signed = std::make_signed_t<Int>;
+      return value < Int{} ? static_cast<uint64_t>(-(static_cast<Signed>(value)))
+                           : static_cast<uint64_t>(value);
+    }
+  else
+    return static_cast<uint64_t>(value);
+}
+
+template <typename Int>
+  requires std::is_integral_v<Int>
+[[nodiscard]] uint64_t normalize_mod_u64(Int value, const uint64_t modulus) noexcept
+{
+  if (modulus == 0)
+    return 0;
+
+  if constexpr (std::is_signed_v<Int>)
+    {
+      const auto mod_i64 = static_cast<int64_t>(modulus);
+      auto       rem     = static_cast<int64_t>(value % static_cast<Int>(mod_i64));
+      if (rem < 0)
+        rem += mod_i64;
+      return static_cast<uint64_t>(rem);
+    }
+  else
+    return static_cast<uint64_t>(value % static_cast<Int>(modulus));
+}
+
+template <typename Int>
+  requires std::is_integral_v<Int>
+[[nodiscard]] Int centered_from_mod_u64(const uint64_t value, const uint64_t modulus) noexcept
+{
+  if constexpr (std::is_signed_v<Int>)
+    {
+      const uint64_t canonical = modulus == 0 ? 0 : value % modulus;
+      const uint64_t half      = modulus / 2;
+      if (canonical > half)
+        return static_cast<Int>(static_cast<int64_t>(canonical) - static_cast<int64_t>(modulus));
+      return static_cast<Int>(canonical);
+    }
+  else
+    return static_cast<Int>(modulus == 0 ? 0 : value % modulus);
+}
+
 }  // end namespace polynomial_detail
 
 /** @brief Univariate polynomial over a generic coefficient ring.
@@ -708,6 +757,21 @@ public:
     return *this;
   }
 
+  /** @brief Add a scalar constant term. */
+  [[nodiscard]] Gen_Polynomial operator+(const Coefficient &c) const
+  {
+    Gen_Polynomial result = *this;
+    result += c;
+    return result;
+  }
+
+  /** @brief In-place addition of a scalar constant term. */
+  Gen_Polynomial &operator+=(const Coefficient &c)
+  {
+    add_to_coeff(0, c);
+    return *this;
+  }
+
   /** @brief Polynomial subtraction. */
   [[nodiscard]] Gen_Polynomial operator-(const Gen_Polynomial &q) const
   {
@@ -730,6 +794,21 @@ public:
         auto &p = it.get_curr();
         add_to_coeff(p.first, -p.second);
       }
+    return *this;
+  }
+
+  /** @brief Subtract a scalar constant term. */
+  [[nodiscard]] Gen_Polynomial operator-(const Coefficient &c) const
+  {
+    Gen_Polynomial result = *this;
+    result -= c;
+    return result;
+  }
+
+  /** @brief In-place subtraction of a scalar constant term. */
+  Gen_Polynomial &operator-=(const Coefficient &c)
+  {
+    add_to_coeff(0, -c);
     return *this;
   }
 
@@ -1140,7 +1219,7 @@ public:
     if (a.is_zero() or b.is_zero())
       return Gen_Polynomial();
     Gen_Polynomial g = gcd(a, b);
-    return (a / g) * b;
+    return a / g * b;
   }
 
   /** @brief Pseudo-division for non-field coefficient types.
@@ -1582,7 +1661,7 @@ public:
         Coefficient fm = eval(mid);
         if (coeff_is_zero(fm))
           return mid;
-        if ((fa > Coefficient{}) == (fm > Coefficient{}))
+        if (fa > Coefficient{} == fm > Coefficient{})
           {
             a  = mid;
             fa = fm;
@@ -1929,11 +2008,14 @@ public:
     if (b.is_zero())
       return a.primitive_part();
 
+    a = a.primitive_part();
+    b = b.primitive_part();
+
     while (not b.is_zero())
       {
-        auto [quo, rem] = a.divmod(b);
+        auto [quo, rem] = a.pseudo_divmod(b);
         a               = b;
-        b               = rem.primitive_part();
+        b               = rem.is_zero() ? rem : rem.primitive_part();
       }
 
     return a.primitive_part();
@@ -1966,7 +2048,7 @@ public:
     Gen_Polynomial fp = f.derivative();
 
     Gen_Polynomial g = integer_gcd(f, fp);
-    Gen_Polynomial h = f / g;
+    Gen_Polynomial h = _integer_exact_quot(f, g);
 
     size_t multiplicity = 1;
 
@@ -1974,12 +2056,12 @@ public:
       {
         Gen_Polynomial h_prev = h;
         h                     = integer_gcd(g, h);
-        Gen_Polynomial w      = h_prev / h;
+        Gen_Polynomial w      = _integer_exact_quot(h_prev, h);
 
         if (not w.is_constant())
           result.append(SfdTerm{w.primitive_part(), multiplicity});
 
-        g = g / h;
+        g = _integer_exact_quot(g, h);
         multiplicity++;
       }
 
@@ -1990,18 +2072,399 @@ public:
     return result;
   }
 
+  /** @brief Integer-safe exact quotient using pseudo-division.
+   *
+   *  Computes @f$a / b@f$ for integer polynomials where b is known to
+   *  divide a.  Uses pseudo-division and normalizes the result.
+   *
+   *  @param[in] a Dividend.
+   *  @param[in] b Divisor (must divide a exactly).
+   *  @return The primitive part of the quotient.
+   */
+  static Gen_Polynomial _integer_exact_quot(const Gen_Polynomial &a,
+                                            const Gen_Polynomial &b)
+    requires std::is_integral_v<Coefficient>
+  {
+    if (b.is_zero())
+      return Gen_Polynomial();
+    if (b.is_constant())
+      {
+        Coefficient d = b.leading_coeff();
+        Gen_Polynomial r;
+        for (auto it = a.coeffs.get_it(); it.has_curr(); it.next_ne())
+          {
+            auto &p = it.get_curr();
+            r.coeffs.insert(p.first, p.second / d);
+          }
+        return r;
+      }
+    auto [q, rem] = a.pseudo_divmod(b);
+    return q.is_zero() ? q : q.primitive_part();
+  }
+
+  [[nodiscard]] static Gen_Polynomial reduce_coeffs_mod(const Gen_Polynomial &f, Coefficient mod)
+    requires std::is_integral_v<Coefficient>
+  {
+    Gen_Polynomial reduced;
+    f.for_each_term([&reduced, mod](size_t exp, const Coefficient &coeff)
+    {
+      Coefficient c = coeff % mod;
+      if (c < Coefficient{})
+        c = c + mod;
+      if (c != Coefficient{})
+        reduced.set_coeff(exp, c);
+    });
+    return reduced;
+  }
+
+  [[nodiscard]] static uint64_t eval_mod_u64(const Gen_Polynomial &f, uint64_t x, uint64_t mod)
+    requires std::is_integral_v<Coefficient>
+  {
+    if (mod == 0 or mod == 1)
+      return 0;
+
+    uint64_t result = 0;
+    f.for_each_term([&result, x, mod](size_t exp, const Coefficient &coeff)
+    {
+      const uint64_t c    = polynomial_detail::normalize_mod_u64(coeff, mod);
+      const uint64_t xpow = mod_exp(x, exp, mod);
+      const uint64_t term = mod_mul(c, xpow, mod);
+      result              = (result + term) % mod;
+    });
+    return result;
+  }
+
+  [[nodiscard]] static Gen_Polynomial divide_by_monic_linear_mod(const Gen_Polynomial &f,
+                                                                 Coefficient          root,
+                                                                 Coefficient          mod)
+    requires std::is_integral_v<Coefficient>
+  {
+    ah_domain_error_if(f.degree() == 0)
+      << "divide_by_monic_linear_mod: constant polynomial is not divisible by x - r";
+
+    const size_t degree = f.degree();
+    Array<Coefficient>  synthetic(degree + 1, Coefficient{});
+
+    synthetic(degree) = ((f.get_coeff(degree) % mod) + mod) % mod;
+
+    for (size_t idx = degree; idx-- > 0;)
+      {
+        Coefficient term = (f.get_coeff(idx) % mod + mod) % mod;
+        Coefficient next = (term + (synthetic(idx + 1) * root) % mod) % mod;
+        synthetic(idx)   = next;
+      }
+
+    ah_domain_error_if(synthetic(0) != Coefficient{})
+      << "divide_by_monic_linear_mod: x - r does not divide polynomial modulo p";
+
+    Gen_Polynomial quotient;
+    for (size_t exp = 0; exp < degree; ++exp)
+      if (synthetic(exp + 1) != Coefficient{})
+        quotient.set_coeff(exp, synthetic(exp + 1));
+
+    return quotient;
+  }
+
+  [[nodiscard]] static DynList<Coefficient> positive_divisors(Coefficient value)
+    requires std::is_integral_v<Coefficient>
+  {
+    DynList<Coefficient> result;
+
+    const uint64_t abs_value = polynomial_detail::abs_to_u64(value);
+    if (abs_value == 0)
+      return result;
+
+    for (uint64_t d = 1; d * d <= abs_value; ++d)
+      if (abs_value % d == 0)
+        {
+          result.append(static_cast<Coefficient>(d));
+          const uint64_t other = abs_value / d;
+          if (other != d)
+            result.append(static_cast<Coefficient>(other));
+        }
+
+    return result;
+  }
+
+  [[nodiscard]] static bool try_divide_by_linear_factor(const Gen_Polynomial &f,
+                                                        Coefficient          a,
+                                                        Coefficient          b,
+                                                        Gen_Polynomial      &quotient)
+    requires std::is_integral_v<Coefficient>
+  {
+    if (f.is_zero() or f.degree() == 0)
+      return false;
+
+    if (a == Coefficient{})
+      return false;
+
+    const size_t degree = f.degree();
+    Array<Coefficient>  q_coeffs(degree, Coefficient{});
+
+    const Coefficient leading = f.get_coeff(degree);
+    if (leading % a != Coefficient{})
+      return false;
+
+    q_coeffs(degree - 1) = leading / a;
+
+    for (size_t k = degree - 1; k > 0; --k)
+      {
+        const Coefficient numerator = f.get_coeff(k) - b * q_coeffs(k);
+        if (numerator % a != Coefficient{})
+          return false;
+        q_coeffs(k - 1) = numerator / a;
+      }
+
+    if (f.get_coeff(0) - b * q_coeffs(0) != Coefficient{})
+      return false;
+
+    quotient = Gen_Polynomial();
+    for (size_t exp = 0; exp < degree; ++exp)
+      if (q_coeffs(exp) != Coefficient{})
+        quotient.set_coeff(exp, q_coeffs(exp));
+
+    return true;
+  }
+
+  [[nodiscard]] static bool try_extract_rational_linear_factor(const Gen_Polynomial &f,
+                                                               Gen_Polynomial      &factor,
+                                                               Gen_Polynomial      &quotient)
+    requires std::is_integral_v<Coefficient>
+  {
+    if (f.is_zero() or f.degree() == 0)
+      return false;
+
+    if (f.get_coeff(0) == Coefficient{})
+      {
+        if (try_divide_by_linear_factor(f, Coefficient(1), Coefficient{}, quotient))
+          {
+            factor = Gen_Polynomial(Coefficient(1), 1);
+            return true;
+          }
+        return false;
+      }
+
+    DynList<Coefficient> numerator_divs   = positive_divisors(f.get_coeff(0));
+    DynList<Coefficient> denominator_divs = positive_divisors(f.leading_coeff());
+
+    for (auto den_it = denominator_divs.get_it(); den_it.has_curr(); den_it.next_ne())
+      {
+        const Coefficient den = den_it.get_curr();
+
+        for (auto num_it = numerator_divs.get_it(); num_it.has_curr(); num_it.next_ne())
+          {
+            const Coefficient num_abs = num_it.get_curr();
+
+            for (Coefficient sign : {Coefficient(1), Coefficient(-1)})
+              {
+                const Coefficient num = sign * num_abs;
+                if (std::gcd(polynomial_detail::abs_to_u64(num),
+                             polynomial_detail::abs_to_u64(den)) != 1)
+                  continue;
+
+                if (try_divide_by_linear_factor(f, den, -num, quotient))
+                  {
+                    factor = Gen_Polynomial();
+                    factor.set_coeff(0, -num);
+                    factor.set_coeff(1, den);
+                    return true;
+                  }
+              }
+          }
+      }
+
+    return false;
+  }
+
+  /** @brief Try to extract an exact primitive quadratic factor over @f$\mathbb{Z}@f$.
+   *
+   *  Exhaustively searches primitive quadratic candidates
+   *  @f$a x^2 + b x + c@f$ such that @f$a@f$ divides the leading coefficient
+   *  and @f$c@f$ divides the constant term. Candidate linear coefficients are
+   *  bounded using a Cauchy-style root bound and verified by exact polynomial
+   *  division.
+   */
+  [[nodiscard]] static bool try_extract_primitive_quadratic_factor(
+    const Gen_Polynomial &f,
+    Gen_Polynomial       &factor,
+    Gen_Polynomial       &quotient)
+    requires std::is_integral_v<Coefficient>
+  {
+    if (f.is_zero() or f.degree() < 2)
+      return false;
+
+    if (f.get_coeff(0) == Coefficient{})
+      return false;
+
+    DynList<Coefficient> leading_divs  = positive_divisors(f.leading_coeff());
+    DynList<Coefficient> constant_divs = positive_divisors(f.get_coeff(0));
+    if (leading_divs.is_empty() or constant_divs.is_empty())
+      return false;
+
+    const double abs_lc = std::abs(static_cast<double>(f.leading_coeff()));
+    double       max_ratio = 0.0;
+    for (auto it = f.coeffs.get_it(); it.has_curr(); it.next_ne())
+      {
+        const auto &term = it.get_curr();
+        if (term.first == f.degree())
+          continue;
+        const double ratio = std::abs(static_cast<double>(term.second)) / abs_lc;
+        if (ratio > max_ratio)
+          max_ratio = ratio;
+      }
+
+    const double root_bound = 1.0 + max_ratio;
+
+    for (auto a_it = leading_divs.get_it(); a_it.has_curr(); a_it.next_ne())
+      {
+        const Coefficient a = a_it.get_curr();
+        const int64_t b_bound = static_cast<int64_t>(
+          std::ceil(2.0 * std::abs(static_cast<double>(a)) * root_bound));
+
+        for (auto c_it = constant_divs.get_it(); c_it.has_curr(); c_it.next_ne())
+          {
+            const Coefficient c_abs = c_it.get_curr();
+
+            for (Coefficient sign : {Coefficient(1), Coefficient(-1)})
+              {
+                const Coefficient c = sign * c_abs;
+
+                for (int64_t b_i = -b_bound; b_i <= b_bound; ++b_i)
+                  {
+                    const Coefficient b = static_cast<Coefficient>(b_i);
+                    const uint64_t gcd_ab = std::gcd(polynomial_detail::abs_to_u64(a),
+                                                     polynomial_detail::abs_to_u64(b));
+                    if (std::gcd(gcd_ab, polynomial_detail::abs_to_u64(c)) != 1)
+                      continue;
+
+                    Gen_Polynomial candidate;
+                    candidate.set_coeff(0, c);
+                    if (b != Coefficient{})
+                      candidate.set_coeff(1, b);
+                    candidate.set_coeff(2, a);
+
+                    auto [q, r] = f.divmod(candidate);
+                    if (r.is_zero())
+                      {
+                        factor   = candidate.primitive_part();
+                        quotient = q.is_zero() ? q : q.primitive_part();
+                        return true;
+                      }
+                  }
+              }
+          }
+      }
+
+    return false;
+  }
+
+  /** @brief Try to extract an exact primitive cubic factor over @f$\mathbb{Z}@f$.
+   *
+   *  Exhaustively searches primitive cubic candidates
+   *  @f$a x^3 + b x^2 + c x + d@f$ such that @f$a@f$ divides the leading
+   *  coefficient and @f$d@f$ divides the constant term. Candidate
+   *  coefficients are bounded with a Landau-Mignotte style estimate, and
+   *  each candidate is verified by exact division.
+   */
+  [[nodiscard]] static bool try_extract_primitive_cubic_factor(
+    const Gen_Polynomial &f,
+    Gen_Polynomial       &factor,
+    Gen_Polynomial       &quotient)
+    requires std::is_integral_v<Coefficient>
+  {
+    if (f.is_zero() or f.degree() < 3)
+      return false;
+
+    if (f.get_coeff(0) == Coefficient{})
+      return false;
+
+    DynList<Coefficient> leading_divs  = positive_divisors(f.leading_coeff());
+    DynList<Coefficient> constant_divs = positive_divisors(f.get_coeff(0));
+    if (leading_divs.is_empty() or constant_divs.is_empty())
+      return false;
+
+    const double abs_lc = std::abs(static_cast<double>(f.leading_coeff()));
+    double       l2_norm_sq = 0.0;
+    for (auto it = f.coeffs.get_it(); it.has_curr(); it.next_ne())
+      {
+        const auto &term = it.get_curr();
+        const double coeff_abs = std::abs(static_cast<double>(term.second));
+        l2_norm_sq += coeff_abs * coeff_abs;
+      }
+
+    const int64_t coeff_bound = static_cast<int64_t>(
+      std::ceil(8.0 * std::sqrt(l2_norm_sq) / abs_lc));
+    if (coeff_bound <= 0)
+      return false;
+
+    for (auto a_it = leading_divs.get_it(); a_it.has_curr(); a_it.next_ne())
+      {
+        const Coefficient a = a_it.get_curr();
+        if (polynomial_detail::abs_to_u64(a) > static_cast<uint64_t>(coeff_bound))
+          continue;
+
+        for (auto d_it = constant_divs.get_it(); d_it.has_curr(); d_it.next_ne())
+          {
+            const Coefficient d_abs = d_it.get_curr();
+            if (polynomial_detail::abs_to_u64(d_abs) > static_cast<uint64_t>(coeff_bound))
+              continue;
+
+            for (Coefficient sign : {Coefficient(1), Coefficient(-1)})
+              {
+                const Coefficient d = sign * d_abs;
+
+                for (int64_t b_i = -coeff_bound; b_i <= coeff_bound; ++b_i)
+                  {
+                    const Coefficient b = static_cast<Coefficient>(b_i);
+                    const uint64_t gcd_ab = std::gcd(polynomial_detail::abs_to_u64(a),
+                                                     polynomial_detail::abs_to_u64(b));
+
+                    for (int64_t c_i = -coeff_bound; c_i <= coeff_bound; ++c_i)
+                      {
+                        const Coefficient c = static_cast<Coefficient>(c_i);
+                        const uint64_t gcd_abc = std::gcd(gcd_ab,
+                                                          polynomial_detail::abs_to_u64(c));
+                        if (std::gcd(gcd_abc, polynomial_detail::abs_to_u64(d)) != 1)
+                          continue;
+
+                        Gen_Polynomial candidate;
+                        candidate.set_coeff(0, d);
+                        if (c != Coefficient{})
+                          candidate.set_coeff(1, c);
+                        if (b != Coefficient{})
+                          candidate.set_coeff(2, b);
+                        candidate.set_coeff(3, a);
+
+                        auto [q, r] = f.divmod(candidate);
+                        if (r.is_zero())
+                          {
+                            factor   = candidate.primitive_part();
+                            quotient = q.is_zero() ? q : q.primitive_part();
+                            return true;
+                          }
+                      }
+                  }
+              }
+          }
+      }
+
+    return false;
+  }
+
   /** @brief Factorization over integers mod @p p (trial method).
    *
-   *  Finds all roots of the polynomial in @f$\mathbb{Z}/p\mathbb{Z}@f$
-   *  and returns the corresponding monic linear factors.
-   *  If the polynomial is irreducible (has no roots), returns the polynomial itself.
+   *  Finds all linear factors over @f$\mathbb{Z}/p\mathbb{Z}@f$ by
+   *  exhaustive root search and repeated extraction. Any unfactored
+   *  residual polynomial is appended as the final element.
    *
    *  @param[in] f Polynomial to factor.
    *  @param[in] p The prime modulus.
-   *  @return A list of monic linear factors (one per root), or the input if irreducible.
+   *  @return A list of monic linear factors (with multiplicity), plus
+   *          a final residual factor if non-constant.
    *
    *  @note Only available for integral coefficient types.
-   *  @note This is a **simplified trial method**, not Berlekamp or Cantor-Zassenhaus.
+   *  @note This is still a root-search method, not Berlekamp or
+   *        Cantor-Zassenhaus; non-linear irreducible factors remain grouped.
    */
   static DynList<Gen_Polynomial> factor_mod_p(const Gen_Polynomial &f, Coefficient p)
     requires std::is_integral_v<Coefficient>
@@ -2011,34 +2474,25 @@ public:
     if (f.is_zero() or f.is_constant())
       return result;
 
-    // Try all residues in Z/p to find roots
+    Gen_Polynomial remaining = reduce_coeffs_mod(f, p);
+
     for (Coefficient r = Coefficient{}; r < p; r = r + Coefficient(1))
       {
-        // Evaluate f(r) mod p
-        Coefficient val = Coefficient{};
-        f.for_each_term([&](size_t exp, const Coefficient &coeff)
-        {
-          Coefficient c = coeff % p;
-          if (c < Coefficient{})
-            c = c + p;
-
-          Coefficient r_pow = polynomial_detail::power(r, exp);
-          val               = (val + c * r_pow) % p;
-        });
-
-        if (val % p == Coefficient{})
+        while (not remaining.is_zero() and remaining.degree() > 0 and
+               eval_mod_u64(remaining,
+                            polynomial_detail::normalize_mod_u64(r, polynomial_detail::abs_to_u64(p)),
+                            polynomial_detail::abs_to_u64(p)) == 0)
           {
-            // r is a root: add factor (x - r)
             Gen_Polynomial factor;
             factor.set_coeff(0, ((-r) % p + p) % p);
             factor.set_coeff(1, Coefficient(1));
             result.append(factor);
+            remaining = divide_by_monic_linear_mod(remaining, r, p);
           }
       }
 
-    // If no roots found, polynomial is irreducible over this field
-    if (result.is_empty())
-      result.append(f);
+    if (not remaining.is_zero() and not remaining.is_constant())
+      result.append(remaining);
 
     return result;
   }
@@ -2082,19 +2536,23 @@ public:
 
   /** @brief Hensel lifting of modular factors.
    *
-   *  Given factors of @f$f \pmod{p}@f$, lifts them to factors mod
-   *  @f$p^{2^\text{levels}}@f$ using Hensel's lemma.
+   *  Given modular factors of @f$f \pmod{p}@f$, lifts any monic linear
+   *  factor corresponding to a simple root to modulus
+   *  @f$p^{2^\text{levels}}@f$ using repeated Hensel root lifting.
+   *  Factors that are not monic linear simple-root factors are carried
+   *  through reduced modulo the target modulus.
    *
-   *  @param[in] f Original polynomial (used for context/verification).
+   *  @param[in] f Original polynomial.
    *  @param[in] factors Factors mod @p p (must multiply to @p f mod @p p).
    *  @param[in] p The prime modulus.
    *  @param[in] levels Number of lifting iterations (quadratic).
    *  @return Factors lifted to @f$\mathbb{Z}/p^{2^\text{levels}}\mathbb{Z}@f$.
    *
    *  @note Only available for integral coefficient types.
-   *  @note This is a **basic implementation**: does not handle singular cases.
+   *  @note Singular roots are not lifted; such factors are returned only
+   *        normalized modulo the target modulus.
    */
-  static DynList<Gen_Polynomial> hensel_lift([[maybe_unused]] const Gen_Polynomial &f,
+  static DynList<Gen_Polynomial> hensel_lift(const Gen_Polynomial &f,
                                              DynList<Gen_Polynomial> factors, Coefficient p,
                                              size_t levels)
     requires std::is_integral_v<Coefficient>
@@ -2103,23 +2561,70 @@ public:
       return factors;
 
     Coefficient p_power = p;
-    for (size_t i = 0; i < levels; ++i)
-      p_power = p_power * p_power;
+    const size_t target_steps = static_cast<size_t>(1) << levels;
+    for (size_t i = 1; i < target_steps; ++i)
+      p_power = p_power * p;
 
-    // Simplified: just reduce factors to the target modulus
+    const uint64_t p_u64       = polynomial_detail::abs_to_u64(p);
+    const uint64_t target_u64  = polynomial_detail::abs_to_u64(p_power);
+    Gen_Polynomial derivative  = f.derivative();
+
     DynList<Gen_Polynomial> result;
     for (auto it = factors.get_it(); it.has_curr(); it.next_ne())
       {
-        Gen_Polynomial lifted;
-        for (auto it2 = it.get_curr().coeffs.get_it(); it2.has_curr(); it2.next_ne())
+        const Gen_Polynomial &factor = it.get_curr();
+        bool                  lifted_linear_factor = false;
+
+        if (factor.degree() == 1 and factor.get_coeff(1) == Coefficient(1))
           {
-            auto       &term  = it2.get_curr();
-            Coefficient coeff = term.second % p_power;
-            if (coeff < Coefficient{})
-              coeff = coeff + p_power;
-            lifted.coeffs.insert(term.first, coeff);
+            uint64_t root    = polynomial_detail::normalize_mod_u64(-factor.get_coeff(0), p_u64);
+            uint64_t modulus = p_u64;
+            bool     simple  = true;
+
+            for (size_t step = 1; step < target_steps; ++step)
+              {
+                const uint64_t next_mod   = modulus * p_u64;
+                const uint64_t f_val      = eval_mod_u64(f, root, next_mod);
+                const uint64_t deriv_modp = eval_mod_u64(derivative, root % p_u64, p_u64);
+
+                if (f_val % modulus != 0 or std::gcd(deriv_modp, p_u64) != 1)
+                  {
+                    simple = false;
+                    break;
+                  }
+
+                const uint64_t e   = (f_val / modulus) % p_u64;
+                const uint64_t inv = mod_inv(deriv_modp, p_u64);
+                const uint64_t t   = (p_u64 - mod_mul(e, inv, p_u64)) % p_u64;
+
+                root    = (root + modulus * t) % next_mod;
+                modulus = next_mod;
+              }
+
+            if (simple)
+              {
+                Gen_Polynomial lifted;
+                lifted.set_coeff(0, polynomial_detail::centered_from_mod_u64<Coefficient>(
+                                      (target_u64 - (root % target_u64)) % target_u64, target_u64));
+                lifted.set_coeff(1, Coefficient(1));
+                result.append(lifted);
+                lifted_linear_factor = true;
+              }
           }
-        result.append(lifted);
+
+        if (lifted_linear_factor)
+          continue;
+
+        Gen_Polynomial normalized;
+        factor.for_each_term([&normalized, p_power](size_t exp, const Coefficient &coeff)
+        {
+          Coefficient canonical = coeff % p_power;
+          if (canonical < Coefficient{})
+            canonical += p_power;
+          if (canonical != Coefficient{})
+            normalized.set_coeff(exp, canonical);
+        });
+        result.append(normalized);
       }
 
     return result;
@@ -2127,21 +2632,29 @@ public:
 
   /** @brief Main factorization over integers.
    *
-   *  Combines square-free decomposition (SFD), modular factorization,
-   *  and Hensel lifting to factor the polynomial over the integers.
+   *  Combines square-free decomposition (SFD), exact extraction of
+   *  rational linear factors, and modular root search / Hensel lifting
+   *  heuristics for any remaining square-free blocks.
    *
    *  **Algorithm outline**:
    *  1. Compute the primitive part (remove common factors).
    *  2. Apply Yun's SFD to group factors by multiplicity.
-   *  3. For each square-free group, factor modulo a small prime @p p.
-   *  4. Use Hensel lifting to recover integer factors.
+   *  3. For each square-free group, extract exact primitive linear,
+   *     quadratic, and cubic factors over @f$\mathbb{Z}@f$.
+   *  4. For any residual factor, use modular root search plus Hensel
+   *     lifting of simple linear roots to discover additional exact divisors.
    *
    *  @return A list of SfdTerm where each factor is irreducible
    *          (or as close as possible with this algorithm).
    *
    *  @note Only available for integral coefficient types.
-   *  @note This is a **simplified implementation** sufficient for testing.
-   *        A full CZ algorithm would be more sophisticated.
+   *  @note This remains a lightweight implementation. It is strong on
+   *        exact linear, quadratic, and cubic factors and conservative on
+   *        higher-degree residuals.
+   *  @note Every factor returned here is validated by exact division, but a
+   *        remaining higher-degree block should be interpreted as
+   *        "not split further by this algorithm", not as a proof of
+   *        irreducibility over @f$\mathbb{Z}@f$.
    *  @note **Complexity**: depends on SFD and modular factorization.
    */
   [[nodiscard]] DynList<SfdTerm> factorize() const
@@ -2162,28 +2675,89 @@ public:
       return result;
 
     // Step 3: For each square-free group, attempt factorization
-    //         (Simplified: return SFD directly as the factorization)
     for (auto it = sfd_terms.get_it(); it.has_curr(); it.next_ne())
       {
         auto          &sfd_term = it.get_curr();
         Gen_Polynomial factor   = sfd_term.factor;
         size_t         mult     = sfd_term.multiplicity;
+        Gen_Polynomial remaining = factor.primitive_part();
 
-        // Try modular factorization with a small prime (p = 5)
-        Coefficient p = Coefficient(5);
-
-        if (auto mod_factors = factor_mod_p(factor, p); mod_factors.size() > 1)
+        while (remaining.degree() > 0)
           {
-            // Hensel lift the factors
-            auto lifted = hensel_lift(factor, mod_factors, p, 1);
+            Gen_Polynomial exact_linear, quotient;
+            if (not try_extract_rational_linear_factor(remaining, exact_linear, quotient))
+              break;
+
+            result.append(SfdTerm{exact_linear.primitive_part(), mult});
+            remaining = quotient.is_zero() ? quotient : quotient.primitive_part();
+          }
+
+        while (remaining.degree() > 1)
+          {
+            Gen_Polynomial exact_quadratic, quotient;
+            if (not try_extract_primitive_quadratic_factor(remaining, exact_quadratic, quotient))
+              break;
+
+            result.append(SfdTerm{exact_quadratic.primitive_part(), mult});
+            remaining = quotient.is_zero() ? quotient : quotient.primitive_part();
+          }
+
+        while (remaining.degree() > 2)
+          {
+            Gen_Polynomial exact_cubic, quotient;
+            if (not try_extract_primitive_cubic_factor(remaining, exact_cubic, quotient))
+              break;
+
+            result.append(SfdTerm{exact_cubic.primitive_part(), mult});
+            remaining = quotient.is_zero() ? quotient : quotient.primitive_part();
+          }
+
+        if (remaining.is_constant() or remaining.is_zero())
+          continue;
+
+        // Try modular factorization with a few small primes and exact redivision.
+        for (Coefficient p : {Coefficient(3), Coefficient(5), Coefficient(7), Coefficient(11)})
+          {
+            if (remaining.leading_coeff() % p == Coefficient{})
+              continue;
+
+            auto mod_factors = factor_mod_p(remaining, p);
+            if (mod_factors.size() <= 1)
+              continue;
+
+            auto lifted = hensel_lift(remaining, mod_factors, p, 2);
+
+            bool changed = false;
             for (auto jt = lifted.get_it(); jt.has_curr(); jt.next_ne())
-              result.append(SfdTerm{jt.get_curr(), mult});
+              {
+                Gen_Polynomial cand = jt.get_curr().primitive_part();
+                if (cand.is_zero() or cand.is_constant() or cand.degree() != 1)
+                  continue;
+
+                Gen_Polynomial quotient;
+                if (not try_divide_by_linear_factor(remaining,
+                                                   cand.get_coeff(1),
+                                                   cand.get_coeff(0),
+                                                   quotient))
+                  continue;
+
+                result.append(SfdTerm{cand, mult});
+                remaining = quotient.is_zero() ? quotient : quotient.primitive_part();
+                changed   = true;
+
+                if (remaining.is_constant())
+                  break;
+              }
+
+            if (changed)
+              {
+                if (remaining.is_constant())
+                  break;
+              }
           }
-        else
-          {
-            // No further factorization; return as-is
-            result.append(SfdTerm{factor, mult});
-          }
+
+        if (not remaining.is_constant() and not remaining.is_zero())
+          result.append(SfdTerm{remaining.primitive_part(), mult});
       }
 
     return result;
@@ -2199,6 +2773,20 @@ template <typename C>
 [[nodiscard]] Gen_Polynomial<C> operator*(const C &s, const Gen_Polynomial<C> &p)
 {
   return p * s;
+}
+
+/** @brief Scalar plus polynomial (commutative form). */
+template <typename C>
+[[nodiscard]] Gen_Polynomial<C> operator+(const C &s, const Gen_Polynomial<C> &p)
+{
+  return p + s;
+}
+
+/** @brief Scalar minus polynomial. */
+template <typename C>
+[[nodiscard]] Gen_Polynomial<C> operator-(const C &s, const Gen_Polynomial<C> &p)
+{
+  return Gen_Polynomial<C>(s) - p;
 }
 
 /** @brief Stream output. */

@@ -527,6 +527,29 @@ add_custom_target(aleph_check
 )
 
 find_program(ALEPH_RUBY_EXECUTABLE ruby)
+find_package(Python3 COMPONENTS Interpreter QUIET)
+
+if(TARGET polynomial_benchmark)
+    add_dependencies(aleph_build_tests polynomial_benchmark)
+    add_test(
+        NAME PolynomialRelease.BenchmarkValidate
+        COMMAND polynomial_benchmark --validate
+    )
+endif()
+
+if(ALEPH_RUBY_EXECUTABLE AND Python3_EXECUTABLE AND TARGET polynomial_reference_probe)
+    add_dependencies(aleph_build_tests polynomial_reference_probe)
+    add_test(
+        NAME PolynomialRelease.ReferenceCrossCheck
+        COMMAND ${ALEPH_RUBY_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/polynomial_reference_check.rb
+                --probe
+                $<TARGET_FILE:polynomial_reference_probe>
+                --python
+                ${Python3_EXECUTABLE}
+    )
+endif()
+
 if(TARGET fft_benchmark)
     add_dependencies(aleph_build_tests fft_benchmark)
     add_test(
