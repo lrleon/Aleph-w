@@ -47,18 +47,19 @@ SpaceAfterCStyleCast: true
 SpaceBeforeAssignmentOperators: true
 SpacesBeforeTrailingComments: 2
 SpaceInEmptyParentheses: false
+SpacesInAngles: Never
 
 # Alignment
 AlignAfterOpenBracket: Align
-BinPackArguments: true
-BinPackParameters: true
-AllowAllArgumentsOnNextLine: false
+BinPackArguments: false
+BinPackParameters: false
+AllowAllArgumentsOnNextLine: true
 AlignOperands: AlignAfterOperator
 AlignTrailingComments: true
 AlignEscapedNewlines: Right
 PointerAlignment: Right
-AlignConsecutiveAssignments: AcrossComments
-AlignConsecutiveDeclarations: AcrossComments
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
 
 # Other
 SortIncludes: false

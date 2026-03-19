@@ -2,6 +2,11 @@
 
 require 'open3'
 require 'pathname'
+begin
+  require 'unicode_normalize'
+rescue LoadError
+  warn '[warn] unicode_normalize extension not available; documentation language check is best-effort.'
+end
 
 HEADER_EXTS = %w[.h .H .hpp .hxx .hh].freeze
 TEST_EXTS = %w[.cc .cpp .C .cxx].freeze
@@ -73,16 +78,30 @@ def english_documentation?(path)
 
   # Check for common Spanish words that shouldn't be in English documentation
   # (avoiding very short words or those that overlap with English/technical terms)
+  # Note: accented variants are normalized to ASCII during comparison when
+  # unicode_normalize is available (best-effort otherwise).
   spanish_words = %w[
-    algoritmo biblioteca cabecera función parámetro retorno estructura
-    herencia polimorfismo puntero memoria asignación búsqueda busqueda ordenamiento
-    grafo nodo arista camino ciclo árbol hoja raíz
-    implementación descripción ejemplo advertencia nota opcional requerido
-    devuelve booleano entero real cadena carácter
+    algoritmo biblioteca cabecera funcion parametro retorno estructura
+    herencia polimorfismo puntero memoria asignacion busqueda ordenamiento
+    grafo nodo arista camino ciclo arbol hoja raiz
+    implementacion descripcion ejemplo advertencia opcional requerido
+    devuelve booleano entero cadena caracter
   ]
 
-  has_spanish = spanish_words.any? do |w|
-    docs_without_code.match?(/(^|[^\p{L}])#{Regexp.escape(w)}([^\p{L}]|$)/iu)
+  # Normalize text and each word to ASCII (strip diacritics) so both accented
+  # and unaccented forms are caught by a single comparison.
+  unicode_normalize_supported = ''.respond_to?(:unicode_normalize)
+  normalize = lambda do |str|
+    return str unless unicode_normalize_supported
+
+    str.unicode_normalize(:nfd).gsub(/\p{Mn}/, '')
+  end
+
+  normalized_docs = normalize.call(docs_without_code)
+  normalized_words = spanish_words.map { |w| normalize.call(w) }.uniq
+
+  has_spanish = normalized_words.any? do |w|
+    normalized_docs.match?(/(^|[^\p{L}])#{Regexp.escape(w)}([^\p{L}]|$)/i)
   end
 
   !has_spanish

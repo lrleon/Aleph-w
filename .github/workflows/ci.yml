@@ -226,7 +226,7 @@ jobs:
             libx11-dev libpthread-stubs0-dev \
             libtclap-dev \
             libgtest-dev \
-            ruby-full python3-numpy
+            ruby-full python3-numpy python3-sympy
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -267,17 +267,18 @@ jobs:
             -DBUILD_EXAMPLES=ON \
             -DBUILD_TESTS=ON
 
-      - name: Build test and FFT example targets
+      - name: Build test and audit example targets
         run: |
           # Build fft_test (always tracked). Build fft_benchmark and
-          # fft_reference_probe only if their targets are actually present.
+          # fft_reference_probe / polynomial audit helpers only if their targets
+          # are actually present.
           TARGETS="fft_test"
           if [ -f build/build.ninja ]; then
             TARGET_LIST="$(ninja -C build -t targets all 2>/dev/null)"
           else
             TARGET_LIST="$(cmake --build build --target help 2>/dev/null || true)"
           fi
-          for t in fft_benchmark fft_reference_probe; do
+          for t in fft_benchmark fft_reference_probe polynomial_benchmark polynomial_reference_probe; do
             if printf '%s\n' "$TARGET_LIST" | grep -q "^${t}:"; then
               TARGETS="$TARGETS $t"
             fi
@@ -325,6 +326,20 @@ jobs:
             echo "fft_reference_probe not available, skipping reference cross-check"
           fi
 
+          if [ -x build/Examples/polynomial_benchmark ]; then
+            echo "--- Polynomial benchmark validate ---"
+            ./build/Examples/polynomial_benchmark --validate
+          else
+            echo "polynomial_benchmark not available, skipping polynomial benchmark validate"
+          fi
+
+          if [ -x build/Examples/polynomial_reference_probe ]; then
+            echo "--- Polynomial reference cross-check ---"
+            ruby scripts/polynomial_reference_check.rb --build-dir build
+          else
+            echo "polynomial_reference_probe not available, skipping polynomial reference cross-check"
+          fi
+
       - name: Collect benchmark artifacts
         if: always()
         run: |
@@ -343,6 +358,24 @@ jobs:
             --json --warmup 3 --samples 5 --batch-count 8 \
             > build/fft_artifacts/benchmark-auto.json
 
+      - name: Collect polynomial audit artifacts
+        if: always()
+        run: |
+          if [ ! -x build/Examples/polynomial_benchmark ]; then
+            echo "polynomial_benchmark not available, skipping polynomial artifact collection"
+            exit 0
+          fi
+          mkdir -p build/polynomial_artifacts
+          ./build/Examples/polynomial_benchmark \
+            --json --repetitions 512 --warmup 3 --samples 9 --sizes 64,256,1024 \
+            > build/polynomial_artifacts/benchmark-release.json
+          cp scripts/fixtures/polynomial_benchmark_release_baseline.json \
+            build/polynomial_artifacts/benchmark-release-baseline.json
+          if [ -x build/Examples/polynomial_reference_probe ]; then
+            ./build/Examples/polynomial_reference_probe --json \
+              > build/polynomial_artifacts/reference-probe.json
+          fi
+
       - name: Upload FFT artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -350,6 +383,14 @@ jobs:
           name: fft-simd-benchmarks
           if-no-files-found: ignore
           path: build/fft_artifacts/
+
+      - name: Upload polynomial audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: polynomial-audit-artifacts
+          if-no-files-found: ignore
+          path: build/polynomial_artifacts/
 
       - name: Upload test logs on failure
         if: failure()

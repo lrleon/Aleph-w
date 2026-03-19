@@ -1,0 +1,221 @@
+{
+  "mode": "benchmark",
+  "metadata": {
+    "seed": 20260317,
+    "repetitions": 512,
+    "warmup": 3,
+    "samples": 9
+  },
+  "rows": [
+    {
+      "case": "uni_eval_sparse",
+      "size": 64,
+      "repetitions": 512,
+      "mean_us": 0.515794053819,
+      "median_us": 0.514994140625,
+      "min_us": 0.5091015625,
+      "max_us": 0.530083984375,
+      "stddev_us": 0.0055325882522
+    },
+    {
+      "case": "uni_mul_sparse",
+      "size": 64,
+      "repetitions": 512,
+      "mean_us": 4.3588608941,
+      "median_us": 4.347765625,
+      "min_us": 4.03497460938,
+      "max_us": 5.2486953125,
+      "stddev_us": 0.357094317385
+    },
+    {
+      "case": "uni_compose_sparse",
+      "size": 64,
+      "repetitions": 512,
+      "mean_us": 11.1301191406,
+      "median_us": 11.1769550781,
+      "min_us": 10.7529589844,
+      "max_us": 11.4645800781,
+      "stddev_us": 0.21138749255
+    },
+    {
+      "case": "uni_divmod_sparse_exact",
+      "size": 64,
+      "repetitions": 512,
+      "mean_us": 3.74406684028,
+      "median_us": 3.70558984375,
+      "min_us": 3.6468359375,
+      "max_us": 3.95049804687,
+      "stddev_us": 0.0858223769903
+    },
+    {
+      "case": "multi_mul_sparse",
+      "size": 64,
+      "repetitions": 512,
+      "mean_us": 18.625140625,
+      "median_us": 18.6701152344,
+      "min_us": 18.4309785156,
+      "max_us": 18.8360683594,
+      "stddev_us": 0.141023305153
+    },
+    {
+      "case": "multi_divmod_exact",
+      "size": 64,
+      "repetitions": 512,
+      "mean_us": 37.5288368056,
+      "median_us": 37.3974960938,
+      "min_us": 37.0596132813,
+      "max_us": 38.132796875,
+      "stddev_us": 0.356558405889
+    },
+    {
+      "case": "multi_groebner_reduced_lex",
+      "size": 64,
+      "repetitions": 64,
+      "mean_us": 90.5076059028,
+      "median_us": 90.619671875,
+      "min_us": 88.0676875,
+      "max_us": 92.2660625,
+      "stddev_us": 1.3149123122
+    },
+    {
+      "case": "uni_eval_sparse",
+      "size": 256,
+      "repetitions": 512,
+      "mean_us": 0.436335503472,
+      "median_us": 0.43155859375,
+      "min_us": 0.40371875,
+      "max_us": 0.50129296875,
+      "stddev_us": 0.0261889547162
+    },
+    {
+      "case": "uni_mul_sparse",
+      "size": 256,
+      "repetitions": 512,
+      "mean_us": 4.15113064236,
+      "median_us": 4.12143164062,
+      "min_us": 4.00551757812,
+      "max_us": 4.51701953125,
+      "stddev_us": 0.144501595926
+    },
+    {
+      "case": "uni_compose_sparse",
+      "size": 256,
+      "repetitions": 512,
+      "mean_us": 11.6993849826,
+      "median_us": 11.6574707031,
+      "min_us": 11.4635507812,
+      "max_us": 11.9904804688,
+      "stddev_us": 0.168277137966
+    },
+    {
+      "case": "uni_divmod_sparse_exact",
+      "size": 256,
+      "repetitions": 512,
+      "mean_us": 3.7052719184,
+      "median_us": 3.69238085938,
+      "min_us": 3.62155664063,
+      "max_us": 3.8533515625,
+      "stddev_us": 0.0776504383339
+    },
+    {
+      "case": "multi_mul_sparse",
+      "size": 256,
+      "repetitions": 512,
+      "mean_us": 18.675233724,
+      "median_us": 18.7506445312,
+      "min_us": 18.22303125,
+      "max_us": 19.1223769531,
+      "stddev_us": 0.270307003514
+    },
+    {
+      "case": "multi_divmod_exact",
+      "size": 256,
+      "repetitions": 512,
+      "mean_us": 37.5095128038,
+      "median_us": 37.4606972656,
+      "min_us": 37.019296875,
+      "max_us": 37.8917539063,
+      "stddev_us": 0.29501170944
+    },
+    {
+      "case": "multi_groebner_reduced_lex",
+      "size": 256,
+      "repetitions": 64,
+      "mean_us": 90.5750190972,
+      "median_us": 90.427234375,
+      "min_us": 88.31728125,
+      "max_us": 92.79521875,
+      "stddev_us": 1.67929144407
+    },
+    {
+      "case": "uni_eval_sparse",
+      "size": 1024,
+      "repetitions": 512,
+      "mean_us": 0.43940234375,
+      "median_us": 0.431578125,
+      "min_us": 0.403900390625,
+      "max_us": 0.4961328125,
+      "stddev_us": 0.0259688259939
+    },
+    {
+      "case": "uni_mul_sparse",
+      "size": 1024,
+      "repetitions": 512,
+      "mean_us": 4.17283854167,
+      "median_us": 4.10215039062,
+      "min_us": 4.04931640625,
+      "max_us": 4.44606835938,
+      "stddev_us": 0.146644380136
+    },
+    {
+      "case": "uni_compose_sparse",
+      "size": 1024,
+      "repetitions": 512,
+      "mean_us": 12.4327714844,
+      "median_us": 12.3478476562,
+      "min_us": 12.2521621094,
+      "max_us": 12.7806347656,
+      "stddev_us": 0.195964744557
+    },
+    {
+      "case": "uni_divmod_sparse_exact",
+      "size": 1024,
+      "repetitions": 512,
+      "mean_us": 3.67435026042,
+      "median_us": 3.67602734375,
+      "min_us": 3.53540234375,
+      "max_us": 3.85934179687,
+      "stddev_us": 0.0917430012892
+    },
+    {
+      "case": "multi_mul_sparse",
+      "size": 1024,
+      "repetitions": 512,
+      "mean_us": 18.5412298177,
+      "median_us": 18.5473144531,
+      "min_us": 18.1958066406,
+      "max_us": 18.97421875,
+      "stddev_us": 0.243067118827
+    },
+    {
+      "case": "multi_divmod_exact",
+      "size": 1024,
+      "repetitions": 512,
+      "mean_us": 37.3953932292,
+      "median_us": 37.4508105469,
+      "min_us": 36.7354765625,
+      "max_us": 37.9888476563,
+      "stddev_us": 0.343944345773
+    },
+    {
+      "case": "multi_groebner_reduced_lex",
+      "size": 1024,
+      "repetitions": 64,
+      "mean_us": 115.956305556,
+      "median_us": 115.228328125,
+      "min_us": 114.59471875,
+      "max_us": 118.214859375,
+      "stddev_us": 1.32622204382
+    }
+  ]
+}
