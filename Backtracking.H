@@ -52,6 +52,7 @@
 
 #include <ah-errors.H>
 #include <state_search_common.H>
+#include <Transposition_Table.H>
 
 namespace Aleph
 {
@@ -73,6 +74,12 @@ struct PreferShallowerSolution
   }
 };
 
+/** @brief Dispatch helper for the optional `is_terminal` hook.
+ *
+ *  Returns `true` if `Domain` satisfies @ref TerminalPredicate and the domain
+ *  reports the state as terminal (a non-goal dead end). Returns `false`
+ *  unconditionally when the domain does not expose `is_terminal`.
+ */
 template <typename Domain>
 [[nodiscard]] bool is_terminal_state(const Domain &domain,
                                      const typename Domain::State &state)
@@ -83,6 +90,12 @@ template <typename Domain>
     return false;
 }
 
+/** @brief Dispatch helper for the optional `should_prune` hook.
+ *
+ *  Returns `true` if `Domain` satisfies @ref DomainPruner and the domain
+ *  requests early pruning of the current state. Returns `false` when the
+ *  domain does not expose `should_prune`.
+ */
 template <typename Domain>
 [[nodiscard]] bool should_prune_state(Domain &domain,
                                       const typename Domain::State &state,
@@ -218,6 +231,61 @@ public:
     return search(std::move(initial_state), handler);
   }
 
+  /** @brief DFS/backtracking with a global visited-state set.
+   *
+   *  Converts tree-search to graph-search: states are marked globally when
+   *  first entered. Any state whose key is already in `visited` is pruned,
+   *  preventing duplicate expansions via longer paths.
+   *
+   *  The domain must expose `state_key(state)` (see @ref SearchStateKeyProvider).
+   *
+   *  @param[in] initial_state Mutable root state.
+   *  @param[in,out] visited Caller-owned set that accumulates visited state keys.
+   *  @return Search result with statistics and best retained solution.
+   */
+  template <typename VisitedSet>
+    requires SearchStateKeyProvider<Domain> and
+             VisitedStateSet<VisitedSet, typename Domain::State_Key>
+  [[nodiscard]] Result search(State initial_state, VisitedSet &visited)
+  {
+    ContinueSearch on_solution;
+    return search(std::move(initial_state), visited, on_solution);
+  }
+
+  /** @brief DFS/backtracking with visited-state tracking and a solution callback.
+   *
+   *  Combines graph-search pruning via `visited` with per-solution callbacks.
+   */
+  template <typename VisitedSet, typename OnSolution>
+    requires SearchStateKeyProvider<Domain> and
+             VisitedStateSet<VisitedSet, typename Domain::State_Key> and
+             SearchSolutionVisitor<OnSolution, Solution>
+  [[nodiscard]] Result search(State initial_state,
+                              VisitedSet &visited,
+                              OnSolution &on_solution)
+  {
+    ah_invalid_argument_if(policy_.strategy != ExplorationPolicy::Strategy::Depth_First)
+      << "Depth_First_Backtracking only supports depth-first strategy";
+    ah_invalid_argument_if(limits_.max_solutions == 0)
+      << "SearchLimits::max_solutions must be positive or Search_Unlimited";
+
+    Result result(compare_);
+    result.policy = policy_;
+    result.limits = limits_;
+    const auto start_time = SearchClock::now();
+
+    SearchPath<Move> path;
+    reserve_search_path(path, limits_);
+    (void) dfs_visited(initial_state, path, 0, result, on_solution, visited);
+
+    if (result.status == SearchStatus::NotStarted)
+      result.status = SearchStatus::Exhausted;
+
+    result.stats.elapsed_ms = search_elapsed_ms(SearchClock::now() - start_time);
+
+    return result;
+  }
+
 private:
   Domain domain_;
   ExplorationPolicy policy_;
@@ -314,6 +382,82 @@ private:
         path.append(move);
         domain_.apply(state, move);
         stop = dfs(state, path, depth + 1, result, on_solution);
+        domain_.undo(state, move);
+        (void) path.remove_last();
+        return not stop;
+      });
+
+    return stop;
+  }
+
+  template <typename OnSolution, typename VisitedSet>
+    requires SearchSolutionVisitor<OnSolution, Solution> and
+             VisitedStateSet<VisitedSet, typename Domain::State_Key>
+  [[nodiscard]] bool dfs_visited(State &state,
+                                  SearchPath<Move> &path,
+                                  const size_t depth,
+                                  Result &result,
+                                  OnSolution &on_solution,
+                                  VisitedSet &visited)
+  {
+    ++result.stats.visited_states;
+    if (depth > result.stats.max_depth_reached)
+      result.stats.max_depth_reached = depth;
+
+    if (visited.contains(domain_.state_key(state)))
+      {
+        ++result.stats.pruned_by_domain;
+        return false;
+      }
+    visited.insert(domain_.state_key(state));
+
+    if (domain_.is_goal(state))
+      {
+        ++result.stats.solutions_found;
+        Solution solution{state, path, depth};
+        result.best_solution.consider(solution);
+
+        if (not on_solution(solution))
+          {
+            result.status = SearchStatus::StoppedOnSolution;
+            return true;
+          }
+
+        return stop_after_solution(result);
+      }
+
+    if (state_search_detail::is_terminal_state(domain_, state))
+      {
+        ++result.stats.terminal_states;
+        return false;
+      }
+
+    if (depth >= limits_.max_depth)
+      {
+        ++result.stats.pruned_by_depth;
+        return false;
+      }
+
+    if (state_search_detail::should_prune_state(domain_, state, depth))
+      {
+        ++result.stats.pruned_by_domain;
+        return false;
+      }
+
+    if (expansion_limit_reached(result))
+      return true;
+
+    ++result.stats.expanded_states;
+
+    bool stop = false;
+    (void) domain_.for_each_successor(
+      state,
+      [&](const Move &move) -> bool
+      {
+        ++result.stats.generated_successors;
+        path.append(move);
+        domain_.apply(state, move);
+        stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
         domain_.undo(state, move);
         (void) path.remove_last();
         return not stop;

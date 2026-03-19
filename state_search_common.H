@@ -450,6 +450,35 @@ concept MoveKeyProvider =
     { d.move_key(move) } -> std::convertible_to<typename Domain::Move_Key>;
   };
 
+/** @brief Concept for domains that provide an admissible heuristic.
+ *
+ *  Required by IDA\* and any informed search engine. The domain must expose a
+ *  `Distance` type and a `heuristic(state)` method that returns an optimistic
+ *  estimate of the cost to reach a goal from `state`.
+ */
+template <typename Domain>
+concept HeuristicEvaluator =
+  requires(Domain &d, const typename Domain::State &state)
+  {
+    typename Domain::Distance;
+    { d.heuristic(state) } -> std::convertible_to<typename Domain::Distance>;
+  };
+
+/** @brief Concept for domains that provide the cost of applying a move.
+ *
+ *  Required by IDA\* and any cost-sensitive search engine. The cost must be
+ *  non-negative for admissibility guarantees to hold.
+ */
+template <typename Domain>
+concept ActionCostProvider =
+  requires(Domain &d,
+           const typename Domain::State &state,
+           const typename Domain::Move &move)
+  {
+    typename Domain::Distance;
+    { d.cost(state, move) } -> std::convertible_to<typename Domain::Distance>;
+  };
+
 /** @brief Minimal contract for DFS/backtracking domains.
  *
  *  The engine assumes a mutable search state and reversible moves:

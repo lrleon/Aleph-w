@@ -54,6 +54,7 @@
 #include <Branch_And_Bound.H>
 #include <Negamax.H>
 #include <Alpha_Beta.H>
+#include <State_Search_IDA_Star.H>
 
 namespace Aleph
 {
@@ -118,6 +119,9 @@ using NegamaxEngine = Negamax<Domain>;
 template <typename Domain>
 using AlphaBeta = Alpha_Beta<Domain>;
 
+template <IDAStarDomain Domain>
+using IDAStar = IDA_Star_State_Search<Domain>;
+
 template <AdversarialScore Score>
 using IterativeDeepeningOptions = AdversarialIterativeDeepeningOptions<Score>;
 
@@ -142,6 +146,7 @@ using Aleph::backtracking_search;
 using Aleph::branch_and_bound_search;
 using Aleph::negamax_search;
 using Aleph::alpha_beta_search;
+using Aleph::ida_star_search;
 using Aleph::iterative_deepening_negamax_search;
 using Aleph::iterative_deepening_alpha_beta_search;
 

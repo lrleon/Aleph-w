@@ -53,6 +53,7 @@
 
 #include <ah-errors.H>
 #include <state_search_common.H>
+#include <Transposition_Table.H>
 #include <tpl_dynBinHeap.H>
 
 namespace Aleph
@@ -462,6 +463,61 @@ public:
     return search(std::move(initial_state), handler);
   }
 
+  /** @brief Branch and bound with a visited-bound map (DFS only).
+   *
+   *  Before expanding a node, checks whether the same state was already
+   *  visited with an equal-or-better optimistic bound. If so, the current
+   *  branch is pruned; otherwise the stored bound is updated. This eliminates
+   *  redundant sub-tree explorations when the same state is reachable via
+   *  multiple paths.
+   *
+   *  The domain must expose `state_key(state)` (see @ref SearchStateKeyProvider).
+   *
+   *  @param[in] initial_state Mutable root state.
+   *  @param[in,out] visited_map Caller-owned map from state key to best bound.
+   *  @return Search result with statistics and best retained solution.
+   */
+  template <typename VisitedMap>
+    requires SearchStateKeyProvider<Domain> and
+             VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
+  [[nodiscard]] Result search(State initial_state, VisitedMap &visited_map)
+  {
+    ContinueSearch on_solution;
+    return search(std::move(initial_state), visited_map, on_solution);
+  }
+
+  /** @brief Branch and bound with visited-bound map and solution callback. */
+  template <typename VisitedMap, typename OnSolution>
+    requires SearchStateKeyProvider<Domain> and
+             VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective> and
+             SearchSolutionVisitor<OnSolution, Solution>
+  [[nodiscard]] Result search(State initial_state,
+                              VisitedMap &visited_map,
+                              OnSolution &on_solution)
+  {
+    ah_invalid_argument_if(limits_.max_solutions == 0)
+      << "SearchLimits::max_solutions must be positive or Search_Unlimited";
+    ah_invalid_argument_if(policy_.strategy != ExplorationPolicy::Strategy::Depth_First)
+      << "Visited-map search only supports Depth_First strategy";
+    validate_ordering_configuration();
+
+    Result result(objective_);
+    result.policy = policy_;
+    result.limits = limits_;
+    const auto start_time = SearchClock::now();
+
+    SearchPath<Move> path;
+    reserve_search_path(path, limits_);
+    (void) dfs_visited(initial_state, path, 0, result, on_solution, visited_map);
+
+    if (result.status == SearchStatus::NotStarted)
+      result.status = SearchStatus::Exhausted;
+
+    result.stats.elapsed_ms = search_elapsed_ms(SearchClock::now() - start_time);
+
+    return result;
+  }
+
 private:
   Domain domain_;
   ExplorationPolicy policy_;
@@ -673,6 +729,99 @@ private:
     SearchPath<Move> path;
     reserve_search_path(path, limits_);
     (void) dfs(initial_state, path, 0, result, on_solution);
+  }
+
+  template <typename OnSolution, typename VisitedMap>
+    requires SearchSolutionVisitor<OnSolution, Solution> and
+             VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
+  [[nodiscard]] bool dfs_visited(State &state,
+                                  SearchPath<Move> &path,
+                                  const size_t depth,
+                                  Result &result,
+                                  OnSolution &on_solution,
+                                  VisitedMap &visited)
+  {
+    register_visit(depth, result);
+
+    if (domain_.is_complete(state))
+      return handle_complete_solution(state, path, depth, result, on_solution);
+
+    if (branch_and_bound_detail::is_terminal_state(domain_, state))
+      {
+        ++result.stats.terminal_states;
+        return false;
+      }
+
+    if (depth >= limits_.max_depth)
+      {
+        ++result.stats.pruned_by_depth;
+        return false;
+      }
+
+    if (branch_and_bound_detail::should_prune_state(domain_, state, depth))
+      {
+        ++result.stats.pruned_by_domain;
+        return false;
+      }
+
+    const Objective bound_value = domain_.bound(state);
+    if (not result.incumbent.can_improve(bound_value))
+      {
+        ++result.stats.pruned_by_bound;
+        return false;
+      }
+
+    const auto key = domain_.state_key(state);
+    if (auto *pair = visited.search(key); pair != nullptr)
+      {
+        if (not objective_.more_promising(bound_value, pair->second))
+          {
+            ++result.stats.pruned_by_bound;
+            return false;
+          }
+        pair->second = bound_value;
+      }
+    else
+      {
+        visited.insert(key, bound_value);
+      }
+
+    if (expansion_limit_reached(result))
+      return true;
+
+    ++result.stats.expanded_states;
+
+    bool stop = false;
+
+    auto explore_move = [&](const Move &move) -> bool
+    {
+      ++result.stats.generated_successors;
+      path.append(move);
+      domain_.apply(state, move);
+      stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
+      domain_.undo(state, move);
+      (void) path.remove_last();
+      return not stop;
+    };
+
+    if (ordering_active_for_depth_first())
+      {
+        auto ordered_moves = collect_ordered_moves(state, result);
+        for (const auto &ranked : ordered_moves)
+          if (not explore_move(ranked.move))
+            break;
+      }
+    else
+      {
+        (void) domain_.for_each_successor(
+          state,
+          [&](const Move &move) -> bool
+          {
+            return explore_move(move);
+          });
+      }
+
+    return stop;
   }
 
   template <typename OnSolution>

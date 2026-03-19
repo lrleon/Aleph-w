@@ -116,6 +116,35 @@ concept SearchStateKeyProvider =
     { provider.state_key(state) } -> std::convertible_to<typename Provider::State_Key>;
   };
 
+/** @brief Concept for a set suitable for tracking globally visited states.
+ *
+ *  Compatible with @ref SearchStorageSet and the Aleph `DynHashSet` family.
+ *  The engine uses `contains(key)` to check for prior visits and `insert(key)`
+ *  to record a new one. Inserting an already-present key must be a no-op.
+ */
+template <typename Set, typename Key>
+concept VisitedStateSet =
+  requires(Set &set, const Key &key)
+  {
+    { set.contains(key) } -> std::convertible_to<bool>;
+    set.insert(key);
+  };
+
+/** @brief Concept for a map tracking the best bound seen per visited state.
+ *
+ *  Compatible with @ref SearchStorageMap. The engine uses `search(key)` to
+ *  probe for an existing bound and `insert(key, bound)` to record one.
+ *  Updating an existing entry is done by mutating the value through the
+ *  pointer returned by `search`.
+ */
+template <typename Map, typename Key, typename Objective>
+concept VisitedBoundMap =
+  requires(Map &map, const Key &key, const Objective &obj)
+  {
+    map.insert(key, obj);
+    map.search(key);
+  };
+
 /** @brief Minimal replacement policy: always replace the current entry. */
 template <typename Entry>
 struct Replace_Always
