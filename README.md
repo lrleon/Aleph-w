@@ -57,6 +57,7 @@ Language: English | [Español](README.es.md)
   - [Dynamic Programming Algorithms](#readme-dp-algorithms)
   - [Signal Processing (FFT)](#readme-signal-processing)
   - [Number Theoretic Transform (NTT)](#readme-number-theoretic-transform)
+  - [Polynomial Arithmetic](#readme-polynomial-arithmetic)
 - [Memory Management](#readme-memory-management)
   - [Arena Allocators](#readme-arena-allocators)
 - [Parallel Computing](#readme-parallel-computing)
@@ -284,7 +285,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Triangulation        ├─ Huffman Coding                                 │
 │  ├─ Voronoi / Delaunay   ├─ Simplex (LP)                                   │
 │  └─ Intersections        ├─ RMQ/LCA/HLD/Centroid decompositions            │
-│                           └─ Streaming sketches (HLL/CMS/MinHash/SimHash)  │
+│                           ├─ Streaming sketches (HLL/CMS/MinHash/SimHash)  │
+│                           └─ Polynomial ring arithmetic (sparse)          │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -3148,6 +3150,67 @@ Transform Tutorial](docs/ntt-tutorial.en.md)** ([Español](docs/ntt-tutorial.md)
 
 ---
 
+<a id="readme-polynomial-arithmetic"></a>
+### Polynomial Arithmetic
+
+Aleph-w provides a generic **sparse univariate polynomial** class in
+[`tpl_polynomial.H`](tpl_polynomial.H). The coefficient type is a
+template parameter, defaulting to `double`. Only non-zero coefficients
+are stored in a `DynMapTree<size_t, Coefficient>`, making operations
+efficient on high-degree sparse polynomials such as `x^1000 + 1`.
+
+**Arithmetic**: `+`, `-`, `*`, `/`, `%`, `divmod`, scalar `*` and `/`,
+unary negation, in-place variants (`+=`, `-=`, `*=`, `/=`, `%=`).
+
+**Calculus**: `derivative`, `nth_derivative`, `integral` (indefinite),
+`definite_integral(a, b)`.
+
+**Evaluation**: adaptive `eval(x)` (Horner for dense, sparse-power for
+ultra-sparse), `horner_eval`, `sparse_eval`, `multi_eval(points)`,
+`operator()(x)`.
+
+**Composition & power**: `compose(q)` (sparse-aware Horner), `pow(n)`
+(repeated squaring).
+
+**Factories**: `zero()`, `one()`, `x_to(n)`, `from_roots(list)`,
+`interpolate(points)` (Newton divided differences).
+
+**GCD family**: `gcd(a, b)`, `xgcd(a, b)` (extended, returns Bezout
+coefficients), `lcm(a, b)`, `pseudo_divmod(d)` for exact integer
+coefficient types.
+
+**Algebraic transformations**: `to_monic()`, `square_free()`,
+`reverse()`, `negate_arg()`, `shift(k)` (Taylor shift p(x+k)),
+`shift_up(k)`, `shift_down(k)`, `truncate(n)`, `to_dense()`.
+
+**Root analysis** (floating-point): `cauchy_bound()`,
+`sign_variations()` (Descartes), `sturm_chain()`,
+`count_real_roots(a, b)`, `count_all_real_roots()`,
+`bisect_root(a, b)`, `newton_root(x0)`.
+
+**Type aliases**: `Polynomial` (`double`), `PolynomialF` (`float`),
+`PolynomialLD` (`long double`).
+
+```cpp
+using namespace Aleph;
+
+// Dense: 2 + 3x + x^2
+Polynomial p({2, 3, 1});
+
+// From roots: (x-1)(x-2)(x-3) = x^3 - 6x^2 + 11x - 6
+auto q = Polynomial::from_roots({1.0, 2.0, 3.0});
+
+std::cout << "p(5) = " << p(5.0) << "\n";            // 42
+std::cout << "p'(x) = " << p.derivative() << "\n";    // 2x + 3
+std::cout << "roots of q: " << q.count_all_real_roots() << "\n"; // 3
+
+double root = q.newton_root(0.5);                     // 1.0
+auto [quot, rem] = q.divmod(Polynomial({-1, 1}));     // divide by (x-1)
+std::cout << quot << "\n";                             // x^2 - 5x + 6
+```
+
+---
+
 <a id="readme-memory-management"></a>
 ## Memory Management
 
@@ -3776,6 +3839,8 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | `primality.H` | `miller_rabin()` | Deterministic 64-bit Miller-Rabin primality testing |
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
 | `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform for exact modular polynomial multiplication with reusable plans, Bluestein support for non-power-of-two sizes when the modulus allows it, AVX2/NEON runtime SIMD dispatch on the power-of-two butterfly path, batch transforms, Montgomery-based butterflies, parallel `ThreadPool` APIs, formal polynomial operators (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, multipoint evaluation, interpolation), exact big-integer multiplication over base-`B` digits, negacyclic convolution modulo `x^N + 1`, and three-prime CRT reconstruction into `__uint128_t` when the coefficient bound fits. See the [NTT Tutorial](docs/ntt-tutorial.en.md) |
+| `tpl_polynomial.H` | `Gen_Polynomial<C>`, `Polynomial` | Sparse univariate polynomial ring: arithmetic (+, -, *, /, %), calculus (derivative, integral), evaluation (adaptive Horner/sparse), composition, GCD/XGCD/LCM, square-free factorization, Sturm root counting, bisection/Newton root finding, polynomial interpolation (Newton divided differences). Contract notes: field-style division/GCD APIs assume coefficient division is meaningful; integer `factorize()` returns only factors proven by exact division and may leave conservative residual blocks unsplit. |
+| `tpl_multi_polynomial.H` | `Gen_MultiPolynomial<C, Order>` | Sparse multivariate polynomial ring: arithmetic, evaluation, partials/gradient/Hessian, interpolation on tensor grids, multivariate division, Gröbner bases, ideal operations, and integer factorization by specialization/lifting. Contract notes: `s_poly()`/Gröbner/ideal APIs require non-integral field-like coefficients; integer `factorize()` verifies every emitted factor exactly but may keep unresolved residual blocks when the specialization pipeline cannot split them further. |
 | `modular_combinatorics.H` | `ModularCombinatorics` | $nCk \pmod p$ with precomputed factorials and Lucas Theorem |
 | `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
 
@@ -3983,6 +4048,7 @@ cmake --build build
 | Gray code utilities | `gray_code_example.cc` | Binary to Gray conversion and sequence generation |
 | Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector`. Full tutorial: [FFT & DSP Tutorial](docs/fft-tutorial.en.md) |
 | Number Theoretic Transform | `ntt_example.cc` | Exact modular transforms, active SIMD backend reporting, reusable plans, Bluestein-based arbitrary supported sizes, three-prime CRT exact multiplication into `__uint128_t`, formal polynomial algebra, base-10 big integer multiplication, negacyclic convolution modulo `x^N + 1`, batch execution, and explicit parallel polynomial multiplication. Full tutorial: [NTT Tutorial](docs/ntt-tutorial.en.md) |
+| Polynomial arithmetic | `polynomial_example.cc` | Sparse polynomial algebra, calculus, root analysis (Sturm/bisection/Newton), Newton interpolation, transfer functions, and high-degree sparse operations |
 | Number theory toolbox | `math_nt_example.cc` | Safe mod multiplication, Miller-Rabin, Pollard's Rho, NTT, modular combinatorics and linalg |
 | Streaming algorithms | `streaming_demo.cc` | Reservoir Sampling, Count-Min Sketch, HyperLogLog, MinHash |
 | Lexicographic permutation/combination enumeration | `combinatorics_enumeration_example.cc` | Extended `next_permutation`, k-combinations by indices/bitmask, and materialized enumeration |
@@ -4204,6 +4270,40 @@ ctest --test-dir build --output-on-failure
 # Verbose output
 ctest --test-dir build -V
 ```
+
+### Polynomial Audit Workflow
+
+For `tpl_polynomial.H` and `tpl_multi_polynomial.H`, the repo now includes a
+reproducible benchmark and an optional external-reference probe:
+
+```bash
+# Build the audit helpers
+cmake --build build --target polynomial_benchmark polynomial_reference_probe
+
+# Fast internal validation + reproducible benchmark rows
+./build/Examples/polynomial_benchmark --validate
+./build/Examples/polynomial_benchmark \
+  --json --repetitions 512 --warmup 3 --samples 9 --sizes 64,256,1024 \
+  > polynomial-baseline.json
+
+# Compare a current run against the versioned release baseline
+ruby scripts/polynomial_perf_regression.rb \
+  --baseline scripts/fixtures/polynomial_benchmark_release_baseline.json \
+  --benchmark ./build/Examples/polynomial_benchmark \
+  --repetitions 512 --warmup 3 --samples 9 --sizes 64,256,1024
+
+# Optional differential check against SymPy (skips cleanly if SymPy is absent)
+ruby scripts/polynomial_reference_check.rb \
+  --probe ./build/Examples/polynomial_reference_probe
+```
+
+What these tools cover:
+
+- `polynomial_benchmark`: sparse univariate evaluation/multiplication/composition/division and multivariate multiplication/division/reduced Gröbner workloads with stable JSON output for regression tracking.
+- `scripts/fixtures/polynomial_benchmark_release_baseline.json`: the versioned release-profile snapshot used for reproducible local comparisons and CI artifact generation.
+- `polynomial_reference_probe` + `polynomial_reference_check.rb`: deterministic algebraic cases checked against SymPy for univariate arithmetic/composition/factorization, multivariate integer factorization, and a canonical reduced Gröbner basis case.
+- `PolynomialRelease.BenchmarkValidate`: a CTest smoke/validation hook when the benchmark target is available.
+- `PolynomialRelease.ReferenceCrossCheck`: a CTest hook that runs when Ruby, Python, and the probe target are available; if SymPy is missing the script exits successfully with a skip notice.
 
 ### Running with Sanitizers
 
