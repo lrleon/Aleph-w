@@ -474,9 +474,12 @@ public:
    */
   template <typename VisitedMap>
     requires SearchStateKeyProvider<Domain>
-         and VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
   [[nodiscard]] Result search(State initial_state, VisitedMap &visited_map)
   {
+    using State_Key = typename Domain::State_Key;
+    static_assert(VisitedBoundMap<VisitedMap, State_Key, Objective>,
+                  "Visited map must satisfy VisitedBoundMap concept");
+
     ContinueSearch on_solution;
     return search(std::move(initial_state), visited_map, on_solution);
   }
@@ -484,10 +487,13 @@ public:
   /** @brief Branch and bound with visited-bound map and solution callback. */
   template <typename VisitedMap, typename OnSolution>
     requires SearchStateKeyProvider<Domain>
-         and VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
          and SearchSolutionVisitor<OnSolution, Solution>
   [[nodiscard]] Result search(State initial_state, VisitedMap &visited_map, OnSolution &on_solution)
   {
+    using State_Key = typename Domain::State_Key;
+    static_assert(VisitedBoundMap<VisitedMap, State_Key, Objective>,
+                  "Visited map must satisfy VisitedBoundMap concept");
+
     ah_invalid_argument_if(limits_.max_solutions == 0)
       << "SearchLimits::max_solutions must be positive or Search_Unlimited";
     ah_invalid_argument_if(policy_.strategy != ExplorationPolicy::Strategy::Depth_First)
@@ -717,7 +723,7 @@ private:
 
   template <typename OnSolution, typename VisitedMap>
     requires SearchSolutionVisitor<OnSolution, Solution>
-         and VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
+         and SearchStateKeyProvider<Domain>
   [[nodiscard]] bool dfs_visited(State &state,
                                  SearchPath<Move> &path,
                                  const size_t depth,
@@ -725,6 +731,10 @@ private:
                                  OnSolution &on_solution,
                                  VisitedMap &visited)
   {
+    using State_Key = typename Domain::State_Key;
+    static_assert(VisitedBoundMap<VisitedMap, State_Key, Objective>,
+                  "Visited map must satisfy VisitedBoundMap concept");
+
     register_visit(depth, result);
 
     if (domain_.is_complete(state))

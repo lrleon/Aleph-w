@@ -175,7 +175,7 @@ template <typename Entry>
 struct Prefer_Deeper_Entry
 {
   /** @brief Returns true if candidate is deeper than current. */
-  bool operator()(const RankedMove<Entry, size_t> &candidate, const RankedMove<Entry, size_t> &current) const noexcept
+  bool operator()(const Entry &candidate, const Entry &current) const noexcept
   {
     return candidate.depth > current.depth;
   }
