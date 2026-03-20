@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-
 /** @file State_Search.H
  *  @brief Umbrella header for the implicit state-space search framework.
  *
@@ -56,8 +55,7 @@
 #include <Alpha_Beta.H>
 #include <State_Search_IDA_Star.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief User-facing facade exported by the umbrella search header.
  *
@@ -79,38 +77,36 @@ namespace Aleph
  *  Users who prefer narrower includes can still include the individual module
  *  headers directly and use the original names in namespace @ref Aleph.
  */
-namespace Search
-{
+namespace Search {
 
-inline constexpr size_t Unlimited = Search_Unlimited; ///< Alias for @ref Search_Unlimited.
+inline constexpr size_t Unlimited = Search_Unlimited;  ///< Alias for @ref Search_Unlimited.
 
-using Aleph::SearchStatus;
+using Aleph::ExplorationPolicy;
+using Aleph::MoveOrderingMode;
 using Aleph::SearchLimits;
-using Aleph::SearchStats;
+using Aleph::SearchPath;
 using Aleph::SearchResult;
 using Aleph::SearchSolution;
 using Aleph::SearchSolutionCollector;
-using Aleph::ExplorationPolicy;
-using Aleph::MoveOrderingMode;
-using Aleph::SearchPath;
+using Aleph::SearchStats;
+using Aleph::SearchStatus;
 using Aleph::SearchStorageMap;
 using Aleph::SearchStorageSet;
 
-using Aleph::SearchSolutionVisitor;
+using Aleph::AdversarialSearchResult;
+using Aleph::AdversarialTraceEventKind;
+using Aleph::AdversarialTranspositionTable;
+using Aleph::AspirationWindow;
 using Aleph::BestSolution;
-using Aleph::OptimizationSolution;
 using Aleph::Maximize_Objective;
 using Aleph::Minimize_Objective;
-using Aleph::AdversarialSearchResult;
-using Aleph::AdversarialTranspositionTable;
-using Aleph::AdversarialTraceEventKind;
-using Aleph::AspirationWindow;
+using Aleph::OptimizationSolution;
+using Aleph::SearchSolutionVisitor;
 
 template <typename Domain>
 using Backtracking = Depth_First_Backtracking<Domain>;
 
-template <typename Domain,
-          typename ObjectivePolicy = Maximize_Objective<typename Domain::Objective>>
+template <typename Domain, typename ObjectivePolicy = Maximize_Objective<typename Domain::Objective>>
 using BranchAndBound = Branch_And_Bound<Domain, ObjectivePolicy>;
 
 template <typename Domain>
@@ -137,21 +133,23 @@ using TraceCollector = AdversarialTraceCollector<Move, Score>;
 template <typename Solution>
 using Collector = SearchSolutionCollector<Solution>;
 
-template <typename StateKey, SearchMove Move, AdversarialScore Score,
+template <typename StateKey,
+          SearchMove Move,
+          AdversarialScore Score,
           template <typename, typename, class> class HashMapTable = MapOLhash,
           class Cmp = Aleph::equal_to<AdversarialTranspositionKey<StateKey>>>
 using GameTT = AdversarialTranspositionTable<StateKey, Move, Score, HashMapTable, Cmp>;
 
+using Aleph::alpha_beta_search;
 using Aleph::backtracking_search;
 using Aleph::branch_and_bound_search;
-using Aleph::negamax_search;
-using Aleph::alpha_beta_search;
 using Aleph::ida_star_search;
-using Aleph::iterative_deepening_negamax_search;
 using Aleph::iterative_deepening_alpha_beta_search;
+using Aleph::iterative_deepening_negamax_search;
+using Aleph::negamax_search;
 
-} // end namespace Search
+}  // end namespace Search
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // STATE_SEARCH_H
+#endif  // STATE_SEARCH_H

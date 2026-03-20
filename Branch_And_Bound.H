@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-
 /** @file Branch_And_Bound.H
  *  @brief Reusable branch-and-bound engine for implicit optimization spaces.
  *
@@ -56,14 +55,13 @@
 #include <Transposition_Table.H>
 #include <tpl_dynBinHeap.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Optimization direction supported by branch and bound. */
 enum class OptimizationSense
 {
-  Minimize, ///< Smaller objective values are better.
-  Maximize  ///< Larger objective values are better.
+  Minimize,  ///< Smaller objective values are better.
+  Maximize   ///< Larger objective values are better.
 };
 
 /** @brief Objective policy for maximization problems. */
@@ -73,17 +71,17 @@ struct Maximize_Objective
   using Value_Type = Value;
   static constexpr OptimizationSense sense = OptimizationSense::Maximize;
 
-  bool better(const Value &candidate, const Value &incumbent) const noexcept
+  static bool better(const Value &candidate, const Value &incumbent) noexcept
   {
     return candidate > incumbent;
   }
 
-  bool can_improve(const Value &bound, const Value &incumbent) const noexcept
+  static bool can_improve(const Value &bound, const Value &incumbent) noexcept
   {
     return bound > incumbent;
   }
 
-  bool more_promising(const Value &lhs, const Value &rhs) const noexcept
+  static bool more_promising(const Value &lhs, const Value &rhs) noexcept
   {
     return lhs > rhs;
   }
@@ -96,17 +94,17 @@ struct Minimize_Objective
   using Value_Type = Value;
   static constexpr OptimizationSense sense = OptimizationSense::Minimize;
 
-  bool better(const Value &candidate, const Value &incumbent) const noexcept
+  static bool better(const Value &candidate, const Value &incumbent) noexcept
   {
     return candidate < incumbent;
   }
 
-  bool can_improve(const Value &bound, const Value &incumbent) const noexcept
+  static bool can_improve(const Value &bound, const Value &incumbent) noexcept
   {
     return bound < incumbent;
   }
 
-  bool more_promising(const Value &lhs, const Value &rhs) const noexcept
+  static bool more_promising(const Value &lhs, const Value &rhs) noexcept
   {
     return lhs < rhs;
   }
@@ -114,13 +112,12 @@ struct Minimize_Objective
 
 /** @brief Concept for objective policies used by branch and bound. */
 template <typename Policy, typename Value>
-concept BranchAndBoundObjectivePolicy =
-  requires(const Policy &policy, const Value &a, const Value &b)
-  {
-    { policy.better(a, b) } -> std::convertible_to<bool>;
-    { policy.can_improve(a, b) } -> std::convertible_to<bool>;
-    { policy.more_promising(a, b) } -> std::convertible_to<bool>;
-  };
+concept BranchAndBoundObjectivePolicy
+  = requires(const Policy &policy, const Value &a, const Value &b) {
+      { policy.better(a, b) } -> std::convertible_to<bool>;
+      { policy.can_improve(a, b) } -> std::convertible_to<bool>;
+      { policy.more_promising(a, b) } -> std::convertible_to<bool>;
+    };
 
 /** @brief Snapshot of a complete optimization solution. */
 template <SearchState State, SearchMove Move, std::totally_ordered Objective>
@@ -128,7 +125,7 @@ struct OptimizationSolution : SearchSolution<State, Move>
 {
   using Objective_Type = Objective;
 
-  Objective objective_value = Objective{}; ///< Objective value of the complete solution.
+  Objective objective_value = Objective{};  ///< Objective value of the complete solution.
 };
 
 /** @brief Compare two optimization solutions by objective quality. */
@@ -156,8 +153,7 @@ public:
   ObjectiveIncumbent() = default;
 
   explicit ObjectiveIncumbent(ObjectivePolicy objective)
-    : objective_(std::move(objective)),
-      best_(Compare_Type{objective_})
+    : objective_(std::move(objective)), best_(Compare_Type{objective_})
   {
     // empty
   }
@@ -205,8 +201,8 @@ private:
 /** @brief Branch-and-bound specific statistics. */
 struct BranchAndBoundStats : SearchStats
 {
-  size_t pruned_by_bound = 0;  ///< Nodes pruned because their bound cannot beat the incumbent.
-  size_t incumbent_updates = 0; ///< Number of times the incumbent improved.
+  size_t pruned_by_bound = 0;    ///< Nodes pruned because their bound cannot beat the incumbent.
+  size_t incumbent_updates = 0;  ///< Number of times the incumbent improved.
 };
 
 /** @brief Result of a branch-and-bound execution. */
@@ -217,16 +213,15 @@ struct BranchAndBoundResult
   using Objective_Policy = ObjectivePolicy;
   using Incumbent_Type = ObjectiveIncumbent<Solution, ObjectivePolicy>;
 
-  SearchStatus status = SearchStatus::NotStarted; ///< Final execution status.
-  ExplorationPolicy policy; ///< Exploration policy used during the run.
-  SearchLimits limits;      ///< Hard limits used during the run.
-  BranchAndBoundStats stats; ///< Collected branch-and-bound statistics.
-  Incumbent_Type incumbent; ///< Global incumbent for the run.
+  SearchStatus status = SearchStatus::NotStarted;  ///< Final execution status.
+  ExplorationPolicy policy;                        ///< Exploration policy used during the run.
+  SearchLimits limits;                             ///< Hard limits used during the run.
+  BranchAndBoundStats stats;                       ///< Collected branch-and-bound statistics.
+  Incumbent_Type incumbent;                        ///< Global incumbent for the run.
 
   BranchAndBoundResult() = default;
 
-  explicit BranchAndBoundResult(ObjectivePolicy objective)
-    : incumbent(std::move(objective))
+  explicit BranchAndBoundResult(ObjectivePolicy objective) : incumbent(std::move(objective))
   {
     // empty
   }
@@ -254,43 +249,33 @@ struct BranchAndBoundResult
 
 /** @brief Concept for complete-solution predicates in optimization domains. */
 template <typename Domain>
-concept CompleteSolutionPredicate =
-  requires(Domain &domain, const typename Domain::State &state)
-  {
-    { domain.is_complete(state) } -> std::convertible_to<bool>;
-  };
+concept CompleteSolutionPredicate = requires(Domain &domain, const typename Domain::State &state) {
+  { domain.is_complete(state) } -> std::convertible_to<bool>;
+};
 
 /** @brief Concept for domains that provide an objective and an optimistic bound. */
 template <typename Domain>
-concept OptimizationEvaluator =
-  requires(Domain &domain, const typename Domain::State &state)
-  {
-    typename Domain::Objective;
-    { domain.objective_value(state) } -> std::convertible_to<typename Domain::Objective>;
-    { domain.bound(state) } -> std::convertible_to<typename Domain::Objective>;
-  };
+concept OptimizationEvaluator = requires(Domain &domain, const typename Domain::State &state) {
+  typename Domain::Objective;
+  { domain.objective_value(state) } -> std::convertible_to<typename Domain::Objective>;
+  { domain.bound(state) } -> std::convertible_to<typename Domain::Objective>;
+};
 
 /** @brief Minimal contract for branch-and-bound domains. */
 template <typename Domain>
-concept BranchAndBoundDomain =
-  SuccessorGenerator<Domain> and CompleteSolutionPredicate<Domain> and
-  OptimizationEvaluator<Domain> and
-  requires(Domain &domain,
-           typename Domain::State &state,
-           const typename Domain::Move &move)
-  {
-    requires SearchState<typename Domain::State>;
-    requires SearchMove<typename Domain::Move>;
-    { domain.apply(state, move) } -> std::same_as<void>;
-    { domain.undo(state, move) } -> std::same_as<void>;
-  };
+concept BranchAndBoundDomain
+  = SuccessorGenerator<Domain> and CompleteSolutionPredicate<Domain> and OptimizationEvaluator<Domain>
+and requires(Domain &domain, typename Domain::State &state, const typename Domain::Move &move) {
+      requires SearchState<typename Domain::State>;
+      requires SearchMove<typename Domain::Move>;
+      { domain.apply(state, move) } -> std::same_as<void>;
+      { domain.undo(state, move) } -> std::same_as<void>;
+    };
 
-namespace branch_and_bound_detail
-{
+namespace branch_and_bound_detail {
 
 template <typename Domain>
-[[nodiscard]] bool is_terminal_state(const Domain &domain,
-                                     const typename Domain::State &state)
+[[nodiscard]] bool is_terminal_state(const Domain &domain, const typename Domain::State &state)
 {
   if constexpr (TerminalPredicate<Domain>)
     return domain.is_terminal(state);
@@ -309,7 +294,7 @@ template <typename Domain>
     return false;
 }
 
-} // end namespace branch_and_bound_detail
+}  // end namespace branch_and_bound_detail
 
 /** @brief Reusable branch-and-bound engine over implicit state spaces. */
 template <BranchAndBoundDomain Domain,
@@ -368,10 +353,7 @@ public:
                             ExplorationPolicy policy = default_policy(),
                             SearchLimits limits = {},
                             ObjectivePolicy objective = {})
-    : domain_(std::move(domain)),
-      policy_(policy),
-      limits_(limits),
-      objective_(std::move(objective))
+    : domain_(std::move(domain)), policy_(policy), limits_(limits), objective_(std::move(objective))
   {
     // empty
   }
@@ -471,15 +453,15 @@ public:
    *  redundant sub-tree explorations when the same state is reachable via
    *  multiple paths.
    *
-   *  The domain must expose `state_key(state)` (see @ref SearchStateKeyProvider).
+   *  The domain must expose `state_key(state)` (see @ref Aleph::SearchStateKeyProvider).
    *
    *  @param[in] initial_state Mutable root state.
    *  @param[in,out] visited_map Caller-owned map from state key to best bound.
    *  @return Search result with statistics and best retained solution.
    */
   template <typename VisitedMap>
-    requires SearchStateKeyProvider<Domain> and
-             VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
+    requires SearchStateKeyProvider<Domain>
+         and VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
   [[nodiscard]] Result search(State initial_state, VisitedMap &visited_map)
   {
     ContinueSearch on_solution;
@@ -488,12 +470,10 @@ public:
 
   /** @brief Branch and bound with visited-bound map and solution callback. */
   template <typename VisitedMap, typename OnSolution>
-    requires SearchStateKeyProvider<Domain> and
-             VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective> and
-             SearchSolutionVisitor<OnSolution, Solution>
-  [[nodiscard]] Result search(State initial_state,
-                              VisitedMap &visited_map,
-                              OnSolution &on_solution)
+    requires SearchStateKeyProvider<Domain>
+         and VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
+         and SearchSolutionVisitor<OnSolution, Solution>
+  [[nodiscard]] Result search(State initial_state, VisitedMap &visited_map, OnSolution &on_solution)
   {
     ah_invalid_argument_if(limits_.max_solutions == 0)
       << "SearchLimits::max_solutions must be positive or Search_Unlimited";
@@ -547,8 +527,8 @@ private:
         return true;
       }
 
-    if (limits_.max_solutions != Search_Unlimited and
-        result.stats.solutions_found >= limits_.max_solutions)
+    if (limits_.max_solutions != Search_Unlimited
+        and result.stats.solutions_found >= limits_.max_solutions)
       {
         ++result.stats.limit_hits;
         result.status = SearchStatus::LimitReached;
@@ -577,27 +557,24 @@ private:
       result.stats.max_depth_reached = depth;
   }
 
-  [[nodiscard]] Array<RankedMove<Move, Objective>>
-  collect_ordered_moves(State &state,
-                        Result &result)
+  [[nodiscard]] Array<RankedMove<Move, Objective>> collect_ordered_moves(State &state, Result &result)
   {
     Array<RankedMove<Move, Objective>> moves;
     size_t ordinal = 0;
 
-    (void) domain_.for_each_successor(
-      state,
-      [&](const Move &move) -> bool
-      {
-        RankedMove<Move, Objective> ranked;
-        ranked.move = move;
-        ranked.ordinal = ordinal++;
-        domain_.apply(state, move);
-        ranked.priority = domain_.bound(state);
-        domain_.undo(state, move);
-        ++result.stats.move_ordering.priority_estimates;
-        moves.append(std::move(ranked));
-        return true;
-      });
+    (void) domain_.for_each_successor(state,
+                                      [&](const Move &move) -> bool
+    {
+      RankedMove<Move, Objective> ranked;
+      ranked.move = move;
+      ranked.ordinal = ordinal++;
+      domain_.apply(state, move);
+      ranked.priority = domain_.bound(state);
+      domain_.undo(state, move);
+      ++result.stats.move_ordering.priority_estimates;
+      moves.append(std::move(ranked));
+      return true;
+    });
 
     if (not moves.is_empty())
       {
@@ -605,14 +582,13 @@ private:
         result.stats.move_ordering.ordered_moves += moves.size();
       }
 
-    sort_ranked_moves(
-      moves,
-      [this](const Objective &lhs, const Objective &rhs) noexcept
-      {
-        return objective_.more_promising(lhs, rhs);
-      },
-      false,
-      false);
+    sort_ranked_moves(moves,
+                      [this](const Objective &lhs, const Objective &rhs) noexcept
+    {
+      return objective_.more_promising(lhs, rhs);
+    },
+                      false,
+                      false);
 
     return moves;
   }
@@ -702,29 +678,24 @@ private:
 
     if (ordering_active_for_depth_first())
       {
-        auto ordered_moves = collect_ordered_moves(state, result);
-        for (const auto &ranked : ordered_moves)
+        for (auto ordered_moves = collect_ordered_moves(state, result);
+             const auto &ranked : ordered_moves)
           if (not explore_move(ranked.move))
             break;
       }
     else
+      (void) domain_.for_each_successor(state,
+                                        [&](const Move &move) -> bool
       {
-        (void) domain_.for_each_successor(
-          state,
-          [&](const Move &move) -> bool
-          {
-            return explore_move(move);
-          });
-      }
+        return explore_move(move);
+      });
 
     return stop;
   }
 
   template <typename OnSolution>
     requires SearchSolutionVisitor<OnSolution, Solution>
-  void search_depth_first(State &initial_state,
-                          Result &result,
-                          OnSolution &on_solution)
+  void search_depth_first(State &initial_state, Result &result, OnSolution &on_solution)
   {
     SearchPath<Move> path;
     reserve_search_path(path, limits_);
@@ -732,14 +703,14 @@ private:
   }
 
   template <typename OnSolution, typename VisitedMap>
-    requires SearchSolutionVisitor<OnSolution, Solution> and
-             VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
+    requires SearchSolutionVisitor<OnSolution, Solution>
+         and VisitedBoundMap<VisitedMap, typename Domain::State_Key, Objective>
   [[nodiscard]] bool dfs_visited(State &state,
-                                  SearchPath<Move> &path,
-                                  const size_t depth,
-                                  Result &result,
-                                  OnSolution &on_solution,
-                                  VisitedMap &visited)
+                                 SearchPath<Move> &path,
+                                 const size_t depth,
+                                 Result &result,
+                                 OnSolution &on_solution,
+                                 VisitedMap &visited)
   {
     register_visit(depth, result);
 
@@ -806,20 +777,17 @@ private:
 
     if (ordering_active_for_depth_first())
       {
-        auto ordered_moves = collect_ordered_moves(state, result);
-        for (const auto &ranked : ordered_moves)
+        for (auto ordered_moves = collect_ordered_moves(state, result);
+             const auto &ranked : ordered_moves)
           if (not explore_move(ranked.move))
             break;
       }
     else
+      (void) domain_.for_each_successor(state,
+                                        [&](const Move &move) -> bool
       {
-        (void) domain_.for_each_successor(
-          state,
-          [&](const Move &move) -> bool
-          {
-            return explore_move(move);
-          });
-      }
+        return explore_move(move);
+      });
 
     return stop;
   }
@@ -869,21 +837,19 @@ private:
 
   template <typename OnSolution>
     requires SearchSolutionVisitor<OnSolution, Solution>
-  void search_best_first(State initial_state,
-                         Result &result,
-                         OnSolution &on_solution)
+  void search_best_first(State initial_state, Result &result, OnSolution &on_solution)
   {
     Frontier frontier(FrontierCompare{objective_});
     SearchPath<Move> root_path;
     reserve_search_path(root_path, limits_);
-    if (process_best_first_candidate(std::move(initial_state), std::move(root_path),
-                                     0, result, frontier, on_solution))
+    if (process_best_first_candidate(
+          std::move(initial_state), std::move(root_path), 0, result, frontier, on_solution))
       return;
 
     while (not frontier.is_empty())
       {
-        if (result.incumbent.has_value() and
-            not result.incumbent.can_improve(frontier.top().bound_value))
+        if (result.incumbent.has_value()
+            and not result.incumbent.can_improve(frontier.top().bound_value))
           {
             result.stats.pruned_by_bound += frontier.size();
             frontier.empty();
@@ -897,24 +863,23 @@ private:
         ++result.stats.expanded_states;
 
         bool stop = false;
-        (void) domain_.for_each_successor(
-          node.state,
-          [&](const Move &move) -> bool
-          {
-            ++result.stats.generated_successors;
-            State child_state = node.state;
-            SearchPath<Move> child_path = node.path;
-            child_path.reserve(node.path.size() + 1);
-            child_path.append(move);
-            domain_.apply(child_state, move);
-            stop = process_best_first_candidate(std::move(child_state),
-                                                std::move(child_path),
-                                                node.depth + 1,
-                                                result,
-                                                frontier,
-                                                on_solution);
-            return not stop;
-          });
+        (void) domain_.for_each_successor(node.state,
+                                          [&](const Move &move) -> bool
+        {
+          ++result.stats.generated_successors;
+          State child_state = node.state;
+          SearchPath<Move> child_path = node.path;
+          child_path.reserve(node.path.size() + 1);
+          child_path.append(move);
+          domain_.apply(child_state, move);
+          stop = process_best_first_candidate(std::move(child_state),
+                                              std::move(child_path),
+                                              node.depth + 1,
+                                              result,
+                                              frontier,
+                                              on_solution);
+          return not stop;
+        });
 
         if (stop)
           return;
@@ -926,11 +891,12 @@ private:
 template <BranchAndBoundDomain Domain,
           typename ObjectivePolicy = Maximize_Objective<typename Domain::Objective>>
   requires BranchAndBoundObjectivePolicy<ObjectivePolicy, typename Domain::Objective>
-[[nodiscard]] auto branch_and_bound_search(Domain domain,
-                                           typename Domain::State initial_state,
-                                           ExplorationPolicy policy = Branch_And_Bound<Domain, ObjectivePolicy>::default_policy(),
-                                           SearchLimits limits = {},
-                                           ObjectivePolicy objective = {})
+[[nodiscard]] auto branch_and_bound_search(
+  Domain domain,
+  typename Domain::State initial_state,
+  ExplorationPolicy policy = Branch_And_Bound<Domain, ObjectivePolicy>::default_policy(),
+  SearchLimits limits = {},
+  ObjectivePolicy objective = {})
 {
   Branch_And_Bound<Domain, ObjectivePolicy> engine(std::move(domain),
                                                    policy,
@@ -943,17 +909,17 @@ template <BranchAndBoundDomain Domain,
 template <BranchAndBoundDomain Domain,
           typename OnSolution,
           typename ObjectivePolicy = Maximize_Objective<typename Domain::Objective>>
-  requires BranchAndBoundObjectivePolicy<ObjectivePolicy, typename Domain::Objective> and
-           SearchSolutionVisitor<OnSolution,
-                                 OptimizationSolution<typename Domain::State,
-                                                      typename Domain::Move,
-                                                      typename Domain::Objective>>
-[[nodiscard]] auto branch_and_bound_search(Domain domain,
-                                           typename Domain::State initial_state,
-                                           OnSolution &on_solution,
-                                           ExplorationPolicy policy = Branch_And_Bound<Domain, ObjectivePolicy>::default_policy(),
-                                           SearchLimits limits = {},
-                                           ObjectivePolicy objective = {})
+  requires BranchAndBoundObjectivePolicy<ObjectivePolicy, typename Domain::Objective>
+       and SearchSolutionVisitor<
+             OnSolution,
+             OptimizationSolution<typename Domain::State, typename Domain::Move, typename Domain::Objective>>
+[[nodiscard]] auto branch_and_bound_search(
+  Domain domain,
+  typename Domain::State initial_state,
+  OnSolution &on_solution,
+  ExplorationPolicy policy = Branch_And_Bound<Domain, ObjectivePolicy>::default_policy(),
+  SearchLimits limits = {},
+  ObjectivePolicy objective = {})
 {
   Branch_And_Bound<Domain, ObjectivePolicy> engine(std::move(domain),
                                                    policy,
@@ -962,6 +928,6 @@ template <BranchAndBoundDomain Domain,
   return engine.search(std::move(initial_state), on_solution);
 }
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // BRANCH_AND_BOUND_H
+#endif  // BRANCH_AND_BOUND_H

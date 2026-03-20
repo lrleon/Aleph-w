@@ -28,13 +28,12 @@
   SOFTWARE.
 */
 
-
 /** @file Alpha_Beta.H
  *  @brief Alpha-Beta pruning over the adversarial-search contract.
  *
  *  This module keeps the same game adapter required by @ref Negamax.H but adds
  *  Alpha-Beta cutoffs on top of the same depth-first recurrence and result
- *  vocabulary. Through @ref ExplorationPolicy it also supports opt-in move
+ *  vocabulary. Through @ref Aleph::ExplorationPolicy it also supports opt-in move
  *  ordering by shallow score estimate plus lightweight killer/history hooks.
  *
  *  @author Leandro Rabindranath León
@@ -48,8 +47,7 @@
 #include <ah-errors.H>
 #include <Negamax.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Negamax with Alpha-Beta pruning.
  *
@@ -84,9 +82,7 @@ public:
   explicit Alpha_Beta(Domain domain,
                       ExplorationPolicy policy = default_policy(),
                       SearchLimits limits = {})
-    : domain_(std::move(domain)),
-      policy_(policy),
-      limits_(limits)
+    : domain_(std::move(domain)), policy_(policy), limits_(limits)
   {
     // empty
   }
@@ -140,8 +136,7 @@ public:
     requires AdversarialSearchTracer<Tracer, Move, Score>
   [[nodiscard]] Result search(State initial_state, Tracer &tracer)
   {
-    adversarial_search_detail::Null_Transposition_Table<
-      AdversarialTranspositionEntry<Move, Score>> table;
+    adversarial_search_detail::Null_Transposition_Table<AdversarialTranspositionEntry<Move, Score>> table;
     adversarial_search_detail::Dummy_State_Key keyer;
     return search_impl(std::move(initial_state),
                        table,
@@ -152,9 +147,7 @@ public:
   }
 
   /** @brief Execute Alpha-Beta with an explicit root window. */
-  [[nodiscard]] Result search_with_window(State initial_state,
-                                          const Score alpha,
-                                          const Score beta)
+  [[nodiscard]] Result search_with_window(State initial_state, const Score alpha, const Score beta)
   {
     Null_Adversarial_Search_Tracer tracer;
     return search_with_window(std::move(initial_state), alpha, beta, tracer);
@@ -168,8 +161,7 @@ public:
                                           const Score beta,
                                           Tracer &tracer)
   {
-    adversarial_search_detail::Null_Transposition_Table<
-      AdversarialTranspositionEntry<Move, Score>> table;
+    adversarial_search_detail::Null_Transposition_Table<AdversarialTranspositionEntry<Move, Score>> table;
     adversarial_search_detail::Dummy_State_Key keyer;
     return search_impl(std::move(initial_state), table, keyer, tracer, alpha, beta);
   }
@@ -185,8 +177,8 @@ public:
 
   /** @brief Execute Alpha-Beta with TT/keyer and tracing. */
   template <typename Table, typename Keyer, typename Tracer>
-    requires AdversarialSearchKeyer<Table, Keyer, State, Move, Score> and
-             AdversarialSearchTracer<Tracer, Move, Score>
+    requires AdversarialSearchKeyer<Table, Keyer, State, Move, Score>
+         and AdversarialSearchTracer<Tracer, Move, Score>
   [[nodiscard]] Result search(State initial_state, Table &table, Keyer keyer, Tracer &tracer)
   {
     return search_impl(std::move(initial_state),
@@ -200,11 +192,8 @@ public:
   /** @brief Execute Alpha-Beta with TT/keyer and an explicit root window. */
   template <typename Table, typename Keyer>
     requires AdversarialSearchKeyer<Table, Keyer, State, Move, Score>
-  [[nodiscard]] Result search_with_window(State initial_state,
-                                          Table &table,
-                                          Keyer keyer,
-                                          const Score alpha,
-                                          const Score beta)
+  [[nodiscard]] Result search_with_window(
+    State initial_state, Table &table, Keyer keyer, const Score alpha, const Score beta)
   {
     Null_Adversarial_Search_Tracer tracer;
     return search_with_window(std::move(initial_state), table, keyer, alpha, beta, tracer);
@@ -212,8 +201,8 @@ public:
 
   /** @brief Execute Alpha-Beta with TT/keyer, root window and tracing. */
   template <typename Table, typename Keyer, typename Tracer>
-    requires AdversarialSearchKeyer<Table, Keyer, State, Move, Score> and
-             AdversarialSearchTracer<Tracer, Move, Score>
+    requires AdversarialSearchKeyer<Table, Keyer, State, Move, Score>
+         and AdversarialSearchTracer<Tracer, Move, Score>
   [[nodiscard]] Result search_with_window(State initial_state,
                                           Table &table,
                                           Keyer keyer,
@@ -226,15 +215,15 @@ public:
 
   /** @brief Execute Alpha-Beta with a transposition table using `domain().state_key()`. */
   template <typename Table>
-    requires SearchStateKeyProvider<Domain> and
-             AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+    requires SearchStateKeyProvider<Domain>
+         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
   [[nodiscard]] Result search(State initial_state, Table &table)
   {
     Null_Adversarial_Search_Tracer tracer;
     auto keyer = [this](const State &state)
-      {
-        return domain_.state_key(state);
-      };
+    {
+      return domain_.state_key(state);
+    };
 
     return search_impl(std::move(initial_state),
                        table,
@@ -246,15 +235,15 @@ public:
 
   /** @brief Execute Alpha-Beta with domain-provided key and tracing. */
   template <typename Table, typename Tracer>
-    requires SearchStateKeyProvider<Domain> and
-             AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score> and
-             AdversarialSearchTracer<Tracer, Move, Score>
+    requires SearchStateKeyProvider<Domain>
+         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+         and AdversarialSearchTracer<Tracer, Move, Score>
   [[nodiscard]] Result search(State initial_state, Table &table, Tracer &tracer)
   {
     auto keyer = [this](const State &state)
-      {
-        return domain_.state_key(state);
-      };
+    {
+      return domain_.state_key(state);
+    };
 
     return search_impl(std::move(initial_state),
                        table,
@@ -266,8 +255,8 @@ public:
 
   /** @brief Execute Alpha-Beta with domain-provided key and explicit root window. */
   template <typename Table>
-    requires SearchStateKeyProvider<Domain> and
-             AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+    requires SearchStateKeyProvider<Domain>
+         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
   [[nodiscard]] Result search_with_window(State initial_state,
                                           Table &table,
                                           const Score alpha,
@@ -275,28 +264,25 @@ public:
   {
     Null_Adversarial_Search_Tracer tracer;
     auto keyer = [this](const State &state)
-      {
-        return domain_.state_key(state);
-      };
+    {
+      return domain_.state_key(state);
+    };
 
     return search_impl(std::move(initial_state), table, keyer, tracer, alpha, beta);
   }
 
   /** @brief Execute Alpha-Beta with domain-provided key, root window and tracing. */
   template <typename Table, typename Tracer>
-    requires SearchStateKeyProvider<Domain> and
-             AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score> and
-             AdversarialSearchTracer<Tracer, Move, Score>
-  [[nodiscard]] Result search_with_window(State initial_state,
-                                          Table &table,
-                                          const Score alpha,
-                                          const Score beta,
-                                          Tracer &tracer)
+    requires SearchStateKeyProvider<Domain>
+         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+         and AdversarialSearchTracer<Tracer, Move, Score>
+  [[nodiscard]] Result search_with_window(
+    State initial_state, Table &table, const Score alpha, const Score beta, Tracer &tracer)
   {
     auto keyer = [this](const State &state)
-      {
-        return domain_.state_key(state);
-      };
+    {
+      return domain_.state_key(state);
+    };
 
     return search_impl(std::move(initial_state), table, keyer, tracer, alpha, beta);
   }
@@ -311,9 +297,8 @@ private:
 
   [[nodiscard]] bool ordering_active() const noexcept
   {
-    return policy_.move_ordering != MoveOrderingMode::Domain or
-           policy_.use_killer_moves or
-           policy_.use_history_heuristic;
+    return policy_.move_ordering != MoveOrderingMode::Domain or policy_.use_killer_moves
+        or policy_.use_history_heuristic;
   }
 
   void validate_ordering_configuration() const
@@ -336,11 +321,10 @@ private:
     history_moves_.clear();
   }
 
-  [[nodiscard]] static size_t history_bonus(const size_t depth,
-                                            const size_t remaining) noexcept
+  [[nodiscard]] static size_t history_bonus(const size_t depth, const size_t remaining) noexcept
   {
     const size_t base = remaining == Search_Unlimited ? depth + 1 : remaining + 1;
-    return base*base;
+    return base * base;
   }
 
   [[nodiscard]] size_t move_history_score(const Move &move) const noexcept
@@ -352,9 +336,7 @@ private:
     return 0;
   }
 
-  void record_cutoff_move(const size_t depth,
-                          const size_t remaining,
-                          const Move &move)
+  void record_cutoff_move(const size_t depth, const size_t remaining, const Move &move)
   {
     if (policy_.use_killer_moves)
       killer_moves_.record(depth, move);
@@ -364,48 +346,46 @@ private:
         history_moves_.record(domain_.move_key(move), history_bonus(depth, remaining));
   }
 
-  [[nodiscard]] Array<RankedMove<Move, Score>>
-  collect_ordered_moves(State &state,
-                        const size_t depth,
-                        Result &result)
+  [[nodiscard]] Array<RankedMove<Move, Score>> collect_ordered_moves(State &state,
+                                                                     const size_t depth,
+                                                                     Result &result)
   {
     Array<RankedMove<Move, Score>> moves;
     size_t ordinal = 0;
 
-    (void) domain_.for_each_successor(
-      state,
-      [&](const Move &move) -> bool
-      {
-        RankedMove<Move, Score> ranked;
-        ranked.move = move;
-        ranked.ordinal = ordinal++;
+    (void) domain_.for_each_successor(state,
+                                      [&](const Move &move) -> bool
+    {
+      RankedMove<Move, Score> ranked;
+      ranked.move = move;
+      ranked.ordinal = ordinal++;
 
-        if (policy_.use_killer_moves)
-          {
-            ranked.killer = killer_moves_.is_killer(depth, move);
-            if (ranked.killer)
-              ++result.stats.move_ordering.killer_hits;
-          }
+      if (policy_.use_killer_moves)
+        {
+          ranked.killer = killer_moves_.is_killer(depth, move);
+          if (ranked.killer)
+            ++result.stats.move_ordering.killer_hits;
+        }
 
-        if (policy_.use_history_heuristic)
-          {
-            ranked.history_score = move_history_score(move);
-            if (ranked.history_score > 0)
-              ++result.stats.move_ordering.history_hits;
-          }
+      if (policy_.use_history_heuristic)
+        {
+          ranked.history_score = move_history_score(move);
+          if (ranked.history_score > 0)
+            ++result.stats.move_ordering.history_hits;
+        }
 
-        if (policy_.move_ordering == MoveOrderingMode::Estimated_Score)
-          {
-            domain_.apply(state, move);
-            ranked.priority = -domain_.evaluate(state);
-            domain_.undo(state, move);
-            ++result.stats.heuristic_evaluations;
-            ++result.stats.move_ordering.priority_estimates;
-          }
+      if (policy_.move_ordering == MoveOrderingMode::Estimated_Score)
+        {
+          domain_.apply(state, move);
+          ranked.priority = -domain_.evaluate(state);
+          domain_.undo(state, move);
+          ++result.stats.heuristic_evaluations;
+          ++result.stats.move_ordering.priority_estimates;
+        }
 
-        moves.append(std::move(ranked));
-        return true;
-      });
+      moves.append(std::move(ranked));
+      return true;
+    });
 
     if (not moves.is_empty())
       {
@@ -413,14 +393,13 @@ private:
         result.stats.move_ordering.ordered_moves += moves.size();
       }
 
-    sort_ranked_moves(
-      moves,
-      [](const Score &lhs, const Score &rhs) noexcept
-      {
-        return lhs > rhs;
-      },
-      policy_.use_killer_moves,
-      policy_.use_history_heuristic);
+    sort_ranked_moves(moves,
+                      [](const Score &lhs, const Score &rhs) noexcept
+    {
+      return lhs > rhs;
+    },
+                      policy_.use_killer_moves,
+                      policy_.use_history_heuristic);
 
     return moves;
   }
@@ -438,8 +417,7 @@ private:
       << "Alpha_Beta only supports depth-first exploration";
     ah_invalid_argument_if(limits_.max_solutions == 0)
       << "SearchLimits::max_solutions must be positive or Search_Unlimited";
-    ah_invalid_argument_if(not (alpha < beta))
-      << "Alpha_Beta root window requires alpha < beta";
+    ah_invalid_argument_if(not(alpha < beta)) << "Alpha_Beta root window requires alpha < beta";
     validate_ordering_configuration();
 
     Result result;
@@ -449,14 +427,7 @@ private:
 
     stop_ = false;
     clear_ordering_heuristics();
-    auto root = search_node(initial_state,
-                            0,
-                            result,
-                            table,
-                            keyer,
-                            tracer,
-                            alpha,
-                            beta);
+    auto root = search_node(initial_state, 0, result, table, keyer, tracer, alpha, beta);
     result.value = root.value;
     result.principal_variation = std::move(root.principal_variation);
 
@@ -499,8 +470,7 @@ private:
         entry.bound = bound;
         entry.principal_variation = value.principal_variation;
 
-        const auto status = table.store(typename Table::Key_Type{keyer(state), remaining},
-                                        entry);
+        const auto status = table.store(typename Table::Key_Type{keyer(state), remaining}, entry);
         if (status != TranspositionStoreStatus::Rejected)
           ++result.stats.transpositions.stores;
         if (status == TranspositionStoreStatus::Replaced)
@@ -563,43 +533,33 @@ private:
 
   template <typename Table, typename Keyer, typename Tracer>
     requires AdversarialSearchTracer<Tracer, Move, Score>
-  [[nodiscard]] adversarial_search_detail::NodeEvaluation<Move, Score>
-  search_node(State &state,
-              const size_t depth,
-              Result &result,
-              Table &table,
-              Keyer &keyer,
-              Tracer &tracer,
-              const Score alpha,
-              const Score beta)
+  [[nodiscard]] adversarial_search_detail::NodeEvaluation<Move, Score> search_node(State &state,
+                                                                                   const size_t depth,
+                                                                                   Result &result,
+                                                                                   Table &table,
+                                                                                   Keyer &keyer,
+                                                                                   Tracer &tracer,
+                                                                                   const Score alpha,
+                                                                                   const Score beta)
   {
     using adversarial_search_detail::emit_trace;
     using adversarial_search_detail::evaluate_leaf;
     using adversarial_search_detail::first_move_of;
     using adversarial_search_detail::prepend_move;
-    using adversarial_search_detail::remaining_depth;
     using adversarial_search_detail::register_visit;
+    using adversarial_search_detail::remaining_depth;
 
     register_visit(depth, result);
 
     const size_t remaining = remaining_depth(limits_, depth);
-    emit_trace<Move, Score>(tracer,
-                            AdversarialTraceEventKind::Enter_Node,
-                            depth,
-                            remaining,
-                            0,
-                            0,
-                            0,
-                            Score{},
-                            alpha,
-                            beta);
+    emit_trace<Move, Score>(
+      tracer, AdversarialTraceEventKind::Enter_Node, depth, remaining, 0, 0, 0, Score{}, alpha, beta);
     Score local_alpha = alpha;
     Score local_beta = beta;
     const Score alpha_orig = alpha;
     const Score beta_orig = beta;
     adversarial_search_detail::NodeEvaluation<Move, Score> cached;
-    if (probe_transposition(state, remaining, result, table, keyer,
-                            local_alpha, local_beta, cached))
+    if (probe_transposition(state, remaining, result, table, keyer, local_alpha, local_beta, cached))
       {
         emit_trace<Move, Score>(tracer,
                                 AdversarialTraceEventKind::Transposition_Hit,
@@ -629,8 +589,7 @@ private:
                                 leaf.value,
                                 local_alpha,
                                 local_beta);
-        store_transposition(state, remaining, result, table, keyer,
-                            leaf, TranspositionBound::Exact);
+        store_transposition(state, remaining, result, table, keyer, leaf, TranspositionBound::Exact);
         return leaf;
       }
 
@@ -648,8 +607,7 @@ private:
                                 leaf.value,
                                 local_alpha,
                                 local_beta);
-        store_transposition(state, remaining, result, table, keyer,
-                            leaf, TranspositionBound::Exact);
+        store_transposition(state, remaining, result, table, keyer, leaf, TranspositionBound::Exact);
         return leaf;
       }
 
@@ -667,8 +625,7 @@ private:
                                 leaf.value,
                                 local_alpha,
                                 local_beta);
-        store_transposition(state, remaining, result, table, keyer,
-                            leaf, TranspositionBound::Exact);
+        store_transposition(state, remaining, result, table, keyer, leaf, TranspositionBound::Exact);
         return leaf;
       }
 
@@ -707,8 +664,8 @@ private:
       has_move = true;
       ++result.stats.generated_successors;
       domain_.apply(state, move);
-      auto child = search_node(state, depth + 1, result, table, keyer, tracer,
-                               -local_beta, -local_alpha);
+      auto child
+        = search_node(state, depth + 1, result, table, keyer, tracer, -local_beta, -local_alpha);
       domain_.undo(state, move);
 
       const Score candidate = -child.value;
@@ -745,20 +702,17 @@ private:
 
     if (ordering_active())
       {
-        auto ordered_moves = collect_ordered_moves(state, depth, result);
-        for (const auto &ranked : ordered_moves)
+        for (auto ordered_moves = collect_ordered_moves(state, depth, result);
+             const auto &ranked : ordered_moves)
           if (not explore_move(ranked.move))
             break;
       }
     else
+      (void) domain_.for_each_successor(state,
+                                        [&](const Move &move) -> bool
       {
-        (void) domain_.for_each_successor(
-          state,
-          [&](const Move &move) -> bool
-          {
-            return explore_move(move);
-          });
-      }
+        return explore_move(move);
+      });
 
     if (not has_move)
       {
@@ -774,12 +728,11 @@ private:
                                 leaf.value,
                                 local_alpha,
                                 local_beta);
-        store_transposition(state, remaining, result, table, keyer,
-                            leaf, TranspositionBound::Exact);
+        store_transposition(state, remaining, result, table, keyer, leaf, TranspositionBound::Exact);
         return leaf;
       }
 
-    TranspositionBound bound = TranspositionBound::Exact;
+    auto bound = TranspositionBound::Exact;
     if (best.value <= alpha_orig)
       bound = TranspositionBound::Upper_Bound;
     else if (best.value >= beta_orig)
@@ -814,11 +767,8 @@ template <AdversarialGameDomain Domain>
 }
 
 /** @brief Convenience wrapper for one-shot Alpha-Beta search with tracing. */
-template <AdversarialGameDomain Domain,
-          typename Tracer>
-  requires AdversarialSearchTracer<Tracer,
-                                   typename Domain::Move,
-                                   typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Tracer>
+  requires AdversarialSearchTracer<Tracer, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto alpha_beta_search(Domain domain,
                                      typename Domain::State initial_state,
                                      Tracer &tracer,
@@ -830,14 +780,8 @@ template <AdversarialGameDomain Domain,
 }
 
 /** @brief Convenience wrapper for Alpha-Beta search with transposition table. */
-template <AdversarialGameDomain Domain,
-          typename Table,
-          typename Keyer>
-  requires AdversarialSearchKeyer<Table,
-                                  Keyer,
-                                  typename Domain::State,
-                                  typename Domain::Move,
-                                  typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Table, typename Keyer>
+  requires AdversarialSearchKeyer<Table, Keyer, typename Domain::State, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto alpha_beta_search(Domain domain,
                                      typename Domain::State initial_state,
                                      Table &table,
@@ -850,18 +794,9 @@ template <AdversarialGameDomain Domain,
 }
 
 /** @brief Convenience wrapper for Alpha-Beta search with TT/keyer and tracing. */
-template <AdversarialGameDomain Domain,
-          typename Table,
-          typename Keyer,
-          typename Tracer>
-  requires AdversarialSearchKeyer<Table,
-                                  Keyer,
-                                  typename Domain::State,
-                                  typename Domain::Move,
-                                  typename Domain::Score> and
-           AdversarialSearchTracer<Tracer,
-                                   typename Domain::Move,
-                                   typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename Tracer>
+  requires AdversarialSearchKeyer<Table, Keyer, typename Domain::State, typename Domain::Move, typename Domain::Score>
+       and AdversarialSearchTracer<Tracer, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto alpha_beta_search(Domain domain,
                                      typename Domain::State initial_state,
                                      Table &table,
@@ -875,13 +810,9 @@ template <AdversarialGameDomain Domain,
 }
 
 /** @brief Convenience wrapper for Alpha-Beta search with domain-provided state key. */
-template <AdversarialGameDomain Domain,
-          typename Table>
-  requires SearchStateKeyProvider<Domain> and
-           AdversarialTranspositionMemo<Table,
-                                        typename Domain::State_Key,
-                                        typename Domain::Move,
-                                        typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Table>
+  requires SearchStateKeyProvider<Domain>
+       and AdversarialTranspositionMemo<Table, typename Domain::State_Key, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto alpha_beta_search(Domain domain,
                                      typename Domain::State initial_state,
                                      Table &table,
@@ -893,17 +824,10 @@ template <AdversarialGameDomain Domain,
 }
 
 /** @brief Convenience wrapper for Alpha-Beta search with domain-provided key and tracing. */
-template <AdversarialGameDomain Domain,
-          typename Table,
-          typename Tracer>
-  requires SearchStateKeyProvider<Domain> and
-           AdversarialTranspositionMemo<Table,
-                                        typename Domain::State_Key,
-                                        typename Domain::Move,
-                                        typename Domain::Score> and
-           AdversarialSearchTracer<Tracer,
-                                   typename Domain::Move,
-                                   typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Table, typename Tracer>
+  requires SearchStateKeyProvider<Domain>
+       and AdversarialTranspositionMemo<Table, typename Domain::State_Key, typename Domain::Move, typename Domain::Score>
+       and AdversarialSearchTracer<Tracer, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto alpha_beta_search(Domain domain,
                                      typename Domain::State initial_state,
                                      Table &table,
@@ -916,11 +840,8 @@ template <AdversarialGameDomain Domain,
 }
 
 /** @brief Iterative deepening over Alpha-Beta with optional aspiration windows. */
-template <AdversarialGameDomain Domain,
-          typename Tracer>
-  requires AdversarialSearchTracer<Tracer,
-                                   typename Domain::Move,
-                                   typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Tracer>
+  requires AdversarialSearchTracer<Tracer, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto iterative_deepening_alpha_beta_search(
   Domain domain,
   typename Domain::State initial_state,
@@ -948,7 +869,7 @@ template <AdversarialGameDomain Domain,
   AdversarialIterativeDeepeningResult<Move, Score> out;
   out.result.policy = policy;
   out.result.limits = limits;
-  out.iterations.reserve((limits.max_depth - options.initial_depth)/options.depth_step + 1);
+  out.iterations.reserve((limits.max_depth - options.initial_depth) / options.depth_step + 1);
 
   const Score full_alpha = adversarial_search_detail::score_floor<Score>();
   const Score full_beta = adversarial_search_detail::score_ceiling<Score>();
@@ -957,12 +878,8 @@ template <AdversarialGameDomain Domain,
   size_t iteration_index = 0;
   for (;;)
     {
-      emit_trace<Move, Score>(tracer,
-                              AdversarialTraceEventKind::Iteration_Begin,
-                              0,
-                              depth,
-                              iteration_index,
-                              depth);
+      emit_trace<Move, Score>(
+        tracer, AdversarialTraceEventKind::Iteration_Begin, 0, depth, iteration_index, depth);
 
       SearchLimits iteration_limits = limits;
       iteration_limits.max_depth = depth;
@@ -981,10 +898,8 @@ template <AdversarialGameDomain Domain,
 
       for (;;)
         {
-          const Score alpha = use_aspiration ? saturating_subtract(center, half_window)
-                                             : full_alpha;
-          const Score beta = use_aspiration ? saturating_add(center, half_window)
-                                            : full_beta;
+          const Score alpha = use_aspiration ? saturating_subtract(center, half_window) : full_alpha;
+          const Score beta = use_aspiration ? saturating_add(center, half_window) : full_beta;
 
           iteration.aspiration_alpha = alpha;
           iteration.aspiration_beta = beta;
@@ -1036,8 +951,7 @@ template <AdversarialGameDomain Domain,
           break;
         }
 
-      adversarial_search_detail::accumulate_adversarial_stats(out.total_stats,
-                                                              iteration.total_stats);
+      adversarial_search_detail::accumulate_adversarial_stats(out.total_stats, iteration.total_stats);
       out.result = iteration.result;
       out.iterations.append(iteration);
       ++out.completed_iterations;
@@ -1059,8 +973,8 @@ template <AdversarialGameDomain Domain,
         break;
 
       const size_t next_depth = depth > limits.max_depth - options.depth_step
-        ? limits.max_depth
-        : depth + options.depth_step;
+                                ? limits.max_depth
+                                : depth + options.depth_step;
       if (next_depth == depth)
         break;
 
@@ -1072,18 +986,9 @@ template <AdversarialGameDomain Domain,
 }
 
 /** @brief Iterative deepening over Alpha-Beta with TT/keyer reuse. */
-template <AdversarialGameDomain Domain,
-          typename Table,
-          typename Keyer,
-          typename Tracer>
-  requires AdversarialSearchKeyer<Table,
-                                  Keyer,
-                                  typename Domain::State,
-                                  typename Domain::Move,
-                                  typename Domain::Score> and
-           AdversarialSearchTracer<Tracer,
-                                   typename Domain::Move,
-                                   typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename Tracer>
+  requires AdversarialSearchKeyer<Table, Keyer, typename Domain::State, typename Domain::Move, typename Domain::Score>
+       and AdversarialSearchTracer<Tracer, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto iterative_deepening_alpha_beta_search(
   Domain domain,
   typename Domain::State initial_state,
@@ -1113,7 +1018,7 @@ template <AdversarialGameDomain Domain,
   AdversarialIterativeDeepeningResult<Move, Score> out;
   out.result.policy = policy;
   out.result.limits = limits;
-  out.iterations.reserve((limits.max_depth - options.initial_depth)/options.depth_step + 1);
+  out.iterations.reserve((limits.max_depth - options.initial_depth) / options.depth_step + 1);
 
   const Score full_alpha = adversarial_search_detail::score_floor<Score>();
   const Score full_beta = adversarial_search_detail::score_ceiling<Score>();
@@ -1122,12 +1027,8 @@ template <AdversarialGameDomain Domain,
   size_t iteration_index = 0;
   for (;;)
     {
-      emit_trace<Move, Score>(tracer,
-                              AdversarialTraceEventKind::Iteration_Begin,
-                              0,
-                              depth,
-                              iteration_index,
-                              depth);
+      emit_trace<Move, Score>(
+        tracer, AdversarialTraceEventKind::Iteration_Begin, 0, depth, iteration_index, depth);
 
       SearchLimits iteration_limits = limits;
       iteration_limits.max_depth = depth;
@@ -1146,19 +1047,13 @@ template <AdversarialGameDomain Domain,
 
       for (;;)
         {
-          const Score alpha = use_aspiration ? saturating_subtract(center, half_window)
-                                             : full_alpha;
-          const Score beta = use_aspiration ? saturating_add(center, half_window)
-                                            : full_beta;
+          const Score alpha = use_aspiration ? saturating_subtract(center, half_window) : full_alpha;
+          const Score beta = use_aspiration ? saturating_add(center, half_window) : full_beta;
 
           iteration.aspiration_alpha = alpha;
           iteration.aspiration_beta = beta;
-          iteration.result = engine.search_with_window(initial_state,
-                                                       table,
-                                                       keyer,
-                                                       alpha,
-                                                       beta,
-                                                       tracer);
+          iteration.result
+            = engine.search_with_window(initial_state, table, keyer, alpha, beta, tracer);
           adversarial_search_detail::accumulate_adversarial_stats(iteration.total_stats,
                                                                   iteration.result.stats);
 
@@ -1206,8 +1101,7 @@ template <AdversarialGameDomain Domain,
           break;
         }
 
-      adversarial_search_detail::accumulate_adversarial_stats(out.total_stats,
-                                                              iteration.total_stats);
+      adversarial_search_detail::accumulate_adversarial_stats(out.total_stats, iteration.total_stats);
       out.result = iteration.result;
       out.iterations.append(iteration);
       ++out.completed_iterations;
@@ -1229,8 +1123,8 @@ template <AdversarialGameDomain Domain,
         break;
 
       const size_t next_depth = depth > limits.max_depth - options.depth_step
-        ? limits.max_depth
-        : depth + options.depth_step;
+                                ? limits.max_depth
+                                : depth + options.depth_step;
       if (next_depth == depth)
         break;
 
@@ -1242,17 +1136,10 @@ template <AdversarialGameDomain Domain,
 }
 
 /** @brief Iterative deepening over Alpha-Beta using `domain.state_key()`. */
-template <AdversarialGameDomain Domain,
-          typename Table,
-          typename Tracer>
-  requires SearchStateKeyProvider<Domain> and
-           AdversarialTranspositionMemo<Table,
-                                        typename Domain::State_Key,
-                                        typename Domain::Move,
-                                        typename Domain::Score> and
-           AdversarialSearchTracer<Tracer,
-                                   typename Domain::Move,
-                                   typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Table, typename Tracer>
+  requires SearchStateKeyProvider<Domain>
+       and AdversarialTranspositionMemo<Table, typename Domain::State_Key, typename Domain::Move, typename Domain::Score>
+       and AdversarialSearchTracer<Tracer, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto iterative_deepening_alpha_beta_search(
   Domain domain,
   typename Domain::State initial_state,
@@ -1267,9 +1154,9 @@ template <AdversarialGameDomain Domain,
                                                std::move(initial_state),
                                                table,
                                                [&engine](const typename Domain::State &state)
-                                               {
-                                                 return engine.domain().state_key(state);
-                                               },
+  {
+    return engine.domain().state_key(state);
+  },
                                                tracer,
                                                policy,
                                                limits,
@@ -1286,23 +1173,13 @@ template <AdversarialGameDomain Domain>
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
   Null_Adversarial_Search_Tracer tracer;
-  return iterative_deepening_alpha_beta_search(std::move(domain),
-                                               std::move(initial_state),
-                                               tracer,
-                                               policy,
-                                               limits,
-                                               options);
+  return iterative_deepening_alpha_beta_search(
+    std::move(domain), std::move(initial_state), tracer, policy, limits, options);
 }
 
 /** @brief Iterative deepening over Alpha-Beta with TT/keyer reuse and no tracing. */
-template <AdversarialGameDomain Domain,
-          typename Table,
-          typename Keyer>
-  requires AdversarialSearchKeyer<Table,
-                                  Keyer,
-                                  typename Domain::State,
-                                  typename Domain::Move,
-                                  typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Table, typename Keyer>
+  requires AdversarialSearchKeyer<Table, Keyer, typename Domain::State, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto iterative_deepening_alpha_beta_search(
   Domain domain,
   typename Domain::State initial_state,
@@ -1313,24 +1190,14 @@ template <AdversarialGameDomain Domain,
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
   Null_Adversarial_Search_Tracer tracer;
-  return iterative_deepening_alpha_beta_search(std::move(domain),
-                                               std::move(initial_state),
-                                               table,
-                                               keyer,
-                                               tracer,
-                                               policy,
-                                               limits,
-                                               options);
+  return iterative_deepening_alpha_beta_search(
+    std::move(domain), std::move(initial_state), table, keyer, tracer, policy, limits, options);
 }
 
 /** @brief Iterative deepening over Alpha-Beta using `domain.state_key()` and no tracing. */
-template <AdversarialGameDomain Domain,
-          typename Table>
-  requires SearchStateKeyProvider<Domain> and
-           AdversarialTranspositionMemo<Table,
-                                        typename Domain::State_Key,
-                                        typename Domain::Move,
-                                        typename Domain::Score>
+template <AdversarialGameDomain Domain, typename Table>
+  requires SearchStateKeyProvider<Domain>
+       and AdversarialTranspositionMemo<Table, typename Domain::State_Key, typename Domain::Move, typename Domain::Score>
 [[nodiscard]] auto iterative_deepening_alpha_beta_search(
   Domain domain,
   typename Domain::State initial_state,
@@ -1340,15 +1207,10 @@ template <AdversarialGameDomain Domain,
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
   Null_Adversarial_Search_Tracer tracer;
-  return iterative_deepening_alpha_beta_search(std::move(domain),
-                                               std::move(initial_state),
-                                               table,
-                                               tracer,
-                                               policy,
-                                               limits,
-                                               options);
+  return iterative_deepening_alpha_beta_search(
+    std::move(domain), std::move(initial_state), table, tracer, policy, limits, options);
 }
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // ALPHA_BETA_H
+#endif  // ALPHA_BETA_H

@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-
 /** @file state_search_common.H
  *  @brief Common infrastructure for implicit state-space search.
  *
@@ -65,8 +64,7 @@
 #include <tpl_array.H>
 #include <tpl_hash.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Sentinel used by @ref SearchLimits to mean "no bound". */
 inline constexpr size_t Search_Unlimited = std::numeric_limits<size_t>::max();
@@ -74,10 +72,10 @@ inline constexpr size_t Search_Unlimited = std::numeric_limits<size_t>::max();
 /** @brief Final state of a search execution. */
 enum class SearchStatus
 {
-  NotStarted,        ///< Search object exists but no traversal has run yet.
-  Exhausted,         ///< Search space within the configured bounds was exhausted.
-  StoppedOnSolution, ///< Search stopped because solution handling requested it.
-  LimitReached       ///< Search stopped because an external hard limit was hit.
+  NotStarted,         ///< Search object exists but no traversal has run yet.
+  Exhausted,          ///< Search space within the configured bounds was exhausted.
+  StoppedOnSolution,  ///< Search stopped because solution handling requested it.
+  LimitReached        ///< Search stopped because an external hard limit was hit.
 };
 
 /** @brief Minimal requirement for mutable search states.
@@ -101,16 +99,16 @@ concept SearchMove = std::movable<T> and std::copy_constructible<T>;
 template <SearchMove Move>
 using SearchPath = Array<Move>;
 
-using SearchClock = std::chrono::steady_clock; ///< Monotonic clock used for search timings.
+using SearchClock = std::chrono::steady_clock;  ///< Monotonic clock used for search timings.
 
-[[nodiscard]] inline double
-search_elapsed_ms(const SearchClock::duration &duration) noexcept
+[[nodiscard]] inline double search_elapsed_ms(const SearchClock::duration &duration) noexcept
 {
   return std::chrono::duration<double, std::milli>(duration).count();
 }
 
 /** @brief Aleph hash map alias for memoization/transposition storage. */
-template <typename Key, typename Data,
+template <typename Key,
+          typename Data,
           template <typename, typename, class> class HashMapTable = MapOLhash,
           class Cmp = Aleph::equal_to<Key>>
 using SearchStorageMap = DynHashMap<Key, Data, HashMapTable, Cmp>;
@@ -124,17 +122,17 @@ using SearchStorageSet = DynHashSet<Key, HashSetTable, Cmp>;
 /** @brief Counters collected during a search run. */
 struct SearchStats
 {
-  size_t visited_states = 0;       ///< Number of states entered by the engine.
-  size_t expanded_states = 0;      ///< Number of non-terminal states expanded.
-  size_t generated_successors = 0; ///< Number of successor moves emitted.
-  size_t solutions_found = 0;      ///< Number of goal states accepted.
-  size_t terminal_states = 0;      ///< Non-solution terminal states cut by the domain.
-  size_t pruned_by_depth = 0;      ///< States not expanded due to max depth.
-  size_t pruned_by_domain = 0;     ///< States discarded by domain-side pruning.
-  size_t limit_hits = 0;           ///< Number of hard-limit stops triggered.
-  size_t max_depth_reached = 0;    ///< Deepest path depth visited.
-  double elapsed_ms = 0.0;         ///< Wall-clock time spent inside the search call.
-  MoveOrderingStats move_ordering; ///< Successor-ordering activity for this run.
+  size_t visited_states = 0;        ///< Number of states entered by the engine.
+  size_t expanded_states = 0;       ///< Number of non-terminal states expanded.
+  size_t generated_successors = 0;  ///< Number of successor moves emitted.
+  size_t solutions_found = 0;       ///< Number of goal states accepted.
+  size_t terminal_states = 0;       ///< Non-solution terminal states cut by the domain.
+  size_t pruned_by_depth = 0;       ///< States not expanded due to max depth.
+  size_t pruned_by_domain = 0;      ///< States discarded by domain-side pruning.
+  size_t limit_hits = 0;            ///< Number of hard-limit stops triggered.
+  size_t max_depth_reached = 0;     ///< Deepest path depth visited.
+  double elapsed_ms = 0.0;          ///< Wall-clock time spent inside the search call.
+  MoveOrderingStats move_ordering;  ///< Successor-ordering activity for this run.
 };
 
 /** @brief Hard bounds applied by the search engine.
@@ -146,14 +144,13 @@ struct SearchStats
  */
 struct SearchLimits
 {
-  size_t max_depth = Search_Unlimited;      ///< Maximum expansion depth.
-  size_t max_expansions = Search_Unlimited; ///< Maximum expanded states.
-  size_t max_solutions = Search_Unlimited;  ///< Maximum accepted solutions.
+  size_t max_depth = Search_Unlimited;       ///< Maximum expansion depth.
+  size_t max_expansions = Search_Unlimited;  ///< Maximum expanded states.
+  size_t max_solutions = Search_Unlimited;   ///< Maximum accepted solutions.
 };
 
 template <SearchMove Move>
-inline void reserve_search_path(SearchPath<Move> &path,
-                                const SearchLimits &limits)
+inline void reserve_search_path(SearchPath<Move> &path, const SearchLimits &limits)
 {
   if (limits.max_depth != Search_Unlimited)
     path.reserve(limits.max_depth + 1);
@@ -170,15 +167,15 @@ struct ExplorationPolicy
   /** @brief Traversal strategy supported by the engine. */
   enum class Strategy
   {
-    Depth_First, ///< Recursive depth-first traversal.
-    Best_First   ///< Priority-guided expansion of the most promising frontier node.
+    Depth_First,  ///< Recursive depth-first traversal.
+    Best_First    ///< Priority-guided expansion of the most promising frontier node.
   };
 
-  Strategy strategy = Strategy::Depth_First; ///< Traversal strategy.
-  MoveOrderingMode move_ordering = MoveOrderingMode::Domain; ///< Successor-ordering mode.
-  bool stop_at_first_solution = true;        ///< Stop when the first goal is found.
-  bool use_killer_moves = false;             ///< Enable experimental killer heuristic where supported.
-  bool use_history_heuristic = false;        ///< Enable experimental history heuristic where supported.
+  Strategy strategy = Strategy::Depth_First;                  ///< Traversal strategy.
+  MoveOrderingMode move_ordering = MoveOrderingMode::Domain;  ///< Successor-ordering mode.
+  bool stop_at_first_solution = true;  ///< Stop when the first goal is found.
+  bool use_killer_moves = false;       ///< Enable experimental killer heuristic where supported.
+  bool use_history_heuristic = false;  ///< Enable experimental history heuristic where supported.
 };
 
 /** @brief Snapshot of a concrete solution encountered during the traversal.
@@ -190,9 +187,9 @@ struct ExplorationPolicy
 template <SearchState State, SearchMove Move>
 struct SearchSolution
 {
-  State state;         ///< Snapshot of the terminal state.
-  SearchPath<Move> path; ///< Move sequence leading to `state`.
-  size_t depth = 0;    ///< Path depth of the solution.
+  State state;            ///< Snapshot of the terminal state.
+  SearchPath<Move> path;  ///< Move sequence leading to `state`.
+  size_t depth = 0;       ///< Path depth of the solution.
 };
 
 /** @brief Comparison policy that keeps the first solution seen.
@@ -221,11 +218,9 @@ struct ContinueSearch
 
 /** @brief Concept for callbacks invoked on each accepted solution. */
 template <typename Visitor, typename Solution>
-concept SearchSolutionVisitor =
-  requires(Visitor &visitor, const Solution &solution)
-  {
-    { visitor(solution) } -> std::convertible_to<bool>;
-  };
+concept SearchSolutionVisitor = requires(Visitor &visitor, const Solution &solution) {
+  { visitor(solution) } -> std::convertible_to<bool>;
+};
 
 /** @brief Collector that stores accepted solutions in an Aleph list.
  *
@@ -242,8 +237,7 @@ public:
 
   SearchSolutionCollector() = default;
 
-  explicit SearchSolutionCollector(const size_t max_solutions)
-    : limit_(max_solutions)
+  explicit SearchSolutionCollector(const size_t max_solutions) : limit_(max_solutions)
   {
     ah_invalid_argument_if(limit_ == 0)
       << "SearchSolutionCollector: max_solutions must be positive";
@@ -398,35 +392,31 @@ using Incumbent = BestSolution<Solution, Compare>;
  *  completed (`true`) or was interrupted by the visitor (`false`).
  */
 template <typename Domain>
-concept SuccessorGenerator =
-  requires(Domain &d, const typename Domain::State &state)
+concept SuccessorGenerator = requires(Domain &d, const typename Domain::State &state) {
+  typename Domain::State;
+  typename Domain::Move;
+  requires SearchState<typename Domain::State>;
+  requires SearchMove<typename Domain::Move>;
   {
-    typename Domain::State;
-    typename Domain::Move;
-    requires SearchState<typename Domain::State>;
-    requires SearchMove<typename Domain::Move>;
-    { d.for_each_successor(state,
-                           [](const typename Domain::Move &) -> bool
-                           {
-                             return true;
-                           }) } -> std::convertible_to<bool>;
-  };
+    d.for_each_successor(state,
+                         [](const typename Domain::Move &) -> bool
+    {
+      return true;
+    })
+  } -> std::convertible_to<bool>;
+};
 
 /** @brief Concept for domains that can recognize goal states. */
 template <typename Domain>
-concept GoalPredicate =
-  requires(Domain &d, const typename Domain::State &state)
-  {
-    { d.is_goal(state) } -> std::convertible_to<bool>;
-  };
+concept GoalPredicate = requires(Domain &d, const typename Domain::State &state) {
+  { d.is_goal(state) } -> std::convertible_to<bool>;
+};
 
 /** @brief Optional concept for explicit non-solution terminal states. */
 template <typename Domain>
-concept TerminalPredicate =
-  requires(Domain &d, const typename Domain::State &state)
-  {
-    { d.is_terminal(state) } -> std::convertible_to<bool>;
-  };
+concept TerminalPredicate = requires(Domain &d, const typename Domain::State &state) {
+  { d.is_terminal(state) } -> std::convertible_to<bool>;
+};
 
 /** @brief Optional concept for domain-side pruning hooks.
  *
@@ -435,20 +425,16 @@ concept TerminalPredicate =
  *  same traversal kernel.
  */
 template <typename Domain>
-concept DomainPruner =
-  requires(Domain &d, const typename Domain::State &state, const size_t depth)
-  {
-    { d.should_prune(state, depth) } -> std::convertible_to<bool>;
-  };
+concept DomainPruner = requires(Domain &d, const typename Domain::State &state, const size_t depth) {
+  { d.should_prune(state, depth) } -> std::convertible_to<bool>;
+};
 
 /** @brief Optional concept for domains that can key moves for history heuristics. */
 template <typename Domain>
-concept MoveKeyProvider =
-  requires(Domain &d, const typename Domain::Move &move)
-  {
-    typename Domain::Move_Key;
-    { d.move_key(move) } -> std::convertible_to<typename Domain::Move_Key>;
-  };
+concept MoveKeyProvider = requires(Domain &d, const typename Domain::Move &move) {
+  typename Domain::Move_Key;
+  { d.move_key(move) } -> std::convertible_to<typename Domain::Move_Key>;
+};
 
 /** @brief Concept for domains that provide an admissible heuristic.
  *
@@ -457,12 +443,10 @@ concept MoveKeyProvider =
  *  estimate of the cost to reach a goal from `state`.
  */
 template <typename Domain>
-concept HeuristicEvaluator =
-  requires(Domain &d, const typename Domain::State &state)
-  {
-    typename Domain::Distance;
-    { d.heuristic(state) } -> std::convertible_to<typename Domain::Distance>;
-  };
+concept HeuristicEvaluator = requires(Domain &d, const typename Domain::State &state) {
+  typename Domain::Distance;
+  { d.heuristic(state) } -> std::convertible_to<typename Domain::Distance>;
+};
 
 /** @brief Concept for domains that provide the cost of applying a move.
  *
@@ -470,14 +454,11 @@ concept HeuristicEvaluator =
  *  non-negative for admissibility guarantees to hold.
  */
 template <typename Domain>
-concept ActionCostProvider =
-  requires(Domain &d,
-           const typename Domain::State &state,
-           const typename Domain::Move &move)
-  {
-    typename Domain::Distance;
-    { d.cost(state, move) } -> std::convertible_to<typename Domain::Distance>;
-  };
+concept ActionCostProvider
+  = requires(Domain &d, const typename Domain::State &state, const typename Domain::Move &move) {
+      typename Domain::Distance;
+      { d.cost(state, move) } -> std::convertible_to<typename Domain::Distance>;
+    };
 
 /** @brief Minimal contract for DFS/backtracking domains.
  *
@@ -491,15 +472,12 @@ concept ActionCostProvider =
  *  - optionally `should_prune(state, depth)` requests an early cutoff.
  */
 template <typename Domain>
-concept BacktrackingDomain =
-  SuccessorGenerator<Domain> and GoalPredicate<Domain> and
-  requires(Domain &d,
-           typename Domain::State &state,
-           const typename Domain::Move &move)
-  {
-    { d.apply(state, move) } -> std::same_as<void>;
-    { d.undo(state, move) } -> std::same_as<void>;
-  };
+concept BacktrackingDomain
+  = SuccessorGenerator<Domain> and GoalPredicate<Domain>
+and requires(Domain &d, typename Domain::State &state, const typename Domain::Move &move) {
+      { d.apply(state, move) } -> std::same_as<void>;
+      { d.undo(state, move) } -> std::same_as<void>;
+    };
 
 /** @brief Aggregates the outcome of one search execution. */
 template <typename Solution, typename Compare = KeepFirstSolution<Solution>>
@@ -510,11 +488,11 @@ struct SearchResult
   using Compare_Type = Compare;
   using Incumbent_Type = BestSolution<Solution, Compare>;
 
-  SearchStatus status = SearchStatus::NotStarted; ///< Final execution state.
-  ExplorationPolicy policy; ///< Exploration policy used for the run.
-  SearchLimits limits;      ///< Limits used for the run.
-  SearchStats stats;        ///< Statistics collected during the run.
-  Incumbent_Type best_solution; ///< Best incumbent retained by the engine.
+  SearchStatus status = SearchStatus::NotStarted;  ///< Final execution state.
+  ExplorationPolicy policy;                        ///< Exploration policy used for the run.
+  SearchLimits limits;                             ///< Limits used for the run.
+  SearchStats stats;                               ///< Statistics collected during the run.
+  Incumbent_Type best_solution;                    ///< Best incumbent retained by the engine.
 
   SearchResult() = default;
 
@@ -548,6 +526,6 @@ struct SearchResult
   }
 };
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // STATE_SEARCH_COMMON_H
+#endif  // STATE_SEARCH_COMMON_H

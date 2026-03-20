@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-
 /** @file Backtracking.H
  *  @brief Minimal depth-first backtracking engine for implicit state spaces.
  *
@@ -54,11 +53,9 @@
 #include <state_search_common.H>
 #include <Transposition_Table.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
-namespace state_search_detail
-{
+namespace state_search_detail {
 
 /** @brief Default incumbent ordering for DFS solutions.
  *
@@ -76,13 +73,12 @@ struct PreferShallowerSolution
 
 /** @brief Dispatch helper for the optional `is_terminal` hook.
  *
- *  Returns `true` if `Domain` satisfies @ref TerminalPredicate and the domain
+ *  Returns `true` if `Domain` satisfies @ref Aleph::TerminalPredicate and the domain
  *  reports the state as terminal (a non-goal dead end). Returns `false`
  *  unconditionally when the domain does not expose `is_terminal`.
  */
 template <typename Domain>
-[[nodiscard]] bool is_terminal_state(const Domain &domain,
-                                     const typename Domain::State &state)
+[[nodiscard]] bool is_terminal_state(const Domain &domain, const typename Domain::State &state)
 {
   if constexpr (TerminalPredicate<Domain>)
     return domain.is_terminal(state);
@@ -92,7 +88,7 @@ template <typename Domain>
 
 /** @brief Dispatch helper for the optional `should_prune` hook.
  *
- *  Returns `true` if `Domain` satisfies @ref DomainPruner and the domain
+ *  Returns `true` if `Domain` satisfies @ref Aleph::DomainPruner and the domain
  *  requests early pruning of the current state. Returns `false` when the
  *  domain does not expose `should_prune`.
  */
@@ -107,11 +103,11 @@ template <typename Domain>
     return false;
 }
 
-} // end namespace state_search_detail
+}  // end namespace state_search_detail
 
 /** @brief Recursive depth-first backtracking over an implicit state space.
  *
- *  The domain contract is given by @ref BacktrackingDomain. Goal states are
+ *  The domain contract is given by @ref Aleph::BacktrackingDomain. Goal states are
  *  treated as accepted solutions and are not expanded further. Domains may
  *  also expose optional `is_terminal()` and `should_prune()` hooks.
  *
@@ -134,10 +130,7 @@ public:
                                     ExplorationPolicy policy = {},
                                     SearchLimits limits = {},
                                     Solution_Compare compare = {})
-    : domain_(std::move(domain)),
-      policy_(policy),
-      limits_(limits),
-      compare_(std::move(compare))
+    : domain_(std::move(domain)), policy_(policy), limits_(limits), compare_(std::move(compare))
   {
     // empty
   }
@@ -237,15 +230,15 @@ public:
    *  first entered. Any state whose key is already in `visited` is pruned,
    *  preventing duplicate expansions via longer paths.
    *
-   *  The domain must expose `state_key(state)` (see @ref SearchStateKeyProvider).
+   *  The domain must expose `state_key(state)` (see @ref Aleph::SearchStateKeyProvider).
    *
    *  @param[in] initial_state Mutable root state.
    *  @param[in,out] visited Caller-owned set that accumulates visited state keys.
    *  @return Search result with statistics and best retained solution.
    */
   template <typename VisitedSet>
-    requires SearchStateKeyProvider<Domain> and
-             VisitedStateSet<VisitedSet, typename Domain::State_Key>
+    requires SearchStateKeyProvider<Domain>
+         and VisitedStateSet<VisitedSet, typename Domain::State_Key>
   [[nodiscard]] Result search(State initial_state, VisitedSet &visited)
   {
     ContinueSearch on_solution;
@@ -257,12 +250,10 @@ public:
    *  Combines graph-search pruning via `visited` with per-solution callbacks.
    */
   template <typename VisitedSet, typename OnSolution>
-    requires SearchStateKeyProvider<Domain> and
-             VisitedStateSet<VisitedSet, typename Domain::State_Key> and
-             SearchSolutionVisitor<OnSolution, Solution>
-  [[nodiscard]] Result search(State initial_state,
-                              VisitedSet &visited,
-                              OnSolution &on_solution)
+    requires SearchStateKeyProvider<Domain>
+         and VisitedStateSet<VisitedSet, typename Domain::State_Key>
+         and SearchSolutionVisitor<OnSolution, Solution>
+  [[nodiscard]] Result search(State initial_state, VisitedSet &visited, OnSolution &on_solution)
   {
     ah_invalid_argument_if(policy_.strategy != ExplorationPolicy::Strategy::Depth_First)
       << "Depth_First_Backtracking only supports depth-first strategy";
@@ -300,8 +291,8 @@ private:
         return true;
       }
 
-    if (limits_.max_solutions != Search_Unlimited and
-        result.stats.solutions_found >= limits_.max_solutions)
+    if (limits_.max_solutions != Search_Unlimited
+        and result.stats.solutions_found >= limits_.max_solutions)
       {
         ++result.stats.limit_hits;
         result.status = SearchStatus::LimitReached;
@@ -374,31 +365,30 @@ private:
     ++result.stats.expanded_states;
 
     bool stop = false;
-    (void) domain_.for_each_successor(
-      state,
-      [&](const Move &move) -> bool
-      {
-        ++result.stats.generated_successors;
-        path.append(move);
-        domain_.apply(state, move);
-        stop = dfs(state, path, depth + 1, result, on_solution);
-        domain_.undo(state, move);
-        (void) path.remove_last();
-        return not stop;
-      });
+    (void) domain_.for_each_successor(state,
+                                      [&](const Move &move) -> bool
+    {
+      ++result.stats.generated_successors;
+      path.append(move);
+      domain_.apply(state, move);
+      stop = dfs(state, path, depth + 1, result, on_solution);
+      domain_.undo(state, move);
+      (void) path.remove_last();
+      return not stop;
+    });
 
     return stop;
   }
 
   template <typename OnSolution, typename VisitedSet>
-    requires SearchSolutionVisitor<OnSolution, Solution> and
-             VisitedStateSet<VisitedSet, typename Domain::State_Key>
+    requires SearchSolutionVisitor<OnSolution, Solution>
+         and VisitedStateSet<VisitedSet, typename Domain::State_Key>
   [[nodiscard]] bool dfs_visited(State &state,
-                                  SearchPath<Move> &path,
-                                  const size_t depth,
-                                  Result &result,
-                                  OnSolution &on_solution,
-                                  VisitedSet &visited)
+                                 SearchPath<Move> &path,
+                                 const size_t depth,
+                                 Result &result,
+                                 OnSolution &on_solution,
+                                 VisitedSet &visited)
   {
     ++result.stats.visited_states;
     if (depth > result.stats.max_depth_reached)
@@ -450,18 +440,17 @@ private:
     ++result.stats.expanded_states;
 
     bool stop = false;
-    (void) domain_.for_each_successor(
-      state,
-      [&](const Move &move) -> bool
-      {
-        ++result.stats.generated_successors;
-        path.append(move);
-        domain_.apply(state, move);
-        stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
-        domain_.undo(state, move);
-        (void) path.remove_last();
-        return not stop;
-      });
+    (void) domain_.for_each_successor(state,
+                                      [&](const Move &move) -> bool
+    {
+      ++result.stats.generated_successors;
+      path.append(move);
+      domain_.apply(state, move);
+      stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
+      domain_.undo(state, move);
+      (void) path.remove_last();
+      return not stop;
+    });
 
     return stop;
   }
@@ -480,9 +469,7 @@ template <BacktrackingDomain Domain>
 
 /** @brief Convenience wrapper with a solution callback/collector. */
 template <BacktrackingDomain Domain, typename OnSolution>
-  requires SearchSolutionVisitor<OnSolution,
-                                 SearchSolution<typename Domain::State,
-                                                typename Domain::Move>>
+  requires SearchSolutionVisitor<OnSolution, SearchSolution<typename Domain::State, typename Domain::Move>>
 [[nodiscard]] auto backtracking_search(Domain domain,
                                        typename Domain::State initial_state,
                                        OnSolution &on_solution,
@@ -493,6 +480,6 @@ template <BacktrackingDomain Domain, typename OnSolution>
   return engine.search(std::move(initial_state), on_solution);
 }
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // BACKTRACKING_H
+#endif  // BACKTRACKING_H

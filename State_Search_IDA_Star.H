@@ -38,9 +38,9 @@
  *  exceeded the limit in the previous pass. The process repeats until a goal
  *  is found or the space is exhausted.
  *
- *  The domain contract is given by @ref IDAStarDomain, which extends
- *  @ref BacktrackingDomain with @ref HeuristicEvaluator and
- *  @ref ActionCostProvider. Admissibility requires `heuristic(state) <= true
+ *  The domain contract is given by @ref Aleph::IDAStarDomain, which extends
+ *  @ref Aleph::BacktrackingDomain with @ref Aleph::HeuristicEvaluator and
+ *  @ref Aleph::ActionCostProvider. Admissibility requires `heuristic(state) <= true
  *  cost to goal` for all states.
  *
  *  @author Leandro Rabindranath León
@@ -60,7 +60,7 @@ namespace Aleph {
 
 /** @brief Minimal contract for IDA* domains.
  *
- *  Extends @ref BacktrackingDomain with:
+ *  Extends @ref Aleph::BacktrackingDomain with:
  *
  *  - `heuristic(state)` — admissible cost estimate to the nearest goal,
  *  - `cost(state, move)` — non-negative step cost.

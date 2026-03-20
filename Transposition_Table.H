@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-
 /** @file Transposition_Table.H
  *  @brief Generic memoization / transposition-table support for state search.
  *
@@ -54,23 +53,22 @@
 
 #include <state_search_common.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Stored bound classification for memoized search entries. */
 enum class TranspositionBound
 {
-  Exact,       ///< Exact value for the stored search configuration.
-  Lower_Bound, ///< Value is a lower bound (fail-high style).
-  Upper_Bound  ///< Value is an upper bound (fail-low style).
+  Exact,        ///< Exact value for the stored search configuration.
+  Lower_Bound,  ///< Value is a lower bound (fail-high style).
+  Upper_Bound   ///< Value is an upper bound (fail-low style).
 };
 
 /** @brief Outcome of one store/update attempt in a transposition table. */
 enum class TranspositionStoreStatus
 {
-  Inserted, ///< A new key was inserted.
-  Replaced, ///< An existing key was updated according to replacement policy.
-  Rejected  ///< Existing entry was kept and candidate was discarded.
+  Inserted,  ///< A new key was inserted.
+  Replaced,  ///< An existing key was updated according to replacement policy.
+  Rejected   ///< Existing entry was kept and candidate was discarded.
 };
 
 /** @brief Statistics collected by memo/transposition storage. */
@@ -92,58 +90,49 @@ struct TranspositionStats
  *  current one.
  */
 template <typename Policy, typename Entry>
-concept TranspositionReplacementPolicy =
-  requires(const Policy &policy, const Entry &candidate, const Entry &current)
-  {
-    { policy(candidate, current) } -> std::convertible_to<bool>;
-  };
+concept TranspositionReplacementPolicy
+  = requires(const Policy &policy, const Entry &candidate, const Entry &current) {
+      { policy(candidate, current) } -> std::convertible_to<bool>;
+    };
 
 /** @brief Minimal protocol for memo tables used by search engines. */
 template <typename Table, typename Key, typename Entry>
-concept MemoTable =
-  requires(Table &table, const Key &key, const Entry &entry)
-  {
-    { table.probe(key) } -> std::same_as<Entry *>;
-    { table.store(key, entry) } -> std::same_as<TranspositionStoreStatus>;
-  };
+concept MemoTable = requires(Table &table, const Key &key, const Entry &entry) {
+  { table.probe(key) } -> std::same_as<Entry *>;
+  { table.store(key, entry) } -> std::same_as<TranspositionStoreStatus>;
+};
 
 /** @brief Generic concept for domains that can expose a stable state key. */
 template <typename Provider>
-concept SearchStateKeyProvider =
-  requires(Provider &provider, const typename Provider::State &state)
-  {
-    typename Provider::State_Key;
-    { provider.state_key(state) } -> std::convertible_to<typename Provider::State_Key>;
-  };
+concept SearchStateKeyProvider = requires(Provider &provider, const typename Provider::State &state) {
+  typename Provider::State_Key;
+  { provider.state_key(state) } -> std::convertible_to<typename Provider::State_Key>;
+};
 
 /** @brief Concept for a set suitable for tracking globally visited states.
  *
- *  Compatible with @ref SearchStorageSet and the Aleph `DynHashSet` family.
+ *  Compatible with @ref Aleph::SearchStorageSet and the Aleph `DynHashSet` family.
  *  The engine uses `contains(key)` to check for prior visits and `insert(key)`
  *  to record a new one. Inserting an already-present key must be a no-op.
  */
 template <typename Set, typename Key>
-concept VisitedStateSet =
-  requires(Set &set, const Key &key)
-  {
-    { set.contains(key) } -> std::convertible_to<bool>;
-    set.insert(key);
-  };
+concept VisitedStateSet = requires(Set &set, const Key &key) {
+  { set.contains(key) } -> std::convertible_to<bool>;
+  set.insert(key);
+};
 
 /** @brief Concept for a map tracking the best bound seen per visited state.
  *
- *  Compatible with @ref SearchStorageMap. The engine uses `search(key)` to
+ *  Compatible with @ref Aleph::SearchStorageMap. The engine uses `search(key)` to
  *  probe for an existing bound and `insert(key, bound)` to record one.
  *  Updating an existing entry is done by mutating the value through the
  *  pointer returned by `search`.
  */
 template <typename Map, typename Key, typename Objective>
-concept VisitedBoundMap =
-  requires(Map &map, const Key &key, const Objective &obj)
-  {
-    map.insert(key, obj);
-    map.search(key);
-  };
+concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &obj) {
+  map.insert(key, obj);
+  map.search(key);
+};
 
 /** @brief Minimal replacement policy: always replace the current entry. */
 template <typename Entry>
@@ -157,8 +146,7 @@ struct Replace_Always
 
 /** @brief Replacement policy that prefers entries searched to greater depth. */
 template <typename Entry>
-  requires requires(const Entry &entry)
-  {
+  requires requires(const Entry &entry) {
     { entry.depth } -> std::convertible_to<size_t>;
   }
 struct Prefer_Deeper_Entry
@@ -178,7 +166,8 @@ struct Prefer_Deeper_Entry
  *  @tparam ReplacePolicy Policy deciding whether a new entry overwrites an
  *          existing entry for the same key.
  */
-template <typename Key, typename Entry,
+template <typename Key,
+          typename Entry,
           template <typename, typename, class> class HashMapTable = MapOLhash,
           class Cmp = Aleph::equal_to<Key>,
           typename ReplacePolicy = Replace_Always<Entry>>
@@ -186,7 +175,7 @@ template <typename Key, typename Entry,
 class Transposition_Table
 {
 public:
-  static constexpr bool enabled = true; ///< Compile-time marker for search adapters.
+  static constexpr bool enabled = true;  ///< Compile-time marker for search adapters.
 
   using Key_Type = Key;
   using Entry_Type = Entry;
@@ -195,8 +184,7 @@ public:
 
   Transposition_Table() = default;
 
-  explicit Transposition_Table(ReplacePolicy replace)
-    : replace_(std::move(replace))
+  explicit Transposition_Table(ReplacePolicy replace) : replace_(std::move(replace))
   {
     // empty
   }
@@ -320,6 +308,6 @@ private:
   TranspositionStats stats_;
 };
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // TRANSPOSITION_TABLE_H
+#endif  // TRANSPOSITION_TABLE_H
