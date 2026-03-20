@@ -279,7 +279,7 @@ public:
 
   void clear() noexcept
   {
-    events_.empty();
+    events_.clear();
   }
 
   [[nodiscard]] size_t size() const noexcept

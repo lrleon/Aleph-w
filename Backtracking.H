@@ -132,10 +132,21 @@ public:
   using Result = SearchResult<Solution, Solution_Compare>;
 
   /** @brief Build an engine bound to one domain adapter.
-   *  @param domain Problem adapter.
-   *  @param policy Exploration policy (must be Depth_First).
-   *  @param limits Search constraints.
-   *  @param compare Functor used to order solutions.
+   *
+   *  @param domain Problem adapter captured by value. Ownership is transferred
+   *                into the engine; move-only domains are accepted and remain
+   *                owned for the lifetime of the `Depth_First_Backtracking`.
+   *  @param policy Exploration policy copied into the engine. Only
+   *                `Depth_First` traversal is honored during search.
+   *  @param limits Search constraints copied and enforced on every run
+   *                (depth, expansions, solutions, time, etc.).
+   *  @param compare Functor used to rank solutions kept by @ref Result; moved
+   *                 into the result objects returned by @ref search.
+   *  @throws None.
+   *  @par Complexity
+   *  Time O(1); space O(1).
+   *  @par Thread Safety
+   *  Not thread-safe. Guard the engine externally when sharing across threads.
    */
   explicit Depth_First_Backtracking(Domain domain,
                                     ExplorationPolicy policy = {},
@@ -146,37 +157,81 @@ public:
     // empty
   }
 
-  /** @brief Read-only access to the bound domain adapter. */
+  /** @brief Read-only access to the bound domain adapter.
+   *  @return const Domain& view of the currently configured domain adapter.
+   *  @throws None.
+   *  @par Complexity
+   *  Time O(1); space O(1).
+   *  @par Thread Safety
+   *  Caller must synchronize concurrent accesses to the engine.
+   */
   [[nodiscard]] const Domain &domain() const noexcept
   {
     return domain_;
   }
 
-  /** @brief Mutable access to the bound domain adapter. */
+  /** @brief Mutable access to the bound domain adapter.
+   *  @return Domain& reference that permits in-place configuration changes.
+   *  @throws None.
+   *  @par Complexity
+   *  Time O(1); space O(1).
+   *  @par Thread Safety
+   *  Not thread-safe. Synchronize externally before mutating the domain.
+   */
   [[nodiscard]] Domain &domain() noexcept
   {
     return domain_;
   }
 
-  /** @brief Current exploration policy. */
+  /** @brief Current exploration policy.
+   *  @return const ExplorationPolicy& describing how successors are explored.
+   *  @throws None.
+   *  @par Complexity
+   *  Time O(1); space O(1).
+   *  @par Thread Safety
+   *  Caller must synchronize concurrent observations.
+   */
   [[nodiscard]] const ExplorationPolicy &policy() const noexcept
   {
     return policy_;
   }
 
-  /** @brief Current hard limits. */
+  /** @brief Current hard limits.
+   *  @return const SearchLimits& currently enforced during search.
+   *  @throws None.
+   *  @par Complexity
+   *  Time O(1); space O(1).
+   *  @par Thread Safety
+   *  Caller must synchronize concurrent observations.
+   */
   [[nodiscard]] const SearchLimits &limits() const noexcept
   {
     return limits_;
   }
 
-  /** @brief Replace the exploration policy for future runs. */
+  /** @brief Replace the exploration policy for future runs.
+   *  @param policy Exploration policy copied and used by subsequent @ref search calls.
+   *  @return void.
+   *  @throws None.
+   *  @par Complexity
+   *  Time O(1); space O(1).
+   *  @par Thread Safety
+   *  Synchronize externally when mutating shared engines.
+   */
   void set_policy(const ExplorationPolicy &policy) noexcept
   {
     policy_ = policy;
   }
 
-  /** @brief Replace the hard limits for future runs. */
+  /** @brief Replace the hard limits for future runs.
+   *  @param limits New @ref SearchLimits copied verbatim into the engine.
+   *  @return void.
+   *  @throws None.
+   *  @par Complexity
+   *  Time O(1); space O(1).
+   *  @par Thread Safety
+   *  Synchronize externally when mutating shared engines.
+   */
   void set_limits(const SearchLimits &limits) noexcept
   {
     limits_ = limits;
@@ -184,10 +239,20 @@ public:
 
   /** @brief Execute a depth-first backtracking search from `initial_state`.
    *
-   *  @param[in] initial_state Mutable root state to explore.
-   *  @return Search result with limits, stats and best retained solution.
-   *
-   *  @throws std::invalid_argument if unsupported policy values are requested.
+   *  @param initial_state Mutable root state provided by value; the engine
+   *         restores it before returning so callers retain ownership.
+   *  @return Result containing the final search status, aggregated statistics,
+   *          effective limits/policy, and the best solution kept according to
+   *          @ref Solution_Compare.
+   *  @throws std::invalid_argument if `policy().strategy` is not
+   *          `ExplorationPolicy::Strategy::Depth_First` or if
+   *          `limits().max_solutions == 0`.
+   *  @par Complexity
+   *  Time proportional to the number of visited states until termination;
+   *  auxiliary space proportional to the maximum path depth (one stack of
+   *  states plus bookkeeping in @ref SearchPath).
+   *  @par Thread Safety
+   *  Not thread-safe. Serialize concurrent invocations on the same engine.
    */
   [[nodiscard]] Result search(State initial_state)
   {
@@ -197,8 +262,19 @@ public:
 
   /** @brief Execute DFS/backtracking and invoke `on_solution` on each solution.
    *
-   *  The callback receives a snapshot of the accepted solution and returns
-   *  `true` to continue enumeration or `false` to stop immediately.
+   *  @param initial_state Mutable root state explored by value.
+   *  @param on_solution Functor satisfying @ref SearchSolutionVisitor that receives
+   *         immutable @ref Solution snapshots and returns `true` to continue or
+   *         `false` to stop immediately.
+   *  @return Result populated with policy, limits, statistics and the best
+   *          solution according to @ref Solution_Compare.
+   *  @throws std::invalid_argument if the exploration policy is not depth-first
+   *          or if `limits().max_solutions == 0`.
+   *  @par Complexity
+   *  Same as the overload without a callback: time proportional to explored
+   *  states, auxiliary space proportional to max depth.
+   *  @par Thread Safety
+   *  External synchronization required.
    */
   template <typename OnSolution>
     requires SearchSolutionVisitor<OnSolution, Solution>
@@ -226,7 +302,16 @@ public:
     return result;
   }
 
-  /** @brief Rvalue-friendly overload for temporary solution visitors. */
+  /** @brief Rvalue-friendly overload for temporary solution visitors.
+   *  @param initial_state Mutable root state explored by value.
+   *  @param on_solution Temporary visitor consumed (moved) by the call.
+   *  @return Result identical to the lvalue overload.
+   *  @throws std::invalid_argument under the same conditions as the lvalue overload.
+   *  @par Complexity
+   *  Same as other @ref search overloads.
+   *  @par Thread Safety
+   *  External synchronization required.
+   */
   template <typename OnSolution>
     requires SearchSolutionVisitor<OnSolution, Solution>
   [[nodiscard]] Result search(State initial_state, OnSolution &&on_solution)
@@ -237,15 +322,22 @@ public:
 
   /** @brief DFS/backtracking with a global visited-state set.
    *
-   *  Converts tree-search to graph-search: states are marked globally when
-   *  first entered. Any state whose key is already in `visited` is pruned,
-   *  preventing duplicate expansions via longer paths.
+   *  Converts tree-search to graph-search: states are marked globally after
+   *  passing limit/pruning checks, preventing duplicate expansions reachable
+   *  through longer paths. Requires domains exposing `state_key(state)`.
    *
-   *  The domain must expose `state_key(state)` (see @ref Aleph::SearchStateKeyProvider).
-   *
-   *  @param[in] initial_state Mutable root state.
-   *  @param[in,out] visited Caller-owned set that accumulates visited state keys.
-   *  @return Search result with statistics and best retained solution.
+   *  @param initial_state Mutable root state explored by value.
+   *  @param visited Caller-managed set that accumulates visited keys across calls;
+   *                 must satisfy @ref VisitedStateSet.
+   *  @return Result with final status, statistics, limits/policy snapshots and
+   *          best solution backed by @ref Solution_Compare.
+   *  @throws std::invalid_argument if the exploration policy is not depth-first
+   *          or if `limits().max_solutions == 0`.
+   *  @par Complexity
+   *  Time proportional to explored states; auxiliary space proportional to the
+   *  maximum search depth and the size of `visited`.
+   *  @par Thread Safety
+   *  Caller must synchronize both the engine and the provided `visited` set.
    */
   template <typename VisitedSet>
     requires SearchStateKeyProvider<Domain>
@@ -258,7 +350,21 @@ public:
 
   /** @brief DFS/backtracking with visited-state tracking and a solution callback.
    *
-   *  Combines graph-search pruning via `visited` with per-solution callbacks.
+   *  @param initial_state Mutable root state explored by value.
+   *  @param visited Caller-managed set updated with every state key that passes
+   *                 pruning/limit checks.
+   *  @param on_solution Solution visitor invoked for each solution; returning
+   *         `false` stops the search immediately.
+   *  @return Result capturing the final status, stats, limits, policy and best
+   *          solution selected by @ref Solution_Compare.
+   *  @throws std::invalid_argument if the policy is not depth-first or if the
+   *          configured maximum number of solutions is zero.
+   *  @par Complexity
+   *  Time proportional to explored states, auxiliary space proportional to the
+   *  maximum depth plus storage required by `visited`.
+   *  @par Thread Safety
+   *  Not thread-safe. Synchronize external access to both the engine and the
+   *  provided state set.
    */
   template <typename VisitedSet, typename OnSolution>
     requires SearchStateKeyProvider<Domain>
@@ -411,7 +517,6 @@ private:
         ++result.stats.pruned_by_domain;
         return false;
       }
-    visited.insert(key);
 
     if (domain_.is_goal(state))
       {
@@ -448,6 +553,8 @@ private:
 
     if (expansion_limit_reached(result))
       return true;
+
+    visited.insert(key);
 
     ++result.stats.expanded_states;
 

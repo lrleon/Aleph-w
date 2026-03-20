@@ -380,6 +380,9 @@ public:
         iteration.next_threshold = found ? threshold : next_bound;
         result.iterations.append(iteration);
 
+        if (result.status == SearchStatus::StoppedOnSolution)
+          break;
+
         if (found)
           {
             if (policy_.stop_at_first_solution)
