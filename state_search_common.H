@@ -140,6 +140,7 @@ struct SearchStats
   size_t terminal_states = 0;       ///< Non-solution terminal states cut by the domain.
   size_t pruned_by_depth = 0;       ///< States not expanded due to max depth.
   size_t pruned_by_domain = 0;      ///< States discarded by domain-side pruning.
+  size_t pruned_by_visited = 0;     ///< States skipped because already seen (visited-set duplicate suppression).
   size_t limit_hits = 0;            ///< Number of hard-limit stops triggered.
   size_t max_depth_reached = 0;     ///< Deepest path depth visited.
   double elapsed_ms = 0.0;          ///< Wall-clock time spent inside the search call.

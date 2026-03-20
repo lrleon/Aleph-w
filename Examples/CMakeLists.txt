@@ -62,7 +62,7 @@ if(BUILD_TESTS)
             NAME StateSearchExamples.NQueens
             COMMAND ${CMAKE_COMMAND}
                     -DEXAMPLE_PATH=$<TARGET_FILE:backtracking_nqueens_example>
-                    "-DEXPECT_SUBSTRINGS=N-Queens reference example;Solutions found: 2;First solution signature: 1302"
+                    "-DEXPECT_SUBSTRINGS=N-Queens reference example\;Solutions found: 2\;First solution signature: 1302"
                     -P ${_VERIFY_REFERENCE_EXAMPLE}
         )
     endif()
@@ -72,7 +72,7 @@ if(BUILD_TESTS)
             NAME StateSearchExamples.Knapsack
             COMMAND ${CMAKE_COMMAND}
                     -DEXAMPLE_PATH=$<TARGET_FILE:branch_and_bound_knapsack_example>
-                    "-DEXPECT_SUBSTRINGS=0/1 Knapsack reference example;Optimal value: 90;Chosen items: 0 2"
+                    "-DEXPECT_SUBSTRINGS=0/1 Knapsack reference example\;Optimal value: 90\;Chosen items: 0 2"
                     -P ${_VERIFY_REFERENCE_EXAMPLE}
         )
     endif()
@@ -82,7 +82,7 @@ if(BUILD_TESTS)
             NAME StateSearchExamples.TicTacToe
             COMMAND ${CMAKE_COMMAND}
                     -DEXAMPLE_PATH=$<TARGET_FILE:negamax_tictactoe_example>
-                    "-DEXPECT_SUBSTRINGS=Tic-Tac-Toe reference example;Negamax best move: 4;Alpha-Beta best move: 4"
+                    "-DEXPECT_SUBSTRINGS=Tic-Tac-Toe reference example\;Negamax best move: 4\;Alpha-Beta best move: 4"
                     -P ${_VERIFY_REFERENCE_EXAMPLE}
         )
     endif()

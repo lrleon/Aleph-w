@@ -1101,8 +1101,8 @@ public:
       When the load factor exceeds this value, the table
       automatically grows (if auto-resize is enabled).
       
-      @param __upper_alpha New upper threshold.
-      @throw std::domain_error If __upper_alpha <= lower_alpha.
+      @param _upper_alpha New upper threshold.
+      @throw std::domain_error If _upper_alpha <= lower_alpha.
   */
   void set_upper_alpha(float _upper_alpha)
   {
@@ -1117,8 +1117,8 @@ public:
       When the load factor drops below this value after a removal,
       the table automatically shrinks (if auto-resize is enabled).
       
-      @param __lower_alpha New lower threshold.
-      @throw std::domain_error If __lower_alpha >= upper_alpha.
+      @param _lower_alpha New lower threshold.
+      @throw std::domain_error If _lower_alpha >= upper_alpha.
   */
   void set_lower_alpha(float _lower_alpha)
   {

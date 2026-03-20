@@ -153,8 +153,8 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
     {
       ++result.stats.solutions_found;
       Solution solution{state, path, depth};
-      result.best_solution.consider(solution);
-      result.total_cost = g;
+      if (result.best_solution.consider(solution))
+        result.total_cost = g;
       const bool keep_searching = on_solution(solution);
       if (not keep_searching)
         result.status = SearchStatus::StoppedOnSolution;
@@ -336,13 +336,14 @@ public:
   /** @brief Run IDA* and invoke `on_solution` when the goal is reached.
    *
    *  The callback receives a solution snapshot and returns `true` to allow the
-   *  search to continue (potentially looking for a better-cost solution in
-   *  later iterations) or `false` to stop immediately. IDA\* is typically used
-   *  with stop-at-first-solution. When `stop_at_first_solution` is set to
-   *  `false` in the policy and the callback keeps returning `true`, the engine
-   *  raises the threshold and performs additional passes to seek cheaper
-   *  solutions, but each individual pass still stops at the first goal reached
-   *  within its threshold.
+   *  search to continue according to the exploration policy and limits, or
+   *  `false` to stop immediately. IDA\* is typically used with
+   *  stop-at-first-solution. This implementation stops at the first goal
+   *  reached within each threshold pass; with non-negative step costs and an
+   *  admissible heuristic the first solution encountered is already optimal,
+   *  so raising the threshold in later passes cannot produce a cheaper
+   *  solution, only potentially explore alternative states subject to the
+   *  configured limits.
    */
   template <typename OnSolution>
     requires SearchSolutionVisitor<OnSolution, Solution>
@@ -385,18 +386,9 @@ public:
 
         if (found)
           {
-            if (policy_.stop_at_first_solution)
-              {
-                result.status = SearchStatus::StoppedOnSolution;
-                break;
-              }
-
-            if (limits_.max_solutions != Search_Unlimited
-                and result.stats.solutions_found >= limits_.max_solutions)
-              {
-                result.status = SearchStatus::LimitReached;
-                break;
-              }
+            if (result.status != SearchStatus::LimitReached)
+              result.status = SearchStatus::StoppedOnSolution;
+            break;
           }
 
         if (result.status == SearchStatus::LimitReached)

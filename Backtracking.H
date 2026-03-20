@@ -139,7 +139,7 @@ public:
    *  @param policy Exploration policy copied into the engine. Only
    *                `Depth_First` traversal is honored during search.
    *  @param limits Search constraints copied and enforced on every run
-   *                (depth, expansions, solutions, time, etc.).
+   *                (such as depth, expansions and solutions).
    *  @param compare Functor used to rank solutions kept by @ref Result; moved
    *                 into the result objects returned by @ref search.
    *  @throws None.
@@ -211,7 +211,6 @@ public:
 
   /** @brief Replace the exploration policy for future runs.
    *  @param policy Exploration policy copied and used by subsequent @ref search calls.
-   *  @return void.
    *  @throws None.
    *  @par Complexity
    *  Time O(1); space O(1).
@@ -225,7 +224,6 @@ public:
 
   /** @brief Replace the hard limits for future runs.
    *  @param limits New @ref SearchLimits copied verbatim into the engine.
-   *  @return void.
    *  @throws None.
    *  @par Complexity
    *  Time O(1); space O(1).
@@ -263,7 +261,7 @@ public:
   /** @brief Execute DFS/backtracking and invoke `on_solution` on each solution.
    *
    *  @param initial_state Mutable root state explored by value.
-   *  @param on_solution Functor satisfying @ref SearchSolutionVisitor that receives
+   *  @param on_solution Functor satisfying @ref Aleph::SearchSolutionVisitor that receives
    *         immutable @ref Solution snapshots and returns `true` to continue or
    *         `false` to stop immediately.
    *  @return Result populated with policy, limits, statistics and the best
@@ -320,15 +318,19 @@ public:
     return search(std::move(initial_state), handler);
   }
 
-  /** @brief DFS/backtracking with a global visited-state set.
+  /** @brief DFS/backtracking with a depth-aware visited-state map.
    *
    *  Converts tree-search to graph-search: states are marked globally after
-   *  passing limit/pruning checks, preventing duplicate expansions reachable
-   *  through longer paths. Requires domains exposing `state_key(state)`.
+   *  passing limit/pruning checks. A state is pruned only when a previous
+   *  expansion reached it at an equal or shallower depth (i.e., with at least
+   *  as much remaining budget); if the current path is shallower the stored
+   *  depth is updated and exploration continues. Requires domains exposing
+   *  `state_key(state)`.
    *
    *  @param initial_state Mutable root state explored by value.
-   *  @param visited Caller-managed set that accumulates visited keys across calls;
-   *                 must satisfy @ref VisitedStateSet.
+   *  @param visited Caller-managed depth map that accumulates visited keys
+   *                 across calls; must satisfy @ref Aleph::VisitedBoundMap
+   *                 with `size_t` as the bound type (e.g. `SearchStorageMap<Key, size_t>`).
    *  @return Result with final status, statistics, limits/policy snapshots and
    *          best solution backed by @ref Solution_Compare.
    *  @throws std::invalid_argument if the exploration policy is not depth-first
@@ -337,22 +339,23 @@ public:
    *  Time proportional to explored states; auxiliary space proportional to the
    *  maximum search depth and the size of `visited`.
    *  @par Thread Safety
-   *  Caller must synchronize both the engine and the provided `visited` set.
+   *  Caller must synchronize both the engine and the provided `visited` map.
    */
   template <typename VisitedSet>
     requires SearchStateKeyProvider<Domain>
-         and VisitedStateSet<VisitedSet, typename Domain::State_Key>
+         and VisitedBoundMap<VisitedSet, typename Domain::State_Key, size_t>
   [[nodiscard]] Result search(State initial_state, VisitedSet &visited)
   {
     ContinueSearch on_solution;
     return search(std::move(initial_state), visited, on_solution);
   }
 
-  /** @brief DFS/backtracking with visited-state tracking and a solution callback.
+  /** @brief DFS/backtracking with depth-aware visited-state tracking and a solution callback.
    *
    *  @param initial_state Mutable root state explored by value.
-   *  @param visited Caller-managed set updated with every state key that passes
-   *                 pruning/limit checks.
+   *  @param visited Caller-managed depth map updated at every state expansion;
+   *                 must satisfy @ref Aleph::VisitedBoundMap with `size_t` as
+   *                 bound type (e.g. `SearchStorageMap<Key, size_t>`).
    *  @param on_solution Solution visitor invoked for each solution; returning
    *         `false` stops the search immediately.
    *  @return Result capturing the final status, stats, limits, policy and best
@@ -364,11 +367,11 @@ public:
    *  maximum depth plus storage required by `visited`.
    *  @par Thread Safety
    *  Not thread-safe. Synchronize external access to both the engine and the
-   *  provided state set.
+   *  provided depth map.
    */
   template <typename VisitedSet, typename OnSolution>
     requires SearchStateKeyProvider<Domain>
-         and VisitedStateSet<VisitedSet, typename Domain::State_Key>
+         and VisitedBoundMap<VisitedSet, typename Domain::State_Key, size_t>
          and SearchSolutionVisitor<OnSolution, Solution>
   [[nodiscard]] Result search(State initial_state, VisitedSet &visited, OnSolution &on_solution)
   {
@@ -488,7 +491,16 @@ private:
       ++result.stats.generated_successors;
       path.append(move);
       domain_.apply(state, move);
-      stop = dfs(state, path, depth + 1, result, on_solution);
+      try
+        {
+          stop = dfs(state, path, depth + 1, result, on_solution);
+        }
+      catch (...)
+        {
+          domain_.undo(state, move);
+          (void) path.remove_last();
+          throw;
+        }
       domain_.undo(state, move);
       (void) path.remove_last();
       return not stop;
@@ -499,7 +511,7 @@ private:
 
   template <typename OnSolution, typename VisitedSet>
     requires SearchSolutionVisitor<OnSolution, Solution>
-         and VisitedStateSet<VisitedSet, typename Domain::State_Key>
+         and VisitedBoundMap<VisitedSet, typename Domain::State_Key, size_t>
   [[nodiscard]] bool dfs_visited(State &state,
                                  SearchPath<Move> &path,
                                  const size_t depth,
@@ -512,9 +524,10 @@ private:
       result.stats.max_depth_reached = depth;
 
     const auto key = domain_.state_key(state);
-    if (visited.contains(key))
+    if (auto *entry = visited.search(key);
+        entry != nullptr and entry->second <= depth)
       {
-        ++result.stats.pruned_by_domain;
+        ++result.stats.pruned_by_visited;
         return false;
       }
 
@@ -554,7 +567,10 @@ private:
     if (expansion_limit_reached(result))
       return true;
 
-    visited.insert(key);
+    if (auto *entry = visited.search(key); entry != nullptr)
+      entry->second = depth;
+    else
+      visited.insert(key, depth);
 
     ++result.stats.expanded_states;
 
@@ -565,7 +581,16 @@ private:
       ++result.stats.generated_successors;
       path.append(move);
       domain_.apply(state, move);
-      stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
+      try
+        {
+          stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
+        }
+      catch (...)
+        {
+          domain_.undo(state, move);
+          (void) path.remove_last();
+          throw;
+        }
       domain_.undo(state, move);
       (void) path.remove_last();
       return not stop;

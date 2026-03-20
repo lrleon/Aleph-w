@@ -539,6 +539,7 @@ inline void accumulate_search_stats(SearchStats &dst, const SearchStats &src) no
   dst.terminal_states += src.terminal_states;
   dst.pruned_by_depth += src.pruned_by_depth;
   dst.pruned_by_domain += src.pruned_by_domain;
+  dst.pruned_by_visited += src.pruned_by_visited;
   dst.limit_hits += src.limit_hits;
   if (src.max_depth_reached > dst.max_depth_reached)
     dst.max_depth_reached = src.max_depth_reached;
