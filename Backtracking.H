@@ -405,12 +405,13 @@ private:
     if (depth > result.stats.max_depth_reached)
       result.stats.max_depth_reached = depth;
 
-    if (visited.contains(domain_.state_key(state)))
+    const auto key = domain_.state_key(state);
+    if (visited.contains(key))
       {
         ++result.stats.pruned_by_domain;
         return false;
       }
-    visited.insert(domain_.state_key(state));
+    visited.insert(key);
 
     if (domain_.is_goal(state))
       {

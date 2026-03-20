@@ -978,7 +978,9 @@ private:
       auto child = search_node(state, depth + 1, result, table, keyer, tracer);
       domain_.undo(state, move);
 
-      const Score candidate = -child.value;
+      const Score candidate = (child.value == std::numeric_limits<Score>::lowest())
+                              ? std::numeric_limits<Score>::max()
+                              : -child.value;
       if (not has_best or candidate > best.value)
         {
           best.value = candidate;
@@ -1109,7 +1111,7 @@ template <AdversarialGameDomain Domain>
   SearchLimits limits = {},
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
-  Null_Adversarial_Search_Tracer tracer;
+  static Null_Adversarial_Search_Tracer tracer;
   return iterative_deepening_negamax_search(
     std::move(domain), std::move(initial_state), tracer, policy, limits, options);
 }
@@ -1207,7 +1209,7 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer>
   SearchLimits limits = {},
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
-  Null_Adversarial_Search_Tracer tracer;
+  static Null_Adversarial_Search_Tracer tracer;
   return iterative_deepening_negamax_search(
     std::move(domain), std::move(initial_state), table, keyer, tracer, policy, limits, options);
 }
@@ -1308,7 +1310,7 @@ template <AdversarialGameDomain Domain, typename Table>
   SearchLimits limits = {},
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
-  Null_Adversarial_Search_Tracer tracer;
+  static Null_Adversarial_Search_Tracer tracer;
   return iterative_deepening_negamax_search(
     std::move(domain), std::move(initial_state), table, tracer, policy, limits, options);
 }
@@ -1327,9 +1329,10 @@ template <AdversarialGameDomain Domain, typename Table, typename Tracer>
   SearchLimits limits = {},
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
-  auto keyer = [&domain](const typename Domain::State &state)
+  auto key_domain = domain;
+  auto keyer = [key_domain = std::move(key_domain)](const typename Domain::State &state) mutable
   {
-    return domain.state_key(state);
+    return key_domain.state_key(state);
   };
 
   return iterative_deepening_negamax_search(

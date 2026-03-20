@@ -34,6 +34,7 @@
 #include <gtest/gtest.h>
 
 #include <State_Search.H>
+#include <State_Search_IDA_Star.H>
 
 using namespace Aleph;
 
@@ -291,6 +292,98 @@ private:
   int target_ = 0;
 };
 
+struct TinyIDAStarState
+{
+  size_t node = 0;
+  Array<size_t> history;
+};
+
+struct TinyIDAStarDomain
+{
+  struct Move
+  {
+    size_t to = 0;
+    int cost = 0;
+  };
+
+  using State = TinyIDAStarState;
+  using State_Key = std::uint64_t;
+  using Distance = int;
+
+  TinyIDAStarDomain()
+    : adjacency_{
+        Array<Move>{Move{1, 4}, Move{2, 1}},
+        Array<Move>{Move{4, 2}},
+        Array<Move>{Move{3, 1}},
+        Array<Move>{Move{4, 5}},
+        Array<Move>{}},
+      heuristic_{6, 2, 6, 5, 0}
+  {
+    // empty
+  }
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return (static_cast<State_Key>(state.node) << 32) | static_cast<State_Key>(state.history.size());
+  }
+
+  [[nodiscard]] bool is_goal(const State &state) const noexcept
+  {
+    return state.node == goal_;
+  }
+
+  [[nodiscard]] bool is_terminal(const State &state) const noexcept
+  {
+    return adjacency_[state.node].is_empty();
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.history.append(state.node);
+    state.node = move.to;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    if (state.history.is_empty())
+      {
+        state.node = 0;
+        return;
+      }
+
+    const size_t previous = state.history[state.history.size() - 1];
+    (void) state.history.remove_last();
+    state.node = previous;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    for (const auto &move : adjacency_[state.node])
+      {
+        if (not visit(move))
+          return false;
+      }
+
+    return true;
+  }
+
+  [[nodiscard]] Distance heuristic(const State &state) const noexcept
+  {
+    return heuristic_[state.node];
+  }
+
+  [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
+  {
+    return move.cost;
+  }
+
+private:
+  Array<Array<Move>> adjacency_;
+  Array<Distance> heuristic_;
+  size_t goal_ = 4;
+};
+
 static_assert(SearchState<ArtificialDecisionTreeDomain::State>);
 static_assert(SearchMove<ArtificialDecisionTreeDomain::Move>);
 static_assert(BacktrackingDomain<ArtificialDecisionTreeDomain>);
@@ -305,6 +398,8 @@ static_assert(SearchMove<SubsetSumDomain::Move>);
 static_assert(BacktrackingDomain<SubsetSumDomain>);
 static_assert(TerminalPredicate<SubsetSumDomain>);
 static_assert(DomainPruner<SubsetSumDomain>);
+
+static_assert(IDAStarDomain<TinyIDAStarDomain>);
 
 template <typename Move>
 std::string path_signature(const SearchPath<Move> &path)
@@ -328,6 +423,19 @@ std::string subset_sum_signature(const SubsetSumState &state)
   std::string signature;
   for (const auto pick : state.chosen)
     signature.push_back(pick ? '1' : '0');
+  return signature;
+}
+
+std::string ida_star_path_signature(const SearchPath<TinyIDAStarDomain::Move> &path)
+{
+  std::string signature;
+  size_t node = 0;
+  signature.push_back(static_cast<char>('0' + node));
+  for (const auto &move : path)
+    {
+      node = move.to;
+      signature.push_back(static_cast<char>('0' + node));
+    }
   return signature;
 }
 
@@ -544,4 +652,55 @@ TEST(StateSearchFramework, SubsetSumMaxSolutionsLimitStopsEnumeration)
   EXPECT_TRUE(result.limit_reached());
   EXPECT_EQ(result.stats.solutions_found, 1u);
   EXPECT_EQ(collector.size(), 1u);
+}
+
+TEST(StateSearchFramework, IDAStarFindsOptimalSolution)
+{
+  TinyIDAStarDomain domain;
+  IDA_Star_State_Search<TinyIDAStarDomain> engine(domain);
+
+  auto result = engine.search(TinyIDAStarDomain::State{});
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_EQ(result.total_cost, 6);
+  ASSERT_TRUE(result.best_solution.has_value());
+  EXPECT_EQ(result.best_solution.get().path.size(), 2u);
+  EXPECT_EQ(ida_star_path_signature(result.best_solution.get().path), "014");
+  ASSERT_FALSE(result.iterations.is_empty());
+  EXPECT_EQ(result.iterations[0].threshold, 6);
+}
+
+TEST(StateSearchFramework, IDAStarRespectsDepthLimit)
+{
+  TinyIDAStarDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 1;
+
+  IDA_Star_State_Search<TinyIDAStarDomain> engine(domain, ExplorationPolicy{}, limits);
+  auto result = engine.search(TinyIDAStarDomain::State{});
+
+  EXPECT_FALSE(result.found_solution());
+  EXPECT_TRUE(result.exhausted());
+  EXPECT_GT(result.stats.pruned_by_depth, 0u);
+}
+
+TEST(StateSearchFramework, IDAStarCallbackStopsAfterFirstGoal)
+{
+  TinyIDAStarDomain domain;
+  ExplorationPolicy policy;
+  policy.stop_at_first_solution = false;
+
+  size_t callbacks = 0;
+  auto on_solution = [&](const auto &solution) {
+    (void) solution;
+    ++callbacks;
+    return callbacks == 1 ? false : true;
+  };
+
+  IDA_Star_State_Search<TinyIDAStarDomain> engine(domain, policy);
+  auto result = engine.search(TinyIDAStarDomain::State{}, on_solution);
+
+  EXPECT_TRUE(result.stopped_on_solution());
+  EXPECT_EQ(callbacks, 1u);
+  EXPECT_EQ(result.stats.solutions_found, 1u);
 }

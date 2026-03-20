@@ -164,6 +164,7 @@ set(HLIST
     Negamax.H
     Alpha_Beta.H
     State_Search.H
+    State_Search_IDA_Star.H
 )
 
 # C++ source files

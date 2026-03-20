@@ -155,7 +155,9 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
       Solution solution{state, path, depth};
       result.best_solution.consider(solution);
       result.total_cost = g;
-      on_solution(solution);
+      const bool keep_searching = on_solution(solution);
+      if (not keep_searching)
+        result.status = SearchStatus::StoppedOnSolution;
       return {true, threshold};
     }
 
@@ -171,6 +173,12 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
       return {false, std::numeric_limits<Distance>::max()};
     }
 
+  if (depth >= result.limits.max_depth)
+    {
+      ++result.stats.pruned_by_depth;
+      return {false, std::numeric_limits<Distance>::max()};
+    }
+
   if (result.stats.expanded_states >= result.limits.max_expansions)
     {
       ++result.stats.limit_hits;
@@ -183,10 +191,14 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
   using Move = typename Domain::Move;
   DFSResult<Distance> out{false, std::numeric_limits<Distance>::max()};
 
+  if (const bool can_expand = depth + 1 <= result.limits.max_depth; not can_expand)
+    return out;
+
   (void) domain.for_each_successor(state,
                                    [&](const Move &move) -> bool
   {
-    if (result.status == SearchStatus::LimitReached)
+    if (result.status == SearchStatus::LimitReached
+        or result.status == SearchStatus::StoppedOnSolution)
       return false;
 
     ++result.stats.generated_successors;
@@ -204,6 +216,10 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
         out.found = true;
         return false;
       }
+
+    if (result.status == SearchStatus::LimitReached
+        or result.status == SearchStatus::StoppedOnSolution)
+      return false;
 
     if (child.next_bound < out.next_bound)
       out.next_bound = child.next_bound;
@@ -319,11 +335,14 @@ public:
 
   /** @brief Run IDA* and invoke `on_solution` when the goal is reached.
    *
-   *  The callback receives a solution snapshot and returns `true` to continue
-   *  (look for a better solution) or `false` to stop immediately. IDA\* is
-   *  typically used with stop-at-first-solution, but can be used to find
-   *  all optimal-cost solutions if the callback always returns `true` and
-   *  `stop_at_first_solution` is set to `false` in the policy.
+   *  The callback receives a solution snapshot and returns `true` to allow the
+   *  search to continue (potentially looking for a better-cost solution in
+   *  later iterations) or `false` to stop immediately. IDA\* is typically used
+   *  with stop-at-first-solution. When `stop_at_first_solution` is set to
+   *  `false` in the policy and the callback keeps returning `true`, the engine
+   *  raises the threshold and performs additional passes to seek cheaper
+   *  solutions, but each individual pass still stops at the first goal reached
+   *  within its threshold.
    */
   template <typename OnSolution>
     requires SearchSolutionVisitor<OnSolution, Solution>

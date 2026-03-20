@@ -115,7 +115,7 @@ concept MemoTable = requires(Table &table, const Key &key, const Entry &entry) {
  *  @tparam Provider Type exposing the keying logic.
  */
 template <typename Provider>
-concept SearchStateKeyProvider = requires(Provider &provider, const typename Provider::State &state) {
+concept SearchStateKeyProvider = requires(const Provider &provider, const typename Provider::State &state) {
   typename Provider::State_Key;
   { provider.state_key(state) } -> std::convertible_to<typename Provider::State_Key>;
 };
@@ -149,16 +149,19 @@ concept VisitedStateSet = requires(Set &set, const Key &key) {
 template <typename Map, typename Key, typename Objective>
 concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &obj) {
   map.insert(key, obj);
-  map.search(key);
+  { map.search(key) } -> std::convertible_to<std::pair<const Key, Objective> *>;
 };
 
 /** @brief Minimal replacement policy: always replace the current entry.
- *  @tparam Entry Type of entry.
+ *
+ *  @tparam Entry Type of entry stored in the transposition table.
  */
 template <typename Entry>
 struct Replace_Always
 {
-  /** @brief Returns true unconditionally. */
+  /** @brief Decide whether to overwrite a stored entry.
+   *  @return Always true.
+   */
   bool operator()(const Entry &, const Entry &) const noexcept
   {
     return true;
@@ -166,6 +169,7 @@ struct Replace_Always
 };
 
 /** @brief Replacement policy that prefers entries searched to greater depth.
+ *
  *  @tparam Entry Entry type (must expose `.depth`).
  */
 template <typename Entry>
@@ -174,14 +178,22 @@ template <typename Entry>
   }
 struct Prefer_Deeper_Entry
 {
-  /** @brief Returns true if candidate is deeper than current. */
+  /** @brief Decide which entry to keep according to remaining depth.
+   *  @param candidate New entry proposed for storage.
+   *  @param current Entry already stored for the same key.
+   *  @return True if `candidate.depth > current.depth`.
+   */
   bool operator()(const Entry &candidate, const Entry &current) const noexcept
   {
     return candidate.depth > current.depth;
   }
 };
 
-/** @brief Generic transposition / memo table over Aleph open-addressing maps.
+/** @brief Transposition-table container built on top of Aleph hash maps.
+ *
+ *  Thread-safety: all member functions require external synchronization. The
+ *  table stores entries in-place and returns mutable pointers when probing; as
+ *  such, callers must ensure only one thread manipulates the table at a time.
  *
  *  @tparam Key Stable cache key type.
  *  @tparam Entry Cached value associated with `Key`.
@@ -206,73 +218,78 @@ public:
   using Map_Type = SearchStorageMap<Key, Entry, HashMapTable, Cmp>;
   using Replace_Policy = ReplacePolicy;
 
+  /** @brief Build an empty table with the default replacement policy.
+   *  @note Complexity: O(1).
+   */
   Transposition_Table() = default;
 
+  /** @brief Build a table with a custom replacement policy instance.
+   *  @param replace Replacement policy functor.
+   *  @note Complexity: O(1).
+   */
   explicit Transposition_Table(ReplacePolicy replace) : replace_(std::move(replace))
   {
     // empty
   }
 
-  /** @brief Remove all stored entries. */
+  /** @brief Remove all stored entries.
+   *  @note Complexity: O(n) due to hash table clearing.
+   */
   void clear() noexcept
   {
     table_.empty();
   }
 
-  /** @brief Reset only the accumulated storage statistics. */
+  /** @brief Reset only the accumulated storage statistics.
+   *  @note Complexity: O(1).
+   */
   void reset_stats() noexcept
   {
     stats_ = {};
   }
 
-  /** @brief Number of currently stored entries. */
+  /** @brief Number of currently stored entries.
+   *  @return Count of entries. Complexity: O(1).
+   */
   [[nodiscard]] size_t size() const noexcept
   {
     return table_.size();
   }
 
-  /** @brief Return `true` if the table contains no entries. */
+  /** @brief Return `true` if the table contains no entries.
+   *  @return True when empty. Complexity: O(1).
+   */
   [[nodiscard]] bool is_empty() const noexcept
   {
     return table_.is_empty();
   }
 
-  /** @brief Read-only access to accumulated storage statistics. */
+  /** @brief Read-only access to accumulated storage statistics.
+   *  @return Reference to internal stats structure. Complexity: O(1).
+   */
   [[nodiscard]] const TranspositionStats &stats() const noexcept
   {
     return stats_;
   }
 
-  /** @brief Probe one key and return the stored entry if present. */
+  /** @brief Probe one key and return the stored entry if present.
+   *  @param key Cache key.
+   *  @return Mutable pointer to the stored entry, or `nullptr` on miss.
+   *  @note Complexity: expected O(1) for hash-table lookup.
+   */
   [[nodiscard]] Entry *probe(const Key &key)
   {
-    ++stats_.probes;
-
-    auto *pair = table_.search(key);
-    if (pair == nullptr)
-      {
-        ++stats_.misses;
-        return nullptr;
-      }
-
-    ++stats_.hits;
-    return &pair->second;
+    return probe_impl(key);
   }
 
-  /** @brief Probe one key and return the stored entry if present. */
+  /** @brief Probe one key using move semantics.
+   *  @param key Cache key (consumed).
+   *  @return Mutable pointer to the stored entry, or `nullptr` on miss.
+   *  @note Complexity: expected O(1) for hash-table lookup.
+   */
   [[nodiscard]] Entry *probe(Key &&key)
   {
-    ++stats_.probes;
-
-    auto *pair = table_.search(std::move(key));
-    if (pair == nullptr)
-      {
-        ++stats_.misses;
-        return nullptr;
-      }
-
-    ++stats_.hits;
-    return &pair->second;
+    return probe_impl(std::move(key));
   }
 
   /** @brief Store a candidate entry for `key`.
@@ -280,32 +297,47 @@ public:
    *  If the key is absent, the entry is inserted. Otherwise the configured
    *  replacement policy decides whether the current entry is overwritten.
    *
+   *  @param key Cache key.
+   *  @param entry Candidate entry to store.
    *  @return Status describing whether the candidate was inserted, replaced or
    *          rejected.
+   *  @note Complexity: expected O(1).
    */
   [[nodiscard]] TranspositionStoreStatus store(const Key &key, const Entry &entry)
   {
-    if (auto *current = table_.search(key); current != nullptr)
-      {
-        if (not replace_(entry, current->second))
-          {
-            ++stats_.rejected_updates;
-            return TranspositionStoreStatus::Rejected;
-          }
-
-        current->second = entry;
-        ++stats_.stores;
-        ++stats_.replacements;
-        return TranspositionStoreStatus::Replaced;
-      }
-
-    (void) table_.insert(key, entry);
-    ++stats_.stores;
-    return TranspositionStoreStatus::Inserted;
+    return store_impl(key, entry);
   }
 
-  /** @brief Store a candidate entry for `key` using move semantics. */
+  /** @brief Store a candidate entry for `key` using move semantics.
+   *  @param key Cache key (consumed).
+   *  @param entry Entry moved into storage.
+   *  @return Insert/replace/reject status.
+   *  @note Complexity: expected O(1).
+   */
   [[nodiscard]] TranspositionStoreStatus store(Key &&key, Entry entry)
+  {
+    return store_impl(std::move(key), std::move(entry));
+  }
+
+private:
+  template <typename KeyLike>
+  [[nodiscard]] Entry *probe_impl(KeyLike &&key)
+  {
+    ++stats_.probes;
+
+    auto *pair = table_.search(std::forward<KeyLike>(key));
+    if (pair == nullptr)
+      {
+        ++stats_.misses;
+        return nullptr;
+      }
+
+    ++stats_.hits;
+    return &pair->second;
+  }
+
+  template <typename KeyLike, typename EntryLike>
+  [[nodiscard]] TranspositionStoreStatus store_impl(KeyLike &&key, EntryLike &&entry)
   {
     if (auto *current = table_.search(key); current != nullptr)
       {
@@ -315,18 +347,17 @@ public:
             return TranspositionStoreStatus::Rejected;
           }
 
-        current->second = std::move(entry);
+        current->second = std::forward<EntryLike>(entry);
         ++stats_.stores;
         ++stats_.replacements;
         return TranspositionStoreStatus::Replaced;
       }
 
-    (void) table_.insert(std::move(key), std::move(entry));
+    (void) table_.insert(std::forward<KeyLike>(key), std::forward<EntryLike>(entry));
     ++stats_.stores;
     return TranspositionStoreStatus::Inserted;
   }
 
-private:
   Map_Type table_;
   ReplacePolicy replace_ = {};
   TranspositionStats stats_;

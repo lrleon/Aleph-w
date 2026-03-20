@@ -652,7 +652,7 @@ public:
     /** @brief Validates iterator state (debug only).
         @return true if iterator state is consistent.
     */
-    bool check() const noexcept
+    [[nodiscard]] bool check() const noexcept
     {
       assert(table_ptr != nullptr);
       return curr_idx >= 0 and curr_idx < static_cast<long>(table_ptr->len) and
@@ -1104,12 +1104,12 @@ public:
       @param __upper_alpha New upper threshold.
       @throw std::domain_error If __upper_alpha <= lower_alpha.
   */
-  void set_upper_alpha(float __upper_alpha)
+  void set_upper_alpha(float _upper_alpha)
   {
-    ah_domain_error_if(__upper_alpha <= lower_alpha)
+    ah_domain_error_if(_upper_alpha <= lower_alpha)
       << "upper_alpha lower than lower_alpha";
 
-    upper_alpha = __upper_alpha;
+    upper_alpha = _upper_alpha;
   }
 
   /** @brief Sets the lower load factor threshold.
@@ -1120,12 +1120,12 @@ public:
       @param __lower_alpha New lower threshold.
       @throw std::domain_error If __lower_alpha >= upper_alpha.
   */
-  void set_lower_alpha(float __lower_alpha)
+  void set_lower_alpha(float _lower_alpha)
   {
-    ah_domain_error_if(__lower_alpha >= upper_alpha)
+    ah_domain_error_if(_lower_alpha >= upper_alpha)
       << "lower_alpha greater than upper_alpha";
 
-    lower_alpha = __lower_alpha;
+    lower_alpha = _lower_alpha;
   }
 
   /** @brief Returns the lower load factor threshold.
