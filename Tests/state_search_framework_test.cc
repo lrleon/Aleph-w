@@ -29,6 +29,7 @@
 */
 
 #include <string>
+#include <cstdint>
 
 #include <gtest/gtest.h>
 
@@ -53,8 +54,15 @@ struct ArtificialDecisionTreeDomain
   };
 
   using State = ArtificialTreeState;
+  using State_Key = std::uint64_t;
 
   size_t leaf_depth = 2;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return (static_cast<State_Key>(state.depth) << 32)
+           ^ static_cast<State_Key>(state.code);
+  }
 
   bool is_goal(const State &state) const
   {
@@ -120,8 +128,22 @@ struct NQueensDomain
   };
 
   using State = NQueensState;
+  using State_Key = std::uint64_t;
 
   size_t n = 0;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    State_Key key = static_cast<State_Key>(state.row);
+    for (size_t row = 0; row < state.n; ++row)
+      {
+        const int col = state.queens[row];
+        key = key * static_cast<State_Key>(1315423911u)
+              + static_cast<State_Key>(col + 2);
+      }
+
+    return key;
+  }
 
   bool is_goal(const State &state) const
   {
@@ -197,6 +219,7 @@ public:
   };
 
   using State = SubsetSumState;
+  using State_Key = std::uint64_t;
 
   explicit SubsetSumDomain(const Array<int> &values, const int target)
     : values_(values),
@@ -250,6 +273,16 @@ public:
       return false;
 
     return visit(Move{false});
+  }
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    State_Key key = static_cast<State_Key>(state.index);
+    key = key * static_cast<State_Key>(2654435761u)
+          + static_cast<State_Key>(state.sum ^ 0x9e3779b9);
+    for (const auto pick : state.chosen)
+      key = (key << 1) ^ static_cast<State_Key>(pick);
+    return key;
   }
 
 private:
