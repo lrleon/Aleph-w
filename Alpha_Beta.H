@@ -60,14 +60,26 @@ namespace Aleph {
  *  and reorders them before search. Optional killer/history hooks can further
  *  bias that ordering when explicitly enabled.
  */
+/** @brief Adversarial search engine with Alpha-Beta pruning.
+ *
+ *  Alpha-Beta improves upon pure Negamax by pruning branches that are
+ *  guaranteed to be worse than a previously discovered line of play.
+ *
+ *  @tparam Domain game adapter exposing adversarial-search hooks.
+ */
 template <AdversarialGameDomain Domain>
 class Alpha_Beta
 {
 public:
+  /// Type of the problem domain.
   using Domain_Type = Domain;
+  /// Concrete search state type.
   using State = typename Domain::State;
+  /// Move type.
   using Move = typename Domain::Move;
+  /// Score type used for board evaluation.
   using Score = typename Domain::Score;
+  /// Outcome of an Alpha-Beta search execution.
   using Result = AdversarialSearchResult<Move, Score>;
   using Killer_Table = Killer_Move_Table<Move>;
   using History_Table = typename adversarial_search_detail::History_Table_Selector<Domain>::Type;

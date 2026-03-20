@@ -79,15 +79,19 @@ struct MoveOrderingStats
   size_t history_hits = 0;      ///< Moves promoted because they had non-zero history.
 };
 
-/** @brief One move plus the metadata used by ordering comparators. */
+/** @brief One move plus the metadata used by ordering comparators.
+ *
+ *  @tparam Move Concrete move type.
+ *  @tparam Priority Numeric type used for sorting (score or bound).
+ */
 template <typename Move, typename Priority>
 struct RankedMove
 {
-  Move move;
-  Priority priority = Priority{};
-  size_t ordinal = 0;
-  bool killer = false;
-  size_t history_score = 0;
+  Move move;               ///< The candidate move.
+  Priority priority = Priority{}; ///< Cheap heuristic priority (lower or higher depending on engine).
+  size_t ordinal = 0;      ///< Original order from successor generator (tie-breaker).
+  bool killer = false;     ///< True if this move matched a killer slot.
+  size_t history_score = 0; ///< Accumulated history heuristic score.
 };
 
 /** @brief Two-slot killer heuristic table indexed by search depth.
@@ -95,44 +99,62 @@ struct RankedMove
  *  This implementation is intentionally small: each depth keeps two recent
  *  cutoff-producing moves. Engines can query the table while ordering a batch
  *  and record a move when it triggers a cutoff.
+ *
+ *  @tparam Move Move type.
+ *  @tparam Supported Internal marker for equality support.
  */
 template <typename Move, bool Supported = std::equality_comparable<Move>>
 class Killer_Move_Table;
 
+/** @brief Specialized killer table for moves without equality support (no-op). */
 template <typename Move>
 class Killer_Move_Table<Move, false>
 {
 public:
+  /// Marker indicating that this table does nothing.
   static constexpr bool supported = false;
 
+  /** @brief No-op. */
   void clear() noexcept
   {
     // empty
   }
 
+  /** @brief Always returns false.
+   *  @return Always false.
+   */
   [[nodiscard]] bool is_killer(const size_t, const Move &) const noexcept
   {
     return false;
   }
 
+  /** @brief No-op. */
   void record(const size_t, const Move &) noexcept
   {
     // empty
   }
 };
 
+/** @brief Killer heuristic table for equality-comparable moves. */
 template <typename Move>
 class Killer_Move_Table<Move, true>
 {
 public:
+  /// Marker indicating that this table tracks moves.
   static constexpr bool supported = true;
 
+  /** @brief Remove all recorded killer moves. */
   void clear() noexcept
   {
     primary_.empty();
     secondary_.empty();
   }
 
+  /** @brief Return true if `move` is in a killer slot for `depth`.
+   *  @param depth Path depth from root.
+   *  @param move Candidate move to check.
+   *  @return true if move was found in either slot for depth.
+   */
   [[nodiscard]] bool is_killer(const size_t depth, const Move &move) const noexcept
   {
     return depth < primary_.size() and
@@ -140,6 +162,10 @@ public:
        (secondary_[depth].has_value() and *secondary_[depth] == move));
   }
 
+  /** @brief Record a move that caused a cutoff at `depth`.
+   *  @param depth Path depth from root.
+   *  @param move Cutoff-producing move.
+   */
   void record(const size_t depth, const Move &move)
   {
     ensure_depth(depth + 1);
@@ -187,22 +213,35 @@ struct Null_History_Heuristic_Table
   }
 };
 
-/** @brief Sparse history heuristic table over Aleph hash maps. */
+/** @brief Sparse history heuristic table over Aleph hash maps.
+ *
+ *  @tparam Key Key type used to identify moves globally.
+ *  @tparam HashMapTable Aleph hash-table implementation.
+ *  @tparam Cmp Key equality comparator.
+ */
 template <typename Key,
           template <typename, typename, class> class HashMapTable = MapOLhash,
           class Cmp = Aleph::equal_to<Key>>
 class History_Heuristic_Table
 {
 public:
+  /// Marker indicating that this table tracks history.
   static constexpr bool supported = true;
+  /// Type of move keys.
   using Key_Type = Key;
+  /// Internal map type.
   using Map_Type = DynHashMap<Key, size_t, HashMapTable, Cmp>;
 
+  /** @brief Reset all history scores to zero. */
   void clear() noexcept
   {
     table_.empty();
   }
 
+  /** @brief Read the current score for a move key.
+   *  @param key Move key.
+   *  @return Cumulative history score.
+   */
   [[nodiscard]] size_t score(const Key &key) const noexcept
   {
     if (auto *entry = table_.search(key); entry != nullptr)
@@ -211,6 +250,10 @@ public:
     return 0;
   }
 
+  /** @brief Increment the history score for a move key.
+   *  @param key Move key.
+   *  @param bonus Amount to add to the score.
+   */
   void record(const Key &key, const size_t bonus = 1)
   {
     if (auto *entry = table_.search(key); entry != nullptr)
@@ -234,6 +277,14 @@ private:
  *  2. greater history score first, if enabled,
  *  3. better priority first according to `better_priority`,
  *  4. original domain order as deterministic tie-breaker.
+ *
+ *  @tparam Move Concrete move type.
+ *  @tparam Priority Numeric priority type.
+ *  @tparam BetterPriority Binary predicate `(Priority, Priority) -> bool`.
+ *  @param moves Batch of ranked moves to sort in-place.
+ *  @param better_priority Comparator where `true` means the first priority is better.
+ *  @param prefer_killer If true, moves with `.killer == true` are promoted.
+ *  @param prefer_history If true, moves are ordered by descending `.history_score`.
  */
 template <typename Move, typename Priority, typename BetterPriority>
 void sort_ranked_moves(Array<RankedMove<Move, Priority>> &moves,

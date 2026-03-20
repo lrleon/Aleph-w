@@ -232,20 +232,30 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
  *  Only the current path from root to the node under expansion is stored
  *  (one `SearchPath` of depth at most `max_depth`). No open/closed lists.
  *
- *  @tparam Domain problem adapter satisfying @ref IDAStarDomain.
+ *  @tparam Domain problem adapter satisfying @ref Aleph::IDAStarDomain.
  */
 template <IDAStarDomain Domain>
 class IDA_Star_State_Search
 {
 public:
+  /// Type of the problem domain.
   using Domain_Type = Domain;
+  /// Concrete search state type.
   using State = typename Domain::State;
+  /// Move type.
   using Move = typename Domain::Move;
+  /// Numeric distance/cost type.
   using Distance = typename Domain::Distance;
+  /// Solution type containing state and path.
   using Solution = SearchSolution<State, Move>;
+  /// Aggregated result type for IDA* search.
   using Result = IDAStarResult<Solution, Distance>;
 
-  /** @brief Construct an engine bound to one domain adapter. */
+  /** @brief Construct an engine bound to one domain adapter.
+   *  @param domain Problem adapter.
+   *  @param policy Exploration settings.
+   *  @param limits Resource constraints.
+   */
   explicit IDA_Star_State_Search(Domain domain, ExplorationPolicy policy = {}, SearchLimits limits = {})
     : domain_(std::move(domain)), policy_(policy), limits_(limits)
   {

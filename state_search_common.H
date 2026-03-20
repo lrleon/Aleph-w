@@ -106,14 +106,25 @@ using SearchClock = std::chrono::steady_clock;  ///< Monotonic clock used for se
   return std::chrono::duration<double, std::milli>(duration).count();
 }
 
-/** @brief Aleph hash map alias for memoization/transposition storage. */
+/** @brief Aleph hash map alias for memoization/transposition storage.
+ *
+ *  @tparam Key Cache key type.
+ *  @tparam Data Stored value type.
+ *  @tparam HashMapTable Aleph hash-table backend.
+ *  @tparam Cmp Equality comparator for keys.
+ */
 template <typename Key,
           typename Data,
           template <typename, typename, class> class HashMapTable = MapOLhash,
           class Cmp = Aleph::equal_to<Key>>
 using SearchStorageMap = DynHashMap<Key, Data, HashMapTable, Cmp>;
 
-/** @brief Aleph hash set alias for visited-state storage. */
+/** @brief Aleph hash set alias for visited-state storage.
+ *
+ *  @tparam Key Key type to store in the set.
+ *  @tparam HashSetTable Aleph hash-table backend.
+ *  @tparam Cmp Equality comparator for keys.
+ */
 template <typename Key,
           template <typename, class> class HashSetTable = OLhashTable,
           class Cmp = Aleph::equal_to<Key>>
@@ -183,6 +194,9 @@ struct ExplorationPolicy
  *  The engine copies the terminal state and the move path that produced it,
  *  allowing users to inspect or replay the result after the mutable search
  *  state has been restored by `undo()`.
+ *
+ *  @tparam State Mutable state type.
+ *  @tparam Move Move type.
  */
 template <SearchState State, SearchMove Move>
 struct SearchSolution
@@ -196,6 +210,8 @@ struct SearchSolution
  *
  *  It is the default policy for @ref BestSolution when the caller does not
  *  want to impose an ordering among solutions.
+ *
+ *  @tparam Solution Type of solution to compare.
  */
 template <typename Solution>
 struct KeepFirstSolution
@@ -209,6 +225,11 @@ struct KeepFirstSolution
 /** @brief Default solution visitor that always continues the search. */
 struct ContinueSearch
 {
+  /** @brief Accepts any solution and returns true.
+   *
+   *  @tparam Solution Solution type.
+   *  @return Always true.
+   */
   template <typename Solution>
   bool operator()(const Solution &) const noexcept
   {
@@ -216,7 +237,11 @@ struct ContinueSearch
   }
 };
 
-/** @brief Concept for callbacks invoked on each accepted solution. */
+/** @brief Concept for callbacks invoked on each accepted solution.
+ *
+ *  @tparam Visitor Callable type.
+ *  @tparam Solution Expected solution type.
+ */
 template <typename Visitor, typename Solution>
 concept SearchSolutionVisitor = requires(Visitor &visitor, const Solution &solution) {
   { visitor(solution) } -> std::convertible_to<bool>;
@@ -227,16 +252,24 @@ concept SearchSolutionVisitor = requires(Visitor &visitor, const Solution &solut
  *  This is a small adapter for DFS/backtracking enumeration. It appends each
  *  accepted solution to an internal @ref DynList and can optionally stop after
  *  a user-specified number of collected solutions.
+ *
+ *  @tparam Solution Type of solution to collect.
  */
 template <typename Solution>
 class SearchSolutionCollector
 {
 public:
+  /// Type of collected solutions.
   using Solution_Type = Solution;
+  /// Internal container type.
   using Container_Type = DynList<Solution>;
 
+  /** @brief Build a collector with no limit. */
   SearchSolutionCollector() = default;
 
+  /** @brief Build a collector that stops after `max_solutions`.
+   *  @param max_solutions Maximum number of solutions to store.
+   */
   explicit SearchSolutionCollector(const size_t max_solutions) : limit_(max_solutions)
   {
     ah_invalid_argument_if(limit_ == 0)
@@ -292,17 +325,26 @@ private:
  *
  *  The first candidate is always accepted. Later candidates replace the stored
  *  incumbent only if `compare(candidate, incumbent)` returns `true`.
+ *
+ *  @tparam Solution Type of solution to track.
+ *  @tparam Compare Binary predicate used to order solutions.
  */
 template <typename Solution, typename Compare = KeepFirstSolution<Solution>>
   requires BinaryPredicate<Compare, Solution>
 class BestSolution
 {
 public:
+  /// Type of stored solutions.
   using Solution_Type = Solution;
+  /// Type of the comparison policy.
   using Compare_Type = Compare;
 
+  /** @brief Build an empty incumbent tracker. */
   BestSolution() = default;
 
+  /** @brief Build a tracker with a custom comparator.
+   *  @param compare Functor used to decide which solution is better.
+   */
   explicit BestSolution(Compare compare) : compare_(std::move(compare))
   {
     // empty
@@ -479,13 +521,20 @@ and requires(Domain &d, typename Domain::State &state, const typename Domain::Mo
       { d.undo(state, move) } -> std::same_as<void>;
     };
 
-/** @brief Aggregates the outcome of one search execution. */
+/** @brief Aggregates the outcome of one search execution.
+ *
+ *  @tparam Solution Type of solutions found.
+ *  @tparam Compare Policy used to determine the best solution.
+ */
 template <typename Solution, typename Compare = KeepFirstSolution<Solution>>
   requires BinaryPredicate<Compare, Solution>
 struct SearchResult
 {
+  /// Type of solutions in this result.
   using Solution_Type = Solution;
+  /// Type of the comparison policy.
   using Compare_Type = Compare;
+  /// Concrete incumbent type.
   using Incumbent_Type = BestSolution<Solution, Compare>;
 
   SearchStatus status = SearchStatus::NotStarted;  ///< Final execution state.
@@ -494,8 +543,12 @@ struct SearchResult
   SearchStats stats;                               ///< Statistics collected during the run.
   Incumbent_Type best_solution;                    ///< Best incumbent retained by the engine.
 
+  /** @brief Build an empty result. */
   SearchResult() = default;
 
+  /** @brief Build a result with a specific solution comparator.
+   *  @param compare Functor used to order solutions.
+   */
   explicit SearchResult(Compare compare) : best_solution(std::move(compare))
   {
     // empty

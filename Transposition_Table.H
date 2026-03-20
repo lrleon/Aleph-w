@@ -88,6 +88,9 @@ struct TranspositionStats
  *  A replacement policy receives the candidate and the currently stored entry
  *  for the same key, and returns `true` when the candidate should overwrite the
  *  current one.
+ *
+ *  @tparam Policy Functor type.
+ *  @tparam Entry Entry type to compare.
  */
 template <typename Policy, typename Entry>
 concept TranspositionReplacementPolicy
@@ -95,14 +98,22 @@ concept TranspositionReplacementPolicy
       { policy(candidate, current) } -> std::convertible_to<bool>;
     };
 
-/** @brief Minimal protocol for memo tables used by search engines. */
+/** @brief Minimal protocol for memo tables used by search engines.
+ *
+ *  @tparam Table Concrete table type.
+ *  @tparam Key Key type.
+ *  @tparam Entry Stored entry type.
+ */
 template <typename Table, typename Key, typename Entry>
 concept MemoTable = requires(Table &table, const Key &key, const Entry &entry) {
   { table.probe(key) } -> std::same_as<Entry *>;
   { table.store(key, entry) } -> std::same_as<TranspositionStoreStatus>;
 };
 
-/** @brief Generic concept for domains that can expose a stable state key. */
+/** @brief Generic concept for domains that can expose a stable state key.
+ *
+ *  @tparam Provider Type exposing the keying logic.
+ */
 template <typename Provider>
 concept SearchStateKeyProvider = requires(Provider &provider, const typename Provider::State &state) {
   typename Provider::State_Key;
@@ -114,6 +125,9 @@ concept SearchStateKeyProvider = requires(Provider &provider, const typename Pro
  *  Compatible with @ref Aleph::SearchStorageSet and the Aleph `DynHashSet` family.
  *  The engine uses `contains(key)` to check for prior visits and `insert(key)`
  *  to record a new one. Inserting an already-present key must be a no-op.
+ *
+ *  @tparam Set Container type.
+ *  @tparam Key State key type.
  */
 template <typename Set, typename Key>
 concept VisitedStateSet = requires(Set &set, const Key &key) {
@@ -127,6 +141,10 @@ concept VisitedStateSet = requires(Set &set, const Key &key) {
  *  probe for an existing bound and `insert(key, bound)` to record one.
  *  Updating an existing entry is done by mutating the value through the
  *  pointer returned by `search`.
+ *
+ *  @tparam Map Container type.
+ *  @tparam Key State key type.
+ *  @tparam Objective Goal metric type.
  */
 template <typename Map, typename Key, typename Objective>
 concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &obj) {
@@ -134,24 +152,30 @@ concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &ob
   map.search(key);
 };
 
-/** @brief Minimal replacement policy: always replace the current entry. */
+/** @brief Minimal replacement policy: always replace the current entry.
+ *  @tparam Entry Type of entry.
+ */
 template <typename Entry>
 struct Replace_Always
 {
+  /** @brief Returns true unconditionally. */
   bool operator()(const Entry &, const Entry &) const noexcept
   {
     return true;
   }
 };
 
-/** @brief Replacement policy that prefers entries searched to greater depth. */
+/** @brief Replacement policy that prefers entries searched to greater depth.
+ *  @tparam Entry Entry type (must expose `.depth`).
+ */
 template <typename Entry>
   requires requires(const Entry &entry) {
     { entry.depth } -> std::convertible_to<size_t>;
   }
 struct Prefer_Deeper_Entry
 {
-  bool operator()(const Entry &candidate, const Entry &current) const noexcept
+  /** @brief Returns true if candidate is deeper than current. */
+  bool operator()(const RankedMove<Entry, size_t> &candidate, const RankedMove<Entry, size_t> &current) const noexcept
   {
     return candidate.depth > current.depth;
   }

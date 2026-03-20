@@ -296,19 +296,32 @@ template <typename Domain>
 
 }  // end namespace branch_and_bound_detail
 
-/** @brief Reusable branch-and-bound engine over implicit state spaces. */
+/** @brief Reusable branch-and-bound engine over implicit state spaces.
+ *
+ *  @tparam Domain Problem adapter exposing `bound(state)`, `is_complete(state)`
+ *          and `objective_value(state)`.
+ *  @tparam ObjectivePolicy Policy used to compare solutions (@ref Maximize_Objective
+ *          or @ref Minimize_Objective).
+ */
 template <BranchAndBoundDomain Domain,
           typename ObjectivePolicy = Maximize_Objective<typename Domain::Objective>>
   requires BranchAndBoundObjectivePolicy<ObjectivePolicy, typename Domain::Objective>
 class Branch_And_Bound
 {
 public:
+  /// Type of the problem domain.
   using Domain_Type = Domain;
+  /// Concrete search state type.
   using State = typename Domain::State;
+  /// Move type.
   using Move = typename Domain::Move;
+  /// Type of the metric being optimized.
   using Objective = typename Domain::Objective;
+  /// Concrete solution type with objective value.
   using Solution = OptimizationSolution<State, Move, Objective>;
+  /// Tracker for the best solution seen so far.
   using Incumbent = ObjectiveIncumbent<Solution, ObjectivePolicy>;
+  /// Aggregated result type for optimization runs.
   using Result = BranchAndBoundResult<Solution, ObjectivePolicy>;
 
 private:

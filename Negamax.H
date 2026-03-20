@@ -633,15 +633,22 @@ template <AdversarialScore Score>
  *  Negamax is the canonical base for two-player zero-sum search because a
  *  single maximization recurrence is enough once evaluation is defined from the
  *  side-to-move perspective.
+ *
+ *  @tparam Domain game adapter exposing adversarial-search hooks.
  */
 template <AdversarialGameDomain Domain>
 class Negamax
 {
 public:
+  /// Type of the problem domain.
   using Domain_Type = Domain;
+  /// Concrete search state type.
   using State = typename Domain::State;
+  /// Move type.
   using Move = typename Domain::Move;
+  /// Score type used for board evaluation.
   using Score = typename Domain::Score;
+  /// Outcome of an adversarial search execution.
   using Result = AdversarialSearchResult<Move, Score>;
 
   /** @brief Return the default exploration policy for adversarial search. */

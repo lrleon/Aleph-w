@@ -118,14 +118,25 @@ template <BacktrackingDomain Domain>
 class Depth_First_Backtracking
 {
 public:
+  /// Type of the problem domain.
   using Domain_Type = Domain;
+  /// Concrete search state type.
   using State = typename Domain::State;
+  /// Move type.
   using Move = typename Domain::Move;
+  /// Concrete solution type.
   using Solution = SearchSolution<State, Move>;
+  /// Internal solution comparator.
   using Solution_Compare = state_search_detail::PreferShallowerSolution<State, Move>;
+  /// Aggregated result type.
   using Result = SearchResult<Solution, Solution_Compare>;
 
-  /** @brief Build an engine bound to one domain adapter. */
+  /** @brief Build an engine bound to one domain adapter.
+   *  @param domain Problem adapter.
+   *  @param policy Exploration policy (must be Depth_First).
+   *  @param limits Search constraints.
+   *  @param compare Functor used to order solutions.
+   */
   explicit Depth_First_Backtracking(Domain domain,
                                     ExplorationPolicy policy = {},
                                     SearchLimits limits = {},

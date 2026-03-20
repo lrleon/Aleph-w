@@ -3643,7 +3643,7 @@ memoization, frontier policies) is delivered.
   - `Examples/state_search_benchmark.cc`
   - `Examples/negamax_tictactoe_example.cc`
   - `Examples/alpha_beta_connect3_example.cc`
-- Tests:
+- Tests (enable examples first, e.g., `cmake -S . -B build -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON`):
   ```bash
   cmake --build build --target state_search_benchmark
   ctest --test-dir build/Examples -R StateSearch
