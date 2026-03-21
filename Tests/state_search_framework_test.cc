@@ -704,3 +704,509 @@ TEST(StateSearchFramework, IDAStarCallbackStopsAfterFirstGoal)
   EXPECT_EQ(callbacks, 1u);
   EXPECT_EQ(result.stats.solutions_found, 1u);
 }
+
+// ---------------------------------------------------------------------------
+// Edge-case tests (Recommendation 5)
+// ---------------------------------------------------------------------------
+
+// max_depth=0: root is visited but never expanded — no solutions possible
+// in a tree where goals live at depth 2.
+TEST(StateSearchFramework, MaxDepthZeroVisitsRootButNeverExpands)
+{
+  ArtificialDecisionTreeDomain domain;
+  ExplorationPolicy policy;
+  policy.stop_at_first_solution = false;
+
+  SearchLimits limits;
+  limits.max_depth = 0;
+
+  Depth_First_Backtracking<ArtificialDecisionTreeDomain> engine(domain, policy, limits);
+  auto result = engine.search(ArtificialTreeState{});
+
+  EXPECT_FALSE(result.found_solution());
+  EXPECT_TRUE(result.exhausted());
+  EXPECT_EQ(result.stats.visited_states, 1u);
+  EXPECT_EQ(result.stats.expanded_states, 0u);
+  EXPECT_EQ(result.stats.pruned_by_depth, 1u);
+  EXPECT_EQ(result.stats.generated_successors, 0u);
+}
+
+// max_expansions=1: only the root is expanded — its two children are visited
+// but never expanded themselves, so no solutions at depth 2.
+TEST(StateSearchFramework, MaxExpansionsOneExpandsOnlyRoot)
+{
+  ArtificialDecisionTreeDomain domain;
+  ExplorationPolicy policy;
+  policy.stop_at_first_solution = false;
+
+  SearchLimits limits;
+  limits.max_expansions = 1;
+
+  Depth_First_Backtracking<ArtificialDecisionTreeDomain> engine(domain, policy, limits);
+  auto result = engine.search(ArtificialTreeState{});
+
+  EXPECT_TRUE(result.limit_reached());
+  EXPECT_EQ(result.stats.expanded_states, 1u);
+  EXPECT_GE(result.stats.generated_successors, 1u);
+  EXPECT_LE(result.stats.generated_successors, 2u);
+  EXPECT_EQ(result.stats.solutions_found, 0u);
+}
+
+// Root is goal: a domain where the initial state already satisfies is_goal().
+// The engine must find a solution with an empty path at depth 0.
+namespace
+{
+
+struct RootGoalDomain
+{
+  struct Move
+  {
+    int id = 0;
+  };
+
+  using State = ArtificialTreeState;
+  using State_Key = size_t;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.code;
+  }
+
+  bool is_goal(const State &) const
+  {
+    return true;
+  }
+
+  void apply(State &state, const Move &) const
+  {
+    ++state.depth;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    --state.depth;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &, Visitor visit) const
+  {
+    return visit(Move{1});
+  }
+};
+
+} // end namespace
+
+TEST(StateSearchFramework, RootStateIsGoalFindsImmediateSolution)
+{
+  RootGoalDomain domain;
+  Depth_First_Backtracking<RootGoalDomain> engine(domain);
+
+  auto result = engine.search(ArtificialTreeState{});
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_TRUE(result.stopped_on_solution());
+  EXPECT_EQ(result.stats.solutions_found, 1u);
+  EXPECT_EQ(result.stats.visited_states, 1u);
+  EXPECT_EQ(result.stats.expanded_states, 0u);
+  EXPECT_EQ(result.best_solution.get().depth, 0u);
+  EXPECT_TRUE(result.best_solution.get().path.is_empty());
+}
+
+// Root is goal with max_depth=0: even at depth 0, the root is checked for
+// goal before the depth limit prunes expansion — it should still find a solution.
+TEST(StateSearchFramework, RootGoalFoundEvenWithMaxDepthZero)
+{
+  RootGoalDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 0;
+
+  Depth_First_Backtracking<RootGoalDomain> engine(domain, ExplorationPolicy{}, limits);
+
+  auto result = engine.search(ArtificialTreeState{});
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_EQ(result.stats.solutions_found, 1u);
+  EXPECT_EQ(result.best_solution.get().depth, 0u);
+}
+
+// Cycles in the state space: a directed graph with cycles that would cause
+// infinite recursion without a visited set.  The graph is:
+//
+//   0 → 1 → 2 → 3 (goal)
+//         ↘ 0 (cycle back)
+//
+// Without visited-set, the cycle 0→1→0→1→... causes infinite recursion.
+// With visited-set (search_visited), the engine detects the repeated state
+// and finds the goal via the non-cyclic path.
+namespace
+{
+
+struct CyclicGraphState
+{
+  size_t node = 0;
+};
+
+struct CyclicGraphDomain
+{
+  struct Move
+  {
+    size_t to = 0;
+  };
+
+  using State = CyclicGraphState;
+  using State_Key = size_t;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+
+  bool is_goal(const State &state) const
+  {
+    return state.node == 3;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.node = move.to;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    // For graph search the undo just restores the node from the path.
+    // Here the engine manages the path; we track the previous node via
+    // a simple encoding: each node has a unique parent in the DAG portion.
+    // But since the engine calls undo with the same move that was applied,
+    // we can reverse it.  We rely on the visited-set to prevent cycles.
+    (void) state;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    switch (state.node)
+      {
+      case 0:
+        return visit(Move{1});
+      case 1:
+        if (not visit(Move{0}))  // cycle back to 0 (tried first)
+          return false;
+        return visit(Move{2});
+      case 2:
+        return visit(Move{3});
+      default:
+        return true;
+      }
+  }
+};
+
+} // end namespace
+
+TEST(StateSearchFramework, CyclicGraphWithVisitedSetFindsSolution)
+{
+  CyclicGraphDomain domain;
+  Depth_First_Backtracking<CyclicGraphDomain> engine(domain);
+
+  SearchStorageMap<size_t, size_t> visited;
+  auto result = engine.search(CyclicGraphState{}, visited);
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_EQ(result.best_solution.get().state.node, 3u);
+  EXPECT_GT(result.stats.pruned_by_visited, 0u);
+}
+
+// Cycle with multiple paths of different depth: state S is reachable via a
+// short path (depth 1) and a long path (depth 3).  With the depth-aware
+// visited map, the shorter path records depth 1 for S. When the longer path
+// reaches S at depth 3, it should be pruned.  Goal G is reachable only
+// through S.
+//
+//   0 → S → G          (short: depth 2)
+//   0 → A → B → S → G  (long: depth 4, pruned at S)
+//
+namespace
+{
+
+struct MultiPathState
+{
+  int node = 0;
+};
+
+struct MultiPathDomain
+{
+  struct Move
+  {
+    int to = 0;
+  };
+
+  using State = MultiPathState;
+  using State_Key = int;
+
+  static constexpr int S = 1;
+  static constexpr int G = 2;
+  static constexpr int A = 3;
+  static constexpr int B = 4;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+
+  bool is_goal(const State &state) const
+  {
+    return state.node == G;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.node = move.to;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    (void) state;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    switch (state.node)
+      {
+      case 0:
+        if (not visit(Move{S}))  // short path: 0 → S
+          return false;
+        return visit(Move{A});   // long path: 0 → A → B → S
+      case S:
+        return visit(Move{G});
+      case A:
+        return visit(Move{B});
+      case B:
+        return visit(Move{S});   // reaches S at depth 3 (pruned)
+      default:
+        return true;
+      }
+  }
+};
+
+} // end namespace
+
+TEST(StateSearchFramework, MultiPathDepthAwareVisitedPrunesLongerPath)
+{
+  MultiPathDomain domain;
+  ExplorationPolicy policy;
+  policy.stop_at_first_solution = false;
+
+  Depth_First_Backtracking<MultiPathDomain> engine(domain, policy);
+
+  SearchStorageMap<int, size_t> visited;
+  auto result = engine.search(MultiPathState{}, visited);
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_EQ(result.stats.solutions_found, 1u);
+  EXPECT_EQ(result.stats.pruned_by_visited, 1u);
+  EXPECT_EQ(result.best_solution.get().state.node, MultiPathDomain::G);
+}
+
+// IDA* with max_depth=0: root is visited but not expanded.
+TEST(StateSearchFramework, IDAStarMaxDepthZeroDoesNotExpand)
+{
+  TinyIDAStarDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 0;
+
+  IDA_Star_State_Search<TinyIDAStarDomain> engine(domain, ExplorationPolicy{}, limits);
+  auto result = engine.search(TinyIDAStarDomain::State{});
+
+  EXPECT_FALSE(result.found_solution());
+  EXPECT_TRUE(result.exhausted());
+  EXPECT_GT(result.stats.pruned_by_depth, 0u);
+  EXPECT_EQ(result.stats.expanded_states, 0u);
+}
+
+// IDA* with root as goal: the initial state has node==goal.
+namespace
+{
+
+struct IDAStarRootGoalDomain
+{
+  struct Move
+  {
+    int to = 0;
+    int cost = 1;
+  };
+
+  using State = TinyIDAStarState;
+  using State_Key = size_t;
+  using Distance = int;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+
+  bool is_goal(const State &state) const
+  {
+    return state.node == 0;
+  }
+
+  bool is_terminal(const State &) const
+  {
+    return false;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.history.append(state.node);
+    state.node = static_cast<size_t>(move.to);
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    const size_t prev = state.history[state.history.size() - 1];
+    (void) state.history.remove_last();
+    state.node = prev;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &, Visitor visit) const
+  {
+    return visit(Move{1, 5});
+  }
+
+  [[nodiscard]] Distance heuristic(const State &) const noexcept
+  {
+    return 0;
+  }
+
+  [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
+  {
+    return move.cost;
+  }
+};
+
+} // end namespace
+
+TEST(StateSearchFramework, IDAStarRootIsGoalFindsImmediateSolution)
+{
+  IDAStarRootGoalDomain domain;
+  IDA_Star_State_Search<IDAStarRootGoalDomain> engine(domain);
+
+  auto result = engine.search(TinyIDAStarState{});
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_EQ(result.total_cost, 0);
+  EXPECT_EQ(result.stats.solutions_found, 1u);
+  EXPECT_TRUE(result.best_solution.get().path.is_empty());
+}
+
+// IDA* with zero-cost edges: all edges cost 0.  The heuristic is 0 everywhere.
+// This means f = g + h = 0 for all states and the initial threshold suffices.
+namespace
+{
+
+struct ZeroCostIDADomain
+{
+  struct Move
+  {
+    size_t to = 0;
+    int cost = 0;
+  };
+
+  using State = TinyIDAStarState;
+  using State_Key = size_t;
+  using Distance = int;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+
+  bool is_goal(const State &state) const
+  {
+    return state.node == 2;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.history.append(state.node);
+    state.node = move.to;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    const size_t prev = state.history[state.history.size() - 1];
+    (void) state.history.remove_last();
+    state.node = prev;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.node == 0)
+      return visit(Move{1, 0});
+    if (state.node == 1)
+      return visit(Move{2, 0});
+    return true;
+  }
+
+  [[nodiscard]] Distance heuristic(const State &) const noexcept
+  {
+    return 0;
+  }
+
+  [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
+  {
+    return move.cost;
+  }
+};
+
+} // end namespace
+
+TEST(StateSearchFramework, IDAStarZeroCostEdgesFindsGoal)
+{
+  ZeroCostIDADomain domain;
+  IDA_Star_State_Search<ZeroCostIDADomain> engine(domain);
+
+  auto result = engine.search(TinyIDAStarState{});
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_EQ(result.total_cost, 0);
+  EXPECT_EQ(result.stats.solutions_found, 1u);
+}
+
+// NQueens n=1: trivial single-queen problem — should find exactly 1 solution.
+TEST(StateSearchFramework, NQueensN1TrivialSingleSolution)
+{
+  NQueensDomain domain{1};
+  ExplorationPolicy policy;
+  policy.stop_at_first_solution = false;
+
+  Depth_First_Backtracking<NQueensDomain> engine(domain, policy);
+  SearchSolutionCollector<Depth_First_Backtracking<NQueensDomain>::Solution> collector;
+
+  auto result = engine.search(NQueensState(1), collector);
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_TRUE(result.exhausted());
+  EXPECT_EQ(result.stats.solutions_found, 1u);
+  EXPECT_EQ(collector.size(), 1u);
+  EXPECT_EQ(nqueens_signature(result.best_solution.get().state), "0");
+}
+
+// NQueens n=8: realistic problem — should find all 92 solutions.
+TEST(StateSearchFramework, NQueensN8FindsAll92Solutions)
+{
+  NQueensDomain domain{8};
+  ExplorationPolicy policy;
+  policy.stop_at_first_solution = false;
+
+  Depth_First_Backtracking<NQueensDomain> engine(domain, policy);
+  SearchSolutionCollector<Depth_First_Backtracking<NQueensDomain>::Solution> collector;
+
+  auto result = engine.search(NQueensState(8), collector);
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_TRUE(result.exhausted());
+  EXPECT_EQ(result.stats.solutions_found, 92u);
+  EXPECT_EQ(collector.size(), 92u);
+}

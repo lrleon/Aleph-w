@@ -44,8 +44,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef BRANCH_AND_BOUND_H
-#define BRANCH_AND_BOUND_H
+# ifndef BRANCH_AND_BOUND_H
+# define BRANCH_AND_BOUND_H
 
 #include <concepts>
 #include <utility>
@@ -588,7 +588,15 @@ private:
       ranked.move = move;
       ranked.ordinal = ordinal++;
       domain_.apply(state, move);
-      ranked.priority = domain_.bound(state);
+      try
+        {
+          ranked.priority = domain_.bound(state);
+        }
+      catch (...)
+        {
+          domain_.undo(state, move);
+          throw;
+        }
       domain_.undo(state, move);
       ++result.stats.move_ordering.priority_estimates;
       moves.append(std::move(ranked));
@@ -689,7 +697,16 @@ private:
       ++result.stats.generated_successors;
       path.append(move);
       domain_.apply(state, move);
-      stop = dfs(state, path, depth + 1, result, on_solution);
+      try
+        {
+          stop = dfs(state, path, depth + 1, result, on_solution);
+        }
+      catch (...)
+        {
+          domain_.undo(state, move);
+          (void) path.remove_last();
+          throw;
+        }
       domain_.undo(state, move);
       (void) path.remove_last();
       return not stop;
@@ -792,7 +809,16 @@ private:
       ++result.stats.generated_successors;
       path.append(move);
       domain_.apply(state, move);
-      stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
+      try
+        {
+          stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
+        }
+      catch (...)
+        {
+          domain_.undo(state, move);
+          (void) path.remove_last();
+          throw;
+        }
       domain_.undo(state, move);
       (void) path.remove_last();
       return not stop;
@@ -953,4 +979,4 @@ template <BranchAndBoundDomain Domain,
 
 }  // end namespace Aleph
 
-#endif  // BRANCH_AND_BOUND_H
+# endif  // BRANCH_AND_BOUND_H

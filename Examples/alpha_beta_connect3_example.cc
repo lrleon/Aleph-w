@@ -28,10 +28,19 @@
   SOFTWARE.
 */
 
-#include <iostream>
+/** @file alpha_beta_connect3_example.cc
+ *  @brief Reference example: Connect-3 with Alpha-Beta and move ordering.
+ *
+ *  Build and run:
+ *
+ *  - `cmake --build build --target alpha_beta_connect3_example`
+ *  - `./build/Examples/alpha_beta_connect3_example`
+ */
 
-#include <State_Search.H>
-#include <tpl_array.H>
+# include <iostream>
+
+# include <State_Search.H>
+# include <tpl_array.H>
 
 using namespace Aleph;
 

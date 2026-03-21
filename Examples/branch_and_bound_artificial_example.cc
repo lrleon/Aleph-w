@@ -28,10 +28,19 @@
   SOFTWARE.
 */
 
-#include <iostream>
-#include <string>
+/** @file branch_and_bound_artificial_example.cc
+ *  @brief Reference example: artificial maximization and minimization trees.
+ *
+ *  Build and run:
+ *
+ *  - `cmake --build build --target branch_and_bound_artificial_example`
+ *  - `./build/Examples/branch_and_bound_artificial_example`
+ */
 
-#include <State_Search.H>
+# include <iostream>
+# include <string>
+
+# include <State_Search.H>
 
 using namespace Aleph;
 

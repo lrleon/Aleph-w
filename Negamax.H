@@ -47,8 +47,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef NEGAMAX_H
-#define NEGAMAX_H
+# ifndef NEGAMAX_H
+# define NEGAMAX_H
 
 #include <concepts>
 #include <limits>
@@ -979,6 +979,10 @@ private:
       auto child = search_node(state, depth + 1, result, table, keyer, tracer);
       domain_.undo(state, move);
 
+      // Negate child score to switch perspective. lowest() is the engine's
+      // internal sentinel (never returned by domain evaluators, which are
+      // bounded by score_floor()/score_ceiling()); negating lowest() would
+      // overflow signed types, so it maps to max() instead.
       const Score candidate = (child.value == std::numeric_limits<Score>::lowest())
                               ? std::numeric_limits<Score>::max()
                               : -child.value;
@@ -1342,4 +1346,4 @@ template <AdversarialGameDomain Domain, typename Table, typename Tracer>
 
 }  // end namespace Aleph
 
-#endif  // NEGAMAX_H
+# endif  // NEGAMAX_H

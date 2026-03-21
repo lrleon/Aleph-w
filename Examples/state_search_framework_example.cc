@@ -28,10 +28,19 @@
   SOFTWARE.
 */
 
-#include <iostream>
-#include <string>
+/** @file state_search_framework_example.cc
+ *  @brief Reference example: minimal artificial decision tree with DFS.
+ *
+ *  Build and run:
+ *
+ *  - `cmake --build build --target state_search_framework_example`
+ *  - `./build/Examples/state_search_framework_example`
+ */
 
-#include <State_Search.H>
+# include <iostream>
+# include <string>
+
+# include <State_Search.H>
 
 using namespace Aleph;
 

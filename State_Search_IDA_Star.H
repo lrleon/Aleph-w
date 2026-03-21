@@ -46,8 +46,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef STATE_SEARCH_IDA_STAR_H
-#define STATE_SEARCH_IDA_STAR_H
+# ifndef STATE_SEARCH_IDA_STAR_H
+# define STATE_SEARCH_IDA_STAR_H
 
 #include <limits>
 #include <utility>
@@ -191,7 +191,7 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
   using Move = typename Domain::Move;
   DFSResult<Distance> out{false, std::numeric_limits<Distance>::max()};
 
-  if (const bool can_expand = depth + 1 <= result.limits.max_depth; not can_expand)
+  if (depth + 1 > result.limits.max_depth)
     return out;
 
   (void) domain.for_each_successor(state,
@@ -206,7 +206,17 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
     path.append(move);
     domain.apply(state, move);
 
-    auto child = dfs(domain, state, path, g + step, threshold, depth + 1, result, on_solution);
+    DFSResult<Distance> child;
+    try
+      {
+        child = dfs(domain, state, path, g + step, threshold, depth + 1, result, on_solution);
+      }
+    catch (...)
+      {
+        domain.undo(state, move);
+        (void) path.remove_last();
+        throw;
+      }
 
     domain.undo(state, move);
     (void) path.remove_last();
@@ -443,4 +453,4 @@ template <IDAStarDomain Domain, typename OnSolution>
 
 }  // end namespace Aleph
 
-#endif  // STATE_SEARCH_IDA_STAR_H
+# endif  // STATE_SEARCH_IDA_STAR_H

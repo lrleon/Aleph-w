@@ -39,8 +39,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef ALPHA_BETA_H
-#define ALPHA_BETA_H
+# ifndef ALPHA_BETA_H
+# define ALPHA_BETA_H
 
 #include <utility>
 
@@ -429,7 +429,7 @@ private:
       << "Alpha_Beta only supports depth-first exploration";
     ah_invalid_argument_if(limits_.max_solutions == 0)
       << "SearchLimits::max_solutions must be positive or Search_Unlimited";
-    ah_invalid_argument_if(not(alpha < beta)) << "Alpha_Beta root window requires alpha < beta";
+    ah_invalid_argument_if(alpha >= beta) << "Alpha_Beta root window requires alpha < beta";
     validate_ordering_configuration();
 
     Result result;
@@ -1225,4 +1225,4 @@ template <AdversarialGameDomain Domain, typename Table>
 
 }  // end namespace Aleph
 
-#endif  // ALPHA_BETA_H
+# endif  // ALPHA_BETA_H

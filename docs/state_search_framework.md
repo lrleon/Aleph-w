@@ -135,6 +135,49 @@ The callback receives a `const SearchSolution<State, Move>&` and returns:
 - `max_solutions`
   Hard stop on the number of accepted solutions.
 
+## API reference
+
+### `SearchStatus`
+
+Final state of a search execution, returned in `result.status`:
+
+| Value | Meaning |
+|-------|---------|
+| `NotStarted` | Search object exists but no traversal has run yet. |
+| `Exhausted` | Search space within the configured bounds was fully explored. |
+| `StoppedOnSolution` | Search stopped because the solution visitor or `stop_at_first_solution` requested it. |
+| `LimitReached` | A hard limit (`max_expansions` or `max_solutions`) terminated the search early. |
+
+### `SearchResult<Solution, Compare>`
+
+Aggregates the outcome of one search execution.
+
+| Member / method | Type | Description |
+|-----------------|------|-------------|
+| `status` | `SearchStatus` | Final execution state. |
+| `policy` | `ExplorationPolicy` | Exploration policy used for the run. |
+| `limits` | `SearchLimits` | Limits used for the run. |
+| `stats` | `SearchStats` | Statistics collected during the run. |
+| `best_solution` | `BestSolution<Solution, Compare>` | Best incumbent retained by the engine. |
+| `found_solution()` | `bool` | Returns `true` if at least one solution was retained. |
+| `exhausted()` | `bool` | Returns `true` if the search exhausted the configured region (`status == Exhausted`). |
+| `stopped_on_solution()` | `bool` | Returns `true` if the search stopped because the solution visitor requested it. |
+| `limit_reached()` | `bool` | Returns `true` if a hard search limit stopped the traversal. |
+
+### `SearchSolutionCollector<Solution>`
+
+Stores accepted solutions in a `DynList` for later inspection.
+
+| Member / method | Type | Description |
+|-----------------|------|-------------|
+| `SearchSolutionCollector()` | constructor | Build a collector with no limit. |
+| `SearchSolutionCollector(max)` | constructor | Build a collector that stops after `max` solutions. |
+| `operator()(solution)` | `bool` | Append one solution; returns `false` when the limit is reached. |
+| `solutions()` | `const DynList<Solution>&` | Read-only access to collected solutions. |
+| `size()` | `size_t` | Number of collected solutions. |
+| `is_empty()` | `bool` | Returns `true` if no solution has been collected. |
+| `clear()` | `void` | Remove all collected solutions and reset the counter. |
+
 ## Design decisions in this phase
 
 - Mutable state plus reversible moves.
