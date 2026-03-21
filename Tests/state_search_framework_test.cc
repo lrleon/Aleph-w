@@ -28,8 +28,10 @@
   SOFTWARE.
 */
 
-#include <string>
 #include <cstdint>
+#include <memory>
+#include <stdexcept>
+#include <string>
 
 #include <gtest/gtest.h>
 
@@ -384,6 +386,72 @@ private:
   size_t goal_ = 4;
 };
 
+struct ThrowingApplyIDAState
+{
+  std::shared_ptr<int> active_depth;
+  size_t node = 0;
+};
+
+struct ThrowingApplyIDADomain
+{
+  struct Move
+  {
+    size_t to = 1;
+    int cost = 1;
+  };
+
+  using State = ThrowingApplyIDAState;
+  using State_Key = std::uint64_t;
+  using Distance = int;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+
+  [[nodiscard]] bool is_goal(const State &) const noexcept
+  {
+    return false;
+  }
+
+  [[nodiscard]] bool is_terminal(const State &state) const noexcept
+  {
+    return state.node != 0;
+  }
+
+  void apply(State &state, const Move &) const
+  {
+    ++*state.active_depth;
+    throw std::runtime_error("apply failed");
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    if (*state.active_depth > 0)
+      --*state.active_depth;
+    state.node = 0;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.node != 0)
+      return true;
+
+    return visit(Move{1, 1});
+  }
+
+  [[nodiscard]] Distance heuristic(const State &) const noexcept
+  {
+    return 0;
+  }
+
+  [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
+  {
+    return move.cost;
+  }
+};
+
 static_assert(SearchState<ArtificialDecisionTreeDomain::State>);
 static_assert(SearchMove<ArtificialDecisionTreeDomain::Move>);
 static_assert(BacktrackingDomain<ArtificialDecisionTreeDomain>);
@@ -400,6 +468,7 @@ static_assert(TerminalPredicate<SubsetSumDomain>);
 static_assert(DomainPruner<SubsetSumDomain>);
 
 static_assert(IDAStarDomain<TinyIDAStarDomain>);
+static_assert(IDAStarDomain<ThrowingApplyIDADomain>);
 
 template <typename Move>
 std::string path_signature(const SearchPath<Move> &path)
@@ -705,6 +774,16 @@ TEST(StateSearchFramework, IDAStarCallbackStopsAfterFirstGoal)
   EXPECT_EQ(result.stats.solutions_found, 1u);
 }
 
+TEST(StateSearchFramework, IDAStarApplyExceptionRollsBackState)
+{
+  auto active_depth = std::make_shared<int>(0);
+  ThrowingApplyIDADomain domain;
+  IDA_Star_State_Search<ThrowingApplyIDADomain> engine(domain);
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyIDAState{active_depth, 0}), std::runtime_error);
+  EXPECT_EQ(*active_depth, 0);
+}
+
 // ---------------------------------------------------------------------------
 // Edge-case tests (Recommendation 5)
 // ---------------------------------------------------------------------------
@@ -850,6 +929,7 @@ struct CyclicGraphDomain
 {
   struct Move
   {
+    size_t from = 0;
     size_t to = 0;
   };
 
@@ -871,14 +951,9 @@ struct CyclicGraphDomain
     state.node = move.to;
   }
 
-  void undo(State &state, const Move &) const
+  void undo(State &state, const Move &move) const
   {
-    // For graph search the undo just restores the node from the path.
-    // Here the engine manages the path; we track the previous node via
-    // a simple encoding: each node has a unique parent in the DAG portion.
-    // But since the engine calls undo with the same move that was applied,
-    // we can reverse it.  We rely on the visited-set to prevent cycles.
-    (void) state;
+    state.node = move.from;
   }
 
   template <typename Visitor>
@@ -887,13 +962,13 @@ struct CyclicGraphDomain
     switch (state.node)
       {
       case 0:
-        return visit(Move{1});
+        return visit(Move{0, 1});
       case 1:
-        if (not visit(Move{0}))  // cycle back to 0 (tried first)
+        if (not visit(Move{1, 0}))  // cycle back to 0 (tried first)
           return false;
-        return visit(Move{2});
+        return visit(Move{1, 2});
       case 2:
-        return visit(Move{3});
+        return visit(Move{2, 3});
       default:
         return true;
       }
@@ -1062,6 +1137,9 @@ struct IDAStarRootGoalDomain
 
   void undo(State &state, const Move &) const
   {
+    if (state.history.is_empty())
+      return;
+
     const size_t prev = state.history[state.history.size() - 1];
     (void) state.history.remove_last();
     state.node = prev;
@@ -1134,6 +1212,9 @@ struct ZeroCostIDADomain
 
   void undo(State &state, const Move &) const
   {
+    if (state.history.is_empty())
+      return;
+
     const size_t prev = state.history[state.history.size() - 1];
     (void) state.history.remove_last();
     state.node = prev;

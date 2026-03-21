@@ -28,6 +28,8 @@
   SOFTWARE.
 */
 
+#include <memory>
+#include <stdexcept>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -473,10 +475,80 @@ private:
   Array<Array<int>> costs_;
 };
 
+struct ThrowingApplyState
+{
+  std::shared_ptr<int> active_depth;
+  size_t node = 0;
+};
+
+struct ThrowingApplyMove
+{
+  bool throws = true;
+};
+
+struct ThrowingApplyBBDomain
+{
+  using State = ThrowingApplyState;
+  using Move = ThrowingApplyMove;
+  using Objective = int;
+
+  bool is_complete(const State &state) const
+  {
+    return state.node == 1;
+  }
+
+  Objective objective_value(const State &) const
+  {
+    return 0;
+  }
+
+  Objective bound(const State &) const
+  {
+    return 1;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    ++*state.active_depth;
+    if (move.throws)
+      throw std::runtime_error("apply failed");
+
+    state.node = 1;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    if (*state.active_depth > 0)
+      --*state.active_depth;
+    state.node = 0;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.node != 0)
+      return true;
+
+    return visit(Move{true});
+  }
+};
+
+struct ThrowingApplyVisitedBBDomain : ThrowingApplyBBDomain
+{
+  using State_Key = size_t;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+};
+
 static_assert(BranchAndBoundDomain<ArtificialMaxDomain>);
 static_assert(BranchAndBoundDomain<ArtificialMinDomain>);
 static_assert(BranchAndBoundDomain<KnapsackBBDomain>);
 static_assert(BranchAndBoundDomain<AssignmentBBDomain>);
+static_assert(BranchAndBoundDomain<ThrowingApplyBBDomain>);
+static_assert(SearchStateKeyProvider<ThrowingApplyVisitedBBDomain>);
 static_assert(BranchAndBoundObjectivePolicy<Maximize_Objective<int>, int>);
 static_assert(BranchAndBoundObjectivePolicy<Minimize_Objective<int>, int>);
 
@@ -587,6 +659,41 @@ TEST(BranchAndBoundFramework, BoundOrderedDepthFirstAndBestFirstBeatPlainBadOrde
   EXPECT_GT(ordered_result.stats.move_ordering.ordered_batches, 0u);
   EXPECT_GT(ordered_result.stats.move_ordering.priority_estimates, 0u);
   EXPECT_LT(best_result.stats.visited_states, plain_result.stats.visited_states);
+}
+
+TEST(BranchAndBoundFramework, ApplyExceptionDuringMoveOrderingRollsBackState)
+{
+  auto active_depth = std::make_shared<int>(0);
+  ThrowingApplyBBDomain domain;
+  ExplorationPolicy policy = Branch_And_Bound<ThrowingApplyBBDomain>::default_policy();
+  policy.move_ordering = MoveOrderingMode::Estimated_Bound;
+
+  Branch_And_Bound<ThrowingApplyBBDomain> engine(domain, policy);
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{active_depth, 0}), std::runtime_error);
+  EXPECT_EQ(*active_depth, 0);
+}
+
+TEST(BranchAndBoundFramework, ApplyExceptionDuringDepthFirstExpansionRollsBackState)
+{
+  auto active_depth = std::make_shared<int>(0);
+  ThrowingApplyBBDomain domain;
+  Branch_And_Bound<ThrowingApplyBBDomain> engine(domain);
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{active_depth, 0}), std::runtime_error);
+  EXPECT_EQ(*active_depth, 0);
+}
+
+TEST(BranchAndBoundFramework, ApplyExceptionDuringVisitedDepthFirstRollsBackState)
+{
+  auto active_depth = std::make_shared<int>(0);
+  ThrowingApplyVisitedBBDomain domain;
+  Branch_And_Bound<ThrowingApplyVisitedBBDomain> engine(domain);
+  SearchStorageMap<size_t, int> visited;
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{active_depth, 0}, visited),
+               std::runtime_error);
+  EXPECT_EQ(*active_depth, 0);
 }
 
 TEST(BranchAndBoundFramework, StopAtFirstSolutionUsesCommonExplorationPolicy)

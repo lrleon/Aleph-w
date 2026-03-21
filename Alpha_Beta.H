@@ -42,6 +42,7 @@
 # ifndef ALPHA_BETA_H
 # define ALPHA_BETA_H
 
+#include <limits>
 #include <utility>
 
 #include <ah-errors.H>
@@ -429,7 +430,7 @@ private:
       << "Alpha_Beta only supports depth-first exploration";
     ah_invalid_argument_if(limits_.max_solutions == 0)
       << "SearchLimits::max_solutions must be positive or Search_Unlimited";
-    ah_invalid_argument_if(alpha >= beta) << "Alpha_Beta root window requires alpha < beta";
+    ah_invalid_argument_unless(alpha < beta) << "Alpha_Beta root window requires alpha < beta";
     validate_ordering_configuration();
 
     Result result;
@@ -680,7 +681,9 @@ private:
         = search_node(state, depth + 1, result, table, keyer, tracer, -local_beta, -local_alpha);
       domain_.undo(state, move);
 
-      const Score candidate = -child.value;
+      const Score candidate = (child.value == std::numeric_limits<Score>::lowest())
+                              ? std::numeric_limits<Score>::max()
+                              : -child.value;
       if (not has_best or candidate > best.value)
         {
           best.value = candidate;

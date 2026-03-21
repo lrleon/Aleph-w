@@ -6,7 +6,7 @@ A partir de C++20, la biblioteca estándar incluye **Ranges**, una forma moderna
 
 ## Requisitos
 
-- Compilador con soporte C++20 (GCC 10+, Clang 13+, MSVC 19.29+)
+- Compilador con soporte para C++20 (GCC 10+, Clang 13+, MSVC 19.29+)
 - Flag de compilación: `-std=c++20`
 
 ```cpp
@@ -213,8 +213,9 @@ auto naturals = lazy_iota(1);  // 1, 2, 3, ...
 // Primeros 10
 auto first10 = naturals | std::views::take(10) | to_dynlist_v;
 
-// Rango con paso personalizado (C++23 o fallback)
-auto even_nums = lazy_iota(0, 2);  // 0, 2, 4, 6, ...
+// Rango infinito; filtre o transforme para obtener patrones específicos
+auto even_nums = lazy_iota(0)
+               | std::views::filter([](int x) { return x % 2 == 0; });  // 0, 2, 4, 6, ...
 ```
 
 ## Ejemplo Completo
@@ -273,14 +274,11 @@ int main() {
 
 ## Limitaciones Conocidas
 
-1. **Algoritmos de rangos con predicados**: Algunos algoritmos de `std::ranges::` (como `std::ranges::min_element`, `std::ranges::count_if`) requieren iteradores que satisfagan conceptos más estrictos. Use las versiones con iteradores explícitos cuando sea necesario:
-   ```cpp
-   // En lugar de:
-   // auto min = std::ranges::min_element(container);
-   
-   // Use:
-   auto min = std::min_element(container.begin(), container.end());
-   ```
+1. **Wrappers opcionales**: Los contenedores de Aleph-w cubiertos por los tests
+   de este módulo funcionan con algoritmos de `std::ranges::` como
+   `std::ranges::min_element` y `std::ranges::count_if`. Si prefiere una API
+   uniforme junto con el resto de utilidades de `ah-ranges.H`, también puede
+   usar los wrappers `detail::ranges_min()` y `detail::ranges_count_if()`.
 
 2. **Contenedores no secuenciales**: Los hash tables y heaps iteran en orden no determinístico.
 
@@ -361,7 +359,7 @@ auto stack = collect<DynListStack<int>>(std::views::iota(1, 10));
 
 ## Tests
 
-Los tests comprehensivos están en `Tests/ah_ranges_test.cc`:
+Las pruebas exhaustivas están en `Tests/ah_ranges_test.cc`:
 
 ```bash
 cd Tests/build
@@ -400,4 +398,3 @@ g++ -std=c++20 -I/path/to/Aleph-w my_program.cc -o my_program
 **Versión**: Aleph-w con C++20 Ranges  
 **Fecha**: 2026  
 **Tests**: 81 (100% passing)
-

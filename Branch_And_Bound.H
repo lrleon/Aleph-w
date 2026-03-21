@@ -587,9 +587,9 @@ private:
       RankedMove<Move, Objective> ranked;
       ranked.move = move;
       ranked.ordinal = ordinal++;
-      domain_.apply(state, move);
       try
         {
+          domain_.apply(state, move);
           ranked.priority = domain_.bound(state);
         }
       catch (...)
@@ -695,20 +695,23 @@ private:
     auto explore_move = [&](const Move &move) -> bool
     {
       ++result.stats.generated_successors;
-      path.append(move);
-      domain_.apply(state, move);
+      bool path_appended = false;
       try
         {
+          domain_.apply(state, move);
+          path.append(move);
+          path_appended = true;
           stop = dfs(state, path, depth + 1, result, on_solution);
         }
       catch (...)
         {
+          if (path_appended)
+            (void) path.remove_last();
           domain_.undo(state, move);
-          (void) path.remove_last();
           throw;
         }
-      domain_.undo(state, move);
       (void) path.remove_last();
+      domain_.undo(state, move);
       return not stop;
     };
 
@@ -807,20 +810,23 @@ private:
     auto explore_move = [&](const Move &move) -> bool
     {
       ++result.stats.generated_successors;
-      path.append(move);
-      domain_.apply(state, move);
+      bool path_appended = false;
       try
         {
+          domain_.apply(state, move);
+          path.append(move);
+          path_appended = true;
           stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
         }
       catch (...)
         {
+          if (path_appended)
+            (void) path.remove_last();
           domain_.undo(state, move);
-          (void) path.remove_last();
           throw;
         }
-      domain_.undo(state, move);
       (void) path.remove_last();
+      domain_.undo(state, move);
       return not stop;
     };
 

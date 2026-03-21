@@ -337,10 +337,10 @@ TicTacToeState make_tictactoe_state(const char *layout, const int player)
  *  reported value.
  *
  *  In negamax, the root score relates to the leaf evaluation by:
- *    root_value == (-1)^pv_length * evaluate(terminal_state)
+ *    root_value == (-1)^pv_length * evaluate(leaf_state)
  *
  *  This helper applies each PV move to a copy of the initial state, calls
- *  evaluate() on the terminal position, and returns the value as seen from
+ *  evaluate() on the leaf (horizon) position, and returns the value as seen from
  *  the root player's perspective.
  */
 template <typename Domain>

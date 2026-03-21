@@ -30,7 +30,7 @@ put_in_plane(plane, Segment(Point(0, 0), Point(10, 20)));
 put_in_plane(plane, Polygon(...));
 ```
 
-Supported objects in `Tikz_Plane`:
+Common objects in `Tikz_Plane`:
 
 - `Point`, `Polar_Point`
 - `Segment`, `Triangle`

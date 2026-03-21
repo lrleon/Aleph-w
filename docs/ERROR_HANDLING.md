@@ -1,4 +1,4 @@
-utacion# Error Handling Policy for Aleph-w
+# Error Handling Policy for Aleph-w
 
 This document describes the unified error handling strategy used in Aleph-w.
 
@@ -48,7 +48,8 @@ ah_domain_error() << "Invalid state detected";
 
 ### Macro Variants
 
-Each exception type has three variants:
+Each exception type has five variants: three runtime forms and two
+`constexpr` forms.
 
 ```cpp
 // Throws if condition is TRUE
@@ -175,4 +176,3 @@ Include it at the top of any file that needs error handling:
 ```cpp
 #include <ah-errors.H>
 ```
-

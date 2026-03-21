@@ -144,8 +144,9 @@ class History_Heuristic_Table;
 
 ### `Null_History_Heuristic_Table`
 
-No-op stub used when the domain does not expose `move_key()`. All methods are
-static no-ops and `score()` always returns `0`.
+No-op stub used when the domain does not expose `move_key()`. `clear()` and
+`record()` are static no-ops, while `score(const Key &) const noexcept` is a
+non-static const method that always returns `0`.
 
 ## What is only left as extension
 
