@@ -57,7 +57,7 @@
 namespace Aleph
 {
   template <typename Key,
-            template <typename, class> class HashSetTable = ODhashTable,
+            template <typename, class> class HashSetTable = OLhashTable,
             class Cmp = Aleph::equal_to<Key>>
   struct HashSet : public HashSetTable<Key, Cmp>
   {
@@ -88,7 +88,7 @@ namespace Aleph
 
   template
   <typename Key, typename Data,
-   template <typename, typename, class> class HashMapTable = MapODhash,
+   template <typename, typename, class> class HashMapTable = MapOLhash,
    class Cmp = Aleph::equal_to<Key>>
   struct HashMap : public HashMapTable<Key, Data, Cmp>
   {

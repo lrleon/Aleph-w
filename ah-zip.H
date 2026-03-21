@@ -29,17 +29,16 @@
   SOFTWARE.
 */
 
+#ifndef AH_ZIP_H
+#define AH_ZIP_H 1
 
-# ifndef AH_ZIP_H
-# define AH_ZIP_H 1
+#include <type_traits>
+#include <tuple>
+#include <vector>
 
-# include <type_traits>
-# include <tuple>
-# include <vector>
-
-# include <htlist.H>
-# include <ahFunctional.H>
-# include <tpl_dynSkipList.H>
+#include <htlist.H>
+#include <ahFunctional.H>
+#include <tpl_dynSkipList.H>
 
 /**
  * @file ah-zip.H
@@ -64,8 +63,7 @@
  * @author Leandro Rabindranath Leon
  */
 
-namespace Aleph
-{
+namespace Aleph {
 
 /**
  * @class ZipIterator
@@ -98,7 +96,7 @@ namespace Aleph
  * @author Leandro Rabindranath Leon
  * @cond DOXYGEN_SHOULD_SKIP_THIS
  */
-template <class HeadC, class ... TailC>
+template <class HeadC, class... TailC>
 class ZipIterator : public ZipIterator<TailC...>
 /// @endcond
 {
@@ -106,12 +104,11 @@ class ZipIterator : public ZipIterator<TailC...>
 
   using T = std::decay_t<typename HeadC::Item_Type>;
 
- public:
-
+public:
   /// The tuple type returned by get_curr() and get_curr_ne()
-  using Tuple_Type = decltype(std::tuple_cat(
-    std::declval<std::tuple<T>>(),
-    std::declval<typename ZipIterator<TailC...>::Tuple_Type>()));
+  using Tuple_Type
+    = decltype(std::tuple_cat(std::declval<std::tuple<T>>(),
+                              std::declval<typename ZipIterator<TailC...>::Tuple_Type>()));
 
   /// Type of elements from the first container
   using Item_Type = T;
@@ -123,8 +120,7 @@ class ZipIterator : public ZipIterator<TailC...>
       @param[in] head First container.
       @param[in] tail Remaining containers.
   */
-  ZipIterator(const HeadC &head, const TailC &...tail)
-    : ZipIterator<TailC...>(tail...), it(head) {}
+  ZipIterator(const HeadC &head, const TailC &...tail) : ZipIterator<TailC...>(tail...), it(head) {}
 
   /** Return `true` if all underlying iterators are positioned on a valid item. */
   [[nodiscard]] bool has_curr() const noexcept
@@ -192,8 +188,7 @@ class ZipIterator : public ZipIterator<TailC...>
 template <class C>
 class ZipIterator<C> : public C::Iterator
 {
- public:
-
+public:
   using T = std::decay_t<typename C::Item_Type>;
 
   /// The tuple type returned by get_curr() and get_curr_ne()
@@ -236,7 +231,10 @@ class ZipIterator<C> : public C::Iterator
   }
 
   /** Return `true` if the underlying iterator has reached the end. */
-  [[nodiscard]] bool completed() const noexcept { return not this->has_curr(); }
+  [[nodiscard]] bool completed() const noexcept
+  {
+    return not this->has_curr();
+  }
 };
 
 /** Create a ZipIterator over the given containers.
@@ -245,9 +243,8 @@ class ZipIterator<C> : public C::Iterator
     @return ZipIterator positioned at the first element.
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-ZipIterator<Cs...> get_zip_it(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline ZipIterator<Cs...> get_zip_it(const Cs &...cs)
 {
   return ZipIterator<Cs...>(cs...);
 }
@@ -259,9 +256,8 @@ ZipIterator<Cs...> get_zip_it(const Cs &... cs)
     @return ZipIterator advanced `pos` positions.
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-ZipIterator<Cs...> get_zip_it_pos(size_t pos, const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline ZipIterator<Cs...> get_zip_it_pos(size_t pos, const Cs &...cs)
 {
   ZipIterator<Cs...> ret(cs...);
   for (size_t i = 0; i < pos; ++i)
@@ -270,17 +266,15 @@ ZipIterator<Cs...> get_zip_it_pos(size_t pos, const Cs &... cs)
 }
 
 /** Alias for `get_zip_it`. */
-template <class ... Cs>
-[[nodiscard]] inline
-ZipIterator<Cs...> zip_it(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline ZipIterator<Cs...> zip_it(const Cs &...cs)
 {
   return get_zip_it(cs...);
 }
 
 /** Alias for `get_zip_it_pos`. */
-template <class ... Cs>
-[[nodiscard]] inline
-ZipIterator<Cs...> zip_it_pos(size_t pos, const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline ZipIterator<Cs...> zip_it_pos(size_t pos, const Cs &...cs)
 {
   return get_zip_it_pos(pos, cs...);
 }
@@ -291,9 +285,8 @@ ZipIterator<Cs...> zip_it_pos(size_t pos, const Cs &... cs)
     @return `true` iff all containers have equal size.
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-bool equal_length(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline bool equal_length(const Cs &...cs)
 {
   auto it = get_zip_it(cs...);
   for (/* already initialized */; it.has_curr(); it.next_ne())
@@ -307,31 +300,30 @@ bool equal_length(const Cs &... cs)
     Iterates over zipped tuples, calling the predicate for each.
     Stops early if the predicate returns false. Iterates over the
     minimum length of all containers.
-    
+
     @tparam Op Predicate type `(tuple) -> bool`.
     @tparam Cs Container types.
     @param op Callable returning `bool`; traversal stops on `false`.
     @param cs Containers to zip together.
     @return `true` if `op` returned `true` for every tuple, `false` otherwise.
-    
+
     @par Example:
     @code
     DynList<int> xs = {1, 2, 3, 4};
     DynList<int> ys = {10, 20, 30, 40};
-    
+
     // Check if all pairs have x < y
     bool all_less = zip_traverse([](auto t) {
       return std::get<0>(t) < std::get<1>(t);
     }, xs, ys);
     // all_less is true
     @endcode
-    
+
     @see zip_traverse_eq for version that verifies equal lengths
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_traverse(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_traverse(Op &&op, const Cs &...cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (not std::forward<Op>(op)(it.get_curr()))
@@ -347,9 +339,8 @@ bool zip_traverse(Op &&op, const Cs &... cs)
             for every tuple.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_traverse_eq(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_traverse_eq(Op &&op, const Cs &...cs)
 {
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
@@ -363,33 +354,32 @@ bool zip_traverse_eq(Op &&op, const Cs &... cs)
     Iterates over all zipped tuples, applying the callable to each.
     This is a side-effect operation (returns void). Iterates over
     the minimum length of all containers.
-    
+
     @tparam Op Callable type `(tuple) -> void`.
     @tparam Cs Container types.
     @param op Callable to invoke on each tuple (for side effects).
     @param cs Containers to zip together.
-    
+
     @par Example:
     @code
     DynList<std::string> names = {"Alice", "Bob"};
     DynList<int> ages = {30, 25};
-    
+
     zip_for_each([](auto t) {
-      std::cout << std::get<0>(t) << " is " 
+      std::cout << std::get<0>(t) << " is "
                 << std::get<1>(t) << " years old\n";
     }, names, ages);
     // Output:
     // Alice is 30 years old
     // Bob is 25 years old
     @endcode
-    
+
     @see zip_for_each_eq for version that verifies equal lengths
     @see zip_for_each_indexed for version with index
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-inline
-void zip_for_each(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+inline void zip_for_each(Op &&op, const Cs &...cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     std::forward<Op>(op)(it.get_curr());
@@ -402,16 +392,14 @@ void zip_for_each(Op &&op, const Cs &... cs)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-inline
-void zip_for_each_eq(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+inline void zip_for_each_eq(Op &&op, const Cs &...cs)
 {
   auto it = get_zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
     std::forward<Op>(op)(it.get_curr());
 
-  ah_length_error_if(not it.completed())
-    << "zip_for_each_eq() containers sizes mismatch";
+  ah_length_error_if(not it.completed()) << "zip_for_each_eq() containers sizes mismatch";
 }
 
 /** Return `true` if `op` returns `true` for all tuples and containers have equal length.
@@ -424,9 +412,8 @@ void zip_for_each_eq(Op &&op, const Cs &... cs)
     @return `true` iff `op` is `true` for all tuples and lengths match.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_all(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_all(Op &&op, const Cs &...cs)
 {
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
@@ -446,9 +433,8 @@ bool zip_all(Op &&op, const Cs &... cs)
     @return `true` iff `op` is `true` for all tuples.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_all_short(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_all_short(Op &&op, const Cs &...cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (not std::forward<Op>(op)(it.get_curr()))
@@ -461,9 +447,8 @@ bool zip_all_short(Op &&op, const Cs &... cs)
     @see zip_all
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_forall(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_forall(Op &&op, const Cs &...cs)
 {
   return zip_all(std::forward<Op>(op), cs...);
 }
@@ -472,9 +457,8 @@ bool zip_forall(Op &&op, const Cs &... cs)
     @see zip_all_short
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_forall_short(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_forall_short(Op &&op, const Cs &...cs)
 {
   return zip_all_short(std::forward<Op>(op), cs...);
 }
@@ -488,9 +472,8 @@ bool zip_forall_short(Op &&op, const Cs &... cs)
     @return `true` if any tuple satisfies `op`.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_exists(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_exists(Op &&op, const Cs &...cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (std::forward<Op>(op)(it.get_curr()))
@@ -503,9 +486,8 @@ bool zip_exists(Op &&op, const Cs &... cs)
     @see zip_exists
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_any(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_any(Op &&op, const Cs &...cs)
 {
   return zip_exists(std::forward<Op>(op), cs...);
 }
@@ -519,9 +501,8 @@ bool zip_any(Op &&op, const Cs &... cs)
     @return `true` if no tuple satisfies `op`.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-bool zip_none(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline bool zip_none(Op &&op, const Cs &...cs)
 {
   return not zip_exists(std::forward<Op>(op), cs...);
 }
@@ -533,9 +514,8 @@ bool zip_none(Op &&op, const Cs &... cs)
     @return Number of tuples for which `op` returns `true`.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-[[nodiscard]] inline
-size_t zip_count(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+[[nodiscard]] inline size_t zip_count(Op &&op, const Cs &...cs)
 {
   size_t count = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
@@ -550,9 +530,8 @@ size_t zip_count(Op &&op, const Cs &... cs)
     @return Number of tuples that would be produced.
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-size_t zip_length(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline size_t zip_length(const Cs &...cs)
 {
   size_t count = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
@@ -568,16 +547,16 @@ size_t zip_length(const Cs &... cs)
             If found is false, tuple is default-constructed.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_find_first(Op &&op, const Cs &... cs)
+auto zip_find_first(Op &&op, const Cs &...cs)
 {
   using ZipType = typename ZipIterator<Cs...>::Tuple_Type;
-  
+
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (auto t = it.get_curr(); std::forward<Op>(op)(t))
       return std::make_pair(t, true);
-  
+
   return std::make_pair(ZipType{}, false);
 }
 
@@ -589,22 +568,22 @@ auto zip_find_first(Op &&op, const Cs &... cs)
             If found is false, tuple is default-constructed.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_find_last(Op &&op, const Cs &... cs)
+auto zip_find_last(Op &&op, const Cs &...cs)
 {
   using ZipType = typename ZipIterator<Cs...>::Tuple_Type;
-  
+
   ZipType result{};
   bool found = false;
-  
+
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (auto t = it.get_curr(); std::forward<Op>(op)(t))
       {
         result = t;
         found = true;
       }
-  
+
   return std::make_pair(result, found);
 }
 
@@ -616,17 +595,17 @@ auto zip_find_last(Op &&op, const Cs &... cs)
             If n >= zip_length, found is false and tuple is default-constructed.
     @ingroup Algorithms
 */
-template <class ... Cs>
+template <class... Cs>
 [[nodiscard]]
-auto zip_nth(size_t n, const Cs &... cs)
+auto zip_nth(size_t n, const Cs &...cs)
 {
   using ZipType = typename ZipIterator<Cs...>::Tuple_Type;
-  
+
   size_t i = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne(), ++i)
     if (i == n)
       return std::make_pair(it.get_curr(), true);
-  
+
   return std::make_pair(ZipType{}, false);
 }
 
@@ -637,9 +616,9 @@ auto zip_nth(size_t n, const Cs &... cs)
             If containers are empty, found is false.
     @ingroup Algorithms
 */
-template <class ... Cs>
+template <class... Cs>
 [[nodiscard]]
-auto zip_first(const Cs &... cs)
+auto zip_first(const Cs &...cs)
 {
   return zip_nth(0, cs...);
 }
@@ -649,34 +628,34 @@ auto zip_first(const Cs &... cs)
     Applies a transformation function to each tuple from the zipped containers
     and collects the results in a DynList. The result type must be explicitly
     specified. For auto-deduced return type, use `zip_map` instead.
-    
+
     @tparam T Result type (must be explicitly specified).
     @tparam Op Transformation callable type.
     @tparam Cs Container types.
     @param op Transformation callable that takes a tuple and returns T.
     @param cs Containers to zip together.
     @return DynList<T> of transformed values.
-    
+
     @par Example:
     @code
     DynList<int> xs = {1, 2, 3};
     DynList<int> ys = {10, 20, 30};
-    
+
     // Create strings from each pair
     auto result = zip_maps<std::string>([](auto t) {
-      return std::to_string(std::get<0>(t)) + "+" + 
+      return std::to_string(std::get<0>(t)) + "+" +
              std::to_string(std::get<1>(t));
     }, xs, ys);
     // result contains: {"1+10", "2+20", "3+30"}
     @endcode
-    
+
     @see zip_map for auto-deduced return type version
     @see zip_maps_eq for version that verifies equal lengths
     @ingroup Algorithms
 */
-template <typename T, class Op, class ... Cs>
+template <typename T, class Op, class... Cs>
 [[nodiscard]]
-DynList<T> zip_maps(Op op, const Cs &... cs)
+DynList<T> zip_maps(Op op, const Cs &...cs)
 {
   DynList<T> ret;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
@@ -693,14 +672,14 @@ DynList<T> zip_maps(Op op, const Cs &... cs)
     @return DynList of transformed values for tuples where `prop` is `true`.
     @ingroup Algorithms
 */
-template <typename T, class Prop, class Op, class ... Cs>
+template <typename T, class Prop, class Op, class... Cs>
 [[nodiscard]]
-DynList<T> zip_maps_if(Prop prop, Op op, const Cs &... cs)
+DynList<T> zip_maps_if(Prop prop, Op op, const Cs &...cs)
 {
   DynList<T> ret;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
-      if (auto t = it.get_curr(); prop(t))
-        ret.append(op(t));
+    if (auto t = it.get_curr(); prop(t))
+      ret.append(op(t));
 
   return ret;
 }
@@ -710,7 +689,7 @@ DynList<T> zip_maps_if(Prop prop, Op op, const Cs &... cs)
     Accumulates a value by applying a binary operation to the accumulator
     and each tuple from the zipped containers, from left to right.
     This is equivalent to ML's `foldl` or JavaScript's `reduce`.
-    
+
     @tparam T Accumulator type.
     @tparam Op Binary operation type `(T, tuple) -> T`.
     @tparam Cs Container types.
@@ -718,24 +697,24 @@ DynList<T> zip_maps_if(Prop prop, Op op, const Cs &... cs)
     @param op Binary operation that combines accumulator with each tuple.
     @param cs Containers to zip together.
     @return Final accumulated value after processing all tuples.
-    
+
     @par Example:
     @code
     DynList<int> prices = {10, 20, 30};
     DynList<int> quantities = {2, 3, 1};
-    
+
     // Calculate total cost: sum of (price * quantity)
     int total = zip_foldl(0, [](int acc, auto t) {
       return acc + std::get<0>(t) * std::get<1>(t);
     }, prices, quantities);
     // total = 0 + 10*2 + 20*3 + 30*1 = 110
     @endcode
-    
+
     @ingroup Algorithms
 */
-template <typename T, class Op, class ... Cs>
+template <typename T, class Op, class... Cs>
 [[nodiscard]]
-T zip_foldl(const T &init, Op op, const Cs &... cs)
+T zip_foldl(const T &init, Op op, const Cs &...cs)
 {
   T acu = init;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
@@ -753,17 +732,16 @@ T zip_foldl(const T &init, Op op, const Cs &... cs)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <typename T, class Op, class ... Cs>
+template <typename T, class Op, class... Cs>
 [[nodiscard]]
-T zip_foldl_eq(const T &init, Op op, const Cs &... cs)
+T zip_foldl_eq(const T &init, Op op, const Cs &...cs)
 {
   T acu = init;
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
     acu = op(acu, it.get_curr());
 
-  ah_length_error_if(not it.completed())
-    << "zip_foldl_eq() containers sizes mismatch";
+  ah_length_error_if(not it.completed()) << "zip_foldl_eq() containers sizes mismatch";
 
   return acu;
 }
@@ -777,17 +755,16 @@ T zip_foldl_eq(const T &init, Op op, const Cs &... cs)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <typename T, class Op, class ... Cs>
+template <typename T, class Op, class... Cs>
 [[nodiscard]]
-DynList<T> zip_maps_eq(Op op, const Cs &... cs)
+DynList<T> zip_maps_eq(Op op, const Cs &...cs)
 {
   DynList<T> ret;
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
     ret.append(op(it.get_curr()));
 
-  ah_length_error_if(not it.completed())
-    << "zip_maps_eq() containers sizes mismatch";
+  ah_length_error_if(not it.completed()) << "zip_maps_eq() containers sizes mismatch";
 
   return ret;
 }
@@ -802,9 +779,9 @@ DynList<T> zip_maps_eq(Op op, const Cs &... cs)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <typename T, class Prop, class Op, class ... Cs>
+template <typename T, class Prop, class Op, class... Cs>
 [[nodiscard]]
-DynList<T> zip_maps_if_eq(Prop prop, Op op, const Cs &... cs)
+DynList<T> zip_maps_if_eq(Prop prop, Op op, const Cs &...cs)
 {
   DynList<T> ret;
   auto it = zip_it(cs...);
@@ -812,8 +789,7 @@ DynList<T> zip_maps_if_eq(Prop prop, Op op, const Cs &... cs)
     if (auto t = it.get_curr(); prop(t))
       ret.append(op(t));
 
-  ah_length_error_if(not it.completed())
-    << "zip_maps_if_eq() containers sizes mismatch";
+  ah_length_error_if(not it.completed()) << "zip_maps_if_eq() containers sizes mismatch";
 
   return ret;
 }
@@ -828,9 +804,9 @@ DynList<T> zip_maps_if_eq(Prop prop, Op op, const Cs &... cs)
     @return DynList of transformed values (type auto-deduced).
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_map(Op &&op, const Cs &... cs)
+auto zip_map(Op &&op, const Cs &...cs)
 {
   using ZipType = typename ZipIterator<Cs...>::Tuple_Type;
   using ResultType = std::decay_t<decltype(std::forward<Op>(op)(std::declval<ZipType>()))>;
@@ -849,9 +825,9 @@ auto zip_map(Op &&op, const Cs &... cs)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_map_eq(Op &&op, const Cs &... cs)
+auto zip_map_eq(Op &&op, const Cs &...cs)
 {
   using ZipType = typename ZipIterator<Cs...>::Tuple_Type;
   using ResultType = std::decay_t<decltype(std::forward<Op>(op)(std::declval<ZipType>()))>;
@@ -861,8 +837,7 @@ auto zip_map_eq(Op &&op, const Cs &... cs)
   for (; it.has_curr(); it.next_ne())
     ret.append(std::forward<Op>(op)(it.get_curr()));
 
-  ah_length_error_if(not it.completed())
-    << "zip_map_eq() containers sizes mismatch";
+  ah_length_error_if(not it.completed()) << "zip_map_eq() containers sizes mismatch";
 
   return ret;
 }
@@ -875,31 +850,31 @@ auto zip_map_eq(Op &&op, const Cs &... cs)
     @param op Predicate function that takes a tuple and returns bool.
     @param cs Containers to zip together.
     @return DynList of tuples for which `op` returned `true`.
-    
+
     @par Example:
     @code
     DynList<int> nums = {1, 2, 3, 4, 5};
     DynList<int> vals = {10, 20, 30, 40, 50};
-    
+
     // Filter tuples where first element is even
-    auto result = zip_filter([](auto t) { 
-      return std::get<0>(t) % 2 == 0; 
+    auto result = zip_filter([](auto t) {
+      return std::get<0>(t) % 2 == 0;
     }, nums, vals);
     // result contains: {(2, 20), (4, 40)}
     @endcode
-    
+
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_filter(Op op, const Cs &... cs)
+auto zip_filter(Op op, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
 
   DynList<ZipType> ret;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
-      if (auto t = it.get_curr(); op(t))
-        ret.append(t);
+    if (auto t = it.get_curr(); op(t))
+      ret.append(t);
 
   return ret;
 }
@@ -913,27 +888,27 @@ auto zip_filter(Op op, const Cs &... cs)
     @param cs Containers to zip together.
     @return DynList of tuples for which `op` returned `true`.
     @throw std::length_error if container sizes mismatch.
-    
+
     @par Example:
     @code
     DynList<int> nums = {1, 2, 3};
     DynList<int> vals = {10, 20, 30};
-    
+
     // This will succeed (equal lengths)
-    auto result = zip_filter_eq([](auto t) { 
-      return std::get<0>(t) > 1; 
+    auto result = zip_filter_eq([](auto t) {
+      return std::get<0>(t) > 1;
     }, nums, vals);
-    
+
     DynList<int> short_list = {1, 2};
     // This will throw std::length_error
     auto bad = zip_filter_eq([](auto) { return true; }, nums, short_list);
     @endcode
-    
+
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_filter_eq(Op op, const Cs &... cs)
+auto zip_filter_eq(Op op, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
 
@@ -943,8 +918,7 @@ auto zip_filter_eq(Op op, const Cs &... cs)
     if (auto t = it.get_curr(); op(t))
       ret.append(t);
 
-  ah_length_error_if(not it.completed())
-    << "zip_filter_eq() containers sizes mismatch";
+  ah_length_error_if(not it.completed()) << "zip_filter_eq() containers sizes mismatch";
 
   return ret;
 }
@@ -952,20 +926,19 @@ auto zip_filter_eq(Op op, const Cs &... cs)
 /** @internal
  *  @brief Internal helpers for zip_cmp comparison across adjacent tuple elements.
  */
-namespace zip_detail
+namespace zip_detail {
+/** Compare all adjacent pairs in a tuple using the given comparator.
+ *  @param cmp Binary comparator.
+ *  @param t Tuple to compare.
+ *  @return true if cmp(t[i], t[i+1]) is true for all adjacent pairs.
+ */
+template <class Cmp, class Tuple, size_t... Is>
+bool compare_adjacent(Cmp &cmp, const Tuple &t, std::index_sequence<Is...>)
 {
-  /** Compare all adjacent pairs in a tuple using the given comparator.
-   *  @param cmp Binary comparator.
-   *  @param t Tuple to compare.
-   *  @return true if cmp(t[i], t[i+1]) is true for all adjacent pairs.
-   */
-  template <class Cmp, class Tuple, size_t... Is>
-  bool compare_adjacent(Cmp &cmp, const Tuple &t, std::index_sequence<Is...>)
-  {
-    // Compare t[0] with t[1], t[1] with t[2], etc.
-    return (... and cmp(std::get<Is>(t), std::get<Is + 1>(t)));
-  }
+  // Compare t[0] with t[1], t[1] with t[2], etc.
+  return (... and cmp(std::get<Is>(t), std::get<Is + 1>(t)));
 }
+}  // namespace zip_detail
 
 /** Return true if `cmp(t)` is `true` for each built tuple `t`.
 
@@ -987,16 +960,17 @@ namespace zip_detail
 
     @author Leandro Rabindranath Leon
 */
-template <class Cmp, class ... Cs>
+template <class Cmp, class... Cs>
 [[nodiscard]]
-bool zip_cmp(Cmp cmp, const Cs &... cs)
+bool zip_cmp(Cmp cmp, const Cs &...cs)
 {
   constexpr size_t N = sizeof...(Cs);
   static_assert(N >= 2, "zip_cmp requires at least 2 containers");
 
   for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
-      if (auto t = it.get_curr(); not zip_detail::compare_adjacent(cmp, t, std::make_index_sequence<N - 1>{}))
-        return false;
+    if (auto t = it.get_curr();
+        not zip_detail::compare_adjacent(cmp, t, std::make_index_sequence<N - 1>{}))
+      return false;
 
   return true;
 }
@@ -1009,14 +983,14 @@ bool zip_cmp(Cmp cmp, const Cs &... cs)
             if none match.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-size_t zip_find_index(Op op, const Cs &... cs)
+size_t zip_find_index(Op op, const Cs &...cs)
 {
   size_t i = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne(), ++i)
-      if (auto t = it.get_curr(); op(t))
-        break;
+    if (auto t = it.get_curr(); op(t))
+      break;
 
   return i;
 }
@@ -1026,7 +1000,7 @@ size_t zip_find_index(Op op, const Cs &... cs)
     Separates zipped tuples into two groups based on a predicate:
     those for which the predicate returns true, and those for which
     it returns false. Also returns the count of each group.
-    
+
     @tparam Op Predicate type `(tuple) -> bool`.
     @tparam Cs Container types.
     @param op Predicate to partition by.
@@ -1036,45 +1010,45 @@ size_t zip_find_index(Op op, const Cs &... cs)
             - `std::get<1>`: Count of matching tuples (size_t)
             - `std::get<2>`: DynList of tuples where `op` returned false
             - `std::get<3>`: Count of non-matching tuples (size_t)
-    
+
     @par Example:
     @code
     DynList<int> nums = {1, 2, 3, 4, 5};
     DynList<std::string> labels = {"a", "b", "c", "d", "e"};
-    
+
     // Partition by even numbers
-    auto [evens, even_count, odds, odd_count] = 
-      zip_partition([](auto t) { 
-        return std::get<0>(t) % 2 == 0; 
+    auto [evens, even_count, odds, odd_count] =
+      zip_partition([](auto t) {
+        return std::get<0>(t) % 2 == 0;
       }, nums, labels);
-    
+
     // evens contains: {(2, "b"), (4, "d")}
     // even_count is 2
     // odds contains: {(1, "a"), (3, "c"), (5, "e")}
     // odd_count is 3
     @endcode
-    
+
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_partition(Op op, const Cs &... cs)
+auto zip_partition(Op op, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
 
   DynList<ZipType> ret1, ret2;
   size_t n1 = 0, n2 = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
-      if (auto t = it.get_curr(); op(t))
-        {
-          ret1.append(t);
-          ++n1;
-        }
-      else
-        {
-          ret2.append(t);
-          ++n2;
-        }
+    if (auto t = it.get_curr(); op(t))
+      {
+        ret1.append(t);
+        ++n1;
+      }
+    else
+      {
+        ret2.append(t);
+        ++n2;
+      }
 
   return std::make_tuple(ret1, n1, ret2, n2);
 }
@@ -1084,32 +1058,31 @@ auto zip_partition(Op op, const Cs &... cs)
     Collects all zipped tuples into a DynList. This is useful when you
     need to store the zipped result for later use or multiple iterations.
     Iterates over the minimum length of all containers.
-    
+
     @tparam Cs Container types.
     @param cs Containers to zip together.
     @return DynList of tuples containing all zipped elements.
-    
+
     @par Example:
     @code
     DynList<int> xs = {1, 2, 3};
     DynList<std::string> ys = {"a", "b", "c"};
-    
+
     auto zipped = t_zip(xs, ys);
     // zipped is DynList<std::tuple<int, string>> containing:
     // {(1, "a"), (2, "b"), (3, "c")}
-    
+
     // Can iterate multiple times
     for (auto& t : zipped) { ... }
     for (auto& t : zipped) { ... }
     @endcode
-    
+
     @see t_zip_eq for version that verifies equal lengths
     @see t_unzip for the inverse operation
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-auto t_zip(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline auto t_zip(const Cs &...cs)
 {
   auto it = zip_it(cs...);
   using T = decltype(it.get_curr());
@@ -1127,9 +1100,8 @@ auto t_zip(const Cs &... cs)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-auto t_zip_eq(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline auto t_zip_eq(const Cs &...cs)
 {
   auto it = zip_it(cs...);
   using T = decltype(it.get_curr());
@@ -1137,8 +1109,7 @@ auto t_zip_eq(const Cs &... cs)
   for (; it.has_curr(); it.next_ne())
     ret.append(it.get_curr());
 
-  ah_length_error_if(not it.completed())
-    << "Container sizes mismatch";
+  ah_length_error_if(not it.completed()) << "Container sizes mismatch";
 
   return ret;
 }
@@ -1170,7 +1141,7 @@ auto t_zip_eq(const Cs &... cs)
  * @ingroup Algorithms
  * @cond DOXYGEN_SHOULD_SKIP_THIS
  */
-template <class HeadC, class ... TailC>
+template <class HeadC, class... TailC>
 class EnumZipIterator : public EnumZipIterator<TailC...>
 /// @endcond
 {
@@ -1178,14 +1149,14 @@ class EnumZipIterator : public EnumZipIterator<TailC...>
 
   using T = std::decay_t<typename HeadC::Item_Type>;
 
- public:
-
+public:
   /** Construct an enumerating zip iterator over multiple containers.
 
       The index is appended as the last element in the resulting tuple.
   */
   EnumZipIterator(const HeadC &head, const TailC &...tail)
-    : EnumZipIterator<TailC...>(tail...), it(head) {}
+    : EnumZipIterator<TailC...>(tail...), it(head)
+  {}
 
   /** Return `true` if all underlying iterators have a current element. */
   [[nodiscard]] bool has_curr() const noexcept
@@ -1238,8 +1209,7 @@ class EnumZipIterator<C> : public C::Iterator
 {
   size_t i = 0;
 
- public:
-
+public:
   /** Advance the iterator and increment the associated index (bounds-checked). */
   void next()
   {
@@ -1281,7 +1251,10 @@ class EnumZipIterator<C> : public C::Iterator
   }
 
   /** Return `true` if the underlying iterator has reached the end. */
-  [[nodiscard]] bool completed() const noexcept { return not this->has_curr(); }
+  [[nodiscard]] bool completed() const noexcept
+  {
+    return not this->has_curr();
+  }
 };
 
 /** Create an EnumZipIterator over the given containers.
@@ -1290,9 +1263,8 @@ class EnumZipIterator<C> : public C::Iterator
     @return EnumZipIterator positioned at the first element (index 0).
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-EnumZipIterator<Cs...> get_enum_zip_it(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline EnumZipIterator<Cs...> get_enum_zip_it(const Cs &...cs)
 {
   return EnumZipIterator<Cs...>(cs...);
 }
@@ -1305,10 +1277,10 @@ EnumZipIterator<Cs...> get_enum_zip_it(const Cs &... cs)
     @return EnumZipIterator advanced `pos` positions.
     @ingroup Algorithms
 */
-template <class C, class ... Cs>
-[[nodiscard]] inline
-EnumZipIterator<C, Cs...>
-get_enum_zip_it_pos(size_t pos, const C &c, const Cs &... cs)
+template <class C, class... Cs>
+[[nodiscard]] inline EnumZipIterator<C, Cs...> get_enum_zip_it_pos(size_t pos,
+                                                                   const C &c,
+                                                                   const Cs &...cs)
 {
   EnumZipIterator<C, Cs...> ret(c, cs...);
   for (size_t i = 0; i < pos; ++i)
@@ -1318,17 +1290,15 @@ get_enum_zip_it_pos(size_t pos, const C &c, const Cs &... cs)
 }
 
 /** Alias for `get_enum_zip_it`. */
-template <class ... Cs>
-[[nodiscard]] inline
-EnumZipIterator<Cs...> enum_zip_it(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline EnumZipIterator<Cs...> enum_zip_it(const Cs &...cs)
 {
   return EnumZipIterator<Cs...>(cs...);
 }
 
 /** Alias for `get_enum_zip_it_pos`. */
-template <class ... Cs>
-[[nodiscard]] inline
-EnumZipIterator<Cs...> enum_zip_it_pos(size_t pos, const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline EnumZipIterator<Cs...> enum_zip_it_pos(size_t pos, const Cs &...cs)
 {
   return get_enum_zip_it_pos(pos, cs...);
 }
@@ -1341,9 +1311,8 @@ EnumZipIterator<Cs...> enum_zip_it_pos(size_t pos, const Cs &... cs)
     @return DynList of tuples with index.
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-auto t_enum_zip(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline auto t_enum_zip(const Cs &...cs)
 {
   auto it = get_enum_zip_it(cs...);
   using T = decltype(it.get_curr());
@@ -1361,9 +1330,8 @@ auto t_enum_zip(const Cs &... cs)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <class ... Cs>
-[[nodiscard]] inline
-auto t_enum_zip_eq(const Cs &... cs)
+template <class... Cs>
+[[nodiscard]] inline auto t_enum_zip_eq(const Cs &...cs)
 {
   auto it = get_enum_zip_it(cs...);
   using T = decltype(it.get_curr());
@@ -1371,16 +1339,13 @@ auto t_enum_zip_eq(const Cs &... cs)
   for (; it.has_curr(); it.next_ne())
     ret.append(it.get_curr());
 
-  ah_length_error_if(not it.completed())
-    << "Container sizes mismatch";
+  ah_length_error_if(not it.completed()) << "Container sizes mismatch";
 
   return ret;
 }
 
 template <typename... Ts, size_t... is>
-static inline
-auto t_unzip_impl(const DynList<std::tuple<Ts...>> &l,
-                  std::index_sequence<is...>)
+static inline auto t_unzip_impl(const DynList<std::tuple<Ts...>> &l, std::index_sequence<is...>)
 {
   std::tuple<DynList<Ts>...> ret;
   for (auto it = l.get_it(); it.has_curr(); it.next_ne())
@@ -1396,8 +1361,7 @@ auto t_unzip_impl(const DynList<std::tuple<Ts...>> &l,
     @ingroup Algorithms
 */
 template <class... Ts>
-[[nodiscard]] inline
-auto t_unzip(const DynList<std::tuple<Ts...>> &tuples)
+[[nodiscard]] inline auto t_unzip(const DynList<std::tuple<Ts...>> &tuples)
 {
   return t_unzip_impl(tuples, std::index_sequence_for<Ts...>{});
 }
@@ -1419,9 +1383,9 @@ auto t_unzip(const DynList<std::tuple<Ts...>> &tuples)
 
     @ingroup Algorithms
 */
-template <class C, typename ... Lists>
+template <class C, typename... Lists>
 [[nodiscard]]
-auto zip_lists(const C &c, const Lists &... lists)
+auto zip_lists(const C &c, const Lists &...lists)
 {
   using T = typename C::Item_Type;
   DynList<DynList<T>> ret;
@@ -1438,9 +1402,9 @@ auto zip_lists(const C &c, const Lists &... lists)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <class C, typename ... Lists>
+template <class C, typename... Lists>
 [[nodiscard]]
-auto zip_lists_eq(const C &c, const Lists &... lists)
+auto zip_lists_eq(const C &c, const Lists &...lists)
 {
   using T = typename C::Item_Type;
   DynList<DynList<T>> ret;
@@ -1448,8 +1412,7 @@ auto zip_lists_eq(const C &c, const Lists &... lists)
   for (; it.has_curr(); it.next_ne())
     ret.append(it.get_curr_list());
 
-  ah_length_error_if(not it.completed())
-    << "zip_list_eq: container sizes mismatch";
+  ah_length_error_if(not it.completed()) << "zip_list_eq: container sizes mismatch";
 
   return ret;
 }
@@ -1457,37 +1420,36 @@ auto zip_lists_eq(const C &c, const Lists &... lists)
 /** @internal
  *  @brief Internal helpers for STL container zipping (tzip_std, std_zip_n).
  */
-namespace std_zip_detail
+namespace std_zip_detail {
+/** Check if all iterators are valid (not at end).
+ *  @param its Iterator pairs (begin, end).
+ *  @return true if all first iterators != second (end).
+ */
+template <typename... Its>
+bool all_valid(const Its &...its)
 {
-  /** Check if all iterators are valid (not at end).
-   *  @param its Iterator pairs (begin, end).
-   *  @return true if all first iterators != second (end).
-   */
-  template <typename... Its>
-  bool all_valid(const Its&... its)
-  {
-    return (... and (its.first != its.second));
-  }
-
-  /** Advance all iterators.
-   *  @param its Iterator pairs (begin, end).
-   */
-  template <typename... Its>
-  void advance_all(Its&... its)
-  {
-    (++its.first, ...);
-  }
-
-  /** Dereference all iterators and make a tuple.
-   *  @param its Iterator pairs (begin, end).
-   *  @return Tuple of dereferenced values.
-   */
-  template <typename... Its>
-  auto deref_all(const Its&... its)
-  {
-    return std::make_tuple(*its.first...);
-  }
+  return (... and (its.first != its.second));
 }
+
+/** Advance all iterators.
+ *  @param its Iterator pairs (begin, end).
+ */
+template <typename... Its>
+void advance_all(Its &...its)
+{
+  (++its.first, ...);
+}
+
+/** Dereference all iterators and make a tuple.
+ *  @param its Iterator pairs (begin, end).
+ *  @return Tuple of dereferenced values.
+ */
+template <typename... Its>
+auto deref_all(const Its &...its)
+{
+  return std::make_tuple(*its.first...);
+}
+}  // namespace std_zip_detail
 
 /** Build a vector of pairs from two STL containers.
 
@@ -1523,7 +1485,7 @@ auto std_zip(const C1 &c1, const C2 &c2)
 */
 template <typename... Cs>
 [[nodiscard]]
-auto tzip_std(const Cs&... cs)
+auto tzip_std(const Cs &...cs)
 {
   static_assert(sizeof...(Cs) >= 2, "tzip_std requires at least 2 containers");
 
@@ -1534,7 +1496,8 @@ auto tzip_std(const Cs&... cs)
   auto iters = std::make_tuple(std::make_pair(cs.begin(), cs.end())...);
 
   // Helper to check all iterators and build tuples
-  auto check_and_push = [&ret](auto&... its) {
+  auto check_and_push = [&ret](auto &...its)
+  {
     while (std_zip_detail::all_valid(its...))
       {
         ret.push_back(std_zip_detail::deref_all(its...));
@@ -1557,29 +1520,28 @@ auto tzip_std(const Cs&... cs)
 */
 template <typename... Cs>
 [[nodiscard]]
-auto std_zip_n(const Cs &... cs)
+auto std_zip_n(const Cs &...cs)
 {
   return tzip_std(cs...);
 }
 
-
 /** Transform zipped tuples using `op` and return results in a vector.
-    
+
     Similar to `std::ranges::transform` but operates on zipped containers.
-    
+
     @tparam Op Transformation callable `(tuple) -> R`.
     @param op Transformation to apply.
     @param cs Containers to zip.
     @return `std::vector` of transformed values.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_transform(Op &&op, const Cs &... cs)
+auto zip_transform(Op &&op, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
   using ResultType = std::decay_t<decltype(std::forward<Op>(op)(std::declval<ZipType>()))>;
-  
+
   std::vector<ResultType> ret;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     ret.push_back(std::forward<Op>(op)(it.get_curr()));
@@ -1587,7 +1549,7 @@ auto zip_transform(Op &&op, const Cs &... cs)
 }
 
 /** Transform zipped tuples; throw if containers differ in length.
-    
+
     @tparam Op Transformation callable.
     @param op Transformation to apply.
     @param cs Containers to zip.
@@ -1595,34 +1557,32 @@ auto zip_transform(Op &&op, const Cs &... cs)
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
+template <class Op, class... Cs>
 [[nodiscard]]
-auto zip_transform_eq(Op &&op, const Cs &... cs)
+auto zip_transform_eq(Op &&op, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
   using ResultType = std::decay_t<decltype(std::forward<Op>(op)(std::declval<ZipType>()))>;
-  
+
   std::vector<ResultType> ret;
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
     ret.push_back(std::forward<Op>(op)(it.get_curr()));
-  
-  ah_length_error_if(not it.completed())
-    << "zip_transform_eq() containers sizes mismatch";
+
+  ah_length_error_if(not it.completed()) << "zip_transform_eq() containers sizes mismatch";
   return ret;
 }
 
 /** Apply `op` to each zipped tuple along with its index.
-    
+
     More direct than using `enum_zip_it` manually.
-    
+
     @param op Callable `(size_t index, tuple) -> void`.
     @param cs Containers to zip.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-inline
-void zip_for_each_indexed(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+inline void zip_for_each_indexed(Op &&op, const Cs &...cs)
 {
   size_t idx = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne(), ++idx)
@@ -1630,35 +1590,33 @@ void zip_for_each_indexed(Op &&op, const Cs &... cs)
 }
 
 /** Apply `op` to each zipped tuple with index; throw if lengths differ.
-    
+
     @param op Callable `(size_t index, tuple) -> void`.
     @param cs Containers to zip.
     @throw std::length_error if container sizes mismatch.
     @ingroup Algorithms
 */
-template <class Op, class ... Cs>
-inline
-void zip_for_each_indexed_eq(Op &&op, const Cs &... cs)
+template <class Op, class... Cs>
+inline void zip_for_each_indexed_eq(Op &&op, const Cs &...cs)
 {
   size_t idx = 0;
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne(), ++idx)
     std::forward<Op>(op)(idx, it.get_curr());
-  
-  ah_length_error_if(not it.completed())
-    << "zip_for_each_indexed_eq() containers sizes mismatch";
+
+  ah_length_error_if(not it.completed()) << "zip_for_each_indexed_eq() containers sizes mismatch";
 }
 
 /** Take at most `n` tuples from the zipped containers.
-    
+
     @param n Maximum number of tuples to take.
     @param cs Containers to zip.
     @return DynList of up to `n` tuples.
     @ingroup Algorithms
 */
-template <class ... Cs>
+template <class... Cs>
 [[nodiscard]]
-auto zip_take(size_t n, const Cs &... cs)
+auto zip_take(size_t n, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
   DynList<ZipType> ret;
@@ -1669,24 +1627,24 @@ auto zip_take(size_t n, const Cs &... cs)
 }
 
 /** Skip `n` tuples and return the rest.
-    
+
     @param n Number of tuples to skip.
     @param cs Containers to zip.
     @return DynList of remaining tuples after skipping `n`.
     @ingroup Algorithms
 */
-template <class ... Cs>
+template <class... Cs>
 [[nodiscard]]
-auto zip_drop(size_t n, const Cs &... cs)
+auto zip_drop(const size_t n, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
   DynList<ZipType> ret;
   auto it = zip_it(cs...);
-  
+
   // Skip first n elements
   for (size_t i = 0; i < n and it.has_curr(); ++i)
     it.next_ne();
-  
+
   // Collect the rest
   for (; it.has_curr(); it.next_ne())
     ret.append(it.get_curr());
@@ -1694,15 +1652,15 @@ auto zip_drop(size_t n, const Cs &... cs)
 }
 
 /** Take tuples while predicate `pred` returns true.
-    
+
     @param pred Predicate `(tuple) -> bool`.
     @param cs Containers to zip.
     @return DynList of tuples while `pred` is satisfied.
     @ingroup Algorithms
 */
-template <class Pred, class ... Cs>
+template <class Pred, class... Cs>
 [[nodiscard]]
-auto zip_take_while(Pred &&pred, const Cs &... cs)
+auto zip_take_while(Pred &&pred, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
   DynList<ZipType> ret;
@@ -1717,24 +1675,24 @@ auto zip_take_while(Pred &&pred, const Cs &... cs)
 }
 
 /** Skip tuples while predicate `pred` returns true, then return the rest.
-    
+
     @param pred Predicate `(tuple) -> bool`.
     @param cs Containers to zip.
     @return DynList of tuples after `pred` becomes false.
     @ingroup Algorithms
 */
-template <class Pred, class ... Cs>
+template <class Pred, class... Cs>
 [[nodiscard]]
-auto zip_drop_while(Pred &&pred, const Cs &... cs)
+auto zip_drop_while(Pred &&pred, const Cs &...cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr());
   DynList<ZipType> ret;
   auto it = zip_it(cs...);
-  
+
   // Skip while pred is true
   for (; it.has_curr() and std::forward<Pred>(pred)(it.get_curr()); it.next_ne())
     /* skip */;
-  
+
   // Collect the rest
   for (; it.has_curr(); it.next_ne())
     ret.append(it.get_curr());
@@ -1748,87 +1706,87 @@ auto zip_drop_while(Pred &&pred, const Cs &... cs)
 /** @internal
  *  @brief Internal helpers for tuple operations using std::index_sequence.
  */
-namespace zip_index_detail
+namespace zip_index_detail {
+/** Apply a function to each element in a tuple.
+ *  @param op Callable to apply.
+ *  @param t Tuple to iterate.
+ */
+template <class Op, class Tuple, size_t... Is>
+void for_each_in_tuple_impl(Op &&op, Tuple &&t, std::index_sequence<Is...>)
 {
-  /** Apply a function to each element in a tuple.
-   *  @param op Callable to apply.
-   *  @param t Tuple to iterate.
-   */
-  template <class Op, class Tuple, size_t... Is>
-  void for_each_in_tuple_impl(Op &&op, Tuple &&t, std::index_sequence<Is...>)
-  {
-    (std::forward<Op>(op)(std::get<Is>(std::forward<Tuple>(t))), ...);
-  }
-  
-  /** Transform each element in a tuple.
-   *  @param op Transformation to apply.
-   *  @param t Input tuple.
-   *  @return Tuple of transformed values.
-   */
-  template <class Op, class Tuple, size_t... Is>
-  auto transform_tuple_impl(Op &&op, Tuple &&t, std::index_sequence<Is...>)
-  {
-    return std::make_tuple(std::forward<Op>(op)(std::get<Is>(std::forward<Tuple>(t)))...);
-  }
-  
-  /** Check if all elements satisfy a predicate.
-   *  @param pred Predicate to test.
-   *  @param t Tuple to check.
-   *  @return true if all elements satisfy pred.
-   */
-  template <class Pred, class Tuple, size_t... Is>
-  bool all_of_tuple_impl(Pred &&pred, const Tuple &t, std::index_sequence<Is...>)
-  {
-    return (... and std::forward<Pred>(pred)(std::get<Is>(t)));
-  }
-  
-  /** Check if any element satisfies a predicate.
-   *  @param pred Predicate to test.
-   *  @param t Tuple to check.
-   *  @return true if any element satisfies pred.
-   */
-  template <class Pred, class Tuple, size_t... Is>
-  bool any_of_tuple_impl(Pred &&pred, const Tuple &t, std::index_sequence<Is...>)
-  {
-    return (... or std::forward<Pred>(pred)(std::get<Is>(t)));
-  }
+  (std::forward<Op>(op)(std::get<Is>(std::forward<Tuple>(t))), ...);
 }
+
+/** Transform each element in a tuple.
+ *  @param op Transformation to apply.
+ *  @param t Input tuple.
+ *  @return Tuple of transformed values.
+ */
+template <class Op, class Tuple, size_t... Is>
+auto transform_tuple_impl(Op &&op, Tuple &&t, std::index_sequence<Is...>)
+{
+  return std::make_tuple(std::forward<Op>(op)(std::get<Is>(std::forward<Tuple>(t)))...);
+}
+
+/** Check if all elements satisfy a predicate.
+ *  @param pred Predicate to test.
+ *  @param t Tuple to check.
+ *  @return true if all elements satisfy pred.
+ */
+template <class Pred, class Tuple, size_t... Is>
+bool all_of_tuple_impl(Pred &&pred, const Tuple &t, std::index_sequence<Is...>)
+{
+  return (... and std::forward<Pred>(pred)(std::get<Is>(t)));
+}
+
+/** Check if any element satisfies a predicate.
+ *  @param pred Predicate to test.
+ *  @param t Tuple to check.
+ *  @return true if any element satisfies pred.
+ */
+template <class Pred, class Tuple, size_t... Is>
+bool any_of_tuple_impl(Pred &&pred, const Tuple &t, std::index_sequence<Is...>)
+{
+  return (... or std::forward<Pred>(pred)(std::get<Is>(t)));
+}
+}  // namespace zip_index_detail
 
 /** Apply `op` to each element of a tuple.
 
     Iterates over all elements in the tuple at compile-time using
     `std::index_sequence`, applying the callable `op` to each element.
     The operation can modify elements if the tuple is passed by reference.
-    
+
     @tparam Op Callable type (must be invocable with each tuple element type).
     @tparam Tuple Tuple type to iterate over.
     @param op Callable to apply to each element.
     @param t Tuple to iterate over (can be lvalue or rvalue reference).
-    
+
     @par Example:
     @code
     auto t = std::make_tuple(1, 2.5, std::string("hello"));
-    
+
     // Print each element
-    for_each_in_tuple([](const auto& elem) { 
-      std::cout << elem << " "; 
+    for_each_in_tuple([](const auto& elem) {
+      std::cout << elem << " ";
     }, t);
     // Output: 1 2.5 hello
-    
+
     // Modify elements (requires non-const tuple)
     auto t2 = std::make_tuple(1, 2, 3);
     for_each_in_tuple([](auto& x) { x *= 2; }, t2);
     // t2 is now (2, 4, 6)
     @endcode
-    
+
     @ingroup Algorithms
 */
 template <class Op, class Tuple>
 void for_each_in_tuple(Op &&op, Tuple &&t)
 {
   constexpr auto N = std::tuple_size_v<std::decay_t<Tuple>>;
-  zip_index_detail::for_each_in_tuple_impl(
-    std::forward<Op>(op), std::forward<Tuple>(t), std::make_index_sequence<N>{});
+  zip_index_detail::for_each_in_tuple_impl(std::forward<Op>(op),
+                                           std::forward<Tuple>(t),
+                                           std::make_index_sequence<N>{});
 }
 
 /** Transform each element of a tuple, returning a new tuple.
@@ -1837,28 +1795,28 @@ void for_each_in_tuple(Op &&op, Tuple &&t)
     element of the input tuple. The result types are deduced from the
     return type of the transformation applied to each element.
     Uses `std::index_sequence` for compile-time iteration.
-    
+
     @tparam Op Transformation callable type.
     @tparam Tuple Input tuple type.
     @param op Transformation to apply to each element.
     @param t Input tuple.
     @return New tuple containing transformed values.
-    
+
     @par Example:
     @code
     auto t = std::make_tuple(1, 2, 3);
-    
+
     // Double each element
     auto doubled = transform_tuple([](auto x) { return x * 2; }, t);
     // doubled is (2, 4, 6)
-    
+
     // Convert to strings
-    auto strings = transform_tuple([](auto x) { 
-      return std::to_string(x); 
+    auto strings = transform_tuple([](auto x) {
+      return std::to_string(x);
     }, t);
     // strings is ("1", "2", "3") with type std::tuple<string, string, string>
     @endcode
-    
+
     @ingroup Algorithms
 */
 template <class Op, class Tuple>
@@ -1866,8 +1824,9 @@ template <class Op, class Tuple>
 auto transform_tuple(Op &&op, Tuple &&t)
 {
   constexpr auto N = std::tuple_size_v<std::decay_t<Tuple>>;
-  return zip_index_detail::transform_tuple_impl(
-    std::forward<Op>(op), std::forward<Tuple>(t), std::make_index_sequence<N>{});
+  return zip_index_detail::transform_tuple_impl(std::forward<Op>(op),
+                                                std::forward<Tuple>(t),
+                                                std::make_index_sequence<N>{});
 }
 
 /** Return `true` if all tuple elements satisfy `pred`.
@@ -1875,20 +1834,20 @@ auto transform_tuple(Op &&op, Tuple &&t)
     Checks if every element in the tuple satisfies the given predicate.
     Uses fold expressions for compile-time iteration over tuple elements.
     For an empty tuple, returns true (vacuous truth).
-    
+
     @tparam Pred Predicate type (must be callable with each tuple element type).
     @tparam Tuple Tuple type to check.
     @param pred Predicate to test on each element.
     @param t Tuple to check.
     @return `true` if `pred` returns `true` for all elements.
-    
+
     @par Example:
     @code
     auto t = std::make_tuple(2, 4, 6);
     bool all_even = all_of_tuple([](auto x) { return x % 2 == 0; }, t);
     // all_even is true
     @endcode
-    
+
     @ingroup Algorithms
 */
 template <class Pred, class Tuple>
@@ -1896,28 +1855,29 @@ template <class Pred, class Tuple>
 bool all_of_tuple(Pred &&pred, const Tuple &t)
 {
   constexpr auto N = std::tuple_size_v<std::decay_t<Tuple>>;
-  return zip_index_detail::all_of_tuple_impl(
-    std::forward<Pred>(pred), t, std::make_index_sequence<N>{});
+  return zip_index_detail::all_of_tuple_impl(std::forward<Pred>(pred),
+                                             t,
+                                             std::make_index_sequence<N>{});
 }
 
 /** Return `true` if any tuple element satisfies `pred`.
 
     Checks if at least one element in the tuple satisfies the given predicate.
     Uses fold expressions for compile-time iteration over tuple elements.
-    
+
     @tparam Pred Predicate type (must be callable with each tuple element type).
     @tparam Tuple Tuple type to check.
     @param pred Predicate to test on each element.
     @param t Tuple to check.
     @return `true` if `pred` returns `true` for at least one element.
-    
+
     @par Example:
     @code
     auto t = std::make_tuple(1, -5, 3);
     bool has_negative = any_of_tuple([](auto x) { return x < 0; }, t);
     // has_negative is true (because -5 < 0)
     @endcode
-    
+
     @ingroup Algorithms
 */
 template <class Pred, class Tuple>
@@ -1925,28 +1885,29 @@ template <class Pred, class Tuple>
 bool any_of_tuple(Pred &&pred, const Tuple &t)
 {
   constexpr auto N = std::tuple_size_v<std::decay_t<Tuple>>;
-  return zip_index_detail::any_of_tuple_impl(
-    std::forward<Pred>(pred), t, std::make_index_sequence<N>{});
+  return zip_index_detail::any_of_tuple_impl(std::forward<Pred>(pred),
+                                             t,
+                                             std::make_index_sequence<N>{});
 }
 
 /** Return `true` if no tuple element satisfies `pred`.
 
     This is the complement of `any_of_tuple`. Returns true if the predicate
     returns false for all elements in the tuple.
-    
+
     @tparam Pred Predicate type (must be callable with each tuple element type).
     @tparam Tuple Tuple type to check.
     @param pred Predicate to test on each element.
     @param t Tuple to check.
     @return `true` if `pred` returns `false` for all elements.
-    
+
     @par Example:
     @code
     auto t = std::make_tuple(1, 2, 3);
     bool no_negatives = none_of_tuple([](auto x) { return x < 0; }, t);
     // no_negatives is true (no element is negative)
     @endcode
-    
+
     @ingroup Algorithms
 */
 template <class Pred, class Tuple>
@@ -1956,7 +1917,6 @@ bool none_of_tuple(Pred &&pred, const Tuple &t)
   return not any_of_tuple(std::forward<Pred>(pred), t);
 }
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-# endif // AH_ZIP_H
-
+#endif  // AH_ZIP_H

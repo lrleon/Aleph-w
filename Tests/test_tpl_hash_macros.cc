@@ -42,10 +42,16 @@
 
 #include <iostream>
 #include <cassert>
+#include <type_traits>
 #include "../tpl_hash.H"
 
 using namespace std;
 using namespace Aleph;
+
+static_assert(std::is_same<HashSet<int>, HashSet<int, OLhashTable, Aleph::equal_to<int>>>::value,
+              "HashSet default backend must remain OLhashTable");
+static_assert(std::is_same<HashMap<int, int>, HashMap<int, int, MapOLhash, Aleph::equal_to<int>>>::value,
+              "HashMap default backend must remain MapOLhash");
 
 int main()
 {

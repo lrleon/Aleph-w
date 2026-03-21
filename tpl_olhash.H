@@ -460,13 +460,13 @@ namespace Aleph
     }
 
     /// Index of previous bucket (handles wrap-around)
-    size_t prev_index(const size_t i) const noexcept
+    [[nodiscard]] size_t prev_index(const size_t i) const noexcept
     {
       return (i == 0) ? len - 1 : i - 1;
     }
 
     /// Index of next bucket (handles wrap-around)
-    size_t next_index(const size_t i) const noexcept
+    [[nodiscard]] size_t next_index(const size_t i) const noexcept
     {
       return (i + 1 == len) ? 0 : i + 1;
     }
