@@ -53,6 +53,48 @@ target_link_libraries(polynomial_benchmark PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})
 add_executable(polynomial_reference_probe "${CMAKE_CURRENT_SOURCE_DIR}/polynomial_reference_probe.cc")
 target_link_libraries(polynomial_reference_probe PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})
 
+if(BUILD_TESTS)
+    set(_VERIFY_REFERENCE_EXAMPLE
+        ${CMAKE_CURRENT_SOURCE_DIR}/verify_reference_example.cmake)
+
+    if(TARGET backtracking_nqueens_example)
+        add_test(
+            NAME StateSearchExamples.NQueens
+            COMMAND ${CMAKE_COMMAND}
+                    -DEXAMPLE_PATH=$<TARGET_FILE:backtracking_nqueens_example>
+                    "-DEXPECT_SUBSTRINGS=N-Queens reference example\;Solutions found: 2\;First solution signature: 1302"
+                    -P ${_VERIFY_REFERENCE_EXAMPLE}
+        )
+    endif()
+
+    if(TARGET branch_and_bound_knapsack_example)
+        add_test(
+            NAME StateSearchExamples.Knapsack
+            COMMAND ${CMAKE_COMMAND}
+                    -DEXAMPLE_PATH=$<TARGET_FILE:branch_and_bound_knapsack_example>
+                    "-DEXPECT_SUBSTRINGS=0/1 Knapsack reference example\;Optimal value: 90\;Chosen items: 0 2"
+                    -P ${_VERIFY_REFERENCE_EXAMPLE}
+        )
+    endif()
+
+    if(TARGET negamax_tictactoe_example)
+        add_test(
+            NAME StateSearchExamples.TicTacToe
+            COMMAND ${CMAKE_COMMAND}
+                    -DEXAMPLE_PATH=$<TARGET_FILE:negamax_tictactoe_example>
+                    "-DEXPECT_SUBSTRINGS=Tic-Tac-Toe reference example\;Negamax best move: 4\;Alpha-Beta best move: 4"
+                    -P ${_VERIFY_REFERENCE_EXAMPLE}
+        )
+    endif()
+
+    if(TARGET state_search_benchmark)
+        add_test(
+            NAME StateSearchBenchmark.Validate
+            COMMAND $<TARGET_FILE:state_search_benchmark> --validate
+        )
+    endif()
+endif()
+
 list(LENGTH EXAMPLE_SOURCES _examples_count)
 math(EXPR _total_examples "${_examples_count} + 2")
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} examples (${_total_examples} targets)")

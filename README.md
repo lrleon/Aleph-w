@@ -62,6 +62,7 @@ Language: English | [Español](README.es.md)
   - [Arena Allocators](#readme-arena-allocators)
 - [Parallel Computing](#readme-parallel-computing)
 - [Functional Programming](#readme-functional-programming)
+- [State-Space Search Framework](#readme-state-search-framework)
 - [Tutorial](#readme-tutorial)
 - [API Reference](#readme-api-reference)
 - [Benchmarks](#readme-benchmarks)
@@ -3597,6 +3598,60 @@ int main() {
     return 0;
 }
 ```
+
+<a id="readme-state-search-framework"></a>
+## State-Space Search Framework
+
+This branch ships the first public drop of a reusable framework for implicit
+state-space search with pruning, bounds and adversarial heuristics. The design
+follows the “shared core, separate semantics” rule: infrastructure is shared
+only when the semantics genuinely align (e.g., DFS/backtracking vs.
+branch-and-bound vs.
+adversarial Negamax/Alpha-Beta).
+
+### What is already available
+
+- `state_search_common.H` – shared limits, exploration policies, statistics,
+  search paths and concept helpers for implicit trees/DAGs with lazy successor
+  generation and make/unmake contracts.
+- `Backtracking.H` – depth-first search with goal detection and incremental
+  evaluation hooks.
+- `Branch_And_Bound.H` – incumbents, optimistic bounds, DFS/best-first
+  strategies and optional child ordering.
+- `Negamax.H` / `Alpha_Beta.H` – adversarial zero-sum search with optional move
+  ordering (killer/history heuristics), transposition-table support and
+  principal-variation tracking.
+- `Transposition_Table.H` – reusable Aleph hash-backed cache that currently
+  serves the adversarial engines and will later back branch-and-bound
+  memoization once its dominance rules are formalized.
+- `State_Search.H` – umbrella header plus the `Aleph::Search` facade that wires
+  the correct engine based on the user’s domain contract.
+
+Each phase lands with compilable code, smoke tests, benchmarks and short docs so
+you can already build on top of the framework while the remaining roadmap
+(iterative deepening, aspiration windows, scratch-buffer reuse, branch-and-bound
+memoization, frontier policies) is delivered.
+
+### Docs, examples and tests
+
+- [docs/state_search_v1.md](docs/state_search_v1.md) – architecture summary,
+  benchmark methodology, profiling notes and the v2 roadmap.
+- [docs/adversarial_search_framework.md](docs/adversarial_search_framework.md)
+  – Negamax/Alpha-Beta domain contract, move-ordering hooks and
+  transposition-table protocol.
+- Examples:
+  - `Examples/state_search_benchmark.cc`
+  - `Examples/negamax_tictactoe_example.cc`
+  - `Examples/alpha_beta_connect3_example.cc`
+- Tests (enable examples first, e.g., `cmake -S . -B build -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON`):
+  ```bash
+  cmake --build build --target state_search_benchmark
+  ctest --test-dir build/Examples -R StateSearch
+  ```
+
+Feedback is welcome as we continue adding the next phases while keeping the
+framework lean and aligned with Aleph’s existing containers, hashing utilities
+and make/unmake discipline.
 
 ---
 

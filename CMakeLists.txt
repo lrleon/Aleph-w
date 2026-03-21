@@ -156,6 +156,15 @@ set(HLIST
     Dominators.H
     Hungarian.H
     tpl_interval_tree.H
+    search_move_ordering.H
+    state_search_common.H
+    Transposition_Table.H
+    Backtracking.H
+    Branch_And_Bound.H
+    Negamax.H
+    Alpha_Beta.H
+    State_Search.H
+    State_Search_IDA_Star.H
 )
 
 # C++ source files
@@ -227,13 +236,16 @@ install(FILES ${HLIST}
     DESTINATION include/aleph
 )
 
+if(BUILD_TESTS)
+    enable_testing()
+endif()
+
 # Add subdirectories if enabled
 if(BUILD_EXAMPLES)
     add_subdirectory(Examples)
 endif()
 
 if(BUILD_TESTS)
-    enable_testing()
     add_subdirectory(Tests)
 endif()
 

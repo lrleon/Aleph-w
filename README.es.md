@@ -59,6 +59,7 @@ Idioma: Español | [English](README.md)
   - [Allocators tipo arena](#readme-es-asignadores-arena)
 - [Cómputo paralelo](#readme-es-computacion-paralela)
 - [Programación funcional](#readme-es-programacion-funcional)
+- [Framework de búsqueda en espacios de estados](#readme-es-state-search-framework)
 - [Tutorial](#readme-es-tutorial)
 - [Referencia de API](#readme-es-referencia-api)
 - [Benchmarks](#readme-es-benchmarks)
@@ -3358,6 +3359,61 @@ int main() {
     return 0;
 }
 ```
+
+<a id="readme-es-state-search-framework"></a>
+## Framework de búsqueda en espacios de estados
+
+Esta rama incluye la primera entrega pública de un framework reutilizable para
+búsqueda en espacios implícitos con poda, cotas y heurísticas adversarias. El
+diseño sigue la regla de “núcleo compartido y semánticas separadas”: solo
+compartimos infraestructura cuando las semánticas realmente coinciden (por
+ejemplo, DFS/backtracking frente a Branch and Bound frente a
+Negamax/Alpha-Beta adversario).
+
+### Qué ya está disponible
+
+- `state_search_common.H` – límites, políticas de exploración, estadísticas,
+  rutas y contratos conceptuales compartidos para árboles/DAGs implícitos con
+  generación lazy de sucesores y make/unmake incremental.
+- `Backtracking.H` – búsqueda en profundidad con detección de metas y evaluación
+  incremental.
+- `Branch_And_Bound.H` – incumbentes, cotas optimistas, estrategias DFS y
+  best-first, más ordenamiento opcional de hijos.
+- `Negamax.H` / `Alpha_Beta.H` – búsqueda adversaria para juegos de dos
+  jugadores, suma cero e información perfecta, con ordenamiento opcional de
+  movimientos (heurísticas killer/history), soporte para tablas de transposición
+  y seguimiento de la variación principal.
+- `Transposition_Table.H` – backend de memoización sobre hash tables de Aleph
+  que hoy usan los motores adversarios y que mañana respaldará la memoización de
+  Branch and Bound cuando se formalicen sus reglas de dominancia.
+- `State_Search.H` – include paraguas y fachada `Aleph::Search` que elige el
+  motor adecuado según el contrato del dominio.
+
+Cada fase llega con código compilable, smoke tests, benchmarks y documentación
+breve para que puedas aprovechar el framework mientras completamos el resto del
+roadmap (búsqueda iterativa en profundidad, ventanas de aspiración, reutilización
+de buffers, memoización de B&B, políticas de frontera).
+
+### Documentación, ejemplos y pruebas
+
+- [docs/state_search_v1.md](docs/state_search_v1.md) – resumen de arquitectura,
+  metodología de benchmarks, notas de perfilado y hoja de ruta v2.
+- [docs/adversarial_search_framework.md](docs/adversarial_search_framework.md)
+  – contrato Negamax/Alpha-Beta, hooks de ordenamiento de movimientos y
+  protocolo de tablas de transposición.
+- Ejemplos:
+  - `Examples/state_search_benchmark.cc`
+  - `Examples/negamax_tictactoe_example.cc`
+  - `Examples/alpha_beta_connect3_example.cc`
+- Pruebas:
+  ```bash
+  cmake --build build --target state_search_benchmark
+  ctest --test-dir build/Examples -R StateSearch
+  ```
+
+Tus comentarios son bienvenidos mientras completamos las fases restantes sin
+añadir sobre-ingeniería y reutilizando contenedores, hashing y utilidades de
+Aleph.
 
 ---
 <a id="readme-es-tutorial"></a>
