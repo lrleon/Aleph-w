@@ -1,37 +1,37 @@
-# C++20 Ranges con Contenedores Aleph-w
+# C++20 Ranges with Aleph-w Containers
 
-## Introducción
+## Introduction
 
-A partir de C++20, la biblioteca estándar incluye **Ranges**, una forma moderna y composable de trabajar con secuencias de datos. Los contenedores de Aleph-w son completamente compatibles con esta funcionalidad, permitiendo usar vistas, adaptadores y algoritmos de rangos.
+Starting from C++20, the standard library includes **Ranges**, a modern and composable way to work with data sequences. Aleph-w containers are fully compatible with this functionality, allowing the use of views, adapters, and range algorithms.
 
-## Requisitos
+## Requirements
 
-- Compilador con soporte para C++20 (GCC 10+, Clang 13+, MSVC 19.29+)
-- Flag de compilación: `-std=c++20`
+- Compiler with C++20 support (GCC 10+, Clang 13+, MSVC 19.29+)
+- Compilation flag: `-std=c++20`
 
 ```cpp
 #include <ranges>
-#include <ah-ranges.H>  // Adaptadores de Aleph
+#include <ah-ranges.H>  // Aleph adapters
 ```
 
-## Contenedores Compatibles
+## Compatible Containers
 
-Todos los contenedores principales de Aleph-w satisfacen `std::ranges::range`:
+All major Aleph-w containers satisfy `std::ranges::range`:
 
-| Categoría | Contenedores |
+| Category | Containers |
 |-----------|--------------|
-| **Listas** | `DynList<T>`, `DynDlist<T>` |
+| **Lists** | `DynList<T>`, `DynDlist<T>` |
 | **Arrays** | `DynArray<T>` |
-| **Pilas** | `DynListStack<T>`, `ArrayStack<T>` |
-| **Colas** | `DynListQueue<T>`, `ArrayQueue<T>` |
-| **Árboles** | `DynSetRbTree<T>`, `DynSetAvlTree<T>`, `DynSetSplayTree<T>`, `DynSetTreap<T>` |
+| **Stacks** | `DynListStack<T>`, `ArrayStack<T>` |
+| **Queues** | `DynListQueue<T>`, `ArrayQueue<T>` |
+| **Trees** | `DynSetRbTree<T>`, `DynSetAvlTree<T>`, `DynSetSplayTree<T>`, `DynSetTreap<T>` |
 | **Hash** | `DynSetLhash<T>`, `ODhashTable<T>`, `OLhashTable<T>` |
 | **Heaps** | `DynBinHeap<T>` |
-| **Otros** | `Random_Set<T>` |
+| **Other** | `Random_Set<T>` |
 
-## Uso Básico: For-Range
+## Basic Usage: Range-Based For
 
-Todos los contenedores soportan la sintaxis for-range:
+All containers support range-based for syntax:
 
 ```cpp
 #include <htlist.H>
@@ -44,94 +44,94 @@ list.append(1);
 list.append(2);
 list.append(3);
 
-// For-range loop
+// Range-based for loop
 for (auto x : list) 
     std::cout << x << " ";  // Output: 1 2 3
 
-// Con árboles (orden sorted)
+// With trees (sorted order)
 DynSetRbTree<int> set;
 set.insert(5);
 set.insert(2);
 set.insert(8);
 
 for (auto x : set)
-    std::cout << x << " ";  // Output: 2 5 8 (ordenado)
+    std::cout << x << " ";  // Output: 2 5 8 (sorted)
 ```
 
-## Vistas Estándar (std::views)
+## Standard Views (std::views)
 
-Los contenedores Aleph pueden usarse con todas las vistas de C++20:
+Aleph containers can be used with all C++20 views:
 
-### filter - Filtrar elementos
+### filter - Filter elements
 
 ```cpp
 DynArray<int> arr = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-// Solo pares
+// Only even numbers
 for (auto x : arr | std::views::filter([](int x) { return x % 2 == 0; }))
     std::cout << x << " ";  // Output: 2 4 6 8 10
 ```
 
-### transform - Transformar elementos
+### transform - Transform elements
 
 ```cpp
 DynList<int> nums;
 for (int i = 1; i <= 5; i++) nums.append(i);
 
-// Cuadrados
+// Squares
 for (auto x : nums | std::views::transform([](int x) { return x * x; }))
     std::cout << x << " ";  // Output: 1 4 9 16 25
 ```
 
-### take / drop - Limitar elementos
+### take / drop - Limit elements
 
 ```cpp
 DynArray<int> data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-// Primeros 3
+// First 3
 for (auto x : data | std::views::take(3))
     std::cout << x << " ";  // Output: 1 2 3
 
-// Saltar primeros 5
+// Skip first 5
 for (auto x : data | std::views::drop(5))
     std::cout << x << " ";  // Output: 6 7 8 9 10
 ```
 
-### Composición de vistas (Pipelines)
+### View Composition (Pipelines)
 
-Las vistas se pueden encadenar con el operador `|`:
+Views can be chained with the `|` operator:
 
 ```cpp
 auto result = data 
-    | std::views::filter([](int x) { return x % 2 == 0; })  // Solo pares
-    | std::views::transform([](int x) { return x * 2; })    // Duplicar
-    | std::views::take(3);                                   // Tomar 3
+    | std::views::filter([](int x) { return x % 2 == 0; })  // Only even
+    | std::views::transform([](int x) { return x * 2; })    // Double
+    | std::views::take(3);                                   // Take 3
 
 for (auto x : result)
     std::cout << x << " ";  // Output: 4 8 12
 ```
 
-## Generación de Rangos
+## Range Generation
 
-### iota - Secuencia de números
+### iota - Sequence of numbers
 
 ```cpp
-// Números del 1 al 10
+// Numbers from 1 to 10
 for (auto x : std::views::iota(1, 11))
     std::cout << x << " ";  // Output: 1 2 3 4 5 6 7 8 9 10
 
-// Infinito (usar con take)
+// Infinite (use with take)
 for (auto x : std::views::iota(1) | std::views::take(5))
     std::cout << x << " ";  // Output: 1 2 3 4 5
 ```
 
-## Conversión a Contenedores Aleph
+## Conversion to Aleph Containers
 
-La biblioteca `ah-ranges.H` proporciona adaptadores pipe para convertir rangos a contenedores Aleph:
+The `ah-ranges.H` library provides pipe adapters to convert ranges to Aleph containers:
 
-### Pipe Adaptors Disponibles
+### Available Pipe Adapters
 
-| Adaptor | Contenedor Destino |
+| Adapter | Target Container |
 |---------|-------------------|
 | `to_dynlist_v` | `DynList<T>` |
 | `to_dynarray_v` | `DynArray<T>` |
@@ -142,48 +142,48 @@ La biblioteca `ah-ranges.H` proporciona adaptadores pipe para convertir rangos a
 | `to_arrayqueue_v` | `ArrayQueue<T>` |
 | `to_randomset_v` | `Random_Set<T>` |
 
-### Ejemplos de Conversión
+### Conversion Examples
 
 ```cpp
 #include <ah-ranges.H>
 using namespace Aleph;
 
-// Rango a DynList
+// Range to DynList
 auto list = std::views::iota(1, 11) | to_dynlist_v;
-// list contiene: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+// list contains: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 
-// Pipeline completo a DynArray
+// Complete pipeline to DynArray
 auto squares = std::views::iota(1, 20)
     | std::views::filter([](int x) { return x % 2 == 0; })
     | std::views::transform([](int x) { return x * x; })
     | to_dynarray_v;
-// squares contiene: 4, 16, 36, 64, 100, 144, 196, 256, 324
+// squares contains: 4, 16, 36, 64, 100, 144, 196, 256, 324
 ```
 
-### Conversión Genérica: to<Container>()
+### Generic Conversion: to<Container>()
 
-Para contenedores con plantillas más complejas, usa `to<Container>()`:
+For containers with more complex templates, use `to<Container>()`:
 
 ```cpp
-// A un árbol ordenado
+// To a sorted tree
 auto set = std::views::iota(1, 100) 
     | std::views::filter([](int x) { return x % 7 == 0; })
     | to<DynSetRbTree<int>>();
 
-// A una cola
+// To a queue
 auto queue = std::views::iota(1, 6) | to<DynListQueue<int>>();
 ```
 
-## Algoritmos STL con Iteradores
+## STL Algorithms with Iterators
 
-Los iteradores de Aleph son compatibles con algoritmos STL tradicionales:
+Aleph iterators are compatible with traditional STL algorithms:
 
 ```cpp
 DynList<int> nums;
 for (int i : {3, 1, 4, 1, 5, 9, 2, 6})
     nums.append(i);
 
-// min/max con iteradores explícitos
+// min/max with explicit iterators
 auto min_it = std::min_element(nums.begin(), nums.end());
 auto max_it = std::max_element(nums.begin(), nums.end());
 std::cout << "Min: " << *min_it << ", Max: " << *max_it << std::endl;
@@ -199,7 +199,7 @@ auto count = std::count_if(nums.begin(), nums.end(),
 std::cout << "Count > 3: " << count << std::endl;
 ```
 
-Las mismas consultas también funcionan con `std::ranges::`:
+The same queries also work with `std::ranges::`:
 
 ```cpp
 #include <ranges>
@@ -210,26 +210,26 @@ auto found_r = std::ranges::find(nums, 5);
 auto count_r = std::ranges::count_if(nums, [](int x) { return x > 3; });
 ```
 
-## Funciones de ah-ranges.H
+## Functions from ah-ranges.H
 
-### Generación Lazy
+### Lazy Generation
 
 ```cpp
 #include <ah-ranges.H>
 using namespace Aleph;
 
-// Rango infinito de números
+// Infinite range of numbers
 auto naturals = lazy_iota(1);  // 1, 2, 3, ...
 
-// Primeros 10
+// First 10
 auto first10 = naturals | std::views::take(10) | to_dynlist_v;
 
-// Rango infinito; filtre o transforme para obtener patrones específicos
+// Infinite range; filter or transform to get specific patterns
 auto even_nums = lazy_iota(0)
                | std::views::filter([](int x) { return x % 2 == 0; });  // 0, 2, 4, 6, ...
 ```
 
-## Ejemplo Completo
+## Complete Example
 
 ```cpp
 #include <ranges>
@@ -241,27 +241,27 @@ auto even_nums = lazy_iota(0)
 using namespace Aleph;
 
 int main() {
-    // Crear datos de prueba
+    // Create test data
     DynArray<int> data;
     for (int i = 1; i <= 20; i++)
         data.append(i);
     
-    // Pipeline: filtrar, transformar, limitar
+    // Pipeline: filter, transform, limit
     auto processed = data
-        | std::views::filter([](int x) { return x % 3 == 0; })  // Múltiplos de 3
-        | std::views::transform([](int x) { return x * x; })    // Cuadrados
-        | std::views::take(4);                                   // Solo 4
+        | std::views::filter([](int x) { return x % 3 == 0; })  // Multiples of 3
+        | std::views::transform([](int x) { return x * x; })    // Squares
+        | std::views::take(4);                                   // Only 4
     
-    std::cout << "Resultado: ";
+    std::cout << "Result: ";
     for (auto x : processed)
         std::cout << x << " ";  // Output: 9 36 81 144
     std::cout << std::endl;
     
-    // Convertir resultado a DynList
+    // Convert result to DynList
     auto result_list = processed | to_dynlist_v;
-    std::cout << "Tamaño: " << result_list.size() << std::endl;
+    std::cout << "Size: " << result_list.size() << std::endl;
     
-    // Generar desde cero
+    // Generate from scratch
     auto fibonacci_like = std::views::iota(1, 10)
         | std::views::transform([](int n) {
             int a = 0, b = 1;
@@ -283,34 +283,30 @@ int main() {
 }
 ```
 
-## Limitaciones Conocidas
+## Known Limitations
 
-1. **Wrappers opcionales**: Los contenedores de Aleph-w cubiertos por los tests
-   de este módulo funcionan con algoritmos de `std::ranges::` como
-   `std::ranges::min_element` y `std::ranges::count_if`. Si prefiere una API
-   uniforme junto con el resto de utilidades de `ah-ranges.H`, también puede
-   usar los wrappers `detail::ranges_min()` y `detail::ranges_count_if()`.
+1. **Optional wrappers**: Aleph-w containers covered by this module's tests work with `std::ranges::` algorithms like `std::ranges::min_element` and `std::ranges::count_if`. If you prefer a uniform API along with the rest of `ah-ranges.H` utilities, you can also use the `detail::ranges_min()` and `detail::ranges_count_if()` wrappers.
 
-2. **Contenedores no secuenciales**: Los hash tables y heaps iteran en orden no determinístico.
+2. **Non-sequential containers**: Hash tables and heaps iterate in non-deterministic order.
 
-3. **Evaluación lazy**: Las vistas son lazy; no materialice grandes rangos sin necesidad.
+3. **Lazy evaluation**: Views are lazy; don't materialize large ranges unnecessarily.
 
-## Compatibilidad con Funciones Aleph Existentes
+## Compatibility with Existing Aleph Functions
 
-Las funciones de `ahFunctional.H` siguen funcionando y usan ranges internamente cuando es posible:
+Functions from `ahFunctional.H` continue to work and use ranges internally when possible:
 
 ```cpp
 DynList<int> nums = {1, 2, 3, 4, 5};
 
-// API funcional de Aleph (optimizada con ranges internamente)
+// Aleph functional API (optimized with ranges internally)
 auto sum = nums.foldl(0, [](int acc, int x) { return acc + x; });
 auto doubled = nums.maps<int>([](int x) { return x * 2; });
 auto evens = nums.filter([](int x) { return x % 2 == 0; });
 ```
 
-## Funciones Internas (namespace detail)
+## Internal Functions (namespace detail)
 
-Para optimización interna, `ah-ranges.H` proporciona wrappers sobre `std::ranges`:
+For internal optimization, `ah-ranges.H` provides wrappers over `std::ranges`:
 
 ```cpp
 #include <ah-ranges.H>
@@ -318,16 +314,16 @@ using namespace Aleph;
 
 std::vector<int> vec = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-// Predicados
+// Predicates
 bool all_pos = detail::ranges_all_of(vec, [](int x) { return x > 0; });
 bool has_even = detail::ranges_any_of(vec, [](int x) { return x % 2 == 0; });
 bool no_neg = detail::ranges_none_of(vec, [](int x) { return x < 0; });
 
-// Búsqueda
+// Search
 auto it = detail::ranges_find_if(vec, [](int x) { return x > 5; });
 auto count = detail::ranges_count_if(vec, [](int x) { return x % 2 == 0; });
 
-// Transformación (lazy)
+// Transformation (lazy)
 auto doubled = detail::ranges_transform(vec, [](int x) { return x * 2; });
 auto evens = detail::ranges_filter(vec, [](int x) { return x % 2 == 0; });
 
@@ -336,15 +332,15 @@ auto first3 = detail::ranges_take(vec, 3);
 auto skip2 = detail::ranges_drop(vec, 2);
 auto rev = detail::ranges_reverse(vec);
 
-// Aplanamiento
+// Flattening
 std::vector<std::vector<int>> nested = {{1, 2}, {3}, {4, 5, 6}};
 auto flat = detail::ranges_flatten(nested);
 
-// Reducción
+// Reduction
 auto sum = detail::ranges_fold_left(vec, 0, std::plus<>{});
 auto product = detail::ranges_fold_left(vec, 1, std::multiplies<>{});
 
-// Convenientes
+// Convenience
 auto total = detail::ranges_sum(vec);      // 55
 auto prod = detail::ranges_product(vec);   // 3628800
 
@@ -353,16 +349,16 @@ auto min_it = detail::ranges_min(vec);
 auto max_it = detail::ranges_max(vec);
 
 // Sort (in-place)
-detail::ranges_sort(vec);                   // Ascendente
-detail::ranges_sort(vec, std::greater<>{}); // Descendente
+detail::ranges_sort(vec);                   // Ascending
+detail::ranges_sort(vec, std::greater<>{}); // Descending
 ```
 
-## Función collect<Container>()
+## collect<Container>() Function
 
-Para materializar rangos en cualquier contenedor Aleph:
+To materialize ranges in any Aleph container:
 
 ```cpp
-// Funciona con append(), insert(), o push()
+// Works with append(), insert(), or push()
 auto list = collect<DynList<int>>(std::views::iota(1, 10));
 auto set = collect<DynSetRbTree<int>>(std::views::iota(1, 10));
 auto stack = collect<DynListStack<int>>(std::views::iota(1, 10));
@@ -370,7 +366,7 @@ auto stack = collect<DynListStack<int>>(std::views::iota(1, 10));
 
 ## Tests
 
-Las pruebas exhaustivas están en `Tests/ah_ranges_test.cc`:
+Comprehensive tests are in `Tests/ah_ranges_test.cc`:
 
 ```bash
 cd Tests/build
@@ -378,9 +374,9 @@ cmake --build . --target ah_ranges_test
 ./ah_ranges_test
 ```
 
-### Cobertura de Tests
+### Test Coverage
 
-| Categoría | Tests |
+| Category | Tests |
 |-----------|-------|
 | Feature Detection | 2 |
 | Pipe Adaptors | 14 |
@@ -398,7 +394,7 @@ cmake --build . --target ah_ranges_test
 | Aleph + std::ranges | 2 |
 | StdRanges sanity | 1 |
 
-## Compilación
+## Compilation
 
 ```bash
 g++ -std=c++20 -I/path/to/Aleph-w my_program.cc -o my_program
@@ -406,6 +402,6 @@ g++ -std=c++20 -I/path/to/Aleph-w my_program.cc -o my_program
 
 ---
 
-**Versión**: Aleph-w con C++20 Ranges  
-**Fecha**: 2026  
-**Tests**: ver `Tests/ah_ranges_test.cc` y CI para el total vigente
+**Version**: Aleph-w with C++20 Ranges  
+**Date**: 2026  
+**Tests**: see `Tests/ah_ranges_test.cc` and CI for current total

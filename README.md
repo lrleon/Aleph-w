@@ -3601,6 +3601,8 @@ int main() {
 }
 ```
 
+📖 **For comprehensive documentation on C++20 Ranges with Aleph-w containers, see [docs/RANGES_GUIDE.md](docs/RANGES_GUIDE.md)**
+
 <a id="readme-state-search-framework"></a>
 ## State-Space Search Framework
 
