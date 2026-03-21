@@ -93,7 +93,7 @@ void sort_ranked_moves(Array<RankedMove<Move, Priority>> &moves,
 3. Better priority according to `better_priority`
 4. Original domain order (`ordinal`) as deterministic tie-breaker
 
-A batch of 0 or 1 elements is returned unchanged.
+A batch of 0 or 1 elements is left unchanged.
 
 ### `RankedMove<Move, Priority>`
 

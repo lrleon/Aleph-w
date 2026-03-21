@@ -1011,6 +1011,7 @@ struct MultiPathDomain
 {
   struct Move
   {
+    int from = 0;
     int to = 0;
   };
 
@@ -1037,9 +1038,9 @@ struct MultiPathDomain
     state.node = move.to;
   }
 
-  void undo(State &state, const Move &) const
+  void undo(State &state, const Move &move) const
   {
-    (void) state;
+    state.node = move.from;
   }
 
   template <typename Visitor>
@@ -1048,15 +1049,15 @@ struct MultiPathDomain
     switch (state.node)
       {
       case 0:
-        if (not visit(Move{S}))  // short path: 0 → S
+        if (not visit(Move{0, S}))  // short path: 0 → S
           return false;
-        return visit(Move{A});   // long path: 0 → A → B → S
+        return visit(Move{0, A});   // long path: 0 → A → B → S
       case S:
-        return visit(Move{G});
+        return visit(Move{S, G});
       case A:
-        return visit(Move{B});
+        return visit(Move{A, B});
       case B:
-        return visit(Move{S});   // reaches S at depth 3 (pruned)
+        return visit(Move{B, S});   // reaches S at depth 3 (pruned)
       default:
         return true;
       }

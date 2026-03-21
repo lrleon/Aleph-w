@@ -199,6 +199,17 @@ auto count = std::count_if(nums.begin(), nums.end(),
 std::cout << "Count > 3: " << count << std::endl;
 ```
 
+Las mismas consultas también funcionan con `std::ranges::`:
+
+```cpp
+#include <ranges>
+
+auto min_r = std::ranges::min_element(nums);
+auto max_r = std::ranges::max_element(nums);
+auto found_r = std::ranges::find(nums, 5);
+auto count_r = std::ranges::count_if(nums, [](int x) { return x > 3; });
+```
+
 ## Funciones de ah-ranges.H
 
 ### Generación Lazy
@@ -367,7 +378,7 @@ cmake --build . --target ah_ranges_test
 ./ah_ranges_test
 ```
 
-### Cobertura de Tests (81 tests)
+### Cobertura de Tests
 
 | Categoría | Tests |
 |-----------|-------|
@@ -397,4 +408,4 @@ g++ -std=c++20 -I/path/to/Aleph-w my_program.cc -o my_program
 
 **Versión**: Aleph-w con C++20 Ranges  
 **Fecha**: 2026  
-**Tests**: 81 (100% passing)
+**Tests**: ver `Tests/ah_ranges_test.cc` y CI para el total vigente
