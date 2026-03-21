@@ -10,7 +10,7 @@ for your domain and explains the trade-offs between them.
 
 ## Decision flowchart
 
-```
+```text
 Is the search adversarial (two-player, zero-sum)?
 │
 ├─ YES
@@ -34,7 +34,7 @@ Is the search adversarial (two-player, zero-sum)?
     │   └─ NO, I just need feasible solutions or to enumerate them
     │       │
     │       ├─ Is the cost function monotone and do I want optimal cost?
-    │       │   └─ ▶ IDA*  (with admissible heuristic)
+    │       │   └─ ▶ IDA\*  (with admissible heuristic)
     │       │
     │       └─ I want all solutions, or the first feasible one
     │           └─ ▶ DFS / Backtracking
@@ -44,7 +44,7 @@ Is the search adversarial (two-player, zero-sum)?
 
 ## Engine comparison
 
-| Feature | DFS / Backtracking | Branch & Bound | IDA* | Negamax | Alpha-Beta |
+| Feature | DFS / Backtracking | Branch & Bound | IDA\* | Negamax | Alpha-Beta |
 |---------|:-:|:-:|:-:|:-:|:-:|
 | Problem type | Enumeration / feasibility | Optimization | Optimal-cost path | Adversarial (baseline) | Adversarial (pruning) |
 | Players | 1 | 1 | 1 | 2 | 2 |
@@ -81,7 +81,8 @@ explore an implicit space without optimization.
 - `max_solutions` to cap enumeration
 - Pass a `SearchSolutionCollector` to collect multiple solutions
 
-**Example**: `backtracking_nqueens_example.cc`, `backtracking_subset_sum_example.cc`
+**Example**: [backtracking_nqueens_example.cc](../Examples/backtracking_nqueens_example.cc),
+[backtracking_subset_sum_example.cc](../Examples/backtracking_subset_sum_example.cc)
 
 ---
 
@@ -113,12 +114,12 @@ entire subtrees that cannot improve it.
 costs.  Branch and bound handles arbitrary objective functions (maximize or
 minimize) and non-monotone bounds.
 
-**Example**: `branch_and_bound_knapsack_example.cc`,
-`branch_and_bound_assignment_example.cc`
+**Example**: [branch_and_bound_knapsack_example.cc](../Examples/branch_and_bound_knapsack_example.cc),
+[branch_and_bound_assignment_example.cc](../Examples/branch_and_bound_assignment_example.cc)
 
 ---
 
-### IDA* (Iterative Deepening A*)
+### IDA\* (Iterative Deepening A*)
 
 **Use when** you want the optimal-cost solution in a single-agent space and
 have an admissible heuristic, but the state space is too large for explicit
@@ -144,8 +145,9 @@ IDA\* guarantees cost-optimality when the heuristic is admissible.
 costs, IDA\* is simpler (no `bound()` needed, no incumbent management) and
 uses less memory than best-first B&B.
 
-**Example**: The test suite in `state_search_framework_test.cc` contains
-IDA\* examples with grid-based domains.
+**Example**: The test suite in
+[state_search_framework_test.cc](../Tests/state_search_framework_test.cc)
+contains IDA\* examples with grid-based domains.
 
 ---
 
@@ -170,7 +172,7 @@ the side to move), `for_each_successor()`, `apply()`, `undo()`.
 the tree is small enough that you don't need pruning, or as a reference to
 verify that Alpha-Beta returns the same value.
 
-**Example**: `negamax_simple_example.cc`
+**Example**: [negamax_simple_example.cc](../Examples/negamax_simple_example.cc)
 
 ---
 
@@ -199,8 +201,9 @@ for full Negamax enumeration.
 far fewer nodes.  The reduction depends on move ordering quality — with perfect
 ordering, Alpha-Beta examines O(b^(d/2)) nodes instead of O(b^d).
 
-**Example**: `negamax_tictactoe_example.cc` (advanced),
-`alpha_beta_connect3_example.cc`
+**Example**: [negamax_tictactoe_example.cc](../Examples/negamax_tictactoe_example.cc)
+(advanced),
+[alpha_beta_connect3_example.cc](../Examples/alpha_beta_connect3_example.cc)
 
 ---
 
@@ -240,8 +243,8 @@ For optimization:
 | I want to... | Use |
 |---|---|
 | Find any feasible solution | DFS / Backtracking |
-| Enumerate all solutions | DFS / Backtracking (`stop_at_first = false`) |
-| Find the cheapest path | IDA* |
+| Enumerate all solutions | DFS / Backtracking (`stop_at_first_solution = false`) |
+| Find the cheapest path | IDA\* |
 | Maximize or minimize an objective | Branch and Bound |
 | Solve a two-player game (small) | Negamax |
 | Solve a two-player game (large) | Alpha-Beta + move ordering + TT |

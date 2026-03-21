@@ -203,11 +203,13 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
 
     ++result.stats.generated_successors;
     const Distance step = domain.cost(state, move);
+    bool applied = false;
     bool path_appended = false;
     DFSResult<Distance> child;
     try
       {
         domain.apply(state, move);
+        applied = true;
         path.append(move);
         path_appended = true;
         child = dfs(domain, state, path, g + step, threshold, depth + 1, result, on_solution);
@@ -216,7 +218,8 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
       {
         if (path_appended)
           (void) path.remove_last();
-        domain.undo(state, move);
+        if (applied)
+          domain.undo(state, move);
         throw;
       }
 

@@ -168,7 +168,7 @@ namespace Aleph
     Hash_Fct hash_fct;
 
   private:
-    using BucketList = Dnode<Key>; // Bucket list type
+    using BucketList = Dlink; // Bucket list type
     using BucketItor = typename Dnode<Key>::Iterator; // Bucket iterator
     using Node = Dnode<Key>; // Node alias
 

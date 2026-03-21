@@ -10,7 +10,11 @@ Starting from C++20, the standard library includes **Ranges**, a modern and comp
 - Compilation flag: `-std=c++20`
 
 ```cpp
+#include <algorithm>
+#include <functional>
+#include <iostream>
 #include <ranges>
+#include <vector>
 #include <ah-ranges.H>  // Aleph adapters
 ```
 
@@ -369,9 +373,9 @@ auto stack = collect<DynListStack<int>>(std::views::iota(1, 10));
 Comprehensive tests are in `Tests/ah_ranges_test.cc`:
 
 ```bash
-cd Tests/build
-cmake --build . --target ah_ranges_test
-./ah_ranges_test
+cmake -S Tests -B Tests/build
+cmake --build Tests/build --target ah_ranges_test
+./Tests/build/ah_ranges_test
 ```
 
 ### Test Coverage
@@ -379,7 +383,7 @@ cmake --build . --target ah_ranges_test
 | Category | Tests |
 |-----------|-------|
 | Feature Detection | 2 |
-| Pipe Adaptors | 14 |
+| Pipe Adapters | 14 |
 | Generic to<>() | 3 |
 | detail::ranges_* | 24 |
 | Lazy Ranges | 5 |

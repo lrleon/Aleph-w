@@ -477,7 +477,7 @@ private:
 
 struct ThrowingApplyState
 {
-  std::shared_ptr<int> active_depth;
+  std::shared_ptr<bool> undo_called;
   size_t node = 0;
 };
 
@@ -509,7 +509,6 @@ struct ThrowingApplyBBDomain
 
   void apply(State &state, const Move &move) const
   {
-    ++*state.active_depth;
     if (move.throws)
       throw std::runtime_error("apply failed");
 
@@ -518,8 +517,7 @@ struct ThrowingApplyBBDomain
 
   void undo(State &state, const Move &) const
   {
-    if (*state.active_depth > 0)
-      --*state.active_depth;
+    *state.undo_called = true;
     state.node = 0;
   }
 
@@ -661,39 +659,39 @@ TEST(BranchAndBoundFramework, BoundOrderedDepthFirstAndBestFirstBeatPlainBadOrde
   EXPECT_LT(best_result.stats.visited_states, plain_result.stats.visited_states);
 }
 
-TEST(BranchAndBoundFramework, ApplyExceptionDuringMoveOrderingRollsBackState)
+TEST(BranchAndBoundFramework, ApplyExceptionDuringMoveOrderingDoesNotCallUndo)
 {
-  auto active_depth = std::make_shared<int>(0);
+  auto undo_called = std::make_shared<bool>(false);
   ThrowingApplyBBDomain domain;
   ExplorationPolicy policy = Branch_And_Bound<ThrowingApplyBBDomain>::default_policy();
   policy.move_ordering = MoveOrderingMode::Estimated_Bound;
 
   Branch_And_Bound<ThrowingApplyBBDomain> engine(domain, policy);
 
-  EXPECT_THROW((void) engine.search(ThrowingApplyState{active_depth, 0}), std::runtime_error);
-  EXPECT_EQ(*active_depth, 0);
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}), std::runtime_error);
+  EXPECT_FALSE(*undo_called);
 }
 
-TEST(BranchAndBoundFramework, ApplyExceptionDuringDepthFirstExpansionRollsBackState)
+TEST(BranchAndBoundFramework, ApplyExceptionDuringDepthFirstExpansionDoesNotCallUndo)
 {
-  auto active_depth = std::make_shared<int>(0);
+  auto undo_called = std::make_shared<bool>(false);
   ThrowingApplyBBDomain domain;
   Branch_And_Bound<ThrowingApplyBBDomain> engine(domain);
 
-  EXPECT_THROW((void) engine.search(ThrowingApplyState{active_depth, 0}), std::runtime_error);
-  EXPECT_EQ(*active_depth, 0);
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}), std::runtime_error);
+  EXPECT_FALSE(*undo_called);
 }
 
-TEST(BranchAndBoundFramework, ApplyExceptionDuringVisitedDepthFirstRollsBackState)
+TEST(BranchAndBoundFramework, ApplyExceptionDuringVisitedDepthFirstDoesNotCallUndo)
 {
-  auto active_depth = std::make_shared<int>(0);
+  auto undo_called = std::make_shared<bool>(false);
   ThrowingApplyVisitedBBDomain domain;
   Branch_And_Bound<ThrowingApplyVisitedBBDomain> engine(domain);
   SearchStorageMap<size_t, int> visited;
 
-  EXPECT_THROW((void) engine.search(ThrowingApplyState{active_depth, 0}, visited),
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}, visited),
                std::runtime_error);
-  EXPECT_EQ(*active_depth, 0);
+  EXPECT_FALSE(*undo_called);
 }
 
 TEST(BranchAndBoundFramework, StopAtFirstSolutionUsesCommonExplorationPolicy)
