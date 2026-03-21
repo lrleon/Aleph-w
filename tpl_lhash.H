@@ -704,14 +704,22 @@ namespace Aleph
         put_itor_at_the_end(*this);
       }
 
-      /// Returns true if the iterator has a current bucket.
+      /** @brief Returns true if the iterator has a current bucket. */
       bool has_curr() const noexcept
       {
         return curr_index >= 0 and curr_index < hash_table->len;
       }
 
+      /** @brief Returns the current bucket without exception.
+       *
+       *  @pre `has_curr()` must be true.
+       *  @return Pointer to the current bucket, or `nullptr` if `has_curr()` is false.
+       */
       Bucket * get_curr_ne() noexcept
       {
+        if (not has_curr())
+          return nullptr;
+
         return static_cast<Bucket *>(curr_itor.get_curr_ne());
       }
 

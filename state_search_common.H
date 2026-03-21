@@ -152,6 +152,9 @@ concept VisitedStateSet = requires(Set &set, const Key &key) {
  *  Updating an existing entry is done by mutating the value through the
  *  pointer returned by `search`.
  *
+ *  Engines may use `remove(key)` to roll back the visited map if an exception
+ *  occurs during exploration of a newly inserted state.
+ *
  *  @tparam Map Container type.
  *  @tparam Key State key type.
  *  @tparam Objective Goal metric type.
@@ -160,6 +163,7 @@ template <typename Map, typename Key, typename Objective>
 concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &obj) {
   map.insert(key, obj);
   { map.search(key) } -> std::convertible_to<std::pair<Key, Objective> *>;
+  map.remove(key);
 };
 
 /** @brief Counters collected during a search run. */

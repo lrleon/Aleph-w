@@ -510,7 +510,7 @@ struct ThrowingApplyBBDomain
   void apply(State &state, const Move &move) const
   {
     if (move.throws)
-      throw std::runtime_error("apply failed");
+      ah_runtime_error() << "apply failed";
 
     state.node = 1;
   }
@@ -692,6 +692,59 @@ TEST(BranchAndBoundFramework, ApplyExceptionDuringVisitedDepthFirstDoesNotCallUn
   EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}, visited),
                std::runtime_error);
   EXPECT_FALSE(*undo_called);
+}
+
+struct ThrowingPostApplyDomain : ThrowingApplyBBDomain
+{
+  void apply(State &state, const Move &move) const
+  {
+    state.node = 1; // succeed
+  }
+
+  Objective bound(const State &state) const
+  {
+    if (state.node == 1)
+      ah_runtime_error() << "post-apply bound failed";
+    return 1;
+  }
+};
+
+TEST(BranchAndBoundFramework, PostApplyExceptionCallsUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingPostApplyDomain domain;
+  Branch_And_Bound<ThrowingPostApplyDomain> engine(domain);
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}), std::runtime_error);
+  EXPECT_TRUE(*undo_called);
+}
+
+struct ThrowingPostApplyVisitedDomain : ThrowingPostApplyDomain
+{
+  using State_Key = size_t;
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+};
+
+TEST(BranchAndBoundFramework, PostApplyExceptionDuringVisitedDepthFirstCallsUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingPostApplyVisitedDomain domain;
+  Branch_And_Bound<ThrowingPostApplyVisitedDomain> engine(domain);
+  SearchStorageMap<size_t, int> visited;
+
+  // First call should throw and rollback.
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}, visited), std::runtime_error);
+  EXPECT_TRUE(*undo_called);
+  EXPECT_FALSE(visited.contains(0)); // Root key 0 should have been rolled back.
+
+  // Retry with same visited map to ensure it's clean.
+  *undo_called = false;
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}, visited), std::runtime_error);
+  EXPECT_TRUE(*undo_called);
+  EXPECT_FALSE(visited.contains(0));
 }
 
 TEST(BranchAndBoundFramework, StopAtFirstSolutionUsesCommonExplorationPolicy)

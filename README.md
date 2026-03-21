@@ -3638,7 +3638,7 @@ memoization, frontier policies) is delivered.
 
 ### Docs, examples and tests
 
-- Algorithm selection guide – decision
+- [docs/algorithm_selection_guide.md](docs/algorithm_selection_guide.md) – decision
   flowchart and comparison table to choose between DFS, Branch & Bound, IDA*, Negamax
   and Alpha-Beta for your problem.
 - [docs/state_search_v1.md](docs/state_search_v1.md) – architecture summary,
