@@ -28,6 +28,8 @@
   SOFTWARE.
 */
 
+#include <memory>
+#include <stdexcept>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -191,6 +193,16 @@ struct ArtificialMaxBadOrderDomain
       default:
         return true;
       }
+  }
+};
+
+struct ArtificialMaxVisitedDomain : ArtificialMaxDomain
+{
+  using State_Key = int;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.code;
   }
 };
 
@@ -473,10 +485,79 @@ private:
   Array<Array<int>> costs_;
 };
 
+struct ThrowingApplyState
+{
+  std::shared_ptr<bool> undo_called;
+  size_t node = 0;
+};
+
+struct ThrowingApplyMove
+{
+  bool throws = true;
+};
+
+struct ThrowingApplyBBDomain
+{
+  using State = ThrowingApplyState;
+  using Move = ThrowingApplyMove;
+  using Objective = int;
+
+  bool is_complete(const State &state) const
+  {
+    return state.node == 1;
+  }
+
+  Objective objective_value(const State &) const
+  {
+    return 0;
+  }
+
+  Objective bound(const State &) const
+  {
+    return 1;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    if (move.throws)
+      ah_runtime_error() << "apply failed";
+
+    state.node = 1;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    *state.undo_called = true;
+    state.node = 0;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.node != 0)
+      return true;
+
+    return visit(Move{true});
+  }
+};
+
+struct ThrowingApplyVisitedBBDomain : ThrowingApplyBBDomain
+{
+  using State_Key = size_t;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+};
+
 static_assert(BranchAndBoundDomain<ArtificialMaxDomain>);
+static_assert(SearchStateKeyProvider<ArtificialMaxVisitedDomain>);
 static_assert(BranchAndBoundDomain<ArtificialMinDomain>);
 static_assert(BranchAndBoundDomain<KnapsackBBDomain>);
 static_assert(BranchAndBoundDomain<AssignmentBBDomain>);
+static_assert(BranchAndBoundDomain<ThrowingApplyBBDomain>);
+static_assert(SearchStateKeyProvider<ThrowingApplyVisitedBBDomain>);
 static_assert(BranchAndBoundObjectivePolicy<Maximize_Objective<int>, int>);
 static_assert(BranchAndBoundObjectivePolicy<Minimize_Objective<int>, int>);
 
@@ -545,6 +626,19 @@ TEST(BranchAndBoundFramework, ArtificialMaximizationPrunesByBound)
   EXPECT_EQ(collector.size(), 2u);
 }
 
+TEST(BranchAndBoundFramework, VisitedMapSearchKeepsRecordedBoundsOnSuccess)
+{
+  ArtificialMaxVisitedDomain domain;
+  Branch_And_Bound<ArtificialMaxVisitedDomain> engine(domain);
+  SearchStorageMap<int, int> visited;
+
+  auto result = engine.search(ArtificialState{}, visited);
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_NE(visited.search(1), nullptr);
+  EXPECT_NE(visited.search(2), nullptr);
+}
+
 TEST(BranchAndBoundFramework, ArtificialMinimizationWorksWithBestFirst)
 {
   ArtificialMinDomain domain;
@@ -587,6 +681,100 @@ TEST(BranchAndBoundFramework, BoundOrderedDepthFirstAndBestFirstBeatPlainBadOrde
   EXPECT_GT(ordered_result.stats.move_ordering.ordered_batches, 0u);
   EXPECT_GT(ordered_result.stats.move_ordering.priority_estimates, 0u);
   EXPECT_LT(best_result.stats.visited_states, plain_result.stats.visited_states);
+}
+
+TEST(BranchAndBoundFramework, ApplyExceptionDuringMoveOrderingDoesNotCallUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingApplyBBDomain domain;
+  ExplorationPolicy policy = Branch_And_Bound<ThrowingApplyBBDomain>::default_policy();
+  policy.move_ordering = MoveOrderingMode::Estimated_Bound;
+
+  Branch_And_Bound<ThrowingApplyBBDomain> engine(domain, policy);
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}), std::runtime_error);
+  EXPECT_FALSE(*undo_called);
+}
+
+TEST(BranchAndBoundFramework, ApplyExceptionDuringDepthFirstExpansionDoesNotCallUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingApplyBBDomain domain;
+  Branch_And_Bound<ThrowingApplyBBDomain> engine(domain);
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}), std::runtime_error);
+  EXPECT_FALSE(*undo_called);
+}
+
+TEST(BranchAndBoundFramework, ApplyExceptionDuringVisitedDepthFirstDoesNotCallUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingApplyVisitedBBDomain domain;
+  Branch_And_Bound<ThrowingApplyVisitedBBDomain> engine(domain);
+  SearchStorageMap<size_t, int> visited;
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}, visited),
+               std::runtime_error);
+  EXPECT_FALSE(*undo_called);
+}
+
+struct ThrowingPostApplyDomain : ThrowingApplyBBDomain
+{
+  bool is_complete(const State &) const
+  {
+    return false;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    (void) move;
+    state.node = 1; // succeed
+  }
+
+  Objective bound(const State &state) const
+  {
+    if (state.node == 1)
+      ah_runtime_error() << "post-apply bound failed";
+    return 1;
+  }
+};
+
+TEST(BranchAndBoundFramework, PostApplyExceptionCallsUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingPostApplyDomain domain;
+  Branch_And_Bound<ThrowingPostApplyDomain> engine(domain);
+
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}), std::runtime_error);
+  EXPECT_TRUE(*undo_called);
+}
+
+struct ThrowingPostApplyVisitedDomain : ThrowingPostApplyDomain
+{
+  using State_Key = size_t;
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+};
+
+TEST(BranchAndBoundFramework, PostApplyExceptionDuringVisitedDepthFirstCallsUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingPostApplyVisitedDomain domain;
+  Branch_And_Bound<ThrowingPostApplyVisitedDomain> engine(domain);
+  SearchStorageMap<size_t, int> visited;
+
+  // First call should throw and rollback.
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}, visited), std::runtime_error);
+  EXPECT_TRUE(*undo_called);
+  EXPECT_FALSE(visited.contains(0)); // Root key 0 should have been rolled back.
+
+  // Retry with same visited map to ensure it's clean.
+  *undo_called = false;
+  EXPECT_THROW((void) engine.search(ThrowingApplyState{undo_called, 0}, visited), std::runtime_error);
+  EXPECT_TRUE(*undo_called);
+  EXPECT_FALSE(visited.contains(0));
 }
 
 TEST(BranchAndBoundFramework, StopAtFirstSolutionUsesCommonExplorationPolicy)

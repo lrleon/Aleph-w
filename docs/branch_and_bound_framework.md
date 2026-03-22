@@ -75,7 +75,16 @@ The module also adds:
   Global incumbent manager shared by both exploration strategies.
 
 - `BranchAndBoundStats`
-  Extends the common stats with `pruned_by_bound` and `incumbent_updates`.
+  Extends the common `SearchStats` with fields specific to optimization search:
+
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `pruned_by_bound` | `size_t` | Nodes pruned because their optimistic bound cannot beat the current incumbent. |
+  | `incumbent_updates` | `size_t` | Number of times the incumbent solution was improved during the search. |
+
+  All base `SearchStats` fields (`visited_states`, `expanded_states`,
+  `generated_successors`, `pruned_by_depth`, `pruned_by_domain`, etc.) are
+  inherited and populated as usual.
 
 - `OptimizationSolution<State, Move, Objective>`
   Extends `SearchSolution` with `objective_value`.

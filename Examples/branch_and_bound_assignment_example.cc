@@ -28,15 +28,25 @@
   SOFTWARE.
 */
 
-#include <iostream>
+/** @file branch_and_bound_assignment_example.cc
+ *  @brief Reference example: assignment minimization with branch and bound.
+ *
+ *  Build and run:
+ *
+ *  - `cmake --build build --target branch_and_bound_assignment_example`
+ *  - `./build/Examples/branch_and_bound_assignment_example`
+ */
 
-#include <State_Search.H>
-#include <tpl_array.H>
+# include <iostream>
 
-using namespace Aleph;
+# include <State_Search.H>
+# include <tpl_array.H>
 
 namespace
 {
+
+namespace Search = Aleph::Search;
+using Aleph::Array;
 
 struct AssignmentState
 {
@@ -148,12 +158,12 @@ int main()
     Array<int>{7, 6, 9, 4}
   };
 
-  using Engine = Branch_And_Bound<AssignmentBBDomain, Minimize_Objective<int>>;
+  using Engine = Search::BranchAndBound<AssignmentBBDomain, Search::Minimize_Objective<int>>;
 
-  ExplorationPolicy policy = Engine::default_policy();
-  policy.strategy = ExplorationPolicy::Strategy::Best_First;
+  Search::ExplorationPolicy policy = Engine::default_policy();
+  policy.strategy = Search::ExplorationPolicy::Strategy::Best_First;
 
-  Engine engine(AssignmentBBDomain(costs), policy, {}, Minimize_Objective<int>{});
+  Engine engine(AssignmentBBDomain(costs), policy, {}, Search::Minimize_Objective<int>{});
   auto result = engine.search(AssignmentState(costs.size()));
 
   std::cout << "Optimal assignment cost: " << result.incumbent.best_value() << '\n';

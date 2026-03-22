@@ -1275,6 +1275,8 @@ Aleph-w provides a robust suite for 2D and 3D computational geometry, built on *
 - **Document Export**: The `Tikz_Scene` helper in `tikzgeom_scene.H` composes complex figures and exports them as standalone LaTeX documents, Beamer slides, or handouts, including multi-step animations using overlays.
 - **Legacy EEPIC Backend**: For compatibility with older LaTeX workflows.
 
+For a deeper tour of the geometry stack and the TikZ tooling, see [docs/GEOMETRY_MODULE_GUIDE.md](docs/GEOMETRY_MODULE_GUIDE.md) and the [TikZ Geometry Guide](docs/TIKZGEOM_GUIDE.md).
+
 See `Examples/` for over a dozen geometry-specific programs, including `tikz_funnel_beamer_twocol_example.cc` which generates animated Beamer slides of the shortest-path funnel algorithm.
 
 **Header:** `point.H`
@@ -3599,6 +3601,8 @@ int main() {
 }
 ```
 
+📖 **For comprehensive documentation on C++20 Ranges with Aleph-w containers, see [docs/RANGES_GUIDE.md](docs/RANGES_GUIDE.md)**
+
 <a id="readme-state-search-framework"></a>
 ## State-Space Search Framework
 
@@ -3634,6 +3638,9 @@ memoization, frontier policies) is delivered.
 
 ### Docs, examples and tests
 
+- [docs/algorithm_selection_guide.md](docs/algorithm_selection_guide.md) – decision
+  flowchart and comparison table to choose between DFS, Branch & Bound, IDA*, Negamax
+  and Alpha-Beta for your problem.
 - [docs/state_search_v1.md](docs/state_search_v1.md) – architecture summary,
   benchmark methodology, profiling notes and the v2 roadmap.
 - [docs/adversarial_search_framework.md](docs/adversarial_search_framework.md)
@@ -4411,6 +4418,7 @@ ctest --test-dir build-debug
 - **Naming**: `snake_case` for functions, `PascalCase` for classes
 - **Documentation**: Doxygen comments for all public APIs
 - **Testing**: Add tests for new features
+- **Error handling**: Use the `ah-errors.H` macro family; see [docs/ERROR_HANDLING.md](docs/ERROR_HANDLING.md) for the full policy.
 
 ### Pull Request Process
 

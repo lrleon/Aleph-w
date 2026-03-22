@@ -45,8 +45,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef TRANSPOSITION_TABLE_H
-#define TRANSPOSITION_TABLE_H
+# ifndef TRANSPOSITION_TABLE_H
+# define TRANSPOSITION_TABLE_H
 
 #include <concepts>
 #include <utility>
@@ -108,48 +108,6 @@ template <typename Table, typename Key, typename Entry>
 concept MemoTable = requires(Table &table, const Key &key, const Entry &entry) {
   { table.probe(key) } -> std::same_as<Entry *>;
   { table.store(key, entry) } -> std::same_as<TranspositionStoreStatus>;
-};
-
-/** @brief Generic concept for domains that can expose a stable state key.
- *
- *  @tparam Provider Type exposing the keying logic.
- */
-template <typename Provider>
-concept SearchStateKeyProvider = requires(const Provider &provider, const typename Provider::State &state) {
-  typename Provider::State_Key;
-  { provider.state_key(state) } -> std::convertible_to<typename Provider::State_Key>;
-};
-
-/** @brief Concept for a set suitable for tracking globally visited states.
- *
- *  Compatible with @ref Aleph::SearchStorageSet and the Aleph `DynHashSet` family.
- *  The engine uses `contains(key)` to check for prior visits and `insert(key)`
- *  to record a new one. Inserting an already-present key must be a no-op.
- *
- *  @tparam Set Container type.
- *  @tparam Key State key type.
- */
-template <typename Set, typename Key>
-concept VisitedStateSet = requires(Set &set, const Key &key) {
-  { set.contains(key) } -> std::convertible_to<bool>;
-  set.insert(key);
-};
-
-/** @brief Concept for a map tracking the best bound seen per visited state.
- *
- *  Compatible with @ref Aleph::SearchStorageMap. The engine uses `search(key)` to
- *  probe for an existing bound and `insert(key, bound)` to record one.
- *  Updating an existing entry is done by mutating the value through the
- *  pointer returned by `search`.
- *
- *  @tparam Map Container type.
- *  @tparam Key State key type.
- *  @tparam Objective Goal metric type.
- */
-template <typename Map, typename Key, typename Objective>
-concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &obj) {
-  map.insert(key, obj);
-  { map.search(key) } -> std::convertible_to<std::pair<const Key, Objective> *>;
 };
 
 /** @brief Minimal replacement policy: always replace the current entry.
@@ -365,4 +323,4 @@ private:
 
 }  // end namespace Aleph
 
-#endif  // TRANSPOSITION_TABLE_H
+# endif  // TRANSPOSITION_TABLE_H
