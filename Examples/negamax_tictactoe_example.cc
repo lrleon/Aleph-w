@@ -29,14 +29,18 @@
 */
 
 /** @file negamax_tictactoe_example.cc
- *  @brief Reference example: Tic-Tac-Toe with Negamax and Alpha-Beta.
+ *  @brief Advanced example: Tic-Tac-Toe with Negamax, Alpha-Beta,
+ *         transposition tables, iterative deepening and aspiration windows.
  *
- *  Model summary:
+ *  This example demonstrates several features on the same domain:
  *
- *  - State: board cells, side to move and ply count.
- *  - Successor generator: every legal move in a fixed exploration order.
- *  - Terminal criterion: win for either side or full board.
- *  - Evaluator: score from the side-to-move perspective.
+ *  - Plain Negamax and Alpha-Beta from the empty board.
+ *  - Transposition-table acceleration for both engines.
+ *  - Iterative deepening with aspiration windows.
+ *  - Move ordering with killer heuristic.
+ *  - Trace collection.
+ *
+ *  For a minimal introduction to Negamax, see `negamax_simple_example.cc`.
  *
  *  Build and run:
  *

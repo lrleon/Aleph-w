@@ -43,8 +43,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef STATE_SEARCH_H
-#define STATE_SEARCH_H
+# ifndef STATE_SEARCH_H
+# define STATE_SEARCH_H
 
 #include <search_move_ordering.H>
 #include <state_search_common.H>
@@ -152,4 +152,4 @@ using Aleph::negamax_search;
 
 }  // end namespace Aleph
 
-#endif  // STATE_SEARCH_H
+# endif  // STATE_SEARCH_H

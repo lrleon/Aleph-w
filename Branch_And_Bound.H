@@ -44,8 +44,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef BRANCH_AND_BOUND_H
-#define BRANCH_AND_BOUND_H
+# ifndef BRANCH_AND_BOUND_H
+# define BRANCH_AND_BOUND_H
 
 #include <concepts>
 #include <utility>
@@ -261,7 +261,19 @@ concept OptimizationEvaluator = requires(Domain &domain, const typename Domain::
   { domain.bound(state) } -> std::convertible_to<typename Domain::Objective>;
 };
 
-/** @brief Minimal contract for branch-and-bound domains. */
+/** @brief Minimal contract for branch-and-bound domains.
+ *
+ *  The engine assumes a mutable search state and reversible moves:
+ *
+ *  - `for_each_successor(state, visitor)` lazily emits candidate moves,
+ *  - `apply(state, move)` advances the state.
+ *    @post If `apply()` throws, the state must remain unchanged (strong exception safety).
+ *  - `undo(state, move)` restores the previous state.
+ *    @post `undo()` should not throw exceptions; it is typically called during
+ *          normal backtracking or exception stack unwinding.
+ *  - `is_complete(state)` marks an accepted solution,
+ *  - `bound(state)` returns an optimistic estimate of the final objective.
+ */
 template <typename Domain>
 concept BranchAndBoundDomain
   = SuccessorGenerator<Domain> and CompleteSolutionPredicate<Domain> and OptimizationEvaluator<Domain>
@@ -587,8 +599,19 @@ private:
       RankedMove<Move, Objective> ranked;
       ranked.move = move;
       ranked.ordinal = ordinal++;
-      domain_.apply(state, move);
-      ranked.priority = domain_.bound(state);
+      bool applied = false;
+      try
+        {
+          domain_.apply(state, move);
+          applied = true;
+          ranked.priority = domain_.bound(state);
+        }
+      catch (...)
+        {
+          if (applied)
+            domain_.undo(state, move);
+          throw;
+        }
       domain_.undo(state, move);
       ++result.stats.move_ordering.priority_estimates;
       moves.append(std::move(ranked));
@@ -687,11 +710,26 @@ private:
     auto explore_move = [&](const Move &move) -> bool
     {
       ++result.stats.generated_successors;
-      path.append(move);
-      domain_.apply(state, move);
-      stop = dfs(state, path, depth + 1, result, on_solution);
-      domain_.undo(state, move);
+      bool applied = false;
+      bool path_appended = false;
+      try
+        {
+          domain_.apply(state, move);
+          applied = true;
+          path.append(move);
+          path_appended = true;
+          stop = dfs(state, path, depth + 1, result, on_solution);
+        }
+      catch (...)
+        {
+          if (path_appended)
+            (void) path.remove_last();
+          if (applied)
+            domain_.undo(state, move);
+          throw;
+        }
       (void) path.remove_last();
+      domain_.undo(state, move);
       return not stop;
     };
 
@@ -766,6 +804,8 @@ private:
       }
 
     const auto key = domain_.state_key(state);
+    Objective old_visited_bound;
+    bool was_inserted = false;
     if (auto *pair = visited.search(key); pair != nullptr)
       {
         if (not objective_.more_promising(bound_value, pair->second))
@@ -773,12 +813,21 @@ private:
             ++result.stats.pruned_by_bound;
             return false;
           }
+        old_visited_bound = pair->second;
         pair->second = bound_value;
       }
     else
       {
         visited.insert(key, bound_value);
+        was_inserted = true;
       }
+
+    auto rollback_visited = [&]() {
+      if (was_inserted)
+        visited.remove(key);
+      else if (auto *pair = visited.search(key); pair != nullptr)
+        pair->second = old_visited_bound;
+    };
 
     if (expansion_limit_reached(result))
       return true;
@@ -787,30 +836,53 @@ private:
 
     bool stop = false;
 
-    auto explore_move = [&](const Move &move) -> bool
-    {
-      ++result.stats.generated_successors;
-      path.append(move);
-      domain_.apply(state, move);
-      stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
-      domain_.undo(state, move);
-      (void) path.remove_last();
-      return not stop;
-    };
+    try
+      {
+        auto explore_move = [&](const Move &move) -> bool
+        {
+          ++result.stats.generated_successors;
+          bool applied = false;
+          bool path_appended = false;
+          try
+            {
+              domain_.apply(state, move);
+              applied = true;
+              path.append(move);
+              path_appended = true;
+              stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
+            }
+          catch (...)
+            {
+              if (path_appended)
+                (void) path.remove_last();
+              if (applied)
+                domain_.undo(state, move);
+              throw;
+            }
+          (void) path.remove_last();
+          domain_.undo(state, move);
+          return not stop;
+        };
 
-    if (ordering_active_for_depth_first())
-      {
-        for (auto ordered_moves = collect_ordered_moves(state, result);
-             const auto &ranked : ordered_moves)
-          if (not explore_move(ranked.move))
-            break;
+        if (ordering_active_for_depth_first())
+          {
+            for (auto ordered_moves = collect_ordered_moves(state, result);
+                 const auto &ranked : ordered_moves)
+              if (not explore_move(ranked.move))
+                break;
+          }
+        else
+          (void) domain_.for_each_successor(state,
+                                            [&](const Move &move) -> bool
+          {
+            return explore_move(move);
+          });
       }
-    else
-      (void) domain_.for_each_successor(state,
-                                        [&](const Move &move) -> bool
+    catch (...)
       {
-        return explore_move(move);
-      });
+        rollback_visited();
+        throw;
+      }
 
     return stop;
   }
@@ -953,4 +1025,4 @@ template <BranchAndBoundDomain Domain,
 
 }  // end namespace Aleph
 
-#endif  // BRANCH_AND_BOUND_H
+# endif  // BRANCH_AND_BOUND_H

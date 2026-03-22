@@ -44,14 +44,13 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef BACKTRACKING_H
-#define BACKTRACKING_H
+# ifndef BACKTRACKING_H
+# define BACKTRACKING_H
 
 #include <utility>
 
 #include <ah-errors.H>
 #include <state_search_common.H>
-#include <Transposition_Table.H>
 
 namespace Aleph {
 
@@ -626,4 +625,4 @@ template <BacktrackingDomain Domain, typename OnSolution>
 
 }  // end namespace Aleph
 
-#endif  // BACKTRACKING_H
+# endif  // BACKTRACKING_H

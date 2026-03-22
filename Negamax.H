@@ -47,8 +47,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef NEGAMAX_H
-#define NEGAMAX_H
+# ifndef NEGAMAX_H
+# define NEGAMAX_H
 
 #include <concepts>
 #include <limits>
@@ -377,6 +377,11 @@ concept GameEvaluator = requires(Domain &domain, const typename Domain::State &s
  *  - evaluate any state with `evaluate()`, always from the current player's
  *    perspective.
  *
+ *  @pre `evaluate(state)` returns values in
+ *       [`score_floor<Score>()`, `score_ceiling<Score>()`]. The internal
+ *       sentinel `std::numeric_limits<Score>::lowest()` is reserved by the
+ *       engine and maps to `std::numeric_limits<Score>::max()` when negated.
+ *
  *  The engine assumes `apply()` / `undo()` switch turns implicitly through the
  *  state itself; no separate player parameter is carried by the search code.
  */
@@ -703,6 +708,11 @@ public:
    *  @param[in] initial_state Root position. Its side to move defines the
    *             perspective of the returned score.
    *  @return One principal variation and its root score.
+   *  @pre `domain().evaluate(state)` returns values in
+   *       [`score_floor<Score>()`, `score_ceiling<Score>()`]. The engine keeps
+   *       `std::numeric_limits<Score>::lowest()` as an internal sentinel and
+   *       remaps it to `std::numeric_limits<Score>::max()` when a negation
+   *       would otherwise overflow.
    *
    *  @throws std::invalid_argument if a non-depth-first exploration strategy
    *          is requested or common limits are malformed.
@@ -979,6 +989,10 @@ private:
       auto child = search_node(state, depth + 1, result, table, keyer, tracer);
       domain_.undo(state, move);
 
+      // Negate child score to switch perspective. lowest() is the engine's
+      // internal sentinel (never returned by domain evaluators, which are
+      // bounded by score_floor()/score_ceiling()); negating lowest() would
+      // overflow signed types, so it maps to max() instead.
       const Score candidate = (child.value == std::numeric_limits<Score>::lowest())
                               ? std::numeric_limits<Score>::max()
                               : -child.value;
@@ -1342,4 +1356,4 @@ template <AdversarialGameDomain Domain, typename Table, typename Tracer>
 
 }  // end namespace Aleph
 
-#endif  // NEGAMAX_H
+# endif  // NEGAMAX_H

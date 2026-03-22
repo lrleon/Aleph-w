@@ -28,10 +28,19 @@
   SOFTWARE.
 */
 
-#include <iostream>
-#include <string>
+/** @file adversarial_artificial_example.cc
+ *  @brief Reference example: artificial game tree with Negamax and Alpha-Beta.
+ *
+ *  Build and run:
+ *
+ *  - `cmake --build build --target adversarial_artificial_example`
+ *  - `./build/Examples/adversarial_artificial_example`
+ */
 
-#include <State_Search.H>
+# include <iostream>
+# include <string>
+
+# include <State_Search.H>
 
 using namespace Aleph;
 

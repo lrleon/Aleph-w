@@ -119,6 +119,34 @@ The adversarial layer therefore defines its own:
 - `Negamax`
 - `Alpha_Beta`
 
+## `AdversarialSearchResult<Move, Score>`
+
+Returned by `Negamax::search()`, `Alpha_Beta::search()` and the convenience
+wrappers.
+
+| Member / method | Type | Description |
+|-----------------|------|-------------|
+| `status` | `SearchStatus` | Final execution state. |
+| `policy` | `ExplorationPolicy` | Exploration policy used for the run. |
+| `limits` | `SearchLimits` | Limits used for the run. |
+| `stats` | `AdversarialSearchStats` | Collected adversarial-search statistics. |
+| `value` | `Score` | Root score from the current player's perspective. |
+| `principal_variation` | `SearchPath<Move>` (`Array<Move>`) | Best line found from the root — the sequence of moves chosen by both players under optimal play. |
+| `exhausted()` | `bool` | Returns `true` if the search exhausted the configured region. |
+| `limit_reached()` | `bool` | Returns `true` if a hard search limit stopped the traversal. |
+| `has_principal_variation()` | `bool` | Returns `true` if the PV is non-empty. |
+| `first_move()` | `const Move&` | First move of the principal variation. Throws if empty. |
+
+## `AdversarialSearchStats`
+
+Extends `SearchStats` with adversarial-specific counters:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `heuristic_evaluations` | `size_t` | Number of calls to `evaluate(state)`. |
+| `alpha_beta_cutoffs` | `size_t` | Number of cutoffs performed by Alpha-Beta. |
+| `transpositions` | `TranspositionStats` | Transposition-table usage during this run: probes, hits, misses, cutoffs, stores, replacements, rejected updates. |
+
 ## Statistics
 
 Both engines expose:

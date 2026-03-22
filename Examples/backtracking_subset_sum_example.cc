@@ -28,15 +28,25 @@
   SOFTWARE.
 */
 
-#include <iostream>
-#include <string>
+/** @file backtracking_subset_sum_example.cc
+ *  @brief Reference example: subset-sum enumeration with domain-side pruning.
+ *
+ *  Build and run:
+ *
+ *  - `cmake --build build --target backtracking_subset_sum_example`
+ *  - `./build/Examples/backtracking_subset_sum_example`
+ */
 
-#include <State_Search.H>
+# include <iostream>
+# include <string>
 
-using namespace Aleph;
+# include <State_Search.H>
 
 namespace
 {
+
+namespace Search = Aleph::Search;
+using Aleph::Array;
 
 struct SubsetSumState
 {
@@ -157,12 +167,12 @@ int main()
   constexpr int target = 2;
 
   SubsetSumDomain domain(values, target);
-  ExplorationPolicy policy;
+  Search::ExplorationPolicy policy;
   policy.stop_at_first_solution = false;
 
-  using Engine = Depth_First_Backtracking<SubsetSumDomain>;
+  using Engine = Search::Backtracking<SubsetSumDomain>;
   Engine engine(domain, policy);
-  SearchSolutionCollector<Engine::Solution> collector;
+  Search::Collector<Engine::Solution> collector;
 
   auto result = engine.search(SubsetSumState(values.size()), collector);
 

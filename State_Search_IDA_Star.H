@@ -46,8 +46,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef STATE_SEARCH_IDA_STAR_H
-#define STATE_SEARCH_IDA_STAR_H
+# ifndef STATE_SEARCH_IDA_STAR_H
+# define STATE_SEARCH_IDA_STAR_H
 
 #include <limits>
 #include <utility>
@@ -191,7 +191,7 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
   using Move = typename Domain::Move;
   DFSResult<Distance> out{false, std::numeric_limits<Distance>::max()};
 
-  if (const bool can_expand = depth + 1 <= result.limits.max_depth; not can_expand)
+  if (depth + 1 > result.limits.max_depth)
     return out;
 
   (void) domain.for_each_successor(state,
@@ -203,13 +203,28 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
 
     ++result.stats.generated_successors;
     const Distance step = domain.cost(state, move);
-    path.append(move);
-    domain.apply(state, move);
+    bool applied = false;
+    bool path_appended = false;
+    DFSResult<Distance> child;
+    try
+      {
+        domain.apply(state, move);
+        applied = true;
+        path.append(move);
+        path_appended = true;
+        child = dfs(domain, state, path, g + step, threshold, depth + 1, result, on_solution);
+      }
+    catch (...)
+      {
+        if (path_appended)
+          (void) path.remove_last();
+        if (applied)
+          domain.undo(state, move);
+        throw;
+      }
 
-    auto child = dfs(domain, state, path, g + step, threshold, depth + 1, result, on_solution);
-
-    domain.undo(state, move);
     (void) path.remove_last();
+    domain.undo(state, move);
 
     if (child.found)
       {
@@ -443,4 +458,4 @@ template <IDAStarDomain Domain, typename OnSolution>
 
 }  // end namespace Aleph
 
-#endif  // STATE_SEARCH_IDA_STAR_H
+# endif  // STATE_SEARCH_IDA_STAR_H

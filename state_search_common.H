@@ -46,8 +46,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef STATE_SEARCH_COMMON_H
-#define STATE_SEARCH_COMMON_H
+# ifndef STATE_SEARCH_COMMON_H
+# define STATE_SEARCH_COMMON_H
 
 #include <chrono>
 #include <concepts>
@@ -129,6 +129,43 @@ template <typename Key,
           template <typename, class> class HashSetTable = OLhashTable,
           class Cmp = Aleph::equal_to<Key>>
 using SearchStorageSet = DynHashSet<Key, HashSetTable, Cmp>;
+
+/** @brief Concept for a set suitable for tracking globally visited states.
+ *
+ *  Compatible with @ref Aleph::SearchStorageSet and the Aleph `DynHashSet` family.
+ *  The engine uses `contains(key)` to check for prior visits and `insert(key)`
+ *  to record a new one. Inserting an already-present key must be a no-op.
+ *
+ *  @tparam Set Container type.
+ *  @tparam Key State key type.
+ */
+template <typename Set, typename Key>
+concept VisitedStateSet = requires(Set &set, const Key &key) {
+  { set.contains(key) } -> std::convertible_to<bool>;
+  set.insert(key);
+};
+
+/** @brief Concept for a map tracking the best bound seen per visited state.
+ *
+ *  Compatible with @ref Aleph::SearchStorageMap. The engine uses `search(key)` to
+ *  probe for an existing bound and `insert(key, bound)` to record one.
+ *  Updating an existing entry is done by mutating the value through the
+ *  pointer returned by `search`.
+ *
+ *  Engines may use `remove(key)` to roll back the visited map if an exception
+ *  occurs during exploration of a newly inserted state.
+ *
+ *  @tparam Map Container type.
+ *  @tparam Key State key type.
+ *  @tparam Objective Goal metric type.
+ */
+template <typename Map, typename Key, typename Objective>
+concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &obj) {
+  map.insert(key, obj);
+  map.remove(key);
+  { map.search(key) == nullptr } -> std::convertible_to<bool>;
+  map.search(key)->second = obj;
+};
 
 /** @brief Counters collected during a search run. */
 struct SearchStats
@@ -479,6 +516,16 @@ concept MoveKeyProvider = requires(Domain &d, const typename Domain::Move &move)
   { d.move_key(move) } -> std::convertible_to<typename Domain::Move_Key>;
 };
 
+/** @brief Generic concept for domains that can expose a stable state key.
+ *
+ *  @tparam Provider Type exposing the keying logic.
+ */
+template <typename Provider>
+concept SearchStateKeyProvider = requires(const Provider &provider, const typename Provider::State &state) {
+  typename Provider::State_Key;
+  { provider.state_key(state) } -> std::convertible_to<typename Provider::State_Key>;
+};
+
 /** @brief Concept for domains that provide an admissible heuristic.
  *
  *  Required by IDA\* and any informed search engine. The domain must expose a
@@ -582,4 +629,4 @@ struct SearchResult
 
 }  // end namespace Aleph
 
-#endif  // STATE_SEARCH_COMMON_H
+# endif  // STATE_SEARCH_COMMON_H

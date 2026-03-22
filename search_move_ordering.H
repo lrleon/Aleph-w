@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-
 /** @file search_move_ordering.H
  *  @brief Shared support for configurable successor ordering heuristics.
  *
@@ -46,8 +45,8 @@
  *  @author Leandro Rabindranath León
  */
 
-#ifndef SEARCH_MOVE_ORDERING_H
-#define SEARCH_MOVE_ORDERING_H
+# ifndef SEARCH_MOVE_ORDERING_H
+# define SEARCH_MOVE_ORDERING_H
 
 #include <concepts>
 #include <cstddef>
@@ -58,25 +57,24 @@
 #include <tpl_hash.H>
 #include <tpl_sort_utils.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Built-in move-ordering modes supported by the framework. */
 enum class MoveOrderingMode
 {
-  Domain,          ///< Preserve the order emitted by `for_each_successor()`.
-  Estimated_Score, ///< Rank successors by a cheap heuristic score estimate.
-  Estimated_Bound  ///< Rank successors by an optimistic child bound.
+  Domain,           ///< Preserve the order emitted by `for_each_successor()`.
+  Estimated_Score,  ///< Rank successors by a cheap heuristic score estimate.
+  Estimated_Bound   ///< Rank successors by an optimistic child bound.
 };
 
 /** @brief Statistics collected by engines that reorder successor batches. */
 struct MoveOrderingStats
 {
-  size_t ordered_batches = 0;   ///< Number of successor batches materialized and ordered.
-  size_t ordered_moves = 0;     ///< Number of individual moves considered by ordering.
-  size_t priority_estimates = 0; ///< Number of score/bound estimates computed for ordering.
-  size_t killer_hits = 0;       ///< Moves promoted because they matched a killer slot.
-  size_t history_hits = 0;      ///< Moves promoted because they had non-zero history.
+  size_t ordered_batches = 0;     ///< Number of successor batches materialized and ordered.
+  size_t ordered_moves = 0;       ///< Number of individual moves considered by ordering.
+  size_t priority_estimates = 0;  ///< Number of score/bound estimates computed for ordering.
+  size_t killer_hits = 0;         ///< Moves promoted because they matched a killer slot.
+  size_t history_hits = 0;        ///< Moves promoted because they had non-zero history.
 };
 
 /** @brief One move plus the metadata used by ordering comparators.
@@ -87,11 +85,12 @@ struct MoveOrderingStats
 template <typename Move, typename Priority>
 struct RankedMove
 {
-  Move move;               ///< The candidate move.
-  Priority priority = Priority{}; ///< Cheap heuristic priority (lower or higher depending on engine).
-  size_t ordinal = 0;      ///< Original order from successor generator (tie-breaker).
-  bool killer = false;     ///< True if this move matched a killer slot.
-  size_t history_score = 0; ///< Accumulated history heuristic score.
+  Move move;  ///< The candidate move.
+  Priority priority
+    = Priority{};            ///< Cheap heuristic priority (lower or higher depending on engine).
+  size_t ordinal = 0;        ///< Original order from successor generator (tie-breaker).
+  bool killer = false;       ///< True if this move matched a killer slot.
+  size_t history_score = 0;  ///< Accumulated history heuristic score.
 };
 
 /** @brief Two-slot killer heuristic table indexed by search depth.
@@ -115,7 +114,7 @@ public:
   static constexpr bool supported = false;
 
   /** @brief No-op. */
-  void clear() noexcept
+  static void clear() noexcept
   {
     // empty
   }
@@ -123,13 +122,13 @@ public:
   /** @brief Always returns false.
    *  @return Always false.
    */
-  [[nodiscard]] bool is_killer(const size_t, const Move &) const noexcept
+  [[nodiscard]] static bool is_killer(const size_t, const Move &) noexcept
   {
     return false;
   }
 
   /** @brief No-op. */
-  void record(const size_t, const Move &) noexcept
+  static void record(const size_t, const Move &) noexcept
   {
     // empty
   }
@@ -157,9 +156,9 @@ public:
    */
   [[nodiscard]] bool is_killer(const size_t depth, const Move &move) const noexcept
   {
-    return depth < primary_.size() and
-      ((primary_[depth].has_value() and *primary_[depth] == move) or
-       (secondary_[depth].has_value() and *secondary_[depth] == move));
+    return depth < primary_.size()
+       and ((primary_[depth].has_value() and *primary_[depth] == move)
+            or (secondary_[depth].has_value() and *secondary_[depth] == move));
   }
 
   /** @brief Record a move that caused a cutoff at `depth`.
@@ -195,7 +194,7 @@ struct Null_History_Heuristic_Table
 {
   static constexpr bool supported = false;
 
-  void clear() noexcept
+  static void clear() noexcept
   {
     // empty
   }
@@ -207,7 +206,7 @@ struct Null_History_Heuristic_Table
   }
 
   template <typename Key>
-  void record(const Key &, const size_t = 1) noexcept
+  static void record(const Key &, const size_t = 1) noexcept
   {
     // empty
   }
@@ -295,27 +294,25 @@ void sort_ranked_moves(Array<RankedMove<Move, Priority>> &moves,
   if (moves.size() < 2)
     return;
 
-  introsort(
-    moves,
-    [=](const RankedMove<Move, Priority> &lhs,
-        const RankedMove<Move, Priority> &rhs) noexcept
-    {
-      if (prefer_killer and lhs.killer != rhs.killer)
-        return lhs.killer and not rhs.killer;
+  introsort(moves,
+            [=](const RankedMove<Move, Priority> &lhs, const RankedMove<Move, Priority> &rhs) noexcept
+  {
+    if (prefer_killer and lhs.killer != rhs.killer)
+      return lhs.killer and not rhs.killer;
 
-      if (prefer_history and lhs.history_score != rhs.history_score)
-        return lhs.history_score > rhs.history_score;
+    if (prefer_history and lhs.history_score != rhs.history_score)
+      return lhs.history_score > rhs.history_score;
 
-      if (better_priority(lhs.priority, rhs.priority))
-        return true;
+    if (better_priority(lhs.priority, rhs.priority))
+      return true;
 
-      if (better_priority(rhs.priority, lhs.priority))
-        return false;
+    if (better_priority(rhs.priority, lhs.priority))
+      return false;
 
-      return lhs.ordinal < rhs.ordinal;
-    });
+    return lhs.ordinal < rhs.ordinal;
+  });
 }
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // SEARCH_MOVE_ORDERING_H
+# endif  // SEARCH_MOVE_ORDERING_H

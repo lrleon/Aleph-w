@@ -168,7 +168,7 @@ namespace Aleph
     Hash_Fct hash_fct;
 
   private:
-    using BucketList = Dnode<Key>; // Bucket list type
+    using BucketList = Dlink; // Bucket list type
     using BucketItor = typename Dnode<Key>::Iterator; // Bucket iterator
     using Node = Dnode<Key>; // Node alias
 
@@ -704,14 +704,25 @@ namespace Aleph
         put_itor_at_the_end(*this);
       }
 
-      /// Returns true if the iterator has a current bucket.
+      /** @brief Returns true if the iterator has a current bucket. */
       bool has_curr() const noexcept
       {
         return curr_index >= 0 and curr_index < hash_table->len;
       }
 
+      /** @brief Returns the current bucket without exception.
+       *
+       *  If `has_curr()` is true, returns a pointer to the current bucket.
+       *  Otherwise, returns `nullptr`.
+       *
+       *  @return Pointer to the current bucket, or `nullptr` if there is no
+       *          current bucket (i.e., `has_curr()` is false).
+       */
       Bucket * get_curr_ne() noexcept
       {
+        if (not has_curr())
+          return nullptr;
+
         return static_cast<Bucket *>(curr_itor.get_curr_ne());
       }
 

@@ -333,6 +333,29 @@ TicTacToeState make_tictactoe_state(const char *layout, const int player)
   return state;
 }
 
+/** @brief Replay a principal variation from the initial state and verify the
+ *  reported value.
+ *
+ *  In negamax, the root score relates to the leaf evaluation by:
+ *    root_value == (-1)^pv_length * evaluate(leaf_state)
+ *
+ *  This helper applies each PV move to a copy of the initial state, calls
+ *  evaluate() on the leaf (horizon) position, and returns the value as seen from
+ *  the root player's perspective.
+ */
+template <typename Domain>
+[[nodiscard]] typename Domain::Score
+replay_pv(Domain &domain,
+          typename Domain::State state,
+          const SearchPath<typename Domain::Move> &pv)
+{
+  for (const auto &move : pv)
+    domain.apply(state, move);
+
+  const auto leaf_value = domain.evaluate(state);
+  return (pv.size() % 2 == 0) ? leaf_value : -leaf_value;
+}
+
 } // end namespace
 
 TEST(AdversarialSearchFramework, ArtificialGameNegamaxFindsKnownValueAndPath)
@@ -606,4 +629,268 @@ TEST(AdversarialSearchFramework, AlphaBetaIterativeDeepeningTTPreservesValueAndR
   EXPECT_EQ(with_tt.result.first_move().cell, without_tt.result.first_move().cell);
   EXPECT_LT(with_tt.total_stats.visited_states, without_tt.total_stats.visited_states);
   EXPECT_GT(table.stats().stores, 0u);
+}
+
+// --- search_with_window tests ---
+
+TEST(AdversarialSearchFramework, SearchWithWindowWideWindowMatchesFullSearch)
+{
+  Alpha_Beta<ArtificialGameDomain> engine(ArtificialGameDomain{});
+
+  auto full = engine.search(ArtificialGameState{});
+  auto windowed = engine.search_with_window(ArtificialGameState{}, -1000, 1000);
+
+  EXPECT_EQ(windowed.value, full.value);
+  EXPECT_EQ(path_signature(windowed.principal_variation),
+            path_signature(full.principal_variation));
+}
+
+TEST(AdversarialSearchFramework, SearchWithWindowExactWindowReturnsCorrectValue)
+{
+  Alpha_Beta<ArtificialGameDomain> engine(ArtificialGameDomain{});
+
+  auto full = engine.search(ArtificialGameState{});
+  auto windowed = engine.search_with_window(ArtificialGameState{},
+                                            full.value - 1, full.value + 1);
+
+  EXPECT_EQ(windowed.value, full.value);
+  ASSERT_TRUE(windowed.has_principal_variation());
+}
+
+TEST(AdversarialSearchFramework, SearchWithWindowFailLowReturnsUpperBound)
+{
+  Alpha_Beta<ArtificialGameDomain> engine(ArtificialGameDomain{});
+
+  auto full = engine.search(ArtificialGameState{});
+  auto windowed = engine.search_with_window(ArtificialGameState{},
+                                            full.value + 5, full.value + 10);
+
+  EXPECT_LE(windowed.value, full.value + 5);
+}
+
+TEST(AdversarialSearchFramework, SearchWithWindowFailHighReturnsLowerBound)
+{
+  Alpha_Beta<ArtificialGameDomain> engine(ArtificialGameDomain{});
+
+  auto full = engine.search(ArtificialGameState{});
+  auto windowed = engine.search_with_window(ArtificialGameState{},
+                                            full.value - 10, full.value - 5);
+
+  EXPECT_GE(windowed.value, full.value - 5);
+}
+
+TEST(AdversarialSearchFramework, SearchWithWindowTicTacToeMatchesFullSearch)
+{
+  const TicTacToeState state = make_tictactoe_state("XX.OO....", 1);
+
+  Alpha_Beta<TicTacToeDomain> engine(TicTacToeDomain{});
+  auto full = engine.search(state);
+  auto windowed = engine.search_with_window(state, -200, 200);
+
+  EXPECT_EQ(windowed.value, full.value);
+  ASSERT_TRUE(windowed.has_principal_variation());
+  EXPECT_EQ(windowed.first_move().cell, full.first_move().cell);
+}
+
+TEST(AdversarialSearchFramework, SearchWithWindowTTPreservesResult)
+{
+  const TicTacToeState state = make_tictactoe_state("XX.OO....", 1);
+
+  Alpha_Beta<TicTacToeDomain> engine(TicTacToeDomain{});
+  auto full = engine.search(state);
+
+  using TT = AdversarialTranspositionTable<TicTacToeDomain::State_Key,
+                                           TicTacToeDomain::Move,
+                                           TicTacToeDomain::Score>;
+  TT table;
+  auto windowed = engine.search_with_window(state, table, -200, 200);
+
+  EXPECT_EQ(windowed.value, full.value);
+  ASSERT_TRUE(windowed.has_principal_variation());
+  EXPECT_EQ(windowed.first_move().cell, full.first_move().cell);
+  EXPECT_GT(table.stats().stores, 0u);
+}
+
+TEST(AdversarialSearchFramework, SearchWithWindowNarrowPrunesMoreNodes)
+{
+  TicTacToeState state;
+
+  Alpha_Beta<TicTacToeDomain> engine(TicTacToeDomain{});
+  auto wide = engine.search_with_window(state, -200, 200);
+  auto narrow = engine.search_with_window(state, -1, 1);
+
+  EXPECT_LE(narrow.stats.visited_states, wide.stats.visited_states);
+}
+
+// ---------------------------------------------------------------------------
+// Principal Variation Replay Verification (Recommendation 6)
+// ---------------------------------------------------------------------------
+
+TEST(AdversarialSearchFramework, NegamaxPVReplayMatchesReportedValue)
+{
+  ArtificialGameDomain domain;
+  auto result = negamax_search(domain, ArtificialGameState{});
+
+  ASSERT_TRUE(result.has_principal_variation());
+  const auto replayed = replay_pv(domain, ArtificialGameState{},
+                                  result.principal_variation);
+  EXPECT_EQ(replayed, result.value);
+}
+
+TEST(AdversarialSearchFramework, AlphaBetaPVReplayMatchesReportedValue)
+{
+  ArtificialGameDomain domain;
+  auto result = alpha_beta_search(domain, ArtificialGameState{});
+
+  ASSERT_TRUE(result.has_principal_variation());
+  const auto replayed = replay_pv(domain, ArtificialGameState{},
+                                  result.principal_variation);
+  EXPECT_EQ(replayed, result.value);
+}
+
+TEST(AdversarialSearchFramework, DepthLimitedNegamaxPVReplayMatchesReportedValue)
+{
+  ArtificialGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 1;
+
+  auto result = negamax_search(domain, ArtificialGameState{}, {}, limits);
+
+  ASSERT_TRUE(result.has_principal_variation());
+  const auto replayed = replay_pv(domain, ArtificialGameState{},
+                                  result.principal_variation);
+  EXPECT_EQ(replayed, result.value);
+}
+
+TEST(AdversarialSearchFramework, TicTacToeNegamaxPVReplayMatchesValue)
+{
+  TicTacToeDomain domain;
+  TicTacToeState state;
+
+  auto result = negamax_search(domain, state);
+
+  ASSERT_TRUE(result.has_principal_variation());
+  const auto replayed = replay_pv(domain, state, result.principal_variation);
+  EXPECT_EQ(replayed, result.value);
+}
+
+TEST(AdversarialSearchFramework, TicTacToeAlphaBetaPVReplayMatchesValue)
+{
+  TicTacToeDomain domain;
+  TicTacToeState state;
+
+  auto result = alpha_beta_search(domain, state);
+
+  ASSERT_TRUE(result.has_principal_variation());
+  const auto replayed = replay_pv(domain, state, result.principal_variation);
+  EXPECT_EQ(replayed, result.value);
+}
+
+TEST(AdversarialSearchFramework, TicTacToeWinningPositionPVReplay)
+{
+  TicTacToeDomain domain;
+  const TicTacToeState state = make_tictactoe_state("XX.OO....", 1);
+
+  auto negamax = negamax_search(domain, state);
+  auto alpha_beta = alpha_beta_search(domain, state);
+
+  ASSERT_TRUE(negamax.has_principal_variation());
+  ASSERT_TRUE(alpha_beta.has_principal_variation());
+  EXPECT_EQ(replay_pv(domain, state, negamax.principal_variation), negamax.value);
+  EXPECT_EQ(replay_pv(domain, state, alpha_beta.principal_variation), alpha_beta.value);
+}
+
+TEST(AdversarialSearchFramework, TicTacToeWithTTPVReplayMatchesValue)
+{
+  TicTacToeDomain domain;
+  TicTacToeState state;
+
+  using TT = AdversarialTranspositionTable<TicTacToeDomain::State_Key,
+                                           TicTacToeDomain::Move,
+                                           TicTacToeDomain::Score>;
+  TT table;
+  Negamax<TicTacToeDomain> engine(domain);
+  auto result = engine.search(state, table);
+
+  ASSERT_TRUE(result.has_principal_variation());
+  const auto replayed = replay_pv(domain, state, result.principal_variation);
+  EXPECT_EQ(replayed, result.value);
+}
+
+TEST(AdversarialSearchFramework, IterativeDeepeningPVReplayMatchesValueAtEachDepth)
+{
+  ArtificialGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 2;
+
+  auto iterative = iterative_deepening_negamax_search(domain,
+                                                      ArtificialGameState{},
+                                                      {},
+                                                      limits);
+
+  ASSERT_TRUE(iterative.has_iterations());
+  for (size_t i = 0; i < iterative.iterations.size(); ++i)
+    {
+      const auto &iter = iterative.iterations[i];
+      ASSERT_TRUE(iter.result.has_principal_variation())
+        << "Iteration " << i << " has no PV";
+      const auto replayed = replay_pv(domain, ArtificialGameState{},
+                                      iter.result.principal_variation);
+      EXPECT_EQ(replayed, iter.result.value)
+        << "PV replay mismatch at iteration " << i
+        << " (depth " << iter.depth << ")";
+    }
+
+  ASSERT_TRUE(iterative.result.has_principal_variation());
+  const auto final_replayed = replay_pv(domain, ArtificialGameState{},
+                                        iterative.result.principal_variation);
+  EXPECT_EQ(final_replayed, iterative.result.value);
+}
+
+TEST(AdversarialSearchFramework, AlphaBetaIterativeDeepeningPVReplayMatchesValue)
+{
+  ArtificialGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 2;
+
+  AdversarialIterativeDeepeningOptions<int> options;
+  options.initial_depth = 1;
+  options.depth_step = 1;
+  options.aspiration.half_window = 1;
+  options.aspiration.growth = 1;
+
+  auto iterative = iterative_deepening_alpha_beta_search(domain,
+                                                         ArtificialGameState{},
+                                                         {},
+                                                         limits,
+                                                         options);
+
+  ASSERT_TRUE(iterative.result.has_principal_variation());
+  const auto replayed = replay_pv(domain, ArtificialGameState{},
+                                  iterative.result.principal_variation);
+  EXPECT_EQ(replayed, iterative.result.value);
+
+  for (size_t i = 0; i < iterative.iterations.size(); ++i)
+    {
+      const auto &iter = iterative.iterations[i];
+      ASSERT_TRUE(iter.result.has_principal_variation())
+        << "Iteration " << i << " has no PV";
+      const auto r = replay_pv(domain, ArtificialGameState{},
+                                iter.result.principal_variation);
+      EXPECT_EQ(r, iter.result.value)
+        << "PV replay mismatch at iteration " << i;
+    }
+}
+
+TEST(AdversarialSearchFramework, SearchWithWindowPVReplayMatchesValue)
+{
+  TicTacToeDomain domain;
+  const TicTacToeState state = make_tictactoe_state("XX.OO....", 1);
+
+  Alpha_Beta<TicTacToeDomain> engine(domain);
+  auto result = engine.search_with_window(state, -200, 200);
+
+  ASSERT_TRUE(result.has_principal_variation());
+  const auto replayed = replay_pv(domain, state, result.principal_variation);
+  EXPECT_EQ(replayed, result.value);
 }
