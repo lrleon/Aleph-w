@@ -161,13 +161,13 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
       return {true, threshold};
     }
 
-  if (state_search_detail::is_terminal_state(domain, state))
+  if (search_engine_detail::is_terminal_state(domain, state))
     {
       ++result.stats.terminal_states;
       return {false, std::numeric_limits<Distance>::max()};
     }
 
-  if (state_search_detail::should_prune_state(domain, state, depth))
+  if (search_engine_detail::should_prune_state(domain, state, depth))
     {
       ++result.stats.pruned_by_domain;
       return {false, std::numeric_limits<Distance>::max()};

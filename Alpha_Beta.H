@@ -453,9 +453,8 @@ private:
   }
   [[nodiscard]] bool expansion_limit_reached(Result &result)
   {
-    if (result.stats.expanded_states >= limits_.max_expansions)
+    if (search_engine_detail::expansion_limit_reached(result, limits_))
       {
-        adversarial_search_detail::mark_limit_reached(result);
         stop_ = true;
         return true;
       }
@@ -472,23 +471,8 @@ private:
                            const adversarial_search_detail::NodeEvaluation<Move, Score> &value,
                            const TranspositionBound bound)
   {
-    if constexpr (Table::enabled)
-      {
-        if (stop_ or result.limit_reached())
-          return;
-
-        AdversarialTranspositionEntry<Move, Score> entry;
-        entry.value = value.value;
-        entry.depth = remaining;
-        entry.bound = bound;
-        entry.principal_variation = value.principal_variation;
-
-        const auto status = table.store(typename Table::Key_Type{keyer(state), remaining}, entry);
-        if (status != TranspositionStoreStatus::Rejected)
-          ++result.stats.transpositions.stores;
-        if (status == TranspositionStoreStatus::Replaced)
-          ++result.stats.transpositions.replacements;
-      }
+    adversarial_search_detail::store_adversarial_transposition<Move, Score>(
+      state, remaining, result, table, keyer, value, bound, stop_);
   }
 
   template <typename Table, typename Keyer>
@@ -501,44 +485,37 @@ private:
                                          Score &beta,
                                          adversarial_search_detail::NodeEvaluation<Move, Score> &out)
   {
-    if constexpr (Table::enabled)
+    auto *entry = adversarial_search_detail::probe_and_count_transposition<Move, Score>(
+      state, remaining, result, table, keyer);
+
+    if (entry != nullptr)
       {
-        ++result.stats.transpositions.probes;
-
-        if (auto *entry = table.probe(typename Table::Key_Type{keyer(state), remaining});
-            entry != nullptr)
+        switch (entry->bound)
           {
-            ++result.stats.transpositions.hits;
+          case TranspositionBound::Exact:
+            ++result.stats.transpositions.cutoffs;
+            out.value = entry->value;
+            out.principal_variation = entry->principal_variation;
+            return true;
 
-            switch (entry->bound)
-              {
-              case TranspositionBound::Exact:
-                ++result.stats.transpositions.cutoffs;
-                out.value = entry->value;
-                out.principal_variation = entry->principal_variation;
-                return true;
+          case TranspositionBound::Lower_Bound:
+            if (entry->value > alpha)
+              alpha = entry->value;
+            break;
 
-              case TranspositionBound::Lower_Bound:
-                if (entry->value > alpha)
-                  alpha = entry->value;
-                break;
-
-              case TranspositionBound::Upper_Bound:
-                if (entry->value < beta)
-                  beta = entry->value;
-                break;
-              }
-
-            if (alpha >= beta)
-              {
-                ++result.stats.transpositions.cutoffs;
-                out.value = entry->value;
-                out.principal_variation = entry->principal_variation;
-                return true;
-              }
+          case TranspositionBound::Upper_Bound:
+            if (entry->value < beta)
+              beta = entry->value;
+            break;
           }
-        else
-          ++result.stats.transpositions.misses;
+
+        if (alpha >= beta)
+          {
+            ++result.stats.transpositions.cutoffs;
+            out.value = entry->value;
+            out.principal_variation = entry->principal_variation;
+            return true;
+          }
       }
 
     return false;
@@ -559,10 +536,10 @@ private:
     using adversarial_search_detail::evaluate_leaf;
     using adversarial_search_detail::first_move_of;
     using adversarial_search_detail::prepend_move;
-    using adversarial_search_detail::register_visit;
+
     using adversarial_search_detail::remaining_depth;
 
-    register_visit(depth, result);
+    search_engine_detail::register_visit(depth, result);
 
     const size_t remaining = remaining_depth(limits_, depth);
     emit_trace<Move, Score>(
@@ -624,7 +601,7 @@ private:
         return leaf;
       }
 
-    if (adversarial_search_detail::should_prune_state(domain_, state, depth))
+    if (search_engine_detail::should_prune_state(domain_, state, depth))
       {
         ++result.stats.pruned_by_domain;
         auto leaf = evaluate_leaf(domain_, state, result);
@@ -867,11 +844,6 @@ template <AdversarialGameDomain Domain, typename Tracer>
 {
   using Move = typename Domain::Move;
   using Score = typename Domain::Score;
-  using adversarial_search_detail::emit_trace;
-  using adversarial_search_detail::first_move_of;
-  using adversarial_search_detail::grow_aspiration_half_window;
-  using adversarial_search_detail::saturating_add;
-  using adversarial_search_detail::saturating_subtract;
 
   ah_invalid_argument_if(limits.max_depth == Search_Unlimited)
     << "iterative_deepening_alpha_beta_search requires a finite SearchLimits::max_depth";
@@ -881,28 +853,15 @@ template <AdversarialGameDomain Domain, typename Tracer>
     << "AdversarialIterativeDeepeningOptions::initial_depth exceeds SearchLimits::max_depth";
 
   Alpha_Beta<Domain> engine(std::move(domain), policy, limits);
-  AdversarialIterativeDeepeningResult<Move, Score> out;
-  out.result.policy = policy;
-  out.result.limits = limits;
-  out.iterations.reserve((limits.max_depth - options.initial_depth) / options.depth_step + 1);
-
   const Score full_alpha = adversarial_search_detail::score_floor<Score>();
   const Score full_beta = adversarial_search_detail::score_ceiling<Score>();
 
-  size_t depth = options.initial_depth;
-  size_t iteration_index = 0;
-  for (;;)
+  return adversarial_search_detail::run_iterative_deepening<Move, Score>(
+    engine, policy, limits, options, tracer,
+    [&](AdversarialIterativeDeepeningResult<Move, Score> &out,
+        AdversarialIterativeDeepeningIteration<Move, Score> &iteration,
+        const size_t depth, const size_t iteration_index)
     {
-      emit_trace<Move, Score>(
-        tracer, AdversarialTraceEventKind::Iteration_Begin, 0, depth, iteration_index, depth);
-
-      SearchLimits iteration_limits = limits;
-      iteration_limits.max_depth = depth;
-      engine.set_limits(iteration_limits);
-
-      AdversarialIterativeDeepeningIteration<Move, Score> iteration;
-      iteration.depth = depth;
-
       const bool use_aspiration = options.aspiration.enabled() and out.has_iterations();
       iteration.used_aspiration_window = use_aspiration;
 
@@ -913,8 +872,14 @@ template <AdversarialGameDomain Domain, typename Tracer>
 
       for (;;)
         {
-          const Score alpha = use_aspiration ? saturating_subtract(center, half_window) : full_alpha;
-          const Score beta = use_aspiration ? saturating_add(center, half_window) : full_beta;
+          const Score alpha
+            = use_aspiration
+                ? adversarial_search_detail::saturating_subtract(center, half_window)
+                : full_alpha;
+          const Score beta
+            = use_aspiration
+                ? adversarial_search_detail::saturating_add(center, half_window)
+                : full_beta;
 
           iteration.aspiration_alpha = alpha;
           iteration.aspiration_beta = beta;
@@ -929,18 +894,17 @@ template <AdversarialGameDomain Domain, typename Tracer>
             {
               ++iteration.aspiration_researches;
               ++out.aspiration_researches;
-              half_window = grow_aspiration_half_window(half_window, options.aspiration);
-              emit_trace<Move, Score>(tracer,
-                                      AdversarialTraceEventKind::Aspiration_Retry,
-                                      0,
-                                      depth,
-                                      iteration_index,
-                                      depth,
-                                      iteration.aspiration_researches,
-                                      iteration.result.value,
-                                      saturating_subtract(center, half_window),
-                                      saturating_add(center, half_window),
-                                      first_move_of(iteration.result.principal_variation));
+              half_window = adversarial_search_detail::grow_aspiration_half_window(
+                half_window, options.aspiration);
+              adversarial_search_detail::emit_trace<Move, Score>(
+                tracer,
+                AdversarialTraceEventKind::Aspiration_Retry,
+                0, depth, iteration_index, depth,
+                iteration.aspiration_researches,
+                iteration.result.value,
+                adversarial_search_detail::saturating_subtract(center, half_window),
+                adversarial_search_detail::saturating_add(center, half_window),
+                adversarial_search_detail::first_move_of(iteration.result.principal_variation));
               continue;
             }
 
@@ -948,56 +912,23 @@ template <AdversarialGameDomain Domain, typename Tracer>
             {
               ++iteration.aspiration_researches;
               ++out.aspiration_researches;
-              half_window = grow_aspiration_half_window(half_window, options.aspiration);
-              emit_trace<Move, Score>(tracer,
-                                      AdversarialTraceEventKind::Aspiration_Retry,
-                                      0,
-                                      depth,
-                                      iteration_index,
-                                      depth,
-                                      iteration.aspiration_researches,
-                                      iteration.result.value,
-                                      saturating_subtract(center, half_window),
-                                      saturating_add(center, half_window),
-                                      first_move_of(iteration.result.principal_variation));
+              half_window = adversarial_search_detail::grow_aspiration_half_window(
+                half_window, options.aspiration);
+              adversarial_search_detail::emit_trace<Move, Score>(
+                tracer,
+                AdversarialTraceEventKind::Aspiration_Retry,
+                0, depth, iteration_index, depth,
+                iteration.aspiration_researches,
+                iteration.result.value,
+                adversarial_search_detail::saturating_subtract(center, half_window),
+                adversarial_search_detail::saturating_add(center, half_window),
+                adversarial_search_detail::first_move_of(iteration.result.principal_variation));
               continue;
             }
 
           break;
         }
-
-      adversarial_search_detail::accumulate_adversarial_stats(out.total_stats, iteration.total_stats);
-      out.result = iteration.result;
-      out.iterations.append(iteration);
-      ++out.completed_iterations;
-
-      emit_trace<Move, Score>(tracer,
-                              AdversarialTraceEventKind::Iteration_End,
-                              0,
-                              depth,
-                              iteration_index,
-                              depth,
-                              iteration.aspiration_researches,
-                              iteration.result.value,
-                              iteration.aspiration_alpha,
-                              iteration.aspiration_beta,
-                              first_move_of(iteration.result.principal_variation),
-                              &iteration.result.principal_variation);
-
-      if (iteration.result.limit_reached() or depth == limits.max_depth)
-        break;
-
-      const size_t next_depth = depth > limits.max_depth - options.depth_step
-                                ? limits.max_depth
-                                : depth + options.depth_step;
-      if (next_depth == depth)
-        break;
-
-      depth = next_depth;
-      ++iteration_index;
-    }
-
-  return out;
+    });
 }
 
 /** @brief Iterative deepening over Alpha-Beta with TT/keyer reuse. */
@@ -1016,11 +947,6 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename
 {
   using Move = typename Domain::Move;
   using Score = typename Domain::Score;
-  using adversarial_search_detail::emit_trace;
-  using adversarial_search_detail::first_move_of;
-  using adversarial_search_detail::grow_aspiration_half_window;
-  using adversarial_search_detail::saturating_add;
-  using adversarial_search_detail::saturating_subtract;
 
   ah_invalid_argument_if(limits.max_depth == Search_Unlimited)
     << "iterative_deepening_alpha_beta_search requires a finite SearchLimits::max_depth";
@@ -1030,28 +956,15 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename
     << "AdversarialIterativeDeepeningOptions::initial_depth exceeds SearchLimits::max_depth";
 
   Alpha_Beta<Domain> engine(std::move(domain), policy, limits);
-  AdversarialIterativeDeepeningResult<Move, Score> out;
-  out.result.policy = policy;
-  out.result.limits = limits;
-  out.iterations.reserve((limits.max_depth - options.initial_depth) / options.depth_step + 1);
-
   const Score full_alpha = adversarial_search_detail::score_floor<Score>();
   const Score full_beta = adversarial_search_detail::score_ceiling<Score>();
 
-  size_t depth = options.initial_depth;
-  size_t iteration_index = 0;
-  for (;;)
+  return adversarial_search_detail::run_iterative_deepening<Move, Score>(
+    engine, policy, limits, options, tracer,
+    [&](AdversarialIterativeDeepeningResult<Move, Score> &out,
+        AdversarialIterativeDeepeningIteration<Move, Score> &iteration,
+        const size_t depth, const size_t iteration_index)
     {
-      emit_trace<Move, Score>(
-        tracer, AdversarialTraceEventKind::Iteration_Begin, 0, depth, iteration_index, depth);
-
-      SearchLimits iteration_limits = limits;
-      iteration_limits.max_depth = depth;
-      engine.set_limits(iteration_limits);
-
-      AdversarialIterativeDeepeningIteration<Move, Score> iteration;
-      iteration.depth = depth;
-
       const bool use_aspiration = options.aspiration.enabled() and out.has_iterations();
       iteration.used_aspiration_window = use_aspiration;
 
@@ -1062,8 +975,14 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename
 
       for (;;)
         {
-          const Score alpha = use_aspiration ? saturating_subtract(center, half_window) : full_alpha;
-          const Score beta = use_aspiration ? saturating_add(center, half_window) : full_beta;
+          const Score alpha
+            = use_aspiration
+                ? adversarial_search_detail::saturating_subtract(center, half_window)
+                : full_alpha;
+          const Score beta
+            = use_aspiration
+                ? adversarial_search_detail::saturating_add(center, half_window)
+                : full_beta;
 
           iteration.aspiration_alpha = alpha;
           iteration.aspiration_beta = beta;
@@ -1079,18 +998,17 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename
             {
               ++iteration.aspiration_researches;
               ++out.aspiration_researches;
-              half_window = grow_aspiration_half_window(half_window, options.aspiration);
-              emit_trace<Move, Score>(tracer,
-                                      AdversarialTraceEventKind::Aspiration_Retry,
-                                      0,
-                                      depth,
-                                      iteration_index,
-                                      depth,
-                                      iteration.aspiration_researches,
-                                      iteration.result.value,
-                                      saturating_subtract(center, half_window),
-                                      saturating_add(center, half_window),
-                                      first_move_of(iteration.result.principal_variation));
+              half_window = adversarial_search_detail::grow_aspiration_half_window(
+                half_window, options.aspiration);
+              adversarial_search_detail::emit_trace<Move, Score>(
+                tracer,
+                AdversarialTraceEventKind::Aspiration_Retry,
+                0, depth, iteration_index, depth,
+                iteration.aspiration_researches,
+                iteration.result.value,
+                adversarial_search_detail::saturating_subtract(center, half_window),
+                adversarial_search_detail::saturating_add(center, half_window),
+                adversarial_search_detail::first_move_of(iteration.result.principal_variation));
               continue;
             }
 
@@ -1098,56 +1016,23 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename
             {
               ++iteration.aspiration_researches;
               ++out.aspiration_researches;
-              half_window = grow_aspiration_half_window(half_window, options.aspiration);
-              emit_trace<Move, Score>(tracer,
-                                      AdversarialTraceEventKind::Aspiration_Retry,
-                                      0,
-                                      depth,
-                                      iteration_index,
-                                      depth,
-                                      iteration.aspiration_researches,
-                                      iteration.result.value,
-                                      saturating_subtract(center, half_window),
-                                      saturating_add(center, half_window),
-                                      first_move_of(iteration.result.principal_variation));
+              half_window = adversarial_search_detail::grow_aspiration_half_window(
+                half_window, options.aspiration);
+              adversarial_search_detail::emit_trace<Move, Score>(
+                tracer,
+                AdversarialTraceEventKind::Aspiration_Retry,
+                0, depth, iteration_index, depth,
+                iteration.aspiration_researches,
+                iteration.result.value,
+                adversarial_search_detail::saturating_subtract(center, half_window),
+                adversarial_search_detail::saturating_add(center, half_window),
+                adversarial_search_detail::first_move_of(iteration.result.principal_variation));
               continue;
             }
 
           break;
         }
-
-      adversarial_search_detail::accumulate_adversarial_stats(out.total_stats, iteration.total_stats);
-      out.result = iteration.result;
-      out.iterations.append(iteration);
-      ++out.completed_iterations;
-
-      emit_trace<Move, Score>(tracer,
-                              AdversarialTraceEventKind::Iteration_End,
-                              0,
-                              depth,
-                              iteration_index,
-                              depth,
-                              iteration.aspiration_researches,
-                              iteration.result.value,
-                              iteration.aspiration_alpha,
-                              iteration.aspiration_beta,
-                              first_move_of(iteration.result.principal_variation),
-                              &iteration.result.principal_variation);
-
-      if (iteration.result.limit_reached() or depth == limits.max_depth)
-        break;
-
-      const size_t next_depth = depth > limits.max_depth - options.depth_step
-                                ? limits.max_depth
-                                : depth + options.depth_step;
-      if (next_depth == depth)
-        break;
-
-      depth = next_depth;
-      ++iteration_index;
-    }
-
-  return out;
+    });
 }
 
 /** @brief Iterative deepening over Alpha-Beta using `domain.state_key()`. */

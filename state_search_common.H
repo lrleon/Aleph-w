@@ -627,6 +627,134 @@ struct SearchResult
   }
 };
 
+/** @brief Shared helper utilities used internally by all search engines.
+ *
+ *  These functions encapsulate the optional-hook dispatch and common
+ *  bookkeeping that was previously duplicated across `state_search_detail`,
+ *  `branch_and_bound_detail`, and `adversarial_search_detail`. Engines should
+ *  call these helpers instead of re-implementing the same logic locally.
+ */
+namespace search_engine_detail {
+
+/** @brief Dispatch helper for the optional `is_terminal` hook.
+ *
+ *  Returns `true` if `Domain` satisfies @ref Aleph::TerminalPredicate and the
+ *  domain reports the state as a non-goal dead end. Returns `false`
+ *  unconditionally when the domain does not expose `is_terminal`.
+ *
+ *  @tparam Domain Problem-domain type.
+ *  @param  domain Domain adapter (const reference).
+ *  @param  state  Current search state.
+ */
+template <typename Domain>
+[[nodiscard]] bool is_terminal_state(const Domain &domain,
+                                     const typename Domain::State &state)
+{
+  if constexpr (TerminalPredicate<Domain>)
+    return domain.is_terminal(state);
+  else
+    return false;
+}
+
+/** @brief Dispatch helper for the optional `should_prune` hook.
+ *
+ *  Returns `true` if `Domain` satisfies @ref Aleph::DomainPruner and the
+ *  domain requests an early cutoff of the current state. Returns `false`
+ *  when the domain does not expose `should_prune`.
+ *
+ *  @tparam Domain Problem-domain type.
+ *  @param  domain Domain adapter.
+ *  @param  state  Current search state.
+ *  @param  depth  Current search depth.
+ */
+template <typename Domain>
+[[nodiscard]] bool should_prune_state(Domain &domain,
+                                      const typename Domain::State &state,
+                                      const size_t depth)
+{
+  if constexpr (DomainPruner<Domain>)
+    return domain.should_prune(state, depth);
+  else
+    return false;
+}
+
+/** @brief Update visit counters and max-depth statistic.
+ *
+ *  Must be called once per node entry by any search engine.
+ *
+ *  @tparam Result Search-result type that owns a @ref SearchStats member.
+ *  @param  depth  Current search depth.
+ *  @param  result Result object whose statistics are updated in-place.
+ */
+template <typename Result>
+void register_visit(const size_t depth, Result &result)
+{
+  ++result.stats.visited_states;
+  if (depth > result.stats.max_depth_reached)
+    result.stats.max_depth_reached = depth;
+}
+
+/** @brief Check whether the expansion limit has been reached.
+ *
+ *  Marks the result as @ref SearchStatus::LimitReached and increments the
+ *  limit-hit counter when the number of expanded states meets or exceeds the
+ *  configured maximum. Engines that need additional side-effects (e.g., setting
+ *  an internal `stop_` flag) should perform them after this call returns `true`.
+ *
+ *  @tparam Result Search-result type that owns a @ref SearchStats member.
+ *  @param  result Result object to inspect and update.
+ *  @param  limits Hard bounds for the current run.
+ *  @return `true` if the limit has been reached; `false` otherwise.
+ */
+template <typename Result>
+[[nodiscard]] bool expansion_limit_reached(Result &result, const SearchLimits &limits)
+{
+  if (result.stats.expanded_states >= limits.max_expansions)
+    {
+      ++result.stats.limit_hits;
+      result.status = SearchStatus::LimitReached;
+      return true;
+    }
+
+  return false;
+}
+
+/** @brief Decide whether to stop the search after a solution was accepted.
+ *
+ *  Returns `true` (and updates `result.status`) in two cases:
+ *  - the policy requests stopping at the first solution, or
+ *  - the configured maximum number of solutions has been reached.
+ *
+ *  @tparam Result Search-result type that owns a @ref SearchStats member.
+ *  @param  result Result object to update.
+ *  @param  policy Exploration policy for the current run.
+ *  @param  limits Hard bounds for the current run.
+ *  @return `true` if the engine should stop; `false` to keep searching.
+ */
+template <typename Result>
+[[nodiscard]] bool stop_after_solution(Result &result,
+                                       const ExplorationPolicy &policy,
+                                       const SearchLimits &limits)
+{
+  if (policy.stop_at_first_solution)
+    {
+      result.status = SearchStatus::StoppedOnSolution;
+      return true;
+    }
+
+  if (limits.max_solutions != Search_Unlimited
+      and result.stats.solutions_found >= limits.max_solutions)
+    {
+      ++result.stats.limit_hits;
+      result.status = SearchStatus::LimitReached;
+      return true;
+    }
+
+  return false;
+}
+
+}  // end namespace search_engine_detail
+
 }  // end namespace Aleph
 
 # endif  // STATE_SEARCH_COMMON_H

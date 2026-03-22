@@ -284,29 +284,6 @@ and requires(Domain &domain, typename Domain::State &state, const typename Domai
       { domain.undo(state, move) } -> std::same_as<void>;
     };
 
-namespace branch_and_bound_detail {
-
-template <typename Domain>
-[[nodiscard]] bool is_terminal_state(const Domain &domain, const typename Domain::State &state)
-{
-  if constexpr (TerminalPredicate<Domain>)
-    return domain.is_terminal(state);
-  else
-    return false;
-}
-
-template <typename Domain>
-[[nodiscard]] bool should_prune_state(Domain &domain,
-                                      const typename Domain::State &state,
-                                      const size_t depth)
-{
-  if constexpr (DomainPruner<Domain>)
-    return domain.should_prune(state, depth);
-  else
-    return false;
-}
-
-}  // end namespace branch_and_bound_detail
 
 /** @brief Reusable branch-and-bound engine over implicit state spaces.
  *
@@ -535,6 +512,55 @@ private:
   SearchLimits limits_;
   ObjectivePolicy objective_;
 
+  /** @brief Apply one move, recurse, then undo — shared by `dfs` and `dfs_visited`.
+   *
+   *  Captures the common try/catch pattern that protects `undo` and the path
+   *  rollback against exceptions thrown during `apply`, recursion or tracing.
+   *
+   *  @tparam Recurse  Callable `() -> bool` that performs the recursive descent
+   *                   after the move has been applied and appended to `path`.
+   *  @param  move     Move to apply and undo.
+   *  @param  state    Mutable search state (modified in-place).
+   *  @param  path     Current move path (extended and restored in-place).
+   *  @param  result   Result object whose statistics are updated in-place.
+   *  @param  stop     Out-parameter set by the recursive call; `true` signals
+   *                   an early stop propagated upward.
+   *  @param  recurse  Callable invoked after `apply`; its return value is
+   *                   stored in `stop`.
+   *  @return `true` to continue sibling enumeration; `false` to stop.
+   */
+  template <typename Recurse>
+  [[nodiscard]] bool apply_move_and_recurse(const Move &move,
+                                            State &state,
+                                            SearchPath<Move> &path,
+                                            Result &result,
+                                            bool &stop,
+                                            Recurse &&recurse)
+  {
+    ++result.stats.generated_successors;
+    bool applied = false;
+    bool path_appended = false;
+    try
+      {
+        domain_.apply(state, move);
+        applied = true;
+        path.append(move);
+        path_appended = true;
+        stop = std::forward<Recurse>(recurse)();
+      }
+    catch (...)
+      {
+        if (path_appended)
+          (void) path.remove_last();
+        if (applied)
+          domain_.undo(state, move);
+        throw;
+      }
+    (void) path.remove_last();
+    domain_.undo(state, move);
+    return not stop;
+  }
+
   [[nodiscard]] bool ordering_active_for_depth_first() const noexcept
   {
     return policy_.move_ordering == MoveOrderingMode::Estimated_Bound;
@@ -552,40 +578,17 @@ private:
 
   [[nodiscard]] bool stop_after_solution(Result &result) const
   {
-    if (policy_.stop_at_first_solution)
-      {
-        result.status = SearchStatus::StoppedOnSolution;
-        return true;
-      }
-
-    if (limits_.max_solutions != Search_Unlimited
-        and result.stats.solutions_found >= limits_.max_solutions)
-      {
-        ++result.stats.limit_hits;
-        result.status = SearchStatus::LimitReached;
-        return true;
-      }
-
-    return false;
+    return search_engine_detail::stop_after_solution(result, policy_, limits_);
   }
 
   [[nodiscard]] bool expansion_limit_reached(Result &result) const
   {
-    if (result.stats.expanded_states >= limits_.max_expansions)
-      {
-        ++result.stats.limit_hits;
-        result.status = SearchStatus::LimitReached;
-        return true;
-      }
-
-    return false;
+    return search_engine_detail::expansion_limit_reached(result, limits_);
   }
 
   static void register_visit(const size_t depth, Result &result)
   {
-    ++result.stats.visited_states;
-    if (depth > result.stats.max_depth_reached)
-      result.stats.max_depth_reached = depth;
+    search_engine_detail::register_visit(depth, result);
   }
 
   [[nodiscard]] Array<RankedMove<Move, Objective>> collect_ordered_moves(State &state, Result &result)
@@ -675,7 +678,7 @@ private:
     if (domain_.is_complete(state))
       return handle_complete_solution(state, path, depth, result, on_solution);
 
-    if (branch_and_bound_detail::is_terminal_state(domain_, state))
+    if (search_engine_detail::is_terminal_state(domain_, state))
       {
         ++result.stats.terminal_states;
         return false;
@@ -687,7 +690,7 @@ private:
         return false;
       }
 
-    if (branch_and_bound_detail::should_prune_state(domain_, state, depth))
+    if (search_engine_detail::should_prune_state(domain_, state, depth))
       {
         ++result.stats.pruned_by_domain;
         return false;
@@ -709,28 +712,8 @@ private:
 
     auto explore_move = [&](const Move &move) -> bool
     {
-      ++result.stats.generated_successors;
-      bool applied = false;
-      bool path_appended = false;
-      try
-        {
-          domain_.apply(state, move);
-          applied = true;
-          path.append(move);
-          path_appended = true;
-          stop = dfs(state, path, depth + 1, result, on_solution);
-        }
-      catch (...)
-        {
-          if (path_appended)
-            (void) path.remove_last();
-          if (applied)
-            domain_.undo(state, move);
-          throw;
-        }
-      (void) path.remove_last();
-      domain_.undo(state, move);
-      return not stop;
+      return apply_move_and_recurse(move, state, path, result, stop,
+        [&]() { return dfs(state, path, depth + 1, result, on_solution); });
     };
 
     if (ordering_active_for_depth_first())
@@ -778,7 +761,7 @@ private:
     if (domain_.is_complete(state))
       return handle_complete_solution(state, path, depth, result, on_solution);
 
-    if (branch_and_bound_detail::is_terminal_state(domain_, state))
+    if (search_engine_detail::is_terminal_state(domain_, state))
       {
         ++result.stats.terminal_states;
         return false;
@@ -790,7 +773,7 @@ private:
         return false;
       }
 
-    if (branch_and_bound_detail::should_prune_state(domain_, state, depth))
+    if (search_engine_detail::should_prune_state(domain_, state, depth))
       {
         ++result.stats.pruned_by_domain;
         return false;
@@ -840,28 +823,8 @@ private:
       {
         auto explore_move = [&](const Move &move) -> bool
         {
-          ++result.stats.generated_successors;
-          bool applied = false;
-          bool path_appended = false;
-          try
-            {
-              domain_.apply(state, move);
-              applied = true;
-              path.append(move);
-              path_appended = true;
-              stop = dfs_visited(state, path, depth + 1, result, on_solution, visited);
-            }
-          catch (...)
-            {
-              if (path_appended)
-                (void) path.remove_last();
-              if (applied)
-                domain_.undo(state, move);
-              throw;
-            }
-          (void) path.remove_last();
-          domain_.undo(state, move);
-          return not stop;
+          return apply_move_and_recurse(move, state, path, result, stop,
+            [&]() { return dfs_visited(state, path, depth + 1, result, on_solution, visited); });
         };
 
         if (ordering_active_for_depth_first())
@@ -901,7 +864,7 @@ private:
     if (domain_.is_complete(state))
       return handle_complete_solution(state, path, depth, result, on_solution);
 
-    if (branch_and_bound_detail::is_terminal_state(domain_, state))
+    if (search_engine_detail::is_terminal_state(domain_, state))
       {
         ++result.stats.terminal_states;
         return false;
@@ -913,7 +876,7 @@ private:
         return false;
       }
 
-    if (branch_and_bound_detail::should_prune_state(domain_, state, depth))
+    if (search_engine_detail::should_prune_state(domain_, state, depth))
       {
         ++result.stats.pruned_by_domain;
         return false;
