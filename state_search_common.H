@@ -162,8 +162,9 @@ concept VisitedStateSet = requires(Set &set, const Key &key) {
 template <typename Map, typename Key, typename Objective>
 concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &obj) {
   map.insert(key, obj);
-  { map.search(key) } -> std::convertible_to<std::pair<Key, Objective> *>;
   map.remove(key);
+  { map.search(key) == nullptr } -> std::convertible_to<bool>;
+  map.search(key)->second = obj;
 };
 
 /** @brief Counters collected during a search run. */

@@ -712,8 +712,11 @@ namespace Aleph
 
       /** @brief Returns the current bucket without exception.
        *
-       *  @pre `has_curr()` must be true.
-       *  @return Pointer to the current bucket, or `nullptr` if `has_curr()` is false.
+       *  If `has_curr()` is true, returns a pointer to the current bucket.
+       *  Otherwise, returns `nullptr`.
+       *
+       *  @return Pointer to the current bucket, or `nullptr` if there is no
+       *          current bucket (i.e., `has_curr()` is false).
        */
       Bucket * get_curr_ne() noexcept
       {

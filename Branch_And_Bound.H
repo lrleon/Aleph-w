@@ -830,10 +830,7 @@ private:
     };
 
     if (expansion_limit_reached(result))
-      {
-        rollback_visited();
-        return true;
-      }
+      return true;
 
     ++result.stats.expanded_states;
 
@@ -887,7 +884,6 @@ private:
         throw;
       }
 
-    rollback_visited();
     return stop;
   }
 

@@ -196,6 +196,16 @@ struct ArtificialMaxBadOrderDomain
   }
 };
 
+struct ArtificialMaxVisitedDomain : ArtificialMaxDomain
+{
+  using State_Key = int;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.code;
+  }
+};
+
 struct ArtificialMinDomain
 {
   using State = ArtificialState;
@@ -542,6 +552,7 @@ struct ThrowingApplyVisitedBBDomain : ThrowingApplyBBDomain
 };
 
 static_assert(BranchAndBoundDomain<ArtificialMaxDomain>);
+static_assert(SearchStateKeyProvider<ArtificialMaxVisitedDomain>);
 static_assert(BranchAndBoundDomain<ArtificialMinDomain>);
 static_assert(BranchAndBoundDomain<KnapsackBBDomain>);
 static_assert(BranchAndBoundDomain<AssignmentBBDomain>);
@@ -613,6 +624,19 @@ TEST(BranchAndBoundFramework, ArtificialMaximizationPrunesByBound)
   EXPECT_EQ(result.stats.pruned_by_bound, 1u);
   EXPECT_EQ(result.stats.incumbent_updates, 2u);
   EXPECT_EQ(collector.size(), 2u);
+}
+
+TEST(BranchAndBoundFramework, VisitedMapSearchKeepsRecordedBoundsOnSuccess)
+{
+  ArtificialMaxVisitedDomain domain;
+  Branch_And_Bound<ArtificialMaxVisitedDomain> engine(domain);
+  SearchStorageMap<int, int> visited;
+
+  auto result = engine.search(ArtificialState{}, visited);
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_NE(visited.search(1), nullptr);
+  EXPECT_NE(visited.search(2), nullptr);
 }
 
 TEST(BranchAndBoundFramework, ArtificialMinimizationWorksWithBestFirst)
@@ -696,6 +720,11 @@ TEST(BranchAndBoundFramework, ApplyExceptionDuringVisitedDepthFirstDoesNotCallUn
 
 struct ThrowingPostApplyDomain : ThrowingApplyBBDomain
 {
+  bool is_complete(const State &) const
+  {
+    return false;
+  }
+
   void apply(State &state, const Move &move) const
   {
     (void) move;

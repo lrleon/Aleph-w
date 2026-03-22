@@ -35,6 +35,7 @@
 
 #include <gtest/gtest.h>
 
+#include <ah-errors.H>
 #include <State_Search.H>
 #include <State_Search_IDA_Star.H>
 
@@ -422,7 +423,7 @@ struct ThrowingApplyIDADomain
   void apply(State &state, const Move &) const
   {
     (void) state;
-    throw std::runtime_error("apply failed");
+    ah_runtime_error() << "apply failed";
   }
 
   void undo(State &state, const Move &) const
@@ -451,6 +452,72 @@ struct ThrowingApplyIDADomain
   }
 };
 
+struct ThrowingPostApplyIDAState
+{
+  std::shared_ptr<bool> undo_called;
+  size_t node = 0;
+};
+
+struct ThrowingPostApplyIDADomain
+{
+  struct Move
+  {
+    size_t to = 1;
+    int cost = 1;
+  };
+
+  using State = ThrowingPostApplyIDAState;
+  using State_Key = std::uint64_t;
+  using Distance = int;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+
+  [[nodiscard]] bool is_goal(const State &) const noexcept
+  {
+    return false;
+  }
+
+  [[nodiscard]] bool is_terminal(const State &state) const noexcept
+  {
+    return state.node != 0;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.node = move.to;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    *state.undo_called = true;
+    state.node = 0;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.node != 0)
+      return true;
+
+    return visit(Move{1, 1});
+  }
+
+  [[nodiscard]] Distance heuristic(const State &state) const
+  {
+    if (state.node == 1)
+      ah_runtime_error() << "post-apply heuristic failed";
+    return 0;
+  }
+
+  [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
+  {
+    return move.cost;
+  }
+};
+
 static_assert(SearchState<ArtificialDecisionTreeDomain::State>);
 static_assert(SearchMove<ArtificialDecisionTreeDomain::Move>);
 static_assert(BacktrackingDomain<ArtificialDecisionTreeDomain>);
@@ -468,6 +535,7 @@ static_assert(DomainPruner<SubsetSumDomain>);
 
 static_assert(IDAStarDomain<TinyIDAStarDomain>);
 static_assert(IDAStarDomain<ThrowingApplyIDADomain>);
+static_assert(IDAStarDomain<ThrowingPostApplyIDADomain>);
 
 template <typename Move>
 std::string path_signature(const SearchPath<Move> &path)
@@ -781,6 +849,16 @@ TEST(StateSearchFramework, IDAStarApplyExceptionDoesNotCallUndo)
 
   EXPECT_THROW((void) engine.search(ThrowingApplyIDAState{undo_called, 0}), std::runtime_error);
   EXPECT_FALSE(*undo_called);
+}
+
+TEST(StateSearchFramework, IDAStarPostApplyExceptionCallsUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingPostApplyIDADomain domain;
+  IDA_Star_State_Search<ThrowingPostApplyIDADomain> engine(domain);
+
+  EXPECT_THROW((void) engine.search(ThrowingPostApplyIDAState{undo_called, 0}), std::runtime_error);
+  EXPECT_TRUE(*undo_called);
 }
 
 // ---------------------------------------------------------------------------
@@ -1253,6 +1331,25 @@ TEST(StateSearchFramework, IDAStarZeroCostEdgesFindsGoal)
   ASSERT_TRUE(result.found_solution());
   EXPECT_EQ(result.total_cost, 0);
   EXPECT_EQ(result.stats.solutions_found, 1u);
+}
+
+// NQueens n=1: trivial single-queen problem — should find exactly 1 solution.
+TEST(StateSearchFramework, NQueensN0EmptyBoardHasOneEmptySolution)
+{
+  NQueensDomain domain{0};
+  ExplorationPolicy policy;
+  policy.stop_at_first_solution = false;
+
+  Depth_First_Backtracking<NQueensDomain> engine(domain, policy);
+  SearchSolutionCollector<Depth_First_Backtracking<NQueensDomain>::Solution> collector;
+
+  auto result = engine.search(NQueensState(0), collector);
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_TRUE(result.exhausted());
+  EXPECT_EQ(result.stats.solutions_found, 1u);
+  EXPECT_EQ(collector.size(), 1u);
+  EXPECT_EQ(nqueens_signature(result.best_solution.get().state), "");
 }
 
 // NQueens n=1: trivial single-queen problem — should find exactly 1 solution.
