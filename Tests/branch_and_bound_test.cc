@@ -698,6 +698,7 @@ struct ThrowingPostApplyDomain : ThrowingApplyBBDomain
 {
   void apply(State &state, const Move &move) const
   {
+    (void) move;
     state.node = 1; // succeed
   }
 

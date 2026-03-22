@@ -689,13 +689,13 @@ TEST(DynLhashTableStress, InterleavedInsertRemove)
 TEST_F(DynLhashTableTest, IteratorSafety)
 {
   // Test empty table iterator
-  LhashTable<int>::Iterator it(table);
+  DynLhashTable<int, std::string>::Iterator it(table);
   EXPECT_FALSE(it.has_curr());
   EXPECT_EQ(it.get_curr_ne(), nullptr);
 
   // Test iterator at the end
   table.insert(1, "one");
-  LhashTable<int>::Iterator it2(table);
+  DynLhashTable<int, std::string>::Iterator it2(table);
   ASSERT_TRUE(it2.has_curr());
   it2.next();
   EXPECT_FALSE(it2.has_curr());
