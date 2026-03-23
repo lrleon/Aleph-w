@@ -661,7 +661,9 @@ void store_adversarial_transposition(State &state,
       entry.principal_variation = value.principal_variation;
 
       const auto status = table.store(typename Table::Key_Type{keyer(state), remaining}, entry);
-      if (status != TranspositionStoreStatus::Rejected)
+      if (status == TranspositionStoreStatus::Rejected)
+        ++result.stats.transpositions.rejected_updates;
+      else
         ++result.stats.transpositions.stores;
       if (status == TranspositionStoreStatus::Replaced)
         ++result.stats.transpositions.replacements;
@@ -767,9 +769,6 @@ run_iterative_deepening(Engine &engine,
       std::forward<RunOneIteration>(run_one_iteration)(out, iteration, depth, iteration_index);
 
       accumulate_adversarial_stats(out.total_stats, iteration.total_stats);
-      out.result = iteration.result;
-      out.iterations.append(iteration);
-      ++out.completed_iterations;
 
       emit_trace<Move, Score>(tracer,
                               AdversarialTraceEventKind::Iteration_End,
@@ -786,6 +785,10 @@ run_iterative_deepening(Engine &engine,
 
       if (iteration.result.limit_reached() or depth == limits.max_depth)
         break;
+
+      out.result = iteration.result;
+      out.iterations.append(iteration);
+      ++out.completed_iterations;
 
       const size_t next_depth = depth > limits.max_depth - options.depth_step
                                 ? limits.max_depth
@@ -939,9 +942,9 @@ public:
   }
 
   /** @brief Execute Negamax with a transposition table using `domain().state_key()`. */
-  template <typename Table>
-    requires SearchStateKeyProvider<Domain>
-         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+  template <typename Table, typename D_ = Domain>
+    requires SearchStateKeyProvider<D_>
+         and AdversarialTranspositionMemo<Table, typename D_::State_Key, Move, Score>
   [[nodiscard]] Result search(State initial_state, Table &table)
   {
     Null_Adversarial_Search_Tracer tracer;
@@ -954,9 +957,9 @@ public:
   }
 
   /** @brief Execute Negamax with domain-provided key and a trace sink. */
-  template <typename Table, typename Tracer>
-    requires SearchStateKeyProvider<Domain>
-         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+  template <typename Table, typename Tracer, typename D_ = Domain>
+    requires SearchStateKeyProvider<D_>
+         and AdversarialTranspositionMemo<Table, typename D_::State_Key, Move, Score>
          and AdversarialSearchTracer<Tracer, Move, Score>
   [[nodiscard]] Result search(State initial_state, Table &table, Tracer &tracer)
   {

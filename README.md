@@ -3619,14 +3619,15 @@ adversarial Negamax/Alpha-Beta).
   search paths and concept helpers for implicit trees/DAGs with lazy successor
   generation and make/unmake contracts.
 - `Backtracking.H` – depth-first search with goal detection and incremental
-  evaluation hooks. Supports optional visited-set (cycle detection) via
-  `SearchStorageSet`.
+  evaluation hooks. Supports optional depth-aware visited container
+  (`VisitedBoundMap<..., size_t>`) for cycle detection; the set-based flow is
+  available via the `Search` facade in `State_Search.H`.
 - `Branch_And_Bound.H` – incumbents, optimistic bounds, DFS/best-first
   strategies and optional child ordering. Supports optional visited map.
 - `Negamax.H` / `Alpha_Beta.H` – adversarial zero-sum search with optional move
   ordering (killer/history heuristics), transposition-table support,
   principal-variation tracking, and iterative deepening with aspiration windows.
-- `State_Search_IDA_Star.H` – IDA* (Iterative Deepening A*) combining the
+- `State_Search_IDA_Star.H` – IDA\* (Iterative Deepening A\*) combining the
   memory efficiency of DFS with the optimality guarantees of A* for admissible
   heuristics.
 - `Transposition_Table.H` – reusable Aleph hash-backed cache serving the
@@ -3639,7 +3640,7 @@ adversarial Negamax/Alpha-Beta).
 ### Docs, examples and tests
 
 - [docs/algorithm_selection_guide.md](docs/algorithm_selection_guide.md) – decision
-  flowchart and comparison table to choose between DFS, Branch & Bound, IDA*, Negamax
+  flowchart and comparison table to choose between DFS, Branch & Bound, IDA\*, Negamax
   and Alpha-Beta for your problem.
 - [docs/state_search_v1.md](docs/state_search_v1.md) – architecture summary,
   benchmark methodology, profiling notes and the v2 roadmap.

@@ -241,9 +241,9 @@ public:
   }
 
   /** @brief Execute Alpha-Beta with a transposition table using `domain().state_key()`. */
-  template <typename Table>
-    requires SearchStateKeyProvider<Domain>
-         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+  template <typename Table, typename D_ = Domain>
+    requires SearchStateKeyProvider<D_>
+         and AdversarialTranspositionMemo<Table, typename D_::State_Key, Move, Score>
   [[nodiscard]] Result search(State initial_state, Table &table)
   {
     Null_Adversarial_Search_Tracer tracer;
@@ -261,9 +261,9 @@ public:
   }
 
   /** @brief Execute Alpha-Beta with domain-provided key and tracing. */
-  template <typename Table, typename Tracer>
-    requires SearchStateKeyProvider<Domain>
-         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+  template <typename Table, typename Tracer, typename D_ = Domain>
+    requires SearchStateKeyProvider<D_>
+         and AdversarialTranspositionMemo<Table, typename D_::State_Key, Move, Score>
          and AdversarialSearchTracer<Tracer, Move, Score>
   [[nodiscard]] Result search(State initial_state, Table &table, Tracer &tracer)
   {
@@ -281,9 +281,9 @@ public:
   }
 
   /** @brief Execute Alpha-Beta with domain-provided key and explicit root window. */
-  template <typename Table>
-    requires SearchStateKeyProvider<Domain>
-         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+  template <typename Table, typename D_ = Domain>
+    requires SearchStateKeyProvider<D_>
+         and AdversarialTranspositionMemo<Table, typename D_::State_Key, Move, Score>
   [[nodiscard]] Result search_with_window(State initial_state,
                                           Table &table,
                                           const Score alpha,
@@ -299,9 +299,9 @@ public:
   }
 
   /** @brief Execute Alpha-Beta with domain-provided key, root window and tracing. */
-  template <typename Table, typename Tracer>
-    requires SearchStateKeyProvider<Domain>
-         and AdversarialTranspositionMemo<Table, typename Domain::State_Key, Move, Score>
+  template <typename Table, typename Tracer, typename D_ = Domain>
+    requires SearchStateKeyProvider<D_>
+         and AdversarialTranspositionMemo<Table, typename D_::State_Key, Move, Score>
          and AdversarialSearchTracer<Tracer, Move, Score>
   [[nodiscard]] Result search_with_window(
     State initial_state, Table &table, const Score alpha, const Score beta, Tracer &tracer)

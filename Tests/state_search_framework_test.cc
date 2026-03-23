@@ -1418,12 +1418,12 @@ struct NoPathIDADomain
   struct Move
   {
     size_t to = 0;
-    int cost = 1;
+    double cost = 1.0;
   };
 
   using State = TinyIDAStarState;
   using State_Key = size_t;
-  using Distance = int;
+  using Distance = double;
 
   [[nodiscard]] State_Key state_key(const State &state) const noexcept
   {
@@ -1461,7 +1461,7 @@ struct NoPathIDADomain
 
   [[nodiscard]] Distance heuristic(const State &) const noexcept
   {
-    return 1;  // admissible: never overestimates for unreachable goal
+    return 1.0;  // admissible: never overestimates for unreachable goal
   }
 
   [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
@@ -1484,12 +1484,12 @@ struct InadmissibleHeuristicDomain
   struct Move
   {
     size_t to = 0;
-    int cost = 1;
+    double cost = 1.0;
   };
 
   using State = TinyIDAStarState;
   using State_Key = size_t;
-  using Distance = int;
+  using Distance = double;
 
   [[nodiscard]] State_Key state_key(const State &state) const noexcept
   {
@@ -1529,7 +1529,7 @@ struct InadmissibleHeuristicDomain
   [[nodiscard]] Distance heuristic(const State &state) const noexcept
   {
     // Massively inadmissible for non-goal nodes.
-    return state.node == 2 ? 0 : 100;
+    return state.node == 2 ? 0.0 : 100.0;
   }
 
   [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
@@ -1561,5 +1561,5 @@ TEST(StateSearchFramework, IDAStarInadmissibleHeuristicStillFindsGoal)
   // With an inadmissible heuristic IDA* is no longer guaranteed optimal,
   // but it must still find a solution if one exists.
   ASSERT_TRUE(result.found_solution());
-  EXPECT_GT(result.total_cost, 0);
+  EXPECT_DOUBLE_EQ(result.total_cost, 2.0);
 }

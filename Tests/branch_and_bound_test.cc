@@ -590,6 +590,97 @@ int brute_assignment_cost(const Array<Array<int>> &costs,
   return best;
 }
 
+// ---------------------------------------------------------------------------
+// Domain with IncrementalBoundProvider (bound_after) to exercise the fast
+// path in Branch_And_Bound::collect_ordered_moves.
+// Same tree shape as ArtificialMaxDomain.
+// ---------------------------------------------------------------------------
+struct IncrementalBoundDomain
+{
+  using State = ArtificialState;
+  using Move = ArtificialMove;
+  using Objective = int;
+
+  mutable size_t bound_after_calls = 0;
+  mutable size_t apply_calls = 0;
+
+  bool is_complete(const State &state) const
+  {
+    return state.depth == 2;
+  }
+
+  Objective objective_value(const State &state) const
+  {
+    return state.value;
+  }
+
+  Objective bound(const State &state) const
+  {
+    switch (state.code)
+      {
+      case 1: return 9;
+      case 2: return 9;
+      case 3: return 5;
+      default: return state.value;
+      }
+  }
+
+  Objective bound_after(const State &, const Move &move) const
+  {
+    ++bound_after_calls;
+    // Return the bound of the child state without mutating.
+    switch (move.target_code)
+      {
+      case 2: return 9;
+      case 3: return 5;
+      default: return move.delta;
+      }
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    ++apply_calls;
+    state.code = move.target_code;
+    state.value += move.delta;
+    ++state.depth;
+  }
+
+  void undo(State &state, const Move &move) const
+  {
+    --state.depth;
+    state.value -= move.delta;
+    state.code /= 2;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.depth >= 2)
+      return true;
+
+    switch (state.code)
+      {
+      case 1:
+        if (not visit(Move{2, 0, 'L'}))
+          return false;
+        return visit(Move{3, 0, 'R'});
+
+      case 2:
+        if (not visit(Move{4, 7, 'L'}))
+          return false;
+        return visit(Move{5, 9, 'R'});
+
+      case 3:
+        if (not visit(Move{6, 5, 'L'}))
+          return false;
+        return visit(Move{7, 4, 'R'});
+
+      default:
+        return true;
+      }
+  }
+};
+
 } // end namespace
 
 TEST(BranchAndBoundFramework, ObjectivePoliciesAndIncumbentConstruct)
@@ -955,4 +1046,29 @@ TEST(BranchAndBoundFramework, KnapsackCapacityZeroReturnsEmptySolution)
 
   ASSERT_TRUE(result.found_solution());
   EXPECT_DOUBLE_EQ(result.incumbent.best_value(), 0.0);
+}
+
+// ===========================================================================
+// H4: IncrementalBoundProvider fast path in collect_ordered_moves
+// ===========================================================================
+
+TEST(BranchAndBoundFramework, IncrementalBoundProviderUsedForOrdering)
+{
+  IncrementalBoundDomain domain;
+  ExplorationPolicy policy;
+  policy.move_ordering = MoveOrderingMode::Estimated_Bound;
+  policy.stop_at_first_solution = false;
+
+  Branch_And_Bound<IncrementalBoundDomain> engine(domain, policy);
+  auto result = engine.search(ArtificialState{});
+
+  // Same tree as ArtificialMaxDomain: optimal = 9.
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_EQ(result.incumbent.best_value(), 9);
+
+  // bound_after must have been called (fast path taken).
+  EXPECT_GT(engine.domain().bound_after_calls, 0u);
+
+  // Move ordering stats must reflect priority estimates.
+  EXPECT_GT(result.stats.move_ordering.priority_estimates, 0u);
 }

@@ -50,6 +50,7 @@
 # define STATE_SEARCH_IDA_STAR_H
 
 #include <limits>
+#include <type_traits>
 #include <utility>
 
 #include <ah-errors.H>

@@ -177,9 +177,13 @@ concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &ob
  *  mutation is expensive.
  *
  *  The expression `domain.bound_after(state, move)` must return a value
- *  convertible to `Domain::Objective` and must represent an optimistic upper
- *  bound on the best objective reachable by applying `move` to `state`,
- *  without altering `state`.
+ *  convertible to `Domain::Objective` and must represent an optimistic bound
+ *  on the best objective reachable by applying `move` to `state`, without
+ *  altering `state`.  The direction of the bound depends on the active
+ *  `ObjectivePolicy`: an upper bound for @ref Aleph::Maximize_Objective and
+ *  a lower bound for @ref Aleph::Minimize_Objective.  Implementers targeting
+ *  @ref Aleph::Branch_And_Bound should ensure the returned value is
+ *  consistent with the policy so that pruning remains correct.
  *
  *  @tparam Domain Branch-and-bound domain type.
  */
@@ -586,7 +590,7 @@ concept GoalPredicate = requires(Domain &d, const typename Domain::State &state)
 
 /** @brief Optional concept for explicit non-solution terminal states. */
 template <typename Domain>
-concept TerminalPredicate = requires(Domain &d, const typename Domain::State &state) {
+concept TerminalPredicate = requires(const Domain &d, const typename Domain::State &state) {
   { d.is_terminal(state) } -> std::convertible_to<bool>;
 };
 

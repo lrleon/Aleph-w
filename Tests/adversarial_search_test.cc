@@ -1115,6 +1115,96 @@ struct ExtremeScoreGameDomain
   }
 };
 
+// ---------------------------------------------------------------------------
+// Domain that satisfies IncrementalEvaluator (evaluate_after) so the fast
+// path in Alpha_Beta::collect_ordered_moves is exercised.
+// Reuses the ArtificialGameDomain tree shape and leaf values.
+// ---------------------------------------------------------------------------
+class IncrementalEvalGameDomain
+{
+public:
+  using State = ArtificialGameState;
+  using Move = ArtificialGameMove;
+  using Score = int;
+
+  mutable size_t evaluate_after_calls = 0;
+
+  bool is_terminal(const State &state) const
+  {
+    return state.depth == 2;
+  }
+
+  Score evaluate(const State &state) const
+  {
+    return root_score(state.code) * state.player;
+  }
+
+  Score evaluate_after(const State &state, const Move &move) const
+  {
+    ++evaluate_after_calls;
+    // Compute child score without mutating state: simulate apply then evaluate.
+    const int child_player = -state.player;
+    return root_score(move.next_code) * child_player;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.code = move.next_code;
+    state.player = -state.player;
+    ++state.depth;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    --state.depth;
+    state.player = -state.player;
+    state.code /= 2;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.depth >= 2)
+      return true;
+
+    switch (state.code)
+      {
+      case 1:
+        if (not visit(Move{2, 'A'}))
+          return false;
+        return visit(Move{3, 'B'});
+
+      case 2:
+        if (not visit(Move{4, 'a'}))
+          return false;
+        return visit(Move{5, 'b'});
+
+      case 3:
+        if (not visit(Move{6, 'a'}))
+          return false;
+        return visit(Move{7, 'b'});
+
+      default:
+        return true;
+      }
+  }
+
+private:
+  [[nodiscard]] static Score root_score(const size_t code) noexcept
+  {
+    switch (code)
+      {
+      case 2: return 6;
+      case 3: return 1;
+      case 4: return 3;
+      case 5: return 5;
+      case 6: return 2;
+      case 7: return 4;
+      default: return 0;
+      }
+  }
+};
+
 } // end namespace
 
 // ---------------------------------------------------------------------------
@@ -1238,4 +1328,50 @@ TEST(AdversarialSearchFramework, ExtremePositiveScoreDoesNotOverflow)
   EXPECT_LE(negamax.value, ceiling);
   EXPECT_EQ(ab.value, negamax.value);
   EXPECT_TRUE(negamax.has_principal_variation());
+}
+
+// ---------------------------------------------------------------------------
+// H5: IncrementalEvaluator fast path — evaluate_after() is used for ordering
+// ---------------------------------------------------------------------------
+
+TEST(AdversarialSearchFramework, AlphaBetaIncrementalEvaluatorUsesEvaluateAfter)
+{
+  IncrementalEvalGameDomain domain;
+  ExplorationPolicy policy;
+  policy.move_ordering = MoveOrderingMode::Estimated_Score;
+  SearchLimits limits;
+  limits.max_depth = 2;
+
+  Alpha_Beta<IncrementalEvalGameDomain> engine(domain, policy, limits);
+  auto result = engine.search(ArtificialGameState{});
+
+  // The tree has the same structure as ArtificialGameDomain, so the minimax
+  // value must match: max(min(3,5), min(2,4)) = max(3,2) = 3.
+  EXPECT_EQ(result.value, 3);
+  EXPECT_TRUE(result.exhausted());
+
+  // evaluate_after must have been called at least once (the fast path).
+  EXPECT_GT(engine.domain().evaluate_after_calls, 0u);
+
+  // Move ordering stats must show that priority estimates were computed.
+  EXPECT_GT(result.stats.move_ordering.priority_estimates, 0u);
+}
+
+TEST(AdversarialSearchFramework, AlphaBetaIncrementalEvaluatorMatchesLegacy)
+{
+  // Verify that IncrementalEvaluator produces the same result as legacy
+  // apply()/evaluate() ordering (ArtificialGameDomain).
+  ArtificialGameDomain legacy_domain;
+  IncrementalEvalGameDomain incr_domain;
+
+  ExplorationPolicy policy;
+  policy.move_ordering = MoveOrderingMode::Estimated_Score;
+  SearchLimits limits;
+  limits.max_depth = 2;
+
+  auto legacy = alpha_beta_search(legacy_domain, ArtificialGameState{}, policy, limits);
+  auto incr = alpha_beta_search(incr_domain, ArtificialGameState{}, policy, limits);
+
+  EXPECT_EQ(legacy.value, incr.value);
+  EXPECT_EQ(legacy.stats.terminal_states, incr.stats.terminal_states);
 }
