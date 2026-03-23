@@ -167,6 +167,76 @@ concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &ob
   map.search(key)->second = obj;
 };
 
+/** @brief Concept for domains that can estimate a move's bound without
+ *         modifying state (incremental bound for Branch-and-Bound ordering).
+ *
+ *  When a domain satisfies this concept, @ref Aleph::Branch_And_Bound can
+ *  compute ordering priorities for `Estimated_Bound` move ordering without
+ *  calling `apply()`/`undo()` on each candidate move.  This avoids O(k)
+ *  apply/undo pairs per batch of k successors, which matters when the state
+ *  mutation is expensive.
+ *
+ *  The expression `domain.bound_after(state, move)` must return a value
+ *  convertible to `Domain::Objective` and must represent an optimistic upper
+ *  bound on the best objective reachable by applying `move` to `state`,
+ *  without altering `state`.
+ *
+ *  @tparam Domain Branch-and-bound domain type.
+ */
+template <typename Domain>
+concept IncrementalBoundProvider =
+  requires(Domain &domain,
+           const typename Domain::State &state,
+           const typename Domain::Move  &move) {
+    { domain.bound_after(state, move) }
+      -> std::convertible_to<typename Domain::Objective>;
+  };
+
+/** @brief Concept for adversarial-search domains that can estimate a child
+ *         score without modifying state (incremental evaluator for Alpha_Beta
+ *         and Negamax move ordering).
+ *
+ *  When a domain satisfies this concept, @ref Aleph::Alpha_Beta (and
+ *  @ref Aleph::Negamax when using `Estimated_Score` ordering) can compute
+ *  shallow evaluation priorities for move ordering without calling
+ *  `apply()`/`undo()` on each candidate move.
+ *
+ *  The expression `domain.evaluate_after(state, move)` must return a value
+ *  convertible to `Domain::Score` and must represent a cheap heuristic
+ *  estimate of the score of the child state obtained by applying `move`,
+ *  without altering `state`.
+ *
+ *  @tparam Domain Adversarial game domain type.
+ */
+template <typename Domain>
+concept IncrementalEvaluator =
+  requires(Domain &domain,
+           const typename Domain::State &state,
+           const typename Domain::Move  &move) {
+    { domain.evaluate_after(state, move) }
+      -> std::convertible_to<typename Domain::Score>;
+  };
+
+/** @brief Concept that checks whether a search engine supports the
+ *         `Best_First` exploration strategy at compile time.
+ *
+ *  Only @ref Aleph::Branch_And_Bound satisfies this concept.
+ *  @ref Aleph::Negamax and @ref Aleph::Alpha_Beta do not — using
+ *  `Best_First` with those engines raises `std::invalid_argument` at
+ *  runtime.  Combining this concept with a `static_assert` converts that
+ *  error into a compile-time diagnostic:
+ *
+ *  @code
+ *  // Compile-time check before setting the policy:
+ *  static_assert(SupportsBestFirst<MyEngine>,
+ *                "MyEngine does not support Best_First strategy");
+ *  @endcode
+ *
+ *  @tparam Engine Search engine type.
+ */
+template <typename Engine>
+concept SupportsBestFirst = Engine::supports_best_first;
+
 /** @brief Counters collected during a search run. */
 struct SearchStats
 {
@@ -213,11 +283,20 @@ inline void reserve_search_path(SearchPath<Move> &path, const SearchLimits &limi
  */
 struct ExplorationPolicy
 {
-  /** @brief Traversal strategy supported by the engine. */
+  /** @brief Traversal strategy supported by the engine.
+   *
+   *  @note `Best_First` is **only implemented by @ref Aleph::Branch_And_Bound**.
+   *  Passing `Best_First` to @ref Aleph::Backtracking,
+   *  @ref Aleph::IDA_Star_State_Search, @ref Aleph::Negamax, or
+   *  @ref Aleph::Alpha_Beta raises `std::invalid_argument` at runtime. There
+   *  is no compile-time concept for this restriction because the strategy can
+   *  be set dynamically; ensure you pass the correct strategy for the engine
+   *  you are using.
+   */
   enum class Strategy
   {
-    Depth_First,  ///< Recursive depth-first traversal.
-    Best_First    ///< Priority-guided expansion of the most promising frontier node.
+    Depth_First,  ///< Recursive depth-first traversal (all engines).
+    Best_First    ///< Priority-guided expansion; only supported by Branch_And_Bound.
   };
 
   Strategy strategy = Strategy::Depth_First;                  ///< Traversal strategy.
@@ -486,7 +565,20 @@ concept SuccessorGenerator = requires(Domain &d, const typename Domain::State &s
   } -> std::convertible_to<bool>;
 };
 
-/** @brief Concept for domains that can recognize goal states. */
+/** @brief Concept for domains that can recognize goal states.
+ *
+ *  Used by @ref Aleph::Backtracking and @ref Aleph::IDA_Star_State_Search.
+ *  A goal state is a *feasible solution*: any state for which the domain
+ *  considers the problem solved (e.g., all queens placed without conflict in
+ *  N-Queens, a path from source to target).
+ *
+ *  @note This is distinct from @ref Branch_And_Bound.H's `is_complete()`.
+ *  Branch-and-Bound instead looks for *optimal* solutions: `is_complete(state)`
+ *  marks a feasibly complete assignment whose objective value may still be
+ *  improved by other branches, so the engine records it as a new incumbent and
+ *  keeps searching. Use `is_goal` for satisfiability-style problems and
+ *  `is_complete` for optimization problems with an explicit cost/bound.
+ */
 template <typename Domain>
 concept GoalPredicate = requires(Domain &d, const typename Domain::State &state) {
   { d.is_goal(state) } -> std::convertible_to<bool>;

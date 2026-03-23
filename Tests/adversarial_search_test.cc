@@ -29,10 +29,13 @@
 */
 
 #include <cstdint>
+#include <memory>
+#include <stdexcept>
 #include <string>
 
 #include <gtest/gtest.h>
 
+#include <ah-errors.H>
 #include <State_Search.H>
 
 using namespace Aleph;
@@ -893,4 +896,346 @@ TEST(AdversarialSearchFramework, SearchWithWindowPVReplayMatchesValue)
   ASSERT_TRUE(result.has_principal_variation());
   const auto replayed = replay_pv(domain, state, result.principal_variation);
   EXPECT_EQ(replayed, result.value);
+}
+
+// ===========================================================================
+// H1: Exception-safety tests for Negamax and Alpha_Beta
+// ===========================================================================
+
+namespace
+{
+
+struct AdversarialThrowState
+{
+  std::shared_ptr<bool> undo_called;
+  size_t node = 0;
+};
+
+struct AdversarialThrowMove
+{
+  bool throw_on_apply = false;
+};
+
+// Domain where apply() throws — undo must NOT be called.
+struct ThrowingApplyGameDomain
+{
+  using State = AdversarialThrowState;
+  using Move = AdversarialThrowMove;
+  using Score = int;
+
+  bool is_terminal(const State &state) const
+  {
+    return state.node >= 1;
+  }
+
+  Score evaluate(const State &) const
+  {
+    return 0;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    if (move.throw_on_apply)
+      ah_runtime_error() << "apply failed";
+    state.node = 1;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    *state.undo_called = true;
+    state.node = 0;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.node != 0)
+      return true;
+    return visit(Move{true});
+  }
+};
+
+// Domain where apply() succeeds but the child evaluation (is_terminal/evaluate)
+// throws — undo must be called to restore state.
+struct ThrowingPostApplyGameDomain
+{
+  using State = AdversarialThrowState;
+  using Move = AdversarialThrowMove;
+  using Score = int;
+
+  bool is_terminal(const State &state) const
+  {
+    if (state.node == 1)
+      ah_runtime_error() << "post-apply is_terminal failed";
+    return false;
+  }
+
+  Score evaluate(const State &) const
+  {
+    return 0;
+  }
+
+  void apply(State &state, const Move &) const
+  {
+    state.node = 1;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    *state.undo_called = true;
+    state.node = 0;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.node != 0)
+      return true;
+    return visit(Move{false});
+  }
+};
+
+// Domain that always evaluates to 0 (forced draw at every leaf).
+struct ForcedDrawGameDomain
+{
+  using State = ArtificialGameState;
+  using Move = ArtificialGameMove;
+  using Score = int;
+
+  bool is_terminal(const State &state) const
+  {
+    return state.depth == 2;
+  }
+
+  Score evaluate(const State &) const
+  {
+    return 0;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.code = move.next_code;
+    state.player = -state.player;
+    ++state.depth;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    --state.depth;
+    state.player = -state.player;
+    state.code /= 2;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.depth >= 2)
+      return true;
+    if (not visit(ArtificialGameMove{2, 'L'}))
+      return false;
+    return visit(ArtificialGameMove{3, 'R'});
+  }
+};
+
+// Domain where a non-terminal node has no successors (for_each_successor is
+// a no-op even though is_terminal returns false).  The engine must treat such
+// a node as a de-facto terminal and evaluate it.
+struct EmptySuccessorGameDomain
+{
+  using State = ArtificialGameState;
+  using Move = ArtificialGameMove;
+  using Score = int;
+
+  bool is_terminal(const State &) const
+  {
+    return false;  // explicitly NOT terminal
+  }
+
+  Score evaluate(const State &) const
+  {
+    return 42;
+  }
+
+  void apply(State &, const Move &) const
+  {
+    // never called
+  }
+
+  void undo(State &, const Move &) const
+  {
+    // never called
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &, Visitor) const
+  {
+    return true;  // no successors generated
+  }
+};
+
+// Domain where evaluate() returns score_ceiling (the extreme positive value).
+// Used to verify the engine handles boundary scores without overflow.
+struct ExtremeScoreGameDomain
+{
+  using State = ArtificialGameState;
+  using Move = ArtificialGameMove;
+  using Score = int;
+
+  bool is_terminal(const State &state) const
+  {
+    return state.depth >= 1;
+  }
+
+  Score evaluate(const State &state) const
+  {
+    // root-child evaluates to ceiling from root player's perspective
+    return adversarial_search_detail::score_ceiling<Score>() * state.player;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.code = move.next_code;
+    state.player = -state.player;
+    ++state.depth;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    --state.depth;
+    state.player = -state.player;
+    state.code /= 2;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.depth >= 1)
+      return true;
+    return visit(ArtificialGameMove{2, 'A'});
+  }
+};
+
+} // end namespace
+
+// ---------------------------------------------------------------------------
+// H1: apply() throws — undo must not be called
+// ---------------------------------------------------------------------------
+
+TEST(AdversarialSearchFramework, NegamaxApplyExceptionDoesNotCallUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingApplyGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 4;
+
+  Negamax<ThrowingApplyGameDomain> engine(domain, {}, limits);
+  EXPECT_THROW((void) engine.search(AdversarialThrowState{undo_called, 0}),
+               std::runtime_error);
+  EXPECT_FALSE(*undo_called);
+}
+
+TEST(AdversarialSearchFramework, AlphaBetaApplyExceptionDoesNotCallUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingApplyGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 4;
+
+  Alpha_Beta<ThrowingApplyGameDomain> engine(domain, {}, limits);
+  EXPECT_THROW((void) engine.search(AdversarialThrowState{undo_called, 0}),
+               std::runtime_error);
+  EXPECT_FALSE(*undo_called);
+}
+
+// ---------------------------------------------------------------------------
+// H1: post-apply exception — undo must be called
+// ---------------------------------------------------------------------------
+
+TEST(AdversarialSearchFramework, NegamaxPostApplyExceptionCallsUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingPostApplyGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 4;
+
+  Negamax<ThrowingPostApplyGameDomain> engine(domain, {}, limits);
+  EXPECT_THROW((void) engine.search(AdversarialThrowState{undo_called, 0}),
+               std::runtime_error);
+  EXPECT_TRUE(*undo_called);
+}
+
+TEST(AdversarialSearchFramework, AlphaBetaPostApplyExceptionCallsUndo)
+{
+  auto undo_called = std::make_shared<bool>(false);
+  ThrowingPostApplyGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 4;
+
+  Alpha_Beta<ThrowingPostApplyGameDomain> engine(domain, {}, limits);
+  EXPECT_THROW((void) engine.search(AdversarialThrowState{undo_called, 0}),
+               std::runtime_error);
+  EXPECT_TRUE(*undo_called);
+}
+
+// ---------------------------------------------------------------------------
+// H4: forced draw — both engines return value == 0
+// ---------------------------------------------------------------------------
+
+TEST(AdversarialSearchFramework, ForcedDrawReturnZeroScore)
+{
+  ForcedDrawGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 2;
+
+  auto negamax = negamax_search(domain, ArtificialGameState{}, {}, limits);
+  auto ab = alpha_beta_search(domain, ArtificialGameState{}, {}, limits);
+
+  EXPECT_EQ(negamax.value, 0);
+  EXPECT_EQ(ab.value, 0);
+  EXPECT_TRUE(negamax.exhausted());
+  EXPECT_TRUE(ab.exhausted());
+}
+
+// ---------------------------------------------------------------------------
+// H4: empty successor list in a non-terminal — treated as de-facto terminal
+// ---------------------------------------------------------------------------
+
+TEST(AdversarialSearchFramework, EmptySuccessorsInNonTerminalTreatedAsLeaf)
+{
+  EmptySuccessorGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 4;
+
+  auto negamax = negamax_search(domain, ArtificialGameState{}, {}, limits);
+  auto ab = alpha_beta_search(domain, ArtificialGameState{}, {}, limits);
+
+  // The root has no successors, so it is evaluated directly.
+  // evaluate() returns 42 (from the side-to-move's perspective at depth 0,
+  // player==1), so the root score should be 42.
+  EXPECT_EQ(negamax.value, 42);
+  EXPECT_EQ(ab.value, 42);
+  EXPECT_GT(negamax.stats.terminal_states, 0u);
+  EXPECT_GT(ab.stats.terminal_states, 0u);
+}
+
+// ---------------------------------------------------------------------------
+// H4: extreme score (score_ceiling) — no overflow
+// ---------------------------------------------------------------------------
+
+TEST(AdversarialSearchFramework, ExtremePositiveScoreDoesNotOverflow)
+{
+  ExtremeScoreGameDomain domain;
+  SearchLimits limits;
+  limits.max_depth = 2;
+
+  auto negamax = negamax_search(domain, ArtificialGameState{}, {}, limits);
+  auto ab = alpha_beta_search(domain, ArtificialGameState{}, {}, limits);
+
+  // score_ceiling is the max representable "normal" score; both engines
+  // must return a finite, positive value.
+  const int ceiling = adversarial_search_detail::score_ceiling<int>();
+  EXPECT_GT(negamax.value, 0);
+  EXPECT_LE(negamax.value, ceiling);
+  EXPECT_EQ(ab.value, negamax.value);
+  EXPECT_TRUE(negamax.has_principal_variation());
 }

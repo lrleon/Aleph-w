@@ -50,7 +50,10 @@
 
 namespace Aleph {
 
-/** @brief Negamax with Alpha-Beta pruning.
+/** @brief Adversarial search engine with Alpha-Beta pruning.
+ *
+ *  Alpha-Beta improves upon pure Negamax by pruning branches that are
+ *  guaranteed to be worse than a previously discovered line of play.
  *
  *  The domain contract and score semantics are identical to @ref Negamax:
  *  `evaluate(state)` must always be expressed from the side-to-move
@@ -60,11 +63,6 @@ namespace Aleph {
  *  materializes each successor batch, scores children by a one-ply estimate,
  *  and reorders them before search. Optional killer/history hooks can further
  *  bias that ordering when explicitly enabled.
- */
-/** @brief Adversarial search engine with Alpha-Beta pruning.
- *
- *  Alpha-Beta improves upon pure Negamax by pruning branches that are
- *  guaranteed to be worse than a previously discovered line of play.
  *
  *  @tparam Domain game adapter exposing adversarial-search hooks.
  */
@@ -82,8 +80,18 @@ public:
   using Score = typename Domain::Score;
   /// Outcome of an Alpha-Beta search execution.
   using Result = AdversarialSearchResult<Move, Score>;
+  /// Two-slot killer heuristic table for this move type.
   using Killer_Table = Killer_Move_Table<Move>;
+  /// History heuristic table type (sparse or no-op depending on domain).
   using History_Table = typename adversarial_search_detail::History_Table_Selector<Domain>::Type;
+
+  /** @brief Compile-time marker: Alpha_Beta only supports Depth_First strategy.
+   *
+   *  Passing `ExplorationPolicy::Strategy::Best_First` to this engine raises
+   *  `std::invalid_argument` at runtime.  Check this constant before
+   *  constructing a policy to detect the mismatch at compile time.
+   */
+  static constexpr bool supports_best_first = false;
 
   /** @brief Return the default exploration policy for Alpha-Beta. */
   [[nodiscard]] static ExplorationPolicy default_policy() noexcept
@@ -100,31 +108,37 @@ public:
     // empty
   }
 
+  /** @brief Read-only access to the bound game domain. */
   [[nodiscard]] const Domain &domain() const noexcept
   {
     return domain_;
   }
 
+  /** @brief Mutable access to the bound game domain. */
   [[nodiscard]] Domain &domain() noexcept
   {
     return domain_;
   }
 
+  /** @brief Current exploration policy. */
   [[nodiscard]] const ExplorationPolicy &policy() const noexcept
   {
     return policy_;
   }
 
+  /** @brief Current hard limits. */
   [[nodiscard]] const SearchLimits &limits() const noexcept
   {
     return limits_;
   }
 
+  /** @brief Replace the exploration policy for future runs. */
   void set_policy(const ExplorationPolicy &policy) noexcept
   {
     policy_ = policy;
   }
 
+  /** @brief Replace the hard limits for future runs. */
   void set_limits(const SearchLimits &limits) noexcept
   {
     limits_ = limits;
@@ -389,9 +403,28 @@ private:
 
       if (policy_.move_ordering == MoveOrderingMode::Estimated_Score)
         {
-          domain_.apply(state, move);
-          ranked.priority = -domain_.evaluate(state);
-          domain_.undo(state, move);
+          if constexpr (IncrementalEvaluator<Domain>)
+            {
+              // Fast path: estimate score without apply/undo.
+              ranked.priority = -domain_.evaluate_after(state, move);
+            }
+          else
+            {
+              bool applied = false;
+              try
+                {
+                  domain_.apply(state, move);
+                  applied = true;
+                  ranked.priority = -domain_.evaluate(state);
+                }
+              catch (...)
+                {
+                  if (applied)
+                    domain_.undo(state, move);
+                  throw;
+                }
+              domain_.undo(state, move);
+            }
           ++result.stats.heuristic_evaluations;
           ++result.stats.move_ordering.priority_estimates;
         }
@@ -653,9 +686,21 @@ private:
 
       has_move = true;
       ++result.stats.generated_successors;
-      domain_.apply(state, move);
-      auto child
-        = search_node(state, depth + 1, result, table, keyer, tracer, -local_beta, -local_alpha);
+      adversarial_search_detail::NodeEvaluation<Move, Score> child;
+      bool applied = false;
+      try
+        {
+          domain_.apply(state, move);
+          applied = true;
+          child = search_node(
+            state, depth + 1, result, table, keyer, tracer, -local_beta, -local_alpha);
+        }
+      catch (...)
+        {
+          if (applied)
+            domain_.undo(state, move);
+          throw;
+        }
       domain_.undo(state, move);
 
       const Score candidate = (child.value == std::numeric_limits<Score>::lowest())

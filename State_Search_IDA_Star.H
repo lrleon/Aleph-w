@@ -112,12 +112,30 @@ struct IDAStarResult : SearchResult<Solution>
 
 namespace ida_star_detail {
 
+/** @brief Sentinel value representing an unreachable or pruned f-cost.
+ *
+ *  For floating-point `Distance` types returns `infinity()`, which is well
+ *  above any finite heuristic value and compares correctly with admissible
+ *  heuristics that may themselves return `infinity()`. For integer types,
+ *  where `infinity()` is not defined, returns `max()` instead.
+ *
+ *  @tparam Distance Numeric cost type from the domain.
+ */
+template <typename Distance>
+[[nodiscard]] constexpr Distance distance_unreachable() noexcept
+{
+  if constexpr (std::is_floating_point_v<Distance>)
+    return std::numeric_limits<Distance>::infinity();
+  else
+    return std::numeric_limits<Distance>::max();
+}
+
 /** @brief Outcome of one recursive DFS step inside IDA*. */
 template <typename Distance>
 struct DFSResult
 {
   bool found = false;
-  Distance next_bound = std::numeric_limits<Distance>::max();
+  Distance next_bound = distance_unreachable<Distance>();
 };
 
 /** @brief Core recursive DFS used by IDA* for a single threshold pass.
@@ -164,35 +182,32 @@ DFSResult<typename Domain::Distance> dfs(Domain &domain,
   if (search_engine_detail::is_terminal_state(domain, state))
     {
       ++result.stats.terminal_states;
-      return {false, std::numeric_limits<Distance>::max()};
+      return {false, distance_unreachable<Distance>()};
     }
 
   if (search_engine_detail::should_prune_state(domain, state, depth))
     {
       ++result.stats.pruned_by_domain;
-      return {false, std::numeric_limits<Distance>::max()};
+      return {false, distance_unreachable<Distance>()};
     }
 
   if (depth >= result.limits.max_depth)
     {
       ++result.stats.pruned_by_depth;
-      return {false, std::numeric_limits<Distance>::max()};
+      return {false, distance_unreachable<Distance>()};
     }
 
   if (result.stats.expanded_states >= result.limits.max_expansions)
     {
       ++result.stats.limit_hits;
       result.status = SearchStatus::LimitReached;
-      return {false, std::numeric_limits<Distance>::max()};
+      return {false, distance_unreachable<Distance>()};
     }
 
   ++result.stats.expanded_states;
 
   using Move = typename Domain::Move;
-  DFSResult<Distance> out{false, std::numeric_limits<Distance>::max()};
-
-  if (depth + 1 > result.limits.max_depth)
-    return out;
+  DFSResult<Distance> out{false, distance_unreachable<Distance>()};
 
   (void) domain.for_each_successor(state,
                                    [&](const Move &move) -> bool

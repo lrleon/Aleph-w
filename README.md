@@ -3613,28 +3613,28 @@ only when the semantics genuinely align (e.g., DFS/backtracking vs.
 branch-and-bound vs.
 adversarial Negamax/Alpha-Beta).
 
-### What is already available
+### What is available
 
 - `state_search_common.H` – shared limits, exploration policies, statistics,
   search paths and concept helpers for implicit trees/DAGs with lazy successor
   generation and make/unmake contracts.
 - `Backtracking.H` – depth-first search with goal detection and incremental
-  evaluation hooks.
+  evaluation hooks. Supports optional visited-set (cycle detection) via
+  `SearchStorageSet`.
 - `Branch_And_Bound.H` – incumbents, optimistic bounds, DFS/best-first
-  strategies and optional child ordering.
+  strategies and optional child ordering. Supports optional visited map.
 - `Negamax.H` / `Alpha_Beta.H` – adversarial zero-sum search with optional move
-  ordering (killer/history heuristics), transposition-table support and
-  principal-variation tracking.
-- `Transposition_Table.H` – reusable Aleph hash-backed cache that currently
-  serves the adversarial engines and will later back branch-and-bound
-  memoization once its dominance rules are formalized.
+  ordering (killer/history heuristics), transposition-table support,
+  principal-variation tracking, and iterative deepening with aspiration windows.
+- `State_Search_IDA_Star.H` – IDA* (Iterative Deepening A*) combining the
+  memory efficiency of DFS with the optimality guarantees of A* for admissible
+  heuristics.
+- `Transposition_Table.H` – reusable Aleph hash-backed cache serving the
+  adversarial engines; can also back Backtracking and Branch-and-Bound.
+- `search_move_ordering.H` – shared killer/history heuristic tables and ranked
+  move sorting for Alpha-Beta and Branch-and-Bound.
 - `State_Search.H` – umbrella header plus the `Aleph::Search` facade that wires
   the correct engine based on the user’s domain contract.
-
-Each phase lands with compilable code, smoke tests, benchmarks and short docs so
-you can already build on top of the framework while the remaining roadmap
-(iterative deepening, aspiration windows, scratch-buffer reuse, branch-and-bound
-memoization, frontier policies) is delivered.
 
 ### Docs, examples and tests
 
@@ -3647,18 +3647,18 @@ memoization, frontier policies) is delivered.
   – Negamax/Alpha-Beta domain contract, move-ordering hooks and
   transposition-table protocol.
 - Examples:
-  - `Examples/state_search_benchmark.cc`
-  - `Examples/negamax_tictactoe_example.cc`
-  - `Examples/alpha_beta_connect3_example.cc`
-- Tests (enable examples first, e.g., `cmake -S . -B build -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON`):
+  - `Examples/state_search_benchmark.cc` – performance comparison of all engines
+  - `Examples/negamax_tictactoe_example.cc` – Tic-Tac-Toe with Negamax
+  - `Examples/alpha_beta_connect3_example.cc` – Connect-3 with Alpha-Beta
+  - `Examples/negamax_simple_example.cc` – minimal Negamax walkthrough
+- Tests:
   ```bash
-  cmake --build build --target state_search_benchmark
-  ctest --test-dir build/Examples -R StateSearch
+  cmake --build build --target state_search_framework_test adversarial_search_test branch_and_bound_test test_ida_star
+  ./build/Tests/state_search_framework_test
+  ./build/Tests/adversarial_search_test
+  ./build/Tests/branch_and_bound_test
+  ./build/Tests/test_ida_star
   ```
-
-Feedback is welcome as we continue adding the next phases while keeping the
-framework lean and aligned with Aleph’s existing containers, hashing utilities
-and make/unmake discipline.
 
 ---
 

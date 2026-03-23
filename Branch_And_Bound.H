@@ -313,6 +313,17 @@ public:
   /// Aggregated result type for optimization runs.
   using Result = BranchAndBoundResult<Solution, ObjectivePolicy>;
 
+  /** @brief Compile-time marker: Branch_And_Bound supports both Depth_First
+   *         and Best_First strategies.
+   *
+   *  Unlike @ref Aleph::Negamax and @ref Aleph::Alpha_Beta (which only
+   *  support Depth_First), this engine also accepts
+   *  `ExplorationPolicy::Strategy::Best_First`.  Check this constant
+   *  alongside those engines' `supports_best_first = false` to detect
+   *  strategy mismatches at compile time.
+   */
+  static constexpr bool supports_best_first = true;
+
 private:
   struct FrontierNode
   {
@@ -602,20 +613,30 @@ private:
       RankedMove<Move, Objective> ranked;
       ranked.move = move;
       ranked.ordinal = ordinal++;
-      bool applied = false;
-      try
+
+      if constexpr (IncrementalBoundProvider<Domain>)
         {
-          domain_.apply(state, move);
-          applied = true;
-          ranked.priority = domain_.bound(state);
+          // Fast path: compute the ordering bound without apply/undo.
+          ranked.priority = domain_.bound_after(state, move);
         }
-      catch (...)
+      else
         {
-          if (applied)
-            domain_.undo(state, move);
-          throw;
+          bool applied = false;
+          try
+            {
+              domain_.apply(state, move);
+              applied = true;
+              ranked.priority = domain_.bound(state);
+            }
+          catch (...)
+            {
+              if (applied)
+                domain_.undo(state, move);
+              throw;
+            }
+          domain_.undo(state, move);
         }
-      domain_.undo(state, move);
+
       ++result.stats.move_ordering.priority_estimates;
       moves.append(std::move(ranked));
       return true;

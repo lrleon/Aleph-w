@@ -175,16 +175,19 @@ struct AdversarialSearchResult
   Score value = Score{};                 ///< Root score from the current player's perspective.
   SearchPath<Move> principal_variation;  ///< Best line found from the root.
 
+  /** @brief True when the search space was fully explored. */
   [[nodiscard]] bool exhausted() const noexcept
   {
     return status == SearchStatus::Exhausted;
   }
 
+  /** @brief True when a resource limit was hit before exhaustion. */
   [[nodiscard]] bool limit_reached() const noexcept
   {
     return status == SearchStatus::LimitReached;
   }
 
+  /** @brief True when at least one move is available in the principal variation. */
   [[nodiscard]] bool has_principal_variation() const noexcept
   {
     return not principal_variation.is_empty();
@@ -272,26 +275,31 @@ public:
   using Event = AdversarialTraceEvent<Move, Score>;
   using Container_Type = DynList<Event>;
 
+  /** @brief Record one trace event. */
   void operator()(const Event &event)
   {
     events_.append(event);
   }
 
+  /** @brief Discard all recorded events. */
   void clear() noexcept
   {
     events_.clear();
   }
 
+  /** @brief Number of recorded events. */
   [[nodiscard]] size_t size() const noexcept
   {
     return events_.size();
   }
 
+  /** @brief True when no events have been recorded. */
   [[nodiscard]] bool is_empty() const noexcept
   {
     return events_.is_empty();
   }
 
+  /** @brief Read-only access to the recorded event list. */
   [[nodiscard]] const Container_Type &events() const noexcept
   {
     return events_;
@@ -308,6 +316,7 @@ struct AspirationWindow
   Score half_window = Score{};  ///< Initial half-width around the previous root value.
   Score growth = Score{};       ///< Extra widening applied after each failed attempt.
 
+  /** @brief True when the aspiration window is active (half_window > 0). */
   [[nodiscard]] bool enabled() const noexcept
   {
     return half_window > Score{};
@@ -346,6 +355,7 @@ struct AdversarialIterativeDeepeningResult
   size_t completed_iterations = 0;     ///< Number of iterations stored in `iterations`.
   size_t aspiration_researches = 0;    ///< Total number of aspiration retries.
 
+  /** @brief True when at least one iteration has been completed. */
   [[nodiscard]] bool has_iterations() const noexcept
   {
     return not iterations.is_empty();
@@ -815,6 +825,14 @@ public:
   /// Outcome of an adversarial search execution.
   using Result = AdversarialSearchResult<Move, Score>;
 
+  /** @brief Compile-time marker: Negamax only supports Depth_First strategy.
+   *
+   *  Passing `ExplorationPolicy::Strategy::Best_First` to this engine raises
+   *  `std::invalid_argument` at runtime.  Check this constant before
+   *  constructing a policy to detect the mismatch at compile time.
+   */
+  static constexpr bool supports_best_first = false;
+
   /** @brief Return the default exploration policy for adversarial search. */
   [[nodiscard]] static ExplorationPolicy default_policy() noexcept
   {
@@ -831,31 +849,37 @@ public:
     // empty
   }
 
+  /** @brief Read-only access to the bound game domain. */
   [[nodiscard]] const Domain &domain() const noexcept
   {
     return domain_;
   }
 
+  /** @brief Mutable access to the bound game domain. */
   [[nodiscard]] Domain &domain() noexcept
   {
     return domain_;
   }
 
+  /** @brief Current exploration policy. */
   [[nodiscard]] const ExplorationPolicy &policy() const noexcept
   {
     return policy_;
   }
 
+  /** @brief Current hard limits. */
   [[nodiscard]] const SearchLimits &limits() const noexcept
   {
     return limits_;
   }
 
+  /** @brief Replace the exploration policy for future runs. */
   void set_policy(const ExplorationPolicy &policy) noexcept
   {
     policy_ = policy;
   }
 
+  /** @brief Replace the hard limits for future runs. */
   void set_limits(const SearchLimits &limits) noexcept
   {
     limits_ = limits;
@@ -1118,8 +1142,20 @@ private:
 
       has_move = true;
       ++result.stats.generated_successors;
-      domain_.apply(state, move);
-      auto child = search_node(state, depth + 1, result, table, keyer, tracer);
+      adversarial_search_detail::NodeEvaluation<Move, Score> child;
+      bool applied = false;
+      try
+        {
+          domain_.apply(state, move);
+          applied = true;
+          child = search_node(state, depth + 1, result, table, keyer, tracer);
+        }
+      catch (...)
+        {
+          if (applied)
+            domain_.undo(state, move);
+          throw;
+        }
       domain_.undo(state, move);
 
       // Negate child score to switch perspective. lowest() is the engine's
@@ -1259,7 +1295,7 @@ template <AdversarialGameDomain Domain>
   SearchLimits limits = {},
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
-  static Null_Adversarial_Search_Tracer tracer;
+  Null_Adversarial_Search_Tracer tracer;
   return iterative_deepening_negamax_search(
     std::move(domain), std::move(initial_state), tracer, policy, limits, options);
 }
@@ -1312,7 +1348,7 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer>
   SearchLimits limits = {},
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
-  static Null_Adversarial_Search_Tracer tracer;
+  Null_Adversarial_Search_Tracer tracer;
   return iterative_deepening_negamax_search(
     std::move(domain), std::move(initial_state), table, keyer, tracer, policy, limits, options);
 }
@@ -1368,7 +1404,7 @@ template <AdversarialGameDomain Domain, typename Table>
   SearchLimits limits = {},
   AdversarialIterativeDeepeningOptions<typename Domain::Score> options = {})
 {
-  static Null_Adversarial_Search_Tracer tracer;
+  Null_Adversarial_Search_Tracer tracer;
   return iterative_deepening_negamax_search(
     std::move(domain), std::move(initial_state), table, tracer, policy, limits, options);
 }

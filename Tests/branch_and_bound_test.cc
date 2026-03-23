@@ -898,3 +898,61 @@ TEST(BranchAndBoundFramework, AssignmentBestFirstMatchesDepthFirst)
   EXPECT_EQ(depth_result.incumbent.best_value(), best_result.incumbent.best_value());
   EXPECT_GE(best_result.stats.pruned_by_bound, 0u);
 }
+
+// ===========================================================================
+// H3: B&B with max_depth limit, max_expansions limit, knapsack capacity=0
+// ===========================================================================
+
+// max_depth=1: root is expanded (depth 0→1), but children at depth 1 are
+// pruned before expansion. Since leaves are at depth 2, no complete solution
+// is recorded.
+TEST(BranchAndBoundFramework, MaxDepthOnePreventsCompleteSolution)
+{
+  ArtificialMaxDomain domain;
+  ExplorationPolicy policy = Branch_And_Bound<ArtificialMaxDomain>::default_policy();
+  policy.stop_at_first_solution = false;
+
+  SearchLimits limits;
+  limits.max_depth = 1;
+
+  Branch_And_Bound<ArtificialMaxDomain> engine(domain, policy, limits);
+  auto result = engine.search(ArtificialState{});
+
+  EXPECT_FALSE(result.found_solution());
+  EXPECT_GT(result.stats.pruned_by_depth, 0u);
+}
+
+// max_expansions=1: only the root node is expanded. The two children are
+// visited but not expanded, so no leaves are reached and no solution found.
+TEST(BranchAndBoundFramework, MaxExpansionsOnePreventsCompleteSolution)
+{
+  ArtificialMaxDomain domain;
+  ExplorationPolicy policy = Branch_And_Bound<ArtificialMaxDomain>::default_policy();
+  policy.stop_at_first_solution = false;
+
+  SearchLimits limits;
+  limits.max_expansions = 1;
+
+  Branch_And_Bound<ArtificialMaxDomain> engine(domain, policy, limits);
+  auto result = engine.search(ArtificialState{});
+
+  EXPECT_TRUE(result.limit_reached());
+  EXPECT_EQ(result.stats.expanded_states, 1u);
+  EXPECT_FALSE(result.found_solution());
+}
+
+// Knapsack with capacity=0: no item fits, so the only complete solution is
+// the empty selection with value=0.
+TEST(BranchAndBoundFramework, KnapsackCapacityZeroReturnsEmptySolution)
+{
+  const Array<Knapsack_Item<int, double>> items = {
+    {2, 40.0}, {5, 30.0}, {10, 50.0}
+  };
+  constexpr int capacity = 0;
+
+  KnapsackBBDomain domain(items, capacity, true);
+  auto result = branch_and_bound_search(domain, KnapsackState(items.size()));
+
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_DOUBLE_EQ(result.incumbent.best_value(), 0.0);
+}
