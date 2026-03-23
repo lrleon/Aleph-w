@@ -783,12 +783,15 @@ run_iterative_deepening(Engine &engine,
                               first_move_of(iteration.result.principal_variation),
                               &iteration.result.principal_variation);
 
-      if (iteration.result.limit_reached() or depth == limits.max_depth)
+      if (iteration.result.limit_reached())
         break;
 
       out.result = iteration.result;
       out.iterations.append(iteration);
       ++out.completed_iterations;
+
+      if (depth >= limits.max_depth)
+        break;
 
       const size_t next_depth = depth > limits.max_depth - options.depth_step
                                 ? limits.max_depth
