@@ -44,8 +44,8 @@
  *  so it tends to reach the optimum with fewer expansions — at the cost of
  *  maintaining a priority queue.
  *
- *  This example runs both strategies on the same instance, prints the
- *  results side-by-side, and verifies that they agree on the optimum value.
+ *  This example runs both strategies on the same instance and prints the
+ *  results side-by-side.
  *
  *  Build and run:
  *  - `cmake --build build --target branch_and_bound_df_vs_bf_example`
@@ -93,7 +93,17 @@ public:
   explicit KnapsackDomain(const Array<Item> &items, double capacity)
     : items_(items), capacity_(capacity)
   {
-    // empty
+    // Ensure items are sorted by descending value/weight density so that
+    // bound() produces an admissible upper bound.
+    const size_t n = items_.size();
+    for (size_t i = 0; i + 1 < n; ++i)
+      for (size_t j = i + 1; j < n; ++j)
+        if (items_[j].value / items_[j].weight > items_[i].value / items_[i].weight)
+          {
+            Item tmp = items_[i];
+            items_[i] = items_[j];
+            items_[j] = tmp;
+          }
   }
 
   /** @brief True when all items have been decided. */
@@ -222,12 +232,13 @@ static void run_strategy(const Array<Item> &items,
 int main()
 {
   // Items sorted by value/weight ratio (required for the fractional bound).
+  // Densities: watch=6.0, book=5.0, camera=4.0, tablet=3.25, laptop=3.2
   const Array<Item> items = {
     {"watch",   1.0, 6.0},
     {"book",    2.0, 10.0},
     {"camera",  3.0, 12.0},
-    {"laptop",  5.0, 16.0},
     {"tablet",  4.0, 13.0},
+    {"laptop",  5.0, 16.0},
   };
 
   const double capacity = 7.0;

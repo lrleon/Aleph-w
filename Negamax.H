@@ -355,7 +355,15 @@ struct AdversarialIterativeDeepeningResult
   size_t completed_iterations = 0;     ///< Number of fully completed iterations (excludes the last one if it hit a limit).
   size_t aspiration_researches = 0;    ///< Total number of aspiration retries.
 
-  /** @brief True when at least one iteration has been completed. */
+  /** @brief True when at least one iteration result has been recorded.
+   *
+   *  An iteration is appended to `iterations` after it runs, even if it
+   *  subsequently triggered a limit-reached exit.  The count of *fully*
+   *  completed iterations (those that did not hit any resource limit) is
+   *  tracked separately by `completed_iterations`.
+   *
+   *  @post `has_iterations()` implies `iterations.size() >= 1`.
+   */
   [[nodiscard]] bool has_iterations() const noexcept
   {
     return not iterations.is_empty();
@@ -1337,6 +1345,8 @@ template <AdversarialGameDomain Domain, typename Tracer>
     << "AdversarialIterativeDeepeningOptions::depth_step must be positive";
   ah_invalid_argument_if(options.initial_depth > limits.max_depth)
     << "AdversarialIterativeDeepeningOptions::initial_depth exceeds SearchLimits::max_depth";
+  ah_invalid_argument_if(options.aspiration.half_window < Score{})
+    << "AspirationWindow::half_window must be non-negative";
   ah_invalid_argument_if(options.aspiration.enabled())
     << "Aspiration windows are only available through iterative_deepening_alpha_beta_search";
 
@@ -1393,6 +1403,8 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename
     << "AdversarialIterativeDeepeningOptions::depth_step must be positive";
   ah_invalid_argument_if(options.initial_depth > limits.max_depth)
     << "AdversarialIterativeDeepeningOptions::initial_depth exceeds SearchLimits::max_depth";
+  ah_invalid_argument_if(options.aspiration.half_window < Score{})
+    << "AspirationWindow::half_window must be non-negative";
   ah_invalid_argument_if(options.aspiration.enabled())
     << "Aspiration windows are only available through iterative_deepening_alpha_beta_search";
 

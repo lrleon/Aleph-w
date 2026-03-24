@@ -106,10 +106,8 @@ public:
 
   void undo(State &s, const Move &m) const noexcept
   {
-    // Restore the previous node from the move (DAG: edges encode from→to).
-    (void) m;
-    // Parent tracking omitted for brevity; undo is required by the engine.
-    s.node = (s.node == 1) ? 0 : (s.node == 2) ? 1 : s.node;
+    // Restore the parent node using the move's destination (DAG: to==1 ⟹ came from 0).
+    s.node = (m.to == 1) ? 0 : (m.to == 2) ? 1 : s.node;
   }
 
   template <typename Visitor>

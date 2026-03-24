@@ -896,6 +896,8 @@ template <AdversarialGameDomain Domain, typename Tracer>
     << "AdversarialIterativeDeepeningOptions::depth_step must be positive";
   ah_invalid_argument_if(options.initial_depth > limits.max_depth)
     << "AdversarialIterativeDeepeningOptions::initial_depth exceeds SearchLimits::max_depth";
+  ah_invalid_argument_if(options.aspiration.half_window < Score{})
+    << "AspirationWindow::half_window must be non-negative";
 
   Alpha_Beta<Domain> engine(std::move(domain), policy, limits);
   const Score full_alpha = adversarial_search_detail::score_floor<Score>();
@@ -999,6 +1001,8 @@ template <AdversarialGameDomain Domain, typename Table, typename Keyer, typename
     << "AdversarialIterativeDeepeningOptions::depth_step must be positive";
   ah_invalid_argument_if(options.initial_depth > limits.max_depth)
     << "AdversarialIterativeDeepeningOptions::initial_depth exceeds SearchLimits::max_depth";
+  ah_invalid_argument_if(options.aspiration.half_window < Score{})
+    << "AspirationWindow::half_window must be non-negative";
 
   Alpha_Beta<Domain> engine(std::move(domain), policy, limits);
   const Score full_alpha = adversarial_search_detail::score_floor<Score>();

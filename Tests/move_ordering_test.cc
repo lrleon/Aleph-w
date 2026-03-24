@@ -28,6 +28,7 @@
   SOFTWARE.
 */
 
+#include <random>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -82,7 +83,8 @@ TEST(KillerMoveTable, DuplicateRecordIsNoOp)
   Killer_Move_Table<int> table;
   table.record(0, 10);
   table.record(0, 20);
-  table.record(0, 10);
+  // 20 is now primary; recording it again must be a no-op (no rotation).
+  table.record(0, 20);
 
   EXPECT_TRUE(table.is_killer(0, 10));
   EXPECT_TRUE(table.is_killer(0, 20));
@@ -238,7 +240,9 @@ TEST(SortRankedMoves, KillerMovesFirst)
                     [](int a, int b) { return a > b; },
                     true, false);
 
-  EXPECT_EQ(moves[0].move, 20);
+  EXPECT_EQ(moves[0].move, 20);  // killer first
+  EXPECT_EQ(moves[1].move, 10);  // priority 5 > 3
+  EXPECT_EQ(moves[2].move, 30);  // priority 3
 }
 
 TEST(SortRankedMoves, HistoryBreaksTies)
@@ -312,4 +316,158 @@ TEST(SortRankedMoves, EmptyIsNoOp)
                     true, true);
 
   EXPECT_TRUE(moves.is_empty());
+}
+
+// --- Large-input edge-case coverage ---
+
+TEST(KillerMoveTable, LargeDepthRange)
+{
+  Killer_Move_Table<int> table;
+  constexpr size_t N = 2000;
+
+  // Record one move per depth across a large range.
+  for (size_t d = 0; d < N; ++d)
+    table.record(d, static_cast<int>(d * 10));
+
+  for (size_t d = 0; d < N; ++d)
+    EXPECT_TRUE(table.is_killer(d, static_cast<int>(d * 10)));
+
+  // Unrecorded moves must not appear.
+  for (size_t d = 0; d < N; ++d)
+    EXPECT_FALSE(table.is_killer(d, -1));
+
+  table.clear();
+  for (size_t d = 0; d < N; ++d)
+    EXPECT_FALSE(table.is_killer(d, static_cast<int>(d * 10)));
+}
+
+TEST(KillerMoveTable, EvictionUnderManyInsertsPerDepth)
+{
+  Killer_Move_Table<int> table;
+  // Insert 10 distinct moves at depth 0; only the last 2 should survive.
+  for (int i = 1; i <= 10; ++i)
+    table.record(0, i);
+
+  EXPECT_FALSE(table.is_killer(0, 1));
+  EXPECT_FALSE(table.is_killer(0, 8));
+  EXPECT_TRUE(table.is_killer(0, 9));
+  EXPECT_TRUE(table.is_killer(0, 10));
+}
+
+TEST(KillerMoveTable, NonComparableLargeInput)
+{
+  struct Opaque { int v; };
+  Killer_Move_Table<Opaque> table;
+  static_assert(not Killer_Move_Table<Opaque>::supported);
+
+  for (size_t d = 0; d < 500; ++d)
+    {
+      table.record(d, Opaque{static_cast<int>(d)});
+      EXPECT_FALSE(table.is_killer(d, Opaque{static_cast<int>(d)}));
+    }
+  table.clear();  // must not crash
+}
+
+TEST(HistoryHeuristicTable, LargeKeySet)
+{
+  History_Heuristic_Table<int> table;
+  constexpr int N = 5000;
+
+  for (int k = 0; k < N; ++k)
+    table.record(k, static_cast<size_t>(k + 1));
+
+  for (int k = 0; k < N; ++k)
+    EXPECT_EQ(table.score(k), static_cast<size_t>(k + 1));
+
+  table.clear();
+  for (int k = 0; k < N; ++k)
+    EXPECT_EQ(table.score(k), 0u);
+}
+
+TEST(HistoryHeuristicTable, AccumulatesLargeBonuses)
+{
+  History_Heuristic_Table<int> table;
+  constexpr size_t REPS = 1000;
+
+  for (size_t i = 0; i < REPS; ++i)
+    table.record(42, 3);
+
+  EXPECT_EQ(table.score(42), REPS * 3);
+}
+
+TEST(HistoryHeuristicTable, NullTableLargeInput)
+{
+  Null_History_Heuristic_Table table;
+  static_assert(not Null_History_Heuristic_Table::supported);
+
+  for (int k = 0; k < 1000; ++k)
+    table.record(k, 99);
+
+  for (int k = 0; k < 1000; ++k)
+    EXPECT_EQ(table.score(k), 0u);
+
+  table.clear();  // must not crash
+}
+
+// --- Randomized stress tests for sort_ranked_moves ---
+
+TEST(SortRankedMoves, RandomizedStress)
+{
+  constexpr size_t N      = 1000;
+  constexpr unsigned SEED = 42u;
+  std::mt19937 rng(SEED);
+
+  auto rand_int  = [&](int lo, int hi)
+    { return std::uniform_int_distribution<int>(lo, hi)(rng); };
+  auto rand_uint = [&](size_t lo, size_t hi)
+    { return static_cast<size_t>(std::uniform_int_distribution<size_t>(lo, hi)(rng)); };
+  auto rand_bool = [&]() { return static_cast<bool>(rng() & 1u); };
+
+  for (bool killer_first : {false, true})
+    for (bool use_history : {false, true})
+      {
+        Array<RankedMove<int, int>> moves;
+        for (size_t i = 0; i < N; ++i)
+          moves.append(RankedMove<int,int>{rand_int(0, 100),
+                                          rand_int(0, 50),
+                                          i,
+                                          rand_bool(),
+                                          rand_uint(0, 200)});
+
+        sort_ranked_moves(moves,
+                          [](int a, int b) { return a > b; },
+                          killer_first, use_history);
+
+        ASSERT_EQ(moves.size(), N);
+
+        for (size_t i = 0; i + 1 < N; ++i)
+          {
+            const auto &a = moves[i];
+            const auto &b = moves[i + 1];
+
+            if (killer_first)
+              {
+                if (a.killer and not b.killer)
+                  continue;  // correct: killer before non-killer
+                if (not a.killer and b.killer)
+                  FAIL() << "Non-killer before killer at index " << i;
+              }
+
+            if (a.killer == b.killer)
+              {
+                if (use_history and a.history_score != b.history_score)
+                  EXPECT_GE(a.history_score, b.history_score)
+                    << "History ordering violated at index " << i;
+                else if (not use_history)
+                  {
+                    if (a.priority != b.priority)
+                      EXPECT_GE(a.priority, b.priority)
+                        << "Priority ordering violated at index " << i;
+                    else
+                      EXPECT_LE(a.ordinal, b.ordinal)
+                        << "Ordinal tiebreak violated at index " << i;
+                  }
+              }
+          }
+      }
 }

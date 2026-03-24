@@ -169,8 +169,10 @@ int main()
 
   std::cout << "Game-theoretic value: " << result.value
             << " (0 = draw)\n";
-  std::cout << "Best opening move:   cell " << result.first_move().cell
-            << '\n';
+  if (result.has_principal_variation())
+    std::cout << "Best opening move:   cell " << result.first_move().cell << '\n';
+  else
+    std::cout << "Best opening move:   no principal variation\n";
   std::cout << "Visited states:      " << result.stats.visited_states
             << '\n';
   std::cout << "Heuristic evals:     " << result.stats.heuristic_evaluations

@@ -133,7 +133,7 @@ int main()
   CyclicGraphDomain domain;
   Depth_First_Backtracking<CyclicGraphDomain> engine(domain);
 
-  // Depth-aware visited map: key=node id, value=depth at first visit.
+  // Depth-aware visited map: key=node id, value=minimum depth seen (updated if a shorter path is found).
   SearchStorageMap<size_t, size_t> visited;
 
   auto result = engine.search(GraphState{}, visited);
