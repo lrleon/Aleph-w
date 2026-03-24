@@ -821,9 +821,17 @@ template <typename Result>
 
 /** @brief Decide whether to stop the search after a solution was accepted.
  *
- *  Returns `true` (and updates `result.status`) in two cases:
- *  - the policy requests stopping at the first solution, or
- *  - the configured maximum number of solutions has been reached.
+ *  Returns `true` (and updates `result.status`) in two cases, checked in
+ *  priority order:
+ *  1. the configured maximum number of solutions has been reached (hard
+ *     limit — increments @c limit_hits, sets @ref SearchStatus::LimitReached);
+ *  2. the policy requests stopping at the first solution (soft stop — sets
+ *     @ref SearchStatus::StoppedOnSolution).
+ *
+ *  The hard limit is evaluated first so that @c limit_hits and
+ *  @ref SearchStatus::LimitReached are always reported when
+ *  @c max_solutions is finite and reached, regardless of the
+ *  @c stop_at_first_solution flag.
  *
  *  @tparam Result Search-result type that owns a @ref SearchStats member.
  *  @param  result Result object to update.
@@ -836,17 +844,17 @@ template <typename Result>
                                        const ExplorationPolicy &policy,
                                        const SearchLimits &limits)
 {
-  if (policy.stop_at_first_solution)
-    {
-      result.status = SearchStatus::StoppedOnSolution;
-      return true;
-    }
-
   if (limits.max_solutions != Search_Unlimited
       and result.stats.solutions_found >= limits.max_solutions)
     {
       ++result.stats.limit_hits;
       result.status = SearchStatus::LimitReached;
+      return true;
+    }
+
+  if (policy.stop_at_first_solution)
+    {
+      result.status = SearchStatus::StoppedOnSolution;
       return true;
     }
 
