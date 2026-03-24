@@ -634,9 +634,14 @@ template <AdversarialScore Score>
  *  @tparam Table  Transposition-table type (Null or enabled).
  *  @tparam Keyer  Callable producing a state key.
  *  @tparam Result Adversarial result type.
- *  @param  value  Evaluated node to cache.
- *  @param  bound  Bound classification for the stored entry.
- *  @param  stop   Engine stop flag; no store is performed when `true`.
+ *  @param  state     Mutable game state whose key is stored.
+ *  @param  remaining Remaining search depth for the cached entry.
+ *  @param  result    Adversarial result object where stats are updated.
+ *  @param  table     Transposition table where the entry is stored.
+ *  @param  keyer     Callable that extracts the state key for the table.
+ *  @param  value     Evaluated node to cache.
+ *  @param  bound     Bound classification for the stored entry.
+ *  @param  stop      Engine stop flag; no store is performed when `true`.
  */
 template <SearchMove Move, AdversarialScore Score,
           typename State, typename Table, typename Keyer, typename Result>
@@ -682,6 +687,11 @@ void store_adversarial_transposition(State &state,
  *  @tparam Table  Transposition-table type (Null or enabled).
  *  @tparam Keyer  Callable producing a state key.
  *  @tparam Result Adversarial result type.
+ *  @param  state     Mutable state whose key is probed.
+ *  @param  remaining Search depth associated with the probe.
+ *  @param  result    Adversarial result object where stats are updated.
+ *  @param  table     Transposition table to probe.
+ *  @param  keyer     Callable that extracts the state key for the table.
  *  @return Pointer to the cached entry, or `nullptr`.
  */
 template <SearchMove Move, AdversarialScore Score,

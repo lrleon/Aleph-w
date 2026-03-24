@@ -290,7 +290,7 @@ struct ExplorationPolicy
   /** @brief Traversal strategy supported by the engine.
    *
    *  @note `Best_First` is **only implemented by @ref Aleph::Branch_And_Bound**.
-   *  Passing `Best_First` to @ref Aleph::Backtracking,
+   *  Passing `Best_First` to @ref Aleph::Depth_First_Backtracking,
    *  @ref Aleph::IDA_Star_State_Search, @ref Aleph::Negamax, or
    *  @ref Aleph::Alpha_Beta raises `std::invalid_argument` at runtime. There
    *  is no compile-time concept for this restriction because the strategy can
@@ -571,7 +571,7 @@ concept SuccessorGenerator = requires(Domain &d, const typename Domain::State &s
 
 /** @brief Concept for domains that can recognize goal states.
  *
- *  Used by @ref Aleph::Backtracking and @ref Aleph::IDA_Star_State_Search.
+ *  Used by @ref Aleph::Depth_First_Backtracking and @ref Aleph::IDA_Star_State_Search.
  *  A goal state is a *feasible solution*: any state for which the domain
  *  considers the problem solved (e.g., all queens placed without conflict in
  *  N-Queens, a path from source to target).
