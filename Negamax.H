@@ -349,10 +349,10 @@ struct AdversarialIterativeDeepeningIteration
 template <SearchMove Move, AdversarialScore Score>
 struct AdversarialIterativeDeepeningResult
 {
-  AdversarialSearchResult<Move, Score> result;  ///< Deepest completed iteration result.
+  AdversarialSearchResult<Move, Score> result;  ///< Result of the deepest iteration (may be partial if a limit was hit).
   Array<AdversarialIterativeDeepeningIteration<Move, Score>> iterations;  ///< Per-depth results.
   AdversarialSearchStats total_stats;  ///< Aggregate cost across all iterations and retries.
-  size_t completed_iterations = 0;     ///< Number of iterations stored in `iterations`.
+  size_t completed_iterations = 0;     ///< Number of fully completed iterations (excludes the last one if it hit a limit).
   size_t aspiration_researches = 0;    ///< Total number of aspiration retries.
 
   /** @brief True when at least one iteration has been completed. */
@@ -793,11 +793,12 @@ run_iterative_deepening(Engine &engine,
                               first_move_of(iteration.result.principal_variation),
                               &iteration.result.principal_variation);
 
+      out.result = iteration.result;
+      out.iterations.append(iteration);
+
       if (iteration.result.limit_reached())
         break;
 
-      out.result = iteration.result;
-      out.iterations.append(iteration);
       ++out.completed_iterations;
 
       if (depth >= limits.max_depth)

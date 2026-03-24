@@ -198,10 +198,10 @@ concept IncrementalBoundProvider =
 
 /** @brief Concept for adversarial-search domains that can estimate a child
  *         score without modifying state (incremental evaluator for Alpha_Beta
- *         and Negamax move ordering).
+ *         `Estimated_Score` move ordering).
  *
- *  When a domain satisfies this concept, @ref Aleph::Alpha_Beta (and
- *  @ref Aleph::Negamax when using `Estimated_Score` ordering) can compute
+ *  When a domain satisfies this concept, @ref Aleph::Alpha_Beta and any
+ *  other engine that supports `Estimated_Score` move ordering can compute
  *  shallow evaluation priorities for move ordering without calling
  *  `apply()`/`undo()` on each candidate move.
  *
@@ -291,14 +291,14 @@ struct ExplorationPolicy
   /** @brief Traversal strategy supported by the engine.
    *
    *  @note `Best_First` is **only implemented by @ref Aleph::Branch_And_Bound**.
-   *  Passing `Best_First` to @ref Aleph::Depth_First_Backtracking,
-   *  @ref Aleph::IDA_Star_State_Search, @ref Aleph::Negamax, or
-   *  @ref Aleph::Alpha_Beta is not supported and these engines will typically
-   *  raise `std::invalid_argument` at runtime when such a policy is used.
-   *  Template code can optionally use the @ref Aleph::SupportsBestFirst
-   *  concept to constrain policies that allow `Best_First`, but engines still
-   *  accept strategies dynamically and therefore also validate them at
-   *  runtime; ensure you select a strategy that is supported by the engine.
+   *  Passing `Best_First` to @ref Aleph::Alpha_Beta raises `std::invalid_argument` at runtime.
+   *  When the engine type is known at compile time, the
+   *  `SupportsBestFirst<Engine>` concept/trait (see above) can be used in
+   *  templates or a `static_assert` to forbid `Best_First` for unsupported
+   *  engines. However, since @ref ExplorationPolicy::strategy can be set
+   *  dynamically at runtime, this restriction cannot be enforced purely at
+   *  compile time for all call sites; ensure you pass the correct strategy
+   *  for the engine you are using.
    */
   enum class Strategy
   {
@@ -579,8 +579,8 @@ concept SuccessorGenerator = requires(Domain &d, const typename Domain::State &s
  *  considers the problem solved (e.g., all queens placed without conflict in
  *  N-Queens, a path from source to target).
  *
- *  @note This is distinct from Branch-and-Bound's `is_complete()` predicate
- *  (see @ref Aleph::Branch_And_Bound). Branch-and-Bound instead looks for
+ *  @note This is distinct from `is_complete()` as documented in
+ *  @ref Branch_And_Bound.H. Branch-and-Bound instead looks for
  *  *optimal* solutions: `is_complete(state)` marks a feasibly complete
  *  assignment whose objective value may still be improved by other branches,
  *  so the engine records it as a new incumbent and keeps searching. Use
