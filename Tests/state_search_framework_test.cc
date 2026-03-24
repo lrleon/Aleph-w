@@ -1549,6 +1549,9 @@ TEST(StateSearchFramework, IDAStarNoPathToGoalExhausts)
 
   EXPECT_FALSE(result.found_solution());
   EXPECT_TRUE(result.exhausted());
+  ASSERT_FALSE(result.iterations.is_empty());
+  EXPECT_EQ(result.iterations[result.iterations.size() - 1].next_threshold,
+            ida_star_detail::distance_unreachable<double>());
 }
 
 TEST(StateSearchFramework, IDAStarInadmissibleHeuristicStillFindsGoal)

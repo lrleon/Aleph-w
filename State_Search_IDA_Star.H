@@ -298,6 +298,15 @@ public:
   /// Aggregated result type for IDA* search.
   using Result = IDAStarResult<Solution, Distance>;
 
+  /** @brief Compile-time marker: IDA_Star_State_Search only supports
+   *         Depth_First strategy.
+   *
+   *  Passing `ExplorationPolicy::Strategy::Best_First` to this engine raises
+   *  `std::invalid_argument` at runtime.  Check this constant before
+   *  constructing a policy to detect the mismatch at compile time.
+   */
+  static constexpr bool supports_best_first = false;
+
   /** @brief Construct an engine bound to one domain adapter.
    *  @param domain Problem adapter.
    *  @param policy Exploration settings.
@@ -395,7 +404,6 @@ public:
     reserve_search_path(path, limits_);
 
     Distance threshold = domain_.heuristic(initial_state);
-    const Distance inf = std::numeric_limits<Distance>::max();
 
     for (;;)
       {
@@ -425,7 +433,7 @@ public:
         if (result.status == SearchStatus::LimitReached)
           break;
 
-        if (next_bound >= inf)
+        if (next_bound >= ida_star_detail::distance_unreachable<Distance>())
           {
             result.status = SearchStatus::Exhausted;
             break;

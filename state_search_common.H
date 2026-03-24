@@ -225,6 +225,7 @@ concept IncrementalEvaluator =
  *         `Best_First` exploration strategy at compile time.
  *
  *  Only @ref Aleph::Branch_And_Bound satisfies this concept.
+ *  @ref Aleph::Depth_First_Backtracking, @ref Aleph::IDA_Star_State_Search,
  *  @ref Aleph::Negamax and @ref Aleph::Alpha_Beta do not — using
  *  `Best_First` with those engines raises `std::invalid_argument` at
  *  runtime.  Combining this concept with a `static_assert` converts that
@@ -292,10 +293,12 @@ struct ExplorationPolicy
    *  @note `Best_First` is **only implemented by @ref Aleph::Branch_And_Bound**.
    *  Passing `Best_First` to @ref Aleph::Depth_First_Backtracking,
    *  @ref Aleph::IDA_Star_State_Search, @ref Aleph::Negamax, or
-   *  @ref Aleph::Alpha_Beta raises `std::invalid_argument` at runtime. There
-   *  is no compile-time concept for this restriction because the strategy can
-   *  be set dynamically; ensure you pass the correct strategy for the engine
-   *  you are using.
+   *  @ref Aleph::Alpha_Beta is not supported and these engines will typically
+   *  raise `std::invalid_argument` at runtime when such a policy is used.
+   *  Template code can optionally use the @ref Aleph::SupportsBestFirst
+   *  concept to constrain policies that allow `Best_First`, but engines still
+   *  accept strategies dynamically and therefore also validate them at
+   *  runtime; ensure you select a strategy that is supported by the engine.
    */
   enum class Strategy
   {
@@ -571,17 +574,18 @@ concept SuccessorGenerator = requires(Domain &d, const typename Domain::State &s
 
 /** @brief Concept for domains that can recognize goal states.
  *
- *  Used by @ref Aleph::Depth_First_Backtracking and @ref Aleph::IDA_Star_State_Search.
+ *  Used by @ref Aleph::Search::Backtracking and @ref Aleph::Search::IDAStar.
  *  A goal state is a *feasible solution*: any state for which the domain
  *  considers the problem solved (e.g., all queens placed without conflict in
  *  N-Queens, a path from source to target).
  *
- *  @note This is distinct from @ref Branch_And_Bound.H's `is_complete()`.
- *  Branch-and-Bound instead looks for *optimal* solutions: `is_complete(state)`
- *  marks a feasibly complete assignment whose objective value may still be
- *  improved by other branches, so the engine records it as a new incumbent and
- *  keeps searching. Use `is_goal` for satisfiability-style problems and
- *  `is_complete` for optimization problems with an explicit cost/bound.
+ *  @note This is distinct from Branch-and-Bound's `is_complete()` predicate
+ *  (see @ref Aleph::Branch_And_Bound). Branch-and-Bound instead looks for
+ *  *optimal* solutions: `is_complete(state)` marks a feasibly complete
+ *  assignment whose objective value may still be improved by other branches,
+ *  so the engine records it as a new incumbent and keeps searching. Use
+ *  `is_goal` for satisfiability-style problems and `is_complete` for
+ *  optimization problems with an explicit cost/bound.
  */
 template <typename Domain>
 concept GoalPredicate = requires(Domain &d, const typename Domain::State &state) {

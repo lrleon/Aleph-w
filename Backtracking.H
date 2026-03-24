@@ -98,6 +98,15 @@ public:
   /// Aggregated result type.
   using Result = SearchResult<Solution, Solution_Compare>;
 
+  /** @brief Compile-time marker: Depth_First_Backtracking only supports
+   *         Depth_First strategy.
+   *
+   *  Passing `ExplorationPolicy::Strategy::Best_First` to this engine raises
+   *  `std::invalid_argument` at runtime.  Check this constant before
+   *  constructing a policy to detect the mismatch at compile time.
+   */
+  static constexpr bool supports_best_first = false;
+
   /** @brief Build an engine bound to one domain adapter.
    *
    *  @param domain Problem adapter captured by value. Ownership is transferred
