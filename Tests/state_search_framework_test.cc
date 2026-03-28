@@ -537,6 +537,9 @@ static_assert(IDAStarDomain<TinyIDAStarDomain>);
 static_assert(IDAStarDomain<ThrowingApplyIDADomain>);
 static_assert(IDAStarDomain<ThrowingPostApplyIDADomain>);
 
+// H2: SearchStorageSet satisfies VisitedStateSet concept.
+static_assert(VisitedStateSet<SearchStorageSet<size_t>, size_t>);
+
 template <typename Move>
 std::string path_signature(const SearchPath<Move> &path)
 {
@@ -1387,4 +1390,179 @@ TEST(StateSearchFramework, NQueensN8FindsAll92Solutions)
   EXPECT_TRUE(result.exhausted());
   EXPECT_EQ(result.stats.solutions_found, 92u);
   EXPECT_EQ(collector.size(), 92u);
+}
+
+// H2: SearchStorageSet runtime sanity — basic contains/insert contract.
+TEST(StateSearchFramework, SearchStorageSetBasicOps)
+{
+  SearchStorageSet<size_t> visited;
+
+  EXPECT_FALSE(visited.contains(1u));
+  visited.insert(1u);
+  EXPECT_TRUE(visited.contains(1u));
+  EXPECT_FALSE(visited.contains(2u));
+
+  // Inserting the same key twice is a no-op (no duplicate).
+  visited.insert(1u);
+  EXPECT_TRUE(visited.contains(1u));
+}
+
+// H5a: IDA* on a graph with no path to the goal terminates with Exhausted.
+//
+// Graph:  0 → 1   (only node 0 has a successor; goal is unreachable node 9)
+namespace
+{
+
+struct NoPathIDADomain
+{
+  struct Move
+  {
+    size_t to = 0;
+    double cost = 1.0;
+  };
+
+  using State = TinyIDAStarState;
+  using State_Key = size_t;
+  using Distance = double;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+
+  [[nodiscard]] bool is_goal(const State &state) const noexcept
+  {
+    return state.node == 9;  // unreachable
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.history.append(state.node);
+    state.node = move.to;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    if (state.history.is_empty())
+      return;
+    const size_t prev = state.history[state.history.size() - 1];
+    (void) state.history.remove_last();
+    state.node = prev;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    // Only node 0 has a successor; node 1 is a dead end.
+    if (state.node == 0)
+      return visit(Move{1, 1});
+    return true;
+  }
+
+  [[nodiscard]] Distance heuristic(const State &) const noexcept
+  {
+    return 1.0;  // admissible: never overestimates for unreachable goal
+  }
+
+  [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
+  {
+    return move.cost;
+  }
+};
+
+// H5b: domain with an inadmissible heuristic (overestimates).
+// The IDA* engine still terminates and finds a solution, but the returned
+// cost may be higher than the true optimum because the overestimating
+// heuristic prunes the optimal path.
+//
+// Graph: 0 --1--> 1 --1--> 2 (goal)  optimal = 2
+// Heuristic: h(0)=100, h(1)=100, h(2)=0  (overestimates massively)
+// With inadmissible h, the initial threshold = 100, so the first pass
+// already visits all states and finds the solution at cost 2.
+struct InadmissibleHeuristicDomain
+{
+  struct Move
+  {
+    size_t to = 0;
+    double cost = 1.0;
+  };
+
+  using State = TinyIDAStarState;
+  using State_Key = size_t;
+  using Distance = double;
+
+  [[nodiscard]] State_Key state_key(const State &state) const noexcept
+  {
+    return state.node;
+  }
+
+  [[nodiscard]] bool is_goal(const State &state) const noexcept
+  {
+    return state.node == 2;
+  }
+
+  void apply(State &state, const Move &move) const
+  {
+    state.history.append(state.node);
+    state.node = move.to;
+  }
+
+  void undo(State &state, const Move &) const
+  {
+    if (state.history.is_empty())
+      return;
+    const size_t prev = state.history[state.history.size() - 1];
+    (void) state.history.remove_last();
+    state.node = prev;
+  }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &state, Visitor visit) const
+  {
+    if (state.node == 0)
+      return visit(Move{1, 1});
+    if (state.node == 1)
+      return visit(Move{2, 1});
+    return true;
+  }
+
+  [[nodiscard]] Distance heuristic(const State &state) const noexcept
+  {
+    // Massively inadmissible for non-goal nodes.
+    return state.node == 2 ? 0.0 : 100.0;
+  }
+
+  [[nodiscard]] Distance cost(const State &, const Move &move) const noexcept
+  {
+    return move.cost;
+  }
+};
+
+} // end namespace
+
+TEST(StateSearchFramework, IDAStarNoPathToGoalExhausts)
+{
+  NoPathIDADomain domain;
+  IDA_Star_State_Search<NoPathIDADomain> engine(domain);
+
+  auto result = engine.search(TinyIDAStarState{});
+
+  EXPECT_FALSE(result.found_solution());
+  EXPECT_TRUE(result.exhausted());
+  ASSERT_FALSE(result.iterations.is_empty());
+  EXPECT_EQ(result.iterations[result.iterations.size() - 1].next_threshold,
+            ida_star_detail::distance_unreachable<double>());
+}
+
+TEST(StateSearchFramework, IDAStarInadmissibleHeuristicStillFindsGoal)
+{
+  InadmissibleHeuristicDomain domain;
+  IDA_Star_State_Search<InadmissibleHeuristicDomain> engine(domain);
+
+  auto result = engine.search(TinyIDAStarState{});
+
+  // With an inadmissible heuristic IDA* is no longer guaranteed optimal,
+  // but it must still find a solution if one exists.
+  ASSERT_TRUE(result.found_solution());
+  EXPECT_DOUBLE_EQ(result.total_cost, 2.0);
 }

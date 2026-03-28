@@ -192,19 +192,25 @@ private:
 /** @brief Null history heuristic hook used when a domain has no move key. */
 struct Null_History_Heuristic_Table
 {
+  /// Marker indicating that this table does nothing.
   static constexpr bool supported = false;
 
+  /** @brief No-op. */
   static void clear() noexcept
   {
     // empty
   }
 
+  /** @brief Always returns zero.
+   *  @return Always 0.
+   */
   template <typename Key>
   [[nodiscard]] size_t score(const Key &) const noexcept
   {
     return 0;
   }
 
+  /** @brief No-op. */
   template <typename Key>
   static void record(const Key &, const size_t = 1) noexcept
   {

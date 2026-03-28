@@ -70,38 +70,6 @@ struct PreferShallowerSolution
   }
 };
 
-/** @brief Dispatch helper for the optional `is_terminal` hook.
- *
- *  Returns `true` if `Domain` satisfies @ref Aleph::TerminalPredicate and the domain
- *  reports the state as terminal (a non-goal dead end). Returns `false`
- *  unconditionally when the domain does not expose `is_terminal`.
- */
-template <typename Domain>
-[[nodiscard]] bool is_terminal_state(const Domain &domain, const typename Domain::State &state)
-{
-  if constexpr (TerminalPredicate<Domain>)
-    return domain.is_terminal(state);
-  else
-    return false;
-}
-
-/** @brief Dispatch helper for the optional `should_prune` hook.
- *
- *  Returns `true` if `Domain` satisfies @ref Aleph::DomainPruner and the domain
- *  requests early pruning of the current state. Returns `false` when the
- *  domain does not expose `should_prune`.
- */
-template <typename Domain>
-[[nodiscard]] bool should_prune_state(Domain &domain,
-                                      const typename Domain::State &state,
-                                      const size_t depth)
-{
-  if constexpr (DomainPruner<Domain>)
-    return domain.should_prune(state, depth);
-  else
-    return false;
-}
-
 }  // end namespace state_search_detail
 
 /** @brief Recursive depth-first backtracking over an implicit state space.
@@ -129,6 +97,15 @@ public:
   using Solution_Compare = state_search_detail::PreferShallowerSolution<State, Move>;
   /// Aggregated result type.
   using Result = SearchResult<Solution, Solution_Compare>;
+
+  /** @brief Compile-time marker: Depth_First_Backtracking only supports
+   *         Depth_First strategy.
+   *
+   *  Passing `ExplorationPolicy::Strategy::Best_First` to this engine raises
+   *  `std::invalid_argument` at runtime.  Check this constant before
+   *  constructing a policy to detect the mismatch at compile time.
+   */
+  static constexpr bool supports_best_first = false;
 
   /** @brief Build an engine bound to one domain adapter.
    *
@@ -404,33 +381,12 @@ private:
 
   [[nodiscard]] bool stop_after_solution(Result &result) const
   {
-    if (policy_.stop_at_first_solution)
-      {
-        result.status = SearchStatus::StoppedOnSolution;
-        return true;
-      }
-
-    if (limits_.max_solutions != Search_Unlimited
-        and result.stats.solutions_found >= limits_.max_solutions)
-      {
-        ++result.stats.limit_hits;
-        result.status = SearchStatus::LimitReached;
-        return true;
-      }
-
-    return false;
+    return search_engine_detail::stop_after_solution(result, policy_, limits_);
   }
 
   [[nodiscard]] bool expansion_limit_reached(Result &result) const
   {
-    if (result.stats.expanded_states >= limits_.max_expansions)
-      {
-        ++result.stats.limit_hits;
-        result.status = SearchStatus::LimitReached;
-        return true;
-      }
-
-    return false;
+    return search_engine_detail::expansion_limit_reached(result, limits_);
   }
 
   template <typename OnSolution>
@@ -460,7 +416,7 @@ private:
         return stop_after_solution(result);
       }
 
-    if (state_search_detail::is_terminal_state(domain_, state))
+    if (search_engine_detail::is_terminal_state(domain_, state))
       {
         ++result.stats.terminal_states;
         return false;
@@ -472,7 +428,7 @@ private:
         return false;
       }
 
-    if (state_search_detail::should_prune_state(domain_, state, depth))
+    if (search_engine_detail::should_prune_state(domain_, state, depth))
       {
         ++result.stats.pruned_by_domain;
         return false;
@@ -545,7 +501,7 @@ private:
         return stop_after_solution(result);
       }
 
-    if (state_search_detail::is_terminal_state(domain_, state))
+    if (search_engine_detail::is_terminal_state(domain_, state))
       {
         ++result.stats.terminal_states;
         return false;
@@ -557,7 +513,7 @@ private:
         return false;
       }
 
-    if (state_search_detail::should_prune_state(domain_, state, depth))
+    if (search_engine_detail::should_prune_state(domain_, state, depth))
       {
         ++result.stats.pruned_by_domain;
         return false;
