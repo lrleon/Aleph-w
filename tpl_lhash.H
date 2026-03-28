@@ -299,6 +299,9 @@ namespace Aleph
       busy_slots_counter = N = 0;
     }
 
+    /// Alias for empty()
+    void clear() noexcept { empty(); }
+
   private:
     Bucket *
     search_in_bucket_list(BucketList & list, const Key & key) const

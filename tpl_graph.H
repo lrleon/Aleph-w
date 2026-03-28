@@ -2823,6 +2823,9 @@ namespace Aleph
         list.remove_first();
     }
 
+    /// Alias for empty()
+    void clear() { empty(); }
+
     /// Copy constructor
     Path(const Path & path) : g(path.g), list(path.list) {}
 

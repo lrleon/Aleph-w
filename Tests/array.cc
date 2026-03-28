@@ -354,4 +354,15 @@ TEST(ArrayFactory, PutnAndAppendPopulateBothPODAndNonPOD)
   EXPECT_EQ(nonpod[2], "z");
 }
 
+TEST(ArraySearch, Contains)
+{
+  Array<int> arr = {10, 20, 30, 40};
+  EXPECT_TRUE(arr.contains(20));
+  EXPECT_TRUE(arr.contains(40));
+  EXPECT_FALSE(arr.contains(50));
+
+  EXPECT_TRUE(arr.contains_if([](int x) { return x > 25; }));
+  EXPECT_FALSE(arr.contains_if([](int x) { return x > 100; }));
+}
+
 } // namespace

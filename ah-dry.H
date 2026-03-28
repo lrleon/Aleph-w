@@ -539,6 +539,29 @@ public:
   {
     return find_item<Operation>(operation);
   }
+
+  /** @brief Test if an item satisfying a criteria is present in the container.
+   *
+   *  @tparam Operation Search criteria callable.
+   *  @param[in] operation matching criteria.
+   *  @return true if an item satisfying operation is found, false otherwise.
+   */
+  template <class Operation>
+  bool contains_if(Operation && operation) const
+    noexcept(operation_is_noexcept<Operation>())
+  {
+    return find_ptr(std::forward<Operation>(operation)) != nullptr;
+  }
+
+  /** @brief Test if an item is present in the container using equality.
+   *
+   *  @param[in] item element to search for.
+   *  @return true if item is found, false otherwise.
+   */
+  bool contains(const Type & item) const
+  {
+    return contains_if([&item] (const Type & x) { return x == item; });
+  }
 };
 
 /** Special constructors common to `Aleph-w` (\f$\aleph_\omega\f$)

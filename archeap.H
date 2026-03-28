@@ -162,6 +162,9 @@ public:
     this->remove_all_and_delete();
   }
 
+  /// Alias for empty()
+  void clear() { empty(); }
+
   /// Destructor. Clears all remaining heap nodes.
   ~ArcHeap()
   {
@@ -284,6 +287,9 @@ public:
   {
     heap.clear();
   }
+
+  /// Alias for empty()
+  void clear() { empty(); }
 
   /// Destructor. Clears all remaining heap nodes.
   ~ArcFibonacciHeap()

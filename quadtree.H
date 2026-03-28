@@ -531,6 +531,9 @@ public:
     root->empty();
   }
 
+  /// Alias for empty()
+  void clear() { empty(); }
+
   /** @brief Apply an operation to each node in the tree.
    *
    *  Performs preorder traversal, visiting internal nodes before their children.

@@ -1422,6 +1422,7 @@ class DynList : public HTList,
                 public SpecialCtors<DynList<T>, T>,
                 public FunctionalMethods<DynList<T>, T>,
                 public GenericItems<DynList<T>, T>,
+                public EqualSequenceMethod<DynList<T>>,
                 public StlAlephIterator<DynList<T>>
 {
   using CtorBase = SpecialCtors<DynList<T>, T>;
@@ -1706,6 +1707,9 @@ public:
     delete p;
     reset();
   }
+
+  /// Alias for empty()
+  void clear() noexcept { empty(); }
 
   ~DynList() { empty(); }
 

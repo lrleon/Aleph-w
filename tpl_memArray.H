@@ -346,6 +346,9 @@ namespace Aleph
     /// Empty the container. The array is not contracted
     void empty() { n = 0; }
 
+    /// Alias for empty()
+    void clear() { empty(); }
+
     /// Empty the array and release all memory
     void empty_and_release()
     {

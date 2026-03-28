@@ -421,6 +421,9 @@ public:
     table.cut_ne(len);
   }
 
+  /// Alias for empty()
+  void clear() noexcept { empty(); }
+
   ~GenLinearHashTable()
   {
     if (remove_all_buckets)

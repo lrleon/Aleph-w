@@ -340,7 +340,7 @@ public:
     current_level = 1;
   }
 
-  /// Alias for empty() for STL compatibility
+  /// Alias for empty()
   void clear() noexcept { empty(); }
 
   /// Return the number of elements in the set

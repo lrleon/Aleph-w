@@ -433,6 +433,9 @@ public:
     front_index = rear_index = num_items = 0;
   }
 
+  /// Alias for empty()
+  void clear() noexcept { empty(); }
+
       /** Construct a queue of capacity the immediately two power of `d`
 
           The resulting capacity will be the first number such \f$2^k

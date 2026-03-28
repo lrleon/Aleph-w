@@ -333,6 +333,9 @@ public:
   /// Empty the stack
   void empty() noexcept { array.empty(); }
 
+  /// Alias for empty()
+  void clear() noexcept { empty(); }
+
   /// Return `true` if stack is empty
   [[nodiscard]] constexpr bool is_empty() const noexcept { return array.size() == 0; }
 

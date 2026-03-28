@@ -175,6 +175,12 @@ namespace Aleph
       this->empty();
     }
 
+    /// Alias for empty()
+    void clear() { this->empty(); }
+
+    /// Return true if the hash table is empty
+    bool is_empty() const noexcept { return this->Base::is_empty(); }
+
     DynHashTable &operator =(const DynHashTable & other)
     {
       if (this == &other)

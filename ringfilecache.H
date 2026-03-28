@@ -867,6 +867,9 @@ public:
   */
   void empty() noexcept { get(n); }
 
+  /// Alias for empty()
+  void clear() noexcept { empty(); }
+
   /** Flushes the current cache state to disk.
 
       Use this method wisely: frequent calls can be expensive, but the

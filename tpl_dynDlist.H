@@ -120,6 +120,7 @@ class DynDlist
         public LocateFunctions<DynDlist<T>, T>,
         public FunctionalMethods<DynDlist<T>, T>,
         public GenericItems<DynDlist<T>, T>,
+        public EqualSequenceMethod<DynDlist<T>>,
         public StlAlephIterator<DynDlist<T>>
 {
   size_t num_elem = 0;
@@ -159,6 +160,9 @@ public:
 
     num_elem = 0;
   }
+
+  /// Alias for empty()
+  void clear() noexcept { empty(); }
 
   ~DynDlist() /// Destructor
   {

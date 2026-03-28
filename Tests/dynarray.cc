@@ -174,6 +174,14 @@ TEST(DynArrayReserve, adjust_and_cut)
   arr.append(2);
   arr.cut(2);
   EXPECT_EQ(arr.size(), 2u);
+
+  arr.clear();
+  EXPECT_TRUE(arr.is_empty());
+  EXPECT_EQ(arr.size(), 0u);
+
+  arr.append(10);
+  EXPECT_TRUE(arr.contains(10));
+  EXPECT_FALSE(arr.contains(20));
 }
 
 TEST(DynArrayReserve, reserve_invalid_order)

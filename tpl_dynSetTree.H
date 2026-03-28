@@ -576,6 +576,9 @@ namespace Aleph
       num_nodes = 0;
     }
 
+    /// Alias for empty()
+    void clear() { empty(); }
+
     DynSetTree &operator =(const DynList<Key> & list)
     {
       return *this = DynSetTree(list);

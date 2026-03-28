@@ -84,6 +84,12 @@ namespace Aleph
       it.reset_last();
       return it.get_curr();
     }
+
+    /// Empty the set
+    void clear() { this->empty(); }
+
+    /// Return true if the set is empty
+    bool is_empty() const noexcept { return this->Base::is_empty(); }
   };
 
   template
@@ -128,6 +134,12 @@ namespace Aleph
     }
 
     Generate_Proxy_Operator(HashMap);
+
+    /// Empty the map
+    void clear() { this->empty(); }
+
+    /// Return true if the map is empty
+    bool is_empty() const noexcept { return this->Base::is_empty(); }
   };
 
   /// @brief Alias for HashSet (for consistency with other Dyn containers).

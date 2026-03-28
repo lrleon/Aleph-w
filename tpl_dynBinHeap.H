@@ -260,6 +260,9 @@ namespace Aleph {
       this->remove_all_and_delete();
     }
 
+    /// Alias for empty()
+    void clear() noexcept { empty(); }
+
     /// Destructor.
     ~DynBinHeap()
     {

@@ -81,6 +81,9 @@ namespace Aleph
       num_items = 0;
     }
 
+    /// Alias for empty()
+    void clear() { empty(); }
+
     /** Inserta un elemento al principio de la lista.
 
         Inserta en la lista this como primer elemento una copia de data. 
