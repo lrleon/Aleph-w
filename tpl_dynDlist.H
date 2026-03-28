@@ -230,7 +230,7 @@ public:
 
       @param[in] item to be moved and appended at the end of the list
       @return a modifiable reference to the appended item in the list
-      @throw bad_alloc si no hay memoria para el nuevo elemento.
+      @throw bad_alloc if there is no memory for the new element.
   */
   T & append(T && item)
   {

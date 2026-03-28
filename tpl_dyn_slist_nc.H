@@ -44,14 +44,14 @@
 
 namespace Aleph
 {
-  /** Lista dinámica de elementos de tipo T.
+  /** @brief Dynamic list of elements of type @p T.
 
-      Dyn_Slist_Nc<T> define una lista dinámica, es una secuencia de elementos 
-      de algún tipo T. 
+      Dyn_Slist_Nc<T> defines a dynamic list, which is a sequence of elements
+      of some type @p T.
 
-      Este tipo puede emplearse como pila o cola. 
+      This type can be used as a stack or a queue.
 
-      @param T el tipo de elementos de la lista.
+      @tparam T type of elements in the list.
 
       @see Slink, Snode_Nc, Dyn_Slist_Nc::Iterator
 
@@ -71,7 +71,12 @@ namespace Aleph
 
   public:
 
-    /// Vacía totalmente a la lista
+    /** @brief Empties the container. 
+        
+        @param none
+        @return void
+        @throws none
+    */
     void empty()
     {
       while (not this->is_empty())
@@ -81,7 +86,7 @@ namespace Aleph
       num_items = 0;
     }
 
-    /** @brief Empties the container. 
+    /** @brief Alias for empty(). 
         
         @param none
         @return void
@@ -90,15 +95,14 @@ namespace Aleph
     */
     void clear() { empty(); }
 
-    /** Inserta un elemento al principio de la lista.
+    /** @brief Insert an element at the beginning of the list.
 
-        Inserta en la lista this como primer elemento una copia de data. 
+        Inserts a copy of @p data as the first element of @p this list. 
+        After the operation, the first element of the list is @p data.
 
-        Después de la operación el primer elemento de la lista es data.
-
-        @param[in] data el dato a insertarse.
-        @return referencia al dato recién insertado.
-        @throw bad_alloc si no hay memoria para el nuevo elemento.
+        @param[in] data the item to be inserted.
+        @return reference to the newly inserted item.
+        @throw bad_alloc if there is no memory for the new element.
      */
     T & insert(const T & data) throw(std::exception, std::bad_alloc)
     {
@@ -111,15 +115,14 @@ namespace Aleph
       return p->get_data();
     }
 
-    /** Inserta un elemento al final de la lista.
+    /** @brief Append an element at the end of the list.
 
-        Inserta en la lista this como último elemento una copia de data. 
+        Inserts a copy of @p data as the last element of @p this list. 
+        After the operation, the last element of the list is @p data.
 
-        Después de la operación el último elemento de la lista es data.
-
-        @param[in] data el dato a insertarse.
-        @return referencia al dato recién insertado.
-        @throw bad_alloc si no hay memoria para el nuevo elemento.
+        @param[in] data the item to be appended.
+        @return reference to the newly inserted item.
+        @throw bad_alloc if there is no memory for the new element.
      */
     T & append(const T & data) throw(std::exception, std::bad_alloc)
     {
@@ -132,7 +135,10 @@ namespace Aleph
       return p->get_data();
     }
 
-    /// Retorna una referencia al primer elemento de la lista.
+    /** @brief Returns a reference to the first element of the list.
+        @return reference to the first element.
+        @throw underflow_error if the list is empty.
+    */
     T & get_first()
     {
       ah_underflow_error_if(this->is_empty()) << "List is empty";
@@ -140,7 +146,10 @@ namespace Aleph
       return this->get_next()->get_data();
     }
 
-    /// Retorna una referencia al último elemento de la lista.
+    /** @brief Returns a reference to the last element of the list.
+        @return reference to the last element.
+        @throw underflow_error if the list is empty.
+    */
     T & get_last()
     {
       ah_underflow_error_if(this->is_empty()) << "List is empty";
@@ -148,11 +157,10 @@ namespace Aleph
       return head->get_data();
     }
 
-    /** Elimina el primer elemento de la lista: retorna una copia del
-        elemento eliminado.
+    /** @brief Removes the first element of the list and returns a copy of it.
 
-        @return una copia del elemento eliminado.
-        @throw underflow_error si la lista está vacía.
+        @return a copy of the removed element.
+        @throw underflow_error if the list is empty.
     */
     T remove_first()
     {
@@ -166,35 +174,33 @@ namespace Aleph
       return ret_val;
     }
 
-    /// Si this es una cola, entonces mete el elemento item.
+    /** @brief If this is a queue, inserts the item @p item. */
     T & put(const T & item) { return append(item); }
 
-    /// Si this es una cola, entonces extrae el elemento más antiguo.
+    /** @brief If this is a queue, extracts the oldest element. */
     T get() { return remove_first(); }
 
-    /// Si this e suna cola, entonces retorna el elemento más joven.
+    /** @brief If this is a queue, returns the youngest element. */
     T & rear() { return get_last(); }
 
-    /// Si this e suna cola, entonces retorna el elemento más antiguo.
+    /** @brief If this is a queue, returns the oldest element. */
     T & front() { return get_first(); }
 
-    /// Si this es una pila, entonces inserta item.
+    /** @brief If this is a stack, inserts the item @p item. */
     T & push(const T & item) { return insert(item); }
 
-    /// Si this es una pila, entonces elimina el tope.
+    /** @brief If this is a stack, removes the top element. */
     T pop() { return remove_first(); }
 
-    /// Si this es una pila, entonces retorna el tope.
+    /** @brief If this is a stack, returns the top element. */
     T & top() const { return get_first(); }
 
+    /** @brief Returns the number of elements in the list. */
     const size_t & size() const { return num_items; }
 
+    /** @brief Iterator for Dyn_Slist_Nc. */
     class Iterator : public Node::Iterator
     {
-    /* TODO: Agregar atributos y métodos que hagan falta
-             la implementación de este iterador la hice minimalista
-             para pruebas de Dyn_Slist_Nc
-    */
     public:
       Iterator(Dyn_Slist_Nc<T> & list) : Node::Iterator(list)
       {
@@ -210,13 +216,13 @@ namespace Aleph
 
     };
 
-        /// Constructor vacío
+    /** @brief Default constructor. Creates an empty list. */
     Dyn_Slist_Nc() : Node(), head(this), num_items(0)
     {
       // empty
     }
 
-    /// Constructor de copia.
+    /** @brief Copy constructor. */
     Dyn_Slist_Nc(const Dyn_Slist_Nc & l) : Node(l), head(this), num_items(0)
     {
       for (Iterator it(const_cast <Dyn_Slist_Nc &>(l));
@@ -224,18 +230,19 @@ namespace Aleph
         append(it.get_curr());
     } 
 
+    /** @brief Destructor. Empties the list. */
     ~Dyn_Slist_Nc()
     {
       empty();
     }
 
-    /** Asignación de lista dinámica con semántica lvalue.
+    /** @brief Assignment operator with lvalue semantics.
 
-        La asignación elimina todos los elementos de this y luego copia en
-        this los elementos contenidos en la lista list.
+        Clears all elements from @p this and then copies all elements from @p list.
 
-        @param[in] list lista a ser asignada
-        @throw bad_alloc si no hay memoria.
+        @param[in] list the list to be assigned.
+        @return reference to @p this.
+        @throw bad_alloc if there is no memory.
     */
     Dyn_Slist_Nc & operator = (const Dyn_Slist_Nc & list)
     {
@@ -253,6 +260,10 @@ namespace Aleph
       return *this;
     }
 
+    /** @brief Access element at index @p n.
+        @param[in] n index of the element.
+        @return reference to the element.
+    */
     T & operator [] (const size_t & n)
     {
       Iterator it(*this);
@@ -264,4 +275,3 @@ namespace Aleph
 }
 
 # endif
-

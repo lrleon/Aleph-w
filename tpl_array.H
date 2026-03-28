@@ -342,7 +342,11 @@ public:
   */
   void clear() noexcept { empty(); }
 
-  /// Return `true` if stack is empty
+  /** @brief Checks if the container is empty.
+      @param none
+      @return true if empty, false otherwise.
+      @throws none
+  */
   [[nodiscard]] constexpr bool is_empty() const noexcept { return array.size() == 0; }
 
   /// Return the number of elements stored in the stack

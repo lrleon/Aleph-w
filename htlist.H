@@ -64,8 +64,7 @@ template <typename T> class Snodenc; // forward declaration
 
   /**
 
-  \~English
-    Link of a single linked list non-circular and without header node.
+      Link of a single linked list non-circular and without header node.
 
      @ingroup Sequences
      
@@ -91,11 +90,7 @@ template <typename T> class Snodenc; // forward declaration
      
      This refactoring is left for future work to avoid breaking changes.
 
-  \~Spanish
-    Enlace a una lista simple no circular y sin nodo cabecera
-
-    @ingroup Sequences
-   */
+  */
 class Slinknc
 {
   Slinknc * next = nullptr;
@@ -107,54 +102,43 @@ public:
   /// Return `true` if `this` is empty
   [[nodiscard]] constexpr bool is_empty() const noexcept { return next == nullptr; }
 
-  /**  \~English Init to nullptr
-       \~Spanish Inicializa en nullptr
-  */
+  /**  Init to nullptr
+       */
   Slinknc() noexcept : next(nullptr) { /* empty */ }
 
-  /** \~English Dummy copy constructor. Link is set to nullptr
-      \~Spanish Constructor de copia simulado. El enlace es ajustado
-      como nullptr
-  */
+  /** Dummy copy constructor. Link is set to nullptr
+      */
   Slinknc(const Slinknc &) noexcept : next(nullptr) { /* empty */ }
 
-  /** \~English Reset the link to nullptr
-      \~Spanish Reajusta el enlace a nullptr
-  */
+  /** Reset the link to nullptr
+      */
   void reset() noexcept
   {
     next = nullptr;
   }
 
-   /** \~English Dummy asignation; link is set to nullptr
-       \~Spanish Asignación simulada; el enlace es ajustado como nullptr
-   */
+   /** Dummy asignation; link is set to nullptr
+       */
   Slinknc & operator = (const Slinknc & ) noexcept
   {
     next = nullptr;
     return *this;
   }
 
-  ///\~English getter \~Spanish Observador
+  
   Slinknc *& get_next() noexcept
   {
     return next;
   }
 
-  ///\~English Insert `p` after `this` \~Spanish Inserta `p` luego de `this`
+  
 
     /**
-    \~English
-
+    
     `insert(p)` inserts the node pointed by `p` after `this`.
 
     @param[in] p pointer to link (or node)
 
-    \~Spanish
-
-    `insert(p)` inserta el nodo apuntado por `p` luego de this
-
-    @param[in] p apuntador al enlace (o nodo)
     */
   void insert(Slinknc * p) noexcept
   {
@@ -164,16 +148,11 @@ public:
   }
 
     /**
-       \~English
-       Remove for linked list the node pointed by `this`
+              Remove for linked list the node pointed by `this`
 
        @return a pointer to the removed node
 
-       \~Spanish
-       Elimina de la lista enlazada el nodo apuntado por `this`
-
-       @return un apuntador al nodo eliminado
-    */
+       */
   Slinknc * remove_next() noexcept
   {
     Slinknc * ret_val = next;
@@ -198,16 +177,11 @@ public:
   template <typename T> inline const T & to_data() const noexcept;
 
   /**
-     \~English
-     Iterator on single links
+          Iterator on single links
 
      \ingroup Sequences
 
-     \~Spanish
-     Iterador sobre enlaces simples
-
-     \ingroup Sequences
-   */
+     */
   class Iterator
   {
     Slinknc * head;
@@ -225,25 +199,19 @@ public:
       // Empty
     }
 
-    /** \~English Initialize an iterator on the first node of `list`
-        \~Spanish Inicializa un iterador en el primer nodo de `list`
-    */
+    /** Initialize an iterator on the first node of `list`
+        */
     Iterator(Slinknc & list) noexcept : head(&list)
     {
       init();
     }
 
     /**
-       \~English
-
+       
        Initialize an iterator on the list pointed by `_head`, but on a
        node pointed by `curr`
 
-       \~Spanish
-
-       Inicializa un iterador sobre la lista apuntada por `_head`, pero en
-       un nodo apuntado por `curr`
-    */
+       */
     Iterator(Slinknc * _head, Slinknc * _curr) noexcept
       : head(_head), curr(_curr)
     {
@@ -251,25 +219,19 @@ public:
     }
 
     /**
-       \~English
-       Return `true` if the iterator is positioned on a valid link
+              Return `true` if the iterator is positioned on a valid link
 
-       \~Spanish Retorna `true` si el iterador es posicionado en un enlace válido
-    */
+       */
     bool has_curr() const noexcept
     {
       return curr != nullptr;
     }
 
     /**
-       \~English
-       Return the current link on which the iterator is positioned.
+              Return the current link on which the iterator is positioned.
        Throw `overflow_error` if there is no current link.
 
-       \~Spanish
-       Retorna el enlace actual sobre el cual el iterador está posicionado.
-       Lanza la excepción `overflow_error` si no hay enlace actual.
-    */
+       */
     Slinknc * get_curr() const
     {
       ah_overflow_error_if(not has_curr())
@@ -285,14 +247,10 @@ public:
     void next_ne() noexcept { curr = curr->next; }
 
     /**
-       \~English
-       Move the iterator one position forward. Throw `overflow_error`
+              Move the iterator one position forward. Throw `overflow_error`
        if there is no current link.
 
-       \~Spanish
-       Mueve el iterador una posición más adelante. Lanza la excepción
-       `overflow_error` si no hay link actual.
-    */
+       */
     void next()
     {
       ah_overflow_error_if(not has_curr())
@@ -300,9 +258,8 @@ public:
       curr = curr->next;
     }
 
-    /** \~English Reset the iterator to the first link on the list
-        \~Spanish Reestablece el iterador en el primer enlace
-    */
+    /** Reset the iterator to the first link on the list
+        */
     void reset_first() noexcept
     {
       init();
@@ -312,17 +269,12 @@ public:
 
 
   /**
-     \~English
-     Node belonging to a single non-circular linked list without header
+          Node belonging to a single non-circular linked list without header
      node.
 
      \ingroup Sequences
 
-     \~Spanish
-     Nodo perteneciente a una lista simple no circular sin nodo cabecera.
-
-     \ingroup Sequences
-  */
+     */
     template <typename T>
 class Snodenc : public Slinknc
 {
@@ -330,14 +282,12 @@ class Snodenc : public Slinknc
 
 public:
 
-  /** \~English Return a modifiable reference to the data
-      \~Spanish Retorna una referencia modificable a la clave
-  */
+  /** Return a modifiable reference to the data
+      */
   T & get_data() noexcept { return data; }
 
-  /** \~English Return a constant reference to the data
-      \~Spanish Retorna una referencia constante a la clave
-  */
+  /** Return a constant reference to the data
+      */
   const T & get_data() const noexcept { return data; }
 
   Snodenc()
@@ -346,18 +296,16 @@ public:
                   "No default constructor for T");
   }
 
-  /** \~English Construct with copy of `item`
-      \~Spanish Constructor con copia de `item`
-  */
+  /** Construct with copy of `item`
+      */
   Snodenc(const T & item) : data(item)
   {
     static_assert(std::is_copy_constructible<T>::value,
                   "No copy constructor for T");
   }
 
-  /** \~English Construct by moving `item`
-      \~Spanish Construye moviendo `item`
-  */
+  /** Construct by moving `item`
+      */
   Snodenc(T && item)
     : data(std::forward<T>(item))
   {
@@ -366,40 +314,21 @@ public:
   }
 
       /**
-         \~English
-         Remove the node following to `this`.
+                  Remove the node following to `this`.
 
          `remove_next()`removes the node linked after `this` and
          returns its address.
 
          @return a pointer to the removed node.
 
-         \~Spanish
-         Elimina el nodo siguiente a `this`
-
-         `remove_next()` elimina el nodo enlazado luego de `this` y
-         retorna su dirección.
-
-         @return un puntero al nodo removido.
-      */
+         */
   Snodenc * remove_next() noexcept
   {
     return static_cast<Snodenc *>(Slinknc::remove_next());
   }
 
-  /** \~English Return the node following to `this`
-      \~Spanish Retorna el nodo siguiente a `this`
-      
-      @warning This function uses reinterpret_cast to return a reference to
-      the base class pointer as a derived class pointer reference. This is
-      technically a strict aliasing violation in C++. The code REQUIRES the
-      compiler flag -fno-strict-aliasing to work correctly with optimizations.
-      
-      A future refactoring using CRTP (Curiously Recurring Template Pattern)
-      could eliminate this requirement by making the base class templated on
-      the derived type, so that `next` is stored as `Derived*` instead of
-      `Slinknc*`. See Slinknc class documentation for details.
-  */
+  /** Return the node following to `this`
+      */
   Snodenc *& get_next() noexcept
   {
     // STRICT ALIASING WARNING: This reinterpret_cast violates C++ strict
@@ -411,22 +340,14 @@ public:
   Snodenc * remove_first() noexcept{ return Snodenc::remove_next(); }
 
   /**
-     \~English
-     Return the node following to `this`.
+          Return the node following to `this`.
 
      In the case where `this` is a pointer to the first node, returns
      the first node.
 
      \return a pointer to the first node.
 
-     \~Spanish
-     Retorna el nodo siguiente a `this`.
-
-     En el caso donde `this` sea un puntero al primer nodo, retorna
-     el primer nodo.
-
-     \return un puntero al primer nodo.
-  */
+     */
   Snodenc *& get_first() const noexcept { return Snodenc::get_next(); }
 };
 
@@ -454,8 +375,7 @@ template <typename T> const T & Slinknc::to_data() const noexcept
 
     /**
 
-       \~English
-
+       
        Single linked list of nodes.
 
        HTList models a list of nodes of type `Slinknc`. A `Slinknc`
@@ -478,31 +398,7 @@ template <typename T> const T & Slinknc::to_data() const noexcept
        @author Leandro Rabindranath León
        @ingroup Sequences
 
-       \~Spanish
-
-       Lista de nodos simplemente enlazadas
-
-       HTList modela una lista de nodos del tipo `Slinknc`. Un objeto
-       `Slinknc` es un enlace que puede ser añadido en cualquier
-       estructura de datos. La posibilidad de pertenecer a una
-       `HTlist` es definida por el usuario de uno o más objetos del tipo
-       `Slinknc`.
-
-       Un objeto `HTlist` mantiene dos referencias. La primera es llamada
-       `head` y corresponde al primer nodo. La segunda es llamda `tail` y
-       corresponde al último nodo.
-
-       Tome en cuenta que esta clase no maneja memoria ni tampoco acceso a
-       la data que puede ser almacenada en los nodos.
-       Slinknc y Snodenc. Sin embargo, ya que esta clase es heredada por otras
-       clases más sofisticadas, usaremos el término "elemento" en vez de nodo
-       para referirnos a un nodo particular.
-
-       @see Slinknc Snodenc DynList
-       @author Alejandro Mujica
-       @author Leandro Rabindranath León
-       @ingroup Sequences
-    */
+       */
 class HTList
 {
   Slinknc * head;
@@ -510,7 +406,7 @@ class HTList
 
 public:
 
-      //!\~English Initialize an empty list \~Spanish Inicializa una lista vacía
+      
   HTList() noexcept : head(nullptr), tail(nullptr) { /* empty */ }
 
   void reset() noexcept
@@ -518,56 +414,48 @@ public:
     head = tail = nullptr;
   }
 
-      //!\~English Return true if list is empty \~Spanish Retorna true
-      //!si la lista está vacía.
+      
+      
   [[nodiscard]] constexpr bool is_empty() const noexcept { return head == nullptr; }
 
-       //!\~English Return true if the list contains exactly just one
-       //!element \~Spanish Retorna true si la lista contiene
-       //!exactamente un solo elemento.
+       //!Return true if the list contains exactly just one
+       
+       
   bool is_unitarian() const noexcept
   {
     return head != nullptr and head == tail;
   }
 
-  //!\~English Return true if list contains one element or is empty
-  //!\~Spanish Retorna true si la lista tiene un elemento o está vacía.
+  //!Return true if list contains one element or is empty
+  
   bool is_unitarian_or_empty() const noexcept { return head == tail; }
 
-  //!\~English Return list head (first element) \~Spanish Retorna la
-  //!cabeza de la lista (el primer elemento)
+  
+  
   Slinknc * get_head() const noexcept { return head; }
 
- //!\~English Return list tail (last element) \~Spanish Retorna la
- //!cola de la lista (el último elemento)
+ 
+ 
   Slinknc * get_tail() const noexcept { return tail; }
 
- //!\~English Return list first element \~Spanish Retorna el primer
- //!elemento de la lista.
+ 
+ 
   Slinknc * get_first() const noexcept { return get_head(); }
 
       /// Return the last item of the list (`nullptr` if the list is empty)
   Slinknc * get_last() const noexcept { return get_tail(); }
 
-   //!\~English Exchange 'this' values with another list \~Spanish
-   //!Intercambia los valores de this con otra lista
+   
+   
 
   /**
-     \~English
-     \brief  Swap in constant time (very fast) 'this' elements with 'l'
+          \brief  Swap in constant time (very fast) 'this' elements with 'l'
      list elements <br>
      Referenced by append(), insert(), reverse() and split_list().
 
      \param [in] l New list which elements will be exchanged
 
-     \~Spanish
-
-     \brief  Intercambia en tiempo constante (muy rápido) los elementos
-     de this con los de l
-     \brief Referenciado por append(), insert(), reverse() y split_list().
-
-     \param [in] l Lista nueva con la cual se intercambiarán los elementos
-  */
+     */
   HTList & swap(HTList & l) noexcept
   {
     std::swap(head, l.head);
@@ -575,16 +463,13 @@ public:
     return *this;
   }
 
-  //!\~English Insert link as first element \~Spanish Inserta link como
-  //!primer elemento.
+  
+  
 
   /**
-     \~English
-     \param [in] link New element that will be inserted
+          \param [in] link New element that will be inserted
 
-     \~Spanish
-     \param [in] link Nuevo elemento que será insertado
-  */
+     */
   void insert(Slinknc * link) noexcept
   {
     assert(NEXT(link) == nullptr);
@@ -600,16 +485,13 @@ public:
     head = link;
   }
 
-  //!\~English Insert link as last element \~Spanish Inserta link como
-  //!último elemento.
+  
+  
 
   /**
-     \~English
-     \param [in] link New element that will be inserted
+          \param [in] link New element that will be inserted
 
-     \~Spanish
-     \param [in] link Nuevo elemento que será insertado
-  */
+     */
   void append(Slinknc * link) noexcept
   {
     assert(link != nullptr and NEXT(link) == nullptr);
@@ -625,16 +507,13 @@ public:
     tail = link;
   }
 
-  //!\~English Join 'this' with 'l' through list end \~Spanish Une
-  //!'this' con 'l' a través del final de la lista
+  
+  
 
   /**
-     \~English
-     \param [in] l List that will be inserted through list end
+          \param [in] l List that will be inserted through list end
 
-     \~Spanish
-     \param [in] l Lista que será insertada  través del final de la lista
-  */
+     */
   void append(HTList & l) noexcept
   {
     if (l.is_empty())
@@ -651,35 +530,28 @@ public:
     l.head = l.tail = nullptr;
   }
 
-  //!\~English Insert link as last element \~Spanish Inserta link como
-  //!último elemento.
+  
+  
   void put(Slinknc * link) noexcept { append(link); }
 
-  //!\~English Concat to 'this' all 'l' list; 'l' becomes empty
-  //!\~Spanish Concatena a this toda la lista l; l deviene vacía. 
+  //!Concat to 'this' all 'l' list; 'l' becomes empty
+  
   void concat(HTList & l) noexcept { append(l); }
 
       /// \overload concat(HTList & l)
   void concat_list(HTList & l) noexcept { append(l); }
 
-  //!\~English Insert starting in link (contained in 'this' list) the
-  //!'list' list. 'list' becomes empty \~Spanish Inserta a partir de
-  //!link (contenido en la lista this) la lista list. list deviene vacía 
+  //!Insert starting in link (contained in 'this' list) the
+  
+  
 
   /**
-     \~English
-     Insert list `l` starting from `this`. After insertion, `l` becomes empty.
+          Insert list `l` starting from `this`. After insertion, `l` becomes empty.
 
      \param [in,out] l List that will be inserted starting from `this`.
                         After the call, `l` is empty.
 
-     \~Spanish
-     Inserta la lista `l` a partir de `this`. Después de la inserción,
-     `l` deviene vacía.
-
-     \param [in,out] l Lista que será insertada a partir de `this`.
-                        Después de la llamada, `l` está vacía.
-  */
+     */
   void insert(HTList & l) noexcept
   {
     l.append(*this);
@@ -687,8 +559,7 @@ public:
   }
 
   /**
-  \~English
-    Insert a `list` into `this` after one of its items.
+      Insert a `list` into `this` after one of its items.
 
       `insert(link, list)` assumes that `link` points to a item of
       `this` and inserts in constant time `list` just after the item
@@ -713,32 +584,7 @@ public:
       \param[in] link to the item after one wants to insert `list`
       \param[in] list to be inserted after item pointed by `link`
 
-  \~Spanish
-    Inserta una `list` en `this` después de uno de sus nodos.
-
-      `insert(link, list)` asume que `link` apunta a un elemento de
-      `this` e inserta en tiempo constante `list` justo después del objeto
-      apuntado por`link`. El orden de `list` no es alterado, pero `list`
-      se vacía luego de la inserción.
-
-      Supongamos la siguiente situación
-
-          this-->t1-->t2-->t3-->t4-->t5-->t6-->t7-->t8
-                          ^
-        |
-        link
-
-    l-->l1-->l2-->l3-->l4
-
-      Entonces, `insert(link, list)` produce:
-
-          this-->t1-->t2-->t3-->t4-->l1-->l2-->l3-->l4-->t5-->t6-->t7-->t8
-
-    l se vacía
-
-      \param[in] link enlace al elemento tras del cual se quiere insertar `list`
-      \param[in] list lista a insertar tras el elemento apuntado por `link`
-   */
+  */
   void insert(Slinknc * link, HTList & list) noexcept
   {
     if (list.is_empty())
@@ -754,9 +600,9 @@ public:
     list.head = list.tail = nullptr;
   }
 
-  //!\~English It deletes head element (first one). Return deleted
-  //!element \~Spanish Elimina el elemento en la cabeza (el
-  //!primero). Retorna el elemento eliminado.
+  //!It deletes head element (first one). Return deleted
+  
+  
   Slinknc * remove_head_ne() noexcept
   {
     Slinknc * ret_val = head;
@@ -782,29 +628,20 @@ public:
   }
 
   /**
-    \~English
-      Remove the header item from the list.
+          Remove the header item from the list.
 
       \overload remove_head()
 
       \return a pointer to the removed item
       \throw underflow_error if the list is empty
 
-    \~Spanish
-      Elimina el elemnto cabecera de la lista.
-
-      \overload remove_head()
-
-      \return un puntero al elemento eliminado
-      \throw underflow_error si la lista está vacía
-  */
+    */
   Slinknc * remove_first_ne() noexcept { return remove_head_ne(); }
 
   Slinknc * remove_first() { return remove_head(); }
 
   /**
-    \~English
-       Remove from the list the item pointed by `link`
+           Remove from the list the item pointed by `link`
 
       `remove(link)` perform a sequential traversal of `this` until find
       `link`. Then `link` is removed.
@@ -816,19 +653,7 @@ public:
       \return `true` if `link` was found and removed: `false` otherwise
       \throw underflow_error if the list is empty
 
-    \~Spanish
-       Elimina de la lista el elemento apuntado por `link`
-
-      `remove(link)` realiza un recorrido secuencial sobre `this` hasta
-      encontrar`link`. Luego `link` es removido.
-
-      Este método tiene una complejidad de \f$O(n)\f$ para el peor y para
-      el caso esperado.
-
-      \param[in] link apuntador al elemento que será removido.
-      \return `true` si `link` si fue encontrado y removido: `false` si no lo fue
-      \throw underflow_error si la lista está vacía
-  */
+    */
   bool remove(Slinknc * link)
   {
     ah_underflow_error_if(is_empty())
@@ -857,13 +682,12 @@ public:
     return false;
   }
 
-  //!\~English Insert link as first element \~Spanish Inserta link como
-  //!primer elemento.
+  
+  
   void push(Slinknc * link) noexcept { insert(link); }
 
   /**
-     \~English
-     Remove the first item of `this`.
+          Remove the first item of `this`.
 
      \overload remove_head()
 
@@ -872,17 +696,7 @@ public:
      \return a pointer to the removed item.
      \throw underflow_error if the list is empty
 
-     \~Spanish
-
-     Elimina el primer elemento de `this`.
-
-     \overload remove_head()
-
-     Este sinónimo se adecúa cuando`this` es tratado como una pila.
-
-     \return un apuntador al elemnto eliminado.
-     \throw underflow_error si la lista está vacía
-  */
+     */
   Slinknc * pop()
   {
     ah_underflow_error_if(is_empty())
@@ -897,13 +711,12 @@ public:
     return get_first();
   }
 
- //!\~English It divides 'this' into two equal lists without modifying
- //!elements order \~Spanish Divide this en dos listas equitativas sin
- //!alterar el orden de los elementos.
+ //!It divides 'this' into two equal lists without modifying
+ 
+ 
 
   /**
-  \~English
-  Split the list in two.
+    Split the list in two.
 
       This method takes the first n/2 items of `this` and puts them, in
       the same order, in list `l`. The remainder items are put in list
@@ -914,19 +727,7 @@ public:
       \param[out] r list containg the last n/2 first items
       \return the total of items that has `this`
 
-    \~Spanish
-    Divide la lista en dos.
-
-      Este método toma los primeros n/2 elementos de `this` y los coloca,
-      en el mismo orden, en la lista `l`. Los elemntos restantes son colocados
-      en la lista `r`. Después de esta operación `this` se vacía. El orden de
-      los elementos es preservado a través de 'r' y 'l'.
-
-      \param[out] l una lista conteniendo los primeros n/2 elementos
-      \param[out] r una lista conteniendo los últimos n/2 elementos
-      \return El total de elemntos que posee `this`
-
-  */
+    */
   size_t split_list(HTList & l, HTList & r) noexcept
   {
     assert(l.is_empty() and r.is_empty()); // l y r deben estar vacías
@@ -979,9 +780,9 @@ public:
     return split_list(l, r);
   }
 
-  //!\~English It inverts all list elements. It returns list size
-  //!\~Spanish Invierte los elementos de la lista. Retorna el tamaño
-  //!de la lista.
+  //!It inverts all list elements. It returns list size
+  
+  
   size_t reverse() noexcept
   {
     HTList tmp;
@@ -1004,24 +805,18 @@ public:
     return reverse();
   }
 
-  //!\~English It cuts 'this' over 'link' element and it puts all
-  //!remaining elements \~Spanish Corta this por el elemento link y
-  //!coloca los elementos restantes (los que están después de link) en
+  //!It cuts 'this' over 'link' element and it puts all
+  
+  
   //!list
 
   /**
-     \~English
-     \brief  It makes reference to is_empty(). <br>
+          \brief  It makes reference to is_empty(). <br>
      Referenced by cut_list().
      \param [in] link Element where 'list' will be cut.
      \param [in] list List that will be cut in link
 
-     \~Spanish
-    \brief Hace referencia a is_empty(). <br>
-    Referenciado por cut_list().
-    \param [in] link Elemento donde 'list' comenzará
-    \param [in] list Lista que será insertada luego de link
-  */
+     */
   void cut(Slinknc * link, HTList & list) noexcept
   {
     assert(list.is_empty());
@@ -1037,8 +832,7 @@ public:
   void cut_list(Slinknc * link, HTList & list) noexcept { cut(link, list); }
 
   /**
-    \~English
-      Remove and free memory for all the items of list.
+          Remove and free memory for all the items of list.
 
       `remove_all_and_delete()` remove each item of the list and call to
       `delete` operator on the removed item. At the end of call, all the
@@ -1049,19 +843,7 @@ public:
       the case, there are some exceptions. So, be sure that the items
       were allocated with `new` operator.
 
-    \~Spanish
-      Elimina y libera la memoria de todos los elemntos de la lista.
-
-      `remove_all_and_delete()` elimina cada elemento de la lista y llama al
-      operador `delete` en el elemnto removido. Al final del llamado, todos los
-      elementos fueron removidos, toda la memoria liberada y la lista vaciada.
-
-      \warning Este método solo tiene sentido si todos los elemntos de la lista
-      fueron reservados con `new`. Aunque es muy frecuente el caso, existen
-      excepciones. Entonces, asegúrese de que los elemntos fueron reservados
-      con el poerador `new`.
-
-   */
+    */
   void remove_all_and_delete() noexcept
   {
     while (not is_empty())
@@ -1069,16 +851,11 @@ public:
   }
 
   /**
-    \~English
-      Iterator on HTList.
+          Iterator on HTList.
 
       \ingroup Sequences
 
-    \~Spanish
-      Iterador sobre HTList
-
-      \ingroup Sequences
-   */
+    */
   class Iterator
   {
     HTList * lptr = nullptr;
@@ -1091,23 +868,23 @@ public:
 
     Iterator() noexcept = default;
 
-    //!\~English Initialize iterator on at the first item of `list`
-    //!\~Spanish Inicializa un iterador sobre el primer elemento de
+    //!Initialize iterator on at the first item of `list`
+    
     //!`list`
     Iterator(const HTList & list) noexcept
       : lptr(& const_cast<HTList &>(list)), curr(lptr->head), prev(curr)
     { /* empty */ }
 
-    //!\~English Reset the iterator at the first item
-    //!\~Spanish Reestablece el iterador al primer elemento
+    //!Reset the iterator at the first item
+    
     void reset() noexcept
     {
       prev = curr = lptr->head;
       pos = 0;
     }
 
-    //!\~English Return the current position \~Spanish Retorna la
-    //!posición actual
+    
+    
     long get_pos() const noexcept { return pos; }
 
     /// \overload reset()
@@ -1128,17 +905,17 @@ public:
         }
     }
 
-    //!\~English Set the iterator to its end position, which has not
-    //!current item. \~Spanish Ajusta el iterador a su posición final 
+    //!Set the iterator to its end position, which has not
+    
     void end() noexcept
     {
       curr = nullptr;
     }
 
-     //!\~English Copy constructor \~Spanish Constructor de copia
+     
     Iterator(const Iterator &) = default;
 
-     //!\~English Assignation \~Spanish Asignación
+     
     Iterator & operator = (const Iterator & it) noexcept
       {
         lptr = it.lptr;
@@ -1148,8 +925,8 @@ public:
         return *this;
       }
 
-    //!\~English Return `true` if iterator has current item \~Spanish
-    //!Retorna `true` si el iterador tiene un elemento actual
+    
+    
     bool has_curr() const noexcept { return curr != nullptr; }
 
     bool is_last() const noexcept
@@ -1167,16 +944,11 @@ public:
     bool is_in_last() const noexcept { return is_last(); }
 
     /**
-    \~English
-    Return the current node on which the iterator is positioned
+        Return the current node on which the iterator is positioned
 
     @throw overflow_error if iterator has not current node
 
-    \~Spanish
-    Retorna el nodo actual sobre el cual está posicionado el iterador
-
-    @throw overflow_error si el iterador no tiene nodo actual
-     */
+    */
     Slinknc * get_curr() const
     {
       ah_overflow_error_if(curr == nullptr)
@@ -1213,14 +985,10 @@ public:
     }
 
     /**
-    \~English
-      Move the iterator one item forward. Throw overflow_error if
+          Move the iterator one item forward. Throw overflow_error if
       iterator has not current item
 
-    \~Spanish
-      Mueve el iterador un elemento más adelante. Lanza overflow_error
-      si el iterador no tiene elemento actual.
-      */
+    */
 
     void next()
     {
@@ -1258,8 +1026,7 @@ public:
     }
 
     /**
-       \~English
-       Remove the current item.
+              Remove the current item.
 
        `del()` removes the current item of iterator and advaces it a
        position forward.
@@ -1267,15 +1034,7 @@ public:
        \return a valid pointer to the removed item
        \throw overflow_error if iterator has not current item
 
-       \~Spanish
-       Remueve el elemento actual.
-
-       `del()` elimina el elemento actual del iterador y lo desplaza
-       una posición más adelante.
-
-       \return un puntero válido al objeto eliminado
-       \throw overflow_error si el iterador no tiene elemento actual
-     */
+       */
     Slinknc * del()
     {
       ah_overflow_error_if(not has_curr())
@@ -1286,8 +1045,7 @@ public:
   };
 
   /**
-      \~English
-
+      
       Count the number of elements of the list.
 
       This method counts, it does not retrieve, the number of elements
@@ -1303,22 +1061,7 @@ public:
 
       \return the number of items of list
 
-      \~Spanish
-
-      Cuenta el número de elemntos de la lista.
-
-      Este método cuenta, más no recupera, el número de elemntos en la lista.
-
-      Entonces, su complejidad es \f$O(n)\f$. Esto es algo polémico porque
-      uno podría mantener un contador interno y recuperarlo en un tiempo
-      constante. Es posible que esta característica sea puesta en próximas
-      versiones. Nosotros no mantenemos este contador porque es posible
-      añadir o remover elemntos de un nodo dado. Entonces, estas operaciones
-      requerirían acceso al contexto de la lista completa, lo cual no es
-      el caso frecuentemente.
-
-      \return el número de elementos de la lista
-   */
+      */
   size_t size() const noexcept
   {
     size_t count = 0;
@@ -1329,8 +1072,7 @@ public:
   }
 
   /**
-  \~English
-    Rotate to left the list n positions.
+      Rotate to left the list n positions.
 
       `rotate_left(n)` rotates the items to left `n` positions. For
       example, if the list is as follows:
@@ -1344,21 +1086,7 @@ public:
       \param[in] n the number of position to be rotated
       \throw domain_error if list is empty
 
-  \~Spanish
-     Rota a la izquierda la lista n posiciones.
-
-      `rotate_left(n)` rota los elementos a la izquierda `n` posiciones.
-      Por ejemplo, si la lista es así:
-
-          l0, l1, l2, l3, l4, l5, l6, l7, l8, l9
-
-      Entonces `rotate_left(4)` produce el siguiente estado:
-
-          l4, l5, l6, l7, l8, l9, l0, l1, l2, l3
-
-      \param[in] n el número de posiciones a rotar
-      \throw domain_error si la lista está vacía
-   */
+  */
   void rotate_left(size_t n)
   {
     if (is_empty())
@@ -1431,35 +1159,30 @@ class DynList : public HTList,
 
  public:
 
-  //!\~English The type of item \~Spanish el tipo de elemento
+  
   using Item_Type = T;
 
-  //!\~English The type of item \~Spanish el tipo de elemento
+  
   using Key_Type = T;
 
   Slinknc * get_head() const noexcept = delete;
   Slinknc * get_tail() const noexcept = delete;
 
   /**
-     \~English
-     Swap this with l. All items of each list are swapped in constant
+          Swap this with l. All items of each list are swapped in constant
      time
 
-     \~Spanish
-     Intercambia this con l. Todos los elementos de cada lista son
-     intercambiados en tiempo constante.
-   */
+     */
   DynList & swap(DynList & l) noexcept
   {
     return static_cast<DynList &>(HTList::swap(l));
   }
 
-  //!\~English Initialize an empty list \~Spanish Inicializa una lista vacía
+  
+  /// Initialize an empty list
   DynList() { /* empty */ }
 
-  //!\~English  Initialize a list with a copy of all the items of list
-  //!`l` \~Spanish Inicializa una lista con una copia de todos los
-  //!elementos de la lista
+  /// Initialize a list with a copy of all the items of list `l`
   DynList(const DynList & l) : HTList(), CtorBase(l) {}
 
 private:
@@ -1485,8 +1208,7 @@ private:
 public:
 
   /**
-      \~English
-      Insert a new item by copy.
+            Insert a new item by copy.
 
       Allocate memory for a new item, copy and insert into the list as
       the first item.
@@ -1494,15 +1216,7 @@ public:
       \return a modifiable reference to the item in the list
       \throw  `bad_alloc` if there is no enough memory
 
-      \~Spanish
-      Inserta un nuevo elemento por copia.
-
-      Asigna memoria para un nuevo elemento, lo copia y lo inserta como el
-      primer elemento.
-
-      \return una referencia modificable al elemento en la lista
-      \throw `bad_alloc` si no hay suficiente memoria
-   */
+      */
   T & insert(const T & item)
   {
     return __insert(new Snodenc<T> (item));
@@ -1545,8 +1259,7 @@ public:
   }
 
   /**
-    \~English
-      Append a new item by copy.
+          Append a new item by copy.
 
       Allocate memory for a new item, copy and append it at the end of
       the list.
@@ -1554,23 +1267,14 @@ public:
       \return a modifiable reference to the item in the list
       \throw  `bad_alloc` if there is no enough memory
 
-    \~Spanish
-      Mete un nuevo elemento a la lista por copia.
-
-      Asigna memoria para un nuevo elemento, copia y lo inserta al final
-      de la lista.
-
-      \return una referencia modificable al elemento en la lista
-      \throw `bad_alloc` si no hay suficiente memoria
-  */
+    */
   T & append(const T & item)
   {
     return __append(new Snodenc<T> (item));
   }
 
   /**
-    \~English
-      Append a new item by movement.
+          Append a new item by movement.
 
       Allocate memory for a new item, move to its allocated place and
       append it at the end of the list.
@@ -1578,15 +1282,7 @@ public:
       \return a modifiable reference to the item in the list
       \throw  `bad_alloc` if there is no enough memory
 
-    \~Spanish
-      Inserta un nuevo elemento por desplazamiento.
-
-      Asigna memoria para el nuevo elemnto, lo mueve a su lugar asignado
-      y lo inserta al final de la lista.
-
-      \return una referencia modificable al elemento en la lista
-      \throw `bad_alloc` si no hay suficiente memoria
-  */
+    */
   T & append(T && item)
   {
     return __append(new Snodenc<T> (std::forward<T>(item)));

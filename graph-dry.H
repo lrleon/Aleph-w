@@ -694,7 +694,11 @@ public:
   /// Return the total of nodes of graph
   [[nodiscard]] constexpr size_t get_num_nodes() const noexcept { return num_nodes; }
 
-  /// Return true if the graph is empty (has no nodes)
+  /** @brief Checks if the graph is empty (has no nodes).
+      @param none
+      @return true if graph has no nodes, false otherwise.
+      @throws none
+  */
   [[nodiscard]] constexpr bool is_empty() const noexcept { return num_nodes == 0; }
 
   /// \overload get_num_nodes()
