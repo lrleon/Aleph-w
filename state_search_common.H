@@ -167,6 +167,81 @@ concept VisitedBoundMap = requires(Map &map, const Key &key, const Objective &ob
   map.search(key)->second = obj;
 };
 
+/** @brief Concept for domains that can estimate a move's bound without
+ *         modifying state (incremental bound for Branch-and-Bound ordering).
+ *
+ *  When a domain satisfies this concept, @ref Aleph::Branch_And_Bound can
+ *  compute ordering priorities for `Estimated_Bound` move ordering without
+ *  calling `apply()`/`undo()` on each candidate move.  This avoids O(k)
+ *  apply/undo pairs per batch of k successors, which matters when the state
+ *  mutation is expensive.
+ *
+ *  The expression `domain.bound_after(state, move)` must return a value
+ *  convertible to `Domain::Objective` and must represent an optimistic bound
+ *  on the best objective reachable by applying `move` to `state`, without
+ *  altering `state`.  The direction of the bound depends on the active
+ *  `ObjectivePolicy`: an upper bound for @ref Aleph::Maximize_Objective and
+ *  a lower bound for @ref Aleph::Minimize_Objective.  Implementers targeting
+ *  @ref Aleph::Branch_And_Bound should ensure the returned value is
+ *  consistent with the policy so that pruning remains correct.
+ *
+ *  @tparam Domain Branch-and-bound domain type.
+ */
+template <typename Domain>
+concept IncrementalBoundProvider =
+  requires(Domain &domain,
+           const typename Domain::State &state,
+           const typename Domain::Move  &move) {
+    { domain.bound_after(state, move) }
+      -> std::convertible_to<typename Domain::Objective>;
+  };
+
+/** @brief Concept for adversarial-search domains that can estimate a child
+ *         score without modifying state (incremental evaluator for Alpha_Beta
+ *         `Estimated_Score` move ordering).
+ *
+ *  When a domain satisfies this concept, @ref Aleph::Alpha_Beta and any
+ *  other engine that supports `Estimated_Score` move ordering can compute
+ *  shallow evaluation priorities for move ordering without calling
+ *  `apply()`/`undo()` on each candidate move.
+ *
+ *  The expression `domain.evaluate_after(state, move)` must return a value
+ *  convertible to `Domain::Score` and must represent a cheap heuristic
+ *  estimate of the score of the child state obtained by applying `move`,
+ *  without altering `state`.
+ *
+ *  @tparam Domain Adversarial game domain type.
+ */
+template <typename Domain>
+concept IncrementalEvaluator =
+  requires(Domain &domain,
+           const typename Domain::State &state,
+           const typename Domain::Move  &move) {
+    { domain.evaluate_after(state, move) }
+      -> std::convertible_to<typename Domain::Score>;
+  };
+
+/** @brief Concept that checks whether a search engine supports the
+ *         `Best_First` exploration strategy at compile time.
+ *
+ *  Only @ref Aleph::Branch_And_Bound satisfies this concept.
+ *  @ref Aleph::Depth_First_Backtracking, @ref Aleph::IDA_Star_State_Search,
+ *  @ref Aleph::Negamax and @ref Aleph::Alpha_Beta do not — using
+ *  `Best_First` with those engines raises `std::invalid_argument` at
+ *  runtime.  Combining this concept with a `static_assert` converts that
+ *  error into a compile-time diagnostic:
+ *
+ *  @code
+ *  // Compile-time check before setting the policy:
+ *  static_assert(SupportsBestFirst<MyEngine>,
+ *                "MyEngine does not support Best_First strategy");
+ *  @endcode
+ *
+ *  @tparam Engine Search engine type.
+ */
+template <typename Engine>
+concept SupportsBestFirst = Engine::supports_best_first;
+
 /** @brief Counters collected during a search run. */
 struct SearchStats
 {
@@ -213,11 +288,22 @@ inline void reserve_search_path(SearchPath<Move> &path, const SearchLimits &limi
  */
 struct ExplorationPolicy
 {
-  /** @brief Traversal strategy supported by the engine. */
+  /** @brief Traversal strategy supported by the engine.
+   *
+   *  @note `Best_First` is **only implemented by @ref Aleph::Branch_And_Bound**.
+   *  Passing `Best_First` to @ref Aleph::Alpha_Beta raises `std::invalid_argument` at runtime.
+   *  When the engine type is known at compile time, the
+   *  `SupportsBestFirst<Engine>` concept/trait (see above) can be used in
+   *  templates or a `static_assert` to forbid `Best_First` for unsupported
+   *  engines. However, since @ref ExplorationPolicy::strategy can be set
+   *  dynamically at runtime, this restriction cannot be enforced purely at
+   *  compile time for all call sites; ensure you pass the correct strategy
+   *  for the engine you are using.
+   */
   enum class Strategy
   {
-    Depth_First,  ///< Recursive depth-first traversal.
-    Best_First    ///< Priority-guided expansion of the most promising frontier node.
+    Depth_First,  ///< Recursive depth-first traversal (all engines).
+    Best_First    ///< Priority-guided expansion; only supported by Branch_And_Bound.
   };
 
   Strategy strategy = Strategy::Depth_First;                  ///< Traversal strategy.
@@ -486,7 +572,21 @@ concept SuccessorGenerator = requires(Domain &d, const typename Domain::State &s
   } -> std::convertible_to<bool>;
 };
 
-/** @brief Concept for domains that can recognize goal states. */
+/** @brief Concept for domains that can recognize goal states.
+ *
+ *  Used by @ref Aleph::Search::Backtracking and @ref Aleph::Search::IDAStar.
+ *  A goal state is a *feasible solution*: any state for which the domain
+ *  considers the problem solved (e.g., all queens placed without conflict in
+ *  N-Queens, a path from source to target).
+ *
+ *  @note This is distinct from `is_complete()` as documented in
+ *  @ref Branch_And_Bound.H. Branch-and-Bound instead looks for
+ *  *optimal* solutions: `is_complete(state)` marks a feasibly complete
+ *  assignment whose objective value may still be improved by other branches,
+ *  so the engine records it as a new incumbent and keeps searching. Use
+ *  `is_goal` for satisfiability-style problems and `is_complete` for
+ *  optimization problems with an explicit cost/bound.
+ */
 template <typename Domain>
 concept GoalPredicate = requires(Domain &d, const typename Domain::State &state) {
   { d.is_goal(state) } -> std::convertible_to<bool>;
@@ -494,7 +594,7 @@ concept GoalPredicate = requires(Domain &d, const typename Domain::State &state)
 
 /** @brief Optional concept for explicit non-solution terminal states. */
 template <typename Domain>
-concept TerminalPredicate = requires(Domain &d, const typename Domain::State &state) {
+concept TerminalPredicate = requires(const Domain &d, const typename Domain::State &state) {
   { d.is_terminal(state) } -> std::convertible_to<bool>;
 };
 
@@ -626,6 +726,142 @@ struct SearchResult
     return status == SearchStatus::LimitReached;
   }
 };
+
+/** @brief Shared helper utilities used internally by all search engines.
+ *
+ *  These functions encapsulate the optional-hook dispatch and common
+ *  bookkeeping that was previously duplicated across `state_search_detail`,
+ *  `branch_and_bound_detail`, and `adversarial_search_detail`. Engines should
+ *  call these helpers instead of re-implementing the same logic locally.
+ */
+namespace search_engine_detail {
+
+/** @brief Dispatch helper for the optional `is_terminal` hook.
+ *
+ *  Returns `true` if `Domain` satisfies @ref Aleph::TerminalPredicate and the
+ *  domain reports the state as a non-goal dead end. Returns `false`
+ *  unconditionally when the domain does not expose `is_terminal`.
+ *
+ *  @tparam Domain Problem-domain type.
+ *  @param  domain Domain adapter (const reference).
+ *  @param  state  Current search state.
+ */
+template <typename Domain>
+[[nodiscard]] bool is_terminal_state(const Domain &domain,
+                                     const typename Domain::State &state)
+{
+  if constexpr (TerminalPredicate<Domain>)
+    return domain.is_terminal(state);
+  else
+    return false;
+}
+
+/** @brief Dispatch helper for the optional `should_prune` hook.
+ *
+ *  Returns `true` if `Domain` satisfies @ref Aleph::DomainPruner and the
+ *  domain requests an early cutoff of the current state. Returns `false`
+ *  when the domain does not expose `should_prune`.
+ *
+ *  @tparam Domain Problem-domain type.
+ *  @param  domain Domain adapter.
+ *  @param  state  Current search state.
+ *  @param  depth  Current search depth.
+ */
+template <typename Domain>
+[[nodiscard]] bool should_prune_state(Domain &domain,
+                                      const typename Domain::State &state,
+                                      const size_t depth)
+{
+  if constexpr (DomainPruner<Domain>)
+    return domain.should_prune(state, depth);
+  else
+    return false;
+}
+
+/** @brief Update visit counters and max-depth statistic.
+ *
+ *  Must be called once per node entry by any search engine.
+ *
+ *  @tparam Result Search-result type that owns a @ref SearchStats member.
+ *  @param  depth  Current search depth.
+ *  @param  result Result object whose statistics are updated in-place.
+ */
+template <typename Result>
+void register_visit(const size_t depth, Result &result)
+{
+  ++result.stats.visited_states;
+  if (depth > result.stats.max_depth_reached)
+    result.stats.max_depth_reached = depth;
+}
+
+/** @brief Check whether the expansion limit has been reached.
+ *
+ *  Marks the result as @ref SearchStatus::LimitReached and increments the
+ *  limit-hit counter when the number of expanded states meets or exceeds the
+ *  configured maximum. Engines that need additional side-effects (e.g., setting
+ *  an internal `stop_` flag) should perform them after this call returns `true`.
+ *
+ *  @tparam Result Search-result type that owns a @ref SearchStats member.
+ *  @param  result Result object to inspect and update.
+ *  @param  limits Hard bounds for the current run.
+ *  @return `true` if the limit has been reached; `false` otherwise.
+ */
+template <typename Result>
+[[nodiscard]] bool expansion_limit_reached(Result &result, const SearchLimits &limits)
+{
+  if (result.stats.expanded_states >= limits.max_expansions)
+    {
+      ++result.stats.limit_hits;
+      result.status = SearchStatus::LimitReached;
+      return true;
+    }
+
+  return false;
+}
+
+/** @brief Decide whether to stop the search after a solution was accepted.
+ *
+ *  Returns `true` (and updates `result.status`) in two cases, checked in
+ *  priority order:
+ *  1. the configured maximum number of solutions has been reached (hard
+ *     limit — increments @c limit_hits, sets @ref SearchStatus::LimitReached);
+ *  2. the policy requests stopping at the first solution (soft stop — sets
+ *     @ref SearchStatus::StoppedOnSolution).
+ *
+ *  The hard limit is evaluated first so that @c limit_hits and
+ *  @ref SearchStatus::LimitReached are always reported when
+ *  @c max_solutions is finite and reached, regardless of the
+ *  @c stop_at_first_solution flag.
+ *
+ *  @tparam Result Search-result type that owns a @ref SearchStats member.
+ *  @param  result Result object to update.
+ *  @param  policy Exploration policy for the current run.
+ *  @param  limits Hard bounds for the current run.
+ *  @return `true` if the engine should stop; `false` to keep searching.
+ */
+template <typename Result>
+[[nodiscard]] bool stop_after_solution(Result &result,
+                                       const ExplorationPolicy &policy,
+                                       const SearchLimits &limits)
+{
+  if (limits.max_solutions != Search_Unlimited
+      and result.stats.solutions_found >= limits.max_solutions)
+    {
+      ++result.stats.limit_hits;
+      result.status = SearchStatus::LimitReached;
+      return true;
+    }
+
+  if (policy.stop_at_first_solution)
+    {
+      result.status = SearchStatus::StoppedOnSolution;
+      return true;
+    }
+
+  return false;
+}
+
+}  // end namespace search_engine_detail
 
 }  // end namespace Aleph
 
