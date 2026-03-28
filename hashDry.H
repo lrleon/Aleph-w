@@ -606,7 +606,13 @@ public:
     me()->table = new typename HashTbl::Bucket [me()->len];
   }
 
-  /// Alias for empty()
+  /** @brief Empties the container. 
+      
+      @param none
+      @return void
+      @throws none
+      @see empty()
+  */
   void clear() { empty(); }
 
   /** @brief Returns the number of entries in the table.

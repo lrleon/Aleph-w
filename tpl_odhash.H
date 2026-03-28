@@ -465,6 +465,10 @@ namespace Aleph
 
         @throw bad_alloc if there is no memory for the bucket table.
     */
+    using Base = OhashCommon<ODhashTable<Key, Cmp>, Key>;
+
+    using Base::contains;
+
     ODhashTable(size_t len = Primes::DefaultPrime,
                 Hash_Fct_Ptr first_hash_fct = Aleph::dft_hash_ptr_fct<Key>,
                 Hash_Fct_Ptr second_hash_fct = Aleph::snd_hash_ptr_fct<Key>,

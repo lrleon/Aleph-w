@@ -260,7 +260,14 @@ namespace Aleph {
       this->remove_all_and_delete();
     }
 
-    /// Alias for empty()
+    /** @brief Removes all elements from the heap.
+
+        @param none
+        @return void
+        @throws none
+
+        @note This method delegates to empty() and is noexcept.
+    */
     void clear() noexcept { empty(); }
 
     /// Destructor.

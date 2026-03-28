@@ -2823,7 +2823,13 @@ namespace Aleph
         list.remove_first();
     }
 
-    /// Alias for empty()
+    /** @brief Empties the container. 
+        
+        @param none
+        @return void
+        @throws none
+        @see empty()
+    */
     void clear() { empty(); }
 
     /// Copy constructor

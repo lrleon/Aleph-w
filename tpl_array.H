@@ -333,7 +333,13 @@ public:
   /// Empty the stack
   void empty() noexcept { array.empty(); }
 
-  /// Alias for empty()
+  /** @brief Empties the container. 
+      
+      @param none
+      @return void
+      @throws none
+      @see empty()
+  */
   void clear() noexcept { empty(); }
 
   /// Return `true` if stack is empty

@@ -162,7 +162,13 @@ public:
     this->remove_all_and_delete();
   }
 
-  /// Alias for empty()
+  /** @brief Empties the container. 
+      
+      @param none
+      @return void
+      @throws none
+      @see empty()
+  */
   void clear() { empty(); }
 
   /// Destructor. Clears all remaining heap nodes.
@@ -288,7 +294,13 @@ public:
     heap.clear();
   }
 
-  /// Alias for empty()
+  /** @brief Empties the container. 
+      
+      @param none
+      @return void
+      @throws none
+      @see empty()
+  */
   void clear() { empty(); }
 
   /// Destructor. Clears all remaining heap nodes.

@@ -175,6 +175,18 @@ TEST(QuadTreeBasic, EmptyTree)
   EXPECT_EQ(tree.search(Point(50, 50)), nullptr);
 }
 
+TEST(QuadTreeBasic, ClearYieldsSameStateAsEmpty)
+{
+  QuadTree tree(0, 100, 0, 100, 4);
+  tree.insert(Point(25, 25));
+  tree.insert(Point(75, 75));
+  
+  tree.clear();
+  
+  EXPECT_EQ(tree.search(Point(25, 25)), nullptr);
+  EXPECT_EQ(tree.search(Point(75, 75)), nullptr);
+}
+
 // ============================================================================
 // Subdivision and Merging Tests
 // ============================================================================

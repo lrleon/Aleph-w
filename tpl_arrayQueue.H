@@ -433,7 +433,13 @@ public:
     front_index = rear_index = num_items = 0;
   }
 
-  /// Alias for empty()
+  /** @brief Empties the container. 
+      
+      @param none
+      @return void
+      @throws none
+      @see empty()
+  */
   void clear() noexcept { empty(); }
 
       /** Construct a queue of capacity the immediately two power of `d`

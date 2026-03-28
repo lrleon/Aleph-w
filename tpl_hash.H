@@ -85,10 +85,23 @@ namespace Aleph
       return it.get_curr();
     }
 
-    /// Empty the set
+    /** @brief Empties the container. 
+        
+        @param none
+        @return void
+        @throws none
+        @see empty()
+    */
     void clear() { this->empty(); }
 
-    /// Return true if the set is empty
+    using Base::contains;
+
+    /** @brief Checks if the container is empty.
+        
+        @param none
+        @return true if empty, false otherwise.
+        @throws none
+    */
     bool is_empty() const noexcept { return this->Base::is_empty(); }
   };
 
@@ -135,10 +148,23 @@ namespace Aleph
 
     Generate_Proxy_Operator(HashMap);
 
-    /// Empty the map
+    /** @brief Empties the container. 
+        
+        @param none
+        @return void
+        @throws none
+        @see empty()
+    */
     void clear() { this->empty(); }
 
-    /// Return true if the map is empty
+    using Base::contains;
+
+    /** @brief Checks if the container is empty.
+        
+        @param none
+        @return true if empty, false otherwise.
+        @throws none
+    */
     bool is_empty() const noexcept { return this->Base::is_empty(); }
   };
 

@@ -81,7 +81,13 @@ namespace Aleph
       num_items = 0;
     }
 
-    /// Alias for empty()
+    /** @brief Empties the container. 
+        
+        @param none
+        @return void
+        @throws none
+        @see empty()
+    */
     void clear() { empty(); }
 
     /** Inserta un elemento al principio de la lista.

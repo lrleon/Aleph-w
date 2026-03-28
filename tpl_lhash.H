@@ -299,8 +299,22 @@ namespace Aleph
       busy_slots_counter = N = 0;
     }
 
-    /// Alias for empty()
+    /** @brief Empties the container. 
+        
+        @param none
+        @return void
+        @throws none
+        @see empty()
+    */
     void clear() noexcept { empty(); }
+
+    /** @brief Checks if a key exists in the table.
+        
+        @param[in] key key to search for.
+        @return true if key is present, false otherwise.
+        @throws none
+    */
+    bool contains(const Key & key) const noexcept { return search(key) != nullptr; }
 
   private:
     Bucket *

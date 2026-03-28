@@ -258,6 +258,10 @@ namespace Aleph
                 float lower_alpha, float upper_alpha, bool with_resize)
       : OLhashTable(len, hash_fct, cmp, lower_alpha, upper_alpha, with_resize) {}
 
+    using Base = OhashCommon<OLhashTable<Key, Cmp>, Key>;
+
+    using Base::contains;
+
     OLhashTable(size_t len = Primes::DefaultPrime,
                 Hash_Fct_Ptr hash_fct = Aleph::dft_hash_ptr_fct<Key>,
                 Cmp cmp = Cmp(),

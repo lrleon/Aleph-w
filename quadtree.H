@@ -531,7 +531,7 @@ public:
     root->empty();
   }
 
-  /// Alias for empty()
+  /** @brief Alias for empty(). See empty() for behavior. */
   void clear() { empty(); }
 
   /** @brief Apply an operation to each node in the tree.

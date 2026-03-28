@@ -695,7 +695,7 @@ public:
   [[nodiscard]] constexpr size_t get_num_nodes() const noexcept { return num_nodes; }
 
   /// Return true if the graph is empty (has no nodes)
-  [[nodiscard]] bool is_empty() const noexcept { return num_nodes == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return num_nodes == 0; }
 
   /// \overload get_num_nodes()
   [[nodiscard]] constexpr size_t vsize() const noexcept { return get_num_nodes(); }

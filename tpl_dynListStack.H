@@ -403,10 +403,13 @@ public:
     num_items = 0;
   }
 
-  /** @brief Alias for empty() - removes all elements.
-   *
-   *  Provided for compatibility with STL-style interfaces.
-   */
+  /** @brief Empties the container. 
+      
+      @param none
+      @return void
+      @throws none
+      @see empty()
+  */
   void clear() noexcept { empty(); }
 
   /** @brief Traverse all elements from top to bottom.

@@ -343,11 +343,24 @@ namespace Aleph
       return *this;
     }
 
-    /// Empty the container. The array is not contracted
-    void empty() { n = 0; }
+    /** @brief Empties the container. 
+        
+        The array size is set to zero, but the allocated memory is not released.
+        
+        @param none
+        @return void
+        @throws none
+    */
+    void empty() noexcept { n = 0; }
 
-    /// Alias for empty()
-    void clear() { empty(); }
+    /** @brief Alias for empty().
+        
+        @param none
+        @return void
+        @throws none
+        @see empty()
+    */
+    void clear() noexcept { empty(); }
 
     /// Empty the array and release all memory
     void empty_and_release()

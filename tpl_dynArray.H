@@ -1190,7 +1190,13 @@ namespace Aleph
     /// is to set to zero
     void empty() noexcept { cut(0); }
 
-    /// Alias for empty()
+    /** @brief Empties the container. 
+        
+        @param none
+        @return void
+        @throws none
+        @see empty()
+    */
     void clear() noexcept { empty(); }
 
     Proxy operator [](const size_t i) const

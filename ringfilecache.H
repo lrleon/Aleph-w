@@ -867,7 +867,14 @@ public:
   */
   void empty() noexcept { get(n); }
 
-  /// Alias for empty()
+  /** @brief Removes all entries from the cache.
+
+      @param none
+      @return void
+      @throws none
+
+      @note This method is an alias for empty() and is noexcept.
+  */
   void clear() noexcept { empty(); }
 
   /** Flushes the current cache state to disk.

@@ -545,6 +545,7 @@ public:
    *  @tparam Operation Search criteria callable.
    *  @param[in] operation matching criteria.
    *  @return true if an item satisfying operation is found, false otherwise.
+   *  @throws none
    */
   template <class Operation>
   bool contains_if(Operation && operation) const
@@ -557,6 +558,7 @@ public:
    *
    *  @param[in] item element to search for.
    *  @return true if item is found, false otherwise.
+   *  @throws none
    */
   bool contains(const Type & item) const
   {

@@ -161,7 +161,13 @@ public:
     num_elem = 0;
   }
 
-  /// Alias for empty()
+  /** @brief Empties the container. 
+      
+      @param none
+      @return void
+      @throws none
+      @see empty()
+  */
   void clear() noexcept { empty(); }
 
   ~DynDlist() /// Destructor

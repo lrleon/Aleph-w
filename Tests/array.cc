@@ -365,4 +365,11 @@ TEST(ArraySearch, Contains)
   EXPECT_FALSE(arr.contains_if([](int x) { return x > 100; }));
 }
 
+TEST(ArraySearch, ContainsEmpty)
+{
+  Array<int> empty;
+  EXPECT_FALSE(empty.contains(10));
+  EXPECT_FALSE(empty.contains_if([](int) { return true; }));
+}
+
 } // namespace

@@ -576,7 +576,13 @@ namespace Aleph
       num_nodes = 0;
     }
 
-    /// Alias for empty()
+    /** @brief Empties the container. 
+        
+        @param none
+        @return void
+        @throws none
+        @see empty()
+    */
     void clear() { empty(); }
 
     DynSetTree &operator =(const DynList<Key> & list)
@@ -894,6 +900,14 @@ namespace Aleph
       return exist(key);
     }
 
+    using LocateFunctions<DynSetTree<Key, Tree, Compare>, Key>::contains;
+
+    /** @brief Checks if a key exists in the set.
+        
+        @param[in] key key to search for.
+        @return true if key is present, false otherwise.
+        @throws none
+    */
     bool contains(const Key & key) const
     {
       return exist(key);
