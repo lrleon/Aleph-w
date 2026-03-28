@@ -15,6 +15,9 @@ PROJECT_ROOT=$(pwd)
 BUILD_DIR_DEBUG="$PROJECT_ROOT/build-debug"
 BUILD_DIR_RELEASE="$PROJECT_ROOT/build-release"
 
+# Compute number of jobs for parallel build
+JOBS="$(command -v nproc >/dev/null 2>&1 && nproc || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+
 report_failure() {
     echo -e "${RED}[FAIL] $1${NC}"
     exit 1
@@ -37,13 +40,11 @@ run_stage() {
 
     # 2. Compilation
     echo -e "${BLUE}[2/3] Compiling $mode...${NC}"
-    cmake --build "$build_dir" -j$(nproc) || report_failure "Compilation failed for $mode mode."
+    cmake --build "$build_dir" -j"$JOBS" || report_failure "Compilation failed for $mode mode."
 
     # 3. Execution
     echo -e "${BLUE}[3/3] Running tests for $mode...${NC}"
-    cd "$build_dir"
-    ctest --output-on-failure || report_failure "Test execution failed for $mode mode."
-    cd "$PROJECT_ROOT"
+    ctest --test-dir "$build_dir" --output-on-failure || report_failure "Test execution failed for $mode mode."
 
     echo -e "${GREEN}[SUCCESS] $mode stage completed.${NC}\n"
 }

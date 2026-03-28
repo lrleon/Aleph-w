@@ -4316,6 +4316,11 @@ cmake --build build
 # Run all tests
 ctest --test-dir build --output-on-failure
 
+# Orchestrate both Debug and Release build-and-test stages sequentially.
+# This script is primarily for local developer verification; CI handles 
+# these stages in parallel across different environments.
+./run_all_tests.sh
+
 # Run specific test
 ./build/Tests/dynlist
 ./build/Tests/test_dijkstra

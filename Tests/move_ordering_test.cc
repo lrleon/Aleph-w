@@ -30,6 +30,7 @@
 
 #include <random>
 #include <string>
+#include <cmath>
 
 #include <gtest/gtest.h>
 
@@ -413,7 +414,7 @@ TEST(HistoryHeuristicTable, NullTableLargeInput)
 
 TEST(SortRankedMoves, RandomizedStress)
 {
-  constexpr size_t N      = 1000;
+  constexpr size_t N      = 2000;
   constexpr unsigned SEED = 42u;
   std::mt19937 rng(SEED);
 
@@ -423,22 +424,34 @@ TEST(SortRankedMoves, RandomizedStress)
     { return static_cast<size_t>(std::uniform_int_distribution<size_t>(lo, hi)(rng)); };
   auto rand_bool = [&]() { return static_cast<bool>(rng() & 1u); };
 
+  // Generate a single deterministic baseline corpus for all combinations
+  Array<RankedMove<int, int>> baseline_moves;
+  for (size_t i = 0; i < N; ++i)
+    baseline_moves.append(RankedMove<int, int>{rand_int(0, 100),
+                                               rand_int(0, 50),
+                                               i,
+                                               rand_bool(),
+                                               rand_uint(0, 200)});
+
   for (bool killer_first : {false, true})
     for (bool use_history : {false, true})
       {
-        Array<RankedMove<int, int>> moves;
-        for (size_t i = 0; i < N; ++i)
-          moves.append(RankedMove<int,int>{rand_int(0, 100),
-                                          rand_int(0, 50),
-                                          i,
-                                          rand_bool(),
-                                          rand_uint(0, 200)});
+        Array<RankedMove<int, int>> moves = baseline_moves;
+        size_t comparisons = 0;
+        auto instrumented_cmp = [&](int a, int b) {
+          comparisons++;
+          return a > b;
+        };
 
-        sort_ranked_moves(moves,
-                          [](int a, int b) { return a > b; },
-                          killer_first, use_history);
+        sort_ranked_moves(moves, instrumented_cmp, killer_first, use_history);
 
         ASSERT_EQ(moves.size(), N);
+
+        // Assert sorting complexity stays within budget (C * N * log2(N))
+        const double n_log_n = N * std::log2(static_cast<double>(N));
+        EXPECT_LT(comparisons, static_cast<size_t>(20.0 * n_log_n))
+          << "Performance regression in sort_ranked_moves hot path ("
+          << killer_first << ", " << use_history << ")";
 
         for (size_t i = 0; i + 1 < N; ++i)
           {
@@ -453,20 +466,17 @@ TEST(SortRankedMoves, RandomizedStress)
                   FAIL() << "Non-killer before killer at index " << i;
               }
 
-            if (a.killer == b.killer)
+            if (use_history and a.history_score != b.history_score)
+              EXPECT_GE(a.history_score, b.history_score)
+                << "History ordering violated at index " << i;
+            else
               {
-                if (use_history and a.history_score != b.history_score)
-                  EXPECT_GE(a.history_score, b.history_score)
-                    << "History ordering violated at index " << i;
-                else if (not use_history)
-                  {
-                    if (a.priority != b.priority)
-                      EXPECT_GE(a.priority, b.priority)
-                        << "Priority ordering violated at index " << i;
-                    else
-                      EXPECT_LE(a.ordinal, b.ordinal)
-                        << "Ordinal tiebreak violated at index " << i;
-                  }
+                if (a.priority != b.priority)
+                  EXPECT_GE(a.priority, b.priority)
+                    << "Priority ordering violated at index " << i;
+                else
+                  EXPECT_LE(a.ordinal, b.ordinal)
+                    << "Ordinal tiebreak violated at index " << i;
               }
           }
       }
