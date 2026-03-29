@@ -205,7 +205,7 @@ struct Null_History_Heuristic_Table
    *  @return Always 0.
    */
   template <typename Key>
-  [[nodiscard]] size_t score(const Key &) const noexcept
+  [[nodiscard]] static size_t score(const Key &) noexcept
   {
     return 0;
   }

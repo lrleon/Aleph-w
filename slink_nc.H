@@ -44,10 +44,10 @@
 
 namespace Aleph
 {
-  /** Enlace simple a lista de nodos no circular.
+  /** Singly linked list node (non-circular).
 
-      Slink_Nc modeliza un puntero a un nodo dentro de una lista
-      simplemente enlazada no circular. 
+      Slink_Nc models a pointer to a node within a non-circular 
+      singly linked list.
 
       @ingroup Sequences
       @see Snode Slist DynSlist Dlink 
@@ -58,15 +58,15 @@ namespace Aleph
     Slink_Nc * next;
   
   public:
-    /// Constructor vacío.
+    /// Empty constructor.
     Slink_Nc() : next(nullptr) { /* empty */ }
 
-    /// Constructor copia; coloca enlace a que apunte a nullptr.
+    /// Copy constructor; sets the next link to nullptr.
     Slink_Nc(const Slink_Nc &) : next(nullptr) { /* empty */ }
 
     ~Slink_Nc() { /* empty */ }
 
-    /// Asignación; coloca enlace a que apunte a nullptr.
+    /// Assignment; sets the next link to nullptr.
     Slink_Nc & operator = (const Slink_Nc & link)
     {
       if (&link == this)
@@ -79,29 +79,29 @@ namespace Aleph
       return *this;
     }
 
-    /// Reinicia enlace a que apunte a nullptr
+    /// Resets the link to nullptr.
     void reset()
     {
       assert(this not_eq nullptr);
       next = nullptr;
     }
 
-    /// Retorna true si this está vacío (apunta a nullptr)
+    /// Returns true if this is empty (points to nullptr).
     bool is_empty() const
     {
       assert(this not_eq nullptr);
       return next == nullptr;
     }
 
-    /// Retorna el siguiente enlace.
+    /// Returns the next link.
     Slink_Nc *& get_next()
     {
       assert(this not_eq nullptr);
       return next;
     }
 
-    /** @brief Retorna el siguiente enlace (versión constante).
-        @return un puntero constante al siguiente enlace.
+    /** @brief Returns the next link (constant version).
+        @return a constant pointer to the next link.
         @throws none
     */
     const Slink_Nc * get_next() const
@@ -110,12 +110,12 @@ namespace Aleph
       return next;
     }
 
-    /** Inserta en enlace p después de this.
+    /** Inserts link p after this.
 
-          insert(p) inserta un nodo simple cuyo enlace es p después
-          del nodo cuyo enlace es this.
+          insert(p) inserts a simple node whose link is p after
+          the node whose link is this.
 
-          @param[in] p el enlace simple a insertar.
+          @param[in] p the simple link to insert.
        */
     void insert(Slink_Nc * p)
     {
@@ -126,13 +126,13 @@ namespace Aleph
       next = p;
     }
 
-    /** Elimina el enlace siguiente a this.
+    /** Removes the link following this.
 
-          remove_next() elimina el nodo simple situado después
-          del nodo cuyo enlace es this y retorna la dirección del enlace 
-          eliminado.
+          remove_next() removes the simple node situated after
+          the node whose link is this and returns the address of the
+          removed link.
 
-          @return  el enlace eliminado.
+          @return the removed link.
        */
     Slink_Nc * remove_next()
     {
@@ -168,7 +168,7 @@ namespace Aleph
         // empty
       }
 
-      void reset_first() /// Reinicia iterador a primer nodo de la lista
+      void reset_first() /// Resets iterator to the first node of the list.
       {
         assert(curr != nullptr and head != nullptr);
         curr = head->get_next();
@@ -192,7 +192,7 @@ namespace Aleph
         return curr != nullptr;
       }
 
-      /// Retorna dirección de nodo actual
+      /// Returns current node address.
       Slink_Nc * get_curr_ne() const noexcept
       {
         assert(curr != nullptr and head != nullptr);
@@ -205,10 +205,10 @@ namespace Aleph
         return get_curr_ne();
       }
 
-      /// Retorna true si iterador está sobre primer elemento
+      /// Returns true if iterator is on the first element.
       bool is_in_first() const { return curr == head->next; }
 
-      /// Avanza iterador en una posición 
+      /// Advances iterator by one position.
       void next_ne() noexcept
       {
         curr = curr->get_next();
@@ -220,10 +220,10 @@ namespace Aleph
         next_ne();
       }
 
-      /// Retorna true si iteradores están sobre el mismo elemento.
+      /// Returns true if iterators are on the same element.
       bool operator == (const Iterator & it) const { return curr == it.curr; }
 
-      /// retorna true si iteradores tienen estados diferentes.
+      /// Returns true if iterators have different states.
       bool operator != (const Iterator & it) const { return curr != it.curr; }
     
       bool verify(Slink_Nc * l) const { return head == l; }
@@ -235,4 +235,3 @@ namespace Aleph
 }
 
 # endif
-

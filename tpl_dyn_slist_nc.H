@@ -51,7 +51,13 @@ namespace Aleph
 
       This type can be used as a stack or a queue.
 
-      @tparam T type of elements in the list.
+      @tparam T type of elements in the list. Semantic requirements for T:
+        - T must be @b Destructible and @b CopyConstructible (or @b Copyable) 
+          because operations like insert(), append(), copy construction,
+          assignment of the Dyn_Slist_Nc<T> container, and element destruction
+          rely on these properties.
+        - Move-only types are currently not supported.
+        - Destructors of T should ideally be @b noexcept.
 
       @see Slink, Snode_Nc, Dyn_Slist_Nc::Iterator
 
@@ -306,8 +312,10 @@ namespace Aleph
     */
     T & operator [] (const size_t & n)
     {
+      ah_range_error_if(n >= num_items) << "Index " << n << " out of range";
+
       Iterator it(*this);
-      for (int i = 0; i < n and it.has_curr(); ++i, it.next_ne());
+      for (int i = 0; i < n; ++i, it.next_ne());
 
       return it.get_curr();
     }
@@ -318,8 +326,10 @@ namespace Aleph
     */
     const T & operator [] (const size_t & n) const
     {
+      ah_range_error_if(n >= num_items) << "Index " << n << " out of range";
+
       Iterator it(const_cast<Dyn_Slist_Nc&>(*this));
-      for (int i = 0; i < n and it.has_curr(); ++i, it.next_ne());
+      for (int i = 0; i < n; ++i, it.next_ne());
 
       return it.get_curr();
     }

@@ -545,20 +545,20 @@ public:
    *  @tparam Operation Search criterion callable.
    *  @param[in] operation matching criterion.
    *  @return true if an item satisfying operation is found, false otherwise.
-   *  @throws none
+   *  @throws Anything propagated by evaluating operation(item).
    */
   template <class Operation>
   bool contains_if(Operation && operation) const
     noexcept(operation_is_noexcept<Operation>())
   {
-    return find_ptr(std::forward<Operation>(operation)) != nullptr;
+    return find_ptr(std::as_const(operation)) != nullptr;
   }
 
   /** @brief Test if an item is present in the container using equality.
    *
    *  @param[in] item element to search for.
    *  @return true if item is found, false otherwise.
-   *  @throws none
+   *  @throws Anything propagated by `operator==` for `Type`.
    */
   bool contains(const Type & item) const
   {
@@ -1021,7 +1021,7 @@ public:
 
       `maps()` is a template method which receives as template
       parameters the type `__T`, which is the type of target or range
-      of mapping, and the transforming operation. By default `__T` is
+      of mapping, and the transforming operation. By default, `__T` is
       the same type of the elements stored in the container.
 
       `operation` should have the following signature:
@@ -1862,13 +1862,13 @@ public:
   }
 
   /// \overload equal_to(const Container & r)
-  bool operator == (const Container & r) const	noexcept
+  bool operator == (const Container & r) const noexcept
   {
     return equal_to(r);
   }
 
   /** Negation of equal_to() */
-  bool operator != (const Container & r) const	noexcept
+  bool operator != (const Container & r) const noexcept
   {
     return not equal_to(r);
   }

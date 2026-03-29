@@ -330,11 +330,14 @@ public:
     return *array.get_ptr();
   }
 
-  /// Empty the stack
+  /** @brief Empties the container.
+      @return void
+      @throws none
+  */
   void empty() noexcept { array.empty(); }
 
   /** @brief Empties the container. 
-      
+      @return void
       @throws none
       @see empty()
   */
