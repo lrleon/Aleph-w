@@ -262,8 +262,6 @@ namespace Aleph {
 
     /** @brief Removes all elements from the heap.
 
-        @param none
-        @return void
         @throws none
 
         @note This method delegates to empty() and is noexcept.

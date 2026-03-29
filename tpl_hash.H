@@ -87,8 +87,6 @@ namespace Aleph
 
     /** @brief Empties the container. 
         
-        @param none
-        @return void
         @throws none
         @see empty()
     */
@@ -98,7 +96,6 @@ namespace Aleph
 
     /** @brief Checks if the container is empty.
         
-        @param none
         @return true if empty, false otherwise.
         @throws none
     */
@@ -150,8 +147,6 @@ namespace Aleph
 
     /** @brief Empties the container. 
         
-        @param none
-        @return void
         @throws none
         @see empty()
     */
@@ -161,7 +156,6 @@ namespace Aleph
 
     /** @brief Checks if the container is empty.
         
-        @param none
         @return true if empty, false otherwise.
         @throws none
     */

@@ -58,6 +58,12 @@ namespace Aleph
 
     /// Retorna una referencia al dato contenido en el nodo.
     T & get_data() { return data; }
+
+    /** @brief Retorna una referencia al dato contenido en el nodo (versión constante).
+        @return referencia constante al dato.
+        @throws none
+    */
+    const T & get_data() const { return data; }
   
     /** Elimina el nodo siguiente a this.
 
@@ -75,6 +81,15 @@ namespace Aleph
     Snode_Nc *& get_next()
     {
       return (Snode_Nc *&) Slink_Nc::get_next();
+    }
+
+    /** @brief Retorna el nodo siguiente a this (versión constante).
+        @return un puntero constante al siguiente nodo.
+        @throws none
+    */
+    const Snode_Nc * get_next() const
+    {
+      return (const Snode_Nc *) Slink_Nc::get_next();
     }
 
     class Iterator : public Slink_Nc::Iterator
@@ -100,9 +115,9 @@ namespace Aleph
         // Empty
       }
 
-      Snode_Nc * get_curr() /// retorna puntero al nodo actual 
+      Snode_Nc * get_curr() const /// retorna puntero al nodo actual 
       {
-        return (Snode_Nc *) this->Slink_Nc::Iterator::get_current(); 
+        return (Snode_Nc *) this->Slink_Nc::Iterator::get_curr(); 
       }
     };
   };

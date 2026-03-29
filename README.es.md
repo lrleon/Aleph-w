@@ -185,7 +185,7 @@ Aleph-w ha sido usado para enseñar a **miles de estudiantes** en Latinoamérica
 <a id="readme-es-caracteristicas-de-un-vistazo"></a>
 ## Características de un vistazo
 
-#### Estructuras de Datos
+### Estructuras de Datos
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -548,7 +548,7 @@ Aleph-w ofrece **8 implementaciones diferentes de árboles balanceados**, cada u
 └──────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──────────────────┘
 
 * Amortized complexity.
-** Expected complexity (randomized).
+\*\* Expected complexity (randomized).
 ```
 
 #### Ejemplos de uso
@@ -2983,8 +2983,7 @@ Para un recorrido detallado con ejemplos de código, ver el **[Tutorial FFT y Pr
 <a id="readme-es-ntt"></a>
 ### Transformada teórico-numérica (NTT)
 
-Aleph-w también incluye una implementación industrial de la **Number
-Theoretic Transform** en [`ntt.H`](ntt.H). Capacidades principales:
+Aleph-w también incluye una implementación industrial de la **Number Theoretic Transform** en [`ntt.H`](ntt.H). Capacidades principales:
 
 - **Transformadas y productos modulares exactos** bajo primos NTT-friendly
 - **Planes reutilizables** via `NTT<MOD, ROOT>::Plan`
@@ -2997,8 +2996,7 @@ Theoretic Transform** en [`ntt.H`](ntt.H). Capacidades principales:
 - **Multiplicación de enteros grandes** sobre dígitos en base `B` con propagación de carry
 - **Convolución negacíclica** módulo `x^N + 1`
 
-Para un recorrido detallado con ejemplos de código, consulta el **[Tutorial
-NTT](docs/ntt-tutorial.md)** ([English](docs/ntt-tutorial.en.md)).
+Para un recorrido detallado con ejemplos de código, consulta el **[Tutorial NTT](docs/ntt-tutorial.md)** ([English](docs/ntt-tutorial.en.md)).
 
 ---
 
@@ -3641,7 +3639,7 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 | `pollard_rho.H` | `pollard_rho()` | Integer factorization using Pollard's rho with random fallback |
 | `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform para multiplicacion exacta de polinomios modulares, con planes reutilizables, soporte Bluestein para tamanos no potencia de dos cuando el modulo lo permite, dispatch SIMD AVX2/NEON en tiempo de ejecucion sobre el butterfly potencia-de-dos, lotes, butterflies basados en Montgomery, APIs paralelas con `ThreadPool`, algebra formal de polinomios (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, evaluacion multipunto e interpolacion), multiplicacion exacta de enteros grandes sobre digitos en base `B`, convolucion negaciclica modulo `x^N + 1` y reconstruccion CRT de tres primos en `__uint128_t` cuando la cota de coeficientes cabe. Ver el [Tutorial NTT](docs/ntt-tutorial.md) |
 | `tpl_polynomial.H` | `Gen_Polynomial<C>`, `Polynomial` | Anillo de polinomios univariados dispersos: aritmética (+, -, *, /, %), cálculo (derivada, integral), evaluación (Horner/dispersa adaptativa), composición, GCD/XGCD/LCM, factorización libre de cuadrados, conteo de raíces (Sturm), búsqueda de raíces (bisección/Newton), interpolación polinómica (diferencias divididas de Newton) |
-| `modular_combinatorics.H` | `ModularCombinatorics` | $nCk \pmod p$ with precomputed factorials and Lucas Theorem |
+| `modular_combinatorics.H` | `ModularCombinatorics` | @f$ nCk \pmod p @f$ with precomputed factorials and Lucas Theorem |
 | `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
 
 #### Algoritmos de grafos
@@ -4126,7 +4124,7 @@ SOFTWARE.
 
 <div align="center">
 
-**[Volver arriba](#readme-es-tabla-de-contenido)**
+<b>[Volver arriba](#readme-es-tabla-de-contenido)</b>
 
 Hecho con pasión por los algoritmos y las estructuras de datos
 

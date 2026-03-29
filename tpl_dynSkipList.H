@@ -342,8 +342,6 @@ public:
 
   /** @brief Empties the container. 
       
-      @param none
-      @return void
       @throws none
       @see empty()
   */
@@ -528,8 +526,6 @@ public:
   {
     return search(key) != nullptr;
   }
-
-  using LocateFunctions<DynSkipList<Key, Compare>, Key>::contains;
 
   /** @brief Checks if a key exists in the set.
       

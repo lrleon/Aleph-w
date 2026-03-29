@@ -695,7 +695,6 @@ public:
   [[nodiscard]] constexpr size_t get_num_nodes() const noexcept { return num_nodes; }
 
   /** @brief Checks if the graph is empty (has no nodes).
-      @param none
       @return true if graph has no nodes, false otherwise.
       @throws none
   */

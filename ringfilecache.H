@@ -869,8 +869,6 @@ public:
 
   /** @brief Removes all entries from the cache.
 
-      @param none
-      @return void
       @throws none
 
       @note This method is an alias for empty() and is noexcept.

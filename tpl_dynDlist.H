@@ -163,9 +163,8 @@ public:
 
   /** @brief Empties the container. 
       
-      @param none
-      @return void
-      @throws none
+      This is an alias of empty().
+      
       @see empty()
   */
   void clear() noexcept { empty(); }

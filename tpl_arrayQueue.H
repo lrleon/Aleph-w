@@ -388,8 +388,6 @@ class FixedQueue : public LocateFunctions<FixedQueue<T>, T>,
                    public EqualToMethod<FixedQueue<T>>,
                    public StlAlephIterator<FixedQueue<T>>
 {
-private:
-
   size_t dim;
   T *    array;
   size_t front_index; /* index of oldest inserted item */
@@ -435,8 +433,6 @@ public:
 
   /** @brief Empties the container. 
       
-      @param none
-      @return void
       @throws none
       @see empty()
   */

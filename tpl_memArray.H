@@ -347,16 +347,12 @@ namespace Aleph
         
         The array size is set to zero, but the allocated memory is not released.
         
-        @param none
-        @return void
         @throws none
     */
     void empty() noexcept { n = 0; }
 
     /** @brief Alias for empty().
         
-        @param none
-        @return void
         @throws none
         @see empty()
     */

@@ -73,8 +73,6 @@ namespace Aleph
 
     /** @brief Empties the container. 
         
-        @param none
-        @return void
         @throws none
     */
     void empty()
@@ -88,12 +86,10 @@ namespace Aleph
 
     /** @brief Alias for empty(). 
         
-        @param none
-        @return void
         @throws none
         @see empty()
     */
-    void clear() { empty(); }
+    void clear() noexcept { empty(); }
 
     /** @brief Insert an element at the beginning of the list.
 
@@ -104,7 +100,7 @@ namespace Aleph
         @return reference to the newly inserted item.
         @throw bad_alloc if there is no memory for the new element.
      */
-    T & insert(const T & data) throw(std::exception, std::bad_alloc)
+    T & insert(const T & data)
     {
       Node * p = new Node(data);
       Node::insert(p);
@@ -124,7 +120,7 @@ namespace Aleph
         @return reference to the newly inserted item.
         @throw bad_alloc if there is no memory for the new element.
      */
-    T & append(const T & data) throw(std::exception, std::bad_alloc)
+    T & append(const T & data)
     {
       assert(head not_eq nullptr);
       Node * p = new Node(data);
@@ -146,11 +142,33 @@ namespace Aleph
       return this->get_next()->get_data();
     }
 
+    /** @brief Returns a reference to the first element of the list (const version).
+        @return reference to the first element.
+        @throw underflow_error if the list is empty.
+    */
+    const T & get_first() const
+    {
+      ah_underflow_error_if(this->is_empty()) << "List is empty";
+
+      return this->get_next()->get_data();
+    }
+
     /** @brief Returns a reference to the last element of the list.
         @return reference to the last element.
         @throw underflow_error if the list is empty.
     */
     T & get_last()
+    {
+      ah_underflow_error_if(this->is_empty()) << "List is empty";
+
+      return head->get_data();
+    }
+
+    /** @brief Returns a reference to the last element of the list (const version).
+        @return reference to the last element.
+        @throw underflow_error if the list is empty.
+    */
+    const T & get_last() const
     {
       ah_underflow_error_if(this->is_empty()) << "List is empty";
 
@@ -183,8 +201,20 @@ namespace Aleph
     /** @brief If this is a queue, returns the youngest element. */
     T & rear() { return get_last(); }
 
+    /** @brief Returns a reference to the youngest element (const version). 
+        @return constant reference to the youngest element.
+        @throws underflow_error if the list is empty.
+    */
+    const T & rear() const { return get_last(); }
+
     /** @brief If this is a queue, returns the oldest element. */
     T & front() { return get_first(); }
+
+    /** @brief Returns a reference to the oldest element (const version).
+        @return constant reference to the oldest element.
+        @throws underflow_error if the list is empty.
+    */
+    const T & front() const { return get_first(); }
 
     /** @brief If this is a stack, inserts the item @p item. */
     T & push(const T & item) { return insert(item); }
@@ -193,7 +223,14 @@ namespace Aleph
     T pop() { return remove_first(); }
 
     /** @brief If this is a stack, returns the top element. */
-    T & top() const { return get_first(); }
+    T & top() { return get_first(); }
+
+    /** @brief Returns the top element (const version).
+        @return constant reference to the top element.
+        @throws underflow_error if the list is empty.
+    */
+    const T & top() const { return get_first(); }
+
 
     /** @brief Returns the number of elements in the list. */
     const size_t & size() const { return num_items; }
@@ -212,7 +249,10 @@ namespace Aleph
         return Node::Iterator::get_curr()->get_data();
       }
 
-      T & get_curr() const { return Dyn_Slist_Nc::Iterator::get_curr(); }
+      T & get_curr() const
+      {
+        return Node::Iterator::get_curr()->get_data();
+      }
 
     };
 
@@ -267,6 +307,18 @@ namespace Aleph
     T & operator [] (const size_t & n)
     {
       Iterator it(*this);
+      for (int i = 0; i < n and it.has_curr(); ++i, it.next_ne());
+
+      return it.get_curr();
+    }
+
+    /** @brief Access element at index @p n (const version).
+        @param[in] n index of the element.
+        @return reference to the element.
+    */
+    const T & operator [] (const size_t & n) const
+    {
+      Iterator it(const_cast<Dyn_Slist_Nc&>(*this));
       for (int i = 0; i < n and it.has_curr(); ++i, it.next_ne());
 
       return it.get_curr();

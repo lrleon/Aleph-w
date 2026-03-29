@@ -335,15 +335,12 @@ public:
 
   /** @brief Empties the container. 
       
-      @param none
-      @return void
       @throws none
       @see empty()
   */
   void clear() noexcept { empty(); }
 
   /** @brief Checks if the container is empty.
-      @param none
       @return true if empty, false otherwise.
       @throws none
   */

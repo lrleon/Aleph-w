@@ -75,6 +75,8 @@ namespace Aleph
       ah_invalid_argument_if(not is_empty()) << "link is not empty";
 
       next = nullptr;
+
+      return *this;
     }
 
     /// Reinicia enlace a que apunte a nullptr
@@ -93,6 +95,16 @@ namespace Aleph
 
     /// Retorna el siguiente enlace.
     Slink_Nc *& get_next()
+    {
+      assert(this not_eq nullptr);
+      return next;
+    }
+
+    /** @brief Retorna el siguiente enlace (versión constante).
+        @return un puntero constante al siguiente enlace.
+        @throws none
+    */
+    const Slink_Nc * get_next() const
     {
       assert(this not_eq nullptr);
       return next;
@@ -181,13 +193,13 @@ namespace Aleph
       }
 
       /// Retorna dirección de nodo actual
-      Slink_Nc * get_curr_ne() noexcept
+      Slink_Nc * get_curr_ne() const noexcept
       {
         assert(curr != nullptr and head != nullptr);
         return curr;
       }
 
-      Slink_Nc * get_curr()
+      Slink_Nc * get_curr() const
       {
         ah_overflow_error_if(not has_curr()) << "Not element in list";
         return get_curr_ne();
@@ -202,7 +214,7 @@ namespace Aleph
         curr = curr->get_next();
       }
 
-      void next() throw(std::exception, std::overflow_error)
+      void next()
       {
         ah_overflow_error_if(not has_curr()) << "Not next element in list";
         next_ne();

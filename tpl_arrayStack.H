@@ -264,8 +264,6 @@ namespace Aleph
 
     /** @brief Empties the container. 
         
-        @param none
-        @return void
         @throws none
         @see empty()
     */
@@ -554,8 +552,6 @@ namespace Aleph
 
     /** @brief Empties the container. 
         
-        @param none
-        @return void
         @throws none
         @see empty()
     */
