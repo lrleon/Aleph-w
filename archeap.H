@@ -162,6 +162,13 @@ public:
     this->remove_all_and_delete();
   }
 
+  /** @brief Empties the container. 
+      
+      @throws none
+      @see empty()
+  */
+  void clear() { empty(); }
+
   /// Destructor. Clears all remaining heap nodes.
   ~ArcHeap()
   {
@@ -284,6 +291,13 @@ public:
   {
     heap.clear();
   }
+
+  /** @brief Empties the container. 
+      
+      @throws none
+      @see empty()
+  */
+  void clear() { empty(); }
 
   /// Destructor. Clears all remaining heap nodes.
   ~ArcFibonacciHeap()

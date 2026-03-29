@@ -260,6 +260,14 @@ namespace Aleph {
       this->remove_all_and_delete();
     }
 
+    /** @brief Removes all elements from the heap.
+
+        @throws none
+
+        @note This method delegates to empty() and is noexcept.
+    */
+    void clear() noexcept { empty(); }
+
     /// Destructor.
     ~DynBinHeap()
     {

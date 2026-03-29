@@ -175,6 +175,34 @@ TEST(QuadTreeBasic, EmptyTree)
   EXPECT_EQ(tree.search(Point(50, 50)), nullptr);
 }
 
+TEST(QuadTreeBasic, ClearEdgeCases)
+{
+  // Test 1: clear on newly constructed tree (no-op)
+  QuadTree tree(0, 100, 0, 100, 4);
+  tree.clear();
+  EXPECT_EQ(tree.search(Point(50, 50)), nullptr);
+
+  // Test 2: re-insertion after clear
+  tree.insert(Point(25, 25));
+  tree.clear();
+  EXPECT_EQ(tree.search(Point(25, 25)), nullptr);
+  
+  tree.insert(Point(25, 25));
+  EXPECT_NE(tree.search(Point(25, 25)), nullptr);
+}
+
+TEST(QuadTreeBasic, ClearYieldsSameStateAsEmpty)
+{
+  QuadTree tree(0, 100, 0, 100, 4);
+  tree.insert(Point(25, 25));
+  tree.insert(Point(75, 75));
+  
+  tree.clear();
+  
+  EXPECT_EQ(tree.search(Point(25, 25)), nullptr);
+  EXPECT_EQ(tree.search(Point(75, 75)), nullptr);
+}
+
 // ============================================================================
 // Subdivision and Merging Tests
 // ============================================================================

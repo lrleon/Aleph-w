@@ -531,6 +531,44 @@ TEST(MemArray, traverse_on_empty_container)
   EXPECT_EQ(n, 0);
 }
 
+TEST_F(Default_MemArray, clear)
+{
+  const size_t cap = m.capacity();
+  
+  // Test 1: clear on empty
+  EXPECT_TRUE(m.is_empty());
+  EXPECT_EQ(m.size(), 0);
+  
+  static_assert(noexcept(m.clear()), "clear() must be noexcept");
+  m.clear(); 
+  
+  EXPECT_TRUE(m.is_empty());
+  EXPECT_EQ(m.size(), 0);
+  EXPECT_EQ(m.capacity(), cap);
+  EXPECT_NE(m.get_ptr(), nullptr);
+
+  // Test 2: clear on populated
+  for (size_t i = 0; i < 10; ++i)
+    m.append(i);
+    
+  EXPECT_FALSE(m.is_empty());
+  EXPECT_EQ(m.size(), 10);
+  const size_t cap_before = m.capacity();
+  const int* ptr_before = m.get_ptr();
+
+  m.clear();
+
+  EXPECT_TRUE(m.is_empty());
+  EXPECT_EQ(m.size(), 0);
+  EXPECT_EQ(m.capacity(), cap_before);
+  EXPECT_EQ(m.get_ptr(), ptr_before);
+  
+  // Verify it can be reused
+  m.append(100);
+  EXPECT_EQ(m.size(), 1);
+  EXPECT_EQ(m[0], 100);
+}
+
 TEST_F(Default_MemArray, traverse)
 {
   int N = 0;

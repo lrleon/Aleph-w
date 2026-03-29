@@ -340,7 +340,11 @@ public:
     current_level = 1;
   }
 
-  /// Alias for empty() for STL compatibility
+  /** @brief Empties the container. 
+      
+      @throws none
+      @see empty()
+  */
   void clear() noexcept { empty(); }
 
   /// Return the number of elements in the set
@@ -523,7 +527,12 @@ public:
     return search(key) != nullptr;
   }
 
-  /// Alias for has() for STL-like interface
+  /** @brief Checks if a key exists in the set.
+      
+      @param[in] key key to search for.
+      @return true if key is present, false otherwise.
+      @throws none
+  */
   [[nodiscard]] bool contains(const Key & key) const noexcept { return has(key); }
 
   /// Alias for has()

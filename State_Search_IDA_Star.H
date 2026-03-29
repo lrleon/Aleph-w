@@ -312,7 +312,8 @@ public:
    *  @param policy Exploration settings.
    *  @param limits Resource constraints.
    */
-  explicit IDA_Star_State_Search(Domain domain, ExplorationPolicy policy = {}, SearchLimits limits = {})
+  explicit IDA_Star_State_Search(Domain domain, ExplorationPolicy policy = {},
+                                 const SearchLimits &limits = {})
     : domain_(std::move(domain)), policy_(policy), limits_(limits)
   {
     // empty

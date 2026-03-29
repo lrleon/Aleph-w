@@ -84,6 +84,22 @@ namespace Aleph
       it.reset_last();
       return it.get_curr();
     }
+
+    /** @brief Empties the container. 
+        
+        @throws none
+        @see empty()
+    */
+    void clear() { this->empty(); }
+
+    using Base::contains;
+
+    /** @brief Checks if the container is empty.
+        
+        @return true if empty, false otherwise.
+        @throws none
+    */
+    bool is_empty() const noexcept { return this->Base::is_empty(); }
   };
 
   template
@@ -128,6 +144,22 @@ namespace Aleph
     }
 
     Generate_Proxy_Operator(HashMap);
+
+    /** @brief Empties the container. 
+        
+        @throws none
+        @see empty()
+    */
+    void clear() { this->empty(); }
+
+    using Base::contains;
+
+    /** @brief Checks if the container is empty.
+        
+        @return true if empty, false otherwise.
+        @throws none
+    */
+    bool is_empty() const noexcept { return this->Base::is_empty(); }
   };
 
   /// @brief Alias for HashSet (for consistency with other Dyn containers).

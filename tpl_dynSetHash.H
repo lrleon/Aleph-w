@@ -175,6 +175,29 @@ namespace Aleph
       this->empty();
     }
 
+    /** @brief Empties the container. 
+        
+        @throws none
+        @see empty()
+    */
+    void clear() { this->empty(); }
+
+    /// Return true if the key exists in the table
+    /** @brief Checks if a key exists in the table.
+        
+        @param[in] key key to search for.
+        @return true if key is present, false otherwise.
+        @throws none
+    */
+    bool contains(const Key & key) const noexcept { return Base::contains(key); }
+
+    /** @brief Checks if the container is empty.
+        
+        @return true if empty, false otherwise.
+        @throws none
+    */
+    bool is_empty() const noexcept { return this->Base::is_empty(); }
+
     DynHashTable &operator =(const DynHashTable & other)
     {
       if (this == &other)
@@ -298,9 +321,6 @@ namespace Aleph
     {
       return this->Base::search(key) != nullptr;
     }
-
-    /// Alias for has()
-    bool contains(const Key & key) const noexcept { return has(key); }
 
     const Key &find(const Key & key) const
     {
@@ -575,8 +595,20 @@ namespace Aleph
     bool has(Key && key) const noexcept { return search(std::forward<Key>(key)) != nullptr; }
 
     /// Alias for has()
+    /** @brief Checks if a key exists in the map.
+        
+        @param[in] key key to search for.
+        @return true if key is present, false otherwise.
+        @throws none
+    */
     bool contains(const Key & key) const noexcept { return has(key); }
 
+    /** @brief Checks if a key exists in the map (move version).
+        
+        @param[in] key key to search for.
+        @return true if key is present, false otherwise.
+        @throws none
+    */
     bool contains(Key && key) const noexcept { return has(std::forward<Key>(key)); }
 
     /** Finds and returns a reference to the value associated with key.

@@ -126,7 +126,7 @@ public:
    */
   explicit Depth_First_Backtracking(Domain domain,
                                     ExplorationPolicy policy = {},
-                                    SearchLimits limits = {},
+                                    const SearchLimits &limits = {},
                                     Solution_Compare compare = {})
     : domain_(std::move(domain)), policy_(policy), limits_(limits), compare_(std::move(compare))
   {

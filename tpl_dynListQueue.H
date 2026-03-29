@@ -188,7 +188,11 @@ public:
   /// Alias for get() - removes and returns the front item
   T pop() { return get(); }
 
-  /// Alias for empty() - clears all items from the queue
+  /** @brief Empties the container. 
+      
+      @throws none
+      @see empty()
+  */
   void clear() noexcept { empty(); }
 
       /** Remove the oldest item of the queue.

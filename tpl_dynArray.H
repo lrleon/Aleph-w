@@ -1190,6 +1190,13 @@ namespace Aleph
     /// is to set to zero
     void empty() noexcept { cut(0); }
 
+    /** @brief Empties the container. 
+        
+        @throws none
+        @see empty()
+    */
+    void clear() noexcept { empty(); }
+
     Proxy operator [](const size_t i) const
     {
       ah_out_of_range_error_if(i >= max_dim) << "index out of maximum range";

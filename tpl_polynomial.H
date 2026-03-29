@@ -2594,7 +2594,7 @@ public:
 
   /** @brief Hensel lifting of modular factors.
    *
-   *  Given modular factors of @f$f \pmod{p}@f$, lifts any monic linear
+   *  Given modular factors of @f$f \pmod p @f$, lifts any monic linear
    *  factor corresponding to a simple root to modulus
    *  @f$p^{2^\text{levels}}@f$ using repeated Hensel root lifting.
    *  Factors that are not monic linear simple-root factors are carried

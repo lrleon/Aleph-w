@@ -567,7 +567,7 @@ Aleph-w provides **8 different balanced tree implementations**, each optimized f
 └──────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──────────────────┘
 
 * Amortized complexity.
-** Expected complexity (randomized).
+\*\* Expected complexity (randomized).
 ```
 
 #### Usage Examples
@@ -3148,8 +3148,7 @@ Aleph-w also includes an industrial **Number Theoretic Transform** toolkit in
 - **Big integer multiplication** over base-`B` digits with carry propagation
 - **Negacyclic convolution** modulo `x^N + 1`
 
-For a detailed walkthrough with code examples, see the **[Number Theoretic
-Transform Tutorial](docs/ntt-tutorial.en.md)** ([Español](docs/ntt-tutorial.md)).
+For a detailed walkthrough with code examples, see the **[Number Theoretic Transform Tutorial](docs/ntt-tutorial.en.md)** ([Español](docs/ntt-tutorial.md)).
 
 ---
 
@@ -3904,7 +3903,7 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | `ntt.H` | `NTT`, `NTTExact` | Number Theoretic Transform for exact modular polynomial multiplication with reusable plans, Bluestein support for non-power-of-two sizes when the modulus allows it, AVX2/NEON runtime SIMD dispatch on the power-of-two butterfly path, batch transforms, Montgomery-based butterflies, parallel `ThreadPool` APIs, formal polynomial operators (`poly_inverse`, `poly_divmod`, `poly_log`, `poly_exp`, `poly_sqrt`, `poly_power`, multipoint evaluation, interpolation), exact big-integer multiplication over base-`B` digits, negacyclic convolution modulo `x^N + 1`, and three-prime CRT reconstruction into `__uint128_t` when the coefficient bound fits. See the [NTT Tutorial](docs/ntt-tutorial.en.md) |
 | `tpl_polynomial.H` | `Gen_Polynomial<C>`, `Polynomial` | Sparse univariate polynomial ring: arithmetic (+, -, *, /, %), calculus (derivative, integral), evaluation (adaptive Horner/sparse), composition, GCD/XGCD/LCM, square-free factorization, Sturm root counting, bisection/Newton root finding, polynomial interpolation (Newton divided differences). Contract notes: field-style division/GCD APIs assume coefficient division is meaningful; integer `factorize()` returns only factors proven by exact division and may leave conservative residual blocks unsplit. |
 | `tpl_multi_polynomial.H` | `Gen_MultiPolynomial<C, Order>` | Sparse multivariate polynomial ring: arithmetic, evaluation, partials/gradient/Hessian, interpolation on tensor grids, multivariate division, Gröbner bases, ideal operations, and integer factorization by specialization/lifting. Contract notes: `s_poly()`/Gröbner/ideal APIs require non-integral field-like coefficients; integer `factorize()` verifies every emitted factor exactly but may keep unresolved residual blocks when the specialization pipeline cannot split them further. |
-| `modular_combinatorics.H` | `ModularCombinatorics` | $nCk \pmod p$ with precomputed factorials and Lucas Theorem |
+| `modular_combinatorics.H` | `ModularCombinatorics` | @f$ nCk \pmod p @f$ with precomputed factorials and Lucas Theorem |
 | `modular_linalg.H` | `ModularMatrix` | Gaussian elimination, determinant, and inverse modulo a prime |
 
 #### Graph Algorithms
@@ -4509,7 +4508,7 @@ SOFTWARE.
 
 <div align="center">
 
-**[Back to Top](#readme-table-of-contents)**
+<b>[Back to Top](#readme-table-of-contents)</b>
 
 Made with passion for algorithms and data structures
 

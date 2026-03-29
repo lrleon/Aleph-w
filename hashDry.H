@@ -606,6 +606,13 @@ public:
     me()->table = new typename HashTbl::Bucket [me()->len];
   }
 
+  /** @brief Empties the container. 
+      
+      @throws none
+      @see empty()
+  */
+  void clear() { empty(); }
+
   /** @brief Returns the number of entries in the table.
       @return The number of stored keys.
   */
