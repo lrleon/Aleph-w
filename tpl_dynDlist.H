@@ -155,10 +155,11 @@ public:
 
   /** `@brief` Empties the container.
 
-    This is an alias of empty().
+      Removes all elements from the list, leaving it empty. This operation 
+      is performed in O(n) time, where n is the number of elements in 
+      the list.
 
-    @return void
-    @throws none
+      @throws none
   */
   void empty() noexcept  /// Empty the list
   {
@@ -172,14 +173,10 @@ public:
 
      This is an alias of empty().
 
-     @return void
      @throws none
      @see empty()
    */
-  void clear() noexcept
-  {
-    empty();
-  }
+  void clear() noexcept { empty(); }
 
   ~DynDlist()  /// Destructor
   {

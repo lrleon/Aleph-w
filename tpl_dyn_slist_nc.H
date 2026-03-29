@@ -315,7 +315,7 @@ namespace Aleph
       ah_range_error_if(n >= num_items) << "Index " << n << " out of range";
 
       Iterator it(*this);
-      for (int i = 0; i < n; ++i, it.next_ne());
+      for (size_t i = 0; i < n; ++i, it.next_ne());
 
       return it.get_curr();
     }
@@ -329,7 +329,7 @@ namespace Aleph
       ah_range_error_if(n >= num_items) << "Index " << n << " out of range";
 
       Iterator it(const_cast<Dyn_Slist_Nc&>(*this));
-      for (int i = 0; i < n; ++i, it.next_ne());
+      for (size_t i = 0; i < n; ++i, it.next_ne());
 
       return it.get_curr();
     }

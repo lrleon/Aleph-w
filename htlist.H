@@ -1405,7 +1405,6 @@ public:
   }
 
   /** @brief Empties the container. 
-      @return Nothing.
       @throws none
       @see empty()
   */

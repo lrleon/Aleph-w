@@ -313,7 +313,7 @@ public:
     : ptr(nullptr), dim(a.dim), n(a.n)
   {
     allocate();
-    for (int i = 0; i < dim; ++i)
+    for (int i = 0; i < n; ++i)
       ptr[i] = a.ptr[i];
   }
 

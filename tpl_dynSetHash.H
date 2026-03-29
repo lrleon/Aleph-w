@@ -189,7 +189,7 @@ namespace Aleph
         @return true if key is present, false otherwise.
         @throws none
     */
-    bool contains(const Key & key) const noexcept { return this->HashTable<Key, Cmp>::contains(key); }
+    bool contains(const Key & key) const noexcept { return Base::contains(key); }
 
     /** @brief Checks if the container is empty.
         

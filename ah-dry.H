@@ -551,7 +551,7 @@ public:
   bool contains_if(Operation && operation) const
     noexcept(operation_is_noexcept<Operation>())
   {
-    return find_ptr(std::as_const(operation)) != nullptr;
+    return find_ptr(operation) != nullptr;
   }
 
   /** @brief Test if an item is present in the container using equality.
