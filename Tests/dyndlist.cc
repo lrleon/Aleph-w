@@ -595,3 +595,23 @@ TEST(DynDlistFunctional, ToArrayHelperPreservesOrder)
   for (auto it = list.get_it(); it.has_curr(); it.next_ne(), ++i)
     EXPECT_EQ(arr(i), it.get_curr());
 }
+
+TEST(DynDlist, EqualityOperator)
+{
+  DynDlist<int> l1 = {1, 2, 3};
+  DynDlist<int> l2 = {1, 2, 3};
+  DynDlist<int> l3 = {1, 2, 4};
+  DynDlist<int> l4 = {1, 2};
+
+  EXPECT_TRUE(l1 == l2);
+  EXPECT_FALSE(l1 != l2);
+
+  EXPECT_FALSE(l1 == l3);
+  EXPECT_TRUE(l1 != l3);
+
+  EXPECT_FALSE(l1 == l4);
+  EXPECT_TRUE(l1 != l4);
+
+  DynDlist<int> empty1, empty2;
+  EXPECT_TRUE(empty1 == empty2);
+}

@@ -262,6 +262,13 @@ namespace Aleph
     /// Empty the stack
     void empty() noexcept { array.empty(); }
 
+    /** @brief Empties the container. 
+        
+        @throws none
+        @see empty()
+    */
+    void clear() noexcept { empty(); }
+
     /// Return `true` if stack is empty
     bool is_empty() const noexcept { return array.size() == 0; }
 
@@ -542,6 +549,13 @@ namespace Aleph
 
     /// Empty the stack
     void empty() noexcept { head = 0; }
+
+    /** @brief Empties the container. 
+        
+        @throws none
+        @see empty()
+    */
+    void clear() noexcept { empty(); }
 
     /// Return the number of elements stored in the stack
     [[nodiscard]] size_t size() const noexcept { return head; }

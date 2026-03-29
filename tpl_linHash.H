@@ -421,6 +421,21 @@ public:
     table.cut_ne(len);
   }
 
+  /** @brief Empties the container. 
+      
+      @throws none
+      @see empty()
+  */
+  void clear() noexcept { empty(); }
+
+  /** @brief Checks if a key exists in the table.
+      
+      @param[in] key key to search for.
+      @return true if key is present, false otherwise.
+      @throws none
+  */
+  bool contains(const Key & key) const noexcept { return search(key) != nullptr; }
+
   ~GenLinearHashTable()
   {
     if (remove_all_buckets)

@@ -48,33 +48,48 @@ namespace Aleph
     T data;
 
   public:
-    /// Constructor vacío.
+    /// Empty constructor.
     Snode_Nc() : Slink_Nc() { /* empty*/ }
 
-    /// Constructor que copia dato.
+    /// Constructor that copies data.
     Snode_Nc(const T & _data) : Slink_Nc(), data(_data) { /* empty */ }
 
     ~Snode_Nc() { /* empty */ }
 
-    /// Retorna una referencia al dato contenido en el nodo.
+    /// Returns a reference to the data contained in the node.
     T & get_data() { return data; }
-  
-    /** Elimina el nodo siguiente a this.
 
-        remove_next() elimina el nodo enlazado después de this y retorna
-        su dirección de memoria.
+    /** @brief Returns a reference to the data contained in the node (constant version).
+        @return constant reference to the data.
+        @throws none
+    */
+    const T & get_data() const { return data; }
+  
+    /** Removes the node following this.
+
+        remove_next() removes the node linked after this and returns
+        its memory address.
           
-        @return el nodo eliminado.
+        @return the removed node.
     */
     Snode_Nc * remove_next()
     { 
       return (Snode_Nc *) Slink_Nc::remove_next();
     }
     
-    /// Retorna el nodo siguiente a this
+    /// Returns the node following this.
     Snode_Nc *& get_next()
     {
       return (Snode_Nc *&) Slink_Nc::get_next();
+    }
+
+    /** @brief Returns the node following this (constant version).
+        @return a constant pointer to the next node.
+        @throws none
+    */
+    const Snode_Nc * get_next() const
+    {
+      return (const Snode_Nc *) Slink_Nc::get_next();
     }
 
     class Iterator : public Slink_Nc::Iterator
@@ -82,31 +97,30 @@ namespace Aleph
     public:
       Iterator() { /* empty */ }
 
-      /// Instancia iterador en lista cuyo nodo cabecera es head_ptr 
+      /// Instantiates iterator in list whose head node is head_ptr.
       Iterator(Snode_Nc<T> * head_ptr)
         : Slink_Nc::Iterator(head_ptr)
       {
         // empty
       }
 
-      /// Instancia iterador en lista cuyo nodo cabecera es head_ptr */
+      /// Instantiates iterator in list whose head node is head.
       Iterator(Snode_Nc<T> & head) : Slink_Nc::Iterator(&head) { /* empty */ }
 
-      // Instancia iterador en lista cuyo nodo cabecera es head_ptr y
-      // coloca el elemento actual en el apuntado por curr_ptr 
+      // Instantiates iterator in list whose head node is head_ptr and
+      // sets the current element to the one pointed by curr_ptr.
       Iterator(Snode_Nc<T> * head_ptr, Snode_Nc<T> * curr_ptr) 
         : Slink_Nc::Iterator(head_ptr, curr_ptr)
       {
         // Empty
       }
 
-      Snode_Nc * get_curr() /// retorna puntero al nodo actual 
+      Snode_Nc * get_curr() const /// Returns pointer to the current node.
       {
-        return (Snode_Nc *) this->Slink_Nc::Iterator::get_current(); 
+        return (Snode_Nc *) this->Slink_Nc::Iterator::get_curr(); 
       }
     };
   };
 }
 
 # endif
-

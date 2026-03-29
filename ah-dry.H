@@ -325,7 +325,7 @@ public:
   }
 
   /** Find a pointer to an item in the container according to a
-      searching criteria.
+      searching criterion.
 
       `find_ptr(operation)` traverses the container and on each item
       performs `operation(item)`. If the result of `operation` is `true`,
@@ -341,7 +341,7 @@ public:
       if you fall into the situation, then consider your design and       use a faster approach.
 
       \param[in] operation to be performed on each item for matching a
-      searching criteria.
+      searching criterion.
       \return a valid pointer to an item if this was found or `nullptr`
       otherwise.
    */
@@ -364,7 +364,7 @@ public:
 
   /** Const overload of `find_ptr(Operation&)`.
 
-      @param[in] operation matching criteria
+      @param[in] operation matching criterion
       @return const pointer to matching element or nullptr
   */
   template <class Operation>
@@ -379,8 +379,8 @@ public:
    *  The operation is passed (invoked) as a named lvalue to the 
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
-   *  @tparam Operation Matching criteria callable.
-   *  @param[in] operation matching criteria.
+   *  @tparam Operation Matching criterion callable.
+   *  @param[in] operation matching criterion.
    *  @return const pointer to matching element or nullptr.
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
@@ -397,8 +397,8 @@ public:
    *  The operation is passed (invoked) as a named lvalue to the 
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
-   *  @tparam Operation Matching criteria callable.
-   *  @param[in] operation matching criteria.
+   *  @tparam Operation Matching criterion callable.
+   *  @param[in] operation matching criterion.
    *  @return pointer to matching element or nullptr.
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
@@ -411,7 +411,7 @@ public:
   }
 
   /** Find the position of an item in the container according to a
-      searching criteria.
+      searching criterion.
 
       `find_index(operation)` traverses the container and on each item
       perform `operation(item)`. If the result of `operation` is `true`,
@@ -428,7 +428,7 @@ public:
       design and use a faster approach.
 
       \param[in] operation to be performed on each item for matching a
-      searching criteria.
+      searching criterion.
       \return the last seen position. If the item is not found, then the
       number of items is returned.
    */
@@ -452,8 +452,8 @@ public:
    *  The operation is passed (invoked) as a named lvalue to the 
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
-   *  @tparam Operation Search criteria callable.
-   *  @param[in] operation matching criteria.
+   *  @tparam Operation Search criterion callable.
+   *  @param[in] operation matching criterion.
    *  @return position of first matching element or size if none.
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
@@ -465,7 +465,7 @@ public:
     return find_index<Operation>(operation);
   }
 
-  /** Safe sequential searching of an item matching a criteria.
+  /** Safe sequential searching of an item matching a criterion.
 
       `find_item(operation)` traverses the container and on each item
       perform `operation(item)`. If the result of `operation` is `true`,
@@ -478,7 +478,7 @@ public:
 
       bool operation(const typename Container::Item_Type & item)
 
-      \param[in] operation to be used as searching criteria
+      \param[in] operation to be used as searching criterion
       \return a duple std::tuple<bool, Type>. The first field indicates if
       the item was found and the second contains a copy of found
       item. If no item is found, then the first field is `false` and the
@@ -509,8 +509,8 @@ public:
    *  The operation is passed (invoked) as a named lvalue to the 
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
-   *  @tparam Operation Searching criteria callable.
-   *  @param[in] operation matching criteria.
+   *  @tparam Operation Searching criterion callable.
+   *  @param[in] operation matching criterion.
    *  @return a duple std::tuple<bool, Type>.
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
@@ -527,8 +527,8 @@ public:
    *  The operation is passed (invoked) as a named lvalue to the 
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
-   *  @tparam Operation Searching criteria callable.
-   *  @param[in] operation matching criteria.
+   *  @tparam Operation Searching criterion callable.
+   *  @param[in] operation matching criterion.
    *  @return a duple std::tuple<bool, Type>.
    *  @throws May throw the same exceptions as the corresponding lvalue 
    *          overload; no additional exception-safety guarantees are provided.
@@ -538,6 +538,31 @@ public:
     noexcept(operation_is_noexcept<Operation>())
   {
     return find_item<Operation>(operation);
+  }
+
+  /** @brief Test if an item satisfying a criterion is present in the container.
+   *
+   *  @tparam Operation Search criterion callable.
+   *  @param[in] operation matching criterion.
+   *  @return true if an item satisfying operation is found, false otherwise.
+   *  @throws Anything propagated by evaluating operation(item).
+   */
+  template <class Operation>
+  bool contains_if(Operation && operation) const
+    noexcept(operation_is_noexcept<Operation>())
+  {
+    return find_ptr(operation) != nullptr;
+  }
+
+  /** @brief Test if an item is present in the container using equality.
+   *
+   *  @param[in] item element to search for.
+   *  @return true if item is found, false otherwise.
+   *  @throws Anything propagated by `operator==` for `Type`.
+   */
+  bool contains(const Type & item) const
+  {
+    return contains_if([&item] (const Type & x) { return x == item; });
   }
 };
 
@@ -924,7 +949,7 @@ public:
       This method has complexity \f$O(n)\f$ in average and worst case.
 
       \param[in] operation to be used as condition
-      \return `true` if all the elements satisfy the criteria: `false`
+      \return `true` if all the elements satisfy the criterion: `false`
       otherwise.
       \throw anything that could throw `operation`
   */
@@ -952,7 +977,7 @@ public:
   }
 
   /** Test for existence in the container of an element satisfying a
-      criteria.
+      criterion.
 
       `exists(op)` returns `true` if it exists any element `item` in container
       for which `op(item)` return `true`.
@@ -996,7 +1021,7 @@ public:
 
       `maps()` is a template method which receives as template
       parameters the type `__T`, which is the type of target or range
-      of mapping, and the transforming operation. By default `__T` is
+      of mapping, and the transforming operation. By default, `__T` is
       the same type of the elements stored in the container.
 
       `operation` should have the following signature:
@@ -1268,15 +1293,15 @@ public:
   }
 
   /** Filter the elements of a container according to a matching
-      criteria.
+      criterion.
 
       This method builds a dynamic list with copies of items of
-      container matching a criteria defined by `operation`, which
+      container matching a criterion defined by `operation`, which
       should have the following signature:
 
       bool operation(const T & item)
 
-      If `operation` return `true` then `item` matches the criteria;
+      If `operation` return `true` then `item` matches the criterion;
       otherwise, `operation` must return `false`.
 
       For example, if the container has integer, then the following
@@ -1285,7 +1310,7 @@ public:
 
       c.filter([] (auto item) { return item > 100; });
 
-      \param[in] operation defining the filter criteria
+      \param[in] operation defining the filter criterion
       \return a `DynList<T>` with the matched elements.
       \throw anything that could throw `operation` or `bad_alloc` if
       there is no enough memory
@@ -1320,15 +1345,15 @@ public:
   }
 
   /** Filter the elements of a container according to a matching
-      criteria and return a pointer to the matched items in the container.
+      criterion and return a pointer to the matched items in the container.
 
       This method builds a dynamic list with stores pointers to the
-      items of matching a criteria defined by `operation`, which
+      items of matching a criterion defined by `operation`, which
       should have the following signature:
 
       bool operation(const T & item)
 
-      If `operation` return `true` then `item` matches the criteria;
+      If `operation` return `true` then `item` matches the criterion;
       otherwise, `operation` must return `false`.
 
       For example, if the container has integer, then the following
@@ -1337,7 +1362,7 @@ public:
 
       c.ptr_filter([] (auto item) { return item > 100; });
 
-      \param[in] operation defining the filter criteria
+      \param[in] operation defining the filter criterion
       \return a `DynList<const T*>` with the pointers to the matched elements.
       \throw anything that could throw `operation` or `bad_alloc` if
       there is no enough memory
@@ -1372,7 +1397,7 @@ public:
   }
 
   /**  Filter the elements of a container according to a matching
-       criteria and determine its positions respect to the traversal
+       criterion and determine its positions respect to the traversal
        of container.
 
        `pfilter(operation)` is very similar to `filter()`, but instead
@@ -1385,7 +1410,7 @@ public:
 
        std::tuple<T, size_t>
 
-       \param[in] operation that defines the filter criteria
+       \param[in] operation that defines the filter criterion
        \return a DynList
        \throw bad_alloc if there is no enough memory
        \see filter(Operation & operation)
@@ -1422,17 +1447,17 @@ public:
     return pfilter<Operation>(operation);
   }
 
-  /** Exclusive partition of container according to a filter criteria.
+  /** Exclusive partition of container according to a filter criterion.
 
       `partition(op)` traverses the container and filters its elements
-      according to the filter criteria defined by `op`. The filtered
+      according to the filter criterion defined by `op`. The filtered
       elements are copied to a first list and the not filtered ones to a
       second list. When all the container is traversed, a pair
       containing these lists is returned.
 
       The `op` requirements are the same as for `filter()`.
 
-      \param[in] op operation instrumenting the filter criteria
+      \param[in] op operation instrumenting the filter criterion
       \return a `std::pair<DynList<T>, DynList<T>>. `first` contains the
       filtered elements and `second` the non-filtered ones.
       \throw anything that could throw op  or `bad_alloc` if there is
@@ -1515,13 +1540,13 @@ public:
     return ret_val;
   }
 
-  /** Exclusive partition of container according to a filter criteria.
+  /** Exclusive partition of container according to a filter criterion.
 
       This method has exactly the same semantic as
       `partition(Operation & op)`, excepts than instead of returning a
       `std::pair` it returns a `std::tuple`.
 
-      \param[in] op operation instrumenting the filter criteria
+      \param[in] op operation instrumenting the filter criterion
       \return a `std::tuple<DynList<T>, DynList<T>>. `first` contains the
       filtered elements and `second` the non-filtered ones.
       \throw anything that could throw op  or `bad_alloc` if there is
@@ -1837,13 +1862,13 @@ public:
   }
 
   /// \overload equal_to(const Container & r)
-  bool operator == (const Container & r) const	noexcept
+  bool operator == (const Container & r) const noexcept
   {
     return equal_to(r);
   }
 
   /** Negation of equal_to() */
-  bool operator != (const Container & r) const	noexcept
+  bool operator != (const Container & r) const noexcept
   {
     return not equal_to(r);
   }

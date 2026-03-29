@@ -364,7 +364,7 @@ public:
   /** @brief Build a branch-and-bound engine bound to one optimization domain. */
   explicit Branch_And_Bound(Domain domain,
                             ExplorationPolicy policy = default_policy(),
-                            SearchLimits limits = {},
+                            const SearchLimits &limits = {},
                             ObjectivePolicy objective = {})
     : domain_(std::move(domain)), policy_(policy), limits_(limits), objective_(std::move(objective))
   {

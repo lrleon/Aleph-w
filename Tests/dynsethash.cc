@@ -304,6 +304,10 @@ TEST(DynHashTable, EmptyMethod)
 
   EXPECT_TRUE(table.is_empty());
   EXPECT_EQ(table.size(), 0u);
+
+  table.insert(1);
+  table.clear();
+  EXPECT_TRUE(table.is_empty());
 }
 
 // ============================================================================
@@ -706,6 +710,10 @@ TEST(DynMapHashTable, RemoveByKey)
   EXPECT_EQ(removed, "two");
   EXPECT_EQ(map.size(), 2u);
   EXPECT_FALSE(map.contains(2));
+
+  map.clear();
+  EXPECT_TRUE(map.is_empty());
+  EXPECT_EQ(map.size(), 0u);
 }
 
 TEST(DynMapHashTable, Keys)

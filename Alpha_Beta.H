@@ -102,7 +102,7 @@ public:
   /** @brief Build an Alpha-Beta engine bound to one game domain. */
   explicit Alpha_Beta(Domain domain,
                       ExplorationPolicy policy = default_policy(),
-                      SearchLimits limits = {})
+                      const SearchLimits &limits = {})
     : domain_(std::move(domain)), policy_(policy), limits_(limits)
   {
     // empty

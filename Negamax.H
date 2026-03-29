@@ -868,7 +868,8 @@ public:
   }
 
   /** @brief Build a Negamax engine bound to one game domain. */
-  explicit Negamax(Domain domain, ExplorationPolicy policy = default_policy(), SearchLimits limits = {})
+  explicit Negamax(Domain domain, ExplorationPolicy policy = default_policy(),
+                   const SearchLimits &limits = {})
     : domain_(std::move(domain)), policy_(policy), limits_(limits)
   {
     // empty

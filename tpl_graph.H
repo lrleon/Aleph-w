@@ -2823,6 +2823,13 @@ namespace Aleph
         list.remove_first();
     }
 
+    /** @brief Empties the container. 
+        
+        @throws none
+        @see empty()
+    */
+    void clear() { empty(); }
+
     /// Copy constructor
     Path(const Path & path) : g(path.g), list(path.list) {}
 

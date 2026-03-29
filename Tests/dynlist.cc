@@ -108,6 +108,48 @@ TEST(DynList, Basic_operations)
   EXPECT_NO_THROW(list.rotate_left(0));
 }
 
+TEST(DynList, Clear_operation)
+{
+  DynList<int> list;
+  list.append(1);
+  list.append(2);
+  list.append(3);
+  EXPECT_FALSE(list.is_empty());
+  EXPECT_EQ(list.size(), 3);
+
+  list.clear();
+  EXPECT_TRUE(list.is_empty());
+  EXPECT_EQ(list.size(), 0);
+
+  list.append(4);
+  EXPECT_FALSE(list.is_empty());
+  EXPECT_EQ(list.size(), 1);
+  EXPECT_EQ(list.get_first(), 4);
+
+  EXPECT_TRUE(list.contains(4));
+  EXPECT_FALSE(list.contains(1));
+}
+
+TEST(DynList, EqualityOperator)
+{
+  DynList<int> l1 = {1, 2, 3};
+  DynList<int> l2 = {1, 2, 3};
+  DynList<int> l3 = {1, 2, 4};
+  DynList<int> l4 = {1, 2};
+
+  EXPECT_TRUE(l1 == l2);
+  EXPECT_FALSE(l1 != l2);
+
+  EXPECT_FALSE(l1 == l3);
+  EXPECT_TRUE(l1 != l3);
+
+  EXPECT_FALSE(l1 == l4);
+  EXPECT_TRUE(l1 != l4);
+
+  DynList<int> empty1, empty2;
+  EXPECT_TRUE(empty1 == empty2);
+}
+
 TEST(DynList, Simple_append_and_insert_of_list)
 {
   DynList<int> laux, list;

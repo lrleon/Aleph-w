@@ -588,4 +588,42 @@ TEST(RingFileCache, persistence_after_wraparound)
   EXPECT_EQ(to_vector(all), std::vector<int>({3, 4, 5, 6}));
 }
 
+TEST(RingFileCache, clear_and_empty_behavior)
+{
+  TempFiles tmp(make_temp_paths());
+  RingFileCache<int>::create(tmp.paths.pars.string(), tmp.paths.cache.string(), 5);
+  RingFileCache<int> cache(tmp.paths.pars.string());
+
+  // Test 1: clear on populated cache
+  cache.put(10);
+  cache.put(20);
+  cache.put(30);
+  EXPECT_EQ(cache.size(), 3u);
+  EXPECT_FALSE(cache.is_empty());
+
+  cache.clear(); // Exercises clear()
+  EXPECT_EQ(cache.size(), 0u);
+  EXPECT_TRUE(cache.is_empty());
+  EXPECT_TRUE(cache.read_all().is_empty());
+
+  // Test 2: empty on populated cache (for comparison)
+  cache.put(40);
+  cache.put(50);
+  EXPECT_EQ(cache.size(), 2u);
+  cache.empty(); // Exercises empty()
+  EXPECT_EQ(cache.size(), 0u);
+  EXPECT_TRUE(cache.is_empty());
+
+  // Test 3: clear on already-empty cache (no-op)
+  EXPECT_TRUE(cache.is_empty());
+  cache.clear();
+  EXPECT_EQ(cache.size(), 0u);
+  EXPECT_TRUE(cache.is_empty());
+
+  // Test 4: empty on already-empty cache (no-op)
+  cache.empty();
+  EXPECT_EQ(cache.size(), 0u);
+  EXPECT_TRUE(cache.is_empty());
+}
+
 } // namespace

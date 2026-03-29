@@ -67,24 +67,24 @@ public:
   using Move = ArtificialGameMove;
   using Score = int;
 
-  bool is_terminal(const State &state) const
+  static bool is_terminal(const State &state)
   {
     return state.depth == 2;
   }
 
-  Score evaluate(const State &state) const
+  static Score evaluate(const State &state)
   {
     return root_score(state.code)*state.player;
   }
 
-  void apply(State &state, const Move &move) const
+  static void apply(State &state, const Move &move)
   {
     state.code = move.next_code;
     state.player = -state.player;
     ++state.depth;
   }
 
-  void undo(State &state, const Move&) const
+  static void undo(State &state, const Move&)
   {
     --state.depth;
     state.player = -state.player;
@@ -92,7 +92,7 @@ public:
   }
 
   template <typename Visitor>
-  bool for_each_successor(const State &state, Visitor visit) const
+  static bool for_each_successor(const State &state, Visitor visit)
   {
     if (state.depth >= 2)
       return true;
