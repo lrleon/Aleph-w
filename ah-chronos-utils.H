@@ -45,6 +45,7 @@
 
 # include <string>
 # include <chrono>
+# include <format>
 
 namespace Aleph
 {
@@ -95,16 +96,16 @@ inline double duration_to_days(const std::chrono::duration<double> & d)
 inline std::string duration_to_string(const auto & d)
 {
   if (d < std::chrono::seconds(1))
-    return std::to_string(duration_to_milliseconds(d)) + " ms";
+    return std::format("{} ms", duration_to_milliseconds(d));
 
   if (d < std::chrono::minutes(1))
-    return std::to_string(duration_to_seconds(d)) + " s";
+    return std::format("{} s", duration_to_seconds(d));
   if (d < std::chrono::hours(1))
-    return std::to_string(duration_to_minutes(d)) + " min";
+    return std::format("{} min", duration_to_minutes(d));
   if (d < std::chrono::days(1))
-    return std::to_string(duration_to_hours(d)) + " h";
+    return std::format("{} h", duration_to_hours(d));
 
-  return std::to_string(duration_to_days(d)) + " days";
+  return std::format("{} days", duration_to_days(d));
 }
 }
 
