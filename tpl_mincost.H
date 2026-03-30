@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file tpl_mincost.H
  *  @brief Advanced minimum cost flow algorithms.
  *
@@ -77,8 +76,7 @@
 #include <tpl_dynBinHeap.H>
 #include <ah-errors.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 //==============================================================================
 // SUCCESSIVE SHORTEST PATHS (SSP) ALGORITHM
@@ -93,12 +91,12 @@ namespace Aleph
 template <typename Flow_Type>
 struct SSP_Node_Info
 {
-  Flow_Type potential{0};        ///< Node potential for reduced costs
-  Flow_Type distance{0};         ///< Shortest path distance
-  bool in_tree{false};           ///< Is node in shortest path tree?
-  void* parent_arc{nullptr};     ///< Parent arc in shortest path tree
-  void* parent_node{nullptr};    ///< Parent node
-  bool forward{true};            ///< Direction of parent arc
+  Flow_Type potential{0};      ///< Node potential for reduced costs
+  Flow_Type distance{0};       ///< Shortest path distance
+  bool in_tree{false};         ///< Is node in shortest path tree?
+  void *parent_arc{nullptr};   ///< Parent arc in shortest path tree
+  void *parent_node{nullptr};  ///< Parent node
+  bool forward{true};          ///< Direction of parent arc
 
   void reset()
   {
@@ -113,10 +111,9 @@ struct SSP_Node_Info
  *  @ingroup Networks
  */
 template <class Net>
-inline SSP_Node_Info<typename Net::Flow_Type>&
-ssp_info(typename Net::Node* p) noexcept
+inline SSP_Node_Info<typename Net::Flow_Type> &ssp_info(typename Net::Node *p) noexcept
 {
-  return *static_cast<SSP_Node_Info<typename Net::Flow_Type>*>(NODE_COOKIE(p));
+  return *static_cast<SSP_Node_Info<typename Net::Flow_Type> *>(NODE_COOKIE(p));
 }
 
 /** @brief Compute reduced cost of an arc.
@@ -130,10 +127,12 @@ ssp_info(typename Net::Node* p) noexcept
  *  @ingroup Networks
  */
 template <class Net>
-typename Net::Flow_Type reduced_cost(const Net& net, typename Net::Arc* arc,
-                                      typename Net::Node* from, bool forward)
+typename Net::Flow_Type reduced_cost(const Net &net,
+                                     typename Net::Arc *arc,
+                                     typename Net::Node *from,
+                                     bool forward)
 {
-  (void)from;
+  (void) from;
   using Flow_Type = typename Net::Flow_Type;
 
   auto src = net.get_src_node(arc);
@@ -146,8 +145,8 @@ typename Net::Flow_Type reduced_cost(const Net& net, typename Net::Arc* arc,
   // Reduced cost = cost + π(src) - π(tgt)
   if (forward)
     return arc->cost + pi_src - pi_tgt;
-  
-  // Backward arc: tgt -> src with cost -arc->cost  
+
+  // Backward arc: tgt -> src with cost -arc->cost
   // Reduced cost = -cost + π(tgt) - π(src)
   return -arc->cost + pi_tgt - pi_src;
 }
@@ -160,8 +159,7 @@ typename Net::Flow_Type reduced_cost(const Net& net, typename Net::Arc* arc,
  *  @ingroup Networks
  */
 template <class Net>
-bool ssp_shortest_path(Net& net, typename Net::Node* source,
-                        typename Net::Node* sink)
+bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node *sink)
 {
   using Node = typename Net::Node;
   using Arc = typename Net::Arc;
@@ -176,7 +174,7 @@ bool ssp_shortest_path(Net& net, typename Net::Node* source,
   ssp_info<Net>(source).distance = 0;
 
   // Priority queue: (distance, node)
-  using PQ_Entry = std::pair<Flow_Type, Node*>;
+  using PQ_Entry = std::pair<Flow_Type, Node *>;
   std::priority_queue<PQ_Entry, std::vector<PQ_Entry>, std::greater<PQ_Entry>> pq;
 
   pq.push({0, source});
@@ -192,8 +190,8 @@ bool ssp_shortest_path(Net& net, typename Net::Node* source,
       // Explore all adjacent arcs
       for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
         {
-          Arc* arc = it.get_curr();
-          Node* v = net.get_connected_node(arc, u);
+          Arc *arc = it.get_curr();
+          Node *v = net.get_connected_node(arc, u);
 
           // Determine direction and residual capacity
           bool forward = (net.get_src_node(arc) == u);
@@ -259,8 +257,7 @@ bool ssp_shortest_path(Net& net, typename Net::Node* source,
  *  @ingroup Networks
  */
 template <class Net>
-std::pair<typename Net::Flow_Type, typename Net::Flow_Type>
-successive_shortest_paths(Net& net);
+std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_paths(Net &net);
 
 /** @brief Initialize potentials using Bellman-Ford.
  *
@@ -274,18 +271,18 @@ successive_shortest_paths(Net& net);
  *  @ingroup Networks
  */
 template <class Net>
-bool ssp_init_potentials(Net& net, typename Net::Node* source)
+bool ssp_init_potentials(Net &net, typename Net::Node *source)
 {
   using Flow_Type = typename Net::Flow_Type;
-  
+
   const Flow_Type INF = std::numeric_limits<Flow_Type>::max();
   const size_t n = net.vsize();
-  
+
   // Initialize distances
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     ssp_info<Net>(it.get_curr()).potential = INF;
   ssp_info<Net>(source).potential = 0;
-  
+
   // Bellman-Ford: relax all edges n-1 times
   for (size_t i = 0; i < n - 1; ++i)
     {
@@ -295,7 +292,7 @@ bool ssp_init_potentials(Net& net, typename Net::Node* source)
           auto arc = it.get_curr();
           auto src = net.get_src_node(arc);
           auto tgt = net.get_tgt_node(arc);
-          
+
           // Forward arc (if has residual capacity)
           if (arc->cap > arc->flow)
             {
@@ -310,7 +307,7 @@ bool ssp_init_potentials(Net& net, typename Net::Node* source)
                     }
                 }
             }
-          
+
           // Backward arc (if has flow to cancel)
           if (arc->flow > 0)
             {
@@ -326,30 +323,30 @@ bool ssp_init_potentials(Net& net, typename Net::Node* source)
                 }
             }
         }
-      if (!changed) break;
+      if (!changed)
+        break;
     }
-  
+
   // Set unreachable nodes to 0 (they won't affect anything)
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     if (ssp_info<Net>(it.get_curr()).potential >= INF)
       ssp_info<Net>(it.get_curr()).potential = 0;
-  
+
   return true;  // No negative cycle check for simplicity
 }
 
 template <class Net>
-std::pair<typename Net::Flow_Type, typename Net::Flow_Type>
-successive_shortest_paths(Net& net)
+std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_paths(Net &net)
 {
   using Node = typename Net::Node;
   using Arc = typename Net::Arc;
   using Flow_Type = typename Net::Flow_Type;
 
-  ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
+  ah_domain_error_if(not(net.is_single_source() and net.is_single_sink()))
     << "Network must have single source and single sink";
 
-  Node* source = net.get_source();
-  Node* sink = net.get_sink();
+  Node *source = net.get_source();
+  Node *sink = net.get_sink();
 
   // Allocate node info using std::vector to allow taking address of elements
   std::vector<SSP_Node_Info<Flow_Type>> node_info(net.vsize());
@@ -368,24 +365,23 @@ successive_shortest_paths(Net& net)
     {
       // Find minimum residual capacity on path
       Flow_Type path_flow = std::numeric_limits<Flow_Type>::max();
-      for (Node* v = sink; v != source;)
+      for (Node *v = sink; v != source;)
         {
-          Arc* arc = static_cast<Arc*>(ssp_info<Net>(v).parent_arc);
+          Arc *arc = static_cast<Arc *>(ssp_info<Net>(v).parent_arc);
           bool forward = ssp_info<Net>(v).forward;
 
           Flow_Type residual = forward ? (arc->cap - arc->flow) : arc->flow;
           path_flow = std::min(path_flow, residual);
 
-          v = static_cast<Node*>(ssp_info<Net>(v).parent_node);
+          v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
 
       // Augment flow and compute cost
-      for (Node* v = sink; v != source;)
+      for (Node *v = sink; v != source;)
         {
-          Arc* arc = static_cast<Arc*>(ssp_info<Net>(v).parent_arc);
-          bool forward = ssp_info<Net>(v).forward;
+          Arc *arc = static_cast<Arc *>(ssp_info<Net>(v).parent_arc);
 
-          if (forward)
+          if (bool forward = ssp_info<Net>(v).forward)
             {
               arc->flow += path_flow;
               total_cost += path_flow * arc->cost;
@@ -396,7 +392,7 @@ successive_shortest_paths(Net& net)
               total_cost -= path_flow * arc->cost;
             }
 
-          v = static_cast<Node*>(ssp_info<Net>(v).parent_node);
+          v = static_cast<Node *>(ssp_info<Net>(v).parent_node);
         }
 
       total_flow += path_flow;
@@ -404,23 +400,18 @@ successive_shortest_paths(Net& net)
       // Update potentials for reachable nodes
       Flow_Type max_potential = std::numeric_limits<Flow_Type>::lowest();
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-        {
-          auto p = it.get_curr();
-          if (ssp_info<Net>(p).distance < std::numeric_limits<Flow_Type>::max())
-            {
+        if (auto p = it.get_curr(); ssp_info<Net>(p).distance < std::numeric_limits<Flow_Type>::max())
+          {
             ssp_info<Net>(p).potential += ssp_info<Net>(p).distance;
-              max_potential = std::max(max_potential, ssp_info<Net>(p).potential);
-            }
-        }
-      
+            max_potential = std::max(max_potential, ssp_info<Net>(p).potential);
+          }
+
       // For unreachable nodes, set potential to max to avoid negative reduced costs
       // when backward arcs to them become available
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-        {
-          auto p = it.get_curr();
-          if (ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
-            ssp_info<Net>(p).potential = max_potential;
-        }
+        if (auto p = it.get_curr();
+            ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
+          ssp_info<Net>(p).potential = max_potential;
     }
 
   return {total_flow, total_cost};
@@ -432,13 +423,11 @@ successive_shortest_paths(Net& net)
 template <class Net>
 struct Successive_Shortest_Paths
 {
-  std::pair<typename Net::Flow_Type, typename Net::Flow_Type>
-  operator()(Net& net) const
+  std::pair<typename Net::Flow_Type, typename Net::Flow_Type> operator()(Net &net) const
   {
     return successive_shortest_paths(net);
   }
 };
-
 
 //==============================================================================
 // MINIMUM COST FLOW WITH DEMAND (TRANSSHIPMENT)
@@ -464,9 +453,9 @@ struct Transshipment_Node_Info
 template <typename Flow_Type>
 struct TransshipmentResult
 {
-  bool feasible{false};       ///< Is there a feasible solution?
-  Flow_Type total_cost{0};    ///< Total transportation cost
-  Flow_Type total_flow{0};    ///< Total flow shipped
+  bool feasible{false};     ///< Is there a feasible solution?
+  Flow_Type total_cost{0};  ///< Total transportation cost
+  Flow_Type total_flow{0};  ///< Total flow shipped
 };
 
 /** @brief Solve minimum cost transshipment problem.
@@ -504,8 +493,7 @@ struct TransshipmentResult
  *  @ingroup Networks
  */
 template <class Net, class GetDemand>
-TransshipmentResult<typename Net::Flow_Type>
-solve_transshipment(Net& net, GetDemand get_demand)
+TransshipmentResult<typename Net::Flow_Type> solve_transshipment(Net &net, GetDemand get_demand)
 {
   using Node = typename Net::Node;
   using Flow_Type = typename Net::Flow_Type;
@@ -533,13 +521,13 @@ solve_transshipment(Net& net, GetDemand get_demand)
     }
 
   // Create super-source and super-sink
-  Node* super_source = net.insert_node();
-  Node* super_sink = net.insert_node();
+  Node *super_source = net.insert_node();
+  Node *super_sink = net.insert_node();
 
   // Connect super-source to supply nodes
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      Node* p = it.get_curr();
+      Node *p = it.get_curr();
       if (p == super_source or p == super_sink)
         continue;
 
@@ -547,7 +535,7 @@ solve_transshipment(Net& net, GetDemand get_demand)
       if (d > 0)
         net.insert_arc(super_source, p, d, Flow_Type{0});  // zero cost
       else if (d < 0)
-        net.insert_arc(p, super_sink, -d, Flow_Type{0});   // zero cost
+        net.insert_arc(p, super_sink, -d, Flow_Type{0});  // zero cost
     }
 
   // Source and sink are detected automatically by network topology
@@ -564,7 +552,6 @@ solve_transshipment(Net& net, GetDemand get_demand)
 
   return result;
 }
-
 
 //==============================================================================
 // ASSIGNMENT PROBLEM
@@ -614,11 +601,9 @@ struct AssignmentResult
  *  @ingroup Networks
  */
 template <typename Cost_Type>
-AssignmentResult<Cost_Type>
-solve_assignment(const std::vector<std::vector<Cost_Type>>& costs)
+AssignmentResult<Cost_Type> solve_assignment(const std::vector<std::vector<Cost_Type>> &costs)
 {
-  using Net = Net_Cost_Graph<Net_Cost_Node<Empty_Class>,
-                             Net_Cost_Arc<Empty_Class, Cost_Type>>;
+  using Net = Net_Cost_Graph<Net_Cost_Node<Empty_Class>, Net_Cost_Arc<Empty_Class, Cost_Type>>;
   using Node = typename Net::Node;
 
   AssignmentResult<Cost_Type> result;
@@ -631,7 +616,7 @@ solve_assignment(const std::vector<std::vector<Cost_Type>>& costs)
     }
 
   // Verify square matrix
-  for (const auto& row : costs)
+  for (const auto &row : costs)
     if (row.size() != n)
       {
         result.feasible = false;
@@ -641,11 +626,11 @@ solve_assignment(const std::vector<std::vector<Cost_Type>>& costs)
   Net net;
 
   // Create source and sink
-  Node* source = net.insert_node();
-  Node* sink = net.insert_node();
+  Node *source = net.insert_node();
+  Node *sink = net.insert_node();
 
   // Create worker nodes
-  std::vector<Node*> workers(n);
+  std::vector<Node *> workers(n);
   for (size_t i = 0; i < n; ++i)
     {
       workers[i] = net.insert_node();
@@ -653,7 +638,7 @@ solve_assignment(const std::vector<std::vector<Cost_Type>>& costs)
     }
 
   // Create task nodes
-  std::vector<Node*> tasks(n);
+  std::vector<Node *> tasks(n);
   for (size_t j = 0; j < n; ++j)
     {
       tasks[j] = net.insert_node();
@@ -675,29 +660,23 @@ solve_assignment(const std::vector<std::vector<Cost_Type>>& costs)
 
   // Extract assignments from flow
   if (result.feasible)
-    {
-      for (size_t i = 0; i < n; ++i)
+    for (size_t i = 0; i < n; ++i)
+      for (typename Net::Node_Arc_Iterator it(workers[i]); it.has_curr(); it.next_ne())
         {
-          for (typename Net::Node_Arc_Iterator it(workers[i]); it.has_curr();
-               it.next_ne())
-            {
-              auto arc = it.get_curr();
-              auto tgt = net.get_tgt_node(arc);
+          auto arc = it.get_curr();
+          auto tgt = net.get_tgt_node(arc);
 
-              // Find which task this is
-              for (size_t j = 0; j < n; ++j)
-                if (tasks[j] == tgt and arc->flow > 0)
-                  {
-                    result.assignments.append(std::make_pair(i, j));
-                    break;
-                  }
-            }
+          // Find which task this is
+          for (size_t j = 0; j < n; ++j)
+            if (tasks[j] == tgt and arc->flow > 0)
+              {
+                result.assignments.append(std::make_pair(i, j));
+                break;
+              }
         }
-    }
 
   return result;
 }
-
 
 //==============================================================================
 // TRANSPORTATION PROBLEM
@@ -746,13 +725,11 @@ struct TransportationResult
  *  @ingroup Networks
  */
 template <typename Cost_Type>
-TransportationResult<Cost_Type>
-solve_transportation(const std::vector<Cost_Type>& supplies,
-                     const std::vector<Cost_Type>& demands,
-                     const std::vector<std::vector<Cost_Type>>& costs)
+TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type> &supplies,
+                                                     const std::vector<Cost_Type> &demands,
+                                                     const std::vector<std::vector<Cost_Type>> &costs)
 {
-  using Net = Net_Cost_Graph<Net_Cost_Node<Empty_Class>,
-                             Net_Cost_Arc<Empty_Class, Cost_Type>>;
+  using Net = Net_Cost_Graph<Net_Cost_Node<Empty_Class>, Net_Cost_Arc<Empty_Class, Cost_Type>>;
   using Node = typename Net::Node;
   using Arc = typename Net::Arc;
 
@@ -770,8 +747,10 @@ solve_transportation(const std::vector<Cost_Type>& supplies,
   // Check supply-demand balance
   Cost_Type total_supply = Cost_Type{0};
   Cost_Type total_demand = Cost_Type{0};
-  for (auto s : supplies) total_supply += s;
-  for (auto d : demands) total_demand += d;
+  for (auto s : supplies)
+    total_supply += s;
+  for (auto d : demands)
+    total_demand += d;
 
   if (total_supply != total_demand)
     {
@@ -782,11 +761,11 @@ solve_transportation(const std::vector<Cost_Type>& supplies,
   Net net;
 
   // Create source and sink
-  Node* source = net.insert_node();
-  Node* sink = net.insert_node();
+  Node *source = net.insert_node();
+  Node *sink = net.insert_node();
 
   // Create supply nodes
-  std::vector<Node*> supply_nodes(m);
+  std::vector<Node *> supply_nodes(m);
   for (size_t i = 0; i < m; ++i)
     {
       supply_nodes[i] = net.insert_node();
@@ -794,7 +773,7 @@ solve_transportation(const std::vector<Cost_Type>& supplies,
     }
 
   // Create demand nodes
-  std::vector<Node*> demand_nodes(n);
+  std::vector<Node *> demand_nodes(n);
   for (size_t j = 0; j < n; ++j)
     {
       demand_nodes[j] = net.insert_node();
@@ -803,12 +782,13 @@ solve_transportation(const std::vector<Cost_Type>& supplies,
 
   // Create arcs between supplies and demands
   // Store arcs for extracting solution
-  std::vector<std::vector<Arc*>> arcs(m, std::vector<Arc*>(n));
+  std::vector<std::vector<Arc *>> arcs(m, std::vector<Arc *>(n));
   for (size_t i = 0; i < m; ++i)
     for (size_t j = 0; j < n; ++j)
-      arcs[i][j] = net.insert_arc(supply_nodes[i], demand_nodes[j],
-                                   std::min(supplies[i], demands[j]) + Cost_Type{1},
-                                   costs[i][j]);
+      arcs[i][j] = net.insert_arc(supply_nodes[i],
+                                  demand_nodes[j],
+                                  std::min(supplies[i], demands[j]) + Cost_Type{1},
+                                  costs[i][j]);
 
   // Source and sink are detected automatically by network topology
 
@@ -826,7 +806,6 @@ solve_transportation(const std::vector<Cost_Type>& supplies,
 
   return result;
 }
-
 
 //==============================================================================
 // MIN-COST FLOW STATISTICS
@@ -855,7 +834,6 @@ struct MinCostFlowStats
   }
 };
 
-
 //==============================================================================
 // WARM START FOR NETWORK SIMPLEX
 //==============================================================================
@@ -872,10 +850,9 @@ struct MinCostFlowStats
  *  @ingroup Networks
  */
 template <class Net>
-DynMapTree<typename Net::Arc*, typename Net::Flow_Type>
-save_flow_solution(const Net& net)
+DynMapTree<typename Net::Arc *, typename Net::Flow_Type> save_flow_solution(const Net &net)
 {
-  DynMapTree<typename Net::Arc*, typename Net::Flow_Type> solution;
+  DynMapTree<typename Net::Arc *, typename Net::Flow_Type> solution;
 
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
@@ -898,8 +875,8 @@ save_flow_solution(const Net& net)
  *  @ingroup Networks
  */
 template <class Net>
-void restore_flow_solution(Net& net,
-    const DynMapTree<typename Net::Arc*, typename Net::Flow_Type>& solution)
+void restore_flow_solution(Net &net,
+                           const DynMapTree<typename Net::Arc *, typename Net::Flow_Type> &solution)
 {
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
@@ -909,6 +886,6 @@ void restore_flow_solution(Net& net,
     }
 }
 
-} // namespace Aleph
+}  // namespace Aleph
 
-#endif // TPL_MINCOST_H
+#endif  // TPL_MINCOST_H
