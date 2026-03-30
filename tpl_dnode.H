@@ -93,8 +93,6 @@
 # include <dlink.H>
  # include <ah-errors.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 
     /** Node belonging to a double circular linked list with header node.

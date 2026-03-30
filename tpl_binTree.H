@@ -55,8 +55,6 @@
 # include <tpl_binTreeOps.H>
 # include <ah-concepts.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 
     /** @brief Simple (unbalanced) binary search tree.

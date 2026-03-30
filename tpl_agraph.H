@@ -51,8 +51,6 @@
 
 namespace Aleph
 {
-  using namespace Aleph;
-
   /** Node of `Array_Graph`
 
       @ingroup Graphs

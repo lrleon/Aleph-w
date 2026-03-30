@@ -67,8 +67,6 @@
 # include <limits.h> 
 # include <tpl_binNode.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 
 /// Maximum priority value (used for sentinel/leaves)

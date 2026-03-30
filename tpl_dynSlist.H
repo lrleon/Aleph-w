@@ -45,8 +45,6 @@
 # include <utility>
 # include <ah-errors.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 
   /** Dynamic list of elements of type `T` implemented with a singly

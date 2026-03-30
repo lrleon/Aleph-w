@@ -47,8 +47,6 @@
 # include <slink.H>
 # include <utility>
 
-using namespace Aleph;
-
 namespace Aleph {
 
   /** Singly linked node that stores data of type `T`.

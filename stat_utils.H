@@ -101,6 +101,7 @@
 #include <vector>
 #include <map>
 #include <stdexcept>
+#include <ah-errors.H>
 #include <tpl_sort_utils.H>
 #include <tpl_dynArray.H>
 
@@ -191,10 +192,10 @@ template <typename Container>
       s += x;
       ++n;
     }
-  if (n == 0)
-    throw std::invalid_argument("mean: empty container");
+  ah_invalid_argument_if(n == 0) << "mean: empty container";
   return s / static_cast<T>(n);
 }
+
 
 /**
  * @brief Compute variance using Welford's numerically stable algorithm.
@@ -233,14 +234,12 @@ template <typename Container>
 
   if (population)
     {
-      if (n == 0)
-        throw std::invalid_argument("variance: empty container");
+      ah_invalid_argument_if(n == 0) << "variance: empty container";
       return m2 / static_cast<T>(n);
     }
   else
     {
-      if (n < 2)
-        throw std::invalid_argument("variance: need at least 2 elements for sample variance");
+      ah_invalid_argument_if(n < 2) << "variance: need at least 2 elements for sample variance";
       return m2 / static_cast<T>(n - 1);
     }
 }
@@ -274,8 +273,7 @@ template <typename Container>
 {
   auto it = std::begin(data);
   auto end = std::end(data);
-  if (it == end)
-    throw std::invalid_argument("min_value: empty container");
+  ah_invalid_argument_if(it == end) << "min_value: empty container";
 
   auto result = *it;
   for (++it; it != end; ++it)
@@ -298,8 +296,7 @@ template <typename Container>
 {
   auto it = std::begin(data);
   auto end = std::end(data);
-  if (it == end)
-    throw std::invalid_argument("max_value: empty container");
+  ah_invalid_argument_if(it == end) << "max_value: empty container";
 
   auto result = *it;
   for (++it; it != end; ++it)
@@ -324,8 +321,7 @@ template <typename Container>
   using T = std::decay_t<decltype(*std::begin(data))>;
   auto it = std::begin(data);
   auto end = std::end(data);
-  if (it == end)
-    throw std::invalid_argument("min_max: empty container");
+  ah_invalid_argument_if(it == end) << "min_max: empty container";
 
   T min_val = *it;
   T max_val = *it;
@@ -360,13 +356,11 @@ template <typename Container>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
-  if (p < 0 or p > 100)
-    throw std::invalid_argument("percentile: p must be in [0, 100]");
+  ah_invalid_argument_if(p < 0 or p > 100) << "percentile: p must be in [0, 100]";
 
   // Copy to vector for sorting
   std::vector<T> sorted(std::begin(data), std::end(data));
-  if (sorted.empty())
-    throw std::invalid_argument("percentile: empty container");
+  ah_invalid_argument_if(sorted.empty()) << "percentile: empty container";
 
   std::sort(sorted.begin(), sorted.end());
 
@@ -457,13 +451,12 @@ template <typename Container>
   -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
-
   auto it = std::begin(data);
   auto end = std::end(data);
-  if (it == end)
-    throw std::invalid_argument("mode: empty container");
+  ah_invalid_argument_if(it == end) << "mode: empty container";
 
   std::map<T, size_t> freq;
+
   for (const auto & x : data)
     ++freq[x];
 
@@ -553,8 +546,7 @@ template <typename Container>
       ++n;
     }
 
-  if (n < 3)
-    throw std::invalid_argument("skewness: need at least 3 elements");
+  ah_invalid_argument_if(n < 3) << "skewness: need at least 3 elements";
 
   // Adjusted Fisher-Pearson coefficient
   T factor = static_cast<T>(n) / ((n - 1) * (n - 2));
@@ -597,8 +589,7 @@ template <typename Container>
       ++n;
     }
 
-  if (n < 4)
-    throw std::invalid_argument("kurtosis: need at least 4 elements");
+  ah_invalid_argument_if(n < 4) << "kurtosis: need at least 4 elements";
 
   // Excess kurtosis with bias correction
   T n_t = static_cast<T>(n);
@@ -624,8 +615,7 @@ template <typename Container>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
   T m = mean(data);
-  if (m == T())
-    throw std::invalid_argument("coefficient_of_variation: mean is zero");
+  ah_invalid_argument_if(m == T()) << "coefficient_of_variation: mean is zero";
   return stddev(data) / std::abs(m);
 }
 
@@ -675,19 +665,17 @@ template <typename Container1, typename Container2>
       ++it_y;
     }
 
-  if (it_x != end_x or it_y != end_y)
-    throw std::invalid_argument("covariance: containers have different sizes");
+  ah_invalid_argument_if(it_x != end_x or it_y != end_y) 
+    << "covariance: containers have different sizes";
 
   if (population)
     {
-      if (n == 0)
-        throw std::invalid_argument("covariance: empty containers");
+      ah_invalid_argument_if(n == 0) << "covariance: empty containers";
       return c / static_cast<T>(n);
     }
   else
     {
-      if (n < 2)
-        throw std::invalid_argument("covariance: need at least 2 elements");
+      ah_invalid_argument_if(n < 2) << "covariance: need at least 2 elements";
       return c / static_cast<T>(n - 1);
     }
 }
@@ -717,8 +705,8 @@ template <typename Container1, typename Container2>
   T sx = stddev(x, true);          // Population stddev
   T sy = stddev(y, true);
 
-  if (sx == T() or sy == T())
-    throw std::invalid_argument("correlation: one or both datasets have zero variance");
+  ah_invalid_argument_if(sx == T() or sy == T()) 
+    << "correlation: one or both datasets have zero variance";
 
   return cov / (sx * sy);
 }
@@ -743,8 +731,7 @@ template <typename Container>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
-  if (num_bins == 0)
-    throw std::invalid_argument("histogram: num_bins must be > 0");
+  ah_invalid_argument_if(num_bins == 0) << "histogram: num_bins must be > 0";
 
   auto [min_val, max_val] = min_max(data);
   T range = max_val - min_val;

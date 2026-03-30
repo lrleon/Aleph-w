@@ -94,15 +94,14 @@ inline double duration_to_days(const std::chrono::duration<double> & d)
 // acording to the magnitude of the duration
 inline std::string duration_to_string(const auto & d)
 {
-  using namespace std::chrono;
-  if (d < seconds(1))
+  if (d < std::chrono::seconds(1))
     return std::to_string(duration_to_milliseconds(d)) + " ms";
 
-  if (d < minutes(1))
+  if (d < std::chrono::minutes(1))
     return std::to_string(duration_to_seconds(d)) + " s";
-  if (d < hours(1))
+  if (d < std::chrono::hours(1))
     return std::to_string(duration_to_minutes(d)) + " min";
-  if (d < days(1))
+  if (d < std::chrono::days(1))
     return std::to_string(duration_to_hours(d)) + " h";
 
   return std::to_string(duration_to_days(d)) + " days";

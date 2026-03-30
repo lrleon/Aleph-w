@@ -46,8 +46,6 @@
 # include <tpl_binNodeXt.H>
  # include <ah-errors.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 
     /** Selecciona un nodo de un árbol binario según su posición infija

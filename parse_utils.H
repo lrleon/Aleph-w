@@ -678,6 +678,36 @@ namespace Aleph
     [[nodiscard]] const SourceLocation &location() const { return loc; }
   };
 
+/** @def ah_parse_error()
+ *  @brief Throws a ParseError unconditionally
+ *  @throw ParseError always
+ *  @details Throws a ParseError with formatted message using stream operator <<.
+ *           Includes automatic file and line information.
+ */
+#define ah_parse_error() \
+  Aleph::ExceptionBuilder<Aleph::ParseError>(), \
+    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+/** @def ah_parse_error_if(C)
+ *  @brief Throws a ParseError if condition holds
+ *  @param C Condition to evaluate
+ *  @throw ParseError if C is true
+ */
+#define ah_parse_error_if(C) \
+  if (C) \
+    [[unlikely]] Aleph::ExceptionBuilder<Aleph::ParseError>(), \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+/** @def ah_parse_error_unless(C)
+ *  @brief Throws a ParseError if condition does NOT hold
+ *  @param C Condition to evaluate
+ *  @throw ParseError if C is false
+ */
+#define ah_parse_error_unless(C) \
+  if (not (C)) \
+    [[unlikely]] Aleph::ExceptionBuilder<Aleph::ParseError>(), \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
   // ============================================================================
   // Lookahead and Backtracking
   // ============================================================================
@@ -831,7 +861,7 @@ namespace Aleph
           }
       }
 
-    throw ParseError("Unterminated block comment");
+    ah_parse_error() << "Unterminated block comment";
   }
 
   /**
@@ -960,8 +990,7 @@ namespace Aleph
           }
       }
 
-    if (not has_digits)
-      throw ParseError("Invalid floating-point number: no digits");
+    ah_parse_error_unless(has_digits) << "Invalid floating-point number: no digits";
 
     // Exponent part
     if (c == 'e' or c == 'E')
@@ -975,8 +1004,8 @@ namespace Aleph
             c = read_char_from_stream(input_stream);
           }
 
-        if (not std::isdigit(c))
-          throw ParseError("Invalid exponent in floating-point number");
+        ah_parse_error_unless(std::isdigit(c))
+          << "Invalid exponent in floating-point number";
 
         while (std::isdigit(c))
           {
@@ -1020,17 +1049,15 @@ namespace Aleph
     int c = read_char_from_stream(input_stream);
 
     // Expect '0'
-    if (c != '0')
-      throw ParseError("Hexadecimal number must start with 0x");
+    ah_parse_error_unless(c == '0') << "Hexadecimal number must start with 0x";
 
     c = read_char_from_stream(input_stream);
-    if (c != 'x' and c != 'X')
-      throw ParseError("Hexadecimal number must start with 0x");
+    ah_parse_error_unless(c == 'x' or c == 'X')
+      << "Hexadecimal number must start with 0x";
 
     c = read_char_from_stream(input_stream);
 
-    if (not std::isxdigit(c))
-      throw ParseError("Invalid hexadecimal number");
+    ah_parse_error_unless(std::isxdigit(c)) << "Invalid hexadecimal number";
 
     while (std::isxdigit(c))
       {
@@ -1071,14 +1098,13 @@ namespace Aleph
 
     int c = read_char_from_stream(input_stream);
 
-    if (c != '0')
-      throw ParseError("Octal number must start with 0");
+    ah_parse_error_unless(c == '0') << "Octal number must start with 0";
 
     c = read_char_from_stream(input_stream);
 
     // Check it's not hex (0x)
-    if (c == 'x' or c == 'X')
-      throw ParseError("Expected octal number, got hexadecimal");
+    ah_parse_error_if(c == 'x' or c == 'X')
+      << "Expected octal number, got hexadecimal";
 
     while (c >= '0' and c <= '7')
       {
@@ -1123,17 +1149,15 @@ namespace Aleph
 
     int c = read_char_from_stream(input_stream);
 
-    if (c != '0')
-      throw ParseError("Binary number must start with 0b");
+    ah_parse_error_unless(c == '0') << "Binary number must start with 0b";
 
     c = read_char_from_stream(input_stream);
-    if (c != 'b' and c != 'B')
-      throw ParseError("Binary number must start with 0b");
+    ah_parse_error_unless(c == 'b' or c == 'B')
+      << "Binary number must start with 0b";
 
     c = read_char_from_stream(input_stream);
 
-    if (c != '0' and c != '1')
-      throw ParseError("Invalid binary number");
+    ah_parse_error_unless(c == '0' or c == '1') << "Invalid binary number";
 
     while (c == '0' or c == '1')
       {
@@ -1180,8 +1204,8 @@ namespace Aleph
     int c = read_char_from_stream(input_stream);
 
     // Must start with a letter or underscore
-    if (not std::isalpha(c) and c != '_')
-      throw ParseError("Identifier must start with letter or underscore");
+    ah_parse_error_unless(std::isalpha(c) or c == '_')
+      << "Identifier must start with letter or underscore";
 
     put_char_in_buffer(ptr, end, c);
 
@@ -1248,15 +1272,9 @@ namespace Aleph
   inline void expect_char(std::ifstream & input_stream, char expected)
   {
     skip_white_spaces(input_stream);
-    if (const int c = read_char_from_stream(input_stream); c != expected)
-      {
-        std::string msg = "Expected '";
-        msg += expected;
-        msg += "' but found '";
-        msg += static_cast<char>(c);
-        msg += "'";
-        throw ParseError(msg);
-      }
+    const int c = read_char_from_stream(input_stream);
+    ah_parse_error_unless(c == expected)
+      << "Expected '" << expected << "' but found '" << static_cast<char>(c) << "'";
   }
 
   /**
@@ -1282,8 +1300,10 @@ namespace Aleph
     init_token_scanning();
 
     for (const char ch: expected)
-      if (const int c = read_char_from_stream(input_stream); c != ch)
-        throw ParseError("Expected '" + expected + "'");
+      {
+        const int c = read_char_from_stream(input_stream);
+        ah_parse_error_unless(c == ch) << "Expected '" << expected << "'";
+      }
 
     token_instance = expected;
   }
@@ -1381,15 +1401,13 @@ namespace Aleph
 
     int c = read_char_from_stream(input_stream);
 
-    if (c != '"')
-      throw ParseError("Expected '\"' to start string");
+    ah_parse_error_unless(c == '"') << "Expected '\"' to start string";
 
     while (true)
       {
         c = read_char_from_stream(input_stream);
 
-        if (c == EOF)
-          throw ParseError("Unterminated string literal");
+        ah_parse_error_if(c == EOF) << "Unterminated string literal";
 
         if (c == '"')
           break;
@@ -1397,8 +1415,7 @@ namespace Aleph
         if (c == '\\')
           {
             c = read_char_from_stream(input_stream);
-            if (c == EOF)
-              throw ParseError("Unterminated escape sequence");
+            ah_parse_error_if(c == EOF) << "Unterminated escape sequence";
             c = static_cast<unsigned char>(process_escape(c));
           }
 
@@ -1432,8 +1449,8 @@ namespace Aleph
 
     int c = read_char_from_stream(input_stream);
 
-    if (c != '\'')
-      throw ParseError("Expected single quote to start character literal");
+    ah_parse_error_unless(c == '\'')
+      << "Expected single quote to start character literal";
 
     c = read_char_from_stream(input_stream);
 
@@ -1446,8 +1463,8 @@ namespace Aleph
     char result = static_cast<char>(c);
 
     c = read_char_from_stream(input_stream);
-    if (c != '\'')
-      throw ParseError("Expected single quote to end character literal");
+    ah_parse_error_unless(c == '\'')
+      << "Expected single quote to end character literal";
 
     token_instance = "'";
     token_instance += result;
@@ -1542,8 +1559,7 @@ namespace Aleph
   inline std::string load_file_contents(const std::string & filename)
   {
     std::ifstream file(filename);
-    if (! file.is_open())
-      throw std::runtime_error("Cannot open file: " + filename);
+    ah_runtime_error_unless(file.is_open()) << "Cannot open file: " << filename;
 
     std::ostringstream ss;
     ss << file.rdbuf();
@@ -1561,8 +1577,7 @@ namespace Aleph
   inline std::vector<std::string> load_file_lines(const std::string & filename)
   {
     std::ifstream file(filename);
-    if (not file.is_open())
-      throw std::runtime_error("Cannot open file: " + filename);
+    ah_runtime_error_unless(file.is_open()) << "Cannot open file: " << filename;
 
     std::vector<std::string> lines;
     std::string line;
