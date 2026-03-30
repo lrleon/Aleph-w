@@ -98,6 +98,8 @@
 
 namespace Aleph
 {
+  using namespace Aleph;
+
   template <class GT>
   struct Prim_Info
   {

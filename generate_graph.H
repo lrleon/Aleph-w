@@ -104,6 +104,8 @@
 # include <tpl_graph.H>
 # include <topological_sort.H>
 
+using namespace Aleph;
+
 namespace Aleph {
 
 

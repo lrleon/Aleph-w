@@ -58,6 +58,8 @@
 # include <ah-errors.H>
 # include <ah-concepts.H>
 
+using namespace Aleph;
+
 namespace Aleph {
 
 class TreapRkNode_Data

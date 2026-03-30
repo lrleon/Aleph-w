@@ -51,6 +51,8 @@
 # include <tpl_dynSetTree.H>
 # include <ah-concepts.H>
 
+using namespace Aleph;
+
 namespace Aleph {
 
   /** @brief Generic key-value map implemented on top of a binary search tree.

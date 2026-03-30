@@ -46,6 +46,8 @@
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
 
+using namespace Aleph;
+
 namespace Aleph {
 
 class BinNodeXt_Data

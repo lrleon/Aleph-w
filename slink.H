@@ -47,6 +47,8 @@
 # include <cstddef>
 # include <cstdint>
 
+using namespace Aleph;
+
 namespace Aleph {
 
   /** Singly linked handle to list nodes.

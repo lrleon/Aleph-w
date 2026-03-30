@@ -73,6 +73,8 @@
 # endif
 
 
+using namespace Aleph;
+
 namespace Aleph {
 
 # define LINBUCKET_BODY(BUCKETNAME)                     \

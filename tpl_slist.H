@@ -86,6 +86,8 @@
 # include <tpl_snode.H>
 # include <ah-errors.H>
 
+using namespace Aleph;
+
 namespace Aleph {
 
   /** Singly linked list of nodes that store values of type `T`.

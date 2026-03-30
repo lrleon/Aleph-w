@@ -57,6 +57,8 @@
 # include <tpl_binNodeUtils.H>
 # include <tpl_binHeap.H>
 
+using namespace Aleph;
+
 namespace Aleph {
 
   /** Dynamic heap of elements of type @p T ordered by a comparison functor.

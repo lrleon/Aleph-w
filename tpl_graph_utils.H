@@ -56,6 +56,8 @@
 # include <tpl_dynListQueue.H>
 # include <ah-errors.H>
 
+using namespace Aleph;
+
 namespace Aleph {
 
   /** @brief Internal recursive DFS used by depth_first_traversal().
