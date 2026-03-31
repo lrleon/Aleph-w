@@ -33,8 +33,16 @@ def changed_files(base)
   return [] if base.nil? || base.empty?
 
   run!(['git', 'fetch', '--no-tags', '--prune', 'origin', base])
-  out = run!(['git', 'diff', '--name-only', '--diff-filter=ACMR', "origin/#{base}...HEAD"])
-  out.lines.map(&:strip).reject(&:empty?)
+  out = run!(['git', 'diff', '--name-status', '--diff-filter=ACMR', "origin/#{base}...HEAD"])
+  out.lines.map do |line|
+    parts = line.strip.split("\t")
+    status = parts[0]
+    if status.start_with?('R')
+      { status: 'R', old_path: parts[1], path: parts[2] }
+    else
+      { status: status, old_path: parts[1], path: parts[1] }
+    end
+  end
 end
 
 
@@ -150,9 +158,9 @@ def cpp_token_stream(content)
 end
 
 
-def header_has_code_changes?(base, path)
+def header_has_code_changes?(base, path, old_path = nil)
   current = File.read(path)
-  previous = git_show_optional("origin/#{base}:#{path}") || ''
+  previous = git_show_optional("origin/#{base}:#{old_path || path}") || ''
   cpp_token_stream(current) != cpp_token_stream(previous)
 end
 
@@ -242,15 +250,17 @@ def main
   end
 
   base = base_ref
-  files = changed_files(base)
+  files_details = changed_files(base)
 
-  headers_changed = files.select { |f| HEADER_EXTS.include?(File.extname(f)) }
-  sources_changed = files.select { |f| %w[.C .cc .cpp .cxx].include?(File.extname(f)) }
-  tests_changed = files.select { |f| f.start_with?('Tests/') && TEST_EXTS.include?(File.extname(f)) }
-  headers_requiring_tests = headers_changed.select do |file|
-    p = Pathname.new(file)
-    p.exist? && header_has_code_changes?(base, file)
-  end
+  headers_details = files_details.select { |d| HEADER_EXTS.include?(File.extname(d[:path])) }
+  headers_changed = headers_details.map { |d| d[:path] }
+  sources_changed = files_details.select { |d| %w[.C .cc .cpp .cxx].include?(File.extname(d[:path])) }.map { |d| d[:path] }
+  tests_changed = files_details.select { |d| d[:path].start_with?('Tests/') && TEST_EXTS.include?(File.extname(d[:path])) }.map { |d| d[:path] }
+
+  headers_requiring_tests = headers_details.select do |detail|
+    p = Pathname.new(detail[:path])
+    p.exist? && header_has_code_changes?(base, detail[:path], detail[:old_path])
+  end.map { |d| d[:path] }
 
   failures = []
 
