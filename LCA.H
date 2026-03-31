@@ -31,8 +31,8 @@
 /** @file LCA.H
  *  @brief Lowest Common Ancestor (LCA) on rooted trees represented as Aleph graphs.
  *
- *  The Lowest Common Ancestor (LCA) of two nodes @f$u@f$ and @f$v@f$ in a rooted tree
- *  is the deepest node that is an ancestor of both @f$u@f$ and @f$v@f$.
+ *  The Lowest Common Ancestor (LCA) of two nodes@f$u@f$and@f$v@f$in a rooted tree
+ *  is the deepest node that is an ancestor of both@f$u@f$and@f$v@f$.
  *
  *  @par Concept Visualization
  *  @code
@@ -49,28 +49,28 @@
  *
  *  ### 1. Binary Lifting (`Gen_Binary_Lifting_LCA`)
  *  Uses a jump table (sparse table over ancestors) where `up[k][v]` stores the
- *  @f$2^k@f$-th ancestor of node @f$v@f$.
- *  - **Preprocessing**: @f$O(n \log n)@f$ time and space.
- *  - **Query**: @f$O(\log n)@f$ time.
+ * @f$2^k@f$-th ancestor of node@f$v@f$.
+ *  - **Preprocessing**:@f$O(n \log n)@f$time and space.
+ *  - **Query**:@f$O(\log n)@f$time.
  *  - **Best for**: General purpose, especially when memory is more constrained than
  *    the Euler approach, or when path-based properties are not needed.
  *
  *  ### 2. Euler Tour + RMQ (`Gen_Euler_RMQ_LCA`)
  *  Reduces the LCA problem to a Range Minimum Query (RMQ) problem. It performs an
  *  Euler tour (recording nodes as they are visited and returned to) and stores
- *  the depths. The LCA of @f$u@f$ and @f$v@f$ is the node with minimum depth
+ *  the depths. The LCA of@f$u@f$and@f$v@f$is the node with minimum depth
  *  between their first occurrences in the tour.
- *  - **Preprocessing**: @f$O(n \log n)@f$ time and space (using a Sparse Table for RMQ).
- *  - **Query**: @f$O(1)@f$ time.
+ *  - **Preprocessing**:@f$O(n \log n)@f$time and space (using a Sparse Table for RMQ).
+ *  - **Query**:@f$O(1)@f$time.
  *  - **Best for**: Heavy query workloads where constant-time response is critical.
  *
  *  Both classes:
  *  - Work on Aleph graph backends (`List_Graph`, `List_SGraph`, `Array_Graph`).
  *  - Accept arc filters (`SA`) to define the tree topology over a general graph.
  *  - **Strict Validation**: Upon construction, the filtered graph is validated to be
- *    a valid tree (connected, acyclic, @f$m = n - 1@f$). If validation fails,
+ *    a valid tree (connected, acyclic,@f$m = n - 1@f$). If validation fails,
  *    a domain error exception is thrown.
- *  - Provide distance calculation between any two nodes: @f$dist(u, v) = depth(u) + depth(v) - 2
+ *  - Provide distance calculation between any two nodes:@f$dist(u, v) = depth(u) + depth(v) - 2
  * \cdot depth(LCA(u, v))@f$.
  *
  *  @par Example: Distance between nodes
@@ -116,7 +116,7 @@ namespace lca_detail {
  *  1. **Node Indexing**: Maps graph nodes to integer IDs in the range [0, n-1].
  *  2. **Arc Filtering**: Uses the provided @p SA filter to define the tree edges.
  *  3. **Topology Validation**: Ensures the filtered graph is connected and acyclic
- *     (i.e., a tree) and has exactly @f$n-1@f$ edges.
+ *     (i.e., a tree) and has exactly@f$n-1@f$edges.
  *  4. **DFS Traversal**: Computes parent pointers, node depths, entry/exit times
  *     (tin/tout), and the Euler tour sequence.
  */
@@ -444,16 +444,16 @@ struct Depth_Node_Min_Op
  *
  *  Binary lifting is a technique that uses a jump table (sparse table) to find
  *  ancestors efficiently. For each node, we precompute its 1st, 2nd, 4th, 8th, ...
- *  @f$2^k@f$-th ancestor.
+ * @f$2^k@f$-th ancestor.
  *
- *  To find the LCA of @f$u@f$ and @f$v@f$:
+ *  To find the LCA of@f$u@f$and@f$v@f$:
  *  1. Lift the deeper node until it is at the same depth as the other.
  *  2. If they are now the same node, that is the LCA.
  *  3. Otherwise, jump upwards by the largest possible powers of 2 such that
  *     the resulting nodes are still different. The parent of the final nodes
  *     is the LCA.
  *
- *  Build time is @f$O(n \log n)@f$, each LCA query costs @f$O(\log n)@f$.
+ *  Build time is@f$O(n \log n)@f$, each LCA query costs@f$O(\log n)@f$.
  *
  *  @tparam GT Graph type (`List_Graph`, `List_SGraph`, `Array_Graph`).
  *  @tparam SA Arc filter type (default: `Dft_Show_Arc<GT>`).
@@ -575,7 +575,7 @@ public:
     return topology_.root_id();
   }
 
-  /** @brief Returns the number of levels in the jump table (@f$\lceil \log_2 n \rceil @f$). */
+  /** @brief Returns the number of levels in the jump table (@f$\lceil \log_2 n \rceil@f$). */
   [[nodiscard]] size_t num_levels() const noexcept
   {
     return levels_;
@@ -713,14 +713,14 @@ public:
  *
  *  **The Reduction**:
  *  1. Perform an Euler tour of the tree, recording each node as it is visited
- *     and as we return from its children. The tour has size @f$2n - 1@f$.
+ *     and as we return from its children. The tour has size@f$2n - 1@f$.
  *  2. For each node in the tour, store its depth.
  *  3. Store the first occurrence index `first[v]` of each node `v` in the tour.
- *  4. The LCA of @f$u@f$ and @f$v@f$ is the node with the **minimum depth**
+ *  4. The LCA of@f$u@f$and@f$v@f$is the node with the **minimum depth**
  *     in the Euler tour range `[first[u], first[v]]`.
  *
- *  By using a Sparse Table for RMQ, we achieve constant time @f$O(1)@f$ queries
- *  after @f$O(n \log n)@f$ preprocessing.
+ *  By using a Sparse Table for RMQ, we achieve constant time@f$O(1)@f$queries
+ *  after@f$O(n \log n)@f$preprocessing.
  *
  *  @tparam GT Graph type (`List_Graph`, `List_SGraph`, `Array_Graph`).
  *  @tparam SA Arc filter type (default: `Dft_Show_Arc<GT>`).
@@ -893,13 +893,13 @@ public:
     return distance_id(id_of(u), id_of(v));
   }
 
-  /** @brief Euler tour sequence of node ids (@f$2n - 1@f$ entries). */
+  /** @brief Euler tour sequence of node ids (@f$2n - 1@f$entries). */
   [[nodiscard]] const Array<size_t> &euler_tour() const noexcept
   {
     return topology_.euler();
   }
 
-  /** @brief Euler tour size (@f$0@f$ for empty tree, else @f$2n - 1@f$). */
+  /** @brief Euler tour size (@f$0@f$for empty tree, else@f$2n - 1@f$). */
   [[nodiscard]] size_t euler_tour_size() const noexcept
   {
     return topology_.euler_size();

@@ -33,23 +33,23 @@
  *
  *  This file implements the Hungarian algorithm, also known as the
  *  Kuhn-Munkres algorithm, for solving the linear assignment problem:
- *  given an @f$ m \times n @f$ cost matrix, find a minimum-cost matching
+ *  given an@f$m \times n@f$cost matrix, find a minimum-cost matching
  *  of rows to columns.
  *
  *  ## Algorithm Overview
  *  The implementation uses the **shortest augmenting paths** variant with
  *  dual variables (potentials). For each row, a Dijkstra-like scan finds the
- *  shortest augmenting path using reduced costs @f$ c[i][j] - u[i] - v[j] @f$,
+ *  shortest augmenting path using reduced costs@f$c[i][j] - u[i] - v[j]@f$,
  *  then augments and updates potentials. This avoids the classical
  *  cover-lines/find-zeros Munkres steps and yields a clean, efficient
- *  @f$ O(n^3) @f$ implementation.
+ * @f$O(n^3)@f$implementation.
  *
  *  ## Key Features
  *  - Solves both **minimization** and **maximization** assignment problems.
- *  - Handles **rectangular** cost matrices (@f$ m \neq n @f$) via automatic padding.
+ *  - Handles **rectangular** cost matrices (@f$m \neq n@f$) via automatic padding.
  *  - Works with integer and floating-point cost types.
  *  - Supports negative costs.
- *  - High-performance implementation with @f$ O(n^3) @f$ time complexity.
+ *  - High-performance implementation with@f$O(n^3)@f$time complexity.
  *
  *  @example hungarian_example.cc
  *
@@ -124,8 +124,8 @@ struct Hungarian_Result
  *  @tparam Cost_Type Numeric type for costs. Must be a signed type or
  *                    floating-point to support internal reductions.
  *
- *  @par **Complexity**: Time @f$ O(n^3) @f$, Space @f$ O(n^2) @f$,
- *        where @f$ n = \max(rows, cols) @f$.
+ *  @par **Complexity**: Time@f$O(n^3)@f$, Space@f$O(n^2)@f$,
+ *        where@f$n = \max(rows, cols)@f$.
  */
 template <typename Cost_Type = double>
 class Hungarian_Assignment

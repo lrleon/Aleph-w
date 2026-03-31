@@ -111,10 +111,10 @@ inline void build_parens(const Array<Array<size_t>> &s, size_t i, size_t j, std:
  *  Finds the parenthesization that minimizes the total number of scalar
  *  multiplications.
  *
- *  @param[in] dims  Array of matrix dimensions. Matrix @f$ A_i @f$ is assumed
- *                   to have dimensions @f$ dims[i] \times dims[i+1] @f$.
- *                   Therefore, for @f$ n @f$ matrices, `dims` must contain
- *                   @f$ n+1 @f$ elements.
+ *  @param[in] dims  Array of matrix dimensions. Matrix@f$A_i@f$is assumed
+ *                   to have dimensions@f$dims[i] \times dims[i+1]@f$.
+ *                   Therefore, for@f$n@f$matrices, `dims` must contain
+ *                  @f$n+1@f$elements.
  *  @return A Matrix_Chain_Result containing the minimum cost, the string
  *          representation of the parenthesization, and the split table.
  *
@@ -188,7 +188,7 @@ inline void build_parens(const Array<Array<size_t>> &s, size_t i, size_t j, std:
  *  A convenience version that only returns the minimum number of scalar
  *  multiplications required, without reconstruction.
  *
- *  @param[in] dims  Array of matrix dimensions (@f$ n+1 @f$ entries for @f$ n @f$ matrices).
+ *  @param[in] dims  Array of matrix dimensions (@f$n+1@f$entries for@f$n@f$matrices).
  *  @return The minimum number of scalar multiplications.
  *
  *  @throws ah_domain_error if `dims` has fewer than 2 entries.

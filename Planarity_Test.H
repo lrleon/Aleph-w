@@ -165,7 +165,7 @@ struct Planarity_Test_Options
   bool embedding_allow_bruteforce_fallback = true;
 
   /** If true, validates the generated rotation system using Euler's formula
-   *  (@f$ V - E + F = 1 + C @f$) to ensure it is a valid planar embedding.
+   *  (@f$V - E + F = 1 + C@f$) to ensure it is a valid planar embedding.
    */
   bool embedding_validate_with_euler = true;
 
@@ -247,7 +247,7 @@ struct Planarity_Test_Result
   size_t ignored_loops = 0;         /**< Count of self-loops filtered out. */
   size_t ignored_parallel_arcs = 0; /**< Count of parallel arcs collapsed. */
 
-  /** True if rejected by Euler necessary condition (@f$ E \le 3V - 6 @f$). */
+  /** True if rejected by Euler necessary condition (@f$E \le 3V - 6@f$). */
   bool failed_euler_bound = false;
 
   // --- Planar Embedding Output ---
@@ -2655,7 +2655,7 @@ public:
  *        - Self-loops are ignored.
  *        - Parallel arcs are collapsed into a single edge.
  *
- *  @par **Complexity**: Time @f$ O(V + E) @f$ for the core test.
+ *  @par **Complexity**: Time@f$O(V + E)@f$for the core test.
  *        Advanced outputs may increase this (see @ref Planarity_Test_Options).
  *
  *  @ingroup Graphs

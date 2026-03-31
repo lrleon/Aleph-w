@@ -40,10 +40,10 @@
  *
  *  ## Problem solved
  *
- *  Given graph @f$G=(V,E)@f$, source @f$s@f$, target @f$t@f$, and integer
- *  @f$k@f$, compute:
- *  - `Yen`: the first @f$k@f$ shortest *simple* (loopless) paths.
- *  - `Eppstein-style API`: the first @f$k@f$ shortest general paths
+ *  Given graph@f$G=(V,E)@f$, source@f$s@f$, target@f$t@f$, and integer
+ * @f$k@f$, compute:
+ *  - `Yen`: the first@f$k@f$shortest *simple* (loopless) paths.
+ *  - `Eppstein-style API`: the first@f$k@f$shortest general paths
  *    (cycles may appear).
  *
  *  ## Assumptions

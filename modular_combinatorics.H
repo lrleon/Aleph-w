@@ -58,28 +58,28 @@ namespace Aleph
   /** @brief High-performance combinatorics operations modulo a prime.
    *
    *  The ModularCombinatorics class encapsulates the state required to 
-   *  compute binomial coefficients modulo a prime @f$ P @f$. 
+   *  compute binomial coefficients modulo a prime@f$P@f$. 
    *
    *  It performs an initial precomputation of:
-   *  - Factorials: @f$ n! \pmod{P} @f$
-   *  - Inverse Factorials: @f$ (n!)^{-1} \pmod{P} @f$
+   *  - Factorials:@f$n! \pmod{P}@f$
+   *  - Inverse Factorials:@f$(n!)^{-1} \pmod{P}@f$
    *
-   *  This allows computing @f$ \binom{n}{k} \equiv \frac{n!}{k!(n-k)!} \pmod{P} @f$
+   *  This allows computing@f$\binom{n}{k} \equiv \frac{n!}{k!(n-k)!} \pmod{P}@f$
    *  in O(1) time per query.
    *
    *  @note The modulus @b must be a prime number for the modular inverse to 
-   *        be well-defined for all factorials within @f$ [1, P-1] @f$.
+   *        be well-defined for all factorials within@f$[1, P-1]@f$.
    */
   class ModularCombinatorics
   {
-    uint64_t mod_;            ///< Prime modulus @f$ P @f$.
+    uint64_t mod_;            ///< Prime modulus@f$P@f$.
     Array<uint64_t> fact_;    ///< Precomputed factorials array.
     Array<uint64_t> invFact_; ///< Precomputed inverse factorials array.
 
   public:
     /** @brief Construct and precompute factorials up to 'max_n' modulo 'p'.
      *
-     *  @param[in] max_n Maximum value for @f$ n @f$ to be used in O(1) @ref nCk queries.
+     *  @param[in] max_n Maximum value for@f$n@f$to be used in O(1) @ref nCk queries.
      *  @param[in] p     The prime modulus.
      *
      *  @pre `p` must be a prime number.
@@ -108,16 +108,16 @@ namespace Aleph
         invFact_(i - 1) = mod_mul(invFact_[i], i, mod_);
     }
 
-    /** @brief Calculate @f$ \binom{n}{k} \pmod{P} @f$ in constant time.
+    /** @brief Calculate@f$\binom{n}{k} \pmod{P}@f$in constant time.
      *
      *  Computes the binomial coefficient using the precomputed tables.
      *
      *  @param[in] n Total number of items.
      *  @param[in] k Number of items to choose.
-     *  @return The value of @f$ \binom{n}{k} \pmod{P} @f$.
+     *  @return The value of@f$\binom{n}{k} \pmod{P}@f$.
      *
-     *  @note Requires @f$ n @f$ to be within the `max_n` range provided at construction.
-     *  @throws ah_out_of_range_error if @f$ n @f$ exceeds the precomputed range.
+     *  @note Requires@f$n@f$to be within the `max_n` range provided at construction.
+     *  @throws ah_out_of_range_error if@f$n@f$exceeds the precomputed range.
      *
      *  @par **Complexity**: Time O(1).
      */
@@ -133,23 +133,23 @@ namespace Aleph
       return mod_mul(num, den, mod_);
     }
 
-    /** @brief Calculate @f$ \binom{n}{k} \pmod{P} @f$ using Lucas' Theorem.
+    /** @brief Calculate@f$\binom{n}{k} \pmod{P}@f$using Lucas' Theorem.
      *
-     *  Provides a way to compute combinations when @f$ n @f$ and @f$ k @f$ are 
-     *  very large (exceeding `max_n`) but the prime modulus @f$ P @f$ is small.
+     *  Provides a way to compute combinations when@f$n@f$and@f$k@f$are 
+     *  very large (exceeding `max_n`) but the prime modulus@f$P@f$is small.
      *
      *  Lucas' Theorem states:
      *  @f[ \binom{n}{k} \equiv \prod_{i=0}^m \binom{n_i}{k_i} \pmod{P} @f]
-     *  where @f$ n_i @f$ and @f$ k_i @f$ are the digits of @f$ n @f$ and @f$ k @f$ 
-     *  in base @f$ P @f$.
+     *  where@f$n_i@f$and@f$k_i@f$are the digits of@f$n@f$and@f$k@f$
+     *  in base@f$P@f$.
      *
      *  @pre The instance must have been precomputed up to at least `mod_ - 1`.
      *
      *  @param[in] n Total number of items.
      *  @param[in] k Number of items to choose.
-     *  @return The value of @f$ \binom{n}{k} \pmod{P} @f$.
+     *  @return The value of@f$\binom{n}{k} \pmod{P}@f$.
      *
-     *  @par **Complexity**: Time @f$ O(\log_P n) @f$ modular multiplications.
+     *  @par **Complexity**: Time@f$O(\log_P n)@f$modular multiplications.
      */
     [[nodiscard]] uint64_t lucas_nCk(const uint64_t n, const uint64_t k) const
     {

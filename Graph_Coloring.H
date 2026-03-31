@@ -39,17 +39,17 @@
  *
  *  Graph coloring is fundamentally an undirected problem. All algorithms in
  *  this module treat directed arcs as bidirectional constraints: if there
- *  is an arc @f$u \to v@f$, then @f$u@f$ and @f$v@f$ cannot have the same color.
+ *  is an arc@f$u \to v@f$, then@f$u@f$and@f$v@f$cannot have the same color.
  *
  *  ## Included Algorithms:
  *
  *  - **Greedy Coloring**: Processes nodes in their natural iteration order.
- *    Complexity: @f$O((V+E) \log V)@f$.
+ *    Complexity:@f$O((V+E) \log V)@f$.
  *  - **Welsh-Powell**: Sorts nodes by decreasing degree before coloring.
- *    Complexity: @f$O((V+E) \log V)@f$.
+ *    Complexity:@f$O((V+E) \log V)@f$.
  *  - **DSatur (Degree of Saturation)**: Adaptive heuristic that prioritizes
  *    nodes with the most distinct colors in their neighborhood.
- *    Complexity: @f$O(V^2 + E \log V)@f$.
+ *    Complexity:@f$O(V^2 + E \log V)@f$.
  *  - **Chromatic Number**: Exact minimum colors (@f$\chi(G)@f$) for small
  *    graphs (up to 64 nodes) via backtracking. Complexity: Exponential.
  *
@@ -164,7 +164,7 @@ void validate_no_self_loops(const GT &g)
  *
  *  Assigns each node the smallest 0-based color index not already used by
  *  any of its colored neighbors, visiting nodes in their natural graph-
- *  iteration order.  Uses at most @f$\Delta+1@f$ colors where @f$\Delta@f$
+ *  iteration order.  Uses at most@f$\Delta+1@f$colors where@f$\Delta@f$
  *  is the maximum degree.
  *
  *  @tparam GT Graph type (List_Graph, List_Digraph, Array_Graph, …).
@@ -174,14 +174,14 @@ void validate_no_self_loops(const GT &g)
  *  @param[out] colors Output map from @c GT::Node* to 0-based color index.
  *                     Cleared and overwritten on entry.
  *
- *  @return Number of distinct colors used (@f$\geq 1@f$ for non-empty graphs,
+ *  @return Number of distinct colors used (@f$\geq 1@f$for non-empty graphs,
  *          0 for an empty graph).
  *
  *  @throws std::domain_error if @p g contains a self-loop.
  *
  *  @pre No self-loops in @p g.
  *
- *  @note **Complexity**: @f$O((V+E) \log V)@f$.
+ *  @note **Complexity**:@f$O((V+E) \log V)@f$.
  *
  *  @note **Thread safety**: not thread-safe.  Temporarily writes to
  *        @c NODE_COOKIE on every node during execution; prior cookie values
@@ -250,8 +250,8 @@ size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *
  *  @pre No self-loops in @p g.
  *
- *  @note **Complexity**: @f$O((V+E) \log V)@f$ (sort step dominates for
- *        dense graphs: @f$O(V \log V)@f$).
+ *  @note **Complexity**:@f$O((V+E) \log V)@f$(sort step dominates for
+ *        dense graphs:@f$O(V \log V)@f$).
  *
  *  @note **Thread safety**: not thread-safe.  Temporarily writes to
  *        @c NODE_COOKIE on every node; saved and restored via
@@ -333,7 +333,7 @@ size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t
  *
  *  @pre No self-loops in @p g.
  *
- *  @note **Complexity**: @f$O(V^2 + E \log V)@f$.
+ *  @note **Complexity**:@f$O(V^2 + E \log V)@f$.
  *
  *  @note **Thread safety**: not thread-safe.  Temporarily writes to
  *        @c NODE_COOKIE on every node; saved and restored via
@@ -429,7 +429,7 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *          connects same-colored endpoints; @c false otherwise (including
  *          self-loops and missing/foreign map entries).
  *
- *  @note **Complexity**: @f$O((V+E) \log V)@f$.
+ *  @note **Complexity**:@f$O((V+E) \log V)@f$.
  *
  *  @note Does not modify any graph state.  Thread-safe provided @p g and
  *        @p colors are not concurrently modified.
@@ -472,7 +472,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 /** @brief Computes the exact chromatic number of a small graph.
  *
  *  Uses DSatur to obtain an upper bound, then performs binary search with
- *  backtracking to find the minimum @f$k@f$ for which a valid @f$k@f$-coloring
+ *  backtracking to find the minimum@f$k@f$for which a valid@f$k@f$-coloring
  *  exists.  Applicable only to graphs with at most 64 nodes.
  *
  *  @tparam GT Graph type (List_Graph, List_Digraph, Array_Graph, …).
@@ -484,7 +484,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
  *                     for an optimal coloring.  Cleared and overwritten on
  *                     entry.
  *
- *  @return The chromatic number @f$\chi(G)@f$ (0 for an empty graph,
+ *  @return The chromatic number@f$\chi(G)@f$(0 for an empty graph,
  *          1 if the graph has no edges).
  *
  *  @throws std::domain_error if @p g has more than 64 nodes or contains
@@ -493,7 +493,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
  *  @pre @c g.get_num_nodes() <= 64 and no self-loops in @p g.
  *
  *  @note **Complexity**: Exponential in the worst case (backtracking over
- *        all @f$k@f$-colorings).  Practical for graphs up to ~30–40 nodes.
+ *        all@f$k@f$-colorings).  Practical for graphs up to ~30–40 nodes.
  *
  *  @note **Thread safety**: not thread-safe.  Temporarily writes to
  *        @c NODE_COOKIE on every node; saved and restored via

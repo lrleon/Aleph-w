@@ -44,7 +44,7 @@
  *    permutation of a single sequence (STL-style `next_permutation`).
  *  - **Combinations**: Generate k-subsets of a set of n elements, using
  *    either index-based progression or bitmask-based (Gosper's hack).
- *  - **Binomial Coefficients**: Computation of @f$ \binom{n}{k} @f$ with
+ *  - **Binomial Coefficients**: Computation of@f$\binom{n}{k}@f$with
  *    overflow protection.
  *  - **Gray Codes**: Functions to convert between binary and Gray code and
  *    to generate full Gray code sequences.
@@ -231,7 +231,7 @@ template <class IndexArray>
 
 /** @brief Transpose a matrix represented as a list of lists.
  *
- *  Given a matrix @f$ M @f$, returns @f$ M^T @f$.
+ *  Given a matrix@f$M@f$, returns@f$M^T@f$.
  *  The input is expected to be rectangular (all rows with the same length).
  *
  *  @tparam T Element type.
@@ -422,9 +422,9 @@ static inline bool traverse_perm_impl(DynList<T> &sample,
 
 /** @brief Traverse the Cartesian product of a list of lists.
  *
- *  Given a list of lists @f$ L = \{l_1, l_2, \dots, l_n\} @f$, this function
- *  generates all possible sequences @f$ \{a_1, a_2, \dots, a_n\} @f$ where
- *  each @f$ a_i \in l_i @f$.
+ *  Given a list of lists@f$L = \{l_1, l_2, \dots, l_n\}@f$, this function
+ *  generates all possible sequences@f$\{a_1, a_2, \dots, a_n\}@f$where
+ *  each@f$a_i \in l_i@f$.
  *
  *  For each generated sequence, it invokes `op(sequence)`.
  *

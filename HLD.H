@@ -34,7 +34,7 @@
  *
  *  Heavy-Light Decomposition (HLD) partitions a rooted tree into
  *  @e heavy chains such that any root-to-node path crosses at most
- *  @f$O(\log n)@f$ chains.  Combined with a segment tree, this yields
+ * @f$O(\log n)@f$chains.  Combined with a segment tree, this yields
  *  efficient path queries and point updates.
  *
  *  @par Concept Visualization
@@ -52,11 +52,11 @@
  *  graph type, value type, and an associative binary operation:
  *
  *  ### `Gen_HLD<GT, T, Op, SA>`
- *  - **Preprocessing**: @f$O(n \log n)@f$ time and space (segment tree build).
- *  - **Path query**: @f$O(\log^2 n)@f$ time.
- *  - **Subtree query**: @f$O(\log n)@f$ time.
- *  - **Point update**: @f$O(\log n)@f$ time.
- *  - **LCA query**: @f$O(\log n)@f$ time (free from chain walk).
+ *  - **Preprocessing**:@f$O(n \log n)@f$time and space (segment tree build).
+ *  - **Path query**:@f$O(\log^2 n)@f$time.
+ *  - **Subtree query**:@f$O(\log n)@f$time.
+ *  - **Point update**:@f$O(\log n)@f$time.
+ *  - **LCA query**:@f$O(\log n)@f$time (free from chain walk).
  *
  *  Three convenience aliases are provided:
  *  - `HLD_Sum<GT, T, SA>` — path/subtree sum queries.

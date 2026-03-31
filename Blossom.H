@@ -41,8 +41,8 @@
  *  would otherwise be hidden.
  *
  *  ## Problem solved
- *  Given an undirected graph @f$ G=(V,E) @f$, find a matching @f$ M @f$ 
- *  (a set of arcs with no shared endpoints) such that @f$ |M| @f$ is maximized.
+ *  Given an undirected graph@f$G=(V,E)@f$, find a matching@f$M@f$
+ *  (a set of arcs with no shared endpoints) such that@f$|M|@f$is maximized.
  *
  *  ## Highlights
  *  - Works on **general** (non-bipartite) undirected graphs.
@@ -416,7 +416,7 @@ namespace Aleph
    *  @param[out] matching A list where the arcs of the maximum matching will be stored.
    *  @param[in]  sa       An optional arc filter instance.
    *
-   *  @return The cardinality of the maximum matching found (@f$ |M| @f$).
+   *  @return The cardinality of the maximum matching found (@f$|M|@f$).
    *
    *  @throws ah_domain_error if `g` is a directed graph (digraph).
    *  @throws ah_bad_alloc if memory allocation for internal structures fails.
@@ -424,7 +424,7 @@ namespace Aleph
    *  @note Self-loops and parallel arcs are handled correctly. Self-loops are 
    *        ignored as they cannot participate in a matching.
    *
-   *  @par **Complexity**: Time @f$ O(V^3) @f$, Space @f$ O(V + E) @f$.
+   *  @par **Complexity**: Time@f$O(V^3)@f$, Space@f$O(V + E)@f$.
    *
    *  @ingroup Graphs
    */

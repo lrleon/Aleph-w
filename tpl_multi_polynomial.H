@@ -26,7 +26,7 @@
  *  @brief Sparse multivariate polynomial over an arbitrary coefficient ring.
  *
  *  Provides `Gen_MultiPolynomial<Coefficient, MonomOrder>`, a template
- *  class representing polynomials in @f$n@f$ variables with a sparse
+ *  class representing polynomials in@f$n@f$variables with a sparse
  *  map from multi-index (exponent vector) to coefficient.  Three
  *  standard monomial orderings are included: lexicographic (`Lex_Order`),
  *  graded lexicographic (`Grlex_Order`), and graded reverse
@@ -238,8 +238,8 @@ inline Array<size_t> sub_indices(const Array<size_t> &beta,
 /** @brief Lexicographic monomial order.
  *
  *  Compares exponent vectors from left (x_0) to right.
- *  @f$\alpha <_{\text{lex}} \beta@f$ iff the leftmost nonzero entry
- *  of @f$\alpha - \beta@f$ is negative.
+ * @f$\alpha <_{\text{lex}} \beta@f$iff the leftmost nonzero entry
+ *  of@f$\alpha - \beta@f$is negative.
  */
 struct Lex_Order
 {
@@ -309,8 +309,8 @@ struct Grevlex_Order
 
 /** @brief Sparse multivariate polynomial.
  *
- *  Represents a polynomial in @f$n@f$ variables
- *  @f$x_0, x_1, \ldots, x_{n-1}@f$ over a coefficient ring.
+ *  Represents a polynomial in@f$n@f$variables
+ * @f$x_0, x_1, \ldots, x_{n-1}@f$over a coefficient ring.
  *  Terms are stored in a balanced BST keyed by exponent vectors,
  *  ordered according to the monomial ordering @p MonomOrder.
  *
@@ -766,10 +766,10 @@ public:
   //  Factory helpers
   // =================================================================
 
-  /** @brief The polynomial @f$x_i@f$ (a single variable).
+  /** @brief The polynomial@f$x_i@f$(a single variable).
    *  @param[in] nvars    Number of variables.
    *  @param[in] var      Variable index (0-based).
-   *  @return Polynomial whose only term is @f$x_{\text{var}}@f$.
+   *  @return Polynomial whose only term is@f$x_{\text{var}}@f$.
    */
   [[nodiscard]] static Gen_MultiPolynomial variable(size_t nvars, const size_t var)
   {
@@ -779,11 +779,11 @@ public:
     return Gen_MultiPolynomial(nvars, idx, Coefficient(1));
   }
 
-  /** @brief A single monomial @f$c \, x^{\alpha}@f$.
+  /** @brief A single monomial@f$c \, x^{\alpha}@f$.
    *  @param[in] nvars Number of variables.
-   *  @param[in] idx   Exponent vector @f$\alpha@f$.
+   *  @param[in] idx   Exponent vector@f$\alpha@f$.
    *  @param[in] c     Coefficient (default 1).
-   *  @return The monomial @f$c \, x_0^{\alpha_0} \cdots x_{n-1}^{\alpha_{n-1}}@f$.
+   *  @return The monomial@f$c \, x_0^{\alpha_0} \cdots x_{n-1}^{\alpha_{n-1}}@f$.
    */
   [[nodiscard]] static Gen_MultiPolynomial monomial(size_t nvars,
                                                     const Array<size_t> &idx,
@@ -1037,7 +1037,7 @@ public:
 
   /** @brief Polynomial addition.
    *  @param[in] q Addend.
-   *  @return Sum @f$\text{this} + q@f$.
+   *  @return Sum@f$\text{this} + q@f$.
    */
   [[nodiscard]] Gen_MultiPolynomial operator+(const Gen_MultiPolynomial &q) const
   {
@@ -1089,7 +1089,7 @@ public:
 
   /** @brief Polynomial subtraction.
    *  @param[in] q Subtrahend.
-   *  @return Difference @f$\text{this} - q@f$.
+   *  @return Difference@f$\text{this} - q@f$.
    */
   [[nodiscard]] Gen_MultiPolynomial operator-(const Gen_MultiPolynomial &q) const
   {
@@ -1140,7 +1140,7 @@ public:
   }
 
   /** @brief Unary negation.
-   *  @return @f$-p@f$.
+   *  @return@f$-p@f$.
    */
   [[nodiscard]] Gen_MultiPolynomial operator-() const
   {
@@ -1159,10 +1159,10 @@ public:
 
   /** @brief Polynomial multiplication.
    *  @param[in] q Multiplicand.
-   *  @return Product @f$\text{this} \cdot q@f$.
+   *  @return Product@f$\text{this} \cdot q@f$.
    *
-   *  @note **Complexity**: @f$O(k_1 k_2 \log(k_1 k_2))@f$
-   *        where @f$k_i@f$ is the number of terms.
+   *  @note **Complexity**:@f$O(k_1 k_2 \log(k_1 k_2))@f$
+   *        where@f$k_i@f$is the number of terms.
    */
   [[nodiscard]] Gen_MultiPolynomial operator*(const Gen_MultiPolynomial &q) const
   {
@@ -1273,9 +1273,9 @@ public:
   //  Exponentiation
   // =================================================================
 
-  /** @brief Exponentiation @f$p^n@f$ by repeated squaring.
+  /** @brief Exponentiation@f$p^n@f$by repeated squaring.
    *  @param[in] n Exponent.
-   *  @return @f$p^n@f$.  Returns the constant 1 (with same num_vars) if @p n == 0.
+   *  @return@f$p^n@f$.  Returns the constant 1 (with same num_vars) if @p n == 0.
    */
   [[nodiscard]] Gen_MultiPolynomial pow(size_t n) const
   {
@@ -1297,7 +1297,7 @@ public:
 
   /** @brief Evaluate at a point.
    *  @param[in] pt Array of values, one per variable.
-   *  @return @f$p(v_0, \ldots, v_{n-1})@f$.
+   *  @return@f$p(v_0, \ldots, v_{n-1})@f$.
    *  @throws std::domain_error if @p pt has fewer elements than num_vars().
    */
   [[nodiscard]] Coefficient eval(const Array<Coefficient> &pt) const
@@ -1325,7 +1325,7 @@ public:
 
   /** @brief Evaluate at a point (function-call syntax).
    *  @param[in] pt Array of values.
-   *  @return @f$p(\text{pt})@f$.
+   *  @return@f$p(\text{pt})@f$.
    *  @throws std::domain_error if @p pt has fewer elements than num_vars().
    */
   [[nodiscard]] Coefficient operator()(const Array<Coefficient> &pt) const
@@ -1501,7 +1501,7 @@ public:
 
   /** @brief Basic least-squares polynomial fitting.
    *
-   *  Minimizes: @f$\sum_i (y_i - p(x_i))^2@f$
+   *  Minimizes:@f$\sum_i (y_i - p(x_i))^2@f$
    *
    *  @param[in] data   Array of (point, value) pairs.
    *  @param[in] nvars  Number of variables.
@@ -1510,7 +1510,7 @@ public:
    *
    *  @throws std::domain_error if data or basis is empty, or normal equations singular.
    *
-   *  @note **Complexity**: @f$O(m \cdot b^2 + b^3)@f$ where m=data points, b=basis size.
+   *  @note **Complexity**:@f$O(m \cdot b^2 + b^3)@f$where m=data points, b=basis size.
    *        **For production**: Use @ref fit_weighted() for importance weighting support.
    */
   [[nodiscard]] static Gen_MultiPolynomial fit(
@@ -1611,7 +1611,7 @@ public:
   /** @brief Weighted least-squares polynomial fitting.
    *
    *  Production-grade fitting with per-point weights for importance-weighted
-   *  regression. Minimizes: @f$\sum_i w_i (y_i - p(x_i))^2@f$
+   *  regression. Minimizes:@f$\sum_i w_i (y_i - p(x_i))^2@f$
    *
    *  @param[in] data   Array of (point, value) pairs.
    *  @param[in] nvars  Number of variables.
@@ -1623,7 +1623,7 @@ public:
    *
    *  @note **Use case**: Heteroscedastic data (varying measurement noise),
    *        importance-weighted samples, or robust fitting with outlier downweighting.
-   *        **Complexity**: @f$O(m \cdot b^2 + b^3)@f$ where m=data points, b=basis size.
+   *        **Complexity**:@f$O(m \cdot b^2 + b^3)@f$where m=data points, b=basis size.
    */
   [[nodiscard]] static Gen_MultiPolynomial fit_weighted(
     const Array<std::pair<Array<Coefficient>, Coefficient>> &data,
@@ -1725,8 +1725,8 @@ public:
 
   /** @brief Regularized least-squares fitting with automatic GCV-based lambda selection.
    *
-   *  Solves Tikhonov ridge regression: @f$\min_c ||Ac - y||^2 + \lambda ||c||^2@f$
-   *  Automatically selects @f$\lambda@f$ via Generalized Cross-Validation (GCV).
+   *  Solves Tikhonov ridge regression:@f$\min_c ||Ac - y||^2 + \lambda ||c||^2@f$
+   *  Automatically selects@f$\lambda@f$via Generalized Cross-Validation (GCV).
    *
    *  @param[in] data   Array of (point, value) pairs.
    *  @param[in] nvars  Number of variables.
@@ -1738,7 +1738,7 @@ public:
    *  @throws std::domain_error if data/basis empty or normal equations singular.
    *
    *  @note **Use case**: Ill-conditioned or noisy data. Automatic lambda selection via GCV.
-   *        **Complexity**: @f$O(m \cdot b^2 + b^3 + \text{trials})@f$ where m=data points, b=basis size.
+   *        **Complexity**:@f$O(m \cdot b^2 + b^3 + \text{trials})@f$where m=data points, b=basis size.
    *        **Reference**: Golub & Kahan (1965), Wahba (1990).
    *  @warning The GCV implementation uses b (basis size) as an upper bound approximation
    *           for the effective degrees of freedom trace(A(A^T A + lambda I)^{-1}A^T).
@@ -1945,7 +1945,7 @@ public:
 
   /** @brief Partial derivative with respect to a variable.
    *
-   *  Computes @f$\frac{\partial^n p}{\partial x_{\text{var}}^n}@f$
+   *  Computes@f$\frac{\partial^n p}{\partial x_{\text{var}}^n}@f$
    *  using the falling factorial rule.
    *
    *  @param[in] var  Variable index (0-based).
@@ -1954,10 +1954,10 @@ public:
    *
    *  @throws std::domain_error if @p var >= num_vars().
    *
-   *  @note **Algorithm**: For each term @f$c \cdot x^\alpha@f$,
-   *        replace with @f$c \cdot \alpha_{\text{var}}^{\underline{n}} \cdot x^{\alpha - n \cdot
-   * e_{\text{var}}}@f$ where @f$\alpha^{\underline{n}}@f$ is the falling factorial.
-   *  @note **Complexity**: @f$O(k \log k)@f$ where k = num_terms.
+   *  @note **Algorithm**: For each term@f$c \cdot x^\alpha@f$,
+   *        replace with@f$c \cdot \alpha_{\text{var}}^{\underline{n}} \cdot x^{\alpha - n \cdot
+   * e_{\text{var}}}@f$where@f$\alpha^{\underline{n}}@f$is the falling factorial.
+   *  @note **Complexity**:@f$O(k \log k)@f$where k = num_terms.
    */
   [[nodiscard]] Gen_MultiPolynomial partial(size_t var, size_t n = 1) const
   {
@@ -1986,9 +1986,9 @@ public:
 
   /** @brief Gradient vector: array of all first-order partial derivatives.
    *
-   *  @return Array of size @ref num_vars(), where element i is @f$\frac{\partial p}{\partial x_i}@f$.
+   *  @return Array of size @ref num_vars(), where element i is@f$\frac{\partial p}{\partial x_i}@f$.
    *
-   *  @note **Complexity**: @f$O(k \log k \cdot n)@f$ where k = num_terms, n = num_vars.
+   *  @note **Complexity**:@f$O(k \log k \cdot n)@f$where k = num_terms, n = num_vars.
    */
   [[nodiscard]] Array<Gen_MultiPolynomial> gradient() const
   {
@@ -2000,11 +2000,11 @@ public:
 
   /** @brief Hessian matrix: all second-order partial derivatives.
    *
-   *  @return @f$n \times n@f$ matrix (symmetric), where H[i][j] = @f$\frac{\partial^2 p}{\partial
+   *  @return@f$n \times n@f$matrix (symmetric), where H[i][j] =@f$\frac{\partial^2 p}{\partial
    * x_i \partial x_j}@f$.
    *
    *  @note **Symmetry**: H[i][j] == H[j][i] (Schwarz's theorem).
-   *  @note **Complexity**: @f$O(k \log k \cdot n^2)@f$ where k = num_terms, n = num_vars.
+   *  @note **Complexity**:@f$O(k \log k \cdot n^2)@f$where k = num_terms, n = num_vars.
    */
   [[nodiscard]] Array<Array<Gen_MultiPolynomial>> hessian() const
   {
@@ -2030,7 +2030,7 @@ public:
    *
    *  @throws std::domain_error if pt.size() < num_vars().
    *
-   *  @note **Complexity**: @f$O(k \log k \cdot n + k \cdot n)@f$ (gradient computation + evaluation).
+   *  @note **Complexity**:@f$O(k \log k \cdot n + k \cdot n)@f$(gradient computation + evaluation).
    */
   [[nodiscard]] Array<Coefficient> eval_gradient(const Array<Coefficient> &pt) const
   {
@@ -2047,11 +2047,11 @@ public:
   /** @brief Evaluate Hessian at a point.
    *
    *  @param[in] pt  Evaluation point (array of size >= num_vars).
-   *  @return @f$n \times n@f$ matrix of Hessian values at @p pt.
+   *  @return@f$n \times n@f$matrix of Hessian values at @p pt.
    *
    *  @throws std::domain_error if pt.size() < num_vars().
    *
-   *  @note **Complexity**: @f$O(k \log k \cdot n^2 + k \cdot n^2)@f$ (Hessian computation + evaluation).
+   *  @note **Complexity**:@f$O(k \log k \cdot n^2 + k \cdot n^2)@f$(Hessian computation + evaluation).
    */
   [[nodiscard]] Array<Array<Coefficient>> eval_hessian(const Array<Coefficient> &pt) const
   {
@@ -2079,12 +2079,12 @@ public:
    *  @param[in] grid  Array of size num_vars; grid[d] is array of nodes in dimension d (must be distinct).
    *  @param[in] values  Array of function values on the grid (must have size = product of grid sizes).
    *  @param[in] nvars  Number of variables.
-   *  @return Interpolating polynomial of total degree @f$\prod_d (\text{size}_d - 1)@f$.
+   *  @return Interpolating polynomial of total degree@f$\prod_d (\text{size}_d - 1)@f$.
    *
    *  @throws std::domain_error if grid sizes don't match data size, or duplicate nodes found.
    *
    *  @note **Algorithm**: Chung-Yao (1977) — Newton divided-differences applied per dimension.
-   *  @note **Complexity**: @f$O\left( n \cdot \prod_d m_d^2 \right)@f$ where n=nvars, m_d=grid[d].size().
+   *  @note **Complexity**:@f$O\left( n \cdot \prod_d m_d^2 \right)@f$where n=nvars, m_d=grid[d].size().
    *  @note **Grid order**: values are in row-major (rightmost dimension varies fastest).
    */
   [[nodiscard]] static Gen_MultiPolynomial interpolate(const Array<Array<Coefficient>> &grid,
@@ -2365,7 +2365,7 @@ public:
    *  @param[in] pts  Array of evaluation points.
    *  @return Array of results, pts[i] → eval(pts[i]).
    *
-   *  @note **Complexity**: @f$O(k \cdot n \cdot m)@f$
+   *  @note **Complexity**:@f$O(k \cdot n \cdot m)@f$
    *        where k = num_terms, n = num_vars, m = pts.size().
    *  @note **Parallelism**: Evaluation of points is parallelizable; uses thread pool if enabled.
    */
@@ -2392,7 +2392,7 @@ public:
    *
    *  @throws std::domain_error if data/basis empty or normal equations singular.
    *
-   *  @note **Complexity**: @f$O(m \cdot b / p + b^3)@f$ where m=data points, b=basis size, p=threads.
+   *  @note **Complexity**:@f$O(m \cdot b / p + b^3)@f$where m=data points, b=basis size, p=threads.
    *  @note Parallelism applies to row construction; normal equations solved sequentially.
    */
   [[nodiscard]] static Gen_MultiPolynomial fit_parallel(
@@ -3127,8 +3127,8 @@ public:
 
   /** @brief Content of a multivariate polynomial: GCD of all coefficients.
    *
-   *  For @f$f = \sum_\alpha c_\alpha x^\alpha@f$, the content is
-   *  @f$\gcd(c_{\alpha_1}, c_{\alpha_2}, \ldots)@f$.
+   *  For@f$f = \sum_\alpha c_\alpha x^\alpha@f$, the content is
+   * @f$\gcd(c_{\alpha_1}, c_{\alpha_2}, \ldots)@f$.
    *
    *  For the zero polynomial, returns zero.
    *  The sign follows the leading coefficient so that
@@ -3137,7 +3137,7 @@ public:
    *  @return The GCD of all coefficients.
    *
    *  @note Only available for integral coefficient types.
-   *  @note **Complexity**: @f$O(k \log M)@f$ where k = num_terms, M = max coeff.
+   *  @note **Complexity**:@f$O(k \log M)@f$where k = num_terms, M = max coeff.
    */
   [[nodiscard]] Coefficient content() const
     requires std::is_integral_v<Coefficient>
@@ -3166,14 +3166,14 @@ public:
 
   /** @brief Primitive part: polynomial divided by its content.
    *
-   *  Returns @f$f / \text{content}(f)@f$.  The result has
-   *  @f$\gcd@f$ of coefficients equal to 1 and positive leading
+   *  Returns@f$f / \text{content}(f)@f$.  The result has
+   * @f$\gcd@f$of coefficients equal to 1 and positive leading
    *  coefficient.
    *
    *  @return Primitive polynomial, or the zero polynomial if @c is_zero().
    *
    *  @note Only available for integral coefficient types.
-   *  @note **Complexity**: @f$O(k \log M)@f$ for content + @f$O(k)@f$ division.
+   *  @note **Complexity**:@f$O(k \log M)@f$for content +@f$O(k)@f$division.
    */
   [[nodiscard]] Gen_MultiPolynomial primitive_part() const
     requires std::is_integral_v<Coefficient>
@@ -3210,17 +3210,17 @@ public:
   /** @brief Homomorphic evaluation: reduce to univariate by substitution.
    *
    *  Substitutes all variables except @p keep_var with values from
-   *  @p eval_pts, producing a univariate polynomial in @f$x_{\text{keep\_var}}@f$.
+   *  @p eval_pts, producing a univariate polynomial in@f$x_{\text{keep\_var}}@f$.
    *
    *  @param[in] keep_var  Index of the variable to keep (0-based).
    *  @param[in] eval_pts  Array of size @c num_vars()-1 with substitution values,
    *                        ordered by variable index (skipping @p keep_var).
-   *  @return Univariate polynomial @f$g(t) = f(a_0, \ldots, t, \ldots, a_{n-1})@f$.
+   *  @return Univariate polynomial@f$g(t) = f(a_0, \ldots, t, \ldots, a_{n-1})@f$.
    *
    *  @throws std::domain_error if @p keep_var >= num_vars().
    *  @throws std::domain_error if @p eval_pts.size() != num_vars()-1.
    *
-   *  @note **Complexity**: @f$O(k \cdot n)@f$ where k = num_terms, n = num_vars.
+   *  @note **Complexity**:@f$O(k \cdot n)@f$where k = num_terms, n = num_vars.
    */
   [[nodiscard]] Gen_Polynomial<Coefficient> homomorphic_eval(size_t keep_var,
                                                              const Array<Coefficient> &eval_pts) const
@@ -3282,7 +3282,7 @@ public:
     vals.append(value);
   }
 
-  /** @brief Primitive linear factor data @f$a x + b@f$ for a chosen main variable. */
+  /** @brief Primitive linear factor data@f$a x + b@f$for a chosen main variable. */
   struct Uni_Linear_Factor_Data
   {
     Coefficient main_coeff;
@@ -3367,12 +3367,12 @@ public:
 
   /** @brief Build a primitive affine linear factor from specialized coefficients.
    *
-   *  Given factors of the form @f$a x_{\text{main}} + b(\mathbf{u})@f$ at a
+   *  Given factors of the form@f$a x_{\text{main}} + b(\mathbf{u})@f$at a
    *  base specialization point, reconstructs:
    *  @f[
    *    a x_{\text{main}} + \sum_i c_i u_i + d
    *  @f]
-   *  where each @f$c_i@f$ is the change in the specialized constant term after
+   *  where each@f$c_i@f$is the change in the specialized constant term after
    *  incrementing the corresponding variable by one.
    */
   [[nodiscard]] static Gen_MultiPolynomial _build_affine_factor_from_linear_data(
@@ -4089,7 +4089,7 @@ public:
    *  Combines content extraction, exact affine/non-linear factor lifting
    *  from specializations, homomorphic evaluation (reduction to univariate),
    *  univariate factorization (Layer 5), and factor recombination to factor
-   *  a multivariate polynomial over @f$\mathbb{Z}@f$.
+   *  a multivariate polynomial over@f$\mathbb{Z}@f$.
    *
    *  **Algorithm outline**:
    *  1. Extract the scalar content and the primitive part.
@@ -4276,7 +4276,7 @@ public:
   }
 
 private:
-  /** @brief Evaluate a monomial @f$x^\alpha@f$ at a point. */
+  /** @brief Evaluate a monomial@f$x^\alpha@f$at a point. */
   static Coefficient _eval_monomial(const Array<Coefficient> &pt, const Array<size_t> &alpha)
   {
     Coefficient v = Coefficient(1);

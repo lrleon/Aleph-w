@@ -35,7 +35,7 @@
  *  Provides `Gen_Polynomial<Coefficient>`, a sparse univariate polynomial
  *  backed by `DynMapTree<size_t, Coefficient>`.  Only non-zero coefficients
  *  are stored, making operations efficient on high-degree sparse polynomials
- *  such as @f$x^{1000} + 1@f$.
+ *  such as@f$x^{1000} + 1@f$.
  *
  *  The coefficient type must satisfy:
  *  - Default-constructible (yielding the additive identity, zero).
@@ -80,7 +80,7 @@ namespace polynomial_detail {
 
 /** @brief Fast exponentiation by squaring.
  *
- *  Computes @f$\text{base}^{\text{exp}}@f$ in @f$O(\log \text{exp})@f$
+ *  Computes@f$\text{base}^{\text{exp}}@f$in@f$O(\log \text{exp})@f$
  *  multiplications.
  */
 template <typename C>
@@ -176,7 +176,7 @@ private:
 
   /** @brief Tolerance threshold for floating-point zero detection.
    *
-   *  Returns @f$128 \cdot \varepsilon@f$ for floating-point types and
+   *  Returns@f$128 \cdot \varepsilon@f$for floating-point types and
    *  the additive identity for all others.
    */
   static constexpr Coefficient epsilon() noexcept
@@ -339,7 +339,7 @@ private:
       }
   }
 
-  /** @brief Specialized multiplication by a monic linear factor @f$x + c@f$. */
+  /** @brief Specialized multiplication by a monic linear factor@f$x + c@f$. */
   [[nodiscard]] Gen_Polynomial multiply_by_monic_linear(const Coefficient &c) const
   {
     if (is_zero())
@@ -363,7 +363,7 @@ public:
   /** @brief Default constructor: the zero polynomial. */
   Gen_Polynomial() = default;
 
-  /** @brief Constant polynomial @f$p(x) = c@f$.
+  /** @brief Constant polynomial@f$p(x) = c@f$.
    *  @param[in] c The constant value.
    */
   explicit Gen_Polynomial(const Coefficient &c)
@@ -372,7 +372,7 @@ public:
       coeffs[0] = c;
   }
 
-  /** @brief Monomial @f$c \cdot x^e@f$.
+  /** @brief Monomial@f$c \cdot x^e@f$.
    *  @param[in] c Coefficient.
    *  @param[in] exp Exponent.
    */
@@ -384,8 +384,8 @@ public:
 
   /** @brief Dense construction from initializer list.
    *
-   *  The list @f$\{a_0, a_1, \ldots, a_n\}@f$ yields
-   *  @f$a_0 + a_1 x + \cdots + a_n x^n@f$.
+   *  The list@f$\{a_0, a_1, \ldots, a_n\}@f$yields
+   * @f$a_0 + a_1 x + \cdots + a_n x^n@f$.
    *
    *  @param[in] il Coefficients in ascending exponent order.
    */
@@ -449,7 +449,7 @@ public:
     return Gen_Polynomial(Coefficient(1));
   }
 
-  /** @brief The monomial @f$x^n@f$.
+  /** @brief The monomial@f$x^n@f$.
    *  @param[in] n Exponent.
    */
   [[nodiscard]] static Gen_Polynomial x_to(size_t n)
@@ -457,7 +457,7 @@ public:
     return Gen_Polynomial(Coefficient(1), n);
   }
 
-  /** @brief Build polynomial from its roots: @f$\prod (x - r_i)@f$.
+  /** @brief Build polynomial from its roots:@f$\prod (x - r_i)@f$.
    *
    *  @param[in] roots List of roots.
    *  @return The monic polynomial whose roots are exactly @p roots
@@ -478,8 +478,8 @@ public:
 
   /** @brief Polynomial interpolation through a set of points.
    *
-   *  Given @f$n+1@f$ points @f$(x_i, y_i)@f$, returns the unique polynomial
-   *  of degree at most @f$n@f$ passing through all of them.
+   *  Given@f$n+1@f$points@f$(x_i, y_i)@f$, returns the unique polynomial
+   *  of degree at most@f$n@f$passing through all of them.
    *
    *  @param[in] points List of (x, y) pairs.  The x-values must be distinct.
    *  @return The interpolating polynomial.
@@ -610,14 +610,14 @@ public:
   //  Evaluation
   // =================================================================
 
-  /** @brief Evaluate @f$p(x)@f$ using gap-aware Horner's method.
+  /** @brief Evaluate@f$p(x)@f$using gap-aware Horner's method.
    *
    *  Consecutive blocks of missing coefficients are collapsed into powers
    *  of @p x, so sparse high-degree polynomials do not pay a lookup per
    *  zero coefficient.
    *
    *  @param[in] x Evaluation point.
-   *  @return @f$p(x)@f$.
+   *  @return@f$p(x)@f$.
    */
   [[nodiscard]] Coefficient horner_eval(const Coefficient &x) const
   {
@@ -651,14 +651,14 @@ public:
     return result;
   }
 
-  /** @brief Evaluate @f$p(x)@f$ using sparse evaluation.
+  /** @brief Evaluate@f$p(x)@f$using sparse evaluation.
    *
-   *  Each non-zero term @f$c \cdot x^e@f$ is computed via fast
-   *  exponentiation.  Complexity: @f$O(k \log d)@f$ where @f$k@f$ is
-   *  the number of terms and @f$d@f$ is the degree.
+   *  Each non-zero term@f$c \cdot x^e@f$is computed via fast
+   *  exponentiation.  Complexity:@f$O(k \log d)@f$where@f$k@f$is
+   *  the number of terms and@f$d@f$is the degree.
    *
    *  @param[in] x Evaluation point.
-   *  @return @f$p(x)@f$.
+   *  @return@f$p(x)@f$.
    */
   [[nodiscard]] Coefficient sparse_eval(const Coefficient &x) const
   {
@@ -671,13 +671,13 @@ public:
     return result;
   }
 
-  /** @brief Evaluate @f$p(x)@f$ with adaptive strategy.
+  /** @brief Evaluate@f$p(x)@f$with adaptive strategy.
    *
    *  Uses direct term evaluation for ultra-sparse polynomials and the
    *  gap-aware Horner path otherwise.
    *
    *  @param[in] x Evaluation point.
-   *  @return @f$p(x)@f$.
+   *  @return@f$p(x)@f$.
    */
   [[nodiscard]] Coefficient eval(const Coefficient &x) const
   {
@@ -702,10 +702,10 @@ public:
   /** @brief Evaluate at multiple points.
    *
    *  @param[in] points List of evaluation points.
-   *  @return List of @f$p(x_i)@f$ in corresponding order.
+   *  @return List of@f$p(x_i)@f$in corresponding order.
    *
-   *  @note **Complexity**: @f$O(m \cdot T_{\text{eval}})@f$ where @f$m@f$
-   *        is the number of points and @f$T_{\text{eval}}@f$ is the per-point
+   *  @note **Complexity**:@f$O(m \cdot T_{\text{eval}})@f$where@f$m@f$
+   *        is the number of points and@f$T_{\text{eval}}@f$is the per-point
    *        evaluation cost (see @ref eval).
    */
   [[nodiscard]] DynList<Coefficient> multi_eval(const DynList<Coefficient> &points) const
@@ -816,8 +816,8 @@ public:
 
   /** @brief Polynomial multiplication.
    *
-   *  @note **Complexity**: @f$O(k_1 \cdot k_2 \cdot \log(k_1 k_2))@f$
-   *        where @f$k_1, k_2@f$ are the numbers of terms.
+   *  @note **Complexity**:@f$O(k_1 \cdot k_2 \cdot \log(k_1 k_2))@f$
+   *        where@f$k_1, k_2@f$are the numbers of terms.
    */
   [[nodiscard]] Gen_Polynomial operator*(const Gen_Polynomial &q) const
   {
@@ -906,9 +906,9 @@ public:
 
   /** @brief Polynomial long division: returns (quotient, remainder).
    *
-   *  Computes @f$q@f$ and @f$r@f$ such that
-   *  @f$\text{this} = q \cdot d + r@f$ with
-   *  @f$\deg(r) < \deg(d)@f$ or @f$r = 0@f$.
+   *  Computes@f$q@f$and@f$r@f$such that
+   * @f$\text{this} = q \cdot d + r@f$with
+   * @f$\deg(r) < \deg(d)@f$or@f$r = 0@f$.
    *
    *  @param[in] d Divisor (must not be zero).
    *  @return Pair (quotient, remainder).
@@ -976,9 +976,9 @@ public:
   //  Calculus
   // =================================================================
 
-  /** @brief Formal derivative @f$p'(x)@f$.
+  /** @brief Formal derivative@f$p'(x)@f$.
    *
-   *  @f$\frac{d}{dx}\bigl[\sum c_i x^{e_i}\bigr]
+   * @f$\frac{d}{dx}\bigl[\sum c_i x^{e_i}\bigr]
    *     = \sum e_i \cdot c_i \cdot x^{e_i - 1}@f$.
    */
   [[nodiscard]] Gen_Polynomial derivative() const
@@ -996,15 +996,15 @@ public:
     return result;
   }
 
-  /** @brief @f$n@f$-th derivative @f$p^{(n)}(x)@f$.
+  /** @brief@f$n@f$-th derivative@f$p^{(n)}(x)@f$.
    *
    *  Applies the derivative operator @p n times.  Returns the zero
-   *  polynomial if @f$n > \deg(p)@f$.
+   *  polynomial if@f$n > \deg(p)@f$.
    *
    *  @param[in] n Differentiation order.
    *  @return The @p n-th derivative.
    *
-   *  @note **Complexity**: @f$O(n \cdot k)@f$ where @f$k@f$ is the
+   *  @note **Complexity**:@f$O(n \cdot k)@f$where@f$k@f$is the
    *        number of terms.
    */
   [[nodiscard]] Gen_Polynomial nth_derivative(size_t n) const
@@ -1017,7 +1017,7 @@ public:
 
   /** @brief Formal indefinite integral with constant of integration.
    *
-   *  @f$\int \sum c_i x^{e_i}\,dx
+   * @f$\int \sum c_i x^{e_i}\,dx
    *     = C + \sum \frac{c_i}{e_i + 1} x^{e_i + 1}@f$
    *
    *  @param[in] C Constant of integration (default 0).
@@ -1040,14 +1040,14 @@ public:
     return result;
   }
 
-  /** @brief Definite integral @f$\int_a^b p(x)\,dx@f$.
+  /** @brief Definite integral@f$\int_a^b p(x)\,dx@f$.
    *
    *  Computes the integral term by term without materializing the full
    *  antiderivative polynomial.
    *
    *  @param[in] a Lower bound.
    *  @param[in] b Upper bound.
-   *  @return @f$\int_a^b p(x)\,dx@f$.
+   *  @return@f$\int_a^b p(x)\,dx@f$.
    */
   [[nodiscard]] Coefficient definite_integral(const Coefficient &a, const Coefficient &b) const
   {
@@ -1073,7 +1073,7 @@ public:
   //  Composition and power
   // =================================================================
 
-  /** @brief Composition @f$p(q(x))@f$.
+  /** @brief Composition@f$p(q(x))@f$.
    *
    *  Evaluates this polynomial at @p q using a sparse-aware Horner scheme
    *  over non-zero coefficients, so large exponent gaps do not force
@@ -1119,10 +1119,10 @@ public:
     return result;
   }
 
-  /** @brief Exponentiation @f$p(x)^n@f$ by repeated squaring.
+  /** @brief Exponentiation@f$p(x)^n@f$by repeated squaring.
    *
    *  @param[in] n Exponent.
-   *  @return @f$p(x)^n@f$ (1 if @p n == 0).
+   *  @return@f$p(x)^n@f$(1 if @p n == 0).
    */
   [[nodiscard]] Gen_Polynomial pow(size_t n) const
   {
@@ -1165,13 +1165,13 @@ public:
     return a;
   }
 
-  /** @brief Extended GCD: computes g, s, t such that @f$sa + tb = g@f$.
+  /** @brief Extended GCD: computes g, s, t such that@f$sa + tb = g@f$.
    *
    *  Uses the extended Euclidean algorithm.  The result g is made monic.
    *
    *  @param[in] a First polynomial.
    *  @param[in] b Second polynomial.
-   *  @return Tuple (g, s, t) with @f$sa + tb = \gcd(a, b)@f$.
+   *  @return Tuple (g, s, t) with@f$sa + tb = \gcd(a, b)@f$.
    */
   /** @brief Result of the extended GCD algorithm. */
   struct Xgcd_Result
@@ -1212,7 +1212,7 @@ public:
 
   /** @brief Least common multiple.
    *
-   *  @f$\text{lcm}(a, b) = \frac{a \cdot b}{\gcd(a, b)}@f$.
+   * @f$\text{lcm}(a, b) = \frac{a \cdot b}{\gcd(a, b)}@f$.
    *
    *  @param[in] a First polynomial.
    *  @param[in] b Second polynomial.
@@ -1229,7 +1229,7 @@ public:
   /** @brief Pseudo-division for non-field coefficient types.
    *
    *  Computes q, r such that
-   *  @f$\text{lc}(d)^{\deg(a)-\deg(d)+1} \cdot a = q \cdot d + r@f$.
+   * @f$\text{lc}(d)^{\deg(a)-\deg(d)+1} \cdot a = q \cdot d + r@f$.
    *  No division of coefficients is performed, so this works
    *  correctly over integer rings.
    *
@@ -1295,10 +1295,10 @@ public:
     return *this / leading_coeff();
   }
 
-  /** @brief Reciprocal polynomial: @f$x^d \cdot p(1/x)@f$.
+  /** @brief Reciprocal polynomial:@f$x^d \cdot p(1/x)@f$.
    *
-   *  Reverses the coefficient sequence.  If @f$p(x) = \sum c_i x^i@f$,
-   *  the reciprocal is @f$\sum c_i x^{d-i}@f$ where @f$d = \deg(p)@f$.
+   *  Reverses the coefficient sequence.  If@f$p(x) = \sum c_i x^i@f$,
+   *  the reciprocal is@f$\sum c_i x^{d-i}@f$where@f$d = \deg(p)@f$.
    */
   [[nodiscard]] Gen_Polynomial reverse() const
   {
@@ -1314,7 +1314,7 @@ public:
     return result;
   }
 
-  /** @brief Argument negation: @f$p(-x)@f$.
+  /** @brief Argument negation:@f$p(-x)@f$.
    *
    *  Negates coefficients of odd-degree terms.
    */
@@ -1329,12 +1329,12 @@ public:
     return result;
   }
 
-  /** @brief Taylor shift: @f$p(x + k)@f$.
+  /** @brief Taylor shift:@f$p(x + k)@f$.
    *
-   *  Computed via composition with the linear polynomial @f$x + k@f$.
+   *  Computed via composition with the linear polynomial@f$x + k@f$.
    *
    *  @param[in] k Shift amount.
-   *  @return The polynomial @f$p(x + k)@f$.
+   *  @return The polynomial@f$p(x + k)@f$.
    *
    *  @note Delegates to @ref compose and therefore benefits from the
    *        sparse-aware composition path.
@@ -1344,10 +1344,10 @@ public:
     return compose(Gen_Polynomial({k, Coefficient(1)}));
   }
 
-  /** @brief Multiply by @f$x^k@f$ (shift exponents up).
+  /** @brief Multiply by@f$x^k@f$(shift exponents up).
    *
    *  @param[in] k Number of positions to shift up.
-   *  @return @f$x^k \cdot p(x)@f$.
+   *  @return@f$x^k \cdot p(x)@f$.
    */
   [[nodiscard]] Gen_Polynomial shift_up(size_t k) const
   {
@@ -1362,12 +1362,12 @@ public:
     return result;
   }
 
-  /** @brief Divide by @f$x^k@f$ (shift exponents down).
+  /** @brief Divide by@f$x^k@f$(shift exponents down).
    *
    *  Terms with exponent less than @p k are discarded (floor division).
    *
    *  @param[in] k Number of positions to shift down.
-   *  @return @f$\lfloor p(x) / x^k \rfloor@f$.
+   *  @return@f$\lfloor p(x) / x^k \rfloor@f$.
    */
   [[nodiscard]] Gen_Polynomial shift_down(size_t k) const
   {
@@ -1386,7 +1386,7 @@ public:
   /** @brief Truncate to degree less than @p n.
    *
    *  Keeps only terms with exponent strictly less than @p n,
-   *  i.e., computes @f$p(x) \bmod x^n@f$.
+   *  i.e., computes@f$p(x) \bmod x^n@f$.
    *
    *  @param[in] n Truncation order.
    */
@@ -1404,7 +1404,7 @@ public:
 
   /** @brief Dense coefficient vector.
    *
-   *  Returns an Array of size @f$d + 1@f$ (or empty for zero polynomial)
+   *  Returns an Array of size@f$d + 1@f$(or empty for zero polynomial)
    *  containing all coefficients in ascending exponent order,
    *  zero-filled for absent terms.
    */
@@ -1422,17 +1422,17 @@ public:
     return result;
   }
 
-  /** @brief Square-free part: @f$p / \gcd(p, p')@f$.
+  /** @brief Square-free part:@f$p / \gcd(p, p')@f$.
    *
    *  Removes repeated root factors.  For example, if
-   *  @f$p(x) = (x-1)^3 (x-2)@f$, the square-free part is
-   *  @f$(x-1)(x-2)@f$.
+   * @f$p(x) = (x-1)^3 (x-2)@f$, the square-free part is
+   * @f$(x-1)(x-2)@f$.
    *
    *  @return A polynomial with no repeated roots.
    *
    *  @note Requires coefficient type to form a field.
    *  @note **Complexity**: dominated by the GCD computation,
-   *        @f$O(d^2)@f$ polynomial divisions.
+   *       @f$O(d^2)@f$polynomial divisions.
    */
   [[nodiscard]] Gen_Polynomial square_free() const
   {
@@ -1448,10 +1448,10 @@ public:
 
   /** @brief Cauchy upper bound on absolute value of roots.
    *
-   *  For @f$p(x) = a_d x^d + \ldots + a_0@f$, all roots @f$|r|@f$
-   *  satisfy @f$|r| \le 1 + \max_i |a_i / a_d|@f$.
+   *  For@f$p(x) = a_d x^d + \ldots + a_0@f$, all roots@f$|r|@f$
+   *  satisfy@f$|r| \le 1 + \max_i |a_i / a_d|@f$.
    *
-   *  @return Upper bound on @f$\max |r_i|@f$.
+   *  @return Upper bound on@f$\max |r_i|@f$.
    *  @throws std::domain_error if zero polynomial.
    */
   [[nodiscard]] Coefficient cauchy_bound() const
@@ -1538,12 +1538,12 @@ public:
 
   /** @brief Sturm sequence of this polynomial.
    *
-   *  The Sturm chain @f$p_0 = p, p_1 = p', p_{i+1} = -\text{rem}(p_{i-1}, p_i)@f$
+   *  The Sturm chain@f$p_0 = p, p_1 = p', p_{i+1} = -\text{rem}(p_{i-1}, p_i)@f$
    *  is used to count distinct real roots in an interval.
    *
    *  @return DynList of polynomials forming the Sturm chain.
    *
-   *  @note **Complexity**: @f$O(d^2)@f$ where @f$d = \deg(p)@f$,
+   *  @note **Complexity**:@f$O(d^2)@f$where@f$d = \deg(p)@f$,
    *        dominated by the sequence of polynomial remainders.
    */
   [[nodiscard]] DynList<Gen_Polynomial> sturm_chain() const
@@ -1574,7 +1574,7 @@ public:
    *
    *  @param[in] chain Sturm chain (from sturm_chain()).
    *  @param[in] x Evaluation point.
-   *  @return Number of sign changes in the sequence @f$p_0(x), p_1(x), \ldots@f$.
+   *  @return Number of sign changes in the sequence@f$p_0(x), p_1(x), \ldots@f$.
    */
   [[nodiscard]] static size_t sturm_sign_changes(const DynList<Gen_Polynomial> &chain,
                                                  const Coefficient &x)
@@ -1599,18 +1599,18 @@ public:
     return changes;
   }
 
-  /** @brief Count distinct real roots in @f$[a, b]@f$ via Sturm's theorem.
+  /** @brief Count distinct real roots in@f$[a, b]@f$via Sturm's theorem.
    *
    *  @param[in] a Lower bound of interval.
    *  @param[in] b Upper bound of interval.
-   *  @return Number of distinct real roots in @f$[a, b]@f$.
+   *  @return Number of distinct real roots in@f$[a, b]@f$.
    *
    *  @note Only meaningful for floating-point coefficient types.
    *  If @p a > @p b, the endpoints are swapped.
    *  The zero polynomial is treated as having 0 countable distinct roots.
    *
-   *  @note **Complexity**: @f$O(d^2)@f$ to build the Sturm chain, plus
-   *        @f$O(d^2)@f$ for evaluating it at both endpoints.
+   *  @note **Complexity**:@f$O(d^2)@f$to build the Sturm chain, plus
+   *       @f$O(d^2)@f$for evaluating it at both endpoints.
    */
   [[nodiscard]] size_t count_real_roots(const Coefficient &a, const Coefficient &b) const
   {
@@ -1645,13 +1645,13 @@ public:
     return count_real_roots(-bound, bound);
   }
 
-  /** @brief Find a root by bisection in @f$[a, b]@f$.
+  /** @brief Find a root by bisection in@f$[a, b]@f$.
    *
-   *  Requires @f$p(a)@f$ and @f$p(b)@f$ to have opposite signs.
+   *  Requires@f$p(a)@f$and@f$p(b)@f$to have opposite signs.
    *
-   *  @param[in] a Lower bound (must satisfy @f$p(a) \cdot p(b) < 0@f$).
+   *  @param[in] a Lower bound (must satisfy@f$p(a) \cdot p(b) < 0@f$).
    *  @param[in] b Upper bound.
-   *  @param[in] tol Convergence tolerance (default @f$10^{-12}@f$).
+   *  @param[in] tol Convergence tolerance (default@f$10^{-12}@f$).
    *  @param[in] max_iter Maximum iterations (default 200).
    *  @return Approximate root.
    *  @throws std::domain_error if same sign at endpoints.
@@ -1701,7 +1701,7 @@ public:
   /** @brief Find a root by Newton-Raphson iteration.
    *
    *  @param[in] x0 Initial guess.
-   *  @param[in] tol Convergence tolerance (default @f$10^{-12}@f$).
+   *  @param[in] tol Convergence tolerance (default@f$10^{-12}@f$).
    *  @param[in] max_iter Maximum iterations (default 100).
    *  @return Approximate root.
    *  @throws std::domain_error if derivative vanishes during iteration.
@@ -1946,8 +1946,8 @@ public:
 
   /** @brief Content: GCD of all coefficients.
    *
-   *  For an integer polynomial @f$p(x) = a_d x^d + \ldots + a_0@f$,
-   *  the content is @f$\gcd(a_d, \ldots, a_0)@f$.
+   *  For an integer polynomial@f$p(x) = a_d x^d + \ldots + a_0@f$,
+   *  the content is@f$\gcd(a_d, \ldots, a_0)@f$.
    *
    *  For the zero polynomial, returns zero.
    *  For a non-zero polynomial, the sign follows the leading coefficient.
@@ -1978,7 +1978,7 @@ public:
 
   /** @brief Primitive part: polynomial divided by its content.
    *
-   *  Returns @f$p / \text{content}(p)@f$. For a non-zero polynomial,
+   *  Returns@f$p / \text{content}(p)@f$. For a non-zero polynomial,
    *  the result has leading coefficient positive (in absolute value).
    *
    *  @note Only available for integral coefficient types.
@@ -2016,7 +2016,7 @@ public:
 
   /** @brief Polynomial GCD over integers (Euclidean algorithm with primitive parts).
    *
-   *  Computes @f$\gcd(a, b)@f$ for integer polynomials using the
+   *  Computes@f$\gcd(a, b)@f$for integer polynomials using the
    *  Euclidean algorithm, normalizing by primitive parts at each step.
    *
    *  @param[in] a First polynomial.
@@ -2024,7 +2024,7 @@ public:
    *  @return The GCD polynomial (monic up to units).
    *
    *  @note Only available for integral coefficient types.
-   *  @note **Complexity**: @f$O(d^2)@f$ polynomial divisions.
+   *  @note **Complexity**:@f$O(d^2)@f$polynomial divisions.
    */
   static Gen_Polynomial integer_gcd(Gen_Polynomial a, Gen_Polynomial b)
     requires std::is_integral_v<Coefficient>
@@ -2054,13 +2054,13 @@ public:
    *  (with multiplicity) reconstructs the original.
    *
    *  Uses Yun's algorithm:
-   *  1. Compute @f$f' = \text{derivative}(f)@f$.
+   *  1. Compute@f$f' = \text{derivative}(f)@f$.
    *  2. Iteratively remove common factors to extract multiplicities.
    *
    *  @return A list of SfdTerm, each with a square-free factor and its
    *          multiplicity. Empty list if polynomial is constant.
    *
-   *  @note **Complexity**: @f$O(d^2)@f$ GCD operations.
+   *  @note **Complexity**:@f$O(d^2)@f$GCD operations.
    */
   [[nodiscard]] DynList<SfdTerm> yun_sfd() const
     requires std::is_integral_v<Coefficient>
@@ -2100,7 +2100,7 @@ public:
 
   /** @brief Integer-safe exact quotient using pseudo-division.
    *
-   *  Computes @f$a / b@f$ for integer polynomials where b is known to
+   *  Computes@f$a / b@f$for integer polynomials where b is known to
    *  divide a.  Uses pseudo-division and normalizes the result.
    *
    *  @param[in] a Dividend.
@@ -2332,11 +2332,11 @@ public:
     return false;
   }
 
-  /** @brief Try to extract an exact primitive quadratic factor over @f$\mathbb{Z}@f$.
+  /** @brief Try to extract an exact primitive quadratic factor over@f$\mathbb{Z}@f$.
    *
    *  Exhaustively searches primitive quadratic candidates
-   *  @f$a x^2 + b x + c@f$ such that @f$a@f$ divides the leading coefficient
-   *  and @f$c@f$ divides the constant term. Candidate linear coefficients are
+   * @f$a x^2 + b x + c@f$such that@f$a@f$divides the leading coefficient
+   *  and@f$c@f$divides the constant term. Candidate linear coefficients are
    *  bounded using a Cauchy-style root bound and verified by exact polynomial
    *  division.
    */
@@ -2413,11 +2413,11 @@ public:
     return false;
   }
 
-  /** @brief Try to extract an exact primitive cubic factor over @f$\mathbb{Z}@f$.
+  /** @brief Try to extract an exact primitive cubic factor over@f$\mathbb{Z}@f$.
    *
    *  Exhaustively searches primitive cubic candidates
-   *  @f$a x^3 + b x^2 + c x + d@f$ such that @f$a@f$ divides the leading
-   *  coefficient and @f$d@f$ divides the constant term. Candidate
+   * @f$a x^3 + b x^2 + c x + d@f$such that@f$a@f$divides the leading
+   *  coefficient and@f$d@f$divides the constant term. Candidate
    *  coefficients are bounded with a Landau-Mignotte style estimate, and
    *  each candidate is verified by exact division.
    */
@@ -2505,7 +2505,7 @@ public:
 
   /** @brief Factorization over integers mod @p p (trial method).
    *
-   *  Finds all linear factors over @f$\mathbb{Z}/p\mathbb{Z}@f$ by
+   *  Finds all linear factors over@f$\mathbb{Z}/p\mathbb{Z}@f$by
    *  exhaustive root search and repeated extraction. Any unfactored
    *  residual polynomial is appended as the final element.
    *
@@ -2557,8 +2557,8 @@ public:
 
   /** @brief Mignotte bound on integer roots.
    *
-   *  For an integer polynomial of degree @f$d@f$ with coefficients
-   *  @f$a_0, \ldots, a_d@f$, any rational root @f$p/q@f$ with
+   *  For an integer polynomial of degree@f$d@f$with coefficients
+   * @f$a_0, \ldots, a_d@f$, any rational root@f$p/q@f$with
    *  gcd(p,q)=1 satisfies:
    *  @f[
    *    |p| \le \sqrt{d+1} \cdot 2^d \cdot \max_i |a_i|
@@ -2594,9 +2594,9 @@ public:
 
   /** @brief Hensel lifting of modular factors.
    *
-   *  Given modular factors of @f$f \pmod p @f$, lifts any monic linear
+   *  Given modular factors of@f$f \pmod p@f$, lifts any monic linear
    *  factor corresponding to a simple root to modulus
-   *  @f$p^{2^\text{levels}}@f$ using repeated Hensel root lifting.
+   * @f$p^{2^\text{levels}}@f$using repeated Hensel root lifting.
    *  Factors that are not monic linear simple-root factors are carried
    *  through reduced modulo the target modulus.
    *
@@ -2604,7 +2604,7 @@ public:
    *  @param[in] factors Factors mod @p p (must multiply to @p f mod @p p).
    *  @param[in] p The prime modulus.
    *  @param[in] levels Number of lifting iterations (quadratic).
-   *  @return Factors lifted to @f$\mathbb{Z}/p^{2^\text{levels}}\mathbb{Z}@f$.
+   *  @return Factors lifted to@f$\mathbb{Z}/p^{2^\text{levels}}\mathbb{Z}@f$.
    *
    *  @throws std::domain_error if p <= 1 or levels > 30.
    *
@@ -2721,7 +2721,7 @@ public:
    *  1. Compute the primitive part (remove common factors).
    *  2. Apply Yun's SFD to group factors by multiplicity.
    *  3. For each square-free group, extract exact primitive linear,
-   *     quadratic, and cubic factors over @f$\mathbb{Z}@f$.
+   *     quadratic, and cubic factors over@f$\mathbb{Z}@f$.
    *  4. For any residual factor, use modular root search plus Hensel
    *     lifting of simple linear roots to discover additional exact divisors.
    *
@@ -2738,7 +2738,7 @@ public:
    *  @note Every factor returned here is validated by exact division, but a
    *        remaining higher-degree block should be interpreted as
    *        "not split further by this algorithm", not as a proof of
-   *        irreducibility over @f$\mathbb{Z}@f$.
+   *        irreducibility over@f$\mathbb{Z}@f$.
    *  @note **Complexity**: depends on SFD and modular factorization.
    */
   [[nodiscard]] DynList<SfdTerm> factorize() const
