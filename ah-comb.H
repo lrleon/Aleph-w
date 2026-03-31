@@ -65,6 +65,8 @@
 #include <limits>
 #include <numeric>
 
+# include <ah-errors.H>
+
 #include <htlist.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dynArray.H>

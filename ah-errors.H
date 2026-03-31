@@ -115,7 +115,13 @@ namespace Aleph
      */
     int operator,(const std::ostream &s)
     {
-      throw E(static_cast<const std::ostringstream &>(s).str());
+      if (const auto * oss = dynamic_cast<const std::ostringstream *>(&s))
+        throw E(oss->str());
+
+      if (const auto * ss = dynamic_cast<const std::stringstream *>(&s))
+        throw E(ss->str());
+
+      throw E("Unknown stream type in Aleph::ExceptionBuilder");
       return 0;
     }
   };
@@ -191,7 +197,7 @@ namespace Aleph
 #define ah_range_error_unless(C)                                        \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::range_error>(),            \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_range_error_if(C)
  *  @brief Throws std::range_error if condition holds
@@ -207,7 +213,7 @@ namespace Aleph
 #define ah_range_error_if(C)                                            \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::range_error>(),            \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_range_error()
  *  @brief Throws std::range_error unconditionally
@@ -222,7 +228,7 @@ namespace Aleph
  */
 #define ah_range_error()                                                \
   Aleph::ExceptionBuilder<std::range_error>(),                          \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_range_error_if_constexpr(C)                                  \
   if constexpr (C)                                                      \
@@ -250,7 +256,7 @@ namespace Aleph
 #define ah_runtime_error_unless(C)                                      \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::runtime_error>(),          \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_runtime_error_if(C)
  *  @brief Throws std::runtime_error if condition holds
@@ -266,7 +272,7 @@ namespace Aleph
 #define ah_runtime_error_if(C)                                          \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::runtime_error>(),          \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_runtime_error()
  *  @brief Throws std::runtime_error unconditionally
@@ -281,7 +287,7 @@ namespace Aleph
  */
 #define ah_runtime_error()                                              \
   Aleph::ExceptionBuilder<std::runtime_error>(),                        \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_runtime_error_if_constexpr(C)                                \
   if constexpr (C)                                                      \
@@ -309,7 +315,7 @@ namespace Aleph
 #define ah_logic_error_unless(C)                                        \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::logic_error>(),            \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_logic_error_if(C)
  *  @brief Throws std::logic_error if condition holds
@@ -325,7 +331,7 @@ namespace Aleph
 #define ah_logic_error_if(C)                                            \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::logic_error>(),            \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_logic_error()
  *  @brief Throws std::logic_error unconditionally
@@ -340,7 +346,7 @@ namespace Aleph
  */
 #define ah_logic_error()                                                \
   Aleph::ExceptionBuilder<std::logic_error>(),                          \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_logic_error_if_constexpr(C)                                  \
   if constexpr (C)                                                      \
@@ -368,7 +374,7 @@ namespace Aleph
 #define ah_underflow_error_if(C)                                        \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::underflow_error>(),        \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_underflow_error_unless(C)
  *  @brief Throws std::underflow_error if condition does NOT hold
@@ -384,7 +390,7 @@ namespace Aleph
 #define ah_underflow_error_unless(C)                                    \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::underflow_error>(),        \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_underflow_error()
  *  @brief Throws std::underflow_error unconditionally
@@ -399,7 +405,7 @@ namespace Aleph
  */
 #define ah_underflow_error()                                            \
   Aleph::ExceptionBuilder<std::underflow_error>(),                      \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_underflow_error_if_constexpr(C)                              \
   if constexpr (C)                                                      \
@@ -463,7 +469,7 @@ namespace Aleph
 #define ah_overflow_error_if(C)                                         \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::overflow_error>(),         \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_overflow_error_unless(C)
  *  @brief Throws std::overflow_error if condition does NOT hold
@@ -479,7 +485,7 @@ namespace Aleph
 #define ah_overflow_error_unless(C)                                     \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::overflow_error>(),         \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_overflow_error()
  *  @brief Throws std::overflow_error unconditionally
@@ -494,7 +500,7 @@ namespace Aleph
  */
 #define ah_overflow_error()                                             \
   Aleph::ExceptionBuilder<std::overflow_error>(),                       \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_overflow_error_if_constexpr(C)                               \
   if constexpr (C)                                                      \
@@ -522,7 +528,7 @@ namespace Aleph
 #define ah_domain_error_if(C)                                           \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::domain_error>(),           \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_domain_error_unless(C)
  *  @brief Throws std::domain_error if condition does NOT hold
@@ -538,7 +544,7 @@ namespace Aleph
 #define ah_domain_error_unless(C)                                       \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::domain_error>(),           \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_domain_error()
  *  @brief Throws std::domain_error unconditionally
@@ -553,7 +559,7 @@ namespace Aleph
  */
 #define ah_domain_error()                                               \
   Aleph::ExceptionBuilder<std::domain_error>(),                         \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 #define ah_domain_error_if_constexpr(C)                                 \
   if constexpr (C)                                                      \
     ah_domain_error()
@@ -579,7 +585,7 @@ namespace Aleph
 #define ah_out_of_range_error_if(C)                                     \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::out_of_range>(),           \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_out_of_range_error_unless(C)
  *  @brief Throws std::out_of_range if condition does NOT hold
@@ -595,7 +601,7 @@ namespace Aleph
 #define ah_out_of_range_error_unless(C)                                 \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::out_of_range>(),           \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_out_of_range_error()
  *  @brief Throws std::out_of_range unconditionally
@@ -610,7 +616,7 @@ namespace Aleph
  */
 #define ah_out_of_range_error()                                         \
   Aleph::ExceptionBuilder<std::out_of_range>(),                         \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_out_of_range_error_if_constexpr(C)                           \
   if constexpr (C)                                                      \
@@ -639,7 +645,7 @@ namespace Aleph
 #define ah_invalid_argument_if(C)                                       \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::invalid_argument>(),       \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_invalid_argument_unless(C)
  *  @brief Throws std::invalid_argument if condition does NOT hold
@@ -655,7 +661,7 @@ namespace Aleph
 #define ah_invalid_argument_unless(C)                                   \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::invalid_argument>(),       \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_invalid_argument()
  *  @brief Throws std::invalid_argument unconditionally
@@ -670,7 +676,7 @@ namespace Aleph
  */
 #define ah_invalid_argument()                                           \
   Aleph::ExceptionBuilder<std::invalid_argument>(),                     \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_invalid_argument_if_constexpr(C)                             \
   if constexpr (C)                                                      \
@@ -698,7 +704,7 @@ namespace Aleph
 #define ah_length_error_if(C)                                           \
   if (C)                                                                \
     [[unlikely]]Aleph::ExceptionBuilder<std::length_error>(),           \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_length_error_unless(C)
  *  @brief Throws std::length_error if condition does NOT hold
@@ -714,7 +720,7 @@ namespace Aleph
 #define ah_length_error_unless(C)                                       \
   if (not (C))                                                          \
     [[unlikely]]Aleph::ExceptionBuilder<std::length_error>(),           \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_length_error()
  *  @brief Throws std::length_error unconditionally
@@ -729,7 +735,7 @@ namespace Aleph
  */
 #define ah_length_error()                                               \
   Aleph::ExceptionBuilder<std::length_error>(),                         \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_length_error_if_constexpr(C)                                 \
   if constexpr (C)                                                      \
@@ -758,6 +764,6 @@ namespace Aleph
  */
 #define ah_fatal_error()                                                \
   Aleph::ExceptionBuilder<std::runtime_error>(),                        \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 # endif

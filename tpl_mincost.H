@@ -175,14 +175,13 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
 
   // Priority queue: (distance, node)
   using PQ_Entry = std::pair<Flow_Type, Node *>;
-  std::priority_queue<PQ_Entry, std::vector<PQ_Entry>, std::greater<PQ_Entry>> pq;
+  DynBinHeap<PQ_Entry, std::greater<PQ_Entry>> pq;
 
-  pq.push({0, source});
+  pq.insert({0, source});
 
-  while (not pq.empty())
+  while (not pq.is_empty())
     {
-      auto [dist, u] = pq.top();
-      pq.pop();
+      auto [dist, u] = pq.getMin();
 
       if (dist > ssp_info<Net>(u).distance)
         continue;  // Outdated entry
@@ -211,7 +210,7 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
               ssp_info<Net>(v).parent_arc = arc;
               ssp_info<Net>(v).parent_node = u;
               ssp_info<Net>(v).forward = forward;
-              pq.push({new_dist, v});
+              pq.insert({new_dist, v});
             }
         }
     }
@@ -547,8 +546,9 @@ TransshipmentResult<typename Net::Flow_Type> solve_transshipment(Net &net, GetDe
   result.total_cost = cost;
   result.feasible = (flow == total_supply);
 
-  // Clean up (remove super nodes)
-  // Note: In real implementation, would need to properly remove these
+  // Remove super nodes and their arcs from the caller's graph
+  net.remove_node(super_source);
+  net.remove_node(super_sink);
 
   return result;
 }
@@ -787,7 +787,7 @@ TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type
     for (size_t j = 0; j < n; ++j)
       arcs[i][j] = net.insert_arc(supply_nodes[i],
                                   demand_nodes[j],
-                                  std::min(supplies[i], demands[j]) + Cost_Type{1},
+                                  std::min(supplies[i], demands[j]),
                                   costs[i][j]);
 
   // Source and sink are detected automatically by network topology

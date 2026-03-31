@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /**
  * @file stat_utils.H
  * @brief Comprehensive statistical utilities for numeric data
@@ -95,6 +94,9 @@
 #ifndef STAT_UTILS_H
 #define STAT_UTILS_H
 
+#include "ahSort.H"
+#include "tpl_dynMapTree.H"
+
 #include <cmath>
 #include <limits>
 #include <algorithm>
@@ -141,13 +143,19 @@ struct Stats
    * @brief Check if statistics are valid.
    * @return true if count > 0
    */
-  [[nodiscard]] bool is_valid() const noexcept { return count > 0; }
+  [[nodiscard]] bool is_valid() const noexcept
+  {
+    return count > 0;
+  }
 
   /**
    * @brief Get the range (max - min).
    * @return Range of values
    */
-  [[nodiscard]] T range() const noexcept { return max - min; }
+  [[nodiscard]] T range() const noexcept
+  {
+    return max - min;
+  }
 };
 
 // =============================================================================
@@ -162,12 +170,11 @@ struct Stats
  * @return Sum of all elements
  */
 template <typename Container>
-[[nodiscard]] auto sum(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto sum(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
   T result = T();
-  for (const auto & x : data)
+  for (const auto &x : data)
     result += x;
   return result;
 }
@@ -181,13 +188,12 @@ template <typename Container>
  * @throws std::invalid_argument if container is empty
  */
 template <typename Container>
-[[nodiscard]] auto mean(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto mean(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
   size_t n = 0;
   T s = T();
-  for (const auto & x : data)
+  for (const auto &x : data)
     {
       s += x;
       ++n;
@@ -195,7 +201,6 @@ template <typename Container>
   ah_invalid_argument_if(n == 0) << "mean: empty container";
   return s / static_cast<T>(n);
 }
-
 
 /**
  * @brief Compute variance using Welford's numerically stable algorithm.
@@ -213,17 +218,17 @@ template <typename Container>
  *         or is empty (population)
  */
 template <typename Container>
-[[nodiscard]] auto variance(const Container & data, bool population = false)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto variance(const Container &data,
+                            bool population = false) -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
   size_t n = 0;
-  T m = T();      // Running mean
-  T m2 = T();     // Sum of squared differences from mean
+  T m = T();   // Running mean
+  T m2 = T();  // Sum of squared differences from mean
 
   // Welford's online algorithm
-  for (const auto & x : data)
+  for (const auto &x : data)
     {
       ++n;
       T delta = x - m;
@@ -237,11 +242,8 @@ template <typename Container>
       ah_invalid_argument_if(n == 0) << "variance: empty container";
       return m2 / static_cast<T>(n);
     }
-  else
-    {
-      ah_invalid_argument_if(n < 2) << "variance: need at least 2 elements for sample variance";
-      return m2 / static_cast<T>(n - 1);
-    }
+  ah_invalid_argument_if(n < 2) << "variance: need at least 2 elements for sample variance";
+  return m2 / static_cast<T>(n - 1);
 }
 
 /**
@@ -253,8 +255,8 @@ template <typename Container>
  * @return Standard deviation
  */
 template <typename Container>
-[[nodiscard]] auto stddev(const Container & data, bool population = false)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto stddev(const Container &data,
+                          bool population = false) -> std::decay_t<decltype(*std::begin(data))>
 {
   return std::sqrt(variance(data, population));
 }
@@ -268,8 +270,7 @@ template <typename Container>
  * @throws std::invalid_argument if container is empty
  */
 template <typename Container>
-[[nodiscard]] auto min_value(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto min_value(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   auto it = std::begin(data);
   auto end = std::end(data);
@@ -291,8 +292,7 @@ template <typename Container>
  * @throws std::invalid_argument if container is empty
  */
 template <typename Container>
-[[nodiscard]] auto max_value(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto max_value(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   auto it = std::begin(data);
   auto end = std::end(data);
@@ -314,9 +314,8 @@ template <typename Container>
  * @throws std::invalid_argument if container is empty
  */
 template <typename Container>
-[[nodiscard]] auto min_max(const Container & data)
-  -> std::pair<std::decay_t<decltype(*std::begin(data))>,
-               std::decay_t<decltype(*std::begin(data))>>
+[[nodiscard]] auto min_max(const Container &data)
+  -> std::pair<std::decay_t<decltype(*std::begin(data))>, std::decay_t<decltype(*std::begin(data))>>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
   auto it = std::begin(data);
@@ -351,28 +350,28 @@ template <typename Container>
  * @throws std::invalid_argument if container is empty or p is out of range
  */
 template <typename Container>
-[[nodiscard]] auto percentile(const Container & data, double p)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto percentile(const Container &data,
+                              double p) -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
   ah_invalid_argument_if(p < 0 or p > 100) << "percentile: p must be in [0, 100]";
 
   // Copy to vector for sorting
-  std::vector<T> sorted(std::begin(data), std::end(data));
-  ah_invalid_argument_if(sorted.empty()) << "percentile: empty container";
+  Array<T> sorted(std::begin(data), std::end(data));
+  ah_invalid_argument_if(sorted.is_empty()) << "percentile: empty container";
 
-  std::sort(sorted.begin(), sorted.end());
+  in_place_sort(sorted);
 
   if (p == 0)
-    return sorted.front();
+    return sorted[0];
   if (p == 100)
-    return sorted.back();
+    return sorted[sorted.size() - 1];
 
   // Calculate index
-  double index = (p / 100.0) * (sorted.size() - 1);
-  size_t lower = static_cast<size_t>(std::floor(index));
-  size_t upper = static_cast<size_t>(std::ceil(index));
+  const double index = (p / 100.0) * (sorted.size() - 1);
+  auto lower = static_cast<size_t>(std::floor(index));
+  auto upper = static_cast<size_t>(std::ceil(index));
 
   if (lower == upper)
     return sorted[lower];
@@ -391,8 +390,7 @@ template <typename Container>
  * @throws std::invalid_argument if container is empty
  */
 template <typename Container>
-[[nodiscard]] auto median(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto median(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   return percentile(data, 50);
 }
@@ -405,7 +403,7 @@ template <typename Container>
  * @return Tuple of (Q1, Q2/median, Q3)
  */
 template <typename Container>
-[[nodiscard]] auto quartiles(const Container & data)
+[[nodiscard]] auto quartiles(const Container &data)
   -> std::tuple<std::decay_t<decltype(*std::begin(data))>,
                 std::decay_t<decltype(*std::begin(data))>,
                 std::decay_t<decltype(*std::begin(data))>>
@@ -425,8 +423,7 @@ template <typename Container>
  * @return Interquartile range
  */
 template <typename Container>
-[[nodiscard]] auto iqr(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto iqr(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   return percentile(data, 75) - percentile(data, 25);
 }
@@ -447,30 +444,27 @@ template <typename Container>
  * @throws std::invalid_argument if container is empty
  */
 template <typename Container>
-[[nodiscard]] auto mode(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto mode(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
   auto it = std::begin(data);
   auto end = std::end(data);
   ah_invalid_argument_if(it == end) << "mode: empty container";
 
-  std::map<T, size_t> freq;
+  DynMapTree<T, size_t> freq;
 
-  for (const auto & x : data)
+  for (const auto &x : data)
     ++freq[x];
 
   T mode_val = freq.begin()->first;
   size_t max_count = freq.begin()->second;
 
-  for (const auto & [val, count] : freq)
-    {
-      if (count > max_count)
-        {
-          max_count = count;
-          mode_val = val;
-        }
-    }
+  for (const auto &[val, count] : freq)
+    if (count > max_count)
+      {
+        max_count = count;
+        mode_val = val;
+      }
 
   return mode_val;
 }
@@ -483,24 +477,24 @@ template <typename Container>
  * @return true if multiple values share the maximum frequency
  */
 template <typename Container>
-[[nodiscard]] bool is_multimodal(const Container & data)
+[[nodiscard]] bool is_multimodal(const Container &data)
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
   std::map<T, size_t> freq;
-  for (const auto & x : data)
+  for (const auto &x : data)
     ++freq[x];
 
   if (freq.empty())
     return false;
 
   size_t max_count = 0;
-  for (const auto & [val, count] : freq)
+  for (const auto &[val, count] : freq)
     if (count > max_count)
       max_count = count;
 
   size_t modes = 0;
-  for (const auto & [val, count] : freq)
+  for (const auto &[val, count] : freq)
     if (count == max_count)
       ++modes;
 
@@ -526,8 +520,7 @@ template <typename Container>
  * @throws std::invalid_argument if container has fewer than 3 elements
  */
 template <typename Container>
-[[nodiscard]] auto skewness(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto skewness(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
@@ -539,7 +532,7 @@ template <typename Container>
 
   size_t n = 0;
   T sum3 = T();
-  for (const auto & x : data)
+  for (const auto &x : data)
     {
       T diff = (x - m) / s;
       sum3 += diff * diff * diff;
@@ -568,8 +561,7 @@ template <typename Container>
  * @throws std::invalid_argument if container has fewer than 4 elements
  */
 template <typename Container>
-[[nodiscard]] auto kurtosis(const Container & data)
-  -> std::decay_t<decltype(*std::begin(data))>
+[[nodiscard]] auto kurtosis(const Container &data) -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
@@ -581,7 +573,7 @@ template <typename Container>
 
   size_t n = 0;
   T sum4 = T();
-  for (const auto & x : data)
+  for (const auto &x : data)
     {
       T diff = (x - m) / s;
       T diff2 = diff * diff;
@@ -610,7 +602,7 @@ template <typename Container>
  * @throws std::invalid_argument if mean is zero
  */
 template <typename Container>
-[[nodiscard]] auto coefficient_of_variation(const Container & data)
+[[nodiscard]] auto coefficient_of_variation(const Container &data)
   -> std::decay_t<decltype(*std::begin(data))>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
@@ -635,9 +627,9 @@ template <typename Container>
  * @throws std::invalid_argument if containers have different sizes or fewer than 2 elements
  */
 template <typename Container1, typename Container2>
-[[nodiscard]] auto covariance(const Container1 & x, const Container2 & y,
-                               bool population = false)
-  -> std::decay_t<decltype(*std::begin(x))>
+[[nodiscard]] auto covariance(const Container1 &x,
+                              const Container2 &y,
+                              bool population = false) -> std::decay_t<decltype(*std::begin(x))>
 {
   using T = std::decay_t<decltype(*std::begin(x))>;
 
@@ -665,7 +657,7 @@ template <typename Container1, typename Container2>
       ++it_y;
     }
 
-  ah_invalid_argument_if(it_x != end_x or it_y != end_y) 
+  ah_invalid_argument_if(it_x != end_x or it_y != end_y)
     << "covariance: containers have different sizes";
 
   if (population)
@@ -673,11 +665,8 @@ template <typename Container1, typename Container2>
       ah_invalid_argument_if(n == 0) << "covariance: empty containers";
       return c / static_cast<T>(n);
     }
-  else
-    {
-      ah_invalid_argument_if(n < 2) << "covariance: need at least 2 elements";
-      return c / static_cast<T>(n - 1);
-    }
+  ah_invalid_argument_if(n < 2) << "covariance: need at least 2 elements";
+  return c / static_cast<T>(n - 1);
 }
 
 /**
@@ -696,8 +685,8 @@ template <typename Container1, typename Container2>
  * @throws std::invalid_argument if containers have different sizes or constant values
  */
 template <typename Container1, typename Container2>
-[[nodiscard]] auto correlation(const Container1 & x, const Container2 & y)
-  -> std::decay_t<decltype(*std::begin(x))>
+[[nodiscard]] auto correlation(const Container1 &x,
+                               const Container2 &y) -> std::decay_t<decltype(*std::begin(x))>
 {
   using T = std::decay_t<decltype(*std::begin(x))>;
 
@@ -705,7 +694,7 @@ template <typename Container1, typename Container2>
   T sx = stddev(x, true);          // Population stddev
   T sy = stddev(y, true);
 
-  ah_invalid_argument_if(sx == T() or sy == T()) 
+  ah_invalid_argument_if(sx == T() or sy == T())
     << "correlation: one or both datasets have zero variance";
 
   return cov / (sx * sy);
@@ -725,9 +714,8 @@ template <typename Container1, typename Container2>
  * @throws std::invalid_argument if container is empty or num_bins is 0
  */
 template <typename Container>
-[[nodiscard]] auto histogram(const Container & data, size_t num_bins)
-  -> std::vector<std::pair<std::decay_t<decltype(*std::begin(data))>,
-                           size_t>>
+[[nodiscard]] auto histogram(const Container &data, size_t num_bins)
+  -> std::vector<std::pair<std::decay_t<decltype(*std::begin(data))>, size_t>>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
@@ -746,9 +734,9 @@ template <typename Container>
 
   std::vector<size_t> counts(num_bins, 0);
 
-  for (const auto & x : data)
+  for (const auto &x : data)
     {
-      size_t bin = static_cast<size_t>((x - min_val) / bin_width);
+      auto bin = static_cast<size_t>((x - min_val) / bin_width);
       if (bin >= num_bins)
         bin = num_bins - 1;  // Handle max value
       ++counts[bin];
@@ -778,14 +766,14 @@ template <typename Container>
  * @return Stats struct with all computed values
  */
 template <typename Container>
-[[nodiscard]] auto compute_all_stats(const Container & data)
+[[nodiscard]] auto compute_all_stats(const Container &data)
   -> Stats<std::decay_t<decltype(*std::begin(data))>>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
   Stats<T> s;
 
   // Count elements
-  for (const auto & x : data)
+  for (const auto &x : data)
     {
       s.sum += x;
       ++s.count;
@@ -856,9 +844,7 @@ template <typename Container>
  * @warning Requires at least 2 elements for valid variance calculation.
  */
 template <class T>
-void compute_stats(T * data, int l, int r,
-                   T & avg, T & var, T & med,
-                   T & _min, T & _max)
+void compute_stats(T *data, int l, int r, T &avg, T &var, T &med, T &_min, T &_max)
 {
   if (l > r)
     {
@@ -909,75 +895,75 @@ void compute_stats(T * data, int l, int r,
  * @param _min Output: minimum value
  * @param _max Output: maximum value
  */
-	template <typename Container>
-	void compute_stats(const Container & data,
-	                   std::decay_t<decltype(*std::begin(data))> & avg,
-	                   std::decay_t<decltype(*std::begin(data))> & var,
-	                   std::decay_t<decltype(*std::begin(data))> & med,
-	                   std::decay_t<decltype(*std::begin(data))> & _min,
-	                   std::decay_t<decltype(*std::begin(data))> & _max)
-	{
-	  using T = std::decay_t<decltype(*std::begin(data))>;
+template <typename Container>
+void compute_stats(const Container &data,
+                   std::decay_t<decltype(*std::begin(data))> &avg,
+                   std::decay_t<decltype(*std::begin(data))> &var,
+                   std::decay_t<decltype(*std::begin(data))> &med,
+                   std::decay_t<decltype(*std::begin(data))> &_min,
+                   std::decay_t<decltype(*std::begin(data))> &_max)
+{
+  using T = std::decay_t<decltype(*std::begin(data))>;
 
-	  std::vector<T> sorted(std::begin(data), std::end(data));
-	  if (sorted.empty())
-	    {
-	      avg = var = med = _min = _max = T();
-	      return;
-	    }
+  std::vector<T> sorted(std::begin(data), std::end(data));
+  if (sorted.empty())
+    {
+      avg = var = med = _min = _max = T();
+      return;
+    }
 
-	  std::sort(sorted.begin(), sorted.end());
+  std::sort(sorted.begin(), sorted.end());
 
-	  _min = sorted.front();
-	  _max = sorted.back();
+  _min = sorted.front();
+  _max = sorted.back();
 
-	  const size_t n = sorted.size();
-	  const size_t mid = n / 2;
-	  if (n % 2 == 0)
-	    med = (sorted[mid - 1] + sorted[mid]) / 2;
-	  else
-	    med = sorted[mid];
+  const size_t n = sorted.size();
+  const size_t mid = n / 2;
+  if (n % 2 == 0)
+    med = (sorted[mid - 1] + sorted[mid]) / 2;
+  else
+    med = sorted[mid];
 
-	  // Welford's algorithm for mean and variance
-	  T m = T();
-	  T m2 = T();
-	  size_t k = 0;
-	  for (const auto & x : sorted)
-	    {
-	      ++k;
-	      T delta = x - m;
-	      m += delta / static_cast<T>(k);
-	      T delta2 = x - m;
-	      m2 += delta * delta2;
-	    }
+  // Welford's algorithm for mean and variance
+  T m = T();
+  T m2 = T();
+  size_t k = 0;
+  for (const auto &x : sorted)
+    {
+      ++k;
+      T delta = x - m;
+      m += delta / static_cast<T>(k);
+      T delta2 = x - m;
+      m2 += delta * delta2;
+    }
 
-	  avg = m;
-	  var = (n > 1) ? m2 / static_cast<T>(n - 1) : T();
-	}
+  avg = m;
+  var = (n > 1) ? m2 / static_cast<T>(n - 1) : T();
+}
 
-} // namespace Aleph
+}  // namespace Aleph
 
 // Export commonly used functions to global namespace
-using Aleph::Stats;
-using Aleph::compute_stats;
-using Aleph::compute_all_stats;
-using Aleph::sum;
-using Aleph::mean;
-using Aleph::variance;
-using Aleph::stddev;
-using Aleph::median;
-using Aleph::percentile;
-using Aleph::quartiles;
-using Aleph::iqr;
-using Aleph::mode;
-using Aleph::skewness;
-using Aleph::kurtosis;
 using Aleph::coefficient_of_variation;
+using Aleph::compute_all_stats;
+using Aleph::compute_stats;
 using Aleph::correlation;
 using Aleph::covariance;
 using Aleph::histogram;
-using Aleph::min_value;
+using Aleph::iqr;
+using Aleph::kurtosis;
 using Aleph::max_value;
+using Aleph::mean;
+using Aleph::median;
 using Aleph::min_max;
+using Aleph::min_value;
+using Aleph::mode;
+using Aleph::percentile;
+using Aleph::quartiles;
+using Aleph::skewness;
+using Aleph::Stats;
+using Aleph::stddev;
+using Aleph::sum;
+using Aleph::variance;
 
-#endif // STAT_UTILS_H
+#endif  // STAT_UTILS_H

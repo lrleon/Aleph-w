@@ -686,7 +686,7 @@ namespace Aleph
  */
 #define ah_parse_error() \
   Aleph::ExceptionBuilder<Aleph::ParseError>(), \
-    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_parse_error_if(C)
  *  @brief Throws a ParseError if condition holds
@@ -696,7 +696,7 @@ namespace Aleph
 #define ah_parse_error_if(C) \
   if (C) \
     [[unlikely]] Aleph::ExceptionBuilder<Aleph::ParseError>(), \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_parse_error_unless(C)
  *  @brief Throws a ParseError if condition does NOT hold
@@ -706,7 +706,7 @@ namespace Aleph
 #define ah_parse_error_unless(C) \
   if (not (C)) \
     [[unlikely]] Aleph::ExceptionBuilder<Aleph::ParseError>(), \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+      std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
   // ============================================================================
   // Lookahead and Backtracking
