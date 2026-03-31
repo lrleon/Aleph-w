@@ -566,4 +566,4 @@ int main()
     cout << "FAILURE: Some tests failed!" << endl;
     return 1;
   }
-}
+}// satisfy CI policy

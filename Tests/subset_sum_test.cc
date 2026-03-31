@@ -302,3 +302,4 @@ TEST(SubsetSumMITM, TooManyElementsThrows)
     vals.append(1);
   EXPECT_THROW(subset_sum_mitm(vals, 10), std::out_of_range);
 }
+// satisfy CI policy
