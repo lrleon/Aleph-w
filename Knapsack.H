@@ -342,9 +342,17 @@ template <typename V, std::integral W>
         {
           const size_t take = std::min(k, rem);
 
-          const V maxV = std::numeric_limits<V>::max();
-          if ((wi == 0 or take <= C / wi) and
-              (items[i].value == V{0} or static_cast<V>(take) <= maxV / items[i].value))
+          bool value_ok;
+          if constexpr (std::numeric_limits<V>::is_specialized)
+            {
+              const V maxV = std::numeric_limits<V>::max();
+              value_ok = (items[i].value == V{0} or
+                          static_cast<V>(take) <= maxV / items[i].value);
+            }
+          else
+            value_ok = true;
+
+          if ((wi == 0 or take <= C / wi) and value_ok)
             {
               expanded.append(Knapsack_Item<W, V>{static_cast<W>(wi * take),
                                                   static_cast<V>(take) * items[i].value});

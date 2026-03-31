@@ -175,7 +175,7 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
 
   // Priority queue: (distance, node)
   using PQ_Entry = std::pair<Flow_Type, Node *>;
-  DynBinHeap<PQ_Entry, std::less<PQ_Entry>> pq;
+  DynBinHeap<PQ_Entry> pq;
 
   pq.insert({0, source});
 
@@ -473,6 +473,12 @@ struct TransshipmentResult
  *  @param net Network with costs.
  *  @param get_demand Function returning demand for each node.
  *  @return TransshipmentResult with feasibility and cost.
+ *
+ *  @note The network topology (nodes and arcs) is preserved: temporary
+ *  super-source/super-sink nodes are removed before returning. However,
+ *  `arc->flow` fields on **original** arcs are modified to reflect the
+ *  optimal transshipment flow. `NODE_COOKIE` on all nodes is overwritten
+ *  during computation and should not be relied upon after the call.
  *
  *  @par Example
  *  ```cpp

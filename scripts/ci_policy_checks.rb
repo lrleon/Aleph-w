@@ -37,8 +37,8 @@ def changed_files(base)
   out.lines.map do |line|
     parts = line.strip.split("\t")
     status = parts[0]
-    if status.start_with?('R')
-      { status: 'R', old_path: parts[1], path: parts[2] }
+    if status.start_with?('R', 'C')
+      { status: status[0], old_path: parts[1], path: parts[2] }
     else
       { status: status, old_path: parts[1], path: parts[1] }
     end

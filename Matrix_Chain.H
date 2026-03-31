@@ -119,7 +119,7 @@ inline void build_parens(const Array<Array<size_t>> &s, size_t i, size_t j, std:
  *          representation of the parenthesization, and the split table.
  *
  *  @throws ah_domain_error if `dims` has fewer than 2 entries.
- *  @throws ah_domain_error if any dimension is zero or negative.
+ *  @throws ah_domain_error if any `dims` dimension is zero.
  *  @throws ah_runtime_error if the cost calculation overflows `size_t`.
  *
  *  @note **Complexity**: Time O(n^3), Space O(n^2), where n is the number of matrices.
@@ -185,8 +185,8 @@ inline void build_parens(const Array<Array<size_t>> &s, size_t i, size_t j, std:
 
 /** @brief Compute only the minimum multiplication cost (value only).
  *
- *  A convenience version that only returns the minimum number of scalar
- *  multiplications required, without reconstruction.
+ *  A convenience version that delegates to `matrix_chain_order` and returns
+ *  the `min_multiplications` value computed there.
  *
  *  @param[in] dims  Array of matrix dimensions (@f$n+1@f$entries for@f$n@f$matrices).
  *  @return The minimum number of scalar multiplications.

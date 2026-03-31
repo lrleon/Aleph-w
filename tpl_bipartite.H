@@ -208,6 +208,9 @@ template <class GT, template <class> class Max_Flow = Ford_Fulkerson_Maximum_Flo
 void compute_maximum_cardinality_bipartite_matching(const GT &g,
                                                     DynDlist<typename GT::Arc *> &matching)
 {
+  if (g.get_num_nodes() == 0)
+    return;
+
   DynDlist<typename GT::Node *> l, r;
 
   compute_bipartite(g, l, r);

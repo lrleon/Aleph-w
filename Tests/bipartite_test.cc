@@ -280,14 +280,14 @@ TEST(Bipartite, DISABLED_EmptyGraph)
   EXPECT_TRUE(r.is_empty());
 }
 
-// This test documents the current (buggy) behavior
 TEST(Bipartite, EmptyGraphThrowsRangeError)
 {
   Graph g;
   DynDlist<Graph::Node *> l, r;
 
-  // BUG: Empty graph throws range_error instead of succeeding with empty partitions
-  EXPECT_THROW(compute_bipartite<Graph>(g, l, r), std::range_error);
+  EXPECT_NO_THROW(compute_bipartite<Graph>(g, l, r));
+  EXPECT_TRUE(l.is_empty());
+  EXPECT_TRUE(r.is_empty());
 }
 
 TEST(Bipartite, SingleNode)
@@ -540,18 +540,15 @@ TEST(ComputeBipartiteClass, ThrowsOnNonBipartite)
 // ============================================================================
 // Maximum Matching Tests
 // ============================================================================
-// KNOWN BUG: The maximum matching algorithm is not returning correct results.
-// The flow network-based algorithm returns 0 matches for all cases.
-// Empty graph throws range_error (consistent with compute_bipartite behavior)
 TEST(MaximumMatching, EmptyGraphThrowsRangeError)
 {
   Graph g;
 
   DynDlist<Graph::Arc *> matching;
 
-  EXPECT_THROW(
-    compute_maximum_cardinality_bipartite_matching<Graph>(g, matching),
-    std::range_error);
+  EXPECT_NO_THROW(
+    compute_maximum_cardinality_bipartite_matching<Graph>(g, matching));
+  EXPECT_TRUE(matching.is_empty());
 }
 
 TEST(MaximumMatching, SingleEdge)

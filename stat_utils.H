@@ -481,11 +481,11 @@ template <typename Container>
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
-  std::map<T, size_t> freq;
+  DynMapTree<T, size_t> freq;
   for (const auto &x : data)
     ++freq[x];
 
-  if (freq.empty())
+  if (freq.is_empty())
     return false;
 
   size_t max_count = 0;

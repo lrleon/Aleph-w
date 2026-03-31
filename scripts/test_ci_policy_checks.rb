@@ -26,6 +26,20 @@ class TestCiPolicyChecks < Minitest::Test
     assert_includes tokens, "'a'"
   end
 
+  def test_cpp_token_stream_raw_string_literal
+    code = 'const char* s = R"(hello\nworld)";'
+    tokens = cpp_token_stream(code).split("\n")
+    assert_includes tokens, 'R"(hello\nworld)"'
+    refute_includes tokens, 'hello'
+  end
+
+  def test_cpp_token_stream_raw_string_with_custom_delimiter
+    code = 'const char* s = R"delim(x"y)delim";'
+    tokens = cpp_token_stream(code).split("\n")
+    assert_includes tokens, 'R"delim(x"y)delim"'
+    refute_includes tokens, '"y'
+  end
+
   def test_header_has_code_changes_identical
     path = "test.H"
     base = "main"
@@ -142,7 +156,59 @@ class TestCiPolicyChecks < Minitest::Test
     end
   end
 
+  def test_changed_files_parses_rename
+    def_mock_run(["", "R100\told.H\tnew.H\n"]) do
+      result = changed_files('main')
+      assert_equal 1, result.size
+      assert_equal 'R', result[0][:status]
+      assert_equal 'old.H', result[0][:old_path]
+      assert_equal 'new.H', result[0][:path]
+    end
+  end
+
+  def test_changed_files_parses_copy
+    def_mock_run(["", "C100\tsrc.H\tdst.H\n"]) do
+      result = changed_files('main')
+      assert_equal 1, result.size
+      assert_equal 'C', result[0][:status]
+      assert_equal 'src.H', result[0][:old_path]
+      assert_equal 'dst.H', result[0][:path]
+    end
+  end
+
+  def test_changed_files_parses_added
+    def_mock_run(["", "A\tnew.H\n"]) do
+      result = changed_files('main')
+      assert_equal 1, result.size
+      assert_equal 'A', result[0][:status]
+      assert_equal 'new.H', result[0][:path]
+    end
+  end
+
+  def test_changed_files_parses_multiple_entries
+    git_output = "A\tadded.H\nM\tmodified.cc\nR090\told.H\tnew.H\nC100\tsrc.cc\tdst.cc\n"
+    def_mock_run(["", git_output]) do
+      result = changed_files('main')
+      assert_equal 4, result.size
+      assert_equal 'new.H',    result[2][:path]
+      assert_equal 'old.H',    result[2][:old_path]
+      assert_equal 'dst.cc',   result[3][:path]
+      assert_equal 'src.cc',   result[3][:old_path]
+    end
+  end
+
   private
+
+  def def_mock_run(results)
+    call_count = 0
+    old_method = method(:run!)
+    Object.send(:define_method, :run!) do |*_args|
+      results[call_count].tap { call_count += 1 }
+    end
+    yield
+  ensure
+    Object.send(:define_method, :run!, old_method)
+  end
 
   def def_mock_git_show(mapping)
     old_method = method(:git_show_optional)
