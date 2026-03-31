@@ -175,7 +175,7 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
 
   // Priority queue: (distance, node)
   using PQ_Entry = std::pair<Flow_Type, Node *>;
-  DynBinHeap<PQ_Entry, std::greater<PQ_Entry>> pq;
+  DynBinHeap<PQ_Entry, std::less<PQ_Entry>> pq;
 
   pq.insert({0, source});
 
