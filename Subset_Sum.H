@@ -299,8 +299,9 @@ template <std::integral T>
  *  @param[in] target  Target sum to achieve.
  *  @return A Subset_Sum_Result with the existence flag and selected indices.
  *
- *  @throws ah_out_of_range_error if the number of elements exceeds 64
- *          (limited by 64-bit mask representation).
+ *  @throws ah_out_of_range_error if either half of the input would contain
+ *          64 or more elements (limited by 64-bit mask representation),
+ *          which effectively restricts the total size to at most 127 elements.
  *
  *  @note **Complexity**: Time O(n * 2^(n/2)), Space O(2^(n/2)).
  *  @note Recommended for n up to ~40.

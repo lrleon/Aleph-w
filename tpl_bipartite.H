@@ -99,6 +99,9 @@ void compute_bipartite(const GT &g, DynDlist<typename GT::Node *> &l, DynDlist<t
   g.reset_nodes();  // initialize counters to White
   g.reset_arcs();
 
+  if (g.get_num_nodes() == 0)
+    return;
+
   DynDlist<typename GT::Node *> red, blue;
   typename GT::Node *p = g.get_first_node();
   color<GT>(p) = Bp_Red;
