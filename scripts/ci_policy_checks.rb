@@ -226,8 +226,16 @@ def english_documentation?(path)
   !has_spanish
 end
 
+def run_regression_tests
+  puts '[info] running regression tests...'
+  test_script = File.join(File.dirname(__FILE__), 'test_ci_policy_checks.rb')
+  system('ruby', test_script) || raise('Regression tests failed')
+end
+
 
 def main
+  run_regression_tests if github_event_name == 'pull_request'
+
   if github_event_name != 'pull_request'
     puts '[skip] not a pull_request event'
     return 0
@@ -270,4 +278,6 @@ def main
 end
 
 
-exit(main)
+if __FILE__ == $0
+  exit(main)
+end
