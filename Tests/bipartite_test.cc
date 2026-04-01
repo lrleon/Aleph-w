@@ -266,21 +266,7 @@ bool verify_matching(const Graph & g,
 // Basic Bipartite Detection Tests
 // ============================================================================
 
-// KNOWN BUG: Empty graph is not handled - throws range_error
-// TODO: Fix tpl_bipartite.H to handle empty graphs gracefully
-TEST(Bipartite, DISABLED_EmptyGraph)
-{
-  Graph g;
-  DynDlist<Graph::Node *> l, r;
-
-  // Empty graph should be trivially bipartite
-  // Note: Current implementation throws on empty graph - this tests the fix
-  EXPECT_NO_THROW(compute_bipartite<Graph>(g, l, r));
-  EXPECT_TRUE(l.is_empty());
-  EXPECT_TRUE(r.is_empty());
-}
-
-TEST(Bipartite, EmptyGraphThrowsRangeError)
+TEST(Bipartite, EmptyGraphReturnsEmpty)
 {
   Graph g;
   DynDlist<Graph::Node *> l, r;
@@ -540,12 +526,13 @@ TEST(ComputeBipartiteClass, ThrowsOnNonBipartite)
 // ============================================================================
 // Maximum Matching Tests
 // ============================================================================
-TEST(MaximumMatching, EmptyGraphThrowsRangeError)
+TEST(MaximumMatching, EmptyGraphReturnsEmpty)
 {
   Graph g;
 
   DynDlist<Graph::Arc *> matching;
 
+  // Empty graph: should not throw and matching must remain empty
   EXPECT_NO_THROW(
     compute_maximum_cardinality_bipartite_matching<Graph>(g, matching));
   EXPECT_TRUE(matching.is_empty());

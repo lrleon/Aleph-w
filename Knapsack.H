@@ -218,6 +218,7 @@ template <typename V, std::integral W>
     {
       const size_t wi = weights[i];
       const V vi = items[i].value;
+      // w != static_cast<size_t>(-1) guards against unsigned wrap-around when wi == 0
       for (size_t w = C; w >= wi and w != static_cast<size_t>(-1); --w)
         if (dp[w - wi] + vi > dp[w])
           dp(w) = dp[w - wi] + vi;
@@ -343,19 +344,30 @@ template <typename V, std::integral W>
           const size_t take = std::min(k, rem);
 
           bool value_ok;
-          if constexpr (std::numeric_limits<V>::is_specialized)
+          if constexpr (std::is_integral_v<V>)
+            {
+              const auto value_sz = static_cast<size_t>(items[i].value);
+              const auto maxV_sz = static_cast<size_t>(std::numeric_limits<V>::max());
+              value_ok = (value_sz == 0 or take <= maxV_sz / value_sz);
+            }
+          else if constexpr (std::numeric_limits<V>::is_specialized)
             {
               const V maxV = std::numeric_limits<V>::max();
-              value_ok = (items[i].value == V{0} or
-                          static_cast<V>(take) <= maxV / items[i].value);
+              value_ok = (items[i].value == V{0} or static_cast<V>(take) <= maxV / items[i].value);
             }
           else
             value_ok = true;
 
           if ((wi == 0 or take <= C / wi) and value_ok)
             {
-              expanded.append(Knapsack_Item<W, V>{static_cast<W>(wi * take),
-                                                  static_cast<V>(take) * items[i].value});
+              const auto val = [&]() -> V
+              {
+                if constexpr (std::is_integral_v<V>)
+                  return static_cast<V>(take * static_cast<size_t>(items[i].value));
+                else
+                  return static_cast<V>(take) * items[i].value;
+              }();
+              expanded.append(Knapsack_Item<W, V>{static_cast<W>(wi * take), val});
               origin.append(i);
               multiplier.append(take);
             }

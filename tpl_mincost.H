@@ -129,10 +129,8 @@ inline SSP_Node_Info<typename Net::Flow_Type> &ssp_info(typename Net::Node *p) n
 template <class Net>
 typename Net::Flow_Type reduced_cost(const Net &net,
                                      typename Net::Arc *arc,
-                                     typename Net::Node *from,
                                      bool forward)
 {
-  (void) from;
   using Flow_Type = typename Net::Flow_Type;
 
   auto src = net.get_src_node(arc);
@@ -200,7 +198,7 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
             continue;
 
           // Compute reduced cost
-          Flow_Type rc = reduced_cost<Net>(net, arc, u, forward);
+          Flow_Type rc = reduced_cost<Net>(net, arc, forward);
 
           // Relaxation
           Flow_Type new_dist = ssp_info<Net>(u).distance + rc;
@@ -322,7 +320,7 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
                 }
             }
         }
-      if (!changed)
+      if (not changed)
         break;
     }
 
@@ -645,9 +643,11 @@ AssignmentResult<Cost_Type> solve_assignment(const std::vector<std::vector<Cost_
 
   // Create task nodes
   std::vector<Node *> tasks(n);
+  DynMapTree<Node *, size_t> taskIndex;  // Reverse lookup: task node -> index
   for (size_t j = 0; j < n; ++j)
     {
       tasks[j] = net.insert_node();
+      taskIndex.insert(tasks[j], j);
       net.insert_arc(tasks[j], sink, Cost_Type{1}, Cost_Type{0});
     }
 
@@ -670,15 +670,16 @@ AssignmentResult<Cost_Type> solve_assignment(const std::vector<std::vector<Cost_
       for (typename Net::Node_Arc_Iterator it(workers[i]); it.has_curr(); it.next_ne())
         {
           auto arc = it.get_curr();
+          if (arc->flow <= 0)
+            continue;
           auto tgt = net.get_tgt_node(arc);
 
-          // Find which task this is
-          for (size_t j = 0; j < n; ++j)
-            if (tasks[j] == tgt and arc->flow > 0)
-              {
-                result.assignments.append(std::make_pair(i, j));
-                break;
-              }
+          // O(log n) lookup instead of O(n) linear search
+          if (taskIndex.contains(tgt))
+            {
+              size_t j = taskIndex.find(tgt);
+              result.assignments.append(std::make_pair(i, j));
+            }
         }
 
   return result;
