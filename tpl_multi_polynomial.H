@@ -1945,7 +1945,7 @@ public:
 
   /** @brief Partial derivative with respect to a variable.
    *
-   *  Computes@f$\frac{\partial^n p}{\partial x_{\text{var}}^n}@f$
+   *  Computes \f$\frac{\partial^n p}{\partial x_{\text{var}}^n}\f$
    *  using the falling factorial rule.
    *
    *  @param[in] var  Variable index (0-based).
@@ -1954,10 +1954,12 @@ public:
    *
    *  @throws std::domain_error if @p var >= num_vars().
    *
-   *  @note **Algorithm**: For each term@f$c \cdot x^\alpha@f$,
-   *        replace with@f$c \cdot \alpha_{\text{var}}^{\underline{n}} \cdot x^{\alpha - n \cdot
-   * e_{\text{var}}}@f$where@f$\alpha^{\underline{n}}@f$is the falling factorial.
-   *  @note **Complexity**:@f$O(k \log k)@f$where k = num_terms.
+   *  \par Algorithm:
+   *  For each term \f$c \cdot x^\alpha\f$, replace with
+   *  \f[ c \cdot \alpha_{\text{var}}^{\underline{n}} \cdot x^{\alpha - n \cdot e_{\text{var}}} \f]
+   *  where \f$\alpha^{\underline{n}}\f$ is the falling factorial.
+   *  \par Complexity:
+   *  \f$O(k \log k)\f$ where k = num_terms.
    */
   [[nodiscard]] Gen_MultiPolynomial partial(size_t var, size_t n = 1) const
   {

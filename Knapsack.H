@@ -116,6 +116,16 @@ template <std::integral W, typename V>
     weights(i) = to_size_checked(items[i].weight, fn_name, "item weight");
   return weights;
 }
+// Safe DP addition: clamps to numeric_limits<V>::max() for integral V to
+// prevent signed overflow UB and unsigned wrap-around.
+template <typename V>
+[[nodiscard]] inline V dp_add(V a, V b) noexcept
+{
+  if constexpr (std::is_integral_v<V>)
+    if (b > V{} and a > std::numeric_limits<V>::max() - b)
+      return std::numeric_limits<V>::max();
+  return a + b;
+}
 }  // namespace knapsack_detail
 
 /** @brief Solve the 0/1 Knapsack problem with item reconstruction.
@@ -160,10 +170,15 @@ template <typename V, std::integral W>
       const size_t wi = weights[i - 1];
       const V vi = items[i - 1].value;
       for (size_t w = 0; w <= C; ++w)
-        if (wi <= w and dp[i - 1][w - wi] + vi > dp[i - 1][w])
-          dp[i][w] = dp[i - 1][w - wi] + vi;
-        else
+        {
           dp[i][w] = dp[i - 1][w];
+          if (wi <= w)
+            {
+              const V candidate = knapsack_detail::dp_add(dp[i - 1][w - wi], vi);
+              if (candidate > dp[i - 1][w])
+                dp[i][w] = candidate;
+            }
+        }
     }
 
   // reconstruct
@@ -220,8 +235,11 @@ template <typename V, std::integral W>
       const V vi = items[i].value;
       // w != static_cast<size_t>(-1) guards against unsigned wrap-around when wi == 0
       for (size_t w = C; w >= wi and w != static_cast<size_t>(-1); --w)
-        if (dp[w - wi] + vi > dp[w])
-          dp(w) = dp[w - wi] + vi;
+        {
+          const V candidate = knapsack_detail::dp_add(dp[w - wi], vi);
+          if (candidate > dp[w])
+            dp(w) = candidate;
+        }
     }
 
   return dp[C];
@@ -274,10 +292,14 @@ template <typename V, std::integral W>
 
   for (size_t w = 1; w <= C; ++w)
     for (size_t i = 0; i < n; ++i)
-      if (const size_t wi = weights[i]; wi <= w and dp[w - wi] + items[i].value > dp[w])
+      if (const size_t wi = weights[i]; wi <= w)
         {
-          dp(w) = dp[w - wi] + items[i].value;
-          choice(w) = i;
+          const V candidate = knapsack_detail::dp_add(dp[w - wi], items[i].value);
+          if (candidate > dp[w])
+            {
+              dp(w) = candidate;
+              choice(w) = i;
+            }
         }
 
   // reconstruct

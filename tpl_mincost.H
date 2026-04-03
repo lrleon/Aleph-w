@@ -527,6 +527,14 @@ TransshipmentResult<typename Net::Flow_Type> solve_transshipment(Net &net, GetDe
   Node *super_source = net.insert_node();
   Node *super_sink = net.insert_node();
 
+  // RAII guard: removes super nodes (and all incident arcs) on every exit path
+  struct SuperNodeGuard {
+    Net &net_;
+    Node *src_;
+    Node *snk_;
+    ~SuperNodeGuard() { net_.remove_node(src_); net_.remove_node(snk_); }
+  } guard{net, super_source, super_sink};
+
   // Connect super-source to supply nodes
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
@@ -549,10 +557,6 @@ TransshipmentResult<typename Net::Flow_Type> solve_transshipment(Net &net, GetDe
   result.total_flow = flow;
   result.total_cost = cost;
   result.feasible = (flow == total_supply);
-
-  // Remove super nodes and their arcs from the caller's graph
-  net.remove_node(super_source);
-  net.remove_node(super_sink);
 
   return result;
 }

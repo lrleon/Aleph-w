@@ -2655,8 +2655,9 @@ public:
  *        - Self-loops are ignored.
  *        - Parallel arcs are collapsed into a single edge.
  *
- *  @par **Complexity**: Time@f$O(V + E)@f$for the core test.
- *        Advanced outputs may increase this (see @ref Planarity_Test_Options).
+ *  \par Complexity:
+ *  Time \f$O(V + E)\f$ for the core test.
+ *  Advanced outputs may increase this (see \ref Planarity_Test_Options).
  *
  *  @ingroup Graphs
  */

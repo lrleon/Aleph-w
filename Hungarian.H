@@ -124,8 +124,8 @@ struct Hungarian_Result
  *  @tparam Cost_Type Numeric type for costs. Must be a signed type or
  *                    floating-point to support internal reductions.
  *
- *  @par **Complexity**: Time@f$O(n^3)@f$, Space@f$O(n^2)@f$,
- *        where@f$n = \max(rows, cols)@f$.
+ *  \par Complexity:
+ *  Time \f$O(n^3)\f$, Space \f$O(n^2)\f$, where \f$n = \max(rows, cols)\f$.
  */
 template <typename Cost_Type = double>
 class Hungarian_Assignment

@@ -35,7 +35,7 @@
  *  Provides `Gen_Polynomial<Coefficient>`, a sparse univariate polynomial
  *  backed by `DynMapTree<size_t, Coefficient>`.  Only non-zero coefficients
  *  are stored, making operations efficient on high-degree sparse polynomials
- *  such as@f$x^{1000} + 1@f$.
+ *  such as @f$x^{1000} + 1@f$.
  *
  *  The coefficient type must satisfy:
  *  - Default-constructible (yielding the additive identity, zero).
@@ -104,8 +104,8 @@ template <typename Int>
   if constexpr (std::is_signed_v<Int>)
     {
       using Unsigned = std::make_unsigned_t<Int>;
-      const Unsigned magnitude = value < Int{} ? Unsigned{} - static_cast<Unsigned>(value)
-                                               : static_cast<Unsigned>(value);
+      const Unsigned magnitude
+        = value < Int{} ? Unsigned{} - static_cast<Unsigned>(value) : static_cast<Unsigned>(value);
       return static_cast<uint64_t>(magnitude);
     }
   else
@@ -2120,8 +2120,8 @@ public:
           {
             auto &p = it.get_curr();
             ah_domain_error_if(not coeff_is_zero(p.second % d))
-              << "_integer_exact_quot: inexact constant division for coefficient "
-              << p.second << " and divisor " << d;
+              << "_integer_exact_quot: inexact constant division for coefficient " << p.second
+              << " and divisor " << d;
             r.coeffs.insert(p.first, p.second / d);
           }
         return r;
@@ -2620,8 +2620,7 @@ public:
     requires std::is_integral_v<Coefficient>
   {
     ah_domain_error_if(p <= Coefficient(1)) << "hensel_lift: modulus p must be > 1, got " << p;
-    ah_domain_error_if(levels == 0)
-      << "hensel_lift: levels must be >= 1, got " << levels;
+    ah_domain_error_if(levels == 0) << "hensel_lift: levels must be >= 1, got " << levels;
     ah_domain_error_if(levels > 30)
       << "hensel_lift: levels must be <= 30 to avoid overflow, got " << levels;
 
@@ -2642,8 +2641,7 @@ public:
       target_u64 = checked_mul_u64(target_u64, p_u64, "target_u64");
 
     ah_domain_error_if(target_u64 > static_cast<uint64_t>(std::numeric_limits<Coefficient>::max()))
-      << "hensel_lift: target modulus " << target_u64
-      << " does not fit in coefficient type";
+      << "hensel_lift: target modulus " << target_u64 << " does not fit in coefficient type";
     const Coefficient p_power = static_cast<Coefficient>(target_u64);
     Gen_Polynomial derivative = f.derivative();
 
