@@ -63,6 +63,7 @@
 #ifndef HUNGARIAN_H
 #define HUNGARIAN_H
 
+#include <cmath>
 #include <limits>
 #include <type_traits>
 #include <utility>
@@ -266,6 +267,12 @@ public:
     ah_invalid_argument_if(orig_rows_ == 0 or orig_cols_ == 0)
       << "Hungarian_Assignment: cost matrix must not be empty";
 
+    if constexpr (std::is_floating_point_v<Cost_Type>)
+      for (size_t i = 0; i < orig_rows_; ++i)
+        for (size_t j = 0; j < orig_cols_; ++j)
+          ah_invalid_argument_if(not std::isfinite(cost.read(i, j)))
+            << "Hungarian_Assignment: cost[" << i << "][" << j << "] is not finite";
+
     n_ = orig_rows_ > orig_cols_ ? orig_rows_ : orig_cols_;
 
     // Build padded square matrix (zeros for padding)
@@ -317,7 +324,12 @@ public:
           << "Hungarian_Assignment: all rows must have the same length";
         size_t j = 0;
         for (const auto &val : row)
-          padded(i, j++) = val;
+          {
+            if constexpr (std::is_floating_point_v<Cost_Type>)
+              ah_invalid_argument_if(not std::isfinite(val))
+                << "Hungarian_Assignment: non-finite cost value at row " << i;
+            padded(i, j++) = val;
+          }
         ++i;
       }
 
@@ -381,24 +393,24 @@ public:
 
   /** @brief Move out the row-to-column assignment array.
    *
-   *  Efficiently transfers ownership of the internal array to the caller.
-   *  The object should not be used after calling this method.
+   *  Only callable on rvalue `Hungarian_Assignment` objects, ensuring the
+   *  solver is about to be destroyed and ownership transfers safely.
    *
-   *  @return Rvalue reference to the row-to-column array.
+   *  @return Row-to-column array by move.
    */
-  [[nodiscard]] Array<long> &&extract_row_assignments() noexcept
+  [[nodiscard]] Array<long> extract_row_assignments() && noexcept
   {
     return std::move(row_to_col_);
   }
 
   /** @brief Move out the column-to-row assignment array.
    *
-   *  Efficiently transfers ownership of the internal array to the caller.
-   *  The object should not be used after calling this method.
+   *  Only callable on rvalue `Hungarian_Assignment` objects, ensuring the
+   *  solver is about to be destroyed and ownership transfers safely.
    *
-   *  @return Rvalue reference to the column-to-row array.
+   *  @return Column-to-row array by move.
    */
-  [[nodiscard]] Array<long> &&extract_col_assignments() noexcept
+  [[nodiscard]] Array<long> extract_col_assignments() && noexcept
   {
     return std::move(col_to_row_);
   }
@@ -455,11 +467,12 @@ template <typename Cost_Type>
 
   Hungarian_Assignment<Cost_Type> ha(cost);
   Hungarian_Result<Cost_Type> result;
+  // Read scalar fields before moving from ha.
   result.total_cost = ha.get_total_cost();
-  result.row_to_col = ha.extract_row_assignments();
-  result.col_to_row = ha.extract_col_assignments();
-  result.orig_rows = ha.rows();
-  result.orig_cols = ha.cols();
+  result.orig_rows  = ha.rows();
+  result.orig_cols  = ha.cols();
+  result.row_to_col = std::move(ha).extract_row_assignments();
+  result.col_to_row = std::move(ha).extract_col_assignments();
   return result;
 }
 

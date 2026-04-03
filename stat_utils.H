@@ -904,17 +904,17 @@ void compute_stats(const Container &data,
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
-  std::vector<T> sorted(std::begin(data), std::end(data));
-  if (sorted.empty())
+  Array<T> sorted(std::begin(data), std::end(data));
+  if (sorted.is_empty())
     {
       avg = var = med = _min = _max = T();
       return;
     }
 
-  std::sort(sorted.begin(), sorted.end());
+  in_place_sort(sorted);
 
-  _min = sorted.front();
-  _max = sorted.back();
+  _min = sorted[0];
+  _max = sorted[sorted.size() - 1];
 
   const size_t n = sorted.size();
   const size_t mid = n / 2;
@@ -927,8 +927,9 @@ void compute_stats(const Container &data,
   T m = T();
   T m2 = T();
   size_t k = 0;
-  for (const auto &x : sorted)
+  for (size_t si = 0; si < n; ++si)
     {
+      const auto &x = sorted[si];
       ++k;
       T delta = x - m;
       m += delta / static_cast<T>(k);

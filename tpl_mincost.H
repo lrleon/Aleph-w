@@ -198,8 +198,14 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
           // Compute reduced cost
           Flow_Type rc = reduced_cost<Net>(net, arc, forward);
 
-          // Relaxation
-          Flow_Type new_dist = ssp_info<Net>(u).distance + rc;
+          // Relaxation (saturate to avoid integer overflow)
+          const Flow_Type INF_D = std::numeric_limits<Flow_Type>::max();
+          const Flow_Type ud = ssp_info<Net>(u).distance;
+          Flow_Type new_dist;
+          if constexpr (std::is_integral_v<Flow_Type>)
+            new_dist = (rc > 0 and ud > INF_D - rc) ? INF_D : ud + rc;
+          else
+            new_dist = ud + rc;
           if (new_dist < ssp_info<Net>(v).distance)
             {
               ssp_info<Net>(v).distance = new_dist;
@@ -275,8 +281,25 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
 {
   using Flow_Type = typename Net::Flow_Type;
 
-  const Flow_Type INF = std::numeric_limits<Flow_Type>::max();
+  const Flow_Type INF    = std::numeric_limits<Flow_Type>::max();
+  const Flow_Type LOWEST = std::numeric_limits<Flow_Type>::lowest();
   const size_t n = net.vsize();
+
+  // Overflow-safe addition/subtraction clamped to [LOWEST, INF].
+  auto sat_add = [INF, LOWEST](Flow_Type a, Flow_Type b) noexcept -> Flow_Type {
+    if constexpr (std::is_integral_v<Flow_Type>) {
+      if (b > 0 and a > INF - b)    return INF;
+      if (b < 0 and a < LOWEST - b) return LOWEST;
+    }
+    return a + b;
+  };
+  auto sat_sub = [INF, LOWEST](Flow_Type a, Flow_Type b) noexcept -> Flow_Type {
+    if constexpr (std::is_integral_v<Flow_Type>) {
+      if (b < 0 and a > INF + b)    return INF;
+      if (b > 0 and a < LOWEST + b) return LOWEST;
+    }
+    return a - b;
+  };
 
   // Initialize distances
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
@@ -299,7 +322,7 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
               Flow_Type d = ssp_info<Net>(src).potential;
               if (d < INF)
                 {
-                  Flow_Type new_d = d + arc->cost;
+                  Flow_Type new_d = sat_add(d, arc->cost);
                   if (new_d < ssp_info<Net>(tgt).potential)
                     {
                       ssp_info<Net>(tgt).potential = new_d;
@@ -314,7 +337,7 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
               Flow_Type d = ssp_info<Net>(tgt).potential;
               if (d < INF)
                 {
-                  Flow_Type new_d = d - arc->cost;  // negative cost for backward
+                  Flow_Type new_d = sat_sub(d, arc->cost);  // backward: cost is negated
                   if (new_d < ssp_info<Net>(src).potential)
                     {
                       ssp_info<Net>(src).potential = new_d;
@@ -449,10 +472,23 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
       // This ensures that for any residual arc (u→v) with u unreachable and v
       // reachable, the reduced cost remains non-negative: the shift by
       // max_distance dominates the largest finite d(v) seen in Dijkstra.
+      // Saturate to avoid integer overflow when both terms are large.
+      Flow_Type unreachable_potential;
+      if constexpr (std::is_integral_v<Flow_Type>)
+        {
+          const Flow_Type INF_P = std::numeric_limits<Flow_Type>::max();
+          unreachable_potential =
+            (max_distance > 0 and max_potential > INF_P - max_distance)
+            ? INF_P
+            : max_potential + max_distance;
+        }
+      else
+        unreachable_potential = max_potential + max_distance;
+
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
         if (auto p = it.get_curr();
             ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
-          ssp_info<Net>(p).potential = max_potential + max_distance;
+          ssp_info<Net>(p).potential = unreachable_potential;
     }
 
   return {total_flow, total_cost};
@@ -655,6 +691,9 @@ struct AssignmentResult
  *  @par Complexity
  *  O(n³) using successive shortest paths.
  *
+ *  @throws std::invalid_argument if @p costs is not a square matrix
+ *          (any row has a different size than costs.size()).
+ *
  *  @par Example
  *  ```cpp
  *  std::vector<std::vector<double>> costs = {
@@ -777,6 +816,9 @@ struct TransportationResult
  *  @param demands Demand at each destination.
  *  @param costs Cost matrix (costs[i][j] = unit cost from i to j).
  *  @return TransportationResult with optimal shipments.
+ *
+ *  @throws std::invalid_argument if costs.size() != supplies.size(), any
+ *          costs[i].size() != demands.size(), or any supply/demand is negative.
  *
  *  @par Example
  *  ```cpp

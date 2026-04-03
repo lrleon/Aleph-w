@@ -330,8 +330,8 @@ template <typename V, std::integral W>
  *  @return A Knapsack_Result containing the optimal value and original indices
  *          of selected items.
  *
- *  @throws ah_domain_error if capacity or any item weight is negative.
- *  @throws ah_invalid_argument_if if items.size() != counts.size().
+ *  @throws std::domain_error if capacity or any item weight is negative.
+ *  @throws std::invalid_argument if items.size() != counts.size().
  *
  *  @note **Complexity**: Time O(capacity * sum(log(counts[i]))), Space O(capacity * sum(log(counts[i]))).
  */
