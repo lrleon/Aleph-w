@@ -372,10 +372,12 @@ template <typename V, std::integral W>
                 value_ok = true;
               else if (items[i].value > V{0})
                 {
-                  // Positive: check take * value <= V::max()
-                  const auto value_sz = static_cast<size_t>(items[i].value);
-                  const auto maxV_sz  = static_cast<size_t>(std::numeric_limits<V>::max());
-                  value_ok = (take <= maxV_sz / value_sz);
+                  // Positive: check take * value <= V::max() using UV to avoid
+                  // truncation if V is wider than size_t.
+                  using UV = std::make_unsigned_t<V>;
+                  const UV value_uv = static_cast<UV>(items[i].value);
+                  const UV maxV_uv  = static_cast<UV>(std::numeric_limits<V>::max());
+                  value_ok = (static_cast<UV>(take) <= maxV_uv / value_uv);
                 }
               else
                 {

@@ -113,7 +113,7 @@ namespace Aleph
  *  @ingroup Utilities
 
      */
-    int operator,(const std::ostream &s)
+    [[noreturn]] int operator,(const std::ostream &s)
     {
       if (const auto * oss = dynamic_cast<const std::ostringstream *>(&s))
         throw E(oss->str());
@@ -122,7 +122,6 @@ namespace Aleph
         throw E(ss->str());
 
       throw E("Unknown stream type in Aleph::ExceptionBuilder");
-      return 0;
     }
   };
 

@@ -235,10 +235,15 @@ bool ssp_shortest_path(Net &net, typename Net::Node *source, typename Net::Node 
  *     c. Update potentials: π(v) += d(v)
  *
  *  @tparam Net Network type (must be Net_Cost_Graph or compatible).
- *  @param net Flow network with costs.
+ *  @param[in,out] net Flow network with costs (flow values are modified in place).
  *  @return Pair of (max_flow, min_cost).
  *
- *  @throw domain_error If network is not single source/sink.
+ *  @throws std::domain_error If the network does not have a single source and
+ *          single sink, or if a reachable negative-cost cycle is detected in
+ *          the initial residual graph (via ssp_init_potentials).
+ *
+ *  @note **Exception safety:** strong guarantee — if the function throws,
+ *        the network's flow values are not modified.
  *
  *  @par Example
  *  ```cpp
@@ -372,6 +377,18 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
     NODE_COOKIE(it.get_curr()) = &node_info[idx];
 
+  // RAII: clear node cookies on every exit path so callers never see
+  // dangling pointers into the local node_info vector.
+  struct CookieClearer
+  {
+    Net &net_;
+    ~CookieClearer()
+    {
+      for (Node_Iterator<Net> it(net_); it.has_curr(); it.next_ne())
+        NODE_COOKIE(it.get_curr()) = nullptr;
+    }
+  } cookie_clearer{net};
+
   // Initialize potentials using Bellman-Ford to handle possible negative costs
   ah_domain_error_if(not ssp_init_potentials(net, source))
     << "successive_shortest_paths: negative-cost cycle detected in residual graph";
@@ -416,21 +433,26 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
 
       total_flow += path_flow;
 
-      // Update potentials for reachable nodes
+      // Update potentials for reachable nodes; track max updated potential
+      // and max finite distance for the unreachable-node shift below.
       Flow_Type max_potential = std::numeric_limits<Flow_Type>::lowest();
+      Flow_Type max_distance  = Flow_Type{0};
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
         if (auto p = it.get_curr(); ssp_info<Net>(p).distance < std::numeric_limits<Flow_Type>::max())
           {
+            max_distance  = std::max(max_distance, ssp_info<Net>(p).distance);
             ssp_info<Net>(p).potential += ssp_info<Net>(p).distance;
             max_potential = std::max(max_potential, ssp_info<Net>(p).potential);
           }
 
-      // For unreachable nodes, set potential to max to avoid negative reduced costs
-      // when backward arcs to them become available
+      // Unreachable nodes are assigned potential = max_potential + max_distance.
+      // This ensures that for any residual arc (u→v) with u unreachable and v
+      // reachable, the reduced cost remains non-negative: the shift by
+      // max_distance dominates the largest finite d(v) seen in Dijkstra.
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
         if (auto p = it.get_curr();
             ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
-          ssp_info<Net>(p).potential = max_potential;
+          ssp_info<Net>(p).potential = max_potential + max_distance;
     }
 
   return {total_flow, total_cost};
@@ -545,6 +567,13 @@ TransshipmentResult<typename Net::Flow_Type> solve_transshipment(Net &net, GetDe
       return result;
     }
 
+  // Zero total flow: trivially feasible with no flow needed.
+  if (total_supply == Flow_Type{0})
+    {
+      result.feasible = true;
+      return result;
+    }
+
   // RAII guard: removes super nodes (and all incident arcs) on every exit path.
   // src_/snk_ are set incrementally so a throw during the second insert_node()
   // still cleans up the first node.
@@ -656,13 +685,10 @@ AssignmentResult<Cost_Type> solve_assignment(const std::vector<std::vector<Cost_
       return result;
     }
 
-  // Verify square matrix
+  // Verify square matrix: a non-square costs matrix is malformed input.
   for (const auto &row : costs)
-    if (row.size() != n)
-      {
-        result.feasible = false;
-        return result;
-      }
+    ah_invalid_argument_if(row.size() != n)
+      << "solve_assignment: costs matrix is not square (" << n << " x " << row.size() << ")";
 
   Net net;
 
@@ -798,14 +824,8 @@ TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type
     ah_invalid_argument_if(demands[j] < Cost_Type{0})
       << "solve_transportation: demands[" << j << "] is negative";
 
-  // Trivially feasible only when both sides are empty
-  if (m == 0 and n == 0)
-    {
-      result.feasible = true;
-      return result;
-    }
-
-  // Check supply-demand balance
+  // Compute totals first — needed both for the early-exit guard and the
+  // balance check that follows.
   Cost_Type total_supply = Cost_Type{0};
   Cost_Type total_demand = Cost_Type{0};
   for (auto s : supplies)
@@ -813,6 +833,15 @@ TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type
   for (auto d : demands)
     total_demand += d;
 
+  // If either side is empty no graph can be built.  Return immediately based
+  // on whether the totals are balanced (feasible iff both are zero).
+  if (m == 0 or n == 0)
+    {
+      result.feasible = (total_supply == total_demand);
+      return result;
+    }
+
+  // Check supply-demand balance for the non-trivial case.
   if (total_supply != total_demand)
     {
       result.feasible = false;

@@ -101,7 +101,6 @@
 #include <limits>
 #include <algorithm>
 #include <vector>
-#include <map>
 #include <stdexcept>
 #include <ah-errors.H>
 #include <tpl_sort_utils.H>

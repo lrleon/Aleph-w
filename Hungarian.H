@@ -379,6 +379,30 @@ public:
     return col_to_row_;
   }
 
+  /** @brief Move out the row-to-column assignment array.
+   *
+   *  Efficiently transfers ownership of the internal array to the caller.
+   *  The object should not be used after calling this method.
+   *
+   *  @return Rvalue reference to the row-to-column array.
+   */
+  [[nodiscard]] Array<long> &&extract_row_assignments() noexcept
+  {
+    return std::move(row_to_col_);
+  }
+
+  /** @brief Move out the column-to-row assignment array.
+   *
+   *  Efficiently transfers ownership of the internal array to the caller.
+   *  The object should not be used after calling this method.
+   *
+   *  @return Rvalue reference to the column-to-row array.
+   */
+  [[nodiscard]] Array<long> &&extract_col_assignments() noexcept
+  {
+    return std::move(col_to_row_);
+  }
+
   /** @brief Get the padded square dimension.
    *  @return max(original_rows, original_cols).
    */
@@ -432,8 +456,8 @@ template <typename Cost_Type>
   Hungarian_Assignment<Cost_Type> ha(cost);
   Hungarian_Result<Cost_Type> result;
   result.total_cost = ha.get_total_cost();
-  result.row_to_col = ha.get_row_assignments();
-  result.col_to_row = ha.get_col_assignments();
+  result.row_to_col = ha.extract_row_assignments();
+  result.col_to_row = ha.extract_col_assignments();
   result.orig_rows = ha.rows();
   result.orig_cols = ha.cols();
   return result;
