@@ -259,7 +259,7 @@ public:
    *  @param[in] cost The m x n cost matrix.
    *  @throws std::invalid_argument if the matrix is empty.
    */
-  Hungarian_Assignment(const DynMatrix<Cost_Type> &cost)
+  explicit Hungarian_Assignment(const DynMatrix<Cost_Type> &cost)
   {
     orig_rows_ = cost.rows();
     orig_cols_ = cost.cols();
@@ -303,6 +303,8 @@ public:
 
     orig_rows_ = rows.size();
     orig_cols_ = rows.begin()->size();
+    ah_invalid_argument_if(orig_cols_ == 0)
+      << "Hungarian_Assignment: cost matrix must not have zero columns";
     n_ = orig_rows_ > orig_cols_ ? orig_rows_ : orig_cols_;
 
     DynMatrix<Cost_Type> padded(n_, n_, Cost_Type{0});
@@ -477,7 +479,7 @@ template <typename Cost_Type>
   for (size_t i = 0; i < rows; ++i)
     for (size_t j = 0; j < cols; ++j)
       {
-        if constexpr (std::is_signed_v<Promoted>)
+        if constexpr (std::is_integral_v<Promoted> and std::is_signed_v<Promoted>)
           {
             auto v = static_cast<Promoted>(cost.read(i, j));
             ah_overflow_error_if(v == std::numeric_limits<Promoted>::min())

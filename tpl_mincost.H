@@ -127,9 +127,7 @@ inline SSP_Node_Info<typename Net::Flow_Type> &ssp_info(typename Net::Node *p) n
  *  @ingroup Networks
  */
 template <class Net>
-typename Net::Flow_Type reduced_cost(const Net &net,
-                                     typename Net::Arc *arc,
-                                     bool forward)
+typename Net::Flow_Type reduced_cost(const Net &net, typename Net::Arc *arc, bool forward)
 {
   using Flow_Type = typename Net::Flow_Type;
 
@@ -324,12 +322,35 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
         break;
     }
 
+  // Negative-cycle detection: one extra relaxation pass.
+  // If any edge can still be relaxed, a negative cycle is reachable.
+  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+    {
+      auto arc = it.get_curr();
+      auto src = net.get_src_node(arc);
+      auto tgt = net.get_tgt_node(arc);
+
+      if (arc->cap > arc->flow)
+        {
+          Flow_Type d = ssp_info<Net>(src).potential;
+          if (d < INF and d + arc->cost < ssp_info<Net>(tgt).potential)
+            return false;
+        }
+
+      if (arc->flow > 0)
+        {
+          Flow_Type d = ssp_info<Net>(tgt).potential;
+          if (d < INF and d - arc->cost < ssp_info<Net>(src).potential)
+            return false;
+        }
+    }
+
   // Set unreachable nodes to 0 (they won't affect anything)
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     if (ssp_info<Net>(it.get_curr()).potential >= INF)
       ssp_info<Net>(it.get_curr()).potential = 0;
 
-  return true;  // No negative cycle check for simplicity
+  return true;
 }
 
 template <class Net>
@@ -352,7 +373,8 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
     NODE_COOKIE(it.get_curr()) = &node_info[idx];
 
   // Initialize potentials using Bellman-Ford to handle possible negative costs
-  ssp_init_potentials(net, source);
+  ah_domain_error_if(not ssp_init_potentials(net, source))
+    << "successive_shortest_paths: negative-cost cycle detected in residual graph";
 
   Flow_Type total_flow{0};
   Flow_Type total_cost{0};
@@ -523,17 +545,28 @@ TransshipmentResult<typename Net::Flow_Type> solve_transshipment(Net &net, GetDe
       return result;
     }
 
-  // Create super-source and super-sink
-  Node *super_source = net.insert_node();
-  Node *super_sink = net.insert_node();
-
-  // RAII guard: removes super nodes (and all incident arcs) on every exit path
-  struct SuperNodeGuard {
+  // RAII guard: removes super nodes (and all incident arcs) on every exit path.
+  // src_/snk_ are set incrementally so a throw during the second insert_node()
+  // still cleans up the first node.
+  struct SuperNodeGuard
+  {
     Net &net_;
-    Node *src_;
-    Node *snk_;
-    ~SuperNodeGuard() { net_.remove_node(src_); net_.remove_node(snk_); }
-  } guard{net, super_source, super_sink};
+    Node *src_{nullptr};
+    Node *snk_{nullptr};
+    ~SuperNodeGuard()
+    {
+      if (snk_)
+        net_.remove_node(snk_);
+      if (src_)
+        net_.remove_node(src_);
+    }
+  } guard{net};
+
+  // Create super-source and super-sink
+  guard.src_ = net.insert_node();
+  Node *super_source = guard.src_;
+  guard.snk_ = net.insert_node();
+  Node *super_sink = guard.snk_;
 
   // Connect super-source to supply nodes
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
@@ -749,7 +782,24 @@ TransportationResult<Cost_Type> solve_transportation(const std::vector<Cost_Type
   size_t m = supplies.size();  // sources
   size_t n = demands.size();   // destinations
 
-  if (m == 0 or n == 0)
+  // Validate costs matrix dimensions
+  ah_invalid_argument_if(costs.size() != m)
+    << "solve_transportation: costs has " << costs.size() << " rows but " << m << " supply points";
+  for (size_t i = 0; i < m; ++i)
+    ah_invalid_argument_if(costs[i].size() != n)
+      << "solve_transportation: costs[" << i << "] has " << costs[i].size() << " columns but " << n
+      << " demand points";
+
+  // Validate non-negative supplies and demands
+  for (size_t i = 0; i < m; ++i)
+    ah_invalid_argument_if(supplies[i] < Cost_Type{0})
+      << "solve_transportation: supplies[" << i << "] is negative";
+  for (size_t j = 0; j < n; ++j)
+    ah_invalid_argument_if(demands[j] < Cost_Type{0})
+      << "solve_transportation: demands[" << j << "] is negative";
+
+  // Trivially feasible only when both sides are empty
+  if (m == 0 and n == 0)
     {
       result.feasible = true;
       return result;
