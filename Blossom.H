@@ -40,15 +40,21 @@
  *  contracts them into single super-nodes to find augmenting paths that 
  *  would otherwise be hidden.
  *
- *  ## Problem solved
- *  Given an undirected graph@f$G=(V,E)@f$, find a matching@f$M@f$
- *  (a set of arcs with no shared endpoints) such that@f$|M|@f$is maximized.
+ *  ## Complexity
  *
- *  ## Highlights
- *  - Works on **general** (non-bipartite) undirected graphs.
- *  - Handles odd cycles through recursive blossom contraction and expansion.
- *  - Supports all Aleph-w graph representations through the generic interface.
- *  - Integrates with Aleph-w arc filters for selective matching.
+ *  | Algorithm | Time | Space |
+ *  |-----------|------|-------|
+ *  | Edmonds-Blossom | O(V^2 * E) | O(V) |
+ *
+ *  @par Example
+ *  @code
+ *  List_Graph<Node, Arc> g;
+ *  // ... add nodes and arcs ...
+ *
+ *  DynDlist<List_Graph<Node, Arc>::Arc*> matching;
+ *  size_t size = compute_maximum_cardinality_general_matching(g, matching);
+ *  // matching now contains the arcs of an optimal matching
+ *  @endcode
  *
  *  @example blossom_example.cc
  *

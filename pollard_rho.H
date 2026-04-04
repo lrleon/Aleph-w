@@ -37,6 +37,7 @@
  *  extraction to find all prime factors of a number.
  *
  *  @ingroup Algorithms
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef POLLARD_RHO_H

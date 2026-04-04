@@ -36,6 +36,7 @@
  *  backends.
  *
  *  @ingroup Algorithms
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef MODULAR_LINALG_H

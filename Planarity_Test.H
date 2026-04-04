@@ -81,6 +81,7 @@
  *  - Optional certificate extraction: O(M * (V + E)) LR invocations in practice
  *
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 #ifndef PLANARITY_TEST_H

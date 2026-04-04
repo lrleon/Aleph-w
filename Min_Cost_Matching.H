@@ -60,9 +60,21 @@
  *  - Time:@f$O(V^3)@f$
  *  - Space:@f$O(V + E)@f$
  *
+ *  @par Example
+ *  @code
+ *  using G = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+ *  G g;
+ *  // ... build a graph with edge costs ...
+ *  DynDlist<G::Arc*> matching;
+ *  auto res = blossom_minimum_cost_matching(g, matching);
+ *  
+ *  std::cout << "Matching cost: " << res.total_cost << "\n";
+ *  @endcode
+ *
  *  @see Blossom.H For maximum-cardinality matching in general graphs
  *  @see Blossom_Weighted.H For maximum-weight matching
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef MIN_COST_MATCHING_H

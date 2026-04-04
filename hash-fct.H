@@ -28,6 +28,17 @@
   SOFTWARE.
 */
 
+/** @file hash-fct.H
+ *  @brief Standard hash functions for Aleph types.
+ *
+ *  Provides a collection of hash functions for various types, including
+ *  pointers, pairs, strings, and numeric types, suitable for use with
+ *  Aleph's hash-based containers.
+ *
+ *  @ingroup Utilities
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef HASH_FCT_H
 # define HASH_FCT_H
 

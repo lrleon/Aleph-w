@@ -41,6 +41,25 @@
  *  - **Meet-in-the-middle (MITM)**: Efficient for larger target values but
  *    smaller sets (up to ~40 elements).
  *
+ *  ## Complexity
+ *
+ *  | Variant | Time | Space |
+ *  |---------|------|-------|
+ *  | DP (reconstruction) | O(n * target) | O(n * target) |
+ *  | Existence Check | O(n * target) | O(target) |
+ *  | Meet-in-the-Middle | O(n * 2^(n/2)) | O(2^(n/2)) |
+ *
+ *  @par Example
+ *  @code
+ *  Array<int> values = {3, 34, 4, 12, 5, 2};
+ *  int target = 9;
+ *
+ *  // Solve Subset Sum
+ *  auto res = subset_sum(values, target);
+ *  // res.exists = true
+ *  // res.selected_indices = {2, 4} (indices of 4 and 5)
+ *  @endcode
+ *
  *  @example subset_sum_example.cc
  *
  *  @ingroup Algorithms
