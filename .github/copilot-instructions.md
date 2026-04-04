@@ -277,7 +277,8 @@ auto even_squares = numbers
 - **MUST**: Use these Aleph exception macros (defined in `ah-errors.H`):
   - `ah_domain_error_if(condition)` → for domain/logic errors (replaces `throw std::domain_error`)
   - `ah_runtime_error_if(condition)` → for runtime errors (replaces `throw std::runtime_error`)
-  - `ah_range_error_if(condition)` → for out-of-range errors (replaces `throw std::range_error`)
+  - `ah_out_of_range_error_if(condition)` → for out-of-range errors (replaces `throw std::out_of_range`)
+  - `ah_range_error_if(condition)` → for internal calculations that do not meet mathematical requirements (replaces `throw std::range_error`)
   - `ah_invalid_argument_if(condition)` → for invalid arguments (replaces `throw std::invalid_argument`)
   - Unconditional versions: `ah_domain_error()`, `ah_runtime_error()`, `ah_range_error()`, `ah_invalid_argument()`
   - `_unless` variants: `ah_domain_error_unless(condition)`, etc. (inverted logic)
@@ -286,7 +287,7 @@ auto even_squares = numbers
 - **Example (Aleph style - CORRECT)**:
   ```cpp
   ah_domain_error_if(x < 0) << "sqrt requires non-negative value, got " << x;
-  ah_range_error_if(index >= size) << "Index " << index << " out of range [0, " << size << ")";
+  ah_out_of_range_error_if(index >= size) << "Index " << index << " out of range [0, " << size << ")";
   ah_runtime_error_unless(file.is_open()) << "Failed to open file: " << filename;
   ```
 

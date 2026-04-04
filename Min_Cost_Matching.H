@@ -37,9 +37,9 @@
  *
  *  ## Problem solved
  *
- *  Given an undirected graph @f$G=(V,E)@f$ where each edge @f$e \in E@f$
- *  has a cost @f$c(e)@f$, find a matching @f$M@f$ that minimizes
- *  @f$\sum_{e \in M} c(e)@f$.
+ *  Given an undirected graph@f$G=(V,E)@f$where each edge@f$e \in E@f$
+ *  has a cost@f$c(e)@f$, find a matching@f$M@f$that minimizes
+ * @f$\sum_{e \in M} c(e)@f$.
  *
  *  Optional mode `max_cardinality = true` changes the objective to:
  *  1) maximize matching cardinality, and
@@ -57,8 +57,8 @@
  *
  *  ## Complexity
  *
- *  - Time: @f$O(V^3)@f$
- *  - Space: @f$O(V + E)@f$
+ *  - Time:@f$O(V^3)@f$
+ *  - Space:@f$O(V + E)@f$
  *
  *  @see Blossom.H For maximum-cardinality matching in general graphs
  *  @see Blossom_Weighted.H For maximum-weight matching

@@ -37,8 +37,8 @@
  *
  *  ## Problem solved
  *
- *  Given a directed graph @f$G=(V,E)@f$ with arc costs @f$w(e)@f$, find
- *  the cycle @f$C@f$ minimizing the average weight:
+ *  Given a directed graph@f$G=(V,E)@f$with arc costs@f$w(e)@f$, find
+ *  the cycle@f$C@f$minimizing the average weight:
  *
  *  @f[
  *    \mu^* = \min_C \frac{w(C)}{|C|}
@@ -54,8 +54,8 @@
  *
  *  ## Complexity
  *
- *  - Time: @f$O(VE)@f$
- *  - Space: @f$O(V^2)@f$
+ *  - Time:@f$O(VE)@f$
+ *  - Space:@f$O(V^2)@f$
  *
  *  @ingroup Graphs
  */

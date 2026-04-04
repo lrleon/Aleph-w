@@ -37,9 +37,9 @@
  *
  *  ## Problem solved
  *
- *  Given an undirected graph @f$G=(V,E)@f$ where each edge @f$e \in E@f$ 
- *  has a weight @f$w(e)@f$, find a matching @f$M@f$ such that 
- *  @f$\sum_{e \in M} w(e)@f$ is maximized.
+ *  Given an undirected graph@f$G=(V,E)@f$where each edge@f$e \in E@f$
+ *  has a weight@f$w(e)@f$, find a matching@f$M@f$such that 
+ * @f$\sum_{e \in M} w(e)@f$is maximized.
  *
  *  ## Highlights
  *
@@ -53,8 +53,8 @@
  *
  *  ## Complexity
  *
- *  - Time: @f$O(V^3)@f$
- *  - Space: @f$O(V + E)@f$
+ *  - Time:@f$O(V^3)@f$
+ *  - Space:@f$O(V + E)@f$
  *
  *  ## Weight model
  *

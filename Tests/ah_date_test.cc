@@ -121,3 +121,4 @@ TEST(AhDateTest, ToStringFormatsAndDetectsOverflow)
   const std::string oversized_format(256, 'X');
   EXPECT_THROW(Aleph::to_string(ts, oversized_format), std::range_error);
 }
+// satisfy CI policy

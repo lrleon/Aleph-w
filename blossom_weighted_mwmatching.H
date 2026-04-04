@@ -535,7 +535,7 @@ namespace Aleph::blossom_weighted_detail::mwmatching
       /** @brief Maps each vertex to its highest-level containing blossom. */
       Array<BlossomT *> vertex_top_blossom;
 
-      /** @brief Dual variable @f$y_i@f$ for each vertex. */
+      /** @brief Dual variable@f$y_i@f$for each vertex. */
       Array<WeightType> vertex_dual;
 
       /** @internal Least-slack edge tracker. */
@@ -2113,7 +2113,7 @@ namespace Aleph::blossom_weighted_detail::mwmatching
    *  and the sum of weights is maximized.
    *
    *  The input graph must be provided as an array of weighted edges.
-   *  - Vertices must be indexed 0 to @f$n-1@f$.
+   *  - Vertices must be indexed 0 to@f$n-1@f$.
    *  - Self-loops are not allowed.
    *  - Negative weight edges are ignored.
    *
@@ -2125,8 +2125,8 @@ namespace Aleph::blossom_weighted_detail::mwmatching
    *  @exception std::invalid_argument If the input graph is invalid (e.g. duplicate edges, self-loops).
    *
    *  @par Complexity
-   *  - Time: @f$O(n^3)@f$ where @f$n@f$ is the number of vertices.
-   *  - Space: @f$O(n + m)@f$ where @f$m@f$ is the number of edges.
+   *  - Time:@f$O(n^3)@f$where@f$n@f$is the number of vertices.
+   *  - Space:@f$O(n + m)@f$where@f$m@f$is the number of edges.
    */
   template <typename WeightType>
   Array<VertexPair> maximum_weight_matching(
