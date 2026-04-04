@@ -28,16 +28,22 @@
   SOFTWARE.
 */
 
-
 /** @file Knapsack.H
  *  @brief Classical knapsack problem variants (0/1, unbounded, bounded).
  *
- *  Provides dynamic programming solutions for:
- *  - 0/1 Knapsack: each item used at most once
- *  - Unbounded Knapsack: unlimited copies of each item
- *  - Bounded Knapsack: limited copies via binary decomposition
+ *  The knapsack problem is a fundamental combinatorial optimization problem:
+ *  given a set of items, each with a weight and a value, determine the
+ *  number of each item to include in a collection so that the total weight
+ *  is less than or equal to a given limit and the total value is as large
+ *  as possible.
  *
- *  All functions support reconstruction of selected items.
+ *  This header provides high-performance dynamic programming solutions for:
+ *  - **0/1 Knapsack**: Each item can be used at most once.
+ *  - **Unbounded Knapsack**: Unlimited copies of each item are available.
+ *  - **Bounded Knapsack**: A limited number of copies of each item is available.
+ *
+ *  All variants support full item reconstruction (identifying which items
+ *  were selected for the optimal solution).
  *
  *  @example knapsack_example.cc
  *
@@ -45,342 +51,394 @@
  *  @author Leandro Rabindranath Leon
  */
 
-# ifndef KNAPSACK_H
-# define KNAPSACK_H
+#ifndef KNAPSACK_H
+#define KNAPSACK_H
 
-# include <algorithm>
-# include <concepts>
-# include <cstddef>
-# include <limits>
-# include <type_traits>
-# include <utility>
+#include <algorithm>
+#include <concepts>
+#include <cstddef>
+#include <limits>
+#include <type_traits>
+#include <utility>
 
-# include <ah-errors.H>
-# include <tpl_array.H>
+#include <ah-errors.H>
+#include <tpl_array.H>
 
-namespace Aleph
+namespace Aleph {
+/** @brief An item for knapsack problems.
+ *
+ *  @tparam W Weight type (typically integral).
+ *  @tparam V Value type (typically numeric).
+ */
+template <typename W, typename V>
+struct Knapsack_Item
 {
-  /** @brief An item for knapsack problems. */
-  template <typename W, typename V>
-  struct Knapsack_Item
-  {
-    W weight; /**< Weight (or cost) of the item */
-    V value; /**< Value (or profit) of the item */
-  };
+  W weight; /**< Weight (or cost) of the item. Must be non-negative. */
+  V value;  /**< Value (or profit) of the item. */
+};
 
+/** @brief Result of a knapsack computation.
+ *
+ *  Contains the total value achieved and the indices of the items
+ *  that form the optimal solution.
+ *
+ *  @tparam V Value type.
+ */
+template <typename V>
+struct Knapsack_Result
+{
+  V optimal_value = V{};        /**< Maximum total value achieved. */
+  Array<size_t> selected_items; /**< Indices (0-based) of items selected for the optimum. */
+};
 
-  /** @brief Result of a knapsack computation. */
-  template <typename V>
-  struct Knapsack_Result
-  {
-    V optimal_value = V{}; /**< Optimal objective value */
-    Array<size_t> selected_items; /**< Indices (0-based) of selected items */
-  };
+namespace knapsack_detail {
+template <std::integral W>
+[[nodiscard]] inline size_t to_size_checked(const W value, const char *fn_name, const char *field_name)
+{
+  if constexpr (std::is_signed_v<W>)
+    ah_domain_error_if(value < W{}) << fn_name << ": " << field_name << " must be non-negative";
 
+  using UW = std::make_unsigned_t<W>;
+  const UW uvalue = static_cast<UW>(value);
+  if constexpr (sizeof(UW) > sizeof(size_t))
+    ah_out_of_range_error_if(uvalue > static_cast<UW>(std::numeric_limits<size_t>::max()))
+      << fn_name << ": " << field_name << " is too large for size_t";
 
-  namespace knapsack_detail
-  {
-    template <std::integral W>
-    [[nodiscard]] inline size_t
-    to_size_checked(const W value, const char *fn_name,
-                    const char *field_name)
+  return static_cast<size_t>(uvalue);
+}
+
+template <std::integral W, typename V>
+[[nodiscard]] inline Array<size_t> extract_weights_checked(const Array<Knapsack_Item<W, V>> &items,
+                                                           const char *fn_name)
+{
+  Array<size_t> weights = Array<size_t>::create(items.size());
+  for (size_t i = 0; i < items.size(); ++i)
+    weights(i) = to_size_checked(items[i].weight, fn_name, "item weight");
+  return weights;
+}
+// Safe DP addition: clamps to numeric_limits<V>::max() for integral V to
+// prevent signed overflow UB and unsigned wrap-around.
+template <typename V>
+[[nodiscard]] inline V dp_add(V a, V b) noexcept
+{
+  if constexpr (std::is_integral_v<V>)
+    if (b > V{} and a > std::numeric_limits<V>::max() - b)
+      return std::numeric_limits<V>::max();
+  return a + b;
+}
+}  // namespace knapsack_detail
+
+/** @brief Solve the 0/1 Knapsack problem with item reconstruction.
+ *
+ *  In the 0/1 variant, each item can be selected at most once.
+ *
+ *  @tparam V  Value type (must support addition and comparison).
+ *  @tparam W  Weight type (integral, must support comparison).
+ *
+ *  @param[in] items     Array of Knapsack_Item representing the available items.
+ *  @param[in] capacity  Maximum total weight allowed.
+ *  @return A Knapsack_Result containing the optimal value and indices of selected items.
+ *
+ *  @throws ah_domain_error if capacity or any item weight is negative.
+ *  @throws ah_bad_alloc if memory allocation for the DP table fails.
+ *
+ *  @note **Complexity**: Time O(n * capacity), Space O(n * capacity), where n is items.size.
+ */
+template <typename V, std::integral W>
+[[nodiscard]] Knapsack_Result<V> knapsack_01(const Array<Knapsack_Item<W, V>> &items, W capacity)
+{
+  const size_t n = items.size();
+  const size_t C = knapsack_detail::to_size_checked(capacity, "knapsack_01", "capacity");
+  const Array<size_t> weights = knapsack_detail::extract_weights_checked(items, "knapsack_01");
+
+  if (n == 0)
+    return Knapsack_Result<V>{V{}, Array<size_t>()};
+
+  // dp[i][w] = best value using items 0..i-1 with capacity w
+  Array<Array<V>> dp;
+  dp.reserve(n + 1);
+  for (size_t i = 0; i <= n; ++i)
     {
-      if constexpr (std::is_signed_v<W>)
-        ah_domain_error_if(value < W{})
-          << fn_name << ": " << field_name << " must be non-negative";
-
-      using UW = std::make_unsigned_t<W>;
-      const UW uvalue = static_cast<UW>(value);
-      if constexpr (sizeof(UW) > sizeof(size_t))
-        ah_out_of_range_error_if(uvalue > static_cast<UW>( std::numeric_limits<size_t>::max()))
-          << fn_name << ": " << field_name << " is too large for size_t";
-
-      return static_cast<size_t>(uvalue);
+      Array<V> row = Array<V>::create(C + 1);
+      for (size_t w = 0; w <= C; ++w)
+        row(w) = V{};
+      dp.append(std::move(row));
     }
 
-    template <std::integral W, typename V>
-    [[nodiscard]] inline Array<size_t>
-    extract_weights_checked(const Array<Knapsack_Item<W, V>> & items,
-                            const char *fn_name)
+  for (size_t i = 1; i <= n; ++i)
     {
-      Array<size_t> weights = Array<size_t>::create(items.size());
-      for (size_t i = 0; i < items.size(); ++i)
-        weights(i) = to_size_checked(items[i].weight, fn_name, "item weight");
-      return weights;
-    }
-  } // namespace knapsack_detail
-
-
-  /** @brief 0/1 Knapsack with item reconstruction.
-   *
-   *  Each item can be taken at most once.
-   *
-   *  @tparam V  Value type (must support +, comparison).
-   *  @tparam W  Weight type (integral, must support <=).
-   *
-   *  @param[in] items     Array of items.
-   *  @param[in] capacity  Maximum weight capacity.
-   *  @return Knapsack_Result with optimal value and selected item indices.
-   *
-   *  @throws ah_domain_error if capacity or any item weight is negative.
-   *
-   *  @note Complexity: O(n * C) time, O(n * C) space.
-   */
-  template <typename V, std::integral W>
-  [[nodiscard]] Knapsack_Result<V>
-  knapsack_01(const Array<Knapsack_Item<W, V>> & items, W capacity)
-  {
-    const size_t n = items.size();
-    const size_t C
-        = knapsack_detail::to_size_checked(capacity, "knapsack_01", "capacity");
-    const Array<size_t> weights
-        = knapsack_detail::extract_weights_checked(items, "knapsack_01");
-
-    if (n == 0)
-      return Knapsack_Result<V>{V{}, Array<size_t>()};
-
-    // dp[i][w] = best value using items 0..i-1 with capacity w
-    Array<Array<V>> dp;
-    dp.reserve(n + 1);
-    for (size_t i = 0; i <= n; ++i)
-      {
-        Array<V> row = Array<V>::create(C + 1);
-        for (size_t w = 0; w <= C; ++w)
-          row(w) = V{};
-        dp.append(std::move(row));
-      }
-
-    for (size_t i = 1; i <= n; ++i)
-      {
-        const size_t wi = weights[i - 1];
-        const V vi = items[i - 1].value;
-        for (size_t w = 0; w <= C; ++w)
-          if (wi <= w and dp[i - 1][w - wi] + vi > dp[i - 1][w])
-            dp[i][w] = dp[i - 1][w - wi] + vi;
-          else
-            dp[i][w] = dp[i - 1][w];
-      }
-
-    // reconstruct
-    Array<size_t> sel;
-    size_t w = C;
-    for (size_t i = n; i > 0; --i)
-      if (dp[i][w] != dp[i - 1][w])
+      const size_t wi = weights[i - 1];
+      const V vi = items[i - 1].value;
+      for (size_t w = 0; w <= C; ++w)
         {
-          sel.append(i - 1);
-          w -= weights[i - 1];
+          dp[i][w] = dp[i - 1][w];
+          if (wi <= w)
+            {
+              const V candidate = knapsack_detail::dp_add(dp[i - 1][w - wi], vi);
+              if (candidate > dp[i - 1][w])
+                dp[i][w] = candidate;
+            }
+        }
+    }
+
+  // reconstruct
+  Array<size_t> sel;
+  size_t w = C;
+  for (size_t i = n; i > 0; --i)
+    if (dp[i][w] != dp[i - 1][w])
+      {
+        sel.append(i - 1);
+        w -= weights[i - 1];
+      }
+
+  // reverse to ascending order
+  Array<size_t> selected;
+  selected.reserve(sel.size());
+  for (size_t k = sel.size(); k > 0; --k)
+    selected.append(sel[k - 1]);
+
+  return Knapsack_Result<V>{dp[n][C], std::move(selected)};
+}
+
+/** @brief Solve the 0/1 Knapsack problem (value only, space-optimized).
+ *
+ *  This version only computes the maximum value, using O(capacity) space.
+ *
+ *  @tparam V  Value type.
+ *  @tparam W  Weight type.
+ *
+ *  @param[in] items     Array of Knapsack_Item.
+ *  @param[in] capacity  Maximum total weight allowed.
+ *  @return The maximum total value achieved.
+ *
+ *  @throws ah_domain_error if capacity or any item weight is negative.
+ *
+ *  @note **Complexity**: Time O(n * capacity), Space O(capacity).
+ */
+template <typename V, std::integral W>
+[[nodiscard]] V knapsack_01_value(const Array<Knapsack_Item<W, V>> &items, W capacity)
+{
+  const size_t n = items.size();
+  const size_t C = knapsack_detail::to_size_checked(capacity, "knapsack_01_value", "capacity");
+  const Array<size_t> weights = knapsack_detail::extract_weights_checked(items, "knapsack_01_value");
+
+  if (n == 0)
+    return V{};
+
+  Array<V> dp = Array<V>::create(C + 1);
+  for (size_t w = 0; w <= C; ++w)
+    dp(w) = V{};
+
+  for (size_t i = 0; i < n; ++i)
+    {
+      const size_t wi = weights[i];
+      const V vi = items[i].value;
+      // w != static_cast<size_t>(-1) guards against unsigned wrap-around when wi == 0
+      for (size_t w = C; w >= wi and w != static_cast<size_t>(-1); --w)
+        {
+          const V candidate = knapsack_detail::dp_add(dp[w - wi], vi);
+          if (candidate > dp[w])
+            dp(w) = candidate;
+        }
+    }
+
+  return dp[C];
+}
+
+/** @brief Solve the Unbounded Knapsack problem with reconstruction.
+ *
+ *  In the unbounded variant, an unlimited number of copies of each item
+ *  is available.
+ *
+ *  @tparam V  Value type.
+ *  @tparam W  Weight type.
+ *
+ *  @param[in] items     Array of Knapsack_Item.
+ *  @param[in] capacity  Maximum total weight allowed.
+ *  @return A Knapsack_Result containing the optimal value and indices
+ *          of selected items (may contain duplicates).
+ *
+ *  @throws ah_domain_error if capacity or any item weight is negative.
+ *  @throws ah_domain_error if an item with weight 0 has a positive value
+ *          (as the problem would have an infinite optimal value).
+ *
+ *  @note **Complexity**: Time O(n * capacity), Space O(capacity).
+ */
+template <typename V, std::integral W>
+[[nodiscard]] Knapsack_Result<V> knapsack_unbounded(const Array<Knapsack_Item<W, V>> &items,
+                                                    W capacity)
+{
+  const size_t n = items.size();
+  const size_t C = knapsack_detail::to_size_checked(capacity, "knapsack_unbounded", "capacity");
+  const Array<size_t> weights
+    = knapsack_detail::extract_weights_checked(items, "knapsack_unbounded");
+
+  if (n == 0)
+    return Knapsack_Result<V>{V{}, Array<size_t>()};
+
+  for (size_t i = 0; i < n; ++i)
+    ah_domain_error_if(weights[i] == 0 and items[i].value > V{})
+      << "knapsack_unbounded: zero-weight item with positive value " << "leads to unbounded optimum";
+
+  Array<V> dp = Array<V>::create(C + 1);
+  // choice[w] = which item was last added at capacity w
+  Array<size_t> choice = Array<size_t>::create(C + 1);
+  constexpr size_t NONE = std::numeric_limits<size_t>::max();
+  for (size_t w = 0; w <= C; ++w)
+    {
+      dp(w) = V{};
+      choice(w) = NONE;
+    }
+
+  for (size_t w = 1; w <= C; ++w)
+    for (size_t i = 0; i < n; ++i)
+      if (const size_t wi = weights[i]; wi <= w)
+        {
+          const V candidate = knapsack_detail::dp_add(dp[w - wi], items[i].value);
+          if (candidate > dp[w])
+            {
+              dp(w) = candidate;
+              choice(w) = i;
+            }
         }
 
-    // reverse to ascending order
-    Array<size_t> selected;
-    selected.reserve(sel.size());
-    for (size_t k = sel.size(); k > 0; --k)
-      selected.append(sel[k - 1]);
+  // reconstruct
+  Array<size_t> sel;
+  size_t w = C;
+  while (w > 0 and choice[w] != NONE)
+    {
+      const size_t idx = choice[w];
+      sel.append(idx);
+      w -= weights[idx];
+    }
 
-    return Knapsack_Result<V>{dp[n][C], std::move(selected)};
-  }
+  return Knapsack_Result<V>{dp[C], std::move(sel)};
+}
 
+/** @brief Solve the Bounded Knapsack problem with reconstruction.
+ *
+ *  In the bounded variant, each item i can be taken at most `counts[i]` times.
+ *  This algorithm internally uses binary decomposition to reduce the problem
+ *  to a 0/1 Knapsack problem efficiently.
+ *
+ *  @tparam V  Value type.
+ *  @tparam W  Weight type.
+ *
+ *  @param[in] items     Array of Knapsack_Item.
+ *  @param[in] counts    Array of maximum counts allowed for each corresponding item.
+ *  @param[in] capacity  Maximum total weight allowed.
+ *  @return A Knapsack_Result containing the optimal value and original indices
+ *          of selected items.
+ *
+ *  @throws std::domain_error if capacity or any item weight is negative.
+ *  @throws std::invalid_argument if items.size() != counts.size().
+ *
+ *  @note **Complexity**: Time O(capacity * sum(log(counts[i]))), Space O(capacity * sum(log(counts[i]))).
+ */
+template <typename V, std::integral W>
+[[nodiscard]] Knapsack_Result<V> knapsack_bounded(const Array<Knapsack_Item<W, V>> &items,
+                                                  const Array<size_t> &counts,
+                                                  W capacity)
+{
+  ah_invalid_argument_if(items.size() != counts.size())
+    << "knapsack_bounded: items and counts must have same size";
 
-  /** @brief 0/1 Knapsack — value only (space-optimized).
-   *
-   *  @tparam V  Value type.
-   *  @tparam W  Weight type.
-   *
-   *  @param[in] items     Array of items.
-   *  @param[in] capacity  Maximum weight capacity.
-   *  @return Optimal value.
-   *
-   *  @throws ah_domain_error if capacity or any item weight is negative.
-   *
-   *  @note Complexity: O(n * C) time, O(C) space.
-   */
-  template <typename V, std::integral W>
-  [[nodiscard]] V
-  knapsack_01_value(const Array<Knapsack_Item<W, V>> & items, W capacity)
-  {
-    const size_t n = items.size();
-    const size_t C = knapsack_detail::to_size_checked(
-                                                      capacity, "knapsack_01_value", "capacity");
-    const Array<size_t> weights = knapsack_detail::extract_weights_checked(
-                                                                           items, "knapsack_01_value");
+  const size_t n = items.size();
+  const size_t C = knapsack_detail::to_size_checked(capacity, "knapsack_bounded", "capacity");
+  const Array<size_t> weights = knapsack_detail::extract_weights_checked(items, "knapsack_bounded");
 
-    if (n == 0)
-      return V{};
+  if (n == 0)
+    return Knapsack_Result<V>{V{}, Array<size_t>()};
 
-    Array<V> dp = Array<V>::create(C + 1);
-    for (size_t w = 0; w <= C; ++w)
-      dp(w) = V{};
+  // Binary decomposition: for item i with count c, create groups
+  // of 1, 2, 4, ..., 2^k, remainder
+  Array<Knapsack_Item<W, V>> expanded;
+  Array<size_t> origin;      // maps expanded index -> original index
+  Array<size_t> multiplier;  // how many copies this group represents
 
-    for (size_t i = 0; i < n; ++i)
-      {
-        const size_t wi = weights[i];
-        const V vi = items[i].value;
-        for (size_t w = C; w >= wi and w != static_cast<size_t>(-1); --w)
-          if (dp[w - wi] + vi > dp[w])
-            dp(w) = dp[w - wi] + vi;
-      }
+  for (size_t i = 0; i < n; ++i)
+    {
+      const size_t wi = weights[i];
+      size_t rem = counts[i];
+      size_t k = 1;
+      while (rem > 0)
+        {
+          const size_t take = std::min(k, rem);
 
-    return dp[C];
-  }
+          bool value_ok;
+          if constexpr (std::is_integral_v<V>)
+            {
+              if (items[i].value == V{0})
+                value_ok = true;
+              else if (items[i].value > V{0})
+                {
+                  // Positive: check take * value <= V::max() using UV to avoid
+                  // truncation if V is wider than size_t.
+                  using UV = std::make_unsigned_t<V>;
+                  const UV value_uv = static_cast<UV>(items[i].value);
+                  const UV maxV_uv  = static_cast<UV>(std::numeric_limits<V>::max());
+                  value_ok = (static_cast<UV>(take) <= maxV_uv / value_uv);
+                }
+              else
+                {
+                  // Negative: check take * |value| <= |V::min()|
+                  using UV = std::make_unsigned_t<V>;
+                  const UV abs_value = static_cast<UV>(-(items[i].value + V{1})) + UV{1};
+                  // Casting V::min() to its unsigned type yields |V::min()| in two's complement.
+                  const UV abs_min = static_cast<UV>(std::numeric_limits<V>::min());
+                  value_ok = (static_cast<UV>(take) <= abs_min / abs_value);
+                }
+            }
+          else if constexpr (std::numeric_limits<V>::is_specialized)
+            {
+              const V maxV = std::numeric_limits<V>::max();
+              if (items[i].value == V{0})
+                value_ok = true;
+              else
+                {
+                  // Use |value| so negative values are handled correctly.
+                  const V absV = items[i].value > V{0} ? items[i].value : -items[i].value;
+                  value_ok = (static_cast<V>(take) <= maxV / absV);
+                }
+            }
+          else
+            value_ok = true;
 
+          if ((wi == 0 or take <= C / wi) and value_ok)
+            {
+              const V val = static_cast<V>(take) * items[i].value;
+              expanded.append(Knapsack_Item<W, V>{static_cast<W>(wi * take), val});
+              origin.append(i);
+              multiplier.append(take);
+            }
 
-  /** @brief Unbounded Knapsack with reconstruction.
-   *
-   *  Each item can be taken unlimited times.
-   *
-   *  @tparam V  Value type.
-   *  @tparam W  Weight type.
-   *
-   *  @param[in] items     Array of items.
-   *  @param[in] capacity  Maximum weight capacity.
-   *  @return Knapsack_Result with optimal value and selected item indices
-   *          (may contain repeats).
-   *
-   *  @throws ah_domain_error if capacity or any item weight is negative.
-   *  @throws ah_domain_error if a zero-weight item has positive value
-   *          (objective becomes unbounded).
-   *
-   *  @note Complexity: O(n * C) time, O(C) space.
-   */
-  template <typename V, std::integral W>
-  [[nodiscard]] Knapsack_Result<V>
-  knapsack_unbounded(const Array<Knapsack_Item<W, V>> & items, W capacity)
-  {
-    const size_t n = items.size();
-    const size_t C = knapsack_detail::to_size_checked(
-                                                      capacity, "knapsack_unbounded", "capacity");
-    const Array<size_t> weights = knapsack_detail::extract_weights_checked(
-                                                                           items, "knapsack_unbounded");
+          rem -= take;
+          if (rem == 0)
+            break;
 
-    if (n == 0)
-      return Knapsack_Result<V>{V{}, Array<size_t>()};
+          if (k > std::numeric_limits<size_t>::max() / 2)
+            k = rem;
+          else
+            k *= 2;
+        }
+    }
 
-    for (size_t i = 0; i < n; ++i)
-      if (weights[i] == 0 and items[i].value > V{})
-        ah_domain_error_if(true)
-          << "knapsack_unbounded: zero-weight item with positive value "
-          << "leads to unbounded optimum";
+  // Solve as 0/1
+  auto result = knapsack_01(expanded, capacity);
 
-    Array<V> dp = Array<V>::create(C + 1);
-    // choice[w] = which item was last added at capacity w
-    Array<size_t> choice = Array<size_t>::create(C + 1);
-    constexpr size_t NONE = std::numeric_limits<size_t>::max();
-    for (size_t w = 0; w <= C; ++w)
-      {
-        dp(w) = V{};
-        choice(w) = NONE;
-      }
+  // Map back to original indices
+  Array<size_t> sel;
+  for (size_t k = 0; k < result.selected_items.size(); ++k)
+    {
+      const size_t ei = result.selected_items[k];
+      const size_t orig = origin[ei];
+      const size_t mult = multiplier[ei];
+      for (size_t j = 0; j < mult; ++j)
+        sel.append(orig);
+    }
 
-    for (size_t w = 1; w <= C; ++w)
-      for (size_t i = 0; i < n; ++i)
-        if (const size_t wi = weights[i]; wi <= w and dp[w - wi] + items[i].value > dp[w])
-          {
-            dp(w) = dp[w - wi] + items[i].value;
-            choice(w) = i;
-          }
+  return Knapsack_Result<V>{result.optimal_value, std::move(sel)};
+}
+}  // namespace Aleph
 
-    // reconstruct
-    Array<size_t> sel;
-    size_t w = C;
-    while (w > 0 and choice[w] != NONE)
-      {
-        const size_t idx = choice[w];
-        sel.append(idx);
-        w -= weights[idx];
-      }
-
-    return Knapsack_Result<V>{dp[C], std::move(sel)};
-  }
-
-
-  /** @brief Bounded Knapsack with reconstruction.
-   *
-   *  Each item i can be taken at most counts[i] times.
-   *  Internally uses binary decomposition to reduce to 0/1 knapsack.
-   *
-   *  @tparam V  Value type.
-   *  @tparam W  Weight type.
-   *
-   *  @param[in] items     Array of items.
-   *  @param[in] counts    Maximum copies for each item.
-   *  @param[in] capacity  Maximum weight capacity.
-   *  @return Knapsack_Result with optimal value and selected item indices
-   *          (original indices, may contain repeats).
-   *
-   *  @throws ah_domain_error if capacity or any item weight is negative.
-   *  @throws ah_invalid_argument_error if items.size() != counts.size().
-   *
-   *  @note Complexity: O(C * sum(log(counts[i]))) time.
-   */
-  template <typename V, std::integral W>
-  [[nodiscard]] Knapsack_Result<V>
-  knapsack_bounded(const Array<Knapsack_Item<W, V>> & items,
-                   const Array<size_t> & counts, W capacity)
-  {
-    ah_invalid_argument_if(items.size() != counts.size())
-      << "knapsack_bounded: items and counts must have same size";
-
-    const size_t n = items.size();
-    const size_t C = knapsack_detail::to_size_checked(
-                                                      capacity, "knapsack_bounded", "capacity");
-    const Array<size_t> weights = knapsack_detail::extract_weights_checked(
-                                                                           items, "knapsack_bounded");
-
-    if (n == 0)
-      return Knapsack_Result<V>{V{}, Array<size_t>()};
-
-    // Binary decomposition: for item i with count c, create groups
-    // of 1, 2, 4, ..., 2^k, remainder
-    Array<Knapsack_Item<W, V>> expanded;
-    Array<size_t> origin; // maps expanded index -> original index
-    Array<size_t> multiplier; // how many copies this group represents
-
-    for (size_t i = 0; i < n; ++i)
-      {
-        const size_t wi = weights[i];
-        size_t rem = counts[i];
-        size_t k = 1;
-        while (rem > 0)
-          {
-            const size_t take = std::min(k, rem);
-
-            if (wi == 0 or take <= C / wi)
-              {
-                expanded.append(Knapsack_Item<W, V>{
-                                  static_cast<W>(wi * take),
-                                  static_cast<V>(take) * items[i].value
-                                });
-                origin.append(i);
-                multiplier.append(take);
-              }
-
-            rem -= take;
-            if (rem == 0)
-              break;
-
-            if (k > std::numeric_limits<size_t>::max() / 2)
-              k = rem;
-            else
-              k *= 2;
-          }
-      }
-
-    // Solve as 0/1
-    auto result = knapsack_01(expanded, capacity);
-
-    // Map back to original indices
-    Array<size_t> sel;
-    for (size_t k = 0; k < result.selected_items.size(); ++k)
-      {
-        const size_t ei = result.selected_items[k];
-        const size_t orig = origin[ei];
-        const size_t mult = multiplier[ei];
-        for (size_t j = 0; j < mult; ++j)
-          sel.append(orig);
-      }
-
-    return Knapsack_Result<V>{result.optimal_value, std::move(sel)};
-  }
-} // namespace Aleph
-
-# endif // KNAPSACK_H
+#endif  // KNAPSACK_H

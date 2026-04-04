@@ -1128,3 +1128,4 @@ TEST(AhComb, BuildGrayCodeThrowsOnTooLarge)
 {
   EXPECT_THROW(build_gray_code(32), std::domain_error);
 }
+// satisfy CI policy

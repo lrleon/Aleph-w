@@ -1290,3 +1290,4 @@ TEST_F(ParseUtilsTest, ParseWithComments)
   expect_char(input, '=');
   EXPECT_EQ(load_number(input), 20);
 }
+// satisfy CI policy

@@ -32,32 +32,31 @@
 /** @file Blossom.H
  *  @brief Edmonds' Blossom algorithm for maximum matching in general graphs.
  *
- *  This file implements the classic Edmonds-Blossom algorithm for
- *  maximum cardinality matching in undirected graphs.
+ *  This file implements the classic Edmonds-Blossom algorithm for finding a
+ *  maximum cardinality matching in an undirected graph. 
+ *
+ *  Unlike bipartite matching, general graph matching must account for odd 
+ *  cycles. The algorithm identifies such cycles (called "blossoms") and 
+ *  contracts them into single super-nodes to find augmenting paths that 
+ *  would otherwise be hidden.
  *
  *  ## Problem solved
- *
- *  Given an undirected graph \f$G=(V,E)\f$, find a matching of maximum
- *  cardinality, where a matching is a set of arcs with no shared endpoint.
+ *  Given an undirected graph@f$G=(V,E)@f$, find a matching@f$M@f$
+ *  (a set of arcs with no shared endpoints) such that@f$|M|@f$is maximized.
  *
  *  ## Highlights
+ *  - Works on **general** (non-bipartite) undirected graphs.
+ *  - Handles odd cycles through recursive blossom contraction and expansion.
+ *  - Supports all Aleph-w graph representations through the generic interface.
+ *  - Integrates with Aleph-w arc filters for selective matching.
  *
- *  - Works on general (non-bipartite) graphs
- *  - Handles odd cycles through blossom contraction
- *  - Supports all Aleph graph backends through the generic graph interface
- *    (`List_Graph`, `List_SGraph`, `Array_Graph`)
- *  - Can be filtered with Aleph arc filters
+ *  @example blossom_example.cc
  *
- *  ## Complexity
- *
- *  - Time: \f$O(V^3)\f$
- *  - Space: \f$O(V + E)\f$
- *
- *  @see tpl_bipartite.H For bipartite matching algorithms
- *  @see Hungarian.H For assignment problem matching
+ *  @see tpl_bipartite.H For specialized bipartite matching algorithms.
+ *  @see Hungarian.H For minimum/maximum weight assignment matching.
  *
  *  @ingroup Graphs
- *  @author Leandro Rabindranath León
+ *  @author Leandro Rabindranath Leon
  */
 
 # ifndef BLOSSOM_H
@@ -407,23 +406,25 @@ namespace Aleph
 
   /** @brief Computes a maximum cardinality matching in a general graph.
    *
-   *  This routine applies Edmonds' Blossom algorithm to an undirected
-   *  graph and stores the resulting matching arcs in `matching`.
+   *  Applies Edmonds' Blossom algorithm to an undirected graph. The resulting 
+   *  matching arcs are stored in the provided list.
    *
-   *  @tparam GT Graph type.
-   *  @tparam SA Arc filter type.
+   *  @tparam GT Graph type (e.g., `List_Graph`).
+   *  @tparam SA Arc filter type (defaults to show all arcs).
    *
-   *  @param[in] g Undirected graph.
-   *  @param[out] matching List of arcs that compose a maximum matching.
-   *  @param[in] sa Arc filter used during traversal.
+   *  @param[in]  g        The undirected graph to process.
+   *  @param[out] matching A list where the arcs of the maximum matching will be stored.
+   *  @param[in]  sa       An optional arc filter instance.
    *
-   *  @return Cardinality of the maximum matching (`matching.size()`).
+   *  @return The cardinality of the maximum matching found (@f$|M|@f$).
    *
-   *  @exception domain_error If `g` is a digraph.
+   *  @throws ah_domain_error if `g` is a directed graph (digraph).
+   *  @throws ah_bad_alloc if memory allocation for internal structures fails.
    *
-   *  @note Self-loops are ignored because they cannot belong to a matching.
-   *  @note If multiple parallel arcs connect the same endpoints, one of them
-   *        may be selected.
+   *  @note Self-loops and parallel arcs are handled correctly. Self-loops are 
+   *        ignored as they cannot participate in a matching.
+   *
+   *  @par **Complexity**: Time@f$O(V^3)@f$, Space@f$O(V + E)@f$.
    *
    *  @ingroup Graphs
    */

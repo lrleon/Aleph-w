@@ -34,7 +34,7 @@
  *
  *  Heavy-Light Decomposition (HLD) partitions a rooted tree into
  *  @e heavy chains such that any root-to-node path crosses at most
- *  @f$O(\log n)@f$ chains.  Combined with a segment tree, this yields
+ * @f$O(\log n)@f$chains.  Combined with a segment tree, this yields
  *  efficient path queries and point updates.
  *
  *  @par Concept Visualization

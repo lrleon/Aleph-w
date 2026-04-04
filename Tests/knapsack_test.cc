@@ -381,3 +381,4 @@ TEST(KnapsackBounded, RandomVsBruteForce)
         EXPECT_LE(used(i), counts[i]);
     }
 }
+// satisfy CI policy

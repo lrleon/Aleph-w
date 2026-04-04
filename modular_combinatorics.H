@@ -29,12 +29,19 @@
 */
 
 /** @file modular_combinatorics.H
- *  @brief Modular combinatorics utilities.
+ *  @brief Modular combinatorics utilities for computing binomial coefficients.
  *
- *  Provides precomputation of factorials and inverse factorials for O(1)
- *  combinations modulo a prime. Also includes Lucas Theorem for large n, k.
+ *  This header provides tools for computing combinations (n choose k) modulo 
+ *  a prime number. It uses precomputed factorials and modular inverse 
+ *  factorials to achieve O(1) time complexity for queries within a 
+ *  precomputed range.
+ *
+ *  For values of n and k that exceed the precomputed range (typically when 
+ *  the modulus is small), Lucas' Theorem is provided to compute the result 
+ *  efficiently.
  *
  *  @ingroup Algorithms
+ *  @author Leandro Rabindranath Leon
  */
 
 # ifndef MODULAR_COMBINATORICS_H
@@ -48,24 +55,37 @@
 
 namespace Aleph
 {
-  /** @brief Combinatorics operations modulo a prime.
+  /** @brief High-performance combinatorics operations modulo a prime.
    *
-   *  Precomputes factorials and inverse factorials up to a certain range to allow
-   *  O(1) computation of combinations. Supports large n, k through Lucas' Theorem.
+   *  The ModularCombinatorics class encapsulates the state required to 
+   *  compute binomial coefficients modulo a prime@f$P@f$. 
+   *
+   *  It performs an initial precomputation of:
+   *  - Factorials:@f$n! \pmod{P}@f$
+   *  - Inverse Factorials:@f$(n!)^{-1} \pmod{P}@f$
+   *
+   *  This allows computing@f$\binom{n}{k} \equiv \frac{n!}{k!(n-k)!} \pmod{P}@f$
+   *  in O(1) time per query.
+   *
+   *  @note The modulus @b must be a prime number for the modular inverse to 
+   *        be well-defined for all factorials within@f$[1, P-1]@f$.
    */
   class ModularCombinatorics
   {
-    uint64_t mod_; ///< Prime modulus.
-    Array<uint64_t> fact_; ///< Precomputed factorials.
-    Array<uint64_t> invFact_; ///< Precomputed inverse factorials.
+    uint64_t mod_;            ///< Prime modulus@f$P@f$.
+    Array<uint64_t> fact_;    ///< Precomputed factorials array.
+    Array<uint64_t> invFact_; ///< Precomputed inverse factorials array.
 
   public:
-    /** @brief Precomputes factorials up to 'max_n' modulo 'p'.
+    /** @brief Construct and precompute factorials up to 'max_n' modulo 'p'.
      *
-     *  @param[in] max_n Maximum value for factorials to precompute.
-     *  @param[in] p Prime modulus.
-     *  @pre p is a prime number.
-     *  @throws std::invalid_argument if p is not prime.
+     *  @param[in] max_n Maximum value for@f$n@f$to be used in O(1) @ref nCk queries.
+     *  @param[in] p     The prime modulus.
+     *
+     *  @pre `p` must be a prime number.
+     *  @throws std::invalid_argument if `p` is not prime (verified via Miller-Rabin).
+     *
+     *  @par **Complexity**: Time O(max_n + log p), Space O(max_n).
      */
     ModularCombinatorics(size_t max_n, const uint64_t p) : mod_(p)
     {
@@ -88,16 +108,18 @@ namespace Aleph
         invFact_(i - 1) = mod_mul(invFact_[i], i, mod_);
     }
 
-    /** @brief Calculate nCk modulo p in O(1).
+    /** @brief Calculate@f$\binom{n}{k} \pmod{P}@f$in constant time.
      *
-     *  Computes the binomial coefficient (n choose k) modulo p using
-     *  precomputed factorials.
+     *  Computes the binomial coefficient using the precomputed tables.
      *
      *  @param[in] n Total number of items.
      *  @param[in] k Number of items to choose.
-     *  @return nCk % p.
-     *  @note Requires n < fact_.size() (precomputed range).
-     *  @throws ah_out_of_range_error if n exceeds precomputed range.
+     *  @return The value of@f$\binom{n}{k} \pmod{P}@f$.
+     *
+     *  @note Requires@f$n@f$to be within the `max_n` range provided at construction.
+     *  @throws ah_out_of_range_error if@f$n@f$exceeds the precomputed range.
+     *
+     *  @par **Complexity**: Time O(1).
      */
     [[nodiscard]] uint64_t nCk(const uint64_t n, const uint64_t k) const
     {
@@ -111,18 +133,23 @@ namespace Aleph
       return mod_mul(num, den, mod_);
     }
 
-    /** @brief Calculate nCk modulo p using Lucas' theorem.
+    /** @brief Calculate@f$\binom{n}{k} \pmod{P}@f$using Lucas' Theorem.
      *
-     *  Provides an efficient way to compute combinations when n and k are
-     *  large but the modulus p is relatively small.
+     *  Provides a way to compute combinations when@f$n@f$and@f$k@f$are 
+     *  very large (exceeding `max_n`) but the prime modulus@f$P@f$is small.
      *
-     *  @pre Internal nCk calls require precomputation up to `mod_ - 1`
-     *       (ensured if constructor's `max_n >= mod_ - 1`).
+     *  Lucas' Theorem states:
+     *  @f[ \binom{n}{k} \equiv \prod_{i=0}^m \binom{n_i}{k_i} \pmod{P} @f]
+     *  where@f$n_i@f$and@f$k_i@f$are the digits of@f$n@f$and@f$k@f$
+     *  in base@f$P@f$.
+     *
+     *  @pre The instance must have been precomputed up to at least `mod_ - 1`.
+     *
      *  @param[in] n Total number of items.
      *  @param[in] k Number of items to choose.
-     *  @return nCk % p.
-     *  @note Complexity: O(p + log_p n).
-     *  @throws ah_out_of_range_error if sub-problem exceeds precomputed range.
+     *  @return The value of@f$\binom{n}{k} \pmod{P}@f$.
+     *
+     *  @par **Complexity**: Time@f$O(\log_P n)@f$modular multiplications.
      */
     [[nodiscard]] uint64_t lucas_nCk(const uint64_t n, const uint64_t k) const
     {
