@@ -73,6 +73,7 @@
 #include <queue>
 #include <functional>
 #include <tpl_netcost.H>
+#include <tpl_array.H>
 #include <tpl_dynBinHeap.H>
 #include <ah-errors.H>
 
@@ -361,14 +362,14 @@ bool ssp_init_potentials(Net &net, typename Net::Node *source)
       if (arc->cap > arc->flow)
         {
           Flow_Type d = ssp_info<Net>(src).potential;
-          if (d < INF and d + arc->cost < ssp_info<Net>(tgt).potential)
+          if (d < INF and sat_add(d, arc->cost) < ssp_info<Net>(tgt).potential)
             return false;
         }
 
       if (arc->flow > 0)
         {
           Flow_Type d = ssp_info<Net>(tgt).potential;
-          if (d < INF and d - arc->cost < ssp_info<Net>(src).potential)
+          if (d < INF and sat_sub(d, arc->cost) < ssp_info<Net>(src).potential)
             return false;
         }
     }
@@ -394,8 +395,8 @@ std::pair<typename Net::Flow_Type, typename Net::Flow_Type> successive_shortest_
   Node *source = net.get_source();
   Node *sink = net.get_sink();
 
-  // Allocate node info using std::vector to allow taking address of elements
-  std::vector<SSP_Node_Info<Flow_Type>> node_info(net.vsize());
+  // Allocate node info; fixed size, no reallocation, so element addresses are stable
+  Array<SSP_Node_Info<Flow_Type>> node_info(net.vsize(), SSP_Node_Info<Flow_Type>{});
   size_t idx = 0;
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
     NODE_COOKIE(it.get_curr()) = &node_info[idx];
@@ -736,7 +737,7 @@ AssignmentResult<Cost_Type> solve_assignment(const std::vector<std::vector<Cost_
   Node *sink = net.insert_node();
 
   // Create worker nodes
-  std::vector<Node *> workers(n);
+  auto workers = Array<Node *>::create(n);
   for (size_t i = 0; i < n; ++i)
     {
       workers[i] = net.insert_node();
@@ -744,7 +745,7 @@ AssignmentResult<Cost_Type> solve_assignment(const std::vector<std::vector<Cost_
     }
 
   // Create task nodes
-  std::vector<Node *> tasks(n);
+  auto tasks = Array<Node *>::create(n);
   DynMapTree<Node *, size_t> taskIndex;  // Reverse lookup: task node -> index
   for (size_t j = 0; j < n; ++j)
     {
@@ -829,7 +830,7 @@ struct TransportationResult
  *    {10, 8, 5},   // Factory 0 to warehouses
  *    {6, 4, 3},    // Factory 1 to warehouses
  *    {9, 7, 8}     // Factory 2 to warehouses
- *  };
+ *  };1
  *
  *  auto result = solve_transportation(supplies, demands, costs);
  *  ```

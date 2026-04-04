@@ -356,8 +356,9 @@ template <typename Container>
 
   ah_invalid_argument_if(p < 0 or p > 100) << "percentile: p must be in [0, 100]";
 
-  // Copy to vector for sorting
-  Array<T> sorted(std::begin(data), std::end(data));
+  Array<T> sorted;
+  for (const auto &x : data)
+    sorted.append(x);
   ah_invalid_argument_if(sorted.is_empty()) << "percentile: empty container";
 
   in_place_sort(sorted);
@@ -904,7 +905,9 @@ void compute_stats(const Container &data,
 {
   using T = std::decay_t<decltype(*std::begin(data))>;
 
-  Array<T> sorted(std::begin(data), std::end(data));
+  Array<T> sorted;
+  for (const auto &x : data)
+    sorted.append(x);
   if (sorted.is_empty())
     {
       avg = var = med = _min = _max = T();
