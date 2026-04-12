@@ -2377,8 +2377,10 @@ Adaptador de validación externa (artefactos end-to-end):
   - valida archivos `GraphML` / `GEXF` exportados directamente
   - chequea consistencia XML, referencias de endpoints y presencia de aristas de obstrucción
   - pass opcional `--networkx` para chequeos de loadability a nivel de herramienta
-  - pass opcional `--gephi` para chequeos del adaptador Gephi CLI/toolkit
-    (`--gephi-cmd` soporta un template de comando custom con `{input}`)
+  - pass opcional `--gephi` para chequeos del adaptador Gephi
+    (el comportamiento por defecto sondea disponibilidad del ejecutable en `PATH`;
+    `--gephi-cmd` soporta un template de comando custom con `{input}`
+    para ejecutar import/adaptador real)
   - pass opcional `--render-gephi` para validación de render/export
     (`--render-profile` + `--render-output-dir`, con chequeos de artefactos SVG/PDF)
 - `scripts/planarity_gephi_templates.json`
@@ -2401,7 +2403,7 @@ Adaptador de validación externa (artefactos end-to-end):
 - `.github/workflows/planarity_gephi_nightly.yml`
   - probe real de empaquetado Gephi semanal + manual (Linux/macOS/Windows)
   - auto-selecciona tags `0.9.x` y `0.10.x` más recientes (o override manual)
-  - descarga binarios oficiales de Gephi y valida integración del adaptador
+  - descarga binarios oficiales de Gephi y valida disponibilidad del ejecutable extraído
   - emite artefacto de reporte comparativo por run a través de matriz tags/OS
   - aplica gate de regresión cuando tags nuevos regresan vs tags previos por OS
   - notificaciones opcionales por webhook vía secret
@@ -2431,7 +2433,7 @@ ruby scripts/planarity_certificate_validator.rb \
 ruby scripts/planarity_certificate_validator.rb \
   --input /tmp/planarity_k33_certificate.graphml \
   --gephi --require-gephi \
-  --gephi-template portable.python-file-exists
+  --gephi-template portable.ruby-file-exists
 
 # List render profile catalog (filterable by OS)
 ruby scripts/planarity_certificate_validator.rb \
@@ -2449,7 +2451,7 @@ ruby scripts/planarity_certificate_ci_batch.rb \
   --input /tmp/planarity_k33_certificate.graphml \
   --input /tmp/planarity_k33_certificate.gexf \
   --gephi --require-gephi \
-  --gephi-template portable.python-file-exists \
+  --gephi-template portable.ruby-file-exists \
   --report /tmp/aleph_planarity_ci_report.json --print-summary
 
 # CI batch report with render validation
@@ -2468,11 +2470,16 @@ ruby scripts/planarity_certificate_ci_visual_diff.rb \
   --render-output-dir /tmp/aleph_planarity_visual_renders \
   --report /tmp/aleph_planarity_visual_diff_report.json --print-summary
 
-# Real-Gephi local smoke check (without portable profiles)
+# Local Gephi executable availability probe (default --gephi behavior)
+ruby scripts/planarity_certificate_validator.rb \
+  --input scripts/fixtures/planarity_k33_certificate.graphml \
+  --gephi --require-gephi
+
+# Real-Gephi local adapter/import check with explicit executable
 ruby scripts/planarity_certificate_validator.rb \
   --input scripts/fixtures/planarity_k33_certificate.graphml \
   --gephi --require-gephi \
-  --gephi-cmd "\"/path/to/gephi\" --version"
+  --gephi-cmd "\"/path/to/gephi\" --headless --import {input}"
 
 # Nightly workflow manual override example:
 # workflow_dispatch input gephi_tags="v0.9.7,v0.10.1"
@@ -3682,6 +3689,25 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 | `ah-arena.H` | `allocate<T>()` | Construct object in arena |
 | `ah-arena.H` | `dealloc<T>()` | Destroy object from arena |
 
+#### Herramientas para compiladores
+
+Consulta la [Guía de soporte de front-end para compiladores](docs/compiler_frontend_support.md)
+para el alcance previsto, los ejemplos y los límites actuales de estos headers.
+
+| Header | Type/Function | Description |
+|--------|---------------|-------------|
+| `ah-source.H` | `Source_Manager`, `Source_Span`, `Source_Position`, `Source_Snippet` | Registro de archivos fuente, spans por byte, resolución línea/columna y snippets de diagnóstico de una sola línea |
+| `ah-diagnostics.H` | `Diagnostic_Engine`, `Diagnostic_Builder`, `Diagnostic`, `Diagnostic_Label` | Diagnósticos acumulados con labels, notas, ayudas y rendering plano determinista |
+| `Compiler_Token.H` | `Compiler_Token`, `Compiler_Token_Kind`, `classify_compiler_keyword()`, `compiler_binary_precedence()` | Modelo de token, clasificación de keywords y metadatos de operadores para parsers futuros |
+| `Compiler_Lexer.H` | `Compiler_Lexer`, `Compiler_Lexer_Options` | Lexer de un archivo con spans estables, manejo configurable de comentarios, recuperación mediante tokens inválidos y diagnósticos opcionales |
+| `Compiler_AST.H` | `Compiler_Ast_Context`, `Compiler_Module`, `Compiler_Function_Decl`, `compiler_dump_module()` | Nodos AST respaldados por arena para expresiones, statements, funciones, módulos y dumps textuales deterministas |
+| `Compiler_Parser.H` | `Compiler_Parser`, `Compiler_Parser_Options` | Parser recursive-descent con precedence climbing, parseo de bloques/statements y recuperación apoyada en diagnósticos |
+| `tpl_scope.H` | `Scope<Key, Value>` | Pila genérica de scopes anidados para bindings léxicos, lookup local, lookup recursivo y shadowing |
+| `Compiler_Sema.H` | `Compiler_Semantic_Analyzer`, `Compiler_Symbol`, `Compiler_Name_Resolution` | Resolución de nombres, detección de duplicados, chequeos de shadowing, diagnósticos básicos de control y dumps de tabla de símbolos |
+| `Compiler_Types.H` | `Compiler_Type_Context`, `Compiler_Type`, `Compiler_Type_Id` | Grafo estable de tipos con builtins, tuplas, funciones, variables de tipo y pretty-printing determinista |
+| `tpl_constraints.H` | `Constraint_Set<T>`, `Compiler_Type_Unifier`, `Compiler_Type_Substitution` | Constraints de igualdad, substitutions, unificación estructural, variables rígidas y soporte de occurs-check |
+| `Compiler_Typed_Sema.H` | `Compiler_Typed_Semantic_Analyzer`, `Compiler_Typed_Semantic_Options` | Pasada semántica tipada que conecta nodos AST, la semántica base, el grafo de tipos y la resolución de constraints |
+
 #### Computación paralela
 
 | Header | Type/Function | Description |
@@ -3842,6 +3868,12 @@ cmake --build build
 | Algoritmo de Mo | `mo_algorithm_example.cc` | Consultas offline de rango (distinct count, powerful array, mode) |
 | Caja de herramientas de combinatoria | `comb_example.C` | Recorrido de producto cartesiano, transposición y auxiliares de combinatoria |
 | Utilidades de código Gray | `gray_code_example.cc` | Conversión binario a Gray y generación de secuencias |
+| Diagnósticos para compiladores | `compiler_diagnostics_example.cc` | Spans de fuente y diagnósticos de texto plano deterministas útiles para lexers y parsers |
+| Lexer para compiladores | `compiler_lexer_example.cc` | Tokenización de un archivo pequeño con spans estables y salida de depuración de tokens |
+| Parser para compiladores | `compiler_parser_example.cc` | Parseo de un módulo pequeño a un AST respaldado por arena y volcado textual del árbol resultante |
+| Análisis semántico para compiladores | `compiler_sema_example.cc` | Resolución de nombres sobre un módulo parseado, dump de tabla de símbolos y diagnósticos semánticos de usos inválidos |
+| Tipos y constraints para compiladores | `compiler_types_example.cc` | Construcción estable de tipos, constraints de igualdad, substitutions y unificación estructural sobre firmas de funciones |
+| Análisis semántico tipado para compiladores | `compiler_typed_sema_example.cc` | Inferencia de tipos sobre un módulo parseado con firmas de función inferidas, tipos de parámetros, bindings locales y diagnósticos tipados |
 | Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector`. Tutorial completo: [Tutorial FFT y DSP](docs/fft-tutorial.md) |
 | Number Theoretic Transform | `ntt_example.cc` | Transformadas modulares exactas, reporte del backend SIMD activo, planes reutilizables, tamanos arbitrarios soportados via Bluestein, multiplicacion exacta CRT de tres primos en `__uint128_t`, algebra formal de polinomios, multiplicacion de enteros grandes en base 10, convolucion negaciclica modulo `x^N + 1`, ejecucion por lotes y multiplicacion paralela explicita de polinomios. Tutorial completo: [Tutorial NTT](docs/ntt-tutorial.md) |
 | Aritmética de polinomios | `polynomial_example.cc` | Álgebra de polinomios dispersos, cálculo simbólico, análisis de raíces (Sturm/bisección/Newton), interpolación de Newton, funciones de transferencia y operaciones dispersas de alto grado |

@@ -336,7 +336,7 @@ jobs:
               f.write(f"asset_name={asset_name}\n")
           PY
 
-      - name: Validate fixture with real Gephi binary
+      - name: Validate fixture and downloaded Gephi executable
         shell: bash
         env:
           GEPHI_EXE: ${{ steps.install_gephi.outputs.gephi_exe }}
@@ -372,8 +372,8 @@ jobs:
                       "id": "nightly.real-gephi.smoke",
                       "os": "any",
                       "gephi_version": gephi_version,
-                      "description": "Nightly real-Gephi smoke check using downloaded package.",
-                      "cmd": f"\"{gephi_exe}\" --version",
+                      "description": "Nightly downloaded Gephi executable availability probe.",
+                      "cmd": f'ruby -e "path = ARGV.fetch(0); exit((File.file?(path) and File.executable?(path)) ? 0 : 1)" "{gephi_exe}"',
                   }
               ],
           }

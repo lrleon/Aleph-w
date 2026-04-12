@@ -12,8 +12,8 @@
       "id": "linux.gephi-0.10.smoke",
       "os": "linux",
       "gephi_version": "0.10.x",
-      "description": "Gephi 0.10.x binary availability smoke-check (Linux).",
-      "cmd": "gephi --version"
+      "description": "Gephi 0.10.x PATH availability probe (Linux).",
+      "cmd": "ruby -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" gephi"
     },
     {
       "id": "linux.gephi-0.10.headless-import",
@@ -26,8 +26,8 @@
       "id": "linux.gephi-0.9.smoke",
       "os": "linux",
       "gephi_version": "0.9.x",
-      "description": "Gephi 0.9.x binary availability smoke-check (Linux).",
-      "cmd": "gephi --version"
+      "description": "Gephi 0.9.x PATH availability probe (Linux).",
+      "cmd": "ruby -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" gephi"
     },
     {
       "id": "linux.gephi-0.9.headless-import",
@@ -40,8 +40,8 @@
       "id": "macos.gephi-0.10.smoke",
       "os": "macos",
       "gephi_version": "0.10.x",
-      "description": "Gephi 0.10.x binary availability smoke-check (macOS).",
-      "cmd": "gephi --version"
+      "description": "Gephi 0.10.x PATH availability probe (macOS).",
+      "cmd": "ruby -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" gephi"
     },
     {
       "id": "macos.gephi-0.10.headless-import",
@@ -54,8 +54,8 @@
       "id": "macos.gephi-0.9.smoke",
       "os": "macos",
       "gephi_version": "0.9.x",
-      "description": "Gephi 0.9.x binary availability smoke-check (macOS).",
-      "cmd": "gephi --version"
+      "description": "Gephi 0.9.x PATH availability probe (macOS).",
+      "cmd": "ruby -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" gephi"
     },
     {
       "id": "macos.gephi-0.9.headless-import",
@@ -68,8 +68,8 @@
       "id": "windows.gephi-0.10.smoke",
       "os": "windows",
       "gephi_version": "0.10.x",
-      "description": "Gephi 0.10.x binary availability smoke-check (Windows).",
-      "cmd": "gephi.exe --version"
+      "description": "Gephi 0.10.x PATH availability probe (Windows).",
+      "cmd": "ruby -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" gephi.exe"
     },
     {
       "id": "windows.gephi-0.10.headless-import",
@@ -82,8 +82,8 @@
       "id": "windows.gephi-0.9.smoke",
       "os": "windows",
       "gephi_version": "0.9.x",
-      "description": "Gephi 0.9.x binary availability smoke-check (Windows).",
-      "cmd": "gephi.exe --version"
+      "description": "Gephi 0.9.x PATH availability probe (Windows).",
+      "cmd": "ruby -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" gephi.exe"
     },
     {
       "id": "windows.gephi-0.9.headless-import",

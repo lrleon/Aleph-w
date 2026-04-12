@@ -645,6 +645,61 @@ namespace
     return std::system("python3 --version > /dev/null 2>&1") == 0;
   }
 
+
+  std::string
+  default_gephi_probe_name()
+  {
+# ifdef _WIN32
+    return "gephi.exe";
+# else
+    return "gephi";
+# endif
+  }
+
+
+  bool
+  has_path_executable(const std::string & name)
+  {
+    namespace fs = std::filesystem;
+    const char * raw_path = std::getenv("PATH");
+    if (raw_path == nullptr)
+      return false;
+
+# ifdef _WIN32
+    const char separator = ';';
+# else
+    const char separator = ':';
+# endif
+
+    std::stringstream ss(raw_path);
+    std::string dir;
+    while (std::getline(ss, dir, separator))
+      {
+        if (dir.empty())
+          continue;
+
+        const fs::path candidate = fs::path(dir) / name;
+        if (not fs::exists(candidate) or not fs::is_regular_file(candidate))
+          continue;
+
+# ifdef _WIN32
+        return true;
+# else
+        std::error_code ec;
+        const auto perms = fs::status(candidate, ec).permissions();
+        if (ec)
+          continue;
+
+        if ((perms & fs::perms::owner_exec) != fs::perms::none
+            or (perms & fs::perms::group_exec) != fs::perms::none
+            or (perms & fs::perms::others_exec) != fs::perms::none)
+          return true;
+# endif
+      }
+
+    return false;
+  }
+
 } // namespace
 
 
@@ -1678,12 +1733,12 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiModeIsPortable)
       {graphml_path}, false, false, true, false);
   EXPECT_EQ(rc_optional, 0);
 
-  const int has_gephi_usable =
-      std::system("gephi --version > /dev/null 2>&1");
+  const bool has_gephi_available =
+      has_path_executable(default_gephi_probe_name());
   const int rc_required = run_external_certificate_validator(
       {graphml_path}, false, false, true, true);
 
-  if (has_gephi_usable == 0)
+  if (has_gephi_available)
     EXPECT_EQ(rc_required, 0);
   else
     EXPECT_NE(rc_required, 0);

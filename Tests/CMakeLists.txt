@@ -195,6 +195,17 @@ set(TEST_PROGRAMS
     latex_floyd_test
     tpl_matgraph_test
     parse_utils_test
+    compiler_source_test
+    compiler_diagnostics_test
+    compiler_token_test
+    compiler_lexer_test
+    compiler_ast_test
+    compiler_parser_test
+    compiler_scope_test
+    compiler_sema_test
+    compiler_types_test
+    compiler_constraints_test
+    compiler_typed_sema_test
     fixedqueue
     randomqueue
     slink

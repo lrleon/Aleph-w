@@ -1,0 +1,523 @@
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
+
+/** @file Compiler_Sema.H
+ *  @brief Name-resolution and basic semantic checks for the compiler-support MVP.
+ *
+ *  The semantic analyzer performs a deliberately small first pass over the AST:
+ *
+ *  - lexical scope management
+ *  - symbol declaration and duplicate detection
+ *  - identifier resolution
+ *  - optional shadowing diagnostics
+ *  - `return` outside function checks
+ *  - `break` / `continue` outside loop checks
+ *  - rejecting calls to non-function symbols in the current name-only model
+ *
+ *  This is not a type checker. The goal is to provide a stable semantic layer
+ *  immediately above parsing while future type and constraint systems remain
+ *  separate components.
+ *
+ *  @ingroup Utilities
+ */
+
+# ifndef COMPILER_SEMA_H
+# define COMPILER_SEMA_H
+
+# include <sstream>
+# include <string>
+
+# include <Compiler_AST.H>
+# include <ah-diagnostics.H>
+# include <tpl_scope.H>
+
+namespace Aleph
+{
+  using Compiler_Symbol_Id = size_t;
+
+  /** @brief Kinds of symbols tracked by the semantic analyzer. */
+  enum class Compiler_Symbol_Kind
+  {
+    Function,
+    Parameter,
+    Local,
+    Global
+  };
+
+  /** @brief Returns a stable debug name for a symbol kind. */
+  inline const char *
+  compiler_symbol_kind_name(const Compiler_Symbol_Kind kind) noexcept
+  {
+    switch (kind)
+      {
+      case Compiler_Symbol_Kind::Function: return "Function";
+      case Compiler_Symbol_Kind::Parameter: return "Parameter";
+      case Compiler_Symbol_Kind::Local: return "Local";
+      case Compiler_Symbol_Kind::Global: return "Global";
+      }
+
+    return "Unknown";
+  }
+
+  /** @brief Symbol table entry produced by semantic analysis. */
+  struct Compiler_Symbol
+  {
+    Compiler_Symbol_Id id = 0; ///< Stable symbol identifier, 1-based.
+    Compiler_Symbol_Kind kind = Compiler_Symbol_Kind::Local; ///< Symbol category.
+    std::string name; ///< Declared name.
+    Source_Span declaration_span; ///< Declaration site.
+    size_t scope_depth = 0; ///< Lexical depth where the symbol was introduced.
+  };
+
+  /** @brief Mapping from an identifier expression to its resolved symbol. */
+  struct Compiler_Name_Resolution
+  {
+    const Compiler_Expr * expr = nullptr; ///< Identifier expression node.
+    Compiler_Symbol_Id symbol_id = 0; ///< Resolved symbol id.
+  };
+
+  /** @brief Options controlling semantic analyzer behavior. */
+  struct Compiler_Semantic_Options
+  {
+    bool allow_shadowing = true; ///< If false, nested redefinitions report `SEM007`.
+  };
+
+  /** @brief Name-resolution and basic semantic checker for the MVP AST. */
+  class Compiler_Semantic_Analyzer
+  {
+    Diagnostic_Engine * diagnostics = nullptr;
+    Compiler_Semantic_Options options;
+    DynArray<Compiler_Symbol> symbols;
+    DynArray<Compiler_Name_Resolution> resolutions;
+    Scope<std::string, Compiler_Symbol_Id> scopes;
+    size_t function_depth = 0;
+    size_t loop_depth = 0;
+
+    void emit_error(const Source_Span & span,
+                    const std::string & message,
+                    const std::string & code,
+                    const std::string & note = "",
+                    const std::string & help = "")
+    {
+      if (diagnostics == nullptr)
+        return;
+
+      auto builder = diagnostics->error(span, message).code(code);
+      if (not note.empty())
+        builder.note(note);
+      if (not help.empty())
+        builder.help(help);
+      builder.emit();
+    }
+
+    Compiler_Symbol_Id
+    append_symbol(const Compiler_Symbol_Kind kind,
+                  const std::string & name,
+                  const Source_Span & span)
+    {
+      Compiler_Symbol sym;
+      sym.id = symbols.size() + 1;
+      sym.kind = kind;
+      sym.name = name;
+      sym.declaration_span = span;
+      sym.scope_depth = scopes.depth() > 0 ? scopes.depth() - 1 : 0;
+      symbols.append(std::move(sym));
+      return symbols.size();
+    }
+
+    Compiler_Symbol_Id
+    declare_symbol(const Compiler_Symbol_Kind kind,
+                   const std::string & name,
+                   const Source_Span & span)
+    {
+      ah_runtime_error_unless(scopes.depth() > 0)
+        << "Compiler_Semantic_Analyzer: no active scope";
+
+      if (const auto * local = scopes.lookup_local(name); local != nullptr)
+        {
+          emit_error(span,
+                     "duplicate declaration of '" + name + "'",
+                     "SEM001");
+          return *local;
+        }
+
+      if (not options.allow_shadowing)
+        if (const auto * existing = scopes.lookup(name);
+            existing != nullptr)
+          emit_error(span,
+                     "shadowing declaration of '" + name + "' is not allowed",
+                     "SEM007");
+
+      const auto id = append_symbol(kind, name, span);
+      const bool inserted = scopes.insert(name, id);
+      ah_runtime_error_unless(inserted)
+        << "Compiler_Semantic_Analyzer: unexpected duplicate insertion for '"
+        << name << "'";
+      return id;
+    }
+
+    void
+    record_resolution(const Compiler_Expr * expr,
+                      const Compiler_Symbol_Id symbol_id)
+    {
+      resolutions.append({expr, symbol_id});
+    }
+
+    const Compiler_Expr *
+    strip_grouping(const Compiler_Expr * expr) const noexcept
+    {
+      auto * current = expr;
+      while (current != nullptr
+             and current->kind == Compiler_Expr_Kind::Grouping)
+        current = static_cast<const Compiler_Grouping_Expr *>(current)->inner;
+      return current;
+    }
+
+    void analyze_expr(const Compiler_Expr * expr)
+    {
+      if (expr == nullptr)
+        return;
+
+      switch (expr->kind)
+        {
+        case Compiler_Expr_Kind::Invalid:
+        case Compiler_Expr_Kind::Integer_Literal:
+        case Compiler_Expr_Kind::String_Literal:
+        case Compiler_Expr_Kind::Char_Literal:
+        case Compiler_Expr_Kind::Bool_Literal:
+          return;
+
+        case Compiler_Expr_Kind::Identifier:
+          {
+            const auto * node =
+                static_cast<const Compiler_Identifier_Expr *>(expr);
+            const auto * symbol_id = scopes.lookup(node->name);
+            if (symbol_id == nullptr)
+              {
+                emit_error(node->span,
+                           "use of undeclared identifier '" + node->name + "'",
+                           "SEM002");
+                return;
+              }
+
+            record_resolution(expr, *symbol_id);
+            return;
+          }
+
+        case Compiler_Expr_Kind::Grouping:
+          analyze_expr(static_cast<const Compiler_Grouping_Expr *>(expr)->inner);
+          return;
+
+        case Compiler_Expr_Kind::Unary:
+          analyze_expr(static_cast<const Compiler_Unary_Expr *>(expr)->operand);
+          return;
+
+        case Compiler_Expr_Kind::Binary:
+          {
+            const auto * node =
+                static_cast<const Compiler_Binary_Expr *>(expr);
+            analyze_expr(node->left);
+            analyze_expr(node->right);
+            return;
+          }
+
+        case Compiler_Expr_Kind::Call:
+          {
+            const auto * node =
+                static_cast<const Compiler_Call_Expr *>(expr);
+            analyze_expr(node->callee);
+            for (size_t i = 0; i < node->arguments.size(); ++i)
+              analyze_expr(node->arguments.access(i));
+
+            const auto * callee = strip_grouping(node->callee);
+            if (callee != nullptr
+                and callee->kind == Compiler_Expr_Kind::Identifier)
+              {
+                const auto * symbol = resolved_symbol(callee);
+                if (symbol != nullptr
+                    and symbol->kind != Compiler_Symbol_Kind::Function)
+                  emit_error(node->span,
+                             "called object '" + symbol->name
+                             + "' is not a function",
+                             "SEM005");
+              }
+            return;
+          }
+        }
+    }
+
+    void analyze_block(const Compiler_Block_Stmt * block)
+    {
+      if (block == nullptr)
+        return;
+
+      scopes.enter_scope();
+      for (size_t i = 0; i < block->statements.size(); ++i)
+        analyze_stmt(block->statements.access(i));
+      scopes.leave_scope();
+    }
+
+    void analyze_stmt(const Compiler_Stmt * stmt)
+    {
+      if (stmt == nullptr)
+        return;
+
+      switch (stmt->kind)
+        {
+        case Compiler_Stmt_Kind::Invalid:
+          return;
+
+        case Compiler_Stmt_Kind::Expr:
+          analyze_expr(static_cast<const Compiler_Expr_Stmt *>(stmt)->expr);
+          return;
+
+        case Compiler_Stmt_Kind::Let:
+          {
+            const auto * node =
+                static_cast<const Compiler_Let_Stmt *>(stmt);
+            analyze_expr(node->initializer);
+            const auto kind = function_depth > 0 ?
+                Compiler_Symbol_Kind::Local :
+                Compiler_Symbol_Kind::Global;
+            (void) declare_symbol(kind, node->name, node->name_span);
+            return;
+          }
+
+        case Compiler_Stmt_Kind::Return:
+          {
+            const auto * node =
+                static_cast<const Compiler_Return_Stmt *>(stmt);
+            if (function_depth == 0)
+              emit_error(node->keyword_span,
+                         "'return' is only valid inside a function",
+                         "SEM006");
+            analyze_expr(node->value);
+            return;
+          }
+
+        case Compiler_Stmt_Kind::Block:
+          analyze_block(static_cast<const Compiler_Block_Stmt *>(stmt));
+          return;
+
+        case Compiler_Stmt_Kind::If:
+          {
+            const auto * node =
+                static_cast<const Compiler_If_Stmt *>(stmt);
+            analyze_expr(node->condition);
+            analyze_stmt(node->then_branch);
+            analyze_stmt(node->else_branch);
+            return;
+          }
+
+        case Compiler_Stmt_Kind::While:
+          {
+            const auto * node =
+                static_cast<const Compiler_While_Stmt *>(stmt);
+            analyze_expr(node->condition);
+            ++loop_depth;
+            analyze_stmt(node->body);
+            --loop_depth;
+            return;
+          }
+
+        case Compiler_Stmt_Kind::Break:
+          {
+            const auto * node =
+                static_cast<const Compiler_Break_Stmt *>(stmt);
+            if (loop_depth == 0)
+              emit_error(node->keyword_span,
+                         "'break' is only valid inside a loop",
+                         "SEM003");
+            return;
+          }
+
+        case Compiler_Stmt_Kind::Continue:
+          {
+            const auto * node =
+                static_cast<const Compiler_Continue_Stmt *>(stmt);
+            if (loop_depth == 0)
+              emit_error(node->keyword_span,
+                         "'continue' is only valid inside a loop",
+                         "SEM004");
+            return;
+          }
+        }
+    }
+
+    void analyze_function(const Compiler_Function_Decl * fn)
+    {
+      if (fn == nullptr)
+        return;
+
+      ++function_depth;
+      scopes.enter_scope();
+      for (size_t i = 0; i < fn->parameters.size(); ++i)
+        {
+          const auto & param = fn->parameters.access(i);
+          (void) declare_symbol(Compiler_Symbol_Kind::Parameter,
+                                param.name,
+                                param.span);
+        }
+      analyze_block(fn->body);
+      scopes.leave_scope();
+      --function_depth;
+    }
+
+  public:
+    /** @brief Constructs a semantic analyzer.
+     *
+     *  @param dx Optional diagnostic sink to receive semantic errors.
+     *  @param opts Analyzer behavior options.
+     */
+    explicit Compiler_Semantic_Analyzer(Diagnostic_Engine * dx = nullptr,
+                                        const Compiler_Semantic_Options & opts = {})
+      : diagnostics(dx),
+        options(opts)
+    {}
+
+    /** @brief Clears previously collected semantic state. */
+    void clear() noexcept
+    {
+      symbols.clear();
+      resolutions.clear();
+      scopes.clear();
+      function_depth = 0;
+      loop_depth = 0;
+    }
+
+    /** @brief Analyzes a parsed module.
+     *
+     *  Existing semantic state is discarded before the new analysis.
+     *
+     *  @param module Parsed module to analyze.
+     */
+    void analyze_module(const Compiler_Module * module)
+    {
+      clear();
+      if (module == nullptr)
+        return;
+
+      scopes.enter_scope();
+
+      for (size_t i = 0; i < module->functions.size(); ++i)
+        {
+          const auto * fn = module->functions.access(i);
+          if (fn != nullptr)
+            (void) declare_symbol(Compiler_Symbol_Kind::Function,
+                                  fn->name,
+                                  fn->name_span);
+        }
+
+      for (size_t i = 0; i < module->statements.size(); ++i)
+        analyze_stmt(module->statements.access(i));
+
+      for (size_t i = 0; i < module->functions.size(); ++i)
+        analyze_function(module->functions.access(i));
+
+      scopes.leave_scope();
+    }
+
+    /** @brief Returns the number of collected symbols. */
+    size_t symbol_count() const noexcept
+    {
+      return symbols.size();
+    }
+
+    /** @brief Returns the number of identifier resolutions. */
+    size_t resolution_count() const noexcept
+    {
+      return resolutions.size();
+    }
+
+    /** @brief Returns symbol `id`.
+     *
+     *  @param id 1-based symbol id.
+     *  @return Symbol record.
+     *  @throws std::out_of_range If `id` is invalid.
+     */
+    const Compiler_Symbol & symbol(const Compiler_Symbol_Id id) const
+    {
+      ah_out_of_range_error_unless(id > 0 and id <= symbols.size())
+        << "Compiler_Semantic_Analyzer::symbol(): invalid id " << id;
+      return symbols.access(id - 1);
+    }
+
+    /** @brief Returns resolution record `i`.
+     *
+     *  @param i Resolution index.
+     *  @return Stored resolution.
+     *  @throws std::out_of_range If `i` is invalid.
+     */
+    const Compiler_Name_Resolution & resolution(const size_t i) const
+    {
+      ah_out_of_range_error_unless(i < resolutions.size())
+        << "Compiler_Semantic_Analyzer::resolution(): invalid index " << i;
+      return resolutions.access(i);
+    }
+
+    /** @brief Returns the resolved symbol for an identifier expression.
+     *
+     *  @param expr Identifier expression node.
+     *  @return Resolved symbol, or `nullptr` if unresolved/not recorded.
+     */
+    const Compiler_Symbol * resolved_symbol(const Compiler_Expr * expr) const noexcept
+    {
+      for (size_t i = 0; i < resolutions.size(); ++i)
+        if (resolutions.access(i).expr == expr)
+          {
+            const auto id = resolutions.access(i).symbol_id;
+            return id > 0 and id <= symbols.size() ?
+                &symbols.access(id - 1) : nullptr;
+          }
+      return nullptr;
+    }
+
+    /** @brief Dumps the current symbol table in a deterministic text format. */
+    std::string dump_symbols() const
+    {
+      std::ostringstream out;
+      out << "Symbols\n";
+      for (size_t i = 0; i < symbols.size(); ++i)
+        {
+          const auto & sym = symbols.access(i);
+          out << "  #" << sym.id
+              << " " << compiler_symbol_kind_name(sym.kind)
+              << " " << sym.name
+              << " scope=" << sym.scope_depth
+              << " @" << sym.declaration_span.to_string()
+              << '\n';
+        }
+      return out.str();
+    }
+  };
+}
+
+# endif // COMPILER_SEMA_H

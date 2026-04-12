@@ -2526,8 +2526,10 @@ External validation adapter (end-to-end artifacts):
   - validates exported `GraphML` / `GEXF` files directly
   - checks XML consistency, endpoint references and obstruction-edge presence
   - optional `--networkx` pass for tool-level loadability checks
-  - optional `--gephi` pass for Gephi CLI/toolkit adapter checks
-    (`--gephi-cmd` supports a custom command template with `{input}`)
+  - optional `--gephi` pass for Gephi adapter checks
+    (default behavior probes executable availability in `PATH`;
+    `--gephi-cmd` supports a custom command template with `{input}`
+    for real import/adapter execution)
   - optional `--render-gephi` pass for render/export validation
     (`--render-profile` + `--render-output-dir`, with SVG/PDF artifact checks)
 - `scripts/planarity_gephi_templates.json`
@@ -2550,7 +2552,7 @@ External validation adapter (end-to-end artifacts):
 - `.github/workflows/planarity_gephi_nightly.yml`
   - weekly + manual real-Gephi packaging probe (Linux/macOS/Windows)
   - auto-selects latest `0.9.x` and `0.10.x` Gephi tags (or manual override)
-  - downloads official Gephi release binaries and validates adapter integration
+  - downloads official Gephi release binaries and validates extracted executable availability
   - emits per-run comparative report artifact across tags/OS matrix
   - enforces a regression gate when newer tags regress against previous tags per OS
   - optional webhook notifications for regressions via secret
@@ -2580,7 +2582,7 @@ ruby scripts/planarity_certificate_validator.rb \
 ruby scripts/planarity_certificate_validator.rb \
   --input /tmp/planarity_k33_certificate.graphml \
   --gephi --require-gephi \
-  --gephi-template portable.python-file-exists
+  --gephi-template portable.ruby-file-exists
 
 # List render profile catalog (filterable by OS)
 ruby scripts/planarity_certificate_validator.rb \
@@ -2598,7 +2600,7 @@ ruby scripts/planarity_certificate_ci_batch.rb \
   --input /tmp/planarity_k33_certificate.graphml \
   --input /tmp/planarity_k33_certificate.gexf \
   --gephi --require-gephi \
-  --gephi-template portable.python-file-exists \
+  --gephi-template portable.ruby-file-exists \
   --report /tmp/aleph_planarity_ci_report.json --print-summary
 
 # CI batch report with render validation
@@ -2617,11 +2619,16 @@ ruby scripts/planarity_certificate_ci_visual_diff.rb \
   --render-output-dir /tmp/aleph_planarity_visual_renders \
   --report /tmp/aleph_planarity_visual_diff_report.json --print-summary
 
-# Real-Gephi local smoke check (without portable profiles)
+# Local Gephi executable availability probe (default --gephi behavior)
+ruby scripts/planarity_certificate_validator.rb \
+  --input scripts/fixtures/planarity_k33_certificate.graphml \
+  --gephi --require-gephi
+
+# Real-Gephi local adapter/import check with explicit executable
 ruby scripts/planarity_certificate_validator.rb \
   --input scripts/fixtures/planarity_k33_certificate.graphml \
   --gephi --require-gephi \
-  --gephi-cmd "\"/path/to/gephi\" --version"
+  --gephi-cmd "\"/path/to/gephi\" --headless --import {input}"
 
 # Nightly workflow manual override example:
 # workflow_dispatch input gephi_tags="v0.9.7,v0.10.1"
@@ -3946,6 +3953,25 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | `ah-arena.H` | `allocate<T>()` | Construct object in arena |
 | `ah-arena.H` | `dealloc<T>()` | Destroy object from arena |
 
+#### Compiler Tooling
+
+See the [Compiler Front-End Support Guide](docs/compiler_frontend_support.en.md)
+for the intended scope, examples, and current limits of these headers.
+
+| Header | Type/Function | Description |
+|--------|---------------|-------------|
+| `ah-source.H` | `Source_Manager`, `Source_Span`, `Source_Position`, `Source_Snippet` | Source file registry, byte-offset spans, line/column resolution, and single-line diagnostic snippets |
+| `ah-diagnostics.H` | `Diagnostic_Engine`, `Diagnostic_Builder`, `Diagnostic`, `Diagnostic_Label` | Buffered diagnostics with labels, notes, help entries, and deterministic plain-text rendering |
+| `Compiler_Token.H` | `Compiler_Token`, `Compiler_Token_Kind`, `classify_compiler_keyword()`, `compiler_binary_precedence()` | Token model, keyword classification, and parser-facing operator metadata |
+| `Compiler_Lexer.H` | `Compiler_Lexer`, `Compiler_Lexer_Options` | Single-file lexer with stable spans, configurable comment handling, invalid-token recovery, and optional diagnostics |
+| `Compiler_AST.H` | `Compiler_Ast_Context`, `Compiler_Module`, `Compiler_Function_Decl`, `compiler_dump_module()` | Arena-backed AST nodes for expressions, statements, functions, modules, and deterministic textual dumps |
+| `Compiler_Parser.H` | `Compiler_Parser`, `Compiler_Parser_Options` | Recursive-descent parser with precedence climbing, block/statement parsing, and diagnostic-based recovery |
+| `tpl_scope.H` | `Scope<Key, Value>` | Generic nested-scope stack for lexical bindings, local lookup, recursive lookup, and shadowing |
+| `Compiler_Sema.H` | `Compiler_Semantic_Analyzer`, `Compiler_Symbol`, `Compiler_Name_Resolution` | Name resolution, duplicate detection, shadowing checks, basic control-flow misuse diagnostics, and symbol-table dumps |
+| `Compiler_Types.H` | `Compiler_Type_Context`, `Compiler_Type`, `Compiler_Type_Id` | Stable type graph with built-ins, tuples, functions, type variables, and deterministic pretty-printing |
+| `tpl_constraints.H` | `Constraint_Set<T>`, `Compiler_Type_Unifier`, `Compiler_Type_Substitution` | Equality constraints, substitutions, structural unification, rigid variables, and occurs-check support |
+| `Compiler_Typed_Sema.H` | `Compiler_Typed_Semantic_Analyzer`, `Compiler_Typed_Semantic_Options` | Typed semantic pass that connects AST nodes, the base semantic pass, the type graph, and constraint solving |
+
 #### Parallel Computing
 
 | Header | Type/Function | Description |
@@ -4108,6 +4134,12 @@ cmake --build build
 | Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
 | Combinatorics toolbox | `comb_example.C` | Cartesian-product traversal, transpose, and combinatorics helpers |
 | Gray code utilities | `gray_code_example.cc` | Binary to Gray conversion and sequence generation |
+| Compiler diagnostics | `compiler_diagnostics_example.cc` | Source spans and deterministic plain-text diagnostics suitable for lexers and parsers |
+| Compiler lexer | `compiler_lexer_example.cc` | Tokenization of a small source file with stable spans and token debug output |
+| Compiler parser | `compiler_parser_example.cc` | Parsing a small module into an arena-backed AST and dumping the resulting tree |
+| Compiler semantic analysis | `compiler_sema_example.cc` | Name resolution over a parsed module, symbol-table dump, and semantic diagnostics for unresolved or invalid uses |
+| Compiler types and constraints | `compiler_types_example.cc` | Stable type construction, equality constraints, substitutions, and structural unification over function signatures |
+| Compiler typed semantic analysis | `compiler_typed_sema_example.cc` | Type inference over a parsed module with inferred function signatures, parameter types, local bindings, and typed diagnostics |
 | Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector`. Full tutorial: [FFT & DSP Tutorial](docs/fft-tutorial.en.md) |
 | Number Theoretic Transform | `ntt_example.cc` | Exact modular transforms, active SIMD backend reporting, reusable plans, Bluestein-based arbitrary supported sizes, three-prime CRT exact multiplication into `__uint128_t`, formal polynomial algebra, base-10 big integer multiplication, negacyclic convolution modulo `x^N + 1`, batch execution, and explicit parallel polynomial multiplication. Full tutorial: [NTT Tutorial](docs/ntt-tutorial.en.md) |
 | Polynomial arithmetic | `polynomial_example.cc` | Sparse polynomial algebra, calculus, root analysis (Sturm/bisection/Newton), Newton interpolation, transfer functions, and high-degree sparse operations |
