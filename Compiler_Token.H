@@ -49,7 +49,11 @@
 #include <ah-source.H>
 
 namespace Aleph {
-/** @brief Associativity metadata for binary operators. */
+/** @brief Associativity metadata for binary operators. 
+ *
+ *  @note Thread-safety: Thread-safe (POD).
+ *  @note Complexity: O(1).
+ */
 enum class Compiler_Associativity
 {
   None,
@@ -61,6 +65,9 @@ enum class Compiler_Associativity
  *
  *  Keywords use dedicated enumerators rather than a generic keyword token so
  *  parsers can dispatch on the token kind directly.
+ *
+ *  @note Thread-safety: Thread-safe (POD).
+ *  @note Complexity: O(1).
  */
 enum class Compiler_Token_Kind
 {
@@ -133,41 +140,125 @@ enum class Compiler_Token_Kind
   MinusMinus
 };
 
+/** @brief Returns a stable string name for a token kind.
+ *
+ *  @param kind Token kind to format.
+ *  @return String literal name.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 const char *compiler_token_kind_name(Compiler_Token_Kind kind);
+
+/** @brief Classifies a lexeme as a keyword or Identifier.
+ *
+ *  @param lexeme Raw lexeme text.
+ *  @return Keyword kind or `Identifier`.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1) (fixed number of keywords).
+ */
 Compiler_Token_Kind classify_compiler_keyword(std::string_view lexeme) noexcept;
+
+/** @brief Returns whether a token kind is a keyword.
+ *
+ *  @param kind Token kind to check.
+ *  @return `true` iff it is a keyword.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 bool compiler_token_is_keyword(Compiler_Token_Kind kind) noexcept;
+
+/** @brief Returns whether a token kind is a literal.
+ *
+ *  @param kind Token kind to check.
+ *  @return `true` iff it is a literal (integer, string, char, or bool).
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 bool compiler_token_is_literal(Compiler_Token_Kind kind) noexcept;
+
+/** @brief Returns whether a token kind is a comment.
+ *
+ *  @param kind Token kind to check.
+ *  @return `true` iff it is a line or block comment.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 bool compiler_token_is_comment(Compiler_Token_Kind kind) noexcept;
+
+/** @brief Returns whether a token kind is an operator.
+ *
+ *  @param kind Token kind to check.
+ *  @return `true` iff it is a recognized operator.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 bool compiler_token_is_operator(Compiler_Token_Kind kind) noexcept;
+
+/** @brief Returns binary precedence for an operator.
+ *
+ *  @param kind Token kind to check.
+ *  @return Precedence level (higher is tighter), or 0 if not a binary op.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 int compiler_binary_precedence(Compiler_Token_Kind kind) noexcept;
+
+/** @brief Returns binary associativity for an operator.
+ *
+ *  @param kind Token kind to check.
+ *  @return Associativity (Left, Right, or None).
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 Compiler_Associativity compiler_binary_associativity(Compiler_Token_Kind kind) noexcept;
 
-/** @brief Lexical token with raw lexeme and source span. */
+/** @brief Lexical token with raw lexeme and source span. 
+ *
+ *  @note Thread-safety: Not thread-safe for concurrent mutation. Const methods 
+ *        are safe for concurrent readers.
+ *  @note Complexity: O(1) for construction/copy (plus string allocation).
+ */
 struct Compiler_Token
 {
   Compiler_Token_Kind kind = Compiler_Token_Kind::Invalid;  ///< Token category.
   std::string lexeme;  ///< Raw lexeme spelling from the source slice.
   Source_Span span;    ///< Span covering the token text.
 
-  /** @brief Returns whether the token is EOF. */
+  /** @brief Returns whether the token is EOF. 
+   *
+   *  @note Thread-safety: Safe for concurrent readers.
+   *  @note Complexity: O(1).
+   */
   [[nodiscard]] bool is_eof() const noexcept
   {
     return kind == Compiler_Token_Kind::End_Of_File;
   }
 
-  /** @brief Returns whether the token is invalid. */
+  /** @brief Returns whether the token is invalid. 
+   *
+   *  @note Thread-safety: Safe for concurrent readers.
+   *  @note Complexity: O(1).
+   */
   [[nodiscard]] bool is_invalid() const noexcept
   {
     return kind == Compiler_Token_Kind::Invalid;
   }
 
-  /** @brief Returns whether the token kind matches `expected`. */
+  /** @brief Returns whether the token kind matches `expected`. 
+   *
+   *  @note Thread-safety: Safe for concurrent readers.
+   *  @note Complexity: O(1).
+   */
   [[nodiscard]] bool is(const Compiler_Token_Kind expected) const noexcept
   {
     return kind == expected;
   }
 
-  /** @brief Formats the token for debugging. */
+  /** @brief Formats the token for debugging. 
+   *
+   *  @note Thread-safety: Safe for concurrent readers.
+   *  @note Complexity: O(N) where N is lexeme length.
+   */
   [[nodiscard]] std::string to_string() const
   {
     auto escaped_lexeme = std::string();

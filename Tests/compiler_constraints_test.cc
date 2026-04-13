@@ -120,3 +120,23 @@ TEST(CompilerConstraints, SolvesConstraintSetsInInsertionOrder)
   EXPECT_EQ(unifier.apply(alpha), ctx.integer_type());
   EXPECT_EQ(unifier.apply(beta), ctx.string_type());
 }
+
+
+TEST(CompilerConstraints, SolveShortCircuitsOnFirstFailure)
+{
+  Compiler_Type_Context ctx;
+  const auto beta = ctx.make_type_variable("B");
+
+  Compiler_Type_Constraint_Set constraints;
+  // First constraint is impossible: integer cannot unify with string
+  constraints.add(ctx.integer_type(), ctx.string_type(), {}, "failing");
+  // Second constraint would succeed on its own but should not be processed
+  constraints.add(beta, ctx.string_type(), {}, "unreachable");
+
+  Compiler_Type_Unifier unifier(ctx);
+  const auto result = unifier.solve(constraints);
+
+  EXPECT_FALSE(result.ok());
+  // 'beta' was never bound, so applying it yields itself unchanged
+  EXPECT_EQ(unifier.apply(beta), beta);
+}

@@ -46,7 +46,7 @@
  *
  *  | Variant | Time | Space |
  *  |---------|------|-------|
- *  | 0/1 Knapsack | O(n * capacity) | O(capacity) |
+ *  | 0/1 Knapsack | O(n * capacity) | O(n * capacity) |
  *  | Unbounded | O(n * capacity) | O(capacity) |
  *  | Bounded | O(capacity * sum(log c_i)) | O(capacity) |
  *
@@ -59,7 +59,7 @@
  *
  *  // Solve 0/1 Knapsack
  *  auto res = knapsack_01(items, capacity);
- *  // res.optimal_value = 140 (items {2, 40} and {4, 70} or others)
+ *  // res.optimal_value = 130 (items with weights 3 and 5)
  *  // res.selected_items contains the indices
  *  @endcode
  *

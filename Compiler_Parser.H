@@ -51,13 +51,20 @@
 #include <Compiler_Lexer.H>
 
 namespace Aleph {
-/** @brief Parser configuration knobs for the MVP grammar. */
+/** @brief Parser configuration knobs for the MVP grammar. 
+ *
+ *  @note Thread-safety: Thread-safe (POD).
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Parser_Options
 {
   bool allow_top_level_statements = true;  ///< If false, only `fn` is accepted at top level.
 };
 
-/** @brief Recursive-descent parser that produces an AST in `Compiler_Ast_Context`. */
+/** @brief Recursive-descent parser that produces an AST in `Compiler_Ast_Context`. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ */
 class Compiler_Parser
 {
   Compiler_Ast_Context *ast = nullptr;
@@ -433,6 +440,8 @@ public:
    *  @param file_id Registered source file id to parse.
    *  @param dx Optional diagnostic sink shared with the lexer.
    *  @param opts Parser options for top-level grammar handling.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1).
    */
   Compiler_Parser(Compiler_Ast_Context &ctx,
                   const Source_Manager &sm,
@@ -445,6 +454,8 @@ public:
   /** @brief Parses a full module until EOF.
    *
    *  @return Arena-backed module node containing functions and statements.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(N) where N is source length.
    */
   Compiler_Module *parse_module()
   {
@@ -487,6 +498,8 @@ public:
   /** @brief Parses a top-level function declaration.
    *
    *  @return Function declaration node. Recovery still returns a node on error.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(N) where N is source length.
    */
   Compiler_Function_Decl *parse_function()
   {
@@ -518,6 +531,8 @@ public:
   /** @brief Parses a single statement.
    *
    *  @return Statement node. Invalid input yields `Compiler_Invalid_Stmt`.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(N) where N is source length.
    */
   Compiler_Stmt *parse_statement()
   {

@@ -350,6 +350,7 @@ jobs:
           import json
           import os
           import pathlib
+          import shlex
           import subprocess
           import sys
 
@@ -373,7 +374,7 @@ jobs:
                       "os": "any",
                       "gephi_version": gephi_version,
                       "description": "Nightly downloaded Gephi executable availability probe.",
-                      "cmd": f'ruby -e "path = ARGV.fetch(0); exit((File.file?(path) and File.executable?(path)) ? 0 : 1)" "{gephi_exe}"',
+                      "cmd": f'ruby -e "path = ARGV.fetch(0); exit((File.file?(path) and File.executable?(path)) ? 0 : 1)" {shlex.quote(gephi_exe)}',
                   }
               ],
           }

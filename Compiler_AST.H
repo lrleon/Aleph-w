@@ -69,6 +69,8 @@ struct Compiler_Module;
  *  @param lhs Left span.
  *  @param rhs Right span.
  *  @return Span covering the minimum begin and maximum end.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
  */
 inline Source_Span compiler_merge_spans(const Source_Span &lhs, const Source_Span &rhs) noexcept
 {
@@ -83,7 +85,11 @@ inline Source_Span compiler_merge_spans(const Source_Span &lhs, const Source_Spa
           lhs.end > rhs.end ? lhs.end : rhs.end};
 }
 
-/** @brief Kinds of expression nodes produced by the MVP parser. */
+/** @brief Kinds of expression nodes produced by the MVP parser. 
+ *
+ *  @note Thread-safety: Thread-safe (POD).
+ *  @note Complexity: O(1).
+ */
 enum class Compiler_Expr_Kind
 {
   Invalid,
@@ -98,7 +104,11 @@ enum class Compiler_Expr_Kind
   Call
 };
 
-/** @brief Kinds of statement nodes produced by the MVP parser. */
+/** @brief Kinds of statement nodes produced by the MVP parser. 
+ *
+ *  @note Thread-safety: Thread-safe (POD).
+ *  @note Complexity: O(1).
+ */
 enum class Compiler_Stmt_Kind
 {
   Invalid,
@@ -112,7 +122,13 @@ enum class Compiler_Stmt_Kind
   Continue
 };
 
-/** @brief Returns a stable debug name for an expression kind. */
+/** @brief Returns a stable debug name for an expression kind. 
+ *
+ *  @param kind Expression kind.
+ *  @return String literal name.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 inline const char *compiler_expr_kind_name(const Compiler_Expr_Kind kind) noexcept
 {
   switch (kind)
@@ -142,7 +158,13 @@ inline const char *compiler_expr_kind_name(const Compiler_Expr_Kind kind) noexce
   return "Unknown";
 }
 
-/** @brief Returns a stable debug name for a statement kind. */
+/** @brief Returns a stable debug name for a statement kind. 
+ *
+ *  @param kind Statement kind.
+ *  @return String literal name.
+ *  @note Thread-safety: Thread-safe.
+ *  @note Complexity: O(1).
+ */
 inline const char *compiler_stmt_kind_name(const Compiler_Stmt_Kind kind) noexcept
 {
   switch (kind)
@@ -200,6 +222,8 @@ public:
    *
    *  @param arena_size Arena capacity in bytes.
    *  @throws std::runtime_error If the arena cannot be created.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1).
    */
   explicit Compiler_Ast_Context(const size_t arena_size = AhArenaAllocator::DEFAULT_SIZE)
     : arena(arena_size)
@@ -208,6 +232,11 @@ public:
   Compiler_Ast_Context(const Compiler_Ast_Context &) = delete;
   Compiler_Ast_Context &operator=(const Compiler_Ast_Context &) = delete;
 
+  /** @brief Destructor.
+   *
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(N) where N is number of tracked objects.
+   */
   ~Compiler_Ast_Context() noexcept
   {
     reset();
@@ -219,6 +248,8 @@ public:
    *  @param args Constructor arguments forwarded to `T`.
    *  @return Pointer stable until `reset()` or destruction.
    *  @throws std::runtime_error If arena allocation fails.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1) amortized (arena allocation).
    */
   template <typename T, typename... Args>
   T *make(Args &&...args)
@@ -237,6 +268,8 @@ public:
   /** @brief Destroys all tracked objects and rewinds the arena.
    *
    *  All pointers returned by `make()` become invalid after this call.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(N) where N is number of tracked objects.
    */
   void reset() noexcept
   {
@@ -250,66 +283,113 @@ public:
     arena.reset();
   }
 
-  /** @brief Returns bytes currently consumed in the arena. */
+  /** @brief Returns bytes currently consumed in the arena. 
+   *
+   *  @return Allocated bytes.
+   *  @note Thread-safety: Safe for concurrent readers.
+   *  @note Complexity: O(1).
+   */
   size_t allocated_size() const noexcept
   {
     return arena.allocated_size();
   }
 
-  /** @brief Returns total arena capacity in bytes. */
+  /** @brief Returns total arena capacity in bytes. 
+   *
+   *  @return Arena capacity.
+   *  @note Thread-safety: Safe for concurrent readers.
+   *  @note Complexity: O(1).
+   */
   size_t capacity() const noexcept
   {
     return arena.capacity();
   }
 };
 
-/** @brief Base class for expression nodes. */
+/** @brief Base class for expression nodes. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Expr : public Compiler_Ast_Node
 {
   Compiler_Expr_Kind kind = Compiler_Expr_Kind::Invalid;  ///< Runtime node kind.
 
+  /** @brief Constructs an expression node.
+   *
+   *  @param k Expression kind.
+   *  @param sp Source span.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1).
+   */
   Compiler_Expr(const Compiler_Expr_Kind k = Compiler_Expr_Kind::Invalid,
                 const Source_Span &sp = {}) noexcept
     : Compiler_Ast_Node(sp), kind(k)
   {}
 };
 
-/** @brief Base class for statement nodes. */
+/** @brief Base class for statement nodes. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Stmt : public Compiler_Ast_Node
 {
   Compiler_Stmt_Kind kind = Compiler_Stmt_Kind::Invalid;  ///< Runtime node kind.
 
+  /** @brief Constructs a statement node.
+   *
+   *  @param k Statement kind.
+   *  @param sp Source span.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1).
+   */
   Compiler_Stmt(const Compiler_Stmt_Kind k = Compiler_Stmt_Kind::Invalid,
                 const Source_Span &sp = {}) noexcept
     : Compiler_Ast_Node(sp), kind(k)
   {}
 };
 
-/** @brief Invalid expression placeholder used after parse errors. */
+/** @brief Invalid expression placeholder used after parse errors. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Invalid_Expr final : public Compiler_Expr
 {
+  /** @brief Constructs an invalid expression. */
   explicit Compiler_Invalid_Expr(const Source_Span &sp = {}) noexcept
     : Compiler_Expr(Compiler_Expr_Kind::Invalid, sp)
   {}
 };
 
-/** @brief Identifier reference expression. */
+/** @brief Identifier reference expression. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Identifier_Expr final : public Compiler_Expr
 {
   std::string name;       ///< Identifier spelling.
   Source_Span name_span;  ///< Span of the identifier token.
 
+  /** @brief Constructs an identifier expression. */
   Compiler_Identifier_Expr(std::string value = "", const Source_Span &sp = {}) noexcept
     : Compiler_Expr(Compiler_Expr_Kind::Identifier, sp), name(std::move(value)), name_span(sp)
   {}
 };
 
-/** @brief Literal expression storing its original lexeme. */
+/** @brief Literal expression storing its original lexeme. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Literal_Expr final : public Compiler_Expr
 {
   std::string lexeme;       ///< Original source spelling.
   bool bool_value = false;  ///< Decoded boolean value when `kind` is boolean.
 
+  /** @brief Constructs a literal expression. */
   Compiler_Literal_Expr(const Compiler_Expr_Kind k = Compiler_Expr_Kind::Invalid,
                         std::string value = "",
                         const Source_Span &sp = {},
@@ -318,13 +398,18 @@ struct Compiler_Literal_Expr final : public Compiler_Expr
   {}
 };
 
-/** @brief Parenthesized expression preserving explicit grouping. */
+/** @brief Parenthesized expression preserving explicit grouping. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Grouping_Expr final : public Compiler_Expr
 {
   Compiler_Expr *inner = nullptr;  ///< Expression inside the parentheses.
   Source_Span lparen_span;         ///< Span of `'('`.
   Source_Span rparen_span;         ///< Span of `')'`.
 
+  /** @brief Constructs a grouping expression. */
   Compiler_Grouping_Expr(Compiler_Expr *expr = nullptr,
                          const Source_Span &lparen = {},
                          const Source_Span &rparen = {}) noexcept
@@ -336,13 +421,18 @@ struct Compiler_Grouping_Expr final : public Compiler_Expr
   {}
 };
 
-/** @brief Prefix unary expression. */
+/** @brief Prefix unary expression. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Unary_Expr final : public Compiler_Expr
 {
   Compiler_Token_Kind op = Compiler_Token_Kind::Invalid;  ///< Unary operator kind.
   Source_Span operator_span;                              ///< Span of the operator token.
   Compiler_Expr *operand = nullptr;                       ///< Operand expression.
 
+  /** @brief Constructs a unary expression. */
   Compiler_Unary_Expr(const Compiler_Token_Kind op_kind = Compiler_Token_Kind::Invalid,
                       const Source_Span &op_sp = {},
                       Compiler_Expr *expr = nullptr) noexcept
@@ -352,7 +442,11 @@ struct Compiler_Unary_Expr final : public Compiler_Expr
   {}
 };
 
-/** @brief Binary operator expression. */
+/** @brief Binary operator expression. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Binary_Expr final : public Compiler_Expr
 {
   Compiler_Token_Kind op = Compiler_Token_Kind::Invalid;  ///< Operator kind.
@@ -360,6 +454,7 @@ struct Compiler_Binary_Expr final : public Compiler_Expr
   Compiler_Expr *left = nullptr;                          ///< Left-hand operand.
   Compiler_Expr *right = nullptr;                         ///< Right-hand operand.
 
+  /** @brief Constructs a binary expression. */
   Compiler_Binary_Expr(Compiler_Expr *lhs = nullptr,
                        const Compiler_Token_Kind op_kind = Compiler_Token_Kind::Invalid,
                        const Source_Span &op_sp = {},
@@ -372,7 +467,11 @@ struct Compiler_Binary_Expr final : public Compiler_Expr
   {}
 };
 
-/** @brief Function-call expression. */
+/** @brief Function-call expression. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Call_Expr final : public Compiler_Expr
 {
   Compiler_Expr *callee = nullptr;      ///< Called expression.
@@ -380,6 +479,7 @@ struct Compiler_Call_Expr final : public Compiler_Expr
   Source_Span lparen_span;              ///< Span of `'('`.
   Source_Span rparen_span;              ///< Span of `')'`.
 
+  /** @brief Constructs a call expression. */
   Compiler_Call_Expr(Compiler_Expr *func = nullptr,
                      const Source_Span &lparen = {},
                      const Source_Span &rparen = {}) noexcept
@@ -390,20 +490,30 @@ struct Compiler_Call_Expr final : public Compiler_Expr
   {}
 };
 
-/** @brief Invalid statement placeholder used after parse errors. */
+/** @brief Invalid statement placeholder used after parse errors. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Invalid_Stmt final : public Compiler_Stmt
 {
+  /** @brief Constructs an invalid statement. */
   explicit Compiler_Invalid_Stmt(const Source_Span &sp = {}) noexcept
     : Compiler_Stmt(Compiler_Stmt_Kind::Invalid, sp)
   {}
 };
 
-/** @brief Expression statement terminated by a semicolon. */
+/** @brief Expression statement terminated by a semicolon. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Expr_Stmt final : public Compiler_Stmt
 {
   Compiler_Expr *expr = nullptr;  ///< Expression value.
   Source_Span semicolon_span;     ///< Span of the terminating `';'`.
 
+  /** @brief Constructs an expression statement. */
   Compiler_Expr_Stmt(Compiler_Expr *value = nullptr, const Source_Span &semi = {}) noexcept
     : Compiler_Stmt(Compiler_Stmt_Kind::Expr,
                     value != nullptr ? compiler_merge_spans(value->span, semi) : semi),
@@ -411,7 +521,11 @@ struct Compiler_Expr_Stmt final : public Compiler_Stmt
   {}
 };
 
-/** @brief Variable-binding statement introduced by `let`. */
+/** @brief Variable-binding statement introduced by `let`. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Let_Stmt final : public Compiler_Stmt
 {
   Source_Span keyword_span;              ///< Span of `let`.
@@ -420,6 +534,7 @@ struct Compiler_Let_Stmt final : public Compiler_Stmt
   Compiler_Expr *initializer = nullptr;  ///< Optional initializer.
   Source_Span semicolon_span;            ///< Span of the terminating semicolon.
 
+  /** @brief Constructs a let statement. */
   Compiler_Let_Stmt(const Source_Span &kw = {},
                     std::string value = "",
                     const Source_Span &name_sp = {},
@@ -433,13 +548,18 @@ struct Compiler_Let_Stmt final : public Compiler_Stmt
   {}
 };
 
-/** @brief Return statement with optional value. */
+/** @brief Return statement with optional value. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Return_Stmt final : public Compiler_Stmt
 {
   Source_Span keyword_span;        ///< Span of `return`.
   Compiler_Expr *value = nullptr;  ///< Optional return value.
   Source_Span semicolon_span;      ///< Span of the terminating semicolon.
 
+  /** @brief Constructs a return statement. */
   Compiler_Return_Stmt(const Source_Span &kw = {},
                        Compiler_Expr *expr = nullptr,
                        const Source_Span &semi = {}) noexcept
@@ -450,20 +570,29 @@ struct Compiler_Return_Stmt final : public Compiler_Stmt
   {}
 };
 
-/** @brief Statement sequence enclosed by braces. */
+/** @brief Statement sequence enclosed by braces. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Block_Stmt final : public Compiler_Stmt
 {
   DynArray<Compiler_Stmt *> statements;  ///< Nested statements.
   Source_Span lbrace_span;               ///< Span of `'{'`.
   Source_Span rbrace_span;               ///< Span of `'}'`.
 
+  /** @brief Constructs a block statement. */
   Compiler_Block_Stmt(const Source_Span &lbrace = {}, const Source_Span &rbrace = {}) noexcept
     : Compiler_Stmt(Compiler_Stmt_Kind::Block, compiler_merge_spans(lbrace, rbrace)),
       lbrace_span(lbrace), rbrace_span(rbrace)
   {}
 };
 
-/** @brief Conditional statement with optional else-branch. */
+/** @brief Conditional statement with optional else-branch. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_If_Stmt final : public Compiler_Stmt
 {
   Source_Span if_span;                   ///< Span of `if`.
@@ -472,6 +601,7 @@ struct Compiler_If_Stmt final : public Compiler_Stmt
   Source_Span else_span;                 ///< Span of `else`, if present.
   Compiler_Stmt *else_branch = nullptr;  ///< Optional false branch.
 
+  /** @brief Constructs an if statement. */
   Compiler_If_Stmt(const Source_Span &if_kw = {},
                    Compiler_Expr *cond = nullptr,
                    Compiler_Stmt *then_stmt = nullptr,
@@ -489,17 +619,22 @@ struct Compiler_If_Stmt final : public Compiler_Stmt
   {}
 };
 
-/** @brief While-loop statement. */
+/** @brief While-loop statement. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_While_Stmt final : public Compiler_Stmt
 {
   Source_Span keyword_span;            ///< Span of `while`.
   Compiler_Expr *condition = nullptr;  ///< Loop condition.
   Compiler_Stmt *body = nullptr;       ///< Loop body.
 
+  /** @brief Constructs a while statement. */
   Compiler_While_Stmt(const Source_Span &kw = {},
                       Compiler_Expr *cond = nullptr,
                       Compiler_Stmt *stmt = nullptr) noexcept
-    : Compiler_Stmt(Compiler_Stmt_Kind::While,
+    : Compiler_Stmt(Compiler_While,
                     compiler_merge_spans(kw,
                                          stmt != nullptr
                                            ? stmt->span
@@ -508,38 +643,56 @@ struct Compiler_While_Stmt final : public Compiler_Stmt
   {}
 };
 
-/** @brief `break;` statement. */
+/** @brief `break;` statement. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Break_Stmt final : public Compiler_Stmt
 {
   Source_Span keyword_span;    ///< Span of `break`.
   Source_Span semicolon_span;  ///< Span of the semicolon.
 
+  /** @brief Constructs a break statement. */
   Compiler_Break_Stmt(const Source_Span &kw = {}, const Source_Span &semi = {}) noexcept
     : Compiler_Stmt(Compiler_Stmt_Kind::Break, compiler_merge_spans(kw, semi)), keyword_span(kw),
       semicolon_span(semi)
   {}
 };
 
-/** @brief `continue;` statement. */
+/** @brief `continue;` statement. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Continue_Stmt final : public Compiler_Stmt
 {
   Source_Span keyword_span;    ///< Span of `continue`.
   Source_Span semicolon_span;  ///< Span of the semicolon.
 
+  /** @brief Constructs a continue statement. */
   Compiler_Continue_Stmt(const Source_Span &kw = {}, const Source_Span &semi = {}) noexcept
     : Compiler_Stmt(Compiler_Stmt_Kind::Continue, compiler_merge_spans(kw, semi)), keyword_span(kw),
       semicolon_span(semi)
   {}
 };
 
-/** @brief Function parameter metadata. */
+/** @brief Function parameter metadata. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Param
 {
   std::string name;  ///< Parameter name.
   Source_Span span;  ///< Parameter source span.
 };
 
-/** @brief Top-level function declaration. */
+/** @brief Top-level function declaration. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Function_Decl : public Compiler_Ast_Node
 {
   Source_Span keyword_span;             ///< Span of `fn`.
@@ -548,6 +701,15 @@ struct Compiler_Function_Decl : public Compiler_Ast_Node
   DynArray<Compiler_Param> parameters;  ///< Parameters in source order.
   Compiler_Block_Stmt *body = nullptr;  ///< Function body block.
 
+  /** @brief Constructs a function declaration.
+   *
+   *  @param kw Span of `fn`.
+   *  @param value Function name.
+   *  @param name_sp Span of the name.
+   *  @param block Function body.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1).
+   */
   Compiler_Function_Decl(const Source_Span &kw = {},
                          std::string value = "",
                          const Source_Span &name_sp = {},
@@ -557,12 +719,22 @@ struct Compiler_Function_Decl : public Compiler_Ast_Node
   {}
 };
 
-/** @brief Parsed translation unit. */
+/** @brief Parsed translation unit. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Module : public Compiler_Ast_Node
 {
   DynArray<Compiler_Function_Decl *> functions;  ///< Top-level functions.
   DynArray<Compiler_Stmt *> statements;          ///< Optional top-level statements.
 
+  /** @brief Constructs a module.
+   *
+   *  @param sp Module source span.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1).
+   */
   explicit Compiler_Module(const Source_Span &sp = {}) noexcept : Compiler_Ast_Node(sp) {}
 };
 
@@ -771,7 +943,13 @@ inline void dump_stmt(const Compiler_Stmt *stmt, std::ostream &out, const size_t
 }
 }  // namespace Compiler_Ast_Detail
 
-/** @brief Dumps an expression subtree in a deterministic text format. */
+/** @brief Dumps an expression subtree in a deterministic text format. 
+ *
+ *  @param expr Root of the expression tree.
+ *  @return Multiline string representation.
+ *  @note Thread-safety: Safe for concurrent readers.
+ *  @note Complexity: O(N) where N is number of nodes.
+ */
 inline std::string compiler_dump_expr(const Compiler_Expr *expr)
 {
   std::ostringstream out;
@@ -779,7 +957,13 @@ inline std::string compiler_dump_expr(const Compiler_Expr *expr)
   return out.str();
 }
 
-/** @brief Dumps a statement subtree in a deterministic text format. */
+/** @brief Dumps a statement subtree in a deterministic text format. 
+ *
+ *  @param stmt Root of the statement tree.
+ *  @return Multiline string representation.
+ *  @note Thread-safety: Safe for concurrent readers.
+ *  @note Complexity: O(N) where N is number of nodes.
+ */
 inline std::string compiler_dump_stmt(const Compiler_Stmt *stmt)
 {
   std::ostringstream out;
@@ -787,7 +971,13 @@ inline std::string compiler_dump_stmt(const Compiler_Stmt *stmt)
   return out.str();
 }
 
-/** @brief Dumps a function declaration in a deterministic text format. */
+/** @brief Dumps a function declaration in a deterministic text format. 
+ *
+ *  @param fn Function declaration node.
+ *  @return Multiline string representation.
+ *  @note Thread-safety: Safe for concurrent readers.
+ *  @note Complexity: O(N) where N is number of nodes.
+ */
 inline std::string compiler_dump_function(const Compiler_Function_Decl *fn)
 {
   std::ostringstream out;
@@ -814,7 +1004,13 @@ inline std::string compiler_dump_function(const Compiler_Function_Decl *fn)
   return out.str();
 }
 
-/** @brief Dumps a parsed module in a deterministic text format. */
+/** @brief Dumps a parsed module in a deterministic text format. 
+ *
+ *  @param module Module node.
+ *  @return Multiline string representation.
+ *  @note Thread-safety: Safe for concurrent readers.
+ *  @note Complexity: O(N) where N is number of nodes.
+ */
 inline std::string compiler_dump_module(const Compiler_Module *module)
 {
   std::ostringstream out;
@@ -826,6 +1022,11 @@ inline std::string compiler_dump_module(const Compiler_Module *module)
     {
       const auto *fn = module->functions.access(i);
       Compiler_Ast_Detail::append_indent(out, 2);
+      if (fn == nullptr)
+        {
+          out << "Function(null)\n";
+          continue;
+        }
       out << "Function(" << fn->name << ")\n";
       if (fn->parameters.size() > 0)
         {

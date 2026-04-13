@@ -58,13 +58,13 @@
  *  Array<size_t> dims = {10, 30, 5, 60, 10};
  *
  *  // Find optimal order and parenthesization
- *  auto res = matrix_chain_order(dims);
+ *  auto res = Aleph::matrix_chain_order(dims);
  *
- *  // res.min_multiplications = 4500
+ *  // res.min_multiplications = 5000
  *  // res.parenthesization = "((A1 A2) (A3 A4))"
  *
  *  // Or just get the cost
- *  size_t cost = matrix_chain_min_cost(dims); // Returns 4500
+ *  size_t cost = Aleph::matrix_chain_min_cost(dims); // Returns 5000
  *  @endcode
  *
  *  @example matrix_chain_example.cc

@@ -118,3 +118,10 @@ TEST(CompilerScope, ReenteringScopeAfterLeaveKeepsBindingsUsable)
   ASSERT_NE(scope.lookup("root"), nullptr);
   EXPECT_EQ(*scope.lookup("root"), 1);
 }
+
+
+TEST(CompilerScope, LeaveOnEmptyScopeThrows)
+{
+  Scope<std::string, int> scope;
+  EXPECT_THROW(scope.leave_scope(), std::runtime_error);
+}

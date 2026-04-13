@@ -56,6 +56,11 @@ int main()
   Compiler_Ast_Context ctx(1 << 16);
   Compiler_Parser parser(ctx, sm, file_id, &dx);
   const auto * module = parser.parse_module();
+  if (module == nullptr)
+    {
+      std::cerr << "Parse failed: no module produced\n";
+      return 1;
+    }
 
   Compiler_Semantic_Analyzer sema(&dx);
   sema.analyze_module(module);

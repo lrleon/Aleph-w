@@ -49,14 +49,13 @@
  *  // Worker 1:  10      20      30
  *  // Worker 2:  40      50      10
  *  // Worker 3:  20      10      60
- *  DynArray<DynArray<double>> costs = {
- *    {10, 20, 30},
- *    {40, 50, 10},
- *    {20, 10, 60}
- *  };
+ *  DynMatrix<double> costs(3, 3);
+ *  costs(0,0)=10; costs(0,1)=20; costs(0,2)=30;
+ *  costs(1,0)=40; costs(1,1)=50; costs(1,2)=10;
+ *  costs(2,0)=20; costs(2,1)=10; costs(2,2)=60;
  *
  *  // Find minimum weight assignment
- *  auto res = hungarian_min_assignment(costs);
+ *  auto res = hungarian_assignment(costs);
  *  // res.total_cost = 30.0 (10 + 10 + 10)
  *  // res.row_to_col = {0, 2, 1}
  *  @endcode

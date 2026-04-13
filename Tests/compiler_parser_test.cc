@@ -72,9 +72,9 @@ TEST(CompilerParser, ParsesFunctionBodiesCallsAndBinaryExpressions)
   ASSERT_NE(fn->body, nullptr);
   ASSERT_EQ(fn->body->statements.size(), 2u);
 
+  ASSERT_EQ(fn->body->statements.access(0)->kind, Compiler_Stmt_Kind::Let);
   const auto * let_stmt =
       static_cast<const Compiler_Let_Stmt *>(fn->body->statements.access(0));
-  ASSERT_EQ(let_stmt->kind, Compiler_Stmt_Kind::Let);
   EXPECT_EQ(let_stmt->name, "z");
   ASSERT_NE(let_stmt->initializer, nullptr);
   ASSERT_EQ(let_stmt->initializer->kind, Compiler_Expr_Kind::Call);
@@ -82,9 +82,9 @@ TEST(CompilerParser, ParsesFunctionBodiesCallsAndBinaryExpressions)
       static_cast<const Compiler_Call_Expr *>(let_stmt->initializer);
   ASSERT_EQ(call_expr->arguments.size(), 2u);
 
+  ASSERT_EQ(fn->body->statements.access(1)->kind, Compiler_Stmt_Kind::Return);
   const auto * ret_stmt =
       static_cast<const Compiler_Return_Stmt *>(fn->body->statements.access(1));
-  ASSERT_EQ(ret_stmt->kind, Compiler_Stmt_Kind::Return);
   ASSERT_NE(ret_stmt->value, nullptr);
   ASSERT_EQ(ret_stmt->value->kind, Compiler_Expr_Kind::Binary);
   const auto * ret_expr =
@@ -119,14 +119,14 @@ TEST(CompilerParser, ParsesTopLevelStatementsAndControlFlow)
   ASSERT_EQ(module->statements.size(), 2u);
   EXPECT_FALSE(dx.has_errors());
 
+  ASSERT_EQ(module->statements.access(0)->kind, Compiler_Stmt_Kind::Let);
   const auto * let_stmt =
       static_cast<const Compiler_Let_Stmt *>(module->statements.access(0));
-  ASSERT_EQ(let_stmt->kind, Compiler_Stmt_Kind::Let);
   EXPECT_EQ(let_stmt->name, "x");
 
+  ASSERT_EQ(module->statements.access(1)->kind, Compiler_Stmt_Kind::While);
   const auto * while_stmt =
       static_cast<const Compiler_While_Stmt *>(module->statements.access(1));
-  ASSERT_EQ(while_stmt->kind, Compiler_Stmt_Kind::While);
   ASSERT_NE(while_stmt->condition, nullptr);
   EXPECT_EQ(while_stmt->condition->kind, Compiler_Expr_Kind::Identifier);
   ASSERT_NE(while_stmt->body, nullptr);
@@ -171,8 +171,27 @@ TEST(CompilerParser, ProducesDiagnosticsAndInvalidNodesForMalformedInput)
   ASSERT_TRUE(dx.has_errors());
   ASSERT_GE(dx.size(), 1u);
 
+  ASSERT_EQ(module->statements.access(0)->kind, Compiler_Stmt_Kind::Let);
   const auto * let_stmt =
       static_cast<const Compiler_Let_Stmt *>(module->statements.access(0));
   ASSERT_NE(let_stmt->initializer, nullptr);
   EXPECT_EQ(let_stmt->initializer->kind, Compiler_Expr_Kind::Invalid);
+}
+
+
+TEST(CompilerParser, ParsesEmptyInput)
+{
+  Source_Manager sm;
+  const auto id = sm.add_virtual_file("empty.aw", "");
+
+  Diagnostic_Engine dx(sm);
+  Compiler_Ast_Context ctx(1 << 15);
+  Compiler_Parser parser(ctx, sm, id, &dx);
+
+  auto * module = parser.parse_module();
+
+  ASSERT_NE(module, nullptr);
+  EXPECT_EQ(module->functions.size(), 0u);
+  EXPECT_EQ(module->statements.size(), 0u);
+  EXPECT_FALSE(dx.has_errors());
 }

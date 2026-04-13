@@ -295,3 +295,45 @@ TEST(CompilerLexer, MalformedCharacterLiteralProducesInvalidToken)
   EXPECT_EQ(dx.get(0).code, "LEX003");
   EXPECT_EQ(dx.get(0).message, "malformed character literal");
 }
+
+
+TEST(CompilerLexer, PublicAPIContract)
+{
+  Source_Manager sm;
+  // "fn x" is 4 bytes (fn=0..1, space=2, x=3)
+  const auto id = sm.add_virtual_file("api.aw", "fn x");
+  Diagnostic_Engine dx(sm);
+  Compiler_Lexer lexer(sm, id, &dx);
+
+  // source_file_id() must match the file we registered
+  EXPECT_EQ(lexer.source_file_id(), id);
+
+  // At start, cursor is at 0
+  EXPECT_EQ(lexer.current_offset(), 0u);
+  EXPECT_FALSE(lexer.eof());
+
+  // Consume "fn" token; offset should advance
+  const auto tok_fn = lexer.next();
+  EXPECT_EQ(tok_fn.kind, Compiler_Token_Kind::Kw_Fn);
+  EXPECT_GT(lexer.current_offset(), 0u);
+
+  // Consume "x" identifier
+  const auto tok_x = lexer.next();
+  EXPECT_EQ(tok_x.kind, Compiler_Token_Kind::Identifier);
+
+  // Next token is EOF
+  EXPECT_TRUE(lexer.eof());
+  const auto tok_eof = lexer.next();
+  EXPECT_TRUE(tok_eof.is_eof());
+
+  // reset(0) restores cursor and lets us re-lex from the start
+  lexer.reset(0);
+  EXPECT_EQ(lexer.current_offset(), 0u);
+  EXPECT_FALSE(lexer.eof());
+  const auto tok_fn2 = lexer.next();
+  EXPECT_EQ(tok_fn2.kind, Compiler_Token_Kind::Kw_Fn);
+
+  // reset(offset) past end of file must throw
+  const Source_Offset past_end = sm.file_text(id).size() + 1;
+  EXPECT_THROW(lexer.reset(past_end), std::out_of_range);
+}

@@ -3969,7 +3969,7 @@ for the intended scope, examples, and current limits of these headers.
 | `tpl_scope.H` | `Scope<Key, Value>` | Generic nested-scope stack for lexical bindings, local lookup, recursive lookup, and shadowing |
 | `Compiler_Sema.H` | `Compiler_Semantic_Analyzer`, `Compiler_Symbol`, `Compiler_Name_Resolution` | Name resolution, duplicate detection, shadowing checks, basic control-flow misuse diagnostics, and symbol-table dumps |
 | `Compiler_Types.H` | `Compiler_Type_Context`, `Compiler_Type`, `Compiler_Type_Id` | Stable type graph with built-ins, tuples, functions, type variables, and deterministic pretty-printing |
-| `tpl_constraints.H` | `Constraint_Set<T>`, `Compiler_Type_Unifier`, `Compiler_Type_Substitution` | Equality constraints, substitutions, structural unification, rigid variables, and occurs-check support |
+| `tpl_constraints.H` | `Compiler_Type_Constraint_Set`, `Compiler_Type_Unifier`, `Compiler_Type_Substitution` | Equality constraints, substitutions, structural unification, rigid variables, and occurs-check support |
 | `Compiler_Typed_Sema.H` | `Compiler_Typed_Semantic_Analyzer`, `Compiler_Typed_Semantic_Options` | Typed semantic pass that connects AST nodes, the base semantic pass, the type graph, and constraint solving |
 
 #### Parallel Computing

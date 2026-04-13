@@ -51,14 +51,21 @@
 #include <ah-diagnostics.H>
 
 namespace Aleph {
-/** @brief Configures lexer trivia handling. */
+/** @brief Configures lexer trivia handling. 
+ *
+ *  @note Thread-safety: Thread-safe (POD).
+ *  @note Complexity: O(1).
+ */
 struct Compiler_Lexer_Options
 {
   bool keep_comments = false;        ///< If true, comments are returned as tokens.
   bool allow_block_comments = true;  ///< If false, `/*` becomes `/` then `*`.
 };
 
-/** @brief Single-file lexer with optional diagnostic emission. */
+/** @brief Single-file lexer with optional diagnostic emission. 
+ *
+ *  @note Thread-safety: Not thread-safe.
+ */
 class Compiler_Lexer
 {
   const Source_Manager *sources = nullptr;
@@ -483,6 +490,8 @@ public:
    *         null, but no human-readable diagnostics are accumulated.
    *  @param opts Trivia-handling options for comments.
    *  @throws std::out_of_range If `id` does not belong to `sm`.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1).
    */
   Compiler_Lexer(const Source_Manager &sm,
                  const Source_File_Id id,
@@ -494,6 +503,8 @@ public:
   /** @brief Returns the file id currently being tokenized.
    *
    *  @return Stable file id associated with this lexer instance.
+   *  @note Thread-safety: Safe for concurrent readers.
+   *  @note Complexity: O(1).
    */
   [[nodiscard]] Source_File_Id source_file_id() const noexcept
   {
@@ -503,6 +514,8 @@ public:
   /** @brief Returns the current byte cursor.
    *
    *  @return Byte offset in the current source file.
+   *  @note Thread-safety: Safe for concurrent readers.
+   *  @note Complexity: O(1).
    */
   [[nodiscard]] Source_Offset current_offset() const noexcept
   {
@@ -513,6 +526,8 @@ public:
    *
    *  @param offset New byte cursor.
    *  @throws std::out_of_range If `offset` is past the end of the file.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(1).
    */
   void reset(const Source_Offset offset = 0)
   {
@@ -527,6 +542,8 @@ public:
    *
    *  @return The same token that would be returned by the next call to
    *          `next()`.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(N) where N is lexeme length (amortized).
    */
   Compiler_Token peek()
   {
@@ -542,6 +559,8 @@ public:
    *
    *  @return Next token from the source stream, including invalid tokens for
    *          malformed lexemes.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(N) where N is lexeme length (amortized).
    */
   Compiler_Token next()
   {
@@ -556,6 +575,8 @@ public:
   /** @brief Returns whether the next token is EOF.
    *
    *  @return `true` iff `peek()` would produce `End_Of_File`.
+   *  @note Thread-safety: Not thread-safe.
+   *  @note Complexity: O(N) (calls peek).
    */
   bool eof()
   {

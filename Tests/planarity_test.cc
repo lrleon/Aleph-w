@@ -679,7 +679,9 @@ namespace
           continue;
 
         const fs::path candidate = fs::path(dir) / name;
-        if (not fs::exists(candidate) or not fs::is_regular_file(candidate))
+        std::error_code ec_check;
+        if (not fs::exists(candidate, ec_check) or ec_check
+            or not fs::is_regular_file(candidate, ec_check) or ec_check)
           continue;
 
 # ifdef _WIN32

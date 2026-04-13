@@ -373,7 +373,11 @@ inline long load_number(std::ifstream &input_stream)
           c = read_char_from_stream(input_stream);
 
           if (not std::isdigit(c))
-            return std::strtol(buffer, nullptr, 10);
+            {
+              input_stream.unget();
+              close_token_scanning(buffer, start_addr, end_addr);
+              return std::strtol(buffer, nullptr, 10);
+            }
         }
 
       while (true)
@@ -1016,10 +1020,13 @@ inline double load_double(std::ifstream &input_stream)
         }
     }
 
-  // Put back the terminating character
-  input_stream.unget();
-  if (c != '\n')
-    current_col_number--;
+  // Put back the terminating character (only if it is a real character, not EOF)
+  if (c != EOF)
+    {
+      input_stream.unget();
+      if (c != '\n')
+        current_col_number--;
+    }
 
   close_token_scanning(buffer, ptr, end);
   return std::strtod(buffer, nullptr);
@@ -1591,23 +1598,23 @@ inline std::string load_file_contents(const std::string &filename)
 }
 
 /**
- * @brief Load file as a vector of lines
+ * @brief Load file as a list of lines
  *
  * @param filename Path to the file
- * @return Vector where each element is one line (without newline)
+ * @return List where each element is one line (without newline)
  *
  * @throws std::runtime_error if file cannot be opened
  */
-inline std::vector<std::string> load_file_lines(const std::string &filename)
+inline DynList<std::string> load_file_lines(const std::string &filename)
 {
   std::ifstream file(filename);
   ah_runtime_error_unless(file.is_open()) << "Cannot open file: " << filename;
 
-  std::vector<std::string> lines;
+  DynList<std::string> lines;
   std::string line;
 
   while (std::getline(file, line))
-    lines.push_back(line);
+    lines.append(line);
 
   return lines;
 }
@@ -1617,16 +1624,16 @@ inline std::vector<std::string> load_file_lines(const std::string &filename)
  *
  * @param str The string to split
  * @param delimiter Character to split on
- * @return Vector of substrings
+ * @return List of substrings
  */
-inline std::vector<std::string> split_string(const std::string &str, char delimiter)
+inline DynList<std::string> split_string(const std::string &str, char delimiter)
 {
-  std::vector<std::string> result;
+  DynList<std::string> result;
   std::istringstream iss(str);
   std::string token;
 
   while (std::getline(iss, token, delimiter))
-    result.push_back(token);
+    result.append(token);
 
   return result;
 }

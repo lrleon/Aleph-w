@@ -55,15 +55,27 @@ namespace Aleph
 {
   /** @brief Stack of lexical scopes for bindings from `Key` to `Value`.
    *
+   *  Maintains a stack of frames, where each frame holds key-value bindings.
+   *  Lookups search from the innermost (current) frame outward.
+   *
    *  @tparam Key Key type used for lookup. Must be equality-comparable.
    *  @tparam Value Stored binding payload.
+   *
+   *  @note Thread-safety: Not thread-safe for concurrent mutating operations.
+   *        Const operations (lookup, depth, empty) are safe for concurrent 
+   *        readers only if external synchronization is provided.
+   *  @note Complexity: O(1) for construction.
    */
   template <typename Key, typename Value>
     requires std::equality_comparable<Key>
   class Scope
   {
   public:
-    /** @brief Binding entry stored inside one lexical frame. */
+    /** @brief Binding entry stored inside one lexical frame.
+     *
+     *  @note Thread-safety: Not thread-safe.
+     *  @note Complexity: O(1) storage and retrieval per binding.
+     */
     struct Binding
     {
       Key key; ///< Lookup key.
@@ -113,19 +125,42 @@ namespace Aleph
     }
 
   public:
-    /** @brief Returns the number of active lexical frames. */
+    /** @brief Default constructor.
+     *
+     *  @note Thread-safety: Not thread-safe.
+     *  @note Complexity: O(1).
+     */
+    Scope() = default;
+
+    /** @brief Returns the number of active lexical frames.
+     *
+     *  @return Current stack depth (number of active scopes).
+     *  @note Thread-safety: Safe for concurrent readers.
+     *  @note Complexity: O(1).
+     */
     size_t depth() const noexcept
     {
       return frames.size();
     }
 
-    /** @brief Returns whether there are no active scopes. */
+    /** @brief Returns whether there are no active scopes.
+     *
+     *  @return `true` iff `depth() == 0`.
+     *  @note Thread-safety: Safe for concurrent readers.
+     *  @note Complexity: O(1).
+     */
     bool empty() const noexcept
     {
       return frames.is_empty();
     }
 
-    /** @brief Removes all scopes and bindings. */
+    /** @brief Removes all scopes and bindings.
+     *
+     *  After this call, `depth() == 0`.
+     *  @note Thread-safety: Not thread-safe.
+     *  @note Complexity: O(total_bindings) where total_bindings is the sum of 
+     *        all bindings across all frames.
+     */
     void clear() noexcept
     {
       frames.clear();
@@ -133,7 +168,10 @@ namespace Aleph
 
     /** @brief Pushes a new empty lexical frame.
      *
+     *  All subsequent `insert()` calls add bindings to this new frame.
      *  @return New active depth after the push.
+     *  @note Thread-safety: Not thread-safe.
+     *  @note Complexity: O(1).
      */
     size_t enter_scope()
     {
@@ -146,7 +184,10 @@ namespace Aleph
 
     /** @brief Pops the current lexical frame.
      *
-     *  @throws std::runtime_error If no scope is active.
+     *  All bindings in the current frame are destroyed.
+     *  @throws std::runtime_error If `depth() == 0`.
+     *  @note Thread-safety: Not thread-safe.
+     *  @note Complexity: O(1).
      */
     void leave_scope()
     {
@@ -160,7 +201,10 @@ namespace Aleph
      *  @param key Lookup key.
      *  @param value Payload to store.
      *  @return `false` iff the key already exists in the current scope.
-     *  @throws std::runtime_error If no scope is active.
+     *  @throws std::runtime_error If `depth() == 0`.
+     *  @note Thread-safety: Not thread-safe.
+     *  @note Complexity: O(k) where k is the number of bindings currently in 
+     *        the active frame (linear search for duplicate detection).
      */
     bool insert(const Key & key, const Value & value)
     {
@@ -173,10 +217,13 @@ namespace Aleph
 
     /** @brief Inserts a moved binding in the current scope.
      *
-     *  @param key Lookup key.
-     *  @param value Payload to store.
+     *  @param key Lookup key (moved).
+     *  @param value Payload to store (moved).
      *  @return `false` iff the key already exists in the current scope.
-     *  @throws std::runtime_error If no scope is active.
+     *  @throws std::runtime_error If `depth() == 0`.
+     *  @note Thread-safety: Not thread-safe.
+     *  @note Complexity: O(k) where k is the number of bindings currently in 
+     *        the active frame (linear search for duplicate detection).
      */
     bool insert(Key && key, Value && value)
     {
@@ -190,7 +237,11 @@ namespace Aleph
     /** @brief Looks up `key` only in the current lexical frame.
      *
      *  @param key Lookup key.
-     *  @return Pointer to the stored value, or `nullptr` if absent.
+     *  @return Pointer to the stored value, or `nullptr` if absent or no frame
+     *          is active.
+     *  @note Thread-safety: Not thread-safe for concurrent mutation.
+     *  @note Complexity: O(k) where k is the number of bindings in the 
+     *        current frame (linear search, innermost binding first).
      */
     Value * lookup_local(const Key & key) noexcept
     {
@@ -199,10 +250,14 @@ namespace Aleph
       return find_value(frames.top().bindings, key);
     }
 
-    /** @brief Looks up `key` only in the current lexical frame.
+    /** @brief Looks up `key` only in the current lexical frame (const).
      *
      *  @param key Lookup key.
-     *  @return Pointer to the stored value, or `nullptr` if absent.
+     *  @return Pointer to the stored value, or `nullptr` if absent or no frame
+     *          is active.
+     *  @note Thread-safety: Safe for concurrent readers.
+     *  @note Complexity: O(k) where k is the number of bindings in the 
+     *        current frame (linear search, innermost binding first).
      */
     const Value * lookup_local(const Key & key) const noexcept
     {
@@ -213,8 +268,15 @@ namespace Aleph
 
     /** @brief Looks up `key` from the innermost scope outward.
      *
+     *  Searches the current frame, then outer frames in order, returning the
+     *  first (innermost) match found. Implements lexical shadowing.
+     *
      *  @param key Lookup key.
      *  @return Pointer to the nearest visible value, or `nullptr` if absent.
+     *  @note Thread-safety: Not thread-safe for concurrent mutation.
+     *  @note Complexity: O(m*k) where m is the number of frames and k is the 
+     *        average number of bindings per frame (worst-case linear search 
+     *        through all bindings across all frames).
      */
     Value * lookup(const Key & key) noexcept
     {
@@ -225,10 +287,17 @@ namespace Aleph
       return nullptr;
     }
 
-    /** @brief Looks up `key` from the innermost scope outward.
+    /** @brief Looks up `key` from the innermost scope outward (const).
+     *
+     *  Searches the current frame, then outer frames in order, returning the
+     *  first (innermost) match found. Implements lexical shadowing.
      *
      *  @param key Lookup key.
      *  @return Pointer to the nearest visible value, or `nullptr` if absent.
+     *  @note Thread-safety: Safe for concurrent readers.
+     *  @note Complexity: O(m*k) where m is the number of frames and k is the 
+     *        average number of bindings per frame (worst-case linear search 
+     *        through all bindings across all frames).
      */
     const Value * lookup(const Key & key) const noexcept
     {

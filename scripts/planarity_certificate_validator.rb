@@ -531,14 +531,24 @@ def resolve_executable(cmd)
   raw = cmd.to_s
   return nil if raw.empty?
 
-  if raw.include?(File::SEPARATOR)
+  alt_sep = defined?(File::ALT_SEPARATOR) ? File::ALT_SEPARATOR : nil
+  has_separator = raw.include?(File::SEPARATOR) || (alt_sep && raw.include?(alt_sep))
+
+  if has_separator
     return raw if File.file?(raw) and File.executable?(raw)
     return nil
   end
 
+  win_exts = Gem.win_platform? ? [".exe", ".bat", ".cmd", ".com"] : []
+
   ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).each do |dir|
     candidate = File.join(dir, raw)
     return candidate if File.file?(candidate) and File.executable?(candidate)
+
+    win_exts.each do |ext|
+      with_ext = candidate + ext
+      return with_ext if File.file?(with_ext) and File.executable?(with_ext)
+    end
   end
 
   nil
