@@ -712,7 +712,7 @@ end
 def find_default_smoke_probe_template(catalog_path)
   # Automatically select a smoke probe template for PATH probing
   # when --gephi-cmd is not specified
-  templates, _warnings = load_gephi_templates(catalog_path)
+  templates, warnings = load_gephi_templates(catalog_path)
 
   # Determine the current OS
   host_os = RbConfig::CONFIG.fetch("host_os", "").downcase
@@ -731,10 +731,20 @@ def find_default_smoke_probe_template(catalog_path)
     t_id.include?("smoke") and (t_os == os_type or t_os == "any")
   end
 
-  # Sort by version (descending) and return the first match
-  smoke_templates.sort_by { |t| -t.fetch("gephi_version", "0").to_s }.first
+  # Sort by version tuple (descending) and return the first match
+  selected = smoke_templates.max_by do |t|
+    [gephi_version_sort_key(t.fetch("gephi_version", "0")), t.fetch("id", "")]
+  end
+
+  [selected, warnings]
 end
 
+
+def gephi_version_sort_key(value)
+  segments = value.to_s.scan(/\d+/).map(&:to_i)
+  segments = [-1] if segments.empty?
+  segments
+end
 
 def default_render_profile_catalog_path
   Pathname.new(__FILE__).realpath.dirname.join("planarity_gephi_render_profiles.json")
@@ -1336,7 +1346,8 @@ def main(argv)
   # If --gephi is specified but neither --gephi-cmd nor --gephi-template is given,
   # automatically select a default smoke probe template for PATH probing
   if args["gephi"] and args["gephi_cmd"].empty? and args["gephi_template"].empty?
-    default_template = find_default_smoke_probe_template(catalog_path)
+    default_template, default_warnings = find_default_smoke_probe_template(catalog_path)
+    catalog_warnings.concat(default_warnings)
     if default_template
       args["gephi_template"] = default_template.fetch("id", "")
     else
@@ -1344,11 +1355,15 @@ def main(argv)
     end
   end
 
+  template_warnings = []
+  template_errors = []
   unless args["gephi_template"].empty?
-    resolved_template_cmd, catalog_warnings, catalog_errors = resolve_gephi_template(
+    resolved_template_cmd, template_warnings, template_errors = resolve_gephi_template(
         args["gephi_template"],
         catalog_path)
   end
+  catalog_warnings.concat(template_warnings)
+  catalog_errors.concat(template_errors)
 
   resolved_render_profile = {}
   render_catalog_warnings = []
