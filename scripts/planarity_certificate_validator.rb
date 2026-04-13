@@ -48,7 +48,7 @@ end
 
 
 def gephi_path_probe_template(executable_name)
-  "ruby -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" #{executable_name}"
+  "#{RbConfig.ruby} -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" #{executable_name}"
 end
 
 
@@ -58,7 +58,7 @@ DEFAULT_GEPHI_TEMPLATES = [
     "os" => "any",
     "gephi_version" => "n/a",
     "description" => "Portable adapter command used in CI/tests; checks that input file exists.",
-    "cmd" => "ruby -e \"File.stat(ARGV[0])\" {input}"
+    "cmd" => "#{RbConfig.ruby} -e \"File.stat(ARGV[0])\" {input}"
   },
   {
     "id" => "linux.gephi-0.10.smoke",
@@ -172,7 +172,7 @@ DEFAULT_GEPHI_RENDER_PROFILES = [
     "output_kind" => "svg",
     "output_ext" => "svg",
     "description" => "Portable deterministic SVG render profile implemented with Ruby.",
-    "cmd" => "ruby -e \"File.write(ARGV[1], '<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"64\\\" height=\\\"64\\\"><circle cx=\\\"32\\\" cy=\\\"32\\\" r=\\\"20\\\"/></svg>')\" {input} {output}"
+    "cmd" => "#{RbConfig.ruby} -e \"File.write(ARGV[1], '<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"64\\\" height=\\\"64\\\"><circle cx=\\\"32\\\" cy=\\\"32\\\" r=\\\"20\\\"/></svg>')\" {input} {output}"
   },
   {
     "id" => "portable.ruby-render-pdf",
@@ -181,7 +181,7 @@ DEFAULT_GEPHI_RENDER_PROFILES = [
     "output_kind" => "pdf",
     "output_ext" => "pdf",
     "description" => "Portable deterministic PDF render profile implemented with Ruby.",
-    "cmd" => "ruby -e \"File.binwrite(ARGV[1], \\\"%PDF-1.4\\\\n1 0 obj<<>>endobj\\\\ntrailer<<>>\\\\n%%EOF\\\\n\\\")\" {input} {output}"
+    "cmd" => "#{RbConfig.ruby} -e \"File.binwrite(ARGV[1], \\\"%PDF-1.4\\\\n1 0 obj<<>>endobj\\\\ntrailer<<>>\\\\n%%EOF\\\\n\\\")\" {input} {output}"
   },
   {
     "id" => "linux.gephi-0.10.render-svg",
@@ -706,6 +706,33 @@ end
 
 def default_template_catalog_path
   Pathname.new(__FILE__).realpath.dirname.join("planarity_gephi_templates.json")
+end
+
+
+def find_default_smoke_probe_template(catalog_path)
+  # Automatically select a smoke probe template for PATH probing
+  # when --gephi-cmd is not specified
+  templates, _warnings = load_gephi_templates(catalog_path)
+
+  # Determine the current OS
+  host_os = RbConfig::CONFIG.fetch("host_os", "").downcase
+  os_type = if host_os.include?("cygwin") or host_os.include?("mingw") or host_os.include?("mswin")
+              "windows"
+            elsif host_os.include?("darwin")
+              "macos"
+            else
+              "linux"
+            end
+
+  # Look for a smoke probe template for this OS (prefer newest Gephi version)
+  smoke_templates = templates.values.select do |t|
+    t_id = t.fetch("id", "").to_s.downcase
+    t_os = t.fetch("os", "").to_s.downcase
+    t_id.include?("smoke") and (t_os == os_type or t_os == "any")
+  end
+
+  # Sort by version (descending) and return the first match
+  smoke_templates.sort_by { |t| -t.fetch("gephi_version", "0").to_s }.first
 end
 
 
@@ -1305,6 +1332,18 @@ def main(argv)
   resolved_template_cmd = ""
   catalog_warnings = []
   catalog_errors = []
+
+  # If --gephi is specified but neither --gephi-cmd nor --gephi-template is given,
+  # automatically select a default smoke probe template for PATH probing
+  if args["gephi"] and args["gephi_cmd"].empty? and args["gephi_template"].empty?
+    default_template = find_default_smoke_probe_template(catalog_path)
+    if default_template
+      args["gephi_template"] = default_template.fetch("id", "")
+    else
+      catalog_warnings << "No default smoke probe template found for this OS; PATH probing will be skipped."
+    end
+  end
+
   unless args["gephi_template"].empty?
     resolved_template_cmd, catalog_warnings, catalog_errors = resolve_gephi_template(
         args["gephi_template"],

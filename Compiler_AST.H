@@ -634,7 +634,7 @@ struct Compiler_While_Stmt final : public Compiler_Stmt
   Compiler_While_Stmt(const Source_Span &kw = {},
                       Compiler_Expr *cond = nullptr,
                       Compiler_Stmt *stmt = nullptr) noexcept
-    : Compiler_Stmt(Compiler_While,
+    : Compiler_Stmt(Compiler_Stmt_Kind::While,
                     compiler_merge_spans(kw,
                                          stmt != nullptr
                                            ? stmt->span

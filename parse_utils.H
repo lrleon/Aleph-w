@@ -1440,8 +1440,9 @@ inline std::string load_escaped_string(std::ifstream &input_stream)
       put_char_in_buffer(ptr, end, c);
     }
 
+  const size_t len = ptr - buffer;
   close_token_scanning(buffer, ptr, end);
-  return {buffer};
+  return std::string(buffer, len);
 }
 
 /**

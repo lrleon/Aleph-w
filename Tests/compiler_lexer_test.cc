@@ -297,6 +297,20 @@ TEST(CompilerLexer, MalformedCharacterLiteralProducesInvalidToken)
 }
 
 
+TEST(CompilerLexer, EmptyInputReturnsEOFImmediately)
+{
+  Source_Manager sm;
+  const auto id = sm.add_virtual_file("empty.aw", "");
+  Diagnostic_Engine dx(sm);
+  Compiler_Lexer lexer(sm, id, &dx);
+
+  // Empty input should report EOF immediately
+  EXPECT_TRUE(lexer.eof());
+  const auto tok = lexer.next();
+  EXPECT_TRUE(tok.is_eof());
+}
+
+
 TEST(CompilerLexer, PublicAPIContract)
 {
   Source_Manager sm;
