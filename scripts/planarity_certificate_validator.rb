@@ -48,7 +48,7 @@ end
 
 
 def gephi_path_probe_template(executable_name)
-  "#{RbConfig.ruby} -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" #{executable_name}"
+  "#{Shellwords.escape(RbConfig.ruby)} -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" #{executable_name}"
 end
 
 
@@ -58,7 +58,7 @@ DEFAULT_GEPHI_TEMPLATES = [
     "os" => "any",
     "gephi_version" => "n/a",
     "description" => "Portable adapter command used in CI/tests; checks that input file exists.",
-    "cmd" => "#{RbConfig.ruby} -e \"File.stat(ARGV[0])\" {input}"
+    "cmd" => "#{Shellwords.escape(RbConfig.ruby)} -e \"File.stat(ARGV[0])\" {input}"
   },
   {
     "id" => "linux.gephi-0.10.smoke",
@@ -172,7 +172,7 @@ DEFAULT_GEPHI_RENDER_PROFILES = [
     "output_kind" => "svg",
     "output_ext" => "svg",
     "description" => "Portable deterministic SVG render profile implemented with Ruby.",
-    "cmd" => "#{RbConfig.ruby} -e \"File.write(ARGV[1], '<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"64\\\" height=\\\"64\\\"><circle cx=\\\"32\\\" cy=\\\"32\\\" r=\\\"20\\\"/></svg>')\" {input} {output}"
+    "cmd" => "#{Shellwords.escape(RbConfig.ruby)} -e \"File.write(ARGV[1], '<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"64\\\" height=\\\"64\\\"><circle cx=\\\"32\\\" cy=\\\"32\\\" r=\\\"20\\\"/></svg>')\" {input} {output}"
   },
   {
     "id" => "portable.ruby-render-pdf",
@@ -181,7 +181,7 @@ DEFAULT_GEPHI_RENDER_PROFILES = [
     "output_kind" => "pdf",
     "output_ext" => "pdf",
     "description" => "Portable deterministic PDF render profile implemented with Ruby.",
-    "cmd" => "#{RbConfig.ruby} -e \"File.binwrite(ARGV[1], \\\"%PDF-1.4\\\\n1 0 obj<<>>endobj\\\\ntrailer<<>>\\\\n%%EOF\\\\n\\\")\" {input} {output}"
+    "cmd" => "#{Shellwords.escape(RbConfig.ruby)} -e \"File.binwrite(ARGV[1], \\\"%PDF-1.4\\\\n1 0 obj<<>>endobj\\\\ntrailer<<>>\\\\n%%EOF\\\\n\\\")\" {input} {output}"
   },
   {
     "id" => "linux.gephi-0.10.render-svg",
@@ -539,7 +539,9 @@ def resolve_executable(cmd)
     return nil
   end
 
-  win_exts = Gem.win_platform? ? [".exe", ".bat", ".cmd", ".com"] : []
+  host_os = RbConfig::CONFIG.fetch("host_os", "").downcase
+  win_exts = (host_os.include?("cygwin") or host_os.include?("mingw") or host_os.include?("mswin")) \
+               ? [".exe", ".bat", ".cmd", ".com"] : []
 
   ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).each do |dir|
     candidate = File.join(dir, raw)
