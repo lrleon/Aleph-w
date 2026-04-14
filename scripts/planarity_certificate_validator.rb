@@ -39,11 +39,22 @@ require "rexml/document"
 require "shellwords"
 require "timeout"
 
-def default_gephi_executable_name
+def host_platform
   host_os = RbConfig::CONFIG.fetch("host_os", "").downcase
-  return "gephi.exe" if host_os.include?("cygwin") or host_os.include?("mingw") or host_os.include?("mswin")
+  return :windows if host_os.include?("cygwin") or host_os.include?("mingw") or host_os.include?("mswin")
+  return :macos if host_os.include?("darwin")
 
-  "gephi"
+  :linux
+end
+
+
+def normalize_ruby_cmd(cmd)
+  cmd.sub(/\Aruby(?=\s)/, Shellwords.escape(RbConfig.ruby))
+end
+
+
+def default_gephi_executable_name
+  host_platform == :windows ? "gephi.exe" : "gephi"
 end
 
 
@@ -539,9 +550,7 @@ def resolve_executable(cmd)
     return nil
   end
 
-  host_os = RbConfig::CONFIG.fetch("host_os", "").downcase
-  win_exts = (host_os.include?("cygwin") or host_os.include?("mingw") or host_os.include?("mswin")) \
-               ? [".exe", ".bat", ".cmd", ".com"] : []
+  win_exts = host_platform == :windows ? [".exe", ".bat", ".cmd", ".com"] : []
 
   ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).each do |dir|
     candidate = File.join(dir, raw)
@@ -716,15 +725,7 @@ def find_default_smoke_probe_template(catalog_path)
   # when --gephi-cmd is not specified
   templates, warnings = load_gephi_templates(catalog_path)
 
-  # Determine the current OS
-  host_os = RbConfig::CONFIG.fetch("host_os", "").downcase
-  os_type = if host_os.include?("cygwin") or host_os.include?("mingw") or host_os.include?("mswin")
-              "windows"
-            elsif host_os.include?("darwin")
-              "macos"
-            else
-              "linux"
-            end
+  os_type = host_platform.to_s
 
   # Look for a smoke probe template for this OS (prefer newest Gephi version)
   smoke_templates = templates.values.select do |t|
@@ -786,7 +787,9 @@ def load_gephi_templates(catalog_path)
     cmd = item.fetch("cmd", "").to_s.strip
     next if tid.empty? or cmd.empty?
 
-    templates[tid] = item
+    normalized = item.dup
+    normalized["cmd"] = normalize_ruby_cmd(cmd)
+    templates[tid] = normalized
   end
 
   [templates, warnings]
@@ -828,7 +831,9 @@ def load_gephi_render_profiles(catalog_path)
     ext = item.fetch("output_ext", "").to_s.strip.downcase
     next if pid.empty? or cmd.empty? or kind.empty? or ext.empty?
 
-    profiles[pid] = item
+    normalized = item.dup
+    normalized["cmd"] = normalize_ruby_cmd(cmd)
+    profiles[pid] = normalized
   end
 
   [profiles, warnings]
@@ -1430,4 +1435,4 @@ def main(argv)
 end
 
 
-exit(main(ARGV))
+exit(main(ARGV)) if __FILE__ == $PROGRAM_NAME
