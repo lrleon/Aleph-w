@@ -3,11 +3,12 @@
 This guide documents the first compiler-oriented support layer added to Aleph-w.
 It is intentionally small and reusable: the goal is to make lexers, parsers and
 semantic analyzers easier to build on top of the library without committing yet
-to one concrete language design.
+to one concrete language design. The live roadmap for the broader platform is
+available at [docs/compiler_platform_roadmap.en.md](compiler_platform_roadmap.en.md).
 
 ## Scope
 
-The current component is formed by eleven public headers:
+The current component is formed by twelve public headers:
 
 | Header | Responsibility |
 |---|---|
@@ -22,6 +23,7 @@ The current component is formed by eleven public headers:
 | `Compiler_Types.H` | Stable type graph with built-ins, tuples, functions, type variables, and deterministic pretty-printing |
 | `tpl_constraints.H` | Equality constraint sets, substitutions, structural unification, rigid variables, and occurs-check support |
 | `Compiler_Typed_Sema.H` | Typed semantic pass that connects the AST, the base semantic pass, the type graph, and the unifier |
+| `Compiler_HIR.H` | Structured typed HIR with lowering from typed AST, stable nodes for interpreters or later compilation, and deterministic textual dumps |
 
 ## Quick Start
 
@@ -70,6 +72,7 @@ int main()
 - Standalone compiler types for built-ins, tuples, functions, and type variables
 - Equality-constraint solving with substitutions, rigid variables, and occurs-checks
 - Monomorphic typed semantic analysis for literals, locals, parameters, returns, conditions, operators, and calls
+- Lowering from typed AST to a structured reusable HIR suitable for interpreters or future CFG/MIR stages
 
 Malformed input produces an `Invalid` token. If a `Diagnostic_Engine` is
 attached, the lexer also records a structured error with a stable code such as
@@ -88,6 +91,7 @@ pass maps typing failures to codes such as `TYP002`, `TYP005`, and `TYP006`.
 - Example: `Examples/compiler_sema_example.cc`
 - Example: `Examples/compiler_types_example.cc`
 - Example: `Examples/compiler_typed_sema_example.cc`
+- Example: `Examples/compiler_hir_example.cc`
 - Tests: `Tests/compiler_source_test.cc`
 - Tests: `Tests/compiler_diagnostics_test.cc`
 - Tests: `Tests/compiler_token_test.cc`
@@ -99,6 +103,7 @@ pass maps typing failures to codes such as `TYP002`, `TYP005`, and `TYP006`.
 - Tests: `Tests/compiler_types_test.cc`
 - Tests: `Tests/compiler_constraints_test.cc`
 - Tests: `Tests/compiler_typed_sema_test.cc`
+- Tests: `Tests/compiler_hir_test.cc`
 
 Build the affected targets with:
 
@@ -116,12 +121,14 @@ cmake --build build --target \
   compiler_types_test \
   compiler_constraints_test \
   compiler_typed_sema_test \
+  compiler_hir_test \
   compiler_diagnostics_example \
   compiler_lexer_example \
   compiler_parser_example \
   compiler_sema_example \
   compiler_types_example \
-  compiler_typed_sema_example
+  compiler_typed_sema_example \
+  compiler_hir_example
 ```
 
 ## Current Limits
@@ -133,6 +140,7 @@ cmake --build build --target \
 - Type inference is monomorphic and local; there is no let-generalization or polymorphic instantiation
 - There is no explicit type-annotation syntax in the parser or AST yet
 - Calls are only validated against named function symbols, not inferred callable types
+- A structured HIR now exists, but there is still no CFG, MIR/IR, bytecode, or interpreter runtime
 - There is no overload resolution, coercion, trait solving, path-sensitive return analysis, or dataflow analysis yet
 
 That is deliberate: this layer is meant to be the stable foundation for future
@@ -144,5 +152,6 @@ Once this layer is in place, the natural next modules are:
 
 1. Parser and AST support for explicit type annotations
 2. Polymorphic generalization and instantiation over `Compiler_Types.H`
-3. `Compiler_CFG.H`
-4. `Compiler_IR.H` / `SSA.H`
+3. `Interpreter_Runtime.H`
+4. `Compiler_CFG.H`
+5. `Compiler_IR.H` / `SSA.H`

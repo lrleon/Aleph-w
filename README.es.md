@@ -3693,6 +3693,8 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 
 Consulta la [Guía de soporte de front-end para compiladores](docs/compiler_frontend_support.md)
 para el alcance previsto, los ejemplos y los límites actuales de estos headers.
+El roadmap más amplio de la plataforma está en
+[docs/compiler_platform_roadmap.md](docs/compiler_platform_roadmap.md).
 
 | Header | Type/Function | Description |
 |--------|---------------|-------------|
@@ -3707,6 +3709,7 @@ para el alcance previsto, los ejemplos y los límites actuales de estos headers.
 | `Compiler_Types.H` | `Compiler_Type_Context`, `Compiler_Type`, `Compiler_Type_Id` | Grafo estable de tipos con builtins, tuplas, funciones, variables de tipo y pretty-printing determinista |
 | `tpl_constraints.H` | `Constraint_Set<T>`, `Compiler_Type_Unifier`, `Compiler_Type_Substitution` | Constraints de igualdad, substitutions, unificación estructural, variables rígidas y soporte de occurs-check |
 | `Compiler_Typed_Sema.H` | `Compiler_Typed_Semantic_Analyzer`, `Compiler_Typed_Semantic_Options` | Pasada semántica tipada que conecta nodos AST, la semántica base, el grafo de tipos y la resolución de constraints |
+| `Compiler_HIR.H` | `Compiler_HIR_Module`, `Compiler_HIR_Function`, `Compiler_HIR_Lowering` | IR de alto nivel tipada con lowering desde AST tipado y dumps textuales deterministas útil para intérpretes o lowering posterior |
 
 #### Computación paralela
 
@@ -3874,6 +3877,7 @@ cmake --build build
 | Análisis semántico para compiladores | `compiler_sema_example.cc` | Resolución de nombres sobre un módulo parseado, dump de tabla de símbolos y diagnósticos semánticos de usos inválidos |
 | Tipos y constraints para compiladores | `compiler_types_example.cc` | Construcción estable de tipos, constraints de igualdad, substitutions y unificación estructural sobre firmas de funciones |
 | Análisis semántico tipado para compiladores | `compiler_typed_sema_example.cc` | Inferencia de tipos sobre un módulo parseado con firmas de función inferidas, tipos de parámetros, bindings locales y diagnósticos tipados |
+| Lowering HIR para compiladores | `compiler_hir_example.cc` | Lowering desde AST tipado hacia una HIR tipada y estructurada lista para intérpretes o futuras etapas CFG/MIR |
 | Transformada rápida de Fourier | `fft_example.cc` | Análisis espectral de señales reales, convolución real/compleja secuencial optimizada, concurrencia explícita con `ThreadPool` y uso directo con contenedores iterables compatibles como `std::vector`. Tutorial completo: [Tutorial FFT y DSP](docs/fft-tutorial.md) |
 | Number Theoretic Transform | `ntt_example.cc` | Transformadas modulares exactas, reporte del backend SIMD activo, planes reutilizables, tamanos arbitrarios soportados via Bluestein, multiplicacion exacta CRT de tres primos en `__uint128_t`, algebra formal de polinomios, multiplicacion de enteros grandes en base 10, convolucion negaciclica modulo `x^N + 1`, ejecucion por lotes y multiplicacion paralela explicita de polinomios. Tutorial completo: [Tutorial NTT](docs/ntt-tutorial.md) |
 | Aritmética de polinomios | `polynomial_example.cc` | Álgebra de polinomios dispersos, cálculo simbólico, análisis de raíces (Sturm/bisección/Newton), interpolación de Newton, funciones de transferencia y operaciones dispersas de alto grado |

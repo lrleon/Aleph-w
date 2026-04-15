@@ -3,11 +3,12 @@
 Esta guía documenta la primera capa de soporte orientada a compiladores añadida
 a Aleph-w. Es deliberadamente pequeña y reusable: la idea es facilitar la
 construcción de lexers, parsers y analizadores semánticos sin comprometer aún un
-lenguaje concreto.
+lenguaje concreto. El roadmap vivo de la plataforma completa está en
+[docs/compiler_platform_roadmap.md](compiler_platform_roadmap.md).
 
 ## Alcance
 
-El componente actual está formado por once headers públicos:
+El componente actual está formado por doce headers públicos:
 
 | Header | Responsabilidad |
 |---|---|
@@ -22,6 +23,7 @@ El componente actual está formado por once headers públicos:
 | `Compiler_Types.H` | Grafo estable de tipos con builtins, tuplas, funciones, variables de tipo y pretty-printing determinista |
 | `tpl_constraints.H` | Conjuntos de constraints de igualdad, substitutions, unificación estructural, variables rígidas y soporte de occurs-check |
 | `Compiler_Typed_Sema.H` | Pasada semántica tipada que conecta el AST, la semántica base, el grafo de tipos y el unifier |
+| `Compiler_HIR.H` | HIR tipada y estructurada con lowering desde AST tipado, nodos estables para intérpretes o compilación posterior y dumps textuales deterministas |
 
 ## Arranque rápido
 
@@ -70,6 +72,7 @@ int main()
 - Tipos standalone para builtins, tuplas, funciones y variables de tipo
 - Resolución de constraints de igualdad con substitutions, variables rígidas y occurs-check
 - Análisis semántico tipado monomórfico para literales, locales, parámetros, retornos, condiciones, operadores y llamadas
+- Lowering desde AST tipado a una HIR estructurada y reusable para intérpretes o futuras etapas CFG/MIR
 
 La entrada malformada produce un token `Invalid`. Si el lexer recibe un
 `Diagnostic_Engine`, además registra un error estructurado con código estable,
@@ -89,6 +92,7 @@ La pasada semántica tipada traduce fallos de tipado a códigos como `TYP002`,
 - Ejemplo: `Examples/compiler_sema_example.cc`
 - Ejemplo: `Examples/compiler_types_example.cc`
 - Ejemplo: `Examples/compiler_typed_sema_example.cc`
+- Ejemplo: `Examples/compiler_hir_example.cc`
 - Tests: `Tests/compiler_source_test.cc`
 - Tests: `Tests/compiler_diagnostics_test.cc`
 - Tests: `Tests/compiler_token_test.cc`
@@ -100,6 +104,7 @@ La pasada semántica tipada traduce fallos de tipado a códigos como `TYP002`,
 - Tests: `Tests/compiler_types_test.cc`
 - Tests: `Tests/compiler_constraints_test.cc`
 - Tests: `Tests/compiler_typed_sema_test.cc`
+- Tests: `Tests/compiler_hir_test.cc`
 
 Para compilar los targets afectados:
 
@@ -117,12 +122,14 @@ cmake --build build --target \
   compiler_types_test \
   compiler_constraints_test \
   compiler_typed_sema_test \
+  compiler_hir_test \
   compiler_diagnostics_example \
   compiler_lexer_example \
   compiler_parser_example \
   compiler_sema_example \
   compiler_types_example \
-  compiler_typed_sema_example
+  compiler_typed_sema_example \
+  compiler_hir_example
 ```
 
 ## Límites actuales
@@ -134,6 +141,7 @@ cmake --build build --target \
 - La inferencia de tipos es monomórfica y local; todavía no hay generalización de `let` ni instanciación polimórfica
 - Aún no existe sintaxis de anotaciones de tipo en el parser o el AST
 - Las llamadas solo se validan contra símbolos de función nombrados, no contra callables inferidos
+- Ya existe una HIR estructurada, pero todavía no hay CFG, MIR/IR, bytecode ni runtime de intérprete
 - Todavía no hay resolución de overloads, coerciones, resolución de traits, análisis de retornos por caminos ni análisis de flujo de datos
 
 Eso es intencional: esta capa debe ser la base estable para módulos futuros, no
@@ -145,5 +153,6 @@ Una vez cerrada esta base, los módulos naturales que siguen son:
 
 1. Soporte de anotaciones de tipo en parser y AST
 2. Generalización e instanciación polimórfica sobre `Compiler_Types.H`
-3. `Compiler_CFG.H`
-4. `Compiler_IR.H` / `SSA.H`
+3. `Interpreter_Runtime.H`
+4. `Compiler_CFG.H`
+5. `Compiler_IR.H` / `SSA.H`

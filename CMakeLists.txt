@@ -139,6 +139,7 @@ set(HLIST
     Compiler_Types.H
     tpl_constraints.H
     Compiler_Typed_Sema.H
+    Compiler_HIR.H
     String_Search.H
     Aho_Corasick.H
     Suffix_Structures.H

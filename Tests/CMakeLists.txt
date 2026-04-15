@@ -206,6 +206,7 @@ set(TEST_PROGRAMS
     compiler_types_test
     compiler_constraints_test
     compiler_typed_sema_test
+    compiler_hir_test
     fixedqueue
     randomqueue
     slink
