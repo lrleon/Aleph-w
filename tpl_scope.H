@@ -46,6 +46,7 @@
 # define TPL_SCOPE_H
 
 # include <concepts>
+# include <cstddef>
 # include <utility>
 
 # include <ah-errors.H>
@@ -138,7 +139,7 @@ namespace Aleph
      *  @note Thread-safety: Safe for concurrent readers.
      *  @note Complexity: O(1).
      */
-    size_t depth() const noexcept
+    [[nodiscard]] size_t depth() const noexcept
     {
       return frames.size();
     }
@@ -149,7 +150,7 @@ namespace Aleph
      *  @note Thread-safety: Safe for concurrent readers.
      *  @note Complexity: O(1).
      */
-    bool empty() const noexcept
+    [[nodiscard]] bool empty() const noexcept
     {
       return frames.is_empty();
     }

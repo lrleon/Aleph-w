@@ -59,7 +59,7 @@ end
 
 
 def gephi_path_probe_template(executable_name)
-  "#{Shellwords.escape(RbConfig.ruby)} -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" #{executable_name}"
+  "#{Shellwords.escape(RbConfig.ruby)} -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" #{Shellwords.escape(executable_name)}"
 end
 
 

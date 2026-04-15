@@ -125,7 +125,7 @@ namespace Aleph
                     const std::string & message,
                     const std::string & code,
                     const std::string & note = "",
-                    const std::string & help = "")
+                    const std::string & help = "") const
     {
       if (diagnostics == nullptr)
         return;
@@ -191,8 +191,8 @@ namespace Aleph
       resolutions.append({expr, symbol_id});
     }
 
-    const Compiler_Expr *
-    strip_grouping(const Compiler_Expr * expr) const noexcept
+    static const Compiler_Expr *
+    strip_grouping(const Compiler_Expr * expr) noexcept
     {
       auto * current = expr;
       while (current != nullptr

@@ -145,12 +145,12 @@ class Compiler_Parser
     return true;
   }
 
-  Compiler_Invalid_Expr *invalid_expr(const Source_Span &span = {})
+  [[nodiscard]] Compiler_Invalid_Expr *invalid_expr(const Source_Span &span = {}) const
   {
     return ast->make<Compiler_Invalid_Expr>(span);
   }
 
-  Compiler_Invalid_Stmt *invalid_stmt(const Source_Span &span = {})
+  [[nodiscard]] Compiler_Invalid_Stmt *invalid_stmt(const Source_Span &span = {}) const
   {
     return ast->make<Compiler_Invalid_Stmt>(span);
   }
