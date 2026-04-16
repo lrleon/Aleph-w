@@ -40,6 +40,7 @@
  *  - built-in scalar types
  *  - tuple types
  *  - function types
+ *  - nominal `struct` and `enum` types
  *  - type variables, including optional rigid variables
  *
  *  This layer is independent from the AST on purpose. It can be reused by a
@@ -68,6 +69,8 @@ enum class Compiler_Type_Kind
   Builtin,
   Tuple,
   Function,
+  Struct,
+  Enum,
   Type_Variable
 };
 
@@ -93,6 +96,10 @@ inline const char *compiler_type_kind_name(const Compiler_Type_Kind kind) noexce
       return "Tuple";
     case Compiler_Type_Kind::Function:
       return "Function";
+    case Compiler_Type_Kind::Struct:
+      return "Struct";
+    case Compiler_Type_Kind::Enum:
+      return "Enum";
     case Compiler_Type_Kind::Type_Variable:
       return "Type_Variable";
     }
@@ -129,6 +136,12 @@ inline const char *compiler_builtin_type_name(const Compiler_Builtin_Type builti
  *  For `Function`, `components` stores the parameter types and `result_type`
  *  stores the return type.
  *
+ *  For `Struct`, `label` stores the type name, `member_names` stores the
+ *  field names, and `components` stores the field types in declaration order.
+ *
+ *  For `Enum`, `label` stores the type name and `member_names` stores the
+ *  variant names in declaration order.
+ *
  *  For `Type_Variable`, `label` is the debug/display name and `rigid`
  *  controls whether a unifier is allowed to bind the variable.
  */
@@ -137,9 +150,10 @@ struct Compiler_Type
   Compiler_Type_Id id = 0;                                         ///< Stable 1-based identifier.
   Compiler_Type_Kind kind = Compiler_Type_Kind::Builtin;           ///< Node category.
   Compiler_Builtin_Type builtin = Compiler_Builtin_Type::Invalid;  ///< Built-in tag.
-  DynArray<Compiler_Type_Id> components;  ///< Tuple members or function parameters.
+  DynArray<Compiler_Type_Id> components;  ///< Tuple members, function parameters, or struct field types.
   Compiler_Type_Id result_type = 0;       ///< Function return type, or `0`.
-  std::string label;                      ///< Display label for type variables.
+  DynArray<std::string> member_names;     ///< Struct field names or enum variant names.
+  std::string label;                      ///< Display label for type variables or nominal type names.
   bool rigid = false;                     ///< Whether the type variable is rigid.
 
   /** @brief Returns whether this node represents a built-in type. */
@@ -153,13 +167,27 @@ struct Compiler_Type
   {
     return kind == Compiler_Type_Kind::Type_Variable;
   }
+
+  /** @brief Returns whether this node represents a nominal `struct` type. */
+  bool is_struct() const noexcept
+  {
+    return kind == Compiler_Type_Kind::Struct;
+  }
+
+  /** @brief Returns whether this node represents a nominal `enum` type. */
+  bool is_enum() const noexcept
+  {
+    return kind == Compiler_Type_Kind::Enum;
+  }
 };
 
 /** @brief Context owning all compiler type nodes.
  *
  *  Built-in types are created eagerly and remain stable for the life of the
  *  context. User-defined nodes can be discarded with `clear()`, which keeps
- *  the built-ins and resets the fresh type-variable counter.
+ *  the built-ins and resets the fresh type-variable counter. Transparent type
+ *  aliases are resolved by semantic analysis and therefore do not create
+ *  separate nodes in this graph.
  */
 class Compiler_Type_Context
 {
@@ -244,6 +272,11 @@ class Compiler_Type_Context
           }
         out << ") -> ";
         append_type_text(out, ty.result_type);
+        return;
+
+      case Compiler_Type_Kind::Struct:
+      case Compiler_Type_Kind::Enum:
+        out << ty.label;
         return;
       }
   }
@@ -346,6 +379,18 @@ public:
     return type(id).kind == Compiler_Type_Kind::Builtin;
   }
 
+  /** @brief Returns whether `id` names a nominal `struct` type. */
+  bool is_struct(const Compiler_Type_Id id) const
+  {
+    return type(id).kind == Compiler_Type_Kind::Struct;
+  }
+
+  /** @brief Returns whether `id` names a nominal `enum` type. */
+  bool is_enum(const Compiler_Type_Id id) const
+  {
+    return type(id).kind == Compiler_Type_Kind::Enum;
+  }
+
   /** @brief Creates a fresh type variable.
    *
    *  @param label Optional display name. If empty, a fresh `T<n>` label is
@@ -411,6 +456,75 @@ public:
                                       const Compiler_Type_Id result)
   {
     return make_function_type(list_to_array(parameters), result);
+  }
+
+  /** @brief Creates a nominal `struct` type placeholder.
+   *
+   *  The resulting type is opaque for unification purposes and prints as its
+   *  declared `name`. Field metadata can be filled later with
+   *  `set_struct_fields()`.
+   *
+   *  @param name Declared nominal type name.
+   *  @return Stable type id for the `struct`.
+   */
+  Compiler_Type_Id make_struct_type(std::string name)
+  {
+    Compiler_Type ty;
+    ty.kind = Compiler_Type_Kind::Struct;
+    ty.label = std::move(name);
+    return append_type(std::move(ty));
+  }
+
+  /** @brief Assigns field metadata to a previously created `struct` type.
+   *
+   *  @param id Struct type id returned by `make_struct_type()`.
+   *  @param field_names Field names in declaration order.
+   *  @param field_types Field types in declaration order.
+   *  @throws std::invalid_argument If `id` is not a `struct` or the arities differ.
+   */
+  void set_struct_fields(const Compiler_Type_Id id,
+                         const DynArray<std::string> &field_names,
+                         const DynArray<Compiler_Type_Id> &field_types)
+  {
+    auto &ty = const_cast<Compiler_Type &>(type(id));
+    ah_invalid_argument_unless(ty.kind == Compiler_Type_Kind::Struct)
+      << "Compiler_Type_Context::set_struct_fields(): id " << id << " is not a struct";
+    ah_invalid_argument_unless(field_names.size() == field_types.size())
+      << "Compiler_Type_Context::set_struct_fields(): mismatched field name/type arity";
+    ty.member_names = field_names;
+    ty.components = field_types;
+  }
+
+  /** @brief Creates a nominal `enum` type placeholder.
+   *
+   *  The resulting type is opaque for unification purposes and prints as its
+   *  declared `name`. Variant metadata can be filled later with
+   *  `set_enum_variants()`.
+   *
+   *  @param name Declared nominal type name.
+   *  @return Stable type id for the `enum`.
+   */
+  Compiler_Type_Id make_enum_type(std::string name)
+  {
+    Compiler_Type ty;
+    ty.kind = Compiler_Type_Kind::Enum;
+    ty.label = std::move(name);
+    return append_type(std::move(ty));
+  }
+
+  /** @brief Assigns variant metadata to a previously created `enum` type.
+   *
+   *  @param id Enum type id returned by `make_enum_type()`.
+   *  @param variant_names Variant names in declaration order.
+   *  @throws std::invalid_argument If `id` is not an `enum`.
+   */
+  void set_enum_variants(const Compiler_Type_Id id,
+                         const DynArray<std::string> &variant_names)
+  {
+    auto &ty = const_cast<Compiler_Type &>(type(id));
+    ah_invalid_argument_unless(ty.kind == Compiler_Type_Kind::Enum)
+      << "Compiler_Type_Context::set_enum_variants(): id " << id << " is not an enum";
+    ty.member_names = variant_names;
   }
 
   /** @brief Renders one type to a deterministic human-readable string.

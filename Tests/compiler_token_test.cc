@@ -45,6 +45,7 @@ TEST(CompilerToken, ClassifiesKeywordsAndPredicates)
 {
   EXPECT_EQ(classify_compiler_keyword("fn"), Compiler_Token_Kind::Kw_Fn);
   EXPECT_EQ(classify_compiler_keyword("return"), Compiler_Token_Kind::Kw_Return);
+  EXPECT_EQ(classify_compiler_keyword("enum"), Compiler_Token_Kind::Kw_Enum);
   EXPECT_EQ(classify_compiler_keyword("identifier"),
             Compiler_Token_Kind::Identifier);
 

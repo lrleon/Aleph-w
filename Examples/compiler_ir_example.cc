@@ -28,15 +28,15 @@
   SOFTWARE.
 */
 
-
 /**
- * @file compiler_parser_example.cc
- * @brief Minimal example that parses and dumps a small module with imports.
+ * @file compiler_ir_example.cc
+ * @brief Minimal example that lowers typed HIR into explicit-value IR.
  */
 
-# include <iostream>
+#include <iostream>
 
-# include <Compiler_Parser.H>
+#include <Compiler_IR.H>
+#include <Compiler_Parser.H>
 
 using namespace Aleph;
 
@@ -45,26 +45,42 @@ int main()
   Source_Manager sm;
   const auto file_id = sm.add_virtual_file(
       "demo.aw",
-      "import \"math.aw\";\n"
-      "fn inc(x) {\n"
-      "  let y = x + 1;\n"
-      "  return y;\n"
+      "let base = 10;\n"
+      "fn add_base(x) {\n"
+      "  return x + base;\n"
       "}\n"
-      "let value = inc(41);\n");
+      "let answer = add_base(32);\n");
 
   Diagnostic_Engine dx(sm);
-  Compiler_Ast_Context ctx(1 << 16);
-  Compiler_Parser parser(ctx, sm, file_id, &dx);
-
+  Compiler_Ast_Context ast_ctx(1 << 16);
+  Compiler_Parser parser(ast_ctx, sm, file_id, &dx);
   const auto * module = parser.parse_module();
 
-  std::cout << compiler_dump_module(module);
+  Compiler_Typed_Semantic_Analyzer typed(&dx);
+  typed.analyze_module(module);
+
+  Compiler_HIR_Context hir_ctx(1 << 16);
+  Compiler_HIR_Lowering hir_lowering(hir_ctx, typed);
+  const auto * hir = hir_lowering.lower_module(module);
+
+  Compiler_IR_Context ir_ctx(1 << 16);
+  Compiler_IR_Lowering ir_lowering(ir_ctx, &typed.type_context());
+  const auto * ir = ir_lowering.lower_module(hir);
+
+  const auto report = validate_ir_module(*ir);
+  std::cout << compiler_dump_ir_module(ir, &typed.type_context());
+  if (not report.warnings.is_empty())
+    {
+      std::cout << "\nWarnings:\n";
+      for (size_t i = 0; i < report.warnings.size(); ++i)
+        std::cout << "- " << report.warnings.access(i) << '\n';
+    }
+
   if (dx.size() > 0)
     {
       std::cout << "\nDiagnostics:\n";
       dx.render_plain(std::cout);
-      return dx.has_errors() ? 1 : 0;
     }
 
-  return 0;
+  return report.valid && not dx.has_errors() ? 0 : 1;
 }

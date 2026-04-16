@@ -113,6 +113,38 @@ TEST(CompilerLexer, LexesKeywordsIdentifiersNumbersAndSpans)
 }
 
 
+TEST(CompilerLexer, LexesNominalTypeDeclarationKeywords)
+{
+  Source_Manager sm;
+  const auto id = sm.add_virtual_file("types.aw", "struct Point {} enum Color {} type UserId = Int;");
+  Compiler_Lexer lexer(sm, id);
+
+  const auto t0 = lexer.next();
+  const auto t1 = lexer.next();
+  const auto t2 = lexer.next();
+  const auto t3 = lexer.next();
+  const auto t4 = lexer.next();
+  const auto t5 = lexer.next();
+  const auto t6 = lexer.next();
+  const auto t7 = lexer.next();
+  const auto t8 = lexer.next();
+  const auto t9 = lexer.next();
+  const auto t10 = lexer.next();
+  const auto t11 = lexer.next();
+  const auto t12 = lexer.next();
+
+  EXPECT_EQ(t0.kind, Compiler_Token_Kind::Kw_Struct);
+  EXPECT_EQ(t1.kind, Compiler_Token_Kind::Identifier);
+  EXPECT_EQ(t4.kind, Compiler_Token_Kind::Kw_Enum);
+  EXPECT_EQ(t5.kind, Compiler_Token_Kind::Identifier);
+  EXPECT_EQ(t8.kind, Compiler_Token_Kind::Kw_Type);
+  EXPECT_EQ(t9.kind, Compiler_Token_Kind::Identifier);
+  EXPECT_EQ(t10.kind, Compiler_Token_Kind::Assign);
+  EXPECT_EQ(t11.kind, Compiler_Token_Kind::Identifier);
+  EXPECT_EQ(t12.kind, Compiler_Token_Kind::Semicolon);
+}
+
+
 TEST(CompilerLexer, PeekDoesNotConsumeTheNextToken)
 {
   Source_Manager sm;

@@ -207,6 +207,15 @@ set(TEST_PROGRAMS
     compiler_constraints_test
     compiler_typed_sema_test
     compiler_hir_test
+    interpreter_runtime_test
+    compiler_cfg_test
+    compiler_ir_test
+    compiler_dataflow_test
+    ssa_test
+    bytecode_test
+    bytecode_interpreter_test
+    compiler_backend_c_test
+    compiler_driver_test
     fixedqueue
     randomqueue
     slink

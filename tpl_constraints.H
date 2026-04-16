@@ -345,6 +345,10 @@ namespace Aleph
               changed = true;
             return changed ? ctx.make_function_type(params, new_result) : resolved;
           }
+
+        case Compiler_Type_Kind::Struct:
+        case Compiler_Type_Kind::Enum:
+          return resolved;
         }
 
       return resolved;
@@ -431,6 +435,10 @@ namespace Aleph
       switch (ty.kind)
         {
         case Compiler_Type_Kind::Builtin:
+          return false;
+
+        case Compiler_Type_Kind::Struct:
+        case Compiler_Type_Kind::Enum:
           return false;
 
         case Compiler_Type_Kind::Type_Variable:
@@ -596,6 +604,15 @@ namespace Aleph
                 not result.ok())
               return last = result;
           return last = unify(lhs_type.result_type, rhs_type.result_type);
+
+        case Compiler_Type_Kind::Struct:
+        case Compiler_Type_Kind::Enum:
+          return last = fail(Compiler_Unify_Result_Kind::Kind_Mismatch,
+                             left,
+                             right,
+                             "nominal type mismatch between '"
+                             + context->to_string(left) + "' and '"
+                             + context->to_string(right) + "'");
 
         case Compiler_Type_Kind::Type_Variable:
           break;

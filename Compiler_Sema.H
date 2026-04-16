@@ -36,11 +36,11 @@
  *
  *  - lexical scope management
  *  - symbol declaration and duplicate detection
+ *  - top-level import/type declaration validation
  *  - identifier resolution
  *  - optional shadowing diagnostics
  *  - `return` outside function checks
  *  - `break` / `continue` outside loop checks
- *  - rejecting calls to non-function symbols in the current name-only model
  *
  *  This is not a type checker. The goal is to provide a stable semantic layer
  *  immediately above parsing while future type and constraint systems remain
@@ -118,6 +118,7 @@ namespace Aleph
     DynArray<Compiler_Symbol> symbols;
     DynArray<Compiler_Name_Resolution> resolutions;
     Scope<std::string, Compiler_Symbol_Id> scopes;
+    Scope<std::string, Source_Span> type_scopes;
     size_t function_depth = 0;
     size_t loop_depth = 0;
 
@@ -191,14 +192,57 @@ namespace Aleph
       resolutions.append({expr, symbol_id});
     }
 
-    static const Compiler_Expr *
-    strip_grouping(const Compiler_Expr * expr) noexcept
+    void
+    declare_type_name(const std::string & name,
+                      const Source_Span & span)
     {
-      auto * current = expr;
-      while (current != nullptr
-             and current->kind == Compiler_Expr_Kind::Grouping)
-        current = static_cast<const Compiler_Grouping_Expr *>(current)->inner;
-      return current;
+      ah_runtime_error_unless(type_scopes.depth() > 0)
+        << "Compiler_Semantic_Analyzer: no active type scope";
+
+      if (type_scopes.lookup_local(name) != nullptr)
+        {
+          emit_error(span,
+                     "duplicate type declaration of '" + name + "'",
+                     "SEM008");
+          return;
+        }
+
+      (void) type_scopes.insert(name, span);
+    }
+
+    void
+    analyze_imports(const Compiler_Module * module)
+    {
+      if (module == nullptr)
+        return;
+
+      DynArray<std::string> imported_modules;
+      for (size_t i = 0; i < module->imports.size(); ++i)
+        {
+          const auto * decl = module->imports.access(i);
+          if (decl == nullptr or decl->kind != Compiler_Import_Decl_Kind::Import)
+            continue;
+
+          if (not module->source_name.empty() and decl->module_name == module->source_name)
+            emit_error(decl->module_name_span,
+                       "module '" + module->source_name + "' cannot import itself",
+                       "SEM010");
+
+          bool duplicate = false;
+          for (size_t j = 0; j < imported_modules.size(); ++j)
+            if (imported_modules.access(j) == decl->module_name)
+              {
+                duplicate = true;
+                break;
+              }
+
+          if (duplicate)
+            emit_error(decl->module_name_span,
+                       "duplicate import of '" + decl->module_name + "'",
+                       "SEM009");
+          else
+            imported_modules.append(decl->module_name);
+        }
     }
 
     void analyze_expr(const Compiler_Expr * expr)
@@ -256,19 +300,6 @@ namespace Aleph
             analyze_expr(node->callee);
             for (size_t i = 0; i < node->arguments.size(); ++i)
               analyze_expr(node->arguments.access(i));
-
-            const auto * callee = strip_grouping(node->callee);
-            if (callee != nullptr
-                and callee->kind == Compiler_Expr_Kind::Identifier)
-              {
-                const auto * symbol = resolved_symbol(callee);
-                if (symbol != nullptr
-                    and symbol->kind != Compiler_Symbol_Kind::Function)
-                  emit_error(node->span,
-                             "called object '" + symbol->name
-                             + "' is not a function",
-                             "SEM005");
-              }
             return;
           }
         }
@@ -409,6 +440,7 @@ namespace Aleph
       symbols.clear();
       resolutions.clear();
       scopes.clear();
+      type_scopes.clear();
       function_depth = 0;
       loop_depth = 0;
     }
@@ -426,6 +458,16 @@ namespace Aleph
         return;
 
       scopes.enter_scope();
+      type_scopes.enter_scope();
+
+      analyze_imports(module);
+
+      for (size_t i = 0; i < module->type_declarations.size(); ++i)
+        {
+          const auto * decl = module->type_declarations.access(i);
+          if (decl != nullptr)
+            declare_type_name(decl->name, decl->name_span);
+        }
 
       for (size_t i = 0; i < module->functions.size(); ++i)
         {
@@ -443,6 +485,7 @@ namespace Aleph
         analyze_function(module->functions.access(i));
 
       scopes.leave_scope();
+      type_scopes.leave_scope();
     }
 
     /** @brief Returns the number of collected symbols. */

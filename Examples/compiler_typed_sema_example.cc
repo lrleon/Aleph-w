@@ -31,7 +31,7 @@
 
 /**
  * @file compiler_typed_sema_example.cc
- * @brief Minimal example that infers function, parameter, and binding types.
+ * @brief Example showing nominal type declarations, transparent aliases, and basic polymorphism.
  */
 
 # include <iostream>
@@ -46,11 +46,19 @@ int main()
   Source_Manager sm;
   const auto file_id = sm.add_virtual_file(
       "demo.aw",
-      "fn add(x, y) {\n"
-      "  let z = x + y;\n"
-      "  return z;\n"
+      "struct Point { x: Int; y: Int; }\n"
+      "enum Color { Red, Green, Blue }\n"
+      "type UserId = Int;\n"
+      "fn id(x: T) -> T {\n"
+      "  return x;\n"
       "}\n"
-      "let value = add(1, 2);\n");
+      "fn paint(point: Point, color: Color, id: UserId) -> UserId {\n"
+      "  return id;\n"
+      "}\n"
+      "let alias = id;\n"
+      "let user_id: UserId = alias(1);\n"
+      "let flag: Bool = alias(true);\n"
+      "let favorite: Color;\n");
 
   Diagnostic_Engine dx(sm);
   Compiler_Ast_Context ctx(1 << 16);

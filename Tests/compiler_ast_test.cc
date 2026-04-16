@@ -104,6 +104,8 @@ TEST(CompilerAst, DumpHelpersRenderDeterministicTreeShape)
   auto * fn = ctx.make<Compiler_Function_Decl>(Source_Span{1, 19, 21},
                                                "inc",
                                                Source_Span{1, 22, 25},
+                                               Source_Span{},
+                                               nullptr,
                                                body);
   fn->parameters.append({"x", Source_Span{1, 26, 27}});
 

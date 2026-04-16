@@ -32,9 +32,10 @@
  *  @brief Recursive-descent parser for the compiler-support MVP grammar.
  *
  *  The parser builds the arena-backed AST defined in `Compiler_AST.H` using the
- *  lexer from `Compiler_Lexer.H`. It supports function declarations, blocks,
- *  `let`, `return`, `if`, `while`, `break`, `continue`, expression statements,
- *  calls, unary operators, and precedence-climbing binary expressions.
+ *  lexer from `Compiler_Lexer.H`. It supports import declarations, function
+ *  declarations, explicit type annotations, blocks, `let`, `return`, `if`,
+ *  `while`, `break`, `continue`, expression statements, calls, unary
+ *  operators, and precedence-climbing binary expressions.
  *
  *  Parse errors produce invalid nodes and, when available, diagnostics in the
  *  attached `Diagnostic_Engine`.
@@ -51,6 +52,7 @@
 #include <Compiler_Lexer.H>
 
 namespace Aleph {
+
 /** @brief Parser configuration knobs for the MVP grammar. 
  *
  *  @note Thread-safety: Thread-safe (POD).
@@ -58,20 +60,29 @@ namespace Aleph {
  */
 struct Compiler_Parser_Options
 {
-  bool allow_top_level_statements = true;  ///< If false, only `fn` is accepted at top level.
+  bool allow_top_level_statements = true;  ///< If false, only top-level declarations are accepted.
 };
 
 /** @brief Recursive-descent parser that produces an AST in `Compiler_Ast_Context`. 
+ *
+ *  Implements a hand-written parser for a C-like language. It uses 
+ *  precedence-climbing for expressions and recursive descent for statements 
+ *  and declarations, including top-level `import`, `fn`, `type`, `struct`,
+ *  and `enum`.
  *
  *  @note Thread-safety: Not thread-safe.
  */
 class Compiler_Parser
 {
-  Compiler_Ast_Context *ast = nullptr;
-  Diagnostic_Engine *diagnostics = nullptr;
-  Compiler_Lexer lexer;
-  Compiler_Parser_Options options;
+  Compiler_Ast_Context *ast = nullptr;     ///< AST owner.
+  Diagnostic_Engine *diagnostics = nullptr; ///< diagnostic sink.
+  Compiler_Lexer lexer;                    ///< Token source.
+  Compiler_Parser_Options options;         ///< Parser behavior configuration.
+  std::string source_name;                 ///< User-facing source name being parsed.
 
+  /** @brief Checks if a token kind can start an expression. 
+   *  Used for synchronization and lookahead.
+   */
   static bool is_expression_start(const Compiler_Token_Kind kind) noexcept
   {
     switch (kind)
@@ -93,6 +104,7 @@ class Compiler_Parser
       }
   }
 
+  /** @brief Checks if a token kind can start a statement. */
   static bool is_statement_start(const Compiler_Token_Kind kind) noexcept
   {
     switch (kind)
@@ -110,6 +122,18 @@ class Compiler_Parser
       }
   }
 
+  /** @brief Removes the surrounding quotes from one string literal token. */
+  static std::string unquote_string_token(const Compiler_Token &token)
+  {
+    if (token.kind != Compiler_Token_Kind::String_Literal)
+      return token.lexeme;
+    if (token.lexeme.size() >= 2 and token.lexeme.front() == '"'
+        and token.lexeme.back() == '"')
+      return token.lexeme.substr(1, token.lexeme.size() - 2);
+    return token.lexeme;
+  }
+
+  /** @brief Internal helper to report a diagnostic error. */
   void emit_error(const Source_Span &span,
                   const std::string &message,
                   const std::string &code,
@@ -127,16 +151,21 @@ class Compiler_Parser
     builder.emit();
   }
 
+  /** @brief Peeks at the next token without consuming it. */
   Compiler_Token peek()
   {
     return lexer.peek();
   }
 
+  /** @brief Consumes and returns the next token. */
   Compiler_Token next()
   {
     return lexer.next();
   }
 
+  /** @brief Consumes the next token if it matches `kind`. 
+   *  @return `true` if matched and consumed.
+   */
   bool match(const Compiler_Token_Kind kind)
   {
     if (peek().kind != kind)
@@ -145,16 +174,39 @@ class Compiler_Parser
     return true;
   }
 
+  /** @brief Creates an invalid expression node in the current arena. */
   [[nodiscard]] Compiler_Invalid_Expr *invalid_expr(const Source_Span &span = {}) const
   {
     return ast->make<Compiler_Invalid_Expr>(span);
   }
 
+  /** @brief Creates an invalid statement node in the current arena. */
   [[nodiscard]] Compiler_Invalid_Stmt *invalid_stmt(const Source_Span &span = {}) const
   {
     return ast->make<Compiler_Invalid_Stmt>(span);
   }
 
+  /** @brief Creates an invalid type-expression node in the current arena. */
+  [[nodiscard]] Compiler_Invalid_Type_Expr *invalid_type_expr(const Source_Span &span = {}) const
+  {
+    return ast->make<Compiler_Invalid_Type_Expr>(span);
+  }
+
+  /** @brief Creates an invalid import-declaration node in the current arena. */
+  [[nodiscard]] Compiler_Invalid_Import_Decl *invalid_import_decl(const Source_Span &span = {}) const
+  {
+    return ast->make<Compiler_Invalid_Import_Decl>(span);
+  }
+
+  /** @brief Creates an invalid type-declaration node in the current arena. */
+  [[nodiscard]] Compiler_Invalid_Type_Decl *invalid_type_decl(const Source_Span &span = {}) const
+  {
+    return ast->make<Compiler_Invalid_Type_Decl>(span);
+  }
+
+  /** @brief Consumes a token of kind `kind` or emits an error. 
+   *  @return The matched token, or a synthetic token on error.
+   */
   Compiler_Token expect(const Compiler_Token_Kind kind,
                         const std::string &message,
                         const std::string &code)
@@ -167,6 +219,7 @@ class Compiler_Parser
     return {kind, "", tok.span};
   }
 
+  /** @brief Consumes an identifier token or emits an error. */
   Compiler_Token expect_identifier(const std::string &context, const std::string &code = "PAR002")
   {
     const auto tok = peek();
@@ -177,6 +230,7 @@ class Compiler_Parser
     return {Compiler_Token_Kind::Identifier, "", tok.span};
   }
 
+  /** @brief Error recovery helper: skips tokens until a statement boundary. */
   void synchronize_statement()
   {
     while (true)
@@ -191,8 +245,10 @@ class Compiler_Parser
             return;
           }
 
-        if (tok.kind == Compiler_Token_Kind::Kw_Fn or tok.kind == Compiler_Token_Kind::Kw_Let
-            or tok.kind == Compiler_Token_Kind::Kw_Return or tok.kind == Compiler_Token_Kind::Kw_If
+        if (tok.kind == Compiler_Token_Kind::Kw_Import or tok.kind == Compiler_Token_Kind::Kw_Fn
+            or tok.kind == Compiler_Token_Kind::Kw_Type
+            or tok.kind == Compiler_Token_Kind::Kw_Struct or tok.kind == Compiler_Token_Kind::Kw_Enum
+            or tok.kind == Compiler_Token_Kind::Kw_Let or tok.kind == Compiler_Token_Kind::Kw_Return or tok.kind == Compiler_Token_Kind::Kw_If
             or tok.kind == Compiler_Token_Kind::Kw_While or tok.kind == Compiler_Token_Kind::Kw_Break
             or tok.kind == Compiler_Token_Kind::Kw_Continue)
           return;
@@ -201,6 +257,7 @@ class Compiler_Parser
       }
   }
 
+  /** @brief Ensures a statement is terminated by a semicolon or reports an error. */
   Source_Span parse_statement_terminator(const Source_Span &anchor)
   {
     const auto tok = peek();
@@ -216,6 +273,7 @@ class Compiler_Parser
     return {};
   }
 
+  /** @brief Parses a parenthesized expression: `(` expression `)`. */
   Compiler_Grouping_Expr *parse_grouping_expr()
   {
     const auto lparen = next();
@@ -225,6 +283,7 @@ class Compiler_Parser
     return ast->make<Compiler_Grouping_Expr>(inner, lparen.span, rparen.span);
   }
 
+  /** @brief Parses primary expressions: literals, identifiers, and groupings. */
   Compiler_Expr *parse_primary()
   {
     const auto tok = peek();
@@ -276,6 +335,7 @@ class Compiler_Parser
       }
   }
 
+  /** @brief Parses function call argument list suffix: `(` args? `)`. */
   Compiler_Expr *parse_call_suffix(Compiler_Expr *callee)
   {
     const auto lparen
@@ -298,6 +358,7 @@ class Compiler_Parser
     return call;
   }
 
+  /** @brief Parses postfix expressions such as calls. */
   Compiler_Expr *parse_postfix()
   {
     auto *expr = parse_primary();
@@ -306,6 +367,7 @@ class Compiler_Parser
     return expr;
   }
 
+  /** @brief Parses prefix unary expressions: `!`, `-`, `+`, `~`. */
   Compiler_Expr *parse_unary()
   {
     const auto tok = peek();
@@ -320,6 +382,7 @@ class Compiler_Parser
     return parse_postfix();
   }
 
+  /** @brief Parses binary expressions using precedence-climbing. */
   Compiler_Expr *parse_expression(const int min_precedence = 1)
   {
     auto *lhs = parse_unary();
@@ -342,6 +405,219 @@ class Compiler_Parser
     return lhs;
   }
 
+  /** @brief Parses a named type such as `Int` or `T`. */
+  Compiler_Type_Expr *parse_named_type()
+  {
+    const auto tok = peek();
+    if (tok.kind != Compiler_Token_Kind::Identifier)
+      {
+        emit_error(tok.span, "expected type name", "PAR007");
+        if (not tok.is_eof())
+          (void) next();
+        return invalid_type_expr(tok.span);
+      }
+
+    const auto name = next();
+    return ast->make<Compiler_Named_Type_Expr>(name.lexeme, name.span);
+  }
+
+  /** @brief Parses parenthesized tuple-type syntax.
+   *
+   *  A single member such as `(Int)` is normalized to `Int`, while two or more
+   *  members produce one tuple type-expression node.
+   */
+  Compiler_Type_Expr *parse_parenthesized_type()
+  {
+    const auto lparen
+      = expect(Compiler_Token_Kind::LParen, "expected '(' to start type", "PAR003");
+
+    auto *first = parse_type_expression();
+    if (peek().kind != Compiler_Token_Kind::Comma)
+      {
+        const auto rparen
+          = expect(Compiler_Token_Kind::RParen, "expected ')' after type", "PAR003");
+        if (first != nullptr and rparen.span.is_valid())
+          first->span = compiler_merge_spans(lparen.span, rparen.span);
+        return first;
+      }
+
+    auto *tuple = ast->make<Compiler_Tuple_Type_Expr>(lparen.span, Source_Span());
+    tuple->members.append(first);
+    while (match(Compiler_Token_Kind::Comma))
+      tuple->members.append(parse_type_expression());
+
+    const auto rparen
+      = expect(Compiler_Token_Kind::RParen, "expected ')' after tuple type", "PAR003");
+    tuple->rparen_span = rparen.span;
+    tuple->span = compiler_merge_spans(lparen.span, rparen.span);
+    return tuple;
+  }
+
+  /** @brief Parses a function type such as `fn(Int) -> Bool`. */
+  Compiler_Type_Expr *parse_function_type()
+  {
+    const auto kw
+      = expect(Compiler_Token_Kind::Kw_Fn, "expected 'fn' to start function type", "PAR003");
+    const auto lparen
+      = expect(Compiler_Token_Kind::LParen, "expected '(' after 'fn' in type", "PAR003");
+
+    auto *fn_type = ast->make<Compiler_Function_Type_Expr>(kw.span,
+                                                           lparen.span,
+                                                           Source_Span(),
+                                                           Source_Span(),
+                                                           nullptr);
+
+    if (peek().kind != Compiler_Token_Kind::RParen)
+      while (true)
+        {
+          fn_type->parameters.append(parse_type_expression());
+          if (match(Compiler_Token_Kind::Comma))
+            continue;
+          break;
+        }
+
+    const auto rparen
+      = expect(Compiler_Token_Kind::RParen, "expected ')' after function type parameters", "PAR003");
+    fn_type->rparen_span = rparen.span;
+    const auto arrow
+      = expect(Compiler_Token_Kind::Arrow, "expected '->' after function type parameters", "PAR003");
+    fn_type->arrow_span = arrow.span;
+    fn_type->result = parse_type_expression();
+    fn_type->span = compiler_merge_spans(kw.span,
+                                         fn_type->result != nullptr ? fn_type->result->span
+                                                                    : arrow.span);
+    return fn_type;
+  }
+
+  /** @brief Parses one primary type-expression form. */
+  Compiler_Type_Expr *parse_type_primary()
+  {
+    const auto tok = peek();
+    switch (tok.kind)
+      {
+      case Compiler_Token_Kind::Identifier:
+        return parse_named_type();
+      case Compiler_Token_Kind::LParen:
+        return parse_parenthesized_type();
+      case Compiler_Token_Kind::Kw_Fn:
+        return parse_function_type();
+      default:
+        emit_error(tok.span, "expected type expression", "PAR007");
+        if (not tok.is_eof())
+          (void) next();
+        return invalid_type_expr(tok.span);
+      }
+  }
+
+  /** @brief Parses a type expression used by explicit annotations. */
+  Compiler_Type_Expr *parse_type_expression()
+  {
+    return parse_type_primary();
+  }
+
+  /** @brief Parses one top-level import declaration: `import` string `;`. */
+  Compiler_Import_Decl *parse_import_declaration()
+  {
+    const auto kw = next();
+    const auto path_tok = peek();
+    const auto path = expect(Compiler_Token_Kind::String_Literal,
+                             "expected string literal after 'import'",
+                             "PAR003");
+    const auto semi = parse_statement_terminator(path.span.is_valid() ? path.span : kw.span);
+    if (path_tok.kind != Compiler_Token_Kind::String_Literal)
+      return invalid_import_decl(compiler_merge_spans(kw.span,
+                                                      semi.is_valid() ? semi
+                                                                       : path_tok.span));
+    return ast->make<Compiler_Source_Import_Decl>(kw.span,
+                                                  unquote_string_token(path),
+                                                  path.span,
+                                                  semi);
+  }
+
+  /** @brief Parses one top-level type alias: `type` ident `=` type `;`. */
+  Compiler_Type_Decl *parse_type_alias_declaration()
+  {
+    const auto kw = next();
+    const auto name = expect_identifier("after 'type'");
+    const auto equal
+      = expect(Compiler_Token_Kind::Assign, "expected '=' in type alias declaration", "PAR003");
+    auto *target = parse_type_expression();
+    const auto semi = parse_statement_terminator(name.span);
+    return ast->make<Compiler_Type_Alias_Decl>(kw.span,
+                                               name.lexeme,
+                                               name.span,
+                                               equal.span,
+                                               target,
+                                               semi);
+  }
+
+  /** @brief Parses one top-level `struct` declaration. */
+  Compiler_Type_Decl *parse_struct_declaration()
+  {
+    const auto kw = next();
+    const auto name = expect_identifier("after 'struct'");
+    const auto lbrace
+      = expect(Compiler_Token_Kind::LBrace, "expected '{' after struct name", "PAR003");
+
+    auto *decl
+      = ast->make<Compiler_Struct_Decl>(kw.span, name.lexeme, name.span, lbrace.span, Source_Span());
+
+    while (true)
+      {
+        const auto tok = peek();
+        if (tok.is_eof() or tok.kind == Compiler_Token_Kind::RBrace)
+          break;
+
+        const auto field = expect_identifier("in struct field list");
+        const auto colon
+          = expect(Compiler_Token_Kind::Colon, "expected ':' after struct field name", "PAR003");
+        auto *annotation = parse_type_expression();
+        const auto semi = expect(Compiler_Token_Kind::Semicolon,
+                                 "expected ';' after struct field declaration",
+                                 "PAR003");
+        decl->fields.append({field.lexeme, field.span, colon.span, annotation, semi.span});
+      }
+
+    const auto rbrace
+      = expect(Compiler_Token_Kind::RBrace, "expected '}' after struct declaration", "PAR003");
+    decl->rbrace_span = rbrace.span;
+    decl->span = compiler_merge_spans(kw.span, rbrace.span);
+    return decl;
+  }
+
+  /** @brief Parses one top-level unit-variant `enum` declaration. */
+  Compiler_Type_Decl *parse_enum_declaration()
+  {
+    const auto kw = next();
+    const auto name = expect_identifier("after 'enum'");
+    const auto lbrace
+      = expect(Compiler_Token_Kind::LBrace, "expected '{' after enum name", "PAR003");
+
+    auto *decl
+      = ast->make<Compiler_Enum_Decl>(kw.span, name.lexeme, name.span, lbrace.span, Source_Span());
+
+    if (peek().kind != Compiler_Token_Kind::RBrace)
+      while (true)
+        {
+          const auto variant = expect_identifier("in enum variant list");
+          decl->variants.append({variant.lexeme, variant.span});
+          if (match(Compiler_Token_Kind::Comma))
+            {
+              if (peek().kind == Compiler_Token_Kind::RBrace)
+                break;
+              continue;
+            }
+          break;
+        }
+
+    const auto rbrace
+      = expect(Compiler_Token_Kind::RBrace, "expected '}' after enum declaration", "PAR003");
+    decl->rbrace_span = rbrace.span;
+    decl->span = compiler_merge_spans(kw.span, rbrace.span);
+    return decl;
+  }
+
+  /** @brief Parses a block statement: `{` statements* `}`. */
   Compiler_Block_Stmt *parse_block_statement()
   {
     const auto lbrace = expect(Compiler_Token_Kind::LBrace, "expected '{' to start block", "PAR003");
@@ -361,19 +637,35 @@ class Compiler_Parser
     return block;
   }
 
+  /** @brief Parses a variable declaration: `let` ident (`:` type)? (`=` expr)? `;`. */
   Compiler_Stmt *parse_let_statement()
   {
     const auto kw = next();
     const auto name = expect_identifier("after 'let'");
+    Source_Span colon;
+    Compiler_Type_Expr *annotation = nullptr;
+
+    if (peek().kind == Compiler_Token_Kind::Colon)
+      {
+        colon = next().span;
+        annotation = parse_type_expression();
+      }
 
     Compiler_Expr *init = nullptr;
     if (match(Compiler_Token_Kind::Assign))
       init = parse_expression();
 
     const auto semi = parse_statement_terminator(name.span);
-    return ast->make<Compiler_Let_Stmt>(kw.span, name.lexeme, name.span, init, semi);
+    return ast->make<Compiler_Let_Stmt>(kw.span,
+                                        name.lexeme,
+                                        name.span,
+                                        colon,
+                                        annotation,
+                                        init,
+                                        semi);
   }
 
+  /** @brief Parses a return statement: `return` expr? `;`. */
   Compiler_Stmt *parse_return_statement()
   {
     const auto kw = next();
@@ -386,6 +678,7 @@ class Compiler_Parser
     return ast->make<Compiler_Return_Stmt>(kw.span, value, semi);
   }
 
+  /** @brief Parses a break statement: `break;`. */
   Compiler_Stmt *parse_break_statement()
   {
     const auto kw = next();
@@ -393,6 +686,7 @@ class Compiler_Parser
     return ast->make<Compiler_Break_Stmt>(kw.span, semi);
   }
 
+  /** @brief Parses a continue statement: `continue;`. */
   Compiler_Stmt *parse_continue_statement()
   {
     const auto kw = next();
@@ -400,6 +694,7 @@ class Compiler_Parser
     return ast->make<Compiler_Continue_Stmt>(kw.span, semi);
   }
 
+  /** @brief Parses an if statement: `if` expr stmt (`else` stmt)?. */
   Compiler_Stmt *parse_if_statement()
   {
     const auto if_kw = next();
@@ -417,6 +712,7 @@ class Compiler_Parser
     return ast->make<Compiler_If_Stmt>(if_kw.span, condition, then_branch, else_kw, else_branch);
   }
 
+  /** @brief Parses a while loop: `while` expr stmt. */
   Compiler_Stmt *parse_while_statement()
   {
     const auto kw = next();
@@ -425,6 +721,7 @@ class Compiler_Parser
     return ast->make<Compiler_While_Stmt>(kw.span, condition, body);
   }
 
+  /** @brief Parses an expression statement: expr `;`. */
   Compiler_Stmt *parse_expression_statement()
   {
     auto *expr = parse_expression();
@@ -448,18 +745,24 @@ public:
                   const Source_File_Id file_id,
                   Diagnostic_Engine *dx = nullptr,
                   const Compiler_Parser_Options &opts = {})
-    : ast(&ctx), diagnostics(dx), lexer(sm, file_id, dx), options(opts)
+    : ast(&ctx), diagnostics(dx), lexer(sm, file_id, dx), options(opts),
+      source_name(sm.file_name(file_id))
   {}
 
   /** @brief Parses a full module until EOF.
    *
-   *  @return Arena-backed module node containing functions and statements.
+   *  Processes top-level imports, type declarations, functions, and optional
+   *  top-level statements depending on `options`.
+   *
+   *  @return Arena-backed module node containing imports, type declarations,
+   *          functions, and statements.
    *  @note Thread-safety: Not thread-safe.
    *  @note Complexity: O(N) where N is source length.
    */
   Compiler_Module *parse_module()
   {
     auto *module = ast->make<Compiler_Module>();
+    module->source_name = source_name;
     Source_Span first_span;
     Source_Span last_span;
 
@@ -486,6 +789,38 @@ public:
             continue;
           }
 
+        if (tok.kind == Compiler_Token_Kind::Kw_Import)
+          {
+            auto *decl = parse_import_declaration();
+            module->imports.append(decl);
+            last_span = decl != nullptr ? decl->span : tok.span;
+            continue;
+          }
+
+        if (tok.kind == Compiler_Token_Kind::Kw_Type)
+          {
+            auto *decl = parse_type_alias_declaration();
+            module->type_declarations.append(decl);
+            last_span = decl != nullptr ? decl->span : tok.span;
+            continue;
+          }
+
+        if (tok.kind == Compiler_Token_Kind::Kw_Struct)
+          {
+            auto *decl = parse_struct_declaration();
+            module->type_declarations.append(decl);
+            last_span = decl != nullptr ? decl->span : tok.span;
+            continue;
+          }
+
+        if (tok.kind == Compiler_Token_Kind::Kw_Enum)
+          {
+            auto *decl = parse_enum_declaration();
+            module->type_declarations.append(decl);
+            last_span = decl != nullptr ? decl->span : tok.span;
+            continue;
+          }
+
         if (not options.allow_top_level_statements)
           emit_error(tok.span, "top-level statement is not allowed in this parser mode", "PAR004");
 
@@ -496,6 +831,8 @@ public:
   }
 
   /** @brief Parses a top-level function declaration.
+   *
+   *  Syntax: `fn` ident `(` params? `)` (`->` type)? block.
    *
    *  @return Function declaration node. Recovery still returns a node on error.
    *  @note Thread-safety: Not thread-safe.
@@ -509,13 +846,25 @@ public:
 
     (void) expect(Compiler_Token_Kind::LParen, "expected '(' after function name", "PAR003");
 
-    auto *fn = ast->make<Compiler_Function_Decl>(kw.span, name.lexeme, name.span, nullptr);
+    auto *fn = ast->make<Compiler_Function_Decl>(kw.span,
+                                                 name.lexeme,
+                                                 name.span,
+                                                 Source_Span(),
+                                                 nullptr,
+                                                 nullptr);
 
     if (peek().kind != Compiler_Token_Kind::RParen)
       while (true)
         {
           const auto param = expect_identifier("in parameter list");
-          fn->parameters.append({param.lexeme, param.span});
+          Source_Span colon;
+          Compiler_Type_Expr *annotation = nullptr;
+          if (peek().kind == Compiler_Token_Kind::Colon)
+            {
+              colon = next().span;
+              annotation = parse_type_expression();
+            }
+          fn->parameters.append({param.lexeme, param.span, colon, annotation});
           if (match(Compiler_Token_Kind::Comma))
             continue;
           break;
@@ -523,12 +872,20 @@ public:
 
     (void) expect(Compiler_Token_Kind::RParen, "expected ')' after parameter list", "PAR003");
 
+    if (peek().kind == Compiler_Token_Kind::Arrow)
+      {
+        fn->arrow_span = next().span;
+        fn->return_annotation = parse_type_expression();
+      }
+
     fn->body = parse_block_statement();
     fn->span = compiler_merge_spans(kw.span, fn->body != nullptr ? fn->body->span : name.span);
     return fn;
   }
 
   /** @brief Parses a single statement.
+   *
+   *  Dispatches to specific statement parsers based on the next token.
    *
    *  @return Statement node. Invalid input yields `Compiler_Invalid_Stmt`.
    *  @note Thread-safety: Not thread-safe.
@@ -565,6 +922,7 @@ public:
       }
   }
 };
+
 }  // namespace Aleph
 
 #endif  // COMPILER_PARSER_H

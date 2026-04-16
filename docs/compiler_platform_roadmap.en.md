@@ -26,7 +26,7 @@ When a stage is fully implemented and verified, it should be marked with `[x]`.
 - [x] Base semantic analysis and control checks (`Compiler_Sema.H`)
 - [x] Type graph (`Compiler_Types.H`)
 - [x] Constraints and unification (`tpl_constraints.H`)
-- [x] Monomorphic typed semantic pass (`Compiler_Typed_Sema.H`)
+- [x] Typed semantic pass with annotations and basic polymorphism (`Compiler_Typed_Sema.H`)
 - [x] Tests and examples for all the above
 - [x] Doxygen plus Markdown/README documentation for the current block
 
@@ -35,22 +35,26 @@ When a stage is fully implemented and verified, it should be marked with `[x]`.
 - [x] Literal typing
 - [x] Inferred parameter and return typing
 - [x] `let` binding typing
+- [x] Explicit annotations on parameters, returns, and `let`
+- [x] Resolution of annotations into `Compiler_Types.H`
 - [x] Arithmetic, logical, and comparison operator typing
 - [x] `if` and `while` condition typing
 - [x] Call typing
+- [x] `let` generalization
+- [x] Basic polymorphic instantiation
 - [x] Basic typed diagnostics (`TYP*`)
 
 ## Next stages
 
 ### 3. Explicit types and polymorphism
 
-- [ ] Type annotations in the parser and AST
-- [ ] Resolution of annotations into `Compiler_Types.H`
-- [ ] `let` generalization
-- [ ] Polymorphic instantiation
-- [ ] Nominal types: `struct`, `enum`, aliases
+- [x] Type annotations in the parser and AST
+- [x] Resolution of annotations into `Compiler_Types.H`
+- [x] `let` generalization
+- [x] Polymorphic instantiation
+- [x] Opaque nominal types: `struct`, `enum`, transparent aliases
 - [ ] Additional composite types: arrays, records, option/result if needed
-- [ ] Module/import support in the semantic layer
+- [x] Base support for declarative imports in the semantic layer and driver
 
 ### 4. Reusable HIR for compilers and interpreters
 
@@ -63,59 +67,60 @@ When a stage is fully implemented and verified, it should be marked with `[x]`.
 
 ### 5. Runtime for interpreters
 
-- [ ] `Interpreter_Runtime.H`
-- [ ] General runtime `Value`
-- [ ] Frames and environments
-- [ ] Call stack
-- [ ] Closures / host functions
-- [ ] Base support for `Unit`, `Bool`, `Int`, `String`, `Char`, tuples
-- [ ] Structured runtime errors
-- [ ] Evaluator over HIR or typed AST
-- [ ] Minimal interpreter example
+- [x] `Interpreter_Runtime.H`
+- [x] General runtime `Value`
+- [x] Frames and environments
+- [x] Call stack
+- [x] Closures / host functions
+- [x] Base support for `Unit`, `Bool`, `Int`, `String`, `Char`, tuples
+- [x] Structured runtime errors
+- [x] Evaluator over HIR or typed AST
+- [x] Minimal interpreter example
 
 ### 6. General-purpose CFG and IR
 
-- [ ] `Compiler_CFG.H`
-- [ ] Per-function CFG builder
-- [ ] CFG validators
-- [ ] `Compiler_IR.H` or `Compiler_MIR.H`
-- [ ] Explicit instructions and values
-- [ ] Lowering from HIR to MIR/IR
-- [ ] Deterministic textual dumps
-- [ ] CFG/IR tests and examples
+- [x] `Compiler_CFG.H`
+- [x] Per-function CFG builder
+- [x] CFG validators
+- [x] `Compiler_IR.H` or `Compiler_MIR.H`
+- [x] Explicit instructions and values
+- [x] Lowering from HIR to MIR/IR
+- [x] Deterministic CFG textual dumps
+- [x] CFG tests and examples
+- [x] MIR/IR tests and examples
 
 ### 7. Analysis and optimization
 
-- [ ] `Compiler_Dataflow.H`
-- [ ] Reachability
-- [ ] Liveness
-- [ ] Definite assignment / initialization
-- [ ] Constant propagation
-- [ ] Dead code elimination
-- [ ] Per-pass invariant validators
+- [x] `Compiler_Dataflow.H`
+- [x] Reachability
+- [x] Liveness
+- [x] Definite assignment / initialization
+- [x] Constant propagation
+- [x] Dead code elimination
+- [x] Per-pass invariant validators
 
 ### 8. SSA
 
-- [ ] `SSA.H`
-- [ ] Dominators
-- [ ] Dominance frontier
-- [ ] Phi placement
-- [ ] Rename pass
-- [ ] SSA verifier
-- [ ] SSA tests and example
+- [x] `SSA.H`
+- [x] Dominators
+- [x] Dominance frontier
+- [x] Phi placement
+- [x] Rename pass
+- [x] SSA verifier
+- [x] SSA tests and example
 
 ### 9. Bytecode and efficient interpretation
 
-- [ ] `Bytecode.H`
-- [ ] Constants, functions, and opcodes format
-- [ ] Lowering from MIR/HIR to bytecode
-- [ ] `Bytecode_Interpreter.H`
-- [ ] Simple portable VM
-- [ ] End-to-end execution tests
+- [x] `Bytecode.H`
+- [x] Constants, functions, and opcodes format
+- [x] Lowering from MIR/HIR to bytecode
+- [x] `Bytecode_Interpreter.H`
+- [x] Simple portable VM
+- [x] End-to-end execution tests
 
 ### 10. Compilation backends
 
-- [ ] `Compiler_Backend_C.H`
+- [x] `Compiler_Backend_C.H`
 - [ ] LLVM IR backend or equivalent
 - [ ] Native assembly backend if ever needed
 - [ ] Data layout and calling conventions
@@ -123,28 +128,28 @@ When a stage is fully implemented and verified, it should be marked with `[x]`.
 
 ### 11. Driver and toolchain
 
-- [ ] `Compiler_Driver.H`
-- [ ] Stage-configurable pipeline
-- [ ] `parse-only`, `sema-only`, `hir`, `ir`, `run`, `emit-c`, `emit-bytecode`
-- [ ] Multi-file support
-- [ ] Reproducible intermediate artifacts
-- [ ] End-to-end integration tests
+- [x] `Compiler_Driver.H`
+- [x] Stage-configurable pipeline
+- [x] `parse-only`, `sema-only`, `hir`, `ir`, `run`, `emit-c`, `emit-bytecode`
+- [x] Multi-file support
+- [x] Reproducible intermediate artifacts
+- [x] End-to-end integration tests
 
 ## Recommended order
 
 If the priority is to support both compilers and interpreters:
 
-1. [ ] Explicit types and basic polymorphism
+1. [x] Explicit types and basic polymorphism
 2. [x] `Compiler_HIR.H`
-3. [ ] `Interpreter_Runtime.H`
-4. [ ] `Compiler_CFG.H`
-5. [ ] `Compiler_IR.H` / `Compiler_MIR.H`
-6. [ ] `Compiler_Dataflow.H`
-7. [ ] `SSA.H`
-8. [ ] `Bytecode.H`
-9. [ ] `Bytecode_Interpreter.H`
-10. [ ] `Compiler_Backend_C.H`
-11. [ ] `Compiler_Driver.H`
+3. [x] `Interpreter_Runtime.H`
+4. [x] `Compiler_CFG.H`
+5. [x] `Compiler_IR.H` / `Compiler_MIR.H`
+6. [x] `Compiler_Dataflow.H`
+7. [x] `SSA.H`
+8. [x] `Bytecode.H`
+9. [x] `Bytecode_Interpreter.H`
+10. [x] `Compiler_Backend_C.H`
+11. [x] `Compiler_Driver.H`
 
 ## Completion criteria for each stage
 

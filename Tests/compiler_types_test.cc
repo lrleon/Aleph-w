@@ -85,3 +85,35 @@ TEST(CompilerTypes, ClearKeepsBuiltinsAndResetsFreshVariables)
   const auto after = ctx.make_type_variable();
   EXPECT_EQ(ctx.to_string(after), "T0");
 }
+
+
+TEST(CompilerTypes, BuildsNominalStructsAndEnums)
+{
+  Compiler_Type_Context ctx;
+
+  const auto point = ctx.make_struct_type("Point");
+  DynArray<std::string> field_names;
+  field_names.append("x");
+  field_names.append("y");
+  DynArray<Compiler_Type_Id> field_types;
+  field_types.append(ctx.integer_type());
+  field_types.append(ctx.integer_type());
+  ctx.set_struct_fields(point, field_names, field_types);
+
+  const auto color = ctx.make_enum_type("Color");
+  DynArray<std::string> variants;
+  variants.append("Red");
+  variants.append("Green");
+  variants.append("Blue");
+  ctx.set_enum_variants(color, variants);
+
+  EXPECT_TRUE(ctx.is_struct(point));
+  EXPECT_TRUE(ctx.is_enum(color));
+  EXPECT_EQ(ctx.to_string(point), "Point");
+  EXPECT_EQ(ctx.to_string(color), "Color");
+  EXPECT_EQ(ctx.type(point).member_names.size(), 2u);
+  EXPECT_EQ(ctx.type(point).member_names.access(0), "x");
+  EXPECT_EQ(ctx.type(point).components.access(1), ctx.integer_type());
+  EXPECT_EQ(ctx.type(color).member_names.size(), 3u);
+  EXPECT_EQ(ctx.type(color).member_names.access(2), "Blue");
+}

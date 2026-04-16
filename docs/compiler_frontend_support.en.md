@@ -8,7 +8,7 @@ available at [docs/compiler_platform_roadmap.en.md](compiler_platform_roadmap.en
 
 ## Scope
 
-The current component is formed by twelve public headers:
+The current component is formed by twenty-one public headers:
 
 | Header | Responsibility |
 |---|---|
@@ -16,14 +16,23 @@ The current component is formed by twelve public headers:
 | `ah-diagnostics.H` | Buffered diagnostics with primary/secondary labels, notes, help messages, and deterministic plain-text rendering |
 | `Compiler_Token.H` | Token kinds, token objects, keyword classification, and binary-operator metadata for future parsers |
 | `Compiler_Lexer.H` | Single-file lexer with stable spans, comment handling options, invalid-token recovery, and optional diagnostic emission |
-| `Compiler_AST.H` | Arena-backed AST nodes for expressions, statements, functions, modules, and deterministic tree dumping |
-| `Compiler_Parser.H` | Recursive-descent parser with precedence climbing, block/statement parsing, and diagnostic-based recovery |
+| `Compiler_AST.H` | Arena-backed AST nodes for expressions, statements, imports, type declarations, functions, modules, and deterministic tree dumping |
+| `Compiler_Parser.H` | Recursive-descent parser with precedence climbing, explicit type annotations, top-level declarations (`import`/`fn`/`type`/`struct`/`enum`), block/statement parsing, and diagnostic-based recovery |
 | `tpl_scope.H` | Generic nested-scope stack for lexical bindings and shadowing-aware lookup |
-| `Compiler_Sema.H` | Name resolution, duplicate detection, shadowing checks, control-flow misuse diagnostics, and call-to-non-function checks |
-| `Compiler_Types.H` | Stable type graph with built-ins, tuples, functions, type variables, and deterministic pretty-printing |
+| `Compiler_Sema.H` | Name resolution, basic top-level import validation, duplicate detection, shadowing checks, and control-flow misuse diagnostics |
+| `Compiler_Types.H` | Stable type graph with built-ins, tuples, functions, nominal `struct`/`enum` types, type variables, and deterministic pretty-printing |
 | `tpl_constraints.H` | Equality constraint sets, substitutions, structural unification, rigid variables, and occurs-check support |
-| `Compiler_Typed_Sema.H` | Typed semantic pass that connects the AST, the base semantic pass, the type graph, and the unifier |
+| `Compiler_Typed_Sema.H` | Typed semantic pass with explicit annotations, nominal declaration resolution, transparent aliases, `let` generalization, basic polymorphic instantiation, and constraint solving |
 | `Compiler_HIR.H` | Structured typed HIR with lowering from typed AST, stable nodes for interpreters or later compilation, and deterministic textual dumps |
+| `Interpreter_Runtime.H` | Reusable runtime for evaluating HIR with dynamic values, nested environments, a call stack, host functions, and structured errors |
+| `Compiler_CFG.H` | Reusable basic-block CFG with lowering from HIR, explicit terminators, structural validation, and deterministic dumps |
+| `Compiler_IR.H` | Reusable IR with explicit values and instructions, lowering from HIR, local/global slots, and deterministic textual dumps |
+| `Compiler_Dataflow.H` | Reusable IR dataflow layer with reachability, liveness, definite assignment, constant propagation, and conservative DCE |
+| `SSA.H` | Reusable SSA layer over IR with dominators, dominance frontiers, phi placement, renaming, and structural verification |
+| `Bytecode.H` | Reusable VM-oriented bytecode with per-function constant pools, explicit opcodes, patched PCs, and lowering from IR |
+| `Bytecode_Interpreter.H` | Portable VM for executing register bytecode with explicit frames, globals, structured runtime errors, and optional host-function support |
+| `Compiler_Backend_C.H` | Portable backend that emits readable C from explicit IR using `goto`-based blocks, a small tagged runtime, and deterministic symbols |
+| `Compiler_Driver.H` | Reusable multi-file driver that resolves declarative imports by source name, orders modules by dependency, orchestrates parse/sema/HIR/IR/`run`/`emit-c`/`emit-bytecode`, and publishes reproducible artifacts |
 
 ## Quick Start
 
@@ -37,7 +46,12 @@ using namespace Aleph;
 int main()
 {
   Source_Manager sm;
-  const auto file_id = sm.add_virtual_file("demo.aw", "fn inc(x) { return x + 1; }\n");
+  const auto file_id = sm.add_virtual_file(
+    "demo.aw",
+    "type UserId = Int;\n"
+    "fn id(x: T) -> T { return x; }\n"
+    "let alias = id;\n"
+    "let value: UserId = alias(1);\n");
 
   Diagnostic_Engine dx(sm);
   Compiler_Ast_Context ctx(1 << 15);
@@ -62,17 +76,29 @@ int main()
 - Punctuation and common operators, including `==`, `!=`, `&&`, `||`, `+=`, `->`
 - Line comments `// ...`
 - Block comments `/* ... */`, which can be preserved as tokens or disabled
-- Function declarations with parameter lists
+- Top-level imports such as `import "name.aw";` with explicit source names
+- Function declarations with parameter lists and optional return annotations
+- Top-level type declarations with `type`, `struct`, and `enum`
 - Blocks, `let`, `return`, `if`, `while`, `break`, `continue`, and expression statements
 - Calls, prefix unary operators, grouping, and precedence-climbing binary expressions
+- Explicit type annotations on parameters, returns, `let`, and function types such as `fn(...) -> ...`
 - Nested lexical scopes and name lookup
 - Duplicate-declaration checks, unresolved-name checks, and optional shadowing diagnostics
+- Basic top-level import validation, including per-module duplicate imports and self-imports
 - Basic control-flow misuse diagnostics for `return`, `break`, and `continue`
-- Rejection of calls to non-function symbols in the current name-only model
-- Standalone compiler types for built-ins, tuples, functions, and type variables
+- Standalone compiler types for built-ins, tuples, functions, nominal types, and type variables
 - Equality-constraint solving with substitutions, rigid variables, and occurs-checks
-- Monomorphic typed semantic analysis for literals, locals, parameters, returns, conditions, operators, and calls
+- Typed semantic analysis with annotation resolution, nominal declarations (`struct`, `enum`, transparent aliases), `let` generalization, and basic polymorphic instantiation for literals, locals, parameters, returns, conditions, operators, and calls
 - Lowering from typed AST to a structured reusable HIR suitable for interpreters or future CFG/MIR stages
+- Structured HIR evaluation with runtime values, lexical bindings, HIR calls, and host functions
+- Lowering from structured HIR to CFG with basic blocks, explicit branches, joins, loops, and invariant validation
+- Lowering from typed HIR to a reusable IR with explicit values, loads/stores, calls, and per-block terminators
+- IR dataflow analysis with reachability, local-slot liveness, definite assignment, constant propagation, and conservative dead-code elimination
+- SSA construction over explicit IR with dominators, dominance frontiers, per-slot phi placement, and deterministic renaming
+- Lowering from explicit IR into reusable register bytecode with constant pools, VM opcodes, and concrete PCs per block
+- Direct execution of the reusable bytecode with a portable VM, per-call frames, explicit globals, and structured runtime results
+- Emission of portable self-contained C from explicit IR with an embedded runtime, reusable functions, and optional `main()` generation for `emit-c` workflows
+- End-to-end multi-file driver workflows for `parse-only`, `sema-only`, `hir`, `ir`, `run`, `emit-c`, and `emit-bytecode`, plus declarative source-name imports, stable topological ordering, and reproducible intermediate artifacts per stage
 
 Malformed input produces an `Invalid` token. If a `Diagnostic_Engine` is
 attached, the lexer also records a structured error with a stable code such as
@@ -81,7 +107,10 @@ diagnostics such as `PAR001` and `PAR005`. The semantic pass adds codes such as
 `SEM001` for duplicates and `SEM002` for unresolved identifiers. The type
 unifier reports structured outcomes such as `Occurs_Check_Failed` and
 `Rigid_Variable` without emitting diagnostics on its own. The typed semantic
-pass maps typing failures to codes such as `TYP002`, `TYP005`, and `TYP006`.
+pass maps typing failures to codes such as `TYP002`, `TYP005`, `TYP006`,
+`TYP007`, `TYP009`, `TYP010`, and `TYP011`. Base import validation uses codes
+such as `SEM009` and `SEM010`, while the driver adds `DRV001`/`DRV002` for
+missing or cyclic imports.
 
 ## Examples And Tests
 
@@ -92,6 +121,15 @@ pass maps typing failures to codes such as `TYP002`, `TYP005`, and `TYP006`.
 - Example: `Examples/compiler_types_example.cc`
 - Example: `Examples/compiler_typed_sema_example.cc`
 - Example: `Examples/compiler_hir_example.cc`
+- Example: `Examples/interpreter_runtime_example.cc`
+- Example: `Examples/compiler_cfg_example.cc`
+- Example: `Examples/compiler_ir_example.cc`
+- Example: `Examples/compiler_dataflow_example.cc`
+- Example: `Examples/ssa_example.cc`
+- Example: `Examples/bytecode_example.cc`
+- Example: `Examples/bytecode_interpreter_example.cc`
+- Example: `Examples/compiler_backend_c_example.cc`
+- Example: `Examples/compiler_driver_example.cc`
 - Tests: `Tests/compiler_source_test.cc`
 - Tests: `Tests/compiler_diagnostics_test.cc`
 - Tests: `Tests/compiler_token_test.cc`
@@ -104,6 +142,15 @@ pass maps typing failures to codes such as `TYP002`, `TYP005`, and `TYP006`.
 - Tests: `Tests/compiler_constraints_test.cc`
 - Tests: `Tests/compiler_typed_sema_test.cc`
 - Tests: `Tests/compiler_hir_test.cc`
+- Tests: `Tests/interpreter_runtime_test.cc`
+- Tests: `Tests/compiler_cfg_test.cc`
+- Tests: `Tests/compiler_ir_test.cc`
+- Tests: `Tests/compiler_dataflow_test.cc`
+- Tests: `Tests/ssa_test.cc`
+- Tests: `Tests/bytecode_test.cc`
+- Tests: `Tests/bytecode_interpreter_test.cc`
+- Tests: `Tests/compiler_backend_c_test.cc`
+- Tests: `Tests/compiler_driver_test.cc`
 
 Build the affected targets with:
 
@@ -122,13 +169,31 @@ cmake --build build --target \
   compiler_constraints_test \
   compiler_typed_sema_test \
   compiler_hir_test \
+  interpreter_runtime_test \
+  compiler_cfg_test \
+  compiler_ir_test \
+  compiler_dataflow_test \
+  ssa_test \
+  bytecode_test \
+  bytecode_interpreter_test \
+  compiler_backend_c_test \
+  compiler_driver_test \
   compiler_diagnostics_example \
   compiler_lexer_example \
   compiler_parser_example \
   compiler_sema_example \
   compiler_types_example \
   compiler_typed_sema_example \
-  compiler_hir_example
+  compiler_hir_example \
+  interpreter_runtime_example \
+  compiler_cfg_example \
+  compiler_ir_example \
+  compiler_dataflow_example \
+  ssa_example \
+  bytecode_example \
+  bytecode_interpreter_example \
+  compiler_backend_c_example \
+  compiler_driver_example
 ```
 
 ## Current Limits
@@ -136,12 +201,12 @@ cmake --build build --target \
 - Source locations use UTF-8 byte offsets, not grapheme-aware columns
 - Snippets are clipped to one line for deterministic plain-text diagnostics
 - Numeric literals currently cover integers only
-- The original `Compiler_Sema.H` pass is still name-only; typing is implemented in `Compiler_Typed_Sema.H`
-- Type inference is monomorphic and local; there is no let-generalization or polymorphic instantiation
-- There is no explicit type-annotation syntax in the parser or AST yet
-- Calls are only validated against named function symbols, not inferred callable types
-- A structured HIR now exists, but there is still no CFG, MIR/IR, bytecode, or interpreter runtime
-- There is no overload resolution, coercion, trait solving, path-sensitive return analysis, or dataflow analysis yet
+- The original `Compiler_Sema.H` pass is still name-only; actual typing and callability live in `Compiler_Typed_Sema.H`
+- Polymorphism is still intentionally basic: explicit annotation variables plus `let` generalization over the current type graph
+- The current nominal types are declaration-only and opaque: there is still no value construction, field access, enum payloads, or pattern matching
+- The current imports are declarative and global: they resolve by exact source name, reorder modules in the driver, and still have no `export`, namespaces, or selective visibility
+- Structured HIR, a reusable runtime, CFG, explicit IR, dataflow, SSA, bytecode, a bytecode interpreter, a portable C backend, and a reusable multi-file driver now exist, but there is still no LLVM/native backend or full module system
+- There is no overload resolution, coercion, trait solving, or path-sensitive return analysis yet
 
 That is deliberate: this layer is meant to be the stable foundation for future
 compiler modules, not a half-finished fully typed front-end.
@@ -150,8 +215,8 @@ compiler modules, not a half-finished fully typed front-end.
 
 Once this layer is in place, the natural next modules are:
 
-1. Parser and AST support for explicit type annotations
-2. Polymorphic generalization and instantiation over `Compiler_Types.H`
-3. `Interpreter_Runtime.H`
-4. `Compiler_CFG.H`
-5. `Compiler_IR.H` / `SSA.H`
+1. A CLI or tool wrapper on top of `Compiler_Driver.H`
+2. `Compiler_Backend_C.H` extensions toward LLVM IR or native code
+3. Construction and runtime use of nominal types across HIR/IR/runtime
+4. `export`, namespaces, or selective visibility on top of the current import model
+5. Explicit types and polymorphism beyond the current MVP

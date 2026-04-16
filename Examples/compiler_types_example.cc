@@ -31,11 +31,12 @@
 
 /**
  * @file compiler_types_example.cc
- * @brief Minimal example that builds types and solves simple equality constraints.
+ * @brief Minimal example that builds nominal compiler types and solves simple equality constraints.
  */
 
 # include <iostream>
 
+# include <Compiler_Types.H>
 # include <tpl_constraints.H>
 
 using namespace Aleph;
@@ -43,14 +44,32 @@ using namespace Aleph;
 int main()
 {
   Compiler_Type_Context ctx;
+  DynArray<std::string> point_fields;
+  point_fields.append("x");
+  point_fields.append("y");
+
+  DynArray<Compiler_Type_Id> point_field_types;
+  point_field_types.append(ctx.integer_type());
+  point_field_types.append(ctx.integer_type());
+
+  const auto point = ctx.make_struct_type("Point");
+  ctx.set_struct_fields(point, point_fields, point_field_types);
+
+  DynArray<std::string> color_variants;
+  color_variants.append("Red");
+  color_variants.append("Green");
+  color_variants.append("Blue");
+
+  const auto color = ctx.make_enum_type("Color");
+  ctx.set_enum_variants(color, color_variants);
+
   const auto alpha = ctx.make_type_variable("A");
   const auto beta = ctx.make_type_variable("B");
 
   const auto expected =
-      ctx.make_function_type({ctx.integer_type(), ctx.bool_type()},
-                             ctx.string_type());
+      ctx.make_function_type({point, color}, color);
   const auto inferred =
-      ctx.make_function_type({alpha, ctx.bool_type()}, beta);
+      ctx.make_function_type({alpha, beta}, beta);
 
   Compiler_Type_Constraint_Set constraints;
   constraints.add(inferred, expected, {}, "function signature match");

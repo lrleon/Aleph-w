@@ -140,6 +140,15 @@ set(HLIST
     tpl_constraints.H
     Compiler_Typed_Sema.H
     Compiler_HIR.H
+    Interpreter_Runtime.H
+    Compiler_CFG.H
+    Compiler_IR.H
+    Compiler_Dataflow.H
+    SSA.H
+    Bytecode.H
+    Bytecode_Interpreter.H
+    Compiler_Backend_C.H
+    Compiler_Driver.H
     String_Search.H
     Aho_Corasick.H
     Suffix_Structures.H

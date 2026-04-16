@@ -28,15 +28,15 @@
   SOFTWARE.
 */
 
-
 /**
- * @file compiler_parser_example.cc
- * @brief Minimal example that parses and dumps a small module with imports.
+ * @file interpreter_runtime_example.cc
+ * @brief Minimal example that evaluates typed HIR with the reusable runtime.
  */
 
-# include <iostream>
+#include <iostream>
 
-# include <Compiler_Parser.H>
+#include <Compiler_Parser.H>
+#include <Interpreter_Runtime.H>
 
 using namespace Aleph;
 
@@ -45,26 +45,45 @@ int main()
   Source_Manager sm;
   const auto file_id = sm.add_virtual_file(
       "demo.aw",
-      "import \"math.aw\";\n"
-      "fn inc(x) {\n"
-      "  let y = x + 1;\n"
-      "  return y;\n"
+      "fn add(x, y) {\n"
+      "  return x + y;\n"
       "}\n"
-      "let value = inc(41);\n");
+      "fn twice(x) {\n"
+      "  return add(x, x);\n"
+      "}\n"
+      "let answer = twice(21);\n");
 
   Diagnostic_Engine dx(sm);
-  Compiler_Ast_Context ctx(1 << 16);
-  Compiler_Parser parser(ctx, sm, file_id, &dx);
-
+  Compiler_Ast_Context ast_ctx(1 << 16);
+  Compiler_Parser parser(ast_ctx, sm, file_id, &dx);
   const auto * module = parser.parse_module();
 
-  std::cout << compiler_dump_module(module);
-  if (dx.size() > 0)
+  Compiler_Typed_Semantic_Analyzer typed(&dx);
+  typed.analyze_module(module);
+
+  Compiler_HIR_Context hir_ctx(1 << 16);
+  Compiler_HIR_Lowering lowering(hir_ctx, typed);
+  const auto * hir = lowering.lower_module(module);
+
+  Interpreter_Runtime runtime(&dx);
+  const auto evaluated = runtime.evaluate_module(hir);
+  if (not evaluated.ok())
     {
-      std::cout << "\nDiagnostics:\n";
       dx.render_plain(std::cout);
-      return dx.has_errors() ? 1 : 0;
+      return 1;
     }
 
+  std::cout << interpreter_dump_globals(runtime);
+
+  DynArray<Interpreter_Value> arguments;
+  arguments.append(Interpreter_Value::make_integer(9));
+  const auto called = runtime.call("twice", arguments);
+  if (not called.ok())
+    {
+      dx.render_plain(std::cout);
+      return 1;
+    }
+
+  std::cout << "twice(9) = " << interpreter_value_to_string(called.value) << '\n';
   return 0;
 }

@@ -30,14 +30,16 @@
 
 
 /** @file tpl_scope.H
- *  @brief Generic nested-scope stack for compiler-oriented name lookup.
+ *  @brief Gestión de ámbitos léxicos (lexical scopes) mediante pilas de marcos.
  *
- *  `Scope<Key, Value>` stores bindings in nested lexical frames and supports
- *  local lookup, recursive lookup, shadowing, and scope push/pop operations.
+ *  Este encabezado proporciona la clase `Scope`, una estructura fundamental para
+ *  compiladores e intérpretes que necesitan gestionar la visibilidad de nombres
+ *  (bindings) siguiendo reglas de sombreado (shadowing) léxico.
  *
- *  The implementation is intentionally simple and deterministic: lookups are
- *  linear in the number of bindings per active frame, which is adequate for the
- *  current compiler-support MVP and keeps the component lightweight.
+ *  La misión de este módulo es permitir que el usuario defina "niveles" de
+ *  visibilidad. Al entrar en un nuevo ámbito (p.ej. una función o un bloque `{}`),
+ *  se apila un marco. Las inserciones ocurren en el marco actual, y las
+ *  búsquedas recorren la pila desde el interior hacia el exterior.
  *
  *  @ingroup Utilities
  */
@@ -54,33 +56,47 @@
 
 namespace Aleph
 {
-  /** @brief Stack of lexical scopes for bindings from `Key` to `Value`.
+  /** @brief Pila de ámbitos léxicos para asociaciones de `Key` a `Value`.
    *
-   *  Maintains a stack of frames, where each frame holds key-value bindings.
-   *  Lookups search from the innermost (current) frame outward.
+   *  La clase `Scope` implementa un diccionario jerárquico. Es ideal para tablas
+   *  de símbolos donde las declaraciones en bloques internos ocultan las del
+   *  exterior.
    *
-   *  @tparam Key Key type used for lookup. Must be equality-comparable.
-   *  @tparam Value Stored binding payload.
+   *  ### Ejemplo de uso:
+   *  @code
+   *  Scope<string, Symbol*> symbols;
+   *  symbols.enter_scope(); // Entrar en ámbito global
+   *  symbols.insert("x", var1);
    *
-   *  @note Thread-safety: Not thread-safe for concurrent mutating operations.
-   *        Const operations (lookup, depth, empty) are safe for concurrent 
-   *        readers only if external synchronization is provided.
-   *  @note Complexity: O(1) for construction.
+   *  symbols.enter_scope(); // Entrar en un bloque { ... }
+   *  symbols.insert("x", var2); // Sombrea la "x" global
+   *  auto* s = symbols.lookup("x"); // Retorna var2
+   *
+   *  symbols.leave_scope(); // Salir del bloque
+   *  s = symbols.lookup("x"); // Retorna var1
+   *  @endcode
+   *
+   *  @tparam Key Tipo de la clave de búsqueda. Debe ser comparable por igualdad.
+   *  @tparam Value Carga útil asociada a la clave.
+   *
+   *  @note Thread-safety: No es seguro para hilos en operaciones concurrentes
+   *        de mutación. Las operaciones `const` (lookup, depth, empty) son 
+   *        seguras para lectores concurrentes solo si no hay mutaciones activas.
+   *  @note Complexity: O(1) para construcción.
    */
   template <typename Key, typename Value>
     requires std::equality_comparable<Key>
   class Scope
   {
   public:
-    /** @brief Binding entry stored inside one lexical frame.
+    /** @brief Entrada individual en un marco léxico.
      *
-     *  @note Thread-safety: Not thread-safe.
-     *  @note Complexity: O(1) storage and retrieval per binding.
+     *  Representa un par clave-valor almacenado en el nivel de visibilidad actual.
      */
     struct Binding
     {
-      Key key; ///< Lookup key.
-      Value value; ///< Stored payload.
+      Key key; ///< Clave de búsqueda (ej. nombre de variable).
+      Value value; ///< Valor asociado (ej. tipo o dirección).
     };
 
   private:
@@ -126,53 +142,47 @@ namespace Aleph
     }
 
   public:
-    /** @brief Default constructor.
+    /** @brief Constructor por defecto. Crea una instancia sin marcos activos.
      *
-     *  @note Thread-safety: Not thread-safe.
-     *  @note Complexity: O(1).
+     *  Debe llamarse a `enter_scope()` antes de realizar la primera inserción.
      */
     Scope() = default;
 
-    /** @brief Returns the number of active lexical frames.
+    /** @brief Consulta la profundidad actual de la pila de ámbitos.
      *
-     *  @return Current stack depth (number of active scopes).
-     *  @note Thread-safety: Safe for concurrent readers.
-     *  @note Complexity: O(1).
+     *  @return Cantidad de marcos (scopes) activos.
+     *  @note Un retorno de 0 indica que no se puede insertar nada hasta llamar
+     *        a `enter_scope()`.
      */
     [[nodiscard]] size_t depth() const noexcept
     {
       return frames.size();
     }
 
-    /** @brief Returns whether there are no active scopes.
+    /** @brief Indica si la estructura está vacía de marcos.
      *
-     *  @return `true` iff `depth() == 0`.
-     *  @note Thread-safety: Safe for concurrent readers.
-     *  @note Complexity: O(1).
+     *  @return `true` si no hay ningún ámbito activo.
      */
     [[nodiscard]] bool empty() const noexcept
     {
       return frames.is_empty();
     }
 
-    /** @brief Removes all scopes and bindings.
+    /** @brief Reinicia la estructura eliminando todos los marcos y bindings.
      *
-     *  After this call, `depth() == 0`.
-     *  @note Thread-safety: Not thread-safe.
-     *  @note Complexity: O(total_bindings) where total_bindings is the sum of 
-     *        all bindings across all frames.
+     *  Útil para reutilizar el objeto `Scope` en una nueva unidad de traducción.
      */
     void clear() noexcept
     {
       frames.clear();
     }
 
-    /** @brief Pushes a new empty lexical frame.
+    /** @brief Crea un nuevo nivel de visibilidad.
      *
-     *  All subsequent `insert()` calls add bindings to this new frame.
-     *  @return New active depth after the push.
-     *  @note Thread-safety: Not thread-safe.
-     *  @note Complexity: O(1).
+     *  Apila un marco vacío. Todas las llamadas a `insert()` posteriores
+     *  afectarán a este marco hasta que se llame a `leave_scope()`.
+     *
+     *  @return La nueva profundidad de la pila.
      */
     size_t enter_scope()
     {
@@ -183,12 +193,12 @@ namespace Aleph
       return frames.size();
     }
 
-    /** @brief Pops the current lexical frame.
+    /** @brief Destruye el nivel de visibilidad actual y todas sus asociaciones.
      *
-     *  All bindings in the current frame are destroyed.
-     *  @throws std::runtime_error If `depth() == 0`.
-     *  @note Thread-safety: Not thread-safe.
-     *  @note Complexity: O(1).
+     *  Restaura la visibilidad del marco anterior (exterior).
+     *
+     *  @throws std::runtime_error Si se intenta llamar sin marcos activos.
+     *  @note Use este método al encontrar el cierre de un bloque (ej. '}').
      */
     void leave_scope()
     {
@@ -197,15 +207,17 @@ namespace Aleph
       (void) frames.pop();
     }
 
-    /** @brief Inserts a binding in the current scope.
+    /** @brief Registra una nueva asociación en el ámbito actual.
      *
-     *  @param key Lookup key.
-     *  @param value Payload to store.
-     *  @return `false` iff the key already exists in the current scope.
-     *  @throws std::runtime_error If `depth() == 0`.
-     *  @note Thread-safety: Not thread-safe.
-     *  @note Complexity: O(k) where k is the number of bindings currently in 
-     *        the active frame (linear search for duplicate detection).
+     *  El nombre se añade al marco más interno. Si el nombre ya existe en
+     *  un marco exterior, este método lo "sombreará" sin error. Si ya existe
+     *  en el marco **actual**, la inserción fallará para evitar colisiones.
+     *
+     *  @param key Clave a registrar (ej. nombre de variable).
+     *  @param value Valor a asociar (ej. metadatos del símbolo).
+     *  @return `true` si la inserción fue exitosa, `false` si la clave ya existe
+     *          en el nivel de visibilidad actual (redefinición prohibida).
+     *  @throws std::runtime_error Si no hay ningún ámbito activo.
      */
     bool insert(const Key & key, const Value & value)
     {
@@ -216,15 +228,10 @@ namespace Aleph
       return true;
     }
 
-    /** @brief Inserts a moved binding in the current scope.
+    /** @brief Versión por movimiento de `insert()`.
      *
-     *  @param key Lookup key (moved).
-     *  @param value Payload to store (moved).
-     *  @return `false` iff the key already exists in the current scope.
-     *  @throws std::runtime_error If `depth() == 0`.
-     *  @note Thread-safety: Not thread-safe.
-     *  @note Complexity: O(k) where k is the number of bindings currently in 
-     *        the active frame (linear search for duplicate detection).
+     *  Evita copias costosas de claves y valores.
+     *  @see insert(const Key&, const Value&)
      */
     bool insert(Key && key, Value && value)
     {
@@ -235,14 +242,13 @@ namespace Aleph
       return true;
     }
 
-    /** @brief Looks up `key` only in the current lexical frame.
+    /** @brief Busca una clave únicamente en el ámbito más interno (actual).
      *
-     *  @param key Lookup key.
-     *  @return Pointer to the stored value, or `nullptr` if absent or no frame
-     *          is active.
-     *  @note Thread-safety: Not thread-safe for concurrent mutation.
-     *  @note Complexity: O(k) where k is the number of bindings in the 
-     *        current frame (linear search, innermost binding first).
+     *  Útil para detectar redefiniciones en el mismo bloque de código sin
+     *  verse afectado por lo que ocurra en ámbitos exteriores.
+     *
+     *  @param key Clave a buscar.
+     *  @return Puntero al valor si se encuentra, `nullptr` en caso contrario.
      */
     Value * lookup_local(const Key & key) noexcept
     {
@@ -251,15 +257,7 @@ namespace Aleph
       return find_value(frames.top().bindings, key);
     }
 
-    /** @brief Looks up `key` only in the current lexical frame (const).
-     *
-     *  @param key Lookup key.
-     *  @return Pointer to the stored value, or `nullptr` if absent or no frame
-     *          is active.
-     *  @note Thread-safety: Safe for concurrent readers.
-     *  @note Complexity: O(k) where k is the number of bindings in the 
-     *        current frame (linear search, innermost binding first).
-     */
+    /** @brief Versión constante de `lookup_local()`. */
     const Value * lookup_local(const Key & key) const noexcept
     {
       if (frames.is_empty())
@@ -267,17 +265,15 @@ namespace Aleph
       return find_value(frames.top().bindings, key);
     }
 
-    /** @brief Looks up `key` from the innermost scope outward.
+    /** @brief Busca una clave recorriendo todos los ámbitos activos (de dentro afuera).
      *
-     *  Searches the current frame, then outer frames in order, returning the
-     *  first (innermost) match found. Implements lexical shadowing.
+     *  Implementa la búsqueda léxica estándar: busca primero en el marco
+     *  actual, luego en el inmediatamente superior, y así hasta el global.
+     *  Esto permite el "sombreado" (shadowing) de nombres.
      *
-     *  @param key Lookup key.
-     *  @return Pointer to the nearest visible value, or `nullptr` if absent.
-     *  @note Thread-safety: Not thread-safe for concurrent mutation.
-     *  @note Complexity: O(m*k) where m is the number of frames and k is the 
-     *        average number of bindings per frame (worst-case linear search 
-     *        through all bindings across all frames).
+     *  @param key Clave a buscar.
+     *  @return Puntero al valor de la asociación más cercana, o `nullptr`
+     *          si la clave no está definida en ningún nivel accesible.
      */
     Value * lookup(const Key & key) noexcept
     {
@@ -288,18 +284,7 @@ namespace Aleph
       return nullptr;
     }
 
-    /** @brief Looks up `key` from the innermost scope outward (const).
-     *
-     *  Searches the current frame, then outer frames in order, returning the
-     *  first (innermost) match found. Implements lexical shadowing.
-     *
-     *  @param key Lookup key.
-     *  @return Pointer to the nearest visible value, or `nullptr` if absent.
-     *  @note Thread-safety: Safe for concurrent readers.
-     *  @note Complexity: O(m*k) where m is the number of frames and k is the 
-     *        average number of bindings per frame (worst-case linear search 
-     *        through all bindings across all frames).
-     */
+    /** @brief Versión constante de `lookup()`. */
     const Value * lookup(const Key & key) const noexcept
     {
       for (size_t i = frames.size(); i > 0; --i)
@@ -308,6 +293,7 @@ namespace Aleph
           return value;
       return nullptr;
     }
+
   };
 }
 

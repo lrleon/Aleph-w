@@ -29,14 +29,26 @@
 */
 
 /** @file Compiler_Lexer.H
- *  @brief Lexer for the compiler-support MVP built on `Source_Manager`.
+ *  @brief Lexical analyzer (Lexer) based on `Source_Manager`.
  *
- *  The lexer reads one registered source file and produces tokens with stable
- *  spans. It supports identifiers, reserved keywords, integer/string/character
- *  literals, punctuation, common operators, and line/block comments.
+ *  The lexer is the first component of the front-end. Its mission is to transform 
+ *  a stream of characters from a source file into a sequence of `Compiler_Token` 
+ *  objects with semantic meaning.
  *
- *  Whitespace is always skipped. Comment tokens are skipped by default but can
- *  be preserved with `Compiler_Lexer_Options::keep_comments`.
+ *  ### Responsibilities:
+ *  - Skip whitespace and (optionally) comments.
+ *  - Classify identifiers and keywords.
+ *  - Parse numeric, string, and character literals, managing escape sequences.
+ *  - Emit readable diagnostics for lexical errors (e.g., unterminated strings).
+ *
+ *  ### Typical Usage:
+ *  @code
+ *  Compiler_Lexer lexer(source_manager, file_id, diag_engine);
+ *  while (!lexer.eof()) {
+ *      Compiler_Token tok = lexer.next();
+ *      // Process token...
+ *  }
+ *  @endcode
  *
  *  @ingroup Utilities
  */
@@ -51,7 +63,11 @@
 #include <ah-diagnostics.H>
 
 namespace Aleph {
-/** @brief Configures lexer trivia handling. 
+
+/** @brief Configuration options for lexer behavior. 
+ *
+ *  Allows adjusting which parts of the source code are ignored and which 
+ *  comment rules apply.
  *
  *  @note Thread-safety: Thread-safe (POD).
  *  @note Complexity: O(1).
@@ -59,12 +75,16 @@ namespace Aleph {
 struct Compiler_Lexer_Options
 {
   bool keep_comments = false;        ///< If true, comments are returned as tokens.
-  bool allow_block_comments = true;  ///< If false, `/*` becomes `/` then `*`.
+  bool allow_block_comments = true;  ///< If false, `/*` is treated as `/` followed by `*`.
 };
 
-/** @brief Single-file lexer with optional diagnostic emission. 
+/** @brief Token generator for a single source file. 
  *
- *  @note Thread-safety: Not thread-safe.
+ *  Maintains the reading state (cursor) and provides a "consumption" interface 
+ *  for logical symbols.
+ *
+ *  @note Thread-safety: Not thread-safe. Each file should have its own lexer 
+ *        instance if processed in parallel.
  */
 class Compiler_Lexer
 {
@@ -77,41 +97,49 @@ class Compiler_Lexer
   bool has_lookahead = false;
   Compiler_Token lookahead;
 
+  /** @brief Checks if a character can start an identifier. */
   static bool is_ident_start(const unsigned char ch) noexcept
   {
     return std::isalpha(ch) or ch == '_';
   }
 
+  /** @brief Checks if a character can continue an identifier. */
   static bool is_ident_continue(const unsigned char ch) noexcept
   {
     return std::isalnum(ch) or ch == '_';
   }
 
+  /** @brief Returns true if the cursor has reached the end of the input. */
   [[nodiscard]] bool at_end() const noexcept
   {
     return cursor >= input->size();
   }
 
+  /** @brief Safe character access at a given offset. */
   [[nodiscard]] char char_at(const Source_Offset off) const noexcept
   {
     return off < input->size() ? (*input)[off] : '\0';
   }
 
+  /** @brief Returns the character at the current cursor position. */
   [[nodiscard]] char current_char() const noexcept
   {
     return char_at(cursor);
   }
 
+  /** @brief Returns the character following the current cursor position. */
   [[nodiscard]] char next_char() const noexcept
   {
     return char_at(cursor + 1);
   }
 
+  /** @brief Creates a source span for the given range in the current file. */
   [[nodiscard]] Source_Span make_span(const Source_Offset begin, const Source_Offset end) const
   {
     return sources->span(file_id, begin, end);
   }
 
+  /** @brief Creates a token with the given kind and range. */
   [[nodiscard]] Compiler_Token make_token(const Compiler_Token_Kind kind,
                                           const Source_Offset begin,
                                           const Source_Offset end) const
@@ -120,12 +148,14 @@ class Compiler_Lexer
     return {kind, sources->slice(sp), sp};
   }
 
+  /** @brief Creates an End_Of_File token at the current position. */
   [[nodiscard]] Compiler_Token make_eof_token() const
   {
     const auto sp = make_span(cursor, cursor);
     return {Compiler_Token_Kind::End_Of_File, "", sp};
   }
 
+  /** @brief Emits a diagnostic error through the engine. */
   void emit_error(const Source_Span &span,
                   const std::string &message,
                   const std::string &code,
@@ -143,12 +173,14 @@ class Compiler_Lexer
     builder.emit();
   }
 
+  /** @brief Consumes whitespace characters. */
   void skip_whitespace()
   {
     while (not at_end() and std::isspace(static_cast<unsigned char>(current_char())))
       ++cursor;
   }
 
+  /** @brief Lexes a single-line comment. */
   Compiler_Token lex_line_comment()
   {
     const Source_Offset begin = cursor;
@@ -158,6 +190,7 @@ class Compiler_Lexer
     return make_token(Compiler_Token_Kind::Line_Comment, begin, cursor);
   }
 
+  /** @brief Lexes a multi-line block comment. */
   Compiler_Token lex_block_comment()
   {
     const Source_Offset begin = cursor;
@@ -178,6 +211,7 @@ class Compiler_Lexer
     return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
   }
 
+  /** @brief Lexes an identifier or classifies it as a keyword. */
   Compiler_Token lex_identifier_or_keyword()
   {
     const Source_Offset begin = cursor;
@@ -190,6 +224,7 @@ class Compiler_Lexer
     return {classify_compiler_keyword(lexeme), lexeme, sp};
   }
 
+  /** @brief Lexes a numeric literal. */
   Compiler_Token lex_number()
   {
     const Source_Offset begin = cursor;
@@ -215,6 +250,7 @@ class Compiler_Lexer
     return make_token(Compiler_Token_Kind::Integer_Literal, begin, cursor);
   }
 
+  /** @brief Lexes a string literal. */
   Compiler_Token lex_string()
   {
     const Source_Offset begin = cursor;
@@ -253,6 +289,7 @@ class Compiler_Lexer
     return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
   }
 
+  /** @brief Lexes a character literal. */
   Compiler_Token lex_char_literal()
   {
     const Source_Offset begin = cursor;
@@ -300,12 +337,14 @@ class Compiler_Lexer
     return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
   }
 
+  /** @brief Lexes punctuation or operator symbols. */
   Compiler_Token lex_punctuation_or_operator()
   {
     const Source_Offset begin = cursor;
     const char a = current_char();
     const char b = next_char();
 
+    // Multicharacter operators/punctuation
     if (a == ':' and b == ':')
       {
         cursor += 2;
@@ -441,6 +480,7 @@ class Compiler_Lexer
       }
   }
 
+  /** @brief Dispatches the next token from the input stream. */
   Compiler_Token lex_token()
   {
     while (true)
@@ -481,15 +521,14 @@ class Compiler_Lexer
   }
 
 public:
-  /** @brief Constructs a lexer for a registered source file.
+  /** @brief Initializes a lexer for a registered source file.
    *
-   *  @param sm Source manager owning the file text.
-   *  @param id Registered file id to tokenize.
-   *  @param dx Optional diagnostic sink. Unterminated literals and unexpected
-   *         characters are still reported through invalid tokens when this is
-   *         null, but no human-readable diagnostics are accumulated.
-   *  @param opts Trivia-handling options for comments.
-   *  @throws std::out_of_range If `id` does not belong to `sm`.
+   *  @param sm Source manager containing the file text.
+   *  @param id Identifier of the file to tokenize.
+   *  @param dx Diagnostic engine to report errors. If null, errors are only 
+   *         indicated via `Invalid` tokens.
+   *  @param opts Trivia handling options (comments, etc.).
+   *  @throws std::out_of_range If `id` is not valid in `sm`.
    *  @note Thread-safety: Not thread-safe.
    *  @note Complexity: O(1).
    */
@@ -500,9 +539,9 @@ public:
     : sources(&sm), file_id(id), input(&sm.file_text(id)), diagnostics(dx), options(opts)
   {}
 
-  /** @brief Returns the file id currently being tokenized.
+  /** @brief Returns the file ID currently being analyzed. 
    *
-   *  @return Stable file id associated with this lexer instance.
+   *  @return The stable ID associated with this lexer.
    *  @note Thread-safety: Safe for concurrent readers.
    *  @note Complexity: O(1).
    */
@@ -511,9 +550,11 @@ public:
     return file_id;
   }
 
-  /** @brief Returns the current byte cursor.
+  /** @brief Returns the current byte offset in the file.
    *
-   *  @return Byte offset in the current source file.
+   *  Useful for saving recovery states or for telemetry.
+   *
+   *  @return Cursor position in bytes.
    *  @note Thread-safety: Safe for concurrent readers.
    *  @note Complexity: O(1).
    */
@@ -522,10 +563,13 @@ public:
     return cursor;
   }
 
-  /** @brief Resets the lexer to `offset` and clears cached lookahead.
+  /** @brief Repositions the reading cursor.
    *
-   *  @param offset New byte cursor.
-   *  @throws std::out_of_range If `offset` is past the end of the file.
+   *  Discards any pre-read tokens (lookahead) and restarts the analysis 
+   *  from the indicated position.
+   *
+   *  @param offset New byte offset (default 0, the beginning).
+   *  @throws std::out_of_range If the offset exceeds the file length.
    *  @note Thread-safety: Not thread-safe.
    *  @note Complexity: O(1).
    */
@@ -538,10 +582,12 @@ public:
     lookahead = Compiler_Token();
   }
 
-  /** @brief Returns the next token without consuming it.
+  /** @brief Peeks at the next token without advancing the cursor.
    *
-   *  @return The same token that would be returned by the next call to
-   *          `next()`.
+   *  Allows the parser to make syntactic decisions based on the next symbol 
+   *  without consuming it permanently. Successive calls return the same token.
+   *
+   *  @return The next available token in the stream.
    *  @note Thread-safety: Not thread-safe.
    *  @note Complexity: O(N) where N is lexeme length (amortized).
    */
@@ -555,10 +601,12 @@ public:
     return lookahead;
   }
 
-  /** @brief Consumes and returns the next token.
+  /** @brief Consumes and returns the next token from the stream.
    *
-   *  @return Next token from the source stream, including invalid tokens for
-   *          malformed lexemes.
+   *  Advances the internal cursor. If there is a lexical error, returns an 
+   *  `Invalid` token but continues advancing to attempt recovery.
+   *
+   *  @return The consumed token.
    *  @note Thread-safety: Not thread-safe.
    *  @note Complexity: O(N) where N is lexeme length (amortized).
    */
@@ -572,11 +620,11 @@ public:
     return lex_token();
   }
 
-  /** @brief Returns whether the next token is EOF.
+  /** @brief Indicates whether the end of the file has been reached.
    *
-   *  @return `true` iff `peek()` would produce `End_Of_File`.
+   *  @return `true` if the next call to `next()` would return `End_Of_File`.
    *  @note Thread-safety: Not thread-safe.
-   *  @note Complexity: O(N) (calls peek).
+   *  @note Complexity: O(N) (calls peek internally).
    */
   bool eof()
   {

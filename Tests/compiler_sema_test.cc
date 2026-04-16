@@ -157,6 +157,54 @@ TEST(CompilerSema, ReportsDuplicateDeclarationsAndShadowing)
 }
 
 
+TEST(CompilerSema, ReportsDuplicateTypeDeclarations)
+{
+  Source_Manager sm;
+  const auto id = sm.add_virtual_file(
+      "main.aw",
+      "struct Point { x: Int; }\n"
+      "enum Point { Origin }\n");
+
+  Diagnostic_Engine dx(sm);
+  Compiler_Ast_Context ctx(1 << 16);
+  Compiler_Parser parser(ctx, sm, id, &dx);
+  const auto * module = parser.parse_module();
+  ASSERT_FALSE(dx.has_errors());
+
+  Compiler_Semantic_Analyzer sema(&dx);
+  sema.analyze_module(module);
+
+  ASSERT_TRUE(dx.has_errors());
+  const auto codes = collect_codes(dx);
+  EXPECT_TRUE(contains_code(codes, "SEM008"));
+}
+
+
+TEST(CompilerSema, ReportsDuplicateAndSelfImports)
+{
+  Source_Manager sm;
+  const auto id = sm.add_virtual_file(
+      "main.aw",
+      "import \"dep.aw\";\n"
+      "import \"dep.aw\";\n"
+      "import \"main.aw\";\n");
+
+  Diagnostic_Engine dx(sm);
+  Compiler_Ast_Context ctx(1 << 16);
+  Compiler_Parser parser(ctx, sm, id, &dx);
+  const auto * module = parser.parse_module();
+  ASSERT_FALSE(dx.has_errors());
+
+  Compiler_Semantic_Analyzer sema(&dx);
+  sema.analyze_module(module);
+
+  ASSERT_TRUE(dx.has_errors());
+  const auto codes = collect_codes(dx);
+  EXPECT_TRUE(contains_code(codes, "SEM009"));
+  EXPECT_TRUE(contains_code(codes, "SEM010"));
+}
+
+
 TEST(CompilerSema, ReportsUnresolvedNamesAndControlFlowMisuse)
 {
   Source_Manager sm;
@@ -182,6 +230,5 @@ TEST(CompilerSema, ReportsUnresolvedNamesAndControlFlowMisuse)
   EXPECT_TRUE(contains_code(codes, "SEM002"));
   EXPECT_TRUE(contains_code(codes, "SEM003"));
   EXPECT_TRUE(contains_code(codes, "SEM004"));
-  EXPECT_TRUE(contains_code(codes, "SEM005"));
   EXPECT_TRUE(contains_code(codes, "SEM006"));
 }
