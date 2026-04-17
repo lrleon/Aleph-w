@@ -28,273 +28,263 @@
   SOFTWARE.
 */
 
-
 /** @file tpl_scope.H
- *  @brief Gestión de ámbitos léxicos (lexical scopes) mediante pilas de marcos.
+ *  @brief Lexical scope management using frame stacks.
  *
- *  Este encabezado proporciona la clase `Scope`, una estructura fundamental para
- *  compiladores e intérpretes que necesitan gestionar la visibilidad de nombres
- *  (bindings) siguiendo reglas de sombreado (shadowing) léxico.
+ *  This header provides the `Scope` class, a fundamental structure for
+ *  compilers and interpreters that need to manage name visibility (bindings)
+ *  following lexical shadowing rules.
  *
- *  La misión de este módulo es permitir que el usuario defina "niveles" de
- *  visibilidad. Al entrar en un nuevo ámbito (p.ej. una función o un bloque `{}`),
- *  se apila un marco. Las inserciones ocurren en el marco actual, y las
- *  búsquedas recorren la pila desde el interior hacia el exterior.
+ *  The mission of this module is to allow the user to define visibility "levels".
+ *  When entering a new scope (e.g., a function or a block `{}`), a frame is
+ *  pushed. Insertions occur in the current frame, and lookups traverse the
+ *  stack from the inside out.
  *
  *  @ingroup Utilities
  */
 
-# ifndef TPL_SCOPE_H
-# define TPL_SCOPE_H
+#ifndef TPL_SCOPE_H
+#define TPL_SCOPE_H
 
-# include <concepts>
-# include <cstddef>
-# include <utility>
+#include <concepts>
+#include <cstddef>
+#include <utility>
 
-# include <ah-errors.H>
-# include <tpl_dynArray.H>
+#include <ah-errors.H>
+#include <tpl_dynArray.H>
 
-namespace Aleph
+namespace Aleph {
+/** @brief Lexical scope stack for `Key` to `Value` associations.
+ *
+ *  The `Scope` class implements a hierarchical dictionary. It is ideal for
+ *  symbol tables where declarations in inner blocks hide those from the
+ *  outside.
+ *
+ *  ### Usage example:
+ *  @code
+ *  Scope<string, Symbol*> symbols;
+ *  symbols.enter_scope(); // Enter global scope
+ *  symbols.insert("x", var1);
+ *
+ *  symbols.enter_scope(); // Enter a block { ... }
+ *  symbols.insert("x", var2); // Shadows global "x"
+ *  auto* s = symbols.lookup("x"); // Returns var2
+ *
+ *  symbols.leave_scope(); // Leave block
+ *  s = symbols.lookup("x"); // Returns var1
+ *  @endcode
+ *
+ *  @tparam Key Search key type. Must be equality comparable.
+ *  @tparam Value Payload associated with the key.
+ *
+ *  @note Thread-safety: Not thread-safe for concurrent mutation operations.
+ *        Const operations (lookup, depth, empty) are safe for concurrent
+ *        readers only if there are no active mutations.
+ *  @note Complexity: O(1) for construction.
+ */
+template <typename Key, typename Value>
+  requires std::equality_comparable<Key>
+class Scope
 {
-  /** @brief Pila de ámbitos léxicos para asociaciones de `Key` a `Value`.
+public:
+  /** @brief Individual entry in a lexical frame.
    *
-   *  La clase `Scope` implementa un diccionario jerárquico. Es ideal para tablas
-   *  de símbolos donde las declaraciones en bloques internos ocultan las del
-   *  exterior.
-   *
-   *  ### Ejemplo de uso:
-   *  @code
-   *  Scope<string, Symbol*> symbols;
-   *  symbols.enter_scope(); // Entrar en ámbito global
-   *  symbols.insert("x", var1);
-   *
-   *  symbols.enter_scope(); // Entrar en un bloque { ... }
-   *  symbols.insert("x", var2); // Sombrea la "x" global
-   *  auto* s = symbols.lookup("x"); // Retorna var2
-   *
-   *  symbols.leave_scope(); // Salir del bloque
-   *  s = symbols.lookup("x"); // Retorna var1
-   *  @endcode
-   *
-   *  @tparam Key Tipo de la clave de búsqueda. Debe ser comparable por igualdad.
-   *  @tparam Value Carga útil asociada a la clave.
-   *
-   *  @note Thread-safety: No es seguro para hilos en operaciones concurrentes
-   *        de mutación. Las operaciones `const` (lookup, depth, empty) son 
-   *        seguras para lectores concurrentes solo si no hay mutaciones activas.
-   *  @note Complexity: O(1) para construcción.
+   *  Represents a key-value pair stored in the current visibility level.
    */
-  template <typename Key, typename Value>
-    requires std::equality_comparable<Key>
-  class Scope
+  struct Binding
   {
-  public:
-    /** @brief Entrada individual en un marco léxico.
-     *
-     *  Representa un par clave-valor almacenado en el nivel de visibilidad actual.
-     */
-    struct Binding
-    {
-      Key key; ///< Clave de búsqueda (ej. nombre de variable).
-      Value value; ///< Valor asociado (ej. tipo o dirección).
-    };
-
-  private:
-    struct Frame
-    {
-      DynArray<Binding> bindings;
-    };
-
-    DynArray<Frame> frames;
-
-    static Value *
-    find_value(DynArray<Binding> & bindings, const Key & key) noexcept
-    {
-      for (size_t i = bindings.size(); i > 0; --i)
-        if (bindings.access(i - 1).key == key)
-          return &bindings.access(i - 1).value;
-      return nullptr;
-    }
-
-    static const Value *
-    find_value(const DynArray<Binding> & bindings, const Key & key) noexcept
-    {
-      for (size_t i = bindings.size(); i > 0; --i)
-        if (bindings.access(i - 1).key == key)
-          return &bindings.access(i - 1).value;
-      return nullptr;
-    }
-
-    Frame &
-    current_frame()
-    {
-      ah_runtime_error_unless(frames.size() > 0)
-        << "Scope::current_frame(): no active scope";
-      return frames.top();
-    }
-
-    const Frame &
-    current_frame() const
-    {
-      ah_runtime_error_unless(frames.size() > 0)
-        << "Scope::current_frame(): no active scope";
-      return frames.top();
-    }
-
-  public:
-    /** @brief Constructor por defecto. Crea una instancia sin marcos activos.
-     *
-     *  Debe llamarse a `enter_scope()` antes de realizar la primera inserción.
-     */
-    Scope() = default;
-
-    /** @brief Consulta la profundidad actual de la pila de ámbitos.
-     *
-     *  @return Cantidad de marcos (scopes) activos.
-     *  @note Un retorno de 0 indica que no se puede insertar nada hasta llamar
-     *        a `enter_scope()`.
-     */
-    [[nodiscard]] size_t depth() const noexcept
-    {
-      return frames.size();
-    }
-
-    /** @brief Indica si la estructura está vacía de marcos.
-     *
-     *  @return `true` si no hay ningún ámbito activo.
-     */
-    [[nodiscard]] bool empty() const noexcept
-    {
-      return frames.is_empty();
-    }
-
-    /** @brief Reinicia la estructura eliminando todos los marcos y bindings.
-     *
-     *  Útil para reutilizar el objeto `Scope` en una nueva unidad de traducción.
-     */
-    void clear() noexcept
-    {
-      frames.clear();
-    }
-
-    /** @brief Crea un nuevo nivel de visibilidad.
-     *
-     *  Apila un marco vacío. Todas las llamadas a `insert()` posteriores
-     *  afectarán a este marco hasta que se llame a `leave_scope()`.
-     *
-     *  @return La nueva profundidad de la pila.
-     */
-    size_t enter_scope()
-    {
-      // Reinitialize reused slots explicitly because DynArray::pop() moves the
-      // last frame out before shrinking, and a later append may reuse that
-      // moved-from storage.
-      frames.append(Frame());
-      return frames.size();
-    }
-
-    /** @brief Destruye el nivel de visibilidad actual y todas sus asociaciones.
-     *
-     *  Restaura la visibilidad del marco anterior (exterior).
-     *
-     *  @throws std::runtime_error Si se intenta llamar sin marcos activos.
-     *  @note Use este método al encontrar el cierre de un bloque (ej. '}').
-     */
-    void leave_scope()
-    {
-      ah_runtime_error_unless(frames.size() > 0)
-        << "Scope::leave_scope(): no active scope";
-      (void) frames.pop();
-    }
-
-    /** @brief Registra una nueva asociación en el ámbito actual.
-     *
-     *  El nombre se añade al marco más interno. Si el nombre ya existe en
-     *  un marco exterior, este método lo "sombreará" sin error. Si ya existe
-     *  en el marco **actual**, la inserción fallará para evitar colisiones.
-     *
-     *  @param key Clave a registrar (ej. nombre de variable).
-     *  @param value Valor a asociar (ej. metadatos del símbolo).
-     *  @return `true` si la inserción fue exitosa, `false` si la clave ya existe
-     *          en el nivel de visibilidad actual (redefinición prohibida).
-     *  @throws std::runtime_error Si no hay ningún ámbito activo.
-     */
-    bool insert(const Key & key, const Value & value)
-    {
-      auto & frame = current_frame();
-      if (find_value(frame.bindings, key) != nullptr)
-        return false;
-      frame.bindings.append({key, value});
-      return true;
-    }
-
-    /** @brief Versión por movimiento de `insert()`.
-     *
-     *  Evita copias costosas de claves y valores.
-     *  @see insert(const Key&, const Value&)
-     */
-    bool insert(Key && key, Value && value)
-    {
-      auto & frame = current_frame();
-      if (find_value(frame.bindings, key) != nullptr)
-        return false;
-      frame.bindings.append({std::move(key), std::move(value)});
-      return true;
-    }
-
-    /** @brief Busca una clave únicamente en el ámbito más interno (actual).
-     *
-     *  Útil para detectar redefiniciones en el mismo bloque de código sin
-     *  verse afectado por lo que ocurra en ámbitos exteriores.
-     *
-     *  @param key Clave a buscar.
-     *  @return Puntero al valor si se encuentra, `nullptr` en caso contrario.
-     */
-    Value * lookup_local(const Key & key) noexcept
-    {
-      if (frames.is_empty())
-        return nullptr;
-      return find_value(frames.top().bindings, key);
-    }
-
-    /** @brief Versión constante de `lookup_local()`. */
-    const Value * lookup_local(const Key & key) const noexcept
-    {
-      if (frames.is_empty())
-        return nullptr;
-      return find_value(frames.top().bindings, key);
-    }
-
-    /** @brief Busca una clave recorriendo todos los ámbitos activos (de dentro afuera).
-     *
-     *  Implementa la búsqueda léxica estándar: busca primero en el marco
-     *  actual, luego en el inmediatamente superior, y así hasta el global.
-     *  Esto permite el "sombreado" (shadowing) de nombres.
-     *
-     *  @param key Clave a buscar.
-     *  @return Puntero al valor de la asociación más cercana, o `nullptr`
-     *          si la clave no está definida en ningún nivel accesible.
-     */
-    Value * lookup(const Key & key) noexcept
-    {
-      for (size_t i = frames.size(); i > 0; --i)
-        if (auto * value = find_value(frames.access(i - 1).bindings, key);
-            value != nullptr)
-          return value;
-      return nullptr;
-    }
-
-    /** @brief Versión constante de `lookup()`. */
-    const Value * lookup(const Key & key) const noexcept
-    {
-      for (size_t i = frames.size(); i > 0; --i)
-        if (const auto * value = find_value(frames.access(i - 1).bindings, key);
-            value != nullptr)
-          return value;
-      return nullptr;
-    }
-
+    Key key;      ///< Search key (e.g., variable name).
+    Value value;  ///< Associated value (e.g., type or address).
   };
-}
 
-# endif // TPL_SCOPE_H
+private:
+  struct Frame
+  {
+    DynArray<Binding> bindings;
+  };
+
+  DynArray<Frame> frames;
+
+  static Value *find_value(DynArray<Binding> &bindings, const Key &key) noexcept
+  {
+    for (size_t i = bindings.size(); i > 0; --i)
+      if (bindings.access(i - 1).key == key)
+        return &bindings.access(i - 1).value;
+    return nullptr;
+  }
+
+  static const Value *find_value(const DynArray<Binding> &bindings, const Key &key) noexcept
+  {
+    for (size_t i = bindings.size(); i > 0; --i)
+      if (bindings.access(i - 1).key == key)
+        return &bindings.access(i - 1).value;
+    return nullptr;
+  }
+
+  Frame &current_frame()
+  {
+    ah_runtime_error_unless(frames.size() > 0) << "Scope::current_frame(): no active scope";
+    return frames.top();
+  }
+
+  const Frame &current_frame() const
+  {
+    ah_runtime_error_unless(frames.size() > 0) << "Scope::current_frame(): no active scope";
+    return frames.top();
+  }
+
+public:
+  /** @brief Default constructor. Creates an instance without active frames.
+   *
+   *  `enter_scope()` must be called before performing the first insertion.
+   */
+  Scope() = default;
+
+  /** @brief Queries the current depth of the scope stack.
+   *
+   *  @return Number of active frames (scopes).
+   *  @note A return of 0 indicates that nothing can be inserted until
+   *        `enter_scope()` is called.
+   */
+  [[nodiscard]] size_t depth() const noexcept
+  {
+    return frames.size();
+  }
+
+  /** @brief Indicates if the structure is empty of frames.
+   *
+   *  @return `true` if there is no active scope.
+   */
+  [[nodiscard]] bool empty() const noexcept
+  {
+    return frames.is_empty();
+  }
+
+  /** @brief Resets the structure by removing all frames and bindings.
+   *
+   *  Useful for reusing the `Scope` object in a new translation unit.
+   */
+  void clear() noexcept
+  {
+    frames.clear();
+  }
+
+  /** @brief Creates a new visibility level.
+   *
+   *  Pushes an empty frame. All subsequent `insert()` calls will affect
+   *  this frame until `leave_scope()` is called.
+   *
+   *  @return The new depth of the stack.
+   */
+  size_t enter_scope()
+  {
+    // Reinitialize reused slots explicitly because DynArray::pop() moves the
+    // last frame out before shrinking, and a later append may reuse that
+    // moved-from storage.
+    frames.append(Frame());
+    return frames.size();
+  }
+
+  /** @brief Destroys the current visibility level and all its associations.
+   *
+   *  Restores the visibility of the previous (outer) frame.
+   *
+   *  @throws std::runtime_error If called without active frames.
+   *  @note Use this method when encountering a block closure (e.g., '}').
+   */
+  void leave_scope()
+  {
+    ah_runtime_error_unless(frames.size() > 0) << "Scope::leave_scope(): no active scope";
+    (void) frames.pop();
+  }
+
+  /** @brief Registers a new association in the current scope.
+   *
+   *  The name is added to the innermost frame. If the name already exists
+   *  in an outer frame, this method will "shadow" it without error. If it
+   *  already exists in the **current** frame, the insertion will fail to
+   *  prevent collisions.
+   *
+   *  @param key Key to register (e.g., variable name).
+   *  @param value Value to associate (e.g., symbol metadata).
+   *  @return `true` if the insertion was successful, `false` if the key
+   *          already exists in the current visibility level (redefinition
+   *          forbidden).
+   *  @throws std::runtime_error If there is no active scope.
+   */
+  bool insert(const Key &key, const Value &value)
+  {
+    auto &frame = current_frame();
+    if (find_value(frame.bindings, key) != nullptr)
+      return false;
+    frame.bindings.append({key, value});
+    return true;
+  }
+
+  /** @brief Move version of `insert()`.
+   *
+   *  Avoids expensive copies of keys and values.
+   *  @see insert(const Key&, const Value&)
+   */
+  bool insert(Key &&key, Value &&value)
+  {
+    auto &frame = current_frame();
+    if (find_value(frame.bindings, key) != nullptr)
+      return false;
+    frame.bindings.append({std::move(key), std::move(value)});
+    return true;
+  }
+
+  /** @brief Searches for a key only in the innermost (current) scope.
+   *
+   *  Useful for detecting redefinitions in the same code block without
+   *  being affected by what happens in outer scopes.
+   *
+   *  @param key Key to search.
+   *  @return Pointer to the value if found, `nullptr` otherwise.
+   */
+  Value *lookup_local(const Key &key) noexcept
+  {
+    if (frames.is_empty())
+      return nullptr;
+    return find_value(frames.top().bindings, key);
+  }
+
+  /** @brief Constant version of `lookup_local()`. */
+  const Value *lookup_local(const Key &key) const noexcept
+  {
+    if (frames.is_empty())
+      return nullptr;
+    return find_value(frames.top().bindings, key);
+  }
+
+  /** @brief Searches for a key traversing all active scopes (from inside out).
+   *
+   *  Implements standard lexical lookup: searches first in the current
+   *  frame, then in the immediately superior one, and so on until the
+   *  global one. This allows name shadowing.
+   *
+   *  @param key Key to search.
+   *  @return Pointer to the nearest association value, or `nullptr`
+   *          if the key is not defined in any accessible level.
+   */
+  Value *lookup(const Key &key) noexcept
+  {
+    for (size_t i = frames.size(); i > 0; --i)
+      if (auto *value = find_value(frames.access(i - 1).bindings, key); value != nullptr)
+        return value;
+    return nullptr;
+  }
+
+  /** @brief Constant version of `lookup()`. */
+  const Value *lookup(const Key &key) const noexcept
+  {
+    for (size_t i = frames.size(); i > 0; --i)
+      if (const auto *value = find_value(frames.access(i - 1).bindings, key); value != nullptr)
+        return value;
+    return nullptr;
+  }
+};
+}  // namespace Aleph
+
+#endif  // TPL_SCOPE_H

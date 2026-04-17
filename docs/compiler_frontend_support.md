@@ -100,6 +100,83 @@ int main()
 - Emisión de C portable y autosuficiente desde IR explícita con runtime embebido, funciones reusables y `main()` opcional para flujos `emit-c`
 - Driver end-to-end multiarchivo con `parse-only`, `sema-only`, `hir`, `ir`, `run`, `emit-c` y `emit-bytecode`, más imports declarativos por nombre de fuente, orden topológico estable y artefactos intermedios reproducibles por etapa
 
+## Gramática superficial actual
+
+La gramática implementada hoy por [Compiler_Parser.H](../Compiler_Parser.H) no
+está definida en un archivo separado de EBNF formal; la definición canónica es
+el parser recursive-descent mismo. Aun así, el lenguaje aceptado actualmente se
+puede resumir de manera fiel con la siguiente pseudo-EBNF:
+
+```ebnf
+module            := top_level*
+
+top_level         := import_decl
+                   | type_alias_decl
+                   | struct_decl
+                   | enum_decl
+                   | function_decl
+                   | statement
+
+import_decl       := "import" string_literal ";"
+
+type_alias_decl   := "type" IDENT "=" type_expr ";"
+
+struct_decl       := "struct" IDENT "{" struct_field* "}"
+struct_field      := IDENT ":" type_expr ";"
+
+enum_decl         := "enum" IDENT "{" enum_variant ("," enum_variant)* [","] "}"
+enum_variant      := IDENT
+
+function_decl     := "fn" IDENT "(" [param ("," param)*] ")" ["->" type_expr] block
+param             := IDENT [":" type_expr]
+
+statement         := block
+                   | let_stmt
+                   | return_stmt
+                   | if_stmt
+                   | while_stmt
+                   | break_stmt
+                   | continue_stmt
+                   | expr_stmt
+
+block             := "{" statement* "}"
+
+let_stmt          := "let" IDENT [":" type_expr] ["=" expr] ";"
+return_stmt       := "return" [expr] ";"
+if_stmt           := "if" expr statement ["else" statement]
+while_stmt        := "while" expr statement
+break_stmt        := "break" ";"
+continue_stmt     := "continue" ";"
+expr_stmt         := expr ";"
+
+expr              := unary_expr (binop expr)*
+unary_expr        := ("!" | "-" | "+" | "~") unary_expr
+                   | postfix_expr
+postfix_expr      := primary_expr ("(" [expr ("," expr)*] ")")*
+primary_expr      := IDENT
+                   | integer_literal
+                   | string_literal
+                   | char_literal
+                   | "true"
+                   | "false"
+                   | "(" expr ")"
+
+type_expr         := IDENT
+                   | "(" type_expr [("," type_expr)+] ")"
+                   | "fn" "(" [type_expr ("," type_expr)*] ")" "->" type_expr
+```
+
+Notas de lectura:
+
+- `top_level := statement` aplica solo cuando `Compiler_Parser_Options::allow_top_level_statements`
+  está activo.
+- `expr` usa precedence climbing; por eso la regla compacta `unary_expr (binop expr)*`
+  representa una jerarquía real de precedencias definida por `Compiler_Token.H`.
+- Los `enum` actuales son de variantes unitarias únicamente.
+- Los `struct` actuales describen tipos nominales y campos, pero todavía no hay
+  construcción de valores ni acceso a campos en expresiones.
+- `type_expr` soporta nombres, tuplas y tipos función `fn(...) -> ...`.
+
 La entrada malformada produce un token `Invalid`. Si el lexer recibe un
 `Diagnostic_Engine`, además registra un error estructurado con código estable,
 por ejemplo `LEX001` o `LEX004`. De forma análoga, el parser produce nodos AST
