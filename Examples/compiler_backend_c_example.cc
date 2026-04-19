@@ -34,6 +34,7 @@
  */
 
 #include <iostream>
+#include <memory>
 
 #include <Compiler_Backend_C.H>
 
@@ -41,6 +42,13 @@ using namespace Aleph;
 
 namespace
 {
+  struct Demo_IR_Module
+  {
+    Compiler_IR_Module module;
+    std::unique_ptr<Compiler_IR_Function> function;
+    std::unique_ptr<Compiler_IR_Function> top_level;
+  };
+
   Compiler_IR_Block
   make_exit_block()
   {
@@ -51,10 +59,11 @@ namespace
     return block;
   }
 
-  Compiler_IR_Module
+  Demo_IR_Module
   make_demo_module()
   {
-    Compiler_IR_Module module;
+    Demo_IR_Module demo;
+    auto &module = demo.module;
 
     Compiler_IR_Slot global;
     global.id = 0;
@@ -62,7 +71,8 @@ namespace
     global.name = "answer";
     module.global_slots.append(global);
 
-    auto * function = new Compiler_IR_Function();
+    demo.function = std::make_unique<Compiler_IR_Function>();
+    auto * function = demo.function.get();
     function->id = 0;
     function->name = "add_one";
     function->entry_block = 0;
@@ -128,7 +138,8 @@ namespace
     function->blocks.append(exit);
     module.functions.append(function);
 
-    auto * top = new Compiler_IR_Function();
+    demo.top_level = std::make_unique<Compiler_IR_Function>();
+    auto * top = demo.top_level.get();
     top->id = compiler_ir_invalid_id();
     top->name = "<top-level>";
     top->entry_block = 0;
@@ -173,7 +184,7 @@ namespace
     top->blocks.append(top_entry);
     top->blocks.append(top_exit);
     module.top_level = top;
-    return module;
+    return demo;
   }
 }
 
@@ -185,14 +196,12 @@ int main()
   options.module_name = "example_demo";
   options.emit_main = true;
 
-  const auto emitted = compiler_emit_c_module(&module, options);
+  const auto emitted = compiler_emit_c_module(&module.module, options);
   if (not emitted.valid)
     {
       std::cerr << "Emission errors:\n";
       for (size_t i = 0; i < emitted.errors.size(); ++i)
         std::cerr << "- " << emitted.errors.access(i) << '\n';
-      delete module.functions.access(0);
-      delete module.top_level;
       return 1;
     }
 
@@ -205,7 +214,5 @@ int main()
       std::cout << "*/\n";
     }
 
-  delete module.functions.access(0);
-  delete module.top_level;
   return 0;
 }

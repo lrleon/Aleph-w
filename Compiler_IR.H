@@ -863,7 +863,7 @@ class Compiler_IR_Lowering
             const auto *node = static_cast<const Compiler_HIR_Let_Stmt *>(stmt);
 
             Compiler_IR_Detail::Binding binding;
-            if (const bool defines_global = function.is_top_level() and scopes.size() == 2)
+            if (function.is_top_level() and scopes.size() == 2)
               {
                 binding.kind = Compiler_IR_Detail::Binding::Kind::Global_Slot;
                 binding.id = find_global_slot_id(node->name);

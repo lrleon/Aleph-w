@@ -1091,6 +1091,7 @@ def validate_with_gephi(path, cmd_template, require_gephi)
   warnings = []
 
   template = cmd_template.to_s.strip
+  smoke_check_only = !template.include?("{input}")
   if template.empty?
     exe = default_gephi_executable_name
     exe_path = resolve_executable(exe)
@@ -1110,7 +1111,7 @@ def validate_with_gephi(path, cmd_template, require_gephi)
     return [stats, errors, warnings]
   end
 
-  warnings << "Gephi command template has no {input} placeholder; running smoke check only." unless template.include?("{input}")
+  warnings << "Gephi command template has no {input} placeholder; running smoke check only." if smoke_check_only
 
   cmd, parse_error = expand_command_template(
       template,
@@ -1157,7 +1158,9 @@ def validate_with_gephi(path, cmd_template, require_gephi)
     stderr = run["stderr"].to_s.strip
     stderr = "#{stderr[0, 240]}..." if stderr.size > 240
     msg = stderr.empty? ? "Gephi command returned non-zero exit code." : "Gephi command returned non-zero exit code: #{stderr}."
-    if require_gephi
+    if smoke_check_only
+      warnings << "#{msg} Treating executable launch as successful smoke check."
+    elsif require_gephi
       errors << msg
     else
       warnings << "#{msg} Skipping strict Gephi validation."

@@ -116,4 +116,48 @@ class TestPlanarityValidatorHelpers < Minitest::Test
                       "Auto-selected template should be a smoke probe"
     end
   end
+
+  # -------------------------------------------------------------------------
+  # Smoke-only commands should validate executable launch even on non-zero exits
+  # -------------------------------------------------------------------------
+
+  def test_validate_with_gephi_accepts_non_zero_exit_for_smoke_check_only
+    Dir.mktmpdir do |dir|
+      input = Pathname.new(dir).join("test.graphml")
+      input.write(<<~XML)
+        <?xml version="1.0" encoding="UTF-8"?>
+        <graphml xmlns="http://graphml.graphdrawing.org/graphml">
+          <graph id="G" edgedefault="undirected">
+          </graph>
+        </graphml>
+      XML
+
+      cmd = "#{Shellwords.escape(RbConfig.ruby)} -e \"warn 'Unrecognized option --version.'; exit 170\""
+      stats, errors, warnings = validate_with_gephi(input, cmd, true)
+
+      assert_equal 170, stats["gephi_exit_code"]
+      assert_empty errors
+      assert warnings.any? { |w| w.include?("running smoke check only") }
+      assert warnings.any? { |w| w.include?("Treating executable launch as successful smoke check") }
+    end
+  end
+
+  def test_validate_with_gephi_keeps_non_zero_exit_as_error_when_input_is_required
+    Dir.mktmpdir do |dir|
+      input = Pathname.new(dir).join("test.graphml")
+      input.write(<<~XML)
+        <?xml version="1.0" encoding="UTF-8"?>
+        <graphml xmlns="http://graphml.graphdrawing.org/graphml">
+          <graph id="G" edgedefault="undirected">
+          </graph>
+        </graphml>
+      XML
+
+      cmd = "#{Shellwords.escape(RbConfig.ruby)} -e \"warn 'boom'; exit 9\" {input}"
+      _stats, errors, warnings = validate_with_gephi(input, cmd, true)
+
+      refute_empty errors
+      assert_empty warnings.grep(/Treating executable launch as successful smoke check/)
+    end
+  end
 end

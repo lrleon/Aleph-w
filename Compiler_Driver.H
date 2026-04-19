@@ -612,7 +612,10 @@ namespace Aleph
       run_output_ = {};
       run_output_.executed = true;
       run_output_.result = runtime.evaluate_module(hir_module_);
-      run_output_.value_text = interpreter_value_to_string(run_output_.result.value);
+      if (run_output_.result.ok())
+        run_output_.value_text = interpreter_value_to_string(run_output_.result.value);
+      else
+        run_output_.value_text = "";
       run_output_.globals_text = interpreter_dump_globals(runtime);
 
       record_text_artifact("run.result",

@@ -750,6 +750,10 @@ inline Compiler_CFG_Validation_Report validate_cfg_function(const Compiler_CFG_F
           if (block.terminator.successors.size() != 1)
             fail("Return terminator in " + Compiler_CFG_Detail::block_name(block.id)
                  + " must point to the canonical exit block");
+          if (block.terminator.successors.size() >= 1
+              and block.terminator.successors.access(0) != function.exit_block)
+            fail("Return terminator in " + Compiler_CFG_Detail::block_name(block.id)
+                 + " must point to the canonical exit block");
           break;
 
         case Compiler_CFG_Terminator_Kind::Exit:

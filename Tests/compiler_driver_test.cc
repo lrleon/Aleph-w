@@ -189,3 +189,22 @@ TEST(CompilerDriver, ReportsCyclicImports)
   EXPECT_NE(driver.diagnostics_text().find("DRV002"), std::string::npos);
   EXPECT_NE(driver.diagnostics_text().find("cyclic import"), std::string::npos);
 }
+
+TEST(CompilerDriver, ClearsValueTextWhenRuntimeEvaluationFails)
+{
+  DynArray<Compiler_Driver_Source> inputs;
+  inputs.append({"main.aw",
+                 "let crash = 1 / 0;\n"});
+
+  Compiler_Driver driver;
+  EXPECT_FALSE(driver.execute_sources(inputs, Compiler_Driver_Action::Run));
+  ASSERT_TRUE(driver.run_output().executed);
+  EXPECT_FALSE(driver.run_output().result.ok());
+  EXPECT_TRUE(driver.run_output().value_text.empty());
+  EXPECT_EQ(driver.run_output().result.error.code, "RUN007");
+
+  const auto * run_result = driver.find_artifact("run.result");
+  ASSERT_NE(run_result, nullptr);
+  EXPECT_EQ(run_result->text.find("  Value: "), std::string::npos);
+  EXPECT_NE(run_result->text.find("  Error: RUN007 division by zero"), std::string::npos);
+}

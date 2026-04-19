@@ -235,3 +235,42 @@ TEST(CompilerCFG, ValidatorWarnsAboutUnreachableBlocks)
   ASSERT_EQ(report.warnings.size(), 1u);
   EXPECT_NE(report.warnings.access(0).find("unreachable"), std::string::npos);
 }
+
+TEST(CompilerCFG, ValidatorRejectsReturnToNonCanonicalExitBlock)
+{
+  Compiler_CFG_Function function;
+  function.name = "bad_return";
+  function.entry_block = 0;
+  function.exit_block = 1;
+
+  Compiler_CFG_Block entry;
+  entry.id = 0;
+  entry.label = "entry";
+  entry.terminator.kind = Compiler_CFG_Terminator_Kind::Return;
+  entry.terminator.successors.append(2);
+
+  Compiler_CFG_Block exit;
+  exit.id = 1;
+  exit.label = "exit";
+  exit.terminator.kind = Compiler_CFG_Terminator_Kind::Exit;
+
+  Compiler_CFG_Block stray;
+  stray.id = 2;
+  stray.label = "stray";
+  stray.terminator.kind = Compiler_CFG_Terminator_Kind::Jump;
+  stray.terminator.successors.append(1);
+  stray.predecessors.append(0);
+
+  function.blocks.append(entry);
+  function.blocks.append(exit);
+  function.blocks.append(stray);
+
+  const auto report = validate_cfg_function(function);
+  EXPECT_FALSE(report.valid);
+  bool found_canonical_exit_error = false;
+  for (size_t i = 0; i < report.errors.size(); ++i)
+    if (report.errors.access(i).find("must point to the canonical exit block")
+        != std::string::npos)
+      found_canonical_exit_error = true;
+  EXPECT_TRUE(found_canonical_exit_error);
+}

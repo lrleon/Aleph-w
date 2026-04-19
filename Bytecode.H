@@ -536,7 +536,7 @@ namespace Aleph
   {
     Compiler_Bytecode_Context * ctx = nullptr;
 
-    Compiler_Bytecode_Function *
+    [[nodiscard]] Compiler_Bytecode_Function *
     lower_function(const Compiler_IR_Function & source,
                    const bool top_level) const
     {

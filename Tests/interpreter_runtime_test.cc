@@ -166,6 +166,24 @@ TEST(InterpreterRuntime, BindsHostFunctionsInPrelude)
   EXPECT_EQ(interpreter_value_to_string(called.value), "Tuple(Int(1), Int(2))");
 }
 
+TEST(InterpreterRuntime, TupleValuesKeepDeepCopySemantics)
+{
+  DynArray<Interpreter_Value> elements;
+  elements.append(Interpreter_Value::make_integer(1));
+  elements.append(Interpreter_Value::make_integer(2));
+
+  const auto original = Interpreter_Value::make_tuple(std::move(elements));
+  auto copied = original;
+  copied.tuple_storage->elements.access(0) = Interpreter_Value::make_integer(99);
+
+  EXPECT_EQ(original.tuple_elements().access(0).integer_value, 1);
+  EXPECT_EQ(copied.tuple_elements().access(0).integer_value, 99);
+
+  auto moved = std::move(copied);
+  EXPECT_EQ(moved.tuple_elements().access(0).integer_value, 99);
+  EXPECT_EQ(copied.kind, Interpreter_Value_Kind::Invalid);
+}
+
 TEST(InterpreterRuntime, ReportsStructuredRuntimeErrors)
 {
   Source_Manager sm;

@@ -60,6 +60,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -193,7 +194,7 @@ struct Interpreter_Value
   long long integer_value = 0;                                    ///< Payload for Int values.
   char character_value = '\0';                                    ///< Payload for Char values.
   std::string string_value;                                       ///< Payload for String values.
-  Interpreter_Tuple_Storage *tuple_storage = nullptr;             ///< Payload for Tuple values.
+  std::unique_ptr<Interpreter_Tuple_Storage> tuple_storage;       ///< Payload for Tuple values.
   const Compiler_HIR_Function *function = nullptr;  ///< Payload for HIR function values.
   Interpreter_Environment *closure_environment
     = nullptr;  ///< Captured lexical parent for function values.
@@ -343,33 +344,27 @@ inline Interpreter_Value::Interpreter_Value(const Interpreter_Value &other)
     callable_name(other.callable_name)
 {
   if (other.tuple_storage != nullptr)
-    tuple_storage = new Interpreter_Tuple_Storage(*other.tuple_storage);
+    tuple_storage = std::make_unique<Interpreter_Tuple_Storage>(*other.tuple_storage);
 }
 
 inline Interpreter_Value::Interpreter_Value(Interpreter_Value &&other) noexcept
   : kind(other.kind), bool_value(other.bool_value), integer_value(other.integer_value),
     character_value(other.character_value), string_value(std::move(other.string_value)),
-    tuple_storage(other.tuple_storage), function(other.function),
+    tuple_storage(std::move(other.tuple_storage)), function(other.function),
     closure_environment(other.closure_environment), host_function(other.host_function),
     host_user_data(other.host_user_data), callable_name(std::move(other.callable_name))
 {
-  other.tuple_storage = nullptr;
   other.kind = Interpreter_Value_Kind::Invalid;
 }
 
-inline Interpreter_Value::~Interpreter_Value() noexcept
-{
-  delete tuple_storage;
-  tuple_storage = nullptr;
-}
+inline Interpreter_Value::~Interpreter_Value() noexcept = default;
 
 inline Interpreter_Value &Interpreter_Value::operator=(const Interpreter_Value &other)
 {
   if (this == &other)
     return *this;
 
-  delete tuple_storage;
-  tuple_storage = nullptr;
+  tuple_storage.reset();
 
   kind = other.kind;
   bool_value = other.bool_value;
@@ -383,7 +378,7 @@ inline Interpreter_Value &Interpreter_Value::operator=(const Interpreter_Value &
   callable_name = other.callable_name;
 
   if (other.tuple_storage != nullptr)
-    tuple_storage = new Interpreter_Tuple_Storage(*other.tuple_storage);
+    tuple_storage = std::make_unique<Interpreter_Tuple_Storage>(*other.tuple_storage);
   return *this;
 }
 
@@ -392,21 +387,18 @@ inline Interpreter_Value &Interpreter_Value::operator=(Interpreter_Value &&other
   if (this == &other)
     return *this;
 
-  delete tuple_storage;
-
   kind = other.kind;
   bool_value = other.bool_value;
   integer_value = other.integer_value;
   character_value = other.character_value;
   string_value = std::move(other.string_value);
-  tuple_storage = other.tuple_storage;
+  tuple_storage = std::move(other.tuple_storage);
   function = other.function;
   closure_environment = other.closure_environment;
   host_function = other.host_function;
   host_user_data = other.host_user_data;
   callable_name = std::move(other.callable_name);
 
-  other.tuple_storage = nullptr;
   other.kind = Interpreter_Value_Kind::Invalid;
   return *this;
 }
@@ -415,7 +407,7 @@ inline Interpreter_Value Interpreter_Value::make_tuple(const DynArray<Interprete
 {
   Interpreter_Value value;
   value.kind = Interpreter_Value_Kind::Tuple;
-  value.tuple_storage = new Interpreter_Tuple_Storage(elements);
+  value.tuple_storage = std::make_unique<Interpreter_Tuple_Storage>(elements);
   return value;
 }
 
@@ -423,7 +415,7 @@ inline Interpreter_Value Interpreter_Value::make_tuple(DynArray<Interpreter_Valu
 {
   Interpreter_Value value;
   value.kind = Interpreter_Value_Kind::Tuple;
-  value.tuple_storage = new Interpreter_Tuple_Storage(std::move(elements));
+  value.tuple_storage = std::make_unique<Interpreter_Tuple_Storage>(std::move(elements));
   return value;
 }
 
