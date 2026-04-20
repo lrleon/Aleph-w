@@ -216,6 +216,7 @@ set(TEST_PROGRAMS
     bytecode_interpreter_test
     compiler_backend_c_test
     compiler_driver_test
+    compiler_generic_driver_test
     fixedqueue
     randomqueue
     slink

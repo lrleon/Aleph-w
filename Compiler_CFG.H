@@ -60,7 +60,7 @@
 #include <string>
 #include <utility>
 
-#include <Compiler_HIR.H>
+#include <Compiler_HIR_Model.H>
 #include <ah-arena.H>
 #include <ah-errors.H>
 #include <tpl_dynArray.H>
@@ -374,7 +374,7 @@ class Compiler_CFG_Lowering
         dst = src;
         return;
       }
-    dst = compiler_merge_spans(dst, src);
+      dst = compiler_hir_merge_spans(dst, src);
   }
 
   /** @brief Creates a new basic block in the given function. */

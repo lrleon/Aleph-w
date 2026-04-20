@@ -23,6 +23,9 @@ La regla es simple: cuando una etapa queda cerrada y verificada, se marca con
 - [x] Lexer (`Compiler_Lexer.H`)
 - [x] AST (`Compiler_AST.H`)
 - [x] Parser (`Compiler_Parser.H`)
+- [x] Operadores reutilizables desacoplados del lexer (`Compiler_Operator.H`)
+- [x] Contratos reusables para frontends y drivers (`Compiler_Driver_Contracts.H`, `Compiler_Frontend.H`)
+- [x] Adapter del frontend MVP (`Compiler_MVP_Frontend.H`)
 - [x] Scopes léxicos (`tpl_scope.H`)
 - [x] Semántica de nombres y control básico (`Compiler_Sema.H`)
 - [x] Grafo de tipos (`Compiler_Types.H`)
@@ -60,6 +63,8 @@ La regla es simple: cuando una etapa queda cerrada y verificada, se marca con
 ### 4. HIR reutilizable para compiladores e intérpretes
 
 - [x] `Compiler_HIR.H`
+- [x] `Compiler_HIR_Model.H`
+- [x] `Compiler_HIR_Lowering_MVP.H`
 - [x] Nodos HIR tipados y más estables que el AST
 - [x] Lowering desde AST tipado a HIR
 - [x] Detección clara de efectos, llamadas, control y valores
@@ -84,6 +89,8 @@ La regla es simple: cuando una etapa queda cerrada y verificada, se marca con
 - [x] Builder de CFG por función
 - [x] Validadores de CFG
 - [x] `Compiler_IR.H` o `Compiler_MIR.H`
+- [x] `Compiler_IR_Model.H`
+- [x] `Compiler_IR_Lowering_MVP.H`
 - [x] Instrucciones y valores explícitos
 - [x] Lowering desde HIR a MIR/IR
 - [x] Dumps textuales deterministas de CFG
@@ -130,6 +137,7 @@ La regla es simple: cuando una etapa queda cerrada y verificada, se marca con
 ### 11. Driver y toolchain
 
 - [x] `Compiler_Driver.H`
+- [x] `Compiler_Generic_Driver.H`
 - [x] Pipeline configurable por etapas
 - [x] `parse-only`, `sema-only`, `hir`, `ir`, `run`, `emit-c`, `emit-bytecode`
 - [x] Soporte multiarchivo

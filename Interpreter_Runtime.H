@@ -66,7 +66,7 @@
 #include <string_view>
 #include <utility>
 
-#include <Compiler_HIR.H>
+#include <Compiler_HIR_Model.H>
 #include <ah-diagnostics.H>
 #include <ah-errors.H>
 #include <tpl_dynArray.H>
@@ -977,10 +977,10 @@ class Interpreter_Runtime
 
           switch (node->op)
             {
-            case Compiler_Token_Kind::Plus:
+            case Compiler_Operator_Kind::Plus:
               return require_integer(operand.value, node->span, "unary '+'");
 
-            case Compiler_Token_Kind::Minus:
+            case Compiler_Operator_Kind::Minus:
               {
                 auto checked = require_integer(operand.value, node->span, "unary '-'");
                 if (not checked.ok())
@@ -988,7 +988,7 @@ class Interpreter_Runtime
                 return ok(Interpreter_Value::make_integer(-checked.value.integer_value));
               }
 
-            case Compiler_Token_Kind::Bang:
+            case Compiler_Operator_Kind::Bang:
               {
                 auto checked = require_bool(operand.value, node->span, "unary '!'");
                 if (not checked.ok())
@@ -1000,7 +1000,7 @@ class Interpreter_Runtime
               return runtime_error(node->span,
                                    "RUN008",
                                    "unsupported unary operator '"
-                                     + std::string(compiler_token_kind_name(node->op)) + "'");
+                                     + std::string(compiler_operator_name(node->op)) + "'");
             }
         }
 
@@ -1008,7 +1008,7 @@ class Interpreter_Runtime
         {
           const auto *node = static_cast<const Compiler_HIR_Binary_Expr *>(expr);
 
-          if (node->op == Compiler_Token_Kind::AndAnd or node->op == Compiler_Token_Kind::OrOr)
+          if (node->op == Compiler_Operator_Kind::AndAnd or node->op == Compiler_Operator_Kind::OrOr)
             {
               auto left = evaluate_expr(node->left, env);
               if (not left.ok())
@@ -1017,9 +1017,9 @@ class Interpreter_Runtime
               if (not left_bool.ok())
                 return left_bool;
 
-              if (node->op == Compiler_Token_Kind::AndAnd and not left_bool.value.bool_value)
+              if (node->op == Compiler_Operator_Kind::AndAnd and not left_bool.value.bool_value)
                 return ok(Interpreter_Value::make_bool(false));
-              if (node->op == Compiler_Token_Kind::OrOr and left_bool.value.bool_value)
+              if (node->op == Compiler_Operator_Kind::OrOr and left_bool.value.bool_value)
                 return ok(Interpreter_Value::make_bool(true));
 
               auto right = evaluate_expr(node->right, env);
@@ -1032,11 +1032,9 @@ class Interpreter_Runtime
             }
 
           const bool is_compound_assignment
-            = node->op == Compiler_Token_Kind::PlusEq or node->op == Compiler_Token_Kind::MinusEq
-           or node->op == Compiler_Token_Kind::StarEq or node->op == Compiler_Token_Kind::SlashEq
-           or node->op == Compiler_Token_Kind::PercentEq;
+            = compiler_operator_is_compound_assignment(node->op);
 
-          if (node->op == Compiler_Token_Kind::Assign or is_compound_assignment)
+          if (node->op == Compiler_Operator_Kind::Assign or is_compound_assignment)
             {
               if (node->left == nullptr or node->left->kind != Compiler_HIR_Expr_Kind::Variable)
                 return runtime_error(node->span,
@@ -1044,7 +1042,7 @@ class Interpreter_Runtime
                                      "assignment requires a variable on the left-hand side");
               const auto *lhs = static_cast<const Compiler_HIR_Variable_Expr *>(node->left);
 
-              if (node->op == Compiler_Token_Kind::Assign)
+              if (node->op == Compiler_Operator_Kind::Assign)
                 {
                   auto rhs = evaluate_expr(node->right, env);
                   if (not rhs.ok())
@@ -1077,21 +1075,21 @@ class Interpreter_Runtime
               long long updated = current.value.integer_value;
               switch (node->op)
                 {
-                case Compiler_Token_Kind::PlusEq:
+                case Compiler_Operator_Kind::PlusEq:
                   updated += rhs_int.value.integer_value;
                   break;
-                case Compiler_Token_Kind::MinusEq:
+                case Compiler_Operator_Kind::MinusEq:
                   updated -= rhs_int.value.integer_value;
                   break;
-                case Compiler_Token_Kind::StarEq:
+                case Compiler_Operator_Kind::StarEq:
                   updated *= rhs_int.value.integer_value;
                   break;
-                case Compiler_Token_Kind::SlashEq:
+                case Compiler_Operator_Kind::SlashEq:
                   if (rhs_int.value.integer_value == 0)
                     return runtime_error(node->span, "RUN007", "division by zero");
                   updated /= rhs_int.value.integer_value;
                   break;
-                case Compiler_Token_Kind::PercentEq:
+                case Compiler_Operator_Kind::PercentEq:
                   if (rhs_int.value.integer_value == 0)
                     return runtime_error(node->span, "RUN007", "modulo by zero");
                   updated %= rhs_int.value.integer_value;
@@ -1116,14 +1114,14 @@ class Interpreter_Runtime
 
           switch (node->op)
             {
-            case Compiler_Token_Kind::Plus:
-            case Compiler_Token_Kind::Minus:
-            case Compiler_Token_Kind::Star:
-            case Compiler_Token_Kind::Slash:
-            case Compiler_Token_Kind::Percent:
-            case Compiler_Token_Kind::Amp:
-            case Compiler_Token_Kind::Pipe:
-            case Compiler_Token_Kind::Caret:
+            case Compiler_Operator_Kind::Plus:
+            case Compiler_Operator_Kind::Minus:
+            case Compiler_Operator_Kind::Star:
+            case Compiler_Operator_Kind::Slash:
+            case Compiler_Operator_Kind::Percent:
+            case Compiler_Operator_Kind::Amp:
+            case Compiler_Operator_Kind::Pipe:
+            case Compiler_Operator_Kind::Caret:
               {
                 auto lhs = require_integer(left.value, node->left->span, "binary operator");
                 if (not lhs.ok())
@@ -1134,46 +1132,46 @@ class Interpreter_Runtime
 
                 switch (node->op)
                   {
-                  case Compiler_Token_Kind::Plus:
+                  case Compiler_Operator_Kind::Plus:
                     return ok(Interpreter_Value::make_integer(lhs.value.integer_value
                                                               + rhs.value.integer_value));
-                  case Compiler_Token_Kind::Minus:
+                  case Compiler_Operator_Kind::Minus:
                     return ok(Interpreter_Value::make_integer(lhs.value.integer_value
                                                               - rhs.value.integer_value));
-                  case Compiler_Token_Kind::Star:
+                  case Compiler_Operator_Kind::Star:
                     return ok(Interpreter_Value::make_integer(lhs.value.integer_value
                                                               * rhs.value.integer_value));
-                  case Compiler_Token_Kind::Slash:
+                  case Compiler_Operator_Kind::Slash:
                     if (rhs.value.integer_value == 0)
                       return runtime_error(node->span, "RUN007", "division by zero");
                     return ok(Interpreter_Value::make_integer(lhs.value.integer_value
                                                               / rhs.value.integer_value));
-                  case Compiler_Token_Kind::Percent:
+                  case Compiler_Operator_Kind::Percent:
                     if (rhs.value.integer_value == 0)
                       return runtime_error(node->span, "RUN007", "modulo by zero");
                     return ok(Interpreter_Value::make_integer(lhs.value.integer_value
                                                               % rhs.value.integer_value));
-                  case Compiler_Token_Kind::Amp:
+                  case Compiler_Operator_Kind::Amp:
                     return ok(Interpreter_Value::make_integer(lhs.value.integer_value
                                                               & rhs.value.integer_value));
-                  case Compiler_Token_Kind::Pipe:
+                  case Compiler_Operator_Kind::Pipe:
                     return ok(Interpreter_Value::make_integer(lhs.value.integer_value
                                                               | rhs.value.integer_value));
-                  case Compiler_Token_Kind::Caret:
+                  case Compiler_Operator_Kind::Caret:
                     return ok(Interpreter_Value::make_integer(lhs.value.integer_value
                                                               ^ rhs.value.integer_value));
                   default:
                     return runtime_error(node->span,
                                          "RUN008",
                                          "unsupported arithmetic operator '"
-                                           + std::string(compiler_token_kind_name(node->op)) + "'");
+                                           + std::string(compiler_operator_name(node->op)) + "'");
                   }
               }
 
-            case Compiler_Token_Kind::Less:
-            case Compiler_Token_Kind::LessEq:
-            case Compiler_Token_Kind::Greater:
-            case Compiler_Token_Kind::GreaterEq:
+            case Compiler_Operator_Kind::Less:
+            case Compiler_Operator_Kind::LessEq:
+            case Compiler_Operator_Kind::Greater:
+            case Compiler_Operator_Kind::GreaterEq:
               {
                 auto lhs = require_integer(left.value, node->left->span, "comparison");
                 if (not lhs.ok())
@@ -1185,16 +1183,16 @@ class Interpreter_Runtime
                 bool result = false;
                 switch (node->op)
                   {
-                  case Compiler_Token_Kind::Less:
+                  case Compiler_Operator_Kind::Less:
                     result = lhs.value.integer_value < rhs.value.integer_value;
                     break;
-                  case Compiler_Token_Kind::LessEq:
+                  case Compiler_Operator_Kind::LessEq:
                     result = lhs.value.integer_value <= rhs.value.integer_value;
                     break;
-                  case Compiler_Token_Kind::Greater:
+                  case Compiler_Operator_Kind::Greater:
                     result = lhs.value.integer_value > rhs.value.integer_value;
                     break;
-                  case Compiler_Token_Kind::GreaterEq:
+                  case Compiler_Operator_Kind::GreaterEq:
                     result = lhs.value.integer_value >= rhs.value.integer_value;
                     break;
                   default:
@@ -1204,11 +1202,11 @@ class Interpreter_Runtime
                 return ok(Interpreter_Value::make_bool(result));
               }
 
-            case Compiler_Token_Kind::EqEq:
+            case Compiler_Operator_Kind::EqEq:
               return ok(
                 Interpreter_Value::make_bool(interpreter_values_equal(left.value, right.value)));
 
-            case Compiler_Token_Kind::NotEq:
+            case Compiler_Operator_Kind::NotEq:
               return ok(
                 Interpreter_Value::make_bool(not interpreter_values_equal(left.value, right.value)));
 
@@ -1216,7 +1214,7 @@ class Interpreter_Runtime
               return runtime_error(node->span,
                                    "RUN008",
                                    "unsupported binary operator '"
-                                     + std::string(compiler_token_kind_name(node->op)) + "'");
+                                     + std::string(compiler_operator_name(node->op)) + "'");
             }
         }
 

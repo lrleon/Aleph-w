@@ -36,7 +36,7 @@
 
 # include <iostream>
 
-# include <Compiler_HIR.H>
+# include <Compiler_HIR_Lowering_MVP.H>
 # include <Compiler_Parser.H>
 
 using namespace Aleph;

@@ -1149,7 +1149,7 @@ namespace Aleph
                 Compiler_Bytecode_Value result;
                 switch (inst.op)
                   {
-                  case Compiler_Token_Kind::Minus:
+                  case Compiler_Operator_Kind::Minus:
                     {
                       long long integer_value = 0;
                       if (not require_integer(operand,
@@ -1164,7 +1164,7 @@ namespace Aleph
                       break;
                     }
 
-                  case Compiler_Token_Kind::Bang:
+                  case Compiler_Operator_Kind::Bang:
                     {
                       bool bool_value = false;
                       if (not require_bool(operand,
@@ -1179,7 +1179,7 @@ namespace Aleph
                       break;
                     }
 
-                  case Compiler_Token_Kind::Tilde:
+                  case Compiler_Operator_Kind::Tilde:
                     {
                       long long integer_value = 0;
                       if (not require_integer(operand,
@@ -1246,14 +1246,14 @@ namespace Aleph
                 Compiler_Bytecode_Value result;
                 switch (inst.op)
                   {
-                  case Compiler_Token_Kind::Plus:
-                  case Compiler_Token_Kind::Minus:
-                  case Compiler_Token_Kind::Star:
-                  case Compiler_Token_Kind::Slash:
-                  case Compiler_Token_Kind::Percent:
-                  case Compiler_Token_Kind::Amp:
-                  case Compiler_Token_Kind::Pipe:
-                  case Compiler_Token_Kind::Caret:
+                  case Compiler_Operator_Kind::Plus:
+                  case Compiler_Operator_Kind::Minus:
+                  case Compiler_Operator_Kind::Star:
+                  case Compiler_Operator_Kind::Slash:
+                  case Compiler_Operator_Kind::Percent:
+                  case Compiler_Operator_Kind::Amp:
+                  case Compiler_Operator_Kind::Pipe:
+                  case Compiler_Operator_Kind::Caret:
                     {
                       long long lhs = 0;
                       long long rhs = 0;
@@ -1276,16 +1276,16 @@ namespace Aleph
 
                       switch (inst.op)
                         {
-                        case Compiler_Token_Kind::Plus:
+                        case Compiler_Operator_Kind::Plus:
                           result = Compiler_Bytecode_Value::make_integer(lhs + rhs);
                           break;
-                        case Compiler_Token_Kind::Minus:
+                        case Compiler_Operator_Kind::Minus:
                           result = Compiler_Bytecode_Value::make_integer(lhs - rhs);
                           break;
-                        case Compiler_Token_Kind::Star:
+                        case Compiler_Operator_Kind::Star:
                           result = Compiler_Bytecode_Value::make_integer(lhs * rhs);
                           break;
-                        case Compiler_Token_Kind::Slash:
+                        case Compiler_Operator_Kind::Slash:
                           if (rhs == 0)
                             return make_error("BCV013",
                                               "division by zero",
@@ -1294,7 +1294,7 @@ namespace Aleph
                                               &inst);
                           result = Compiler_Bytecode_Value::make_integer(lhs / rhs);
                           break;
-                        case Compiler_Token_Kind::Percent:
+                        case Compiler_Operator_Kind::Percent:
                           if (rhs == 0)
                             return make_error("BCV014",
                                               "modulo by zero",
@@ -1303,13 +1303,13 @@ namespace Aleph
                                               &inst);
                           result = Compiler_Bytecode_Value::make_integer(lhs % rhs);
                           break;
-                        case Compiler_Token_Kind::Amp:
+                        case Compiler_Operator_Kind::Amp:
                           result = Compiler_Bytecode_Value::make_integer(lhs & rhs);
                           break;
-                        case Compiler_Token_Kind::Pipe:
+                        case Compiler_Operator_Kind::Pipe:
                           result = Compiler_Bytecode_Value::make_integer(lhs | rhs);
                           break;
-                        case Compiler_Token_Kind::Caret:
+                        case Compiler_Operator_Kind::Caret:
                           result = Compiler_Bytecode_Value::make_integer(lhs ^ rhs);
                           break;
                         default:
@@ -1318,10 +1318,10 @@ namespace Aleph
                       break;
                     }
 
-                  case Compiler_Token_Kind::Less:
-                  case Compiler_Token_Kind::LessEq:
-                  case Compiler_Token_Kind::Greater:
-                  case Compiler_Token_Kind::GreaterEq:
+                  case Compiler_Operator_Kind::Less:
+                  case Compiler_Operator_Kind::LessEq:
+                  case Compiler_Operator_Kind::Greater:
+                  case Compiler_Operator_Kind::GreaterEq:
                     {
                       long long lhs = 0;
                       long long rhs = 0;
@@ -1345,16 +1345,16 @@ namespace Aleph
                       bool comparison = false;
                       switch (inst.op)
                         {
-                        case Compiler_Token_Kind::Less:
+                        case Compiler_Operator_Kind::Less:
                           comparison = lhs < rhs;
                           break;
-                        case Compiler_Token_Kind::LessEq:
+                        case Compiler_Operator_Kind::LessEq:
                           comparison = lhs <= rhs;
                           break;
-                        case Compiler_Token_Kind::Greater:
+                        case Compiler_Operator_Kind::Greater:
                           comparison = lhs > rhs;
                           break;
-                        case Compiler_Token_Kind::GreaterEq:
+                        case Compiler_Operator_Kind::GreaterEq:
                           comparison = lhs >= rhs;
                           break;
                         default:
@@ -1364,8 +1364,8 @@ namespace Aleph
                       break;
                     }
 
-                  case Compiler_Token_Kind::AndAnd:
-                  case Compiler_Token_Kind::OrOr:
+                  case Compiler_Operator_Kind::AndAnd:
+                  case Compiler_Operator_Kind::OrOr:
                     {
                       bool lhs = false;
                       bool rhs = false;
@@ -1386,18 +1386,18 @@ namespace Aleph
                                            error))
                         return error;
                       result = Compiler_Bytecode_Value::make_bool(inst.op
-                                                                    == Compiler_Token_Kind::AndAnd
+                                                                    == Compiler_Operator_Kind::AndAnd
                                                                   ? lhs and rhs
                                                                   : lhs or rhs);
                       break;
                     }
 
-                  case Compiler_Token_Kind::EqEq:
+                  case Compiler_Operator_Kind::EqEq:
                     result = Compiler_Bytecode_Value::make_bool(
                       compiler_bytecode_values_equal(lhs_value, rhs_value));
                     break;
 
-                  case Compiler_Token_Kind::NotEq:
+                  case Compiler_Operator_Kind::NotEq:
                     result = Compiler_Bytecode_Value::make_bool(
                       not compiler_bytecode_values_equal(lhs_value, rhs_value));
                     break;

@@ -122,7 +122,7 @@ namespace
     Compiler_IR_Instruction add;
     add.kind = Compiler_IR_Instruction_Kind::Binary;
     add.result_id = 4;
-    add.op = Compiler_Token_Kind::Plus;
+    add.op = Compiler_Operator_Kind::Plus;
     add.operands.append(2);
     add.operands.append(3);
     entry.instructions.append(add);

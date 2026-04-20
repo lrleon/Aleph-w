@@ -8,7 +8,7 @@ lenguaje concreto. El roadmap vivo de la plataforma completa está en
 
 ## Alcance
 
-El componente actual está formado por veintiún headers públicos:
+El componente actual está formado por treinta headers públicos:
 
 | Header | Responsabilidad |
 |---|---|
@@ -18,15 +18,24 @@ El componente actual está formado por veintiún headers públicos:
 | `Compiler_Lexer.H` | Lexer de un solo archivo con spans estables, opciones de manejo de comentarios, recuperación mediante tokens inválidos y emisión opcional de diagnósticos |
 | `Compiler_AST.H` | Nodos AST respaldados por arena para expresiones, statements, imports, declaraciones de tipo, funciones, módulos y volcado textual determinista |
 | `Compiler_Parser.H` | Parser recursive-descent con precedence climbing, anotaciones de tipo explícitas, declaraciones top-level (`import`/`fn`/`type`/`struct`/`enum`), parseo de bloques/statements y recuperación apoyada en diagnósticos |
+| `Compiler_Operator.H` | Vocabulario reusable de operadores compartido por HIR, IR, bytecode y backends, con compatibilidad hacia el lexer MVP |
+| `Compiler_Driver_Contracts.H` | Contratos compartidos de acciones, inputs, artifacts y resultados de ejecución para drivers y frontends |
+| `Compiler_Frontend.H` | Interfaz reusable para frontends de lenguaje que quieran integrarse al pipeline común |
+| `Compiler_MVP_Frontend.H` | Adapter del frontend actual del lenguaje MVP expuesto como implementación de referencia de `Compiler_Frontend` |
+| `Compiler_Generic_Driver.H` | Driver reusable desacoplado del parser MVP, capaz de orquestar cualquier `Compiler_Frontend` que produzca HIR/IR |
 | `tpl_scope.H` | Pila genérica de scopes anidados para bindings léxicos y lookup con shadowing |
 | `Compiler_Sema.H` | Resolución de nombres, validación básica de imports top-level, detección de duplicados, chequeos de shadowing y validación de `return`/`break`/`continue` |
 | `Compiler_Types.H` | Grafo estable de tipos con builtins, tuplas, funciones, tipos nominales (`struct`/`enum`), variables de tipo y pretty-printing determinista |
 | `tpl_constraints.H` | Conjuntos de constraints de igualdad, substitutions, unificación estructural, variables rígidas y soporte de occurs-check |
 | `Compiler_Typed_Sema.H` | Pasada semántica tipada con anotaciones explícitas, resolución de declaraciones nominales, aliases transparentes, generalización de `let`, instanciación polimórfica básica y resolución de constraints |
+| `Compiler_HIR_Model.H` | Modelo reusable de HIR tipada, ownership por arena y dumps deterministas sin depender del frontend MVP |
+| `Compiler_HIR_Lowering_MVP.H` | Lowering desde el AST tipado actual del lenguaje MVP hacia la HIR reusable |
 | `Compiler_HIR.H` | HIR tipada y estructurada con lowering desde AST tipado, nodos estables para intérpretes o compilación posterior y dumps textuales deterministas |
 | `Interpreter_Runtime.H` | Runtime reusable para evaluar HIR con valores dinámicos, environments anidados, call stack, funciones host y errores estructurados |
 | `Compiler_CFG.H` | CFG reusable de bloques básicos con lowering desde HIR, terminadores explícitos, validación estructural y dumps deterministas |
-| `Compiler_IR.H` | IR reusable con valores e instrucciones explícitas, lowering desde HIR, slots locales/globales y dumps textuales deterministas |
+| `Compiler_IR_Model.H` | IR reusable con valores e instrucciones explícitas, slots locales/globales, validación estructural y dumps textuales deterministas |
+| `Compiler_IR_Lowering_MVP.H` | Lowering desde la HIR del lenguaje MVP actual hacia la IR reusable |
+| `Compiler_IR.H` | Header umbrella de compatibilidad que incluye el modelo reusable de IR y el lowering MVP |
 | `Compiler_Dataflow.H` | Análisis reusable sobre IR con reachability, liveness, definite assignment, propagación de constantes y dead-code elimination conservador |
 | `SSA.H` | Capa SSA reusable sobre IR con dominadores, dominance frontier, inserción de phi, rename pass y verificador estructural |
 | `Bytecode.H` | Bytecode reusable orientado a VM con pool de constantes por función, opcodes explícitos, PCs parcheados y lowering desde IR |
@@ -99,6 +108,24 @@ int main()
 - Ejecución directa del bytecode reusable con una VM portable, frames por llamada, globals explícitos y resultados runtime estructurados
 - Emisión de C portable y autosuficiente desde IR explícita con runtime embebido, funciones reusables y `main()` opcional para flujos `emit-c`
 - Driver end-to-end multiarchivo con `parse-only`, `sema-only`, `hir`, `ir`, `run`, `emit-c` y `emit-bytecode`, más imports declarativos por nombre de fuente, orden topológico estable y artefactos intermedios reproducibles por etapa
+
+## Punto de extensión reusable
+
+Desde esta iteración, Aleph-w distingue entre:
+
+- el frontend MVP de referencia, implementado por `Compiler_Parser.H`, `Compiler_AST.H`, `Compiler_Sema.H`, `Compiler_Typed_Sema.H` y adaptado por `Compiler_MVP_Frontend.H`
+- la infraestructura reusable, expuesta por `Compiler_Frontend.H`, `Compiler_Generic_Driver.H`, `Compiler_HIR_Model.H`, IR, bytecode, runtime y backends
+
+Eso permite dos estrategias para un lenguaje nuevo:
+
+- reutilizar `ah-source.H`, `ah-diagnostics.H`, scopes, constraints y escribir lexer/parser/AST propios, para luego bajar a HIR o IR
+- reutilizar el frontend MVP como ejemplo y sustituir o extender sus piezas gradualmente
+
+El contrato mínimo para entrar al pipeline común es producir una `Compiler_HIR_Module` o una `Compiler_IR_Module` válida a través de una implementación de `Compiler_Frontend`.
+
+En particular, `Compiler_HIR.H` queda como header umbrella de compatibilidad. El punto reusable nuevo es `Compiler_HIR_Model.H`; el lowering del lenguaje de referencia vive en `Compiler_HIR_Lowering_MVP.H`.
+
+De forma análoga, `Compiler_IR.H` queda como umbrella de compatibilidad. El punto reusable nuevo es `Compiler_IR_Model.H`; el lowering del lenguaje de referencia vive en `Compiler_IR_Lowering_MVP.H`.
 
 ## Gramática superficial actual
 
@@ -228,6 +255,7 @@ diagnósticos `DRV001`/`DRV002` para imports faltantes o ciclos.
 - Tests: `Tests/bytecode_interpreter_test.cc`
 - Tests: `Tests/compiler_backend_c_test.cc`
 - Tests: `Tests/compiler_driver_test.cc`
+- Tests: `Tests/compiler_generic_driver_test.cc`
 
 Para compilar los targets afectados:
 
@@ -255,6 +283,7 @@ cmake --build build --target \
   bytecode_interpreter_test \
   compiler_backend_c_test \
   compiler_driver_test \
+  compiler_generic_driver_test \
   compiler_diagnostics_example \
   compiler_lexer_example \
   compiler_parser_example \

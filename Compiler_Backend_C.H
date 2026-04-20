@@ -29,7 +29,7 @@
 */
 
 /** @file Compiler_Backend_C.H
- *  @brief Portable C backend that emits standalone C from `Compiler_IR.H`.
+ *  @brief Portable C backend that emits standalone C from `Compiler_IR_Model.H`.
  *
  *  This header introduces the first source-emitting backend in the compiler
  *  platform. The goal is not to model final ABI/layout decisions yet, but to
@@ -40,7 +40,7 @@
  *  - experimenting with `emit-c` workflows before a full driver exists
  *  - generating portable artifacts that can be compiled by a normal C toolchain
  *
- *  The emitted C intentionally stays close to the structure of `Compiler_IR.H`:
+ *  The emitted C intentionally stays close to the structure of `Compiler_IR_Model.H`:
  *
  *  - each IR function becomes one C function
  *  - each IR block becomes one C label plus `goto`-based control flow
@@ -65,7 +65,7 @@
 #include <string_view>
 #include <utility>
 
-#include <Compiler_IR.H>
+#include <Compiler_IR_Model.H>
 #include <ah-errors.H>
 #include <tpl_dynArray.H>
 
@@ -205,42 +205,9 @@ namespace Aleph
     }
 
     inline std::string
-    token_name(const Compiler_Token_Kind kind) noexcept
+    token_name(const Compiler_Operator_Kind kind) noexcept
     {
-      switch (kind)
-        {
-        case Compiler_Token_Kind::Invalid: return "Invalid";
-        case Compiler_Token_Kind::Assign: return "Assign";
-        case Compiler_Token_Kind::Plus: return "Plus";
-        case Compiler_Token_Kind::Minus: return "Minus";
-        case Compiler_Token_Kind::Star: return "Star";
-        case Compiler_Token_Kind::Slash: return "Slash";
-        case Compiler_Token_Kind::Percent: return "Percent";
-        case Compiler_Token_Kind::EqEq: return "EqEq";
-        case Compiler_Token_Kind::NotEq: return "NotEq";
-        case Compiler_Token_Kind::Less: return "Less";
-        case Compiler_Token_Kind::LessEq: return "LessEq";
-        case Compiler_Token_Kind::Greater: return "Greater";
-        case Compiler_Token_Kind::GreaterEq: return "GreaterEq";
-        case Compiler_Token_Kind::AndAnd: return "AndAnd";
-        case Compiler_Token_Kind::OrOr: return "OrOr";
-        case Compiler_Token_Kind::Bang: return "Bang";
-        case Compiler_Token_Kind::Amp: return "Amp";
-        case Compiler_Token_Kind::Pipe: return "Pipe";
-        case Compiler_Token_Kind::Caret: return "Caret";
-        case Compiler_Token_Kind::Tilde: return "Tilde";
-        case Compiler_Token_Kind::PlusEq: return "PlusEq";
-        case Compiler_Token_Kind::MinusEq: return "MinusEq";
-        case Compiler_Token_Kind::StarEq: return "StarEq";
-        case Compiler_Token_Kind::SlashEq: return "SlashEq";
-        case Compiler_Token_Kind::PercentEq: return "PercentEq";
-        case Compiler_Token_Kind::PlusPlus: return "PlusPlus";
-        case Compiler_Token_Kind::MinusMinus: return "MinusMinus";
-        default:
-          break;
-        }
-
-      return "Token";
+      return compiler_operator_name(kind);
     }
 
     inline std::string
@@ -1007,7 +974,7 @@ namespace Aleph
 
             switch (inst.op)
               {
-              case Compiler_Token_Kind::Minus:
+              case Compiler_Operator_Kind::Minus:
                 out << "    " << value(inst.result_id) << " = "
                     << names.make_int_symbol << "(-"
                     << names.require_int_symbol << "("
@@ -1016,7 +983,7 @@ namespace Aleph
                     << "));\n";
                 break;
 
-              case Compiler_Token_Kind::Bang:
+              case Compiler_Operator_Kind::Bang:
                 out << "    " << value(inst.result_id) << " = "
                     << names.make_bool_symbol << "(!"
                     << names.require_bool_symbol << "("
@@ -1025,7 +992,7 @@ namespace Aleph
                     << "));\n";
                 break;
 
-              case Compiler_Token_Kind::Tilde:
+              case Compiler_Operator_Kind::Tilde:
                 out << "    " << value(inst.result_id) << " = "
                     << names.make_int_symbol << "(~"
                     << names.require_int_symbol << "("
@@ -1050,18 +1017,18 @@ namespace Aleph
 
             switch (inst.op)
               {
-              case Compiler_Token_Kind::Plus:
-              case Compiler_Token_Kind::Minus:
-              case Compiler_Token_Kind::Star:
-              case Compiler_Token_Kind::Amp:
-              case Compiler_Token_Kind::Pipe:
-              case Compiler_Token_Kind::Caret:
+              case Compiler_Operator_Kind::Plus:
+              case Compiler_Operator_Kind::Minus:
+              case Compiler_Operator_Kind::Star:
+              case Compiler_Operator_Kind::Amp:
+              case Compiler_Operator_Kind::Pipe:
+              case Compiler_Operator_Kind::Caret:
                 {
-                  const char * op_text = inst.op == Compiler_Token_Kind::Plus ? "+"
-                    : inst.op == Compiler_Token_Kind::Minus ? "-"
-                    : inst.op == Compiler_Token_Kind::Star ? "*"
-                    : inst.op == Compiler_Token_Kind::Amp ? "&"
-                    : inst.op == Compiler_Token_Kind::Pipe ? "|"
+                  const char * op_text = inst.op == Compiler_Operator_Kind::Plus ? "+"
+                    : inst.op == Compiler_Operator_Kind::Minus ? "-"
+                    : inst.op == Compiler_Operator_Kind::Star ? "*"
+                    : inst.op == Compiler_Operator_Kind::Amp ? "&"
+                    : inst.op == Compiler_Operator_Kind::Pipe ? "|"
                     : "^";
                   out << "    {\n"
                       << "      long long lhs_value = " << names.require_int_symbol
@@ -1081,11 +1048,11 @@ namespace Aleph
                   break;
                 }
 
-              case Compiler_Token_Kind::Slash:
-              case Compiler_Token_Kind::Percent:
+              case Compiler_Operator_Kind::Slash:
+              case Compiler_Operator_Kind::Percent:
                 {
-                  const char * op_text = inst.op == Compiler_Token_Kind::Slash ? "/" : "%";
-                  const char * message = inst.op == Compiler_Token_Kind::Slash
+                  const char * op_text = inst.op == Compiler_Operator_Kind::Slash ? "/" : "%";
+                  const char * message = inst.op == Compiler_Operator_Kind::Slash
                     ? "division by zero"
                     : "modulo by zero";
                   out << "    {\n"
@@ -1110,14 +1077,14 @@ namespace Aleph
                   break;
                 }
 
-              case Compiler_Token_Kind::Less:
-              case Compiler_Token_Kind::LessEq:
-              case Compiler_Token_Kind::Greater:
-              case Compiler_Token_Kind::GreaterEq:
+              case Compiler_Operator_Kind::Less:
+              case Compiler_Operator_Kind::LessEq:
+              case Compiler_Operator_Kind::Greater:
+              case Compiler_Operator_Kind::GreaterEq:
                 {
-                  const char * op_text = inst.op == Compiler_Token_Kind::Less ? "<"
-                    : inst.op == Compiler_Token_Kind::LessEq ? "<="
-                    : inst.op == Compiler_Token_Kind::Greater ? ">"
+                  const char * op_text = inst.op == Compiler_Operator_Kind::Less ? "<"
+                    : inst.op == Compiler_Operator_Kind::LessEq ? "<="
+                    : inst.op == Compiler_Operator_Kind::Greater ? ">"
                     : ">=";
                   out << "    {\n"
                       << "      long long lhs_value = " << names.require_int_symbol
@@ -1137,10 +1104,10 @@ namespace Aleph
                   break;
                 }
 
-              case Compiler_Token_Kind::AndAnd:
-              case Compiler_Token_Kind::OrOr:
+              case Compiler_Operator_Kind::AndAnd:
+              case Compiler_Operator_Kind::OrOr:
                 {
-                  const char * op_text = inst.op == Compiler_Token_Kind::AndAnd ? "&&" : "||";
+                  const char * op_text = inst.op == Compiler_Operator_Kind::AndAnd ? "&&" : "||";
                   out << "    {\n"
                       << "      bool lhs_value = " << names.require_bool_symbol
                       << "(" << value(inst.operands.access(0)) << ", "
@@ -1159,11 +1126,11 @@ namespace Aleph
                   break;
                 }
 
-              case Compiler_Token_Kind::EqEq:
-              case Compiler_Token_Kind::NotEq:
+              case Compiler_Operator_Kind::EqEq:
+              case Compiler_Operator_Kind::NotEq:
                 out << "    " << value(inst.result_id) << " = "
                     << names.make_bool_symbol << "("
-                    << (inst.op == Compiler_Token_Kind::NotEq ? "!" : "")
+                    << (inst.op == Compiler_Operator_Kind::NotEq ? "!" : "")
                     << names.equal_symbol << "("
                     << value(inst.operands.access(0)) << ", "
                     << value(inst.operands.access(1)) << "));\n";

@@ -29,7 +29,7 @@
 */
 
 /** @file Compiler_Dataflow.H
- *  @brief Reusable dataflow analyses and dead-code elimination over `Compiler_IR.H`.
+ *  @brief Reusable dataflow analyses and dead-code elimination over `Compiler_IR_Model.H`.
  *
  *  This header adds the first optimization-oriented layer on top of the
  *  reusable non-SSA IR. The current scope remains intentionally conservative:
@@ -56,7 +56,7 @@
 #include <string>
 #include <utility>
 
-#include <Compiler_IR.H>
+#include <Compiler_IR_Model.H>
 #include <ah-errors.H>
 #include <tpl_dynArray.H>
 
@@ -468,22 +468,22 @@ namespace Aleph
     }
 
     inline Compiler_Dataflow_Constant
-    evaluate_unary(const Compiler_Token_Kind op,
+    evaluate_unary(const Compiler_Operator_Kind op,
                    const Compiler_Dataflow_Constant & operand)
     {
       switch (op)
         {
-        case Compiler_Token_Kind::Plus:
+        case Compiler_Operator_Kind::Plus:
           if (operand.kind == Compiler_Dataflow_Constant_Kind::Integer)
             return integer_constant(operand.integer_value);
           break;
 
-        case Compiler_Token_Kind::Minus:
+        case Compiler_Operator_Kind::Minus:
           if (operand.kind == Compiler_Dataflow_Constant_Kind::Integer)
             return integer_constant(-operand.integer_value);
           break;
 
-        case Compiler_Token_Kind::Bang:
+        case Compiler_Operator_Kind::Bang:
           if (operand.kind == Compiler_Dataflow_Constant_Kind::Boolean)
             return boolean_constant(not operand.bool_value);
           break;
@@ -496,7 +496,7 @@ namespace Aleph
     }
 
     inline Compiler_Dataflow_Constant
-    evaluate_binary(const Compiler_Token_Kind op,
+    evaluate_binary(const Compiler_Operator_Kind op,
                     const Compiler_Dataflow_Constant & lhs,
                     const Compiler_Dataflow_Constant & rhs)
     {
@@ -504,31 +504,31 @@ namespace Aleph
           and rhs.kind == Compiler_Dataflow_Constant_Kind::Integer)
         switch (op)
           {
-          case Compiler_Token_Kind::Plus:
+          case Compiler_Operator_Kind::Plus:
             return integer_constant(lhs.integer_value + rhs.integer_value);
-          case Compiler_Token_Kind::Minus:
+          case Compiler_Operator_Kind::Minus:
             return integer_constant(lhs.integer_value - rhs.integer_value);
-          case Compiler_Token_Kind::Star:
+          case Compiler_Operator_Kind::Star:
             return integer_constant(lhs.integer_value * rhs.integer_value);
-          case Compiler_Token_Kind::Slash:
+          case Compiler_Operator_Kind::Slash:
             if (rhs.integer_value != 0)
               return integer_constant(lhs.integer_value / rhs.integer_value);
             return unknown_constant();
-          case Compiler_Token_Kind::Percent:
+          case Compiler_Operator_Kind::Percent:
             if (rhs.integer_value != 0)
               return integer_constant(lhs.integer_value % rhs.integer_value);
             return unknown_constant();
-          case Compiler_Token_Kind::EqEq:
+          case Compiler_Operator_Kind::EqEq:
             return boolean_constant(lhs.integer_value == rhs.integer_value);
-          case Compiler_Token_Kind::NotEq:
+          case Compiler_Operator_Kind::NotEq:
             return boolean_constant(lhs.integer_value != rhs.integer_value);
-          case Compiler_Token_Kind::Less:
+          case Compiler_Operator_Kind::Less:
             return boolean_constant(lhs.integer_value < rhs.integer_value);
-          case Compiler_Token_Kind::LessEq:
+          case Compiler_Operator_Kind::LessEq:
             return boolean_constant(lhs.integer_value <= rhs.integer_value);
-          case Compiler_Token_Kind::Greater:
+          case Compiler_Operator_Kind::Greater:
             return boolean_constant(lhs.integer_value > rhs.integer_value);
-          case Compiler_Token_Kind::GreaterEq:
+          case Compiler_Operator_Kind::GreaterEq:
             return boolean_constant(lhs.integer_value >= rhs.integer_value);
           default:
             break;
@@ -538,13 +538,13 @@ namespace Aleph
           and rhs.kind == Compiler_Dataflow_Constant_Kind::Boolean)
         switch (op)
           {
-          case Compiler_Token_Kind::AndAnd:
+          case Compiler_Operator_Kind::AndAnd:
             return boolean_constant(lhs.bool_value and rhs.bool_value);
-          case Compiler_Token_Kind::OrOr:
+          case Compiler_Operator_Kind::OrOr:
             return boolean_constant(lhs.bool_value or rhs.bool_value);
-          case Compiler_Token_Kind::EqEq:
+          case Compiler_Operator_Kind::EqEq:
             return boolean_constant(lhs.bool_value == rhs.bool_value);
-          case Compiler_Token_Kind::NotEq:
+          case Compiler_Operator_Kind::NotEq:
             return boolean_constant(lhs.bool_value != rhs.bool_value);
           default:
             break;
@@ -554,9 +554,9 @@ namespace Aleph
           and rhs.kind == Compiler_Dataflow_Constant_Kind::Unit)
         switch (op)
           {
-          case Compiler_Token_Kind::EqEq:
+          case Compiler_Operator_Kind::EqEq:
             return boolean_constant(true);
-          case Compiler_Token_Kind::NotEq:
+          case Compiler_Operator_Kind::NotEq:
             return boolean_constant(false);
           default:
             break;

@@ -35,7 +35,8 @@
 
 #include <iostream>
 
-#include <Compiler_IR.H>
+#include <Compiler_HIR_Lowering_MVP.H>
+#include <Compiler_IR_Lowering_MVP.H>
 #include <Compiler_Parser.H>
 
 using namespace Aleph;

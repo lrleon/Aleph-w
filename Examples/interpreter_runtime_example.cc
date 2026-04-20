@@ -35,6 +35,7 @@
 
 #include <iostream>
 
+#include <Compiler_HIR_Lowering_MVP.H>
 #include <Compiler_Parser.H>
 #include <Interpreter_Runtime.H>
 

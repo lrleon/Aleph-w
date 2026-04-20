@@ -139,7 +139,7 @@ namespace Aleph
     Compiler_SSA_Value_Id result_id = 0; ///< Produced value id, or `0` for void instructions.
     Compiler_Type_Id type_id = 0; ///< Result or stored type.
     Source_Span span; ///< Source region associated with the instruction.
-    Compiler_Token_Kind op = Compiler_Token_Kind::Invalid; ///< Unary/binary operator when relevant.
+    Compiler_Operator_Kind op = Compiler_Operator_Kind::Invalid; ///< Unary/binary operator when relevant.
     Compiler_IR_Global_Slot_Id global_slot_id = compiler_ir_invalid_id(); ///< Referenced global slot, when relevant.
     Compiler_IR_Function_Id function_id = compiler_ir_invalid_id(); ///< Referenced callee function, when relevant.
     DynArray<Compiler_SSA_Value_Id> operands; ///< Input SSA values in deterministic order.
@@ -346,42 +346,9 @@ namespace Aleph
     }
 
     inline const char *
-    token_name(const Compiler_Token_Kind kind) noexcept
+    token_name(const Compiler_Operator_Kind kind) noexcept
     {
-      switch (kind)
-        {
-        case Compiler_Token_Kind::Invalid: return "Invalid";
-        case Compiler_Token_Kind::Assign: return "Assign";
-        case Compiler_Token_Kind::Plus: return "Plus";
-        case Compiler_Token_Kind::Minus: return "Minus";
-        case Compiler_Token_Kind::Star: return "Star";
-        case Compiler_Token_Kind::Slash: return "Slash";
-        case Compiler_Token_Kind::Percent: return "Percent";
-        case Compiler_Token_Kind::EqEq: return "EqEq";
-        case Compiler_Token_Kind::NotEq: return "NotEq";
-        case Compiler_Token_Kind::Less: return "Less";
-        case Compiler_Token_Kind::LessEq: return "LessEq";
-        case Compiler_Token_Kind::Greater: return "Greater";
-        case Compiler_Token_Kind::GreaterEq: return "GreaterEq";
-        case Compiler_Token_Kind::AndAnd: return "AndAnd";
-        case Compiler_Token_Kind::OrOr: return "OrOr";
-        case Compiler_Token_Kind::Bang: return "Bang";
-        case Compiler_Token_Kind::Amp: return "Amp";
-        case Compiler_Token_Kind::Pipe: return "Pipe";
-        case Compiler_Token_Kind::Caret: return "Caret";
-        case Compiler_Token_Kind::Tilde: return "Tilde";
-        case Compiler_Token_Kind::PlusEq: return "PlusEq";
-        case Compiler_Token_Kind::MinusEq: return "MinusEq";
-        case Compiler_Token_Kind::StarEq: return "StarEq";
-        case Compiler_Token_Kind::SlashEq: return "SlashEq";
-        case Compiler_Token_Kind::PercentEq: return "PercentEq";
-        case Compiler_Token_Kind::PlusPlus: return "PlusPlus";
-        case Compiler_Token_Kind::MinusMinus: return "MinusMinus";
-        default:
-          break;
-        }
-
-      return "Token";
+      return compiler_operator_name(kind);
     }
 
     inline void
