@@ -8,7 +8,7 @@ lenguaje concreto. El roadmap vivo de la plataforma completa está en
 
 ## Alcance
 
-El componente actual está formado por treinta headers públicos:
+El componente actual está formado por cuarenta y tres headers públicos:
 
 | Header | Responsabilidad |
 |---|---|
@@ -16,24 +16,37 @@ El componente actual está formado por treinta headers públicos:
 | `ah-diagnostics.H` | Diagnósticos acumulados con labels primarios/secundarios, notas, ayudas y rendering plano determinista |
 | `Compiler_Token.H` | Tipos de token, objetos token, clasificación de keywords y metadatos de operadores binarios para parsers futuros |
 | `Compiler_Lexer.H` | Lexer de un solo archivo con spans estables, opciones de manejo de comentarios, recuperación mediante tokens inválidos y emisión opcional de diagnósticos |
+| `Compiler_Parser_Utils.H` | Stream reusable sobre tokens con lookahead, `expect`, listas delimitadas y sincronización básica para parsers recursive-descent |
 | `Compiler_AST.H` | Nodos AST respaldados por arena para expresiones, statements, imports, declaraciones de tipo, funciones, módulos y volcado textual determinista |
 | `Compiler_Parser.H` | Parser recursive-descent con precedence climbing, anotaciones de tipo explícitas, declaraciones top-level (`import`/`fn`/`type`/`struct`/`enum`), parseo de bloques/statements y recuperación apoyada en diagnósticos |
 | `Compiler_Operator.H` | Vocabulario reusable de operadores compartido por HIR, IR, bytecode y backends, con compatibilidad hacia el lexer MVP |
 | `Compiler_Driver_Contracts.H` | Contratos compartidos de acciones, inputs, artifacts y resultados de ejecución para drivers y frontends |
+| `Compiler_Module_Resolver.H` | Resolvedor reusable de imports por nombre de fuente con orden topológico, ciclos/dependencias faltantes e artifact textual estable |
+| `Compiler_Module_Metadata.H` | Metadatos reusables de superficie de módulo con top-level exports visibles y rendering determinista |
+| `Compiler_Module_Linker.H` | Linker reusable de superficies de módulo para calcular visibilidad por imports directos y detectar conflictos de nombres |
+| `Compiler_Module_Binder.H` | Binder reusable de nombres top-level visibles por módulo, con resolución determinista y omisión de nombres ambiguos |
+| `Compiler_Module_Name_Table.H` | Caché reusable por módulo para nombres top-level ya bindables, útil para consultas repetidas sin reescanear bindings ni issues |
+| `Compiler_Module_Name_Resolver.H` | Resolvedor reusable de nombres top-level sobre `modules.binding`, con resultados estructurados para nombre faltante, ambiguo o de kind incorrecto |
+| `Compiler_Module_Name_Diagnostics.H` | Diagnósticos reusables sobre resultados de resolución inter-módulo, con notas y ayudas consistentes para frontends externos |
+| `Compiler_Module_Semantic_Environment.H` | Entorno semántico reusable por módulo con namespaces separados de valores y tipos para consumo directo por frontends |
 | `Compiler_Frontend.H` | Interfaz reusable para frontends de lenguaje que quieran integrarse al pipeline común |
 | `Compiler_MVP_Frontend.H` | Adapter del frontend actual del lenguaje MVP expuesto como implementación de referencia de `Compiler_Frontend` |
 | `Compiler_Generic_Driver.H` | Driver reusable desacoplado del parser MVP, capaz de orquestar cualquier `Compiler_Frontend` que produzca HIR/IR |
+| `Compiler_Line_Frontend.H` | Segundo frontend de ejemplo, con sintaxis propia y lowering directo a HIR/IR usando sólo contratos reusables |
 | `tpl_scope.H` | Pila genérica de scopes anidados para bindings léxicos y lookup con shadowing |
+| `Compiler_Symbol_Bindings.H` | Bindings léxicos reusables con ids estables, detección estructurada de duplicados/shadowing y dumps deterministas |
 | `Compiler_Sema.H` | Resolución de nombres, validación básica de imports top-level, detección de duplicados, chequeos de shadowing y validación de `return`/`break`/`continue` |
 | `Compiler_Types.H` | Grafo estable de tipos con builtins, tuplas, funciones, tipos nominales (`struct`/`enum`), variables de tipo y pretty-printing determinista |
 | `tpl_constraints.H` | Conjuntos de constraints de igualdad, substitutions, unificación estructural, variables rígidas y soporte de occurs-check |
 | `Compiler_Typed_Sema.H` | Pasada semántica tipada con anotaciones explícitas, resolución de declaraciones nominales, aliases transparentes, generalización de `let`, instanciación polimórfica básica y resolución de constraints |
 | `Compiler_HIR_Model.H` | Modelo reusable de HIR tipada, ownership por arena y dumps deterministas sin depender del frontend MVP |
+| `Compiler_HIR_Builder.H` | Builder reusable para construir HIR directamente desde un frontend externo o desde tests sin depender del lowering MVP |
 | `Compiler_HIR_Lowering_MVP.H` | Lowering desde el AST tipado actual del lenguaje MVP hacia la HIR reusable |
 | `Compiler_HIR.H` | HIR tipada y estructurada con lowering desde AST tipado, nodos estables para intérpretes o compilación posterior y dumps textuales deterministas |
 | `Interpreter_Runtime.H` | Runtime reusable para evaluar HIR con valores dinámicos, environments anidados, call stack, funciones host y errores estructurados |
 | `Compiler_CFG.H` | CFG reusable de bloques básicos con lowering desde HIR, terminadores explícitos, validación estructural y dumps deterministas |
 | `Compiler_IR_Model.H` | IR reusable con valores e instrucciones explícitas, slots locales/globales, validación estructural y dumps textuales deterministas |
+| `Compiler_IR_Builder.H` | Builder reusable para construir IR explícita directamente y mantener spans, edges y predecesores consistentes |
 | `Compiler_IR_Lowering_MVP.H` | Lowering desde la HIR del lenguaje MVP actual hacia la IR reusable |
 | `Compiler_IR.H` | Header umbrella de compatibilidad que incluye el modelo reusable de IR y el lowering MVP |
 | `Compiler_Dataflow.H` | Análisis reusable sobre IR con reachability, liveness, definite assignment, propagación de constantes y dead-code elimination conservador |
@@ -108,6 +121,18 @@ int main()
 - Ejecución directa del bytecode reusable con una VM portable, frames por llamada, globals explícitos y resultados runtime estructurados
 - Emisión de C portable y autosuficiente desde IR explícita con runtime embebido, funciones reusables y `main()` opcional para flujos `emit-c`
 - Driver end-to-end multiarchivo con `parse-only`, `sema-only`, `hir`, `ir`, `run`, `emit-c` y `emit-bytecode`, más imports declarativos por nombre de fuente, orden topológico estable y artefactos intermedios reproducibles por etapa
+- Construcción manual de HIR e IR reusable mediante builders públicos, útil para frontends alternativos, transpilers o tests estructurales sin parser
+- Validación de un segundo frontend no-MVP (`Compiler_Line_Frontend.H`) que usa su propio parser y se integra al pipeline común mediante `Compiler_Generic_Driver.H`
+- Utilidades reusables de parsing token-oriented mediante `Compiler_Parser_Utils.H`, útiles para otros parsers recursive-descent sin AST compartido
+- Bindings léxicos reusables mediante `Compiler_Symbol_Bindings.H`, útiles para semántica básica de nombres sin depender del AST MVP
+- Resolución reusable de imports y orden de módulos mediante `Compiler_Module_Resolver.H`, útil para frontends multiarchivo sin depender de `Compiler_Driver.H`
+- Metadatos reusables de superficie de módulo mediante `Compiler_Module_Metadata.H`, útiles para herramientas, exports implícitos y APIs de inspección
+- Linking reusable de superficies de módulo mediante `Compiler_Module_Linker.H`, útil para visibilidad por imports directos y detección temprana de conflictos
+- Binding reusable de nombres top-level entre módulos mediante `Compiler_Module_Binder.H`, útil para herramientas que necesiten inspeccionar qué nombres quedan realmente resolubles después del linkage
+- Caché reusable por módulo de nombres top-level mediante `Compiler_Module_Name_Table.H`, útil para frontends con muchas consultas semánticas repetidas
+- Resolución reusable de nombres top-level entre módulos mediante `Compiler_Module_Name_Resolver.H`, útil para semántica inter-módulo sobre la vista ya ligada
+- Diagnósticos reusables para errores de resolución inter-módulo mediante `Compiler_Module_Name_Diagnostics.H`, útiles para reutilizar wording, notas y ayudas estables
+- Entorno semántico reusable por módulo mediante `Compiler_Module_Semantic_Environment.H`, útil para consumir namespaces de valores y tipos ya separados
 
 ## Punto de extensión reusable
 
@@ -118,14 +143,40 @@ Desde esta iteración, Aleph-w distingue entre:
 
 Eso permite dos estrategias para un lenguaje nuevo:
 
-- reutilizar `ah-source.H`, `ah-diagnostics.H`, scopes, constraints y escribir lexer/parser/AST propios, para luego bajar a HIR o IR
+- reutilizar `ah-source.H`, `ah-diagnostics.H`, `Compiler_Parser_Utils.H`, `Compiler_Symbol_Bindings.H`, `Compiler_Module_Resolver.H`, `Compiler_Module_Metadata.H`, `Compiler_Module_Linker.H`, `Compiler_Module_Binder.H`, `Compiler_Module_Name_Table.H`, `Compiler_Module_Name_Resolver.H`, `Compiler_Module_Name_Diagnostics.H`, `Compiler_Module_Semantic_Environment.H`, scopes y constraints para escribir lexer/parser/AST/sema/modularidad propios, para luego bajar a HIR o IR
 - reutilizar el frontend MVP como ejemplo y sustituir o extender sus piezas gradualmente
 
 El contrato mínimo para entrar al pipeline común es producir una `Compiler_HIR_Module` o una `Compiler_IR_Module` válida a través de una implementación de `Compiler_Frontend`.
 
+Para frontends multiarchivo, `Compiler_Frontend` también expone ahora `module_descriptors()`, `module_merge_order()` y `module_metadata()`. Eso permite que drivers reusables y herramientas externas inspeccionen imports, orden de merge y superficie top-level de cada módulo sin depender de artifacts específicos de cada frontend.
+
 En particular, `Compiler_HIR.H` queda como header umbrella de compatibilidad. El punto reusable nuevo es `Compiler_HIR_Model.H`; el lowering del lenguaje de referencia vive en `Compiler_HIR_Lowering_MVP.H`.
 
 De forma análoga, `Compiler_IR.H` queda como umbrella de compatibilidad. El punto reusable nuevo es `Compiler_IR_Model.H`; el lowering del lenguaje de referencia vive en `Compiler_IR_Lowering_MVP.H`.
+
+Para frontends que no quieran pasar por el lowering del lenguaje MVP, Aleph-w ahora ofrece `Compiler_HIR_Builder.H` y `Compiler_IR_Builder.H`. Esos builders permiten construir módulos manualmente sobre `Compiler_HIR_Context` y `Compiler_IR_Context` mientras preservan spans agregados, membresía de contenedores y, en IR, las relaciones de control-flow entre bloques.
+
+Como validación concreta de ese punto de extensión, `Compiler_Line_Frontend.H` implementa un lenguaje line-oriented mínimo con parser propio, análisis semántico propio y lowering directo a HIR/IR. Los ejemplos [Examples/compiler_builder_example.cc](../Examples/compiler_builder_example.cc) y [Examples/compiler_line_frontend_example.cc](../Examples/compiler_line_frontend_example.cc), junto con [Tests/compiler_builder_test.cc](../Tests/compiler_builder_test.cc) y [Tests/compiler_line_frontend_test.cc](../Tests/compiler_line_frontend_test.cc), cubren tanto builders manuales como un frontend alternativo completo.
+
+Para frontends token-oriented más pequeños, `Compiler_Parser_Utils.H` ofrece `Compiler_Parser_Stream`, un wrapper reusable sobre `Compiler_Lexer` con `peek`, `next`, `match`, `expect`, `expect_identifier`, parseo de listas separadas por delimitadores y sincronización de statements. El ejemplo [Examples/compiler_parser_utils_example.cc](../Examples/compiler_parser_utils_example.cc) y [Tests/compiler_parser_utils_test.cc](../Tests/compiler_parser_utils_test.cc) muestran el uso de esa capa sin depender del AST del lenguaje MVP.
+
+Para frontends que necesiten semántica básica de nombres sin reutilizar `Compiler_Sema.H`, `Compiler_Symbol_Bindings.H` ofrece un stack reusable de bindings léxicos con ids estables, lookup local/global, y resultados estructurados para inserciones duplicadas o con shadowing. El ejemplo [Examples/compiler_symbol_bindings_example.cc](../Examples/compiler_symbol_bindings_example.cc) y [Tests/compiler_symbol_bindings_test.cc](../Tests/compiler_symbol_bindings_test.cc) cubren esa capa; además, tanto `Compiler_Sema.H` como `Compiler_Line_Frontend.H` la usan ya como infraestructura común.
+
+Para frontends multiarchivo que resuelvan imports por nombre exacto de fuente, `Compiler_Module_Resolver.H` ofrece un resolvedor reusable con orden dependency-first, reporte estructurado de dependencias faltantes y ciclos, y artifact textual estable. El ejemplo [Examples/compiler_module_resolver_example.cc](../Examples/compiler_module_resolver_example.cc) y [Tests/compiler_module_resolver_test.cc](../Tests/compiler_module_resolver_test.cc) cubren esa capa; además, tanto `Compiler_Driver.H` como `Compiler_Line_Frontend.H` la usan ya como infraestructura común.
+
+Para herramientas que necesiten inspeccionar la superficie top-level de cada módulo sin entrar al AST, `Compiler_Module_Metadata.H` ofrece un modelo reusable de exports visibles por módulo y un renderer determinista. `Compiler_Generic_Driver.H` publica esa vista como `modules.surface`, y tanto `Compiler_MVP_Frontend.H` como `Compiler_Line_Frontend.H` implementan ya `module_metadata()` sobre ese contrato.
+
+Para herramientas que necesiten inspeccionar qué nombres quedan visibles después de considerar imports directos, `Compiler_Module_Linker.H` ofrece un linker reusable entre `Compiler_Module_Descriptor` y `Compiler_Module_Metadata`. `Compiler_Generic_Driver.H` publica esa vista como `modules.linkage`, y el ejemplo [Examples/compiler_module_linker_example.cc](../Examples/compiler_module_linker_example.cc) junto con [Tests/compiler_module_linker_test.cc](../Tests/compiler_module_linker_test.cc) cubren tanto el caso normal como conflictos de nombres visibles.
+
+Para herramientas que necesiten inspeccionar qué nombres top-level quedan realmente bindables después del linkage, `Compiler_Module_Binder.H` convierte `modules.linkage` en una vista determinista de bindings por módulo. `Compiler_Generic_Driver.H` publica esa vista como `modules.binding`, y el ejemplo [Examples/compiler_module_binder_example.cc](../Examples/compiler_module_binder_example.cc) junto con [Tests/compiler_module_binder_test.cc](../Tests/compiler_module_binder_test.cc) cubren tanto la resolución normal como la omisión de nombres ambiguos.
+
+Para frontends con muchas consultas semánticas repetidas por módulo, `Compiler_Module_Name_Table.H` ofrece una caché reusable derivada de `modules.binding`. `Compiler_Generic_Driver.H` publica esa vista como `modules.names`, y el ejemplo [Examples/compiler_module_name_table_example.cc](../Examples/compiler_module_name_table_example.cc) junto con [Tests/compiler_module_name_table_test.cc](../Tests/compiler_module_name_table_test.cc) cubren tanto la construcción de la tabla como la resolución a través de esa caché.
+
+Para frontends que necesiten resolver un nombre top-level concreto contra esa vista ya ligada, `Compiler_Module_Name_Resolver.H` ofrece resultados estructurados para `Resolved`, `Missing_Module`, `Missing_Name`, `Wrong_Kind` y `Ambiguous_Name`. El ejemplo [Examples/compiler_module_name_resolver_example.cc](../Examples/compiler_module_name_resolver_example.cc) y [Tests/compiler_module_name_resolver_test.cc](../Tests/compiler_module_name_resolver_test.cc) cubren esa capa; además, `Compiler_Line_Frontend.H` la usa ya para validar llamadas top-level respetando imports reales.
+
+Para frontends que además quieran traducir esos resultados a diagnósticos consistentes sin duplicar wording, `Compiler_Module_Name_Diagnostics.H` ofrece una capa reusable sobre `Diagnostic_Engine`. El ejemplo [Examples/compiler_module_name_diagnostics_example.cc](../Examples/compiler_module_name_diagnostics_example.cc) y [Tests/compiler_module_name_diagnostics_test.cc](../Tests/compiler_module_name_diagnostics_test.cc) cubren esa traducción, y `Compiler_Line_Frontend.H` ya la usa para emitir `LIN015`.
+
+Para frontends que quieran consumir directamente un entorno semántico namespace-separated, `Compiler_Module_Semantic_Environment.H` deriva `modules.semantic` a partir de `modules.names` y separa valores de tipos por módulo. El ejemplo [Examples/compiler_module_semantic_environment_example.cc](../Examples/compiler_module_semantic_environment_example.cc) y [Tests/compiler_module_semantic_environment_test.cc](../Tests/compiler_module_semantic_environment_test.cc) cubren esa capa; además, `Compiler_Line_Frontend.H` la usa ya como fast path para validar llamadas top-level.
 
 ## Gramática superficial actual
 
@@ -225,6 +276,7 @@ diagnósticos `DRV001`/`DRV002` para imports faltantes o ciclos.
 - Ejemplo: `Examples/compiler_types_example.cc`
 - Ejemplo: `Examples/compiler_typed_sema_example.cc`
 - Ejemplo: `Examples/compiler_hir_example.cc`
+- Ejemplo: `Examples/compiler_builder_example.cc`
 - Ejemplo: `Examples/interpreter_runtime_example.cc`
 - Ejemplo: `Examples/compiler_cfg_example.cc`
 - Ejemplo: `Examples/compiler_ir_example.cc`
@@ -246,6 +298,7 @@ diagnósticos `DRV001`/`DRV002` para imports faltantes o ciclos.
 - Tests: `Tests/compiler_constraints_test.cc`
 - Tests: `Tests/compiler_typed_sema_test.cc`
 - Tests: `Tests/compiler_hir_test.cc`
+- Tests: `Tests/compiler_builder_test.cc`
 - Tests: `Tests/interpreter_runtime_test.cc`
 - Tests: `Tests/compiler_cfg_test.cc`
 - Tests: `Tests/compiler_ir_test.cc`
@@ -274,6 +327,7 @@ cmake --build build --target \
   compiler_constraints_test \
   compiler_typed_sema_test \
   compiler_hir_test \
+  compiler_builder_test \
   interpreter_runtime_test \
   compiler_cfg_test \
   compiler_ir_test \
@@ -291,6 +345,7 @@ cmake --build build --target \
   compiler_types_example \
   compiler_typed_sema_example \
   compiler_hir_example \
+  compiler_builder_example \
   interpreter_runtime_example \
   compiler_cfg_example \
   compiler_ir_example \

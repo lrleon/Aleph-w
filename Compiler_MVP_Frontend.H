@@ -51,6 +51,7 @@
 #include <Compiler_Frontend.H>
 #include <Compiler_HIR_Lowering_MVP.H>
 #include <Compiler_IR_Lowering_MVP.H>
+#include <Compiler_Module_Resolver.H>
 #include <Compiler_Parser.H>
 
 namespace Aleph
@@ -76,6 +77,8 @@ namespace Aleph
 
     DynArray<std::string> source_names;
     DynArray<Source_File_Id> source_file_ids;
+    DynArray<Compiler_Module_Descriptor> module_descriptors_;
+    DynArray<Compiler_Module_Metadata> module_metadata_;
     DynArray<Compiler_Module *> parsed_modules;
     DynArray<size_t> merge_order_;
     DynArray<Compiler_Driver_Artifact> artifacts_;
@@ -126,14 +129,8 @@ namespace Aleph
     void
     record_import_order_artifact()
     {
-      std::ostringstream out;
-      out << "ImportOrder\n";
-      for (size_t i = 0; i < merge_order_.size(); ++i)
-        {
-          const auto index = merge_order_.access(i);
-          out << "  [" << i << "] " << source_names.access(index) << '\n';
-        }
-      record_text_artifact("imports.order", out.str());
+      record_text_artifact("imports.order",
+                           compiler_render_module_order(merge_order_, module_descriptors_));
     }
 
     void
@@ -149,70 +146,30 @@ namespace Aleph
     }
 
     bool
-    resolve_import_order_visit(const size_t index,
-                               DynArray<unsigned char> & states)
-    {
-      const auto state = states.access(index);
-      if (state == 2)
-        return true;
-      if (state == 1)
-        return false;
-
-      states.access(index) = 1;
-      const auto * module = parsed_modules.access(index);
-      if (module != nullptr)
-        for (size_t i = 0; i < module->imports.size(); ++i)
-          {
-            const auto * decl = module->imports.access(i);
-            if (decl == nullptr or decl->kind != Compiler_Import_Decl_Kind::Import)
-              continue;
-
-            const auto dep_index = find_source_index(decl->module_name);
-            if (dep_index == static_cast<size_t>(-1))
-              {
-                emit_driver_diagnostic(decl->module_name_span,
-                                       "DRV001",
-                                       "cannot resolve import '" + decl->module_name + "'",
-                                       "known sources must match import names exactly");
-                continue;
-              }
-
-            if (dep_index == index)
-              continue;
-
-            if (states.access(dep_index) == 1)
-              {
-                emit_driver_diagnostic(decl->module_name_span,
-                                       "DRV002",
-                                       "cyclic import involving '" + source_names.access(index)
-                                       + "' and '" + decl->module_name + "'",
-                                       "imports currently form one acyclic source-order graph");
-                return false;
-              }
-
-            if (states.access(dep_index) == 0
-                and not resolve_import_order_visit(dep_index, states))
-              return false;
-          }
-
-      states.access(index) = 2;
-      merge_order_.append(index);
-      return true;
-    }
-
-    bool
     resolve_import_order()
     {
       merge_order_.clear();
-      DynArray<unsigned char> states;
-      for (size_t i = 0; i < parsed_modules.size(); ++i)
-        states.append(0);
+      const auto result = compiler_resolve_module_order(module_descriptors_);
+      for (size_t i = 0; i < result.issues.size(); ++i)
+        {
+          const auto & issue = result.issues.access(i);
+          if (issue.kind == Compiler_Module_Resolution_Issue_Kind::Missing_Dependency)
+            emit_driver_diagnostic(issue.span,
+                                   "DRV001",
+                                   "cannot resolve import '" + issue.dependency_name + "'",
+                                   "known sources must match import names exactly");
+          else
+            emit_driver_diagnostic(issue.span,
+                                   "DRV002",
+                                   "cyclic import involving '" + issue.module_name + "' and '"
+                                     + issue.dependency_name + "'",
+                                   "imports currently form one acyclic source-order graph");
+        }
 
-      for (size_t i = 0; i < parsed_modules.size(); ++i)
-        if (states.access(i) == 0 and not resolve_import_order_visit(i, states))
-          return false;
+      for (size_t i = 0; i < result.order.size(); ++i)
+        merge_order_.append(result.order.access(i));
 
-      return not diagnostics.has_errors();
+      return result.valid and not diagnostics.has_errors();
     }
 
     void
@@ -290,6 +247,8 @@ namespace Aleph
     clear() noexcept override
     {
       parsed_modules.clear();
+      module_descriptors_.clear();
+      module_metadata_.clear();
       merge_order_.clear();
       source_names.clear();
       source_file_ids.clear();
@@ -337,6 +296,8 @@ namespace Aleph
     parse() override
     {
       parsed_modules.clear();
+      module_descriptors_.clear();
+      module_metadata_.clear();
 
       for (size_t i = 0; i < source_file_ids.size(); ++i)
         {
@@ -345,7 +306,57 @@ namespace Aleph
                                  source_file_ids.access(i),
                                  &diagnostics,
                                  config.parser_options);
-          parsed_modules.append(parser.parse_module());
+          auto * module = parser.parse_module();
+          parsed_modules.append(module);
+
+          Compiler_Module_Descriptor descriptor;
+          descriptor.name = source_names.access(i);
+          Compiler_Module_Metadata metadata;
+          metadata.name = source_names.access(i);
+          if (module != nullptr)
+            metadata.span = module->span;
+          if (module != nullptr)
+            for (size_t j = 0; j < module->imports.size(); ++j)
+              {
+                const auto * decl = module->imports.access(j);
+                if (decl == nullptr or decl->kind != Compiler_Import_Decl_Kind::Import)
+                  continue;
+                descriptor.imports.append({decl->module_name, decl->module_name_span});
+              }
+
+          if (module != nullptr)
+            {
+              for (size_t j = 0; j < module->type_declarations.size(); ++j)
+                {
+                  const auto * decl = module->type_declarations.access(j);
+                  if (decl == nullptr)
+                    continue;
+                  metadata.exports.append(
+                    {Compiler_Module_Export_Kind::Type, decl->name, decl->name_span});
+                }
+
+              for (size_t j = 0; j < module->functions.size(); ++j)
+                {
+                  const auto * fn = module->functions.access(j);
+                  if (fn == nullptr)
+                    continue;
+                  metadata.exports.append(
+                    {Compiler_Module_Export_Kind::Function, fn->name, fn->name_span});
+                }
+
+              for (size_t j = 0; j < module->statements.size(); ++j)
+                {
+                  const auto * stmt = module->statements.access(j);
+                  if (stmt == nullptr or stmt->kind != Compiler_Stmt_Kind::Let)
+                    continue;
+                  const auto * let_stmt = static_cast<const Compiler_Let_Stmt *>(stmt);
+                  metadata.exports.append(
+                    {Compiler_Module_Export_Kind::Global, let_stmt->name, let_stmt->name_span});
+                }
+            }
+
+          module_descriptors_.append(std::move(descriptor));
+          module_metadata_.append(std::move(metadata));
         }
 
       if (not resolve_import_order())
@@ -434,6 +445,24 @@ namespace Aleph
     ir_module() const noexcept override
     {
       return ir_module_;
+    }
+
+    [[nodiscard]] const DynArray<Compiler_Module_Descriptor> &
+    module_descriptors() const noexcept override
+    {
+      return module_descriptors_;
+    }
+
+    [[nodiscard]] const DynArray<size_t> &
+    module_merge_order() const noexcept override
+    {
+      return merge_order_;
+    }
+
+    [[nodiscard]] const DynArray<Compiler_Module_Metadata> &
+    module_metadata() const noexcept override
+    {
+      return module_metadata_;
     }
 
     [[nodiscard]] const DynArray<Compiler_Driver_Artifact> &

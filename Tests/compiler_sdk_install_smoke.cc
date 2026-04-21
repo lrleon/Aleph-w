@@ -28,22 +28,35 @@
   SOFTWARE.
 */
 
-/** @file Compiler_IR.H
- *  @brief Compatibility umbrella for the reusable IR model and the MVP lowering.
- *
- *  New code that only needs the common IR node model should prefer
- *  `Compiler_IR_Model.H`. Code tied to the current reference frontend can
- *  include `Compiler_IR_Lowering_MVP.H` directly. This umbrella keeps the
- *  previous public include stable for existing users.
- *
- *  @ingroup Utilities
+/**
+ * @file compiler_sdk_install_smoke.cc
+ * @brief External-consumer smoke source for installed compiler SDK headers.
  */
 
-#ifndef COMPILER_IR_H
-#define COMPILER_IR_H
+#include <Compiler_Generic_Driver.H>
+#include <Compiler_Line_Frontend.H>
+#include <Compiler_Module_Name_Diagnostics.H>
+#include <Compiler_Module_Semantic_Environment.H>
 
-#include <Compiler_IR_Builder.H>
-#include <Compiler_IR_Model.H>
-#include <Compiler_IR_Lowering_MVP.H>
+int
+main()
+{
+  using namespace Aleph;
 
-#endif
+  DynArray<Compiler_Driver_Source> inputs;
+  inputs.append({"main.line", "let answer = int 1\n"});
+
+  Compiler_Line_Frontend frontend;
+  Compiler_Generic_Driver driver(frontend);
+  (void) driver.execute_sources(inputs, Compiler_Driver_Action::Parse_Only);
+
+  Compiler_Module_Name_Resolution resolution;
+  resolution.module_name = "main.line";
+  resolution.symbol_name = "answer";
+  resolution.filter = Compiler_Module_Name_Filter::Value;
+
+  Compiler_Module_Semantic_Environment env;
+  (void) compiler_find_module_semantic_environment(env, "main.line");
+  (void) compiler_module_name_resolution_status_name(resolution.status);
+  return 0;
+}

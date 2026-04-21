@@ -28,22 +28,32 @@
   SOFTWARE.
 */
 
-/** @file Compiler_IR.H
- *  @brief Compatibility umbrella for the reusable IR model and the MVP lowering.
- *
- *  New code that only needs the common IR node model should prefer
- *  `Compiler_IR_Model.H`. Code tied to the current reference frontend can
- *  include `Compiler_IR_Lowering_MVP.H` directly. This umbrella keeps the
- *  previous public include stable for existing users.
- *
- *  @ingroup Utilities
+/**
+ * @file compiler_module_resolver_example.cc
+ * @brief Minimal example showing reusable module dependency resolution.
  */
 
-#ifndef COMPILER_IR_H
-#define COMPILER_IR_H
+#include <iostream>
 
-#include <Compiler_IR_Builder.H>
-#include <Compiler_IR_Model.H>
-#include <Compiler_IR_Lowering_MVP.H>
+#include <Compiler_Module_Resolver.H>
 
-#endif
+using namespace Aleph;
+
+int
+main()
+{
+  DynArray<Compiler_Module_Descriptor> modules;
+
+  Compiler_Module_Descriptor main_module;
+  main_module.name = "main.aw";
+  main_module.imports.append({"math.aw", {}});
+  modules.append(std::move(main_module));
+
+  Compiler_Module_Descriptor math_module;
+  math_module.name = "math.aw";
+  modules.append(std::move(math_module));
+
+  const auto result = compiler_resolve_module_order(modules);
+  std::cout << compiler_render_module_order(result.order, modules);
+  std::cout << "Valid: " << (result.valid ? "true" : "false") << '\n';
+}

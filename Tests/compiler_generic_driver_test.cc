@@ -74,6 +74,46 @@ TEST(CompilerGenericDriver, RunsProgramThroughReusableFrontendContract)
   const auto * hir = driver.find_artifact("hir");
   ASSERT_NE(hir, nullptr);
   EXPECT_NE(hir->text.find("HIRModule"), std::string::npos);
+  const auto * order = driver.find_artifact("imports.order");
+  ASSERT_NE(order, nullptr);
+  EXPECT_EQ(order->text,
+            "ImportOrder\n"
+            "  [0] math.aw\n"
+            "  [1] main.aw\n");
+  const auto * surface = driver.find_artifact("modules.surface");
+  ASSERT_NE(surface, nullptr);
+  EXPECT_NE(surface->text.find("Module(main.aw)"), std::string::npos);
+  EXPECT_NE(surface->text.find("Module(math.aw)"), std::string::npos);
+  EXPECT_NE(surface->text.find("Function(add)"), std::string::npos);
+  EXPECT_NE(surface->text.find("Global(answer)"), std::string::npos);
+  const auto * linkage = driver.find_artifact("modules.linkage");
+  ASSERT_NE(linkage, nullptr);
+  EXPECT_NE(linkage->text.find("ModuleLinkage"), std::string::npos);
+  EXPECT_NE(linkage->text.find("Module(main.aw) order=1"), std::string::npos);
+  EXPECT_NE(linkage->text.find("Visible(Function(add)) from math.aw imported"),
+            std::string::npos);
+  EXPECT_NE(linkage->text.find("Visible(Global(answer)) from main.aw local"),
+            std::string::npos);
+  const auto * binding = driver.find_artifact("modules.binding");
+  ASSERT_NE(binding, nullptr);
+  EXPECT_NE(binding->text.find("ModuleBindings"), std::string::npos);
+  EXPECT_NE(binding->text.find("Bind(Function(add)) -> math.aw imported"),
+            std::string::npos);
+  EXPECT_NE(binding->text.find("Bind(Global(answer)) -> main.aw local"),
+            std::string::npos);
+  const auto * names = driver.find_artifact("modules.names");
+  ASSERT_NE(names, nullptr);
+  EXPECT_NE(names->text.find("ModuleNameTable"), std::string::npos);
+  EXPECT_NE(names->text.find("Name(Function(add)) -> math.aw imported"),
+            std::string::npos);
+  const auto * semantic = driver.find_artifact("modules.semantic");
+  ASSERT_NE(semantic, nullptr);
+  EXPECT_NE(semantic->text.find("ModuleSemanticEnvironment"), std::string::npos);
+  EXPECT_NE(semantic->text.find("Value(Function(add)) -> math.aw imported"),
+            std::string::npos);
+  ASSERT_EQ(frontend.module_descriptors().size(), 2u);
+  ASSERT_EQ(frontend.module_merge_order().size(), 2u);
+  ASSERT_EQ(frontend.module_metadata().size(), 2u);
   EXPECT_NE(frontend.find_artifact("ast"), nullptr);
   EXPECT_NE(frontend.find_artifact("typed-sema"), nullptr);
 }

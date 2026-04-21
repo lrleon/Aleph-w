@@ -28,22 +28,44 @@
   SOFTWARE.
 */
 
-/** @file Compiler_IR.H
- *  @brief Compatibility umbrella for the reusable IR model and the MVP lowering.
- *
- *  New code that only needs the common IR node model should prefer
- *  `Compiler_IR_Model.H`. Code tied to the current reference frontend can
- *  include `Compiler_IR_Lowering_MVP.H` directly. This umbrella keeps the
- *  previous public include stable for existing users.
- *
- *  @ingroup Utilities
+/**
+ * @file compiler_module_name_table_example.cc
+ * @brief Minimal example showing cached per-module name tables.
  */
 
-#ifndef COMPILER_IR_H
-#define COMPILER_IR_H
+#include <iostream>
 
-#include <Compiler_IR_Builder.H>
-#include <Compiler_IR_Model.H>
-#include <Compiler_IR_Lowering_MVP.H>
+#include <Compiler_Module_Name_Resolver.H>
 
-#endif
+using namespace Aleph;
+
+int
+main()
+{
+  DynArray<Compiler_Module_Descriptor> descriptors;
+  Compiler_Module_Descriptor main_module;
+  main_module.name = "main.aw";
+  main_module.imports.append({"math.aw", {}});
+  descriptors.append(std::move(main_module));
+  descriptors.append({"math.aw", {}});
+
+  DynArray<Compiler_Module_Metadata> metadata;
+  Compiler_Module_Metadata main_metadata;
+  main_metadata.name = "main.aw";
+  main_metadata.exports.append({Compiler_Module_Export_Kind::Global, "answer", {}});
+  metadata.append(std::move(main_metadata));
+
+  Compiler_Module_Metadata math_metadata;
+  math_metadata.name = "math.aw";
+  math_metadata.exports.append({Compiler_Module_Export_Kind::Function, "add", {}});
+  metadata.append(std::move(math_metadata));
+
+  DynArray<size_t> order;
+  order.append(1);
+  order.append(0);
+
+  const auto linkage = compiler_link_module_surfaces(descriptors, metadata, order);
+  const auto bindings = compiler_bind_module_surfaces(linkage);
+  const auto table = compiler_build_module_name_table(bindings);
+  std::cout << compiler_render_module_name_table(table);
+}

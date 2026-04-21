@@ -28,22 +28,30 @@
   SOFTWARE.
 */
 
-/** @file Compiler_IR.H
- *  @brief Compatibility umbrella for the reusable IR model and the MVP lowering.
- *
- *  New code that only needs the common IR node model should prefer
- *  `Compiler_IR_Model.H`. Code tied to the current reference frontend can
- *  include `Compiler_IR_Lowering_MVP.H` directly. This umbrella keeps the
- *  previous public include stable for existing users.
- *
- *  @ingroup Utilities
+/**
+ * @file compiler_module_metadata_test.cc
+ * @brief Tests for reusable module-surface metadata.
  */
 
-#ifndef COMPILER_IR_H
-#define COMPILER_IR_H
+#include <gtest/gtest.h>
 
-#include <Compiler_IR_Builder.H>
-#include <Compiler_IR_Model.H>
-#include <Compiler_IR_Lowering_MVP.H>
+#include <Compiler_Module_Metadata.H>
 
-#endif
+using namespace Aleph;
+
+TEST(CompilerModuleMetadata, RendersDeterministicModuleSurface)
+{
+  DynArray<Compiler_Module_Metadata> modules;
+
+  Compiler_Module_Metadata module;
+  module.name = "math.aw";
+  module.exports.append({Compiler_Module_Export_Kind::Function, "add", {}});
+  module.exports.append({Compiler_Module_Export_Kind::Global, "answer", {}});
+  modules.append(std::move(module));
+
+  const auto text = compiler_render_module_metadata(modules);
+  EXPECT_NE(text.find("ModuleMetadata"), std::string::npos);
+  EXPECT_NE(text.find("Module(math.aw)"), std::string::npos);
+  EXPECT_NE(text.find("Function(add)"), std::string::npos);
+  EXPECT_NE(text.find("Global(answer)"), std::string::npos);
+}

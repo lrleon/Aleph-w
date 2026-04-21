@@ -189,7 +189,7 @@ TEST(CompilerParser, ParsesNominalTypeDeclarations)
       "  x: Int;\n"
       "  y: Int;\n"
       "}\n"
-      "enum Color { Red, Green, Blue }\n"
+      "enum Color { Red, Green, Blue, }\n"
       "type UserId = Int;\n");
 
   Diagnostic_Engine dx(sm);

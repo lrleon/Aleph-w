@@ -21,12 +21,24 @@ La regla es simple: cuando una etapa queda cerrada y verificada, se marca con
 - [x] Diagnósticos estructurados (`ah-diagnostics.H`)
 - [x] Modelo de tokens (`Compiler_Token.H`)
 - [x] Lexer (`Compiler_Lexer.H`)
+- [x] Utilidades reusables de parser token-oriented (`Compiler_Parser_Utils.H`)
 - [x] AST (`Compiler_AST.H`)
 - [x] Parser (`Compiler_Parser.H`)
 - [x] Operadores reutilizables desacoplados del lexer (`Compiler_Operator.H`)
 - [x] Contratos reusables para frontends y drivers (`Compiler_Driver_Contracts.H`, `Compiler_Frontend.H`)
+- [x] Resolución reusable de módulos/imports (`Compiler_Module_Resolver.H`)
+- [x] Contrato reusable de frontend para exponer módulos y orden de merge
+- [x] Metadatos reusables de superficie de módulo (`Compiler_Module_Metadata.H`)
+- [x] Linking reusable de superficies de módulo (`Compiler_Module_Linker.H`)
+- [x] Binding reusable de nombres top-level entre módulos (`Compiler_Module_Binder.H`)
+- [x] Caché reusable por módulo para nombres top-level (`Compiler_Module_Name_Table.H`)
+- [x] Resolución reusable de nombres top-level entre módulos (`Compiler_Module_Name_Resolver.H`)
+- [x] Diagnósticos reusables para resolución de nombres entre módulos (`Compiler_Module_Name_Diagnostics.H`)
+- [x] Entorno semántico reusable por módulo con namespaces separados (`Compiler_Module_Semantic_Environment.H`)
 - [x] Adapter del frontend MVP (`Compiler_MVP_Frontend.H`)
+- [x] Segundo frontend de validación con sintaxis propia (`Compiler_Line_Frontend.H`)
 - [x] Scopes léxicos (`tpl_scope.H`)
+- [x] Bindings léxicos reusables con ids estables (`Compiler_Symbol_Bindings.H`)
 - [x] Semántica de nombres y control básico (`Compiler_Sema.H`)
 - [x] Grafo de tipos (`Compiler_Types.H`)
 - [x] Constraints y unificación (`tpl_constraints.H`)
@@ -64,8 +76,10 @@ La regla es simple: cuando una etapa queda cerrada y verificada, se marca con
 
 - [x] `Compiler_HIR.H`
 - [x] `Compiler_HIR_Model.H`
+- [x] `Compiler_HIR_Builder.H`
 - [x] `Compiler_HIR_Lowering_MVP.H`
 - [x] Nodos HIR tipados y más estables que el AST
+- [x] Builder reusable para construir HIR sin pasar por el AST MVP
 - [x] Lowering desde AST tipado a HIR
 - [x] Detección clara de efectos, llamadas, control y valores
 - [x] Pretty-printer / dumper de HIR
@@ -90,8 +104,10 @@ La regla es simple: cuando una etapa queda cerrada y verificada, se marca con
 - [x] Validadores de CFG
 - [x] `Compiler_IR.H` o `Compiler_MIR.H`
 - [x] `Compiler_IR_Model.H`
+- [x] `Compiler_IR_Builder.H`
 - [x] `Compiler_IR_Lowering_MVP.H`
 - [x] Instrucciones y valores explícitos
+- [x] Builder reusable para construir IR explícita sin depender del lowering MVP
 - [x] Lowering desde HIR a MIR/IR
 - [x] Dumps textuales deterministas de CFG
 - [x] Tests y examples de CFG
@@ -143,6 +159,7 @@ La regla es simple: cuando una etapa queda cerrada y verificada, se marca con
 - [x] Soporte multiarchivo
 - [x] Artefactos intermedios reproducibles
 - [x] Tests de integración end-to-end
+- [x] Validación con un frontend alternativo que no reutiliza parser/AST MVP
 
 ## Orden recomendado
 

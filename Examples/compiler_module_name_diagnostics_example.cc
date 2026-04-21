@@ -28,22 +28,31 @@
   SOFTWARE.
 */
 
-/** @file Compiler_IR.H
- *  @brief Compatibility umbrella for the reusable IR model and the MVP lowering.
- *
- *  New code that only needs the common IR node model should prefer
- *  `Compiler_IR_Model.H`. Code tied to the current reference frontend can
- *  include `Compiler_IR_Lowering_MVP.H` directly. This umbrella keeps the
- *  previous public include stable for existing users.
- *
- *  @ingroup Utilities
+/**
+ * @file compiler_module_name_diagnostics_example.cc
+ * @brief Minimal example showing reusable diagnostics for module-name lookup.
  */
 
-#ifndef COMPILER_IR_H
-#define COMPILER_IR_H
+#include <iostream>
 
-#include <Compiler_IR_Builder.H>
-#include <Compiler_IR_Model.H>
-#include <Compiler_IR_Lowering_MVP.H>
+#include <Compiler_Module_Name_Diagnostics.H>
 
-#endif
+using namespace Aleph;
+
+int
+main()
+{
+  Source_Manager sm;
+  const auto file = sm.add_virtual_file("main.aw", "let answer = add(1, 2);\n");
+  Diagnostic_Engine diagnostics(sm);
+
+  Compiler_Module_Name_Resolution resolution;
+  resolution.status = Compiler_Module_Name_Resolution_Status::Missing_Name;
+  resolution.module_name = "main.aw";
+  resolution.symbol_name = "add";
+  resolution.filter = Compiler_Module_Name_Filter::Function;
+
+  (void) compiler_emit_module_name_resolution_diagnostic(
+    diagnostics, sm.span(file, 13, 16), resolution, "SDK001", "example callee");
+  diagnostics.render_plain(std::cout);
+}

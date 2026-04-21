@@ -28,22 +28,27 @@
   SOFTWARE.
 */
 
-/** @file Compiler_IR.H
- *  @brief Compatibility umbrella for the reusable IR model and the MVP lowering.
- *
- *  New code that only needs the common IR node model should prefer
- *  `Compiler_IR_Model.H`. Code tied to the current reference frontend can
- *  include `Compiler_IR_Lowering_MVP.H` directly. This umbrella keeps the
- *  previous public include stable for existing users.
- *
- *  @ingroup Utilities
+/**
+ * @file compiler_symbol_bindings_example.cc
+ * @brief Minimal example showing reusable lexical symbol bindings.
  */
 
-#ifndef COMPILER_IR_H
-#define COMPILER_IR_H
+#include <iostream>
 
-#include <Compiler_IR_Builder.H>
-#include <Compiler_IR_Model.H>
-#include <Compiler_IR_Lowering_MVP.H>
+#include <Compiler_Symbol_Bindings.H>
 
-#endif
+using namespace Aleph;
+
+int
+main()
+{
+  Compiler_Symbol_Bindings bindings;
+  bindings.enter_scope();
+  (void) bindings.declare(Compiler_Symbol_Kind::Function, "add", {});
+
+  bindings.enter_scope();
+  const auto shadow = bindings.declare(Compiler_Symbol_Kind::Local, "add", {});
+
+  std::cout << bindings.dump_symbols();
+  std::cout << "Shadowing: " << (shadow.shadowing() ? "yes" : "no") << '\n';
+}

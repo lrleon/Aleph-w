@@ -20,9 +20,24 @@ When a stage is fully implemented and verified, it should be marked with `[x]`.
 - [x] Structured diagnostics (`ah-diagnostics.H`)
 - [x] Token model (`Compiler_Token.H`)
 - [x] Lexer (`Compiler_Lexer.H`)
+- [x] Reusable token-oriented parser utilities (`Compiler_Parser_Utils.H`)
 - [x] AST (`Compiler_AST.H`)
 - [x] Parser (`Compiler_Parser.H`)
+- [x] Reusable operators decoupled from the lexer (`Compiler_Operator.H`)
+- [x] Reusable front-end and driver contracts (`Compiler_Driver_Contracts.H`, `Compiler_Frontend.H`)
+- [x] Reusable module/import resolution (`Compiler_Module_Resolver.H`)
+- [x] Reusable front-end contract for exposing modules and merge order
+- [x] Reusable module-surface metadata (`Compiler_Module_Metadata.H`)
+- [x] Reusable module-surface linking (`Compiler_Module_Linker.H`)
+- [x] Reusable top-level binding across modules (`Compiler_Module_Binder.H`)
+- [x] Reusable per-module top-level name cache (`Compiler_Module_Name_Table.H`)
+- [x] Reusable top-level name resolution across modules (`Compiler_Module_Name_Resolver.H`)
+- [x] Reusable diagnostics for cross-module name resolution (`Compiler_Module_Name_Diagnostics.H`)
+- [x] Reusable per-module semantic environment with separated namespaces (`Compiler_Module_Semantic_Environment.H`)
+- [x] MVP front-end adapter (`Compiler_MVP_Frontend.H`)
+- [x] Second validation front-end with its own syntax (`Compiler_Line_Frontend.H`)
 - [x] Lexical scopes (`tpl_scope.H`)
+- [x] Reusable lexical bindings with stable ids (`Compiler_Symbol_Bindings.H`)
 - [x] Base semantic analysis and control checks (`Compiler_Sema.H`)
 - [x] Type graph (`Compiler_Types.H`)
 - [x] Constraints and unification (`tpl_constraints.H`)
@@ -59,7 +74,11 @@ When a stage is fully implemented and verified, it should be marked with `[x]`.
 ### 4. Reusable HIR for compilers and interpreters
 
 - [x] `Compiler_HIR.H`
+- [x] `Compiler_HIR_Model.H`
+- [x] `Compiler_HIR_Builder.H`
+- [x] `Compiler_HIR_Lowering_MVP.H`
 - [x] Typed HIR nodes more stable than the AST
+- [x] Reusable builder for constructing HIR without going through the MVP AST
 - [x] Lowering from typed AST to HIR
 - [x] Clear representation of effects, calls, control, and values
 - [x] HIR pretty-printer / dumper
@@ -83,7 +102,11 @@ When a stage is fully implemented and verified, it should be marked with `[x]`.
 - [x] Per-function CFG builder
 - [x] CFG validators
 - [x] `Compiler_IR.H` or `Compiler_MIR.H`
+- [x] `Compiler_IR_Model.H`
+- [x] `Compiler_IR_Builder.H`
+- [x] `Compiler_IR_Lowering_MVP.H`
 - [x] Explicit instructions and values
+- [x] Reusable builder for constructing explicit IR without depending on MVP lowering
 - [x] Lowering from HIR to MIR/IR
 - [x] Deterministic CFG textual dumps
 - [x] CFG tests and examples
@@ -129,11 +152,14 @@ When a stage is fully implemented and verified, it should be marked with `[x]`.
 ### 11. Driver and toolchain
 
 - [x] `Compiler_Driver.H`
+- [x] `Compiler_Generic_Driver.H`
 - [x] Stage-configurable pipeline
 - [x] `parse-only`, `sema-only`, `hir`, `ir`, `run`, `emit-c`, `emit-bytecode`
 - [x] Multi-file support
 - [x] Reproducible intermediate artifacts
 - [x] End-to-end integration tests
+- [x] Validation with an alternate front-end that does not reuse the MVP parser/AST
+- [x] Installed-SDK smoke validation for public compiler headers
 
 ## Recommended order
 

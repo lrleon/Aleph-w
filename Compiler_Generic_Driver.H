@@ -54,6 +54,10 @@
 #include <Bytecode.H>
 #include <Compiler_Backend_C.H>
 #include <Compiler_Frontend.H>
+#include <Compiler_Module_Binder.H>
+#include <Compiler_Module_Linker.H>
+#include <Compiler_Module_Name_Table.H>
+#include <Compiler_Module_Semantic_Environment.H>
 
 namespace Aleph
 {
@@ -124,6 +128,103 @@ namespace Aleph
     }
 
     void
+    record_import_order_artifact()
+    {
+      if (frontend->find_artifact("imports.order") != nullptr)
+        return;
+
+      const auto & modules = frontend->module_descriptors();
+      const auto & order = frontend->module_merge_order();
+      if (modules.is_empty() or order.is_empty())
+        return;
+
+      record_text_artifact("imports.order", compiler_render_module_order(order, modules));
+    }
+
+    void
+    record_module_metadata_artifact()
+    {
+      if (frontend->find_artifact("modules.surface") != nullptr)
+        return;
+
+      const auto & metadata = frontend->module_metadata();
+      if (metadata.is_empty())
+        return;
+
+      record_text_artifact("modules.surface", compiler_render_module_metadata(metadata));
+    }
+
+    void
+    record_module_linkage_artifact()
+    {
+      if (frontend->find_artifact("modules.linkage") != nullptr)
+        return;
+
+      const auto & descriptors = frontend->module_descriptors();
+      const auto & metadata = frontend->module_metadata();
+      const auto & order = frontend->module_merge_order();
+      if (descriptors.is_empty() or metadata.is_empty() or order.is_empty())
+        return;
+
+      const auto linkage = compiler_link_module_surfaces(descriptors, metadata, order);
+      record_text_artifact("modules.linkage", compiler_render_module_linkage(linkage));
+    }
+
+    void
+    record_module_bindings_artifact()
+    {
+      if (frontend->find_artifact("modules.binding") != nullptr)
+        return;
+
+      const auto & descriptors = frontend->module_descriptors();
+      const auto & metadata = frontend->module_metadata();
+      const auto & order = frontend->module_merge_order();
+      if (descriptors.is_empty() or metadata.is_empty() or order.is_empty())
+        return;
+
+      const auto linkage = compiler_link_module_surfaces(descriptors, metadata, order);
+      const auto bindings = compiler_bind_module_surfaces(linkage);
+      record_text_artifact("modules.binding", compiler_render_module_bindings(bindings));
+    }
+
+    void
+    record_module_name_table_artifact()
+    {
+      if (frontend->find_artifact("modules.names") != nullptr)
+        return;
+
+      const auto & descriptors = frontend->module_descriptors();
+      const auto & metadata = frontend->module_metadata();
+      const auto & order = frontend->module_merge_order();
+      if (descriptors.is_empty() or metadata.is_empty() or order.is_empty())
+        return;
+
+      const auto linkage = compiler_link_module_surfaces(descriptors, metadata, order);
+      const auto bindings = compiler_bind_module_surfaces(linkage);
+      const auto table = compiler_build_module_name_table(bindings);
+      record_text_artifact("modules.names", compiler_render_module_name_table(table));
+    }
+
+    void
+    record_module_semantic_environment_artifact()
+    {
+      if (frontend->find_artifact("modules.semantic") != nullptr)
+        return;
+
+      const auto & descriptors = frontend->module_descriptors();
+      const auto & metadata = frontend->module_metadata();
+      const auto & order = frontend->module_merge_order();
+      if (descriptors.is_empty() or metadata.is_empty() or order.is_empty())
+        return;
+
+      const auto linkage = compiler_link_module_surfaces(descriptors, metadata, order);
+      const auto bindings = compiler_bind_module_surfaces(linkage);
+      const auto table = compiler_build_module_name_table(bindings);
+      const auto env = compiler_build_module_semantic_environment(table);
+      record_text_artifact("modules.semantic", compiler_render_module_semantic_environment(env));
+    }
+
+    void
     record_driver_messages_artifact()
     {
       record_text_artifact("driver.messages",
@@ -180,6 +281,12 @@ namespace Aleph
     {
       last_action_ = action;
       collect_frontend_state();
+      record_import_order_artifact();
+      record_module_metadata_artifact();
+      record_module_linkage_artifact();
+      record_module_bindings_artifact();
+      record_module_name_table_artifact();
+      record_module_semantic_environment_artifact();
       record_driver_messages_artifact();
       record_diagnostics_artifact();
       return ok();

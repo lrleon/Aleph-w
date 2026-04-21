@@ -42,6 +42,7 @@
 #ifndef COMPILER_HIR_H
 #define COMPILER_HIR_H
 
+#include <Compiler_HIR_Builder.H>
 #include <Compiler_HIR_Model.H>
 #include <Compiler_HIR_Lowering_MVP.H>
 

@@ -47,6 +47,8 @@
 
 #include <Compiler_Driver_Contracts.H>
 #include <Compiler_IR_Model.H>
+#include <Compiler_Module_Metadata.H>
+#include <Compiler_Module_Resolver.H>
 #include <ah-diagnostics.H>
 
 namespace Aleph
@@ -116,6 +118,40 @@ namespace Aleph
     /** @brief Returns the lowered IR module from the last run, when available. */
     [[nodiscard]] virtual const Compiler_IR_Module *
     ir_module() const noexcept = 0;
+
+    /** @brief Returns parsed module descriptors for reusable import orchestration.
+     *
+     *  Frontends that do not model imports may return an empty array.
+     */
+    [[nodiscard]] virtual const DynArray<Compiler_Module_Descriptor> &
+    module_descriptors() const noexcept
+    {
+      static const DynArray<Compiler_Module_Descriptor> empty;
+      return empty;
+    }
+
+    /** @brief Returns the dependency-first merge order from the last parse.
+     *
+     *  Frontends that do not reorder modules may return an empty array.
+     */
+    [[nodiscard]] virtual const DynArray<size_t> &
+    module_merge_order() const noexcept
+    {
+      static const DynArray<size_t> empty;
+      return empty;
+    }
+
+    /** @brief Returns reusable metadata for the top-level surface of each module.
+     *
+     *  Until the platform grows explicit export syntax, frontends typically map
+     *  this to all top-level declarations that the module contributes.
+     */
+    [[nodiscard]] virtual const DynArray<Compiler_Module_Metadata> &
+    module_metadata() const noexcept
+    {
+      static const DynArray<Compiler_Module_Metadata> empty;
+      return empty;
+    }
 
     /** @brief Returns all frontend-produced artifacts from the last run. */
     [[nodiscard]] virtual const DynArray<Compiler_Driver_Artifact> &

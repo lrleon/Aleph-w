@@ -645,63 +645,6 @@ namespace
     return std::system("python3 --version > /dev/null 2>&1") == 0;
   }
 
-
-  std::string
-  default_gephi_probe_name()
-  {
-# ifdef _WIN32
-    return "gephi.exe";
-# else
-    return "gephi";
-# endif
-  }
-
-
-  bool
-  has_path_executable(const std::string & name)
-  {
-    namespace fs = std::filesystem;
-    const char * raw_path = std::getenv("PATH");
-    if (raw_path == nullptr)
-      return false;
-
-# ifdef _WIN32
-    const char separator = ';';
-# else
-    const char separator = ':';
-# endif
-
-    std::stringstream ss(raw_path);
-    std::string dir;
-    while (std::getline(ss, dir, separator))
-      {
-        if (dir.empty())
-          continue;
-
-        const fs::path candidate = fs::path(dir) / name;
-        std::error_code ec_check;
-        if (not fs::exists(candidate, ec_check) or ec_check
-            or not fs::is_regular_file(candidate, ec_check) or ec_check)
-          continue;
-
-# ifdef _WIN32
-        return true;
-# else
-        std::error_code ec;
-        const auto perms = fs::status(candidate, ec).permissions();
-        if (ec)
-          continue;
-
-        if ((perms & fs::perms::owner_exec) != fs::perms::none
-            or (perms & fs::perms::group_exec) != fs::perms::none
-            or (perms & fs::perms::others_exec) != fs::perms::none)
-          return true;
-# endif
-      }
-
-    return false;
-  }
-
 } // namespace
 
 
@@ -1735,15 +1678,14 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiModeIsPortable)
       {graphml_path}, false, false, true, false);
   EXPECT_EQ(rc_optional, 0);
 
-  const bool has_gephi_available =
-      has_path_executable(default_gephi_probe_name());
+  const std::string lbl = "gephi_portable_mode";
   const int rc_required = run_external_certificate_validator(
-      {graphml_path}, false, false, true, true);
+      {graphml_path}, false, false, true, true, "", "", lbl);
+  EXPECT_EQ(rc_required, 0);
 
-  if (has_gephi_available)
-    EXPECT_EQ(rc_required, 0);
-  else
-    EXPECT_NE(rc_required, 0);
+  const std::string report = read_text_file(validator_stdout_path(lbl));
+  EXPECT_NE(report.find("overall_valid=true"), std::string::npos);
+  EXPECT_NE(report.find("running smoke check only"), std::string::npos);
 }
 
 

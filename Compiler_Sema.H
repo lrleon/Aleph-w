@@ -51,53 +51,13 @@
 #ifndef COMPILER_SEMA_H
 #define COMPILER_SEMA_H
 
-#include <sstream>
 #include <string>
 
 #include <Compiler_AST.H>
+#include <Compiler_Symbol_Bindings.H>
 #include <ah-diagnostics.H>
-#include <tpl_scope.H>
 
 namespace Aleph {
-using Compiler_Symbol_Id = size_t;
-
-/** @brief Kinds of symbols tracked by the semantic analyzer. */
-enum class Compiler_Symbol_Kind
-{
-  Function,
-  Parameter,
-  Local,
-  Global
-};
-
-/** @brief Returns a stable debug name for a symbol kind. */
-inline const char *compiler_symbol_kind_name(const Compiler_Symbol_Kind kind) noexcept
-{
-  switch (kind)
-    {
-    case Compiler_Symbol_Kind::Function:
-      return "Function";
-    case Compiler_Symbol_Kind::Parameter:
-      return "Parameter";
-    case Compiler_Symbol_Kind::Local:
-      return "Local";
-    case Compiler_Symbol_Kind::Global:
-      return "Global";
-    }
-
-  return "Unknown";
-}
-
-/** @brief Symbol table entry produced by semantic analysis. */
-struct Compiler_Symbol
-{
-  Compiler_Symbol_Id id = 0;                                ///< Stable symbol identifier, 1-based.
-  Compiler_Symbol_Kind kind = Compiler_Symbol_Kind::Local;  ///< Symbol category.
-  std::string name;                                         ///< Declared name.
-  Source_Span declaration_span;                             ///< Declaration site.
-  size_t scope_depth = 0;  ///< Lexical depth where the symbol was introduced.
-};
-
 /** @brief Mapping from an identifier expression to its resolved symbol. */
 struct Compiler_Name_Resolution
 {
@@ -116,10 +76,9 @@ class Compiler_Semantic_Analyzer
 {
   Diagnostic_Engine *diagnostics = nullptr;
   Compiler_Semantic_Options options;
-  DynArray<Compiler_Symbol> symbols;
   DynArray<Compiler_Name_Resolution> resolutions;
-  Scope<std::string, Compiler_Symbol_Id> scopes;
-  Scope<std::string, Source_Span> type_scopes;
+  Compiler_Symbol_Bindings value_bindings;
+  Compiler_Symbol_Bindings type_bindings;
   size_t function_depth = 0;
   size_t loop_depth = 0;
 
@@ -140,41 +99,21 @@ class Compiler_Semantic_Analyzer
     builder.emit();
   }
 
-  Compiler_Symbol_Id append_symbol(const Compiler_Symbol_Kind kind,
-                                   const std::string &name,
-                                   const Source_Span &span)
-  {
-    Compiler_Symbol sym;
-    sym.id = symbols.size() + 1;
-    sym.kind = kind;
-    sym.name = name;
-    sym.declaration_span = span;
-    sym.scope_depth = scopes.depth() > 0 ? scopes.depth() - 1 : 0;
-    symbols.append(std::move(sym));
-    return symbols.size();
-  }
-
   Compiler_Symbol_Id declare_symbol(const Compiler_Symbol_Kind kind,
                                     const std::string &name,
                                     const Source_Span &span)
   {
-    ah_runtime_error_unless(scopes.depth() > 0) << "Compiler_Semantic_Analyzer: no active scope";
-
-    if (const auto *local = scopes.lookup_local(name); local != nullptr)
+    const auto result = value_bindings.declare(kind, name, span);
+    if (result.duplicate_local())
       {
         emit_error(span, "duplicate declaration of '" + name + "'", "SEM001");
-        return *local;
+        return result.symbol_id;
       }
 
-    if (not options.allow_shadowing)
-      if (const auto *existing = scopes.lookup(name); existing != nullptr)
-        emit_error(span, "shadowing declaration of '" + name + "' is not allowed", "SEM007");
+    if (result.shadowing() and not options.allow_shadowing)
+      emit_error(span, "shadowing declaration of '" + name + "' is not allowed", "SEM007");
 
-    const auto id = append_symbol(kind, name, span);
-    const bool inserted = scopes.insert(name, id);
-    ah_runtime_error_unless(inserted)
-      << "Compiler_Semantic_Analyzer: unexpected duplicate insertion for '" << name << "'";
-    return id;
+    return result.symbol_id;
   }
 
   void record_resolution(const Compiler_Expr *expr, const Compiler_Symbol_Id symbol_id)
@@ -184,16 +123,12 @@ class Compiler_Semantic_Analyzer
 
   void declare_type_name(const std::string &name, const Source_Span &span)
   {
-    ah_runtime_error_unless(type_scopes.depth() > 0)
-      << "Compiler_Semantic_Analyzer: no active type scope";
-
-    if (type_scopes.lookup_local(name) != nullptr)
+    const auto result = type_bindings.declare(Compiler_Symbol_Kind::Type, name, span);
+    if (result.duplicate_local())
       {
         emit_error(span, "duplicate type declaration of '" + name + "'", "SEM008");
         return;
       }
-
-    (void) type_scopes.insert(name, span);
   }
 
   void analyze_imports(const Compiler_Module *module) const
@@ -247,7 +182,7 @@ class Compiler_Semantic_Analyzer
       case Compiler_Expr_Kind::Identifier:
         {
           const auto *node = static_cast<const Compiler_Identifier_Expr *>(expr);
-          const auto *symbol_id = scopes.lookup(node->name);
+          const auto *symbol_id = value_bindings.lookup(node->name);
           if (symbol_id == nullptr)
             {
               emit_error(node->span, "use of undeclared identifier '" + node->name + "'", "SEM002");
@@ -290,10 +225,10 @@ class Compiler_Semantic_Analyzer
     if (block == nullptr)
       return;
 
-    scopes.enter_scope();
+    value_bindings.enter_scope();
     for (size_t i = 0; i < block->statements.size(); ++i)
       analyze_stmt(block->statements.access(i));
-    scopes.leave_scope();
+    value_bindings.leave_scope();
   }
 
   void analyze_stmt(const Compiler_Stmt *stmt)
@@ -376,14 +311,14 @@ class Compiler_Semantic_Analyzer
       return;
 
     ++function_depth;
-    scopes.enter_scope();
+    value_bindings.enter_scope();
     for (size_t i = 0; i < fn->parameters.size(); ++i)
       {
         const auto &param = fn->parameters.access(i);
         (void) declare_symbol(Compiler_Symbol_Kind::Parameter, param.name, param.span);
       }
     analyze_block(fn->body);
-    scopes.leave_scope();
+    value_bindings.leave_scope();
     --function_depth;
   }
 
@@ -401,10 +336,9 @@ public:
   /** @brief Clears previously collected semantic state. */
   void clear() noexcept
   {
-    symbols.clear();
     resolutions.clear();
-    scopes.clear();
-    type_scopes.clear();
+    value_bindings.clear();
+    type_bindings.clear();
     function_depth = 0;
     loop_depth = 0;
   }
@@ -421,8 +355,8 @@ public:
     if (module == nullptr)
       return;
 
-    scopes.enter_scope();
-    type_scopes.enter_scope();
+    value_bindings.enter_scope();
+    type_bindings.enter_scope();
 
     analyze_imports(module);
 
@@ -446,14 +380,14 @@ public:
     for (size_t i = 0; i < module->functions.size(); ++i)
       analyze_function(module->functions.access(i));
 
-    scopes.leave_scope();
-    type_scopes.leave_scope();
+    value_bindings.leave_scope();
+    type_bindings.leave_scope();
   }
 
   /** @brief Returns the number of collected symbols. */
   size_t symbol_count() const noexcept
   {
-    return symbols.size();
+    return value_bindings.symbol_count();
   }
 
   /** @brief Returns the number of identifier resolutions. */
@@ -470,9 +404,7 @@ public:
    */
   const Compiler_Symbol &symbol(const Compiler_Symbol_Id id) const
   {
-    ah_out_of_range_error_unless(id > 0 and id <= symbols.size())
-      << "Compiler_Semantic_Analyzer::symbol(): invalid id " << id;
-    return symbols.access(id - 1);
+    return value_bindings.symbol(id);
   }
 
   /** @brief Returns resolution record `i`.
@@ -499,7 +431,8 @@ public:
       if (resolutions.access(i).expr == expr)
         {
           const auto id = resolutions.access(i).symbol_id;
-          return id > 0 and id <= symbols.size() ? &symbols.access(id - 1) : nullptr;
+          return id > 0 and id <= value_bindings.symbol_count() ? &value_bindings.symbol(id)
+                                                                : nullptr;
         }
     return nullptr;
   }
@@ -507,15 +440,7 @@ public:
   /** @brief Dumps the current symbol table in a deterministic text format. */
   std::string dump_symbols() const
   {
-    std::ostringstream out;
-    out << "Symbols\n";
-    for (size_t i = 0; i < symbols.size(); ++i)
-      {
-        const auto &sym = symbols.access(i);
-        out << "  #" << sym.id << " " << compiler_symbol_kind_name(sym.kind) << " " << sym.name
-            << " scope=" << sym.scope_depth << " @" << sym.declaration_span.to_string() << '\n';
-      }
-    return out.str();
+    return value_bindings.dump_symbols();
   }
 };
 }  // namespace Aleph

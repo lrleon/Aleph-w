@@ -3956,8 +3956,10 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 #### Compiler Tooling
 
 See the [Compiler Front-End Support Guide](docs/compiler_frontend_support.en.md)
-for the intended scope, examples, and current limits of these headers. The
-longer-term platform roadmap lives in
+for the intended scope, examples, and current limits of these headers. For a
+new-language integration path, see the
+[Compiler Front-End SDK Quickstart](docs/compiler_frontend_sdk_quickstart.en.md).
+The longer-term platform roadmap lives in
 [docs/compiler_platform_roadmap.en.md](docs/compiler_platform_roadmap.en.md).
 
 | Header | Type/Function | Description |

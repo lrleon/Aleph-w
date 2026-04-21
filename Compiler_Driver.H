@@ -73,6 +73,7 @@
 #include <Compiler_Driver_Contracts.H>
 #include <Compiler_HIR_Lowering_MVP.H>
 #include <Compiler_IR_Lowering_MVP.H>
+#include <Compiler_Module_Resolver.H>
 #include <Compiler_Parser.H>
 #include <Interpreter_Runtime.H>
 #include <tpl_dynArray.H>
@@ -180,14 +181,10 @@ namespace Aleph
     void
     record_import_order_artifact()
     {
-      std::ostringstream out;
-      out << "ImportOrder\n";
-      for (size_t i = 0; i < merge_order_.size(); ++i)
-        {
-          const auto index = merge_order_.access(i);
-          out << "  [" << i << "] " << source_names.access(index) << '\n';
-        }
-      record_text_artifact("imports.order", out.str());
+      DynArray<Compiler_Module_Descriptor> modules;
+      for (size_t i = 0; i < source_names.size(); ++i)
+        modules.append({source_names.access(i), {}});
+      record_text_artifact("imports.order", compiler_render_module_order(merge_order_, modules));
     }
 
     void
@@ -203,70 +200,48 @@ namespace Aleph
     }
 
     bool
-    resolve_import_order_visit(const size_t index,
-                               DynArray<unsigned char> & states)
-    {
-      const auto state = states.access(index);
-      if (state == 2)
-        return true;
-      if (state == 1)
-        return false;
-
-      states.access(index) = 1;
-      const auto * module = parsed_modules.access(index);
-      if (module != nullptr)
-        for (size_t i = 0; i < module->imports.size(); ++i)
-          {
-            const auto * decl = module->imports.access(i);
-            if (decl == nullptr or decl->kind != Compiler_Import_Decl_Kind::Import)
-              continue;
-
-            const auto dep_index = find_source_index(decl->module_name);
-            if (dep_index == static_cast<size_t>(-1))
-              {
-                emit_driver_diagnostic(decl->module_name_span,
-                                       "DRV001",
-                                       "cannot resolve import '" + decl->module_name + "'",
-                                       "known sources must match import names exactly");
-                continue;
-              }
-
-            if (dep_index == index)
-              continue;
-
-            if (states.access(dep_index) == 1)
-              {
-                emit_driver_diagnostic(decl->module_name_span,
-                                       "DRV002",
-                                       "cyclic import involving '" + source_names.access(index)
-                                       + "' and '" + decl->module_name + "'",
-                                       "imports currently form one acyclic source-order graph");
-                return false;
-              }
-
-            if (states.access(dep_index) == 0
-                and not resolve_import_order_visit(dep_index, states))
-              return false;
-          }
-
-      states.access(index) = 2;
-      merge_order_.append(index);
-      return true;
-    }
-
-    bool
     resolve_import_order()
     {
       merge_order_.clear();
-      DynArray<unsigned char> states;
-      for (size_t i = 0; i < parsed_modules.size(); ++i)
-        states.append(0);
 
+      DynArray<Compiler_Module_Descriptor> modules;
       for (size_t i = 0; i < parsed_modules.size(); ++i)
-        if (states.access(i) == 0 and not resolve_import_order_visit(i, states))
-          return false;
+        {
+          Compiler_Module_Descriptor module;
+          module.name = source_names.access(i);
+          const auto * parsed = parsed_modules.access(i);
+          if (parsed != nullptr)
+            for (size_t j = 0; j < parsed->imports.size(); ++j)
+              {
+                const auto * decl = parsed->imports.access(j);
+                if (decl == nullptr or decl->kind != Compiler_Import_Decl_Kind::Import)
+                  continue;
+                module.imports.append({decl->module_name, decl->module_name_span});
+              }
+          modules.append(std::move(module));
+        }
 
-      return not diagnostics.has_errors();
+      const auto result = compiler_resolve_module_order(modules);
+      for (size_t i = 0; i < result.issues.size(); ++i)
+        {
+          const auto & issue = result.issues.access(i);
+          if (issue.kind == Compiler_Module_Resolution_Issue_Kind::Missing_Dependency)
+            emit_driver_diagnostic(issue.span,
+                                   "DRV001",
+                                   "cannot resolve import '" + issue.dependency_name + "'",
+                                   "known sources must match import names exactly");
+          else
+            emit_driver_diagnostic(issue.span,
+                                   "DRV002",
+                                   "cyclic import involving '" + issue.module_name + "' and '"
+                                     + issue.dependency_name + "'",
+                                   "imports currently form one acyclic source-order graph");
+        }
+
+      for (size_t i = 0; i < result.order.size(); ++i)
+        merge_order_.append(result.order.access(i));
+
+      return result.valid and not diagnostics.has_errors();
     }
 
     void
