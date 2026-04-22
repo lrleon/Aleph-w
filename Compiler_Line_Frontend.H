@@ -52,6 +52,7 @@
 #ifndef COMPILER_LINE_FRONTEND_H
 #define COMPILER_LINE_FRONTEND_H
 
+#include <charconv>
 #include <cctype>
 #include <cstdlib>
 #include <sstream>
@@ -196,12 +197,10 @@ namespace Aleph
       if (text.empty())
         return false;
 
-      char * end = nullptr;
-      const auto parsed = std::strtoll(std::string(text).c_str(), &end, 10);
-      if (end == nullptr or *end != '\0')
-        return false;
-      value = parsed;
-      return true;
+      const char * const begin = text.data();
+      const char * const finish = begin + text.size();
+      const auto result = std::from_chars(begin, finish, value);
+      return result.ec == std::errc{} and result.ptr == finish;
     }
 
     static Compiler_Operator_Kind

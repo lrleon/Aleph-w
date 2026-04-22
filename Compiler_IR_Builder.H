@@ -485,13 +485,15 @@ namespace Aleph
       add_edge(function, from, function.exit_block);
     }
 
-    /** @brief Marks one block as the canonical exit block. */
+    /** @brief Sets one block terminator to `Exit`. */
     void
     set_exit(Compiler_IR_Function & function,
              const Compiler_IR_Block_Id block_id,
              const Source_Span & span = {}) const
     {
       auto & blk = block(function, block_id);
+      ah_runtime_error_unless(not blk.is_terminated())
+        << "Compiler_IR_Builder::set_exit(): block already terminated";
       blk.terminator.kind = Compiler_IR_Terminator_Kind::Exit;
       blk.terminator.successors.clear();
       set_terminator_span(function, blk, span);

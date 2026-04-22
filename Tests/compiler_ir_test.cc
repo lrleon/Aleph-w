@@ -211,3 +211,38 @@ TEST(CompilerIR, ValidatorWarnsAboutUnreachableBlocks)
   ASSERT_EQ(report.warnings.size(), 1u);
   EXPECT_NE(report.warnings.access(0).find("unreachable"), std::string::npos);
 }
+
+TEST(CompilerIR, ValidatorRejectsReturnPointingToNonExitBlock)
+{
+  Compiler_IR_Function function;
+  function.name = "manual";
+  function.entry_block = 0;
+  function.exit_block = 1;
+  function.next_value_id = 1;
+
+  Compiler_IR_Block entry;
+  entry.id = 0;
+  entry.label = "entry";
+  entry.terminator.kind = Compiler_IR_Terminator_Kind::Return;
+  entry.terminator.return_value = 1;
+  entry.terminator.successors.append(2);
+
+  Compiler_IR_Block exit;
+  exit.id = 1;
+  exit.label = "exit";
+  exit.terminator.kind = Compiler_IR_Terminator_Kind::Exit;
+
+  Compiler_IR_Block wrong_target;
+  wrong_target.id = 2;
+  wrong_target.label = "wrong_target";
+  wrong_target.terminator.kind = Compiler_IR_Terminator_Kind::Unreachable;
+
+  function.blocks.append(entry);
+  function.blocks.append(exit);
+  function.blocks.append(wrong_target);
+
+  const auto report = validate_ir_function(function);
+  ASSERT_FALSE(report.valid);
+  ASSERT_EQ(report.errors.size(), 1u);
+  EXPECT_NE(report.errors.access(0).find("must point to exit block B1"), std::string::npos);
+}

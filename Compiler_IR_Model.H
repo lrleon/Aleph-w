@@ -455,6 +455,10 @@ inline Compiler_IR_Validation_Report validate_ir_function(const Compiler_IR_Func
           if (block.terminator.successors.size() != 1)
             fail("Return terminator in " + Compiler_IR_Detail::block_name(i)
                  + " must point to the exit block");
+          else if (block.terminator.successors.access(0) != function.exit_block)
+            fail("Return terminator in " + Compiler_IR_Detail::block_name(i)
+                 + " must point to exit block "
+                 + Compiler_IR_Detail::block_name(function.exit_block));
           break;
         case Compiler_IR_Terminator_Kind::Exit:
           if (block.id != function.exit_block)

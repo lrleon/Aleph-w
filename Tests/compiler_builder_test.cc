@@ -195,3 +195,16 @@ TEST(CompilerBuilder, BuildsValidatedIRWithoutHIRLowering)
     "      Terminator: Exit\n"
     "      Successors: <none>\n");
 }
+
+TEST(CompilerBuilder, RejectsOverwritingExitTerminator)
+{
+  Compiler_IR_Context ir_ctx(1 << 15);
+  Compiler_IR_Builder ir(ir_ctx);
+
+  auto * function = ir.make_function("manual");
+  const auto exit = ir.create_block(*function, "exit");
+  ir.set_exit_block(*function, exit);
+  ir.set_exit(*function, exit);
+
+  EXPECT_THROW(ir.set_exit(*function, exit), std::runtime_error);
+}
