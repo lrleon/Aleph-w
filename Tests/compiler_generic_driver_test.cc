@@ -146,3 +146,24 @@ TEST(CompilerGenericDriver, EmitsBytecodeAndPortableCThroughReusableFrontendCont
   EXPECT_NE(c_artifact->text.find("main(void)"), std::string::npos);
   EXPECT_NE(c_artifact->text.find("generic_driver_demo"), std::string::npos);
 }
+
+TEST(CompilerGenericDriver, ReportsRuntimeFailuresThroughDriverMessages)
+{
+  DynArray<Compiler_Driver_Source> inputs;
+  inputs.append({"main.aw",
+                 "let crash = 1 / 0;\n"});
+
+  Compiler_MVP_Frontend frontend;
+  Compiler_Generic_Driver driver(frontend);
+
+  EXPECT_FALSE(driver.execute_sources(inputs, Compiler_Driver_Action::Run));
+  ASSERT_TRUE(driver.run_output().executed);
+  EXPECT_FALSE(driver.run_output().result.ok());
+  EXPECT_TRUE(driver.run_output().value_text.empty());
+  EXPECT_EQ(driver.run_output().result.error.code, "RUN007");
+
+  const auto * messages = driver.find_artifact("driver.messages");
+  ASSERT_NE(messages, nullptr);
+  EXPECT_NE(messages->text.find("run: HIR runtime execution failed: RUN007 division by zero"),
+            std::string::npos);
+}

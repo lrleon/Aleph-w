@@ -615,11 +615,21 @@ if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_benchmark AND TARGET fft_reference_probe
     )
 endif()
 
+set(ALEPH_INSTALL_HEADER_CLOSURE_SCRIPT
+    ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/install_header_closure_check.rb)
+
 if(ALEPH_RUBY_EXECUTABLE)
+    if(NOT EXISTS ${ALEPH_INSTALL_HEADER_CLOSURE_SCRIPT})
+        message(FATAL_ERROR
+            "Missing required test helper script: "
+            "${ALEPH_INSTALL_HEADER_CLOSURE_SCRIPT}"
+        )
+    endif()
+
     add_test(
         NAME CompilerSdk.InstallHeaderClosure
         COMMAND ${ALEPH_RUBY_EXECUTABLE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/install_header_closure_check.rb
+                ${ALEPH_INSTALL_HEADER_CLOSURE_SCRIPT}
                 --repo
                 ${CMAKE_CURRENT_SOURCE_DIR}/..
     )

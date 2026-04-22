@@ -48,7 +48,6 @@ namespace
     function.name = "choose";
     function.entry_block = 0;
     function.exit_block = 1;
-    function.next_value_id = 5;
 
     Compiler_IR_Slot flag;
     flag.id = 0;
@@ -156,6 +155,19 @@ namespace
     function.blocks.append(then_block);
     function.blocks.append(join_block);
     function.blocks.append(else_block);
+
+    function.next_value_id = 0;
+    for (size_t i = 0; i < function.blocks.size(); ++i)
+      {
+        const auto & block = function.blocks.access(i);
+        for (size_t j = 0; j < block.instructions.size(); ++j)
+          {
+            const auto & instruction = block.instructions.access(j);
+            if (instruction.result_id > function.next_value_id)
+              function.next_value_id = instruction.result_id;
+          }
+      }
+
     return function;
   }
 }

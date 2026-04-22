@@ -209,7 +209,7 @@ class Compiler_Type_Context
     return types.size();
   }
 
-  Compiler_Type & mutable_type(const Compiler_Type_Id id) const
+  Compiler_Type & mutable_type(const Compiler_Type_Id id)
   {
     ah_out_of_range_error_unless(id > 0 and id <= types.size())
       << "Compiler_Type_Context::mutable_type(): invalid id " << id;

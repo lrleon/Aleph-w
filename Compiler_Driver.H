@@ -399,6 +399,29 @@ namespace Aleph
       return run_output_.result.ok();
     }
 
+    void
+    append_run_failure_if_needed()
+    {
+      if (run_output_.result.ok())
+        return;
+
+      std::string message = "run: HIR runtime execution failed";
+      if (not run_output_.result.error.code.empty()
+          or not run_output_.result.error.message.empty())
+        {
+          message += ":";
+          if (not run_output_.result.error.code.empty())
+            message += " " + run_output_.result.error.code;
+          if (not run_output_.result.error.message.empty())
+            {
+              if (not run_output_.result.error.code.empty())
+                message += " ";
+              message += run_output_.result.error.message;
+            }
+        }
+      append_error(message);
+    }
+
     bool
     finalize(const Compiler_Driver_Action action)
     {
@@ -542,7 +565,8 @@ namespace Aleph
 
       if (action == Compiler_Driver_Action::Run)
         {
-          (void) execute_hir_runtime();
+          if (not execute_hir_runtime())
+            append_run_failure_if_needed();
           return finalize(action);
         }
 
@@ -622,7 +646,8 @@ namespace Aleph
 
       if (action == Compiler_Driver_Action::Run)
         {
-          (void) execute_hir_runtime();
+          if (not execute_hir_runtime())
+            append_run_failure_if_needed();
           return finalize(action);
         }
 

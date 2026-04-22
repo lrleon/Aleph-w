@@ -207,4 +207,9 @@ TEST(CompilerDriver, ClearsValueTextWhenRuntimeEvaluationFails)
   ASSERT_NE(run_result, nullptr);
   EXPECT_EQ(run_result->text.find("  Value: "), std::string::npos);
   EXPECT_NE(run_result->text.find("  Error: RUN007 division by zero"), std::string::npos);
+
+  const auto * messages = driver.find_artifact("driver.messages");
+  ASSERT_NE(messages, nullptr);
+  EXPECT_NE(messages->text.find("run: HIR runtime execution failed: RUN007 division by zero"),
+            std::string::npos);
 }
