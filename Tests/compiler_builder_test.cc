@@ -208,3 +208,21 @@ TEST(CompilerBuilder, RejectsOverwritingExitTerminator)
 
   EXPECT_THROW(ir.set_exit(*function, exit), std::runtime_error);
 }
+
+TEST(CompilerBuilder, SetExitMarksCanonicalExitBlock)
+{
+  Compiler_IR_Context ir_ctx(1 << 15);
+  Compiler_IR_Builder ir(ir_ctx);
+
+  auto * function = ir.make_function("manual");
+  const auto entry = ir.create_block(*function, "entry");
+  const auto exit = ir.create_block(*function, "exit");
+  ir.set_entry_block(*function, entry);
+  ir.set_jump(*function, entry, exit);
+  ir.set_exit(*function, exit);
+
+  EXPECT_EQ(function->exit_block, exit);
+
+  const auto report = validate_ir_function(*function);
+  EXPECT_TRUE(report.valid);
+}

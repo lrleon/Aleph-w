@@ -197,3 +197,22 @@ TEST(CompilerLineFrontend, ReportsMissingImportsDuringParsing)
   ASSERT_NE(diagnostics, nullptr);
   EXPECT_NE(diagnostics->text.find("LIN017"), std::string::npos);
 }
+
+TEST(CompilerLineFrontend, RejectsInvalidOperandsDuringParsing)
+{
+  DynArray<Compiler_Driver_Source> inputs;
+  inputs.append({"main.line",
+                 "func add x y = add x +\n"
+                 "let answer = call add 1 )\n"});
+
+  Compiler_Line_Frontend frontend;
+  Compiler_Generic_Driver driver(frontend);
+
+  EXPECT_FALSE(driver.execute_sources(inputs, Compiler_Driver_Action::Parse_Only));
+  ASSERT_NE(frontend.diagnostic_engine(), nullptr);
+  EXPECT_TRUE(frontend.diagnostic_engine()->has_errors());
+
+  const auto * diagnostics = driver.find_artifact("diagnostics");
+  ASSERT_NE(diagnostics, nullptr);
+  EXPECT_NE(diagnostics->text.find("LIN018"), std::string::npos);
+}

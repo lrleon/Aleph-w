@@ -48,156 +48,151 @@
 
 #include <Compiler_Module_Name_Table.H>
 
-namespace Aleph
+namespace Aleph {
+/** @brief One namespace-separated semantic environment for a module. */
+struct Compiler_Module_Semantic_Module
 {
-  /** @brief One namespace-separated semantic environment for a module. */
-  struct Compiler_Module_Semantic_Module
-  {
-    std::string module_name;
-    size_t module_index = static_cast<size_t>(-1);
-    size_t order_index = static_cast<size_t>(-1);
-    DynArray<Compiler_Module_Bound_Name> values;
-    DynArray<Compiler_Module_Bound_Name> types;
-    DynArray<std::string> ambiguous_values;
-    DynArray<std::string> ambiguous_types;
-  };
+  std::string module_name;
+  size_t module_index = static_cast<size_t>(-1);
+  size_t order_index = static_cast<size_t>(-1);
+  DynArray<Compiler_Module_Bound_Name> values;
+  DynArray<Compiler_Module_Bound_Name> types;
+  DynArray<std::string> ambiguous_values;
+  DynArray<std::string> ambiguous_types;
+};
 
-  /** @brief Semantic environments for all modules in one compilation unit set. */
-  struct Compiler_Module_Semantic_Environment
-  {
-    DynArray<Compiler_Module_Semantic_Module> modules;
-  };
+/** @brief Semantic environments for all modules in one compilation unit set. */
+struct Compiler_Module_Semantic_Environment
+{
+  DynArray<Compiler_Module_Semantic_Module> modules;
+};
 
-  namespace Compiler_Module_Semantic_Environment_Detail
-  {
-    inline void
-    append_unique_name(DynArray<std::string> & names,
-                       const std::string & name)
-    {
-      for (size_t i = 0; i < names.size(); ++i)
-        if (names.access(i) == name)
-          return;
-      names.append(name);
-    }
-  }
-
-  /** @brief Builds one namespace-separated semantic environment from a name table.
-   *
-   *  @param table Per-module name table.
-   *  @return Semantic environment with split value/type namespaces.
-   */
-  inline Compiler_Module_Semantic_Environment
-  compiler_build_module_semantic_environment(const Compiler_Module_Name_Table & table)
-  {
-    Compiler_Module_Semantic_Environment env;
-
-    for (size_t i = 0; i < table.modules.size(); ++i)
-      {
-        const auto & source = table.modules.access(i);
-        Compiler_Module_Semantic_Module module;
-        module.module_name = source.module_name;
-        module.module_index = source.module_index;
-        module.order_index = source.order_index;
-
-        for (size_t j = 0; j < source.names.size(); ++j)
-          {
-            const auto & item = source.names.access(j);
-            if (item.kind == Compiler_Module_Export_Kind::Type)
-              module.types.append(item);
-            else
-              module.values.append(item);
-          }
-
-        for (size_t j = 0; j < source.ambiguous_names.size(); ++j)
-          {
-            const auto & item = source.ambiguous_names.access(j);
-            if (item.namespace_kind == Compiler_Module_Export_Kind::Type)
-              Compiler_Module_Semantic_Environment_Detail::append_unique_name(module.ambiguous_types,
-                                                                              item.name);
-            else
-              Compiler_Module_Semantic_Environment_Detail::append_unique_name(module.ambiguous_values,
-                                                                              item.name);
-          }
-
-        env.modules.append(std::move(module));
-      }
-
-    return env;
-  }
-
-  /** @brief Finds one semantic environment by module name. */
-  inline const Compiler_Module_Semantic_Module *
-  compiler_find_module_semantic_environment(const Compiler_Module_Semantic_Environment & env,
-                                            const std::string_view module_name) noexcept
-  {
-    for (size_t i = 0; i < env.modules.size(); ++i)
-      if (env.modules.access(i).module_name == module_name)
-        return &env.modules.access(i);
-    return nullptr;
-  }
-
-  /** @brief Looks up one visible value-namespace binding in a module environment. */
-  inline const Compiler_Module_Bound_Name *
-  compiler_lookup_module_value(const Compiler_Module_Semantic_Environment & env,
-                               const std::string_view module_name,
-                               const std::string_view symbol_name) noexcept
-  {
-    const auto * module = compiler_find_module_semantic_environment(env, module_name);
-    if (module == nullptr)
-      return nullptr;
-
-    for (size_t i = 0; i < module->values.size(); ++i)
-      if (module->values.access(i).name == symbol_name)
-        return &module->values.access(i);
-    return nullptr;
-  }
-
-  /** @brief Looks up one visible type-namespace binding in a module environment. */
-  inline const Compiler_Module_Bound_Name *
-  compiler_lookup_module_type(const Compiler_Module_Semantic_Environment & env,
-                              const std::string_view module_name,
-                              const std::string_view symbol_name) noexcept
-  {
-    const auto * module = compiler_find_module_semantic_environment(env, module_name);
-    if (module == nullptr)
-      return nullptr;
-
-    for (size_t i = 0; i < module->types.size(); ++i)
-      if (module->types.access(i).name == symbol_name)
-        return &module->types.access(i);
-    return nullptr;
-  }
-
-  /** @brief Renders one deterministic text artifact for semantic environments. */
-  inline std::string
-  compiler_render_module_semantic_environment(const Compiler_Module_Semantic_Environment & env)
-  {
-    std::ostringstream out;
-    out << "ModuleSemanticEnvironment\n";
-    for (size_t i = 0; i < env.modules.size(); ++i)
-      {
-        const auto & module = env.modules.access(i);
-        out << "  Module(" << module.module_name << ") order=" << module.order_index << '\n';
-        for (size_t j = 0; j < module.values.size(); ++j)
-          {
-            const auto & item = module.values.access(j);
-            out << "    Value(" << compiler_module_export_kind_name(item.kind)
-                << "(" << item.name << ")) -> " << item.provider_module_name << ' '
-                << (item.imported ? "imported" : "local") << '\n';
-          }
-        for (size_t j = 0; j < module.types.size(); ++j)
-          {
-            const auto & item = module.types.access(j);
-            out << "    Type(" << item.name << ") -> " << item.provider_module_name << ' '
-                << (item.imported ? "imported" : "local") << '\n';
-          }
-        for (size_t j = 0; j < module.ambiguous_values.size(); ++j)
-          out << "    AmbiguousValue(" << module.ambiguous_values.access(j) << ")\n";
-        for (size_t j = 0; j < module.ambiguous_types.size(); ++j)
-          out << "    AmbiguousType(" << module.ambiguous_types.access(j) << ")\n";
-      }
-    return out.str();
-  }
+namespace Compiler_Module_Semantic_Environment_Detail {
+inline void append_unique_name(DynArray<std::string> &names, const std::string &name)
+{
+  for (size_t i = 0; i < names.size(); ++i)
+    if (names.access(i) == name)
+      return;
+  names.append(name);
 }
+}  // namespace Compiler_Module_Semantic_Environment_Detail
+
+/** @brief Builds one namespace-separated semantic environment from a name table.
+ *
+ *  @param table Per-module name table.
+ *  @return Semantic environment with split value/type namespaces.
+ */
+inline Compiler_Module_Semantic_Environment compiler_build_module_semantic_environment(
+  const Compiler_Module_Name_Table &table)
+{
+  Compiler_Module_Semantic_Environment env;
+
+  for (size_t i = 0; i < table.modules.size(); ++i)
+    {
+      const auto &source = table.modules.access(i);
+      Compiler_Module_Semantic_Module module;
+      module.module_name = source.module_name;
+      module.module_index = source.module_index;
+      module.order_index = source.order_index;
+
+      for (size_t j = 0; j < source.names.size(); ++j)
+        {
+          const auto &item = source.names.access(j);
+          if (item.kind == Compiler_Module_Export_Kind::Type)
+            module.types.append(item);
+          else
+            module.values.append(item);
+        }
+
+      for (size_t j = 0; j < source.ambiguous_names.size(); ++j)
+        {
+          const auto &item = source.ambiguous_names.access(j);
+          if (item.namespace_kind == Compiler_Module_Export_Kind::Type)
+            Compiler_Module_Semantic_Environment_Detail::append_unique_name(module.ambiguous_types,
+                                                                            item.name);
+          else
+            Compiler_Module_Semantic_Environment_Detail::append_unique_name(module.ambiguous_values,
+                                                                            item.name);
+        }
+
+      env.modules.append(std::move(module));
+    }
+
+  return env;
+}
+
+/** @brief Finds one semantic environment by module name. */
+inline const Compiler_Module_Semantic_Module *compiler_find_module_semantic_environment(
+  const Compiler_Module_Semantic_Environment &env, const std::string_view module_name) noexcept
+{
+  for (size_t i = 0; i < env.modules.size(); ++i)
+    if (env.modules.access(i).module_name == module_name)
+      return &env.modules.access(i);
+  return nullptr;
+}
+
+/** @brief Looks up one visible value-namespace binding in a module environment. */
+inline const Compiler_Module_Bound_Name *compiler_lookup_module_value(
+  const Compiler_Module_Semantic_Environment &env,
+  const std::string_view module_name,
+  const std::string_view symbol_name) noexcept
+{
+  const auto *module = compiler_find_module_semantic_environment(env, module_name);
+  if (module == nullptr)
+    return nullptr;
+
+  for (size_t i = 0; i < module->values.size(); ++i)
+    if (module->values.access(i).name == symbol_name)
+      return &module->values.access(i);
+  return nullptr;
+}
+
+/** @brief Looks up one visible type-namespace binding in a module environment. */
+inline const Compiler_Module_Bound_Name *compiler_lookup_module_type(
+  const Compiler_Module_Semantic_Environment &env,
+  const std::string_view module_name,
+  const std::string_view symbol_name) noexcept
+{
+  const auto *module = compiler_find_module_semantic_environment(env, module_name);
+  if (module == nullptr)
+    return nullptr;
+
+  for (size_t i = 0; i < module->types.size(); ++i)
+    if (module->types.access(i).name == symbol_name)
+      return &module->types.access(i);
+  return nullptr;
+}
+
+/** @brief Renders one deterministic text artifact for semantic environments. */
+inline std::string compiler_render_module_semantic_environment(
+  const Compiler_Module_Semantic_Environment &env)
+{
+  std::ostringstream out;
+  out << "ModuleSemanticEnvironment\n";
+  for (size_t i = 0; i < env.modules.size(); ++i)
+    {
+      const auto &module = env.modules.access(i);
+      out << "  Module(" << module.module_name << ") order=" << module.order_index << '\n';
+      for (size_t j = 0; j < module.values.size(); ++j)
+        {
+          const auto &item = module.values.access(j);
+          out << "    Value(" << compiler_module_export_kind_name(item.kind) << "(" << item.name
+              << ")) -> " << item.provider_module_name << ' '
+              << (item.imported ? "imported" : "local") << '\n';
+        }
+      for (size_t j = 0; j < module.types.size(); ++j)
+        {
+          const auto &item = module.types.access(j);
+          out << "    Type(" << item.name << ") -> " << item.provider_module_name << ' '
+              << (item.imported ? "imported" : "local") << '\n';
+        }
+      for (size_t j = 0; j < module.ambiguous_values.size(); ++j)
+        out << "    AmbiguousValue(" << module.ambiguous_values.access(j) << ")\n";
+      for (size_t j = 0; j < module.ambiguous_types.size(); ++j)
+        out << "    AmbiguousType(" << module.ambiguous_types.access(j) << ")\n";
+    }
+  return out.str();
+}
+}  // namespace Aleph
 
 #endif

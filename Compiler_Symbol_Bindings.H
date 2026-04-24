@@ -48,212 +48,198 @@
 #include <ah-source.H>
 #include <tpl_scope.H>
 
-namespace Aleph
+namespace Aleph {
+using Compiler_Symbol_Id = size_t;
+
+/** @brief Generic symbol kinds reusable across multiple frontends. */
+enum class Compiler_Symbol_Kind
 {
-  using Compiler_Symbol_Id = size_t;
+  Function,
+  Parameter,
+  Local,
+  Global,
+  Type
+};
 
-  /** @brief Generic symbol kinds reusable across multiple frontends. */
-  enum class Compiler_Symbol_Kind
+/** @brief Returns a stable debug name for a symbol kind. */
+inline const char *compiler_symbol_kind_name(const Compiler_Symbol_Kind kind) noexcept
+{
+  switch (kind)
+    {
+    case Compiler_Symbol_Kind::Function:
+      return "Function";
+    case Compiler_Symbol_Kind::Parameter:
+      return "Parameter";
+    case Compiler_Symbol_Kind::Local:
+      return "Local";
+    case Compiler_Symbol_Kind::Global:
+      return "Global";
+    case Compiler_Symbol_Kind::Type:
+      return "Type";
+    }
+
+  return "Unknown";
+}
+
+/** @brief One reusable symbol record tracked by lexical bindings. */
+struct Compiler_Symbol
+{
+  Compiler_Symbol_Id id = 0;                                ///< Stable symbol identifier, 1-based.
+  Compiler_Symbol_Kind kind = Compiler_Symbol_Kind::Local;  ///< Symbol category.
+  std::string name;                                         ///< Declared name.
+  Source_Span declaration_span;                             ///< Declaration site.
+  size_t scope_depth = 0;  ///< Lexical depth where the symbol was introduced.
+};
+
+/** @brief Result status for one declaration attempt. */
+enum class Compiler_Symbol_Declare_Status
+{
+  Inserted,
+  Duplicate_Local,
+  Inserted_Shadowing
+};
+
+/** @brief Structured result returned after one declaration attempt. */
+struct Compiler_Symbol_Declare_Result
+{
+  Compiler_Symbol_Declare_Status status = Compiler_Symbol_Declare_Status::Inserted;
+  Compiler_Symbol_Id symbol_id = 0;  ///< Newly inserted symbol or the conflicting local symbol.
+  Compiler_Symbol_Id related_symbol_id = 0;  ///< Shadowed outer symbol or local duplicate.
+
+  /** @brief Returns whether the declaration produced a new symbol. */
+  [[nodiscard]] bool inserted() const noexcept
   {
-    Function,
-    Parameter,
-    Local,
-    Global,
-    Type
-  };
-
-  /** @brief Returns a stable debug name for a symbol kind. */
-  inline const char *
-  compiler_symbol_kind_name(const Compiler_Symbol_Kind kind) noexcept
-  {
-    switch (kind)
-      {
-      case Compiler_Symbol_Kind::Function:
-        return "Function";
-      case Compiler_Symbol_Kind::Parameter:
-        return "Parameter";
-      case Compiler_Symbol_Kind::Local:
-        return "Local";
-      case Compiler_Symbol_Kind::Global:
-        return "Global";
-      case Compiler_Symbol_Kind::Type:
-        return "Type";
-      }
-
-    return "Unknown";
+    return status != Compiler_Symbol_Declare_Status::Duplicate_Local;
   }
 
-  /** @brief One reusable symbol record tracked by lexical bindings. */
-  struct Compiler_Symbol
+  /** @brief Returns whether the declaration collided with the current scope. */
+  [[nodiscard]] bool duplicate_local() const noexcept
   {
-    Compiler_Symbol_Id id = 0;  ///< Stable symbol identifier, 1-based.
-    Compiler_Symbol_Kind kind = Compiler_Symbol_Kind::Local;  ///< Symbol category.
-    std::string name;  ///< Declared name.
-    Source_Span declaration_span;  ///< Declaration site.
-    size_t scope_depth = 0;  ///< Lexical depth where the symbol was introduced.
-  };
+    return status == Compiler_Symbol_Declare_Status::Duplicate_Local;
+  }
 
-  /** @brief Result status for one declaration attempt. */
-  enum class Compiler_Symbol_Declare_Status
+  /** @brief Returns whether the new declaration shadows one outer symbol. */
+  [[nodiscard]] bool shadowing() const noexcept
   {
-    Inserted,
-    Duplicate_Local,
-    Inserted_Shadowing
-  };
+    return status == Compiler_Symbol_Declare_Status::Inserted_Shadowing;
+  }
+};
 
-  /** @brief Structured result returned after one declaration attempt. */
-  struct Compiler_Symbol_Declare_Result
+/** @brief Reusable lexical symbol table with stable ids and scope tracking. */
+class Compiler_Symbol_Bindings
+{
+  DynArray<Compiler_Symbol> symbols_;
+  Scope<std::string, Compiler_Symbol_Id> scopes_;
+
+  Compiler_Symbol_Id append_symbol(const Compiler_Symbol_Kind kind,
+                                   const std::string &name,
+                                   const Source_Span &span)
   {
-    Compiler_Symbol_Declare_Status status = Compiler_Symbol_Declare_Status::Inserted;
-    Compiler_Symbol_Id symbol_id = 0;  ///< Newly inserted symbol or the conflicting local symbol.
-    Compiler_Symbol_Id related_symbol_id = 0;  ///< Shadowed outer symbol or local duplicate.
+    Compiler_Symbol sym;
+    sym.id = symbols_.size() + 1;
+    sym.kind = kind;
+    sym.name = name;
+    sym.declaration_span = span;
+    sym.scope_depth = scopes_.depth() > 0 ? scopes_.depth() - 1 : 0;
+    symbols_.append(std::move(sym));
+    return symbols_.size();
+  }
 
-    /** @brief Returns whether the declaration produced a new symbol. */
-    [[nodiscard]] bool inserted() const noexcept
-    {
-      return status != Compiler_Symbol_Declare_Status::Duplicate_Local;
-    }
-
-    /** @brief Returns whether the declaration collided with the current scope. */
-    [[nodiscard]] bool duplicate_local() const noexcept
-    {
-      return status == Compiler_Symbol_Declare_Status::Duplicate_Local;
-    }
-
-    /** @brief Returns whether the new declaration shadows one outer symbol. */
-    [[nodiscard]] bool shadowing() const noexcept
-    {
-      return status == Compiler_Symbol_Declare_Status::Inserted_Shadowing;
-    }
-  };
-
-  /** @brief Reusable lexical symbol table with stable ids and scope tracking. */
-  class Compiler_Symbol_Bindings
+public:
+  /** @brief Clears all scopes and previously recorded symbols. */
+  void clear() noexcept
   {
-    DynArray<Compiler_Symbol> symbols_;
-    Scope<std::string, Compiler_Symbol_Id> scopes_;
+    symbols_.clear();
+    scopes_.clear();
+  }
 
-    Compiler_Symbol_Id
-    append_symbol(const Compiler_Symbol_Kind kind,
-                  const std::string & name,
-                  const Source_Span & span)
-    {
-      Compiler_Symbol sym;
-      sym.id = symbols_.size() + 1;
-      sym.kind = kind;
-      sym.name = name;
-      sym.declaration_span = span;
-      sym.scope_depth = scopes_.depth() > 0 ? scopes_.depth() - 1 : 0;
-      symbols_.append(std::move(sym));
-      return symbols_.size();
-    }
+  /** @brief Returns the current lexical depth. */
+  [[nodiscard]] size_t depth() const noexcept
+  {
+    return scopes_.depth();
+  }
 
-  public:
-    /** @brief Clears all scopes and previously recorded symbols. */
-    void
-    clear() noexcept
-    {
-      symbols_.clear();
-      scopes_.clear();
-    }
+  /** @brief Returns the number of recorded symbols. */
+  [[nodiscard]] size_t symbol_count() const noexcept
+  {
+    return symbols_.size();
+  }
 
-    /** @brief Returns the current lexical depth. */
-    [[nodiscard]] size_t
-    depth() const noexcept
-    {
-      return scopes_.depth();
-    }
+  /** @brief Enters one nested lexical scope. */
+  size_t enter_scope()
+  {
+    return scopes_.enter_scope();
+  }
 
-    /** @brief Returns the number of recorded symbols. */
-    [[nodiscard]] size_t
-    symbol_count() const noexcept
-    {
-      return symbols_.size();
-    }
+  /** @brief Leaves the current lexical scope. */
+  void leave_scope()
+  {
+    scopes_.leave_scope();
+  }
 
-    /** @brief Enters one nested lexical scope. */
-    size_t
-    enter_scope()
-    {
-      return scopes_.enter_scope();
-    }
+  /** @brief Looks up one visible symbol id by name. */
+  [[nodiscard]] const Compiler_Symbol_Id *lookup(const std::string &name) const noexcept
+  {
+    return scopes_.lookup(name);
+  }
 
-    /** @brief Leaves the current lexical scope. */
-    void
-    leave_scope()
-    {
-      scopes_.leave_scope();
-    }
+  /** @brief Looks up one symbol id only in the current scope. */
+  [[nodiscard]] const Compiler_Symbol_Id *lookup_local(const std::string &name) const noexcept
+  {
+    return scopes_.lookup_local(name);
+  }
 
-    /** @brief Looks up one visible symbol id by name. */
-    [[nodiscard]] const Compiler_Symbol_Id *
-    lookup(const std::string & name) const noexcept
-    {
-      return scopes_.lookup(name);
-    }
+  /** @brief Declares one symbol in the current scope.
+   *
+   *  Duplicate declarations in the current scope do not insert a new symbol.
+   *  Shadowing of outer scopes does insert a new symbol and is reported in the
+   *  returned status so callers can decide whether it is allowed.
+   */
+  [[nodiscard]] Compiler_Symbol_Declare_Result declare(const Compiler_Symbol_Kind kind,
+                                                       const std::string &name,
+                                                       const Source_Span &span)
+  {
+    ah_runtime_error_unless(scopes_.depth() > 0)
+      << "Compiler_Symbol_Bindings::declare(): no active scope";
 
-    /** @brief Looks up one symbol id only in the current scope. */
-    [[nodiscard]] const Compiler_Symbol_Id *
-    lookup_local(const std::string & name) const noexcept
-    {
-      return scopes_.lookup_local(name);
-    }
+    if (const auto *local = scopes_.lookup_local(name); local != nullptr)
+      return {Compiler_Symbol_Declare_Status::Duplicate_Local, *local, *local};
 
-    /** @brief Declares one symbol in the current scope.
-     *
-     *  Duplicate declarations in the current scope do not insert a new symbol.
-     *  Shadowing of outer scopes does insert a new symbol and is reported in the
-     *  returned status so callers can decide whether it is allowed.
-     */
-    [[nodiscard]] Compiler_Symbol_Declare_Result
-    declare(const Compiler_Symbol_Kind kind,
-            const std::string & name,
-            const Source_Span & span)
-    {
-      ah_runtime_error_unless(scopes_.depth() > 0)
-        << "Compiler_Symbol_Bindings::declare(): no active scope";
+    const auto *shadowed = scopes_.lookup(name);
+    const auto id = append_symbol(kind, name, span);
+    const bool inserted = scopes_.insert(name, id);
+    ah_runtime_error_unless(inserted)
+      << "Compiler_Symbol_Bindings::declare(): unexpected duplicate insertion for '" << name << "'";
 
-      if (const auto * local = scopes_.lookup_local(name); local != nullptr)
-        return {Compiler_Symbol_Declare_Status::Duplicate_Local, *local, *local};
+    return shadowed == nullptr
+           ? Compiler_Symbol_Declare_Result{Compiler_Symbol_Declare_Status::Inserted, id, 0}
+           : Compiler_Symbol_Declare_Result{Compiler_Symbol_Declare_Status::Inserted_Shadowing,
+                                            id,
+                                            *shadowed};
+  }
 
-      const auto * shadowed = scopes_.lookup(name);
-      const auto id = append_symbol(kind, name, span);
-      const bool inserted = scopes_.insert(name, id);
-      ah_runtime_error_unless(inserted)
-        << "Compiler_Symbol_Bindings::declare(): unexpected duplicate insertion for '" << name
-        << "'";
+  /** @brief Returns one symbol by its stable 1-based identifier. */
+  [[nodiscard]] const Compiler_Symbol &symbol(const Compiler_Symbol_Id id) const
+  {
+    ah_out_of_range_error_unless(id > 0 and id <= symbols_.size())
+      << "Compiler_Symbol_Bindings::symbol(): invalid id " << id;
+    return symbols_.access(id - 1);
+  }
 
-      return shadowed == nullptr
-               ? Compiler_Symbol_Declare_Result{Compiler_Symbol_Declare_Status::Inserted, id, 0}
-               : Compiler_Symbol_Declare_Result{Compiler_Symbol_Declare_Status::Inserted_Shadowing,
-                                                id,
-                                                *shadowed};
-    }
-
-    /** @brief Returns one symbol by its stable 1-based identifier. */
-    [[nodiscard]] const Compiler_Symbol &
-    symbol(const Compiler_Symbol_Id id) const
-    {
-      ah_out_of_range_error_unless(id > 0 and id <= symbols_.size())
-        << "Compiler_Symbol_Bindings::symbol(): invalid id " << id;
-      return symbols_.access(id - 1);
-    }
-
-    /** @brief Dumps the current symbol table in deterministic text form. */
-    [[nodiscard]] std::string
-    dump_symbols() const
-    {
-      std::ostringstream out;
-      out << "Symbols\n";
-      for (size_t i = 0; i < symbols_.size(); ++i)
-        {
-          const auto & sym = symbols_.access(i);
-          out << "  #" << sym.id << " " << compiler_symbol_kind_name(sym.kind) << " " << sym.name
-              << " scope=" << sym.scope_depth << " @" << sym.declaration_span.to_string() << '\n';
-        }
-      return out.str();
-    }
-  };
-}
+  /** @brief Dumps the current symbol table in deterministic text form. */
+  [[nodiscard]] std::string dump_symbols() const
+  {
+    std::ostringstream out;
+    out << "Symbols\n";
+    for (size_t i = 0; i < symbols_.size(); ++i)
+      {
+        const auto &sym = symbols_.access(i);
+        out << "  #" << sym.id << " " << compiler_symbol_kind_name(sym.kind) << " " << sym.name
+            << " scope=" << sym.scope_depth << " @" << sym.declaration_span.to_string() << '\n';
+      }
+    return out.str();
+  }
+};
+}  // namespace Aleph
 
 #endif

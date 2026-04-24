@@ -48,245 +48,237 @@
 
 #include <Compiler_Module_Linker.H>
 
-namespace Aleph
+namespace Aleph {
+/** @brief One top-level name successfully bound in a module namespace. */
+struct Compiler_Module_Bound_Name
 {
-  /** @brief One top-level name successfully bound in a module namespace. */
-  struct Compiler_Module_Bound_Name
-  {
-    Compiler_Module_Export_Kind kind = Compiler_Module_Export_Kind::Global;
-    std::string name;
-    size_t provider_module_index = static_cast<size_t>(-1);
-    std::string provider_module_name;
-    Source_Span declaration_span;
-    bool imported = false;  ///< `false` for local bindings, `true` for direct-imported bindings.
-  };
+  Compiler_Module_Export_Kind kind = Compiler_Module_Export_Kind::Global;
+  std::string name;
+  size_t provider_module_index = static_cast<size_t>(-1);
+  std::string provider_module_name;
+  Source_Span declaration_span;
+  bool imported = false;  ///< `false` for local bindings, `true` for direct-imported bindings.
+};
 
-  /** @brief Bound top-level names visible from one module. */
-  struct Compiler_Module_Bindings
-  {
-    std::string module_name;
-    size_t module_index = static_cast<size_t>(-1);
-    size_t order_index = static_cast<size_t>(-1);
-    DynArray<Compiler_Module_Bound_Name> names;
-  };
+/** @brief Bound top-level names visible from one module. */
+struct Compiler_Module_Bindings
+{
+  std::string module_name;
+  size_t module_index = static_cast<size_t>(-1);
+  size_t order_index = static_cast<size_t>(-1);
+  DynArray<Compiler_Module_Bound_Name> names;
+};
 
-  /** @brief Structural issues emitted while binding linked module surfaces. */
-  enum class Compiler_Module_Binding_Issue_Kind
-  {
-    Missing_Metadata,
-    Ambiguous_Value_Name,
-    Ambiguous_Type_Name
-  };
+/** @brief Structural issues emitted while binding linked module surfaces. */
+enum class Compiler_Module_Binding_Issue_Kind
+{
+  Missing_Metadata,
+  Ambiguous_Value_Name,
+  Ambiguous_Type_Name
+};
 
-  /** @brief One structural issue reported by the reusable module binder. */
-  struct Compiler_Module_Binding_Issue
-  {
-    Compiler_Module_Binding_Issue_Kind kind
-      = Compiler_Module_Binding_Issue_Kind::Missing_Metadata;
-    size_t module_index = static_cast<size_t>(-1);
-    std::string module_name;
-    std::string symbol_name;
-    std::string referenced_module_name;
-    std::string first_provider_module;
-    std::string second_provider_module;
-    Source_Span span;
-  };
+/** @brief One structural issue reported by the reusable module binder. */
+struct Compiler_Module_Binding_Issue
+{
+  Compiler_Module_Binding_Issue_Kind kind = Compiler_Module_Binding_Issue_Kind::Missing_Metadata;
+  size_t module_index = static_cast<size_t>(-1);
+  std::string module_name;
+  std::string symbol_name;
+  std::string referenced_module_name;
+  std::string first_provider_module;
+  std::string second_provider_module;
+  Source_Span span;
+};
 
-  /** @brief Binding result over one linked module-surface view. */
-  struct Compiler_Module_Binding_Result
-  {
-    bool valid = true;
-    DynArray<Compiler_Module_Bindings> modules;
-    DynArray<Compiler_Module_Binding_Issue> issues;
-  };
+/** @brief Binding result over one linked module-surface view. */
+struct Compiler_Module_Binding_Result
+{
+  bool valid = true;
+  DynArray<Compiler_Module_Bindings> modules;
+  DynArray<Compiler_Module_Binding_Issue> issues;
+};
 
-  /** @brief Returns the stable debug name for one module-binding issue kind. */
-  inline const char *
-  compiler_module_binding_issue_name(const Compiler_Module_Binding_Issue_Kind kind) noexcept
-  {
-    switch (kind)
-      {
-      case Compiler_Module_Binding_Issue_Kind::Missing_Metadata:
-        return "Missing_Metadata";
-      case Compiler_Module_Binding_Issue_Kind::Ambiguous_Value_Name:
-        return "Ambiguous_Value_Name";
-      case Compiler_Module_Binding_Issue_Kind::Ambiguous_Type_Name:
-        return "Ambiguous_Type_Name";
-      }
-
-    return "Unknown";
-  }
-
-  namespace Compiler_Module_Binder_Detail
-  {
-    inline int
-    export_namespace_bucket(const Compiler_Module_Export_Kind kind) noexcept
+/** @brief Returns the stable debug name for one module-binding issue kind. */
+inline const char *compiler_module_binding_issue_name(const Compiler_Module_Binding_Issue_Kind kind) noexcept
+{
+  switch (kind)
     {
-      return kind == Compiler_Module_Export_Kind::Type ? 1 : 0;
+    case Compiler_Module_Binding_Issue_Kind::Missing_Metadata:
+      return "Missing_Metadata";
+    case Compiler_Module_Binding_Issue_Kind::Ambiguous_Value_Name:
+      return "Ambiguous_Value_Name";
+    case Compiler_Module_Binding_Issue_Kind::Ambiguous_Type_Name:
+      return "Ambiguous_Type_Name";
     }
 
-    inline bool
-    is_ambiguous_visible_name(const Compiler_Module_Linkage & module,
-                              const size_t item_index) noexcept
-    {
-      const auto & item = module.visible_exports.access(item_index);
-      for (size_t i = 0; i < module.visible_exports.size(); ++i)
-        {
-          if (i == item_index)
-            continue;
-
-          const auto & other = module.visible_exports.access(i);
-          if (item.name != other.name)
-            continue;
-          if (export_namespace_bucket(item.kind) != export_namespace_bucket(other.kind))
-            continue;
-          if (item.source_module_name == other.source_module_name and item.imported == other.imported)
-            continue;
-          return true;
-        }
-
-      return false;
-    }
-
-    inline Compiler_Module_Binding_Issue
-    translate_issue(const Compiler_Module_Linkage_Issue & issue)
-    {
-      Compiler_Module_Binding_Issue translated;
-      translated.module_index = issue.module_index;
-      translated.module_name = issue.module_name;
-      translated.span = issue.span;
-
-      switch (issue.kind)
-        {
-        case Compiler_Module_Linkage_Issue_Kind::Missing_Metadata:
-          translated.kind = Compiler_Module_Binding_Issue_Kind::Missing_Metadata;
-          translated.referenced_module_name = issue.second_provider_module;
-          break;
-        case Compiler_Module_Linkage_Issue_Kind::Duplicate_Value_Export:
-          translated.kind = Compiler_Module_Binding_Issue_Kind::Ambiguous_Value_Name;
-          translated.symbol_name = issue.export_name;
-          translated.first_provider_module = issue.first_provider_module;
-          translated.second_provider_module = issue.second_provider_module;
-          break;
-        case Compiler_Module_Linkage_Issue_Kind::Duplicate_Type_Export:
-          translated.kind = Compiler_Module_Binding_Issue_Kind::Ambiguous_Type_Name;
-          translated.symbol_name = issue.export_name;
-          translated.first_provider_module = issue.first_provider_module;
-          translated.second_provider_module = issue.second_provider_module;
-          break;
-        }
-
-      return translated;
-    }
-  }
-
-  /** @brief Binds linked module surfaces into one deterministic name view.
-   *
-   *  Every visible top-level declaration with no namespace conflict becomes one
-   *  binding entry in the corresponding module. Ambiguous names and missing
-   *  metadata remain in `issues` and are omitted from the resulting bindings.
-   *
-   *  @param linkage Linked direct-import surface result.
-   *  @return Binding result with deterministic per-module top-level names.
-   */
-  inline Compiler_Module_Binding_Result
-  compiler_bind_module_surfaces(const Compiler_Module_Link_Result & linkage)
-  {
-    Compiler_Module_Binding_Result result;
-    result.valid = linkage.valid;
-
-    for (size_t i = 0; i < linkage.issues.size(); ++i)
-      result.issues.append(Compiler_Module_Binder_Detail::translate_issue(linkage.issues.access(i)));
-
-    for (size_t i = 0; i < linkage.modules.size(); ++i)
-      {
-        const auto & linked_module = linkage.modules.access(i);
-        Compiler_Module_Bindings bindings;
-        bindings.module_name = linked_module.module_name;
-        bindings.module_index = linked_module.module_index;
-        bindings.order_index = linked_module.order_index;
-
-        for (size_t j = 0; j < linked_module.visible_exports.size(); ++j)
-          {
-            const auto & item = linked_module.visible_exports.access(j);
-            if (Compiler_Module_Binder_Detail::is_ambiguous_visible_name(linked_module, j))
-              continue;
-
-            bool already_bound = false;
-            for (size_t k = 0; k < bindings.names.size(); ++k)
-              {
-                const auto & current = bindings.names.access(k);
-                if (current.name != item.name)
-                  continue;
-                if (Compiler_Module_Binder_Detail::export_namespace_bucket(current.kind)
-                    != Compiler_Module_Binder_Detail::export_namespace_bucket(item.kind))
-                  continue;
-                already_bound = true;
-                break;
-              }
-            if (already_bound)
-              continue;
-
-            bindings.names.append({item.kind,
-                                   item.name,
-                                   item.source_module_index,
-                                   item.source_module_name,
-                                   item.declaration_span,
-                                   item.imported});
-          }
-
-        result.modules.append(std::move(bindings));
-      }
-
-    return result;
-  }
-
-  /** @brief Renders one deterministic text artifact for bound module names.
-   *
-   *  @param result Binding result to render.
-   *  @return Stable plain-text representation of the bound name view.
-   */
-  inline std::string
-  compiler_render_module_bindings(const Compiler_Module_Binding_Result & result)
-  {
-    std::ostringstream out;
-    out << "ModuleBindings\n";
-    for (size_t i = 0; i < result.modules.size(); ++i)
-      {
-        const auto & module = result.modules.access(i);
-        out << "  Module(" << module.module_name << ") order=" << module.order_index << '\n';
-        for (size_t j = 0; j < module.names.size(); ++j)
-          {
-            const auto & item = module.names.access(j);
-            out << "    Bind(" << compiler_module_export_kind_name(item.kind)
-                << "(" << item.name << ")) -> " << item.provider_module_name << ' '
-                << (item.imported ? "imported" : "local");
-            if (item.declaration_span.is_valid())
-              out << " @" << item.declaration_span.to_string();
-            out << '\n';
-          }
-      }
-
-    for (size_t i = 0; i < result.issues.size(); ++i)
-      {
-        const auto & issue = result.issues.access(i);
-        out << "  Issue(" << compiler_module_binding_issue_name(issue.kind)
-            << ") module=" << issue.module_name;
-        if (not issue.symbol_name.empty())
-          out << " name=" << issue.symbol_name;
-        if (not issue.referenced_module_name.empty())
-          out << " dependency=" << issue.referenced_module_name;
-        if (not issue.first_provider_module.empty())
-          out << " first=" << issue.first_provider_module;
-        if (not issue.second_provider_module.empty())
-          out << " second=" << issue.second_provider_module;
-        if (issue.span.is_valid())
-          out << " @" << issue.span.to_string();
-        out << '\n';
-      }
-
-    return out.str();
-  }
+  return "Unknown";
 }
+
+namespace Compiler_Module_Binder_Detail {
+inline int export_namespace_bucket(const Compiler_Module_Export_Kind kind) noexcept
+{
+  return kind == Compiler_Module_Export_Kind::Type ? 1 : 0;
+}
+
+inline bool is_ambiguous_visible_name(const Compiler_Module_Linkage &module,
+                                      const size_t item_index) noexcept
+{
+  const auto &item = module.visible_exports.access(item_index);
+  for (size_t i = 0; i < module.visible_exports.size(); ++i)
+    {
+      if (i == item_index)
+        continue;
+
+      const auto &other = module.visible_exports.access(i);
+      if (item.name != other.name)
+        continue;
+      if (export_namespace_bucket(item.kind) != export_namespace_bucket(other.kind))
+        continue;
+      if (item.source_module_name == other.source_module_name and item.imported == other.imported)
+        continue;
+      return true;
+    }
+
+  return false;
+}
+
+inline Compiler_Module_Binding_Issue translate_issue(const Compiler_Module_Linkage_Issue &issue)
+{
+  Compiler_Module_Binding_Issue translated;
+  translated.module_index = issue.module_index;
+  translated.module_name = issue.module_name;
+  translated.span = issue.span;
+
+  switch (issue.kind)
+    {
+    case Compiler_Module_Linkage_Issue_Kind::Missing_Metadata:
+      translated.kind = Compiler_Module_Binding_Issue_Kind::Missing_Metadata;
+      translated.referenced_module_name = issue.second_provider_module;
+      break;
+    case Compiler_Module_Linkage_Issue_Kind::Duplicate_Value_Export:
+      translated.kind = Compiler_Module_Binding_Issue_Kind::Ambiguous_Value_Name;
+      translated.symbol_name = issue.export_name;
+      translated.first_provider_module = issue.first_provider_module;
+      translated.second_provider_module = issue.second_provider_module;
+      break;
+    case Compiler_Module_Linkage_Issue_Kind::Duplicate_Type_Export:
+      translated.kind = Compiler_Module_Binding_Issue_Kind::Ambiguous_Type_Name;
+      translated.symbol_name = issue.export_name;
+      translated.first_provider_module = issue.first_provider_module;
+      translated.second_provider_module = issue.second_provider_module;
+      break;
+    }
+
+  return translated;
+}
+}  // namespace Compiler_Module_Binder_Detail
+
+/** @brief Binds linked module surfaces into one deterministic name view.
+ *
+ *  Every visible top-level declaration with no namespace conflict becomes one
+ *  binding entry in the corresponding module. Ambiguous names and missing
+ *  metadata remain in `issues` and are omitted from the resulting bindings.
+ *
+ *  @param linkage Linked direct-import surface result.
+ *  @return Binding result with deterministic per-module top-level names.
+ */
+inline Compiler_Module_Binding_Result compiler_bind_module_surfaces(
+  const Compiler_Module_Link_Result &linkage)
+{
+  Compiler_Module_Binding_Result result;
+  result.valid = linkage.valid;
+
+  for (size_t i = 0; i < linkage.issues.size(); ++i)
+    result.issues.append(Compiler_Module_Binder_Detail::translate_issue(linkage.issues.access(i)));
+
+  for (size_t i = 0; i < linkage.modules.size(); ++i)
+    {
+      const auto &linked_module = linkage.modules.access(i);
+      Compiler_Module_Bindings bindings;
+      bindings.module_name = linked_module.module_name;
+      bindings.module_index = linked_module.module_index;
+      bindings.order_index = linked_module.order_index;
+
+      for (size_t j = 0; j < linked_module.visible_exports.size(); ++j)
+        {
+          const auto &item = linked_module.visible_exports.access(j);
+          if (Compiler_Module_Binder_Detail::is_ambiguous_visible_name(linked_module, j))
+            continue;
+
+          bool already_bound = false;
+          for (size_t k = 0; k < bindings.names.size(); ++k)
+            {
+              const auto &current = bindings.names.access(k);
+              if (current.name != item.name)
+                continue;
+              if (Compiler_Module_Binder_Detail::export_namespace_bucket(current.kind)
+                  != Compiler_Module_Binder_Detail::export_namespace_bucket(item.kind))
+                continue;
+              already_bound = true;
+              break;
+            }
+          if (already_bound)
+            continue;
+
+          bindings.names.append({item.kind,
+                                 item.name,
+                                 item.source_module_index,
+                                 item.source_module_name,
+                                 item.declaration_span,
+                                 item.imported});
+        }
+
+      result.modules.append(std::move(bindings));
+    }
+
+  return result;
+}
+
+/** @brief Renders one deterministic text artifact for bound module names.
+ *
+ *  @param result Binding result to render.
+ *  @return Stable plain-text representation of the bound name view.
+ */
+inline std::string compiler_render_module_bindings(const Compiler_Module_Binding_Result &result)
+{
+  std::ostringstream out;
+  out << "ModuleBindings\n";
+  for (size_t i = 0; i < result.modules.size(); ++i)
+    {
+      const auto &module = result.modules.access(i);
+      out << "  Module(" << module.module_name << ") order=" << module.order_index << '\n';
+      for (size_t j = 0; j < module.names.size(); ++j)
+        {
+          const auto &item = module.names.access(j);
+          out << "    Bind(" << compiler_module_export_kind_name(item.kind) << "(" << item.name
+              << ")) -> " << item.provider_module_name << ' '
+              << (item.imported ? "imported" : "local");
+          if (item.declaration_span.is_valid())
+            out << " @" << item.declaration_span.to_string();
+          out << '\n';
+        }
+    }
+
+  for (size_t i = 0; i < result.issues.size(); ++i)
+    {
+      const auto &issue = result.issues.access(i);
+      out << "  Issue(" << compiler_module_binding_issue_name(issue.kind)
+          << ") module=" << issue.module_name;
+      if (not issue.symbol_name.empty())
+        out << " name=" << issue.symbol_name;
+      if (not issue.referenced_module_name.empty())
+        out << " dependency=" << issue.referenced_module_name;
+      if (not issue.first_provider_module.empty())
+        out << " first=" << issue.first_provider_module;
+      if (not issue.second_provider_module.empty())
+        out << " second=" << issue.second_provider_module;
+      if (issue.span.is_valid())
+        out << " @" << issue.span.to_string();
+      out << '\n';
+    }
+
+  return out.str();
+}
+}  // namespace Aleph
 
 #endif

@@ -106,3 +106,58 @@ TEST(CompilerModuleResolver, ReportsCyclesStructurally)
   EXPECT_EQ(result.issues.access(0).module_name, "b.aw");
   EXPECT_EQ(result.issues.access(0).dependency_name, "a.aw");
 }
+
+TEST(CompilerModuleResolver, KeepsResolvingUnrelatedModulesAfterCycle)
+{
+  DynArray<Compiler_Module_Descriptor> modules;
+
+  Compiler_Module_Descriptor a;
+  a.name = "a.aw";
+  a.imports.append({"b.aw", {}});
+  modules.append(std::move(a));
+
+  Compiler_Module_Descriptor b;
+  b.name = "b.aw";
+  b.imports.append({"a.aw", {}});
+  modules.append(std::move(b));
+
+  Compiler_Module_Descriptor util;
+  util.name = "util.aw";
+  modules.append(std::move(util));
+
+  Compiler_Module_Descriptor main_module;
+  main_module.name = "main.aw";
+  main_module.imports.append({"util.aw", {}});
+  modules.append(std::move(main_module));
+
+  const auto result = compiler_resolve_module_order(modules);
+  ASSERT_FALSE(result.valid);
+  ASSERT_EQ(result.issues.size(), 1u);
+  EXPECT_EQ(result.issues.access(0).kind,
+            Compiler_Module_Resolution_Issue_Kind::Cyclic_Dependency);
+
+  ASSERT_EQ(result.order.size(), 2u);
+  EXPECT_EQ(modules.access(result.order.access(0)).name, "util.aw");
+  EXPECT_EQ(modules.access(result.order.access(1)).name, "main.aw");
+}
+
+TEST(CompilerModuleResolver, ReportsSelfImportsAsCycles)
+{
+  DynArray<Compiler_Module_Descriptor> modules;
+
+  Compiler_Module_Descriptor self_module;
+  self_module.name = "self.aw";
+  self_module.imports.append({"self.aw", {}});
+  modules.append(std::move(self_module));
+
+  const auto result = compiler_resolve_module_order(modules);
+  ASSERT_FALSE(result.valid);
+  ASSERT_EQ(result.issues.size(), 1u);
+  EXPECT_EQ(result.issues.access(0).kind,
+            Compiler_Module_Resolution_Issue_Kind::Cyclic_Dependency);
+  EXPECT_EQ(result.issues.access(0).module_name, "self.aw");
+  EXPECT_EQ(result.issues.access(0).dependency_name, "self.aw");
+
+  ASSERT_EQ(result.order.size(), 1u);
+  EXPECT_EQ(modules.access(result.order.access(0)).name, "self.aw");
+}

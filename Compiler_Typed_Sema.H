@@ -350,9 +350,7 @@ class Compiler_Typed_Semantic_Analyzer
 
     if (binding.resolving)
       {
-        emit_error(span,
-                   "TYP010",
-                   "cyclic type alias involving '" + binding.name + "'");
+        emit_error(span, "TYP010", "cyclic type alias involving '" + binding.name + "'");
         binding.type_id = types.invalid_type();
         binding.resolved = true;
         return binding.type_id;
@@ -360,9 +358,8 @@ class Compiler_Typed_Semantic_Analyzer
 
     binding.resolving = true;
     DynArray<Compiler_Type_Name_Binding> no_type_variables;
-    binding.type_id = resolve_type_annotation(binding.alias_decl->aliased_type,
-                                              no_type_variables,
-                                              false);
+    binding.type_id
+      = resolve_type_annotation(binding.alias_decl->aliased_type, no_type_variables, false);
     binding.resolving = false;
     binding.resolved = true;
     return binding.type_id;
@@ -389,9 +386,7 @@ class Compiler_Typed_Semantic_Analyzer
   {
     if (contains_name(names, candidate))
       {
-        emit_error(span,
-                   "TYP011",
-                   "duplicate " + what + " '" + candidate + "' in '" + owner + "'");
+        emit_error(span, "TYP011", "duplicate " + what + " '" + candidate + "' in '" + owner + "'");
         return false;
       }
     return true;
@@ -469,18 +464,13 @@ class Compiler_Typed_Semantic_Analyzer
           for (size_t i = 0; i < node->fields.size(); ++i)
             {
               const auto &field = node->fields.access(i);
-              if (not validate_unique_member_name(field_names,
-                                                  field.name,
-                                                  field.name_span,
-                                                  "field",
-                                                  node->name))
+              if (not validate_unique_member_name(
+                    field_names, field.name, field.name_span, "field", node->name))
                 continue;
 
               DynArray<Compiler_Type_Name_Binding> no_type_variables;
               field_names.append(field.name);
-              field_types.append(resolve_type_annotation(field.annotation,
-                                                         no_type_variables,
-                                                         false));
+              field_types.append(resolve_type_annotation(field.annotation, no_type_variables, false));
             }
 
           types.set_struct_fields(binding->type_id, field_names, field_types);
@@ -495,11 +485,8 @@ class Compiler_Typed_Semantic_Analyzer
           for (size_t i = 0; i < node->variants.size(); ++i)
             {
               const auto &variant = node->variants.access(i);
-              if (validate_unique_member_name(variant_names,
-                                              variant.name,
-                                              variant.name_span,
-                                              "enum variant",
-                                              node->name))
+              if (validate_unique_member_name(
+                    variant_names, variant.name, variant.name_span, "enum variant", node->name))
                 variant_names.append(variant.name);
             }
 
@@ -540,14 +527,13 @@ class Compiler_Typed_Semantic_Analyzer
           if (const auto known = lookup_type_name(node->name, type_names); known != 0)
             return known;
 
-          if (const auto declared = resolve_module_type_name(node->name, node->name_span); declared != 0)
+          if (const auto declared = resolve_module_type_name(node->name, node->name_span);
+              declared != 0)
             return declared;
 
           if (not allow_fresh_type_variables)
             {
-              emit_error(node->name_span,
-                         "TYP009",
-                         "unknown type name '" + node->name + "'");
+              emit_error(node->name_span, "TYP009", "unknown type name '" + node->name + "'");
               return types.invalid_type();
             }
 
@@ -561,8 +547,9 @@ class Compiler_Typed_Semantic_Analyzer
           const auto *node = static_cast<const Compiler_Tuple_Type_Expr *>(type_expr);
           DynArray<Compiler_Type_Id> members;
           for (size_t i = 0; i < node->members.size(); ++i)
-            members.append(
-              resolve_type_annotation(node->members.access(i), type_names, allow_fresh_type_variables));
+            members.append(resolve_type_annotation(node->members.access(i),
+                                                   type_names,
+                                                   allow_fresh_type_variables));
           return types.make_tuple_type(members);
         }
 
@@ -572,8 +559,8 @@ class Compiler_Typed_Semantic_Analyzer
           DynArray<Compiler_Type_Id> params;
           for (size_t i = 0; i < node->parameters.size(); ++i)
             params.append(resolve_type_annotation(node->parameters.access(i),
-                                                 type_names,
-                                                 allow_fresh_type_variables));
+                                                  type_names,
+                                                  allow_fresh_type_variables));
           return types.make_function_type(
             params, resolve_type_annotation(node->result, type_names, allow_fresh_type_variables));
         }
@@ -583,8 +570,7 @@ class Compiler_Typed_Semantic_Analyzer
   }
 
   void remember_function_annotation_type_variables(
-    const Compiler_Function_Decl *function,
-    const DynArray<Compiler_Type_Name_Binding> &type_names)
+    const Compiler_Function_Decl *function, const DynArray<Compiler_Type_Name_Binding> &type_names)
   {
     if (function == nullptr)
       return;
@@ -594,9 +580,8 @@ class Compiler_Typed_Semantic_Analyzer
         {function, type_names.access(i).name, type_names.access(i).type_id});
   }
 
-  void seed_function_annotation_type_variables(
-    const Compiler_Function_Decl *function,
-    DynArray<Compiler_Type_Name_Binding> &type_names) const
+  void seed_function_annotation_type_variables(const Compiler_Function_Decl *function,
+                                               DynArray<Compiler_Type_Name_Binding> &type_names) const
   {
     if (function == nullptr)
       return;
@@ -607,11 +592,10 @@ class Compiler_Typed_Semantic_Analyzer
                            function_annotation_type_variables.access(i).type_id});
   }
 
-  Compiler_Type_Id instantiate_type(
-    const Compiler_Type_Id type_id,
-    const DynArray<Compiler_Type_Id> &quantified_variables,
-    DynArray<Compiler_Type_Id> &originals,
-    DynArray<Compiler_Type_Id> &replacements)
+  Compiler_Type_Id instantiate_type(const Compiler_Type_Id type_id,
+                                    const DynArray<Compiler_Type_Id> &quantified_variables,
+                                    DynArray<Compiler_Type_Id> &originals,
+                                    DynArray<Compiler_Type_Id> &replacements)
   {
     const auto resolved = unifier.apply(type_id);
     if (is_invalid_type(resolved))
@@ -643,10 +627,8 @@ class Compiler_Typed_Semantic_Analyzer
       {
         DynArray<Compiler_Type_Id> members;
         for (size_t i = 0; i < type.components.size(); ++i)
-          members.append(instantiate_type(type.components.access(i),
-                                          quantified_variables,
-                                          originals,
-                                          replacements));
+          members.append(
+            instantiate_type(type.components.access(i), quantified_variables, originals, replacements));
         return types.make_tuple_type(members);
       }
 
@@ -654,10 +636,8 @@ class Compiler_Typed_Semantic_Analyzer
       {
         DynArray<Compiler_Type_Id> params;
         for (size_t i = 0; i < type.components.size(); ++i)
-          params.append(instantiate_type(type.components.access(i),
-                                         quantified_variables,
-                                         originals,
-                                         replacements));
+          params.append(
+            instantiate_type(type.components.access(i), quantified_variables, originals, replacements));
         const auto result
           = instantiate_type(type.result_type, quantified_variables, originals, replacements);
         return types.make_function_type(params, result);
@@ -744,9 +724,9 @@ class Compiler_Typed_Semantic_Analyzer
       }
   }
 
-  Compiler_Type_Scheme generalize_type(
-    const Compiler_Type_Id type_id,
-    const DynArray<Compiler_Type_Id> &explicit_quantified_variables = {})
+  Compiler_Type_Scheme generalize_type(const Compiler_Type_Id type_id,
+                                       const DynArray<Compiler_Type_Id> &explicit_quantified_variables
+                                       = {})
   {
     Compiler_Type_Scheme scheme;
     scheme.type_id = unifier.apply(type_id);
@@ -814,15 +794,15 @@ class Compiler_Typed_Semantic_Analyzer
       {
         const auto &param = function->parameters.access(i);
         const auto param_type = param.annotation != nullptr
-                                  ? resolve_type_annotation(param.annotation, type_names)
-                                  : fresh_type();
+                                ? resolve_type_annotation(param.annotation, type_names)
+                                : fresh_type();
         params.append(param_type);
         record_param_type(function, i, param_type);
       }
 
     const auto result_type = function->return_annotation != nullptr
-                               ? resolve_type_annotation(function->return_annotation, type_names)
-                               : fresh_type();
+                             ? resolve_type_annotation(function->return_annotation, type_names)
+                             : fresh_type();
     const auto function_type = types.make_function_type(params, result_type);
     record_function_type(function, function_type);
     remember_function_annotation_type_variables(function, type_names);
@@ -1083,8 +1063,8 @@ class Compiler_Typed_Semantic_Analyzer
           seed_function_annotation_type_variables(current_function, type_names);
 
           const auto annotation_type = node->annotation != nullptr
-                                         ? resolve_type_annotation(node->annotation, type_names)
-                                         : Compiler_Type_Id(0);
+                                       ? resolve_type_annotation(node->annotation, type_names)
+                                       : Compiler_Type_Id(0);
           const auto initializer_type
             = node->initializer != nullptr ? analyze_expr(node->initializer) : Compiler_Type_Id(0);
 
@@ -1105,15 +1085,14 @@ class Compiler_Typed_Semantic_Analyzer
           else
             type_id = fresh_type();
 
-          const auto scheme = generalize_type(
-            type_id,
-            [&type_names]()
-            {
-              DynArray<Compiler_Type_Id> quantified;
-              for (size_t i = 0; i < type_names.size(); ++i)
-                quantified.append(type_names.access(i).type_id);
-              return quantified;
-            }());
+          const auto scheme = generalize_type(type_id,
+                                              [&type_names]()
+          {
+            DynArray<Compiler_Type_Id> quantified;
+            for (size_t i = 0; i < type_names.size(); ++i)
+              quantified.append(type_names.access(i).type_id);
+            return quantified;
+          }());
 
           Compiler_Value_Binding binding;
           binding.type_id = scheme.type_id;

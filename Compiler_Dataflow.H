@@ -88,7 +88,7 @@ namespace Aleph
     }
 
     /** @brief Sets or clears bit `index`. Returns whether it changed. */
-    bool set(const size_t index, const bool value = true)
+    bool set(const size_t index, const bool value = true) const
     {
       ah_runtime_error_unless(index < bits.size())
         << "Compiler_Dataflow_Bit_Set::set(): index out of bounds";

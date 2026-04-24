@@ -31,8 +31,8 @@
 /** @file Compiler_Lexer.H
  *  @brief Lexical analyzer (Lexer) based on `Source_Manager`.
  *
- *  The lexer is the first component of the front-end. Its mission is to transform 
- *  a stream of characters from a source file into a sequence of `Compiler_Token` 
+ *  The lexer is the first component of the front-end. Its mission is to transform
+ *  a stream of characters from a source file into a sequence of `Compiler_Token`
  *  objects with semantic meaning.
  *
  *  ### Responsibilities:
@@ -64,9 +64,9 @@
 
 namespace Aleph {
 
-/** @brief Configuration options for lexer behavior. 
+/** @brief Configuration options for lexer behavior.
  *
- *  Allows adjusting which parts of the source code are ignored and which 
+ *  Allows adjusting which parts of the source code are ignored and which
  *  comment rules apply.
  *
  *  @note Thread-safety: Thread-safe (POD).
@@ -78,24 +78,24 @@ struct Compiler_Lexer_Options
   bool allow_block_comments = true;  ///< If false, `/*` is treated as `/` followed by `*`.
 };
 
-/** @brief Token generator for a single source file. 
+/** @brief Token generator for a single source file.
  *
- *  Maintains the reading state (cursor) and provides a "consumption" interface 
+ *  Maintains the reading state (cursor) and provides a "consumption" interface
  *  for logical symbols.
  *
- *  @note Thread-safety: Not thread-safe. Each file should have its own lexer 
+ *  @note Thread-safety: Not thread-safe. Each file should have its own lexer
  *        instance if processed in parallel.
  */
 class Compiler_Lexer
 {
-  const Source_Manager *sources = nullptr;
-  Source_File_Id file_id = 0;
-  const std::string *input = nullptr;
-  Diagnostic_Engine *diagnostics = nullptr;
-  Compiler_Lexer_Options options;
-  Source_Offset cursor = 0;
-  bool has_lookahead = false;
-  Compiler_Token lookahead;
+  const Source_Manager *sources_ = nullptr;
+  Source_File_Id file_id_ = 0;
+  const std::string *input_ = nullptr;
+  Diagnostic_Engine *diagnostics_ = nullptr;
+  Compiler_Lexer_Options options_;
+  Source_Offset cursor_ = 0;
+  bool has_lookahead_ = false;
+  Compiler_Token lookahead_;
 
   /** @brief Checks if a character can start an identifier. */
   static bool is_ident_start(const unsigned char ch) noexcept
@@ -112,31 +112,31 @@ class Compiler_Lexer
   /** @brief Returns true if the cursor has reached the end of the input. */
   [[nodiscard]] bool at_end() const noexcept
   {
-    return cursor >= input->size();
+    return cursor_ >= input_->size();
   }
 
   /** @brief Safe character access at a given offset. */
   [[nodiscard]] char char_at(const Source_Offset off) const noexcept
   {
-    return off < input->size() ? (*input)[off] : '\0';
+    return off < input_->size() ? (*input_)[off] : '\0';
   }
 
   /** @brief Returns the character at the current cursor position. */
   [[nodiscard]] char current_char() const noexcept
   {
-    return char_at(cursor);
+    return char_at(cursor_);
   }
 
   /** @brief Returns the character following the current cursor position. */
   [[nodiscard]] char next_char() const noexcept
   {
-    return char_at(cursor + 1);
+    return char_at(cursor_ + 1);
   }
 
   /** @brief Creates a source span for the given range in the current file. */
   [[nodiscard]] Source_Span make_span(const Source_Offset begin, const Source_Offset end) const
   {
-    return sources->span(file_id, begin, end);
+    return sources_->span(file_id_, begin, end);
   }
 
   /** @brief Creates a token with the given kind and range. */
@@ -145,13 +145,13 @@ class Compiler_Lexer
                                           const Source_Offset end) const
   {
     const auto sp = make_span(begin, end);
-    return {kind, sources->slice(sp), sp};
+    return {kind, sources_->slice(sp), sp};
   }
 
   /** @brief Creates an End_Of_File token at the current position. */
   [[nodiscard]] Compiler_Token make_eof_token() const
   {
-    const auto sp = make_span(cursor, cursor);
+    const auto sp = make_span(cursor_, cursor_);
     return {Compiler_Token_Kind::End_Of_File, "", sp};
   }
 
@@ -162,10 +162,10 @@ class Compiler_Lexer
                   const std::string &note = "",
                   const std::string &help = "") const
   {
-    if (diagnostics == nullptr)
+    if (diagnostics_ == nullptr)
       return;
 
-    auto builder = diagnostics->error(span, message).code(code);
+    auto builder = diagnostics_->error(span, message).code(code);
     if (not note.empty())
       builder.note(note);
     if (not help.empty())
@@ -177,305 +177,306 @@ class Compiler_Lexer
   void skip_whitespace()
   {
     while (not at_end() and std::isspace(static_cast<unsigned char>(current_char())))
-      ++cursor;
+      ++cursor_;
   }
 
   /** @brief Lexes a single-line comment. */
   Compiler_Token lex_line_comment()
   {
-    const Source_Offset begin = cursor;
-    cursor += 2;
+    const Source_Offset begin = cursor_;
+    cursor_ += 2;
     while (not at_end() and current_char() != '\n')
-      ++cursor;
-    return make_token(Compiler_Token_Kind::Line_Comment, begin, cursor);
+      ++cursor_;
+    return make_token(Compiler_Token_Kind::Line_Comment, begin, cursor_);
   }
 
   /** @brief Lexes a multi-line block comment. */
   Compiler_Token lex_block_comment()
   {
-    const Source_Offset begin = cursor;
-    cursor += 2;
+    const Source_Offset begin = cursor_;
+    cursor_ += 2;
 
     while (not at_end())
       {
         if (current_char() == '*' and next_char() == '/')
           {
-            cursor += 2;
-            return make_token(Compiler_Token_Kind::Block_Comment, begin, cursor);
+            cursor_ += 2;
+            return make_token(Compiler_Token_Kind::Block_Comment, begin, cursor_);
           }
-        ++cursor;
+        ++cursor_;
       }
 
-    const auto sp = make_span(begin, cursor);
+    const auto sp = make_span(begin, cursor_);
     emit_error(sp, "unterminated block comment", "LEX004", "block comments must end with '*/'");
-    return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
+    return {Compiler_Token_Kind::Invalid, sources_->slice(sp), sp};
   }
 
   /** @brief Lexes an identifier or classifies it as a keyword. */
   Compiler_Token lex_identifier_or_keyword()
   {
-    const Source_Offset begin = cursor;
-    ++cursor;
+    const Source_Offset begin = cursor_;
+    ++cursor_;
     while (not at_end() and is_ident_continue(static_cast<unsigned char>(current_char())))
-      ++cursor;
+      ++cursor_;
 
-    const auto sp = make_span(begin, cursor);
-    const auto lexeme = sources->slice(sp);
+    const auto sp = make_span(begin, cursor_);
+    const auto lexeme = sources_->slice(sp);
     return {classify_compiler_keyword(lexeme), lexeme, sp};
   }
 
   /** @brief Lexes a numeric literal. */
   Compiler_Token lex_number()
   {
-    const Source_Offset begin = cursor;
-    ++cursor;
+    const Source_Offset begin = cursor_;
+    ++cursor_;
     while (not at_end())
       {
         const auto ch = static_cast<unsigned char>(current_char());
         if (std::isdigit(ch))
           {
-            ++cursor;
+            ++cursor_;
             continue;
           }
 
         if (ch == '_' and std::isdigit(static_cast<unsigned char>(next_char())))
           {
-            ++cursor;
+            ++cursor_;
             continue;
           }
 
         break;
       }
 
-    return make_token(Compiler_Token_Kind::Integer_Literal, begin, cursor);
+    return make_token(Compiler_Token_Kind::Integer_Literal, begin, cursor_);
   }
 
   /** @brief Lexes a string literal. */
   Compiler_Token lex_string()
   {
-    const Source_Offset begin = cursor;
-    ++cursor;
+    const Source_Offset begin = cursor_;
+    ++cursor_;
 
     while (not at_end())
       {
         const char ch = current_char();
         if (ch == '"')
           {
-            ++cursor;
-            return make_token(Compiler_Token_Kind::String_Literal, begin, cursor);
+            ++cursor_;
+            return make_token(Compiler_Token_Kind::String_Literal, begin, cursor_);
           }
 
         if (ch == '\\')
           {
-            ++cursor;
+            ++cursor_;
             if (at_end())
               break;
-            ++cursor;
+            ++cursor_;
             continue;
           }
 
         if (ch == '\n' or ch == '\r')
           break;
 
-        ++cursor;
+        ++cursor_;
       }
 
-    const auto sp = make_span(begin, cursor);
+    const auto sp = make_span(begin, cursor_);
     emit_error(sp,
                "unterminated string literal",
                "LEX002",
                "string literal started here",
                "close the string with a double quote");
-    return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
+    return {Compiler_Token_Kind::Invalid, sources_->slice(sp), sp};
   }
 
   /** @brief Lexes a character literal. */
   Compiler_Token lex_char_literal()
   {
-    const Source_Offset begin = cursor;
-    ++cursor;
+    const Source_Offset begin = cursor_;
+    ++cursor_;
 
     if (at_end() or current_char() == '\n' or current_char() == '\r')
       {
-        const auto sp = make_span(begin, cursor);
+        const auto sp = make_span(begin, cursor_);
         emit_error(sp, "unterminated character literal", "LEX003", "character literal started here");
-        return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
+        return {Compiler_Token_Kind::Invalid, sources_->slice(sp), sp};
       }
 
     if (current_char() == '\\')
       {
-        ++cursor;
+        ++cursor_;
         if (at_end() or current_char() == '\n' or current_char() == '\r')
           {
-            const auto sp = make_span(begin, cursor);
+            const auto sp = make_span(begin, cursor_);
             emit_error(sp, "unterminated escape sequence in character literal", "LEX003");
-            return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
+            return {Compiler_Token_Kind::Invalid, sources_->slice(sp), sp};
           }
-        ++cursor;
+        ++cursor_;
       }
     else
-      ++cursor;
+      ++cursor_;
 
     if (not at_end() and current_char() == '\'')
       {
-        ++cursor;
-        return make_token(Compiler_Token_Kind::Char_Literal, begin, cursor);
+        ++cursor_;
+        return make_token(Compiler_Token_Kind::Char_Literal, begin, cursor_);
       }
 
     while (not at_end() and current_char() != '\'' and current_char() != '\n'
            and current_char() != '\r')
-      ++cursor;
+      ++cursor_;
 
     if (not at_end() and current_char() == '\'')
-      ++cursor;
+      ++cursor_;
 
-    const auto sp = make_span(begin, cursor);
+    const auto sp = make_span(begin, cursor_);
     emit_error(sp,
                "malformed character literal",
                "LEX003",
                "character literals must contain exactly one character or escape");
-    return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
+    return {Compiler_Token_Kind::Invalid, sources_->slice(sp), sp};
   }
 
   /** @brief Lexes punctuation or operator symbols. */
   Compiler_Token lex_punctuation_or_operator()
   {
-    const Source_Offset begin = cursor;
+    const Source_Offset begin = cursor_;
     const char a = current_char();
     const char b = next_char();
 
     // Multicharacter operators/punctuation
     if (a == ':' and b == ':')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::Double_Colon, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::Double_Colon, begin, cursor_);
       }
     if (a == '-' and b == '>')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::Arrow, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::Arrow, begin, cursor_);
       }
     if (a == '=' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::EqEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::EqEq, begin, cursor_);
       }
     if (a == '!' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::NotEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::NotEq, begin, cursor_);
       }
     if (a == '<' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::LessEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::LessEq, begin, cursor_);
       }
     if (a == '>' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::GreaterEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::GreaterEq, begin, cursor_);
       }
     if (a == '&' and b == '&')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::AndAnd, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::AndAnd, begin, cursor_);
       }
     if (a == '|' and b == '|')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::OrOr, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::OrOr, begin, cursor_);
       }
     if (a == '+' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::PlusEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::PlusEq, begin, cursor_);
       }
     if (a == '-' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::MinusEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::MinusEq, begin, cursor_);
       }
     if (a == '*' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::StarEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::StarEq, begin, cursor_);
       }
     if (a == '/' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::SlashEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::SlashEq, begin, cursor_);
       }
     if (a == '%' and b == '=')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::PercentEq, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::PercentEq, begin, cursor_);
       }
     if (a == '+' and b == '+')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::PlusPlus, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::PlusPlus, begin, cursor_);
       }
     if (a == '-' and b == '-')
       {
-        cursor += 2;
-        return make_token(Compiler_Token_Kind::MinusMinus, begin, cursor);
+        cursor_ += 2;
+        return make_token(Compiler_Token_Kind::MinusMinus, begin, cursor_);
       }
 
-    ++cursor;
+    ++cursor_;
     switch (a)
       {
       case '(':
-        return make_token(Compiler_Token_Kind::LParen, begin, cursor);
+        return make_token(Compiler_Token_Kind::LParen, begin, cursor_);
       case ')':
-        return make_token(Compiler_Token_Kind::RParen, begin, cursor);
+        return make_token(Compiler_Token_Kind::RParen, begin, cursor_);
       case '{':
-        return make_token(Compiler_Token_Kind::LBrace, begin, cursor);
+        return make_token(Compiler_Token_Kind::LBrace, begin, cursor_);
       case '}':
-        return make_token(Compiler_Token_Kind::RBrace, begin, cursor);
+        return make_token(Compiler_Token_Kind::RBrace, begin, cursor_);
       case '[':
-        return make_token(Compiler_Token_Kind::LBracket, begin, cursor);
+        return make_token(Compiler_Token_Kind::LBracket, begin, cursor_);
       case ']':
-        return make_token(Compiler_Token_Kind::RBracket, begin, cursor);
+        return make_token(Compiler_Token_Kind::RBracket, begin, cursor_);
       case ',':
-        return make_token(Compiler_Token_Kind::Comma, begin, cursor);
+        return make_token(Compiler_Token_Kind::Comma, begin, cursor_);
       case '.':
-        return make_token(Compiler_Token_Kind::Dot, begin, cursor);
+        return make_token(Compiler_Token_Kind::Dot, begin, cursor_);
       case ':':
-        return make_token(Compiler_Token_Kind::Colon, begin, cursor);
+        return make_token(Compiler_Token_Kind::Colon, begin, cursor_);
       case ';':
-        return make_token(Compiler_Token_Kind::Semicolon, begin, cursor);
+        return make_token(Compiler_Token_Kind::Semicolon, begin, cursor_);
       case '?':
-        return make_token(Compiler_Token_Kind::Question, begin, cursor);
+        return make_token(Compiler_Token_Kind::Question, begin, cursor_);
       case '=':
-        return make_token(Compiler_Token_Kind::Assign, begin, cursor);
+        return make_token(Compiler_Token_Kind::Assign, begin, cursor_);
       case '+':
-        return make_token(Compiler_Token_Kind::Plus, begin, cursor);
+        return make_token(Compiler_Token_Kind::Plus, begin, cursor_);
       case '-':
-        return make_token(Compiler_Token_Kind::Minus, begin, cursor);
+        return make_token(Compiler_Token_Kind::Minus, begin, cursor_);
       case '*':
-        return make_token(Compiler_Token_Kind::Star, begin, cursor);
+        return make_token(Compiler_Token_Kind::Star, begin, cursor_);
       case '/':
-        return make_token(Compiler_Token_Kind::Slash, begin, cursor);
+        return make_token(Compiler_Token_Kind::Slash, begin, cursor_);
       case '%':
-        return make_token(Compiler_Token_Kind::Percent, begin, cursor);
+        return make_token(Compiler_Token_Kind::Percent, begin, cursor_);
       case '&':
-        return make_token(Compiler_Token_Kind::Amp, begin, cursor);
+        return make_token(Compiler_Token_Kind::Amp, begin, cursor_);
       case '|':
-        return make_token(Compiler_Token_Kind::Pipe, begin, cursor);
+        return make_token(Compiler_Token_Kind::Pipe, begin, cursor_);
       case '^':
-        return make_token(Compiler_Token_Kind::Caret, begin, cursor);
+        return make_token(Compiler_Token_Kind::Caret, begin, cursor_);
       case '!':
-        return make_token(Compiler_Token_Kind::Bang, begin, cursor);
+        return make_token(Compiler_Token_Kind::Bang, begin, cursor_);
       case '~':
-        return make_token(Compiler_Token_Kind::Tilde, begin, cursor);
+        return make_token(Compiler_Token_Kind::Tilde, begin, cursor_);
       case '<':
-        return make_token(Compiler_Token_Kind::Less, begin, cursor);
+        return make_token(Compiler_Token_Kind::Less, begin, cursor_);
       case '>':
-        return make_token(Compiler_Token_Kind::Greater, begin, cursor);
-        default: {
-          const auto sp = make_span(begin, cursor);
+        return make_token(Compiler_Token_Kind::Greater, begin, cursor_);
+      default:
+        {
+          const auto sp = make_span(begin, cursor_);
           emit_error(sp, std::string("unexpected character '") + a + "'", "LEX001");
-          return {Compiler_Token_Kind::Invalid, sources->slice(sp), sp};
+          return {Compiler_Token_Kind::Invalid, sources_->slice(sp), sp};
         }
       }
   }
@@ -491,16 +492,14 @@ class Compiler_Lexer
 
         if (current_char() == '/' and next_char() == '/')
           {
-            auto tok = lex_line_comment();
-            if (options.keep_comments or tok.is_invalid())
+            if (auto tok = lex_line_comment(); options_.keep_comments or tok.is_invalid())
               return tok;
             continue;
           }
 
-        if (options.allow_block_comments and current_char() == '/' and next_char() == '*')
+        if (options_.allow_block_comments and current_char() == '/' and next_char() == '*')
           {
-            auto tok = lex_block_comment();
-            if (options.keep_comments or tok.is_invalid())
+            if (auto tok = lex_block_comment(); options_.keep_comments or tok.is_invalid())
               return tok;
             continue;
           }
@@ -525,7 +524,7 @@ public:
    *
    *  @param sm Source manager containing the file text.
    *  @param id Identifier of the file to tokenize.
-   *  @param dx Diagnostic engine to report errors. If null, errors are only 
+   *  @param dx Diagnostic engine to report errors. If null, errors are only
    *         indicated via `Invalid` tokens.
    *  @param opts Trivia handling options (comments, etc.).
    *  @throws std::out_of_range If `id` is not valid in `sm`.
@@ -536,10 +535,10 @@ public:
                  const Source_File_Id id,
                  Diagnostic_Engine *dx = nullptr,
                  const Compiler_Lexer_Options &opts = {})
-    : sources(&sm), file_id(id), input(&sm.file_text(id)), diagnostics(dx), options(opts)
+    : sources_(&sm), file_id_(id), input_(&sm.file_text(id)), diagnostics_(dx), options_(opts)
   {}
 
-  /** @brief Returns the file ID currently being analyzed. 
+  /** @brief Returns the file ID currently being analyzed.
    *
    *  @return The stable ID associated with this lexer.
    *  @note Thread-safety: Safe for concurrent readers.
@@ -547,7 +546,7 @@ public:
    */
   [[nodiscard]] Source_File_Id source_file_id() const noexcept
   {
-    return file_id;
+    return file_id_;
   }
 
   /** @brief Returns the current byte offset in the file.
@@ -560,12 +559,12 @@ public:
    */
   [[nodiscard]] Source_Offset current_offset() const noexcept
   {
-    return cursor;
+    return cursor_;
   }
 
   /** @brief Repositions the reading cursor.
    *
-   *  Discards any pre-read tokens (lookahead) and restarts the analysis 
+   *  Discards any pre-read tokens (lookahead) and restarts the analysis
    *  from the indicated position.
    *
    *  @param offset New byte offset (default 0, the beginning).
@@ -575,16 +574,16 @@ public:
    */
   void reset(const Source_Offset offset = 0)
   {
-    ah_out_of_range_error_unless(offset <= input->size())
+    ah_out_of_range_error_unless(offset <= input_->size())
       << "Compiler_Lexer::reset(): invalid offset " << offset;
-    cursor = offset;
-    has_lookahead = false;
-    lookahead = Compiler_Token();
+    cursor_ = offset;
+    has_lookahead_ = false;
+    lookahead_ = Compiler_Token();
   }
 
   /** @brief Peeks at the next token without advancing the cursor.
    *
-   *  Allows the parser to make syntactic decisions based on the next symbol 
+   *  Allows the parser to make syntactic decisions based on the next symbol
    *  without consuming it permanently. Successive calls return the same token.
    *
    *  @return The next available token in the stream.
@@ -593,17 +592,17 @@ public:
    */
   Compiler_Token peek()
   {
-    if (not has_lookahead)
+    if (not has_lookahead_)
       {
-        lookahead = lex_token();
-        has_lookahead = true;
+        lookahead_ = lex_token();
+        has_lookahead_ = true;
       }
-    return lookahead;
+    return lookahead_;
   }
 
   /** @brief Consumes and returns the next token from the stream.
    *
-   *  Advances the internal cursor. If there is a lexical error, returns an 
+   *  Advances the internal cursor. If there is a lexical error, returns an
    *  `Invalid` token but continues advancing to attempt recovery.
    *
    *  @return The consumed token.
@@ -612,10 +611,10 @@ public:
    */
   Compiler_Token next()
   {
-    if (has_lookahead)
+    if (has_lookahead_)
       {
-        has_lookahead = false;
-        return lookahead;
+        has_lookahead_ = false;
+        return lookahead_;
       }
     return lex_token();
   }

@@ -196,13 +196,13 @@ class Compiler_CFG_Context
     void (*destroy)(void *) noexcept = nullptr;
   };
 
-  AhArenaAllocator arena;
-  DynArray<Owned_Object> owned;
+  AhArenaAllocator arena_;
+  DynArray<Owned_Object> owned_;
 
 public:
   /** @brief Constructs a CFG context. */
   explicit Compiler_CFG_Context(const size_t arena_size = AhArenaAllocator::DEFAULT_SIZE)
-    : arena(arena_size)
+    : arena_(arena_size)
   {}
 
   Compiler_CFG_Context(const Compiler_CFG_Context &) = delete;
@@ -218,10 +218,10 @@ public:
   template <typename T, typename... Args>
   T *make(Args &&...args)
   {
-    T *ptr = allocate<T>(arena, std::forward<Args>(args)...);
+    T *ptr = allocate<T>(arena_, std::forward<Args>(args)...);
     ah_runtime_error_unless(ptr != nullptr) << "Compiler_CFG_Context: arena allocation failed";
 
-    owned.append({ptr,
+    owned_.append({ptr,
                   [](void *raw) noexcept
     {
       static_cast<T *>(raw)->~T();
@@ -232,20 +232,20 @@ public:
   /** @brief Resets the arena and destroys all tracked objects. */
   void reset() noexcept
   {
-    for (size_t i = owned.size(); i > 0; --i)
+    for (size_t i = owned_.size(); i > 0; --i)
       {
-        auto &[ptr, destroy] = owned.access(i - 1);
+        auto &[ptr, destroy] = owned_.access(i - 1);
         if (destroy != nullptr and ptr != nullptr)
           destroy(ptr);
       }
-    owned.clear();
-    arena.reset();
+    owned_.clear();
+    arena_.reset();
   }
 
   /** @brief Returns currently used bytes. */
   size_t allocated_size() const noexcept
   {
-    return arena.allocated_size();
+    return arena_.allocated_size();
   }
 };
 
@@ -352,11 +352,11 @@ class Compiler_CFG_Lowering
     Compiler_CFG_Block_Id continue_block = compiler_cfg_invalid_block_id();
   };
 
-  Compiler_CFG_Context *cfg = nullptr;    ///< CFG owner.
-  const Compiler_Type_Context *types = nullptr; ///< Type metadata source.
-  size_t if_counter = 0;                  ///< ID generator for conditional blocks.
-  size_t while_counter = 0;               ///< ID generator for loop blocks.
-  size_t dead_counter = 0;                ///< ID generator for unreachable blocks.
+  Compiler_CFG_Context *cfg_ = nullptr;    ///< CFG owner.
+  const Compiler_Type_Context *types_ = nullptr; ///< Type metadata source.
+  size_t if_counter_ = 0;                  ///< ID generator for conditional blocks.
+  size_t while_counter_ = 0;               ///< ID generator for loop blocks.
+  size_t dead_counter_ = 0;                ///< ID generator for unreachable blocks.
 
   /** @brief Accesses a block by ID within a function. */
   Compiler_CFG_Block &block(Compiler_CFG_Function *function, const Compiler_CFG_Block_Id id) const
@@ -482,7 +482,7 @@ class Compiler_CFG_Lowering
   {
     if (current != compiler_cfg_invalid_block_id())
       return current;
-    return create_block(function, "dead." + std::to_string(dead_counter++));
+    return create_block(function, "dead." + std::to_string(dead_counter_++));
   }
 
   /** @brief Recursively lowers an HIR statement into the CFG. */
@@ -524,7 +524,7 @@ class Compiler_CFG_Lowering
           const auto *node = static_cast<const Compiler_HIR_If_Stmt *>(stmt);
           current = ensure_current_block(function, current);
 
-          const auto id = if_counter++;
+          const auto id = if_counter_++;
           const auto then_block = create_block(function, "if.then." + std::to_string(id));
           const auto join_block = create_block(function, "if.end." + std::to_string(id));
 
@@ -553,7 +553,7 @@ class Compiler_CFG_Lowering
           const auto *node = static_cast<const Compiler_HIR_While_Stmt *>(stmt);
           current = ensure_current_block(function, current);
 
-          const auto id = while_counter++;
+          const auto id = while_counter_++;
           const auto cond_block = create_block(function, "while.cond." + std::to_string(id));
           const auto body_block = create_block(function, "while.body." + std::to_string(id));
           const auto end_block = create_block(function, "while.end." + std::to_string(id));
@@ -612,7 +612,7 @@ class Compiler_CFG_Lowering
                                                  const Compiler_HIR_Function *source_function,
                                                  const DynArray<Compiler_HIR_Stmt *> &statements)
   {
-    auto *function = cfg->make<Compiler_CFG_Function>();
+    auto *function = cfg_->make<Compiler_CFG_Function>();
     function->name = name;
     function->span = span;
     function->type_id = type_id;
@@ -640,13 +640,13 @@ public:
    */
   explicit Compiler_CFG_Lowering(Compiler_CFG_Context &ctx,
                                  const Compiler_Type_Context *type_ctx = nullptr) noexcept
-    : cfg(&ctx), types(type_ctx)
+    : cfg_(&ctx), types_(type_ctx)
   {}
 
   /** @brief Returns the optional type context used by this lowerer. */
   const Compiler_Type_Context *type_context() const noexcept
   {
-    return types;
+    return types_;
   }
 
   /** @brief Lowers one HIR function into a CFG. 
@@ -673,7 +673,7 @@ public:
   {
     ah_runtime_error_unless(module != nullptr) << "Compiler_CFG_Lowering::lower_module(): null HIR module";
 
-    auto *result = cfg->make<Compiler_CFG_Module>();
+    auto *result = cfg_->make<Compiler_CFG_Module>();
     for (size_t i = 0; i < module->functions.size(); ++i)
       result->functions.append(lower_function(module->functions.access(i)));
 

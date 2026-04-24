@@ -152,9 +152,9 @@ struct Compiler_Type
   Compiler_Builtin_Type builtin = Compiler_Builtin_Type::Invalid;  ///< Built-in tag.
   DynArray<Compiler_Type_Id> components;  ///< Tuple members, function parameters, or struct field types.
   Compiler_Type_Id result_type = 0;       ///< Function return type, or `0`.
-  DynArray<std::string> member_names;     ///< Struct field names or enum variant names.
-  std::string label;                      ///< Display label for type variables or nominal type names.
-  bool rigid = false;                     ///< Whether the type variable is rigid.
+  DynArray<std::string> member_names;  ///< Struct field names or enum variant names.
+  std::string label;                   ///< Display label for type variables or nominal type names.
+  bool rigid = false;                  ///< Whether the type variable is rigid.
 
   /** @brief Returns whether this node represents a built-in type. */
   bool is_builtin() const noexcept
@@ -209,7 +209,7 @@ class Compiler_Type_Context
     return types.size();
   }
 
-  Compiler_Type & mutable_type(const Compiler_Type_Id id)
+  Compiler_Type &mutable_type(const Compiler_Type_Id id) const
   {
     ah_out_of_range_error_unless(id > 0 and id <= types.size())
       << "Compiler_Type_Context::mutable_type(): invalid id " << id;
@@ -525,8 +525,7 @@ public:
    *  @param variant_names Variant names in declaration order.
    *  @throws std::invalid_argument If `id` is not an `enum`.
    */
-  void set_enum_variants(const Compiler_Type_Id id,
-                         const DynArray<std::string> &variant_names)
+  void set_enum_variants(const Compiler_Type_Id id, const DynArray<std::string> &variant_names)
   {
     auto &ty = mutable_type(id);
     ah_invalid_argument_unless(ty.kind == Compiler_Type_Kind::Enum)

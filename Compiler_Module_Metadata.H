@@ -47,75 +47,71 @@
 #include <ah-source.H>
 #include <tpl_dynArray.H>
 
-namespace Aleph
+namespace Aleph {
+/** @brief Export kinds currently modeled by reusable module metadata. */
+enum class Compiler_Module_Export_Kind
 {
-  /** @brief Export kinds currently modeled by reusable module metadata. */
-  enum class Compiler_Module_Export_Kind
-  {
-    Function,
-    Global,
-    Type
-  };
+  Function,
+  Global,
+  Type
+};
 
-  /** @brief Returns the stable debug name for one module-export kind. */
-  inline const char *
-  compiler_module_export_kind_name(const Compiler_Module_Export_Kind kind) noexcept
-  {
-    switch (kind)
-      {
-      case Compiler_Module_Export_Kind::Function:
-        return "Function";
-      case Compiler_Module_Export_Kind::Global:
-        return "Global";
-      case Compiler_Module_Export_Kind::Type:
-        return "Type";
-      }
+/** @brief Returns the stable debug name for one module-export kind. */
+inline const char *compiler_module_export_kind_name(const Compiler_Module_Export_Kind kind) noexcept
+{
+  switch (kind)
+    {
+    case Compiler_Module_Export_Kind::Function:
+      return "Function";
+    case Compiler_Module_Export_Kind::Global:
+      return "Global";
+    case Compiler_Module_Export_Kind::Type:
+      return "Type";
+    }
 
-    return "Unknown";
-  }
-
-  /** @brief One reusable top-level declaration exposed by a module surface. */
-  struct Compiler_Module_Export
-  {
-    Compiler_Module_Export_Kind kind = Compiler_Module_Export_Kind::Global;
-    std::string name;
-    Source_Span declaration_span;
-  };
-
-  /** @brief Reusable metadata describing one parsed or analyzed module surface. */
-  struct Compiler_Module_Metadata
-  {
-    std::string name;  ///< Stable module/source name.
-    Source_Span span;  ///< Full module span when available.
-    DynArray<Compiler_Module_Export> exports;  ///< Visible top-level declarations contributed by the module.
-  };
-
-  /** @brief Renders one deterministic text artifact for module metadata. */
-  inline std::string
-  compiler_render_module_metadata(const DynArray<Compiler_Module_Metadata> & modules)
-  {
-    std::ostringstream out;
-    out << "ModuleMetadata\n";
-    for (size_t i = 0; i < modules.size(); ++i)
-      {
-        const auto & module = modules.access(i);
-        out << "  Module(" << module.name << ")";
-        if (module.span.is_valid())
-          out << " @" << module.span.to_string();
-        out << '\n';
-
-        for (size_t j = 0; j < module.exports.size(); ++j)
-          {
-            const auto & item = module.exports.access(j);
-            out << "    " << compiler_module_export_kind_name(item.kind) << "(" << item.name
-                << ")";
-            if (item.declaration_span.is_valid())
-              out << " @" << item.declaration_span.to_string();
-            out << '\n';
-          }
-      }
-    return out.str();
-  }
+  return "Unknown";
 }
+
+/** @brief One reusable top-level declaration exposed by a module surface. */
+struct Compiler_Module_Export
+{
+  Compiler_Module_Export_Kind kind = Compiler_Module_Export_Kind::Global;
+  std::string name;
+  Source_Span declaration_span;
+};
+
+/** @brief Reusable metadata describing one parsed or analyzed module surface. */
+struct Compiler_Module_Metadata
+{
+  std::string name;                          ///< Stable module/source name.
+  Source_Span span;                          ///< Full module span when available.
+  DynArray<Compiler_Module_Export> exports;  ///< Visible top-level declarations contributed by the module.
+};
+
+/** @brief Renders one deterministic text artifact for module metadata. */
+inline std::string compiler_render_module_metadata(const DynArray<Compiler_Module_Metadata> &modules)
+{
+  std::ostringstream out;
+  out << "ModuleMetadata\n";
+  for (size_t i = 0; i < modules.size(); ++i)
+    {
+      const auto &module = modules.access(i);
+      out << "  Module(" << module.name << ")";
+      if (module.span.is_valid())
+        out << " @" << module.span.to_string();
+      out << '\n';
+
+      for (size_t j = 0; j < module.exports.size(); ++j)
+        {
+          const auto &item = module.exports.access(j);
+          out << "    " << compiler_module_export_kind_name(item.kind) << "(" << item.name << ")";
+          if (item.declaration_span.is_valid())
+            out << " @" << item.declaration_span.to_string();
+          out << '\n';
+        }
+    }
+  return out.str();
+}
+}  // namespace Aleph
 
 #endif

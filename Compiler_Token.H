@@ -2,7 +2,7 @@
   This file is part of Aleph-w system
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
-  
+
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
   in the Software without restriction, including without limitation the rights
@@ -33,17 +33,17 @@
  *  @ingroup Utilities
  */
 
-# ifndef COMPILER_TOKEN_H
-# define COMPILER_TOKEN_H
+#ifndef COMPILER_TOKEN_H
+#define COMPILER_TOKEN_H
 
-# include <sstream>
-# include <string>
-# include <string_view>
-# include <ah-source.H>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <ah-source.H>
 
 namespace Aleph {
 
-/** @brief Associativity metadata for binary operators. 
+/** @brief Associativity metadata for binary operators.
  *
  *  Determines how operators of the same precedence are grouped (e.g., `a - b - c`).
  *
@@ -59,7 +59,7 @@ enum class Compiler_Associativity
 
 /** @brief Token kinds supported by the compiler MVP.
  *
- *  Includes keywords, literals, operators, and punctuation. Keywords have 
+ *  Includes keywords, literals, operators, and punctuation. Keywords have
  *  their own enumerators to avoid string comparisons in the parser.
  *
  *  @note Thread-safety: Thread-safe (POD).
@@ -67,36 +67,87 @@ enum class Compiler_Associativity
  */
 enum class Compiler_Token_Kind
 {
-  Invalid,       ///< Sentinel for lexer errors or uninitialized tokens.
-  End_Of_File,   ///< End of the source stream.
+  Invalid,      ///< Sentinel for lexer errors or uninitialized tokens.
+  End_Of_File,  ///< End of the source stream.
 
   // Identifiers and Literals
-  Identifier,      ///< Named identifier (e.g., variable or function name).
-  Integer_Literal, ///< Integer constant.
-  String_Literal,  ///< String constant (with escape sequences).
-  Char_Literal,    ///< Single character constant.
+  Identifier,       ///< Named identifier (e.g., variable or function name).
+  Integer_Literal,  ///< Integer constant.
+  String_Literal,   ///< String constant (with escape sequences).
+  Char_Literal,     ///< Single character constant.
 
   // Trivia
-  Line_Comment,    ///< Single-line comment (`// ...`).
-  Block_Comment,   ///< Multi-line comment (`/* ... */`).
+  Line_Comment,   ///< Single-line comment (`// ...`).
+  Block_Comment,  ///< Multi-line comment (`/* ... */`).
 
   // Keywords
-  Kw_If, Kw_Else, Kw_While, Kw_For, Kw_Return, Kw_Break, Kw_Continue,
-  Kw_Func, Kw_Fn = Kw_Func, Kw_Var, Kw_Let, Kw_Const, Kw_Type, Kw_Struct, Kw_Enum, Kw_Class,
-  Kw_Import, Kw_Export, Kw_Namespace, Kw_Try, Kw_Catch, Kw_Throw,
-  Kw_True, Kw_False,
+  Kw_If,
+  Kw_Else,
+  Kw_While,
+  Kw_For,
+  Kw_Return,
+  Kw_Break,
+  Kw_Continue,
+  Kw_Func,
+  Kw_Fn = Kw_Func,
+  Kw_Var,
+  Kw_Let,
+  Kw_Const,
+  Kw_Type,
+  Kw_Struct,
+  Kw_Enum,
+  Kw_Class,
+  Kw_Import,
+  Kw_Export,
+  Kw_Namespace,
+  Kw_Try,
+  Kw_Catch,
+  Kw_Throw,
+  Kw_True,
+  Kw_False,
 
   // Punctuation
-  LParen, RParen, LBrace, RBrace, LBracket, RBracket,
-  Comma, Semicolon, Colon, Dot, Arrow,
-  Double_Colon, Question,
+  LParen,
+  RParen,
+  LBrace,
+  RBrace,
+  LBracket,
+  RBracket,
+  Comma,
+  Semicolon,
+  Colon,
+  Dot,
+  Arrow,
+  Double_Colon,
+  Question,
 
   // Operators
-  Assign, Plus, Minus, Star, Slash, Percent,
-  EqEq, NotEq, Less, LessEq, Greater, GreaterEq,
-  AndAnd, OrOr, Bang, Amp, Pipe, Caret, Tilde,
-  PlusEq, MinusEq, StarEq, SlashEq, PercentEq,
-  PlusPlus, MinusMinus
+  Assign,
+  Plus,
+  Minus,
+  Star,
+  Slash,
+  Percent,
+  EqEq,
+  NotEq,
+  Less,
+  LessEq,
+  Greater,
+  GreaterEq,
+  AndAnd,
+  OrOr,
+  Bang,
+  Amp,
+  Pipe,
+  Caret,
+  Tilde,
+  PlusEq,
+  MinusEq,
+  StarEq,
+  SlashEq,
+  PercentEq,
+  PlusPlus,
+  MinusMinus
 };
 
 /** @brief Returns a human-readable name for a token kind.
@@ -121,7 +172,7 @@ const char *compiler_token_kind_name(Compiler_Token_Kind kind);
  */
 Compiler_Token_Kind classify_compiler_keyword(std::string_view lexeme) noexcept;
 
-/** @brief Predicate: Is the kind a reserved keyword? 
+/** @brief Predicate: Is the kind a reserved keyword?
  *
  *  @param kind Token kind.
  *  @return `true` if it is a keyword.
@@ -130,7 +181,7 @@ Compiler_Token_Kind classify_compiler_keyword(std::string_view lexeme) noexcept;
  */
 bool compiler_token_is_keyword(Compiler_Token_Kind kind) noexcept;
 
-/** @brief Predicate: Is the kind a literal (number, string, bool, etc.)? 
+/** @brief Predicate: Is the kind a literal (number, string, bool, etc.)?
  *
  *  @param kind Token kind.
  *  @return `true` if it is a literal.
@@ -139,7 +190,7 @@ bool compiler_token_is_keyword(Compiler_Token_Kind kind) noexcept;
  */
 bool compiler_token_is_literal(Compiler_Token_Kind kind) noexcept;
 
-/** @brief Predicate: Is the kind a comment? 
+/** @brief Predicate: Is the kind a comment?
  *
  *  @param kind Token kind.
  *  @return `true` if it is a comment (line or block).
@@ -148,7 +199,7 @@ bool compiler_token_is_literal(Compiler_Token_Kind kind) noexcept;
  */
 bool compiler_token_is_comment(Compiler_Token_Kind kind) noexcept;
 
-/** @brief Predicate: Is the kind an operator (arithmetic, logical, etc.)? 
+/** @brief Predicate: Is the kind an operator (arithmetic, logical, etc.)?
  *
  *  @param kind Token kind.
  *  @return `true` if it is a recognized operator.
@@ -178,22 +229,22 @@ int compiler_binary_precedence(Compiler_Token_Kind kind) noexcept;
  */
 Compiler_Associativity compiler_binary_associativity(Compiler_Token_Kind kind) noexcept;
 
-/** @brief Lexical token representation with its value and location. 
+/** @brief Lexical token representation with its value and location.
  *
- *  It is the primary object that the Lexer delivers to the Parser. 
+ *  It is the primary object that the Lexer delivers to the Parser.
  *  It combines the "what" (kind), the "how" (lexeme), and the "where" (span).
  *
- *  @note Thread-safety: Not thread-safe for concurrent mutation. Const methods 
+ *  @note Thread-safety: Not thread-safe for concurrent mutation. Const methods
  *        are safe for concurrent readers.
  *  @note Complexity: O(1) for construction/copy (plus std::string management).
  */
 struct Compiler_Token
 {
   Compiler_Token_Kind kind = Compiler_Token_Kind::Invalid;  ///< Logical category (e.g., Kw_If).
-  std::string lexeme;  ///< Exact text found in the source.
-  Source_Span span;    ///< Precise location in the source code.
+  std::string lexeme;                                       ///< Exact text found in the source.
+  Source_Span span;  ///< Precise location in the source code.
 
-  /** @brief Returns whether the token marks the end of the file. 
+  /** @brief Returns whether the token marks the end of the file.
    *
    *  @note Thread-safety: Safe for concurrent readers.
    *  @note Complexity: O(1).
@@ -203,7 +254,7 @@ struct Compiler_Token
     return kind == Compiler_Token_Kind::End_Of_File;
   }
 
-  /** @brief Returns whether the token represents a lexical error. 
+  /** @brief Returns whether the token represents a lexical error.
    *
    *  @note Thread-safety: Safe for concurrent readers.
    *  @note Complexity: O(1).
@@ -213,7 +264,7 @@ struct Compiler_Token
     return kind == Compiler_Token_Kind::Invalid;
   }
 
-  /** @brief Fast kind check. 
+  /** @brief Fast kind check.
    *
    *  @param expected The kind to verify.
    *  @return `true` if the token matches the expected kind.
@@ -225,7 +276,7 @@ struct Compiler_Token
     return kind == expected;
   }
 
-  /** @brief Formats the token as a descriptive string for debugging. 
+  /** @brief Formats the token as a descriptive string for debugging.
    *
    *  Escapes special characters in the lexeme to ensure readable output.
    *  Useful for logging and diagnostics.
@@ -236,43 +287,40 @@ struct Compiler_Token
   [[nodiscard]] std::string to_string() const;
 };
 
-namespace Compiler_Token_Detail
+namespace Compiler_Token_Detail {
+inline std::string escape_token_lexeme(std::string_view text)
 {
-  inline std::string
-  escape_token_lexeme(std::string_view text)
-  {
-    std::string escaped;
-    escaped.reserve(text.size() + 8);
+  std::string escaped;
+  escaped.reserve(text.size() + 8);
 
-    for (const char ch : text)
-      switch (ch)
-        {
-        case '\\':
-          escaped += "\\\\";
-          break;
-        case '"':
-          escaped += "\\\"";
-          break;
-        case '\n':
-          escaped += "\\n";
-          break;
-        case '\r':
-          escaped += "\\r";
-          break;
-        case '\t':
-          escaped += "\\t";
-          break;
-        default:
-          escaped.push_back(ch);
-        }
+  for (const char ch : text)
+    switch (ch)
+      {
+      case '\\':
+        escaped += "\\\\";
+        break;
+      case '"':
+        escaped += "\\\"";
+        break;
+      case '\n':
+        escaped += "\\n";
+        break;
+      case '\r':
+        escaped += "\\r";
+        break;
+      case '\t':
+        escaped += "\\t";
+        break;
+      default:
+        escaped.push_back(ch);
+      }
 
-    return escaped;
-  }
+  return escaped;
 }
+}  // namespace Compiler_Token_Detail
 
 /** @brief Returns a stable debug name for one token kind. */
-inline const char *
-compiler_token_kind_name(const Compiler_Token_Kind kind)
+inline const char *compiler_token_kind_name(const Compiler_Token_Kind kind)
 {
   switch (kind)
     {
@@ -422,8 +470,7 @@ compiler_token_kind_name(const Compiler_Token_Kind kind)
 }
 
 /** @brief Classifies one identifier lexeme as a keyword when applicable. */
-inline Compiler_Token_Kind
-classify_compiler_keyword(std::string_view lexeme) noexcept
+inline Compiler_Token_Kind classify_compiler_keyword(std::string_view lexeme) noexcept
 {
   if (lexeme == "if")
     return Compiler_Token_Kind::Kw_If;
@@ -476,8 +523,7 @@ classify_compiler_keyword(std::string_view lexeme) noexcept
 }
 
 /** @brief Returns whether `kind` is one reserved keyword. */
-inline bool
-compiler_token_is_keyword(const Compiler_Token_Kind kind) noexcept
+inline bool compiler_token_is_keyword(const Compiler_Token_Kind kind) noexcept
 {
   switch (kind)
     {
@@ -511,8 +557,7 @@ compiler_token_is_keyword(const Compiler_Token_Kind kind) noexcept
 }
 
 /** @brief Returns whether `kind` is one literal token. */
-inline bool
-compiler_token_is_literal(const Compiler_Token_Kind kind) noexcept
+inline bool compiler_token_is_literal(const Compiler_Token_Kind kind) noexcept
 {
   switch (kind)
     {
@@ -528,16 +573,13 @@ compiler_token_is_literal(const Compiler_Token_Kind kind) noexcept
 }
 
 /** @brief Returns whether `kind` denotes comment trivia. */
-inline bool
-compiler_token_is_comment(const Compiler_Token_Kind kind) noexcept
+inline bool compiler_token_is_comment(const Compiler_Token_Kind kind) noexcept
 {
-  return kind == Compiler_Token_Kind::Line_Comment
-      or kind == Compiler_Token_Kind::Block_Comment;
+  return kind == Compiler_Token_Kind::Line_Comment or kind == Compiler_Token_Kind::Block_Comment;
 }
 
 /** @brief Returns whether `kind` participates in the operator surface syntax. */
-inline bool
-compiler_token_is_operator(const Compiler_Token_Kind kind) noexcept
+inline bool compiler_token_is_operator(const Compiler_Token_Kind kind) noexcept
 {
   switch (kind)
     {
@@ -575,8 +617,7 @@ compiler_token_is_operator(const Compiler_Token_Kind kind) noexcept
 }
 
 /** @brief Returns the precedence used by the precedence-climbing parser. */
-inline int
-compiler_binary_precedence(const Compiler_Token_Kind kind) noexcept
+inline int compiler_binary_precedence(const Compiler_Token_Kind kind) noexcept
 {
   switch (kind)
     {
@@ -612,8 +653,7 @@ compiler_binary_precedence(const Compiler_Token_Kind kind) noexcept
 }
 
 /** @brief Returns associativity metadata for binary operators. */
-inline Compiler_Associativity
-compiler_binary_associativity(const Compiler_Token_Kind kind) noexcept
+inline Compiler_Associativity compiler_binary_associativity(const Compiler_Token_Kind kind) noexcept
 {
   switch (kind)
     {
@@ -646,12 +686,11 @@ compiler_binary_associativity(const Compiler_Token_Kind kind) noexcept
 }
 
 /** @brief Formats the token for deterministic debugging and testing. */
-inline std::string
-Compiler_Token::to_string() const
+inline std::string Compiler_Token::to_string() const
 {
   std::ostringstream out;
-  out << compiler_token_kind_name(kind)
-      << "(\"" << Compiler_Token_Detail::escape_token_lexeme(lexeme) << "\")@";
+  out << compiler_token_kind_name(kind) << "(\""
+      << Compiler_Token_Detail::escape_token_lexeme(lexeme) << "\")@";
   if (span.is_valid())
     out << span.to_string();
   else
@@ -659,6 +698,6 @@ Compiler_Token::to_string() const
   return out.str();
 }
 
-} // namespace Aleph
+}  // namespace Aleph
 
-# endif // COMPILER_TOKEN_H
+#endif  // COMPILER_TOKEN_H

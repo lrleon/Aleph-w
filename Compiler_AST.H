@@ -334,8 +334,8 @@ class Compiler_Ast_Context
     void (*destroy)(void *) noexcept = nullptr; ///< Type-erased destructor.
   };
 
-  AhArenaAllocator arena;        ///< Underlying memory arena.
-  DynArray<Owned_Object> owned;  ///< Tracked objects for destruction.
+  AhArenaAllocator arena_;        ///< Underlying memory arena.
+  DynArray<Owned_Object> owned_;  ///< Tracked objects for destruction.
 
 public:
   /** @brief Constructs a context with the specified arena capacity.
@@ -346,7 +346,7 @@ public:
    *  @note Complexity: O(1).
    */
   explicit Compiler_Ast_Context(const size_t arena_size = AhArenaAllocator::DEFAULT_SIZE)
-    : arena(arena_size)
+    : arena_(arena_size)
   {}
 
   // Contexts cannot be copied to avoid double-free of the arena.
@@ -379,10 +379,10 @@ public:
   template <typename T, typename... Args>
   T *make(Args &&...args)
   {
-    T *ptr = allocate<T>(arena, std::forward<Args>(args)...);
+    T *ptr = allocate<T>(arena_, std::forward<Args>(args)...);
     ah_runtime_error_unless(ptr != nullptr) << "Compiler_Ast_Context: arena allocation failed";
 
-    owned.append({ptr,
+    owned_.append({ptr,
                   [](void *raw) noexcept
     {
       static_cast<T *>(raw)->~T();
@@ -400,14 +400,14 @@ public:
    */
   void reset() noexcept
   {
-    for (size_t i = owned.size(); i > 0; --i)
+    for (size_t i = owned_.size(); i > 0; --i)
       {
-        auto &[ptr, destroy] = owned.access(i - 1);
+        auto &[ptr, destroy] = owned_.access(i - 1);
         if (destroy != nullptr and ptr != nullptr)
           destroy(ptr);
       }
-    owned.clear();
-    arena.reset();
+    owned_.clear();
+    arena_.reset();
   }
 
   /** @brief Returns the total bytes currently used in the arena. 
@@ -418,7 +418,7 @@ public:
    */
   size_t allocated_size() const noexcept
   {
-    return arena.allocated_size();
+    return arena_.allocated_size();
   }
 
   /** @brief Returns the total capacity of the arena. 
@@ -429,7 +429,7 @@ public:
    */
   size_t capacity() const noexcept
   {
-    return arena.capacity();
+    return arena_.capacity();
   }
 };
 
@@ -693,8 +693,7 @@ struct Compiler_Struct_Decl final : public Compiler_Type_Decl
                          compiler_merge_spans(kw,
                                               rbrace_sp.is_valid() ? rbrace_sp
                                                                    : (lbrace_sp.is_valid() ? lbrace_sp
-                                                                                           : name_sp))),
-      fields(), lbrace_span(lbrace_sp), rbrace_span(rbrace_sp)
+                                                                                           : name_sp))), lbrace_span(lbrace_sp), rbrace_span(rbrace_sp)
   {}
 };
 
@@ -718,8 +717,7 @@ struct Compiler_Enum_Decl final : public Compiler_Type_Decl
                          compiler_merge_spans(kw,
                                               rbrace_sp.is_valid() ? rbrace_sp
                                                                    : (lbrace_sp.is_valid() ? lbrace_sp
-                                                                                           : name_sp))),
-      variants(), lbrace_span(lbrace_sp), rbrace_span(rbrace_sp)
+                                                                                           : name_sp))), lbrace_span(lbrace_sp), rbrace_span(rbrace_sp)
   {}
 };
 

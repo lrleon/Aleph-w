@@ -56,6 +56,7 @@
 #include <Compiler_AST.H>
 #include <Compiler_Symbol_Bindings.H>
 #include <ah-diagnostics.H>
+#include <tpl_dynMapTree.H>
 
 namespace Aleph {
 /** @brief Mapping from an identifier expression to its resolved symbol. */
@@ -77,6 +78,7 @@ class Compiler_Semantic_Analyzer
   Diagnostic_Engine *diagnostics = nullptr;
   Compiler_Semantic_Options options;
   DynArray<Compiler_Name_Resolution> resolutions;
+  DynMapTree<const Compiler_Expr *, Compiler_Symbol_Id> resolution_index;
   Compiler_Symbol_Bindings value_bindings;
   Compiler_Symbol_Bindings type_bindings;
   size_t function_depth = 0;
@@ -118,7 +120,19 @@ class Compiler_Semantic_Analyzer
 
   void record_resolution(const Compiler_Expr *expr, const Compiler_Symbol_Id symbol_id)
   {
+    if (expr == nullptr)
+      return;
+
+    for (size_t i = resolutions.size(); i > 0; --i)
+      if (resolutions.access(i - 1).expr == expr)
+        {
+          resolutions.access(i - 1).symbol_id = symbol_id;
+          resolution_index[expr] = symbol_id;
+          return;
+        }
+
     resolutions.append({expr, symbol_id});
+    resolution_index[expr] = symbol_id;
   }
 
   void declare_type_name(const std::string &name, const Source_Span &span)
@@ -337,6 +351,7 @@ public:
   void clear() noexcept
   {
     resolutions.clear();
+    resolution_index.clear();
     value_bindings.clear();
     type_bindings.clear();
     function_depth = 0;
@@ -427,14 +442,18 @@ public:
    */
   const Compiler_Symbol *resolved_symbol(const Compiler_Expr *expr) const noexcept
   {
-    for (size_t i = 0; i < resolutions.size(); ++i)
-      if (resolutions.access(i).expr == expr)
-        {
-          const auto id = resolutions.access(i).symbol_id;
-          return id > 0 and id <= value_bindings.symbol_count() ? &value_bindings.symbol(id)
-                                                                : nullptr;
-        }
-    return nullptr;
+    if (expr == nullptr)
+      return nullptr;
+
+    const auto *entry = resolution_index.search(expr);
+    if (entry == nullptr)
+      return nullptr;
+
+    const auto id = entry->second;
+    if (id == 0 or id > value_bindings.symbol_count())
+      return nullptr;
+
+    return &value_bindings.symbol(id);
   }
 
   /** @brief Dumps the current symbol table in a deterministic text format. */

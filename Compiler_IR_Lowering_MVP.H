@@ -131,7 +131,8 @@ class Compiler_IR_Lowering
       return ir_function->id;
     }
 
-    static Compiler_IR_Block &block(const Compiler_IR_Function &function, const Compiler_IR_Block_Id id)
+    static Compiler_IR_Block &block(const Compiler_IR_Function &function,
+                                    const Compiler_IR_Block_Id id)
     {
       return function.blocks.access(id);
     }
@@ -400,8 +401,7 @@ class Compiler_IR_Lowering
         case Compiler_HIR_Expr_Kind::Binary:
           {
             const auto *node = static_cast<const Compiler_HIR_Binary_Expr *>(expr);
-            const bool is_compound_assignment
-              = compiler_operator_is_compound_assignment(node->op);
+            const bool is_compound_assignment = compiler_operator_is_compound_assignment(node->op);
 
             if (node->op == Compiler_Operator_Kind::Assign or is_compound_assignment)
               {

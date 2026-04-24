@@ -48,169 +48,171 @@
 #include <ah-source.H>
 #include <tpl_dynArray.H>
 
-namespace Aleph
+namespace Aleph {
+/** @brief One source-name dependency edge originating from one module. */
+struct Compiler_Module_Dependency
 {
-  /** @brief One source-name dependency edge originating from one module. */
-  struct Compiler_Module_Dependency
-  {
-    std::string module_name;  ///< Exact imported source name.
-    Source_Span span;  ///< Source location where the import was declared.
-  };
+  std::string module_name;  ///< Exact imported source name.
+  Source_Span span;         ///< Source location where the import was declared.
+};
 
-  /** @brief One module descriptor consumed by the reusable resolver. */
-  struct Compiler_Module_Descriptor
-  {
-    std::string name;  ///< Stable module/source name.
-    DynArray<Compiler_Module_Dependency> imports;  ///< Ordered dependency list.
-  };
+/** @brief One module descriptor consumed by the reusable resolver. */
+struct Compiler_Module_Descriptor
+{
+  std::string name;                              ///< Stable module/source name.
+  DynArray<Compiler_Module_Dependency> imports;  ///< Ordered dependency list.
+};
 
-  /** @brief Structural issue kinds produced by module dependency resolution. */
-  enum class Compiler_Module_Resolution_Issue_Kind
-  {
-    Missing_Dependency,
-    Cyclic_Dependency
-  };
+/** @brief Structural issue kinds produced by module dependency resolution. */
+enum class Compiler_Module_Resolution_Issue_Kind
+{
+  Missing_Dependency,
+  Cyclic_Dependency
+};
 
-  /** @brief One structured issue emitted by the reusable module resolver. */
-  struct Compiler_Module_Resolution_Issue
-  {
-    Compiler_Module_Resolution_Issue_Kind kind
-      = Compiler_Module_Resolution_Issue_Kind::Missing_Dependency;
-    size_t module_index = 0;  ///< Module whose import triggered the issue.
-    size_t dependency_index = static_cast<size_t>(-1);  ///< Known dependency index when available.
-    std::string module_name;  ///< Stable importer name.
-    std::string dependency_name;  ///< Missing or cyclic dependency name.
-    Source_Span span;  ///< Source location of the problematic import.
-  };
+/** @brief One structured issue emitted by the reusable module resolver. */
+struct Compiler_Module_Resolution_Issue
+{
+  Compiler_Module_Resolution_Issue_Kind kind
+    = Compiler_Module_Resolution_Issue_Kind::Missing_Dependency;
+  size_t module_index = 0;                            ///< Module whose import triggered the issue.
+  size_t dependency_index = static_cast<size_t>(-1);  ///< Known dependency index when available.
+  std::string module_name;                            ///< Stable importer name.
+  std::string dependency_name;                        ///< Missing or cyclic dependency name.
+  Source_Span span;  ///< Source location of the problematic import.
+};
 
-  /** @brief Resolution result for one set of source-name module descriptors. */
-  struct Compiler_Module_Resolution_Result
-  {
-    bool valid = true;  ///< `true` when no missing dependencies or cycles were found.
-    DynArray<size_t> order;  ///< Stable dependency-first module order.
-    DynArray<Compiler_Module_Resolution_Issue> issues;  ///< Structured issues, if any.
-  };
+/** @brief Resolution result for one set of source-name module descriptors. */
+struct Compiler_Module_Resolution_Result
+{
+  bool valid = true;       ///< `true` when no missing dependencies or cycles were found.
+  DynArray<size_t> order;  ///< Stable dependency-first module order.
+  DynArray<Compiler_Module_Resolution_Issue> issues;  ///< Structured issues, if any.
+};
 
-  /** @brief Returns the stable debug name of one module-resolution issue kind. */
-  inline const char *
-  compiler_module_resolution_issue_name(
-    const Compiler_Module_Resolution_Issue_Kind kind) noexcept
-  {
-    switch (kind)
-      {
-      case Compiler_Module_Resolution_Issue_Kind::Missing_Dependency:
-        return "Missing_Dependency";
-      case Compiler_Module_Resolution_Issue_Kind::Cyclic_Dependency:
-        return "Cyclic_Dependency";
-      }
-
-    return "Unknown";
-  }
-
-  /** @brief Renders one deterministic text artifact for a module order. */
-  inline std::string
-  compiler_render_module_order(const DynArray<size_t> & order,
-                               const DynArray<Compiler_Module_Descriptor> & modules)
-  {
-    std::ostringstream out;
-    out << "ImportOrder\n";
-    for (size_t i = 0; i < order.size(); ++i)
-      {
-        const auto index = order.access(i);
-        const auto name = index < modules.size() ? modules.access(index).name : "<invalid-module>";
-        out << "  [" << i << "] " << name << '\n';
-      }
-    return out.str();
-  }
-
-  namespace Compiler_Module_Resolver_Detail
-  {
-    inline size_t
-    find_module_index(const DynArray<Compiler_Module_Descriptor> & modules,
-                      const std::string & name) noexcept
+/** @brief Returns the stable debug name of one module-resolution issue kind. */
+inline const char *compiler_module_resolution_issue_name(
+  const Compiler_Module_Resolution_Issue_Kind kind) noexcept
+{
+  switch (kind)
     {
-      for (size_t i = 0; i < modules.size(); ++i)
-        if (modules.access(i).name == name)
-          return i;
-      return static_cast<size_t>(-1);
+    case Compiler_Module_Resolution_Issue_Kind::Missing_Dependency:
+      return "Missing_Dependency";
+    case Compiler_Module_Resolution_Issue_Kind::Cyclic_Dependency:
+      return "Cyclic_Dependency";
     }
 
-    inline bool
-    resolve_visit(const DynArray<Compiler_Module_Descriptor> & modules,
-                  const size_t index,
-                  DynArray<unsigned char> & states,
-                  Compiler_Module_Resolution_Result & result)
+  return "Unknown";
+}
+
+/** @brief Renders one deterministic text artifact for a module order. */
+inline std::string compiler_render_module_order(const DynArray<size_t> &order,
+                                                const DynArray<Compiler_Module_Descriptor> &modules)
+{
+  std::ostringstream out;
+  out << "ImportOrder\n";
+  for (size_t i = 0; i < order.size(); ++i)
     {
-      const auto state = states.access(index);
-      if (state == 2)
-        return true;
-      if (state == 1)
-        return false;
+      const auto index = order.access(i);
+      const auto name = index < modules.size() ? modules.access(index).name : "<invalid-module>";
+      out << "  [" << i << "] " << name << '\n';
+    }
+  return out.str();
+}
 
-      states.access(index) = 1;
-      const auto & module = modules.access(index);
-      for (size_t i = 0; i < module.imports.size(); ++i)
+namespace Compiler_Module_Resolver_Detail {
+inline size_t find_module_index(const DynArray<Compiler_Module_Descriptor> &modules,
+                                const std::string &name) noexcept
+{
+  for (size_t i = 0; i < modules.size(); ++i)
+    if (modules.access(i).name == name)
+      return i;
+  return static_cast<size_t>(-1);
+}
+
+inline bool resolve_visit(const DynArray<Compiler_Module_Descriptor> &modules,
+                          const size_t index,
+                          DynArray<unsigned char> &states,
+                          Compiler_Module_Resolution_Result &result)
+{
+  const auto state = states.access(index);
+  if (state == 2)
+    return true;
+  if (state == 1)
+    return false;
+
+  states.access(index) = 1;
+  const auto &module = modules.access(index);
+  for (size_t i = 0; i < module.imports.size(); ++i)
+    {
+      const auto &dep = module.imports.access(i);
+      const auto dep_index = find_module_index(modules, dep.module_name);
+      if (dep_index == static_cast<size_t>(-1))
         {
-          const auto & dep = module.imports.access(i);
-          const auto dep_index = find_module_index(modules, dep.module_name);
-          if (dep_index == static_cast<size_t>(-1))
-            {
-              result.valid = false;
-              result.issues.append({Compiler_Module_Resolution_Issue_Kind::Missing_Dependency,
-                                    index,
-                                    static_cast<size_t>(-1),
-                                    module.name,
-                                    dep.module_name,
-                                    dep.span});
-              continue;
-            }
-
-          if (dep_index == index)
-            continue;
-
-          if (states.access(dep_index) == 1)
-            {
-              result.valid = false;
-              result.issues.append({Compiler_Module_Resolution_Issue_Kind::Cyclic_Dependency,
-                                    index,
-                                    dep_index,
-                                    module.name,
-                                    dep.module_name,
-                                    dep.span});
-              return false;
-            }
-
-          if (states.access(dep_index) == 0 and not resolve_visit(modules, dep_index, states, result))
-            return false;
+          result.valid = false;
+          result.issues.append({Compiler_Module_Resolution_Issue_Kind::Missing_Dependency,
+                                index,
+                                static_cast<size_t>(-1),
+                                module.name,
+                                dep.module_name,
+                                dep.span});
+          continue;
         }
 
-      states.access(index) = 2;
-      result.order.append(index);
-      return true;
+      if (dep_index == index)
+        {
+          result.valid = false;
+          result.issues.append({Compiler_Module_Resolution_Issue_Kind::Cyclic_Dependency,
+                                index,
+                                dep_index,
+                                module.name,
+                                dep.module_name,
+                                dep.span});
+          continue;
+        }
+
+      if (states.access(dep_index) == 1)
+        {
+          result.valid = false;
+          result.issues.append({Compiler_Module_Resolution_Issue_Kind::Cyclic_Dependency,
+                                index,
+                                dep_index,
+                                module.name,
+                                dep.module_name,
+                                dep.span});
+          return false;
+        }
+
+      if (states.access(dep_index) == 0 and not resolve_visit(modules, dep_index, states, result))
+        return false;
     }
-  }
 
-  /** @brief Resolves one dependency-first order for exact-name module imports.
-   *
-   *  Missing dependencies are reported and skipped so the caller can still get
-   *  a best-effort order. Cycles stop DFS along the offending path because no
-   *  valid dependency-first ordering exists for that strongly connected region.
-   */
-  inline Compiler_Module_Resolution_Result
-  compiler_resolve_module_order(const DynArray<Compiler_Module_Descriptor> & modules)
-  {
-    Compiler_Module_Resolution_Result result;
-    DynArray<unsigned char> states;
-    for (size_t i = 0; i < modules.size(); ++i)
-      states.append(0);
-
-    for (size_t i = 0; i < modules.size(); ++i)
-      if (states.access(i) == 0
-          and not Compiler_Module_Resolver_Detail::resolve_visit(modules, i, states, result))
-        break;
-
-    return result;
-  }
+  states.access(index) = 2;
+  result.order.append(index);
+  return true;
 }
+}  // namespace Compiler_Module_Resolver_Detail
+
+/** @brief Resolves one dependency-first order for exact-name module imports.
+ *
+ *  Missing dependencies are reported and skipped so the caller can still get
+ *  a best-effort order. Cycles stop DFS along the offending path because no
+ *  valid dependency-first ordering exists for that strongly connected region.
+ */
+inline Compiler_Module_Resolution_Result compiler_resolve_module_order(
+  const DynArray<Compiler_Module_Descriptor> &modules)
+{
+  Compiler_Module_Resolution_Result result;
+  DynArray<unsigned char> states;
+  for (size_t i = 0; i < modules.size(); ++i)
+    states.append(0);
+
+  for (size_t i = 0; i < modules.size(); ++i)
+    if (states.access(i) == 0)
+      Compiler_Module_Resolver_Detail::resolve_visit(modules, i, states, result);
+
+  return result;
+}
+}  // namespace Aleph
 
 #endif
