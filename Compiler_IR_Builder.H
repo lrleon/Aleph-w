@@ -65,7 +65,7 @@ class Compiler_IR_Builder
     dst = compiler_hir_merge_spans(dst, src);
   }
 
-  static Compiler_IR_Block &block(const Compiler_IR_Function &function, const Compiler_IR_Block_Id id)
+  static Compiler_IR_Block &block(Compiler_IR_Function &function, const Compiler_IR_Block_Id id)
   {
     ah_runtime_error_unless(id < function.blocks.size())
       << "Compiler_IR_Builder: invalid block id " << id;
@@ -237,13 +237,14 @@ public:
   {
     Compiler_IR_Instruction inst;
     inst.kind = Compiler_IR_Instruction_Kind::Constant;
-    inst.result_id = allocate_value(function);
+    const auto result_id = allocate_value(function);
+    inst.result_id = result_id;
     inst.type_id = type_id;
     inst.span = span;
     inst.text = std::move(text);
     inst.bool_value = bool_value;
     (void) append_instruction(function, block_id, std::move(inst));
-    return function.next_value_id;
+    return result_id;
   }
 
   /** @brief Emits one load from a local or parameter slot. */
@@ -257,12 +258,13 @@ public:
       << "Compiler_IR_Builder::emit_load_local(): invalid slot id " << slot_id;
     Compiler_IR_Instruction inst;
     inst.kind = Compiler_IR_Instruction_Kind::Load;
-    inst.result_id = allocate_value(function);
+    const auto result_id = allocate_value(function);
+    inst.result_id = result_id;
     inst.type_id = type_id;
     inst.span = span;
     inst.local_slot_id = slot_id;
     (void) append_instruction(function, block_id, std::move(inst));
-    return function.next_value_id;
+    return result_id;
   }
 
   /** @brief Emits one load from a global slot. */
@@ -274,12 +276,13 @@ public:
   {
     Compiler_IR_Instruction inst;
     inst.kind = Compiler_IR_Instruction_Kind::Load;
-    inst.result_id = allocate_value(function);
+    const auto result_id = allocate_value(function);
+    inst.result_id = result_id;
     inst.type_id = type_id;
     inst.span = span;
     inst.global_slot_id = slot_id;
     (void) append_instruction(function, block_id, std::move(inst));
-    return function.next_value_id;
+    return result_id;
   }
 
   /** @brief Emits one store into a local or parameter slot. */
@@ -328,13 +331,14 @@ public:
   {
     Compiler_IR_Instruction inst;
     inst.kind = Compiler_IR_Instruction_Kind::Unary;
-    inst.result_id = allocate_value(function);
+    const auto result_id = allocate_value(function);
+    inst.result_id = result_id;
     inst.type_id = type_id;
     inst.span = span;
     inst.op = op;
     inst.operands.append(operand);
     (void) append_instruction(function, block_id, std::move(inst));
-    return function.next_value_id;
+    return result_id;
   }
 
   /** @brief Emits one binary instruction. */
@@ -348,14 +352,15 @@ public:
   {
     Compiler_IR_Instruction inst;
     inst.kind = Compiler_IR_Instruction_Kind::Binary;
-    inst.result_id = allocate_value(function);
+    const auto result_id = allocate_value(function);
+    inst.result_id = result_id;
     inst.type_id = type_id;
     inst.span = span;
     inst.op = op;
     inst.operands.append(lhs);
     inst.operands.append(rhs);
     (void) append_instruction(function, block_id, std::move(inst));
-    return function.next_value_id;
+    return result_id;
   }
 
   /** @brief Emits one function reference instruction. */
@@ -367,12 +372,13 @@ public:
   {
     Compiler_IR_Instruction inst;
     inst.kind = Compiler_IR_Instruction_Kind::Function_Ref;
-    inst.result_id = allocate_value(function);
+    const auto result_id = allocate_value(function);
+    inst.result_id = result_id;
     inst.type_id = type_id;
     inst.span = span;
     inst.function_id = function_id;
     (void) append_instruction(function, block_id, std::move(inst));
-    return function.next_value_id;
+    return result_id;
   }
 
   /** @brief Emits one call instruction. */
@@ -385,14 +391,15 @@ public:
   {
     Compiler_IR_Instruction inst;
     inst.kind = Compiler_IR_Instruction_Kind::Call;
-    inst.result_id = allocate_value(function);
+    const auto result_id = allocate_value(function);
+    inst.result_id = result_id;
     inst.type_id = type_id;
     inst.span = span;
     inst.operands.append(callee);
     for (size_t i = 0; i < arguments.size(); ++i)
       inst.operands.append(arguments.access(i));
     (void) append_instruction(function, block_id, std::move(inst));
-    return function.next_value_id;
+    return result_id;
   }
 
   /** @brief Sets one jump terminator and predecessor/successor edge. */
@@ -455,6 +462,9 @@ public:
     auto &blk = block(function, block_id);
     ah_runtime_error_unless(not blk.is_terminated())
       << "Compiler_IR_Builder::set_exit(): block already terminated";
+    if (function.exit_block != compiler_ir_invalid_id())
+      ah_runtime_error_unless(function.exit_block == block_id)
+        << "Compiler_IR_Builder::set_exit(): exit block already set to a different block";
     function.exit_block = block_id;
     blk.terminator.kind = Compiler_IR_Terminator_Kind::Exit;
     blk.terminator.successors.clear();
@@ -462,9 +472,9 @@ public:
   }
 
   /** @brief Marks one block as unreachable. */
-  void set_unreachable(Compiler_IR_Function &function,
-                       const Compiler_IR_Block_Id block_id,
-                       const Source_Span &span = {}) const
+  static void set_unreachable(Compiler_IR_Function &function,
+                              const Compiler_IR_Block_Id block_id,
+                              const Source_Span &span = {})
   {
     auto &blk = block(function, block_id);
     ah_runtime_error_unless(not blk.is_terminated())

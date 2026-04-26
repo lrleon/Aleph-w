@@ -220,6 +220,10 @@ jobs:
                   score += 20
               elif lower.endswith(".tar.gz"):
                   score += 15
+              elif lower.endswith(".dmg") and runner_os == "macOS":
+                  score += 12
+              elif lower.endswith(".exe") and runner_os == "Windows":
+                  score += 12
               else:
                   return -10**6
 
@@ -228,7 +232,7 @@ jobs:
                       score += 80
                   if "x64" in lower or "amd64" in lower:
                       score += 10
-              elif runner_os.lower() == "macos":
+              elif runner_os == "macOS":
                   if "mac" in lower or "osx" in lower or "darwin" in lower:
                       score += 80
                   if ("arm64" in lower or "aarch64" in lower) and "arm64" in runner_arch:
@@ -277,6 +281,41 @@ jobs:
           elif asset_name.lower().endswith(".tar.gz"):
               with tarfile.open(archive_path, "r:gz") as tf:
                   tf.extractall(ex_dir, filter="data")
+          elif asset_name.lower().endswith(".dmg"):
+              import subprocess
+              mount_point = dl_dir / "gephi_mount"
+              mount_point.mkdir(exist_ok=True)
+              subprocess.run(
+                  ["hdiutil", "attach", "-quiet", "-nobrowse",
+                   "-mountpoint", str(mount_point), str(archive_path)],
+                  check=True,
+              )
+              try:
+                  app_paths = list(mount_point.glob("*.app"))
+                  if not app_paths:
+                      app_paths = list(mount_point.rglob("*.app"))
+                  if not app_paths:
+                      raise SystemExit(f"No .app bundle found in DMG mounted at {mount_point}")
+                  dest_app = ex_dir / app_paths[0].name
+                  shutil.copytree(str(app_paths[0]), str(dest_app), symlinks=True)
+              finally:
+                  subprocess.run(
+                      ["hdiutil", "detach", "-quiet", str(mount_point)],
+                      check=False,
+                  )
+          elif asset_name.lower().endswith(".exe"):
+              import subprocess
+              # Extract NSIS installer with 7-Zip (pre-installed on GH Windows runners).
+              result = subprocess.run(
+                  ["7z", "x", str(archive_path), f"-o{ex_dir}", "-y"],
+                  check=False,
+                  capture_output=True,
+                  text=True,
+              )
+              if result.returncode != 0:
+                  raise SystemExit(
+                      f"7z extraction failed (rc={result.returncode}):\n{result.stderr}"
+                  )
           else:
               raise SystemExit(f"Unsupported archive format: {asset_name}")
 
@@ -289,7 +328,7 @@ jobs:
               if runner_os == "Linux":
                   if lower == "gephi":
                       candidates.append(p)
-              elif runner_os == "MacOS":
+              elif runner_os == "macOS":
                   if posix.endswith("/gephi.app/contents/macos/gephi") or lower == "gephi":
                       candidates.append(p)
               elif runner_os == "Windows":
@@ -305,7 +344,7 @@ jobs:
               if runner_os == "Linux":
                   if "/bin/gephi" in posix:
                       score += 20
-              elif runner_os == "MacOS":
+              elif runner_os == "macOS":
                   if "gephi.app/contents/macos/gephi" in posix:
                       score += 20
               elif runner_os == "Windows":

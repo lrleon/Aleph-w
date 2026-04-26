@@ -78,7 +78,7 @@ class Compiler_Semantic_Analyzer
   Diagnostic_Engine *diagnostics = nullptr;
   Compiler_Semantic_Options options;
   DynArray<Compiler_Name_Resolution> resolutions;
-  DynMapTree<const Compiler_Expr *, Compiler_Symbol_Id> resolution_index;
+  DynMapTree<const Compiler_Expr *, size_t> resolution_index;
   Compiler_Symbol_Bindings value_bindings;
   Compiler_Symbol_Bindings type_bindings;
   size_t function_depth = 0;
@@ -123,16 +123,16 @@ class Compiler_Semantic_Analyzer
     if (expr == nullptr)
       return;
 
-    for (size_t i = resolutions.size(); i > 0; --i)
-      if (resolutions.access(i - 1).expr == expr)
-        {
-          resolutions.access(i - 1).symbol_id = symbol_id;
-          resolution_index[expr] = symbol_id;
-          return;
-        }
+    const auto *entry = resolution_index.search(expr);
+    if (entry != nullptr)
+      {
+        resolutions.access(entry->second).symbol_id = symbol_id;
+        return;
+      }
 
+    const size_t slot = resolutions.size();
     resolutions.append({expr, symbol_id});
-    resolution_index[expr] = symbol_id;
+    resolution_index[expr] = slot;
   }
 
   void declare_type_name(const std::string &name, const Source_Span &span)
@@ -449,7 +449,7 @@ public:
     if (entry == nullptr)
       return nullptr;
 
-    const auto id = entry->second;
+    const auto id = resolutions.access(entry->second).symbol_id;
     if (id == 0 or id > value_bindings.symbol_count())
       return nullptr;
 

@@ -59,6 +59,7 @@
 #ifndef BYTECODE_H
 #define BYTECODE_H
 
+#include <cctype>
 #include <cstdlib>
 #include <limits>
 #include <sstream>
@@ -395,6 +396,80 @@ namespace Aleph
       return end != nullptr and *end == '\0';
     }
 
+    inline std::string
+    decode_escape_string(const std::string & raw)
+    {
+      std::string result;
+      result.reserve(raw.size());
+      for (size_t i = 0; i < raw.size(); ++i)
+        {
+          if (raw[i] != '\\' or i + 1 >= raw.size())
+            {
+              result += raw[i];
+              continue;
+            }
+          ++i;
+          switch (raw[i])
+            {
+            case 'n':  result += '\n'; break;
+            case 't':  result += '\t'; break;
+            case 'r':  result += '\r'; break;
+            case '\\': result += '\\'; break;
+            case '\'': result += '\''; break;
+            case '"':  result += '"';  break;
+            case '0':  result += '\0'; break;
+            case 'a':  result += '\a'; break;
+            case 'b':  result += '\b'; break;
+            case 'f':  result += '\f'; break;
+            case 'v':  result += '\v'; break;
+            case 'x':
+              {
+                if (i + 2 < raw.size() and std::isxdigit(static_cast<unsigned char>(raw[i+1]))
+                    and std::isxdigit(static_cast<unsigned char>(raw[i+2])))
+                  {
+                    const char hex[3] = {raw[i+1], raw[i+2], '\0'};
+                    result += static_cast<char>(std::strtol(hex, nullptr, 16));
+                    i += 2;
+                  }
+                else
+                  result += raw[i];
+                break;
+              }
+            default:
+              result += '\\';
+              result += raw[i];
+              break;
+            }
+        }
+      return result;
+    }
+
+    inline char
+    decode_escape_char(const std::string & raw)
+    {
+      if (raw.empty())
+        return '\0';
+      if (raw[0] != '\\')
+        return raw[0];
+      if (raw.size() < 2)
+        return '\\';
+      switch (raw[1])
+        {
+        case 'n':  return '\n';
+        case 't':  return '\t';
+        case 'r':  return '\r';
+        case '\\': return '\\';
+        case '\'': return '\'';
+        case '"':  return '"';
+        case '0':  return '\0';
+        case 'a':  return '\a';
+        case 'b':  return '\b';
+        case 'f':  return '\f';
+        case 'v':  return '\v';
+        default:   return raw[1];
+        }
+    }
+
     inline Compiler_Bytecode_Constant
     classify_constant(const Compiler_IR_Instruction & inst)
     {
@@ -427,13 +502,16 @@ namespace Aleph
       if (inst.text.size() >= 2 and inst.text.front() == '"' and inst.text.back() == '"')
         {
           constant.kind = Compiler_Bytecode_Constant_Kind::String;
+          const auto inner = inst.text.substr(1, inst.text.size() - 2);
+          constant.text = decode_escape_string(inner);
           return constant;
         }
 
       if (inst.text.size() >= 3 and inst.text.front() == '\'' and inst.text.back() == '\'')
         {
           constant.kind = Compiler_Bytecode_Constant_Kind::Character;
-          constant.char_value = inst.text.size() == 3 ? inst.text[1] : '\0';
+          const auto inner = inst.text.substr(1, inst.text.size() - 2);
+          constant.char_value = decode_escape_char(inner);
           return constant;
         }
 

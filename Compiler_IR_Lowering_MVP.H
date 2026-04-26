@@ -352,6 +352,8 @@ class Compiler_IR_Lowering
           {
             const auto *node = static_cast<const Compiler_HIR_Variable_Expr *>(expr);
             const auto binding = lookup(scopes, node->name);
+            if (binding.id == compiler_ir_invalid_id())
+              return emit_unit_constant(function, block_id, node->span);
             Compiler_IR_Instruction inst;
             inst.type_id = node->type_id;
             inst.span = node->span;
@@ -769,6 +771,9 @@ public:
     for (size_t i = 0; i < builder.module->functions.size(); ++i)
       {
         auto &function = builder.function(i);
+        ah_runtime_error_unless(function.source_function->body != nullptr)
+          << "Compiler_IR_Lowering: function '" << function.source_function->name
+          << "' has a null body";
         builder.lower_function_body(function, function.source_function->body->statements);
       }
 

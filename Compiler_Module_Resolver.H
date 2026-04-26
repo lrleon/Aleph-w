@@ -138,7 +138,7 @@ inline bool resolve_visit(const DynArray<Compiler_Module_Descriptor> &modules,
   const auto state = states.access(index);
   if (state == 2)
     return true;
-  if (state == 1)
+  if (state == 1 or state == 3)
     return false;
 
   states.access(index) = 1;
@@ -180,11 +180,15 @@ inline bool resolve_visit(const DynArray<Compiler_Module_Descriptor> &modules,
                                 module.name,
                                 dep.module_name,
                                 dep.span});
+          states.access(index) = 3;
           return false;
         }
 
       if (states.access(dep_index) == 0 and not resolve_visit(modules, dep_index, states, result))
-        return false;
+        {
+          states.access(index) = 3;
+          return false;
+        }
     }
 
   states.access(index) = 2;

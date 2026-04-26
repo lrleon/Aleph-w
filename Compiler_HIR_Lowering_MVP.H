@@ -274,7 +274,11 @@ public:
         hir_function->parameters.append({param.name, param.span, type_id});
       }
 
-    hir_function->body = static_cast<Compiler_HIR_Block_Stmt *>(lower_stmt(function->body));
+    auto *lowered_body = lower_stmt(function->body);
+    if (lowered_body != nullptr and lowered_body->kind == Compiler_HIR_Stmt_Kind::Block)
+      hir_function->body = static_cast<Compiler_HIR_Block_Stmt *>(lowered_body);
+    else
+      hir_function->body = nullptr;
     hir_function->span = function->span;
     return hir_function;
   }

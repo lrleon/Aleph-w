@@ -119,6 +119,7 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
     std::string name;
     long long integer_value = 0;
     std::string callee;
+    std::string callee_module_name;  ///< Resolved declaring module of callee (populated during analysis).
     Operand arg1;
     Operand arg2;
     Source_Span span;
@@ -538,6 +539,7 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
         if (const auto *value = compiler_lookup_module_value(env, let.module_name, let.callee);
             value != nullptr and value->kind == Compiler_Module_Export_Kind::Function)
           {
+            lets_.access(i).callee_module_name = value->provider_module_name;
             (void) validate_top_level_operand(let.arg1, let.span);
             (void) validate_top_level_operand(let.arg2, let.span);
             continue;
@@ -550,6 +552,8 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
         if (resolution.status != Compiler_Module_Name_Resolution_Status::Resolved)
           (void) compiler_emit_module_name_resolution_diagnostic(
             diagnostics, let.span, resolution, "LIN015", "line-frontend callee");
+        else
+          lets_.access(i).callee_module_name = resolution.binding.provider_module_name;
 
         (void) validate_top_level_operand(let.arg1, let.span);
         (void) validate_top_level_operand(let.arg2, let.span);
@@ -856,16 +860,18 @@ public:
     DynArray<std::pair<std::string, Compiler_IR_Function_Id>> function_ids;
     for (size_t i = 0; i < functions_.size(); ++i)
       {
-        auto *function
-          = builder.make_function(functions_.access(i).name, function_type, functions_.access(i).span);
+        const auto &fn = functions_.access(i);
+        auto *function = builder.make_function(fn.name, function_type, fn.span);
         const auto id = builder.append_function(*ir_module_, function);
-        function_ids.append({functions_.access(i).name, id});
+        function_ids.append({fn.module_name + "::" + fn.name, id});
       }
 
-    auto find_function_id = [&function_ids](std::string_view name) noexcept
+    auto find_function_id = [&function_ids](std::string_view declaring_module,
+                                            std::string_view callee_name) noexcept
     {
+      const std::string key = std::string(declaring_module) + "::" + std::string(callee_name);
       for (size_t i = 0; i < function_ids.size(); ++i)
-        if (function_ids.access(i).first == name)
+        if (function_ids.access(i).first == key)
           return function_ids.access(i).second;
       return compiler_ir_invalid_id();
     };
@@ -931,7 +937,7 @@ public:
                                                    std::to_string(let.arg2.integer_value),
                                                    let.arg2.span));
             const auto callee = builder.emit_function_ref(
-              *top, entry, find_function_id(let.callee), function_type, let.span);
+              *top, entry, find_function_id(let.callee_module_name, let.callee), function_type, let.span);
             const auto value
               = builder.emit_call(*top, entry, callee, arguments, types.integer_type(), let.span);
             builder.emit_store_global(*top, entry, i, value, types.integer_type(), let.span);

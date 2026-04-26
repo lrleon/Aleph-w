@@ -657,6 +657,12 @@ public:
   Compiler_CFG_Function *lower_function(const Compiler_HIR_Function *function)
   {
     ah_runtime_error_unless(function != nullptr) << "Compiler_CFG_Lowering::lower_function(): null HIR function";
+    if (function->body == nullptr)
+      {
+        static const DynArray<Compiler_HIR_Stmt *> empty_stmts;
+        return lower_statement_sequence(function->name, function->span, function->type_id,
+                                        function, empty_stmts);
+      }
     return lower_statement_sequence(function->name,
                                     function->span,
                                     function->type_id,
@@ -750,8 +756,7 @@ inline Compiler_CFG_Validation_Report validate_cfg_function(const Compiler_CFG_F
           if (block.terminator.successors.size() != 1)
             fail("Return terminator in " + Compiler_CFG_Detail::block_name(block.id)
                  + " must point to the canonical exit block");
-          if (block.terminator.successors.size() >= 1
-              and block.terminator.successors.access(0) != function.exit_block)
+          else if (block.terminator.successors.access(0) != function.exit_block)
             fail("Return terminator in " + Compiler_CFG_Detail::block_name(block.id)
                  + " must point to the canonical exit block");
           break;

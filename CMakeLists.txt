@@ -125,7 +125,7 @@ set(HLIST
     archeap.H filter_iterator.H kosaraju.H htlist.H tpl_sgraph.H
     tpl_indexNode.H tpl_indexArc.H tpl_indexGraph.H io_graph.H
     tpl_slist.H tpl_snode.H tpl_lhash.H tpl_dynLhash.H
-    tpl_odhash.H tpl_memArray.H tpl_dynArray.H hash-dry.H
+    tpl_memArray.H tpl_dynArray.H hash-dry.H
     bloom-filter.H ah-dry.H graph-dry.H
     q-consumer-threads.H ah-string-utils.H ah-unique.H ah-comb.H geom_algorithms.H
     ah-source.H

@@ -836,6 +836,11 @@ inline std::string compiler_dump_hir_module(const Compiler_HIR_Module *module,
     {
       Compiler_HIR_Detail::append_indent(out, 2);
       const auto *function = module->functions.access(i);
+      if (function == nullptr)
+        {
+          out << "Function: <null>\n";
+          continue;
+        }
       out << "Function(" << function->name << "): " << types.to_string(function->type_id) << '\n';
       if (function->parameters.size() > 0)
         {

@@ -491,7 +491,7 @@ public:
    */
   void set_struct_fields(const Compiler_Type_Id id,
                          const DynArray<std::string> &field_names,
-                         const DynArray<Compiler_Type_Id> &field_types)
+                         const DynArray<Compiler_Type_Id> &field_types) const
   {
     auto &ty = mutable_type(id);
     ah_invalid_argument_unless(ty.kind == Compiler_Type_Kind::Struct)
@@ -525,7 +525,7 @@ public:
    *  @param variant_names Variant names in declaration order.
    *  @throws std::invalid_argument If `id` is not an `enum`.
    */
-  void set_enum_variants(const Compiler_Type_Id id, const DynArray<std::string> &variant_names)
+  void set_enum_variants(const Compiler_Type_Id id, const DynArray<std::string> &variant_names) const
   {
     auto &ty = mutable_type(id);
     ah_invalid_argument_unless(ty.kind == Compiler_Type_Kind::Enum)

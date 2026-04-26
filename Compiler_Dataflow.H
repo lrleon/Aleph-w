@@ -51,6 +51,8 @@
 #ifndef COMPILER_DATAFLOW_H
 #define COMPILER_DATAFLOW_H
 
+#include <cerrno>
+#include <climits>
 #include <cstdlib>
 #include <sstream>
 #include <string>
@@ -88,7 +90,7 @@ namespace Aleph
     }
 
     /** @brief Sets or clears bit `index`. Returns whether it changed. */
-    bool set(const size_t index, const bool value = true) const
+    bool set(const size_t index, const bool value = true)
     {
       ah_runtime_error_unless(index < bits.size())
         << "Compiler_Dataflow_Bit_Set::set(): index out of bounds";
@@ -287,8 +289,14 @@ namespace Aleph
         return false;
 
       char * end = nullptr;
-      value = std::strtoll(text.c_str(), &end, 10);
-      return end != nullptr and *end == '\0';
+      errno = 0;
+      const long long result = std::strtoll(text.c_str(), &end, 10);
+      if (end == nullptr or *end != '\0')
+        return false;
+      if (errno == ERANGE or result == LLONG_MAX or result == LLONG_MIN)
+        return false;
+      value = result;
+      return true;
     }
 
     inline Compiler_Dataflow_Constant
@@ -505,19 +513,38 @@ namespace Aleph
         switch (op)
           {
           case Compiler_Operator_Kind::Plus:
-            return integer_constant(lhs.integer_value + rhs.integer_value);
+            {
+              long long result = 0;
+              if (__builtin_add_overflow(lhs.integer_value, rhs.integer_value, &result))
+                return unknown_constant();
+              return integer_constant(result);
+            }
           case Compiler_Operator_Kind::Minus:
-            return integer_constant(lhs.integer_value - rhs.integer_value);
+            {
+              long long result = 0;
+              if (__builtin_sub_overflow(lhs.integer_value, rhs.integer_value, &result))
+                return unknown_constant();
+              return integer_constant(result);
+            }
           case Compiler_Operator_Kind::Star:
-            return integer_constant(lhs.integer_value * rhs.integer_value);
+            {
+              long long result = 0;
+              if (__builtin_mul_overflow(lhs.integer_value, rhs.integer_value, &result))
+                return unknown_constant();
+              return integer_constant(result);
+            }
           case Compiler_Operator_Kind::Slash:
-            if (rhs.integer_value != 0)
-              return integer_constant(lhs.integer_value / rhs.integer_value);
-            return unknown_constant();
+            if (rhs.integer_value == 0)
+              return unknown_constant();
+            if (lhs.integer_value == LLONG_MIN and rhs.integer_value == -1)
+              return unknown_constant();
+            return integer_constant(lhs.integer_value / rhs.integer_value);
           case Compiler_Operator_Kind::Percent:
-            if (rhs.integer_value != 0)
-              return integer_constant(lhs.integer_value % rhs.integer_value);
-            return unknown_constant();
+            if (rhs.integer_value == 0)
+              return unknown_constant();
+            if (lhs.integer_value == LLONG_MIN and rhs.integer_value == -1)
+              return unknown_constant();
+            return integer_constant(lhs.integer_value % rhs.integer_value);
           case Compiler_Operator_Kind::EqEq:
             return boolean_constant(lhs.integer_value == rhs.integer_value);
           case Compiler_Operator_Kind::NotEq:
