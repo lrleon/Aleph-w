@@ -221,9 +221,9 @@ jobs:
               elif lower.endswith(".tar.gz"):
                   score += 15
               elif lower.endswith(".dmg") and runner_os == "macOS":
-                  score += 12
+                  score += 21
               elif lower.endswith(".exe") and runner_os == "Windows":
-                  score += 12
+                  score += 21
               else:
                   return -10**6
 

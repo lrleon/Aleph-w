@@ -64,12 +64,23 @@
 
 namespace Aleph
 {
-  /** @brief Small reusable bit-set for slot-domain dataflow analyses. */
+  /**
+   * @brief Small reusable bit-set for slot-domain dataflow analyses.
+   *
+   * Each element is stored as one byte so per-element access is O(1)
+   * without bit-shifting.  Not thread-safe.
+   */
   struct Compiler_Dataflow_Bit_Set
   {
     DynArray<unsigned char> bits; ///< One byte per tracked element.
 
-    /** @brief Resizes the bit-set to `count` bits and fills it with `value`. */
+    /**
+     * @brief Clears all existing bits and resizes the set to `count` elements.
+     * @param count Number of bits to track after the call.
+     * @param value Initial value for every bit (default: false / 0).
+     * @note Previous contents are discarded.  Complexity: O(count).
+     * @note Not thread-safe.
+     */
     void resize(const size_t count, const bool value = false)
     {
       bits.clear();
@@ -77,19 +88,36 @@ namespace Aleph
         bits.append(value ? 1u : 0u);
     }
 
-    /** @brief Returns the number of tracked bits. */
+    /**
+     * @brief Returns the number of tracked bits.
+     * @return Total number of bits in the set.
+     * @note Complexity: O(1).  Not thread-safe.
+     */
     size_t size() const noexcept
     {
       return bits.size();
     }
 
-    /** @brief Returns whether bit `index` is set. */
+    /**
+     * @brief Returns whether bit `index` is set.
+     * @param index Zero-based bit index.
+     * @return true if the bit is set; false if it is clear or `index` is
+     *         out of range.
+     * @note Complexity: O(1).  Not thread-safe.
+     */
     bool test(const size_t index) const noexcept
     {
       return index < bits.size() and bits.access(index) != 0;
     }
 
-    /** @brief Sets or clears bit `index`. Returns whether it changed. */
+    /**
+     * @brief Sets or clears bit `index`.
+     * @param index Zero-based bit index; must be less than size().
+     * @param value New value for the bit (default: true / set).
+     * @return true if the bit changed; false if it already had the requested value.
+     * @throws Aleph runtime error if `index >= size()`.
+     * @note Complexity: O(1).  Not thread-safe.
+     */
     bool set(const size_t index, const bool value = true)
     {
       ah_runtime_error_unless(index < bits.size())
@@ -835,7 +863,15 @@ namespace Aleph
     }
   }
 
-  /** @brief Computes reachability, liveness, definite assignment, and constant propagation for one IR function. */
+  /**
+   * @brief Computes reachability, liveness, definite assignment, and constant
+   *        propagation for one IR function.
+   * @param function IR function to analyse; must have a valid entry and exit block.
+   * @return Populated Compiler_Dataflow_Function_Analysis for `function`.
+   * @note Complexity: O(B·S·iter) where B = number of blocks, S = number of
+   *       local slots, and iter = number of fixed-point iterations (typically
+   *       O(B) in the worst case).  Not thread-safe on shared state.
+   */
   inline Compiler_Dataflow_Function_Analysis
   analyze_dataflow_function(const Compiler_IR_Function & function)
   {
@@ -1054,7 +1090,14 @@ namespace Aleph
     return analysis;
   }
 
-  /** @brief Validates that a dataflow result matches the analyzed IR function. */
+  /**
+   * @brief Validates structural invariants of a dataflow result against its source function.
+   * @param function   IR function that was analysed.
+   * @param analysis   Result produced by analyze_dataflow_function() for `function`.
+   * @return Compiler_Dataflow_Validation_Report with valid==true if all invariants hold;
+   *         errors contains a description of each violation otherwise.
+   * @note Complexity: O(B·S).  Not thread-safe.
+   */
   inline Compiler_Dataflow_Validation_Report
   validate_dataflow_analysis(const Compiler_IR_Function & function,
                              const Compiler_Dataflow_Function_Analysis & analysis)
@@ -1132,7 +1175,17 @@ namespace Aleph
     return report;
   }
 
-  /** @brief Dumps one function-level dataflow result deterministically. */
+  /**
+   * @brief Produces a deterministic, human-readable dump of a dataflow result.
+   * @param function Pointer to the IR function; may be nullptr (function name
+   *                 is omitted from the output in that case).
+   * @param analysis Dataflow result to render.
+   * @param types    Optional type context used to render type names; nullptr
+   *                 causes types to be rendered as numeric IDs.
+   * @return A multi-line string containing reachability, liveness, definite
+   *         assignment, constant lattice values, and uninitialized reads.
+   * @note Complexity: O(B·S).  Not thread-safe.
+   */
   inline std::string
   compiler_dump_dataflow_analysis(const Compiler_IR_Function * function,
                                   const Compiler_Dataflow_Function_Analysis & analysis,
@@ -1233,7 +1286,17 @@ namespace Aleph
     return out.str();
   }
 
-  /** @brief Eliminates unreachable blocks, dead pure instructions, dead local stores, and constant branches. */
+  /**
+   * @brief Eliminates unreachable blocks, dead pure instructions, dead local
+   *        stores, and folds constant-condition branches.
+   * @param function Source IR function; not modified in place.
+   * @return Compiler_Dead_Code_Elimination_Result containing the optimised
+   *         function copy and elimination statistics (removed_blocks,
+   *         removed_instructions, folded_branches).
+   * @note Internally calls analyze_dataflow_function(); overall complexity is
+   *       O(B·S·iter + I) where I is the total instruction count.
+   *       Not thread-safe.
+   */
   inline Compiler_Dead_Code_Elimination_Result
   eliminate_dead_code(const Compiler_IR_Function & function)
   {
@@ -1390,7 +1453,19 @@ namespace Aleph
     return result;
   }
 
-  /** @brief Validates the result of dead-code elimination and checks that trivial dead code was removed. */
+  /**
+   * @brief Validates the result of dead-code elimination.
+   *
+   * Checks that the optimised function has valid IR, that no foldable branches
+   * remain, and (when a module is provided) that global slot counts are
+   * consistent.
+   * @param result  DCE result produced by eliminate_dead_code().
+   * @param module  Optional IR module used to validate global-slot consistency;
+   *                pass nullptr to skip module-level checks.
+   * @return Compiler_Dataflow_Validation_Report with valid==true if all
+   *         post-elimination invariants hold.
+   * @note Complexity: O(B·S).  Not thread-safe.
+   */
   inline Compiler_Dataflow_Validation_Report
   validate_dead_code_elimination(const Compiler_Dead_Code_Elimination_Result & result,
                                  const Compiler_IR_Module * module = nullptr)

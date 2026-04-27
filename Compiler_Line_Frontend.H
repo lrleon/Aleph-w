@@ -316,6 +316,11 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
         emit_error(line_span, "LIN021", "invalid parameter name '" + tokens.access(3) + "'");
         return false;
       }
+    if (tokens.access(2) == tokens.access(3))
+      {
+        emit_error(line_span, "LIN025", "duplicate parameter name '" + tokens.access(2) + "'");
+        return false;
+      }
 
     Function_Definition def;
     def.module_name = parsed.name;
@@ -646,18 +651,32 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
   }
 
 public:
-  /** @brief Builds one line-oriented frontend with reusable HIR/IR storage. */
+  /**
+   * @brief Constructs a line-oriented frontend with reusable HIR/IR arena storage.
+   * @param arena_size Byte capacity for each of the HIR and IR arenas (default: 1 MiB).
+   * @note Not thread-safe.
+   */
   explicit Compiler_Line_Frontend(const size_t arena_size = 1 << 20)
     : diagnostics_(sources_), hir_ctx_(arena_size), ir_ctx_(arena_size), arena_bytes_(arena_size)
   {}
 
-  /** @brief Returns the stable frontend name. */
+  /**
+   * @brief Returns the stable frontend name.
+   * @return The literal string @c "line".
+   * @note noexcept; never returns nullptr.
+   */
   [[nodiscard]] const char *name() const noexcept override
   {
     return "line";
   }
 
-  /** @brief Clears all frontend-owned state from the previous run. */
+  /**
+   * @brief Resets all frontend-owned state so the instance can be reused.
+   *
+   * After this call source registrations, parsed declarations, HIR/IR modules,
+   * artifacts, diagnostics, and type context are all discarded.
+   * @note noexcept.  Not thread-safe.
+   */
   void clear() noexcept override
   {
     source_names_.clear();
@@ -681,7 +700,13 @@ public:
     sources_ = Source_Manager();
   }
 
-  /** @brief Registers ordered in-memory sources for the next run. */
+  /**
+   * @brief Registers ordered in-memory sources for the next compilation run.
+   * @param inputs Non-empty array of named source texts; duplicate names are rejected.
+   * @return true on success; false if @p inputs is empty or contains a duplicate name
+   *         (an error is appended via append_error in both cases).
+   * @note Not thread-safe.
+   */
   bool load_sources(const DynArray<Compiler_Driver_Source> &inputs) override
   {
     if (inputs.is_empty())
@@ -706,7 +731,13 @@ public:
     return true;
   }
 
-  /** @brief Parses all registered line-oriented sources. */
+  /**
+   * @brief Parses all registered sources, builds module descriptors and metadata,
+   *        resolves import order, and records a parse artifact.
+   * @return true if no parse errors were produced; false otherwise.
+   * @pre load_sources() must have been called successfully.
+   * @note Not thread-safe.
+   */
   bool parse() override
   {
     functions_.clear();
@@ -756,7 +787,13 @@ public:
     return not diagnostics_.has_errors();
   }
 
-  /** @brief Performs minimal semantic validation over parsed declarations. */
+  /**
+   * @brief Performs semantic validation: duplicate declarations, module linking,
+   *        name binding, and operand resolution.
+   * @return true if no semantic errors were produced; false otherwise.
+   * @pre parse() must have completed without errors.
+   * @note Not thread-safe.
+   */
   bool analyze() override
   {
     for (size_t i = 0; i < parsed_sources_.size(); ++i)
@@ -816,7 +853,13 @@ public:
     return not diagnostics_.has_errors();
   }
 
-  /** @brief Lowers the analyzed line program into reusable HIR. */
+  /**
+   * @brief Lowers the analyzed line program into a reusable HIR module.
+   * @return true if a non-null HIR module was produced; false otherwise.
+   * @pre analyze() must have completed without errors.
+   * @post hir_module() returns a non-null pointer on success.
+   * @note Not thread-safe.
+   */
   bool lower_hir() override
   {
     Compiler_HIR_Builder builder(hir_ctx_);
@@ -870,7 +913,13 @@ public:
     return hir_module_ != nullptr;
   }
 
-  /** @brief Lowers the analyzed line program into reusable IR. */
+  /**
+   * @brief Lowers the analyzed line program into a reusable flat IR module.
+   * @return true if IR was produced and passed validation; false otherwise.
+   * @pre analyze() must have completed without errors.
+   * @post ir_module() returns a non-null pointer on success.
+   * @note Not thread-safe.
+   */
   bool lower_ir() override
   {
     Compiler_IR_Builder builder(ir_ctx_);
@@ -986,58 +1035,103 @@ public:
     return Compiler_Driver_Detail::merge_report("ir", report, errors_, warnings_);
   }
 
-  /** @brief Returns the diagnostic engine populated by the line frontend. */
+  /**
+   * @brief Returns the mutable diagnostic engine for this frontend.
+   * @return Non-null pointer to the internal Diagnostic_Engine.
+   * @note noexcept; never returns nullptr.
+   */
   [[nodiscard]] Diagnostic_Engine *diagnostic_engine() noexcept override
   {
     return &diagnostics_;
   }
 
-  /** @brief Returns the diagnostic engine populated by the line frontend. */
+  /**
+   * @brief Returns the read-only diagnostic engine for this frontend.
+   * @return Non-null pointer to the internal Diagnostic_Engine.
+   * @note noexcept; never returns nullptr.
+   */
   [[nodiscard]] const Diagnostic_Engine *diagnostic_engine() const noexcept override
   {
     return &diagnostics_;
   }
 
-  /** @brief Returns the shared type context used by the line frontend. */
+  /**
+   * @brief Returns the shared type context used by the line frontend.
+   * @return Non-null pointer to the internal Compiler_Type_Context.
+   * @note noexcept; never returns nullptr.
+   */
   [[nodiscard]] const Compiler_Type_Context *type_context() const noexcept override
   {
     return &types_;
   }
 
-  /** @brief Returns the lowered HIR module from the last run, when available. */
+  /**
+   * @brief Returns the HIR module produced by the last lower_hir() call.
+   * @return Non-null pointer if lower_hir() succeeded; nullptr otherwise.
+   * @note noexcept.
+   */
   [[nodiscard]] const Compiler_HIR_Module *hir_module() const noexcept override
   {
     return hir_module_;
   }
 
-  /** @brief Returns the lowered IR module from the last run, when available. */
+  /**
+   * @brief Returns the IR module produced by the last lower_ir() call.
+   * @return Non-null pointer if lower_ir() succeeded; nullptr otherwise.
+   * @note noexcept.
+   */
   [[nodiscard]] const Compiler_IR_Module *ir_module() const noexcept override
   {
     return ir_module_;
   }
 
+  /**
+   * @brief Returns the module descriptors built during parse().
+   * @return Reference to the internal array of Compiler_Module_Descriptor.
+   * @note noexcept; the reference is valid until the next clear() call.
+   */
   [[nodiscard]] const DynArray<Compiler_Module_Descriptor> &module_descriptors() const noexcept override
   {
     return module_descriptors_;
   }
 
+  /**
+   * @brief Returns the dependency-resolved merge order from the last parse().
+   * @return Reference to the array of module indices in dependency-first order.
+   * @note noexcept; the reference is valid until the next clear() call.
+   */
   [[nodiscard]] const DynArray<size_t> &module_merge_order() const noexcept override
   {
     return merge_order_;
   }
 
+  /**
+   * @brief Returns the module metadata built during parse().
+   * @return Reference to the internal array of Compiler_Module_Metadata.
+   * @note noexcept; the reference is valid until the next clear() call.
+   */
   [[nodiscard]] const DynArray<Compiler_Module_Metadata> &module_metadata() const noexcept override
   {
     return module_metadata_;
   }
 
-  /** @brief Returns all frontend-produced artifacts from the last run. */
+  /**
+   * @brief Returns all frontend-produced artifacts from the last run.
+   * @return Reference to the internal artifact array (may be empty before any
+   *         pipeline stage is run).
+   * @note noexcept; reference is valid until the next clear() call.
+   */
   [[nodiscard]] const DynArray<Compiler_Driver_Artifact> &artifacts() const noexcept override
   {
     return artifacts_;
   }
 
-  /** @brief Finds one frontend artifact by exact label. */
+  /**
+   * @brief Finds one frontend artifact by exact label (last-write wins).
+   * @param label Exact label string to search for.
+   * @return Pointer to the matching artifact, or nullptr if not found.
+   * @note noexcept; searches in reverse insertion order.
+   */
   [[nodiscard]] const Compiler_Driver_Artifact *find_artifact(std::string_view label) const noexcept override
   {
     for (size_t i = artifacts_.size(); i > 0; --i)
@@ -1046,13 +1140,21 @@ public:
     return nullptr;
   }
 
-  /** @brief Returns hard frontend-level errors outside the diagnostic engine. */
+  /**
+   * @brief Returns hard frontend-level errors collected outside the diagnostic engine.
+   * @return Reference to the array of error strings (empty if no errors).
+   * @note noexcept; reference is valid until the next clear() call.
+   */
   [[nodiscard]] const DynArray<std::string> &errors() const noexcept override
   {
     return errors_;
   }
 
-  /** @brief Returns non-fatal frontend-level warnings. */
+  /**
+   * @brief Returns non-fatal frontend-level warnings.
+   * @return Reference to the array of warning strings (empty if no warnings).
+   * @note noexcept; reference is valid until the next clear() call.
+   */
   [[nodiscard]] const DynArray<std::string> &warnings() const noexcept override
   {
     return warnings_;
