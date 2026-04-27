@@ -875,6 +875,11 @@ public:
   {
     Compiler_IR_Builder builder(ir_ctx_);
     ir_module_ = builder.make_module();
+    if (ir_module_ == nullptr)
+      {
+        append_error("ir: null IR module produced by line frontend");
+        return false;
+      }
 
     const auto function_type
       = types_.make_function_type({types_.integer_type(), types_.integer_type()}, types_.integer_type());
@@ -976,11 +981,6 @@ public:
       }
 
     record_text_artifact("ir", compiler_dump_ir_module(ir_module_, &types_));
-    if (ir_module_ == nullptr)
-      {
-        append_error("ir: null IR module produced by line frontend");
-        return false;
-      }
 
     const auto report = validate_ir_module(*ir_module_);
     return Compiler_Driver_Detail::merge_report("ir", report, errors_, warnings_);

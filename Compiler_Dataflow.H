@@ -490,11 +490,7 @@ namespace Aleph
           if (operand.kind == Compiler_Dataflow_Constant_Kind::Integer)
             {
               if (operand.integer_value == LLONG_MIN)
-                {
-                  const auto u = static_cast<long long>(
-                    0ULL - static_cast<unsigned long long>(operand.integer_value));
-                  return integer_constant(u);
-                }
+                break; // -LLONG_MIN overflows; do not fold
               return integer_constant(-operand.integer_value);
             }
           break;
@@ -1282,6 +1278,12 @@ namespace Aleph
             terminator.successors.clear();
             terminator.successors.append(chosen);
             ++result.folded_branches;
+
+            // Recompute live_slots from the post-fold successor so the DCE
+            // pass below uses liveness that matches the new control flow.
+            live_slots = Compiler_Dataflow_Detail::make_bit_set(function.local_slots.size(), false);
+            if (chosen < analysis.live_in_slots.size())
+              live_slots = analysis.live_in_slots.access(chosen);
           }
 
         if (terminator.kind == Compiler_IR_Terminator_Kind::Branch)

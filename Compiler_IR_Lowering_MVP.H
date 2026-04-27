@@ -287,7 +287,7 @@ class Compiler_IR_Lowering
       (void) scopes.pop();
     }
 
-    static void bind(const DynArray<Compiler_IR_Detail::Scope_Frame> &scopes,
+    static void bind(DynArray<Compiler_IR_Detail::Scope_Frame> &scopes,
                      const std::string &name,
                      const Compiler_IR_Detail::Binding &binding)
     {
