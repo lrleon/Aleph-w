@@ -135,15 +135,15 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
     DynArray<Let_Definition> lets;
   };
 
-  Source_Manager sources;
-  Diagnostic_Engine diagnostics;
-  Compiler_Type_Context types;
-  Compiler_HIR_Context hir_ctx;
-  Compiler_IR_Context ir_ctx;
-  size_t arena_bytes = 0;
+  Source_Manager sources_;
+  Diagnostic_Engine diagnostics_;
+  Compiler_Type_Context types_;
+  Compiler_HIR_Context hir_ctx_;
+  Compiler_IR_Context ir_ctx_;
+  size_t arena_bytes_ = 0;
 
-  DynArray<std::string> source_names;
-  DynArray<Source_File_Id> source_ids;
+  DynArray<std::string> source_names_;
+  DynArray<Source_File_Id> source_ids_;
   DynArray<Compiler_Module_Descriptor> module_descriptors_;
   DynArray<Compiler_Module_Metadata> module_metadata_;
   DynArray<Parsed_Source> parsed_sources_;
@@ -245,13 +245,13 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
 
   void emit_error(const Source_Span &span, const std::string &code, const std::string &message)
   {
-    diagnostics.error(span, message).code(code).emit();
+    diagnostics_.error(span, message).code(code).emit();
   }
 
   size_t find_source_index(std::string_view name) const noexcept
   {
-    for (size_t i = 0; i < source_names.size(); ++i)
-      if (source_names.access(i) == name)
+    for (size_t i = 0; i < source_names_.size(); ++i)
+      if (source_names_.access(i) == name)
         return i;
     return static_cast<size_t>(-1);
   }
@@ -301,6 +301,22 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
         return false;
       }
 
+    if (not parse_identifier(tokens.access(1)))
+      {
+        emit_error(line_span, "LIN023", "invalid function name '" + tokens.access(1) + "'");
+        return false;
+      }
+    if (not parse_identifier(tokens.access(2)))
+      {
+        emit_error(line_span, "LIN020", "invalid parameter name '" + tokens.access(2) + "'");
+        return false;
+      }
+    if (not parse_identifier(tokens.access(3)))
+      {
+        emit_error(line_span, "LIN021", "invalid parameter name '" + tokens.access(3) + "'");
+        return false;
+      }
+
     Function_Definition def;
     def.module_name = parsed.name;
     def.name = tokens.access(1);
@@ -344,6 +360,12 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
         return false;
       }
 
+    if (not parse_identifier(tokens.access(1)))
+      {
+        emit_error(line_span, "LIN022", "invalid let binding name '" + tokens.access(1) + "'");
+        return false;
+      }
+
     Let_Definition def;
     def.module_name = parsed.name;
     def.name = tokens.access(1);
@@ -379,6 +401,12 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
             return false;
           }
 
+        if (not parse_identifier(tokens.access(4)))
+          {
+            emit_error(line_span, "LIN024", "invalid callee name '" + tokens.access(4) + "'");
+            return false;
+          }
+
         def.kind = Let_Definition::Kind::Call;
         def.callee = tokens.access(4);
         if (not parse_operand(tokens.access(5), line_span, def.arg1))
@@ -403,7 +431,7 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
 
   bool parse_source_file(Parsed_Source &parsed)
   {
-    const auto &text = sources.file_text(parsed.file_id);
+    const auto &text = sources_.file_text(parsed.file_id);
     size_t line_begin = 0;
     while (line_begin <= text.size())
       {
@@ -442,7 +470,7 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
         line_begin = newline + 1;
       }
 
-    return not diagnostics.has_errors();
+    return not diagnostics_.has_errors();
   }
 
   void flatten_program_in_import_order()
@@ -492,7 +520,7 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
       for (size_t i = 0; i < parsed_sources_.size(); ++i)
         merge_order_.append(i);
 
-    return result.valid and not diagnostics.has_errors();
+    return result.valid and not diagnostics_.has_errors();
   }
 
   std::string dump_parsed_program() const
@@ -551,7 +579,7 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
                                                              Compiler_Module_Name_Filter::Function);
         if (resolution.status != Compiler_Module_Name_Resolution_Status::Resolved)
           (void) compiler_emit_module_name_resolution_diagnostic(
-            diagnostics, let.span, resolution, "LIN015", "line-frontend callee");
+            diagnostics_, let.span, resolution, "LIN015", "line-frontend callee");
         else
           lets_.access(i).callee_module_name = resolution.binding.provider_module_name;
 
@@ -559,7 +587,7 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
         (void) validate_top_level_operand(let.arg2, let.span);
       }
 
-    return not diagnostics.has_errors();
+    return not diagnostics_.has_errors();
   }
 
   bool validate_operand_in_function(const Operand &operand,
@@ -593,8 +621,8 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
   Compiler_HIR_Expr *build_hir_operand(Compiler_HIR_Builder &builder, const Operand &operand) const
   {
     if (operand.kind == Operand_Kind::Integer)
-      return builder.make_integer_constant(operand.integer_value, types.integer_type(), operand.span);
-    return builder.make_variable(operand.text, types.integer_type(), operand.span);
+      return builder.make_integer_constant(operand.integer_value, types_.integer_type(), operand.span);
+    return builder.make_variable(operand.text, types_.integer_type(), operand.span);
   }
 
   Compiler_IR_Value_Id build_ir_operand(Compiler_IR_Builder &builder,
@@ -608,19 +636,19 @@ class Compiler_Line_Frontend final : public Compiler_Frontend
     if (operand.kind == Operand_Kind::Integer)
       return builder.emit_constant(function,
                                    block_id,
-                                   types.integer_type(),
+                                   types_.integer_type(),
                                    std::to_string(operand.integer_value),
                                    operand.span);
 
     if (operand.text == definition.left_param)
-      return builder.emit_load_local(function, block_id, left_slot, types.integer_type(), operand.span);
-    return builder.emit_load_local(function, block_id, right_slot, types.integer_type(), operand.span);
+      return builder.emit_load_local(function, block_id, left_slot, types_.integer_type(), operand.span);
+    return builder.emit_load_local(function, block_id, right_slot, types_.integer_type(), operand.span);
   }
 
 public:
   /** @brief Builds one line-oriented frontend with reusable HIR/IR storage. */
   explicit Compiler_Line_Frontend(const size_t arena_size = 1 << 20)
-    : diagnostics(sources), hir_ctx(arena_size), ir_ctx(arena_size), arena_bytes(arena_size)
+    : diagnostics_(sources_), hir_ctx_(arena_size), ir_ctx_(arena_size), arena_bytes_(arena_size)
   {}
 
   /** @brief Returns the stable frontend name. */
@@ -632,8 +660,8 @@ public:
   /** @brief Clears all frontend-owned state from the previous run. */
   void clear() noexcept override
   {
-    source_names.clear();
-    source_ids.clear();
+    source_names_.clear();
+    source_ids_.clear();
     module_descriptors_.clear();
     module_metadata_.clear();
     parsed_sources_.clear();
@@ -646,11 +674,11 @@ public:
     hir_module_ = nullptr;
     ir_module_ = nullptr;
 
-    diagnostics.clear();
-    types.clear();
-    hir_ctx.reset();
-    ir_ctx.reset();
-    sources = Source_Manager();
+    diagnostics_.clear();
+    types_.clear();
+    hir_ctx_.reset();
+    ir_ctx_.reset();
+    sources_ = Source_Manager();
   }
 
   /** @brief Registers ordered in-memory sources for the next run. */
@@ -671,8 +699,8 @@ public:
             return false;
           }
 
-        source_names.append(input.name);
-        source_ids.append(sources.add_virtual_file(input.name, input.text));
+        source_names_.append(input.name);
+        source_ids_.append(sources_.add_virtual_file(input.name, input.text));
       }
 
     return true;
@@ -688,11 +716,11 @@ public:
     parsed_sources_.clear();
     merge_order_.clear();
 
-    for (size_t i = 0; i < source_ids.size(); ++i)
+    for (size_t i = 0; i < source_ids_.size(); ++i)
       {
         Parsed_Source parsed;
-        parsed.name = source_names.access(i);
-        parsed.file_id = source_ids.access(i);
+        parsed.name = source_names_.access(i);
+        parsed.file_id = source_ids_.access(i);
         (void) parse_source_file(parsed);
 
         Compiler_Module_Descriptor descriptor;
@@ -725,7 +753,7 @@ public:
     record_import_order_artifact();
 
     record_text_artifact("line.parse", dump_parsed_program());
-    return not diagnostics.has_errors();
+    return not diagnostics_.has_errors();
   }
 
   /** @brief Performs minimal semantic validation over parsed declarations. */
@@ -785,28 +813,28 @@ public:
       }
 
     record_text_artifact("line.sema", dump_semantic_state());
-    return not diagnostics.has_errors();
+    return not diagnostics_.has_errors();
   }
 
   /** @brief Lowers the analyzed line program into reusable HIR. */
   bool lower_hir() override
   {
-    Compiler_HIR_Builder builder(hir_ctx);
+    Compiler_HIR_Builder builder(hir_ctx_);
     hir_module_ = builder.make_module();
     const auto function_type
-      = types.make_function_type({types.integer_type(), types.integer_type()}, types.integer_type());
+      = types_.make_function_type({types_.integer_type(), types_.integer_type()}, types_.integer_type());
 
     for (size_t i = 0; i < functions_.size(); ++i)
       {
         const auto &fn = functions_.access(i);
         auto *body = builder.make_block();
         auto *function = builder.make_function(fn.name, function_type, fn.name_span, body, fn.span);
-        builder.add_parameter(*function, fn.left_param, types.integer_type(), fn.span);
-        builder.add_parameter(*function, fn.right_param, types.integer_type(), fn.span);
+        builder.add_parameter(*function, fn.left_param, types_.integer_type(), fn.span);
+        builder.add_parameter(*function, fn.right_param, types_.integer_type(), fn.span);
         auto *result = builder.make_binary(build_hir_operand(builder, fn.lhs),
                                            fn.op,
                                            build_hir_operand(builder, fn.rhs),
-                                           types.integer_type(),
+                                           types_.integer_type(),
                                            fn.span);
         builder.append_statement(*body, builder.make_return_stmt(result, fn.span));
         builder.append_function(*hir_module_, function);
@@ -820,41 +848,41 @@ public:
             *hir_module_,
             builder.make_let_stmt(
               let.name,
-              types.integer_type(),
+              types_.integer_type(),
               let.name_span,
-              builder.make_integer_constant(let.integer_value, types.integer_type(), let.span),
+              builder.make_integer_constant(let.integer_value, types_.integer_type(), let.span),
               let.span));
         else
           {
             auto *call = builder.make_call(builder.make_variable(let.callee, function_type, let.span),
-                                           types.integer_type(),
+                                           types_.integer_type(),
                                            let.span,
                                            let.span);
             builder.append_argument(*call, build_hir_operand(builder, let.arg1));
             builder.append_argument(*call, build_hir_operand(builder, let.arg2));
             builder.append_top_level_statement(
               *hir_module_,
-              builder.make_let_stmt(let.name, types.integer_type(), let.name_span, call, let.span));
+              builder.make_let_stmt(let.name, types_.integer_type(), let.name_span, call, let.span));
           }
       }
 
-    record_text_artifact("hir", compiler_dump_hir_module(hir_module_, types));
+    record_text_artifact("hir", compiler_dump_hir_module(hir_module_, types_));
     return hir_module_ != nullptr;
   }
 
   /** @brief Lowers the analyzed line program into reusable IR. */
   bool lower_ir() override
   {
-    Compiler_IR_Builder builder(ir_ctx);
+    Compiler_IR_Builder builder(ir_ctx_);
     ir_module_ = builder.make_module();
 
     const auto function_type
-      = types.make_function_type({types.integer_type(), types.integer_type()}, types.integer_type());
+      = types_.make_function_type({types_.integer_type(), types_.integer_type()}, types_.integer_type());
 
     for (size_t i = 0; i < lets_.size(); ++i)
       (void) builder.add_global_slot(*ir_module_,
                                      lets_.access(i).name,
-                                     types.integer_type(),
+                                     types_.integer_type(),
                                      lets_.access(i).span);
 
     DynArray<std::pair<std::string, Compiler_IR_Function_Id>> function_ids;
@@ -883,12 +911,12 @@ public:
         const auto left_slot = builder.add_local_slot(function,
                                                       Compiler_IR_Slot_Kind::Parameter,
                                                       definition.left_param,
-                                                      types.integer_type(),
+                                                      types_.integer_type(),
                                                       definition.span);
         const auto right_slot = builder.add_local_slot(function,
                                                        Compiler_IR_Slot_Kind::Parameter,
                                                        definition.right_param,
-                                                       types.integer_type(),
+                                                       types_.integer_type(),
                                                        definition.span);
         const auto entry = builder.create_block(function, "entry");
         const auto exit = builder.create_block(function, "exit");
@@ -900,7 +928,7 @@ public:
         const auto rhs = build_ir_operand(
           builder, function, entry, definition.rhs, left_slot, right_slot, definition);
         const auto result = builder.emit_binary(
-          function, entry, definition.op, lhs, rhs, types.integer_type(), definition.span);
+          function, entry, definition.op, lhs, rhs, types_.integer_type(), definition.span);
         builder.set_return(function, entry, result, definition.span);
         builder.set_exit(function, exit, definition.span);
       }
@@ -920,34 +948,34 @@ public:
             if (let.kind == Let_Definition::Kind::Integer)
               {
                 const auto value = builder.emit_constant(
-                  *top, entry, types.integer_type(), std::to_string(let.integer_value), let.span);
-                builder.emit_store_global(*top, entry, i, value, types.integer_type(), let.span);
+                  *top, entry, types_.integer_type(), std::to_string(let.integer_value), let.span);
+                builder.emit_store_global(*top, entry, i, value, types_.integer_type(), let.span);
                 continue;
               }
 
             DynArray<Compiler_IR_Value_Id> arguments;
             arguments.append(builder.emit_constant(*top,
                                                    entry,
-                                                   types.integer_type(),
+                                                   types_.integer_type(),
                                                    std::to_string(let.arg1.integer_value),
                                                    let.arg1.span));
             arguments.append(builder.emit_constant(*top,
                                                    entry,
-                                                   types.integer_type(),
+                                                   types_.integer_type(),
                                                    std::to_string(let.arg2.integer_value),
                                                    let.arg2.span));
             const auto callee = builder.emit_function_ref(
               *top, entry, find_function_id(let.callee_module_name, let.callee), function_type, let.span);
             const auto value
-              = builder.emit_call(*top, entry, callee, arguments, types.integer_type(), let.span);
-            builder.emit_store_global(*top, entry, i, value, types.integer_type(), let.span);
+              = builder.emit_call(*top, entry, callee, arguments, types_.integer_type(), let.span);
+            builder.emit_store_global(*top, entry, i, value, types_.integer_type(), let.span);
           }
 
         builder.set_jump(*top, entry, exit);
         builder.set_exit(*top, exit);
       }
 
-    record_text_artifact("ir", compiler_dump_ir_module(ir_module_, &types));
+    record_text_artifact("ir", compiler_dump_ir_module(ir_module_, &types_));
     if (ir_module_ == nullptr)
       {
         append_error("ir: null IR module produced by line frontend");
@@ -961,19 +989,19 @@ public:
   /** @brief Returns the diagnostic engine populated by the line frontend. */
   [[nodiscard]] Diagnostic_Engine *diagnostic_engine() noexcept override
   {
-    return &diagnostics;
+    return &diagnostics_;
   }
 
   /** @brief Returns the diagnostic engine populated by the line frontend. */
   [[nodiscard]] const Diagnostic_Engine *diagnostic_engine() const noexcept override
   {
-    return &diagnostics;
+    return &diagnostics_;
   }
 
   /** @brief Returns the shared type context used by the line frontend. */
   [[nodiscard]] const Compiler_Type_Context *type_context() const noexcept override
   {
-    return &types;
+    return &types_;
   }
 
   /** @brief Returns the lowered HIR module from the last run, when available. */

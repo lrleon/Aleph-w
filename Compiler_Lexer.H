@@ -590,7 +590,7 @@ public:
    *  @note Thread-safety: Not thread-safe.
    *  @note Complexity: O(N) where N is lexeme length (amortized).
    */
-  Compiler_Token peek()
+  const Compiler_Token &peek()
   {
     if (not has_lookahead_)
       {

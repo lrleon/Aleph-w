@@ -119,6 +119,8 @@ class Compiler_IR_Lowering
 
     Compiler_IR_Function_Id predeclare_function(const Compiler_HIR_Function *hir_function)
     {
+      if (hir_function == nullptr)
+        return compiler_ir_invalid_id();
       auto *ir_function = ctx->make<Compiler_IR_Function>();
       ir_function->id = module->functions.size();
       ir_function->name = hir_function->name;
@@ -131,7 +133,7 @@ class Compiler_IR_Lowering
       return ir_function->id;
     }
 
-    static Compiler_IR_Block &block(const Compiler_IR_Function &function,
+    static Compiler_IR_Block &block(Compiler_IR_Function &function,
                                     const Compiler_IR_Block_Id id)
     {
       return function.blocks.access(id);
@@ -158,7 +160,7 @@ class Compiler_IR_Lowering
       return function.blocks.size() - 1;
     }
 
-    static void add_edge(const Compiler_IR_Function &function,
+    static void add_edge(Compiler_IR_Function &function,
                          const Compiler_IR_Block_Id from,
                          const Compiler_IR_Block_Id to)
     {
@@ -192,7 +194,7 @@ class Compiler_IR_Lowering
       return function.local_slots.size() - 1;
     }
 
-    static void emit_instruction(const Compiler_IR_Function &function,
+    static void emit_instruction(Compiler_IR_Function &function,
                                  const Compiler_IR_Block_Id block_id,
                                  Compiler_IR_Instruction instruction)
     {
@@ -201,7 +203,7 @@ class Compiler_IR_Lowering
       blk.instructions.append(std::move(instruction));
     }
 
-    static void set_jump(const Compiler_IR_Function &function,
+    static void set_jump(Compiler_IR_Function &function,
                          const Compiler_IR_Block_Id from,
                          const Compiler_IR_Block_Id to,
                          const Source_Span &span = {})
@@ -215,7 +217,7 @@ class Compiler_IR_Lowering
       add_edge(function, from, to);
     }
 
-    static void set_branch(const Compiler_IR_Function &function,
+    static void set_branch(Compiler_IR_Function &function,
                            const Compiler_IR_Block_Id from,
                            const Compiler_IR_Value_Id condition,
                            const Source_Span &span,
@@ -233,7 +235,7 @@ class Compiler_IR_Lowering
       add_edge(function, from, else_block);
     }
 
-    static void set_return(const Compiler_IR_Function &function,
+    static void set_return(Compiler_IR_Function &function,
                            const Compiler_IR_Block_Id from,
                            const Compiler_IR_Value_Id value,
                            const Source_Span &span = {})
@@ -248,13 +250,13 @@ class Compiler_IR_Lowering
       add_edge(function, from, function.exit_block);
     }
 
-    static void set_exit(const Compiler_IR_Function &function, const Compiler_IR_Block_Id id)
+    static void set_exit(Compiler_IR_Function &function, const Compiler_IR_Block_Id id)
     {
       auto &blk = block(function, id);
       blk.terminator.kind = Compiler_IR_Terminator_Kind::Exit;
     }
 
-    static void set_unreachable(const Compiler_IR_Function &function,
+    static void set_unreachable(Compiler_IR_Function &function,
                                 const Compiler_IR_Block_Id id,
                                 const Source_Span &span = {})
     {
@@ -413,6 +415,10 @@ class Compiler_IR_Lowering
 
                 const auto *lhs = static_cast<const Compiler_HIR_Variable_Expr *>(node->left);
                 const auto binding = lookup(scopes, lhs->name);
+
+                if (binding.id == compiler_ir_invalid_id()
+                    or binding.kind == Compiler_IR_Detail::Binding::Kind::Function)
+                  return emit_unit_constant(function, block_id, node->span);
 
                 Compiler_IR_Value_Id stored_value = 0;
                 if (node->op == Compiler_Operator_Kind::Assign)
@@ -771,10 +777,13 @@ public:
     for (size_t i = 0; i < builder.module->functions.size(); ++i)
       {
         auto &function = builder.function(i);
-        ah_runtime_error_unless(function.source_function->body != nullptr)
-          << "Compiler_IR_Lowering: function '" << function.source_function->name
-          << "' has a null body";
-        builder.lower_function_body(function, function.source_function->body->statements);
+        if (function.source_function->body != nullptr)
+          builder.lower_function_body(function, function.source_function->body->statements);
+        else
+          {
+            static const DynArray<Compiler_HIR_Stmt *> empty_stmts;
+            builder.lower_function_body(function, empty_stmts);
+          }
       }
 
     if (not module->statements.is_empty())

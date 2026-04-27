@@ -291,9 +291,9 @@ namespace Aleph
       char * end = nullptr;
       errno = 0;
       const long long result = std::strtoll(text.c_str(), &end, 10);
-      if (end == nullptr or *end != '\0')
+      if (end == text.c_str() or *end != '\0')
         return false;
-      if (errno == ERANGE or result == LLONG_MAX or result == LLONG_MIN)
+      if (errno == ERANGE)
         return false;
       value = result;
       return true;
@@ -488,7 +488,15 @@ namespace Aleph
 
         case Compiler_Operator_Kind::Minus:
           if (operand.kind == Compiler_Dataflow_Constant_Kind::Integer)
-            return integer_constant(-operand.integer_value);
+            {
+              if (operand.integer_value == LLONG_MIN)
+                {
+                  const auto u = static_cast<long long>(
+                    0ULL - static_cast<unsigned long long>(operand.integer_value));
+                  return integer_constant(u);
+                }
+              return integer_constant(-operand.integer_value);
+            }
           break;
 
         case Compiler_Operator_Kind::Bang:

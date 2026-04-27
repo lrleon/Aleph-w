@@ -94,6 +94,9 @@ class Compiler_IR_Builder
                                                      Compiler_IR_Instruction instruction)
   {
     auto &blk = block(function, block_id);
+    ah_runtime_error_unless(not blk.is_terminated())
+      << "Compiler_IR_Builder::append_instruction(): block "
+      << Compiler_IR_Detail::block_name(block_id) << " is already terminated";
     merge_span(blk.span, instruction.span);
     merge_function_span(function, instruction.span);
     blk.instructions.append(std::move(instruction));

@@ -45,6 +45,7 @@
 #include <sstream>
 #include <string>
 
+#include <tpl_dynMapTree.H>
 #include <Compiler_Module_Metadata.H>
 #include <Compiler_Module_Resolver.H>
 
@@ -177,8 +178,12 @@ inline Compiler_Module_Link_Result compiler_link_module_surfaces(
       for (size_t i = 0; i < descriptor.imports.size(); ++i)
         {
           const auto &dep = descriptor.imports.access(i);
-          const auto dep_index
-            = Compiler_Module_Resolver_Detail::find_module_index(descriptors, dep.module_name);
+          const auto dep_index = [&descriptors, &dep]() {
+            for (size_t descriptor_index = 0; descriptor_index < descriptors.size(); ++descriptor_index)
+              if (descriptors.access(descriptor_index).name == dep.module_name)
+                return descriptor_index;
+            return static_cast<size_t>(-1);
+          }();
           if (dep_index == static_cast<size_t>(-1))
             continue;
           linkage.direct_import_indexes.append(dep_index);
@@ -207,30 +212,36 @@ inline Compiler_Module_Link_Result compiler_link_module_surfaces(
             }
         }
 
-      for (size_t i = 0; i < linkage.visible_exports.size(); ++i)
-        for (size_t j = i + 1; j < linkage.visible_exports.size(); ++j)
+      {
+        // Single-pass O(N) duplicate detection keyed by (bucket, name).
+        // bucket 1 = Type namespace, bucket 0 = Value namespace.
+        DynMapTree<std::string, size_t> first_seen; // key -> index into visible_exports
+        for (size_t i = 0; i < linkage.visible_exports.size(); ++i)
           {
-            const auto &lhs = linkage.visible_exports.access(i);
-            const auto &rhs = linkage.visible_exports.access(j);
-            if (lhs.name != rhs.name)
+            const auto &exp = linkage.visible_exports.access(i);
+            const std::string key = std::to_string(
+              Compiler_Module_Linker_Detail::export_namespace_bucket(exp.kind)) + ":" + exp.name;
+            const auto *prev_idx = first_seen.search(key);
+            if (prev_idx == nullptr)
+              {
+                first_seen[key] = i;
+                continue;
+              }
+            const auto &prev = linkage.visible_exports.access(prev_idx->second);
+            if (prev.source_module_name == exp.source_module_name and prev.imported == exp.imported)
               continue;
-            if (Compiler_Module_Linker_Detail::export_namespace_bucket(lhs.kind)
-                != Compiler_Module_Linker_Detail::export_namespace_bucket(rhs.kind))
-              continue;
-            if (lhs.source_module_name == rhs.source_module_name and lhs.imported == rhs.imported)
-              continue;
-
             result.valid = false;
-            result.issues.append({lhs.kind == Compiler_Module_Export_Kind::Type
+            result.issues.append({exp.kind == Compiler_Module_Export_Kind::Type
                                     ? Compiler_Module_Linkage_Issue_Kind::Duplicate_Type_Export
                                     : Compiler_Module_Linkage_Issue_Kind::Duplicate_Value_Export,
                                   module_index,
                                   descriptor.name,
-                                  lhs.name,
-                                  lhs.source_module_name,
-                                  rhs.source_module_name,
-                                  rhs.declaration_span});
+                                  exp.name,
+                                  prev.source_module_name,
+                                  exp.source_module_name,
+                                  exp.declaration_span});
           }
+      }
 
       result.modules.append(std::move(linkage));
     }

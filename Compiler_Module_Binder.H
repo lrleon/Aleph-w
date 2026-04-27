@@ -46,6 +46,7 @@
 #include <sstream>
 #include <string>
 
+#include <tpl_dynMapTree.H>
 #include <Compiler_Module_Linker.H>
 
 namespace Aleph {
@@ -120,27 +121,6 @@ inline int export_namespace_bucket(const Compiler_Module_Export_Kind kind) noexc
   return kind == Compiler_Module_Export_Kind::Type ? 1 : 0;
 }
 
-inline bool is_ambiguous_visible_name(const Compiler_Module_Linkage &module,
-                                      const size_t item_index) noexcept
-{
-  const auto &item = module.visible_exports.access(item_index);
-  for (size_t i = 0; i < module.visible_exports.size(); ++i)
-    {
-      if (i == item_index)
-        continue;
-
-      const auto &other = module.visible_exports.access(i);
-      if (item.name != other.name)
-        continue;
-      if (export_namespace_bucket(item.kind) != export_namespace_bucket(other.kind))
-        continue;
-      if (item.source_module_name == other.source_module_name and item.imported == other.imported)
-        continue;
-      return true;
-    }
-
-  return false;
-}
 
 inline Compiler_Module_Binding_Issue translate_issue(const Compiler_Module_Linkage_Issue &issue)
 {
@@ -199,27 +179,40 @@ inline Compiler_Module_Binding_Result compiler_bind_module_surfaces(
       bindings.module_index = linked_module.module_index;
       bindings.order_index = linked_module.order_index;
 
+      // Precompute conflict set: keys with more than one distinct provider
+      // in the same namespace bucket are ambiguous. O(N log N) single pass.
+      DynMapTree<std::string, size_t> first_provider; // key -> source_module_index of first
+      DynMapTree<std::string, bool> ambiguous_keys;
+      for (size_t j = 0; j < linked_module.visible_exports.size(); ++j)
+        {
+          const auto &exp = linked_module.visible_exports.access(j);
+          const std::string key =
+            std::to_string(Compiler_Module_Binder_Detail::export_namespace_bucket(exp.kind))
+            + ":" + exp.name;
+          const auto *prev = first_provider.search(key);
+          if (prev == nullptr)
+            {
+              first_provider[key] = exp.source_module_index;
+            }
+          else if (prev->second != exp.source_module_index)
+            {
+              ambiguous_keys[key] = true;
+            }
+        }
+
+      // Binding pass: skip ambiguous names; deduplicate with a bound-names map.
+      DynMapTree<std::string, bool> bound_keys;
       for (size_t j = 0; j < linked_module.visible_exports.size(); ++j)
         {
           const auto &item = linked_module.visible_exports.access(j);
-          if (Compiler_Module_Binder_Detail::is_ambiguous_visible_name(linked_module, j))
+          const std::string key =
+            std::to_string(Compiler_Module_Binder_Detail::export_namespace_bucket(item.kind))
+            + ":" + item.name;
+          if (ambiguous_keys.search(key) != nullptr)
             continue;
-
-          bool already_bound = false;
-          for (size_t k = 0; k < bindings.names.size(); ++k)
-            {
-              const auto &current = bindings.names.access(k);
-              if (current.name != item.name)
-                continue;
-              if (Compiler_Module_Binder_Detail::export_namespace_bucket(current.kind)
-                  != Compiler_Module_Binder_Detail::export_namespace_bucket(item.kind))
-                continue;
-              already_bound = true;
-              break;
-            }
-          if (already_bound)
+          if (bound_keys.search(key) != nullptr)
             continue;
-
+          bound_keys[key] = true;
           bindings.names.append({item.kind,
                                  item.name,
                                  item.source_module_index,
