@@ -75,6 +75,7 @@
  *
  *  @see Blossom.H For maximum-cardinality (unweighted) matching
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 #ifndef BLOSSOM_WEIGHTED_H

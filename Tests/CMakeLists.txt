@@ -195,6 +195,40 @@ set(TEST_PROGRAMS
     latex_floyd_test
     tpl_matgraph_test
     parse_utils_test
+    compiler_source_test
+    compiler_diagnostics_test
+    compiler_token_test
+    compiler_lexer_test
+    compiler_ast_test
+    compiler_parser_test
+    compiler_parser_utils_test
+    compiler_symbol_bindings_test
+    compiler_module_resolver_test
+    compiler_module_metadata_test
+    compiler_module_linker_test
+    compiler_module_binder_test
+    compiler_module_name_table_test
+    compiler_module_name_resolver_test
+    compiler_module_name_diagnostics_test
+    compiler_module_semantic_environment_test
+    compiler_scope_test
+    compiler_sema_test
+    compiler_types_test
+    compiler_constraints_test
+    compiler_typed_sema_test
+    compiler_hir_test
+    compiler_builder_test
+    compiler_line_frontend_test
+    interpreter_runtime_test
+    compiler_cfg_test
+    compiler_ir_test
+    compiler_dataflow_test
+    ssa_test
+    bytecode_test
+    bytecode_interpreter_test
+    compiler_backend_c_test
+    compiler_driver_test
+    compiler_generic_driver_test
     fixedqueue
     randomqueue
     slink
@@ -580,6 +614,35 @@ if(ALEPH_RUBY_EXECUTABLE AND TARGET fft_benchmark AND TARGET fft_reference_probe
                 $<TARGET_FILE:fft_reference_probe>
     )
 endif()
+
+set(ALEPH_INSTALL_HEADER_CLOSURE_SCRIPT
+    ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/install_header_closure_check.rb)
+
+if(ALEPH_RUBY_EXECUTABLE)
+    if(NOT EXISTS ${ALEPH_INSTALL_HEADER_CLOSURE_SCRIPT})
+        message(FATAL_ERROR
+            "Missing required test helper script: "
+            "${ALEPH_INSTALL_HEADER_CLOSURE_SCRIPT}"
+        )
+    endif()
+
+    add_test(
+        NAME CompilerSdk.InstallHeaderClosure
+        COMMAND ${ALEPH_RUBY_EXECUTABLE}
+                ${ALEPH_INSTALL_HEADER_CLOSURE_SCRIPT}
+                --repo
+                ${CMAKE_CURRENT_SOURCE_DIR}/..
+    )
+endif()
+
+add_test(
+    NAME CompilerSdk.InstallHeadersSmoke
+    COMMAND ${CMAKE_COMMAND}
+            -DBUILD_DIR=${CMAKE_BINARY_DIR}
+            -DCXX_COMPILER=${CMAKE_CXX_COMPILER}
+            -DSMOKE_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cc
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cmake
+)
 
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")

@@ -28,6 +28,16 @@
   SOFTWARE.
 */
 
+/** @file tikzgeom_scene.H
+ *  @brief High-level scene management for TikZ geometry visualization.
+ *
+ *  Provides utilities for managing and rendering complex geometric scenes
+ *  using TikZ, including support for Beamer overlays and animations.
+ *
+ *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TIKZGEOM_SCENE_H
 # define TIKZGEOM_SCENE_H
 

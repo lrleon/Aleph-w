@@ -35,6 +35,7 @@
  *  set of bases to ensure 100% correctness for all 64-bit integers.
  *
  *  @ingroup Algorithms
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef PRIMALITY_H

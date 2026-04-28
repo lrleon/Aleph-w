@@ -36,20 +36,29 @@
  *  given an@f$m \times n@f$cost matrix, find a minimum-cost matching
  *  of rows to columns.
  *
- *  ## Algorithm Overview
- *  The implementation uses the **shortest augmenting paths** variant with
- *  dual variables (potentials). For each row, a Dijkstra-like scan finds the
- *  shortest augmenting path using reduced costs@f$c[i][j] - u[i] - v[j]@f$,
- *  then augments and updates potentials. This avoids the classical
- *  cover-lines/find-zeros Munkres steps and yields a clean, efficient
- * @f$O(n^3)@f$implementation.
+ *  ## Complexity
  *
- *  ## Key Features
- *  - Solves both **minimization** and **maximization** assignment problems.
- *  - Handles **rectangular** cost matrices (@f$m \neq n@f$) via automatic padding.
- *  - Works with integer and floating-point cost types.
- *  - Supports negative costs.
- *  - High-performance implementation with@f$O(n^3)@f$time complexity.
+ *  | Algorithm | Time | Space |
+ *  |-----------|------|-------|
+ *  | Hungarian | O(max(m,n)^3) | O(m*n) |
+ *
+ *  @par Example
+ *  @code
+ *  // Suppose we have a cost matrix for 3 tasks and 3 workers:
+ *  //          Task 1  Task 2  Task 3
+ *  // Worker 1:  10      20      30
+ *  // Worker 2:  40      50      10
+ *  // Worker 3:  20      10      60
+ *  DynMatrix<double> costs(3, 3);
+ *  costs(0,0)=10; costs(0,1)=20; costs(0,2)=30;
+ *  costs(1,0)=40; costs(1,1)=50; costs(1,2)=10;
+ *  costs(2,0)=20; costs(2,1)=10; costs(2,2)=60;
+ *
+ *  // Find minimum weight assignment
+ *  auto res = hungarian_assignment(costs);
+ *  // res.total_cost = 30.0 (10 + 10 + 10)
+ *  // res.row_to_col = {0, 2, 1}
+ *  @endcode
  *
  *  @example hungarian_example.cc
  *

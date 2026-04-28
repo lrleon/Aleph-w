@@ -28,58 +28,53 @@
   SOFTWARE.
 */
 
-
 /**
  * @file subset_sum_test.cc
  * @brief Tests for Subset_Sum.H.
  */
 
-# include <cstdint>
-# include <random>
-# include <bitArray.H>
+#include <cstdint>
+#include <random>
+#include <bitArray.H>
 
-# include <gtest/gtest.h>
+#include <gtest/gtest.h>
 
-# include <Subset_Sum.H>
+#include <Subset_Sum.H>
 
 using namespace Aleph;
 
-namespace
+namespace {
+size_t brute_subset_count(const Array<int> &vals, const int target)
 {
-  size_t brute_subset_count(const Array<int> & vals, const int target)
-  {
-    const size_t n = vals.size();
-    const uint64_t total_masks = static_cast<uint64_t>(1) << n;
-    size_t count = 0;
-    for (uint64_t mask = 0; mask < total_masks; ++mask)
-      {
-        int sum = 0;
-        for (size_t i = 0; i < n; ++i)
-          if (mask & (uint64_t(1) << i))
-            sum += vals[i];
-        if (sum == target)
-          ++count;
-      }
-    return count;
-  }
+  const size_t n = vals.size();
+  const uint64_t total_masks = static_cast<uint64_t>(1) << n;
+  size_t count = 0;
+  for (uint64_t mask = 0; mask < total_masks; ++mask)
+    {
+      int sum = 0;
+      for (size_t i = 0; i < n; ++i)
+        if (mask & (uint64_t(1) << i))
+          sum += vals[i];
+      if (sum == target)
+        ++count;
+    }
+  return count;
+}
 
-  bool valid_selection(const Array<int> & vals,
-                       const Array<size_t> & selected,
-                       const int target)
-  {
-    int sum = 0;
-    BitArray seen(vals.size());
-    for (size_t idx : selected)
-      {
-        if (idx >= vals.size() or seen[idx])
-          return false;
-        seen[idx] = true;
-        sum += vals[idx];
-      }
-    return sum == target;
-  }
-} // namespace
-
+bool valid_selection(const Array<int> &vals, const Array<size_t> &selected, const int target)
+{
+  int sum = 0;
+  BitArray seen(vals.size());
+  for (size_t idx : selected)
+    {
+      if (idx >= vals.size() or seen[idx])
+        return false;
+      seen[idx] = true;
+      sum += vals[idx];
+    }
+  return sum == target;
+}
+}  // namespace
 
 TEST(SubsetSum, EmptyArray)
 {
@@ -167,7 +162,6 @@ TEST(SubsetSum, ZeroValueMultiplicityInCount)
   EXPECT_TRUE(valid_selection(vals, r.selected_indices, 1));
 }
 
-
 // Meet-in-the-middle tests
 
 TEST(SubsetSumMITM, EmptyArray)
@@ -211,7 +205,7 @@ TEST(SubsetSumMITM, LargerSet)
   EXPECT_TRUE(r.exists);
 
   // Partial sum
-  auto r2 = subset_sum_mitm(vals, 30); // 3+27=30, or 9+21=30, etc.
+  auto r2 = subset_sum_mitm(vals, 30);  // 3+27=30, or 9+21=30, etc.
   EXPECT_TRUE(r2.exists);
 
   int total = 0;
@@ -242,8 +236,7 @@ TEST(SubsetSum, StressVsBruteForce)
       bool dp_ans = subset_sum_exists(vals, target);
 
       auto mitm_r = subset_sum_mitm(vals, target);
-      EXPECT_EQ(dp_ans, mitm_r.exists)
-        << "Disagreement at target=" << target;
+      EXPECT_EQ(dp_ans, mitm_r.exists) << "Disagreement at target=" << target;
     }
 }
 
@@ -252,11 +245,11 @@ TEST(SubsetSum, RandomExistsAndCountVsBruteForce)
   std::mt19937 rng(4242);
   for (int trial = 0; trial < 100; ++trial)
     {
-      const size_t n = 1 + rng() % 18; // brute-force friendly
+      const size_t n = 1 + rng() % 18;  // brute-force friendly
       Array<int> vals;
       vals.reserve(n);
       for (size_t i = 0; i < n; ++i)
-        vals.append(static_cast<int>(rng() % 11)); // non-negative
+        vals.append(static_cast<int>(rng() % 11));  // non-negative
 
       const int target = static_cast<int>(rng() % 45);
 
@@ -279,11 +272,11 @@ TEST(SubsetSumMITM, RandomVsBruteForce)
   std::mt19937 rng(2024);
   for (int trial = 0; trial < 80; ++trial)
     {
-      const size_t n = 1 + rng() % 22; // keep brute-force feasible
+      const size_t n = 1 + rng() % 22;  // keep brute-force feasible
       Array<int> vals;
       vals.reserve(n);
       for (size_t i = 0; i < n; ++i)
-        vals.append(static_cast<int>(rng() % 41) - 20); // allow negatives
+        vals.append(static_cast<int>(rng() % 41) - 20);  // allow negatives
 
       const int target = static_cast<int>(rng() % 61) - 30;
 

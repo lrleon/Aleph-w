@@ -118,7 +118,7 @@ namespace
     cout << "    ruby scripts/planarity_certificate_validator.rb"
          << " --input " << graphml_path
          << " --gephi --require-gephi"
-         << " --gephi-template portable.python-file-exists" << '\n';
+         << " --gephi-template portable.ruby-file-exists" << '\n';
     cout << "  optional render profile catalog command:\n";
     cout << "    ruby scripts/planarity_certificate_validator.rb"
          << " --list-gephi-render-profiles --json" << '\n';
@@ -149,7 +149,7 @@ namespace
          << " --input " << graphml_path
          << " --input " << gexf_path
          << " --gephi --require-gephi"
-         << " --gephi-template portable.python-file-exists"
+         << " --gephi-template portable.ruby-file-exists"
          << " --report " << ci_report << " --print-summary"
          << '\n';
     cout << "  optional CI batch render command:\n";

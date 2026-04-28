@@ -36,6 +36,7 @@
  *  and the Chinese Remainder Theorem.
  *
  *  @ingroup Algorithms
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef MODULAR_ARITHMETIC_H

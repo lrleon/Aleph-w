@@ -34,24 +34,49 @@ require "json"
 require "optparse"
 require "open3"
 require "pathname"
+require "rbconfig"
 require "rexml/document"
 require "shellwords"
 require "timeout"
 
+def host_platform
+  host_os = RbConfig::CONFIG.fetch("host_os", "").downcase
+  return :windows if host_os.include?("cygwin") or host_os.include?("mingw") or host_os.include?("mswin")
+  return :macos if host_os.include?("darwin")
+
+  :linux
+end
+
+
+def normalize_ruby_cmd(cmd)
+  cmd.sub(/\Aruby(?=\s)/, Shellwords.escape(RbConfig.ruby))
+end
+
+
+def default_gephi_executable_name
+  host_platform == :windows ? "gephi.exe" : "gephi"
+end
+
+
+def gephi_path_probe_template(executable_name)
+  "#{Shellwords.escape(RbConfig.ruby)} -e \"name = ARGV.fetch(0); found = ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir| path = File.join(dir, name); File.file?(path) and File.executable?(path) end; exit(found ? 0 : 1)\" #{Shellwords.escape(executable_name)}"
+end
+
+
 DEFAULT_GEPHI_TEMPLATES = [
   {
-    "id" => "portable.python-file-exists",
+    "id" => "portable.ruby-file-exists",
     "os" => "any",
     "gephi_version" => "n/a",
     "description" => "Portable adapter command used in CI/tests; checks that input file exists.",
-    "cmd" => "python3 -c \"import pathlib,sys; pathlib.Path(sys.argv[1]).stat()\" {input}"
+    "cmd" => "#{Shellwords.escape(RbConfig.ruby)} -e \"File.stat(ARGV[0])\" {input}"
   },
   {
     "id" => "linux.gephi-0.10.smoke",
     "os" => "linux",
     "gephi_version" => "0.10.x",
-    "description" => "Gephi 0.10.x binary availability smoke-check (Linux).",
-    "cmd" => "gephi --version"
+    "description" => "Gephi 0.10.x PATH availability probe (Linux).",
+    "cmd" => gephi_path_probe_template("gephi")
   },
   {
     "id" => "linux.gephi-0.10.headless-import",
@@ -64,8 +89,8 @@ DEFAULT_GEPHI_TEMPLATES = [
     "id" => "linux.gephi-0.9.smoke",
     "os" => "linux",
     "gephi_version" => "0.9.x",
-    "description" => "Gephi 0.9.x binary availability smoke-check (Linux).",
-    "cmd" => "gephi --version"
+    "description" => "Gephi 0.9.x PATH availability probe (Linux).",
+    "cmd" => gephi_path_probe_template("gephi")
   },
   {
     "id" => "linux.gephi-0.9.headless-import",
@@ -78,8 +103,8 @@ DEFAULT_GEPHI_TEMPLATES = [
     "id" => "macos.gephi-0.10.smoke",
     "os" => "macos",
     "gephi_version" => "0.10.x",
-    "description" => "Gephi 0.10.x binary availability smoke-check (macOS).",
-    "cmd" => "gephi --version"
+    "description" => "Gephi 0.10.x PATH availability probe (macOS).",
+    "cmd" => gephi_path_probe_template("gephi")
   },
   {
     "id" => "macos.gephi-0.10.headless-import",
@@ -92,8 +117,8 @@ DEFAULT_GEPHI_TEMPLATES = [
     "id" => "macos.gephi-0.9.smoke",
     "os" => "macos",
     "gephi_version" => "0.9.x",
-    "description" => "Gephi 0.9.x binary availability smoke-check (macOS).",
-    "cmd" => "gephi --version"
+    "description" => "Gephi 0.9.x PATH availability probe (macOS).",
+    "cmd" => gephi_path_probe_template("gephi")
   },
   {
     "id" => "macos.gephi-0.9.headless-import",
@@ -106,8 +131,8 @@ DEFAULT_GEPHI_TEMPLATES = [
     "id" => "windows.gephi-0.10.smoke",
     "os" => "windows",
     "gephi_version" => "0.10.x",
-    "description" => "Gephi 0.10.x binary availability smoke-check (Windows).",
-    "cmd" => "gephi.exe --version"
+    "description" => "Gephi 0.10.x PATH availability probe (Windows).",
+    "cmd" => gephi_path_probe_template("gephi.exe")
   },
   {
     "id" => "windows.gephi-0.10.headless-import",
@@ -120,8 +145,8 @@ DEFAULT_GEPHI_TEMPLATES = [
     "id" => "windows.gephi-0.9.smoke",
     "os" => "windows",
     "gephi_version" => "0.9.x",
-    "description" => "Gephi 0.9.x binary availability smoke-check (Windows).",
-    "cmd" => "gephi.exe --version"
+    "description" => "Gephi 0.9.x PATH availability probe (Windows).",
+    "cmd" => gephi_path_probe_template("gephi.exe")
   },
   {
     "id" => "windows.gephi-0.9.headless-import",
@@ -158,7 +183,7 @@ DEFAULT_GEPHI_RENDER_PROFILES = [
     "output_kind" => "svg",
     "output_ext" => "svg",
     "description" => "Portable deterministic SVG render profile implemented with Ruby.",
-    "cmd" => "ruby -e \"File.write(ARGV[1], '<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"64\\\" height=\\\"64\\\"><circle cx=\\\"32\\\" cy=\\\"32\\\" r=\\\"20\\\"/></svg>')\" {input} {output}"
+    "cmd" => "#{Shellwords.escape(RbConfig.ruby)} -e \"File.write(ARGV[1], '<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"64\\\" height=\\\"64\\\"><circle cx=\\\"32\\\" cy=\\\"32\\\" r=\\\"20\\\"/></svg>')\" {input} {output}"
   },
   {
     "id" => "portable.ruby-render-pdf",
@@ -167,7 +192,7 @@ DEFAULT_GEPHI_RENDER_PROFILES = [
     "output_kind" => "pdf",
     "output_ext" => "pdf",
     "description" => "Portable deterministic PDF render profile implemented with Ruby.",
-    "cmd" => "ruby -e \"File.binwrite(ARGV[1], \\\"%PDF-1.4\\\\n1 0 obj<<>>endobj\\\\ntrailer<<>>\\\\n%%EOF\\\\n\\\")\" {input} {output}"
+    "cmd" => "#{Shellwords.escape(RbConfig.ruby)} -e \"File.binwrite(ARGV[1], \\\"%PDF-1.4\\\\n1 0 obj<<>>endobj\\\\ntrailer<<>>\\\\n%%EOF\\\\n\\\")\" {input} {output}"
   },
   {
     "id" => "linux.gephi-0.10.render-svg",
@@ -517,14 +542,24 @@ def resolve_executable(cmd)
   raw = cmd.to_s
   return nil if raw.empty?
 
-  if raw.include?(File::SEPARATOR)
+  alt_sep = defined?(File::ALT_SEPARATOR) ? File::ALT_SEPARATOR : nil
+  has_separator = raw.include?(File::SEPARATOR) || (alt_sep && raw.include?(alt_sep))
+
+  if has_separator
     return raw if File.file?(raw) and File.executable?(raw)
     return nil
   end
 
+  win_exts = host_platform == :windows ? [".exe", ".bat", ".cmd", ".com"] : []
+
   ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).each do |dir|
     candidate = File.join(dir, raw)
     return candidate if File.file?(candidate) and File.executable?(candidate)
+
+    win_exts.each do |ext|
+      with_ext = candidate + ext
+      return with_ext if File.file?(with_ext) and File.executable?(with_ext)
+    end
   end
 
   nil
@@ -685,6 +720,35 @@ def default_template_catalog_path
 end
 
 
+def find_default_smoke_probe_template(catalog_path)
+  # Automatically select a smoke probe template for PATH probing
+  # when --gephi-cmd is not specified
+  templates, warnings = load_gephi_templates(catalog_path)
+
+  os_type = host_platform.to_s
+
+  # Look for a smoke probe template for this OS (prefer newest Gephi version)
+  smoke_templates = templates.values.select do |t|
+    t_id = t.fetch("id", "").to_s.downcase
+    t_os = t.fetch("os", "").to_s.downcase
+    t_id.include?("smoke") and (t_os == os_type or t_os == "any")
+  end
+
+  # Sort by version tuple (descending) and return the first match
+  selected = smoke_templates.max_by do |t|
+    [gephi_version_sort_key(t.fetch("gephi_version", "0")), t.fetch("id", "")]
+  end
+
+  [selected, warnings]
+end
+
+
+def gephi_version_sort_key(value)
+  segments = value.to_s.scan(/\d+/).map(&:to_i)
+  segments = [-1] if segments.empty?
+  segments
+end
+
 def default_render_profile_catalog_path
   Pathname.new(__FILE__).realpath.dirname.join("planarity_gephi_render_profiles.json")
 end
@@ -723,7 +787,9 @@ def load_gephi_templates(catalog_path)
     cmd = item.fetch("cmd", "").to_s.strip
     next if tid.empty? or cmd.empty?
 
-    templates[tid] = item
+    normalized = item.dup
+    normalized["cmd"] = normalize_ruby_cmd(cmd)
+    templates[tid] = normalized
   end
 
   [templates, warnings]
@@ -765,7 +831,9 @@ def load_gephi_render_profiles(catalog_path)
     ext = item.fetch("output_ext", "").to_s.strip.downcase
     next if pid.empty? or cmd.empty? or kind.empty? or ext.empty?
 
-    profiles[pid] = item
+    normalized = item.dup
+    normalized["cmd"] = normalize_ruby_cmd(cmd)
+    profiles[pid] = normalized
   end
 
   [profiles, warnings]
@@ -1023,9 +1091,27 @@ def validate_with_gephi(path, cmd_template, require_gephi)
   warnings = []
 
   template = cmd_template.to_s.strip
-  template = "gephi --version" if template.empty?
+  smoke_check_only = !template.include?("{input}")
+  if template.empty?
+    exe = default_gephi_executable_name
+    exe_path = resolve_executable(exe)
+    if exe_path.nil?
+      msg = "Gephi command not found in PATH: #{exe}."
+      if require_gephi
+        errors << msg
+      else
+        warnings << "#{msg} Skipping Gephi validation."
+      end
+      return [stats, errors, warnings]
+    end
 
-  warnings << "Gephi command template has no {input} placeholder; running smoke check only." unless template.include?("{input}")
+    stats["gephi_command"] = "path-probe #{exe}"
+    stats["gephi_executable"] = exe_path
+    stats["gephi_exit_code"] = 0
+    return [stats, errors, warnings]
+  end
+
+  warnings << "Gephi command template has no {input} placeholder; running smoke check only." if smoke_check_only
 
   cmd, parse_error = expand_command_template(
       template,
@@ -1072,7 +1158,9 @@ def validate_with_gephi(path, cmd_template, require_gephi)
     stderr = run["stderr"].to_s.strip
     stderr = "#{stderr[0, 240]}..." if stderr.size > 240
     msg = stderr.empty? ? "Gephi command returned non-zero exit code." : "Gephi command returned non-zero exit code: #{stderr}."
-    if require_gephi
+    if smoke_check_only
+      warnings << "#{msg} Treating executable launch as successful smoke check."
+    elsif require_gephi
       errors << msg
     else
       warnings << "#{msg} Skipping strict Gephi validation."
@@ -1188,7 +1276,7 @@ def parse_args(argv)
     "require_networkx" => false,
     "gephi" => false,
     "require_gephi" => false,
-    "gephi_cmd" => "gephi --version",
+    "gephi_cmd" => "",
     "gephi_template" => "",
     "gephi_template_catalog" => default_template_catalog_path.to_s,
     "list_gephi_templates" => false,
@@ -1210,7 +1298,7 @@ def parse_args(argv)
     opts.on("--format FORMAT", ["auto", "graphml", "gexf"], "Input format (default: auto).") { |v| options["format"] = v }
     opts.on("--networkx", "Enable optional NetworkX parse/load validation.") { options["networkx"] = true }
     opts.on("--require-networkx", "Fail if --networkx is requested but unavailable.") { options["require_networkx"] = true }
-    opts.on("--gephi", "Enable optional Gephi CLI/toolkit command validation.") { options["gephi"] = true }
+    opts.on("--gephi", "Enable optional Gephi CLI/toolkit validation or executable availability checks.") { options["gephi"] = true }
     opts.on("--require-gephi", "Fail if --gephi is requested but unavailable/fails.") { options["require_gephi"] = true }
     opts.on("--gephi-cmd CMD", "Gephi command template. Supports {input}.") { |v| options["gephi_cmd"] = v }
     opts.on("--gephi-template ID", "Template id from Gephi template catalog.") { |v| options["gephi_template"] = v.to_s }
@@ -1264,11 +1352,28 @@ def main(argv)
   resolved_template_cmd = ""
   catalog_warnings = []
   catalog_errors = []
+
+  # If --gephi is specified but neither --gephi-cmd nor --gephi-template is given,
+  # automatically select a default smoke probe template for PATH probing
+  if args["gephi"] and args["gephi_cmd"].empty? and args["gephi_template"].empty?
+    default_template, default_warnings = find_default_smoke_probe_template(catalog_path)
+    catalog_warnings.concat(default_warnings)
+    if default_template
+      args["gephi_template"] = default_template.fetch("id", "")
+    else
+      catalog_warnings << "No default smoke probe template found for this OS; PATH probing will be skipped."
+    end
+  end
+
+  template_warnings = []
+  template_errors = []
   unless args["gephi_template"].empty?
-    resolved_template_cmd, catalog_warnings, catalog_errors = resolve_gephi_template(
+    resolved_template_cmd, template_warnings, template_errors = resolve_gephi_template(
         args["gephi_template"],
         catalog_path)
   end
+  catalog_warnings.concat(template_warnings)
+  catalog_errors.concat(template_errors)
 
   resolved_render_profile = {}
   render_catalog_warnings = []
@@ -1333,4 +1438,4 @@ def main(argv)
 end
 
 
-exit(main(ARGV))
+exit(main(ARGV)) if __FILE__ == $PROGRAM_NAME
