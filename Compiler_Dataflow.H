@@ -547,22 +547,69 @@ namespace Aleph
           case Compiler_Operator_Kind::Plus:
             {
               long long result = 0;
+#if defined(__has_builtin) && __has_builtin(__builtin_add_overflow)
               if (__builtin_add_overflow(lhs.integer_value, rhs.integer_value, &result))
                 return unknown_constant();
+#else
+              // Portable signed-addition overflow check via unsigned arithmetic.
+              const auto ul = static_cast<unsigned long long>(lhs.integer_value);
+              const auto ur = static_cast<unsigned long long>(rhs.integer_value);
+              result = static_cast<long long>(ul + ur);
+              if ((lhs.integer_value > 0 and rhs.integer_value > 0 and result < 0)
+                  or (lhs.integer_value < 0 and rhs.integer_value < 0 and result >= 0))
+                return unknown_constant();
+#endif
               return integer_constant(result);
             }
           case Compiler_Operator_Kind::Minus:
             {
               long long result = 0;
+#if defined(__has_builtin) && __has_builtin(__builtin_sub_overflow)
               if (__builtin_sub_overflow(lhs.integer_value, rhs.integer_value, &result))
                 return unknown_constant();
+#else
+              // Portable signed-subtraction overflow check via unsigned arithmetic.
+              const auto ul = static_cast<unsigned long long>(lhs.integer_value);
+              const auto ur = static_cast<unsigned long long>(rhs.integer_value);
+              result = static_cast<long long>(ul - ur);
+              if ((rhs.integer_value < 0 and lhs.integer_value > 0 and result < 0)
+                  or (rhs.integer_value > 0 and lhs.integer_value < 0 and result >= 0))
+                return unknown_constant();
+#endif
               return integer_constant(result);
             }
           case Compiler_Operator_Kind::Star:
             {
               long long result = 0;
+#if defined(__has_builtin) && __has_builtin(__builtin_mul_overflow)
               if (__builtin_mul_overflow(lhs.integer_value, rhs.integer_value, &result))
                 return unknown_constant();
+#else
+              // Portable signed-multiplication overflow check.
+              if (lhs.integer_value == 0 or rhs.integer_value == 0)
+                {
+                  result = 0;
+                }
+              else
+                {
+                  const auto ul = static_cast<unsigned long long>(
+                    lhs.integer_value < 0 ? -(unsigned long long)lhs.integer_value
+                                          : (unsigned long long)lhs.integer_value);
+                  const auto ur = static_cast<unsigned long long>(
+                    rhs.integer_value < 0 ? -(unsigned long long)rhs.integer_value
+                                          : (unsigned long long)rhs.integer_value);
+                  const unsigned long long uresult = ul * ur;
+                  const bool neg = (lhs.integer_value < 0) != (rhs.integer_value < 0);
+                  if (ul != 0 and uresult / ul != ur)
+                    return unknown_constant();
+                  if (neg and uresult > static_cast<unsigned long long>(LLONG_MAX) + 1ULL)
+                    return unknown_constant();
+                  if (not neg and uresult > static_cast<unsigned long long>(LLONG_MAX))
+                    return unknown_constant();
+                  result = neg ? -static_cast<long long>(uresult)
+                               : static_cast<long long>(uresult);
+                }
+#endif
               return integer_constant(result);
             }
           case Compiler_Operator_Kind::Slash:
@@ -1301,152 +1348,170 @@ namespace Aleph
   eliminate_dead_code(const Compiler_IR_Function & function)
   {
     Compiler_Dead_Code_Elimination_Result result;
-    result.function = function;
 
     const auto original_instruction_count =
       Compiler_Dataflow_Detail::count_instructions(function);
-    const auto analysis = analyze_dataflow_function(function);
 
     Compiler_IR_Function provisional = function;
-    for (size_t block_id = 0; block_id < provisional.blocks.size(); ++block_id)
+
+    // Iterate to a fixpoint: repeat analysis+fold+DCE until a full pass
+    // produces no new folded branches and no removed instructions/blocks.
+    for (;;)
       {
-        provisional.blocks.access(block_id).predecessors.clear();
+        const auto analysis = analyze_dataflow_function(provisional);
+        size_t pass_folded = 0;
+        size_t pass_removed_instructions = 0;
 
-        if (block_id >= analysis.reachable_blocks.size()
-            or not analysis.reachable_blocks.access(block_id))
-          continue;
-
-        const auto simulation =
-          Compiler_Dataflow_Detail::simulate_block(function,
-                                                   function.blocks.access(block_id),
-                                                   analysis.assigned_in_slots.access(block_id),
-                                                   analysis.constant_in_slots.access(block_id));
-
-        auto & block = provisional.blocks.access(block_id);
-        DynArray<unsigned char> used_values;
-        for (size_t i = 0; i <= function.next_value_id; ++i)
-          used_values.append(0u);
-
-        auto live_slots = analysis.live_out_slots.access(block_id);
-        auto terminator = block.terminator;
-        if (terminator.kind == Compiler_IR_Terminator_Kind::Branch
-            and simulation.branch_constant.kind == Compiler_Dataflow_Constant_Kind::Boolean
-            and terminator.successors.size() == 2)
+        for (size_t block_id = 0; block_id < provisional.blocks.size(); ++block_id)
           {
-            const auto chosen = simulation.branch_constant.bool_value
-              ? terminator.successors.access(0)
-              : terminator.successors.access(1);
-            terminator.kind = Compiler_IR_Terminator_Kind::Jump;
-            terminator.condition_value = 0;
-            terminator.successors.clear();
-            terminator.successors.append(chosen);
-            ++result.folded_branches;
+            provisional.blocks.access(block_id).predecessors.clear();
 
-            // Recompute live_slots from the post-fold successor so the DCE
-            // pass below uses liveness that matches the new control flow.
-            live_slots = Compiler_Dataflow_Detail::make_bit_set(function.local_slots.size(), false);
-            if (chosen < analysis.live_in_slots.size())
-              live_slots = analysis.live_in_slots.access(chosen);
-          }
-
-        if (terminator.kind == Compiler_IR_Terminator_Kind::Branch)
-          Compiler_Dataflow_Detail::mark_value_used(used_values,
-                                                    terminator.condition_value);
-        else if (terminator.kind == Compiler_IR_Terminator_Kind::Return)
-          Compiler_Dataflow_Detail::mark_value_used(used_values,
-                                                    terminator.return_value);
-
-        DynArray<unsigned char> keep_flags;
-        for (size_t i = 0; i < block.instructions.size(); ++i)
-          keep_flags.append(1u);
-
-        for (size_t index = block.instructions.size(); index > 0; --index)
-          {
-            const auto instruction_index = index - 1;
-            const auto & inst = block.instructions.access(instruction_index);
-
-            bool keep = true;
-            if (inst.kind == Compiler_IR_Instruction_Kind::Store
-                and inst.local_slot_id != compiler_ir_invalid_id()
-                and inst.local_slot_id < function.local_slots.size()
-                and not live_slots.test(inst.local_slot_id))
-              keep = false;
-            else if (Compiler_Dataflow_Detail::is_pure_instruction(inst)
-                     and inst.result_id != 0
-                     and not Compiler_Dataflow_Detail::is_value_used(used_values,
-                                                                      inst.result_id))
-              keep = false;
-
-            keep_flags.access(instruction_index) = static_cast<unsigned char>(keep ? 1u : 0u);
-            if (not keep)
+            if (block_id >= analysis.reachable_blocks.size()
+                or not analysis.reachable_blocks.access(block_id))
               continue;
 
-            for (size_t operand = 0; operand < inst.operands.size(); ++operand)
+            const auto simulation =
+              Compiler_Dataflow_Detail::simulate_block(provisional,
+                                                       provisional.blocks.access(block_id),
+                                                       analysis.assigned_in_slots.access(block_id),
+                                                       analysis.constant_in_slots.access(block_id));
+
+            auto & block = provisional.blocks.access(block_id);
+            DynArray<unsigned char> used_values;
+            for (size_t i = 0; i <= provisional.next_value_id; ++i)
+              used_values.append(0u);
+
+            auto live_slots = analysis.live_out_slots.access(block_id);
+            auto terminator = block.terminator;
+            if (terminator.kind == Compiler_IR_Terminator_Kind::Branch
+                and simulation.branch_constant.kind == Compiler_Dataflow_Constant_Kind::Boolean
+                and terminator.successors.size() == 2)
+              {
+                const auto chosen = simulation.branch_constant.bool_value
+                  ? terminator.successors.access(0)
+                  : terminator.successors.access(1);
+                terminator.kind = Compiler_IR_Terminator_Kind::Jump;
+                terminator.condition_value = 0;
+                terminator.successors.clear();
+                terminator.successors.append(chosen);
+                ++pass_folded;
+                ++result.folded_branches;
+
+                // Recompute live_slots from the post-fold successor so the DCE
+                // pass below uses liveness that matches the new control flow.
+                live_slots = Compiler_Dataflow_Detail::make_bit_set(provisional.local_slots.size(), false);
+                if (chosen < analysis.live_in_slots.size())
+                  live_slots = analysis.live_in_slots.access(chosen);
+              }
+
+            if (terminator.kind == Compiler_IR_Terminator_Kind::Branch)
               Compiler_Dataflow_Detail::mark_value_used(used_values,
-                                                        inst.operands.access(operand));
+                                                        terminator.condition_value);
+            else if (terminator.kind == Compiler_IR_Terminator_Kind::Return)
+              Compiler_Dataflow_Detail::mark_value_used(used_values,
+                                                        terminator.return_value);
 
-            if (inst.kind == Compiler_IR_Instruction_Kind::Store
-                and inst.local_slot_id != compiler_ir_invalid_id()
-                and inst.local_slot_id < function.local_slots.size())
-              live_slots.set(inst.local_slot_id, false);
-            else if (inst.kind == Compiler_IR_Instruction_Kind::Load
-                     and inst.local_slot_id != compiler_ir_invalid_id()
-                     and inst.local_slot_id < function.local_slots.size()
-                     and inst.result_id != 0)
-              live_slots.set(inst.local_slot_id, true);
+            DynArray<unsigned char> keep_flags;
+            for (size_t i = 0; i < block.instructions.size(); ++i)
+              keep_flags.append(1u);
+
+            for (size_t index = block.instructions.size(); index > 0; --index)
+              {
+                const auto instruction_index = index - 1;
+                const auto & inst = block.instructions.access(instruction_index);
+
+                bool keep = true;
+                if (inst.kind == Compiler_IR_Instruction_Kind::Store
+                    and inst.local_slot_id != compiler_ir_invalid_id()
+                    and inst.local_slot_id < provisional.local_slots.size()
+                    and not live_slots.test(inst.local_slot_id))
+                  keep = false;
+                else if (Compiler_Dataflow_Detail::is_pure_instruction(inst)
+                         and inst.result_id != 0
+                         and not Compiler_Dataflow_Detail::is_value_used(used_values,
+                                                                          inst.result_id))
+                  keep = false;
+
+                keep_flags.access(instruction_index) = static_cast<unsigned char>(keep ? 1u : 0u);
+                if (not keep)
+                  {
+                    ++pass_removed_instructions;
+                    continue;
+                  }
+
+                for (size_t operand = 0; operand < inst.operands.size(); ++operand)
+                  Compiler_Dataflow_Detail::mark_value_used(used_values,
+                                                            inst.operands.access(operand));
+
+                if (inst.kind == Compiler_IR_Instruction_Kind::Store
+                    and inst.local_slot_id != compiler_ir_invalid_id()
+                    and inst.local_slot_id < provisional.local_slots.size())
+                  live_slots.set(inst.local_slot_id, false);
+                else if (inst.kind == Compiler_IR_Instruction_Kind::Load
+                         and inst.local_slot_id != compiler_ir_invalid_id()
+                         and inst.local_slot_id < provisional.local_slots.size()
+                         and inst.result_id != 0)
+                  live_slots.set(inst.local_slot_id, true);
+              }
+
+            DynArray<Compiler_IR_Instruction> instructions;
+            for (size_t i = 0; i < block.instructions.size(); ++i)
+              if (keep_flags.access(i) != 0)
+                instructions.append(block.instructions.access(i));
+            block.instructions = instructions;
+            block.terminator = terminator;
           }
 
-        DynArray<Compiler_IR_Instruction> instructions;
-        for (size_t i = 0; i < block.instructions.size(); ++i)
-          if (keep_flags.access(i) != 0)
-            instructions.append(block.instructions.access(i));
-        block.instructions = instructions;
-        block.terminator = terminator;
-      }
-
-    const auto reachable_after_fold =
-      Compiler_Dataflow_Detail::compute_reachability(provisional);
-    DynArray<Compiler_IR_Block_Id> remap;
-    for (size_t i = 0; i < provisional.blocks.size(); ++i)
-      remap.append(compiler_ir_invalid_id());
-
-    result.function = function;
-    result.function.blocks.clear();
-    for (size_t block_id = 0; block_id < provisional.blocks.size(); ++block_id)
-      {
-        if (block_id >= reachable_after_fold.size()
-            or not reachable_after_fold.access(block_id))
-          continue;
-
-        remap.access(block_id) = result.function.blocks.size();
-        auto block = provisional.blocks.access(block_id);
-        block.id = result.function.blocks.size();
-        block.predecessors.clear();
-        result.function.blocks.append(std::move(block));
-      }
-
-    for (size_t block_id = 0; block_id < result.function.blocks.size(); ++block_id)
-      {
-        auto & block = result.function.blocks.access(block_id);
-        DynArray<Compiler_IR_Block_Id> successors;
-        for (size_t i = 0; i < block.terminator.successors.size(); ++i)
+        // Remove unreachable blocks created by this pass before the next iteration.
+        const auto reachable_now =
+          Compiler_Dataflow_Detail::compute_reachability(provisional);
+        size_t pass_removed_blocks = 0;
+        Compiler_IR_Function compacted;
+        compacted = provisional;
+        compacted.blocks.clear();
+        DynArray<Compiler_IR_Block_Id> pass_remap;
+        for (size_t i = 0; i < provisional.blocks.size(); ++i)
+          pass_remap.append(compiler_ir_invalid_id());
+        for (size_t block_id = 0; block_id < provisional.blocks.size(); ++block_id)
           {
-            const auto old_succ = block.terminator.successors.access(i);
-            if (old_succ < remap.size()
-                and remap.access(old_succ) != compiler_ir_invalid_id())
-              successors.append(remap.access(old_succ));
+            if (block_id >= reachable_now.size() or not reachable_now.access(block_id))
+              { ++pass_removed_blocks; continue; }
+            pass_remap.access(block_id) = compacted.blocks.size();
+            auto blk = provisional.blocks.access(block_id);
+            blk.id = compacted.blocks.size();
+            blk.predecessors.clear();
+            compacted.blocks.append(std::move(blk));
           }
-        block.terminator.successors = successors;
+        for (size_t block_id = 0; block_id < compacted.blocks.size(); ++block_id)
+          {
+            auto & blk = compacted.blocks.access(block_id);
+            DynArray<Compiler_IR_Block_Id> succs;
+            for (size_t i = 0; i < blk.terminator.successors.size(); ++i)
+              {
+                const auto old_s = blk.terminator.successors.access(i);
+                if (old_s < pass_remap.size()
+                    and pass_remap.access(old_s) != compiler_ir_invalid_id())
+                  succs.append(pass_remap.access(old_s));
+              }
+            blk.terminator.successors = succs;
+          }
+        compacted.entry_block =
+          provisional.entry_block < pass_remap.size()
+            ? pass_remap.access(provisional.entry_block)
+            : compiler_ir_invalid_id();
+        compacted.exit_block =
+          provisional.exit_block < pass_remap.size()
+            ? pass_remap.access(provisional.exit_block)
+            : compiler_ir_invalid_id();
+        Compiler_Dataflow_Detail::rebuild_predecessors(compacted);
+        provisional = std::move(compacted);
+
+        if (pass_folded == 0 and pass_removed_instructions == 0 and pass_removed_blocks == 0)
+          break;
       }
 
-    result.function.entry_block =
-      function.entry_block < remap.size() ? remap.access(function.entry_block)
-                                          : compiler_ir_invalid_id();
-    result.function.exit_block =
-      function.exit_block < remap.size() ? remap.access(function.exit_block)
-                                         : compiler_ir_invalid_id();
-
-    Compiler_Dataflow_Detail::rebuild_predecessors(result.function);
+    // The fixpoint loop already compacted provisional after every pass.
+    result.function = std::move(provisional);
     result.removed_blocks = function.blocks.size() - result.function.blocks.size();
     result.removed_instructions =
       original_instruction_count - Compiler_Dataflow_Detail::count_instructions(result.function);
