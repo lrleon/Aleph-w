@@ -58,6 +58,7 @@
  *  - Space:@f$O(V^2)@f$
  *
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef MIN_MEAN_CYCLE_H

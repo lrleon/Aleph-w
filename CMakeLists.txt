@@ -96,8 +96,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(HLIST
     tpl_dynSetTree.H tpl_arrayHeap.H tpl_binHeap.H tpl_netcost.H
     tpl_dynBinHeap.H generate_tree.H generate_graph.H tpl_tree_node.H
-    point.H tpl_treapRk.H Set.H Map.H array_it.H al-domain.H
-    Multiset.H Multimap.H Vector.H ahAlgo.H
+    point.H tpl_treapRk.H array_it.H al-domain.H
+    ahAlgo.H
         tpl_odhash.H tpl_nodePool.H random_graph.H
         tpl_olhash.H tpl_dynSetHash.H ahSort.H
         tpl_random_queue.H tpl_net_sup_dem.H tpl_bipartite.H Blossom.H Blossom_Weighted.H
@@ -105,7 +105,7 @@ set(HLIST
     blossom_weighted_mwmatching.H graph-traverse.H
     tpl_dynarray_set.H tpl_kgraph.H tpl_dynMat.H
     ahMem.H ahAssert.H ahDefs.H aleph.H euclidian-graph-common.H
-    tpl_linearHash.H signal.H ahUtils.H ran_array.h tpl_dynDlist.H
+    ahUtils.H ran_array.h tpl_dynDlist.H
     tpl_skipList.H tpl_tdRbTree.H tpl_splay_tree.H
     tpl_dynTreap.H tpl_union.H tpl_binNode.H tpl_splay_treeRk.H
     tpl_b_tree.H tpl_bplus_tree.H tpl_tree_snapshot.H
@@ -113,21 +113,65 @@ set(HLIST
     tpl_file_b_tree.H tpl_file_bplus_tree.H
     tpl_file_b_map.H tpl_file_bplus_map.H
     useMutex.H socket_wrappers.H tpl_dynListStack.H
-    tpl_autoPtr.H trace.H tpl_cache.H random_net.H
+    trace.H random_net.H
         log.H useCondVar.H
-    tpl_dynListQueue.H al-vector.H ahSingleton.H comb.H
+    tpl_dynListQueue.H al-vector.H ahSingleton.H
     treepic_utils.H driven_table.H pointer_table.H Karger.H al-matrix.H
     timeoutQueue.H parse_utils.H ah_stdc++_utils.H eulerian.H
     hamiltonian.H ahTypes.H tpl_arrayStack.H tpl_arrayQueue.H
-    tpl_graph.H mat_path.H tpl_slist_modified.H ahFunction.H ahPair.H
-    ahIterator.H grid.H tpl_path_utils.H mat_latex.H tpl_sort_utils.H
+    tpl_graph.H mat_path.H ahFunction.H ahPair.H
+    ahIterator.H grid.H mat_latex.H tpl_sort_utils.H
     polygon.H generate_df_tree.H generate_spanning_tree_picture.H
     archeap.H filter_iterator.H kosaraju.H htlist.H tpl_sgraph.H
     tpl_indexNode.H tpl_indexArc.H tpl_indexGraph.H io_graph.H
     tpl_slist.H tpl_snode.H tpl_lhash.H tpl_dynLhash.H
-    tpl_odhash.H tpl_memArray.H tpl_dynArray.H ahFuntional.H hash-dry.H
-    bloom-filter.H ah-dry.H graph-dry.H tpl_con_queue.H
+    tpl_memArray.H tpl_dynArray.H hash-dry.H
+    bloom-filter.H ah-dry.H graph-dry.H
     q-consumer-threads.H ah-string-utils.H ah-unique.H ah-comb.H geom_algorithms.H
+    ah-source.H
+    ah-errors.H
+    ah-diagnostics.H
+    Compiler_Token.H
+    Compiler_Lexer.H
+    Compiler_Parser_Utils.H
+    Compiler_AST.H
+    Compiler_Parser.H
+    Compiler_Operator.H
+    Compiler_Driver_Contracts.H
+    Compiler_Module_Resolver.H
+    Compiler_Module_Metadata.H
+    Compiler_Module_Linker.H
+    Compiler_Module_Binder.H
+    Compiler_Module_Name_Table.H
+    Compiler_Module_Name_Resolver.H
+    Compiler_Module_Name_Diagnostics.H
+    Compiler_Module_Semantic_Environment.H
+    Compiler_Frontend.H
+    Compiler_MVP_Frontend.H
+    Compiler_Generic_Driver.H
+    Compiler_Line_Frontend.H
+    tpl_scope.H
+    Compiler_Symbol_Bindings.H
+    Compiler_Sema.H
+    Compiler_Types.H
+    tpl_constraints.H
+    Compiler_Typed_Sema.H
+    Compiler_HIR_Model.H
+    Compiler_HIR_Builder.H
+    Compiler_HIR_Lowering_MVP.H
+    Compiler_HIR.H
+    Interpreter_Runtime.H
+    Compiler_CFG.H
+    Compiler_IR_Model.H
+    Compiler_IR_Builder.H
+    Compiler_IR_Lowering_MVP.H
+    Compiler_IR.H
+    Compiler_Dataflow.H
+    SSA.H
+    Bytecode.H
+    Bytecode_Interpreter.H
+    Compiler_Backend_C.H
+    Compiler_Driver.H
     String_Search.H
     Aho_Corasick.H
     Suffix_Structures.H
@@ -165,6 +209,71 @@ set(HLIST
     Alpha_Beta.H
     State_Search.H
     State_Search_IDA_Star.H
+    Bellman_Ford.H
+    Dijkstra.H
+    Tarjan.H
+    ah-arena.H
+    ah-args-ctor.H
+    ah-dry-mixin.H
+    ah-iterator.H
+    ah-ranges.H
+    ah-time.H
+    ah-zip.H
+    ahDry.H
+    ahFunctional.H
+    ah_init_guard.H
+    aleph-graph.H
+    array_utils.H
+    avlNode.H
+    avlNodeRk.H
+    bitArray.H
+    cookie_guard.H
+    dlink.H
+    gmpfrxx.h
+    line.H
+    hash-fct.H
+    hashDry.H
+    mpfr_mul_d.h
+    primes.H
+    rbNode.H
+    rbNodeRk.H
+    shortest_path_common.H
+    single_graph.H
+    slink.H
+    topological_sort.H
+    tpl_2dtree.H
+    tpl_agraph.H
+    tpl_array.H
+    tpl_avl.H
+    tpl_avlRk.H
+    tpl_binNodeUtils.H
+    tpl_binNodeXt.H
+    tpl_binTree.H
+    tpl_binTreeOps.H
+    tpl_components.H
+    tpl_cut_nodes.H
+    tpl_dnode.H
+    tpl_dynList.H
+    tpl_dynMapOhash.H
+    tpl_dynMapTree.H
+    tpl_dynSkipList.H
+    tpl_fibonacci_heap.H
+    tpl_find_path.H
+    tpl_graph_utils.H
+    tpl_hRbTree.H
+    tpl_hRbTreeRk.H
+    tpl_hash.H
+    tpl_linHash.H
+    tpl_matgraph.H
+    tpl_net.H
+    tpl_randNode.H
+    tpl_rand_tree.H
+    tpl_rbRk.H
+    tpl_rb_tree.H
+    tpl_sparse_table.H
+    tpl_tdRbTreeRk.H
+    tpl_treap.H
+    treapNode.H
 )
 
 # C++ source files

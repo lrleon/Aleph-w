@@ -38,43 +38,29 @@
  *  directed graph. Unlike Dijkstra's algorithm, Bellman-Ford can handle
  *  graphs with negative edge weights and can detect negative-weight cycles.
  *
- *  ## Algorithms Provided
- *
- *  - **Standard Bellman-Ford**: O(V*E) time complexity
- *  - **SPFA (Shortest Path Faster Algorithm)**: Queue-based optimization
- *    that is often faster in practice on sparse graphs
- *
- *  ## Key Features
- *
- *  - Handles negative edge weights
- *  - Detects negative-weight cycles
- *  - Can return the negative cycle as a path
- *  - Supports both painted (in-place) and separate tree construction
- *
  *  ## Complexity
  *
- *  | Operation | Time | Space |
- *  |-----------|------|-------|
- *  | Standard | O(V*E) | O(V) |
- *  | SPFA (avg) | O(E) | O(V) |
- *  | SPFA (worst) | O(V*E) | O(V) |
+ *  | Algorithm | Time (avg) | Time (worst) | Space |
+ *  |-----------|------------|--------------|-------|
+ *  | Standard | O(V*E) | O(V*E) | O(V) |
+ *  | SPFA | O(E) | O(V*E) | O(V) |
  *
- *  ## Usage Example
- *
- *  ```cpp
+ *  @par Example
+ *  @code
  *  List_Digraph<Node, Arc> g;
  *  // ... build graph ...
+ *  List_Digraph<Node, Arc>::Node * start = g.get_first_node();
  *
- *  Bellman_Ford<List_Digraph<Node, Arc>> bf(g);
- *  
- *  // Check for negative cycles and compute shortest paths
- *  if (bf.has_negative_cycle(start_node)) {
+ *  Bellman_Ford bf(g);
+ *
+ *  // Check for negative cycles and compute shortest paths from 'start'
+ *  if (bf.has_negative_cycle(start)) {
  *    Path<Graph> cycle = bf.build_negative_cycle();
  *    // handle negative cycle
  *  } else {
- *    // Use the shortest path tree
+ *    // bf.is_painted() is true, Spanning_Tree bits are set
  *  }
- *  ```
+ *  @endcode
  *
  *  @see Dijkstra.H For graphs without negative weights (more efficient)
  *  @see Floyd_Warshall.H For all-pairs shortest paths

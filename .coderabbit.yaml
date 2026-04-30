@@ -1,7 +1,7 @@
 # CodeRabbit Configuration for Aleph-w
 # https://docs.coderabbit.ai/guides/configure-coderabbit
 
-language: "en-US"
+language: "es-ES"
 
 reviews:
   # Enable reviews on ALL branches, not just default

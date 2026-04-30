@@ -44,8 +44,8 @@
  *  @author Leandro Rabindranath León
  */
 
-# ifndef BRANCH_AND_BOUND_H
-# define BRANCH_AND_BOUND_H
+#ifndef BRANCH_AND_BOUND_H
+#define BRANCH_AND_BOUND_H
 
 #include <concepts>
 #include <utility>
@@ -284,7 +284,6 @@ and requires(Domain &domain, typename Domain::State &state, const typename Domai
       { domain.undo(state, move) } -> std::same_as<void>;
     };
 
-
 /** @brief Reusable branch-and-bound engine over implicit state spaces.
  *
  *  @tparam Domain Problem adapter exposing `bound(state)`, `is_complete(state)`
@@ -486,8 +485,7 @@ public:
 
   /** @brief Branch and bound with visited-bound map and solution callback. */
   template <typename VisitedMap, typename OnSolution>
-    requires SearchStateKeyProvider<Domain>
-         and SearchSolutionVisitor<OnSolution, Solution>
+    requires SearchStateKeyProvider<Domain> and SearchSolutionVisitor<OnSolution, Solution>
   [[nodiscard]] Result search(State initial_state, VisitedMap &visited_map, OnSolution &on_solution)
   {
     using State_Key = typename Domain::State_Key;
@@ -717,8 +715,8 @@ private:
         return false;
       }
 
-    const Objective bound_value = domain_.bound(state);
-    if (not result.incumbent.can_improve(bound_value))
+    if (const Objective bound_value = domain_.bound(state);
+        not result.incumbent.can_improve(bound_value))
       {
         ++result.stats.pruned_by_bound;
         return false;
@@ -733,8 +731,15 @@ private:
 
     auto explore_move = [&](const Move &move) -> bool
     {
-      return apply_move_and_recurse(move, state, path, result, stop,
-        [&]() { return dfs(state, path, depth + 1, result, on_solution); });
+      return apply_move_and_recurse(move,
+                                    state,
+                                    path,
+                                    result,
+                                    stop,
+                                    [&]()
+      {
+        return dfs(state, path, depth + 1, result, on_solution);
+      });
     };
 
     if (ordering_active_for_depth_first())
@@ -764,8 +769,7 @@ private:
   }
 
   template <typename OnSolution, typename VisitedMap>
-    requires SearchSolutionVisitor<OnSolution, Solution>
-         and SearchStateKeyProvider<Domain>
+    requires SearchSolutionVisitor<OnSolution, Solution> and SearchStateKeyProvider<Domain>
   [[nodiscard]] bool dfs_visited(State &state,
                                  SearchPath<Move> &path,
                                  const size_t depth,
@@ -826,7 +830,8 @@ private:
         was_inserted = true;
       }
 
-    auto rollback_visited = [&]() {
+    auto rollback_visited = [&]()
+    {
       if (was_inserted)
         visited.remove(key);
       else if (auto *pair = visited.search(key); pair != nullptr)
@@ -844,8 +849,15 @@ private:
       {
         auto explore_move = [&](const Move &move) -> bool
         {
-          return apply_move_and_recurse(move, state, path, result, stop,
-            [&]() { return dfs_visited(state, path, depth + 1, result, on_solution, visited); });
+          return apply_move_and_recurse(move,
+                                        state,
+                                        path,
+                                        result,
+                                        stop,
+                                        [&]()
+          {
+            return dfs_visited(state, path, depth + 1, result, on_solution, visited);
+          });
         };
 
         if (ordering_active_for_depth_first())
@@ -1009,4 +1021,4 @@ template <BranchAndBoundDomain Domain,
 
 }  // end namespace Aleph
 
-# endif  // BRANCH_AND_BOUND_H
+#endif  // BRANCH_AND_BOUND_H

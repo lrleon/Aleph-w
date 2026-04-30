@@ -40,6 +40,8 @@
  * - Namespace nesting under Aleph internals.
  * - Error reporting via Aleph ah-errors macros.
  * - Header/style integration.
+ *
+ * @author Leandro Rabindranath León
  */
 
 # ifndef ALEPH_BLOSSOM_WEIGHTED_MWMATCHING_H

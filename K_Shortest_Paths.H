@@ -38,23 +38,28 @@
  *  - `eppstein_k_shortest_paths(...)`: General (non-loopless) k-shortest API
  *    based on deviation expansion over shortest suffixes.
  *
- *  ## Problem solved
+ *  ## Complexity
  *
- *  Given graph@f$G=(V,E)@f$, source@f$s@f$, target@f$t@f$, and integer
- * @f$k@f$, compute:
- *  - `Yen`: the first@f$k@f$shortest *simple* (loopless) paths.
- *  - `Eppstein-style API`: the first@f$k@f$shortest general paths
- *    (cycles may appear).
+ *  | Algorithm | Time | Space |
+ *  |-----------|------|-------|
+ *  | Yen | O(k * V * (E + V log V)) | O(k * V + E) |
+ *  | Eppstein-style | O(E log V + k log k) | O(E log V + k) |
  *
- *  ## Assumptions
+ *  @par Example
+ *  @code
+ *  List_Digraph<Node, Arc> g;
+ *  // ... add nodes and arcs ...
  *
- *  - Non-negative arc weights (validated at runtime).
- *  - Works with Aleph graph backends (`List_Graph`, `List_Digraph`,
- *    `List_SGraph`, `Array_Graph`, etc.) through generic graph interfaces.
+ *  // Find the 5 shortest simple paths from s to t
+ *  auto paths = yen_k_shortest_paths(g, s, t, 5);
+ *  for (const auto& item : paths)
+ *    std::cout << "Cost: " << item.total_cost << "\n";
+ *  @endcode
  *
  *  @see Dijkstra.H For single-source shortest paths
  *  @see Johnson.H For all-pairs shortest paths on sparse graphs
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef K_SHORTEST_PATHS_H

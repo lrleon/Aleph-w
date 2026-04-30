@@ -1193,11 +1193,12 @@ TEST_F(ParseUtilsTest, LoadFileLines)
 {
   create_temp_file("line1\nline2\nline3");
   
-  vector<string> lines = load_file_lines(temp_filename);
+  DynList<string> lines = load_file_lines(temp_filename);
   ASSERT_EQ(lines.size(), 3u);
-  EXPECT_EQ(lines[0], "line1");
-  EXPECT_EQ(lines[1], "line2");
-  EXPECT_EQ(lines[2], "line3");
+  DynList<string>::Iterator it(lines);
+  EXPECT_EQ(it.get_curr(), "line1"); it.next();
+  EXPECT_EQ(it.get_curr(), "line2"); it.next();
+  EXPECT_EQ(it.get_curr(), "line3");
 }
 
 TEST(FileUtilsTest, LoadFileContentsNotFound)
@@ -1211,18 +1212,19 @@ TEST(FileUtilsTest, LoadFileContentsNotFound)
 
 TEST(StringUtilsTest, SplitString)
 {
-  vector<string> parts = split_string("a,b,c,d", ',');
+  DynList<string> parts = split_string("a,b,c,d", ',');
   ASSERT_EQ(parts.size(), 4u);
-  EXPECT_EQ(parts[0], "a");
-  EXPECT_EQ(parts[1], "b");
-  EXPECT_EQ(parts[2], "c");
-  EXPECT_EQ(parts[3], "d");
+  DynList<string>::Iterator it(parts);
+  EXPECT_EQ(it.get_curr(), "a"); it.next();
+  EXPECT_EQ(it.get_curr(), "b"); it.next();
+  EXPECT_EQ(it.get_curr(), "c"); it.next();
+  EXPECT_EQ(it.get_curr(), "d");
 }
 
 TEST(StringUtilsTest, SplitStringEmpty)
 {
   // std::getline produces no tokens for empty string
-  vector<string> parts = split_string("", ',');
+  DynList<string> parts = split_string("", ',');
   EXPECT_EQ(parts.size(), 0u);
 }
 

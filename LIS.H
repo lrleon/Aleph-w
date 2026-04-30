@@ -38,12 +38,37 @@
  *  This header provides high-performance O(n log n) solutions using the
  *  **Patience Sorting** algorithm with binary search.
  *
- *  Variants provided:
+ *  ## Variants Provided
+ *
  *  - **LIS**: Strictly increasing subsequence (a < b < c).
  *  - **Longest Non-Decreasing Subsequence**: (a <= b <= c).
  *  - **Length-only**: space-optimized O(n) space version.
  *
- *  All reconstruction variants identify one possible optimal subsequence.
+ *  ## Complexity
+ *
+ *  | Algorithm | Time | Space |
+ *  |-----------|------|-------|
+ *  | LIS (with reconstruction) | O(n log n) | O(n) |
+ *  | LIS (length only) | O(n log n) | O(n) |
+ *
+ *  @par Example
+ *  @code
+ *  Array<int> seq = {10, 22, 9, 33, 21, 50, 41, 60, 80};
+ *
+ *  // 1. Compute strictly increasing LIS
+ *  auto res = longest_increasing_subsequence(seq);
+ *  // res.length = 6
+ *  // res.subsequence = {10, 22, 33, 50, 60, 80}
+ *
+ *  // 2. Compute non-decreasing LIS
+ *  Array<int> seq2 = {1, 2, 2, 3, 1};
+ *  auto res2 = longest_nondecreasing_subsequence(seq2);
+ *  // res2.length = 4
+ *  // res2.subsequence = {1, 2, 2, 3}
+ *
+ *  // 3. Length only (faster, less memory)
+ *  size_t len = lis_length(seq); // returns 6
+ *  @endcode
  *
  *  @example lis_example.cc
  *
