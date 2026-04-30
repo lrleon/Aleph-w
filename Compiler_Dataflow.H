@@ -606,8 +606,11 @@ namespace Aleph
                     return unknown_constant();
                   if (not neg and uresult > static_cast<unsigned long long>(LLONG_MAX))
                     return unknown_constant();
-                  result = neg ? -static_cast<long long>(uresult)
-                               : static_cast<long long>(uresult);
+                  if (neg and uresult == static_cast<unsigned long long>(LLONG_MAX) + 1ULL)
+                    result = LLONG_MIN;
+                  else
+                    result = neg ? -static_cast<long long>(uresult)
+                                 : static_cast<long long>(uresult);
                 }
 #endif
               return integer_constant(result);
@@ -883,6 +886,24 @@ namespace Aleph
           }
     }
 
+    inline DynArray<DynArray<Compiler_IR_Block_Id>>
+    compute_predecessor_lists(const Compiler_IR_Function & function)
+    {
+      DynArray<DynArray<Compiler_IR_Block_Id>> predecessors;
+      for (size_t i = 0; i < function.blocks.size(); ++i)
+        predecessors.append(DynArray<Compiler_IR_Block_Id>{});
+
+      for (size_t i = 0; i < function.blocks.size(); ++i)
+        for (size_t j = 0; j < function.blocks.access(i).terminator.successors.size(); ++j)
+          {
+            const auto succ = function.blocks.access(i).terminator.successors.access(j);
+            if (succ < function.blocks.size())
+              predecessors.access(succ).append(i);
+          }
+
+      return predecessors;
+    }
+
     inline size_t
     count_instructions(const Compiler_IR_Function & function)
     {
@@ -926,6 +947,8 @@ namespace Aleph
     analysis.local_slot_count = function.local_slots.size();
 
     const auto reachable = Compiler_Dataflow_Detail::compute_reachability(function);
+    const auto predecessors =
+      Compiler_Dataflow_Detail::compute_predecessor_lists(function);
     analysis.reachable_blocks = reachable;
 
     DynArray<Compiler_Dataflow_Detail::Block_Use_Def> block_sets;
@@ -1004,10 +1027,10 @@ namespace Aleph
               {
                 bool have_predecessor = false;
                 assigned_in = Compiler_Dataflow_Detail::make_bit_set(function.local_slots.size(), true);
-                const auto & block = function.blocks.access(block_id);
-                for (size_t i = 0; i < block.predecessors.size(); ++i)
+                const auto & block_predecessors = predecessors.access(block_id);
+                for (size_t i = 0; i < block_predecessors.size(); ++i)
                   {
-                    const auto pred = block.predecessors.access(i);
+                    const auto pred = block_predecessors.access(i);
                     if (pred >= function.blocks.size() or not reachable.access(pred))
                       continue;
                     if (not have_predecessor)
@@ -1068,10 +1091,10 @@ namespace Aleph
                   function.local_slots.size(),
                   Compiler_Dataflow_Detail::unknown_constant());
 
-                const auto & block = function.blocks.access(block_id);
-                for (size_t i = 0; i < block.predecessors.size(); ++i)
+                const auto & block_predecessors = predecessors.access(block_id);
+                for (size_t i = 0; i < block_predecessors.size(); ++i)
                   {
-                    const auto pred = block.predecessors.access(i);
+                    const auto pred = block_predecessors.access(i);
                     if (pred >= function.blocks.size() or not reachable.access(pred))
                       continue;
 
@@ -1474,8 +1497,13 @@ namespace Aleph
           pass_remap.append(compiler_ir_invalid_id());
         for (size_t block_id = 0; block_id < provisional.blocks.size(); ++block_id)
           {
-            if (block_id >= reachable_now.size() or not reachable_now.access(block_id))
-              { ++pass_removed_blocks; continue; }
+            const bool keep_exit_block = block_id == provisional.exit_block;
+            if (not keep_exit_block
+                and (block_id >= reachable_now.size() or not reachable_now.access(block_id)))
+              {
+                ++pass_removed_blocks;
+                continue;
+              }
             pass_remap.access(block_id) = compacted.blocks.size();
             auto blk = provisional.blocks.access(block_id);
             blk.id = compacted.blocks.size();
@@ -1551,10 +1579,25 @@ namespace Aleph
           report.errors.append(ir_report.errors.access(i));
       }
 
+    const auto reachable = Compiler_Dataflow_Detail::compute_reachability(result.function);
+    const auto expected_exit_unreachable_warning =
+      result.function.exit_block < result.function.blocks.size()
+      and result.function.exit_block < reachable.size()
+      and not reachable.access(result.function.exit_block)
+        ? "IR block " + Compiler_IR_Detail::block_name(result.function.exit_block)
+            + " in function '" + result.function.name + "' is unreachable from entry"
+        : std::string{};
+
     for (size_t i = 0; i < ir_report.warnings.size(); ++i)
       if (ir_report.warnings.access(i).find("unreachable") != std::string::npos)
-        fail("DCE result for '" + result.function.name
-             + "' still contains unreachable blocks");
+        {
+          if (not expected_exit_unreachable_warning.empty()
+              and ir_report.warnings.access(i) == expected_exit_unreachable_warning)
+            continue;
+
+          fail("DCE result for '" + result.function.name
+               + "' still contains unreachable blocks");
+        }
       else
         report.warnings.append(ir_report.warnings.access(i));
 

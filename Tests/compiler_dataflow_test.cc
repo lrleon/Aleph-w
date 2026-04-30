@@ -326,6 +326,133 @@ namespace
     function.blocks.append(else_block);
     return function;
   }
+
+  Compiler_IR_Function
+  make_stale_predecessor_ir()
+  {
+    Compiler_IR_Function function;
+    function.name = "stale_preds";
+    function.entry_block = 0;
+    function.exit_block = 1;
+    function.next_value_id = 4;
+
+    Compiler_IR_Slot slot;
+    slot.id = 0;
+    slot.kind = Compiler_IR_Slot_Kind::Local;
+    slot.name = "x";
+    function.local_slots.append(slot);
+
+    Compiler_IR_Block entry;
+    entry.id = 0;
+    entry.label = "entry";
+
+    Compiler_IR_Instruction cond;
+    cond.kind = Compiler_IR_Instruction_Kind::Constant;
+    cond.result_id = 1;
+    cond.text = "true";
+    cond.bool_value = true;
+    entry.instructions.append(cond);
+
+    entry.terminator.kind = Compiler_IR_Terminator_Kind::Branch;
+    entry.terminator.condition_value = 1;
+    entry.terminator.successors.append(2);
+    entry.terminator.successors.append(3);
+
+    auto exit = make_exit_block();
+    exit.predecessors.append(4);
+
+    Compiler_IR_Block then_block;
+    then_block.id = 2;
+    then_block.label = "then";
+    then_block.predecessors.append(99);
+
+    Compiler_IR_Instruction c1;
+    c1.kind = Compiler_IR_Instruction_Kind::Constant;
+    c1.result_id = 2;
+    c1.text = "1";
+    then_block.instructions.append(c1);
+
+    Compiler_IR_Instruction s1;
+    s1.kind = Compiler_IR_Instruction_Kind::Store;
+    s1.local_slot_id = 0;
+    s1.operands.append(2);
+    then_block.instructions.append(s1);
+
+    then_block.terminator.kind = Compiler_IR_Terminator_Kind::Jump;
+    then_block.terminator.successors.append(4);
+
+    Compiler_IR_Block else_block;
+    else_block.id = 3;
+    else_block.label = "else";
+    else_block.predecessors.clear();
+
+    Compiler_IR_Instruction c2;
+    c2.kind = Compiler_IR_Instruction_Kind::Constant;
+    c2.result_id = 3;
+    c2.text = "2";
+    else_block.instructions.append(c2);
+
+    Compiler_IR_Instruction s2;
+    s2.kind = Compiler_IR_Instruction_Kind::Store;
+    s2.local_slot_id = 0;
+    s2.operands.append(3);
+    else_block.instructions.append(s2);
+
+    else_block.terminator.kind = Compiler_IR_Terminator_Kind::Jump;
+    else_block.terminator.successors.append(4);
+
+    Compiler_IR_Block join_block;
+    join_block.id = 4;
+    join_block.label = "join";
+    join_block.predecessors.clear();
+
+    Compiler_IR_Instruction load_x;
+    load_x.kind = Compiler_IR_Instruction_Kind::Load;
+    load_x.result_id = 4;
+    load_x.local_slot_id = 0;
+    join_block.instructions.append(load_x);
+
+    join_block.terminator.kind = Compiler_IR_Terminator_Kind::Return;
+    join_block.terminator.return_value = 4;
+    join_block.terminator.successors.append(1);
+
+    function.blocks.append(entry);
+    function.blocks.append(exit);
+    function.blocks.append(then_block);
+    function.blocks.append(else_block);
+    function.blocks.append(join_block);
+    return function;
+  }
+
+  Compiler_IR_Function
+  make_infinite_loop_ir()
+  {
+    Compiler_IR_Function function;
+    function.name = "spin";
+    function.entry_block = 0;
+    function.exit_block = 1;
+
+    Compiler_IR_Block entry;
+    entry.id = 0;
+    entry.label = "entry";
+    entry.terminator.kind = Compiler_IR_Terminator_Kind::Jump;
+    entry.terminator.successors.append(2);
+
+    auto exit = make_exit_block();
+
+    Compiler_IR_Block loop;
+    loop.id = 2;
+    loop.label = "loop";
+    loop.predecessors.append(0);
+    loop.predecessors.append(2);
+    loop.terminator.kind = Compiler_IR_Terminator_Kind::Jump;
+    loop.terminator.successors.append(2);
+
+    function.blocks.append(entry);
+    function.blocks.append(exit);
+    function.blocks.append(loop);
+    return function;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -554,6 +681,13 @@ TEST(CompilerDataflowConstant, BinaryAddOverflowDoesNotFold)
   EXPECT_EQ(result.kind, Compiler_Dataflow_Constant_Kind::Unknown);
 }
 
+TEST(CompilerDataflowConstant, BinaryMulLLONG_MINByOneFoldsToLLONG_MIN)
+{
+  const auto result = test_binary(Compiler_Operator_Kind::Star, LLONG_MIN, 1);
+  EXPECT_EQ(result.kind, Compiler_Dataflow_Constant_Kind::Integer);
+  EXPECT_EQ(result.integer_value, LLONG_MIN);
+}
+
 // ---------------------------------------------------------------------------
 // Branch-fold live_out liveness preservation
 // ---------------------------------------------------------------------------
@@ -662,6 +796,18 @@ TEST(CompilerDataflow, ComputesReachabilityLivenessAndConstants)
   EXPECT_TRUE(analysis.live_out_slots.access(4).test(1));
 }
 
+TEST(CompilerDataflow, RebuildsPredecessorsForForwardMeets)
+{
+  const auto function = make_stale_predecessor_ir();
+  const auto analysis = analyze_dataflow_function(function);
+  const auto report = validate_dataflow_analysis(function, analysis);
+  ASSERT_TRUE(report.valid);
+
+  ASSERT_EQ(analysis.assigned_in_slots.size(), function.blocks.size());
+  EXPECT_TRUE(analysis.assigned_in_slots.access(4).test(0));
+  EXPECT_TRUE(analysis.assigned_out_slots.access(4).test(0));
+}
+
 TEST(CompilerDataflow, EliminatesDeadStoresAndConstantBranches)
 {
   const auto function = make_constant_branch_ir();
@@ -682,4 +828,20 @@ TEST(CompilerDataflow, EliminatesDeadStoresAndConstantBranches)
   EXPECT_EQ(optimized.function.blocks.access(3).label, "if.end.0");
   for (size_t i = 0; i < optimized.function.blocks.size(); ++i)
     EXPECT_NE(optimized.function.blocks.access(i).label, "if.else.0");
+}
+
+TEST(CompilerDataflow, PreservesExitBlockWhenCompactingInfiniteLoop)
+{
+  const auto function = make_infinite_loop_ir();
+  const auto ir_report = validate_ir_function(function);
+  ASSERT_TRUE(ir_report.valid);
+
+  const auto optimized = eliminate_dead_code(function);
+  const auto report = validate_dead_code_elimination(optimized);
+  ASSERT_TRUE(report.valid);
+
+  EXPECT_NE(optimized.function.exit_block, compiler_ir_invalid_id());
+  ASSERT_LT(optimized.function.exit_block, optimized.function.blocks.size());
+  EXPECT_EQ(optimized.function.blocks.access(optimized.function.exit_block).terminator.kind,
+            Compiler_IR_Terminator_Kind::Exit);
 }
