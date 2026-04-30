@@ -688,6 +688,21 @@ TEST(CompilerDataflowConstant, BinaryMulLLONG_MINByOneFoldsToLLONG_MIN)
   EXPECT_EQ(result.integer_value, LLONG_MIN);
 }
 
+TEST(CompilerDataflowConstant, BinaryMulOverflowDoesNotFold)
+{
+  // LLONG_MAX * 2 overflows: portable fallback must return Unknown.
+  auto r = test_binary(Compiler_Operator_Kind::Star, LLONG_MAX, 2);
+  EXPECT_EQ(r.kind, Compiler_Dataflow_Constant_Kind::Unknown);
+
+  // LLONG_MIN * 2 overflows (negative side).
+  r = test_binary(Compiler_Operator_Kind::Star, LLONG_MIN, 2);
+  EXPECT_EQ(r.kind, Compiler_Dataflow_Constant_Kind::Unknown);
+
+  // LLONG_MAX * -2 overflows.
+  r = test_binary(Compiler_Operator_Kind::Star, LLONG_MAX, -2);
+  EXPECT_EQ(r.kind, Compiler_Dataflow_Constant_Kind::Unknown);
+}
+
 // ---------------------------------------------------------------------------
 // Branch-fold live_out liveness preservation
 // ---------------------------------------------------------------------------
