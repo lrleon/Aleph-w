@@ -274,6 +274,8 @@ set(HLIST
     tpl_tdRbTreeRk.H
     tpl_treap.H
     treapNode.H
+    ca-traits.H
+    tpl_ca_concepts.H
 )
 
 # C++ source files

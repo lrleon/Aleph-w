@@ -392,6 +392,7 @@ set(TEST_PROGRAMS
     test_bidirectional_bfs
     test_ida_star
     link_cut_tree_test
+    tpl_ca_concepts_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++
