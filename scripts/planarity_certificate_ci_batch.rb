@@ -49,7 +49,7 @@ def parse_args(argv)
     "require_networkx" => false,
     "gephi" => false,
     "require_gephi" => false,
-    "gephi_cmd" => "gephi --version",
+    "gephi_cmd" => "",
     "gephi_template" => "",
     "gephi_template_catalog" => Pathname.new(__FILE__).realpath.dirname.join("planarity_gephi_templates.json").to_s,
     "render_gephi" => false,

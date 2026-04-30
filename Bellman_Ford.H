@@ -49,9 +49,14 @@
  *  @code
  *  List_Digraph<Node, Arc> g;
  *  // ... build graph ...
+ *  List_Digraph<Node, Arc>::Node * start = g.get_first_node();
  *
  *  Bellman_Ford bf(g);
- *  
+ *
+ *  // Check for negative cycles and compute shortest paths from 'start'
+ *  if (bf.has_negative_cycle(start)) {
+ *  Bellman_Ford bf(g);
+ *
  *  // Check for negative cycles and compute shortest paths from 'start'
  *  if (bf.has_negative_cycle(start)) {
  *    Path<Graph> cycle = bf.build_negative_cycle();

@@ -60,6 +60,23 @@
  *  // res.total_cost = 30.0 (10 + 10 + 10)
  *  // res.row_to_col = {0, 2, 1}
  *  @endcode
+ *  @par Example
+ *  @code
+ *  // Suppose we have a cost matrix for 3 tasks and 3 workers:
+ *  //          Task 1  Task 2  Task 3
+ *  // Worker 1:  10      20      30
+ *  // Worker 2:  40      50      10
+ *  // Worker 3:  20      10      60
+ *  DynMatrix<double> costs(3, 3);
+ *  costs(0,0)=10; costs(0,1)=20; costs(0,2)=30;
+ *  costs(1,0)=40; costs(1,1)=50; costs(1,2)=10;
+ *  costs(2,0)=20; costs(2,1)=10; costs(2,2)=60;
+ *
+ *  // Find minimum weight assignment
+ *  auto res = hungarian_assignment(costs);
+ *  // res.total_cost = 30.0 (10 + 10 + 10)
+ *  // res.row_to_col = {0, 2, 1}
+ *  @endcode
  *
  *  @example hungarian_example.cc
  *

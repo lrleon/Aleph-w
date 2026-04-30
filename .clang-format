@@ -15,6 +15,7 @@ NamespaceIndentation: None
 # Braces (Next-line indented: Custom style with IndentBraces: true)
 BreakBeforeBraces: Custom
 BraceWrapping:
+  AfterCaseLabel: true
   AfterClass: true
   AfterControlStatement: Always
   AfterEnum: true

@@ -2526,8 +2526,10 @@ External validation adapter (end-to-end artifacts):
   - validates exported `GraphML` / `GEXF` files directly
   - checks XML consistency, endpoint references and obstruction-edge presence
   - optional `--networkx` pass for tool-level loadability checks
-  - optional `--gephi` pass for Gephi CLI/toolkit adapter checks
-    (`--gephi-cmd` supports a custom command template with `{input}`)
+  - optional `--gephi` pass for Gephi adapter checks
+    (default behavior probes executable availability in `PATH`;
+    `--gephi-cmd` supports a custom command template with `{input}`
+    for real import/adapter execution)
   - optional `--render-gephi` pass for render/export validation
     (`--render-profile` + `--render-output-dir`, with SVG/PDF artifact checks)
 - `scripts/planarity_gephi_templates.json`
@@ -2550,7 +2552,7 @@ External validation adapter (end-to-end artifacts):
 - `.github/workflows/planarity_gephi_nightly.yml`
   - weekly + manual real-Gephi packaging probe (Linux/macOS/Windows)
   - auto-selects latest `0.9.x` and `0.10.x` Gephi tags (or manual override)
-  - downloads official Gephi release binaries and validates adapter integration
+  - downloads official Gephi release binaries and validates extracted executable availability
   - emits per-run comparative report artifact across tags/OS matrix
   - enforces a regression gate when newer tags regress against previous tags per OS
   - optional webhook notifications for regressions via secret
@@ -2580,7 +2582,7 @@ ruby scripts/planarity_certificate_validator.rb \
 ruby scripts/planarity_certificate_validator.rb \
   --input /tmp/planarity_k33_certificate.graphml \
   --gephi --require-gephi \
-  --gephi-template portable.python-file-exists
+  --gephi-template portable.ruby-file-exists
 
 # List render profile catalog (filterable by OS)
 ruby scripts/planarity_certificate_validator.rb \
@@ -2598,7 +2600,7 @@ ruby scripts/planarity_certificate_ci_batch.rb \
   --input /tmp/planarity_k33_certificate.graphml \
   --input /tmp/planarity_k33_certificate.gexf \
   --gephi --require-gephi \
-  --gephi-template portable.python-file-exists \
+  --gephi-template portable.ruby-file-exists \
   --report /tmp/aleph_planarity_ci_report.json --print-summary
 
 # CI batch report with render validation
@@ -2617,11 +2619,16 @@ ruby scripts/planarity_certificate_ci_visual_diff.rb \
   --render-output-dir /tmp/aleph_planarity_visual_renders \
   --report /tmp/aleph_planarity_visual_diff_report.json --print-summary
 
-# Real-Gephi local smoke check (without portable profiles)
+# Local Gephi executable availability probe (default --gephi behavior)
+ruby scripts/planarity_certificate_validator.rb \
+  --input scripts/fixtures/planarity_k33_certificate.graphml \
+  --gephi --require-gephi
+
+# Real-Gephi local adapter/import check with explicit executable
 ruby scripts/planarity_certificate_validator.rb \
   --input scripts/fixtures/planarity_k33_certificate.graphml \
   --gephi --require-gephi \
-  --gephi-cmd "\"/path/to/gephi\" --version"
+  --gephi-cmd "\"/path/to/gephi\" --headless --import {input}"
 
 # Nightly workflow manual override example:
 # workflow_dispatch input gephi_tags="v0.9.7,v0.10.1"
@@ -3946,6 +3953,39 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | `ah-arena.H` | `allocate<T>()` | Construct object in arena |
 | `ah-arena.H` | `dealloc<T>()` | Destroy object from arena |
 
+#### Compiler Tooling
+
+See the [Compiler Front-End Support Guide](docs/compiler_frontend_support.en.md)
+for the intended scope, examples, and current limits of these headers. For a
+new-language integration path, see the
+[Compiler Front-End SDK Quickstart](docs/compiler_frontend_sdk_quickstart.en.md).
+The longer-term platform roadmap lives in
+[docs/compiler_platform_roadmap.en.md](docs/compiler_platform_roadmap.en.md).
+
+| Header | Type/Function | Description |
+|--------|---------------|-------------|
+| `ah-source.H` | `Source_Manager`, `Source_Span`, `Source_Position`, `Source_Snippet` | Source file registry, byte-offset spans, line/column resolution, and single-line diagnostic snippets |
+| `ah-diagnostics.H` | `Diagnostic_Engine`, `Diagnostic_Builder`, `Diagnostic`, `Diagnostic_Label` | Buffered diagnostics with labels, notes, help entries, and deterministic plain-text rendering |
+| `Compiler_Token.H` | `Compiler_Token`, `Compiler_Token_Kind`, `classify_compiler_keyword()`, `compiler_binary_precedence()` | Token model, keyword classification, and parser-facing operator metadata |
+| `Compiler_Lexer.H` | `Compiler_Lexer`, `Compiler_Lexer_Options` | Single-file lexer with stable spans, configurable comment handling, invalid-token recovery, and optional diagnostics |
+| `Compiler_AST.H` | `Compiler_Ast_Context`, `Compiler_Module`, `Compiler_Function_Decl`, `compiler_dump_module()` | Arena-backed AST nodes for expressions, statements, imports, type declarations, functions, modules, and deterministic textual dumps |
+| `Compiler_Parser.H` | `Compiler_Parser`, `Compiler_Parser_Options` | Recursive-descent parser with precedence climbing, explicit type annotations, top-level imports and type declarations, block/statement parsing, and diagnostic-based recovery |
+| `tpl_scope.H` | `Scope<Key, Value>` | Generic nested-scope stack for lexical bindings, local lookup, recursive lookup, and shadowing |
+| `Compiler_Sema.H` | `Compiler_Semantic_Analyzer`, `Compiler_Symbol`, `Compiler_Name_Resolution` | Name resolution, basic top-level import validation, duplicate detection, shadowing checks, control-flow misuse diagnostics, and symbol-table dumps |
+| `Compiler_Types.H` | `Compiler_Type_Context`, `Compiler_Type`, `Compiler_Type_Id` | Stable type graph with built-ins, tuples, functions, nominal `struct`/`enum` types, type variables, and deterministic pretty-printing |
+| `tpl_constraints.H` | `Compiler_Type_Constraint_Set`, `Compiler_Type_Unifier`, `Compiler_Type_Substitution` | Equality constraints, substitutions, structural unification, rigid variables, and occurs-check support |
+| `Compiler_Typed_Sema.H` | `Compiler_Typed_Semantic_Analyzer`, `Compiler_Typed_Semantic_Options` | Typed semantic pass with explicit annotations, nominal declaration resolution, transparent aliases, `let` generalization, basic polymorphic instantiation, and constraint solving |
+| `Compiler_HIR.H` | `Compiler_HIR_Module`, `Compiler_HIR_Function`, `Compiler_HIR_Lowering` | Typed high-level IR with lowering from typed AST and deterministic textual dumps suitable for interpreters or later lowering |
+| `Interpreter_Runtime.H` | `Interpreter_Runtime`, `Interpreter_Value`, `interpreter_dump_globals()` | Reusable runtime and HIR evaluator with nested environments, host functions, structured runtime errors, and deterministic dumps |
+| `Compiler_CFG.H` | `Compiler_CFG_Function`, `Compiler_CFG_Lowering`, `validate_cfg_function()` | Reusable basic-block CFG with lowering from HIR, explicit terminators, predecessor/successor tracking, validation, and deterministic dumps |
+| `Compiler_IR.H` | `Compiler_IR_Module`, `Compiler_IR_Lowering`, `validate_ir_module()` | Reusable explicit-value IR with lowering from HIR, local/global slots, structured instructions, and deterministic textual dumps |
+| `Compiler_Dataflow.H` | `Compiler_Dataflow_Function_Analysis`, `analyze_dataflow_function()`, `eliminate_dead_code()` | Reusable IR dataflow with reachability, liveness, definite assignment, constant propagation, and conservative DCE |
+| `SSA.H` | `Compiler_SSA_Module`, `Compiler_SSA_Lowering`, `validate_ssa_module()` | Reusable SSA layer over IR with dominators, dominance frontiers, per-slot phi placement, renaming, and structural verification |
+| `Bytecode.H` | `Compiler_Bytecode_Module`, `Compiler_Bytecode_Lowering`, `validate_bytecode_module()` | Reusable VM-oriented bytecode with constant pools, explicit opcodes, patched PCs, and lowering from IR |
+| `Bytecode_Interpreter.H` | `Compiler_Bytecode_VM`, `Compiler_Bytecode_Value`, `compiler_dump_bytecode_globals()` | Portable register-bytecode VM with explicit frames, globals, structured runtime errors, and direct execution of lowered bytecode |
+| `Compiler_Backend_C.H` | `Compiler_C_Backend`, `Compiler_C_Backend_Emission`, `compiler_emit_c_module()` | Portable C backend that emits deterministic C from explicit IR with a small tagged runtime and optional standalone `main()` |
+| `Compiler_Driver.H` | `Compiler_Driver`, `Compiler_Driver_Action`, `Compiler_Driver_Source` | Reusable multi-file driver that resolves declarative imports by source name, orders modules by dependency, orchestrates parse/sema/HIR/IR, `run`, `emit-c`, `emit-bytecode`, and reproducible artifacts |
+
 #### Parallel Computing
 
 | Header | Type/Function | Description |
@@ -4108,6 +4148,22 @@ cmake --build build
 | Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
 | Combinatorics toolbox | `comb_example.C` | Cartesian-product traversal, transpose, and combinatorics helpers |
 | Gray code utilities | `gray_code_example.cc` | Binary to Gray conversion and sequence generation |
+| Compiler diagnostics | `compiler_diagnostics_example.cc` | Source spans and deterministic plain-text diagnostics suitable for lexers and parsers |
+| Compiler lexer | `compiler_lexer_example.cc` | Tokenization of a small source file with stable spans and token debug output |
+| Compiler parser | `compiler_parser_example.cc` | Parsing a small module with imports into an arena-backed AST and dumping the resulting tree |
+| Compiler semantic analysis | `compiler_sema_example.cc` | Name resolution over a parsed module, symbol-table dump, and semantic diagnostics for unresolved or invalid uses |
+| Compiler types and constraints | `compiler_types_example.cc` | Stable type construction for nominal `struct`/`enum` types plus equality constraints, substitutions, and unification over function signatures |
+| Compiler typed semantic analysis | `compiler_typed_sema_example.cc` | Nominal declarations, transparent aliases, basic polymorphism, inferred bindings, and typed diagnostics over a parsed module |
+| Compiler HIR lowering | `compiler_hir_example.cc` | Lowering from typed AST into a structured typed HIR ready for interpreters or later CFG/MIR stages |
+| Interpreter runtime over HIR | `interpreter_runtime_example.cc` | Execution of typed HIR with reusable runtime values, global bindings, and direct function calls over the evaluated module |
+| Compiler CFG lowering | `compiler_cfg_example.cc` | Lowering from HIR into reusable basic-block CFGs with explicit branches, joins, and deterministic textual dumps |
+| Compiler IR lowering | `compiler_ir_example.cc` | Lowering from typed HIR into reusable explicit-value IR with local/global slots, calls, stores, and deterministic textual dumps |
+| Compiler dataflow | `compiler_dataflow_example.cc` | Reachability, liveness, definite assignment, constant propagation, and conservative dead-code elimination over the reusable IR |
+| Compiler SSA | `ssa_example.cc` | Conversion from explicit IR into reusable SSA with dominators, dominance frontiers, phi placement, and local/parameter renaming |
+| Compiler bytecode | `bytecode_example.cc` | Lowering from explicit IR into reusable register bytecode with constant pools, VM opcodes, and concrete PC targets |
+| Compiler bytecode interpreter | `bytecode_interpreter_example.cc` | End-to-end execution of lowered bytecode with a portable VM, explicit globals, structured results, and direct function calls |
+| Compiler C backend | `compiler_backend_c_example.cc` | Emission of a full portable C translation unit from explicit IR with goto-based blocks, embedded runtime helpers, and optional standalone execution |
+| Compiler driver | `compiler_driver_example.cc` | Import-aware multi-file orchestration of `parse-only`, `run`, `emit-bytecode`, and `emit-c` with reproducible stage artifacts |
 | Fast Fourier Transform | `fft_example.cc` | Real-signal spectrum analysis, optimized sequential real/complex convolution, explicit `ThreadPool` concurrency, and direct use with compatible iterable containers such as `std::vector`. Full tutorial: [FFT & DSP Tutorial](docs/fft-tutorial.en.md) |
 | Number Theoretic Transform | `ntt_example.cc` | Exact modular transforms, active SIMD backend reporting, reusable plans, Bluestein-based arbitrary supported sizes, three-prime CRT exact multiplication into `__uint128_t`, formal polynomial algebra, base-10 big integer multiplication, negacyclic convolution modulo `x^N + 1`, batch execution, and explicit parallel polynomial multiplication. Full tutorial: [NTT Tutorial](docs/ntt-tutorial.en.md) |
 | Polynomial arithmetic | `polynomial_example.cc` | Sparse polynomial algebra, calculus, root analysis (Sturm/bisection/Newton), Newton interpolation, transfer functions, and high-degree sparse operations |

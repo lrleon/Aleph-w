@@ -416,7 +416,7 @@ inline std::uint16_t get16bits(const void * p) noexcept
       @author Paul Hsieh
       @ingroup Hash
   */
-  inline size_t SuperFastHash(const void * key, size_t len, std::uint32_t seed = 0) noexcept
+  inline size_t SuperFastHash(const void * key, const size_t len, std::uint32_t seed = 0) noexcept
   {
     const auto * data = static_cast<const unsigned char *>(key);
     std::uint32_t hash = static_cast<std::uint32_t>(len) ^ seed;

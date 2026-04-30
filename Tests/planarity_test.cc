@@ -1678,15 +1678,14 @@ TEST(PlanarityTest, ExternalCertificateValidatorGephiModeIsPortable)
       {graphml_path}, false, false, true, false);
   EXPECT_EQ(rc_optional, 0);
 
-  const int has_gephi_usable =
-      std::system("gephi --version > /dev/null 2>&1");
+  const std::string lbl = "gephi_portable_mode";
   const int rc_required = run_external_certificate_validator(
-      {graphml_path}, false, false, true, true);
+      {graphml_path}, false, false, true, true, "", "", lbl);
+  EXPECT_EQ(rc_required, 0);
 
-  if (has_gephi_usable == 0)
-    EXPECT_EQ(rc_required, 0);
-  else
-    EXPECT_NE(rc_required, 0);
+  const std::string report = read_text_file(validator_stdout_path(lbl));
+  EXPECT_NE(report.find("overall_valid=true"), std::string::npos);
+  EXPECT_NE(report.find("running smoke check only"), std::string::npos);
 }
 
 
