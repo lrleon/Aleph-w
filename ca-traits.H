@@ -51,6 +51,7 @@
 
 # include <array>
 # include <cstddef>
+# include <span>
 
 namespace Aleph
 {
@@ -69,6 +70,27 @@ namespace CA
    */
   template <std::size_t N>
   using Coord_Vec = std::array<ca_index_t, N>;
+
+  /** @brief Default offset vector (aliases `Coord_Vec`).
+   *
+   *  Used by neighborhoods to express signed displacements that are
+   *  added to a lattice coordinate. The type is identical to
+   *  `Coord_Vec<N>`; the alias exists to make intent explicit at
+   *  call sites.
+   */
+  template <std::size_t N>
+  using Offset_Vec = Coord_Vec<N>;
+
+  /** @brief Read-only view over a contiguous range of neighbour values.
+   *
+   *  A `Neighbor_View<T>` is a thin `std::span<const T>` populated by
+   *  `gather_neighbors` (see `tpl_ca_neighborhood.H`) on a stack
+   *  buffer. Rules consume it without owning the underlying memory.
+   *
+   *  @tparam T cell state type.
+   */
+  template <typename T>
+  using Neighbor_View = std::span<const T>;
 
   // -----------------------------------------------------------------------
   // Boundary policies

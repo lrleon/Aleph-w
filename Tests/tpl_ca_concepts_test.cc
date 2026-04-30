@@ -97,6 +97,9 @@ namespace
   {
     template <typename S>
     S operator()(S s) const { return s; }
+
+    template <typename S>
+    S operator()(S s, Neighbor_View<S>) const { return s; }
   };
 
   // ---------------------------------------------------------------------

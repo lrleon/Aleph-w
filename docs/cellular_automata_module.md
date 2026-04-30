@@ -178,10 +178,10 @@ aparte (`ca-tiling.H`).
 |-----------------|-----------|-----------------------------------------------|
 | Concepts        | Fase 0 ✔ | `tpl_ca_concepts.H`                            |
 | Tag types       | Fase 0 ✔ | `ca-traits.H`                                  |
-| Storage         | pendiente | `tpl_ca_storage.H`, `tpl_ca_bit_storage.H`     |
-| Lattice         | pendiente | `tpl_ca_lattice.H`                             |
-| Neighborhood    | pendiente | `tpl_ca_neighborhood.H`                        |
-| Rule            | pendiente | `tpl_ca_rule.H`                                |
+| Storage         | Fase 1 ✔ | `tpl_ca_storage.H`, `tpl_ca_bit_storage.H`     |
+| Lattice         | Fase 1 ✔ | `tpl_ca_lattice.H`                             |
+| Neighborhood    | Fase 2 ✔ | `tpl_ca_neighborhood.H`                        |
+| Rule            | Fase 2 ✔ | `tpl_ca_rule.H`                                |
 | Engine síncrono | pendiente | `tpl_ca_engine.H`                              |
 | Ghost / halo    | pendiente | `tpl_ca_ghost_lattice.H`                       |
 | Paralelo        | pendiente | `tpl_ca_parallel_engine.H`                     |

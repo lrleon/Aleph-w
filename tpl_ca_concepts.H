@@ -158,10 +158,10 @@ namespace CA
   /** @brief Local transition function.
    *
    *  A Rule maps the current state of a cell plus a view over its
-   *  neighbours into the next state. The exact shape of the neighbour
-   *  view is fixed in Fase 2 (`Neighbor_View`). For Fase 0 we only
-   *  require that a Rule be invocable with the cell's current state
-   *  and produce a value convertible back to that state type.
+   *  neighbours into the next state. The neighbour view is supplied
+   *  as a `Neighbor_View<State>` (see `ca-traits.H`) — a borrowed,
+   *  contiguous range that the engine populates on a stack buffer
+   *  before invoking the rule.
    *
    *  @tparam R candidate rule type.
    *  @tparam L lattice type whose `state_type` is consumed/produced.
@@ -169,10 +169,12 @@ namespace CA
   template <typename R, typename L>
   concept RuleLike =
       LatticeLike<L> and
-      std::invocable<const R &, typename L::state_type> and
-      std::convertible_to<
-        std::invoke_result_t<const R &, typename L::state_type>,
-        typename L::state_type>;
+      requires(const R & r,
+               const typename L::state_type & s,
+               Neighbor_View<typename L::state_type> v)
+        {
+          { r(s, v) } -> std::convertible_to<typename L::state_type>;
+        };
 
 } // namespace CA
 } // namespace Aleph

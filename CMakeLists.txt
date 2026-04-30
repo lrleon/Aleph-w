@@ -276,6 +276,11 @@ set(HLIST
     treapNode.H
     ca-traits.H
     tpl_ca_concepts.H
+    tpl_ca_storage.H
+    tpl_ca_bit_storage.H
+    tpl_ca_lattice.H
+    tpl_ca_neighborhood.H
+    tpl_ca_rule.H
 )
 
 # C++ source files

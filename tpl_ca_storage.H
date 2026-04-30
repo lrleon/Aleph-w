@@ -147,7 +147,7 @@ namespace CA
     }
 
     /// @return the number of axes (compile-time constant).
-    [[nodiscard]] constexpr std::size_t dimension() const noexcept { return N; }
+    [[nodiscard]] static constexpr std::size_t dimension() noexcept { return N; }
 
     /// @return total cell count (product of extents).
     [[nodiscard]] ca_size_t size() const noexcept { return total_cells; }
