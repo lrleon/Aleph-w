@@ -59,6 +59,7 @@
 
 # include <concepts>
 # include <cstddef>
+# include <tuple>
 # include <type_traits>
 
 # include <ca-traits.H>
@@ -142,8 +143,8 @@ namespace CA
    *    - `size()`    — number of neighbors enumerated by `apply`.
    *
    *  Concrete neighborhoods (Moore, Von Neumann, custom offsets, ...)
-   *  will be added in Fase 2; this concept only fixes the scaffolding
-   *  needed by the engine in Fase 3.
+   *  will be added in Phase 2; this concept only fixes the scaffolding
+   *  needed by the engine in Phase 3.
    *
    *  @tparam H candidate neighborhood type.
    */

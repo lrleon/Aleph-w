@@ -126,6 +126,27 @@ namespace CA
   /// Iterate the lattice in column-major (Fortran) order.
   struct ColumnMajor {};
 
+  /** @brief Iterate a 2D lattice in `W` x `H` tiles.
+   *
+   *  Tiles are visited in row-major order over the tile grid, and the
+   *  cells inside each tile are visited row-major as well. Useful as
+   *  a cache-friendly schedule for the synchronous engine.
+   *
+   *  Implementations that don't have a meaningful tile interpretation
+   *  (1D, 3D) fall back to `RowMajor`.
+   *
+   *  @tparam W tile width  (cells along the last axis).
+   *  @tparam H tile height (cells along the first axis).
+   */
+  template <std::size_t W, std::size_t H>
+  struct Tile
+  {
+    static_assert(W > 0 and H > 0, "Tile dimensions must be non-zero");
+
+    static constexpr std::size_t width  = W;
+    static constexpr std::size_t height = H;
+  };
+
 } // namespace CA
 } // namespace Aleph
 

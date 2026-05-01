@@ -64,9 +64,11 @@
 # include <array>
 # include <cstddef>
 # include <cstdint>
+# include <type_traits>
 # include <tuple>
 # include <utility>
 
+# include <ah-errors.H>
 # include <ca-traits.H>
 
 namespace Aleph
@@ -94,11 +96,25 @@ namespace CA
 
   public:
 
+    /** @brief Construct an outer-totalistic rule from a functor.
+     *
+     *  @param[in] func callable object receiving `(State current,
+     *                   std::size_t alive)`.
+     *  @throws Any exception thrown while moving/copying `func`.
+     */
     constexpr explicit Outer_Totalistic_Rule(F func)
       : f(std::move(func))
     {
     }
 
+    /** @brief Compute the next state from current value and neighbours.
+     *
+     *  @tparam State cell state type.
+     *  @param[in] current current centre-cell state.
+     *  @param[in] neighbours read-only neighbour values.
+     *  @return next state produced by the wrapped functor.
+     *  @throws Any exception thrown by the wrapped functor.
+     */
     template <typename State>
     [[nodiscard]] constexpr State
     operator()(const State & current, Neighbor_View<State> neighbours) const
@@ -131,19 +147,36 @@ namespace CA
 
   public:
 
+    /** @brief Construct a totalistic rule from a functor.
+     *
+     *  @param[in] func callable object receiving the accumulated sum.
+     *  @throws Any exception thrown while moving/copying `func`.
+     */
     constexpr explicit Totalistic_Rule(F func)
       : f(std::move(func))
     {
     }
 
+    /** @brief Compute the next state from the sum of centre and neighbours.
+     *
+     *  The sum is accumulated in a widened common type to avoid losing
+     *  information for `bool` and small integral states.
+     *
+     *  @tparam State cell state type.
+     *  @param[in] current current centre-cell state.
+     *  @param[in] neighbours read-only neighbour values.
+     *  @return next state produced by the wrapped functor.
+     *  @throws Any exception thrown by the wrapped functor.
+     */
     template <typename State>
     [[nodiscard]] constexpr State
     operator()(const State & current, Neighbor_View<State> neighbours) const
     {
-      State sum = current;
+      using sum_type = std::common_type_t<State, std::intmax_t>;
+      sum_type sum = static_cast<sum_type>(current);
       for (const auto & v : neighbours)
-        sum = static_cast<State>(sum + v);
-      return f(sum);
+        sum += static_cast<sum_type>(v);
+      return static_cast<State>(f(sum));
     }
   };
 
@@ -184,12 +217,18 @@ namespace CA
   {
   public:
 
+    /// Number of distinct cell states accepted by this rule.
     static constexpr std::size_t num_states_v    = NumStates;
+
+    /// Number of neighbour entries required by `operator()`.
     static constexpr std::size_t num_neighbours_v = NumNeighbors;
+
+    /// Number of entries in the transition table.
     static constexpr std::size_t table_size_v    =
       ca_rule_detail::static_pow_rule(NumStates, NumNeighbors + 1);
 
-    using table_type = std::array<std::uint8_t, table_size_v>;
+    /// Transition table type storing next states for every input tuple.
+    using table_type = std::array<std::size_t, table_size_v>;
 
   private:
 
@@ -197,25 +236,67 @@ namespace CA
 
   public:
 
+    /** @brief Build a zero-initialised lookup rule.
+     *
+     *  Every transition maps to state 0.
+     */
     constexpr Lookup_Rule() = default;
 
+    /** @brief Build a lookup rule from a precomputed transition table.
+     *
+     *  @param[in] t transition table indexed by `(self, neighbours...)`.
+     *  @throws Any exception thrown while copying/moving the table.
+     */
     constexpr explicit Lookup_Rule(table_type t)
       : table(t)
     {
     }
 
+    /** @brief Return the underlying transition table.
+     *
+     *  @return const reference to the rule table.
+     *  @throws This function does not throw.
+     */
     [[nodiscard]] constexpr const table_type & raw_table() const noexcept
     {
       return table;
     }
 
+    /** @brief Compute the next state using the precomputed table.
+     *
+     *  @tparam State cell state type convertible to `std::size_t`.
+     *  @param[in] current current centre-cell state.
+     *  @param[in] neighbours read-only neighbour values.
+     *  @return next state stored in the table.
+     *  @throws std::length_error if `neighbours.size() != NumNeighbors`.
+     *  @throws std::domain_error if `current` or a neighbour is outside
+     *          `[0, NumStates)`.
+     */
     template <typename State>
-    [[nodiscard]] constexpr State
+    [[nodiscard]] State
     operator()(const State & current, Neighbor_View<State> neighbours) const
     {
-      std::size_t idx = static_cast<std::size_t>(current);
+      ah_length_error_if(neighbours.size() != NumNeighbors)
+        << "Lookup_Rule::operator(): expected " << NumNeighbors
+        << " neighbours, got " << neighbours.size();
+
+      auto validate_state = [](const State & value, const char * label)
+      {
+        if constexpr (std::is_signed_v<State>)
+          ah_domain_error_if(value < State{})
+            << "Lookup_Rule::operator(): " << label
+            << " state is negative";
+
+        const std::size_t idx = static_cast<std::size_t>(value);
+        ah_domain_error_if(idx >= NumStates)
+          << "Lookup_Rule::operator(): " << label
+          << " state " << idx << " outside [0, " << NumStates << ")";
+        return idx;
+      };
+
+      std::size_t idx = validate_state(current, "current");
       for (const auto & v : neighbours)
-        idx = idx * NumStates + static_cast<std::size_t>(v);
+        idx = idx * NumStates + validate_state(v, "neighbour");
       return static_cast<State>(table[idx]);
     }
   };
@@ -230,6 +311,8 @@ namespace CA
    *  right`. This factory rewrites the table accordingly.
    *
    *  @param[in] rule_no Wolfram rule number, in `[0, 255]`.
+   *  @return lookup rule equivalent to the requested elementary rule.
+   *  @throws This function does not throw.
    */
   [[nodiscard]] inline constexpr Lookup_Rule<2, 2>
   make_wolfram_elementary_rule(std::uint8_t rule_no) noexcept
@@ -257,6 +340,9 @@ namespace CA
    *  it uses; this class adds no synchronisation. Phase 8 will
    *  introduce `Per_Thread_RNG` and reproducible probabilistic rules
    *  on top of this scaffolding.
+   *
+   *  @tparam F functor type with signature
+   *          `(State, Neighbor_View<State>) -> State`.
    */
   template <typename F>
   class Probabilistic_Rule
@@ -265,11 +351,24 @@ namespace CA
 
   public:
 
+    /** @brief Construct a probabilistic wrapper from a functor.
+     *
+     *  @param[in] func callable object receiving `(State, Neighbor_View<State>)`.
+     *  @throws Any exception thrown while moving/copying `func`.
+     */
     constexpr explicit Probabilistic_Rule(F func)
       : f(std::move(func))
     {
     }
 
+    /** @brief Delegate next-state computation to the wrapped functor.
+     *
+     *  @tparam State cell state type.
+     *  @param[in] current current centre-cell state.
+     *  @param[in] neighbours read-only neighbour values.
+     *  @return next state produced by the wrapped functor.
+     *  @throws Any exception thrown by the wrapped functor.
+     */
     template <typename State>
     [[nodiscard]] State
     operator()(const State & current, Neighbor_View<State> neighbours) const
@@ -288,6 +387,8 @@ namespace CA
    *  on the resulting state, and so on. The neighbour view passed to
    *  every stage is the same (read at the start of the step), which
    *  is the standard semantics for layered totalistic rules.
+   *
+   *  @tparam Rules rule types applied from left to right.
    */
   template <typename... Rules>
   class Composite_Rule
@@ -296,11 +397,24 @@ namespace CA
 
   public:
 
+    /** @brief Construct a sequential composition of rules.
+     *
+     *  @param[in] rs rules applied from left to right.
+     *  @throws Any exception thrown while moving/copying rules.
+     */
     constexpr explicit Composite_Rule(Rules... rs)
       : rules(std::move(rs)...)
     {
     }
 
+    /** @brief Apply every composed rule to the same neighbour view.
+     *
+     *  @tparam State cell state type.
+     *  @param[in] current current centre-cell state.
+     *  @param[in] neighbours read-only neighbour values.
+     *  @return state after all rules have been applied in sequence.
+     *  @throws Any exception thrown by a composed rule.
+     */
     template <typename State>
     [[nodiscard]] constexpr State
     operator()(const State & current, Neighbor_View<State> neighbours) const
@@ -321,6 +435,14 @@ namespace CA
   /// Functor implementing Conway's Game of Life canonical rule (B3/S23).
   struct Game_Of_Life_Functor
   {
+    /** @brief Evaluate the B3/S23 transition.
+     *
+     *  @tparam State cell state type.
+     *  @param[in] current current centre-cell state.
+     *  @param[in] alive number of alive neighbours.
+     *  @return `1` when the cell is alive in the next frame, else `0`.
+     *  @throws This function does not throw.
+     */
     template <typename State>
     [[nodiscard]] constexpr State
     operator()(const State & current, std::size_t alive) const noexcept
@@ -333,9 +455,14 @@ namespace CA
     }
   };
 
+  /// Outer-totalistic rule type implementing Conway's Game of Life.
   using Game_Of_Life_Rule = Outer_Totalistic_Rule<Game_Of_Life_Functor>;
 
-  /// Build the canonical Game of Life rule.
+  /** @brief Build the canonical Game of Life rule.
+   *
+   *  @return an outer-totalistic B3/S23 rule.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] inline constexpr Game_Of_Life_Rule
   make_game_of_life_rule() noexcept
   {

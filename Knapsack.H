@@ -60,27 +60,7 @@
  *  // Solve 0/1 Knapsack
  *  auto res = knapsack_01(items, capacity);
  *  // res.optimal_value = 130 (items with weights 3 and 5)
- *  // res.selected_items contains the indices
- *  @endcode
- *  ## Complexity
- *
- *  | Variant | Time | Space |
- *  |---------|------|-------|
- *  | 0/1 Knapsack | O(n * capacity) | O(capacity) |
- *  | Unbounded | O(n * capacity) | O(capacity) |
- *  | Bounded | O(capacity * sum(log c_i)) | O(capacity) |
- *
- *  @par Example
- *  @code
- *  Array<Knapsack_Item<size_t, int>> items = {
- *    {2, 40}, {3, 50}, {4, 70}, {5, 80}
- *  };
- *  size_t capacity = 8;
- *
- *  // Solve 0/1 Knapsack
- *  auto res = knapsack_01(items, capacity);
- *  // res.optimal_value = 140 (items {2, 40} and {4, 70} or others)
- *  // res.selected_items contains the indices
+ *  // res.selected_items contains indices {1, 3}
  *  @endcode
  *
  *  @example knapsack_example.cc

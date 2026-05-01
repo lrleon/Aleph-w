@@ -43,9 +43,12 @@
  */
 
 # include <array>
+# include <cerrno>
 # include <cstdint>
 # include <cstdlib>
 # include <iostream>
+# include <limits>
+# include <span>
 # include <string>
 
 # include <ca-traits.H>
@@ -60,6 +63,69 @@ using namespace Aleph::CA;
 namespace
 {
   using Row = Lattice<Dense_Cell_Storage<int, 1>, OpenBoundary>;
+  constexpr ca_size_t Max_Width = 100000;
+  constexpr std::size_t Max_Steps = 100000;
+
+  bool parse_rule_number(const char * text, int & out)
+  {
+    errno = 0;
+    char * end = nullptr;
+    const long value = std::strtol(text, &end, 10);
+    if (errno == ERANGE or end == text or *end != '\0' or
+        value < 0 or value > 255)
+      {
+        std::cerr << "Invalid rule: '" << text
+                  << "' (expected an integer in [0, 255])\n";
+        return false;
+      }
+    out = static_cast<int>(value);
+    return true;
+  }
+
+  bool parse_positive_size(const char * text, const char * name,
+                           std::size_t max_value, std::size_t & out)
+  {
+    if (text == nullptr or text[0] == '-')
+      {
+        std::cerr << "Invalid " << name << ": '"
+                  << (text == nullptr ? "" : text)
+                  << "' (expected a positive integer)\n";
+        return false;
+      }
+    errno = 0;
+    char * end = nullptr;
+    const unsigned long long value = std::strtoull(text, &end, 10);
+    if (errno == ERANGE or end == text or *end != '\0' or value == 0 or
+        value > std::numeric_limits<std::size_t>::max() or
+        value > max_value)
+      {
+        std::cerr << "Invalid " << name << ": '" << text
+                  << "' (expected an integer in [1, "
+                  << max_value << "])\n";
+        return false;
+      }
+    out = static_cast<std::size_t>(value);
+    return true;
+  }
+
+  bool parse_positive_ca_size(const char * text, const char * name,
+                              ca_size_t & out)
+  {
+    std::size_t parsed = 0;
+    if (not parse_positive_size(text, name, Max_Width, parsed))
+      return false;
+    const auto ca_max = std::numeric_limits<ca_size_t>::max();
+    const auto idx_max = static_cast<std::size_t>(
+      std::numeric_limits<ca_index_t>::max());
+    if (parsed > ca_max or parsed > idx_max)
+      {
+        std::cerr << "Invalid " << name << ": '" << text
+                  << "' (value is too large)\n";
+        return false;
+      }
+    out = static_cast<ca_size_t>(parsed);
+    return true;
+  }
 
   Row step_row(const Row & cur, const Lookup_Rule<2, 2> & rule)
   {
@@ -69,7 +135,8 @@ namespace
     std::array<int, 2> buf { };
     for (ca_index_t i = 0; i < static_cast<ca_index_t>(cur.size(0)); ++i)
       {
-        gather_neighbors(nh, cur, Coord_Vec<1>{ i }, buf.data());
+        gather_neighbors(nh, cur, Coord_Vec<1>{ i },
+                         std::span<int>(buf.data(), buf.size()));
         nxt.set({ i },
                 rule(cur.at({ i }), Neighbor_View<int>(buf.data(), 2)));
       }
@@ -108,12 +175,13 @@ int main(int argc, char ** argv)
   std::size_t steps = 30;
   int focus_rule = -1;
 
-  if (argc >= 2)
-    focus_rule = std::atoi(argv[1]);
-  if (argc >= 3)
-    width = static_cast<ca_size_t>(std::atoll(argv[2]));
-  if (argc >= 4)
-    steps = static_cast<std::size_t>(std::atoll(argv[3]));
+  if (argc >= 2 and not parse_rule_number(argv[1], focus_rule))
+    return 1;
+  if (argc >= 3 and not parse_positive_ca_size(argv[2], "width", width))
+    return 1;
+  if (argc >= 4 and not parse_positive_size(argv[3], "steps",
+                                            Max_Steps, steps))
+    return 1;
 
   if (focus_rule >= 0 and focus_rule <= 255)
     run_rule(static_cast<unsigned>(focus_rule), width, steps);

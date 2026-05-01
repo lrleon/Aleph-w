@@ -38,7 +38,7 @@
  *    - `Von_Neumann<N, R>`      — L1-radius neighborhood.
  *    - `Hex_Neighborhood`       — 6 axial-coord neighbours over a 2D lattice.
  *    - `Triangular_Neighborhood`— 3 edge neighbours, parity-dependent.
- *    - `Custom_Neighborhood<N>` — explicit list of offsets supplied at runtime.
+ *    - `Custom_Neighborhood<N, K, Radius>` — explicit list of offsets supplied at runtime.
  *
  *  Every neighborhood satisfies the `NeighborhoodLike` concept and
  *  publishes a uniform compile-time API:
@@ -55,7 +55,8 @@
  *
  *    template <typename Nbh, typename L, typename T>
  *    void gather_neighbors(const Nbh & nh, const L & lat,
- *                          const typename L::coord_type & center, T * out);
+ *                          const typename L::coord_type & center,
+ *                          std::span<T> out);
  *
  *  which fills the caller-supplied stack buffer with the values returned
  *  by `lat.at_safe(center + offset)` in canonical order. No heap.
@@ -69,8 +70,10 @@
 
 # include <array>
 # include <cstddef>
+# include <span>
 # include <utility>
 
+# include <ah-errors.H>
 # include <ca-traits.H>
 # include <tpl_ca_concepts.H>
 
@@ -91,8 +94,8 @@ namespace CA
 
     /// Number of integer points in the L1 ball of radius `R` in `N`
     /// dimensions, excluding the origin.
-    constexpr std::size_t von_neumann_count(std::size_t N,
-                                            std::size_t R) noexcept
+    template <std::size_t N, std::size_t R>
+    constexpr std::size_t von_neumann_count() noexcept
     {
       const std::size_t total = static_pow(2 * R + 1, N);
       const ca_index_t  Ri    = static_cast<ca_index_t>(R);
@@ -101,7 +104,7 @@ namespace CA
       // in [1, R]. Compile-time only; tiny N and R in practice.
       std::size_t cnt = 0;
       // current offset, initialised to (-R, -R, ..., -R).
-      std::size_t cur_buf[16] = { 0 };  // up to 16 dims is plenty
+      std::array<std::size_t, N> cur_buf { };
       for (std::size_t d = 0; d < N; ++d)
         cur_buf[d] = 0;  // we'll bias by -R when reading
 
@@ -175,7 +178,7 @@ namespace CA
     constexpr auto compute_von_neumann_offsets() noexcept
     {
       constexpr std::size_t total = static_pow(2 * R + 1, N);
-      constexpr std::size_t out_n = von_neumann_count(N, R);
+      constexpr std::size_t out_n = von_neumann_count<N, R>();
       std::array<Offset_Vec<N>, out_n> result { };
 
       Offset_Vec<N> cur { };
@@ -266,7 +269,7 @@ namespace CA
     static constexpr std::size_t rank_v   = N;
     static constexpr std::size_t radius_v = R;
     static constexpr std::size_t size_v   =
-      ca_neighborhood_detail::von_neumann_count(N, R);
+      ca_neighborhood_detail::von_neumann_count<N, R>();
 
     static constexpr std::array<Offset_Vec<N>, size_v> offsets =
       ca_neighborhood_detail::compute_von_neumann_offsets<N, R>();
@@ -366,8 +369,10 @@ namespace CA
    *
    *  @tparam N lattice rank.
    *  @tparam K number of offsets (compile-time constant).
+   *  @tparam Radius optional compile-time radius; `0` means unknown and
+   *                  `radius()` computes the actual Chebyshev radius.
    */
-  template <std::size_t N, std::size_t K>
+  template <std::size_t N, std::size_t K, std::size_t Radius = 0>
   class Custom_Neighborhood
   {
     static_assert(N >= 1, "Custom_Neighborhood requires N >= 1");
@@ -379,10 +384,29 @@ namespace CA
 
     static constexpr std::size_t rank_v = N;
     static constexpr std::size_t size_v = K;
+    static constexpr std::size_t radius_v = Radius;
 
+    /** @brief Build a custom neighborhood from an `std::array` of offsets.
+     *
+     *  @param os offsets in the exact order exposed by `for_each_offset()`.
+     */
     constexpr explicit Custom_Neighborhood(std::array<Offset_Vec<N>, K> os)
       : offs(os)
     {
+    }
+
+    /** @brief Build a custom neighborhood from a braced offset list.
+     *
+     *  This overload keeps direct-list initialization such as
+     *  `Custom_Neighborhood<2, 3>({{ Offset_Vec<2>{ ... }, ... }})`
+     *  unambiguous across GCC and Clang.
+     *
+     *  @param os offsets in the exact order exposed by `for_each_offset()`.
+     */
+    constexpr explicit Custom_Neighborhood(const Offset_Vec<N> (&os)[K])
+    {
+      for (std::size_t i = 0; i < K; ++i)
+        offs[i] = os[i];
     }
 
     /// @return the largest Chebyshev component across the offset list.
@@ -426,13 +450,17 @@ namespace CA
    *  @param[in]  nh     neighborhood instance.
    *  @param[in]  lat    lattice to read from.
    *  @param[in]  center center coordinate.
-   *  @param[out] out    pointer to a buffer of at least `nh.size()` cells.
+   *  @param[out] out    buffer of at least `nh.size()` cells.
+   *  @throws std::length_error if `out` is smaller than `nh.size()`.
    */
   template <typename Nbh, typename L, typename T>
   inline void gather_neighbors(const Nbh & nh, const L & lat,
                                const typename L::coord_type & center,
-                               T * out)
+                               std::span<T> out)
   {
+    ah_length_error_if(out.size() < nh.size())
+      << "gather_neighbors: output span has size " << out.size()
+      << ", expected at least " << nh.size();
     using Coord = typename L::coord_type;
     std::size_t i = 0;
     nh.for_each_offset(center, [&](const auto & off)

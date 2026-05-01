@@ -281,6 +281,8 @@ set(HLIST
     tpl_ca_lattice.H
     tpl_ca_neighborhood.H
     tpl_ca_rule.H
+    tpl_ca_engine.H
+    ca-engine-utils.H
 )
 
 # C++ source files

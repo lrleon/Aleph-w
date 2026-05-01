@@ -31,7 +31,7 @@ principios:
 
 ## 2. Diagrama de capas
 
-```
+```text
             +----------------------------------------------------+
             |                  Observers / Métricas              |
             |   (densidad, actividad, entropía, snapshots, ...)   |

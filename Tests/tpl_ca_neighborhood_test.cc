@@ -36,6 +36,8 @@
 # include <array>
 # include <cstdint>
 # include <set>
+# include <span>
+# include <stdexcept>
 
 # include <gtest/gtest.h>
 
@@ -60,6 +62,7 @@ static_assert(NeighborhoodLike<Von_Neumann<3, 1>>);
 static_assert(NeighborhoodLike<Hex_Neighborhood>);
 static_assert(NeighborhoodLike<Triangular_Neighborhood>);
 static_assert(NeighborhoodLike<Custom_Neighborhood<2, 4>>);
+static_assert(Custom_Neighborhood<2, 3, 5>::radius_v == 5);
 
 // ---------------------------------------------------------------------------
 // Compile-time count checks.
@@ -232,7 +235,8 @@ TEST(CAGatherNeighbors, MooreOnToroidalLattice)
 
   Moore<2, 1> nh;
   std::array<int, Moore<2, 1>::size_v> buf { };
-  gather_neighbors(nh, lat, Coord_Vec<2>{ 0, 0 }, buf.data());
+  gather_neighbors(nh, lat, Coord_Vec<2>{ 0, 0 },
+                   std::span<int>(buf.data(), buf.size()));
 
   // Sum of all 8 neighbours of (0,0) under toroidal wrap on a 3x3
   // lattice equals (sum of all cells) - cell(0,0). All cells: 0+1+2+
@@ -247,11 +251,22 @@ TEST(CAGatherNeighbors, MooreOnOpenLatticeReadsZeroOutsideBorders)
   Lattice<Dense_Cell_Storage<int, 2>, OpenBoundary> lat({ 3, 3 }, 1);
   Moore<2, 1> nh;
   std::array<int, Moore<2, 1>::size_v> buf { };
-  gather_neighbors(nh, lat, Coord_Vec<2>{ 0, 0 }, buf.data());
+  gather_neighbors(nh, lat, Coord_Vec<2>{ 0, 0 },
+                   std::span<int>(buf.data(), buf.size()));
 
   // (0,0) has only 3 in-range neighbours: (0,1), (1,0), (1,1). The
   // remaining 5 read as 0 (open boundary).
   int alive = 0;
   for (int v : buf) if (v != 0) ++alive;
   EXPECT_EQ(alive, 3);
+}
+
+TEST(CAGatherNeighbors, ThrowsWhenOutputSpanIsTooSmall)
+{
+  Lattice<Dense_Cell_Storage<int, 2>, OpenBoundary> lat({ 3, 3 }, 1);
+  Moore<2, 1> nh;
+  std::array<int, 2> buf { };
+  EXPECT_THROW(gather_neighbors(nh, lat, Coord_Vec<2>{ 0, 0 },
+                                std::span<int>(buf.data(), buf.size())),
+               std::length_error);
 }

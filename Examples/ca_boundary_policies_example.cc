@@ -42,6 +42,7 @@
 
 # include <iomanip>
 # include <iostream>
+# include <string>
 
 # include <ca-traits.H>
 # include <tpl_ca_storage.H>

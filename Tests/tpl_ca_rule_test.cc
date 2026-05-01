@@ -41,6 +41,8 @@
 
 # include <array>
 # include <cstdint>
+# include <span>
+# include <stdexcept>
 # include <utility>
 # include <vector>
 
@@ -70,7 +72,8 @@ namespace
     for (ca_index_t i = 0; i < static_cast<ca_index_t>(cur.size(0)); ++i)
       for (ca_index_t j = 0; j < static_cast<ca_index_t>(cur.size(1)); ++j)
         {
-          gather_neighbors(nh, cur, Coord_Vec<2>{ i, j }, buf.data());
+          gather_neighbors(nh, cur, Coord_Vec<2>{ i, j },
+                           std::span<int>(buf.data(), buf.size()));
           nxt.set({ i, j },
                   rule(cur.at({ i, j }),
                        Neighbor_View<int>(buf.data(), buf.size())));
@@ -91,7 +94,8 @@ namespace
     std::array<int, 2> buf { };
     for (ca_index_t i = 0; i < static_cast<ca_index_t>(cur.size(0)); ++i)
       {
-        gather_neighbors(nh, cur, Coord_Vec<1>{ i }, buf.data());
+        gather_neighbors(nh, cur, Coord_Vec<1>{ i },
+                         std::span<int>(buf.data(), buf.size()));
         nxt.set({ i },
                 rule(cur.at({ i }),
                      Neighbor_View<int>(buf.data(), buf.size())));
@@ -275,6 +279,24 @@ TEST(CAWolfram1D, Rule90StepFromCenterImpulse)
   EXPECT_EQ(nxt.at({ 4 }), 1);
   EXPECT_EQ(nxt.at({ 5 }), 0);
   EXPECT_EQ(nxt.at({ 6 }), 0);
+}
+
+TEST(CAWolfram1D, LookupRuleRejectsBadArityAndStateRange)
+{
+  auto rule = make_wolfram_elementary_rule(90);
+  std::array<int, 1> short_nb { 0 };
+  EXPECT_THROW((void) rule(0, Neighbor_View<int>(short_nb.data(),
+                                                 short_nb.size())),
+               std::length_error);
+
+  std::array<int, 2> nb { 0, 1 };
+  EXPECT_THROW((void) rule(2, Neighbor_View<int>(nb.data(), nb.size())),
+               std::domain_error);
+
+  std::array<int, 2> bad_nb { 0, -1 };
+  EXPECT_THROW((void) rule(0, Neighbor_View<int>(bad_nb.data(),
+                                                 bad_nb.size())),
+               std::domain_error);
 }
 
 TEST(CAWolfram1D, Rule30FirstFiveStepsFromImpulse)

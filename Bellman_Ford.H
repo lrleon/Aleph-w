@@ -55,10 +55,6 @@
  *
  *  // Check for negative cycles and compute shortest paths from 'start'
  *  if (bf.has_negative_cycle(start)) {
- *  Bellman_Ford bf(g);
- *
- *  // Check for negative cycles and compute shortest paths from 'start'
- *  if (bf.has_negative_cycle(start)) {
  *    Path<Graph> cycle = bf.build_negative_cycle();
  *    // handle negative cycle
  *  } else {

@@ -38,6 +38,7 @@
  */
 
 # include <cstdint>
+# include <stdexcept>
 
 # include <gtest/gtest.h>
 
@@ -213,4 +214,25 @@ TEST(CALattice, StrictAtThrowsOnOutOfRange)
   Lattice<Dense_Cell_Storage<int, 2>, OpenBoundary> lat({ 3, 3 }, 0);
   EXPECT_THROW(lat.at({ -1, 0 }), std::out_of_range);
   EXPECT_THROW(lat.set({ 3, 0 }, 1), std::out_of_range);
+}
+
+TEST(CALattice, EmptyExtentsHandlesZeroAxis)
+{
+  Lattice<Dense_Cell_Storage<int, 2>, OpenBoundary> lat({ 0, 3 }, 0);
+  EXPECT_EQ(lat.dimension(), 2u);
+  EXPECT_EQ(lat.size(), 0u);
+  EXPECT_EQ(lat.size(0), 0u);
+  EXPECT_EQ(lat.size(1), 3u);
+  EXPECT_THROW(lat.at({ 0, 0 }), std::out_of_range);
+  EXPECT_THROW(lat.set({ 0, 0 }, 1), std::out_of_range);
+  EXPECT_NO_THROW((void) lat.at_safe({ 0, 0 }));
+  EXPECT_EQ(lat.at_safe({ 0, 0 }), 0);
+
+  Lattice<Dense_Cell_Storage<int, 3>, OpenBoundary> cube({ 0, 0, 2 }, 0);
+  EXPECT_EQ(cube.dimension(), 3u);
+  EXPECT_EQ(cube.size(), 0u);
+  EXPECT_EQ(cube.size(0), 0u);
+  EXPECT_EQ(cube.size(1), 0u);
+  EXPECT_THROW(cube.at({ 0, 0, 0 }), std::out_of_range);
+  EXPECT_NO_THROW((void) cube.at_safe({ 0, 0, 0 }));
 }

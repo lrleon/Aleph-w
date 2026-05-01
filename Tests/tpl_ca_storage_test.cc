@@ -39,6 +39,7 @@
  */
 
 # include <cstdint>
+# include <limits>
 # include <stdexcept>
 # include <utility>
 
@@ -263,4 +264,11 @@ TEST(CABitCellStorage, ThreeDimensional)
   EXPECT_TRUE(s.at(1, 1, 1));
   EXPECT_FALSE(s.at(0, 0, 0));
   EXPECT_EQ(s.size(), 8u);
+}
+
+TEST(CABitCellStorage, ExtentsProductOverflowThrows)
+{
+  constexpr ca_size_t max = std::numeric_limits<ca_size_t>::max();
+  EXPECT_THROW((Bit_Cell_Storage<2>({ max, 2 }, false)),
+               std::overflow_error);
 }
