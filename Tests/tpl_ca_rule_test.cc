@@ -89,8 +89,8 @@ namespace
           const Rule & rule)
   {
     Lattice<Dense_Cell_Storage<int, 1>, Boundary> nxt(cur.extents());
-    Custom_Neighborhood<1, 2> nh({{ Offset_Vec<1>{ -1 },
-                                    Offset_Vec<1>{  1 } }});
+    Custom_Neighborhood<1, 2> nh(std::array<Offset_Vec<1>, 2>{ Offset_Vec<1>{ -1 },
+                                                               Offset_Vec<1>{  1 } });
     std::array<int, 2> buf { };
     for (ca_index_t i = 0; i < static_cast<ca_index_t>(cur.size(0)); ++i)
       {

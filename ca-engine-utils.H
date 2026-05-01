@@ -138,8 +138,8 @@ namespace CA
   make_wolfram_engine(std::uint8_t rule_no, ca_size_t width)
   {
     using L = Lattice<Dense_Cell_Storage<int, 1>, OpenBoundary>;
-    Custom_Neighborhood<1, 2> nh({{ Offset_Vec<1>{ -1 },
-                                    Offset_Vec<1>{  1 } }});
+    Custom_Neighborhood<1, 2> nh(std::array<Offset_Vec<1>, 2>{ Offset_Vec<1>{ -1 },
+                                                               Offset_Vec<1>{  1 } });
     return Wolfram_1D_Engine(L({ width }, 0),
                              make_wolfram_elementary_rule(rule_no),
                              std::move(nh));
@@ -158,8 +158,8 @@ namespace CA
   make_wolfram_engine(std::uint8_t rule_no,
                       Lattice<Dense_Cell_Storage<int, 1>, OpenBoundary> initial)
   {
-    Custom_Neighborhood<1, 2> nh({{ Offset_Vec<1>{ -1 },
-                                    Offset_Vec<1>{  1 } }});
+    Custom_Neighborhood<1, 2> nh(std::array<Offset_Vec<1>, 2>{ Offset_Vec<1>{ -1 },
+                                                               Offset_Vec<1>{  1 } });
     return Wolfram_1D_Engine(std::move(initial),
                              make_wolfram_elementary_rule(rule_no),
                              std::move(nh));

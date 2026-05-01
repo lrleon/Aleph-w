@@ -184,23 +184,44 @@ namespace CA
       return at(coord_type{ i, j, k });
     }
 
+    /** @brief Write 1D cell at index `i`.
+     *  @param i the column coordinate.
+     *  @param v the boolean value to write.
+     *  @throws std::out_of_range if `i` is out of bounds.
+     */
     void set(ca_index_t i, bool v) requires (N == 1)
     {
       set(coord_type{ i }, v);
     }
 
+    /** @brief Write 2D cell at `(i, j)`.
+     *  @param i the row coordinate.
+     *  @param j the column coordinate.
+     *  @param v the boolean value to write.
+     *  @throws std::out_of_range if the coordinate is out of bounds.
+     */
     void set(ca_index_t i, ca_index_t j, bool v) requires (N == 2)
     {
       set(coord_type{ i, j }, v);
     }
 
+    /** @brief Write 3D cell at `(i, j, k)`.
+     *  @param i the depth coordinate.
+     *  @param j the row coordinate.
+     *  @param k the column coordinate.
+     *  @param v the boolean value to write.
+     *  @throws std::out_of_range if the coordinate is out of bounds.
+     */
     void set(ca_index_t i, ca_index_t j, ca_index_t k, bool v)
       requires (N == 3)
     {
       set(coord_type{ i, j, k }, v);
     }
 
-    /// O(1) swap.
+    /** @brief Swap contents with another Bit_Cell_Storage instance.
+     *  @param other the other storage to swap with.
+     *  @note This operation is noexcept.
+     */
     void swap(Bit_Cell_Storage & other) noexcept
     {
       using std::swap;
@@ -209,7 +230,10 @@ namespace CA
       buffer.swap(other.buffer);
     }
 
-    /// Set every cell to `value`.
+    /** @brief Set every cell to `value`.
+     *  @param value the boolean value to set.
+     *  @note Does not throw. Sets all bits uniformly.
+     */
     void fill(bool value)
     {
       const unsigned int v = value ? 1u : 0u;

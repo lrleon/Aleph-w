@@ -206,9 +206,9 @@ TEST(CATriangularNeighborhood, ParityDependentThirdOffset)
 
 TEST(CACustomNeighborhood, EnumeratesProvidedOffsets)
 {
-  Custom_Neighborhood<2, 3> nh({{ Offset_Vec<2>{ 2, 0 },
-                                  Offset_Vec<2>{ 0, 2 },
-                                  Offset_Vec<2>{ -3, 1 } }});
+  Custom_Neighborhood<2, 3> nh(std::array<Offset_Vec<2>, 3>{ Offset_Vec<2>{ 2, 0 },
+                                                             Offset_Vec<2>{ 0, 2 },
+                                                             Offset_Vec<2>{ -3, 1 } });
   EXPECT_EQ(nh.size(), 3u);
   EXPECT_EQ(nh.radius(), 3u);  // largest |component| is 3
 

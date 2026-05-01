@@ -328,11 +328,12 @@ public:
 
     auto compute_one = [&](const coord_type &c)
     {
+      const std::size_t neigh_sz = nh.size();
       gather_neighbors(nh, cur_buf, c,
-                       std::span<state_type>(nbuf.data(), nbuf.size()));
+                       std::span<state_type>(nbuf.data(), neigh_sz));
       nxt_buf.set(c, rule(cur_buf.at(c),
                           Neighbor_View<state_type>(nbuf.data(),
-                                                    neighbour_count)));
+                                                    neigh_sz)));
     };
 
     if constexpr (rank == 1)

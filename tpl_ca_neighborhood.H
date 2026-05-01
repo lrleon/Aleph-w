@@ -398,7 +398,7 @@ namespace CA
     /** @brief Build a custom neighborhood from a braced offset list.
      *
      *  This overload keeps direct-list initialization such as
-     *  `Custom_Neighborhood<2, 3>({{ Offset_Vec<2>{ ... }, ... }})`
+     *  `Custom_Neighborhood<2, 3>({ Offset_Vec<2>{ ... }, ... })`
      *  unambiguous across GCC and Clang.
      *
      *  @param os offsets in the exact order exposed by `for_each_offset()`.
