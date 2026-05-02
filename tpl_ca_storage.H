@@ -111,11 +111,15 @@ private:
   ca_size_t total_cells_ = 0;  ///< product of `ext`
   Array<T> buffer_;            ///< contiguous row-major storage
 
-  static ca_size_t product(const extents_type &e) noexcept
+  static ca_size_t product(const extents_type &e)
   {
     ca_size_t p = 1;
     for (std::size_t d = 0; d < N; ++d)
-      p *= e[d];
+      {
+        ah_overflow_error_if(e[d] != 0 and p > std::numeric_limits<ca_size_t>::max() / e[d])
+          << "Dense_Cell_Storage: extent product overflows ca_size_t at dimension " << d;
+        p *= e[d];
+      }
     return p;
   }
 

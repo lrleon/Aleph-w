@@ -95,6 +95,7 @@
 
 #include <ca-tiling.H>
 #include <ca-traits.H>
+#include <tpl_ca_bit_storage.H>
 #include <tpl_ca_concepts.H>
 #include <tpl_ca_neighborhood.H>
 
@@ -120,6 +121,21 @@ struct is_tile<Tile<W, H>> : std::true_type
 
 template <typename O>
 inline constexpr bool is_tile_v = is_tile<O>::value;
+
+template <typename Storage>
+struct is_bit_cell_storage : std::false_type
+{
+};
+
+template <std::size_t N>
+struct is_bit_cell_storage<Bit_Cell_Storage<N>> : std::true_type
+{
+};
+
+template <typename Lattice>
+inline constexpr bool uses_bit_cell_storage_v = requires {
+  typename Lattice::storage_type;
+} and is_bit_cell_storage<typename Lattice::storage_type>::value;
 
 }  // namespace ca_parallel_detail
 
@@ -167,18 +183,17 @@ struct Parallel_Engine_Config
  *  `step()` / `run()` at a time. Worker threads inside the pool
  *  cooperate without synchronisation by reading the previous frame
  *  (read-only) and writing into disjoint slices of the next frame.
+ *  Bit-packed `Bit_Cell_Storage` writes are safely parallelized
+ *  because the underlying bits use atomic operations to avoid data races.
  */
 template <typename Lattice, typename Rule, typename Neighborhood, typename Order = RowMajor>
 class Parallel_Synchronous_Engine
 {
-  static_assert(LatticeLike<Lattice>,
-                "Parallel_Synchronous_Engine requires a LatticeLike lattice");
+  static_assert(LatticeLike<Lattice>, "Parallel_Synchronous_Engine requires a LatticeLike lattice");
   static_assert(NeighborhoodLike<Neighborhood>,
                 "Parallel_Synchronous_Engine requires a NeighborhoodLike neighborhood");
-  static_assert(RuleLike<Rule, Lattice>,
-                "Parallel_Synchronous_Engine requires a RuleLike rule");
-  static_assert(Neighborhood::rank_v == Lattice::rank,
-                "Neighborhood rank must match lattice rank");
+  static_assert(RuleLike<Rule, Lattice>, "Parallel_Synchronous_Engine requires a RuleLike rule");
+  static_assert(Neighborhood::rank_v == Lattice::rank, "Neighborhood rank must match lattice rank");
 
 public:
   using lattice_type = Lattice;
@@ -228,11 +243,8 @@ private:
     const std::size_t neigh_sz = nh_.size();
     gather_neighbors(nh_, cur_buf_, c, std::span<state_type>(nbuf.data(), neigh_sz));
     const Cell_Context<rank> ctx{step_count_, c};
-    nxt_buf_.set(c,
-                 apply_rule(rule_,
-                            cur_buf_.at(c),
-                            Neighbor_View<state_type>(nbuf.data(), neigh_sz),
-                            ctx));
+    nxt_buf_.set(
+      c, apply_rule(rule_, cur_buf_.at(c), Neighbor_View<state_type>(nbuf.data(), neigh_sz), ctx));
   }
 
   // -------------------------------------------------------------------
@@ -323,8 +335,7 @@ private:
       }
     else
       {
-        static_assert(rank <= 3,
-                      "Parallel_Synchronous_Engine currently supports rank <= 3");
+        static_assert(rank <= 3, "Parallel_Synchronous_Engine currently supports rank <= 3");
       }
   }
 
@@ -336,8 +347,7 @@ private:
     if (pool == nullptr)
       return 1;
     const std::size_t pool_workers = pool->num_threads();
-    std::size_t parts
-      = cfg_.num_partitions == 0 ? pool_workers : cfg_.num_partitions;
+    std::size_t parts = cfg_.num_partitions == 0 ? pool_workers : cfg_.num_partitions;
     if (parts == 0)
       parts = 1;
 
@@ -347,9 +357,7 @@ private:
     if (parts > outer)
       parts = outer == 0 ? 1 : outer;
 
-    if (should_run_sequential(cur_buf_.size(),
-                              parts,
-                              cfg_.min_parallel_cells))
+    if (should_run_sequential(cur_buf_.size(), parts, cfg_.min_parallel_cells))
       return 1;
     return parts;
   }
@@ -367,15 +375,9 @@ public:
    *  @par Complexity
    *  O(N) for allocating the next buffer.
    */
-  Parallel_Synchronous_Engine(Lattice initial,
-                              Rule r,
-                              Neighborhood n,
-                              Parallel_Engine_Config cfg = {})
-    : cur_buf_(std::move(initial))
-    , nxt_buf_(cur_buf_.extents())
-    , rule_(std::move(r))
-    , nh_(std::move(n))
-    , cfg_(cfg)
+  Parallel_Synchronous_Engine(Lattice initial, Rule r, Neighborhood n, Parallel_Engine_Config cfg = {})
+    : cur_buf_(std::move(initial)), nxt_buf_(cur_buf_.extents()), rule_(std::move(r)),
+      nh_(std::move(n)), cfg_(cfg)
   {}
 
   /** @brief Build an engine with a default-constructed neighbourhood.
@@ -394,21 +396,36 @@ public:
   /** @brief Return the current frame.
    *  @return read-only view of the current lattice buffer.
    */
-  [[nodiscard]] const Lattice &frame() const noexcept { return cur_buf_; }
+  [[nodiscard]] const Lattice &frame() const noexcept
+  {
+    return cur_buf_;
+  }
 
   /** @brief Return the number of completed steps.
    *  @return the number of `step()` invocations performed so far.
    */
-  [[nodiscard]] std::size_t steps_run() const noexcept { return step_count_; }
+  [[nodiscard]] std::size_t steps_run() const noexcept
+  {
+    return step_count_;
+  }
 
   /// @return the current frame extents.
-  [[nodiscard]] const extents_type &extents() const noexcept { return cur_buf_.extents(); }
+  [[nodiscard]] const extents_type &extents() const noexcept
+  {
+    return cur_buf_.extents();
+  }
 
   /// @return the active configuration.
-  [[nodiscard]] const Parallel_Engine_Config &config() const noexcept { return cfg_; }
+  [[nodiscard]] const Parallel_Engine_Config &config() const noexcept
+  {
+    return cfg_;
+  }
 
   /// Replace the configuration. Takes effect on the next `step()`.
-  void set_config(Parallel_Engine_Config cfg) noexcept { cfg_ = cfg; }
+  void set_config(Parallel_Engine_Config cfg) noexcept
+  {
+    cfg_ = cfg;
+  }
 
   /// Register a hook fired *before* every `step()`. Hooks run on the
   /// driving thread, never inside a worker.
@@ -472,8 +489,10 @@ public:
             const Range1D rng = Row_Partition<rank>::slab(ext, parts, p);
             if (rng.empty())
               continue;
-            futures.emplace_back(pool->enqueue(
-              [this, b = rng.begin, e = rng.end] { this->process_slab(b, e); }));
+            futures.emplace_back(pool->enqueue([this, b = rng.begin, e = rng.end]
+            {
+              this->process_slab(b, e);
+            }));
           }
         // Wait for every worker. `get()` re-throws any exception raised
         // inside the partition; the first one wins and propagates.

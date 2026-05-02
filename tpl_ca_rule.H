@@ -135,10 +135,12 @@ public:
  *         the neighbourhood (including the centre).
  *
  *  Used by Wolfram's totalistic codes and by averaging-style updates.
- *  The functor receives a single `State` argument carrying the sum
- *  and returns the next state.
+ *  The functor receives the accumulated sum widened to
+ *  `std::common_type_t<State, std::intmax_t>` to avoid overflow for
+ *  `bool` and small integral states, and returns the next state.
  *
- *  @tparam F functor type with signature `(State) -> State`.
+ *  @tparam F functor type with signature
+ *            `(std::common_type_t<State, std::intmax_t>) -> State`.
  */
 template <typename F>
 class Totalistic_Rule

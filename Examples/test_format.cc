@@ -1,8 +1,15 @@
 #include <cstddef>
 #include <tuple>
 
+struct Observer
+{
+  template <typename Lattice>
+  void on_step_end(std::size_t, const Lattice &)
+  {}
+};
+
 class Test {
-  int obs_;
+  std::tuple<Observer, Observer> obs_;
 public:
   template <typename Lattice>
   void on_step_end(std::size_t step, const Lattice &frame)
@@ -14,3 +21,8 @@ public:
       obs_);
   }
 };
+
+int main()
+{
+  return 0;
+}

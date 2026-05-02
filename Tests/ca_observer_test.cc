@@ -157,6 +157,23 @@ TEST(CAComposite, FansOutBothCallbacksToEveryChild)
   EXPECT_EQ(b.ends, 1u);
 }
 
+TEST(CAComposite, FactoryPreservesLvalueObserverReferences)
+{
+  Counting_Observer a;
+  Counting_Observer b;
+  auto comp = make_composite_observer(a, b);
+  L frame({2, 2}, 0);
+
+  comp.on_step_begin(0, frame);
+  comp.on_step_end(1, frame);
+  comp.on_step_begin(1, frame);
+
+  EXPECT_EQ(a.begins, 2u);
+  EXPECT_EQ(a.ends, 1u);
+  EXPECT_EQ(b.begins, 2u);
+  EXPECT_EQ(b.ends, 1u);
+}
+
 // ---------------------------------------------------------------------------
 // Activity observer: blinker -> 4 changes per step.
 // ---------------------------------------------------------------------------

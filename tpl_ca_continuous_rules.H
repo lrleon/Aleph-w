@@ -81,7 +81,7 @@ template <typename Real>
 inline void require_domain(const Real value, const Real lo, const Real hi, const char *label)
 {
   require_finite(value, label);
-  ah_runtime_error_if(value < lo or value > hi)
+  ah_domain_error_if(value < lo or value > hi)
     << label << "=" << value << " outside [" << lo << ", " << hi << "]";
 }
 

@@ -130,32 +130,64 @@ class Composite_Observer
   std::tuple<Observers...> obs_;
 
 public:
-  /// Build the composite from the child observers. Reference types
-  /// in `Observers...` are preserved (the composite borrows them);
-  /// value types are moved into the tuple.
+  /** @brief Build the composite from child observers.
+   *
+   *  Reference types in `Observers...` are preserved and borrowed;
+   *  value types are moved into the tuple and owned by the composite.
+   *
+   *  @param[in] observers child observers to store or reference.
+   *  @throws Any exception thrown while constructing the internal tuple.
+   *
+   *  @par Complexity
+   *  O(number of observers) time and space.
+   *
+   *  @par Thread-safety
+   *  Not thread-safe for concurrent callback writes. Concurrent readers
+   *  are safe only if the referenced/owned observers are safe.
+   */
   explicit Composite_Observer(Observers... observers) : obs_(std::forward<Observers>(observers)...)
   {}
 
-  /// Read-only access to a child observer (by index).
+  /** @brief Return read-only access to a child observer.
+   *  @tparam I child index.
+   *  @return const reference to the selected observer.
+   *  @throws This function does not throw.
+   */
   template <std::size_t I>
   [[nodiscard]] const auto &get() const noexcept
   {
     return std::get<I>(obs_);
   }
 
-  /// Mutable access to a child observer (for reading time series).
+  /** @brief Return mutable access to a child observer.
+   *  @tparam I child index.
+   *  @return mutable reference to the selected observer.
+   *  @throws This function does not throw.
+   */
   template <std::size_t I>
   [[nodiscard]] auto &get() noexcept
   {
     return std::get<I>(obs_);
   }
 
-  /// Number of child observers.
+  /** @brief Return the number of child observers.
+   *  @return `sizeof...(Observers)`.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] static constexpr std::size_t size() noexcept
   {
     return sizeof...(Observers);
   }
 
+  /** @brief Forward a step-begin event to every child observer.
+   *  @tparam Lattice lattice type.
+   *  @param[in] step step index about to run.
+   *  @param[in] frame current frame before the step.
+   *  @throws Any exception thrown by a child observer.
+   *
+   *  @par Complexity
+   *  O(number of observers).
+   */
   template <typename Lattice>
   void on_step_begin(std::size_t step, const Lattice &frame)
   {
@@ -165,6 +197,15 @@ public:
     }, obs_);
   }
 
+  /** @brief Forward a step-end event to every child observer.
+   *  @tparam Lattice lattice type.
+   *  @param[in] step step index just completed.
+   *  @param[in] frame current frame after the step.
+   *  @throws Any exception thrown by a child observer.
+   *
+   *  @par Complexity
+   *  O(number of observers).
+   */
   template <typename Lattice>
   void on_step_end(std::size_t step, const Lattice &frame)
   {
@@ -175,9 +216,22 @@ public:
   }
 };
 
-/// Helper that deduces template arguments for `Composite_Observer`.
+/** @brief Build a `Composite_Observer` with deduced ownership semantics.
+ *
+ *  Lvalue arguments are stored as references, so later state changes
+ *  remain visible through the original observer objects. Rvalue
+ *  arguments are moved into and owned by the composite.
+ *
+ *  @tparam Observers deduced observer argument types.
+ *  @param[in] observers observer objects or references.
+ *  @return a composite observer preserving lvalue references.
+ *  @throws Any exception thrown while constructing the composite.
+ *
+ *  @par Complexity
+ *  O(number of observers) time and space.
+ */
 template <typename... Observers>
-[[nodiscard]] inline auto make_composite_observer(Observers... observers)
+[[nodiscard]] inline auto make_composite_observer(Observers &&...observers)
 {
   return Composite_Observer<Observers...>(std::forward<Observers>(observers)...);
 }
@@ -195,6 +249,14 @@ template <typename... Observers>
  *
  *  @param[in,out] engine   engine instance.
  *  @param[in,out] observer observer instance to wire.
+ *  @throws Any exception thrown by engine hook registration.
+ *
+ *  @par Complexity
+ *  O(1) time and space.
+ *
+ *  @par Thread-safety
+ *  Not thread-safe if the engine is concurrently mutated. The observer
+ *  is captured by reference and must outlive the engine callbacks.
  */
 template <typename Engine, typename Observer>
 inline void attach_observer(Engine &engine, Observer &observer)
@@ -210,9 +272,22 @@ inline void attach_observer(Engine &engine, Observer &observer)
   });
 }
 
-/// Overload for `Graph_Synchronous_Engine`, which does not expose
-/// the `lattice_type` typedef. Falls back to template deduction
-/// through the hook signatures.
+/** @brief Attach an observer to engines without a `lattice_type` alias.
+ *
+ *  This overload is intended for `Graph_Synchronous_Engine`; it captures
+ *  the observer by reference and deduces the frame type in the hook
+ *  lambdas.
+ *
+ *  @param[in,out] engine engine instance.
+ *  @param[in,out] observer observer instance; must outlive callbacks.
+ *  @throws Any exception thrown by engine hook registration.
+ *
+ *  @par Complexity
+ *  O(1) time and space.
+ *
+ *  @par Thread-safety
+ *  Not thread-safe if the engine is concurrently mutated.
+ */
 template <typename Engine, typename Observer>
 inline void attach_observer_graph(Engine &engine, Observer &observer)
 {
@@ -237,6 +312,17 @@ inline void attach_observer_graph(Engine &engine, Observer &observer)
  *  for `step == 0`, so the time series includes the initial frame.
  *
  *  @tparam State cell state type to track.
+ *
+ *  @par Complexity
+ *  Callbacks are O(N) per sampled frame and O(1) extra space per
+ *  sample, where N is the number of cells.
+ *
+ *  @par Thread-safety
+ *  Thread-safe for concurrent readers after simulation stops; not
+ *  thread-safe for concurrent writers/callbacks.
+ *
+ *  @par Exception-safety
+ *  Strong guarantee unless vector allocation throws during sampling.
  */
 template <typename State>
 class Density_Observer
@@ -247,26 +333,40 @@ class Density_Observer
   bool seeded_ = false;
 
 public:
-  /// Default-constructed observer tracks `State{}`.
+  /** @brief Construct an observer that tracks `State{}`.
+   *  @throws Any exception thrown by `State` default construction.
+   */
   Density_Observer() = default;
 
-  /// Observer tracking a specific state value.
+  /** @brief Construct an observer tracking a specific state.
+   *  @param[in] s state value counted at every sample.
+   *  @throws Any exception thrown while moving/copying `s`.
+   */
   explicit Density_Observer(State s) : tracked_state_(std::move(s)) {}
 
-  /// @return the time series of counts (one per recorded step,
-  /// including the initial frame).
+  /** @brief Return the count time series.
+   *  @return counts, one per recorded step including the initial frame.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] const std::vector<ca_size_t> &counts() const noexcept
   {
     return counts_;
   }
 
-  /// @return the time series of total cell counts (mirrors `counts`).
+  /** @brief Return the total-cell time series.
+   *  @return total cell counts, aligned with `counts()`.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] const std::vector<ca_size_t> &totals() const noexcept
   {
     return totals_;
   }
 
-  /// @return density at sample `i` in `[0, 1]`.
+  /** @brief Return density at a recorded sample.
+   *  @param[in] i sample index.
+   *  @return `counts()[i] / totals()[i]`, or 0 for empty lattices.
+   *  @throws std::out_of_range if `i >= size()`.
+   */
   [[nodiscard]] double density_at(std::size_t i) const
   {
     ah_out_of_range_error_if(i >= counts_.size())
@@ -274,13 +374,21 @@ public:
     return totals_[i] == 0 ? 0.0 : static_cast<double>(counts_[i]) / static_cast<double>(totals_[i]);
   }
 
-  /// @return number of recorded samples.
+  /** @brief Return the number of recorded samples.
+   *  @return sample count.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] std::size_t size() const noexcept
   {
     return counts_.size();
   }
 
-  /// Reset the time series.
+  /** @brief Clear all recorded samples.
+   *  @throws This function does not throw.
+   *
+   *  @par Complexity
+   *  O(size()).
+   */
   void reset() noexcept
   {
     counts_.clear();
@@ -288,6 +396,12 @@ public:
     seeded_ = false;
   }
 
+  /** @brief Record the initial frame before step zero.
+   *  @tparam Lattice lattice type.
+   *  @param[in] step step index about to run.
+   *  @param[in] frame frame before the step.
+   *  @throws std::bad_alloc if appending the sample allocates.
+   */
   template <typename Lattice>
   void on_step_begin(std::size_t step, const Lattice &frame)
   {
@@ -299,9 +413,16 @@ public:
       }
   }
 
+  /** @brief Record the frame after a completed step.
+   *  @tparam Lattice lattice type.
+   *  @param[in] step completed step index, ignored.
+   *  @param[in] frame frame after the step.
+   *  @throws std::bad_alloc if appending the sample allocates.
+   */
   template <typename Lattice>
-  void on_step_end(std::size_t /*step*/, const Lattice &frame)
+  void on_step_end(std::size_t step, const Lattice &frame)
   {
+    (void) step;
     counts_.push_back(count_state(frame, tracked_state_));
     totals_.push_back(total_cells(frame));
   }
@@ -320,6 +441,18 @@ public:
  *
  *  @tparam Lattice lattice type the observer is wired to. Stored as a
  *                  member so the previous frame can be retained.
+ *
+ *  @par Complexity
+ *  `on_step_begin` copies one frame in O(N); `on_step_end` compares
+ *  frames in O(N).
+ *
+ *  @par Thread-safety
+ *  Thread-safe for concurrent readers after simulation stops; not
+ *  thread-safe for concurrent callbacks.
+ *
+ *  @par Exception-safety
+ *  Strong guarantee unless copying the frame or appending the sample
+ *  throws.
  */
 template <typename Lattice>
 class Activity_Observer
@@ -328,33 +461,60 @@ class Activity_Observer
   std::vector<ca_size_t> activity_;
 
 public:
+  /** @brief Construct an empty activity observer.
+   *  @throws This function does not throw.
+   */
   Activity_Observer() = default;
 
-  /// @return time series of cells changed per step.
+  /** @brief Return the activity time series.
+   *  @return changed-cell counts, one per completed step.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] const std::vector<ca_size_t> &activity() const noexcept
   {
     return activity_;
   }
 
-  /// @return number of recorded steps.
+  /** @brief Return the number of recorded steps.
+   *  @return sample count.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] std::size_t size() const noexcept
   {
     return activity_.size();
   }
 
+  /** @brief Clear the previous frame and activity samples.
+   *  @throws This function does not throw.
+   *
+   *  @par Complexity
+   *  O(size()) plus destruction cost of the stored frame.
+   */
   void reset() noexcept
   {
     prev_.reset();
     activity_.clear();
   }
 
-  void on_step_begin(std::size_t /*step*/, const Lattice &frame)
+  /** @brief Capture the frame before a step.
+   *  @param[in] step step index about to run, ignored.
+   *  @param[in] frame frame before the step.
+   *  @throws Any exception thrown while copying `frame`.
+   */
+  void on_step_begin(std::size_t step, const Lattice &frame)
   {
+    (void) step;
     prev_.emplace(frame);
   }
 
-  void on_step_end(std::size_t /*step*/, const Lattice &frame)
+  /** @brief Record changed cells after a step.
+   *  @param[in] step completed step index, ignored.
+   *  @param[in] frame frame after the step.
+   *  @throws std::bad_alloc if appending the sample allocates.
+   */
+  void on_step_end(std::size_t step, const Lattice &frame)
   {
+    (void) step;
     if (prev_.has_value())
       activity_.push_back(cell_diff_count(*prev_, frame));
     else
@@ -373,6 +533,16 @@ public:
  *  initial frame).
  *
  *  @tparam MaxState exclusive upper bound on the state values.
+ *
+ *  @par Complexity
+ *  Callbacks are O(N + MaxState) per sampled frame.
+ *
+ *  @par Thread-safety
+ *  Thread-safe for concurrent readers after simulation stops; not
+ *  thread-safe for concurrent callbacks.
+ *
+ *  @par Exception-safety
+ *  Strong guarantee unless vector allocation throws.
  */
 template <std::size_t MaxState>
 class Entropy_Observer
@@ -381,26 +551,47 @@ class Entropy_Observer
   bool seeded_ = false;
 
 public:
+  /** @brief Construct an empty entropy observer.
+   *  @throws This function does not throw.
+   */
   Entropy_Observer() = default;
 
-  /// @return time series of entropies in nats.
+  /** @brief Return the entropy time series.
+   *  @return entropies in nats, including the initial frame.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] const std::vector<double> &entropy() const noexcept
   {
     return entropy_;
   }
 
-  /// @return number of recorded samples.
+  /** @brief Return the number of entropy samples.
+   *  @return sample count.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] std::size_t size() const noexcept
   {
     return entropy_.size();
   }
 
+  /** @brief Clear all entropy samples.
+   *  @throws This function does not throw.
+   *
+   *  @par Complexity
+   *  O(size()).
+   */
   void reset() noexcept
   {
     entropy_.clear();
     seeded_ = false;
   }
 
+  /** @brief Record entropy of the initial frame.
+   *  @tparam Lattice lattice type.
+   *  @param[in] step step index about to run.
+   *  @param[in] frame frame before the step.
+   *  @throws std::bad_alloc if appending the sample allocates.
+   */
   template <typename Lattice>
   void on_step_begin(std::size_t step, const Lattice &frame)
   {
@@ -411,9 +602,16 @@ public:
       }
   }
 
+  /** @brief Record entropy after a completed step.
+   *  @tparam Lattice lattice type.
+   *  @param[in] step completed step index, ignored.
+   *  @param[in] frame frame after the step.
+   *  @throws std::bad_alloc if appending the sample allocates.
+   */
   template <typename Lattice>
-  void on_step_end(std::size_t /*step*/, const Lattice &frame)
+  void on_step_end(std::size_t step, const Lattice &frame)
   {
+    (void) step;
     entropy_.push_back(shannon_entropy(frame, MaxState));
   }
 };
@@ -434,6 +632,17 @@ public:
  *  Multiple periodic patterns active at once (e.g. a blinker plus a
  *  glider in different regions) result in the longest reachable
  *  cycle within the buffer being detected.
+ *
+ *  @par Complexity
+ *  Each callback computes one frame hash in O(N) and scans at most
+ *  `max_cycle_length + 1` hashes.
+ *
+ *  @par Thread-safety
+ *  Thread-safe for concurrent readers after simulation stops; not
+ *  thread-safe for concurrent callbacks.
+ *
+ *  @par Exception-safety
+ *  Strong guarantee unless vector allocation throws.
  */
 class Stationary_Detector
 {
@@ -456,37 +665,60 @@ class Stationary_Detector
   }
 
 public:
-  /// Default constructor with a window of 16 frames.
+  /** @brief Construct a detector with the default 16-frame window.
+   *  @throws This function does not throw.
+   */
   Stationary_Detector() = default;
 
-  /// Construct with an explicit window size.
+  /** @brief Construct a detector with an explicit window size.
+   *  @param[in] max_cycle_length maximum cycle length to retain.
+   *  @throws This function does not throw.
+   */
   explicit Stationary_Detector(std::size_t max_cycle_length) : max_cycle_length_(max_cycle_length)
   {}
 
-  /// @return true once a cycle has been detected.
+  /** @brief Return whether a cycle has been detected.
+   *  @return true after the first matching frame hash.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] bool cycle_detected() const noexcept
   {
     return cycle_length_.has_value();
   }
 
-  /// @return detected cycle length, or `std::nullopt`.
+  /** @brief Return the detected cycle length.
+   *  @return cycle length, or `std::nullopt` if none has been found.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] std::optional<std::size_t> cycle_length() const noexcept
   {
     return cycle_length_;
   }
 
-  /// @return step at which the cycle started, or `std::nullopt`.
+  /** @brief Return the cycle start step.
+   *  @return start step, or `std::nullopt` if no cycle has been found.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] std::optional<std::size_t> cycle_start() const noexcept
   {
     return cycle_start_;
   }
 
-  /// @return current number of stored hashes.
+  /** @brief Return the number of buffered hashes.
+   *  @return current ring-buffer occupancy.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] std::size_t buffered_hashes() const noexcept
   {
     return hashes_.size();
   }
 
+  /** @brief Clear buffered hashes and detected-cycle state.
+   *  @throws This function does not throw.
+   *
+   *  @par Complexity
+   *  O(buffered_hashes()).
+   */
   void reset() noexcept
   {
     hashes_.clear();
@@ -495,6 +727,12 @@ public:
     cycle_start_.reset();
   }
 
+  /** @brief Seed the detector with the initial frame hash.
+   *  @tparam Lattice lattice type.
+   *  @param[in] step step index about to run.
+   *  @param[in] frame frame before the step.
+   *  @throws std::bad_alloc if buffering the hash allocates.
+   */
   template <typename Lattice>
   void on_step_begin(std::size_t step, const Lattice &frame)
   {
@@ -504,6 +742,12 @@ public:
       push(frame_hash(frame), step);
   }
 
+  /** @brief Check the completed frame against the recent hash window.
+   *  @tparam Lattice lattice type.
+   *  @param[in] step completed step index.
+   *  @param[in] frame frame after the step.
+   *  @throws std::bad_alloc if buffering the hash allocates.
+   */
   template <typename Lattice>
   void on_step_end(std::size_t step, const Lattice &frame)
   {
@@ -536,6 +780,18 @@ public:
  *  sampling entirely.
  *
  *  @tparam Lattice lattice type to copy.
+ *
+ *  @par Complexity
+ *  Sampling a frame costs O(N) time and space. Non-sampling callbacks
+ *  are O(1).
+ *
+ *  @par Thread-safety
+ *  Thread-safe for concurrent readers after simulation stops; not
+ *  thread-safe for concurrent callbacks.
+ *
+ *  @par Exception-safety
+ *  Strong guarantee unless copying the lattice or appending to vectors
+ *  throws.
  */
 template <typename Lattice>
 class Sampling_Observer
@@ -545,36 +801,61 @@ class Sampling_Observer
   std::vector<std::size_t> step_indices_;
 
 public:
-  /// Snapshot every step (`period == 1`) by default.
+  /** @brief Construct an observer that snapshots every step.
+   *  @throws This function does not throw.
+   */
   Sampling_Observer() = default;
 
-  /// Snapshot every `period` steps. `0` disables sampling entirely.
+  /** @brief Construct an observer with an explicit sampling period.
+   *  @param[in] period snapshot period; zero disables sampling.
+   *  @throws This function does not throw.
+   */
   explicit Sampling_Observer(std::size_t period) : period_(period) {}
 
-  /// @return collected snapshots in chronological order.
+  /** @brief Return collected snapshots.
+   *  @return snapshots in chronological order.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] const std::vector<Lattice> &snapshots() const noexcept
   {
     return snapshots_;
   }
 
-  /// @return step index recorded for each snapshot.
+  /** @brief Return step indices for collected snapshots.
+   *  @return step indices aligned with `snapshots()`.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] const std::vector<std::size_t> &step_indices() const noexcept
   {
     return step_indices_;
   }
 
-  /// @return number of stored snapshots.
+  /** @brief Return the number of stored snapshots.
+   *  @return snapshot count.
+   *  @throws This function does not throw.
+   */
   [[nodiscard]] std::size_t size() const noexcept
   {
     return snapshots_.size();
   }
 
+  /** @brief Clear all snapshots and step indices.
+   *  @throws This function does not throw.
+   *
+   *  @par Complexity
+   *  O(size()) plus snapshot destruction cost.
+   */
   void reset() noexcept
   {
     snapshots_.clear();
     step_indices_.clear();
   }
 
+  /** @brief Capture the initial frame when sampling is enabled.
+   *  @param[in] step step index about to run.
+   *  @param[in] frame frame before the step.
+   *  @throws Any exception thrown while copying `frame` or appending.
+   */
   void on_step_begin(std::size_t step, const Lattice &frame)
   {
     if (period_ != 0 and step == 0 and snapshots_.empty())
@@ -584,6 +865,11 @@ public:
       }
   }
 
+  /** @brief Capture the completed frame at period boundaries.
+   *  @param[in] step completed step index.
+   *  @param[in] frame frame after the step.
+   *  @throws Any exception thrown while copying `frame` or appending.
+   */
   void on_step_end(std::size_t step, const Lattice &frame)
   {
     if (period_ == 0)

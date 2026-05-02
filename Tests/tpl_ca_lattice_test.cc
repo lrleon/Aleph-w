@@ -123,6 +123,27 @@ TEST(CALatticeToroidalBoundary, WrapsOnEachAxis)
 // ReflectiveBoundary: -1 → 0, -2 → 1, n → n-1, n+1 → n-2.
 // ---------------------------------------------------------------------------
 
+TEST(CALatticeReflectiveBoundary, ReflectIntoRangeCoversBoundaryAndPeriods)
+{
+  using ca_lattice_detail::reflect_into_range;
+
+  EXPECT_EQ(reflect_into_range(-1, 3), 0u);
+  EXPECT_EQ(reflect_into_range(-2, 3), 1u);
+  EXPECT_EQ(reflect_into_range(3, 3), 2u);
+  EXPECT_EQ(reflect_into_range(4, 3), 1u);
+  EXPECT_EQ(reflect_into_range(-3, 3), 2u);
+  EXPECT_EQ(reflect_into_range(5, 3), 0u);
+  EXPECT_EQ(reflect_into_range(6, 3), 0u);
+  EXPECT_EQ(reflect_into_range(-7, 3), 0u);
+
+  EXPECT_EQ(reflect_into_range(-1, 5), 0u);
+  EXPECT_EQ(reflect_into_range(-2, 5), 1u);
+  EXPECT_EQ(reflect_into_range(5, 5), 4u);
+  EXPECT_EQ(reflect_into_range(6, 5), 3u);
+  EXPECT_EQ(reflect_into_range(19, 5), 0u);
+  EXPECT_EQ(reflect_into_range(-19, 5), 1u);
+}
+
 TEST(CALatticeReflectiveBoundary, MirrorsAtEachEdge)
 {
   auto lat = make_3x3_int_lattice<ReflectiveBoundary>();

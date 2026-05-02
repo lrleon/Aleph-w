@@ -434,7 +434,9 @@ template <typename Lattice>
         for (ca_size_t j = 0; j < n1; ++j)
           for (ca_size_t k = 0; k < n2; ++k)
             {
-              const coord_t c{i, j, k};
+              const coord_t c{static_cast<ca_index_t>(i),
+                              static_cast<ca_index_t>(j),
+                              static_cast<ca_index_t>(k)};
               if (a.at(c) != b.at(c))
                 ++diff;
             }

@@ -157,10 +157,14 @@ TEST(CAProbabilisticRule, ContextualRouteUsesCellSeedDeterminism)
   const int b = rule(0, Neighbor_View<int>(nbuf.data(), 1), ctx);
   EXPECT_EQ(a, b);
 
-  // Different context → different seed → almost surely different draw.
+  // Different context -> deterministically different seed and first draw.
   Cell_Context<2> ctx2{4, Coord_Vec<2>{4, 7}};
-  const int c = rule(0, Neighbor_View<int>(nbuf.data(), 1), ctx2);
-  EXPECT_NE(a, c);
+  const std::uint64_t seed1 = cell_seed<2>(rule.master_seed(), ctx);
+  const std::uint64_t seed2 = cell_seed<2>(rule.master_seed(), ctx2);
+  EXPECT_NE(seed1, seed2);
+  std::mt19937_64 eng1{static_cast<std::mt19937_64::result_type>(seed1)};
+  std::mt19937_64 eng2{static_cast<std::mt19937_64::result_type>(seed2)};
+  EXPECT_NE(eng1(), eng2());
 }
 
 // ---------------------------------------------------------------------------

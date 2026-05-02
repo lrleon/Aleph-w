@@ -149,6 +149,59 @@ TEST(CAGhostLatticeShape, SizeAxisOutOfRangeThrows)
   EXPECT_THROW(g.size(2), std::out_of_range);
 }
 
+TEST(CAGhostLatticeShapeEmptyExtents, OneDimensionalEmptyIsStable)
+{
+  Ghost_Lattice<Dense_Cell_Storage<int, 1>, OpenBoundary, 2> g({0}, 7);
+
+  EXPECT_EQ(g.dimension(), 1u);
+  EXPECT_EQ(g.size(), 0u);
+  EXPECT_EQ(g.size(0), 0u);
+  EXPECT_EQ(g.extents()[0], 0u);
+  EXPECT_EQ(g.store_extents()[0], 0u);
+  EXPECT_EQ(g.halo_radius(), 2u);
+  EXPECT_EQ(g.storage().size(), 0u);
+
+  EXPECT_EQ(g.at_safe({0}), 0);
+  EXPECT_EQ(g.at_safe({-1}), 0);
+  EXPECT_NO_THROW(g.refresh_halo());
+  EXPECT_NO_THROW(g.fill(3));
+  EXPECT_EQ(g.size(), 0u);
+  EXPECT_EQ(g.storage().size(), 0u);
+}
+
+TEST(CAGhostLatticeShapeEmptyExtents, TwoDimensionalEmptyAxesAreStable)
+{
+  using Ghost = Ghost_Lattice<Dense_Cell_Storage<int, 2>, ToroidalBoundary, 1>;
+  Ghost row_empty({0, 5}, 9);
+  Ghost col_empty({5, 0}, 9);
+
+  for (Ghost *g : {&row_empty, &col_empty})
+    {
+      EXPECT_EQ(g->dimension(), 2u);
+      EXPECT_EQ(g->size(), 0u);
+      EXPECT_EQ(g->storage().size(), 0u);
+      EXPECT_EQ(g->halo_radius(), 1u);
+
+      EXPECT_EQ(g->at_safe({0, 0}), 0);
+      EXPECT_EQ(g->at_safe({-1, 0}), 0);
+      EXPECT_EQ(g->at_safe({0, -1}), 0);
+      EXPECT_NO_THROW(g->refresh_halo());
+      EXPECT_NO_THROW(g->fill(4));
+      EXPECT_EQ(g->size(), 0u);
+      EXPECT_EQ(g->storage().size(), 0u);
+    }
+
+  EXPECT_EQ(row_empty.extents()[0], 0u);
+  EXPECT_EQ(row_empty.extents()[1], 5u);
+  EXPECT_EQ(row_empty.store_extents()[0], 0u);
+  EXPECT_EQ(row_empty.store_extents()[1], 7u);
+
+  EXPECT_EQ(col_empty.extents()[0], 5u);
+  EXPECT_EQ(col_empty.extents()[1], 0u);
+  EXPECT_EQ(col_empty.store_extents()[0], 7u);
+  EXPECT_EQ(col_empty.store_extents()[1], 0u);
+}
+
 // ---------------------------------------------------------------------------
 // fill(): the user-visible region is set, the halo remains untouched
 // until refresh_halo is called again.

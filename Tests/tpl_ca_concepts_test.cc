@@ -70,7 +70,8 @@ namespace
     std::array<std::size_t, 2> extents { 0, 0 };
     std::array<T, 16> cells { };  // up to 4x4 fits
 
-    std::size_t dimension() const { return 2; }
+    static std::size_t dimension()
+    { return 2; }
 
     std::size_t size(std::size_t d) const { return extents[d]; }
 
@@ -88,8 +89,16 @@ namespace
   /// Minimal Moore-like neighborhood placeholder (no enumeration yet).
   struct Mock_Neighborhood
   {
+    using coord_type = Coord_Vec<2>;
+    static constexpr std::size_t rank_v = 2;
+    static constexpr std::size_t size_v = 8;
+
     std::size_t radius() const { return 1; }
-    std::size_t size()   const { return 8; }
+    std::size_t size()   const { return size_v; }
+
+    template <typename F>
+    static void for_each_offset(const coord_type &, F &&)
+    {}
   };
 
   /// Minimal rule: returns the current state unchanged.

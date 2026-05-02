@@ -1,10 +1,9 @@
 # Módulo de autómatas celulares — arquitectura
 
 > Documento de arquitectura, glosario y diagrama de capas para el módulo
-> `Aleph::CA`. Acompaña al plan por fases descrito en
-> [`cell-automata.md`](../cell-automata.md). Esta versión refleja **Fase 0**
-> (concepts y skeleton). Las capas concretas se materializan a partir de
-> Fase 1.
+> `Aleph::CA`. Acompaña al plan por fases del módulo de autómatas
+> celulares. Esta versión refleja **Fase 0** (concepts y skeleton). Las
+> capas concretas se materializan a partir de Fase 1.
 
 ---
 
@@ -182,7 +181,7 @@ aparte (`ca-tiling.H`).
 | Lattice         | Fase 1 ✔ | `tpl_ca_lattice.H`                             |
 | Neighborhood    | Fase 2 ✔ | `tpl_ca_neighborhood.H`                        |
 | Rule            | Fase 2 ✔ | `tpl_ca_rule.H`                                |
-| Engine síncrono | pendiente | `tpl_ca_engine.H`                              |
+| Engine síncrono | Fase 3 ✔  | `tpl_ca_engine.H`                              |
 | Ghost / halo    | pendiente | `tpl_ca_ghost_lattice.H`                       |
 | Paralelo        | pendiente | `tpl_ca_parallel_engine.H`                     |
 | Topologías      | pendiente | `tpl_ca_hex_lattice.H`, `tpl_ca_graph_automaton.H` |

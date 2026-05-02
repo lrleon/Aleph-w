@@ -233,6 +233,8 @@ public:
   static constexpr std::size_t radius_v = R;
   /// Number of neighbours (excluding center).
   static constexpr std::size_t size_v = ca_neighborhood_detail::static_pow(2 * R + 1, N) - 1;
+  /// Coordinate type accepted by for_each_offset.
+  using coord_type = Coord_Vec<N>;
 
   /// Compile-time, canonical-ordered offsets.
   static constexpr std::array<Offset_Vec<N>, size_v> offsets
@@ -282,6 +284,7 @@ public:
   static constexpr std::size_t rank_v = N;
   static constexpr std::size_t radius_v = R;
   static constexpr std::size_t size_v = ca_neighborhood_detail::von_neumann_count<N, R>();
+  using coord_type = Coord_Vec<N>;
 
   static constexpr std::array<Offset_Vec<N>, size_v> offsets
     = ca_neighborhood_detail::compute_von_neumann_offsets<N, R>();
@@ -325,6 +328,7 @@ public:
   static constexpr std::size_t rank_v = 2;
   static constexpr std::size_t radius_v = 1;
   static constexpr std::size_t size_v = 6;
+  using coord_type = Coord_Vec<2>;
 
   static constexpr std::array<Offset_Vec<2>, 6> offsets
     = {{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, -1}, {-1, 1}}};
@@ -366,6 +370,7 @@ public:
   static constexpr std::size_t rank_v = 2;
   static constexpr std::size_t radius_v = 1;
   static constexpr std::size_t size_v = 3;
+  using coord_type = Coord_Vec<2>;
 
   [[nodiscard]] static constexpr std::size_t radius() noexcept
   {
@@ -415,6 +420,8 @@ public:
   static constexpr std::size_t size_v = K;
   /// Compile-time radius (0 if unknown).
   static constexpr std::size_t radius_v = Radius;
+  /// Coordinate type accepted by for_each_offset.
+  using coord_type = Coord_Vec<N>;
 
   /** @brief Build a custom neighborhood from an `std::array` of offsets.
    *

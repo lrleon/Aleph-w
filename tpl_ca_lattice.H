@@ -293,4 +293,4 @@ inline void swap(Lattice<Storage, Boundary> &a,
 }  // namespace CA
 }  // namespace Aleph
 
-#endif  // TPL_CA_LATTICE_H TPL_CA_LATTICE_H
+#endif  // TPL_CA_LATTICE_H

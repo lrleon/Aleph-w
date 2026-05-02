@@ -50,11 +50,14 @@
  */
 
 #include <array>
+#include <cassert>
 #include <chrono>
+#include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <utility>
 
 #include <ca-traits.H>
@@ -125,12 +128,36 @@ namespace
   template <typename Engine>
   Bench_Result run_bench(Engine &engine, std::size_t steps)
   {
+    assert(steps > 0);
     const auto t0 = std::chrono::steady_clock::now();
     engine.run(steps);
     const auto t1 = std::chrono::steady_clock::now();
     const double ms
       = std::chrono::duration<double, std::milli>(t1 - t0).count();
     return { ms, 1000.0 * steps / ms, population(engine.frame()) };
+  }
+
+  bool parse_positive_size(const char *text,
+                           const char *name,
+                           unsigned long long &out)
+  {
+    if (text == nullptr or *text == '\0' or *text == '-')
+      {
+        std::cerr << "ERROR: " << name << " must be a positive integer.\n";
+        return false;
+      }
+
+    errno = 0;
+    char *end = nullptr;
+    const unsigned long long value = std::strtoull(text, &end, 10);
+    if (errno != 0 or end == text or *end != '\0' or value == 0)
+      {
+        std::cerr << "ERROR: " << name << " must be a positive integer; got '"
+                  << text << "'.\n";
+        return false;
+      }
+    out = value;
+    return true;
   }
 }
 
@@ -139,9 +166,29 @@ int main(int argc, char *argv[])
   ca_size_t size = 1024;
   std::size_t steps = 50;
   if (argc > 1)
-    size = static_cast<ca_size_t>(std::atol(argv[1]));
+    {
+      unsigned long long parsed = 0;
+      if (not parse_positive_size(argv[1], "size", parsed)
+          or parsed > static_cast<unsigned long long>(std::numeric_limits<ca_size_t>::max()))
+        {
+          if (parsed > static_cast<unsigned long long>(std::numeric_limits<ca_size_t>::max()))
+            std::cerr << "ERROR: size is too large for ca_size_t.\n";
+          return 1;
+        }
+      size = static_cast<ca_size_t>(parsed);
+    }
   if (argc > 2)
-    steps = static_cast<std::size_t>(std::atol(argv[2]));
+    {
+      unsigned long long parsed = 0;
+      if (not parse_positive_size(argv[2], "steps", parsed)
+          or parsed > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        {
+          if (parsed > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+            std::cerr << "ERROR: steps is too large for std::size_t.\n";
+          return 1;
+        }
+      steps = static_cast<std::size_t>(parsed);
+    }
 
   using Storage = Dense_Cell_Storage<int, 2>;
   using Boundary = ToroidalBoundary;

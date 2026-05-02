@@ -286,6 +286,7 @@ set(HLIST
     tpl_ca_ghost_lattice.H
     ca-tiling.H
     ca-bench.H
+    thread_pool.H
     tpl_ca_parallel_engine.H
     tpl_ca_hex_lattice.H
     tpl_ca_triangular_lattice.H

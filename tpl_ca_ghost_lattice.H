@@ -236,37 +236,62 @@ private:
   template <typename F>
   void for_each_halo_cell(F &&f) const
   {
+    for (std::size_t d = 0; d < rank; ++d)
+      if (user_ext_[d] == 0)
+        return;
+
     coord_type u{};
     const ca_index_t h = static_cast<ca_index_t>(Halo);
 
-    // Total cells in the enlarged box, minus the interior.
-    auto enumerate = [&](auto &&self_fn, std::size_t d) -> void
+    // Walk the enlarged box as a disjoint shell: until a halo band is
+    // selected, recurse through interior plus the two halo bands; after
+    // that, the remaining dimensions may span their full enlarged range.
+    auto enumerate = [&](auto &&self_fn, std::size_t d, bool in_halo) -> void
     {
       if (d == rank)
         {
-          // Determine whether any dim is in halo range.
-          bool halo_cell = false;
-          for (std::size_t k = 0; k < rank; ++k)
-            {
-              const ca_index_t n = static_cast<ca_index_t>(user_ext_[k]);
-              if (u[k] < 0 or u[k] >= n)
-                {
-                  halo_cell = true;
-                  break;
-                }
-            }
-          if (halo_cell)
+          if (in_halo)
             f(u);
           return;
         }
       const ca_index_t n = static_cast<ca_index_t>(user_ext_[d]);
-      for (ca_index_t i = -h; i < n + h; ++i)
+      if (n == 0)
+        return;
+
+      if (in_halo)
         {
-          u[d] = i;
-          self_fn(self_fn, d + 1);
+          for (ca_index_t i = -h; i < n + h; ++i)
+            {
+              u[d] = i;
+              self_fn(self_fn, d + 1, true);
+            }
+          return;
+        }
+
+      if (d + 1 < rank)
+        {
+          for (ca_index_t i = 0; i < n; ++i)
+            {
+              u[d] = i;
+              self_fn(self_fn, d + 1, false);
+            }
+        }
+      
+      if (h > 0)
+        {
+          for (ca_index_t i = -h; i < 0; ++i)
+            {
+              u[d] = i;
+              self_fn(self_fn, d + 1, true);
+            }
+          for (ca_index_t i = n; i < n + h; ++i)
+            {
+              u[d] = i;
+              self_fn(self_fn, d + 1, true);
+            }
         }
     };
-    enumerate(enumerate, 0);
+    enumerate(enumerate, 0, false);
   }
 
   /// Write `value` directly into the store at the given user coord.
@@ -386,6 +411,8 @@ public:
     bool in_halo_range = true;
     for (std::size_t d = 0; d < rank; ++d)
       {
+        if (user_ext_[d] == 0)
+          return out_of_range_value();
         const ca_index_t n = static_cast<ca_index_t>(user_ext_[d]);
         if (c[d] < -h or c[d] >= n + h)
           {

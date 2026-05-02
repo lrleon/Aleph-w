@@ -62,6 +62,7 @@
 #include <ca-tiling.H>
 #include <ca-traits.H>
 #include <tpl_ca_concepts.H>
+#include <tpl_ca_bit_storage.H>
 #include <tpl_ca_engine.H>
 #include <tpl_ca_ghost_lattice.H>
 #include <tpl_ca_lattice.H>
@@ -598,4 +599,25 @@ TEST(CAParallelEngine, RankOneEquivalenceSmallLattice)
   seed.set({2}, 1);
 
   expect_engine_equivalence(seed, make_wolfram_elementary_rule(30), nh, 3, 16);
+}
+
+TEST(CAParallelEngine, BitCellStorageRunsConcurrentlyWithoutDataRaces)
+{
+  using L = Lattice<Bit_Cell_Storage<2>, ToroidalBoundary>;
+  L seed({32, 32}, false);
+  seed_random(seed, 0xB17u, 0.35);
+
+  Synchronous_Engine<L, Game_Of_Life_Rule, Moore<2, 1>> seq(
+    seed, make_game_of_life_rule(), Moore<2, 1>{});
+
+  Parallel_Engine_Config cfg;
+  cfg.num_partitions = 8;
+  cfg.min_parallel_cells = 0;
+  Parallel_Synchronous_Engine<L, Game_Of_Life_Rule, Moore<2, 1>> par(
+    seed, make_game_of_life_rule(), Moore<2, 1>{}, cfg);
+
+  seq.run(30);
+  par.run(30);
+
+  EXPECT_TRUE(frames_equal(seq.frame(), par.frame()));
 }

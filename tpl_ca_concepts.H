@@ -75,8 +75,7 @@ namespace CA {
  *  @tparam T candidate cell state type.
  */
 template <typename T>
-concept CellState
-  = std::regular<T> and std::default_initializable<T> and std::equality_comparable<T>;
+concept CellState = std::regular<T>;
 
 /** @brief A coordinate type with `N` integral components.
  *
@@ -123,23 +122,35 @@ concept LatticeLike = requires {
 /** @brief Connectivity pattern around a coordinate.
  *
  *  A Neighborhood describes how to enumerate the cells that take part
- *  in the local transition for a given coordinate. The minimal
- *  interface is:
+ *  in the local transition for a given coordinate. The engine relies
+ *  on the following interface:
  *
- *    - `radius()`  — chebyshev or graph radius (≥ 1).
- *    - `size()`    — number of neighbors enumerated by `apply`.
+ *    - `coord_type`              — coordinate type accepted by enumeration.
+ *    - `rank_v`                  — compile-time dimensionality.
+ *    - `size_v`                  — compile-time number of offsets.
+ *    - `radius()`                — chebyshev or graph radius (≥ 1).
+ *    - `size()`                  — number of neighbors enumerated at runtime.
+ *    - `for_each_offset(center, f)` — invokes `f(offset)` for each
+ *      neighbour offset around `center`.
  *
  *  Concrete neighborhoods (Moore, Von Neumann, custom offsets, ...)
- *  will be added in Phase 2; this concept only fixes the scaffolding
- *  needed by the engine in Phase 3.
+ *  will be added in Phase 2; this concept fixes the contract relied on
+ *  by the synchronous engine and neighbour gathering helpers.
  *
  *  @tparam H candidate neighborhood type.
  */
 template <typename H>
-concept NeighborhoodLike = requires(const H &h) {
-  { h.radius() } -> std::convertible_to<std::size_t>;
-  { h.size() } -> std::convertible_to<std::size_t>;
-};
+concept NeighborhoodLike =
+  requires {
+    typename H::coord_type;
+    { H::rank_v } -> std::convertible_to<std::size_t>;
+    { H::size_v } -> std::convertible_to<std::size_t>;
+  }
+  and requires(const H &h, const typename H::coord_type &center) {
+    { h.radius() } -> std::convertible_to<std::size_t>;
+    { h.size()   } -> std::convertible_to<std::size_t>;
+    h.for_each_offset(center, [](const auto &) {});
+  };
 
 /** @brief Pure local transition function (Phase 0–7 signature).
  *

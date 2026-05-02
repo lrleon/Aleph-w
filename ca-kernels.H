@@ -104,8 +104,7 @@ public:
 private:
   std::array<T, size_v> weights_{};
 
-  [[nodiscard]] static constexpr std::size_t index(const std::size_t row,
-                                                   const std::size_t col) noexcept
+  [[nodiscard]] static constexpr std::size_t index(const std::size_t row, const std::size_t col) noexcept
   {
     return row * Cols + col;
   }
@@ -122,9 +121,7 @@ public:
    *  @param[in] weights flat row-major weight array.
    *  @throws This function does not throw.
    */
-  constexpr explicit Kernel2D(const std::array<T, size_v> &weights)
-    : weights_(weights)
-  {}
+  constexpr explicit Kernel2D(const std::array<T, size_v> &weights) : weights_(weights) {}
 
   /** @brief Construct a kernel from a flat initializer list.
    *
@@ -174,8 +171,7 @@ public:
   [[nodiscard]] T operator()(const std::size_t row, const std::size_t col) const
   {
     ah_out_of_range_error_if(row >= Rows or col >= Cols)
-      << "Kernel2D::operator(): position (" << row << ", " << col
-      << ") outside kernel";
+      << "Kernel2D::operator(): position (" << row << ", " << col << ") outside kernel";
     return weights_[index(row, col)];
   }
 
@@ -190,13 +186,11 @@ public:
   {
     const ca_index_t r = di + static_cast<ca_index_t>(Rows / 2);
     const ca_index_t c = dj + static_cast<ca_index_t>(Cols / 2);
-    ah_out_of_range_error_if(r < 0 or c < 0
-                             or static_cast<std::size_t>(r) >= Rows
+    ah_out_of_range_error_if(r < 0 or c < 0 or static_cast<std::size_t>(r) >= Rows
                              or static_cast<std::size_t>(c) >= Cols)
-      << "Kernel2D::weight_at_offset: offset (" << di << ", " << dj
-      << ") outside radius " << radius_v;
-    return weights_[index(static_cast<std::size_t>(r),
-                          static_cast<std::size_t>(c))];
+      << "Kernel2D::weight_at_offset: offset (" << di << ", " << dj << ") outside radius "
+      << radius_v;
+    return weights_[index(static_cast<std::size_t>(r), static_cast<std::size_t>(c))];
   }
 
   /** @brief Return a centre-skipping neighbour weight.
@@ -211,8 +205,7 @@ public:
   [[nodiscard]] T neighbour_weight(const std::size_t k) const
   {
     ah_out_of_range_error_if(k >= neighbour_count_v)
-      << "Kernel2D::neighbour_weight: index " << k << " outside [0, "
-      << neighbour_count_v << ")";
+      << "Kernel2D::neighbour_weight: index " << k << " outside [0, " << neighbour_count_v << ")";
 
     std::size_t out = 0;
     for (std::size_t r = 0; r < Rows; ++r)
@@ -270,16 +263,24 @@ public:
    *          `neighbour_count_v`.
    */
   template <typename State>
-  [[nodiscard]] T apply(const State &center_value,
-                        Neighbor_View<State> neighbours) const
+  [[nodiscard]] T apply(const State &center_value, Neighbor_View<State> neighbours) const
   {
     ah_length_error_if(neighbours.size() != neighbour_count_v)
-      << "Kernel2D::apply: expected " << neighbour_count_v
-      << " neighbours, got " << neighbours.size();
+      << "Kernel2D::apply: expected " << neighbour_count_v << " neighbours, got "
+      << neighbours.size();
 
     T acc = static_cast<T>(center_value) * center();
+    std::array<T, neighbour_count_v> neighbour_weights{};
+    std::size_t out = 0;
+    for (std::size_t r = 0; r < Rows; ++r)
+      for (std::size_t c = 0; c < Cols; ++c)
+        {
+          if (r == Rows / 2 and c == Cols / 2)
+            continue;
+          neighbour_weights[out++] = weights_[index(r, c)];
+        }
     for (std::size_t k = 0; k < neighbour_count_v; ++k)
-      acc += static_cast<T>(neighbours[k]) * neighbour_weight(k);
+      acc += static_cast<T>(neighbours[k]) * neighbour_weights[k];
     return acc;
   }
 
@@ -299,8 +300,7 @@ public:
     Matrix<int, int, T> ret(rd, cd);
     for (std::size_t r = 0; r < Rows; ++r)
       for (std::size_t c = 0; c < Cols; ++c)
-        ret.set_entry(static_cast<int>(r), static_cast<int>(c),
-                      weights_[index(r, c)]);
+        ret.set_entry(static_cast<int>(r), static_cast<int>(c), weights_[index(r, c)]);
     return ret;
   }
 };
@@ -322,10 +322,7 @@ public:
 template <typename T = double>
 [[nodiscard]] constexpr Kernel2D<T, 3, 3> laplacian_5p_kernel() noexcept
 {
-  return Kernel2D<T, 3, 3>(
-    std::array<T, 9>{T{0}, T{1}, T{0},
-                     T{1}, T{-4}, T{1},
-                     T{0}, T{1}, T{0}});
+  return Kernel2D<T, 3, 3>(std::array<T, 9>{T{0}, T{1}, T{0}, T{1}, T{-4}, T{1}, T{0}, T{1}, T{0}});
 }
 
 /** @brief Return the isotropic 9-point discrete Laplacian kernel.
@@ -345,10 +342,9 @@ template <typename T = double>
 template <typename T = double>
 [[nodiscard]] constexpr Kernel2D<T, 3, 3> laplacian_9p_kernel() noexcept
 {
-  return Kernel2D<T, 3, 3>(
-    std::array<T, 9>{T{1} / T{6}, T{4} / T{6}, T{1} / T{6},
-                     T{4} / T{6}, T{-20} / T{6}, T{4} / T{6},
-                     T{1} / T{6}, T{4} / T{6}, T{1} / T{6}});
+  return Kernel2D<T, 3, 3>(std::array<T, 9>{T{1} / T{6}, T{4} / T{6}, T{1} / T{6}, T{4} / T{6},
+                                            T{-20} / T{6}, T{4} / T{6}, T{1} / T{6}, T{4} / T{6},
+                                            T{1} / T{6}});
 }
 
 /** @brief Return a 3x3 mean filter.
@@ -361,10 +357,7 @@ template <typename T = double>
 [[nodiscard]] constexpr Kernel2D<T, 3, 3> mean_3x3_kernel() noexcept
 {
   constexpr T w = T{1} / T{9};
-  return Kernel2D<T, 3, 3>(
-    std::array<T, 9>{w, w, w,
-                     w, w, w,
-                     w, w, w});
+  return Kernel2D<T, 3, 3>(std::array<T, 9>{w, w, w, w, w, w, w, w, w});
 }
 
 /** @brief Return a 5x5 mean filter.
@@ -378,11 +371,7 @@ template <typename T = double>
 {
   constexpr T w = T{1} / T{25};
   return Kernel2D<T, 5, 5>(
-    std::array<T, 25>{w, w, w, w, w,
-                      w, w, w, w, w,
-                      w, w, w, w, w,
-                      w, w, w, w, w,
-                      w, w, w, w, w});
+    std::array<T, 25>{w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w});
 }
 
 /** @brief Return the horizontal Sobel gradient kernel.
@@ -394,10 +383,7 @@ template <typename T = double>
 template <typename T = double>
 [[nodiscard]] constexpr Kernel2D<T, 3, 3> sobel_x_kernel() noexcept
 {
-  return Kernel2D<T, 3, 3>(
-    std::array<T, 9>{T{-1}, T{0}, T{1},
-                     T{-2}, T{0}, T{2},
-                     T{-1}, T{0}, T{1}});
+  return Kernel2D<T, 3, 3>(std::array<T, 9>{T{-1}, T{0}, T{1}, T{-2}, T{0}, T{2}, T{-1}, T{0}, T{1}});
 }
 
 /** @brief Return the vertical Sobel gradient kernel.
@@ -409,10 +395,7 @@ template <typename T = double>
 template <typename T = double>
 [[nodiscard]] constexpr Kernel2D<T, 3, 3> sobel_y_kernel() noexcept
 {
-  return Kernel2D<T, 3, 3>(
-    std::array<T, 9>{T{-1}, T{-2}, T{-1},
-                     T{0}, T{0}, T{0},
-                     T{1}, T{2}, T{1}});
+  return Kernel2D<T, 3, 3>(std::array<T, 9>{T{-1}, T{-2}, T{-1}, T{0}, T{0}, T{0}, T{1}, T{2}, T{1}});
 }
 
 /** @brief Return the separable 3x3 Gaussian blur kernel.
@@ -424,10 +407,9 @@ template <typename T = double>
 template <typename T = double>
 [[nodiscard]] constexpr Kernel2D<T, 3, 3> gaussian_3x3_kernel() noexcept
 {
-  return Kernel2D<T, 3, 3>(
-    std::array<T, 9>{T{1} / T{16}, T{2} / T{16}, T{1} / T{16},
-                     T{2} / T{16}, T{4} / T{16}, T{2} / T{16},
-                     T{1} / T{16}, T{2} / T{16}, T{1} / T{16}});
+  return Kernel2D<T, 3, 3>(std::array<T, 9>{T{1} / T{16}, T{2} / T{16}, T{1} / T{16}, T{2} / T{16},
+                                            T{4} / T{16}, T{2} / T{16}, T{1} / T{16}, T{2} / T{16},
+                                            T{1} / T{16}});
 }
 
 /** @brief Return the separable 5x5 Gaussian blur kernel.
@@ -439,12 +421,12 @@ template <typename T = double>
 template <typename T = double>
 [[nodiscard]] constexpr Kernel2D<T, 5, 5> gaussian_5x5_kernel() noexcept
 {
-  return Kernel2D<T, 5, 5>(
-    std::array<T, 25>{T{1} / T{256}, T{4} / T{256}, T{6} / T{256}, T{4} / T{256}, T{1} / T{256},
-                      T{4} / T{256}, T{16} / T{256}, T{24} / T{256}, T{16} / T{256}, T{4} / T{256},
-                      T{6} / T{256}, T{24} / T{256}, T{36} / T{256}, T{24} / T{256}, T{6} / T{256},
-                      T{4} / T{256}, T{16} / T{256}, T{24} / T{256}, T{16} / T{256}, T{4} / T{256},
-                      T{1} / T{256}, T{4} / T{256}, T{6} / T{256}, T{4} / T{256}, T{1} / T{256}});
+  return Kernel2D<T, 5, 5>(std::array<T, 25>{
+    T{1} / T{256}, T{4} / T{256},  T{6} / T{256},  T{4} / T{256},  T{1} / T{256},
+    T{4} / T{256}, T{16} / T{256}, T{24} / T{256}, T{16} / T{256}, T{4} / T{256},
+    T{6} / T{256}, T{24} / T{256}, T{36} / T{256}, T{24} / T{256}, T{6} / T{256},
+    T{4} / T{256}, T{16} / T{256}, T{24} / T{256}, T{16} / T{256}, T{4} / T{256},
+    T{1} / T{256}, T{4} / T{256},  T{6} / T{256},  T{4} / T{256},  T{1} / T{256}});
 }
 
 }  // namespace CA
