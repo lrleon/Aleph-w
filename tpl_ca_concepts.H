@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-
 /** @file tpl_ca_concepts.H
  *  @brief C++20 concepts for the Cellular Automata module.
  *
@@ -54,130 +53,175 @@
  *  @author Leandro Rabindranath Leon
  */
 
-# ifndef TPL_CA_CONCEPTS_H
-# define TPL_CA_CONCEPTS_H
+#ifndef TPL_CA_CONCEPTS_H
+#define TPL_CA_CONCEPTS_H
 
-# include <concepts>
-# include <cstddef>
-# include <tuple>
-# include <type_traits>
+#include <concepts>
+#include <cstddef>
+#include <tuple>
+#include <type_traits>
 
-# include <ca-traits.H>
+#include <ca-traits.H>
 
-namespace Aleph
+namespace Aleph {
+namespace CA {
+
+/** @brief A type usable as the value stored inside a cell.
+ *
+ *  Cell states must be regular: copyable, comparable for equality
+ *  and default-constructible. This covers `bool`, integral and
+ *  enum types, and any small POD struct used in lattice models.
+ *
+ *  @tparam T candidate cell state type.
+ */
+template <typename T>
+concept CellState
+  = std::regular<T> and std::default_initializable<T> and std::equality_comparable<T>;
+
+/** @brief A coordinate type with `N` integral components.
+ *
+ *  The CA module manipulates coordinates as fixed-size random-access
+ *  containers (`std::array<index_t, N>` is the canonical choice). A
+ *  coordinate must expose `operator[]` and a compile-time `size()`.
+ *
+ *  @tparam C coordinate type.
+ *  @tparam N expected dimension.
+ */
+template <typename C, std::size_t N>
+concept Coord = std::regular<C> and requires(C c, std::size_t i) {
+  { c[i] } -> std::convertible_to<ca_index_t>;
+  { C{}.size() } -> std::convertible_to<std::size_t>;
+} and (std::tuple_size<C>::value == N);
+
+/** @brief Storage + topology that carries the cell values.
+ *
+ *  A Lattice exposes the geometric layout of the automaton and a
+ *  read/write interface over its cells. The CA engine only relies on:
+ *
+ *    - `dimension()` — number of axes (compile-time or runtime).
+ *    - `size(d)`     — extent along axis `d`.
+ *    - `at(coord)`   — read access to a cell.
+ *    - `set(coord, v)` — write access to a cell.
+ *
+ *  The `state_type` and `coord_type` aliases let the rest of the
+ *  module deduce the cell value type and coordinate kind without
+ *  forcing a particular concrete container.
+ *
+ *  @tparam L candidate lattice type.
+ */
+template <typename L>
+concept LatticeLike = requires {
+  typename L::state_type;
+  typename L::coord_type;
+} and CellState<typename L::state_type> and requires(L &lat, const L &clat, const typename L::coord_type &c, const typename L::state_type &v, std::size_t d) {
+  { clat.dimension() } -> std::convertible_to<std::size_t>;
+  { clat.size(d) } -> std::convertible_to<std::size_t>;
+  { clat.at(c) } -> std::convertible_to<typename L::state_type>;
+  { lat.set(c, v) };
+};
+
+/** @brief Connectivity pattern around a coordinate.
+ *
+ *  A Neighborhood describes how to enumerate the cells that take part
+ *  in the local transition for a given coordinate. The minimal
+ *  interface is:
+ *
+ *    - `radius()`  — chebyshev or graph radius (≥ 1).
+ *    - `size()`    — number of neighbors enumerated by `apply`.
+ *
+ *  Concrete neighborhoods (Moore, Von Neumann, custom offsets, ...)
+ *  will be added in Phase 2; this concept only fixes the scaffolding
+ *  needed by the engine in Phase 3.
+ *
+ *  @tparam H candidate neighborhood type.
+ */
+template <typename H>
+concept NeighborhoodLike = requires(const H &h) {
+  { h.radius() } -> std::convertible_to<std::size_t>;
+  { h.size() } -> std::convertible_to<std::size_t>;
+};
+
+/** @brief Pure local transition function (Phase 0–7 signature).
+ *
+ *  A `BasicRuleLike` rule consumes only `(state, neighbours)` and is
+ *  therefore deterministic from the engine's point of view. Every
+ *  rule shipped before Phase 8 satisfies this concept.
+ *
+ *  @tparam R candidate rule type.
+ *  @tparam L lattice type whose `state_type` is consumed/produced.
+ */
+template <typename R, typename L>
+concept BasicRuleLike
+  = LatticeLike<L>
+and requires(const R &r, const typename L::state_type &s, Neighbor_View<typename L::state_type> v) {
+      { r(s, v) } -> std::convertible_to<typename L::state_type>;
+    };
+
+/** @brief Context-aware local transition function (Phase 8).
+ *
+ *  A `ContextualRuleLike` rule consumes an extra `Cell_Context<Rank>`
+ *  argument exposing the current step and the cell coordinate. Rules
+ *  that need to derive a deterministic per-cell pseudo-random number
+ *  generator (`Forest_Fire_Rule`, `SIR_Rule`, `Ising_*`, `Schelling_Rule`,
+ *  ...) implement this signature so the engine can guarantee bit-for-bit
+ *  reproducibility independently of thread scheduling.
+ *
+ *  @tparam R candidate rule type.
+ *  @tparam L lattice type.
+ */
+template <typename R, typename L>
+concept ContextualRuleLike
+  = LatticeLike<L>
+and requires(const R &r, const typename L::state_type &s,
+             Neighbor_View<typename L::state_type> v,
+             const Cell_Context<L::rank> &ctx) {
+      { r(s, v, ctx) } -> std::convertible_to<typename L::state_type>;
+    };
+
+/** @brief Local transition function (any supported signature).
+ *
+ *  Either a plain `(state, neighbours)` functor (Phase 0–7) or a
+ *  context-aware `(state, neighbours, ctx)` functor (Phase 8). The
+ *  engines pick the right overload via `apply_rule()`.
+ *
+ *  @tparam R candidate rule type.
+ *  @tparam L lattice type whose `state_type` is consumed/produced.
+ */
+template <typename R, typename L>
+concept RuleLike = BasicRuleLike<R, L> or ContextualRuleLike<R, L>;
+
+/** @brief Invoke a rule, optionally forwarding the per-cell context.
+ *
+ *  When the rule supports the `(state, neighbours, ctx)` signature
+ *  (`ContextualRuleLike`), the context is forwarded; otherwise the
+ *  function falls back to the legacy `(state, neighbours)` form. This
+ *  helper is the single dispatch point used by every CA engine in the
+ *  module so adding new contextual rules never requires touching the
+ *  engines.
+ *
+ *  @tparam Rule rule type satisfying `RuleLike`.
+ *  @tparam State cell state type.
+ *  @tparam Rank lattice dimension.
+ *  @param[in] r rule instance.
+ *  @param[in] s current state of the centre cell.
+ *  @param[in] v neighbour view (gathered upstream).
+ *  @param[in] ctx per-cell context (`step`, `coord`).
+ *  @return the next state produced by the rule.
+ *  @throws Any exception thrown by the rule.
+ */
+template <typename Rule, typename State, std::size_t Rank>
+[[nodiscard]] inline State apply_rule(const Rule &r,
+                                      const State &s,
+                                      Neighbor_View<State> v,
+                                      const Cell_Context<Rank> &ctx)
 {
-namespace CA
-{
+  if constexpr (requires { r(s, v, ctx); })
+    return r(s, v, ctx);
+  else
+    return r(s, v);
+}
 
-  /** @brief A type usable as the value stored inside a cell.
-   *
-   *  Cell states must be regular: copyable, comparable for equality
-   *  and default-constructible. This covers `bool`, integral and
-   *  enum types, and any small POD struct used in lattice models.
-   *
-   *  @tparam T candidate cell state type.
-   */
-  template <typename T>
-  concept CellState =
-      std::regular<T> and
-      std::default_initializable<T> and
-      std::equality_comparable<T>;
+}  // namespace CA
+}  // namespace Aleph
 
-  /** @brief A coordinate type with `N` integral components.
-   *
-   *  The CA module manipulates coordinates as fixed-size random-access
-   *  containers (`std::array<index_t, N>` is the canonical choice). A
-   *  coordinate must expose `operator[]` and a compile-time `size()`.
-   *
-   *  @tparam C coordinate type.
-   *  @tparam N expected dimension.
-   */
-  template <typename C, std::size_t N>
-  concept Coord =
-      std::regular<C> and
-      requires(C c, std::size_t i)
-        {
-          { c[i] } -> std::convertible_to<ca_index_t>;
-          { C{}.size() } -> std::convertible_to<std::size_t>;
-        } and
-      (std::tuple_size<C>::value == N);
-
-  /** @brief Storage + topology that carries the cell values.
-   *
-   *  A Lattice exposes the geometric layout of the automaton and a
-   *  read/write interface over its cells. The CA engine only relies on:
-   *
-   *    - `dimension()` — number of axes (compile-time or runtime).
-   *    - `size(d)`     — extent along axis `d`.
-   *    - `at(coord)`   — read access to a cell.
-   *    - `set(coord, v)` — write access to a cell.
-   *
-   *  The `state_type` and `coord_type` aliases let the rest of the
-   *  module deduce the cell value type and coordinate kind without
-   *  forcing a particular concrete container.
-   *
-   *  @tparam L candidate lattice type.
-   */
-  template <typename L>
-  concept LatticeLike =
-      requires { typename L::state_type; typename L::coord_type; } and
-      CellState<typename L::state_type> and
-      requires(L & lat, const L & clat,
-               const typename L::coord_type & c,
-               const typename L::state_type & v,
-               std::size_t d)
-        {
-          { clat.dimension() } -> std::convertible_to<std::size_t>;
-          { clat.size(d) }     -> std::convertible_to<std::size_t>;
-          { clat.at(c) }       -> std::convertible_to<typename L::state_type>;
-          { lat.set(c, v) };
-        };
-
-  /** @brief Connectivity pattern around a coordinate.
-   *
-   *  A Neighborhood describes how to enumerate the cells that take part
-   *  in the local transition for a given coordinate. The minimal
-   *  interface is:
-   *
-   *    - `radius()`  — chebyshev or graph radius (≥ 1).
-   *    - `size()`    — number of neighbors enumerated by `apply`.
-   *
-   *  Concrete neighborhoods (Moore, Von Neumann, custom offsets, ...)
-   *  will be added in Phase 2; this concept only fixes the scaffolding
-   *  needed by the engine in Phase 3.
-   *
-   *  @tparam H candidate neighborhood type.
-   */
-  template <typename H>
-  concept NeighborhoodLike =
-      requires(const H & h)
-        {
-          { h.radius() } -> std::convertible_to<std::size_t>;
-          { h.size()   } -> std::convertible_to<std::size_t>;
-        };
-
-  /** @brief Local transition function.
-   *
-   *  A Rule maps the current state of a cell plus a view over its
-   *  neighbours into the next state. The neighbour view is supplied
-   *  as a `Neighbor_View<State>` (see `ca-traits.H`) — a borrowed,
-   *  contiguous range that the engine populates on a stack buffer
-   *  before invoking the rule.
-   *
-   *  @tparam R candidate rule type.
-   *  @tparam L lattice type whose `state_type` is consumed/produced.
-   */
-  template <typename R, typename L>
-  concept RuleLike =
-      LatticeLike<L> and
-      requires(const R & r,
-               const typename L::state_type & s,
-               Neighbor_View<typename L::state_type> v)
-        {
-          { r(s, v) } -> std::convertible_to<typename L::state_type>;
-        };
-
-} // namespace CA
-} // namespace Aleph
-
-# endif // TPL_CA_CONCEPTS_H
+#endif  // TPL_CA_CONCEPTS_H

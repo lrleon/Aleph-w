@@ -188,7 +188,7 @@ aparte (`ca-tiling.H`).
 | Topologías      | pendiente | `tpl_ca_hex_lattice.H`, `tpl_ca_graph_automaton.H` |
 | Observers       | pendiente | `ca-observer.H`, `ca-metrics.H`                |
 | Estocásticos    | pendiente | `ca-rng.H`                                     |
-| Continuos       | pendiente | `ca-kernels.H`                                 |
+| Continuos       | Fase 9 ✔ | `ca-kernels.H`, `tpl_ca_continuous_rules.H`    |
 | Hashlife        | pendiente | `CA_Hashlife.H`                                |
 | IO / TikZ       | pendiente | `ca-io.H`, `ca-tikz.H`                         |
 

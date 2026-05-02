@@ -46,209 +46,217 @@
  *  @author Leandro Rabindranath Leon
  */
 
-# ifndef TPL_CA_BIT_STORAGE_H
-# define TPL_CA_BIT_STORAGE_H
+#ifndef TPL_CA_BIT_STORAGE_H
+#define TPL_CA_BIT_STORAGE_H
 
-# include <cstddef>
-# include <limits>
-# include <utility>
+#include <cstddef>
+#include <limits>
+#include <utility>
 
-# include <ah-errors.H>
-# include <bitArray.H>
+#include <ah-errors.H>
+#include <bitArray.H>
 
-# include <ca-traits.H>
-# include <tpl_ca_concepts.H>
+#include <ca-traits.H>
+#include <tpl_ca_concepts.H>
 
-namespace Aleph
+namespace Aleph {
+namespace CA {
+
+/** @brief Bit-packed row-major storage for `N`-dimensional binary CAs.
+ *
+ *  Stores cells as 1-bit values inside an `Aleph::BitArray`. Linear
+ *  layout is row-major (axis `N-1` varies fastest), identical to
+ *  `Dense_Cell_Storage<bool, N>`. Reading and writing are done with
+ *  `bool` to keep the API uniform.
+ *
+ *  @tparam N number of axes (1, 2 or 3 are the typical values).
+ */
+template <std::size_t N>
+class Bit_Cell_Storage
 {
-namespace CA
-{
+  static_assert(N >= 1, "Bit_Cell_Storage requires N >= 1");
 
-  /** @brief Bit-packed row-major storage for `N`-dimensional binary CAs.
-   *
-   *  Stores cells as 1-bit values inside an `Aleph::BitArray`. Linear
-   *  layout is row-major (axis `N-1` varies fastest), identical to
-   *  `Dense_Cell_Storage<bool, N>`. Reading and writing are done with
-   *  `bool` to keep the API uniform.
-   *
-   *  @tparam N number of axes (1, 2 or 3 are the typical values).
-   */
-  template <std::size_t N>
-  class Bit_Cell_Storage
+public:
+  using state_type = bool;
+  using coord_type = Coord_Vec<N>;
+  using extents_type = std::array<ca_size_t, N>;
+
+  /// Number of axes known at compile time.
+  static constexpr std::size_t rank = N;
+
+private:
+  extents_type ext_{};         ///< per-axis extents
+  ca_size_t total_cells_ = 0;  ///< product of `ext`
+  BitArray buffer_;            ///< bit-packed row-major storage
+
+  static ca_size_t product(const extents_type &e)
   {
-    static_assert(N >= 1, "Bit_Cell_Storage requires N >= 1");
-
-  public:
-
-    using state_type   = bool;
-    using coord_type   = Coord_Vec<N>;
-    using extents_type = std::array<ca_size_t, N>;
-
-    /// Number of axes known at compile time.
-    static constexpr std::size_t rank = N;
-
-  private:
-
-    extents_type ext { };             ///< per-axis extents
-    ca_size_t    total_cells = 0;     ///< product of `ext`
-    BitArray     buffer;              ///< bit-packed row-major storage
-
-    static ca_size_t product(const extents_type & e)
-    {
-      ca_size_t p = 1;
-      for (std::size_t d = 0; d < N; ++d)
-        {
-          if (e[d] == 0)
-            return 0;
-          ah_overflow_error_if(p > std::numeric_limits<ca_size_t>::max() / e[d])
-            << "Bit_Cell_Storage::product: extents product overflows ca_size_t";
-          p *= e[d];
-        }
-      return p;
-    }
-
-  public:
-
-    /// Construct an empty storage (zero extents).
-    Bit_Cell_Storage() = default;
-
-    /** @brief Construct a storage with the given extents and initial value.
-     *
-     *  @param[in] extents per-axis sizes.
-     *  @param[in] init initial value for every cell (default `false`).
-     */
-    explicit Bit_Cell_Storage(const extents_type & extents, bool init = false)
-      : ext(extents),
-        total_cells(product(extents)),
-        buffer(total_cells, init ? 1u : 0u)
-    {
-    }
-
-    /// @return the number of axes (compile-time constant).
-    [[nodiscard]] static constexpr std::size_t dimension() noexcept { return N; }
-
-    /// @return total cell count (product of extents).
-    [[nodiscard]] ca_size_t size() const noexcept { return total_cells; }
-
-    [[nodiscard]] ca_size_t size(std::size_t d) const
-    {
-      ah_out_of_range_error_if(d >= N) << "Bit_Cell_Storage::size: axis "
-                                       << d << " out of range";
-      return ext[d];
-    }
-
-    [[nodiscard]] const extents_type & extents() const noexcept { return ext; }
-
-    /** @brief Map a multi-index to a linear bit offset (row-major).
-     *  @throws std::out_of_range if any component is out of range.
-     */
-    [[nodiscard]] ca_size_t linear_index(const coord_type & c) const
-    {
-      ca_size_t idx = 0;
-      for (std::size_t d = 0; d < N; ++d)
-        {
-          ah_out_of_range_error_if(c[d] < 0 or
-                                   static_cast<ca_size_t>(c[d]) >= ext[d])
-            << "Bit_Cell_Storage::linear_index: coord["
-            << d << "]=" << c[d] << " out of [0, " << ext[d] << ")";
-          idx = idx * ext[d] + static_cast<ca_size_t>(c[d]);
-        }
-      return idx;
-    }
-
-    /// Read the cell at `c`.
-    [[nodiscard]] bool at(const coord_type & c) const
-    {
-      return buffer.read_bit(linear_index(c)) != 0;
-    }
-
-    /// Write the cell at `c`.
-    void set(const coord_type & c, bool v)
-    {
-      buffer.write_bit(linear_index(c), v ? 1u : 0u);
-    }
-
-    [[nodiscard]] bool at(ca_index_t i) const requires (N == 1)
-    {
-      return at(coord_type{ i });
-    }
-
-    [[nodiscard]] bool at(ca_index_t i, ca_index_t j) const requires (N == 2)
-    {
-      return at(coord_type{ i, j });
-    }
-
-    [[nodiscard]] bool at(ca_index_t i, ca_index_t j, ca_index_t k) const
-      requires (N == 3)
-    {
-      return at(coord_type{ i, j, k });
-    }
-
-    /** @brief Write 1D cell at index `i`.
-     *  @param i the column coordinate.
-     *  @param v the boolean value to write.
-     *  @throws std::out_of_range if `i` is out of bounds.
-     */
-    void set(ca_index_t i, bool v) requires (N == 1)
-    {
-      set(coord_type{ i }, v);
-    }
-
-    /** @brief Write 2D cell at `(i, j)`.
-     *  @param i the row coordinate.
-     *  @param j the column coordinate.
-     *  @param v the boolean value to write.
-     *  @throws std::out_of_range if the coordinate is out of bounds.
-     */
-    void set(ca_index_t i, ca_index_t j, bool v) requires (N == 2)
-    {
-      set(coord_type{ i, j }, v);
-    }
-
-    /** @brief Write 3D cell at `(i, j, k)`.
-     *  @param i the depth coordinate.
-     *  @param j the row coordinate.
-     *  @param k the column coordinate.
-     *  @param v the boolean value to write.
-     *  @throws std::out_of_range if the coordinate is out of bounds.
-     */
-    void set(ca_index_t i, ca_index_t j, ca_index_t k, bool v)
-      requires (N == 3)
-    {
-      set(coord_type{ i, j, k }, v);
-    }
-
-    /** @brief Swap contents with another Bit_Cell_Storage instance.
-     *  @param other the other storage to swap with.
-     *  @note This operation is noexcept.
-     */
-    void swap(Bit_Cell_Storage & other) noexcept
-    {
-      using std::swap;
-      swap(ext, other.ext);
-      swap(total_cells, other.total_cells);
-      buffer.swap(other.buffer);
-    }
-
-    /** @brief Set every cell to `value`.
-     *  @param value the boolean value to set.
-     *  @note Does not throw. Sets all bits uniformly.
-     */
-    void fill(bool value)
-    {
-      const unsigned int v = value ? 1u : 0u;
-      for (ca_size_t i = 0; i < total_cells; ++i)
-        buffer.write_bit(i, v);
-    }
-  };
-
-  template <std::size_t N>
-  inline void swap(Bit_Cell_Storage<N> & a, Bit_Cell_Storage<N> & b) noexcept
-  {
-    a.swap(b);
+    ca_size_t p = 1;
+    for (std::size_t d = 0; d < N; ++d)
+      {
+        if (e[d] == 0)
+          return 0;
+        ah_overflow_error_if(p > std::numeric_limits<ca_size_t>::max() / e[d])
+          << "Bit_Cell_Storage::product: extents product overflows ca_size_t";
+        p *= e[d];
+      }
+    return p;
   }
+
+public:
+  /// Construct an empty storage (zero extents).
+  Bit_Cell_Storage() = default;
+
+  /** @brief Construct a storage with the given extents and initial value.
+   *
+   *  @param[in] extents per-axis sizes.
+   *  @param[in] init initial value for every cell (default `false`).
+   */
+  explicit Bit_Cell_Storage(const extents_type &extents, const bool init = false)
+    : ext_(extents), total_cells_(product(extents)), buffer_(total_cells_, init ? 1u : 0u)
+  {}
+
+  /// @return the number of axes (compile-time constant).
+  [[nodiscard]] static constexpr std::size_t dimension() noexcept
+  {
+    return N;
+  }
+
+  /// @return total cell count (product of extents).
+  [[nodiscard]] ca_size_t size() const noexcept
+  {
+    return total_cells_;
+  }
+
+  [[nodiscard]] ca_size_t size(std::size_t d) const
+  {
+    ah_out_of_range_error_if(d >= N) << "Bit_Cell_Storage::size: axis " << d << " out of range";
+    return ext_[d];
+  }
+
+  [[nodiscard]] const extents_type &extents() const noexcept
+  {
+    return ext_;
+  }
+
+  /** @brief Map a multi-index to a linear bit offset (row-major).
+   *  @throws std::out_of_range if any component is out of range.
+   */
+  [[nodiscard]] ca_size_t linear_index(const coord_type &c) const
+  {
+    ca_size_t idx = 0;
+    for (std::size_t d = 0; d < N; ++d)
+      {
+        ah_out_of_range_error_if(c[d] < 0 or static_cast<ca_size_t>(c[d]) >= ext_[d])
+          << "Bit_Cell_Storage::linear_index: coord[" << d << "]=" << c[d] << " out of [0, "
+          << ext_[d] << ")";
+        idx = idx * ext_[d] + static_cast<ca_size_t>(c[d]);
+      }
+    return idx;
+  }
+
+  /// Read the cell at `c`.
+  [[nodiscard]] bool at(const coord_type &c) const
+  {
+    return buffer_.read_bit(linear_index(c)) != 0;
+  }
+
+  /// Write the cell at `c`.
+  void set(const coord_type &c, bool v)
+  {
+    buffer_.write_bit(linear_index(c), v ? 1u : 0u);
+  }
+
+  [[nodiscard]] bool at(ca_index_t i) const
+    requires(N == 1)
+  {
+    return at(coord_type{i});
+  }
+
+  [[nodiscard]] bool at(ca_index_t i, ca_index_t j) const
+    requires(N == 2)
+  {
+    return at(coord_type{i, j});
+  }
+
+  [[nodiscard]] bool at(ca_index_t i, ca_index_t j, ca_index_t k) const
+    requires(N == 3)
+  {
+    return at(coord_type{i, j, k});
+  }
+
+  /** @brief Write 1D cell at index `i`.
+   *  @param i the column coordinate.
+   *  @param v the boolean value to write.
+   *  @throws std::out_of_range if `i` is out of bounds.
+   */
+  void set(ca_index_t i, bool v)
+    requires(N == 1)
+  {
+    set(coord_type{i}, v);
+  }
+
+  /** @brief Write 2D cell at `(i, j)`.
+   *  @param i the row coordinate.
+   *  @param j the column coordinate.
+   *  @param v the boolean value to write.
+   *  @throws std::out_of_range if the coordinate is out of bounds.
+   */
+  void set(ca_index_t i, ca_index_t j, const bool v)
+    requires(N == 2)
+  {
+    set(coord_type{i, j}, v);
+  }
+
+  /** @brief Write 3D cell at `(i, j, k)`.
+   *  @param i the depth coordinate.
+   *  @param j the row coordinate.
+   *  @param k the column coordinate.
+   *  @param v the boolean value to write.
+   *  @throws std::out_of_range if the coordinate is out of bounds.
+   */
+  void set(ca_index_t i, ca_index_t j, ca_index_t k, const bool v)
+    requires(N == 3)
+  {
+    set(coord_type{i, j, k}, v);
+  }
+
+  /** @brief Swap contents with another Bit_Cell_Storage instance.
+   *  @param other the other storage to swap with.
+   *  @note This operation is noexcept.
+   */
+  void swap(Bit_Cell_Storage &other) noexcept
+  {
+    using std::swap;
+    swap(ext_, other.ext_);
+    swap(total_cells_, other.total_cells_);
+    buffer_.swap(other.buffer_);
+  }
+
+  /** @brief Set every cell to `value`.
+   *  @param value the boolean value to set.
+   *  @note Does not throw. Sets all bits uniformly.
+   */
+  void fill(const bool value)
+  {
+    const unsigned int v = value ? 1u : 0u;
+    for (ca_size_t i = 0; i < total_cells_; ++i)
+      buffer_.write_bit(i, v);
+  }
+};
+
+/** @brief Free-function swap so the storage plays nicely with std::swap.
+ *  @param[in,out] a first storage.
+ *  @param[in,out] b second storage.
+ *  @tparam N number of axes.
+ */
+template <std::size_t N>
+inline void swap(Bit_Cell_Storage<N> &a, Bit_Cell_Storage<N> &b) noexcept
+{
+  a.swap(b);
+}
 
 }  // namespace CA
 }  // namespace Aleph
 
-# endif // TPL_CA_BIT_STORAGE_H
+#endif  // TPL_CA_BIT_STORAGE_H

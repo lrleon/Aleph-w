@@ -398,6 +398,17 @@ set(TEST_PROGRAMS
     tpl_ca_neighborhood_test
     tpl_ca_rule_test
     ca_engine_sync_test
+    tpl_ca_ghost_lattice_test
+    tpl_ca_parallel_engine_test
+    tpl_ca_hex_lattice_test
+    tpl_ca_triangular_lattice_test
+    tpl_ca_graph_automaton_test
+    ca_metrics_test
+    ca_observer_test
+    ca_rng_test
+    tpl_ca_stochastic_rules_test
+    ca_kernels_test
+    tpl_ca_continuous_rules_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++

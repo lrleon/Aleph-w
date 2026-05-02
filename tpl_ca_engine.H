@@ -52,20 +52,20 @@
  *  @author Leandro Rabindranath Leon
  */
 
-# ifndef TPL_CA_ENGINE_H
-# define TPL_CA_ENGINE_H
+#ifndef TPL_CA_ENGINE_H
+#define TPL_CA_ENGINE_H
 
-# include <array>
-# include <concepts>
-# include <cstddef>
-# include <functional>
-# include <span>
-# include <type_traits>
-# include <utility>
+#include <array>
+#include <concepts>
+#include <cstddef>
+#include <functional>
+#include <span>
+#include <type_traits>
+#include <utility>
 
-# include <ca-traits.H>
-# include <tpl_ca_concepts.H>
-# include <tpl_ca_neighborhood.H>
+#include <ca-traits.H>
+#include <tpl_ca_concepts.H>
+#include <tpl_ca_neighborhood.H>
 
 namespace Aleph {
 namespace CA {
@@ -84,6 +84,12 @@ struct is_tile<Tile<W, H>> : std::true_type
 
 template <typename O>
 inline constexpr bool is_tile_v = is_tile<O>::value;
+
+/// Detect whether a lattice exposes a `refresh_halo()` method (the
+/// hallmark of a `Ghost_Lattice` or any other halo-aware variant).
+/// Used by the engine to keep the halo synchronised automatically.
+template <typename L>
+concept HasRefreshHalo = requires(L &l) { l.refresh_halo(); };
 
 /// 1D row-major iteration callback `f(coord)`.
 template <typename Coord, typename F>
@@ -128,7 +134,7 @@ inline void iterate_2d_column_major(ca_size_t n0, ca_size_t n1, F &&f)
 /// 2D tiled iteration with tile size `H` along axis 0 and `W` along
 /// axis 1. Tiles at the boundary are clipped to the lattice extents.
 template <std::size_t W, std::size_t H, typename Coord, typename F>
-inline void iterate_2d_tile(ca_size_t n0, ca_size_t n1, F &&f)
+inline void iterate_2d_tile(const ca_size_t n0, const ca_size_t n1, F &&f)
 {
   Coord c{};
   for (ca_size_t ti = 0; ti < n0; ti += H)
@@ -148,7 +154,7 @@ inline void iterate_2d_tile(ca_size_t n0, ca_size_t n1, F &&f)
 
 /// 3D row-major iteration.
 template <typename Coord, typename F>
-inline void iterate_3d_row_major(ca_size_t n0, ca_size_t n1, ca_size_t n2, F &&f)
+inline void iterate_3d_row_major(const ca_size_t n0, const ca_size_t n1, const ca_size_t n2, F &&f)
 {
   Coord c{};
   for (ca_index_t i = 0; i < static_cast<ca_index_t>(n0); ++i)
@@ -182,39 +188,45 @@ inline void iterate_3d_row_major(ca_size_t n0, ca_size_t n1, ca_size_t n2, F &&f
 template <typename Lattice, typename Rule, typename Neighborhood, typename Order = RowMajor>
 class Synchronous_Engine
 {
-  static_assert(LatticeLike<Lattice>,
-                "Synchronous_Engine requires a LatticeLike lattice");
+  static_assert(LatticeLike<Lattice>, "Synchronous_Engine requires a LatticeLike lattice");
   static_assert(NeighborhoodLike<Neighborhood>,
                 "Synchronous_Engine requires a NeighborhoodLike neighborhood");
-  static_assert(RuleLike<Rule, Lattice>,
-                "Synchronous_Engine requires a RuleLike rule");
-  static_assert(Neighborhood::rank_v == Lattice::rank,
-                "Neighborhood rank must match lattice rank");
+  static_assert(RuleLike<Rule, Lattice>, "Synchronous_Engine requires a RuleLike rule");
+  static_assert(Neighborhood::rank_v == Lattice::rank, "Neighborhood rank must match lattice rank");
 
 public:
+  /// Lattice type.
   using lattice_type = Lattice;
+  /// Rule type.
   using rule_type = Rule;
+  /// Neighborhood type.
   using neighborhood_type = Neighborhood;
+  /// Iteration order.
   using order_type = Order;
 
+  /// Cell state type.
   using state_type = typename Lattice::state_type;
+  /// Coordinate type.
   using coord_type = typename Lattice::coord_type;
+  /// Extents type.
   using extents_type = typename Lattice::extents_type;
 
+  /// Lattice dimension.
   static constexpr std::size_t rank = Lattice::rank;
+  /// Number of neighbours.
   static constexpr std::size_t neighbour_count = Neighborhood::size_v;
 
   /// Hook signature: `(step_index_just_completed, frame)`.
   using hook_type = std::function<void(std::size_t, const Lattice &)>;
 
 private:
-  Lattice cur_buf;
-  Lattice nxt_buf;
-  Rule rule;
-  Neighborhood nh;
-  hook_type pre_hook;
-  hook_type post_hook;
-  std::size_t step_count = 0;
+  Lattice cur_buf_;
+  Lattice nxt_buf_;
+  Rule rule_;
+  Neighborhood nh_;
+  hook_type pre_hook_;
+  hook_type post_hook_;
+  std::size_t step_count_ = 0;
 
 public:
   /** @brief Build an engine on top of an existing initial lattice.
@@ -232,10 +244,7 @@ public:
    *  O(N) for allocating the next buffer, where N is the cell count.
    */
   Synchronous_Engine(Lattice initial, Rule r, Neighborhood n)
-    : cur_buf(std::move(initial)),
-      nxt_buf(cur_buf.extents()),
-      rule(std::move(r)),
-      nh(std::move(n))
+    : cur_buf_(std::move(initial)), nxt_buf_(cur_buf_.extents()), rule_(std::move(r)), nh_(std::move(n))
   {}
 
   /** @brief Build an engine with a default-constructed neighbourhood.
@@ -262,7 +271,7 @@ public:
    */
   [[nodiscard]] const Lattice &frame() const noexcept
   {
-    return cur_buf;
+    return cur_buf_;
   }
 
   /** @brief Return the number of completed steps.
@@ -271,7 +280,7 @@ public:
    */
   [[nodiscard]] std::size_t steps_run() const noexcept
   {
-    return step_count;
+    return step_count_;
   }
 
   /** @brief Return the frame extents.
@@ -280,7 +289,7 @@ public:
    */
   [[nodiscard]] const extents_type &extents() const noexcept
   {
-    return cur_buf.extents();
+    return cur_buf_.extents();
   }
 
   /** @brief Register a hook fired *before* every `step()`.
@@ -290,7 +299,7 @@ public:
   template <typename F>
   void on_pre_step(F &&f)
   {
-    pre_hook = std::forward<F>(f);
+    pre_hook_ = std::forward<F>(f);
   }
 
   /** @brief Register a hook fired *after* every `step()`.
@@ -301,7 +310,7 @@ public:
   template <typename F>
   void on_post_step(F &&f)
   {
-    post_hook = std::forward<F>(f);
+    post_hook_ = std::forward<F>(f);
   }
 
   /** @brief Apply the rule to every cell once and swap buffers.
@@ -319,8 +328,15 @@ public:
   {
     using namespace ca_engine_detail;
 
-    if (pre_hook)
-      pre_hook(step_count, cur_buf);
+    // Refresh the ghost layer, if the lattice has one. This is what
+    // allows Phase 4 lattices to keep the boundary logic out of the
+    // inner loop: by the time `gather_neighbors` runs, every cell
+    // inside the halo already carries the correct policy value.
+    if constexpr (HasRefreshHalo<Lattice>)
+      cur_buf_.refresh_halo();
+
+    if (pre_hook_)
+      pre_hook_(step_count_, cur_buf_);
 
     // Stack buffer for the gathered neighbour values. Size is fixed
     // by the neighbourhood at compile time, so no heap involvement.
@@ -328,48 +344,43 @@ public:
 
     auto compute_one = [&](const coord_type &c)
     {
-      const std::size_t neigh_sz = nh.size();
-      gather_neighbors(nh, cur_buf, c,
-                       std::span<state_type>(nbuf.data(), neigh_sz));
-      nxt_buf.set(c, rule(cur_buf.at(c),
-                          Neighbor_View<state_type>(nbuf.data(),
-                                                    neigh_sz)));
+      const std::size_t neigh_sz = nh_.size();
+      gather_neighbors(nh_, cur_buf_, c, std::span<state_type>(nbuf.data(), neigh_sz));
+      const Cell_Context<rank> ctx{step_count_, c};
+      nxt_buf_.set(c,
+                   apply_rule(rule_,
+                              cur_buf_.at(c),
+                              Neighbor_View<state_type>(nbuf.data(), neigh_sz),
+                              ctx));
     };
 
     if constexpr (rank == 1)
       {
-        iterate_1d<coord_type>(cur_buf.size(0), compute_one);
+        iterate_1d<coord_type>(cur_buf_.size(0), compute_one);
       }
     else if constexpr (rank == 2)
       {
         if constexpr (is_tile_v<Order>)
-          iterate_2d_tile<Order::width, Order::height, coord_type>(cur_buf.size(0),
-                                                                   cur_buf.size(1),
+          iterate_2d_tile<Order::width, Order::height, coord_type>(cur_buf_.size(0),
+                                                                   cur_buf_.size(1),
                                                                    compute_one);
         else if constexpr (std::is_same_v<Order, ColumnMajor>)
-          iterate_2d_column_major<coord_type>(cur_buf.size(0),
-                                              cur_buf.size(1),
-                                              compute_one);
+          iterate_2d_column_major<coord_type>(cur_buf_.size(0), cur_buf_.size(1), compute_one);
         else
-          iterate_2d_row_major<coord_type>(cur_buf.size(0),
-                                           cur_buf.size(1),
-                                           compute_one);
+          iterate_2d_row_major<coord_type>(cur_buf_.size(0), cur_buf_.size(1), compute_one);
       }
     else if constexpr (rank == 3)
       {
-        iterate_3d_row_major<coord_type>(cur_buf.size(0),
-                                         cur_buf.size(1),
-                                         cur_buf.size(2),
-                                         compute_one);
+        iterate_3d_row_major<coord_type>(cur_buf_.size(0), cur_buf_.size(1), cur_buf_.size(2), compute_one);
       }
     else
       static_assert(rank <= 3, "Synchronous_Engine currently supports rank <= 3");
 
-    cur_buf.swap(nxt_buf);
-    ++step_count;
+    cur_buf_.swap(nxt_buf_);
+    ++step_count_;
 
-    if (post_hook)
-      post_hook(step_count, cur_buf);
+    if (post_hook_)
+      post_hook_(step_count_, cur_buf_);
   }
 
   /** @brief Run several synchronous steps.
@@ -382,7 +393,7 @@ public:
    *  O(steps * N * K), where N is the cell count and K is the
    *  neighbourhood size.
    */
-  void run(std::size_t steps)
+  void run(const std::size_t steps)
   {
     for (std::size_t i = 0; i < steps; ++i)
       step();
@@ -392,4 +403,4 @@ public:
 }  // namespace CA
 }  // namespace Aleph
 
-# endif // TPL_CA_ENGINE_H
+#endif  // TPL_CA_ENGINE_H

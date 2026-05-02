@@ -283,6 +283,19 @@ set(HLIST
     tpl_ca_rule.H
     tpl_ca_engine.H
     ca-engine-utils.H
+    tpl_ca_ghost_lattice.H
+    ca-tiling.H
+    ca-bench.H
+    tpl_ca_parallel_engine.H
+    tpl_ca_hex_lattice.H
+    tpl_ca_triangular_lattice.H
+    tpl_ca_graph_automaton.H
+    ca-metrics.H
+    ca-observer.H
+    ca-rng.H
+    tpl_ca_stochastic_rules.H
+    ca-kernels.H
+    tpl_ca_continuous_rules.H
 )
 
 # C++ source files

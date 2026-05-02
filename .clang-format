@@ -37,7 +37,7 @@ AlwaysBreakAfterReturnType: None
 AlwaysBreakTemplateDeclarations: Yes
 PenaltyBreakString: 1000
 PenaltyExcessCharacter: 10
-PenaltyBreakBeforeFirstCallParameter: 100
+PenaltyBreakBeforeFirstCallParameter: 10
 PenaltyReturnTypeOnItsOwnLine: 200
 AlwaysBreakBeforeMultilineStrings: true
 LambdaBodyIndentation: OuterScope
@@ -52,9 +52,10 @@ SpacesInAngles: Never
 
 # Alignment
 AlignAfterOpenBracket: Align
-BinPackArguments: false
+BinPackArguments: true
 BinPackParameters: false
 AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: false
 AlignOperands: AlignAfterOperator
 AlignTrailingComments: true
 AlignEscapedNewlines: Right
