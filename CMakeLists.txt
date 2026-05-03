@@ -274,6 +274,43 @@ set(HLIST
     tpl_tdRbTreeRk.H
     tpl_treap.H
     treapNode.H
+    ca-traits.H
+    tpl_ca_concepts.H
+    tpl_ca_storage.H
+    tpl_ca_bit_storage.H
+    tpl_ca_lattice.H
+    tpl_ca_neighborhood.H
+    tpl_ca_rule.H
+    tpl_ca_engine.H
+    ca-engine-utils.H
+    tpl_ca_ghost_lattice.H
+    ca-tiling.H
+    ca-bench.H
+    thread_pool.H
+    tpl_ca_parallel_engine.H
+    tpl_ca_hex_lattice.H
+    tpl_ca_triangular_lattice.H
+    tpl_ca_graph_automaton.H
+    ca-metrics.H
+    ca-observer.H
+    ca-rng.H
+    tpl_ca_stochastic_rules.H
+    ca-kernels.H
+    tpl_ca_continuous_rules.H
+    tpl_ca_hashlife.H
+    ca-io.H
+    ca-tikz.H
+    ca-frame-stream.H
+    ca-png.H
+    ca-gif.H
+    ca-svg.H
+    ca-npy.H
+    ca-vtk.H
+    ca-html-player.H
+    ca-ffmpeg-sink.H
+    ca-dot.H
+    ca-ascii.H
+    ca-x11-viewer.H
 )
 
 # C++ source files

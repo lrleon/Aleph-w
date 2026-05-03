@@ -97,6 +97,7 @@
 # ifndef BITARRAY_H
 # define BITARRAY_H
 
+# include <atomic>
 # include <bit>
 # include <cstdint>
 # include <iostream>
@@ -127,8 +128,19 @@ namespace Aleph
       assert(i < 8);
       assert(val <= 1);
       const std::uint8_t mask = static_cast<std::uint8_t>(1) << i;
-      const auto bit = static_cast<std::uint8_t>(val & 0x1u);
-      this->value = (this->value & ~mask) | (bit << i);
+#ifdef __cpp_lib_atomic_ref
+      std::atomic_ref<std::uint8_t> atm_val(this->value);
+      if (val)
+        atm_val.fetch_or(mask, std::memory_order_relaxed);
+      else
+        atm_val.fetch_and(static_cast<std::uint8_t>(~mask), std::memory_order_relaxed);
+#else
+      // Fallback for compilers without std::atomic_ref (e.g., Ubuntu 22.04)
+      if (val)
+        __atomic_fetch_or(&this->value, mask, __ATOMIC_RELAXED);
+      else
+        __atomic_fetch_and(&this->value, static_cast<std::uint8_t>(~mask), __ATOMIC_RELAXED);
+#endif
     }
 
     Byte() noexcept = default;
