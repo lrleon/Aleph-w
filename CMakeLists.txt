@@ -298,6 +298,19 @@ set(HLIST
     ca-kernels.H
     tpl_ca_continuous_rules.H
     tpl_ca_hashlife.H
+    ca-io.H
+    ca-tikz.H
+    ca-frame-stream.H
+    ca-png.H
+    ca-gif.H
+    ca-svg.H
+    ca-npy.H
+    ca-vtk.H
+    ca-html-player.H
+    ca-ffmpeg-sink.H
+    ca-dot.H
+    ca-ascii.H
+    ca-x11-viewer.H
 )
 
 # C++ source files

@@ -189,7 +189,12 @@ aparte (`ca-tiling.H`).
 | Estocásticos    | pendiente | `ca-rng.H`                                     |
 | Continuos       | Fase 9 ✔ | `ca-kernels.H`, `tpl_ca_continuous_rules.H`    |
 | Hashlife        | pendiente | `CA_Hashlife.H`                                |
-| IO / TikZ       | pendiente | `ca-io.H`, `ca-tikz.H`                         |
+| IO / visualización | Fase 11.5 ✔ | `ca-io.H`, `ca-tikz.H`, `ca-frame-stream.H`, `ca-png.H`, `ca-gif.H`, `ca-svg.H`, `ca-npy.H`, `ca-vtk.H`, `ca-html-player.H`, `ca-ffmpeg-sink.H`, `ca-dot.H`, `ca-ascii.H`, `ca-x11-viewer.H` |
+
+Fase 11.5 añade un contrato común `Frame_Sink`, composición de sinks y
+backends de salida para PNG, GIF, SVG, NPY, VTK, HTML autocontenido,
+GraphViz DOT, terminal ASCII/ANSI, ffmpeg en runtime y visor X11 en vivo.
+Los backends son headers independientes y no agregan dependencias de build.
 
 El estado de cada fase se mantiene además en
 [`cell-automata.md`](../cell-automata.md) con checkboxes.
@@ -209,9 +214,8 @@ El estado de cada fase se mantiene además en
 
 ## 9. Próximos pasos
 
-1. **Fase 1** — implementar `Dense_Cell_Storage<T,N>` y
-   `Lattice<Storage, Boundary>` con sus tests de borde y de swap.
-2. **Fase 2** — definir `Neighbor_View` (sin allocations) y los
-   vecindarios estándar.
-3. **Fase 3** — engine síncrono mínimo capaz de reproducir el Game of
-   Life canónico.
+1. **Fase 12** — preparar documentación de release y revisar warnings
+   Doxygen del módulo completo.
+2. **Fase 13** — añadir esquemas de actualización asíncronos y por
+   bloques.
+3. **Fase 14** — modelar autómatas multi-campo con layouts AoS/SoA.

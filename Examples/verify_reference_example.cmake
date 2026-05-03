@@ -22,7 +22,10 @@ endif()
 
 set(_output "${_stdout}${_stderr}")
 
-foreach(_expected IN LISTS EXPECT_SUBSTRINGS)
+set(_expected_values "${EXPECT_SUBSTRINGS}")
+string(REPLACE "\\;" ";" _expected_values "${_expected_values}")
+
+foreach(_expected IN LISTS _expected_values)
   string(FIND "${_output}" "${_expected}" _pos)
   if(_pos EQUAL -1)
     message(FATAL_ERROR
