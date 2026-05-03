@@ -604,7 +604,7 @@ TEST(CAParallelEngine, RankOneEquivalenceSmallLattice)
 TEST(CAParallelEngine, BitCellStorageRunsConcurrentlyWithoutDataRaces)
 {
   using L = Lattice<Bit_Cell_Storage<2>, ToroidalBoundary>;
-  L seed({32, 32}, false);
+  L seed({33, 32}, false);
   seed_random(seed, 0xB17u, 0.35);
 
   Synchronous_Engine<L, Game_Of_Life_Rule, Moore<2, 1>> seq(

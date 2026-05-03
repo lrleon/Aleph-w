@@ -409,6 +409,7 @@ set(TEST_PROGRAMS
     tpl_ca_stochastic_rules_test
     ca_kernels_test
     tpl_ca_continuous_rules_test
+    tpl_ca_hashlife_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++

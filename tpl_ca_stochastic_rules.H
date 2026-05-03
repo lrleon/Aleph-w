@@ -427,10 +427,12 @@ public:
   {
     return T_;
   }
+
   [[nodiscard]] double coupling() const noexcept
   {
     return J_;
   }
+
   [[nodiscard]] double field() const noexcept
   {
     return H_;
@@ -690,8 +692,8 @@ public:
         fraction >= threshold_ or p_move_ <= 0.0)
       return current;
 
-    Engine eng{static_cast<typename Engine::result_type>(cell_seed<Rank>(master_seed_, ctx))};
-    if (uniform_unit(eng) < p_move_)
+    if (Engine eng{static_cast<typename Engine::result_type>(cell_seed<Rank>(master_seed_, ctx))};
+        uniform_unit(eng) < p_move_)
       return static_cast<State>(Schelling_Cell::EMPTY);
     return current;
   }

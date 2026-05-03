@@ -382,6 +382,11 @@ public:
    *  @param[in] c user coordinate in `[0, size(d))`.
    *  @param[in] v value to write.
    *  @throws std::out_of_range if any component of `c` is out of range.
+   *  @pre  `c` must be a valid user coordinate (each component in `[0, size(d))`).
+   *  @post The interior cell at `c` holds `v`. Halo cells that mirror
+   *        interior cells (e.g. under `ToroidalBoundary`) are *not*
+   *        updated automatically; call `refresh_halo()` before the
+   *        next `at_safe()` call that may read the halo region.
    */
   void set(const coord_type &c, const state_type &v)
   {
@@ -404,6 +409,11 @@ public:
    *
    *  @param[in] c possibly out-of-range user coordinate.
    *  @return the cell value resolved through the halo/policy pipeline.
+   *  @pre  The halo is clean (i.e., `refresh_halo()` has been called
+   *        after the last `set()` that modified an interior cell whose
+   *        boundary reflection falls into the halo). If the halo is
+   *        stale, reads of halo coordinates return the previously
+   *        cached (potentially out-of-date) value.
    */
   [[nodiscard]] state_type at_safe(const coord_type &c) const
   {
@@ -435,6 +445,10 @@ public:
    *  rule loop can read neighbour values without any boundary
    *  branch. Calling it manually is harmless (idempotent under every
    *  policy implemented here).
+   *
+   *  @post All halo cells reflect the current interior state under the
+   *        active boundary policy; `at_safe()` is now safe to call for
+   *        any coordinate in `[-Halo, size(d) + Halo)`.
    *
    *  @par Complexity
    *  Linear in the number of halo cells (`O(surface_area * Halo)`).

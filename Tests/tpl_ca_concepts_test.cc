@@ -174,8 +174,9 @@ TEST(CACellularAutomataConcepts, IdentityRuleProducesSameState)
 
 TEST(CACellularAutomataConcepts, BoundaryTagsAreEmpty)
 {
-  // The boundary tags from ca-traits.H should be zero-sized so they can
-  // be passed as template tags without runtime cost.
+  // The boundary tags from ca-traits.H are empty types with sizeof == 1
+  // (the minimum C++ object size). They carry no data members and can be
+  // passed as template tags without any runtime cost.
   EXPECT_EQ(sizeof(OpenBoundary), 1u);
   EXPECT_EQ(sizeof(ToroidalBoundary), 1u);
   EXPECT_EQ(sizeof(ReflectiveBoundary), 1u);

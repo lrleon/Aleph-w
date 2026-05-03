@@ -237,10 +237,9 @@ private:
   /// cell coordinate, so contextual rules (e.g. Phase 8 stochastic
   /// rules) see the same `(step, coord)` pair regardless of which
   /// worker visits the cell.
-  void update_cell(const coord_type &c)
+  void update_cell(const coord_type &c, std::span<state_type> nbuf)
   {
-    std::array<state_type, neighbour_count> nbuf{};
-    const std::size_t neigh_sz = nh_.size();
+    const std::size_t neigh_sz = std::min(nh_.size(), nbuf.size());
     gather_neighbors(nh_, cur_buf_, c, std::span<state_type>(nbuf.data(), neigh_sz));
     const Cell_Context<rank> ctx{step_count_, c};
     nxt_buf_.set(
@@ -255,16 +254,18 @@ private:
 
   void update_slab_1d(const ca_size_t r_begin, const ca_size_t r_end)
   {
+    std::array<state_type, neighbour_count> nbuf{};
     coord_type c{};
     for (ca_size_t i = r_begin; i < r_end; ++i)
       {
         c[0] = static_cast<ca_index_t>(i);
-        update_cell(c);
+        update_cell(c, nbuf);
       }
   }
 
   void update_slab_2d_row_major(const ca_size_t r_begin, const ca_size_t r_end)
   {
+    std::array<state_type, neighbour_count> nbuf{};
     const ca_size_t cols = cur_buf_.size(1);
     coord_type c{};
     for (ca_size_t i = r_begin; i < r_end; ++i)
@@ -272,13 +273,14 @@ private:
         {
           c[0] = static_cast<ca_index_t>(i);
           c[1] = static_cast<ca_index_t>(j);
-          update_cell(c);
+          update_cell(c, nbuf);
         }
   }
 
   template <std::size_t TileW, std::size_t TileH>
   void update_slab_2d_tile(const ca_size_t r_begin, const ca_size_t r_end)
   {
+    std::array<state_type, neighbour_count> nbuf{};
     const ca_size_t cols = cur_buf_.size(1);
     coord_type c{};
     // Walk tiles strictly inside the assigned row slab; the schedule
@@ -293,13 +295,14 @@ private:
               {
                 c[0] = static_cast<ca_index_t>(i);
                 c[1] = static_cast<ca_index_t>(j);
-                update_cell(c);
+                update_cell(c, nbuf);
               }
         }
   }
 
   void update_slab_3d_row_major(const ca_size_t r_begin, const ca_size_t r_end)
   {
+    std::array<state_type, neighbour_count> nbuf{};
     const ca_size_t n1 = cur_buf_.size(1);
     const ca_size_t n2 = cur_buf_.size(2);
     coord_type c{};
@@ -310,7 +313,7 @@ private:
             c[0] = static_cast<ca_index_t>(i);
             c[1] = static_cast<ca_index_t>(j);
             c[2] = static_cast<ca_index_t>(k);
-            update_cell(c);
+            update_cell(c, nbuf);
           }
   }
 
@@ -494,8 +497,11 @@ public:
               this->process_slab(b, e);
             }));
           }
-        // Wait for every worker. `get()` re-throws any exception raised
-        // inside the partition; the first one wins and propagates.
+        // Phase 1: wait for every worker to finish without re-throwing,
+        // so no worker is still writing to nxt_buf_ when we propagate.
+        for (auto &f : futures)
+          f.wait();
+        // Phase 2: collect exceptions; re-throw the first one if any.
         for (auto &f : futures)
           f.get();
       }

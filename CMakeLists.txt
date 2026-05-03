@@ -297,6 +297,7 @@ set(HLIST
     tpl_ca_stochastic_rules.H
     ca-kernels.H
     tpl_ca_continuous_rules.H
+    tpl_ca_hashlife.H
 )
 
 # C++ source files

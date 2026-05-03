@@ -344,7 +344,7 @@ public:
 
     auto compute_one = [&](const coord_type &c)
     {
-      const std::size_t neigh_sz = nh_.size();
+      const std::size_t neigh_sz = std::min(nh_.size(), nbuf.size());
       gather_neighbors(nh_, cur_buf_, c, std::span<state_type>(nbuf.data(), neigh_sz));
       const Cell_Context<rank> ctx{step_count_, c};
       nxt_buf_.set(c,

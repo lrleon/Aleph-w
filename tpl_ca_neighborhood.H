@@ -236,17 +236,24 @@ public:
   /// Coordinate type accepted by for_each_offset.
   using coord_type = Coord_Vec<N>;
 
-  /// Compile-time, canonical-ordered offsets.
+  /** @brief Compile-time, canonical-ordered offsets array.
+   *
+   *  Contains all `size_v` offsets sorted in lexicographic order.
+   */
   static constexpr std::array<Offset_Vec<N>, size_v> offsets
     = ca_neighborhood_detail::compute_moore_offsets<N, R>();
 
-  /// @return the Chebyshev radius of the neighborhood.
+  /** @brief Return the Chebyshev radius of the neighborhood.
+   *  @return the template parameter `R`.
+   */
   [[nodiscard]] static constexpr std::size_t radius() noexcept
   {
     return R;
   }
 
-  /// @return the number of neighbours in the neighborhood.
+  /** @brief Return the number of neighbours in the neighborhood.
+   *  @return `size_v`, equal to `(2R+1)^N - 1`.
+   */
   [[nodiscard]] constexpr std::size_t size() const noexcept
   {
     return size_v;
@@ -281,24 +288,43 @@ class Von_Neumann
   static_assert(R >= 1, "Von_Neumann requires R >= 1");
 
 public:
+  /// Lattice dimension.
   static constexpr std::size_t rank_v = N;
+  /// L1 radius.
   static constexpr std::size_t radius_v = R;
+  /// Number of neighbours (excluding center).
   static constexpr std::size_t size_v = ca_neighborhood_detail::von_neumann_count<N, R>();
+  /// Coordinate type accepted by for_each_offset.
   using coord_type = Coord_Vec<N>;
 
+  /** @brief Compile-time, canonical-ordered offsets array.
+   *
+   *  Contains all `size_v` offsets satisfying `1 <= |off|_1 <= R`.
+   */
   static constexpr std::array<Offset_Vec<N>, size_v> offsets
     = ca_neighborhood_detail::compute_von_neumann_offsets<N, R>();
 
+  /** @brief Return the L1 radius of the neighborhood.
+   *  @return the template parameter `R`.
+   */
   [[nodiscard]] static constexpr std::size_t radius() noexcept
   {
     return R;
   }
 
+  /** @brief Return the number of neighbours in the neighborhood.
+   *  @return `size_v`.
+   */
   [[nodiscard]] static constexpr std::size_t size() noexcept
   {
     return size_v;
   }
 
+  /** @brief Apply a functor to each offset in the neighborhood.
+   *  @tparam F functor type.
+   *  @param[in] center the coordinate of the center cell (unused).
+   *  @param[in] f functor to apply to each `Offset_Vec<N>`.
+   */
   template <typename F>
   constexpr void for_each_offset(const Coord_Vec<N> & /*center*/, F &&f) const
   {
@@ -325,24 +351,40 @@ public:
 class Hex_Neighborhood
 {
 public:
+  /// Lattice dimension.
   static constexpr std::size_t rank_v = 2;
+  /// Chebyshev radius (always 1 for hex grids).
   static constexpr std::size_t radius_v = 1;
+  /// Number of neighbours (always 6).
   static constexpr std::size_t size_v = 6;
+  /// Coordinate type accepted by for_each_offset.
   using coord_type = Coord_Vec<2>;
 
+  /** @brief The six axial-coordinate offsets of the hex neighborhood. */
   static constexpr std::array<Offset_Vec<2>, 6> offsets
     = {{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, -1}, {-1, 1}}};
 
+  /** @brief Return the radius of the neighborhood (always 1).
+   *  @return `1`.
+   */
   [[nodiscard]] static constexpr std::size_t radius() noexcept
   {
     return 1;
   }
 
+  /** @brief Return the number of neighbours (always 6).
+   *  @return `6`.
+   */
   [[nodiscard]] static constexpr std::size_t size() noexcept
   {
     return 6;
   }
 
+  /** @brief Apply a functor to each of the six hex offsets.
+   *  @tparam F functor type.
+   *  @param[in] center the coordinate of the center cell (unused).
+   *  @param[in] f functor to apply to each `Offset_Vec<2>`.
+   */
   template <typename F>
   static constexpr void for_each_offset(const Coord_Vec<2> & /*center*/, F &&f)
   {
@@ -367,21 +409,37 @@ public:
 class Triangular_Neighborhood
 {
 public:
+  /// Lattice dimension.
   static constexpr std::size_t rank_v = 2;
+  /// Chebyshev radius (always 1).
   static constexpr std::size_t radius_v = 1;
+  /// Number of neighbours (always 3).
   static constexpr std::size_t size_v = 3;
+  /// Coordinate type accepted by for_each_offset.
   using coord_type = Coord_Vec<2>;
 
+  /** @brief Return the radius of the neighborhood (always 1).
+   *  @return `1`.
+   */
   [[nodiscard]] static constexpr std::size_t radius() noexcept
   {
     return 1;
   }
 
+  /** @brief Return the number of neighbours (always 3).
+   *  @return `3`.
+   */
   [[nodiscard]] static constexpr std::size_t size() noexcept
   {
     return 3;
   }
 
+  /** @brief Apply a functor to the three parity-dependent triangle offsets.
+   *  @tparam F functor type.
+   *  @param[in] center the coordinate of the center cell; parity is
+   *             derived from `(center[0] + center[1]) & 1`.
+   *  @param[in] f functor to apply to each `Offset_Vec<2>`.
+   */
   template <typename F>
   static constexpr void for_each_offset(const Coord_Vec<2> &center, F &&f)
   {

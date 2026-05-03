@@ -128,18 +128,29 @@ public:
     return total_cells_;
   }
 
+  /** @brief Return the extent (number of cells) along axis `d`.
+   *  @param d axis index in `[0, N)`.
+   *  @return number of cells along axis `d`.
+   *  @throws std::out_of_range if `d >= N`.
+   */
   [[nodiscard]] ca_size_t size(std::size_t d) const
   {
     ah_out_of_range_error_if(d >= N) << "Bit_Cell_Storage::size: axis " << d << " out of range";
     return ext_[d];
   }
 
+  /** @brief Return the full extents array.
+   *  @return const reference to the array of per-axis extents.
+   */
   [[nodiscard]] const extents_type &extents() const noexcept
   {
     return ext_;
   }
 
   /** @brief Map a multi-index to a linear bit offset (row-major).
+   *  @param[in] c multi-dimensional coordinate; each component must
+   *             satisfy `0 <= c[d] < size(d)`.
+   *  @return flat bit index in `[0, total cell count)`.
    *  @throws std::out_of_range if any component is out of range.
    */
   [[nodiscard]] ca_size_t linear_index(const coord_type &c) const
@@ -155,30 +166,56 @@ public:
     return idx;
   }
 
-  /// Read the cell at `c`.
+  /** @brief Read the cell at coordinate `c`.
+   *  @param[in] c multi-dimensional coordinate.
+   *  @return `true` if the cell is set, `false` otherwise.
+   *  @throws std::out_of_range if any component of `c` is out of range.
+   */
   [[nodiscard]] bool at(const coord_type &c) const
   {
     return buffer_.read_bit(linear_index(c)) != 0;
   }
 
-  /// Write the cell at `c`.
+  /** @brief Write the cell at coordinate `c`.
+   *  @param[in] c multi-dimensional coordinate.
+   *  @param[in] v boolean value to store.
+   *  @throws std::out_of_range if any component of `c` is out of range.
+   */
   void set(const coord_type &c, bool v)
   {
     buffer_.write_bit(linear_index(c), v ? 1u : 0u);
   }
 
+  /** @brief Read 1D cell at index `i`.
+   *  @param i the column coordinate.
+   *  @return `true` if the cell is set, `false` otherwise.
+   *  @throws std::out_of_range if `i` is out of bounds.
+   */
   [[nodiscard]] bool at(ca_index_t i) const
     requires(N == 1)
   {
     return at(coord_type{i});
   }
 
+  /** @brief Read 2D cell at `(i, j)`.
+   *  @param i the row coordinate.
+   *  @param j the column coordinate.
+   *  @return `true` if the cell is set, `false` otherwise.
+   *  @throws std::out_of_range if the coordinate is out of bounds.
+   */
   [[nodiscard]] bool at(ca_index_t i, ca_index_t j) const
     requires(N == 2)
   {
     return at(coord_type{i, j});
   }
 
+  /** @brief Read 3D cell at `(i, j, k)`.
+   *  @param i the depth coordinate.
+   *  @param j the row coordinate.
+   *  @param k the column coordinate.
+   *  @return `true` if the cell is set, `false` otherwise.
+   *  @throws std::out_of_range if the coordinate is out of bounds.
+   */
   [[nodiscard]] bool at(ca_index_t i, ca_index_t j, ca_index_t k) const
     requires(N == 3)
   {

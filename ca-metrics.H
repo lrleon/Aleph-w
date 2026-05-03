@@ -161,8 +161,7 @@ inline void for_each_cell(const Lattice &lat, F &&f)
       for (ca_size_t i = 0; i < n0; ++i)
         for (ca_size_t j = 0; j < n1; ++j)
           for (ca_size_t k = 0; k < n2; ++k)
-            f(lat.at(coord_t{static_cast<ca_index_t>(i),
-                             static_cast<ca_index_t>(j),
+            f(lat.at(coord_t{static_cast<ca_index_t>(i), static_cast<ca_index_t>(j),
                              static_cast<ca_index_t>(k)}));
     }
   else
@@ -176,8 +175,7 @@ template <typename Lattice>
 [[nodiscard]] inline ca_size_t count_state(const Lattice &lat, const typename Lattice::state_type &s)
 {
   ca_size_t cnt = 0;
-  for_each_cell(lat,
-                [&](const auto &v)
+  for_each_cell(lat, [&](const auto &v)
   {
     if (v == s)
       ++cnt;
@@ -192,8 +190,7 @@ template <typename Lattice>
   using state_t = typename Lattice::state_type;
   const state_t dead{};
   ca_size_t cnt = 0;
-  for_each_cell(lat,
-                [&](const auto &v)
+  for_each_cell(lat, [&](const auto &v)
   {
     if (v != dead)
       ++cnt;
@@ -244,8 +241,7 @@ template <typename Lattice>
 [[nodiscard]] inline std::vector<ca_size_t> state_histogram(const Lattice &lat, std::size_t max_state)
 {
   std::vector<ca_size_t> hist(max_state, 0);
-  for_each_cell(lat,
-                [&](const auto &v)
+  for_each_cell(lat, [&](const auto &v)
   {
     using S = typename Lattice::state_type;
     if constexpr (std::is_integral_v<S> or std::is_enum_v<S>)
@@ -315,8 +311,7 @@ template <typename Lattice>
 [[nodiscard]] inline std::uint64_t frame_hash(const Lattice &lat)
 {
   std::uint64_t h = ca_metrics_detail::fnv_basis;
-  for_each_cell(lat,
-                [&](const auto &v)
+  for_each_cell(lat, [&](const auto &v)
   {
     h = ca_metrics_detail::fnv1a_mix(h, v);
   });
@@ -371,8 +366,7 @@ template <typename Lattice>
         for (ca_size_t j = 0; j < n1; ++j)
           for (ca_size_t k = 0; k < n2; ++k)
             {
-              const coord_t c{static_cast<ca_index_t>(i),
-                              static_cast<ca_index_t>(j),
+              const coord_t c{static_cast<ca_index_t>(i), static_cast<ca_index_t>(j),
                               static_cast<ca_index_t>(k)};
               if (a.at(c) != b.at(c))
                 return false;
@@ -434,8 +428,7 @@ template <typename Lattice>
         for (ca_size_t j = 0; j < n1; ++j)
           for (ca_size_t k = 0; k < n2; ++k)
             {
-              const coord_t c{static_cast<ca_index_t>(i),
-                              static_cast<ca_index_t>(j),
+              const coord_t c{static_cast<ca_index_t>(i), static_cast<ca_index_t>(j),
                               static_cast<ca_index_t>(k)};
               if (a.at(c) != b.at(c))
                 ++diff;
