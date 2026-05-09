@@ -30,6 +30,7 @@ BraceWrapping:
   SplitEmptyFunction: false
 
 # Line breaks
+BreakBeforeConceptDeclarations: Always
 ColumnLimit: 100
 BreakBeforeBinaryOperators: All
 BreakBeforeTernaryOperators: true

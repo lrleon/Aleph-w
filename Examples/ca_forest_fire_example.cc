@@ -17,7 +17,7 @@
  * Builds a 32×32 toroidal forest-fire CA seeded with a few burning
  * cells and runs it for 60 steps with a fixed master seed. After each
  * step the example prints an ASCII frame plus a tiny tally
- * (#empty / #trees / #burning). The same `(seed, init)` pair must
+ * (`#empty` / `#trees` / `#burning`). The same `(seed, init)` pair must
  * always produce the same ASCII trace, regardless of the build mode.
  *
  *  Glyphs:  '.' empty  'T' tree  '#' burning

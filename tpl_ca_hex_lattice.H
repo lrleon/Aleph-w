@@ -350,7 +350,9 @@ inline void render_hex_lattice_tikz(std::ostream &os,
   os << "\\end{tikzpicture}\n";
 }
 
-/// @overload Returns a `std::string` instead of writing to a stream.
+/** @brief Returns a `std::string` instead of writing to a stream.
+ *  @overload
+ */
 template <typename Lattice, typename Palette>
 [[nodiscard]] inline std::string render_hex_lattice_tikz(const Lattice &lat,
                                                          Palette &&palette,

@@ -269,7 +269,7 @@ public:
   }
 
   /** @brief PNG frames are written eagerly; this is a no-op. */
-  void flush() {}
+  static void flush() {}
 };
 
 template <typename Mapper>

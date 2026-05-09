@@ -538,7 +538,15 @@ public:
     master_seed_ = s;
   }
 
-  /** @copydoc Ising_Glauber_Rule::operator() */
+  /** @brief Compute the next Ising state for cell `current` (Metropolis dynamics).
+   *
+   *  @tparam State integral cell state.
+   *  @tparam Rank lattice rank.
+   *  @param[in] current current centre-cell state.
+   *  @param[in] neighbours read-only neighbour values.
+   *  @param[in] ctx per-cell context.
+   *  @return next state produced by the rule.
+   */
   template <typename State, std::size_t Rank>
   [[nodiscard]] State operator()(const State &current,
                                  Neighbor_View<State> neighbours,

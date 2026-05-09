@@ -25,9 +25,9 @@
  *     T_c = 2 * J / ln(1 + sqrt(2)) ~ 2.269 J
  * so we expect:
  *
- *   - T < T_c: ordered phase, |<m>| close to 1.
+ *   - T < T_c: ordered phase, |m| close to 1.
  *   - T ~ T_c: critical fluctuations.
- *   - T > T_c: disordered phase, |<m>| close to 0.
+ *   - T > T_c: disordered phase, |m| close to 0.
  *
  * After the sweep we render the final spin configuration of the cold,
  * critical, and hot regimes so the visual contrast is obvious.

@@ -42,6 +42,7 @@
  *  Every neighborhood satisfies the `NeighborhoodLike` concept and
  *  publishes a uniform compile-time API:
  *
+ *  @code{.cpp}
  *    static constexpr std::size_t rank_v;     // lattice dim
  *    static constexpr std::size_t size_v;     // neighbour count
  *    static constexpr std::size_t radius_v;   // Chebyshev radius
@@ -49,13 +50,16 @@
  *    std::size_t size()   const;
  *    template <typename F>
  *    void for_each_offset(const Coord_Vec<rank_v> & center, F && f) const;
+ *  @endcode
  *
  *  Plus a free function template:
  *
- *    template <typename Nbh, typename L, typename T>
+ *  @code{.cpp}
+ *    template <class Nbh, class L, class T>
  *    void gather_neighbors(const Nbh & nh, const L & lat,
  *                          const typename L::coord_type & center,
  *                          std::span<T> out);
+ *  @endcode
  *
  *  which fills the caller-supplied stack buffer with the values returned
  *  by `lat.at_safe(center + offset)` in canonical order. No heap.
@@ -265,8 +269,9 @@ public:
    *  @param[in] f functor to apply.
    */
   template <typename F>
-  constexpr void for_each_offset(const Coord_Vec<N> & /*center*/, F &&f) const
+  constexpr void for_each_offset(const Coord_Vec<N> & center, F &&f) const
   {
+    (void)center;
     for (std::size_t i = 0; i < size_v; ++i)
       f(offsets[i]);
   }
@@ -326,8 +331,9 @@ public:
    *  @param[in] f functor to apply to each `Offset_Vec<N>`.
    */
   template <typename F>
-  constexpr void for_each_offset(const Coord_Vec<N> & /*center*/, F &&f) const
+  constexpr void for_each_offset(const Coord_Vec<N> & center, F &&f) const
   {
+    (void)center;
     for (std::size_t i = 0; i < size_v; ++i)
       f(offsets[i]);
   }
@@ -386,8 +392,9 @@ public:
    *  @param[in] f functor to apply to each `Offset_Vec<2>`.
    */
   template <typename F>
-  static constexpr void for_each_offset(const Coord_Vec<2> & /*center*/, F &&f)
+  static constexpr void for_each_offset(const Coord_Vec<2> & center, F &&f)
   {
+    (void)center;
     for (const auto &o : offsets)
       f(o);
   }
@@ -534,8 +541,9 @@ public:
    *  @param[in] f functor to apply.
    */
   template <typename F>
-  constexpr void for_each_offset(const Coord_Vec<N> & /*center*/, F &&f) const
+  constexpr void for_each_offset(const Coord_Vec<N> & center, F &&f) const
   {
+    (void)center;
     for (const auto &o : offs_)
       f(o);
   }

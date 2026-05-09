@@ -63,6 +63,7 @@ Language: English | [Español](README.es.md)
 - [Parallel Computing](#readme-parallel-computing)
 - [Functional Programming](#readme-functional-programming)
 - [State-Space Search Framework](#readme-state-search-framework)
+- [Cellular Automata Module](#readme-cellular-automata-module)
 - [Tutorial](#readme-tutorial)
 - [API Reference](#readme-api-reference)
 - [Benchmarks](#readme-benchmarks)
@@ -3669,6 +3670,50 @@ adversarial Negamax/Alpha-Beta).
 
 ---
 
+<a id="readme-cellular-automata-module"></a>
+## Cellular Automata Module
+
+`Aleph::CA` provides a layered C++20 framework for cellular automata: dense and
+bit-packed storage, boundary-aware lattices, Moore/Von Neumann/hex/triangular
+neighborhoods, deterministic and stochastic rules, synchronous and parallel
+engines, Hashlife, metrics, observers, and exporters for Life/RLE, CSV, JSON,
+PPM/PGM, TikZ, SVG, PNG, GIF, VTK, NPY, HTML, DOT and terminal output.
+
+Quick start: run a Game of Life glider for five synchronous steps.
+
+```cpp
+#include <ca-engine-utils.H>
+#include <tpl_ca_engine.H>
+#include <tpl_ca_lattice.H>
+#include <tpl_ca_neighborhood.H>
+#include <tpl_ca_storage.H>
+
+#include <cstddef>
+#include <utility>
+
+using namespace Aleph::CA;
+
+int main()
+{
+  using Grid = Lattice<Dense_Cell_Storage<int, 2>, ToroidalBoundary>;
+  using Engine = Synchronous_Engine<Grid, Game_Of_Life_Rule, Moore<2, 1>>;
+  Grid grid({ 8, 8 }, 0);
+  grid.set({ 1, 2 }, 1); grid.set({ 2, 3 }, 1);
+  grid.set({ 3, 1 }, 1); grid.set({ 3, 2 }, 1);
+  grid.set({ 3, 3 }, 1);
+  Engine engine(std::move(grid), make_game_of_life_rule(), Moore<2, 1>{});
+  for (std::size_t i = 0; i < 5; ++i) engine.step();
+}
+```
+
+Start with `Examples/ca_game_of_life_example.cc`,
+`Examples/ca_wolfram1d_example.cc`, `Examples/ca_parallel_gol_example.cc` and
+`Examples/ca_visualization_gallery_example.cc`. Full module documentation lives
+in `docs/cellular_automata.md`, with an English summary in
+`docs/cellular_automata.en.md`.
+
+---
+
 <a id="readme-tutorial"></a>
 ## Tutorial
 
@@ -4209,6 +4254,11 @@ cmake --build build
 | HLD convenience | `hld_example.cc` | HLD_Sum/Max/Min path queries, subtree queries, point updates, edge-weighted queries |
 | Link-Cut Tree | `link_cut_tree_example.cc` | Dynamic forest: link, cut, reroot, LCA, path sum/min/max, lazy updates |
 | Planarity + certificates | `planarity_test_example.cc` | LR planarity, dual metadata, geometric drawing, JSON/DOT/GraphML/GEXF certificate export + structural validation |
+| **Cellular Automata** | | |
+| Game of Life | `ca_game_of_life_example.cc` | Toroidal 2D Life with canonical patterns |
+| Wolfram 1D | `ca_wolfram1d_example.cc` | Elementary one-dimensional binary rules |
+| Parallel GoL | `ca_parallel_gol_example.cc` | Double-buffered parallel synchronous engine |
+| CA visualization | `ca_visualization_gallery_example.cc` | Export gallery across image, document and data formats |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |

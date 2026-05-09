@@ -61,6 +61,7 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include <ah-errors.H>
 
@@ -95,7 +96,8 @@ struct Tri_Coord
 /// @return parity (0 = up triangle, 1 = down triangle).
 [[nodiscard]] inline constexpr int tri_parity(Tri_Coord c) noexcept
 {
-  return static_cast<int>((c.i + c.j) & 1);
+  using unsigned_t = std::make_unsigned_t<ca_index_t>;
+  return static_cast<int>((static_cast<unsigned_t>(c.i) + static_cast<unsigned_t>(c.j)) & 1u);
 }
 
 /// @return true if `c` is an up triangle.
@@ -218,7 +220,9 @@ inline void render_triangular_lattice_tikz(std::ostream &os,
   os << "\\end{tikzpicture}\n";
 }
 
-/// @overload Returns a `std::string` instead of writing to a stream.
+/** @brief Returns a `std::string` instead of writing to a stream.
+ *  @overload
+ */
 template <typename Lattice, typename Palette>
 [[nodiscard]] inline std::string render_triangular_lattice_tikz(const Lattice &lat,
                                                                 Palette &&palette,
