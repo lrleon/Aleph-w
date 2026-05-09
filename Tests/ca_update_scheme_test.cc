@@ -334,11 +334,11 @@ void run_reversibility_test(Block_Rule rule, std::size_t N,
       eng(std::move(initial), std::move(rule), Null_Neighborhood<2>{},
           Margolus_Update{});
 
-  eng.run(N);
-  EXPECT_NE(alive_count(eng.frame()) + 1, 0u);  // sanity: didn't crash
+  // Forward N steps must complete without throwing.
+  ASSERT_NO_THROW(eng.run(N));
   // Even in pathological cases, the rule must be invertible by
   // running backwards the same number of steps.
-  eng.run_back(N);
+  ASSERT_NO_THROW(eng.run_back(N));
 
   ASSERT_TRUE(grids_equal(eng.frame(), baseline))
       << label << ": forward(" << N << ") then backward(" << N

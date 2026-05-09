@@ -30,8 +30,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <random>
+#include <stdexcept>
 #include <string>
 
 #include <ca-traits.H>
@@ -98,9 +101,44 @@ int main(int argc, char **argv)
   std::size_t steps = 1000;
   ca_size_t side = 32;
   std::uint32_t seed_value = 0xC0DEFEEDu;
-  if (argc >= 2) steps = static_cast<std::size_t>(std::stoul(argv[1]));
-  if (argc >= 3) side = static_cast<ca_size_t>(std::stoul(argv[2]));
-  if (argc >= 4) seed_value = static_cast<std::uint32_t>(std::stoul(argv[3]));
+  try
+    {
+      if (argc >= 2)
+        steps = static_cast<std::size_t>(std::stoul(argv[1]));
+      if (argc >= 3)
+        side = static_cast<ca_size_t>(std::stoul(argv[2]));
+      if (argc >= 4)
+        {
+          // Accept hex (0x...) or decimal so the seed survives a
+          // round-trip through the printed banner.
+          const unsigned long long s = std::stoull(argv[3], nullptr, 0);
+          if (s > std::numeric_limits<std::uint32_t>::max())
+            throw std::out_of_range("seed");
+          seed_value = static_cast<std::uint32_t>(s);
+        }
+    }
+  catch (const std::invalid_argument &)
+    {
+      std::cerr << "Invalid argument: expected non-negative integers for "
+                   "[steps] [side] [seed]\n";
+      return 1;
+    }
+  catch (const std::out_of_range &)
+    {
+      std::cerr << "Argument out of range for [steps] [side] [seed]\n";
+      return 1;
+    }
+
+  // Margolus reversibility requires a 2D grid whose extents are
+  // both ≥ 2 and even: odd extents leave a one-cell strip that the
+  // alternating partition cannot reach without breaking the
+  // forward(N) ∘ backward(N) = identity property.
+  if (side < 2 or side % 2 != 0)
+    {
+      std::cerr << "Invalid side: " << side
+                << " (must be a positive even integer ≥ 2 for Margolus reversibility)\n";
+      return 1;
+    }
 
   Grid initial({side, side}, 0);
   seed(initial, seed_value, 0.45);

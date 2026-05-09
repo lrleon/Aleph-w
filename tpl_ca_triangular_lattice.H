@@ -86,28 +86,28 @@ struct Tri_Coord
   ca_index_t i = 0;
   ca_index_t j = 0;
 
-  friend constexpr bool operator==(Tri_Coord a, Tri_Coord b) noexcept
+  friend constexpr bool operator==(const Tri_Coord & a, const Tri_Coord & b) noexcept
   {
     return a.i == b.i and a.j == b.j;
   }
-  friend constexpr bool operator!=(Tri_Coord a, Tri_Coord b) noexcept { return not(a == b); }
+  friend constexpr bool operator!=(const Tri_Coord & a, const Tri_Coord & b) noexcept { return not(a == b); }
 };
 
 /// @return parity (0 = up triangle, 1 = down triangle).
-[[nodiscard]] inline constexpr int tri_parity(Tri_Coord c) noexcept
+[[nodiscard]] inline constexpr int tri_parity(const Tri_Coord & c) noexcept
 {
   using unsigned_t = std::make_unsigned_t<ca_index_t>;
   return static_cast<int>((static_cast<unsigned_t>(c.i) + static_cast<unsigned_t>(c.j)) & 1u);
 }
 
 /// @return true if `c` is an up triangle.
-[[nodiscard]] inline constexpr bool tri_is_up(Tri_Coord c) noexcept
+[[nodiscard]] inline constexpr bool tri_is_up(const Tri_Coord & c) noexcept
 {
   return tri_parity(c) == 0;
 }
 
 /// @return true if `c` is a down triangle.
-[[nodiscard]] inline constexpr bool tri_is_down(Tri_Coord c) noexcept
+[[nodiscard]] inline constexpr bool tri_is_down(const Tri_Coord & c) noexcept
 {
   return tri_parity(c) == 1;
 }
@@ -124,10 +124,10 @@ struct Tri_Coord
  *  @param[in] side triangle side length.
  *  @return `{x, y}` Cartesian centroid.
  */
-[[nodiscard]] inline std::array<double, 2> tri_pixel_centre(Tri_Coord c,
-                                                            double side) noexcept
+[[nodiscard]] inline std::array<double, 2> tri_pixel_centre(const Tri_Coord & c,
+                                                            const double side) noexcept
 {
-  const double sqrt3 = 1.7320508075688772;
+  constexpr double sqrt3 = 1.7320508075688772;
   const double height = side * sqrt3 / 2.0;
   const double x = (static_cast<double>(c.j) + 1.0) * (side / 2.0);
   const double y_base = static_cast<double>(c.i) * height + height / 2.0;
@@ -202,7 +202,7 @@ template <typename Lattice, typename Palette>
 inline void render_triangular_lattice_tikz(std::ostream &os,
                                            const Lattice &lat,
                                            Palette &&palette,
-                                           double side = 1.0)
+                                           const double side = 1.0)
 {
   os << "% Aleph::CA::render_triangular_lattice_tikz\n";
   os << "\\begin{tikzpicture}[x=1cm, y=-1cm]\n";

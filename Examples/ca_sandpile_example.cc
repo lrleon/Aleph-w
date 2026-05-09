@@ -28,9 +28,11 @@
  *   ./ca_sandpile_example [drops] [side]
  */
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 #include <ca-traits.H>
@@ -70,7 +72,7 @@ struct Sandpile_Rule
 /// Render a frame using a two-character map from heights to glyphs.
 void render(const Grid &g, std::ostream &os)
 {
-  static const char *glyphs[] = {" .", " :", " +", " #", "##"};
+  static const std::array<const char *, 5> glyphs = {" .", " :", " +", " #", "##"};
   for (ca_size_t i = 0; i < g.size(0); ++i)
     {
       for (ca_size_t j = 0; j < g.size(1); ++j)
@@ -115,8 +117,28 @@ int main(int argc, char **argv)
 {
   std::size_t drops = 80;
   ca_size_t side = 16;
-  if (argc >= 2) drops = static_cast<std::size_t>(std::stoul(argv[1]));
-  if (argc >= 3) side = static_cast<ca_size_t>(std::stoul(argv[2]));
+  try
+    {
+      if (argc >= 2)
+        drops = static_cast<std::size_t>(std::stoul(argv[1]));
+      if (argc >= 3)
+        side = static_cast<ca_size_t>(std::stoul(argv[2]));
+    }
+  catch (const std::invalid_argument &)
+    {
+      std::cerr << "Invalid argument: expected non-negative integers for [drops] [side]\n";
+      return 1;
+    }
+  catch (const std::out_of_range &)
+    {
+      std::cerr << "Argument out of range for [drops] [side]\n";
+      return 1;
+    }
+  if (side == 0)
+    {
+      std::cerr << "Invalid side: must be a positive integer\n";
+      return 1;
+    }
 
   Grid grid({side, side}, 0);
   using Engine = Async_Engine<Grid, Sandpile_Rule, Von_Neumann<2, 1>,
