@@ -298,6 +298,9 @@ set(HLIST
     ca-kernels.H
     tpl_ca_continuous_rules.H
     tpl_ca_hashlife.H
+    tpl_ca_update_scheme.H
+    tpl_ca_block_rule.H
+    tpl_ca_async_engine.H
     ca-io.H
     ca-tikz.H
     ca-frame-stream.H

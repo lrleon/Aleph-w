@@ -68,6 +68,7 @@ namespace
   std::string read_file(const std::filesystem::path &path, const bool binary = false)
   {
     std::ifstream in(path, binary ? std::ios::binary : std::ios::in);
+    EXPECT_TRUE(in.is_open()) << "read_file: cannot open '" << path.string() << "'";
     std::ostringstream out;
     out << in.rdbuf();
     return out.str();

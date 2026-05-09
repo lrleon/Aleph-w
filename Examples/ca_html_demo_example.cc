@@ -65,7 +65,10 @@ void seed_initial_frame(Gray_Lattice &lat)
   constexpr std::uint64_t seed = 0x5eed1234abcddcbaull;
   const ca_size_t rows = lat.size(0);
   const ca_size_t cols = lat.size(1);
-  const ca_size_t side = std::max<ca_size_t>(8, std::min(rows, cols) / 4);
+  // Clamp the seed patch to fit the lattice so r0/c0 cannot underflow
+  // when the user passes dimensions smaller than the default 8.
+  ca_size_t side = std::max<ca_size_t>(8, std::min(rows, cols) / 4);
+  side = std::min(side, std::min(rows, cols));
   const ca_size_t r0 = rows / 2 - side / 2;
   const ca_size_t c0 = cols / 2 - side / 2;
 

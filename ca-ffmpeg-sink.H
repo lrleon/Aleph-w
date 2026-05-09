@@ -105,7 +105,8 @@ class Ffmpeg_Frame_Sink
   void start()
   {
     command_ = "ffmpeg -y -loglevel error -f image2pipe -vcodec ppm -r " + std::to_string(opts_.fps)
-             + " -i - -an -vcodec " + opts_.codec + " -pix_fmt " + opts_.pixel_format + ' '
+             + " -i - -an -vcodec " + ca_ffmpeg_detail::shell_quote(opts_.codec) + " -pix_fmt "
+             + ca_ffmpeg_detail::shell_quote(opts_.pixel_format) + ' '
              + ca_ffmpeg_detail::shell_quote(output_.string());
     if (not opts_.auto_start)
       return;

@@ -413,8 +413,24 @@ public:
                                  << "'";
     out << "step,format,path\n";
     for (const auto &[step, frame] : written_)
-      out << step << ',' << ca_frame_stream_detail::format_name(opts_.format) << ','
-          << frame.string() << '\n';
+      {
+        // Escape the path as a quoted CSV field so commas, quotes or
+        // other separator-like characters in the path do not corrupt
+        // the manifest layout. Internal '"' are doubled per RFC 4180.
+        const std::string raw = frame.string();
+        std::string quoted;
+        quoted.reserve(raw.size() + 2);
+        quoted.push_back('"');
+        for (const char c : raw)
+          {
+            if (c == '"')
+              quoted.push_back('"');
+            quoted.push_back(c);
+          }
+        quoted.push_back('"');
+        out << step << ',' << ca_frame_stream_detail::format_name(opts_.format) << ',' << quoted
+            << '\n';
+      }
     ah_runtime_error_if(not out) << "Directory_Frame_Sink::flush: write failed for '"
                                  << path.string() << "'";
   }

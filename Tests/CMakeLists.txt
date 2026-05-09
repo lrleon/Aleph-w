@@ -398,6 +398,7 @@ set(TEST_PROGRAMS
     tpl_ca_neighborhood_test
     tpl_ca_rule_test
     ca_engine_sync_test
+    ca_update_scheme_test
     tpl_ca_ghost_lattice_test
     tpl_ca_parallel_engine_test
     tpl_ca_hex_lattice_test

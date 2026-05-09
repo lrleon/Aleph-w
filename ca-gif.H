@@ -116,6 +116,31 @@ inline void put_le16(std::ostream &out, const std::uint16_t value)
   return static_cast<std::uint8_t>(best);
 }
 
+/// Read-only lookup variant: assumes the palette is already finalised
+/// (every colour either present or to be approximated by nearest match)
+/// and never mutates it. Used by the per-frame loop in `write_gif` so
+/// the palette does not need to be copied per frame.
+[[nodiscard]] inline std::uint8_t lookup_palette_index(const std::vector<RGB8> &palette,
+                                                       const RGB8 c) noexcept
+{
+  for (std::size_t i = 0; i < palette.size(); ++i)
+    if (palette[i] == c)
+      return static_cast<std::uint8_t>(i);
+
+  std::size_t best = 0;
+  std::uint32_t best_d = std::numeric_limits<std::uint32_t>::max();
+  for (std::size_t i = 0; i < palette.size(); ++i)
+    {
+      const std::uint32_t d = dist2(palette[i], c);
+      if (d < best_d)
+        {
+          best = i;
+          best_d = d;
+        }
+    }
+  return static_cast<std::uint8_t>(best);
+}
+
 [[nodiscard]] inline unsigned ceil_log2(std::size_t n)
 {
   unsigned bits = 0;
@@ -273,9 +298,11 @@ inline void write_gif(std::ostream &out,
     {
       std::vector<std::uint8_t> indices;
       indices.reserve(frame.pixels.size());
-      std::vector<RGB8> palette_for_index = palette;
+      // The palette is finalised (build_palette already saw every
+      // colour); use the read-only lookup so we don't pay one
+      // palette copy per frame.
       for (const RGB8 c : frame.pixels)
-        indices.push_back(ca_gif_detail::palette_index(palette_for_index, c));
+        indices.push_back(ca_gif_detail::lookup_palette_index(palette, c));
 
       out.put(0x21);
       out.put(0xf9);

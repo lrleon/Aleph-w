@@ -103,6 +103,30 @@ inline std::string quote(const std::string &s)
   return out.str();
 }
 
+/// Return `s` as a bare DOT identifier when it matches `[A-Za-z_][A-Za-z_0-9]*`,
+/// otherwise return `quote(s)`. The bare form keeps round-trip-friendly
+/// output for the default `graph_name = "CA"` while protecting names
+/// that contain spaces or other characters DOT does not allow bare.
+inline std::string quote_id_if_needed(const std::string &s)
+{
+  if (s.empty())
+    return quote(s);
+  const auto is_id_start = [](unsigned char c)
+  {
+    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or c == '_';
+  };
+  const auto is_id_cont = [&](unsigned char c)
+  {
+    return is_id_start(c) or (c >= '0' and c <= '9');
+  };
+  if (not is_id_start(static_cast<unsigned char>(s[0])))
+    return quote(s);
+  for (std::size_t i = 1; i < s.size(); ++i)
+    if (not is_id_cont(static_cast<unsigned char>(s[i])))
+      return quote(s);
+  return s;
+}
+
 }  // namespace ca_dot_detail
 
 /** @brief Render a graph CA frame as GraphViz DOT.
@@ -132,7 +156,7 @@ inline void render_graph_lattice_dot(std::ostream &out,
 {
   const char *kind = opts.undirected ? "graph" : "digraph";
   const char *edge = opts.undirected ? "--" : "->";
-  out << kind << ' ' << opts.graph_name << " {\n";
+  out << kind << ' ' << ca_dot_detail::quote_id_if_needed(opts.graph_name) << " {\n";
   out << "  node [shape=circle, style=filled, fixedsize=true, width=0.42];\n";
 
   for (std::size_t n = 0; n < graph.size(); ++n)
@@ -171,6 +195,13 @@ inline void render_graph_lattice_dot(std::ostream &out,
  *  @param[in] palette state-to-fill-colour mapper.
  *  @param[in] opts rendering options.
  *  @return DOT document.
+ *  @throws Any exception propagated by the underlying
+ *          `render_graph_lattice_dot` call (e.g. `std::runtime_error`
+ *          on stringstream write failure, or exceptions thrown by the
+ *          palette).
+ *
+ *  @par Complexity
+ *  O(nodes + edges).
  */
 template <typename Graph, typename Palette>
 [[nodiscard]] inline std::string render_graph_lattice_dot_string(const Graph &graph,
@@ -200,6 +231,8 @@ public:
    *  @param[in] palette state-to-fill-colour mapper.
    *  @param[in] opts rendering options.
    *  @param[in] zero_pad minimum width for `{step}`.
+   *  @throws Any exception thrown by `Palette` move/copy. Does not
+   *          touch the filesystem.
    */
   Dot_Frame_Sink(std::filesystem::path path_pattern,
                  Palette palette,
@@ -213,6 +246,11 @@ public:
    *  @tparam Graph graph lattice type.
    *  @param[in] step simulation step.
    *  @param[in] graph graph frame to write.
+   *  @throws std::runtime_error if the destination file cannot be opened
+   *          or the underlying stream write fails.
+   *  @throws std::filesystem::filesystem_error if the parent directory
+   *          cannot be created.
+   *  @throws Any exception propagated by the palette.
    */
   template <typename Graph>
   void accept(const std::size_t step, const Graph &graph)

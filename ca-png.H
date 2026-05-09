@@ -116,8 +116,8 @@ inline void write_be32(std::ostream &out, const std::uint32_t value)
     {
       const std::size_t remaining = raw.size() - pos;
       const std::uint16_t block = static_cast<std::uint16_t>(remaining > 65535u ? 65535u : remaining);
-      const bool final = pos + block == raw.size();
-      out.push_back(final ? 0x01 : 0x00);
+      const bool is_final = pos + block == raw.size();
+      out.push_back(is_final ? 0x01 : 0x00);
       out.push_back(static_cast<std::uint8_t>(block & 0xffu));
       out.push_back(static_cast<std::uint8_t>((block >> 8) & 0xffu));
       const std::uint16_t nlen = static_cast<std::uint16_t>(~block);

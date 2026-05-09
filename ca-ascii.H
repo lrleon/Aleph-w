@@ -92,6 +92,18 @@ struct Binary_ASCII_Palette
   {
     return value == dead ? dead_glyph : alive_glyph;
   }
+
+  /** @brief Visible width of a single rendered cell, in columns.
+   *
+   *  Used by `render_ascii` to size the optional `+---+` border so it
+   *  aligns with the glyphs. Returns `max(dead_glyph.size(), alive_glyph.size())`.
+   *
+   *  @return number of terminal columns occupied by one cell.
+   */
+  [[nodiscard]] std::size_t glyph_width() const noexcept
+  {
+    return dead_glyph.size() > alive_glyph.size() ? dead_glyph.size() : alive_glyph.size();
+  }
 };
 
 /** @brief ANSI 24-bit colour palette for binary frames.
@@ -121,6 +133,18 @@ struct Binary_ANSI24_Palette
     out << "\033[48;2;" << static_cast<unsigned>(c.r) << ';' << static_cast<unsigned>(c.g) << ';'
         << static_cast<unsigned>(c.b) << 'm' << glyph << "\033[0m";
     return out.str();
+  }
+
+  /** @brief Visible width of a single rendered cell, in columns.
+   *
+   *  The ANSI escape codes are zero-width on a real terminal, so the
+   *  visible width equals `glyph.size()`.
+   *
+   *  @return number of terminal columns occupied by one cell.
+   */
+  [[nodiscard]] std::size_t glyph_width() const noexcept
+  {
+    return glyph.size();
   }
 };
 
@@ -153,16 +177,29 @@ inline void render_ascii(std::ostream &out,
   static_assert(Lattice::rank == 2, "render_ascii requires a rank-2 frame");
   using coord_t = typename Lattice::coord_type;
 
-  auto write_border = [&]()
+  // Visible width of one rendered cell, in terminal columns. Palettes
+  // may opt in by exposing a `glyph_width()` method (e.g.
+  // `Binary_ANSI24_Palette` whose two-space glyph occupies 2 columns).
+  // Default to 1 for legacy palettes.
+  std::size_t glyph_w = 1;
+  if constexpr (requires { palette.glyph_width(); })
+    glyph_w = palette.glyph_width();
+  if (glyph_w == 0)
+    glyph_w = 1;
+
+  auto write_border = [&](const bool emit_newline)
   {
     out << opts.line_prefix << '+';
-    for (ca_size_t c = 0; c < frame.size(1); ++c)
+    const ca_size_t dashes = frame.size(1) * static_cast<ca_size_t>(glyph_w);
+    for (ca_size_t c = 0; c < dashes; ++c)
       out << '-';
-    out << "+\n";
+    out << '+';
+    if (emit_newline)
+      out << '\n';
   };
 
   if (opts.include_border)
-    write_border();
+    write_border(true);
 
   for (ca_size_t r = 0; r < frame.size(0); ++r)
     {
@@ -173,12 +210,16 @@ inline void render_ascii(std::ostream &out,
         out << palette(frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)}));
       if (opts.include_border)
         out << '|';
-      if (opts.include_trailing_newline or r + 1 < frame.size(0))
+      // Always terminate intermediate rows; the trailing newline of
+      // the last row is governed by `include_trailing_newline`.
+      // When a bottom border follows, the row separator is required
+      // to keep the border on its own line.
+      if (r + 1 < frame.size(0) or opts.include_border or opts.include_trailing_newline)
         out << '\n';
     }
 
   if (opts.include_border)
-    write_border();
+    write_border(opts.include_trailing_newline);
 
   ah_runtime_error_if(not out) << "render_ascii: output stream failed";
 }

@@ -228,6 +228,14 @@ inline void render_lattice_svg(std::ostream &out,
           for (const auto &p : ca_svg_detail::hex_points(
                  Hex_Axial{static_cast<ca_index_t>(q), static_cast<ca_index_t>(r)}, opts.cell_size))
             b.include(p[0], p[1]);
+      // Empty hex grid → seed a degenerate but finite box so the SVG
+      // header does not serialise inf/nan.
+      if (frame.rows() == 0 or frame.cols() == 0)
+        {
+          b.include(0.0, 0.0);
+          b.include(static_cast<double>(frame.cols()) * opts.cell_size,
+                    static_cast<double>(frame.rows()) * opts.cell_size);
+        }
     }
   else if constexpr (ca_svg_detail::TriRenderable<Lattice>)
     {
@@ -236,6 +244,12 @@ inline void render_lattice_svg(std::ostream &out,
           for (const auto &p : ca_svg_detail::tri_points(
                  Tri_Coord{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)}, opts.cell_size))
             b.include(p[0], p[1]);
+      if (frame.rows() == 0 or frame.cols() == 0)
+        {
+          b.include(0.0, 0.0);
+          b.include(static_cast<double>(frame.cols()) * opts.cell_size,
+                    static_cast<double>(frame.rows()) * opts.cell_size);
+        }
     }
   else
     {
@@ -305,13 +319,18 @@ inline void render_lattice_svg(std::ostream &out,
  *  @param[in,out] out output stream.
  *  @param[in] frame frame to render.
  *  @param[in] opts rendering options.
+ *  @param[in] dead_state state skipped when `opts.omit_dead_cells` is true.
+ *  @throws Any exception propagated by `render_lattice_svg`.
  */
 template <typename Lattice>
 inline void render_lattice_svg(std::ostream &out,
                                const Lattice &frame,
-                               const SVG_Render_Options &opts = {})
+                               const SVG_Render_Options &opts = {},
+                               const typename Lattice::state_type &dead_state
+                               = typename Lattice::state_type{})
 {
-  render_lattice_svg(out, frame, Binary_RGB_Mapper<typename Lattice::state_type>{}, opts);
+  render_lattice_svg(out, frame, Binary_RGB_Mapper<typename Lattice::state_type>{}, opts,
+                     dead_state);
 }
 
 /** @brief Return a frame rendered as SVG.
@@ -321,18 +340,23 @@ inline void render_lattice_svg(std::ostream &out,
  *  @param[in] frame frame to render.
  *  @param[in] palette state-to-colour mapper.
  *  @param[in] opts rendering options.
+ *  @param[in] dead_state state skipped when `opts.omit_dead_cells` is true.
  *  @return SVG document.
+ *  @throws Any exception propagated by `render_lattice_svg`.
  */
 template <typename Lattice, typename Palette>
 [[nodiscard]] inline std::string render_lattice_svg_string(const Lattice &frame,
                                                            Palette &&palette,
-                                                           const SVG_Render_Options &opts = {})
+                                                           const SVG_Render_Options &opts = {},
+                                                           const typename Lattice::state_type
+                                                             &dead_state
+                                                           = typename Lattice::state_type{})
   requires requires(Palette &&p, const typename Lattice::state_type &v) {
     { p(v) } -> std::convertible_to<RGB8>;
   }
 {
   std::ostringstream out;
-  render_lattice_svg(out, frame, std::forward<Palette>(palette), opts);
+  render_lattice_svg(out, frame, std::forward<Palette>(palette), opts, dead_state);
   return out.str();
 }
 
@@ -363,20 +387,50 @@ public:
       zero_pad_(zero_pad)
   {}
 
-  /** @brief Write one SVG frame.
+  /** @brief Write one SVG frame using the default dead state.
+   *
+   *  Equivalent to calling the `(step, frame, dead_state)` overload
+   *  with `typename Lattice::state_type{}`. Use the explicit overload
+   *  when `opts.omit_dead_cells` is true and the lattice's dead state
+   *  is not the default-constructed value.
+   *
    *  @tparam Lattice 2D lattice type.
    *  @param[in] step simulation step.
    *  @param[in] frame frame to write.
+   *  @throws std::runtime_error on file open or stream write failure.
+   *  @throws std::filesystem::filesystem_error if the parent directory
+   *          cannot be created.
    */
   template <typename Lattice>
   void accept(const std::size_t step, const Lattice &frame)
+  {
+    accept(step, frame, typename Lattice::state_type{});
+  }
+
+  /** @brief Write one SVG frame, threading the lattice-specific dead state.
+   *
+   *  Use this overload to ensure `opts.omit_dead_cells` skips the
+   *  intended state value rather than the default-constructed one.
+   *
+   *  @tparam Lattice 2D lattice type.
+   *  @param[in] step simulation step.
+   *  @param[in] frame frame to write.
+   *  @param[in] dead_state state skipped when `opts.omit_dead_cells` is true.
+   *  @throws std::runtime_error on file open or stream write failure.
+   *  @throws std::filesystem::filesystem_error if the parent directory
+   *          cannot be created.
+   */
+  template <typename Lattice>
+  void accept(const std::size_t step,
+              const Lattice &frame,
+              const typename Lattice::state_type &dead_state)
   {
     const std::filesystem::path path = format_step_path(pattern_, step, zero_pad_);
     if (const auto parent = path.parent_path(); not parent.empty())
       std::filesystem::create_directories(parent);
     std::ofstream out(path);
     ah_runtime_error_if(not out) << "Svg_Frame_Sink::accept: cannot open '" << path.string() << "'";
-    render_lattice_svg(out, frame, palette_, opts_);
+    render_lattice_svg(out, frame, palette_, opts_, dead_state);
   }
 
   /** @brief SVG frames are written eagerly; this is a no-op. */

@@ -268,13 +268,19 @@ TEST(CAHashlife, BlinkerIsPeriod2)
 {
   Hashlife_Engine e;
   load_cells(e, blinker());
-  const auto vertical = engine_cells(e);
-  // After 2 steps the blinker is back to the vertical state.
-  e.advance(0);
-  EXPECT_EQ(engine_cells(e), vertical) << "after 2 steps";
-  // 1024 is even => still vertical.
-  e.advance(10);
-  EXPECT_EQ(engine_cells(e), vertical) << "after 1024 + 2 steps";
+  // The blinker stored by blinker() is horizontal (3 cells along
+  // axis 1); after an even number of generations it must return to
+  // this same configuration.
+  const auto initial = engine_cells(e);
+  const std::uint64_t steps0 = e.advance(0);
+  const std::uint64_t steps10 = e.advance(10);
+  // The blinker has period 2; only an even total of advanced
+  // generations is guaranteed to land back on the initial pattern.
+  ASSERT_EQ((steps0 + steps10) % 2u, 0u)
+    << "advance returned an odd total of generations: "
+    << steps0 << " + " << steps10;
+  EXPECT_EQ(engine_cells(e), initial)
+    << "after " << (steps0 + steps10) << " generations";
   EXPECT_EQ(e.population(), 3u);
 }
 
