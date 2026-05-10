@@ -305,7 +305,13 @@ jobs:
                   )
           elif asset_name.lower().endswith(".exe"):
               import subprocess
-              # Extract NSIS installer with 7-Zip (pre-installed on GH Windows runners).
+              # Gephi 0.9.x ships an Install4j installer for Windows; older
+              # releases used NSIS (which 7-Zip can extract directly).
+              # Try 7-Zip first — it handles NSIS, MSI, InnoSetup, and a
+              # number of self-extracting wrappers. When the file cannot
+              # be opened as an archive (Install4j installers fall in
+              # this bucket), fall back to running the installer in the
+              # documented Install4j unattended mode.
               result = subprocess.run(
                   ["7z", "x", str(archive_path), f"-o{ex_dir}", "-y"],
                   check=False,
@@ -313,9 +319,39 @@ jobs:
                   text=True,
               )
               if result.returncode != 0:
-                  raise SystemExit(
-                      f"7z extraction failed (rc={result.returncode}):\n{result.stderr}"
+                  install_dir = ex_dir / "install"
+                  install_dir.mkdir(parents=True, exist_ok=True)
+                  # Install4j flags:
+                  #   -q                    unattended/silent install
+                  #   -c                    console mode (needed on headless CI)
+                  #   -dir <path>           override install directory
+                  #   -overwrite            replace any pre-existing files
+                  #   -Dinstall4j.suppressUnattendedReboot=true
+                  #                         no implicit reboot when finished
+                  unattended = subprocess.run(
+                      [
+                          str(archive_path),
+                          "-q",
+                          "-c",
+                          "-overwrite",
+                          "-dir",
+                          str(install_dir),
+                          "-Dinstall4j.suppressUnattendedReboot=true",
+                      ],
+                      check=False,
+                      capture_output=True,
+                      text=True,
+                      timeout=900,
                   )
+                  if unattended.returncode != 0 or not any(install_dir.rglob("gephi*.exe")):
+                      raise SystemExit(
+                          "Failed to extract Windows Gephi asset.\n"
+                          f"7z exit={result.returncode}; 7z stderr=\n{result.stderr}\n"
+                          f"Install4j unattended exit={unattended.returncode};"
+                          f" stdout=\n{unattended.stdout}\n stderr=\n{unattended.stderr}\n"
+                          f"install_dir contents (top): "
+                          f"{[p.name for p in install_dir.iterdir()] if install_dir.exists() else 'missing'}"
+                      )
           else:
               raise SystemExit(f"Unsupported archive format: {asset_name}")
 

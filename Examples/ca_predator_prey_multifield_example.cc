@@ -31,11 +31,16 @@
  *   ./ca_predator_prey_multifield_example [steps] [side]
  */
 
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <tuple>
 
 #include <ca-traits.H>
@@ -122,26 +127,70 @@ void render(const Lattice2 &lat, const std::size_t step, std::ostream &os)
   os << "step " << step << "  Σprey=" << x_total << "  Σpred=" << y_total << "\n";
 }
 
+/// Strictly parse `text` as a base-10 unsigned 64-bit integer. Returns
+/// false on empty input, leading sign, leading whitespace, non-digit
+/// characters, trailing characters, or numeric overflow. `std::stoul`
+/// is too lax (it accepts a leading '-' and silently truncates trailing
+/// garbage), which matters for CLI inputs whose validity must be
+/// reported back to the user.
+bool parse_u64(const char *text, std::uint64_t &out) noexcept
+{
+  if (text == nullptr)
+    return false;
+  const std::string_view sv{text};
+  if (sv.empty())
+    return false;
+  // Reject signs and leading whitespace explicitly: from_chars already
+  // rejects '+'/'-' but not the empty string after such checks; spaces
+  // would be silently consumed only by stoul, not from_chars.
+  if (sv.front() == '+' or sv.front() == '-')
+    return false;
+  std::uint64_t value = 0;
+  const auto *first = sv.data();
+  const auto *last = first + sv.size();
+  const auto [ptr, ec] = std::from_chars(first, last, value, 10);
+  if (ec != std::errc{} or ptr != last)
+    return false;
+  out = value;
+  return true;
+}
+
 }  // namespace
 
 int main(int argc, char **argv)
 {
   std::size_t steps = 200;
   ca_size_t side = 32;
-  try
+  std::uint64_t parsed = 0;
+  if (argc >= 2)
     {
-      if (argc >= 2) steps = static_cast<std::size_t>(std::stoul(argv[1]));
-      if (argc >= 3) side = static_cast<ca_size_t>(std::stoul(argv[2]));
+      if (not parse_u64(argv[1], parsed))
+        {
+          std::cerr << "Invalid [steps]: expected a non-negative integer (got '" << argv[1]
+                    << "')\n";
+          return 1;
+        }
+      if (parsed > std::numeric_limits<std::size_t>::max())
+        {
+          std::cerr << "[steps] out of range\n";
+          return 1;
+        }
+      steps = static_cast<std::size_t>(parsed);
     }
-  catch (const std::invalid_argument &)
+  if (argc >= 3)
     {
-      std::cerr << "Invalid argument: expected non-negative integers for [steps] [side]\n";
-      return 1;
-    }
-  catch (const std::out_of_range &)
-    {
-      std::cerr << "Argument out of range for [steps] [side]\n";
-      return 1;
+      if (not parse_u64(argv[2], parsed))
+        {
+          std::cerr << "Invalid [side]: expected a non-negative integer (got '" << argv[2]
+                    << "')\n";
+          return 1;
+        }
+      if (parsed > std::numeric_limits<ca_size_t>::max())
+        {
+          std::cerr << "[side] out of range\n";
+          return 1;
+        }
+      side = static_cast<ca_size_t>(parsed);
     }
   if (side < 4)
     {

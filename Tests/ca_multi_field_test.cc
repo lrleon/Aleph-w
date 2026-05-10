@@ -439,4 +439,20 @@ TEST(CAMultiField, FieldSliceRulePreservesOtherFields)
       EXPECT_EQ(eng.frame().at<1>({static_cast<ca_index_t>(i),
                                    static_cast<ca_index_t>(j)}),
                 7);
+
+  // Field<0> must actually evolve under Game of Life: a lone live cell
+  // with no live neighbours dies on the very first step (B3/S23) and
+  // stays dead forever, so after 5 steps the seeded centre must be 0.
+  // Without this check the test could pass with a slice rule that did
+  // nothing on field<0>.
+  EXPECT_EQ(eng.frame().at<0>({static_cast<ca_index_t>(1),
+                               static_cast<ca_index_t>(1)}),
+            0);
+  // For good measure, the whole field<0> must be empty (no cell has
+  // ever had three live neighbours so no birth can have occurred).
+  for (ca_size_t i = 0; i < 3; ++i)
+    for (ca_size_t j = 0; j < 3; ++j)
+      EXPECT_EQ(eng.frame().at<0>({static_cast<ca_index_t>(i),
+                                   static_cast<ca_index_t>(j)}),
+                0);
 }
