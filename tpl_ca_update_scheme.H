@@ -625,10 +625,7 @@ struct Margolus_Update
    *  @tparam Block_Rule type satisfying `Block_Rule_2x2<Block_Rule, State>`.
    *  @param[in,out] e engine reference.
    *  @param[in] r block rule reference.
-   *  @param origin offset for the partition origin (0 or 1); if negative, uses the parity
-   *  @param[in] explicit_origin if non-negative, overrides the parity
-   *             rule and uses this row/col offset for the partition
-   *             origin (used by `step_back()`).
+   *  @param[in] origin offset for the partition origin (usually 0 or 1).
    *  @throws Any exception propagated by the rule or the lattice.
    */
   template <typename Engine, typename Block_Rule>
