@@ -301,6 +301,9 @@ set(HLIST
     tpl_ca_update_scheme.H
     tpl_ca_block_rule.H
     tpl_ca_async_engine.H
+    tpl_ca_multi_field_lattice.H
+    tpl_ca_multi_field_rule.H
+    tpl_ca_multi_field_engine.H
     ca-io.H
     ca-tikz.H
     ca-frame-stream.H
