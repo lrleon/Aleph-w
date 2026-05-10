@@ -400,6 +400,7 @@ set(TEST_PROGRAMS
     ca_engine_sync_test
     ca_update_scheme_test
     ca_multi_field_test
+    ca_checkpoint_test
     tpl_ca_ghost_lattice_test
     tpl_ca_parallel_engine_test
     tpl_ca_hex_lattice_test

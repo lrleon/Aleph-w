@@ -304,6 +304,8 @@ set(HLIST
     tpl_ca_multi_field_lattice.H
     tpl_ca_multi_field_rule.H
     tpl_ca_multi_field_engine.H
+    ca-checkpoint.H
+    ca-streaming-storage.H
     ca-io.H
     ca-tikz.H
     ca-frame-stream.H

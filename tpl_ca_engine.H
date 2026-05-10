@@ -292,6 +292,48 @@ public:
     return cur_buf_.extents();
   }
 
+  /** @brief Read-only access to the rule (used by checkpointing).
+   *  @return const reference to the wrapped rule.
+   */
+  [[nodiscard]] const Rule &rule() const noexcept
+  {
+    return rule_;
+  }
+
+  /** @brief Mutable access to the rule (used by checkpointing to
+   *         restore the master RNG seed of stochastic rules).
+   *  @return mutable reference to the wrapped rule.
+   */
+  [[nodiscard]] Rule &rule() noexcept
+  {
+    return rule_;
+  }
+
+  /** @brief Mutable access to the current lattice buffer.
+   *
+   *  Provided to support checkpoint restore (`load_checkpoint_into`):
+   *  the loader rewrites every cell in place. Mutating the lattice
+   *  outside of `step()` is otherwise discouraged.
+   *
+   *  @return mutable reference to the current frame.
+   */
+  [[nodiscard]] Lattice &write_lattice() noexcept
+  {
+    return cur_buf_;
+  }
+
+  /** @brief Override the completed-step counter.
+   *
+   *  Used by `load_checkpoint_into` to resume a simulation from the
+   *  exact step recorded in the snapshot.
+   *
+   *  @param[in] s new step counter value.
+   */
+  void set_step_count(const std::size_t s) noexcept
+  {
+    step_count_ = s;
+  }
+
   /** @brief Register a hook fired *before* every `step()`.
    *  The hook receives the step index that is about to start
    *  (`steps_run()`) and a const reference to the current frame.

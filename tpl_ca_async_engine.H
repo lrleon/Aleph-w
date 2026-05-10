@@ -265,6 +265,23 @@ public:
     return cur_;
   }
 
+  /// Alias for `current_buffer()`. Used by checkpoint restore.
+  [[nodiscard]] Lattice &write_lattice() noexcept
+  {
+    return cur_;
+  }
+
+  /** @brief Override the completed-step counter.
+   *
+   *  Used by `load_checkpoint_into` to resume a simulation from the
+   *  exact step recorded in the snapshot.
+   *  @param[in] s new step counter value.
+   */
+  void set_step_count(const std::size_t s) noexcept
+  {
+    step_count_ = s;
+  }
+
   /// @return read-write access to the next lattice (only valid for
   ///         schemes that require double buffering).
   [[nodiscard]] Lattice &next_buffer() noexcept
