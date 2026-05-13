@@ -53,15 +53,27 @@ include(GoogleTest)
 # CMakeLists setting ALEPH_SYSTEM_LIBS), define the same defaults here so
 # that tests depending on Aleph's transitive libraries link correctly.
 if(NOT DEFINED ALEPH_SYSTEM_LIBS)
+    if(WIN32)
+        set(_ALEPH_PTHREAD "")
+    else()
+        set(_ALEPH_PTHREAD pthread)
+    endif()
+    set(_ALEPH_X11_LIBS "")
+    if(NOT WIN32)
+        find_package(X11)
+        if(X11_FOUND)
+            set(_ALEPH_X11_LIBS ${X11_LIBRARIES})
+        endif()
+    endif()
     set(ALEPH_SYSTEM_LIBS
         gmpxx
         gmp
-        pthread
+        ${_ALEPH_PTHREAD}
         mpfr
         gsl
         gslcblas
         m
-        X11
+        ${_ALEPH_X11_LIBS}
         Threads::Threads)
 endif()
 

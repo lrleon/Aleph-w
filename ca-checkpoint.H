@@ -214,17 +214,32 @@ concept Checkpointable_Lattice
 /** @brief Concept: engine that exposes the minimum surface needed by
  *         checkpoint save/load.
  *
- *  Both `Synchronous_Engine`, `Async_Engine`, `Multi_Field_Engine`
- *  and the parallel engine satisfy this contract.
+ *  The contract covers both directions of the round-trip:
+ *
+ *    - `frame()`         — read access used by `save_checkpoint`.
+ *    - `steps_run()`     — current step counter, serialised verbatim.
+ *    - `rule()`          — needed to detect `Has_Master_Seed` and
+ *                          restore the master RNG seed on load.
+ *    - `write_lattice()` — mutable handle the loader fills cell by
+ *                          cell.
+ *    - `set_step_count(s)` — restore the recorded step counter on load.
+ *
+ *  Both `Synchronous_Engine` and `Async_Engine` satisfy this contract
+ *  out of the box; engines lacking any of these accessors fail at the
+ *  concept boundary (cleaner than a deep template error).
  *
  *  @tparam E engine type.
  */
 template <typename E>
 concept Checkpointable_Engine
   = Checkpointable_Lattice<typename E::lattice_type>
-    and requires(E &e) {
+    and requires { typename E::rule_type; }
+    and requires(E &e, std::size_t s) {
           { e.frame() } -> std::convertible_to<const typename E::lattice_type &>;
           { e.steps_run() } -> std::convertible_to<std::size_t>;
+          { e.rule() } -> std::convertible_to<typename E::rule_type &>;
+          { e.write_lattice() } -> std::convertible_to<typename E::lattice_type &>;
+          e.set_step_count(s);
         };
 
 /** @brief Resume handle returned by `load_checkpoint_into`.
@@ -269,7 +284,13 @@ struct Resume_Token
   h.engine_type_hash = read_le<std::uint64_t>(in);
   h.state_type_size = read_le<std::uint32_t>(in);
   h.rank = read_le<std::uint32_t>(in);
-  ah_runtime_error_if(h.rank == 0 or h.rank > 4)
+  // save_checkpoint and load_checkpoint_into currently implement
+  // rank-1, rank-2 and rank-3 serialisation branches; rank-4 is
+  // intentionally rejected here so that a corrupted or future-version
+  // header cannot bypass the save/load symmetry. Lift the upper bound
+  // when (and only when) a rank-4 branch is added to both
+  // serialiser and deserialiser.
+  ah_runtime_error_if(h.rank == 0 or h.rank > 3)
     << "inspect_checkpoint: rank " << h.rank << " out of range in '" << path.string() << "'";
   for (std::size_t d = 0; d < h.extents.size(); ++d)
     h.extents[d] = read_le<std::uint64_t>(in);
@@ -312,8 +333,8 @@ void save_checkpoint(Engine &engine, const std::filesystem::path &path)
   using coord_t = typename Lattice::coord_type;
   static_assert(std::is_trivially_copyable_v<state_t>,
                 "save_checkpoint requires a trivially copyable state_type");
-  static_assert(Lattice::rank <= 4,
-                "save_checkpoint currently supports rank <= 4");
+  static_assert(Lattice::rank <= 3,
+                "save_checkpoint currently supports rank <= 3");
 
   std::ofstream out(path, std::ios::binary | std::ios::trunc);
   ah_runtime_error_if(not out)
@@ -514,8 +535,14 @@ template <typename Engine>
  *                                             "checkpoints/run_{step}.bin");
  *  ```
  *
- *  The observer borrows the engine by reference; the engine must
- *  outlive the observer.
+ *  @pre The engine reference passed to the constructor must outlive
+ *       the observer.
+ *  @pre `every >= 1` (enforced by the constructor).
+ *
+ *  @note This class is not thread-safe. The engine, the observer
+ *        and the underlying filesystem are assumed to be driven by
+ *        a single thread. Use external synchronisation if a parallel
+ *        engine fires `on_step_end` from multiple workers.
  *
  *  @tparam Engine engine type to checkpoint.
  */
@@ -562,9 +589,23 @@ public:
       << "Periodic_Checkpoint_Observer: every must be >= 1";
   }
 
-  /// No-op: snapshots are taken at end-of-step.
+  /** @brief Pre-step hook. No-op for this observer.
+   *
+   *  Snapshots are taken at end-of-step so the pre-step callback is
+   *  intentionally empty. Provided to satisfy the `ObserverLike`
+   *  concept and to keep the observer composable inside a
+   *  `Composite_Observer`.
+   *
+   *  @tparam Lattice lattice type of the engine being observed.
+   *  @param[in] step step that is about to start (unused).
+   *  @param[in] frame current frame (unused).
+   */
   template <typename Lattice>
-  void on_step_begin(const std::size_t, const Lattice &) noexcept {}
+  void on_step_begin(const std::size_t step, const Lattice &frame) noexcept
+  {
+    (void) step;
+    (void) frame;
+  }
 
   /** @brief Snapshot when `step % every == 0`.
    *
@@ -581,7 +622,16 @@ public:
     save_checkpoint(*engine_, last_path_);
   }
 
-  /// @return path of the most recent checkpoint written.
+  /** @brief Path of the most recent checkpoint written by this observer.
+   *
+   *  Empty when no snapshot has been taken yet (e.g. because the
+   *  total number of completed steps is still below `every`, or
+   *  because `on_step_end` was never invoked). Callers that resume
+   *  from this path should check `empty()` first.
+   *
+   *  @return const reference to the cached path of the most recent
+   *          snapshot, or an empty path when none was produced.
+   */
   [[nodiscard]] const std::filesystem::path &last_path() const noexcept
   {
     return last_path_;

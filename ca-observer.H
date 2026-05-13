@@ -367,7 +367,7 @@ public:
    *  @return `counts()[i] / totals()[i]`, or 0 for empty lattices.
    *  @throws std::out_of_range if `i >= size()`.
    */
-  [[nodiscard]] double density_at(std::size_t i) const
+  [[nodiscard]] double density_at(const std::size_t i) const
   {
     ah_out_of_range_error_if(i >= counts_.size())
       << "Density_Observer: index " << i << " out of range";
@@ -403,7 +403,7 @@ public:
    *  @throws std::bad_alloc if appending the sample allocates.
    */
   template <typename Lattice>
-  void on_step_begin(std::size_t step, const Lattice &frame)
+  void on_step_begin(const std::size_t step, const Lattice &frame)
   {
     if (step == 0 and not seeded_)
       {
@@ -420,7 +420,7 @@ public:
    *  @throws std::bad_alloc if appending the sample allocates.
    */
   template <typename Lattice>
-  void on_step_end(std::size_t step, const Lattice &frame)
+  void on_step_end(const std::size_t step, const Lattice &frame)
   {
     (void) step;
     counts_.push_back(count_state(frame, tracked_state_));
@@ -512,7 +512,7 @@ public:
    *  @param[in] frame frame after the step.
    *  @throws std::bad_alloc if appending the sample allocates.
    */
-  void on_step_end(std::size_t step, const Lattice &frame)
+  void on_step_end(const std::size_t step, const Lattice &frame)
   {
     (void) step;
     if (prev_.has_value())
@@ -593,7 +593,7 @@ public:
    *  @throws std::bad_alloc if appending the sample allocates.
    */
   template <typename Lattice>
-  void on_step_begin(std::size_t step, const Lattice &frame)
+  void on_step_begin(const std::size_t step, const Lattice &frame)
   {
     if (step == 0 and not seeded_)
       {
@@ -609,7 +609,7 @@ public:
    *  @throws std::bad_alloc if appending the sample allocates.
    */
   template <typename Lattice>
-  void on_step_end(std::size_t step, const Lattice &frame)
+  void on_step_end(const std::size_t step, const Lattice &frame)
   {
     (void) step;
     entropy_.push_back(shannon_entropy(frame, MaxState));
@@ -734,7 +734,7 @@ public:
    *  @throws std::bad_alloc if buffering the hash allocates.
    */
   template <typename Lattice>
-  void on_step_begin(std::size_t step, const Lattice &frame)
+  void on_step_begin(const std::size_t step, const Lattice &frame)
   {
     if (max_cycle_length_ == 0)
       max_cycle_length_ = 16;
@@ -810,7 +810,7 @@ public:
    *  @param[in] period snapshot period; zero disables sampling.
    *  @throws This function does not throw.
    */
-  explicit Sampling_Observer(std::size_t period) : period_(period) {}
+  explicit Sampling_Observer(const std::size_t period) : period_(period) {}
 
   /** @brief Return collected snapshots.
    *  @return snapshots in chronological order.
@@ -856,7 +856,7 @@ public:
    *  @param[in] frame frame before the step.
    *  @throws Any exception thrown while copying `frame` or appending.
    */
-  void on_step_begin(std::size_t step, const Lattice &frame)
+  void on_step_begin(const std::size_t step, const Lattice &frame)
   {
     if (period_ != 0 and step == 0 and snapshots_.empty())
       {
@@ -870,7 +870,7 @@ public:
    *  @param[in] frame frame after the step.
    *  @throws Any exception thrown while copying `frame` or appending.
    */
-  void on_step_end(std::size_t step, const Lattice &frame)
+  void on_step_end(const std::size_t step, const Lattice &frame)
   {
     if (period_ == 0)
       return;

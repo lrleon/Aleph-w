@@ -35,10 +35,12 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <type_traits>
 
 #include <ca-checkpoint.H>
 #include <ca-traits.H>
@@ -114,25 +116,34 @@ int main(int argc, char **argv)
   ca_size_t side = 24;
   std::size_t every = 50;
 
-  std::uint64_t parsed = 0;
-  if (argc >= 2 and not parse_u64(argv[1], parsed))
-    {
-      std::cerr << "Invalid [steps]\n";
-      return 1;
-    }
-  if (argc >= 2) steps = static_cast<std::size_t>(parsed);
-  if (argc >= 3 and not parse_u64(argv[2], parsed))
-    {
-      std::cerr << "Invalid [side]\n";
-      return 1;
-    }
-  if (argc >= 3) side = static_cast<ca_size_t>(parsed);
-  if (argc >= 4 and not parse_u64(argv[3], parsed))
-    {
-      std::cerr << "Invalid [every]\n";
-      return 1;
-    }
-  if (argc >= 4) every = static_cast<std::size_t>(parsed);
+  // Helper: validate-and-assign with explicit overflow check against
+  // the destination type's max. On 64-bit platforms `std::size_t` and
+  // `std::uint64_t` coincide, but the check is essential for narrower
+  // size_t targets (32-bit) and documents intent.
+  auto assign_arg = [](const char *arg, const char *name, auto &dst) -> bool
+  {
+    using Target = std::remove_reference_t<decltype(dst)>;
+    std::uint64_t v = 0;
+    if (not parse_u64(arg, v))
+      {
+        std::cerr << "Invalid [" << name << "] (got '" << arg << "')\n";
+        return false;
+      }
+    if (v > static_cast<std::uint64_t>(std::numeric_limits<Target>::max()))
+      {
+        std::cerr << "Invalid [" << name << "] out of range\n";
+        return false;
+      }
+    dst = static_cast<Target>(v);
+    return true;
+  };
+
+  if (argc >= 2 and not assign_arg(argv[1], "steps", steps))
+    return 1;
+  if (argc >= 3 and not assign_arg(argv[2], "side", side))
+    return 1;
+  if (argc >= 4 and not assign_arg(argv[3], "every", every))
+    return 1;
   if (side < 4 or every == 0)
     {
       std::cerr << "Invalid arguments: side >= 4, every >= 1\n";
@@ -172,13 +183,25 @@ int main(int argc, char **argv)
   const std::size_t partial = steps > every ? steps - every : steps;
   working.run(partial);
   std::cout << "Working run: " << working.steps_run() << " steps then 'crash'\n";
-  std::cout << "Most recent checkpoint: " << obs.last_path().string() << "\n\n";
 
   // ---- Simulated crash + resume from latest snapshot --------------
   Engine resumed(Grid({side, side}, 0), make_game_of_life_rule(), Moore<2, 1>{});
-  const Resume_Token token = load_checkpoint_into(resumed, obs.last_path());
-  std::cout << "Resumed engine from step " << token.header.step_count
-            << " (file=" << token.source_path.string() << ")\n";
+  if (obs.last_path().empty())
+    {
+      // No periodic checkpoint was written (this happens when
+      // `partial < every`, so the observer never triggered). Fall
+      // back to a fresh start: the resumed engine simply begins at
+      // step 0 with the same seed pattern as the reference.
+      std::cout << "No checkpoint produced (partial < every); restarting fresh.\n";
+      resumed = Engine(seed_grid(side), make_game_of_life_rule(), Moore<2, 1>{});
+    }
+  else
+    {
+      std::cout << "Most recent checkpoint: " << obs.last_path().string() << "\n\n";
+      const Resume_Token token = load_checkpoint_into(resumed, obs.last_path());
+      std::cout << "Resumed engine from step " << token.header.step_count
+                << " (file=" << token.source_path.string() << ")\n";
+    }
   // Continue until we reach the same total step count as the
   // reference run.
   const std::size_t remaining = steps - resumed.steps_run();

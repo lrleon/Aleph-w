@@ -332,7 +332,7 @@ private:
   Lattice cur_buf_;
   Lattice nxt_buf_;
   Rule rule_;
-  std::vector<state_type> nbuf_;  ///< reused across cells
+  Array<state_type> nbuf_;  ///< Aleph::Array reused across cells
   std::function<void(std::size_t, const Lattice &)> pre_hook_;
   std::function<void(std::size_t, const Lattice &)> post_hook_;
   std::size_t step_count_ = 0;
@@ -391,13 +391,18 @@ public:
       {
         const auto &neigh_ids = cur_buf_.neighbours(node);
         const std::size_t deg = neigh_ids.size();
-        if (nbuf_.size() < deg)
-          nbuf_.resize(deg);
+        // Aleph::Array has no `resize(n)`; grow by appending value-
+        // initialised cells until capacity is reached. Size only
+        // grows monotonically (max_degree is bounded), so this is
+        // amortised O(1) per node.
+        while (nbuf_.size() < deg)
+          nbuf_.append(state_type{});
 
         for (std::size_t k = 0; k < deg; ++k)
           nbuf_[k] = cur_buf_.at_node(neigh_ids[k]);
 
-        const Neighbor_View<state_type> view(nbuf_.data(), deg);
+        const state_type *const view_ptr = deg > 0 ? &nbuf_[0] : nullptr;
+        const Neighbor_View<state_type> view(view_ptr, deg);
         const Cell_Context<1> ctx{step_count_, {static_cast<ca_index_t>(node)}};
         nxt_buf_.set_node(node,
                           apply_rule(rule_, cur_buf_.at_node(node), view, ctx));

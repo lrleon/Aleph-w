@@ -86,6 +86,7 @@
 #include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 namespace Aleph {
 namespace CA {
@@ -717,7 +718,7 @@ private:
 
   std::deque<Node> pool_;
   std::unordered_map<Node_Key, Node *, ca_hashlife_detail::Node_Key_Hash> table_;
-  std::vector<Node *> empty_by_level_;
+  Array<Node *> empty_by_level_;  ///< Aleph::Array of canonical empties per level
 
   Node *root_ = nullptr;
   std::int64_t generation_ = 0;
@@ -769,13 +770,13 @@ private:
         const std::uint8_t L = static_cast<std::uint8_t>(empty_by_level_.size());
         if (L == 0)
           {
-            empty_by_level_.push_back(nullptr);
+            empty_by_level_.append(nullptr);
             continue;
           }
         Node *n = (L == 1) ? make_leaf(0)
                            : make_node(empty_by_level_[L - 1], empty_by_level_[L - 1],
                                        empty_by_level_[L - 1], empty_by_level_[L - 1]);
-        empty_by_level_.push_back(n);
+        empty_by_level_.append(n);
       }
     return empty_by_level_[level];
   }

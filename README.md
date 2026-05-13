@@ -411,7 +411,25 @@ target_link_libraries(your_target PRIVATE Aleph)
 | `BUILD_EXAMPLES` | ON | Build the example programs (`Examples/`) |
 | `BUILD_OPTIMIZED` | OFF | If ON and `CMAKE_BUILD_TYPE` is unset, default to `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest if missing |
-| `USE_SANITIZERS` | OFF | (Tests) Enable ASan/UBSan for test binaries |
+| `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests |
+| `ALEPH_BUILD_X11_VIEWER` | ON (Unix), OFF (Windows) | Build the X11 live viewer (`ca-x11-viewer.H`). Requires `libX11`. Turn OFF to drop the X11 dependency on non-POSIX targets. |
+
+### Cross-platform CI
+
+The repository ships two complementary workflows:
+
+* `.github/workflows/ci.yml` — the gating Linux matrix (`ubuntu-22.04`,
+  `ubuntu-24.04` × `gcc`, `clang` × `Debug`, `Release`) plus the
+  `coverage`, `sanitizers`, `tsan` and `ubsan` jobs.
+* `.github/workflows/ci-platform.yml` — Phase 16's multi-platform fan-out:
+  `build-macos` (`macos-13`/`macos-14`), `build-arm64-linux`
+  (`ubuntu-24.04-arm`) and `build-windows` (`windows-2022` × `msvc`,
+  `clang-cl`). The Windows leg runs on `workflow_dispatch`, the weekly
+  cron and `master` pushes; the others gate every PR.
+
+Per-platform test exclusions and the rationale for each sanitizer
+exemption live in
+[`docs/ci_sanitizer_policy.md`](docs/ci_sanitizer_policy.md).
 
 ### CMake Presets (Optional)
 

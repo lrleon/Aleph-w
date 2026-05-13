@@ -698,6 +698,16 @@ jobs:
             build-asan/test_artifacts/golden_svg
 
   tsan:
+    # Phase 16 — sanitizer matrix expansion.
+    # ThreadSanitizer focuses on data races in the CA Parallel_Engine and
+    # thread_pool surfaces. Tests intentionally excluded (sanitizer:skip-tsan):
+    #   - hash_statistical_test: long-running statistical sweep, not race-prone,
+    #     would 10x the runtime under TSan.
+    #   - tpl_ca_parallel_engine_test.*Stress*: by design oversubscribes the
+    #     thread pool to stress scheduling. The benign races there are
+    #     intentional (work-stealing relaxations) and produce noise rather
+    #     than signal; see comments in tpl_ca_parallel_engine.H.
+    # See docs/ci_sanitizer_policy.md for the full rationale.
     name: tsan (ubuntu-24.04, clang, Debug)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -755,8 +765,10 @@ jobs:
           ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-tsan/test_artifacts/golden_svg
         run: |
           mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
+          # See sanitizer:skip-tsan comments above for the rationale of each
+          # exclusion. Keep this list in sync with docs/ci_sanitizer_policy.md.
           ctest --test-dir build-tsan --output-on-failure --parallel 2 --timeout 600 \
-            -E 'hash_statistical_test'
+            -E 'hash_statistical_test|tpl_ca_parallel_engine_test.*Stress'
 
       - name: Upload test logs on failure
         if: failure()
@@ -768,6 +780,86 @@ jobs:
             build-tsan/Testing/Temporary/LastTest.log
             build-tsan/CMakeCache.txt
             build-tsan/test_artifacts/golden_svg
+
+  ubsan:
+    # Phase 16 — UndefinedBehaviorSanitizer split from the combined
+    # ASan+UBSan build so signals are not masked by ASan reports.
+    # Excluded tests are documented in docs/ci_sanitizer_policy.md.
+    name: ubsan (ubuntu-24.04, clang, Debug)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CC: clang
+      CXX: clang++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            clang \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
+            libgtest-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-ubsan-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ubsan-ccache-
+
+      - name: Configure
+        run: |
+          rm -rf build-ubsan
+          # We pin every UBSan check including the noisy ones (vptr requires
+          # RTTI; nullability is whole-program). halt_on_error is set in the
+          # environment so any signal turns the job red.
+          cmake -S . -B build-ubsan -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_FLAGS="-fsanitize=undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=undefined" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=undefined"
+
+      - name: Build
+        run: |
+          cmake --build build-ubsan --parallel
+
+      - name: Test
+        env:
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+          ALEPH_TEST_GOLDEN_DIR: ${{ github.workspace }}/build-ubsan/test_artifacts/golden_svg
+        run: |
+          mkdir -p "$ALEPH_TEST_GOLDEN_DIR"
+          # sanitizer:skip-ubsan
+          # - hash_statistical_test: runtime cost, not a UB target.
+          ctest --test-dir build-ubsan --output-on-failure --parallel 2 --timeout 600 \
+            -E 'hash_statistical_test'
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-ubsan
+          if-no-files-found: ignore
+          path: |
+            build-ubsan/Testing/Temporary/LastTest.log
+            build-ubsan/CMakeCache.txt
+            build-ubsan/test_artifacts/golden_svg
 
   check-examples:
     name: check-examples (ubuntu-24.04, ${{ matrix.compiler }}, Release)
@@ -859,6 +951,7 @@ jobs:
       - coverage
       - sanitizers
       - tsan
+      - ubsan
       - check-examples
     if: always() && github.event_name == 'push'
     steps:
@@ -871,6 +964,7 @@ jobs:
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
+          echo "ubsan result: ${{ needs.ubsan.result }}"
           echo "check-examples result: ${{ needs.check-examples.result }}"
 
           is_ok() {
@@ -895,6 +989,7 @@ jobs:
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
+          check_job "ubsan" "${{ needs.ubsan.result }}"
           check_job "check-examples" "${{ needs.check-examples.result }}"
 
           if [ "$all_ok" -ne 1 ]; then
@@ -914,6 +1009,7 @@ jobs:
       - coverage
       - sanitizers
       - tsan
+      - ubsan
       - check-examples
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -927,6 +1023,7 @@ jobs:
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
+          echo "ubsan result: ${{ needs.ubsan.result }}"
           echo "check-examples result: ${{ needs.check-examples.result }}"
 
           is_ok() {
@@ -952,6 +1049,7 @@ jobs:
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
+          check_job "ubsan" "${{ needs.ubsan.result }}"
           check_job "check-examples" "${{ needs.check-examples.result }}"
 
           if [ "$all_ok" -ne 1 ]; then

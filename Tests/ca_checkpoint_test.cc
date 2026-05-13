@@ -50,6 +50,7 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 

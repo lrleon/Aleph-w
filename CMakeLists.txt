@@ -34,6 +34,17 @@ option(BUILD_TESTS "Build tests" ON)
 option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 
+# Optional POSIX-specific features. Default ON on Unix-like platforms,
+# OFF on Windows so CI build jobs can opt-in without dragging X11 / xorg.
+if(WIN32)
+    set(_ALEPH_X11_DEFAULT OFF)
+else()
+    set(_ALEPH_X11_DEFAULT ON)
+endif()
+option(ALEPH_BUILD_X11_VIEWER
+       "Build the X11 live viewer (ca-x11-viewer.H). Requires libX11."
+       ${_ALEPH_X11_DEFAULT})
+
 # Set build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
     if(BUILD_OPTIMIZED)
@@ -353,17 +364,33 @@ add_library(Aleph STATIC ${LIBCCCSRCS} ${LIBCSRCS})
 
 # Find required libraries
 find_package(Threads REQUIRED)
-find_package(X11 REQUIRED)
+
+# X11 is only required when the live X11 viewer is enabled. On Windows or
+# when the user opts out, we skip X11 entirely and the viewer falls back
+# to its no-op stub guarded by `__has_include(<X11/Xlib.h>)`.
+set(_ALEPH_X11_LIBS "")
+if(ALEPH_BUILD_X11_VIEWER)
+    find_package(X11 REQUIRED)
+    set(_ALEPH_X11_LIBS ${X11_LIBRARIES})
+endif()
+
+# pthread is a POSIX-only convention; on Windows the Threads::Threads
+# target already pulls the correct synchronization runtime.
+if(WIN32)
+    set(_ALEPH_PTHREAD "")
+else()
+    set(_ALEPH_PTHREAD pthread)
+endif()
 
 set(ALEPH_SYSTEM_LIBS
     gmpxx
     gmp
-    pthread
+    ${_ALEPH_PTHREAD}
     mpfr
     gsl
     gslcblas
     m
-    ${X11_LIBRARIES}
+    ${_ALEPH_X11_LIBS}
     Threads::Threads
     CACHE INTERNAL "System libraries required by Aleph"
 )
@@ -410,4 +437,5 @@ message(STATUS "  C++ standard: C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  Build examples: ${BUILD_EXAMPLES}")
 message(STATUS "  Build tests: ${BUILD_TESTS}")
 message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
+message(STATUS "  X11 viewer: ${ALEPH_BUILD_X11_VIEWER}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
