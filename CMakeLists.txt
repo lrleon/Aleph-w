@@ -316,6 +316,7 @@ set(HLIST
     tpl_ca_multi_field_rule.H
     tpl_ca_multi_field_engine.H
     ca-checkpoint.H
+    ca-checkpoint-compress.H
     ca-streaming-storage.H
     ca-io.H
     ca-tikz.H
@@ -351,6 +352,7 @@ set(LIBCCCSRCS
     aleph-graph.C
     ahNow.C
     euclidian-graph-common.C
+    ca-checkpoint-compress.C
 )
 
 # C source files
@@ -359,8 +361,27 @@ set(LIBCSRCS
     mpfr_mul_d.c
 )
 
+# ------------------------------------------------------------------------------
+# Vendored third_party/miniz (DEFLATE backend for ca-checkpoint compression)
+# ------------------------------------------------------------------------------
+# miniz is a single-source, zlib-API-compatible DEFLATE implementation.
+# We build it as a tiny static archive so the C symbols stay contained and
+# never leak into headers consumed by downstream users of Aleph-w.
+# License (zlib/MIT) recorded in THIRD_PARTY_NOTICES.md.
+add_library(aleph_miniz STATIC third_party/miniz/miniz.c)
+set_target_properties(aleph_miniz PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    C_STANDARD 99)
+target_include_directories(aleph_miniz PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/miniz>
+    $<INSTALL_INTERFACE:include/aleph/third_party/miniz>)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(aleph_miniz PRIVATE -w)
+endif()
+
 # Create static library
 add_library(Aleph STATIC ${LIBCCCSRCS} ${LIBCSRCS})
+target_link_libraries(Aleph PRIVATE aleph_miniz)
 
 # Find required libraries
 find_package(Threads REQUIRED)

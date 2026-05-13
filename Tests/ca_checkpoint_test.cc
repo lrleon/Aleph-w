@@ -197,7 +197,7 @@ TEST(CACheckpoint, InspectReturnsValidatedHeader)
   save_checkpoint(eng, path);
 
   const Checkpoint_Header h = inspect_checkpoint(path);
-  EXPECT_EQ(h.format_version, 1u);
+  EXPECT_EQ(h.format_version, 2u);
   EXPECT_EQ(h.rank, 2u);
   EXPECT_EQ(h.extents[0], 8u);
   EXPECT_EQ(h.extents[1], 8u);
