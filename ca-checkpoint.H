@@ -1354,6 +1354,21 @@ public:
     return queue_.size();
   }
 
+  /** @brief Install a hook called by the worker just before each write.
+   *
+   *  Intended for unit tests that need to throttle the worker to make
+   *  back-pressure behaviour deterministic.  The hook runs on the worker
+   *  thread, outside the mutex.  Passing an empty `std::function` clears
+   *  any previously installed hook.
+   *
+   *  @note Not thread-safe with respect to concurrent `submit()` calls;
+   *        call only before the first `submit()` or after `flush()`.
+   */
+  void set_before_write_hook(std::function<void()> hook)
+  {
+    before_write_hook_ = std::move(hook);
+  }
+
   /// Total number of files successfully written by the worker.
   [[nodiscard]] std::size_t total_written() const noexcept
   {
@@ -1396,6 +1411,9 @@ private:
           in_flight_ = true;
           not_full_.notify_one();
         }
+
+        if (before_write_hook_)
+          before_write_hook_();
 
         bool ok = true;
         std::string err;
@@ -1449,6 +1467,7 @@ private:
   std::optional<std::string> worker_error_;
   std::atomic<std::size_t> total_written_{0};
   std::atomic<std::size_t> total_dropped_{0};
+  std::function<void()> before_write_hook_;
   std::thread worker_;
 };
 

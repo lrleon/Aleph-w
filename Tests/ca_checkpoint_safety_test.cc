@@ -48,6 +48,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <thread>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -325,9 +326,13 @@ TEST(CACheckpointSafety, AsyncWriterDropOldestActuallyDrops)
   Async_Checkpoint_Writer<Engine> writer(/*capacity=*/2,
                                          Async_Checkpoint_Writer<Engine>::Queue_Policy::Drop_Oldest);
 
-  // Submit far more snapshots than the queue holds. The worker is much
-  // slower than memcpy, so the `Drop_Oldest` policy is expected to kick
-  // in at least once.
+  // Throttle the worker so the queue fills up reliably on any hardware.
+  // Without this, fast SSDs can drain the 2-slot queue between submissions
+  // and zero drops are observed (flaky in Debug builds).
+  writer.set_before_write_hook([] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  });
+
   constexpr std::size_t N = 32;
   for (std::size_t k = 0; k < N; ++k)
     {

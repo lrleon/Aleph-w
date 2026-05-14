@@ -23,7 +23,7 @@ Used by:
 
 Copyright notice (reproduced from `third_party/miniz/LICENSE`):
 
-```
+```text
 Copyright 2013-2014 RAD Game Tools and Valve Software
 Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
 
