@@ -97,6 +97,7 @@
 #include <deque>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iosfwd>
 #include <mutex>
 #include <optional>
