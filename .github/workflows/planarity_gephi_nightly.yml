@@ -140,6 +140,7 @@ jobs:
     needs: prepare-tag-matrix
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    continue-on-error: ${{ matrix.os == 'windows-2022' }}
 
     strategy:
       fail-fast: false

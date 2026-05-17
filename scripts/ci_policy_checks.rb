@@ -267,7 +267,6 @@ def main
   (headers_changed + sources_changed).each do |file|
     p = Pathname.new(file)
     next unless p.exist?
-    next if file.start_with?('third_party/')
 
     failures << "missing/invalid MIT license header: #{file}" if HEADER_EXTS.include?(File.extname(file)) && !mit_license_header?(p)
     failures << "documentation seems to be in Spanish (must be English): #{file}" unless english_documentation?(p)

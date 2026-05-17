@@ -190,13 +190,13 @@ TEST_F(GeomAlgorithmsTest, AllHullAlgorithmsAgreeOnRandomInput)
   // All five hull algorithms should produce the same vertex set.
   DynList<Point> points;
   // Deterministic "random" set avoiding cocircular degeneracies.
-  int seed = 12345;
+  unsigned int seed = 12345;
   for (int i = 0; i < 50; ++i)
     {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      int x = seed % 1000;
+      int x = static_cast<int>(seed % 1000);
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      int y = seed % 1000;
+      int y = static_cast<int>(seed % 1000);
       points.append(Point(x, y));
     }
 
@@ -1021,7 +1021,7 @@ TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKMatchesBruteBaseline)
   AndrewMonotonicChainConvexHull hull;
   ConvexPolygonDistanceGJK gjk;
 
-  int seed = 424242;
+  unsigned int seed = 424242;
   for (int tc = 0; tc < 12; ++tc)
     {
       Polygon a, b;
@@ -1031,9 +1031,9 @@ TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKMatchesBruteBaseline)
           for (int i = 0; i < 16; ++i)
             {
               seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-              const int x = (seed % 51) - 25;
+              const int x = static_cast<int>(seed % 51) - 25;
               seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-              const int y = (seed % 51) - 25;
+              const int y = static_cast<int>(seed % 51) - 25;
               pts.append(Point(x, y));
             }
           a = hull(pts);
@@ -1045,9 +1045,9 @@ TEST_F(GeomAlgorithmsTest, ConvexPolygonDistanceGJKMatchesBruteBaseline)
           for (int i = 0; i < 16; ++i)
             {
               seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-              const int x = (seed % 51) - 25;
+              const int x = static_cast<int>(seed % 51) - 25;
               seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-              const int y = (seed % 51) - 25;
+              const int y = static_cast<int>(seed % 51) - 25;
               pts.append(Point(x + 10, y + 7));
             }
           b = hull(pts);

@@ -132,6 +132,20 @@ static FORCE_INLINE std::uint64_t read_le64(const std::uint8_t * p) noexcept
     | (static_cast<std::uint64_t>(p[7]) << 56);
 }
 
+static FORCE_INLINE void write_le32(std::uint8_t * p, std::uint32_t value) noexcept
+{
+  p[0] = static_cast<std::uint8_t>(value);
+  p[1] = static_cast<std::uint8_t>(value >> 8);
+  p[2] = static_cast<std::uint8_t>(value >> 16);
+  p[3] = static_cast<std::uint8_t>(value >> 24);
+}
+
+static FORCE_INLINE void write_le64(std::uint8_t * p, std::uint64_t value) noexcept
+{
+  write_le32(p, static_cast<std::uint32_t>(value));
+  write_le32(p + 4, static_cast<std::uint32_t>(value >> 32));
+}
+
 static FORCE_INLINE std::uint64_t mul_xor_fold64(std::uint64_t lhs,
                                                  std::uint64_t rhs) noexcept
 {
@@ -384,11 +398,9 @@ void MurmurHash3_x86_32 ( const void * key, int len,
   //----------
   // body
 
-  const uint32_t * blocks = (const uint32_t *)(data + nblocks*4);
-
-  for(i = -nblocks; i; i++)
+  for(i = 0; i < nblocks; i++)
   {
-    uint32_t k1 = getblock(blocks,i);
+    uint32_t k1 = read_le32(data + i*4);
 
     k1 *= c1;
     k1 = ROTL32(k1,15);
@@ -421,7 +433,7 @@ void MurmurHash3_x86_32 ( const void * key, int len,
 
   h1 = fmix32(h1);
 
-  *(uint32_t*)out = h1;
+  write_le32(static_cast<std::uint8_t *>(out), h1);
 } 
 
 void MurmurHash3_x86_128 ( const void * key, const int len,
@@ -444,14 +456,13 @@ void MurmurHash3_x86_128 ( const void * key, const int len,
   //----------
   // body
 
-  const uint32_t * blocks = (const uint32_t *)(data + nblocks*16);
-
-  for(i = -nblocks; i; i++)
+  for(i = 0; i < nblocks; i++)
   {
-    uint32_t k1 = getblock(blocks,i*4+0);
-    uint32_t k2 = getblock(blocks,i*4+1);
-    uint32_t k3 = getblock(blocks,i*4+2);
-    uint32_t k4 = getblock(blocks,i*4+3);
+    const uint8_t * block = data + i*16;
+    uint32_t k1 = read_le32(block);
+    uint32_t k2 = read_le32(block + 4);
+    uint32_t k3 = read_le32(block + 8);
+    uint32_t k4 = read_le32(block + 12);
 
     k1 *= c1; k1  = ROTL32(k1,15); k1 *= c2; h1 ^= k1;
 
@@ -522,10 +533,11 @@ void MurmurHash3_x86_128 ( const void * key, const int len,
   h1 += h2; h1 += h3; h1 += h4;
   h2 += h1; h3 += h1; h4 += h1;
 
-  ((uint32_t*)out)[0] = h1;
-  ((uint32_t*)out)[1] = h2;
-  ((uint32_t*)out)[2] = h3;
-  ((uint32_t*)out)[3] = h4;
+  auto * out_bytes = static_cast<std::uint8_t *>(out);
+  write_le32(out_bytes, h1);
+  write_le32(out_bytes + 4, h2);
+  write_le32(out_bytes + 8, h3);
+  write_le32(out_bytes + 12, h4);
 }
 
 void MurmurHash3_x64_128 ( const void * key, const int len,
@@ -544,12 +556,11 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
   //----------
   // body
 
-  const uint64_t * blocks = (const uint64_t *)(data);
-
   for(i = 0; i < nblocks; i++)
   {
-    uint64_t k1 = getblock(blocks,i*2+0);
-    uint64_t k2 = getblock(blocks,i*2+1);
+    const uint8_t * block = data + i*16;
+    uint64_t k1 = read_le64(block);
+    uint64_t k2 = read_le64(block + 8);
 
     k1 *= c1; k1  = ROTL64(k1,31); k1 *= c2; h1 ^= k1;
 
@@ -604,8 +615,9 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
   h1 += h2;
   h2 += h1;
 
-  ((uint64_t*)out)[0] = h1;
-  ((uint64_t*)out)[1] = h2;
+  auto * out_bytes = static_cast<std::uint8_t *>(out);
+  write_le64(out_bytes, h1);
+  write_le64(out_bytes + 8, h2);
 }
 
 size_t xxhash64_hash(const void * key, size_t len, std::uint64_t seed) noexcept

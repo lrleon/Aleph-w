@@ -342,10 +342,7 @@ namespace Aleph
   protected:
     static Bucket * key_to_bucket(Key *key)
     {
-      Bucket *ret_val = 0;
-      const auto offset = reinterpret_cast<size_t>(&ret_val->get_key());
-
-      return reinterpret_cast<Bucket *>(reinterpret_cast<size_t>(key) - offset);
+      return static_cast<Bucket *>(Dnode<Key>::data_to_node(*key));
     }
 
   public:

@@ -159,7 +159,7 @@ def collect_entries(artifacts_root)
     kv = parse_kv_file(artifact_dir.join("downloaded_gephi_asset.txt"))
 
     case_data = {}
-    case_path = artifact_dir.join("nightly_case_summary.json")
+    case_path = artifact_dir.join("weekly_case_summary.json")
     if case_path.file?
       begin
         parsed = JSON.parse(case_path.read)
@@ -281,6 +281,8 @@ def append_github_outputs(num_regressions, has_regressions)
     file.puts("num_regressions=#{num_regressions}")
     file.puts("has_regressions=#{has_regressions ? "true" : "false"}")
   end
+rescue StandardError => e
+  warn("Warning: could not write GitHub outputs: #{e.message}")
 end
 
 
