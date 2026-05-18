@@ -45,6 +45,14 @@ option(ALEPH_BUILD_X11_VIEWER
        "Build the X11 live viewer (ca-x11-viewer.H). Requires libX11."
        ${_ALEPH_X11_DEFAULT})
 
+# Optional Python bindings (Phase 18 of the CA industrial roadmap).
+# Opt-in: scikit-build-core sets it ON when building the wheel via
+# `python/pyproject.toml`. Developers building from CMake directly can
+# enable it with `-DALEPH_BUILD_PYTHON=ON`.
+option(ALEPH_BUILD_PYTHON
+       "Build the aleph_ca Python module (requires Python3 + pybind11)."
+       OFF)
+
 # Set build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
     if(BUILD_OPTIMIZED)
@@ -451,12 +459,18 @@ if(BUILD_TESTS)
     add_subdirectory(Tests)
 endif()
 
+if(ALEPH_BUILD_PYTHON)
+    set(ALEPH_PYTHON_BINDINGS_INTERNAL ON)
+    add_subdirectory(python)
+endif()
+
 # Print configuration summary
 message(STATUS "Aleph-w Configuration:")
 message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  C++ standard: C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  Build examples: ${BUILD_EXAMPLES}")
 message(STATUS "  Build tests: ${BUILD_TESTS}")
+message(STATUS "  Build Python bindings: ${ALEPH_BUILD_PYTHON}")
 message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
 message(STATUS "  X11 viewer: ${ALEPH_BUILD_X11_VIEWER}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")

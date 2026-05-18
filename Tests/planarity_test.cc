@@ -2211,7 +2211,7 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonReportHasNoRegressions)
             << "  \"validator_exit_code\": " << validator_exit_code << ",\n"
             << "  \"overall_valid\": " << (overall_valid ? "true" : "false") << "\n"
             << "}\n";
-    write_text_file((dir / "nightly_case_summary.json").string(), summary.str());
+    write_text_file((dir / "weekly_case_summary.json").string(), summary.str());
   };
 
   write_case("gephi-nightly-ubuntu-24.04-v0.9.7", "ubuntu-24.04", "v0.9.7", 0, true);
@@ -2268,7 +2268,7 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonDetectsRegressionAndCanFail)
             << "  \"validator_exit_code\": " << validator_exit_code << ",\n"
             << "  \"overall_valid\": " << (overall_valid ? "true" : "false") << "\n"
             << "}\n";
-    write_text_file((dir / "nightly_case_summary.json").string(), summary.str());
+    write_text_file((dir / "weekly_case_summary.json").string(), summary.str());
   };
 
   write_case("gephi-nightly-ubuntu-24.04-v0.9.7", "ubuntu-24.04", "v0.9.7", 0, true);

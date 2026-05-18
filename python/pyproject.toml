@@ -1,0 +1,82 @@
+# ---------------------------------------------------------------------------
+# aleph-ca — Python wheel for the Aleph-w cellular-automata module.
+#
+# Build is driven by scikit-build-core (PEP 517) so the same CMake graph
+# that powers the C++ library also produces the wheel. Run:
+#
+#     pip install --editable python/         # dev build
+#     python -m build python/                # PEP 517 wheel
+# ---------------------------------------------------------------------------
+
+[build-system]
+requires = [
+    "scikit-build-core>=0.8",
+    "pybind11>=2.13",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "aleph-ca"
+version = "2.0.0b0"
+description = "Python bindings for the Aleph-w cellular-automata module."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Leandro Rabindranath Leon", email = "leandro.r.leon@gmail.com" },
+]
+keywords = ["cellular-automata", "game-of-life", "wolfram", "scientific-computing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.23",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-timeout>=2.1",
+]
+notebook = [
+    "matplotlib>=3.7",
+    "jupyter>=1.0",
+    "ipython>=8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/lrleon/Aleph-w"
+Documentation = "https://github.com/lrleon/Aleph-w/blob/master/cell-automata.md"
+Issues = "https://github.com/lrleon/Aleph-w/issues"
+
+# ---------------------------------------------------------------------------
+# scikit-build-core configuration.
+#
+# We point the source tree one level up so the top-level CMakeLists drives
+# everything. ALEPH_BUILD_PYTHON=ON tells the parent to descend into
+# python/. Tests and examples are skipped to keep the wheel build fast.
+# ---------------------------------------------------------------------------
+
+[tool.scikit-build]
+cmake.version = ">=3.18"
+cmake.build-type = "Release"
+cmake.source-dir = ".."
+wheel.packages = ["aleph_ca"]
+build-dir = "build/{wheel_tag}"
+
+[tool.scikit-build.cmake.define]
+ALEPH_BUILD_PYTHON = "ON"
+BUILD_TESTS = "OFF"
+BUILD_EXAMPLES = "OFF"
+ALEPH_BUILD_X11_VIEWER = "OFF"
+CMAKE_POSITION_INDEPENDENT_CODE = "ON"
