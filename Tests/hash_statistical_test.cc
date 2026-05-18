@@ -405,7 +405,8 @@ namespace CandidateFns
   size_t murmur3 (const std::string & s) { return murmur3hash(s, 42ul); }
   size_t xxh64   (const std::string & s) { return xxhash64_hash(s.data(), s.size(), 42); }
   size_t wyh     (const std::string & s) { return wyhash_hash(s.data(), s.size(), 42); }
-  size_t sip24   (const std::string & s) { return siphash24_hash(s.data(), s.size()); }
+  size_t sip24   (const std::string & s)
+  { return siphash24_hash(static_cast<const void *>(s.data()), s.size()); }
 } // namespace CandidateFns
 
 Array<Candidate> all_candidates()
