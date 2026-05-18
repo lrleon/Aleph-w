@@ -42,6 +42,25 @@
 #include <filesystem>
 #include <ah-map-arena.H>
 
+#if !ALEPH_HAS_MAP_ARENA
+// MapArena is Linux-only (depends on `mremap` and `MAP_POPULATE`).
+// On other platforms the test binary still exists so CTest can list it,
+// but every test reports SKIPPED instead of failing the build.
+TEST(MapArena, NotAvailableOnThisPlatform)
+{
+  GTEST_SKIP()
+    << "MapArena requires Linux (mremap / MAP_POPULATE). "
+       "See ah-map-arena.H for the platform gate.";
+}
+
+int main(int argc, char ** argv)
+{
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+
+#else  // ALEPH_HAS_MAP_ARENA
+
 using namespace Aleph;
 namespace fs = std::filesystem;
 
@@ -590,3 +609,5 @@ int main(int argc, char ** argv)
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+#endif  // ALEPH_HAS_MAP_ARENA

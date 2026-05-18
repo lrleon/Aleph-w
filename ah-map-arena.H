@@ -44,6 +44,32 @@
 #ifndef AH_MAP_ARENA_H
 #define AH_MAP_ARENA_H
 
+// ---------------------------------------------------------------------------
+// Platform gating.
+//
+// `MapArena` depends on Linux-specific APIs that have no portable POSIX
+// counterpart:
+//
+//   * `mremap()` and `MREMAP_MAYMOVE` (used by `remap()` to grow the
+//     backing region in place).
+//   * `MAP_POPULATE` (used to pre-fault pages on mmap).
+//
+// macOS / BSD / Windows lack these. Rather than synthesise a fragile
+// portable fallback (a `munmap()` + `mmap()` cycle invalidates every
+// pointer the caller is holding), we make `MapArena` a Linux-only
+// feature. The header is still includable on other platforms — it
+// simply declares no symbols there. Tests and clients gate their use
+// behind `ALEPH_HAS_MAP_ARENA`.
+// ---------------------------------------------------------------------------
+
+#if defined(__linux__)
+#  define ALEPH_HAS_MAP_ARENA 1
+#else
+#  define ALEPH_HAS_MAP_ARENA 0
+#endif
+
+#if ALEPH_HAS_MAP_ARENA
+
 #include <unistd.h>
 #include <cstdlib>
 #include <cstdint>
@@ -488,5 +514,7 @@ public:
 };
 
 } // end namespace Aleph
+
+#endif // ALEPH_HAS_MAP_ARENA
 
 #endif // AH_MAP_ARENA_H
