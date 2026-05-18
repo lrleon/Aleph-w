@@ -1886,6 +1886,11 @@ class MapSequencesMethods
     return static_cast<const Container*>(this);
   }
 
+  Container * me()
+  {
+    return static_cast<Container*>(this);
+  }
+
 public:
 
   /** Return the domain set of container.
@@ -2007,7 +2012,11 @@ public:
   */
   Data & operator () (const Key & key)
   {
-    return this->find(key);
+    // CRTP: `find` lives on the derived `Container`, not on this base.
+    // Casting via `me()` is required for AppleClang (which performs the
+    // member lookup eagerly at template definition time) and is the
+    // correct pattern regardless of compiler leniency.
+    return me()->find(key);
   }
 
   /** Return the image or element mapped to `key`.
@@ -2017,7 +2026,7 @@ public:
   */
   const Data & operator () (const Key & key) const
   {
-    return this->find(key);
+    return const_me()->find(key);
   }
 };
 # endif // AH_DRY_H
