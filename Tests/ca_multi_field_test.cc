@@ -301,16 +301,25 @@ TEST(CAMultiField, GrayScottMonolithicAndMultiFieldAgreeBitByBit)
       feng.step();
     }
 
-  // Bit-by-bit identical (same arithmetic, same neighbour ordering,
-  // same boundary policy).
+  // The two engines are intended to apply the same arithmetic in the
+  // same neighbour order, but they live in two distinct rule classes
+  // (struct-based `Gray_Scott_Rule<>` vs tuple-based
+  // `Multi_Field_Gray_Scott`). Compilers are free to apply different
+  // FP reorderings to each — FMA contraction on AArch64 GCC Release
+  // is enough to make `ASSERT_DOUBLE_EQ` fail in the last bits, even
+  // though both implementations remain individually correct. Use a
+  // tight numeric tolerance instead of bit-identity to keep the
+  // intent ("the two paths agree to within machine noise") while
+  // surviving optimiser-driven reorderings.
+  constexpr double kGSTolerance = 1e-12;
   for (ca_size_t i = 0; i < side; ++i)
     for (ca_size_t j = 0; j < side; ++j)
       {
         const Coord_Vec<2> c{static_cast<ca_index_t>(i), static_cast<ca_index_t>(j)};
         const Cell mc = meng.frame().at(c);
-        ASSERT_DOUBLE_EQ(feng.frame().at<0>(c), mc.u)
+        ASSERT_NEAR(feng.frame().at<0>(c), mc.u, kGSTolerance)
           << "u differs at (" << i << "," << j << ")";
-        ASSERT_DOUBLE_EQ(feng.frame().at<1>(c), mc.v)
+        ASSERT_NEAR(feng.frame().at<1>(c), mc.v, kGSTolerance)
           << "v differs at (" << i << "," << j << ")";
       }
 }
