@@ -148,14 +148,18 @@ EXCLUDE                = build* \
                          .git \
                          cmake-build-debug \
                          cmake-build-release \
-                         CMakeFiles
+                         CMakeFiles \
+                         python \
+                         third_party
 EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */build*/* \
                          */Tests/build*/* \
                          */docs/* \
                          */.git/* \
                          */CHANGELOG_v3.md \
-                         */CMakeFiles/*
+                         */CMakeFiles/* \
+                         */python/* \
+                         */third_party/*
 EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           = Examples \
                          Tests
