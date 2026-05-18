@@ -391,6 +391,27 @@ endif()
 add_library(Aleph STATIC ${LIBCCCSRCS} ${LIBCSRCS})
 target_link_libraries(Aleph PRIVATE aleph_miniz)
 
+# Homebrew lives outside the default compiler search path on macOS — and on
+# Apple Silicon it lives at `/opt/homebrew`, not `/usr/local`. The gmp /
+# mpfr / gsl libraries are consumed via raw `-l` flags (see
+# `ALEPH_SYSTEM_LIBS` below), so CMAKE_PREFIX_PATH alone doesn't propagate
+# the include/lib directories to the compiler. Query `brew --prefix` once
+# at configure time and add the resulting paths explicitly.
+if(APPLE)
+    execute_process(
+        COMMAND brew --prefix
+        OUTPUT_VARIABLE _ALEPH_BREW_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE _ALEPH_BREW_RC
+        ERROR_QUIET
+    )
+    if(_ALEPH_BREW_RC EQUAL 0 AND EXISTS "${_ALEPH_BREW_PREFIX}")
+        message(STATUS "Aleph: Homebrew prefix detected at ${_ALEPH_BREW_PREFIX}")
+        target_include_directories(Aleph PUBLIC "${_ALEPH_BREW_PREFIX}/include")
+        target_link_directories(Aleph PUBLIC "${_ALEPH_BREW_PREFIX}/lib")
+    endif()
+endif()
+
 # Find required libraries
 find_package(Threads REQUIRED)
 
