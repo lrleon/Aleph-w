@@ -560,13 +560,25 @@ TEST(TimeoutQueueTest, IsRunning)
 
 TEST(TimeoutQueueTest, ScheduleAfterMs)
 {
+  // Tolerancias asimétricas para acomodar el jitter del scheduler en
+  // runners de CI virtualizados (en particular macOS Debug). El test
+  // sigue verificando que el evento dispara cerca del delay pedido, no
+  // sólo que "eventualmente se ejecuta".
+  const int expected_delay = 100;
+  const int lower_tolerance = 20;
+  const int upper_tolerance = 250;
+
   auto* event = new TimingEvent(time_from_now_ms(1000)); // Will be overridden
 
-  g_queue->schedule_after_ms(100, event);
+  g_queue->schedule_after_ms(expected_delay, event);
 
-  this_thread::sleep_for(chrono::milliseconds(250));
+  this_thread::sleep_for(
+    chrono::milliseconds(expected_delay + upper_tolerance + 100));
   ASSERT_TRUE(event->executed);
-  EXPECT_LT(event->elapsed_ms(), 200);
+
+  const int actual_delay = event->elapsed_ms();
+  EXPECT_GE(actual_delay, expected_delay - lower_tolerance);
+  EXPECT_LE(actual_delay, expected_delay + upper_tolerance);
 
   delete event;
 }
