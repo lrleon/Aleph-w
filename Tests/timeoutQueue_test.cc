@@ -1046,27 +1046,37 @@ TEST(TimeoutQueueTest, CancelDuringTimeout)
 
 TEST(TimeoutQueueTest, RescheduleDuringTimeout)
 {
-  // Similar test: reschedule top event while worker is waiting for it.
-  // Buffers ampliados (~200 ms entre fronteras) para absorber jitter de
-  // scheduling en runners de CI virtualizados; el test verifica orden de
-  // eventos, no tiempos absolutos.
-  auto* e1 = new TestEvent(time_from_now_ms(300));
-  auto* e2 = new TestEvent(time_from_now_ms(700));
+  // Reschedule the top event while the worker is waiting for it.
+  //
+  // Timing is calibrated for slow virtualized CI runners (macos-15-intel
+  // runs x86_64 emulated under Rosetta, where sleep_for jitter routinely
+  // exceeds 200 ms). Two margins are critical:
+  //
+  //   1. e1's original trigger (500 ms) must NOT fire before we issue the
+  //      reschedule (after a 200 ms sleep) — 300 ms of slack absorbs even
+  //      severe scheduler drift.
+  //   2. e1's rescheduled trigger (200 + 2000 = 2200 ms) must stay well
+  //      ahead of the mid-test assertion (~1500 ms) and well behind the
+  //      final assertion (~3000 ms), so the order of events is observable
+  //      regardless of jitter.
+  auto* e1 = new TestEvent(time_from_now_ms(500));
+  auto* e2 = new TestEvent(time_from_now_ms(1200));
 
   g_queue->schedule_event(e1);
   g_queue->schedule_event(e2);
 
-  // Reschedule e1 to much later (nueva hora absoluta ≈ t=1500ms)
+  // Reschedule e1 to fire much later (absolute trigger ≈ t=2200 ms)
   this_thread::sleep_for(chrono::milliseconds(200));
-  g_queue->reschedule_event(time_from_now_ms(1300), e1);
+  g_queue->reschedule_event(time_from_now_ms(2000), e1);
 
-  // e2 should execute at its original time
-  this_thread::sleep_for(chrono::milliseconds(800));
+  // e2 should have executed at its original time (≈1200 ms),
+  // e1 should still be waiting on its new trigger (≈2200 ms).
+  this_thread::sleep_for(chrono::milliseconds(1300));
   EXPECT_TRUE(e2->executed);
   EXPECT_FALSE(e1->executed);
 
-  // e1 should execute later
-  this_thread::sleep_for(chrono::milliseconds(1000));
+  // e1 should now have fired
+  this_thread::sleep_for(chrono::milliseconds(1500));
   EXPECT_TRUE(e1->executed);
 
   delete e1;

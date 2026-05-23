@@ -5,8 +5,8 @@ require 'optparse'
 require 'set'
 
 HEADER_EXTS = %w[.h .H .hpp .hxx .hh].freeze
-EXCLUDED_TOP_LEVEL = %w[Tests Examples docs .github scripts Testing].freeze
-CONTROL_KEYWORDS = %w[if for while switch catch return sizeof static_assert].freeze
+EXCLUDED_TOP_LEVEL = %w[Tests Examples docs .github scripts Testing third_party].freeze
+CONTROL_KEYWORDS = %w[if for while switch catch return sizeof static_assert requires].freeze
 
 Declaration = Struct.new(
   :file,
@@ -241,9 +241,9 @@ def declaration_statement_from_line(line)
   lowered = s.downcase
   return nil if CONTROL_KEYWORDS.any? { |kw| lowered.start_with?("#{kw} ", "#{kw}(") }
 
-  if s.include?('=') && !s.match?(/\)\s*=\s*(default|delete)\s*;/)
-    # Usually assignment or invocation in a function body.
-    return nil
+  if s.include?('=')
+    return nil if s.match?(/\)\s*=\s*(?:default|delete)\s*;/)
+    return nil unless s.match?(/\)\s*=\s*0\s*;/)
   end
 
   s
@@ -287,8 +287,8 @@ def parse_changed_public_declarations(file, added_lines)
       if class_stack.any?
         brace_depth == class_stack.last[:depth]
       else
-        # Free declarations are usually at global scope (0) or one namespace level (1).
-        brace_depth <= 1
+        # Free declarations are usually at global scope (0) or a few namespace levels.
+        brace_depth <= 2
       end
 
     if in_decl_scope &&
