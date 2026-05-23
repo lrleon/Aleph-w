@@ -49,7 +49,13 @@
 #include <thread>
 #include <utility>
 
-#if defined(__has_include)
+// `ALEPH_DISABLE_X11_VIEWER` is set by the build system when the
+// `ALEPH_BUILD_X11_VIEWER` option is OFF (default on Windows and on any
+// CI runner that doesn't link `-lX11`). Without this gate, an Xlib.h
+// that happens to live on the include path — e.g. via XQuartz headers
+// shipped with Homebrew on macOS — would silently re-enable the X11
+// code path, producing undefined symbols at link time.
+#if !defined(ALEPH_DISABLE_X11_VIEWER) && defined(__has_include)
 #  if __has_include(<X11/Xlib.h>)
 #    include <X11/Xlib.h>
 #    define ALEPH_CA_HAVE_X11 1

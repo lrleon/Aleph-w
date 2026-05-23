@@ -417,11 +417,18 @@ find_package(Threads REQUIRED)
 
 # X11 is only required when the live X11 viewer is enabled. On Windows or
 # when the user opts out, we skip X11 entirely and the viewer falls back
-# to its no-op stub guarded by `__has_include(<X11/Xlib.h>)`.
+# to its no-op stub. The `__has_include(<X11/Xlib.h>)` guard in
+# `ca-x11-viewer.H` is not enough on macOS: when XQuartz headers happen
+# to be on the include path (e.g. brought in by `brew --prefix`), the
+# header would activate the X11 code path even though we never link
+# `-lX11`. Pass `ALEPH_DISABLE_X11_VIEWER=1` explicitly so the option
+# wins over auto-detection.
 set(_ALEPH_X11_LIBS "")
 if(ALEPH_BUILD_X11_VIEWER)
     find_package(X11 REQUIRED)
     set(_ALEPH_X11_LIBS ${X11_LIBRARIES})
+else()
+    target_compile_definitions(Aleph PUBLIC ALEPH_DISABLE_X11_VIEWER=1)
 endif()
 
 # pthread is a POSIX-only convention; on Windows the Threads::Threads

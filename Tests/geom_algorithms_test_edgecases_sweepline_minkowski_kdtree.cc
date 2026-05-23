@@ -190,12 +190,21 @@ TEST_F(GeomAlgorithmsTest, AllHullAlgorithmsAgreeOnRandomInput)
   // All five hull algorithms should produce the same vertex set.
   DynList<Point> points;
   // Deterministic "random" set avoiding cocircular degeneracies.
+  // The constants below are the canonical glibc `rand()` LCG parameters
+  // (a, c, m) = (1103515245, 12345, 2^31). We use a hand-rolled LCG
+  // instead of <random> to keep the generated sequence portable across
+  // standard libraries — the test asserts that the five hull
+  // implementations agree on the same input set, so any well-defined
+  // deterministic generator works.
+  constexpr unsigned int LCG_MULT = 1103515245u;
+  constexpr unsigned int LCG_INCR = 12345u;
+  constexpr unsigned int LCG_MASK = 0x7fffffffu;
   unsigned int seed = 12345;
   for (int i = 0; i < 50; ++i)
     {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      seed = (seed * LCG_MULT + LCG_INCR) & LCG_MASK;
       int x = static_cast<int>(seed % 1000);
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      seed = (seed * LCG_MULT + LCG_INCR) & LCG_MASK;
       int y = static_cast<int>(seed % 1000);
       points.append(Point(x, y));
     }
