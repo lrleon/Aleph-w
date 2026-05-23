@@ -112,8 +112,11 @@ bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
   bool became_empty = false; {
     std::lock_guard<std::mutex> lock(mtx);
 
-    ah_invalid_argument_unless(event_registry.contains(event))
-      << "Event " << event << " not found in timeoutQueue";
+    // If the event is no longer known to the queue, treat it as already
+    // completed/canceled instead of throwing. This can happen if cancellation
+    // races with execution completion.
+    if (not event_registry.contains(event))
+      return false;
 
     if (event->get_execution_status() != Event::In_Queue)
       return false;

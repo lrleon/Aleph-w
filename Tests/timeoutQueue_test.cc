@@ -236,8 +236,8 @@ TEST(TimeoutQueueTest, CancelEventNotInQueue)
 {
   auto* event = new TestEvent(time_from_now_ms(100));
 
-  // Now throws exception if event is not in registry
-  EXPECT_THROW(g_queue->cancel_event(event), std::invalid_argument);
+  // Now returns false if event is not in registry
+  EXPECT_FALSE(g_queue->cancel_event(event));
 
   delete event;
 }
