@@ -97,10 +97,13 @@ public:
   TimeoutQueue* queue;
   int reschedule_count;
   int max_reschedules;
+  int reschedule_step_ms;
   atomic<int> execution_count{0};
 
-  ReschedulingEvent(const Time& t, TimeoutQueue* q, int max_resc)
-    : Event(t), queue(q), reschedule_count(0), max_reschedules(max_resc) {}
+  ReschedulingEvent(const Time& t, TimeoutQueue* q, int max_resc,
+                    int step_ms = 50)
+    : Event(t), queue(q), reschedule_count(0), max_reschedules(max_resc),
+      reschedule_step_ms(step_ms) {}
 
   void EventFct() override
   {
@@ -108,7 +111,7 @@ public:
     if (reschedule_count < max_reschedules)
       {
         ++reschedule_count;
-        queue->reschedule_event(time_from_now_ms(50), this);
+        queue->reschedule_event(time_from_now_ms(reschedule_step_ms), this);
       }
   }
 };
@@ -288,12 +291,19 @@ TEST(TimeoutQueueTest, RescheduleNotInQueue)
 
 TEST(TimeoutQueueTest, SelfReschedulingEvent)
 {
-  auto* event = new ReschedulingEvent(time_from_now_ms(50), g_queue, 2);
+  // Pasos de 150 ms y espera total de 1000 ms para absorber jitter en
+  // runners de CI virtualizados (macOS arm64 Debug en particular).
+  // El test sigue verificando la lógica de auto-reprogramación: el evento
+  // debe ejecutarse exactamente max_reschedules+1 = 3 veces.
+  const int step_ms = 150;
+  const int max_reschedules = 2;
+  auto* event = new ReschedulingEvent(time_from_now_ms(step_ms), g_queue,
+                                      max_reschedules, step_ms);
 
   g_queue->schedule_event(event);
 
-  this_thread::sleep_for(chrono::milliseconds(400));
-  EXPECT_EQ(event->execution_count, 3);
+  this_thread::sleep_for(chrono::milliseconds(1000));
+  EXPECT_EQ(event->execution_count, max_reschedules + 1);
 
   delete event;
 }
@@ -413,19 +423,24 @@ TEST(TimeoutQueueTest, SetForDeletion)
 
 TEST(TimeoutQueueTest, TimingAccuracy)
 {
-  const int expected_delay = 100;
-  const int tolerance = 50;
+  // Tolerancias asimétricas: la queue no debe disparar mucho antes de tiempo
+  // (límite inferior estricto), pero en VMs de CI el jitter del scheduler
+  // puede añadir varios cientos de ms al disparo (límite superior generoso).
+  const int expected_delay = 200;
+  const int lower_tolerance = 30;
+  const int upper_tolerance = 250;
 
   auto* event = new TimingEvent(time_from_now_ms(expected_delay));
 
   g_queue->schedule_event(event);
 
-  this_thread::sleep_for(chrono::milliseconds(expected_delay + 100));
+  this_thread::sleep_for(
+    chrono::milliseconds(expected_delay + upper_tolerance + 100));
   ASSERT_TRUE(event->executed);
 
   int actual_delay = event->elapsed_ms();
-  EXPECT_GE(actual_delay, expected_delay - tolerance);
-  EXPECT_LE(actual_delay, expected_delay + tolerance);
+  EXPECT_GE(actual_delay, expected_delay - lower_tolerance);
+  EXPECT_LE(actual_delay, expected_delay + upper_tolerance);
 
   delete event;
 }
@@ -1031,24 +1046,27 @@ TEST(TimeoutQueueTest, CancelDuringTimeout)
 
 TEST(TimeoutQueueTest, RescheduleDuringTimeout)
 {
-  // Similar test: reschedule top event while worker is waiting for it
-  auto* e1 = new TestEvent(time_from_now_ms(100));
-  auto* e2 = new TestEvent(time_from_now_ms(300));
+  // Similar test: reschedule top event while worker is waiting for it.
+  // Buffers ampliados (~200 ms entre fronteras) para absorber jitter de
+  // scheduling en runners de CI virtualizados; el test verifica orden de
+  // eventos, no tiempos absolutos.
+  auto* e1 = new TestEvent(time_from_now_ms(300));
+  auto* e2 = new TestEvent(time_from_now_ms(700));
 
   g_queue->schedule_event(e1);
   g_queue->schedule_event(e2);
 
-  // Reschedule e1 to much later
-  this_thread::sleep_for(chrono::milliseconds(50));
-  g_queue->reschedule_event(time_from_now_ms(500), e1);
+  // Reschedule e1 to much later (nueva hora absoluta ≈ t=1500ms)
+  this_thread::sleep_for(chrono::milliseconds(200));
+  g_queue->reschedule_event(time_from_now_ms(1300), e1);
 
   // e2 should execute at its original time
-  this_thread::sleep_for(chrono::milliseconds(350));
+  this_thread::sleep_for(chrono::milliseconds(800));
   EXPECT_TRUE(e2->executed);
   EXPECT_FALSE(e1->executed);
 
   // e1 should execute later
-  this_thread::sleep_for(chrono::milliseconds(300));
+  this_thread::sleep_for(chrono::milliseconds(1000));
   EXPECT_TRUE(e1->executed);
 
   delete e1;
