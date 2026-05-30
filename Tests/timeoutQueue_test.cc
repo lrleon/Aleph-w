@@ -1029,23 +1029,37 @@ TEST(TimeoutQueueDeathTest, DeleteEventInQueueDirectlyThrows)
 
 TEST(TimeoutQueueTest, CancelDuringTimeout)
 {
-  // Regression test for getMin() bug: event canceled during wait_until
-  // should not cause the next event to be lost
+  // Regression test for getMin() bug: an event canceled while the worker
+  // is inside wait_until must not cause the next event to be lost.
+  //
+  // Timing mirrors RescheduleDuringTimeout. GitHub-hosted macOS runners
+  // (both macos-15 arm64 and Rosetta-emulated macos-15-intel) routinely
+  // see sleep_for jitter exceeding 200 ms when ctest runs --parallel.
+  // Two margins matter:
+  //
+  //   1. e1's trigger (500 ms) must NOT fire before we issue the cancel
+  //      (after a 200 ms sleep) — 300 ms of slack absorbs severe drift.
+  //      If e1 fires first, the worker moves it to Executing and the
+  //      subsequent cancel returns false, breaking every assertion below.
+  //   2. e2's trigger (1500 ms) stays well past the cancel point so the
+  //      cancel demonstrably happens during the worker's wait_until on
+  //      e1's deadline, and the final 2000 ms wait clears e2 with margin.
   g_queue->reset_stats();
 
-  auto* e1 = new TestEvent(time_from_now_ms(100));
-  auto* e2 = new TestEvent(time_from_now_ms(200));
+  auto* e1 = new TestEvent(time_from_now_ms(500));
+  auto* e2 = new TestEvent(time_from_now_ms(1500));
 
   g_queue->schedule_event(e1);
   g_queue->schedule_event(e2);
 
-  // Wait until just before e1 should fire, then cancel it
-  this_thread::sleep_for(chrono::milliseconds(90));
+  // Cancel e1 while the worker is inside wait_until on its deadline.
+  this_thread::sleep_for(chrono::milliseconds(200));
   bool canceled = g_queue->cancel_event(e1);
   EXPECT_TRUE(canceled);
 
-  // e2 should still execute (not be lost due to getMin() bug)
-  this_thread::sleep_for(chrono::milliseconds(200));
+  // e2 (≈1500 ms total, ≈1300 ms from here) must still fire; the extra
+  // ~700 ms of slack absorbs scheduler drift on slow runners.
+  this_thread::sleep_for(chrono::milliseconds(2000));
   EXPECT_FALSE(e1->executed);
   EXPECT_TRUE(e2->executed);
 
