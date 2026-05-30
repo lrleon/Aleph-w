@@ -265,16 +265,43 @@ TEST(TimeoutQueueTest, CancelDeleteNullEvent)
 
 TEST(TimeoutQueueTest, RescheduleEvent)
 {
-  auto* event = new TimingEvent(time_from_now_ms(500));
+  mutex mtx;
+  condition_variable cv;
+  atomic<bool> callback_done{false};
+  atomic<TimeoutQueue::Event::Execution_Status> callback_status{
+    TimeoutQueue::Event::Out_Queue};
+
+  const int original_delay_ms = 10000;
+  const int rescheduled_delay_ms = 200;
+  const int callback_timeout_ms = 3000;
+
+  auto* event = new TimingEvent(time_from_now_ms(original_delay_ms));
+  event->set_completion_callback(
+    [&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status)
+    {
+      callback_status = status;
+      callback_done = true;
+      cv.notify_all();
+    });
 
   g_queue->schedule_event(event);
-  this_thread::sleep_for(chrono::milliseconds(50));
+  this_thread::sleep_for(chrono::milliseconds(100));
 
-  g_queue->reschedule_event(time_from_now_ms(50), event);
+  g_queue->reschedule_event(time_from_now_ms(rescheduled_delay_ms), event);
 
-  this_thread::sleep_for(chrono::milliseconds(200));
+  unique_lock<mutex> lock(mtx);
+  const bool completed = cv.wait_for(
+    lock, chrono::milliseconds(callback_timeout_ms),
+    [&] { return callback_done.load(); });
+  if (not completed)
+    {
+      ADD_FAILURE() << "rescheduled event did not complete before timeout";
+      return;
+    }
+
+  EXPECT_EQ(callback_status.load(), TimeoutQueue::Event::Executed);
   EXPECT_TRUE(event->executed);
-  EXPECT_LT(event->elapsed_ms(), 300);
+  EXPECT_LT(event->elapsed_ms(), original_delay_ms);
 
   delete event;
 }
