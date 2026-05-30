@@ -680,12 +680,28 @@ TEST(TimeoutQueueTest, Statistics)
   EXPECT_EQ(initial_canceled, 0u);
 
   // Execute some events
+  mutex mtx;
+  condition_variable cv;
+  atomic<int> executed_callbacks{0};
   auto* e1 = new TestEvent(time_from_now_ms(50));
   auto* e2 = new TestEvent(time_from_now_ms(100));
+  const auto on_executed =
+    [&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status)
+    {
+      if (status == TimeoutQueue::Event::Executed)
+        ++executed_callbacks;
+      cv.notify_all();
+    };
+  e1->set_completion_callback(on_executed);
+  e2->set_completion_callback(on_executed);
+
   g_queue->schedule_event(e1);
   g_queue->schedule_event(e2);
 
-  this_thread::sleep_for(chrono::milliseconds(250));
+  unique_lock<mutex> lock(mtx);
+  ASSERT_TRUE(cv.wait_for(lock, chrono::milliseconds(3000),
+                          [&] { return executed_callbacks.load() == 2; }));
+  lock.unlock();
 
   EXPECT_EQ(g_queue->executed_count(), 2u);
 
@@ -695,8 +711,8 @@ TEST(TimeoutQueueTest, Statistics)
   g_queue->schedule_event(e3);
   g_queue->schedule_event(e4);
 
-  g_queue->cancel_event(e3);
-  g_queue->cancel_event(e4);
+  EXPECT_TRUE(g_queue->cancel_event(e3));
+  EXPECT_TRUE(g_queue->cancel_event(e4));
 
   EXPECT_EQ(g_queue->canceled_count(), 2u);
 
@@ -709,9 +725,24 @@ TEST(TimeoutQueueTest, Statistics)
 TEST(TimeoutQueueTest, ResetStats)
 {
   // Ensure some stats exist
+  mutex mtx;
+  condition_variable cv;
+  atomic<bool> completed{false};
+
   auto* e = new TestEvent(time_from_now_ms(50));
+  e->set_completion_callback(
+    [&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status)
+    {
+      completed = status == TimeoutQueue::Event::Executed;
+      cv.notify_all();
+    });
+
   g_queue->schedule_event(e);
-  this_thread::sleep_for(chrono::milliseconds(150));
+
+  unique_lock<mutex> lock(mtx);
+  ASSERT_TRUE(cv.wait_for(lock, chrono::milliseconds(3000),
+                          [&] { return completed.load(); }));
+  lock.unlock();
 
   // Reset and verify
   g_queue->reset_stats();
