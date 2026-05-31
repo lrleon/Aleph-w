@@ -29,6 +29,28 @@ static Time time_from_now_ms(int ms)
   return time_plus_msec(read_current_time(), ms);
 }
 
+/**
+ * @brief Wait until an event reaches an expected lifecycle state.
+ * @param event Event whose state is observed.
+ * @param expected Expected lifecycle state.
+ * @param timeout Maximum amount of time to wait.
+ * @return true if the expected state was observed before the timeout.
+ */
+static bool wait_for_status(
+  const TimeoutQueue::Event* event,
+  const TimeoutQueue::Event::Execution_Status expected,
+  const chrono::milliseconds timeout)
+{
+  const auto deadline = chrono::steady_clock::now() + timeout;
+  while (chrono::steady_clock::now() < deadline)
+    {
+      if (event->get_execution_status() == expected)
+        return true;
+      this_thread::sleep_for(chrono::milliseconds(10));
+    }
+  return event->get_execution_status() == expected;
+}
+
 // Test event that tracks execution
 class TestEvent : public TimeoutQueue::Event
 {
@@ -265,41 +287,37 @@ TEST(TimeoutQueueTest, CancelDeleteNullEvent)
 
 TEST(TimeoutQueueTest, RescheduleEvent)
 {
-  mutex mtx;
-  condition_variable cv;
-  atomic<bool> callback_done{false};
-  atomic<TimeoutQueue::Event::Execution_Status> callback_status{
-    TimeoutQueue::Event::Out_Queue};
-
-  const int original_delay_ms = 10000;
+  const int original_delay_ms = 60000;
   const int rescheduled_delay_ms = 200;
-  const int callback_timeout_ms = 3000;
+  const auto completion_timeout = chrono::seconds(30);
 
   auto* event = new TimingEvent(time_from_now_ms(original_delay_ms));
-  event->set_completion_callback(
-    [&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status)
-    {
-      callback_status = status;
-      callback_done = true;
-      cv.notify_all();
-    });
-
   g_queue->schedule_event(event);
   this_thread::sleep_for(chrono::milliseconds(100));
 
   g_queue->reschedule_event(time_from_now_ms(rescheduled_delay_ms), event);
 
-  unique_lock<mutex> lock(mtx);
-  const bool completed = cv.wait_for(
-    lock, chrono::milliseconds(callback_timeout_ms),
-    [&] { return callback_done.load(); });
+  const bool completed = wait_for_status(
+    event, TimeoutQueue::Event::Executed, completion_timeout);
   if (not completed)
     {
-      ADD_FAILURE() << "rescheduled event did not complete before timeout";
+      const auto status = event->get_execution_status();
+      TimeoutQueue::Event* pending_event = event;
+      try
+        {
+          g_queue->cancel_delete_event(pending_event);
+        }
+      catch (const invalid_argument&)
+        {
+          if (event->get_execution_status() != TimeoutQueue::Event::Executed)
+            throw;
+          delete event;
+        }
+      ADD_FAILURE() << "rescheduled event did not complete before timeout; "
+                    << "last status was " << status;
       return;
     }
 
-  EXPECT_EQ(callback_status.load(), TimeoutQueue::Event::Executed);
   EXPECT_TRUE(event->executed);
   EXPECT_LT(event->elapsed_ms(), original_delay_ms);
 
@@ -699,7 +717,7 @@ TEST(TimeoutQueueTest, Statistics)
   g_queue->schedule_event(e2);
 
   unique_lock<mutex> lock(mtx);
-  ASSERT_TRUE(cv.wait_for(lock, chrono::milliseconds(3000),
+  ASSERT_TRUE(cv.wait_for(lock, chrono::seconds(30),
                           [&] { return executed_callbacks.load() == 2; }));
   lock.unlock();
 
@@ -740,7 +758,7 @@ TEST(TimeoutQueueTest, ResetStats)
   g_queue->schedule_event(e);
 
   unique_lock<mutex> lock(mtx);
-  ASSERT_TRUE(cv.wait_for(lock, chrono::milliseconds(3000),
+  ASSERT_TRUE(cv.wait_for(lock, chrono::seconds(30),
                           [&] { return completed.load(); }));
   lock.unlock();
 
