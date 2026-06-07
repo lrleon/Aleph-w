@@ -2192,7 +2192,8 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonReportHasNoRegressions)
                               const std::string & os_name,
                               const std::string & tag,
                               const int validator_exit_code,
-                              const bool overall_valid)
+                              const bool overall_valid,
+                              const std::string & probe_kind = "launcher")
   {
     const fs::path dir = artifacts_root / dir_name;
     fs::create_directories(dir);
@@ -2201,6 +2202,7 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonReportHasNoRegressions)
                     "tag=" + tag + "\n"
                     "runner_os=" + os_name + "\n"
                     "asset_name=gephi-package-" + tag + ".zip\n"
+                    "gephi_probe_kind=" + probe_kind + "\n"
                     "gephi_executable=/tmp/gephi\n");
 
     std::ostringstream summary;
@@ -2208,6 +2210,7 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonReportHasNoRegressions)
             << "  \"os\": \"" << os_name << "\",\n"
             << "  \"gephi_tag\": \"" << tag << "\",\n"
             << "  \"asset_name\": \"gephi-package-" << tag << ".zip\",\n"
+            << "  \"gephi_probe_kind\": \"" << probe_kind << "\",\n"
             << "  \"validator_exit_code\": " << validator_exit_code << ",\n"
             << "  \"overall_valid\": " << (overall_valid ? "true" : "false") << "\n"
             << "}\n";
@@ -2216,8 +2219,10 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonReportHasNoRegressions)
 
   write_case("gephi-nightly-ubuntu-24.04-v0.9.7", "ubuntu-24.04", "v0.9.7", 0, true);
   write_case("gephi-nightly-ubuntu-24.04-v0.10.1", "ubuntu-24.04", "v0.10.1", 0, true);
-  write_case("gephi-nightly-windows-2022-v0.9.7", "windows-2022", "v0.9.7", 0, true);
-  write_case("gephi-nightly-windows-2022-v0.10.1", "windows-2022", "v0.10.1", 0, true);
+  write_case("gephi-nightly-windows-2022-v0.9.7", "windows-2022", "v0.9.7", 0, true,
+             "installer");
+  write_case("gephi-nightly-windows-2022-v0.10.1", "windows-2022", "v0.10.1", 0, true,
+             "installer");
 
   const std::string report_json = make_tmp_path("gephi_nightly_report_ok", ".json");
   const std::string report_md = make_tmp_path("gephi_nightly_report_ok", ".md");
@@ -2230,10 +2235,14 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonReportHasNoRegressions)
   EXPECT_NE(json.find("\"num_entries\": 4"), std::string::npos);
   EXPECT_NE(json.find("\"num_regressions\": 0"), std::string::npos);
   EXPECT_NE(json.find("\"has_regressions\": false"), std::string::npos);
+  EXPECT_NE(json.find("\"gephi_probe_kind\": \"launcher\""), std::string::npos);
+  EXPECT_NE(json.find("\"gephi_probe_kind\": \"installer\""), std::string::npos);
 
   const std::string markdown = read_text_file(report_md);
   EXPECT_NE(markdown.find("### Regression Alerts"), std::string::npos);
   EXPECT_NE(markdown.find("- none"), std::string::npos);
+  EXPECT_NE(markdown.find("| Gephi tag | OS | valid | exit_code | probe |"),
+            std::string::npos);
 }
 
 
@@ -2249,7 +2258,8 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonDetectsRegressionAndCanFail)
                               const std::string & os_name,
                               const std::string & tag,
                               const int validator_exit_code,
-                              const bool overall_valid)
+                              const bool overall_valid,
+                              const std::string & probe_kind = "launcher")
   {
     const fs::path dir = artifacts_root / dir_name;
     fs::create_directories(dir);
@@ -2258,6 +2268,7 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonDetectsRegressionAndCanFail)
                     "tag=" + tag + "\n"
                     "runner_os=" + os_name + "\n"
                     "asset_name=gephi-package-" + tag + ".zip\n"
+                    "gephi_probe_kind=" + probe_kind + "\n"
                     "gephi_executable=/tmp/gephi\n");
 
     std::ostringstream summary;
@@ -2265,6 +2276,7 @@ TEST(PlanarityTest, ExternalGephiNightlyComparisonDetectsRegressionAndCanFail)
             << "  \"os\": \"" << os_name << "\",\n"
             << "  \"gephi_tag\": \"" << tag << "\",\n"
             << "  \"asset_name\": \"gephi-package-" << tag << ".zip\",\n"
+            << "  \"gephi_probe_kind\": \"" << probe_kind << "\",\n"
             << "  \"validator_exit_code\": " << validator_exit_code << ",\n"
             << "  \"overall_valid\": " << (overall_valid ? "true" : "false") << "\n"
             << "}\n";

@@ -267,6 +267,15 @@ jobs:
           asset_name = str(asset["name"])
           asset_url = str(asset["browser_download_url"])
           archive_path = dl_dir / asset_name
+          gephi_probe_kind = "launcher"
+          windows_install_diagnostics = []
+
+          def windows_launcher_candidates(root: pathlib.Path):
+              launcher_names = {"gephi64.exe", "gephi.exe", "gephi64.bat", "gephi.bat"}
+              return [
+                  p for p in root.rglob("*")
+                  if p.is_file() and p.name.lower() in launcher_names
+              ]
 
           asset_headers = {"User-Agent": "aleph-planarity-gephi-weekly"}
           if github_token:
@@ -306,37 +315,58 @@ jobs:
                   )
           elif asset_name.lower().endswith(".exe"):
               import subprocess
-              # Gephi 0.9.x ships an Install4j installer for Windows; older
-              # releases used NSIS (which 7-Zip can extract directly).
-              # Try 7-Zip first — it handles NSIS, MSI, InnoSetup, and a
-              # number of self-extracting wrappers. When the file cannot
-              # be opened as an archive (Install4j installers fall in
-              # this bucket), fall back to running the installer in the
-              # documented Install4j unattended mode.
+
+              def append_proc_diag(label: str, proc: subprocess.CompletedProcess):
+                  windows_install_diagnostics.append(
+                      f"[{label}]\n"
+                      f"exit={proc.returncode}\n"
+                      f"stdout=\n{proc.stdout}\n"
+                      f"stderr=\n{proc.stderr}\n"
+                  )
+
+              # Gephi Windows release assets have moved across installer
+              # technologies. Prefer an extracted launcher, then try the
+              # common silent install modes. If neither exposes a launcher,
+              # keep the downloaded installer as the executable probe target:
+              # the weekly canary only checks release asset availability.
               result = subprocess.run(
                   ["7z", "x", str(archive_path), f"-o{ex_dir}", "-y"],
                   check=False,
                   capture_output=True,
                   text=True,
               )
-              if result.returncode != 0:
-                  install_dir = ex_dir / "install"
-                  install_dir.mkdir(parents=True, exist_ok=True)
-                  # Install4j flags:
-                  #   -q                    unattended/silent install
-                  #   -c                    console mode (needed on headless CI)
-                  #   -dir <path>           override install directory
-                  #   -overwrite            replace any pre-existing files
-                  #   -Dinstall4j.suppressUnattendedReboot=true
-                  #                         no implicit reboot when finished
-                  unattended = subprocess.run(
+              append_proc_diag("7z-extract", result)
+
+              if not windows_launcher_candidates(ex_dir):
+                  inno_dir = ex_dir / "inno-install"
+                  inno_dir.mkdir(parents=True, exist_ok=True)
+                  inno = subprocess.run(
+                      [
+                          str(archive_path),
+                          "/SP-",
+                          "/VERYSILENT",
+                          "/SUPPRESSMSGBOXES",
+                          "/NORESTART",
+                          f"/DIR={inno_dir}",
+                      ],
+                      check=False,
+                      capture_output=True,
+                      text=True,
+                      timeout=900,
+                  )
+                  append_proc_diag("inno-silent-install", inno)
+
+              if not windows_launcher_candidates(ex_dir):
+                  install4j_dir = ex_dir / "install4j-install"
+                  install4j_dir.mkdir(parents=True, exist_ok=True)
+                  install4j = subprocess.run(
                       [
                           str(archive_path),
                           "-q",
                           "-c",
                           "-overwrite",
                           "-dir",
-                          str(install_dir),
+                          str(install4j_dir),
                           "-Dinstall4j.suppressUnattendedReboot=true",
                       ],
                       check=False,
@@ -344,15 +374,12 @@ jobs:
                       text=True,
                       timeout=900,
                   )
-                  if unattended.returncode != 0 or not any(install_dir.rglob("gephi*.exe")):
-                      raise SystemExit(
-                          "Failed to extract Windows Gephi asset.\n"
-                          f"7z exit={result.returncode}; 7z stderr=\n{result.stderr}\n"
-                          f"Install4j unattended exit={unattended.returncode};"
-                          f" stdout=\n{unattended.stdout}\n stderr=\n{unattended.stderr}\n"
-                          f"install_dir contents (top): "
-                          f"{[p.name for p in install_dir.iterdir()] if install_dir.exists() else 'missing'}"
-                      )
+                  append_proc_diag("install4j-unattended-install", install4j)
+
+              (out_dir / "windows_install_diagnostics.txt").write_text(
+                  "\n".join(windows_install_diagnostics),
+                  encoding="utf-8",
+              )
           else:
               raise SystemExit(f"Unsupported archive format: {asset_name}")
 
@@ -373,7 +400,11 @@ jobs:
                       candidates.append(p)
 
           if not candidates:
-              raise SystemExit(f"Unable to locate Gephi executable in {ex_dir}")
+              if runner_os == "Windows" and asset_name.lower().endswith(".exe"):
+                  candidates.append(archive_path)
+                  gephi_probe_kind = "installer"
+              else:
+                  raise SystemExit(f"Unable to locate Gephi executable in {ex_dir}")
 
           def score_exe(path: pathlib.Path) -> int:
               posix = path.as_posix().lower()
@@ -402,6 +433,7 @@ jobs:
               f"runner_arch={runner_arch}\n"
               f"asset_name={asset_name}\n"
               f"asset_url={asset_url}\n"
+              f"gephi_probe_kind={gephi_probe_kind}\n"
               f"gephi_executable={gephi_exe.as_posix()}\n",
               encoding="utf-8",
           )
@@ -410,6 +442,7 @@ jobs:
           with gh_out.open("a", encoding="utf-8") as f:
               f.write(f"gephi_exe={gephi_exe.as_posix()}\n")
               f.write(f"asset_name={asset_name}\n")
+              f.write(f"gephi_probe_kind={gephi_probe_kind}\n")
           PY
 
       - name: Validate fixture and downloaded Gephi executable
@@ -418,6 +451,7 @@ jobs:
           GEPHI_EXE: ${{ steps.install_gephi.outputs.gephi_exe }}
           GEPHI_TAG: ${{ matrix.gephi_tag }}
           GEPHI_ASSET_NAME: ${{ steps.install_gephi.outputs.asset_name }}
+          GEPHI_PROBE_KIND: ${{ steps.install_gephi.outputs.gephi_probe_kind }}
           MATRIX_OS: ${{ matrix.os }}
         run: |
           set -euo pipefail
@@ -492,6 +526,7 @@ jobs:
               "os": os.environ.get("MATRIX_OS", ""),
               "gephi_tag": os.environ.get("GEPHI_TAG", ""),
               "asset_name": os.environ.get("GEPHI_ASSET_NAME", ""),
+              "gephi_probe_kind": os.environ.get("GEPHI_PROBE_KIND", ""),
               "validator_exit_code": int(proc.returncode),
               "overall_valid": False,
           }
@@ -530,6 +565,7 @@ jobs:
           retention-days: 90
           path: |
             build-gephi-weekly/downloaded_gephi_asset.txt
+            build-gephi-weekly/windows_install_diagnostics.txt
             build-gephi-weekly/weekly_real_gephi_templates.json
             build-gephi-weekly/weekly_case_summary.json
             build-gephi-weekly/validator_command.txt

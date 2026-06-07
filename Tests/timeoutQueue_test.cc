@@ -51,6 +51,33 @@ static bool wait_for_status(
   return event->get_execution_status() == expected;
 }
 
+/**
+ * @brief Spin-wait until a predicate becomes true or a timeout elapses.
+ *
+ * Replaces fixed @c sleep_for() delays used as ad-hoc synchronization with the
+ * background worker thread. Those delays are unreliable when the worker is
+ * starved of CPU (e.g. on heavily loaded CI runners): the test wakes up before
+ * the event completed and then reads stale state or deletes an event the worker
+ * still references. This helper returns as soon as the predicate holds, keeping
+ * the common case fast while tolerating arbitrarily long scheduling delays.
+ *
+ * @param pred Callable returning bool; evaluated repeatedly until true.
+ * @param timeout Maximum amount of time to wait.
+ * @return true if the predicate held before the timeout, false otherwise.
+ */
+template <typename Pred>
+static bool wait_until(Pred pred, const chrono::milliseconds timeout)
+{
+  const auto deadline = chrono::steady_clock::now() + timeout;
+  while (chrono::steady_clock::now() < deadline)
+    {
+      if (pred())
+        return true;
+      this_thread::sleep_for(chrono::milliseconds(2));
+    }
+  return pred();
+}
+
 // Test event that tracks execution
 class TestEvent : public TimeoutQueue::Event
 {
@@ -1332,7 +1359,13 @@ TEST(TimeoutQueueTest, CancelDeleteExecutingEvent)
 
   // Let event finish
   can_finish = true;
-  this_thread::sleep_for(chrono::milliseconds(100));
+
+  // Wait deterministically for the worker to leave EventFct(), delete the event,
+  // and invoke the callback. A fixed sleep here is unreliable under CPU
+  // starvation and can leak unfinished worker activity into the next test.
+  EXPECT_TRUE(wait_until([&] { return callback_called.load(); },
+                         chrono::seconds(5)))
+    << "Worker did not invoke the deletion callback in time";
 
   // Callback should have been called by worker thread
   EXPECT_TRUE(callback_called);
@@ -1346,20 +1379,33 @@ TEST(TimeoutQueueTest, CallbackReceivesNullptrOnlyForDeleted)
   atomic<TimeoutQueue::Event*> exec_ptr{nullptr};
   atomic<TimeoutQueue::Event*> cancel_ptr{nullptr};
   atomic<TimeoutQueue::Event*> delete_ptr{reinterpret_cast<TimeoutQueue::Event*>(0x1)};
+  atomic<bool> exec_done{false};
 
-  // 1. Executed path: callback must receive non-null pointer
-  auto* e1 = new TestEvent(time_from_now_ms(50));
+  // 1. Executed path: callback must receive non-null pointer.
+  //    Synchronize on the callback itself instead of a fixed sleep: under CPU
+  //    starvation the worker thread may take far longer than any fixed delay to
+  //    run the event, which previously caused this test to fail intermittently
+  //    (and to delete an event the worker still owned).
+  TimeoutQueue::Event* e1 = new TestEvent(time_from_now_ms(50));
   e1->set_completion_callback([&](TimeoutQueue::Event* ev, auto status) {
     EXPECT_EQ(status, TimeoutQueue::Event::Executed);
     EXPECT_NE(ev, nullptr);
     exec_ptr = ev;
+    exec_done = true;  // set last: signals the worker is done touching the event
   });
   g_queue->schedule_event(e1);
-  this_thread::sleep_for(chrono::milliseconds(200));
-  EXPECT_NE(exec_ptr.load(), nullptr);
-  delete e1;
 
-  // 2. Canceled path (cancel_event): callback must receive non-null pointer
+  const bool executed =
+    wait_until([&] { return exec_done.load(); }, chrono::seconds(5));
+  EXPECT_TRUE(executed) << "Executed completion callback was not invoked in time";
+  EXPECT_NE(exec_ptr.load(), nullptr);
+  if (executed)
+    delete e1;  // safe: status is Executed and the worker no longer references it
+  else
+    g_queue->cancel_delete_event(e1);  // best-effort safe removal before return
+
+  // 2. Canceled path (cancel_event): the callback runs synchronously in this
+  //    thread, so no waiting is required.
   auto* e2 = new TestEvent(time_from_now_ms(500));
   e2->set_completion_callback([&](TimeoutQueue::Event* ev, auto status) {
     EXPECT_EQ(status, TimeoutQueue::Event::Canceled);
@@ -1367,7 +1413,7 @@ TEST(TimeoutQueueTest, CallbackReceivesNullptrOnlyForDeleted)
     cancel_ptr = ev;
   });
   g_queue->schedule_event(e2);
-  g_queue->cancel_event(e2);
+  EXPECT_TRUE(g_queue->cancel_event(e2));
   EXPECT_NE(cancel_ptr.load(), nullptr);
   delete e2;
 
