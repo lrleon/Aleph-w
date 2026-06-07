@@ -159,7 +159,8 @@ EXCLUDE_PATTERNS       = */build*/* \
                          */CHANGELOG_v3.md \
                          */CMakeFiles/* \
                          */python/* \
-                         */third_party/*
+                         */third_party/* \
+                         */reproductions/README.md
 EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           = Examples \
                          Tests
