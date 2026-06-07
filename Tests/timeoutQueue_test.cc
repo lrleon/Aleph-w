@@ -222,6 +222,8 @@ TEST(TimeoutQueueTest, ScheduleAndExecuteSingleEvent)
 
 TEST(TimeoutQueueTest, EventExecutionStatus)
 {
+  const auto completion_timeout = chrono::seconds(30);
+
   auto* event = new TestEvent(time_from_now_ms(50));
 
   EXPECT_EQ(event->get_execution_status(), TimeoutQueue::Event::Out_Queue);
@@ -229,7 +231,37 @@ TEST(TimeoutQueueTest, EventExecutionStatus)
   g_queue->schedule_event(event);
   EXPECT_EQ(event->get_execution_status(), TimeoutQueue::Event::In_Queue);
 
-  this_thread::sleep_for(chrono::milliseconds(200));
+  // Wait on the lifecycle state instead of a fixed sleep. A fixed delay is
+  // unreliable on heavily loaded CI runners where the worker thread may not run
+  // within the window, leaving the event unexecuted (and turning the following
+  // delete into a use-after-free). wait_for_status returns as soon as the event
+  // completes and only blocks longer when scheduling is genuinely delayed. Once
+  // the status is Executed the worker no longer references the event (no
+  // completion callback is set), so deleting it afterwards is safe.
+  const bool executed =
+    wait_for_status(event, TimeoutQueue::Event::Executed, completion_timeout);
+  if (not executed)
+    {
+      // The worker never ran the event: it is still In_Queue (or Executing).
+      // Deleting it directly would abort, so hand it back to the queue for a
+      // safe teardown before failing.
+      const auto status = event->get_execution_status();
+      TimeoutQueue::Event* pending = event;
+      try
+        {
+          g_queue->cancel_delete_event(pending);
+        }
+      catch (const invalid_argument&)
+        {
+          // The worker executed the event between the timeout check and this
+          // call, so it is no longer in the registry; delete it ourselves.
+          delete event;
+        }
+      ADD_FAILURE() << "event did not reach Executed before timeout; "
+                    << "last status was " << status;
+      return;
+    }
+
   EXPECT_TRUE(event->executed);
 
   delete event;
@@ -237,12 +269,35 @@ TEST(TimeoutQueueTest, EventExecutionStatus)
 
 TEST(TimeoutQueueTest, ScheduleWithExplicitTime)
 {
+  const auto completion_timeout = chrono::seconds(30);
+
   auto* event = new TestEvent(time_from_now_ms(1000)); // Will be overridden
   Time trigger_time = time_from_now_ms(50);
 
   g_queue->schedule_event(trigger_time, event);
 
-  this_thread::sleep_for(chrono::milliseconds(200));
+  // Wait on the lifecycle state rather than a fixed sleep: the worker thread may
+  // not run within a fixed window on a loaded CI runner, which would both fail
+  // the assertion and turn the delete below into a use-after-free.
+  const bool executed =
+    wait_for_status(event, TimeoutQueue::Event::Executed, completion_timeout);
+  if (not executed)
+    {
+      const auto status = event->get_execution_status();
+      TimeoutQueue::Event* pending = event;
+      try
+        {
+          g_queue->cancel_delete_event(pending);
+        }
+      catch (const invalid_argument&)
+        {
+          delete event;
+        }
+      ADD_FAILURE() << "event did not reach Executed before timeout; "
+                    << "last status was " << status;
+      return;
+    }
+
   EXPECT_TRUE(event->executed);
 
   delete event;
