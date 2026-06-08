@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(Aleph-w VERSION 1.0.0 LANGUAGES C CXX)
+# Canonical version lives in the top-level VERSION file (SemVer 2.0). CMake,
+# packaging recipes and the release workflow all read it from there so the
+# number is declared in exactly one place.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" ALEPH_VERSION LIMIT_COUNT 1)
+string(STRIP "${ALEPH_VERSION}" ALEPH_VERSION)
+
+project(Aleph-w VERSION ${ALEPH_VERSION} LANGUAGES C CXX)
 
 # ------------------------------------------------------------------------------
 # Compiler / standard configuration
@@ -463,17 +469,81 @@ target_include_directories(Aleph PUBLIC
     $<INSTALL_INTERFACE:include/aleph>
 )
 
-# Install library
-install(TARGETS Aleph
+# ------------------------------------------------------------------------------
+# Installation, export set and CMake package config (roadmap Phase 21)
+# ------------------------------------------------------------------------------
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+# Header-only cellular-automata component. It carries no sources of its own;
+# it simply links the core library and is exported under the Aleph::CA name so
+# consumers can `find_package(Aleph COMPONENTS CA)`.
+add_library(Aleph_CA INTERFACE)
+target_link_libraries(Aleph_CA INTERFACE Aleph)
+target_include_directories(Aleph_CA INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/aleph>)
+# Export under the Aleph::CA name (the target itself is Aleph_CA to avoid a
+# bare `CA` symbol in the build tree).
+set_target_properties(Aleph_CA PROPERTIES EXPORT_NAME CA)
+
+# Namespaced aliases so in-tree builds and installed consumers use identical
+# target names.
+add_library(Aleph::Aleph ALIAS Aleph)
+add_library(Aleph::CA ALIAS Aleph_CA)
+
+# htlist.H type-puns through unions, so every consumer must also disable strict
+# aliasing (this mirrors the library's own required Release flag). Propagated as
+# an INTERFACE option so it reaches anyone linking Aleph::Aleph or Aleph::CA.
+target_compile_options(Aleph INTERFACE
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-fno-strict-aliasing>)
+
+# Install the libraries. `aleph_miniz` is a PRIVATE dependency of the static
+# `Aleph` archive, so it must travel in the same export set: a static archive
+# does not absorb its dependencies and the consumer link line needs it.
+install(TARGETS Aleph Aleph_CA aleph_miniz
     EXPORT AlephTargets
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph
 )
 
-# Install headers
+# Install headers (flat layout under include/aleph) plus the vendored miniz
+# header so the exported include path is never dangling.
 install(FILES ${HLIST}
-    DESTINATION include/aleph
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph
+)
+install(FILES third_party/miniz/miniz.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph/third_party/miniz
+)
+
+# Generate and install the package config files: AlephConfig.cmake,
+# AlephConfigVersion.cmake and AlephTargets.cmake.
+set(ALEPH_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/Aleph)
+
+install(EXPORT AlephTargets
+    FILE AlephTargets.cmake
+    NAMESPACE Aleph::
+    DESTINATION ${ALEPH_INSTALL_CMAKEDIR}
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AlephConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/AlephConfig.cmake"
+    INSTALL_DESTINATION ${ALEPH_INSTALL_CMAKEDIR}
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/AlephConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/AlephConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/AlephConfigVersion.cmake"
+    DESTINATION ${ALEPH_INSTALL_CMAKEDIR}
 )
 
 if(BUILD_TESTS)
@@ -514,3 +584,47 @@ message(STATUS "  Build Python bindings: ${ALEPH_BUILD_PYTHON}")
 message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
 message(STATUS "  X11 viewer: ${ALEPH_BUILD_X11_VIEWER}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
+
+# ------------------------------------------------------------------------------
+# CPack: source tarball plus binary .deb / .rpm (roadmap Phase 21)
+# ------------------------------------------------------------------------------
+# Only drive packaging when Aleph-w is the top-level project, so a consumer
+# pulling us in via FetchContent/add_subdirectory does not inherit CPack.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(CPACK_PACKAGE_NAME "aleph-w")
+    set(CPACK_PACKAGE_VENDOR "Leandro Rabindranath Leon")
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+        "Aleph-w: header-dominant C++20 data structures, algorithms and cellular automata")
+    set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/lrleon/Aleph-w")
+    set(CPACK_PACKAGE_CONTACT "leandro.r.leon@gmail.com")
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "aleph-w")
+
+    # Binary generators and their runtime dependencies.
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS
+        "libgmp10, libgmpxx4ldbl, libmpfr6, libgsl27 | libgsl25 | libgsl23, libx11-6")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "libdevel")
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_RPM_PACKAGE_REQUIRES "gmp, gmp-c++, mpfr, gsl, libX11")
+    set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+    set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
+
+    # Source tarball: exclude VCS metadata, build trees, generated docs and
+    # caches. Release artifacts are built with `git archive` (tracked files
+    # only); this list keeps `make package_source` honest for local use.
+    set(CPACK_SOURCE_GENERATOR "TGZ")
+    set(CPACK_SOURCE_IGNORE_FILES
+        "/\\.git/"
+        "/build.*/"
+        "/cmake-build-.*/"
+        "/docs/html/"
+        "/\\.cache/"
+        "/__pycache__/"
+        "\\.pyc$"
+        "/benchmarks/trend-site/"
+        "/reproductions/results/"
+        "/reproductions/figures/generated/")
+
+    include(CPack)
+endif()

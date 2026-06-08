@@ -402,6 +402,25 @@ FetchContent_MakeAvailable(aleph-w)
 target_link_libraries(your_target PRIVATE Aleph)
 ```
 
+### Method 4: `find_package` (installed package)
+
+Once Aleph-w is installed (`cmake --install`, a `.deb`/`.rpm`, vcpkg or Conan),
+a consumer project integrates it without cloning the repo:
+
+```cmake
+find_package(Aleph 2.0 COMPONENTS CA REQUIRED)
+
+# Core data structures & algorithms:
+target_link_libraries(your_target PRIVATE Aleph::Aleph)
+# Cellular-automata component (header-only, links the core for you):
+target_link_libraries(your_target PRIVATE Aleph::CA)
+```
+
+The package ships `AlephConfig.cmake`, `AlephConfigVersion.cmake` and
+`AlephTargets.cmake` under `lib/cmake/Aleph`, exporting the imported targets
+`Aleph::Aleph` and `Aleph::CA` (with `-fno-strict-aliasing` propagated for
+`htlist.H`). A runnable example consumer lives in [`consumer/`](consumer).
+
 ### CMake Options
 
 | Option | Default | Description |
@@ -409,6 +428,8 @@ target_link_libraries(your_target PRIVATE Aleph)
 | `ALEPH_CXX_STANDARD` | 20 | C++ standard for the core library (`17`, `20`, `23`) |
 | `BUILD_TESTS` | ON | Build the test suite (`Tests/`) |
 | `BUILD_EXAMPLES` | ON | Build the example programs (`Examples/`) |
+| `BUILD_REPRODUCTIONS` | OFF | Build the weekly cellular-automata reproductions (`reproductions/`) |
+| `BUILD_BENCHMARKS` | OFF | Build the cellular-automata performance-gate benchmarks (`benchmarks/`) |
 | `BUILD_OPTIMIZED` | OFF | If ON and `CMAKE_BUILD_TYPE` is unset, default to `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest if missing |
 | `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests |
@@ -4581,6 +4602,21 @@ Your contribution matters. Whether it's fixing a typo, optimizing an algorithm, 
 - **Want to learn?** Explore the code and ask questions.
 
 Together, we can build the most comprehensive C++ algorithm library in the world. **Join us!**
+
+---
+
+## Versioning
+
+Aleph-w follows [Semantic Versioning 2.0.0](https://semver.org/). The canonical
+version lives in the top-level [`VERSION`](VERSION) file (read by CMake, the
+packaging recipes and the release workflow), and notable changes are recorded in
+[`CHANGELOG.md`](CHANGELOG.md) using the
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format
+(`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`).
+
+`find_package(Aleph 2.0 ...)` resolves any installed `2.x` release
+(`SameMajorVersion` compatibility): minor and patch upgrades are backward
+compatible, and breaking changes are reserved for a new major version.
 
 ---
 

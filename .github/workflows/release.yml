@@ -1,0 +1,167 @@
+name: Release & Packaging
+
+# Roadmap Phase 21. Three responsibilities:
+#   * find-package-test  — proves an installed Aleph-w is consumable through
+#                          find_package (runs on PRs touching packaging too).
+#   * linux-packages     — builds the source tarball plus .deb and .rpm.
+#   * package-install-test — installs the .deb in a clean step and builds the
+#                          consumer against it.
+#   * publish            — attaches every artifact to a GitHub release on a tag.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'consumer/**'
+      - 'VERSION'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # find_package consumability — fast, runs on every triggering event.
+  # ---------------------------------------------------------------------------
+  find-package-test:
+    name: find-package-test (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ \
+            libgmp-dev libmpfr-dev libgsl-dev libx11-dev libpthread-stubs0-dev
+
+      - name: Configure and build the library
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF \
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/_install"
+          cmake --build build --target Aleph --parallel
+
+      - name: Install to a private prefix
+        run: cmake --install build
+
+      - name: Build and run the consumer via find_package
+        run: |
+          cmake -S consumer -B build-consumer -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/_install"
+          cmake --build build-consumer
+          ./build-consumer/gol_consumer
+
+  # ---------------------------------------------------------------------------
+  # Source tarball + binary packages — only on a tag or manual dispatch.
+  # ---------------------------------------------------------------------------
+  linux-packages:
+    name: linux-packages (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ rpm \
+            libgmp-dev libmpfr-dev libgsl-dev libx11-dev libpthread-stubs0-dev
+
+      - name: Read version
+        id: ver
+        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Source tarball (tracked files only)
+        run: |
+          mkdir -p dist
+          git archive --format=tar.gz \
+            --prefix="aleph-w-${{ steps.ver.outputs.version }}/" \
+            -o "dist/aleph-w-${{ steps.ver.outputs.version }}-Source.tar.gz" HEAD
+
+      - name: Build and package (.deb + .rpm)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF \
+            -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build --target Aleph --parallel
+          ( cd build && cpack -G "DEB;RPM" )
+          cp build/*.deb build/*.rpm dist/
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aleph-w-packages
+          path: dist/*
+
+  # ---------------------------------------------------------------------------
+  # Install the freshly built .deb and build the consumer against it.
+  # ---------------------------------------------------------------------------
+  package-install-test:
+    name: package-install-test (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    needs: linux-packages
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: aleph-w-packages
+          path: dist
+
+      - name: Install the .deb and its runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ ./dist/*.deb
+
+      - name: Build and run the consumer against the installed package
+        run: |
+          cmake -S consumer -B build-consumer -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-consumer
+          ./build-consumer/gol_consumer
+
+  # ---------------------------------------------------------------------------
+  # Publish the GitHub release with every artifact (tags only).
+  # ---------------------------------------------------------------------------
+  publish:
+    name: publish-release
+    runs-on: ubuntu-24.04
+    needs: [linux-packages, package-install-test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: aleph-w-packages
+          path: dist
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Automated release for ${GITHUB_REF_NAME}. See CHANGELOG.md for details." \
+            --verify-tag
