@@ -37,16 +37,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build g++ util-linux \
+            cmake ninja-build g++ util-linux ruby-full \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev
 
@@ -64,7 +59,7 @@ jobs:
 
       - name: Regenerate baseline and append trend sample
         run: |
-          python3 benchmarks/perf_gate.py \
+          ruby scripts/ca_perf_regression.rb \
             --build-dir build-benchmarks \
             --taskset-cpus 0-3 \
             --update-baseline \
@@ -72,7 +67,7 @@ jobs:
 
       - name: Render 90-day trend page
         run: |
-          python3 benchmarks/plot_trend.py \
+          ruby scripts/ca_perf_trend.rb \
             --history benchmarks/history.jsonl \
             --days 90 \
             --out-dir benchmarks/trend-site

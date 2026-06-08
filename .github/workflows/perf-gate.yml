@@ -43,16 +43,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build g++ util-linux \
+            cmake ninja-build g++ util-linux ruby-full \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev
 
@@ -72,7 +67,7 @@ jobs:
         id: gate
         run: |
           set +e
-          python3 benchmarks/perf_gate.py \
+          ruby scripts/ca_perf_regression.rb \
             --build-dir build-benchmarks \
             --taskset-cpus 0-3 \
             --soft-on-cpu-mismatch \
