@@ -220,6 +220,21 @@ def main(argv)
     return 0
   end
 
+  # No committed baseline yet (the very first run, before `perf-update` has
+  # recorded one on the canonical runner): there is nothing to compare against,
+  # so the gate is advisory and must not fail the PR.
+  unless File.exist?(options[:baseline])
+    note = "### Cellular-automata perf gate\n\n" \
+           "> ⚠️ No baseline at `#{options[:baseline]}` yet. The gate is " \
+           "**advisory** until one is recorded on this hardware (run the " \
+           "`perf-update` workflow on `master`).\n"
+    puts
+    puts note
+    File.write(options[:markdown_out], note) if options[:markdown_out]
+    warn('PERF GATE ADVISORY: no baseline to compare against; not failing.')
+    return 0
+  end
+
   baseline = JSON.parse(File.read(options[:baseline]))
   config = File.exist?(options[:config]) ? JSON.parse(File.read(options[:config])) : {}
 
