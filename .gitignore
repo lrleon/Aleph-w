@@ -248,6 +248,8 @@ docs/html/
 
 # Python bytecode cache
 scripts/__pycache__/
+__pycache__/
+*.pyc
 
 # Generated example artifacts
 Examples/*.eepicaux
