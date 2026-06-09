@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.18)
 
-# Canonical version lives in the top-level VERSION file (SemVer 2.0). CMake,
+# Canonical version lives in the top-level VERSION.txt file (SemVer 2.0). CMake,
 # packaging recipes and the release workflow all read it from there so the
-# number is declared in exactly one place.
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" ALEPH_VERSION LIMIT_COUNT 1)
+# number is declared in exactly one place. The .txt extension avoids shadowing
+# the standard C++20 <version> header on case-insensitive filesystems (macOS).
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" ALEPH_VERSION LIMIT_COUNT 1)
 string(STRIP "${ALEPH_VERSION}" ALEPH_VERSION)
 
 project(Aleph-w VERSION ${ALEPH_VERSION} LANGUAGES C CXX)

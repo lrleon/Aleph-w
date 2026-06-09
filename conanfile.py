@@ -38,12 +38,12 @@ class AlephWConan(ConanFile):
     }
 
     exports_sources = (
-        "CMakeLists.txt", "VERSION", "LICENSE", "cmake/*", "*.H", "*.h",
+        "CMakeLists.txt", "VERSION.txt", "LICENSE", "cmake/*", "*.H", "*.h",
         "*.C", "*.cc", "*.c", "third_party/*", "Examples/*",
     )
 
     def set_version(self):
-        self.version = load(self, os.path.join(self.recipe_folder, "VERSION")).strip()
+        self.version = load(self, os.path.join(self.recipe_folder, "VERSION.txt")).strip()
 
     def requirements(self):
         self.requires("gmp/6.3.0")
