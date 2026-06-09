@@ -154,8 +154,9 @@ def ms(ns)
   ns.nil? ? '—' : format('%.2f', ns / 1e6)
 end
 
-def render_markdown(rows, baseline)
-  icon = { 'ok' => '✅', 'improved' => '🟢', 'regressed' => '❌', 'new' => '🆕' }
+def render_markdown(rows, baseline, advisory: false)
+  icon = { 'ok' => '✅', 'improved' => '🟢', 'regressed' => '❌', 'new' => '🆕',
+           'advisory' => 'ℹ️' }
   lines = ['### Cellular-automata perf gate', '']
   meta = []
   meta << "baseline CPU `#{baseline['cpu']}`" if baseline['cpu']
@@ -168,9 +169,13 @@ def render_markdown(rows, baseline)
   ]
   rows.each do |r|
     delta = r[:delta_pct].nil? ? '—' : format('%+.1f%%', r[:delta_pct])
+    # Across mismatched CPUs the pass/fail verdict is meaningless, so the
+    # status column is neutralised to "advisory" and only the raw numbers
+    # remain (still useful as a sanity check).
+    status = advisory && r[:status] != 'new' ? 'advisory' : r[:status]
     lines << format('| `%s` | %s | %s | %s | ±%d%% | %s %s |',
                     r[:name], ms(r[:base_ns]), ms(r[:cur_ns]),
-                    delta, r[:threshold], icon[r[:status]], r[:status])
+                    delta, r[:threshold], icon[status], status)
   end
   lines << ''
   lines << '_Lower wall time is better; Δ is current vs. baseline._'
@@ -239,9 +244,9 @@ def main(argv)
   config = File.exist?(options[:config]) ? JSON.parse(File.read(options[:config])) : {}
 
   rows, regressed = compare(results, baseline, config)
-  table = render_markdown(rows, baseline)
-
   cpu_mismatch = baseline['cpu'] && cpu && baseline['cpu'] != cpu
+  table = render_markdown(rows, baseline, advisory: cpu_mismatch)
+
   if cpu_mismatch
     note = "> ⚠️ Baseline was recorded on `#{baseline['cpu']}` but this run used " \
            "`#{cpu}`. Absolute times are not comparable across CPUs, so the gate " \
