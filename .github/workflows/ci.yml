@@ -919,12 +919,13 @@ jobs:
 
       - name: Check examples compilation
         run: |
-          ruby scripts/check_examples_compile --verbose --jobs 2 --build-dir "build-examples-${{ matrix.compiler }}"
+          ruby scripts/check_examples_compile --verbose --jobs "$(nproc)" \
+            --build-dir "build-examples-${{ matrix.compiler }}"
 
       - name: TSAN smoke pass for concurrency examples
         run: |
           # Build a selected set of concurrency-heavy examples with TSAN
-          ruby scripts/check_examples_compile --verbose --jobs 2 --tsan \
+          ruby scripts/check_examples_compile --verbose --jobs "$(nproc)" --tsan \
             --build-dir "build-examples-${{ matrix.compiler }}-tsan"
 
       - name: Upload examples build log on failure

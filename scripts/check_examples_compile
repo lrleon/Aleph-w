@@ -5,6 +5,16 @@ require 'fileutils'
 require 'open3'
 require 'optparse'
 
+# Locate an executable on PATH (portable substitute for `which`, without
+# pulling in mkmf). Returns the full path or nil.
+def find_on_path(cmd)
+  ENV['PATH'].to_s.split(File::PATH_SEPARATOR).each do |dir|
+    candidate = File.join(dir, cmd)
+    return candidate if File.executable?(candidate) && !File.directory?(candidate)
+  end
+  nil
+end
+
 options = {
   build_dir: 'build-examples-check',
   build_type: 'Release',
@@ -12,6 +22,8 @@ options = {
   clean: false,
   build_tests: false,
   tsan: false,
+  # nil => auto-detect ccache on PATH; true/false force it on/off.
+  ccache: nil,
   log: nil,
   verbose: false
 }
@@ -41,6 +53,10 @@ OptionParser.new do |opts|
 
   opts.on('--tsan', 'Enable ThreadSanitizer flags') do
     options[:tsan] = true
+  end
+
+  opts.on('--[no-]ccache', 'Route compilers through ccache (default: auto-detect on PATH)') do |v|
+    options[:ccache] = v
   end
 
   opts.on('-l', '--log FILE', 'Write full configure+build log to FILE') do
@@ -76,6 +92,18 @@ cmake_configure = [
   '-DBUILD_EXAMPLES=ON',
   "-DBUILD_TESTS=#{options[:build_tests] ? 'ON' : 'OFF'}"
 ]
+
+# Route compilation through ccache so the ~346 example targets are not
+# recompiled from scratch on every run. Enabled automatically when ccache is
+# on PATH; override with --ccache / --no-ccache. Without this, any cached
+# CCACHE_DIR in CI is dead weight because the compiler is never invoked
+# through ccache.
+use_ccache = options[:ccache]
+use_ccache = !find_on_path('ccache').nil? if use_ccache.nil?
+if use_ccache
+  cmake_configure << '-DCMAKE_C_COMPILER_LAUNCHER=ccache'
+  cmake_configure << '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache'
+end
 
 # If CC or CXX environment variables point to clang, add libc++ flags
 cc_env = ENV['CC'] || ''
