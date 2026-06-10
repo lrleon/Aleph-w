@@ -55,6 +55,7 @@
 #include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 #include <ca-frame-stream.H>
 #include <ca-io.H>
@@ -107,7 +108,7 @@ struct Frame
   std::size_t step = 0;
   ca_size_t width = 0;
   ca_size_t height = 0;
-  std::vector<RGB8> pixels;
+  Array<RGB8> pixels;
 };
 
 inline void write_frame_json(std::ostream &out, const Frame &f)
@@ -118,7 +119,7 @@ inline void write_frame_json(std::ostream &out, const Frame &f)
     {
       if (i != 0)
         out << ',';
-      out << '"' << rgb_hex(f.pixels[i]) << '"';
+      out << '"' << rgb_hex(f.pixels(i)) << '"';
     }
   out << "]}";
 }
@@ -135,7 +136,7 @@ class HTML_Player_Frame_Sink
   std::filesystem::path path_;
   Mapper mapper_;
   HTML_Player_Options opts_{};
-  std::vector<ca_html_detail::Frame> frames_;
+  std::vector<ca_html_detail::Frame> frames_;  ///< std::vector until 27.5.B (Array migration, v2.0)
 
 public:
   /** @brief Build an HTML player sink.
@@ -168,15 +169,15 @@ public:
     f.pixels.reserve(f.width * f.height);
     for (ca_size_t r = 0; r < frame.size(0); ++r)
       for (ca_size_t c = 0; c < frame.size(1); ++c)
-        f.pixels.push_back(mapper_(frame.at(coord_t{static_cast<ca_index_t>(r),
-                                                    static_cast<ca_index_t>(c)})));
+        f.pixels.append(mapper_(frame.at(coord_t{static_cast<ca_index_t>(r),
+                                                 static_cast<ca_index_t>(c)})));
     frames_.push_back(std::move(f));
   }
 
   /** @brief Write the final self-contained HTML file.
    *  @throws std::runtime_error on file or stream failure.
    */
-  void flush()
+  void flush() const
   {
     if (const auto parent = path_.parent_path(); not parent.empty())
       std::filesystem::create_directories(parent);

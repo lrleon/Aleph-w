@@ -50,9 +50,9 @@
 #include <fstream>
 #include <ostream>
 #include <string>
-#include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 #include <ca-frame-stream.H>
 #include <ca-io.H>
@@ -63,12 +63,12 @@ namespace CA {
 
 namespace ca_png_detail {
 
-inline void append_be32(std::vector<std::uint8_t> &out, const std::uint32_t value)
+inline void append_be32(Array<std::uint8_t> &out, const std::uint32_t value)
 {
-  out.push_back(static_cast<std::uint8_t>((value >> 24) & 0xffu));
-  out.push_back(static_cast<std::uint8_t>((value >> 16) & 0xffu));
-  out.push_back(static_cast<std::uint8_t>((value >> 8) & 0xffu));
-  out.push_back(static_cast<std::uint8_t>(value & 0xffu));
+  out.append(static_cast<std::uint8_t>((value >> 24) & 0xffu));
+  out.append(static_cast<std::uint8_t>((value >> 16) & 0xffu));
+  out.append(static_cast<std::uint8_t>((value >> 8) & 0xffu));
+  out.append(static_cast<std::uint8_t>(value & 0xffu));
 }
 
 inline void write_be32(std::ostream &out, const std::uint32_t value)
@@ -91,25 +91,25 @@ inline void write_be32(std::ostream &out, const std::uint32_t value)
   return crc ^ 0xffffffffu;
 }
 
-[[nodiscard]] inline std::uint32_t adler32(const std::vector<std::uint8_t> &data)
+[[nodiscard]] inline std::uint32_t adler32(const Array<std::uint8_t> &data)
 {
   constexpr std::uint32_t mod = 65521u;
   std::uint32_t a = 1;
   std::uint32_t b = 0;
-  for (const std::uint8_t byte : data)
+  for (std::size_t i = 0; i < data.size(); ++i)
     {
-      a = (a + byte) % mod;
+      a = (a + data(i)) % mod;
       b = (b + a) % mod;
     }
   return (b << 16) | a;
 }
 
-[[nodiscard]] inline std::vector<std::uint8_t> zlib_store(const std::vector<std::uint8_t> &raw)
+[[nodiscard]] inline Array<std::uint8_t> zlib_store(const Array<std::uint8_t> &raw)
 {
-  std::vector<std::uint8_t> out;
+  Array<std::uint8_t> out;
   out.reserve(raw.size() + raw.size() / 65535 + 16);
-  out.push_back(0x78);
-  out.push_back(0x01);
+  out.append(std::uint8_t{0x78});
+  out.append(std::uint8_t{0x01});
 
   std::size_t pos = 0;
   do
@@ -117,14 +117,14 @@ inline void write_be32(std::ostream &out, const std::uint32_t value)
       const std::size_t remaining = raw.size() - pos;
       const std::uint16_t block = static_cast<std::uint16_t>(remaining > 65535u ? 65535u : remaining);
       const bool is_final = pos + block == raw.size();
-      out.push_back(is_final ? 0x01 : 0x00);
-      out.push_back(static_cast<std::uint8_t>(block & 0xffu));
-      out.push_back(static_cast<std::uint8_t>((block >> 8) & 0xffu));
+      out.append(static_cast<std::uint8_t>(is_final ? 0x01 : 0x00));
+      out.append(static_cast<std::uint8_t>(block & 0xffu));
+      out.append(static_cast<std::uint8_t>((block >> 8) & 0xffu));
       const std::uint16_t nlen = static_cast<std::uint16_t>(~block);
-      out.push_back(static_cast<std::uint8_t>(nlen & 0xffu));
-      out.push_back(static_cast<std::uint8_t>((nlen >> 8) & 0xffu));
-      out.insert(out.end(), raw.begin() + static_cast<std::ptrdiff_t>(pos),
-                 raw.begin() + static_cast<std::ptrdiff_t>(pos + block));
+      out.append(static_cast<std::uint8_t>(nlen & 0xffu));
+      out.append(static_cast<std::uint8_t>((nlen >> 8) & 0xffu));
+      for (std::size_t i = 0; i < block; ++i)
+        out.append(raw(pos + i));
       pos += block;
   } while (pos < raw.size());
 
@@ -132,20 +132,21 @@ inline void write_be32(std::ostream &out, const std::uint32_t value)
   return out;
 }
 
-inline void write_chunk(std::ostream &out, const char type[4], const std::vector<std::uint8_t> &payload)
+inline void write_chunk(std::ostream &out, const char type[4], const Array<std::uint8_t> &payload)
 {
   write_be32(out, static_cast<std::uint32_t>(payload.size()));
   out.write(type, 4);
-  if (not payload.empty())
-    out.write(reinterpret_cast<const char *>(payload.data()),
+  if (not payload.is_empty())
+    out.write(reinterpret_cast<const char *>(&payload.base()),
               static_cast<std::streamsize>(payload.size()));
 
-  std::vector<std::uint8_t> crc_data;
+  Array<std::uint8_t> crc_data;
   crc_data.reserve(4 + payload.size());
   for (int i = 0; i < 4; ++i)
-    crc_data.push_back(static_cast<std::uint8_t>(type[i]));
-  crc_data.insert(crc_data.end(), payload.begin(), payload.end());
-  write_be32(out, crc32(crc_data.data(), crc_data.size()));
+    crc_data.append(static_cast<std::uint8_t>(type[i]));
+  for (std::size_t i = 0; i < payload.size(); ++i)
+    crc_data.append(payload(i));
+  write_be32(out, crc32(&crc_data.base(), crc_data.size()));
 }
 
 }  // namespace ca_png_detail
@@ -180,35 +181,35 @@ inline void write_png(std::ostream &out, const Lattice &frame, Mapper &&mapper)
   const ca_size_t cols = frame.size(1);
   ah_domain_error_if(rows == 0 or cols == 0) << "write_png: PNG dimensions must be non-zero";
 
-  std::vector<std::uint8_t> raw;
+  Array<std::uint8_t> raw;
   raw.reserve(rows * (1 + cols * 3));
   for (ca_size_t r = 0; r < rows; ++r)
     {
-      raw.push_back(0);
+      raw.append(std::uint8_t{0});
       for (ca_size_t c = 0; c < cols; ++c)
         {
           const RGB8 rgb
             = mapper(frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)}));
-          raw.push_back(rgb.r);
-          raw.push_back(rgb.g);
-          raw.push_back(rgb.b);
+          raw.append(rgb.r);
+          raw.append(rgb.g);
+          raw.append(rgb.b);
         }
     }
 
   static constexpr unsigned char signature[8] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'};
   out.write(reinterpret_cast<const char *>(signature), 8);
 
-  std::vector<std::uint8_t> ihdr;
+  Array<std::uint8_t> ihdr;
   ca_png_detail::append_be32(ihdr, static_cast<std::uint32_t>(cols));
   ca_png_detail::append_be32(ihdr, static_cast<std::uint32_t>(rows));
-  ihdr.push_back(8);  // bit depth
-  ihdr.push_back(2);  // truecolour RGB
-  ihdr.push_back(0);  // deflate
-  ihdr.push_back(0);  // adaptive filtering
-  ihdr.push_back(0);  // no interlace
+  ihdr.append(std::uint8_t{8});  // bit depth
+  ihdr.append(std::uint8_t{2});  // truecolour RGB
+  ihdr.append(std::uint8_t{0});  // deflate
+  ihdr.append(std::uint8_t{0});  // adaptive filtering
+  ihdr.append(std::uint8_t{0});  // no interlace
   ca_png_detail::write_chunk(out, "IHDR", ihdr);
 
-  const std::vector<std::uint8_t> idat = ca_png_detail::zlib_store(raw);
+  const Array<std::uint8_t> idat = ca_png_detail::zlib_store(raw);
   ca_png_detail::write_chunk(out, "IDAT", idat);
   ca_png_detail::write_chunk(out, "IEND", {});
 

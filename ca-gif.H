@@ -54,6 +54,7 @@
 #include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 #include <ca-io.H>
 #include <tpl_ca_concepts.H>
@@ -74,7 +75,7 @@ struct Frame
 {
   ca_size_t width = 0;
   ca_size_t height = 0;
-  std::vector<RGB8> pixels;
+  std::vector<RGB8> pixels;  ///< std::vector until 27.5.B: part of the public `write_gif` signature
 };
 
 inline void put_le16(std::ostream &out, const std::uint16_t value)
@@ -91,14 +92,14 @@ inline void put_le16(std::ostream &out, const std::uint16_t value)
   return static_cast<std::uint32_t>(dr * dr + dg * dg + db * db);
 }
 
-[[nodiscard]] inline std::uint8_t palette_index(std::vector<RGB8> &palette, const RGB8 c)
+[[nodiscard]] inline std::uint8_t palette_index(Array<RGB8> &palette, const RGB8 c)
 {
   for (std::size_t i = 0; i < palette.size(); ++i)
-    if (palette[i] == c)
+    if (palette(i) == c)
       return static_cast<std::uint8_t>(i);
   if (palette.size() < 256)
     {
-      palette.push_back(c);
+      palette.append(c);
       return static_cast<std::uint8_t>(palette.size() - 1);
     }
 
@@ -106,7 +107,7 @@ inline void put_le16(std::ostream &out, const std::uint16_t value)
   std::uint32_t best_d = std::numeric_limits<std::uint32_t>::max();
   for (std::size_t i = 0; i < palette.size(); ++i)
     {
-      const std::uint32_t d = dist2(palette[i], c);
+      const std::uint32_t d = dist2(palette(i), c);
       if (d < best_d)
         {
           best = i;
@@ -120,18 +121,18 @@ inline void put_le16(std::ostream &out, const std::uint16_t value)
 /// (every colour either present or to be approximated by nearest match)
 /// and never mutates it. Used by the per-frame loop in `write_gif` so
 /// the palette does not need to be copied per frame.
-[[nodiscard]] inline std::uint8_t lookup_palette_index(const std::vector<RGB8> &palette,
+[[nodiscard]] inline std::uint8_t lookup_palette_index(const Array<RGB8> &palette,
                                                        const RGB8 c) noexcept
 {
   for (std::size_t i = 0; i < palette.size(); ++i)
-    if (palette[i] == c)
+    if (palette(i) == c)
       return static_cast<std::uint8_t>(i);
 
   std::size_t best = 0;
   std::uint32_t best_d = std::numeric_limits<std::uint32_t>::max();
   for (std::size_t i = 0; i < palette.size(); ++i)
     {
-      const std::uint32_t d = dist2(palette[i], c);
+      const std::uint32_t d = dist2(palette(i), c);
       if (d < best_d)
         {
           best = i;
@@ -155,7 +156,7 @@ inline void put_le16(std::ostream &out, const std::uint16_t value)
 
 class Bit_Writer
 {
-  std::vector<std::uint8_t> bytes_;
+  Array<std::uint8_t> bytes_;
   std::uint32_t buffer_ = 0;
   unsigned bits_ = 0;
 
@@ -166,22 +167,22 @@ public:
     bits_ += width;
     while (bits_ >= 8)
       {
-        bytes_.push_back(static_cast<std::uint8_t>(buffer_ & 0xffu));
+        bytes_.append(static_cast<std::uint8_t>(buffer_ & 0xffu));
         buffer_ >>= 8;
         bits_ -= 8;
       }
   }
 
-  [[nodiscard]] std::vector<std::uint8_t> finish()
+  [[nodiscard]] Array<std::uint8_t> finish()
   {
     if (bits_ != 0)
-      bytes_.push_back(static_cast<std::uint8_t>(buffer_ & 0xffu));
+      bytes_.append(static_cast<std::uint8_t>(buffer_ & 0xffu));
     return std::move(bytes_);
   }
 };
 
-[[nodiscard]] inline std::vector<std::uint8_t> lzw_bytes(const std::vector<std::uint8_t> &indices,
-                                                         const unsigned min_code_size)
+[[nodiscard]] inline Array<std::uint8_t> lzw_bytes(const Array<std::uint8_t> &indices,
+                                                   const unsigned min_code_size)
 {
   const unsigned clear = 1u << min_code_size;
   const unsigned end = clear + 1u;
@@ -191,9 +192,9 @@ public:
 
   Bit_Writer bits;
   bits.write(clear, code_size);
-  for (const std::uint8_t idx : indices)
+  for (std::size_t i = 0; i < indices.size(); ++i)
     {
-      bits.write(idx, code_size);
+      bits.write(indices(i), code_size);
       if (first)
         {
           first = false;
@@ -210,30 +211,32 @@ public:
   return bits.finish();
 }
 
-inline void write_subblocks(std::ostream &out, const std::vector<std::uint8_t> &bytes)
+inline void write_subblocks(std::ostream &out, const Array<std::uint8_t> &bytes)
 {
   std::size_t pos = 0;
   while (pos < bytes.size())
     {
       const std::size_t n = std::min<std::size_t>(255, bytes.size() - pos);
       out.put(static_cast<char>(n));
-      out.write(reinterpret_cast<const char *>(bytes.data() + pos), static_cast<std::streamsize>(n));
+      out.write(reinterpret_cast<const char *>(&bytes.base() + pos), static_cast<std::streamsize>(n));
       pos += n;
     }
   out.put('\0');
 }
 
-[[nodiscard]] inline std::vector<RGB8> build_palette(const std::vector<Frame> &frames)
+// `frames` keeps the std::vector type because it mirrors the public
+// `write_gif` signature; that migration is scheduled for 27.5.B (v2.0).
+[[nodiscard]] inline Array<RGB8> build_palette(const std::vector<Frame> &frames)
 {
-  std::vector<RGB8> palette;
+  Array<RGB8> palette;
   palette.reserve(256);
   for (const Frame &f : frames)
     for (const RGB8 c : f.pixels)
       (void) palette_index(palette, c);
-  if (palette.empty())
-    palette.push_back(RGB8{255, 255, 255});
+  if (palette.is_empty())
+    palette.append(RGB8{255, 255, 255});
   if (palette.size() == 1)
-    palette.push_back(palette.front() == RGB8{0, 0, 0} ? RGB8{255, 255, 255} : RGB8{0, 0, 0});
+    palette.append(palette(0) == RGB8{0, 0, 0} ? RGB8{255, 255, 255} : RGB8{0, 0, 0});
   return palette;
 }
 
@@ -262,10 +265,11 @@ inline void write_gif(std::ostream &out,
     ah_domain_error_if(f.width != width or f.height != height or f.pixels.size() != width * height)
       << "write_gif: all frames must have identical dimensions";
 
-  std::vector<RGB8> palette = ca_gif_detail::build_palette(frames);
+  Array<RGB8> palette = ca_gif_detail::build_palette(frames);
   const unsigned palette_bits = std::max(1u, ca_gif_detail::ceil_log2(palette.size()));
   const std::size_t table_size = std::size_t{1} << palette_bits;
-  palette.resize(table_size, RGB8{0, 0, 0});
+  while (palette.size() < table_size)  // pad table to a power of two
+    palette.append(RGB8{0, 0, 0});
   const unsigned min_code_size = std::max(2u, palette_bits);
 
   out.write("GIF89a", 6);
@@ -275,8 +279,9 @@ inline void write_gif(std::ostream &out,
   out.put(static_cast<char>(0x80u | 0x70u | gct_code));
   out.put('\0');
   out.put('\0');
-  for (const RGB8 c : palette)
+  for (std::size_t i = 0; i < palette.size(); ++i)
     {
+      const RGB8 c = palette(i);
       out.put(static_cast<char>(c.r));
       out.put(static_cast<char>(c.g));
       out.put(static_cast<char>(c.b));
@@ -296,13 +301,13 @@ inline void write_gif(std::ostream &out,
 
   for (const auto &frame : frames)
     {
-      std::vector<std::uint8_t> indices;
+      Array<std::uint8_t> indices;
       indices.reserve(frame.pixels.size());
       // The palette is finalised (build_palette already saw every
       // colour); use the read-only lookup so we don't pay one
       // palette copy per frame.
       for (const RGB8 c : frame.pixels)
-        indices.push_back(ca_gif_detail::lookup_palette_index(palette, c));
+        indices.append(ca_gif_detail::lookup_palette_index(palette, c));
 
       out.put(0x21);
       out.put(0xf9);
@@ -336,7 +341,7 @@ class Gif_Frame_Sink
   std::filesystem::path path_;
   Mapper mapper_;
   GIF_Write_Options opts_{};
-  std::vector<ca_gif_detail::Frame> frames_;
+  std::vector<ca_gif_detail::Frame> frames_;  ///< std::vector until 27.5.B: fed to public `write_gif`
 
 public:
   /** @brief Build a GIF frame sink.

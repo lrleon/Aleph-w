@@ -54,9 +54,9 @@
 #include <sstream>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 #include <ca-frame-stream.H>
 #include <ca-io.H>
@@ -99,7 +99,7 @@ concept TriRenderable = requires(const Lattice &lat) {
 
 [[nodiscard]] inline std::string rgb_hex(const RGB8 c)
 {
-  const char digits[] = "0123456789abcdef";
+  constexpr char digits[] = "0123456789abcdef";
   std::string out = "#000000";
   out[1] = digits[c.r >> 4];
   out[2] = digits[c.r & 0x0f];
@@ -147,42 +147,52 @@ inline void write_style(std::ostream &out, const SVG_Render_Options &opts)
     out << " stroke=\"none\"";
 }
 
-inline void write_points(std::ostream &out, const std::vector<std::array<double, 2>> &pts)
+inline void write_points(std::ostream &out, const Array<std::array<double, 2>> &pts)
 {
   for (std::size_t i = 0; i < pts.size(); ++i)
     {
       if (i != 0)
         out << ' ';
-      out << pts[i][0] << ',' << pts[i][1];
+      out << pts(i)[0] << ',' << pts(i)[1];
     }
 }
 
-[[nodiscard]] inline std::vector<std::array<double, 2>> hex_points(Hex_Axial a, const double radius)
+[[nodiscard]] inline Array<std::array<double, 2>> hex_points(Hex_Axial a, const double radius)
 {
   const auto centre = axial_to_pixel_pointy(a, radius);
-  std::vector<std::array<double, 2>> pts;
-  pts.reserve(6);
-  constexpr double pi = 3.14159265358979323846;
+  Array<std::array<double, 2>> pts(6);
   for (int k = 0; k < 6; ++k)
     {
+      constexpr double pi = 3.14159265358979323846;
       const double angle = (60.0 * static_cast<double>(k) - 30.0) * pi / 180.0;
-      pts.push_back({centre[0] + radius * std::cos(angle), centre[1] + radius * std::sin(angle)});
+      pts.append(std::array<double, 2>{centre[0] + radius * std::cos(angle),
+                                       centre[1] + radius * std::sin(angle)});
     }
   return pts;
 }
 
-[[nodiscard]] inline std::vector<std::array<double, 2>> tri_points(Tri_Coord c, const double side)
+[[nodiscard]] inline Array<std::array<double, 2>> tri_points(Tri_Coord c, const double side)
 {
-  const double sqrt3 = 1.7320508075688772;
+  constexpr double sqrt3 = 1.7320508075688772;
   const double h = side * sqrt3 / 2.0;
   const auto centre = tri_pixel_centre(c, side);
+  // Built with explicit appends: Array(3) preallocates exact capacity,
+  // and the three vertices read clearer than a braced list-init.
+  using Pt = std::array<double, 2>;
+  Array<Pt> pts(3);
   if (tri_is_up(c))
-    return {std::array<double, 2>{centre[0], centre[1] - (2.0 * h / 3.0)},
-            std::array<double, 2>{centre[0] - side / 2.0, centre[1] + h / 3.0},
-            std::array<double, 2>{centre[0] + side / 2.0, centre[1] + h / 3.0}};
-  return {std::array<double, 2>{centre[0], centre[1] + (2.0 * h / 3.0)},
-          std::array<double, 2>{centre[0] - side / 2.0, centre[1] - h / 3.0},
-          std::array<double, 2>{centre[0] + side / 2.0, centre[1] - h / 3.0}};
+    {
+      pts.append(Pt{centre[0], centre[1] - (2.0 * h / 3.0)});
+      pts.append(Pt{centre[0] - side / 2.0, centre[1] + h / 3.0});
+      pts.append(Pt{centre[0] + side / 2.0, centre[1] + h / 3.0});
+    }
+  else
+    {
+      pts.append(Pt{centre[0], centre[1] + (2.0 * h / 3.0)});
+      pts.append(Pt{centre[0] - side / 2.0, centre[1] - h / 3.0});
+      pts.append(Pt{centre[0] + side / 2.0, centre[1] - h / 3.0});
+    }
+  return pts;
 }
 
 }  // namespace ca_svg_detail
@@ -434,7 +444,7 @@ public:
   }
 
   /** @brief SVG frames are written eagerly; this is a no-op. */
-  void flush() {}
+  static void flush() {}
 };
 
 template <typename Palette>

@@ -83,10 +83,10 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
 
 #include <ah-errors.H>
 #include <tpl_array.H>
+#include <tpl_sort_utils.H>
 
 namespace Aleph {
 namespace CA {
@@ -632,13 +632,14 @@ public:
       }
 
     // Collect alive cells sorted by (y, x).
-    std::vector<std::pair<std::int64_t, std::int64_t>> cells;
+    Array<std::pair<std::int64_t, std::int64_t>> cells;
     cells.reserve(static_cast<std::size_t>(root_->population));
     for_each_alive([&cells](std::int64_t x, std::int64_t y)
     {
-      cells.emplace_back(y, x);
+      cells.append(std::pair{y, x});
     });
-    std::sort(cells.begin(), cells.end());
+    if (cells.size() > 1)
+      quicksort(&cells.base(), 0, static_cast<long>(cells.size()) - 1);
 
     out << "x = " << bb.width() << ", y = " << bb.height() << ", rule = " << format_rule(rule_)
         << '\n';
@@ -658,8 +659,8 @@ public:
     std::size_t i = 0;
     while (i < cells.size())
       {
-        const std::int64_t y = cells[i].first;
-        const std::int64_t x = cells[i].second;
+        const std::int64_t y = cells(i).first;
+        const std::int64_t x = cells(i).second;
         if (y != prev_y)
           {
             emit_run(y - prev_y, '$');
@@ -673,7 +674,7 @@ public:
           }
         std::int64_t alive_run = 0;
         std::size_t j = i;
-        while (j < cells.size() and cells[j].first == y and cells[j].second == cur_x + alive_run)
+        while (j < cells.size() and cells(j).first == y and cells(j).second == cur_x + alive_run)
           {
             ++alive_run;
             ++j;
