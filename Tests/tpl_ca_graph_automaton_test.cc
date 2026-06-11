@@ -73,21 +73,21 @@ TEST(CAGraphBuilders, PathGraphAdjacencyShape)
 {
   const auto adj = make_path_graph_adjacency(5);
   ASSERT_EQ(adj.size(), 5u);
-  EXPECT_EQ(adj[0], (std::vector<std::size_t>{1}));
-  EXPECT_EQ(adj[1], (std::vector<std::size_t>{0, 2}));
-  EXPECT_EQ(adj[2], (std::vector<std::size_t>{1, 3}));
-  EXPECT_EQ(adj[3], (std::vector<std::size_t>{2, 4}));
-  EXPECT_EQ(adj[4], (std::vector<std::size_t>{3}));
+  EXPECT_EQ(adj[0], (Array<std::size_t>{1}));
+  EXPECT_EQ(adj[1], (Array<std::size_t>{0, 2}));
+  EXPECT_EQ(adj[2], (Array<std::size_t>{1, 3}));
+  EXPECT_EQ(adj[3], (Array<std::size_t>{2, 4}));
+  EXPECT_EQ(adj[4], (Array<std::size_t>{3}));
 }
 
 TEST(CAGraphBuilders, RingGraphAdjacencyShape)
 {
   const auto adj = make_path_graph_adjacency(4, /*cycle=*/true);
   ASSERT_EQ(adj.size(), 4u);
-  EXPECT_EQ(adj[0], (std::vector<std::size_t>{3, 1}));
-  EXPECT_EQ(adj[1], (std::vector<std::size_t>{0, 2}));
-  EXPECT_EQ(adj[2], (std::vector<std::size_t>{1, 3}));
-  EXPECT_EQ(adj[3], (std::vector<std::size_t>{2, 0}));
+  EXPECT_EQ(adj[0], (Array<std::size_t>{3, 1}));
+  EXPECT_EQ(adj[1], (Array<std::size_t>{0, 2}));
+  EXPECT_EQ(adj[2], (Array<std::size_t>{1, 3}));
+  EXPECT_EQ(adj[3], (Array<std::size_t>{2, 0}));
 }
 
 TEST(CAGraphBuilders, GridGraphAdjacencyEdgeCount)
@@ -118,7 +118,7 @@ TEST(CAGraphBuilders, ToroidalGridAlwaysHasFourNeighbours)
 
 TEST(CAGraphLattice, ConstructorRejectsOutOfRangeNeighbour)
 {
-  std::vector<std::vector<std::size_t>> bad = {{1}, {99}};  // 99 is invalid
+  Array<Array<std::size_t>> bad = {{1}, {99}};  // 99 is invalid
   EXPECT_THROW({ Graph_Lattice<int> g(bad); (void)g.size(); },
                std::out_of_range);
 }
@@ -249,11 +249,11 @@ TEST(CAGraphEngine, VoterModelConvergesOnConnectedNonBipartiteGraph)
   // so the synchronous voter model cannot get trapped in a parity
   // oscillation. With a fixed seed the chain reaches consensus
   // within a few thousand steps.
-  std::vector<std::vector<std::size_t>> adj(7);
+  Array<Array<std::size_t>> adj(7, Array<std::size_t>{});
   auto edge = [&](std::size_t a, std::size_t b)
   {
-    adj[a].push_back(b);
-    adj[b].push_back(a);
+    adj[a].append(b);
+    adj[b].append(a);
   };
   edge(0, 1); edge(0, 2); edge(1, 2);
   edge(0, 3); edge(0, 4); edge(3, 4);

@@ -309,7 +309,7 @@ TEST(CASamplingObserver, SnapshotsAtConfiguredPeriod)
   // initial + steps {3, 6, 9} = 4 snapshots.
   ASSERT_EQ(samp.size(), 4u);
   EXPECT_EQ(samp.step_indices(),
-            (std::vector<std::size_t>{0, 3, 6, 9}));
+            (Array<std::size_t>{0, 3, 6, 9}));
 }
 
 TEST(CASamplingObserver, ZeroPeriodDisablesSampling)

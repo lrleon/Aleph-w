@@ -79,7 +79,6 @@
 #include <span>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include <ah-errors.H>
 #include <tpl_array.H>
@@ -137,7 +136,7 @@ public:
    *  @par Complexity
    *  O(N + E), where N is the node count and E the number of edges.
    */
-  explicit Graph_Lattice(const std::vector<std::vector<std::size_t>> &adjacency,
+  explicit Graph_Lattice(const Array<Array<std::size_t>> &adjacency,
                          const T &init = T{})
     : num_nodes_(static_cast<ca_size_t>(adjacency.size()))
     , cells_(num_nodes_, init)
@@ -307,7 +306,7 @@ and (requires(const R &r, const T &s, Neighbor_View<T> v) {
  *  steps_run). The differences are internal: there is no neighbour
  *  template parameter, the per-cell neighbour count is variable
  *  (taken from the precomputed adjacency), and the gather buffer is
- *  a single `std::vector` owned by the engine and reused across cells.
+ *  a single `Aleph::Array` owned by the engine and reused across cells.
  *
  *  @tparam Lattice graph lattice (typically `Graph_Lattice<T>`).
  *  @tparam Rule    rule type satisfying `GraphRuleLike<Rule, state_type>`.
@@ -443,10 +442,10 @@ public:
  *  @par Complexity
  *  O(rows * cols).
  */
-[[nodiscard]] inline std::vector<std::vector<std::size_t>> make_grid_graph_adjacency(
+[[nodiscard]] inline Array<Array<std::size_t>> make_grid_graph_adjacency(
   std::size_t rows, std::size_t cols, bool periodic = false)
 {
-  std::vector<std::vector<std::size_t>> adj(rows * cols);
+  Array<Array<std::size_t>> adj(rows * cols, Array<std::size_t>{});
   auto idx = [cols](std::size_t i, std::size_t j) { return i * cols + j; };
   for (std::size_t i = 0; i < rows; ++i)
     for (std::size_t j = 0; j < cols; ++j)
@@ -454,24 +453,24 @@ public:
         auto &row = adj[idx(i, j)];
         // North
         if (i > 0)
-          row.push_back(idx(i - 1, j));
+          row.append(idx(i - 1, j));
         else if (periodic)
-          row.push_back(idx(rows - 1, j));
+          row.append(idx(rows - 1, j));
         // South
         if (i + 1 < rows)
-          row.push_back(idx(i + 1, j));
+          row.append(idx(i + 1, j));
         else if (periodic)
-          row.push_back(idx(0, j));
+          row.append(idx(0, j));
         // West
         if (j > 0)
-          row.push_back(idx(i, j - 1));
+          row.append(idx(i, j - 1));
         else if (periodic)
-          row.push_back(idx(i, cols - 1));
+          row.append(idx(i, cols - 1));
         // East
         if (j + 1 < cols)
-          row.push_back(idx(i, j + 1));
+          row.append(idx(i, j + 1));
         else if (periodic)
-          row.push_back(idx(i, 0));
+          row.append(idx(i, 0));
       }
   return adj;
 }
@@ -486,20 +485,20 @@ public:
  *  @param[in] cycle close into a cycle when `true`.
  *  @return adjacency list with `n` entries.
  */
-[[nodiscard]] inline std::vector<std::vector<std::size_t>> make_path_graph_adjacency(
+[[nodiscard]] inline Array<Array<std::size_t>> make_path_graph_adjacency(
   std::size_t n, bool cycle = false)
 {
-  std::vector<std::vector<std::size_t>> adj(n);
+  Array<Array<std::size_t>> adj(n, Array<std::size_t>{});
   for (std::size_t i = 0; i < n; ++i)
     {
       if (i > 0)
-        adj[i].push_back(i - 1);
+        adj[i].append(i - 1);
       else if (cycle and n > 1)
-        adj[i].push_back(n - 1);
+        adj[i].append(n - 1);
       if (i + 1 < n)
-        adj[i].push_back(i + 1);
+        adj[i].append(i + 1);
       else if (cycle and n > 1)
-        adj[i].push_back(0);
+        adj[i].append(0);
     }
   return adj;
 }

@@ -151,7 +151,7 @@ TEST(CAIO, RleParserAcceptsCommentsLongRunsAndConwayAliases)
   EXPECT_EQ(pattern.width, 5u);
   EXPECT_EQ(pattern.height, 3u);
   EXPECT_EQ(pattern.alive,
-            (std::vector<Coord_Vec<2>>{{0, 0}, {0, 1}, {2, 4}}));
+            (Array<Coord_Vec<2>>{{0, 0}, {0, 1}, {2, 4}}));
 }
 
 TEST(CAIO, RleParserRejectsMalformedInput)
@@ -183,7 +183,7 @@ TEST(CAIO, PlaintextParserAcceptsStarsAndRejectsUnknownGlyphs)
   const Binary_Cell_Pattern pattern = read_plaintext_string("!demo\n*..\n.O.\n");
   EXPECT_EQ(pattern.width, 3u);
   EXPECT_EQ(pattern.height, 2u);
-  EXPECT_EQ(pattern.alive, (std::vector<Coord_Vec<2>>{{0, 0}, {1, 1}}));
+  EXPECT_EQ(pattern.alive, (Array<Coord_Vec<2>>{{0, 0}, {1, 1}}));
   EXPECT_THROW(read_plaintext_string(".X.\n"), std::domain_error);
 }
 
@@ -200,7 +200,7 @@ TEST(CAIO, Life106NormalisesNegativeCoordinates)
   EXPECT_EQ(pattern.origin_row, -1);
   EXPECT_EQ(pattern.width, 3u);
   EXPECT_EQ(pattern.height, 3u);
-  EXPECT_EQ(pattern.alive, (std::vector<Coord_Vec<2>>{{0, 0}, {2, 2}}));
+  EXPECT_EQ(pattern.alive, (Array<Coord_Vec<2>>{{0, 0}, {2, 2}}));
 }
 
 TEST(CAIO, Life106WriterProducesReadableCoordinates)
@@ -213,7 +213,7 @@ TEST(CAIO, Life106WriterProducesReadableCoordinates)
   const Binary_Cell_Pattern pattern = read_life_106(in);
   EXPECT_EQ(pattern.width, 3u);
   EXPECT_EQ(pattern.height, 3u);
-  EXPECT_EQ(pattern.alive, (std::vector<Coord_Vec<2>>{{0, 2}, {2, 0}}));
+  EXPECT_EQ(pattern.alive, (Array<Coord_Vec<2>>{{0, 2}, {2, 0}}));
 }
 
 TEST(CAIO, Life105RoundTripPreservesFullFrame)
@@ -246,7 +246,7 @@ TEST(CAIO, Life105ParserMergesNegativeBlocks)
   EXPECT_EQ(pattern.width, 4u);
   EXPECT_EQ(pattern.height, 2u);
   EXPECT_EQ(pattern.alive,
-            (std::vector<Coord_Vec<2>>{{0, 0}, {1, 1}, {1, 3}}));
+            (Array<Coord_Vec<2>>{{0, 0}, {1, 1}, {1, 3}}));
 }
 
 TEST(CAIO, CsvRoundTripPreservesNumericSnapshot)

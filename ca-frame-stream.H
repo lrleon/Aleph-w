@@ -56,9 +56,9 @@
 #include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 #include <ca-io.H>
 #include <ca-tikz.H>
@@ -296,7 +296,7 @@ public:
 class Directory_Frame_Sink
 {
   Frame_Stream_Options opts_;
-  std::vector<std::pair<std::size_t, std::filesystem::path>> written_;
+  Array<std::pair<std::size_t, std::filesystem::path>> written_;
 
   [[nodiscard]] std::filesystem::path frame_path(std::size_t step) const
   {
@@ -361,9 +361,9 @@ public:
   }
 
   /** @brief Return the frame files written so far.
-   *  @return vector of `(step, path)` entries.
+   *  @return array of `(step, path)` entries.
    */
-  [[nodiscard]] const std::vector<std::pair<std::size_t, std::filesystem::path>> &written_frames() const noexcept
+  [[nodiscard]] const Array<std::pair<std::size_t, std::filesystem::path>> &written_frames() const noexcept
   {
     return written_;
   }
@@ -390,7 +390,7 @@ public:
     write_one(out, frame);
     ah_runtime_error_if(not out) << "Directory_Frame_Sink::accept: write failed for '"
                                  << path.string() << "'";
-    written_.push_back({step, path});
+    written_.append(std::pair{step, path});
   }
 
   /** @brief Write the optional manifest.

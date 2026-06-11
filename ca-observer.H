@@ -54,7 +54,7 @@
  *      last K frame hashes and reports the cycle length the moment a
  *      new frame hashes equal to one already seen.
  *    - `Sampling_Observer<Lattice>` — copies the current frame every
- *      `period` steps into an in-memory snapshot vector.
+ *      `period` steps into an in-memory snapshot array.
  *
  *  Wiring helpers:
  *
@@ -82,9 +82,9 @@
 #include <optional>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 #include <ca-metrics.H>
 #include <ca-traits.H>
@@ -322,14 +322,14 @@ inline void attach_observer_graph(Engine &engine, Observer &observer)
  *  thread-safe for concurrent writers/callbacks.
  *
  *  @par Exception-safety
- *  Strong guarantee unless vector allocation throws during sampling.
+ *  Strong guarantee unless array allocation throws during sampling.
  */
 template <typename State>
 class Density_Observer
 {
   State tracked_state_{};
-  std::vector<ca_size_t> counts_;
-  std::vector<ca_size_t> totals_;
+  Array<ca_size_t> counts_;
+  Array<ca_size_t> totals_;
   bool seeded_ = false;
 
 public:
@@ -348,7 +348,7 @@ public:
    *  @return counts, one per recorded step including the initial frame.
    *  @throws This function does not throw.
    */
-  [[nodiscard]] const std::vector<ca_size_t> &counts() const noexcept
+  [[nodiscard]] const Array<ca_size_t> &counts() const noexcept
   {
     return counts_;
   }
@@ -357,7 +357,7 @@ public:
    *  @return total cell counts, aligned with `counts()`.
    *  @throws This function does not throw.
    */
-  [[nodiscard]] const std::vector<ca_size_t> &totals() const noexcept
+  [[nodiscard]] const Array<ca_size_t> &totals() const noexcept
   {
     return totals_;
   }
@@ -407,8 +407,8 @@ public:
   {
     if (step == 0 and not seeded_)
       {
-        counts_.push_back(count_state(frame, tracked_state_));
-        totals_.push_back(total_cells(frame));
+        counts_.append(count_state(frame, tracked_state_));
+        totals_.append(total_cells(frame));
         seeded_ = true;
       }
   }
@@ -423,8 +423,8 @@ public:
   void on_step_end(const std::size_t step, const Lattice &frame)
   {
     (void) step;
-    counts_.push_back(count_state(frame, tracked_state_));
-    totals_.push_back(total_cells(frame));
+    counts_.append(count_state(frame, tracked_state_));
+    totals_.append(total_cells(frame));
   }
 };
 
@@ -458,7 +458,7 @@ template <typename Lattice>
 class Activity_Observer
 {
   std::optional<Lattice> prev_;
-  std::vector<ca_size_t> activity_;
+  Array<ca_size_t> activity_;
 
 public:
   /** @brief Construct an empty activity observer.
@@ -470,7 +470,7 @@ public:
    *  @return changed-cell counts, one per completed step.
    *  @throws This function does not throw.
    */
-  [[nodiscard]] const std::vector<ca_size_t> &activity() const noexcept
+  [[nodiscard]] const Array<ca_size_t> &activity() const noexcept
   {
     return activity_;
   }
@@ -516,9 +516,9 @@ public:
   {
     (void) step;
     if (prev_.has_value())
-      activity_.push_back(cell_diff_count(*prev_, frame));
+      activity_.append(cell_diff_count(*prev_, frame));
     else
-      activity_.push_back(0);
+      activity_.append(0);
   }
 };
 
@@ -542,12 +542,12 @@ public:
  *  thread-safe for concurrent callbacks.
  *
  *  @par Exception-safety
- *  Strong guarantee unless vector allocation throws.
+ *  Strong guarantee unless array allocation throws.
  */
 template <std::size_t MaxState>
 class Entropy_Observer
 {
-  std::vector<double> entropy_;
+  Array<double> entropy_;
   bool seeded_ = false;
 
 public:
@@ -560,7 +560,7 @@ public:
    *  @return entropies in nats, including the initial frame.
    *  @throws This function does not throw.
    */
-  [[nodiscard]] const std::vector<double> &entropy() const noexcept
+  [[nodiscard]] const Array<double> &entropy() const noexcept
   {
     return entropy_;
   }
@@ -597,7 +597,7 @@ public:
   {
     if (step == 0 and not seeded_)
       {
-        entropy_.push_back(shannon_entropy(frame, MaxState));
+        entropy_.append(shannon_entropy(frame, MaxState));
         seeded_ = true;
       }
   }
@@ -612,7 +612,7 @@ public:
   void on_step_end(const std::size_t step, const Lattice &frame)
   {
     (void) step;
-    entropy_.push_back(shannon_entropy(frame, MaxState));
+    entropy_.append(shannon_entropy(frame, MaxState));
   }
 };
 
@@ -642,13 +642,13 @@ public:
  *  thread-safe for concurrent callbacks.
  *
  *  @par Exception-safety
- *  Strong guarantee unless vector allocation throws.
+ *  Strong guarantee unless array allocation throws.
  */
 class Stationary_Detector
 {
   std::size_t max_cycle_length_ = 0;
-  std::vector<std::uint64_t> hashes_;
-  std::vector<std::size_t> steps_;
+  Array<std::uint64_t> hashes_;
+  Array<std::size_t> steps_;
   std::optional<std::size_t> cycle_length_;
   std::optional<std::size_t> cycle_start_;
 
@@ -656,12 +656,13 @@ class Stationary_Detector
   {
     if (hashes_.size() >= max_cycle_length_ + 1)
       {
-        // Drop the oldest entry (front of the buffer).
-        hashes_.erase(hashes_.begin());
-        steps_.erase(steps_.begin());
+        // Drop the oldest entry (front of the buffer); remove_first
+        // closes the gap, preserving the window order.
+        (void) hashes_.remove_first();
+        (void) steps_.remove_first();
       }
-    hashes_.push_back(h);
-    steps_.push_back(step);
+    hashes_.append(h);
+    steps_.append(step);
   }
 
 public:
@@ -738,7 +739,7 @@ public:
   {
     if (max_cycle_length_ == 0)
       max_cycle_length_ = 16;
-    if (step == 0 and hashes_.empty())
+    if (step == 0 and hashes_.is_empty())
       push(frame_hash(frame), step);
   }
 
@@ -773,7 +774,7 @@ public:
 
 /** @brief Snapshots the lattice every `period` steps.
  *
- *  Stores in-memory copies into a `std::vector<Lattice>` accessible
+ *  Stores in-memory copies into a `Array<Lattice>` accessible
  *  via `snapshots()`. The initial frame is captured (under
  *  `on_step_begin` for step `0`) and every step whose index is a
  *  multiple of `period` thereafter. Pass `period == 0` to disable
@@ -790,15 +791,15 @@ public:
  *  thread-safe for concurrent callbacks.
  *
  *  @par Exception-safety
- *  Strong guarantee unless copying the lattice or appending to vectors
+ *  Strong guarantee unless copying the lattice or appending to the arrays
  *  throws.
  */
 template <typename Lattice>
 class Sampling_Observer
 {
   std::size_t period_ = 1;
-  std::vector<Lattice> snapshots_;
-  std::vector<std::size_t> step_indices_;
+  Array<Lattice> snapshots_;
+  Array<std::size_t> step_indices_;
 
 public:
   /** @brief Construct an observer that snapshots every step.
@@ -816,7 +817,7 @@ public:
    *  @return snapshots in chronological order.
    *  @throws This function does not throw.
    */
-  [[nodiscard]] const std::vector<Lattice> &snapshots() const noexcept
+  [[nodiscard]] const Array<Lattice> &snapshots() const noexcept
   {
     return snapshots_;
   }
@@ -825,7 +826,7 @@ public:
    *  @return step indices aligned with `snapshots()`.
    *  @throws This function does not throw.
    */
-  [[nodiscard]] const std::vector<std::size_t> &step_indices() const noexcept
+  [[nodiscard]] const Array<std::size_t> &step_indices() const noexcept
   {
     return step_indices_;
   }
@@ -858,10 +859,10 @@ public:
    */
   void on_step_begin(const std::size_t step, const Lattice &frame)
   {
-    if (period_ != 0 and step == 0 and snapshots_.empty())
+    if (period_ != 0 and step == 0 and snapshots_.is_empty())
       {
-        snapshots_.push_back(frame);
-        step_indices_.push_back(0);
+        snapshots_.append(frame);
+        step_indices_.append(0);
       }
   }
 
@@ -876,8 +877,8 @@ public:
       return;
     if (step % period_ == 0)
       {
-        snapshots_.push_back(frame);
-        step_indices_.push_back(step);
+        snapshots_.append(frame);
+        step_indices_.append(step);
       }
   }
 };

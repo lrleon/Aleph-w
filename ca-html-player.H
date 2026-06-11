@@ -52,7 +52,6 @@
 #include <sstream>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include <ah-errors.H>
 #include <tpl_array.H>
@@ -136,7 +135,7 @@ class HTML_Player_Frame_Sink
   std::filesystem::path path_;
   Mapper mapper_;
   HTML_Player_Options opts_{};
-  std::vector<ca_html_detail::Frame> frames_;  ///< std::vector until 27.5.B (Array migration, v2.0)
+  Array<ca_html_detail::Frame> frames_;
 
 public:
   /** @brief Build an HTML player sink.
@@ -171,7 +170,7 @@ public:
       for (ca_size_t c = 0; c < frame.size(1); ++c)
         f.pixels.append(mapper_(frame.at(coord_t{static_cast<ca_index_t>(r),
                                                  static_cast<ca_index_t>(c)})));
-    frames_.push_back(std::move(f));
+    frames_.append(std::move(f));
   }
 
   /** @brief Write the final self-contained HTML file.

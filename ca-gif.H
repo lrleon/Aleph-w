@@ -51,7 +51,6 @@
 #include <ostream>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include <ah-errors.H>
 #include <tpl_array.H>
@@ -75,7 +74,7 @@ struct Frame
 {
   ca_size_t width = 0;
   ca_size_t height = 0;
-  std::vector<RGB8> pixels;  ///< std::vector until 27.5.B: part of the public `write_gif` signature
+  Array<RGB8> pixels;  ///< row-major RGB pixels
 };
 
 inline void put_le16(std::ostream &out, const std::uint16_t value)
@@ -224,15 +223,13 @@ inline void write_subblocks(std::ostream &out, const Array<std::uint8_t> &bytes)
   out.put('\0');
 }
 
-// `frames` keeps the std::vector type because it mirrors the public
-// `write_gif` signature; that migration is scheduled for 27.5.B (v2.0).
-[[nodiscard]] inline Array<RGB8> build_palette(const std::vector<Frame> &frames)
+[[nodiscard]] inline Array<RGB8> build_palette(const Array<Frame> &frames)
 {
   Array<RGB8> palette;
   palette.reserve(256);
   for (const Frame &f : frames)
-    for (const RGB8 c : f.pixels)
-      (void) palette_index(palette, c);
+    for (std::size_t i = 0; i < f.pixels.size(); ++i)
+      (void) palette_index(palette, f.pixels(i));
   if (palette.is_empty())
     palette.append(RGB8{255, 255, 255});
   if (palette.size() == 1)
@@ -254,12 +251,12 @@ inline void write_subblocks(std::ostream &out, const Array<std::uint8_t> &bytes)
  *  O(frames * width * height).
  */
 inline void write_gif(std::ostream &out,
-                      const std::vector<ca_gif_detail::Frame> &frames,
+                      const Array<ca_gif_detail::Frame> &frames,
                       const GIF_Write_Options &opts = {})
 {
-  ah_domain_error_if(frames.empty()) << "write_gif: at least one frame is required";
-  const ca_size_t width = frames.front().width;
-  const ca_size_t height = frames.front().height;
+  ah_domain_error_if(frames.is_empty()) << "write_gif: at least one frame is required";
+  const ca_size_t width = frames(0).width;
+  const ca_size_t height = frames(0).height;
   ah_domain_error_if(width == 0 or height == 0) << "write_gif: dimensions must be non-zero";
   for (const auto &f : frames)
     ah_domain_error_if(f.width != width or f.height != height or f.pixels.size() != width * height)
@@ -306,8 +303,8 @@ inline void write_gif(std::ostream &out,
       // The palette is finalised (build_palette already saw every
       // colour); use the read-only lookup so we don't pay one
       // palette copy per frame.
-      for (const RGB8 c : frame.pixels)
-        indices.append(ca_gif_detail::lookup_palette_index(palette, c));
+      for (std::size_t i = 0; i < frame.pixels.size(); ++i)
+        indices.append(ca_gif_detail::lookup_palette_index(palette, frame.pixels(i)));
 
       out.put(0x21);
       out.put(0xf9);
@@ -341,7 +338,7 @@ class Gif_Frame_Sink
   std::filesystem::path path_;
   Mapper mapper_;
   GIF_Write_Options opts_{};
-  std::vector<ca_gif_detail::Frame> frames_;  ///< std::vector until 27.5.B: fed to public `write_gif`
+  Array<ca_gif_detail::Frame> frames_;
 
 public:
   /** @brief Build a GIF frame sink.
@@ -372,12 +369,12 @@ public:
     f.pixels.reserve(f.width * f.height);
     for (ca_size_t r = 0; r < frame.size(0); ++r)
       for (ca_size_t c = 0; c < frame.size(1); ++c)
-        f.pixels.push_back(
+        f.pixels.append(
           mapper_(frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)})));
-    if (not frames_.empty())
-      ah_domain_error_if(frames_.front().width != f.width or frames_.front().height != f.height)
+    if (not frames_.is_empty())
+      ah_domain_error_if(frames_(0).width != f.width or frames_(0).height != f.height)
         << "Gif_Frame_Sink::accept: frame dimensions changed";
-    frames_.push_back(std::move(f));
+    frames_.append(std::move(f));
   }
 
   /** @brief Write the animated GIF.

@@ -45,7 +45,7 @@
  *    - `count_alive(lat)`             — `count_state(lat, T{}, true)`,
  *      i.e., number of cells whose value differs from `state_type{}`.
  *    - `density(lat, s)`              — alive ratio in `[0, 1]`.
- *    - `state_histogram(lat, max)`    — vector of counts per integer
+ *    - `state_histogram(lat, max)`    — array of counts per integer
  *      state in `[0, max)`.
  *    - `shannon_entropy(lat, max)`    — Shannon entropy in nats over
  *      the state distribution; `0` for empty or constant lattices.
@@ -71,9 +71,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
-#include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 #include <ca-traits.H>
 #include <tpl_ca_concepts.H>
@@ -235,12 +235,12 @@ template <typename Lattice>
  *
  *  @param[in] lat       lattice to inspect.
  *  @param[in] max_state exclusive upper bound on the state values.
- *  @return vector of size `max_state` with the count for each state.
+ *  @return array of size `max_state` with the count for each state.
  */
 template <typename Lattice>
-[[nodiscard]] inline std::vector<ca_size_t> state_histogram(const Lattice &lat, std::size_t max_state)
+[[nodiscard]] inline Array<ca_size_t> state_histogram(const Lattice &lat, std::size_t max_state)
 {
-  std::vector<ca_size_t> hist(max_state, 0);
+  Array<ca_size_t> hist(max_state, ca_size_t{0});
   for_each_cell(lat, [&](const auto &v)
   {
     using S = typename Lattice::state_type;

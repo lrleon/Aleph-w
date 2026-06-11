@@ -125,7 +125,7 @@ int main()
     }
   if (ent.size() > 0)
     std::printf("  entropy (final)       : %.4f nats\n",
-                ent.entropy().back());
+                ent.entropy().get_last());
   if (det.cycle_detected())
     std::printf("  short cycle detected  : length=%zu starting at step=%zu\n",
                 *det.cycle_length(), *det.cycle_start());

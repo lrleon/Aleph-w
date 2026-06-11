@@ -65,9 +65,9 @@
 #include <string>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include <ah-errors.H>
+#include <tpl_array.H>
 
 #include <ca-traits.H>
 #include <tpl_ca_concepts.H>
@@ -107,8 +107,8 @@ struct Binary_Cell_Pattern
   ca_index_t origin_col = 0;          ///< original column offset before normalisation
   std::string rule;                   ///< optional rule string, e.g. `B3/S23`
   std::string name;                   ///< optional pattern name
-  std::vector<std::string> comments;  ///< format comments without marker prefixes
-  std::vector<Coord_Vec<2>> alive;    ///< live cells as `{row, col}`
+  Array<std::string> comments;  ///< format comments without marker prefixes
+  Array<Coord_Vec<2>> alive;    ///< live cells as `{row, col}`
 };
 
 /// Backwards-readable alias for Conway RLE patterns.
@@ -127,7 +127,7 @@ struct Grid_Snapshot
 {
   ca_size_t width = 0;   ///< number of columns
   ca_size_t height = 0;  ///< number of rows
-  std::vector<T> cells;  ///< row-major payload
+  Array<T> cells;        ///< row-major payload
 
   /** @brief Return the value at `(row, col)`.
    *  @param[in] row row index.
@@ -335,13 +335,13 @@ inline ca_index_t parse_index_token(const std::string &s, const char *what)
   return neg ? -value : value;
 }
 
-inline std::vector<std::string> split_comment_lines(const std::string &comment)
+inline Array<std::string> split_comment_lines(const std::string &comment)
 {
-  std::vector<std::string> lines;
+  Array<std::string> lines;
   std::istringstream in(comment);
   std::string line;
   while (std::getline(in, line))
-    lines.push_back(line);
+    lines.append(line);
   if (comment.empty())
     lines.clear();
   return lines;
@@ -447,7 +447,7 @@ inline std::string header_value(const std::string &line, const std::string &key)
 }
 
 inline void finalise_absolute_pattern(Binary_Cell_Pattern &pattern,
-                                      const std::vector<Coord_Vec<2>> &absolute,
+                                      const Array<Coord_Vec<2>> &absolute,
                                       const bool have_extent,
                                       const ca_index_t min_row,
                                       const ca_index_t min_col,
@@ -471,7 +471,7 @@ inline void finalise_absolute_pattern(Binary_Cell_Pattern &pattern,
   pattern.alive.clear();
   pattern.alive.reserve(absolute.size());
   for (const auto &c : absolute)
-    pattern.alive.push_back(Coord_Vec<2>{c[0] - min_row, c[1] - min_col});
+    pattern.alive.append(Coord_Vec<2>{c[0] - min_row, c[1] - min_col});
 }
 
 template <typename T>
@@ -706,7 +706,7 @@ template <typename Lattice>
           if (line.size() >= 2 and (line[1] == 'N' or line[1] == 'n'))
             pattern.name = ca_io_detail::trim_copy(line.substr(2));
           else if (line.size() >= 2 and (line[1] == 'C' or line[1] == 'c'))
-            pattern.comments.push_back(ca_io_detail::trim_copy(line.substr(2)));
+            pattern.comments.append(ca_io_detail::trim_copy(line.substr(2)));
           continue;
         }
 
@@ -746,8 +746,8 @@ template <typename Lattice>
               ah_domain_error_if(cur_row >= pattern.height or cur_col + n > pattern.width)
                 << "read_rle: live run exceeds declared dimensions";
               for (ca_size_t k = 0; k < n; ++k)
-                pattern.alive.push_back(Coord_Vec<2>{static_cast<ca_index_t>(cur_row),
-                                                     static_cast<ca_index_t>(cur_col + k)});
+                pattern.alive.append(Coord_Vec<2>{static_cast<ca_index_t>(cur_row),
+                                                  static_cast<ca_index_t>(cur_col + k)});
               cur_col += n;
               run = 0;
             }
@@ -923,18 +923,18 @@ template <typename Lattice>
 [[nodiscard]] inline Binary_Cell_Pattern read_plaintext(std::istream &in)
 {
   Binary_Cell_Pattern pattern;
-  std::vector<std::string> rows;
+  Array<std::string> rows;
   std::string line;
   while (std::getline(in, line))
     {
       if (line.empty())
         {
-          rows.emplace_back();
+          rows.append(std::string{});
           continue;
         }
       if (line[0] == '!')
         {
-          pattern.comments.push_back(ca_io_detail::trim_copy(line.substr(1)));
+          pattern.comments.append(ca_io_detail::trim_copy(line.substr(1)));
           continue;
         }
       std::string row;
@@ -948,7 +948,7 @@ template <typename Lattice>
           else
             ah_domain_error_if(true) << "read_plaintext: invalid character '" << c << "'";
         }
-      rows.push_back(std::move(row));
+      rows.append(std::move(row));
     }
 
   pattern.height = rows.size();
@@ -956,9 +956,9 @@ template <typename Lattice>
   for (const auto &row : rows)
     pattern.width = std::max(pattern.width, row.size());
   for (ca_size_t r = 0; r < rows.size(); ++r)
-    for (ca_size_t c = 0; c < rows[r].size(); ++c)
-      if (rows[r][c] == 'O' or rows[r][c] == 'o' or rows[r][c] == '*')
-        pattern.alive.push_back(Coord_Vec<2>{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)});
+    for (ca_size_t c = 0; c < rows(r).size(); ++c)
+      if (rows(r)[c] == 'O' or rows(r)[c] == 'o' or rows(r)[c] == '*')
+        pattern.alive.append(Coord_Vec<2>{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)});
   return pattern;
 }
 
@@ -1017,7 +1017,7 @@ inline void write_life_106(std::ostream &out,
   Binary_Cell_Pattern pattern;
   std::string line;
   bool header_seen = false;
-  std::vector<Coord_Vec<2>> absolute;
+  Array<Coord_Vec<2>> absolute;
   ca_index_t min_r = 0, min_c = 0, max_r = 0, max_c = 0;
   bool have = false;
 
@@ -1031,7 +1031,7 @@ inline void write_life_106(std::ostream &out,
           if (t == "#Life 1.06")
             header_seen = true;
           else if (t.size() >= 2 and (t[1] == 'D' or t[1] == 'd'))
-            pattern.comments.push_back(ca_io_detail::trim_copy(t.substr(2)));
+            pattern.comments.append(ca_io_detail::trim_copy(t.substr(2)));
           continue;
         }
       std::istringstream ls(t);
@@ -1040,7 +1040,7 @@ inline void write_life_106(std::ostream &out,
       ah_domain_error_if(not extra.empty()) << "read_life_106: too many fields in '" << line << "'";
       const ca_index_t col = ca_io_detail::parse_index_token(xs, "read_life_106 x");
       const ca_index_t row = ca_io_detail::parse_index_token(ys, "read_life_106 y");
-      absolute.push_back(Coord_Vec<2>{row, col});
+      absolute.append(Coord_Vec<2>{row, col});
       if (not have)
         {
           min_r = max_r = row;
@@ -1114,7 +1114,7 @@ inline void write_life_105(std::ostream &out,
 [[nodiscard]] inline Binary_Cell_Pattern read_life_105(std::istream &in)
 {
   Binary_Cell_Pattern pattern;
-  std::vector<Coord_Vec<2>> absolute;
+  Array<Coord_Vec<2>> absolute;
   std::string line;
   bool header_seen = false;
   bool in_block = false;
@@ -1153,7 +1153,7 @@ inline void write_life_105(std::ostream &out,
             }
           if (t.size() >= 2 and (t[1] == 'D' or t[1] == 'd'))
             {
-              pattern.comments.push_back(ca_io_detail::trim_copy(t.substr(2)));
+              pattern.comments.append(ca_io_detail::trim_copy(t.substr(2)));
               continue;
             }
           if (t.size() >= 2 and (t[1] == 'P' or t[1] == 'p'))
@@ -1182,7 +1182,7 @@ inline void write_life_105(std::ostream &out,
               const ca_index_t col = block_col + local_col;
               touch_extent(row, col);
               if (c == '*' or c == 'O' or c == 'o')
-                absolute.push_back(Coord_Vec<2>{row, col});
+                absolute.append(Coord_Vec<2>{row, col});
               ++local_col;
             }
           else if (std::isspace(static_cast<unsigned char>(c)))
@@ -1259,20 +1259,20 @@ template <typename T>
     {
       if (opts.skip_empty_lines and ca_io_detail::blank(line))
         continue;
-      std::vector<T> values;
+      Array<T> values;
       std::string token;
       std::istringstream ls(line);
       while (std::getline(ls, token, opts.delimiter))
-        values.push_back(ca_io_detail::parse_scalar<T>(token, "CSV snapshot"));
+        values.append(ca_io_detail::parse_scalar<T>(token, "CSV snapshot"));
       if (line.empty() and not opts.skip_empty_lines)
-        values.push_back(T{});
+        values.append(T{});
       if (row == 0)
         snap.width = values.size();
       ah_domain_error_if(values.size() != snap.width)
         << "read_csv_snapshot: row " << row << " has width " << values.size() << " instead of "
         << snap.width;
       for (const T &v : values)
-        snap.cells.push_back(v);
+        snap.cells.append(v);
       ++row;
     }
   snap.height = row;
@@ -1421,7 +1421,7 @@ template <typename T>
               ah_domain_error_if(s[pos] != ',') << "JSON snapshot: expected comma";
               ++pos;
             }
-          snap.cells.push_back(ca_io_detail::parse_json_number<T>(s, pos));
+          snap.cells.append(ca_io_detail::parse_json_number<T>(s, pos));
           ++cols;
         }
       ah_domain_error_if(cols != snap.width)

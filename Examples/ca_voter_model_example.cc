@@ -82,15 +82,15 @@ public:
 };
 
 // Build a "bowtie": three triangles glued at node 0.
-std::vector<std::vector<std::size_t>> build_bowtie()
+Array<Array<std::size_t>> build_bowtie()
 {
   // Nodes: 0 (hub), then three triangles {1,2}, {3,4}, {5,6}, each
   // forming a triangle with node 0.
-  std::vector<std::vector<std::size_t>> adj(7);
+  Array<Array<std::size_t>> adj(7, Array<std::size_t>{});
   auto edge = [&](std::size_t a, std::size_t b)
   {
-    adj[a].push_back(b);
-    adj[b].push_back(a);
+    adj[a].append(b);
+    adj[b].append(a);
   };
   // Triangle 1
   edge(0, 1); edge(0, 2); edge(1, 2);
