@@ -54,8 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All public CA signatures that exposed `std::vector` now expose
 `Aleph::Array` (phase 27.5.B). Exceptions are documented in
-[`docs/std-vector-whitelist.md`](docs/std-vector-whitelist.md). Affected
-signatures:
+[`docs/std-vector-whitelist.md`](https://github.com/lrleon/Aleph-w/blob/master/docs/std-vector-whitelist.md).
+Affected signatures:
 
 - `ca-io.H`: `Binary_Cell_Pattern::comments` → `Array<std::string>`,
   `Binary_Cell_Pattern::alive` → `Array<Coord_Vec<2>>`,
