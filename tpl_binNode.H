@@ -222,10 +222,9 @@ public:                                                               \
  }                                                                    \
  static Name * key_to_node(Key & __key) noexcept                      \
  {                                                                    \
-   Name * node_zero = 0;                                              \
-   size_t offset = (size_t) &(node_zero->key);                        \
-   unsigned long addr = (unsigned long)(&__key);                      \
-   return (Name*) (addr - offset);                                    \
+   const size_t offset = __builtin_offsetof(Name, key);               \
+   char * addr = reinterpret_cast<char *>(&__key);                    \
+   return reinterpret_cast<Name *>(addr - offset);                    \
  }
 
 

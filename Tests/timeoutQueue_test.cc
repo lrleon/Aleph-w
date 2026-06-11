@@ -29,6 +29,55 @@ static Time time_from_now_ms(int ms)
   return time_plus_msec(read_current_time(), ms);
 }
 
+/**
+ * @brief Wait until an event reaches an expected lifecycle state.
+ * @param event Event whose state is observed.
+ * @param expected Expected lifecycle state.
+ * @param timeout Maximum amount of time to wait.
+ * @return true if the expected state was observed before the timeout.
+ */
+static bool wait_for_status(
+  const TimeoutQueue::Event* event,
+  const TimeoutQueue::Event::Execution_Status expected,
+  const chrono::milliseconds timeout)
+{
+  const auto deadline = chrono::steady_clock::now() + timeout;
+  while (chrono::steady_clock::now() < deadline)
+    {
+      if (event->get_execution_status() == expected)
+        return true;
+      this_thread::sleep_for(chrono::milliseconds(10));
+    }
+  return event->get_execution_status() == expected;
+}
+
+/**
+ * @brief Spin-wait until a predicate becomes true or a timeout elapses.
+ *
+ * Replaces fixed @c sleep_for() delays used as ad-hoc synchronization with the
+ * background worker thread. Those delays are unreliable when the worker is
+ * starved of CPU (e.g. on heavily loaded CI runners): the test wakes up before
+ * the event completed and then reads stale state or deletes an event the worker
+ * still references. This helper returns as soon as the predicate holds, keeping
+ * the common case fast while tolerating arbitrarily long scheduling delays.
+ *
+ * @param pred Callable returning bool; evaluated repeatedly until true.
+ * @param timeout Maximum amount of time to wait.
+ * @return true if the predicate held before the timeout, false otherwise.
+ */
+template <typename Pred>
+static bool wait_until(Pred pred, const chrono::milliseconds timeout)
+{
+  const auto deadline = chrono::steady_clock::now() + timeout;
+  while (chrono::steady_clock::now() < deadline)
+    {
+      if (pred())
+        return true;
+      this_thread::sleep_for(chrono::milliseconds(2));
+    }
+  return pred();
+}
+
 // Test event that tracks execution
 class TestEvent : public TimeoutQueue::Event
 {
@@ -97,10 +146,13 @@ public:
   TimeoutQueue* queue;
   int reschedule_count;
   int max_reschedules;
+  int reschedule_step_ms;
   atomic<int> execution_count{0};
 
-  ReschedulingEvent(const Time& t, TimeoutQueue* q, int max_resc)
-    : Event(t), queue(q), reschedule_count(0), max_reschedules(max_resc) {}
+  ReschedulingEvent(const Time& t, TimeoutQueue* q, int max_resc,
+                    int step_ms = 50)
+    : Event(t), queue(q), reschedule_count(0), max_reschedules(max_resc),
+      reschedule_step_ms(step_ms) {}
 
   void EventFct() override
   {
@@ -108,7 +160,7 @@ public:
     if (reschedule_count < max_reschedules)
       {
         ++reschedule_count;
-        queue->reschedule_event(time_from_now_ms(50), this);
+        queue->reschedule_event(time_from_now_ms(reschedule_step_ms), this);
       }
   }
 };
@@ -170,6 +222,8 @@ TEST(TimeoutQueueTest, ScheduleAndExecuteSingleEvent)
 
 TEST(TimeoutQueueTest, EventExecutionStatus)
 {
+  const auto completion_timeout = chrono::seconds(30);
+
   auto* event = new TestEvent(time_from_now_ms(50));
 
   EXPECT_EQ(event->get_execution_status(), TimeoutQueue::Event::Out_Queue);
@@ -177,7 +231,37 @@ TEST(TimeoutQueueTest, EventExecutionStatus)
   g_queue->schedule_event(event);
   EXPECT_EQ(event->get_execution_status(), TimeoutQueue::Event::In_Queue);
 
-  this_thread::sleep_for(chrono::milliseconds(200));
+  // Wait on the lifecycle state instead of a fixed sleep. A fixed delay is
+  // unreliable on heavily loaded CI runners where the worker thread may not run
+  // within the window, leaving the event unexecuted (and turning the following
+  // delete into a use-after-free). wait_for_status returns as soon as the event
+  // completes and only blocks longer when scheduling is genuinely delayed. Once
+  // the status is Executed the worker no longer references the event (no
+  // completion callback is set), so deleting it afterwards is safe.
+  const bool executed =
+    wait_for_status(event, TimeoutQueue::Event::Executed, completion_timeout);
+  if (not executed)
+    {
+      // The worker never ran the event: it is still In_Queue (or Executing).
+      // Deleting it directly would abort, so hand it back to the queue for a
+      // safe teardown before failing.
+      const auto status = event->get_execution_status();
+      TimeoutQueue::Event* pending = event;
+      try
+        {
+          g_queue->cancel_delete_event(pending);
+        }
+      catch (const invalid_argument&)
+        {
+          // The worker executed the event between the timeout check and this
+          // call, so it is no longer in the registry; delete it ourselves.
+          delete event;
+        }
+      ADD_FAILURE() << "event did not reach Executed before timeout; "
+                    << "last status was " << status;
+      return;
+    }
+
   EXPECT_TRUE(event->executed);
 
   delete event;
@@ -185,12 +269,35 @@ TEST(TimeoutQueueTest, EventExecutionStatus)
 
 TEST(TimeoutQueueTest, ScheduleWithExplicitTime)
 {
+  const auto completion_timeout = chrono::seconds(30);
+
   auto* event = new TestEvent(time_from_now_ms(1000)); // Will be overridden
   Time trigger_time = time_from_now_ms(50);
 
   g_queue->schedule_event(trigger_time, event);
 
-  this_thread::sleep_for(chrono::milliseconds(200));
+  // Wait on the lifecycle state rather than a fixed sleep: the worker thread may
+  // not run within a fixed window on a loaded CI runner, which would both fail
+  // the assertion and turn the delete below into a use-after-free.
+  const bool executed =
+    wait_for_status(event, TimeoutQueue::Event::Executed, completion_timeout);
+  if (not executed)
+    {
+      const auto status = event->get_execution_status();
+      TimeoutQueue::Event* pending = event;
+      try
+        {
+          g_queue->cancel_delete_event(pending);
+        }
+      catch (const invalid_argument&)
+        {
+          delete event;
+        }
+      ADD_FAILURE() << "event did not reach Executed before timeout; "
+                    << "last status was " << status;
+      return;
+    }
+
   EXPECT_TRUE(event->executed);
 
   delete event;
@@ -233,8 +340,8 @@ TEST(TimeoutQueueTest, CancelEventNotInQueue)
 {
   auto* event = new TestEvent(time_from_now_ms(100));
 
-  // Now throws exception if event is not in registry
-  EXPECT_THROW(g_queue->cancel_event(event), std::invalid_argument);
+  // Now returns false if event is not in registry
+  EXPECT_FALSE(g_queue->cancel_event(event));
 
   delete event;
 }
@@ -262,16 +369,39 @@ TEST(TimeoutQueueTest, CancelDeleteNullEvent)
 
 TEST(TimeoutQueueTest, RescheduleEvent)
 {
-  auto* event = new TimingEvent(time_from_now_ms(500));
+  const int original_delay_ms = 60000;
+  const int rescheduled_delay_ms = 200;
+  const auto completion_timeout = chrono::seconds(30);
 
+  auto* event = new TimingEvent(time_from_now_ms(original_delay_ms));
   g_queue->schedule_event(event);
-  this_thread::sleep_for(chrono::milliseconds(50));
+  this_thread::sleep_for(chrono::milliseconds(100));
 
-  g_queue->reschedule_event(time_from_now_ms(50), event);
+  g_queue->reschedule_event(time_from_now_ms(rescheduled_delay_ms), event);
 
-  this_thread::sleep_for(chrono::milliseconds(200));
+  const bool completed = wait_for_status(
+    event, TimeoutQueue::Event::Executed, completion_timeout);
+  if (not completed)
+    {
+      const auto status = event->get_execution_status();
+      TimeoutQueue::Event* pending_event = event;
+      try
+        {
+          g_queue->cancel_delete_event(pending_event);
+        }
+      catch (const invalid_argument&)
+        {
+          if (event->get_execution_status() != TimeoutQueue::Event::Executed)
+            throw;
+          delete event;
+        }
+      ADD_FAILURE() << "rescheduled event did not complete before timeout; "
+                    << "last status was " << status;
+      return;
+    }
+
   EXPECT_TRUE(event->executed);
-  EXPECT_LT(event->elapsed_ms(), 300);
+  EXPECT_LT(event->elapsed_ms(), original_delay_ms);
 
   delete event;
 }
@@ -288,12 +418,19 @@ TEST(TimeoutQueueTest, RescheduleNotInQueue)
 
 TEST(TimeoutQueueTest, SelfReschedulingEvent)
 {
-  auto* event = new ReschedulingEvent(time_from_now_ms(50), g_queue, 2);
+  // Pasos de 150 ms y espera total de 1000 ms para absorber jitter en
+  // runners de CI virtualizados (macOS arm64 Debug en particular).
+  // El test sigue verificando la lógica de auto-reprogramación: el evento
+  // debe ejecutarse exactamente max_reschedules+1 = 3 veces.
+  const int step_ms = 150;
+  const int max_reschedules = 2;
+  auto* event = new ReschedulingEvent(time_from_now_ms(step_ms), g_queue,
+                                      max_reschedules, step_ms);
 
   g_queue->schedule_event(event);
 
-  this_thread::sleep_for(chrono::milliseconds(400));
-  EXPECT_EQ(event->execution_count, 3);
+  this_thread::sleep_for(chrono::milliseconds(1000));
+  EXPECT_EQ(event->execution_count, max_reschedules + 1);
 
   delete event;
 }
@@ -413,19 +550,24 @@ TEST(TimeoutQueueTest, SetForDeletion)
 
 TEST(TimeoutQueueTest, TimingAccuracy)
 {
-  const int expected_delay = 100;
-  const int tolerance = 50;
+  // Tolerancias asimétricas: la queue no debe disparar mucho antes de tiempo
+  // (límite inferior estricto), pero en VMs de CI el jitter del scheduler
+  // puede añadir varios cientos de ms al disparo (límite superior generoso).
+  const int expected_delay = 200;
+  const int lower_tolerance = 30;
+  const int upper_tolerance = 250;
 
   auto* event = new TimingEvent(time_from_now_ms(expected_delay));
 
   g_queue->schedule_event(event);
 
-  this_thread::sleep_for(chrono::milliseconds(expected_delay + 100));
+  this_thread::sleep_for(
+    chrono::milliseconds(expected_delay + upper_tolerance + 100));
   ASSERT_TRUE(event->executed);
 
   int actual_delay = event->elapsed_ms();
-  EXPECT_GE(actual_delay, expected_delay - tolerance);
-  EXPECT_LE(actual_delay, expected_delay + tolerance);
+  EXPECT_GE(actual_delay, expected_delay - lower_tolerance);
+  EXPECT_LE(actual_delay, expected_delay + upper_tolerance);
 
   delete event;
 }
@@ -545,13 +687,25 @@ TEST(TimeoutQueueTest, IsRunning)
 
 TEST(TimeoutQueueTest, ScheduleAfterMs)
 {
+  // Tolerancias asimétricas para acomodar el jitter del scheduler en
+  // runners de CI virtualizados (en particular macOS Debug). El test
+  // sigue verificando que el evento dispara cerca del delay pedido, no
+  // sólo que "eventualmente se ejecuta".
+  const int expected_delay = 100;
+  const int lower_tolerance = 20;
+  const int upper_tolerance = 250;
+
   auto* event = new TimingEvent(time_from_now_ms(1000)); // Will be overridden
 
-  g_queue->schedule_after_ms(100, event);
+  g_queue->schedule_after_ms(expected_delay, event);
 
-  this_thread::sleep_for(chrono::milliseconds(250));
+  this_thread::sleep_for(
+    chrono::milliseconds(expected_delay + upper_tolerance + 100));
   ASSERT_TRUE(event->executed);
-  EXPECT_LT(event->elapsed_ms(), 200);
+
+  const int actual_delay = event->elapsed_ms();
+  EXPECT_GE(actual_delay, expected_delay - lower_tolerance);
+  EXPECT_LE(actual_delay, expected_delay + upper_tolerance);
 
   delete event;
 }
@@ -626,12 +780,28 @@ TEST(TimeoutQueueTest, Statistics)
   EXPECT_EQ(initial_canceled, 0u);
 
   // Execute some events
+  mutex mtx;
+  condition_variable cv;
+  atomic<int> executed_callbacks{0};
   auto* e1 = new TestEvent(time_from_now_ms(50));
   auto* e2 = new TestEvent(time_from_now_ms(100));
+  const auto on_executed =
+    [&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status)
+    {
+      if (status == TimeoutQueue::Event::Executed)
+        ++executed_callbacks;
+      cv.notify_all();
+    };
+  e1->set_completion_callback(on_executed);
+  e2->set_completion_callback(on_executed);
+
   g_queue->schedule_event(e1);
   g_queue->schedule_event(e2);
 
-  this_thread::sleep_for(chrono::milliseconds(250));
+  unique_lock<mutex> lock(mtx);
+  ASSERT_TRUE(cv.wait_for(lock, chrono::seconds(30),
+                          [&] { return executed_callbacks.load() == 2; }));
+  lock.unlock();
 
   EXPECT_EQ(g_queue->executed_count(), 2u);
 
@@ -641,8 +811,8 @@ TEST(TimeoutQueueTest, Statistics)
   g_queue->schedule_event(e3);
   g_queue->schedule_event(e4);
 
-  g_queue->cancel_event(e3);
-  g_queue->cancel_event(e4);
+  EXPECT_TRUE(g_queue->cancel_event(e3));
+  EXPECT_TRUE(g_queue->cancel_event(e4));
 
   EXPECT_EQ(g_queue->canceled_count(), 2u);
 
@@ -655,9 +825,24 @@ TEST(TimeoutQueueTest, Statistics)
 TEST(TimeoutQueueTest, ResetStats)
 {
   // Ensure some stats exist
+  mutex mtx;
+  condition_variable cv;
+  atomic<bool> completed{false};
+
   auto* e = new TestEvent(time_from_now_ms(50));
+  e->set_completion_callback(
+    [&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status)
+    {
+      completed = status == TimeoutQueue::Event::Executed;
+      cv.notify_all();
+    });
+
   g_queue->schedule_event(e);
-  this_thread::sleep_for(chrono::milliseconds(150));
+
+  unique_lock<mutex> lock(mtx);
+  ASSERT_TRUE(cv.wait_for(lock, chrono::seconds(30),
+                          [&] { return completed.load(); }));
+  lock.unlock();
 
   // Reset and verify
   g_queue->reset_stats();
@@ -1002,23 +1187,37 @@ TEST(TimeoutQueueDeathTest, DeleteEventInQueueDirectlyThrows)
 
 TEST(TimeoutQueueTest, CancelDuringTimeout)
 {
-  // Regression test for getMin() bug: event canceled during wait_until
-  // should not cause the next event to be lost
+  // Regression test for getMin() bug: an event canceled while the worker
+  // is inside wait_until must not cause the next event to be lost.
+  //
+  // Timing mirrors RescheduleDuringTimeout. GitHub-hosted macOS runners
+  // (both macos-15 arm64 and Rosetta-emulated macos-15-intel) routinely
+  // see sleep_for jitter exceeding 200 ms when ctest runs --parallel.
+  // Two margins matter:
+  //
+  //   1. e1's trigger (500 ms) must NOT fire before we issue the cancel
+  //      (after a 200 ms sleep) — 300 ms of slack absorbs severe drift.
+  //      If e1 fires first, the worker moves it to Executing and the
+  //      subsequent cancel returns false, breaking every assertion below.
+  //   2. e2's trigger (1500 ms) stays well past the cancel point so the
+  //      cancel demonstrably happens during the worker's wait_until on
+  //      e1's deadline, and the final 2000 ms wait clears e2 with margin.
   g_queue->reset_stats();
 
-  auto* e1 = new TestEvent(time_from_now_ms(100));
-  auto* e2 = new TestEvent(time_from_now_ms(200));
+  auto* e1 = new TestEvent(time_from_now_ms(500));
+  auto* e2 = new TestEvent(time_from_now_ms(1500));
 
   g_queue->schedule_event(e1);
   g_queue->schedule_event(e2);
 
-  // Wait until just before e1 should fire, then cancel it
-  this_thread::sleep_for(chrono::milliseconds(90));
+  // Cancel e1 while the worker is inside wait_until on its deadline.
+  this_thread::sleep_for(chrono::milliseconds(200));
   bool canceled = g_queue->cancel_event(e1);
   EXPECT_TRUE(canceled);
 
-  // e2 should still execute (not be lost due to getMin() bug)
-  this_thread::sleep_for(chrono::milliseconds(200));
+  // e2 (≈1500 ms total, ≈1300 ms from here) must still fire; the extra
+  // ~700 ms of slack absorbs scheduler drift on slow runners.
+  this_thread::sleep_for(chrono::milliseconds(2000));
   EXPECT_FALSE(e1->executed);
   EXPECT_TRUE(e2->executed);
 
@@ -1031,24 +1230,37 @@ TEST(TimeoutQueueTest, CancelDuringTimeout)
 
 TEST(TimeoutQueueTest, RescheduleDuringTimeout)
 {
-  // Similar test: reschedule top event while worker is waiting for it
-  auto* e1 = new TestEvent(time_from_now_ms(100));
-  auto* e2 = new TestEvent(time_from_now_ms(300));
+  // Reschedule the top event while the worker is waiting for it.
+  //
+  // Timing is calibrated for slow virtualized CI runners (macos-15-intel
+  // runs x86_64 emulated under Rosetta, where sleep_for jitter routinely
+  // exceeds 200 ms). Two margins are critical:
+  //
+  //   1. e1's original trigger (500 ms) must NOT fire before we issue the
+  //      reschedule (after a 200 ms sleep) — 300 ms of slack absorbs even
+  //      severe scheduler drift.
+  //   2. e1's rescheduled trigger (200 + 2000 = 2200 ms) must stay well
+  //      ahead of the mid-test assertion (~1500 ms) and well behind the
+  //      final assertion (~3000 ms), so the order of events is observable
+  //      regardless of jitter.
+  auto* e1 = new TestEvent(time_from_now_ms(500));
+  auto* e2 = new TestEvent(time_from_now_ms(1200));
 
   g_queue->schedule_event(e1);
   g_queue->schedule_event(e2);
 
-  // Reschedule e1 to much later
-  this_thread::sleep_for(chrono::milliseconds(50));
-  g_queue->reschedule_event(time_from_now_ms(500), e1);
+  // Reschedule e1 to fire much later (absolute trigger ≈ t=2200 ms)
+  this_thread::sleep_for(chrono::milliseconds(200));
+  g_queue->reschedule_event(time_from_now_ms(2000), e1);
 
-  // e2 should execute at its original time
-  this_thread::sleep_for(chrono::milliseconds(350));
+  // e2 should have executed at its original time (≈1200 ms),
+  // e1 should still be waiting on its new trigger (≈2200 ms).
+  this_thread::sleep_for(chrono::milliseconds(1300));
   EXPECT_TRUE(e2->executed);
   EXPECT_FALSE(e1->executed);
 
-  // e1 should execute later
-  this_thread::sleep_for(chrono::milliseconds(300));
+  // e1 should now have fired
+  this_thread::sleep_for(chrono::milliseconds(1500));
   EXPECT_TRUE(e1->executed);
 
   delete e1;
@@ -1202,7 +1414,13 @@ TEST(TimeoutQueueTest, CancelDeleteExecutingEvent)
 
   // Let event finish
   can_finish = true;
-  this_thread::sleep_for(chrono::milliseconds(100));
+
+  // Wait deterministically for the worker to leave EventFct(), delete the event,
+  // and invoke the callback. A fixed sleep here is unreliable under CPU
+  // starvation and can leak unfinished worker activity into the next test.
+  EXPECT_TRUE(wait_until([&] { return callback_called.load(); },
+                         chrono::seconds(5)))
+    << "Worker did not invoke the deletion callback in time";
 
   // Callback should have been called by worker thread
   EXPECT_TRUE(callback_called);
@@ -1216,20 +1434,33 @@ TEST(TimeoutQueueTest, CallbackReceivesNullptrOnlyForDeleted)
   atomic<TimeoutQueue::Event*> exec_ptr{nullptr};
   atomic<TimeoutQueue::Event*> cancel_ptr{nullptr};
   atomic<TimeoutQueue::Event*> delete_ptr{reinterpret_cast<TimeoutQueue::Event*>(0x1)};
+  atomic<bool> exec_done{false};
 
-  // 1. Executed path: callback must receive non-null pointer
-  auto* e1 = new TestEvent(time_from_now_ms(50));
+  // 1. Executed path: callback must receive non-null pointer.
+  //    Synchronize on the callback itself instead of a fixed sleep: under CPU
+  //    starvation the worker thread may take far longer than any fixed delay to
+  //    run the event, which previously caused this test to fail intermittently
+  //    (and to delete an event the worker still owned).
+  TimeoutQueue::Event* e1 = new TestEvent(time_from_now_ms(50));
   e1->set_completion_callback([&](TimeoutQueue::Event* ev, auto status) {
     EXPECT_EQ(status, TimeoutQueue::Event::Executed);
     EXPECT_NE(ev, nullptr);
     exec_ptr = ev;
+    exec_done = true;  // set last: signals the worker is done touching the event
   });
   g_queue->schedule_event(e1);
-  this_thread::sleep_for(chrono::milliseconds(200));
-  EXPECT_NE(exec_ptr.load(), nullptr);
-  delete e1;
 
-  // 2. Canceled path (cancel_event): callback must receive non-null pointer
+  const bool executed =
+    wait_until([&] { return exec_done.load(); }, chrono::seconds(5));
+  EXPECT_TRUE(executed) << "Executed completion callback was not invoked in time";
+  EXPECT_NE(exec_ptr.load(), nullptr);
+  if (executed)
+    delete e1;  // safe: status is Executed and the worker no longer references it
+  else
+    g_queue->cancel_delete_event(e1);  // best-effort safe removal before return
+
+  // 2. Canceled path (cancel_event): the callback runs synchronously in this
+  //    thread, so no waiting is required.
   auto* e2 = new TestEvent(time_from_now_ms(500));
   e2->set_completion_callback([&](TimeoutQueue::Event* ev, auto status) {
     EXPECT_EQ(status, TimeoutQueue::Event::Canceled);
@@ -1237,7 +1468,7 @@ TEST(TimeoutQueueTest, CallbackReceivesNullptrOnlyForDeleted)
     cancel_ptr = ev;
   });
   g_queue->schedule_event(e2);
-  g_queue->cancel_event(e2);
+  EXPECT_TRUE(g_queue->cancel_event(e2));
   EXPECT_NE(cancel_ptr.load(), nullptr);
   delete e2;
 

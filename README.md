@@ -63,6 +63,7 @@ Language: English | [Español](README.es.md)
 - [Parallel Computing](#readme-parallel-computing)
 - [Functional Programming](#readme-functional-programming)
 - [State-Space Search Framework](#readme-state-search-framework)
+- [Cellular Automata Module](#readme-cellular-automata-module)
 - [Tutorial](#readme-tutorial)
 - [API Reference](#readme-api-reference)
 - [Benchmarks](#readme-benchmarks)
@@ -401,6 +402,25 @@ FetchContent_MakeAvailable(aleph-w)
 target_link_libraries(your_target PRIVATE Aleph)
 ```
 
+### Method 4: `find_package` (installed package)
+
+Once Aleph-w is installed (`cmake --install`, a `.deb`/`.rpm`, vcpkg or Conan),
+a consumer project integrates it without cloning the repo:
+
+```cmake
+find_package(Aleph 4.0 COMPONENTS CA REQUIRED)
+
+# Core data structures & algorithms:
+target_link_libraries(your_target PRIVATE Aleph::Aleph)
+# Cellular-automata component (header-only, links the core for you):
+target_link_libraries(your_target PRIVATE Aleph::CA)
+```
+
+The package ships `AlephConfig.cmake`, `AlephConfigVersion.cmake` and
+`AlephTargets.cmake` under `lib/cmake/Aleph`, exporting the imported targets
+`Aleph::Aleph` and `Aleph::CA` (with `-fno-strict-aliasing` propagated for
+`htlist.H`). A runnable example consumer lives in [`consumer/`](consumer).
+
 ### CMake Options
 
 | Option | Default | Description |
@@ -408,9 +428,29 @@ target_link_libraries(your_target PRIVATE Aleph)
 | `ALEPH_CXX_STANDARD` | 20 | C++ standard for the core library (`17`, `20`, `23`) |
 | `BUILD_TESTS` | ON | Build the test suite (`Tests/`) |
 | `BUILD_EXAMPLES` | ON | Build the example programs (`Examples/`) |
+| `BUILD_REPRODUCTIONS` | OFF | Build the weekly cellular-automata reproductions (`reproductions/`) |
+| `BUILD_BENCHMARKS` | OFF | Build the cellular-automata performance-gate benchmarks (`benchmarks/`) |
 | `BUILD_OPTIMIZED` | OFF | If ON and `CMAKE_BUILD_TYPE` is unset, default to `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest if missing |
-| `USE_SANITIZERS` | OFF | (Tests) Enable ASan/UBSan for test binaries |
+| `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests |
+| `ALEPH_BUILD_X11_VIEWER` | ON (Unix), OFF (Windows) | Build the X11 live viewer (`ca-x11-viewer.H`). Requires `libX11`. Turn OFF to drop the X11 dependency on non-POSIX targets. |
+
+### Cross-platform CI
+
+The repository ships two complementary workflows:
+
+* `.github/workflows/ci.yml` — the gating Linux matrix (`ubuntu-22.04`,
+  `ubuntu-24.04` × `gcc`, `clang` × `Debug`, `Release`) plus the
+  `coverage`, `sanitizers`, `tsan` and `ubsan` jobs.
+* `.github/workflows/ci-platform.yml` — Phase 16's multi-platform fan-out:
+  `build-macos` (`macos-13`/`macos-14`), `build-arm64-linux`
+  (`ubuntu-24.04-arm`) and `build-windows` (`windows-2022` × `msvc`,
+  `clang-cl`). The Windows leg runs on `workflow_dispatch`, the weekly
+  cron and `master` pushes; the others gate every PR.
+
+Per-platform test exclusions and the rationale for each sanitizer
+exemption live in
+[`docs/ci_sanitizer_policy.md`](docs/ci_sanitizer_policy.md).
 
 ### CMake Presets (Optional)
 
@@ -3669,6 +3709,50 @@ adversarial Negamax/Alpha-Beta).
 
 ---
 
+<a id="readme-cellular-automata-module"></a>
+## Cellular Automata Module
+
+`Aleph::CA` provides a layered C++20 framework for cellular automata: dense and
+bit-packed storage, boundary-aware lattices, Moore/Von Neumann/hex/triangular
+neighborhoods, deterministic and stochastic rules, synchronous and parallel
+engines, Hashlife, metrics, observers, and exporters for Life/RLE, CSV, JSON,
+PPM/PGM, TikZ, SVG, PNG, GIF, VTK, NPY, HTML, DOT and terminal output.
+
+Quick start: run a Game of Life glider for five synchronous steps.
+
+```cpp
+#include <ca-engine-utils.H>
+#include <tpl_ca_engine.H>
+#include <tpl_ca_lattice.H>
+#include <tpl_ca_neighborhood.H>
+#include <tpl_ca_storage.H>
+
+#include <cstddef>
+#include <utility>
+
+using namespace Aleph::CA;
+
+int main()
+{
+  using Grid = Lattice<Dense_Cell_Storage<int, 2>, ToroidalBoundary>;
+  using Engine = Synchronous_Engine<Grid, Game_Of_Life_Rule, Moore<2, 1>>;
+  Grid grid({ 8, 8 }, 0);
+  grid.set({ 1, 2 }, 1); grid.set({ 2, 3 }, 1);
+  grid.set({ 3, 1 }, 1); grid.set({ 3, 2 }, 1);
+  grid.set({ 3, 3 }, 1);
+  Engine engine(std::move(grid), make_game_of_life_rule(), Moore<2, 1>{});
+  for (std::size_t i = 0; i < 5; ++i) engine.step();
+}
+```
+
+Start with `Examples/ca_game_of_life_example.cc`,
+`Examples/ca_wolfram1d_example.cc`, `Examples/ca_parallel_gol_example.cc` and
+`Examples/ca_visualization_gallery_example.cc`. Full module documentation lives
+in `docs/cellular_automata.md`, with an English summary in
+`docs/cellular_automata.en.md`.
+
+---
+
 <a id="readme-tutorial"></a>
 ## Tutorial
 
@@ -4209,6 +4293,11 @@ cmake --build build
 | HLD convenience | `hld_example.cc` | HLD_Sum/Max/Min path queries, subtree queries, point updates, edge-weighted queries |
 | Link-Cut Tree | `link_cut_tree_example.cc` | Dynamic forest: link, cut, reroot, LCA, path sum/min/max, lazy updates |
 | Planarity + certificates | `planarity_test_example.cc` | LR planarity, dual metadata, geometric drawing, JSON/DOT/GraphML/GEXF certificate export + structural validation |
+| **Cellular Automata** | | |
+| Game of Life | `ca_game_of_life_example.cc` | Toroidal 2D Life with canonical patterns |
+| Wolfram 1D | `ca_wolfram1d_example.cc` | Elementary one-dimensional binary rules |
+| Parallel GoL | `ca_parallel_gol_example.cc` | Double-buffered parallel synchronous engine |
+| CA visualization | `ca_visualization_gallery_example.cc` | Export gallery across image, document and data formats |
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |
@@ -4513,6 +4602,23 @@ Your contribution matters. Whether it's fixing a typo, optimizing an algorithm, 
 - **Want to learn?** Explore the code and ask questions.
 
 Together, we can build the most comprehensive C++ algorithm library in the world. **Join us!**
+
+---
+
+## Versioning
+
+Aleph-w follows [Semantic Versioning 2.0.0](https://semver.org/). The canonical
+version lives in the top-level [`VERSION.txt`](VERSION.txt) file (read by CMake, the
+packaging recipes and the release workflow), and notable changes are recorded in
+[`CHANGELOG.md`](CHANGELOG.md) using the
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format
+(`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`).
+
+`find_package(Aleph 4.0 ...)` resolves any installed `4.x` release
+(`SameMajorVersion` compatibility): minor and patch upgrades are backward
+compatible, and breaking changes are reserved for a new major version.
+The full stability contract — public vs internal API, the deprecation
+procedure and the ABI table — lives in [`VERSIONING.md`](VERSIONING.md).
 
 ---
 

@@ -1,0 +1,12 @@
+{
+  "default_threshold_pct": 10.0,
+  "_comment": "Per-benchmark regression thresholds for perf_gate.py. A benchmark fails the gate when its median wall_ns grows by more than threshold_pct relative to baseline.json. Deterministic single-thread kernels are tightened; the thread-scheduled and allocator-sensitive kernels are loosened to absorb runner noise. This file survives baseline regeneration.",
+  "benchmarks": {
+    "gol_1024": { "threshold_pct": 8.0 },
+    "wolfram_30_1d": { "threshold_pct": 8.0 },
+    "gray_scott_512": { "threshold_pct": 8.0 },
+    "parallel_gol_2048": { "threshold_pct": 20.0 },
+    "hashlife_breeder": { "threshold_pct": 12.0 },
+    "multi_field_lv_512": { "threshold_pct": 10.0 }
+  }
+}

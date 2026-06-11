@@ -108,8 +108,10 @@
  *  This allows arbitrary data to be passed to and returned from events.
  *
  *  @deprecated Use templated Event_Table with std::function instead for type safety.
+ *  Scheduled for removal no earlier than 5.0.0 (see VERSIONING.md).
  */
-typedef void * (*Event_Fct)(void *);
+using Event_Fct [[deprecated("Use the templated Event_Table with std::function handlers instead")]]
+  = void *(*)(void *);
 
 /** @brief Abstract base class for type-safe event tables.
  *
@@ -581,18 +583,24 @@ public:
  *  @deprecated Use templated Event_Table<Signature> for type safety.
  *
  *  This alias maintains backward compatibility with code using the old
- *  Event_Table interface with void* event handlers.
+ *  Event_Table interface with void* event handlers. Scheduled for
+ *  removal no earlier than 5.0.0 (see VERSIONING.md).
  */
-using Legacy_Static_Event_Table = Static_Event_Table<void*(void*)>;
+using Legacy_Static_Event_Table
+  [[deprecated("Use Static_Event_Table<Signature> with a typed signature instead")]]
+  = Static_Event_Table<void*(void*)>;
 
 /** @brief Legacy dynamic event table type (uses void* for input/output).
  *
  *  @deprecated Use templated Dynamic_Event_Table<Signature> for type safety.
  *
  *  This alias maintains backward compatibility with code using the old
- *  Dynamic_Event_Table interface with void* event handlers.
+ *  Dynamic_Event_Table interface with void* event handlers. Scheduled
+ *  for removal no earlier than 5.0.0 (see VERSIONING.md).
  */
-using Legacy_Dynamic_Event_Table = Dynamic_Event_Table<void*(void*)>;
+using Legacy_Dynamic_Event_Table
+  [[deprecated("Use Dynamic_Event_Table<Signature> with a typed signature instead")]]
+  = Dynamic_Event_Table<void*(void*)>;
 
 
 # endif

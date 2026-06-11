@@ -159,7 +159,7 @@ def collect_entries(artifacts_root)
     kv = parse_kv_file(artifact_dir.join("downloaded_gephi_asset.txt"))
 
     case_data = {}
-    case_path = artifact_dir.join("nightly_case_summary.json")
+    case_path = artifact_dir.join("weekly_case_summary.json")
     if case_path.file?
       begin
         parsed = JSON.parse(case_path.read)
@@ -174,6 +174,7 @@ def collect_entries(artifacts_root)
       "os" => (case_data["os"] || kv["runner_os"] || "").to_s,
       "gephi_tag" => (case_data["gephi_tag"] || kv["tag"] || "").to_s,
       "asset_name" => (case_data["asset_name"] || kv["asset_name"] || "").to_s,
+      "gephi_probe_kind" => (case_data["gephi_probe_kind"] || kv["gephi_probe_kind"] || "").to_s,
       "validator_exit_code" => to_int(case_data["validator_exit_code"], -1),
       "overall_valid" => normalize_bool(case_data["overall_valid"]),
       "gephi_executable" => (kv["gephi_executable"] || "").to_s
@@ -240,19 +241,20 @@ def build_markdown(report)
   lines << "- num_entries: #{report["num_entries"]}"
   lines << "- num_regressions: #{report["num_regressions"]}"
   lines << ""
-  lines << "| Gephi tag | OS | valid | exit_code | asset | executable |"
-  lines << "|---|---|---:|---:|---|---|"
+  lines << "| Gephi tag | OS | valid | exit_code | probe | asset | executable |"
+  lines << "|---|---|---:|---:|---|---|---|"
 
   entries = report["entries"]
   if entries.is_a?(Array) and not entries.empty?
     entries.each do |entry|
       valid_text = entry["overall_valid"] ? "true" : "false"
       lines << "| #{entry["gephi_tag"]} | #{entry["os"]} | #{valid_text} | " \
-               "#{entry["validator_exit_code"]} | #{entry["asset_name"]} | " \
+               "#{entry["validator_exit_code"]} | #{entry["gephi_probe_kind"]} | " \
+               "#{entry["asset_name"]} | " \
                "#{entry["gephi_executable"]} |"
     end
   else
-    lines << "| (none) | (none) | false | -1 | (none) | (none) |"
+    lines << "| (none) | (none) | false | -1 | (none) | (none) | (none) |"
   end
 
   lines << ""
@@ -261,8 +263,10 @@ def build_markdown(report)
   regressions = report["regressions"]
   if regressions.is_a?(Array) and not regressions.empty?
     regressions.each do |reg|
+      reason_codes = Array(reg["reason_codes"]).map(&:to_s)
+      reason_text = reason_codes.empty? ? "unknown" : reason_codes.join(", ")
       lines << "- `#{reg["os"]}`: `#{reg["from_tag"]}` -> `#{reg["to_tag"]}` " \
-               "(reasons: #{reg["reason_codes"].join(", ")})"
+               "(reasons: #{reason_text})"
     end
   else
     lines << "- none"
@@ -281,6 +285,8 @@ def append_github_outputs(num_regressions, has_regressions)
     file.puts("num_regressions=#{num_regressions}")
     file.puts("has_regressions=#{has_regressions ? "true" : "false"}")
   end
+rescue StandardError => e
+  warn("Warning: could not write GitHub outputs: #{e.message}")
 end
 
 
@@ -327,7 +333,7 @@ rescue OptionParser::ParseError => e
   warn(e.message)
   3
 rescue StandardError => e
-  warn(e.message)
+  warn(e.full_message(highlight: false, order: :top))
   3
 end
 

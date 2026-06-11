@@ -166,6 +166,18 @@
 #  define ALEPH_HAS_ENUMERATE 0
 #endif
 
+// `std::views::join` is C++20 but the adaptor object (as opposed to
+// the `std::ranges::join_view` class) was incomplete in libc++ until
+// version 17. AppleClang 15 (shipped with Xcode 15 on macos-14) reports
+// `_LIBCPP_VERSION = 16xxxx` and triggers a compile error on the join
+// pipeline. Conservatively disable the wrapper when libc++ is older
+// than 17; libstdc++ exposes the adaptor since GCC 11.
+#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 170000
+#  define ALEPH_HAS_JOIN 0
+#else
+#  define ALEPH_HAS_JOIN 1
+#endif
+
 #include <type_traits>
 #include <utility>
 #include <tuple>
@@ -446,6 +458,7 @@ template <RangeLike R>
   return std::forward<R>(r) | std::views::reverse;
 }
 
+#if ALEPH_HAS_JOIN
 /**
  * @brief Flatten nested ranges using join.
  */
@@ -454,6 +467,7 @@ template <RangeLike R>
 {
   return std::forward<R>(r) | std::views::join;
 }
+#endif
 
 #if ALEPH_HAS_ZIP
 /**

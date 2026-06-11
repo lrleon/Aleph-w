@@ -1,0 +1,115 @@
+name: Perf Gate (Cellular Automata)
+
+# Runs the cellular-automata anchor benchmarks on every pull request and fails
+# the check when any benchmark's median wall time regresses past its configured
+# threshold relative to benchmarks/baseline.json. A comparison table is posted
+# as a single, updated PR comment.
+#
+# The baseline is hardware-specific: it must be regenerated on this runner type
+# by the perf-update workflow. Until a matching-hardware baseline exists the
+# gate is advisory (--soft-on-cpu-mismatch), so a baseline seeded on different
+# hardware never produces spurious failures.
+
+on:
+  pull_request:
+    paths:
+      - '**.H'
+      - '**.h'
+      - '**.cc'
+      - '**.C'
+      - 'benchmarks/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/perf-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf-gate:
+    # Prefer a fixed self-hosted runner when one is registered; otherwise use
+    # the pinned GitHub-hosted image. Both paths pin the benchmarks to a fixed
+    # CPU set via taskset for run-to-run stability.
+    name: perf-gate (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ util-linux ruby-full \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-benchmarks -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_REPRODUCTIONS=OFF \
+            -DBUILD_BENCHMARKS=ON
+
+      - name: Build benchmarks
+        run: cmake --build build-benchmarks --target ca_benchmarks --parallel
+
+      - name: Run perf gate
+        id: gate
+        run: |
+          set +e
+          ruby scripts/ca_perf_regression.rb \
+            --build-dir build-benchmarks \
+            --taskset-cpus 0-3 \
+            --soft-on-cpu-mismatch \
+            --markdown-out perf_table.md
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Upload perf table
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-gate-table
+          path: perf_table.md
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- ca-perf-gate -->';
+            let body = marker + '\n';
+            try {
+              body += fs.readFileSync('perf_table.md', 'utf8');
+            } catch (e) {
+              body += '_Perf gate produced no table (build or run failed)._';
+            }
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments(
+              { owner, repo, issue_number });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment(
+                { owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment(
+                { owner, repo, issue_number, body });
+            }
+
+      - name: Enforce gate
+        if: steps.gate.outputs.status != '0'
+        run: |
+          echo "Perf gate reported a regression (exit ${{ steps.gate.outputs.status }})."
+          exit 1

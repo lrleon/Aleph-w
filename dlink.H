@@ -943,8 +943,7 @@ namespace Aleph {
 # define DLINK_TO_TYPE(type_name, link_name)                            \
   inline static type_name * dlink_to_##type_name(Dlink * link) noexcept \
   {                                                                     \
-    type_name * ptr_zero = 0;                                           \
-    size_t offset_link = reinterpret_cast<size_t>(&(ptr_zero->link_name)); \
+    const size_t offset_link = __builtin_offsetof(type_name, link_name); \
     char * address_type = reinterpret_cast<char*>(link) - offset_link;	\
     return reinterpret_cast<type_name *>(address_type);                 \
   }
@@ -993,8 +992,7 @@ namespace Aleph {
 # define LINKNAME_TO_TYPE(type_name, link_name)                         \
   inline static type_name * link_name##_to_##type_name(Dlink * link) noexcept \
   {                                                                     \
-    type_name * ptr_zero = 0;                                           \
-    size_t offset_link = reinterpret_cast<size_t>(&(ptr_zero->link_name)); \
+    const size_t offset_link = __builtin_offsetof(type_name, link_name); \
     char * address_type = reinterpret_cast<char*>(link) - offset_link;	\
     return reinterpret_cast<type_name *>(address_type);                 \
   }
@@ -1029,8 +1027,7 @@ namespace Aleph {
 # define DLINK_TO_BASE(type_name, link_name)                            \
   inline static type_name * dlink_to_base(Dlink * link)	noexcept        \
   {                                                                     \
-    type_name * ptr_zero = 0;                                           \
-    size_t offset_link = reinterpret_cast<size_t>(&(ptr_zero->link_name)); \
+    const size_t offset_link = __builtin_offsetof(type_name, link_name); \
     char * address_type = reinterpret_cast<char*>(link) - offset_link;	\
     return reinterpret_cast<type_name *>(address_type);                 \
   }
@@ -1038,4 +1035,3 @@ namespace Aleph {
 }
 
 # endif /* DLINK_H */
-

@@ -119,9 +119,9 @@ namespace Aleph
 
     static DLBucket * record_to_bucket(Record *rec)
     {
-      DLBucket *ret_val = 0;
-      size_t offset = (size_t) &ret_val->record;
-      return (DLBucket *) (((size_t) rec) - offset);
+      const size_t offset = __builtin_offsetof(DLBucket, record);
+      char * addr = reinterpret_cast<char *>(rec);
+      return reinterpret_cast<DLBucket *>(addr - offset);
     }
 
     class DLProxy

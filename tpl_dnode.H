@@ -247,10 +247,9 @@ public:
  /// the `Dnode` object that contains it.
   static Dnode * data_to_node(T & data) noexcept
   {
-    Dnode * zero = 0;
-    long offset = (long) &(zero->data);
-    unsigned long  addr = (unsigned long) (&data);
-    return (Dnode*) (addr - offset);
+    const size_t offset = __builtin_offsetof(Dnode<T>, data);
+    char * addr = reinterpret_cast<char *>(&data);
+    return reinterpret_cast<Dnode *>(addr - offset);
   }
 
       /** Iterator on a list of `Dnode` objects
@@ -328,4 +327,3 @@ template <typename T> const T & Dlink::to_data() const noexcept
 }
 
 # endif /* TPL_DNODE_H */
-

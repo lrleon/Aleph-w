@@ -61,9 +61,24 @@ namespace
 
   fs::path make_temp_path()
   {
+    // Cada test debe usar un path único. Bajo `ctest --parallel N`,
+    // `gtest_discover_tests` invoca el mismo binario varias veces en
+    // paralelo (una por TEST), y dos invocaciones que arranquen muy
+    // próximas pueden obtener el mismo `steady_clock::now()` con la
+    // resolución limitada de macOS. Incluir el PID garantiza unicidad
+    // entre procesos; el counter atómico garantiza unicidad dentro del
+    // mismo proceso. Sin esta combinación, dos tests podían pelearse
+    // por el mismo `.idx.lock` y uno fallaba al adquirirlo.
     static std::atomic<unsigned long long> counter{0};
     const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
-    const auto id = std::to_string(now) + "_" + std::to_string(counter++);
+#if defined(__unix__) || defined(__APPLE__)
+    const auto pid = static_cast<long long>(::getpid());
+#else
+    const auto pid = 0LL;
+#endif
+    const auto id = std::to_string(pid) + "_" +
+                    std::to_string(now) + "_" +
+                    std::to_string(counter++);
     const fs::path dir = fs::temp_directory_path() / "aleph_file_btree_tests";
     fs::create_directories(dir);
     return dir / (id + ".idx");

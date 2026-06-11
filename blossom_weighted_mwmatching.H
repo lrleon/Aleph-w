@@ -708,7 +708,7 @@ namespace Aleph::blossom_weighted_detail::mwmatching
       }
 
       /** Start tracking edges for a new S-blossom. */
-      static void lset_new_blossom(BlossomT *blossom)
+      static void lset_new_blossom([[maybe_unused]] BlossomT *blossom)
       {
         assert(blossom->best_edge == nullptr);
         assert((blossom->nontrivial() == nullptr)
@@ -998,7 +998,7 @@ namespace Aleph::blossom_weighted_detail::mwmatching
         // Validate that each edge.second lands in the next sub-blossom in the
         // ring (with wrap-around at the end).
         VertexId pos = 0;
-        for (VertexPair edge: path.edges)
+        for ([[maybe_unused]] VertexPair edge: path.edges)
           {
             pos = (pos + 1) % subblossoms.size();
             assert(vertex_top_blossom[edge.second] == subblossoms[pos]);

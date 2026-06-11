@@ -271,8 +271,8 @@ TYPED_TEST_P(Container, maps)
 	      all([] (auto & p) { return p.first == p.second; }));
   EXPECT_TRUE(zip(sort(to_dynlist(c.maps_if([] (auto i)
 					    { return i < 7; }, fct))),
-		  sort(l.template maps_if([] (auto i)
-					  { return i < 7; }, fct))).
+		  sort(l.maps_if([] (auto i)
+				 { return i < 7; }, fct))).
 	      all([] (auto & p) { return p.first == p.second; }));
 }
 

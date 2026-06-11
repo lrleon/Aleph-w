@@ -1,0 +1,33 @@
+{
+  "benchmarks": {
+    "gol_1024": {
+      "cells_per_sec": 30602208.48,
+      "wall_ns": 3426471657
+    },
+    "gray_scott_512": {
+      "cells_per_sec": 35772260.057,
+      "wall_ns": 7328136371
+    },
+    "hashlife_breeder": {
+      "cells_per_sec": 509697.544,
+      "wall_ns": 2057251427
+    },
+    "multi_field_lv_512": {
+      "cells_per_sec": 30584282.226,
+      "wall_ns": 4285600003
+    },
+    "parallel_gol_2048": {
+      "cells_per_sec": 419864504.629,
+      "wall_ns": 998966084
+    },
+    "wolfram_30_1d": {
+      "cells_per_sec": 246109861.218,
+      "wall_ns": 4063226053
+    }
+  },
+  "compiler": "gcc 13.3.0",
+  "cpu": "Intel(R) Core(TM) Ultra 7 265KF",
+  "generated_utc": "2026-06-08T18:09:09Z",
+  "metric": "wall_ns",
+  "schema": 1
+}
