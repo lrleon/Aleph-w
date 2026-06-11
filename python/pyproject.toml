@@ -56,7 +56,7 @@ notebook = [
 
 [project.urls]
 Homepage = "https://github.com/lrleon/Aleph-w"
-Documentation = "https://github.com/lrleon/Aleph-w/blob/master/cell-automata.md"
+Documentation = "https://github.com/lrleon/Aleph-w/blob/master/docs/cellular_automata.en.md"
 Issues = "https://github.com/lrleon/Aleph-w/issues"
 
 # ---------------------------------------------------------------------------

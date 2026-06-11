@@ -196,8 +196,9 @@ backends de salida para PNG, GIF, SVG, NPY, VTK, HTML autocontenido,
 GraphViz DOT, terminal ASCII/ANSI, ffmpeg en runtime y visor X11 en vivo.
 Los backends son headers independientes y no agregan dependencias de build.
 
-El estado de cada fase se mantiene además en
-[`cell-automata.md`](../cell-automata.md) con checkboxes.
+El estado de cada fase se mantiene además en el plan de células
+autómatas con checkboxes (documento de planificación interno,
+mantenido fuera del repositorio).
 
 ---
 

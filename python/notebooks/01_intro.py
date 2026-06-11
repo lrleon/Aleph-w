@@ -142,5 +142,4 @@ plt.show()
 # - For production performance, register a C++ rule in `tpl_ca_rule.H`
 #   and expose it through `python/src/bindings.cc`.
 #
-# See `cell-automata.md` and `cell-automata-industrial-roadmap.md` at
-# the repository root for the full design and phase plan.
+# See `docs/cellular_automata.md` for the full design of the CA module.

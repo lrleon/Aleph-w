@@ -5,8 +5,8 @@ on *which* sanitizer / platform combinations, plus the rationale for each
 exclusion. It is referenced from `.github/workflows/ci.yml` and
 `.github/workflows/ci-platform.yml`.
 
-The roadmap drove the current shape — see Phase 16 in
-[`cell-automata-industrial-roadmap.md`](../cell-automata-industrial-roadmap.md).
+The current shape was driven by Phase 16 of the CA industrial roadmap
+(an internal planning document kept outside the repository).
 
 ## Sanitizer matrix
 

@@ -1,7 +1,7 @@
 """
 aleph_ca — Python bindings for the Aleph-w cellular-automata module.
 
-Phase 18 of `cell-automata-industrial-roadmap.md`. The C++ side lives in
+The C++ side lives in
 the compiled extension `aleph_ca._core`; this façade re-exports the
 canonical surface so users only need:
 

@@ -128,6 +128,7 @@ ctest --test-dir build --output-on-failure
 
 ## Relación con el plan
 
-Este documento cubre la integración de la Fase 12 del plan
-`cell-automata.md`. La arquitectura inicial está descrita con más detalle en
+Este documento cubre la integración de la Fase 12 del plan de células
+autómatas (documento de planificación interno, mantenido fuera del
+repositorio). La arquitectura inicial está descrita con más detalle en
 `docs/cellular_automata_module.md`.

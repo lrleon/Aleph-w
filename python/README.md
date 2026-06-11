@@ -1,6 +1,5 @@
 # aleph-ca — Python bindings for Aleph-w cellular automata
 
-Phase 18 of [`cell-automata-industrial-roadmap.md`](../cell-automata-industrial-roadmap.md).
 Brings the core `Aleph::CA` engines to Python so the broader
 scientific-computing community (Jupyter, NumPy, Matplotlib) can drive the
 C++ engines without writing C++.
