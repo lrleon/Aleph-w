@@ -17,7 +17,7 @@ on:
       - 'CMakeLists.txt'
       - 'cmake/**'
       - 'consumer/**'
-      - 'VERSION'
+      - 'VERSION.txt'
       - '.github/workflows/release.yml'
   workflow_dispatch:
 
@@ -87,7 +87,7 @@ jobs:
 
       - name: Read version
         id: ver
-        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(tr -d '[:space:]' < VERSION.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Source tarball (tracked files only)
         run: |

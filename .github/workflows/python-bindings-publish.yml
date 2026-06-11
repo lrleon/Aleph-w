@@ -2,7 +2,7 @@ name: python-bindings-publish
 
 # Manual-trigger publication of the aleph-ca wheel to TestPyPI.
 # Wheel publication is intentionally NOT automatic on release tags: every
-# 2.x branch should be promoted to TestPyPI explicitly so we can sanity-
+# 4.x branch should be promoted to TestPyPI explicitly so we can sanity-
 # check the artefact before turning the upload knob.
 #
 # Required secret: `TEST_PYPI_API_TOKEN` (TestPyPI API token with upload

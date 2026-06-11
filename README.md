@@ -408,7 +408,7 @@ Once Aleph-w is installed (`cmake --install`, a `.deb`/`.rpm`, vcpkg or Conan),
 a consumer project integrates it without cloning the repo:
 
 ```cmake
-find_package(Aleph 2.0 COMPONENTS CA REQUIRED)
+find_package(Aleph 4.0 COMPONENTS CA REQUIRED)
 
 # Core data structures & algorithms:
 target_link_libraries(your_target PRIVATE Aleph::Aleph)
@@ -4608,15 +4608,17 @@ Together, we can build the most comprehensive C++ algorithm library in the world
 ## Versioning
 
 Aleph-w follows [Semantic Versioning 2.0.0](https://semver.org/). The canonical
-version lives in the top-level [`VERSION`](VERSION) file (read by CMake, the
+version lives in the top-level [`VERSION.txt`](VERSION.txt) file (read by CMake, the
 packaging recipes and the release workflow), and notable changes are recorded in
 [`CHANGELOG.md`](CHANGELOG.md) using the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format
 (`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`).
 
-`find_package(Aleph 2.0 ...)` resolves any installed `2.x` release
+`find_package(Aleph 4.0 ...)` resolves any installed `4.x` release
 (`SameMajorVersion` compatibility): minor and patch upgrades are backward
 compatible, and breaking changes are reserved for a new major version.
+The full stability contract — public vs internal API, the deprecation
+procedure and the ABI table — lives in [`VERSIONING.md`](VERSIONING.md).
 
 ---
 
