@@ -14,7 +14,7 @@ project(aleph_consumer LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Aleph 2.0 COMPONENTS CA REQUIRED)
+find_package(Aleph 4.0 COMPONENTS CA REQUIRED)
 
 add_executable(gol_consumer main.cc)
 target_link_libraries(gol_consumer PRIVATE Aleph::CA)

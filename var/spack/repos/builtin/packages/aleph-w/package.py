@@ -13,7 +13,7 @@ class AlephW(CMakePackage):
     cellular-automata framework."""
 
     homepage = "https://github.com/lrleon/Aleph-w"
-    url = "https://github.com/lrleon/Aleph-w/archive/refs/tags/v2.0.0.tar.gz"
+    url = "https://github.com/lrleon/Aleph-w/archive/refs/tags/v4.0.0.tar.gz"
     git = "https://github.com/lrleon/Aleph-w.git"
 
     maintainers("lrleon")
@@ -21,7 +21,7 @@ class AlephW(CMakePackage):
     license("MIT")
 
     version("master", branch="master")
-    version("2.0.0", sha256="0000000000000000000000000000000000000000000000000000000000000000")
+    version("4.0.0", sha256="0000000000000000000000000000000000000000000000000000000000000000")
 
     variant("x11", default=False, description="Build the X11 live viewer")
 

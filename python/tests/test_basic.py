@@ -15,7 +15,7 @@ import aleph_ca
 
 
 def test_module_metadata():
-    assert aleph_ca.__version__ == "2.0.0b0"
+    assert aleph_ca.__version__ == "4.0.0b0"
     # _core re-exports a build_id we set from C++; tells us the wheel
     # is the one this branch shipped (not a stale install).
     assert aleph_ca._core.__build_id__ == "phase-18"

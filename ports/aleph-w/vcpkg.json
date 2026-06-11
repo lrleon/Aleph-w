@@ -1,6 +1,6 @@
 {
   "name": "aleph-w",
-  "version": "2.0.0",
+  "version": "4.0.0",
   "description": "Header-dominant C++20 library of data structures, algorithms and a cellular-automata framework.",
   "homepage": "https://github.com/lrleon/Aleph-w",
   "license": "MIT",

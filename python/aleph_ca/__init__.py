@@ -37,7 +37,7 @@ from ._core import (
     make_wolfram_engine,
 )
 
-__version__ = "2.0.0b0"
+__version__ = "4.0.0b0"
 
 __all__ = [
     "CheckpointOptions",

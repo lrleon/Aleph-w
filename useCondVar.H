@@ -98,14 +98,16 @@
  * Does not own the condition variable or mutex - they must be managed
  * separately. *
  * @deprecated Prefer `std::condition_variable` or `Aleph::bounded_channel<T>`
- * in new code.
+ * in new code. Scheduled for removal no earlier than 5.0.0 (see VERSIONING.md).
  *  @ingroup Utilities
  *  @ingroup ThreadsAndConcurrency
  * @par Thread safety
  *    Thread-safe only with external synchronization and correct mutex usage.
 
  */
-class UseCondVar 
+class [[deprecated(
+  "Prefer std::condition_variable or Aleph::bounded_channel<T> from concurrency_utils.H")]]
+UseCondVar
 {
 private:
 

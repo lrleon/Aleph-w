@@ -4,7 +4,7 @@
 #
 # Usage from a consumer project:
 #
-#   find_package(Aleph 2.0 COMPONENTS CA REQUIRED)
+#   find_package(Aleph 4.0 COMPONENTS CA REQUIRED)
 #   target_link_libraries(my_app PRIVATE Aleph::CA)   # or Aleph::Aleph
 #
 # Imported targets provided:

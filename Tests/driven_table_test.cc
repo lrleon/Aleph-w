@@ -11,6 +11,10 @@
 #include <driven_table.H>
 #include <string>
 
+// The legacy (void*) aliases are deprecated but still part of the
+// supported surface until 5.0.0; these tests are their coverage.
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 using namespace std;
 
 // =============================================================================
