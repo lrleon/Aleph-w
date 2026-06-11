@@ -1,0 +1,30 @@
+@PACKAGE_INIT@
+
+# Package configuration for Aleph-w (roadmap Phase 21).
+#
+# Usage from a consumer project:
+#
+#   find_package(Aleph 4.0 COMPONENTS CA REQUIRED)
+#   target_link_libraries(my_app PRIVATE Aleph::CA)   # or Aleph::Aleph
+#
+# Imported targets provided:
+#   Aleph::Aleph  — the core static library (data structures & algorithms).
+#   Aleph::CA     — header-only cellular-automata component (links Aleph::Aleph).
+
+include(CMakeFindDependencyMacro)
+
+# Threads::Threads appears in Aleph's exported link interface, so it must be
+# recreated in the consumer's project before the imported targets are loaded.
+find_dependency(Threads)
+
+include("${CMAKE_CURRENT_LIST_DIR}/AlephTargets.cmake")
+
+# Every install ships the cellular-automata component (it is header-only), so
+# the CA component request is always satisfiable.
+set(Aleph_CA_FOUND TRUE)
+
+# GMP, MPFR and GSL are consumed as plain `-l` link flags in the exported
+# interface; they must be present on the system at link time. They have no
+# canonical CMake config packages, so they are deliberately not resolved here.
+
+check_required_components(Aleph)

@@ -160,12 +160,10 @@ namespace Aleph {
 # define SLINK_TO_TYPE(type_name, link_name)                            \
   static type_name * slink_to_type(Slink * link)                        \
   {                                                                     \
-    type_name * ptr_zero = 0;                                           \
-    size_t offset_link = (size_t) &(ptr_zero->link_name);               \
-    unsigned long address_type = ((unsigned long) link) - offset_link;	\
-    return (type_name *) address_type;                                  \
+    const size_t offset_link = __builtin_offsetof(type_name, link_name); \
+    char * address_type = reinterpret_cast<char *>(link) - offset_link; \
+    return reinterpret_cast<type_name *>(address_type);                 \
   } 
 
 } // end namespace Aleph
 # endif /* SLINK_H */
-

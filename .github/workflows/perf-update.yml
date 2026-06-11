@@ -1,0 +1,92 @@
+name: Perf Update (Cellular Automata baseline)
+
+# Regenerates benchmarks/baseline.json on the canonical runner, appends a
+# timestamped sample to benchmarks/history.jsonl, rebuilds the 90-day trend
+# page, and commits the results back to the branch via the built-in bot.
+#
+# Trigger it manually (workflow_dispatch) or by pushing to master with the
+# token "[perf-update]" in the head commit message — pushes do not carry PR
+# labels, so the commit-message marker plays the role the roadmap's "label"
+# describes for the master branch.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  perf-update:
+    name: perf-update (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # On push, only proceed when the head commit opts in; manual runs always do.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[perf-update]')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ util-linux ruby-full \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-benchmarks -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_REPRODUCTIONS=OFF \
+            -DBUILD_BENCHMARKS=ON
+
+      - name: Build benchmarks
+        run: cmake --build build-benchmarks --target ca_benchmarks --parallel
+
+      - name: Regenerate baseline and append trend sample
+        run: |
+          ruby scripts/ca_perf_regression.rb \
+            --build-dir build-benchmarks \
+            --taskset-cpus 0-3 \
+            --update-baseline \
+            --history-append benchmarks/history.jsonl
+
+      - name: Render 90-day trend page
+        run: |
+          ruby scripts/ca_perf_trend.rb \
+            --history benchmarks/history.jsonl \
+            --days 90 \
+            --out-dir benchmarks/trend-site
+
+      - name: Upload trend page
+        uses: actions/upload-artifact@v4
+        with:
+          name: ca-perf-trend
+          path: benchmarks/trend-site
+
+      - name: Commit refreshed baseline, history and trend
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add benchmarks/baseline.json benchmarks/history.jsonl benchmarks/trend-site
+          if git diff --cached --quiet; then
+            echo "No baseline changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(perf): refresh CA benchmark baseline and trend [skip ci]"
+          git push origin HEAD:${GITHUB_REF_NAME}

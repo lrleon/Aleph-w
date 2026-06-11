@@ -10,6 +10,12 @@ end
 
 HEADER_EXTS = %w[.h .H .hpp .hxx .hh].freeze
 TEST_EXTS = %w[.cc .cpp .C .cxx].freeze
+VENDORED_PATH_PREFIXES = %w[third_party/].freeze
+
+
+def vendored_path?(path)
+  VENDORED_PATH_PREFIXES.any? { |prefix| path.start_with?(prefix) }
+end
 
 
 def run!(cmd)
@@ -259,7 +265,8 @@ def main
 
   headers_requiring_tests = headers_details.select do |detail|
     p = Pathname.new(detail[:path])
-    p.exist? && header_has_code_changes?(base, detail[:path], detail[:old_path])
+    p.exist? && !vendored_path?(detail[:path]) &&
+      header_has_code_changes?(base, detail[:path], detail[:old_path])
   end.map { |d| d[:path] }
 
   failures = []
@@ -267,6 +274,7 @@ def main
   (headers_changed + sources_changed).each do |file|
     p = Pathname.new(file)
     next unless p.exist?
+    next if vendored_path?(file)
 
     failures << "missing/invalid MIT license header: #{file}" if HEADER_EXTS.include?(File.extname(file)) && !mit_license_header?(p)
     failures << "documentation seems to be in Spanish (must be English): #{file}" unless english_documentation?(p)

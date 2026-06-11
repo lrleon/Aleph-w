@@ -141,19 +141,26 @@ FILE_PATTERNS          = *.H \
                          *.c \
                          *.md
 RECURSIVE              = YES
-EXCLUDE                = build \
+EXCLUDE                = build* \
+                         Tests/build* \
                          docs \
                          doc \
                          .git \
                          cmake-build-debug \
                          cmake-build-release \
-                         CMakeFiles
+                         CMakeFiles \
+                         python \
+                         third_party
 EXCLUDE_SYMLINKS       = NO
-EXCLUDE_PATTERNS       = */build/* \
+EXCLUDE_PATTERNS       = */build*/* \
+                         */Tests/build*/* \
                          */docs/* \
                          */.git/* \
                          */CHANGELOG_v3.md \
-                         */CMakeFiles/*
+                         */CMakeFiles/* \
+                         */python/* \
+                         */third_party/* \
+                         */reproductions/README.md
 EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           = Examples \
                          Tests

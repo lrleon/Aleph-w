@@ -430,7 +430,7 @@ namespace Aleph
    *  @note Self-loops and parallel arcs are handled correctly. Self-loops are 
    *        ignored as they cannot participate in a matching.
    *
-   *  @par **Complexity**: Time@f$O(V^3)@f$, Space@f$O(V + E)@f$.
+   *  @par **Complexity**: Time @f$O(V^2 * E)@f$, Space @f$O(V + E)@f$.
    *
    *  @ingroup Graphs
    */

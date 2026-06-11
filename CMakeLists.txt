@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(Aleph-w VERSION 1.0.0 LANGUAGES C CXX)
+# Canonical version lives in the top-level VERSION.txt file (SemVer 2.0). CMake,
+# packaging recipes and the release workflow all read it from there so the
+# number is declared in exactly one place. The .txt extension avoids shadowing
+# the standard C++20 <version> header on case-insensitive filesystems (macOS).
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" ALEPH_VERSION LIMIT_COUNT 1)
+string(STRIP "${ALEPH_VERSION}" ALEPH_VERSION)
+
+project(Aleph-w VERSION ${ALEPH_VERSION} LANGUAGES C CXX)
 
 # ------------------------------------------------------------------------------
 # Compiler / standard configuration
@@ -31,8 +38,29 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(BUILD_OPTIMIZED "Build optimized version (-Ofast -DNDEBUG)" OFF)
 option(BUILD_EXAMPLES "Build examples" ON)
 option(BUILD_TESTS "Build tests" ON)
+option(BUILD_REPRODUCTIONS "Build weekly cellular-automata reproductions" OFF)
+option(BUILD_BENCHMARKS "Build cellular-automata performance-gate benchmarks" OFF)
 option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
+
+# Optional POSIX-specific features. Default ON on Unix-like platforms,
+# OFF on Windows so CI build jobs can opt-in without dragging X11 / xorg.
+if(WIN32)
+    set(_ALEPH_X11_DEFAULT OFF)
+else()
+    set(_ALEPH_X11_DEFAULT ON)
+endif()
+option(ALEPH_BUILD_X11_VIEWER
+       "Build the X11 live viewer (ca-x11-viewer.H). Requires libX11."
+       ${_ALEPH_X11_DEFAULT})
+
+# Optional Python bindings (Phase 18 of the CA industrial roadmap).
+# Opt-in: scikit-build-core sets it ON when building the wheel via
+# `python/pyproject.toml`. Developers building from CMake directly can
+# enable it with `-DALEPH_BUILD_PYTHON=ON`.
+option(ALEPH_BUILD_PYTHON
+       "Build the aleph_ca Python module (requires Python3 + pybind11)."
+       OFF)
 
 # Set build type if not specified
 if(NOT CMAKE_BUILD_TYPE)
@@ -274,6 +302,52 @@ set(HLIST
     tpl_tdRbTreeRk.H
     tpl_treap.H
     treapNode.H
+    ca-traits.H
+    tpl_ca_concepts.H
+    tpl_ca_storage.H
+    tpl_ca_bit_storage.H
+    tpl_ca_lattice.H
+    tpl_ca_neighborhood.H
+    tpl_ca_rule.H
+    tpl_ca_engine.H
+    ca-engine-utils.H
+    tpl_ca_ghost_lattice.H
+    ca-tiling.H
+    ca-bench.H
+    thread_pool.H
+    tpl_ca_parallel_engine.H
+    tpl_ca_hex_lattice.H
+    tpl_ca_triangular_lattice.H
+    tpl_ca_graph_automaton.H
+    ca-metrics.H
+    ca-observer.H
+    ca-rng.H
+    tpl_ca_stochastic_rules.H
+    ca-kernels.H
+    tpl_ca_continuous_rules.H
+    tpl_ca_hashlife.H
+    tpl_ca_update_scheme.H
+    tpl_ca_block_rule.H
+    tpl_ca_async_engine.H
+    tpl_ca_multi_field_lattice.H
+    tpl_ca_multi_field_rule.H
+    tpl_ca_multi_field_engine.H
+    ca-checkpoint.H
+    ca-checkpoint-compress.H
+    ca-streaming-storage.H
+    ca-io.H
+    ca-tikz.H
+    ca-frame-stream.H
+    ca-png.H
+    ca-gif.H
+    ca-svg.H
+    ca-npy.H
+    ca-vtk.H
+    ca-html-player.H
+    ca-ffmpeg-sink.H
+    ca-dot.H
+    ca-ascii.H
+    ca-x11-viewer.H
 )
 
 # C++ source files
@@ -295,6 +369,7 @@ set(LIBCCCSRCS
     aleph-graph.C
     ahNow.C
     euclidian-graph-common.C
+    ca-checkpoint-compress.C
 )
 
 # C source files
@@ -303,22 +378,85 @@ set(LIBCSRCS
     mpfr_mul_d.c
 )
 
+# ------------------------------------------------------------------------------
+# Vendored third_party/miniz (DEFLATE backend for ca-checkpoint compression)
+# ------------------------------------------------------------------------------
+# miniz is a single-source, zlib-API-compatible DEFLATE implementation.
+# We build it as a tiny static archive so the C symbols stay contained and
+# never leak into headers consumed by downstream users of Aleph-w.
+# License (zlib/MIT) recorded in THIRD_PARTY_NOTICES.md.
+add_library(aleph_miniz STATIC third_party/miniz/miniz.c)
+set_target_properties(aleph_miniz PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    C_STANDARD 99)
+target_include_directories(aleph_miniz PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/miniz>
+    $<INSTALL_INTERFACE:include/aleph/third_party/miniz>)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(aleph_miniz PRIVATE -w)
+endif()
+
 # Create static library
 add_library(Aleph STATIC ${LIBCCCSRCS} ${LIBCSRCS})
+target_link_libraries(Aleph PRIVATE aleph_miniz)
+
+# Homebrew lives outside the default compiler search path on macOS — and on
+# Apple Silicon it lives at `/opt/homebrew`, not `/usr/local`. The gmp /
+# mpfr / gsl libraries are consumed via raw `-l` flags (see
+# `ALEPH_SYSTEM_LIBS` below), so CMAKE_PREFIX_PATH alone doesn't propagate
+# the include/lib directories to the compiler. Query `brew --prefix` once
+# at configure time and add the resulting paths explicitly.
+if(APPLE)
+    execute_process(
+        COMMAND brew --prefix
+        OUTPUT_VARIABLE _ALEPH_BREW_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE _ALEPH_BREW_RC
+        ERROR_QUIET
+    )
+    if(_ALEPH_BREW_RC EQUAL 0 AND EXISTS "${_ALEPH_BREW_PREFIX}")
+        message(STATUS "Aleph: Homebrew prefix detected at ${_ALEPH_BREW_PREFIX}")
+        target_include_directories(Aleph PUBLIC "${_ALEPH_BREW_PREFIX}/include")
+        target_link_directories(Aleph PUBLIC "${_ALEPH_BREW_PREFIX}/lib")
+    endif()
+endif()
 
 # Find required libraries
 find_package(Threads REQUIRED)
-find_package(X11 REQUIRED)
+
+# X11 is only required when the live X11 viewer is enabled. On Windows or
+# when the user opts out, we skip X11 entirely and the viewer falls back
+# to its no-op stub. The `__has_include(<X11/Xlib.h>)` guard in
+# `ca-x11-viewer.H` is not enough on macOS: when XQuartz headers happen
+# to be on the include path (e.g. brought in by `brew --prefix`), the
+# header would activate the X11 code path even though we never link
+# `-lX11`. Pass `ALEPH_DISABLE_X11_VIEWER=1` explicitly so the option
+# wins over auto-detection.
+set(_ALEPH_X11_LIBS "")
+if(ALEPH_BUILD_X11_VIEWER)
+    find_package(X11 REQUIRED)
+    set(_ALEPH_X11_LIBS ${X11_LIBRARIES})
+else()
+    target_compile_definitions(Aleph PUBLIC ALEPH_DISABLE_X11_VIEWER=1)
+endif()
+
+# pthread is a POSIX-only convention; on Windows the Threads::Threads
+# target already pulls the correct synchronization runtime.
+if(WIN32)
+    set(_ALEPH_PTHREAD "")
+else()
+    set(_ALEPH_PTHREAD pthread)
+endif()
 
 set(ALEPH_SYSTEM_LIBS
     gmpxx
     gmp
-    pthread
+    ${_ALEPH_PTHREAD}
     mpfr
     gsl
     gslcblas
     m
-    ${X11_LIBRARIES}
+    ${_ALEPH_X11_LIBS}
     Threads::Threads
     CACHE INTERNAL "System libraries required by Aleph"
 )
@@ -332,17 +470,81 @@ target_include_directories(Aleph PUBLIC
     $<INSTALL_INTERFACE:include/aleph>
 )
 
-# Install library
-install(TARGETS Aleph
+# ------------------------------------------------------------------------------
+# Installation, export set and CMake package config (roadmap Phase 21)
+# ------------------------------------------------------------------------------
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+# Header-only cellular-automata component. It carries no sources of its own;
+# it simply links the core library and is exported under the Aleph::CA name so
+# consumers can `find_package(Aleph COMPONENTS CA)`.
+add_library(Aleph_CA INTERFACE)
+target_link_libraries(Aleph_CA INTERFACE Aleph)
+target_include_directories(Aleph_CA INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/aleph>)
+# Export under the Aleph::CA name (the target itself is Aleph_CA to avoid a
+# bare `CA` symbol in the build tree).
+set_target_properties(Aleph_CA PROPERTIES EXPORT_NAME CA)
+
+# Namespaced aliases so in-tree builds and installed consumers use identical
+# target names.
+add_library(Aleph::Aleph ALIAS Aleph)
+add_library(Aleph::CA ALIAS Aleph_CA)
+
+# htlist.H type-puns through unions, so every consumer must also disable strict
+# aliasing (this mirrors the library's own required Release flag). Propagated as
+# an INTERFACE option so it reaches anyone linking Aleph::Aleph or Aleph::CA.
+target_compile_options(Aleph INTERFACE
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-fno-strict-aliasing>)
+
+# Install the libraries. `aleph_miniz` is a PRIVATE dependency of the static
+# `Aleph` archive, so it must travel in the same export set: a static archive
+# does not absorb its dependencies and the consumer link line needs it.
+install(TARGETS Aleph Aleph_CA aleph_miniz
     EXPORT AlephTargets
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph
 )
 
-# Install headers
+# Install headers (flat layout under include/aleph) plus the vendored miniz
+# header so the exported include path is never dangling.
 install(FILES ${HLIST}
-    DESTINATION include/aleph
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph
+)
+install(FILES third_party/miniz/miniz.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph/third_party/miniz
+)
+
+# Generate and install the package config files: AlephConfig.cmake,
+# AlephConfigVersion.cmake and AlephTargets.cmake.
+set(ALEPH_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/Aleph)
+
+install(EXPORT AlephTargets
+    FILE AlephTargets.cmake
+    NAMESPACE Aleph::
+    DESTINATION ${ALEPH_INSTALL_CMAKEDIR}
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AlephConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/AlephConfig.cmake"
+    INSTALL_DESTINATION ${ALEPH_INSTALL_CMAKEDIR}
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/AlephConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/AlephConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/AlephConfigVersion.cmake"
+    DESTINATION ${ALEPH_INSTALL_CMAKEDIR}
 )
 
 if(BUILD_TESTS)
@@ -358,11 +560,72 @@ if(BUILD_TESTS)
     add_subdirectory(Tests)
 endif()
 
+if(BUILD_REPRODUCTIONS)
+    add_subdirectory(reproductions)
+endif()
+
+if(BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()
+
+if(ALEPH_BUILD_PYTHON)
+    set(ALEPH_PYTHON_BINDINGS_INTERNAL ON)
+    add_subdirectory(python)
+endif()
+
 # Print configuration summary
 message(STATUS "Aleph-w Configuration:")
 message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  C++ standard: C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  Build examples: ${BUILD_EXAMPLES}")
 message(STATUS "  Build tests: ${BUILD_TESTS}")
+message(STATUS "  Build reproductions: ${BUILD_REPRODUCTIONS}")
+message(STATUS "  Build benchmarks: ${BUILD_BENCHMARKS}")
+message(STATUS "  Build Python bindings: ${ALEPH_BUILD_PYTHON}")
 message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
+message(STATUS "  X11 viewer: ${ALEPH_BUILD_X11_VIEWER}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
+
+# ------------------------------------------------------------------------------
+# CPack: source tarball plus binary .deb / .rpm (roadmap Phase 21)
+# ------------------------------------------------------------------------------
+# Only drive packaging when Aleph-w is the top-level project, so a consumer
+# pulling us in via FetchContent/add_subdirectory does not inherit CPack.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(CPACK_PACKAGE_NAME "aleph-w")
+    set(CPACK_PACKAGE_VENDOR "Leandro Rabindranath Leon")
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+        "Aleph-w: header-dominant C++20 data structures, algorithms and cellular automata")
+    set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/lrleon/Aleph-w")
+    set(CPACK_PACKAGE_CONTACT "leandro.r.leon@gmail.com")
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "aleph-w")
+
+    # Binary generators and their runtime dependencies.
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS
+        "libgmp10, libgmpxx4ldbl, libmpfr6, libgsl27 | libgsl25 | libgsl23, libx11-6")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "libdevel")
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_RPM_PACKAGE_REQUIRES "gmp, gmp-c++, mpfr, gsl, libX11")
+    set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+    set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
+
+    # Source tarball: exclude VCS metadata, build trees, generated docs and
+    # caches. Release artifacts are built with `git archive` (tracked files
+    # only); this list keeps `make package_source` honest for local use.
+    set(CPACK_SOURCE_GENERATOR "TGZ")
+    set(CPACK_SOURCE_IGNORE_FILES
+        "/\\.git/"
+        "/build.*/"
+        "/cmake-build-.*/"
+        "/docs/html/"
+        "/\\.cache/"
+        "/__pycache__/"
+        "\\.pyc$"
+        "/benchmarks/trend-site/"
+        "/reproductions/results/"
+        "/reproductions/figures/generated/")
+
+    include(CPack)
+endif()

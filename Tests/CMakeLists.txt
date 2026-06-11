@@ -53,15 +53,27 @@ include(GoogleTest)
 # CMakeLists setting ALEPH_SYSTEM_LIBS), define the same defaults here so
 # that tests depending on Aleph's transitive libraries link correctly.
 if(NOT DEFINED ALEPH_SYSTEM_LIBS)
+    if(WIN32)
+        set(_ALEPH_PTHREAD "")
+    else()
+        set(_ALEPH_PTHREAD pthread)
+    endif()
+    set(_ALEPH_X11_LIBS "")
+    if(NOT WIN32)
+        find_package(X11)
+        if(X11_FOUND)
+            set(_ALEPH_X11_LIBS ${X11_LIBRARIES})
+        endif()
+    endif()
     set(ALEPH_SYSTEM_LIBS
         gmpxx
         gmp
-        pthread
+        ${_ALEPH_PTHREAD}
         mpfr
         gsl
         gslcblas
         m
-        X11
+        ${_ALEPH_X11_LIBS}
         Threads::Threads)
 endif()
 
@@ -392,6 +404,31 @@ set(TEST_PROGRAMS
     test_bidirectional_bfs
     test_ida_star
     link_cut_tree_test
+    tpl_ca_concepts_test
+    tpl_ca_storage_test
+    tpl_ca_lattice_test
+    tpl_ca_neighborhood_test
+    tpl_ca_rule_test
+    ca_engine_sync_test
+    ca_update_scheme_test
+    ca_multi_field_test
+    ca_checkpoint_test
+    tpl_ca_ghost_lattice_test
+    tpl_ca_parallel_engine_test
+    tpl_ca_hex_lattice_test
+    tpl_ca_triangular_lattice_test
+    tpl_ca_graph_automaton_test
+    ca_metrics_test
+    ca_observer_test
+    ca_rng_test
+    tpl_ca_stochastic_rules_test
+    ca_kernels_test
+    tpl_ca_continuous_rules_test
+    tpl_ca_hashlife_test
+    ca_io_test
+    ca_tikz_frame_stream_test
+    ca_visual_sinks_test
+    ca_animation_sinks_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++

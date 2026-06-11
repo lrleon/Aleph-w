@@ -308,6 +308,21 @@
  * are insufficient.
  */
 
+/**
+ * @defgroup CellularAutomata Cellular Automata
+ * @brief Cellular automata storage, lattices, rules, engines, metrics and exporters
+ *
+ * Industrial cellular-automata support under `Aleph::CA`:
+ * - Dense and bit-packed cell storage.
+ * - Boundary-aware lattices, ghost layers, hexagonal and triangular grids.
+ * - Moore, Von Neumann, custom, hexagonal and triangular neighborhoods.
+ * - Totalistic, outer-totalistic, lookup, stochastic, continuous and composite rules.
+ * - Sequential, parallel and Hashlife engines.
+ * - Observers, metrics, reproducible RNG and visualization/export backends.
+ *
+ * @see docs/cellular_automata.md
+ */
+
 //==============================================================================
 // SECONDARY/SPECIALIZED MODULES
 //==============================================================================

@@ -1,0 +1,27 @@
+{
+  "name": "aleph-w",
+  "version": "4.0.0",
+  "description": "Header-dominant C++20 library of data structures, algorithms and a cellular-automata framework.",
+  "homepage": "https://github.com/lrleon/Aleph-w",
+  "license": "MIT",
+  "supports": "!windows",
+  "dependencies": [
+    "gmp",
+    "mpfr",
+    "gsl",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ],
+  "features": {
+    "x11": {
+      "description": "Build the X11 live viewer (ca-x11-viewer.H); requires system libX11.",
+      "supports": "linux"
+    }
+  }
+}

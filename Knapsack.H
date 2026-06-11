@@ -60,7 +60,7 @@
  *  // Solve 0/1 Knapsack
  *  auto res = knapsack_01(items, capacity);
  *  // res.optimal_value = 130 (items with weights 3 and 5)
- *  // res.selected_items contains the indices
+ *  // res.selected_items contains indices {1, 3}
  *  @endcode
  *
  *  @example knapsack_example.cc

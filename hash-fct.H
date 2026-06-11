@@ -340,20 +340,36 @@ namespace Aleph
     std::uint32_t a[4];
   };
 
+  // Pick the 128-bit MurmurHash3 mixer on every 64-bit architecture, not
+  // just x86-64. The earlier `# ifdef __x86_64__` was misnamed: the
+  // implementation `MurmurHash3_x64_128` is plain C using `uint64_t`
+  // arithmetic with no x86 intrinsics, so it runs identically on AArch64
+  // and Windows ARM64. Routing those targets through `MurmurHash3_x86_32`
+  // produced 32 bits of payload written into a 64-bit `size_t`, leaving
+  // the high half uninitialised — undefined behaviour that the ARM64
+  // Clang Release pipeline happily folded into garbage hashes, breaking
+  // Count-Min Sketch / HyperLogLog / MinHash / Quotient-Filter tests.
+# if defined(__x86_64__) || defined(__aarch64__) \
+   || defined(_M_X64)    || defined(_M_ARM64)
+#   define ALEPH_HASH_USE_MURMUR3_64 1
+# else
+#   define ALEPH_HASH_USE_MURMUR3_64 0
+# endif
+
   template <typename Key>
     requires std::is_trivially_copyable_v<Key>
   inline size_t murmur3hash(const Key & key, std::uint32_t seed)
   {
-# ifdef __x86_64__
+# if ALEPH_HASH_USE_MURMUR3_64
     Buf128Bits buf;
     MurmurHash3_x64_128(&key, sizeof(key), seed, &buf);
 # else
-    size_t buf;
+    std::uint32_t buf = 0;
     MurmurHash3_x86_32(&key, sizeof(key), seed, &buf);
 # endif
 
-    size_t ret;
-    memcpy(&ret, &buf, sizeof(ret));
+    size_t ret = 0;
+    memcpy(&ret, &buf, std::min(sizeof(ret), sizeof(buf)));
 
     return ret;
   }
@@ -362,32 +378,32 @@ namespace Aleph
   inline size_t murmur3hash(const char * key, const std::uint32_t seed)
   {
     const size_t len = strlen(key);
-# ifdef __x86_64__
+# if ALEPH_HASH_USE_MURMUR3_64
     Buf128Bits buf;
     MurmurHash3_x64_128(key, len, seed, &buf);
 # else
-    size_t buf;
+    std::uint32_t buf = 0;
     MurmurHash3_x86_32(key, len, seed, &buf);
 # endif
 
-    size_t ret;
-    memcpy(&ret, &buf, sizeof(ret));
+    size_t ret = 0;
+    memcpy(&ret, &buf, std::min(sizeof(ret), sizeof(buf)));
 
     return ret;
   }
 
   inline size_t murmur3hash(const std::string & key, const std::uint32_t seed)
   {
-# ifdef __x86_64__
+# if ALEPH_HASH_USE_MURMUR3_64
     Buf128Bits buf;
     MurmurHash3_x64_128(key.c_str(), key.size(), seed, &buf);
 # else
-    size_t buf;
+    std::uint32_t buf = 0;
     MurmurHash3_x86_32(key.c_str(), key.size(), seed, &buf);
 # endif
 
-    size_t ret;
-    memcpy(&ret, &buf, sizeof(ret));
+    size_t ret = 0;
+    memcpy(&ret, &buf, std::min(sizeof(ret), sizeof(buf)));
 
     return ret;
   }

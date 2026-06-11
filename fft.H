@@ -6866,6 +6866,11 @@ namespace Aleph
       should_use_neon(ThreadPool *pool,
                       const bool prefer_simd) const noexcept
       {
+        // NEON kernels are only implemented for float and double; long
+        // double must always take the scalar path (mirrors should_use_avx2).
+        if constexpr (not (std::same_as<Real, double> or std::same_as<Real, float>))
+          return false;
+
         if (strategy_ != Strategy::power_of_two or (log_n_ & 1) == 0)
           return false;
 
@@ -6893,7 +6898,7 @@ namespace Aleph
                              const size_t chunk_size,
                              const bool prefer_simd) const
       {
-        const bool use_avx2 = should_use_avx2(pool, prefer_simd);
+        [[maybe_unused]] const bool use_avx2 = should_use_avx2(pool, prefer_simd);
         [[maybe_unused]] const bool use_neon = should_use_neon(pool, prefer_simd);
 
 # if ALEPH_FFT_HAS_X86_AVX2_DISPATCH
@@ -6928,6 +6933,13 @@ namespace Aleph
 # endif
 
 # if ALEPH_FFT_HAS_ARM_NEON_DISPATCH
+        // NEON helpers are constrained to `Real ∈ {float, double}`
+        // (see `neon_load_complex_pair` overloads). Without this
+        // `if constexpr` gate, instantiating `FFT<long double>` would
+        // force the compiler to instantiate `neon_apply_r4_stage` for
+        // `Real = long double`, where no helper overload matches and
+        // the build fails on AArch64.
+        if constexpr (std::same_as<Real, double> or std::same_as<Real, float>)
         if (use_neon and (pool == nullptr or pool->num_threads() <= 1))
           {
             size_t stage = 0;
