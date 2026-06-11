@@ -1,0 +1,57 @@
+# Release automation (roadmap phase 29).
+#
+# On every push to master, release-please parses Conventional Commits and
+# maintains a "release PR" that accumulates the next version's CHANGELOG
+# section. Merging that PR publishes the GitHub release and pushes the
+# `v*` tag, which in turn triggers release.yml (artifacts + install test).
+#
+# Notes:
+#   - The "go" release-type is deliberate: it is the strategy that only
+#     touches CHANGELOG.md (no language-specific version file). Our
+#     canonical version file is VERSION.txt, which release-please cannot
+#     manage natively (its "simple" strategy insists on a lowercase
+#     version.txt), so the sync step below writes VERSION.txt into the
+#     release PR from the updated manifest.
+#   - Bootstrap: .release-please-manifest.json starts at 4.0.0; the
+#     v4.0.0 tag itself is pushed manually as the first release of this
+#     line. release-please takes over from there.
+name: release-please
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run release-please
+        id: rp
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Check out the release PR branch
+        if: ${{ steps.rp.outputs.prs_created == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(steps.rp.outputs.pr).headBranchName }}
+
+      - name: Sync VERSION.txt with the release PR manifest
+        if: ${{ steps.rp.outputs.prs_created == 'true' }}
+        run: |
+          version=$(jq -r '."."' .release-please-manifest.json)
+          printf '%s\n' "${version}" > VERSION.txt
+          if ! git diff --quiet -- VERSION.txt; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add VERSION.txt
+            git commit -m "chore: sync VERSION.txt to ${version}"
+            git push
+          fi
