@@ -8,8 +8,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 
 # Compiler flags
-set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
-set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+#
+# MSVC (cl and clang-cl, both with MSVC == TRUE) rejects GNU-style flags
+# such as -Wextra with hard errors (D8021), and clang-cl maps -Wall to
+# MSVC /Wall (~ -Weverything), which breaks the fetched GoogleTest build
+# (it compiles with -WX). Mirror the per-frontend split of the root
+# CMakeLists here for standalone configures.
+if(MSVC)
+    set(WARN_FLAGS "/W3")
+    set(COMMON_FLAGS "-DMESSAGES")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # clang-cl optimizes under strict-aliasing rules like clang;
+        # htlist.H requires them disabled (see root CMakeLists).
+        set(COMMON_FLAGS "${COMMON_FLAGS} -fno-strict-aliasing")
+    endif()
+else()
+    set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
+    set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(COMMON_FLAGS "${COMMON_FLAGS} -D__extern_always_inline=\"extern __always_inline\"")
 endif()
@@ -29,7 +45,12 @@ if(ALEPH_USE_SANITIZERS)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
+if(MSVC)
+    # Keep CMake's default /Od /Zi /RTC1; -g3/-O0 are GNU-only.
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
+endif()
 
 # Include parent directory for Aleph headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)

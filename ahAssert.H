@@ -114,9 +114,9 @@ extern void _Warning(const char* exp, const char* fileName, unsigned lineNumber,
 
     @param cond The condition to test.
     @param f The assertion function to call if cond is true.
-    @param args Additional arguments for the assertion function.
+    @param ... Additional arguments for the assertion function (ignored).
 */
-#define COND_assert(cond, f, args...) assert((cond) ? (f) : true)
+#define COND_assert(cond, f, ...) assert((cond) ? (f) : true)
 
 /** @brief Debug information macro.
 
@@ -139,7 +139,7 @@ extern void _Warning(const char* exp, const char* fileName, unsigned lineNumber,
 #else /* DEBUG not defined */
 
 /** @brief Conditional assertion macro (no-op in release). */
-#define COND_ASSERT(cond, f, args...)
+#define COND_ASSERT(...)
 
 /** @brief Debug information macro (no-op in release). */
 #define DEBUGINFO(p)

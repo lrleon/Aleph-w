@@ -1725,18 +1725,17 @@ using Aleph::trim;
  * Prints the file name, position, and last token before calling
  * the AH_ERROR macro.
  *
- * @param str Error format string
- * @param args Optional format arguments
+ * @param ... Error format string followed by optional format arguments
  *
  * @note Requires `input_file_name` (std::string) to be defined in the
  *       application's scope before use.
  *
  * @deprecated Prefer using print_parse_error_and_exit() or exceptions
  */
-#define PRINT_ERROR(str, args...)                                                                  \
+#define PRINT_ERROR(...)                                                                           \
   ((std::cout << input_file_name << "(" << Aleph::previous_line_number << ","                      \
               << Aleph::previous_col_number << "): " << '\n'),                                     \
    (std::cout << "Last token: " << Aleph::token_instance << '\n'),                                 \
-   AH_ERROR(str, ##args))
+   AH_ERROR(__VA_ARGS__))
 
 #endif  // PARSE_UTILS_H
