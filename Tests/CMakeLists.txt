@@ -55,8 +55,10 @@ include(GoogleTest)
 if(NOT DEFINED ALEPH_SYSTEM_LIBS)
     if(WIN32)
         set(_ALEPH_PTHREAD "")
+        set(_ALEPH_LIBM "")
     else()
         set(_ALEPH_PTHREAD pthread)
+        set(_ALEPH_LIBM m)
     endif()
     set(_ALEPH_X11_LIBS "")
     if(NOT WIN32)
@@ -72,7 +74,7 @@ if(NOT DEFINED ALEPH_SYSTEM_LIBS)
         mpfr
         gsl
         gslcblas
-        m
+        ${_ALEPH_LIBM}
         ${_ALEPH_X11_LIBS}
         Threads::Threads)
 endif()
@@ -441,6 +443,25 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     list(APPEND TEST_PROGRAMS k2tree_test)
 endif()
 
+# Tests that need POSIX-only facilities (fork()/signals, BSD sockets,
+# pthread wrappers, sys/time) and therefore do not even compile on
+# Windows. They are removed from TEST_PROGRAMS and skipped by the
+# auto-registration glob below until each one is ported.
+set(ALEPH_POSIX_ONLY_TESTS
+    ah_date_test
+    ah_signal_test
+    ca_checkpoint_safety_test
+    concurrency_utils_test
+    file_b_tree_test
+    file_bplus_tree_test
+    net_utils_test
+    ringfilecache
+    timeoutQueue_test
+)
+if(WIN32)
+    list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
+endif()
+
 # Create executable for each test program
 set(_ALEPH_TEST_EXECUTABLE_TARGETS "")
 foreach(test_program ${TEST_PROGRAMS})
@@ -559,6 +580,11 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
 
     # Skip k2tree_test with clang (GMP/libc++ incompatibility)
     if(_name STREQUAL "k2tree_test" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        continue()
+    endif()
+
+    # Skip POSIX-only tests on Windows (see ALEPH_POSIX_ONLY_TESTS above).
+    if(WIN32 AND _name IN_LIST ALEPH_POSIX_ONLY_TESTS)
         continue()
     endif()
 

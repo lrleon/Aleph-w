@@ -72,8 +72,22 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Compiler flags
-set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
-set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+#
+# MSVC (cl and clang-cl, both with MSVC == TRUE) rejects GNU-style flags
+# such as -Wextra or -g3 with hard errors (D8021), so every flag below is
+# split per frontend.
+if(MSVC)
+    set(WARN_FLAGS "/W3")
+    set(COMMON_FLAGS "-DMESSAGES")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # clang-cl optimizes under strict-aliasing rules like clang;
+        # htlist.H requires them disabled (see the Release flags note below).
+        set(COMMON_FLAGS "${COMMON_FLAGS} -fno-strict-aliasing")
+    endif()
+else()
+    set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
+    set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(COMMON_FLAGS "${COMMON_FLAGS} -D__extern_always_inline=\"extern __always_inline\"")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND ALEPH_USE_LIBCXX)
@@ -94,6 +108,14 @@ if(ALEPH_USE_SANITIZERS)
 endif()
 
 # Debug flags
+# (MSVC keeps CMake's defaults: /Od /Zi /RTC1 for Debug, /O2 /Ob2 /DNDEBUG
+# for Release. MSVC's cl performs no type-based aliasing optimizations, so
+# the -fno-strict-aliasing requirement below does not apply to it; for
+# clang-cl it is handled in COMMON_FLAGS above.)
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
+else()
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -g3 -O0")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g3 -O0")
 
@@ -116,6 +138,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g3 -O0")
 # DO NOT REMOVE -fno-strict-aliasing without first refactoring htlist.H!
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O2 -fno-strict-aliasing -fPIE -fpic")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -O2 -fno-strict-aliasing -fPIE -fpic")
+endif()
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -378,6 +401,18 @@ set(LIBCSRCS
     mpfr_mul_d.c
 )
 
+if(WIN32)
+    # POSIX-only translation units: fork()/setsid() daemonization, BSD
+    # sockets, pthread wrappers and the pthread-based timeout queue. They
+    # stay out of the Windows build until ported.
+    list(REMOVE_ITEM LIBCCCSRCS
+        ahDaemonize.C
+        socket_wrappers.C
+        useMutex.C
+        timeoutQueue.C
+    )
+endif()
+
 # ------------------------------------------------------------------------------
 # Vendored third_party/miniz (DEFLATE backend for ca-checkpoint compression)
 # ------------------------------------------------------------------------------
@@ -440,12 +475,15 @@ else()
     target_compile_definitions(Aleph PUBLIC ALEPH_DISABLE_X11_VIEWER=1)
 endif()
 
-# pthread is a POSIX-only convention; on Windows the Threads::Threads
-# target already pulls the correct synchronization runtime.
+# pthread and libm are POSIX-only conventions; on Windows the
+# Threads::Threads target already pulls the correct synchronization
+# runtime and the math functions live in the CRT.
 if(WIN32)
     set(_ALEPH_PTHREAD "")
+    set(_ALEPH_LIBM "")
 else()
     set(_ALEPH_PTHREAD pthread)
+    set(_ALEPH_LIBM m)
 endif()
 
 set(ALEPH_SYSTEM_LIBS
@@ -455,7 +493,7 @@ set(ALEPH_SYSTEM_LIBS
     mpfr
     gsl
     gslcblas
-    m
+    ${_ALEPH_LIBM}
     ${_ALEPH_X11_LIBS}
     Threads::Threads
     CACHE INTERNAL "System libraries required by Aleph"

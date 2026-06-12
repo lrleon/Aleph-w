@@ -44,7 +44,9 @@
 #ifndef AHDEFS_H
 #define AHDEFS_H
 
-#include <unistd.h>
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 #include <time.h>
 #include <stdint.h>
 #include <cstdlib>

@@ -31,8 +31,7 @@
 
 
 # include <ahDefs.H>
-# include <pthread.h>
-# include <useMutex.H>
+# include <mutex>
 
 # define STR_LOG_LEN 256
 
@@ -67,16 +66,12 @@ namespace Aleph
 /* } */
 
 
-# ifdef _PTHREAD_H
-static pthread_mutex_t aleph_message_mutex = PTHREAD_MUTEX_INITIALIZER; 
-# endif
+static std::mutex aleph_message_mutex;
 
 # ifdef MESSAGES
 void Aleph::message(const char* file, int line, const char* format, ...)
 {
-# ifdef _PTHREAD_H
-  CRITICAL_SECTION(aleph_message_mutex);
-# endif
+  std::lock_guard<std::mutex> critical_section(aleph_message_mutex);
 
   va_list ap;
   
@@ -104,9 +99,7 @@ void Aleph::message(const char*, int, const char*, ...) { }
 
 void Aleph::error(const char* file, int line, const char* format, ...)
 {
-# ifdef _PTHREAD_H
-  CRITICAL_SECTION(aleph_message_mutex);
-# endif 
+  std::lock_guard<std::mutex> critical_section(aleph_message_mutex);
 
   va_list ap;
   
@@ -131,9 +124,7 @@ void Aleph::error(const char* file, int line, const char* format, ...)
 
 void Aleph::exit(const char* file, int line, const char* format, ...) 
 {
-# ifdef _PTHREAD_H
-  CRITICAL_SECTION(aleph_message_mutex);
-# endif
+  std::lock_guard<std::mutex> critical_section(aleph_message_mutex);
 
   va_list ap;
   
@@ -159,9 +150,7 @@ void Aleph::exit(const char* file, int line, const char* format, ...)
 
 void Aleph::warning(const char* file, int line, const char* format, ...)
 {
-# ifdef _PTHREAD_H
-  CRITICAL_SECTION(aleph_message_mutex);
-# endif
+  std::lock_guard<std::mutex> critical_section(aleph_message_mutex);
 
   va_list ap;
   
