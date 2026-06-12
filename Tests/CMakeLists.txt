@@ -93,11 +93,15 @@ if(NOT GTest_FOUND AND ALEPH_FETCH_GTEST)
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG v1.14.0
     )
-    # Prevent GoogleTest from overriding our global compiler/linker options.
-    set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
+    # On MSVC, GoogleTest must use the same CRT as the rest of the build
+    # (/MD, the CMake default); otherwise linking fails with LNK2038.
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
-    find_package(GTest REQUIRED CONFIG) # Targets now exist within the build.
+    # FetchContent adds googletest as a subdirectory and defines the
+    # GTest::* targets directly; it never installs a GTestConfig.cmake,
+    # so find_package(GTest) would fail here.
+    set(GTest_FOUND TRUE)
 endif()
 
 if(NOT GTest_FOUND)
