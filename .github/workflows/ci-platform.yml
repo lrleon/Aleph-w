@@ -254,6 +254,9 @@ jobs:
     env:
       VCPKG_DEFAULT_TRIPLET: x64-windows
       SCCACHE_GHA_ENABLED: "true"
+      # Fall back to plain compilation instead of failing the build when the
+      # GitHub Actions cache service is unavailable.
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
 
     defaults:
       run:
@@ -274,12 +277,14 @@ jobs:
             mingw-w64-x86_64-gsl
             mingw-w64-x86_64-pkg-config
 
-      - name: Install ninja and sccache
+      - name: Install ninja
         run: |
-          choco install -y ninja sccache
+          choco install -y ninja
 
       - name: Enable sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        # v0.0.6 only wires up the legacy GHA cache v1 endpoint, which GitHub
+        # shut down in 2025 (permanent HTTP 400 from artifactcache.*).
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Set up MSVC environment
         if: matrix.toolchain == 'msvc'
