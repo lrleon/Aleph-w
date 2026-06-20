@@ -5,6 +5,49 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0](https://github.com/lrleon/Aleph-w/compare/v4.0.0...v5.0.0) (2026-06-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* cellular automata framework, packaging and 4.0.0 release infrastructure ([#55](https://github.com/lrleon/Aleph-w/issues/55))
+
+### Features
+
+* **ah-stl-functional:** Implement reserve for stl_range and stl_linspace ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **ah-stl-functional:** Implement reserve for stl_range and stl_linspace ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **archeap:** Add move constructors and assignments ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **archeap:** Add move constructors and assignments ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* cellular automata framework, packaging and 4.0.0 release infrastructure ([#55](https://github.com/lrleon/Aleph-w/issues/55)) ([730d5f3](https://github.com/lrleon/Aleph-w/commit/730d5f3b37238db2128eee979d0f238957a7830b))
+* **driven_table:** Add `Event_Table<Signature>` for type safety ([4325d64](https://github.com/lrleon/Aleph-w/commit/4325d64c2139cdd0cfac823ff6c5443a372851c2))
+* **driven_table:** Add `Event_Table<Signature>` for type safety ([f4d9347](https://github.com/lrleon/Aleph-w/commit/f4d93472b6422722403657ff31a3eefec71a0147))
+* **driven_table:** Add `Event_Table<Signature>` for type safety ([1f177e5](https://github.com/lrleon/Aleph-w/commit/1f177e5da05e7ab5da858e7ee3fdce0dd5b62032))
+* **driven_table:** Add `Event_Table<Signature>` for type safety ([9a6aec7](https://github.com/lrleon/Aleph-w/commit/9a6aec727cc61ad549dcb18933f216a081efd028))
+* **driven_table:** Add move constructors and assignments for Static_Event_Table ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **driven_table:** Add move constructors and assignments for Static_Event_Table ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **functional:** Add sum, product, min, max, join, to_vector/dynlist methods ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+* **functional:** Implement unique, intersperse, chunk, sliding, zip_with ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+* **geometry:** Add Constrained Delaunay and Fortune's Voronoi algorithms ([91eb6fd](https://github.com/lrleon/Aleph-w/commit/91eb6fd6e39783c2c1d11f185d327003cd821f80))
+* **graph:** Consolidate graph utilities and remove redundant files ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **graph:** Consolidate graph utilities and remove redundant files ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **linalg:** Add matrix_dims helper for modular_linalg.H ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+* Migrate installation to INSTALL.md ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* Migrate installation to INSTALL.md ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **protected_lhash, protected_odhash:** Disable copy/move for thread-safe hash tables ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **protected_lhash, protected_odhash:** Disable copy/move for thread-safe hash tables ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **quadtree:** Add move constructors and assignments ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **quadtree:** Add move constructors and assignments ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **ringfilecache:** Use strncpy for cache file name in RingFileCache ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **ringfilecache:** Use strncpy for cache file name in RingFileCache ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+
+
+### Bug Fixes
+
+* **minhash:** Update iterator concept and constructor initialization ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+* **parse_utils:** Catch `const std::out_of_range&` instead of `out_of_range` ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **parse_utils:** Catch `const std::out_of_range&` instead of `out_of_range` ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **reservoir-sampling:** Correct overflow check in update ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+
 ## [Unreleased]
 
 ## [4.0.0]
