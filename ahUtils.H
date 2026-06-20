@@ -439,7 +439,14 @@ namespace Aleph
 
       @ingroup Functions
    */
-  [[nodiscard]] constexpr bool are_near(const double v1, const double v2, const double e) noexcept { return std::fabs(v1 - v2) <= e; }
+  [[nodiscard]] constexpr bool are_near(const double v1, const double v2, const double e) noexcept
+  {
+    // std::fabs is not constexpr in MSVC's STL under C++20 (it only became
+    // constexpr in C++23), so compute the absolute difference by hand to keep
+    // this function usable in constant expressions across all compilers.
+    const double d = v1 - v2;
+    return (d < 0.0 ? -d : d) <= e;
+  }
 
   /** Generate and execute a R script from a string (containing the script)
 

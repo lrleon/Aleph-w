@@ -405,11 +405,17 @@ if(WIN32)
     # POSIX-only translation units: fork()/setsid() daemonization, BSD
     # sockets, pthread wrappers and the pthread-based timeout queue. They
     # stay out of the Windows build until ported.
+    #
+    # gmpfrxx.C is excluded too: it wraps the GMP/MPFR C++ interface (gmpxx),
+    # whose C++ ABI is incompatible between the MSYS2/mingw libraries and the
+    # MSVC/clang-cl toolchains. Its only consumers (k2tree) are already gated
+    # to GCC, so dropping it here keeps the Windows library buildable.
     list(REMOVE_ITEM LIBCCCSRCS
         ahDaemonize.C
         socket_wrappers.C
         useMutex.C
         timeoutQueue.C
+        gmpfrxx.C
     )
 endif()
 
