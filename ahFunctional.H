@@ -89,13 +89,21 @@ namespace Aleph
     [[noreturn]] T & get_item() override
     {
       ah_invalid_argument() << "Access from None type";
+# if defined(__GNUC__) || defined(__clang__)
       __builtin_unreachable();  // Satisfies compiler after throw
+# elif defined(_MSC_VER)
+      __assume(0);
+# endif
     }
 
     [[noreturn]] const T & get_item() const override
     {
       ah_invalid_argument() << "Access from None type";
+# if defined(__GNUC__) || defined(__clang__)
       __builtin_unreachable();
+# elif defined(_MSC_VER)
+      __assume(0);
+# endif
     }
 
     [[nodiscard]] bool is_found() const noexcept override { return false; }

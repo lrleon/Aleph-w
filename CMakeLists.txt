@@ -462,6 +462,22 @@ if(APPLE)
     endif()
 endif()
 
+# On Windows the gmp / mpfr / gsl headers and import libraries come from the
+# MSYS2 mingw64 tree, passed to CMake via CMAKE_PREFIX_PATH. As with the
+# Homebrew case above, those C libraries are consumed through raw -l names
+# (see ALEPH_SYSTEM_LIBS), so CMAKE_PREFIX_PATH alone does not place their
+# include / lib directories on the compiler command line. Add them explicitly.
+if(WIN32)
+    foreach(_aleph_prefix IN LISTS CMAKE_PREFIX_PATH)
+        if(EXISTS "${_aleph_prefix}/include")
+            target_include_directories(Aleph PUBLIC "${_aleph_prefix}/include")
+        endif()
+        if(EXISTS "${_aleph_prefix}/lib")
+            target_link_directories(Aleph PUBLIC "${_aleph_prefix}/lib")
+        endif()
+    endforeach()
+endif()
+
 # Find required libraries
 find_package(Threads REQUIRED)
 
