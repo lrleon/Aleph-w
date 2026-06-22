@@ -78,7 +78,11 @@ endif()
 # split per frontend.
 if(MSVC)
     set(WARN_FLAGS "/W3")
-    set(COMMON_FLAGS "-DMESSAGES")
+    # MSVC's <cmath> only exposes M_PI, M_PI_2 and friends when
+    # _USE_MATH_DEFINES is set before the header is first included. Define it
+    # on the command line so it applies to every translation unit (cl and
+    # clang-cl both use the Microsoft STL headers).
+    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES")
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # clang-cl optimizes under strict-aliasing rules like clang;
         # htlist.H requires them disabled (see the Release flags note below).
