@@ -70,6 +70,12 @@
 # include <tpl_array.H>
 # include <ah-zip.H>
 
+// strtok_r is POSIX; the MSVC runtime (also used by clang-cl) provides the
+// identically-shaped strtok_s instead. Map one onto the other on Windows.
+# if defined(_MSC_VER)
+#   define strtok_r strtok_s
+# endif
+
 namespace Aleph
 {
   /** Convert a `std::vector<T>` to a comma-separated std::string.
@@ -370,19 +376,16 @@ namespace Aleph
   {
     std::string ret;
     ret.reserve(str.size() + 1);
+    // Explicit ASCII ranges rather than GNU case-range labels
+    // (`case 'a'...'z':`), which MSVC does not support. The comparisons are
+    // byte-equivalent and locale-independent.
     for (const char c: str)
-      switch (c)
-        {
-        case '0'...'9':
-        case 'a'...'z':
+      {
+        if ((c >= '0' and c <= '9') or (c >= 'a' and c <= 'z'))
           ret.push_back(c);
-          break;
-        case 'A'...'Z':
+        else if (c >= 'A' and c <= 'Z')
           ret.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-          break;
-        default:
-          break;
-        }
+      }
 
     return ret;
   }
