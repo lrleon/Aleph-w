@@ -82,7 +82,13 @@ if(MSVC)
     # _USE_MATH_DEFINES is set before the header is first included. Define it
     # on the command line so it applies to every translation unit (cl and
     # clang-cl both use the Microsoft STL headers).
-    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES")
+    #
+    # /FIah-compat.H force-includes the cross-compiler shim header into every
+    # translation unit (it maps GCC/Clang builtins missing from cl). Doing it
+    # here, rather than per-header, guarantees the shims are visible regardless
+    # of each file's include graph. The repo root is on the include path
+    # (include_directories below), so the relative name resolves.
+    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES /FIah-compat.H")
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # clang-cl optimizes under strict-aliasing rules like clang;
         # htlist.H requires them disabled (see the Release flags note below).

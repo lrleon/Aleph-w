@@ -278,7 +278,7 @@ def main
 
     failures << "missing/invalid MIT license header: #{file}" if HEADER_EXTS.include?(File.extname(file)) && !mit_license_header?(p)
     failures << "documentation seems to be in Spanish (must be English): #{file}" unless english_documentation?(p)
-  end/
+  end
 
   if !headers_requiring_tests.empty? && tests_changed.empty?
     failures << "headers with code changes but no Tests/ files changed (add/modify tests): #{headers_requiring_tests.join(', ')}"
