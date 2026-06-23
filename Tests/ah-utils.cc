@@ -123,6 +123,19 @@ TEST(AhUtilsTest, AreNear) {
     EXPECT_FALSE(Aleph::are_near(1.0, 1.0001, 1e-5));
     EXPECT_TRUE(Aleph::are_near(-1.0, -1.000001, 1e-5));
     EXPECT_FALSE(Aleph::are_near(-1.0, -1.0001, 1e-5));
+
+    // Equal values are within any non-negative tolerance.
+    EXPECT_TRUE(Aleph::are_near(2.5, 2.5, 0.0));
+    // The comparison is inclusive at the tolerance boundary (|v1 - v2| <= e).
+    EXPECT_TRUE(Aleph::are_near(1.0, 1.5, 0.5));
+    // Symmetric in its first two arguments.
+    EXPECT_EQ(Aleph::are_near(3.0, 3.4, 0.5), Aleph::are_near(3.4, 3.0, 0.5));
+
+    // are_near must stay usable in constant expressions: it is constexpr and
+    // computes the absolute difference by hand because std::fabs is not
+    // constexpr in MSVC's STL under C++20.
+    static_assert(Aleph::are_near(1.0, 1.0005, 1e-3));
+    static_assert(not Aleph::are_near(1.0, 2.0, 1e-3));
 }
 
 // Tests for u_index and l_index

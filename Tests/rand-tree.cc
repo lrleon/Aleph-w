@@ -36,6 +36,7 @@
  * @brief Tests for Rand Tree
  */
 #include <gtest/gtest.h>
+#include <numeric>
 
 #include <tpl_rand_tree.H>
 #include <tpl_binNodeUtils.H>

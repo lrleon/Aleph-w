@@ -36,6 +36,7 @@
  * @brief Tests for Fibonacci Heap
  */
 # include <gtest/gtest.h>
+# include <numeric>
 # include <tpl_fibonacci_heap.H>
 # include <vector>
 # include <algorithm>
