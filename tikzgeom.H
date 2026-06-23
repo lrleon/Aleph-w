@@ -1484,7 +1484,8 @@ namespace Aleph
     curve.vertices.reserve(subdivisions + 1);
     for (size_t i = 0; i <= subdivisions; ++i)
       {
-        const Geom_Number t = Geom_Number(i) / Geom_Number(subdivisions);
+        const Geom_Number t = Geom_Number(static_cast<long>(i))
+                              / Geom_Number(static_cast<long>(subdivisions));
         const Geom_Number s = Geom_Number(1) - t;
         const Geom_Number x = s * s * p0.get_x() +
                               Geom_Number(2) * s * t * p1.get_x() +
@@ -1514,7 +1515,8 @@ namespace Aleph
     curve.vertices.reserve(subdivisions + 1);
     for (size_t i = 0; i <= subdivisions; ++i)
       {
-        const Geom_Number t = Geom_Number(i) / Geom_Number(subdivisions);
+        const Geom_Number t = Geom_Number(static_cast<long>(i))
+                              / Geom_Number(static_cast<long>(subdivisions));
         const Geom_Number s = Geom_Number(1) - t;
         const Geom_Number s2 = s * s;
         const Geom_Number t2 = t * t;

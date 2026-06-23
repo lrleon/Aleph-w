@@ -52,6 +52,10 @@
 #  define __builtin_prefetch(...) ((void) 0)
 #  define __builtin_expect(expr, expected) (expr)
 
+// __builtin_memcpy is identical to memcpy on all targets.
+#  include <string.h>
+#  define __builtin_memcpy memcpy
+
 // __builtin_ctzll: GCC/Clang count-trailing-zeros for unsigned long long.
 // MSVC equivalent is _BitScanForward64 from <intrin.h>.
 #  ifdef __cplusplus
