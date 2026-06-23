@@ -7631,7 +7631,8 @@ namespace Aleph
           sx += v(i).get_x();
           sy += v(i).get_y();
         }
-      return {sx / Geom_Number(v.size()), sy / Geom_Number(v.size())};
+      return {sx / Geom_Number(static_cast<long>(v.size())),
+              sy / Geom_Number(static_cast<long>(v.size()))};
     }
 
     [[nodiscard]] static SupportPoint
@@ -11179,7 +11180,7 @@ namespace Aleph
       Array<Point> pts;
       pts.reserve(n + 1);
       for (size_t i = 0; i <= n; ++i)
-        pts.append(quadratic(p0, p1, p2, Geom_Number(i) / Geom_Number(n)));
+        pts.append(quadratic(p0, p1, p2, Geom_Number(static_cast<long>(i)) / Geom_Number(static_cast<long>(n))));
       return pts;
     }
 
@@ -11193,7 +11194,7 @@ namespace Aleph
       Array<Point> pts;
       pts.reserve(n + 1);
       for (size_t i = 0; i <= n; ++i)
-        pts.append(cubic(p0, p1, p2, p3, Geom_Number(i) / Geom_Number(n)));
+        pts.append(cubic(p0, p1, p2, p3, Geom_Number(static_cast<long>(i)) / Geom_Number(static_cast<long>(n))));
       return pts;
     }
 

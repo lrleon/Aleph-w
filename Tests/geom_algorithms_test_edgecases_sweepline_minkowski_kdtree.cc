@@ -2263,8 +2263,8 @@ TEST_F(GeomAlgorithmsTest, SweepLineManySegmentsAtOnePoint)
   const size_t N = 10;
   for (size_t i = 0; i < N; ++i)
     {
-      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
-                          / Geom_Number(N);
+      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(static_cast<long>(i))
+                          / Geom_Number(static_cast<long>(N));
       Point far(Geom_Number(5) + Geom_Number(10) * Geom_Number(cos(angle.get_d())),
                 Geom_Number(5) + Geom_Number(10) * Geom_Number(sin(angle.get_d())));
       segs.append(Segment(Point(5, 5), far));

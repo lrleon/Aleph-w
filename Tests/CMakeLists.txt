@@ -478,6 +478,9 @@ set(ALEPH_POSIX_ONLY_TESTS
     net_utils_test
     ringfilecache
     timeoutQueue_test
+    # tpl_skipList.H uses GCC zero-sized trailing arrays (forward[0]) as base
+    # class, which MSVC rejects with C2503.
+    skiplist_test
 )
 if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
