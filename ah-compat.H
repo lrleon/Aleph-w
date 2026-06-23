@@ -52,6 +52,28 @@
 #  define __builtin_prefetch(...) ((void) 0)
 #  define __builtin_expect(expr, expected) (expr)
 
+// __builtin_ctzll: GCC/Clang count-trailing-zeros for unsigned long long.
+// MSVC equivalent is _BitScanForward64 from <intrin.h>.
+#  ifdef __cplusplus
+#    include <intrin.h>
+inline int __builtin_ctzll(unsigned long long x) noexcept
+{
+  unsigned long idx;
+  _BitScanForward64(&idx, x);
+  return static_cast<int>(idx);
+}
+#  endif
+
 #endif // _MSC_VER && !__clang__
+
+// Windows uses _popen/_pclose; shim for both cl and clang-cl.
+#ifdef _WIN32
+#  ifndef popen
+#    define popen  _popen
+#  endif
+#  ifndef pclose
+#    define pclose _pclose
+#  endif
+#endif
 
 #endif // AH_COMPAT_H
