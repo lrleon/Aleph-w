@@ -38,6 +38,7 @@
 /* Test for AVL and Red-Black trees with counters (select/position support) */
 
 # include <gtest/gtest.h>
+# include <numeric>
 # include <random>
 # include <vector>
 # include <algorithm>

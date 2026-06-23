@@ -36,6 +36,7 @@
  */
 # include <gtest/gtest.h>
 
+# include <numeric>
 # include <random>
 # include <set>
 # include <chrono>
