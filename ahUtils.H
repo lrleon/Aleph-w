@@ -422,7 +422,10 @@ namespace Aleph
    */
   inline double next_value(const double val)
   {
-    return nextafter(val, std::numeric_limits<double>::max());
+    // Store limit in a local to avoid preprocessor misparse of <double>
+    // inside a macro argument (clang-cl on Windows treats < as arg separator).
+    constexpr double lim = std::numeric_limits<double>::max();
+    return std::nextafter(val, lim);
   }
 
   /** Return the next representable floating-point value of `val` towards the
@@ -432,7 +435,8 @@ namespace Aleph
    */
   inline double prev_value(const double val)
   {
-    return nextafter(val, std::numeric_limits<double>::min());
+    constexpr double lim = std::numeric_limits<double>::min();
+    return std::nextafter(val, lim);
   }
 
   /** Return `true` if `v1` is within absolute distance `e` of `v2`.

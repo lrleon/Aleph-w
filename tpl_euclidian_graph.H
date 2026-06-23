@@ -276,7 +276,7 @@ namespace Aleph
     for (typename Euclidian_Graph<Node, Arc>::Node_Iterator it(*this);
          it.has_curr(); it.next_ne())
       {
-        Euclidian_Graph<Node, Arc>::Node *curr = it.get_curr();
+        auto *curr = it.get_curr();
         if (curr->get_position() == point)
           return curr;
       }
