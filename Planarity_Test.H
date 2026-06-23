@@ -1946,7 +1946,7 @@ class LR_Planarity_Checker
 
                           bool ok = true;
                           for (size_t i = 0; i < 3 and ok; ++i)
-                            for (unsigned long & j : right)
+                            for (size_t j : right)
                               if (not has_pair(left[i], j))
                                 ok = false;
 
@@ -2078,7 +2078,7 @@ class LR_Planarity_Checker
             ord[j] = key_ue;
           }
 
-        for (unsigned long &i : ord)
+        for (size_t &i : ord)
           i = other_endpoint(i, v);
       }
 
