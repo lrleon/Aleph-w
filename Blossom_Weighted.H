@@ -341,12 +341,25 @@ namespace Aleph
           << "Weighted blossom returned an unknown matched pair";
 
         matching.append(arc_info->arc);
+# if defined(_MSC_VER) && !defined(__clang__)
+        // MSVC has no __int128; detect long long overflow without it.
+        {
+          const long long w = arc_info->weight;
+          const long long lo = std::numeric_limits<long long>::min();
+          const long long hi = std::numeric_limits<long long>::max();
+          ah_overflow_error_if((w > 0 and total_weight > hi - w) or
+                               (w < 0 and total_weight < lo - w))
+            << "Matching total weight overflows long long";
+          total_weight += w;
+        }
+# else
         const __int128 sum = static_cast<__int128>(total_weight)
                              + static_cast<__int128>(arc_info->weight);
         ah_overflow_error_if(sum > static_cast<__int128>(std::numeric_limits<long long>::max())
                              or sum < static_cast<__int128>(std::numeric_limits<long long>::min()))
           << "Matching total weight overflows long long";
         total_weight = static_cast<long long>(sum);
+# endif
         ++cardinality;
       }
 
