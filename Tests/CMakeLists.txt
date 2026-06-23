@@ -527,6 +527,11 @@ foreach(test_program ${TEST_PROGRAMS})
             target_compile_options(${test_exe} PRIVATE -Wno-unused-result)
         endif()
 
+        # ah-dry.cc is a very large TU that exceeds the default COFF section limit
+        if(MSVC AND test_program STREQUAL "ah-dry")
+            target_compile_options(${test_exe} PRIVATE /bigobj)
+        endif()
+
         # Add test to CTest (gtest_discover_tests for IDE integration)
         gtest_discover_tests(${test_exe} DISCOVERY_MODE PRE_TEST)
 

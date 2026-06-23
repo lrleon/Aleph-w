@@ -124,7 +124,11 @@ struct MapOpenHash :
   /// @brief The base hash table type.
   using Base = HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Data, Cmp>>;
 
+  // MSVC: 'using Base::Base' imports ODhashTable(size_t) which collides
+  // with the explicitly defined MapOpenHash(size_t, ...) below (C2668).
+# if !defined(_MSC_VER) || defined(__clang__)
   using Base::Base;
+# endif
   using Base::insert;
 
   /// @brief Function type for hash functions.
