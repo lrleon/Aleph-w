@@ -484,9 +484,9 @@ set(ALEPH_POSIX_ONLY_TESTS
     # ntt.H requires __uint128_t which is a GCC/Clang extension; MSVC has no
     # 128-bit integer type so ntt.H emits #error on that compiler.
     ntt_test
-    # polygon_test and line_test link gmpfrxx symbols compiled in gmpfrxx.C,
-    # which is excluded on Windows due to GMP C++ ABI incompatibility between
-    # MinGW and MSVC/clang-cl. operator<< for __mpq_struct also has MinGW ABI.
+    # polygon_test and line_test link gmpfrxx symbols compiled in gmpfrxx.C
+    # (excluded on Windows). Their gmpfrxx.C dependencies (MpFrC::rnd,
+    # mpq_set_mpfr) and operator<< for mpfr_class have irresolvable MinGW ABI.
     polygon_test
     line_test
 )

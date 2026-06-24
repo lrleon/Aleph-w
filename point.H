@@ -60,13 +60,13 @@
 
 # include <gmpfrxx.h>
 
-/// When compiling with libc++, the gmpxx library's low-level stream
-/// operators (compiled against libstdc++) are unavailable.  The gmpxx
-/// header template `operator<<(__gmp_expr<T,U>)` ultimately calls
-/// `o << temp.__get_mp()`, which resolves to these overloads.
-/// Provide them here so that *all* GMP expression types can be printed,
-/// not just mpq_class.
-# if defined(_LIBCPP_VERSION)
+/// When compiling with libc++ or on Windows (MSVC/clang-cl), the gmpxx
+/// library's low-level stream operators are unavailable: libc++ has a
+/// libstdc++ ABI mismatch, while Windows has a MinGW C++ ABI mismatch.
+/// The gmpxx header template `operator<<(__gmp_expr<T,U>)` ultimately
+/// calls `o << temp.__get_mp()`, which resolves to these overloads.
+/// Provide them here so that *all* GMP expression types can be printed.
+# if defined(_LIBCPP_VERSION) || defined(_WIN32)
 /**
  * @brief Stream output operator for GMP rational pointers (libc++ compatibility).
  * @param o The output stream.

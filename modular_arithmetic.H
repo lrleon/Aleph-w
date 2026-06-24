@@ -70,15 +70,16 @@ namespace Aleph
 
 # if defined(__SIZEOF_INT128__) && !defined(_WIN32)
     return static_cast<uint64_t>((static_cast<__uint128_t>(a) * b) % m);
-# elif defined(_WIN32)
-    // clang-cl defines __SIZEOF_INT128__ but the MSVC CRT lacks __umodti3
-    // (the 128-bit modulo runtime). Use _umul128 + _udiv128 instead.
+# elif defined(_MSC_VER) && !defined(__clang__)
+    // MSVC cl: no __int128, but _umul128 + _udiv128 are available
     unsigned long long hi;
     unsigned long long lo = _umul128(a, b, &hi);
     unsigned long long rem;
     _udiv128(hi, lo, m, &rem);
     return static_cast<uint64_t>(rem);
 # else
+    // clang-cl: has __uint128_t but no __umodti3 runtime and no _udiv128.
+    // Fall through to binary method.
     uint64_t res = 0;
     a %= m;
     while (b)
