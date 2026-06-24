@@ -495,6 +495,7 @@ set(ALEPH_POSIX_ONLY_TESTS
     point_test
     segment_test
     quadtree_test
+    eepicgeom_test
 )
 if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
