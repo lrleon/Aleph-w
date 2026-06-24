@@ -3744,8 +3744,13 @@ public:
           const Coefficient lhs_coeff = lhs.get_coeff(exp - 1);
           const Coefficient rhs_coeff = rhs.get_coeff(exp - 1);
 
+# if defined(_MSC_VER) && !defined(__clang__)
+          const long long lhs_norm = static_cast<long long>(lhs_coeff) * static_cast<long long>(rhs_lc);
+          const long long rhs_norm = static_cast<long long>(rhs_coeff) * static_cast<long long>(lhs_lc);
+# else
           const __int128 lhs_norm = static_cast<__int128>(lhs_coeff) * rhs_lc;
           const __int128 rhs_norm = static_cast<__int128>(rhs_coeff) * lhs_lc;
+# endif
           if (lhs_norm < rhs_norm)
             return true;
           if (rhs_norm < lhs_norm)

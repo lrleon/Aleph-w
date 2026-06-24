@@ -481,6 +481,9 @@ set(ALEPH_POSIX_ONLY_TESTS
     # tpl_skipList.H uses GCC zero-sized trailing arrays (forward[0]) as base
     # class, which MSVC rejects with C2503.
     skiplist_test
+    # ntt.H requires __uint128_t which is a GCC/Clang extension; MSVC has no
+    # 128-bit integer type so ntt.H emits #error on that compiler.
+    ntt_test
 )
 if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})

@@ -530,14 +530,19 @@ if(WIN32)
     foreach(_aleph_prefix IN LISTS CMAKE_PREFIX_PATH)
         foreach(_lname gmpxx gmp mpfr gsl gslcblas)
             if(NOT "${_lname}" IN_LIST _aleph_win_found)
-                if(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
-                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
-                    list(APPEND _aleph_win_found "${_lname}")
-                elseif(EXISTS "${_aleph_prefix}/lib/${_lname}.lib")
+                # Prefer the MSVC-style import lib, then the static archive
+                # (COFF x64 objects, compatible with both link.exe and lld-link),
+                # and fall back to the GNU import lib (.dll.a).  The static
+                # archive is preferred over .dll.a because lld-link cannot
+                # reliably import data-object symbols from GNU import libraries.
+                if(EXISTS "${_aleph_prefix}/lib/${_lname}.lib")
                     list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/${_lname}.lib")
                     list(APPEND _aleph_win_found "${_lname}")
                 elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
                     list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
+                    list(APPEND _aleph_win_found "${_lname}")
+                elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
                     list(APPEND _aleph_win_found "${_lname}")
                 endif()
             endif()
