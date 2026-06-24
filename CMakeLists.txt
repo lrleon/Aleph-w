@@ -513,6 +513,10 @@ endif()
 # Threads::Threads target already pulls the correct synchronization
 # runtime and the math functions live in the CRT.
 if(WIN32)
+    # GSL_DLL tells GSL headers to emit __declspec(dllimport) on global
+    # data variables (e.g. gsl_rng_mt19937). Without it, lld-link fails
+    # to resolve imported data symbols from the GNU import library (.dll.a).
+    target_compile_definitions(Aleph PUBLIC GSL_DLL)
     set(_ALEPH_PTHREAD "")
     set(_ALEPH_LIBM "")
 else()
@@ -530,20 +534,32 @@ if(WIN32)
     foreach(_aleph_prefix IN LISTS CMAKE_PREFIX_PATH)
         foreach(_lname gmpxx gmp mpfr gsl gslcblas)
             if(NOT "${_lname}" IN_LIST _aleph_win_found)
-                # Prefer the MSVC-style import lib, then the static archive
-                # (COFF x64 objects, compatible with both link.exe and lld-link),
-                # and fall back to the GNU import lib (.dll.a).  The static
-                # archive is preferred over .dll.a because lld-link cannot
-                # reliably import data-object symbols from GNU import libraries.
+                # GMP and MPFR static archives (.a) contain standard COFF x64
+                # objects and link cleanly with both link.exe and lld-link.
+                # GSL's static archive pulls in MinGW-specific runtime symbols
+                # (__mingw_vfprintf, __stack_chk_fail) that MSVC cannot resolve,
+                # so for GSL/GSLCBLAS we use the GNU import library (.dll.a)
+                # instead; GSL_DLL is defined below so headers emit
+                # __declspec(dllimport) on data variables (e.g. gsl_rng_mt19937).
                 if(EXISTS "${_aleph_prefix}/lib/${_lname}.lib")
                     list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/${_lname}.lib")
                     list(APPEND _aleph_win_found "${_lname}")
-                elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
-                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
-                    list(APPEND _aleph_win_found "${_lname}")
-                elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
-                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
-                    list(APPEND _aleph_win_found "${_lname}")
+                elseif(_lname STREQUAL "gsl" OR _lname STREQUAL "gslcblas")
+                    if(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                        list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                        list(APPEND _aleph_win_found "${_lname}")
+                    elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
+                        list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
+                        list(APPEND _aleph_win_found "${_lname}")
+                    endif()
+                else()
+                    if(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
+                        list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
+                        list(APPEND _aleph_win_found "${_lname}")
+                    elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                        list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                        list(APPEND _aleph_win_found "${_lname}")
+                    endif()
                 endif()
             endif()
         endforeach()
