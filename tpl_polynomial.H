@@ -2674,9 +2674,10 @@ public:
                 const uint64_t t = (p_u64 - mod_mul(e, inv, p_u64)) % p_u64;
 
                 const uint64_t increment = checked_mul_u64(modulus, t, "root increment");
-# if defined(_MSC_VER) && !defined(__clang__)
-                // MSVC has no __int128; compute (root+increment) % next_mod
-                // safely: a,b<next_mod, so a+b<2*next_mod.  Check overflow.
+# if defined(_MSC_VER) || defined(_WIN32)
+                // MSVC has no __int128. clang-cl on Windows has __int128 but
+                // lacks the __umodti3 runtime helper for 128-bit modulo.
+                // Compute (root+increment) % next_mod without 128-bit arithmetic.
                 {
                   const uint64_t a = root % next_mod;
                   const uint64_t b = increment % next_mod;

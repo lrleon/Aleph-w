@@ -541,25 +541,21 @@ if(WIN32)
                 # so for GSL/GSLCBLAS we use the GNU import library (.dll.a)
                 # instead; GSL_DLL is defined below so headers emit
                 # __declspec(dllimport) on data variables (e.g. gsl_rng_mt19937).
+                # MSYS2 headers for GMP, MPFR, and GSL all use __declspec(dllimport)
+                # because those packages were built as DLLs. The static .a archives
+                # cannot satisfy __imp_* import symbols, so we must use the GNU
+                # import libraries (.dll.a). Both MSVC link.exe and lld-link can
+                # read .dll.a (COFF-format AR archives of import stubs).
+                # An MSVC-style .lib takes priority if one happens to exist.
                 if(EXISTS "${_aleph_prefix}/lib/${_lname}.lib")
                     list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/${_lname}.lib")
                     list(APPEND _aleph_win_found "${_lname}")
-                elseif(_lname STREQUAL "gsl" OR _lname STREQUAL "gslcblas")
-                    if(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
-                        list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
-                        list(APPEND _aleph_win_found "${_lname}")
-                    elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
-                        list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
-                        list(APPEND _aleph_win_found "${_lname}")
-                    endif()
-                else()
-                    if(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
-                        list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
-                        list(APPEND _aleph_win_found "${_lname}")
-                    elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
-                        list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
-                        list(APPEND _aleph_win_found "${_lname}")
-                    endif()
+                elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                    list(APPEND _aleph_win_found "${_lname}")
+                elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
+                    list(APPEND _aleph_win_found "${_lname}")
                 endif()
             endif()
         endforeach()
