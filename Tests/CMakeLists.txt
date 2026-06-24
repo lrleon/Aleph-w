@@ -484,11 +484,17 @@ set(ALEPH_POSIX_ONLY_TESTS
     # ntt.H requires __uint128_t which is a GCC/Clang extension; MSVC has no
     # 128-bit integer type so ntt.H emits #error on that compiler.
     ntt_test
-    # polygon_test and line_test link gmpfrxx symbols compiled in gmpfrxx.C
-    # (excluded on Windows). Their gmpfrxx.C dependencies (MpFrC::rnd,
-    # mpq_set_mpfr) and operator<< for mpfr_class have irresolvable MinGW ABI.
+    # All geometry tests below depend on gmpfrxx.C (excluded on Windows) and/or
+    # on the gmpxx C++ ABI (MinGW mangling), which is incompatible with both
+    # MSVC and clang-cl. Specific issues:
+    #   - MpFrC::rnd and mpq_set_mpfr: defined in gmpfrxx.C (not compiled on Win)
+    #   - operator<<(ostream&, mpq_srcptr): declared __declspec(dllimport) in
+    #     gmpxx.h with MinGW mangling, unresolvable by link.exe / lld-link
     polygon_test
     line_test
+    point_test
+    segment_test
+    quadtree_test
 )
 if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
