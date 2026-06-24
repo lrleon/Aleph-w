@@ -68,9 +68,17 @@ namespace Aleph
 {
   namespace dp_optimization_detail
   {
+    // MSVC cl has no __int128_t; for 64-bit inputs we fall back to long long
+    // (same width — overflow detection is less precise but code is correct).
+# if defined(_MSC_VER) && !defined(__clang__)
+    using _promoted_int_t = long long;
+# else
+    using _promoted_int_t = __int128_t;
+# endif
+
     template <typename T>
     using promoted_t = std::conditional_t<std::is_floating_point_v<T>, T,
-                       std::conditional_t<(sizeof(T) < 8), long long, __int128_t>>;
+                       std::conditional_t<(sizeof(T) < 8), long long, _promoted_int_t>>;
 
     template <typename T>
     [[nodiscard]] constexpr T default_inf() noexcept

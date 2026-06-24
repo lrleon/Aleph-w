@@ -520,18 +520,49 @@ else()
     set(_ALEPH_LIBM m)
 endif()
 
-set(ALEPH_SYSTEM_LIBS
-    gmpxx
-    gmp
-    ${_ALEPH_PTHREAD}
-    mpfr
-    gsl
-    gslcblas
-    ${_ALEPH_LIBM}
-    ${_ALEPH_X11_LIBS}
-    Threads::Threads
-    CACHE INTERNAL "System libraries required by Aleph"
-)
+if(WIN32)
+    # MSYS2 mingw64 ships GNU import libraries (libXXX.dll.a), not the
+    # MSVC-style name (XXX.lib) that CMake's XXX → XXX.lib translation
+    # produces.  Both link.exe and lld-link can consume .dll.a when referenced
+    # by full path, so resolve each library to its actual file now.
+    set(_aleph_win_math_libs "")
+    set(_aleph_win_found "")
+    foreach(_aleph_prefix IN LISTS CMAKE_PREFIX_PATH)
+        foreach(_lname gmpxx gmp mpfr gsl gslcblas)
+            if(NOT "${_lname}" IN_LIST _aleph_win_found)
+                if(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                    list(APPEND _aleph_win_found "${_lname}")
+                elseif(EXISTS "${_aleph_prefix}/lib/${_lname}.lib")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/${_lname}.lib")
+                    list(APPEND _aleph_win_found "${_lname}")
+                elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
+                    list(APPEND _aleph_win_found "${_lname}")
+                endif()
+            endif()
+        endforeach()
+    endforeach()
+    set(ALEPH_SYSTEM_LIBS
+        ${_aleph_win_math_libs}
+        ${_ALEPH_X11_LIBS}
+        Threads::Threads
+        CACHE INTERNAL "System libraries required by Aleph"
+    )
+else()
+    set(ALEPH_SYSTEM_LIBS
+        gmpxx
+        gmp
+        ${_ALEPH_PTHREAD}
+        mpfr
+        gsl
+        gslcblas
+        ${_ALEPH_LIBM}
+        ${_ALEPH_X11_LIBS}
+        Threads::Threads
+        CACHE INTERNAL "System libraries required by Aleph"
+    )
+endif()
 
 # Link system libraries
 target_link_libraries(Aleph PUBLIC ${ALEPH_SYSTEM_LIBS})
