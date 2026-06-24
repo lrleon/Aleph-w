@@ -44,6 +44,9 @@
 
 # include <cstdint>
 # include <type_traits>
+# ifdef _WIN32
+#   include <intrin.h>
+# endif
 
 # include <ah-errors.H>
 # include <tpl_array.H>
@@ -65,8 +68,16 @@ namespace Aleph
   {
     ah_invalid_argument_if(m == 0) << "mod_mul: modulus must be > 0";
 
-# if defined(__SIZEOF_INT128__)
+# if defined(__SIZEOF_INT128__) && !defined(_WIN32)
     return static_cast<uint64_t>((static_cast<__uint128_t>(a) * b) % m);
+# elif defined(_WIN32)
+    // clang-cl defines __SIZEOF_INT128__ but the MSVC CRT lacks __umodti3
+    // (the 128-bit modulo runtime). Use _umul128 + _udiv128 instead.
+    unsigned long long hi;
+    unsigned long long lo = _umul128(a, b, &hi);
+    unsigned long long rem;
+    _udiv128(hi, lo, m, &rem);
+    return static_cast<uint64_t>(rem);
 # else
     uint64_t res = 0;
     a %= m;
