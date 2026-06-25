@@ -221,6 +221,7 @@ class Bellman_Ford
       {
         auto p = it.get_curr();
         g_.reset_bit(p, Aleph::Spanning_Tree);  // set bit to zero
+        NODE_COOKIE(p) = nullptr;  // clear stale pointer before allocating
         auto ptr = new Sni;
         ptr->accum = Inf;
         NODE_BITS(p).set_bit(Spanning_Tree, false);
@@ -253,6 +254,7 @@ class Bellman_Ford
         arcs_.touch(i) = nullptr;
         auto p = it.get_curr();
         g_.reset_bit(p, Aleph::Spanning_Tree);  // set bit to zero
+        NODE_COOKIE(p) = nullptr;  // clear stale pointer before allocating
         auto ptr = new Ni;
         ptr->accum = Inf;
         ptr->idx = static_cast<int>(i);
@@ -435,13 +437,13 @@ private:
             continue;
 
           auto tgt = it.get_tgt_node_ne();
-          auto w = dist(arc);
+          auto w = dist_(arc);
           auto sum = checked_add(accum_src, w);
           auto &accum_tgt = accum(tgt);
           if (sum < accum_tgt)  // Relax Arc
             {
               const auto &index = idx(tgt);
-              arcs(index) = arc;
+              arcs_(index) = arc;
               accum_tgt = sum;
             }
         }
@@ -477,13 +479,13 @@ private:
           continue;
 
         auto tgt = g_.get_tgt_node(arc);
-        auto w = dist(arc);
+        auto w = dist_(arc);
         auto sum = checked_add(accum_src, w);
         auto &accum_tgt = accum(tgt);
         if (sum < accum_tgt)  // Relax Arc
           {
             const auto &index = idx(tgt);
-            arcs(index) = arc;
+            arcs_(index) = arc;
             accum_tgt = sum;
             put_in_queue(q, tgt);
           }
@@ -527,14 +529,14 @@ private:
           continue;
 
         auto tgt = g_.get_tgt_node(arc);
-        auto d = dist(arc);
+        auto d = dist_(arc);
         auto &accum_tgt = accum(tgt);
         auto sum = checked_add(accum_src, d);
         if (sum < accum_tgt)
           {
             negative_cycle = true;
             const auto &index = idx(tgt);
-            arcs(index) = arc;
+            arcs_(index) = arc;
             accum_tgt = sum;
           }
       }
@@ -553,7 +555,7 @@ private:
           continue;
 
         auto tgt = g_.get_tgt_node(arc);
-        auto d = dist(arc);
+        auto d = dist_(arc);
         auto &accum_tgt = accum(tgt);
         auto sum = checked_add(accum_src, d);
         if (sum < accum_tgt)
@@ -1143,7 +1145,7 @@ public:
           if (auto arc = it.get_curr();
               g_.get_tgt_node(arc) == curr && IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
             {
-              total = checked_add(total, dist(arc));
+              total = checked_add(total, dist_(arc));
               break;
             }
         curr = parent;
