@@ -40,6 +40,12 @@
 #include <sstream>
 #include <cstdio>
 #include <filesystem>
+#include <string>
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
 #include <parse_utils.H>
 
 using namespace std;
@@ -54,15 +60,31 @@ class ParseUtilsTest : public Test
 {
 protected:
   string temp_filename;
-  
+
+  static long long process_id() noexcept
+  {
+#if defined(_WIN32)
+    return static_cast<long long>(_getpid());
+#else
+    return static_cast<long long>(getpid());
+#endif
+  }
+
   void SetUp() override
   {
-    // Create a unique temp file name
-    temp_filename = (std::filesystem::temp_directory_path() /
-                     "parse_utils_test.txt").string();
+    // Create a unique temp file name for this test and process.
+    const auto *test_info = UnitTest::GetInstance()->current_test_info();
+    string base = string("parse_utils_test_") + test_info->test_suite_name() + "_" +
+                  test_info->name() + "_" + to_string(process_id()) + ".txt";
+
+    for (auto &ch : base)
+      if (ch == '/' or ch == '\\' or ch == ' ')
+        ch = '_';
+
+    temp_filename = (std::filesystem::temp_directory_path() / base).string();
     reset_parse_state();
   }
-  
+
   void TearDown() override
   {
     // Remove temp file if it exists

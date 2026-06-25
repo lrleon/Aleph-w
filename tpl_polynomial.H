@@ -2070,8 +2070,8 @@ public:
     if (is_constant())
       return result;
 
-    Gen_Polynomial f = primitive_part();
-    Gen_Polynomial fp = f.derivative();
+    const Gen_Polynomial f = primitive_part();
+    const Gen_Polynomial fp = f.derivative();
 
     Gen_Polynomial g = integer_gcd(f, fp);
     Gen_Polynomial h = _integer_exact_quot(f, g);
@@ -2363,8 +2363,8 @@ public:
         const auto &term = it.get_curr();
         if (term.first == f.degree())
           continue;
-        const double ratio = std::abs(static_cast<double>(term.second)) / abs_lc;
-        if (ratio > max_ratio)
+        if (const double ratio = std::abs(static_cast<double>(term.second)) / abs_lc;
+            ratio > max_ratio)
           max_ratio = ratio;
       }
 
@@ -2674,30 +2674,27 @@ public:
                 const uint64_t t = (p_u64 - mod_mul(e, inv, p_u64)) % p_u64;
 
                 const uint64_t increment = checked_mul_u64(modulus, t, "root increment");
-# if defined(_MSC_VER) || defined(_WIN32)
+#if defined(_MSC_VER) or defined(_WIN32)
                 // MSVC has no __int128. clang-cl on Windows has __int128 but
                 // lacks the __umodti3 runtime helper for 128-bit modulo.
                 // Compute (root+increment) % next_mod without 128-bit arithmetic.
                 {
                   const uint64_t a = root % next_mod;
                   const uint64_t b = increment % next_mod;
-                  root = (a >= next_mod - b)
-                           ? (a - (next_mod - b))
-                           : (a + b);
+                  root = (a >= next_mod - b) ? (a - (next_mod - b)) : (a + b);
                 }
-# else
+#else
                 root = static_cast<uint64_t>((static_cast<unsigned __int128>(root) + increment)
                                              % next_mod);
-# endif
+#endif
                 modulus = next_mod;
               }
 
             if (simple)
               {
                 Gen_Polynomial lifted;
-                lifted.set_coeff(0,
-                                 polynomial_detail::centered_from_mod_u64<Coefficient>(
-                                   (target_u64 - (root % target_u64)) % target_u64, target_u64));
+                lifted.set_coeff(0, polynomial_detail::centered_from_mod_u64<Coefficient>(
+                                      (target_u64 - (root % target_u64)) % target_u64, target_u64));
                 lifted.set_coeff(1, Coefficient(1));
                 result.append(lifted);
                 lifted_linear_factor = true;
@@ -2834,8 +2831,8 @@ public:
                   continue;
 
                 Gen_Polynomial quotient;
-                if (not try_divide_by_linear_factor(
-                      remaining, cand.get_coeff(1), cand.get_coeff(0), quotient))
+                if (not try_divide_by_linear_factor(remaining, cand.get_coeff(1), cand.get_coeff(0),
+                                                    quotient))
                   continue;
 
                 result.append(SfdTerm{cand, mult});

@@ -47,6 +47,11 @@
 #include <limits>
 #include <cmath>
 #include <filesystem>
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
 
 #include <tpl_graph.H>
 #include <tpl_matgraph.H>
@@ -162,6 +167,28 @@ protected:
 
   Graph g;
   vector<Node*> nodes;
+
+  static long long process_id() noexcept
+  {
+#if defined(_WIN32)
+    return static_cast<long long>(_getpid());
+#else
+    return static_cast<long long>(getpid());
+#endif
+  }
+
+  string latex_temp_filename() const
+  {
+    const auto *test_info = UnitTest::GetInstance()->current_test_info();
+    string base = string("floyd_test_latex_") + test_info->test_suite_name() + "_" +
+                  test_info->name() + "_" + to_string(process_id()) + ".tex";
+
+    for (auto &ch : base)
+      if (ch == '/' or ch == '\\' or ch == ' ')
+        ch = '_';
+
+    return (std::filesystem::temp_directory_path() / base).string();
+  }
 
   void SetUp() override
   {
@@ -398,7 +425,7 @@ TEST_F(FloydIntGraphTest, LatexOutputContainsBeginFigure)
   Ady_Mat<Graph, long> path(g);
   
   // Create temp file
-  string filename = (std::filesystem::temp_directory_path() / "floyd_test_latex.tex").string();
+  string filename = latex_temp_filename();
   ofstream output(filename);
   
   floyd_all_shortest_paths_latex<Graph, 
@@ -422,7 +449,7 @@ TEST_F(FloydIntGraphTest, LatexOutputContainsMatrices)
   Ady_Mat<Graph, Dist> dist(g);
   Ady_Mat<Graph, long> path(g);
   
-  string filename = (std::filesystem::temp_directory_path() / "floyd_test_latex2.tex").string();
+  string filename = latex_temp_filename();
   ofstream output(filename);
   
   floyd_all_shortest_paths_latex<Graph,
@@ -448,7 +475,7 @@ TEST_F(FloydIntGraphTest, LatexOutputHasCorrectNumberOfIterations)
   Ady_Mat<Graph, Dist> dist(g);
   Ady_Mat<Graph, long> path(g);
   
-  string filename = (std::filesystem::temp_directory_path() / "floyd_test_latex3.tex").string();
+  string filename = latex_temp_filename();
   ofstream output(filename);
   
   floyd_all_shortest_paths_latex<Graph,

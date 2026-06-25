@@ -45,6 +45,7 @@
 #include <string>
 #include <type_traits>
 #include <limits>
+#include <cstdint>
 #include <cmath>
 #include <utility>
 #include <iomanip>
@@ -69,6 +70,97 @@ namespace Aleph {
 
 /** @brief Internal helpers for multivariate polynomial operations. */
 namespace multi_poly_detail {
+
+# if defined(_MSC_VER) && !defined(__clang__)
+/** @brief Exact unsigned 128-bit product represented as two 64-bit halves. */
+struct UInt128_Product
+{
+  uint64_t hi = 0;
+  uint64_t lo = 0;
+};
+
+/** @brief Multiply two 64-bit unsigned values without using compiler 128-bit integers. */
+[[nodiscard]] inline UInt128_Product unsigned_product_64(uint64_t lhs, uint64_t rhs) noexcept
+{
+  constexpr uint64_t mask = 0xffffffffULL;
+
+  const uint64_t lhs_lo = lhs & mask;
+  const uint64_t lhs_hi = lhs >> 32;
+  const uint64_t rhs_lo = rhs & mask;
+  const uint64_t rhs_hi = rhs >> 32;
+
+  const uint64_t p0 = lhs_lo * rhs_lo;
+  const uint64_t p1 = lhs_lo * rhs_hi;
+  const uint64_t p2 = lhs_hi * rhs_lo;
+  const uint64_t p3 = lhs_hi * rhs_hi;
+
+  const uint64_t middle = (p0 >> 32) + (p1 & mask) + (p2 & mask);
+  return UInt128_Product{p3 + (p1 >> 32) + (p2 >> 32) + (middle >> 32),
+                         (p0 & mask) | (middle << 32)};
+}
+
+/** @brief Compare two unsigned 128-bit products represented as high/low halves. */
+[[nodiscard]] inline int compare_unsigned_products(UInt128_Product lhs,
+                                                   UInt128_Product rhs) noexcept
+{
+  if (lhs.hi < rhs.hi)
+    return -1;
+  if (rhs.hi < lhs.hi)
+    return 1;
+  if (lhs.lo < rhs.lo)
+    return -1;
+  if (rhs.lo < lhs.lo)
+    return 1;
+  return 0;
+}
+
+/** @brief Return the absolute value of an integral value as a 64-bit unsigned integer. */
+template <typename T>
+[[nodiscard]] uint64_t unsigned_magnitude(T value) noexcept
+{
+  using U = std::make_unsigned_t<T>;
+  U magnitude = static_cast<U>(value);
+  if constexpr (std::is_signed_v<T>)
+    if (value < 0)
+      magnitude = U(0) - magnitude;
+  return static_cast<uint64_t>(magnitude);
+}
+
+/** @brief Test whether the exact product of two integral values is negative. */
+template <typename T>
+[[nodiscard]] bool product_is_negative(T lhs, T rhs, UInt128_Product magnitude) noexcept
+{
+  if (magnitude.hi == 0 and magnitude.lo == 0)
+    return false;
+  if constexpr (std::is_signed_v<T>)
+    return (lhs < 0) != (rhs < 0);
+  else
+    return false;
+}
+
+/** @brief Compare two exact products of integral values without floating-point rounding. */
+template <typename T>
+[[nodiscard]] int compare_integral_products(T lhs_a, T lhs_b, T rhs_a, T rhs_b) noexcept
+{
+  static_assert(std::is_integral_v<T>, "Integral product comparison requires integral operands");
+  static_assert(sizeof(T) <= sizeof(uint64_t),
+                "MSVC product comparison supports built-in integral types up to 64 bits");
+
+  const UInt128_Product lhs_magnitude =
+    unsigned_product_64(unsigned_magnitude(lhs_a), unsigned_magnitude(lhs_b));
+  const UInt128_Product rhs_magnitude =
+    unsigned_product_64(unsigned_magnitude(rhs_a), unsigned_magnitude(rhs_b));
+
+  const bool lhs_negative = product_is_negative(lhs_a, lhs_b, lhs_magnitude);
+  const bool rhs_negative = product_is_negative(rhs_a, rhs_b, rhs_magnitude);
+
+  if (lhs_negative != rhs_negative)
+    return lhs_negative ? -1 : 1;
+
+  const int magnitude_cmp = compare_unsigned_products(lhs_magnitude, rhs_magnitude);
+  return lhs_negative ? -magnitude_cmp : magnitude_cmp;
+}
+# endif
 
 /** @brief Total degree of a multi-index (sum of exponents). */
 inline size_t total_degree(const Array<size_t> &idx) noexcept
@@ -3745,17 +3837,16 @@ public:
           const Coefficient rhs_coeff = rhs.get_coeff(exp - 1);
 
 # if defined(_MSC_VER) && !defined(__clang__)
-          const long double lhs_norm = static_cast<long double>(lhs_coeff)
-                                       * static_cast<long double>(rhs_lc);
-          const long double rhs_norm = static_cast<long double>(rhs_coeff)
-                                       * static_cast<long double>(lhs_lc);
+          const int norm_cmp = multi_poly_detail::compare_integral_products(lhs_coeff, rhs_lc,
+                                                                            rhs_coeff, lhs_lc);
 # else
           const __int128 lhs_norm = static_cast<__int128>(lhs_coeff) * rhs_lc;
           const __int128 rhs_norm = static_cast<__int128>(rhs_coeff) * lhs_lc;
+          const int norm_cmp = lhs_norm < rhs_norm ? -1 : (rhs_norm < lhs_norm ? 1 : 0);
 # endif
-          if (lhs_norm < rhs_norm)
+          if (norm_cmp < 0)
             return true;
-          if (rhs_norm < lhs_norm)
+          if (norm_cmp > 0)
             return false;
         }
 
