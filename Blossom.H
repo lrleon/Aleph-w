@@ -44,11 +44,6 @@
  *
  *  | Algorithm | Time | Space |
  *  |-----------|------|-------|
- *  | Edmonds-Blossom | O(V^2 * E) | O(V) |
- *  ## Complexity
- *
- *  | Algorithm | Time | Space |
- *  |-----------|------|-------|
  *  | Edmonds-Blossom | O(V^3) | O(V + E) |
  *
  *  @par Example
@@ -118,19 +113,19 @@ namespace Aleph
       static constexpr long No_Vertex = -1;
 
       const GT & g;
-      SA sa;
-      Cookie_Saver<GT> cookie_saver;
+      SA sa_;
+      Cookie_Saver<GT> cookie_saver_;
 
-      Array<Node *> nodes;
-      Array<Array<size_t>> adjacency;
-      DynMapTree<Pair_Key, Arc *> pair_to_arc;
+      Array<Node *> nodes_;
+      Array<Array<size_t>> adjacency_;
+      DynMapTree<Pair_Key, Arc *> pair_to_arc_;
 
-      Array<long> match;
-      Array<long> parent;
-      Array<long> base;
-      Array<char> in_queue;
+      Array<long> match_;
+      Array<long> parent_;
+      Array<long> base_;
+      Array<char> in_queue_;
       Array<char> in_blossom;
-      DynListQueue<size_t> bfs_queue;
+      DynListQueue<size_t> bfs_queue_;
 
       static Pair_Key normalized_pair(size_t u, size_t v) noexcept
       {
@@ -142,14 +137,14 @@ namespace Aleph
       /** @brief Index nodes from 0 to n-1 and set up the cookie-based mapping. */
       void build_node_index()
       {
-        nodes.empty();
+        nodes_.empty();
 
-        nodes.reserve(g.get_num_nodes());
+        nodes_.reserve(g.get_num_nodes());
         size_t idx = 0;
         for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
           {
             Node *p = it.get_curr();
-            nodes.append(p);
+            nodes_.append(p);
             NODE_COOKIE(p) = reinterpret_cast<void *>(idx + 1);
             ++idx;
           }
@@ -158,15 +153,15 @@ namespace Aleph
       /** @brief Build a simplified adjacency list for faster traversal. */
       void build_adjacency()
       {
-        const size_t n = nodes.size();
-        adjacency.empty();
-        adjacency.reserve(n);
+        const size_t n = nodes_.size();
+        adjacency_.empty();
+        adjacency_.reserve(n);
         for (size_t i = 0; i < n; ++i)
-          adjacency.append(Array<size_t>());
+          adjacency_.append(Array<size_t>());
 
-        pair_to_arc.empty();
+        pair_to_arc_.empty();
 
-        for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+        for (Arc_Iterator<GT, SA> it(g, sa_); it.has_curr(); it.next_ne())
           {
             Arc *a = it.get_curr_ne();
             Node *src = g.get_src_node(a);
@@ -182,19 +177,19 @@ namespace Aleph
             if (u == v) // loops never belong to a matching
               continue;
 
-            if (const Pair_Key key = normalized_pair(u, v); pair_to_arc.search(key) == nullptr)
-              pair_to_arc.insert(key, a);
+            if (const Pair_Key key = normalized_pair(u, v); pair_to_arc_.search(key) == nullptr)
+              pair_to_arc_.insert(key, a);
           }
 
-        for (typename DynMapTree<Pair_Key, Arc *>::Iterator it(pair_to_arc);
+        for (typename DynMapTree<Pair_Key, Arc *>::Iterator it(pair_to_arc_);
              it.has_curr();
              it.next_ne())
           {
             const auto & pair_item = it.get_curr();
             const size_t u = pair_item.first.first;
             const size_t v = pair_item.first.second;
-            adjacency[u].append(v);
-            adjacency[v].append(u);
+            adjacency_[u].append(v);
+            adjacency_[v].append(u);
           }
       }
 
@@ -205,27 +200,27 @@ namespace Aleph
       [[nodiscard]] size_t lca(size_t a, size_t b) const
       {
         Array<char> visited;
-        visited.reserve(nodes.size());
-        for (size_t i = 0; i < nodes.size(); ++i)
+        visited.reserve(nodes_.size());
+        for (size_t i = 0; i < nodes_.size(); ++i)
           visited.append(0);
 
         while (true)
           {
-            a = static_cast<size_t>(base[a]);
+            a = static_cast<size_t>(base_[a]);
             visited[a] = 1;
-            if (match[a] == No_Vertex)
+            if (match_[a] == No_Vertex)
               break;
-            a = static_cast<size_t>(parent[static_cast<size_t>(match[a])]);
+            a = static_cast<size_t>(parent_[static_cast<size_t>(match_[a])]);
           }
 
         while (true)
           {
-            b = static_cast<size_t>(base[b]);
+            b = static_cast<size_t>(base_[b]);
             if (visited[b])
               return b;
-            if (match[b] == No_Vertex)
+            if (match_[b] == No_Vertex)
               break;
-            b = static_cast<size_t>(parent[static_cast<size_t>(match[b])]);
+            b = static_cast<size_t>(parent_[static_cast<size_t>(match_[b])]);
           }
 
         assert(false and "Blossom::lca fallback reached");
@@ -235,20 +230,20 @@ namespace Aleph
       /** @brief Mark the path from v to the blossom base and set up parents. */
       void mark_path(size_t v, const size_t blossom_base, size_t child)
       {
-        while (static_cast<size_t>(base[v]) != blossom_base)
+        while (static_cast<size_t>(base_[v]) != blossom_base)
           {
-            const auto matched_v = static_cast<size_t>(match[v]);
-            in_blossom[static_cast<size_t>(base[v])] = 1;
-            in_blossom[static_cast<size_t>(base[matched_v])] = 1;
-            parent[v] = static_cast<long>(child);
+            const auto matched_v = static_cast<size_t>(match_[v]);
+            in_blossom[static_cast<size_t>(base_[v])] = 1;
+            in_blossom[static_cast<size_t>(base_[matched_v])] = 1;
+            parent_[v] = static_cast<long>(child);
             child = matched_v;
-            v = static_cast<size_t>(parent[matched_v]);
+            v = static_cast<size_t>(parent_[matched_v]);
           }
       }
 
       void clear_queue()
       {
-        bfs_queue.clear();
+        bfs_queue_.clear();
       }
 
       /** @brief Search for an augmenting path starting from root.
@@ -259,31 +254,31 @@ namespace Aleph
        */
       long find_augmenting_path(const size_t root)
       {
-        const size_t n = nodes.size();
+        const size_t n = nodes_.size();
 
         for (size_t i = 0; i < n; ++i)
           {
-            parent[i] = No_Vertex;
-            in_queue[i] = 0;
+            parent_[i] = No_Vertex;
+            in_queue_[i] = 0;
           }
         for (size_t i = 0; i < n; ++i)
-          base[i] = static_cast<long>(i);
+          base_[i] = static_cast<long>(i);
 
         clear_queue();
-        bfs_queue.put(root);
-        in_queue[root] = 1;
+        bfs_queue_.put(root);
+        in_queue_[root] = 1;
 
-        while (not bfs_queue.is_empty())
+        while (not bfs_queue_.is_empty())
           {
-            const size_t v = bfs_queue.get();
-            for (const size_t u: adjacency[v])
+            const size_t v = bfs_queue_.get();
+            for (const size_t u: adjacency_[v])
               {
-                if (base[v] == base[u] or match[v] == static_cast<long>(u))
+                if (base_[v] == base_[u] or match_[v] == static_cast<long>(u))
                   continue;
 
                 const bool creates_blossom = u == root or
-                                             (match[u] != No_Vertex and
-                                              parent[static_cast<size_t>(match[u])] != No_Vertex);
+                                             (match_[u] != No_Vertex and
+                                              parent_[static_cast<size_t>(match_[u])] != No_Vertex);
 
                 if (creates_blossom)
                   {
@@ -294,26 +289,26 @@ namespace Aleph
                     mark_path(u, cur_base, v);
 
                     for (size_t i = 0; i < n; ++i)
-                      if (in_blossom[static_cast<size_t>(base[i])])
+                      if (in_blossom[static_cast<size_t>(base_[i])])
                         {
-                          base[i] = static_cast<long>(cur_base);
-                          if (not in_queue[i])
+                          base_[i] = static_cast<long>(cur_base);
+                          if (not in_queue_[i])
                             {
-                              bfs_queue.put(i);
-                              in_queue[i] = 1;
+                              bfs_queue_.put(i);
+                              in_queue_[i] = 1;
                             }
                         }
                   }
-                else if (parent[u] == No_Vertex)
+                else if (parent_[u] == No_Vertex)
                   {
-                    parent[u] = static_cast<long>(v);
-                    if (match[u] == No_Vertex)
+                    parent_[u] = static_cast<long>(v);
+                    if (match_[u] == No_Vertex)
                       return static_cast<long>(u);
 
-                    if (const auto m = static_cast<size_t>(match[u]); not in_queue[m])
+                    if (const auto m = static_cast<size_t>(match_[u]); not in_queue_[m])
                       {
-                        bfs_queue.put(m);
-                        in_queue[m] = 1;
+                        bfs_queue_.put(m);
+                        in_queue_[m] = 1;
                       }
                   }
               }
@@ -328,13 +323,13 @@ namespace Aleph
         long v = endpoint;
         while (v != No_Vertex)
           {
-            const long pv = parent[static_cast<size_t>(v)];
+            const long pv = parent_[static_cast<size_t>(v)];
             if (pv == No_Vertex)
               break;
 
-            const long next = match[static_cast<size_t>(pv)];
-            match[static_cast<size_t>(v)] = pv;
-            match[static_cast<size_t>(pv)] = v;
+            const long next = match_[static_cast<size_t>(pv)];
+            match_[static_cast<size_t>(v)] = pv;
+            match_[static_cast<size_t>(pv)] = v;
             v = next;
           }
       }
@@ -342,28 +337,28 @@ namespace Aleph
     public:
       /** @brief Initialize the matcher with a graph and an optional filter. */
       explicit Edmonds_Blossom_Matcher(const GT & graph, SA __sa = SA())
-        : g(graph), sa(std::move(__sa)), cookie_saver(g, true, false)
+        : g(graph), sa_(std::move(__sa)), cookie_saver_(g, true, false)
       {
         build_node_index();
         build_adjacency();
 
-        const size_t n = nodes.size();
-        match.empty();
-        parent.empty();
-        base.empty();
-        in_queue.empty();
+        const size_t n = nodes_.size();
+        match_.empty();
+        parent_.empty();
+        base_.empty();
+        in_queue_.empty();
         in_blossom.empty();
-        match.reserve(n);
-        parent.reserve(n);
-        base.reserve(n);
-        in_queue.reserve(n);
+        match_.reserve(n);
+        parent_.reserve(n);
+        base_.reserve(n);
+        in_queue_.reserve(n);
         in_blossom.reserve(n);
         for (size_t i = 0; i < n; ++i)
           {
-            match.append(No_Vertex);
-            parent.append(No_Vertex);
-            base.append(No_Vertex);
-            in_queue.append(0);
+            match_.append(No_Vertex);
+            parent_.append(No_Vertex);
+            base_.append(No_Vertex);
+            in_queue_.append(0);
             in_blossom.append(0);
           }
       }
@@ -376,12 +371,12 @@ namespace Aleph
        */
       size_t solve()
       {
-        for (long & i : match)
+        for (long & i : match_)
           i = No_Vertex;
 
-        for (size_t i = 0; i < nodes.size(); ++i)
+        for (size_t i = 0; i < nodes_.size(); ++i)
           {
-            if (match[i] != No_Vertex)
+            if (match_[i] != No_Vertex)
               continue;
 
             if (const long endpoint = find_augmenting_path(i); endpoint != No_Vertex)
@@ -389,8 +384,8 @@ namespace Aleph
           }
 
         size_t cardinality = 0;
-        for (size_t i = 0; i < match.size(); ++i)
-          if (match[i] != No_Vertex and i < static_cast<size_t>(match[i]))
+        for (size_t i = 0; i < match_.size(); ++i)
+          if (match_[i] != No_Vertex and i < static_cast<size_t>(match_[i]))
             ++cardinality;
 
         return cardinality;
@@ -399,14 +394,14 @@ namespace Aleph
       /** @brief Returns the match vector (mate of each node index). */
       [[nodiscard]] const Array<long> &get_match_vector() const noexcept
       {
-        return match;
+        return match_;
       }
 
       /** @brief Returns the arc connecting node indices u and v. */
       [[nodiscard]] Arc * get_pair_arc(size_t u, size_t v) const noexcept
       {
         const Pair_Key key = normalized_pair(u, v);
-        const auto * item = pair_to_arc.search(key);
+        const auto * item = pair_to_arc_.search(key);
         if (item == nullptr)
           return nullptr;
         return item->second;
@@ -490,11 +485,11 @@ namespace Aleph
   template <class GT, class SA = Dft_Show_Arc<GT>>
   class Compute_Maximum_Cardinality_General_Matching
   {
-    SA sa;
+    SA sa_;
 
   public:
     explicit Compute_Maximum_Cardinality_General_Matching(SA __sa = SA())
-      : sa(std::move(__sa))
+      : sa_(std::move(__sa))
     {
       // empty
     }
@@ -507,7 +502,7 @@ namespace Aleph
      */
     size_t operator()(const GT & g, DynDlist<typename GT::Arc *> & matching)
     {
-      return compute_maximum_cardinality_general_matching<GT, SA>(g, matching, sa);
+      return compute_maximum_cardinality_general_matching<GT, SA>(g, matching, sa_);
     }
   };
 } // namespace Aleph

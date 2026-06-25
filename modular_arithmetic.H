@@ -205,7 +205,7 @@ namespace Aleph
     return t0;
   }
 
-# if defined(__SIZEOF_INT128__)
+# if defined(__SIZEOF_INT128__) && !defined(_WIN32)
   /** @brief Precomputed Montgomery reduction state for a fixed odd modulus. */
   struct MontgomeryCtx;
 

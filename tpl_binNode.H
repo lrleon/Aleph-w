@@ -144,7 +144,7 @@ namespace Aleph
 
     static Empty_Node &get_data()
     {
-      ah_domain_error() << "Empty_Node has not data";
+      ah_domain_error() << "Empty_Node has no data";
 # if defined(__GNUC__) || defined(__clang__)
       __builtin_unreachable();
 # elif defined(_MSC_VER)

@@ -139,7 +139,7 @@ extern void _Warning(const char* exp, const char* fileName, unsigned lineNumber,
 #else /* DEBUG not defined */
 
 /** @brief Conditional assertion macro (no-op in release). */
-#define COND_ASSERT(...)
+#define COND_assert(...)
 
 /** @brief Debug information macro (no-op in release). */
 #define DEBUGINFO(p)

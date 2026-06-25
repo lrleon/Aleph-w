@@ -62,7 +62,7 @@
 #    include <intrin.h>
 inline int __builtin_ctzll(unsigned long long x) noexcept
 {
-  unsigned long idx;
+  unsigned long idx = 0;
   _BitScanForward64(&idx, x);
   return static_cast<int>(idx);
 }

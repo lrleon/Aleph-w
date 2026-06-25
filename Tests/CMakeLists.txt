@@ -484,6 +484,10 @@ set(ALEPH_POSIX_ONLY_TESTS
     # ntt.H requires __uint128_t which is a GCC/Clang extension; MSVC has no
     # 128-bit integer type so ntt.H emits #error on that compiler.
     ntt_test
+    # Montgomery reduction uses __uint128_t % n in mont_reduce (fallback path
+    # for large primes).  clang-cl defines __SIZEOF_INT128__ but lacks the
+    # __umodti3 runtime support (no compiler-rt on Windows).
+    montgomery_test
     # All geometry tests below depend on gmpfrxx.C (excluded on Windows) and/or
     # on the gmpxx C++ ABI (MinGW mangling), which is incompatible with both
     # MSVC and clang-cl. Specific issues:

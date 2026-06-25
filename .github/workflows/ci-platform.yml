@@ -332,7 +332,13 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Test (CA sub-suite, skip POSIX-only tests)
+        shell: pwsh
         run: |
+          # Add MSYS2 mingw64 bin to PATH so that test executables can find
+          # the GMP/MPFR/GSL DLLs (libgmp-10.dll, libmpfr-6.dll, etc.) at
+          # runtime.  Without this the executables crash on load and
+          # LastTest.log remains empty.
+          $env:PATH = "$env:RUNNER_TEMP\msys64\mingw64\bin;$env:PATH"
           # Per docs/ci_sanitizer_policy.md, the following are skipped on
           # Windows because they bind to libX11, an external `ffmpeg`
           # process, or POSIX-only system calls (sys/wait, sys/select).

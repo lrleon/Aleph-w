@@ -2681,9 +2681,9 @@ public:
                 {
                   const uint64_t a = root % next_mod;
                   const uint64_t b = increment % next_mod;
-                  root = (b <= static_cast<uint64_t>(~a))
-                           ? (a + b) % next_mod
-                           : a - (next_mod - b);
+                  root = (a >= next_mod - b)
+                           ? (a - (next_mod - b))
+                           : (a + b);
                 }
 # else
                 root = static_cast<uint64_t>((static_cast<unsigned __int128>(root) + increment)
