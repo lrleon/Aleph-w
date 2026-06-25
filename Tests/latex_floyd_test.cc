@@ -46,6 +46,7 @@
 #include <fstream>
 #include <limits>
 #include <cmath>
+#include <filesystem>
 
 #include <tpl_graph.H>
 #include <tpl_matgraph.H>
@@ -397,7 +398,7 @@ TEST_F(FloydIntGraphTest, LatexOutputContainsBeginFigure)
   Ady_Mat<Graph, long> path(g);
   
   // Create temp file
-  string filename = "/tmp/floyd_test_latex.tex";
+  string filename = (std::filesystem::temp_directory_path() / "floyd_test_latex.tex").string();
   ofstream output(filename);
   
   floyd_all_shortest_paths_latex<Graph, 
@@ -421,7 +422,7 @@ TEST_F(FloydIntGraphTest, LatexOutputContainsMatrices)
   Ady_Mat<Graph, Dist> dist(g);
   Ady_Mat<Graph, long> path(g);
   
-  string filename = "/tmp/floyd_test_latex2.tex";
+  string filename = (std::filesystem::temp_directory_path() / "floyd_test_latex2.tex").string();
   ofstream output(filename);
   
   floyd_all_shortest_paths_latex<Graph,
@@ -447,7 +448,7 @@ TEST_F(FloydIntGraphTest, LatexOutputHasCorrectNumberOfIterations)
   Ady_Mat<Graph, Dist> dist(g);
   Ady_Mat<Graph, long> path(g);
   
-  string filename = "/tmp/floyd_test_latex3.tex";
+  string filename = (std::filesystem::temp_directory_path() / "floyd_test_latex3.tex").string();
   ofstream output(filename);
   
   floyd_all_shortest_paths_latex<Graph,

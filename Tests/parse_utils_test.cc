@@ -39,6 +39,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdio>
+#include <filesystem>
 #include <parse_utils.H>
 
 using namespace std;
@@ -57,7 +58,8 @@ protected:
   void SetUp() override
   {
     // Create a unique temp file name
-    temp_filename = "/tmp/parse_utils_test_" + to_string(getpid()) + ".txt";
+    temp_filename = (std::filesystem::temp_directory_path() /
+                     "parse_utils_test.txt").string();
     reset_parse_state();
   }
   
