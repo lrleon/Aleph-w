@@ -75,7 +75,11 @@
 
 # if (defined(__GNUC__) or defined(__clang__)) \
       and (defined(__x86_64__) or defined(__i386__) \
-           or defined(_M_X64) or defined(_M_IX86))
+           or defined(_M_X64) or defined(_M_IX86)) \
+      and !defined(_WIN32)
+    // On Windows (MSVC/clang-cl), __builtin_cpu_supports() requires
+    // compiler-rt's __cpu_model/__cpu_indicator_init which are not linked
+    // by default. Disable AVX2 dispatch and fall back to the generic path.
 #   include <immintrin.h>
 #   define ALEPH_FFT_HAS_X86_AVX2_DISPATCH 1
 #   define ALEPH_FFT_AVX2_TARGET __attribute__((target("avx2")))

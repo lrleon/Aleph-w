@@ -72,7 +72,7 @@ namespace detail
   uint64_t x = seed, y = seed, d = 1;
   auto f = [&](const uint64_t val) {
     const uint64_t v2 = mod_mul(val, val, n);
-# if defined(__SIZEOF_INT128__)
+# if defined(__SIZEOF_INT128__) && !defined(_WIN32)
     return static_cast<uint64_t>((static_cast<__uint128_t>(v2) + c) % n);
 # else
     // Safe modular addition

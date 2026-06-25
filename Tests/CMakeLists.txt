@@ -497,6 +497,7 @@ set(ALEPH_POSIX_ONLY_TESTS
     quadtree_test
     eepicgeom_test
     euclidian_graph_test
+    robust_predicates_test
     # geom_algorithms_test is a combined executable that links ALL sub-test .cc
     # files (including _mec, _decomp, _edgecases, etc.) into one binary. Those
     # sub-tests call mpfr_class functions (square_root, euclidean_distance, …)
