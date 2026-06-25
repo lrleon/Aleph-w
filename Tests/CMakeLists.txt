@@ -499,15 +499,21 @@ set(ALEPH_POSIX_ONLY_TESTS
     euclidian_graph_test
     robust_predicates_test
     # geom_algorithms_test is a combined executable that links ALL sub-test .cc
-    # files (including _mec, _decomp, _edgecases, etc.) into one binary. Those
-    # sub-tests call mpfr_class functions (square_root, euclidean_distance, …)
-    # that need MpFrC::rnd / mpq_set_mpfr from gmpfrxx.C — excluded on Windows.
-    # The individual sub-test targets are listed separately so CMake can remove
-    # them from the test registry, but the combined binary must also be excluded.
+    # files into one binary. A second GLOB loop also builds each sub-test .cc as
+    # a standalone target. All of them call mpfr_class functions (square_root,
+    # euclidean_distance, hypot, …) via geom_algorithms.H → polygon.H → point.H
+    # → gmpfrxx.h, requiring MpFrC::rnd / mpq_set_mpfr from gmpfrxx.C which is
+    # excluded on Windows.
     geom_algorithms_test
     geom_algorithms_test_mec
     geom_algorithms_test_decomp_rangetree_visibility_shortestpath_arrangement
     geom_algorithms_test_edgecases_sweepline_minkowski_kdtree
+    geom_algorithms_test_simplification
+    geom_algorithms_test_offset
+    geom_algorithms_test_boolean_3d_serializer_aabb_misc
+    geom_algorithms_test_triangulation_hulls_delaunay
+    geom_algorithms_test_cdt
+    geom_algorithms_test_trapezoidal_map
 )
 if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
