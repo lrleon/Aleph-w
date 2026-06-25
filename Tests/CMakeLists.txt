@@ -496,6 +496,13 @@ set(ALEPH_POSIX_ONLY_TESTS
     segment_test
     quadtree_test
     eepicgeom_test
+    euclidian_graph_test
+    # geom_algorithms tests that call mpfr_class functions (square_root, sinus,
+    # arctan, euclidean_distance, etc.) which need MpFrC::rnd / mpq_set_mpfr
+    # from gmpfrxx.C — excluded on Windows.
+    geom_algorithms_test_mec
+    geom_algorithms_test_decomp_rangetree_visibility_shortestpath_arrangement
+    geom_algorithms_test_edgecases_sweepline_minkowski_kdtree
 )
 if(WIN32)
     list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
