@@ -1127,6 +1127,64 @@ public:
     return maps_if<__T, Prop, Operation>(prop, op);
   }
 
+  /** Synonym of maps().
+
+      This method is a synonym for maps() with the classic functional name
+      "map". It exists because early C++ compilers had difficulty
+      distinguishing between the functional map operation and the standard
+      library's map container. Modern compilers no longer have this issue.
+
+      @see maps()
+  */
+  template <typename __T = T, class Operation = Aleph::Dft_Map_Op<T, __T>>
+  Aleph::DynList<__T> map(Operation & op) const
+  {
+    return maps<__T, Operation>(op);
+  }
+
+  /** @brief Overload of map() that accepts rvalues.
+   *
+   *  @tparam __T target type (default T).
+   *  @tparam Operation Transformation callable.
+   *  @param[in] op transformation operation.
+   *  @return DynList<__T> with mapped elements.
+   *  @see maps()
+   */
+  template <typename __T = T, class Operation = Aleph::Dft_Map_Op<__T, __T>>
+  Aleph::DynList<__T> map(Operation && op) const
+  {
+    return maps<__T, Operation>(op);
+  }
+
+  /** Synonym of maps_if().
+
+      This method is a synonym for maps_if() with the classic functional name
+      "map_if". It exists for consistency with map() as a synonym of maps().
+
+      @see maps_if()
+  */
+  template <typename __T = T, class Prop, class Operation>
+  Aleph::DynList<__T> map_if(Prop prop, Operation & op) const
+  {
+    return maps_if<__T, Prop, Operation>(prop, op);
+  }
+
+  /** @brief Overload of map_if() that accepts rvalues.
+   *
+   *  @tparam __T target type (default T).
+   *  @tparam Prop Predicate callable.
+   *  @tparam Operation Transformation callable.
+   *  @param[in] prop predicate.
+   *  @param[in] op transformation operation.
+   *  @return DynList<__T> with conditionally mapped elements.
+   *  @see maps_if()
+   */
+  template <typename __T = T, class Prop, class Operation>
+  Aleph::DynList<__T> map_if(Prop prop, Operation && op) const
+  {
+    return maps_if<__T, Prop, Operation>(prop, op);
+  }
+
   /** Convert container to DynList.
    *
    *  @return DynList<T> containing all elements in traversal order.
