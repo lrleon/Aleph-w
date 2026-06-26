@@ -70,8 +70,8 @@ namespace Aleph
 
 # if defined(__SIZEOF_INT128__) && !defined(_WIN32)
     return static_cast<uint64_t>((static_cast<__uint128_t>(a) * b) % m);
-# elif defined(_MSC_VER) && !defined(__clang__)
-    // MSVC cl: no __int128, but _umul128 + _udiv128 are available
+# elif defined(_MSC_VER) && !defined(__clang__) && (defined(_M_X64) || defined(_M_ARM64))
+    // MSVC cl (64-bit): no __int128, but _umul128 + _udiv128 are available
     unsigned long long hi;
     unsigned long long lo = _umul128(a, b, &hi);
     unsigned long long rem;
@@ -79,7 +79,7 @@ namespace Aleph
     return static_cast<uint64_t>(rem);
 # else
     // clang-cl: has __uint128_t but no __umodti3 runtime and no _udiv128.
-    // Fall through to binary method.
+    // MSVC 32-bit: no _umul128/_udiv128. Fall through to binary method.
     uint64_t res = 0;
     a %= m;
     while (b)
