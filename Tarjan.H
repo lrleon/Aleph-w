@@ -262,7 +262,7 @@ namespace Aleph
      *  @param v The current node being visited.
      *  @param[out] blk_list block list where the SCC will be put
      */
-	    void scc_by_blocks(typename GT::Node *v, DynList<GT> & blk_list)
+	    long scc_by_blocks(typename GT::Node *v, DynList<GT> & blk_list)
 	    {
 	      init_node_and_push_in_stack(v);
 
@@ -270,16 +270,23 @@ namespace Aleph
 	      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
 	        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
 	          {
-	            scc_by_blocks(w, blk_list);
-	            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
+	            // map_nodes() called inside scc_by_blocks corrupts low<GT>(w)
+	            // via NODE_COOKIE when w's SCC is finalized.  Save the result
+	            // before that corruption can propagate to v.
+	            const long w_low = scc_by_blocks(w, blk_list);
+	            low<GT>(v) = std::min(low<GT>(v), w_low);
 	          }
 	        else if (is_node_in_stack(w))
 	          // if on stack ==> v was visited before w
 	          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
+	      // Save low[v] before the SCC-finalization loop overwrites NODE_COOKIE
+	      // (via map_nodes) and NODE_COUNTER (with blk_idx) on every node in v's SCC.
+	      const long result = low<GT>(v);
+
 	      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
 	        { // yes ==> pop block nodes from stack
-	          const auto & blk_idx = blk_list.size();
+	          const size_t blk_idx = blk_list.size(); // capture by value, not reference
 	          GT & blk = blk_list.append(GT());
 
           while (true) // remove block from stack until v is removed
@@ -289,11 +296,12 @@ namespace Aleph
               *q = *p; // copy node content
               NODE_COOKIE(p) = NODE_COOKIE(q) = nullptr;
               GT::map_nodes(p, q);
-              NODE_COUNTER(p) = NODE_COUNTER(q) = blk_idx;
+              NODE_COUNTER(p) = NODE_COUNTER(q) = static_cast<long>(blk_idx);
               if (p == v)
                 break;
             }
         }
+      return result;
     }
 
     /** @brief Recursive DFS to find SCCs and collect nodes into lists.

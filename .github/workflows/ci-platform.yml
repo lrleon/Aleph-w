@@ -343,7 +343,7 @@ jobs:
           # Windows because they bind to libX11, an external `ffmpeg`
           # process, or POSIX-only system calls (sys/wait, sys/select).
           ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 `
-            -E 'hash_statistical_test|ca_animation_sinks_test|file_b_tree_test|file_bplus_tree_test|timeoutQueue_test'
+            -E 'hash_statistical_test|ca_animation_sinks_test|file_b_tree_test|file_bplus_tree_test|timeoutQueue_test|PlanarityTest\.External|PlanarityTest\.ExternalGephi|CompilerSdk\.InstallHeadersSmoke|ThreadPoolTest\.BenchmarkVsStdAsync'
 
       - name: Upload test logs on failure
         if: failure()

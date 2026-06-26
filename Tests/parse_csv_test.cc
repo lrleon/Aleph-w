@@ -51,6 +51,7 @@
 #include <sstream>
 #include <fstream>
 #include <cstdio>
+#include <filesystem>
 #include <parse-csv.H>
 
 using namespace Aleph;
@@ -498,7 +499,8 @@ class CsvFileTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    test_filename = "/tmp/aleph_csv_test_" + std::to_string(rand()) + ".csv";
+    test_filename = (std::filesystem::temp_directory_path() /
+                     ("aleph_csv_test_" + std::to_string(rand()) + ".csv")).string();
   }
   
   void TearDown() override
@@ -1062,7 +1064,8 @@ class CsvReaderTest : public ::testing::Test
 protected:
   void SetUp() override
   {
-    test_filename = "/tmp/aleph_csv_reader_test_" + std::to_string(rand()) + ".csv";
+    test_filename = (std::filesystem::temp_directory_path() /
+                     ("aleph_csv_reader_test_" + std::to_string(rand()) + ".csv")).string();
     
     // Create test file
     std::ofstream file(test_filename);
