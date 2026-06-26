@@ -969,8 +969,8 @@ zip(const Container1 &a, const Container2 &b)
   typedef typename Container2::Item_Type T2;
   DynList<std::pair<T1, T2>> ret_val;
 
-  auto it1 = Container1::Iterator(a);
-  auto it2 = Container2::Iterator(b);
+  auto it1 = a.get_it();
+  auto it2 = b.get_it();
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
 
@@ -1012,8 +1012,8 @@ tzip(const Container1 &a, const Container2 &b)
   using Tuple = std::tuple<T1, T2>;
   DynList<Tuple> ret_val;
 
-  auto it1 = Container1::Iterator(a);
-  auto it2 = Container2::Iterator(b);
+  auto it1 = a.get_it();
+  auto it2 = b.get_it();
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
@@ -1090,8 +1090,8 @@ tzipEq(const Container1 &a, const Container2 &b)
   using Tuple = std::tuple<T1, T2>;
   DynList<Tuple> ret_val;
 
-  auto it1 = Container1::Iterator(a);
-  auto it2 = Container2::Iterator(b);
+  auto it1 = a.get_it();
+  auto it2 = b.get_it();
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
@@ -1503,7 +1503,7 @@ template <class Container>
 auto gen_seq_list_tuples(const Container &c, size_t n)
 {
   using T = typename Container::Item_Type;
-  auto it = Container::Iterator(c);
+  auto it = c.get_it();
   DynList<T> l;
   for (size_t i = 0; i < n; ++i, it.next())
     l.append(it.get_curr());
@@ -1780,8 +1780,8 @@ template <class C1, class C2>
 {
   using I1 = typename C1::Iterator;
   using I2 = typename C2::Iterator;
-  auto i1 = I1(c1);
-  auto i2 = I2(c2);
+  auto i1 = c1.get_it();
+  auto i2 = c2.get_it();
   return Pair_Iterator<I1, I2>(i1, i2);
 }
 
@@ -1794,8 +1794,8 @@ template <class C1, class C2>
 {
   using I1 = typename C1::Iterator;
   using I2 = typename C2::Iterator;
-  auto i1 = I1(c1);
-  auto i2 = I2(c2);
+  auto i1 = c1.get_it();
+  auto i2 = c2.get_it();
   for (size_t i = 0; i < pos; ++i)
     {
       i1.next();
