@@ -155,18 +155,22 @@ struct Dft_Fold_Op
   }
 };
 
-// Forward declaration to avoid pulling tpl_dynSetHash.H (it depends on
-// ahFunctional.H through other Aleph headers).
+/** @brief Hash-based dynamic set (defined in tpl_dynSetHash.H).
+ *  Forward-declared here to break the circular include between
+ *  ahFunctional.H and tpl_dynSetHash.H.
+ */
 template <typename Key, class Cmp>
   requires EqualityComparator<Cmp, Key>
 struct DynSetLhash;
 
 namespace functional_detail {
+/** @brief Trait: false if DynSetLhash<T,Eq> is not yet complete. @cond INTERNAL */
 template <typename T, class Eq, typename = void>
 struct Dyn_Set_Lhash_Available : public std::false_type
 {
 };
 
+/** @brief Trait specialisation: true when DynSetLhash<T,Eq> is complete. @endcond */
 template <typename T, class Eq>
 struct Dyn_Set_Lhash_Available<T, Eq, std::void_t<decltype(sizeof(DynSetLhash<T, Eq>))>>
   : public std::true_type
@@ -223,6 +227,10 @@ template <AlephSequentialIterableContainer Container, class Hash, class Equal>
 }
 }  // namespace functional_detail
 
+/** @brief Doubly-linked list (defined in tpl_dynList.H).
+ *  Forward-declared here so functional algorithms can use DynList<T>
+ *  as a default container without a circular include.
+ */
 template <typename T>
 class DynList;
 
@@ -961,8 +969,8 @@ zip(const Container1 &a, const Container2 &b)
   typedef typename Container2::Item_Type T2;
   DynList<std::pair<T1, T2>> ret_val;
 
-  typename Container1::Iterator it1(a);
-  typename Container2::Iterator it2(b);
+  auto it1 = Container1::Iterator(a);
+  auto it2 = Container2::Iterator(b);
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
 
@@ -1004,8 +1012,8 @@ tzip(const Container1 &a, const Container2 &b)
   using Tuple = std::tuple<T1, T2>;
   DynList<Tuple> ret_val;
 
-  typename Container1::Iterator it1(a);
-  typename Container2::Iterator it2(b);
+  auto it1 = Container1::Iterator(a);
+  auto it2 = Container2::Iterator(b);
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
@@ -1082,8 +1090,8 @@ tzipEq(const Container1 &a, const Container2 &b)
   using Tuple = std::tuple<T1, T2>;
   DynList<Tuple> ret_val;
 
-  typename Container1::Iterator it1(a);
-  typename Container2::Iterator it2(b);
+  auto it1 = Container1::Iterator(a);
+  auto it2 = Container2::Iterator(b);
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
@@ -1495,7 +1503,7 @@ template <class Container>
 auto gen_seq_list_tuples(const Container &c, size_t n)
 {
   using T = typename Container::Item_Type;
-  typename Container::Iterator it(c);
+  auto it = Container::Iterator(c);
   DynList<T> l;
   for (size_t i = 0; i < n; ++i, it.next())
     l.append(it.get_curr());
@@ -1772,8 +1780,8 @@ template <class C1, class C2>
 {
   using I1 = typename C1::Iterator;
   using I2 = typename C2::Iterator;
-  I1 i1(c1);
-  I2 i2(c2);
+  auto i1 = I1(c1);
+  auto i2 = I2(c2);
   return Pair_Iterator<I1, I2>(i1, i2);
 }
 
@@ -1786,8 +1794,8 @@ template <class C1, class C2>
 {
   using I1 = typename C1::Iterator;
   using I2 = typename C2::Iterator;
-  I1 i1(c1);
-  I2 i2(c2);
+  auto i1 = I1(c1);
+  auto i2 = I2(c2);
   for (size_t i = 0; i < pos; ++i)
     {
       i1.next();
@@ -1898,21 +1906,25 @@ inline size_t remove_from_container(C &c, Args... args)
   return n;
 }
 
-// These function are defined in tpl_dynSetHash.H
+// These functions are defined in tpl_dynSetHash.H
 
-// union
+/** @brief Return union of two containers as a DynList (no duplicates). */
 template <typename T, template <typename> class Container>
 [[nodiscard]] inline DynList<T> join(const Container<T> &c1, const Container<T> &c2);
 
+/** @brief Return intersection of two containers as a DynList. */
 template <typename T, template <typename> class Container>
 [[nodiscard]] inline DynList<T> intercept(const Container<T> &c1, const Container<T> &c2);
 
+/** @brief Return elements that appear exactly once across the container. */
 template <typename T, template <typename> class Container>
 [[nodiscard]] inline DynList<T> unique(const Container<T> &c);
 
+/** @brief Return elements that appear more than once in the container. */
 template <typename T, template <typename> class Container>
 [[nodiscard]] inline DynList<T> repeated(const Container<T> &c);
 
+/** @brief Return repeated elements paired with their occurrence count. */
 template <typename T, template <typename> class Container>
 [[nodiscard]] inline DynList<std::pair<T, size_t>> repeated_with_index(const Container<T> &c);
 
