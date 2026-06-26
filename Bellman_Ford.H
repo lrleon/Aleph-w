@@ -333,8 +333,7 @@ class Bellman_Ford
       }
 
     // Tree property: #arcs == #nodes - 1
-    // (or num_painted_arcs < num_painted_nodes for disconnected graphs)
-    return num_painted_arcs < num_painted_nodes or num_painted_arcs == num_painted_nodes - 1;
+    return num_painted_nodes != 0 and num_painted_arcs == num_painted_nodes - 1;
   }
 
 public:
