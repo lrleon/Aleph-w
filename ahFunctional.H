@@ -1059,8 +1059,7 @@ zipEq(const Container1 &a, const Container2 &b)
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
 
-  if (it1.has_curr() or it2.has_curr())
-    ah_length_error() << "Container sizes mismatch";
+  ah_length_error_if(it1.has_curr() or it2.has_curr()) << "Container sizes mismatch";
 
   return ret_val;
 }
@@ -1095,8 +1094,7 @@ tzipEq(const Container1 &a, const Container2 &b)
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
-  if (it1.has_curr() or it2.has_curr())
-    ah_length_error() << "Container sizes mismatch";
+  ah_length_error_if(it1.has_curr() or it2.has_curr()) << "Container sizes mismatch";
 
   return ret_val;
 }
@@ -1790,7 +1788,7 @@ template <class C1, class C2>
 [[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline get_pair_it(
   const C1 &c1,
   const C2 &c2,
-  size_t pos)
+  const size_t pos)
 {
   using I1 = typename C1::Iterator;
   using I2 = typename C2::Iterator;

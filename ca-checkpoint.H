@@ -569,6 +569,34 @@ inspect_checkpoint(const std::filesystem::path &path)
   ah_runtime_error_if(not in)
     << "inspect_checkpoint: short read while parsing header of '"
     << path.string() << "'";
+
+  // --- Hardening against hostile/corrupt headers (CWE-789, CWE-190) ---
+  // Every field above is attacker-controlled. Validate internal
+  // consistency here, once, so no downstream consumer can be driven into
+  // an out-of-bounds or excessively large allocation:
+  //   * cell_count must equal the product of the declared extents
+  //     (this is an invariant of every file save_checkpoint writes), and
+  //     that product must not overflow;
+  //   * cell_count * state_type_size (the raw frame size) must not
+  //     overflow size_t.
+  std::uint64_t expected_cells = 1;
+  for (std::uint32_t d = 0; d < h.rank; ++d)
+    {
+      const std::uint64_t e = h.extents[d];
+      ah_runtime_error_if(e != 0 and expected_cells > UINT64_MAX / e)
+        << "inspect_checkpoint: extent product overflows in '"
+        << path.string() << "'";
+      expected_cells *= e;
+    }
+  ah_runtime_error_if(h.cell_count != expected_cells)
+    << "inspect_checkpoint: cell_count (" << h.cell_count
+    << ") inconsistent with the product of extents (" << expected_cells
+    << ") in '" << path.string() << "'";
+  ah_runtime_error_if(h.state_type_size != 0
+                      and h.cell_count > UINT64_MAX / h.state_type_size)
+    << "inspect_checkpoint: cell_count * state_type_size overflows in '"
+    << path.string() << "'";
+
   return h;
 }
 
@@ -859,6 +887,19 @@ read_raw_payload(const std::filesystem::path &path, const Checkpoint_Header &h)
     << "read_raw_payload: cannot reopen '" << path.string() << "'";
   const std::streamoff header_bytes
     = (h.format_version >= 2) ? header_bytes_v2 : header_bytes_v1;
+
+  // Hardening (CWE-789): the on-disk payload occupies exactly the bytes
+  // after the header. A hostile header that claims a payload larger than
+  // the file would otherwise drive a multi-gigabyte allocation below.
+  const std::uint64_t file_size
+    = static_cast<std::uint64_t>(std::filesystem::file_size(path));
+  const std::uint64_t hdr = static_cast<std::uint64_t>(header_bytes);
+  ah_runtime_error_if(file_size < hdr or h.payload_size > file_size - hdr)
+    << "read_raw_payload: declared payload_size " << h.payload_size
+    << " exceeds the file body ("
+    << (file_size >= hdr ? file_size - hdr : 0)
+    << " bytes) in '" << path.string() << "'";
+
   in.seekg(header_bytes, std::ios::beg);
   std::vector<std::uint8_t> payload(static_cast<std::size_t>(h.payload_size));
   if (not payload.empty())

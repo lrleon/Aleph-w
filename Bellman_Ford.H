@@ -263,6 +263,7 @@ class Bellman_Ford
         NODE_COOKIE(p) = ptr;
       }
 
+    painted_ = false;
     s_ = start;
     accum(s_) = 0;
 
@@ -646,7 +647,11 @@ public:
         if (src == sentinel)  // Is the sentinel removed?
           {
             if (i++ > n)
-              break;
+              {
+                while (not q.is_empty())
+                  get_from_queue(q);  // clear Depth_First bits on remaining nodes
+                break;
+              }
 
             put_in_queue(q, sentinel);
           }
@@ -734,6 +739,9 @@ private:
   void remove_dummy_node(Node *p)
   {
     delete static_cast<Info_Type *>(NODE_COOKIE(p));
+    NODE_COOKIE(p) = nullptr;
+    if (p == s_)
+      s_ = nullptr;
     g_.remove_node(p);
   }
 

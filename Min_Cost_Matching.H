@@ -140,8 +140,8 @@ long long to_ll_checked(T value)
   // Upper check: T can hold values > LLONG_MAX when
   //   unsigned T: T_digits >= LL_digits  (e.g. unsigned long long: 64 >= 63)
   //   signed   T: T_digits >  LL_digits  (e.g. __int128: 127 > 63)
-  constexpr bool need_upper
-    = std::is_unsigned_v<T> ? (T_digits >= LL_digits) : (T_digits > LL_digits);
+  constexpr bool need_upper =
+    std::is_unsigned_v<T> ? (T_digits >= LL_digits) : (T_digits > LL_digits);
 
   // Lower check: only signed T wider than long long can go below LLONG_MIN.
   constexpr bool need_lower = std::is_signed_v<T> and (T_digits > LL_digits);
@@ -159,13 +159,13 @@ long long to_ll_checked(T value)
       // Only reachable for signed types wider than long long (e.g. __int128).
       // MSVC cl does not support __int128, so this branch is never
       // instantiated there; the cast is still guarded for GCC/Clang.
-# if defined(_MSC_VER) && !defined(__clang__)
-      (void)value; // unreachable on MSVC — no type has digits > 63
-# else
-      ah_overflow_error_if(static_cast<__int128>(value)
-                           < static_cast<__int128>(std::numeric_limits<long long>::min()))
+#if defined(_MSC_VER) && !defined(__clang__)
+      (void) value;  // unreachable on MSVC — no type has digits > 63
+#else
+      ah_overflow_error_if(static_cast<__int128>(value) <
+                           static_cast<__int128>(std::numeric_limits<long long>::min()))
         << "Cost cannot be represented as long long";
-# endif
+#endif
     }
 
   return static_cast<long long>(value);
@@ -238,37 +238,33 @@ Min_Cost_Matching_Result<long long> compute_minimum_cost_general_matching(
 
   Cost cost_accessor = std::move(cost);
 
-  const auto weighted_result
-    = compute_maximum_weight_general_matching<GT, min_cost_matching_detail::Negated_Cost_Accessor<Cost>, SA>(
-      g,
-      matching,
-      min_cost_matching_detail::Negated_Cost_Accessor<Cost>(cost_accessor),
-      std::move(sa),
-      max_cardinality);
+  const auto weighted_result =
+    compute_maximum_weight_general_matching<GT, min_cost_matching_detail::Negated_Cost_Accessor<Cost>, SA>(
+      g, matching, min_cost_matching_detail::Negated_Cost_Accessor<Cost>(cost_accessor),
+      std::move(sa), max_cardinality);
 
   long long total_cost = 0;
   for (auto it = matching.get_it(); it.has_curr(); it.next_ne())
     {
       Arc *arc = it.get_curr();
       const long long c = min_cost_matching_detail::to_ll_checked(cost_accessor(arc));
-# if defined(_MSC_VER) && !defined(__clang__)
+#if defined(_MSC_VER) && !defined(__clang__)
       {
         const long long lo = std::numeric_limits<long long>::min();
         const long long hi = std::numeric_limits<long long>::max();
-        ah_overflow_error_if((c > 0 and total_cost > hi - c) or
-                             (c < 0 and total_cost < lo - c))
+        ah_overflow_error_if((c > 0 and total_cost > hi - c) or (c < 0 and total_cost < lo - c))
           << "Minimum-cost matching total cost overflows long long";
         total_cost += c;
       }
-# else
+#else
       {
         const __int128 sum = static_cast<__int128>(total_cost) + static_cast<__int128>(c);
-        ah_overflow_error_if(sum > static_cast<__int128>(std::numeric_limits<long long>::max())
-                             or sum < static_cast<__int128>(std::numeric_limits<long long>::min()))
+        ah_overflow_error_if(sum > static_cast<__int128>(std::numeric_limits<long long>::max()) or
+                             sum < static_cast<__int128>(std::numeric_limits<long long>::min()))
           << "Minimum-cost matching total cost overflows long long";
         total_cost = static_cast<long long>(sum);
       }
-# endif
+#endif
     }
 
   ah_runtime_error_unless(weighted_result.cardinality == matching.size())
@@ -290,8 +286,8 @@ Min_Cost_Matching_Result<long long> blossom_minimum_cost_matching(const GT &g,
                                                                   SA sa = SA(),
                                                                   const bool max_cardinality = false)
 {
-  return compute_minimum_cost_general_matching<GT, Cost, SA>(
-    g, matching, std::move(cost), std::move(sa), max_cardinality);
+  return compute_minimum_cost_general_matching<GT, Cost, SA>(g, matching, std::move(cost),
+                                                             std::move(sa), max_cardinality);
 }
 
 /** @brief Compute minimum-cost perfect matching in a general undirected graph.
@@ -324,7 +320,10 @@ Min_Cost_Matching_Result<long long> blossom_minimum_cost_matching(const GT &g,
  */
 template <class GT, class Cost = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
 Min_Cost_Perfect_Matching_Result<long long> compute_minimum_cost_perfect_general_matching(
-  const GT &g, DynDlist<typename GT::Arc *> &matching, Cost cost = Cost(), SA sa = SA())
+  const GT &g,
+  DynDlist<typename GT::Arc *> &matching,
+  Cost cost = Cost(),
+  SA sa = SA())
 {
   ah_domain_error_if(g.is_digraph())
     << "compute_minimum_cost_perfect_general_matching(): g is a digraph";
@@ -359,11 +358,12 @@ Min_Cost_Perfect_Matching_Result<long long> compute_minimum_cost_perfect_general
  */
 template <class GT, class Cost = Dft_Dist<GT>, class SA = Dft_Show_Arc<GT>>
 Min_Cost_Perfect_Matching_Result<long long> blossom_minimum_cost_perfect_matching(
-  const GT &g, DynDlist<typename GT::Arc *> &matching, Cost cost = Cost(), SA sa = SA())
+  const GT &g,
+  DynDlist<typename GT::Arc *> &matching,
+  Cost cost = Cost(),
+  SA sa = SA())
 {
-  return compute_minimum_cost_perfect_general_matching<GT, Cost, SA>(g,
-                                                                     matching,
-                                                                     std::move(cost),
+  return compute_minimum_cost_perfect_general_matching<GT, Cost, SA>(g, matching, std::move(cost),
                                                                      std::move(sa));
 }
 
@@ -389,7 +389,8 @@ public:
 
   Min_Cost_Matching_Result<long long> operator()(const GT &g, DynDlist<typename GT::Arc *> &matching)
   {
-    return compute_minimum_cost_general_matching<GT, Cost, SA>(g, matching, cost_, sa_, max_cardinality_);
+    return compute_minimum_cost_general_matching<GT, Cost, SA>(g, matching, cost_, sa_,
+                                                               max_cardinality_);
   }
 };
 

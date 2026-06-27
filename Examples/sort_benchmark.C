@@ -174,7 +174,7 @@
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
- * @copyright GNU General Public License
+ * @copyright MIT License
  */
 
 #include <iostream>

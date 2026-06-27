@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Checkpoint loader hardening (CWE-789 / CWE-190).** `load_checkpoint_into`
+  could be driven into a multi-gigabyte allocation by a hostile or corrupt
+  checkpoint header. `read_raw_payload` now bounds the declared `payload_size`
+  against the actual file size, and `inspect_checkpoint` rejects headers whose
+  `cell_count` is inconsistent with the declared extents or whose
+  `cell_count * state_type_size` would overflow. Surfaced by the new
+  checkpoint fuzzer (Phase 26); regression tests in
+  `Tests/ca_checkpoint_safety_test.cc`.
+
+### Added
+- **Property-based tests** (`Tests/ca_properties_test.cc`): particle
+  conservation for `BBM_Rule`/`TM_Gas_Rule`, Margolus reversibility,
+  synchronous-engine determinism and `at_safe` well-definedness, each swept
+  over many random grids.
+- **Fuzzing harness** (`Tests/fuzz/`, Phase 26): libFuzzer targets for the
+  RLE, Life 1.05/1.06, CSV and checkpoint parsers, with seed corpora and a
+  weekly `fuzz` workflow.
+- **OSS compliance** (Phase 30): `SECURITY.md`, `CODE_OF_CONDUCT.md`,
+  `CONTRIBUTING.md`, Dependabot config, REUSE 3.x licensing (`REUSE.toml` +
+  `LICENSES/`) with a `reuse-lint` job, and a reproducible-build check
+  (`repro-build`).
+- **Coverage** (Phase 27): Codecov upload, README coverage/REUSE badges and a
+  per-module (`tpl_ca_*.H` vs `ca-*.H`) coverage breakdown in CI.
+
+### Changed
+- Relicensed 88 legacy `Examples/` files that still carried GPL-3.0 headers to
+  MIT, making the repository uniformly MIT (the copyright holder's decision;
+  resolves the contradiction with the root `LICENSE`).
+
 ## [4.0.0]
 
 > Version note: this is the first release cut after `v3.1.1`. The cellular

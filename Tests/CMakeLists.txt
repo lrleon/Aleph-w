@@ -16,7 +16,7 @@ option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 # CMakeLists here for standalone configures.
 if(MSVC)
     set(WARN_FLAGS "/W3")
-    set(COMMON_FLAGS "-DMESSAGES")
+    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES -DNOMINMAX /FIah-compat.H")
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # clang-cl optimizes under strict-aliasing rules like clang;
         # htlist.H requires them disabled (see root CMakeLists).
@@ -438,6 +438,7 @@ set(TEST_PROGRAMS
     tpl_ca_rule_test
     ca_engine_sync_test
     ca_update_scheme_test
+    ca_properties_test
     ca_multi_field_test
     ca_checkpoint_test
     tpl_ca_ghost_lattice_test
@@ -778,6 +779,9 @@ add_test(
             -DSMOKE_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cc
             -P ${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cmake
 )
+
+# Phase 26 — libFuzzer targets (opt-in via ALEPH_BUILD_FUZZERS, Clang-only).
+add_subdirectory(fuzz)
 
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")
