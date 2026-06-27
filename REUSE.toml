@@ -1,0 +1,24 @@
+# REUSE 3.x bulk-annotation file.
+#
+# Aleph-w is licensed MIT in its entirety. Rather than inject an SPDX header
+# into ~1000 source files, this file declares licensing in bulk (the REUSE
+# spec's supported mechanism). The bundled third-party `miniz` carries its own
+# copyright holders but is also MIT, declared with an override below.
+#
+# Verified by the `reuse-lint` CI job (.github/workflows/reuse.yml).
+version = 1
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2002-2026 Leandro Rabindranath Leon"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "third_party/miniz/**"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2013-2014 RAD Game Tools and Valve Software",
+  "2010-2014 Rich Geldreich and Tenacious Software LLC",
+]
+SPDX-License-Identifier = "MIT"
