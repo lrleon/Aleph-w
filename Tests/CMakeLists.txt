@@ -787,10 +787,25 @@ add_subdirectory(fuzz)
 # C ABI shared library and drives a Game of Life through it.
 if(ALEPH_BUILD_C_API AND TARGET alephca_c)
     add_executable(c_abi_smoke c_abi_smoke.c)
+    # The source is compiled as C99 (proving the header is C-consumable), but
+    # the link uses the C++ driver: libalephca_c is a C++ library, so the C++
+    # runtime must be on the link line. This matters under sanitizers, where
+    # the C driver alone cannot resolve the C++ UBSan vptr runtime
+    # (__ubsan_vptr_type_cache, __ubsan_handle_dynamic_type_cache_miss_abort).
     set_target_properties(c_abi_smoke PROPERTIES
         C_STANDARD 99
-        C_STANDARD_REQUIRED ON)
+        C_STANDARD_REQUIRED ON
+        LINKER_LANGUAGE CXX)
     target_link_libraries(c_abi_smoke PRIVATE alephca_c)
+    # Windows has no rpath: the loader will not find alephca_c.dll next to the
+    # test unless we put it there (otherwise CTest reports 0xc0000135,
+    # STATUS_DLL_NOT_FOUND). On Linux/macOS the build rpath already resolves it.
+    if(WIN32)
+        add_custom_command(TARGET c_abi_smoke POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:alephca_c> $<TARGET_FILE_DIR:c_abi_smoke>
+            VERBATIM)
+    endif()
     add_test(NAME c_abi_smoke COMMAND c_abi_smoke)
 endif()
 
