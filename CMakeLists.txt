@@ -346,6 +346,7 @@ set(HLIST
     tpl_ca_rule.H
     tpl_ca_engine.H
     ca-engine-utils.H
+    ca-c-api.h
     tpl_ca_ghost_lattice.H
     ca-tiling.H
     ca-bench.H
@@ -613,6 +614,28 @@ set_target_properties(Aleph_CA PROPERTIES EXPORT_NAME CA)
 add_library(Aleph::Aleph ALIAS Aleph)
 add_library(Aleph::CA ALIAS Aleph_CA)
 
+# Phase 25 — flat C ABI shim (libalephca_c). A small shared library exposing a
+# pure-C surface (ca-c-api.h) so non-C++ languages (Rust, Julia, Go, .NET, ...)
+# can drive a cellular automaton over a stable, versioned ABI. Internal C++
+# symbols are hidden; only the `aleph_ca_*_v1` entry points are exported.
+option(ALEPH_BUILD_C_API "Build the flat C ABI shared library (libalephca_c)" ON)
+if(ALEPH_BUILD_C_API)
+    add_library(alephca_c SHARED ca-c-api.cc)
+    target_link_libraries(alephca_c PRIVATE Aleph)
+    target_include_directories(alephca_c PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/aleph>)
+    set_target_properties(alephca_c PROPERTIES
+        OUTPUT_NAME alephca_c
+        VERSION 1.0.0
+        SOVERSION 1  # must match ALEPH_CA_API_VERSION_MAJOR in ca-c-api.h
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+        POSITION_INDEPENDENT_CODE ON)
+    add_library(Aleph::CApi ALIAS alephca_c)
+endif()
+
 # htlist.H type-puns through unions, so every consumer must also disable strict
 # aliasing (this mirrors the library's own required Release flag). Propagated as
 # an INTERFACE option so it reaches anyone linking Aleph::Aleph or Aleph::CA.
@@ -638,6 +661,15 @@ install(FILES ${HLIST}
 install(FILES third_party/miniz/miniz.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph/third_party/miniz
 )
+
+# Phase 25 — install the C ABI shared library (kept out of the AlephTargets
+# export set so it does not perturb the static-library package config).
+if(ALEPH_BUILD_C_API)
+    install(TARGETS alephca_c
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif()
 
 # Generate and install the package config files: AlephConfig.cmake,
 # AlephConfigVersion.cmake and AlephTargets.cmake.

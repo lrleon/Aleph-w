@@ -783,6 +783,17 @@ add_test(
 # Phase 26 — libFuzzer targets (opt-in via ALEPH_BUILD_FUZZERS, Clang-only).
 add_subdirectory(fuzz)
 
+# Phase 25 — C ABI smoke test: a pure-C (C99) consumer that links the flat
+# C ABI shared library and drives a Game of Life through it.
+if(ALEPH_BUILD_C_API AND TARGET alephca_c)
+    add_executable(c_abi_smoke c_abi_smoke.c)
+    set_target_properties(c_abi_smoke PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED ON)
+    target_link_libraries(c_abi_smoke PRIVATE alephca_c)
+    add_test(NAME c_abi_smoke COMMAND c_abi_smoke)
+endif()
+
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")
 message(STATUS "  Exhaustive test programs: ${EXHAUSTIVE_TESTS}")

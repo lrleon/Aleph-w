@@ -1,0 +1,64 @@
+# Phase 25 — flat C ABI + Rust binding smoke.
+#
+# Builds the libalephca_c shared library, runs the pure-C smoke test through
+# CTest, then builds and tests the Rust wrapper crates against the same library.
+name: c-abi
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "ca-c-api.*"
+      - "Tests/c_abi_smoke.c"
+      - "bindings/rust/**"
+      - ".github/workflows/c-abi.yml"
+  pull_request:
+    paths:
+      - "ca-c-api.*"
+      - "Tests/c_abi_smoke.c"
+      - "bindings/rust/**"
+      - ".github/workflows/c-abi.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  c-abi:
+    name: C ABI + Rust binding
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev libtclap-dev libgtest-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON \
+            -DBUILD_EXAMPLES=OFF \
+            -DALEPH_BUILD_X11_VIEWER=OFF \
+            -DALEPH_BUILD_C_API=ON
+
+      - name: Build C ABI library and smoke test
+        run: cmake --build build --target alephca_c c_abi_smoke
+
+      - name: Run C smoke test
+        run: ctest --test-dir build -R c_abi_smoke --output-on-failure
+
+      - name: Rust binding test
+        env:
+          ALEPH_CA_LIB_DIR: ${{ github.workspace }}/build
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build
+        run: |
+          rustc --version
+          cargo test --manifest-path bindings/rust/Cargo.toml

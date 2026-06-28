@@ -1,0 +1,10 @@
+[package]
+name = "aleph-ca"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Safe Rust wrapper over the Aleph-w cellular-automata C ABI."
+repository = "https://github.com/lrleon/Aleph-w"
+
+[dependencies]
+aleph-ca-sys = { path = "../aleph-ca-sys", version = "0.1.0" }

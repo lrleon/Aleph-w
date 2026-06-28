@@ -160,7 +160,11 @@ EXCLUDE_PATTERNS       = */build*/* \
                          */CMakeFiles/* \
                          */python/* \
                          */third_party/* \
-                         */reproductions/README.md
+                         */reproductions/README.md \
+                         */CONTRIBUTING.md \
+                         */CODE_OF_CONDUCT.md \
+                         */SECURITY.md \
+                         */Tests/fuzz/README.md
 EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           = Examples \
                          Tests

@@ -1,0 +1,11 @@
+[package]
+name = "aleph-ca-sys"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Raw FFI bindings to the Aleph-w cellular-automata C ABI (libalephca_c)."
+repository = "https://github.com/lrleon/Aleph-w"
+links = "alephca_c"
+
+[lib]
+name = "aleph_ca_sys"
