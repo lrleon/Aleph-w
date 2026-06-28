@@ -664,8 +664,13 @@ install(FILES third_party/miniz/miniz.h
 
 # Phase 25 — install the C ABI shared library (kept out of the AlephTargets
 # export set so it does not perturb the static-library package config).
+# OPTIONAL: several packaging/consumer jobs build only `--target Aleph` and
+# then run `cmake --install`; without OPTIONAL that install would fail because
+# libalephca_c was never built. When a full build is done, the library is
+# present and gets installed normally.
 if(ALEPH_BUILD_C_API)
     install(TARGETS alephca_c
+        OPTIONAL
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
