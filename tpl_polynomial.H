@@ -104,8 +104,8 @@ template <typename Int>
   if constexpr (std::is_signed_v<Int>)
     {
       using Unsigned = std::make_unsigned_t<Int>;
-      const Unsigned magnitude
-        = value < Int{} ? Unsigned{} - static_cast<Unsigned>(value) : static_cast<Unsigned>(value);
+      const Unsigned magnitude =
+        value < Int{} ? Unsigned{} - static_cast<Unsigned>(value) : static_cast<Unsigned>(value);
       return static_cast<uint64_t>(magnitude);
     }
   else
@@ -211,9 +211,9 @@ private:
           zeros.append(p.first);
       }
     zeros.for_each([this](size_t e)
-    {
-      coeffs.remove_key(e);
-    });
+      {
+        coeffs.remove_key(e);
+      });
   }
 
   /** @brief Read coefficient at exponent (0 if absent). */
@@ -260,9 +260,9 @@ private:
       return;
 
     src.for_each_term([this, &scale, shift](size_t exp, const Coefficient &c)
-    {
-      add_to_coeff(exp + shift, c * scale);
-    });
+      {
+        add_to_coeff(exp + shift, c * scale);
+      });
   }
 
   /** @brief Multiply every coefficient in place by a scalar. */
@@ -290,9 +290,9 @@ private:
       }
 
     zeros.for_each([this](size_t exp)
-    {
-      coeffs.remove_key(exp);
-    });
+      {
+        coeffs.remove_key(exp);
+      });
   }
 
   /** @brief Divide every coefficient in place by a scalar. */
@@ -316,9 +316,9 @@ private:
       }
 
     zeros.for_each([this](size_t exp)
-    {
-      coeffs.remove_key(exp);
-    });
+      {
+        coeffs.remove_key(exp);
+      });
   }
 
   /** @brief Iterate over non-zero terms in descending exponent order. */
@@ -410,11 +410,11 @@ public:
   {
     size_t exp = 0;
     l.for_each([this, &exp](const Coefficient &c)
-    {
-      if (not coeff_is_zero(c))
-        coeffs[exp] = c;
-      ++exp;
-    });
+      {
+        if (not coeff_is_zero(c))
+          coeffs[exp] = c;
+        ++exp;
+      });
   }
 
   /** @brief Sparse construction from a list of (exponent, coefficient) pairs.
@@ -427,10 +427,10 @@ public:
   explicit Gen_Polynomial(const DynList<std::pair<size_t, Coefficient>> &term_list)
   {
     term_list.for_each([this](const Term &t)
-    {
-      if (not coeff_is_zero(t.second))
-        add_to_coeff(t.first, t.second);
-    });
+      {
+        if (not coeff_is_zero(t.second))
+          add_to_coeff(t.first, t.second);
+      });
   }
 
   // =================================================================
@@ -470,9 +470,9 @@ public:
   {
     Gen_Polynomial result(Coefficient(1));  // start with constant 1
     roots.for_each([&result](const Coefficient &r)
-    {
-      result = result.multiply_by_monic_linear(-r);  // (x - r)
-    });
+      {
+        result = result.multiply_by_monic_linear(-r);  // (x - r)
+      });
     return result;
   }
 
@@ -503,11 +503,11 @@ public:
 
     size_t idx = 0;
     points.for_each([&](const std::pair<Coefficient, Coefficient> &pt)
-    {
-      xs[idx] = pt.first;
-      dd[idx] = pt.second;
-      ++idx;
-    });
+      {
+        xs[idx] = pt.first;
+        dd[idx] = pt.second;
+        ++idx;
+      });
 
     for (size_t i = 0; i < n; ++i)
       for (size_t j = i + 1; j < n; ++j)
@@ -585,7 +585,7 @@ public:
   // =================================================================
 
   /** @brief Coefficient at exponent @p exp (0 if absent). */
-  [[nodiscard]] Coefficient operator[](size_t exp) const
+  [[nodiscard]] Coefficient operator [] (size_t exp) const
   {
     return coeff_at(exp);
   }
@@ -632,18 +632,18 @@ public:
     bool first = true;
 
     for_each_term_desc([&](size_t exp, const Coefficient &c)
-    {
-      if (first)
-        {
-          result = c;
-          prev_exp = exp;
-          first = false;
-          return;
-        }
+      {
+        if (first)
+          {
+            result = c;
+            prev_exp = exp;
+            first = false;
+            return;
+          }
 
-      result = result * polynomial_detail::power(x, prev_exp - exp) + c;
-      prev_exp = exp;
-    });
+        result = result * polynomial_detail::power(x, prev_exp - exp) + c;
+        prev_exp = exp;
+      });
 
     if (prev_exp > 0)
       result = result * polynomial_detail::power(x, prev_exp);
@@ -694,7 +694,7 @@ public:
   }
 
   /** @brief Syntactic sugar: @c p(x) calls @ref eval. */
-  [[nodiscard]] Coefficient operator()(const Coefficient &x) const
+  [[nodiscard]] Coefficient operator () (const Coefficient &x) const
   {
     return eval(x);
   }
@@ -712,9 +712,9 @@ public:
   {
     DynList<Coefficient> results;
     points.for_each([this, &results](const Coefficient &x)
-    {
-      results.append(eval(x));
-    });
+      {
+        results.append(eval(x));
+      });
     return results;
   }
 
@@ -723,7 +723,7 @@ public:
   // =================================================================
 
   /** @brief Unary negation. */
-  [[nodiscard]] Gen_Polynomial operator-() const
+  [[nodiscard]] Gen_Polynomial operator - () const
   {
     Gen_Polynomial result;
     for (auto it = coeffs.get_it(); it.has_curr(); it.next_ne())
@@ -735,7 +735,7 @@ public:
   }
 
   /** @brief Polynomial addition. */
-  [[nodiscard]] Gen_Polynomial operator+(const Gen_Polynomial &q) const
+  [[nodiscard]] Gen_Polynomial operator + (const Gen_Polynomial &q) const
   {
     Gen_Polynomial result = *this;
     result += q;
@@ -743,7 +743,7 @@ public:
   }
 
   /** @brief In-place addition. */
-  Gen_Polynomial &operator+=(const Gen_Polynomial &q)
+  Gen_Polynomial &operator += (const Gen_Polynomial &q)
   {
     if (this == &q)
       {
@@ -760,7 +760,7 @@ public:
   }
 
   /** @brief Add a scalar constant term. */
-  [[nodiscard]] Gen_Polynomial operator+(const Coefficient &c) const
+  [[nodiscard]] Gen_Polynomial operator + (const Coefficient &c) const
   {
     Gen_Polynomial result = *this;
     result += c;
@@ -768,14 +768,14 @@ public:
   }
 
   /** @brief In-place addition of a scalar constant term. */
-  Gen_Polynomial &operator+=(const Coefficient &c)
+  Gen_Polynomial &operator += (const Coefficient &c)
   {
     add_to_coeff(0, c);
     return *this;
   }
 
   /** @brief Polynomial subtraction. */
-  [[nodiscard]] Gen_Polynomial operator-(const Gen_Polynomial &q) const
+  [[nodiscard]] Gen_Polynomial operator - (const Gen_Polynomial &q) const
   {
     Gen_Polynomial result = *this;
     result -= q;
@@ -783,7 +783,7 @@ public:
   }
 
   /** @brief In-place subtraction. */
-  Gen_Polynomial &operator-=(const Gen_Polynomial &q)
+  Gen_Polynomial &operator -= (const Gen_Polynomial &q)
   {
     if (this == &q)
       {
@@ -800,7 +800,7 @@ public:
   }
 
   /** @brief Subtract a scalar constant term. */
-  [[nodiscard]] Gen_Polynomial operator-(const Coefficient &c) const
+  [[nodiscard]] Gen_Polynomial operator - (const Coefficient &c) const
   {
     Gen_Polynomial result = *this;
     result -= c;
@@ -808,7 +808,7 @@ public:
   }
 
   /** @brief In-place subtraction of a scalar constant term. */
-  Gen_Polynomial &operator-=(const Coefficient &c)
+  Gen_Polynomial &operator -= (const Coefficient &c)
   {
     add_to_coeff(0, -c);
     return *this;
@@ -819,7 +819,7 @@ public:
    *  @note **Complexity**:@f$O(k_1 \cdot k_2 \cdot \log(k_1 k_2))@f$
    *        where@f$k_1, k_2@f$are the numbers of terms.
    */
-  [[nodiscard]] Gen_Polynomial operator*(const Gen_Polynomial &q) const
+  [[nodiscard]] Gen_Polynomial operator * (const Gen_Polynomial &q) const
   {
     if (is_zero() or q.is_zero())
       return Gen_Polynomial();
@@ -847,14 +847,14 @@ public:
   }
 
   /** @brief In-place multiplication. */
-  Gen_Polynomial &operator*=(const Gen_Polynomial &q)
+  Gen_Polynomial &operator *= (const Gen_Polynomial &q)
   {
     *this = *this * q;
     return *this;
   }
 
   /** @brief Multiply by a scalar. */
-  [[nodiscard]] Gen_Polynomial operator*(const Coefficient &s) const
+  [[nodiscard]] Gen_Polynomial operator * (const Coefficient &s) const
   {
     if (coeff_is_zero(s))
       return Gen_Polynomial();
@@ -870,7 +870,7 @@ public:
   }
 
   /** @brief In-place scalar multiplication. */
-  Gen_Polynomial &operator*=(const Coefficient &s)
+  Gen_Polynomial &operator *= (const Coefficient &s)
   {
     scale_inplace(s);
     return *this;
@@ -879,7 +879,7 @@ public:
   /** @brief Divide by a scalar.
    *  @throws std::domain_error if @p s is zero.
    */
-  [[nodiscard]] Gen_Polynomial operator/(const Coefficient &s) const
+  [[nodiscard]] Gen_Polynomial operator / (const Coefficient &s) const
   {
     ah_domain_error_if(coeff_is_zero(s)) << "polynomial division by zero scalar";
     Gen_Polynomial result;
@@ -894,7 +894,7 @@ public:
   }
 
   /** @brief In-place scalar division. */
-  Gen_Polynomial &operator/=(const Coefficient &s)
+  Gen_Polynomial &operator /= (const Coefficient &s)
   {
     divide_scalar_inplace(s);
     return *this;
@@ -947,26 +947,26 @@ public:
   }
 
   /** @brief Polynomial quotient. */
-  [[nodiscard]] Gen_Polynomial operator/(const Gen_Polynomial &d) const
+  [[nodiscard]] Gen_Polynomial operator / (const Gen_Polynomial &d) const
   {
     return divmod(d).first;
   }
 
   /** @brief Polynomial remainder. */
-  [[nodiscard]] Gen_Polynomial operator%(const Gen_Polynomial &d) const
+  [[nodiscard]] Gen_Polynomial operator % (const Gen_Polynomial &d) const
   {
     return divmod(d).second;
   }
 
   /** @brief In-place polynomial quotient. */
-  Gen_Polynomial &operator/=(const Gen_Polynomial &d)
+  Gen_Polynomial &operator /= (const Gen_Polynomial &d)
   {
     *this = divmod(d).first;
     return *this;
   }
 
   /** @brief In-place polynomial remainder. */
-  Gen_Polynomial &operator%=(const Gen_Polynomial &d)
+  Gen_Polynomial &operator %= (const Gen_Polynomial &d)
   {
     *this = divmod(d).second;
     return *this;
@@ -1061,9 +1061,8 @@ public:
         if (coeff_is_zero(scale))
           continue;
 
-        result
-          = result
-          + scale * (polynomial_detail::power(b, next_exp) - polynomial_detail::power(a, next_exp));
+        result = result +
+          scale * (polynomial_detail::power(b, next_exp) - polynomial_detail::power(a, next_exp));
       }
 
     return result;
@@ -1092,24 +1091,24 @@ public:
     bool first = true;
 
     for_each_term_desc([&](size_t exp, const Coefficient &c)
-    {
-      if (first)
-        {
-          result = Gen_Polynomial(c);
-          prev_exp = exp;
-          first = false;
-          return;
-        }
+      {
+        if (first)
+          {
+            result = Gen_Polynomial(c);
+            prev_exp = exp;
+            first = false;
+            return;
+          }
 
-      const size_t gap = prev_exp - exp;
-      if (gap == 1)
-        result *= q;
-      else if (gap > 1)
-        result *= q.pow(gap);
+        const size_t gap = prev_exp - exp;
+        if (gap == 1)
+          result *= q;
+        else if (gap > 1)
+          result *= q.pow(gap);
 
-      result.add_to_coeff(0, c);
-      prev_exp = exp;
-    });
+        result.add_to_coeff(0, c);
+        prev_exp = exp;
+      });
 
     if (prev_exp == 1)
       result *= q;
@@ -1484,8 +1483,8 @@ public:
             auto &p = it.get_curr();
             if (p.first == d)
               continue;
-            const long double ratio
-              = std::fabs(static_cast<long double>(p.second) / static_cast<long double>(lc));
+            const long double ratio =
+              std::fabs(static_cast<long double>(p.second) / static_cast<long double>(lc));
             if (ratio > max_ratio_ld)
               max_ratio_ld = ratio;
           }
@@ -1584,17 +1583,17 @@ public:
     bool prev_positive = false;
 
     chain.for_each([&](const Gen_Polynomial &p)
-    {
-      Coefficient val = p(x);
-      if (coeff_is_zero(val))
-        return;  // skip zeros in Sturm evaluation
+      {
+        Coefficient val = p(x);
+        if (coeff_is_zero(val))
+          return;  // skip zeros in Sturm evaluation
 
-      bool positive = val > Coefficient{};
-      if (have_prev and positive != prev_positive)
-        ++changes;
-      prev_positive = positive;
-      have_prev = true;
-    });
+        bool positive = val > Coefficient{};
+        if (have_prev and positive != prev_positive)
+          ++changes;
+        prev_positive = positive;
+        have_prev = true;
+      });
 
     return changes;
   }
@@ -1672,8 +1671,8 @@ public:
     if (coeff_is_zero(fb))
       return b;
 
-    ah_domain_error_if((fa > Coefficient{}) == (fb > Coefficient{}) and not coeff_is_zero(fa)
-                       and not coeff_is_zero(fb))
+    ah_domain_error_if((fa > Coefficient{}) == (fb > Coefficient{}) and not coeff_is_zero(fa) and
+                       not coeff_is_zero(fb))
       << "bisect_root: f(a) and f(b) must have opposite signs";
 
     for (size_t i = 0; i < max_iter; ++i)
@@ -1747,7 +1746,7 @@ public:
    *  Two polynomials are equal iff they have the same non-zero terms.
    *  For floating-point types, coefficients are compared within epsilon.
    */
-  [[nodiscard]] bool operator==(const Gen_Polynomial &q) const noexcept
+  [[nodiscard]] bool operator == (const Gen_Polynomial &q) const noexcept
   {
     if (this == &q)
       return true;
@@ -1800,9 +1799,9 @@ public:
   }
 
   /** @brief Inequality comparison. */
-  [[nodiscard]] bool operator!=(const Gen_Polynomial &q) const noexcept
+  [[nodiscard]] bool operator != (const Gen_Polynomial &q) const noexcept
   {
-    return not(*this == q);
+    return not (*this == q);
   }
 
   // =================================================================
@@ -1867,36 +1866,36 @@ public:
     bool first = true;
 
     for_each_term_desc([&](size_t exp, const Coefficient &c)
-    {
-      bool negative = false;
-      if constexpr (requires { c < Coefficient{}; })
-        negative = c < Coefficient{};
+      {
+        bool negative = false;
+        if constexpr (requires { c < Coefficient{}; })
+          negative = c < Coefficient{};
 
-      Coefficient ac = negative ? -c : c;
+        Coefficient ac = negative ? -c : c;
 
-      // Sign
-      if (first)
-        {
-          if (negative)
-            oss << "-";
-        }
-      else
-        oss << (negative ? " - " : " + ");
+        // Sign
+        if (first)
+          {
+            if (negative)
+              oss << "-";
+          }
+        else
+          oss << (negative ? " - " : " + ");
 
-      // Coefficient and variable
-      if (exp == 0)
-        oss << ac;
-      else
-        {
-          if (not(ac == Coefficient(1)))
-            oss << ac;
-          oss << var;
-          if (exp > 1)
-            oss << "^" << exp;
-        }
+        // Coefficient and variable
+        if (exp == 0)
+          oss << ac;
+        else
+          {
+            if (not (ac == Coefficient(1)))
+              oss << ac;
+            oss << var;
+            if (exp > 1)
+              oss << "^" << exp;
+          }
 
-      first = false;
-    });
+        first = false;
+      });
 
     return oss.str();
   }
@@ -2137,13 +2136,13 @@ public:
   {
     Gen_Polynomial reduced;
     f.for_each_term([&reduced, mod](size_t exp, const Coefficient &coeff)
-    {
-      Coefficient c = coeff % mod;
-      if (c < Coefficient{})
-        c = c + mod;
-      if (c != Coefficient{})
-        reduced.set_coeff(exp, c);
-    });
+      {
+        Coefficient c = coeff % mod;
+        if (c < Coefficient{})
+          c = c + mod;
+        if (c != Coefficient{})
+          reduced.set_coeff(exp, c);
+      });
     return reduced;
   }
 
@@ -2155,12 +2154,12 @@ public:
 
     uint64_t result = 0;
     f.for_each_term([&result, x, mod](size_t exp, const Coefficient &coeff)
-    {
-      const uint64_t c = polynomial_detail::normalize_mod_u64(coeff, mod);
-      const uint64_t xpow = mod_exp(x, exp, mod);
-      const uint64_t term = mod_mul(c, xpow, mod);
-      result = (result + term) % mod;
-    });
+      {
+        const uint64_t c = polynomial_detail::normalize_mod_u64(coeff, mod);
+        const uint64_t xpow = mod_exp(x, exp, mod);
+        const uint64_t term = mod_mul(c, xpow, mod);
+        result = (result + term) % mod;
+      });
     return result;
   }
 
@@ -2314,8 +2313,8 @@ public:
             for (Coefficient sign : {Coefficient(1), Coefficient(-1)})
               {
                 const Coefficient num = sign * num_abs;
-                if (std::gcd(polynomial_detail::abs_to_u64(num), polynomial_detail::abs_to_u64(den))
-                    != 1)
+                if (std::gcd(polynomial_detail::abs_to_u64(num),
+                             polynomial_detail::abs_to_u64(den)) != 1)
                   continue;
 
                 if (try_divide_by_linear_factor(f, den, -num, quotient))
@@ -2373,8 +2372,8 @@ public:
     for (auto a_it = leading_divs.get_it(); a_it.has_curr(); a_it.next_ne())
       {
         const Coefficient a = a_it.get_curr();
-        const int64_t b_bound
-          = static_cast<int64_t>(std::ceil(2.0 * std::abs(static_cast<double>(a)) * root_bound));
+        const int64_t b_bound =
+          static_cast<int64_t>(std::ceil(2.0 * std::abs(static_cast<double>(a)) * root_bound));
 
         for (auto c_it = constant_divs.get_it(); c_it.has_curr(); c_it.next_ne())
           {
@@ -2387,8 +2386,8 @@ public:
                 for (int64_t b_i = -b_bound; b_i <= b_bound; ++b_i)
                   {
                     const Coefficient b = static_cast<Coefficient>(b_i);
-                    const uint64_t gcd_ab
-                      = std::gcd(polynomial_detail::abs_to_u64(a), polynomial_detail::abs_to_u64(b));
+                    const uint64_t gcd_ab =
+                      std::gcd(polynomial_detail::abs_to_u64(a), polynomial_detail::abs_to_u64(b));
                     if (std::gcd(gcd_ab, polynomial_detail::abs_to_u64(c)) != 1)
                       continue;
 
@@ -2469,8 +2468,8 @@ public:
                 for (int64_t b_i = -coeff_bound; b_i <= coeff_bound; ++b_i)
                   {
                     const Coefficient b = static_cast<Coefficient>(b_i);
-                    const uint64_t gcd_ab
-                      = std::gcd(polynomial_detail::abs_to_u64(a), polynomial_detail::abs_to_u64(b));
+                    const uint64_t gcd_ab =
+                      std::gcd(polynomial_detail::abs_to_u64(a), polynomial_detail::abs_to_u64(b));
 
                     for (int64_t c_i = -coeff_bound; c_i <= coeff_bound; ++c_i)
                       {
@@ -2534,12 +2533,10 @@ public:
 
     for (Coefficient r = Coefficient{}; r < p; r = r + Coefficient(1))
       {
-        while (
-          not remaining.is_zero() and remaining.degree() > 0
-          and eval_mod_u64(remaining,
-                           polynomial_detail::normalize_mod_u64(r, polynomial_detail::abs_to_u64(p)),
-                           polynomial_detail::abs_to_u64(p))
-                == 0)
+        while (not remaining.is_zero() and remaining.degree() > 0 and
+               eval_mod_u64(remaining,
+                            polynomial_detail::normalize_mod_u64(r, polynomial_detail::abs_to_u64(p)),
+                            polynomial_detail::abs_to_u64(p)) == 0)
           {
             Gen_Polynomial factor;
             factor.set_coeff(0, ((-r) % p + p) % p);
@@ -2630,11 +2627,11 @@ public:
     const size_t target_steps = static_cast<size_t>(1) << levels;
     const uint64_t p_u64 = polynomial_detail::abs_to_u64(p);
     const auto checked_mul_u64 = [](uint64_t lhs, uint64_t rhs, const char *name) -> uint64_t
-    {
-      ah_domain_error_if(rhs != 0 and lhs > std::numeric_limits<uint64_t>::max() / rhs)
-        << "hensel_lift: overflow computing " << name << " (" << lhs << " * " << rhs << ")";
-      return lhs * rhs;
-    };
+      {
+        ah_domain_error_if(rhs != 0 and lhs > std::numeric_limits<uint64_t>::max() / rhs)
+          << "hensel_lift: overflow computing " << name << " (" << lhs << " * " << rhs << ")";
+        return lhs * rhs;
+      };
 
     uint64_t target_u64 = p_u64;
     for (size_t i = 1; i < target_steps; ++i)
@@ -2684,8 +2681,8 @@ public:
                   root = (a >= next_mod - b) ? (a - (next_mod - b)) : (a + b);
                 }
 #else
-                root = static_cast<uint64_t>((static_cast<unsigned __int128>(root) + increment)
-                                             % next_mod);
+                root = static_cast<uint64_t>((static_cast<unsigned __int128>(root) + increment) %
+                                             next_mod);
 #endif
                 modulus = next_mod;
               }
@@ -2693,8 +2690,9 @@ public:
             if (simple)
               {
                 Gen_Polynomial lifted;
-                lifted.set_coeff(0, polynomial_detail::centered_from_mod_u64<Coefficient>(
-                                      (target_u64 - (root % target_u64)) % target_u64, target_u64));
+                lifted.set_coeff(0,
+                                 polynomial_detail::centered_from_mod_u64<Coefficient>(
+                                   (target_u64 - (root % target_u64)) % target_u64, target_u64));
                 lifted.set_coeff(1, Coefficient(1));
                 result.append(lifted);
                 lifted_linear_factor = true;
@@ -2706,13 +2704,13 @@ public:
 
         Gen_Polynomial normalized;
         factor.for_each_term([&normalized, p_power](size_t exp, const Coefficient &coeff)
-        {
-          Coefficient canonical = coeff % p_power;
-          if (canonical < Coefficient{})
-            canonical += p_power;
-          if (canonical != Coefficient{})
-            normalized.set_coeff(exp, canonical);
-        });
+          {
+            Coefficient canonical = coeff % p_power;
+            if (canonical < Coefficient{})
+              canonical += p_power;
+            if (canonical != Coefficient{})
+              normalized.set_coeff(exp, canonical);
+          });
         result.append(normalized);
       }
 
@@ -2864,28 +2862,28 @@ public:
 
 /** @brief Scalar times polynomial (commutative form). */
 template <typename C>
-[[nodiscard]] Gen_Polynomial<C> operator*(const C &s, const Gen_Polynomial<C> &p)
+[[nodiscard]] Gen_Polynomial<C> operator * (const C &s, const Gen_Polynomial<C> &p)
 {
   return p * s;
 }
 
 /** @brief Scalar plus polynomial (commutative form). */
 template <typename C>
-[[nodiscard]] Gen_Polynomial<C> operator+(const C &s, const Gen_Polynomial<C> &p)
+[[nodiscard]] Gen_Polynomial<C> operator + (const C &s, const Gen_Polynomial<C> &p)
 {
   return p + s;
 }
 
 /** @brief Scalar minus polynomial. */
 template <typename C>
-[[nodiscard]] Gen_Polynomial<C> operator-(const C &s, const Gen_Polynomial<C> &p)
+[[nodiscard]] Gen_Polynomial<C> operator - (const C &s, const Gen_Polynomial<C> &p)
 {
   return Gen_Polynomial<C>(s) - p;
 }
 
 /** @brief Stream output. */
 template <typename C>
-std::ostream &operator<<(std::ostream &out, const Gen_Polynomial<C> &p)
+std::ostream &operator << (std::ostream &out, const Gen_Polynomial<C> &p)
 {
   return out << p.to_str();
 }

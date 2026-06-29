@@ -48,6 +48,7 @@ SpaceBeforeParens: Custom
 SpaceBeforeParensOptions:
   AfterControlStatements: true
   AfterOverloadedOperator: true
+  AfterNot: true
 SpaceAfterOperatorKeyword: true
 SpaceAfterCStyleCast: true
 SpaceBeforeAssignmentOperators: true

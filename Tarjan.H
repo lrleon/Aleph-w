@@ -165,16 +165,16 @@ namespace Aleph {
 template <class GT, template <typename, class> class Itor = Out_Iterator, class SA = Dft_Show_Arc<GT>>
 class Tarjan_Connected_Components
 {
-  SA sa;
+  SA sa_;
 
-  GT *g_ptr = nullptr;
+  GT *g_ptr_ = nullptr;
 
-  DynListStack<typename GT::Node *> stack;
+  DynListStack<typename GT::Node *> stack_;
 
-  long df_count = 0;
-  mutable size_t n = 0;  // number of nodes in the graph
+  long df_count_ = 0;
+  mutable size_t n_ = 0;  // number of nodes in the graph
 
-  Path<GT> *path_ptr = nullptr;
+  Path<GT> *path_ptr_ = nullptr;
 
 public:
   /// Tarjan instances should not be copied (they hold internal traversal state)
@@ -192,7 +192,7 @@ public:
       @param[in] __sa Arc filter functor used by the internal iterator.
                       Defaults to Dft_Show_Arc<GT> which shows all arcs.
    */
-  Tarjan_Connected_Components(SA __sa = SA()) noexcept : sa(std::move(__sa))
+  Tarjan_Connected_Components(SA __sa = SA()) noexcept : sa_(std::move(__sa))
   { /* empty */
   }
 
@@ -232,10 +232,10 @@ private:
   {
     assert(not is_node_in_stack(p));
 
-    stack.push(p);
+    stack_.push(p);
     NODE_BITS(p).set_bit(Aleph::Min, true);
     NODE_BITS(p).set_bit(Aleph::Depth_First, true);
-    df<GT>(p) = low<GT>(p) = df_count++;
+    df<GT>(p) = low<GT>(p) = df_count_++;
   }
 
   /** @brief Pop a node from the traversal stack.
@@ -243,7 +243,7 @@ private:
    */
   typename GT::Node *pop_from_stack()
   {
-    auto ret = stack.pop();
+    auto ret = stack_.pop();
     NODE_BITS(ret).set_bit(Aleph::Min, false);
 
     return ret;
@@ -262,8 +262,8 @@ private:
     init_node_and_push_in_stack(v);
 
     // depth-first traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-      if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
+      if (auto w = g_ptr_->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
         {
           // map_nodes() called inside scc_by_blocks corrupts low<GT>(w)
           // via NODE_COOKIE when w's SCC is finalized.  Save the result
@@ -312,8 +312,8 @@ private:
     init_node_and_push_in_stack(v);
 
     // depth traversal all nodes connected to v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-      if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
+      if (auto w = g_ptr_->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
         {
           scc_by_lists(w, blks);
           low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
@@ -348,8 +348,8 @@ private:
     init_node_and_push_in_stack(v);
 
     // depth traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-      if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
+      if (auto w = g_ptr_->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
         {
           scc_by_len(w, sizes);
           low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
@@ -387,11 +387,11 @@ private:
   void init_tarjan(const GT &g)
   {
     Operate_On_Nodes<GT, Init_Tarjan_Node>()(g);  // initialize bits, df and low
-    df_count = 0;                                 // visitor counter
-    stack.empty();
-    n = g.get_num_nodes();
+    df_count_ = 0;                                 // visitor counter
+    stack_.empty();
+    n_ = g.get_num_nodes();
 
-    g_ptr = &const_cast<GT &>(g);
+    g_ptr_ = &const_cast<GT &>(g);
   }
 
   /** @brief Recursive DFS to detect if a cycle exists starting from v.
@@ -407,9 +407,9 @@ private:
     init_node_and_push_in_stack(v);
 
     // depth traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
       {
-        auto w = g_ptr->get_tgt_node(it.get_curr());
+        auto w = g_ptr_->get_tgt_node(it.get_curr());
 
         // Check for self-loop (a cycle of length 1)
         if (w == v)
@@ -459,16 +459,16 @@ private:
     auto end = block.get_src_node(a);
     assert(start != end);
 
-    auto aux_path = Directed_Find_Path<GT, Itor, SA>(block, sa).dfs(start, end);
+    auto aux_path = Directed_Find_Path<GT, Itor, SA>(block, sa_).dfs(start, end);
     assert(not aux_path.is_empty());  // since it's connected it must be found
 
     // aux_path is about the mapped block. We need to translate it back
     // to the original graph using the mapping table.
-    path_ptr->empty();
+    path_ptr_->empty();
     for (typename Path<GT>::Iterator i(aux_path); i.has_curr(); i.next_ne())
-      path_ptr->append_directed(table.find(i.get_current_node_ne()));
+      path_ptr_->append_directed(table.find(i.get_current_node_ne()));
 
-    path_ptr->append_directed(path_ptr->get_first_node());
+    path_ptr_->append_directed(path_ptr_->get_first_node());
   }
 
   /** @brief Recursive DFS to find and construct a cycle starting from v.
@@ -483,17 +483,17 @@ private:
     init_node_and_push_in_stack(v);
 
     // depth traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
       {
-        auto w = g_ptr->get_tgt_node(it.get_curr());
+        auto w = g_ptr_->get_tgt_node(it.get_curr());
 
         // Check for self-loop (a cycle of length 1)
         if (w == v)
           {
             // Build a simple self-loop path: v -> v
-            path_ptr->empty();
-            path_ptr->init(v);
-            path_ptr->append_directed(v);
+            path_ptr_->empty();
+            path_ptr_->init(v);
+            path_ptr_->append_directed(v);
             return true;
           }
 
@@ -538,10 +538,10 @@ private:
             auto gsrc = table.find(bsrc);
 
             // traverse the arcs of gsrc
-            for (Itor<GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
+            for (Itor<GT, SA> k(gsrc, sa_); k.has_curr(); k.next_ne())
               {
                 auto ga = k.get_curr();
-                auto gtgt = g_ptr->get_tgt_node(ga);
+                auto gtgt = g_ptr_->get_tgt_node(ga);
                 auto ptr = table.search(gtgt);
                 if (ptr == nullptr)  // arc of the block?
                   continue;
@@ -556,7 +556,7 @@ private:
         return true;
       }
 
-    assert(path_ptr->is_empty());
+    assert(path_ptr_->is_empty());
 
     return false;
   }
@@ -574,9 +574,9 @@ private:
     init_node_and_push_in_stack(v);
 
     // depth-first traverse all nodes connected to v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+    for (Itor<GT, SA> it(v, sa_); it.has_curr(); it.next_ne())
       {
-        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+        if (auto w = g_ptr_->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
           {
             if (not is_connected(w))
               return false;
@@ -592,47 +592,40 @@ private:
         while (pop_from_stack() != v)
           ;
 
-        return stack.is_empty();
+        return stack_.is_empty();
       }
 
     return true;
   }
 
 public:
-  /** Computes the strongly connected components of a digraph.
+  /** Computes the strongly connected components (SCCs) of a digraph.
 
-      connected_components() takes a digraph g (supposedly weakly connected),
-      computes its disconnected subgraphs or components, and stores them in
-      a dynamic list blk_list of mapped subdigraphs (both nodes and arcs are
-      mapped). The emphasis on the supposed connected character of the graph
-      is because if the graph were not connected, then the resulting list
-      would contain only one element corresponding to the mapped copy digraph
-      of g. If this were the case, then it is preferable to use the
-      copy_graph() function instead.
+      connected_components() runs Tarjan's algorithm on g and stores one
+      mapped subdigraph per SCC in blk_list (both nodes and arcs are mapped
+      back to g). Arcs that connect different SCCs are collected in arc_list.
+      The number of blocks depends on the cyclic structure: an acyclic
+      digraph yields one singleton block per node, while a single strongly
+      connected digraph yields exactly one block.
 
-      The function is based on Tarjan's algorithm.
+      The algorithm performs a single depth-first search and marks progress
+      with the Aleph::Depth_First and Aleph::Min node bits.
 
-      The function uses the build_subtree bit to mark visited nodes and arcs.
-
-      The algorithm internally discovers components through depth-first search.
-
-      @param[in] g the graph on which to compute its blocks.
-      @param[out] blk_list list of subgraphs mapped to g containing the
-      disconnected subgraphs or components of g.
-      @param[out] arc_list list of arcs connecting the blocks.
+      @param[in] g the digraph whose SCCs are computed.
+      @param[out] blk_list list of mapped subdigraphs, one per SCC of g.
+      @param[out] arc_list arcs connecting distinct SCCs (inter-block arcs).
       @throw bad_alloc if there is not enough memory to build a block or
-      insert into the list.
-      @see copy_graph()
+      insert into a list.
   */
   void connected_components(const GT &g, DynList<GT> &blk_list, DynList<typename GT::Arc *> &arc_list)
   {
     init_tarjan(g);
 
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+    for (typename GT::Node_Iterator it(g); df_count_ < n_; it.next_ne())
       if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
         scc_by_blocks(v, blk_list);
 
-    assert(stack.is_empty());
+    assert(stack_.is_empty());
 
     // traverse each partial subgraph and add its arcs
     for (typename DynList<GT>::Iterator i(blk_list); i.has_curr(); i.next_ne())
@@ -644,10 +637,10 @@ public:
             auto gsrc = mapped_node<GT>(bsrc);
 
             // traverse arcs of gsrc
-            for (Itor<GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
+            for (Itor<GT, SA> k(gsrc, sa_); k.has_curr(); k.next_ne())
               {
                 auto ga = k.get_curr();
-                auto gtgt = g_ptr->get_tgt_node(ga);
+                auto gtgt = g_ptr_->get_tgt_node(ga);
                 if (NODE_COUNTER(gsrc) != NODE_COUNTER(gtgt))
                   {  // inter-block arc ==> add it to arc_list
                     arc_list.append(ga);
@@ -664,41 +657,32 @@ public:
       }
   }
 
-  /** Computes the strongly connected components of a digraph.
+  /** Computes the strongly connected components (SCCs) of a digraph.
 
-      This overloaded version of connected_components() takes a digraph g
-      (supposedly weakly connected), computes its disconnected subgraphs or
-      components, and stores them in a dynamic list of node lists.
+      This overloaded version of connected_components() runs Tarjan's
+      algorithm on g and stores each SCC as a list of node pointers in blks.
 
-      Each list contains the nodes belonging to the strongly connected
+      Each inner list contains the nodes belonging to one strongly connected
       component.
 
-      Use this function if you do not need to obtain mapped copies of
-      the strongly connected components.
+      Use this function if you do not need mapped subgraph copies of the
+      SCCs. Since mapping is avoided, this routine is faster and uses less
+      memory than the subgraph overload; the trade-off is that it does not
+      compute the arcs that interconnect the blocks.
 
-      The function is based on Tarjan's algorithm.
+      The algorithm performs a single depth-first search and marks progress
+      with the Aleph::Depth_First and Aleph::Min node bits.
 
-      The function uses the build_subtree bit to mark visited nodes and arcs.
-
-      The algorithm internally discovers components through depth-first search.
-
-      Since mapping is avoided, this routine is faster and less memory
-      intensive than the previous version. The disadvantage is perhaps that
-      it does not compute the possible arcs that could interconnect a block
-      in a single direction.
-
-      @param[in] g the graph on which to compute its blocks.
-      @param[out] blks list of node lists. Each list contains the nodes
-      that form a connected component.
+      @param[in] g the digraph whose SCCs are computed.
+      @param[out] blks list of node lists; each inner list holds the nodes of
+      one SCC.
 
       @throw bad_alloc if there is not enough memory to insert into the list.
-
-      @see copy_graph()
   */
   void connected_components(const GT &g, DynList<DynList<typename GT::Node *>> &blks)
   {
     init_tarjan(g);
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+    for (typename GT::Node_Iterator it(g); df_count_ < n_; it.next_ne())
       if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
         scc_by_lists(v, blks);
   }
@@ -727,30 +711,23 @@ public:
     return sizes.size();
   }
 
-  /** Computes the strongly connected components of a digraph.
+  /** Computes the sizes of the strongly connected components (SCCs).
 
-      This overloaded version of connected_components() takes a digraph g
-      (supposedly weakly connected) and counts its disconnected subgraphs or
-      components along with their sizes.
+      This overloaded version of connected_components() runs Tarjan's
+      algorithm on g and records the size (node count) of each SCC in blks.
 
-      The function is based on Tarjan's algorithm.
+      The algorithm performs a single depth-first search and marks progress
+      with the Aleph::Depth_First and Aleph::Min node bits.
 
-      The function uses the build_subtree bit to mark visited nodes and arcs.
-
-      The algorithm internally discovers components through depth-first search.
-
-      @param[in] g the graph on which to compute its blocks.
-      @param[out] blks list of positive integers. Each entry contains the
-      size of a distinct connected component.
+      @param[in] g the digraph whose SCCs are computed.
+      @param[out] blks list of sizes; each entry is the node count of one SCC.
 
       @throw bad_alloc if there is not enough memory to insert into the list.
-
-      @see copy_graph()
   */
   void connected_components(const GT &g, DynList<size_t> &blks)
   {
     init_tarjan(g);
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+    for (typename GT::Node_Iterator it(g); df_count_ < n_; it.next_ne())
       if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
         scc_by_len(v, blks);
   }
@@ -849,7 +826,7 @@ public:
   [[nodiscard]] bool has_cycle(const GT &g)
   {
     init_tarjan(g);
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+    for (typename GT::Node_Iterator it(g); df_count_ < n_; it.next_ne())
       if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
         if (has_cycle(v))
           return true;
@@ -888,10 +865,10 @@ public:
   bool compute_cycle(const GT &g, Path<GT> &path)
   {
     init_tarjan(g);
-    path_ptr = &path;
-    path_ptr->set_graph(g);
+    path_ptr_ = &path;
+    path_ptr_->set_graph(g);
 
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+    for (typename GT::Node_Iterator it(g); df_count_ < n_; it.next_ne())
       if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))  // p visited?
         if (build_cycle(v))
           return true;
@@ -919,8 +896,8 @@ public:
     ah_domain_error_if(src == nullptr) << "compute_cycle: source node cannot be null";
 
     init_tarjan(g);
-    path_ptr = &path;
-    path_ptr->set_graph(g);
+    path_ptr_ = &path;
+    path_ptr_->set_graph(g);
     return build_cycle(src);
   }
 
@@ -943,7 +920,7 @@ public:
     // all nodes. If we have to start from a second unvisited node, it means
     // the graph has multiple disconnected components.
     bool started = false;
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+    for (typename GT::Node_Iterator it(g); df_count_ < n_; it.next_ne())
       if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
         {
           if (started)  // Second DFS root → not strongly connected
@@ -953,7 +930,7 @@ public:
             return false;
         }
 
-    assert(stack.is_empty());
+    assert(stack_.is_empty());
 
     return true;
   }
@@ -966,7 +943,7 @@ public:
    */
   SA &get_filter() noexcept
   {
-    return sa;
+    return sa_;
   }
 
   /** Returns the arc filter used by this instance (const version).
@@ -974,7 +951,7 @@ public:
    */
   const SA &get_filter() const noexcept
   {
-    return sa;
+    return sa_;
   }
 
   /** Check if a computation has been performed.
@@ -982,7 +959,7 @@ public:
    */
   [[nodiscard]] bool has_computation() const noexcept
   {
-    return g_ptr != nullptr;
+    return g_ptr_ != nullptr;
   }
 
   /** Get the graph of the last computation.
@@ -990,7 +967,7 @@ public:
    */
   [[nodiscard]] GT *get_graph() const noexcept
   {
-    return g_ptr;
+    return g_ptr_;
   }
 
   /// @}
@@ -1008,7 +985,8 @@ public:
     -# GT: the digraph class.
     -# SA: the arc filter used by the internal iterator.
 
-    The class uses the build_subtree bit to mark visited nodes and arcs.
+    The class delegates to Tarjan_Connected_Components, which marks traversal
+    progress with the Aleph::Depth_First and Aleph::Min node bits.
 
     @ingroup Graphs
 
@@ -1018,7 +996,7 @@ public:
 template <class GT, template <typename, class> class Itor = Out_Iterator, class SA = Dft_Show_Arc<GT>>
 class Compute_Cycle_In_Digraph
 {
-  SA sa;
+  SA sa_;
 
 public:
   /** Constructs a cycle computation instance with an arc filter.
@@ -1026,7 +1004,7 @@ public:
       @param[in] __sa Arc filter functor.
                       Defaults to Dft_Show_Arc<GT>.
    */
-  Compute_Cycle_In_Digraph(SA __sa = SA()) : sa(std::move(__sa))
+  Compute_Cycle_In_Digraph(SA __sa = SA()) : sa_(std::move(__sa))
   { /* empty */
   }
 
@@ -1040,7 +1018,7 @@ public:
   */
   [[nodiscard]] bool operator () (const GT &g, Path<GT> &path) const
   {
-    Tarjan_Connected_Components<GT, Itor, SA> tarjan(sa);
+    Tarjan_Connected_Components<GT, Itor, SA> tarjan(sa_);
 
     return tarjan.compute_cycle(g, path);
   }
@@ -1054,7 +1032,7 @@ public:
   [[nodiscard]] Path<GT> operator () (const GT &g) const
   {
     Path<GT> ret(g);
-    Tarjan_Connected_Components<GT, Itor, SA>(sa).compute_cycle(g, ret);
+    Tarjan_Connected_Components<GT, Itor, SA>(sa_).compute_cycle(g, ret);
     return ret;
   }
 
@@ -1069,7 +1047,7 @@ public:
   [[nodiscard]] Path<GT> operator () (const GT &g, typename GT::Node *src) const
   {
     Path<GT> ret(g);
-    (void) Tarjan_Connected_Components<GT, Itor, SA>(sa).compute_cycle(g, src, ret);
+    (void) Tarjan_Connected_Components<GT, Itor, SA>(sa_).compute_cycle(g, src, ret);
     return ret;
   }
 };

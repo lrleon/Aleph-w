@@ -703,7 +703,7 @@ public:
     if (a0.is_to_left_on_from(a, a1))
       return a0.is_left_of(a, b) and a1.is_left_of(b, a);
 
-    return not(a1.is_to_left_on_from(a, b) and a0.is_to_left_on_from(b, a));
+    return not (a1.is_to_left_on_from(a, b) and a0.is_to_left_on_from(b, a));
   }
 
   /**
@@ -2418,6 +2418,12 @@ private:
     return ip < max_idx;
   }
 
+  /**
+   * @brief Deduplicates and sorts an array of weighted sites.
+   *
+   * @param input The input array of weighted sites.
+   * @return A new array of unique weighted sites, sorted lexicographically.
+   */
   [[nodiscard]] static Array<WeightedSite> unique_sites(const Array<WeightedSite> &input)
   {
     Array<WeightedSite> all;
@@ -2544,7 +2550,7 @@ private:
     const Orientation o2 = orientation(pts(t.v[2]), pts(t.v[0]), pts(pidx));
     const bool has_cw = o0 == Orientation::CW or o1 == Orientation::CW or o2 == Orientation::CW;
     const bool has_ccw = o0 == Orientation::CCW or o1 == Orientation::CCW or o2 == Orientation::CCW;
-    return not(has_cw and has_ccw);
+    return not (has_cw and has_ccw);
   }
 
   /// Standard in-circumcircle test using exact in_circle_determinant.
@@ -2623,6 +2629,14 @@ private:
   }
 
 public:
+  /**
+   * @brief Computes the Delaunay triangulation of a set of points.
+   *
+   * This implementation uses a randomized incremental algorithm with a DAG for point location.
+   *
+   * @param point_set The input set of points.
+   * @return A Result object containing unique sites and the triangulated indices.
+   */
   [[nodiscard]] Result operator () (const DynList<Point> &point_set) const
   {
     Result ret;
@@ -2852,6 +2866,12 @@ public:
     return ret;
   }
 
+  /**
+   * @brief Computes the Delaunay triangulation from an initializer list of points.
+   *
+   * @param il The input points.
+   * @return A Result object containing unique sites and the triangulated indices.
+   */
   [[nodiscard]] Result operator () (const std::initializer_list<Point> il) const
   {
     DynList<Point> points;
@@ -4456,6 +4476,12 @@ private:
     queue.put(ev);
   }
 
+  /**
+   * @brief Validates if a triangulation holds the Delaunay property (empty circumcircle).
+   *
+   * @param dt The triangulation result to validate.
+   * @return True if it is a valid Delaunay triangulation, false otherwise.
+   */
   [[nodiscard]] static bool is_valid_delaunay(const DelaunayTriangulationBowyerWatson::Result &dt)
   {
     for (size_t t = 0; t < dt.triangles.size(); ++t)
@@ -5029,7 +5055,7 @@ class BruteForceConvexHull
       if (p1.get_x() < p2.get_x())
         return true;
 
-      return not(p2.get_x() < p1.get_x()) and p1.get_y() < p2.get_y();
+      return not (p2.get_x() < p1.get_x()) and p1.get_y() < p2.get_y();
     }
 
     /** @brief Compares two segments lexicographically. */
@@ -5038,7 +5064,7 @@ class BruteForceConvexHull
       if (cmp_point(s1.get_src_point(), s2.get_src_point()))
         return true;
 
-      return not(cmp_point(s2.get_src_point(), s1.get_src_point())) and
+      return not (cmp_point(s2.get_src_point(), s1.get_src_point())) and
         cmp_point(s1.get_tgt_point(), s2.get_tgt_point());
     }
   };
@@ -5058,6 +5084,12 @@ class BruteForceConvexHull
     return true;
   }
 
+  /**
+   * @brief Finds the extreme edges of a point set (edges that form the convex hull).
+   *
+   * @param point_set The input set of points.
+   * @return A set of extreme segments (edges of the convex hull).
+   */
   static SegmentSet extreme_edges(const DynList<Point> &point_set)
   {
     SegmentSet ret;
@@ -6251,9 +6283,9 @@ private:
         seen_pairs.insert(key);
         const Point overlap_start = hit.overlap.get_src_point();
         const Point overlap_end = hit.overlap.get_tgt_point();
-        if (not(overlap_start.get_x() < sx))
+        if (not (overlap_start.get_x() < sx))
           eq.enqueue(Event{overlap_start, EventType::INTERSECTION, lo, hi});
-        if (not(overlap_end.get_x() < sx))
+        if (not (overlap_end.get_x() < sx))
           eq.enqueue(Event{overlap_end, EventType::INTERSECTION, lo, hi});
         return;
       }
@@ -9989,7 +10021,7 @@ class ShortestPathInPolygon
     const Orientation o2 = orientation(pts(t.v[2]), pts(t.v[0]), p);
     const bool has_cw = o0 == Orientation::CW or o1 == Orientation::CW or o2 == Orientation::CW;
     const bool has_ccw = o0 == Orientation::CCW or o1 == Orientation::CCW or o2 == Orientation::CCW;
-    return not(has_cw and has_ccw);
+    return not (has_cw and has_ccw);
   }
 
   /// Find a triangle containing point p.
@@ -11250,8 +11282,8 @@ public:
  * Polygon A;
  * A.add_vertex(Point(0,0)); A.add_vertex(Point(2,0)); A.add_vertex(Point(2,2));
  * A.add_vertex(Point(0,2)); A.close(); Polygon B; B.add_vertex(Point(1,1));
- * B.add_vertex(Point(3,1)); B.add_vertex(Point(3,3)); B.add_vertex(Point(1,3)); B.close(); BooleanPolygonOperations
- * bop; auto res = bop(A, B, BooleanPolygonOperations::Op::INTERSECTION);
+ * B.add_vertex(Point(3,1)); B.add_vertex(Point(3,3)); B.add_vertex(Point(1,3)); B.close();
+ * BooleanPolygonOperations bop; auto res = bop(A, B, BooleanPolygonOperations::Op::INTERSECTION);
  * @endcode
  *
  * @ingroup Geometry
@@ -11648,6 +11680,15 @@ private:
 
   // ----- Operation dispatchers -----
 
+  /**
+   * @brief Computes the intersection of two polygons.
+   *
+   * Uses the Greiner-Hormann algorithm.
+   *
+   * @param a The first polygon.
+   * @param b The second polygon.
+   * @return An array of polygons representing the intersection.
+   */
   static Array<Polygon> compute_intersection(const Polygon &a, const Polygon &b)
   {
     Array<Point> va = extract(a);
@@ -11677,6 +11718,15 @@ private:
     return res;
   }
 
+  /**
+   * @brief Computes the union of two polygons.
+   *
+   * Uses the Greiner-Hormann algorithm. If polygons are disjoint, both are returned.
+   *
+   * @param a The first polygon.
+   * @param b The second polygon.
+   * @return An array of polygons representing the union.
+   */
   static Array<Polygon> compute_union(const Polygon &a, const Polygon &b)
   {
     Array<Point> va = extract(a);
@@ -11708,6 +11758,15 @@ private:
     return res;
   }
 
+  /**
+   * @brief Computes the difference (A \ B) of two polygons.
+   *
+   * Uses the Greiner-Hormann algorithm by reversing the orientation of B.
+   *
+   * @param a The first polygon (minuend).
+   * @param b The second polygon (subtrahend).
+   * @return An array of polygons representing the difference.
+   */
   static Array<Polygon> compute_difference(const Polygon &a, const Polygon &b)
   {
     Array<Point> va = extract(a);
@@ -13574,7 +13633,7 @@ public:
       // Deduplicate.
       for (size_t i = 0; i < all_pts.size(); ++i)
         {
-          if (ret.points.is_empty() or not(ret.points(ret.points.size() - 1) == all_pts(i)))
+          if (ret.points.is_empty() or not (ret.points(ret.points.size() - 1) == all_pts(i)))
             ret.points.append(all_pts(i));
         }
     }
