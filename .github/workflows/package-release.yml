@@ -1,0 +1,79 @@
+# Build the release artifacts (source tarball + .deb + .rpm) and upload them to
+# an existing GitHub release.
+#
+# Why a separate, reusable workflow:
+#   release-please creates the tag and the GitHub release using GITHUB_TOKEN.
+#   Events produced by GITHUB_TOKEN do not trigger other workflows, so a
+#   `push: tags` trigger (as in release.yml) never fires for release-please
+#   releases. This workflow is therefore *called* from release-please.yml in the
+#   same run that creates the release (no re-trigger needed), and can also be
+#   dispatched manually to (re)attach assets to any existing tag's release.
+#
+# It uploads with `gh release upload --clobber`, which adds to the release that
+# release-please already created (rather than `gh release create`, which would
+# fail because the release exists).
+name: package-release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag whose assets are built and uploaded."
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to (re)package, e.g. v5.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package-and-upload:
+    name: package & upload assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ rpm \
+            libgmp-dev libmpfr-dev libgsl-dev libx11-dev libpthread-stubs0-dev
+
+      - name: Read version
+        id: ver
+        run: echo "version=$(tr -d '[:space:]' < VERSION.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Source tarball (tracked files only)
+        run: |
+          mkdir -p dist
+          git archive --format=tar.gz \
+            --prefix="aleph-w-${{ steps.ver.outputs.version }}/" \
+            -o "dist/aleph-w-${{ steps.ver.outputs.version }}-Source.tar.gz" HEAD
+
+      - name: Build and package (.deb + .rpm)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF \
+            -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build --target Aleph --parallel
+          ( cd build && cpack -G "DEB;RPM" )
+          cp build/*.deb build/*.rpm dist/
+
+      - name: Upload assets to the existing GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Uploading $(ls dist | wc -l) asset(s) to release ${{ inputs.tag }}:"
+          ls -la dist
+          gh release upload "${{ inputs.tag }}" dist/* --clobber
