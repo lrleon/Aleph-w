@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0](https://github.com/lrleon/Aleph-w/compare/v5.0.0...v5.1.0) (2026-06-29)
+
+
+### Features
+
+* Windows/MSVC and clang-cl port for Aleph-w ([#58](https://github.com/lrleon/Aleph-w/issues/58)) ([342b831](https://github.com/lrleon/Aleph-w/commit/342b831e6733ac80178fdb6677224858edf7cc84))
+
 ## [5.0.0](https://github.com/lrleon/Aleph-w/compare/v4.0.0...v5.0.0) (2026-06-20)
 
 
