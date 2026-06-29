@@ -8,8 +8,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 
 # Compiler flags
-set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
-set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+#
+# MSVC (cl and clang-cl, both with MSVC == TRUE) rejects GNU-style flags
+# such as -Wextra with hard errors (D8021), and clang-cl maps -Wall to
+# MSVC /Wall (~ -Weverything), which breaks the fetched GoogleTest build
+# (it compiles with -WX). Mirror the per-frontend split of the root
+# CMakeLists here for standalone configures.
+if(MSVC)
+    set(WARN_FLAGS "/W3")
+    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES -DNOMINMAX /FIah-compat.H")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # clang-cl optimizes under strict-aliasing rules like clang;
+        # htlist.H requires them disabled (see root CMakeLists).
+        set(COMMON_FLAGS "${COMMON_FLAGS} -fno-strict-aliasing")
+    endif()
+else()
+    set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
+    set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(COMMON_FLAGS "${COMMON_FLAGS} -D__extern_always_inline=\"extern __always_inline\"")
 endif()
@@ -29,7 +45,12 @@ if(ALEPH_USE_SANITIZERS)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
+if(MSVC)
+    # Keep CMake's default /Od /Zi /RTC1; -g3/-O0 are GNU-only.
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
+endif()
 
 # Include parent directory for Aleph headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -55,8 +76,10 @@ include(GoogleTest)
 if(NOT DEFINED ALEPH_SYSTEM_LIBS)
     if(WIN32)
         set(_ALEPH_PTHREAD "")
+        set(_ALEPH_LIBM "")
     else()
         set(_ALEPH_PTHREAD pthread)
+        set(_ALEPH_LIBM m)
     endif()
     set(_ALEPH_X11_LIBS "")
     if(NOT WIN32)
@@ -72,7 +95,7 @@ if(NOT DEFINED ALEPH_SYSTEM_LIBS)
         mpfr
         gsl
         gslcblas
-        m
+        ${_ALEPH_LIBM}
         ${_ALEPH_X11_LIBS}
         Threads::Threads)
 endif()
@@ -93,11 +116,15 @@ if(NOT GTest_FOUND AND ALEPH_FETCH_GTEST)
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG v1.14.0
     )
-    # Prevent GoogleTest from overriding our global compiler/linker options.
-    set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
+    # On MSVC, GoogleTest must use the same CRT as the rest of the build
+    # (/MD, the CMake default); otherwise linking fails with LNK2038.
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
-    find_package(GTest REQUIRED CONFIG) # Targets now exist within the build.
+    # FetchContent adds googletest as a subdirectory and defines the
+    # GTest::* targets directly; it never installs a GTestConfig.cmake,
+    # so find_package(GTest) would fail here.
+    set(GTest_FOUND TRUE)
 endif()
 
 if(NOT GTest_FOUND)
@@ -411,6 +438,7 @@ set(TEST_PROGRAMS
     tpl_ca_rule_test
     ca_engine_sync_test
     ca_update_scheme_test
+    ca_properties_test
     ca_multi_field_test
     ca_checkpoint_test
     tpl_ca_ghost_lattice_test
@@ -435,6 +463,67 @@ set(TEST_PROGRAMS
 # (system GMP is compiled with libstdc++). Only include for GCC.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     list(APPEND TEST_PROGRAMS k2tree_test)
+endif()
+
+# Tests that need POSIX-only facilities (fork()/signals, BSD sockets,
+# pthread wrappers, sys/time) and therefore do not even compile on
+# Windows. They are removed from TEST_PROGRAMS and skipped by the
+# auto-registration glob below until each one is ported.
+set(ALEPH_POSIX_ONLY_TESTS
+    ah_date_test
+    ah_signal_test
+    ca_checkpoint_safety_test
+    concurrency_utils_test
+    file_b_tree_test
+    file_bplus_tree_test
+    net_utils_test
+    ringfilecache
+    timeoutQueue_test
+    # tpl_skipList.H uses GCC zero-sized trailing arrays (forward[0]) as base
+    # class, which MSVC rejects with C2503.
+    skiplist_test
+    # ntt.H requires __uint128_t which is a GCC/Clang extension; MSVC has no
+    # 128-bit integer type so ntt.H emits #error on that compiler.
+    ntt_test
+    # Montgomery reduction uses __uint128_t % n in mont_reduce (fallback path
+    # for large primes).  clang-cl defines __SIZEOF_INT128__ but lacks the
+    # __umodti3 runtime support (no compiler-rt on Windows).
+    montgomery_test
+    # All geometry tests below depend on gmpfrxx.C (excluded on Windows) and/or
+    # on the gmpxx C++ ABI (MinGW mangling), which is incompatible with both
+    # MSVC and clang-cl. Specific issues:
+    #   - MpFrC::rnd and mpq_set_mpfr: defined in gmpfrxx.C (not compiled on Win)
+    #   - operator<<(ostream&, mpq_srcptr): declared __declspec(dllimport) in
+    #     gmpxx.h with MinGW mangling, unresolvable by link.exe / lld-link
+    polygon_test
+    line_test
+    point_test
+    segment_test
+    quadtree_test
+    eepicgeom_test
+    euclidian_graph_test
+    robust_predicates_test
+    tikzgeom_test
+    tikzgeom_algorithms_test
+    # geom_algorithms_test is a combined executable that links ALL sub-test .cc
+    # files into one binary. A second GLOB loop also builds each sub-test .cc as
+    # a standalone target. All of them call mpfr_class functions (square_root,
+    # euclidean_distance, hypot, …) via geom_algorithms.H → polygon.H → point.H
+    # → gmpfrxx.h, requiring MpFrC::rnd / mpq_set_mpfr from gmpfrxx.C which is
+    # excluded on Windows.
+    geom_algorithms_test
+    geom_algorithms_test_mec
+    geom_algorithms_test_decomp_rangetree_visibility_shortestpath_arrangement
+    geom_algorithms_test_edgecases_sweepline_minkowski_kdtree
+    geom_algorithms_test_simplification
+    geom_algorithms_test_offset
+    geom_algorithms_test_boolean_3d_serializer_aabb_misc
+    geom_algorithms_test_triangulation_hulls_delaunay
+    geom_algorithms_test_cdt
+    geom_algorithms_test_trapezoidal_map
+)
+if(WIN32)
+    list(REMOVE_ITEM TEST_PROGRAMS ${ALEPH_POSIX_ONLY_TESTS})
 endif()
 
 # Create executable for each test program
@@ -479,6 +568,11 @@ foreach(test_program ${TEST_PROGRAMS})
         # library/users, but silence it for test targets.
         if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             target_compile_options(${test_exe} PRIVATE -Wno-unused-result)
+        endif()
+
+        # ah-dry.cc is a very large TU that exceeds the default COFF section limit
+        if(MSVC AND test_program STREQUAL "ah-dry")
+            target_compile_options(${test_exe} PRIVATE /bigobj)
         endif()
 
         # Add test to CTest (gtest_discover_tests for IDE integration)
@@ -555,6 +649,11 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
 
     # Skip k2tree_test with clang (GMP/libc++ incompatibility)
     if(_name STREQUAL "k2tree_test" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        continue()
+    endif()
+
+    # Skip POSIX-only tests on Windows (see ALEPH_POSIX_ONLY_TESTS above).
+    if(WIN32 AND _name IN_LIST ALEPH_POSIX_ONLY_TESTS)
         continue()
     endif()
 
@@ -680,6 +779,35 @@ add_test(
             -DSMOKE_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cc
             -P ${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cmake
 )
+
+# Phase 26 — libFuzzer targets (opt-in via ALEPH_BUILD_FUZZERS, Clang-only).
+add_subdirectory(fuzz)
+
+# Phase 25 — C ABI smoke test: a pure-C (C99) consumer that links the flat
+# C ABI shared library and drives a Game of Life through it.
+if(ALEPH_BUILD_C_API AND TARGET alephca_c)
+    add_executable(c_abi_smoke c_abi_smoke.c)
+    # The source is compiled as C99 (proving the header is C-consumable), but
+    # the link uses the C++ driver: libalephca_c is a C++ library, so the C++
+    # runtime must be on the link line. This matters under sanitizers, where
+    # the C driver alone cannot resolve the C++ UBSan vptr runtime
+    # (__ubsan_vptr_type_cache, __ubsan_handle_dynamic_type_cache_miss_abort).
+    set_target_properties(c_abi_smoke PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED ON
+        LINKER_LANGUAGE CXX)
+    target_link_libraries(c_abi_smoke PRIVATE alephca_c)
+    # Windows has no rpath: the loader will not find alephca_c.dll next to the
+    # test unless we put it there (otherwise CTest reports 0xc0000135,
+    # STATUS_DLL_NOT_FOUND). On Linux/macOS the build rpath already resolves it.
+    if(WIN32)
+        add_custom_command(TARGET c_abi_smoke POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:alephca_c> $<TARGET_FILE_DIR:c_abi_smoke>
+            VERBATIM)
+    endif()
+    add_test(NAME c_abi_smoke COMMAND c_abi_smoke)
+endif()
 
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")

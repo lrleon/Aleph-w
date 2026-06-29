@@ -55,7 +55,7 @@
  *  costs(2,0)=20; costs(2,1)=10; costs(2,2)=60;
  *
  *  // Find minimum weight assignment
- *  auto res = hungarian_assignment(costs);
+ *  auto res = Aleph::hungarian_assignment(costs);
  *  // res.total_cost = 30.0 (10 + 10 + 10)
  *  // res.row_to_col = {0, 2, 1}
  *  @endcode
@@ -96,8 +96,8 @@ namespace Aleph {
 template <typename Cost_Type = double>
 struct Hungarian_Result
 {
-  static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>>
-                  or std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
+  static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>> or
+                  std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
                 "Cost_Type must be signed or floating-point to avoid "
                 "underflow when negating costs");
   Cost_Type total_cost = Cost_Type{0};  ///< Optimal total cost
@@ -141,8 +141,8 @@ template <typename Cost_Type = double>
 class Hungarian_Assignment
 
 {
-  static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>>
-                  or std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
+  static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>> or
+                  std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
                 "Cost_Type must be signed or floating-point to avoid "
                 "underflow when negating costs");
   size_t n_ = 0;          // Padded square dimension
@@ -202,8 +202,8 @@ class Hungarian_Assignment
                   continue;
 
                 // Reduced cost: c[i0][j] - u[i0] - v[j]
-                const Cost_Type reduced
-                  = cost.read(static_cast<size_t>(i0 - 1), static_cast<size_t>(j - 1)) - u(i0) - v(j);
+                const Cost_Type reduced =
+                  cost.read(static_cast<size_t>(i0 - 1), static_cast<size_t>(j - 1)) - u(i0) - v(j);
 
                 if (reduced < dist(j))
                   {
@@ -251,8 +251,8 @@ class Hungarian_Assignment
         const long row = p(j) - 1;  // convert to 0-based
         const long col = j - 1;
 
-        if (row >= 0 and static_cast<size_t>(row) < orig_rows_ and col >= 0
-            and static_cast<size_t>(col) < orig_cols_)
+        if (row >= 0 and static_cast<size_t>(row) < orig_rows_ and col >= 0 and
+            static_cast<size_t>(col) < orig_cols_)
           {
             row_to_col_(static_cast<size_t>(row)) = col;
             col_to_row_(static_cast<size_t>(col)) = row;
@@ -469,8 +469,8 @@ public:
 template <typename Cost_Type>
 [[nodiscard]] Hungarian_Result<Cost_Type> hungarian_assignment(const DynMatrix<Cost_Type> &cost)
 {
-  static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>>
-                  or std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
+  static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>> or
+                  std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
                 "Cost_Type must be signed or floating-point to avoid "
                 "underflow when negating costs");
 
@@ -478,8 +478,8 @@ template <typename Cost_Type>
   Hungarian_Result<Cost_Type> result;
   // Read scalar fields before moving from ha.
   result.total_cost = ha.get_total_cost();
-  result.orig_rows  = ha.rows();
-  result.orig_cols  = ha.cols();
+  result.orig_rows = ha.rows();
+  result.orig_cols = ha.cols();
   result.row_to_col = std::move(ha).extract_row_assignments();
   result.col_to_row = std::move(ha).extract_col_assignments();
   return result;
@@ -507,16 +507,16 @@ template <typename Cost_Type>
 template <typename Cost_Type>
 [[nodiscard]] Hungarian_Result<Cost_Type> hungarian_max_assignment(const DynMatrix<Cost_Type> &cost)
 {
-  static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>>
-                  or std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
+  static_assert(std::is_signed_v<std::remove_cv_t<Cost_Type>> or
+                  std::is_floating_point_v<std::remove_cv_t<Cost_Type>>,
                 "Cost_Type must be signed or floating-point to avoid "
                 "underflow when negating costs");
 
   // Use a promoted signed type for negation to avoid overflow when
   // Cost_Type is a signed integer and a cell contains its minimum value.
   using Common = std::common_type_t<Cost_Type, long long>;
-  using Promoted
-    = std::conditional_t<std::is_floating_point_v<Common>, Common, std::make_signed_t<Common>>;
+  using Promoted =
+    std::conditional_t<std::is_floating_point_v<Common>, Common, std::make_signed_t<Common>>;
 
   const size_t rows = cost.rows();
   const size_t cols = cost.cols();

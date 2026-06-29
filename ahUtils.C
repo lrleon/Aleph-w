@@ -30,15 +30,28 @@
 */
 
 
-# include <unistd.h>
-# include <sys/resource.h>
+# ifndef _WIN32
+#   include <unistd.h>
+#   include <sys/resource.h>
+# endif
 # include <algorithm>
 # include <ahUtils.H>
 
 
+# ifdef _WIN32
+
+// On Windows the stack size is fixed at link time (/STACK); there is no
+// runtime equivalent of setrlimit(RLIMIT_STACK).
+bool Aleph::resize_process_stack(size_t)
+{
+  return false;
+}
+
+# else
+
 bool Aleph::resize_process_stack(size_t new_size)
 {
-  const rlim_t kStackSize = new_size;  
+  const rlim_t kStackSize = new_size;
   struct rlimit rl;
   int result;
 
@@ -54,3 +67,5 @@ bool Aleph::resize_process_stack(size_t new_size)
 
   return false;
 }
+
+# endif

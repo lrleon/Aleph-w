@@ -1,0 +1,94 @@
+# Phase 26 — continuous fuzzing of the untrusted-input parsers.
+#
+# Runs each libFuzzer target for a fixed budget against its committed corpus.
+# A crash (ASan/UBSan abort, OOM, timeout) fails the job and the reproducer
+# is uploaded as an artifact. Scheduled weekly; also dispatchable on demand.
+name: fuzz
+
+on:
+  schedule:
+    # Mondays 04:30 UTC.
+    - cron: "30 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "Fuzz budget per target (seconds)"
+        required: false
+        default: "1800"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: fuzz_rle_parser
+            corpus: rle
+          - target: fuzz_life_parser
+            corpus: life
+          - target: fuzz_csv_reader
+            corpus: csv
+          - target: fuzz_checkpoint_loader
+            corpus: checkpoint
+    env:
+      CC: clang
+      CXX: clang++
+      FUZZ_SECONDS: ${{ github.event.inputs.seconds || '1800' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config clang \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev libgtest-dev
+
+      - name: Configure (Clang, fuzzers on)
+        run: |
+          cmake -S . -B build-fuzz -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DBUILD_TESTS=ON \
+            -DBUILD_EXAMPLES=OFF \
+            -DALEPH_BUILD_X11_VIEWER=OFF \
+            -DALEPH_BUILD_FUZZERS=ON
+
+      - name: Build target
+        run: cmake --build build-fuzz --target ${{ matrix.target }}
+
+      - name: Fuzz
+        run: |
+          set -euo pipefail
+          BIN=build-fuzz/Tests/fuzz/${{ matrix.target }}
+          CORPUS=Tests/fuzz/corpus/${{ matrix.corpus }}
+          mkdir -p artifacts
+          echo "Fuzzing ${{ matrix.target }} for ${FUZZ_SECONDS}s"
+          ASAN_OPTIONS=detect_leaks=0 \
+          UBSAN_OPTIONS=print_stacktrace=1 \
+          "$BIN" \
+            -max_total_time="${FUZZ_SECONDS}" \
+            -rss_limit_mb=4096 \
+            -timeout=25 \
+            -print_final_stats=1 \
+            -artifact_prefix=artifacts/ \
+            "$CORPUS"
+
+      - name: Upload crash reproducers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          if-no-files-found: ignore
+          path: artifacts/

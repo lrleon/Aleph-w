@@ -44,7 +44,9 @@
 #ifndef AHDEFS_H
 #define AHDEFS_H
 
-#include <unistd.h>
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 #include <time.h>
 #include <stdint.h>
 #include <cstdlib>
@@ -238,46 +240,42 @@ extern void syslog(const char * format, va_list ap);
 #ifdef MESSAGES
 
 /** @brief Print an informational message (enabled when MESSAGES is defined).
-    @param format Printf-style format string.
-    @param args Format arguments.
+    @param ... Printf-style format string followed by its arguments.
     @ingroup Utilities
 */
-#define MESSAGE(format, args...) \
-        Aleph::message(__FILE__, __LINE__, format , ##args)
+#define MESSAGE(...) \
+        Aleph::message(__FILE__, __LINE__, __VA_ARGS__)
 
 /** @brief Print a warning message (enabled when MESSAGES is defined).
-    @param format Printf-style format string.
-    @param args Format arguments.
+    @param ... Printf-style format string followed by its arguments.
     @ingroup Utilities
 */
-#define WARNING(format, args...) \
-        Aleph::warning(__FILE__, __LINE__, format , ##args)
+#define WARNING(...) \
+        Aleph::warning(__FILE__, __LINE__, __VA_ARGS__)
 
 #else
 
 /** @brief Print an informational message (no-op when MESSAGES is not defined). */
-#define MESSAGE(format, args...)
+#define MESSAGE(...)
 
 /** @brief Print a warning message (no-op when MESSAGES is not defined). */
-#define WARNING(format, args...)
+#define WARNING(...)
 
 #endif
 
 /** @brief Print an error message (always enabled).
-    @param format Printf-style format string.
-    @param args Format arguments.
+    @param ... Printf-style format string followed by its arguments.
     @ingroup Utilities
 */
-#define AH_ERROR(format, args...) \
-        Aleph::error(__FILE__, __LINE__, format , ##args)
+#define AH_ERROR(...) \
+        Aleph::error(__FILE__, __LINE__, __VA_ARGS__)
 
 /** @brief Print a message and exit the program (always enabled).
-    @param format Printf-style format string.
-    @param args Format arguments.
+    @param ... Printf-style format string followed by its arguments.
     @ingroup Utilities
 */
-#define EXIT(format, args...) \
-        Aleph::exit(__FILE__, __LINE__, format , ##args)
+#define EXIT(...) \
+        Aleph::exit(__FILE__, __LINE__, __VA_ARGS__)
 
 /** @brief Check if a pointer was found (not null).
     @param ptr Pointer to check.
@@ -294,10 +292,11 @@ extern void syslog(const char * format, va_list ap);
 #define POINTER_HAS_NOT_BEEN_FOUND(ptr) ((ptr) == nullptr)
 
 /** @brief Exception specification macro (deprecated in modern C++).
-    @param list Exception types that may be thrown.
-    @deprecated Exception specifications are deprecated in C++17 and removed in C++20.
+    @param ... Exception types that may be thrown (ignored).
+    @deprecated Dynamic exception specifications were removed in C++17;
+                this macro now expands to nothing.
     @ingroup Utilities
 */
-#define Exception_Prototypes(list...) throw(std::exception, ##list)
+#define Exception_Prototypes(...)
 
 #endif // AHDEFS_H

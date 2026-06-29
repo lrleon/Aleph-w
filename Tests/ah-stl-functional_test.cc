@@ -42,6 +42,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <numeric>
 #include <ah-stl-functional.H>
 
 #include <vector>

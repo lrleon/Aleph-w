@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file ah-dry.H
  *  @brief Container traversal and functional operation mixins.
  *
@@ -41,15 +40,18 @@
  *  @author Leandro Rabindranath León
  */
 
-# ifndef AH_DRY_H
-# define AH_DRY_H
+#ifndef AH_DRY_H
+#define AH_DRY_H
 
-# include "ahFunctional.H"
-# include <utility>
-# include <vector>
-# include <ah-errors.H>
+#include "ahFunctional.H"
+#include <utility>
+#include <vector>
+#include <ah-errors.H>
 
-namespace Aleph { template <class> class Array; }
+namespace Aleph {
+template <class>
+class Array;
+}
 
 /**  Generic traversal of the container through its iterator.
 
@@ -69,8 +71,7 @@ private:
   template <class Operation>
   static constexpr bool traverse_is_noexcept() noexcept
   {
-    return noexcept(std::declval<Operation&>()(
-      std::declval<typename Container::Item_Type&>()));
+    return noexcept(std::declval<Operation &>()(std::declval<typename Container::Item_Type &>()));
   }
 
 public:
@@ -94,10 +95,9 @@ public:
       \throw anything that could throw `operation`
   */
   template <class Operation>
-  bool traverse(Operation & operation) noexcept(traverse_is_noexcept<Operation>())
+  bool traverse(Operation &operation) noexcept(traverse_is_noexcept<Operation>())
   {
-    for (typename Container::Iterator it(*static_cast<Container*>(this));
-         it.has_curr(); it.next())
+    for (typename Container::Iterator it(*static_cast<Container *>(this)); it.has_curr(); it.next())
       if (not operation(it.get_curr()))
         return false;
     return true;
@@ -105,16 +105,16 @@ public:
 
   /// Const overload of `traverse(Operation&)`.
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(traverse_is_noexcept<Operation>())
+  bool traverse(Operation &operation) const noexcept(traverse_is_noexcept<Operation>())
   {
-    return const_cast<GenericTraverse*>(this)->traverse<Operation>(operation);
+    return const_cast<GenericTraverse *>(this)->traverse<Operation>(operation);
   }
 
   /// Overload of `traverse(Operation&) const` that accepts rvalues.
   /// The operation @p operation is passed (invoked) as a named lvalue to
   /// the member overload rather than being perfectly forwarded.
   template <class Operation>
-  bool traverse(Operation && operation) const noexcept(traverse_is_noexcept<Operation>())
+  bool traverse(Operation &&operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
   }
@@ -123,7 +123,7 @@ public:
   /// The operation @p operation is passed (invoked) as a named lvalue to
   /// the member overload rather than being perfectly forwarded.
   template <class Operation>
-  bool traverse(Operation && operation) noexcept(traverse_is_noexcept<Operation>())
+  bool traverse(Operation &&operation) noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
   }
@@ -142,8 +142,7 @@ public:
  *  @throws anything that `op` throws.
  */
 template <class Container, class Operation>
-bool traverse(const Container & c, Operation & op)
-  noexcept(noexcept(c.traverse(op)))
+bool traverse(const Container &c, Operation &op) noexcept(noexcept(c.traverse(op)))
 {
   return c.traverse(op);
 }
@@ -163,8 +162,7 @@ bool traverse(const Container & c, Operation & op)
  *  @throws anything that `op` throws.
  */
 template <class Container, class Operation>
-bool traverse(const Container & c, Operation && op)
-  noexcept(noexcept(c.traverse(op)))
+bool traverse(const Container &c, Operation &&op) noexcept(noexcept(c.traverse(op)))
 {
   return c.traverse(op);
 }
@@ -194,26 +192,28 @@ bool traverse(const Container & c, Operation && op)
 template <class Container, typename Type>
 class LocateFunctions
 {
-  Container * me() noexcept { return static_cast<Container*>(this); }
-
-  const Container * const_me() const noexcept
+  Container *me() noexcept
   {
-    return static_cast<const Container*>(this);
+    return static_cast<Container *>(this);
   }
 
-  LocateFunctions<Container, Type> * base() const
+  const Container *const_me() const noexcept
   {
-    return const_cast<LocateFunctions*>(this);
+    return static_cast<const Container *>(this);
+  }
+
+  LocateFunctions<Container, Type> *base() const
+  {
+    return const_cast<LocateFunctions *>(this);
   }
 
   template <class Operation>
   static constexpr bool operation_is_noexcept() noexcept
   {
-    return noexcept(std::declval<Operation&>()(std::declval<Type&>()));
+    return noexcept(std::declval<Operation &>()(std::declval<Type &>()));
   }
 
 public:
-
   /** Return a properly initialized iterator positioned at the first
       item on the container.
 
@@ -247,7 +247,10 @@ public:
 
       @return iterator positioned at the first element
   */
-  auto get_itor() const { return get_it(); }
+  auto get_itor() const
+  {
+    return get_it();
+  }
 
   /** Return the n‑th element without bounds checking.
 
@@ -255,17 +258,17 @@ public:
       @param[in] n zero‑based index
       @return mutable reference to the n‑th element
   */
-  Type & nth_ne(const size_t n) noexcept
+  Type &nth_ne(const size_t n) noexcept
   {
-    Type * ptr = nullptr;
+    Type *ptr = nullptr;
     size_t i = 0;
-    me()->traverse([&ptr, &i, &n] (Type & item)
-                   {
-                     if (i++ < n)
-                       return true;
-                     ptr = &item;
-                     return false;
-                   });
+    me()->traverse([&ptr, &i, &n](Type &item)
+      {
+        if (i++ < n)
+          return true;
+        ptr = &item;
+        return false;
+      });
     return *ptr;
   }
 
@@ -275,7 +278,7 @@ public:
       @param[in] n zero‑based index
       @return const reference to the n‑th element
   */
-  const Type & nth_ne(const size_t n) const noexcept
+  const Type &nth_ne(const size_t n) const noexcept
   {
     return base()->nth_ne(n);
   }
@@ -296,17 +299,17 @@ public:
       \throw out_of_range if n is greater or equal that the size of
       container.
    */
-  Type & nth(const size_t n)
+  Type &nth(const size_t n)
   {
-    Type * ptr = nullptr;
+    Type *ptr = nullptr;
     size_t i = 0;
-    me()->traverse([&ptr, &i, &n] (Type & item)
-                   {
-                     if (i++ < n)
-                       return true;
-                     ptr = &item;
-                     return false;
-                   });
+    me()->traverse([&ptr, &i, &n](Type &item)
+      {
+        if (i++ < n)
+          return true;
+        ptr = &item;
+        return false;
+      });
 
     ah_out_of_range_error_if(i != n + 1) << "index out of range";
 
@@ -319,7 +322,7 @@ public:
       @return const reference to the n‑th element
       @throw out_of_range if n is out of range
   */
-  const Type & nth(const size_t n) const
+  const Type &nth(const size_t n) const
   {
     return base()->nth(n);
   }
@@ -346,19 +349,18 @@ public:
       otherwise.
    */
   template <class Operation>
-  Type * find_ptr(Operation & operation)
-    noexcept(operation_is_noexcept<Operation>())
+  Type *find_ptr(Operation &operation) noexcept(operation_is_noexcept<Operation>())
   {
-    Type * ptr = nullptr;
-    me()->traverse([&ptr,&operation] (Type & item)
-                   {
-                     if (operation(item))
-                       {
-                         ptr = &item;
-                         return false;
-                       }
-                     return true;
-                   });
+    Type *ptr = nullptr;
+    me()->traverse([&ptr, &operation](Type &item)
+      {
+        if (operation(item))
+          {
+            ptr = &item;
+            return false;
+          }
+        return true;
+      });
     return ptr;
   }
 
@@ -368,44 +370,41 @@ public:
       @return const pointer to matching element or nullptr
   */
   template <class Operation>
-  const Type * find_ptr(Operation & operation) const
-    noexcept(operation_is_noexcept<Operation>())
+  const Type *find_ptr(Operation &operation) const noexcept(operation_is_noexcept<Operation>())
   {
     return base()->find_ptr(operation);
   }
 
   /** @brief Overload of find_ptr() const that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Matching criterion callable.
    *  @param[in] operation matching criterion.
    *  @return const pointer to matching element or nullptr.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  const Type * find_ptr(Operation && operation) const
-    noexcept(operation_is_noexcept<Operation>())
+  const Type *find_ptr(Operation &&operation) const noexcept(operation_is_noexcept<Operation>())
   {
     return find_ptr<Operation>(operation);
   }
 
   /** @brief Overload of find_ptr() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Matching criterion callable.
    *  @param[in] operation matching criterion.
    *  @return pointer to matching element or nullptr.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  Type * find_ptr(Operation && operation)
-    noexcept(operation_is_noexcept<Operation>())
+  Type *find_ptr(Operation &&operation) noexcept(operation_is_noexcept<Operation>())
   {
     return find_ptr<Operation>(operation);
   }
@@ -433,34 +432,32 @@ public:
       number of items is returned.
    */
   template <class Operation>
-  size_t find_index(Operation & operation) const
-    noexcept(operation_is_noexcept<Operation>())
+  size_t find_index(Operation &operation) const noexcept(operation_is_noexcept<Operation>())
   {
     size_t i = 0;
-    const_me()->traverse([&i,&operation] (Type & item)
-                         {
-                           if (operation(item))
-                             return false;
-                           ++i;
-                           return true;
-                         });
+    const_me()->traverse([&i, &operation](Type &item)
+      {
+        if (operation(item))
+          return false;
+        ++i;
+        return true;
+      });
     return i;
   }
 
   /** @brief Overload of find_index() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Search criterion callable.
    *  @param[in] operation matching criterion.
    *  @return position of first matching element or size if none.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  size_t find_index(Operation && operation) const
-    noexcept(operation_is_noexcept<Operation>())
+  size_t find_index(Operation &&operation) const noexcept(operation_is_noexcept<Operation>())
   {
     return find_index<Operation>(operation);
   }
@@ -486,8 +483,7 @@ public:
       the container.
   */
   template <class Operation>
-  std::tuple<bool, Type> find_item(Operation & operation)
-    noexcept(operation_is_noexcept<Operation>())
+  std::tuple<bool, Type> find_item(Operation &operation) noexcept(operation_is_noexcept<Operation>())
   {
     using TT = std::tuple<bool, Type>;
     auto ptr = find_ptr(operation);
@@ -496,7 +492,7 @@ public:
 
   /** \overload find_item(Operation & operation) */
   template <class Operation>
-  std::tuple<bool, Type> find_item(Operation & operation) const
+  std::tuple<bool, Type> find_item(Operation &operation) const
     noexcept(operation_is_noexcept<Operation>())
   {
     using TT = std::tuple<bool, Type>;
@@ -506,35 +502,34 @@ public:
 
   /** @brief Overload of find_item() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Searching criterion callable.
    *  @param[in] operation matching criterion.
    *  @return a duple std::tuple<bool, Type>.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  std::tuple<bool, Type> find_item(Operation && operation)
-    noexcept(operation_is_noexcept<Operation>())
+  std::tuple<bool, Type> find_item(Operation &&operation) noexcept(operation_is_noexcept<Operation>())
   {
     return find_item<Operation>(operation);
   }
 
   /** @brief Overload of find_item() const that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Searching criterion callable.
    *  @param[in] operation matching criterion.
    *  @return a duple std::tuple<bool, Type>.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  std::tuple<bool, Type> find_item(Operation && operation) const
+  std::tuple<bool, Type> find_item(Operation &&operation) const
     noexcept(operation_is_noexcept<Operation>())
   {
     return find_item<Operation>(operation);
@@ -548,8 +543,7 @@ public:
    *  @throws Anything propagated by evaluating operation(item).
    */
   template <class Operation>
-  bool contains_if(Operation && operation) const
-    noexcept(operation_is_noexcept<Operation>())
+  bool contains_if(Operation &&operation) const noexcept(operation_is_noexcept<Operation>())
   {
     return find_ptr(operation) != nullptr;
   }
@@ -560,9 +554,12 @@ public:
    *  @return true if item is found, false otherwise.
    *  @throws Anything propagated by `operator==` for `Type`.
    */
-  bool contains(const Type & item) const
+  bool contains(const Type &item) const
   {
-    return contains_if([&item] (const Type & x) { return x == item; });
+    return contains_if([&item](const Type &x)
+      {
+        return x == item;
+      });
   }
 };
 
@@ -586,24 +583,27 @@ struct SpecialCtors
 {
   SpecialCtors() = default;
 
-  SpecialCtors(const SpecialCtors&) = default;
+  SpecialCtors(const SpecialCtors &) = default;
 
-  SpecialCtors(SpecialCtors&&) noexcept {}
+  SpecialCtors(SpecialCtors &&) noexcept {}
 
-  SpecialCtors & operator = (const SpecialCtors&) = default;
+  SpecialCtors &operator = (const SpecialCtors &) = default;
 
-  SpecialCtors & operator = (SpecialCtors&&) noexcept { return *this; }
+  SpecialCtors &operator = (SpecialCtors &&) noexcept
+  {
+    return *this;
+  }
 
   /** Build the container by inserting all items of the list `l`.
 
       @param[in] l list of items to insert
   */
-  SpecialCtors(const Aleph::DynList<T> & l)
+  SpecialCtors(const Aleph::DynList<T> &l)
   {
-    l.for_each([this] (const T & item)
-               {
-                 static_cast<Container*>(this)->append(item);
-               });
+    l.for_each([this](const T &item)
+      {
+        static_cast<Container *>(this)->append(item);
+      });
   }
 
   /** Construct the container from a range of iterators.
@@ -615,7 +615,7 @@ struct SpecialCtors
   SpecialCtors(It b, It e)
   {
     for (It it = b; it != e; ++it)
-      static_cast<Container*>(this)->append(*it);
+      static_cast<Container *>(this)->append(*it);
   }
 
   /** Construct the container from an initializer list.
@@ -624,11 +624,10 @@ struct SpecialCtors
   */
   SpecialCtors(std::initializer_list<T> l)
   {
-    for (const auto & item : l)
-      static_cast<Container*>(this)->append(item);
+    for (const auto &item : l)
+      static_cast<Container *>(this)->append(item);
   }
 };
-
 
 /** Common methods to the `Aleph-w` (\f$\aleph_\omega\f$) containers.
 
@@ -640,20 +639,22 @@ struct SpecialCtors
 template <class Container, typename T>
 class FunctionalMethods
 {
-  Container * me() { return static_cast<Container*>(this); }
-
-  FunctionalMethods<Container, T> * base() const noexcept
+  Container *me()
   {
-    return const_cast<FunctionalMethods<Container, T>*>(this);
+    return static_cast<Container *>(this);
   }
 
-  const Container * const_me() const noexcept
+  FunctionalMethods<Container, T> *base() const noexcept
   {
-    return static_cast<const Container*>(this);
+    return const_cast<FunctionalMethods<Container, T> *>(this);
+  }
+
+  const Container *const_me() const noexcept
+  {
+    return static_cast<const Container *>(this);
   }
 
 public:
-
   /** Appends a new element into the container by constructing it
       in-place with the given args.
 
@@ -672,15 +673,15 @@ public:
       \param[in] args variadic arguments list
       \throw bad_alloc if there is no enough memory
   */
-  template <typename ...Args>
-  void emplace(Args && ... args)
+  template <typename... Args>
+  void emplace(Args &&...args)
   {
     (void) me()->append(T(std::forward<Args>(args)...));
   }
 
   /** \overload emplace(Args && ... args) */
-  template <typename ...Args>
-  void emplace_end(Args && ... args)
+  template <typename... Args>
+  void emplace_end(Args &&...args)
   {
     (void) me()->append(T(std::forward<Args>(args)...));
   }
@@ -703,27 +704,26 @@ public:
       \param[in] args variadic arguments list
       \throw bad_alloc if there is no enough memory
   */
-  template <typename ...Args>
-  void emplace_ins(Args && ... args)
+  template <typename... Args>
+  void emplace_ins(Args &&...args)
   {
     (void) me()->insert(T(std::forward<Args>(args)...));
   }
 
 private:
+  static void nninsert(size_t &) {}
+  static void nnappend(size_t &) {}
 
-  void nninsert(size_t&) {}
-  void nnappend(size_t&) {}
-
-  template <typename ... Args>
-  void nninsert(size_t & n, const T & item, Args & ... args)
+  template <typename... Args>
+  void nninsert(size_t &n, const T &item, Args &...args)
   {
     (void) me()->insert(item);
     ++n;
     nninsert(n, args...);
   }
 
-  template <typename ... Args>
-  void nnappend(size_t & n, const T & item, Args & ... args)
+  template <typename... Args>
+  void nnappend(size_t &n, const T &item, Args &...args)
   {
     (void) me()->append(item);
     ++n;
@@ -731,14 +731,13 @@ private:
   }
 
 public:
-
   /** Insert n variadic items
 
       @param[in] args items to be inserted
       @return the number of inserted items
   */
-  template <typename ... Args>
-  size_t ninsert(Args ... args)
+  template <typename... Args>
+  size_t ninsert(Args... args)
   {
     size_t n = 0;
     nninsert(n, args...);
@@ -750,8 +749,8 @@ public:
       @param[in] args items to be appended
       @return the number of appended items
   */
-  template <typename ... Args>
-  size_t nappend(Args ... args)
+  template <typename... Args>
+  size_t nappend(Args... args)
   {
     size_t n = 0;
     nnappend(n, args...);
@@ -776,96 +775,96 @@ public:
       \throw anything that can throw `operation`
   */
   template <class Operation>
-  void for_each(Operation & operation)
+  void for_each(Operation &operation)
   {
-    me()->traverse([&operation] (const T & item)
-                   {
-                     operation(item);
-                     return true;
-                   });
+    me()->traverse([&operation](const T &item)
+      {
+        operation(item);
+        return true;
+      });
   }
 
   /// Const overload of `for_each(Operation&)`.
   template <class Operation>
-  void for_each(Operation & operation) const
+  void for_each(Operation &operation) const
   {
     base()->for_each(operation);
   }
 
   /** @brief Overload of for_each() const that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Callable with signature void(const T &).
    *  @param[in] operation to be performed on each item.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  void for_each(Operation && operation) const
+  void for_each(Operation &&operation) const
   {
     for_each<Operation>(operation);
   }
 
   /** @brief Overload of for_each() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Callable with signature void(const T &).
    *  @param[in] operation to be performed on each item.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  void for_each(Operation && operation)
+  void for_each(Operation &&operation)
   {
     for_each<Operation>(operation);
   }
 
   /// Alias of `for_each(Operation&)`.
   template <class Operation>
-  void each(Operation & operation)
+  void each(Operation &operation)
   {
     for_each(operation);
   }
 
   /// Const alias of `for_each(Operation&)`.
   template <class Operation>
-  void each(Operation & operation) const
+  void each(Operation &operation) const
   {
     for_each(operation);
   }
 
   /** @brief Const alias of each() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Callable with signature void(const T &).
    *  @param[in] operation to be performed on each item.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  void each(Operation && operation) const
+  void each(Operation &&operation) const
   {
     for_each<Operation>(operation);
   }
 
   /** @brief Alias of each() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Callable with signature void(const T &).
    *  @param[in] operation to be performed on each item.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  void each(Operation && operation)
+  void each(Operation &&operation)
   {
     for_each<Operation>(operation);
   }
@@ -891,7 +890,7 @@ public:
       \throw anything that can throw `operation`
   */
   template <class Operation>
-  void each(size_t pos, const size_t slice, Operation & operation) const
+  void each(size_t pos, const size_t slice, Operation &operation) const
   {
     if (slice == 0)
       return;
@@ -910,7 +909,7 @@ public:
 
   /// \overload for_each(Operation & operation)
   template <class Operation>
-  void each(const size_t pos, const size_t slice, Operation && operation) const
+  void each(const size_t pos, const size_t slice, Operation &&operation) const
   {
     each<Operation>(pos, slice, operation);
   }
@@ -925,18 +924,18 @@ public:
    *  @throws Anything that @p operation or the underlying `traverse` may throw.
    */
   template <class Operation>
-  void mutable_for_each(Operation & operation)
+  void mutable_for_each(Operation &operation)
   {
-    me()->traverse([&operation] (T & item)
-                   {
-                     operation(item);
-                     return true;
-                   });
+    me()->traverse([&operation](T &item)
+      {
+        operation(item);
+        return true;
+      });
   }
 
   /** \overload mutable_for_each(Operation & operation) */
   template <class Operation>
-  void mutable_for_each(Operation && operation)
+  void mutable_for_each(Operation &&operation)
   {
     mutable_for_each<Operation>(operation);
   }
@@ -954,24 +953,24 @@ public:
       \throw anything that could throw `operation`
   */
   template <class Operation>
-  bool all(Operation & operation) const
+  bool all(Operation &operation) const
   {
     return const_me()->traverse(operation);
   }
 
   /** @brief Overload of all() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Callable with signature bool(const T &).
    *  @param[in] operation condition to test.
    *  @return `true` if all elements satisfy the condition.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  bool all(Operation && operation) const
+  bool all(Operation &&operation) const
   {
     return all<Operation>(operation);
   }
@@ -990,25 +989,27 @@ public:
       \throw anything that could throw `op`
   */
   template <class Operation>
-  bool exists(Operation & op) const
+  bool exists(Operation &op) const
   {
-    return not const_me()->
-      traverse([&op] (const T & i) { return not op(i); });
+    return not const_me()->traverse([&op](const T &i)
+      {
+        return not op(i);
+      });
   }
 
   /** @brief Overload of exists() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Callable with signature bool(const T &).
    *  @param[in] op predicate to test.
    *  @return `true` if any element satisfies the predicate.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  bool exists(Operation && op) const
+  bool exists(Operation &&op) const
   {
     return exists<Operation>(op);
   }
@@ -1054,30 +1055,33 @@ public:
       no enough memory
   */
   template <typename __T = T, class Operation = Aleph::Dft_Map_Op<T, __T>>
-  Aleph::DynList<__T> maps(Operation & op) const
+  Aleph::DynList<__T> maps(Operation &op) const
   {
     Aleph::DynList<__T> ret_val;
-    const_me()->for_each([&ret_val, &op] (const T & item)
-                         {
-                           ret_val.append(op(item));
-                         });
+    const_me()->for_each([&ret_val, &op](const T &item)
+      {
+        ret_val.append(op(item));
+      });
     return ret_val;
   }
 
   /** @brief Overload of maps() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam __T target type (default T).
    *  @tparam Operation Transformation callable.
    *  @param[in] op transformation operation.
    *  @return DynList<__T> with mapped elements.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <typename __T = T, class Operation = Aleph::Dft_Map_Op<__T, __T>>
-  Aleph::DynList<__T> maps(Operation && op) const { return maps<__T, Operation>(op); }
+  Aleph::DynList<__T> maps(Operation &&op) const
+  {
+    return maps<__T, Operation>(op);
+  }
 
   /** Conditional mapping of the elements of the container.
 
@@ -1096,20 +1100,20 @@ public:
       no enough memory
   */
   template <typename __T = T, class Prop, class Operation>
-  Aleph::DynList<__T> maps_if(Prop prop, Operation & op) const
+  Aleph::DynList<__T> maps_if(Prop prop, Operation &op) const
   {
     Aleph::DynList<__T> ret_val;
-    const_me()->for_each([&ret_val, &prop, &op] (const T & item)
-                         {
-                           if (prop(item))
-                             ret_val.append(op(item));
-                         });
+    const_me()->for_each([&ret_val, &prop, &op](const T &item)
+      {
+        if (prop(item))
+          ret_val.append(op(item));
+      });
     return ret_val;
   }
 
   /** @brief Overload of maps_if() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam __T target type (default T).
@@ -1118,11 +1122,69 @@ public:
    *  @param[in] prop predicate.
    *  @param[in] op transformation operation.
    *  @return DynList<__T> with conditionally mapped elements.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <typename __T = T, class Prop, class Operation>
-  Aleph::DynList<__T> maps_if(Prop prop, Operation && op) const
+  Aleph::DynList<__T> maps_if(Prop prop, Operation &&op) const
+  {
+    return maps_if<__T, Prop, Operation>(prop, op);
+  }
+
+  /** Synonym of maps().
+
+      This method is a synonym for maps() with the classic functional name
+      "map". It exists because early C++ compilers had difficulty
+      distinguishing between the functional map operation and the standard
+      library's map container. Modern compilers no longer have this issue.
+
+      @see maps()
+  */
+  template <typename __T = T, class Operation = Aleph::Dft_Map_Op<T, __T>>
+  Aleph::DynList<__T> map(Operation &op) const
+  {
+    return maps<__T, Operation>(op);
+  }
+
+  /** @brief Overload of map() that accepts rvalues.
+   *
+   *  @tparam __T target type (default T).
+   *  @tparam Operation Transformation callable.
+   *  @param[in] op transformation operation.
+   *  @return DynList<__T> with mapped elements.
+   *  @see maps()
+   */
+  template <typename __T = T, class Operation = Aleph::Dft_Map_Op<__T, __T>>
+  Aleph::DynList<__T> map(Operation &&op) const
+  {
+    return maps<__T, Operation>(op);
+  }
+
+  /** Synonym of maps_if().
+
+      This method is a synonym for maps_if() with the classic functional name
+      "map_if". It exists for consistency with map() as a synonym of maps().
+
+      @see maps_if()
+  */
+  template <typename __T = T, class Prop, class Operation>
+  Aleph::DynList<__T> map_if(Prop prop, Operation &op) const
+  {
+    return maps_if<__T, Prop, Operation>(prop, op);
+  }
+
+  /** @brief Overload of map_if() that accepts rvalues.
+   *
+   *  @tparam __T target type (default T).
+   *  @tparam Prop Predicate callable.
+   *  @tparam Operation Transformation callable.
+   *  @param[in] prop predicate.
+   *  @param[in] op transformation operation.
+   *  @return DynList<__T> with conditionally mapped elements.
+   *  @see maps_if()
+   */
+  template <typename __T = T, class Prop, class Operation>
+  Aleph::DynList<__T> map_if(Prop prop, Operation &&op) const
   {
     return maps_if<__T, Prop, Operation>(prop, op);
   }
@@ -1133,7 +1195,10 @@ public:
    */
   Aleph::DynList<T> to_dynlist() const
   {
-    return maps([] (auto & item) { return item; });
+    return maps([](auto &item)
+      {
+        return item;
+      });
   }
 
   /** Convert container to std::vector.
@@ -1145,7 +1210,10 @@ public:
     std::vector<T> ret;
     if constexpr (requires { const_me()->size(); })
       ret.reserve(const_me()->size());
-    const_me()->for_each([&ret] (const T & item) { ret.push_back(item); });
+    const_me()->for_each([&ret](const T &item)
+      {
+        ret.push_back(item);
+      });
     return ret;
   }
 
@@ -1176,9 +1244,9 @@ public:
       the maximum of all elements you could do:
 
       c.foldl(std::numeric_limits<int>::min(), [] (int acc, int item)
-	    {
+            {
               return std::min(acc, item);
-	    });
+            });
 
       When the folded type is different from `T`, then you must
       specify the folded type as template parameter. For example, if
@@ -1186,30 +1254,30 @@ public:
       do it as follows:
 
       c.template foldl<double>(0, [] (double acc, int item)
-	    {
+            {
               return acu + 1.0/item;
-	    });
+            });
 
       \param[in] init initial value of folded value (or accumulator).
       \param[in] op operation to be performed on each item and used for
-	    folding.
+            folding.
       \return the final folded computation.
       \throw anything that could throw `op`
   */
   template <typename __T = T, class Op = Aleph::Dft_Fold_Op<__T, T>>
-  __T foldl(const __T & init, Op & op) const
+  __T foldl(const __T &init, Op &op) const
   {
     __T ret_val = init;
-    const_me()->for_each([&ret_val, &op] (const T & item)
-                         {
-                           ret_val = op(ret_val, item);
-                         });
+    const_me()->for_each([&ret_val, &op](const T &item)
+      {
+        ret_val = op(ret_val, item);
+      });
     return ret_val;
   }
 
   /** @brief Overload of foldl() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam __T accumulator type (default T).
@@ -1217,11 +1285,11 @@ public:
    *  @param[in] init initial accumulator value.
    *  @param[in] op folding operation.
    *  @return folded result.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <typename __T = T, class Op = Aleph::Dft_Fold_Op<__T, T>>
-    __T foldl(const __T & init, Op && op = Op()) const
+  __T foldl(const __T &init, Op &&op = Op()) const
   {
     return foldl<__T, Op>(init, op);
   }
@@ -1234,14 +1302,14 @@ public:
       @return folded result
   */
   template <typename __T = T, class Op = Aleph::Dft_Fold_Op<__T, T>>
-  __T fold_left(const __T & init, Op & op) const
+  __T fold_left(const __T &init, Op &op) const
   {
     return const_me()->template foldl<__T>(init, op);
   }
 
   /** @brief Overload of fold_left() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam __T accumulator type (default T).
@@ -1249,11 +1317,11 @@ public:
    *  @param[in] init initial accumulator value.
    *  @param[in] op folding operation.
    *  @return folded result.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <typename __T = T, class Op = Aleph::Dft_Fold_Op<__T, T>>
-  __T fold_left(const __T & init, Op && op = Op()) const
+  __T fold_left(const __T &init, Op &&op = Op()) const
   {
     return const_me()->template foldl<__T>(init, op);
   }
@@ -1264,30 +1332,30 @@ public:
       @see foldl(const __T & init, Op & op)
   */
   template <class Operation>
-  T fold(const T & init, Operation & operation) const
+  T fold(const T &init, Operation &operation) const
   {
     auto ret_val = init;
-    const_me()->for_each([&ret_val, &operation] (const T & item)
-                         {
-                           ret_val = operation(ret_val, item);
-                         });
+    const_me()->for_each([&ret_val, &operation](const T &item)
+      {
+        ret_val = operation(ret_val, item);
+      });
     return ret_val;
   }
 
   /** @brief Overload of fold() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Folding callable.
    *  @param[in] init initial accumulator value.
    *  @param[in] operation folding operation.
    *  @return folded result.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  T fold(const T & init, Operation && operation) const
+  T fold(const T &init, Operation &&operation) const
   {
     return fold<Operation>(init, operation);
   }
@@ -1316,30 +1384,30 @@ public:
       there is no enough memory
   */
   template <class Operation>
-  Aleph::DynList<T> filter(Operation & operation) const
+  Aleph::DynList<T> filter(Operation &operation) const
   {
     Aleph::DynList<T> ret_val;
-    const_me()->for_each([&ret_val, &operation] (const T & item)
-                         {
-                           if (operation(item))
-                             ret_val.append(item);
-                         });
+    const_me()->for_each([&ret_val, &operation](const T &item)
+      {
+        if (operation(item))
+          ret_val.append(item);
+      });
     return ret_val;
   }
 
   /** @brief Overload of filter() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Filter callable.
    *  @param[in] operation filter predicate.
    *  @return DynList<T> with matching elements.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  Aleph::DynList<T> filter(Operation && operation) const
+  Aleph::DynList<T> filter(Operation &&operation) const
   {
     return filter<Operation>(operation);
   }
@@ -1368,30 +1436,30 @@ public:
       there is no enough memory
   */
   template <class Operation>
-  Aleph::DynList<const T*> ptr_filter(Operation & operation) const
+  Aleph::DynList<const T *> ptr_filter(Operation &operation) const
   {
-    Aleph::DynList<const T*> ret_val;
-    const_me()->for_each([&ret_val, &operation] (const T & item)
-                         {
-                           if (operation(item))
-                             ret_val.append(&item);
-                         });
+    Aleph::DynList<const T *> ret_val;
+    const_me()->for_each([&ret_val, &operation](const T &item)
+      {
+        if (operation(item))
+          ret_val.append(&item);
+      });
     return ret_val;
   }
 
   /** @brief Overload of ptr_filter() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Filter callable.
    *  @param[in] operation filter predicate.
    *  @return DynList<const T*> with pointers to matching elements.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  Aleph::DynList<const T*> ptr_filter(Operation && operation) const
+  Aleph::DynList<const T *> ptr_filter(Operation &&operation) const
   {
     return ptr_filter<Operation>(operation);
   }
@@ -1416,33 +1484,33 @@ public:
        \see filter(Operation & operation)
   */
   template <class Operation>
-  Aleph::DynList<std::tuple<T, size_t>> pfilter(Operation & operation) const
+  Aleph::DynList<std::tuple<T, size_t>> pfilter(Operation &operation) const
   {
     using TT = std::tuple<T, size_t>;
     Aleph::DynList<TT> ret_val;
     size_t i = 0;
-    const_me()->for_each([&ret_val, &operation, &i] (const T & item)
-                         {
-                           if (operation(item))
-                             ret_val.append(TT(item, i));
-                           ++i;
-                         });
+    const_me()->for_each([&ret_val, &operation, &i](const T &item)
+      {
+        if (operation(item))
+          ret_val.append(TT(item, i));
+        ++i;
+      });
     return ret_val;
   }
 
   /** @brief Overload of pfilter() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Filter callable.
    *  @param[in] operation filter predicate.
    *  @return DynList<std::tuple<T, size_t>> with matching elements and positions.
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  Aleph::DynList<std::tuple<T, size_t>> pfilter(Operation && operation) const
+  Aleph::DynList<std::tuple<T, size_t>> pfilter(Operation &&operation) const
   {
     return pfilter<Operation>(operation);
   }
@@ -1465,32 +1533,32 @@ public:
       \see filter()
   */
   template <class Operation>
-  std::pair<Aleph::DynList<T>, Aleph::DynList<T>> partition(Operation & op) const
+  std::pair<Aleph::DynList<T>, Aleph::DynList<T>> partition(Operation &op) const
   {
     std::pair<Aleph::DynList<T>, Aleph::DynList<T>> ret_val;
-    const_me()->for_each([&ret_val, &op] (const T & item)
-                         {
-                           if (op(item))
-                             ret_val.first.append(item);
-                           else
-                             ret_val.second.append(item);
-                         });
+    const_me()->for_each([&ret_val, &op](const T &item)
+      {
+        if (op(item))
+          ret_val.first.append(item);
+        else
+          ret_val.second.append(item);
+      });
     return ret_val;
   }
 
   /** @brief Overload of partition() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Filter callable.
    *  @param[in] op filter predicate.
    *  @return pair of lists (matched, not matched).
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  std::pair<Aleph::DynList<T>, Aleph::DynList<T>> partition(Operation && op) const
+  std::pair<Aleph::DynList<T>, Aleph::DynList<T>> partition(Operation &&op) const
   {
     return partition<Operation>(op);
   }
@@ -1509,13 +1577,13 @@ public:
   {
     size_t i = 0;
     std::pair<Aleph::DynList<T>, Aleph::DynList<T>> ret_val;
-    const_me()->for_each([&ret_val, &i, n] (const T & item)
-                         {
-                           if (i++ < n)
-                             ret_val.first.append(item);
-                           else
-                             ret_val.second.append(item);
-                         });
+    const_me()->for_each([&ret_val, &i, n](const T &item)
+      {
+        if (i++ < n)
+          ret_val.first.append(item);
+        else
+          ret_val.second.append(item);
+      });
     return ret_val;
   }
 
@@ -1529,14 +1597,14 @@ public:
   {
     size_t i = 0;
     std::pair<Aleph::DynList<T>, Aleph::DynList<T>> ret_val;
-    const_me()->for_each([&ret_val, &i] (const T & item)
-                         {
-                           if (i % 2 == 0)
-                             ret_val.first.append(item);
-                           else
-                             ret_val.second.append(item);
-                           i++;
-                         });
+    const_me()->for_each([&ret_val, &i](const T &item)
+      {
+        if (i % 2 == 0)
+          ret_val.first.append(item);
+        else
+          ret_val.second.append(item);
+        i++;
+      });
     return ret_val;
   }
 
@@ -1554,32 +1622,32 @@ public:
       \see partition(Operation & op)
   */
   template <class Operation>
-  std::tuple<Aleph::DynList<T>, Aleph::DynList<T>> tpartition(Operation & op) const
+  std::tuple<Aleph::DynList<T>, Aleph::DynList<T>> tpartition(Operation &op) const
   {
     Aleph::DynList<T> r1, r2;
-    const_me()->for_each([&r1, &r2, &op] (const T & item)
-                         {
-                           if (op(item))
-                             r1.append(item);
-                           else
-                             r2.append(item);
-                         });
+    const_me()->for_each([&r1, &r2, &op](const T &item)
+      {
+        if (op(item))
+          r1.append(item);
+        else
+          r2.append(item);
+      });
     return std::tuple<Aleph::DynList<T>, Aleph::DynList<T>>(r1, r2);
   }
 
   /** @brief Overload of tpartition() that accepts rvalues.
    *
-   *  The operation is passed (invoked) as a named lvalue to the 
+   *  The operation is passed (invoked) as a named lvalue to the
    *  lvalue-reference overload rather than being perfectly forwarded.
    *
    *  @tparam Operation Filter callable.
    *  @param[in] op filter predicate.
    *  @return tuple of lists (matched, not matched).
-   *  @throws May throw the same exceptions as the corresponding lvalue 
+   *  @throws May throw the same exceptions as the corresponding lvalue
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
-  std::tuple<Aleph::DynList<T>, Aleph::DynList<T>> tpartition(Operation && op) const
+  std::tuple<Aleph::DynList<T>, Aleph::DynList<T>> tpartition(Operation &&op) const
   {
     return tpartition<Operation>(op);
   }
@@ -1598,7 +1666,10 @@ public:
   [[nodiscard]] size_t length() const noexcept
   {
     size_t count = 0;
-    const_me()->for_each([&count] (const T &) { ++count; });
+    const_me()->for_each([&count](const T &)
+      {
+        ++count;
+      });
     return count;
   }
 
@@ -1612,7 +1683,10 @@ public:
   Aleph::DynList<T> rev() const
   {
     Aleph::DynList<T> ret;
-    const_me()->for_each([&ret] (const T & i) { ret.insert(i); });
+    const_me()->for_each([&ret](const T &i)
+      {
+        ret.insert(i);
+      });
     return ret;
   }
 
@@ -1632,13 +1706,13 @@ public:
   {
     size_t i = 0;
     Aleph::DynList<T> ret;
-    const_me()->traverse([&i, &ret, n] (const T & item)
-                         {
-                           if (i++ >= n)
-                             return false;
-                           ret.append(item);
-                           return true;
-                         });
+    const_me()->traverse([&i, &ret, n](const T &item)
+      {
+        if (i++ >= n)
+          return false;
+        ret.append(item);
+        return true;
+      });
     return ret;
   }
 
@@ -1659,8 +1733,7 @@ public:
     Aleph::DynList<T> ret;
     if (step == 0)
       return ret;
-    for (auto it = const_me()->get_it(i); i <= j and it.has_curr();
-         it.next_ne(), i += step)
+    for (auto it = const_me()->get_it(i); i <= j and it.has_curr(); it.next_ne(), i += step)
       ret.append(it.get_curr());
     return ret;
   }
@@ -1681,12 +1754,12 @@ public:
   {
     size_t i = 0;
     Aleph::DynList<T> ret;
-    const_me()->traverse([&i, &ret, n] (const T & item)
-                         {
-                           if (i++ >= n)
-                             ret.append(item);
-                           return true;
-                         });
+    const_me()->traverse([&i, &ret, n](const T &item)
+      {
+        if (i++ >= n)
+          ret.append(item);
+        return true;
+      });
     return ret;
   }
 
@@ -1721,14 +1794,18 @@ struct GenericItems
   */
   Aleph::DynList<T> items() const
   {
-    return static_cast<const Container*>(this)->
-      Container::template maps<T> ([] (const T & key) { return key; });
+    return static_cast<const Container *>(this)->Container::template maps<T>([](const T &key)
+      {
+        return key;
+      });
   }
 
   /** \overload items() */
-  Aleph::DynList<T> keys() const { return items(); }
+  Aleph::DynList<T> keys() const
+  {
+    return items();
+  }
 };
-
 
 /** Alias to GenricItems functor
 
@@ -1736,7 +1813,6 @@ struct GenericItems
 */
 template <class Container, typename T>
 using GenericKeys = GenericItems<Container, T>;
-
 
 /** @brief Mixin providing equality comparison for sequence containers.
  *
@@ -1754,13 +1830,12 @@ using GenericKeys = GenericItems<Container, T>;
 template <class Container>
 class EqualSequenceMethod
 {
-  const Container * const_me() const noexcept
+  const Container *const_me() const noexcept
   {
-    return static_cast<const Container*>(this);
+    return static_cast<const Container *>(this);
   }
 
 public:
-
   /** @brief Equality test between `this` and `r`.
    *
    *  The test is performed by comparing elements one by one in
@@ -1769,10 +1844,10 @@ public:
    *  @param[in] r Container on which the comparison will be performed.
    *  @return `true` if the containers have the same size and all the
    *          elements are equal in the same order.
-   *  @throws Propagates any exception from item comparison or iterator 
+   *  @throws Propagates any exception from item comparison or iterator
    *          operations.
    */
-  bool equal_to(const Container & r) const
+  bool equal_to(const Container &r) const
   {
     if (const_me() == &r)
       return true;
@@ -1785,7 +1860,7 @@ public:
 
     while (it1.has_curr())
       {
-        if (not (it1.get_curr() == it2.get_curr()))
+        if (not(it1.get_curr() == it2.get_curr()))
           return false;
 
         it1.next();
@@ -1800,7 +1875,7 @@ public:
    *  @return Result of equal_to(r).
    *  @throws Propagates same exceptions as equal_to().
    */
-  bool operator == (const Container & r) const
+  bool operator == (const Container &r) const
   {
     return equal_to(r);
   }
@@ -1810,12 +1885,11 @@ public:
    *  @return Negation of equal_to(r).
    *  @throws Propagates same exceptions as equal_to().
    */
-  bool operator != (const Container & r) const
+  bool operator != (const Container &r) const
   {
     return not equal_to(r);
   }
 };
-
 
 /** Equality test for containers.
 
@@ -1824,13 +1898,12 @@ public:
 template <class Container>
 class EqualToMethod
 {
-  const Container * const_me() const
+  const Container *const_me() const
   {
-    return static_cast<const Container*>(this);
+    return static_cast<const Container *>(this);
   }
 
 public:
-
   /** Test if elements of `this` are exactly contained in another
       container.
 
@@ -1849,7 +1922,7 @@ public:
       \return `true` if the container have the same size and all the
       elements of `this` are present in `r`
   */
-  bool equal_to(const Container & r) const noexcept
+  bool equal_to(const Container &r) const noexcept
   {
     if (const_me() == &r)  // Use const_me() to get correct pointer in case of multiple inheritance
       return true;
@@ -1857,18 +1930,20 @@ public:
     if (const_me()->size() != r.size())
       return false;
 
-    return const_me()->all([&r] (const typename Container::Key_Type & k)
-                           { return r.search(k) != nullptr; });
+    return const_me()->all([&r](const typename Container::Key_Type &k)
+      {
+        return r.search(k) != nullptr;
+      });
   }
 
   /// \overload equal_to(const Container & r)
-  bool operator == (const Container & r) const noexcept
+  bool operator == (const Container &r) const noexcept
   {
     return equal_to(r);
   }
 
   /** Negation of equal_to() */
-  bool operator != (const Container & r) const noexcept
+  bool operator != (const Container &r) const noexcept
   {
     return not equal_to(r);
   }
@@ -1881,18 +1956,17 @@ public:
 template <class Container, typename Key, typename Data>
 class MapSequencesMethods
 {
-  const Container * const_me() const
+  const Container *const_me() const
   {
-    return static_cast<const Container*>(this);
+    return static_cast<const Container *>(this);
   }
 
-  Container * me()
+  Container *me()
   {
-    return static_cast<Container*>(this);
+    return static_cast<Container *>(this);
   }
 
 public:
-
   /** Return the domain set of container.
 
       This is a template method whose unique parameter is the type of
@@ -1910,10 +1984,10 @@ public:
   C<Key> keys() const
   {
     C<Key> ret_val;
-    const_me()->for_each([&ret_val] (const Key & p)
-                         {
-                           ret_val.append(p.first);
-                         });
+    const_me()->for_each([&ret_val](const Key &p)
+      {
+        ret_val.append(p.first);
+      });
     return ret_val;
   }
 
@@ -1934,10 +2008,10 @@ public:
   C<Data> values() const
   {
     C<Data> ret_val;
-    const_me()->for_each([&ret_val] (const std::pair<Key, Data> & p)
-                         {
-                           ret_val.append(p.second);
-                         });
+    const_me()->for_each([&ret_val](const std::pair<Key, Data> &p)
+      {
+        ret_val.append(p.second);
+      });
     return ret_val;
   }
 
@@ -1957,11 +2031,13 @@ public:
       \throw bad_alloc if there is no enough memory
   */
   template <template <typename> class C = Aleph::DynList>
-  C<Data*> values_ptr() const
+  C<Data *> values_ptr() const
   {
-    C<Data*> ret_val;
-    const_me()->for_each([&ret_val] (std::pair<Key, Data> & p)
-                         { ret_val.append(&p.second); });
+    C<Data *> ret_val;
+    const_me()->for_each([&ret_val](std::pair<Key, Data> &p)
+      {
+        ret_val.append(&p.second);
+      });
     return ret_val;
   }
 
@@ -1978,7 +2054,10 @@ public:
   C<std::pair<Key, Data>> items() const
   {
     C<std::pair<Key, Data>> ret;
-    const_me()->for_each([&ret] (std::pair<Key, Data> & p) { ret.append(p); });
+    const_me()->for_each([&ret](std::pair<Key, Data> &p)
+      {
+        ret.append(p);
+      });
     return ret;
   }
 
@@ -1994,14 +2073,13 @@ public:
       \throw bad_alloc if there is no enough memory
   */
   template <template <typename> class C = Aleph::DynList>
-  C<std::pair<Key, Data*>> items_ptr() const
+  C<std::pair<Key, Data *>> items_ptr() const
   {
-    C<std::pair<Key, Data*>> ret_val;
-    const_me()->for_each([&ret_val] (std::pair<Key, Data> & p)
-                         {
-                           ret_val.append(std::pair<Key,Data*>(p.first,
-                                                               &p.second));
-                         });
+    C<std::pair<Key, Data *>> ret_val;
+    const_me()->for_each([&ret_val](std::pair<Key, Data> &p)
+      {
+        ret_val.append(std::pair<Key, Data *>(p.first, &p.second));
+      });
     return ret_val;
   }
 
@@ -2010,7 +2088,7 @@ public:
        \return a modifiable reference to value associated to the key.
        \throw domain_error if key is not present in the mapping
   */
-  Data & operator () (const Key & key)
+  Data &operator () (const Key &key)
   {
     // CRTP: `find` lives on the derived `Container`, not on this base.
     // Casting via `me()` is required for AppleClang (which performs the
@@ -2024,9 +2102,9 @@ public:
        \return a constant reference to value associated to the key.
        \throw domain_error if key is not present in the mapping.
   */
-  const Data & operator () (const Key & key) const
+  const Data &operator () (const Key &key) const
   {
     return const_me()->find(key);
   }
 };
-# endif // AH_DRY_H
+#endif  // AH_DRY_H

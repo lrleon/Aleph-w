@@ -44,6 +44,9 @@
 
 # include <cstdint>
 # include <type_traits>
+# ifdef _WIN32
+#   include <intrin.h>
+# endif
 
 # include <ah-errors.H>
 # include <tpl_array.H>
@@ -65,9 +68,18 @@ namespace Aleph
   {
     ah_invalid_argument_if(m == 0) << "mod_mul: modulus must be > 0";
 
-# if defined(__SIZEOF_INT128__)
+# if defined(__SIZEOF_INT128__) && !defined(_WIN32)
     return static_cast<uint64_t>((static_cast<__uint128_t>(a) * b) % m);
+# elif defined(_MSC_VER) && !defined(__clang__) && (defined(_M_X64) || defined(_M_ARM64))
+    // MSVC cl (64-bit): no __int128, but _umul128 + _udiv128 are available
+    unsigned long long hi;
+    unsigned long long lo = _umul128(a, b, &hi);
+    unsigned long long rem;
+    _udiv128(hi, lo, m, &rem);
+    return static_cast<uint64_t>(rem);
 # else
+    // clang-cl: has __uint128_t but no __umodti3 runtime and no _udiv128.
+    // MSVC 32-bit: no _umul128/_udiv128. Fall through to binary method.
     uint64_t res = 0;
     a %= m;
     while (b)
@@ -193,7 +205,7 @@ namespace Aleph
     return t0;
   }
 
-# if defined(__SIZEOF_INT128__)
+# if defined(__SIZEOF_INT128__) && !defined(_WIN32)
   /** @brief Precomputed Montgomery reduction state for a fixed odd modulus. */
   struct MontgomeryCtx;
 

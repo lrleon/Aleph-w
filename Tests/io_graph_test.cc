@@ -38,6 +38,7 @@
 #include <sstream>
 #include <cstdio>
 #include <algorithm>
+#include <filesystem>
 #include <io_graph.H>
 #include <tpl_graph.H>
 
@@ -73,8 +74,10 @@ protected:
     g.insert_arc(n1, n3, 3.5);
     
     // Generate unique filename
-    binary_file = "/tmp/aleph_io_graph_test_" + std::to_string(rand()) + ".bin";
-    text_file = "/tmp/aleph_io_graph_test_" + std::to_string(rand()) + ".txt";
+    binary_file = (std::filesystem::temp_directory_path() /
+                   ("aleph_io_graph_test_" + std::to_string(rand()) + ".bin")).string();
+    text_file = (std::filesystem::temp_directory_path() /
+                 ("aleph_io_graph_test_" + std::to_string(rand()) + ".txt")).string();
   }
   
   void TearDown() override
@@ -384,8 +387,10 @@ protected:
     dg.insert_arc(n1, n2, 2);
     dg.insert_arc(n2, n0, 3);  // Cycle
     
-    binary_file = "/tmp/aleph_io_digraph_test_" + std::to_string(rand()) + ".bin";
-    text_file = "/tmp/aleph_io_digraph_test_" + std::to_string(rand()) + ".txt";
+    binary_file = (std::filesystem::temp_directory_path() /
+                   ("aleph_io_digraph_test_" + std::to_string(rand()) + ".bin")).string();
+    text_file = (std::filesystem::temp_directory_path() /
+                 ("aleph_io_digraph_test_" + std::to_string(rand()) + ".txt")).string();
   }
   
   void TearDown() override

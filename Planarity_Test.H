@@ -440,8 +440,8 @@ struct Dft_Certificate_Node_Label
 };
 
 template <class GT>
-using Default_Planar_Dual_Graph
-  = List_Graph<Graph_Node<size_t>, Graph_Arc<Planar_Dual_Edge_Info<GT>>>;
+using Default_Planar_Dual_Graph =
+  List_Graph<Graph_Node<size_t>, Graph_Arc<Planar_Dual_Edge_Info<GT>>>;
 
 namespace planarity_detail {
 
@@ -481,7 +481,7 @@ struct Conflict_Pair
   Interval left;
   Interval right;
 
-  bool operator==(const Conflict_Pair &other) const noexcept = default;
+  bool operator == (const Conflict_Pair &other) const noexcept = default;
 };
 
 inline bool interval_empty(const Interval &i) noexcept
@@ -639,8 +639,7 @@ void collect_certificate_nodes(const Planarity_Test_Result<GT> &result,
 
   for (typename Array<typename Planarity_Test_Result<GT>::Edge_Witness>::Iterator it(
          result.certificate_obstruction_edges);
-       it.has_curr();
-       it.next_ne())
+       it.has_curr(); it.next_ne())
     {
       add_node(it.get_curr_ne().src);
       add_node(it.get_curr_ne().tgt);
@@ -648,16 +647,14 @@ void collect_certificate_nodes(const Planarity_Test_Result<GT> &result,
 
   for (typename Array<typename Planarity_Test_Result<GT>::Path_Witness>::Iterator pit(
          result.certificate_paths);
-       pit.has_curr();
-       pit.next_ne())
+       pit.has_curr(); pit.next_ne())
     {
       const auto &path = pit.get_curr_ne();
       for (typename Array<Node *>::Iterator nit(path.nodes); nit.has_curr(); nit.next_ne())
         add_node(nit.get_curr_ne());
 
       for (typename Array<typename Planarity_Test_Result<GT>::Edge_Witness>::Iterator eit(path.edges);
-           eit.has_curr();
-           eit.next_ne())
+           eit.has_curr(); eit.next_ne())
         {
           add_node(eit.get_curr_ne().src);
           add_node(eit.get_curr_ne().tgt);
@@ -694,8 +691,8 @@ inline bool bounding_boxes_intersect(const double ax,
   const double min_cd_y = std::min(cy, dy);
   const double max_cd_y = std::max(cy, dy);
 
-  return min_ab_x <= max_cd_x and min_cd_x <= max_ab_x and min_ab_y <= max_cd_y
-     and min_cd_y <= max_ab_y;
+  return min_ab_x <= max_cd_x and min_cd_x <= max_ab_x and min_ab_y <= max_cd_y and
+    min_cd_y <= max_ab_y;
 }
 
 inline bool segments_properly_intersect(const double ax,
@@ -968,9 +965,8 @@ class LR_Planarity_Checker
     if (not enforce_euler or not options_.embedding_validate_with_euler)
       return true;
 
-    const long long lhs = static_cast<long long>(result_.simplified_num_nodes)
-                        - static_cast<long long>(result_.simplified_num_edges)
-                        + static_cast<long long>(global_faces);
+    const long long lhs = static_cast<long long>(result_.simplified_num_nodes) -
+      static_cast<long long>(result_.simplified_num_edges) + static_cast<long long>(global_faces);
 
     const long long rhs = static_cast<long long>(num_components) + 1;
 
@@ -1166,8 +1162,8 @@ class LR_Planarity_Checker
                       }
                 } while (not(stack_.get_last() == stack_bottom_[ei]));
 
-                while (conflicting(stack_.get_last().left, ei)
-                       or conflicting(stack_.get_last().right, ei))
+                while (conflicting(stack_.get_last().left, ei) or
+                       conflicting(stack_.get_last().right, ei))
                   {
                     Conflict_Pair q = stack_.get_last();
                     (void) stack_.remove_last();
@@ -1423,8 +1419,7 @@ class LR_Planarity_Checker
     fast_options.certificate_max_edges = 0;
     fast_options.certificate_max_reduction_passes = 0;
 
-    LR_Planarity_Checker<Tmp_Graph, Dft_Show_Arc<Tmp_Graph>> checker(tg,
-                                                                     Dft_Show_Arc<Tmp_Graph>(),
+    LR_Planarity_Checker<Tmp_Graph, Dft_Show_Arc<Tmp_Graph>> checker(tg, Dft_Show_Arc<Tmp_Graph>(),
                                                                      fast_options);
 
     return checker.run().is_planar;
@@ -1832,8 +1827,8 @@ class LR_Planarity_Checker
             if (p.nodes.is_empty() or p.nodes.get_last() != curr)
               p.nodes.append(curr);
 
-            if (p.u != p.v and p.v < result_.simplified_num_nodes and is_branch[p.v]
-                and p.nodes.size() >= 2)
+            if (p.u != p.v and p.v < result_.simplified_num_nodes and is_branch[p.v] and
+                p.nodes.size() >= 2)
               paths.append(std::move(p));
           }
       }
@@ -1916,16 +1911,9 @@ class LR_Planarity_Checker
                     {
                       const size_t six[6] = {a, b, c, d, e, f};
 
-                      const int partitions[10][3] = {{0, 1, 2},
-                                                     {0, 1, 3},
-                                                     {0, 1, 4},
-                                                     {0, 1, 5},
-                                                     {0, 2, 3},
-                                                     {0, 2, 4},
-                                                     {0, 2, 5},
-                                                     {0, 3, 4},
-                                                     {0, 3, 5},
-                                                     {0, 4, 5}};
+                      const int partitions[10][3] = {{0, 1, 2}, {0, 1, 3}, {0, 1, 4}, {0, 1, 5},
+                                                     {0, 2, 3}, {0, 2, 4}, {0, 2, 5}, {0, 3, 4},
+                                                     {0, 3, 5}, {0, 4, 5}};
 
                       for (const auto &part : partitions)
                         {
@@ -1946,7 +1934,7 @@ class LR_Planarity_Checker
 
                           bool ok = true;
                           for (size_t i = 0; i < 3 and ok; ++i)
-                            for (unsigned long & j : right)
+                            for (size_t j : right)
                               if (not has_pair(left[i], j))
                                 ok = false;
 
@@ -1996,8 +1984,8 @@ class LR_Planarity_Checker
       {
         Array<Array<size_t>> faces;
         size_t global_faces = 0;
-        if (not compute_faces_from_rotation(
-              order, result_.simplified_num_nodes, result_.simplified_num_nodes, faces, global_faces))
+        if (not compute_faces_from_rotation(order, result_.simplified_num_nodes,
+                                            result_.simplified_num_nodes, faces, global_faces))
           return false;
 
         fill_embedding_result(order, faces, global_faces, true);
@@ -2078,7 +2066,7 @@ class LR_Planarity_Checker
             ord[j] = key_ue;
           }
 
-        for (unsigned long &i : ord)
+        for (size_t &i : ord)
           i = other_endpoint(i, v);
       }
 
@@ -2239,8 +2227,8 @@ class LR_Planarity_Checker
 
       Array<Array<size_t>> faces;
       size_t global_faces = 0;
-      if (not compute_faces_from_rotation(
-            candidate, isolated_vertices, num_components, faces, global_faces))
+      if (not compute_faces_from_rotation(candidate, isolated_vertices, num_components, faces,
+                                          global_faces))
         return false;
 
       fill_embedding_result(candidate, faces, global_faces, true);
@@ -2262,8 +2250,8 @@ class LR_Planarity_Checker
 
       Array<Array<size_t>> faces;
       size_t global_faces = 0;
-      if (not compute_faces_from_rotation(
-            candidate, isolated_vertices, num_components, faces, global_faces, false))
+      if (not compute_faces_from_rotation(candidate, isolated_vertices, num_components, faces,
+                                          global_faces, false))
         {
           out.available = false;
           out.valid_embedding = false;
@@ -2272,9 +2260,8 @@ class LR_Planarity_Checker
           return true;
         }
 
-      const long long lhs = static_cast<long long>(result_.simplified_num_nodes)
-                          - static_cast<long long>(result_.simplified_num_edges)
-                          + static_cast<long long>(global_faces);
+      const long long lhs = static_cast<long long>(result_.simplified_num_nodes) -
+        static_cast<long long>(result_.simplified_num_edges) + static_cast<long long>(global_faces);
       const long long rhs = static_cast<long long>(num_components) + 1;
 
       long long delta = lhs - rhs;
@@ -2332,9 +2319,9 @@ class LR_Planarity_Checker
                   if (cand_quality.valid_embedding and materialize_embedding(selected))
                     return true;
 
-                  if (cand_quality.abs_euler_delta < best_quality.abs_euler_delta
-                      or (cand_quality.abs_euler_delta == best_quality.abs_euler_delta
-                          and cand_quality.global_faces > best_quality.global_faces))
+                  if (cand_quality.abs_euler_delta < best_quality.abs_euler_delta or
+                      (cand_quality.abs_euler_delta == best_quality.abs_euler_delta and
+                       cand_quality.global_faces > best_quality.global_faces))
                     {
                       best_opt = i;
                       best_quality = cand_quality;
@@ -2473,8 +2460,8 @@ class LR_Planarity_Checker
         Array<Array<size_t>> faces;
         size_t global_faces = 0;
 
-        if (not compute_faces_from_rotation(
-              order, isolated_vertices, num_components, faces, global_faces))
+        if (not compute_faces_from_rotation(order, isolated_vertices, num_components, faces,
+                                            global_faces))
           return false;
 
         fill_embedding_result(order, faces, global_faces, false);
@@ -2502,8 +2489,8 @@ class LR_Planarity_Checker
         else
           {
             const size_t cnt = factorial_bounded(d - 1, options_.embedding_max_combinations);
-            if (cnt > options_.embedding_max_combinations
-                or combinations > options_.embedding_max_combinations / cnt)
+            if (cnt > options_.embedding_max_combinations or
+                combinations > options_.embedding_max_combinations / cnt)
               {
                 result_.embedding_search_truncated = true;
                 return false;
@@ -2553,7 +2540,8 @@ class LR_Planarity_Checker
 
       Array<Array<size_t>> faces;
       size_t global_faces = 0;
-      if (not compute_faces_from_rotation(order, isolated_vertices, num_components, faces, global_faces))
+      if (not compute_faces_from_rotation(order, isolated_vertices, num_components, faces,
+                                          global_faces))
         return false;
 
       fill_embedding_result(order, faces, global_faces, false);
@@ -2663,10 +2651,10 @@ public:
  *  @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>>
-Planarity_Test_Result<GT> planarity_test(const GT &g,
-                                         SA sa = SA(),
-                                         const Planarity_Test_Options &options
-                                         = Planarity_Test_Options())
+Planarity_Test_Result<GT> planarity_test(
+  const GT &g,
+  SA sa = SA(),
+  const Planarity_Test_Options &options = Planarity_Test_Options())
 {
   return planarity_detail::LR_Planarity_Checker<GT, SA>(g, std::move(sa), options).run();
 }
@@ -3008,9 +2996,9 @@ DGT build_planar_dual_graph(const Planarity_Test_Result<GT> &result)
  *  @ingroup Graphs
  */
 template <class GT>
-Planar_Geometric_Drawing<GT> planar_geometric_drawing(const Planarity_Test_Result<GT> &result,
-                                                      const Planar_Geometric_Drawing_Options &options
-                                                      = Planar_Geometric_Drawing_Options())
+Planar_Geometric_Drawing<GT> planar_geometric_drawing(
+  const Planarity_Test_Result<GT> &result,
+  const Planar_Geometric_Drawing_Options &options = Planar_Geometric_Drawing_Options())
 {
   using Node = typename GT::Node;
   using Face_Metadata = Planar_Dual_Metadata<GT>;
@@ -3160,8 +3148,8 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(const Planarity_Test_Resul
 
       Array<size_t> raw;
       raw.reserve(face.darts.size());
-      for (typename Array<typename Face_Metadata::Face_Dart>::Iterator it(face.darts); it.has_curr();
-           it.next_ne())
+      for (typename Array<typename Face_Metadata::Face_Dart>::Iterator it(face.darts);
+           it.has_curr(); it.next_ne())
         {
           const auto &d = it.get_curr_ne();
           ah_runtime_error_unless(node_to_idx.contains(d.src))
@@ -3228,8 +3216,8 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(const Planarity_Test_Resul
         }
     }
 
-  auto count_crossings
-    = [&](const size_t comp, const Array<double> &px, const Array<double> &py) -> size_t
+  auto count_crossings = [&](const size_t comp, const Array<double> &px,
+                             const Array<double> &py) -> size_t
   {
     size_t total = 0;
     const auto &ce = comp_edge_ids[comp];
@@ -3250,11 +3238,8 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(const Planarity_Test_Resul
     return total;
   };
 
-  auto build_component_layout = [&](const size_t comp,
-                                    const Array<size_t> &boundary,
-                                    Array<double> &px,
-                                    Array<double> &py,
-                                    size_t &iterations) -> void
+  auto build_component_layout = [&](const size_t comp, const Array<size_t> &boundary,
+                                    Array<double> &px, Array<double> &py, size_t &iterations) -> void
   {
     const auto &cnodes = comp_nodes[comp];
     Array<char> fixed(n, static_cast<char>(0));
@@ -3286,8 +3271,8 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(const Planarity_Test_Resul
     for (size_t i = 0; i < use_boundary.size(); ++i)
       {
         const size_t u = use_boundary[i];
-        const double ang
-          = (2.0 * Pi * static_cast<double>(i)) / static_cast<double>(use_boundary.size());
+        const double ang =
+          (2.0 * Pi * static_cast<double>(i)) / static_cast<double>(use_boundary.size());
         px[u] = radius * std::cos(ang);
         py[u] = radius * std::sin(ang);
         fixed[u] = 1;
@@ -3415,8 +3400,8 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(const Planarity_Test_Resul
 
         const size_t crossings = options.validate_crossings ? count_crossings(c, cx, cy) : 0;
 
-        if (not has_best or crossings < best_crossings
-            or (crossings == best_crossings and iters < best_iters))
+        if (not has_best or crossings < best_crossings or
+            (crossings == best_crossings and iters < best_iters))
           {
             has_best = true;
             best_crossings = crossings;
@@ -3482,8 +3467,8 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(const Planarity_Test_Resul
     }
 
   drawing.drawing_available = true;
-  drawing.drawing_validated_no_crossings
-    = (not options.validate_crossings) or drawing.crossing_count == 0;
+  drawing.drawing_validated_no_crossings =
+    (not options.validate_crossings) or drawing.crossing_count == 0;
   return drawing;
 }
 
@@ -3494,10 +3479,10 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(const Planarity_Test_Resul
  *  @ingroup Graphs
  */
 template <class GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
-std::string nonplanar_certificate_to_json(const Planarity_Test_Result<GT> &result,
-                                          Node_Label node_label = Node_Label(),
-                                          const NonPlanar_Certificate_Export_Options &options
-                                          = NonPlanar_Certificate_Export_Options())
+std::string nonplanar_certificate_to_json(
+  const Planarity_Test_Result<GT> &result,
+  Node_Label node_label = Node_Label(),
+  const NonPlanar_Certificate_Export_Options &options = NonPlanar_Certificate_Export_Options())
 {
   using Node = typename GT::Node;
   using Arc = typename GT::Arc;
@@ -3530,8 +3515,8 @@ std::string nonplanar_certificate_to_json(const Planarity_Test_Result<GT> &resul
   {
     if (arc == nullptr)
       return "null";
-    return "\"" + planarity_detail::json_escape_string(planarity_detail::pointer_to_string(arc))
-         + "\"";
+    return "\"" + planarity_detail::json_escape_string(planarity_detail::pointer_to_string(arc)) +
+      "\"";
   };
 
   out << "{";
@@ -3646,10 +3631,10 @@ std::string nonplanar_certificate_to_json(const Planarity_Test_Result<GT> &resul
  *  @ingroup Graphs
  */
 template <class GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
-std::string nonplanar_certificate_to_dot(const Planarity_Test_Result<GT> &result,
-                                         Node_Label node_label = Node_Label(),
-                                         const NonPlanar_Certificate_Export_Options &options
-                                         = NonPlanar_Certificate_Export_Options())
+std::string nonplanar_certificate_to_dot(
+  const Planarity_Test_Result<GT> &result,
+  Node_Label node_label = Node_Label(),
+  const NonPlanar_Certificate_Export_Options &options = NonPlanar_Certificate_Export_Options())
 {
   using Node = typename GT::Node;
 
@@ -3688,8 +3673,8 @@ std::string nonplanar_certificate_to_dot(const Planarity_Test_Result<GT> &result
   for (size_t i = 0; i < result.certificate_obstruction_edges.size(); ++i)
     {
       const auto &e = result.certificate_obstruction_edges[i];
-      if (e.src == nullptr or e.tgt == nullptr or not node_to_id.contains(e.src)
-          or not node_to_id.contains(e.tgt))
+      if (e.src == nullptr or e.tgt == nullptr or not node_to_id.contains(e.src) or
+          not node_to_id.contains(e.tgt))
         continue;
       const size_t u = node_to_id.find(e.src);
       const size_t v = node_to_id.find(e.tgt);
@@ -3699,8 +3684,8 @@ std::string nonplanar_certificate_to_dot(const Planarity_Test_Result<GT> &result
 
   if (options.dot_highlight_paths)
     {
-      static const char *kPalette[]
-        = {"#0077b6", "#2a9d8f", "#6a4c93", "#ef476f", "#ff9f1c", "#588157"};
+      static const char *kPalette[] = {"#0077b6", "#2a9d8f", "#6a4c93",
+                                       "#ef476f", "#ff9f1c", "#588157"};
       constexpr size_t palette_size = sizeof(kPalette) / sizeof(kPalette[0]);
 
       for (size_t pid = 0; pid < result.certificate_paths.size(); ++pid)
@@ -3710,8 +3695,8 @@ std::string nonplanar_certificate_to_dot(const Planarity_Test_Result<GT> &result
           for (size_t k = 0; k < path.edges.size(); ++k)
             {
               const auto &e = path.edges[k];
-              if (e.src == nullptr or e.tgt == nullptr or not node_to_id.contains(e.src)
-                  or not node_to_id.contains(e.tgt))
+              if (e.src == nullptr or e.tgt == nullptr or not node_to_id.contains(e.src) or
+                  not node_to_id.contains(e.tgt))
                 continue;
               const size_t u = node_to_id.find(e.src);
               const size_t v = node_to_id.find(e.tgt);
@@ -3791,8 +3776,7 @@ NonPlanar_Certificate_Validation<GT> validate_nonplanar_certificate(
   DynSetTree<planarity_detail::Edge_Key> obstruction_keys;
   for (typename Array<typename Planarity_Test_Result<GT>::Edge_Witness>::Iterator it(
          result.certificate_obstruction_edges);
-       it.has_curr();
-       it.next_ne())
+       it.has_curr(); it.next_ne())
     {
       const auto &e = it.get_curr_ne();
       planarity_detail::Edge_Key key;
@@ -3806,8 +3790,7 @@ NonPlanar_Certificate_Validation<GT> validate_nonplanar_certificate(
 
   for (typename Array<typename Planarity_Test_Result<GT>::Path_Witness>::Iterator pit(
          result.certificate_paths);
-       pit.has_curr();
-       pit.next_ne())
+       pit.has_curr(); pit.next_ne())
     {
       const auto &path = pit.get_curr_ne();
 
@@ -3856,12 +3839,11 @@ NonPlanar_Certificate_Validation<GT> validate_nonplanar_certificate(
         ++report.kuratowski_shape_mismatch;
     }
 
-  report.is_valid
-    = report.has_certificate and report.null_branch_nodes == 0
-  and report.duplicate_branch_nodes == 0 and report.null_obstruction_edge_endpoints == 0
-  and report.null_path_nodes == 0 and report.null_path_edge_endpoints == 0
-  and report.path_node_edge_length_mismatch == 0 and report.path_edge_endpoint_mismatch == 0
-  and report.path_edge_not_in_obstruction == 0 and report.kuratowski_shape_mismatch == 0;
+  report.is_valid = report.has_certificate and report.null_branch_nodes == 0 and
+    report.duplicate_branch_nodes == 0 and report.null_obstruction_edge_endpoints == 0 and
+    report.null_path_nodes == 0 and report.null_path_edge_endpoints == 0 and
+    report.path_node_edge_length_mismatch == 0 and report.path_edge_endpoint_mismatch == 0 and
+    report.path_edge_not_in_obstruction == 0 and report.kuratowski_shape_mismatch == 0;
 
   return report;
 }
@@ -3883,10 +3865,10 @@ bool nonplanar_certificate_is_valid(const Planarity_Test_Result<GT> &result)
  *  @ingroup Graphs
  */
 template <class GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
-std::string nonplanar_certificate_to_graphml(const Planarity_Test_Result<GT> &result,
-                                             Node_Label node_label = Node_Label(),
-                                             const NonPlanar_Certificate_Export_Options &options
-                                             = NonPlanar_Certificate_Export_Options())
+std::string nonplanar_certificate_to_graphml(
+  const Planarity_Test_Result<GT> &result,
+  Node_Label node_label = Node_Label(),
+  const NonPlanar_Certificate_Export_Options &options = NonPlanar_Certificate_Export_Options())
 {
   using Node = typename GT::Node;
 
@@ -3987,10 +3969,10 @@ std::string nonplanar_certificate_to_graphml(const Planarity_Test_Result<GT> &re
  *  @ingroup Graphs
  */
 template <class GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
-std::string nonplanar_certificate_to_gexf(const Planarity_Test_Result<GT> &result,
-                                          Node_Label node_label = Node_Label(),
-                                          const NonPlanar_Certificate_Export_Options &options
-                                          = NonPlanar_Certificate_Export_Options())
+std::string nonplanar_certificate_to_gexf(
+  const Planarity_Test_Result<GT> &result,
+  Node_Label node_label = Node_Label(),
+  const NonPlanar_Certificate_Export_Options &options = NonPlanar_Certificate_Export_Options())
 {
   using Node = typename GT::Node;
 

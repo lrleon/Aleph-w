@@ -1,0 +1,15 @@
+# Phase 25 — Rust binding workspace for the Aleph-w cellular-automata C ABI.
+#
+# Two crates:
+#   - aleph-ca-sys : raw FFI declarations + link config for libalephca_c.
+#   - aleph-ca     : safe, idiomatic wrapper over the -sys crate.
+#
+# The native library must be built first (CMake target `alephca_c`). Point the
+# linker at it via the ALEPH_CA_LIB_DIR env var, e.g.:
+#
+#   cmake --build build --target alephca_c
+#   ALEPH_CA_LIB_DIR=$PWD/build LD_LIBRARY_PATH=$PWD/build \
+#     cargo test --manifest-path bindings/rust/Cargo.toml
+[workspace]
+resolver = "2"
+members = ["aleph-ca-sys", "aleph-ca"]

@@ -212,6 +212,14 @@ TEST(StringUtils, case_conversion_non_ascii_does_not_crash)
 TEST(StringUtils, only_alpha_and_removals)
 {
   EXPECT_EQ(only_alpha("A-bC_9"), "abc9");
+  // Exercise each preserved range and its boundary characters: digits 0-9 and
+  // lowercase a-z are kept verbatim, uppercase A-Z is lowercased, everything
+  // else is dropped.
+  EXPECT_EQ(only_alpha("Hello, World! 123"), "helloworld123");
+  EXPECT_EQ(only_alpha("0123456789"), "0123456789");
+  EXPECT_EQ(only_alpha("AZaz"), "azaz");
+  EXPECT_EQ(only_alpha("@#$%^&*()"), "");
+  EXPECT_EQ(only_alpha(""), "");
   EXPECT_EQ(remove_spaces(" a\tb\nc "), "abc");
   EXPECT_EQ(remove_symbols("a-b_c", "-_"), "abc");
   EXPECT_EQ(remove_symbols("", "-_"), "");

@@ -72,8 +72,34 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Compiler flags
-set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
-set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+#
+# MSVC (cl and clang-cl, both with MSVC == TRUE) rejects GNU-style flags
+# such as -Wextra or -g3 with hard errors (D8021), so every flag below is
+# split per frontend.
+if(MSVC)
+    set(WARN_FLAGS "/W3")
+    # MSVC's <cmath> only exposes M_PI, M_PI_2 and friends when
+    # _USE_MATH_DEFINES is set before the header is first included. Define it
+    # on the command line so it applies to every translation unit (cl and
+    # clang-cl both use the Microsoft STL headers).
+    #
+    # /FIah-compat.H force-includes the cross-compiler shim header into every
+    # translation unit (it maps GCC/Clang builtins missing from cl). Doing it
+    # here, rather than per-header, guarantees the shims are visible regardless
+    # of each file's include graph. The repo root is on the include path
+    # (include_directories below), so the relative name resolves.
+    # NOMINMAX suppresses the Windows.h min/max macros that conflict with
+    # std::numeric_limits<T>::max() and std::min/max (C2059/macro-arg errors).
+    set(COMMON_FLAGS "-DMESSAGES -D_USE_MATH_DEFINES -DNOMINMAX /FIah-compat.H")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # clang-cl optimizes under strict-aliasing rules like clang;
+        # htlist.H requires them disabled (see the Release flags note below).
+        set(COMMON_FLAGS "${COMMON_FLAGS} -fno-strict-aliasing")
+    endif()
+else()
+    set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
+    set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(COMMON_FLAGS "${COMMON_FLAGS} -D__extern_always_inline=\"extern __always_inline\"")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND ALEPH_USE_LIBCXX)
@@ -94,6 +120,14 @@ if(ALEPH_USE_SANITIZERS)
 endif()
 
 # Debug flags
+# (MSVC keeps CMake's defaults: /Od /Zi /RTC1 for Debug, /O2 /Ob2 /DNDEBUG
+# for Release. MSVC's cl performs no type-based aliasing optimizations, so
+# the -fno-strict-aliasing requirement below does not apply to it; for
+# clang-cl it is handled in COMMON_FLAGS above.)
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
+else()
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -g3 -O0")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g3 -O0")
 
@@ -116,6 +150,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g3 -O0")
 # DO NOT REMOVE -fno-strict-aliasing without first refactoring htlist.H!
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O2 -fno-strict-aliasing -fPIE -fpic")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -O2 -fno-strict-aliasing -fPIE -fpic")
+endif()
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -311,6 +346,7 @@ set(HLIST
     tpl_ca_rule.H
     tpl_ca_engine.H
     ca-engine-utils.H
+    ca-c-api.h
     tpl_ca_ghost_lattice.H
     ca-tiling.H
     ca-bench.H
@@ -378,6 +414,24 @@ set(LIBCSRCS
     mpfr_mul_d.c
 )
 
+if(WIN32)
+    # POSIX-only translation units: fork()/setsid() daemonization, BSD
+    # sockets, pthread wrappers and the pthread-based timeout queue. They
+    # stay out of the Windows build until ported.
+    #
+    # gmpfrxx.C is excluded too: it wraps the GMP/MPFR C++ interface (gmpxx),
+    # whose C++ ABI is incompatible between the MSYS2/mingw libraries and the
+    # MSVC/clang-cl toolchains. Its only consumers (k2tree) are already gated
+    # to GCC, so dropping it here keeps the Windows library buildable.
+    list(REMOVE_ITEM LIBCCCSRCS
+        ahDaemonize.C
+        socket_wrappers.C
+        useMutex.C
+        timeoutQueue.C
+        gmpfrxx.C
+    )
+endif()
+
 # ------------------------------------------------------------------------------
 # Vendored third_party/miniz (DEFLATE backend for ca-checkpoint compression)
 # ------------------------------------------------------------------------------
@@ -421,6 +475,22 @@ if(APPLE)
     endif()
 endif()
 
+# On Windows the gmp / mpfr / gsl headers and import libraries come from the
+# MSYS2 mingw64 tree, passed to CMake via CMAKE_PREFIX_PATH. As with the
+# Homebrew case above, those C libraries are consumed through raw -l names
+# (see ALEPH_SYSTEM_LIBS), so CMAKE_PREFIX_PATH alone does not place their
+# include / lib directories on the compiler command line. Add them explicitly.
+if(WIN32)
+    foreach(_aleph_prefix IN LISTS CMAKE_PREFIX_PATH)
+        if(EXISTS "${_aleph_prefix}/include")
+            target_include_directories(Aleph PUBLIC "${_aleph_prefix}/include")
+        endif()
+        if(EXISTS "${_aleph_prefix}/lib")
+            target_link_directories(Aleph PUBLIC "${_aleph_prefix}/lib")
+        endif()
+    endforeach()
+endif()
+
 # Find required libraries
 find_package(Threads REQUIRED)
 
@@ -440,26 +510,77 @@ else()
     target_compile_definitions(Aleph PUBLIC ALEPH_DISABLE_X11_VIEWER=1)
 endif()
 
-# pthread is a POSIX-only convention; on Windows the Threads::Threads
-# target already pulls the correct synchronization runtime.
+# pthread and libm are POSIX-only conventions; on Windows the
+# Threads::Threads target already pulls the correct synchronization
+# runtime and the math functions live in the CRT.
 if(WIN32)
+    # GSL_DLL tells GSL headers to emit __declspec(dllimport) on global
+    # data variables (e.g. gsl_rng_mt19937). Without it, lld-link fails
+    # to resolve imported data symbols from the GNU import library (.dll.a).
+    target_compile_definitions(Aleph PUBLIC GSL_DLL)
     set(_ALEPH_PTHREAD "")
+    set(_ALEPH_LIBM "")
 else()
     set(_ALEPH_PTHREAD pthread)
+    set(_ALEPH_LIBM m)
 endif()
 
-set(ALEPH_SYSTEM_LIBS
-    gmpxx
-    gmp
-    ${_ALEPH_PTHREAD}
-    mpfr
-    gsl
-    gslcblas
-    m
-    ${_ALEPH_X11_LIBS}
-    Threads::Threads
-    CACHE INTERNAL "System libraries required by Aleph"
-)
+if(WIN32)
+    # MSYS2 mingw64 ships GNU import libraries (libXXX.dll.a), not the
+    # MSVC-style name (XXX.lib) that CMake's XXX → XXX.lib translation
+    # produces.  Both link.exe and lld-link can consume .dll.a when referenced
+    # by full path, so resolve each library to its actual file now.
+    set(_aleph_win_math_libs "")
+    set(_aleph_win_found "")
+    foreach(_aleph_prefix IN LISTS CMAKE_PREFIX_PATH)
+        foreach(_lname gmpxx gmp mpfr gsl gslcblas)
+            if(NOT "${_lname}" IN_LIST _aleph_win_found)
+                # GMP and MPFR static archives (.a) contain standard COFF x64
+                # objects and link cleanly with both link.exe and lld-link.
+                # GSL's static archive pulls in MinGW-specific runtime symbols
+                # (__mingw_vfprintf, __stack_chk_fail) that MSVC cannot resolve,
+                # so for GSL/GSLCBLAS we use the GNU import library (.dll.a)
+                # instead; GSL_DLL is defined below so headers emit
+                # __declspec(dllimport) on data variables (e.g. gsl_rng_mt19937).
+                # MSYS2 headers for GMP, MPFR, and GSL all use __declspec(dllimport)
+                # because those packages were built as DLLs. The static .a archives
+                # cannot satisfy __imp_* import symbols, so we must use the GNU
+                # import libraries (.dll.a). Both MSVC link.exe and lld-link can
+                # read .dll.a (COFF-format AR archives of import stubs).
+                # An MSVC-style .lib takes priority if one happens to exist.
+                if(EXISTS "${_aleph_prefix}/lib/${_lname}.lib")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/${_lname}.lib")
+                    list(APPEND _aleph_win_found "${_lname}")
+                elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.dll.a")
+                    list(APPEND _aleph_win_found "${_lname}")
+                elseif(EXISTS "${_aleph_prefix}/lib/lib${_lname}.a")
+                    list(APPEND _aleph_win_math_libs "${_aleph_prefix}/lib/lib${_lname}.a")
+                    list(APPEND _aleph_win_found "${_lname}")
+                endif()
+            endif()
+        endforeach()
+    endforeach()
+    set(ALEPH_SYSTEM_LIBS
+        ${_aleph_win_math_libs}
+        ${_ALEPH_X11_LIBS}
+        Threads::Threads
+        CACHE INTERNAL "System libraries required by Aleph"
+    )
+else()
+    set(ALEPH_SYSTEM_LIBS
+        gmpxx
+        gmp
+        ${_ALEPH_PTHREAD}
+        mpfr
+        gsl
+        gslcblas
+        ${_ALEPH_LIBM}
+        ${_ALEPH_X11_LIBS}
+        Threads::Threads
+        CACHE INTERNAL "System libraries required by Aleph"
+    )
+endif()
 
 # Link system libraries
 target_link_libraries(Aleph PUBLIC ${ALEPH_SYSTEM_LIBS})
@@ -493,6 +614,28 @@ set_target_properties(Aleph_CA PROPERTIES EXPORT_NAME CA)
 add_library(Aleph::Aleph ALIAS Aleph)
 add_library(Aleph::CA ALIAS Aleph_CA)
 
+# Phase 25 — flat C ABI shim (libalephca_c). A small shared library exposing a
+# pure-C surface (ca-c-api.h) so non-C++ languages (Rust, Julia, Go, .NET, ...)
+# can drive a cellular automaton over a stable, versioned ABI. Internal C++
+# symbols are hidden; only the `aleph_ca_*_v1` entry points are exported.
+option(ALEPH_BUILD_C_API "Build the flat C ABI shared library (libalephca_c)" ON)
+if(ALEPH_BUILD_C_API)
+    add_library(alephca_c SHARED ca-c-api.cc)
+    target_link_libraries(alephca_c PRIVATE Aleph)
+    target_include_directories(alephca_c PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/aleph>)
+    set_target_properties(alephca_c PROPERTIES
+        OUTPUT_NAME alephca_c
+        VERSION 1.0.0
+        SOVERSION 1  # must match ALEPH_CA_API_VERSION_MAJOR in ca-c-api.h
+        C_VISIBILITY_PRESET hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+        POSITION_INDEPENDENT_CODE ON)
+    add_library(Aleph::CApi ALIAS alephca_c)
+endif()
+
 # htlist.H type-puns through unions, so every consumer must also disable strict
 # aliasing (this mirrors the library's own required Release flag). Propagated as
 # an INTERFACE option so it reaches anyone linking Aleph::Aleph or Aleph::CA.
@@ -518,6 +661,20 @@ install(FILES ${HLIST}
 install(FILES third_party/miniz/miniz.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aleph/third_party/miniz
 )
+
+# Phase 25 — install the C ABI shared library (kept out of the AlephTargets
+# export set so it does not perturb the static-library package config).
+# OPTIONAL: several packaging/consumer jobs build only `--target Aleph` and
+# then run `cmake --install`; without OPTIONAL that install would fail because
+# libalephca_c was never built. When a full build is done, the library is
+# present and gets installed normally.
+if(ALEPH_BUILD_C_API)
+    install(TARGETS alephca_c
+        OPTIONAL
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif()
 
 # Generate and install the package config files: AlephConfig.cmake,
 # AlephConfigVersion.cmake and AlephTargets.cmake.

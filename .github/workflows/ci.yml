@@ -588,6 +588,27 @@ jobs:
           gcovr "${GCOVR_ARGS[@]}" \
             --sort uncovered-percent --print-summary > build-coverage/coverage.txt
 
+          # Phase 27 — per-module coverage for the cellular-automata headers.
+          # tpl_ca_*.H (templates/engines) reported separately from ca-*.H
+          # (utilities: I/O, observers, exporters, checkpoint).
+          gcovr "${GCOVR_ARGS[@]}" \
+            --filter '(^|.*/)tpl_ca_.*\.H$' \
+            --print-summary > build-coverage/coverage_ca_templates.txt || true
+          gcovr "${GCOVR_ARGS[@]}" \
+            --filter '(^|.*/)ca-.*\.(H|C)$' \
+            --print-summary > build-coverage/coverage_ca_utils.txt || true
+
+      - name: Upload coverage to Codecov
+        # Tokenless upload works for public repos via GitHub OIDC. The Codecov
+        # project + README badge become live after the first upload reaches
+        # codecov.io (one-time maintainer onboarding via "Sign in with GitHub").
+        uses: codecov/codecov-action@v5
+        with:
+          files: build-coverage/coverage.xml
+          fail_ci_if_error: false
+          flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Diff coverage gate (PR)
         if: github.event_name == 'pull_request'
         env:
@@ -608,6 +629,17 @@ jobs:
             echo '```text'
             cat build-coverage/coverage.txt
             echo '```'
+            echo
+            echo "### Cellular-automata module (per-header)"
+            echo
+            echo '#### `tpl_ca_*.H` (templates / engines)'
+            echo '```text'
+            cat build-coverage/coverage_ca_templates.txt 2>/dev/null || echo "(no data)"
+            echo '```'
+            echo '#### `ca-*.H` (utilities: I/O, observers, exporters, checkpoint)'
+            echo '```text'
+            cat build-coverage/coverage_ca_utils.txt 2>/dev/null || echo "(no data)"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage artifacts
@@ -618,6 +650,8 @@ jobs:
             build-coverage/coverage.xml
             build-coverage/coverage.html
             build-coverage/coverage.txt
+            build-coverage/coverage_ca_templates.txt
+            build-coverage/coverage_ca_utils.txt
 
       - name: Upload test logs on failure
         if: failure()

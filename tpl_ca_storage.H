@@ -116,7 +116,10 @@ private:
     ca_size_t p = 1;
     for (std::size_t d = 0; d < N; ++d)
       {
-        ah_overflow_error_if(e[d] != 0 and p > std::numeric_limits<ca_size_t>::max() / e[d])
+        // Store limit before passing to macro to avoid preprocessor
+        // misparse of <ca_size_t> inside a macro argument (clang-cl).
+        const ca_size_t lim = std::numeric_limits<ca_size_t>::max();
+        ah_overflow_error_if(e[d] != 0 and p > lim / e[d])
           << "Dense_Cell_Storage: extent product overflows ca_size_t at dimension " << d;
         p *= e[d];
       }

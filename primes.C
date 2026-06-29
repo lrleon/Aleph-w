@@ -380,7 +380,7 @@ namespace Primes
 
   const unsigned long DefaultPrime = primeList[0];
 
-  size_t next_prime(unsigned long n)
+  unsigned long next_prime(unsigned long n)
   {
     // Return the smallest prime number p such that p >= n.
     //

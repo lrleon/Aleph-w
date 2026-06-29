@@ -415,7 +415,7 @@ TEST_F(EuclidianGraphTest, ManyArcs)
   std::vector<ENode*> nodes;
   for (size_t i = 0; i < n; ++i)
   {
-    nodes.push_back(g.insert_node(Point(i, i)));
+    nodes.push_back(g.insert_node(Point(static_cast<double>(i), static_cast<double>(i))));
   }
   
   // Create complete graph

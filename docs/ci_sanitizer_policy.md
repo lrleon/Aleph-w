@@ -76,16 +76,35 @@ skips beyond `hash_statistical_test`.
 
 ### `build-windows` (`windows-2022` × `msvc`, `clang-cl`)
 
-The Aleph-w Windows port is restricted to the headless subset. The
-following tests are filtered out because they bind to POSIX system
-calls or to X11/ffmpeg.
+The Aleph-w Windows port is restricted to the headless subset.
+
+Two skip levels exist on Windows:
+
+1. **Compile-level** (`ALEPH_POSIX_ONLY_TESTS` in `Tests/CMakeLists.txt`):
+   tests whose sources or transitive Aleph headers require POSIX-only
+   facilities and do not compile under MSVC/clang-cl. They are removed
+   from the build entirely. The POSIX-only library translation units
+   (`ahDaemonize.C`, `socket_wrappers.C`, `useMutex.C`, `timeoutQueue.C`)
+   are likewise excluded from `libAleph` in the root `CMakeLists.txt`.
+
+| Test (compile-level skip)                       | Reason |
+|-------------------------------------------------|--------|
+| `ah_date_test`                                  | `ah-date.H` wraps POSIX `strptime`. |
+| `ah_signal_test`                                | POSIX signals. |
+| `ca_checkpoint_safety_test`                     | `fork()`-based crash-safety harness. |
+| `concurrency_utils_test`                        | pthread wrappers (`useMutex.H`/`useCondVar.H`). |
+| `file_b_tree_test`, `file_bplus_tree_test`      | Use `<sys/mman.h>` for memory-mapped storage tests; no Windows replacement currently. |
+| `net_utils_test`                                | BSD sockets (`socket_wrappers.H`). |
+| `ringfilecache`                                 | `ringfilecache.H` uses `<sys/time.h>`. |
+| `timeoutQueue_test`                             | Uses `<sys/select.h>` for timing assertions. |
+
+2. **Run-level** (`ctest -E` filter in `ci-platform.yml`): tests that
+   compile but cannot run on the CI runner.
 
 | Test (CTest regex)                              | Reason for skip |
 |-------------------------------------------------|-----------------|
 | `hash_statistical_test`                         | Runtime cost. |
 | `ca_animation_sinks_test`                       | Requires libX11 and an external `ffmpeg` process. |
-| `file_b_tree_test`, `file_bplus_tree_test`      | Use `<sys/mman.h>` for memory-mapped storage tests; no Windows replacement currently. |
-| `timeoutQueue_test`                             | Uses `<sys/select.h>` for timing assertions. |
 
 The Windows job sets `-DALEPH_BUILD_X11_VIEWER=OFF` so the library does
 not pull `libX11`. `ca-x11-viewer.H` is then compiled as a no-op stub

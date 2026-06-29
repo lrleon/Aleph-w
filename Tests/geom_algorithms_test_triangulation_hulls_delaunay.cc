@@ -1614,8 +1614,8 @@ TEST_F(GeomAlgorithmsTest, CuttingEarsManyVertices)
   Polygon p;
   for (size_t i = 0; i < N; ++i)
     {
-      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
-                          / Geom_Number(N);
+      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(static_cast<long>(i))
+                          / Geom_Number(static_cast<long>(N));
       Geom_Number x = Geom_Number(100) * Geom_Number(cos(angle.get_d()));
       Geom_Number y = Geom_Number(100) * Geom_Number(sin(angle.get_d()));
       p.add_vertex(Point(x, y));
@@ -1654,14 +1654,14 @@ TEST_F(GeomAlgorithmsTest, CuttingEarsConsecutiveReflexVertices)
   for (size_t i = 0; i < spikes; ++i)
     {
       // Outer point.
-      Geom_Number angle_out = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
-                              / Geom_Number(spikes);
+      Geom_Number angle_out = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(static_cast<long>(i))
+                              / Geom_Number(static_cast<long>(spikes));
       p.add_vertex(Point(Geom_Number(10) * Geom_Number(cos(angle_out.get_d())),
                          Geom_Number(10) * Geom_Number(sin(angle_out.get_d()))));
 
       // Inner (reflex) point.
       Geom_Number angle_in = angle_out
-                             + Geom_Number(M_PI) / Geom_Number(spikes);
+                             + Geom_Number(M_PI) / Geom_Number(static_cast<long>(spikes));
       p.add_vertex(Point(Geom_Number(4) * Geom_Number(cos(angle_in.get_d())),
                          Geom_Number(4) * Geom_Number(sin(angle_in.get_d()))));
     }
@@ -1694,8 +1694,8 @@ TEST_F(GeomAlgorithmsTest, ConvexHullPointsOnCircle)
   DynList<Point> pts;
   for (size_t i = 0; i < N; ++i)
     {
-      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
-                          / Geom_Number(N);
+      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(static_cast<long>(i))
+                          / Geom_Number(static_cast<long>(N));
       pts.append(Point(Geom_Number(50) * Geom_Number(cos(angle.get_d())),
                        Geom_Number(50) * Geom_Number(sin(angle.get_d()))));
     }
@@ -1791,8 +1791,8 @@ TEST_F(GeomAlgorithmsTest, DelaunayCocircularPoints)
   DynList<Point> pts;
   for (size_t i = 0; i < N; ++i)
     {
-      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(i)
-                          / Geom_Number(N);
+      Geom_Number angle = Geom_Number(2) * Geom_Number(M_PI) * Geom_Number(static_cast<long>(i))
+                          / Geom_Number(static_cast<long>(N));
       pts.append(Point(Geom_Number(10) * Geom_Number(cos(angle.get_d())),
                        Geom_Number(10) * Geom_Number(sin(angle.get_d()))));
     }
