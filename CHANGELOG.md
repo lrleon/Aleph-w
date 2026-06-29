@@ -5,6 +5,27 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0](https://github.com/lrleon/Aleph-w/compare/v5.0.0...v5.1.0) (2026-06-29)
+
+
+### Features
+
+* Windows/MSVC and clang-cl port for Aleph-w ([#58](https://github.com/lrleon/Aleph-w/issues/58)) ([342b831](https://github.com/lrleon/Aleph-w/commit/342b831e6733ac80178fdb6677224858edf7cc84))
+* Flat, versioned C ABI (`libalephca_c` / `ca-c-api.h`) exposing the cellular-automata engine to any language with a C FFI, plus a pure-C smoke test and experimental Rust bindings (`bindings/rust/`).
+* Cellular-automata documentation: a six-chapter tutorial (`docs/tutorial/`), a performance tuning guide (`docs/performance.md`), and a reproducible 16-rule visual gallery (`docs/gallery/`) with a `docs-build` link-check workflow.
+* Property-based tests and a libFuzzer harness (`Tests/fuzz/`) for the RLE/Life/CSV/checkpoint parsers.
+* OSS compliance: `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, Dependabot, REUSE 3.x licensing with a `reuse-lint` gate, and a reproducible-build check.
+* Coverage: Codecov upload and a per-module (`tpl_ca_*.H` vs `ca-*.H`) coverage breakdown.
+
+### Security
+
+* Checkpoint loader hardened against unbounded allocation (CWE-789 / CWE-190): `read_raw_payload` now bounds the declared `payload_size` against the actual file size and `inspect_checkpoint` validates `cell_count` against the extents. Surfaced by the new checkpoint fuzzer; regression tests added.
+
+### Bug Fixes
+
+* Relicensed 88 legacy `Examples/` files from GPL-3.0 to MIT so the repository is uniformly MIT.
+* `Tarjan.H`: fixed two latent `_stack`/`stack_` typos that broke Debug builds instantiating `connected_components`/`test_connectivity`, and corrected the SCC documentation.
+
 ## [5.0.0](https://github.com/lrleon/Aleph-w/compare/v4.0.0...v5.0.0) (2026-06-20)
 
 
