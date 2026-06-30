@@ -13,7 +13,10 @@ project(Aleph-w VERSION ${ALEPH_VERSION} LANGUAGES C CXX)
 # Compiler / standard configuration
 # ------------------------------------------------------------------------------
 
-set(ALEPH_SUPPORTED_CXX_STANDARDS 17 20 23)
+# C++20 is the baseline: the library uses concepts/requires throughout, so it
+# does not build under C++17 (despite earlier listings). C++23 is supported and
+# guarded by the `cxx23-build` CI job.
+set(ALEPH_SUPPORTED_CXX_STANDARDS 20 23)
 set(_ALEPH_DEFAULT_CXX_STANDARD 20)
 set(ALEPH_CXX_STANDARD ${_ALEPH_DEFAULT_CXX_STANDARD}
     CACHE STRING "C++ standard to use when building Aleph-w")
@@ -193,6 +196,7 @@ set(HLIST
     q-consumer-threads.H ah-string-utils.H ah-unique.H ah-comb.H geom_algorithms.H
     ah-source.H
     ah-errors.H
+    ah-cpp-compat.H
     ah-diagnostics.H
     Compiler_Token.H
     Compiler_Lexer.H

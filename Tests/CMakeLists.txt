@@ -226,6 +226,7 @@ set(TEST_PROGRAMS
     ahAlgo
     ah_init_guard
     ah-utils
+    ah_cpp_compat_test
     index-node
     sort_arrays
     primes

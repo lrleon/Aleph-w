@@ -29,7 +29,7 @@ This guide covers the installation of Aleph-w from source using CMake.
 
 ### Compiler Requirements {#install-compiler-requirements}
 
-Aleph-w requires a modern C++ compiler with full C++20 support (C++17 and C++23 are also supported):
+Aleph-w requires a modern C++ compiler with full C++20 support (C++23 is also supported):
 
 | Compiler | Minimum Version | Tested Versions | Status |
 |----------|-----------------|-----------------|--------|
