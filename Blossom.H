@@ -43,12 +43,7 @@
  *
  *  | Algorithm | Time | Space |
  *  |-----------|------|-------|
- *  | Edmonds-Blossom | O(V^2 * E) | O(V) |
- *  ## Complexity
- *
- *  | Algorithm | Time | Space |
- *  |-----------|------|-------|
- *  | Edmonds-Blossom | O(V^3) | O(V + E) |
+ *  | Edmonds-Blossom | O(V^2 * E) | O(V + E) |
  *
  *  @par Example
  *  @code

@@ -207,8 +207,8 @@ jobs:
   # build-and-test above). This job additionally builds and tests the whole
   # library under C++23, so that C++23 consumers stay supported and the
   # std-alias paths of ah-cpp-compat.H (e.g. std::expected) are exercised.
-  # Note: C++17 is intentionally *not* guarded — the library uses concepts and
-  # therefore requires C++20 (despite ALEPH_SUPPORTED_CXX_STANDARDS listing 17).
+  # ALEPH_SUPPORTED_CXX_STANDARDS is {20, 23}; C++17 is not supported because
+  # the library uses concepts throughout.
   cxx23-build:
     name: cxx23-build (ubuntu-24.04, gcc, Release)
     runs-on: ubuntu-24.04

@@ -86,7 +86,7 @@ TEST(AhCppCompat, HoldsError)
 TEST(AhCppCompat, ValueOnErrorThrows)
 {
   expected<int, std::string> e = unexpected<std::string>("nope");
-  EXPECT_ANY_THROW((void) e.value());
+  EXPECT_THROW((void) e.value(), Aleph::bad_expected_access<std::string>);
 }
 
 TEST(AhCppCompat, ParseLikeRoundTrip)
@@ -153,4 +153,57 @@ TEST(AhCppCompat, CopyAndMovePreserveState)
   copy = unexpected<int>(500);
   ASSERT_FALSE(copy.has_value());
   EXPECT_EQ(copy.error(), 500);
+}
+
+TEST(AhCppCompat, VoidExpectedBasic)
+{
+  expected<void, std::string> ok;
+  ASSERT_TRUE(ok.has_value());
+  ASSERT_TRUE(static_cast<bool>(ok));
+  EXPECT_NO_THROW(ok.value());
+
+  expected<void, std::string> err = unexpected<std::string>("fail");
+  ASSERT_FALSE(err.has_value());
+  ASSERT_FALSE(static_cast<bool>(err));
+  EXPECT_EQ(err.error(), "fail");
+  EXPECT_ANY_THROW(err.value());
+}
+
+TEST(AhCppCompat, VoidExpectedMonadic)
+{
+  expected<void, std::string> ok;
+  auto chained = ok.and_then([]() -> expected<int, std::string> { return 42; });
+  ASSERT_TRUE(chained.has_value());
+  EXPECT_EQ(*chained, 42);
+
+  expected<void, std::string> err = unexpected<std::string>("e");
+  auto recovered = err.or_else(
+      [](const std::string &) -> expected<void, std::string> { return {}; });
+  ASSERT_TRUE(recovered.has_value());
+}
+
+namespace
+{
+struct ThrowOnCopy
+{
+  int val = 0;
+  ThrowOnCopy(int v = 0) : val(v) {}
+  ThrowOnCopy(const ThrowOnCopy &) { throw std::runtime_error("copy threw"); }
+  ThrowOnCopy(ThrowOnCopy &&) noexcept = default;
+  ThrowOnCopy &operator=(const ThrowOnCopy &) = delete;
+  ThrowOnCopy &operator=(ThrowOnCopy &&) noexcept = default;
+};
+}  // namespace
+
+TEST(AhCppCompat, AssignmentExceptionSafety)
+{
+  expected<int, ThrowOnCopy> original = 100;
+  ASSERT_TRUE(original.has_value());
+
+  expected<int, ThrowOnCopy> other = unexpected<ThrowOnCopy>(ThrowOnCopy(42));
+  ASSERT_FALSE(other.has_value());
+
+  EXPECT_THROW(original = other, std::runtime_error);
+  ASSERT_TRUE(original.has_value());
+  EXPECT_EQ(*original, 100);
 }

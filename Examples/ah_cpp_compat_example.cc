@@ -43,6 +43,7 @@
  */
 
 #include <iostream>
+#include <limits>
 #include <string>
 
 #include <ah-cpp-compat.H>
@@ -65,7 +66,13 @@ expected<int, std::string> parse_positive(const std::string &text)
     {
       if (c < '0' or c > '9')
         return unexpected<std::string>("not a number: '" + text + "'");
-      value = value * 10 + (c - '0');
+
+      int digit = c - '0';
+      constexpr int max_val = std::numeric_limits<int>::max();
+      if (value > (max_val - digit) / 10)
+        return unexpected<std::string>("overflow: '" + text + "'");
+
+      value = value * 10 + digit;
     }
 
   if (value == 0)
