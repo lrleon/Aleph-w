@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.0](https://github.com/lrleon/Aleph-w/compare/v5.1.0...v5.2.0) (2026-06-30)
+
+
+### Features
+
+* **cpp-compat:** add polyfill for std::expected with C++23 monadic ops ([#66](https://github.com/lrleon/Aleph-w/issues/66)) ([a11be29](https://github.com/lrleon/Aleph-w/commit/a11be292c5570be22e6db43e5750819093564925))
+
 ## [5.1.0](https://github.com/lrleon/Aleph-w/compare/v5.0.0...v5.1.0) (2026-06-29)
 
 
