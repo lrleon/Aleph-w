@@ -1,0 +1,104 @@
+# Phase 30 — Reproducible builds.
+#
+# Builds libAleph.a twice from a pinned source tree and verifies the two
+# archives are bit-identical. Determinism relies on:
+#   * SOURCE_DATE_EPOCH       — pins __DATE__/__TIME__ and timestamps.
+#   * GNU ar in deterministic mode (D) — zeroes mtime/uid/gid in the archive.
+#   * A fixed toolchain and build flags (no __FILE__ absolute paths leaking;
+#     the build dir is the same relative path in both runs).
+#
+# If this job fails, an unreproducible input was introduced (an embedded
+# timestamp, an absolute path, or a non-deterministic codegen flag). See
+# https://reproducible-builds.org/docs/ for remediation patterns.
+name: repro-build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproducible:
+    name: reproducible static library
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      # Fixed epoch (2024-01-01T00:00:00Z) so __DATE__/__TIME__ and any
+      # timestamp-based codegen are stable across runs.
+      SOURCE_DATE_EPOCH: "1704067200"
+      CC: gcc
+      CXX: g++
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config \
+            g++ binutils \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev
+
+      - name: Build #1
+        run: |
+          set -euo pipefail
+          cmake -S . -B build-repro-1 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DALEPH_BUILD_X11_VIEWER=OFF \
+            -DCMAKE_AR=/usr/bin/ar \
+            -DCMAKE_C_ARCHIVE_CREATE="<CMAKE_AR> Dqc <TARGET> <LINK_FLAGS> <OBJECTS>" \
+            -DCMAKE_CXX_ARCHIVE_CREATE="<CMAKE_AR> Dqc <TARGET> <LINK_FLAGS> <OBJECTS>" \
+            -DCMAKE_C_ARCHIVE_FINISH="<CMAKE_RANLIB> -D <TARGET>" \
+            -DCMAKE_CXX_ARCHIVE_FINISH="<CMAKE_RANLIB> -D <TARGET>"
+          cmake --build build-repro-1 --target Aleph --parallel
+
+      - name: Build #2
+        run: |
+          set -euo pipefail
+          cmake -S . -B build-repro-2 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DALEPH_BUILD_X11_VIEWER=OFF \
+            -DCMAKE_AR=/usr/bin/ar \
+            -DCMAKE_C_ARCHIVE_CREATE="<CMAKE_AR> Dqc <TARGET> <LINK_FLAGS> <OBJECTS>" \
+            -DCMAKE_CXX_ARCHIVE_CREATE="<CMAKE_AR> Dqc <TARGET> <LINK_FLAGS> <OBJECTS>" \
+            -DCMAKE_C_ARCHIVE_FINISH="<CMAKE_RANLIB> -D <TARGET>" \
+            -DCMAKE_CXX_ARCHIVE_FINISH="<CMAKE_RANLIB> -D <TARGET>"
+          cmake --build build-repro-2 --target Aleph --parallel
+
+      - name: Compare archives
+        run: |
+          set -euo pipefail
+          LIB1=$(find build-repro-1 -name 'libAleph.a' | head -1)
+          LIB2=$(find build-repro-2 -name 'libAleph.a' | head -1)
+          echo "lib1=$LIB1"
+          echo "lib2=$LIB2"
+          H1=$(sha256sum "$LIB1" | awk '{print $1}')
+          H2=$(sha256sum "$LIB2" | awk '{print $1}')
+          echo "sha256 #1: $H1"
+          echo "sha256 #2: $H2"
+          {
+            echo "## Reproducible build"
+            echo
+            echo "| build | sha256 |"
+            echo "| ----- | ------ |"
+            echo "| #1 | \`$H1\` |"
+            echo "| #2 | \`$H2\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$H1" != "$H2" ]; then
+            echo "::error::libAleph.a is not reproducible (hashes differ)"
+            cmp -l "$LIB1" "$LIB2" | head -50 || true
+            exit 1
+          fi
+          echo "libAleph.a is bit-for-bit reproducible."

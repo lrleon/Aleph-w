@@ -338,6 +338,9 @@ CHANGELOG_v3.md
 
 !CMakeLists.txt
 !Tests/CMakeLists.txt
+# REUSE/SPDX license texts must be tracked (the *.txt rule above would hide them).
+!LICENSES/
+!LICENSES/*.txt
 
 # Compiled binaries
 a.out

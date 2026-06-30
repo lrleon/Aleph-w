@@ -254,6 +254,9 @@ jobs:
     env:
       VCPKG_DEFAULT_TRIPLET: x64-windows
       SCCACHE_GHA_ENABLED: "true"
+      # Fall back to plain compilation instead of failing the build when the
+      # GitHub Actions cache service is unavailable.
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
 
     defaults:
       run:
@@ -274,12 +277,14 @@ jobs:
             mingw-w64-x86_64-gsl
             mingw-w64-x86_64-pkg-config
 
-      - name: Install ninja and sccache
+      - name: Install ninja
         run: |
-          choco install -y ninja sccache
+          choco install -y ninja
 
       - name: Enable sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        # v0.0.6 only wires up the legacy GHA cache v1 endpoint, which GitHub
+        # shut down in 2025 (permanent HTTP 400 from artifactcache.*).
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Set up MSVC environment
         if: matrix.toolchain == 'msvc'
@@ -327,12 +332,18 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Test (CA sub-suite, skip POSIX-only tests)
+        shell: pwsh
         run: |
+          # Add MSYS2 mingw64 bin to PATH so that test executables can find
+          # the GMP/MPFR/GSL DLLs (libgmp-10.dll, libmpfr-6.dll, etc.) at
+          # runtime.  Without this the executables crash on load and
+          # LastTest.log remains empty.
+          $env:PATH = "$env:RUNNER_TEMP\msys64\mingw64\bin;$env:PATH"
           # Per docs/ci_sanitizer_policy.md, the following are skipped on
           # Windows because they bind to libX11, an external `ffmpeg`
           # process, or POSIX-only system calls (sys/wait, sys/select).
           ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 `
-            -E 'hash_statistical_test|ca_animation_sinks_test|file_b_tree_test|file_bplus_tree_test|timeoutQueue_test'
+            -E 'hash_statistical_test|ca_animation_sinks_test|file_b_tree_test|file_bplus_tree_test|timeoutQueue_test|PlanarityTest\.External|PlanarityTest\.ExternalGephi|CompilerSdk\.InstallHeadersSmoke|ThreadPoolTest\.BenchmarkVsStdAsync'
 
       - name: Upload test logs on failure
         if: failure()

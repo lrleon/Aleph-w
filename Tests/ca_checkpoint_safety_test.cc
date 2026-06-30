@@ -514,3 +514,76 @@ TEST(CACheckpointSafety, DeltaRoundTripMatchesFullSnapshot)
 
   std::filesystem::remove_all(dir);
 }
+
+// =====================================================================
+// Hardening against hostile headers (CWE-789 / CWE-190).
+//
+// These reproduce a class of bug surfaced by the Phase-26 checkpoint
+// fuzzer: a header field that drives an allocation must be validated
+// against the file before the allocation happens. Field offsets follow
+// the v2 layout (see header_bytes_v1/v2 in ca-checkpoint.H):
+//   magic(8) version(4) type_hash(8) state_size(4) rank(4) extents(32)
+//   step(8) has_rng(1) pad(7) master_seed(8) cell_count(8) ...
+//                                             ^offset 84
+//   ... flags(4) compression_level(4) payload_size(8) ...
+//                                     ^offset 100
+// =====================================================================
+
+namespace
+{
+
+constexpr std::streamoff kCellCountOffset = 84;
+constexpr std::streamoff kPayloadSizeOffset = 100;
+
+// Overwrite the little-endian uint64 field at `offset` in-place.
+void patch_u64(const std::filesystem::path &path, std::streamoff offset,
+               std::uint64_t value)
+{
+  std::fstream f(path, std::ios::binary | std::ios::in | std::ios::out);
+  ASSERT_TRUE(f.good());
+  f.seekp(offset, std::ios::beg);
+  unsigned char bytes[8];
+  for (int i = 0; i < 8; ++i)
+    bytes[i] = static_cast<unsigned char>((value >> (8 * i)) & 0xFF);
+  f.write(reinterpret_cast<const char *>(bytes), sizeof(bytes));
+  ASSERT_TRUE(f.good());
+}
+
+}  // namespace
+
+TEST(CACheckpointSafety, InspectRejectsCellCountExtentMismatch)
+{
+  const auto dir = tmp_dir("hostile_cellcount");
+  const auto path = dir / "snap.bin";
+
+  Engine eng(Grid({16, 16}, 0), make_game_of_life_rule(), Moore<2, 1>{});
+  eng.run(2);
+  save_checkpoint(eng, path);
+
+  // Claim a cell_count inconsistent with the 16x16 extents.
+  patch_u64(path, kCellCountOffset, 0xFFFFFFFFFFFFFFFFull);
+
+  EXPECT_THROW(inspect_checkpoint(path), std::runtime_error);
+
+  std::filesystem::remove_all(dir);
+}
+
+TEST(CACheckpointSafety, LoadRejectsOversizedPayloadWithoutHugeAllocation)
+{
+  const auto dir = tmp_dir("hostile_payload");
+  const auto path = dir / "snap.bin";
+
+  Engine eng(Grid({16, 16}, 0), make_game_of_life_rule(), Moore<2, 1>{});
+  eng.run(2);
+  save_checkpoint(eng, path);  // raw, uncompressed: payload_size is meaningful
+
+  // cell_count stays consistent, but the payload claims to be enormous.
+  // The file-size guard in read_raw_payload must reject this before the
+  // multi-exabyte std::vector allocation is attempted.
+  patch_u64(path, kPayloadSizeOffset, 0xFFFFFFFFFFFFFFFFull);
+
+  Engine target(Grid({16, 16}, 0), make_game_of_life_rule(), Moore<2, 1>{});
+  EXPECT_THROW(load_checkpoint_into(target, path), std::runtime_error);
+
+  std::filesystem::remove_all(dir);
+}

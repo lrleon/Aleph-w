@@ -263,6 +263,9 @@ def parse_function_like_decl(line, current_class_name)
   prefix = m[:prefix].strip
   return nil if CONTROL_KEYWORDS.include?(name)
 
+  # Filter method calls: obj.method(...) or obj->method(...)
+  return nil if prefix.match?(/\.\s*$/) || prefix.match?(/\->\s*$/)
+
   is_ctor_or_dtor = !current_class_name.nil? && (name == current_class_name || name == "~#{current_class_name}")
   return nil if prefix.empty? && !is_ctor_or_dtor
 

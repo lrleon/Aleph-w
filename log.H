@@ -219,12 +219,12 @@ public:
  * @brief Macro to write to log with automatic file/line in debug mode.
  *
  * @param log Log_Manager instance
- * @param format Printf-style format and arguments
+ * @param ... Printf-style format string and arguments
  */
 # ifdef DEBUG
-# define WRITE_IN_LOG(log, format...) log.write_line(__FILE__, __LINE__, format)
+# define WRITE_IN_LOG(log, ...) log.write_line(__FILE__, __LINE__, __VA_ARGS__)
 # else
-# define WRITE_IN_LOG(log, format...) log.write_line(format)
+# define WRITE_IN_LOG(log, ...) log.write_line(__VA_ARGS__)
 # endif
 
 # endif // LOG_H

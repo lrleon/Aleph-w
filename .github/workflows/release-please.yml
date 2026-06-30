@@ -29,10 +29,13 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
     steps:
       - name: Run release-please
         id: rp
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
@@ -55,3 +58,16 @@ jobs:
             git commit -m "chore: sync VERSION.txt to ${version}"
             git push
           fi
+
+  # When release-please publishes a release in this same run, build the binary
+  # artifacts and attach them to it. Running here (not via a `push: tags`
+  # trigger in release.yml) is required because GITHUB_TOKEN-created tags do not
+  # trigger downstream workflows.
+  package:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/package-release.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}

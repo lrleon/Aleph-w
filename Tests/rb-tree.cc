@@ -43,6 +43,7 @@
 #include <functional>
 
 #include <gtest/gtest.h>
+#include <numeric>
 
 #include <tpl_rb_tree.H>
 #include <tpl_hRbTree.H>

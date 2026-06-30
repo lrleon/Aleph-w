@@ -41,6 +41,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <numeric>
 
 #include <tpl_avl.H>
 

@@ -150,6 +150,7 @@ EXCLUDE                = build* \
                          cmake-build-release \
                          CMakeFiles \
                          python \
+                         bindings \
                          third_party
 EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */build*/* \
@@ -160,7 +161,12 @@ EXCLUDE_PATTERNS       = */build*/* \
                          */CMakeFiles/* \
                          */python/* \
                          */third_party/* \
-                         */reproductions/README.md
+                         */reproductions/README.md \
+                         */CONTRIBUTING.md \
+                         */CODE_OF_CONDUCT.md \
+                         */SECURITY.md \
+                         */Tests/fuzz/README.md \
+                         */bindings/*
 EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           = Examples \
                          Tests

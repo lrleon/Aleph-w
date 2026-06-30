@@ -37,6 +37,7 @@
  */
 # include <gtest/gtest.h>
 
+# include <map>
 # include <vector>
 # include <ah-zip.H>
 # include <ahFunctional.H>
@@ -276,6 +277,20 @@ TYPED_TEST_P(Container, maps)
 	      all([] (auto & p) { return p.first == p.second; }));
 }
 
+TYPED_TEST_P(Container, map_synonyms)
+{
+  auto c = this->c;
+  auto & l = this->item_list;
+  auto fct = [] (int i) { return i + 1; };
+  EXPECT_TRUE(zip(sort(to_dynlist(c.map(fct))), sort(l.map(fct))).
+	      all([] (auto & p) { return p.first == p.second; }));
+  EXPECT_TRUE(zip(sort(to_dynlist(c.map_if([] (auto i)
+					   { return i < 7; }, fct))),
+		  sort(l.map_if([] (auto i)
+				{ return i < 7; }, fct))).
+	      all([] (auto & p) { return p.first == p.second; }));
+}
+
 TYPED_TEST_P(Container, foldl)
 {
   int N = this->N;
@@ -316,8 +331,8 @@ TYPED_TEST_P(Container, filter_ops)
 
 REGISTER_TYPED_TEST_SUITE_P(Container, traverse, for_each, find_ptr,
                             find_index_nth, find_item, iterator_operations,
-                            nappend, ninsert, all, exists, maps, foldl,
-                            filter_ops);
+                            nappend, ninsert, all, exists, maps, map_synonyms,
+                            foldl, filter_ops);
 
 typedef
 Types< DynList<int>, DynDlist<int>,  DynArray<int>,
@@ -424,4 +439,36 @@ TEST(EqualSequenceMethod, comparison)
 
   EXPECT_TRUE(d1 == d2);
   EXPECT_FALSE(d1 == d3);
+}
+
+TEST(StdMapCoexistence, map_method_with_std_map)
+{
+  std::map<int, std::string> std_map;
+  std_map[1] = "one";
+  std_map[2] = "two";
+  std_map[3] = "three";
+
+  DynList<int> aleph_list = {1, 2, 3, 4, 5};
+
+  auto mapped = aleph_list.map([] (int x) { return x * 2; });
+  EXPECT_EQ(mapped.size(), 5);
+
+  EXPECT_EQ(std_map.size(), 3);
+  EXPECT_EQ(std_map[1], "one");
+
+  auto filtered_mapped = aleph_list.map_if(
+    [] (int x) { return x > 2; },
+    [] (int x) { return x * 3; }
+  );
+  EXPECT_EQ(filtered_mapped.size(), 3);
+
+  std::map<std::string, int> another_map;
+  another_map["a"] = 10;
+  another_map["b"] = 20;
+
+  EXPECT_EQ(another_map.size(), 2);
+  EXPECT_EQ(another_map["a"], 10);
+
+  auto result = mapped.foldl(0, [] (int acc, int val) { return acc + val; });
+  EXPECT_EQ(result, 30);
 }

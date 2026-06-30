@@ -1,0 +1,26 @@
+# Phase 30 — REUSE / SPDX compliance gate.
+#
+# Verifies that every file in the repository has determinable copyright and
+# license information (declared in bulk via REUSE.toml) and that every license
+# in use has a text under LICENSES/. See https://reuse.software/.
+name: reuse-lint
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reuse:
+    name: REUSE compliance
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: REUSE lint
+        uses: fsfe/reuse-action@v5

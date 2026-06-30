@@ -1,0 +1,65 @@
+# Phase 28 — documentation build & internal link check.
+#
+# Verifies the tutorial / gallery / performance docs have no broken internal
+# links and render to static HTML. Scoped to the Phase-28 deliverables so the
+# gate is not held hostage by pre-existing links elsewhere in docs/.
+name: docs-build
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "docs/tutorial/**"
+      - "docs/gallery/**"
+      - "docs/performance.md"
+      - "scripts/check_doc_links.py"
+      - ".github/workflows/docs-build.yml"
+  pull_request:
+    paths:
+      - "docs/tutorial/**"
+      - "docs/gallery/**"
+      - "docs/performance.md"
+      - "scripts/check_doc_links.py"
+      - ".github/workflows/docs-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    name: build & linkcheck
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Check internal links
+        run: |
+          python3 scripts/check_doc_links.py \
+            docs/tutorial docs/gallery docs/performance.md
+
+      - name: Render Markdown to HTML
+        run: |
+          set -euo pipefail
+          mkdir -p build-docs
+          find docs/tutorial docs/gallery -name '*.md' -print0 \
+            | while IFS= read -r -d '' f; do
+                out="build-docs/$(echo "$f" | sed 's#/#_#g; s#\.md$#.html#')"
+                pandoc --standalone --metadata title="Aleph-w CA docs" \
+                  -f gfm -t html "$f" -o "$out"
+              done
+          pandoc --standalone --metadata title="Aleph-w CA performance" \
+            -f gfm -t html docs/performance.md -o build-docs/performance.html
+          echo "Rendered $(ls build-docs/*.html | wc -l) HTML page(s)."
+
+      - name: Upload rendered docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ca-docs-html
+          path: build-docs/

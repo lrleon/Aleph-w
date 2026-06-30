@@ -5,7 +5,111 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0](https://github.com/lrleon/Aleph-w/compare/v5.0.0...v5.1.0) (2026-06-29)
+
+
+### Features
+
+* Windows/MSVC and clang-cl port for Aleph-w ([#58](https://github.com/lrleon/Aleph-w/issues/58)) ([342b831](https://github.com/lrleon/Aleph-w/commit/342b831e6733ac80178fdb6677224858edf7cc84))
+* Flat, versioned C ABI (`libalephca_c` / `ca-c-api.h`) exposing the cellular-automata engine to any language with a C FFI, plus a pure-C smoke test and experimental Rust bindings (`bindings/rust/`).
+* Cellular-automata documentation: a six-chapter tutorial (`docs/tutorial/`), a performance tuning guide (`docs/performance.md`), and a reproducible 16-rule visual gallery (`docs/gallery/`) with a `docs-build` link-check workflow.
+* Property-based tests and a libFuzzer harness (`Tests/fuzz/`) for the RLE/Life/CSV/checkpoint parsers.
+* OSS compliance: `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, Dependabot, REUSE 3.x licensing with a `reuse-lint` gate, and a reproducible-build check.
+* Coverage: Codecov upload and a per-module (`tpl_ca_*.H` vs `ca-*.H`) coverage breakdown.
+
+### Security
+
+* Checkpoint loader hardened against unbounded allocation (CWE-789 / CWE-190): `read_raw_payload` now bounds the declared `payload_size` against the actual file size and `inspect_checkpoint` validates `cell_count` against the extents. Surfaced by the new checkpoint fuzzer; regression tests added.
+
+### Bug Fixes
+
+* Relicensed 88 legacy `Examples/` files from GPL-3.0 to MIT so the repository is uniformly MIT.
+* `Tarjan.H`: fixed two latent `_stack`/`stack_` typos that broke Debug builds instantiating `connected_components`/`test_connectivity`, and corrected the SCC documentation.
+
+## [5.0.0](https://github.com/lrleon/Aleph-w/compare/v4.0.0...v5.0.0) (2026-06-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* cellular automata framework, packaging and 4.0.0 release infrastructure ([#55](https://github.com/lrleon/Aleph-w/issues/55))
+
+### Features
+
+* **ah-stl-functional:** Implement reserve for stl_range and stl_linspace ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **ah-stl-functional:** Implement reserve for stl_range and stl_linspace ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **archeap:** Add move constructors and assignments ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **archeap:** Add move constructors and assignments ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* cellular automata framework, packaging and 4.0.0 release infrastructure ([#55](https://github.com/lrleon/Aleph-w/issues/55)) ([730d5f3](https://github.com/lrleon/Aleph-w/commit/730d5f3b37238db2128eee979d0f238957a7830b))
+* **driven_table:** Add `Event_Table<Signature>` for type safety ([4325d64](https://github.com/lrleon/Aleph-w/commit/4325d64c2139cdd0cfac823ff6c5443a372851c2))
+* **driven_table:** Add `Event_Table<Signature>` for type safety ([f4d9347](https://github.com/lrleon/Aleph-w/commit/f4d93472b6422722403657ff31a3eefec71a0147))
+* **driven_table:** Add `Event_Table<Signature>` for type safety ([1f177e5](https://github.com/lrleon/Aleph-w/commit/1f177e5da05e7ab5da858e7ee3fdce0dd5b62032))
+* **driven_table:** Add `Event_Table<Signature>` for type safety ([9a6aec7](https://github.com/lrleon/Aleph-w/commit/9a6aec727cc61ad549dcb18933f216a081efd028))
+* **driven_table:** Add move constructors and assignments for Static_Event_Table ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **driven_table:** Add move constructors and assignments for Static_Event_Table ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **functional:** Add sum, product, min, max, join, to_vector/dynlist methods ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+* **functional:** Implement unique, intersperse, chunk, sliding, zip_with ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+* **geometry:** Add Constrained Delaunay and Fortune's Voronoi algorithms ([91eb6fd](https://github.com/lrleon/Aleph-w/commit/91eb6fd6e39783c2c1d11f185d327003cd821f80))
+* **graph:** Consolidate graph utilities and remove redundant files ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **graph:** Consolidate graph utilities and remove redundant files ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **linalg:** Add matrix_dims helper for modular_linalg.H ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+* Migrate installation to INSTALL.md ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* Migrate installation to INSTALL.md ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **protected_lhash, protected_odhash:** Disable copy/move for thread-safe hash tables ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **protected_lhash, protected_odhash:** Disable copy/move for thread-safe hash tables ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **quadtree:** Add move constructors and assignments ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **quadtree:** Add move constructors and assignments ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **ringfilecache:** Use strncpy for cache file name in RingFileCache ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **ringfilecache:** Use strncpy for cache file name in RingFileCache ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+
+
+### Bug Fixes
+
+* **minhash:** Update iterator concept and constructor initialization ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+* **parse_utils:** Catch `const std::out_of_range&` instead of `out_of_range` ([af612d6](https://github.com/lrleon/Aleph-w/commit/af612d6afa4a154dc9bbf2c12ed417a0435a9bbc))
+* **parse_utils:** Catch `const std::out_of_range&` instead of `out_of_range` ([5c49df6](https://github.com/lrleon/Aleph-w/commit/5c49df6163abf9fa500b07207517962d57a8e5b8))
+* **reservoir-sampling:** Correct overflow check in update ([6a169f9](https://github.com/lrleon/Aleph-w/commit/6a169f9f2e90701f1d192ed68e1498c62cedf13f))
+
 ## [Unreleased]
+
+### Security
+- **Checkpoint loader hardening (CWE-789 / CWE-190).** `load_checkpoint_into`
+  could be driven into a multi-gigabyte allocation by a hostile or corrupt
+  checkpoint header. `read_raw_payload` now bounds the declared `payload_size`
+  against the actual file size, and `inspect_checkpoint` rejects headers whose
+  `cell_count` is inconsistent with the declared extents or whose
+  `cell_count * state_type_size` would overflow. Surfaced by the new
+  checkpoint fuzzer (Phase 26); regression tests in
+  `Tests/ca_checkpoint_safety_test.cc`.
+
+### Added
+- **Property-based tests** (`Tests/ca_properties_test.cc`): particle
+  conservation for `BBM_Rule`/`TM_Gas_Rule`, Margolus reversibility,
+  synchronous-engine determinism and `at_safe` well-definedness, each swept
+  over many random grids.
+- **Fuzzing harness** (`Tests/fuzz/`, Phase 26): libFuzzer targets for the
+  RLE, Life 1.05/1.06, CSV and checkpoint parsers, with seed corpora and a
+  weekly `fuzz` workflow.
+- **OSS compliance** (Phase 30): `SECURITY.md`, `CODE_OF_CONDUCT.md`,
+  `CONTRIBUTING.md`, Dependabot config, REUSE 3.x licensing (`REUSE.toml` +
+  `LICENSES/`) with a `reuse-lint` job, and a reproducible-build check
+  (`repro-build`).
+- **Coverage** (Phase 27): Codecov upload, README coverage/REUSE badges and a
+  per-module (`tpl_ca_*.H` vs `ca-*.H`) coverage breakdown in CI.
+- **Documentation** (Phase 28): a six-chapter CA tutorial
+  (`docs/tutorial/`), a performance tuning guide (`docs/performance.md`), and a
+  reproducible visual gallery (`docs/gallery/`, 16 rendered rules) generated by
+  `scripts/regen_gallery.sh` / `Examples/ca_gallery_gen.cc`, gated by a
+  `docs-build` workflow with an internal link checker.
+- **C ABI shim** (Phase 25): a flat, versioned C ABI (`ca-c-api.h`) built as the
+  `libalephca_c` shared library, exposing the Game-of-Life engine to any
+  language with a C FFI. Includes a pure-C smoke test (`Tests/c_abi_smoke.c`)
+  and experimental Rust bindings (`bindings/rust/`: `aleph-ca-sys` + `aleph-ca`),
+  gated by the `c-abi` workflow.
+
+### Changed
+- Relicensed 88 legacy `Examples/` files that still carried GPL-3.0 headers to
+  MIT, making the repository uniformly MIT (the copyright holder's decision;
+  resolves the contradiction with the root `LICENSE`).
 
 ## [4.0.0]
 

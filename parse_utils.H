@@ -283,7 +283,7 @@ inline int read_char_from_stream(std::ifstream &input_stream)
 {
   ah_out_of_range_error_if(input_stream.eof()) << "end of file has been reached";
 
-  int c = input_stream.get();
+  const int c = input_stream.get();
 
   if (c == '\n')
     {
@@ -357,7 +357,7 @@ inline long load_number(std::ifstream &input_stream)
 {
   char buffer[Buffer_Size];
   char *start_addr = buffer;
-  char *end_addr = buffer + Buffer_Size;
+  const char *end_addr = buffer + Buffer_Size;
 
   init_token_scanning();
 
@@ -652,7 +652,7 @@ struct SourceLocation
  */
 class ParseError : public std::runtime_error
 {
-  SourceLocation loc;
+  SourceLocation loc_;
 
 public:
   /**
@@ -661,7 +661,7 @@ public:
    * @param location Where the error occurred
    */
   ParseError(const std::string &message, const SourceLocation &location)
-    : std::runtime_error(location.to_string() + ": " + message), loc(location)
+    : std::runtime_error(location.to_string() + ": " + message), loc_(location)
   {}
 
   /**
@@ -669,15 +669,15 @@ public:
    * @param message Error description (uses current global position)
    */
   explicit ParseError(const std::string &message)
-    : std::runtime_error(std::to_string(previous_line_number) + ":"
-                         + std::to_string(previous_col_number) + ": " + message),
-      loc("", previous_line_number, previous_col_number)
+    : std::runtime_error(std::to_string(previous_line_number) + ":" +
+                         std::to_string(previous_col_number) + ": " + message),
+      loc_("", previous_line_number, previous_col_number)
   {}
 
   /// Get the source location of the error
   [[nodiscard]] const SourceLocation &location() const
   {
-    return loc;
+    return loc_;
   }
 };
 
@@ -688,8 +688,8 @@ public:
  *           Includes automatic file and line information.
  */
 #define ah_parse_error()                                                                           \
-  Aleph::ExceptionBuilder<Aleph::ParseError>(), std::ostringstream()                               \
-                                                  << "(" << __FILE__ << ":" << __LINE__ << ") | "
+  Aleph::ExceptionBuilder<Aleph::ParseError>(),                                                    \
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_parse_error_if(C)
  *  @brief Throws a ParseError if condition holds
@@ -698,8 +698,8 @@ public:
  */
 #define ah_parse_error_if(C)                                                                       \
   if (C) [[unlikely]]                                                                              \
-  Aleph::ExceptionBuilder<Aleph::ParseError>(), std::ostringstream()                               \
-                                                  << "(" << __FILE__ << ":" << __LINE__ << ") | "
+  Aleph::ExceptionBuilder<Aleph::ParseError>(),                                                    \
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 /** @def ah_parse_error_unless(C)
  *  @brief Throws a ParseError if condition does NOT hold
@@ -707,9 +707,9 @@ public:
  *  @throw ParseError if C is false
  */
 #define ah_parse_error_unless(C)                                                                   \
-  if (not(C)) [[unlikely]]                                                                         \
-  Aleph::ExceptionBuilder<Aleph::ParseError>(), std::ostringstream()                               \
-                                                  << "(" << __FILE__ << ":" << __LINE__ << ") | "
+  if (not (C)) [[unlikely]]                                                                        \
+  Aleph::ExceptionBuilder<Aleph::ParseError>(),                                                    \
+    std::ostringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 // ============================================================================
 // Lookahead and Backtracking
@@ -835,11 +835,11 @@ inline void skip_line_comment(std::ifstream &input_stream)
  *       the opening sequence has already been consumed.
  */
 inline void skip_block_comment(std::ifstream &input_stream,
-                               const std::string &open
-                               = "/"
+                               const std::string &open =
+                                 "/"
                                  "*",
-                               const std::string &close
-                               = "*"
+                               const std::string &close =
+                                 "*"
                                  "/")
 {
   (void) open;  // Documented for clarity; opening sequence already consumed.
@@ -1149,7 +1149,7 @@ inline long load_binary_number(std::ifstream &input_stream)
 {
   char buffer[Buffer_Size];
   char *ptr = buffer;
-  char *end = buffer + Buffer_Size;
+  const char *end = buffer + Buffer_Size;
 
   init_token_scanning();
   skip_white_spaces(input_stream);
@@ -1202,7 +1202,7 @@ inline std::string load_identifier(std::ifstream &input_stream)
 {
   char buffer[Buffer_Size];
   char *ptr = buffer;
-  char *end = buffer + Buffer_Size;
+  const char *end = buffer + Buffer_Size;
 
   init_token_scanning();
   skip_white_spaces(input_stream);
@@ -1725,18 +1725,16 @@ using Aleph::trim;
  * Prints the file name, position, and last token before calling
  * the AH_ERROR macro.
  *
- * @param str Error format string
- * @param args Optional format arguments
+ * @param ... Error format string followed by optional format arguments
  *
  * @note Requires `input_file_name` (std::string) to be defined in the
  *       application's scope before use.
  *
  * @deprecated Prefer using print_parse_error_and_exit() or exceptions
  */
-#define PRINT_ERROR(str, args...)                                                                  \
+#define PRINT_ERROR(...)                                                                           \
   ((std::cout << input_file_name << "(" << Aleph::previous_line_number << ","                      \
               << Aleph::previous_col_number << "): " << '\n'),                                     \
-   (std::cout << "Last token: " << Aleph::token_instance << '\n'),                                 \
-   AH_ERROR(str, ##args))
+   (std::cout << "Last token: " << Aleph::token_instance << '\n'), AH_ERROR(__VA_ARGS__))
 
 #endif  // PARSE_UTILS_H

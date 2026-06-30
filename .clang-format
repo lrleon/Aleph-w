@@ -32,7 +32,7 @@ BraceWrapping:
 # Line breaks
 BreakBeforeConceptDeclarations: Always
 ColumnLimit: 100
-BreakBeforeBinaryOperators: All
+BreakBeforeBinaryOperators: None
 BreakBeforeTernaryOperators: true
 AlwaysBreakAfterReturnType: None
 AlwaysBreakTemplateDeclarations: Yes
@@ -44,7 +44,12 @@ AlwaysBreakBeforeMultilineStrings: true
 LambdaBodyIndentation: OuterScope
 
 # Spacing
-SpaceBeforeParens: ControlStatements
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements: true
+  AfterOverloadedOperator: true
+  AfterNot: true
+SpaceAfterOperatorKeyword: true
 SpaceAfterCStyleCast: true
 SpaceBeforeAssignmentOperators: true
 SpacesBeforeTrailingComments: 2
@@ -57,7 +62,7 @@ BinPackArguments: true
 BinPackParameters: false
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: false
-AlignOperands: AlignAfterOperator
+AlignOperands: DontAlign
 AlignTrailingComments: true
 AlignEscapedNewlines: Right
 PointerAlignment: Right

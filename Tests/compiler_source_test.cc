@@ -143,7 +143,7 @@ TEST(SourceManager, LoadFileReadsContent)
 
   const fs::path path = make_temp_file_path("source_manager");
   {
-    std::ofstream out(path);
+    std::ofstream out(path, std::ios::binary);
     out << "line1\nline2\n";
   }
 
