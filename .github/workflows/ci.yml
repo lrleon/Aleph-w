@@ -602,7 +602,7 @@ jobs:
         # Tokenless upload works for public repos via GitHub OIDC. The Codecov
         # project + README badge become live after the first upload reaches
         # codecov.io (one-time maintainer onboarding via "Sign in with GitHub").
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: build-coverage/coverage.xml
           fail_ci_if_error: false
