@@ -286,6 +286,83 @@ jobs:
             build/Testing/Temporary/LastTest.log
             build/CMakeCache.txt
 
+  ranges-off:
+    name: ranges-off (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CC: gcc
+      CXX: g++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev \
+            libgtest-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-ranges-off-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ranges-off-ccache-
+
+      - name: Build and install GoogleTest
+        run: |
+          set -euo pipefail
+          if pkg-config --exists gtest gtest_main; then
+            echo "gtest found via pkg-config"; exit 0
+          fi
+          if [ -d /usr/src/googletest ]; then
+            sudo cmake -S /usr/src/googletest -B /usr/src/googletest/build -G Ninja
+            sudo cmake --build /usr/src/googletest/build
+            sudo cmake --install /usr/src/googletest/build
+            exit 0
+          fi
+          echo "No googletest sources found"; exit 1
+
+      - name: Configure (ranges disabled)
+        run: |
+          rm -rf build
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DALEPH_DISABLE_RANGES=ON \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: |
+          mkdir -p build/test_artifacts/golden_svg
+          export ALEPH_TEST_GOLDEN_DIR="$PWD/build/test_artifacts/golden_svg"
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600 \
+            -E 'hash_statistical_test'
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-ranges-off
+          if-no-files-found: ignore
+          path: |
+            build/Testing/Temporary/LastTest.log
+            build/CMakeCache.txt
+
   fft-simd-validation:
     name: fft-simd-validation (ubuntu-24.04, gcc, Release)
     runs-on: ubuntu-24.04

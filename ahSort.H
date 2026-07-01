@@ -119,7 +119,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <ranges>
 #include <stdexcept>
 #include <utility>
 

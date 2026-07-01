@@ -45,6 +45,7 @@ option(BUILD_REPRODUCTIONS "Build weekly cellular-automata reproductions" OFF)
 option(BUILD_BENCHMARKS "Build cellular-automata performance-gate benchmarks" OFF)
 option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
+option(ALEPH_DISABLE_RANGES "Force C++20 std::ranges support off (portability escape hatch)" OFF)
 
 # Optional POSIX-specific features. Default ON on Unix-like platforms,
 # OFF on Windows so CI build jobs can opt-in without dragging X11 / xorg.
@@ -120,6 +121,13 @@ if(ALEPH_USE_SANITIZERS)
     else()
         message(WARNING "ALEPH_USE_SANITIZERS is only supported with GCC or Clang")
     endif()
+endif()
+
+# Portability escape hatch: force std::ranges support off. The library still
+# auto-detects ranges by default (see ah-ranges.H); this option lets users on
+# toolchains whose std::ranges is present but unreliable opt out globally.
+if(ALEPH_DISABLE_RANGES)
+    add_compile_definitions(ALEPH_NO_RANGES)
 endif()
 
 # Debug flags
@@ -744,6 +752,7 @@ message(STATUS "  Build reproductions: ${BUILD_REPRODUCTIONS}")
 message(STATUS "  Build benchmarks: ${BUILD_BENCHMARKS}")
 message(STATUS "  Build Python bindings: ${ALEPH_BUILD_PYTHON}")
 message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
+message(STATUS "  Disable ranges: ${ALEPH_DISABLE_RANGES}")
 message(STATUS "  X11 viewer: ${ALEPH_BUILD_X11_VIEWER}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
 

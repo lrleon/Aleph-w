@@ -1464,7 +1464,7 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result(c.begin(), c.end());
-    std::sort(result.begin(), result.end());
+    sort_range(result);
     return result;
   }
 
@@ -1484,9 +1484,7 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result(c.begin(), c.end());
-    // std::sort only calls comparator, doesn't need forwarding protection
-    // as it makes copies/moves internally, but for consistency:
-    std::sort(result.begin(), result.end(), std::forward<Cmp>(cmp));
+    sort_range(result, std::forward<Cmp>(cmp));
     return result;
   }
 
