@@ -481,10 +481,10 @@ inline T parse_scalar(const std::string &token, const char *format)
   std::istringstream in(trim_copy(token));
   T value{};
   in >> value;
-  ah_domain_error_if(not in) << format << ": cannot parse scalar '" << token << "'";
+  ah_domain_error_unless(in) << format << ": cannot parse scalar '" << token << "'";
   std::string rest;
   in >> rest;
-  ah_domain_error_if(not rest.empty())
+  ah_domain_error_unless(rest.empty())
     << format << ": trailing characters in scalar '" << token << "'";
   return value;
 }
@@ -768,7 +768,6 @@ template <typename Lattice>
               break;
             }
           else
-            // white space is accepted between tokens
             ah_domain_error_unless(std::isspace(static_cast<unsigned char>(ch)))
               << "read_rle: invalid body character '" << ch << "'";
         }
@@ -936,14 +935,11 @@ template <typename Lattice>
         }
       std::string row;
       for (const char c : line)
-        {
-          if (c == 'O' or c == 'o' or c == '*' or c == '.')
-            row.push_back(c);
-          else
-            // white space is acceped netween tokens
-            ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
-              << "read_plaintext: invalid character '" << c << "'";
-        }
+        if (c == 'O' or c == 'o' or c == '*' or c == '.')
+          row.push_back(c);
+        else
+          ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
+            << "read_plaintext: invalid character '" << c << "'";
       rows.append(std::move(row));
     }
 
@@ -1052,7 +1048,7 @@ inline void write_life_106(std::ostream &out,
         }
     }
 
-  ah_domain_error_if(not header_seen) << "read_life_106: missing #Life 1.06 header";
+  ah_domain_error_unless(header_seen) << "read_life_106: missing #Life 1.06 header";
   ca_io_detail::finalise_absolute_pattern(pattern, absolute, have, min_r, min_c, max_r, max_c);
   return pattern;
 }
@@ -1168,7 +1164,7 @@ inline void write_life_105(std::ostream &out,
           continue;
         }
 
-      ah_domain_error_if(not in_block) << "read_life_105: pattern row before #P block";
+      ah_domain_error_unless(in_block) << "read_life_105: pattern row before #P block";
       ca_index_t local_col = 0;
       for (const char c : line)
         {
@@ -1181,13 +1177,14 @@ inline void write_life_105(std::ostream &out,
                 absolute.append(Coord_Vec<2>{row, col});
               ++local_col;
             }
-          ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
-            << "read_life_105: invalid row character '" << c << "'";
+          else
+            ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
+              << "read_life_105: invalid row character '" << c << "'";
         }
       ++local_row;
     }
 
-  ah_domain_error_if(not header_seen) << "read_life_105: missing #Life 1.05 header";
+  ah_domain_error_unless(header_seen) << "read_life_105: missing #Life 1.05 header";
   ca_io_detail::finalise_absolute_pattern(pattern, absolute, have_extent, min_r, min_c, max_r, max_c);
   return pattern;
 }
@@ -1632,7 +1629,6 @@ public:
   }
 };
 
-// ---------------------------------------------------------------------------
 // Non-throwing parser overloads.
 //
 // Each `try_read_*` wraps the corresponding throwing reader above and returns
