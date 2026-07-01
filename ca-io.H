@@ -66,6 +66,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <ah-cpp-compat.H>
 #include <ah-errors.H>
 #include <tpl_array.H>
 
@@ -86,7 +87,7 @@ struct RGB8
   std::uint8_t g = 0;  ///< green channel
   std::uint8_t b = 0;  ///< blue channel
 
-  friend constexpr bool operator==(RGB8, RGB8) noexcept = default;
+  friend constexpr bool operator == (RGB8, RGB8) noexcept = default;
 };
 
 /** @brief Binary pattern shared by RLE, plaintext and Life formats.
@@ -101,12 +102,12 @@ struct RGB8
  */
 struct Binary_Cell_Pattern
 {
-  ca_size_t width = 0;                ///< number of columns
-  ca_size_t height = 0;               ///< number of rows
-  ca_index_t origin_row = 0;          ///< original row offset before normalisation
-  ca_index_t origin_col = 0;          ///< original column offset before normalisation
-  std::string rule;                   ///< optional rule string, e.g. `B3/S23`
-  std::string name;                   ///< optional pattern name
+  ca_size_t width = 0;          ///< number of columns
+  ca_size_t height = 0;         ///< number of rows
+  ca_index_t origin_row = 0;    ///< original row offset before normalisation
+  ca_index_t origin_col = 0;    ///< original column offset before normalisation
+  std::string rule;             ///< optional rule string, e.g. `B3/S23`
+  std::string name;             ///< optional pattern name
   Array<std::string> comments;  ///< format comments without marker prefixes
   Array<Coord_Vec<2>> alive;    ///< live cells as `{row, col}`
 };
@@ -226,7 +227,7 @@ struct Binary_Gray_Mapper
    *  @param[in] v cell value.
    *  @return grayscale byte.
    */
-  [[nodiscard]] std::uint8_t operator()(const State &v) const
+  [[nodiscard]] std::uint8_t operator () (const State &v) const
   {
     return v == dead ? dead_value : alive_value;
   }
@@ -250,7 +251,7 @@ struct Binary_RGB_Mapper
    *  @param[in] v cell value.
    *  @return RGB byte triplet.
    */
-  [[nodiscard]] RGB8 operator()(const State &v) const
+  [[nodiscard]] RGB8 operator () (const State &v) const
   {
     return v == dead ? dead_colour : alive_colour;
   }
@@ -480,10 +481,10 @@ inline T parse_scalar(const std::string &token, const char *format)
   std::istringstream in(trim_copy(token));
   T value{};
   in >> value;
-  ah_domain_error_if(not in) << format << ": cannot parse scalar '" << token << "'";
+  ah_domain_error_unless(in) << format << ": cannot parse scalar '" << token << "'";
   std::string rest;
   in >> rest;
-  ah_domain_error_if(not rest.empty())
+  ah_domain_error_unless(rest.empty())
     << format << ": trailing characters in scalar '" << token << "'";
   return value;
 }
@@ -628,13 +629,13 @@ inline void write_rle(std::ostream &out,
     {
       for (ca_size_t r = r0; r < r1; ++r)
         {
-          bool run_alive
-            = frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c0)}) != dead;
+          bool run_alive =
+            frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c0)}) != dead;
           ca_size_t run = 0;
           for (ca_size_t c = c0; c < c1; ++c)
             {
-              const bool alive
-                = frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)}) != dead;
+              const bool alive =
+                frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)}) != dead;
               if (alive == run_alive)
                 ++run;
               else
@@ -664,10 +665,10 @@ inline void write_rle(std::ostream &out,
  *  @return RLE document.
  */
 template <typename Lattice>
-[[nodiscard]] inline std::string write_rle_string(const Lattice &frame,
-                                                  const RLE_Write_Options &opts = {},
-                                                  const typename Lattice::state_type &dead
-                                                  = typename Lattice::state_type{})
+[[nodiscard]] inline std::string write_rle_string(
+  const Lattice &frame,
+  const RLE_Write_Options &opts = {},
+  const typename Lattice::state_type &dead = typename Lattice::state_type{})
 {
   std::ostringstream out;
   write_rle(out, frame, opts, dead);
@@ -766,12 +767,9 @@ template <typename Lattice>
               run = 0;
               break;
             }
-          else if (std::isspace(static_cast<unsigned char>(ch)))
-            {
-              // whitespace is accepted between tokens
-            }
           else
-            ah_domain_error_if(true) << "read_rle: invalid body character '" << ch << "'";
+            ah_domain_error_unless(std::isspace(static_cast<unsigned char>(ch)))
+              << "read_rle: invalid body character '" << ch << "'";
         }
     }
 
@@ -808,21 +806,20 @@ template <typename Lattice>
  *  O(frame cells + live cells).
  */
 template <typename Lattice>
-inline void load_binary_pattern(const Binary_Cell_Pattern &pattern,
-                                Lattice &frame,
-                                const typename Lattice::state_type &alive
-                                = static_cast<typename Lattice::state_type>(1),
-                                const typename Lattice::state_type &dead
-                                = typename Lattice::state_type{},
-                                const ca_index_t origin_row = 0,
-                                const ca_index_t origin_col = 0)
+inline void load_binary_pattern(
+  const Binary_Cell_Pattern &pattern,
+  Lattice &frame,
+  const typename Lattice::state_type &alive = static_cast<typename Lattice::state_type>(1),
+  const typename Lattice::state_type &dead = typename Lattice::state_type{},
+  const ca_index_t origin_row = 0,
+  const ca_index_t origin_col = 0)
 {
   ca_io_detail::require_rank2<Lattice>("load_binary_pattern");
   using coord_t = typename Lattice::coord_type;
   ah_domain_error_if(origin_row < 0 or origin_col < 0)
     << "load_binary_pattern: negative destination origin";
-  ah_domain_error_if(static_cast<ca_size_t>(origin_row) + pattern.height > frame.size(0)
-                     or static_cast<ca_size_t>(origin_col) + pattern.width > frame.size(1))
+  ah_domain_error_if(static_cast<ca_size_t>(origin_row) + pattern.height > frame.size(0) or
+                     static_cast<ca_size_t>(origin_col) + pattern.width > frame.size(1))
     << "load_binary_pattern: pattern " << pattern.height << "x" << pattern.width
     << " does not fit in frame " << frame.size(0) << "x" << frame.size(1);
 
@@ -843,11 +840,10 @@ inline void load_binary_pattern(const Binary_Cell_Pattern &pattern,
  *  O(pattern area + live cells).
  */
 template <typename Lattice>
-[[nodiscard]] inline Lattice make_lattice_from_pattern(const Binary_Cell_Pattern &pattern,
-                                                       const typename Lattice::state_type &alive
-                                                       = static_cast<typename Lattice::state_type>(1),
-                                                       const typename Lattice::state_type &dead
-                                                       = typename Lattice::state_type{})
+[[nodiscard]] inline Lattice make_lattice_from_pattern(
+  const Binary_Cell_Pattern &pattern,
+  const typename Lattice::state_type &alive = static_cast<typename Lattice::state_type>(1),
+  const typename Lattice::state_type &dead = typename Lattice::state_type{})
 {
   ca_io_detail::require_rank2<Lattice>("make_lattice_from_pattern");
   Lattice frame({pattern.height, pattern.width}, dead);
@@ -898,10 +894,10 @@ inline void write_plaintext(std::ostream &out,
  *  @return plaintext document.
  */
 template <typename Lattice>
-[[nodiscard]] inline std::string write_plaintext_string(const Lattice &frame,
-                                                        const Plaintext_Write_Options &opts = {},
-                                                        const typename Lattice::state_type &dead
-                                                        = typename Lattice::state_type{})
+[[nodiscard]] inline std::string write_plaintext_string(
+  const Lattice &frame,
+  const Plaintext_Write_Options &opts = {},
+  const typename Lattice::state_type &dead = typename Lattice::state_type{})
 {
   std::ostringstream out;
   write_plaintext(out, frame, opts, dead);
@@ -939,15 +935,11 @@ template <typename Lattice>
         }
       std::string row;
       for (const char c : line)
-        {
-          if (c == 'O' or c == 'o' or c == '*' or c == '.')
-            row.push_back(c);
-          else if (std::isspace(static_cast<unsigned char>(c)))
-            {
-            }
-          else
-            ah_domain_error_if(true) << "read_plaintext: invalid character '" << c << "'";
-        }
+        if (c == 'O' or c == 'o' or c == '*' or c == '.')
+          row.push_back(c);
+        else
+          ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
+            << "read_plaintext: invalid character '" << c << "'";
       rows.append(std::move(row));
     }
 
@@ -1056,7 +1048,7 @@ inline void write_life_106(std::ostream &out,
         }
     }
 
-  ah_domain_error_if(not header_seen) << "read_life_106: missing #Life 1.06 header";
+  ah_domain_error_unless(header_seen) << "read_life_106: missing #Life 1.06 header";
   ca_io_detail::finalise_absolute_pattern(pattern, absolute, have, min_r, min_c, max_r, max_c);
   return pattern;
 }
@@ -1123,21 +1115,21 @@ inline void write_life_105(std::ostream &out,
   bool have_extent = false;
 
   auto touch_extent = [&](ca_index_t row, ca_index_t col)
-  {
-    if (not have_extent)
-      {
-        min_r = max_r = row;
-        min_c = max_c = col;
-        have_extent = true;
-      }
-    else
-      {
-        min_r = std::min(min_r, row);
-        min_c = std::min(min_c, col);
-        max_r = std::max(max_r, row);
-        max_c = std::max(max_c, col);
-      }
-  };
+    {
+      if (not have_extent)
+        {
+          min_r = max_r = row;
+          min_c = max_c = col;
+          have_extent = true;
+        }
+      else
+        {
+          min_r = std::min(min_r, row);
+          min_c = std::min(min_c, col);
+          max_r = std::max(max_r, row);
+          max_c = std::max(max_c, col);
+        }
+    };
 
   while (std::getline(in, line))
     {
@@ -1172,7 +1164,7 @@ inline void write_life_105(std::ostream &out,
           continue;
         }
 
-      ah_domain_error_if(not in_block) << "read_life_105: pattern row before #P block";
+      ah_domain_error_unless(in_block) << "read_life_105: pattern row before #P block";
       ca_index_t local_col = 0;
       for (const char c : line)
         {
@@ -1185,16 +1177,14 @@ inline void write_life_105(std::ostream &out,
                 absolute.append(Coord_Vec<2>{row, col});
               ++local_col;
             }
-          else if (std::isspace(static_cast<unsigned char>(c)))
-            {
-            }
           else
-            ah_domain_error_if(true) << "read_life_105: invalid row character '" << c << "'";
+            ah_domain_error_unless(std::isspace(static_cast<unsigned char>(c)))
+              << "read_life_105: invalid row character '" << c << "'";
         }
       ++local_row;
     }
 
-  ah_domain_error_if(not header_seen) << "read_life_105: missing #Life 1.05 header";
+  ah_domain_error_unless(header_seen) << "read_life_105: missing #Life 1.05 header";
   ca_io_detail::finalise_absolute_pattern(pattern, absolute, have_extent, min_r, min_c, max_r, max_c);
   return pattern;
 }
@@ -1519,10 +1509,10 @@ inline void write_ppm(std::ostream &out,
   for (ca_size_t r = 0; r < frame.size(0); ++r)
     for (ca_size_t c = 0; c < frame.size(1); ++c)
       {
-        const RGB8 rgb
-          = mapper(frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)}));
-        const char bytes[3]
-          = {static_cast<char>(rgb.r), static_cast<char>(rgb.g), static_cast<char>(rgb.b)};
+        const RGB8 rgb =
+          mapper(frame.at(coord_t{static_cast<ca_index_t>(r), static_cast<ca_index_t>(c)}));
+        const char bytes[3] = {static_cast<char>(rgb.r), static_cast<char>(rgb.g),
+                               static_cast<char>(rgb.b)};
         out.write(bytes, 3);
       }
   ca_io_detail::ensure_stream_ok(out, "write_ppm");
@@ -1576,7 +1566,7 @@ public:
   }
 
   JSON_Frame_Stream_Writer(const JSON_Frame_Stream_Writer &) = delete;
-  JSON_Frame_Stream_Writer &operator=(const JSON_Frame_Stream_Writer &) = delete;
+  JSON_Frame_Stream_Writer &operator = (const JSON_Frame_Stream_Writer &) = delete;
 
   /** @brief Finish the JSON document if it is still open.
    *
@@ -1638,6 +1628,177 @@ public:
     ca_io_detail::ensure_stream_ok(*out_, "JSON_Frame_Stream_Writer::close");
   }
 };
+
+// Non-throwing parser overloads.
+//
+// Each `try_read_*` wraps the corresponding throwing reader above and returns
+// `Aleph::expected<Result, std::string>`: the parsed value on success, or the
+// error message on failure. Useful when parsing untrusted input where an
+// invalid file is an expected outcome rather than an exceptional one. The
+// throwing readers are unchanged.
+// ---------------------------------------------------------------------------
+
+namespace ca_io_detail {
+
+/// Invoke a parser, translating any thrown exception into the error channel of
+/// `expected`. The Aleph error macros (`ah_*_error`) throw types deriving from
+/// `std::exception`, so their message is preserved.
+template <class F>
+[[nodiscard]] auto try_parse(F &&parse, const char *context)
+  -> expected<std::invoke_result_t<F &>, std::string>
+{
+  try
+    {
+      return parse();
+    }
+  catch (const std::exception &e)
+    {
+      return unexpected<std::string>(std::string(context) + ": " + e.what());
+    }
+  catch (...)
+    {
+      return unexpected<std::string>(std::string(context) + ": unknown error");
+    }
+}
+
+}  // namespace ca_io_detail
+
+/** @brief Non-throwing variant of `read_rle`.
+ *
+ *  Reads a Conway RLE pattern from the stream. Returns the parsed pattern on
+ *  success or an error message on failure. Unlike `read_rle`, this function
+ *  never throws.
+ *
+ *  @param[in,out] in input stream.
+ *  @return `expected<RLE_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(number of RLE tokens + live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
+[[nodiscard]] inline expected<RLE_Pattern, std::string> try_read_rle(std::istream &in)
+{
+  return ca_io_detail::try_parse([&]
+    {
+      return read_rle(in);
+    }, "try_read_rle");
+}
+
+/** @brief Non-throwing variant of `read_rle_string`.
+ *
+ *  Parses a Conway RLE pattern from a string. Returns the parsed pattern on
+ *  success or an error message on failure. Unlike `read_rle_string`, this
+ *  function never throws.
+ *
+ *  @param[in] s RLE document.
+ *  @return `expected<RLE_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(number of RLE tokens + live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
+[[nodiscard]] inline expected<RLE_Pattern, std::string> try_read_rle_string(const std::string &s)
+{
+  return ca_io_detail::try_parse([&]
+    {
+      return read_rle_string(s);
+    }, "try_read_rle_string");
+}
+
+/** @brief Non-throwing variant of `read_plaintext`.
+ *
+ *  Reads a Life plaintext pattern from the stream. Returns the parsed pattern
+ *  on success or an error message on failure. Unlike `read_plaintext`, this
+ *  function never throws.
+ *
+ *  @param[in,out] in input stream.
+ *  @return `expected<Binary_Cell_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(input characters + live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
+[[nodiscard]] inline expected<Binary_Cell_Pattern, std::string> try_read_plaintext(std::istream &in)
+{
+  return ca_io_detail::try_parse([&]
+    {
+      return read_plaintext(in);
+    }, "try_read_plaintext");
+}
+
+/** @brief Non-throwing variant of `read_life_105`.
+ *
+ *  Reads a Life 1.05 pattern from the stream. Returns the parsed pattern on
+ *  success or an error message on failure. Unlike `read_life_105`, this
+ *  function never throws.
+ *
+ *  @param[in,out] in input stream.
+ *  @return `expected<Binary_Cell_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(input characters + live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
+[[nodiscard]] inline expected<Binary_Cell_Pattern, std::string> try_read_life_105(std::istream &in)
+{
+  return ca_io_detail::try_parse([&]
+    {
+      return read_life_105(in);
+    }, "try_read_life_105");
+}
+
+/** @brief Non-throwing variant of `read_life_106`.
+ *
+ *  Reads a Life 1.06 pattern from the stream. Returns the parsed pattern on
+ *  success or an error message on failure. Unlike `read_life_106`, this
+ *  function never throws.
+ *
+ *  @param[in,out] in input stream.
+ *  @return `expected<Binary_Cell_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
+[[nodiscard]] inline expected<Binary_Cell_Pattern, std::string> try_read_life_106(std::istream &in)
+{
+  return ca_io_detail::try_parse([&]
+    {
+      return read_life_106(in);
+    }, "try_read_life_106");
+}
+
+/** @brief Non-throwing variant of `read_csv_snapshot`.
+ *
+ *  Reads a numeric CSV snapshot from the stream. Returns the parsed snapshot
+ *  on success or an error message on failure. Unlike `read_csv_snapshot`, this
+ *  function never throws.
+ *
+ *  @tparam T target scalar type.
+ *  @param[in,out] in input stream.
+ *  @param[in] opts CSV parsing options.
+ *  @return `expected<Grid_Snapshot<T>, std::string>`: snapshot on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(input cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
+template <class T>
+[[nodiscard]] inline expected<Grid_Snapshot<T>, std::string> try_read_csv_snapshot(
+  std::istream &in,
+  const CSV_Options &opts = {})
+{
+  return ca_io_detail::try_parse([&]
+    {
+      return read_csv_snapshot<T>(in, opts);
+    }, "try_read_csv_snapshot");
+}
 
 }  // namespace CA
 }  // namespace Aleph
