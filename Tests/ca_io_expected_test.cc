@@ -71,6 +71,28 @@ TEST(CaIoExpected, RleIstreamOverload)
   EXPECT_EQ(r->alive.size(), 3u);
 }
 
+TEST(CaIoExpected, RleEmptyInputFails)
+{
+  auto r = try_read_rle_string("");
+  ASSERT_FALSE(r.has_value());
+  EXPECT_FALSE(r.error().empty());
+}
+
+// --- Plaintext -------------------------------------------------------------
+
+TEST(CaIoExpected, PlaintextSuccessAndError)
+{
+  std::istringstream ok("!Blinker\nOOO\n");
+  auto a = try_read_plaintext(ok);
+  ASSERT_TRUE(a.has_value()) << (a.has_value() ? "" : a.error());
+  EXPECT_EQ(a->alive.size(), 3u);
+
+  std::istringstream bad("!Comment\nO@O\n");  // '@' is invalid
+  auto b = try_read_plaintext(bad);
+  ASSERT_FALSE(b.has_value());
+  EXPECT_FALSE(b.error().empty());
+}
+
 // --- Life ------------------------------------------------------------------
 
 TEST(CaIoExpected, Life105SuccessAndError)
@@ -99,6 +121,19 @@ TEST(CaIoExpected, Life106SuccessAndError)
   EXPECT_FALSE(b.error().empty());
 }
 
+TEST(CaIoExpected, LifeEmptyInputFails)
+{
+  std::istringstream empty105("");
+  auto a = try_read_life_105(empty105);
+  ASSERT_FALSE(a.has_value());
+  EXPECT_FALSE(a.error().empty());
+
+  std::istringstream empty106("");
+  auto b = try_read_life_106(empty106);
+  ASSERT_FALSE(b.has_value());
+  EXPECT_FALSE(b.error().empty());
+}
+
 // --- CSV -------------------------------------------------------------------
 
 TEST(CaIoExpected, CsvSuccessAndError)
@@ -115,12 +150,29 @@ TEST(CaIoExpected, CsvSuccessAndError)
   EXPECT_FALSE(b.error().empty());
 }
 
+TEST(CaIoExpected, CsvEmptyInputHandled)
+{
+  std::istringstream empty("");
+  auto r = try_read_csv_snapshot<int>(empty);
+  ASSERT_TRUE(r.has_value()) << (r.has_value() ? "" : r.error());
+  EXPECT_EQ(r->height, 0u);  // empty CSV is valid: 0 rows
+}
+
 // --- The throwing readers are unchanged ------------------------------------
 
 TEST(CaIoExpected, ThrowingReadersStillThrow)
 {
   EXPECT_ANY_THROW((void) read_rle_string("not an RLE @@@"));
 
-  std::istringstream bad("garbage\n");
-  EXPECT_ANY_THROW((void) read_life_105(bad));
+  std::istringstream bad_plaintext("O@O\n");  // '@' invalid
+  EXPECT_ANY_THROW((void) read_plaintext(bad_plaintext));
+
+  std::istringstream bad_life105("garbage\n");
+  EXPECT_ANY_THROW((void) read_life_105(bad_life105));
+
+  std::istringstream bad_life106("#Life 1.06\nnot two integers\n");
+  EXPECT_ANY_THROW((void) read_life_106(bad_life106));
+
+  std::istringstream bad_csv("1,2,3\n1,2\n");  // ragged rows
+  EXPECT_ANY_THROW((void) read_csv_snapshot<int>(bad_csv));
 }

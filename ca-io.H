@@ -1653,7 +1653,7 @@ template <class F>
     }
   catch (const std::exception &e)
     {
-      return unexpected<std::string>(std::string(e.what()));
+      return unexpected<std::string>(std::string(context) + ": " + e.what());
     }
   catch (...)
     {
@@ -1663,7 +1663,20 @@ template <class F>
 
 }  // namespace ca_io_detail
 
-/// Non-throwing variant of `read_rle`.
+/** @brief Non-throwing variant of `read_rle`.
+ *
+ *  Reads a Conway RLE pattern from the stream. Returns the parsed pattern on
+ *  success or an error message on failure. Unlike `read_rle`, this function
+ *  never throws.
+ *
+ *  @param[in,out] in input stream.
+ *  @return `expected<RLE_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(number of RLE tokens + live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
 [[nodiscard]] inline expected<RLE_Pattern, std::string> try_read_rle(std::istream &in)
 {
   return ca_io_detail::try_parse([&]
@@ -1672,7 +1685,20 @@ template <class F>
     }, "try_read_rle");
 }
 
-/// Non-throwing variant of `read_rle_string`.
+/** @brief Non-throwing variant of `read_rle_string`.
+ *
+ *  Parses a Conway RLE pattern from a string. Returns the parsed pattern on
+ *  success or an error message on failure. Unlike `read_rle_string`, this
+ *  function never throws.
+ *
+ *  @param[in] s RLE document.
+ *  @return `expected<RLE_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(number of RLE tokens + live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
 [[nodiscard]] inline expected<RLE_Pattern, std::string> try_read_rle_string(const std::string &s)
 {
   return ca_io_detail::try_parse([&]
@@ -1681,7 +1707,20 @@ template <class F>
     }, "try_read_rle_string");
 }
 
-/// Non-throwing variant of `read_plaintext`.
+/** @brief Non-throwing variant of `read_plaintext`.
+ *
+ *  Reads a Life plaintext pattern from the stream. Returns the parsed pattern
+ *  on success or an error message on failure. Unlike `read_plaintext`, this
+ *  function never throws.
+ *
+ *  @param[in,out] in input stream.
+ *  @return `expected<Binary_Cell_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(input characters + live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
 [[nodiscard]] inline expected<Binary_Cell_Pattern, std::string> try_read_plaintext(std::istream &in)
 {
   return ca_io_detail::try_parse([&]
@@ -1690,7 +1729,20 @@ template <class F>
     }, "try_read_plaintext");
 }
 
-/// Non-throwing variant of `read_life_105`.
+/** @brief Non-throwing variant of `read_life_105`.
+ *
+ *  Reads a Life 1.05 pattern from the stream. Returns the parsed pattern on
+ *  success or an error message on failure. Unlike `read_life_105`, this
+ *  function never throws.
+ *
+ *  @param[in,out] in input stream.
+ *  @return `expected<Binary_Cell_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(input characters + live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
 [[nodiscard]] inline expected<Binary_Cell_Pattern, std::string> try_read_life_105(std::istream &in)
 {
   return ca_io_detail::try_parse([&]
@@ -1699,7 +1751,20 @@ template <class F>
     }, "try_read_life_105");
 }
 
-/// Non-throwing variant of `read_life_106`.
+/** @brief Non-throwing variant of `read_life_106`.
+ *
+ *  Reads a Life 1.06 pattern from the stream. Returns the parsed pattern on
+ *  success or an error message on failure. Unlike `read_life_106`, this
+ *  function never throws.
+ *
+ *  @param[in,out] in input stream.
+ *  @return `expected<Binary_Cell_Pattern, std::string>`: pattern on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(live cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
 [[nodiscard]] inline expected<Binary_Cell_Pattern, std::string> try_read_life_106(std::istream &in)
 {
   return ca_io_detail::try_parse([&]
@@ -1708,7 +1773,22 @@ template <class F>
     }, "try_read_life_106");
 }
 
-/// Non-throwing variant of `read_csv_snapshot`.
+/** @brief Non-throwing variant of `read_csv_snapshot`.
+ *
+ *  Reads a numeric CSV snapshot from the stream. Returns the parsed snapshot
+ *  on success or an error message on failure. Unlike `read_csv_snapshot`, this
+ *  function never throws.
+ *
+ *  @tparam T target scalar type.
+ *  @param[in,out] in input stream.
+ *  @param[in] opts CSV parsing options.
+ *  @return `expected<Grid_Snapshot<T>, std::string>`: snapshot on success, error message on failure.
+ *
+ *  @par Complexity
+ *  O(input cells).
+ *  @par Thread-safety
+ *  Reentrant.
+ */
 template <class T>
 [[nodiscard]] inline expected<Grid_Snapshot<T>, std::string> try_read_csv_snapshot(
   std::istream &in,
