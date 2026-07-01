@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.0](https://github.com/lrleon/Aleph-w/compare/v5.2.0...v5.3.0) (2026-07-01)
+
+
+### Features
+
+* **core:** Add expected parsing for CA IO ([#68](https://github.com/lrleon/Aleph-w/issues/68)) ([9165f0c](https://github.com/lrleon/Aleph-w/commit/9165f0ccdd1b9170777ef42b668150e0fb2ea1d5))
+
 ## [5.2.0](https://github.com/lrleon/Aleph-w/compare/v5.1.0...v5.2.0) (2026-06-30)
 
 
