@@ -472,6 +472,11 @@ public:
     using Base::Base;
     using Set_Type = Array;
 
+    /// Opt-in marker for StlIterator random-access promotion. The iterator
+    /// inherits get_pos()/set_pos() unchanged from Array_Iterator, so the
+    /// logical position is consistent and random access is safe.
+    using aleph_random_access_iterator = Iterator;
+
     /// Initialize an iterator on array `s`
     Iterator(const Array<T> &s) noexcept: Base(s.array) {}
   };

@@ -128,7 +128,8 @@
 //   - Or pre-define ALEPH_HAS_RANGES to 0/1 to skip auto-detection entirely.
 //   This lets users on toolchains whose std::ranges is present but unreliable
 //   opt out without editing the library.
-#if defined(ALEPH_NO_RANGES) && !defined(ALEPH_HAS_RANGES)
+#if defined(ALEPH_NO_RANGES)
+#  undef ALEPH_HAS_RANGES
 #  define ALEPH_HAS_RANGES 0
 #endif
 
@@ -226,13 +227,11 @@ namespace Aleph
  */
 template <typename Range, typename Cmp>
 inline void sort_range(Range & r, Cmp cmp)
-{
 #if ALEPH_HAS_RANGES
-  std::ranges::sort(r, std::move(cmp));
+{ std::ranges::sort(r, std::move(cmp)); }
 #else
-  std::sort(std::begin(r), std::end(r), std::move(cmp)); // NOLINT(modernize-use-ranges)
+{ std::sort(std::begin(r), std::end(r), std::move(cmp)); } // NOLINT(modernize-use-ranges)
 #endif
-}
 
 /** @brief Sort a whole range in place using the default `<` ordering.
  *  @tparam Range a sortable random-access range.
@@ -240,13 +239,11 @@ inline void sort_range(Range & r, Cmp cmp)
  */
 template <typename Range>
 inline void sort_range(Range & r)
-{
 #if ALEPH_HAS_RANGES
-  std::ranges::sort(r);
+{ std::ranges::sort(r, std::ranges::less{}); }
 #else
-  std::sort(std::begin(r), std::end(r)); // NOLINT(modernize-use-ranges)
+{ std::sort(std::begin(r), std::end(r)); } // NOLINT(modernize-use-ranges)
 #endif
-}
 
 // Forward declarations for major Aleph containers with simple template signatures.
 // Containers with complex template signatures (like DynSetTree, DynBinHeap) 

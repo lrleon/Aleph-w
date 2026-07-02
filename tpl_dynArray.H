@@ -196,6 +196,10 @@ namespace Aleph
      directory allocation, but the directory is allocated once at
      construction time.
 
+     @note Due to the directory, segment, and block structuring, not all
+     entries in the array are contiguous in memory. Only the entries
+     within the same block are contiguous.
+
      @ingroup Sequences
    */
   template <typename T>
@@ -1356,6 +1360,13 @@ namespace Aleph
     public:
       using Set_Type = DynArray;
 
+      /// Opt-in marker for StlIterator random-access promotion. It is the
+      /// iterator's own type on purpose: derived iterators that reuse this
+      /// class as a base (e.g. DynArrayHeap::Iterator, which redefines
+      /// get_pos() with an offset) do NOT inherit the promotion, because their
+      /// own type differs from this marker. This keeps the promotion fail-safe.
+      using aleph_random_access_iterator = Iterator;
+
       /// Default constructor creates an "end" iterator
       Iterator() noexcept = default;
 
@@ -1366,10 +1377,12 @@ namespace Aleph
         // empty
       }
 
-      /// Return `true` if there is current item
+      /// Return `true` if there is a current item. Safe on default-constructed
+      /// (singular) iterators, which behave as an empty sequence so that two
+      /// value-initialized iterators compare equal (std::regular semantics).
       [[nodiscard]] bool has_curr() const noexcept
       {
-        return curr_idx >= 0 and curr_idx < array_ptr->size();
+        return array_ptr != nullptr and curr_idx >= 0 and curr_idx < array_ptr->size();
       }
 
       [[nodiscard]] bool is_last() const noexcept { return curr_idx == array_ptr->size() - 1; }

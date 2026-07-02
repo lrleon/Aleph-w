@@ -60,6 +60,10 @@ namespace Aleph
 
       This container **allows duplicates** for performance reasons.
 
+      @note Due to the underlying DynArray directory, segment, and block
+      structuring, not all entries in the set are contiguous in memory. Only
+      the entries within the same block are contiguous.
+
       @tparam T Element type.
       @tparam Equal Equality predicate used for linear search. It must model a
       boolean binary predicate.

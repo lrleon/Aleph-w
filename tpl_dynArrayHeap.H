@@ -40,6 +40,10 @@
  *  - Automatic resizing
  *  - Cache-friendly array storage
  *
+ *  @note Due to the underlying DynArray directory, segment, and block
+ *  structuring, not all entries in the heap are contiguous in memory. Only
+ *  the entries within the same block are contiguous.
+ *
  *  @see tpl_binHeap.H Fixed-size array heap
  *  @see tpl_dynBinHeap.H Node-based heap
  *  @ingroup Trees
