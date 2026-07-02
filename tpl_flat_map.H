@@ -241,8 +241,10 @@ class FlatMap
     const size_t excess = m - out;
     if (excess > 0)
       {
-        (void) keys_.get(excess);
-        (void) vals_.get(excess);
+        try { (void) keys_.get(excess); } catch (const std::bad_alloc &)
+          { /* shrink failed */ }
+        try { (void) vals_.get(excess); } catch (const std::bad_alloc &)
+          { /* shrink failed */ }
       }
   }
 

@@ -605,6 +605,7 @@ public:
    *  @note O(n - pos) moves.
    */
   T &insert(size_t pos, T item)
+    requires std::is_move_assignable_v<T>
   {
     ah_out_of_range_error_if(pos > n_) << "SmallVector::insert(): position out of range";
     if (n_ == cap_)
@@ -628,6 +629,7 @@ public:
    *  @note O(n - pos) moves.
    */
   void erase(const size_t pos)
+    requires std::is_move_assignable_v<T>
   {
     ah_out_of_range_error_if(pos >= n_) << "SmallVector::erase(): position out of range";
     for (size_t i = pos; i + 1 < n_; ++i)

@@ -203,7 +203,12 @@ class FlatSet
         }
     const size_t excess = keys_.size() - m;
     if (excess > 0)
-      (void) keys_.get(excess);
+      try
+        {
+          (void) keys_.get(excess);
+        }
+      catch (const std::bad_alloc &)
+        { /* shrink failed; logical removal already done */ }
   }
 
 public:
