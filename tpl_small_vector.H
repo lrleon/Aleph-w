@@ -369,7 +369,7 @@ public:
    *
    *  @param v Vector to swap with.
    */
-  void swap(SmallVector &v) noexcept
+  void swap(SmallVector &v) noexcept(std::is_nothrow_move_constructible_v<T>)
   {
     if (not is_small() and not v.is_small())
       {
