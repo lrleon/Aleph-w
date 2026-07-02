@@ -334,6 +334,8 @@ set(HLIST
     tpl_dynSkipList.H
     tpl_fibonacci_heap.H
     tpl_find_path.H
+    tpl_flat_map.H
+    tpl_flat_set.H
     tpl_graph_utils.H
     tpl_hRbTree.H
     tpl_hRbTreeRk.H
@@ -345,6 +347,8 @@ set(HLIST
     tpl_rand_tree.H
     tpl_rbRk.H
     tpl_rb_tree.H
+    tpl_ring_buffer.H
+    tpl_small_vector.H
     tpl_sparse_table.H
     tpl_tdRbTreeRk.H
     tpl_treap.H
