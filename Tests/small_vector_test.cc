@@ -67,6 +67,40 @@ struct Probe
 };
 
 int Probe::live = 0;
+
+struct Throwing_Copy
+{
+  static int live;
+  static int copies;
+  static int throw_after;
+  int value = 0;
+
+  explicit Throwing_Copy(int v) : value(v) { ++live; }
+
+  Throwing_Copy(const Throwing_Copy &x) : value(x.value)
+  {
+    if (throw_after >= 0 and copies++ >= throw_after)
+      throw std::runtime_error("copy failed");
+    ++live;
+  }
+
+  Throwing_Copy(Throwing_Copy &&x) noexcept : value(x.value) { ++live; }
+
+  Throwing_Copy &operator=(const Throwing_Copy &) = default;
+  Throwing_Copy &operator=(Throwing_Copy &&) noexcept = default;
+
+  ~Throwing_Copy() { --live; }
+
+  static void reset(int limit = -1)
+  {
+    copies = 0;
+    throw_after = limit;
+  }
+};
+
+int Throwing_Copy::live = 0;
+int Throwing_Copy::copies = 0;
+int Throwing_Copy::throw_after = -1;
 }  // namespace
 
 TEST(SmallVector, StaysInlineUpToNThenSpills)
@@ -122,6 +156,51 @@ TEST(SmallVector, ElementLifetimesAreBalanced)
     EXPECT_EQ(Probe::live, 1);
   }
   EXPECT_EQ(Probe::live, 0);  // destructor cleaned everything
+}
+
+TEST(SmallVector, FailedConstructorsCleanPartialElements)
+{
+  ASSERT_EQ(Throwing_Copy::live, 0);
+
+  {
+    Throwing_Copy value(1);
+    Throwing_Copy::reset(1);
+    EXPECT_THROW((SmallVector<Throwing_Copy, 2>(3, value)),
+                 std::runtime_error);
+    EXPECT_EQ(Throwing_Copy::live, 1);
+  }
+  EXPECT_EQ(Throwing_Copy::live, 0);
+
+  Throwing_Copy::reset(1);
+  EXPECT_THROW((SmallVector<Throwing_Copy, 2>
+                {Throwing_Copy(1), Throwing_Copy(2), Throwing_Copy(3)}),
+               std::runtime_error);
+  EXPECT_EQ(Throwing_Copy::live, 0);
+
+  {
+    std::vector<Throwing_Copy> src;
+    src.emplace_back(1);
+    src.emplace_back(2);
+    src.emplace_back(3);
+    ASSERT_EQ(Throwing_Copy::live, 3);
+    Throwing_Copy::reset(1);
+    EXPECT_THROW((SmallVector<Throwing_Copy, 2>(src.begin(), src.end())),
+                 std::runtime_error);
+    EXPECT_EQ(Throwing_Copy::live, 3);
+  }
+  EXPECT_EQ(Throwing_Copy::live, 0);
+
+  {
+    SmallVector<Throwing_Copy, 2> src;
+    src.emplace_back(1);
+    src.emplace_back(2);
+    src.emplace_back(3);
+    ASSERT_EQ(Throwing_Copy::live, 3);
+    Throwing_Copy::reset(1);
+    EXPECT_THROW((SmallVector<Throwing_Copy, 2>(src)), std::runtime_error);
+    EXPECT_EQ(Throwing_Copy::live, 3);
+  }
+  EXPECT_EQ(Throwing_Copy::live, 0);
 }
 
 TEST(SmallVector, MoveOnlyElementsAreSupported)

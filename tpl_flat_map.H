@@ -77,8 +77,7 @@
 #include <htlist.H>
 #include <tpl_memArray.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Ordered map stored as two parallel sorted contiguous arrays.
  *
@@ -169,7 +168,7 @@ class FlatMap
   // Opens one slot at pos in both arrays. Capacity is secured on both
   // arrays before any logical change so a failed allocation leaves the
   // map untouched (strong guarantee up to the shifts).
-  void make_room(size_t pos)
+  void make_room(const size_t pos)
   {
     if (keys_.size() == keys_.capacity())
       keys_.reserve(keys_.capacity() << 1);
@@ -188,7 +187,7 @@ class FlatMap
 
   // Removes the slot at pos from both arrays. Failed shrinking
   // reallocations are ignored: the logical removal always succeeds.
-  void remove_at(size_t pos)
+  void remove_at(const size_t pos)
   {
     Key *kp = keys_.get_ptr();
     T *vp = vals_.get_ptr();
@@ -202,12 +201,16 @@ class FlatMap
       {
         (void) keys_.get();
       }
-    catch (...) { /* shrink failed; logical removal already done */ }
+    catch (const std::bad_alloc &)
+      { /* shrink failed; logical removal already done */
+      }
     try
       {
         (void) vals_.get();
       }
-    catch (...) { /* shrink failed; logical removal already done */ }
+    catch (const std::bad_alloc &)
+      { /* shrink failed; logical removal already done */
+      }
   }
 
   // Sorts freshly loaded parallel arrays by key and drops duplicate keys,
@@ -222,10 +225,10 @@ class FlatMap
       tmp.put(std::pair<Key, T>(std::move(kp[i]), std::move(vp[i])));
 
     std::pair<Key, T> *tp = tmp.get_ptr();
-    std::stable_sort(tp, tp + m, [this] (const auto &a, const auto &b)
-    {
-      return cmp_(a.first, b.first);
-    });
+    std::stable_sort(tp, tp + m, [this](const auto &a, const auto &b)
+      {
+        return cmp_(a.first, b.first);
+      });
 
     size_t out = 0;
     for (size_t i = 0; i < m; ++i)
@@ -244,14 +247,13 @@ class FlatMap
   }
 
 public:
-
-  using Item_Type = std::pair<Key, T>; ///< Aleph convention: element type.
-  using Key_Type = Key;                ///< Aleph convention: key type.
-  using key_type = Key;                ///< STL convention: key type.
-  using mapped_type = T;               ///< STL convention: mapped type.
-  using value_type = std::pair<Key, T>; ///< STL convention: value type.
-  using key_compare = Compare;         ///< STL convention: comparator type.
-  using size_type = size_t;            ///< STL convention: size type.
+  using Item_Type = std::pair<Key, T>;   ///< Aleph convention: element type.
+  using Key_Type = Key;                  ///< Aleph convention: key type.
+  using key_type = Key;                  ///< STL convention: key type.
+  using mapped_type = T;                 ///< STL convention: mapped type.
+  using value_type = std::pair<Key, T>;  ///< STL convention: value type.
+  using key_compare = Compare;           ///< STL convention: comparator type.
+  using size_type = size_t;              ///< STL convention: size type.
 
   /** @brief Random-access proxy iterator over `(key, value)` entries.
    *
@@ -272,12 +274,11 @@ public:
     VPtr v_ = nullptr;
 
   public:
-
     /// Proxy returned by `operator*`: references into the parallel arrays.
     struct reference
     {
-      const Key &first;                                ///< The entry's key.
-      std::conditional_t<IsConst, const T &, T &> second; ///< The entry's value.
+      const Key &first;                                    ///< The entry's key.
+      std::conditional_t<IsConst, const T &, T &> second;  ///< The entry's value.
     };
 
     /// Proxy returned by `operator->`, keeps the `reference` alive.
@@ -285,12 +286,15 @@ public:
     {
       reference ref;  ///< Materialized reference proxy.
       /// Give access to the members of the proxy.
-      reference *operator->() noexcept { return &ref; }
+      reference *operator ->() noexcept
+      {
+        return &ref;
+      }
     };
 
-    using iterator_category = std::random_access_iterator_tag; ///< Category.
-    using value_type = std::pair<Key, T>;   ///< Materialized entry type.
-    using difference_type = std::ptrdiff_t; ///< Signed distance type.
+    using iterator_category = std::random_access_iterator_tag;  ///< Category.
+    using value_type = std::pair<Key, T>;                       ///< Materialized entry type.
+    using difference_type = std::ptrdiff_t;                     ///< Signed distance type.
 
     /// Construct a singular iterator.
     basic_iterator() = default;
@@ -300,32 +304,49 @@ public:
 
     /// Convert a mutable iterator into a const iterator.
     template <bool B, class = std::enable_if_t<IsConst and not B>>
-    basic_iterator(const basic_iterator<B> &it) noexcept
-      : k_(it.key_ptr()), v_(it.val_ptr()) {}
+    basic_iterator(const basic_iterator<B> &it) noexcept : k_(it.key_ptr()), v_(it.val_ptr())
+    {}
 
     /// Cursor into the key array (internal use).
-    const Key *key_ptr() const noexcept { return k_; }
+    const Key *key_ptr() const noexcept
+    {
+      return k_;
+    }
 
     /// Cursor into the value array (internal use).
-    VPtr val_ptr() const noexcept { return v_; }
+    VPtr val_ptr() const noexcept
+    {
+      return v_;
+    }
 
     /// Dereference to the `(key, value)` proxy.
-    reference operator*() const noexcept { return {*k_, *v_}; }
+    reference operator * () const noexcept
+    {
+      return {*k_, *v_};
+    }
 
     /// Member access through the proxy (e.g. `it->second`).
-    pointer operator->() const noexcept { return {{*k_, *v_}}; }
+    pointer operator ->() const noexcept
+    {
+      return {{*k_, *v_}};
+    }
 
     /// Proxy for the entry `i` positions away.
-    reference operator[](difference_type i) const noexcept
+    reference operator [] (difference_type i) const noexcept
     {
       return {*(k_ + i), *(v_ + i)};
     }
 
     /// Pre-increment.
-    basic_iterator &operator++() noexcept { ++k_; ++v_; return *this; }
+    basic_iterator &operator ++ () noexcept
+    {
+      ++k_;
+      ++v_;
+      return *this;
+    }
 
     /// Post-increment.
-    basic_iterator operator++(int) noexcept
+    basic_iterator operator ++ (int) noexcept
     {
       basic_iterator ret = *this;
       ++*this;
@@ -333,10 +354,15 @@ public:
     }
 
     /// Pre-decrement.
-    basic_iterator &operator--() noexcept { --k_; --v_; return *this; }
+    basic_iterator &operator -- () noexcept
+    {
+      --k_;
+      --v_;
+      return *this;
+    }
 
     /// Post-decrement.
-    basic_iterator operator--(int) noexcept
+    basic_iterator operator -- (int) noexcept
     {
       basic_iterator ret = *this;
       --*this;
@@ -344,7 +370,7 @@ public:
     }
 
     /// Advance by `i` positions.
-    basic_iterator &operator+=(difference_type i) noexcept
+    basic_iterator &operator += (difference_type i) noexcept
     {
       k_ += i;
       v_ += i;
@@ -352,70 +378,70 @@ public:
     }
 
     /// Retreat by `i` positions.
-    basic_iterator &operator-=(difference_type i) noexcept
+    basic_iterator &operator -= (difference_type i) noexcept
     {
       return *this += -i;
     }
 
     /// Iterator `i` positions forward.
-    basic_iterator operator+(difference_type i) const noexcept
+    basic_iterator operator + (difference_type i) const noexcept
     {
       basic_iterator ret = *this;
       return ret += i;
     }
 
     /// Iterator `i` positions backward.
-    basic_iterator operator-(difference_type i) const noexcept
+    basic_iterator operator - (difference_type i) const noexcept
     {
       basic_iterator ret = *this;
       return ret -= i;
     }
 
     /// Signed distance between iterators.
-    difference_type operator-(const basic_iterator &it) const noexcept
+    difference_type operator - (const basic_iterator &it) const noexcept
     {
       return k_ - it.key_ptr();
     }
 
     /// Equality: same position.
-    bool operator==(const basic_iterator &it) const noexcept
+    bool operator == (const basic_iterator &it) const noexcept
     {
       return k_ == it.key_ptr();
     }
 
     /// Inequality: different position.
-    bool operator!=(const basic_iterator &it) const noexcept
+    bool operator != (const basic_iterator &it) const noexcept
     {
       return k_ != it.key_ptr();
     }
 
     /// Strict ordering by position.
-    bool operator<(const basic_iterator &it) const noexcept
+    bool operator < (const basic_iterator &it) const noexcept
     {
       return k_ < it.key_ptr();
     }
 
     /// Ordering by position.
-    bool operator<=(const basic_iterator &it) const noexcept
+    bool operator <= (const basic_iterator &it) const noexcept
     {
       return k_ <= it.key_ptr();
     }
 
     /// Strict ordering by position.
-    bool operator>(const basic_iterator &it) const noexcept
+    bool operator > (const basic_iterator &it) const noexcept
     {
       return k_ > it.key_ptr();
     }
 
     /// Ordering by position.
-    bool operator>=(const basic_iterator &it) const noexcept
+    bool operator >= (const basic_iterator &it) const noexcept
     {
       return k_ >= it.key_ptr();
     }
   };
 
-  using iterator = basic_iterator<false>;      ///< Mutable-value iterator.
-  using const_iterator = basic_iterator<true>; ///< Const-value iterator.
+  using iterator = basic_iterator<false>;       ///< Mutable-value iterator.
+  using const_iterator = basic_iterator<true>;  ///< Const-value iterator.
 
   /** @brief Construct an empty map.
    *
@@ -423,8 +449,7 @@ public:
    *         backing `MemArray`s).
    *  @throws std::bad_alloc if the initial buffers cannot be allocated.
    */
-  explicit FlatMap(size_t cap = MemArray<Key>::Min_Dim)
-    : keys_(cap), vals_(cap) {}
+  explicit FlatMap(size_t cap = MemArray<Key>::Min_Dim) : keys_(cap), vals_(cap) {}
 
   /** @brief Construct an empty map with a specific comparator.
    *
@@ -433,7 +458,8 @@ public:
    *  @throws std::bad_alloc if the initial buffers cannot be allocated.
    */
   explicit FlatMap(const Compare &cmp, size_t cap = MemArray<Key>::Min_Dim)
-    : keys_(cap), vals_(cap), cmp_(cmp) {}
+    : keys_(cap), vals_(cap), cmp_(cmp)
+  {}
 
   /** @brief Construct from an iterator range of pairs.
    *
@@ -448,15 +474,15 @@ public:
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note On duplicate (equivalent) keys the first occurrence wins.
    */
-  template <class It,
-            class = std::enable_if_t<not std::is_integral_v<It>>>
+  template <class It, class = std::enable_if_t<not std::is_integral_v<It>>>
   FlatMap(It first, It last, const Compare &cmp = Compare())
     : keys_(MemArray<Key>::Min_Dim), vals_(MemArray<T>::Min_Dim), cmp_(cmp)
   {
     for (; first != last; ++first)
       {
-        keys_.put(first->first);
-        vals_.put(first->second);
+        const auto &p = *first;
+        keys_.put(p.first);
+        vals_.put(p.second);
       }
     sort_and_unique();
   }
@@ -467,9 +493,9 @@ public:
    *  @param cmp Comparator instance (defaulted).
    *  @throws std::bad_alloc if memory allocation fails.
    */
-  FlatMap(std::initializer_list<std::pair<Key, T>> l,
-           const Compare &cmp = Compare())
-    : FlatMap(l.begin(), l.end(), cmp) {}
+  FlatMap(std::initializer_list<std::pair<Key, T>> l, const Compare &cmp = Compare())
+    : FlatMap(l.begin(), l.end(), cmp)
+  {}
 
   /// Copy constructor (requires copyable `Key` and `T`).
   FlatMap(const FlatMap &) = default;
@@ -478,10 +504,10 @@ public:
   FlatMap(FlatMap &&) noexcept = default;
 
   /// Copy assignment (requires copyable `Key` and `T`).
-  FlatMap &operator=(const FlatMap &) = default;
+  FlatMap &operator = (const FlatMap &) = default;
 
   /// Move assignment. The source is left valid but unspecified.
-  FlatMap &operator=(FlatMap &&) noexcept = default;
+  FlatMap &operator = (FlatMap &&) noexcept = default;
 
   ~FlatMap() = default;
 
@@ -498,13 +524,22 @@ public:
   // -- capacity -------------------------------------------------------------
 
   /// Return the number of stored entries. O(1).
-  [[nodiscard]] size_t size() const noexcept { return keys_.size(); }
+  [[nodiscard]] size_t size() const noexcept
+  {
+    return keys_.size();
+  }
 
   /// Return `true` if the map holds no entries. O(1).
-  [[nodiscard]] bool is_empty() const noexcept { return keys_.is_empty(); }
+  [[nodiscard]] bool is_empty() const noexcept
+  {
+    return keys_.is_empty();
+  }
 
   /// Return the capacity of the backing key array. O(1).
-  [[nodiscard]] size_t capacity() const noexcept { return keys_.capacity(); }
+  [[nodiscard]] size_t capacity() const noexcept
+  {
+    return keys_.capacity();
+  }
 
   /** @brief Reserve capacity for at least `cap` entries.
    *  @param cap Desired capacity (rounded up to a power of two).
@@ -527,7 +562,10 @@ public:
   }
 
   /// Remove all entries. Alias of `empty()`. Capacity is kept.
-  void clear() noexcept { empty(); }
+  void clear() noexcept
+  {
+    empty();
+  }
 
   // -- lookup ---------------------------------------------------------------
 
@@ -574,7 +612,10 @@ public:
    *  @return Iterator to the bound, or `end()`.
    *  @note Complexity: O(log n).
    */
-  iterator lower_bound(const Key &k) { return begin() + lower_idx(k); }
+  iterator lower_bound(const Key &k)
+  {
+    return begin() + lower_idx(k);
+  }
 
   /// \overload lower_bound(const Key & k)
   const_iterator lower_bound(const Key &k) const
@@ -587,7 +628,10 @@ public:
    *  @return Iterator to the bound, or `end()`.
    *  @note Complexity: O(log n).
    */
-  iterator upper_bound(const Key &k) { return begin() + upper_idx(k); }
+  iterator upper_bound(const Key &k)
+  {
+    return begin() + upper_idx(k);
+  }
 
   /// \overload upper_bound(const Key & k)
   const_iterator upper_bound(const Key &k) const
@@ -620,8 +664,7 @@ public:
   T &at(const Key &k)
   {
     const size_t pos = lower_idx(k);
-    ah_out_of_range_error_if(not match_at(pos, k))
-      << "FlatMap::at(): key not found";
+    ah_out_of_range_error_if(not match_at(pos, k)) << "FlatMap::at(): key not found";
     return vals_(pos);
   }
 
@@ -629,8 +672,7 @@ public:
   const T &at(const Key &k) const
   {
     const size_t pos = lower_idx(k);
-    ah_out_of_range_error_if(not match_at(pos, k))
-      << "FlatMap::at(): key not found";
+    ah_out_of_range_error_if(not match_at(pos, k)) << "FlatMap::at(): key not found";
     return vals_(pos);
   }
 
@@ -640,7 +682,7 @@ public:
    *  @throws std::bad_alloc if a growing reallocation fails.
    *  @note Complexity: O(log n) on hit, O(n) on insertion.
    */
-  T &operator[](const Key &k)
+  T &operator [] (const Key &k)
   {
     const size_t pos = lower_idx(k);
     if (match_at(pos, k))
@@ -659,7 +701,7 @@ public:
    *  @return Mutable reference to the mapped value.
    *  @throws std::bad_alloc if a growing reallocation fails.
    */
-  T &operator[](Key &&k)
+  T &operator [] (Key &&k)
   {
     const size_t pos = lower_idx(k);
     if (match_at(pos, k))
@@ -678,7 +720,10 @@ public:
    *  @throws std::out_of_range if `i >= size()`.
    *  @note Complexity: O(1).
    */
-  const Key &nth_key(size_t i) const { return keys_[i]; }
+  const Key &nth_key(size_t i) const
+  {
+    return keys_[i];
+  }
 
   /** @brief Value of the i-th entry in sorted order (checked).
    *  @param i Zero-based rank.
@@ -686,10 +731,16 @@ public:
    *  @throws std::out_of_range if `i >= size()`.
    *  @note Complexity: O(1).
    */
-  T &nth_value(size_t i) { return vals_[i]; }
+  T &nth_value(size_t i)
+  {
+    return vals_[i];
+  }
 
   /// \overload nth_value(size_t i)
-  const T &nth_value(size_t i) const { return vals_[i]; }
+  const T &nth_value(size_t i) const
+  {
+    return vals_[i];
+  }
 
   // -- modifiers ------------------------------------------------------------
 
@@ -817,8 +868,7 @@ public:
   iterator erase(const_iterator it)
   {
     const size_t pos = it.key_ptr() - keys_.get_ptr();
-    ah_out_of_range_error_if(pos >= size())
-      << "FlatMap::erase(): iterator out of range";
+    ah_out_of_range_error_if(pos >= size()) << "FlatMap::erase(): iterator out of range";
     remove_at(pos);
     return begin() + pos;
   }
@@ -850,19 +900,34 @@ public:
   }
 
   /// Const iterator to the entry with the smallest key. O(1).
-  const_iterator cbegin() const noexcept { return begin(); }
+  const_iterator cbegin() const noexcept
+  {
+    return begin();
+  }
 
   /// Const iterator past the entry with the greatest key. O(1).
-  const_iterator cend() const noexcept { return end(); }
+  const_iterator cend() const noexcept
+  {
+    return end();
+  }
 
   /// Pointer to the sorted, contiguous key storage. O(1).
-  const Key *keys_data() const noexcept { return keys_.get_ptr(); }
+  const Key *keys_data() const noexcept
+  {
+    return keys_.get_ptr();
+  }
 
   /// Pointer to the contiguous value storage (parallel to keys). O(1).
-  T *values_data() noexcept { return vals_.get_ptr(); }
+  T *values_data() noexcept
+  {
+    return vals_.get_ptr();
+  }
 
   /// \overload values_data()
-  const T *values_data() const noexcept { return vals_.get_ptr(); }
+  const T *values_data() const noexcept
+  {
+    return vals_.get_ptr();
+  }
 
   /** @brief Copy all keys, in ascending order, into a `DynList`.
    *  @return List of keys sorted according to `Compare`.
@@ -938,19 +1003,20 @@ public:
    *  @return `true` if both maps hold equal entries in the same order.
    *  @note Complexity: O(n). Requires `Key` and `T` equality comparable.
    */
-  bool operator==(const FlatMap &m) const
+  bool operator == (const FlatMap &m) const
   {
-    return size() == m.size()
-      and std::equal(keys_.get_ptr(), keys_.get_ptr() + size(),
-                     m.keys_.get_ptr())
-      and std::equal(vals_.get_ptr(), vals_.get_ptr() + size(),
-                     m.vals_.get_ptr());
+    return size() == m.size() and
+      std::equal(keys_.get_ptr(), keys_.get_ptr() + size(), m.keys_.get_ptr()) and
+      std::equal(vals_.get_ptr(), vals_.get_ptr() + size(), m.vals_.get_ptr());
   }
 
   /// Inequality: negation of `operator==`.
-  bool operator!=(const FlatMap &m) const { return not(*this == m); }
+  bool operator != (const FlatMap &m) const
+  {
+    return not (*this == m);
+  }
 };
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // TPL_FLAT_MAP_H
+#endif  // TPL_FLAT_MAP_H

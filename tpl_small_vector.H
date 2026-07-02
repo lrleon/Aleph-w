@@ -67,8 +67,7 @@
 
 #include <ah-errors.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Contiguous dynamic array with `N` elements of inline storage.
  *
@@ -123,14 +122,20 @@ class SmallVector
   size_t n_ = 0;
   size_t cap_ = N;
 
-  T *inline_ptr() noexcept { return reinterpret_cast<T *>(storage_); }
+  T *inline_ptr() noexcept
+  {
+    return reinterpret_cast<T *>(storage_);
+  }
 
   const T *inline_ptr() const noexcept
   {
     return reinterpret_cast<const T *>(storage_);
   }
 
-  static T *allocate(size_t m) { return std::allocator<T>().allocate(m); }
+  static T *allocate(size_t m)
+  {
+    return std::allocator<T>().allocate(m);
+  }
 
   static void deallocate(T *p, size_t m) noexcept
   {
@@ -139,7 +144,7 @@ class SmallVector
 
   // Moves the elements into a fresh heap buffer of capacity new_cap
   // (strong guarantee via move_if_noexcept) and releases the old buffer.
-  void relocate(size_t new_cap)
+  void relocate(const size_t new_cap)
   {
     T *np = allocate(new_cap);
     size_t i = 0;
@@ -162,7 +167,7 @@ class SmallVector
   }
 
   // Ensures room for at least min_cap elements, growing geometrically.
-  void grow(size_t min_cap)
+  void grow(const size_t min_cap)
   {
     size_t new_cap = cap_;
     while (new_cap < min_cap)
@@ -175,9 +180,24 @@ class SmallVector
   {
     if (o.is_small())
       {
-        for (size_t i = 0; i < o.n_; ++i)
-          ::new (static_cast<void *>(ptr_ + i)) T(std::move(o.ptr_[i]));
-        n_ = o.n_;
+        if constexpr (std::is_nothrow_move_constructible_v<T>)
+          {
+            for (; n_ < o.n_; ++n_)
+              ::new (static_cast<void *>(ptr_ + n_)) T(std::move(o.ptr_[n_]));
+          }
+        else
+          {
+            try
+              {
+                for (; n_ < o.n_; ++n_)
+                  ::new (static_cast<void *>(ptr_ + n_)) T(std::move(o.ptr_[n_]));
+              }
+            catch (...)
+              {
+                release();
+                throw;
+              }
+          }
         std::destroy(o.ptr_, o.ptr_ + o.n_);
         o.n_ = 0;
       }
@@ -204,12 +224,11 @@ class SmallVector
   }
 
 public:
-
-  using Item_Type = T;          ///< Aleph convention: element type.
-  using value_type = T;         ///< STL convention: value type.
-  using size_type = size_t;     ///< STL convention: size type.
-  using iterator = T *;         ///< Random-access iterator.
-  using const_iterator = const T *; ///< Random-access const iterator.
+  using Item_Type = T;               ///< Aleph convention: element type.
+  using value_type = T;              ///< STL convention: value type.
+  using size_type = size_t;          ///< STL convention: size type.
+  using iterator = T *;              ///< Random-access iterator.
+  using const_iterator = const T *;  ///< Random-access const iterator.
 
   /// Construct an empty vector using the inline storage. Never allocates.
   SmallVector() noexcept : ptr_(inline_ptr()) {}
@@ -220,14 +239,22 @@ public:
    *  @throws std::bad_alloc if `n > N` and the heap buffer cannot be
    *          allocated.
    */
-  SmallVector(size_t n, const T &value)
+  SmallVector(const size_t n, const T &value)
     requires std::is_copy_constructible_v<T>
     : ptr_(inline_ptr())
   {
     if (n > cap_)
       grow(n);
-    for (; n_ < n; ++n_)
-      ::new (static_cast<void *>(ptr_ + n_)) T(value);
+    try
+      {
+        for (; n_ < n; ++n_)
+          ::new (static_cast<void *>(ptr_ + n_)) T(value);
+      }
+    catch (...)
+      {
+        release();
+        throw;
+      }
   }
 
   /** @brief Construct from an initializer list.
@@ -240,8 +267,19 @@ public:
   {
     if (l.size() > cap_)
       grow(l.size());
-    for (const T &x : l)
-      ::new (static_cast<void *>(ptr_ + n_++)) T(x);
+    try
+      {
+        for (const T &x : l)
+          {
+            ::new (static_cast<void *>(ptr_ + n_)) T(x);
+            ++n_;
+          }
+      }
+    catch (...)
+      {
+        release();
+        throw;
+      }
   }
 
   /** @brief Construct from an iterator range.
@@ -250,12 +288,19 @@ public:
    *  @param last End of the range.
    *  @throws std::bad_alloc if the heap buffer cannot be allocated.
    */
-  template <class It,
-            class = std::enable_if_t<not std::is_integral_v<It>>>
+  template <class It, class = std::enable_if_t<not std::is_integral_v<It>>>
   SmallVector(It first, It last) : ptr_(inline_ptr())
   {
-    for (; first != last; ++first)
-      append(*first);
+    try
+      {
+        for (; first != last; ++first)
+          append(*first);
+      }
+    catch (...)
+      {
+        release();
+        throw;
+      }
   }
 
   /// Copy constructor (requires copyable `T`).
@@ -265,8 +310,16 @@ public:
   {
     if (v.n_ > cap_)
       grow(v.n_);
-    for (; n_ < v.n_; ++n_)
-      ::new (static_cast<void *>(ptr_ + n_)) T(v.ptr_[n_]);
+    try
+      {
+        for (; n_ < v.n_; ++n_)
+          ::new (static_cast<void *>(ptr_ + n_)) T(v.ptr_[n_]);
+      }
+    catch (...)
+      {
+        release();
+        throw;
+      }
   }
 
   /** @brief Move constructor.
@@ -274,15 +327,14 @@ public:
    *  Heap-mode sources are stolen in O(1); inline-mode sources are moved
    *  element by element (O(n)). The source is left empty.
    */
-  SmallVector(SmallVector &&v)
-    noexcept(std::is_nothrow_move_constructible_v<T>)
+  SmallVector(SmallVector &&v) noexcept(std::is_nothrow_move_constructible_v<T>)
     : ptr_(inline_ptr())
   {
     steal(std::move(v));
   }
 
   /// Copy assignment (requires copyable `T`).
-  SmallVector &operator=(const SmallVector &v)
+  SmallVector &operator = (const SmallVector &v)
     requires std::is_copy_constructible_v<T>
   {
     if (this == &v)
@@ -296,8 +348,7 @@ public:
   }
 
   /// Move assignment. The source is left empty.
-  SmallVector &operator=(SmallVector &&v)
-    noexcept(std::is_nothrow_move_constructible_v<T>)
+  SmallVector &operator = (SmallVector &&v) noexcept(std::is_nothrow_move_constructible_v<T>)
   {
     if (this == &v)
       return *this;
@@ -306,7 +357,10 @@ public:
     return *this;
   }
 
-  ~SmallVector() { release(); }
+  ~SmallVector()
+  {
+    release();
+  }
 
   /** @brief Swap contents with `v`.
    *
@@ -315,7 +369,7 @@ public:
    *
    *  @param v Vector to swap with.
    */
-  void swap(SmallVector &v)
+  void swap(SmallVector &v) noexcept
   {
     if (not is_small() and not v.is_small())
       {
@@ -332,13 +386,22 @@ public:
   // -- capacity -------------------------------------------------------------
 
   /// Return the number of stored elements. O(1).
-  [[nodiscard]] size_t size() const noexcept { return n_; }
+  [[nodiscard]] size_t size() const noexcept
+  {
+    return n_;
+  }
 
   /// Return the current capacity (inline or heap). O(1).
-  [[nodiscard]] size_t capacity() const noexcept { return cap_; }
+  [[nodiscard]] size_t capacity() const noexcept
+  {
+    return cap_;
+  }
 
   /// Return `true` if no elements are stored. O(1).
-  [[nodiscard]] bool is_empty() const noexcept { return n_ == 0; }
+  [[nodiscard]] bool is_empty() const noexcept
+  {
+    return n_ == 0;
+  }
 
   /// Return `true` while the elements still live in the inline buffer. O(1).
   [[nodiscard]] bool is_small() const noexcept
@@ -350,7 +413,7 @@ public:
    *  @param cap Desired capacity. Values `<= capacity()` are no-ops.
    *  @throws std::bad_alloc if the heap buffer cannot be allocated.
    */
-  void reserve(size_t cap)
+  void reserve(const size_t cap)
   {
     if (cap > cap_)
       grow(cap);
@@ -367,7 +430,10 @@ public:
   }
 
   /// Destroy all elements. Alias of `empty()`. Capacity is kept.
-  void clear() noexcept { empty(); }
+  void clear() noexcept
+  {
+    empty();
+  }
 
   // -- element access -------------------------------------------------------
 
@@ -376,24 +442,27 @@ public:
    *  @return Mutable reference to the element.
    *  @throws std::out_of_range if `i >= size()`.
    */
-  [[nodiscard]] T &operator[](size_t i)
+  [[nodiscard]] T &operator [] (size_t i)
   {
     ah_out_of_range_error_if(i >= n_) << "SmallVector: index out of range";
     return ptr_[i];
   }
 
   /// Checked const access to the i-th element (throws `std::out_of_range`).
-  [[nodiscard]] const T &operator[](size_t i) const
+  [[nodiscard]] const T &operator [] (size_t i) const
   {
     ah_out_of_range_error_if(i >= n_) << "SmallVector: index out of range";
     return ptr_[i];
   }
 
   /// Unchecked access to the i-th element (must be `< size()`).
-  [[nodiscard]] T &operator()(size_t i) noexcept { return ptr_[i]; }
+  [[nodiscard]] T &operator () (size_t i) noexcept
+  {
+    return ptr_[i];
+  }
 
   /// Unchecked const access to the i-th element (must be `< size()`).
-  [[nodiscard]] const T &operator()(size_t i) const noexcept
+  [[nodiscard]] const T &operator () (size_t i) const noexcept
   {
     return ptr_[i];
   }
@@ -433,10 +502,16 @@ public:
   }
 
   /// Pointer to the contiguous element storage. O(1).
-  [[nodiscard]] T *data() noexcept { return ptr_; }
+  [[nodiscard]] T *data() noexcept
+  {
+    return ptr_;
+  }
 
   /// \overload data()
-  [[nodiscard]] const T *data() const noexcept { return ptr_; }
+  [[nodiscard]] const T *data() const noexcept
+  {
+    return ptr_;
+  }
 
   // -- modifiers ------------------------------------------------------------
 
@@ -480,7 +555,10 @@ public:
    *  @throws std::bad_alloc if a growing reallocation fails.
    *  @note Amortized O(1).
    */
-  T &append(T &&item) { return emplace_back(std::move(item)); }
+  T &append(T &&item)
+  {
+    return emplace_back(std::move(item));
+  }
 
   /// STL-style alias of `append(const T &)`.
   T &push_back(const T &item)
@@ -490,7 +568,10 @@ public:
   }
 
   /// STL-style alias of `append(T &&)`.
-  T &push_back(T &&item) { return append(std::move(item)); }
+  T &push_back(T &&item)
+  {
+    return append(std::move(item));
+  }
 
   /** @brief Remove and return the last element.
    *  @return The removed element, moved out.
@@ -525,8 +606,7 @@ public:
    */
   T &insert(size_t pos, T item)
   {
-    ah_out_of_range_error_if(pos > n_)
-      << "SmallVector::insert(): position out of range";
+    ah_out_of_range_error_if(pos > n_) << "SmallVector::insert(): position out of range";
     if (n_ == cap_)
       grow(n_ + 1);
     if (pos == n_)
@@ -547,10 +627,9 @@ public:
    *  @throws std::out_of_range if `pos >= size()`.
    *  @note O(n - pos) moves.
    */
-  void erase(size_t pos)
+  void erase(const size_t pos)
   {
-    ah_out_of_range_error_if(pos >= n_)
-      << "SmallVector::erase(): position out of range";
+    ah_out_of_range_error_if(pos >= n_) << "SmallVector::erase(): position out of range";
     for (size_t i = pos; i + 1 < n_; ++i)
       ptr_[i] = std::move(ptr_[i + 1]);
     std::destroy_at(ptr_ + --n_);
@@ -559,22 +638,40 @@ public:
   // -- iteration ------------------------------------------------------------
 
   /// Iterator to the first element. O(1).
-  iterator begin() noexcept { return ptr_; }
+  iterator begin() noexcept
+  {
+    return ptr_;
+  }
 
   /// Iterator past the last element. O(1).
-  iterator end() noexcept { return ptr_ + n_; }
+  iterator end() noexcept
+  {
+    return ptr_ + n_;
+  }
 
   /// Const iterator to the first element. O(1).
-  const_iterator begin() const noexcept { return ptr_; }
+  const_iterator begin() const noexcept
+  {
+    return ptr_;
+  }
 
   /// Const iterator past the last element. O(1).
-  const_iterator end() const noexcept { return ptr_ + n_; }
+  const_iterator end() const noexcept
+  {
+    return ptr_ + n_;
+  }
 
   /// Const iterator to the first element. O(1).
-  const_iterator cbegin() const noexcept { return ptr_; }
+  const_iterator cbegin() const noexcept
+  {
+    return ptr_;
+  }
 
   /// Const iterator past the last element. O(1).
-  const_iterator cend() const noexcept { return ptr_ + n_; }
+  const_iterator cend() const noexcept
+  {
+    return ptr_ + n_;
+  }
 
   /** @brief Traverse elements in order while `operation` returns `true`.
    *
@@ -616,24 +713,24 @@ public:
    *  @note Complexity: O(n). Requires `T` equality comparable.
    */
   template <size_t M>
-  bool operator==(const SmallVector<T, M> &v) const
+  bool operator == (const SmallVector<T, M> &v) const
   {
     if (n_ != v.size())
       return false;
     for (size_t i = 0; i < n_; ++i)
-      if (not(ptr_[i] == v(i)))
+      if (not (ptr_[i] == v(i)))
         return false;
     return true;
   }
 
   /// Inequality: negation of `operator==`.
   template <size_t M>
-  bool operator!=(const SmallVector<T, M> &v) const
+  bool operator != (const SmallVector<T, M> &v) const
   {
-    return not(*this == v);
+    return not (*this == v);
   }
 };
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // TPL_SMALL_VECTOR_H
+#endif  // TPL_SMALL_VECTOR_H

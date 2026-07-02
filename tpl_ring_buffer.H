@@ -66,8 +66,7 @@
 
 #include <ah-errors.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Fixed-capacity circular FIFO buffer over contiguous storage.
  *
@@ -116,13 +115,17 @@ class RingBuffer
 {
   static_assert(std::is_move_constructible_v<T>,
                 "RingBuffer requires a move-constructible element type");
+  static_assert(std::is_move_assignable_v<T>, "RingBuffer requires a move-assignable element type");
 
   T *buf_ = nullptr;
   size_t cap_ = 0;
   size_t head_ = 0;  // physical index of the oldest element
   size_t n_ = 0;
 
-  static T *allocate(size_t m) { return std::allocator<T>().allocate(m); }
+  static T *allocate(size_t m)
+  {
+    return std::allocator<T>().allocate(m);
+  }
 
   static void deallocate(T *p, size_t m) noexcept
   {
@@ -130,7 +133,10 @@ class RingBuffer
   }
 
   // Physical index of the i-th logical element.
-  size_t phys(size_t i) const noexcept { return (head_ + i) % cap_; }
+  size_t phys(const size_t i) const noexcept
+  {
+    return (head_ + i) % cap_;
+  }
 
   // Destroys all elements without releasing the storage.
   void destroy_all() noexcept
@@ -142,10 +148,9 @@ class RingBuffer
   }
 
 public:
-
-  using Item_Type = T;          ///< Aleph convention: element type.
-  using value_type = T;         ///< STL convention: value type.
-  using size_type = size_t;     ///< STL convention: size type.
+  using Item_Type = T;       ///< Aleph convention: element type.
+  using value_type = T;      ///< STL convention: value type.
+  using size_type = size_t;  ///< STL convention: size type.
 
   /** @brief Random-access iterator over the logical window.
    *
@@ -157,54 +162,86 @@ public:
   template <bool IsConst>
   class basic_iterator
   {
-    using BufPtr = std::conditional_t<IsConst, const RingBuffer *,
-                                      RingBuffer *>;
+    using BufPtr = std::conditional_t<IsConst, const RingBuffer *, RingBuffer *>;
 
     BufPtr rb_ = nullptr;
     size_t idx_ = 0;  // logical index
 
-  public:
+    /// Return `abs(i)` for negative signed offsets without signed overflow.
+    static size_t negative_magnitude(const std::ptrdiff_t i) noexcept
+    {
+      return static_cast<size_t>(-(i + 1)) + 1;
+    }
 
-    using iterator_category = std::random_access_iterator_tag; ///< Category.
-    using value_type = T;                    ///< Element type.
-    using difference_type = std::ptrdiff_t;  ///< Signed distance type.
-    using reference = std::conditional_t<IsConst, const T &, T &>; ///< Ref.
-    using pointer = std::conditional_t<IsConst, const T *, T *>;   ///< Ptr.
+    /// Add signed offset `i` to logical index `idx`.
+    static size_t add_offset(const size_t idx, const std::ptrdiff_t i) noexcept
+    {
+      return i < 0 ? idx - negative_magnitude(i) : idx + static_cast<size_t>(i);
+    }
+
+    /// Subtract signed offset `i` from logical index `idx`.
+    static size_t sub_offset(const size_t idx, const std::ptrdiff_t i) noexcept
+    {
+      return i < 0 ? idx + negative_magnitude(i) : idx - static_cast<size_t>(i);
+    }
+
+  public:
+    using iterator_category = std::random_access_iterator_tag;      ///< Category.
+    using value_type = T;                                           ///< Element type.
+    using difference_type = std::ptrdiff_t;                         ///< Signed distance type.
+    using reference = std::conditional_t<IsConst, const T &, T &>;  ///< Ref.
+    using pointer = std::conditional_t<IsConst, const T *, T *>;    ///< Ptr.
 
     /// Construct a singular iterator.
     basic_iterator() = default;
 
     /// Construct from a buffer and a logical index (internal use).
-    basic_iterator(BufPtr rb, size_t idx) noexcept : rb_(rb), idx_(idx) {}
+    basic_iterator(BufPtr rb, const size_t idx) noexcept : rb_(rb), idx_(idx) {}
 
     /// Convert a mutable iterator into a const iterator.
     template <bool B, class = std::enable_if_t<IsConst and not B>>
-    basic_iterator(const basic_iterator<B> &it) noexcept
-      : rb_(it.buffer()), idx_(it.index()) {}
+    basic_iterator(const basic_iterator<B> &it) noexcept : rb_(it.buffer()), idx_(it.index())
+    {}
 
     /// Buffer this iterator walks (internal use).
-    BufPtr buffer() const noexcept { return rb_; }
+    BufPtr buffer() const noexcept
+    {
+      return rb_;
+    }
 
     /// Current logical index (internal use).
-    size_t index() const noexcept { return idx_; }
+    size_t index() const noexcept
+    {
+      return idx_;
+    }
 
     /// Dereference to the current element.
-    reference operator*() const noexcept { return (*rb_)(idx_); }
+    reference operator * () const noexcept
+    {
+      return (*rb_)(idx_);
+    }
 
     /// Member access on the current element.
-    pointer operator->() const noexcept { return &(*rb_)(idx_); }
+    pointer operator ->() const noexcept
+    {
+      return &(*rb_)(idx_);
+    }
 
     /// Element `i` logical positions away.
-    reference operator[](difference_type i) const noexcept
+    reference operator [] (const difference_type i) const noexcept
     {
-      return (*rb_)(idx_ + i);
+      return (*rb_)(add_offset(idx_, i));
     }
 
     /// Pre-increment.
-    basic_iterator &operator++() noexcept { ++idx_; return *this; }
+    basic_iterator &operator ++ () noexcept
+    {
+      ++idx_;
+      return *this;
+    }
 
     /// Post-increment.
-    basic_iterator operator++(int) noexcept
+    basic_iterator operator ++ (int) noexcept
     {
       basic_iterator ret = *this;
       ++idx_;
@@ -212,10 +249,14 @@ public:
     }
 
     /// Pre-decrement.
-    basic_iterator &operator--() noexcept { --idx_; return *this; }
+    basic_iterator &operator -- () noexcept
+    {
+      --idx_;
+      return *this;
+    }
 
     /// Post-decrement.
-    basic_iterator operator--(int) noexcept
+    basic_iterator operator -- (int) noexcept
     {
       basic_iterator ret = *this;
       --idx_;
@@ -223,89 +264,87 @@ public:
     }
 
     /// Advance by `i` logical positions.
-    basic_iterator &operator+=(difference_type i) noexcept
+    basic_iterator &operator += (const difference_type i) noexcept
     {
-      idx_ += i;
+      idx_ = add_offset(idx_, i);
       return *this;
     }
 
     /// Retreat by `i` logical positions.
-    basic_iterator &operator-=(difference_type i) noexcept
+    basic_iterator &operator -= (const difference_type i) noexcept
     {
-      idx_ -= i;
+      idx_ = sub_offset(idx_, i);
       return *this;
     }
 
     /// Iterator `i` positions forward.
-    basic_iterator operator+(difference_type i) const noexcept
+    basic_iterator operator + (difference_type i) const noexcept
     {
       basic_iterator ret = *this;
       return ret += i;
     }
 
     /// Iterator `i` positions backward.
-    basic_iterator operator-(difference_type i) const noexcept
+    basic_iterator operator - (difference_type i) const noexcept
     {
       basic_iterator ret = *this;
       return ret -= i;
     }
 
     /// Signed distance between iterators.
-    difference_type operator-(const basic_iterator &it) const noexcept
+    difference_type operator - (const basic_iterator &it) const noexcept
     {
-      return static_cast<difference_type>(idx_)
-        - static_cast<difference_type>(it.index());
+      return static_cast<difference_type>(idx_) - static_cast<difference_type>(it.index());
     }
 
-    /// Equality: same logical position.
-    bool operator==(const basic_iterator &it) const noexcept
+    /// Equality: same buffer and logical position.
+    bool operator == (const basic_iterator &it) const noexcept
     {
-      return idx_ == it.index();
+      return rb_ == it.buffer() and idx_ == it.index();
     }
 
-    /// Inequality: different logical position.
-    bool operator!=(const basic_iterator &it) const noexcept
+    /// Inequality: different buffer or logical position.
+    bool operator != (const basic_iterator &it) const noexcept
     {
-      return idx_ != it.index();
+      return not (*this == it);
     }
 
     /// Strict ordering by logical position.
-    bool operator<(const basic_iterator &it) const noexcept
+    bool operator < (const basic_iterator &it) const noexcept
     {
       return idx_ < it.index();
     }
 
     /// Ordering by logical position.
-    bool operator<=(const basic_iterator &it) const noexcept
+    bool operator <= (const basic_iterator &it) const noexcept
     {
       return idx_ <= it.index();
     }
 
     /// Strict ordering by logical position.
-    bool operator>(const basic_iterator &it) const noexcept
+    bool operator > (const basic_iterator &it) const noexcept
     {
       return idx_ > it.index();
     }
 
     /// Ordering by logical position.
-    bool operator>=(const basic_iterator &it) const noexcept
+    bool operator >= (const basic_iterator &it) const noexcept
     {
       return idx_ >= it.index();
     }
   };
 
-  using iterator = basic_iterator<false>;      ///< Mutable iterator.
-  using const_iterator = basic_iterator<true>; ///< Const iterator.
+  using iterator = basic_iterator<false>;       ///< Mutable iterator.
+  using const_iterator = basic_iterator<true>;  ///< Const iterator.
 
   /** @brief Construct a buffer with an exact capacity.
    *  @param cap Maximum number of elements (not rounded; must be positive).
    *  @throws std::invalid_argument if `cap == 0`.
    *  @throws std::bad_alloc if the storage cannot be allocated.
    */
-  explicit RingBuffer(size_t cap) : cap_(cap)
+  explicit RingBuffer(const size_t cap) : cap_(cap)
   {
-    ah_invalid_argument_if(cap == 0)
-      << "RingBuffer: capacity must be positive";
+    ah_invalid_argument_if(cap == 0) << "RingBuffer: capacity must be positive";
     buf_ = allocate(cap_);
   }
 
@@ -332,10 +371,13 @@ public:
   /// Move constructor: steals the storage in O(1). The source is left
   /// valid but empty with null storage; it may only be destroyed or
   /// assigned to.
-  RingBuffer(RingBuffer &&rb) noexcept { swap(rb); }
+  RingBuffer(RingBuffer &&rb) noexcept
+  {
+    swap(rb);
+  }
 
   /// Copy assignment (requires copyable `T`).
-  RingBuffer &operator=(const RingBuffer &rb)
+  RingBuffer &operator = (const RingBuffer &rb)
     requires std::is_copy_constructible_v<T>
   {
     if (this == &rb)
@@ -346,7 +388,7 @@ public:
   }
 
   /// Move assignment: steals the storage in O(1).
-  RingBuffer &operator=(RingBuffer &&rb) noexcept
+  RingBuffer &operator = (RingBuffer &&rb) noexcept
   {
     swap(rb);
     return *this;
@@ -375,28 +417,49 @@ public:
   // -- capacity -------------------------------------------------------------
 
   /// Return the number of stored elements. O(1).
-  [[nodiscard]] size_t size() const noexcept { return n_; }
+  [[nodiscard]] size_t size() const noexcept
+  {
+    return n_;
+  }
 
   /// Return the fixed capacity chosen at construction. O(1).
-  [[nodiscard]] size_t capacity() const noexcept { return cap_; }
+  [[nodiscard]] size_t capacity() const noexcept
+  {
+    return cap_;
+  }
 
   /// Return the number of free slots. O(1).
-  [[nodiscard]] size_t available() const noexcept { return cap_ - n_; }
+  [[nodiscard]] size_t available() const noexcept
+  {
+    return cap_ - n_;
+  }
 
   /// Return `true` if no elements are stored. O(1).
-  [[nodiscard]] bool is_empty() const noexcept { return n_ == 0; }
+  [[nodiscard]] bool is_empty() const noexcept
+  {
+    return n_ == 0;
+  }
 
   /// Return `true` if the buffer holds `capacity()` elements. O(1).
-  [[nodiscard]] bool is_full() const noexcept { return n_ == cap_; }
+  [[nodiscard]] bool is_full() const noexcept
+  {
+    return n_ == cap_;
+  }
 
   /** @brief Destroy all elements (Aleph convention). Capacity is kept.
    *  @note Following the Aleph container convention (see `Array::empty()`),
    *        this **mutates** the buffer; use `is_empty()` to test emptiness.
    */
-  void empty() noexcept { destroy_all(); }
+  void empty() noexcept
+  {
+    destroy_all();
+  }
 
   /// Destroy all elements. Alias of `empty()`. Capacity is kept.
-  void clear() noexcept { destroy_all(); }
+  void clear() noexcept
+  {
+    destroy_all();
+  }
 
   // -- element access -------------------------------------------------------
 
@@ -405,24 +468,27 @@ public:
    *  @return Mutable reference to the element.
    *  @throws std::out_of_range if `i >= size()`.
    */
-  [[nodiscard]] T &operator[](size_t i)
+  [[nodiscard]] T &operator [] (const size_t i)
   {
     ah_out_of_range_error_if(i >= n_) << "RingBuffer: index out of range";
     return buf_[phys(i)];
   }
 
   /// Checked const access to the i-th logical element (0 = oldest).
-  [[nodiscard]] const T &operator[](size_t i) const
+  [[nodiscard]] const T &operator [] (const size_t i) const
   {
     ah_out_of_range_error_if(i >= n_) << "RingBuffer: index out of range";
     return buf_[phys(i)];
   }
 
   /// Unchecked access to the i-th logical element (must be `< size()`).
-  [[nodiscard]] T &operator()(size_t i) noexcept { return buf_[phys(i)]; }
+  [[nodiscard]] T &operator () (const size_t i) noexcept
+  {
+    return buf_[phys(i)];
+  }
 
   /// Unchecked const access to the i-th logical element (must be `< size()`).
-  [[nodiscard]] const T &operator()(size_t i) const noexcept
+  [[nodiscard]] const T &operator () (const size_t i) const noexcept
   {
     return buf_[phys(i)];
   }
@@ -462,16 +528,28 @@ public:
   }
 
   /// Oldest element (checked). Alias of `get_first()`.
-  [[nodiscard]] T &front() { return get_first(); }
+  [[nodiscard]] T &front()
+  {
+    return get_first();
+  }
 
   /// \overload front()
-  [[nodiscard]] const T &front() const { return get_first(); }
+  [[nodiscard]] const T &front() const
+  {
+    return get_first();
+  }
 
   /// Newest element (checked). Alias of `get_last()`.
-  [[nodiscard]] T &back() { return get_last(); }
+  [[nodiscard]] T &back()
+  {
+    return get_last();
+  }
 
   /// \overload back()
-  [[nodiscard]] const T &back() const { return get_last(); }
+  [[nodiscard]] const T &back() const
+  {
+    return get_last();
+  }
 
   // -- modifiers ------------------------------------------------------------
 
@@ -510,7 +588,10 @@ public:
    *  @throws std::overflow_error if the buffer is full.
    *  @note O(1). Strong guarantee.
    */
-  T &put(T &&item) { return emplace(std::move(item)); }
+  T &put(T &&item)
+  {
+    return emplace(std::move(item));
+  }
 
   /// Queue-style alias of `put(const T &)`.
   T &push(const T &item)
@@ -520,7 +601,10 @@ public:
   }
 
   /// Queue-style alias of `put(T &&)`.
-  T &push(T &&item) { return put(std::move(item)); }
+  T &push(T &&item)
+  {
+    return put(std::move(item));
+  }
 
   /** @brief Append at the tail, evicting the oldest element when full.
    *
@@ -533,7 +617,7 @@ public:
    *  @note O(1). Basic guarantee if `T`'s copy assignment throws.
    */
   bool put_overwrite(const T &item)
-    requires std::is_copy_assignable_v<T>
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
   {
     if (not is_full())
       {
@@ -547,6 +631,7 @@ public:
 
   /// \overload put_overwrite(const T & item) moving `item`.
   bool put_overwrite(T &&item)
+    requires std::is_move_assignable_v<T>
   {
     if (not is_full())
       {
@@ -575,27 +660,48 @@ public:
   }
 
   /// Queue-style alias of `get()`.
-  T pop() { return get(); }
+  T pop()
+  {
+    return get();
+  }
 
   // -- iteration ------------------------------------------------------------
 
   /// Iterator on the oldest element. O(1).
-  iterator begin() noexcept { return iterator(this, 0); }
+  iterator begin() noexcept
+  {
+    return iterator(this, 0);
+  }
 
   /// Iterator past the newest element. O(1).
-  iterator end() noexcept { return iterator(this, n_); }
+  iterator end() noexcept
+  {
+    return iterator(this, n_);
+  }
 
   /// Const iterator on the oldest element. O(1).
-  const_iterator begin() const noexcept { return const_iterator(this, 0); }
+  const_iterator begin() const noexcept
+  {
+    return const_iterator(this, 0);
+  }
 
   /// Const iterator past the newest element. O(1).
-  const_iterator end() const noexcept { return const_iterator(this, n_); }
+  const_iterator end() const noexcept
+  {
+    return const_iterator(this, n_);
+  }
 
   /// Const iterator on the oldest element. O(1).
-  const_iterator cbegin() const noexcept { return begin(); }
+  const_iterator cbegin() const noexcept
+  {
+    return begin();
+  }
 
   /// Const iterator past the newest element. O(1).
-  const_iterator cend() const noexcept { return end(); }
+  const_iterator cend() const noexcept
+  {
+    return end();
+  }
 
   /** @brief Traverse from oldest to newest while `operation` returns `true`.
    *
@@ -636,20 +742,23 @@ public:
    *  @return `true` if both buffers hold equal elements in FIFO order.
    *  @note Complexity: O(n). Requires `T` equality comparable.
    */
-  bool operator==(const RingBuffer &rb) const
+  bool operator == (const RingBuffer &rb) const
   {
     if (n_ != rb.n_)
       return false;
     for (size_t i = 0; i < n_; ++i)
-      if (not((*this)(i) == rb(i)))
+      if (not ((*this)(i) == rb(i)))
         return false;
     return true;
   }
 
   /// Inequality: negation of `operator==`.
-  bool operator!=(const RingBuffer &rb) const { return not(*this == rb); }
+  bool operator != (const RingBuffer &rb) const
+  {
+    return not (*this == rb);
+  }
 };
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // TPL_RING_BUFFER_H
+#endif  // TPL_RING_BUFFER_H

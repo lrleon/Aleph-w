@@ -43,6 +43,8 @@
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -69,6 +71,34 @@ struct Probe
 };
 
 int Probe::live = 0;
+
+struct CopyAssignableOnly
+{
+  int value = 0;
+
+  explicit CopyAssignableOnly(int v) : value(v) {}
+  CopyAssignableOnly(const CopyAssignableOnly &) = delete;
+  CopyAssignableOnly(CopyAssignableOnly &&) noexcept = default;
+  CopyAssignableOnly &operator=(const CopyAssignableOnly &) = default;
+  CopyAssignableOnly &operator=(CopyAssignableOnly &&) noexcept = default;
+};
+
+static_assert(std::is_copy_assignable_v<CopyAssignableOnly>);
+static_assert(not std::is_copy_constructible_v<CopyAssignableOnly>);
+
+template <typename U, typename = void>
+struct Has_Const_Put_Overwrite : std::false_type
+{
+};
+
+template <typename U>
+struct Has_Const_Put_Overwrite
+  <U, std::void_t<decltype(std::declval<RingBuffer<U> &>().put_overwrite
+                           (std::declval<const U &>()))>> : std::true_type
+{
+};
+
+static_assert(not Has_Const_Put_Overwrite<CopyAssignableOnly>::value);
 }  // namespace
 
 TEST(RingBuffer, ConstructionAndBasicState)
@@ -177,6 +207,20 @@ TEST(RingBuffer, IterationOldestToNewestAcrossWrap)
   EXPECT_EQ(rb.end() - it, 4);
   EXPECT_EQ(it[2], 5);
   EXPECT_EQ(*(it + 3), 6);
+  auto tail = rb.end();
+  tail += -1;
+  EXPECT_EQ(*tail, 6);
+  EXPECT_EQ(tail[-2], 4);
+  auto mid = rb.begin() + 1;
+  mid -= -2;
+  EXPECT_EQ(*mid, 6);
+  RingBuffer<int> other(4);
+  other.put(30);
+  other.put(40);
+  other.put(50);
+  other.put(60);
+  EXPECT_NE(rb.begin(), other.begin());
+  EXPECT_TRUE(rb.begin() == rb.begin());
 
   // Mutation through iterators.
   for (int &x : rb)

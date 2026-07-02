@@ -74,8 +74,7 @@
 #include <ahFunction.H>
 #include <tpl_memArray.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Ordered set stored as a sorted contiguous array.
  *
@@ -134,13 +133,10 @@ class FlatSet
   {
     size_t lo = 0, hi = keys_.size();
     while (lo < hi)
-      {
-        const size_t mid = lo + ((hi - lo) >> 1);
-        if (cmp_(keys_(mid), k))
-          lo = mid + 1;
-        else
-          hi = mid;
-      }
+      if (const size_t mid = lo + ((hi - lo) >> 1); cmp_(keys_(mid), k))
+        lo = mid + 1;
+      else
+        hi = mid;
     return lo;
   }
 
@@ -149,13 +145,10 @@ class FlatSet
   {
     size_t lo = 0, hi = keys_.size();
     while (lo < hi)
-      {
-        const size_t mid = lo + ((hi - lo) >> 1);
-        if (not cmp_(k, keys_(mid)))
-          lo = mid + 1;
-        else
-          hi = mid;
-      }
+      if (const size_t mid = lo + ((hi - lo) >> 1); not cmp_(k, keys_(mid)))
+        lo = mid + 1;
+      else
+        hi = mid;
     return lo;
   }
 
@@ -167,7 +160,7 @@ class FlatSet
   }
 
   // Opens one slot at pos by shifting [pos, n) one place right.
-  void make_room(size_t pos)
+  void make_room(const size_t pos)
   {
     keys_.putn(1);
     Key *p = keys_.get_ptr();
@@ -177,7 +170,7 @@ class FlatSet
 
   // Removes the slot at pos by shifting (pos, n) one place left. A failed
   // shrinking reallocation is ignored: the logical removal always succeeds.
-  void remove_at(size_t pos)
+  void remove_at(const size_t pos)
   {
     Key *p = keys_.get_ptr();
     const size_t last = keys_.size() - 1;
@@ -187,10 +180,10 @@ class FlatSet
       {
         (void) keys_.get();
       }
-    catch (...)
+    catch (const std::bad_alloc &)
       {
-        // get() only throws via the shrinking reallocation; the element
-        // count was already decremented, so the removal took effect.
+        // Shrinking reallocation can fail; the logical removal already
+        // took effect because the element count was decremented first.
       }
   }
 
@@ -214,15 +207,14 @@ class FlatSet
   }
 
 public:
-
-  using Item_Type = Key;            ///< Aleph convention: element type.
-  using Key_Type = Key;             ///< Aleph convention: key type.
-  using key_type = Key;             ///< STL convention: key type.
-  using value_type = Key;           ///< STL convention: value type.
-  using key_compare = Compare;      ///< STL convention: comparator type.
-  using size_type = size_t;         ///< STL convention: size type.
-  using iterator = const Key *;       ///< Random-access iterator (immutable).
-  using const_iterator = const Key *; ///< Random-access const iterator.
+  using Item_Type = Key;               ///< Aleph convention: element type.
+  using Key_Type = Key;                ///< Aleph convention: key type.
+  using key_type = Key;                ///< STL convention: key type.
+  using value_type = Key;              ///< STL convention: value type.
+  using key_compare = Compare;         ///< STL convention: comparator type.
+  using size_type = size_t;            ///< STL convention: size type.
+  using iterator = const Key *;        ///< Random-access iterator (immutable).
+  using const_iterator = const Key *;  ///< Random-access const iterator.
 
   /** @brief Construct an empty set.
    *
@@ -238,8 +230,8 @@ public:
    *  @param cap Initial capacity hint.
    *  @throws std::bad_alloc if the initial buffer cannot be allocated.
    */
-  explicit FlatSet(const Compare &cmp, size_t cap = MemArray<Key>::Min_Dim)
-    : keys_(cap), cmp_(cmp) {}
+  explicit FlatSet(const Compare &cmp, size_t cap = MemArray<Key>::Min_Dim) : keys_(cap), cmp_(cmp)
+  {}
 
   /** @brief Construct from an iterator range.
    *
@@ -253,8 +245,7 @@ public:
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note On duplicate (equivalent) inputs the first occurrence wins.
    */
-  template <class It,
-            class = std::enable_if_t<not std::is_integral_v<It>>>
+  template <class It, class = std::enable_if_t<not std::is_integral_v<It>>>
   FlatSet(It first, It last, const Compare &cmp = Compare())
     : keys_(MemArray<Key>::Min_Dim), cmp_(cmp)
   {
@@ -270,7 +261,8 @@ public:
    *  @throws std::bad_alloc if memory allocation fails.
    */
   FlatSet(std::initializer_list<Key> l, const Compare &cmp = Compare())
-    : FlatSet(l.begin(), l.end(), cmp) {}
+    : FlatSet(l.begin(), l.end(), cmp)
+  {}
 
   /// Copy constructor (requires copyable `Key`).
   FlatSet(const FlatSet &) = default;
@@ -279,10 +271,10 @@ public:
   FlatSet(FlatSet &&) noexcept = default;
 
   /// Copy assignment (requires copyable `Key`).
-  FlatSet &operator=(const FlatSet &) = default;
+  FlatSet &operator = (const FlatSet &) = default;
 
   /// Move assignment. The source is left valid but unspecified.
-  FlatSet &operator=(FlatSet &&) noexcept = default;
+  FlatSet &operator = (FlatSet &&) noexcept = default;
 
   ~FlatSet() = default;
 
@@ -298,28 +290,46 @@ public:
   // -- capacity -------------------------------------------------------------
 
   /// Return the number of stored keys. O(1).
-  [[nodiscard]] size_t size() const noexcept { return keys_.size(); }
+  [[nodiscard]] size_t size() const noexcept
+  {
+    return keys_.size();
+  }
 
   /// Return `true` if the set holds no keys. O(1).
-  [[nodiscard]] bool is_empty() const noexcept { return keys_.is_empty(); }
+  [[nodiscard]] bool is_empty() const noexcept
+  {
+    return keys_.is_empty();
+  }
 
   /// Return the capacity of the backing array. O(1).
-  [[nodiscard]] size_t capacity() const noexcept { return keys_.capacity(); }
+  [[nodiscard]] size_t capacity() const noexcept
+  {
+    return keys_.capacity();
+  }
 
   /** @brief Reserve capacity for at least `cap` keys.
    *  @param cap Desired capacity (rounded up to a power of two).
    *  @throws std::bad_alloc if memory allocation fails.
    */
-  void reserve(size_t cap) { keys_.reserve(cap); }
+  void reserve(size_t cap)
+  {
+    keys_.reserve(cap);
+  }
 
   /** @brief Remove all keys (Aleph convention). Capacity is kept.
    *  @note Following the Aleph container convention (see `Array::empty()`),
    *        this **mutates** the set; use `is_empty()` to test for emptiness.
    */
-  void empty() noexcept { keys_.empty(); }
+  void empty() noexcept
+  {
+    keys_.empty();
+  }
 
   /// Remove all keys. Alias of `empty()`. Capacity is kept.
-  void clear() noexcept { keys_.clear(); }
+  void clear() noexcept
+  {
+    keys_.clear();
+  }
 
   // -- lookup ---------------------------------------------------------------
 
@@ -390,13 +400,19 @@ public:
    *  @throws std::out_of_range if `i >= size()`.
    *  @note Complexity: O(1). This is the flat-container bonus over trees.
    */
-  const Key &nth(size_t i) const { return keys_[i]; }
+  const Key &nth(size_t i) const
+  {
+    return keys_[i];
+  }
 
   /** @brief Positional access without bounds checking.
    *  @param i Zero-based rank (must be `< size()`).
    *  @return Const reference to the i-th key in sorted order.
    */
-  const Key &operator()(size_t i) const noexcept { return keys_(i); }
+  const Key &operator () (size_t i) const noexcept
+  {
+    return keys_(i);
+  }
 
   /** @brief Smallest key (checked).
    *  @return Const reference to the minimum.
@@ -419,10 +435,16 @@ public:
   }
 
   /// Smallest key (checked). Alias of `get_first()`.
-  const Key &min() const { return get_first(); }
+  const Key &min() const
+  {
+    return get_first();
+  }
 
   /// Greatest key (checked). Alias of `get_last()`.
-  const Key &max() const { return get_last(); }
+  const Key &max() const
+  {
+    return get_last();
+  }
 
   // -- modifiers ------------------------------------------------------------
 
@@ -500,8 +522,7 @@ public:
   const_iterator erase(const_iterator it)
   {
     const size_t pos = it - begin();
-    ah_out_of_range_error_if(pos >= size())
-      << "FlatSet::erase(): iterator out of range";
+    ah_out_of_range_error_if(pos >= size()) << "FlatSet::erase(): iterator out of range";
     remove_at(pos);
     return begin() + pos;
   }
@@ -509,19 +530,34 @@ public:
   // -- iteration ------------------------------------------------------------
 
   /// Iterator to the smallest key. O(1).
-  const_iterator begin() const noexcept { return keys_.get_ptr(); }
+  const_iterator begin() const noexcept
+  {
+    return keys_.get_ptr();
+  }
 
   /// Iterator past the greatest key. O(1).
-  const_iterator end() const noexcept { return keys_.get_ptr() + keys_.size(); }
+  const_iterator end() const noexcept
+  {
+    return keys_.get_ptr() + keys_.size();
+  }
 
   /// Const iterator to the smallest key. O(1).
-  const_iterator cbegin() const noexcept { return begin(); }
+  const_iterator cbegin() const noexcept
+  {
+    return begin();
+  }
 
   /// Const iterator past the greatest key. O(1).
-  const_iterator cend() const noexcept { return end(); }
+  const_iterator cend() const noexcept
+  {
+    return end();
+  }
 
   /// Pointer to the underlying sorted, contiguous storage. O(1).
-  const Key *data() const noexcept { return keys_.get_ptr(); }
+  const Key *data() const noexcept
+  {
+    return keys_.get_ptr();
+  }
 
   /** @brief Traverse keys in sorted order while `operation` returns `true`.
    *
@@ -550,15 +586,18 @@ public:
    *  @return `true` if both sets hold equal elements in the same order.
    *  @note Complexity: O(n). Requires `Key` to be equality comparable.
    */
-  bool operator==(const FlatSet &s) const
+  bool operator == (const FlatSet &s) const
   {
     return size() == s.size() and std::equal(begin(), end(), s.begin());
   }
 
   /// Inequality: negation of `operator==`.
-  bool operator!=(const FlatSet &s) const { return not(*this == s); }
+  bool operator != (const FlatSet &s) const
+  {
+    return not (*this == s);
+  }
 };
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // TPL_FLAT_SET_H
+#endif  // TPL_FLAT_SET_H

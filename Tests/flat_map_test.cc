@@ -37,10 +37,12 @@
  * against std::map as the reference implementation.
  */
 
+#include <iterator>
 #include <map>
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -48,6 +50,54 @@
 #include <tpl_flat_map.H>
 
 using Aleph::FlatMap;
+
+namespace
+{
+class Pair_Input_Iterator
+{
+  const std::vector<std::pair<int, std::string>> *items_ = nullptr;
+  size_t pos_ = 0;
+
+public:
+
+  using iterator_category = std::input_iterator_tag;
+  using value_type = std::pair<int, std::string>;
+  using difference_type = std::ptrdiff_t;
+  using pointer = void;
+  using reference = const value_type &;
+
+  Pair_Input_Iterator() = default;
+
+  Pair_Input_Iterator(const std::vector<std::pair<int, std::string>> &items,
+                      size_t pos) noexcept
+    : items_(&items), pos_(pos) {}
+
+  reference operator*() const noexcept { return (*items_)[pos_]; }
+
+  Pair_Input_Iterator &operator++() noexcept
+  {
+    ++pos_;
+    return *this;
+  }
+
+  Pair_Input_Iterator operator++(int) noexcept
+  {
+    Pair_Input_Iterator ret = *this;
+    ++(*this);
+    return ret;
+  }
+
+  bool operator==(const Pair_Input_Iterator &it) const noexcept
+  {
+    return items_ == it.items_ and pos_ == it.pos_;
+  }
+
+  bool operator!=(const Pair_Input_Iterator &it) const noexcept
+  {
+    return not (*this == it);
+  }
+};
+}  // namespace
 
 TEST(FlatMap, EmptyMapBasics)
 {
@@ -100,6 +150,20 @@ TEST(FlatMap, InitializerListDropsDuplicateKeysFirstWins)
   EXPECT_EQ(m.at(3), "three");  // first occurrence wins
   EXPECT_EQ(m.nth_key(0), 1);
   EXPECT_EQ(m.nth_key(2), 3);
+}
+
+TEST(FlatMap, RangeConstructorAcceptsIteratorsWithoutArrow)
+{
+  const std::vector<std::pair<int, std::string>> items =
+    {{3, "three"}, {1, "one"}, {2, "two"}};
+
+  FlatMap<int, std::string> m(Pair_Input_Iterator(items, 0),
+                              Pair_Input_Iterator(items, items.size()));
+
+  ASSERT_EQ(m.size(), 3u);
+  EXPECT_EQ(m.at(1), "one");
+  EXPECT_EQ(m.at(2), "two");
+  EXPECT_EQ(m.at(3), "three");
 }
 
 TEST(FlatMap, InsertRejectsDuplicateInsertOrAssignOverwrites)
