@@ -29,49 +29,74 @@
   SOFTWARE.
 */
 
-
 /** @file ah-iterator.H
  *  @brief STL-compatible iterator adapters for Aleph containers.
  *
  *  Provides StlIterator and StlConstIterator that wrap Aleph container
  *  iterators to satisfy std::input_iterator and std::forward_iterator
- *  concepts, enabling use with std::ranges and STL algorithms.
+ *  concepts, enabling use with std::ranges and STL algorithms. Iterators
+ *  that opt in via the `aleph_random_access_iterator` marker (see
+ *  AlephRandomAccessItor) are promoted to std::random_access_iterator.
  *
  *  @ingroup Iterators
  *  @author Leandro Rabindranath León
  */
 
-# ifndef AH_ITERATOR_H
-# define AH_ITERATOR_H
+#ifndef AH_ITERATOR_H
+#define AH_ITERATOR_H
 
-# include <iterator>
-# include <concepts>
-# include <type_traits>
-# include <utility>
+#include <compare>
+#include <iterator>
+#include <concepts>
+#include <type_traits>
+#include <utility>
 
- /** @brief STL-compatible mutable iterator adapter for Aleph containers.
- 
-     This adapter wraps an Aleph-style iterator (`SetType::Iterator`) and exposes
-     the operations expected by the STL and C++20 ranges.
+/** @brief Detects Aleph iterators that opted in to random-access promotion.
 
-     @tparam SetType Aleph container type.
+    An underlying Aleph iterator `I` qualifies only when it:
+    - declares the self-referential marker `aleph_random_access_iterator == I`
+      (so derived iterators that reuse a base iterator without redefining
+      positioning consistently do NOT inherit the promotion), and
+    - exposes the logical-position interface `get_pos()` / `set_pos()` together
+      with backward movement `prev()`.
+*/
+template <class I>
+concept AlephRandomAccessItor = requires { typename I::aleph_random_access_iterator; } and
+  std::same_as<typename I::aleph_random_access_iterator, I> and
+  requires(I &it, const I &cit, long n) {
+    { cit.get_pos() } -> std::convertible_to<long>;
+    it.set_pos(n);
+    it.prev();
+  };
 
-     @note Requirements on `SetType::Iterator`:
-     - Constructible from `SetType&`.
-     - `bool has_curr() const`.
-     - `void next()`.
-     - `auto & get_curr() const` returning the current element.
-     - `auto get_pos() const` returning a position that is stable and comparable
-       between iterators over the same container.
-     - `void end()` to move the iterator to the end sentinel.
- */
- template <class SetType>
- struct StlIterator : public SetType::Iterator
- {
+/** @brief STL-compatible mutable iterator adapter for Aleph containers.
+
+    This adapter wraps an Aleph-style iterator (`SetType::Iterator`) and exposes
+    the operations expected by the STL and C++20 ranges.
+
+    @tparam SetType Aleph container type.
+
+    @note Requirements on `SetType::Iterator`:
+    - Constructible from `SetType&`.
+    - `bool has_curr() const`.
+    - `void next()`.
+    - `auto & get_curr() const` returning the current element.
+    - `auto get_pos() const` returning a position that is stable and comparable
+      between iterators over the same container.
+    - `void end()` to move the iterator to the end sentinel.
+*/
+template <class SetType>
+struct StlIterator : public SetType::Iterator
+{
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
-  using iterator_category = std::forward_iterator_tag;
-  using iterator_concept = std::forward_iterator_tag;
+
+  /// Category is promoted to random-access when the underlying Aleph iterator
+  /// opts in (see AlephRandomAccessItor); otherwise it stays forward, which is
+  /// the historical default and never a regression.
+  using iterator_category =
+    std::conditional_t<AlephRandomAccessItor<Itor>, std::random_access_iterator_tag, std::forward_iterator_tag>;
+  using iterator_concept = iterator_category;
 
   using difference_type = std::ptrdiff_t;
 
@@ -87,7 +112,7 @@
   using Itor::Itor;
 
   /// Pre-increment: advance to the next element.
-  StlIterator& operator ++ ()
+  StlIterator &operator ++ ()
   {
     this->next();
     return *this;
@@ -103,17 +128,16 @@
 
   /// Equality compares positions when both iterators are valid; otherwise
   /// both must be in the end state.
-  bool operator == (const StlIterator & it) const
+  bool operator == (const StlIterator &it) const
   {
-    if constexpr (requires (const Itor & a, const Itor & b)
-                  {
+    if constexpr (requires(const Itor &a, const Itor &b) {
                     { a == b } -> std::convertible_to<bool>;
                   })
       return static_cast<const Itor &>(*this) == static_cast<const Itor &>(it);
 
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
-      // return this->get_curr() == it.get_curr();
+    // return this->get_curr() == it.get_curr();
 
     if (not this->has_curr() and not it.has_curr())
       return true;
@@ -122,7 +146,7 @@
   }
 
   /// Inequality.
-  bool operator != (const StlIterator & it) const
+  bool operator != (const StlIterator &it) const
   {
     return not (*this == it);
   }
@@ -130,19 +154,111 @@
   // Note: operator* must be const to satisfy std::indirectly_readable.
   // Constness of the iterator object does not imply constness of the element.
   /// Dereference: return the current element.
-  reference operator * () const { return this->get_curr(); }
+  reference operator * () const
+  {
+    return this->get_curr();
+  }
 
   /// Member access to the current element.
-  pointer operator -> () const { return &this->get_curr(); }
+  pointer operator ->() const
+  {
+    return &this->get_curr();
+  }
+
+  // Random-access operations. These overloads exist only when the underlying
+  // Aleph iterator opts in via the `aleph_random_access_iterator` marker
+  // (e.g. DynArray, Array). They operate on the logical position exposed by
+  // get_pos()/set_pos(), so any physical/circular index mapping stays internal.
+
+  /// Pre-decrement: move to the previous element.
+  StlIterator &operator -- ()
+    requires AlephRandomAccessItor<Itor>
+  {
+    this->prev();
+    return *this;
+  }
+
+  /// Post-decrement: move to the previous element and return the old iterator.
+  StlIterator operator -- (int)
+    requires AlephRandomAccessItor<Itor>
+  {
+    StlIterator ret_val = *this;
+    this->prev();
+    return ret_val;
+  }
+
+  /// Advance the iterator `n` positions (`n` may be negative).
+  StlIterator &operator += (difference_type n)
+    requires AlephRandomAccessItor<Itor>
+  {
+    this->set_pos(this->get_pos() + n);
+    return *this;
+  }
+
+  /// Move the iterator back `n` positions (`n` may be negative).
+  StlIterator &operator -= (difference_type n)
+    requires AlephRandomAccessItor<Itor>
+  {
+    this->set_pos(this->get_pos() - n);
+    return *this;
+  }
+
+  /// Return an iterator advanced `n` positions.
+  StlIterator operator + (difference_type n) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    StlIterator ret_val = *this;
+    ret_val += n;
+    return ret_val;
+  }
+
+  /// Return an iterator advanced `n` positions (symmetric form).
+  friend StlIterator operator + (difference_type n, const StlIterator &it)
+    requires AlephRandomAccessItor<Itor>
+  {
+    return it + n;
+  }
+
+  /// Return an iterator moved back `n` positions.
+  StlIterator operator - (difference_type n) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    StlIterator ret_val = *this;
+    ret_val -= n;
+    return ret_val;
+  }
+
+  /// Return the signed distance between two iterators.
+  difference_type operator - (const StlIterator &it) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    return static_cast<difference_type>(this->get_pos() - it.get_pos());
+  }
+
+  /// Access the element `n` positions away from the current one.
+  reference operator [] (difference_type n) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    StlIterator tmp = *this;
+    tmp += n;
+    return *tmp;
+  }
+
+  /// Order two iterators by their logical position.
+  std::strong_ordering operator <=> (const StlIterator &it) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    return this->get_pos() <=> it.get_pos();
+  }
 
   /// Create an iterator positioned at the first element of the container.
-  static StlIterator begin(SetType & s)
+  static StlIterator begin(SetType &s)
   {
     return StlIterator(s);
   }
 
   /// Create an end iterator for the container.
-  static StlIterator end(SetType & s)
+  static StlIterator end(SetType &s)
   {
     StlIterator it(s);
     it.Itor::end();
@@ -150,26 +266,30 @@
   }
 };
 
+/** @brief STL-compatible const iterator adapter for Aleph containers.
 
- /** @brief STL-compatible const iterator adapter for Aleph containers.
- 
-     This adapter provides a read-only view over the underlying Aleph iterator.
+    This adapter provides a read-only view over the underlying Aleph iterator.
 
-     @tparam SetType Aleph container type.
- */
- template <class SetType>
- struct StlConstIterator : public SetType::Iterator
- {
+    @tparam SetType Aleph container type.
+*/
+template <class SetType>
+struct StlConstIterator : public SetType::Iterator
+{
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
-  using iterator_category = std::forward_iterator_tag;
-  using iterator_concept = std::forward_iterator_tag;
+
+  /// Category is promoted to random-access when the underlying Aleph iterator
+  /// opts in (see AlephRandomAccessItor); otherwise it stays forward, which is
+  /// the historical default and never a regression.
+  using iterator_category =
+    std::conditional_t<AlephRandomAccessItor<Itor>, std::random_access_iterator_tag, std::forward_iterator_tag>;
+  using iterator_concept = iterator_category;
 
   using difference_type = std::ptrdiff_t;
 
-  using pointer = const T*;
+  using pointer = const T *;
 
-  using reference = const T&;
+  using reference = const T &;
 
   using value_type = T;
 
@@ -179,7 +299,7 @@
   using Itor::Itor;
 
   /// Pre-increment: advance to the next element.
-  StlConstIterator& operator ++ ()
+  StlConstIterator &operator ++ ()
   {
     this->next();
     return *this;
@@ -195,10 +315,9 @@
 
   /// Equality compares positions when both iterators are valid; otherwise
   /// both must be in the end state.
-  bool operator == (const StlConstIterator & it) const
+  bool operator == (const StlConstIterator &it) const
   {
-    if constexpr (requires (const Itor & a, const Itor & b)
-                  {
+    if constexpr (requires(const Itor &a, const Itor &b) {
                     { a == b } -> std::convertible_to<bool>;
                   })
       return static_cast<const Itor &>(*this) == static_cast<const Itor &>(it);
@@ -213,25 +332,118 @@
   }
 
   /// Inequality.
-  bool operator != (const StlConstIterator & it) const
+  bool operator != (const StlConstIterator &it) const
   {
     return not (*this == it);
   }
 
   /// Dereference: return the current element.
-  const T & operator * () const { return this->get_curr(); }
+  const T &operator * () const
+  {
+    return this->get_curr();
+  }
 
   /// Member access to the current element.
-  const T * operator -> () const { return &this->get_curr(); }
+  const T *operator ->() const
+  {
+    return &this->get_curr();
+  }
+
+  // Random-access operations, mirroring StlIterator. These overloads exist
+  // only when the underlying Aleph iterator opts in via the
+  // `aleph_random_access_iterator` marker (e.g. DynArray, Array). They operate
+  // on the logical position exposed by get_pos()/set_pos(), so any
+  // physical/circular index mapping stays internal.
+
+  /// Pre-decrement: move to the previous element.
+  StlConstIterator &operator -- ()
+    requires AlephRandomAccessItor<Itor>
+  {
+    this->prev();
+    return *this;
+  }
+
+  /// Post-decrement: move to the previous element and return the old iterator.
+  StlConstIterator operator -- (int)
+    requires AlephRandomAccessItor<Itor>
+  {
+    StlConstIterator ret_val = *this;
+    this->prev();
+    return ret_val;
+  }
+
+  /// Advance the iterator `n` positions (`n` may be negative).
+  StlConstIterator &operator += (difference_type n)
+    requires AlephRandomAccessItor<Itor>
+  {
+    this->set_pos(this->get_pos() + n);
+    return *this;
+  }
+
+  /// Move the iterator back `n` positions (`n` may be negative).
+  StlConstIterator &operator -= (difference_type n)
+    requires AlephRandomAccessItor<Itor>
+  {
+    this->set_pos(this->get_pos() - n);
+    return *this;
+  }
+
+  /// Return an iterator advanced `n` positions.
+  StlConstIterator operator + (difference_type n) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    StlConstIterator ret_val = *this;
+    ret_val += n;
+    return ret_val;
+  }
+
+  /// Return an iterator advanced `n` positions (symmetric form).
+  friend StlConstIterator operator + (difference_type n, const StlConstIterator &it)
+    requires AlephRandomAccessItor<Itor>
+  {
+    return it + n;
+  }
+
+  /// Return an iterator moved back `n` positions.
+  StlConstIterator operator - (difference_type n) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    StlConstIterator ret_val = *this;
+    ret_val -= n;
+    return ret_val;
+  }
+
+  /// Return the signed distance between two iterators.
+  difference_type operator - (const StlConstIterator &it) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    return static_cast<difference_type>(this->get_pos() - it.get_pos());
+  }
+
+  /// Access the element `n` positions away from the current one.
+  reference operator [] (difference_type n) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    StlConstIterator tmp = *this;
+    tmp += n;
+    return *tmp;
+  }
+
+  /// Order two iterators by their logical position.
+  std::strong_ordering operator <=> (const StlConstIterator &it) const
+    requires AlephRandomAccessItor<Itor>
+  {
+    return this->get_pos() <=> it.get_pos();
+  }
 
   /// Create a const iterator positioned at the first element of the container.
-  static StlConstIterator cbegin(const SetType & s)
+  static StlConstIterator cbegin(const SetType &s)
   {
     return StlConstIterator(s);
   }
 
   /// Create a const end iterator for the container.
-  static StlConstIterator cend(const SetType & s)
+  static StlConstIterator cend(const SetType &s)
   {
     StlConstIterator it(s);
     it.Itor::end();
@@ -239,32 +451,42 @@
   }
 };
 
+/** @brief Mixin that adds STL `begin()/end()` and `cbegin()/cend()` to Aleph containers.
 
- /** @brief Mixin that adds STL `begin()/end()` and `cbegin()/cend()` to Aleph containers.
+    Containers inheriting from this class must expose `Item_Type` and `Iterator`,
+    where `Iterator` meets the requirements described in `StlIterator`.
 
-     Containers inheriting from this class must expose `Item_Type` and `Iterator`,
-     where `Iterator` meets the requirements described in `StlIterator`.
+    @tparam SetName Aleph container type.
+*/
+template <class SetName>
+class StlAlephIterator
+{
+  SetName *me()
+  {
+    return static_cast<SetName *>(this);
+  }
 
-     @tparam SetName Aleph container type.
- */
- template <class SetName>
- class StlAlephIterator
- {
-  SetName * me() { return static_cast<SetName*>(this); }
-
-  const SetName * const_me() const { return static_cast<const SetName*>(this); }
+  const SetName *const_me() const
+  {
+    return static_cast<const SetName *>(this);
+  }
 
 public:
-
   using iterator = StlIterator<SetName>;
 
   using const_iterator = StlConstIterator<SetName>;
 
   /// Return an STL-compatible iterator to the first element.
-  iterator begin() noexcept { return iterator::begin(*me()); }
+  iterator begin() noexcept
+  {
+    return iterator::begin(*me());
+  }
 
   /// Return an STL-compatible end iterator.
-  iterator end() noexcept { return iterator::end(*me()); }
+  iterator end() noexcept
+  {
+    return iterator::end(*me());
+  }
 
   /// Return a const iterator to the first element.
   const_iterator begin() const noexcept
@@ -290,37 +512,52 @@ public:
     return const_iterator::cend(*const_me());
   }
 
-  friend const_iterator cbegin(const SetName & s) noexcept { return s.begin(); }
+  friend const_iterator cbegin(const SetName &s) noexcept
+  {
+    return s.begin();
+  }
 
-  friend const_iterator cend(const SetName & s) noexcept { return s.end(); }
+  friend const_iterator cend(const SetName &s) noexcept
+  {
+    return s.end();
+  }
 
-  friend const_iterator begin(const SetName & s) noexcept { return s.begin(); }
+  friend const_iterator begin(const SetName &s) noexcept
+  {
+    return s.begin();
+  }
 
-  friend const_iterator end(const SetName & s) noexcept { return s.end(); }
+  friend const_iterator end(const SetName &s) noexcept
+  {
+    return s.end();
+  }
 
-  friend iterator begin(SetName & s) noexcept { return s.begin(); }
+  friend iterator begin(SetName &s) noexcept
+  {
+    return s.begin();
+  }
 
-  friend iterator end(SetName & s) noexcept { return s.end(); }
+  friend iterator end(SetName &s) noexcept
+  {
+    return s.end();
+  }
 };
 
+/** @brief Extract all items from an STL container into an Aleph `DynList`.
 
- /** @brief Extract all items from an STL container into an Aleph `DynList`.
+    @tparam Container Any STL-like container supporting range-for iteration.
+    @param c Source container.
+    @return A `DynList` containing copies of all elements from `c`.
 
-     @tparam Container Any STL-like container supporting range-for iteration.
-     @param c Source container.
-     @return A `DynList` containing copies of all elements from `c`.
-
-     @ingroup Functional
- */
-template <class Container> inline
-Aleph::DynList<typename Container::value_type>
-extract_from_stl_container(const Container & c)
+    @ingroup Functional
+*/
+template <class Container>
+inline Aleph::DynList<typename Container::value_type> extract_from_stl_container(const Container &c)
 {
   Aleph::DynList<typename Container::value_type> ret;
-  for (const auto & i : c)
+  for (const auto &i : c)
     ret.append(i);
   return ret;
 }
 
-
-# endif // AH_ITERATOR_H
+#endif  // AH_ITERATOR_H

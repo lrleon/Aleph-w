@@ -310,10 +310,36 @@ public:
     pos = num_items - 1;
   }
 
-  /// Put the iterator at the end (past the last item).
+  /** @brief Move the iterator to the logical position `new_pos`.
+
+      Sets the logical position and recomputes the physical (possibly
+      circular) index as `idx = (first + new_pos) % dim`. This mapping is
+      consistent with the wraparound performed by `next_ne()`/`prev_ne()` and
+      with the end state produced by `end()` (`pos == num_items`), enabling
+      O(1) random-access positioning.
+
+      @param[in] new_pos Logical position in `[0, num_items]`, where
+             `num_items` denotes the end state.
+      @note Complexity: O(1).
+      @warning No bounds checking: `new_pos` outside `[0, num_items]` yields an
+               iterator with no current item.
+  */
+  void set_pos(const long new_pos) noexcept
+  {
+    pos = new_pos;
+    if (dim > 0)
+      idx = (first + new_pos) % dim;
+  }
+
+  /** @brief Put the iterator at the end (past the last item).
+
+      The end state is defined as the logical position `num_items`, so that
+      `get_pos()` distances remain consistent for random-access adapters even
+      when the container is empty (`begin` and `end` are both position 0).
+  */
   void end() noexcept
   {
-    put_itor_at_the_end(*this);
+    set_pos(num_items);
   }
 };
 

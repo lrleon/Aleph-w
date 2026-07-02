@@ -121,6 +121,7 @@
 #include <iterator>
 #include <functional>
 #include <thread_pool.H>
+#include <ah-ranges.H>
 
 namespace Aleph
 {
@@ -1588,7 +1589,7 @@ namespace Aleph
         or n <= min_parallel_size)
       {
         parallel_detail::throw_if_parallel_canceled(options.cancel_token);
-        std::sort(std::begin(c), std::end(c), cmp);
+        sort_range(c, cmp);
         return;
       }
 

@@ -48,6 +48,16 @@
 #include <tpl_dynListQueue.H>
 #include <tpl_dynSetTree.H>
 
+// Regression guard for the portability escape hatch (feat/ranges-isolation):
+// when the library is built with ranges forced off (-DALEPH_DISABLE_RANGES=ON,
+// which defines ALEPH_NO_RANGES), the auto-detection must resolve to 0 so the
+// ranges-off code path is exercised. The CI `ranges-off` job builds this file
+// with ALEPH_NO_RANGES defined, so this assertion locks the override contract.
+#ifdef ALEPH_NO_RANGES
+static_assert(ALEPH_HAS_RANGES == 0,
+              "ALEPH_NO_RANGES must force ALEPH_HAS_RANGES to 0");
+#endif
+
 using namespace Aleph;
 
 // ============================================================================

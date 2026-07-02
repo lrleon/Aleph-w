@@ -122,13 +122,29 @@
 //
 // We accept __cpp_lib_ranges >= 202106L for GCC, but exclude Clang + libc++
 // which has the header but incomplete views implementation.
-#if __cplusplus >= 202002L && __has_include(<ranges>)
-#  include <ranges>
-#  include <algorithm>
-#  include <iterator>
-#  include <concepts>
-#  if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202106L
-     // Exclude Clang with libc++ (incomplete std::views implementation)
+// Manual override (portability escape hatch):
+//   - Define ALEPH_NO_RANGES (e.g. -DALEPH_NO_RANGES) to force ranges support
+//     OFF regardless of what the compiler reports.
+//   - Or pre-define ALEPH_HAS_RANGES to 0/1 to skip auto-detection entirely.
+//   This lets users on toolchains whose std::ranges is present but unreliable
+//   opt out without editing the library.
+#if defined(ALEPH_NO_RANGES)
+#  undef ALEPH_HAS_RANGES
+#  define ALEPH_HAS_RANGES 0
+#endif
+
+// <version> defines the standard library feature-test macros (e.g.
+// __cpp_lib_ranges) without pulling in a heavy header. It must be included
+// before the detection below, otherwise __cpp_lib_ranges is undefined and the
+// check wrongly resolves to "no ranges".
+#if __has_include(<version>)
+#  include <version>
+#endif
+
+#ifndef ALEPH_HAS_RANGES
+#  if __cplusplus >= 202002L && __has_include(<ranges>) &&                     \
+      defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202106L
+     // Exclude Clang with libc++ < 16 (incomplete std::views implementation)
 #    if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 160000
 #      define ALEPH_HAS_RANGES 0
 #    else
@@ -137,8 +153,16 @@
 #  else
 #    define ALEPH_HAS_RANGES 0
 #  endif
-#else
-#  define ALEPH_HAS_RANGES 0
+#endif
+
+// Support headers required by the C++20 baseline (always available).
+#include <algorithm>
+#include <iterator>
+#include <concepts>
+
+// The <ranges> header is pulled in only when the feature is actually enabled.
+#if ALEPH_HAS_RANGES
+#  include <ranges>
 #endif
 
 // Feature detection for C++23 views
@@ -185,6 +209,41 @@
 
 namespace Aleph
 {
+
+/** @brief Sort a whole range in place, portably across the ranges divide.
+ *
+ *  Uses `std::ranges::sort` when the toolchain provides reliable ranges
+ *  support (`ALEPH_HAS_RANGES`) — which is what clang-tidy's use-ranges check
+ *  recommends — and falls back to `std::sort` otherwise, so the call still
+ *  compiles on C++20 toolchains without a complete `<ranges>` implementation.
+ *
+ *  Intended for sorting an entire container in place. For sub-ranges or raw
+ *  pointer ranges, call `std::sort` directly.
+ *
+ *  @tparam Range a sortable random-access range.
+ *  @tparam Cmp   a strict-weak-ordering comparator.
+ *  @param[in,out] r range to sort in place.
+ *  @param[in] cmp comparator `(a, b) -> bool` (true if `a` precedes `b`).
+ */
+template <typename Range, typename Cmp>
+inline void sort_range(Range & r, Cmp cmp)
+#if ALEPH_HAS_RANGES
+{ std::ranges::sort(r, std::move(cmp)); }
+#else
+{ std::sort(std::begin(r), std::end(r), std::move(cmp)); } // NOLINT(modernize-use-ranges)
+#endif
+
+/** @brief Sort a whole range in place using the default `<` ordering.
+ *  @tparam Range a sortable random-access range.
+ *  @param[in,out] r range to sort in place.
+ */
+template <typename Range>
+inline void sort_range(Range & r)
+#if ALEPH_HAS_RANGES
+{ std::ranges::sort(r, std::ranges::less{}); }
+#else
+{ std::sort(std::begin(r), std::end(r)); } // NOLINT(modernize-use-ranges)
+#endif
 
 // Forward declarations for major Aleph containers with simple template signatures.
 // Containers with complex template signatures (like DynSetTree, DynBinHeap) 
