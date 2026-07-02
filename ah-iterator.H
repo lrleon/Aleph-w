@@ -170,7 +170,9 @@ struct StlIterator : public SetType::Iterator
   // (e.g. DynArray, Array). They operate on the logical position exposed by
   // get_pos()/set_pos(), so any physical/circular index mapping stays internal.
 
-  /// Pre-decrement: move to the previous element.
+  /** @brief Pre-decrement: move to the previous element.
+      @return Reference to the decremented iterator.
+  */
   StlIterator &operator -- ()
     requires AlephRandomAccessItor<Itor>
   {
@@ -178,7 +180,9 @@ struct StlIterator : public SetType::Iterator
     return *this;
   }
 
-  /// Post-decrement: move to the previous element and return the old iterator.
+  /** @brief Post-decrement: move to the previous element and return the old iterator.
+      @return A copy of the iterator before it was decremented.
+  */
   StlIterator operator -- (int)
     requires AlephRandomAccessItor<Itor>
   {
@@ -187,7 +191,10 @@ struct StlIterator : public SetType::Iterator
     return ret_val;
   }
 
-  /// Advance the iterator `n` positions (`n` may be negative).
+  /** @brief Advance the iterator `n` positions (`n` may be negative).
+      @param n Number of positions to advance.
+      @return Reference to the advanced iterator.
+  */
   StlIterator &operator += (difference_type n)
     requires AlephRandomAccessItor<Itor>
   {
@@ -195,7 +202,10 @@ struct StlIterator : public SetType::Iterator
     return *this;
   }
 
-  /// Move the iterator back `n` positions (`n` may be negative).
+  /** @brief Move the iterator back `n` positions (`n` may be negative).
+      @param n Number of positions to move back.
+      @return Reference to the moved iterator.
+  */
   StlIterator &operator -= (difference_type n)
     requires AlephRandomAccessItor<Itor>
   {
@@ -203,7 +213,10 @@ struct StlIterator : public SetType::Iterator
     return *this;
   }
 
-  /// Return an iterator advanced `n` positions.
+  /** @brief Return an iterator advanced `n` positions.
+      @param n Number of positions to advance.
+      @return A new iterator advanced by `n` positions.
+  */
   StlIterator operator + (difference_type n) const
     requires AlephRandomAccessItor<Itor>
   {
@@ -212,14 +225,21 @@ struct StlIterator : public SetType::Iterator
     return ret_val;
   }
 
-  /// Return an iterator advanced `n` positions (symmetric form).
+  /** @brief Return an iterator advanced `n` positions (symmetric form).
+      @param n Number of positions to advance.
+      @param it The iterator to advance.
+      @return A new iterator advanced by `n` positions.
+  */
   friend StlIterator operator + (difference_type n, const StlIterator &it)
     requires AlephRandomAccessItor<Itor>
   {
     return it + n;
   }
 
-  /// Return an iterator moved back `n` positions.
+  /** @brief Return an iterator moved back `n` positions.
+      @param n Number of positions to move back.
+      @return A new iterator moved back by `n` positions.
+  */
   StlIterator operator - (difference_type n) const
     requires AlephRandomAccessItor<Itor>
   {
@@ -228,14 +248,20 @@ struct StlIterator : public SetType::Iterator
     return ret_val;
   }
 
-  /// Return the signed distance between two iterators.
+  /** @brief Return the signed distance between two iterators.
+      @param it The iterator to subtract.
+      @return The signed distance between this iterator and `it`.
+  */
   difference_type operator - (const StlIterator &it) const
     requires AlephRandomAccessItor<Itor>
   {
     return static_cast<difference_type>(this->get_pos() - it.get_pos());
   }
 
-  /// Access the element `n` positions away from the current one.
+  /** @brief Access the element `n` positions away from the current one.
+      @param n Offset from the current position.
+      @return Reference to the element at the offset position.
+  */
   reference operator [] (difference_type n) const
     requires AlephRandomAccessItor<Itor>
   {
@@ -244,7 +270,10 @@ struct StlIterator : public SetType::Iterator
     return *tmp;
   }
 
-  /// Order two iterators by their logical position.
+  /** @brief Order two iterators by their logical position.
+      @param it The iterator to compare with.
+      @return The strong ordering result between the two iterators.
+  */
   std::strong_ordering operator <=> (const StlIterator &it) const
     requires AlephRandomAccessItor<Itor>
   {
@@ -355,7 +384,9 @@ struct StlConstIterator : public SetType::Iterator
   // on the logical position exposed by get_pos()/set_pos(), so any
   // physical/circular index mapping stays internal.
 
-  /// Pre-decrement: move to the previous element.
+  /** @brief Pre-decrement: move to the previous element.
+      @return Reference to the decremented iterator.
+  */
   StlConstIterator &operator -- ()
     requires AlephRandomAccessItor<Itor>
   {
@@ -363,7 +394,9 @@ struct StlConstIterator : public SetType::Iterator
     return *this;
   }
 
-  /// Post-decrement: move to the previous element and return the old iterator.
+  /** @brief Post-decrement: move to the previous element and return the old iterator.
+      @return A copy of the iterator before it was decremented.
+  */
   StlConstIterator operator -- (int)
     requires AlephRandomAccessItor<Itor>
   {
@@ -372,7 +405,10 @@ struct StlConstIterator : public SetType::Iterator
     return ret_val;
   }
 
-  /// Advance the iterator `n` positions (`n` may be negative).
+  /** @brief Advance the iterator `n` positions (`n` may be negative).
+      @param n Number of positions to advance.
+      @return Reference to the advanced iterator.
+  */
   StlConstIterator &operator += (difference_type n)
     requires AlephRandomAccessItor<Itor>
   {
@@ -380,7 +416,10 @@ struct StlConstIterator : public SetType::Iterator
     return *this;
   }
 
-  /// Move the iterator back `n` positions (`n` may be negative).
+  /** @brief Move the iterator back `n` positions (`n` may be negative).
+      @param n Number of positions to move back.
+      @return Reference to the moved iterator.
+  */
   StlConstIterator &operator -= (difference_type n)
     requires AlephRandomAccessItor<Itor>
   {
@@ -388,7 +427,10 @@ struct StlConstIterator : public SetType::Iterator
     return *this;
   }
 
-  /// Return an iterator advanced `n` positions.
+  /** @brief Return an iterator advanced `n` positions.
+      @param n Number of positions to advance.
+      @return A new iterator advanced by `n` positions.
+  */
   StlConstIterator operator + (difference_type n) const
     requires AlephRandomAccessItor<Itor>
   {
@@ -397,14 +439,21 @@ struct StlConstIterator : public SetType::Iterator
     return ret_val;
   }
 
-  /// Return an iterator advanced `n` positions (symmetric form).
+  /** @brief Return an iterator advanced `n` positions (symmetric form).
+      @param n Number of positions to advance.
+      @param it The iterator to advance.
+      @return A new iterator advanced by `n` positions.
+  */
   friend StlConstIterator operator + (difference_type n, const StlConstIterator &it)
     requires AlephRandomAccessItor<Itor>
   {
     return it + n;
   }
 
-  /// Return an iterator moved back `n` positions.
+  /** @brief Return an iterator moved back `n` positions.
+      @param n Number of positions to move back.
+      @return A new iterator moved back by `n` positions.
+  */
   StlConstIterator operator - (difference_type n) const
     requires AlephRandomAccessItor<Itor>
   {
@@ -413,14 +462,20 @@ struct StlConstIterator : public SetType::Iterator
     return ret_val;
   }
 
-  /// Return the signed distance between two iterators.
+  /** @brief Return the signed distance between two iterators.
+      @param it The iterator to subtract.
+      @return The signed distance between this iterator and `it`.
+  */
   difference_type operator - (const StlConstIterator &it) const
     requires AlephRandomAccessItor<Itor>
   {
     return static_cast<difference_type>(this->get_pos() - it.get_pos());
   }
 
-  /// Access the element `n` positions away from the current one.
+  /** @brief Access the element `n` positions away from the current one.
+      @param n Offset from the current position.
+      @return Reference to the element at the offset position.
+  */
   reference operator [] (difference_type n) const
     requires AlephRandomAccessItor<Itor>
   {
@@ -429,7 +484,10 @@ struct StlConstIterator : public SetType::Iterator
     return *tmp;
   }
 
-  /// Order two iterators by their logical position.
+  /** @brief Order two iterators by their logical position.
+      @param it The iterator to compare with.
+      @return The strong ordering result between the two iterators.
+  */
   std::strong_ordering operator <=> (const StlConstIterator &it) const
     requires AlephRandomAccessItor<Itor>
   {
