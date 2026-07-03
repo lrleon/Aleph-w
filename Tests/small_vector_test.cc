@@ -40,6 +40,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -101,6 +102,23 @@ struct Throwing_Copy
 int Throwing_Copy::live = 0;
 int Throwing_Copy::copies = 0;
 int Throwing_Copy::throw_after = -1;
+
+struct Throwing_Move
+{
+  int value = 0;
+
+  Throwing_Move() = default;
+  explicit Throwing_Move(int v) : value(v) {}
+  Throwing_Move(const Throwing_Move &) = delete;
+  Throwing_Move(Throwing_Move &&x) noexcept(false) : value(x.value) {}
+  Throwing_Move &operator=(const Throwing_Move &) = delete;
+  Throwing_Move &operator=(Throwing_Move &&) noexcept(false) = default;
+};
+
+static_assert(noexcept(std::declval<SmallVector<int, 2> &>().swap
+                       (std::declval<SmallVector<int, 2> &>())));
+static_assert(not noexcept(std::declval<SmallVector<Throwing_Move, 2> &>().swap
+                           (std::declval<SmallVector<Throwing_Move, 2> &>())));
 }  // namespace
 
 TEST(SmallVector, StaysInlineUpToNThenSpills)
