@@ -141,6 +141,8 @@ Aleph::Generator<Node *> lazy_pre_order(Node *root)
 template <class Node>
 Aleph::Generator<Node *> lazy_post_order(Node *root)
 {
+  /// Explicit stack replacing the call stack a recursive post-order would
+  /// use, sized to the tree's maximum height.
   ArrayStack<Node *> stack(Node::MaxHeight);
   Node *curr = root;
   Node *last = Node::NullPtr;

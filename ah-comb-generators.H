@@ -104,6 +104,8 @@ namespace Aleph
 template <typename T, class Compare = Aleph::less<T>>
 Aleph::Generator<Array<T>> lazy_permutations(Array<T> a, Compare cmp = Compare())
 {
+  /// Start from the lexicographically smallest permutation so the loop
+  /// below enumerates the complete sequence.
   std::sort(a.begin(), a.end(), cmp);
   co_yield a;
   while (next_permutation(a, cmp, false))
@@ -164,6 +166,7 @@ Aleph::Generator<Array<T>> lazy_combinations(Array<T> a, size_t k)
       co_return;
     }
 
+  /// Start from the first k-combination: indices [0, 1, ..., k-1].
   Array<size_t> idx(k);
   idx.putn(k);
   for (size_t i = 0; i < k; ++i)
