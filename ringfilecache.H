@@ -883,7 +883,8 @@ public:
   */
   void flush()
   {
-    assert(pars_stream.tellp() == 0);
+    pars_stream.clear();
+    pars_stream.seekp(0);
     Pars pars;
     pars.dim = dim;
     pars.n = n;
