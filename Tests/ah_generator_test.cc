@@ -41,6 +41,8 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -116,6 +118,13 @@ Generator<int> doubled(Generator<int> src)
 }
 }  // namespace
 
+static_assert(
+  not std::is_invocable_v<decltype(&Generator<int>::begin), Generator<int>>,
+  "Generator::begin() must reject rvalue generators to avoid dangling iterators");
+static_assert(
+  std::is_invocable_v<decltype(&Generator<int>::begin), Generator<int> &>,
+  "Generator::begin() must still accept lvalue generators");
+
 TEST(Generator, BasicYieldAndRangeFor)
 {
   int sum = 0;
@@ -182,6 +191,29 @@ TEST(Generator, ManualIteratorProtocol)
   EXPECT_EQ(*it, 1);
   ++it;
   EXPECT_EQ(it, g.end());
+}
+
+TEST(Generator, ResumingAfterExhaustionIsSafe)
+{
+  // Resuming a coroutine past its final suspend point is undefined
+  // behavior; both begin() and operator++() must detect exhaustion and
+  // avoid ever calling coroutine_handle::resume() on a done() coroutine.
+  Generator<int> g = countdown(1);
+
+  auto it = g.begin();
+  ASSERT_NE(it, g.end());
+  EXPECT_EQ(*it, 1);
+  ++it;
+  ASSERT_EQ(it, g.end());
+
+  // A second begin() on an already-exhausted generator must not resume the
+  // coroutine again; it should simply return end() again.
+  auto it2 = g.begin();
+  EXPECT_EQ(it2, g.end());
+
+  // Advancing an iterator that is already at end() must throw rather than
+  // resume a done() coroutine.
+  EXPECT_THROW(++it, std::domain_error);
 }
 
 TEST(Generator, ExceptionPropagatesFromResume)

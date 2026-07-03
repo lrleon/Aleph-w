@@ -60,15 +60,12 @@
 #include <vector>
 
 #include <ah-generator.H>
+#include <print_rule.H>
 
 using namespace Aleph;
 
 namespace
 {
-void rule()
-{
-  std::cout << "------------------------------------------------------------\n";
-}
 
 // An infinite sequence: 0, 1, 2, 3, ... forever. There is no eager
 // equivalent — you cannot materialize an infinite std::vector.
@@ -81,7 +78,7 @@ Generator<long> natural_numbers()
 void demo_laziness()
 {
   std::cout << "[1] Laziness: an infinite sequence, truncated on demand\n";
-  rule();
+  print_rule();
 
   std::cout << "First 5 multiples of 7, taken from an unbounded generator:\n";
   long checked = 0;
@@ -116,12 +113,20 @@ bool is_plain_integer(const std::string &tok)
 
 // A validating generator: parses each token to an int, and throws on the
 // first one that isn't a valid number instead of silently skipping it.
-Generator<int> parse_ints(const std::vector<std::string> &tokens)
+//
+// `tokens` is taken BY VALUE on purpose, not by reference: a coroutine's
+// body doesn't run until the first resume (initial_suspend), so a
+// reference parameter bound to a caller's temporary (e.g.
+// `parse_ints({"10", "20"})`) would already be dangling by the time this
+// loop actually executes. Taking `tokens` by value sidesteps that pitfall
+// the same way `ah-comb-generators.H`'s `lazy_permutations`/
+// `lazy_combinations` do.
+Generator<int> parse_ints(std::vector<std::string> tokens)
 {
   for (const std::string &tok : tokens)
     {
-      if (not is_plain_integer(tok))
-        throw std::invalid_argument("not a valid integer: \"" + tok + "\"");
+      ah_invalid_argument_if(not is_plain_integer(tok))
+        << "not a valid integer: \"" << tok << "\"";
       int value = std::stoi(tok);
       co_yield value;
     }
@@ -130,7 +135,7 @@ Generator<int> parse_ints(const std::vector<std::string> &tokens)
 void demo_exception_propagation()
 {
   std::cout << "[2] Exception propagation across suspension points\n";
-  rule();
+  print_rule();
 
   const std::vector<std::string> tokens = {"10", "20", "30", "oops", "40"};
   std::cout << "Parsing tokens: 10, 20, 30, oops, 40\n";
@@ -171,7 +176,7 @@ Generator<long> squared(Generator<long> src)
 void demo_composition()
 {
   std::cout << "[3] Composition: chaining lazy stages\n";
-  rule();
+  print_rule();
 
   std::cout << "squared(evens_only(natural_numbers())), first 6 values:\n";
   int count = 0;

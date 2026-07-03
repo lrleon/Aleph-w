@@ -56,6 +56,7 @@
 
 #include <graph-traverse-generators.H>
 #include <graph-traverse.H>
+#include <print_rule.H>
 #include <tpl_graph.H>
 
 using namespace Aleph;
@@ -67,11 +68,6 @@ using Node = Graph_Node<string>;
 using Arc = Graph_Arc<int>;
 using Graph = List_Graph<Node, Arc>;
 using Itor = Node_Arc_Iterator<Graph>;
-
-void rule()
-{
-  cout << "------------------------------------------------------------\n";
-}
 
 // Small social network: Alice is friends with Bob and Charlie; Bob and
 // Charlie know each other and are both friends with the Diana/Eve pair;
@@ -103,7 +99,7 @@ Graph build_social_network(Graph::Node *&alice, Graph::Node *&eve)
 void demo_bfs_dfs_order(Graph &g, Graph::Node *alice)
 {
   cout << "[1] BFS / DFS, driven lazily from Alice\n";
-  rule();
+  print_rule();
 
   cout << "BFS order: ";
   Graph_Traverse_BFS_Generator<Graph, Itor> bfs(g);
@@ -121,7 +117,7 @@ void demo_bfs_dfs_order(Graph &g, Graph::Node *alice)
 void demo_early_termination_ergonomics(Graph &g, Graph::Node *alice)
 {
   cout << "[2] Early termination: callback-with-bool vs plain break\n";
-  rule();
+  print_rule();
 
   const string target = "Eve";
 

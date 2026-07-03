@@ -79,6 +79,8 @@
 #include <coroutine>
 #include <exception>
 #include <iterator>
+#include <memory>
+#include <type_traits>
 #include <utility>
 
 #include <ah-errors.H>
@@ -159,11 +161,11 @@ public:
 
     /// A `Generator` starts suspended: nothing in the body runs until the
     /// first `begin()`/`resume()`.
-    std::suspend_always initial_suspend() noexcept { return {}; }
+    static std::suspend_always initial_suspend() noexcept { return {}; }
 
     /// Stay suspended at the end so the promise remains valid until the
     /// `Generator` is destroyed.
-    std::suspend_always final_suspend() noexcept { return {}; }
+    static std::suspend_always final_suspend() noexcept { return {}; }
 
     /// Construct the `Generator<T>` handle returned to the caller.
     Generator get_return_object() noexcept
@@ -188,7 +190,7 @@ public:
 
     /// Generators do not return a value; `co_return;` (or falling off the
     /// end of the body) simply ends the sequence.
-    void return_void() noexcept {}
+    static void return_void() noexcept {}
 
     /// Captures an exception thrown in the coroutine body so it can be
     /// rethrown from the resuming call (`operator++`/`begin()`).
@@ -231,11 +233,17 @@ public:
 
     /** @brief Resume the coroutine to its next `co_yield` (pre-increment).
      *  @return `*this`, now referring to the next value (or exhausted).
+     *  @throws std::domain_error if the iterator is already at `end()`.
+     *          Resuming a coroutine past its final suspend point is
+     *          undefined behavior, so this is checked explicitly rather
+     *          than left to manifest as UB.
      *  @throws Whatever the coroutine body threw before its next
      *          `co_yield`, if anything.
      */
     iterator &operator++()
     {
+      ah_domain_error_if(done())
+        << "Generator::iterator::operator++(): cannot advance past end()";
       handle_.resume();
       if (handle_.promise().pending_exception)
         std::rethrow_exception(std::exchange(handle_.promise().pending_exception, nullptr));
@@ -284,7 +292,11 @@ public:
   /// Construct from a coroutine handle (internal use by `promise_type`).
   explicit Generator(Handle h) noexcept : handle_(h) {}
 
+  /// Deleted: a `Generator` owns a single coroutine frame, which cannot be
+  /// duplicated. Move it instead.
   Generator(const Generator &) = delete;
+
+  /// Deleted: see the copy constructor.
   Generator &operator=(const Generator &) = delete;
 
   /// Move constructor: transfers coroutine-frame ownership.
@@ -312,19 +324,31 @@ public:
 
   /** @brief Begin iterating: resumes the coroutine to its first `co_yield`.
    *  @return An iterator positioned at the first value (or already `end()`
-   *          if the body never yields).
+   *          if the body never yields or was already exhausted).
    *  @throws Whatever the coroutine body throws before its first
    *          `co_yield`, if anything.
-   *  @note Calling `begin()` more than once on the same `Generator` resumes
-   *        the coroutine again, which is almost certainly not what you
-   *        want on a single-pass sequence; iterate it exactly once.
+   *  @note `begin()` is lvalue-qualified on purpose: range-`for` over a
+   *        temporary generator is safe because the loop binds the temporary to
+   *        a hidden local variable, but a direct `make_generator().begin()`
+   *        would leave the returned iterator pointing at a destroyed coroutine
+   *        frame. That direct call is therefore a compile-time error.
+   *  @note Calling `begin()` more than once while the sequence is still
+   *        mid-traversal resumes the coroutine again, which is almost
+   *        certainly not what you want on a single-pass sequence; iterate
+   *        it exactly once. Calling it again *after* the sequence is
+   *        exhausted is safe and simply returns `end()`: resuming a
+   *        coroutine past its final suspend point is undefined behavior,
+   *        so that case is detected and the resume is skipped instead.
    */
-  iterator begin()
+  iterator begin() &
   {
     ah_out_of_range_error_if(not handle_) << "Generator::begin(): empty generator";
-    handle_.resume();
-    if (handle_.promise().pending_exception)
-      std::rethrow_exception(std::exchange(handle_.promise().pending_exception, nullptr));
+    if (not handle_.done())
+      {
+        handle_.resume();
+        if (handle_.promise().pending_exception)
+          std::rethrow_exception(std::exchange(handle_.promise().pending_exception, nullptr));
+      }
     return iterator{handle_};
   }
 

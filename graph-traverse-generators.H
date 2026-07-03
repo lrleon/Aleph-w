@@ -118,12 +118,33 @@ class Graph_Traverse_Generator
 {
   using State = graph_traverse_generator_detail::Traverse_State;
 
-  GT &g;
-  Show_Arc sa;
+  GT &g_;
+  Show_Arc sa_;
+
+  static unsigned char raw(State s) noexcept { return static_cast<unsigned char>(s); }
+
+  /** Prepare arc `a` (leading to `tgt`) for frontier expansion, and report
+      whether the caller should enqueue it. Same semantics as
+      `Graph_Traverse::seed_arc` (graph-traverse.H) — kept as a separate
+      copy rather than shared because the two classes use different
+      state representations (`Traverse_State` enum here vs. the
+      `GT_Unprocessed`/`GT_Processing`/`GT_Processed` constants there; see
+      the file-level note on why this header defines its own enum). */
+  static bool seed_arc(typename GT::Arc *a, typename GT::Node *tgt) noexcept
+  {
+    if (tgt->state() != raw(State::Unprocessed))
+      {
+        a->set_state(raw(State::Processed));
+        return false;
+      }
+    a->set_state(raw(State::Processing));
+    tgt->set_state(raw(State::Processing));
+    return true;
+  }
 
 public:
   /// Construct a lazy traverser bound to graph `__g` with arc filter `__sa`.
-  Graph_Traverse_Generator(GT &__g, Show_Arc __sa = Show_Arc()) : g(__g), sa(__sa) {}
+  Graph_Traverse_Generator(GT &__g, Show_Arc __sa = Show_Arc()) : g_(__g), sa_(__sa) {}
 
   /** @brief Lazily traverse the graph from `start`.
    *
@@ -132,64 +153,68 @@ public:
    *          order determined by `Q` (stack ⇒ DFS, queue ⇒ BFS).
    *  @note Complexity: O(1) amortized per yielded node — same total O(V+E)
    *        work as the eager traversal, just spread across resumes.
-   *  @throws std::invalid_argument if `start == nullptr`.
+   *  @throws std::invalid_argument if `start == nullptr`. Like every
+   *          `Aleph::Generator`-returning function, the body doesn't run
+   *          until the first resume (`initial_suspend`), so this check
+   *          fires on the first `begin()`/`operator++()` of the returned
+   *          sequence, not on the `traverse(start)` call itself — catch it
+   *          around the iteration, not just around the call.
+   *  @note This method is `&`-ref-qualified on purpose: `traverse()` is a
+   *        member-function coroutine, so its frame keeps a raw `this` and
+   *        doesn't touch `g_`/`sa_` until the first resume — well after a
+   *        temporary `Graph_Traverse_Generator` would have been destroyed.
+   *        `Graph_Traverse_BFS_Generator<GT,Itor>(g).traverse(start)` is
+   *        therefore a **compile error** instead of a dangling-`this` bug:
+   *        bind the traverser to a named variable first (as every example
+   *        and test in this codebase already does) and keep it alive for
+   *        as long as the returned sequence is iterated.
    */
-  Aleph::Generator<typename GT::Node *> traverse(typename GT::Node *start)
+  Aleph::Generator<typename GT::Node *> traverse(typename GT::Node *start) &
   {
     ah_invalid_argument_if(start == nullptr)
       << "Graph_Traverse_Generator::traverse(): null start node";
-    g.reset_nodes();
-    g.reset_arcs();
+    g_.reset_nodes();
+    g_.reset_arcs();
 
     size_t count = 1;
-    start->set_state(static_cast<unsigned char>(State::Processed));
+    start->set_state(raw(State::Processed));
     co_yield start;
 
     Q<typename GT::Arc *> q;
-    for (Itor it(start, sa); it.has_curr(); it.next_ne())
+    for (Itor it(start, sa_); it.has_curr(); it.next_ne())
       {
         typename GT::Arc *a = it.get_curr();
-        typename GT::Node *tgt = g.get_connected_node(a, start);
-        a->set_state(static_cast<unsigned char>(State::Processing));
-        tgt->set_state(static_cast<unsigned char>(State::Processing));
-        q.put(a);
+        typename GT::Node *tgt = g_.get_connected_node(a, start);
+        if (seed_arc(a, tgt))
+          q.put(a);
       }
 
-    const size_t n = g.vsize();
+    const size_t n = g_.vsize();
     while (not q.is_empty() and count < n)
       {
         typename GT::Arc *arc = q.get();
-        assert(arc->state() == static_cast<unsigned char>(State::Processing));
-        arc->set_state(static_cast<unsigned char>(State::Processed));
+        assert(arc->state() == raw(State::Processing));
+        arc->set_state(raw(State::Processed));
 
-        typename GT::Node *s = g.get_src_node(arc);
-        typename GT::Node *t = g.get_tgt_node(arc);
-        if (s->state() == static_cast<unsigned char>(State::Processed) and
-            t->state() == static_cast<unsigned char>(State::Processed))
+        typename GT::Node *s = g_.get_src_node(arc);
+        typename GT::Node *t = g_.get_tgt_node(arc);
+        if (s->state() == raw(State::Processed) and t->state() == raw(State::Processed))
           continue;
 
-        typename GT::Node *curr =
-          s->state() == static_cast<unsigned char>(State::Processed) ? t : s;
-        assert(curr->state() == static_cast<unsigned char>(State::Processing));
+        typename GT::Node *curr = s->state() == raw(State::Processed) ? t : s;
+        assert(curr->state() == raw(State::Processing));
         ++count;
-        curr->set_state(static_cast<unsigned char>(State::Processed));
+        curr->set_state(raw(State::Processed));
         co_yield curr;
 
-        for (Itor it(curr, sa); it.has_curr(); it.next_ne())
+        for (Itor it(curr, sa_); it.has_curr(); it.next_ne())
           {
             typename GT::Arc *a = it.get_curr();
-            if (a->state() != static_cast<unsigned char>(State::Unprocessed))
+            if (a->state() != raw(State::Unprocessed))
               continue;
-            typename GT::Node *tgt = g.get_connected_node(a, curr);
-            if (tgt->state() == static_cast<unsigned char>(State::Unprocessed))
-              {
-                assert(a->state() != static_cast<unsigned char>(State::Processing));
-                q.put(a);
-                a->set_state(static_cast<unsigned char>(State::Processing));
-                tgt->set_state(static_cast<unsigned char>(State::Processing));
-              }
-            else
-              a->set_state(static_cast<unsigned char>(State::Processed));
+            typename GT::Node *tgt = g_.get_connected_node(a, curr);
+            if (seed_arc(a, tgt))
+              q.put(a);
           }
       }
   }

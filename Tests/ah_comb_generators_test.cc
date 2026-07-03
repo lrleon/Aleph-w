@@ -40,6 +40,7 @@
  */
 
 #include <algorithm>
+#include <bit>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -193,7 +194,7 @@ TEST(CombGenerators, CombinationsMatchBruteForceBitmaskEnumeration)
   std::vector<std::vector<int>> expected;
   for (uint64_t mask = 0; mask < (1u << n); ++mask)
     {
-      if (static_cast<size_t>(__builtin_popcountll(mask)) != k)
+      if (static_cast<size_t>(std::popcount(mask)) != k)
         continue;
       std::vector<int> combo;
       for (size_t i = 0; i < n; ++i)

@@ -118,8 +118,8 @@ Aleph::Generator<Array<T>> lazy_permutations(Array<T> a, Compare cmp = Compare()
  *  `next_combination_indices`) and yielded in the same relative order as
  *  `a`: for input `[x0, x1, ..., x(n-1)]`, the first combination is
  *  `[x0, ..., x(k-1)]` and the last is `[x(n-k), ..., x(n-1)]`. Yields
- *  exactly `combination_count(n, k)` combinations (`1` when `k == 0`, `0`
- *  when `k > n`).
+ *  exactly `combination_count(n, k)` combinations for `k <= n` (`1` when
+ *  `k == 0`).
  *
  *  @tparam T Element type. Must be copyable.
  *  @param a Source sequence (taken by value: the generator owns and reads

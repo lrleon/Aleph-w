@@ -93,12 +93,25 @@ namespace Aleph
  *  @return A lazy sequence of `Node *`, one per visited node, in in-order.
  *  @note Complexity: O(1) amortized per yielded node; O(depth) explicit
  *        stack entries in the wrapped `BinNodeInfixIterator`.
+ *  @note Exception safety: basic guarantee. Constructing the wrapped
+ *        `BinNodeInfixIterator` may throw `std::bad_alloc`; once
+ *        construction succeeds, the traversal itself does not throw (it
+ *        only follows existing `getL()`/`getR()` links).
+ *  @note Thread safety: read-only traversal via raw pointers, with no
+ *        internal synchronization. Traversing *different* trees
+ *        concurrently is safe; traversing or mutating the *same* tree
+ *        from multiple threads (including mutating it from the loop body
+ *        driving this generator) is not, and needs external
+ *        synchronization.
  *
  *  @ingroup Trees
  */
 template <class Node>
 Aleph::Generator<Node *> lazy_in_order(Node *root)
 {
+  if (root == Node::NullPtr)
+    co_return;
+
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
     {
       Node *n = it.get_curr_ne();
@@ -114,12 +127,21 @@ Aleph::Generator<Node *> lazy_in_order(Node *root)
  *  @return A lazy sequence of `Node *`, one per visited node, in pre-order.
  *  @note Complexity: O(1) amortized per yielded node; O(depth) explicit
  *        stack entries in the wrapped `BinNodePrefixIterator`.
+ *  @note Exception safety: basic guarantee. Constructing the wrapped
+ *        `BinNodePrefixIterator` may throw `std::bad_alloc`; once
+ *        construction succeeds, the traversal itself does not throw.
+ *  @note Thread safety: same as `lazy_in_order` — read-only, no internal
+ *        synchronization; safe across different trees, not safe on a
+ *        shared or concurrently-mutated tree.
  *
  *  @ingroup Trees
  */
 template <class Node>
 Aleph::Generator<Node *> lazy_pre_order(Node *root)
 {
+  if (root == Node::NullPtr)
+    co_return;
+
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
     {
       Node *n = it.get_curr_ne();
@@ -135,12 +157,21 @@ Aleph::Generator<Node *> lazy_pre_order(Node *root)
  *  @return A lazy sequence of `Node *`, one per visited node, in post-order.
  *  @note Complexity: O(1) amortized per yielded node; O(depth) explicit
  *        `ArrayStack<Node *>` entries.
+ *  @note Exception safety: basic guarantee. Constructing the internal
+ *        `ArrayStack<Node *>` may throw `std::bad_alloc`; once
+ *        construction succeeds, the traversal itself does not throw.
+ *  @note Thread safety: same as `lazy_in_order` — read-only, no internal
+ *        synchronization; safe across different trees, not safe on a
+ *        shared or concurrently-mutated tree.
  *
  *  @ingroup Trees
  */
 template <class Node>
 Aleph::Generator<Node *> lazy_post_order(Node *root)
 {
+  if (root == Node::NullPtr)
+    co_return;
+
   /// Explicit stack replacing the call stack a recursive post-order would
   /// use, sized to the tree's maximum height.
   ArrayStack<Node *> stack(Node::MaxHeight);

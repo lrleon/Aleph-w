@@ -53,6 +53,7 @@
 #include <iostream>
 #include <vector>
 
+#include <print_rule.H>
 #include <tpl_binNode.H>
 #include <tpl_binNodeGenerators.H>
 #include <tpl_binNodeUtils.H>
@@ -61,11 +62,6 @@ using namespace Aleph;
 
 namespace
 {
-void rule()
-{
-  std::cout << "------------------------------------------------------------\n";
-}
-
 // Owns every node allocated for the example tree and frees them on exit.
 struct Node_Pool
 {
@@ -107,7 +103,7 @@ BinNode<int> *build_balanced_bst(Node_Pool &pool, int lo, int hi)
 void demo_lazy_traversal_orders(BinNode<int> *root)
 {
   std::cout << "[1] in-order / pre-order / post-order, driven lazily\n";
-  rule();
+  print_rule();
 
   std::cout << "in-order:   ";
   for (BinNode<int> *n : lazy_in_order(root))
@@ -128,7 +124,7 @@ void demo_lazy_traversal_orders(BinNode<int> *root)
 void demo_early_stop_ergonomics(BinNode<int> *root)
 {
   std::cout << "[2] Early stop: callback contract vs plain break\n";
-  rule();
+  print_rule();
 
   constexpr int target = 5;
 

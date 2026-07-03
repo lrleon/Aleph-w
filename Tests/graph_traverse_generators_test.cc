@@ -41,6 +41,7 @@
 
 #include <set>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -85,6 +86,23 @@ TestGraph build_diamond(std::vector<TestGraph::Node *> &nodes)
   return g;
 }
 }  // namespace
+
+// Compile-time regression: traverse() is &-ref-qualified specifically so
+// that calling it on a temporary traverser — the dangerous one-liner
+// `Graph_Traverse_BFS_Generator<GT,Itor>(g).traverse(start)`, whose
+// coroutine frame would otherwise read a dangling `this` on first resume —
+// is a compile error instead of undefined behavior. `std::is_invocable_v`
+// (not a bare `requires{...}` expression: a ref-qualifier mismatch is a
+// hard error, not a SFINAE-friendly substitution failure, so it would
+// abort the whole translation unit instead of just making the requirement
+// unsatisfied) checks this without ever attempting the invalid call.
+using BfsGen = Graph_Traverse_BFS_Generator<TestGraph, Itor>;
+static_assert(
+  not std::is_invocable_v<decltype(&BfsGen::traverse), BfsGen, TestGraph::Node *>,
+  "Graph_Traverse_Generator::traverse() must reject rvalue (temporary) receivers");
+static_assert(
+  std::is_invocable_v<decltype(&BfsGen::traverse), BfsGen &, TestGraph::Node *>,
+  "Graph_Traverse_Generator::traverse() must still accept lvalue receivers");
 
 TEST(GraphTraverseGenerators, SingleNodeGraph)
 {
@@ -200,6 +218,52 @@ TEST(GraphTraverseGenerators, EarlyBreakStopsTraversal)
         break;
     }
   EXPECT_EQ(visited, 2);  // stopped well before all 5 nodes were visited
+}
+
+// Regression test: a self-loop at the start node must not be yielded
+// twice, and must not prevent other reachable nodes from being visited.
+// The initial frontier-seeding loop used to unconditionally overwrite the
+// target node's state to Processing, which for a self-loop (tgt == start)
+// clobbered start's already-Processed state.
+TEST(GraphTraverseGenerators, SelfLoopAtStartNodeYieldsOnce)
+{
+  TestGraph g;
+  TestGraph::Node *a = g.insert_node(1);
+  TestGraph::Node *b = g.insert_node(2);
+  g.insert_arc(a, a, 0.0);  // self-loop at the start node
+  g.insert_arc(a, b, 1.0);
+
+  std::vector<int> bfs_seen;
+  Graph_Traverse_BFS_Generator<TestGraph, Itor> bfs(g);
+  for (TestGraph::Node *n : bfs.traverse(a))
+    bfs_seen.push_back(n->get_info());
+  EXPECT_EQ(bfs_seen, (std::vector<int>{1, 2}));
+
+  std::vector<int> dfs_seen;
+  Graph_Traverse_DFS_Generator<TestGraph, Itor> dfs(g);
+  for (TestGraph::Node *n : dfs.traverse(a))
+    dfs_seen.push_back(n->get_info());
+  EXPECT_EQ(dfs_seen, (std::vector<int>{1, 2}));
+}
+
+// Same regression, but the self-loop is on a node discovered mid-traversal
+// rather than on the start node itself (already handled correctly by the
+// main loop's own guard; kept as a sibling test for symmetry/coverage).
+TEST(GraphTraverseGenerators, SelfLoopMidTraversalYieldsOnce)
+{
+  TestGraph g;
+  TestGraph::Node *a = g.insert_node(1);
+  TestGraph::Node *b = g.insert_node(2);
+  TestGraph::Node *c = g.insert_node(3);
+  g.insert_arc(a, b, 1.0);
+  g.insert_arc(b, b, 0.0);  // self-loop at a non-start node
+  g.insert_arc(b, c, 1.0);
+
+  std::vector<int> seen;
+  Graph_Traverse_BFS_Generator<TestGraph, Itor> bfs(g);
+  for (TestGraph::Node *n : bfs.traverse(a))
+    seen.push_back(n->get_info());
+  EXPECT_EQ(seen, (std::vector<int>{1, 2, 3}));
 }
 
 TEST(GraphTraverseGenerators, CyclicGraphTerminates)
