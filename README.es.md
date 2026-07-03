@@ -1477,6 +1477,10 @@ int main() {
 #include <tpl_dynList.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dynArray.H>
+#include <tpl_small_vector.H>
+#include <tpl_ring_buffer.H>
+#include <tpl_flat_set.H>
+#include <tpl_flat_map.H>
 
 int main() {
     // Singly-linked list
@@ -1492,6 +1496,21 @@ int main() {
     arr.append(6);    // Amortized O(1)
     int x = arr[2];   // Random access: O(1)
 
+    // Vector con buffer pequeño: sin heap separado para los primeros 8 ints
+    SmallVector<int, 8> small = {1, 2, 3};
+    small.append(4);
+
+    // FIFO circular de capacidad fija; overwrite conserva los valores recientes
+    RingBuffer<int> recent(3);
+    recent.put_overwrite(10);
+    recent.put_overwrite(20);
+    recent.put_overwrite(30);
+    recent.put_overwrite(40);  // ventana lógica: 20, 30, 40
+
+    // Contenedores ordenados cache-friendly sobre arreglos contiguos ordenados
+    FlatSet<int> ids = {5, 1, 3, 1};
+    FlatMap<int, std::string> names = {{2, "two"}, {1, "one"}};
+
     // All support functional operations!
     auto doubled = slist.map([](int x) { return x * 2; });
     auto evens = dlist.filter([](int x) { return x % 2 == 0; });
@@ -1500,6 +1519,14 @@ int main() {
     return 0;
 }
 ```
+
+`SmallVector<T, N>`, `RingBuffer<T>`, `FlatSet<Key>` y `FlatMap<Key, T>`
+complementan los contenedores clásicos de Aleph con diseños modernos y
+amigables con caché. `SmallVector` embebe almacenamiento para el caso pequeño;
+`RingBuffer` ofrece un FIFO acotado/ventana deslizante; `FlatSet` y `FlatMap`
+mantienen claves ordenadas en memoria contigua, sacrificando mutación O(n) para
+mejores constantes de búsqueda, iteración secuencial y bajo overhead por
+elemento.
 
 <a id="readme-es-consultas-por-rango"></a>
 ### Estructuras para consultas por rango
@@ -3564,8 +3591,12 @@ int main() {
 | `tpl_dynList.H` | `DynList<T>` | Singly-linked list |
 | `tpl_dynDlist.H` | `DynDlist<T>` | Doubly-linked list |
 | `tpl_dynArray.H` | `DynArray<T>` | Dynamic array |
+| `tpl_small_vector.H` | `SmallVector<T, N>` | Vector con almacenamiento pequeño inline |
+| `tpl_ring_buffer.H` | `RingBuffer<T>` | FIFO circular de capacidad fija / ventana deslizante |
 | `tpl_dynSetTree.H` | `DynSetTree<T, Tree>` | Tree-based set |
 | `tpl_dynMapTree.H` | `DynMapTree<K, V, Tree>` | Tree-based map |
+| `tpl_flat_set.H` | `FlatSet<K, Compare>` | Conjunto ordenado sobre arreglo sorted |
+| `tpl_flat_map.H` | `FlatMap<K, V, Compare>` | Mapa ordenado sobre arreglo sorted |
 | `tpl_hash.H` | `DynHashSet<T>` | Hash set |
 | `tpl_hash.H` | `DynHashMap<K, V>` | Hash map |
 | `tpl_binHeap.H` | `BinHeap<T, Cmp>` | Binary heap |

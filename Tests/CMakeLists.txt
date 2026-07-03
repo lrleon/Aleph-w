@@ -432,6 +432,10 @@ set(TEST_PROGRAMS
     test_bidirectional_bfs
     test_ida_star
     link_cut_tree_test
+    flat_set_test
+    flat_map_test
+    small_vector_test
+    ring_buffer_test
     tpl_ca_concepts_test
     tpl_ca_storage_test
     tpl_ca_lattice_test

@@ -1639,6 +1639,10 @@ int main() {
 #include <tpl_dynList.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dynArray.H>
+#include <tpl_small_vector.H>
+#include <tpl_ring_buffer.H>
+#include <tpl_flat_set.H>
+#include <tpl_flat_map.H>
 
 int main() {
     // Singly-linked list
@@ -1654,6 +1658,21 @@ int main() {
     arr.append(6);    // Amortized O(1)
     int x = arr[2];   // Random access: O(1)
 
+    // Small-buffer vector: no separate heap allocation for the first 8 ints
+    SmallVector<int, 8> small = {1, 2, 3};
+    small.append(4);
+
+    // Fixed-capacity circular FIFO; overwrite keeps the most recent values
+    RingBuffer<int> recent(3);
+    recent.put_overwrite(10);
+    recent.put_overwrite(20);
+    recent.put_overwrite(30);
+    recent.put_overwrite(40);  // logical window: 20, 30, 40
+
+    // Cache-friendly ordered containers backed by sorted contiguous arrays
+    FlatSet<int> ids = {5, 1, 3, 1};
+    FlatMap<int, std::string> names = {{2, "two"}, {1, "one"}};
+
     // All support functional operations!
     auto doubled = slist.map([](int x) { return x * 2; });
     auto evens = dlist.filter([](int x) { return x % 2 == 0; });
@@ -1662,6 +1681,13 @@ int main() {
     return 0;
 }
 ```
+
+`SmallVector<T, N>`, `RingBuffer<T>`, `FlatSet<Key>` and
+`FlatMap<Key, T>` complement the classic Aleph containers with modern,
+cache-friendly layouts. `SmallVector` embeds storage for the common small case;
+`RingBuffer` provides a bounded FIFO/sliding window; `FlatSet` and `FlatMap`
+store sorted keys in contiguous memory, trading O(n) mutation for fast lookup
+constants, sequential iteration and low per-element overhead.
 
 <a id="readme-range-query-structures"></a>
 ### Range Query Structures
@@ -3898,8 +3924,12 @@ int main() {
 | `tpl_dynList.H` | `DynList<T>` | Singly-linked list |
 | `tpl_dynDlist.H` | `DynDlist<T>` | Doubly-linked list |
 | `tpl_dynArray.H` | `DynArray<T>` | Dynamic array |
+| `tpl_small_vector.H` | `SmallVector<T, N>` | Vector with inline small-buffer storage |
+| `tpl_ring_buffer.H` | `RingBuffer<T>` | Fixed-capacity circular FIFO/sliding window |
 | `tpl_dynSetTree.H` | `DynSetTree<T, Tree>` | Tree-based set |
 | `tpl_dynMapTree.H` | `DynMapTree<K, V, Tree>` | Tree-based map |
+| `tpl_flat_set.H` | `FlatSet<K, Compare>` | Sorted-array ordered set |
+| `tpl_flat_map.H` | `FlatMap<K, V, Compare>` | Sorted-array ordered map |
 | `tpl_hash.H` | `DynHashSet<T>` | Hash set |
 | `tpl_hash.H` | `DynHashMap<K, V>` | Hash map |
 | `tpl_binHeap.H` | `BinHeap<T, Cmp>` | Binary heap |

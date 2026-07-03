@@ -56,8 +56,11 @@
  *  reimplementation of the standard. When `ALEPH_HAS_STD_EXPECTED` is 1,
  *  `Aleph::expected` is exactly `std::expected`.
  *
- *  Generators, flat containers and `mdspan` land in their own feature branches;
- *  only their detection macros are defined here for now.
+ *  Flat containers shipped natively as `Aleph::FlatSet`/`Aleph::FlatMap`
+ *  (see `tpl_flat_set.H`/`tpl_flat_map.H`); they are independent of the
+ *  standard library ones, so `ALEPH_HAS_STD_FLAT_MAP` remains detection-only.
+ *  Generators and `mdspan` land in their own feature branches; only their
+ *  detection macros are defined here for now.
  *
  *  @note Thread-safety: the types are value types with no shared state; the
  *        usual "distinct objects, distinct threads" rule applies.
