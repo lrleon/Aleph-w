@@ -40,6 +40,7 @@
  */
 
 #include <set>
+#include <stdexcept>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -95,6 +96,19 @@ TEST(GraphTraverseGenerators, SingleNodeGraph)
   for (TestGraph::Node *v : bfs.traverse(n))
     seen.push_back(v->get_info());
   EXPECT_EQ(seen, (std::vector<int>{42}));
+}
+
+TEST(GraphTraverseGenerators, NullStartThrowsInvalidArgument)
+{
+  TestGraph g;
+
+  Graph_Traverse_BFS_Generator<TestGraph, Itor> bfs(g);
+  EXPECT_THROW(
+    {
+      for (TestGraph::Node *v : bfs.traverse(nullptr))
+        (void) v;
+    },
+    std::invalid_argument);
 }
 
 TEST(GraphTraverseGenerators, BfsVisitsAllReachableNodesExactlyOnce)

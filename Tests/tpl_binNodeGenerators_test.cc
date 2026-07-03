@@ -35,7 +35,7 @@
  * against the eager for_each_in_order/for_each_preorder/for_each_postorder
  * traversals from tpl_binNodeUtils.H: same node sequence, same order.
  * Also covers an empty tree, a single node, early break, and a deliberately
- * degenerate (linked-list-shaped) tree to exercise deep coroutine nesting.
+ * degenerate (linked-list-shaped) tree to exercise deep explicit stack state.
  */
 
 #include <vector>
@@ -91,7 +91,7 @@ BinNode<int> *build_balanced(NodePool &pool)
 }
 
 // Right-degenerate chain 1 -> 2 -> 3 -> ... -> n (every node's right child
-// is the next one; no left children). Exercises O(n)-deep recursion.
+// is the next one; no left children). Exercises O(n)-deep traversal state.
 BinNode<int> *build_degenerate_chain(NodePool &pool, int n)
 {
   BinNode<int> *root = pool.make(1);
@@ -215,7 +215,7 @@ TEST(BinNodeGenerators, EarlyBreakStopsTraversal)
 
 TEST(BinNodeGenerators, DegenerateChainMatchesEagerTraversal)
 {
-  constexpr int n = 500;  // deep enough to exercise nested coroutine frames
+  constexpr int n = 500;  // deep enough to exercise explicit stack state
   NodePool pool;
   BinNode<int> *root = build_degenerate_chain(pool, n);
 

@@ -94,9 +94,16 @@ namespace Aleph
  *  a time as the sequence is iterated (range-`for`, `begin()`/`operator++`,
  *  or manual `resume()`/`value()`).
  *
- *  @tparam T Type of the yielded values. `co_yield` accepts anything
- *          convertible to `T`; each yielded value is stored by the promise
- *          and returned by reference from the iterator.
+ *  @tparam T Type of the yielded values. `co_yield` accepts lvalues and
+ *          rvalues convertible to `std::remove_reference_t<T>`; the iterator
+ *          exposes the currently yielded object by reference.
+ *
+ *  @par Yielded value lifetime
+ *  Dereferencing the iterator returns a reference to the object currently
+ *  suspended at `co_yield`. That reference is valid only until the generator
+ *  is resumed again (`operator++()` or a second `begin()`), or until the
+ *  `Generator` is destroyed. Copy or move the value out if it must survive
+ *  beyond the current iteration step.
  *
  *  @par Iteration model
  *  `Aleph::Generator<T>` models a C++ *input range*: `begin()` resumes the
@@ -154,8 +161,8 @@ public:
     /// first `begin()`/`resume()`.
     std::suspend_always initial_suspend() noexcept { return {}; }
 
-    /// Stay suspended at the end so the promise (and the last yielded
-    /// value's storage) remains valid until the `Generator` is destroyed.
+    /// Stay suspended at the end so the promise remains valid until the
+    /// `Generator` is destroyed.
     std::suspend_always final_suspend() noexcept { return {}; }
 
     /// Construct the `Generator<T>` handle returned to the caller.

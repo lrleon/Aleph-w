@@ -72,6 +72,7 @@
 
 #include <cassert>
 
+#include <ah-errors.H>
 #include <ah-generator.H>
 #include <graph-traverse.H>
 
@@ -131,11 +132,12 @@ public:
    *          order determined by `Q` (stack ⇒ DFS, queue ⇒ BFS).
    *  @note Complexity: O(1) amortized per yielded node — same total O(V+E)
    *        work as the eager traversal, just spread across resumes.
-   *  @pre `start != nullptr`.
+   *  @throws std::invalid_argument if `start == nullptr`.
    */
   Aleph::Generator<typename GT::Node *> traverse(typename GT::Node *start)
   {
-    assert(start != nullptr);
+    ah_invalid_argument_if(start == nullptr)
+      << "Graph_Traverse_Generator::traverse(): null start node";
     g.reset_nodes();
     g.reset_arcs();
 

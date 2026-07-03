@@ -130,10 +130,11 @@ Aleph::Generator<Array<T>> lazy_permutations(Array<T> a, Compare cmp = Compare()
  *  @note Complexity: O(k) amortized per yielded combination (the classic
  *        `next_combination_indices` bound) plus O(k) to materialize each
  *        combination's values.
- *  @note Each yielded combination is a **freshly allocated** `Array<T>`
- *        (materializing values from indices requires a copy regardless),
- *        so — unlike `lazy_permutations` — it remains valid after the
- *        generator advances.
+ *  @note Each combination is materialized as its own `Array<T>` before it is
+ *        yielded (materializing values from indices requires a copy anyway).
+ *        The iterator still returns a reference into the suspended coroutine
+ *        frame, so that reference is valid only until the generator advances.
+ *        Copy it (`Array<T> snapshot = c;`) if you need to keep it.
  *  @note `a` is taken **by value**, not by reference, on purpose: a
  *        coroutine's reference parameters bind to whatever the caller
  *        passed, but the coroutine body doesn't start running until the

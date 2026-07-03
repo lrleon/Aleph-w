@@ -37,6 +37,8 @@
  *  `lazy_in_order`/`lazy_pre_order`/`lazy_post_order` return an
  *  `Aleph::Generator<Node *>` that yields one node at a time, driven by the
  *  caller (range-`for`, early `break`, composing with other generators…).
+ *  The lazy wrappers are iterative internally: they keep one coroutine frame
+ *  and use Aleph's explicit stack-based traversal machinery.
  *
  *  The eager visitor-based traversals are **not replaced** — they remain
  *  the right tool when the full tree must be visited and no early exit is
@@ -55,14 +57,10 @@
  *    }
  *  @endcode
  *
- *  @note **Stack depth**: each level of tree depth is one nested coroutine
- *        frame (heap-allocated). For balanced trees (depth O(log n)) this
- *        is negligible; for deliberately degenerate trees (depth O(n),
- *        e.g. a tree built by inserting an already-sorted sequence into an
- *        unbalanced BST) this allocates O(n) coroutine frames instead of
- *        the O(1) auxiliary space a hand-written iterative traversal would
- *        use. Prefer the eager traversals (or a balanced tree) for
- *        adversarial-depth inputs.
+ *  @note **Traversal state**: the generator itself has one coroutine frame.
+ *        Tree depth is represented by explicit Aleph stack state (the same
+ *        idea used by `BinNodeInfixIterator`/`BinNodePrefixIterator`), not by
+ *        recursive nested generators or the process call stack.
  *
  *  @see tpl_binNodeUtils.H Eager visitor-based traversals.
  *  @see ah-generator.H `Aleph::Generator<T>`, the underlying lazy sequence
@@ -76,7 +74,9 @@
 #define TPL_BINNODEGENERATORS_H
 
 #include <ah-generator.H>
+#include <tpl_arrayStack.H>
 #include <tpl_binNode.H>
+#include <tpl_binNodeUtils.H>
 
 namespace Aleph
 {
@@ -91,22 +91,19 @@ namespace Aleph
  *  @param root Root of the (sub)tree to traverse; `Node::NullPtr` yields an
  *         empty sequence.
  *  @return A lazy sequence of `Node *`, one per visited node, in in-order.
- *  @note Complexity: O(1) amortized per yielded node; O(depth) nested
- *        coroutine frames alive at any time (see the file-level note).
+ *  @note Complexity: O(1) amortized per yielded node; O(depth) explicit
+ *        stack entries in the wrapped `BinNodeInfixIterator`.
  *
  *  @ingroup Trees
  */
 template <class Node>
 Aleph::Generator<Node *> lazy_in_order(Node *root)
 {
-  if (root == Node::NullPtr)
-    co_return;
-
-  for (Node *n : lazy_in_order(LLINK(root)))
-    co_yield n;
-  co_yield root;
-  for (Node *n : lazy_in_order(RLINK(root)))
-    co_yield n;
+  for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
+    {
+      Node *n = it.get_curr_ne();
+      co_yield n;
+    }
 }
 
 /** @brief Lazily traverse a binary tree pre-order (node, left, right).
@@ -115,22 +112,19 @@ Aleph::Generator<Node *> lazy_in_order(Node *root)
  *  @param root Root of the (sub)tree to traverse; `Node::NullPtr` yields an
  *         empty sequence.
  *  @return A lazy sequence of `Node *`, one per visited node, in pre-order.
- *  @note Complexity: O(1) amortized per yielded node; O(depth) nested
- *        coroutine frames alive at any time (see the file-level note).
+ *  @note Complexity: O(1) amortized per yielded node; O(depth) explicit
+ *        stack entries in the wrapped `BinNodePrefixIterator`.
  *
  *  @ingroup Trees
  */
 template <class Node>
 Aleph::Generator<Node *> lazy_pre_order(Node *root)
 {
-  if (root == Node::NullPtr)
-    co_return;
-
-  co_yield root;
-  for (Node *n : lazy_pre_order(LLINK(root)))
-    co_yield n;
-  for (Node *n : lazy_pre_order(RLINK(root)))
-    co_yield n;
+  for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
+    {
+      Node *n = it.get_curr_ne();
+      co_yield n;
+    }
 }
 
 /** @brief Lazily traverse a binary tree post-order (left, right, node).
@@ -139,22 +133,40 @@ Aleph::Generator<Node *> lazy_pre_order(Node *root)
  *  @param root Root of the (sub)tree to traverse; `Node::NullPtr` yields an
  *         empty sequence.
  *  @return A lazy sequence of `Node *`, one per visited node, in post-order.
- *  @note Complexity: O(1) amortized per yielded node; O(depth) nested
- *        coroutine frames alive at any time (see the file-level note).
+ *  @note Complexity: O(1) amortized per yielded node; O(depth) explicit
+ *        `ArrayStack<Node *>` entries.
  *
  *  @ingroup Trees
  */
 template <class Node>
 Aleph::Generator<Node *> lazy_post_order(Node *root)
 {
-  if (root == Node::NullPtr)
-    co_return;
+  ArrayStack<Node *> stack(Node::MaxHeight);
+  Node *curr = root;
+  Node *last = Node::NullPtr;
 
-  for (Node *n : lazy_post_order(LLINK(root)))
-    co_yield n;
-  for (Node *n : lazy_post_order(RLINK(root)))
-    co_yield n;
-  co_yield root;
+  // Iterative post-order: descend left spines; yield a node only after its
+  // right subtree root was the last node yielded.
+  while (curr != Node::NullPtr or not stack.is_empty())
+    {
+      while (curr != Node::NullPtr)
+        {
+          stack.push(curr);
+          curr = LLINK(curr);
+        }
+
+      Node *peek = stack.top();
+      Node *right = RLINK(peek);
+      if (right != Node::NullPtr and last != right)
+        {
+          curr = right;
+          continue;
+        }
+
+      last = stack.pop();
+      Node *n = last;
+      co_yield n;
+    }
 }
 
 } // end namespace Aleph

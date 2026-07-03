@@ -228,3 +228,19 @@ TEST(CombGenerators, CombinationsPreserveRelativeOrderOfSource)
     seen.push_back(vec_of(c));
   EXPECT_EQ(seen, (std::vector<std::vector<char>>{{'a', 'b'}, {'a', 'c'}, {'b', 'c'}}));
 }
+
+TEST(CombGenerators, CombinationSnapshotsSurviveGeneratorAdvancement)
+{
+  Generator<Array<int>> gen = lazy_combinations(Array<int>{1, 2, 3}, 2);
+
+  auto it = gen.begin();
+  ASSERT_NE(it, gen.end());
+  Array<int> first = *it;
+
+  ++it;
+  ASSERT_NE(it, gen.end());
+  Array<int> second = *it;
+
+  EXPECT_EQ(vec_of(first), (std::vector<int>{1, 2}));
+  EXPECT_EQ(vec_of(second), (std::vector<int>{1, 3}));
+}
