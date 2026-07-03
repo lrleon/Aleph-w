@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.0](https://github.com/lrleon/Aleph-w/compare/v5.3.0...v5.4.0) (2026-07-03)
+
+
+### Features
+
+* **core:** Add flat_map, flat_set, ring_buffer, small_vector ([#71](https://github.com/lrleon/Aleph-w/issues/71)) ([4bf55e0](https://github.com/lrleon/Aleph-w/commit/4bf55e0dac7a0e4aef00edf691ea98337b42bb59))
+
 ## [5.3.0](https://github.com/lrleon/Aleph-w/compare/v5.2.0...v5.3.0) (2026-07-01)
 
 
