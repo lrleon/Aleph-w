@@ -117,6 +117,8 @@ class SmallVector
   static_assert(std::is_move_constructible_v<T>,
                 "SmallVector requires a move-constructible element type");
 
+  // Raw inline storage for the first N elements. The buffer is aligned as T so
+  // placement-new can construct T objects here without a separate heap allocation.
   alignas(T) std::byte storage_[N * sizeof(T)];
   T *ptr_;
   size_t n_ = 0;
@@ -171,7 +173,11 @@ class SmallVector
   {
     size_t new_cap = cap_;
     while (new_cap < min_cap)
-      new_cap <<= 1;
+      {
+        ah_overflow_error_if(new_cap > (static_cast<size_t>(-1) >> 1))
+          << "SmallVector::grow(): capacity overflow";
+        new_cap <<= 1;
+      }
     relocate(new_cap);
   }
 

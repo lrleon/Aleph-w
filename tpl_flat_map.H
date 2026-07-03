@@ -165,9 +165,9 @@ class FlatMap
     return pos < keys_.size() and not cmp_(k, keys_(pos));
   }
 
-  // Opens one slot at pos in both arrays. Capacity is secured on both
-  // arrays before any logical change so a failed allocation leaves the
-  // map untouched (strong guarantee up to the shifts).
+  // Opens one slot at pos in both arrays. reserve() is invoked before any
+  // logical size change, so allocation failures preserve the map's logical
+  // contents even though one backing array may already have grown.
   void make_room(const size_t pos)
   {
     if (keys_.size() == keys_.capacity())

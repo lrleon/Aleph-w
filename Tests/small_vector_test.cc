@@ -376,6 +376,14 @@ TEST(SmallVector, ReserveGrowsAndKeepsElements)
   EXPECT_EQ(v.data(), p);  // no reallocation within reserved capacity
 }
 
+TEST(SmallVector, ReserveDetectsCapacityOverflow)
+{
+  SmallVector<int, 2> v;
+  EXPECT_THROW(v.reserve(static_cast<size_t>(-1)), std::overflow_error);
+  EXPECT_TRUE(v.is_empty());
+  EXPECT_TRUE(v.is_small());
+}
+
 TEST(SmallVector, RangeConstructorAndFillConstructor)
 {
   const std::vector<int> src = {5, 6, 7, 8, 9};
