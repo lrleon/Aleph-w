@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file net_apps.H
  *  @brief Network flow applications.
  *
@@ -63,6 +62,7 @@
 #ifndef NET_APPS_H
 #define NET_APPS_H
 
+#include <array>
 #include <vector>
 #include <string>
 #include <functional>
@@ -72,8 +72,7 @@
 #include <tpl_dynSetTree.H>
 #include <tpl_dynListQueue.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 //==============================================================================
 // CIRCULATION WITH DEMANDS
@@ -85,9 +84,9 @@ namespace Aleph
 template <typename Flow_Type>
 struct CirculationResult
 {
-  bool feasible{false};              ///< Is there a feasible circulation?
-  Flow_Type excess_flow{0};          ///< Flow needed to satisfy demands
-  DynMapTree<void*, Flow_Type> flow; ///< Flow on each edge (arc pointer -> flow)
+  bool feasible{false};                ///< Is there a feasible circulation?
+  Flow_Type excess_flow{0};            ///< Flow needed to satisfy demands
+  DynMapTree<void *, Flow_Type> flow;  ///< Flow on each edge (arc pointer -> flow)
 };
 
 /** @brief Solve a circulation problem with demands.
@@ -132,10 +131,9 @@ struct CirculationResult
  *
  *  @ingroup Networks
  */
-template <class Net, class GetDemand, class GetLower,
-          template <class> class Maxflow = Dinic_Maximum_Flow>
-CirculationResult<typename Net::Flow_Type>
-solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
+template <class Net, class GetDemand, class GetLower, template <class> class Maxflow = Dinic_Maximum_Flow>
+CirculationResult<typename Net::Flow_Type> solve_circulation(Net &net, GetDemand get_demand,
+                                                             GetLower get_lower)
 {
   using Node = typename Net::Node;
   using Arc = typename Net::Arc;
@@ -144,31 +142,31 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
   CirculationResult<Flow_Type> result;
 
   // Collect original nodes (before adding super nodes)
-  DynList<Node*> original_nodes;
+  DynList<Node *> original_nodes;
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     original_nodes.append(it.get_curr());
 
   // Store original capacities to restore later
-  DynMapTree<Arc*, Flow_Type> original_caps;
+  DynMapTree<Arc *, Flow_Type> original_caps;
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      Arc* arc = it.get_curr();
+      Arc *arc = it.get_curr();
       original_caps[arc] = arc->cap;
     }
 
   // Create super-source and super-sink for the transformed network
-  Node* super_source = net.insert_node();
-  Node* super_sink = net.insert_node();
+  Node *super_source = net.insert_node();
+  Node *super_sink = net.insert_node();
 
   // Track arcs we add so we can remove them later
-  DynList<Arc*> added_arcs;
+  DynList<Arc *> added_arcs;
 
   // Calculate total positive ADJUSTED demand
   // (This must be computed from adjusted demands, not original demands)
   Flow_Type total_demand{0};
 
   // Add edges from super-source/to super-sink based on adjusted demands
-  for (auto* v : original_nodes)
+  for (auto *v : original_nodes)
     {
       // Calculate adjusted demand: d'(v) = d(v) + l_out(v) - l_in(v)
       // This comes from the circulation reduction with lower bounds:
@@ -179,7 +177,7 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
       Flow_Type lower_in{0}, lower_out{0};
       for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
         {
-          Arc* arc = ait.get_curr();
+          Arc *arc = ait.get_curr();
           Flow_Type lb = get_lower(arc);
           if (net.get_tgt_node(arc) == v)
             lower_in += lb;
@@ -205,12 +203,12 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
       // Set all flows to their lower bounds
       for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
         {
-          Arc* arc = it.get_curr();
+          Arc *arc = it.get_curr();
           if (original_caps.contains(arc))
             result.flow[arc] = get_lower(arc);
         }
       // Cleanup: remove added arcs and nodes
-      for (Arc* arc : added_arcs)
+      for (Arc *arc : added_arcs)
         net.remove_arc(arc);
       net.remove_node(super_source);
       net.remove_node(super_sink);
@@ -220,9 +218,9 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
   // Adjust arc capacities: cap' = cap - lower_bound
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      Arc* arc = it.get_curr();
-      Node* src = net.get_src_node(arc);
-      Node* tgt = net.get_tgt_node(arc);
+      Arc *arc = it.get_curr();
+      Node *src = net.get_src_node(arc);
+      Node *tgt = net.get_tgt_node(arc);
 
       // Skip super-source/sink arcs (they don't have lower bounds)
       if (src == super_source or tgt == super_sink)
@@ -242,7 +240,7 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
   //
   // For original sources (nodes with no incoming arcs), we add zero-capacity
   // arcs just to make them non-sources in the network topology.
-  for (auto* v : original_nodes)
+  for (auto *v : original_nodes)
     {
       // Check if v is still a source (no incoming arcs)
       if (net.get_in_degree(v) == 0)
@@ -254,11 +252,8 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
         {
           Flow_Type in_cap_orig{0};
           for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
-            {
-              Arc* arc = ait.get_curr();
-              if (net.get_tgt_node(arc) == v and original_caps.contains(arc))
-                in_cap_orig += arc->cap;  // Use modified cap (original - lower)
-            }
+            if (Arc *arc = ait.get_curr(); net.get_tgt_node(arc) == v and original_caps.contains(arc))
+              in_cap_orig += arc->cap;  // Use modified cap (original - lower)
           added_arcs.append(net.insert_arc(v, super_sink, in_cap_orig));
         }
     }
@@ -277,7 +272,7 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
   // First, initialize flows to lower bounds.
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      Arc* arc = it.get_curr();
+      Arc *arc = it.get_curr();
       if (original_caps.contains(arc))
         result.flow[arc] = get_lower(arc);
     }
@@ -293,13 +288,13 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
       while (changed and max_iterations-- > 0)
         {
           changed = false;
-          for (auto* v : original_nodes)
+          for (auto *v : original_nodes)
             {
               // Compute current balance at v
               Flow_Type current_in{0}, current_out{0};
               for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
                 {
-                  Arc* arc = ait.get_curr();
+                  Arc *arc = ait.get_curr();
                   if (not original_caps.contains(arc))
                     continue;
                   if (net.get_tgt_node(arc) == v)
@@ -317,7 +312,7 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
                   Flow_Type deficit = -imbalance;
                   for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
                     {
-                      Arc* arc = ait.get_curr();
+                      Arc *arc = ait.get_curr();
                       if (not original_caps.contains(arc))
                         continue;
                       if (net.get_tgt_node(arc) != v)
@@ -341,7 +336,7 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
                   Flow_Type excess = imbalance;
                   for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
                     {
-                      Arc* arc = ait.get_curr();
+                      Arc *arc = ait.get_curr();
                       if (not original_caps.contains(arc))
                         continue;
                       if (net.get_src_node(arc) != v)
@@ -366,7 +361,7 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
   // Cleanup: restore original capacities and reset flows
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      Arc* arc = it.get_curr();
+      Arc *arc = it.get_curr();
       if (original_caps.contains(arc))
         {
           arc->cap = original_caps[arc];
@@ -375,7 +370,7 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
     }
 
   // Cleanup: remove added arcs (must be done before removing nodes)
-  for (Arc* arc : added_arcs)
+  for (Arc *arc : added_arcs)
     net.remove_arc(arc);
 
   // Cleanup: remove super nodes we created
@@ -384,7 +379,6 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
 
   return result;
 }
-
 
 //==============================================================================
 // PROJECT SELECTION (MAX PROFIT / CLOSURE)
@@ -396,15 +390,15 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
 template <typename Value_Type>
 struct Project
 {
-  size_t id;                           ///< Unique project ID
-  Value_Type profit;                   ///< Profit (positive) or cost (negative)
-  std::vector<size_t> prerequisites;   ///< IDs of prerequisite projects
-  std::string name;                    ///< Optional name
+  size_t id;                          ///< Unique project ID
+  Value_Type profit;                  ///< Profit (positive) or cost (negative)
+  std::vector<size_t> prerequisites;  ///< IDs of prerequisite projects
+  std::string name;                   ///< Optional name
 
-  Project(size_t id_, Value_Type profit_,
-          const std::vector<size_t>& prereqs = {},
-          const std::string& name_ = "")
-    : id(id_), profit(profit_), prerequisites(prereqs), name(name_) {}
+  Project(size_t id_, Value_Type profit_, const std::vector<size_t> &prereqs = {},
+          const std::string &name_ = "")
+    : id(id_), profit(profit_), prerequisites(prereqs), name(name_)
+  {}
 };
 
 /** @brief Result of project selection.
@@ -413,10 +407,10 @@ struct Project
 template <typename Value_Type>
 struct ProjectSelectionResult
 {
-  Value_Type max_profit{0};            ///< Maximum achievable profit
-  std::vector<size_t> selected;        ///< IDs of selected projects
-  Value_Type total_revenue{0};         ///< Sum of positive profits
-  Value_Type total_cost{0};            ///< Sum of negative profits (costs)
+  Value_Type max_profit{0};      ///< Maximum achievable profit
+  std::vector<size_t> selected;  ///< IDs of selected projects
+  Value_Type total_revenue{0};   ///< Sum of positive profits
+  Value_Type total_cost{0};      ///< Sum of negative profits (costs)
 };
 
 /** @brief Solve project selection problem using max-flow.
@@ -453,11 +447,9 @@ struct ProjectSelectionResult
  *  @ingroup Networks
  */
 template <typename Value_Type>
-ProjectSelectionResult<Value_Type>
-solve_project_selection(const std::vector<Project<Value_Type>>& projects)
+ProjectSelectionResult<Value_Type> solve_project_selection(const std::vector<Project<Value_Type>> &projects)
 {
-  using Net = Net_Graph<Net_Node<Empty_Class>,
-                        Net_Arc<Empty_Class, Value_Type>>;
+  using Net = Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class, Value_Type>>;
   using Node = typename Net::Node;
 
   ProjectSelectionResult<Value_Type> result;
@@ -469,11 +461,11 @@ solve_project_selection(const std::vector<Project<Value_Type>>& projects)
   const Value_Type INF = std::numeric_limits<Value_Type>::max() / 2;
 
   // Create source and sink
-  Node* source = net.insert_node();
-  Node* sink = net.insert_node();
+  Node *source = net.insert_node();
+  Node *sink = net.insert_node();
 
   // Create project nodes
-  std::vector<Node*> project_nodes(projects.size());
+  std::vector<Node *> project_nodes(projects.size());
   for (size_t i = 0; i < projects.size(); ++i)
     project_nodes[i] = net.insert_node();
 
@@ -498,10 +490,8 @@ solve_project_selection(const std::vector<Project<Value_Type>>& projects)
 
       // Add prerequisite edges (infinite capacity)
       for (size_t prereq : projects[i].prerequisites)
-        {
-          if (prereq < projects.size())
-            net.insert_arc(project_nodes[i], project_nodes[prereq], INF);
-        }
+        if (prereq < projects.size())
+          net.insert_arc(project_nodes[i], project_nodes[prereq], INF);
     }
 
   // Solve min-cut (via max-flow)
@@ -510,16 +500,16 @@ solve_project_selection(const std::vector<Project<Value_Type>>& projects)
   result.max_profit = sum_positive - min_cut;
 
   // Find selected projects (reachable from source in residual graph)
-  DynSetTree<Node*> reachable;
+  DynSetTree<Node *> reachable;
 
   // BFS from source in residual graph
-  DynListQueue<Node*> queue;
+  DynListQueue<Node *> queue;
   queue.put(source);
   reachable.insert(source);
 
   while (not queue.is_empty())
     {
-      Node* u = queue.front();
+      Node *u = queue.front();
       queue.get();
 
       for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
@@ -547,20 +537,17 @@ solve_project_selection(const std::vector<Project<Value_Type>>& projects)
 
   // Projects reachable from source are selected
   for (size_t i = 0; i < projects.size(); ++i)
-    {
-      if (reachable.contains(project_nodes[i]))
-        {
-          result.selected.push_back(i);
-          if (projects[i].profit > 0)
-            result.total_revenue += projects[i].profit;
-          else
-            result.total_cost += -projects[i].profit;
-        }
-    }
+    if (reachable.contains(project_nodes[i]))
+      {
+        result.selected.push_back(i);
+        if (projects[i].profit > 0)
+          result.total_revenue += projects[i].profit;
+        else
+          result.total_cost += -projects[i].profit;
+      }
 
   return result;
 }
-
 
 //==============================================================================
 // BASEBALL ELIMINATION
@@ -574,11 +561,12 @@ struct Team
   std::string name;
   int wins;
   int losses;
-  int remaining;                      ///< Games remaining
-  std::vector<int> against;           ///< Games remaining against each team
+  int remaining;             ///< Games remaining
+  std::vector<int> against;  ///< Games remaining against each team
 
-  Team(const std::string& n = "", int w = 0, int l = 0, int r = 0)
-    : name(n), wins(w), losses(l), remaining(r) {}
+  Team(const std::string &n = "", int w = 0, int l = 0, int r = 0)
+    : name(n), wins(w), losses(l), remaining(r)
+  {}
 };
 
 /** @brief Result of baseball elimination check.
@@ -586,9 +574,9 @@ struct Team
  */
 struct BaseballEliminationResult
 {
-  bool eliminated{false};             ///< Is the team mathematically eliminated?
-  std::vector<size_t> certificate;    ///< Teams that form elimination certificate
-  int max_possible_wins{0};           ///< Maximum wins team can achieve
+  bool eliminated{false};           ///< Is the team mathematically eliminated?
+  std::vector<size_t> certificate;  ///< Teams that form elimination certificate
+  int max_possible_wins{0};         ///< Maximum wins team can achieve
 };
 
 /** @brief Check if a team is mathematically eliminated from winning.
@@ -624,8 +612,8 @@ struct BaseballEliminationResult
  *
  *  @ingroup Networks
  */
-inline BaseballEliminationResult
-check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
+inline BaseballEliminationResult check_baseball_elimination(const std::vector<Team> &teams,
+                                                            size_t team_idx)
 {
   using Net = Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class, int>>;
   using Node = Net::Node;
@@ -635,40 +623,34 @@ check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
   if (team_idx >= teams.size())
     return result;
 
-  const Team& x = teams[team_idx];
+  const Team &x = teams[team_idx];
   result.max_possible_wins = x.wins + x.remaining;
 
   // Trivial elimination check
   for (size_t i = 0; i < teams.size(); ++i)
-    {
-      if (i != team_idx and teams[i].wins > result.max_possible_wins)
-        {
-          result.eliminated = true;
-          result.certificate.push_back(i);
-          return result;
-        }
-    }
+    if (i != team_idx and teams[i].wins > result.max_possible_wins)
+      {
+        result.eliminated = true;
+        result.certificate.push_back(i);
+        return result;
+      }
 
   Net net;
-  const int INF = 1000000;
 
-  Node* source = net.insert_node();
-  Node* sink = net.insert_node();
+  Node *source = net.insert_node();
+  Node *sink = net.insert_node();
 
   // Create team nodes (excluding team x)
-  std::vector<Node*> team_nodes(teams.size(), nullptr);
+  std::vector<Node *> team_nodes(teams.size(), nullptr);
   for (size_t i = 0; i < teams.size(); ++i)
-    {
-      if (i != team_idx)
-        {
-          team_nodes[i] = net.insert_node();
+    if (i != team_idx)
+      {
+        team_nodes[i] = net.insert_node();
 
-          // Team to sink: capacity = max wins x can have - current wins of i
-          int cap = result.max_possible_wins - teams[i].wins;
-          if (cap > 0)
-            net.insert_arc(team_nodes[i], sink, cap);
-        }
-    }
+        // Team to sink: capacity = max wins x can have - current wins of i
+        if (int cap = result.max_possible_wins - teams[i].wins; cap > 0)
+          net.insert_arc(team_nodes[i], sink, cap);
+      }
 
   // Create game nodes
   int total_games = 0;
@@ -685,9 +667,10 @@ check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
           int games = teams[i].against[j];
           if (games > 0)
             {
+              constexpr int INF = 1000000;
               total_games += games;
 
-              Node* game_node = net.insert_node();
+              Node *game_node = net.insert_node();
               net.insert_arc(source, game_node, games);
               net.insert_arc(game_node, team_nodes[i], INF);
               net.insert_arc(game_node, team_nodes[j], INF);
@@ -699,7 +682,7 @@ check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
   net.make_super_source();
   net.make_super_sink();
 
-  int max_flow = dinic_maximum_flow(net);
+  const int max_flow = dinic_maximum_flow(net);
 
   result.eliminated = (max_flow < total_games);
 
@@ -707,28 +690,27 @@ check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
   if (result.eliminated)
     {
       // BFS from source in residual graph
-      DynSetTree<Node*> reachable;
-      DynListQueue<Node*> queue;
+      DynSetTree<Node *> reachable;
+      DynListQueue<Node *> queue;
       queue.put(source);
       reachable.insert(source);
 
       while (not queue.is_empty())
         {
-          Node* u = queue.front();
+          Node *u = queue.front();
           queue.get();
 
           for (Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
             {
-              auto arc = it.get_curr();
+              const auto arc = it.get_curr();
               auto v = net.get_connected_node(arc, u);
 
               if (reachable.contains(v))
                 continue;
 
-              int residual = (net.get_src_node(arc) == u) ?
-                  (arc->cap - arc->flow) : arc->flow;
-
-              if (residual > 0)
+              if (const int residual =
+                    (net.get_src_node(arc) == u) ? (arc->cap - arc->flow) : arc->flow;
+                  residual > 0)
                 {
                   reachable.insert(v);
                   queue.put(v);
@@ -737,14 +719,12 @@ check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
         }
 
       for (size_t i = 0; i < teams.size(); ++i)
-        if (i != team_idx and team_nodes[i] != nullptr and
-            reachable.contains(team_nodes[i]))
+        if (i != team_idx and team_nodes[i] != nullptr and reachable.contains(team_nodes[i]))
           result.certificate.push_back(i);
     }
 
   return result;
 }
-
 
 //==============================================================================
 // IMAGE SEGMENTATION (BINARY LABELING)
@@ -756,7 +736,7 @@ check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
 struct SegmentationResult
 {
   std::vector<std::vector<int>> labels;  ///< 0 or 1 for each pixel
-  double energy{0};                       ///< Total energy of segmentation
+  double energy{0};                      ///< Total energy of segmentation
 };
 
 /** @brief Segment image using graph cuts.
@@ -797,13 +777,11 @@ struct SegmentationResult
  *  @ingroup Networks
  */
 template <typename Value_Type>
-SegmentationResult segment_image(
-    size_t rows, size_t cols,
-    const std::vector<std::vector<std::array<Value_Type, 2>>>& data_cost,
-    Value_Type smoothness)
+SegmentationResult segment_image(size_t rows, size_t cols,
+                                 const std::vector<std::vector<std::array<Value_Type, 2>>> &data_cost,
+                                 Value_Type smoothness)
 {
-  using Net = Net_Graph<Net_Node<Empty_Class>,
-                        Net_Arc<Empty_Class, Value_Type>>;
+  using Net = Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class, Value_Type>>;
   using Node = typename Net::Node;
 
   SegmentationResult result;
@@ -815,11 +793,11 @@ SegmentationResult segment_image(
   Net net;
 
   // Create source (label 0) and sink (label 1)
-  Node* source = net.insert_node();
-  Node* sink = net.insert_node();
+  Node *source = net.insert_node();
+  Node *sink = net.insert_node();
 
   // Create pixel nodes
-  std::vector<std::vector<Node*>> pixels(rows, std::vector<Node*>(cols));
+  std::vector<std::vector<Node *>> pixels(rows, std::vector<Node *>(cols));
   for (size_t i = 0; i < rows; ++i)
     for (size_t j = 0; j < cols; ++j)
       pixels[i][j] = net.insert_node();
@@ -845,15 +823,15 @@ SegmentationResult segment_image(
         // Right neighbor
         if (j + 1 < cols)
           {
-            net.insert_arc(pixels[i][j], pixels[i][j+1], smoothness);
-            net.insert_arc(pixels[i][j+1], pixels[i][j], smoothness);
+            net.insert_arc(pixels[i][j], pixels[i][j + 1], smoothness);
+            net.insert_arc(pixels[i][j + 1], pixels[i][j], smoothness);
           }
 
         // Bottom neighbor
         if (i + 1 < rows)
           {
-            net.insert_arc(pixels[i][j], pixels[i+1][j], smoothness);
-            net.insert_arc(pixels[i+1][j], pixels[i][j], smoothness);
+            net.insert_arc(pixels[i][j], pixels[i + 1][j], smoothness);
+            net.insert_arc(pixels[i + 1][j], pixels[i][j], smoothness);
           }
       }
 
@@ -866,15 +844,15 @@ SegmentationResult segment_image(
   result.energy = static_cast<double>(min_cut);
 
   // Extract labels (BFS from source in residual graph)
-  DynSetTree<Node*> foreground;  // Reachable = foreground (label 1)
+  DynSetTree<Node *> foreground;  // Reachable = foreground (label 1)
 
-  DynListQueue<Node*> queue;
+  DynListQueue<Node *> queue;
   queue.put(source);
   foreground.insert(source);
 
   while (not queue.is_empty())
     {
-      Node* u = queue.front();
+      Node *u = queue.front();
       queue.get();
 
       for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
@@ -885,8 +863,7 @@ SegmentationResult segment_image(
           if (foreground.contains(v))
             continue;
 
-          Value_Type residual = (net.get_src_node(arc) == u) ?
-              (arc->cap - arc->flow) : arc->flow;
+          Value_Type residual = (net.get_src_node(arc) == u) ? (arc->cap - arc->flow) : arc->flow;
 
           if (residual > Value_Type{0})
             {
@@ -904,7 +881,6 @@ SegmentationResult segment_image(
   return result;
 }
 
-
 //==============================================================================
 // SURVEY DESIGN
 //==============================================================================
@@ -915,8 +891,8 @@ SegmentationResult segment_image(
 struct SurveyQuestion
 {
   size_t id;
-  int min_responses;   ///< Minimum number of responses needed
-  int max_responses;   ///< Maximum responses accepted
+  int min_responses;  ///< Minimum number of responses needed
+  int max_responses;  ///< Maximum responses accepted
 };
 
 /** @brief Survey respondent with constraints.
@@ -925,8 +901,8 @@ struct SurveyQuestion
 struct SurveyRespondent
 {
   size_t id;
-  int min_questions;   ///< Minimum questions to answer
-  int max_questions;   ///< Maximum questions can answer
+  int min_questions;                       ///< Minimum questions to answer
+  int max_questions;                       ///< Maximum questions can answer
   std::vector<size_t> eligible_questions;  ///< Questions this respondent can answer
 };
 
@@ -952,9 +928,8 @@ struct SurveyDesignResult
  *
  *  @ingroup Networks
  */
-inline SurveyDesignResult
-design_survey(const std::vector<SurveyQuestion>& questions,
-              const std::vector<SurveyRespondent>& respondents)
+inline SurveyDesignResult design_survey(const std::vector<SurveyQuestion> &questions,
+                                        const std::vector<SurveyRespondent> &respondents)
 {
   using Net = Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class, int>>;
   using Node = Net::Node;
@@ -966,11 +941,11 @@ design_survey(const std::vector<SurveyQuestion>& questions,
 
   Net net;
 
-  Node* source = net.insert_node();
-  Node* sink = net.insert_node();
+  Node *source = net.insert_node();
+  Node *sink = net.insert_node();
 
   // Create question nodes
-  std::vector<Node*> question_nodes(questions.size());
+  std::vector<Node *> question_nodes(questions.size());
   for (size_t i = 0; i < questions.size(); ++i)
     {
       question_nodes[i] = net.insert_node();
@@ -981,7 +956,7 @@ design_survey(const std::vector<SurveyQuestion>& questions,
     }
 
   // Create respondent nodes
-  std::vector<Node*> respondent_nodes(respondents.size());
+  std::vector<Node *> respondent_nodes(respondents.size());
   for (size_t i = 0; i < respondents.size(); ++i)
     {
       respondent_nodes[i] = net.insert_node();
@@ -1008,13 +983,9 @@ design_survey(const std::vector<SurveyQuestion>& questions,
   for (size_t i = 0; i < questions.size(); ++i)
     {
       int responses = 0;
-      for (Net::Node_Arc_Iterator it(question_nodes[i]); it.has_curr();
-           it.next_ne())
-        {
-          auto arc = it.get_curr();
-          if (net.get_tgt_node(arc) == sink)
-            responses = arc->flow;
-        }
+      for (Net::Node_Arc_Iterator it(question_nodes[i]); it.has_curr(); it.next_ne())
+        if (const auto arc = it.get_curr(); net.get_tgt_node(arc) == sink)
+          responses = arc->flow;
 
       if (responses < questions[i].min_responses)
         {
@@ -1025,31 +996,23 @@ design_survey(const std::vector<SurveyQuestion>& questions,
 
   // Extract assignments
   if (result.feasible)
-    {
-      for (size_t r = 0; r < respondents.size(); ++r)
-        {
-          for (Net::Node_Arc_Iterator it(respondent_nodes[r]);
-               it.has_curr(); it.next_ne())
-            {
-              auto arc = it.get_curr();
-              if (arc->flow > 0)
+    for (size_t r = 0; r < respondents.size(); ++r)
+      for (Net::Node_Arc_Iterator it(respondent_nodes[r]); it.has_curr(); it.next_ne())
+        if (const auto arc = it.get_curr(); arc->flow > 0)
+          {
+            // Find which question this is
+            const auto tgt = net.get_tgt_node(arc);
+            for (size_t q = 0; q < questions.size(); ++q)
+              if (question_nodes[q] == tgt)
                 {
-                  // Find which question this is
-                  auto tgt = net.get_tgt_node(arc);
-                  for (size_t q = 0; q < questions.size(); ++q)
-                    if (question_nodes[q] == tgt)
-                      {
-                        result.assignments.push_back({r, q});
-                        break;
-                      }
+                  result.assignments.push_back({r, q});
+                  break;
                 }
-            }
-        }
-    }
+          }
 
   return result;
 }
 
-} // namespace Aleph
+}  // namespace Aleph
 
-#endif // NET_APPS_H
+#endif  // NET_APPS_H

@@ -384,6 +384,8 @@ inline void selection_sort(T *a, const size_t n,
 template <class Link, class Compare>
 inline Link *search_extreme(const Link &list, const Compare &cmp)
 {
+  /// `list` is only read, but the generic Iterator interface requires a
+  /// non-const list; the const_cast is safe since nothing mutates through it.
   typename Link::Iterator it(const_cast<Link &>(list));
   Link *extreme = it.get_curr();
 
@@ -403,6 +405,7 @@ inline const T *search_extreme(const DynList<T> &list, const Compare &cmp = Comp
   if (list.is_empty())
     return nullptr;
 
+  /// Iterator positioned at the first element, used as the initial extreme.
   typename DynList<T>::Iterator it(list);
   const T *extreme = &it.get_curr();
   it.next_ne();
@@ -621,6 +624,7 @@ Link *sequential_search(const Link &list, const T &x, Equal &eq)
 template <typename T, class Equal = Aleph::equal_to<T>>
 Dlink *sequential_search(const Dlink &list, const T &x, Equal eq = Equal())
 {
+  /// Adapt the element-equality comparator into a node-vs-node comparator.
   Compare_Dnode<T, Equal> cmp(eq);
   return sequential_search<Dlink, T, Compare_Dnode<T, Equal>>(list, x, cmp);
 }
@@ -634,6 +638,7 @@ Dlink *sequential_search(const Dlink &list, const T &x, Equal eq = Equal())
 template <typename T, class Equal = Aleph::equal_to<T>>
 Slinknc *sequential_search(const Slinknc &list, const T &x, Equal eq = Equal())
 {
+  /// Adapt the element-equality comparator into a node-vs-node comparator.
   Compare_Snodenc<T, Equal> cmp(eq);
   return sequential_search<Slinknc, T, Compare_Snodenc<T, Equal>>(list, x, cmp);
 }
@@ -647,6 +652,7 @@ Slinknc *sequential_search(const Slinknc &list, const T &x, Equal eq = Equal())
 template <typename T, class Equal = Aleph::equal_to<T>>
 inline Dnode<T> *sequential_search(Dnode<T> &list, const T &x, Equal &eq)
 {
+  /// Adapt the element-equality comparator into a node-vs-node comparator.
   Compare_Dnode<T, Equal> cmp(eq);
   Dlink *ret = sequential_search<Dlink, T, Compare_Dnode<T, Equal>>(list, x, cmp);
 
@@ -669,6 +675,7 @@ inline Dnode<T> *sequential_search(Dnode<T> &list, const T &x, Equal &&eq = Equa
 template <typename T, class Equal = Aleph::equal_to<T>>
 inline const Dnode<T> *sequential_search(const Dnode<T> &list, const T &x, Equal &eq)
 {
+  /// Adapt the element-equality comparator into a node-vs-node comparator.
   Compare_Dnode<T, Equal> cmp(eq);
   const auto &base = static_cast<const Dlink &>(list);
   const Dlink *ret = sequential_search<Dlink, T, Compare_Dnode<T, Equal>>(base, x, cmp);
@@ -1493,6 +1500,7 @@ inline long partition(T *a, const long l, const long r,
     return l;
 
   const long p = select_pivot<T, Compare>(a, l, r, cmp);
+  /// Move the pivot to the end so the sweep below only handles [l, r-1].
   std::swap(a[p], a[r]);
 
   // Note: pivot stays at a[r] throughout the loop - no copy needed
@@ -1512,10 +1520,11 @@ inline long partition(T *a, const long l, const long r,
       if (i >= j)
         break;
 
-      // At this point there is an inversion a[i] > pivot > a[j]
+      /// At this point there is an inversion a[i] > pivot > a[j].
       std::swap(a[i], a[j]);  // Eliminate inversion
     }
 
+  /// Place the pivot in its final sorted position.
   std::swap(a[i], a[r]);  // Place pivot in its final position
 
   return i;
@@ -1629,10 +1638,14 @@ inline long select_pivot(T *a, const long l, const long r,
 {
   const long m = l + (r - l) / 2;
 
+  /// Median-of-three: sort a[l], a[m], a[r] in place, then use the
+  /// middle value's index as the pivot.
   if (cmp(a[r], a[l]))
     std::swap(a[l], a[r]);
+  /// Second comparison of the median-of-three ordering pass.
   if (cmp(a[m], a[l]))
     std::swap(a[m], a[l]);
+  /// Third comparison of the median-of-three ordering pass.
   if (cmp(a[r], a[m]))
     std::swap(a[r], a[m]);
 
@@ -1691,6 +1704,7 @@ inline void quicksort(T *a, const long l, const long r, const Compare &cmp = Com
   const auto n = static_cast<size_t>(r - l + 1);
 
   typedef std::pair<long, long> Partition;
+  /// Explicit partition stack, sized to introsort's worst-case depth.
   FixedStack<Partition> stack(introsort_depth_limit(n) + 2);
   stack.push(Partition(l, r));
 
@@ -1835,7 +1849,7 @@ inline void introsort(T *a, const long l, const long r, const Compare &cmp = Com
       return;
     }
 
-  // Main introsort loop with depth limit
+  /// Main introsort loop with depth limit.
   introsort_loop<T, Compare>(a, l, r, introsort_depth_limit(n), cmp);
 
   // Final insertion sort pass for small unsorted subarrays
@@ -2213,6 +2227,8 @@ inline Dnode<T> *dlink_random_search(Dlink &list, const T &x, const Compare &cmp
   if (list.is_empty())
     return nullptr;
 
+  /// Wraps `x` in a node so it can be compared via `cmp` the same way as
+  /// the list's own nodes.
   Dnode<T> item(x);
   Dnode<T> *item_ptr = &item;  // pointer to the cell containing x
 
@@ -2320,6 +2336,7 @@ template <typename T, class Compare>
 static inline std::pair<long, long> partition_three_way(T *a, long l, long r, const Compare &cmp)
 {
   const long pivot_idx = select_pivot<T, Compare>(a, l, r, cmp);
+  /// Move the pivot to the end so the sweep below only handles [l, r-1].
   std::swap(a[pivot_idx], a[r]);
 
   long lt = l;
@@ -2341,6 +2358,7 @@ static inline std::pair<long, long> partition_three_way(T *a, long l, long r, co
     else
       current++;
 
+  /// Restore the pivot (parked at `r`) to its final sorted position.
   std::swap(a[current], a[r]);
   return {lt, current};
 }
@@ -2350,6 +2368,7 @@ static inline std::pair<long, long> partition_three_way_op(Container &a, long l,
                                                            const Compare &cmp)
 {
   const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp);
+  /// Move the pivot to the end so the sweep below only handles [l, r-1].
   std::swap(a(pivot_idx), a(r));
 
   long lt = l;
@@ -2371,6 +2390,7 @@ static inline std::pair<long, long> partition_three_way_op(Container &a, long l,
     else
       current++;
 
+  /// Restore the pivot (parked at `r`) to its final sorted position.
   std::swap(a(current), a(r));
   return {lt, current};
 }
@@ -2479,6 +2499,7 @@ inline long partition_op_impl(Container &a, const long l, const long r, const Co
 
   // Move the selected pivot to position r
   if (const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp); pivot_idx != r)
+    /// Only swap when the pivot isn't already at `r`.
     std::swap(a(pivot_idx), a(r));
 
   // Now pivot value is at a(r) - use direct access instead of reference
@@ -2497,6 +2518,7 @@ inline long partition_op_impl(Container &a, const long l, const long r, const Co
       std::swap(a(i), a(j));
     }
 
+  /// Restore the pivot to its final sorted position at index `i`.
   std::swap(a(i), a(r));
 
   return i;
@@ -2918,6 +2940,7 @@ inline void bubble_sort(DynArray<T> &a, const Compare &cmp = Compare())
   for (long i = 0; i < n - 1; ++i)
     for (long j = n - 1; j > i; --j)
       if (cmp(a(j), a(j - 1)))
+        /// Bubble the smaller element one position toward the front.
         std::swap(a(j - 1), a(j));
 }
 
@@ -3321,6 +3344,7 @@ inline void quicksort(DynArray<T> &a, const Compare &cmp = Compare())
   long l = 0, r = a.size() - 1;
 
   const size_t n = a.size();
+  /// Explicit partition stack, sized to introsort's worst-case depth.
   FixedStack<long> stack((introsort_depth_limit(n) + 2) * 2);
 
   push2(stack, l, r);
@@ -3492,7 +3516,7 @@ inline void introsort(DynArray<T> &a, const Compare &cmp = Compare())
       return;
     }
 
-  // Main introsort loop with depth limit
+  /// Main introsort loop with depth limit.
   introsort_loop<T, Compare>(a, 0, n - 1, introsort_depth_limit(n), cmp);
 
   // Final insertion sort pass for small unsorted subarrays
@@ -4601,8 +4625,8 @@ void counting_sort_indices(Array<size_t> &sa, Array<size_t> &tmp, const size_t n
 
   const auto range_minus_one = static_cast<unsigned long long>(static_cast<long long>(max_key) -
                                                                static_cast<long long>(min_key));
-  constexpr auto max_count =
-    static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
+  /// Largest range representable without overflowing a size_t index count.
+  constexpr auto max_count = static_cast<unsigned long long>(std::numeric_limits<size_t>::max() - size_t(1));
   ah_runtime_error_unless(range_minus_one <= max_count)
     << "counting_sort_indices(): key range is too large";
 
@@ -5167,6 +5191,7 @@ template <typename T>
   requires CountingSortable<T>
 void counting_sort(DynArray<T> &a)
 {
+  /// Delegate to the shared count-then-place implementation.
   sort_utils_detail::counting_sort_impl(a);
 }
 
@@ -5189,6 +5214,7 @@ template <typename T>
   requires CountingSortable<T>
 void counting_sort(Array<T> &a)
 {
+  /// Delegate to the shared count-then-place implementation.
   sort_utils_detail::counting_sort_impl(a);
 }
 
@@ -5215,6 +5241,7 @@ template <typename T>
   requires CountingSortable<T>
 void counting_sort(DynList<T> &list)
 {
+  /// Delegate to the shared count-then-place implementation.
   sort_utils_detail::counting_sort_impl(list);
 }
 
@@ -5241,6 +5268,7 @@ template <typename T>
   requires CountingSortable<T>
 void counting_sort(DynDlist<T> &list)
 {
+  /// Delegate to the shared count-then-place implementation.
   sort_utils_detail::counting_sort_impl(list);
 }
 
@@ -5264,6 +5292,7 @@ void counting_sort(T *a, const size_t n)
 {
   ah_invalid_argument_if(a == nullptr and n > 0)
     << "counting_sort(): null pointer with non-zero length";
+  /// Delegate to the shared count-then-place implementation.
   sort_utils_detail::counting_sort_impl(a, n);
 }
 
@@ -5317,6 +5346,7 @@ template <typename T>
   requires RadixSortable<T>
 void radix_sort(DynArray<T> &a)
 {
+  /// Delegate to the shared LSD bucket-distribution implementation.
   sort_utils_detail::radix_sort_impl(a);
 }
 
@@ -5338,6 +5368,7 @@ template <typename T>
   requires RadixSortable<T>
 void radix_sort(Array<T> &a)
 {
+  /// Delegate to the shared LSD bucket-distribution implementation.
   sort_utils_detail::radix_sort_impl(a);
 }
 
@@ -5355,6 +5386,7 @@ template <typename T>
   requires RadixSortable<T>
 void radix_sort(DynList<T> &list)
 {
+  /// Delegate to the shared LSD bucket-distribution implementation.
   sort_utils_detail::radix_sort_impl(list);
 }
 
@@ -5372,6 +5404,7 @@ template <typename T>
   requires RadixSortable<T>
 void radix_sort(DynDlist<T> &list)
 {
+  /// Delegate to the shared LSD bucket-distribution implementation.
   sort_utils_detail::radix_sort_impl(list);
 }
 
@@ -5393,6 +5426,7 @@ void radix_sort(T *a, const size_t n)
 {
   ah_invalid_argument_if(a == nullptr and n > 0)
     << "radix_sort(): null pointer with non-zero length";
+  /// Delegate to the shared LSD bucket-distribution implementation.
   sort_utils_detail::radix_sort_impl(a, n);
 }
 
@@ -5612,6 +5646,7 @@ void bucket_sort(T *a, const size_t n, const size_t num_buckets, const BucketKey
 {
   ah_invalid_argument_if(a == nullptr and n > 0)
     << "bucket_sort(): null pointer with non-zero length";
+  /// Delegate to the shared bucket-distribute-and-merge implementation.
   bucket_sort_detail::bucket_sort_impl(a, n, num_buckets, bucket_key, cmp);
 }
 
@@ -6330,6 +6365,7 @@ void timsort(T *a, const size_t n, const Compare &cmp = Compare())
   if (n < 2)
     return;
 
+  /// Delegate to the shared run-detection-and-merge implementation.
   timsort_detail::timsort_impl(a, n, cmp);
 }
 
@@ -6358,6 +6394,7 @@ void timsort(T *a, const long l, const long r, const Compare &cmp = Compare())
     << "timsort(): null pointer contract violation for range [" << l << ", " << r
     << "]; cannot call timsort_detail::timsort_impl()";
 
+  /// Delegate to the shared implementation over the [l, r] sub-range.
   timsort_detail::timsort_impl(a + l, static_cast<size_t>(r - l + 1), cmp);
 }
 
