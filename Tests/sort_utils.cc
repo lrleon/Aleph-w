@@ -40,6 +40,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <limits>
 #include <random>
 #include <string>
@@ -80,6 +81,61 @@ static DynArray<int> make_dynarray(std::initializer_list<int> xs)
   for (const int x : xs)
     a(i++) = x;
   return a;
+}
+
+template <class Compare>
+std::vector<size_t> stable_index_reference(const std::vector<int> &values,
+                                           const Compare &cmp)
+{
+  std::vector<size_t> ref(values.size());
+  for (size_t i = 0; i < ref.size(); ++i)
+    ref[i] = i;
+
+  std::stable_sort(ref.begin(), ref.end(),
+                   [&values, &cmp](const size_t i, const size_t j)
+  {
+    return cmp(values[i], values[j]);
+  });
+
+  return ref;
+}
+
+template <class Index>
+void expect_index_matches_reference(const Index &idx,
+                                    const std::vector<size_t> &ref)
+{
+  ASSERT_EQ(idx.size(), ref.size());
+  for (size_t i = 0; i < ref.size(); ++i)
+    EXPECT_EQ(idx(i), ref[i]) << "position " << i;
+}
+
+template <class Compare>
+void expect_stable_build_index_matches_reference_exhaustively(const Compare &cmp)
+{
+  constexpr size_t max_n = 7;
+  constexpr size_t alphabet = 3;
+
+  for (size_t n = 0; n <= max_n; ++n)
+    {
+      size_t cases = 1;
+      for (size_t i = 0; i < n; ++i)
+        cases *= alphabet;
+
+      for (size_t code = 0; code < cases; ++code)
+        {
+          std::vector<int> values(n);
+          size_t x = code;
+          for (size_t i = 0; i < n; ++i)
+            {
+              values[i] = static_cast<int>(x % alphabet);
+              x /= alphabet;
+            }
+
+          const auto idx = stable_build_index(values, cmp);
+          const auto ref = stable_index_reference(values, cmp);
+          expect_index_matches_reference(idx, ref);
+        }
+    }
 }
 
 static DynList<int> make_dynlist(std::initializer_list<int> xs)
@@ -1198,14 +1254,138 @@ TEST(SortUtilsIndexBuild, build_index_and_build_index_ptr)
   auto a = make_dynarray({3, 1, 2, 1, 0});
 
   auto idx = build_index(a);
+
+  static_assert(std::is_same_v<decltype(idx), Array<size_t>>);
   ASSERT_EQ(idx.size(), a.size());
   for (size_t i = 1; i < idx.size(); ++i)
     ASSERT_LE(a(idx(i - 1)), a(idx(i)));
 
   auto ptrs = build_index_ptr(a);
+  static_assert(std::is_same_v<decltype(ptrs), Array<int *>>);
   ASSERT_EQ(ptrs.size(), a.size());
   for (size_t i = 1; i < ptrs.size(); ++i)
     ASSERT_LE(*ptrs(i - 1), *ptrs(i));
+
+  const auto &ca = a;
+  auto cptrs = build_index_ptr(ca);
+  static_assert(std::is_same_v<decltype(cptrs), Array<const int *>>);
+  ASSERT_EQ(cptrs.size(), a.size());
+  for (size_t i = 1; i < cptrs.size(); ++i)
+    ASSERT_LE(*cptrs(i - 1), *cptrs(i));
+}
+
+TEST(SortUtilsIndexBuild, build_index_supports_std_vector)
+{
+  std::vector<int> a = {3, 1, 2, 1, 0};
+
+  auto idx = build_index(a);
+
+  static_assert(std::is_same_v<decltype(idx), Array<size_t>>);
+  ASSERT_EQ(idx.size(), a.size());
+  for (size_t i = 1; i < idx.size(); ++i)
+    ASSERT_LE(a[idx(i - 1)], a[idx(i)]);
+}
+
+TEST(SortUtilsIndexBuild, stable_build_index_preserves_equal_order_dynarray)
+{
+  auto a = make_dynarray({2, 1, 2, 1, 2});
+
+  auto idx = stable_build_index(a);
+
+  static_assert(std::is_same_v<decltype(idx), Array<size_t>>);
+  ASSERT_EQ(idx.size(), a.size());
+  EXPECT_EQ(idx(0), 1u);
+  EXPECT_EQ(idx(1), 3u);
+  EXPECT_EQ(idx(2), 0u);
+  EXPECT_EQ(idx(3), 2u);
+  EXPECT_EQ(idx(4), 4u);
+}
+
+TEST(SortUtilsIndexBuild, stable_build_index_ptr_preserves_equal_order)
+{
+  auto a = make_dynarray({2, 1, 2, 1, 2});
+
+  auto ptrs = stable_build_index_ptr(a);
+
+  static_assert(std::is_same_v<decltype(ptrs), Array<int *>>);
+  ASSERT_EQ(ptrs.size(), a.size());
+  // Same stable order as stable_build_index's {1, 3, 0, 2, 4} on this
+  // exact input, expressed as pointers into `a` instead of indices.
+  EXPECT_EQ(ptrs(0), &a(1));
+  EXPECT_EQ(ptrs(1), &a(3));
+  EXPECT_EQ(ptrs(2), &a(0));
+  EXPECT_EQ(ptrs(3), &a(2));
+  EXPECT_EQ(ptrs(4), &a(4));
+
+  const auto &ca = a;
+  auto cptrs = stable_build_index_ptr(ca);
+  static_assert(std::is_same_v<decltype(cptrs), Array<const int *>>);
+  ASSERT_EQ(cptrs.size(), a.size());
+  for (size_t i = 0; i < ptrs.size(); ++i)
+    EXPECT_EQ(cptrs(i), ptrs(i));
+}
+
+TEST(SortUtilsIndexBuild, stable_build_index_ptr_preserves_large_duplicate_groups)
+{
+  DynArray<int> a;
+  a.reserve(75);
+  for (size_t i = 0; i < 75; ++i)
+    a(i) = static_cast<int>((i * 17) % 5);
+
+  auto ptrs = stable_build_index_ptr(a);
+
+  static_assert(std::is_same_v<decltype(ptrs), Array<int *>>);
+  ASSERT_EQ(ptrs.size(), a.size());
+  for (size_t i = 1; i < ptrs.size(); ++i)
+    {
+      ASSERT_LE(*ptrs(i - 1), *ptrs(i));
+      if (*ptrs(i - 1) == *ptrs(i))
+        EXPECT_LT(ptrs(i - 1), ptrs(i))
+          << "equal-valued elements must keep their original relative order";
+    }
+}
+
+TEST(SortUtilsIndexBuild, stable_build_index_preserves_large_duplicate_groups)
+{
+  std::vector<int> a;
+  for (size_t i = 0; i < 75; ++i)
+    a.push_back(static_cast<int>((i * 17) % 5));
+
+  auto idx = stable_build_index(a);
+
+  static_assert(std::is_same_v<decltype(idx), Array<size_t>>);
+  ASSERT_EQ(idx.size(), a.size());
+  for (size_t i = 1; i < idx.size(); ++i)
+    {
+      ASSERT_LE(a[idx(i - 1)], a[idx(i)]);
+      if (a[idx(i - 1)] == a[idx(i)])
+        EXPECT_LT(idx(i - 1), idx(i));
+    }
+}
+
+TEST(SortUtilsIndexBuild, stable_build_index_exhaustive_matches_stable_sort_reference)
+{
+  expect_stable_build_index_matches_reference_exhaustively(std::less<int>());
+}
+
+TEST(SortUtilsIndexBuild, stable_build_index_exhaustive_matches_descending_stable_sort_reference)
+{
+  expect_stable_build_index_matches_reference_exhaustively(std::greater<int>());
+}
+
+TEST(SortUtilsIndexBuild, stable_build_index_supports_std_vector)
+{
+  std::vector<int> a = {2, 1, 2, 1, 2};
+
+  auto idx = stable_build_index(a);
+
+  static_assert(std::is_same_v<decltype(idx), Array<size_t>>);
+  ASSERT_EQ(idx.size(), a.size());
+  EXPECT_EQ(idx(0), 1u);
+  EXPECT_EQ(idx(1), 3u);
+  EXPECT_EQ(idx(2), 0u);
+  EXPECT_EQ(idx(3), 2u);
+  EXPECT_EQ(idx(4), 4u);
 }
 
 TEST(SortUtilsSlinkncPath, sequential_search_and_search_extreme_on_slinknc)

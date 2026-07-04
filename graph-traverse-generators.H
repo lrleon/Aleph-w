@@ -8,7 +8,7 @@
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy
+  Permission is hereby granted, free of charge, to any peen rson obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
   in the Software without restriction, including without limitation the rights
   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
@@ -109,6 +109,20 @@ enum class Traverse_State : unsigned char
  *  @tparam Show_Arc Arc filter functor; arcs for which it returns `false`
  *          are skipped, exactly as in `Graph_Traverse`.
  *
+ *  @note Thread safety / reentrancy: `traverse()` is neither reentrant nor
+ *        thread-safe on a shared `GT`. It mutates the bound graph directly
+ *        (`g_.reset_nodes()`, `g_.reset_arcs()`, and per-node/per-arc
+ *        `set_state()` as the coroutine resumes) rather than tracking
+ *        state of its own, so at most one active traversal may exist on a
+ *        given graph at a time. Calling `traverse()` again on the same
+ *        `GT` — from another thread, or from the same thread while a
+ *        previous `Generator` from this class is still being iterated
+ *        (not yet exhausted or destroyed) — resets state out from under
+ *        that other traversal and corrupts both. Callers needing
+ *        concurrent or overlapping traversals of the same graph must
+ *        supply their own external synchronization (e.g. serialize full
+ *        traversals with a mutex), or traverse separate `GT` instances.
+ *
  *  @ingroup Graphs
  */
 template <class GT, class Itor,
@@ -168,6 +182,10 @@ public:
    *        bind the traverser to a named variable first (as every example
    *        and test in this codebase already does) and keep it alive for
    *        as long as the returned sequence is iterated.
+   *  @note Not reentrant/thread-safe on a shared `GT` — see the
+   *        class-level note. Do not start a new traversal on this graph
+   *        until the previous one (if any) is exhausted or its `Generator`
+   *        destroyed.
    */
   Aleph::Generator<typename GT::Node *> traverse(typename GT::Node *start) &
   {

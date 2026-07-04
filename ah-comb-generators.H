@@ -56,11 +56,10 @@
 #ifndef AH_COMB_GENERATORS_H
 #define AH_COMB_GENERATORS_H
 
-#include <algorithm>
-
 #include <ah-comb.H>
 #include <ah-generator.H>
 #include <tpl_array.H>
+#include <tpl_sort_utils.H>
 
 namespace Aleph
 {
@@ -106,7 +105,7 @@ Aleph::Generator<Array<T>> lazy_permutations(Array<T> a, Compare cmp = Compare()
 {
   /// Start from the lexicographically smallest permutation so the loop
   /// below enumerates the complete sequence.
-  std::sort(a.begin(), a.end(), cmp);
+  timsort(a, cmp);
   co_yield a;
   while (next_permutation(a, cmp, false))
     co_yield a;

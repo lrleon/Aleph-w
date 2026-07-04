@@ -76,6 +76,7 @@
 #include <ahFunction.H>
 #include <htlist.H>
 #include <tpl_memArray.H>
+#include <tpl_sort_utils.H>
 
 namespace Aleph {
 
@@ -225,7 +226,7 @@ class FlatMap
       tmp.put(std::pair<Key, T>(std::move(kp[i]), std::move(vp[i])));
 
     std::pair<Key, T> *tp = tmp.get_ptr();
-    std::stable_sort(tp, tp + m, [this](const auto &a, const auto &b)
+    timsort(tp, m, [this](const auto &a, const auto &b)
       {
         return cmp_(a.first, b.first);
       });

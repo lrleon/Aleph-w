@@ -59,7 +59,7 @@ SpacesInAngles: Never
 # Alignment
 AlignAfterOpenBracket: Align
 BinPackArguments: true
-BinPackParameters: false
+BinPackParameters: true
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: false
 AlignOperands: DontAlign

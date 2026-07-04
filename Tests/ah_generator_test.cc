@@ -216,6 +216,31 @@ TEST(Generator, ResumingAfterExhaustionIsSafe)
   EXPECT_THROW(++it, std::domain_error);
 }
 
+TEST(Generator, DefaultConstructedGeneratorIsAnEmptyRange)
+{
+  // Generator() is documented as "empty/singular": no coroutine attached.
+  // begin() must treat that the same as an exhausted/never-yielding
+  // sequence (begin() == end(), zero iterations) rather than throwing —
+  // the usual empty-range/empty-container convention, and consistent with
+  // iterator::done() already tolerating a null handle.
+  Generator<int> g;
+  EXPECT_EQ(g.begin(), g.end());
+
+  int count = 0;
+  for (int i : g)
+    { (void) i; ++count; }
+  EXPECT_EQ(count, 0);
+}
+
+TEST(Generator, MovedFromGeneratorIsAnEmptyRange)
+{
+  Generator<int> g = countdown(3);
+  Generator<int> moved = std::move(g);
+  // g is now moved-from ("empty/singular"): iterating it must not resume
+  // the coroutine moved's handle now owns.
+  EXPECT_EQ(g.begin(), g.end());
+}
+
 TEST(Generator, ExceptionPropagatesFromResume)
 {
   std::vector<int> seen;

@@ -73,6 +73,7 @@
 #include <ah-errors.H>
 #include <ahFunction.H>
 #include <tpl_memArray.H>
+#include <tpl_sort_utils.H>
 
 namespace Aleph {
 
@@ -192,7 +193,7 @@ class FlatSet
   void sort_and_unique()
   {
     Key *p = keys_.get_ptr();
-    std::stable_sort(p, p + keys_.size(), cmp_);
+    timsort(p, keys_.size(), cmp_);
     size_t m = 0;
     for (size_t i = 0; i < keys_.size(); ++i)
       if (m == 0 or cmp_(p[m - 1], p[i]))

@@ -324,7 +324,11 @@ public:
 
   /** @brief Begin iterating: resumes the coroutine to its first `co_yield`.
    *  @return An iterator positioned at the first value (or already `end()`
-   *          if the body never yields or was already exhausted).
+   *          if the body never yields, was already exhausted, or this is a
+   *          default-constructed/moved-from `Generator` with no coroutine
+   *          attached — an "empty/singular" `Generator` iterates zero times
+   *          rather than throwing, matching the usual empty-range/empty-
+   *          container convention).
    *  @throws Whatever the coroutine body throws before its first
    *          `co_yield`, if anything.
    *  @note `begin()` is lvalue-qualified on purpose: range-`for` over a
@@ -342,8 +346,7 @@ public:
    */
   iterator begin() &
   {
-    ah_out_of_range_error_if(not handle_) << "Generator::begin(): empty generator";
-    if (not handle_.done())
+    if (handle_ and not handle_.done())
       {
         handle_.resume();
         if (handle_.promise().pending_exception)
@@ -353,7 +356,7 @@ public:
   }
 
   /// End sentinel, per the C++20 sentinel-based range model.
-  std::default_sentinel_t end() const noexcept { return std::default_sentinel; }
+  static std::default_sentinel_t end() noexcept { return std::default_sentinel; }
 
 private:
   Handle handle_{};
