@@ -51,6 +51,7 @@
  *   function that only needs to read it, and get a read-only `mdspan`.
  */
 
+#include <cassert>
 #include <iostream>
 
 #include <print_rule.H>
@@ -75,8 +76,6 @@ void demo_shared_buffer()
   grid.set(0, 0, 9);                               // write through the storage API
   std::cout << "v(0, 0) after grid.set(0,0,9): " << v(0, 0) << " (expect 9)\n\n";
 }
-
-#include <cassert>
 
 // A minimal 4-neighbour (von Neumann) sum, reading interior cells only —
 // the kind of loop that benefits from plain m(i, j) indexing. Must not be used on edge cells.
