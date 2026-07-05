@@ -231,6 +231,7 @@ set(TEST_PROGRAMS
     tpl_binNodeGenerators_test
     graph_traverse_generators_test
     ah_comb_generators_test
+    ah_mdspan_test
     index-node
     sort_arrays
     primes

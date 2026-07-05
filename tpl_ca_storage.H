@@ -59,6 +59,7 @@
 #include <utility>
 
 #include <ah-errors.H>
+#include <ah-mdspan.H>
 #include <tpl_array.H>
 
 #include <ca-traits.H>
@@ -267,6 +268,36 @@ public:
   {
     return total_cells_ == 0 ? nullptr : &buffer_[0];
   }
+
+  /// Non-owning, zero-copy `N`-dimensional view of this storage's buffer.
+  using view_type = Aleph::mdspan<T, Aleph::dextents<ca_size_t, N>>;
+
+  /// Non-owning, zero-copy read-only `N`-dimensional view of this storage's buffer.
+  using const_view_type = Aleph::mdspan<const T, Aleph::dextents<ca_size_t, N>>;
+
+  /** @brief Return a mutable `Aleph::mdspan` view of this storage.
+   *
+   *  The view is a pointer plus the current `extents()`: it aliases this
+   *  object's buffer directly (no allocation, no copy). It is invalidated
+   *  by anything that would also invalidate `data()` (e.g. `swap()` with
+   *  another storage, or `this` being destroyed) but not by an in-place
+   *  `set()`/`fill()`/`at()` through the original storage or through the
+   *  view itself — both read and write the same cells.
+   *
+   *  @par Example
+   *  @code
+   *  Dense_Cell_Storage<double, 2> grid({3, 4});
+   *  auto v = grid.view();
+   *  v(1, 2) = 5.0;              // same cell as grid.at({1, 2})
+   *  for (ca_size_t i = 0; i < v.extent(0); ++i)
+   *    for (ca_size_t j = 0; j < v.extent(1); ++j)
+   *      std::cout << v(i, j) << " ";
+   *  @endcode
+   */
+  [[nodiscard]] view_type view() noexcept { return view_type(data(), ext_); }
+
+  /// \overload view() — read-only view over a `const` storage.
+  [[nodiscard]] const_view_type view() const noexcept { return const_view_type(data(), ext_); }
 
   /// O(1) swap with another storage of the same type.
   void swap(Dense_Cell_Storage &other) noexcept

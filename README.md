@@ -4069,6 +4069,8 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | `ah-arena.H` | `AhArenaAllocator` | Arena allocator |
 | `ah-arena.H` | `allocate<T>()` | Construct object in arena |
 | `ah-arena.H` | `dealloc<T>()` | Destroy object from arena |
+| `ah-mdspan.H` | `Aleph::mdspan<T, Extents>` | Non-owning, zero-copy multidimensional view over a contiguous buffer (native C++20 — aliased to `std::mdspan` when the toolchain has `<mdspan>`); `layout_right` (row-major, default) and `layout_left` (column-major) |
+| `tpl_ca_storage.H` | `Dense_Cell_Storage::view()` | `Aleph::mdspan` view of a CA lattice's own buffer, for `grid(i, j)`-style indexing with zero extra allocation |
 
 #### Compiler Tooling
 

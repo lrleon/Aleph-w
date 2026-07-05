@@ -207,6 +207,7 @@ set(HLIST
     ah-cpp-compat.H
     ah-diagnostics.H
     ah-generator.H
+    ah-mdspan.H
     Compiler_Token.H
     Compiler_Lexer.H
     Compiler_Parser_Utils.H
