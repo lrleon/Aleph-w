@@ -769,6 +769,120 @@ TEST(StressTest, LargeGraphBFS)
 }
 
 // =============================================================================
+// Self-Loop Regression Tests
+// =============================================================================
+//
+// The initial frontier-seeding loop in operator()(start, op), exec(), and
+// operator()(start, node_op, arc_op) used to unconditionally overwrite the
+// target node's state to Processing. For a self-loop at the start node
+// (tgt == start), this clobbered start's already-Processed state, causing
+// it to be re-discovered and visited a second time — and, depending on
+// queue ordering, could prevent other reachable nodes from being visited
+// at all.
+
+TEST(SelfLoopTest, SingleOpVisitsStartOnce)
+{
+  TestGraph g;
+  auto *a = g.insert_node(1);
+  auto *b = g.insert_node(2);
+  g.insert_arc(a, a, 0.0);  // self-loop at the start node
+  g.insert_arc(a, b, 1.0);
+
+  using Itor = Node_Arc_Iterator<TestGraph>;
+  std::vector<int> bfs_seen;
+  Graph_Traverse_BFS<TestGraph, Itor> bfs(g);
+  size_t bfs_count = bfs(a, [&](TestGraph::Node *n) {
+    bfs_seen.push_back(n->get_info());
+    return true;
+  });
+  EXPECT_EQ(bfs_count, 2u);
+  EXPECT_EQ(bfs_seen, (std::vector<int>{1, 2}));
+
+  std::vector<int> dfs_seen;
+  Graph_Traverse_DFS<TestGraph, Itor> dfs(g);
+  size_t dfs_count = dfs(a, [&](TestGraph::Node *n) {
+    dfs_seen.push_back(n->get_info());
+    return true;
+  });
+  EXPECT_EQ(dfs_count, 2u);
+  EXPECT_EQ(dfs_seen, (std::vector<int>{1, 2}));
+}
+
+TEST(SelfLoopTest, ExecVisitsStartOnce)
+{
+  TestGraph g;
+  auto *a = g.insert_node(1);
+  auto *b = g.insert_node(2);
+  g.insert_arc(a, a, 0.0);
+  g.insert_arc(a, b, 1.0);
+
+  using Itor = Node_Arc_Iterator<TestGraph>;
+  std::vector<int> seen;
+  Graph_Traverse_BFS<TestGraph, Itor> bfs(g);
+  size_t count = bfs.exec(a, [&](TestGraph::Node *n, TestGraph::Arc *) {
+    seen.push_back(n->get_info());
+    return true;
+  });
+  EXPECT_EQ(count, 2u);
+  EXPECT_EQ(seen, (std::vector<int>{1, 2}));
+}
+
+TEST(SelfLoopTest, DualOpVisitsStartOnceAndSkipsSelfLoopArc)
+{
+  TestGraph g;
+  auto *a = g.insert_node(1);
+  auto *b = g.insert_node(2);
+  g.insert_arc(a, a, 0.0);
+  g.insert_arc(a, b, 1.0);
+
+  using Itor = Node_Arc_Iterator<TestGraph>;
+  std::vector<int> node_seen;
+  int arc_count = 0;
+  Graph_Traverse_BFS<TestGraph, Itor> bfs(g);
+  auto node_op = [&](TestGraph::Node *n) {
+    node_seen.push_back(n->get_info());
+    return true;
+  };
+  auto arc_op = [&](TestGraph::Arc *) {
+    ++arc_count;
+    return true;
+  };
+  auto [node_count, total_arc_count] = bfs(a, node_op, arc_op);
+
+  EXPECT_EQ(node_count, 2u);
+  EXPECT_EQ(node_seen, (std::vector<int>{1, 2}));
+  // Only the real arc to b is reported; the self-loop arc leads to an
+  // already-Processed node and is skipped, matching the main loop's own
+  // "don't re-report arcs into already-visited nodes" behavior.
+  EXPECT_EQ(total_arc_count, 1u);
+  EXPECT_EQ(arc_count, 1);
+}
+
+TEST(SelfLoopTest, MidTraversalSelfLoopDoesNotBlockDiscovery)
+{
+  // A self-loop on a node discovered mid-traversal was already handled
+  // correctly by the main loop's own guard; kept here for symmetry with
+  // the start-node cases above.
+  TestGraph g;
+  auto *a = g.insert_node(1);
+  auto *b = g.insert_node(2);
+  auto *c = g.insert_node(3);
+  g.insert_arc(a, b, 1.0);
+  g.insert_arc(b, b, 0.0);  // self-loop at a non-start node
+  g.insert_arc(b, c, 1.0);
+
+  using Itor = Node_Arc_Iterator<TestGraph>;
+  std::vector<int> seen;
+  Graph_Traverse_BFS<TestGraph, Itor> bfs(g);
+  size_t count = bfs(a, [&](TestGraph::Node *n) {
+    seen.push_back(n->get_info());
+    return true;
+  });
+  EXPECT_EQ(count, 3u);
+  EXPECT_EQ(seen, (std::vector<int>{1, 2, 3}));
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 

@@ -40,8 +40,10 @@
 #include <vector>
 #include <deque>
 #include <algorithm>
+#include <functional>
 #include <random>
 #include <string>
+#include <type_traits>
 
 #include <ahSort.H>
 #include <tpl_dynArray.H>
@@ -50,6 +52,64 @@
 
 using namespace Aleph;
 using namespace std;
+
+namespace {
+
+template <class Compare>
+vector<size_t> stable_index_reference(const vector<int> &values,
+                                      const Compare &cmp)
+{
+  vector<size_t> ref(values.size());
+  for (size_t i = 0; i < ref.size(); ++i)
+    ref[i] = i;
+
+  std::stable_sort(ref.begin(), ref.end(), [&values, &cmp](size_t i, size_t j)
+  {
+    return cmp(values[i], values[j]);
+  });
+
+  return ref;
+}
+
+template <class Index>
+void expect_index_matches_reference(const Index &idx,
+                                    const vector<size_t> &ref)
+{
+  ASSERT_EQ(idx.size(), ref.size());
+  for (size_t i = 0; i < ref.size(); ++i)
+    EXPECT_EQ(idx(i), ref[i]) << "position " << i;
+}
+
+template <class Compare>
+void expect_stable_argsort_matches_reference_exhaustively(const Compare &cmp)
+{
+  constexpr size_t max_n = 7;
+  constexpr size_t alphabet = 3;
+
+  for (size_t n = 0; n <= max_n; ++n)
+    {
+      size_t cases = 1;
+      for (size_t i = 0; i < n; ++i)
+        cases *= alphabet;
+
+      for (size_t code = 0; code < cases; ++code)
+        {
+          vector<int> values(n);
+          size_t x = code;
+          for (size_t i = 0; i < n; ++i)
+            {
+              values[i] = static_cast<int>(x % alphabet);
+              x /= alphabet;
+            }
+
+          const auto idx = stable_argsort(values, cmp);
+          const auto ref = stable_index_reference(values, cmp);
+          expect_index_matches_reference(idx, ref);
+        }
+    }
+}
+
+} // namespace
 
 // ============================================================================
 // Test Fixtures
@@ -404,6 +464,223 @@ TEST(StdSortTest, SortsEmptyContainer)
   std::vector<int> empty;
   auto sorted = stdsort(empty);
   EXPECT_TRUE(sorted.empty());
+}
+
+// ============================================================================
+// argsort() tests
+// ============================================================================
+
+TEST(ArgsortTest, ArrayReturnsSortedOrderIndices)
+{
+  Array<int> arr;
+  arr.append(30);
+  arr.append(10);
+  arr.append(20);
+
+  auto idx = argsort(arr);
+
+  static_assert(std::is_same_v<decltype(idx), Array<size_t>>);
+  ASSERT_EQ(idx.size(), arr.size());
+  EXPECT_EQ(idx(0), 1u);
+  EXPECT_EQ(idx(1), 2u);
+  EXPECT_EQ(idx(2), 0u);
+  EXPECT_EQ(arr(idx(0)), 10);
+  EXPECT_EQ(arr(idx(1)), 20);
+  EXPECT_EQ(arr(idx(2)), 30);
+}
+
+TEST(ArgsortTest, DynArrayReturnsSortedOrderIndices)
+{
+  DynArray<int> arr;
+  arr.reserve(3);
+  arr(0) = 30;
+  arr(1) = 10;
+  arr(2) = 20;
+
+  auto idx = argsort(arr);
+
+  ASSERT_EQ(idx.size(), arr.size());
+  EXPECT_EQ(arr(idx(0)), 10);
+  EXPECT_EQ(arr(idx(1)), 20);
+  EXPECT_EQ(arr(idx(2)), 30);
+}
+
+TEST(ArgsortTest, StdVectorReturnsSortedOrderIndices)
+{
+  vector<int> values = {30, 10, 20};
+
+  auto idx = argsort(values);
+
+  ASSERT_EQ(idx.size(), values.size());
+  EXPECT_EQ(idx(0), 1u);
+  EXPECT_EQ(idx(1), 2u);
+  EXPECT_EQ(idx(2), 0u);
+  EXPECT_EQ(values[idx(0)], 10);
+  EXPECT_EQ(values[idx(1)], 20);
+  EXPECT_EQ(values[idx(2)], 30);
+}
+
+TEST(ArgsortTest, EmptyStdVectorReturnsEmptyIndex)
+{
+  vector<int> values;
+
+  auto idx = argsort(values);
+
+  EXPECT_TRUE(idx.is_empty());
+}
+
+TEST(ArgsortTest, CustomComparatorDescending)
+{
+  vector<int> values = {10, 30, 20};
+
+  auto idx = argsort(values, std::greater<int>());
+
+  ASSERT_EQ(idx.size(), values.size());
+  EXPECT_EQ(values[idx(0)], 30);
+  EXPECT_EQ(values[idx(1)], 20);
+  EXPECT_EQ(values[idx(2)], 10);
+}
+
+TEST(ArgsortTest, MatchesBuildIndexForAlephArrays)
+{
+  DynArray<int> arr;
+  arr.reserve(5);
+  arr(0) = 5;
+  arr(1) = 1;
+  arr(2) = 4;
+  arr(3) = 2;
+  arr(4) = 3;
+
+  auto idx = argsort(arr);
+  auto ref = build_index(arr);
+
+  ASSERT_EQ(idx.size(), ref.size());
+  for (size_t i = 0; i < idx.size(); ++i)
+    EXPECT_EQ(idx(i), ref(i));
+}
+
+TEST(StableArgsortTest, ArrayPreservesEquivalentOrder)
+{
+  Array<int> arr;
+  arr.append(2);
+  arr.append(1);
+  arr.append(2);
+  arr.append(1);
+  arr.append(2);
+
+  auto idx = stable_argsort(arr);
+
+  static_assert(std::is_same_v<decltype(idx), Array<size_t>>);
+  ASSERT_EQ(idx.size(), arr.size());
+  EXPECT_EQ(idx(0), 1u);
+  EXPECT_EQ(idx(1), 3u);
+  EXPECT_EQ(idx(2), 0u);
+  EXPECT_EQ(idx(3), 2u);
+  EXPECT_EQ(idx(4), 4u);
+}
+
+TEST(StableArgsortTest, DynArrayPreservesEquivalentOrder)
+{
+  DynArray<int> arr;
+  arr.reserve(5);
+  arr(0) = 2;
+  arr(1) = 1;
+  arr(2) = 2;
+  arr(3) = 1;
+  arr(4) = 2;
+
+  auto idx = stable_argsort(arr);
+
+  ASSERT_EQ(idx.size(), arr.size());
+  EXPECT_EQ(idx(0), 1u);
+  EXPECT_EQ(idx(1), 3u);
+  EXPECT_EQ(idx(2), 0u);
+  EXPECT_EQ(idx(3), 2u);
+  EXPECT_EQ(idx(4), 4u);
+}
+
+TEST(StableArgsortTest, StdVectorPreservesEquivalentOrder)
+{
+  vector<int> values = {2, 1, 2, 1, 2};
+
+  auto idx = stable_argsort(values);
+
+  ASSERT_EQ(idx.size(), values.size());
+  EXPECT_EQ(idx(0), 1u);
+  EXPECT_EQ(idx(1), 3u);
+  EXPECT_EQ(idx(2), 0u);
+  EXPECT_EQ(idx(3), 2u);
+  EXPECT_EQ(idx(4), 4u);
+}
+
+TEST(StableArgsortTest, AllEquivalentValuesPreserveOriginalOrder)
+{
+  vector<int> values(64, 7);
+
+  auto idx = stable_argsort(values);
+
+  ASSERT_EQ(idx.size(), values.size());
+  for (size_t i = 0; i < idx.size(); ++i)
+    EXPECT_EQ(idx(i), i);
+}
+
+TEST(StableArgsortTest, LargeDuplicateGroupsPreserveOriginalOrder)
+{
+  vector<int> values;
+  for (size_t i = 0; i < 75; ++i)
+    values.push_back(static_cast<int>((i * 17) % 5));
+
+  auto idx = stable_argsort(values);
+
+  ASSERT_EQ(idx.size(), values.size());
+  for (size_t i = 1; i < idx.size(); ++i)
+    {
+      ASSERT_LE(values[idx(i - 1)], values[idx(i)]);
+      if (values[idx(i - 1)] == values[idx(i)])
+        EXPECT_LT(idx(i - 1), idx(i));
+    }
+}
+
+TEST(StableArgsortTest, ExhaustiveSmallInputsMatchStableSortReference)
+{
+  expect_stable_argsort_matches_reference_exhaustively(std::less<int>());
+}
+
+TEST(StableArgsortTest, ExhaustiveSmallInputsMatchDescendingStableSortReference)
+{
+  expect_stable_argsort_matches_reference_exhaustively(std::greater<int>());
+}
+
+TEST(StableArgsortTest, CustomComparatorDescendingPreservesEquivalentOrder)
+{
+  vector<int> values = {1, 3, 2, 3, 2};
+
+  auto idx = stable_argsort(values, std::greater<int>());
+
+  ASSERT_EQ(idx.size(), values.size());
+  EXPECT_EQ(idx(0), 1u);
+  EXPECT_EQ(idx(1), 3u);
+  EXPECT_EQ(idx(2), 2u);
+  EXPECT_EQ(idx(3), 4u);
+  EXPECT_EQ(idx(4), 0u);
+}
+
+TEST(StableArgsortTest, MatchesStableBuildIndexForAlephArrays)
+{
+  DynArray<int> arr;
+  arr.reserve(5);
+  arr(0) = 2;
+  arr(1) = 1;
+  arr(2) = 2;
+  arr(3) = 1;
+  arr(4) = 2;
+
+  auto idx = stable_argsort(arr);
+  auto ref = stable_build_index(arr);
+
+  ASSERT_EQ(idx.size(), ref.size());
+  for (size_t i = 0; i < idx.size(); ++i)
+    EXPECT_EQ(idx(i), ref(i));
 }
 
 // ============================================================================

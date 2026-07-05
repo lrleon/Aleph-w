@@ -4014,6 +4014,7 @@ Please refer to the canonical [Dynamic Programming Algorithms](#readme-dp-algori
 | Header | Functions / Classes | Description |
 |--------|---------------------|-------------|
 | `ah-comb.H` | `next_permutation()`, `next_combination_indices()`, `next_combination_mask()`, `for_each_combination()`, `build_combinations()`, `combination_count()`, `bin_to_gray()`, `gray_to_bin()`, `build_gray_code()` | Lexicographic permutation, k-combination enumeration, and Gray code utilities |
+| `ah-comb-generators.H` | `lazy_permutations()`, `lazy_combinations()` | Lazy (coroutine-based) permutation/combination enumeration built on the `ah-comb.H` step primitives |
 
 #### Mathematics & Number Theory
 
@@ -4124,6 +4125,9 @@ The longer-term platform roadmap lives in
 | `ahFunctional.H` | `map`, `filter`, `fold`, ... | Core FP operations |
 | `ah-ranges.H` | `to_dynlist`, `to_dynarray` | Range adaptors |
 | `ah-zip.H` | `zip`, `unzip` | Tuple operations |
+| `ah-generator.H` | `Aleph::Generator<T>` | Lazy, single-pass sequence via C++20 coroutines (native — not aliased to `std::generator`) |
+| `tpl_binNodeGenerators.H` | `lazy_in_order()`, `lazy_pre_order()`, `lazy_post_order()` | Lazy (coroutine-based) binary tree traversals; eager `for_each_*` counterparts unchanged |
+| `graph-traverse-generators.H` | `Graph_Traverse_BFS_Generator`, `Graph_Traverse_DFS_Generator` | Lazy (coroutine-based) graph BFS/DFS; eager `Graph_Traverse_BFS/DFS` unchanged |
 
 ---
 

@@ -8,6 +8,9 @@
  * - Survey design
  */
 
+
+#include <array>
+
 #include <gtest/gtest.h>
 #include <map>
 #include <net_apps.H>

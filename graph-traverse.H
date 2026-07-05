@@ -67,6 +67,14 @@ namespace // local constants to avoid collisions with aleph-graph.H
     @tparam Q Queue type: DynListStack for DFS, DynListQueue for BFS
     @tparam Show_Arc Arc filter functor
 
+    @warning `graph-traverse-generators.H`'s `Graph_Traverse_Generator`
+             re-implements `operator()(start, op)`'s algorithm as a
+             coroutine (a plain callback can't `co_yield`, so it can't just
+             wrap this class). A behavioral fix here — anything touching
+             node/arc state transitions, not just cosmetics — needs the
+             matching fix applied there too; it will not pick it up
+             automatically. See its own class-level `@see` back to here.
+
     @ingroup Graphs
  */
 template <class GT, class Itor,
@@ -76,6 +84,34 @@ class Graph_Traverse
 {
   GT & g;
   Show_Arc sa;
+
+  /** Prepare arc `a` (leading to `tgt`) for frontier expansion out of
+      `start`/`curr`, and report whether the caller should enqueue it.
+
+      If `tgt` is a genuine new discovery (`Unprocessed`), both `a` and
+      `tgt` are marked `Processing` and this returns `true` — the caller
+      should enqueue `a`. Otherwise (`tgt` already `Processing` or
+      `Processed`, which includes the `tgt == start`/`tgt == curr`
+      self-loop case: `start`/`curr` is already `Processed` by the time
+      this runs) `a` is marked `Processed` and this returns `false` — the
+      caller must not enqueue it. Shared by every seeding loop below so the
+      self-loop guard exists in exactly one place.
+
+      @param a arc under consideration
+      @param tgt the node `a` leads to
+      @return `true` if `a` was queued for expansion, `false` otherwise
+  */
+  static bool seed_arc(typename GT::Arc *a, typename GT::Node *tgt) noexcept
+  {
+    if (tgt->state() != GT_Unprocessed)
+      {
+        a->set_state(GT_Processed);
+        return false;
+      }
+    a->set_state(GT_Processing);
+    tgt->set_state(GT_Processing);
+    return true;
+  }
 
 public:
   /// Construct a traverser with a graph and arc filter
@@ -105,9 +141,8 @@ public:
       {
         typename GT::Arc *a = it.get_curr();
         typename GT::Node *tgt = g.get_connected_node(a, start);
-        a->set_state(GT_Processing);
-        tgt->set_state(GT_Processing);
-        q.put(a);
+        if (seed_arc(a, tgt))
+          q.put(a);
       }
 
     const size_t n = g.vsize();
@@ -135,15 +170,8 @@ public:
             if (a->state() != GT_Unprocessed)
               continue;
             typename GT::Node *tgt = g.get_connected_node(a, curr);
-            if (tgt->state() == GT_Unprocessed)
-              {
-                assert(a->state() != GT_Processing);
-                q.put(a);
-                a->set_state(GT_Processing);
-                tgt->set_state(GT_Processing);
-              }
-            else
-              a->set_state(GT_Processed);
+            if (seed_arc(a, tgt))
+              q.put(a);
           }
       }
 
@@ -184,9 +212,8 @@ public:
       {
         typename GT::Arc *a = it.get_curr();
         typename GT::Node *tgt = g.get_connected_node(a, start);
-        a->set_state(GT_Processing);
-        tgt->set_state(GT_Processing);
-        q.put(std::make_tuple(start, a));
+        if (seed_arc(a, tgt))
+          q.put(std::make_tuple(start, a));
       }
 
     const size_t n = g.vsize();
@@ -210,15 +237,9 @@ public:
             typename GT::Arc *a = it.get_curr();
             if (a->state() != GT_Unprocessed)
               continue;
-            if (typename GT::Node *tgt = g.get_connected_node(a, curr); tgt->state() == GT_Unprocessed)
-              {
-                assert(a->state() != GT_Processing);
-                a->set_state(GT_Processing);
-                tgt->set_state(GT_Processing);
-                q.put(std::make_tuple(curr, a));
-              }
-            else
-              a->set_state(GT_Processed);
+            typename GT::Node *tgt = g.get_connected_node(a, curr);
+            if (seed_arc(a, tgt))
+              q.put(std::make_tuple(curr, a));
           }
       }
 
@@ -259,12 +280,25 @@ public:
       {
         typename GT::Arc *a = it.get_curr();
         typename GT::Node *tgt = g.get_connected_node(a, start);
-        a->set_state(GT_Processing);
-        tgt->set_state(GT_Processing);
-        q.put(a);
-        ++arc_count;
-        if (not arc_op(a))
-          return std::make_tuple(node_count, arc_count);
+        // Deliberately NOT the shared seed_arc() helper: this overload
+        // reports "back edges" too (arcs into an already-Processing node
+        // discovered via another arc), which is why it tests
+        // `!= GT_Processed` instead of `== GT_Unprocessed` — a `Processing`
+        // tgt still enqueues `a` and calls arc_op(a) here, unlike the
+        // Unprocessed-only seed_arc() used by the other two overloads. See
+        // DualOpVisitsNodesAndArcs. This still guards the self-loop case
+        // (tgt == start is already Processed by this point).
+        if (tgt->state() != GT_Processed)
+          {
+            a->set_state(GT_Processing);
+            tgt->set_state(GT_Processing);
+            q.put(a);
+            ++arc_count;
+            if (not arc_op(a))
+              return std::make_tuple(node_count, arc_count);
+          }
+        else
+          a->set_state(GT_Processed);
       }
 
     while (not q.is_empty())

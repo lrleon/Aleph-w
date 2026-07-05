@@ -32,12 +32,19 @@
 /**
  * @file combinatorics_enumeration_example.cc
  * @brief Extended lexicographic permutation and k-combination enumeration.
+ *
+ * Sections [1]-[5] use the eager step primitives and materializing builders
+ * from `ah-comb.H`; [6]-[7] show their lazy, coroutine-based counterparts
+ * from `ah-comb-generators.H`.
  */
 
 # include <iomanip>
 # include <iostream>
+# include <utility>
 
+# include <ah-comb-generators.H>
 # include <ah-comb.H>
+# include <print_rule.H>
 
 using namespace Aleph;
 
@@ -56,15 +63,10 @@ namespace
     std::cout << "]";
   }
 
-  void rule()
-  {
-    std::cout << "------------------------------------------------------------\n";
-  }
-
   void demo_next_permutation_multiset()
   {
     std::cout << "[1] next_permutation with duplicates (multiset)\n";
-    rule();
+    print_rule();
 
     Array<int> a = {1, 1, 2, 3};
 
@@ -90,7 +92,7 @@ namespace
   void demo_next_permutation_custom_order()
   {
     std::cout << "[2] next_permutation with custom comparator (descending order)\n";
-    rule();
+    print_rule();
 
     Array<int> a = {4, 3, 2, 1}; // first in Aleph::greater order
 
@@ -108,7 +110,7 @@ namespace
   void demo_next_combination_indices()
   {
     std::cout << "[3] next_combination_indices (k-combinations over [0..n))\n";
-    rule();
+    print_rule();
 
     const size_t n = 6;
     Array<size_t> idx = {0, 1, 2};
@@ -133,7 +135,7 @@ namespace
   void demo_bitmask_combinations()
   {
     std::cout << "[4] next_combination_mask (fixed-popcount bitmask)\n";
-    rule();
+    print_rule();
 
     const size_t n = 6;
     uint64_t mask = first_combination_mask(3); // 000111
@@ -157,7 +159,7 @@ namespace
   void demo_materialized_combinations()
   {
     std::cout << "[5] for_each_combination / build_combinations\n";
-    rule();
+    print_rule();
 
     Array<std::string> features = {
       "geom", "strings", "graphs", "dp", "net"
@@ -181,6 +183,59 @@ namespace
     print_seq(pairs(pairs.size() - 1));
     std::cout << "\n\n";
   }
+
+  // --- Lazy counterparts (ah-comb-generators.H) --------------------------
+  //
+  // next_permutation()/next_combination_indices() already support early
+  // exit — the `do { ... } while (next_*(...))` shape above can `break` at
+  // any point. lazy_permutations()/lazy_combinations() wrap that same
+  // stepping logic as an `Aleph::Generator`, so the payoff here is
+  // *ergonomics and composability* (plain range-`for`, chainable with other
+  // `Generator`-based code), not a capability that was missing before.
+
+  void demo_lazy_permutations()
+  {
+    std::cout << "[6] lazy_permutations (ah-comb-generators.H)\n";
+    print_rule();
+
+    Array<char> a = {'a', 'b', 'c', 'd'};
+    std::cout << "First 5 of the 4! = 24 permutations of a, b, c, d:\n";
+
+    int count = 0;
+    for (const Array<char> &p : lazy_permutations(std::move(a)))
+      {
+        std::cout << std::setw(3) << ++count << " : ";
+        print_seq(p);
+        std::cout << "\n";
+        if (count == 5)
+          break;   // the remaining 19 permutations are never generated
+      }
+    std::cout << "\nNote: the yielded array is reused in place across steps —\n"
+                 "copy it (as print_seq does implicitly, by reading before the\n"
+                 "next iteration) if you need to keep more than one alive.\n\n";
+  }
+
+  void demo_lazy_combinations()
+  {
+    std::cout << "[7] lazy_combinations (ah-comb-generators.H)\n";
+    print_rule();
+
+    Array<std::string> features = {
+      "geom", "strings", "graphs", "dp", "net"
+    };
+    const size_t feature_count = features.size();
+
+    std::cout << "Feature triplets, driven by a range-for instead of a\n"
+                 "callback:\n";
+    for (const Array<std::string> &c : lazy_combinations(std::move(features), 3))
+      {
+        std::cout << "  - ";
+        print_seq(c);
+        std::cout << "\n";
+      }
+    std::cout << "Total: " << combination_count(feature_count, 3)
+              << " combinations, matching for_each_combination in [5].\n\n";
+  }
 } // namespace
 
 int main()
@@ -192,6 +247,8 @@ int main()
   demo_next_combination_indices();
   demo_bitmask_combinations();
   demo_materialized_combinations();
+  demo_lazy_permutations();
+  demo_lazy_combinations();
 
   std::cout << "Done.\n";
   return 0;

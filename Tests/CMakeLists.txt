@@ -227,6 +227,10 @@ set(TEST_PROGRAMS
     ah_init_guard
     ah-utils
     ah_cpp_compat_test
+    ah_generator_test
+    tpl_binNodeGenerators_test
+    graph_traverse_generators_test
+    ah_comb_generators_test
     index-node
     sort_arrays
     primes

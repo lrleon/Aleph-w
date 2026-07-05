@@ -176,7 +176,7 @@ set(HLIST
         tpl_olhash.H tpl_dynSetHash.H ahSort.H
         tpl_random_queue.H tpl_net_sup_dem.H tpl_bipartite.H Blossom.H Blossom_Weighted.H
     Min_Cost_Matching.H
-    blossom_weighted_mwmatching.H graph-traverse.H
+    blossom_weighted_mwmatching.H graph-traverse.H graph-traverse-generators.H
     tpl_dynarray_set.H tpl_kgraph.H tpl_dynMat.H
     ahMem.H ahAssert.H ahDefs.H aleph.H euclidian-graph-common.H
     ahUtils.H ran_array.h tpl_dynDlist.H
@@ -201,11 +201,12 @@ set(HLIST
     tpl_slist.H tpl_snode.H tpl_lhash.H tpl_dynLhash.H
     tpl_memArray.H tpl_dynArray.H hash-dry.H
     bloom-filter.H ah-dry.H graph-dry.H
-    q-consumer-threads.H ah-string-utils.H ah-unique.H ah-comb.H geom_algorithms.H
+    q-consumer-threads.H ah-string-utils.H ah-unique.H ah-comb.H ah-comb-generators.H geom_algorithms.H
     ah-source.H
     ah-errors.H
     ah-cpp-compat.H
     ah-diagnostics.H
+    ah-generator.H
     Compiler_Token.H
     Compiler_Lexer.H
     Compiler_Parser_Utils.H
@@ -321,6 +322,7 @@ set(HLIST
     tpl_array.H
     tpl_avl.H
     tpl_avlRk.H
+    tpl_binNodeGenerators.H
     tpl_binNodeUtils.H
     tpl_binNodeXt.H
     tpl_binTree.H

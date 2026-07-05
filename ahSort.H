@@ -54,6 +54,8 @@
  *  - **Move semantics**: `sort(std::move(c))` sorts efficiently by moving
  *  - **In-place**: `in_place_sort()` modifies container directly
  *  - **Stable**: List sorting preserves relative order of equal elements
+ *  - **Indirect sorting**: `argsort()` computes sorted-order indices
+ *  - **Stable indirect sorting**: `stable_argsort()` preserves equivalent order
  *  - **Ranking**: `ranks()` and `pair_ranks()` compute element positions
  *  - **Multi-sort**: `in_place_multisort_arrays()` sorts multiple arrays together
  *
@@ -65,6 +67,8 @@
  *  | `sort(c, cmp)` | Sorted copy with custom comparator |
  *  | `in_place_sort(c)` | Sorts container in place |
  *  | `stdsort(c)` | Sorts STL containers using std::sort |
+ *  | `argsort(c)` | Returns indices that visit `c` in sorted order |
+ *  | `stable_argsort(c)` | Returns stable sorted-order indices |
  *  | `ranks(c)` | Returns array of ranks for each element |
  *  | `pair_ranks(c)` | Returns pairs of (value, rank) |
  *  | `in_place_multisort_arrays(cmp, a, b, ...)` | Sorts multiple arrays by first |
@@ -91,9 +95,11 @@
  *  auto sorted = sort(std::move(temp));  // temp is now empty, no copy made
  *  ```
  *
- *  ### Ranking
+ *  ### Indirect Sorting and Ranking
  *  ```cpp
  *  DynArray<int> arr = {30, 10, 20};
+ *  auto idx = argsort(arr); // idx = {1, 2, 0}; arr(idx(i)) is sorted
+ *  auto stable_idx = stable_argsort(arr); // stable for equivalent elements
  *  auto r = ranks(arr);  // r = {2, 0, 1} (30 is rank 2, 10 is rank 0, etc.)
  *  ```
  *
@@ -118,9 +124,11 @@
 #define AHSORT_H
 
 #include <algorithm>
+#include <functional>
 #include <numeric>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 #include <ah-errors.H>
 #include <ahFunctional.H>
@@ -334,6 +342,100 @@ namespace Aleph
     return c;
   }
 
+  /** @brief Return indices that visit an array-like container in sorted order.
+   *
+   *  This is the high-level `ahSort.H` synonym for `build_index()` from
+   *  `tpl_sort_utils.H`. It works with both Aleph arrays
+   *  (`Array`, `DynArray`, and other containers exposing `operator()`) and
+   *  STL-style random-access containers such as `std::vector` (via
+   *  `operator[]`). It returns an `Array<size_t>` because the number of
+   *  indices is fixed once the source container size is known.
+   *
+   *  The returned index array has the direction `idx[sorted_pos] = original_pos`.
+   *  In other words, iterating `a(idx(i))` for Aleph arrays, or `a[idx(i)]`
+   *  for STL arrays, observes the original container in sorted order without
+   *  moving its elements.
+   *
+   *  @tparam C Array-like container type. Must provide `size()` and either
+   *          `operator()(size_t)` or `operator[](size_t)`.
+   *  @tparam Compare Strict weak ordering over the element type.
+   *  @param a Container whose elements define the ordering.
+   *  @param cmp Comparator used to order elements.
+   *  @return `Array<size_t>` of original positions in sorted order.
+   *
+   *  @note Complexity: O(n log n) comparisons and O(n) extra storage.
+   *  @note Stability: not stable; equal elements may appear in any relative
+   *        order accepted by `quicksort_op()`.
+   *
+   *  @par Example
+   *  @code
+   *  Array<int> a = {30, 10, 20};
+   *  auto idx = argsort(a);  // {1, 2, 0}
+   *  for (size_t i = 0; i < idx.size(); ++i)
+   *    std::cout << a(idx(i)) << ' '; // 10 20 30
+   *  @endcode
+   *
+   *  @see build_index() Shared implementation in `tpl_sort_utils.H`.
+   *  @see stable_argsort() for a stable variant.
+   *  @see ranks() for the inverse direction, `rank[original_pos] = sorted_pos`.
+   *  @ingroup Algorithms
+   */
+  template <class C,
+            class Compare = Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
+  [[nodiscard]] inline Array<size_t> argsort(const C &a,
+                                             const Compare &cmp = Compare())
+  {
+    return build_index(a, cmp);
+  }
+
+  /** @brief Return stable sorted-order indices for an array-like container.
+   *
+   *  This is the high-level `ahSort.H` synonym for `stable_build_index()`
+   *  from `tpl_sort_utils.H`. It works with Aleph arrays (`Array`, `DynArray`,
+   *  and other containers exposing `operator()`) and with STL-style
+   *  random-access containers such as `std::vector` (via `operator[]`). It
+   *  returns an `Array<size_t>` because the number of indices is fixed once the
+   *  source container size is known.
+   *
+   *  The returned index array has the direction `idx[sorted_pos] = original_pos`.
+   *  Iterating `a(idx(i))` for Aleph arrays, or `a[idx(i)]` for STL arrays,
+   *  observes the original container in sorted order without moving its
+   *  elements.
+   *
+   *  Stability means that elements equivalent according to `cmp` keep their
+   *  original relative order in the returned index array. This is useful when
+   *  sorting by a projection or partial key while preserving a previous order.
+   *
+   *  @tparam C Array-like container type. Must provide `size()` and either
+   *          `operator()(size_t)` or `operator[](size_t)`.
+   *  @tparam Compare Strict weak ordering over the element type.
+   *  @param a Container whose elements define the ordering.
+   *  @param cmp Comparator used to order elements.
+   *  @return `Array<size_t>` of original positions in stable sorted order.
+   *
+   *  @note Complexity: O(n log n) comparisons and O(n) extra storage.
+   *  @note The comparator must define a strict weak ordering; otherwise the
+   *        stable tie-break cannot make the ordering meaningful.
+   *
+   *  @par Example
+   *  @code
+   *  std::vector<int> a = {2, 1, 2, 1, 2};
+   *  auto idx = stable_argsort(a); // {1, 3, 0, 2, 4}
+   *  @endcode
+   *
+   *  @see stable_build_index() Shared implementation in `tpl_sort_utils.H`.
+   *  @see argsort() for the non-stable variant.
+   *  @see ranks() for the inverse direction, `rank[original_pos] = sorted_pos`.
+   *  @ingroup Algorithms
+   */
+  template <class C,
+            class Compare = Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
+  [[nodiscard]] inline Array<size_t> stable_argsort(const C &a,
+                                                    const Compare &cmp = Compare())
+  {
+    return stable_build_index(a, cmp);
+  }
+
   /// @cond INTERNAL
   /** @brief Internal helper class for computing element ranks.
    *
@@ -352,7 +454,18 @@ namespace Aleph
     using P = std::pair<T, size_t>;
 
   public:
-    /// Computes ranks for elements in an array container (DynArray version).
+    /** @brief Computes the rank of each element in an array container (DynArray semantics).
+     *
+     *  The rank corresponds to the position the element would have if the
+     *  container were sorted in ascending order.
+     *
+     *  @param[in] c Array-like container whose elements' ranks are to be computed.
+     *  @return An array container of the same type containing the computed ranks.
+     *          The rank of the element `c(i)` is stored at index `i` in the result.
+     *  @note Complexity: O(n log n) comparisons.
+     *  @throws Propagates exceptions thrown by `T::operator<`.
+     *  @note Thread-safety: Safe for concurrent readers. Modifying the container concurrently results in undefined behavior.
+     */
     C<size_t> compute_ranks(const C<T> & c)
     {
       const size_t n = c.size();
@@ -371,7 +484,20 @@ namespace Aleph
       return ret;
     }
 
-    /// Computes ranks for elements in a list container.
+    /** @brief Computes the rank of each element in a list container.
+     *
+     *  The rank corresponds to the position the element would have if the
+     *  list were sorted in ascending order. Since lists do not provide
+     *  efficient random access, elements are copied internally to an array.
+     *
+     *  @tparam List The list container template.
+     *  @param[in] c List container whose elements' ranks are to be computed.
+     *  @return An array container of type `C<size_t>` containing the computed ranks.
+     *          The order of ranks corresponds to the iteration order of the list.
+     *  @note Complexity: O(n log n) comparisons.
+     *  @throws Propagates exceptions thrown by `T::operator<`.
+     *  @note Thread-safety: Safe for concurrent readers. Modifying the container concurrently results in undefined behavior.
+     */
     template<template <typename Type> class List>
     C<size_t> list_compute_ranks(const List<T> & c)
     {
@@ -394,7 +520,19 @@ namespace Aleph
       return ret;
     }
 
-    /// Computes (value, rank) pairs for elements in an array container.
+    /** @brief Computes (value, rank) pairs for each element in an array container.
+     *
+     *  Returns an array where each element contains both the original value
+     *  and its computed rank. The rank corresponds to its position in the
+     *  sorted container.
+     *
+     *  @param[in] c Array-like container whose elements' ranks are to be computed.
+     *  @return An array container of pairs `(value, rank)`.
+     *          The pair for the element `c(i)` is stored at index `i` in the result.
+     *  @note Complexity: O(n log n) comparisons.
+     *  @throws Propagates exceptions thrown by `T::operator<`.
+     *  @note Thread-safety: Safe for concurrent readers. Modifying the container concurrently results in undefined behavior.
+     */
     C<P> compute_pair_ranks(const C<T> & c)
     {
       const size_t n = c.size();
@@ -416,7 +554,20 @@ namespace Aleph
       return ret;
     }
 
-    /// Computes (value, rank) pairs for elements in a list container.
+    /** @brief Computes (value, rank) pairs for each element in a list container.
+     *
+     *  Returns an array where each element contains both the original value
+     *  and its computed rank. Since lists do not provide efficient random
+     *  access, elements are copied internally.
+     *
+     *  @tparam List The list container template.
+     *  @param[in] c List container whose elements' ranks are to be computed.
+     *  @return An array container of type `C<P>` containing `(value, rank)` pairs.
+     *          The order corresponds to the iteration order of the list.
+     *  @note Complexity: O(n log n) comparisons.
+     *  @throws Propagates exceptions thrown by `T::operator<`.
+     *  @note Thread-safety: Safe for concurrent readers. Modifying the container concurrently results in undefined behavior.
+     */
     template<template <typename Type> class List>
     C<P> list_pair_ranks(const List<T> & c)
     {
@@ -455,7 +606,19 @@ namespace Aleph
     using P = std::pair<T, size_t>;
 
   public:
-    /// Computes ranks for elements in an Array.
+    /** @brief Computes the rank of each element in an `Array` container.
+     *
+     *  The rank corresponds to the position the element would have if the
+     *  array were sorted in ascending order. This specialization properly
+     *  handles `Array` memory expansion behavior.
+     *
+     *  @param[in] c `Array` container whose elements' ranks are to be computed.
+     *  @return An `Array` containing the computed ranks.
+     *          The rank of the element `c(i)` is stored at index `i` in the result.
+     *  @note Complexity: O(n log n) comparisons.
+     *  @throws Propagates exceptions thrown by `T::operator<`.
+     *  @note Thread-safety: Safe for concurrent readers. Modifying the container concurrently results in undefined behavior.
+     */
     Array<size_t> compute_ranks(const Array<T> & c)
     {
       const size_t n = c.size();
@@ -473,7 +636,19 @@ namespace Aleph
       return ret;
     }
 
-    /// Computes (value, rank) pairs for elements in an Array.
+    /** @brief Computes (value, rank) pairs for each element in an `Array` container.
+     *
+     *  Returns an array where each element contains both the original value
+     *  and its computed rank. This specialization properly handles `Array`
+     *  memory expansion behavior.
+     *
+     *  @param[in] c `Array` container whose elements' ranks are to be computed.
+     *  @return An `Array` of pairs `(value, rank)`.
+     *          The pair for the element `c(i)` is stored at index `i` in the result.
+     *  @note Complexity: O(n log n) comparisons.
+     *  @throws Propagates exceptions thrown by `T::operator<`.
+     *  @note Thread-safety: Safe for concurrent readers. Modifying the container concurrently results in undefined behavior.
+     */
     Array<P> compute_pair_ranks(const Array<T> & c)
     {
       const size_t n = c.size();
