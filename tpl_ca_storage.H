@@ -84,7 +84,7 @@ namespace CA {
  *  @tparam N number of axes (1, 2 or 3 are the typical values).
  *
  *  @par Complexity
- *  - `at`, `set`, `linear_index`, `data`, `size`, `extents`: O(1).
+ *  - `at`, `set`, `linear_index`, `data`, `size`, `extents`, `view`: O(1).
  *  - `swap`: O(1) (swaps the internal `Array<T>` pointers).
  *  - `fill`: O(size()).
  *
@@ -275,7 +275,7 @@ public:
   /// Non-owning, zero-copy read-only `N`-dimensional view of this storage's buffer.
   using const_view_type = Aleph::mdspan<const T, Aleph::dextents<ca_size_t, N>>;
 
-  /** @brief Return a mutable `Aleph::mdspan` view of this storage.
+   /** @brief Return a mutable `Aleph::mdspan` view of this storage.
    *
    *  The view is a pointer plus the current `extents()`: it aliases this
    *  object's buffer directly (no allocation, no copy). It is invalidated
@@ -283,6 +283,9 @@ public:
    *  another storage, or `this` being destroyed) but not by an in-place
    *  `set()`/`fill()`/`at()` through the original storage or through the
    *  view itself — both read and write the same cells.
+   *
+   *  @par Complexity
+   *  O(1).
    *
    *  @par Example
    *  @code
@@ -294,10 +297,19 @@ public:
    *      std::cout << v(i, j) << " ";
    *  @endcode
    */
-  [[nodiscard]] view_type view() noexcept { return view_type(data(), ext_); }
+  [[nodiscard]] view_type view() noexcept
+  {
+    return view_type(data(), typename view_type::extents_type(ext_));
+  }
 
   /// \overload view() — read-only view over a `const` storage.
-  [[nodiscard]] const_view_type view() const noexcept { return const_view_type(data(), ext_); }
+  ///
+  /// @par Complexity
+  /// O(1).
+  [[nodiscard]] const_view_type view() const noexcept
+  {
+    return const_view_type(data(), typename const_view_type::extents_type(ext_));
+  }
 
   /// O(1) swap with another storage of the same type.
   void swap(Dense_Cell_Storage &other) noexcept

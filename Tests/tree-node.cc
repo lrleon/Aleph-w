@@ -246,6 +246,26 @@ TEST(Tree_Node, unique_sibling_macro_tracks_sibling_links)
   ASSERT_FALSE(IS_UNIQUE_SIBLING(&tree2));
 }
 
+TEST(Tree_Node, destroy_tree_on_non_leftmost_child_regression)
+{
+  Tree_Node<int>* root = new Tree_Node<int>(1);
+  Tree_Node<int>* child1 = new Tree_Node<int>(2);
+  Tree_Node<int>* child2 = new Tree_Node<int>(3);
+  
+  root->insert_rightmost_child(child1);
+  root->insert_rightmost_child(child2);
+
+  // Layout: child1 -> child2 (rightmost)
+  // Destroying a non-leftmost sibling with a left sibling
+  destroy_tree(child2);
+
+  ASSERT_EQ(root->get_left_child(), child1);
+  ASSERT_EQ(root->get_right_child(), child1);
+  ASSERT_TRUE(IS_UNIQUE_SIBLING(child1));
+
+  destroy_tree(root);
+}
+
 TEST(Tree_Node, simple_tree_construction_and_destruction)
 {
   Tree_Node<int> p1 = 1;

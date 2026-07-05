@@ -232,6 +232,7 @@ set(TEST_PROGRAMS
     graph_traverse_generators_test
     ah_comb_generators_test
     ah_mdspan_test
+    grid_test
     index-node
     sort_arrays
     primes

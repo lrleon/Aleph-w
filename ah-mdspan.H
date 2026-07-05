@@ -38,35 +38,41 @@
  *  multidimensional grid indexable via `operator()(i, j, ...)`. It never
  *  allocates, copies, or owns anything — it is a pointer plus a shape.
  *
- *  When the toolchain provides C++23's `<mdspan>` (`ALEPH_HAS_STD_MDSPAN`,
- *  see `ah-cpp-compat.H`), `Aleph::mdspan` and friends are plain aliases
- *  of `std::mdspan`/`std::extents`/`std::dextents`/`std::layout_right`/
- *  `std::layout_left`/`std::default_accessor`. Otherwise this header
- *  provides a native **C++20** implementation covering the common surface
- *  (construction, `extents()`/`extent(r)`/`rank()`/`size()`, `operator()`,
- *  `data_handle()`, `layout_right`/`layout_left`). It is not a bit-for-bit
- *  reimplementation of the standard: in particular, the polyfill's
- *  `extents<IndexType, Exts...>` stores every extent at runtime rather
- *  than folding compile-time (`static_extent`) values out of the object's
- *  storage — a deliberate simplification that costs nothing for the
- *  fully-dynamic `dextents` case this library actually uses (e.g.
- *  `CA::Dense_Cell_Storage`), and only forgoes a size optimization for
- *  mixed static/dynamic extents, which Aleph does not currently need.
+ *  `Aleph::mdspan`'s element access is exclusively `operator()(i, j, ...)`
+ *  plus a bounds-checked `.at(i, j, ...)` — **not** `std::mdspan`'s own
+ *  `operator[](i, j, ...)` (a C++23 *language* feature, multi-argument
+ *  subscript, which cannot be backported to C++20; Aleph's baseline is
+ *  C++20, GCC 11+/Clang 14+). This surface is identical regardless of the
+ *  toolchain:
+ *  - When the toolchain provides C++23's `<mdspan>` (`ALEPH_HAS_STD_MDSPAN`,
+ *    see `ah-cpp-compat.H`), `Aleph::mdspan<T, Extents, Layout, Accessor>`
+ *    is a thin wrapper *around* a `std::mdspan` (still zero-copy — the
+ *    wrapper only holds the `std::mdspan` by value, itself just a
+ *    pointer/mapping/accessor triple) that forwards everything except
+ *    element access, and implements `operator()`/`.at()` on top of the
+ *    real `std::mdspan::operator[]`. `Aleph::extents`, `Aleph::dextents`,
+ *    `Aleph::layout_right`, `Aleph::layout_left` and
+ *    `Aleph::default_accessor` remain plain aliases of their `std::`
+ *    counterparts — only the class with the element-access surface needs
+ *    wrapping.
+ *  - Otherwise this header provides a native **C++20** implementation
+ *    covering the same surface (construction, `extents()`/`extent(r)`/
+ *    `rank()`/`size()`, `operator()`, `.at()`, `data_handle()`,
+ *    `layout_right`/`layout_left`). It is not a bit-for-bit
+ *    reimplementation of the standard: in particular, the polyfill's
+ *    `extents<IndexType, Exts...>` stores every extent at runtime rather
+ *    than folding compile-time (`static_extent`) values out of the
+ *    object's storage — a deliberate simplification that costs nothing
+ *    for the fully-dynamic `dextents` case this library actually uses
+ *    (e.g. `CA::Dense_Cell_Storage`), and only forgoes a size
+ *    optimization for mixed static/dynamic extents, which Aleph does not
+ *    currently need.
  *
  *  @par Why a view, not a container
  *  `mdspan` never allocates. It is the multidimensional-shape counterpart
  *  of `std::span`: wrap an existing buffer to get readable `m(i, j)`
  *  indexing and shape introspection, with zero copies and zero overhead
  *  beyond the index-to-offset arithmetic itself.
- *
- *  @par `operator()`, not multidimensional `operator[]`
- *  C++23 also allows `m[i, j]` (multi-argument `operator[]`), a
- *  **language** feature, not a library one — it cannot be backported to
- *  C++20. Aleph's baseline is C++20 (GCC 11+/Clang 14+), so this header
- *  exposes indexing exclusively through `operator()(i, j, ...)`, which
- *  works identically on `std::mdspan` too. `m[i, j]` remains available as
- *  an *additional* option on `std::mdspan` under C++23, tracked
- *  separately as future, opt-in, non-polyfillable work.
  *
  *  @par Bounds checking
  *  `operator()` matches `std::mdspan`'s contract: out-of-range indices are
@@ -127,9 +133,143 @@ using layout_left = std::layout_left;
 template <class ElementType>
 using default_accessor = std::default_accessor<ElementType>;
 
+/** @brief Aleph's stable view surface, wrapping `std::mdspan`.
+ *
+ *  `std::mdspan`'s own element access is `operator[](i, j, ...)` — a
+ *  C++23 *language* feature (multi-argument subscript) — and it has no
+ *  bounds-checked accessor at all. A bare `using mdspan = std::mdspan<...>`
+ *  alias would therefore silently break every Aleph caller written
+ *  against `operator()(i, j, ...)`/`.at(i, j, ...)` (this header's own
+ *  documented surface, used throughout Aleph — see
+ *  `CA::Dense_Cell_Storage::view()`) the moment a toolchain sets
+ *  `ALEPH_HAS_STD_MDSPAN=1`. Wrapping `std::mdspan` instead keeps that
+ *  surface identical on both paths, at the cost of one extra forwarding
+ *  layer around the real `std::mdspan` (still zero-copy: this class
+ *  holds a `std::mdspan` by value, which is itself just a pointer plus
+ *  a mapping plus an accessor).
+ */
 template <class T, class Extents, class LayoutPolicy = std::layout_right,
           class AccessorPolicy = std::default_accessor<T>>
-using mdspan = std::mdspan<T, Extents, LayoutPolicy, AccessorPolicy>;
+/**
+ *  @par Thread-safety
+ *  Concurrent reads on different cells are safe. Concurrent writes
+ *  to overlapping cells are not synchronised.
+ */
+class mdspan
+{
+  using impl_type = std::mdspan<T, Extents, LayoutPolicy, AccessorPolicy>;
+
+  impl_type impl_{};
+
+  template <class, class, class, class>
+  friend class mdspan;
+
+public:
+  using extents_type = typename impl_type::extents_type;
+  using layout_type = typename impl_type::layout_type;
+  using accessor_type = typename impl_type::accessor_type;
+  using mapping_type = typename impl_type::mapping_type;
+  using element_type = typename impl_type::element_type;
+  using value_type = typename impl_type::value_type;
+  using index_type = typename impl_type::index_type;
+  using rank_type = typename impl_type::rank_type;
+  using data_handle_type = typename impl_type::data_handle_type;
+  using reference = typename impl_type::reference;
+
+  constexpr mdspan() noexcept = default;
+  constexpr mdspan(const mdspan &) noexcept = default;
+  constexpr mdspan(mdspan &&) noexcept = default;
+  constexpr mdspan &operator=(const mdspan &) noexcept = default;
+  constexpr mdspan &operator=(mdspan &&) noexcept = default;
+
+  /** @brief View `p` through the shape `e`.
+   *  @param p pointer to the first element of the buffer to view.
+   *  @param e extents object defining the shape.
+   */
+  constexpr mdspan(data_handle_type p, const extents_type &e) noexcept
+    : impl_(p, e)
+  {}
+
+  /// View `p` through an already-built mapping.
+  constexpr mdspan(data_handle_type p, const mapping_type &m) noexcept
+    : impl_(p, m)
+  {}
+
+  /** @brief View `p` through mapping `m`, reading via accessor `a`.
+   *  @param p pointer to the first element of the buffer to view.
+   *  @param m mapping object defining the layout.
+   *  @param a accessor object defining element access.
+   */
+  constexpr mdspan(data_handle_type p, const mapping_type &m, const accessor_type &a) noexcept
+    : impl_(p, m, a)
+  {}
+
+  /** @brief View `p` as a grid with the given per-axis sizes.
+   *  @param p pointer to the first element of the buffer to view.
+   *  @param exts one size per **dynamic** axis of `Extents`, in rank order.
+   */
+  template <class... IndexTypes>
+    requires(sizeof...(IndexTypes) >= 1 and
+             (std::is_convertible_v<IndexTypes, index_type> and ...))
+  constexpr explicit mdspan(data_handle_type p, IndexTypes... exts) noexcept
+    : impl_(p, static_cast<index_type>(exts)...)
+  {}
+
+  /// View `p` as a grid whose dynamic axes are packed in an array.
+  template <class OtherIndexType>
+    requires std::is_convertible_v<const OtherIndexType &, index_type>
+  constexpr mdspan(data_handle_type p,
+                    const std::array<OtherIndexType, extents_type::rank_dynamic()> &dyn) noexcept
+    : impl_(p, dyn)
+  {}
+
+  /// Converting constructor: `mdspan<T,...>` -> `mdspan<const T,...>`.
+  template <class OtherT, class OtherAccessor>
+    requires(not std::is_same_v<OtherT, T> and std::is_convertible_v<OtherT (*)[], T (*)[]>)
+  constexpr mdspan(const mdspan<OtherT, Extents, LayoutPolicy, OtherAccessor> &other) noexcept
+    : impl_(other.impl_)
+  {}
+
+  [[nodiscard]] static constexpr rank_type rank() noexcept { return impl_type::rank(); }
+  [[nodiscard]] constexpr index_type extent(rank_type r) const noexcept { return impl_.extent(r); }
+  [[nodiscard]] constexpr const extents_type &extents() const noexcept { return impl_.extents(); }
+  [[nodiscard]] constexpr const mapping_type &mapping() const noexcept { return impl_.mapping(); }
+  [[nodiscard]] constexpr const accessor_type &accessor() const noexcept { return impl_.accessor(); }
+  [[nodiscard]] constexpr data_handle_type data_handle() const noexcept { return impl_.data_handle(); }
+  [[nodiscard]] constexpr data_handle_type data() const noexcept { return impl_.data_handle(); }
+  [[nodiscard]] constexpr index_type size() const noexcept { return impl_.size(); }
+  [[nodiscard]] constexpr bool empty() const noexcept { return impl_.empty(); }
+
+  /** @brief Unchecked element access.
+   *  @param idxs one index per axis, in rank order.
+   *  @return A reference to the accessed element.
+   *  @warning Undefined behavior if any `idxs[r]` is outside
+   *           `[0, extent(r))`. Use `at()` for a bounds-checked variant.
+   */
+  template <class... Indices>
+    requires(sizeof...(Indices) == extents_type::rank())
+  [[nodiscard]] constexpr reference operator()(Indices... idxs) const
+  {
+    return impl_[static_cast<index_type>(idxs)...];
+  }
+
+  /** @brief Bounds-checked element access.
+   *  @param idxs one index per axis, in rank order.
+   *  @return A reference to the accessed element.
+   *  @throws std::out_of_range if any `idxs[r]` is outside `[0, extent(r))`.
+   */
+  template <class... Indices>
+    requires(sizeof...(Indices) == extents_type::rank())
+  [[nodiscard]] constexpr reference at(Indices... idxs) const
+  {
+    const index_type idx[]{static_cast<index_type>(idxs)...};
+    for (rank_type r = 0; r < rank(); ++r)
+      ah_out_of_range_error_if(idx[r] < 0 or idx[r] >= extent(r))
+        << "Aleph::mdspan::at(): index[" << r << "]=" << idx[r] << " out of [0, "
+        << extent(r) << ")";
+    return impl_[idxs...];
+  }
+};
 
 #else  // !ALEPH_HAS_STD_MDSPAN: native C++20 polyfill
 
@@ -225,7 +365,10 @@ public:
                                                 : static_cast<IndexType>(Static[r]);
   }
 
-  /// Run-time size of axis `r`.
+  /** @brief Run-time size of axis `r`.
+   *  @param r The axis to query.
+   *  @return The extent of the specified axis.
+   */
   [[nodiscard]] constexpr index_type extent(rank_type r) const noexcept { return values_[r]; }
 
   [[nodiscard]] friend constexpr bool operator==(const extents &a, const extents &b) noexcept
@@ -237,15 +380,18 @@ public:
 /// @cond INTERNAL
 namespace mdspan_detail
 {
+/// Expands an index sequence into an all-dynamic extents type.
 template <class IndexType, size_t... Is>
 struct dextents_helper
 {
   using type = extents<IndexType, ((void) Is, dynamic_extent)...>;
 };
 
-// Declared, never defined: used only inside decltype() below to expand an
-// index_sequence<Is...> into dextents_helper<IndexType, Is...> without
-// resorting to a lambda in an unevaluated operand.
+/// Expands an index_sequence into dextents_helper without evaluating code.
+///
+/// Declared, never defined: used only inside decltype() below to expand an
+/// index_sequence<Is...> into dextents_helper<IndexType, Is...> without
+/// resorting to a lambda in an unevaluated operand.
 template <class IndexType, size_t... Is>
 dextents_helper<IndexType, Is...> dextents_of(std::index_sequence<Is...>);
 }  // namespace mdspan_detail
@@ -266,6 +412,7 @@ using dextents =
 struct layout_right
 {
   template <class Extents>
+  /// Mapping from row-major multi-indices to linear offsets.
   class mapping
   {
     Extents exts_{};
@@ -281,7 +428,13 @@ struct layout_right
 
     [[nodiscard]] constexpr const extents_type &extents() const noexcept { return exts_; }
 
+    /** @brief Calculate the flat offset for a multi-dimensional index.
+     *  @param idxs one index per axis, in rank order.
+     *  @return The linear memory offset computed in row-major order.
+     *  @note Does not perform bounds checking.
+     */
     template <class... Indices>
+      requires(sizeof...(Indices) == Extents::rank())
     [[nodiscard]] constexpr index_type operator()(Indices... idxs) const noexcept
     {
       const index_type idx[]{static_cast<index_type>(idxs)...};
@@ -313,6 +466,7 @@ struct layout_right
 struct layout_left
 {
   template <class Extents>
+  /// Mapping from column-major multi-indices to linear offsets.
   class mapping
   {
     Extents exts_{};
@@ -328,7 +482,13 @@ struct layout_left
 
     [[nodiscard]] constexpr const extents_type &extents() const noexcept { return exts_; }
 
+    /** @brief Calculate the flat offset for a multi-dimensional index.
+     *  @param idxs one index per axis, in rank order.
+     *  @return The linear memory offset computed in column-major order.
+     *  @note Does not perform bounds checking.
+     */
     template <class... Indices>
+      requires(sizeof...(Indices) == Extents::rank())
     [[nodiscard]] constexpr index_type operator()(Indices... idxs) const noexcept
     {
       const index_type idx[]{static_cast<index_type>(idxs)...};
@@ -376,6 +536,11 @@ struct default_accessor
   constexpr default_accessor(default_accessor<OtherElementType>) noexcept
   {}
 
+  /** @brief Access an element from a pointer and an offset.
+   *  @param p Pointer to the start of the data.
+   *  @param i Linear offset.
+   *  @return A reference to the element at the specified offset.
+   */
   [[nodiscard]] constexpr reference access(data_handle_type p, size_t i) const noexcept
   {
     return p[i];
@@ -402,6 +567,11 @@ struct default_accessor
  */
 template <class T, class Extents, class LayoutPolicy = layout_right,
           class AccessorPolicy = default_accessor<T>>
+/**
+ *  @par Thread-safety
+ *  Concurrent reads on different cells are safe. Concurrent writes
+ *  to overlapping cells are not synchronised.
+ */
 class mdspan
 {
 public:
@@ -444,17 +614,27 @@ public:
     : ptr_(other.data_handle()), map_(other.mapping()), acc_(other.accessor())
   {}
 
-  /// View `p` through the shape `e`.
+  /** @brief View `p` through the shape `e`.
+   *  @param p pointer to the first element of the buffer to view.
+   *  @param e extents object defining the shape.
+   */
   constexpr mdspan(data_handle_type p, const extents_type &e) noexcept
     : ptr_(p), map_(e)
   {}
 
-  /// View `p` through an already-built mapping (shares the mapping's extents).
+  /** @brief View `p` through an already-built mapping.
+   *  @param p pointer to the first element of the buffer to view.
+   *  @param m mapping object defining the layout.
+   */
   constexpr mdspan(data_handle_type p, const mapping_type &m) noexcept
     : ptr_(p), map_(m)
   {}
 
-  /// View `p` through mapping `m`, reading via accessor `a`.
+  /** @brief View `p` through mapping `m`, reading via accessor `a`.
+   *  @param p pointer to the first element of the buffer to view.
+   *  @param m mapping object defining the layout.
+   *  @param a accessor object defining element access.
+   */
   constexpr mdspan(data_handle_type p, const mapping_type &m, const accessor_type &a) noexcept
     : ptr_(p), map_(m), acc_(a)
   {}
@@ -486,10 +666,15 @@ public:
     : ptr_(p), map_(extents_type(dyn))
   {}
 
-  /// Number of axes (compile-time constant).
+  /** @brief Number of axes (compile-time constant).
+   *  @return The rank of the mdspan.
+   */
   [[nodiscard]] static constexpr rank_type rank() noexcept { return extents_type::rank(); }
 
-  /// Run-time size of axis `r`.
+  /** @brief Run-time size of axis `r`.
+   *  @param r The axis to query.
+   *  @return The extent of the specified axis.
+   */
   [[nodiscard]] constexpr index_type extent(rank_type r) const noexcept
   {
     return map_.extents().extent(r);
@@ -519,7 +704,9 @@ public:
     return total;
   }
 
-  /// `true` if any axis has extent 0 (so the view has no elements).
+  /** @brief Checks if the view has no elements.
+   *  @return `true` if any axis has extent 0, `false` otherwise.
+   */
   [[nodiscard]] constexpr bool empty() const noexcept
   {
     for (rank_type r = 0; r < rank(); ++r)
@@ -531,12 +718,13 @@ public:
   /** @brief Unchecked element access.
    *
    *  @param idxs one index per axis, in rank order.
+   *  @return A reference to the accessed element.
    *  @warning Undefined behavior if any `idxs[r]` is outside
    *           `[0, extent(r))` — matches `std::mdspan::operator[]`'s
    *           contract exactly. Use `at()` for a bounds-checked variant.
    */
   template <class... Indices>
-    requires(sizeof...(Indices) == 0 ? extents_type::rank() == 0 : sizeof...(Indices) >= 1)
+    requires(sizeof...(Indices) == extents_type::rank())
   [[nodiscard]] constexpr reference operator()(Indices... idxs) const
   {
     return acc_.access(ptr_, map_(static_cast<index_type>(idxs)...));
@@ -545,6 +733,7 @@ public:
   /** @brief Bounds-checked element access.
    *
    *  @param idxs one index per axis, in rank order.
+   *  @return A reference to the accessed element.
    *  @throws std::out_of_range if any `idxs[r]` is outside `[0, extent(r))`.
    */
   template <class... Indices>

@@ -51,6 +51,31 @@ using Aleph::layout_left;
 using Aleph::layout_right;
 using Aleph::mdspan;
 
+// Compile-time regression: operator()/at() must reject a wrong number of
+// indices for the view's rank instead of silently reading past a local
+// array (a real out-of-bounds stack read was reproduced before this
+// constraint existed — see the PR review discussion). A rank-2 view must
+// accept exactly 2 indices, not 1 and not 3.
+using Rank2 = mdspan<int, dextents<size_t, 2>>;
+
+// A bare top-level `requires(Rank2 m) { m(1); }` would NOT reliably detect
+// this: once `Rank2` is a fully concrete (non-dependent) type, an unsatisfied
+// call is a plain "no matching function" error, not a substitution failure
+// in the immediate context of a template parameter -- so it is not silently
+// absorbed. Wrapping the check in a genuine template (a concept) restores
+// the SFINAE-friendly behavior actually needed here.
+template <class M, class... Args>
+concept CanCall = requires(M m, Args... args) { m(args...); };
+template <class M, class... Args>
+concept CanCallAt = requires(M m, Args... args) { m.at(args...); };
+
+static_assert(CanCall<Rank2, int, int>);
+static_assert(not CanCall<Rank2, int>);
+static_assert(not CanCall<Rank2, int, int, int>);
+static_assert(CanCallAt<Rank2, int, int>);
+static_assert(not CanCallAt<Rank2, int>);
+static_assert(not CanCallAt<Rank2, int, int, int>);
+
 TEST(AhMdspan, DetectionMacroIsDefined)
 {
   // Must always be defined to 0 or 1, regardless of -std.
@@ -111,6 +136,19 @@ TEST(AhMdspan, BasicConstructionAndShape)
   EXPECT_EQ(m.size(), 6u);
   EXPECT_FALSE(m.empty());
   EXPECT_EQ(m.data_handle(), buf.data());
+}
+
+TEST(AhMdspan, OperatorRequiresExactRankArguments)
+{
+  std::vector<int> buf(6, 0);
+  mdspan<int, dextents<size_t, 2>> m(buf.data(), 2, 3);
+  
+  // Valid call: 2 indices for rank-2 span
+  static_assert(std::is_invocable_v<decltype(m), int, int>);
+  
+  // Invalid calls: wrong arity
+  static_assert(not std::is_invocable_v<decltype(m), int>);
+  static_assert(not std::is_invocable_v<decltype(m), int, int, int>);
 }
 
 TEST(AhMdspan, ConstructFromArrayOfDynamicExtents)

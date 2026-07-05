@@ -105,8 +105,6 @@
 #include <cstdlib>
 #include <cassert>
 using namespace std;
-#include <cstdlib>
-#include <cassert>
 using namespace Aleph;
 
 /**

@@ -70,6 +70,7 @@
 #ifndef GRID_H
 #define GRID_H
 
+#include <vector>
 #include <ah-errors.H>
 #include <aleph-graph.H>
 
@@ -190,16 +191,16 @@ public:
    */
   void operator () (GT &g, const size_t &width, const size_t &height)
   {
-    ah_domain_error_if(g.get_num_nodes() != 0) << "There is nodes in graph";
+    ah_domain_error_if(g.get_num_nodes() != 0) << "There are nodes in graph";
 
-    ah_length_error_if(width < 2 or height < 2) << "The minimun size must be 2 x 2";
+    ah_length_error_if(width < 2 or height < 2) << "The minimum size must be 2 x 2";
 
-    typename GT::Node ***map = new typename GT::Node **[height];
-    for (size_t i = 0; i < height; ++i)
+    std::vector<std::vector<typename GT::Node*>> map(height, std::vector<typename GT::Node*>(width, nullptr));
+
+    try
       {
-        try
+        for (size_t i = 0; i < height; ++i)
           {
-            map[i] = new typename GT::Node *[width];
             for (size_t j = 0; j < width; ++j)
               {
                 typename GT::Node *n = g.insert_node(typename GT::Node_Type());
@@ -227,19 +228,12 @@ public:
                   }
               }
           }
-        catch (...)
-          {
-            for (size_t k = i; k-- > 0;)
-              delete[] map[k];
-            delete[] map;
-            clear_graph(g);
-            throw;
-          }
       }
-
-    for (size_t i = 0; i < height; ++i)
-      delete[] map[i];
-    delete[] map;
+    catch (...)
+      {
+        clear_graph(g);
+        throw;
+      }
   }
 };
 

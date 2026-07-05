@@ -76,10 +76,13 @@ void demo_shared_buffer()
   std::cout << "v(0, 0) after grid.set(0,0,9): " << v(0, 0) << " (expect 9)\n\n";
 }
 
+#include <cassert>
+
 // A minimal 4-neighbour (von Neumann) sum, reading interior cells only —
-// the kind of loop that benefits from plain m(i, j) indexing.
+// the kind of loop that benefits from plain m(i, j) indexing. Must not be used on edge cells.
 int neighbour_sum(const Dense_Cell_Storage<int, 2>::const_view_type &v, size_t i, size_t j)
 {
+  assert(i > 0 and j > 0);
   return v(i - 1, j) + v(i + 1, j) + v(i, j - 1) + v(i, j + 1);
 }
 
@@ -123,7 +126,7 @@ void demo_read_only_view()
     for (size_t j = 0; j < 3; ++j)
       grid.set(i, j, next++);
 
-  print_view(grid.view());   // const Dense_Cell_Storage& -> const_view_type
+  print_view(grid.view());   // grid is non-const, so view() returns view_type which converts to const_view_type in print_view
   std::cout << "\n";
 }
 }  // namespace

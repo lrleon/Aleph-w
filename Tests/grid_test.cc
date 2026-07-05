@@ -25,6 +25,9 @@ TEST(GridTest, InvalidDimensions) {
   
   EXPECT_THROW(build(g, 1, 10), std::length_error);
   EXPECT_THROW(build(g, 10, 1), std::length_error);
+  
+  EXPECT_NO_THROW(build(g, 2, 2));
+  EXPECT_EQ(g.get_num_nodes(), 4);
 }
 
 TEST(GridTest, CustomOperations) {

@@ -43,7 +43,9 @@
 #ifndef TPL_TREE_H
 #define TPL_TREE_H
 
+#include <cassert>
 #include <stdexcept>
+#include <utility>
 #include <dlink.H>
 #include <ahDry.H>
 #include <ah-dry-mixin.H>
@@ -70,6 +72,7 @@
 
 namespace Aleph {
 
+/// Forward declaration used by CRTP helpers before the full node definition.
 template <class T>
 class Tree_Node;  // Forward declaration for CRTP
 
@@ -773,7 +776,7 @@ public:
     return Children_Iterator(*this);
   }
 
-  /** Adapter that exposes a node's children through an Iterator type.
+  /** @brief Adapter that exposes a node's children through an Iterator type.
 
       This small wrapper exists for generic iterator utilities that expect a
       container-like type with a nested `Iterator`, such as Pair_Iterator-based
@@ -783,12 +786,19 @@ public:
   {
     Children_Set(const Tree_Node &&) {}
     Children_Set(const Tree_Node &) {}
+    /// Child iterator adapter used by generic iterator utilities.
     struct Iterator : public Children_Iterator
     {
       using Children_Iterator::Children_Iterator;
     };
   };
 
+  /** Preorder iterator over a tree rooted at a Tree_Node.
+
+      The iterator owns an explicit stack of pending children and visits nodes
+      in root-before-children order. It does not own or copy tree nodes, so the
+      underlying tree must outlive the iterator.
+  */
   class Iterator
   {
     Tree_Node *root = nullptr;
@@ -902,7 +912,7 @@ public:
   STL_ALEPH_ITERATOR(Tree_Node);
 };
 
-/** Tree_Node variant with a virtual destructor.
+/** @brief Tree_Node variant with a virtual destructor.
 
     Use this type when nodes are extended polymorphically and may be deleted
     through a pointer to the base tree-node type. Plain Tree_Node keeps the

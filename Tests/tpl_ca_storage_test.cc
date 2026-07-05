@@ -189,6 +189,14 @@ TEST(CADenseCellStorage, ViewMatchesShapeAndAliasesTheSameBuffer)
   EXPECT_EQ(v.data_handle(), s.data());
 }
 
+TEST(CADenseCellStorage, EmptyStorageViewReturnsEmptyView)
+{
+  Dense_Cell_Storage<int, 2> s;
+  auto v = s.view();
+  EXPECT_EQ(v.size(), 0u);
+  EXPECT_EQ(v.data_handle(), nullptr);
+}
+
 TEST(CADenseCellStorage, WriteThroughViewIsVisibleThroughStorageApi)
 {
   Dense_Cell_Storage<int, 2> s({ 3, 4 }, 0);

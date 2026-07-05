@@ -1,4 +1,5 @@
 #include <iostream>
+#include <numbers>
 #include <grid.H>
 #include <tpl_graph.H>
 
@@ -29,8 +30,8 @@ struct InitArc {
     auto src_info = g.get_src_node(a)->get_info();
     auto tgt_info = g.get_tgt_node(a)->get_info();
     
-    bool is_diagonal = (src_info.row != tgt_info.row) && (src_info.col != tgt_info.col);
-    a->get_info() = is_diagonal ? 1.414 : 1.0;
+    bool is_diagonal = (src_info.row != tgt_info.row) and (src_info.col != tgt_info.col);
+    a->get_info() = is_diagonal ? std::numbers::sqrt2 : 1.0;
   }
 };
 
@@ -62,7 +63,7 @@ int main() {
   List_Graph<Graph_Node<Coordinate>, Graph_Arc<double>>::Node* last_node = nullptr;
   for (auto it = g.get_node_it(); it.has_curr(); it.next()) {
     auto n = it.get_curr();
-    if (n->get_info().row == rows - 1 && n->get_info().col == cols - 1) {
+    if (n->get_info().row == rows - 1 and n->get_info().col == cols - 1) {
       last_node = n;
       break;
     }
