@@ -560,8 +560,8 @@ public:
 
   /** Insert `tree` to the right of `this`
 
-      Assuming that `this` is part of a forrest, this method
-      insert `tree` to the right of this.
+      Assuming that `this` is part of a forest, this method
+      inserts `tree` to the right of this.
 
       Be careful with the fact that `tree` will not always be
       inserted as the rightmost tree, but as the tree to right of
@@ -617,7 +617,7 @@ public:
     return left_link();
   }
 
-  /// Return a list with all trees belonging to the forrest
+  /// Return a list with all trees belonging to the forest
   template <template <typename> class Container = DynList>
   Container<Tree_Node *> trees() const
   {
@@ -1152,8 +1152,54 @@ inline void destroy_tree(Node *root)
   if (root == nullptr)
     return;
 
+  // If `root` is the leftmost child of a live parent, its `child` field is
+  // spine-linked to that parent (see the class-level note on the shared
+  // spine trick): removing `root` must hand that spine slot to its right
+  // sibling, promoted below to the new leftmost child. Captured before the
+  // sibling list is touched; only usable once `root`'s own children have
+  // been recursively destroyed (see below), so it is applied at the
+  // `CHILD_LIST` cleanup near the end of this function, not here.
+  Node *promoted_leftmost = nullptr;
+
   if (not IS_UNIQUE_SIBLING(root))
-    SIBLING_LIST(root)->del();  // no ==> remove from sibling list
+    {
+      // `root` is about to be unlinked from its sibling list. If it was an
+      // extremal sibling, the neighbor taking its place must inherit the
+      // corresponding flag -- otherwise that neighbor is left with
+      // is_rightmost()/is_leftmost() == false while actually being the new
+      // extremum, so get_right_sibling()/get_left_sibling() no longer
+      // short-circuit to nullptr and instead wrap around the remaining
+      // circular sibling list, corrupting any get_right_sibling()-based
+      // traversal (for_each_child(), Children_Iterator, ...) into an
+      // infinite loop.
+      if (root->is_rightmost())
+        if (auto *new_last = root->get_left_sibling(); new_last != nullptr)
+          new_last->set_is_rightmost(true);
+
+      if (root->is_leftmost())
+        if (auto *new_first = root->get_right_sibling(); new_first != nullptr)
+          {
+            new_first->set_is_leftmost(true);
+            // Only a child-of-a-parent's `child` field is spine-linked (a
+            // top-level forest tree's `child` field is purely private, no
+            // spine to hand over), and only when the promoted sibling is
+            // itself a leaf can that hand-over be done with a single
+            // Dlink::swap(): when the promoted sibling already has its own
+            // children, its `child` field is already the head of its own
+            // (unrelated) spine, and swap() would splice root's parent
+            // directly to that spine's *other* end, orphaning the
+            // promoted sibling's real children -- a separate, deeper,
+            // pre-existing gap in destroy_tree() (reproducible even
+            // without this fix: destroying any node that has its own
+            // children while its parent survives already corrupts the
+            // parent's child spine). Left as a known gap, tracked
+            // separately, rather than risking new corruption here.
+            if (not root->is_root() and new_first->is_leaf())
+              promoted_leftmost = static_cast<Node *>(new_first);
+          }
+
+      SIBLING_LIST(root)->del();  // no ==> remove from sibling list
+    }
 
   // traverse subtrees from right to left
   for (Node *p = static_cast<Node *>(root->get_right_child()); p != nullptr; /* nada */)
@@ -1163,7 +1209,14 @@ inline void destroy_tree(Node *root)
       destroy_tree(to_delete);                         // recursively delete tree
     }
 
-  if (root->is_leftmost())  // remove children list?
+  if (promoted_leftmost != nullptr)
+    // root's own children are gone by now, so CHILD_LIST(root) is just its
+    // spine pairing with its (live) parent; hand that slot to the promoted
+    // sibling in one swap (promoted_leftmost is a leaf, i.e. its own
+    // CHILD_LIST is empty, so Dlink::swap() simply relocates root's pairing
+    // there instead of merging two unrelated non-empty lists).
+    CHILD_LIST(root)->swap(CHILD_LIST(promoted_leftmost));
+  else if (root->is_leftmost())  // remove children list?
     CHILD_LIST(root)->del();
 
   delete root;

@@ -70,9 +70,9 @@
 #ifndef GRID_H
 #define GRID_H
 
-#include <vector>
 #include <ah-errors.H>
 #include <aleph-graph.H>
+#include <tpl_array.H>
 
 namespace Aleph {
 
@@ -195,7 +195,10 @@ public:
 
     ah_length_error_if(width < 2 or height < 2) << "The minimum size must be 2 x 2";
 
-    std::vector<std::vector<typename GT::Node*>> map(height, std::vector<typename GT::Node*>(width, nullptr));
+    // Flat, single-allocation lookup table (row-major: map[i * width + j])
+    // instead of a vector-of-vectors, avoiding height+1 separate
+    // allocations and keeping the whole table contiguous.
+    Array<typename GT::Node*> map(width * height, nullptr);
 
     try
       {
@@ -205,25 +208,25 @@ public:
               {
                 typename GT::Node *n = g.insert_node(typename GT::Node_Type());
                 Operation_On_Node()(g, n, i, j);
-                map[i][j] = n;
+                map[i * width + j] = n;
                 if (j > 0)  // Connect to left neighbor
                   {
-                    typename GT::Arc *a = g.insert_arc(n, map[i][j - 1]);
+                    typename GT::Arc *a = g.insert_arc(n, map[i * width + (j - 1)]);
                     Operation_On_Arc()(g, a, i, j);
                   }
                 if (i > 0)  // Connect to upper neighbor
                   {
-                    typename GT::Arc *a = g.insert_arc(n, map[i - 1][j]);
+                    typename GT::Arc *a = g.insert_arc(n, map[(i - 1) * width + j]);
                     Operation_On_Arc()(g, a, i, j);
                   }
                 if (i > 0 and j > 0)  // Connect to upper-left diagonal
                   {
-                    typename GT::Arc *a = g.insert_arc(n, map[i - 1][j - 1]);
+                    typename GT::Arc *a = g.insert_arc(n, map[(i - 1) * width + (j - 1)]);
                     Operation_On_Arc()(g, a, i, j);
                   }
                 if (j + 1 < width and i > 0)  // Connect to upper-right diagonal
                   {
-                    typename GT::Arc *a = g.insert_arc(n, map[i - 1][j + 1]);
+                    typename GT::Arc *a = g.insert_arc(n, map[(i - 1) * width + (j + 1)]);
                     Operation_On_Arc()(g, a, i, j);
                   }
               }

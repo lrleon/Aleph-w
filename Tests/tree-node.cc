@@ -262,6 +262,61 @@ TEST(Tree_Node, destroy_tree_on_non_leftmost_child_regression)
   ASSERT_EQ(root->get_left_child(), child1);
   ASSERT_EQ(root->get_right_child(), child1);
   ASSERT_TRUE(IS_UNIQUE_SIBLING(child1));
+  ASSERT_TRUE(child1->is_rightmost());
+  ASSERT_EQ(child1->get_right_sibling(), nullptr);
+
+  destroy_tree(root);
+}
+
+TEST(Tree_Node, destroy_tree_restores_is_rightmost_on_surviving_sibling)
+{
+  // Regression: destroy_tree() unlinked a node from its sibling list
+  // without restoring is_rightmost()/is_leftmost() on the neighbor taking
+  // its place. get_right_child()/get_left_child() use the raw (flag-blind)
+  // Dlink links and so cannot detect this; get_right_sibling() and anything
+  // built on it (for_each_child(), Children_Iterator) are flag-gated and
+  // did loop forever on the surviving sibling before this fix.
+  auto *root = new Tree_Node<int>(0);
+  auto *a = new Tree_Node<int>(1);
+  auto *b = new Tree_Node<int>(2);
+  auto *c = new Tree_Node<int>(3);
+  root->insert_rightmost_child(a);
+  root->insert_rightmost_child(b);
+  root->insert_rightmost_child(c);  // root -> a, b, c (c is rightmost)
+
+  destroy_tree(c);
+
+  EXPECT_TRUE(b->is_rightmost());
+  EXPECT_EQ(b->get_right_sibling(), nullptr);
+
+  int count = 0;
+  root->for_each_child([&count](auto) { ++count; });
+  EXPECT_EQ(count, 2);  // a, b -- would loop forever before the fix
+
+  destroy_tree(root);
+}
+
+TEST(Tree_Node, destroy_tree_restores_is_leftmost_on_surviving_sibling)
+{
+  // Symmetric case: destroying the current leftmost child must promote
+  // its former right neighbor to is_leftmost().
+  auto *root = new Tree_Node<int>(0);
+  auto *a = new Tree_Node<int>(1);
+  auto *b = new Tree_Node<int>(2);
+  auto *c = new Tree_Node<int>(3);
+  root->insert_rightmost_child(a);
+  root->insert_rightmost_child(b);
+  root->insert_rightmost_child(c);  // root -> a (leftmost), b, c
+
+  destroy_tree(a);
+
+  EXPECT_TRUE(b->is_leftmost());
+  EXPECT_EQ(b->get_left_sibling(), nullptr);
+  EXPECT_EQ(root->get_left_child(), b);
+
+  int count = 0;
+  root->for_each_child([&count](auto) { ++count; });
+  EXPECT_EQ(count, 2);  // b, c
 
   destroy_tree(root);
 }

@@ -29,11 +29,10 @@
   SOFTWARE.
 */
 
-
 /**
  * @file trie_example.C
  * @brief Prefix Tree (Trie): Efficient String Storage and Search
- * 
+ *
  * This example demonstrates the Trie (also called prefix tree or digital tree),
  * a tree-like data structure optimized for string storage and retrieval. Tries
  * excel at prefix-based operations and are fundamental to many text processing
@@ -171,19 +170,24 @@
  * ## Usage Example
  *
  * ```cpp
- * Trie<string> dictionary;
+ * Prefix_Tree dictionary;
  *
- * dictionary.insert("hello");
- * dictionary.insert("world");
- * dictionary.insert("help");
+ * dictionary.insert_word("hello");
+ * dictionary.insert_word("world");
+ * dictionary.insert_word("help");
  *
  * // Search
- * if (dictionary.search("hello"))
+ * if (dictionary.contains("hello"))
  *   cout << "Found!\n";
  *
  * // Prefix search
- * auto words = dictionary.prefix_search("hel"); // Returns ["hello", "help"]
+ * auto words = dictionary.words_with_prefix("hel"); // "hello", "help"
  * ```
+ *
+ * This example uses Prefix_Tree, the owning wrapper around the low-level
+ * Cnode nodes. Cnode is still available for manual tree manipulation, but
+ * Prefix_Tree is the preferred API for application code because it cleans up
+ * all nodes automatically.
  *
  * ## Command-line Usage
  *
@@ -229,47 +233,45 @@ void demo_basic_operations()
   cout << "\n" << string(60, '=') << endl;
   cout << "Trie: Basic Operations" << endl;
   cout << string(60, '=') << endl;
-  
-  Cnode root('\0');  // Root with sentinel character
-  
+
+  Prefix_Tree trie;
+
   cout << "\n--- Insertion ---" << endl;
-  
+
   vector<string> words = {"cat", "car", "card", "care", "careful", "cart"};
-  
+
   cout << "Inserting words with common prefix 'ca':" << endl;
-  for (const auto& word : words)
-  {
-    bool inserted = root.insert_word(word);
-    cout << "  " << word << " -> " << (inserted ? "inserted" : "exists") << endl;
-  }
-  
+  for (const auto &word : words)
+    {
+      const bool inserted = trie.insert_word(word);
+      cout << "  " << word << " -> " << (inserted ? "inserted" : "exists") << endl;
+    }
+
   // Try inserting duplicates
   cout << "\nTrying to insert duplicate:" << endl;
-  cout << "  cat -> " << (root.insert_word("cat") ? "inserted" : "already exists") << endl;
-  
+  cout << "  cat -> " << (trie.insert_word("cat") ? "inserted" : "already exists") << endl;
+
   cout << "\n--- Search ---" << endl;
-  
+
   vector<string> to_find = {"cat", "car", "care", "cap", "dog"};
   cout << "Searching for words:" << endl;
-  for (const auto& word : to_find)
-  {
-    bool found = root.contains(word);
-    cout << "  " << word << " -> " << (found ? "FOUND" : "not found") << endl;
-  }
-  
+  for (const auto &word : to_find)
+    {
+      bool found = trie.contains(word);
+      cout << "  " << word << " -> " << (found ? "FOUND" : "not found") << endl;
+    }
+
   cout << "\n--- Statistics ---" << endl;
-  cout << "Total words stored: " << root.count() << endl;
-  
+  cout << "Total words stored: " << trie.count() << endl;
+
   cout << "\n--- All Words ---" << endl;
   cout << "Words in lexicographic order:" << endl;
-  auto all_words = root.words();
+  auto all_words = trie.words();
   for (size_t i = 0; i < all_words.size(); ++i)
-  {
-    string word = all_words[i];
-    cout << "  " << (i + 1) << ". " << word << endl;
-  }
-  
-  root.destroy();
+    {
+      string word = all_words[i];
+      cout << "  " << (i + 1) << ". " << word << endl;
+    }
 }
 
 /**
@@ -280,74 +282,74 @@ void demo_prefix_search()
   cout << "\n" << string(60, '=') << endl;
   cout << "Prefix Search: Autocomplete Feature" << endl;
   cout << string(60, '=') << endl;
-  
-  Cnode root('\0');
-  
+
+  Prefix_Tree trie;
+
   // Build a dictionary
-  vector<string> dictionary = {
-    "apple", "application", "apply", "approach",
-    "apt", "aptitude",
-    "banana", "band", "bandana", "bank", "banner",
-    "car", "card", "care", "careful", "careless", "career",
-    "cart", "cartoon", "carton"
-  };
-  
+  vector<string> dictionary = {"apple",    "application", "apply", "approach", "apt",
+                               "aptitude", "banana",      "band",  "bandana",  "bank",
+                               "banner",   "car",         "card",  "care",     "careful",
+                               "careless", "career",      "cart",  "cartoon",  "carton"};
+
   cout << "\nBuilding dictionary with " << dictionary.size() << " words..." << endl;
-  for (const auto& word : dictionary)
-    root.insert_word(word);
-  
+  for (const auto &word : dictionary)
+    trie.insert_word(word);
+
   cout << "\n--- Prefix Search Demo ---" << endl;
-  
+
   vector<string> prefixes = {"app", "ban", "car", "cart", "xyz"};
-  
-  for (const auto& prefix : prefixes)
-  {
-    cout << "\nPrefix '" << prefix << "' matches:" << endl;
-    
-    auto matches = root.words_with_prefix(prefix);
-    
-    if (matches.size() == 0)
-      cout << "  (no matches)" << endl;
-    else
+
+  for (const auto &prefix : prefixes)
     {
-      for (size_t i = 0; i < matches.size(); ++i)
-      {
-        string match = matches[i];
-        cout << "  - " << match << endl;
-      }
+      cout << "\nPrefix '" << prefix << "' matches:" << endl;
+
+      auto matches = trie.words_with_prefix(prefix);
+
+      if (matches.size() == 0)
+        cout << "  (no matches)" << endl;
+      else
+        {
+          for (size_t i = 0; i < matches.size(); ++i)
+            {
+              string match = matches[i];
+              cout << "  - " << match << endl;
+            }
+        }
     }
-  }
-  
+
   cout << "\n--- Simulating Autocomplete ---" << endl;
-  
+
   string input = "c";
   cout << "\nTyping simulation (showing suggestions):" << endl;
-  
+
   while (input.length() <= 4)
-  {
-    auto suggestions = root.words_with_prefix(input);
-    cout << "  User types: '" << input << "'" << endl;
-    cout << "    Suggestions (" << suggestions.size() << " matches): ";
-    
-    size_t shown = 0;
-    for (size_t i = 0; i < suggestions.size() and shown < 5; ++i, ++shown)
     {
-      if (i > 0) cout << ", ";
-      string s = suggestions[i];
-      cout << s;
+      auto suggestions = trie.words_with_prefix(input);
+      cout << "  User types: '" << input << "'" << endl;
+      cout << "    Suggestions (" << suggestions.size() << " matches): ";
+
+      size_t shown = 0;
+      for (size_t i = 0; i < suggestions.size() and shown < 5; ++i, ++shown)
+        {
+          if (i > 0)
+            cout << ", ";
+          string s = suggestions[i];
+          cout << s;
+        }
+      if (suggestions.size() > 5)
+        cout << " ...(" << (suggestions.size() - 5) << " more)";
+      cout << endl;
+
+      // Simulate user typing more
+      if (input == "c")
+        input = "ca";
+      else if (input == "ca")
+        input = "car";
+      else if (input == "car")
+        input = "care";
+      else
+        break;
     }
-    if (suggestions.size() > 5)
-      cout << " ...(" << (suggestions.size() - 5) << " more)";
-    cout << endl;
-    
-    // Simulate user typing more
-    if (input == "c") input = "ca";
-    else if (input == "ca") input = "car";
-    else if (input == "car") input = "care";
-    else break;
-  }
-  
-  root.destroy();
 }
 
 /**
@@ -358,64 +360,59 @@ void demo_spell_checker()
   cout << "\n" << string(60, '=') << endl;
   cout << "Practical Example: Simple Spell Checker" << endl;
   cout << string(60, '=') << endl;
-  
-  Cnode root('\0');
-  
+
+  Prefix_Tree trie;
+
   // Build dictionary
   vector<string> dictionary = {
-    "program", "programming", "programmer", "progress", "project",
-    "computer", "compute", "computing", "computation",
-    "algorithm", "algorithms", "algorithmic",
-    "data", "database", "datum",
-    "structure", "structures", "structural",
-    "the", "they", "them", "there", "their", "these",
-    "hello", "help", "helper", "helpful"
-  };
-  
+    "program",   "programming", "programmer", "progress",   "project",     "computer", "compute",
+    "computing", "computation", "algorithm",  "algorithms", "algorithmic", "data",     "database",
+    "datum",     "structure",   "structures", "structural", "the",         "they",     "them",
+    "there",     "their",       "these",      "hello",      "help",        "helper",   "helpful"};
+
   cout << "Loading dictionary with " << dictionary.size() << " words..." << endl;
-  for (const auto& word : dictionary)
-    root.insert_word(word);
-  
+  for (const auto &word : dictionary)
+    trie.insert_word(word);
+
   cout << "\n--- Spell Check Demo ---" << endl;
-  
+
   vector<string> to_check = {"program", "progam", "algoritm", "helllo", "data", "computer"};
-  
-  for (const auto& word : to_check)
-  {
-    cout << "\nChecking: '" << word << "'" << endl;
-    
-    if (root.contains(word))
+
+  for (const auto &word : to_check)
     {
-      cout << "  Status: Correct!" << endl;
-    }
-    else
-    {
-      cout << "  Status: Not found - might be misspelled" << endl;
-      
-      // Simple suggestion: words with same prefix
-      for (size_t prefixLen = word.length() - 1; prefixLen >= 2; --prefixLen)
-      {
-        string prefix = word.substr(0, prefixLen);
-        auto suggestions = root.words_with_prefix(prefix);
-        
-        if (suggestions.size() > 0)
+      cout << "\nChecking: '" << word << "'" << endl;
+
+      if (trie.contains(word))
         {
-          cout << "  Did you mean: ";
-          size_t shown = 0;
-          for (size_t i = 0; i < suggestions.size() and shown < 3; ++i, ++shown)
-          {
-            if (i > 0) cout << ", ";
-            string s = suggestions[i];
-            cout << s;
-          }
-          cout << "?" << endl;
-          break;
+          cout << "  Status: Correct!" << endl;
         }
-      }
+      else
+        {
+          cout << "  Status: Not found - might be misspelled" << endl;
+
+          // Simple suggestion: words with same prefix
+          for (size_t prefixLen = word.length() - 1; prefixLen >= 2; --prefixLen)
+            {
+              string prefix = word.substr(0, prefixLen);
+              auto suggestions = trie.words_with_prefix(prefix);
+
+              if (suggestions.size() > 0)
+                {
+                  cout << "  Did you mean: ";
+                  size_t shown = 0;
+                  for (size_t i = 0; i < suggestions.size() and shown < 3; ++i, ++shown)
+                    {
+                      if (i > 0)
+                        cout << ", ";
+                      string s = suggestions[i];
+                      cout << s;
+                    }
+                  cout << "?" << endl;
+                  break;
+                }
+            }
+        }
     }
-  }
-  
-  root.destroy();
 }
 
 /**
@@ -426,58 +423,51 @@ void demo_command_autocomplete()
   cout << "\n" << string(60, '=') << endl;
   cout << "Practical Example: Shell Command Autocomplete" << endl;
   cout << string(60, '=') << endl;
-  
-  Cnode root('\0');
-  
+
+  Prefix_Tree trie;
+
   // Common shell commands
   vector<string> commands = {
-    "cd", "ls", "pwd", "mkdir", "rmdir", "rm", "cp", "mv",
-    "cat", "less", "more", "head", "tail",
-    "grep", "find", "locate", "which", "whereis",
-    "chmod", "chown", "chgrp",
-    "ps", "top", "htop", "kill", "killall",
-    "ssh", "scp", "sftp",
-    "git", "gitk", "github",
-    "make", "cmake", "gcc", "g++", "gdb",
-    "python", "python3", "pip", "pip3",
-    "apt", "apt-get", "apt-cache"
-  };
-  
+    "cd",    "ls",     "pwd",     "mkdir", "rmdir",  "rm",   "cp",      "mv",       "cat",
+    "less",  "more",   "head",    "tail",  "grep",   "find", "locate",  "which",    "whereis",
+    "chmod", "chown",  "chgrp",   "ps",    "top",    "htop", "kill",    "killall",  "ssh",
+    "scp",   "sftp",   "git",     "gitk",  "github", "make", "cmake",   "gcc",      "g++",
+    "gdb",   "python", "python3", "pip",   "pip3",   "apt",  "apt-get", "apt-cache"};
+
   cout << "Loading " << commands.size() << " shell commands..." << endl;
-  for (const auto& cmd : commands)
-    root.insert_word(cmd);
-  
+  for (const auto &cmd : commands)
+    trie.insert_word(cmd);
+
   cout << "\n--- Tab Completion Simulation ---" << endl;
-  
+
   vector<string> partial_inputs = {"g", "gi", "apt", "ch", "py"};
-  
-  for (const auto& input : partial_inputs)
-  {
-    cout << "\n$ " << input << "<TAB>" << endl;
-    
-    auto completions = root.words_with_prefix(input);
-    
-    if (completions.size() == 0)
-      cout << "  (no completions)" << endl;
-    else if (completions.size() == 1)
+
+  for (const auto &input : partial_inputs)
     {
-      string c = completions[0];
-      cout << "  -> " << c << " (unique match)" << endl;
+      cout << "\n$ " << input << "<TAB>" << endl;
+
+      auto completions = trie.words_with_prefix(input);
+
+      if (completions.size() == 0)
+        cout << "  (no completions)" << endl;
+      else if (completions.size() == 1)
+        {
+          string c = completions[0];
+          cout << "  -> " << c << " (unique match)" << endl;
+        }
+      else
+        {
+          cout << "  Possible completions: ";
+          for (size_t i = 0; i < completions.size(); ++i)
+            {
+              if (i > 0)
+                cout << "  ";
+              string c = completions[i];
+              cout << c;
+            }
+          cout << endl;
+        }
     }
-    else
-    {
-      cout << "  Possible completions: ";
-      for (size_t i = 0; i < completions.size(); ++i)
-      {
-        if (i > 0) cout << "  ";
-        string c = completions[i];
-        cout << c;
-      }
-      cout << endl;
-    }
-  }
-  
-  root.destroy();
 }
 
 /**
@@ -488,39 +478,40 @@ void demo_trie_structure()
   cout << "\n" << string(60, '=') << endl;
   cout << "Trie Structure Visualization" << endl;
   cout << string(60, '=') << endl;
-  
-  Cnode root('\0');
-  
+
+  Prefix_Tree trie;
+
   vector<string> words = {"cat", "car", "card"};
-  
+
   cout << "\nInserting: ";
   for (size_t i = 0; i < words.size(); ++i)
-  {
-    if (i > 0) cout << ", ";
-    cout << words[i];
-    root.insert_word(words[i]);
-  }
+    {
+      if (i > 0)
+        cout << ", ";
+      cout << words[i];
+      trie.insert_word(words[i]);
+    }
   cout << endl;
-  
+
   cout << "\nTrie structure:" << endl;
   cout << "             root" << endl;
   cout << "               |" << endl;
   cout << "               c" << endl;
   cout << "               |" << endl;
   cout << "               a" << endl;
-  cout << "              /|" << endl;
-  cout << "             t r ($=end)" << endl;
-  cout << "             |  |" << endl;
-  cout << "             $ ($) d" << endl;
-  cout << "                  |" << endl;
-  cout << "                  $" << endl;
+  cout << "              / \\" << endl;
+  cout << "             r*  t*" << endl;
+  cout << "             |" << endl;
+  cout << "             d*" << endl;
   cout << endl;
   cout << "Words: cat, car, card" << endl;
   cout << "Notice how 'c', 'a' are shared!" << endl;
-  
-  cout << "\nTree string representation: " << root.to_str() << endl;
-  
-  root.destroy();
+  cout << "The '*' marks word endings stored as node state, not child nodes." << endl;
+
+  string structure = trie.root()->to_str();
+  if (not structure.empty() and structure.front() == '\0')
+    structure.replace(0, 1, "<root>");
+  cout << "\nTree string representation: " << structure << endl;
 }
 
 /**
@@ -531,156 +522,151 @@ void demo_performance(int n)
   cout << "\n" << string(60, '=') << endl;
   cout << "Performance Analysis (n = " << n << " words)" << endl;
   cout << string(60, '=') << endl;
-  
-  Cnode root('\0');
-  
+
+  Prefix_Tree trie;
+
   // Generate random-ish words
   vector<string> words;
   words.reserve(n);
-  
+
   vector<string> prefixes = {"pre", "post", "un", "re", "in", "ex", "sub", "super", "anti", "auto"};
-  vector<string> roots = {"act", "form", "port", "ject", "duct", "spect", "scrib", "struct", "mit", "vers"};
-  vector<string> suffixes = {"ion", "ment", "ness", "able", "ible", "ful", "less", "ive", "ous", "al"};
-  
+  vector<string> roots = {"act",   "form",  "port",   "ject", "duct",
+                          "spect", "scrib", "struct", "mit",  "vers"};
+  vector<string> suffixes = {"ion", "ment", "ness", "able", "ible",
+                             "ful", "less", "ive",  "ous",  "al"};
+
   for (int i = 0; i < n; ++i)
-  {
-    string word = prefixes[i % prefixes.size()] + 
-                  roots[(i / prefixes.size()) % roots.size()] +
-                  suffixes[(i / (prefixes.size() * roots.size())) % suffixes.size()];
-    // Add some variation
-    if (i % 3 == 0) word += "ed";
-    if (i % 5 == 0) word += "ly";
-    if (i % 7 == 0) word += "ing";
-    words.push_back(word);
-  }
-  
+    {
+      string word = prefixes[i % prefixes.size()] + roots[(i / prefixes.size()) % roots.size()] +
+        suffixes[(i / (prefixes.size() * roots.size())) % suffixes.size()];
+      // Add some variation
+      if (i % 3 == 0)
+        word += "ed";
+      if (i % 5 == 0)
+        word += "ly";
+      if (i % 7 == 0)
+        word += "ing";
+      words.push_back(word);
+    }
+
   cout << "\nGenerated " << words.size() << " words for testing" << endl;
-  
+
   // Insertion benchmark
   auto start = chrono::high_resolution_clock::now();
-  
-  for (const auto& word : words)
-    root.insert_word(word);
-  
+
+  for (const auto &word : words)
+    trie.insert_word(word);
+
   auto mid = chrono::high_resolution_clock::now();
-  
+
   // Search benchmark
   int found = 0;
-  for (const auto& word : words)
-    if (root.contains(word)) ++found;
-  
+  for (const auto &word : words)
+    if (trie.contains(word))
+      ++found;
+
   auto end = chrono::high_resolution_clock::now();
-  
+
   auto insert_us = chrono::duration_cast<chrono::microseconds>(mid - start).count();
   auto search_us = chrono::duration_cast<chrono::microseconds>(end - mid).count();
-  
+
   cout << "\nResults:" << endl;
-  cout << "  Words in trie: " << root.count() << endl;
+  cout << "  Words in trie: " << trie.count() << endl;
   cout << "  Insert time: " << insert_us << " us" << endl;
   cout << "  Search time: " << search_us << " us" << endl;
   cout << "  Found: " << found << "/" << words.size() << endl;
-  
+
   // Prefix search benchmark
   start = chrono::high_resolution_clock::now();
-  
+
   size_t total_matches = 0;
-  for (const auto& prefix : prefixes)
-  {
-    auto matches = root.words_with_prefix(prefix);
-    total_matches += matches.size();
-  }
-  
+  for (const auto &prefix : prefixes)
+    {
+      auto matches = trie.words_with_prefix(prefix);
+      total_matches += matches.size();
+    }
+
   end = chrono::high_resolution_clock::now();
-  
+
   auto prefix_us = chrono::duration_cast<chrono::microseconds>(end - start).count();
-  
+
   cout << "\nPrefix search (10 prefixes):" << endl;
   cout << "  Time: " << prefix_us << " us" << endl;
   cout << "  Total matches: " << total_matches << endl;
-  
-  root.destroy();
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
   try
-  {
-    TCLAP::CmdLine cmd("Trie (Prefix Tree) Example", ' ', "1.0");
-    
-    TCLAP::ValueArg<int> nArg("n", "count",
-      "Number of words for performance test", false, 1000, "int");
-    TCLAP::SwitchArg basicArg("b", "basic",
-      "Show basic operations", false);
-    TCLAP::SwitchArg prefixArg("p", "prefix",
-      "Show prefix search / autocomplete", false);
-    TCLAP::SwitchArg spellArg("s", "spell",
-      "Show spell checker example", false);
-    TCLAP::SwitchArg cmdArg("c", "commands",
-      "Show command autocomplete example", false);
-    TCLAP::SwitchArg structArg("t", "structure",
-      "Show trie structure visualization", false);
-    TCLAP::SwitchArg perfArg("f", "performance",
-      "Run performance analysis", false);
-    TCLAP::SwitchArg allArg("a", "all",
-      "Run all demos", false);
-    
-    cmd.add(nArg);
-    cmd.add(basicArg);
-    cmd.add(prefixArg);
-    cmd.add(spellArg);
-    cmd.add(cmdArg);
-    cmd.add(structArg);
-    cmd.add(perfArg);
-    cmd.add(allArg);
-    
-    cmd.parse(argc, argv);
-    
-    int n = nArg.getValue();
-    bool runBasic = basicArg.getValue();
-    bool runPrefix = prefixArg.getValue();
-    bool runSpell = spellArg.getValue();
-    bool runCmd = cmdArg.getValue();
-    bool runStruct = structArg.getValue();
-    bool runPerf = perfArg.getValue();
-    bool runAll = allArg.getValue();
-    
-    if (not runBasic and not runPrefix and not runSpell and 
-        not runCmd and not runStruct and not runPerf)
-      runAll = true;
-    
-    cout << "=== Trie (Prefix Tree): Efficient String Storage ===" << endl;
-    
-    if (runAll or runBasic)
-      demo_basic_operations();
-    
-    if (runAll or runStruct)
-      demo_trie_structure();
-    
-    if (runAll or runPrefix)
-      demo_prefix_search();
-    
-    if (runAll or runSpell)
-      demo_spell_checker();
-    
-    if (runAll or runCmd)
-      demo_command_autocomplete();
-    
-    if (runAll or runPerf)
-      demo_performance(n);
-    
-    cout << "\n=== Summary ===" << endl;
-    cout << "Tries excel at:" << endl;
-    cout << "  - Fast prefix searches (autocomplete)" << endl;
-    cout << "  - Memory-efficient storage of strings with shared prefixes" << endl;
-    cout << "  - O(k) operations where k = word length" << endl;
-    cout << "Use cases: autocomplete, spell checkers, IP routing, dictionaries" << endl;
-    
-    return 0;
-  }
-  catch (TCLAP::ArgException& e)
-  {
-    cerr << "Error: " << e.error() << " for arg " << e.argId() << endl;
-    return 1;
-  }
-}
+    {
+      TCLAP::CmdLine cmd("Trie (Prefix Tree) Example", ' ', "1.0");
 
+      TCLAP::ValueArg<int> nArg("n", "count", "Number of words for performance test", false, 1000,
+                                "int");
+      TCLAP::SwitchArg basicArg("b", "basic", "Show basic operations", false);
+      TCLAP::SwitchArg prefixArg("p", "prefix", "Show prefix search / autocomplete", false);
+      TCLAP::SwitchArg spellArg("s", "spell", "Show spell checker example", false);
+      TCLAP::SwitchArg cmdArg("c", "commands", "Show command autocomplete example", false);
+      TCLAP::SwitchArg structArg("t", "structure", "Show trie structure visualization", false);
+      TCLAP::SwitchArg perfArg("f", "performance", "Run performance analysis", false);
+      TCLAP::SwitchArg allArg("a", "all", "Run all demos", false);
+
+      cmd.add(nArg);
+      cmd.add(basicArg);
+      cmd.add(prefixArg);
+      cmd.add(spellArg);
+      cmd.add(cmdArg);
+      cmd.add(structArg);
+      cmd.add(perfArg);
+      cmd.add(allArg);
+
+      cmd.parse(argc, argv);
+
+      int n = nArg.getValue();
+      bool runBasic = basicArg.getValue();
+      bool runPrefix = prefixArg.getValue();
+      bool runSpell = spellArg.getValue();
+      bool runCmd = cmdArg.getValue();
+      bool runStruct = structArg.getValue();
+      bool runPerf = perfArg.getValue();
+      bool runAll = allArg.getValue();
+
+      if (not runBasic and not runPrefix and not runSpell and not runCmd and not runStruct and
+          not runPerf)
+        runAll = true;
+
+      cout << "=== Trie (Prefix Tree): Efficient String Storage ===" << endl;
+
+      if (runAll or runBasic)
+        demo_basic_operations();
+
+      if (runAll or runStruct)
+        demo_trie_structure();
+
+      if (runAll or runPrefix)
+        demo_prefix_search();
+
+      if (runAll or runSpell)
+        demo_spell_checker();
+
+      if (runAll or runCmd)
+        demo_command_autocomplete();
+
+      if (runAll or runPerf)
+        demo_performance(n);
+
+      cout << "\n=== Summary ===" << endl;
+      cout << "Tries excel at:" << endl;
+      cout << "  - Fast prefix searches (autocomplete)" << endl;
+      cout << "  - Memory-efficient storage of strings with shared prefixes" << endl;
+      cout << "  - O(k) operations where k = word length" << endl;
+      cout << "Use cases: autocomplete, spell checkers, IP routing, dictionaries" << endl;
+
+      return 0;
+    }
+  catch (TCLAP::ArgException &e)
+    {
+      cerr << "Error: " << e.error() << " for arg " << e.argId() << endl;
+      return 1;
+    }
+}
