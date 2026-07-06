@@ -46,6 +46,7 @@
 #include <optional>
 #include <random>
 #include <stdexcept>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -209,9 +210,48 @@ public:
   {
     if (not launch_completed)
       gate.cancel();
+    join_all_no_throw();
+  }
+
+private:
+  /** @brief Joins every joinable thread, never letting an exception escape.
+   *
+   *  `std::thread::join()` can throw `std::system_error` (the `joinable()`
+   *  guard already rules out the most common case, `errc::invalid_argument`
+   *  for a non-joinable thread, but the standard does not otherwise bound
+   *  what an implementation may report). Destructors are implicitly
+   *  `noexcept`, so letting that propagate out of `~Joining_Thread_Guard()`
+   *  would call `std::terminate()`.
+   *
+   *  Per the standard, a `std::thread` that throws out of `join()` remains
+   *  joinable -- swallowing the exception alone would leave that thread
+   *  joinable in the caller's `std::vector<std::thread>`, which would then
+   *  call `std::terminate()` itself once that vector is later destroyed.
+   *  `detach()` is attempted as a fallback specifically to avoid trading
+   *  one `std::terminate()` for a delayed one; if that also throws, nothing
+   *  further can be done from a destructor with nothing left to report to.
+   */
+  void join_all_no_throw() noexcept
+  {
     for (auto &thread : threads)
       if (thread.joinable())
-        thread.join();
+        {
+          try
+            {
+              thread.join();
+            }
+          catch (const std::system_error &)
+            {
+              try
+                {
+                  thread.detach();
+                }
+              catch (const std::system_error &)
+                {
+                  // Nothing actionable from here; see rationale above.
+                }
+            }
+        }
   }
 };
 
