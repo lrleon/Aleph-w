@@ -60,12 +60,30 @@
 #include <utility>
 #include <vector>
 
+// ThreadSanitizer ships its own strong global operator new/delete
+// replacements (tsan_new_delete.cpp.o). Defining our own below -- needed to
+// inject allocation failures for the tests exercising prefix-tree.H's
+// exception-safety paths -- collides with those at link time ("multiple
+// definition") under -fsanitize=thread. ASan/UBSan/plain Debug builds are
+// unaffected; only skip the override (and the tests relying on it) for TSan.
+#if defined(__SANITIZE_THREAD__)
+#  define ALEPH_PREFIX_TREE_TEST_UNDER_TSAN 1
+#elif defined(__has_feature)
+#  if __has_feature(thread_sanitizer)
+#    define ALEPH_PREFIX_TREE_TEST_UNDER_TSAN 1
+#  endif
+#endif
+#ifndef ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+#  define ALEPH_PREFIX_TREE_TEST_UNDER_TSAN 0
+#endif
+
 namespace
 {
   std::atomic<int> allocation_countdown{-1};
   std::atomic<bool> track_allocations{false};
   std::atomic<int> tracked_balance{0};
 
+#if !ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
   bool should_fail_allocation() noexcept
   {
     int remaining = allocation_countdown.load(std::memory_order_relaxed);
@@ -79,6 +97,7 @@ namespace
       }
     return false;
   }
+
 
   void * allocate_or_throw(std::size_t size)
   {
@@ -108,6 +127,7 @@ namespace
 
     std::free(ptr);
   }
+#endif  // !ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
 
   class AllocationFailureScope
   {
@@ -132,6 +152,8 @@ namespace
     }
   };
 }
+
+#if !ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
 
 void *operator new(std::size_t size)
 {
@@ -196,6 +218,8 @@ void operator delete[](void *ptr, const std::nothrow_t &) noexcept
 {
   release_allocation(ptr);
 }
+
+#endif  // !ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
 
 using namespace Aleph;
 
@@ -403,6 +427,10 @@ TEST_F(PrefixTreeTest, WordEndSurvivesLowerSortedChild)
 
 TEST_F(PrefixTreeTest, InsertWordCleansDetachedPathOnAllocationFailure)
 {
+#if ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#endif
   EXPECT_TRUE(root->insert_word("mango"));
   const auto before = to_sorted_vector(root->words());
 
@@ -665,6 +693,10 @@ TEST_F(PrefixTreeTest, ClonePreservesWordEndFlags)
 
 TEST_F(PrefixTreeTest, CloneCleansPartialCopyOnAllocationFailure)
 {
+#if ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#endif
   root->insert_word("alpha");
   root->insert_word("beta");
   root->insert_word("$");
@@ -886,6 +918,10 @@ TEST(PrefixTreeWrapperTest, DelegatesWordOperations)
 
 TEST(PrefixTreeWrapperTest, OwnsRootAndDestroysNodes)
 {
+#if ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#endif
   size_t count = 0;
   int balance = 0;
   {
@@ -959,8 +995,40 @@ TEST(PrefixTreeWrapperTest, CopyAssignmentCreatesIndependentTree)
   EXPECT_TRUE(target.contains("delta"));
 }
 
+TEST(PrefixTreeWrapperTest, MoveConstructorTransfersOwnership)
+{
+  Prefix_Tree source;
+  source.insert_word("alpha");
+  source.insert_word("$");
+
+  Prefix_Tree moved(std::move(source));
+
+  EXPECT_TRUE(moved.contains("alpha"));
+  EXPECT_TRUE(moved.contains("$"));
+}
+
+TEST(PrefixTreeWrapperTest, MoveAssignmentTransfersOwnershipAndFreesOldRoot)
+{
+  Prefix_Tree source;
+  source.insert_word("alpha");
+  source.insert_word("beta");
+
+  Prefix_Tree target;
+  target.insert_word("old");
+
+  target = std::move(source);
+
+  EXPECT_TRUE(target.contains("alpha"));
+  EXPECT_TRUE(target.contains("beta"));
+  EXPECT_FALSE(target.contains("old"));
+}
+
 TEST(PrefixTreeWrapperTest, CopyAssignmentKeepsOldTreeOnAllocationFailure)
 {
+#if ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#endif
   Prefix_Tree source;
   source.insert_word("alpha");
   source.insert_word("beta");

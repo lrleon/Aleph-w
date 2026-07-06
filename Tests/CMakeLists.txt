@@ -382,6 +382,7 @@ set(TEST_PROGRAMS
     planarity_test
     graph_copy_test
     thread_pool_test
+    concurrency_test_utils_test
     timeoutQueue_test
     graph_traverse_test
     test_ah_errors

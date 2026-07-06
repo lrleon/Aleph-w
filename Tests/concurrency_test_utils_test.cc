@@ -32,6 +32,7 @@
 
 #include "concurrency_test_utils.H"
 
+#include <algorithm>
 #include <atomic>
 #include <map>
 #include <stdexcept>
@@ -42,6 +43,19 @@ using namespace Aleph::Testing;
 TEST(ConcurrencyTestUtils, StartGateRejectsZeroParticipants)
 {
   EXPECT_THROW(StartGate(0), std::invalid_argument);
+}
+
+TEST(ConcurrencyTestUtils, RunConcurrentlyRejectsZeroThreads)
+{
+  EXPECT_THROW(run_concurrently(0, [](const size_t) {}),
+               std::invalid_argument);
+}
+
+TEST(ConcurrencyTestUtils, RunProducersConsumersRejectsZeroWorkers)
+{
+  EXPECT_THROW(
+    run_producers_consumers(0, 0, [](const size_t) {}, [](const size_t) {}),
+    std::invalid_argument);
 }
 
 TEST(ConcurrencyTestUtils, RunConcurrentlyStartsEveryWorker)
@@ -100,6 +114,9 @@ TEST(ConcurrencyTestUtils, RandomOperationTraceIsDeterministic)
     {
       EXPECT_LT(op.key, 7u);
       EXPECT_LT(op.value, 11u);
+      EXPECT_NE(std::find(config.operations.begin(), config.operations.end(),
+                          op.kind),
+               config.operations.end());
     }
 }
 

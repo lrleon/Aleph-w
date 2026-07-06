@@ -775,6 +775,18 @@ namespace Aleph
       // empty
     }
 
+    /** @brief Move-construct, taking ownership of another tree's root.
+     *
+     * @param[in,out] other Tree to move from. Left owning no root; the
+     *                      only valid operations on `other` afterward are
+     *                      destruction or assignment.
+     */
+    Prefix_Tree(Prefix_Tree &&other) noexcept
+      : root_(other.root_)
+    {
+      other.root_ = nullptr;
+    }
+
     /** @brief Destroy the owned root and all descendants.
      *
      * This destructor does not throw.
@@ -802,6 +814,24 @@ namespace Aleph
       Cnode *new_root = other.root_->clone();
       destroy_root(root_);
       root_ = new_root;
+      return *this;
+    }
+
+    /** @brief Move-assign, taking ownership of another tree's root.
+     *
+     * @param[in,out] other Tree to move from. Left owning no root; the
+     *                      only valid operations on `other` afterward are
+     *                      destruction or assignment.
+     * @return Reference to this tree.
+     */
+    Prefix_Tree &operator=(Prefix_Tree &&other) noexcept
+    {
+      if (this == &other)
+        return *this;
+
+      destroy_root(root_);
+      root_ = other.root_;
+      other.root_ = nullptr;
       return *this;
     }
 
