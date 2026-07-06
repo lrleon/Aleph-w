@@ -260,7 +260,7 @@ void run_concurrently(const size_t thread_count, Worker worker)
   {
     concurrency_test_utils_detail::Joining_Thread_Guard guard(threads, gate);
     for (size_t i = 0; i < thread_count; ++i)
-      threads.emplace_back([&, i]
+      threads.emplace_back([&, i, worker]() mutable
       {
         if (not gate.arrive_and_wait())
           return;
@@ -295,8 +295,13 @@ void run_concurrently(const size_t thread_count, Worker worker)
  *  ahead. Exceptions are captured (the first one observed) and rethrown
  *  after all threads join.
  *
- *  @tparam Producer callable, invocable as `producer(size_t)`.
- *  @tparam Consumer callable, invocable as `consumer(size_t)`.
+ *  @tparam Producer callable, invocable as `producer(size_t)`; must be safe
+ *          to copy into `producer_count` closures and to call concurrently
+ *          from different threads (each thread calls its own copy, so
+ *          `Producer` itself need not be thread-safe unless it captures
+ *          shared state).
+ *  @tparam Consumer callable, invocable as `consumer(size_t)`; same
+ *          per-thread-copy contract as `Producer`.
  *  @param[in] producer_count number of producer workers.
  *  @param[in] consumer_count number of consumer workers.
  *  @param[in] producer producer callable.
@@ -338,7 +343,7 @@ void run_producers_consumers(const size_t producer_count,
     concurrency_test_utils_detail::Joining_Thread_Guard guard(threads, gate);
 
     for (size_t i = 0; i < producer_count; ++i)
-      threads.emplace_back([&, i]
+      threads.emplace_back([&, i, producer]() mutable
       {
         if (not gate.arrive_and_wait())
           return;
@@ -353,7 +358,7 @@ void run_producers_consumers(const size_t producer_count,
       });
 
     for (size_t i = 0; i < consumer_count; ++i)
-      threads.emplace_back([&, i]
+      threads.emplace_back([&, i, consumer]() mutable
       {
         if (not gate.arrive_and_wait())
           return;

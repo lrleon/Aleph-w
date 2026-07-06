@@ -191,7 +191,7 @@ public:
    */
   void operator () (GT &g, const size_t &width, const size_t &height)
   {
-    ah_domain_error_if(g.get_num_nodes() != 0) << "There are nodes in graph";
+    ah_domain_error_if(g.get_num_nodes() != 0) << "Build_Grid requires an empty graph";
 
     ah_length_error_if(width < 2 or height < 2) << "The minimum size must be 2 x 2";
 
