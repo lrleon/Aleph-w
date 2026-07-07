@@ -3760,6 +3760,7 @@ El roadmap más amplio de la plataforma está en
 |--------|---------------|-------------|
 | `thread_pool.H` | `ThreadPool` | Thread pool with futures |
 | `concurrency_utils.H` | `bounded_channel<T>`, `synchronized<T>` | Canales modernos y wrappers para estado compartido |
+| `tpl_mpsc_queue.H` | `MpscQueue<T>` | Cola lock-free no acotada, multi-productor / single-consumer |
 | `ah-parallel.H` | `pmap()` | Parallel map |
 | `ah-parallel.H` | `pfilter()` | Parallel filter |
 | `ah-parallel.H` | `pfold()` | Parallel reduce |

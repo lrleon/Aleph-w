@@ -383,6 +383,7 @@ set(TEST_PROGRAMS
     graph_copy_test
     thread_pool_test
     concurrency_test_utils_test
+    mpsc_queue_test
     timeoutQueue_test
     graph_traverse_test
     test_ah_errors

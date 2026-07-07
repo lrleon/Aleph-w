@@ -3524,6 +3524,42 @@ requested while a sender or receiver is blocked.
 See `Examples/concurrency_utils_example.cc` for a focused runnable example of
 channels, synchronized shared state, and SPSC handoff.
 
+### Lock-Free Multi-Producer/Single-Consumer Queue
+
+```cpp
+#include <tpl_mpsc_queue.H>
+#include <thread>
+#include <vector>
+
+int main() {
+    Aleph::MpscQueue<int> jobs;
+    std::vector<std::thread> producers;
+    for (int p = 0; p < 4; ++p)
+        producers.emplace_back([&, p] {
+            for (int i = 0; i < 1000; ++i)
+                jobs.push(p * 1000 + i);
+        });
+
+    int consumed = 0;
+    while (consumed < 4000) {
+        int value;
+        if (jobs.try_pop(value))
+            ++consumed;
+    }
+
+    for (auto &t : producers)
+        t.join();
+    return jobs.is_empty() ? 0 : 1;
+}
+```
+
+`MpscQueue<T>` is unbounded and never blocks: `push`/`emplace` are lock-free
+and safe from any number of producer threads; `try_pop`/`is_empty` are
+consumer-only (exactly one consumer thread, never called concurrently with
+itself). See the file-level Doxygen in `tpl_mpsc_queue.H` for the exact
+progress guarantees and memory-ordering rationale, and
+`Examples/mpsc_queue_example.cc` for a runnable multi-producer walkthrough.
+
 ### Parallel Functional Operations
 
 ```cpp
@@ -4113,6 +4149,7 @@ The longer-term platform roadmap lives in
 | `thread_pool.H` | `CancellationSource`, `CancellationToken` | Cooperative task cancellation |
 | `concurrency_utils.H` | `bounded_channel<T>`, `spsc_queue<T>` | Concurrent message channels and queues |
 | `concurrency_utils.H` | `synchronized<T>`, `rw_synchronized<T>` | Mutex and RW-lock protected shared state |
+| `tpl_mpsc_queue.H` | `MpscQueue<T>` | Unbounded lock-free multi-producer/single-consumer queue |
 | `ah-parallel.H` | `pmaps()`, `pfilter()` | Parallel map and filter |
 | `ah-parallel.H` | `pfoldl()`, `pfor_each()` | Parallel reduce and iteration |
 | `ah-parallel.H` | `psort()`, `ppartition()` | Parallel sort and partition |
