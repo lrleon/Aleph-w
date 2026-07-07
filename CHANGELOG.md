@@ -5,6 +5,15 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.7.0](https://github.com/lrleon/Aleph-w/compare/v5.6.0...v5.7.0) (2026-07-07)
+
+
+### Features
+
+* **core:** Add concurrent hash map example and tests ([3e2a7c6](https://github.com/lrleon/Aleph-w/commit/3e2a7c64b6724a4cece37aa78002aafe7d542878))
+* **core:** Add concurrent hash map example and tests ([7c16eee](https://github.com/lrleon/Aleph-w/commit/7c16eee86fddbadfda4df8151b13f4292881f0a6))
+* **core:** Implement lock-free MPSC queue ([6ea8125](https://github.com/lrleon/Aleph-w/commit/6ea81251651067e6c9a8112b49fe166956890fe1))
+
 ## [5.6.0](https://github.com/lrleon/Aleph-w/compare/v5.5.0...v5.6.0) (2026-07-07)
 
 
