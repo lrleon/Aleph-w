@@ -58,6 +58,7 @@
 #define TPL_CA_LATTICE_H
 
 #include <cstddef>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -71,30 +72,51 @@ namespace CA {
 
 namespace ca_lattice_detail {
 
+inline ca_size_t magnitude(const ca_index_t c) noexcept
+{
+  if (c >= 0)
+    return static_cast<ca_size_t>(c);
+  return static_cast<ca_size_t>(-(c + 1)) + 1;
+}
+
 /// Wrap a signed coordinate into `[0, n)` with positive modulo.
 inline ca_size_t wrap_into_range(ca_index_t c, const ca_size_t n) noexcept
 {
-  const ca_index_t m = static_cast<ca_index_t>(n);
-  ca_index_t r = c % m;
-  if (r < 0)
-    r += m;
-  return static_cast<ca_size_t>(r);
+  if (n == 0)
+    return 0;
+
+  const ca_size_t mag = magnitude(c);
+  if (c >= 0)
+    return mag % n;
+
+  const ca_size_t r = mag % n;
+  return r == 0 ? 0 : n - r;
 }
 
 /// Reflect a signed coordinate into `[0, n)` (no-repeat triangle wave).
 /// Maps `-1 → 0`, `-2 → 1`, `n → n-1`, `n+1 → n-2`, etc.
 inline ca_size_t reflect_into_range(const ca_index_t c, const ca_size_t n) noexcept
 {
-  if (n == 1)
+  if (n <= 1)
     return 0;
-  const ca_index_t period = static_cast<ca_index_t>(2 * n);
-  ca_index_t r = c % period;
-  if (r < 0)
-    r += period;
-  const ca_index_t ni = static_cast<ca_index_t>(n);
-  if (r >= ni)
+
+  const ca_size_t mag = magnitude(c);
+  if (n > (std::numeric_limits<ca_size_t>::max() >> 1))
+    return c >= 0 ? mag : mag - 1;
+
+  const ca_size_t period = 2 * n;
+  ca_size_t r = 0;
+  if (c >= 0)
+    r = mag % period;
+  else
+    {
+      const ca_size_t mod = mag % period;
+      r = mod == 0 ? 0 : period - mod;
+    }
+
+  if (r >= n)
     r = period - 1 - r;
-  return static_cast<ca_size_t>(r);
+  return r;
 }
 
 /// True iff `B` is a `ConstantBoundary<T, V>`.
@@ -149,7 +171,7 @@ private:
   /// boundary policy. Returns `false` for `OpenBoundary` /
   /// `ConstantBoundary` when `c` is out of range, in which case the
   /// caller should return `out_of_range_value()` instead.
-  [[nodiscard]] bool fold_coord(coord_type &c) const noexcept
+  [[nodiscard]] bool fold_coord(coord_type &c) const
   {
     using namespace ca_lattice_detail;
     for (std::size_t d = 0; d < rank; ++d)

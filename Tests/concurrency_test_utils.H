@@ -28,560 +28,325 @@
   SOFTWARE.
 */
 
-/**
- * @file concurrency_test_utils.H
- * @brief Reusable helpers for concurrent data-structure tests.
+/** @file concurrency_test_utils.H
+ *  @brief Reusable helpers for concurrent data-structure tests.
+ *
+ *  This header is test-only infrastructure. It intentionally lives under
+ *  Tests/ and must not be included by production headers.
  */
 
-#ifndef ALEPH_CONCURRENCY_TEST_UTILS_H
-#define ALEPH_CONCURRENCY_TEST_UTILS_H
+#ifndef ALEPH_TESTS_CONCURRENCY_TEST_UTILS_H
+#define ALEPH_TESTS_CONCURRENCY_TEST_UTILS_H
 
 #include <atomic>
+#include <cassert>
+#include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
-#include <exception>
-#include <functional>
+#include <initializer_list>
 #include <mutex>
-#include <optional>
 #include <random>
-#include <stdexcept>
-#include <system_error>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include <ah-errors.H>
-
-namespace Aleph
+namespace Aleph::Testing
 {
-namespace Testing
-{
-
-/** @brief One-shot deterministic start gate for test worker threads.
- *
- *  All participants call `arrive_and_wait()` and block until the last one
- *  arrives, so a test can launch several worker threads and have them begin
- *  their timed/racy section as simultaneously as the scheduler allows,
- *  instead of racing from staggered `std::thread` start times.
- *
- *  @par Thread-safety
- *  `arrive_and_wait()` and `cancel()` may be called concurrently from any
- *  number of threads; both synchronize internally on the gate's own mutex.
- *  The constructor is not thread-safe with respect to concurrent use of the
- *  same (not-yet-published) instance, matching ordinary construction rules.
- *
- *  @par Complexity
- *  `arrive_and_wait()` and `cancel()` are O(1) plus the cost of waking up
- *  to `num_participants` blocked threads (a single `notify_all()`).
- */
-class StartGate
-{
-  const size_t participants;
-  size_t waiting = 0;
-  bool open = false;
-  bool cancelled = false;
-  std::mutex mutex;
-  std::condition_variable cv;
-
-public:
-  /** @brief Builds a gate that opens when `num_participants` threads arrive.
+  /** @brief Single-use deterministic start gate for concurrent tests.
    *
-   *  @param[in] num_participants number of worker threads expected.
-   *  @throw std::invalid_argument if `num_participants` is zero.
+   * Worker threads call arrive_and_wait(). The test thread calls
+   * wait_until_ready() and release(). This ensures all workers are parked before
+   * the measured/stressed section starts.
    */
-  explicit StartGate(const size_t num_participants)
-    : participants(num_participants)
+  class Deterministic_Start_Gate
   {
-    ah_invalid_argument_if(participants == 0)
-      << "StartGate requires at least one participant";
-  }
+    const size_t expected_ = 0;
+    size_t arrived_ = 0;
+    bool released_ = false;
+    mutable std::mutex mutex_;
+    std::condition_variable cv_;
 
-  /** @brief Blocks until all participants have arrived, or the gate is
-   *         cancelled.
-   *
-   *  @pre Called at most once per logical participant (calling it more
-   *       times than `num_participants` from distinct threads means more
-   *       than `num_participants` threads will block here, and the gate
-   *       never opens on its own).
-   *  @post On a `true` return, every participant's `arrive_and_wait()` has
-   *        also returned or is about to return -- the gate does not open
-   *        for only some of them.
-   *  @return `true` if the gate opened normally (all participants
-   *          arrived); `false` if `cancel()` unblocked this call instead.
-   *  @note Does not throw; blocking is done through
-   *        `std::condition_variable::wait`, which only propagates spurious
-   *        wakeups internally (handled by the wait predicate) and does not
-   *        surface exceptions in normal use.
-   */
-  bool arrive_and_wait()
-  {
-    std::unique_lock lock(mutex);
-    if (cancelled)
-      return false;
-
-    ++waiting;
-    if (waiting == participants)
-      {
-        open = true;
-        cv.notify_all();
-        return true;
-      }
-
-    cv.wait(lock, [this] { return open or cancelled; });
-    return open;
-  }
-
-  /** @brief Aborts the gate, releasing every participant currently blocked
-   *         in `arrive_and_wait()` (and any that calls it afterward).
-   *
-   *  Released participants observe `arrive_and_wait()` returning `false`
-   *  instead of waiting forever. Intended for exception-safety cleanup:
-   *  if launching one worker thread of a cohort fails partway through
-   *  (see `run_concurrently()`), the threads already started would
-   *  otherwise block on this gate indefinitely, since the full
-   *  `num_participants` will never arrive.
-   *
-   *  @post `open` remains as it was (cancelling an already-open gate is a
-   *        harmless no-op); further `arrive_and_wait()` calls return
-   *        `false` immediately.
-   */
-  void cancel() noexcept
-  {
-    std::lock_guard lock(mutex);
-    cancelled = true;
-    cv.notify_all();
-  }
-};
-
-namespace concurrency_test_utils_detail
-{
-
-/** @brief RAII guard that leaves no thread joinable when it goes out of
- *         scope, cancelling `gate` first so any thread still blocked in
- *         `StartGate::arrive_and_wait()` wakes up instead of waiting
- *         forever.
- *
- *  Constructing a cohort of worker threads with `std::vector::emplace_back`
- *  can throw partway through (typically `std::system_error` from the OS
- *  refusing to create another thread). Without this guard, the threads
- *  already started stay blocked on the shared `StartGate` -- it will never
- *  reach `num_participants` arrivals -- and when the exception unwinds the
- *  enclosing `std::vector<std::thread>`, destroying still-joinable
- *  `std::thread` objects calls `std::terminate()`.
- *
- *  Usage is a commit/rollback pattern: construct the guard right before the
- *  launch loop, call `dismiss()` right after every thread has been launched
- *  successfully, then let normal execution join the threads as before (or
- *  let the guard's destructor do it). If an exception unwinds the scope
- *  *before* `dismiss()` runs, the destructor knows the full cohort never
- *  launched, so it cancels the gate first -- unblocking every thread
- *  already waiting in `StartGate::arrive_and_wait()` -- and only then joins
- *  them. After `dismiss()`, the destructor still joins any still-joinable
- *  thread (harmless once the caller's own join loop already ran), but does
- *  not cancel the gate, since all participants are known to have been
- *  launched and will reach it on their own.
- *
- *  @note Not copyable or movable; it is meant to be a single scope-local
- *        guard around one `std::vector<std::thread>` and `StartGate` pair.
- */
-class Joining_Thread_Guard
-{
-  std::vector<std::thread> &threads;
-  StartGate &gate;
-  bool launch_completed = false;
-
-public:
-  Joining_Thread_Guard(std::vector<std::thread> &threads_, StartGate &gate_) noexcept
-    : threads(threads_), gate(gate_)
-  {}
-
-  Joining_Thread_Guard(const Joining_Thread_Guard &) = delete;
-  Joining_Thread_Guard &operator=(const Joining_Thread_Guard &) = delete;
-
-  /** @brief Marks the launch loop as having completed without throwing.
-   *
-   *  Call this once, right after the last `threads.emplace_back(...)`. It
-   *  must not be called if any launch attempt failed.
-   */
-  void dismiss() noexcept { launch_completed = true; }
-
-  ~Joining_Thread_Guard()
-  {
-    if (not launch_completed)
-      gate.cancel();
-    join_all_no_throw();
-  }
-
-private:
-  /** @brief Joins every joinable thread, never letting an exception escape.
-   *
-   *  `std::thread::join()` can throw `std::system_error` (the `joinable()`
-   *  guard already rules out the most common case, `errc::invalid_argument`
-   *  for a non-joinable thread, but the standard does not otherwise bound
-   *  what an implementation may report). Destructors are implicitly
-   *  `noexcept`, so letting that propagate out of `~Joining_Thread_Guard()`
-   *  would call `std::terminate()`.
-   *
-   *  Per the standard, a `std::thread` that throws out of `join()` remains
-   *  joinable -- swallowing the exception alone would leave that thread
-   *  joinable in the caller's `std::vector<std::thread>`, which would then
-   *  call `std::terminate()` itself once that vector is later destroyed.
-   *  `detach()` is attempted as a fallback specifically to avoid trading
-   *  one `std::terminate()` for a delayed one; if that also throws, nothing
-   *  further can be done from a destructor with nothing left to report to.
-   */
-  void join_all_no_throw() noexcept
-  {
-    for (auto &thread : threads)
-      if (thread.joinable())
-        {
-          try
-            {
-              thread.join();
-            }
-          catch (const std::system_error &)
-            {
-              try
-                {
-                  thread.detach();
-                }
-              catch (const std::system_error &)
-                {
-                  // Nothing actionable from here; see rationale above.
-                }
-            }
-        }
-  }
-};
-
-} // namespace concurrency_test_utils_detail
-
-/** @brief Runs `worker(index)` in `thread_count` threads with a shared
- *         start gate.
- *
- *  Every worker blocks on a shared `StartGate` before calling
- *  `worker(index)`, so all `thread_count` invocations begin as close to
- *  simultaneously as the scheduler allows. Any exception thrown by a
- *  worker is captured (the first one, by arrival order under the internal
- *  mutex) and rethrown from this function after every thread has joined.
- *
- *  @tparam Worker callable, invocable as `worker(size_t)`; must be safe to
- *          copy into `thread_count` closures and to call concurrently from
- *          different threads (each thread calls its own copy, so `Worker`
- *          itself need not be thread-safe unless it captures shared state).
- *  @param[in] thread_count number of worker threads to launch.
- *  @param[in] worker callable receiving the worker index in
- *             `[0, thread_count)`.
- *  @throw std::invalid_argument if `thread_count` is zero.
- *  @throw std::system_error propagated as-is if the underlying
- *         `std::thread` constructor fails to create a thread; threads
- *         already launched are joined (never left blocked on the gate or
- *         abandoned joinable) before this propagates.
- *  @note Exception safety: if a worker throws anything other than what it
- *        raises through normal execution, that exception (the first one
- *        observed) is rethrown by this function; all other workers still
- *        run to completion and are joined regardless.
- *  @note Complexity: O(thread_count) thread creations/joins plus whatever
- *        `worker` itself costs.
- */
-template <class Worker>
-void run_concurrently(const size_t thread_count, Worker worker)
-{
-  ah_invalid_argument_if(thread_count == 0)
-    << "run_concurrently requires at least one thread";
-
-  StartGate gate(thread_count);
-  std::mutex exception_mutex;
-  std::exception_ptr first_exception;
-  std::vector<std::thread> threads;
-  threads.reserve(thread_count);
-
-  {
-    concurrency_test_utils_detail::Joining_Thread_Guard guard(threads, gate);
-    for (size_t i = 0; i < thread_count; ++i)
-      threads.emplace_back([&, i, worker]() mutable
-      {
-        if (not gate.arrive_and_wait())
-          return;
-        try
-          {
-            std::invoke(worker, i);
-          }
-        catch (...)
-          {
-            std::lock_guard lock(exception_mutex);
-            if (first_exception == nullptr)
-              first_exception = std::current_exception();
-          }
-      });
-    guard.dismiss();  // every thread launched; let them reach the gate on
-                       // their own instead of racing to cancel() it here.
-  } // guard destructor: on the normal path above, just joins (already-
-    // dismissed); if emplace_back threw before dismiss(), cancels the gate
-    // first so threads already blocked on it wake up, then joins them.
-
-  if (first_exception != nullptr)
-    std::rethrow_exception(first_exception);
-}
-
-/** @brief Runs producer and consumer workers from the same deterministic
- *         start gate.
- *
- *  The producer callable receives a producer index in `[0, producer_count)`.
- *  The consumer callable receives a consumer index in `[0, consumer_count)`.
- *  All `producer_count + consumer_count` workers share one `StartGate`, so
- *  producers and consumers start together rather than producers racing
- *  ahead. Exceptions are captured (the first one observed) and rethrown
- *  after all threads join.
- *
- *  @tparam Producer callable, invocable as `producer(size_t)`; must be safe
- *          to copy into `producer_count` closures and to call concurrently
- *          from different threads (each thread calls its own copy, so
- *          `Producer` itself need not be thread-safe unless it captures
- *          shared state).
- *  @tparam Consumer callable, invocable as `consumer(size_t)`; same
- *          per-thread-copy contract as `Producer`.
- *  @param[in] producer_count number of producer workers.
- *  @param[in] consumer_count number of consumer workers.
- *  @param[in] producer producer callable.
- *  @param[in] consumer consumer callable.
- *  @throw std::invalid_argument if both counts are zero.
- *  @throw std::system_error propagated as-is if the underlying
- *         `std::thread` constructor fails to create a thread; threads
- *         already launched are joined (never left blocked on the gate or
- *         abandoned joinable) before this propagates.
- *  @note Exception safety: same as `run_concurrently()` -- the first
- *        exception observed from any producer or consumer is rethrown
- *        once every thread has joined.
- *  @note Complexity: O(producer_count + consumer_count) thread
- *        creations/joins plus whatever `producer`/`consumer` cost.
- */
-template <class Producer, class Consumer>
-void run_producers_consumers(const size_t producer_count,
-                             const size_t consumer_count,
-                             Producer producer, Consumer consumer)
-{
-  const size_t total = producer_count + consumer_count;
-  ah_invalid_argument_if(total == 0)
-    << "run_producers_consumers requires workers";
-
-  StartGate gate(total);
-  std::mutex exception_mutex;
-  std::exception_ptr first_exception;
-  std::vector<std::thread> threads;
-  threads.reserve(total);
-
-  auto capture_exception = [&]
-  {
-    std::lock_guard lock(exception_mutex);
-    if (first_exception == nullptr)
-      first_exception = std::current_exception();
-  };
-
-  {
-    concurrency_test_utils_detail::Joining_Thread_Guard guard(threads, gate);
-
-    for (size_t i = 0; i < producer_count; ++i)
-      threads.emplace_back([&, i, producer]() mutable
-      {
-        if (not gate.arrive_and_wait())
-          return;
-        try
-          {
-            std::invoke(producer, i);
-          }
-        catch (...)
-          {
-            capture_exception();
-          }
-      });
-
-    for (size_t i = 0; i < consumer_count; ++i)
-      threads.emplace_back([&, i, consumer]() mutable
-      {
-        if (not gate.arrive_and_wait())
-          return;
-        try
-          {
-            std::invoke(consumer, i);
-          }
-        catch (...)
-          {
-            capture_exception();
-          }
-      });
-    guard.dismiss();  // every thread launched; let them reach the gate on
-                       // their own instead of racing to cancel() it here.
-  } // guard destructor: on the normal path above, just joins (already-
-    // dismissed); if emplace_back threw before dismiss(), cancels the gate
-    // first so threads already blocked on it wake up, then joins them.
-
-  if (first_exception != nullptr)
-    std::rethrow_exception(first_exception);
-}
-
-/** Operation kinds used by randomized data-structure parity traces. */
-enum class OperationKind
-{
-  insert,
-  erase,
-  find,
-  update,
-  push,
-  pop
-};
-
-/** @brief One randomized operation entry for parity and stress tests.
- *
- *  `kind` selects which operation to replay; `key`/`value` are always
- *  populated (in `[0, key_range)`/`[0, value_range)` of whatever
- *  `OperationTraceConfig` produced this entry), even for operations that
- *  do not use one of them (e.g. `find` ignores `value`) -- callers decide
- *  which fields their `apply_model`/`apply_subject` callables read.
- */
-struct OperationTraceEntry
-{
-  OperationKind kind = OperationKind::find;
-  size_t key = 0;
-  size_t value = 0;
-
-  /// Structural equality of all three fields (C++20 defaulted comparison).
-  bool operator == (const OperationTraceEntry &) const = default;
-};
-
-/** @brief Configuration for `make_random_operation_trace()`.
- *
- *  @var OperationTraceConfig::length
- *  Number of entries to generate. Zero is valid (produces an empty trace).
- *  @var OperationTraceConfig::key_range
- *  Exclusive upper bound for generated keys (`key` is drawn from
- *  `[0, key_range)`). Must be positive.
- *  @var OperationTraceConfig::value_range
- *  Exclusive upper bound for generated values (`value` is drawn from
- *  `[0, value_range)`). Must be positive.
- *  @var OperationTraceConfig::seed
- *  Seed for the internal `std::mt19937_64` engine; the same seed and the
- *  rest of the configuration always reproduce the same trace (see
- *  `make_random_operation_trace()`'s determinism note).
- *  @var OperationTraceConfig::operations
- *  Pool `kind` is drawn from, uniformly at random. Must be non-empty.
- */
-struct OperationTraceConfig
-{
-  size_t length = 0;
-  size_t key_range = 1;
-  size_t value_range = 1;
-  uint64_t seed = 0xA13F2026u;
-  std::vector<OperationKind> operations =
-    { OperationKind::insert, OperationKind::erase, OperationKind::find };
-};
-
-/** @brief Builds a deterministic randomized operation trace.
- *
- *  Draws `config.length` entries from a `std::mt19937_64` engine seeded
- *  with `config.seed`: `kind` is chosen uniformly from `config.operations`,
- *  `key` uniformly from `[0, config.key_range)`, and `value` uniformly from
- *  `[0, config.value_range)`.
- *
- *  @param[in] config trace generation parameters.
- *  @return generated trace entries, `config.length` of them, in generation
- *          order.
- *  @throw std::invalid_argument if `config.key_range` or
- *         `config.value_range` is zero, or if `config.operations` is empty.
- *  @note Determinism: calling this twice with equal `OperationTraceConfig`
- *        values (same `seed`, ranges, and `operations`, compared
- *        element-wise) always yields an identical trace, since the only
- *        source of randomness is the seeded engine constructed from
- *        `config` -- there is no reliance on global or time-based state.
- *  @note Complexity: O(config.length) time, and the returned vector is
- *        preallocated to `config.length` (one allocation, no reallocation
- *        growth).
- */
-inline std::vector<OperationTraceEntry>
-make_random_operation_trace(const OperationTraceConfig &config)
-{
-  ah_invalid_argument_if(config.key_range == 0)
-    << "operation trace key_range must be positive";
-  ah_invalid_argument_if(config.value_range == 0)
-    << "operation trace value_range must be positive";
-  ah_invalid_argument_if(config.operations.empty())
-    << "operation trace requires operations";
-
-  std::mt19937_64 rng(config.seed);
-  std::uniform_int_distribution<size_t> op_dist(0, config.operations.size() - 1);
-  std::uniform_int_distribution<size_t> key_dist(0, config.key_range - 1);
-  std::uniform_int_distribution<size_t> value_dist(0, config.value_range - 1);
-
-  std::vector<OperationTraceEntry> trace;
-  trace.reserve(config.length);
-  for (size_t i = 0; i < config.length; ++i)
-    trace.push_back({ config.operations[op_dist(rng)],
-                      key_dist(rng),
-                      value_dist(rng) });
-
-  return trace;
-}
-
-/** @brief Replays a trace against a model and a subject and reports the
- *         first mismatch.
- *
- *  For each entry `op` in `trace`, in order: applies `op` to `model`, then
- *  to `subject`, then checks `equivalent(model, subject)`. Stops and
- *  reports the index of the first operation after which the two disagree;
- *  a typical use is a simple reference container (`model`) checked against
- *  an `Aleph` container under test (`subject`) after every step of a
- *  randomized trace from `make_random_operation_trace()`.
- *
- *  @tparam Trace any range of entries `op` accepted by both `apply_model`
- *          and `apply_subject` (typically `std::vector<OperationTraceEntry>`).
- *  @tparam Model reference/model container type.
- *  @tparam Subject container type under test.
- *  @tparam ApplyModel callable, invocable as `apply_model(model, op)`.
- *  @tparam ApplySubject callable, invocable as `apply_subject(subject, op)`.
- *  @tparam Equivalent callable, invocable as `equivalent(model, subject)`,
- *          returning a value contextually convertible to `bool`.
- *  @param[in] trace operations to replay, in order.
- *  @param[in,out] model reference model mutated by `apply_model`.
- *  @param[in,out] subject container under test mutated by `apply_subject`.
- *  @param[in] apply_model applies one trace entry to `model`.
- *  @param[in] apply_subject applies one trace entry to `subject`.
- *  @param[in] equivalent full-state parity check between `model` and
- *             `subject`, called after every replayed operation.
- *  @return index of the first mismatching operation, or `std::nullopt` if
- *          `model` and `subject` stayed equivalent through the whole trace
- *          (including the empty-trace case, which never runs the check).
- *  @throw Whatever `apply_model`, `apply_subject`, or `equivalent` throw;
- *         this function itself does not throw. No cleanup beyond the
- *         basic guarantee is provided if one of them does -- `model` and
- *         `subject` may be left mid-replay.
- *  @note Complexity: O(trace.size()) calls to `apply_model`/
- *        `apply_subject`/`equivalent`, plus whatever those cost.
- */
-template <class Trace, class Model, class Subject,
-          class ApplyModel, class ApplySubject, class Equivalent>
-std::optional<size_t>
-first_state_mismatch_after_replay(const Trace &trace,
-                                  Model &model,
-                                  Subject &subject,
-                                  ApplyModel apply_model,
-                                  ApplySubject apply_subject,
-                                  Equivalent equivalent)
-{
-  size_t index = 0;
-  for (const auto &op : trace)
+  public:
+    /** @brief Construct a gate for the given number of workers.
+     *
+     * @param[in] expected Number of workers that must arrive before release.
+     */
+    explicit Deterministic_Start_Gate(const size_t expected)
+      : expected_(expected)
     {
-      std::invoke(apply_model, model, op);
-      std::invoke(apply_subject, subject, op);
-      if (not std::invoke(equivalent, model, subject))
-        return index;
-      ++index;
+      // empty
     }
 
-  return std::nullopt;
-}
+    /** @brief Mark the caller ready and block until release().
+     *
+     * This function is intended for worker threads.
+     */
+    void arrive_and_wait()
+    {
+      std::unique_lock lock(mutex_);
+      ++arrived_;
+      cv_.notify_all();
+      cv_.wait(lock, [this] { return released_; });
+    }
 
-} // namespace Testing
-} // namespace Aleph
+    /** @brief Wait until all expected workers are ready.
+     *
+     * This function is intended for the controlling test thread.
+     */
+    void wait_until_ready()
+    {
+      std::unique_lock lock(mutex_);
+      cv_.wait(lock, [this] { return arrived_ == expected_; });
+    }
 
-#endif // ALEPH_CONCURRENCY_TEST_UTILS_H
+    /** @brief Release all waiting workers.
+     *
+     * Calling release() before all workers arrive is valid; late workers will
+     * pass through immediately after incrementing the arrival count.
+     */
+    void release()
+    {
+      std::lock_guard lock(mutex_);
+      released_ = true;
+      cv_.notify_all();
+    }
+
+    /** @brief Return the number of arrived workers.
+     *
+     * @return Number of workers that already called arrive_and_wait().
+     */
+    [[nodiscard]] size_t arrived() const
+    {
+      std::lock_guard lock(mutex_);
+      return arrived_;
+    }
+  };
+
+  /** @brief Configuration for producer/consumer stress helpers. */
+  struct Producer_Consumer_Stress_Config
+  {
+    size_t producers = 1;
+    size_t consumers = 1;
+    size_t items_per_producer = 1024;
+    std::chrono::milliseconds timeout = std::chrono::seconds(10);
+  };
+
+  /** @brief Result returned by producer/consumer stress helpers. */
+  struct Producer_Consumer_Stress_Result
+  {
+    std::vector<size_t> consumed;
+    bool timed_out = false;
+
+    /** @brief Return the expected number of consumed values.
+     *
+     * @return Number of recorded consumed values.
+     */
+    [[nodiscard]] size_t size() const noexcept { return consumed.size(); }
+  };
+
+  namespace detail
+  {
+    template <typename Push>
+    bool invoke_push(Push &push, const size_t value)
+    {
+      if constexpr (std::is_void_v<std::invoke_result_t<Push &, size_t>>)
+        {
+          push(value);
+          return true;
+        }
+      else
+        {
+          return static_cast<bool>(push(value));
+        }
+    }
+  }
+
+  /** @brief Run a deterministic producer/consumer stress scenario.
+   *
+   * @tparam Push Callable invoked as `push(size_t value)`. It may return void
+   *         for always-successful pushes or bool for retryable pushes.
+   * @tparam TryPop Callable invoked as `try_pop(size_t &out)` returning true
+   *         when a value was consumed.
+   * @param[in] config Stress dimensions and timeout.
+   * @param[in,out] push Producer operation.
+   * @param[in,out] try_pop Consumer operation.
+   * @return Consumed values and timeout flag.
+   *
+   * The helper assigns unique values in `[0, producers * items_per_producer)`.
+   * It does not assume FIFO ordering; callers should verify conservation,
+   * ordering, or topology-specific properties separately.
+   */
+  template <typename Push, typename TryPop>
+  Producer_Consumer_Stress_Result run_producer_consumer_stress(
+      const Producer_Consumer_Stress_Config &config,
+      Push push,
+      TryPop try_pop)
+  {
+    const size_t total = config.producers * config.items_per_producer;
+    Producer_Consumer_Stress_Result result;
+    result.consumed.resize(total);
+
+    Deterministic_Start_Gate gate(config.producers + config.consumers);
+    std::atomic<size_t> consumed_count{0};
+    std::atomic<bool> timed_out{false};
+    std::vector<std::thread> threads;
+    threads.reserve(config.producers + config.consumers);
+
+    const auto deadline = std::chrono::steady_clock::now() + config.timeout;
+
+    for (size_t p = 0; p < config.producers; ++p)
+      threads.emplace_back([&, p]
+        {
+          gate.arrive_and_wait();
+          for (size_t i = 0; i < config.items_per_producer; ++i)
+            {
+              const size_t value = p * config.items_per_producer + i;
+              while (not detail::invoke_push(push, value))
+                {
+                  if (std::chrono::steady_clock::now() >= deadline)
+                    {
+                      timed_out.store(true, std::memory_order_relaxed);
+                      return;
+                    }
+                  std::this_thread::yield();
+                }
+            }
+        });
+
+    for (size_t c = 0; c < config.consumers; ++c)
+      threads.emplace_back([&]
+        {
+          gate.arrive_and_wait();
+          while (consumed_count.load(std::memory_order_acquire) < total)
+            {
+              size_t value = 0;
+              if (try_pop(value))
+                {
+                  const size_t slot =
+                      consumed_count.fetch_add(1, std::memory_order_acq_rel);
+                  if (slot < total)
+                    result.consumed[slot] = value;
+                }
+              else
+                {
+                  if (std::chrono::steady_clock::now() >= deadline)
+                    {
+                      timed_out.store(true, std::memory_order_relaxed);
+                      return;
+                    }
+                  std::this_thread::yield();
+                }
+            }
+        });
+
+    gate.wait_until_ready();
+    gate.release();
+
+    for (auto &thread : threads)
+      thread.join();
+
+    const size_t n = consumed_count.load(std::memory_order_acquire);
+    if (n < result.consumed.size())
+      result.consumed.resize(n);
+    result.timed_out = timed_out.load(std::memory_order_relaxed);
+    return result;
+  }
+
+  /** @brief Operation kind for randomized reference traces. */
+  enum class Trace_Operation_Kind
+  {
+    push,
+    pop,
+    insert,
+    erase,
+    contains
+  };
+
+  /** @brief One randomized operation trace entry. */
+  struct Trace_Operation
+  {
+    Trace_Operation_Kind kind = Trace_Operation_Kind::contains;
+    size_t key = 0;
+    size_t value = 0;
+
+    /** @brief Compare two trace operations for equality.
+     *
+     * @param[in] rhs Operation to compare with.
+     * @return true if both operations have the same kind, key, and value.
+     */
+    [[nodiscard]] bool operator == (const Trace_Operation &rhs) const noexcept
+    {
+      return kind == rhs.kind and key == rhs.key and value == rhs.value;
+    }
+  };
+
+  /** @brief Build a deterministic pseudo-random operation trace.
+   *
+   * @param[in] count Number of operations to generate.
+   * @param[in] seed Random seed.
+   * @param[in] key_range Exclusive upper bound for generated keys.
+   * @param[in] kinds Allowed operation kinds.
+   * @return Generated operation trace.
+   *
+   * @pre `key_range > 0`.
+   * @pre `kinds.size() > 0`.
+   */
+  inline std::vector<Trace_Operation> make_random_operation_trace(
+      const size_t count,
+      const uint32_t seed,
+      const size_t key_range,
+      const std::initializer_list<Trace_Operation_Kind> kinds =
+        {
+          Trace_Operation_Kind::insert,
+          Trace_Operation_Kind::erase,
+          Trace_Operation_Kind::contains
+        })
+  {
+    std::vector<Trace_Operation_Kind> allowed(kinds.begin(), kinds.end());
+    assert(key_range > 0);
+    assert(not allowed.empty());
+
+    std::mt19937 rng(seed);
+    std::uniform_int_distribution<size_t> kind_dist(0, allowed.size() - 1);
+    std::uniform_int_distribution<size_t> key_dist(0, key_range - 1);
+    std::uniform_int_distribution<size_t> value_dist;
+
+    std::vector<Trace_Operation> trace;
+    trace.reserve(count);
+    for (size_t i = 0; i < count; ++i)
+      trace.push_back(
+        {
+          allowed[kind_dist(rng)],
+          key_dist(rng),
+          value_dist(rng)
+        });
+
+    return trace;
+  }
+
+  /** @brief Replay a trace against a subject and a reference implementation.
+   *
+   * @tparam SubjectStep Callable invoked as `subject_step(operation)`.
+   * @tparam ReferenceStep Callable invoked as `reference_step(operation)`.
+   * @param[in] trace Operation trace to replay.
+   * @param[in,out] subject_step Subject implementation step.
+   * @param[in,out] reference_step Reference implementation step.
+   * @return Operation indexes where returned results differ.
+   */
+  template <typename SubjectStep, typename ReferenceStep>
+  std::vector<size_t> replay_trace_and_collect_mismatches(
+      const std::vector<Trace_Operation> &trace,
+      SubjectStep subject_step,
+      ReferenceStep reference_step)
+  {
+    std::vector<size_t> mismatches;
+    for (size_t i = 0; i < trace.size(); ++i)
+      if (not (subject_step(trace[i]) == reference_step(trace[i])))
+        mismatches.push_back(i);
+    return mismatches;
+  }
+} // namespace Aleph::Testing
+
+#endif // ALEPH_TESTS_CONCURRENCY_TEST_UTILS_H

@@ -39,6 +39,7 @@
 
 # include <tpl_memArray.H>
 # include <htlist.H>
+# include <limits>
 # include <memory>
 
 using namespace std;
@@ -463,8 +464,27 @@ TEST_F(Default_MemArray, remove_on_empty)
 {
   EXPECT_THROW(m.remove_last(), underflow_error);
   EXPECT_THROW(m.remove_first(), underflow_error);
+  EXPECT_THROW(m.get(0), underflow_error);
   EXPECT_THROW(m.get(), underflow_error);
   EXPECT_THROW(m.get(2), underflow_error);
+}
+
+TEST(MemArray, reverse_empty_and_single_item)
+{
+  MemArray<int> m;
+  EXPECT_NO_THROW(m.reverse());
+  EXPECT_TRUE(m.is_empty());
+
+  m.append(7);
+  EXPECT_NO_THROW(m.reverse());
+  EXPECT_EQ(m.size(), 1u);
+  EXPECT_EQ(m[0], 7);
+}
+
+TEST(MemArray, putn_rejects_capacity_overflow)
+{
+  MemArray<int> m;
+  EXPECT_THROW(m.putn(std::numeric_limits<size_t>::max()), overflow_error);
 }
 
 TEST(MemArray, as_stack)

@@ -28,178 +28,173 @@
   SOFTWARE.
 */
 
-#include <gtest/gtest.h>
-
 #include "concurrency_test_utils.H"
+
+#include <gtest/gtest.h>
 
 #include <algorithm>
 #include <atomic>
-#include <map>
-#include <stdexcept>
+#include <chrono>
+#include <cstddef>
+#include <mutex>
+#include <queue>
+#include <set>
+#include <thread>
 #include <vector>
 
 using namespace Aleph::Testing;
+using namespace std::chrono_literals;
 
-TEST(ConcurrencyTestUtils, StartGateRejectsZeroParticipants)
+TEST(ConcurrencyTestUtils, StartGateReleasesAllWorkersTogether)
 {
-  EXPECT_THROW(StartGate(0), std::invalid_argument);
+  Deterministic_Start_Gate gate(3);
+  std::atomic<size_t> passed{0};
+  std::vector<std::thread> threads;
+
+  for (size_t i = 0; i < 3; ++i)
+    threads.emplace_back([&]
+      {
+        gate.arrive_and_wait();
+        passed.fetch_add(1, std::memory_order_relaxed);
+      });
+
+  gate.wait_until_ready();
+  EXPECT_EQ(gate.arrived(), 3u);
+  EXPECT_EQ(passed.load(std::memory_order_relaxed), 0u);
+
+  gate.release();
+  for (auto &thread : threads)
+    thread.join();
+
+  EXPECT_EQ(passed.load(std::memory_order_relaxed), 3u);
 }
 
-TEST(ConcurrencyTestUtils, RunConcurrentlyRejectsZeroThreads)
+TEST(ConcurrencyTestUtils, ProducerConsumerStressConservesValues)
 {
-  EXPECT_THROW(run_concurrently(0, [](const size_t) {}),
-               std::invalid_argument);
-}
+  std::queue<size_t> queue;
+  std::mutex mutex;
 
-TEST(ConcurrencyTestUtils, RunProducersConsumersRejectsZeroWorkers)
-{
-  EXPECT_THROW(
-    run_producers_consumers(0, 0, [](const size_t) {}, [](const size_t) {}),
-    std::invalid_argument);
-}
+  Producer_Consumer_Stress_Config config;
+  config.producers = 4;
+  config.consumers = 3;
+  config.items_per_producer = 128;
+  config.timeout = 5s;
 
-TEST(ConcurrencyTestUtils, RunConcurrentlyStartsEveryWorker)
-{
-  std::atomic<size_t> count{0};
+  auto result = run_producer_consumer_stress(
+      config,
+      [&](const size_t value)
+      {
+        std::lock_guard lock(mutex);
+        queue.push(value);
+      },
+      [&](size_t &value)
+      {
+        std::lock_guard lock(mutex);
+        if (queue.empty())
+          return false;
+        value = queue.front();
+        queue.pop();
+        return true;
+      });
 
-  run_concurrently(8, [&](const size_t)
-  {
-    count.fetch_add(1, std::memory_order_relaxed);
-  });
+  ASSERT_FALSE(result.timed_out);
+  ASSERT_EQ(result.size(), config.producers * config.items_per_producer);
 
-  EXPECT_EQ(count.load(std::memory_order_relaxed), 8u);
-}
-
-TEST(ConcurrencyTestUtils, RunConcurrentlyRethrowsWorkerException)
-{
-  EXPECT_THROW(
-    run_concurrently(4, [](const size_t index)
-    {
-      if (index == 2)
-        throw std::runtime_error("worker failed");
-    }),
-    std::runtime_error);
-}
-
-TEST(ConcurrencyTestUtils, RunProducersConsumersRunsBothSides)
-{
-  std::atomic<size_t> producers{0};
-  std::atomic<size_t> consumers{0};
-
-  run_producers_consumers(
-    3, 2,
-    [&](const size_t) { producers.fetch_add(1, std::memory_order_relaxed); },
-    [&](const size_t) { consumers.fetch_add(1, std::memory_order_relaxed); });
-
-  EXPECT_EQ(producers.load(std::memory_order_relaxed), 3u);
-  EXPECT_EQ(consumers.load(std::memory_order_relaxed), 2u);
+  std::sort(result.consumed.begin(), result.consumed.end());
+  for (size_t i = 0; i < result.consumed.size(); ++i)
+    EXPECT_EQ(result.consumed[i], i);
 }
 
 TEST(ConcurrencyTestUtils, RandomOperationTraceIsDeterministic)
 {
-  OperationTraceConfig config;
-  config.length = 16;
-  config.key_range = 7;
-  config.value_range = 11;
-  config.seed = 12345;
-  config.operations = { OperationKind::insert, OperationKind::erase,
-                        OperationKind::find, OperationKind::update };
+  const auto first = make_random_operation_trace(
+      64, 12345, 11,
+      {
+        Trace_Operation_Kind::insert,
+        Trace_Operation_Kind::erase,
+        Trace_Operation_Kind::contains
+      });
+  const auto second = make_random_operation_trace(
+      64, 12345, 11,
+      {
+        Trace_Operation_Kind::insert,
+        Trace_Operation_Kind::erase,
+        Trace_Operation_Kind::contains
+      });
+  const auto different = make_random_operation_trace(
+      64, 54321, 11,
+      {
+        Trace_Operation_Kind::insert,
+        Trace_Operation_Kind::erase,
+        Trace_Operation_Kind::contains
+      });
 
-  const auto first = make_random_operation_trace(config);
-  const auto second = make_random_operation_trace(config);
-
-  ASSERT_EQ(first, second);
-  ASSERT_EQ(first.size(), 16u);
+  EXPECT_EQ(first, second);
+  EXPECT_NE(first, different);
   for (const auto &op : first)
-    {
-      EXPECT_LT(op.key, 7u);
-      EXPECT_LT(op.value, 11u);
-      EXPECT_NE(std::find(config.operations.begin(), config.operations.end(),
-                          op.kind),
-               config.operations.end());
-    }
+    EXPECT_LT(op.key, 11u);
 }
 
-TEST(ConcurrencyTestUtils, RandomOperationTraceValidatesConfiguration)
+TEST(ConcurrencyTestUtils, TraceReplayDetectsNoMismatchForEquivalentSets)
 {
-  OperationTraceConfig config;
-  config.length = 1;
+  const auto trace = make_random_operation_trace(256, 99, 17);
+  std::set<size_t> subject;
+  std::set<size_t> reference;
 
-  config.key_range = 0;
-  EXPECT_THROW((void) make_random_operation_trace(config), std::invalid_argument);
+  auto apply = [](std::set<size_t> &set, const Trace_Operation &op)
+  {
+    switch (op.kind)
+      {
+      case Trace_Operation_Kind::insert:
+        return set.insert(op.key).second;
+      case Trace_Operation_Kind::erase:
+        return set.erase(op.key) != 0;
+      case Trace_Operation_Kind::contains:
+        return set.find(op.key) != set.end();
+      default:
+        return false;
+      }
+  };
 
-  config.key_range = 1;
-  config.value_range = 0;
-  EXPECT_THROW((void) make_random_operation_trace(config), std::invalid_argument);
+  const auto mismatches = replay_trace_and_collect_mismatches(
+      trace,
+      [&](const Trace_Operation &op) { return apply(subject, op); },
+      [&](const Trace_Operation &op) { return apply(reference, op); });
 
-  config.value_range = 1;
-  config.operations.clear();
-  EXPECT_THROW((void) make_random_operation_trace(config), std::invalid_argument);
+  EXPECT_TRUE(mismatches.empty());
 }
 
-TEST(ConcurrencyTestUtils, ReplayParityPassesMatchingStates)
+TEST(ConcurrencyTestUtils, TraceReplayReportsMismatches)
 {
-  std::vector<OperationTraceEntry> trace =
+  std::vector<Trace_Operation> trace =
     {
-      { OperationKind::insert, 3, 30 },
-      { OperationKind::insert, 4, 40 },
-      { OperationKind::erase, 3, 0 }
+      {Trace_Operation_Kind::insert, 1, 0},
+      {Trace_Operation_Kind::contains, 1, 0},
+      {Trace_Operation_Kind::erase, 1, 0},
+      {Trace_Operation_Kind::contains, 1, 0}
     };
+  std::set<size_t> subject;
+  std::set<size_t> reference;
 
-  std::map<size_t, size_t> model;
-  std::map<size_t, size_t> subject;
+  const auto mismatches = replay_trace_and_collect_mismatches(
+      trace,
+      [&](const Trace_Operation &op)
+      {
+        if (op.kind == Trace_Operation_Kind::insert)
+          return subject.insert(op.key).second;
+        if (op.kind == Trace_Operation_Kind::erase)
+          return subject.erase(op.key) != 0;
+        return true;
+      },
+      [&](const Trace_Operation &op)
+      {
+        if (op.kind == Trace_Operation_Kind::insert)
+          return reference.insert(op.key).second;
+        if (op.kind == Trace_Operation_Kind::erase)
+          return reference.erase(op.key) != 0;
+        return reference.find(op.key) != reference.end();
+      });
 
-  const auto mismatch = first_state_mismatch_after_replay(
-    trace, model, subject,
-    [](auto &map, const OperationTraceEntry &op)
-    {
-      if (op.kind == OperationKind::insert)
-        map[op.key] = op.value;
-      else if (op.kind == OperationKind::erase)
-        map.erase(op.key);
-    },
-    [](auto &map, const OperationTraceEntry &op)
-    {
-      if (op.kind == OperationKind::insert)
-        map[op.key] = op.value;
-      else if (op.kind == OperationKind::erase)
-        map.erase(op.key);
-    },
-    [](const auto &lhs, const auto &rhs) { return lhs == rhs; });
-
-  EXPECT_FALSE(mismatch.has_value());
-}
-
-TEST(ConcurrencyTestUtils, ReplayParityReportsFirstMismatch)
-{
-  std::vector<OperationTraceEntry> trace =
-    {
-      { OperationKind::insert, 1, 10 },
-      { OperationKind::insert, 2, 20 },
-      { OperationKind::erase, 1, 0 }
-    };
-
-  std::map<size_t, size_t> model;
-  std::map<size_t, size_t> subject;
-
-  const auto mismatch = first_state_mismatch_after_replay(
-    trace, model, subject,
-    [](auto &map, const OperationTraceEntry &op)
-    {
-      if (op.kind == OperationKind::insert)
-        map[op.key] = op.value;
-      else if (op.kind == OperationKind::erase)
-        map.erase(op.key);
-    },
-    [](auto &map, const OperationTraceEntry &op)
-    {
-      if (op.kind == OperationKind::insert)
-        map[op.key] = op.key == 2 ? 99 : op.value;
-      else if (op.kind == OperationKind::erase)
-        map.erase(op.key);
-    },
-    [](const auto &lhs, const auto &rhs) { return lhs == rhs; });
-
-  ASSERT_TRUE(mismatch.has_value());
-  EXPECT_EQ(*mismatch, 1u);
+  ASSERT_EQ(mismatches.size(), 1u);
+  EXPECT_EQ(mismatches[0], 3u);
 }
