@@ -87,13 +87,13 @@
  *  @par Example of use
  *  ```cpp
  *  Aleph::ConcurrentHashMap<std::string, int, Aleph::equal_to<std::string>, 16> cmap;
- *  
+ *
  *  // Thread 1
  *  cmap.insert("apples", 10);
- *  
+ *
  *  // Thread 2 (Runs in parallel without locking Thread 1, if hashes diff shards)
  *  cmap.insert_or_assign("oranges", 20);
- *  
+ *
  *  // Thread 3 (Updates value safely using a lock over the specific shard)
  *  cmap.with_value_mut("apples", [](int& v) { v += 5; });
  *  ```
@@ -157,10 +157,15 @@ public:
 
 private:
   // Internal structure representing a single partition of the hash map.
-  // Each Shard is protected by its own shared_mutex.
-  // NOTE: In future iterations, aligning this struct to cache-line boundaries
-  // (e.g., alignas(64)) would prevent False Sharing of mutexes across adjacent shards.
-  struct Shard
+  // Each Shard is protected by its own shared_mutex. alignas(64) pads each
+  // Shard to its own cache line: without it, two Shard objects placed
+  // next to each other by the allocator could share a cache line, and
+  // then threads locking/unlocking *different* shards' mutexes under
+  // write contention would still ping-pong that line between cores
+  // (false sharing) -- defeating part of the point of sharding. 64 bytes
+  // matches the cache-line size assumed elsewhere in Aleph (see
+  // concurrency_utils.H's SpscQueue::head_/tail_).
+  struct alignas(64) Shard
   {
     mutable std::shared_mutex mutex;
     Map map;
@@ -272,8 +277,8 @@ public:
   {
     Shard &shard = shard_for(key);
     std::unique_lock lock(shard.mutex);
-    
-    // We do a double lookup here (search + insert) because DynMapHashTable 
+
+    // We do a double lookup here (search + insert) because DynMapHashTable
     // requires checking for existence first to avoid duplicating or throwing.
     auto *pair = shard.map.search(key);
     if (pair != nullptr)
@@ -295,12 +300,12 @@ public:
   {
     Shard &shard = shard_for(key);
     std::unique_lock lock(shard.mutex);
-    
-    // We explicitly search first because DynMapHashTable::remove may throw an 
-    // exception (like domain_error) if the key does not exist. 
+
+    // We explicitly search first because DynMapHashTable::remove may throw an
+    // exception (like domain_error) if the key does not exist.
     if (shard.map.search(key) == nullptr)
       return false;
-      
+
     shard.map.remove(key);
     return true;
   }
@@ -477,9 +482,16 @@ public:
     requires std::is_copy_constructible_v<Key> and std::is_copy_constructible_v<T>
   {
     Array<std::pair<Key, T>> result;
+    size_t reserved = 0;
     for (const auto &shard : shards_)
       {
         std::shared_lock lock(shard->mutex);
+        // Grow the reservation by this (already-locked) shard's own O(1)
+        // size *before* copying its entries in, so appends below never
+        // trigger a reallocation -- without a separate extra pass over
+        // every shard (and its lock) just to compute a grand total first.
+        reserved += shard->map.size();
+        result.reserve(reserved);
         for (const auto &entry : shard->map)
           result.append(entry);
       }
