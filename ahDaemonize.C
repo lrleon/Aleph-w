@@ -49,6 +49,21 @@ namespace {
 
 constexpr int MAXIMUM_FILE_DESC = 256;
 
+void close_nonstandard_fd(const int fd) noexcept
+{
+    if (fd > STDERR_FILENO)
+        close(fd);
+}
+
+void dup2_or_throw(const int null_fd, const int target_fd, const char *name)
+{
+    if (dup2(null_fd, target_fd) == target_fd)
+        return;
+
+    close_nonstandard_fd(null_fd);
+    ah_runtime_error() << "Cannot redirect " << name;
+}
+
 /**
  * @brief Redirects standard file descriptors to /dev/null
  * @throws std::runtime_error if redirection fails
@@ -59,18 +74,12 @@ void redirect_standard_fds()
     ah_runtime_error_if(null_fd == -1) << "Cannot open /dev/null";
 
     // Redirect standard file descriptors to /dev/null
-    ah_runtime_error_if(dup2(null_fd, STDIN_FILENO) != STDIN_FILENO)
-        << "Cannot redirect stdin";
-
-    ah_runtime_error_if(dup2(null_fd, STDOUT_FILENO) != STDOUT_FILENO)
-        << "Cannot redirect stdout";
-
-    ah_runtime_error_if(dup2(null_fd, STDERR_FILENO) != STDERR_FILENO)
-        << "Cannot redirect stderr";
+    dup2_or_throw(null_fd, STDIN_FILENO, "stdin");
+    dup2_or_throw(null_fd, STDOUT_FILENO, "stdout");
+    dup2_or_throw(null_fd, STDERR_FILENO, "stderr");
 
     // Close the original file descriptor if it's not a standard one
-    if (null_fd > STDERR_FILENO)
-        close(null_fd);
+    close_nonstandard_fd(null_fd);
 }
 
 } // anonymous namespace

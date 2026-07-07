@@ -94,6 +94,7 @@
 #include <utility>
 #include <cstdlib>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 #include <ah-errors.H>
@@ -157,6 +158,18 @@ public:
   }
 
 protected:
+  static size_t next_power_of_two(const size_t requested)
+  {
+    size_t ret = 1;
+    while (ret < requested)
+      {
+        ah_overflow_error_if(ret > (std::numeric_limits<size_t>::max() >> 1))
+          << "MemArray capacity overflow";
+        ret <<= 1;
+      }
+    return ret;
+  }
+
   /// Allocate memory for the current dimension
   void allocate()
   {
@@ -183,6 +196,8 @@ protected:
     if (n < dim)
       return false;
 
+    ah_overflow_error_if(dim > (std::numeric_limits<size_t>::max() >> 1))
+      << "MemArray::expand(): capacity overflow";
     const size_t newsz = dim << 1;  // 2*dim
     const size_t mask = dim - 1;
     T *new_ptr = new T[newsz];
@@ -223,7 +238,7 @@ protected:
     T *new_ptr = new T[newsz];
 
     const size_t mask = dim - 1;
-    for (int i = 0; i < newsz; ++i)
+    for (size_t i = 0; i < newsz; ++i)
       {
         assert(((first + i) & mask) == ((first + i) % dim));
         std::swap(ptr[(first + i) & mask], new_ptr[i]);
@@ -242,16 +257,15 @@ protected:
   /// If `d` is 0 then `d` is set to `Min_Dim`.
   ///
   /// @param[in] d the proposed dimension of array
-  void init_dim(size_t d) noexcept
+  void init_dim(size_t d)
   {
     if (d == 0)
       d = Min_Dim;
 
-    size_t k = log2(d);
-    dim = is_power_of_2(d) ? d : 1 << ++k;
+    dim = is_power_of_2(d) ? d : next_power_of_two(d);
 
     assert(dim >= d);
-    assert(dim == 1 << k);
+    assert(is_power_of_2(dim));
   }
 
 public:
@@ -313,7 +327,7 @@ public:
     : ptr(nullptr), dim(a.dim), n(a.n)
   {
     allocate();
-    for (int i = 0; i < n; ++i)
+    for (size_t i = 0; i < n; ++i)
       ptr[i] = a.ptr[i];
   }
 
@@ -519,6 +533,8 @@ public:
   void putn(const size_t more)
   {
     assert(ptr);
+    ah_overflow_error_if(more > std::numeric_limits<size_t>::max() - n)
+      << "MemArray::putn(): size overflow";
     const size_t new_n = n + more;
     if (new_n <= dim)
       {
@@ -528,7 +544,11 @@ public:
 
     size_t new_dim = dim;
     while (new_dim < new_n)
-      new_dim <<= 1;  // dim = 2*dim
+      {
+        ah_overflow_error_if(new_dim > (std::numeric_limits<size_t>::max() >> 1))
+          << "MemArray::putn(): capacity overflow";
+        new_dim <<= 1;  // dim = 2*dim
+      }
 
     T *new_ptr = new T[new_dim];
     for (size_t i = 0; i < n; ++i)
@@ -564,8 +584,7 @@ public:
     if (cap < dim)
       return;
 
-    size_t k = log2(cap);
-    const size_t new_dim = is_power_of_2(cap) ? cap : 1 << ++k;
+    const size_t new_dim = is_power_of_2(cap) ? cap : next_power_of_two(cap);
 
     T *new_ptr = new T[new_dim];
     for (size_t i = 0; i < n; ++i)
@@ -582,10 +601,10 @@ public:
   T get(const size_t i = 1)
   {
     assert(ptr);
-    const long idx = n - i;
-    ah_underflow_error_if(idx < 0) << "MemArray::get(): deleted more entries than capacity";
+    ah_underflow_error_if(i == 0 or i > n)
+      << "MemArray::get(): invalid number of entries";
 
-    n = idx;
+    n -= i;
     T ret = std::move(ptr[n]);
 
     contract();
@@ -596,8 +615,9 @@ public:
   T get_ne(const size_t i = 1) noexcept
   {
     assert(ptr);
-    const long idx = n - i;
-    n = idx;
+    assert(i > 0);
+    assert(i <= n);
+    n -= i;
     T ret = std::move(ptr[n]);
 
     contract();
@@ -640,6 +660,9 @@ public:
   /// Reverse the order of items in array
   MemArray &reverse()
   {
+    if (n < 2)
+      return *this;
+
     for (size_t i = 0, j = n - 1; i < j; ++i, --j)
       std::swap(ptr[i], ptr[j]);
     return *this;
@@ -682,7 +705,7 @@ public:
   bool traverse(Operation &operation)
   {
     assert(ptr);
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
       if (not operation(ptr[i]))
         return false;
 

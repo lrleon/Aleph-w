@@ -496,7 +496,7 @@ inline std::uint16_t get16bits(const void * p) noexcept
       @param key Pointer to the input bytes.
       @param len Length of the input in bytes.
       @param seed Seed used to randomize the hash stream.
-      @return Hash value truncated to size_t.
+      @return Hash value folded to size_t.
       @ingroup Hash
   */
   size_t xxhash64_hash(const void * key, size_t len,

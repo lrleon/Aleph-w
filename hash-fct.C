@@ -32,6 +32,7 @@
 # include <ctime>
 # include <gsl/gsl_rng.h>
 # include <stdexcept>
+# include <limits>
 # include <mutex>
 # include <shared_mutex>
 # include <atomic>
@@ -110,6 +111,19 @@ static FORCE_INLINE uint64_t fmix64 ( uint64_t k )
   k ^= k >> 33;
 
   return k;
+}
+
+static FORCE_INLINE size_t fold_hash64_to_size_t(std::uint64_t hash) noexcept
+{
+  if constexpr (std::numeric_limits<size_t>::digits >= 64)
+    return static_cast<size_t>(hash);
+  else
+    {
+      constexpr unsigned bits = std::numeric_limits<size_t>::digits;
+      const std::uint64_t mask = (std::uint64_t{1} << bits) - 1;
+      hash ^= hash >> bits;
+      return static_cast<size_t>(hash & mask);
+    }
 }
 
 static FORCE_INLINE std::uint32_t read_le32(const std::uint8_t * p) noexcept
@@ -204,6 +218,12 @@ static FORCE_INLINE std::uint64_t wyhash_mix(std::uint64_t lhs,
   return mul_xor_fold64(lhs, rhs);
 }
 
+static FORCE_INLINE std::uint32_t jsw_fallback_next(std::uint32_t &state) noexcept
+{
+  state = state * 1664525u + 1013904223u;
+  return state;
+}
+
 // ============================================================================
 // Initialization and classic hashes
 // ============================================================================
@@ -213,6 +233,15 @@ static FORCE_INLINE std::uint64_t wyhash_mix(std::uint64_t lhs,
 static void jsw_fill_table(std::uint32_t seed) noexcept
 {
   gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
+  if (r == nullptr)
+    {
+      std::uint32_t state = seed == 0 ? Default_Hash_Seed : seed;
+      for (int i = 0; i < 256; ++i)
+        tab[i] = static_cast<long>(jsw_fallback_next(state));
+      init.store(true, std::memory_order_release);
+      return;
+    }
+
   gsl_rng_set(r, seed % gsl_rng_max(r));
   for (int i = 0; i < 256; ++i)
     tab[i] = gsl_rng_get(r);
@@ -639,7 +668,7 @@ size_t xxhash64_hash(const void * key, size_t len, std::uint64_t seed) noexcept
       hash ^= hash >> 29;
       hash *= prime3;
       hash ^= hash >> 32;
-      return static_cast<size_t>(hash);
+      return fold_hash64_to_size_t(hash);
     }
 
   const auto * const end = p + len;
@@ -700,7 +729,7 @@ size_t xxhash64_hash(const void * key, size_t len, std::uint64_t seed) noexcept
   hash *= prime3;
   hash ^= hash >> 32;
 
-  return static_cast<size_t>(hash);
+  return fold_hash64_to_size_t(hash);
 }
 
 size_t wyhash_hash(const void * key, size_t len, std::uint64_t seed) noexcept

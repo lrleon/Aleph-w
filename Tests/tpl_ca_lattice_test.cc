@@ -119,6 +119,14 @@ TEST(CALatticeToroidalBoundary, WrapsOnEachAxis)
   EXPECT_EQ(lat.at_safe({  7, 1 }), lat.at({ 1, 1 }));
 }
 
+TEST(CALatticeToroidalBoundary, WrapHelperHandlesZeroExtent)
+{
+  using ca_lattice_detail::wrap_into_range;
+
+  EXPECT_EQ(wrap_into_range(-1, 0), 0u);
+  EXPECT_EQ(wrap_into_range( 1, 0), 0u);
+}
+
 // ---------------------------------------------------------------------------
 // ReflectiveBoundary: -1 → 0, -2 → 1, n → n-1, n+1 → n-2.
 // ---------------------------------------------------------------------------
@@ -127,6 +135,8 @@ TEST(CALatticeReflectiveBoundary, ReflectIntoRangeCoversBoundaryAndPeriods)
 {
   using ca_lattice_detail::reflect_into_range;
 
+  EXPECT_EQ(reflect_into_range(-1, 0), 0u);
+  EXPECT_EQ(reflect_into_range( 1, 0), 0u);
   EXPECT_EQ(reflect_into_range(-1, 3), 0u);
   EXPECT_EQ(reflect_into_range(-2, 3), 1u);
   EXPECT_EQ(reflect_into_range(3, 3), 2u);

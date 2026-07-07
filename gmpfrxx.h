@@ -84,6 +84,7 @@ MA 02110-1301, USA. */
 #include <iosfwd>
 #include <iostream>
 #include <cstring>  /* for strlen */
+#include <new>
 #include <string>
 #include <stdexcept>
 #include <gmp.h>
@@ -1693,9 +1694,19 @@ struct __gmp_alloc_cstring
   __gmp_alloc_cstring(char *s) { str = s; }
   ~__gmp_alloc_cstring()
   {
+    if (str == nullptr)
+      return;
+
     void (*freefunc) (void *, size_t);
     mp_get_memory_functions (nullptr, nullptr, &freefunc);
     (*freefunc) (str, std::strlen(str)+1);
+  }
+
+  const char * c_str() const
+  {
+    if (str == nullptr)
+      throw std::bad_alloc();
+    return str;
   }
 };
 
@@ -1988,7 +1999,7 @@ public:
   std::string get_str(int base = 10) const
   {
     __gmp_alloc_cstring temp(mpz_get_str(0, base, mp));
-    return std::string(temp.str);
+    return std::string(temp.c_str());
   }
 
   // conversion functions
@@ -2169,7 +2180,7 @@ public:
   std::string get_str(int base = 10) const
   {
     __gmp_alloc_cstring temp(mpq_get_str(0, base, mp));
-    return std::string(temp.str);
+    return std::string(temp.c_str());
   }
 
   // conversion functions
@@ -2392,8 +2403,8 @@ public:
   std::string get_str(mp_exp_t &expo, int base = 10, size_t size = 0) const
   {
     __gmp_alloc_cstring temp(mpfr_get_str(0, &expo, base, size, mp,
-					  MpFrC::get_rnd()));
-    return std::string(temp.str);
+						  MpFrC::get_rnd()));
+    return std::string(temp.c_str());
   }
 
   // conversion functions
