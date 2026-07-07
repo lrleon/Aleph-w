@@ -3720,6 +3720,8 @@ Por favor, consulta la sección canónica de [Algoritmos de programación dinám
 | `ah-arena.H` | `AhArenaAllocator` | Arena allocator |
 | `ah-arena.H` | `allocate<T>()` | Construct object in arena |
 | `ah-arena.H` | `dealloc<T>()` | Destroy object from arena |
+| `ah-mdspan.H` | `Aleph::mdspan<T, Extents>` | Vista multidimensional no-owning y zero-copy sobre un buffer contiguo (nativa en C++20 — se alía a `std::mdspan` si el toolchain tiene `<mdspan>`); `layout_right` (row-major, por defecto) y `layout_left` (column-major) |
+| `tpl_ca_storage.H` | `Dense_Cell_Storage::view()` | Vista `Aleph::mdspan` sobre el buffer propio de un lattice CA, para indexar `grid(i, j)` sin ninguna asignación extra |
 
 #### Herramientas para compiladores
 

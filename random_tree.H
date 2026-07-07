@@ -57,7 +57,7 @@
  *
  *  // ... use tree ...
  *
- *  destroyRec(tree);  // Clean up
+ *  destroy_tree(tree);  // Clean up
  *  ```
  *
  *  @see tpl_tree_node.H General tree node
@@ -178,7 +178,7 @@ public:
    * RandTree<int> gen(42);
    * Tree_Node<int>* tree = gen(100);
    * // ... use tree ...
-   * destroyRec(tree);  // Don't forget to clean up!
+   * destroy_tree(tree);  // Don't forget to clean up!
    * @endcode
    */
   Tree_Node<T> * operator () (size_t n)

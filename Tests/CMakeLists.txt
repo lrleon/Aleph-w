@@ -231,6 +231,8 @@ set(TEST_PROGRAMS
     tpl_binNodeGenerators_test
     graph_traverse_generators_test
     ah_comb_generators_test
+    ah_mdspan_test
+    grid_test
     index-node
     sort_arrays
     primes
@@ -380,6 +382,7 @@ set(TEST_PROGRAMS
     planarity_test
     graph_copy_test
     thread_pool_test
+    concurrency_test_utils_test
     timeoutQueue_test
     graph_traverse_test
     test_ah_errors

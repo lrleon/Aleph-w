@@ -41,6 +41,7 @@
 # include <cstdint>
 # include <limits>
 # include <stdexcept>
+# include <type_traits>
 # include <utility>
 
 # include <gtest/gtest.h>
@@ -176,6 +177,73 @@ TEST(CADenseCellStorage, FreeFunctionSwap)
   swap(a, b);
   EXPECT_EQ(a.at(0, 0), 9);
   EXPECT_EQ(b.at(0, 0), 1);
+}
+
+TEST(CADenseCellStorage, ViewMatchesShapeAndAliasesTheSameBuffer)
+{
+  Dense_Cell_Storage<int, 2> s({ 3, 4 }, 0);
+  auto v = s.view();
+  EXPECT_EQ(v.rank(), 2u);
+  EXPECT_EQ(v.extent(0), 3u);
+  EXPECT_EQ(v.extent(1), 4u);
+  EXPECT_EQ(v.data_handle(), s.data());
+}
+
+TEST(CADenseCellStorage, EmptyStorageViewReturnsEmptyView)
+{
+  Dense_Cell_Storage<int, 2> s;
+  auto v = s.view();
+  EXPECT_EQ(v.size(), 0u);
+  EXPECT_EQ(v.data_handle(), nullptr);
+}
+
+TEST(CADenseCellStorage, WriteThroughViewIsVisibleThroughStorageApi)
+{
+  Dense_Cell_Storage<int, 2> s({ 3, 4 }, 0);
+  auto v = s.view();
+  v(1, 2) = 42;
+  EXPECT_EQ(s.at(1, 2), 42);
+}
+
+TEST(CADenseCellStorage, WriteThroughStorageIsVisibleThroughView)
+{
+  Dense_Cell_Storage<int, 2> s({ 3, 4 }, 0);
+  auto v = s.view();
+  s.set(0, 0, 7);
+  EXPECT_EQ(v(0, 0), 7);
+}
+
+TEST(CADenseCellStorage, ConstStorageYieldsReadOnlyView)
+{
+  Dense_Cell_Storage<int, 2> s({ 2, 2 }, 5);
+  const auto &cs = s;
+  auto cv = cs.view();
+  EXPECT_EQ(cv(0, 0), 5);
+  static_assert(std::is_const_v<std::remove_reference_t<decltype(cv(0, 0))>>);
+}
+
+TEST(CADenseCellStorage, ViewRowMajorOrderMatchesLinearIndex)
+{
+  Dense_Cell_Storage<int, 2> s({ 2, 3 });
+  auto v = s.view();
+  int next = 0;
+  for (ca_size_t i = 0; i < v.extent(0); ++i)
+    for (ca_size_t j = 0; j < v.extent(1); ++j)
+      v(i, j) = next++;
+
+  next = 0;
+  for (ca_index_t i = 0; i < 2; ++i)
+    for (ca_index_t j = 0; j < 3; ++j)
+      EXPECT_EQ(s.at(i, j), next++);
+}
+
+TEST(CADenseCellStorage, ViewOverThreeDimensionalStorage)
+{
+  Dense_Cell_Storage<int, 3> s({ 2, 2, 2 }, -1);
+  auto v = s.view();
+  v(1, 0, 1) = 99;
+  EXPECT_EQ(s.at(1, 0, 1), 99);
+  EXPECT_EQ(v.size(), s.size());
 }
 
 TEST(CADenseCellStorage, MoveTransfersOwnership)

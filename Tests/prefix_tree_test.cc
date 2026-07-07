@@ -51,9 +51,202 @@
 #include <gtest/gtest.h>
 #include <prefix-tree.H>
 #include <algorithm>
+#include <atomic>
+#include <cstddef>
+#include <cstdlib>
+#include <new>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
+// ThreadSanitizer ships its own strong global operator new/delete
+// replacements (tsan_new_delete.cpp.o). Defining our own below -- needed to
+// inject allocation failures for the tests exercising prefix-tree.H's
+// exception-safety paths -- collides with those at link time ("multiple
+// definition") under -fsanitize=thread. ASan/UBSan/plain Debug builds are
+// unaffected; only skip the override (and the tests relying on it) for TSan.
+#if defined(__SANITIZE_THREAD__)
+#  define ALEPH_PREFIX_TREE_TEST_UNDER_TSAN 1
+#elif defined(__has_feature)
+#  if __has_feature(thread_sanitizer)
+#    define ALEPH_PREFIX_TREE_TEST_UNDER_TSAN 1
+#  endif
+#endif
+#ifndef ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+#  define ALEPH_PREFIX_TREE_TEST_UNDER_TSAN 0
+#endif
+
+namespace
+{
+  std::atomic<int> allocation_countdown{-1};
+  std::atomic<bool> track_allocations{false};
+  std::atomic<int> tracked_balance{0};
+
+#if !ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  bool should_fail_allocation() noexcept
+  {
+    int remaining = allocation_countdown.load(std::memory_order_relaxed);
+    while (remaining >= 0)
+      {
+        if (remaining == 0)
+          return true;
+        if (allocation_countdown.compare_exchange_weak(
+                remaining, remaining - 1, std::memory_order_relaxed))
+          return false;
+      }
+    return false;
+  }
+
+
+  void * allocate_or_throw(std::size_t size)
+  {
+    if (should_fail_allocation())
+      throw std::bad_alloc();
+
+    if (size == 0)
+      size = 1;
+
+    void *ptr = std::malloc(size);
+    if (ptr == nullptr)
+      throw std::bad_alloc();
+
+    if (track_allocations.load(std::memory_order_relaxed))
+      tracked_balance.fetch_add(1, std::memory_order_relaxed);
+
+    return ptr;
+  }
+
+  void release_allocation(void *ptr) noexcept
+  {
+    if (ptr == nullptr)
+      return;
+
+    if (track_allocations.load(std::memory_order_relaxed))
+      tracked_balance.fetch_sub(1, std::memory_order_relaxed);
+
+    std::free(ptr);
+  }
+#endif  // !ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+
+  class AllocationFailureScope
+  {
+  public:
+    explicit AllocationFailureScope(const int successful_allocations_before_failure)
+    {
+      tracked_balance.store(0, std::memory_order_relaxed);
+      track_allocations.store(true, std::memory_order_relaxed);
+      allocation_countdown.store(successful_allocations_before_failure,
+                                 std::memory_order_relaxed);
+    }
+
+    ~AllocationFailureScope()
+    {
+      allocation_countdown.store(-1, std::memory_order_relaxed);
+      track_allocations.store(false, std::memory_order_relaxed);
+    }
+
+    [[nodiscard]] int balance() const noexcept
+    {
+      return tracked_balance.load(std::memory_order_relaxed);
+    }
+  };
+}
+
+#if !ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+
+void *operator new(std::size_t size)
+{
+  return allocate_or_throw(size);
+}
+
+void *operator new[](std::size_t size)
+{
+  return allocate_or_throw(size);
+}
+
+void *operator new(std::size_t size, const std::nothrow_t &) noexcept
+{
+  try
+    {
+      return allocate_or_throw(size);
+    }
+  catch (...)
+    {
+      return nullptr;
+    }
+}
+
+void *operator new[](std::size_t size, const std::nothrow_t &) noexcept
+{
+  try
+    {
+      return allocate_or_throw(size);
+    }
+  catch (...)
+    {
+      return nullptr;
+    }
+}
+
+void operator delete(void *ptr) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete[](void *ptr) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete(void *ptr, std::size_t) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete[](void *ptr, std::size_t) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete(void *ptr, const std::nothrow_t &) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete[](void *ptr, const std::nothrow_t &) noexcept
+{
+  release_allocation(ptr);
+}
+
+#endif  // !ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+
 using namespace Aleph;
+
+static_assert(std::is_same_v<decltype(std::declval<Cnode &>().search_child('a')),
+                             Cnode *>);
+static_assert(std::is_same_v<decltype(std::declval<const Cnode &>().search_child('a')),
+                             const Cnode *>);
+static_assert(std::is_same_v<decltype(std::declval<Cnode &>().greater_child('a')),
+                             Cnode *>);
+static_assert(std::is_same_v<decltype(std::declval<const Cnode &>().greater_child('a')),
+                             const Cnode *>);
+static_assert(std::is_same_v<decltype(std::declval<Cnode &>().search_prefix("a")),
+                             std::tuple<Cnode *, const char *>>);
+static_assert(std::is_same_v<decltype(std::declval<const Cnode &>().search_prefix("a")),
+                             std::tuple<const Cnode *, const char *>>);
+static_assert(std::is_same_v<decltype(std::declval<Prefix_Tree &>().root()),
+                             Cnode *>);
+static_assert(std::is_same_v<decltype(std::declval<const Prefix_Tree &>().root()),
+                             const Cnode *>);
+
+static std::vector<std::string> to_sorted_vector(const DynArray<std::string> & words)
+{
+  std::vector<std::string> ret;
+  words.for_each([&ret](const std::string & w) { ret.push_back(w); });
+  std::sort(ret.begin(), ret.end());
+  return ret;
+}
 
 //==============================================================================
 // Test Fixture
@@ -117,9 +310,7 @@ TEST_F(PrefixTreeTest, MarkEndWord)
   
   node.mark_end_word();
   EXPECT_TRUE(node.is_end_word());
-  
-  // Clean up the '$' child created by mark_end_word
-  node.destroy();
+  EXPECT_TRUE(node.children().is_empty());
 }
 
 //==============================================================================
@@ -218,6 +409,54 @@ TEST_F(PrefixTreeTest, InsertSingleCharacter)
 {
   EXPECT_TRUE(root->insert_word("a"));
   EXPECT_TRUE(root->contains("a"));
+}
+
+TEST_F(PrefixTreeTest, WordEndSurvivesLowerSortedChild)
+{
+  EXPECT_TRUE(root->insert_word("a"));
+  EXPECT_TRUE(root->insert_word("a!"));
+
+  EXPECT_TRUE(root->contains("a"));
+  EXPECT_TRUE(root->contains("a!"));
+  EXPECT_EQ(root->count(), 2);
+
+  EXPECT_EQ(to_sorted_vector(root->words()), (std::vector<std::string>{"a", "a!"}));
+  EXPECT_EQ(to_sorted_vector(root->words_with_prefix("a")),
+            (std::vector<std::string>{"a", "a!"}));
+}
+
+TEST_F(PrefixTreeTest, InsertWordCleansDetachedPathOnAllocationFailure)
+{
+#if ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#endif
+  EXPECT_TRUE(root->insert_word("mango"));
+  const auto before = to_sorted_vector(root->words());
+
+  bool threw = false;
+  int balance = 0;
+  {
+    AllocationFailureScope fail_after_one_node(2);
+    try
+      {
+        root->insert_word("abc");
+      }
+    catch (const std::bad_alloc &)
+      {
+        threw = true;
+      }
+    balance = fail_after_one_node.balance();
+  }
+
+  EXPECT_TRUE(threw);
+  EXPECT_EQ(balance, 0);
+  EXPECT_EQ(to_sorted_vector(root->words()), before);
+  EXPECT_TRUE(root->contains("mango"));
+  EXPECT_FALSE(root->contains("a"));
+  EXPECT_FALSE(root->contains("ab"));
+  EXPECT_FALSE(root->contains("abc"));
+  EXPECT_EQ(root->count(), 1);
 }
 
 TEST_F(PrefixTreeTest, PrefixNotAWord)
@@ -370,6 +609,31 @@ TEST_F(PrefixTreeTest, WordsWithCommonPrefixes)
   ASSERT_EQ(words.size(), 4);
 }
 
+TEST_F(PrefixTreeTest, WordsCanContainDollarCharacter)
+{
+  EXPECT_TRUE(root->insert_word("$"));
+  EXPECT_TRUE(root->insert_word("a$"));
+  EXPECT_TRUE(root->insert_word("a$b"));
+
+  EXPECT_TRUE(root->contains("$"));
+  EXPECT_TRUE(root->contains("a$"));
+  EXPECT_TRUE(root->contains("a$b"));
+
+  EXPECT_EQ(to_sorted_vector(root->words()),
+            (std::vector<std::string>{"$", "a$", "a$b"}));
+}
+
+TEST_F(PrefixTreeTest, WordsCanContainEmptyString)
+{
+  EXPECT_TRUE(root->insert_word(""));
+  EXPECT_TRUE(root->insert_word("!"));
+
+  EXPECT_TRUE(root->contains(""));
+  EXPECT_TRUE(root->contains("!"));
+  EXPECT_EQ(to_sorted_vector(root->words()),
+            (std::vector<std::string>{"", "!"}));
+}
+
 //==============================================================================
 // Clone Tests
 //==============================================================================
@@ -405,6 +669,62 @@ TEST_F(PrefixTreeTest, CloneWithWords)
   
   cloned->destroy();
   delete cloned;
+}
+
+TEST_F(PrefixTreeTest, ClonePreservesWordEndFlags)
+{
+  root->insert_word("");
+  root->insert_word("$");
+  root->insert_word("a!");
+  root->insert_word("a");
+
+  Cnode * cloned = root->clone();
+
+  EXPECT_TRUE(cloned->contains(""));
+  EXPECT_TRUE(cloned->contains("$"));
+  EXPECT_TRUE(cloned->contains("a!"));
+  EXPECT_TRUE(cloned->contains("a"));
+  EXPECT_EQ(to_sorted_vector(cloned->words()),
+            (std::vector<std::string>{"", "$", "a", "a!"}));
+
+  cloned->destroy();
+  delete cloned;
+}
+
+TEST_F(PrefixTreeTest, CloneCleansPartialCopyOnAllocationFailure)
+{
+#if ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#endif
+  root->insert_word("alpha");
+  root->insert_word("beta");
+  root->insert_word("$");
+  const auto before = to_sorted_vector(root->words());
+
+  bool threw = false;
+  int balance = 0;
+  {
+    AllocationFailureScope fail_after_two_nodes(2);
+    try
+      {
+        Cnode *cloned = root->clone();
+        cloned->destroy();
+        delete cloned;
+      }
+    catch (const std::bad_alloc &)
+      {
+        threw = true;
+      }
+    balance = fail_after_two_nodes.balance();
+  }
+
+  EXPECT_TRUE(threw);
+  EXPECT_EQ(balance, 0);
+  EXPECT_EQ(to_sorted_vector(root->words()), before);
+  EXPECT_TRUE(root->contains("alpha"));
+  EXPECT_TRUE(root->contains("beta"));
+  EXPECT_TRUE(root->contains("$"));
 }
 
 //==============================================================================
@@ -545,6 +865,17 @@ TEST_F(PrefixTreeTest, WordsWithPrefixNoMatch)
   EXPECT_TRUE(words.is_empty());
 }
 
+TEST_F(PrefixTreeTest, WordsWithEmptyPrefixMatchesWords)
+{
+  root->insert_word("");
+  root->insert_word("hello");
+  root->insert_word("help");
+  root->insert_word("world");
+
+  EXPECT_EQ(to_sorted_vector(root->words_with_prefix("")),
+            to_sorted_vector(root->words()));
+}
+
 TEST(PrefixTreeDestroyTest, DestroyWorks)
 {
   // Use a separate test without the fixture to avoid double-free
@@ -559,6 +890,176 @@ TEST(PrefixTreeDestroyTest, DestroyWorks)
   tree->destroy();
   delete tree;
   // If we get here without crashing, destroy worked
+}
+
+//==============================================================================
+// Owning Wrapper Tests
+//==============================================================================
+
+TEST(PrefixTreeWrapperTest, DelegatesWordOperations)
+{
+  Prefix_Tree tree;
+
+  EXPECT_TRUE(tree.insert_word(""));
+  EXPECT_TRUE(tree.insert_word("alpha"));
+  EXPECT_TRUE(tree.insert_word("alphabet"));
+  EXPECT_FALSE(tree.insert_word("alpha"));
+
+  EXPECT_TRUE(tree.contains(""));
+  EXPECT_TRUE(tree.contains("alpha"));
+  EXPECT_TRUE(tree.contains("alphabet"));
+  EXPECT_FALSE(tree.contains("alpine"));
+  EXPECT_EQ(tree.count(), 3);
+  EXPECT_EQ(to_sorted_vector(tree.words()),
+            (std::vector<std::string>{"", "alpha", "alphabet"}));
+  EXPECT_EQ(to_sorted_vector(tree.words_with_prefix("alpha")),
+            (std::vector<std::string>{"alpha", "alphabet"}));
+}
+
+TEST(PrefixTreeWrapperTest, OwnsRootAndDestroysNodes)
+{
+#if ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#endif
+  size_t count = 0;
+  int balance = 0;
+  {
+    AllocationFailureScope track_only(-1);
+    {
+      Prefix_Tree tree;
+      tree.insert_word("alpha");
+      tree.insert_word("beta");
+      count = tree.count();
+    }
+    balance = track_only.balance();
+  }
+
+  EXPECT_EQ(count, 2);
+  EXPECT_EQ(balance, 0);
+}
+
+TEST(PrefixTreeWrapperTest, RootExposesLowLevelAccessWithoutOwnershipTransfer)
+{
+  Prefix_Tree tree;
+  const Prefix_Tree &const_tree = tree;
+
+  ASSERT_NE(tree.root(), nullptr);
+  EXPECT_EQ(tree.root()->symbol(), '\0');
+  EXPECT_EQ(const_tree.root(), tree.root());
+
+  EXPECT_TRUE(tree.root()->insert_word("raw"));
+  EXPECT_TRUE(tree.contains("raw"));
+}
+
+TEST(PrefixTreeWrapperTest, CopyConstructorCreatesIndependentTree)
+{
+  Prefix_Tree tree;
+  tree.insert_word("alpha");
+  tree.insert_word("$");
+
+  Prefix_Tree copy(tree);
+  tree.insert_word("beta");
+  copy.insert_word("gamma");
+
+  EXPECT_TRUE(copy.contains("alpha"));
+  EXPECT_TRUE(copy.contains("$"));
+  EXPECT_TRUE(copy.contains("gamma"));
+  EXPECT_FALSE(copy.contains("beta"));
+  EXPECT_TRUE(tree.contains("beta"));
+  EXPECT_FALSE(tree.contains("gamma"));
+}
+
+TEST(PrefixTreeWrapperTest, CopyAssignmentCreatesIndependentTree)
+{
+  Prefix_Tree source;
+  source.insert_word("alpha");
+  source.insert_word("beta");
+
+  Prefix_Tree target;
+  target.insert_word("old");
+
+  target = source;
+  source.insert_word("gamma");
+  target.insert_word("delta");
+
+  EXPECT_TRUE(target.contains("alpha"));
+  EXPECT_TRUE(target.contains("beta"));
+  EXPECT_TRUE(target.contains("delta"));
+  EXPECT_FALSE(target.contains("old"));
+  EXPECT_FALSE(target.contains("gamma"));
+  EXPECT_TRUE(source.contains("gamma"));
+
+  target = target;
+  EXPECT_TRUE(target.contains("alpha"));
+  EXPECT_TRUE(target.contains("delta"));
+}
+
+TEST(PrefixTreeWrapperTest, MoveConstructorTransfersOwnership)
+{
+  Prefix_Tree source;
+  source.insert_word("alpha");
+  source.insert_word("$");
+
+  Prefix_Tree moved(std::move(source));
+
+  EXPECT_TRUE(moved.contains("alpha"));
+  EXPECT_TRUE(moved.contains("$"));
+}
+
+TEST(PrefixTreeWrapperTest, MoveAssignmentTransfersOwnershipAndFreesOldRoot)
+{
+  Prefix_Tree source;
+  source.insert_word("alpha");
+  source.insert_word("beta");
+
+  Prefix_Tree target;
+  target.insert_word("old");
+
+  target = std::move(source);
+
+  EXPECT_TRUE(target.contains("alpha"));
+  EXPECT_TRUE(target.contains("beta"));
+  EXPECT_FALSE(target.contains("old"));
+}
+
+TEST(PrefixTreeWrapperTest, CopyAssignmentKeepsOldTreeOnAllocationFailure)
+{
+#if ALEPH_PREFIX_TREE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#endif
+  Prefix_Tree source;
+  source.insert_word("alpha");
+  source.insert_word("beta");
+  source.insert_word("$");
+
+  Prefix_Tree target;
+  target.insert_word("old");
+  const auto before = to_sorted_vector(target.words());
+
+  bool threw = false;
+  int balance = 0;
+  {
+    AllocationFailureScope fail_after_two_nodes(2);
+    try
+      {
+        target = source;
+      }
+    catch (const std::bad_alloc &)
+      {
+        threw = true;
+      }
+    balance = fail_after_two_nodes.balance();
+  }
+
+  EXPECT_TRUE(threw);
+  EXPECT_EQ(balance, 0);
+  EXPECT_EQ(to_sorted_vector(target.words()), before);
+  EXPECT_TRUE(target.contains("old"));
+  EXPECT_FALSE(target.contains("alpha"));
+  EXPECT_FALSE(target.contains("beta"));
+  EXPECT_FALSE(target.contains("$"));
 }
 
 //==============================================================================

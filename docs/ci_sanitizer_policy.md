@@ -42,6 +42,18 @@ table without also updating the inline comment is a review block.
 | `hash_statistical_test`                         | Long-running statistical sweep; 10× the runtime under TSan with no race signal. |
 | `tpl_ca_parallel_engine_test.*Stress`           | Intentionally oversubscribes the work-stealing pool; the relaxations there are benign and produce noise rather than findings. |
 
+`prefix_tree_test` also skips 4 individual cases (`InsertWordCleansDetachedPathOnAllocationFailure`,
+`CloneCleansPartialCopyOnAllocationFailure`, `OwnsRootAndDestroysNodes`,
+`CopyAssignmentKeepsOldTreeOnAllocationFailure`) via `GTEST_SKIP()` inside
+the test source itself, not a `ctest -E` regex: those tests rely on
+`prefix_tree_test.cc`'s own global `operator new`/`delete` overrides to
+inject allocation failures, which collide at link time ("multiple
+definition") with TSan's own strong `operator new`/`delete` replacements
+(`tsan_new_delete.cpp.o`). The overrides are compiled out under TSan
+(detected via `__SANITIZE_THREAD__` / `__has_feature(thread_sanitizer)`),
+so the whole binary still links; the 4 cases that depend on them report
+`SKIPPED` at run time instead.
+
 ### `ubsan` (UndefinedBehaviorSanitizer)
 
 | Test (CTest regex)                              | Reason for skip |

@@ -37,6 +37,7 @@
  */
 # include <gtest/gtest.h>
 
+# include <tpl_binNode.H>
 # include <tpl_tree_node.H>
 # include <ah-zip.H>
 # include <ah-string-utils.H>
@@ -90,6 +91,234 @@ TEST(Tree_Node, on_isolated_node)
   ASSERT_FALSE(cit.has_curr());
   ASSERT_THROW(cit.get_curr(), overflow_error);
   ASSERT_THROW(cit.next(), overflow_error);
+}
+
+TEST(Tree_Node, get_parent_tracks_multi_level_tree)
+{
+  Tree_Node<int> root(0);
+  Tree_Node<int> left(1);
+  Tree_Node<int> right(2);
+  Tree_Node<int> left_left(3);
+  Tree_Node<int> left_right(4);
+  Tree_Node<int> deep(5);
+
+  root.insert_rightmost_child(&left);
+  root.insert_rightmost_child(&right);
+  left.insert_rightmost_child(&left_left);
+  left.insert_rightmost_child(&left_right);
+  left_left.insert_rightmost_child(&deep);
+
+  ASSERT_EQ(root.get_parent(), nullptr);
+  ASSERT_EQ(left.get_parent(), &root);
+  ASSERT_EQ(right.get_parent(), &root);
+  ASSERT_EQ(left_left.get_parent(), &left);
+  ASSERT_EQ(left_right.get_parent(), &left);
+  ASSERT_EQ(deep.get_parent(), &left_left);
+}
+
+TEST(Tree_Node, insert_leftmost_child_preserves_existing_subtree_parent_links)
+{
+  Tree_Node<int> root(0);
+  Tree_Node<int> old_left(1);
+  Tree_Node<int> old_right(2);
+  Tree_Node<int> old_left_child(3);
+  Tree_Node<int> new_left(4);
+
+  root.insert_rightmost_child(&old_left);
+  root.insert_rightmost_child(&old_right);
+  old_left.insert_rightmost_child(&old_left_child);
+
+  root.insert_leftmost_child(&new_left);
+
+  ASSERT_EQ(root.get_left_child(), &new_left);
+  ASSERT_EQ(root.get_child(0), &new_left);
+  ASSERT_EQ(root.get_child(1), &old_left);
+  ASSERT_EQ(root.get_child(2), &old_right);
+
+  ASSERT_EQ(new_left.get_parent(), &root);
+  ASSERT_EQ(old_left.get_parent(), &root);
+  ASSERT_EQ(old_right.get_parent(), &root);
+  ASSERT_EQ(old_left_child.get_parent(), &old_left);
+
+  ASSERT_TRUE(new_left.is_leftmost());
+  ASSERT_FALSE(new_left.is_rightmost());
+  ASSERT_FALSE(old_left.is_leftmost());
+  ASSERT_FALSE(old_right.is_leftmost());
+  ASSERT_TRUE(old_right.is_rightmost());
+}
+
+TEST(Tree_Node, insert_left_sibling_before_leftmost_child_updates_spine)
+{
+  Tree_Node<int> root(0);
+  Tree_Node<int> old_left(1);
+  Tree_Node<int> right(2);
+  Tree_Node<int> old_left_child(3);
+  Tree_Node<int> new_left(4);
+
+  root.insert_rightmost_child(&old_left);
+  root.insert_rightmost_child(&right);
+  old_left.insert_rightmost_child(&old_left_child);
+
+  old_left.insert_left_sibling(&new_left);
+
+  ASSERT_EQ(root.get_left_child(), &new_left);
+  ASSERT_EQ(root.get_child(0), &new_left);
+  ASSERT_EQ(root.get_child(1), &old_left);
+  ASSERT_EQ(root.get_child(2), &right);
+
+  ASSERT_EQ(new_left.get_parent(), &root);
+  ASSERT_EQ(old_left.get_parent(), &root);
+  ASSERT_EQ(right.get_parent(), &root);
+  ASSERT_EQ(old_left_child.get_parent(), &old_left);
+
+  ASSERT_TRUE(new_left.is_leftmost());
+  ASSERT_FALSE(new_left.is_rightmost());
+  ASSERT_FALSE(old_left.is_leftmost());
+  ASSERT_FALSE(right.is_leftmost());
+  ASSERT_TRUE(right.is_rightmost());
+}
+
+TEST(Tree_Node, bin_to_forest_preserves_each_forest_root_flag)
+{
+  BinNode<int> n1(1);
+  BinNode<int> n2(2);
+  BinNode<int> n3(3);
+
+  RLINK(&n1) = &n2;
+  RLINK(&n2) = &n3;
+
+  auto * forest = bin_to_forest<Tree_Node<int>, BinNode<int>>(&n1);
+  ASSERT_NE(forest, nullptr);
+
+  size_t count = 0;
+  for (auto * t = forest; t != nullptr; t = t->get_right_sibling(), ++count)
+    {
+      EXPECT_TRUE(t->is_root()) << "tree key " << t->get_key()
+                                << " must remain a forest root";
+      EXPECT_EQ(t->get_parent(), nullptr);
+    }
+
+  EXPECT_EQ(count, 3);
+  destroy_forest(forest);
+}
+
+TEST(Tree_Node, insert_right_sibling_on_root_links_forest_roots)
+{
+  Tree_Node<int> tree1(1);
+  Tree_Node<int> tree2(2);
+  Tree_Node<int> tree3(3);
+
+  tree1.insert_right_sibling(&tree2);
+  tree2.insert_right_sibling(&tree3);
+
+  ASSERT_EQ(tree1.get_right_tree(), &tree2);
+  ASSERT_EQ(tree2.get_right_tree(), &tree3);
+  ASSERT_EQ(tree3.get_right_tree(), nullptr);
+
+  ASSERT_TRUE(tree1.is_root());
+  ASSERT_TRUE(tree2.is_root());
+  ASSERT_TRUE(tree3.is_root());
+
+  ASSERT_EQ(tree1.get_parent(), nullptr);
+  ASSERT_EQ(tree2.get_parent(), nullptr);
+  ASSERT_EQ(tree3.get_parent(), nullptr);
+}
+
+TEST(Tree_Node, unique_sibling_macro_tracks_sibling_links)
+{
+  Tree_Node<int> isolated(0);
+  ASSERT_TRUE(IS_UNIQUE_SIBLING(&isolated));
+
+  Tree_Node<int> root(1);
+  Tree_Node<int> only_child(2);
+  root.insert_rightmost_child(&only_child);
+  ASSERT_TRUE(IS_UNIQUE_SIBLING(&only_child));
+
+  Tree_Node<int> other_child(3);
+  root.insert_rightmost_child(&other_child);
+  ASSERT_FALSE(IS_UNIQUE_SIBLING(&only_child));
+  ASSERT_FALSE(IS_UNIQUE_SIBLING(&other_child));
+
+  Tree_Node<int> tree1(4);
+  Tree_Node<int> tree2(5);
+  tree1.insert_tree_to_right(&tree2);
+  ASSERT_FALSE(IS_UNIQUE_SIBLING(&tree1));
+  ASSERT_FALSE(IS_UNIQUE_SIBLING(&tree2));
+}
+
+TEST(Tree_Node, destroy_tree_on_non_leftmost_child_regression)
+{
+  Tree_Node<int>* root = new Tree_Node<int>(1);
+  Tree_Node<int>* child1 = new Tree_Node<int>(2);
+  Tree_Node<int>* child2 = new Tree_Node<int>(3);
+  
+  root->insert_rightmost_child(child1);
+  root->insert_rightmost_child(child2);
+
+  // Layout: child1 -> child2 (rightmost)
+  // Destroying a non-leftmost sibling with a left sibling
+  destroy_tree(child2);
+
+  ASSERT_EQ(root->get_left_child(), child1);
+  ASSERT_EQ(root->get_right_child(), child1);
+  ASSERT_TRUE(IS_UNIQUE_SIBLING(child1));
+  ASSERT_TRUE(child1->is_rightmost());
+  ASSERT_EQ(child1->get_right_sibling(), nullptr);
+
+  destroy_tree(root);
+}
+
+TEST(Tree_Node, destroy_tree_restores_is_rightmost_on_surviving_sibling)
+{
+  // Regression: destroy_tree() unlinked a node from its sibling list
+  // without restoring is_rightmost()/is_leftmost() on the neighbor taking
+  // its place. get_right_child()/get_left_child() use the raw (flag-blind)
+  // Dlink links and so cannot detect this; get_right_sibling() and anything
+  // built on it (for_each_child(), Children_Iterator) are flag-gated and
+  // did loop forever on the surviving sibling before this fix.
+  auto *root = new Tree_Node<int>(0);
+  auto *a = new Tree_Node<int>(1);
+  auto *b = new Tree_Node<int>(2);
+  auto *c = new Tree_Node<int>(3);
+  root->insert_rightmost_child(a);
+  root->insert_rightmost_child(b);
+  root->insert_rightmost_child(c);  // root -> a, b, c (c is rightmost)
+
+  destroy_tree(c);
+
+  EXPECT_TRUE(b->is_rightmost());
+  EXPECT_EQ(b->get_right_sibling(), nullptr);
+
+  int count = 0;
+  root->for_each_child([&count](auto) { ++count; });
+  EXPECT_EQ(count, 2);  // a, b -- would loop forever before the fix
+
+  destroy_tree(root);
+}
+
+TEST(Tree_Node, destroy_tree_restores_is_leftmost_on_surviving_sibling)
+{
+  // Symmetric case: destroying the current leftmost child must promote
+  // its former right neighbor to is_leftmost().
+  auto *root = new Tree_Node<int>(0);
+  auto *a = new Tree_Node<int>(1);
+  auto *b = new Tree_Node<int>(2);
+  auto *c = new Tree_Node<int>(3);
+  root->insert_rightmost_child(a);
+  root->insert_rightmost_child(b);
+  root->insert_rightmost_child(c);  // root -> a (leftmost), b, c
+
+  destroy_tree(a);
+
+  EXPECT_TRUE(b->is_leftmost());
+  EXPECT_EQ(b->get_left_sibling(), nullptr);
+  EXPECT_EQ(root->get_left_child(), b);
+
+  int count = 0;
+  root->for_each_child([&count](auto) { ++count; });
+  EXPECT_EQ(count, 2);  // b, c
+
+  destroy_tree(root);
 }
 
 TEST(Tree_Node, simple_tree_construction_and_destruction)
@@ -422,5 +651,3 @@ TEST_F(Three_Trees, join)
 
   destroy_forest(t);
 }
-
-

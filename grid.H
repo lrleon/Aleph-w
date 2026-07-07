@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file grid.H
  *  @brief 2D grid graph generation with 8-connectivity.
  *
@@ -68,11 +67,14 @@
  *  @author Alejandro Mujica
  */
 
-# ifndef GRID_H
-# define GRID_H
+#ifndef GRID_H
+#define GRID_H
 
-namespace Aleph 
-{ 
+#include <ah-errors.H>
+#include <aleph-graph.H>
+#include <tpl_array.H>
+
+namespace Aleph {
 
 /**
  * @brief Default no-op operation for node initialization.
@@ -92,7 +94,13 @@ struct Default_Operation_On_Node
    * @param[in] row Row index of node (0-based)
    * @param[in] col Column index of node (0-based)
    */
-  void operator () (GT & g, typename GT::Node * n, const size_t & row, const size_t & col) { (void)g; (void)n; (void)row; (void)col; }
+  void operator () (GT &g, typename GT::Node *n, const size_t &row, const size_t &col)
+  {
+    (void) g;
+    (void) n;
+    (void) row;
+    (void) col;
+  }
 };
 
 /**
@@ -113,7 +121,13 @@ struct Default_Operation_On_Arc
    * @param[in] row Row index of source node (0-based)
    * @param[in] col Column index of source node (0-based)
    */
-  void operator () (GT & g, typename GT::Arc * a, const size_t & row, const size_t & col) { (void)g; (void)a; (void)row; (void)col; }
+  void operator () (GT &g, typename GT::Arc *a, const size_t &row, const size_t &col)
+  {
+    (void) g;
+    (void) a;
+    (void) row;
+    (void) col;
+  }
 };
 
 /**
@@ -156,15 +170,11 @@ struct Default_Operation_On_Arc
  * @ingroup Graphs
  * @author Alejandro Mujica
  */
-template <
-          class GT,
-          class Operation_On_Node = Default_Operation_On_Node<GT>,
-          class Operation_On_Arc = Default_Operation_On_Arc<GT>
-         >
+template <class GT, class Operation_On_Node = Default_Operation_On_Node<GT>,
+          class Operation_On_Arc = Default_Operation_On_Arc<GT>>
 class Build_Grid
 {
 public:
-
   /**
    * @brief Build a grid graph.
    *
@@ -179,63 +189,57 @@ public:
    *
    * @post g contains width*height nodes with grid connectivity
    */
-  void operator () (GT & g, const size_t & width, const size_t & height)
+  void operator () (GT &g, const size_t &width, const size_t &height)
   {
-    ah_domain_error_if(g.get_num_nodes() != 0)
-        << "There is nodes in graph";
+    ah_domain_error_if(g.get_num_nodes() != 0) << "Build_Grid requires an empty graph";
 
-    ah_length_error_if(width < 2 or height < 2)
-        << "The minimun size must be 2 x 2";
+    ah_length_error_if(width < 2 or height < 2) << "The minimum size must be 2 x 2";
 
-    typename GT::Node *** map = new typename GT::Node **[height];
-    for (size_t i = 0; i < height; ++i)
+    // Flat, single-allocation lookup table (row-major: map[i * width + j])
+    // instead of a vector-of-vectors, avoiding height+1 separate
+    // allocations and keeping the whole table contiguous.
+    Array<typename GT::Node*> map(width * height, nullptr);
+
+    try
       {
-	try
-	  {
-	    map[i] = new typename GT::Node *[width];
-	    for (size_t j = 0; j < width; ++j)
-	      {
-		typename GT::Node * n = g.insert_node(typename GT::Node_Type());
-		Operation_On_Node()(g, n, i, j);
-		map[i][j] = n;
-		if (j > 0) // Connect to left neighbor
-		  {
-		    typename GT::Arc * a = g.insert_arc(n, map[i][j - 1]);
-		    Operation_On_Arc()(g, a, i, j);
-		  }
-		if (i > 0) // Connect to upper neighbor
-		  {
-		    typename GT::Arc * a = g.insert_arc(n, map[i - 1][j]);
-		    Operation_On_Arc()(g, a, i, j);
-		  }
-		if (i > 0 and j > 0) // Connect to upper-left diagonal
-		  {
-		    typename GT::Arc * a = g.insert_arc(n, map[i - 1][j - 1]);
-		    Operation_On_Arc()(g, a, i, j);
-		  }
-		if (j + 1 < width and i > 0) // Connect to upper-right diagonal
-		  {
-		    typename GT::Arc * a = g.insert_arc(n, map[i - 1][j + 1]);
-		    Operation_On_Arc()(g, a, i, j);
-		  }
-	      }
-	  }
-	catch (...)
-	  {
-	    for (size_t k = i; k-- > 0; )
-	      delete [] map[k];
-	    delete [] map;
-	    clear_graph(g);
-	    throw;
-	  }
+        for (size_t i = 0; i < height; ++i)
+          {
+            for (size_t j = 0; j < width; ++j)
+              {
+                typename GT::Node *n = g.insert_node(typename GT::Node_Type());
+                Operation_On_Node()(g, n, i, j);
+                map[i * width + j] = n;
+                if (j > 0)  // Connect to left neighbor
+                  {
+                    typename GT::Arc *a = g.insert_arc(n, map[i * width + (j - 1)]);
+                    Operation_On_Arc()(g, a, i, j);
+                  }
+                if (i > 0)  // Connect to upper neighbor
+                  {
+                    typename GT::Arc *a = g.insert_arc(n, map[(i - 1) * width + j]);
+                    Operation_On_Arc()(g, a, i, j);
+                  }
+                if (i > 0 and j > 0)  // Connect to upper-left diagonal
+                  {
+                    typename GT::Arc *a = g.insert_arc(n, map[(i - 1) * width + (j - 1)]);
+                    Operation_On_Arc()(g, a, i, j);
+                  }
+                if (j + 1 < width and i > 0)  // Connect to upper-right diagonal
+                  {
+                    typename GT::Arc *a = g.insert_arc(n, map[(i - 1) * width + (j + 1)]);
+                    Operation_On_Arc()(g, a, i, j);
+                  }
+              }
+          }
       }
-
-    for (size_t i = 0; i < height; ++i)
-      delete [] map[i];
-    delete [] map;
+    catch (...)
+      {
+        clear_graph(g);
+        throw;
+      }
   }
 };
 
-}
+}  // namespace Aleph
 
-# endif
+#endif
