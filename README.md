@@ -3560,6 +3560,42 @@ itself). See the file-level Doxygen in `tpl_mpsc_queue.H` for the exact
 progress guarantees and memory-ordering rationale, and
 `Examples/mpsc_queue_example.cc` for a runnable multi-producer walkthrough.
 
+### Sharded Concurrent Hash Map
+
+```cpp
+#include <tpl_concurrent_hash_map.H>
+#include <thread>
+#include <vector>
+
+int main() {
+    Aleph::ConcurrentHashMap<int, int> counters;
+    std::vector<std::thread> workers;
+    for (int w = 0; w < 8; ++w)
+        workers.emplace_back([&, w] {
+            for (int i = 0; i < 1000; ++i)
+                counters.insert(w * 1000 + i, i);
+        });
+
+    for (auto &t : workers)
+        t.join();
+
+    counters.with_value_mut(0, [](int &v) { v += 1; });
+    return counters.size() == 8000 ? 0 : 1;
+}
+```
+
+`ConcurrentHashMap<Key, T>` partitions its key space across a fixed number of
+independently-locked shards (`Shards`, a template parameter defaulting to
+64) instead of one global lock: two threads operating on keys that hash to
+different shards run fully in parallel. There is no live iteration (use
+`snapshot()` for an independent copy of every entry) and no reference from
+`with_value()`/`with_value_mut()` is allowed to escape the callback (enforced
+with a `static_assert`, mirroring `Synchronized::with_lock()`). See the
+file-level Doxygen in `tpl_concurrent_hash_map.H` for the exact consistency
+guarantees of `size()`/`snapshot()`, and
+`Examples/concurrent_hash_map_example.cc` for a runnable multi-worker
+walkthrough.
+
 ### Parallel Functional Operations
 
 ```cpp
@@ -4150,6 +4186,7 @@ The longer-term platform roadmap lives in
 | `concurrency_utils.H` | `bounded_channel<T>`, `spsc_queue<T>` | Concurrent message channels and queues |
 | `concurrency_utils.H` | `synchronized<T>`, `rw_synchronized<T>` | Mutex and RW-lock protected shared state |
 | `tpl_mpsc_queue.H` | `MpscQueue<T>` | Unbounded lock-free multi-producer/single-consumer queue |
+| `tpl_concurrent_hash_map.H` | `ConcurrentHashMap<Key, T>` | Sharded concurrent hash map, no global lock |
 | `ah-parallel.H` | `pmaps()`, `pfilter()` | Parallel map and filter |
 | `ah-parallel.H` | `pfoldl()`, `pfor_each()` | Parallel reduce and iteration |
 | `ah-parallel.H` | `psort()`, `ppartition()` | Parallel sort and partition |

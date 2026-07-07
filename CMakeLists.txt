@@ -371,6 +371,7 @@ set(HLIST
     ca-bench.H
     thread_pool.H
     tpl_mpsc_queue.H
+    tpl_concurrent_hash_map.H
     tpl_ca_parallel_engine.H
     tpl_ca_hex_lattice.H
     tpl_ca_triangular_lattice.H
