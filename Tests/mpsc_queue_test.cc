@@ -39,7 +39,9 @@
 
 #include <tpl_mpsc_queue.H>
 
+#include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -224,80 +226,73 @@ TEST(MpscQueue, FailedEmplaceLeavesQueueUnchanged)
 
 TEST(MpscQueue, SingleProducerSingleConsumerConservesAllElements)
 {
-  constexpr int N = 20000;
-  MpscQueue<int> q;
-  std::atomic<bool> producer_done{false};
+  MpscQueue<size_t> q;
 
-  run_concurrently(2, [&](size_t idx)
-  {
-    if (idx == 0)
-      {
-        for (int i = 0; i < N; ++i)
-          q.push(i);
-        producer_done.store(true, std::memory_order_release);
-      }
-    else
-      {
-        int expected = 0;
-        while (expected < N)
-          {
-            int out;
-            if (q.try_pop(out))
-              {
-                EXPECT_EQ(out, expected);
-                ++expected;
-              }
-          }
-      }
-  });
+  Producer_Consumer_Stress_Config config;
+  config.producers = 1;
+  config.consumers = 1;
+  config.items_per_producer = 20000;
+  config.timeout = std::chrono::seconds(30);
+
+  const auto result = run_producer_consumer_stress(
+    config,
+    [&](size_t value) { q.push(value); },
+    [&](size_t &out) { return q.try_pop(out); });
+
+  ASSERT_FALSE(result.timed_out);
+  ASSERT_EQ(result.size(), config.items_per_producer);
+  // Single producer, single consumer: consumption order (not just the set
+  // of values) must exactly match push order.
+  for (size_t i = 0; i < result.consumed.size(); ++i)
+    EXPECT_EQ(result.consumed[i], i);
 
   EXPECT_TRUE(q.is_empty());
 }
 
 TEST(MpscQueue, MultiProducerSingleConsumerConservesEveryElementExactlyOnce)
 {
-  constexpr int producer_count = 6;
-  constexpr int items_per_producer = 20000;
-  constexpr long long total = static_cast<long long>(producer_count) * items_per_producer;
+  constexpr size_t producer_count = 6;
+  constexpr size_t items_per_producer = 20000;
 
-  MpscQueue<long long> q;
-  std::vector<int> last_seq(producer_count, -1);
-  std::vector<char> seen(static_cast<size_t>(total), 0);
-  long long consumed = 0;
+  MpscQueue<size_t> q;
 
-  run_producers_consumers(
-    producer_count, 1,
-    [&](size_t p)
+  Producer_Consumer_Stress_Config config;
+  config.producers = producer_count;
+  config.consumers = 1;  // MpscQueue supports exactly one consumer.
+  config.items_per_producer = items_per_producer;
+  config.timeout = std::chrono::seconds(30);
+
+  // The framework encodes each pushed value as
+  // `producer_index * items_per_producer + local_sequence`, so both the
+  // exactly-once conservation check (via sorting) and the FIFO-per-producer
+  // check (via the unsorted, consumption-ordered `result.consumed`) can be
+  // derived directly from the returned values.
+  const auto result = run_producer_consumer_stress(
+    config,
+    [&](size_t value) { q.push(value); },
+    [&](size_t &out) { return q.try_pop(out); });
+
+  ASSERT_FALSE(result.timed_out);
+  const size_t total = producer_count * items_per_producer;
+  ASSERT_EQ(result.size(), total);
+
+  std::vector<long long> last_seq(producer_count, -1);
+  for (const size_t value : result.consumed)
     {
-      for (int i = 0; i < items_per_producer; ++i)
-        q.push(static_cast<long long>(p) * items_per_producer + i);
-    },
-    [&](size_t /*consumer_index*/)
-    {
-      while (consumed < total)
-        {
-          long long v;
-          if (not q.try_pop(v))
-            continue;  // transient empty: race window or producers still working
+      const size_t producer = value / items_per_producer;
+      const size_t seq = value % items_per_producer;
+      ASSERT_LT(producer, producer_count);
+      ASSERT_GT(static_cast<long long>(seq), last_seq[producer])
+        << "producer " << producer << " delivered out of FIFO order";
+      last_seq[producer] = static_cast<long long>(seq);
+    }
 
-          const long long producer = v / items_per_producer;
-          const long long seq = v % items_per_producer;
-          ASSERT_GE(producer, 0);
-          ASSERT_LT(producer, producer_count);
-          ASSERT_GT(seq, last_seq[static_cast<size_t>(producer)]);
-          last_seq[static_cast<size_t>(producer)] = static_cast<int>(seq);
+  auto sorted = result.consumed;
+  std::sort(sorted.begin(), sorted.end());
+  for (size_t i = 0; i < total; ++i)
+    ASSERT_EQ(sorted[i], i) << "index " << i << " missing or duplicated";
 
-          const size_t idx = static_cast<size_t>(producer) * items_per_producer + seq;
-          ASSERT_FALSE(seen[idx]);
-          seen[idx] = 1;
-          ++consumed;
-        }
-    });
-
-  EXPECT_EQ(consumed, total);
   EXPECT_TRUE(q.is_empty());
-  for (long long i = 0; i < total; ++i)
-    ASSERT_TRUE(seen[static_cast<size_t>(i)]) << "index " << i << " never consumed";
 }
 
 TEST(MpscQueue, RandomizedOperationTraceMatchesSequentialReferenceModel)
@@ -305,14 +300,8 @@ TEST(MpscQueue, RandomizedOperationTraceMatchesSequentialReferenceModel)
   // Single-producer trace replayed against std::vector-as-model semantics:
   // every insert corresponds to a push, and pops happen in strict FIFO
   // order matching the model's own front-to-back consumption.
-  OperationTraceConfig config;
-  config.length = 5000;
-  config.key_range = 1000;
-  config.value_range = 1;
-  config.seed = 0xC0FFEE;
-  config.operations = {OperationKind::insert};
-
-  const auto trace = make_random_operation_trace(config);
+  const auto trace = make_random_operation_trace(
+    5000, 0xC0FFEE, 1000, {Trace_Operation_Kind::insert});
 
   std::vector<size_t> model;
   MpscQueue<size_t> subject;

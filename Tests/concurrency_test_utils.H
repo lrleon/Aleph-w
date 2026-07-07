@@ -47,6 +47,7 @@
 #include <initializer_list>
 #include <mutex>
 #include <random>
+#include <system_error>
 #include <thread>
 #include <type_traits>
 #include <utility>
@@ -59,12 +60,18 @@ namespace Aleph::Testing
    * Worker threads call arrive_and_wait(). The test thread calls
    * wait_until_ready() and release(). This ensures all workers are parked before
    * the measured/stressed section starts.
+   *
+   * @par Thread-safety
+   * arrive_and_wait(), wait_until_ready(), release(), cancel(), and
+   * arrived() may all be called concurrently; each synchronizes internally
+   * on the gate's own mutex.
    */
   class Deterministic_Start_Gate
   {
     const size_t expected_ = 0;
     size_t arrived_ = 0;
     bool released_ = false;
+    bool cancelled_ = false;
     mutable std::mutex mutex_;
     std::condition_variable cv_;
 
@@ -79,26 +86,31 @@ namespace Aleph::Testing
       // empty
     }
 
-    /** @brief Mark the caller ready and block until release().
+    /** @brief Mark the caller ready and block until release() or cancel().
      *
      * This function is intended for worker threads.
+     *
+     * @return `true` if the gate was released normally, `false` if
+     *         cancel() unblocked this call instead.
      */
-    void arrive_and_wait()
+    bool arrive_and_wait()
     {
       std::unique_lock lock(mutex_);
       ++arrived_;
       cv_.notify_all();
-      cv_.wait(lock, [this] { return released_; });
+      cv_.wait(lock, [this] { return released_ or cancelled_; });
+      return released_;
     }
 
-    /** @brief Wait until all expected workers are ready.
+    /** @brief Wait until all expected workers are ready, or the gate is
+     *         cancelled.
      *
      * This function is intended for the controlling test thread.
      */
     void wait_until_ready()
     {
       std::unique_lock lock(mutex_);
-      cv_.wait(lock, [this] { return arrived_ == expected_; });
+      cv_.wait(lock, [this] { return arrived_ == expected_ or cancelled_; });
     }
 
     /** @brief Release all waiting workers.
@@ -113,6 +125,24 @@ namespace Aleph::Testing
       cv_.notify_all();
     }
 
+    /** @brief Abort the gate, waking every worker currently blocked in
+     *         arrive_and_wait() or wait_until_ready().
+     *
+     * Woken participants observe arrive_and_wait() returning `false`
+     * instead of waiting forever. Intended for exception-safety cleanup:
+     * if launching one worker thread of a cohort fails partway through,
+     * the threads already started would otherwise stay parked
+     * indefinitely, since the full `expected` count will never arrive.
+     *
+     * @note Cancelling an already-released gate is a harmless no-op.
+     */
+    void cancel() noexcept
+    {
+      std::lock_guard lock(mutex_);
+      cancelled_ = true;
+      cv_.notify_all();
+    }
+
     /** @brief Return the number of arrived workers.
      *
      * @return Number of workers that already called arrive_and_wait().
@@ -123,6 +153,71 @@ namespace Aleph::Testing
       return arrived_;
     }
   };
+
+  namespace detail
+  {
+    /** @brief RAII guard that leaves no thread joinable when it goes out
+     *         of scope, cancelling `gate` first so any thread still
+     *         blocked in Deterministic_Start_Gate::arrive_and_wait()
+     *         wakes up instead of waiting forever.
+     *
+     * Launching a cohort of worker threads with
+     * `std::vector::emplace_back` can throw partway through (typically
+     * `std::system_error` from the OS refusing to create another
+     * thread). Without this guard, threads already started would stay
+     * blocked on the shared gate -- it will never reach its full
+     * expected arrival count -- and destroying a still-joinable
+     * `std::thread` (as the enclosing `std::vector<std::thread>` does
+     * when unwound by the exception) calls `std::terminate()`. Keeping
+     * this guard alive for the entire launch-and-join scope fixes both
+     * problems on any exit path, normal or exceptional.
+     */
+    class Joining_Thread_Guard
+    {
+      std::vector<std::thread> &threads_;
+      Deterministic_Start_Gate &gate_;
+      bool launch_completed_ = false;
+
+    public:
+      Joining_Thread_Guard(std::vector<std::thread> &threads,
+                            Deterministic_Start_Gate &gate) noexcept
+        : threads_(threads), gate_(gate)
+      {}
+
+      Joining_Thread_Guard(const Joining_Thread_Guard &) = delete;
+      Joining_Thread_Guard &operator = (const Joining_Thread_Guard &) = delete;
+
+      /** @brief Mark the launch loop as having completed without
+       *         throwing. Call once, right after the last
+       *         `threads.emplace_back(...)`. */
+      void dismiss() noexcept { launch_completed_ = true; }
+
+      ~Joining_Thread_Guard()
+      {
+        if (not launch_completed_)
+          gate_.cancel();
+        for (auto &thread : threads_)
+          if (thread.joinable())
+            {
+              try
+                {
+                  thread.join();
+                }
+              catch (const std::system_error &)
+                {
+                  try
+                    {
+                      thread.detach();
+                    }
+                  catch (const std::system_error &)
+                    {
+                      // Nothing actionable left from a destructor.
+                    }
+                }
+            }
+      }
+    };
+  } // namespace detail
 
   /** @brief Configuration for producer/consumer stress helpers. */
   struct Producer_Consumer_Stress_Config
@@ -166,9 +261,13 @@ namespace Aleph::Testing
   /** @brief Run a deterministic producer/consumer stress scenario.
    *
    * @tparam Push Callable invoked as `push(size_t value)`. It may return void
-   *         for always-successful pushes or bool for retryable pushes.
+   *         for always-successful pushes or bool for retryable pushes. Must
+   *         be safe to copy into one closure per producer thread; each
+   *         thread runs its own copy (so `Push` itself need not be
+   *         thread-safe unless it captures shared state).
    * @tparam TryPop Callable invoked as `try_pop(size_t &out)` returning true
-   *         when a value was consumed.
+   *         when a value was consumed. Same per-thread-copy contract as
+   *         `Push`.
    * @param[in] config Stress dimensions and timeout.
    * @param[in,out] push Producer operation.
    * @param[in,out] try_pop Consumer operation.
@@ -177,6 +276,11 @@ namespace Aleph::Testing
    * The helper assigns unique values in `[0, producers * items_per_producer)`.
    * It does not assume FIFO ordering; callers should verify conservation,
    * ordering, or topology-specific properties separately.
+   *
+   * @throws std::system_error propagated as-is if the underlying
+   *         `std::thread` constructor fails to create a thread; threads
+   *         already launched are unblocked and joined (never left parked on
+   *         the gate or abandoned joinable) before this propagates.
    */
   template <typename Push, typename TryPop>
   Producer_Consumer_Stress_Result run_producer_consumer_stress(
@@ -196,56 +300,65 @@ namespace Aleph::Testing
 
     const auto deadline = std::chrono::steady_clock::now() + config.timeout;
 
-    for (size_t p = 0; p < config.producers; ++p)
-      threads.emplace_back([&, p]
-        {
-          gate.arrive_and_wait();
-          for (size_t i = 0; i < config.items_per_producer; ++i)
-            {
-              const size_t value = p * config.items_per_producer + i;
-              while (not detail::invoke_push(push, value))
-                {
-                  if (std::chrono::steady_clock::now() >= deadline)
-                    {
-                      timed_out.store(true, std::memory_order_relaxed);
-                      return;
-                    }
-                  std::this_thread::yield();
-                }
-            }
-        });
+    {
+      detail::Joining_Thread_Guard guard(threads, gate);
 
-    for (size_t c = 0; c < config.consumers; ++c)
-      threads.emplace_back([&]
-        {
-          gate.arrive_and_wait();
-          while (consumed_count.load(std::memory_order_acquire) < total)
-            {
-              size_t value = 0;
-              if (try_pop(value))
-                {
-                  const size_t slot =
-                      consumed_count.fetch_add(1, std::memory_order_acq_rel);
-                  if (slot < total)
-                    result.consumed[slot] = value;
-                }
-              else
-                {
-                  if (std::chrono::steady_clock::now() >= deadline)
-                    {
-                      timed_out.store(true, std::memory_order_relaxed);
-                      return;
-                    }
-                  std::this_thread::yield();
-                }
-            }
-        });
+      for (size_t p = 0; p < config.producers; ++p)
+        threads.emplace_back([&, p, push]() mutable
+          {
+            if (not gate.arrive_and_wait())
+              return;
+            for (size_t i = 0; i < config.items_per_producer; ++i)
+              {
+                const size_t value = p * config.items_per_producer + i;
+                while (not detail::invoke_push(push, value))
+                  {
+                    if (std::chrono::steady_clock::now() >= deadline)
+                      {
+                        timed_out.store(true, std::memory_order_relaxed);
+                        return;
+                      }
+                    std::this_thread::yield();
+                  }
+              }
+          });
 
-    gate.wait_until_ready();
-    gate.release();
+      for (size_t c = 0; c < config.consumers; ++c)
+        threads.emplace_back([&, try_pop]() mutable
+          {
+            if (not gate.arrive_and_wait())
+              return;
+            while (consumed_count.load(std::memory_order_acquire) < total)
+              {
+                size_t value = 0;
+                if (try_pop(value))
+                  {
+                    const size_t slot =
+                        consumed_count.fetch_add(1, std::memory_order_acq_rel);
+                    if (slot < total)
+                      result.consumed[slot] = value;
+                  }
+                else
+                  {
+                    if (std::chrono::steady_clock::now() >= deadline)
+                      {
+                        timed_out.store(true, std::memory_order_relaxed);
+                        return;
+                      }
+                    std::this_thread::yield();
+                  }
+              }
+          });
 
-    for (auto &thread : threads)
-      thread.join();
+      guard.dismiss();  // every thread launched; let them reach the gate on
+                         // their own instead of racing to cancel() it here.
+
+      gate.wait_until_ready();
+      gate.release();
+    } // guard destructor: on the normal path above, just joins (already-
+      // dismissed); if emplace_back threw before dismiss(), cancels the
+      // gate first so threads already blocked on it wake up, then joins
+      // them.
 
     const size_t n = consumed_count.load(std::memory_order_acquire);
     if (n < result.consumed.size())
