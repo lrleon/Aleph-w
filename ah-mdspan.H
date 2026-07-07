@@ -264,10 +264,10 @@ public:
   {
     const index_type idx[]{static_cast<index_type>(idxs)...};
     for (rank_type r = 0; r < rank(); ++r)
-      ah_out_of_range_error_if(idx[r] < 0 or idx[r] >= extent(r))
+      ah_out_of_range_error_if(std::cmp_less(idx[r], 0) or idx[r] >= extent(r))
         << "Aleph::mdspan::at(): index[" << r << "]=" << idx[r] << " out of [0, "
         << extent(r) << ")";
-    return impl_[idxs...];
+    return impl_[static_cast<index_type>(idxs)...];
   }
 };
 
@@ -742,10 +742,10 @@ public:
   {
     const index_type idx[]{static_cast<index_type>(idxs)...};
     for (rank_type r = 0; r < rank(); ++r)
-      ah_out_of_range_error_if(idx[r] < 0 or idx[r] >= extent(r))
+      ah_out_of_range_error_if(std::cmp_less(idx[r], 0) or idx[r] >= extent(r))
         << "Aleph::mdspan::at(): index[" << r << "]=" << idx[r] << " out of [0, "
         << extent(r) << ")";
-    return acc_.access(ptr_, map_(idxs...));
+    return acc_.access(ptr_, map_(static_cast<index_type>(idxs)...));
   }
 };
 
