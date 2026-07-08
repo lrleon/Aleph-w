@@ -76,13 +76,18 @@
  *  an independent, owned copy of the entries instead, or `with_value()`/
  *  `with_value_mut()` to operate on one entry while its shard is locked.
  *
- *  @par References never escape a lock
+ *  @par References must not escape a lock
  *  `with_value()`/`with_value_mut()` invoke the caller's callback while
- *  holding the shard's lock and forbid the callback from returning a
+ *  holding the shard's lock and forbid the callback from *returning* a
  *  reference (enforced with a `static_assert`, mirroring
- *  `Aleph::Synchronized::with_lock()` in `concurrency_utils.H`) precisely
- *  so no caller can accidentally keep a pointer/reference into the map
- *  around after the lock is released.
+ *  `Aleph::Synchronized::with_lock()` in `concurrency_utils.H`). This
+ *  catches the most common mistake (`return v;` from a callback taking
+ *  `T&`/`const T&`) at compile time, but -- like `with_lock()` -- it
+ *  cannot detect a callback that *captures* a pointer/reference to its
+ *  argument into external state (e.g. a callback that assigns its
+ *  parameter's address into a variable captured by reference); as with
+ *  `with_lock()`, the callback should not do that, since the entry is
+ *  only guaranteed valid while the shard's lock is held.
  *
  *  @par Example of use
  *  ```cpp
@@ -178,11 +183,24 @@ private:
   std::array<std::unique_ptr<Shard>, Shards> shards_;
   Hash_Fct_Ptr hash_fct_;
 
+  /** @brief Resolve which shard owns `key`.
+   *
+   *  @param[in] key Key to hash.
+   *  @return The shard whose lock and table must be used for `key`.
+   *  @pre `hash_fct_` is a deterministic, pure function of `key` alone:
+   *       calling it twice with an equal key must yield the same shard
+   *       index, or a key can effectively "move" between shards between
+   *       calls and become invisible to later lookups.
+   *  @pre `hash_fct_` must not throw: this function is `noexcept` but
+   *       calls `hash_fct_(key)` directly, so a throwing hash function
+   *       would call `std::terminate()` here instead of propagating.
+   */
   [[nodiscard]] Shard &shard_for(const Key &key) noexcept
   {
     return *shards_[hash_fct_(key) % Shards];
   }
 
+  /// @brief `const` overload of shard_for(const Key&).
   [[nodiscard]] const Shard &shard_for(const Key &key) const noexcept
   {
     return *shards_[hash_fct_(key) % Shards];
@@ -228,7 +246,9 @@ public:
    *          existing value is left untouched).
    *  @throws Whatever `Key`'s or `T`'s copy constructor throws, or
    *          `std::bad_alloc`. If it throws, the map is left exactly as it
-   *          was before the call.
+   *          was before the call. Also throws `std::system_error` if
+   *          acquiring the shard's `std::shared_mutex` fails at the OS
+   *          level.
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -242,12 +262,20 @@ public:
   /** @brief Insert `key` with `value` moved in, only if `key` is absent.
    *
    *  @param[in] key Key to insert.
-   *  @param[in,out] value Value to move in. Left unmodified if `key` was
-   *             already present (nothing is moved from it in that case).
+   *  @param[in,out] value Value to move in.
    *  @return `true` if inserted, `false` if `key` was already present.
    *  @throws Whatever `Key`'s copy constructor or `T`'s move constructor
    *          throws, or `std::bad_alloc`. If it throws, the map is left
-   *          exactly as it was before the call.
+   *          exactly as it was before the call. Also throws
+   *          `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level.
+   *  @warning On a `false` return (duplicate `key`), `value` has still
+   *           been moved from: the underlying table constructs the
+   *           entry's `Pair` (moving `value` into it) *before* discovering
+   *           the key already exists and discarding that entry. Do not
+   *           read `value` after a `false` return; if you need to reuse
+   *           it, check `contains(key)` first, or capture a copy before
+   *           calling `insert`.
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -269,7 +297,9 @@ public:
    *          updating an existing entry's move assignment throws, that
    *          entry is left in whatever state `T::operator=(T&&)` leaves a
    *          failed assignment in (the map itself remains structurally
-   *          valid: the key is still present).
+   *          valid: the key is still present). Also throws
+   *          `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level.
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -291,8 +321,10 @@ public:
    *
    *  @param[in] key Key to remove.
    *  @return `true` if `key` was present and removed, `false` otherwise.
-   *  @throws Nothing beyond what the shard's internal bookkeeping might
-   *          throw in practice (none, for the default table policy).
+   *  @throws std::system_error if acquiring the shard's `std::shared_mutex`
+   *          fails at the OS level; nothing else (unlinking a located
+   *          entry does not move- or copy-construct `T`, only destroys
+   *          it).
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -301,12 +333,16 @@ public:
     Shard &shard = shard_for(key);
     std::unique_lock lock(shard.mutex);
 
-    // We explicitly search first because DynMapHashTable::remove may throw an
-    // exception (like domain_error) if the key does not exist.
-    if (shard.map.search(key) == nullptr)
+    // remove_by_data() removes the already-located entry directly (via
+    // pointer arithmetic back to its owning bucket), unlike
+    // DynMapHashTable::remove(key), which re-searches internally and
+    // move-constructs the removed value only to have it discarded here --
+    // paying an extra lookup and a throwing-move risk for nothing.
+    auto *pair = shard.map.search(key);
+    if (pair == nullptr)
       return false;
 
-    shard.map.remove(key);
+    shard.map.remove_by_data(pair->second);
     return true;
   }
 
@@ -314,7 +350,8 @@ public:
    *
    *  @param[in] key Key to look up.
    *  @return `true` if present at the moment of the check.
-   *  @throws Nothing.
+   *  @throws std::system_error if acquiring the shard's `std::shared_mutex`
+   *          fails at the OS level; nothing otherwise.
    *  @note Safe to call concurrently from any number of threads, including
    *        concurrently with other readers of the same shard. A
    *        concurrent insert/erase of the same key may change the answer
@@ -332,7 +369,9 @@ public:
    *  @param[in] key Key to look up.
    *  @return A copy of the value if `key` is present, `std::nullopt`
    *          otherwise.
-   *  @throws Whatever `T`'s copy constructor throws.
+   *  @throws Whatever `T`'s copy constructor throws. Also throws
+   *          `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level.
    *  @note Safe to call concurrently from any number of threads, including
    *        concurrently with other readers of the same shard.
    */
@@ -357,6 +396,9 @@ public:
    *  @return `true` if `key` was present and `f` was invoked, `false`
    *          otherwise.
    *  @throws Whatever `f` throws, propagated after the lock is released.
+   *          Also throws `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level (before `f` is
+   *          ever invoked).
    *  @note Safe to call concurrently from any number of threads, including
    *        concurrently with other readers of the same shard. `f` runs
    *        with the shard locked: keep it short, and never call back into
@@ -389,6 +431,9 @@ public:
    *  @return `true` if `key` was present and `f` was invoked, `false`
    *          otherwise.
    *  @throws Whatever `f` throws, propagated after the lock is released.
+   *          Also throws `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level (before `f` is
+   *          ever invoked).
    *  @note Safe to call concurrently from any number of threads. `f` runs
    *        with the shard exclusively locked: keep it short, and never
    *        call back into this same `ConcurrentHashMap` from within `f`.
@@ -410,14 +455,16 @@ public:
 
   /** @brief Remove every entry from every shard.
    *
-   *  @throws Nothing.
+   *  @throws std::system_error if acquiring a shard's `std::shared_mutex`
+   *          fails at the OS level; nothing otherwise (not `noexcept`
+   *          specifically because that lock acquisition is not).
    *  @note Safe to call concurrently with other operations, but is not a
    *        single atomic point in time across the whole map: shards are
    *        cleared one at a time, each under its own lock, so a
    *        concurrent insert into a not-yet-cleared shard can still be
    *        present when this returns.
    */
-  void clear() noexcept
+  void clear()
   {
     for (auto &shard : shards_)
       {
@@ -430,12 +477,13 @@ public:
    *
    *  @return Sum of each shard's entry count, each read under that
    *          shard's own lock.
-   *  @throws Nothing.
+   *  @throws std::system_error if acquiring a shard's `std::shared_mutex`
+   *          fails at the OS level; nothing otherwise.
    *  @note Safe to call concurrently with other operations. Not a
    *        transactionally consistent count across the whole map -- see
    *        the class-level note on `size()`/`snapshot()` consistency.
    */
-  [[nodiscard]] size_t size() const noexcept
+  [[nodiscard]] size_t size() const
   {
     size_t total = 0;
     for (const auto &shard : shards_)
@@ -450,10 +498,11 @@ public:
    *
    *  @return `true` if no shard held any entry at the moment each was
    *          checked.
-   *  @throws Nothing.
+   *  @throws std::system_error if acquiring a shard's `std::shared_mutex`
+   *          fails at the OS level; nothing otherwise.
    *  @note Same consistency caveat as `size()`.
    */
-  [[nodiscard]] bool is_empty() const noexcept
+  [[nodiscard]] bool is_empty() const
   {
     for (const auto &shard : shards_)
       {
@@ -469,7 +518,10 @@ public:
    *
    *  @return An `Array` holding a copy of every entry seen while visiting
    *          each shard in turn.
-   *  @throws Whatever `Key`'s or `T`'s copy constructor throws.
+   *  @throws Whatever `Key`'s or `T`'s copy constructor throws, or
+   *          `std::bad_alloc` from growing the returned `Array`. Also
+   *          throws `std::system_error` if acquiring a shard's
+   *          `std::shared_mutex` fails at the OS level.
    *  @note Safe to call concurrently with other operations. Each shard is
    *        visited under its own lock and released before moving to the
    *        next, so this is a union of independent per-shard point-in-time

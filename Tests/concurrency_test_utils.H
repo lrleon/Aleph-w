@@ -39,11 +39,11 @@
 #define ALEPH_TESTS_CONCURRENCY_TEST_UTILS_H
 
 #include <atomic>
-#include <cassert>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <initializer_list>
 #include <mutex>
 #include <random>
@@ -52,6 +52,8 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <ah-errors.H>
 
 namespace Aleph::Testing
 {
@@ -79,11 +81,16 @@ namespace Aleph::Testing
     /** @brief Construct a gate for the given number of workers.
      *
      * @param[in] expected Number of workers that must arrive before release.
+     * @throws std::invalid_argument if `expected == 0` (a gate with no
+     *         participants would never distinguish "nobody has arrived
+     *         yet" from "everybody has arrived", which is almost always a
+     *         miscounted caller rather than an intentional no-op gate).
      */
     explicit Deterministic_Start_Gate(const size_t expected)
       : expected_(expected)
     {
-      // empty
+      ah_invalid_argument_if(expected == 0)
+        << "Deterministic_Start_Gate requires at least one participant";
     }
 
     /** @brief Mark the caller ready and block until release() or cancel().
@@ -219,6 +226,70 @@ namespace Aleph::Testing
     };
   } // namespace detail
 
+  /** @brief Launch `thread_count` workers with a deterministic
+   *         simultaneous start, join every one of them, and rethrow the
+   *         first worker exception (if any) only after all have joined.
+   *
+   * @tparam Worker Callable invoked as `worker(size_t index)` from its own
+   *         thread, `index` in `[0, thread_count)`. Must be safe to copy
+   *         into one closure per thread; each thread runs its own copy (so
+   *         `Worker` itself need not be thread-safe unless it captures
+   *         shared state).
+   * @param[in] thread_count Number of worker threads to launch.
+   * @param[in,out] worker Per-worker callable.
+   *
+   * @throws std::invalid_argument if `thread_count == 0` (see
+   *         `Deterministic_Start_Gate`'s constructor).
+   * @throws std::system_error propagated as-is if the underlying
+   *         `std::thread` constructor fails to create a thread; threads
+   *         already launched are unblocked and joined (never left parked
+   *         on the gate or abandoned joinable) before this propagates.
+   * @throws Whatever the first worker to throw at runtime propagates with
+   *         (whichever worker's `catch` block first acquires the internal
+   *         exception mutex -- not necessarily the one with the smallest
+   *         `index`), rethrown only once every thread has been launched,
+   *         released, and joined. If more than one worker throws, only
+   *         the first one recorded is rethrown; the others are discarded.
+   */
+  template <typename Worker>
+  void run_workers(const size_t thread_count, Worker worker)
+  {
+    Deterministic_Start_Gate gate(thread_count);
+    std::vector<std::thread> threads;
+    threads.reserve(thread_count);
+    std::mutex exception_mutex;
+    std::exception_ptr first_exception;
+
+    {
+      detail::Joining_Thread_Guard guard(threads, gate);
+
+      for (size_t i = 0; i < thread_count; ++i)
+        threads.emplace_back([&, i, worker]() mutable
+          {
+            if (not gate.arrive_and_wait())
+              return;
+            try
+              {
+                worker(i);
+              }
+            catch (...)
+              {
+                std::lock_guard lock(exception_mutex);
+                if (not first_exception)
+                  first_exception = std::current_exception();
+              }
+          });
+
+      guard.dismiss();  // every thread launched; let them reach the gate
+                         // on their own instead of racing to cancel() it.
+      gate.wait_until_ready();
+      gate.release();
+    } // guard destructor joins every thread (see Joining_Thread_Guard).
+
+    if (first_exception)
+      std::rethrow_exception(first_exception);
+  }
+
   /** @brief Configuration for producer/consumer stress helpers. */
   struct Producer_Consumer_Stress_Config
   {
@@ -281,6 +352,9 @@ namespace Aleph::Testing
    *         `std::thread` constructor fails to create a thread; threads
    *         already launched are unblocked and joined (never left parked on
    *         the gate or abandoned joinable) before this propagates.
+   * @throws Whatever the first producer/consumer worker throws (e.g. from
+   *         `push`/`try_pop` itself), once every thread has been joined --
+   *         see `run_workers()`, which this delegates to.
    */
   template <typename Push, typename TryPop>
   Producer_Consumer_Stress_Result run_producer_consumer_stress(
@@ -292,22 +366,20 @@ namespace Aleph::Testing
     Producer_Consumer_Stress_Result result;
     result.consumed.resize(total);
 
-    Deterministic_Start_Gate gate(config.producers + config.consumers);
     std::atomic<size_t> consumed_count{0};
     std::atomic<bool> timed_out{false};
-    std::vector<std::thread> threads;
-    threads.reserve(config.producers + config.consumers);
-
     const auto deadline = std::chrono::steady_clock::now() + config.timeout;
 
-    {
-      detail::Joining_Thread_Guard guard(threads, gate);
-
-      for (size_t p = 0; p < config.producers; ++p)
-        threads.emplace_back([&, p, push]() mutable
+    // Workers `[0, producers)` produce; `[producers, producers+consumers)`
+    // consume. `push`/`try_pop` are captured by value here once, then
+    // copied again per-thread by run_workers() itself (each thread's copy
+    // of this worker closure carries its own copy of both callables).
+    run_workers(config.producers + config.consumers,
+      [&, push, try_pop](const size_t index) mutable
+      {
+        if (index < config.producers)
           {
-            if (not gate.arrive_and_wait())
-              return;
+            const size_t p = index;
             for (size_t i = 0; i < config.items_per_producer; ++i)
               {
                 const size_t value = p * config.items_per_producer + i;
@@ -321,13 +393,9 @@ namespace Aleph::Testing
                     std::this_thread::yield();
                   }
               }
-          });
-
-      for (size_t c = 0; c < config.consumers; ++c)
-        threads.emplace_back([&, try_pop]() mutable
+          }
+        else
           {
-            if (not gate.arrive_and_wait())
-              return;
             while (consumed_count.load(std::memory_order_acquire) < total)
               {
                 size_t value = 0;
@@ -348,17 +416,8 @@ namespace Aleph::Testing
                     std::this_thread::yield();
                   }
               }
-          });
-
-      guard.dismiss();  // every thread launched; let them reach the gate on
-                         // their own instead of racing to cancel() it here.
-
-      gate.wait_until_ready();
-      gate.release();
-    } // guard destructor: on the normal path above, just joins (already-
-      // dismissed); if emplace_back threw before dismiss(), cancels the
-      // gate first so threads already blocked on it wake up, then joins
-      // them.
+          }
+      });
 
     const size_t n = consumed_count.load(std::memory_order_acquire);
     if (n < result.consumed.size())
@@ -418,8 +477,8 @@ namespace Aleph::Testing
         })
   {
     std::vector<Trace_Operation_Kind> allowed(kinds.begin(), kinds.end());
-    assert(key_range > 0);
-    assert(not allowed.empty());
+    ah_invalid_argument_if(key_range == 0) << "key_range must be > 0";
+    ah_invalid_argument_if(allowed.empty()) << "kinds must not be empty";
 
     std::mt19937 rng(seed);
     std::uniform_int_distribution<size_t> kind_dist(0, allowed.size() - 1);

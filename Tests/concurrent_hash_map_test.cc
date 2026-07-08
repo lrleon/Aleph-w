@@ -69,48 +69,13 @@ namespace
   };
 
   bool Throwing_Copy::should_throw = false;
-
-  /** @brief Launch `thread_count` threads, each running its own
-   *         `worker(index)`, started as close to simultaneously as
-   *         `Deterministic_Start_Gate` allows.
-   *
-   *  `concurrency_test_utils.H` provides `Deterministic_Start_Gate` (a
-   *  reusable start barrier) and `run_producer_consumer_stress()` (a
-   *  higher-level helper specifically for a single shared push/try_pop
-   *  queue), but no ready-made "N independent workers" launcher; this is
-   *  the small amount of local synchronization the harness's own
-   *  documentation anticipates for scenarios that don't fit its two
-   *  existing helpers.
-   */
-  template <typename Worker>
-  void run_workers(const size_t thread_count, Worker worker)
-  {
-    Deterministic_Start_Gate gate(thread_count);
-    std::vector<std::thread> threads;
-    threads.reserve(thread_count);
-
-    {
-      // Reuses the harness's own exception-safety guard: if launching one
-      // thread throws partway through, this cancels the gate (unblocking
-      // threads already parked in arrive_and_wait()) and joins everyone
-      // before the exception propagates, instead of leaving threads
-      // parked forever or calling std::terminate() on a still-joinable
-      // std::thread.
-      Aleph::Testing::detail::Joining_Thread_Guard guard(threads, gate);
-      for (size_t i = 0; i < thread_count; ++i)
-        threads.emplace_back([&, i, worker]() mutable
-        {
-          if (not gate.arrive_and_wait())
-            return;
-          worker(i);
-        });
-      guard.dismiss();
-
-      gate.wait_until_ready();
-      gate.release();
-    }
-  }
 }  // namespace
+
+// `run_workers(thread_count, worker)` (launch N independently-indexed
+// threads with a deterministic simultaneous start, exception-safe join,
+// and first-exception rethrow) is provided by concurrency_test_utils.H
+// itself -- Aleph::Testing::run_workers -- and used unqualified here via
+// the `using namespace Aleph::Testing;` above.
 
 TEST(ConcurrentHashMap, DefaultConstructedMapIsEmpty)
 {

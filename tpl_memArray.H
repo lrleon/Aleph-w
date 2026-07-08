@@ -200,7 +200,12 @@ protected:
       << "MemArray::expand(): capacity overflow";
     const size_t newsz = dim << 1;  // 2*dim
     const size_t mask = dim - 1;
-    T *new_ptr = new T[newsz];
+    // Value-initialize (not just default-initialize): for scalar T,
+    // `new T[newsz]` alone leaves every slot indeterminate, and the
+    // std::swap() below reads new_ptr[i] before this loop ever writes a
+    // real value into it -- an uninitialized-read even though the stale
+    // bits end up discarded a few lines later (Coverity CID 412651).
+    T *new_ptr = new T[newsz]();
     for (size_t i = 0; i < dim; ++i)
       {
         assert(((i + first) & mask) == ((i + first) % dim));
@@ -235,7 +240,9 @@ protected:
     if (newsz <= Min_Dim)
       return false;
 
-    T *new_ptr = new T[newsz];
+    // Same rationale as expand(): value-initialize so the std::swap()
+    // below never reads an indeterminate scalar out of new_ptr[i].
+    T *new_ptr = new T[newsz]();
 
     const size_t mask = dim - 1;
     for (size_t i = 0; i < newsz; ++i)
