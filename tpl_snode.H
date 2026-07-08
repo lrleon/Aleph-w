@@ -75,8 +75,10 @@ public:
   /// Return a constant reference to the stored data.
   const T & get_data() const { return data; }
 
-  /// Default constructor.
-  Snode() = default;
+  /// Default constructor. Value-initializes `data` (zero for a scalar or
+  /// pointer `T`) rather than leaving it indeterminate, unlike a defaulted
+  /// constructor would for such `T` (Coverity CID 173393).
+  Snode() : data() { /* empty */ }
 
   /// Constructor that copies the value.
   Snode(const T & _data) : data(_data) { /* empty */ }

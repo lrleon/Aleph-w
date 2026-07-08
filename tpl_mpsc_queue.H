@@ -107,6 +107,7 @@
 #define TPL_MPSC_QUEUE_H
 
 #include <atomic>
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -212,13 +213,18 @@ public:
    */
   ~MpscQueue()
   {
+    // stub_ is a data member, not a heap node: it must never reach
+    // `delete`. A racing push_node(&stub_) re-anchor (see pop_node()) can
+    // leave stub_ reachable from tail_ without *being* tail_ (a real,
+    // not-yet-popped node can end up between them), so every node in the
+    // remaining chain -- not just the first -- must be checked before
+    // deleting it.
     Node * n = tail_;
-    if (n == &stub_)
-      n = n->next.load(std::memory_order_relaxed);
     while (n != nullptr)
       {
         Node * next = n->next.load(std::memory_order_relaxed);
-        delete n;
+        if (n != &stub_)
+          delete n;
         n = next;
       }
   }
@@ -284,7 +290,8 @@ public:
    *  @throws Whatever `T`'s move assignment throws. If it throws, the node
    *          has already been unlinked from the queue; the element is lost
    *          (this matches the "no defined recovery from a throwing move
-   *          assignment" convention used elsewhere in Aleph's queues).
+   *          assignment" convention used elsewhere in Aleph's queues). The
+   *          node itself is still freed (via RAII) even if the move throws.
    *  @note Consumer-only: must never be called concurrently with another
    *        `try_pop`/`is_empty` call, nor from more than one thread.
    */
@@ -293,8 +300,10 @@ public:
     Node * n = pop_node();
     if (n == nullptr)
       return false;
+    // unique_ptr guarantees the node is freed even if the move below
+    // throws (T's move assignment is not required to be noexcept).
+    std::unique_ptr<Node> owned(n);
     out = std::move(*n->value);
-    delete n;
     return true;
   }
 
@@ -305,7 +314,8 @@ public:
    *          note on the narrow producer-race window).
    *  @throws Whatever moving `T` into the returned `std::optional` throws.
    *          If it throws, the node has already been unlinked from the
-   *          queue; the element is lost.
+   *          queue; the element is lost. The node itself is still freed
+   *          (via RAII) even if the move throws.
    *  @note Consumer-only: must never be called concurrently with another
    *        `try_pop`/`is_empty` call, nor from more than one thread.
    */
@@ -314,9 +324,8 @@ public:
     Node * n = pop_node();
     if (n == nullptr)
       return std::nullopt;
-    std::optional<T> result(std::move(*n->value));
-    delete n;
-    return result;
+    std::unique_ptr<Node> owned(n);
+    return std::optional<T>(std::move(*n->value));
   }
 
   /** @brief Advisory check for whether the queue currently has no elements.

@@ -76,13 +76,18 @@
  *  an independent, owned copy of the entries instead, or `with_value()`/
  *  `with_value_mut()` to operate on one entry while its shard is locked.
  *
- *  @par References never escape a lock
+ *  @par References must not escape a lock
  *  `with_value()`/`with_value_mut()` invoke the caller's callback while
- *  holding the shard's lock and forbid the callback from returning a
+ *  holding the shard's lock and forbid the callback from *returning* a
  *  reference (enforced with a `static_assert`, mirroring
- *  `Aleph::Synchronized::with_lock()` in `concurrency_utils.H`) precisely
- *  so no caller can accidentally keep a pointer/reference into the map
- *  around after the lock is released.
+ *  `Aleph::Synchronized::with_lock()` in `concurrency_utils.H`). This
+ *  catches the most common mistake (`return v;` from a callback taking
+ *  `T&`/`const T&`) at compile time, but -- like `with_lock()` -- it
+ *  cannot detect a callback that *captures* a pointer/reference to its
+ *  argument into external state (e.g. a callback that assigns its
+ *  parameter's address into a variable captured by reference); as with
+ *  `with_lock()`, the callback should not do that, since the entry is
+ *  only guaranteed valid while the shard's lock is held.
  *
  *  @par Example of use
  *  ```cpp
@@ -178,11 +183,21 @@ private:
   std::array<std::unique_ptr<Shard>, Shards> shards_;
   Hash_Fct_Ptr hash_fct_;
 
+  /** @brief Resolve which shard owns `key`.
+   *
+   *  @param[in] key Key to hash.
+   *  @return The shard whose lock and table must be used for `key`.
+   *  @pre `hash_fct_` is a deterministic, pure function of `key` alone:
+   *       calling it twice with an equal key must yield the same shard
+   *       index, or a key can effectively "move" between shards between
+   *       calls and become invisible to later lookups.
+   */
   [[nodiscard]] Shard &shard_for(const Key &key) noexcept
   {
     return *shards_[hash_fct_(key) % Shards];
   }
 
+  /// @brief `const` overload of shard_for(const Key&).
   [[nodiscard]] const Shard &shard_for(const Key &key) const noexcept
   {
     return *shards_[hash_fct_(key) % Shards];
@@ -242,12 +257,18 @@ public:
   /** @brief Insert `key` with `value` moved in, only if `key` is absent.
    *
    *  @param[in] key Key to insert.
-   *  @param[in,out] value Value to move in. Left unmodified if `key` was
-   *             already present (nothing is moved from it in that case).
+   *  @param[in,out] value Value to move in.
    *  @return `true` if inserted, `false` if `key` was already present.
    *  @throws Whatever `Key`'s copy constructor or `T`'s move constructor
    *          throws, or `std::bad_alloc`. If it throws, the map is left
    *          exactly as it was before the call.
+   *  @warning On a `false` return (duplicate `key`), `value` has still
+   *           been moved from: the underlying table constructs the
+   *           entry's `Pair` (moving `value` into it) *before* discovering
+   *           the key already exists and discarding that entry. Do not
+   *           read `value` after a `false` return; if you need to reuse
+   *           it, check `contains(key)` first, or capture a copy before
+   *           calling `insert`.
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -291,8 +312,10 @@ public:
    *
    *  @param[in] key Key to remove.
    *  @return `true` if `key` was present and removed, `false` otherwise.
-   *  @throws Nothing beyond what the shard's internal bookkeeping might
-   *          throw in practice (none, for the default table policy).
+   *  @throws Whatever `T`'s move constructor throws: the underlying table
+   *          move-constructs the removed value to return it (a value this
+   *          method itself discards) before unlinking the entry, so a
+   *          throwing move leaves `key` still present in the map.
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -410,14 +433,16 @@ public:
 
   /** @brief Remove every entry from every shard.
    *
-   *  @throws Nothing.
+   *  @throws std::system_error if acquiring a shard's `std::shared_mutex`
+   *          fails at the OS level; nothing otherwise (not `noexcept`
+   *          specifically because that lock acquisition is not).
    *  @note Safe to call concurrently with other operations, but is not a
    *        single atomic point in time across the whole map: shards are
    *        cleared one at a time, each under its own lock, so a
    *        concurrent insert into a not-yet-cleared shard can still be
    *        present when this returns.
    */
-  void clear() noexcept
+  void clear()
   {
     for (auto &shard : shards_)
       {
@@ -430,12 +455,13 @@ public:
    *
    *  @return Sum of each shard's entry count, each read under that
    *          shard's own lock.
-   *  @throws Nothing.
+   *  @throws std::system_error if acquiring a shard's `std::shared_mutex`
+   *          fails at the OS level; nothing otherwise.
    *  @note Safe to call concurrently with other operations. Not a
    *        transactionally consistent count across the whole map -- see
    *        the class-level note on `size()`/`snapshot()` consistency.
    */
-  [[nodiscard]] size_t size() const noexcept
+  [[nodiscard]] size_t size() const
   {
     size_t total = 0;
     for (const auto &shard : shards_)
@@ -450,10 +476,11 @@ public:
    *
    *  @return `true` if no shard held any entry at the moment each was
    *          checked.
-   *  @throws Nothing.
+   *  @throws std::system_error if acquiring a shard's `std::shared_mutex`
+   *          fails at the OS level; nothing otherwise.
    *  @note Same consistency caveat as `size()`.
    */
-  [[nodiscard]] bool is_empty() const noexcept
+  [[nodiscard]] bool is_empty() const
   {
     for (const auto &shard : shards_)
       {
