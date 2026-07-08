@@ -303,7 +303,7 @@ public:
     // unique_ptr guarantees the node is freed even if the move below
     // throws (T's move assignment is not required to be noexcept).
     std::unique_ptr<Node> owned(n);
-    out = std::move(*n->value);
+    out = std::move(*owned->value);
     return true;
   }
 
@@ -325,7 +325,7 @@ public:
     if (n == nullptr)
       return std::nullopt;
     std::unique_ptr<Node> owned(n);
-    return std::optional<T>(std::move(*n->value));
+    return std::optional<T>(std::move(*owned->value));
   }
 
   /** @brief Advisory check for whether the queue currently has no elements.
