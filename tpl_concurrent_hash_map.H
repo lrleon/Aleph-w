@@ -297,7 +297,9 @@ public:
    *          updating an existing entry's move assignment throws, that
    *          entry is left in whatever state `T::operator=(T&&)` leaves a
    *          failed assignment in (the map itself remains structurally
-   *          valid: the key is still present).
+   *          valid: the key is still present). Also throws
+   *          `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level.
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -348,7 +350,8 @@ public:
    *
    *  @param[in] key Key to look up.
    *  @return `true` if present at the moment of the check.
-   *  @throws Nothing.
+   *  @throws std::system_error if acquiring the shard's `std::shared_mutex`
+   *          fails at the OS level; nothing otherwise.
    *  @note Safe to call concurrently from any number of threads, including
    *        concurrently with other readers of the same shard. A
    *        concurrent insert/erase of the same key may change the answer
@@ -366,7 +369,9 @@ public:
    *  @param[in] key Key to look up.
    *  @return A copy of the value if `key` is present, `std::nullopt`
    *          otherwise.
-   *  @throws Whatever `T`'s copy constructor throws.
+   *  @throws Whatever `T`'s copy constructor throws. Also throws
+   *          `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level.
    *  @note Safe to call concurrently from any number of threads, including
    *        concurrently with other readers of the same shard.
    */
@@ -391,6 +396,9 @@ public:
    *  @return `true` if `key` was present and `f` was invoked, `false`
    *          otherwise.
    *  @throws Whatever `f` throws, propagated after the lock is released.
+   *          Also throws `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level (before `f` is
+   *          ever invoked).
    *  @note Safe to call concurrently from any number of threads, including
    *        concurrently with other readers of the same shard. `f` runs
    *        with the shard locked: keep it short, and never call back into
@@ -423,6 +431,9 @@ public:
    *  @return `true` if `key` was present and `f` was invoked, `false`
    *          otherwise.
    *  @throws Whatever `f` throws, propagated after the lock is released.
+   *          Also throws `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level (before `f` is
+   *          ever invoked).
    *  @note Safe to call concurrently from any number of threads. `f` runs
    *        with the shard exclusively locked: keep it short, and never
    *        call back into this same `ConcurrentHashMap` from within `f`.
@@ -507,7 +518,10 @@ public:
    *
    *  @return An `Array` holding a copy of every entry seen while visiting
    *          each shard in turn.
-   *  @throws Whatever `Key`'s or `T`'s copy constructor throws.
+   *  @throws Whatever `Key`'s or `T`'s copy constructor throws, or
+   *          `std::bad_alloc` from growing the returned `Array`. Also
+   *          throws `std::system_error` if acquiring a shard's
+   *          `std::shared_mutex` fails at the OS level.
    *  @note Safe to call concurrently with other operations. Each shard is
    *        visited under its own lock and released before moving to the
    *        next, so this is a union of independent per-shard point-in-time
