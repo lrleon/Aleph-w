@@ -244,10 +244,12 @@ namespace Aleph::Testing
    *         `std::thread` constructor fails to create a thread; threads
    *         already launched are unblocked and joined (never left parked
    *         on the gate or abandoned joinable) before this propagates.
-   * @throws Whatever the first worker (by thread-launch index) to throw
-   *         propagates with, once every thread has been launched,
+   * @throws Whatever the first worker to throw at runtime propagates with
+   *         (whichever worker's `catch` block first acquires the internal
+   *         exception mutex -- not necessarily the one with the smallest
+   *         `index`), rethrown only once every thread has been launched,
    *         released, and joined. If more than one worker throws, only
-   *         the first is rethrown; the others are discarded.
+   *         the first one recorded is rethrown; the others are discarded.
    */
   template <typename Worker>
   void run_workers(const size_t thread_count, Worker worker)

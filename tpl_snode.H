@@ -77,8 +77,11 @@ public:
 
   /// Default constructor. Value-initializes `data` (zero for a scalar or
   /// pointer `T`) rather than leaving it indeterminate, unlike a defaulted
-  /// constructor would for such `T` (Coverity CID 173393).
-  Snode() : data() { /* empty */ }
+  /// constructor would for such `T` (Coverity CID 173393). `constexpr` and
+  /// the `noexcept` condition are spelled out explicitly so this
+  /// hand-written constructor keeps the same conditional properties a
+  /// defaulted one would have inferred from `T`.
+  constexpr Snode() noexcept(noexcept(T{})) : data{} { /* empty */ }
 
   /// Constructor that copies the value.
   Snode(const T & _data) : data(_data) { /* empty */ }

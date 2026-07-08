@@ -191,6 +191,9 @@ private:
    *       calling it twice with an equal key must yield the same shard
    *       index, or a key can effectively "move" between shards between
    *       calls and become invisible to later lookups.
+   *  @pre `hash_fct_` must not throw: this function is `noexcept` but
+   *       calls `hash_fct_(key)` directly, so a throwing hash function
+   *       would call `std::terminate()` here instead of propagating.
    */
   [[nodiscard]] Shard &shard_for(const Key &key) noexcept
   {
@@ -243,7 +246,9 @@ public:
    *          existing value is left untouched).
    *  @throws Whatever `Key`'s or `T`'s copy constructor throws, or
    *          `std::bad_alloc`. If it throws, the map is left exactly as it
-   *          was before the call.
+   *          was before the call. Also throws `std::system_error` if
+   *          acquiring the shard's `std::shared_mutex` fails at the OS
+   *          level.
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -261,7 +266,9 @@ public:
    *  @return `true` if inserted, `false` if `key` was already present.
    *  @throws Whatever `Key`'s copy constructor or `T`'s move constructor
    *          throws, or `std::bad_alloc`. If it throws, the map is left
-   *          exactly as it was before the call.
+   *          exactly as it was before the call. Also throws
+   *          `std::system_error` if acquiring the shard's
+   *          `std::shared_mutex` fails at the OS level.
    *  @warning On a `false` return (duplicate `key`), `value` has still
    *           been moved from: the underlying table constructs the
    *           entry's `Pair` (moving `value` into it) *before* discovering
@@ -312,10 +319,10 @@ public:
    *
    *  @param[in] key Key to remove.
    *  @return `true` if `key` was present and removed, `false` otherwise.
-   *  @throws Whatever `T`'s move constructor throws: the underlying table
-   *          move-constructs the removed value to return it (a value this
-   *          method itself discards) before unlinking the entry, so a
-   *          throwing move leaves `key` still present in the map.
+   *  @throws std::system_error if acquiring the shard's `std::shared_mutex`
+   *          fails at the OS level; nothing else (unlinking a located
+   *          entry does not move- or copy-construct `T`, only destroys
+   *          it).
    *  @note Safe to call concurrently from any number of threads. Blocks
    *        only other operations on the same shard.
    */
@@ -324,12 +331,16 @@ public:
     Shard &shard = shard_for(key);
     std::unique_lock lock(shard.mutex);
 
-    // We explicitly search first because DynMapHashTable::remove may throw an
-    // exception (like domain_error) if the key does not exist.
-    if (shard.map.search(key) == nullptr)
+    // remove_by_data() removes the already-located entry directly (via
+    // pointer arithmetic back to its owning bucket), unlike
+    // DynMapHashTable::remove(key), which re-searches internally and
+    // move-constructs the removed value only to have it discarded here --
+    // paying an extra lookup and a throwing-move risk for nothing.
+    auto *pair = shard.map.search(key);
+    if (pair == nullptr)
       return false;
 
-    shard.map.remove(key);
+    shard.map.remove_by_data(pair->second);
     return true;
   }
 
