@@ -210,7 +210,8 @@ Aleph-w ha sido usado para enseñar a **miles de estudiantes** en Latinoamérica
 │  ESPECIALES               ESPACIALES               PROBABILÍSTICAS         │
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
 │  ├─ LRU Cache            ├─ 2D-Tree               ├─ Cuckoo Filter         │
-│  └─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir/CMS │
+│  ├─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir/CMS │
+│  └─ Radix Tree (comprimido)                                                │
 │                                                                            │
 │  CONSULTAS POR RANGO                                                       │
 │  ├─ Fenwick Tree (BIT)                                                     │
@@ -1527,6 +1528,45 @@ amigables con caché. `SmallVector` embebe almacenamiento para el caso pequeño;
 mantienen claves ordenadas en memoria contigua, sacrificando mutación O(n) para
 mejores constantes de búsqueda, iteración secuencial y bajo overhead por
 elemento.
+
+#### Tries y diccionarios por prefijo
+
+```cpp
+#include <prefix-tree.H>
+#include <tpl_radix_tree.H>
+#include <tpl_patricia_trie.H>
+
+int main() {
+    Aleph::Prefix_Tree words;
+    words.insert_word("casa");
+    words.insert_word("casco");
+
+    Aleph::Prefix_Tree_Map<int> weights;
+    weights.insert("casa", 10);
+    weights.insert_or_assign("casco", 20);
+
+    Aleph::RadixTree<int> compressed;
+    compressed.insert("casa", 10);
+    compressed.insert("casco", 20);
+
+    Aleph::PatriciaMap<unsigned, const char *> ids;
+    ids.insert(7, "seven");
+
+    return words.contains("casa") and weights.find("casco") != nullptr
+      and compressed.contains("casa") and ids.contains(7) ? 0 : 1;
+}
+```
+
+`Prefix_Tree` es el trie clásico de un carácter por arista. Mantiene `count()`
+por compatibilidad y agrega `size()` como conteo O(1) cuando se usa mediante el
+wrapper propietario; si se expone `root()` mutable, el conteo se recalcula
+porque el árbol interno puede cambiar desde código externo.
+
+`Prefix_Tree_Map<T>` conserva esa forma sin comprimir, pero asocia valores a
+palabras completas y soporta valores movibles. `RadixTree<T>` cubre el caso
+comprimido para claves string y reduce nodos fusionando cadenas de hijos
+unitarios. `PatriciaSet<UInt>` y `PatriciaMap<UInt, T>` son las variantes
+crit-bit/PATRICIA para claves enteras sin signo de ancho fijo.
 
 <a id="readme-es-consultas-por-rango"></a>
 ### Estructuras para consultas por rango
@@ -3599,6 +3639,11 @@ int main() {
 | `tpl_flat_map.H` | `FlatMap<K, V, Compare>` | Mapa ordenado sobre arreglo sorted |
 | `tpl_hash.H` | `DynHashSet<T>` | Hash set |
 | `tpl_hash.H` | `DynHashMap<K, V>` | Hash map |
+| `prefix-tree.H` | `Prefix_Tree` | Trie clásico de caracteres para palabras y prefijos |
+| `prefix-tree.H` | `Prefix_Tree_Map<T>` | Trie clásico de caracteres que asocia palabras a valores |
+| `tpl_radix_tree.H` | `RadixTree<T, Char>` | Trie comprimido (aristas fusionadas), búsqueda por prefijo |
+| `tpl_patricia_trie.H` | `PatriciaSet<UInt>` | Conjunto PATRICIA/crit-bit para enteros sin signo |
+| `tpl_patricia_trie.H` | `PatriciaMap<UInt, T>` | Mapa PATRICIA/crit-bit para enteros sin signo |
 | `tpl_binHeap.H` | `BinHeap<T, Cmp>` | Binary heap |
 | `tpl_arrayQueue.H` | `ArrayQueue<T>` | Queue (array-based) |
 | `tpl_arrayStack.H` | `ArrayStack<T>` | Stack (array-based) |

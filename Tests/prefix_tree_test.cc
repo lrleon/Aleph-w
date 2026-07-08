@@ -50,10 +50,13 @@
 
 #include <gtest/gtest.h>
 #include <prefix-tree.H>
+#include <tpl_radix_tree.H>
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdlib>
+#include <map>
+#include <memory>
 #include <new>
 #include <tuple>
 #include <type_traits>
@@ -239,11 +242,25 @@ static_assert(std::is_same_v<decltype(std::declval<Prefix_Tree &>().root()),
                              Cnode *>);
 static_assert(std::is_same_v<decltype(std::declval<const Prefix_Tree &>().root()),
                              const Cnode *>);
+static_assert(std::is_move_constructible_v<Prefix_Tree_Map<int>>);
+static_assert(std::is_copy_constructible_v<Prefix_Tree_Map<int>>);
+static_assert(std::is_move_constructible_v<Prefix_Tree_Map<std::unique_ptr<int>>>);
+static_assert(not std::is_copy_constructible_v<Prefix_Tree_Map<std::unique_ptr<int>>>);
 
 static std::vector<std::string> to_sorted_vector(const DynArray<std::string> & words)
 {
   std::vector<std::string> ret;
   words.for_each([&ret](const std::string & w) { ret.push_back(w); });
+  std::sort(ret.begin(), ret.end());
+  return ret;
+}
+
+static std::vector<std::string> to_sorted_vector(const Array<std::string> & words)
+{
+  std::vector<std::string> ret;
+  ret.reserve(words.size());
+  for (const auto & w : words)
+    ret.push_back(w);
   std::sort(ret.begin(), ret.end());
   return ret;
 }
@@ -910,10 +927,46 @@ TEST(PrefixTreeWrapperTest, DelegatesWordOperations)
   EXPECT_TRUE(tree.contains("alphabet"));
   EXPECT_FALSE(tree.contains("alpine"));
   EXPECT_EQ(tree.count(), 3);
+  EXPECT_EQ(tree.size(), 3);
   EXPECT_EQ(to_sorted_vector(tree.words()),
             (std::vector<std::string>{"", "alpha", "alphabet"}));
   EXPECT_EQ(to_sorted_vector(tree.words_with_prefix("alpha")),
             (std::vector<std::string>{"alpha", "alphabet"}));
+}
+
+TEST(PrefixTreeWrapperTest, CachedCountTracksWrapperInsertions)
+{
+  Prefix_Tree tree;
+
+  EXPECT_EQ(tree.count(), 0);
+  EXPECT_EQ(tree.size(), 0);
+  EXPECT_TRUE(tree.insert_word("alpha"));
+  EXPECT_TRUE(tree.insert_word("beta"));
+  EXPECT_FALSE(tree.insert_word("alpha"));
+  EXPECT_EQ(tree.count(), 2);
+  EXPECT_EQ(tree.size(), 2);
+}
+
+TEST(PrefixTreeWrapperTest, CachedCountRecomputesAfterMutableRootAccess)
+{
+  Prefix_Tree tree;
+  ASSERT_TRUE(tree.insert_word("alpha"));
+  EXPECT_EQ(tree.count(), 1);
+
+  Cnode *root = tree.root();
+  ASSERT_NE(root, nullptr);
+  EXPECT_TRUE(root->insert_word("beta"));
+  EXPECT_TRUE(root->insert_word("gamma"));
+  EXPECT_TRUE(tree.contains("beta"));
+  EXPECT_TRUE(tree.contains("gamma"));
+
+  EXPECT_EQ(tree.count(), 3);
+  EXPECT_EQ(tree.size(), 3);
+  EXPECT_TRUE(tree.insert_word("delta"));
+  EXPECT_EQ(tree.count(), 4);
+  EXPECT_TRUE(root->insert_word("epsilon"));
+  EXPECT_EQ(tree.count(), 5);
+  EXPECT_EQ(tree.size(), 5);
 }
 
 TEST(PrefixTreeWrapperTest, OwnsRootAndDestroysNodes)
@@ -968,6 +1021,8 @@ TEST(PrefixTreeWrapperTest, CopyConstructorCreatesIndependentTree)
   EXPECT_FALSE(copy.contains("beta"));
   EXPECT_TRUE(tree.contains("beta"));
   EXPECT_FALSE(tree.contains("gamma"));
+  EXPECT_EQ(tree.count(), 3);
+  EXPECT_EQ(copy.count(), 3);
 }
 
 TEST(PrefixTreeWrapperTest, CopyAssignmentCreatesIndependentTree)
@@ -1005,6 +1060,7 @@ TEST(PrefixTreeWrapperTest, MoveConstructorTransfersOwnership)
 
   EXPECT_TRUE(moved.contains("alpha"));
   EXPECT_TRUE(moved.contains("$"));
+  EXPECT_EQ(moved.count(), 2);
 }
 
 TEST(PrefixTreeWrapperTest, MoveAssignmentTransfersOwnershipAndFreesOldRoot)
@@ -1021,6 +1077,7 @@ TEST(PrefixTreeWrapperTest, MoveAssignmentTransfersOwnershipAndFreesOldRoot)
   EXPECT_TRUE(target.contains("alpha"));
   EXPECT_TRUE(target.contains("beta"));
   EXPECT_FALSE(target.contains("old"));
+  EXPECT_EQ(target.count(), 2);
 }
 
 TEST(PrefixTreeWrapperTest, CopyAssignmentKeepsOldTreeOnAllocationFailure)
@@ -1060,6 +1117,275 @@ TEST(PrefixTreeWrapperTest, CopyAssignmentKeepsOldTreeOnAllocationFailure)
   EXPECT_FALSE(target.contains("alpha"));
   EXPECT_FALSE(target.contains("beta"));
   EXPECT_FALSE(target.contains("$"));
+}
+
+//==============================================================================
+// Prefix_Tree_Map Tests
+//==============================================================================
+
+TEST(PrefixTreeMapTest, DefaultConstructedMapIsEmpty)
+{
+  Prefix_Tree_Map<int> map;
+
+  EXPECT_TRUE(map.is_empty());
+  EXPECT_EQ(map.size(), 0);
+  EXPECT_EQ(map.count(), 0);
+  EXPECT_FALSE(map.contains("alpha"));
+  EXPECT_EQ(map.find("alpha"), nullptr);
+  EXPECT_TRUE(map.words().is_empty());
+}
+
+TEST(PrefixTreeMapTest, InsertAndFindValues)
+{
+  Prefix_Tree_Map<int> map;
+
+  EXPECT_TRUE(map.insert("", 0));
+  EXPECT_TRUE(map.insert("alpha", 1));
+  EXPECT_TRUE(map.insert("alphabet", 2));
+
+  ASSERT_NE(map.find(""), nullptr);
+  ASSERT_NE(map.find("alpha"), nullptr);
+  ASSERT_NE(map.find("alphabet"), nullptr);
+  EXPECT_EQ(*map.find(""), 0);
+  EXPECT_EQ(*map.find("alpha"), 1);
+  EXPECT_EQ(*map.find("alphabet"), 2);
+  EXPECT_TRUE(map.contains(""));
+  EXPECT_TRUE(map.contains("alpha"));
+  EXPECT_FALSE(map.contains("alpine"));
+  EXPECT_EQ(map.size(), 3);
+}
+
+TEST(PrefixTreeMapTest, DuplicateInsertKeepsOriginalValue)
+{
+  Prefix_Tree_Map<int> map;
+
+  EXPECT_TRUE(map.insert("alpha", 1));
+  EXPECT_FALSE(map.insert("alpha", 99));
+  ASSERT_NE(map.find("alpha"), nullptr);
+  EXPECT_EQ(*map.find("alpha"), 1);
+  EXPECT_EQ(map.size(), 1);
+}
+
+TEST(PrefixTreeMapTest, DuplicateMoveInsertDoesNotConsumeValue)
+{
+  Prefix_Tree_Map<std::unique_ptr<int>> map;
+  ASSERT_TRUE(map.insert("alpha", std::make_unique<int>(1)));
+
+  auto duplicate = std::make_unique<int>(2);
+  EXPECT_FALSE(map.insert("alpha", std::move(duplicate)));
+  ASSERT_NE(duplicate, nullptr);
+  EXPECT_EQ(*duplicate, 2);
+  ASSERT_NE(map.find("alpha"), nullptr);
+  ASSERT_NE(*map.find("alpha"), nullptr);
+  EXPECT_EQ(**map.find("alpha"), 1);
+}
+
+TEST(PrefixTreeMapTest, InsertOrAssignInsertsThenOverwrites)
+{
+  Prefix_Tree_Map<std::string> map;
+
+  map.insert_or_assign("alpha", "one");
+  ASSERT_NE(map.find("alpha"), nullptr);
+  EXPECT_EQ(*map.find("alpha"), "one");
+
+  map.insert_or_assign("alpha", "uno");
+  ASSERT_NE(map.find("alpha"), nullptr);
+  EXPECT_EQ(*map.find("alpha"), "uno");
+
+  map.insert_or_assign("beta", "two");
+  ASSERT_NE(map.find("beta"), nullptr);
+  EXPECT_EQ(*map.find("beta"), "two");
+  EXPECT_EQ(map.size(), 2);
+}
+
+TEST(PrefixTreeMapTest, MutableFindAllowsInPlaceUpdate)
+{
+  Prefix_Tree_Map<int> map;
+  ASSERT_TRUE(map.insert("alpha", 1));
+
+  int *slot = map.find("alpha");
+  ASSERT_NE(slot, nullptr);
+  *slot = 42;
+
+  const auto &const_map = map;
+  ASSERT_NE(const_map.find("alpha"), nullptr);
+  EXPECT_EQ(*const_map.find("alpha"), 42);
+}
+
+TEST(PrefixTreeMapTest, EraseRemovesLogicalKeyAndAllowsReinsert)
+{
+  Prefix_Tree_Map<int> map;
+  ASSERT_TRUE(map.insert("alpha", 1));
+  ASSERT_TRUE(map.insert("alphabet", 2));
+
+  EXPECT_TRUE(map.erase("alpha"));
+  EXPECT_FALSE(map.contains("alpha"));
+  EXPECT_TRUE(map.contains("alphabet"));
+  EXPECT_FALSE(map.erase("alpha"));
+  EXPECT_EQ(map.size(), 1);
+
+  EXPECT_TRUE(map.insert("alpha", 3));
+  ASSERT_NE(map.find("alpha"), nullptr);
+  EXPECT_EQ(*map.find("alpha"), 3);
+  EXPECT_EQ(map.size(), 2);
+}
+
+TEST(PrefixTreeMapTest, WordsAndWordsWithPrefixReturnStoredKeys)
+{
+  Prefix_Tree_Map<int> map;
+  ASSERT_TRUE(map.insert("", 0));
+  ASSERT_TRUE(map.insert("app", 1));
+  ASSERT_TRUE(map.insert("apple", 2));
+  ASSERT_TRUE(map.insert("banana", 3));
+
+  EXPECT_EQ(to_sorted_vector(map.words()),
+            (std::vector<std::string>{"", "app", "apple", "banana"}));
+  EXPECT_EQ(to_sorted_vector(map.words_with_prefix("app")),
+            (std::vector<std::string>{"app", "apple"}));
+  EXPECT_TRUE(map.words_with_prefix("cat").is_empty());
+}
+
+TEST(PrefixTreeMapTest, CopyConstructorCreatesIndependentClone)
+{
+  Prefix_Tree_Map<std::string> map;
+  ASSERT_TRUE(map.insert("alpha", "one"));
+  ASSERT_TRUE(map.insert("beta", "two"));
+
+  Prefix_Tree_Map<std::string> copy(map);
+  copy.insert_or_assign("alpha", "uno");
+  copy.insert_or_assign("gamma", "three");
+
+  ASSERT_NE(map.find("alpha"), nullptr);
+  ASSERT_NE(copy.find("alpha"), nullptr);
+  EXPECT_EQ(*map.find("alpha"), "one");
+  EXPECT_EQ(*copy.find("alpha"), "uno");
+  EXPECT_FALSE(map.contains("gamma"));
+  EXPECT_TRUE(copy.contains("gamma"));
+  EXPECT_EQ(map.size(), 2);
+  EXPECT_EQ(copy.size(), 3);
+}
+
+TEST(PrefixTreeMapTest, MoveConstructorTransfersContents)
+{
+  Prefix_Tree_Map<int> source;
+  ASSERT_TRUE(source.insert("alpha", 1));
+  ASSERT_TRUE(source.insert("beta", 2));
+
+  Prefix_Tree_Map<int> moved(std::move(source));
+
+  EXPECT_TRUE(source.is_empty());
+  EXPECT_TRUE(moved.contains("alpha"));
+  EXPECT_TRUE(moved.contains("beta"));
+  ASSERT_NE(moved.find("alpha"), nullptr);
+  ASSERT_NE(moved.find("beta"), nullptr);
+  EXPECT_EQ(*moved.find("alpha"), 1);
+  EXPECT_EQ(*moved.find("beta"), 2);
+}
+
+TEST(PrefixTreeMapTest, ClearRemovesAllKeys)
+{
+  Prefix_Tree_Map<int> map;
+  ASSERT_TRUE(map.insert("alpha", 1));
+  ASSERT_TRUE(map.insert("beta", 2));
+
+  map.clear();
+
+  EXPECT_TRUE(map.is_empty());
+  EXPECT_FALSE(map.contains("alpha"));
+  EXPECT_FALSE(map.contains("beta"));
+  EXPECT_TRUE(map.words().is_empty());
+}
+
+TEST(PrefixTreeMapTest, RandomizedOperationsMatchStdMap)
+{
+  const std::vector<std::string> keys =
+  {
+    "", "a", "app", "apple", "application", "banana", "band", "bandana",
+    "car", "carbon", "cart", "dog", "door", "dorm"
+  };
+
+  Prefix_Tree_Map<int> subject;
+  std::map<std::string, int> reference;
+
+  for (size_t step = 0; step < 500; ++step)
+    {
+      const std::string &key = keys[(step * 7 + 3) % keys.size()];
+      const int value = static_cast<int>(step);
+
+      if ((step % 4) == 0)
+        EXPECT_EQ(subject.insert(key, value),
+                  reference.emplace(key, value).second);
+      else if ((step % 4) == 1)
+        {
+          subject.insert_or_assign(key, value);
+          reference[key] = value;
+        }
+      else if ((step % 4) == 2)
+        EXPECT_EQ(subject.erase(key), reference.erase(key) != 0);
+      else
+        {
+          const int *subject_value = subject.find(key);
+          const auto it = reference.find(key);
+          ASSERT_EQ(subject_value != nullptr, it != reference.end());
+          if (subject_value != nullptr)
+            EXPECT_EQ(*subject_value, it->second);
+        }
+
+      ASSERT_EQ(subject.size(), reference.size()) << "step " << step;
+    }
+
+  std::vector<std::string> expected;
+  for (const auto &kv : reference)
+    expected.push_back(kv.first);
+  EXPECT_EQ(to_sorted_vector(subject.words()), expected);
+  for (const auto &kv : reference)
+    {
+      ASSERT_NE(subject.find(kv.first), nullptr);
+      EXPECT_EQ(*subject.find(kv.first), kv.second);
+    }
+}
+
+TEST(PrefixTreeMapTest, MatchesPrefixTreeAndRadixTree)
+{
+  const std::vector<std::string> words =
+  {
+    "", "app", "apple", "application", "apt", "banana", "band",
+    "bandana", "car", "carbon", "cart"
+  };
+
+  Prefix_Tree_Map<int> subject;
+  Prefix_Tree reference_set;
+  RadixTree<int> reference_map;
+
+  for (size_t i = 0; i < words.size(); ++i)
+    {
+      const int value = static_cast<int>(i * 10);
+      ASSERT_EQ(subject.insert(words[i], value), reference_set.insert_word(words[i]));
+      ASSERT_TRUE(reference_map.insert(words[i], value));
+    }
+
+  for (size_t i = 0; i < words.size(); ++i)
+    {
+      ASSERT_TRUE(subject.contains(words[i]));
+      ASSERT_TRUE(reference_set.contains(words[i]));
+      ASSERT_NE(subject.find(words[i]), nullptr);
+      ASSERT_NE(reference_map.find(words[i]), nullptr);
+      EXPECT_EQ(*subject.find(words[i]), *reference_map.find(words[i]));
+    }
+
+  EXPECT_EQ(subject.size(), reference_set.size());
+  EXPECT_EQ(to_sorted_vector(subject.words()), to_sorted_vector(reference_set.words()));
+  EXPECT_EQ(to_sorted_vector(subject.words()), to_sorted_vector(reference_map.keys_with_prefix("")));
+
+  for (const auto &prefix : {"", "app", "ban", "car", "z"})
+    {
+      EXPECT_EQ(to_sorted_vector(subject.words_with_prefix(prefix)),
+                to_sorted_vector(reference_set.words_with_prefix(prefix)))
+          << "Prefix_Tree disagreement for prefix " << prefix;
+      EXPECT_EQ(to_sorted_vector(subject.words_with_prefix(prefix)),
+                to_sorted_vector(reference_map.keys_with_prefix(prefix)))
+          << "RadixTree disagreement for prefix " << prefix;
+    }
 }
 
 //==============================================================================

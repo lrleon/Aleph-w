@@ -220,7 +220,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  SPECIAL                  SPATIAL                  PROBABILISTIC           │
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
 │  ├─ LRU Cache            ├─ 2D-Tree               ├─ Cuckoo Filter         │
-│  └─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir/CMS │
+│  ├─ Prefix Tree (Trie)   └─ K-d Tree               └─ HyperLogLog/MinHash/SimHash/Reservoir/CMS │
+│  └─ Radix Tree (compressed)                                                │
 │                                                                            │
 │  RANGE QUERIES                                                             │
 │  ├─ Fenwick Tree (BIT)                                                     │
@@ -1542,6 +1543,106 @@ int main() {
     return 0;
 }
 ```
+
+<a id="readme-prefix-tree"></a>
+### Prefix Tree (Classic Trie)
+
+```cpp
+#include <prefix-tree.H>
+
+int main() {
+    Aleph::Prefix_Tree words;
+    words.insert_word("app");
+    words.insert_word("apple");
+
+    Aleph::Prefix_Tree_Map<int> weights;
+    weights.insert("app", 1);
+    weights.insert_or_assign("apple", 2);
+
+    auto completions = words.words_with_prefix("app");
+    const int* value = weights.find("apple");
+
+    return words.size() == 2 and value != nullptr ? 0 : 1;
+}
+```
+
+`Prefix_Tree` is Aleph's classic one-character-per-edge trie for exact word
+membership and prefix enumeration. `count()` is kept for compatibility, and
+`size()` is the equivalent O(1) word count while the tree is modified through
+the owning wrapper. If the low-level mutable `root()` API is used, the count is
+recomputed from the `Cnode` tree because external code may mutate it directly.
+
+`Prefix_Tree_Map<T>` is the value-associated counterpart. It keeps the same
+uncompressed trie shape, maps complete strings to values, supports move-only
+values, and offers `insert`, `insert_or_assign`, `find`, `erase`, `words`, and
+`words_with_prefix`. Use `RadixTree<T>` instead when compressed string edges
+and lower node counts are more important than preserving the classic trie
+shape.
+
+<a id="readme-radix-tree"></a>
+### Radix Tree (Compressed Prefix Tree)
+
+```cpp
+#include <tpl_radix_tree.H>
+
+int main() {
+    Aleph::RadixTree<int> dictionary;
+    dictionary.insert("car", 1);
+    dictionary.insert("cart", 2);
+    dictionary.insert("carbon", 3);
+
+    auto matches = dictionary.keys_with_prefix("car");   // {"car","cart","carbon"}
+    auto match = dictionary.longest_prefix("cartoon");   // "cart"
+
+    return dictionary.contains("car") ? 0 : 1;
+}
+```
+
+`RadixTree<T, Char = char>` is a compressed prefix tree: chains of single-
+child nodes are merged into one edge labeled with the whole shared
+substring, unlike a classic one-character-per-edge trie (`Prefix_Tree` in
+`prefix-tree.H`). It supports `insert`/`insert_or_assign`/`erase`/
+`contains`/`find` (exact key lookup), `longest_prefix` (deepest stored key
+that is a prefix of a query, useful for routing-table-style lookups), and
+`keys_with_prefix` (autocomplete-style prefix queries). It is an ordinary
+sequential container (no built-in thread-safety, no live iterators;
+`keys_with_prefix` returns an independent `Array` of copied keys), and
+supports deep copy when `T` is copy-constructible. See the file-level
+Doxygen in `tpl_radix_tree.H` for the full complexity and ownership
+contract, and `Examples/radix_tree_example.cc` for a runnable walkthrough
+covering lookup, autocomplete, and longest-prefix matching.
+
+<a id="readme-patricia-set"></a>
+### Patricia Set and Map (Crit-Bit Integer Keys)
+
+```cpp
+#include <tpl_patricia_trie.H>
+
+int main() {
+    Aleph::PatriciaSet<unsigned> ids;
+    ids.insert(10);
+    ids.insert(42);
+
+    Aleph::PatriciaMap<unsigned, const char *> labels;
+    labels.insert(10, "ten");
+    labels.insert_or_assign(42, "forty-two");
+
+    return ids.contains(42) and labels.find(42) != nullptr ? 0 : 1;
+}
+```
+
+`PatriciaSet<UInt>` is the fixed-width unsigned-integer PATRICIA variant:
+internal nodes store the first differing bit between subtrees, while leaves
+store complete keys. It provides set operations (`insert`, `erase`,
+`contains`, `keys`) with depth bounded by the number of bits in `UInt`, and
+is intended for bit-prefix/integer-key workloads where a string `RadixTree`
+would be the wrong abstraction.
+
+`PatriciaMap<UInt, T>` uses the same compressed bitwise shape and stores one
+mapped value per key. It provides dictionary operations (`insert`,
+`insert_or_assign`, `find`, `contains`, `erase`, `keys`) for fixed-width
+unsigned integer keys. `find()` returns a pointer to the stored value, valid
+until the next non-const operation on the same map.
 
 <a id="readme-heaps-and-priority-queues"></a>
 ### Heaps and Priority Queues
@@ -4004,6 +4105,11 @@ int main() {
 | `tpl_flat_map.H` | `FlatMap<K, V, Compare>` | Sorted-array ordered map |
 | `tpl_hash.H` | `DynHashSet<T>` | Hash set |
 | `tpl_hash.H` | `DynHashMap<K, V>` | Hash map |
+| `prefix-tree.H` | `Prefix_Tree` | Classic character trie for words and prefix queries |
+| `prefix-tree.H` | `Prefix_Tree_Map<T>` | Classic character trie mapping words to values |
+| `tpl_radix_tree.H` | `RadixTree<T, Char>` | Compressed prefix tree (merged edges), prefix search |
+| `tpl_patricia_trie.H` | `PatriciaSet<UInt>` | PATRICIA/crit-bit set for unsigned integer keys |
+| `tpl_patricia_trie.H` | `PatriciaMap<UInt, T>` | PATRICIA/crit-bit map for unsigned integer keys |
 | `tpl_binHeap.H` | `BinHeap<T, Cmp>` | Binary heap |
 | `tpl_arrayQueue.H` | `ArrayQueue<T>` | Queue (array-based) |
 | `tpl_arrayStack.H` | `ArrayStack<T>` | Stack (array-based) |
