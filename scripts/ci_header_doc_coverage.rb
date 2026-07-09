@@ -147,9 +147,10 @@ def doxygen_comment_before?(lines, line_1_based)
     end
 
     template_continuation = s.match?(/^(?:typename|class)\b.+(?:,|>|>>)\s*$/)
+    requires_continuation = s.start_with?('and ', 'or ', 'not ', '&&', '||')
     if s.match?(/^(public|private|protected)\s*:\s*$/) ||
        s.start_with?('template <', 'requires ', '[[', ']]') ||
-       template_continuation
+       template_continuation || requires_continuation
       i -= 1
       next
     end
