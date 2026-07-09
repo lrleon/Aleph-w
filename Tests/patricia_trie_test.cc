@@ -289,6 +289,65 @@ TEST(PatriciaSet, MoveConstructorTransfersKeysAndLeavesSourceEmpty)
   EXPECT_TRUE(b.check_invariants());
 }
 
+TEST(PatriciaSet, CopyAssignmentProducesIndependentClone)
+{
+  PatriciaSet<unsigned> a;
+  ASSERT_TRUE(a.insert(1));
+  ASSERT_TRUE(a.insert(8));
+
+  PatriciaSet<unsigned> b;
+  ASSERT_TRUE(b.insert(99));
+
+  b = a;
+  EXPECT_TRUE(b.contains(1));
+  EXPECT_TRUE(b.contains(8));
+  EXPECT_FALSE(b.contains(99));
+  EXPECT_TRUE(b.erase(1));
+
+  EXPECT_TRUE(a.contains(1));
+  EXPECT_FALSE(b.contains(1));
+  EXPECT_TRUE(a.check_invariants());
+  EXPECT_TRUE(b.check_invariants());
+}
+
+TEST(PatriciaSet, MoveAssignmentTransfersKeysAndLeavesSourceEmpty)
+{
+  PatriciaSet<unsigned> a;
+  ASSERT_TRUE(a.insert(5));
+  ASSERT_TRUE(a.insert(6));
+
+  PatriciaSet<unsigned> b;
+  ASSERT_TRUE(b.insert(99));
+
+  b = std::move(a);
+  EXPECT_TRUE(a.is_empty());  // NOLINT(bugprone-use-after-move): documented
+  EXPECT_TRUE(a.check_invariants());
+  EXPECT_FALSE(b.contains(99));
+  EXPECT_TRUE(b.contains(5));
+  EXPECT_TRUE(b.contains(6));
+  EXPECT_TRUE(b.check_invariants());
+}
+
+TEST(PatriciaSet, SelfAssignmentDoesNotCorruptState)
+{
+  PatriciaSet<unsigned> s;
+  ASSERT_TRUE(s.insert(5));
+  ASSERT_TRUE(s.insert(6));
+
+  PatriciaSet<unsigned> &alias = s;
+  s = alias;
+  EXPECT_TRUE(s.contains(5));
+  EXPECT_TRUE(s.contains(6));
+  EXPECT_EQ(s.size(), 2U);
+  EXPECT_TRUE(s.check_invariants());
+
+  s = std::move(alias);  // NOLINT(bugprone-use-after-move): deliberate self-move
+  EXPECT_TRUE(s.contains(5));
+  EXPECT_TRUE(s.contains(6));
+  EXPECT_EQ(s.size(), 2U);
+  EXPECT_TRUE(s.check_invariants());
+}
+
 TEST(PatriciaSet, RandomizedOperationsMatchStdSet)
 {
   PatriciaSet<std::uint32_t> subject;
@@ -343,7 +402,7 @@ TEST(PatriciaSet, MatchesRadixTreeAndPrefixTreeOnEncodedIntegerKeys)
       ASSERT_EQ(radix.size(), reference.size());
       ASSERT_EQ(prefix_tree.count(), reference.size());
       ASSERT_TRUE(patricia.check_invariants()) << "Patricia invariant at " << iter;
-      ASSERT_TRUE(radix.check_invariants()) << "RadixTree invariant at " << iter;
+      ASSERT_TRUE(radix.verify()) << "RadixTree invariant at " << iter;
     }
 
   for (int iter = 0; iter < 1000; ++iter)
@@ -539,6 +598,73 @@ TEST(PatriciaMap, MoveConstructorTransfersValuesAndLeavesSourceEmpty)
   EXPECT_TRUE(b.check_invariants());
 }
 
+TEST(PatriciaMap, CopyAssignmentProducesIndependentClone)
+{
+  PatriciaMap<unsigned, std::string> a;
+  ASSERT_TRUE(a.insert(1, "one"));
+  ASSERT_TRUE(a.insert(8, "eight"));
+
+  PatriciaMap<unsigned, std::string> b;
+  ASSERT_TRUE(b.insert(99, "old"));
+
+  b = a;
+  ASSERT_NE(b.find(1), nullptr);
+  ASSERT_NE(b.find(8), nullptr);
+  EXPECT_EQ(*b.find(1), "one");
+  EXPECT_EQ(*b.find(8), "eight");
+  EXPECT_FALSE(b.contains(99));
+
+  b.insert_or_assign(1, "uno");
+  EXPECT_EQ(*a.find(1), "one");
+  EXPECT_EQ(*b.find(1), "uno");
+  EXPECT_TRUE(a.check_invariants());
+  EXPECT_TRUE(b.check_invariants());
+}
+
+TEST(PatriciaMap, MoveAssignmentTransfersValuesAndLeavesSourceEmpty)
+{
+  PatriciaMap<unsigned, int> a;
+  ASSERT_TRUE(a.insert(5, 50));
+  ASSERT_TRUE(a.insert(6, 60));
+
+  PatriciaMap<unsigned, int> b;
+  ASSERT_TRUE(b.insert(99, 990));
+
+  b = std::move(a);
+  EXPECT_TRUE(a.is_empty());  // NOLINT(bugprone-use-after-move): documented
+  EXPECT_TRUE(a.check_invariants());
+  EXPECT_FALSE(b.contains(99));
+  ASSERT_NE(b.find(5), nullptr);
+  ASSERT_NE(b.find(6), nullptr);
+  EXPECT_EQ(*b.find(5), 50);
+  EXPECT_EQ(*b.find(6), 60);
+  EXPECT_TRUE(b.check_invariants());
+}
+
+TEST(PatriciaMap, SelfAssignmentDoesNotCorruptState)
+{
+  PatriciaMap<unsigned, std::string> m;
+  ASSERT_TRUE(m.insert(5, "five"));
+  ASSERT_TRUE(m.insert(6, "six"));
+
+  PatriciaMap<unsigned, std::string> &alias = m;
+  m = alias;
+  ASSERT_NE(m.find(5), nullptr);
+  ASSERT_NE(m.find(6), nullptr);
+  EXPECT_EQ(*m.find(5), "five");
+  EXPECT_EQ(*m.find(6), "six");
+  EXPECT_EQ(m.size(), 2U);
+  EXPECT_TRUE(m.check_invariants());
+
+  m = std::move(alias);  // NOLINT(bugprone-use-after-move): deliberate self-move
+  ASSERT_NE(m.find(5), nullptr);
+  ASSERT_NE(m.find(6), nullptr);
+  EXPECT_EQ(*m.find(5), "five");
+  EXPECT_EQ(*m.find(6), "six");
+  EXPECT_EQ(m.size(), 2U);
+  EXPECT_TRUE(m.check_invariants());
+}
+
 TEST(PatriciaMap, RandomizedOperationsMatchStdMap)
 {
   PatriciaMap<std::uint32_t, int> subject;
@@ -634,7 +760,7 @@ TEST(PatriciaMap, MatchesRadixTreeValuesAndPrefixTreeMembership)
       ASSERT_EQ(prefix_tree.count(), reference.size());
       ASSERT_TRUE(patricia.check_invariants()) << "PatriciaMap invariant at "
                                                << iter;
-      ASSERT_TRUE(radix.check_invariants()) << "RadixTree invariant at " << iter;
+      ASSERT_TRUE(radix.verify()) << "RadixTree invariant at " << iter;
     }
 
   for (const auto & kv : reference)

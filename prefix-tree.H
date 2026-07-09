@@ -735,6 +735,12 @@ public:
  * Copies are deep copies. The root returned by root() is non-owning; callers
  * must not delete it or call destroy_tree() on it.
  *
+ * @par Thread-safety
+ * None. This is a sequential container; callers must externally synchronize
+ * concurrent access to the same object. This includes concurrent `const`
+ * calls to count() or size(), because those functions may refresh the mutable
+ * cached word count after the low-level mutable root() API has been exposed.
+ *
  * @ingroup Trees
  */
 class Prefix_Tree
@@ -862,7 +868,7 @@ public:
    *
    * @throw std::bad_alloc If memory allocation fails.
    */
-  bool insert_word(const std::string &word) const
+  bool insert_word(const std::string &word)
   {
     const bool inserted = root_->insert_word(word);
     if (inserted and not count_dirty_ and not mutable_root_exposed_)
@@ -920,6 +926,10 @@ public:
    *       If the mutable root() API was used, this recomputes in O(n), because
    *       external code may keep the root pointer and mutate the low-level
    *       Cnode API between calls.
+   *
+   * @warning This `const` method may update the internal mutable cache. It is
+   *          not safe to call concurrently on the same tree without external
+   *          synchronization.
    */
   [[nodiscard]] size_t count() const noexcept
   {
@@ -938,7 +948,8 @@ public:
    *
    * @return Number of complete words.
    *
-   * @note Alias for count().
+   * @note Alias for count(); it has the same cache-refresh and thread-safety
+   *       caveats.
    */
   [[nodiscard]] size_t size() const noexcept
   {
@@ -983,6 +994,22 @@ public:
  * plus the cost of scanning sibling lists at each level. size() and count()
  * are O(1). words() and words_with_prefix() return independent arrays of
  * copied keys.
+ *
+ * @par Recursion depth and long keys
+ * Unlike `Aleph::RadixTree` (tpl_radix_tree.H), which compresses chains of
+ * single-child nodes into one edge, `Prefix_Tree_Map` never compresses:
+ * a single key of length k always creates (or reuses) k nodes on its own
+ * path. Destruction, deep copy, and `words()`/`words_with_prefix()` all
+ * recurse to that depth, so a single very long key (tens of thousands of
+ * characters) can exhaust the stack. For workloads with long individual
+ * keys or long shared prefixes, prefer `RadixTree`.
+ *
+ * @par Keys containing embedded NUL bytes
+ * Internally, key traversal is done through `std::string::c_str()`, which
+ * stops at the first `'\0'`. Two distinct `std::string` keys that only
+ * differ after an embedded NUL byte (legal for `std::string`, unlike C
+ * strings) are silently treated as the same key. This limitation is
+ * shared with the legacy `Cnode`/`Prefix_Tree`.
  *
  * @tparam T Mapped value type. Move-only values are supported for insertion
  *         and lookup; copying the map requires T to be copy-constructible.
@@ -1453,9 +1480,17 @@ private:
       static_cast<const Prefix_Tree_Map *>(this)->find_node(word));
   }
 
-  /** @brief Shared implementation for copy- and move-value insertion. */
+  /** @brief Shared implementation for `insert()`'s copy/move overloads and
+   *         for `insert_or_assign()`: when `assign_if_present` is `true`
+   *         (only `insert_or_assign()` sets it), an already-present key's
+   *         value is overwritten in place instead of leaving it untouched
+   *         -- letting `insert_or_assign()` share this single tree
+   *         descent instead of calling `find()` first and then
+   *         re-descending from the root a second time via this function.
+   */
   template <typename U>
-  bool insert_impl(const std::string &word, U &&value)
+  bool insert_impl(const std::string &word, U &&value,
+                    const bool assign_if_present = false)
   {
     ensure_root();
 
@@ -1463,7 +1498,11 @@ private:
     if (*remaining == '\0')
       {
         if (node->has_value())
-          return false;
+          {
+            if (assign_if_present)
+              *node->value() = std::forward<U>(value);
+            return false;
+          }
         node->emplace_value(std::forward<U>(value));
         ++size_;
         return true;
@@ -1596,11 +1635,7 @@ public:
    */
   void insert_or_assign(const Key &key, Value value)
   {
-    Value *slot = find(key);
-    if (slot != nullptr)
-      *slot = std::move(value);
-    else
-      insert_impl(key, std::move(value));
+    insert_impl(key, std::move(value), /* assign_if_present = */ true);
   }
 
   /** @brief Remove key if present.

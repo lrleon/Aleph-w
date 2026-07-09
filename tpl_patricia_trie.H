@@ -84,6 +84,231 @@
 namespace Aleph
 {
 
+namespace patricia_trie_detail
+{
+
+/** @brief Shared fixed-width bit-trie algorithms for Patricia containers.
+ *
+ *  The node type is supplied by `PatriciaSet` or `PatriciaMap`; both node
+ *  shapes expose `leaf`, `key`, `bit_index`, and `child`. Map nodes also expose
+ *  an optional `value`, which check_invariants_rec() validates when present.
+ *
+ *  @tparam UInt Unsigned integral key type used by the owning Patricia type.
+ */
+template <typename UInt>
+struct Bitwise_Trie_Utils
+{
+  /// Number of significant bits in `UInt`.
+  static constexpr size_t bit_width = std::numeric_limits<UInt>::digits;
+
+  /** @brief Return the bit at a most-significant-bit-first index.
+   *
+   *  @param[in] key Key whose bit is queried.
+   *  @param[in] bit_index Zero-based bit index from the most significant bit.
+   *  @return `true` when the indexed bit is one.
+   *
+   *  @pre `bit_index < bit_width`.
+   *  @throws Nothing.
+   */
+  [[nodiscard]] static bool bit_at(const UInt key,
+                                   const size_t bit_index) noexcept
+  {
+    return ((key >> (bit_width - 1 - bit_index)) & UInt{1}) != UInt{0};
+  }
+
+  /** @brief Find the first bit where two keys differ.
+   *
+   *  @param[in] lhs First key.
+   *  @param[in] rhs Second key.
+   *  @return First differing bit index, or `bit_width` if keys are equal.
+   *
+   *  @throws Nothing.
+   */
+  [[nodiscard]] static size_t first_differing_bit(const UInt lhs,
+                                                   const UInt rhs) noexcept
+  {
+    const UInt diff = lhs ^ rhs;
+    for (size_t i = 0; i < bit_width; ++i)
+      if (bit_at(diff, i))
+        return i;
+    return bit_width;
+  }
+
+  /** @brief Find the leaf reached by routing a key through a Patricia tree.
+   *
+   *  @tparam Node Patricia node type.
+   *  @param[in] node Root node to start from.
+   *  @param[in] key Key used for branch decisions.
+   *  @return Reached leaf, or `nullptr` for an empty tree.
+   *
+   *  @throws Nothing.
+   */
+  template <typename Node>
+  [[nodiscard]] static const Node * leaf_for(const Node * node,
+                                             const UInt key) noexcept
+  {
+    while (node != nullptr and not node->leaf)
+      node = node->child[bit_at(key, node->bit_index) ? 1 : 0].get();
+    return node;
+  }
+
+  /** @brief Mutable overload of leaf_for().
+   *
+   *  @tparam Node Patricia node type.
+   *  @param[in,out] node Root node to start from.
+   *  @param[in] key Key used for branch decisions.
+   *  @return Reached mutable leaf, or `nullptr` for an empty tree.
+   *
+   *  @throws Nothing.
+   */
+  template <typename Node>
+  [[nodiscard]] static Node * leaf_for(Node * node, const UInt key) noexcept
+  {
+    return const_cast<Node *>(leaf_for(static_cast<const Node *>(node), key));
+  }
+
+  /** @brief Append all leaf keys in a Patricia subtree.
+   *
+   *  @tparam Node Patricia node type.
+   *  @param[in] node Subtree root, possibly `nullptr`.
+   *  @param[out] out Destination array.
+   *
+   *  @throws std::bad_alloc if appending grows `out` and allocation fails.
+   */
+  template <typename Node>
+  static void collect_keys(const Node * node, Array<UInt> & out)
+  {
+    if (node == nullptr)
+      return;
+    if (node->leaf)
+      {
+        out.append(node->key);
+        return;
+      }
+    collect_keys(node->child[0].get(), out);
+    collect_keys(node->child[1].get(), out);
+  }
+
+  /** @brief Remove a key using the shared Patricia deletion algorithm.
+   *
+   *  @tparam Node Patricia node type.
+   *  @param[in,out] root Owning root pointer.
+   *  @param[in,out] size Stored-key count.
+   *  @param[in] key Key to erase.
+   *  @return `true` if a leaf was removed, `false` if the key was absent.
+   *
+   *  @throws Nothing.
+   */
+  template <typename Node>
+  [[nodiscard]] static bool erase_key(std::unique_ptr<Node> & root,
+                                      size_t & size,
+                                      const UInt key) noexcept
+  {
+    if (root == nullptr)
+      return false;
+
+    if (root->leaf)
+      {
+        if (root->key != key)
+          return false;
+        root.reset();
+        size = 0;
+        return true;
+      }
+
+    std::unique_ptr<Node> * parent_link = nullptr;
+    std::unique_ptr<Node> * link = &root;
+    while ((*link)->leaf == false)
+      {
+        parent_link = link;
+        link = &(*link)->child[bit_at(key, (*link)->bit_index) ? 1 : 0];
+      }
+
+    if ((*link)->key != key)
+      return false;
+
+    Node * parent = parent_link->get();
+    const size_t side = bit_at(key, parent->bit_index) ? 1 : 0;
+    *parent_link = std::move(parent->child[1 - side]);
+    --size;
+    return true;
+  }
+
+  /** @brief Check that every leaf in a subtree matches a routing bit.
+   *
+   *  @tparam Node Patricia node type.
+   *  @param[in] node Subtree root.
+   *  @param[in] bit_index Routing bit to verify.
+   *  @param[in] expected Required bit value.
+   *  @return `true` if all leaves match the expected branch bit.
+   *
+   *  @throws Nothing.
+   */
+  template <typename Node>
+  [[nodiscard]] static bool subtree_matches(const Node * node,
+                                            const size_t bit_index,
+                                            const bool expected) noexcept
+  {
+    if (node == nullptr)
+      return false;
+    if (node->leaf)
+      return bit_at(node->key, bit_index) == expected;
+    return subtree_matches(node->child[0].get(), bit_index, expected) and
+           subtree_matches(node->child[1].get(), bit_index, expected);
+  }
+
+  /** @brief Recursively verify Patricia structural invariants.
+   *
+   *  @tparam Node Patricia node type.
+   *  @param[in] node Subtree root.
+   *  @param[in] parent_bit Parent internal-node bit index.
+   *  @param[in] has_parent Whether `parent_bit` is meaningful.
+   *  @param[in,out] counted Number of leaves seen so far.
+   *  @return `true` if the subtree is structurally valid.
+   *
+   *  @throws Nothing.
+   */
+  template <typename Node>
+  [[nodiscard]] static bool check_invariants_rec(const Node * node,
+                                                  const size_t parent_bit,
+                                                  const bool has_parent,
+                                                  size_t & counted) noexcept
+  {
+    if (node == nullptr)
+      return true;
+
+    if (node->leaf)
+      {
+        if constexpr (requires { node->value.has_value(); })
+          if (not node->value.has_value())
+            return false;
+        ++counted;
+        return true;
+      }
+
+    if constexpr (requires { node->value.has_value(); })
+      if (node->value.has_value())
+        return false;
+    if (node->bit_index >= bit_width)
+      return false;
+    if (has_parent and node->bit_index <= parent_bit)
+      return false;
+    if (node->child[0] == nullptr or node->child[1] == nullptr)
+      return false;
+    if (not subtree_matches(node->child[0].get(), node->bit_index, false))
+      return false;
+    if (not subtree_matches(node->child[1].get(), node->bit_index, true))
+      return false;
+
+    return check_invariants_rec(node->child[0].get(), node->bit_index, true,
+                                counted) and
+           check_invariants_rec(node->child[1].get(), node->bit_index, true,
+                                counted);
+  }
+};
+
+} // namespace patricia_trie_detail
+
 /** @brief Compressed bitwise set for unsigned integral keys.
  *
  *  `PatriciaSet` is a PATRICIA/crit-bit tree over the fixed-width bit pattern
@@ -119,42 +344,7 @@ private:
 
   std::unique_ptr<Node> root_;
   size_t size_ = 0;
-
-  [[nodiscard]] static bool bit_at(const Key key, const size_t bit_index) noexcept
-  {
-    return ((key >> (bit_width - 1 - bit_index)) & Key{1}) != Key{0};
-  }
-
-  [[nodiscard]] static size_t first_differing_bit(const Key lhs,
-                                                   const Key rhs) noexcept
-  {
-    const Key diff = lhs ^ rhs;
-    for (size_t i = 0; i < bit_width; ++i)
-      if (bit_at(diff, i))
-        return i;
-    return bit_width;
-  }
-
-  [[nodiscard]] static const Node * leaf_for(const Node * node,
-                                             const Key key) noexcept
-  {
-    while (node != nullptr and not node->leaf)
-      node = node->child[bit_at(key, node->bit_index) ? 1 : 0].get();
-    return node;
-  }
-
-  static void collect_keys(const Node * node, Array<Key> & out)
-  {
-    if (node == nullptr)
-      return;
-    if (node->leaf)
-      {
-        out.append(node->key);
-        return;
-      }
-    collect_keys(node->child[0].get(), out);
-    collect_keys(node->child[1].get(), out);
-  }
+  using Detail = patricia_trie_detail::Bitwise_Trie_Utils<Key>;
 
   [[nodiscard]] static std::unique_ptr<Node> clone_node(const Node * src)
   {
@@ -264,7 +454,7 @@ public:
    */
   [[nodiscard]] bool contains(const Key key) const noexcept
   {
-    const Node * leaf = leaf_for(root_.get(), key);
+    const Node * leaf = Detail::leaf_for(root_.get(), key);
     return leaf != nullptr and leaf->key == key;
   }
 
@@ -282,17 +472,17 @@ public:
         return true;
       }
 
-    const Node * existing = leaf_for(root_.get(), key);
+    const Node * existing = Detail::leaf_for(root_.get(), key);
     if (existing->key == key)
       return false;
 
-    const size_t diff_bit = first_differing_bit(key, existing->key);
+    const size_t diff_bit = Detail::first_differing_bit(key, existing->key);
     auto * link = &root_;
     while ((*link)->leaf == false and (*link)->bit_index < diff_bit)
-      link = &(*link)->child[bit_at(key, (*link)->bit_index) ? 1 : 0];
+      link = &(*link)->child[Detail::bit_at(key, (*link)->bit_index) ? 1 : 0];
 
     auto branch = std::make_unique<Node>(diff_bit);
-    const size_t side = bit_at(key, diff_bit) ? 1 : 0;
+    const size_t side = Detail::bit_at(key, diff_bit) ? 1 : 0;
     branch->child[side] = std::make_unique<Node>(key);
     branch->child[1 - side] = std::move(*link);
     *link = std::move(branch);
@@ -307,34 +497,7 @@ public:
    */
   bool erase(const Key key) noexcept
   {
-    if (root_ == nullptr)
-      return false;
-
-    if (root_->leaf)
-      {
-        if (root_->key != key)
-          return false;
-        root_.reset();
-        size_ = 0;
-        return true;
-      }
-
-    std::unique_ptr<Node> * parent_link = nullptr;
-    std::unique_ptr<Node> * link = &root_;
-    while ((*link)->leaf == false)
-      {
-        parent_link = link;
-        link = &(*link)->child[bit_at(key, (*link)->bit_index) ? 1 : 0];
-      }
-
-    if ((*link)->key != key)
-      return false;
-
-    Node * parent = parent_link->get();
-    const size_t side = bit_at(key, parent->bit_index) ? 1 : 0;
-    *parent_link = std::move(parent->child[1 - side]);
-    --size_;
-    return true;
+    return Detail::erase_key(root_, size_, key);
   }
 
   /** @brief Return all stored keys.
@@ -345,7 +508,7 @@ public:
   {
     Array<Key> result;
     result.reserve(size_);
-    collect_keys(root_.get(), result);
+    Detail::collect_keys(root_.get(), result);
     return result;
   }
 
@@ -361,52 +524,8 @@ public:
   [[nodiscard]] bool check_invariants() const noexcept
   {
     size_t counted = 0;
-    const bool ok = check_invariants_rec(root_.get(), 0, false, counted);
+    const bool ok = Detail::check_invariants_rec(root_.get(), 0, false, counted);
     return ok and counted == size_;
-  }
-
-private:
-  [[nodiscard]] static bool subtree_matches(const Node * node,
-                                            const size_t bit_index,
-                                            const bool expected) noexcept
-  {
-    if (node == nullptr)
-      return false;
-    if (node->leaf)
-      return bit_at(node->key, bit_index) == expected;
-    return subtree_matches(node->child[0].get(), bit_index, expected) and
-           subtree_matches(node->child[1].get(), bit_index, expected);
-  }
-
-  [[nodiscard]] static bool check_invariants_rec(const Node * node,
-                                                  const size_t parent_bit,
-                                                  const bool has_parent,
-                                                  size_t & counted) noexcept
-  {
-    if (node == nullptr)
-      return true;
-
-    if (node->leaf)
-      {
-        ++counted;
-        return true;
-      }
-
-    if (node->bit_index >= bit_width)
-      return false;
-    if (has_parent and node->bit_index <= parent_bit)
-      return false;
-    if (node->child[0] == nullptr or node->child[1] == nullptr)
-      return false;
-    if (not subtree_matches(node->child[0].get(), node->bit_index, false))
-      return false;
-    if (not subtree_matches(node->child[1].get(), node->bit_index, true))
-      return false;
-
-    return check_invariants_rec(node->child[0].get(), node->bit_index, true,
-                                counted) and
-           check_invariants_rec(node->child[1].get(), node->bit_index, true,
-                                counted);
   }
 };
 
@@ -454,47 +573,7 @@ private:
 
   std::unique_ptr<Node> root_;
   size_t size_ = 0;
-
-  [[nodiscard]] static bool bit_at(const Key key, const size_t bit_index) noexcept
-  {
-    return ((key >> (bit_width - 1 - bit_index)) & Key{1}) != Key{0};
-  }
-
-  [[nodiscard]] static size_t first_differing_bit(const Key lhs,
-                                                   const Key rhs) noexcept
-  {
-    const Key diff = lhs ^ rhs;
-    for (size_t i = 0; i < bit_width; ++i)
-      if (bit_at(diff, i))
-        return i;
-    return bit_width;
-  }
-
-  [[nodiscard]] static const Node * leaf_for(const Node * node,
-                                             const Key key) noexcept
-  {
-    while (node != nullptr and not node->leaf)
-      node = node->child[bit_at(key, node->bit_index) ? 1 : 0].get();
-    return node;
-  }
-
-  [[nodiscard]] static Node * leaf_for(Node * node, const Key key) noexcept
-  {
-    return const_cast<Node *>(leaf_for(static_cast<const Node *>(node), key));
-  }
-
-  static void collect_keys(const Node * node, Array<Key> & out)
-  {
-    if (node == nullptr)
-      return;
-    if (node->leaf)
-      {
-        out.append(node->key);
-        return;
-      }
-    collect_keys(node->child[0].get(), out);
-    collect_keys(node->child[1].get(), out);
-  }
+  using Detail = patricia_trie_detail::Bitwise_Trie_Utils<Key>;
 
   [[nodiscard]] static std::unique_ptr<Node> clone_node(const Node * src)
     requires std::is_copy_constructible_v<Value>
@@ -521,17 +600,17 @@ private:
         return true;
       }
 
-    const Node * existing = leaf_for(root_.get(), key);
+    const Node * existing = Detail::leaf_for(root_.get(), key);
     if (existing->key == key)
       return false;
 
-    const size_t diff_bit = first_differing_bit(key, existing->key);
+    const size_t diff_bit = Detail::first_differing_bit(key, existing->key);
     auto * link = &root_;
     while ((*link)->leaf == false and (*link)->bit_index < diff_bit)
-      link = &(*link)->child[bit_at(key, (*link)->bit_index) ? 1 : 0];
+      link = &(*link)->child[Detail::bit_at(key, (*link)->bit_index) ? 1 : 0];
 
     auto branch = std::make_unique<Node>(diff_bit);
-    const size_t side = bit_at(key, diff_bit) ? 1 : 0;
+    const size_t side = Detail::bit_at(key, diff_bit) ? 1 : 0;
     branch->child[side] = std::make_unique<Node>(key, std::forward<U>(value));
     branch->child[1 - side] = std::move(*link);
     *link = std::move(branch);
@@ -678,34 +757,7 @@ public:
    */
   bool erase(const Key key) noexcept
   {
-    if (root_ == nullptr)
-      return false;
-
-    if (root_->leaf)
-      {
-        if (root_->key != key)
-          return false;
-        root_.reset();
-        size_ = 0;
-        return true;
-      }
-
-    std::unique_ptr<Node> * parent_link = nullptr;
-    std::unique_ptr<Node> * link = &root_;
-    while ((*link)->leaf == false)
-      {
-        parent_link = link;
-        link = &(*link)->child[bit_at(key, (*link)->bit_index) ? 1 : 0];
-      }
-
-    if ((*link)->key != key)
-      return false;
-
-    Node * parent = parent_link->get();
-    const size_t side = bit_at(key, parent->bit_index) ? 1 : 0;
-    *parent_link = std::move(parent->child[1 - side]);
-    --size_;
-    return true;
+    return Detail::erase_key(root_, size_, key);
   }
 
   /** @brief Check whether `key` is stored.
@@ -726,7 +778,7 @@ public:
    */
   [[nodiscard]] const Value * find(const Key key) const noexcept
   {
-    const Node * leaf = leaf_for(root_.get(), key);
+    const Node * leaf = Detail::leaf_for(root_.get(), key);
     return (leaf != nullptr and leaf->key == key) ? &*leaf->value : nullptr;
   }
 
@@ -739,7 +791,7 @@ public:
    */
   [[nodiscard]] Value * find(const Key key) noexcept
   {
-    Node * leaf = leaf_for(root_.get(), key);
+    Node * leaf = Detail::leaf_for(root_.get(), key);
     return (leaf != nullptr and leaf->key == key) ? &*leaf->value : nullptr;
   }
 
@@ -751,7 +803,7 @@ public:
   {
     Array<Key> result;
     result.reserve(size_);
-    collect_keys(root_.get(), result);
+    Detail::collect_keys(root_.get(), result);
     return result;
   }
 
@@ -768,56 +820,8 @@ public:
   [[nodiscard]] bool check_invariants() const noexcept
   {
     size_t counted = 0;
-    const bool ok = check_invariants_rec(root_.get(), 0, false, counted);
+    const bool ok = Detail::check_invariants_rec(root_.get(), 0, false, counted);
     return ok and counted == size_;
-  }
-
-private:
-  [[nodiscard]] static bool subtree_matches(const Node * node,
-                                            const size_t bit_index,
-                                            const bool expected) noexcept
-  {
-    if (node == nullptr)
-      return false;
-    if (node->leaf)
-      return bit_at(node->key, bit_index) == expected;
-    return subtree_matches(node->child[0].get(), bit_index, expected) and
-           subtree_matches(node->child[1].get(), bit_index, expected);
-  }
-
-  [[nodiscard]] static bool check_invariants_rec(const Node * node,
-                                                  const size_t parent_bit,
-                                                  const bool has_parent,
-                                                  size_t & counted) noexcept
-  {
-    if (node == nullptr)
-      return true;
-
-    if (node->leaf)
-      {
-        if (not node->value.has_value())
-          return false;
-        ++counted;
-        return true;
-      }
-
-    if (node->value.has_value())
-      return false;
-    if (node->bit_index >= bit_width)
-      return false;
-    if (has_parent and node->bit_index <= parent_bit)
-      return false;
-    if (node->child[0] == nullptr or node->child[1] == nullptr)
-      return false;
-    if (not subtree_matches(node->child[0].get(), node->bit_index, false))
-      return false;
-    if (not subtree_matches(node->child[1].get(), node->bit_index, true))
-      return false;
-
-    return check_invariants_rec(node->child[0].get(), node->bit_index, true,
-                                counted) and
-           check_invariants_rec(node->child[1].get(), node->bit_index, true,
-                                counted);
   }
 };
 

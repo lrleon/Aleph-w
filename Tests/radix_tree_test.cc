@@ -100,10 +100,10 @@ TEST(RadixTree, DefaultConstructedTreeIsEmpty)
   EXPECT_EQ(t.find("anything"), nullptr);
 }
 
-TEST(RadixTree, CheckInvariantsHoldsForEmptyTree)
+TEST(RadixTree, VerifyHoldsForEmptyTree)
 {
   RadixTree<int> t;
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
 }
 
 TEST(RadixTree, InsertAndFindSingleKey)
@@ -189,7 +189,7 @@ TEST(RadixTree, EraseRemovesKeyAndShrinksSize)
   EXPECT_FALSE(t.contains("apple"));
   EXPECT_TRUE(t.contains("app"));
   EXPECT_EQ(t.size(), 1u);
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
 }
 
 // --- Edge-splitting / compression-specific scenarios -----------------------
@@ -219,7 +219,7 @@ TEST(RadixTree, InsertingSharedPrefixSplitsEdgeCorrectly)
   EXPECT_FALSE(t.contains("rom"));
   EXPECT_FALSE(t.contains("rub"));
   EXPECT_FALSE(t.contains("ru"));
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
 }
 
 TEST(RadixTree, InsertingKeyThatIsPrefixOfExistingKeySplitsWithoutExtraLeaf)
@@ -234,7 +234,7 @@ TEST(RadixTree, InsertingKeyThatIsPrefixOfExistingKeySplitsWithoutExtraLeaf)
   ASSERT_NE(t.find("romane"), nullptr);
   EXPECT_EQ(*t.find("romane"), 1);
   EXPECT_FALSE(t.contains("roma"));
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
 }
 
 TEST(RadixTree, InsertingKeyThatExtendsExistingKeyAddsLeafUnderIt)
@@ -248,7 +248,7 @@ TEST(RadixTree, InsertingKeyThatExtendsExistingKeyAddsLeafUnderIt)
   EXPECT_EQ(*t.find("roman"), 1);
   ASSERT_NE(t.find("romane"), nullptr);
   EXPECT_EQ(*t.find("romane"), 2);
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
 }
 
 TEST(RadixTree, EraseMergesCompressedNodeBackTogether)
@@ -263,7 +263,7 @@ TEST(RadixTree, EraseMergesCompressedNodeBackTogether)
   // Removing "team" should leave "test" reachable and merge any now-single-
   // child, valueless intermediate node the deletion exposes.
   EXPECT_TRUE(t.erase("team"));
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
   EXPECT_FALSE(t.contains("team"));
   ASSERT_NE(t.find("test"), nullptr);
   EXPECT_EQ(*t.find("test"), 1);
@@ -274,11 +274,11 @@ TEST(RadixTree, EraseMergesCompressedNodeBackTogether)
   // Continue removing until the tree is empty, confirming compression
   // merges never corrupt subsequent lookups.
   EXPECT_TRUE(t.erase("test"));
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
   ASSERT_NE(t.find("toast"), nullptr);
   EXPECT_EQ(*t.find("toast"), 3);
   EXPECT_TRUE(t.erase("toast"));
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
   EXPECT_TRUE(t.is_empty());
   EXPECT_EQ(t.size(), 0u);
 }
@@ -293,7 +293,7 @@ TEST(RadixTree, EraseOfInternalNodeWithValueKeepsChildrenReachable)
   // "roman" is an internal node (has children "e" and "us") that also
   // holds a value; erasing it must not disturb its children.
   EXPECT_TRUE(t.erase("roman"));
-  EXPECT_TRUE(t.check_invariants());
+  EXPECT_TRUE(t.verify());
   EXPECT_FALSE(t.contains("roman"));
   ASSERT_NE(t.find("romane"), nullptr);
   EXPECT_EQ(*t.find("romane"), 2);
@@ -388,6 +388,32 @@ TEST(RadixTree, MoveConstructorTransfersOwnershipLeavesSourceEmpty)
   EXPECT_TRUE(a.insert("z", 3));  // moved-from tree stays usable
 }
 
+TEST(RadixTree, MoveAssignmentTransfersOwnershipLeavesSourceEmpty)
+{
+  RadixTree<int> source;
+  ASSERT_TRUE(source.insert("x", 1));
+  ASSERT_TRUE(source.insert("xy", 2));
+
+  RadixTree<int> target;
+  ASSERT_TRUE(target.insert("old", 99));
+
+  target = std::move(source);
+
+  EXPECT_EQ(target.size(), 2u);
+  EXPECT_TRUE(target.contains("x"));
+  EXPECT_TRUE(target.contains("xy"));
+  EXPECT_FALSE(target.contains("old"));
+  ASSERT_NE(target.find("xy"), nullptr);
+  EXPECT_EQ(*target.find("xy"), 2);
+  EXPECT_TRUE(target.verify());
+
+  EXPECT_TRUE(source.is_empty());  // NOLINT(bugprone-use-after-move): documented
+  EXPECT_EQ(source.size(), 0u);
+  EXPECT_TRUE(source.verify());
+  EXPECT_TRUE(source.insert("z", 3));  // moved-from tree stays usable
+  EXPECT_TRUE(source.contains("z"));
+}
+
 TEST(RadixTree, CopyConstructorProducesIndependentDeepCopy)
 {
   RadixTree<int> a;
@@ -409,6 +435,33 @@ TEST(RadixTree, CopyConstructorProducesIndependentDeepCopy)
   EXPECT_TRUE(b.contains("x"));
 }
 
+TEST(RadixTree, CopyAssignmentProducesIndependentDeepCopy)
+{
+  RadixTree<int> source;
+  ASSERT_TRUE(source.insert("x", 1));
+  ASSERT_TRUE(source.insert("xy", 2));
+
+  RadixTree<int> target;
+  ASSERT_TRUE(target.insert("old", 99));
+
+  target = source;
+
+  EXPECT_EQ(target.size(), source.size());
+  EXPECT_FALSE(target.contains("old"));
+  ASSERT_NE(target.find("xy"), nullptr);
+  EXPECT_EQ(*target.find("xy"), 2);
+  EXPECT_TRUE(target.verify());
+  EXPECT_TRUE(source.verify());
+
+  target.insert_or_assign("xy", 99);
+  EXPECT_EQ(*target.find("xy"), 99);
+  EXPECT_EQ(*source.find("xy"), 2);
+
+  source.erase("x");
+  EXPECT_FALSE(source.contains("x"));
+  EXPECT_TRUE(target.contains("x"));
+}
+
 TEST(RadixTree, FailedInsertCopyLeavesTreeUnchanged)
 {
   RadixTree<Throwing_Copy> t;
@@ -424,6 +477,56 @@ TEST(RadixTree, FailedInsertCopyLeavesTreeUnchanged)
   EXPECT_FALSE(t.contains("b"));
   ASSERT_NE(t.find("a"), nullptr);
   EXPECT_EQ(t.find("a")->value, 1);
+}
+
+TEST(RadixTree, FailedInsertCopyDuringEdgeSplitLeavesTreeUnchanged)
+{
+  // Unlike FailedInsertCopyLeavesTreeUnchanged (which inserts "a" then "b",
+  // sharing no common prefix and so only exercising the "brand new leaf"
+  // path), "ab" then "ac" share a one-character common prefix with "ab"'s
+  // full edge label, forcing insert_impl's edge-SPLIT branch -- the one
+  // most at risk of leaving the tree corrupted (a detached-then-lost
+  // subtree, or a dangling nullptr child slot) if T's constructor throws
+  // partway through.
+  RadixTree<Throwing_Copy> t;
+  ASSERT_TRUE(t.insert("ab", Throwing_Copy(1)));
+  ASSERT_EQ(t.size(), 1u);
+  ASSERT_TRUE(t.verify());
+
+  Throwing_Copy::should_throw = true;
+  const Throwing_Copy value(2);
+  EXPECT_THROW(t.insert("ac", value), std::runtime_error);
+  Throwing_Copy::should_throw = false;
+
+  // The tree must be exactly as it was before the failed insert: "ab"
+  // still present with its original value, "ac" absent, size unchanged,
+  // and no structural corruption (no lost subtree, no dangling child).
+  EXPECT_EQ(t.size(), 1u);
+  EXPECT_FALSE(t.contains("ac"));
+  ASSERT_NE(t.find("ab"), nullptr);
+  EXPECT_EQ(t.find("ab")->value, 1);
+  EXPECT_TRUE(t.verify());
+}
+
+TEST(RadixTree, FailedInsertCopyDuringEdgeSplitWithExactPrefixLeavesTreeUnchanged)
+{
+  // Same idea, but for the OTHER split sub-case: the new key ends exactly
+  // at the split point ("ab" then "a"), so the throwing emplace() happens
+  // on `split->value` directly rather than on a new leaf under `split`.
+  RadixTree<Throwing_Copy> t;
+  ASSERT_TRUE(t.insert("ab", Throwing_Copy(1)));
+  ASSERT_EQ(t.size(), 1u);
+
+  Throwing_Copy::should_throw = true;
+  const Throwing_Copy value(2);
+  EXPECT_THROW(t.insert("a", value), std::runtime_error);
+  Throwing_Copy::should_throw = false;
+
+  EXPECT_EQ(t.size(), 1u);
+  EXPECT_FALSE(t.contains("a"));
+  ASSERT_NE(t.find("ab"), nullptr);
+  EXPECT_EQ(t.find("ab")->value, 1);
+  EXPECT_TRUE(t.verify());
 }
 
 // --- Randomized parity tests -----------------------------------------------
@@ -487,7 +590,7 @@ TEST(RadixTree, RandomizedOperationTraceMatchesStdMapReferenceModel)
 
       ASSERT_EQ(subject.size(), reference.size())
           << "size disagreement at iter " << iter;
-      ASSERT_TRUE(subject.check_invariants())
+      ASSERT_TRUE(subject.verify())
           << "structural invariant violation at iter " << iter;
     }
 
@@ -525,7 +628,7 @@ TEST(RadixTree, RandomizedPrefixQueriesMatchBruteForceScan)
       const std::string key = random_string(key_len_dist(rng));
       subject.insert(key, i);
       reference.insert(key);
-      ASSERT_TRUE(subject.check_invariants())
+      ASSERT_TRUE(subject.verify())
           << "structural invariant violation after inserting: " << key;
     }
 
@@ -592,7 +695,7 @@ TEST(RadixTree, MatchesPrefixTreeInsertContainsAndPrefixQueries)
           << "insert(\"" << word << "\") disagreement at iter " << iter;
       ASSERT_EQ(subject.size(), reference.count())
           << "count disagreement at iter " << iter;
-      ASSERT_TRUE(subject.check_invariants())
+      ASSERT_TRUE(subject.verify())
           << "structural invariant violation at iter " << iter;
     }
 

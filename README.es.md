@@ -36,6 +36,7 @@ Idioma: Español | [English](README.md)
 - [Estructuras de datos](#readme-es-estructuras-de-datos)
   - [Árboles de búsqueda balanceados](#readme-es-arboles-balanceados)
   - [Tablas hash](#readme-es-tablas-hash)
+  - [Árbol Radix (Trie de prefijos comprimido)](#readme-es-radix-tree)
   - [Heaps y colas de prioridad](#readme-es-heaps)
   - [Listas y estructuras secuenciales](#readme-es-estructuras-lineales)
   - [Estructuras para consultas por rango](#readme-es-consultas-por-rango)
@@ -1381,6 +1382,39 @@ int main() {
     return 0;
 }
 ```
+
+<a id="readme-es-radix-tree"></a>
+### Árbol Radix (Trie de prefijos comprimido)
+
+```cpp
+#include <tpl_radix_tree.H>
+
+int main() {
+    Aleph::RadixTree<int> dictionary;
+    dictionary.insert("car", 1);
+    dictionary.insert("cart", 2);
+    dictionary.insert("carbon", 3);
+
+    auto matches = dictionary.keys_with_prefix("car");   // {"car","cart","carbon"}
+    auto match = dictionary.longest_prefix("cartoon");   // "cart"
+
+    return dictionary.contains("car") ? 0 : 1;
+}
+```
+
+`RadixTree<T, Char = char>` es un trie de prefijos comprimido: las cadenas
+de nodos con un solo hijo se fusionan en una sola arista etiquetada con
+toda la subcadena compartida, a diferencia del trie clásico de un
+carácter por arista (`Prefix_Tree` en `prefix-tree.H`). Soporta
+`insert`/`insert_or_assign`/`erase`/`contains`/`find` (búsqueda exacta),
+`longest_prefix` (la clave almacenada más profunda que es prefijo de una
+consulta, útil para tablas de ruteo) y `keys_with_prefix` (consultas
+estilo autocompletado). Es un contenedor secuencial ordinario (sin
+seguridad de hilos incorporada, sin iteradores vivos; `keys_with_prefix`
+devuelve un `Array` independiente de claves copiadas) y soporta copia
+profunda cuando `T` es copiable. Ver el Doxygen a nivel de archivo en
+`tpl_radix_tree.H` para el contrato completo de complejidad y ownership,
+y `Examples/radix_tree_example.cc` para un recorrido ejecutable.
 
 <a id="readme-es-heaps"></a>
 ### Heaps y colas de prioridad

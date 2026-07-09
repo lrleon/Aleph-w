@@ -36,10 +36,12 @@
  *  style trie): unlike a classic trie -- where every edge is labeled with a
  *  single character, so a chain of nodes each having exactly one child wastes
  *  a node per character -- a radix tree merges any such chain into a single
- *  edge labeled with the whole shared substring. Every internal node either
- *  stores a value (a key ends there) or has at least two children; a node
- *  that would otherwise have exactly one child and no value is never created
- *  by `insert()`, and is merged away by `erase()`.
+ *  edge labeled with the whole shared substring. Every non-root node either
+ *  stores a value (a key ends there) or has at least two children (the
+ *  root is exempt, since it starts and may remain a valueless, childless
+ *  node representing the empty tree); a node that would otherwise have
+ *  exactly one child and no value is never created by `insert()`, and is
+ *  merged away by `erase()`.
  *
  *  @par How it differs from `prefix-tree.H`
  *  `Prefix_Tree` (in `prefix-tree.H`) is a classic uncompressed trie: one
@@ -56,10 +58,15 @@
  *  (or by the tree itself, for the root); destroying the tree recursively
  *  destroys every node. `find()` returns a raw pointer into the tree: it
  *  stays valid until the next non-`const` operation on the tree (`insert`,
- *  `insert_or_assign`, `erase`, move-assignment, or destruction), exactly
- *  like an `std::map` reference/iterator. `RadixTree` has no live iteration
- *  API; `keys_with_prefix()` returns an independent `Array` of copied keys
- *  instead.
+ *  `insert_or_assign`, `erase`, copy-assignment, move-assignment, or
+ *  destruction). This is a *conservative* rule, not the same guarantee
+ *  `std::map` makes: `std::map` references/iterators stay valid across
+ *  insertions and non-erasing operations on unrelated keys, but any
+ *  non-`const` `RadixTree` operation -- even `insert`ing an unrelated key
+ *  -- can restructure the tree (edge splitting/merging) and invalidate
+ *  every previously-returned pointer, not just ones touching the same
+ *  key. `RadixTree` has no live iteration API; `keys_with_prefix()`
+ *  returns an independent `Array` of copied keys instead.
  *
  *  @par Complexity
  *  For a key of length `n`: `insert`, `erase`, `find`, `contains`, and
@@ -95,8 +102,7 @@
 #include <ah-errors.H>
 #include <tpl_array.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Compressed prefix tree mapping `std::basic_string<Char>` keys to
  *         values of type `T`.
@@ -119,13 +125,13 @@ public:
 private:
   struct Node
   {
-    Key edge_label;             // label of the edge from the parent to this
-                                 // node; empty only for the root.
-    std::optional<T> value;     // set iff some key ends exactly at this node.
+    Key edge_label;          // label of the edge from the parent to this
+                             // node; empty only for the root.
+    std::optional<T> value;  // set iff some key ends exactly at this node.
     Array<std::pair<Char, std::unique_ptr<Node>>> children;
-                                 // unordered; a node's children always have
-                                 // pairwise-distinct first characters in
-                                 // their own edge_label.
+    // unordered; a node's children always have
+    // pairwise-distinct first characters in
+    // their own edge_label.
 
     Node() = default;
     explicit Node(Key label) : edge_label(std::move(label)) {}
@@ -136,25 +142,20 @@ private:
   std::unique_ptr<Node> root_;
   size_t size_ = 0;
 
-  [[nodiscard]] static Node * find_child(Node * node, const Char c) noexcept
+  // Only ever called with a `const Node *` (from find_node(),
+  // longest_prefix(), keys_with_prefix(), all read-only traversals);
+  // insert_impl()/erase() need the child's *slot index* to mutate the
+  // parent afterward, so they use find_child_slot() instead. No non-const
+  // overload is needed.
+  [[nodiscard]] static const Node *find_child(const Node *node, const Char c) noexcept
   {
-    for (auto & kv : node->children)
+    for (const auto &kv : node->children)
       if (kv.first == c)
         return kv.second.get();
     return nullptr;
   }
 
-  [[nodiscard]] static const Node * find_child(const Node * node,
-                                                const Char c) noexcept
-  {
-    for (const auto & kv : node->children)
-      if (kv.first == c)
-        return kv.second.get();
-    return nullptr;
-  }
-
-  [[nodiscard]] static size_t find_child_slot(Node * node,
-                                               const Char c) noexcept
+  [[nodiscard]] static size_t find_child_slot(Node *node, const Char c) noexcept
   {
     for (size_t i = 0; i < node->children.size(); ++i)
       if (node->children[i].first == c)
@@ -162,14 +163,14 @@ private:
     return npos;
   }
 
-  static void add_child(Node * node, const Char c, std::unique_ptr<Node> child)
+  static void add_child(Node *node, const Char c, std::unique_ptr<Node> child)
   {
     node->children.append(std::make_pair(c, std::move(child)));
   }
 
   /// Remove the child at `idx` in O(1) by swapping with the last slot; the
   /// (unordered) children array does not need to preserve position.
-  static void remove_child_at(Node * node, const size_t idx)
+  static void remove_child_at(Node *node, const size_t idx)
   {
     const size_t last = node->children.size() - 1;
     if (idx != last)
@@ -178,9 +179,8 @@ private:
   }
 
   /// Length of the common prefix between `label` and `key[key_off..)`.
-  [[nodiscard]] static size_t common_prefix_length(const Key & label,
-                                                     const Key & key,
-                                                     const size_t key_off) noexcept
+  [[nodiscard]] static size_t common_prefix_length(const Key &label, const Key &key,
+                                                   const size_t key_off) noexcept
   {
     const size_t max_n = std::min(label.size(), key.size() - key_off);
     size_t n = 0;
@@ -189,12 +189,17 @@ private:
     return n;
   }
 
-  /// Shared implementation for the copy- and move-value `insert()`
-  /// overloads: `U` is deduced as `const T&` or `T&&` at the call site.
+  /// Shared implementation for `insert()`'s copy/move overloads and for
+  /// `insert_or_assign()`: `U` is deduced as `const T&` or `T&&` at the
+  /// call site. When `assign_if_present` is `true` (only `insert_or_
+  /// assign()` sets it), an already-present key's value is overwritten in
+  /// place instead of leaving it untouched -- letting `insert_or_assign()`
+  /// share this single tree descent instead of calling `find()` first and
+  /// then re-descending from the root a second time via this function.
   template <typename U>
-  bool insert_impl(const Key & key, U && value)
+  bool insert_impl(const Key &key, U &&value, const bool assign_if_present = false)
   {
-    Node * cur = root_.get();
+    Node *cur = root_.get();
     size_t i = 0;
 
     for (;;)
@@ -202,7 +207,11 @@ private:
         if (i == key.size())
           {
             if (cur->value.has_value())
-              return false;
+              {
+                if (assign_if_present)
+                  *cur->value = std::forward<U>(value);
+                return false;
+              }
             cur->value.emplace(std::forward<U>(value));
             ++size_;
             return true;
@@ -220,8 +229,8 @@ private:
             return true;
           }
 
-        Node * child = cur->children[slot].second.get();
-        const Key & label = child->edge_label;
+        Node *child = cur->children[slot].second.get();
+        const Key &label = child->edge_label;
         const size_t remaining = key.size() - i;
         const size_t lcp = common_prefix_length(label, key, i);
 
@@ -265,21 +274,20 @@ private:
       }
   }
 
-  [[nodiscard]] const Node * find_node(const Key & key) const noexcept
+  [[nodiscard]] const Node *find_node(const Key &key) const noexcept
   {
-    const Node * cur = root_.get();
+    const Node *cur = root_.get();
     size_t i = 0;
     while (i < key.size())
       {
         const Char c = key[i];
-        const Node * child = find_child(cur, c);
+        const Node *child = find_child(cur, c);
         if (child == nullptr)
           return nullptr;
 
-        const Key & label = child->edge_label;
+        const Key &label = child->edge_label;
         const size_t remaining = key.size() - i;
-        if (label.size() > remaining or
-            key.compare(i, label.size(), label) != 0)
+        if (label.size() > remaining or key.compare(i, label.size(), label) != 0)
           return nullptr;
 
         i += label.size();
@@ -288,12 +296,11 @@ private:
     return cur;
   }
 
-  static void collect_keys(const Node * node, Key & prefix_acc,
-                            Array<Key> & out)
+  static void collect_keys(const Node *node, Key &prefix_acc, Array<Key> &out)
   {
     if (node->value.has_value())
       out.append(prefix_acc);
-    for (const auto & kv : node->children)
+    for (const auto &kv : node->children)
       {
         const size_t old_size = prefix_acc.size();
         prefix_acc += kv.second->edge_label;
@@ -302,14 +309,14 @@ private:
       }
   }
 
-  [[nodiscard]] static std::unique_ptr<Node> clone_node(const Node * src)
+  [[nodiscard]] static std::unique_ptr<Node> clone_node(const Node *src)
     requires std::is_copy_constructible_v<T>
   {
     auto dst = std::make_unique<Node>(src->edge_label);
     if (src->value.has_value())
       dst->value.emplace(*src->value);
     dst->children.reserve(src->children.size());
-    for (const auto & kv : src->children)
+    for (const auto &kv : src->children)
       dst->children.append(std::make_pair(kv.first, clone_node(kv.second.get())));
     return dst;
   }
@@ -321,27 +328,34 @@ public:
   RadixTree() : root_(std::make_unique<Node>()) {}
 
   /// @brief Destructor. Recursively releases every node (via the
-  /// `unique_ptr` ownership chain); tree depth is bounded by the number of
-  /// distinct branch points, not by key length, so this does not risk stack
-  /// overflow for the deep-but-narrow trees that motivated compression.
+  /// `unique_ptr` ownership chain). Recursion depth tracks the number of
+  /// distinct branch/value-bearing points on the deepest root-to-leaf
+  /// path, which is bounded by key length in the worst case (compression
+  /// only removes childless, valueless "wasted" nodes; a chain of nested-
+  /// prefix keys such as `"a"`, `"aa"`, `"aaa"`, ... each holds its own
+  /// value and so is never merged away) -- an extremely long chain of such
+  /// keys can in principle exhaust the stack, same as any other
+  /// `unique_ptr`-owned recursive tree/list teardown.
   ~RadixTree() = default;
 
   /** @brief Move constructor: `other` is left as a valid, empty tree.
+   *  @param[in,out] other Tree to move from.
    *  @throws std::bad_alloc if allocating the replacement empty root for
    *          `other` fails; in that case `other` is left unchanged.
    */
-  RadixTree(RadixTree && other)
-    : root_(std::make_unique<Node>()), size_(0)
+  RadixTree(RadixTree &&other) : root_(std::make_unique<Node>()), size_(0)
   {
     root_.swap(other.root_);
     std::swap(size_, other.size_);
   }
 
   /** @brief Move assignment operator: `other` is left as a valid, empty tree.
+   *  @param[in,out] other Tree to move from.
+   *  @return Reference to this tree.
    *  @throws std::bad_alloc if allocating the replacement empty root for
    *          `other` fails; in that case both trees are left unchanged.
    */
-  RadixTree & operator=(RadixTree && other)
+  RadixTree &operator = (RadixTree &&other)
   {
     if (this != &other)
       {
@@ -355,17 +369,20 @@ public:
   }
 
   /** @brief Deep-copy constructor: every node is cloned independently.
+   *  @param[in] other Tree to copy.
    *  @throws Whatever `T`'s copy constructor throws, or `std::bad_alloc`.
    */
-  RadixTree(const RadixTree & other)
+  RadixTree(const RadixTree &other)
     requires std::is_copy_constructible_v<T>
     : root_(clone_node(other.root_.get())), size_(other.size_)
   {}
 
   /** @brief Deep-copy assignment operator.
+   *  @param[in] other Tree to copy from.
+   *  @return Reference to this tree.
    *  @throws Whatever `T`'s copy constructor throws, or `std::bad_alloc`.
    */
-  RadixTree & operator=(const RadixTree & other)
+  RadixTree &operator = (const RadixTree &other)
     requires std::is_copy_constructible_v<T>
   {
     if (this != &other)
@@ -377,14 +394,22 @@ public:
   }
 
   /** @brief Return the number of keys currently stored.
+   *  @return The number of keys currently stored.
    *  @throws Nothing.
    */
-  [[nodiscard]] size_t size() const noexcept { return size_; }
+  [[nodiscard]] size_t size() const noexcept
+  {
+    return size_;
+  }
 
   /** @brief Check whether the tree holds no keys.
+   *  @return `true` if the tree holds no keys.
    *  @throws Nothing.
    */
-  [[nodiscard]] bool is_empty() const noexcept { return size_ == 0; }
+  [[nodiscard]] bool is_empty() const noexcept
+  {
+    return size_ == 0;
+  }
 
   /** @brief Insert `key` with a copy of `value`, only if `key` is absent.
    *
@@ -395,7 +420,7 @@ public:
    *          existing value is left untouched).
    *  @throws Whatever `T`'s copy constructor throws, or `std::bad_alloc`.
    */
-  bool insert(const Key & key, const T & value)
+  bool insert(const Key &key, const T &value)
   {
     return insert_impl(key, value);
   }
@@ -411,7 +436,7 @@ public:
    *           implementation checks for the duplicate before touching
    *           `value` (no forwarding-then-discarding path exists here).
    */
-  bool insert(const Key & key, T && value)
+  bool insert(const Key &key, T &&value)
   {
     return insert_impl(key, std::move(value));
   }
@@ -424,13 +449,9 @@ public:
    *  @throws Whatever `T`'s move/copy constructor or move assignment
    *          throws, or `std::bad_alloc`.
    */
-  void insert_or_assign(const Key & key, T value)
+  void insert_or_assign(const Key &key, T value)
   {
-    T * slot = find(key);
-    if (slot != nullptr)
-      *slot = std::move(value);
-    else
-      insert_impl(key, std::move(value));
+    insert_impl(key, std::move(value), /* assign_if_present = */ true);
   }
 
   /** @brief Remove `key` if present, merging any resulting single-child,
@@ -441,12 +462,16 @@ public:
    *  @throws std::bad_alloc if merging edge labels cannot allocate; the tree
    *          remains valid, though it may be temporarily less compressed.
    */
-  bool erase(const Key & key)
+  bool erase(const Key &key)
   {
-    struct Frame { Node * parent; size_t slot; };
+    struct Frame
+    {
+      Node *parent;
+      size_t slot;
+    };
     Array<Frame> path;
 
-    Node * cur = root_.get();
+    Node *cur = root_.get();
     size_t i = 0;
     while (i < key.size())
       {
@@ -455,11 +480,10 @@ public:
         if (slot == npos)
           return false;
 
-        Node * child = cur->children[slot].second.get();
-        const Key & label = child->edge_label;
+        Node *child = cur->children[slot].second.get();
+        const Key &label = child->edge_label;
         const size_t remaining = key.size() - i;
-        if (label.size() > remaining or
-            key.compare(i, label.size(), label) != 0)
+        if (label.size() > remaining or key.compare(i, label.size(), label) != 0)
           return false;
 
         path.append(Frame{cur, slot});
@@ -479,7 +503,7 @@ public:
       {
         const Frame f = path.get_last();
         std::ignore = path.remove_last();
-        Node * node = f.parent->children[f.slot].second.get();
+        Node *node = f.parent->children[f.slot].second.get();
 
         if (node->children.is_empty() and not node->value.has_value())
           {
@@ -489,7 +513,7 @@ public:
 
         if (node->children.size() == 1 and not node->value.has_value())
           {
-            auto & only = node->children[0];
+            auto &only = node->children[0];
             only.second->edge_label = node->edge_label + only.second->edge_label;
             f.parent->children[f.slot].second = std::move(only.second);
           }
@@ -505,7 +529,7 @@ public:
    *  @return `true` if present.
    *  @throws Nothing.
    */
-  [[nodiscard]] bool contains(const Key & key) const noexcept
+  [[nodiscard]] bool contains(const Key &key) const noexcept
   {
     return find(key) != nullptr;
   }
@@ -517,19 +541,23 @@ public:
    *          tree.
    *  @throws Nothing.
    */
-  [[nodiscard]] const T * find(const Key & key) const noexcept
+  [[nodiscard]] const T *find(const Key &key) const noexcept
   {
-    const Node * n = find_node(key);
+    const Node *n = find_node(key);
     return (n != nullptr and n->value.has_value()) ? &*n->value : nullptr;
   }
 
-  /// @brief Non-`const` overload of find(const Key&).
-  [[nodiscard]] T * find(const Key & key) noexcept
+  /** @brief Non-`const` overload of find(const Key&).
+   *  @param[in] key Key to look up.
+   *  @return Pointer to the stored value if `key` is present, `nullptr`
+   *          otherwise. Valid until the next non-`const` operation on this
+   *          tree.
+   *  @throws Nothing.
+   */
+  [[nodiscard]] T *find(const Key &key) noexcept
   {
-    const Node * n = find_node(key);
-    return (n != nullptr and n->value.has_value())
-             ? const_cast<T *>(&*n->value)
-             : nullptr;
+    const Node *n = find_node(key);
+    return (n != nullptr and n->value.has_value()) ? const_cast<T *>(&*n->value) : nullptr;
   }
 
   /** @brief Find the longest stored key that is a prefix of `key`.
@@ -547,10 +575,10 @@ public:
    *        copy-constructible (only `Key`, always a `std::basic_string`,
    *        is copied).
    */
-  [[nodiscard]] std::optional<Key> longest_prefix(const Key & key) const
+  [[nodiscard]] std::optional<Key> longest_prefix(const Key &key) const
   {
     std::optional<Key> best;
-    const Node * cur = root_.get();
+    const Node *cur = root_.get();
     size_t i = 0;
 
     if (cur->value.has_value())
@@ -559,14 +587,13 @@ public:
     while (i < key.size())
       {
         const Char c = key[i];
-        const Node * child = find_child(cur, c);
+        const Node *child = find_child(cur, c);
         if (child == nullptr)
           break;
 
-        const Key & label = child->edge_label;
+        const Key &label = child->edge_label;
         const size_t remaining = key.size() - i;
-        if (label.size() > remaining or
-            key.compare(i, label.size(), label) != 0)
+        if (label.size() > remaining or key.compare(i, label.size(), label) != 0)
           break;
 
         i += label.size();
@@ -586,20 +613,20 @@ public:
    *          order.
    *  @throws Whatever allocating the returned keys/array throws.
    */
-  [[nodiscard]] Array<Key> keys_with_prefix(const Key & prefix) const
+  [[nodiscard]] Array<Key> keys_with_prefix(const Key &prefix) const
   {
     Array<Key> result;
-    const Node * cur = root_.get();
+    const Node *cur = root_.get();
     size_t i = 0;
 
     while (i < prefix.size())
       {
         const Char c = prefix[i];
-        const Node * child = find_child(cur, c);
+        const Node *child = find_child(cur, c);
         if (child == nullptr)
           return result;
 
-        const Key & label = child->edge_label;
+        const Key &label = child->edge_label;
         const size_t remaining = prefix.size() - i;
         const size_t lcp = common_prefix_length(label, prefix, i);
 
@@ -648,17 +675,15 @@ public:
    *        afterward. `Tests/radix_tree_test.cc` calls this after every
    *        mutation in its randomized parity tests.
    */
-  [[nodiscard]] bool check_invariants() const
+  [[nodiscard]] bool verify() const
   {
     size_t counted_values = 0;
-    const bool structurally_valid =
-        check_invariants_rec(root_.get(), true, counted_values);
+    const bool structurally_valid = verify_rec(root_.get(), true, counted_values);
     return structurally_valid and counted_values == size_;
   }
 
 private:
-  static bool check_invariants_rec(const Node * node, const bool is_root,
-                                    size_t & counted_values)
+  static bool verify_rec(const Node *node, const bool is_root, size_t &counted_values)
   {
     if (node->value.has_value())
       ++counted_values;
@@ -676,11 +701,11 @@ private:
         if (node->children[i].first == node->children[j].first)
           return false;
 
-    for (const auto & kv : node->children)
+    for (const auto &kv : node->children)
       {
         if (kv.second->edge_label.empty() or kv.second->edge_label[0] != kv.first)
           return false;
-        if (not check_invariants_rec(kv.second.get(), false, counted_values))
+        if (not verify_rec(kv.second.get(), false, counted_values))
           return false;
       }
 
@@ -688,6 +713,6 @@ private:
   }
 };
 
-} // namespace Aleph
+}  // namespace Aleph
 
-#endif // TPL_RADIX_TREE_H
+#endif  // TPL_RADIX_TREE_H
