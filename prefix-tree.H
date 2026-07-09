@@ -760,6 +760,15 @@ class Prefix_Tree
     delete root;
   }
 
+  /** @brief Swap internal ownership and cached count state. */
+  void swap_state(Prefix_Tree &other) noexcept
+  {
+    std::swap(root_, other.root_);
+    std::swap(word_count_, other.word_count_);
+    std::swap(count_dirty_, other.count_dirty_);
+    std::swap(mutable_root_exposed_, other.mutable_root_exposed_);
+  }
+
 public:
   /** @brief Construct an empty prefix tree.
    *
@@ -786,21 +795,16 @@ public:
     // empty
   }
 
-  /** @brief Move-construct, taking ownership of another tree's root.
+  /** @brief Move-construct, taking ownership of another tree's contents.
    *
-   * @param[in,out] other Tree to move from. Left owning no root; the
-   *                      only valid operations on `other` afterward are
-   *                      destruction or assignment.
+   * @param[in,out] other Tree to move from. Left as a valid empty tree.
+   *
+   * @throw std::bad_alloc If allocating the replacement empty root for
+   *        `other` fails; in that case `other` is left unchanged.
    */
-  Prefix_Tree(Prefix_Tree &&other) noexcept
-    : root_(other.root_), word_count_(other.word_count_),
-      count_dirty_(other.count_dirty_),
-      mutable_root_exposed_(other.mutable_root_exposed_)
+  Prefix_Tree(Prefix_Tree &&other) : Prefix_Tree()
   {
-    other.root_ = nullptr;
-    other.word_count_ = 0;
-    other.count_dirty_ = false;
-    other.mutable_root_exposed_ = false;
+    swap_state(other);
   }
 
   /** @brief Destroy the owned root and all descendants.
@@ -837,27 +841,21 @@ public:
     return *this;
   }
 
-  /** @brief Move-assign, taking ownership of another tree's root.
+  /** @brief Move-assign, taking ownership of another tree's contents.
    *
-   * @param[in,out] other Tree to move from. Left owning no root; the
-   *                      only valid operations on `other` afterward are
-   *                      destruction or assignment.
+   * @param[in,out] other Tree to move from. Left as a valid empty tree.
    * @return Reference to this tree.
+   *
+   * @throw std::bad_alloc If allocating the replacement empty root for
+   *        `other` fails; in that case both trees are left unchanged.
    */
-  Prefix_Tree &operator = (Prefix_Tree &&other) noexcept
+  Prefix_Tree &operator = (Prefix_Tree &&other)
   {
     if (this == &other)
       return *this;
 
-    destroy_root(root_);
-    root_ = other.root_;
-    word_count_ = other.word_count_;
-    count_dirty_ = other.count_dirty_;
-    mutable_root_exposed_ = other.mutable_root_exposed_;
-    other.root_ = nullptr;
-    other.word_count_ = 0;
-    other.count_dirty_ = false;
-    other.mutable_root_exposed_ = false;
+    Prefix_Tree tmp(std::move(other));
+    swap_state(tmp);
     return *this;
   }
 
