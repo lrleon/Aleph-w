@@ -1061,6 +1061,14 @@ TEST(PrefixTreeWrapperTest, MoveConstructorTransfersOwnership)
   EXPECT_TRUE(moved.contains("alpha"));
   EXPECT_TRUE(moved.contains("$"));
   EXPECT_EQ(moved.count(), 2);
+
+  EXPECT_EQ(source.count(), 0);
+  EXPECT_FALSE(source.contains("alpha"));
+  EXPECT_TRUE(source.words().is_empty());
+  EXPECT_TRUE(source.words_with_prefix("a").is_empty());
+  EXPECT_TRUE(source.insert_word("reused"));
+  EXPECT_TRUE(source.contains("reused"));
+  EXPECT_EQ(source.count(), 1);
 }
 
 TEST(PrefixTreeWrapperTest, MoveAssignmentTransfersOwnershipAndFreesOldRoot)
@@ -1078,6 +1086,14 @@ TEST(PrefixTreeWrapperTest, MoveAssignmentTransfersOwnershipAndFreesOldRoot)
   EXPECT_TRUE(target.contains("beta"));
   EXPECT_FALSE(target.contains("old"));
   EXPECT_EQ(target.count(), 2);
+
+  EXPECT_EQ(source.count(), 0);
+  EXPECT_FALSE(source.contains("alpha"));
+  EXPECT_TRUE(source.words().is_empty());
+  EXPECT_TRUE(source.words_with_prefix("a").is_empty());
+  EXPECT_TRUE(source.insert_word("reused"));
+  EXPECT_TRUE(source.contains("reused"));
+  EXPECT_EQ(source.count(), 1);
 }
 
 TEST(PrefixTreeWrapperTest, CopyAssignmentKeepsOldTreeOnAllocationFailure)
