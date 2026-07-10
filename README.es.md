@@ -39,6 +39,7 @@ Idioma: Español | [English](README.md)
   - [Árbol Radix (Trie de prefijos comprimido)](#readme-es-radix-tree)
   - [Heaps y colas de prioridad](#readme-es-heaps)
   - [Listas y estructuras secuenciales](#readme-es-estructuras-lineales)
+  - [Rope (cadena inmutable con compartición estructural)](#readme-es-rope)
   - [Estructuras para consultas por rango](#readme-es-consultas-por-rango)
   - [Grafos](#readme-es-grafos)
   - [Geometría computacional](#readme-es-geometria)
@@ -1562,6 +1563,76 @@ amigables con caché. `SmallVector` embebe almacenamiento para el caso pequeño;
 mantienen claves ordenadas en memoria contigua, sacrificando mutación O(n) para
 mejores constantes de búsqueda, iteración secuencial y bajo overhead por
 elemento.
+
+<a id="readme-es-rope"></a>
+### Rope (cadena inmutable con compartición estructural)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ROPE (tpl_rope.H)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  "Hello, " . concat("world!") -- no se copia ningún carácter                │
+│                                                                             │
+│                    ┌────────────┐                                          │
+│                    │ interno    │  length = 13                             │
+│                    │ (nodo nuevo)│                                         │
+│                    └─────┬──────┘                                          │
+│                izq  ┌────┴────┐ der                                        │
+│                     ▼         ▼                                            │
+│              ┌───────────┐ ┌───────────┐                                   │
+│              │ "Hello, " │ │ "world!"  │   hojas existentes, compartidas    │
+│              └───────────┘ └───────────┘   (shared_ptr<const Node>)         │
+│                                                                             │
+│  at(pos):     O(profundidad), O(log n) una vez balanceado                   │
+│  concat:      O(1) más rebalanceo ocasional de un subárbol completo         │
+│  substr:      O(log n), reutiliza subárboles compartidos completos          │
+│  flatten:     O(n)                                                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+```cpp
+#include <tpl_rope.H>
+
+int main() {
+    Aleph::Rope<char> a{"Hello, "};
+    Aleph::Rope<char> b{"world!"};
+
+    Aleph::Rope<char> message = a.concat(b);          // O(1): envuelve ambos árboles
+    Aleph::Rope<char> hello = message.substr(0, 5);    // O(log n): comparte un subárbol
+    Aleph::Rope<char> edited = message.insert(7, Aleph::Rope<char>{"brave "});
+
+    return message.to_string() == "Hello, world!" and hello.to_string() == "Hello" ? 0 : 1;
+}
+```
+
+`Rope<Char = char, LeafSize = 256>` es una cadena/secuencia inmutable con
+compartición estructural: toda operación que "parece" mutar (`concat`,
+`substr`, `insert`, `erase`) devuelve un rope *nuevo* y nunca modifica
+`*this` ni su argumento, así que las copias tomadas previamente siguen
+siendo válidas para siempre y copiar un rope es O(1) (comparte el árbol
+existente vía `shared_ptr<const Node>`). Las hojas guardan hasta
+`LeafSize` caracteres en un `SmallVector`; los nodos internos no
+almacenan datos de carácter, solo un hijo izquierdo/derecho y la longitud
+del subárbol, así que `at(pos)` es O(profundidad) y `substr`/`insert`/
+`erase` son O(log n) una vez que el árbol está balanceado. El
+rebalanceo es explícito y deliberadamente simple (no el esquema clásico
+de umbral de Fibonacci): un subárbol completo se reconstruye a partir de
+sus hojas existentes cuando su profundidad crece más allá de una cota
+generosa y fácil de enunciar, reutilizando cada hoja sin cambios. Un
+camino rápido adicional de "absorción de hoja" cubre el caso común de
+construir un rope concatenando un fragmento pequeño a la vez (por
+ejemplo, un carácter por iteración de bucle): una hoja suelta se fusiona
+directamente en la hoja adyacente del otro lado cuando hay espacio, lo
+que solo toca `O(profundidad)` nodos y nunca necesita rebalanceo.
+`flatten()` devuelve una copia `Array<Char>` de cada carácter (funciona
+para cualquier `Char`); `to_string()` además devuelve un
+`std::basic_string<Char>` cuando `Char` tiene una especialización de
+`std::char_traits`. Ver el Doxygen a nivel de archivo en `tpl_rope.H`
+para el contrato completo de complejidad y `Examples/rope_example.cc`
+para un recorrido ejecutable que cubre operaciones básicas, compartición
+estructural y ediciones estilo texto (insert/erase).
 
 #### Tries y diccionarios por prefijo
 
@@ -3667,6 +3738,7 @@ int main() {
 | `tpl_dynArray.H` | `DynArray<T>` | Dynamic array |
 | `tpl_small_vector.H` | `SmallVector<T, N>` | Vector con almacenamiento pequeño inline |
 | `tpl_ring_buffer.H` | `RingBuffer<T>` | FIFO circular de capacidad fija / ventana deslizante |
+| `tpl_rope.H` | `Rope<Char, LeafSize>` | Cadena inmutable con compartición estructural, concat/substr/insert/erase en O(log n) |
 | `tpl_dynSetTree.H` | `DynSetTree<T, Tree>` | Tree-based set |
 | `tpl_dynMapTree.H` | `DynMapTree<K, V, Tree>` | Tree-based map |
 | `tpl_flat_set.H` | `FlatSet<K, Compare>` | Conjunto ordenado sobre arreglo sorted |
