@@ -86,6 +86,36 @@
  *  `Rope<char>` over UTF-8 text indexes and splits by *byte*, not by
  *  Unicode code point or grapheme cluster.
  *
+ *  @par Recursion / stack depth
+ *  Every internal traversal (`slice`, `collect_leaves`,
+ *  `build_balanced_from_leaves`, `flatten_into`, `string_append_into`,
+ *  `try_absorb_right`/`try_absorb_left`, `verify_rec`) is recursive, with
+ *  depth bounded by the tree's `depth` field -- which the rebalancing
+ *  contract above keeps `O(log size())` once a subtree has been through at
+ *  least one `concat`. The one path built without ever calling
+ *  `maybe_rebalance` is the initial `Rope(View)` constructor
+ *  (`build_from_view`), whose own midpoint-splitting recursion is
+ *  separately `O(log(size()/LeafSize))` by construction. Neither path
+ *  produces stack depth proportional to `size()` itself.
+ *
+ *  @par Thread safety
+ *  `Rope` has no built-in synchronization, but its immutability makes most
+ *  concurrent usage safe by construction: since no operation ever mutates
+ *  an existing node, any number of threads may concurrently call any
+ *  method on their own *distinct* `Rope` objects -- including ones that
+ *  were copied from a common source and therefore share the same
+ *  underlying tree -- with no locking, exactly like `std::shared_ptr`
+ *  (whose reference-count updates are atomic). What is **not** safe,
+ *  again exactly as for `std::shared_ptr`, is multiple threads reading
+ *  and/or writing the *same* `Rope` variable (the same `root_` member)
+ *  concurrently without external synchronization -- e.g. two threads both
+ *  executing `shared_rope = shared_rope.concat(x);` on one shared
+ *  variable is a data race on that variable's assignment, not on the tree
+ *  it points to. The common "give each worker its own copy" pattern is
+ *  therefore free; a single `Rope` variable shared and mutated across
+ *  threads still needs a lock or an atomic wrapper around the variable
+ *  itself.
+ *
  *  @see prefix-tree.H, tpl_radix_tree.H, tpl_patricia_trie.H for other
  *       recently-added Aleph-w data structures.
  *  @ingroup Sequences
@@ -95,7 +125,9 @@
 #ifndef TPL_ROPE_H
 #define TPL_ROPE_H
 
+#include <algorithm>
 #include <bit>
+#include <limits>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -106,8 +138,7 @@
 #include <tpl_array.H>
 #include <tpl_small_vector.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /// True exactly for the character types `std::char_traits` is specialized
 /// for by the standard (`char`, `wchar_t`, `char8_t`, `char16_t`,
@@ -117,10 +148,8 @@ namespace Aleph
 /// NOT sufficient here, since both templates' primary forms are valid type
 /// names for essentially any trivial `T`, not just actual character types.
 template <class T>
-concept RopeCharTraitsCompatible =
-    std::is_same_v<T, char> or std::is_same_v<T, wchar_t> or
-    std::is_same_v<T, char8_t> or std::is_same_v<T, char16_t> or
-    std::is_same_v<T, char32_t>;
+concept RopeCharTraitsCompatible = std::is_same_v<T, char> or std::is_same_v<T, wchar_t> or
+  std::is_same_v<T, char8_t> or std::is_same_v<T, char16_t> or std::is_same_v<T, char32_t>;
 
 /** @brief Immutable, structurally-shared rope over a sequence of `Char`.
  *
@@ -128,7 +157,14 @@ concept RopeCharTraitsCompatible =
  *  rationale, structure, and rebalancing contract.
  *
  *  @tparam Char Character type stored (default `char`). Treated as an
- *          opaque fixed-width code unit; no Unicode awareness.
+ *          opaque fixed-width code unit; no Unicode awareness. Must be a
+ *          trivial, standard-layout type: `View` is
+ *          `std::basic_string_view<Char>`, which the standard library
+ *          itself requires this of (see `<string_view>`'s own
+ *          `static_assert`). One consequence: `Char`'s copy can never
+ *          throw (a trivial copy constructor cannot run user code), so
+ *          `Rope`'s only real exception source is allocation failure
+ *          (`std::bad_alloc`), not anything `Char`-related.
  *  @tparam LeafSize Maximum number of characters per leaf node (default
  *          256). Larger values mean fewer, bigger leaves (cheaper to
  *          build, costlier to slice at a boundary inside one); smaller
@@ -149,13 +185,28 @@ private:
   {
     size_t length = 0;
     size_t depth = 0;  // 0 for a leaf; 1 + max(child depths) for internal.
-    SmallVector<Char, LeafSize> leaf_data;  // only meaningful if is_leaf().
+    // Heap-indirected rather than embedded: `SmallVector<Char, LeafSize>`
+    // carries an inline buffer of `LeafSize * sizeof(Char)` bytes as part
+    // of its own size (see tpl_small_vector.H), so embedding it directly
+    // here would make *every* node -- including internal ones, which
+    // never hold character data -- pay that cost (e.g. 280 bytes at the
+    // default `LeafSize=256`, roughly 5x the size of everything else this
+    // struct needs). A null pointer costs 8 bytes regardless of
+    // `LeafSize`; only leaves pay for an actual buffer, and only once.
+    std::unique_ptr<const SmallVector<Char, LeafSize>> leaf_data;
     std::shared_ptr<const Node> left;   // null iff this is a leaf.
     std::shared_ptr<const Node> right;  // null iff this is a leaf.
 
     [[nodiscard]] bool is_leaf() const noexcept
     {
-      return left == nullptr;
+      // Both children null iff leaf: every construction path sets
+      // `left`/`right` together (never just one), so this is equivalent
+      // in practice to checking only `left` -- but checking both means a
+      // hypothetically corrupted "one child null" node is *not*
+      // misclassified as a leaf, and instead falls through to
+      // `verify_rec`'s existing `left == nullptr or right == nullptr`
+      // rejection for internal nodes.
+      return left == nullptr and right == nullptr;
     }
   };
 
@@ -168,7 +219,8 @@ private:
     auto node = std::make_shared<Node>();
     node->length = data.size();
     node->depth = 0;
-    node->leaf_data = std::move(data);
+    node->leaf_data =
+        std::make_unique<const SmallVector<Char, LeafSize>>(std::move(data));
     return node;
   }
 
@@ -179,6 +231,17 @@ private:
   /// the bookkeeping can't drift between them.
   [[nodiscard]] static NodePtr make_internal_node(NodePtr left, NodePtr right)
   {
+    // Checked *before* adding, not after: structural sharing means a
+    // logical length near SIZE_MAX is reachable with very little real
+    // memory (e.g. ~64 self-concats of `r = r.concat(r)`, each O(1) since
+    // both sides already share the same subtree). Left unchecked, a
+    // wrapped `length` can desynchronize from the real `depth` and make
+    // `is_balanced()` wrongly decide to rebalance -- and `collect_leaves`
+    // does not deduplicate shared nodes, so rebalancing a "wide" shared
+    // structure like that visits it once per (possibly exponential)
+    // root-to-leaf path instead of once per distinct node.
+    ah_overflow_error_if(left->length > std::numeric_limits<size_t>::max() - right->length)
+      << "Rope: concatenated length would overflow size_t";
     auto node = std::make_shared<Node>();
     node->length = left->length + right->length;
     node->depth = 1 + std::max(left->depth, right->depth);
@@ -207,8 +270,8 @@ private:
   /// `1 + max(depth(left), depth(new_right))` equals `node->depth` exactly,
   /// regardless of which side held the max (see `concat_nodes` for why
   /// this means absorption never needs `maybe_rebalance`).
-  [[nodiscard]] static NodePtr try_absorb_right(
-      const NodePtr & node, const SmallVector<Char, LeafSize> & extra)
+  [[nodiscard]] static NodePtr try_absorb_right(const NodePtr &node,
+                                                const SmallVector<Char, LeafSize> &extra)
   {
     if (node == nullptr)
       return nullptr;
@@ -219,14 +282,19 @@ private:
         // No `reserve()`: the capacity check above already guarantees the
         // merged result fits within `SmallVector`'s inline capacity
         // (`LeafSize`), so this can never reallocate.
-        SmallVector<Char, LeafSize> merged = node->leaf_data;
-        for (const Char & c : extra)
+        SmallVector<Char, LeafSize> merged = *node->leaf_data;
+        for (const Char &c : extra)
           merged.push_back(c);
         return make_leaf(std::move(merged));
       }
     NodePtr new_right = try_absorb_right(node->right, extra);
     if (new_right == nullptr)
       return nullptr;
+    // See the matching check/comment in `make_internal_node`: `node` here
+    // can be an arbitrarily large shared subtree, so this addition needs
+    // the same overflow guard.
+    ah_overflow_error_if(node->length > std::numeric_limits<size_t>::max() - extra.size())
+      << "Rope: concatenated length would overflow size_t";
     auto result = std::make_shared<Node>();
     result->length = node->length + extra.size();
     result->depth = node->depth;
@@ -238,8 +306,8 @@ private:
   /// Mirror of `try_absorb_right`: merge `extra` into the *leftmost* leaf
   /// of `node`, for the "prepend one small piece at a time" pattern. The
   /// same depth-preservation argument applies, symmetrically on `left`.
-  [[nodiscard]] static NodePtr try_absorb_left(
-      const NodePtr & node, const SmallVector<Char, LeafSize> & extra)
+  [[nodiscard]] static NodePtr try_absorb_left(const NodePtr &node,
+                                               const SmallVector<Char, LeafSize> &extra)
   {
     if (node == nullptr)
       return nullptr;
@@ -249,15 +317,18 @@ private:
           return nullptr;
         // No `reserve()`: see the matching note in `try_absorb_right`.
         SmallVector<Char, LeafSize> merged;
-        for (const Char & c : extra)
+        for (const Char &c : extra)
           merged.push_back(c);
-        for (const Char & c : node->leaf_data)
+        for (const Char &c : *node->leaf_data)
           merged.push_back(c);
         return make_leaf(std::move(merged));
       }
     NodePtr new_left = try_absorb_left(node->left, extra);
     if (new_left == nullptr)
       return nullptr;
+    // See the matching check/comment in `make_internal_node`.
+    ah_overflow_error_if(node->length > std::numeric_limits<size_t>::max() - extra.size())
+      << "Rope: concatenated length would overflow size_t";
     auto result = std::make_shared<Node>();
     result->length = node->length + extra.size();
     result->depth = node->depth;
@@ -283,10 +354,10 @@ private:
     // rebalance. Falls through to the general case if there is no spare
     // room (or neither side is a lone leaf).
     if (right->is_leaf())
-      if (NodePtr absorbed = try_absorb_right(left, right->leaf_data))
+      if (NodePtr absorbed = try_absorb_right(left, *right->leaf_data))
         return absorbed;
     if (left->is_leaf())
-      if (NodePtr absorbed = try_absorb_left(right, left->leaf_data))
+      if (NodePtr absorbed = try_absorb_left(right, *left->leaf_data))
         return absorbed;
 
     return make_internal(std::move(left), std::move(right));
@@ -296,7 +367,7 @@ private:
   /// should have if reasonably balanced -- see the file-level
   /// "Rebalancing" note for why this (rather than the classical
   /// Fibonacci-threshold test) was chosen for this first version.
-  [[nodiscard]] static bool is_balanced(const Node * node) noexcept
+  [[nodiscard]] static bool is_balanced(const Node *node) noexcept
   {
     // No separate `depth <= 2` early return: the formula below already
     // evaluates to `true` for any `depth` up to at least 8 (its minimum
@@ -305,7 +376,7 @@ private:
     return node->depth <= 2 * static_cast<size_t>(bits) + 8;
   }
 
-  static void collect_leaves(const NodePtr & node, Array<NodePtr> & out)
+  static void collect_leaves(const NodePtr &node, Array<NodePtr> &out)
   {
     if (node->is_leaf())
       {
@@ -316,8 +387,8 @@ private:
     collect_leaves(node->right, out);
   }
 
-  [[nodiscard]] static NodePtr build_balanced_from_leaves(
-      const Array<NodePtr> & leaves, const size_t lo, const size_t hi)
+  [[nodiscard]] static NodePtr build_balanced_from_leaves(const Array<NodePtr> &leaves,
+                                                          const size_t lo, const size_t hi)
   {
     if (hi - lo == 1)
       return leaves[lo];
@@ -358,26 +429,23 @@ private:
     return make_internal_node(std::move(left), std::move(right));
   }
 
-  [[nodiscard]] static const Char & char_at(const Node * node, size_t pos) noexcept
+  [[nodiscard]] static const Char &char_at(const Node *node, size_t pos) noexcept
   {
     while (not node->is_leaf())
-      {
-        const size_t left_len = node->left->length;
-        if (pos < left_len)
-          node = node->left.get();
-        else
-          {
-            pos -= left_len;
-            node = node->right.get();
-          }
-      }
+      if (const size_t left_len = node->left->length; pos < left_len)
+        node = node->left.get();
+      else
+        {
+          pos -= left_len;
+          node = node->right.get();
+        }
     // Unchecked access: `pos` is guaranteed in range by the descent above
     // (and, transitively, by `at()`'s own bounds check before calling
     // here). Using the checked `operator[]` would make this `noexcept`
     // function capable of calling `std::terminate()` on `std::out_of_range`
     // instead of safely returning -- and would repeat a bounds check that
     // can never fail.
-    return node->leaf_data(pos);
+    return (*node->leaf_data)(pos);
   }
 
   /// Extract `[pos, pos+len)` from `node` (whose own length is assumed to
@@ -385,7 +453,7 @@ private:
   /// children are returned by shared_ptr copy (O(1), no data touched);
   /// only children straddling the `[pos, pos+len)` boundary are recursed
   /// into.
-  [[nodiscard]] static NodePtr slice(const NodePtr & node, size_t pos, size_t len)
+  [[nodiscard]] static NodePtr slice(const NodePtr &node, size_t pos, size_t len)
   {
     if (len == 0)
       return nullptr;
@@ -408,7 +476,7 @@ private:
         // always stays within `SmallVector`'s inline capacity.
         SmallVector<Char, LeafSize> data;
         for (size_t i = 0; i < len; ++i)
-          data.push_back(node->leaf_data[pos + i]);
+          data.push_back((*node->leaf_data)[pos + i]);
         return make_leaf(std::move(data));
       }
 
@@ -437,13 +505,13 @@ private:
     return concat_nodes(std::move(left_part), std::move(right_part));
   }
 
-  static void flatten_into(const Node * node, Array<Char> & out)
+  static void flatten_into(const Node *node, Array<Char> &out)
   {
     if (node == nullptr)
       return;
     if (node->is_leaf())
       {
-        for (const Char & c : node->leaf_data)
+        for (const Char &c : *node->leaf_data)
           out.append(c);
         return;
       }
@@ -455,14 +523,14 @@ private:
   /// (one bulk `append` per leaf) instead of an `Array<Char>`, so
   /// `to_string()` does not need a separate `Array<Char>` -> `string` copy
   /// pass.
-  static void string_append_into(const Node * node, std::basic_string<Char> & out)
+  static void string_append_into(const Node *node, std::basic_string<Char> &out)
     requires RopeCharTraitsCompatible<Char>
   {
     if (node == nullptr)
       return;
     if (node->is_leaf())
       {
-        out.append(node->leaf_data.data(), node->leaf_data.size());
+        out.append(node->leaf_data->data(), node->leaf_data->size());
         return;
       }
     string_append_into(node->left.get(), out);
@@ -470,18 +538,18 @@ private:
   }
 
   /// Recursive structural-invariant check backing the public `verify()`.
-  /// Checks, at every node: a leaf's `length` matches its stored data and
-  /// is in `[1, LeafSize]` (leaves are never empty -- no code path ever
-  /// builds one); an internal node has two non-null children, `length`
-  /// equal to the sum of its children's, and `depth` equal to
-  /// `1 + max(child depths)`.
-  [[nodiscard]] static bool verify_rec(const Node * node) noexcept
+  /// Checks, at every node: a leaf has a non-null `leaf_data` whose
+  /// `length` matches its stored data and is in `[1, LeafSize]` (leaves
+  /// are never empty -- no code path ever builds one); an internal node
+  /// has two non-null children, `length` equal to the sum of its
+  /// children's, and `depth` equal to `1 + max(child depths)`.
+  [[nodiscard]] static bool verify_rec(const Node *node) noexcept
   {
     if (node == nullptr)
       return true;
     if (node->is_leaf())
-      return node->leaf_data.size() == node->length and node->length >= 1
-             and node->length <= LeafSize and node->depth == 0;
+      return node->leaf_data != nullptr and node->leaf_data->size() == node->length and
+        node->length >= 1 and node->length <= LeafSize and node->depth == 0;
     if (node->left == nullptr or node->right == nullptr)
       return false;
     if (node->length != node->left->length + node->right->length)
@@ -503,32 +571,31 @@ public:
    *  @param[in] v Characters to copy in.
    *  @throws std::bad_alloc.
    */
-  explicit Rope(const View v) : root_(v.empty() ? nullptr : build_from_view(v))
-  {}
+  explicit Rope(const View v) : root_(v.empty() ? nullptr : build_from_view(v)) {}
 
   /** @brief Copy constructor: O(1), shares the entire tree (immutable, so
    *         sharing is always safe).
    *  @param[in] other Rope to copy.
    *  @throws Nothing.
    */
-  Rope(const Rope & other) = default;
+  Rope(const Rope &other) = default;
   /** @brief Copy assignment operator: O(1), shares the entire tree.
    *  @param[in] other Rope to copy.
    *  @return `*this`, now sharing `other`'s tree.
    *  @throws Nothing.
    */
-  Rope & operator=(const Rope & other) = default;
+  Rope &operator = (const Rope &other) = default;
   /** @brief Move constructor.
    *  @param[in] other Rope to move from; left empty afterwards.
    *  @throws Nothing.
    */
-  Rope(Rope && other) noexcept = default;
+  Rope(Rope &&other) noexcept = default;
   /** @brief Move assignment operator.
    *  @param[in] other Rope to move from; left empty afterwards.
    *  @return `*this`, now holding `other`'s former tree.
    *  @throws Nothing.
    */
-  Rope & operator=(Rope && other) noexcept = default;
+  Rope &operator = (Rope &&other) noexcept = default;
   /// @brief Destructor: releases this rope's reference to its tree;
   /// nodes are only actually freed once no rope shares them anymore.
   ~Rope() = default;
@@ -552,8 +619,9 @@ public:
   }
 
   /** @brief Return the character at `pos`.
-   *  @param[in] pos Zero-based index, must be `< size()`.
+   *  @param[in] pos Zero-based index.
    *  @return The character at `pos`.
+   *  @pre `pos < size()`.
    *  @throws std::out_of_range if `pos >= size()`.
    *  @note O(depth), and depth is O(log size()) per the rebalancing
    *        contract.
@@ -569,6 +637,12 @@ public:
    *  @return The concatenated rope. Neither `*this` nor `other` is
    *          modified.
    *  @throws std::bad_alloc.
+   *  @throws std::overflow_error if `size() + other.size()` would exceed
+   *          `std::numeric_limits<size_t>::max()`. Not just a theoretical
+   *          concern: structural sharing makes this reachable with very
+   *          little real memory, e.g. `r = r.concat(r)` doubles `size()`
+   *          each call at O(1) real cost, so ~64 such calls reach the
+   *          limit. Checked before the addition, never wraps silently.
    *  @note O(1) when neither side is a lone leaf. Otherwise O(depth +
    *        LeafSize) for the leaf-absorption fast path -- the `O(depth)`
    *        spine walk plus an O(LeafSize) copy of the leaf being grown, so
@@ -577,7 +651,7 @@ public:
    *        cost of rebalancing; see the file-level "Rebalancing" and "Leaf
    *        absorption" notes.
    */
-  [[nodiscard]] Rope concat(const Rope & other) const
+  [[nodiscard]] Rope concat(const Rope &other) const
   {
     return Rope(concat_nodes(root_, other.root_));
   }
@@ -586,24 +660,42 @@ public:
    *  @param[in] pos Start index.
    *  @param[in] len Number of characters to extract.
    *  @return The extracted subrope.
+   *  @pre `pos <= size() and len <= size() - pos`.
    *  @throws std::out_of_range if `pos + len > size()` (or `pos > size()`).
-   *  @note O(log size()): whole shared subtrees are reused, only the
-   *        boundary leaves are copied/sliced.
+   *  @note O(log size()) typical case: whole shared subtrees are reused,
+   *        only the boundary leaves are copied/sliced. A range that
+   *        straddles a node's children is rejoined via `concat_nodes`,
+   *        which -- like any other `concat` -- can trigger a rebalance if
+   *        the rejoined result exceeds the depth threshold; when that
+   *        happens the affected rejoin costs up to `O(number of leaves in
+   *        the extracted range)` instead of `O(1)`, so the true worst
+   *        case is closer to `O(len / LeafSize)` than `O(log size())`.
+   *        Still far cheaper than copying the whole rope, but not a hard
+   *        `O(log n)` guarantee for every possible range.
    */
   [[nodiscard]] Rope substr(const size_t pos, const size_t len) const
   {
     ah_out_of_range_error_if(pos > size() or len > size() - pos)
-        << "Rope::substr(): range out of bounds";
+      << "Rope::substr(): range out of bounds";
     return Rope(slice(root_, pos, len));
   }
 
   /** @brief Return a new rope with `other` inserted at `pos`.
-   *  @param[in] pos Insertion index, in `[0, size()]`.
+   *  @param[in] pos Insertion index.
    *  @param[in] other Rope to insert.
    *  @return `substr(0, pos) + other + substr(pos, size() - pos)`.
+   *  @pre `pos <= size()`.
    *  @throws std::out_of_range if `pos > size()`.
+   *  @note Two `substr` calls plus two `concat` calls: see each method's
+   *        own `@note` for their individual costs -- typically `O(log
+   *        size())` overall, subject to the same rebalance-triggered
+   *        worst case `substr` documents. If this throws (`std::bad_alloc`
+   *        from any of the four component calls), `*this` and `other` are
+   *        left completely unchanged: every intermediate result here is a
+   *        new, independent `Rope` value, so a failure partway through
+   *        never touches the receiver or the argument.
    */
-  [[nodiscard]] Rope insert(const size_t pos, const Rope & other) const
+  [[nodiscard]] Rope insert(const size_t pos, const Rope &other) const
   {
     ah_out_of_range_error_if(pos > size()) << "Rope::insert(): index out of range";
     return substr(0, pos).concat(other).concat(substr(pos, size() - pos));
@@ -613,12 +705,19 @@ public:
    *  @param[in] pos Start index.
    *  @param[in] len Number of characters to remove.
    *  @return `substr(0, pos) + substr(pos+len, size()-pos-len)`.
+   *  @pre `pos <= size() and len <= size() - pos`.
    *  @throws std::out_of_range if `pos + len > size()`.
+   *  @note Two `substr` calls plus one `concat`: see each method's own
+   *        `@note` for their individual costs -- typically `O(log
+   *        size())` overall, subject to the same rebalance-triggered
+   *        worst case `substr` documents. Same strong exception-safety
+   *        argument as `insert()`: a failure partway through leaves
+   *        `*this` untouched.
    */
   [[nodiscard]] Rope erase(const size_t pos, const size_t len) const
   {
     ah_out_of_range_error_if(pos > size() or len > size() - pos)
-        << "Rope::erase(): range out of bounds";
+      << "Rope::erase(): range out of bounds";
     return substr(0, pos).concat(substr(pos + len, size() - pos - len));
   }
 
@@ -659,21 +758,56 @@ public:
    *  @return `true` if the two ropes hold identical character sequences.
    *  @throws Nothing beyond what `Char::operator==` throws (never, for
    *          built-in character types).
+   *  @note O(size()): collects each side's leaves once (`O(number of
+   *        leaves)` extra space) and then walks both leaf sequences in
+   *        lock-step, comparing each pair of overlapping ranges directly
+   *        -- never re-descending from the root the way per-index `at()`
+   *        calls would. A leaf pair that is the very same shared node
+   *        (structural sharing, aligned leaf boundaries) is skipped
+   *        without touching its characters at all.
    */
-  [[nodiscard]] bool operator==(const Rope & other) const
+  [[nodiscard]] bool operator == (const Rope &other) const
   {
     if (size() != other.size())
       return false;
     if (root_ == other.root_)
       return true;  // same shared tree (or both empty): trivially equal.
-    // Fall back to a per-character comparison via at(), O(size() *
-    // depth) i.e. O(n log n) rather than O(n). Simple and correct;
-    // not optimized to skip identical shared subtrees that happen to
-    // appear at different tree shapes on each side, nor to walk both
-    // trees leaf-by-leaf in a single O(n) pass.
-    for (size_t i = 0; i < size(); ++i)
-      if (at(i) != other.at(i))
-        return false;
+
+    Array<NodePtr> mine, theirs;
+    collect_leaves(root_, mine);
+    collect_leaves(other.root_, theirs);
+
+    size_t i = 0, j = 0, i_off = 0, j_off = 0;
+    while (i < mine.size())
+      {
+        if (i_off == 0 and j_off == 0 and mine[i].get() == theirs[j].get())
+          {
+            // Same shared leaf node on both sides: identical by
+            // construction (Rope never mutates a leaf in place), skip
+            // straight to the next pair without comparing characters.
+            ++i;
+            ++j;
+            continue;
+          }
+        const Node &a = *mine[i];
+        const Node &b = *theirs[j];
+        const size_t n = std::min(a.length - i_off, b.length - j_off);
+        for (size_t k = 0; k < n; ++k)
+          if ((*a.leaf_data)(i_off + k) != (*b.leaf_data)(j_off + k))
+            return false;
+        i_off += n;
+        j_off += n;
+        if (i_off == a.length)
+          {
+            ++i;
+            i_off = 0;
+          }
+        if (j_off == b.length)
+          {
+            ++j;
+            j_off = 0;
+          }
+      }
     return true;
   }
 
@@ -694,7 +828,15 @@ public:
    *          its children's; and every internal node's `depth` equals
    *          `1 + max(child depths)`.
    *  @throws Nothing.
-   *  @note O(number of nodes).
+   *  @note O(number of *distinct* nodes) for an ordinarily-built rope.
+   *        Does not deduplicate shared subtrees while recursing, so for a
+   *        rope built by extreme self-sharing (e.g. repeated `r =
+   *        r.concat(r)`) it walks every root-to-leaf *path* rather than
+   *        every distinct node -- up to `O(2^depth)` instead of `O(depth)`
+   *        for that specific construction pattern. Not a concern for
+   *        ordinary usage (sharing between otherwise-independent ropes,
+   *        the common case) -- only for a rope that shares itself with
+   *        itself many levels deep.
    */
   [[nodiscard]] bool verify() const noexcept
   {
@@ -702,6 +844,6 @@ public:
   }
 };
 
-} // namespace Aleph
+}  // namespace Aleph
 
-#endif // TPL_ROPE_H
+#endif  // TPL_ROPE_H

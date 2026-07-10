@@ -37,10 +37,186 @@
 
 #include <tpl_rope.H>
 
+#include <atomic>
 #include <chrono>
+#include <cstddef>
+#include <cstdlib>
+#include <new>
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
+// `Rope<Char>::View` is `std::basic_string_view<Char>`, which the standard
+// library requires `Char` to be a trivial, standard-layout type for (see
+// `<string_view>`'s own static_assert) -- so, unlike e.g. `RadixTree<T>`'s
+// mapped value `T`, `Rope`'s `Char` can never be a type whose copy
+// constructor throws: a trivial copy constructor cannot run user code at
+// all. The only realistic exception source `Rope`'s methods have is
+// allocation failure (`std::bad_alloc`, already documented on every
+// `@throws`), so exception-safety here is tested via allocation-failure
+// injection instead of a throwing element type. This reuses the same
+// global operator new/delete override pattern already established in
+// `Tests/prefix_tree_test.cc` for the same purpose.
+#if defined(__SANITIZE_THREAD__)
+#  define ALEPH_ROPE_TEST_UNDER_TSAN 1
+#elif defined(__has_feature)
+#  if __has_feature(thread_sanitizer)
+#    define ALEPH_ROPE_TEST_UNDER_TSAN 1
+#  endif
+#endif
+#ifndef ALEPH_ROPE_TEST_UNDER_TSAN
+#  define ALEPH_ROPE_TEST_UNDER_TSAN 0
+#endif
+
+namespace
+{
+  std::atomic<int> allocation_countdown{-1};
+  std::atomic<bool> track_allocations{false};
+  std::atomic<int> tracked_balance{0};
+
+#if !ALEPH_ROPE_TEST_UNDER_TSAN
+  bool should_fail_allocation() noexcept
+  {
+    int remaining = allocation_countdown.load(std::memory_order_relaxed);
+    while (remaining >= 0)
+      {
+        if (remaining == 0)
+          return true;
+        if (allocation_countdown.compare_exchange_weak(
+                remaining, remaining - 1, std::memory_order_relaxed))
+          return false;
+      }
+    return false;
+  }
+
+  void * allocate_or_throw(std::size_t size)
+  {
+    if (should_fail_allocation())
+      throw std::bad_alloc();
+
+    if (size == 0)
+      size = 1;
+
+    void * ptr = std::malloc(size);
+    if (ptr == nullptr)
+      throw std::bad_alloc();
+
+    if (track_allocations.load(std::memory_order_relaxed))
+      tracked_balance.fetch_add(1, std::memory_order_relaxed);
+
+    return ptr;
+  }
+
+  void release_allocation(void * ptr) noexcept
+  {
+    if (ptr == nullptr)
+      return;
+
+    if (track_allocations.load(std::memory_order_relaxed))
+      tracked_balance.fetch_sub(1, std::memory_order_relaxed);
+
+    std::free(ptr);
+  }
+#endif  // !ALEPH_ROPE_TEST_UNDER_TSAN
+
+  /// RAII scope that makes the `N`-th allocation after construction throw
+  /// `std::bad_alloc` (or, for negative `N`, only tracks the net
+  /// allocation/deallocation balance without ever failing). `balance()`
+  /// after the scope's operation should be 0: every allocation made while
+  /// armed was matched by a deallocation, proving nothing leaked when the
+  /// operation under test threw partway through.
+  class AllocationFailureScope
+  {
+  public:
+    explicit AllocationFailureScope(const int successful_allocations_before_failure)
+    {
+      tracked_balance.store(0, std::memory_order_relaxed);
+      track_allocations.store(true, std::memory_order_relaxed);
+      allocation_countdown.store(successful_allocations_before_failure,
+                                 std::memory_order_relaxed);
+    }
+
+    ~AllocationFailureScope()
+    {
+      allocation_countdown.store(-1, std::memory_order_relaxed);
+      track_allocations.store(false, std::memory_order_relaxed);
+    }
+
+    [[nodiscard]] int balance() const noexcept
+    {
+      return tracked_balance.load(std::memory_order_relaxed);
+    }
+  };
+}  // namespace
+
+#if !ALEPH_ROPE_TEST_UNDER_TSAN
+
+void * operator new(std::size_t size)
+{
+  return allocate_or_throw(size);
+}
+
+void * operator new[](std::size_t size)
+{
+  return allocate_or_throw(size);
+}
+
+void * operator new(std::size_t size, const std::nothrow_t &) noexcept
+{
+  try
+    {
+      return allocate_or_throw(size);
+    }
+  catch (...)
+    {
+      return nullptr;
+    }
+}
+
+void * operator new[](std::size_t size, const std::nothrow_t &) noexcept
+{
+  try
+    {
+      return allocate_or_throw(size);
+    }
+  catch (...)
+    {
+      return nullptr;
+    }
+}
+
+void operator delete(void * ptr) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete[](void * ptr) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete(void * ptr, std::size_t) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete[](void * ptr, std::size_t) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete(void * ptr, const std::nothrow_t &) noexcept
+{
+  release_allocation(ptr);
+}
+
+void operator delete[](void * ptr, const std::nothrow_t &) noexcept
+{
+  release_allocation(ptr);
+}
+
+#endif  // !ALEPH_ROPE_TEST_UNDER_TSAN
 
 using namespace Aleph;
 
@@ -235,6 +411,43 @@ TEST(Rope, EqualityComparesContentNotIdentity)
   EXPECT_TRUE(Rope<char>() == Rope<char>());
 }
 
+TEST(Rope, EqualityHandlesMismatchedLeafBoundariesAndSharedSubtrees)
+{
+  // Same content, but built two different ways so the two trees have
+  // different shapes (misaligned leaf boundaries): the lock-step
+  // leaf-cursor comparison in operator== must handle a leaf pair that
+  // only partially overlaps, not just leaf-for-leaf-aligned trees like
+  // EqualityComparesContentNotIdentity above.
+  TinyRope whole{std::string_view("abcdefghijkl")};  // one build_from_view split
+  TinyRope pieced = TinyRope{std::string_view("ab")}
+                        .concat(TinyRope{std::string_view("cde")})
+                        .concat(TinyRope{std::string_view("fghij")})
+                        .concat(TinyRope{std::string_view("kl")});
+  ASSERT_EQ(whole.to_string(), "abcdefghijkl");
+  ASSERT_EQ(pieced.to_string(), "abcdefghijkl");
+  EXPECT_TRUE(whole == pieced);
+  EXPECT_TRUE(pieced == whole);
+
+  // A one-character difference near the end must still be caught even
+  // though most of the content (and many leaf boundaries) matches.
+  TinyRope pieced_diff = TinyRope{std::string_view("ab")}
+                              .concat(TinyRope{std::string_view("cde")})
+                              .concat(TinyRope{std::string_view("fghij")})
+                              .concat(TinyRope{std::string_view("kX")});
+  EXPECT_FALSE(whole == pieced_diff);
+
+  // Structural sharing partially aligned: a rope built by concatenating a
+  // shared sub-rope with different tails should still compare correctly
+  // whether or not the shared part lines up on leaf boundaries with the
+  // other side.
+  TinyRope shared_prefix{std::string_view("abcdef")};
+  TinyRope left = shared_prefix.concat(TinyRope{std::string_view("ghijkl")});
+  TinyRope right = shared_prefix.concat(TinyRope{std::string_view("ghijkl")});
+  EXPECT_TRUE(left == right);
+  EXPECT_TRUE(left.verify());
+  EXPECT_TRUE(right.verify());
+}
+
 TEST(Rope, CopyIsIndependentOfLaterOperationsOnTheOriginalVariable)
 {
   Rope<char> a{std::string_view("hello")};
@@ -400,6 +613,15 @@ TEST(Rope, RandomizedEditScriptMatchesStdString)
 
 TEST(Rope, RepeatedSmallConcatStaysFastEnoughToProveAbsorptionFired)
 {
+  // Timing-based assertions are inherently flaky under CI conditions
+  // (debug builds, sanitizers, shared/throttled runners), so -- matching
+  // the ENABLE_PERF_TESTS convention already used across this repo (see
+  // e.g. Tests/math_nt_test.cc, Tests/ntt_test.cc) -- this is opt-in
+  // rather than run unconditionally.
+  if (not std::getenv("ENABLE_PERF_TESTS"))
+    GTEST_SKIP() << "Skipping Rope performance regression (set "
+                    "ENABLE_PERF_TESTS=1 to enable)";
+
   // Correctness alone doesn't prove the leaf-absorption fast path
   // (try_absorb_right/try_absorb_left in concat_nodes) is actually being
   // taken: RepeatedSingleCharacterConcatStaysCorrect and
@@ -430,8 +652,214 @@ TEST(Rope, RepeatedSmallConcatStaysFastEnoughToProveAbsorptionFired)
   // test (confirming it actually catches a regression). 400ms leaves
   // roughly 20x slack above the healthy case and roughly 4x margin below
   // the broken one -- generous enough for a loaded CI machine without
-  // losing the ability to fail loudly on a real regression.
-  EXPECT_LT(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), 400)
+  // losing the ability to fail loudly on a real regression. Overridable
+  // via ROPE_ABSORPTION_MAX_MS for machines where even that isn't enough
+  // (matches the ad-hoc TIMSORT_MAX_MS pattern in Tests/sort_utils.cc).
+  long max_ms = 400;
+  if (const char * env_ms = std::getenv("ROPE_ABSORPTION_MAX_MS"))
+    max_ms = std::atol(env_ms);
+  EXPECT_LT(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), max_ms)
       << N << " single-character concats took too long -- the leaf-absorption "
          "fast path may have regressed (see tpl_rope.H's \"Leaf absorption\" note).";
+}
+
+// --- Structural sharing (copy is O(1), independent of source size) -------
+
+TEST(Rope, CopyAndSmallConcatStayFastRegardlessOfSourceSize)
+{
+  // Opt-in only: see the matching comment on
+  // RepeatedSmallConcatStaysFastEnoughToProveAbsorptionFired above.
+  if (not std::getenv("ENABLE_PERF_TESTS"))
+    GTEST_SKIP() << "Skipping Rope performance regression (set "
+                    "ENABLE_PERF_TESTS=1 to enable)";
+
+  // Structural-sharing proof by timing: content-only tests (like
+  // CopyIsIndependentOfLaterOperationsOnTheOriginalVariable above) prove
+  // a copy is *independent*, but not that it is *cheap* -- a rope whose
+  // copy constructor accidentally started deep-cloning the tree would
+  // still pass every content-based test, just far more slowly. Building
+  // one large rope once, then doing many independent copy+small-concat
+  // derivations from it, should cost roughly the same per derivation
+  // (shared_ptr refcount bump + a short leaf-absorption/wrap) regardless
+  // of how large the shared source tree is -- an O(size) copy would blow
+  // the budget below by orders of magnitude.
+  using R = Rope<char, 256>;
+  const std::string big_text(200000, 'x');
+  R big{std::string_view(big_text)};
+  ASSERT_TRUE(big.verify());
+
+  constexpr int N = 5000;
+  const auto start = std::chrono::steady_clock::now();
+  for (int i = 0; i < N; ++i)
+    {
+      R copy = big;                                       // O(1): shares the tree
+      R derived = copy.concat(R{std::string_view("!")});  // small, cheap addition
+      ASSERT_EQ(derived.size(), big.size() + 1);
+    }
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+
+  // Overridable via ROPE_SHARING_MAX_MS for slow/loaded machines (see the
+  // matching override on the absorption regression test above).
+  long max_ms = 500;
+  if (const char * env_ms = std::getenv("ROPE_SHARING_MAX_MS"))
+    max_ms = std::atol(env_ms);
+  EXPECT_LT(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), max_ms)
+      << N << " copy+small-concat derivations from a " << big_text.size()
+      << "-character rope took too long -- copy() or concat() may no longer be "
+         "O(1)/structurally sharing (see tpl_rope.H's \"Structure\" note).";
+}
+
+// --- Exception safety on allocation failure -------------------------------
+
+TEST(Rope, FailedAllocationDuringConcatLeavesExistingRopesUnchanged)
+{
+#if ALEPH_ROPE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#else
+  // Build an internal-rooted `left` whose rightmost leaf ("ef") has spare
+  // room: "abcd" (4 chars) is already a full leaf at LeafSize=4, so
+  // concat-ing "ef" can't absorb and falls back to make_internal,
+  // producing one internal node over two leaves.
+  const TinyRope left =
+      TinyRope{std::string_view("abcd")}.concat(TinyRope{std::string_view("ef")});
+  const TinyRope right{std::string_view("g")};
+  ASSERT_TRUE(left.verify());
+  ASSERT_EQ(left.to_string(), "abcdef");
+
+  // Absorbing "g" into `left` walks one level of the right spine: it
+  // allocates the new merged leaf "efg" (try_absorb_right's base case,
+  // via make_leaf -- one allocation for the Node, one for its
+  // heap-indirected leaf_data, see the Node struct's own comment on why
+  // leaf storage isn't embedded inline), then allocates one new internal
+  // node wrapping the *unchanged* "abcd" leaf and the new "efg" leaf
+  // (try_absorb_right's recursive case) -- three allocations total.
+  // Failing after 0, 1, and 2 successful allocations exercises every
+  // point along that chain: no work done yet, the leaf's Node built but
+  // not its data, and the whole leaf built but not the wrapper.
+  for (int allowed = 0; allowed <= 2; ++allowed)
+    {
+      bool threw = false;
+      int balance = 0;
+      {
+        AllocationFailureScope fail_after(allowed);
+        try
+          {
+            [[maybe_unused]] const TinyRope result = left.concat(right);
+          }
+        catch (const std::bad_alloc &)
+          {
+            threw = true;
+          }
+        balance = fail_after.balance();
+      }
+      EXPECT_TRUE(threw) << "allowed=" << allowed;
+      EXPECT_EQ(balance, 0) << "allocation leaked with allowed=" << allowed;
+
+      // Neither operand was mutated by the failed attempt: concat() only
+      // ever builds brand-new nodes and reaches existing ones via
+      // shared_ptr copies, so a mid-construction throw has nothing to
+      // unwind on either side.
+      EXPECT_TRUE(left.verify());
+      EXPECT_TRUE(right.verify());
+      EXPECT_EQ(left.to_string(), "abcdef");
+      EXPECT_EQ(right.to_string(), "g");
+    }
+
+  // With enough budget, the same operation succeeds normally afterwards --
+  // no leftover poisoned state from the earlier failed attempts.
+  const TinyRope combined = left.concat(right);
+  EXPECT_TRUE(combined.verify());
+  EXPECT_EQ(combined.to_string(), "abcdefg");
+#endif  // !ALEPH_ROPE_TEST_UNDER_TSAN
+}
+
+// --- substr() on ranges spanning many leaves ------------------------------
+
+TEST(Rope, SubstrOfManyLeafRangeStaysCorrectAndFastRegardlessOfTotalSize)
+{
+  // Opt-in only: see the matching comment on
+  // RepeatedSmallConcatStaysFastEnoughToProveAbsorptionFired above. This
+  // test also builds multi-megabyte ropes, which is itself costly to run
+  // unconditionally in every default CI run; the underlying correctness
+  // property (substr() on multi-leaf ranges) is already covered by
+  // RandomizedEditScriptMatchesStdString and SubstrAtExactLeafBoundaries.
+  if (not std::getenv("ENABLE_PERF_TESTS"))
+    GTEST_SKIP() << "Skipping Rope performance regression (set "
+                    "ENABLE_PERF_TESTS=1 to enable)";
+
+  // substr()'s straddle path (see tpl_rope.H's own @note on the method)
+  // can, in the worst case, cost up to O(range's leaf count) rather than
+  // a strict O(log size()) if the rejoin triggers a rebalance. Extracting
+  // a fixed-size range that spans many leaves (~40 at LeafSize=256)
+  // should still be correct and should not scale with the *total* rope
+  // size -- only with the extracted range itself.
+  using R = Rope<char, 256>;
+  constexpr size_t extract_len = 10000;  // spans ~40 leaves
+
+  for (const int total : {100000, 1000000, 5000000})
+    {
+      std::string text(static_cast<size_t>(total), 'x');
+      std::mt19937 rng(42);
+      for (auto & c : text)
+        c = static_cast<char>('a' + (rng() % 26));
+      R r{std::string_view(text)};
+      ASSERT_TRUE(r.verify());
+
+      const size_t pos = static_cast<size_t>(total) / 2;
+      const auto start = std::chrono::steady_clock::now();
+      for (int i = 0; i < 200; ++i)
+        {
+          R sub = r.substr(pos, extract_len);
+          ASSERT_EQ(sub.size(), extract_len);
+          ASSERT_EQ(sub.to_string(), text.substr(pos, extract_len));
+        }
+      const double ms = std::chrono::duration<double, std::milli>(
+                             std::chrono::steady_clock::now() - start)
+                             .count();
+      // Loose bound: 200 extractions of a many-leaf range should never
+      // take anywhere close to a second, regardless of how large the
+      // source rope is. Overridable for slow/loaded machines.
+      long max_ms = 2000;
+      if (const char * env_ms = std::getenv("ROPE_SLICE_MAX_MS"))
+        max_ms = std::atol(env_ms);
+      EXPECT_LT(ms, static_cast<double>(max_ms))
+          << "200x substr(len=" << extract_len << ") from a " << total
+          << "-character rope took too long -- see tpl_rope.H substr()'s "
+             "@note on the straddle-rebalance worst case.";
+    }
+}
+
+// --- Length overflow via structural sharing -------------------------------
+
+TEST(Rope, RepeatedSelfConcatThrowsOverflowErrorInsteadOfWrappingOrHanging)
+{
+  // Structural sharing makes an astronomically large logical length
+  // reachable with very little real work: `r = r.concat(r)` doubles
+  // size() each call at O(1) real cost (both sides already share the same
+  // subtree), so this reaches SIZE_MAX in ~64 fast iterations -- unlike a
+  // naive "you'd need exabytes of real data" argument, which only holds
+  // without sharing. Left unchecked, the wrapped length can desync from
+  // the real depth and make a later maybe_rebalance() call collect_leaves
+  // on an exponentially-shared structure (2^depth root-to-leaf paths over
+  // O(depth) real nodes) instead of throwing promptly here.
+  Rope<char> r{std::string_view("x")};
+  size_t iterations = 0;
+  EXPECT_THROW(
+      {
+        for (; iterations < 100; ++iterations)
+          r = r.concat(r);
+      },
+      std::overflow_error);
+  // Reached the limit well before the loop's own safety cap, and the last
+  // successful doubling left size() consistent with that many iterations.
+  //
+  // Deliberately NOT calling r.verify() here: verify_rec(), like
+  // collect_leaves(), does not deduplicate shared nodes either, so it
+  // would walk this self-shared tree's ~2^60 root-to-leaf paths instead
+  // of its ~60 distinct nodes -- the same exponential-blowup shape this
+  // test's own overflow guard exists to prevent one level up, just not
+  // (yet) guarded against inside verify()/collect_leaves() themselves.
+  EXPECT_LT(iterations, 100u);
+  EXPECT_EQ(r.size(), size_t{1} << iterations);
 }
