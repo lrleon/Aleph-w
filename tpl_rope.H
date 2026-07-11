@@ -281,10 +281,14 @@ private:
           return nullptr;
         // No `reserve()`: the capacity check above already guarantees the
         // merged result fits within `SmallVector`'s inline capacity
-        // (`LeafSize`), so this can never reallocate.
-        SmallVector<Char, LeafSize> merged = *node->leaf_data;
-        for (const Char &c : extra)
-          merged.push_back(c);
+        // (`LeafSize`), so this can never reallocate. `append_range`
+        // (rather than the copy constructor plus a per-character loop)
+        // lets a trivially copyable `Char` (the only kind `Rope` accepts,
+        // see the class's own `@tparam` note) copy both pieces via
+        // `memcpy` instead of one placement-new call per character.
+        SmallVector<Char, LeafSize> merged;
+        merged.append_range(node->leaf_data->data(), node->leaf_data->size());
+        merged.append_range(extra.data(), extra.size());
         return make_leaf(std::move(merged));
       }
     NodePtr new_right = try_absorb_right(node->right, extra);
@@ -317,10 +321,8 @@ private:
           return nullptr;
         // No `reserve()`: see the matching note in `try_absorb_right`.
         SmallVector<Char, LeafSize> merged;
-        for (const Char &c : extra)
-          merged.push_back(c);
-        for (const Char &c : *node->leaf_data)
-          merged.push_back(c);
+        merged.append_range(extra.data(), extra.size());
+        merged.append_range(node->leaf_data->data(), node->leaf_data->size());
         return make_leaf(std::move(merged));
       }
     NodePtr new_left = try_absorb_left(node->left, extra);
@@ -387,6 +389,28 @@ private:
     collect_leaves(node->right, out);
   }
 
+  /// Read-only counterpart of `collect_leaves`: collects raw, non-owning
+  /// `const Node *` instead of `NodePtr` (`shared_ptr<const Node>`).
+  /// `operator==` is the only caller -- it only ever *reads* leaf
+  /// character data during the comparison, never needs to extend any
+  /// node's lifetime beyond it (the two ropes' own `root_`/`other.root_`
+  /// already keep every visited node alive for the whole call), so
+  /// collecting owning `shared_ptr`s there would pay for an atomic
+  /// refcount increment and decrement per leaf for no benefit -- real
+  /// traffic for a rope with many leaves. `maybe_rebalance` still uses
+  /// the owning `collect_leaves` above, since it genuinely needs the
+  /// `NodePtr`s themselves as the rebuilt tree's new owning children.
+  static void collect_leaf_pointers(const Node *node, Array<const Node *> &out)
+  {
+    if (node->is_leaf())
+      {
+        out.append(node);
+        return;
+      }
+    collect_leaf_pointers(node->left.get(), out);
+    collect_leaf_pointers(node->right.get(), out);
+  }
+
   [[nodiscard]] static NodePtr build_balanced_from_leaves(const Array<NodePtr> &leaves,
                                                           const size_t lo, const size_t hi)
   {
@@ -403,6 +427,20 @@ private:
     if (is_balanced(node.get()))
       return node;
     Array<NodePtr> leaves;
+    // Estimated leaf count, computed in O(1): `length / LeafSize` is
+    // exact when every leaf is full, which is the common case (the
+    // leaf-absorption fast path keeps leaves packed). Reserving this
+    // avoids Array's geometric-growth reallocations in that common case
+    // without over-allocating -- an earlier version of this reservation
+    // used `length` itself as the bound (technically valid: no leaf is
+    // ever empty, so leaf count can't exceed it), but that is loose by
+    // up to a factor of `LeafSize` whenever leaves are reasonably full,
+    // and measurably regressed performance (over-reserving dominated the
+    // reallocations it was meant to avoid). For a pathologically
+    // fragmented tree (many near-empty leaves) this estimate undercounts
+    // and `Array` still grows geometrically from here -- no worse than
+    // not reserving at all.
+    leaves.reserve(node->length / LeafSize + 1);
     collect_leaves(node, leaves);
     return build_balanced_from_leaves(leaves, 0, leaves.size());
   }
@@ -417,10 +455,11 @@ private:
       {
         // No `reserve()` here: `v.size() <= LeafSize` is exactly
         // `SmallVector<Char, LeafSize>`'s inline capacity, so it can never
-        // reallocate regardless.
+        // reallocate regardless. `View` (`basic_string_view<Char>`) is
+        // contiguous, so `append_range` can copy it in one `memcpy`
+        // instead of one placement-new call per character.
         SmallVector<Char, LeafSize> data;
-        for (const Char c : v)
-          data.push_back(c);
+        data.append_range(v.data(), v.size());
         return make_leaf(std::move(data));
       }
     const size_t mid = v.size() / 2;
@@ -474,9 +513,10 @@ private:
         // No `reserve()`: `len < node->length <= LeafSize` here (the
         // `len == node->length` case already returned above), so this
         // always stays within `SmallVector`'s inline capacity.
+        // `append_range` copies the `[pos, pos+len)` subrange via one
+        // `memcpy` instead of one placement-new call per character.
         SmallVector<Char, LeafSize> data;
-        for (size_t i = 0; i < len; ++i)
-          data.push_back((*node->leaf_data)[pos + i]);
+        data.append_range(node->leaf_data->data() + pos, len);
         return make_leaf(std::move(data));
       }
 
@@ -686,18 +726,21 @@ public:
    *  @return `substr(0, pos) + other + substr(pos, size() - pos)`.
    *  @pre `pos <= size()`.
    *  @throws std::out_of_range if `pos > size()`.
-   *  @note Two `substr` calls plus two `concat` calls: see each method's
-   *        own `@note` for their individual costs -- typically `O(log
-   *        size())` overall, subject to the same rebalance-triggered
-   *        worst case `substr` documents. If this throws (`std::bad_alloc`
-   *        from any of the four component calls), `*this` and `other` are
-   *        left completely unchanged: every intermediate result here is a
-   *        new, independent `Rope` value, so a failure partway through
-   *        never touches the receiver or the argument.
+   *  @note O(1) when `other` is empty: the current rope is returned by
+   *        sharing its root. Otherwise this is two `substr` calls plus two
+   *        `concat` calls: see each method's own `@note` for their
+   *        individual costs -- typically `O(log size())` overall, subject
+   *        to the same rebalance-triggered worst case `substr` documents.
+   *        If this throws (`std::bad_alloc` from any component call), `*this`
+   *        and `other` are left completely unchanged: every intermediate
+   *        result here is a new, independent `Rope` value, so a failure
+   *        partway through never touches the receiver or the argument.
    */
   [[nodiscard]] Rope insert(const size_t pos, const Rope &other) const
   {
     ah_out_of_range_error_if(pos > size()) << "Rope::insert(): index out of range";
+    if (other.is_empty())
+      return *this;
     return substr(0, pos).concat(other).concat(substr(pos, size() - pos));
   }
 
@@ -707,17 +750,20 @@ public:
    *  @return `substr(0, pos) + substr(pos+len, size()-pos-len)`.
    *  @pre `pos <= size() and len <= size() - pos`.
    *  @throws std::out_of_range if `pos + len > size()`.
-   *  @note Two `substr` calls plus one `concat`: see each method's own
-   *        `@note` for their individual costs -- typically `O(log
-   *        size())` overall, subject to the same rebalance-triggered
-   *        worst case `substr` documents. Same strong exception-safety
-   *        argument as `insert()`: a failure partway through leaves
-   *        `*this` untouched.
+   *  @note O(1) when `len == 0`: the current rope is returned by sharing
+   *        its root. Otherwise this is two `substr` calls plus one
+   *        `concat`: see each method's own `@note` for their individual
+   *        costs -- typically `O(log size())` overall, subject to the same
+   *        rebalance-triggered worst case `substr` documents. Same strong
+   *        exception-safety argument as `insert()`: a failure partway
+   *        through leaves `*this` untouched.
    */
   [[nodiscard]] Rope erase(const size_t pos, const size_t len) const
   {
     ah_out_of_range_error_if(pos > size() or len > size() - pos)
       << "Rope::erase(): range out of bounds";
+    if (len == 0)
+      return *this;
     return substr(0, pos).concat(substr(pos + len, size() - pos - len));
   }
 
@@ -773,14 +819,19 @@ public:
     if (root_ == other.root_)
       return true;  // same shared tree (or both empty): trivially equal.
 
-    Array<NodePtr> mine, theirs;
-    collect_leaves(root_, mine);
-    collect_leaves(other.root_, theirs);
+    Array<const Node *> mine, theirs;
+    // Same reserve rationale as maybe_rebalance(): `length / LeafSize` is
+    // exact when leaves are packed (the common case), avoiding Array's
+    // geometric-growth reallocations without over-allocating.
+    mine.reserve(size() / LeafSize + 1);
+    theirs.reserve(size() / LeafSize + 1);
+    collect_leaf_pointers(root_.get(), mine);
+    collect_leaf_pointers(other.root_.get(), theirs);
 
     size_t i = 0, j = 0, i_off = 0, j_off = 0;
     while (i < mine.size())
       {
-        if (i_off == 0 and j_off == 0 and mine[i].get() == theirs[j].get())
+        if (i_off == 0 and j_off == 0 and mine[i] == theirs[j])
           {
             // Same shared leaf node on both sides: identical by
             // construction (Rope never mutates a leaf in place), skip
@@ -792,9 +843,15 @@ public:
         const Node &a = *mine[i];
         const Node &b = *theirs[j];
         const size_t n = std::min(a.length - i_off, b.length - j_off);
-        for (size_t k = 0; k < n; ++k)
-          if ((*a.leaf_data)(i_off + k) != (*b.leaf_data)(j_off + k))
-            return false;
+        // std::equal over a raw pointer range (rather than a hand-rolled
+        // per-index loop) gives the compiler a standard, recognizable
+        // pattern -- for `Char` types where equality is the built-in
+        // one, this is commonly folded into a single memcmp-style bulk
+        // comparison instead of one function-call-per-character.
+        const Char *pa = a.leaf_data->data() + i_off;
+        const Char *pb = b.leaf_data->data() + j_off;
+        if (not std::equal(pa, pa + n, pb))
+          return false;
         i_off += n;
         j_off += n;
         if (i_off == a.length)

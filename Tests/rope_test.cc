@@ -380,6 +380,37 @@ TEST(Rope, EraseZeroLengthIsIdentity)
   EXPECT_EQ(r.erase(1, 0).to_string(), "abc");
 }
 
+TEST(Rope, IdentityEditsDoNotAllocate)
+{
+#if ALEPH_ROPE_TEST_UNDER_TSAN
+  GTEST_SKIP() << "AllocationFailureScope needs a custom global operator "
+                  "new/delete, which conflicts with TSan's own at link time.";
+#else
+  const Rope<char> r{std::string_view("abcdef")};
+  const Rope<char> empty;
+
+  Rope<char> inserted;
+  int insert_balance = 0;
+  {
+    AllocationFailureScope fail_immediately(0);
+    EXPECT_NO_THROW(inserted = r.insert(3, empty));
+    insert_balance = fail_immediately.balance();
+  }
+  EXPECT_EQ(insert_balance, 0);
+  EXPECT_EQ(inserted.to_string(), "abcdef");
+
+  Rope<char> erased;
+  int erase_balance = 0;
+  {
+    AllocationFailureScope fail_immediately(0);
+    EXPECT_NO_THROW(erased = r.erase(3, 0));
+    erase_balance = fail_immediately.balance();
+  }
+  EXPECT_EQ(erase_balance, 0);
+  EXPECT_EQ(erased.to_string(), "abcdef");
+#endif  // !ALEPH_ROPE_TEST_UNDER_TSAN
+}
+
 TEST(Rope, EraseThrowsOutOfRange)
 {
   Rope<char> r{std::string_view("abc")};

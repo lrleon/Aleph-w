@@ -64,7 +64,8 @@ void demo_basic_usage()
   std::cout << "char at 7: '" << message.at(7) << "' (expect 'w')\n";
 
   // substr shares whole subtrees with the source rope where possible;
-  // it is O(log size()), not O(len).
+  // it is typically O(log size()), but ranges that must be rejoined can
+  // cost closer to the number of leaves in the extracted range.
   Rope<char> just_name = message.substr(7, 5);
   std::cout << "substr(7, 5): \"" << just_name.to_string() << "\" (expect \"world\")\n\n";
 }
@@ -96,7 +97,8 @@ void demo_text_editing()
   std::cout << "original: \"" << doc.to_string() << "\"\n";
 
   // insert(pos, other) is substr(0,pos) + other + substr(pos, rest),
-  // so it is O(log size()) too, not O(size()) like std::string::insert.
+  // so it usually touches logarithmically many nodes plus boundary leaves,
+  // instead of shifting the whole suffix like std::string::insert.
   Rope<char> with_adjective = doc.insert(4, Rope<char>{std::string_view("quick brown ")});
   std::cout << "after insert: \"" << with_adjective.to_string() << "\"\n";
 

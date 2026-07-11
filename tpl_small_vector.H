@@ -60,6 +60,7 @@
 #define TPL_SMALL_VECTOR_H
 
 #include <cstddef>
+#include <cstring>
 #include <initializer_list>
 #include <memory>
 #include <type_traits>
@@ -564,6 +565,52 @@ public:
   T &append(T &&item)
   {
     return emplace_back(std::move(item));
+  }
+
+  /** @brief Append `count` copies from `[first, first + count)`, in order.
+   *  @param first Pointer to the first source element.
+   *  @param count Number of elements to copy.
+   *  @throws std::bad_alloc if a growing reallocation fails.
+   *  @note Equivalent to calling `append(first[i])` for `i` in
+   *        `[0, count)`, in order, but faster: when `T` is trivially
+   *        copyable, the whole range is copied with a single `memcpy`
+   *        instead of `count` individual placement-new calls (safe
+   *        because a trivially copyable type's copy can never throw and
+   *        has no observable side effects beyond the bytes themselves).
+   *        For any other copy-constructible `T`, this still grows at
+   *        most once for the whole range (rather than up to `count`
+   *        times) before placement-constructing each element, with the
+   *        same strong exception guarantee as `append`: if a mid-range
+   *        copy throws, only the newly-appended elements are unwound and
+   *        `size()` is left exactly as it was before the call.
+   */
+  void append_range(const T *first, const size_t count)
+    requires std::is_copy_constructible_v<T>
+  {
+    if (count == 0)
+      return;
+    if (n_ + count > cap_)
+      grow(n_ + count);
+    if constexpr (std::is_trivially_copyable_v<T>)
+      {
+        std::memcpy(static_cast<void *>(ptr_ + n_), first, count * sizeof(T));
+        n_ += count;
+      }
+    else
+      {
+        size_t i = 0;
+        try
+          {
+            for (; i < count; ++i)
+              ::new (static_cast<void *>(ptr_ + n_ + i)) T(first[i]);
+          }
+        catch (...)
+          {
+            std::destroy(ptr_ + n_, ptr_ + n_ + i);
+            throw;
+          }
+        n_ += count;
+      }
   }
 
   /// STL-style alias of `append(const T &)`.

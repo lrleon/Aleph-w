@@ -1586,7 +1586,7 @@ elemento.
 │                                                                             │
 │  at(pos):     O(profundidad), O(log n) una vez balanceado                   │
 │  concat:      O(1) más rebalanceo ocasional de un subárbol completo         │
-│  substr:      O(log n), reutiliza subárboles compartidos completos          │
+│  substr:      O(log n) típico, comparte subárboles completos                │
 │  flatten:     O(n)                                                          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -1600,7 +1600,7 @@ int main() {
     Aleph::Rope<char> b{"world!"};
 
     Aleph::Rope<char> message = a.concat(b);          // O(1): envuelve ambos árboles
-    Aleph::Rope<char> hello = message.substr(0, 5);    // O(log n): comparte un subárbol
+    Aleph::Rope<char> hello = message.substr(0, 5);    // O(log n) típico: comparte un subárbol
     Aleph::Rope<char> edited = message.insert(7, Aleph::Rope<char>{"brave "});
 
     return message.to_string() == "Hello, world!" and hello.to_string() == "Hello" ? 0 : 1;
@@ -1616,7 +1616,9 @@ existente vía `shared_ptr<const Node>`). Las hojas guardan hasta
 `LeafSize` caracteres en un `SmallVector`; los nodos internos no
 almacenan datos de carácter, solo un hijo izquierdo/derecho y la longitud
 del subárbol, así que `at(pos)` es O(profundidad) y `substr`/`insert`/
-`erase` son O(log n) una vez que el árbol está balanceado. El
+`erase` son típicamente O(log n) una vez que el árbol está balanceado,
+pero un rango cortado que debe reunirse y rebalancearse puede costar más
+cerca de `O(len / LeafSize)`. El
 rebalanceo es explícito y deliberadamente simple (no el esquema clásico
 de umbral de Fibonacci): un subárbol completo se reconstruye a partir de
 sus hojas existentes cuando su profundidad crece más allá de una cota
@@ -3738,7 +3740,7 @@ int main() {
 | `tpl_dynArray.H` | `DynArray<T>` | Dynamic array |
 | `tpl_small_vector.H` | `SmallVector<T, N>` | Vector con almacenamiento pequeño inline |
 | `tpl_ring_buffer.H` | `RingBuffer<T>` | FIFO circular de capacidad fija / ventana deslizante |
-| `tpl_rope.H` | `Rope<Char, LeafSize>` | Cadena inmutable con compartición estructural, concat/substr/insert/erase en O(log n) |
+| `tpl_rope.H` | `Rope<Char, LeafSize>` | Cadena inmutable con concat barato y substr/insert/erase compartidos |
 | `tpl_dynSetTree.H` | `DynSetTree<T, Tree>` | Tree-based set |
 | `tpl_dynMapTree.H` | `DynMapTree<K, V, Tree>` | Tree-based map |
 | `tpl_flat_set.H` | `FlatSet<K, Compare>` | Conjunto ordenado sobre arreglo sorted |

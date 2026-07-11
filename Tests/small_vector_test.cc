@@ -428,3 +428,88 @@ TEST(SmallVector, SwapInAllModeCombinations)
   EXPECT_EQ(s2.size(), 1u);
   EXPECT_EQ(s2[0], 1);
 }
+
+TEST(SmallVector, AppendRangeTrivialTypeStaysInlineThenSpillsCorrectly)
+{
+  // char is trivially copyable: append_range should take the memcpy path.
+  const char src[] = {'a', 'b', 'c', 'd', 'e', 'f'};
+
+  SmallVector<char, 4> v;
+  v.append_range(src, 3);
+  EXPECT_TRUE(v.is_small());
+  ASSERT_EQ(v.size(), 3u);
+  for (size_t i = 0; i < 3; ++i)
+    EXPECT_EQ(v[i], src[i]);
+
+  v.append_range(src + 3, 1);  // exactly fills the inline capacity (4)
+  EXPECT_TRUE(v.is_small());
+  ASSERT_EQ(v.size(), 4u);
+
+  v.append_range(src + 4, 2);  // spills to heap
+  EXPECT_FALSE(v.is_small());
+  ASSERT_EQ(v.size(), 6u);
+  for (size_t i = 0; i < 6; ++i)
+    EXPECT_EQ(v[i], src[i]);  // values preserved across the spill
+}
+
+TEST(SmallVector, AppendRangeOfZeroIsANoOp)
+{
+  SmallVector<int, 4> v = {1, 2, 3};
+  v.append_range(nullptr, 0);
+  EXPECT_EQ(v.size(), 3u);
+  EXPECT_TRUE(v.is_small());
+}
+
+TEST(SmallVector, AppendRangeSingleCallGrowsAtMostOnce)
+{
+  // Appending a range larger than the remaining inline capacity in one
+  // append_range() call should grow exactly once to fit the whole range,
+  // not incrementally (verified indirectly: capacity right after the call
+  // already accommodates the full new size without a second, separate
+  // growth having been needed -- consistent with a single `grow()` call).
+  SmallVector<int, 2> v = {1};
+  const int src[] = {2, 3, 4, 5, 6};
+  v.append_range(src, 5);
+  ASSERT_EQ(v.size(), 6u);
+  EXPECT_GE(v.capacity(), 6u);
+  for (size_t i = 0; i < 5; ++i)
+    EXPECT_EQ(v[i + 1], src[i]);
+}
+
+TEST(SmallVector, AppendRangeNonTrivialTypeKeepsLifetimesBalanced)
+{
+  ASSERT_EQ(Probe::live, 0);
+  {
+    Probe src[3] = {Probe(1), Probe(2), Probe(3)};
+    EXPECT_EQ(Probe::live, 3);
+
+    SmallVector<Probe, 2> v;
+    v.append_range(src, 3);  // spills: goes through the placement-new path
+    EXPECT_EQ(Probe::live, 6);  // 3 sources + 3 copies
+    ASSERT_EQ(v.size(), 3u);
+    EXPECT_EQ(v[0].value, 1);
+    EXPECT_EQ(v[1].value, 2);
+    EXPECT_EQ(v[2].value, 3);
+  }
+  EXPECT_EQ(Probe::live, 0);  // both the sources and the copies were destroyed
+}
+
+TEST(SmallVector, AppendRangeFailedCopyLeavesSizeUnchangedAndNoLeak)
+{
+  ASSERT_EQ(Throwing_Copy::live, 0);
+
+  Throwing_Copy src[4] = {Throwing_Copy(1), Throwing_Copy(2),
+                           Throwing_Copy(3), Throwing_Copy(4)};
+  {
+    SmallVector<Throwing_Copy, 8> v;  // stays inline: exercises the
+                                       // placement-new-loop branch, not a
+                                       // reallocation-triggered one.
+    Throwing_Copy::reset(2);  // 3rd element's copy throws
+    EXPECT_THROW(v.append_range(src, 4), std::runtime_error);
+    // Strong guarantee: no partially-copied elements remain visible.
+    EXPECT_EQ(v.size(), 0u);
+    EXPECT_EQ(Throwing_Copy::live, 4);  // only the 4 sources are still alive
+  }
+  Throwing_Copy::reset(-1);
+  EXPECT_EQ(Throwing_Copy::live, 4);
+}

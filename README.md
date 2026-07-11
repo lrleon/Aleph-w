@@ -1814,7 +1814,7 @@ constants, sequential iteration and low per-element overhead.
 │                                                                             │
 │  at(pos):     O(depth), depth O(log n) once balanced                        │
 │  concat:      O(1) plus occasional whole-subtree rebalance                  │
-│  substr:      O(log n), reuses whole shared subtrees                        │
+│  substr:      typical O(log n), shares whole subtrees                       │
 │  flatten:     O(n)                                                          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -1828,7 +1828,7 @@ int main() {
     Aleph::Rope<char> b{"world!"};
 
     Aleph::Rope<char> message = a.concat(b);          // O(1): wraps both trees
-    Aleph::Rope<char> hello = message.substr(0, 5);    // O(log n): shares a subtree
+    Aleph::Rope<char> hello = message.substr(0, 5);    // typically O(log n): shares a subtree
     Aleph::Rope<char> edited = message.insert(7, Aleph::Rope<char>{"brave "});
 
     return message.to_string() == "Hello, world!" and hello.to_string() == "Hello" ? 0 : 1;
@@ -1842,8 +1842,10 @@ argument, so previously-taken copies stay valid forever and copying a rope
 is O(1) (it shares the existing tree via `shared_ptr<const Node>`). Leaves
 hold up to `LeafSize` characters in a `SmallVector`; internal nodes hold no
 character data, only a left/right child and a subtree length, so `at(pos)`
-is O(depth) and `substr`/`insert`/`erase` are O(log n) once the tree is
-balanced. Rebalancing is explicit and deliberately simple (not the
+is O(depth) and `substr`/`insert`/`erase` are typically O(log n) once the
+tree is balanced, but a sliced range that must be rejoined and rebalanced
+can cost closer to `O(len / LeafSize)`. Rebalancing is explicit and
+deliberately simple (not the
 classical Fibonacci-threshold scheme): a whole subtree is rebuilt from its
 existing leaves whenever its depth grows past a generous, easy-to-state
 bound, reusing every leaf unchanged. A separate leaf-absorption fast path
@@ -4167,7 +4169,7 @@ int main() {
 | `tpl_dynArray.H` | `DynArray<T>` | Dynamic array |
 | `tpl_small_vector.H` | `SmallVector<T, N>` | Vector with inline small-buffer storage |
 | `tpl_ring_buffer.H` | `RingBuffer<T>` | Fixed-capacity circular FIFO/sliding window |
-| `tpl_rope.H` | `Rope<Char, LeafSize>` | Immutable, structurally-shared string with O(log n) concat/substr/insert/erase |
+| `tpl_rope.H` | `Rope<Char, LeafSize>` | Immutable, structurally-shared string with cheap concat and shared substr/insert/erase |
 | `tpl_dynSetTree.H` | `DynSetTree<T, Tree>` | Tree-based set |
 | `tpl_dynMapTree.H` | `DynMapTree<K, V, Tree>` | Tree-based map |
 | `tpl_flat_set.H` | `FlatSet<K, Compare>` | Sorted-array ordered set |
