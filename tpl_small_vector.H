@@ -586,14 +586,15 @@ public:
    *  @throws std::invalid_argument if `first == nullptr` and `count > 0`.
    *  @throws std::bad_alloc if a growing reallocation fails.
    *  @throws std::overflow_error if `count` would overflow `size_t` when
-   *          added to the current `size()`, or (for a trivially copyable
-   *          `T`) if `count * sizeof(T)` would overflow `size_t`.
+   *          added to the current `size()`.
    *  @note Equivalent to calling `append(first[i])` for `i` in
    *        `[0, count)`, in order, but faster: when `T` is trivially
-   *        copyable, the whole range is copied with a single `memcpy`
-   *        instead of `count` individual placement-new calls (safe
-   *        because a trivially copyable type's copy can never throw and
-   *        has no observable side effects beyond the bytes themselves).
+   *        copyable, the whole range is copied with a single
+   *        `std::uninitialized_copy_n` call instead of `count` individual
+   *        placement-new calls (safe because a trivially copyable type's
+   *        copy can never throw and has no observable side effects
+   *        beyond the bytes themselves; standard library implementations
+   *        lower this to a single `memcpy` for such types).
    *        For any other copy-constructible `T`, this still grows at
    *        most once for the whole range (rather than up to `count`
    *        times) before placement-constructing each element, with the
@@ -625,13 +626,17 @@ public:
       grow(n_ + count);
     if constexpr (std::is_trivially_copyable_v<T>)
       {
-        // Same reasoning as above, for the separate `count * sizeof(T)`
-        // byte-count multiplication `memcpy` needs: large enough `T` and
-        // `count` could overflow this even when `n_ + count` itself does
-        // not.
-        ah_overflow_error_if(count > std::numeric_limits<size_t>::max() / sizeof(T))
-          << "SmallVector::append_range(): count * sizeof(T) overflows size_t";
-        std::memcpy(static_cast<void *>(ptr_ + n_), first, count * sizeof(T));
+        // std::uninitialized_copy_n, not a raw memcpy: copying the object
+        // representation into storage that holds no object yet only
+        // implicitly starts a `T` object's lifetime there (C++20
+        // [basic.types.general]) when `T` is an *implicit-lifetime*
+        // type -- trivially copyable does not by itself guarantee that
+        // (e.g. a type whose only non-deleted special member is a
+        // trivial assignment operator, with every constructor deleted,
+        // is trivially copyable but not implicit-lifetime). Standard
+        // library implementations detect the trivially-copyable case
+        // and lower this to the same memcpy, so this costs nothing.
+        std::uninitialized_copy_n(first, count, ptr_ + n_);
         n_ += count;
       }
     else

@@ -53,6 +53,11 @@
 #include <cstdio>
 #include <filesystem>
 #include <parse-csv.H>
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
 
 using namespace Aleph;
 
@@ -497,17 +502,39 @@ TEST_F(CsvWriteAllTest, EmptyData)
 class CsvFileTest : public ::testing::Test
 {
 protected:
+  static long long process_id() noexcept
+  {
+#if defined(_WIN32)
+    return static_cast<long long>(_getpid());
+#else
+    return static_cast<long long>(getpid());
+#endif
+  }
+
   void SetUp() override
   {
-    test_filename = (std::filesystem::temp_directory_path() /
-                     ("aleph_csv_test_" + std::to_string(rand()) + ".csv")).string();
+    // Unique per test case and process: rand() is unseeded, so it
+    // returns the same value in every freshly-launched process. Each
+    // TEST_F becomes its own ctest process (gtest_discover_tests), and
+    // CI runs ctest with --parallel, so two CsvFileTest cases racing on
+    // an identical rand()-based filename could stomp on each other's
+    // file mid-test.
+    const auto *test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    std::string base = std::string("aleph_csv_test_") + test_info->name() + "_" +
+                        std::to_string(process_id());
+
+    for (auto &ch : base)
+      if (ch == '/' or ch == '\\' or ch == ' ')
+        ch = '_';
+
+    test_filename = (std::filesystem::temp_directory_path() / (base + ".csv")).string();
   }
-  
+
   void TearDown() override
   {
     std::remove(test_filename.c_str());
   }
-  
+
   std::string test_filename;
 };
 
@@ -1062,11 +1089,35 @@ TEST_F(CsvRowTest, SizeAndEmpty)
 class CsvReaderTest : public ::testing::Test
 {
 protected:
+  static long long process_id() noexcept
+  {
+#if defined(_WIN32)
+    return static_cast<long long>(_getpid());
+#else
+    return static_cast<long long>(getpid());
+#endif
+  }
+
   void SetUp() override
   {
-    test_filename = (std::filesystem::temp_directory_path() /
-                     ("aleph_csv_reader_test_" + std::to_string(rand()) + ".csv")).string();
-    
+    // Unique per test case and process: rand() is unseeded, so it
+    // returns the same value in every freshly-launched process. Each
+    // TEST_F becomes its own ctest process (gtest_discover_tests), and
+    // CI runs ctest with --parallel, so two CsvReaderTest cases racing
+    // on an identical rand()-based filename could have one process's
+    // TearDown() remove the file while another's test body is still
+    // reading it -- exactly the intermittent "Cannot open file" seen
+    // on the macOS runners.
+    const auto *test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    std::string base = std::string("aleph_csv_reader_test_") + test_info->name() + "_" +
+                        std::to_string(process_id());
+
+    for (auto &ch : base)
+      if (ch == '/' or ch == '\\' or ch == ' ')
+        ch = '_';
+
+    test_filename = (std::filesystem::temp_directory_path() / (base + ".csv")).string();
+
     // Create test file
     std::ofstream file(test_filename);
     file << "name,age,city\n";
@@ -1075,12 +1126,12 @@ protected:
     file << "Charlie,35,Chicago\n";
     file.close();
   }
-  
+
   void TearDown() override
   {
     std::remove(test_filename.c_str());
   }
-  
+
   std::string test_filename;
 };
 

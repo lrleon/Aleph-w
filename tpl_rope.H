@@ -581,8 +581,10 @@ private:
   /// Checks, at every node: a leaf has a non-null `leaf_data` whose
   /// `length` matches its stored data and is in `[1, LeafSize]` (leaves
   /// are never empty -- no code path ever builds one); an internal node
-  /// has two non-null children, `length` equal to the sum of its
-  /// children's, and `depth` equal to `1 + max(child depths)`.
+  /// holds no `leaf_data` (see the `Node::leaf_data` comment: only
+  /// leaves ever pay for a buffer) and has two non-null children,
+  /// `length` equal to the sum of its children's, and `depth` equal to
+  /// `1 + max(child depths)`.
   [[nodiscard]] static bool verify_rec(const Node *node) noexcept
   {
     if (node == nullptr)
@@ -590,6 +592,8 @@ private:
     if (node->is_leaf())
       return node->leaf_data != nullptr and node->leaf_data->size() == node->length and
         node->length >= 1 and node->length <= LeafSize and node->depth == 0;
+    if (node->leaf_data != nullptr)
+      return false;
     if (node->left == nullptr or node->right == nullptr)
       return false;
     if (node->length != node->left->length + node->right->length)
