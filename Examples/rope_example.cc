@@ -41,6 +41,7 @@
 
 #include <iostream>
 #include <string>
+#include <string_view>
 
 using namespace Aleph;
 

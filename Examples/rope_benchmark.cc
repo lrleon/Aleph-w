@@ -220,8 +220,13 @@ int main(int argc, char * argv[])
                "for the pattern it is actually built for.)\n";
 
   constexpr int chunk_size = 1000;
+  // Overflow-safe ceiling division: `chunk_count + chunk_size - 1` (the
+  // usual `(a + b - 1) / b` idiom) can overflow `int` for a large
+  // `--chunks` value before the division ever runs; `(chunk_count - 1) /
+  // chunk_size + 1` reaches the same result without ever adding two
+  // positive values that could each be close to INT_MAX.
   const int chunked_calls =
-    chunk_count == 0 ? 0 : (chunk_count + chunk_size - 1) / chunk_size;
+    chunk_count == 0 ? 0 : (chunk_count - 1) / chunk_size + 1;
   std::cout << "\n[1b] Same total size via " << chunked_calls
             << " chunked concatenations (" << chunk_size
             << " chars/call, Rope's intended "

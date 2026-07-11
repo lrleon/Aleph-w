@@ -455,9 +455,20 @@ TEST(SmallVector, AppendRangeTrivialTypeStaysInlineThenSpillsCorrectly)
 TEST(SmallVector, AppendRangeOfZeroIsANoOp)
 {
   SmallVector<int, 4> v = {1, 2, 3};
-  v.append_range(nullptr, 0);
+  v.append_range(nullptr, 0);  // count == 0: first is never read
   EXPECT_EQ(v.size(), 3u);
   EXPECT_TRUE(v.is_small());
+}
+
+TEST(SmallVector, AppendRangeRejectsNullSourceWhenCountIsPositive)
+{
+  SmallVector<int, 4> v = {1, 2, 3};
+  EXPECT_THROW(v.append_range(nullptr, 1), std::invalid_argument);
+  // Rejected before touching the vector: size/contents unchanged.
+  EXPECT_EQ(v.size(), 3u);
+  EXPECT_EQ(v[0], 1);
+  EXPECT_EQ(v[1], 2);
+  EXPECT_EQ(v[2], 3);
 }
 
 TEST(SmallVector, AppendRangeSingleCallGrowsAtMostOnce)

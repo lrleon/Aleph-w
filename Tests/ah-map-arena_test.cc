@@ -32,8 +32,8 @@
 
 
 /**
- * @file ah-mapping_test.cc
- * @brief Tests for Ah Mapping
+ * @file ah-map-arena_test.cc
+ * @brief Tests for MapArena, the memory-mapped arena allocator.
  */
 #include <gtest/gtest.h>
 #include <cstring>

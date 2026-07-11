@@ -45,7 +45,7 @@
 #include <random>
 #include <stdexcept>
 #include <string>
-#include <vector>
+#include <string_view>
 
 // `Rope<Char>::View` is `std::basic_string_view<Char>`, which the standard
 // library requires `Char` to be a trivial, standard-layout type for (see
