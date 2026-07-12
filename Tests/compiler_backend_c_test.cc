@@ -35,11 +35,17 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
 
 #include <Compiler_Backend_C.H>
 
@@ -398,12 +404,32 @@ namespace
     return std::system("command -v cc >/dev/null 2>&1") == 0;
   }
 
+  /// Process ID of the current process, portable across POSIX and Windows.
+  long long process_id() noexcept
+  {
+#if defined(_WIN32)
+    return static_cast<long long>(_getpid());
+#else
+    return static_cast<long long>(getpid());
+#endif
+  }
+
   std::filesystem::path
   unique_temp_path(const std::string & stem,
                    const std::string & extension)
   {
+    // A steady_clock tick alone is unique *within* a process, but not
+    // across the several processes that actually run this suite (each
+    // TEST() is its own ctest process, and CI runs ctest with
+    // --parallel) -- two processes' calls landing in the same clock
+    // tick produce the identical name and race on the same file.
+    // Mixing in the process id and a per-process counter closes that
+    // gap regardless of clock resolution or call count.
+    static std::atomic<unsigned long long> counter{0};
     const auto nonce = std::to_string(
-      std::chrono::steady_clock::now().time_since_epoch().count());
+      std::chrono::steady_clock::now().time_since_epoch().count()) +
+      "_" + std::to_string(process_id()) +
+      "_" + std::to_string(counter++);
     return std::filesystem::temp_directory_path()
       / (stem + "_" + nonce + extension);
   }

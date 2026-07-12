@@ -41,8 +41,33 @@
 #include <filesystem>
 #include <io_graph.H>
 #include <tpl_graph.H>
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
 
 using namespace Aleph;
+
+namespace
+{
+/// Process ID of the current process, portable across POSIX and Windows.
+/// Shared by `IOGraphTest` and `IODigraphTest` below to build a
+/// unique-per-process temp file name in their `SetUp()`: each `TEST_F`
+/// runs as its own process (`gtest_discover_tests`), and CI runs ctest
+/// with `--parallel`, so a name that is only unique *within* a process
+/// (e.g. a plain, unseeded `rand()`, which returns the same value in
+/// every freshly-launched process) is not enough to keep two
+/// concurrently-running test cases from racing on the same file.
+long long process_id() noexcept
+{
+#if defined(_WIN32)
+  return static_cast<long long>(_getpid());
+#else
+  return static_cast<long long>(getpid());
+#endif
+}
+}  // namespace
 
 //============================================================================
 // Test Fixtures
@@ -73,11 +98,17 @@ protected:
     g.insert_arc(n1, n2, 2.5);
     g.insert_arc(n1, n3, 3.5);
     
-    // Generate unique filename
-    binary_file = (std::filesystem::temp_directory_path() /
-                   ("aleph_io_graph_test_" + std::to_string(rand()) + ".bin")).string();
-    text_file = (std::filesystem::temp_directory_path() /
-                 ("aleph_io_graph_test_" + std::to_string(rand()) + ".txt")).string();
+    // Unique per test case and process (see the `process_id()` comment
+    // above for why a plain rand() is not enough).
+    const auto *test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    std::string base = std::string("aleph_io_graph_test_") + test_info->name() + "_" +
+                        std::to_string(process_id());
+    for (auto &ch : base)
+      if (ch == '/' or ch == '\\' or ch == ' ')
+        ch = '_';
+
+    binary_file = (std::filesystem::temp_directory_path() / (base + ".bin")).string();
+    text_file = (std::filesystem::temp_directory_path() / (base + ".txt")).string();
   }
   
   void TearDown() override
@@ -387,10 +418,17 @@ protected:
     dg.insert_arc(n1, n2, 2);
     dg.insert_arc(n2, n0, 3);  // Cycle
     
-    binary_file = (std::filesystem::temp_directory_path() /
-                   ("aleph_io_digraph_test_" + std::to_string(rand()) + ".bin")).string();
-    text_file = (std::filesystem::temp_directory_path() /
-                 ("aleph_io_digraph_test_" + std::to_string(rand()) + ".txt")).string();
+    // Unique per test case and process (see the `process_id()` comment
+    // near the top of the file for why a plain rand() is not enough).
+    const auto *test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    std::string base = std::string("aleph_io_digraph_test_") + test_info->name() + "_" +
+                        std::to_string(process_id());
+    for (auto &ch : base)
+      if (ch == '/' or ch == '\\' or ch == ' ')
+        ch = '_';
+
+    binary_file = (std::filesystem::temp_directory_path() / (base + ".bin")).string();
+    text_file = (std::filesystem::temp_directory_path() / (base + ".txt")).string();
   }
   
   void TearDown() override

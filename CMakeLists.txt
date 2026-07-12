@@ -373,6 +373,7 @@ set(HLIST
     tpl_mpsc_queue.H
     tpl_concurrent_hash_map.H
     tpl_radix_tree.H
+    tpl_rope.H
     tpl_patricia_trie.H
     tpl_ca_parallel_engine.H
     tpl_ca_hex_lattice.H

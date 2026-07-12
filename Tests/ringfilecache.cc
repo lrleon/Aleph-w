@@ -46,6 +46,11 @@
 #include <random>
 #include <string>
 #include <vector>
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
 
 using namespace Aleph;
 using namespace std;
@@ -59,11 +64,31 @@ struct TempPaths
   fs::path cache;
 };
 
+/// Process ID of the current process, portable across POSIX and Windows.
+long long process_id() noexcept
+{
+#if defined(_WIN32)
+  return static_cast<long long>(_getpid());
+#else
+  return static_cast<long long>(getpid());
+#endif
+}
+
 TempPaths make_temp_paths()
 {
+  // A steady_clock tick plus a per-process counter is unique *within* a
+  // process, but not across the several processes that actually run
+  // this suite: each TEST() here becomes its own ctest process
+  // (gtest_discover_tests), CI runs ctest with --parallel, and every
+  // process's counter restarts at 0 -- so if two processes' first call
+  // to this function lands in the same clock tick (observed in
+  // practice, not just theoretical), they produce the identical id and
+  // race on the same file. Mixing in the process id closes that gap
+  // regardless of clock resolution.
   static std::atomic<unsigned long long> counter{0};
   const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
-  const auto id = std::to_string(now) + "_" + std::to_string(counter++);
+  const auto id = std::to_string(now) + "_" + std::to_string(process_id()) +
+                   "_" + std::to_string(counter++);
 
   const fs::path dir = fs::temp_directory_path() / "aleph_ringcache_tests";
   fs::create_directories(dir);

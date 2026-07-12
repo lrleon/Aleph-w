@@ -61,7 +61,9 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <limits>
 #include <memory>
+#include <new>
 #include <type_traits>
 #include <utility>
 
@@ -564,6 +566,96 @@ public:
   T &append(T &&item)
   {
     return emplace_back(std::move(item));
+  }
+
+  /** @brief Append `count` copies from `[first, first + count)`, in order.
+   *  @param first Pointer to the first source element. May be `nullptr`
+   *         only when `count == 0` (nothing is read from it then).
+   *  @param count Number of elements to copy.
+   *  @pre `[first, first + count)` is a valid range of live `T` objects
+   *       (readable, not past-the-end of their own storage).
+   *  @pre `[first, first + count)` does not overlap this vector's own
+   *       element storage (i.e. `first` is not itself `data()` or a
+   *       pointer derived from it), *including* across a reallocation
+   *       this very call might trigger: if `count` grows the vector past
+   *       `capacity()`, `grow()` relocates to a new buffer and frees the
+   *       old one before any copying happens, so a `first` that pointed
+   *       into the old buffer would already be dangling by the time it
+   *       is read. Like `std::memcpy`, this does not support appending a
+   *       vector's own elements to itself.
+   *  @throws std::invalid_argument if `first == nullptr` and `count > 0`.
+   *  @throws std::bad_alloc if a growing reallocation fails.
+   *  @throws std::overflow_error if `count` would overflow `size_t` when
+   *          added to the current `size()`, or if growing the capacity
+   *          to fit the result would overflow (see `grow()`'s own
+   *          capacity-doubling guard).
+   *  @note Equivalent to calling `append(first[i])` for `i` in
+   *        `[0, count)`, in order, but faster: when `T` is trivially
+   *        copyable, the whole range is copied with a single
+   *        `std::uninitialized_copy_n` call instead of `count` individual
+   *        placement-new calls (safe because a trivially copyable type's
+   *        copy can never throw and has no observable side effects
+   *        beyond the bytes themselves; standard library implementations
+   *        lower this to a single `memcpy` for such types).
+   *        For any other copy-constructible `T`, this still grows at
+   *        most once for the whole range (rather than up to `count`
+   *        times) before placement-constructing each element, with the
+   *        same strong exception guarantee as `append`: if a mid-range
+   *        copy throws, only the newly-appended elements are unwound and
+   *        `size()` is left exactly as it was before the call.
+   *  @note Complexity: `O(count)`, or `O(size() + count)` on the
+   *        occasions this triggers a growing reallocation.
+   *  @note Not thread-safe: as with every other mutating method (see the
+   *        class-level `@par Thread Safety`), concurrent calls on the
+   *        same instance require external synchronization.
+   */
+  void append_range(const T *first, const size_t count)
+    requires std::is_copy_constructible_v<T>
+  {
+    if (count == 0)
+      return;
+    ah_invalid_argument_if(first == nullptr)
+      << "SmallVector::append_range(): null source pointer";
+    // Checked *before* computing `n_ + count`, not after: for an
+    // adversarial or mistaken huge `count`, the raw sum can wrap around
+    // `size_t` and come out `<= cap_`, which would skip the `grow()`
+    // call below entirely and then `memcpy` (or the placement-new loop)
+    // straight past the end of the real, too-small buffer.
+    ah_overflow_error_if(count > std::numeric_limits<size_t>::max() - n_)
+      << "SmallVector::append_range(): count overflows size_t when added "
+         "to the current size";
+    if (n_ + count > cap_)
+      grow(n_ + count);
+    if constexpr (std::is_trivially_copyable_v<T>)
+      {
+        // std::uninitialized_copy_n, not a raw memcpy: copying the object
+        // representation into storage that holds no object yet only
+        // implicitly starts a `T` object's lifetime there (C++20
+        // [basic.types.general]) when `T` is an *implicit-lifetime*
+        // type -- trivially copyable does not by itself guarantee that
+        // (e.g. a type whose only non-deleted special member is a
+        // trivial assignment operator, with every constructor deleted,
+        // is trivially copyable but not implicit-lifetime). Standard
+        // library implementations detect the trivially-copyable case
+        // and lower this to the same memcpy, so this costs nothing.
+        std::uninitialized_copy_n(first, count, ptr_ + n_);
+        n_ += count;
+      }
+    else
+      {
+        size_t i = 0;
+        try
+          {
+            for (; i < count; ++i)
+              ::new (static_cast<void *>(ptr_ + n_ + i)) T(first[i]);
+          }
+        catch (...)
+          {
+            std::destroy(ptr_ + n_, ptr_ + n_ + i);
+            throw;
+          }
+        n_ += count;
+      }
   }
 
   /// STL-style alias of `append(const T &)`.

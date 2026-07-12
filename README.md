@@ -44,6 +44,7 @@ Language: English | [Español](README.es.md)
   - [Radix Tree (Compressed Prefix Tree)](#readme-radix-tree)
   - [Heaps and Priority Queues](#readme-heaps-and-priority-queues)
   - [Lists and Sequential Structures](#readme-lists-and-sequential-structures)
+  - [Rope (Immutable, Structurally-Shared String)](#readme-rope)
   - [Range Query Structures](#readme-range-query-structures)
   - [Graphs](#readme-graphs)
   - [Computational Geometry](#readme-computational-geometry)
@@ -1790,6 +1791,74 @@ cache-friendly layouts. `SmallVector` embeds storage for the common small case;
 `RingBuffer` provides a bounded FIFO/sliding window; `FlatSet` and `FlatMap`
 store sorted keys in contiguous memory, trading O(n) mutation for fast lookup
 constants, sequential iteration and low per-element overhead.
+
+<a id="readme-rope"></a>
+### Rope (Immutable, Structurally-Shared String)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ROPE (tpl_rope.H)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  "Hello, " . concat("world!") -- no characters are copied                   │
+│                                                                             │
+│                    ┌────────────┐                                          │
+│                    │ internal   │  length = 13                             │
+│                    │ (new node) │                                          │
+│                    └─────┬──────┘                                          │
+│                left ┌────┴────┐ right                                      │
+│                     ▼         ▼                                            │
+│              ┌───────────┐ ┌───────────┐                                   │
+│              │ "Hello, " │ │ "world!"  │   existing leaves, shared          │
+│              └───────────┘ └───────────┘   (shared_ptr<const Node>)         │
+│                                                                             │
+│  at(pos):     O(depth), depth O(log n) once balanced                        │
+│  concat:      O(1) plus occasional whole-subtree rebalance                  │
+│  substr:      typical O(log n), shares whole subtrees                       │
+│  flatten:     O(n)                                                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+```cpp
+#include <tpl_rope.H>
+
+int main() {
+    Aleph::Rope<char> a{"Hello, "};
+    Aleph::Rope<char> b{"world!"};
+
+    Aleph::Rope<char> message = a.concat(b);          // O(1): wraps both trees
+    Aleph::Rope<char> hello = message.substr(0, 5);    // typically O(log n): shares a subtree
+    Aleph::Rope<char> edited = message.insert(7, Aleph::Rope<char>{"brave "});
+
+    return message.to_string() == "Hello, world!" and hello.to_string() == "Hello" ? 0 : 1;
+}
+```
+
+`Rope<Char = char, LeafSize = 256>` is an immutable, structurally-shared
+string/sequence: every mutating-looking operation (`concat`, `substr`,
+`insert`, `erase`) returns a *new* rope and never modifies `*this` or its
+argument, so previously-taken copies stay valid forever and copying a rope
+is O(1) (it shares the existing tree via `shared_ptr<const Node>`). Leaves
+hold up to `LeafSize` characters in a `SmallVector`; internal nodes hold no
+character data, only a left/right child and a subtree length, so `at(pos)`
+is O(depth) and `substr`/`insert`/`erase` are typically O(log n) once the
+tree is balanced, but a sliced range that must be rejoined and rebalanced
+can cost closer to `O(len / LeafSize)`. Rebalancing is explicit and
+deliberately simple (not the
+classical Fibonacci-threshold scheme): a whole subtree is rebuilt from its
+existing leaves whenever its depth grows past a generous, easy-to-state
+bound, reusing every leaf unchanged. A separate leaf-absorption fast path
+handles the common case of building a rope by repeatedly `concat`-ing one
+small piece at a time (e.g. one character per loop iteration): a lone leaf
+is merged directly into the adjacent leaf on the other side when there is
+room, which touches only `O(depth)` nodes and never needs a rebalance.
+`flatten()` returns an `Array<Char>` copy of every character (works for
+any `Char`); `to_string()` additionally returns a `std::basic_string<Char>`
+when `Char` has a `std::char_traits` specialization. See the file-level
+Doxygen in `tpl_rope.H` for the full complexity contract and
+`Examples/rope_example.cc` for a runnable walkthrough covering basic
+operations, structural sharing, and text-editing-style inserts/erases.
 
 <a id="readme-range-query-structures"></a>
 ### Range Query Structures
@@ -4100,6 +4169,7 @@ int main() {
 | `tpl_dynArray.H` | `DynArray<T>` | Dynamic array |
 | `tpl_small_vector.H` | `SmallVector<T, N>` | Vector with inline small-buffer storage |
 | `tpl_ring_buffer.H` | `RingBuffer<T>` | Fixed-capacity circular FIFO/sliding window |
+| `tpl_rope.H` | `Rope<Char, LeafSize>` | Immutable, structurally-shared string with cheap concat and shared substr/insert/erase |
 | `tpl_dynSetTree.H` | `DynSetTree<T, Tree>` | Tree-based set |
 | `tpl_dynMapTree.H` | `DynMapTree<K, V, Tree>` | Tree-based map |
 | `tpl_flat_set.H` | `FlatSet<K, Compare>` | Sorted-array ordered set |
