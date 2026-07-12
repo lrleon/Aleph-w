@@ -783,7 +783,8 @@ public:
 
   /** @brief Return every character of this rope as an independent Array.
    *  @return `Array<Char>` holding a copy of all characters, in order.
-   *  @throws std::bad_alloc.
+   *  @throws std::bad_alloc or std::overflow_error (from
+   *          `Array::reserve()` when `size()` is extremely large).
    *  @note O(size()). Works for any `Char`, unlike `to_string()`.
    */
   [[nodiscard]] Array<Char> flatten() const
@@ -825,8 +826,9 @@ public:
    *         sharing is irrelevant to this comparison).
    *  @param[in] other Rope to compare against.
    *  @return `true` if the two ropes hold identical character sequences.
-   *  @throws Nothing beyond what `Char::operator==` throws (never, for
-   *          built-in character types).
+   *  @throws std::bad_alloc or std::overflow_error (from reserving
+   *          temporary leaf arrays),
+   *          and anything `Char::operator==` may throw.
    *  @note O(size()): collects each side's leaves once (`O(number of
    *        leaves)` extra space) and then walks both leaf sequences in
    *        lock-step, comparing each pair of overlapping ranges directly
