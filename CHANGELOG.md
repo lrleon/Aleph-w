@@ -5,6 +5,16 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.8.0](https://github.com/lrleon/Aleph-w/compare/v5.7.0...v5.8.0) (2026-07-12)
+
+
+### Features
+
+* **core:** Add Rope data structure implementation ([#87](https://github.com/lrleon/Aleph-w/issues/87)) ([74a40dc](https://github.com/lrleon/Aleph-w/commit/74a40dcdd279be4b4fc165a7e688eb741185903a))
+* **core:** Implement Radix and Patricia Tries ([a9246ec](https://github.com/lrleon/Aleph-w/commit/a9246ec5c95f1cc57c978d678a3628be4355e190))
+* **core:** Implement Radix and Patricia Tries ([79c00de](https://github.com/lrleon/Aleph-w/commit/79c00de6af4ddb6768379d98bef07708edd95e92))
+* **core:** Implement Radix and Patricia Tries ([#85](https://github.com/lrleon/Aleph-w/issues/85)) ([09d58c2](https://github.com/lrleon/Aleph-w/commit/09d58c2b12793b551731d0d9d8e9281a63d554a9))
+
 ## [5.7.0](https://github.com/lrleon/Aleph-w/compare/v5.6.0...v5.7.0) (2026-07-07)
 
 
