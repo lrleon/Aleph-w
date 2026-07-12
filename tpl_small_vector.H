@@ -585,7 +585,9 @@ public:
    *  @throws std::invalid_argument if `first == nullptr` and `count > 0`.
    *  @throws std::bad_alloc if a growing reallocation fails.
    *  @throws std::overflow_error if `count` would overflow `size_t` when
-   *          added to the current `size()`.
+   *          added to the current `size()`, or if growing the capacity
+   *          to fit the result would overflow (see `grow()`'s own
+   *          capacity-doubling guard).
    *  @note Equivalent to calling `append(first[i])` for `i` in
    *        `[0, count)`, in order, but faster: when `T` is trivially
    *        copyable, the whole range is copied with a single

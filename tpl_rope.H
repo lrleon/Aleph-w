@@ -797,6 +797,13 @@ public:
   /** @brief Return every character of this rope as a `std::basic_string`.
    *  @return `std::basic_string<Char>` holding a copy of all characters.
    *  @throws std::bad_alloc.
+   *  @throws std::length_error if `size()` exceeds
+   *          `std::basic_string<Char>::max_size()`. Unlike a `std::string`
+   *          built the ordinary way, a `Rope` can reach a `size()` far
+   *          beyond what any real string could hold while using very
+   *          little actual memory (structural sharing -- see the
+   *          overflow guard in `make_internal_node`), so this is
+   *          reachable in practice, not just a theoretical bound.
    *  @note O(size()). Only available when `Char` has a
    *        `std::char_traits` specialization (`char`, `wchar_t`,
    *        `char8_t`, `char16_t`, `char32_t`); use `flatten()` for other
@@ -806,6 +813,8 @@ public:
     requires RopeCharTraitsCompatible<Char>
   {
     std::basic_string<Char> result;
+    ah_length_error_if(size() > result.max_size())
+      << "Rope::to_string(): result exceeds std::basic_string<Char>::max_size()";
     result.reserve(size());
     string_append_into(root_.get(), result);
     return result;
