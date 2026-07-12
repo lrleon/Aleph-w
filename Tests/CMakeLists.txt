@@ -388,6 +388,8 @@ set(TEST_PROGRAMS
     radix_tree_test
     rope_test
     patricia_trie_test
+    persistent_treap_test
+    persistent_vector_test
     timeoutQueue_test
     graph_traverse_test
     test_ah_errors
