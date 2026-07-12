@@ -46,6 +46,7 @@
  *    - Delta snapshots round-trip when applied on top of the baseline.
  */
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <thread>
@@ -60,6 +61,8 @@
 #if !defined(_WIN32)
 #  include <sys/wait.h>
 #  include <unistd.h>
+#else
+#  include <process.h>
 #endif
 
 #include <gtest/gtest.h>
@@ -82,12 +85,32 @@ namespace
 using Grid = Lattice<Dense_Cell_Storage<int, 2>, ToroidalBoundary>;
 using Engine = Synchronous_Engine<Grid, Game_Of_Life_Rule, Moore<2, 1>>;
 
+/// Process ID of the current process, portable across POSIX and Windows.
+long long process_id() noexcept
+{
+#if defined(_WIN32)
+  return static_cast<long long>(_getpid());
+#else
+  return static_cast<long long>(getpid());
+#endif
+}
+
 std::filesystem::path tmp_dir(const std::string &name)
 {
+  // A steady_clock tick alone is unique *within* a process, but not
+  // across the several processes that actually run this suite (each
+  // TEST() is its own ctest process, and CI runs ctest with
+  // --parallel) -- two processes' calls landing in the same clock tick
+  // produce the identical name and race on the same directory. Mixing
+  // in the process id and a per-process counter closes that gap
+  // regardless of clock resolution or call count.
+  static std::atomic<unsigned long long> counter{0};
   const auto tick = std::chrono::steady_clock::now().time_since_epoch().count();
   auto p = std::filesystem::temp_directory_path()
            / ("aleph_ca_ckpt_safety_" + name + "_"
-              + std::to_string(static_cast<long long>(tick)));
+              + std::to_string(static_cast<long long>(tick))
+              + "_" + std::to_string(process_id())
+              + "_" + std::to_string(counter++));
   std::filesystem::create_directories(p);
   return p;
 }
