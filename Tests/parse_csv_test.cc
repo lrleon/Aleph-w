@@ -61,6 +61,25 @@
 
 using namespace Aleph;
 
+namespace
+{
+/// Process ID of the current process, portable across POSIX and Windows.
+/// Shared by `CsvFileTest` and `CsvReaderTest` below to build a
+/// unique-per-process temp file name in their `SetUp()`: each `TEST_F`
+/// runs as its own process (`gtest_discover_tests`), and CI runs ctest
+/// with `--parallel`, so a name that is only unique *within* a process
+/// is not enough to keep two concurrently-running test cases from
+/// racing on the same file.
+long long process_id() noexcept
+{
+#if defined(_WIN32)
+  return static_cast<long long>(_getpid());
+#else
+  return static_cast<long long>(getpid());
+#endif
+}
+}  // namespace
+
 //============================================================================
 // csv_read_row Tests - Stream Input
 //============================================================================
@@ -502,15 +521,6 @@ TEST_F(CsvWriteAllTest, EmptyData)
 class CsvFileTest : public ::testing::Test
 {
 protected:
-  static long long process_id() noexcept
-  {
-#if defined(_WIN32)
-    return static_cast<long long>(_getpid());
-#else
-    return static_cast<long long>(getpid());
-#endif
-  }
-
   void SetUp() override
   {
     // Unique per test case and process: rand() is unseeded, so it
@@ -1089,15 +1099,6 @@ TEST_F(CsvRowTest, SizeAndEmpty)
 class CsvReaderTest : public ::testing::Test
 {
 protected:
-  static long long process_id() noexcept
-  {
-#if defined(_WIN32)
-    return static_cast<long long>(_getpid());
-#else
-    return static_cast<long long>(getpid());
-#endif
-  }
-
   void SetUp() override
   {
     // Unique per test case and process: rand() is unseeded, so it

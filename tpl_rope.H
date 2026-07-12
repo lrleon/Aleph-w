@@ -440,7 +440,17 @@ private:
     // fragmented tree (many near-empty leaves) this estimate undercounts
     // and `Array` still grows geometrically from here -- no worse than
     // not reserving at all.
-    leaves.reserve(node->length / LeafSize + 1);
+    // The `+ 1` below can only overflow `size_t` if `node->length /
+    // LeafSize` is already `SIZE_MAX` -- reachable only with the
+    // degenerate `LeafSize == 1` and a `length` at or near `SIZE_MAX`
+    // (see `make_internal_node`'s overflow guard for how a rope reaches
+    // such a length cheaply via structural sharing). Guarded rather than
+    // left to wrap: a wrapped-to-0 reserve would silently defeat the
+    // estimate instead of just being loose, though either way `Array`
+    // still grows correctly from there (see the comment above).
+    const size_t estimated_leaf_count = node->length / LeafSize;
+    leaves.reserve(estimated_leaf_count == std::numeric_limits<size_t>::max()
+                    ? estimated_leaf_count : estimated_leaf_count + 1);
     collect_leaves(node, leaves);
     return build_balanced_from_leaves(leaves, 0, leaves.size());
   }
@@ -824,11 +834,15 @@ public:
       return true;  // same shared tree (or both empty): trivially equal.
 
     Array<const Node *> mine, theirs;
-    // Same reserve rationale as maybe_rebalance(): `length / LeafSize` is
-    // exact when leaves are packed (the common case), avoiding Array's
-    // geometric-growth reallocations without over-allocating.
-    mine.reserve(size() / LeafSize + 1);
-    theirs.reserve(size() / LeafSize + 1);
+    // Same reserve rationale (and same `+ 1` overflow guard) as
+    // maybe_rebalance(): `length / LeafSize` is exact when leaves are
+    // packed (the common case), avoiding Array's geometric-growth
+    // reallocations without over-allocating.
+    const size_t estimated_leaf_count = size() / LeafSize;
+    const size_t leaf_reserve = estimated_leaf_count == std::numeric_limits<size_t>::max()
+                                 ? estimated_leaf_count : estimated_leaf_count + 1;
+    mine.reserve(leaf_reserve);
+    theirs.reserve(leaf_reserve);
     collect_leaf_pointers(root_.get(), mine);
     collect_leaf_pointers(other.root_.get(), theirs);
 

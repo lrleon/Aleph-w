@@ -425,7 +425,17 @@ TEST_F(FutureUtilsTest, GetFuturesWithVectors)
 TEST_F(FutureUtilsTest, ManyFutures)
 {
   DynList<std::future<int>> futures;
-  constexpr int N = 100;
+  // 20, not e.g. 100: std::async(std::launch::async, ...) is required to
+  // start a genuine new thread of execution per call (not a thread-pool
+  // task), and every future here is created *before* any of them are
+  // waited on, so up to N raw OS threads can be alive at once. On a
+  // resource-constrained or already-loaded CI runner (this suite also
+  // runs under `ctest --parallel`), that peak thread count has been
+  // observed to trigger a rare crash during thread creation. 20 still
+  // clearly exercises "many" (vs. GetFuturesMultipleElements's 5) while
+  // cutting the peak concurrent-thread count enough to make that
+  // resource pressure very unlikely.
+  constexpr int N = 20;
 
   for (int i = 0; i < N; ++i)
     futures.append(make_int_future(i));
@@ -447,7 +457,9 @@ TEST_F(FutureUtilsTest, ManyVoidFutures)
 {
   std::atomic<int> counter{0};
   DynList<std::future<void>> futures;
-  constexpr int N = 100;
+  // See the matching comment in ManyFutures above for why this is 20
+  // rather than a much larger number.
+  constexpr int N = 20;
 
   for (int i = 0; i < N; ++i)
     futures.append(make_void_future_with_effect(counter));

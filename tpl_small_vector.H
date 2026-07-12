@@ -60,7 +60,6 @@
 #define TPL_SMALL_VECTOR_H
 
 #include <cstddef>
-#include <cstring>
 #include <initializer_list>
 #include <limits>
 #include <memory>
