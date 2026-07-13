@@ -100,10 +100,10 @@ namespace Aleph
  *  stored in a special collision node (`CollisionNode`), which acts as 
  *  a small linear array.
  *
- *  @tparam Key Key type. It must be copy-constructible.
- *  @tparam T Mapped value type. It must be copy-constructible so path-copying
- *          updates can rebuild shared collision nodes without moving from old
- *          versions.
+ *  @tparam Key Key type. It must be copy-constructible and copy-assignable.
+ *  @tparam T Mapped value type. It must be copy-constructible and copy-assignable
+ *          so path-copying updates can rebuild shared collision nodes without
+ *          moving from old versions.
  *  @tparam Cmp Equality predicate. If `cmp(a, b)` is true, the hash function
  *          supplied to the constructor must return the same hash for `a` and
  *          `b`.
@@ -113,8 +113,12 @@ class PersistentHashMap
 {
   static_assert(std::is_copy_constructible_v<Key>,
                 "PersistentHashMap requires copy-constructible keys");
+  static_assert(std::is_copy_assignable_v<Key>,
+                "PersistentHashMap requires copy-assignable keys");
   static_assert(std::is_copy_constructible_v<T>,
                 "PersistentHashMap requires copy-constructible mapped values");
+  static_assert(std::is_copy_assignable_v<T>,
+                "PersistentHashMap requires copy-assignable mapped values");
   static_assert(std::is_copy_constructible_v<Cmp>,
                 "PersistentHashMap requires a copy-constructible comparator");
 
