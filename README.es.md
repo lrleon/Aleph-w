@@ -1680,6 +1680,8 @@ crit-bit/PATRICIA para claves enteras sin signo de ancho fijo.
 ### Contenedores persistentes en memoria
 
 ```cpp
+#include <string>
+
 #include <tpl_persistent_treap.H>
 #include <tpl_persistent_vector.H>
 #include <tpl_persistent_hash_map.H>

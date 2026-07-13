@@ -1865,6 +1865,8 @@ operations, structural sharing, and text-editing-style inserts/erases.
 ### Persistent In-Memory Containers
 
 ```cpp
+#include <string>
+
 #include <tpl_persistent_treap.H>
 #include <tpl_persistent_vector.H>
 #include <tpl_persistent_hash_map.H>
