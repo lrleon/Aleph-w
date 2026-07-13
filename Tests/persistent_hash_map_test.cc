@@ -220,6 +220,30 @@ TEST(PersistentHashMap, AdversarialCollisions)
       EXPECT_EQ(*map.find(std::to_string(i)), i * 10);
     }
 
+  auto keys = map.keys();
+  auto items = map.items();
+  EXPECT_EQ(keys.size(), 100u);
+  EXPECT_EQ(items.size(), 100u);
+
+  std::unordered_map<std::string, bool> exported_keys;
+  for (size_t i = 0; i < keys.size(); ++i)
+    exported_keys.emplace(keys[i], true);
+
+  std::unordered_map<std::string, int> exported_items;
+  for (size_t i = 0; i < items.size(); ++i)
+    exported_items.emplace(items[i].first, items[i].second);
+
+  EXPECT_EQ(exported_keys.size(), 100u);
+  EXPECT_EQ(exported_items.size(), 100u);
+  for (int i = 0; i < 100; ++i)
+    {
+      const std::string key = std::to_string(i);
+      EXPECT_NE(exported_keys.find(key), exported_keys.end());
+      auto item = exported_items.find(key);
+      ASSERT_NE(item, exported_items.end());
+      EXPECT_EQ(item->second, i * 10);
+    }
+
   for (int i = 0; i <= 100; ++i)
     EXPECT_EQ(versions[i].size(), i);
 
@@ -321,10 +345,4 @@ TEST(PersistentHashMap, RandomizedParity)
 
   for (const auto &v_map : versions)
     EXPECT_TRUE(v_map.verify());
-}
-
-int main(int argc, char **argv)
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }
