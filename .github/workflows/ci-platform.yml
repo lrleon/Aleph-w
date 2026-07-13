@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-${{ matrix.os }}-${{ matrix.build_type }}
           if-no-files-found: ignore
@@ -224,7 +224,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-arm64-${{ matrix.compiler }}-${{ matrix.build_type }}
           if-no-files-found: ignore
@@ -347,7 +347,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-windows-${{ matrix.toolchain }}-${{ matrix.build_type }}
           if-no-files-found: ignore

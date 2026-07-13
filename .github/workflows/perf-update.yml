@@ -73,7 +73,7 @@ jobs:
             --out-dir benchmarks/trend-site
 
       - name: Upload trend page
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ca-perf-trend
           path: benchmarks/trend-site
