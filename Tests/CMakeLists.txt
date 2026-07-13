@@ -385,6 +385,7 @@ set(TEST_PROGRAMS
     concurrency_test_utils_test
     mpsc_queue_test
     concurrent_hash_map_test
+    persistent_hash_map_test
     radix_tree_test
     rope_test
     patricia_trie_test

@@ -62,6 +62,29 @@ namespace Aleph
 
 /** @brief Immutable vector backed by a 32-way bitmapped trie.
  *
+ *  @details
+ *  ### What is a Persistent Vector?
+ *  Unlike a standard `std::vector` which stores elements in a contiguous memory 
+ *  block and requires an O(N) copy to duplicate, a `PersistentVector` is structured 
+ *  as a shallow, wide tree (a Trie) where each node has up to 32 children.
+ *  Because $32^6 > 10^9$, the tree depth never exceeds 6 levels for any realistic 
+ *  number of elements. Thus, index lookups and updates require at most 6 pointer 
+ *  dereferences, providing "effectively O(1)" performance.
+ *
+ *  "Persistence" in this context refers to **immutability with history** 
+ *  (structural sharing or path-copying), not disk storage. When you call 
+ *  `push_back` or `set`, the original vector is not mutated. Instead, the 
+ *  container copies only the $O(\log_{32} N)$ nodes from the root down to the 
+ *  modified leaf. The other 31 branches at each level remain untouched and are 
+ *  shared between the old and new vectors via smart pointers (`std::shared_ptr`).
+ *
+ *  ### Benefits
+ *  - **Lock-free Concurrency:** Because older versions are never overwritten, 
+ *    multiple threads can read safely without locks.
+ *  - **Move-only Types:** Values are held inside `std::shared_ptr<const T>`. 
+ *    This allows the vector to store move-only types, and ensures that updating 
+ *    one index does not force the copy constructor of unchanged heavy elements.
+ *
  *  @tparam T Value type stored by the vector. Values are held through
  *          `std::shared_ptr<const T>`, so updating one index does not copy
  *          untouched values and move-only `T` is supported for `push_back`
@@ -347,14 +370,19 @@ public:
   /** @brief Return all values in an Aleph array.
    *  @return Array containing a copy of every value in index order.
    *  @throws std::bad_alloc or whatever copying `T` throws.
+   *  @note `T` must also satisfy `Array<T>`'s movable-value requirements.
    */
   [[nodiscard]] Array<T> to_array() const
-    requires std::copy_constructible<T>
+    requires (std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T> and
+              std::is_move_constructible_v<T> and std::is_move_assignable_v<T>)
   {
     Array<T> out;
     out.reserve(size_);
     for (size_t i = 0; i < size_; ++i)
-      out.append(T(get(i)));
+      {
+        const T &value = get(i);
+        out.append(value);
+      }
     return out;
   }
 
@@ -373,8 +401,7 @@ public:
       return false;
 
     bool ok = true;
-    const size_t count = count_values_rec(root_, shift_, ok);
-    if (not ok or count != size_)
+    if (const size_t count = count_values_rec(root_, shift_, ok); not ok or count != size_)
       return false;
     for (size_t i = 0; i < size_; ++i)
       if (get_ptr(root_, shift_, i) == nullptr)

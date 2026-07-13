@@ -45,6 +45,48 @@ using namespace Aleph;
 
 namespace
 {
+  struct CopyTrackedValue
+  {
+    static inline int copy_assignments = 0;
+    static inline int moves = 0;
+
+    int value = 0;
+
+    CopyTrackedValue() = default;
+    explicit CopyTrackedValue(const int v) noexcept : value(v) {}
+    CopyTrackedValue(const CopyTrackedValue &) = default;
+
+    CopyTrackedValue &operator = (const CopyTrackedValue &other) noexcept
+    {
+      value = other.value;
+      ++copy_assignments;
+      return *this;
+    }
+
+    CopyTrackedValue(CopyTrackedValue &&other) noexcept : value(other.value)
+    {
+      ++moves;
+    }
+
+    CopyTrackedValue &operator = (CopyTrackedValue &&other) noexcept
+    {
+      value = other.value;
+      ++moves;
+      return *this;
+    }
+
+    bool operator == (const CopyTrackedValue &other) const noexcept
+    {
+      return value == other.value;
+    }
+
+    static void reset_counters() noexcept
+    {
+      copy_assignments = 0;
+      moves = 0;
+    }
+  };
+
   template <typename T>
   std::vector<T> to_vector(const PersistentVector<T> &vector)
   {
@@ -152,6 +194,24 @@ TEST(PersistentVector, ToArrayCopiesValues)
   ASSERT_EQ(array.size(), 10u);
   for (size_t i = 0; i < array.size(); ++i)
     EXPECT_EQ(array[i], static_cast<int>(i));
+}
+
+TEST(PersistentVector, ToArrayCopiesWithoutMovingFromTemporaries)
+{
+  PersistentVector<CopyTrackedValue> vector;
+  const CopyTrackedValue one{1};
+  const CopyTrackedValue two{2};
+
+  vector = vector.push_back(one).push_back(two);
+
+  CopyTrackedValue::reset_counters();
+  auto array = vector.to_array();
+  ASSERT_EQ(array.size(), 2u);
+  EXPECT_EQ(array[0].value, 1);
+  EXPECT_EQ(array[1].value, 2);
+  EXPECT_EQ(CopyTrackedValue::copy_assignments, 2);
+  EXPECT_EQ(CopyTrackedValue::moves, 0);
+  EXPECT_TRUE(vector.verify());
 }
 
 TEST(PersistentVector, SupportsMoveOnlyValues)

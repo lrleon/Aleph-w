@@ -48,6 +48,16 @@ using namespace Aleph;
 
 namespace
 {
+  struct DirectionalIntCompare
+  {
+    bool reverse = false;
+
+    bool operator () (const int lhs, const int rhs) const noexcept
+    {
+      return reverse ? lhs > rhs : lhs < rhs;
+    }
+  };
+
   template <class ArrayType>
   std::vector<typename ArrayType::Item_Type> to_vector(const ArrayType &array)
   {
@@ -134,6 +144,19 @@ TEST(PersistentTreapSet, JoinRejectsOverlappingRanges)
   auto left = PersistentTreapSet<int>().insert(1).insert(3);
   auto right = PersistentTreapSet<int>().insert(3).insert(5);
 
+  EXPECT_THROW((void)left.join(right), std::domain_error);
+}
+
+TEST(PersistentTreapSet, JoinRejectsRightTreeOrderedByIncompatibleComparatorState)
+{
+  PersistentTreapSet<int, DirectionalIntCompare> left{DirectionalIntCompare{false}};
+  left = left.insert(1).insert(2);
+
+  PersistentTreapSet<int, DirectionalIntCompare> right{DirectionalIntCompare{true}};
+  right = right.insert(6).insert(5).insert(4);
+
+  ASSERT_TRUE(left.verify());
+  ASSERT_TRUE(right.verify());
   EXPECT_THROW((void)left.join(right), std::domain_error);
 }
 
@@ -238,6 +261,21 @@ TEST(PersistentTreapMap, SplitJoinAndItems)
       EXPECT_EQ(items[i].second, std::to_string(i));
     }
   EXPECT_TRUE(joined.verify());
+}
+
+TEST(PersistentTreapMap, JoinRejectsRightTreeOrderedByIncompatibleComparatorState)
+{
+  PersistentTreapMap<int, std::string, DirectionalIntCompare> left{DirectionalIntCompare{false}};
+  left = left.insert(1, std::string("one")).insert(2, std::string("two"));
+
+  PersistentTreapMap<int, std::string, DirectionalIntCompare> right{DirectionalIntCompare{true}};
+  right = right.insert(6, std::string("six"))
+           .insert(5, std::string("five"))
+           .insert(4, std::string("four"));
+
+  ASSERT_TRUE(left.verify());
+  ASSERT_TRUE(right.verify());
+  EXPECT_THROW((void)left.join(right), std::domain_error);
 }
 
 TEST(PersistentTreapMap, SupportsMoveOnlyMappedValues)

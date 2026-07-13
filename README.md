@@ -1867,6 +1867,7 @@ operations, structural sharing, and text-editing-style inserts/erases.
 ```cpp
 #include <tpl_persistent_treap.H>
 #include <tpl_persistent_vector.H>
+#include <tpl_persistent_hash_map.H>
 
 int main() {
     Aleph::PersistentTreapSet<int> ids;
@@ -1877,8 +1878,12 @@ int main() {
     auto a = log.push_back(1);
     auto b = a.set(0, 42);               // a[0] is still 1
 
+    Aleph::PersistentHashMap<std::string, int> env;
+    auto e1 = env.insert("path", 1);
+    auto e2 = e1.insert_or_assign("path", 2);   // e1["path"] is still 1
+
     return v1.contains(10) and not v2.contains(10) and a.get(0) == 1 and b.get(0) == 42
-      ? 0 : 1;
+      and *e1.find("path") == 1 and *e2.find("path") == 2 ? 0 : 1;
 }
 ```
 
@@ -1891,6 +1896,15 @@ Expected update and lookup cost is O(log n); copying a collection value is O(1).
 `PersistentVector<T>` is a 32-way bitmapped vector trie. `push_back`, `set` and
 `pop_back` copy O(log_32 n) trie nodes and share the rest. Values are stored via
 `shared_ptr<const T>`, so move-only values are supported for updates.
+
+`PersistentHashMap<Key, T, Cmp>` is an immutable unordered map backed by a Hash
+Array Mapped Trie (HAMT). `insert`, `insert_or_assign` and `erase` return new
+versions that path-copy only the trie nodes along the affected branch and share
+the rest. Lookup, insertion and erasure are expected O(1) for well-distributed
+hashes; keys sharing a full hash are kept in a per-hash collision node. The hash
+function is supplied as a `size_t (*)(const Key &)` pointer (defaulting to
+`Aleph`'s `dft_hash_ptr_fct`), and a custom equality comparator must agree with
+it: `cmp(a, b)` implies `hash(a) == hash(b)`.
 
 These are volatile in-memory snapshots, not the file-backed B/B+ tree
 persistence provided by `File_B_Tree`, `File_BPlus_Tree`, `File_B_Map` and
@@ -4211,6 +4225,7 @@ int main() {
 | `tpl_persistent_treap.H` | `PersistentTreapSet<K, Compare>` | Immutable path-copying ordered set |
 | `tpl_persistent_treap.H` | `PersistentTreapMap<K, T, Compare>` | Immutable path-copying ordered map |
 | `tpl_persistent_vector.H` | `PersistentVector<T>` | Immutable 32-way bitmapped vector trie |
+| `tpl_persistent_hash_map.H` | `PersistentHashMap<K, T, Cmp>` | Immutable path-copying unordered map backed by a HAMT |
 | `tpl_dynSetTree.H` | `DynSetTree<T, Tree>` | Tree-based set |
 | `tpl_dynMapTree.H` | `DynMapTree<K, V, Tree>` | Tree-based map |
 | `tpl_flat_set.H` | `FlatSet<K, Compare>` | Sorted-array ordered set |
