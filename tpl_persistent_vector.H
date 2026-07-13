@@ -74,7 +74,7 @@ namespace Aleph
  *  "Persistence" in this context refers to **immutability with history** 
  *  (structural sharing or path-copying), not disk storage. When you call 
  *  `push_back` or `set`, the original vector is not mutated. Instead, the 
- *  container copies only the $O(\log_{32} N)$ nodes from the root down to the 
+ *  container copies only the O(log_32 N) nodes from the root down to the 
  *  modified leaf. The other 31 branches at each level remain untouched and are 
  *  shared between the old and new vectors via smart pointers (`std::shared_ptr`).
  *
