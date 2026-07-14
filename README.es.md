@@ -40,6 +40,7 @@ Idioma: Español | [English](README.md)
   - [Heaps y colas de prioridad](#readme-es-heaps)
   - [Listas y estructuras secuenciales](#readme-es-estructuras-lineales)
   - [Rope (cadena inmutable con compartición estructural)](#readme-es-rope)
+  - [Contenedores persistentes en memoria](#readme-es-persistent-containers)
   - [Estructuras para consultas por rango](#readme-es-consultas-por-rango)
   - [Grafos](#readme-es-grafos)
   - [Geometría computacional](#readme-es-geometria)
@@ -1674,6 +1675,62 @@ palabras completas y soporta valores movibles. `RadixTree<T>` cubre el caso
 comprimido para claves string y reduce nodos fusionando cadenas de hijos
 unitarios. `PatriciaSet<UInt>` y `PatriciaMap<UInt, T>` son las variantes
 crit-bit/PATRICIA para claves enteras sin signo de ancho fijo.
+
+<a id="readme-es-persistent-containers"></a>
+### Contenedores persistentes en memoria
+
+```cpp
+#include <string>
+
+#include <tpl_persistent_treap.H>
+#include <tpl_persistent_vector.H>
+#include <tpl_persistent_hash_map.H>
+
+int main() {
+    Aleph::PersistentTreapSet<int> ids;
+    auto v1 = ids.insert(10).insert(20);
+    auto v2 = v1.erase(10);              // v1 sigue intacto
+
+    Aleph::PersistentVector<int> log;
+    auto a = log.push_back(1);
+    auto b = a.set(0, 42);               // a[0] sigue siendo 1
+
+    Aleph::PersistentHashMap<std::string, int> env;
+    auto e1 = env.insert("path", 1);
+    auto e2 = e1.insert_or_assign("path", 2);   // e1["path"] sigue siendo 1
+
+    return v1.contains(10) and not v2.contains(10) and a.get(0) == 1 and b.get(0) == 42
+      and *e1.find("path") == 1 and *e2.find("path") == 2 ? 0 : 1;
+}
+```
+
+`PersistentTreapSet<Key, Compare>` y `PersistentTreapMap<Key, T, Compare>` son
+colecciones ordenadas inmutables respaldadas por treaps con path-copying.
+`insert`, `erase`, `insert_or_assign`, `split` y `join` devuelven versiones
+*nuevas* mientras las versiones viejas siguen compartiendo los subárboles no
+modificados vía `shared_ptr<const Node>`. El costo esperado de actualización y
+búsqueda es O(log n); copiar el valor de una colección es O(1).
+
+`PersistentVector<T>` es un bitmapped vector trie de factor 32. `push_back`,
+`set` y `pop_back` copian O(log_32 n) nodos del trie y comparten el resto. Los
+valores se guardan vía `shared_ptr<const T>`, así que las actualizaciones
+soportan valores move-only.
+
+`PersistentHashMap<Key, T, Cmp>` es un mapa no ordenado inmutable respaldado por
+un HAMT (Hash Array Mapped Trie). `insert`, `insert_or_assign` y `erase`
+devuelven versiones nuevas que solo copian (path-copy) los nodos del trie en la
+rama afectada y comparten el resto. La búsqueda, inserción y borrado son O(1)
+esperado para hashes bien distribuidos; las claves con el mismo hash completo se
+guardan en un nodo de colisión por hash. La función de hash se pasa como puntero
+`size_t (*)(const Key &)` (por defecto `dft_hash_ptr_fct` de Aleph), y un
+comparador de igualdad custom debe ser coherente con ella: `cmp(a, b)` implica
+`hash(a) == hash(b)`.
+
+Estos son snapshots volátiles en memoria, no la persistencia en archivo de los
+árboles B/B+ que proveen `File_B_Tree`, `File_BPlus_Tree`, `File_B_Map` y
+`File_BPlus_Map`. Las versiones publicadas pueden leerse concurrentemente desde
+distintos hilos; publicar una versión nueva en estado compartido sigue
+requiriendo sincronización del lado del usuario.
 
 <a id="readme-es-consultas-por-rango"></a>
 ### Estructuras para consultas por rango
@@ -3741,6 +3798,10 @@ int main() {
 | `tpl_small_vector.H` | `SmallVector<T, N>` | Vector con almacenamiento pequeño inline |
 | `tpl_ring_buffer.H` | `RingBuffer<T>` | FIFO circular de capacidad fija / ventana deslizante |
 | `tpl_rope.H` | `Rope<Char, LeafSize>` | Cadena inmutable con concat barato y substr/insert/erase compartidos |
+| `tpl_persistent_treap.H` | `PersistentTreapSet<K, Compare>` | Conjunto ordenado inmutable con path-copying |
+| `tpl_persistent_treap.H` | `PersistentTreapMap<K, T, Compare>` | Mapa ordenado inmutable con path-copying |
+| `tpl_persistent_vector.H` | `PersistentVector<T>` | Vector inmutable (bitmapped trie de factor 32) |
+| `tpl_persistent_hash_map.H` | `PersistentHashMap<K, T, Cmp>` | Mapa no ordenado inmutable con path-copying (HAMT) |
 | `tpl_dynSetTree.H` | `DynSetTree<T, Tree>` | Tree-based set |
 | `tpl_dynMapTree.H` | `DynMapTree<K, V, Tree>` | Tree-based map |
 | `tpl_flat_set.H` | `FlatSet<K, Compare>` | Conjunto ordenado sobre arreglo sorted |

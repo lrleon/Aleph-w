@@ -99,7 +99,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-ccache-${{ github.sha }}
@@ -234,7 +234,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-cxx23-ccache-${{ github.sha }}
@@ -311,7 +311,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-ranges-off-ccache-${{ github.sha }}
@@ -389,7 +389,7 @@ jobs:
             ruby-full python3-numpy python3-sympy
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-fft-simd-ccache-${{ github.sha }}
@@ -657,7 +657,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-coverage-ccache-${{ github.sha }}
@@ -849,7 +849,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-sanitizers-ccache-${{ github.sha }}
@@ -926,7 +926,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-tsan-ccache-${{ github.sha }}
@@ -1003,7 +1003,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-ubsan-ccache-${{ github.sha }}
@@ -1104,7 +1104,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-examples-${{ matrix.compiler }}-ccache-${{ github.sha }}
