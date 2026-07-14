@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.9.0](https://github.com/lrleon/Aleph-w/compare/v5.8.0...v5.9.0) (2026-07-14)
+
+
+### Features
+
+* **core:** Add persistent treap and vector containers ([#88](https://github.com/lrleon/Aleph-w/issues/88)) ([f0e3e7f](https://github.com/lrleon/Aleph-w/commit/f0e3e7f724a8802485d01e5ad24b38689ccec070))
+
 ## [5.8.0](https://github.com/lrleon/Aleph-w/compare/v5.7.0...v5.8.0) (2026-07-12)
 
 
