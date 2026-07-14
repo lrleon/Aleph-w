@@ -503,7 +503,7 @@ private:
           return node;
         if (new_entries.size() == 1)
           return std::make_shared<LeafNode>(new_entries[0].first,
-                                            new_entries[0].second,
+                                            std::move(new_entries[0].second),
                                             hash);
         return std::make_shared<CollisionNode>(hash, std::move(new_entries));
       }
@@ -706,6 +706,8 @@ public:
    *  @throws std::domain_error if `hash_fct` is null.
    *  @throws Whatever copying `cmp` throws.
    *  @pre If `cmp(a, b)` is true, `hash_fct(a) == hash_fct(b)` must also be true.
+   *  @note Exception safety: strong guarantee; if an exception is thrown, no
+   *        map is constructed.
    */
   explicit PersistentHashMap(const Hash_Fct_Ptr hash_fct = dft_hash_ptr_fct<Key>,
                              const Cmp &cmp = Cmp())
@@ -718,12 +720,14 @@ public:
   /** @brief Return the number of bindings stored in this version.
    *  @return Number of bindings.
    *  @throws Nothing.
+   *  @note Exception safety: no-throw.
    */
   [[nodiscard]] size_t size() const noexcept { return size_; }
 
   /** @brief Return true when this version has no bindings.
    *  @return `true` iff `size() == 0`.
    *  @throws Nothing.
+   *  @note Exception safety: no-throw.
    */
   [[nodiscard]] bool is_empty() const noexcept { return size_ == 0; }
 
@@ -733,6 +737,8 @@ public:
    *  @return New map version. If an equivalent key already exists, returns an
    *          unchanged version sharing the same root.
    *  @throws std::bad_alloc or whatever copying/comparison/hashing throws.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] PersistentHashMap insert(const Key &key, const T &value) const
   {
@@ -751,6 +757,8 @@ public:
    *  @return New map version. If an equivalent key already exists, returns an
    *          unchanged version and does not move from `value`.
    *  @throws std::bad_alloc or whatever copying/moving/comparison/hashing throws.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] PersistentHashMap insert(const Key &key, T &&value) const
   {
@@ -768,6 +776,8 @@ public:
    *  @param value Mapped value to copy into the returned version.
    *  @return New map version with an equivalent key present.
    *  @throws std::bad_alloc or whatever copying/comparison/hashing throws.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] PersistentHashMap insert_or_assign(const Key &key, const T &value) const
   {
@@ -783,6 +793,8 @@ public:
    *  @param value Mapped value to move into the returned version.
    *  @return New map version with an equivalent key present.
    *  @throws std::bad_alloc or whatever copying/moving/comparison/hashing throws.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] PersistentHashMap insert_or_assign(const Key &key, T &&value) const
   {
@@ -798,6 +810,8 @@ public:
    *  @return New map version. If the key is absent, returns an unchanged
    *          version sharing the same root.
    *  @throws std::bad_alloc or whatever comparison/hashing throws.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] PersistentHashMap erase(const Key &key) const
   {
@@ -812,6 +826,8 @@ public:
    *  @param key Key to search.
    *  @return `true` if an equivalent key is stored.
    *  @throws Whatever comparison or hashing throws.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] bool contains(const Key &key) const
   {
@@ -823,6 +839,8 @@ public:
    *  @return Pointer to the stored mapped value, or `nullptr` when absent. The
    *          pointer remains valid while this map version is alive.
    *  @throws Whatever comparison or hashing throws.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] const T *find(const Key &key) const
   {
@@ -832,6 +850,9 @@ public:
   /** @brief Return all keys in unspecified order.
    *  @return Aleph array with a copy of every key.
    *  @throws std::bad_alloc or whatever copying `Key` throws.
+   *  @note Complexity: O(n) time for a full-trie collection operation.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] Array<Key> keys() const
   {
@@ -844,6 +865,9 @@ public:
   /** @brief Return all key/value bindings in unspecified order.
    *  @return Aleph array with a copy of every binding.
    *  @throws std::bad_alloc or whatever copying `Key` or `T` throws.
+   *  @note Complexity: O(n) time for a full-trie collection operation.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] Array<std::pair<Key, T>> items() const
   {
@@ -859,6 +883,8 @@ public:
    *  @throws Whatever `hash_fct_` or `Cmp` throws.
    *  @note Intended for tests and diagnostics; it is O(n) plus O(k^2) inside
    *        each full-hash collision node.
+   *  @note Exception safety: strong guarantee; this map version remains
+   *        unchanged if an exception is thrown.
    */
   [[nodiscard]] bool verify() const
   {

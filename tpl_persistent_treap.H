@@ -33,7 +33,7 @@
  *  @details
  *  ### What is a Persistent Treap?
  *  A Treap is a randomized binary search tree that maintains both a BST property 
- *  (for the keys) and a Max-Heap property (using randomly generated priorities). 
+ *  (for the keys) and a Min-Heap property (using randomly generated priorities).
  *  This guarantees balanced O(log n) tree depth with high probability.
  *
  *  "Persistence" in this context refers to **immutability with history** 
