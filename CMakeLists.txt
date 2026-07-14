@@ -375,6 +375,9 @@ set(HLIST
     tpl_radix_tree.H
     tpl_rope.H
     tpl_patricia_trie.H
+    tpl_persistent_treap.H
+    tpl_persistent_vector.H
+    tpl_persistent_hash_map.H
     tpl_ca_parallel_engine.H
     tpl_ca_hex_lattice.H
     tpl_ca_triangular_lattice.H

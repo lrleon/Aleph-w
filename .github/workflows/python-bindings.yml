@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload wheel artifact
         if: matrix.python-version == '3.11'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aleph-ca-wheel-${{ matrix.os }}-py${{ matrix.python-version }}
           path: python/dist/*.whl

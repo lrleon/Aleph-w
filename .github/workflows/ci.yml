@@ -99,7 +99,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-ccache-${{ github.sha }}
@@ -194,7 +194,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
           if-no-files-found: ignore
@@ -234,7 +234,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-cxx23-ccache-${{ github.sha }}
@@ -278,7 +278,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-cxx23
           if-no-files-found: ignore
@@ -311,7 +311,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-ranges-off-ccache-${{ github.sha }}
@@ -355,7 +355,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-ranges-off
           if-no-files-found: ignore
@@ -389,7 +389,7 @@ jobs:
             ruby-full python3-numpy python3-sympy
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-fft-simd-ccache-${{ github.sha }}
@@ -538,7 +538,7 @@ jobs:
 
       - name: Upload FFT artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fft-simd-benchmarks
           if-no-files-found: ignore
@@ -546,7 +546,7 @@ jobs:
 
       - name: Upload polynomial audit artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: polynomial-audit-artifacts
           if-no-files-found: ignore
@@ -554,7 +554,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-fft-simd
           if-no-files-found: ignore
@@ -621,7 +621,7 @@ jobs:
 
       - name: Upload visual artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: planarity-visual-golden-failure
           if-no-files-found: ignore
@@ -657,7 +657,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-coverage-ccache-${{ github.sha }}
@@ -803,7 +803,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: |
@@ -815,7 +815,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-coverage
           if-no-files-found: ignore
@@ -849,7 +849,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-sanitizers-ccache-${{ github.sha }}
@@ -882,7 +882,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-sanitizers
           if-no-files-found: ignore
@@ -926,7 +926,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-tsan-ccache-${{ github.sha }}
@@ -966,7 +966,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-tsan
           if-no-files-found: ignore
@@ -1003,7 +1003,7 @@ jobs:
             libgtest-dev
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-ubsan-ccache-${{ github.sha }}
@@ -1046,7 +1046,7 @@ jobs:
 
       - name: Upload test logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-logs-ubsan
           if-no-files-found: ignore
@@ -1104,7 +1104,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-examples-${{ matrix.compiler }}-ccache-${{ github.sha }}
@@ -1124,14 +1124,14 @@ jobs:
 
       - name: Upload examples build log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: examples-build-log-${{ matrix.compiler }}
           path: build-examples-${{ matrix.compiler }}/examples_build.log
 
       - name: Upload TSAN examples build log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: examples-build-log-${{ matrix.compiler }}-tsan
           path: build-examples-${{ matrix.compiler }}-tsan/examples_build.log
