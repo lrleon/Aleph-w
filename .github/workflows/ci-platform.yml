@@ -64,7 +64,7 @@ jobs:
             tclap
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.build_type }}-ccache-${{ github.sha }}
@@ -164,7 +164,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-arm64-${{ matrix.compiler }}-${{ matrix.build_type }}-ccache-${{ github.sha }}
