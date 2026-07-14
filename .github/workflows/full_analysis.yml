@@ -84,7 +84,7 @@ jobs:
           ruby scripts/header_audit.rb --repo . --out docs/header_audit.md
 
       - name: Upload full analysis reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: full-analysis-reports
           path: |
