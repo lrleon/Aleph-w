@@ -385,9 +385,12 @@ set(TEST_PROGRAMS
     concurrency_test_utils_test
     mpsc_queue_test
     concurrent_hash_map_test
+    persistent_hash_map_test
     radix_tree_test
     rope_test
     patricia_trie_test
+    persistent_treap_test
+    persistent_vector_test
     timeoutQueue_test
     graph_traverse_test
     test_ah_errors
