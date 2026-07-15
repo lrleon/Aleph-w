@@ -184,17 +184,24 @@ class unexpected
   E err_;
 
 public:
-  /** @brief Construct from an lvalue error.
-   *  @param e Error value to copy.
-   *  @throws Any exception thrown by `E`'s copy constructor.
+  /** @brief Construct the stored error from any value convertible to `E`.
+   *
+   *  Mirrors `std::unexpected`'s actual converting constructor: a single
+   *  constrained, perfectly-forwarding constructor instead of separate
+   *  `const E&` / `E&&` overloads. Two fixed overloads force the compiler to
+   *  pick between them when the argument needs a user-defined conversion
+   *  (e.g. building `unexpected<std::string>` from a string literal), which
+   *  some MSVC versions fail to resolve (`error C2672`); a single template
+   *  leaves exactly one candidate.
+   *
+   *  @tparam Err Deduced argument type.
+   *  @param e Value used to construct the stored error.
+   *  @throws Any exception thrown by constructing `E` from `e`.
    */
-  constexpr explicit unexpected(const E &e) : err_(e) {}
-
-  /** @brief Construct from an rvalue error.
-   *  @param e Error value to move.
-   *  @throws Any exception thrown by `E`'s move constructor.
-   */
-  constexpr explicit unexpected(E &&e) : err_(std::move(e)) {}
+  template <class Err = E>
+    requires (not std::is_same_v<std::remove_cvref_t<Err>, unexpected> and
+              std::is_constructible_v<E, Err>)
+  constexpr explicit unexpected(Err &&e) : err_(std::forward<Err>(e)) {}
 
   /** @brief Access the error (const lvalue).
    *  @return Const reference to the stored error.

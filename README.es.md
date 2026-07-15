@@ -1152,7 +1152,7 @@ Aleph-w ofrece una suite robusta para geometría computacional 2D y 3D, construi
 | **Intersections** | Segment Sweep (Bentley-Ottmann), Half-Plane Intersection, Convex Polygon Clipping, Boolean Polygon Ops (Greiner-Hormann) | O((n+k)log n), O(n log n) |
 | **Simplification** | Douglas-Peucker, Visvalingam-Whyatt, Chaikin Smoothing | O(n log n), O(n*2^k) |
 | **Pathfinding** | Shortest Path in Simple Polygon (Funnel Algorithm) | O(n) |
-| **Spatial Indexing** | AABB Tree, KD-Tree | O(log n) queries |
+| **Spatial Indexing** | AABB Tree (estático), R-tree y R*-tree (dinámico, `tpl_r_tree.H` / `tpl_r_star_tree.H`), KD-Tree | Consultas O(log n) esperadas, O(n) peor caso |
 
 **Visualización (`tikzgeom.H`, `eepicgeom.H`):**
 
@@ -1188,6 +1188,60 @@ Point q = segment_intersection_point(v, d);  // exactly (3, 3)
 // --- Triangle area (exact rational) ---
 Geom_Number area = area_of_triangle(a, b, c);  // exact
 ```
+
+#### R-tree / R*-tree dinámico (`tpl_r_tree.H`, `tpl_r_star_tree.H`)
+
+```cpp
+#include <tpl_r_tree.H>
+
+int main() {
+    Aleph::RTree<int> tree;                          // Payload = int
+    tree.insert(Aleph::Rectangle(0, 0, 10, 10), 1);
+    tree.insert(Aleph::Rectangle(8, 8, 20, 20), 2);
+
+    auto hits = tree.search_intersects(Aleph::Rectangle(7, 7, 9, 9)); // {1, 2}
+    (void) tree.erase(Aleph::Rectangle(8, 8, 20, 20), 2);            // retorna bool
+
+    return hits.size() == 2 and tree.size() == 1 ? 0 : 1;
+}
+```
+
+`RTree<Payload, MaxEntries = 16, MinEntries = MaxEntries / 2>` es un índice
+espacial *dinámico* sobre rectángulos alineados a los ejes (`Rectangle`), que
+implementa el R-tree de Guttman con la heurística de split cuadrático. Soporta
+`insert(bbox, value)` / `erase(bbox, value)` incrementales, consultas de
+solapamiento (`search_intersects`, `for_each_intersecting`) y de contención de
+punto (`search_contains`), además de `size`, `height` y `clear`. Como guarda
+coordenadas racionales exactas (`Geom_Number`), la estructura es determinista y
+sin errores de redondeo de punto flotante. `for_each_intersecting` pasa
+referencias, así que también funciona con payloads move-only.
+
+Cómo se compara con las otras estructuras espaciales:
+
+- **`AABBTree` (`geom_algorithms.H`)** es *estático*: se construye una sola vez a
+  partir de un lote fijo de cajas y probablemente sea más rápido para datos
+  inmutables, pero no se puede actualizar en sitio. `RTree` es la contraparte
+  *dinámica y general* con `insert`/`erase`.
+- **`QuadTree` (`quadtree.H`)** subdivide el espacio recursivamente en cuadrantes;
+  es simple y bueno para puntos y distribuciones uniformes, pero no se balancea
+  por ocupación y puede degradarse con datos sesgados. `RTree` agrupa objetos por
+  su rectángulo mínimo envolvente y acota la ocupación de nodos.
+- **`K2Tree`** es una representación compacta/sucinta orientada a matrices binarias
+  ralas y adyacencia (p. ej. grafos web), no a indexar rectángulos generales.
+- **`RangeTree2D`** responde *range reporting* ortogonal sobre un conjunto de
+  puntos estático con buenas cotas de peor caso; `RTree` apunta a indexar
+  rectángulos/objetos de forma dinámica, no a consultas de rango sobre puntos
+  estáticos.
+
+`RStarTree<Payload, MaxEntries, MinEntries>` (`tpl_r_star_tree.H`) es el mismo
+índice construido con las heurísticas del R\*-tree: elección de subárbol que
+minimiza el solapamiento, un split que minimiza primero el margen y luego el área
+de solapamiento de los grupos, y reinserción forzada a nivel de hoja. Tiene la
+API idéntica (es un alias de `RTree<..., RTreeVariant::RStar>`) y suele producir
+menos solapamiento entre nodos y consultas más rápidas, a cambio de algo más de
+trabajo por inserción.
+
+Ver `Examples/r_tree_example.cc` para un recorrido ejecutable de ambos.
 
 <a id="readme-es-algebra-lineal"></a>
 ### Álgebra lineal (estructuras sparse)
@@ -4198,6 +4252,7 @@ cmake --build build
 | Ordenamiento topológico | `topological_sort_example.C` | Ordenamiento de DAG |
 
 | **Geometría** | | |
+| R-tree dinámico | `r_tree_example.cc` | Insert/erase + consultas de intersección y de punto sobre un índice espacial dinámico |
 | Predicados robustos | `robust_predicates_example.cc` | Orientación, intersección, aritmética exacta |
 | Intersección de segmentos dedicada | `segment_segment_intersection_example.cc` | Intersección de segmentos por pares en O(1) (`none`/`point`/`overlap`) |
 | Algoritmos de geometría | `geom_example.C` | Convex hull, triangulación y `-s advanced` (Delaunay/Voronoi/PIP/HPI) |

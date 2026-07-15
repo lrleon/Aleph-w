@@ -391,6 +391,8 @@ set(TEST_PROGRAMS
     patricia_trie_test
     persistent_treap_test
     persistent_vector_test
+    r_tree_test
+    r_star_tree_test
     timeoutQueue_test
     graph_traverse_test
     test_ah_errors
