@@ -35,8 +35,10 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <concepts>
 #include <memory>
 #include <random>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -100,6 +102,29 @@ namespace
     std::sort(out.begin(), out.end());
     return out;
   }
+
+  struct CopyConstructibleNonCopyAssignablePayload
+  {
+    int value = 0;
+
+    CopyConstructibleNonCopyAssignablePayload() = default;
+    explicit CopyConstructibleNonCopyAssignablePayload(const int v) : value(v) {}
+
+    CopyConstructibleNonCopyAssignablePayload(
+      const CopyConstructibleNonCopyAssignablePayload &) = default;
+    CopyConstructibleNonCopyAssignablePayload(
+      CopyConstructibleNonCopyAssignablePayload &&) noexcept = default;
+
+    CopyConstructibleNonCopyAssignablePayload &operator = (
+      const CopyConstructibleNonCopyAssignablePayload &) = delete;
+    CopyConstructibleNonCopyAssignablePayload &operator = (
+      CopyConstructibleNonCopyAssignablePayload &&) noexcept = default;
+  };
+
+  static_assert(std::default_initializable<CopyConstructibleNonCopyAssignablePayload>);
+  static_assert(std::movable<CopyConstructibleNonCopyAssignablePayload>);
+  static_assert(std::is_copy_constructible_v<CopyConstructibleNonCopyAssignablePayload>);
+  static_assert(not std::is_copy_assignable_v<CopyConstructibleNonCopyAssignablePayload>);
 }
 
 TEST(RTree, EmptyTree)
@@ -261,6 +286,27 @@ TEST(RTree, SupportsMoveOnlyPayload)
     });
   EXPECT_EQ(seen, 20);
   EXPECT_EQ(sum, 190);   // 0 + 1 + ... + 19
+}
+
+TEST(RTree, CopyConstructiblePayloadNeedNotBeCopyAssignable)
+{
+  using Payload = CopyConstructibleNonCopyAssignablePayload;
+
+  RTree<Payload, 4, 2> tree;
+  const Payload first(7);
+  tree.insert(rect(0, 0, 2, 2), first);
+  tree.insert(rect(3, 3, 5, 5), Payload(11));
+
+  const RTree<Payload, 4, 2> copy(tree);
+  ASSERT_TRUE(copy.verify());
+
+  Array<Payload> intersecting = copy.search_intersects(rect(1, 1, 4, 4));
+  ASSERT_EQ(intersecting.size(), 2u);
+  EXPECT_EQ(intersecting(0).value + intersecting(1).value, 18);
+
+  Array<Payload> containing = copy.search_contains(pt(1, 1));
+  ASSERT_EQ(containing.size(), 1u);
+  EXPECT_EQ(containing(0).value, 7);
 }
 
 TEST(RTree, AssignmentClearAndDrainRemainValid)

@@ -103,7 +103,9 @@ enum class RTreeVariant
 
 /** @brief Dynamic R-tree indexing axis-aligned rectangles by payload.
  *
- *  @tparam Payload Value associated with each stored bounding box.
+ *  @tparam Payload Value associated with each stored bounding box. Must be
+ *          default-initializable and movable. Copying APIs additionally require
+ *          copy construction.
  *  @tparam MaxEntries Maximum number of entries per node. Must be at least 2.
  *  @tparam MinEntries Minimum number of entries per non-root node. Must be at
  *          least 1 and satisfy `2 * MinEntries <= MaxEntries + 1`. Defaults to
@@ -118,6 +120,9 @@ class RTree
   static_assert(MaxEntries >= 2, "RTree requires MaxEntries >= 2");
   static_assert(MinEntries >= 1, "RTree requires MinEntries >= 1");
   static_assert(2 * MinEntries <= MaxEntries + 1, "RTree requires 2 * MinEntries <= MaxEntries + 1");
+  static_assert(std::default_initializable<Payload>,
+                "RTree requires default-initializable Payload");
+  static_assert(std::movable<Payload>, "RTree requires movable Payload");
 
 public:
   /** @brief A stored (bounding box, payload) pair. */
@@ -400,10 +405,14 @@ private:
     Array<EntryT> items = std::move(entries);
     entries = Array<EntryT>();
 
+    // prefix/suffix are indexed up to and including n (prefix[n], suffix
+    // accessed down to suffix[0]), and n can reach MaxEntries + 1, so both
+    // need MaxEntries + 2 slots -- one more than the MaxEntries + 1 used for
+    // per-entry arrays like `order`.
     auto make_mbr_cache = [&items, n](const std::array<size_t, MaxEntries + 1> &order)
       {
-        std::array<Rectangle, MaxEntries + 1> prefix{};
-        std::array<Rectangle, MaxEntries + 1> suffix{};
+        std::array<Rectangle, MaxEntries + 2> prefix{};
+        std::array<Rectangle, MaxEntries + 2> suffix{};
         prefix[1] = items(order[0]).bbox;
         for (size_t k = 2; k <= n; ++k)
           prefix[k] = union_bbox(prefix[k - 1], items(order[k - 1]).bbox);
@@ -753,7 +762,7 @@ private:
   // ---- copy / verify ----------------------------------------------------
 
   [[nodiscard]] static std::unique_ptr<Node> clone_node(const Node &node)
-    requires std::is_copy_constructible_v<Payload>
+    requires (std::is_copy_constructible_v<Payload> and std::movable<Payload>)
   {
     auto copy = std::make_unique<Node>();
     copy->leaf = node.leaf;
@@ -820,6 +829,10 @@ public:
   RTree() noexcept = default;
 
   /** @brief Move-construct from @p other, leaving it empty and valid.
+   *  @param other Tree to move from.
+   *  @post `other.is_empty()` is `true` and `other` remains a valid,
+   *        usable tree (not merely moved-from).
+   *  @par Complexity O(1).
    *  @throws Nothing.
    */
   RTree(RTree &&other) noexcept
@@ -830,6 +843,11 @@ public:
   }
 
   /** @brief Move-assign from @p other, leaving it empty and valid.
+   *  @param other Tree to move from.
+   *  @return Reference to this tree.
+   *  @post `other.is_empty()` is `true` and `other` remains a valid,
+   *        usable tree (not merely moved-from).
+   *  @par Complexity O(1).
    *  @throws Nothing.
    */
   RTree &operator = (RTree &&other) noexcept
@@ -844,25 +862,25 @@ public:
     return *this;
   }
 
-  /** @brief Deep-copy @p other (requires copy-constructible `Payload`).
+  /** @brief Deep-copy @p other (requires copy-constructible, movable `Payload`).
    *  @param other Tree to clone.
    *  @throws std::bad_alloc or whatever copying `Payload` throws.
    */
   RTree(const RTree &other)
-    requires std::is_copy_constructible_v<Payload>
+    requires (std::is_copy_constructible_v<Payload> and std::movable<Payload>)
     : size_(other.size_), height_(other.height_)
   {
     if (other.root_ != nullptr)
       root_ = clone_node(*other.root_);
   }
 
-  /** @brief Deep-copy assign from @p other (requires copy-constructible `Payload`).
+  /** @brief Deep-copy assign from @p other (requires copy-constructible, movable `Payload`).
    *  @param other Tree to clone.
    *  @return Reference to this tree.
    *  @throws std::bad_alloc or whatever copying `Payload` throws.
    */
   RTree &operator = (const RTree &other)
-    requires std::is_copy_constructible_v<Payload>
+    requires (std::is_copy_constructible_v<Payload> and std::movable<Payload>)
   {
     if (this == &other)
       return *this;
@@ -1002,14 +1020,14 @@ public:
    *  @param rect Query rectangle.
    *  @return Array with a copy of each matching payload.
    *  @throws std::bad_alloc or whatever copying `Payload` throws.
-   */
+  */
   [[nodiscard]] Array<Payload> search_intersects(const Rectangle &rect) const
-    requires std::is_copy_constructible_v<Payload>
+    requires (std::is_copy_constructible_v<Payload> and std::movable<Payload>)
   {
     Array<Payload> out;
     for_each_intersecting(rect, [&out](const Rectangle &, const Payload &v)
       {
-        out.append(v);
+        out.append(Payload(v));
       });
     return out;
   }
@@ -1018,14 +1036,14 @@ public:
    *  @param p Query point.
    *  @return Array with a copy of each matching payload.
    *  @throws std::bad_alloc or whatever copying `Payload` throws.
-   */
+  */
   [[nodiscard]] Array<Payload> search_contains(const Point &p) const
-    requires std::is_copy_constructible_v<Payload>
+    requires (std::is_copy_constructible_v<Payload> and std::movable<Payload>)
   {
     Array<Payload> out;
     auto collect = [&out](const Rectangle &, const Payload &v)
       {
-        out.append(v);
+        out.append(Payload(v));
       };
     if (root_ != nullptr)
       for_each_containing_rec(*root_, p, collect);
@@ -1037,7 +1055,7 @@ public:
    *          occupancy is within `[MinEntries, MaxEntries]` (root exempt from
    *          the lower bound), all leaves share one depth, and the counted
    *          entries match `size()`.
-   *  @throws Nothing unless `Payload` comparison in geometry throws.
+   *  @throws Nothing.
    *  @note Intended for tests and diagnostics; it is O(n).
    */
   [[nodiscard]] bool verify() const

@@ -21,10 +21,12 @@
  */
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <random>
+#include <string_view>
 #include <vector>
 
 #include <geom_algorithms.H>
@@ -109,6 +111,21 @@ AABBTree build_aabb(const std::vector<Rectangle> &rects)
   return tree;
 }
 
+/// Strictly parse `text` as a base-10 `size_t`. Rejects empty input, a
+/// leading sign, non-digit characters, trailing characters, and overflow.
+/// `std::strtoul` is too lax for CLI input whose validity should be reported
+/// back to the user instead of silently wrapping or truncating.
+bool parse_size(const char *text, size_t &out)
+{
+  if (text == nullptr)
+    return false;
+  const std::string_view sv{text};
+  if (sv.empty() or sv.front() == '+' or sv.front() == '-')
+    return false;
+  const auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), out, 10);
+  return ec == std::errc{} and ptr == sv.data() + sv.size();
+}
+
 size_t brute_query_count(const std::vector<Rectangle> &rects,
                          const std::vector<Rectangle> &queries)
 {
@@ -161,10 +178,19 @@ void validate_counts(const std::vector<Rectangle> &rects,
 
 int main(int argc, char *argv[])
 {
-  const size_t entry_count = argc > 1 ? std::strtoul(argv[1], nullptr, 10)
-                                      : 10000;
-  const size_t query_count = argc > 2 ? std::strtoul(argv[2], nullptr, 10)
-                                      : 2000;
+  size_t entry_count = 10000;
+  size_t query_count = 2000;
+
+  if (argc > 1 and not parse_size(argv[1], entry_count))
+    {
+      std::fprintf(stderr, "invalid entry_count: '%s'\n", argv[1]);
+      return 1;
+    }
+  if (argc > 2 and not parse_size(argv[2], query_count))
+    {
+      std::fprintf(stderr, "invalid query_count: '%s'\n", argv[2]);
+      return 1;
+    }
 
   const std::vector<Rectangle> rects = make_rectangles(entry_count, 0xA1E9u);
   const std::vector<Rectangle> queries = make_rectangles(query_count, 0xBEEFu);

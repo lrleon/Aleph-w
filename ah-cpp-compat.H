@@ -201,7 +201,9 @@ public:
   template <class Err = E>
     requires (not std::is_same_v<std::remove_cvref_t<Err>, unexpected> and
               std::is_constructible_v<E, Err>)
-  constexpr explicit unexpected(Err &&e) : err_(std::forward<Err>(e)) {}
+  constexpr explicit unexpected(Err &&e)
+    noexcept(std::is_nothrow_constructible_v<E, Err>)
+    : err_(std::forward<Err>(e)) {}
 
   /** @brief Access the error (const lvalue).
    *  @return Const reference to the stored error.
