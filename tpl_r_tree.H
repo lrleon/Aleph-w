@@ -113,8 +113,7 @@ enum class RTreeVariant
  *  @tparam Variant Node-split/insertion strategy (@ref RTreeVariant). Defaults
  *          to Guttman's quadratic split; `RStar` selects the R*-tree heuristics.
  */
-template <typename Payload, size_t MaxEntries = 16, size_t MinEntries = MaxEntries / 2,
-          RTreeVariant Variant = RTreeVariant::Guttman>
+template <typename Payload, size_t MaxEntries = 16, size_t MinEntries = MaxEntries / 2, RTreeVariant Variant = RTreeVariant::Guttman>
 class RTree
 {
   static_assert(MaxEntries >= 2, "RTree requires MaxEntries >= 2");
@@ -157,6 +156,13 @@ private:
   // R*-only transient state (empty/false while no insertion is in progress).
   bool rstar_reinsert_available_ = false;  ///< Leaf-level reinsert not yet used this insert.
   Array<Entry> rstar_reinsert_buffer_;     ///< Entries pending forced reinsertion.
+
+  /// @brief Drop R*-tree transient insertion state.
+  void clear_rstar_reinsert_state() noexcept
+  {
+    rstar_reinsert_available_ = false;
+    rstar_reinsert_buffer_.clear();
+  }
 
   // ---- geometry helpers -------------------------------------------------
 
@@ -630,6 +636,7 @@ private:
         insert_one(std::move(entry));
         while (not rstar_reinsert_buffer_.is_empty())
           insert_one(rstar_reinsert_buffer_.remove_last());
+        clear_rstar_reinsert_state();
       }
     else
       insert_one(std::move(entry));
@@ -840,6 +847,7 @@ public:
   {
     other.size_ = 0;
     other.height_ = 0;
+    other.clear_rstar_reinsert_state();
   }
 
   /** @brief Move-assign from @p other, leaving it empty and valid.
@@ -857,8 +865,10 @@ public:
     root_ = std::move(other.root_);
     size_ = other.size_;
     height_ = other.height_;
+    clear_rstar_reinsert_state();
     other.size_ = 0;
     other.height_ = 0;
+    other.clear_rstar_reinsert_state();
     return *this;
   }
 
@@ -928,6 +938,7 @@ public:
     root_.reset();
     size_ = 0;
     height_ = 0;
+    clear_rstar_reinsert_state();
   }
 
   /** @brief Insert a (bbox, value) entry, copying @p value.
@@ -1055,7 +1066,8 @@ public:
    *          occupancy is within `[MinEntries, MaxEntries]` (root exempt from
    *          the lower bound), all leaves share one depth, and the counted
    *          entries match `size()`.
-   *  @throws Nothing.
+   *  @throws Exceptions propagated by rectangle coordinate operations while
+   *          recomputing bounding boxes; `Payload` is not inspected.
    *  @note Intended for tests and diagnostics; it is O(n).
    */
   [[nodiscard]] bool verify() const

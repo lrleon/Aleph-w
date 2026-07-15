@@ -255,6 +255,10 @@ TEST(RStarTree, CopyAndMove)
   EXPECT_TRUE(moved.verify());
   EXPECT_TRUE(copy.is_empty());   // NOLINT(bugprone-use-after-move)
   EXPECT_TRUE(copy.verify());
+
+  copy.insert(rect(-5, -5, -4, -4), -5);   // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(copy.size(), 1u);
+  EXPECT_TRUE(copy.verify());
 }
 
 TEST(RStarTree, SupportsMoveOnlyPayload)
@@ -295,6 +299,11 @@ TEST(RStarTree, AssignmentClearAndDrainRemainValid)
   EXPECT_TRUE(assigned.is_empty());   // NOLINT(bugprone-use-after-move)
   EXPECT_TRUE(assigned.verify());
 
+  assigned.insert(rect(-10, -10, -9, -9), -10);   // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(assigned.size(), 1u);
+  EXPECT_TRUE(assigned.verify());
+  assigned.clear();
+
   for (const auto &[b, id] : ref)
     {
       ASSERT_TRUE(moved.erase(b, id));
@@ -305,6 +314,9 @@ TEST(RStarTree, AssignmentClearAndDrainRemainValid)
 
   source.clear();
   EXPECT_TRUE(source.is_empty());
+  EXPECT_TRUE(source.verify());
+  source.insert(rect(-20, -20, -19, -19), -20);
+  EXPECT_EQ(source.size(), 1u);
   EXPECT_TRUE(source.verify());
 }
 
