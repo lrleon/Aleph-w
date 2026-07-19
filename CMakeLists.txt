@@ -44,6 +44,7 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_REPRODUCTIONS "Build weekly cellular-automata reproductions" OFF)
 option(BUILD_BENCHMARKS "Build cellular-automata performance-gate benchmarks" OFF)
 option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+option(ALEPH_USE_MEMORY_SANITIZER "Enable Clang MemorySanitizer" OFF)
 option(ALEPH_USE_LIBCXX "Use libc++ when compiling with Clang" OFF)
 option(ALEPH_DISABLE_RANGES "Force C++20 std::ranges support off (portability escape hatch)" OFF)
 
@@ -115,12 +116,37 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
 
 if(ALEPH_USE_SANITIZERS)
+    if(ALEPH_USE_MEMORY_SANITIZER)
+        message(FATAL_ERROR
+            "ALEPH_USE_SANITIZERS and ALEPH_USE_MEMORY_SANITIZER are mutually exclusive")
+    endif()
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
         add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
     else()
         message(WARNING "ALEPH_USE_SANITIZERS is only supported with GCC or Clang")
     endif()
+endif()
+
+if(ALEPH_USE_MEMORY_SANITIZER)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR NOT UNIX OR APPLE)
+        message(FATAL_ERROR
+            "ALEPH_USE_MEMORY_SANITIZER requires Clang on a non-Apple Unix host")
+    endif()
+    add_compile_options(
+        -fsanitize=memory
+        -fsanitize-memory-track-origins=2
+        -fno-omit-frame-pointer
+        -fPIE
+        -g
+    )
+    add_link_options(
+        -fsanitize=memory
+        -fsanitize-memory-track-origins=2
+        -fno-omit-frame-pointer
+        -pie
+        -g
+    )
 endif()
 
 # Portability escape hatch: force std::ranges support off. The library still
@@ -769,6 +795,7 @@ message(STATUS "  Build reproductions: ${BUILD_REPRODUCTIONS}")
 message(STATUS "  Build benchmarks: ${BUILD_BENCHMARKS}")
 message(STATUS "  Build Python bindings: ${ALEPH_BUILD_PYTHON}")
 message(STATUS "  Sanitizers: ${ALEPH_USE_SANITIZERS}")
+message(STATUS "  MemorySanitizer: ${ALEPH_USE_MEMORY_SANITIZER}")
 message(STATUS "  Disable ranges: ${ALEPH_DISABLE_RANGES}")
 message(STATUS "  X11 viewer: ${ALEPH_BUILD_X11_VIEWER}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")

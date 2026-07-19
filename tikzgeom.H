@@ -49,6 +49,7 @@
 # include "line.H"
 # include "point.H"
 # include "polygon.H"
+# include "tpl_array.H"
 
 namespace Aleph
 {
@@ -394,22 +395,21 @@ namespace Aleph
       return opts;
     }
 
-    static Geom_Number rotated_x_extent(const RotatedEllipse & e)
+    /** @brief Return true when rendering @p style needs the patterns library. */
+    [[nodiscard]] static bool style_requires_patterns(
+        const Tikz_Style & style) noexcept
     {
-      const Geom_Number a2 = e.get_a() * e.get_a();
-      const Geom_Number b2 = e.get_b() * e.get_b();
-      const Geom_Number c2 = e.get_cos() * e.get_cos();
-      const Geom_Number s2 = e.get_sin() * e.get_sin();
-      return square_root(a2 * c2 + b2 * s2);
+      return style.fill and not style.pattern.empty();
     }
 
-    static Geom_Number rotated_y_extent(const RotatedEllipse & e)
+    /** @brief Append @p library unless it is already present. */
+    static void append_unique_library(Array<std::string> & libraries,
+                                      const std::string & library)
     {
-      const Geom_Number a2 = e.get_a() * e.get_a();
-      const Geom_Number b2 = e.get_b() * e.get_b();
-      const Geom_Number c2 = e.get_cos() * e.get_cos();
-      const Geom_Number s2 = e.get_sin() * e.get_sin();
-      return square_root(a2 * s2 + b2 * c2);
+      for (size_t i = 0; i < libraries.size(); ++i)
+        if (libraries(i) == library)
+          return;
+      libraries.append(library);
     }
 
     static Geom_Box make_box(const Geom_Number & xmin,
@@ -473,11 +473,9 @@ namespace Aleph
 
     static Geom_Box bbox_of(const RotatedEllipse & e)
     {
-      const Geom_Number ex = rotated_x_extent(e);
-      const Geom_Number ey = rotated_y_extent(e);
-      const Point & c = e.get_center();
-      return make_box(c.get_x() - ex, c.get_x() + ex,
-                      c.get_y() - ey, c.get_y() + ey);
+      const auto extrema = e.extremal_points();
+      return make_box(extrema.left.get_x(), extrema.right.get_x(),
+                      extrema.bottom.get_y(), extrema.top.get_y());
     }
 
     static Geom_Box bbox_of(const Text & t)
@@ -1235,6 +1233,35 @@ namespace Aleph
     /// @brief Number of currently inserted objects.
     [[nodiscard]] size_t size() const { return objects_.size(); }
 
+    /** @brief Collect TikZ libraries required by currently emitted features.
+     *
+     *  The result is unique and deterministic. It currently detects pattern
+     *  fills in objects, legends, and registered TikZ styles.
+     *
+     *  @return Required library names, without `\usetikzlibrary` syntax.
+     *  @note Complexity is O(n), where n is the number of stored styles and
+     *        objects.
+     */
+    [[nodiscard]] Array<std::string> required_tikz_libraries() const
+    {
+      Array<std::string> libraries;
+      const auto collect_style = [&libraries](const Tikz_Style & style)
+        {
+          if (style_requires_patterns(style))
+            append_unique_library(libraries, "patterns");
+        };
+
+      collect_style(default_style_);
+      for (const auto & entry : legend_entries_)
+        collect_style(entry.style);
+      for (const auto & entry : tikz_style_defs_)
+        collect_style(entry.second);
+      for (const auto & object : objects_)
+        collect_style(object.style);
+
+      return libraries;
+    }
+
     /// @brief Default style used by `put(obj)` and non-styled `put_in_plane`.
     [[nodiscard]] const Tikz_Style &get_default_style() const { return default_style_; }
 
@@ -1387,6 +1414,14 @@ namespace Aleph
 
       output << std::fixed << std::setprecision(6);
       output << "% Requires: \\usepackage{tikz}" << std::endl;
+      const Array<std::string> libraries = required_tikz_libraries();
+      if (not libraries.is_empty())
+        {
+          output << "% TikZ libraries:";
+          for (size_t i = 0; i < libraries.size(); ++i)
+            output << (i == 0 ? " " : ",") << libraries(i);
+          output << std::endl;
+        }
       if (with_native_layers_)
         {
           output << "\\pgfdeclarelayer{background}" << std::endl

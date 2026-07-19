@@ -761,6 +761,37 @@ TEST_F(GeomAlgorithmsTest, AABBTreeDebugSnapshot)
   EXPECT_EQ(leaf_count, tree.size());
 }
 
+TEST_F(GeomAlgorithmsTest, AABBTreeLargeDebugSnapshotKeepsValidChildIndices)
+{
+  constexpr size_t num_entries = 128;
+  AABBTree tree;
+  Array<AABBTree::Entry> entries;
+  entries.reserve(num_entries);
+  for (size_t i = 0; i < num_entries; ++i)
+    {
+      const long x = static_cast<long>(3 * i);
+      const long y = static_cast<long>((41 * i) % 97);
+      entries.append({Rectangle(x, y, x + 2, y + 2), i});
+    }
+  tree.build(entries);
+
+  const auto snap = tree.debug_snapshot();
+  EXPECT_EQ(snap.nodes.size(), 2 * num_entries - 1);
+  EXPECT_LT(snap.root, snap.nodes.size());
+
+  size_t leaf_count = 0;
+  for (size_t i = 0; i < snap.nodes.size(); ++i)
+    if (snap.nodes(i).is_leaf)
+      ++leaf_count;
+    else
+      {
+        EXPECT_LT(snap.nodes(i).left, snap.nodes.size());
+        EXPECT_LT(snap.nodes(i).right, snap.nodes.size());
+      }
+
+  EXPECT_EQ(leaf_count, num_entries);
+}
+
 
 // ============================================================================
 // GeomNumberType Concept Test (compile-time)

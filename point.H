@@ -1282,6 +1282,8 @@ namespace Aleph
 
     /**
      * @brief Checks if this segment intersects a triangle.
+     * @details The triangle is treated as a closed filled region, so a segment
+     *          wholly contained in it also intersects it.
      * @param t The triangle.
      * @return `true` if the segment and triangle share at least one point.
      */
@@ -1289,6 +1291,8 @@ namespace Aleph
 
     /**
      * @brief Checks if this segment intersects an ellipse.
+     * @details The ellipse is treated as a closed filled region, so a segment
+     *          wholly contained in it also intersects it.
      * @param e The ellipse.
      * @return `true` if the segment and ellipse share at least one point.
      */
@@ -1404,6 +1408,8 @@ namespace Aleph
 
     /**
      * @brief Computes the intersection segment with a triangle.
+     * @details The result is the portion of this segment inside the closed
+     *          filled triangle, preserving this segment's direction.
      * @param t The triangle.
      * @return The `Segment` of intersection. Can be a point (degenerate segment).
      * @throws std::domain_error if there is no intersection.
@@ -1412,6 +1418,8 @@ namespace Aleph
 
     /**
      * @brief Computes the intersection segment with an ellipse.
+     * @details The result is the portion of this segment inside the closed
+     *          filled ellipse, preserving this segment's direction.
      * @param e The ellipse.
      * @return The `Segment` of intersection. Can be a point for tangency.
      * @throws std::domain_error if there is no intersection.
@@ -1918,22 +1926,35 @@ namespace Aleph
     }
   };
 
-  // Returns true if this segment intersects one or two edges of triangle @p t.
+  // Return true if this segment overlaps the closed filled triangle @p t.
   inline bool Segment::intersects_with(const Triangle & t) const
   {
-    return this->intersects_with(Segment(t.get_p1(), t.get_p2())) or
-           this->intersects_with(Segment(t.get_p2(), t.get_p3())) or
-           this->intersects_with(Segment(t.get_p3(), t.get_p1()));
+    const auto edges = t.edges();
+    const auto covered = [&t, &edges](const Point & p)
+      {
+        if (t.contains(p))
+          return true;
+        for (const Segment & edge : edges)
+          if (edge.contains(p))
+            return true;
+        return false;
+      };
+
+    if (covered(src_) or covered(tgt_))
+      return true;
+
+    for (const Segment & edge : edges)
+      if (this->intersects_with(edge))
+        return true;
+    return false;
   }
 
 
-  // Returns the segment resulting from intersecting this segment with triangle @p t.
-  // If an endpoint lies inside the triangle, the intersection degenerates to a
-  // point, which can be used to test if a point belongs to @p t.
+  // Return the portion of this segment covered by the closed filled triangle.
   inline Segment Segment::intersection_with(const Triangle & t) const
   {
     ah_domain_error_if(not this->intersects_with(t))
-      << "segment does not intersects with triangle";
+      << "Segment does not intersect the triangle";
 
     std::array<Point, 6> points;
     size_t count = 0;
@@ -1967,9 +1988,23 @@ namespace Aleph
         append_unique(this->intersection_with(edge));
       };
 
-    collect_with_edge(Segment(t.get_p1(), t.get_p2()));
-    collect_with_edge(Segment(t.get_p2(), t.get_p3()));
-    collect_with_edge(Segment(t.get_p3(), t.get_p1()));
+    const auto edges = t.edges();
+    const auto covered = [&t, &edges](const Point & p)
+      {
+        if (t.contains(p))
+          return true;
+        for (const Segment & edge : edges)
+          if (edge.contains(p))
+            return true;
+        return false;
+      };
+
+    if (covered(src_))
+      append_unique(src_);
+    if (covered(tgt_))
+      append_unique(tgt_);
+    for (const Segment & edge : edges)
+      collect_with_edge(edge);
 
     ah_domain_error_if(count == 0)
       << "no intersection point found despite intersection confirmed";
@@ -1990,7 +2025,10 @@ namespace Aleph
             j_best = j;
           }
 
-    return {points[i_best], points[j_best]};
+    if (src_.distance_squared_to(points[i_best]) <=
+        src_.distance_squared_to(points[j_best]))
+      return {points[i_best], points[j_best]};
+    return {points[j_best], points[i_best]};
   }
 
 
@@ -2216,8 +2254,8 @@ namespace Aleph
 
     /**
      * @brief Checks if a segment intersects the ellipse.
-     * @details Solves the quadratic equation for the intersection of a line
-     *          and an ellipse.
+     * @details Treats the ellipse as a closed filled region and solves the
+     *          quadratic equation for boundary crossings when necessary.
      * @param s The segment to check.
      * @return `true` if the segment and ellipse share at least one point.
      */
@@ -2239,9 +2277,16 @@ namespace Aleph
           (p0.get_x() * p0.get_x()) / a2 + (p0.get_y() * p0.get_y()) / b2 -
           Geom_Number(1);
 
+      const Geom_Number target_value =
+          (p1.get_x() * p1.get_x()) / a2 + (p1.get_y() * p1.get_y()) / b2 -
+          Geom_Number(1);
+
+      if (C <= 0 or target_value <= 0)
+        return true;
+
       // For a segment, A can be 0 if it's a point.
       if (A == 0)
-        return C <= 0; // Point is inside or on the ellipse
+        return false;
 
       const Geom_Number discriminant = B * B - Geom_Number(4) * A * C;
       if (discriminant < 0)
@@ -2339,20 +2384,12 @@ namespace Aleph
       const Geom_Number t1 = (-B - root) / denom;
       const Geom_Number t2 = (-B + root) / denom;
 
-      const bool in1 = in_unit_interval(t1);
-      const bool in2 = in_unit_interval(t2);
-      ah_domain_error_if(not in1 and not in2) << "Intersection points are outside the segment";
+      const Geom_Number lo = t1 < 0 ? Geom_Number(0) : t1;
+      const Geom_Number hi = t2 > 1 ? Geom_Number(1) : t2;
+      ah_domain_error_if(hi < lo)
+        << "Ellipse and segment do not share any point";
 
-      auto eval_at = [&](const Geom_Number & t)
-        {
-          return sg.at(t);
-        };
-
-      if (in1 and in2)
-        return {eval_at(t1), eval_at(t2)};
-
-      const Point touch = in1 ? eval_at(t1) : eval_at(t2);
-      return {touch, touch};
+      return {sg.at(lo), sg.at(hi)};
     }
   };
 
@@ -2374,8 +2411,7 @@ namespace Aleph
     return e.intersects_with(*this);
   }
 
-  // Return the segment defined by the two intersection points between this
-  // segment and ellipse e.
+  // Return the portion of this segment covered by the closed filled ellipse.
   inline Segment Segment::intersection_with(const Ellipse & e) const
   {
     return e.intersection_with(*this);
@@ -2670,15 +2706,21 @@ namespace Aleph
      */
     [[nodiscard]] ExtremalPoints extremal_points() const
     {
-      // TODO: This is incorrect. It returns the endpoints of the semi-axes,
-      // which are only the extremal points if the ellipse is axis-aligned.
-      // The correct calculation requires finding the points where the derivative
-      // of the world coordinate is zero.
+      const Geom_Number a2 = a_ * a_;
+      const Geom_Number b2 = b_ * b_;
+      const Geom_Number c2 = cos_th_ * cos_th_;
+      const Geom_Number s2 = sin_th_ * sin_th_;
+      const Geom_Number x_extent = square_root(a2 * c2 + b2 * s2);
+      const Geom_Number y_extent = square_root(a2 * s2 + b2 * c2);
+      const Geom_Number cross = (a2 - b2) * sin_th_ * cos_th_;
+      const Geom_Number right_y = cross / x_extent;
+      const Geom_Number top_x = cross / y_extent;
+
       return {
-            to_world(Point(a_, Geom_Number(0))),
-            to_world(Point(Geom_Number(0), b_)),
-            to_world(Point(-a_, Geom_Number(0))),
-            to_world(Point(Geom_Number(0), -b_))
+            Point(center_.get_x() + x_extent, center_.get_y() + right_y),
+            Point(center_.get_x() + top_x, center_.get_y() + y_extent),
+            Point(center_.get_x() - x_extent, center_.get_y() - right_y),
+            Point(center_.get_x() - top_x, center_.get_y() - y_extent)
           };
     }
   };

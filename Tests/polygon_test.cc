@@ -45,6 +45,7 @@
 
 #include <gtest/gtest.h>
 #include <cmath>
+#include <limits>
 #include <vector>
 #include <polygon.H>
 
@@ -813,6 +814,9 @@ TEST_F(RegularPolygonConstructionTest, DefaultConstruction)
   Regular_Polygon poly;
   EXPECT_EQ(poly.size(), 0u);
   EXPECT_EQ(poly.get_side_size(), 0);
+  EXPECT_EQ(poly.radius(), 0);
+  EXPECT_EQ(poly.get_center(), Point(0, 0));
+  EXPECT_FALSE(poly.is_closed());
 }
 
 TEST_F(RegularPolygonConstructionTest, ConstructTriangle)
@@ -845,6 +849,21 @@ TEST_F(RegularPolygonConstructionTest, LessThanThreeSidesThrows)
   EXPECT_THROW(Regular_Polygon(Point(0, 0), 100.0, 2), std::domain_error);
   EXPECT_THROW(Regular_Polygon(Point(0, 0), 100.0, 1), std::domain_error);
   EXPECT_THROW(Regular_Polygon(Point(0, 0), 100.0, 0), std::domain_error);
+}
+
+TEST_F(RegularPolygonConstructionTest, InvalidSideLengthAndAngleThrow)
+{
+  EXPECT_THROW(Regular_Polygon(Point(0, 0), 0.0, 4), std::domain_error);
+  EXPECT_THROW(Regular_Polygon(Point(0, 0), -1.0, 4), std::domain_error);
+  EXPECT_THROW(Regular_Polygon(Point(0, 0),
+                              std::numeric_limits<double>::infinity(), 4),
+               std::domain_error);
+  EXPECT_THROW(Regular_Polygon(Point(0, 0),
+                              std::numeric_limits<double>::max(), 8),
+               std::domain_error);
+  EXPECT_THROW(Regular_Polygon(Point(0, 0), 1.0, 4,
+                              std::numeric_limits<double>::quiet_NaN()),
+               std::domain_error);
 }
 
 TEST_F(RegularPolygonConstructionTest, RadiusCalculation)
@@ -943,11 +962,11 @@ TEST_F(RegularPolygonSegmentTest, GetFirstSegment)
 TEST_F(RegularPolygonSegmentTest, GetLastSegment)
 {
   Segment last = sq->get_last_segment();
-  Point vertex2 = sq->get_vertex(2);
   Point vertex3 = sq->get_vertex(3);
+  Point vertex0 = sq->get_vertex(0);
 
-  EXPECT_TRUE(points_equal(last.get_src_point(), vertex2));
-  EXPECT_TRUE(points_equal(last.get_tgt_point(), vertex3));
+  EXPECT_TRUE(points_equal(last.get_src_point(), vertex3));
+  EXPECT_TRUE(points_equal(last.get_tgt_point(), vertex0));
 }
 
 TEST_F(RegularPolygonSegmentTest, AllSidesEqualLength)

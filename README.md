@@ -439,6 +439,7 @@ The package ships `AlephConfig.cmake`, `AlephConfigVersion.cmake` and
 | `BUILD_OPTIMIZED` | OFF | If ON and `CMAKE_BUILD_TYPE` is unset, default to `Release` |
 | `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest if missing |
 | `ALEPH_USE_SANITIZERS` | OFF | Enable ASan/UBSan for the library and tests |
+| `ALEPH_USE_MEMORY_SANITIZER` | OFF | Enable the targeted Clang MemorySanitizer probe (Linux only) |
 | `ALEPH_BUILD_X11_VIEWER` | ON (Unix), OFF (Windows) | Build the X11 live viewer (`ca-x11-viewer.H`). Requires `libX11`. Turn OFF to drop the X11 dependency on non-POSIX targets. |
 
 ### Cross-platform CI

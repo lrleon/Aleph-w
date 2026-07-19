@@ -891,6 +891,69 @@ jobs:
             build-asan/CMakeCache.txt
             build-asan/test_artifacts/golden_svg
 
+  memory-sanitizer:
+    name: memory-sanitizer (ubuntu-24.04, clang, Debug)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CC: clang
+      CXX: clang++
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config cppcheck \
+            clang \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev
+
+      - name: Check Regular_Polygon member initialization
+        run: |
+          cppcheck \
+            --enable=warning \
+            --std=c++20 \
+            --language=c++ \
+            --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --suppress=nullPointer:polygon.H \
+            polygon.H
+
+      - name: Configure targeted MemorySanitizer probe
+        run: |
+          cmake -S . -B build-msan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON \
+            -DALEPH_BUILD_X11_VIEWER=OFF \
+            -DALEPH_USE_MEMORY_SANITIZER=ON
+
+      - name: Build targeted MemorySanitizer probe
+        run: |
+          cmake --build build-msan \
+            --target regular_polygon_msan_probe \
+            --parallel
+
+      - name: Test default Regular_Polygon state
+        run: |
+          ctest --test-dir build-msan --output-on-failure \
+            -R '^MemorySanitizer\.RegularPolygonDefaultState$'
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ctest-logs-memory-sanitizer
+          if-no-files-found: ignore
+          path: |
+            build-msan/Testing/Temporary/LastTest.log
+            build-msan/CMakeCache.txt
+
   tsan:
     # Phase 16 — sanitizer matrix expansion.
     # ThreadSanitizer focuses on data races in the CA Parallel_Engine and
@@ -1145,6 +1208,7 @@ jobs:
       - planarity-visual-golden
       - coverage
       - sanitizers
+      - memory-sanitizer
       - tsan
       - ubsan
       - check-examples
@@ -1158,6 +1222,7 @@ jobs:
           echo "planarity-visual-golden result: ${{ needs.planarity-visual-golden.result }}"
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
+          echo "memory-sanitizer result: ${{ needs.memory-sanitizer.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
           echo "ubsan result: ${{ needs.ubsan.result }}"
           echo "check-examples result: ${{ needs.check-examples.result }}"
@@ -1183,6 +1248,7 @@ jobs:
           check_job "planarity-visual-golden" "${{ needs.planarity-visual-golden.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
+          check_job "memory-sanitizer" "${{ needs.memory-sanitizer.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
           check_job "ubsan" "${{ needs.ubsan.result }}"
           check_job "check-examples" "${{ needs.check-examples.result }}"
@@ -1203,6 +1269,7 @@ jobs:
       - planarity-visual-golden
       - coverage
       - sanitizers
+      - memory-sanitizer
       - tsan
       - ubsan
       - check-examples
@@ -1217,6 +1284,7 @@ jobs:
           echo "planarity-visual-golden result: ${{ needs.planarity-visual-golden.result }}"
           echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
+          echo "memory-sanitizer result: ${{ needs.memory-sanitizer.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
           echo "ubsan result: ${{ needs.ubsan.result }}"
           echo "check-examples result: ${{ needs.check-examples.result }}"
@@ -1243,6 +1311,7 @@ jobs:
           check_job "planarity-visual-golden" "${{ needs.planarity-visual-golden.result }}"
           check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
+          check_job "memory-sanitizer" "${{ needs.memory-sanitizer.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
           check_job "ubsan" "${{ needs.ubsan.result }}"
           check_job "check-examples" "${{ needs.check-examples.result }}"

@@ -8776,26 +8776,33 @@ public:
     if (not built_ or n_ == 0)
       return snap;
 
+    // A binary range tree with n leaves has exactly 2n - 1 snapshot nodes.
+    // Reserving also avoids needless reallocations while the snapshot is built.
+    const size_t max_size = std::numeric_limits<size_t>::max();
+    if (n_ <= max_size / 2 + 1)
+      snap.nodes.reserve(n_ + (n_ - 1));
+
     auto build_debug = [&](const auto &self, const size_t tree_idx, const size_t lo,
                            const size_t hi) -> size_t
       {
         const size_t out_idx = snap.nodes.size();
         snap.nodes.append(DebugNode{});
-        DebugNode &dn = snap.nodes(out_idx);
-        dn.tree_index = tree_idx;
-        dn.lo = lo;
-        dn.hi = hi;
-        dn.is_leaf = lo == hi;
-        dn.xmin = pts_(lo).get_x();
-        dn.xmax = pts_(hi).get_x();
-        dn.y_sorted_size = tree_(tree_idx).y_sorted.size();
-        dn.split_x = pts_((lo + hi) / 2).get_x();
+        snap.nodes(out_idx).tree_index = tree_idx;
+        snap.nodes(out_idx).lo = lo;
+        snap.nodes(out_idx).hi = hi;
+        snap.nodes(out_idx).is_leaf = lo == hi;
+        snap.nodes(out_idx).xmin = pts_(lo).get_x();
+        snap.nodes(out_idx).xmax = pts_(hi).get_x();
+        snap.nodes(out_idx).y_sorted_size = tree_(tree_idx).y_sorted.size();
+        snap.nodes(out_idx).split_x = pts_((lo + hi) / 2).get_x();
 
         if (lo < hi)
           {
             const size_t mid = lo + (hi - lo) / 2;
-            dn.left = self(self, 2 * tree_idx, lo, mid);
-            dn.right = self(self, 2 * tree_idx + 1, mid + 1, hi);
+            const size_t left = self(self, 2 * tree_idx, lo, mid);
+            const size_t right = self(self, 2 * tree_idx + 1, mid + 1, hi);
+            snap.nodes(out_idx).left = left;
+            snap.nodes(out_idx).right = right;
           }
 
         return out_idx;
@@ -12346,25 +12353,28 @@ public:
     if (root_ == NONE)
       return snap;
 
+    snap.nodes.reserve(nodes_.size());
+
     auto dfs = [&](const auto &self, const size_t ni, const size_t depth) -> size_t
       {
         const Node &n = nodes_(ni);
         const size_t out_idx = snap.nodes.size();
         snap.nodes.append(DebugNode{});
-        DebugNode &dn = snap.nodes(out_idx);
-        dn.node_index = ni;
-        dn.bbox = n.bbox;
-        dn.is_leaf = n.is_leaf();
-        dn.depth = depth;
-        if (dn.is_leaf)
+        snap.nodes(out_idx).node_index = ni;
+        snap.nodes(out_idx).bbox = n.bbox;
+        snap.nodes(out_idx).is_leaf = n.is_leaf();
+        snap.nodes(out_idx).depth = depth;
+        if (n.is_leaf())
           {
-            dn.entry_index = n.entry_idx;
-            dn.user_index = entries_(n.entry_idx).index;
+            snap.nodes(out_idx).entry_index = n.entry_idx;
+            snap.nodes(out_idx).user_index = entries_(n.entry_idx).index;
           }
         else
           {
-            dn.left = self(self, n.left, depth + 1);
-            dn.right = self(self, n.right, depth + 1);
+            const size_t left = self(self, n.left, depth + 1);
+            const size_t right = self(self, n.right, depth + 1);
+            snap.nodes(out_idx).left = left;
+            snap.nodes(out_idx).right = right;
           }
         return out_idx;
       };

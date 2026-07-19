@@ -449,6 +449,32 @@ TEST_F(GeomAlgorithmsTest, RangeTree2DDebugSnapshot)
   EXPECT_EQ(leaf_count, tree.size());
 }
 
+TEST_F(GeomAlgorithmsTest, RangeTree2DLargeDebugSnapshotKeepsValidChildIndices)
+{
+  constexpr size_t num_points = 128;
+  DynList<Point> pts;
+  for (size_t i = 0; i < num_points; ++i)
+    pts.append(Point(static_cast<long>(i), static_cast<long>((37 * i) % 101)));
+
+  RangeTree2D tree;
+  tree.build(pts);
+
+  const auto snap = tree.debug_snapshot();
+  EXPECT_EQ(snap.nodes.size(), 2 * num_points - 1);
+
+  size_t leaf_count = 0;
+  for (size_t i = 0; i < snap.nodes.size(); ++i)
+    if (snap.nodes(i).is_leaf)
+      ++leaf_count;
+    else
+      {
+        EXPECT_LT(snap.nodes(i).left, snap.nodes.size());
+        EXPECT_LT(snap.nodes(i).right, snap.nodes.size());
+      }
+
+  EXPECT_EQ(leaf_count, num_points);
+}
+
 
 // ========== ConvexPolygonOffset ==========
 
@@ -1283,6 +1309,27 @@ TEST_F(GeomAlgorithmsTest, RotatedEllipseExtremalPoints)
   EXPECT_EQ(ext.left, Point(-2, 2));
   EXPECT_EQ(ext.top, Point(1, 3));
   EXPECT_EQ(ext.bottom, Point(1, 1));
+}
+
+TEST_F(GeomAlgorithmsTest, RotatedEllipseExtremalPointsAfterRotation)
+{
+  RotatedEllipse e(Point(1, 2), Geom_Number(4), Geom_Number(2),
+                   Geom_Number(3) / 5, Geom_Number(4) / 5);
+  const auto ext = e.extremal_points();
+
+  const double x_extent = 4.0 * std::sqrt(13.0) / 5.0;
+  const double y_extent = 2.0 * std::sqrt(73.0) / 5.0;
+  const double cross = 144.0 / 25.0;
+
+  EXPECT_NEAR(ext.right.get_x().get_d(), 1.0 + x_extent, 1e-8);
+  EXPECT_NEAR(ext.right.get_y().get_d(), 2.0 + cross / x_extent, 1e-8);
+  EXPECT_NEAR(ext.left.get_x().get_d(), 1.0 - x_extent, 1e-8);
+  EXPECT_NEAR(ext.top.get_x().get_d(), 1.0 + cross / y_extent, 1e-8);
+  EXPECT_NEAR(ext.top.get_y().get_d(), 2.0 + y_extent, 1e-8);
+  EXPECT_NEAR(ext.bottom.get_y().get_d(), 2.0 - y_extent, 1e-8);
+
+  EXPECT_NEAR(e.radius_value(ext.right).get_d(), 1.0, 1e-8);
+  EXPECT_NEAR(e.radius_value(ext.top).get_d(), 1.0, 1e-8);
 }
 
 

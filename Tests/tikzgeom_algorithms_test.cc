@@ -1,8 +1,14 @@
 #include <gtest/gtest.h>
 
 #include <cctype>
+#include <chrono>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <sstream>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include <tikzgeom_algorithms.H>
@@ -21,6 +27,71 @@ bool has_nan_or_inf(std::string s)
   return s.find("nan") != std::string::npos or
          s.find("inf") != std::string::npos;
 }
+
+#ifdef ALEPH_PDFLATEX_EXECUTABLE
+
+/** @brief Quote one controlled path for a POSIX shell command. */
+std::string shell_quote(const std::string & value)
+{
+  std::string quoted = "'";
+  for (const char c : value)
+    if (c == '\'')
+      quoted += "'\\''";
+    else
+      quoted += c;
+  return quoted + "'";
+}
+
+/** @brief Own a unique temporary directory for one LaTeX smoke test. */
+class Scoped_Latex_Temp_Directory
+{
+  std::filesystem::path path_;
+
+public:
+  Scoped_Latex_Temp_Directory()
+  {
+    const auto stamp = std::chrono::high_resolution_clock::now()
+        .time_since_epoch().count();
+    path_ = std::filesystem::temp_directory_path() /
+            ("aleph-tikz-latex-" + std::to_string(stamp));
+    std::filesystem::create_directories(path_);
+  }
+
+  Scoped_Latex_Temp_Directory(const Scoped_Latex_Temp_Directory &) = delete;
+  Scoped_Latex_Temp_Directory & operator=(
+      const Scoped_Latex_Temp_Directory &) = delete;
+
+  ~Scoped_Latex_Temp_Directory()
+  {
+    std::error_code error;
+    std::filesystem::remove_all(path_, error);
+  }
+
+  /** @brief Return the owned temporary directory path. */
+  [[nodiscard]] const std::filesystem::path & path() const noexcept
+  {
+    return path_;
+  }
+};
+
+/** @brief Write an entire generated LaTeX document to disk. */
+bool write_text_file(const std::filesystem::path & path,
+                     const std::string & text)
+{
+  std::ofstream output(path);
+  output << text;
+  return output.good();
+}
+
+/** @brief Read a complete diagnostic file, or an empty string if absent. */
+std::string read_text_file(const std::filesystem::path & path)
+{
+  std::ifstream input(path);
+  return {std::istreambuf_iterator<char>(input),
+          std::istreambuf_iterator<char>()};
+}
+
+#endif
 
 Polygon make_convex_a()
 {
@@ -786,6 +857,60 @@ TEST(TikzGeomSceneTest, StandaloneExportWrapsTikzPicture)
   EXPECT_FALSE(has_nan_or_inf(latex));
 }
 
+TEST(TikzGeomSceneTest, StandaloneAndOverlayExportsCollectPatternDependency)
+{
+  Tikz_Scene patterned(120, 80, 0, 0, true);
+  Tikz_Style pattern = tikz_area_style("black", "gray!20", 0.5);
+  pattern.pattern = "north east lines";
+  pattern.pattern_color = "black";
+  patterned.add(Triangle(Point(0, 0), Point(10, 0), Point(5, 8)), pattern);
+
+  const std::string standalone = patterned.to_standalone();
+  const size_t library_pos = standalone.find("\\usetikzlibrary{patterns}");
+  ASSERT_NE(library_pos, std::string::npos);
+  EXPECT_LT(library_pos, standalone.find("\\begin{document}"));
+
+  std::vector<Tikz_Scene> steps;
+  steps.push_back(patterned);
+  steps.emplace_back(120, 80, 0, 0, true);
+  steps.back().add(Point(1, 1), tikz_points_style("red"));
+
+  const std::string overlays = Tikz_Scene::to_beamer_overlays(steps);
+  const size_t overlay_library_pos =
+      overlays.find("\\usetikzlibrary{patterns}");
+  ASSERT_NE(overlay_library_pos, std::string::npos);
+  EXPECT_LT(overlay_library_pos, overlays.find("\\begin{document}"));
+}
+
+TEST(TikzGeomSceneTest, PatternDependencyCanComeOnlyFromExplicitLegend)
+{
+  Tikz_Scene scene(120, 80, 0, 0, true);
+  Tikz_Style pattern = tikz_area_style("black", "gray!20", 0.5);
+  pattern.pattern = "north east lines";
+  pattern.pattern_color = "black";
+  scene.add_legend_entry("Patterned region", pattern);
+
+  const std::string standalone = scene.to_standalone();
+  EXPECT_NE(standalone.find("\\usetikzlibrary{patterns}"),
+            std::string::npos);
+  EXPECT_NE(standalone.find("Patterned region"), std::string::npos);
+}
+
+TEST(TikzGeomSceneTest, PatternDependencyCanComeOnlyFromRegisteredStyle)
+{
+  Tikz_Scene scene(120, 80, 0, 0, true);
+  Tikz_Style pattern = tikz_area_style("black", "gray!20", 0.5);
+  pattern.pattern = "grid";
+  pattern.pattern_color = "gray";
+  scene.register_tikz_style("patternedArea", pattern);
+
+  const std::string standalone = scene.to_standalone();
+  EXPECT_NE(standalone.find("\\usetikzlibrary{patterns}"),
+            std::string::npos);
+  EXPECT_NE(standalone.find("\\tikzset{patternedArea/.style="),
+            std::string::npos);
+}
+
 TEST(TikzGeomSceneTest, BeamerExportWrapsSingleFrame)
 {
   Tikz_Scene scene(120, 80, 2, 3, true);
@@ -803,6 +928,8 @@ TEST(TikzGeomSceneTest, BeamerExportWrapsSingleFrame)
   EXPECT_NE(latex.find("\\setbeamertemplate{navigation symbols}{}"),
             std::string::npos);
   EXPECT_NE(latex.find("\\begin{frame}[t]{Scene Demo}"), std::string::npos);
+  EXPECT_NE(latex.find("\\usepackage{graphicx}"), std::string::npos);
+  EXPECT_NE(latex.find("\\scalebox{"), std::string::npos);
   EXPECT_NE(latex.find("\\begin{tikzpicture}"), std::string::npos);
   EXPECT_EQ(latex.find("\\documentclass[handout,aspectratio=43]{beamer}"),
             std::string::npos);
@@ -852,6 +979,7 @@ TEST(TikzGeomSceneTest, BeamerOverlaysExportWrapsOnlyBlocks)
   EXPECT_NE(latex.find("\\begin{frame}[t]{Overlay Demo}"), std::string::npos);
   EXPECT_NE(latex.find("\\only<1>{"), std::string::npos);
   EXPECT_NE(latex.find("\\only<2>{"), std::string::npos);
+  EXPECT_NE(latex.find("\\scalebox{"), std::string::npos);
   EXPECT_EQ(latex.find("\\only<3>{"), std::string::npos);
   EXPECT_EQ(latex.find("\\documentclass[handout,aspectratio=169]{beamer}"),
             std::string::npos);
@@ -863,6 +991,9 @@ TEST(TikzGeomSceneTest, HandoutOverlaysAddsHandoutClassOption)
   std::vector<Tikz_Scene> steps;
   steps.emplace_back(120, 80, 0, 0, true);
   steps.back().add(Point(4, 5), tikz_points_style("black"));
+  steps.emplace_back(120, 80, 0, 0, true);
+  steps.back().add(Segment(Point(0, 0), Point(5, 5)),
+                   tikz_wire_style("blue"));
 
   Tikz_Beamer_Document_Options opts;
   opts.class_options = "handout,aspectratio=43";
@@ -872,8 +1003,22 @@ TEST(TikzGeomSceneTest, HandoutOverlaysAddsHandoutClassOption)
   EXPECT_NE(latex.find("\\documentclass[handout,aspectratio=43]{beamer}"),
             std::string::npos);
   EXPECT_EQ(latex.find("handout,handout"), std::string::npos);
-  EXPECT_NE(latex.find("\\only<1>{"), std::string::npos);
+  EXPECT_EQ(latex.find("\\only<1>{"), std::string::npos);
+  EXPECT_NE(latex.find("draw=blue"), std::string::npos);
+  EXPECT_EQ(latex.find("fill=black"), std::string::npos);
+  const size_t picture = latex.find("\\begin{tikzpicture}");
+  ASSERT_NE(picture, std::string::npos);
+  EXPECT_EQ(latex.find("\\begin{tikzpicture}", picture + 1),
+            std::string::npos);
   EXPECT_FALSE(has_nan_or_inf(latex));
+}
+
+TEST(TikzGeomSceneTest, BeamerRejectsInvalidPictureBounds)
+{
+  Tikz_Scene scene(120, 80, 0, 0, true);
+  Tikz_Beamer_Document_Options opts;
+  opts.max_picture_height_mm = 0.0;
+  EXPECT_THROW(scene.to_beamer(opts), std::domain_error);
 }
 
 TEST(TikzGeomSceneTest, BeamerOverlaysHandlesEmptySteps)
@@ -884,4 +1029,66 @@ TEST(TikzGeomSceneTest, BeamerOverlaysHandlesEmptySteps)
   EXPECT_NE(latex.find("No overlays provided."), std::string::npos);
   EXPECT_EQ(latex.find("\\only<1>{"), std::string::npos);
   EXPECT_FALSE(has_nan_or_inf(latex));
+}
+
+TEST(TikzGeomSceneTest, GeneratedLatexDocumentsCompileWithoutLayoutOverflow)
+{
+#ifndef ALEPH_PDFLATEX_EXECUTABLE
+  GTEST_SKIP() << "pdflatex, standalone, beamer, or TikZ is unavailable";
+#else
+  Tikz_Scene patterned(220, 130, 0, 0, true);
+  Tikz_Style pattern = tikz_area_style("black", "orange!20", 0.5);
+  pattern.pattern = "north east lines";
+  pattern.pattern_color = "orange!80!black";
+  patterned.add(Triangle(Point(0, 0), Point(20, 0), Point(10, 16)), pattern);
+
+  std::vector<Tikz_Scene> steps;
+  for (size_t i = 0; i < 3; ++i)
+    {
+      steps.emplace_back(178, 108, 0, 0, true);
+      steps.back().add(
+          Segment(Point(-20, static_cast<long>(i)),
+                  Point(20, 20 - static_cast<long>(i))),
+          tikz_wire_style(i == 2 ? "blue" : "black"));
+    }
+
+  Tikz_Beamer_Document_Options options;
+  options.frame_title = "TikZ layout smoke test";
+  const std::string beamer = Tikz_Scene::to_beamer_overlays(steps, options);
+  const std::string handout = Tikz_Scene::to_handout_overlays(steps, options);
+
+  Scoped_Latex_Temp_Directory temporary;
+  const std::vector<std::pair<std::string, std::string>> documents = {
+      {"standalone", patterned.to_standalone()},
+      {"beamer", beamer},
+      {"handout", handout}
+    };
+
+  for (const auto & [name, document] : documents)
+    {
+      const std::filesystem::path tex = temporary.path() / (name + ".tex");
+      const std::filesystem::path transcript =
+          temporary.path() / (name + ".stdout");
+      ASSERT_TRUE(write_text_file(tex, document));
+
+      const std::string command =
+          shell_quote(ALEPH_PDFLATEX_EXECUTABLE) +
+          " -interaction=nonstopmode -halt-on-error -output-directory=" +
+          shell_quote(temporary.path().string()) + " " +
+          shell_quote(tex.string()) + " > " +
+          shell_quote(transcript.string()) + " 2>&1";
+      const int status = std::system(command.c_str());
+      const std::string diagnostics = read_text_file(transcript);
+      ASSERT_EQ(status, 0) << name << " failed:\n" << diagnostics;
+
+      const std::string log =
+          read_text_file(temporary.path() / (name + ".log"));
+      EXPECT_EQ(log.find("Overfull"), std::string::npos)
+          << name << " contains a layout overflow:\n" << log;
+      EXPECT_EQ(log.find("LaTeX Error"), std::string::npos)
+          << name << " contains a LaTeX error:\n" << log;
+      EXPECT_EQ(log.find("Undefined control sequence"), std::string::npos)
+          << name << " contains an undefined command:\n" << log;
+    }
+#endif
 }

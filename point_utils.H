@@ -47,6 +47,9 @@
 
 # include <point.H>
 
+namespace Aleph
+{
+
 [[deprecated("Use area_of_triangle() from point.H")]]
 inline Geom_Number area_of_triangle_legacy(const Point & a,
                                            const Point & b,
@@ -85,47 +88,51 @@ inline bool left_on(const Point & a, const Point & b, const Point & c)
 inline bool proper_intersection(const Point & a, const Point & b,
                                 const Point & c, const Point & d)
 {
-  if (points_are_colinear(a, b, c) or
-      points_are_colinear(a, b, d) or
-      points_are_colinear(c, d, a) or
-      points_are_colinear(c, d, b))
+  const Orientation abc = orientation(a, b, c);
+  const Orientation abd = orientation(a, b, d);
+  const Orientation cda = orientation(c, d, a);
+  const Orientation cdb = orientation(c, d, b);
+  if (abc == Orientation::COLLINEAR or abd == Orientation::COLLINEAR or
+      cda == Orientation::COLLINEAR or cdb == Orientation::COLLINEAR)
     return false;
 
-  return (c_is_to_left_(a, b, c) xor c_is_to_left_(a, b, d)) and
-         (c_is_to_left_(c, d, a) xor c_is_to_left_(c, d, b));
+  return abc != abd and cda != cdb;
 }
 
 [[deprecated("Use Point::is_between() from point.H")]]
 inline bool between(const Point & a, const Point & b, const Point & c)
 {
-  if (not points_are_colinear(a, b, c))
-    return false;
-
-  if (a.get_x() != b.get_x())
-    return (((a.get_x() <= c.get_x()) and (c.get_x() <= b.get_x())) or
-            ((a.get_x() >= c.get_x()) and (c.get_x() >= b.get_x())));
-
-  return (((a.get_y() <= c.get_y()) and (c.get_y() <= b.get_y())) or
-          ((a.get_y() >= c.get_y()) and (c.get_y() >= b.get_y())));
+  return c.is_between(a, b);
 }
 
 [[deprecated("Use Segment::intersects_with() from point.H")]]
 inline bool intersect_improp(const Point & a, const Point & b,
                              const Point & c, const Point & d)
 {
-  return between(a, b, c) or between(a, b, d) or
-         between(c, d, a) or between(c, d, b);
+  return c.is_between(a, b) or d.is_between(a, b) or
+         a.is_between(c, d) or b.is_between(c, d);
 }
 
 [[deprecated("Use segments_intersect() from point.H")]]
 inline bool intersectp(const Point & a, const Point & b,
                        const Point & c, const Point & d)
 {
-  if (proper_intersection(a, b, c, d))
-    return true;
-
-  return intersect_improp(a, b, c, d);
+  return segments_intersect(a, b, c, d);
 }
+
+} // namespace Aleph
+
+// Preserve source compatibility for legacy unqualified calls while keeping
+// every implementation in the library namespace.
+using Aleph::area_of_triangle_legacy;
+using Aleph::between;
+using Aleph::c_is_to_left_;
+using Aleph::intersect_improp;
+using Aleph::intersectp;
+using Aleph::is_clockwise;
+using Aleph::left_on;
+using Aleph::points_are_colinear;
+using Aleph::proper_intersection;
 
 
 # endif // POINT_UTILS_H

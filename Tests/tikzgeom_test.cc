@@ -255,9 +255,12 @@ TEST(TikzPlaneTest, SupportsPatternFillStyle)
   std::ostringstream output;
   plane.draw(output);
   const std::string result = output.str();
+  const Array<std::string> libraries = plane.required_tikz_libraries();
 
   EXPECT_NE(result.find("pattern=north east lines"), std::string::npos);
   EXPECT_NE(result.find("pattern color=black"), std::string::npos);
+  ASSERT_EQ(libraries.size(), 1u);
+  EXPECT_EQ(libraries(0), "patterns");
 }
 
 TEST(TikzPlaneTest, SupportsGridTicksLegendLayersAndTikzset)

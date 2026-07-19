@@ -319,15 +319,17 @@ public:
    *  @param _min_y Minimum Y coordinate of the region
    *  @param _max_y Maximum Y coordinate of the region
    *  @param _parent Parent node (nullptr for root)
+   *  @throws std::domain_error if either interval is empty or reversed
    */
   QuadNode(const Geom_Number & _min_x, const Geom_Number & _max_x,
 	   const Geom_Number & _min_y, const Geom_Number & _max_y,
-	   QuadNode * _parent = nullptr) noexcept
+	   QuadNode * _parent = nullptr)
     : points(), parent(_parent), nw_child(nullptr), ne_child(nullptr),
       sw_child(nullptr), se_child(nullptr), color(Color::White), level(0),
       min_x(_min_x), max_x(_max_x), min_y(_min_y), max_y(_max_y)
   {
-    // Empty
+    ah_domain_error_if(min_x >= max_x or min_y >= max_y)
+      << "QuadNode bounds must define a non-empty region";
   }
 
   QuadNode(const QuadNode &) = delete;
@@ -338,12 +340,16 @@ public:
    *  @param _max_x Maximum X coordinate
    *  @param _min_y Minimum Y coordinate
    *  @param _max_y Maximum Y coordinate
+   *  @throws std::domain_error if either interval is empty or reversed
    */
   void set_region(const Geom_Number & _min_x,
 		  const Geom_Number & _max_x,
                   const Geom_Number & _min_y,
-                  const Geom_Number & _max_y) noexcept
+                  const Geom_Number & _max_y)
   {
+    ah_domain_error_if(_min_x >= _max_x or _min_y >= _max_y)
+      << "QuadNode bounds must define a non-empty region";
+
     min_x = _min_x;
     max_x = _max_x;
     min_y = _min_y;
@@ -529,6 +535,8 @@ public:
         if (curr == p)
           {
             it.del();
+            if (points.is_empty())
+              color = Color::White;
             return true;
           }
       }

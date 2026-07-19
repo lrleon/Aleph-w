@@ -41,6 +41,8 @@
 # ifndef TIKZGEOM_SCENE_H
 # define TIKZGEOM_SCENE_H
 
+# include <cmath>
+# include <iomanip>
 # include <ostream>
 # include <sstream>
 # include <string>
@@ -74,6 +76,10 @@ struct Tikz_Beamer_Document_Options
   bool hide_navigation_symbols = true;
   /** @brief Extra LaTeX preamble lines inserted before `\\begin{document}`. */
   std::string extra_preamble;
+  /** @brief Maximum rendered picture width in millimeters. Must be positive. */
+  double max_picture_width_mm = 105.0;
+  /** @brief Maximum rendered picture height in millimeters. Must be positive. */
+  double max_picture_height_mm = 60.0;
 };
 
 /** @brief High-level scene wrapper to compose objects and algorithm visualizations.
@@ -89,6 +95,84 @@ struct Tikz_Beamer_Document_Options
  */
 class Tikz_Scene
 {
+  /** @brief Append unique library names from @p source to @p destination. */
+  static void append_unique_libraries(Array<std::string> & destination,
+                                      const Array<std::string> & source)
+  {
+    for (size_t i = 0; i < source.size(); ++i)
+      {
+        bool found = false;
+        for (size_t j = 0; j < destination.size(); ++j)
+          if (destination(j) == source(i))
+            {
+              found = true;
+              break;
+            }
+        if (not found)
+          destination.append(source(i));
+      }
+  }
+
+  /** @brief Collect the union of TikZ dependencies across overlay steps. */
+  [[nodiscard]] static Array<std::string> collect_required_libraries(
+      const std::vector<Tikz_Scene> & steps)
+  {
+    Array<std::string> libraries;
+    for (const Tikz_Scene & step : steps)
+      append_unique_libraries(libraries,
+                              step.plane_.required_tikz_libraries());
+    return libraries;
+  }
+
+  /** @brief Emit one `\\usetikzlibrary{...}` command when needed. */
+  static void draw_tikz_libraries(
+      std::ostream & output,
+      const Array<std::string> & libraries)
+  {
+    if (libraries.is_empty())
+      return;
+
+    output << "\\usetikzlibrary{";
+    for (size_t i = 0; i < libraries.size(); ++i)
+      output << (i == 0 ? "" : ",") << libraries(i);
+    output << "}\n";
+  }
+
+  /** @brief Compute a uniform scale that fits a scene in a Beamer frame. */
+  [[nodiscard]] static double beamer_picture_scale(
+      const Tikz_Scene & scene,
+      const Tikz_Beamer_Document_Options & options)
+  {
+    ah_domain_error_if(not std::isfinite(options.max_picture_width_mm) or
+                       not std::isfinite(options.max_picture_height_mm) or
+                       options.max_picture_width_mm <= 0.0 or
+                       options.max_picture_height_mm <= 0.0)
+      << "Beamer picture bounds must be positive and finite";
+
+    double scale = 1.0;
+    if (scene.plane_.get_wide() * scale > options.max_picture_width_mm)
+      scale = options.max_picture_width_mm / scene.plane_.get_wide();
+    if (scene.plane_.get_height() * scale > options.max_picture_height_mm)
+      scale = options.max_picture_height_mm / scene.plane_.get_height();
+    return scale;
+  }
+
+  /** @brief Render a centered scene scaled to the configured Beamer bounds. */
+  static void draw_fitted_beamer_picture(
+      std::ostream & output,
+      const Tikz_Scene & scene,
+      const Tikz_Beamer_Document_Options & options)
+  {
+    const double scale = beamer_picture_scale(scene, options);
+    std::ostringstream formatted_scale;
+    formatted_scale << std::fixed << std::setprecision(6) << scale;
+
+    output << "\\centering\n"
+           << "\\scalebox{" << formatted_scale.str() << "}{%\n";
+    scene.draw(output);
+    output << "}\n";
+  }
+
   [[nodiscard]] static std::string compose_beamer_class_options(
       const bool handout_mode,
       const std::string & class_options)
@@ -108,7 +192,8 @@ class Tikz_Scene
   static void draw_beamer_document_preamble(
       std::ostream & output,
       const Tikz_Beamer_Document_Options & options,
-      const bool handout_mode)
+      const bool handout_mode,
+      const Array<std::string> & libraries)
   {
     output << "\\documentclass";
 
@@ -118,7 +203,9 @@ class Tikz_Scene
       output << "[" << class_options << "]";
 
     output << "{beamer}\n"
-           << "\\usepackage{tikz}\n";
+           << "\\usepackage{tikz}\n"
+           << "\\usepackage{graphicx}\n";
+    draw_tikz_libraries(output, libraries);
 
     if (options.hide_navigation_symbols)
       output << "\\setbeamertemplate{navigation symbols}{}\n";
@@ -151,16 +238,19 @@ class Tikz_Scene
       const Tikz_Beamer_Document_Options & options,
       const bool handout_mode)
   {
-    draw_beamer_document_preamble(output, options, handout_mode);
+    const Array<std::string> libraries = collect_required_libraries(steps);
+    draw_beamer_document_preamble(output, options, handout_mode, libraries);
     draw_beamer_frame_begin(output, options.frame_title, options.frame_options);
 
     if (steps.empty())
       output << "\\centering\\small No overlays provided.\n";
+    else if (handout_mode)
+      draw_fitted_beamer_picture(output, steps.back(), options);
     else
       for (size_t i = 0; i < steps.size(); ++i)
         {
           output << "\\only<" << (i + 1) << ">{\n";
-          steps[i].draw(output);
+          draw_fitted_beamer_picture(output, steps[i], options);
           output << "}\n";
         }
 
@@ -173,8 +263,11 @@ class Tikz_Scene
       const Tikz_Beamer_Document_Options & options,
       const bool handout_mode) const
   {
-    draw_beamer_document_preamble(output, options, handout_mode);
-    draw_beamer_frame(output, options.frame_title, options.frame_options);
+    draw_beamer_document_preamble(output, options, handout_mode,
+                                  plane_.required_tikz_libraries());
+    draw_beamer_frame_begin(output, options.frame_title, options.frame_options);
+    draw_fitted_beamer_picture(output, *this, options);
+    output << "\\end{frame}\n";
     draw_beamer_document_epilogue(output);
   }
 
@@ -194,6 +287,12 @@ public:
 
   [[nodiscard]] Tikz_Plane & plane() { return plane_; }
   [[nodiscard]] const Tikz_Plane & plane() const { return plane_; }
+
+  /** @brief Return TikZ library dependencies required by this scene. */
+  [[nodiscard]] Array<std::string> required_tikz_libraries() const
+  {
+    return plane_.required_tikz_libraries();
+  }
 
   [[nodiscard]] bool squarize() const { return squarize_; }
   void set_squarize(const bool value) { squarize_ = value; }
@@ -553,8 +652,8 @@ public:
       const std::string & frame_options = "t") const
   {
     draw_beamer_frame_begin(output, frame_title, frame_options);
-
-    draw(output);
+    draw_fitted_beamer_picture(output, *this,
+                               Tikz_Beamer_Document_Options{});
     output << "\\end{frame}\n";
   }
 
@@ -573,6 +672,7 @@ public:
       output << options.document_class;
     output << "}\n"
            << "\\usepackage{tikz}\n";
+    draw_tikz_libraries(output, plane_.required_tikz_libraries());
 
     if (not options.extra_preamble.empty())
       output << options.extra_preamble << '\n';
@@ -639,7 +739,11 @@ public:
     return out.str();
   }
 
-  /** @brief Export multiple scenes as handout overlays (forces `beamer[handout]`). */
+  /** @brief Export the final overlay scene as a static handout frame.
+   *
+   *  Rendering only the final state prevents Beamer handout mode from stacking
+   *  every `\\only` body vertically in a single frame.
+   */
   static void draw_handout_overlays(
       std::ostream & output,
       const std::vector<Tikz_Scene> & steps,
