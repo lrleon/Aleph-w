@@ -1312,7 +1312,7 @@ Aleph-w provides a robust suite for 2D and 3D computational geometry, built on *
 | **Intersections** | Segment Sweep (Bentley-Ottmann), Half-Plane Intersection, Convex Polygon Clipping, Boolean Polygon Ops (Greiner-Hormann) | O((n+k)log n), O(n log n) |
 | **Simplification** | Douglas-Peucker, Visvalingam-Whyatt, Chaikin Smoothing | O(n log n), O(n*2^k) |
 | **Pathfinding** | Shortest Path in Simple Polygon (Funnel Algorithm) | O(n) |
-| **Spatial Indexing** | AABB Tree, KD-Tree | O(log n) queries |
+| **Spatial Indexing** | AABB Tree (static), R-tree & R*-tree (dynamic, `tpl_r_tree.H` / `tpl_r_star_tree.H`), KD-Tree | Expected O(log n), worst-case O(n) queries |
 
 **Visualization (`tikzgeom.H`, `eepicgeom.H`):**
 
@@ -1322,6 +1322,57 @@ Aleph-w provides a robust suite for 2D and 3D computational geometry, built on *
 - **Legacy EEPIC Backend**: For compatibility with older LaTeX workflows.
 
 For a deeper tour of the geometry stack and the TikZ tooling, see [docs/GEOMETRY_MODULE_GUIDE.md](docs/GEOMETRY_MODULE_GUIDE.md) and the [TikZ Geometry Guide](docs/TIKZGEOM_GUIDE.md).
+
+#### Dynamic R-tree / R*-tree (`tpl_r_tree.H`, `tpl_r_star_tree.H`)
+
+```cpp
+#include <tpl_r_tree.H>
+
+int main() {
+    Aleph::RTree<int> tree;                          // Payload = int
+    tree.insert(Aleph::Rectangle(0, 0, 10, 10), 1);
+    tree.insert(Aleph::Rectangle(8, 8, 20, 20), 2);
+
+    auto hits = tree.search_intersects(Aleph::Rectangle(7, 7, 9, 9)); // {1, 2}
+    (void) tree.erase(Aleph::Rectangle(8, 8, 20, 20), 2);            // returns bool
+
+    return hits.size() == 2 and tree.size() == 1 ? 0 : 1;
+}
+```
+
+`RTree<Payload, MaxEntries = 16, MinEntries = MaxEntries / 2>` is a dynamic
+spatial index over axis-aligned rectangles (`Rectangle`), implementing Guttman's
+R-tree with the quadratic node-split heuristic. It supports incremental
+`insert(bbox, value)` / `erase(bbox, value)`, overlap queries
+(`search_intersects`, `for_each_intersecting`) and point-containment queries
+(`search_contains`), plus `size`, `height` and `clear`. Because it stores exact
+rational coordinates (`Geom_Number`), the structure is deterministic and free of
+floating-point rounding. `for_each_intersecting` passes references and therefore
+also works for move-only payloads.
+
+How it compares to the other spatial structures:
+
+- **`AABBTree` (`geom_algorithms.H`)** is *static*: it is built once from a fixed
+  batch of boxes and is likely faster for immutable data, but cannot be updated
+  in place. `RTree` is the *dynamic, general* counterpart with `insert`/`erase`.
+- **`QuadTree` (`quadtree.H`)** recursively subdivides space into quadrants; it is
+  simple and good for point data and uniform distributions, but is not balanced
+  by occupancy and can degrade with skewed data. `RTree` groups objects by
+  minimum bounding rectangle and bounds node occupancy.
+- **`K2Tree`** is a compact/succinct representation aimed at sparse binary
+  matrices and adjacency (e.g. web graphs), not general rectangle indexing.
+- **`RangeTree2D`** answers orthogonal *range reporting* over a static point set
+  with strong worst-case bounds; `RTree` targets dynamic rectangle/object
+  indexing rather than static point range queries.
+
+`RStarTree<Payload, MaxEntries, MinEntries>` (`tpl_r_star_tree.H`) is the same
+index built with the R\*-tree heuristics: overlap-minimizing subtree choice, a
+split that minimizes group margin then overlap area, and leaf-level forced
+reinsertion. It has the identical API (it is an alias over
+`RTree<..., RTreeVariant::RStar>`) and typically produces less node overlap and
+faster queries at the cost of somewhat more work per insertion.
+
+See `Examples/r_tree_example.cc` for a runnable walkthrough of both.
 
 See `Examples/` for over a dozen geometry-specific programs, including `tikz_funnel_beamer_twocol_example.cc` which generates animated Beamer slides of the shortest-path funnel algorithm.
 
@@ -4648,6 +4699,7 @@ cmake --build build
 | SCC | `tarjan_example.C` | Strongly connected |
 | Topological | `topological_sort_example.C` | DAG ordering |
 | **Geometry** | | |
+| Dynamic R-tree | `r_tree_example.cc` | Insert/erase + intersection & point queries on a dynamic spatial index |
 | Robust predicates | `robust_predicates_example.cc` | Orientation, intersection, exact arithmetic |
 | Dedicated segment intersection | `segment_segment_intersection_example.cc` | O(1) pairwise segment intersection (`none`/`point`/`overlap`) |
 | Geometry algorithms | `geom_example.C` | Convex hull, triangulation, and `-s advanced` (Delaunay/Voronoi/PIP/HPI) |
