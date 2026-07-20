@@ -13,6 +13,7 @@
 
 #include <tikzgeom_algorithms.H>
 #include <tikzgeom_scene.H>
+#include <tpl_r_star_tree.H>
 
 using namespace Aleph;
 
@@ -654,6 +655,61 @@ TEST(TikzGeomAlgorithmsTest, VisualizeAABBTreeAndQuery)
   const std::string result = output.str();
   EXPECT_NE(result.find("draw=red"), std::string::npos);
   EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeRTreeAndQuery)
+{
+  RTree<int, 4, 2> tree;
+  tree.insert(Rectangle(0, 0, 5, 5), 0);
+  tree.insert(Rectangle(3, 3, 8, 8), 1);
+  tree.insert(Rectangle(10, 10, 15, 15), 2);
+
+  Tikz_Plane plane(180, 110);
+  const auto viz = visualize_rtree_query(plane, tree, Rectangle(2, 2, 6, 6));
+
+  EXPECT_GT(viz.snapshot.nodes.size(), 0U);
+  EXPECT_GT(viz.query_hit_boxes.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("draw=red"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeRStarTreeAndQuery)
+{
+  RStarTree<int, 4, 2> tree;
+  tree.insert(Rectangle(0, 0, 5, 5), 0);
+  tree.insert(Rectangle(3, 3, 8, 8), 1);
+  tree.insert(Rectangle(10, 10, 15, 15), 2);
+
+  Tikz_Plane plane(180, 110);
+  const auto viz = visualize_rtree_query(plane, tree, Rectangle(2, 2, 6, 6));
+
+  EXPECT_GT(viz.snapshot.nodes.size(), 0U);
+  EXPECT_GT(viz.query_hit_boxes.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  const std::string result = output.str();
+  EXPECT_NE(result.find("draw=red"), std::string::npos);
+  EXPECT_FALSE(has_nan_or_inf(result));
+}
+
+TEST(TikzGeomAlgorithmsTest, VisualizeRTreeWithoutQuery)
+{
+  RTree<int, 4, 2> tree;
+  for (int i = 0; i < 20; ++i)
+    tree.insert(Rectangle(i, i, i + 2, i + 2), i);
+
+  Tikz_Plane plane(180, 110);
+  const auto snapshot = visualize_rtree(plane, tree);
+  EXPECT_GT(snapshot.nodes.size(), 0U);
+
+  std::ostringstream output;
+  plane.draw(output);
+  EXPECT_FALSE(has_nan_or_inf(output.str()));
 }
 
 TEST(TikzGeomAlgorithmsTest, VisualizeShortestPathWithPortals)

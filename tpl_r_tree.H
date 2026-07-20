@@ -131,6 +131,31 @@ public:
     Payload value;   ///< User payload associated with @ref bbox.
   };
 
+  /** @brief One node of a @ref debug_snapshot, independent of `Payload`.
+   *
+   *  Unlike `AABBTree::DebugNode`, an R-tree node may have more than two
+   *  children, so @ref children lists every child by index into the
+   *  enclosing @ref DebugSnapshot::nodes rather than a fixed left/right pair.
+   */
+  struct DebugNode
+  {
+    Rectangle bbox;          ///< Tight MBR of this node.
+    bool is_leaf = false;    ///< True for leaf nodes (see @ref entry_boxes).
+    size_t depth = 0;        ///< Root is 0, increasing towards the leaves.
+    Array<size_t> children;  ///< Indices into `DebugSnapshot::nodes` (internal nodes).
+    Array<Rectangle> entry_boxes;  ///< Data-entry boxes stored here (leaves only).
+  };
+
+  /** @brief Full tree structure captured for visualization/debugging.
+   *  @note Intentionally omits `Payload`: it is available regardless of
+   *        whether `Payload` is copyable or even movable-only usable that way.
+   */
+  struct DebugSnapshot
+  {
+    Array<DebugNode> nodes;             ///< Every node, in preorder.
+    size_t root = std::numeric_limits<size_t>::max();  ///< Index of the root in @ref nodes.
+  };
+
 private:
   struct Node;
 
@@ -1081,6 +1106,53 @@ public:
     if (not verify_rec(*root_, 1, true, leaf_depth, count, mbr))
       return false;
     return count == size_ and leaf_depth == height_;
+  }
+
+  /** @brief Capture the full tree structure for visualization/debugging.
+   *  @return A @ref DebugSnapshot with every node in preorder; empty
+   *          (`nodes` empty, `root` unset) when the tree `is_empty()`.
+   *  @par Complexity O(n).
+   *  @throws std::bad_alloc if node allocation fails.
+   */
+  [[nodiscard]] DebugSnapshot debug_snapshot() const
+  {
+    DebugSnapshot snap;
+    if (root_ == nullptr)
+      return snap;
+
+    // Each `snap.nodes(out_idx)` access below is by index, re-fetched after
+    // every recursive call: `Array::append` may reallocate the backing
+    // storage, so a reference taken before recursing could dangle.
+    auto dfs = [&](const auto &self, const Node &node, const size_t depth) -> size_t
+      {
+        const size_t out_idx = snap.nodes.size();
+        snap.nodes.append(DebugNode{});
+        snap.nodes(out_idx).is_leaf = node.leaf;
+        snap.nodes(out_idx).depth = depth;
+
+        if (node.leaf)
+          {
+            Array<Rectangle> boxes;
+            boxes.reserve(node.data.size());
+            for (size_t i = 0; i < node.data.size(); ++i)
+              boxes.append(node.data(i).bbox);
+            snap.nodes(out_idx).entry_boxes = std::move(boxes);
+          }
+        else
+          {
+            Array<size_t> child_indices;
+            child_indices.reserve(node.children.size());
+            for (size_t i = 0; i < node.children.size(); ++i)
+              child_indices.append(self(self, *node.children(i).child, depth + 1));
+            snap.nodes(out_idx).children = std::move(child_indices);
+          }
+
+        snap.nodes(out_idx).bbox = compute_mbr(node);
+        return out_idx;
+      };
+
+    snap.root = dfs(dfs, *root_, 0);
+    return snap;
   }
 };
 
