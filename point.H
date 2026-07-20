@@ -2702,6 +2702,8 @@ namespace Aleph
      */
     [[nodiscard]] ExtremalPoints extremal_points() const
     {
+      validate_positive_radii();
+
       const Geom_Number a2 = a_ * a_;
       const Geom_Number b2 = b_ * b_;
       const Geom_Number c2 = cos_th_ * cos_th_;
