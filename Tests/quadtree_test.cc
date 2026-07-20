@@ -55,6 +55,29 @@ TEST(QuadTreeBasic, ConstructorAndEmpty)
   EXPECT_EQ(tree.get_max_num_points_per_node(), 4);
 }
 
+TEST(QuadTreeBasic, RejectsInvalidBoundsAndZeroCapacity)
+{
+  EXPECT_THROW((QuadTree(0, 0, 0, 100, 1)), std::domain_error);
+  EXPECT_THROW((QuadTree(100, 0, 0, 100, 1)), std::domain_error);
+  EXPECT_THROW((QuadTree(0, 100, 7, 7, 1)), std::domain_error);
+  EXPECT_THROW((QuadTree(0, 100, 100, 0, 1)), std::domain_error);
+  EXPECT_THROW((QuadTree(0, 100, 0, 100, 0)), std::domain_error);
+
+  QuadTree tree(0, 100, 0, 100, 4);
+  EXPECT_THROW(tree.set_max_num_points_per_node(0), std::domain_error);
+  EXPECT_EQ(tree.get_max_num_points_per_node(), 4u);
+}
+
+TEST(QuadTreeBasic, QuadNodeSetRegionRejectsInvalidBoundsWithoutMutation)
+{
+  QuadNode node(0, 10, 0, 10);
+  EXPECT_THROW(node.set_region(5, 5, 0, 10), std::domain_error);
+  EXPECT_EQ(node.get_min_x(), 0);
+  EXPECT_EQ(node.get_max_x(), 10);
+  EXPECT_EQ(node.get_min_y(), 0);
+  EXPECT_EQ(node.get_max_y(), 10);
+}
+
 TEST(QuadTreeBasic, InsertSinglePoint)
 {
   QuadTree tree(0, 100, 0, 100, 4);
@@ -158,6 +181,18 @@ TEST(QuadTreeBasic, RemoveNonExistingPoint)
   tree.remove(Point(30, 30));
   
   EXPECT_NE(tree.search(Point(50, 50)), nullptr);
+}
+
+TEST(QuadTreeBasic, RemoveOutsideBoundsIsANoOp)
+{
+  QuadTree tree(0, 100, 0, 100, 1);
+  tree.insert(Point(10, 10));
+  tree.insert(Point(90, 90));
+
+  EXPECT_NO_THROW(tree.remove(Point(-1, 50)));
+  EXPECT_NO_THROW(tree.remove(Point(50, 100)));
+  EXPECT_NE(tree.search(Point(10, 10)), nullptr);
+  EXPECT_NE(tree.search(Point(90, 90)), nullptr);
 }
 
 TEST(QuadTreeBasic, EmptyTree)
@@ -319,6 +354,31 @@ TEST(QuadTreeMerging, MultipleRemovalsGradualJoin)
   // After all removals, root should be a leaf again
   EXPECT_TRUE(tree.get_root()->is_leaf());
   EXPECT_EQ(COLOR(tree.get_root()), QuadNode::Color::White);
+}
+
+TEST(QuadTreeMerging, CollapsesEveryEligibleAncestor)
+{
+  QuadTree tree(0, 1024, 0, 1024, 2);
+  const Point p1(1, 1);
+  const Point p2(2, 2);
+  const Point p3(3, 3);
+  const Point far(900, 900);
+
+  tree.insert(p1);
+  tree.insert(p2);
+  tree.insert(p3);
+  ASSERT_FALSE(tree.get_root()->is_leaf());
+
+  tree.remove(p3);
+  ASSERT_TRUE(tree.get_root()->is_leaf());
+
+  tree.insert(far);
+  ASSERT_FALSE(tree.get_root()->is_leaf());
+  EXPECT_NO_THROW(tree.remove(far));
+
+  EXPECT_TRUE(tree.get_root()->is_leaf());
+  EXPECT_NE(tree.search(p1), nullptr);
+  EXPECT_NE(tree.search(p2), nullptr);
 }
 
 // ============================================================================
@@ -507,6 +567,24 @@ TEST(QuadTreeEdgeCases, SinglePointCapacity)
   EXPECT_FALSE(tree.get_root()->is_leaf());
 }
 
+TEST(QuadTreeEdgeCases, DuplicatePointsTerminateAndRemainCounted)
+{
+  QuadTree tree(0, 100, 0, 100, 1);
+  const Point duplicate(25, 25);
+
+  for (size_t i = 0; i < 100; ++i)
+    ASSERT_NE(tree.insert(duplicate), nullptr);
+
+  EXPECT_TRUE(tree.get_root()->is_leaf());
+  EXPECT_EQ(tree.get_root()->get_num_points(), 100u);
+
+  for (size_t i = 0; i < 100; ++i)
+    tree.remove(duplicate);
+
+  EXPECT_EQ(tree.search(duplicate), nullptr);
+  EXPECT_EQ(COLOR(tree.get_root()), QuadNode::Color::White);
+}
+
 TEST(QuadTreeEdgeCases, VerySmallRegion)
 {
   QuadTree tree(0, 1, 0, 1, 2);
@@ -624,4 +702,3 @@ int main(int argc, char **argv)
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

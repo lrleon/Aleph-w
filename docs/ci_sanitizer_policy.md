@@ -13,6 +13,7 @@ The current shape was driven by Phase 16 of the CA industrial roadmap
 | Job   | Compiler | Sanitizer            | Source flag                           | Notes |
 |-------|----------|----------------------|---------------------------------------|-------|
 | `sanitizers` | gcc   | ASan + UBSan combined | `-DALEPH_USE_SANITIZERS=ON`           | Existing combined run. ASan dominates so UBSan signals can be noisy. |
+| `memory-sanitizer` | clang | MemorySanitizer | `-DALEPH_USE_MEMORY_SANITIZER=ON` | Targeted `Regular_Polygon` default-state probe; intentionally independent of prebuilt GoogleTest. |
 | `tsan`       | clang | ThreadSanitizer       | `-fsanitize=thread`                   | Targets the CA `Parallel_Engine`, `thread_pool` and graph automaton concurrency. |
 | `ubsan`      | clang | UBSan only            | `-fsanitize=undefined -fno-sanitize-recover=undefined` | Split out from the combined job so the signal is not masked by ASan. |
 
@@ -65,6 +66,21 @@ so the whole binary still links; the 4 cases that depend on them report
 | Test (CTest regex)                              | Reason for skip |
 |-------------------------------------------------|-----------------|
 | `hash_statistical_test`                         | Same rationale as above. |
+
+### `memory-sanitizer` (MemorySanitizer, clang)
+
+This configuration statically checks `polygon.H`, then builds and runs only
+`MemorySanitizer.RegularPolygonDefaultState`. The narrow dynamic scope is
+deliberate: the system GoogleTest package and several external libraries are
+not compiled with MemorySanitizer and otherwise report false positives before
+Aleph tests start. The standalone probe reads every publicly observable scalar
+in the default `Regular_Polygon` state without linking GoogleTest. Cppcheck
+covers the private `angle_` and `beta_` members that the empty object's public
+contract cannot read. Its `nullPointer` diagnostic for the two dereferences in
+`Polygon::remove_vertex` (the preceding Aleph error macro already throws when
+the pointer is null) is suppressed inline at each site via
+`// cppcheck-suppress nullPointer`, so the check still covers the rest of
+`polygon.H`.
 
 ## Skipped tests by platform
 

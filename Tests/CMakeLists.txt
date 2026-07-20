@@ -39,9 +39,27 @@ endif()
 
 # Debug flags with sanitizers (optional)
 option(ALEPH_USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+option(ALEPH_USE_MEMORY_SANITIZER "Enable Clang MemorySanitizer" OFF)
 if(ALEPH_USE_SANITIZERS)
+    if(ALEPH_USE_MEMORY_SANITIZER)
+        message(FATAL_ERROR
+            "ALEPH_USE_SANITIZERS and ALEPH_USE_MEMORY_SANITIZER are mutually exclusive")
+    endif()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -g")
+endif()
+
+if(ALEPH_USE_MEMORY_SANITIZER AND
+   CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR NOT UNIX OR APPLE)
+        message(FATAL_ERROR
+            "ALEPH_USE_MEMORY_SANITIZER requires Clang on a non-Apple Unix host")
+    endif()
+    set(_ALEPH_MSAN_FLAGS
+        "-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -fPIE -g")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_ALEPH_MSAN_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS
+        "${CMAKE_EXE_LINKER_FLAGS} ${_ALEPH_MSAN_FLAGS} -pie")
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
@@ -98,6 +116,29 @@ if(NOT DEFINED ALEPH_SYSTEM_LIBS)
         ${_ALEPH_LIBM}
         ${_ALEPH_X11_LIBS}
         Threads::Threads)
+endif()
+
+# MemorySanitizer requires every participating runtime to be instrumented.
+# Keep this configuration intentionally narrow and independent of a possibly
+# prebuilt GoogleTest so it reports only the Regular_Polygon state regression.
+if(ALEPH_USE_MEMORY_SANITIZER)
+    add_executable(regular_polygon_msan_probe
+        regular_polygon_msan_probe.cc)
+    target_link_libraries(regular_polygon_msan_probe PRIVATE
+        Aleph
+        ${ALEPH_SYSTEM_LIBS}
+    )
+    add_test(
+        NAME MemorySanitizer.RegularPolygonDefaultState
+        COMMAND regular_polygon_msan_probe
+    )
+    add_custom_target(aleph_build_tests
+        DEPENDS regular_polygon_msan_probe)
+    add_custom_target(aleph_check
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        DEPENDS aleph_build_tests)
+    message(STATUS "Configured Aleph-w MemorySanitizer probe")
+    return()
 endif()
 
 # Allow automatically fetching GoogleTest if it is not present system-wide.
@@ -665,6 +706,7 @@ endforeach()
 # -----------------------------------------------------------------------------
 
 set(_ALEPH_KNOWN_TEST_TARGETS "${TEST_PROGRAMS};${EXHAUSTIVE_TESTS}")
+list(APPEND _ALEPH_KNOWN_TEST_TARGETS regular_polygon_msan_probe)
 
 file(GLOB _ALEPH_ALL_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cc")
 foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
@@ -712,6 +754,33 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
         gtest_discover_tests(${_auto_target} DISCOVERY_MODE PRE_TEST)
     endif()
 endforeach()
+
+# Enable generated-document smoke tests only when the complete local TikZ
+# toolchain used by them is available. The GoogleTest case remains present and
+# reports itself as skipped on hosts without these optional LaTeX components.
+find_program(ALEPH_PDFLATEX_EXECUTABLE pdflatex)
+find_program(ALEPH_KPSEWHICH_EXECUTABLE kpsewhich)
+set(ALEPH_HAVE_TIKZ_LATEX_TOOLCHAIN OFF)
+if(ALEPH_PDFLATEX_EXECUTABLE AND ALEPH_KPSEWHICH_EXECUTABLE)
+    set(ALEPH_HAVE_TIKZ_LATEX_TOOLCHAIN ON)
+    foreach(_latex_resource standalone.cls beamer.cls tikz.sty)
+        execute_process(
+            COMMAND ${ALEPH_KPSEWHICH_EXECUTABLE} ${_latex_resource}
+            RESULT_VARIABLE _latex_resource_status
+            OUTPUT_VARIABLE _latex_resource_path
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if(NOT _latex_resource_status EQUAL 0 OR _latex_resource_path STREQUAL "")
+            set(ALEPH_HAVE_TIKZ_LATEX_TOOLCHAIN OFF)
+        endif()
+    endforeach()
+endif()
+
+if(ALEPH_HAVE_TIKZ_LATEX_TOOLCHAIN AND TARGET tikzgeom_algorithms_test)
+    target_compile_definitions(tikzgeom_algorithms_test PRIVATE
+        ALEPH_PDFLATEX_EXECUTABLE="${ALEPH_PDFLATEX_EXECUTABLE}"
+    )
+endif()
 
 add_custom_target(aleph_build_tests DEPENDS ${_ALEPH_TEST_EXECUTABLE_TARGETS})
 add_custom_target(aleph_check

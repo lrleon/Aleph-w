@@ -900,6 +900,51 @@ TEST_F(EllipseTest, SegmentThroughCenterIntersectionStable)
   EXPECT_TRUE(approx_equal(inter.get_tgt_point().get_x(), Geom_Number(5), 1e-8));
 }
 
+TEST_F(EllipseTest, SegmentClippingUsesClosedFilledRegion)
+{
+  Ellipse e(Point(0, 0), 5, 3);
+
+  const Segment inside(Point(-1, 0), Point(1, 0));
+  EXPECT_TRUE(e.intersects_with(inside));
+  EXPECT_EQ(e.intersection_with(inside), inside);
+
+  const Segment leaving(Point(0, 0), Point(10, 0));
+  EXPECT_TRUE(e.intersects_with(leaving));
+  const Segment leaving_clip = e.intersection_with(leaving);
+  EXPECT_EQ(leaving_clip.get_src_point(), Point(0, 0));
+  EXPECT_EQ(leaving_clip.get_tgt_point(), Point(5, 0));
+
+  const Segment entering(Point(10, 0), Point(0, 0));
+  const Segment entering_clip = e.intersection_with(entering);
+  EXPECT_EQ(entering_clip.get_src_point(), Point(5, 0));
+  EXPECT_EQ(entering_clip.get_tgt_point(), Point(0, 0));
+
+  const Segment tangent(Point(-10, 3), Point(10, 3));
+  const Segment tangent_clip = e.intersection_with(tangent);
+  EXPECT_EQ(tangent_clip.get_src_point(), Point(0, 3));
+  EXPECT_EQ(tangent_clip.get_tgt_point(), Point(0, 3));
+
+  const Segment crossing(Point(-10, 0), Point(10, 0));
+  EXPECT_EQ(e.intersection_with(crossing),
+            Segment(Point(-5, 0), Point(5, 0)));
+
+  const Segment reverse_crossing(Point(10, 0), Point(-10, 0));
+  EXPECT_EQ(e.intersection_with(reverse_crossing),
+            Segment(Point(5, 0), Point(-5, 0)));
+}
+
+TEST_F(EllipseTest, DegenerateSegmentClippingDistinguishesInsideAndOutside)
+{
+  Ellipse e(Point(0, 0), 5, 3);
+  const Segment inside(Point(1, 1), Point(1, 1));
+  const Segment outside(Point(8, 8), Point(8, 8));
+
+  EXPECT_TRUE(e.intersects_with(inside));
+  EXPECT_EQ(e.intersection_with(inside), inside);
+  EXPECT_FALSE(e.intersects_with(outside));
+  EXPECT_THROW(e.intersection_with(outside), std::domain_error);
+}
+
 TEST_F(EllipseTest, ExtraEllipseApis)
 {
   EXPECT_TRUE(approx_equal(ellipse.area(), Geom_Number(2) * Geom_Number(PI), 1e-5));
@@ -1164,6 +1209,58 @@ TEST(SegmentTriangleTest, SegmentDoesNotIntersectTriangle)
   Segment s{Point{10, 10}, Point{11, 11}};  // Far away
 
   EXPECT_FALSE(s.intersects_with(t));
+}
+
+TEST(SegmentTriangleTest, SegmentClippingUsesClosedFilledRegion)
+{
+  const Triangle t{Point{0, 0}, Point{6, 0}, Point{0, 6}};
+
+  const Segment inside{Point{1, 1}, Point{2, 1}};
+  EXPECT_TRUE(inside.intersects_with(t));
+  EXPECT_EQ(inside.intersection_with(t), inside);
+
+  const Segment leaving{Point{1, 1}, Point{10, 1}};
+  const Segment leaving_clip = leaving.intersection_with(t);
+  EXPECT_EQ(leaving_clip.get_src_point(), Point(1, 1));
+  EXPECT_EQ(leaving_clip.get_tgt_point(), Point(5, 1));
+
+  const Segment entering{Point{10, 1}, Point{1, 1}};
+  const Segment entering_clip = entering.intersection_with(t);
+  EXPECT_EQ(entering_clip.get_src_point(), Point(5, 1));
+  EXPECT_EQ(entering_clip.get_tgt_point(), Point(1, 1));
+
+  const Segment tangent{Point{-1, 1}, Point{1, -1}};
+  const Segment tangent_clip = tangent.intersection_with(t);
+  EXPECT_EQ(tangent_clip.get_src_point(), Point(0, 0));
+  EXPECT_EQ(tangent_clip.get_tgt_point(), Point(0, 0));
+
+  const Segment crossing{Point{-2, 2}, Point{8, 2}};
+  EXPECT_EQ(crossing.intersection_with(t),
+            Segment(Point(0, 2), Point(4, 2)));
+
+  const Segment reverse_crossing{Point{8, 2}, Point{-2, 2}};
+  EXPECT_EQ(reverse_crossing.intersection_with(t),
+            Segment(Point(4, 2), Point(0, 2)));
+
+  const Segment boundary_overlap{Point{-2, 0}, Point{8, 0}};
+  EXPECT_EQ(boundary_overlap.intersection_with(t),
+            Segment(Point(0, 0), Point(6, 0)));
+
+  const Segment reverse_boundary_overlap{Point{8, 0}, Point{-2, 0}};
+  EXPECT_EQ(reverse_boundary_overlap.intersection_with(t),
+            Segment(Point(6, 0), Point(0, 0)));
+}
+
+TEST(SegmentTriangleTest, DegenerateSegmentClippingDistinguishesInsideAndOutside)
+{
+  const Triangle t{Point{0, 0}, Point{6, 0}, Point{0, 6}};
+  const Segment inside{Point{1, 1}, Point{1, 1}};
+  const Segment outside{Point{8, 8}, Point{8, 8}};
+
+  EXPECT_TRUE(inside.intersects_with(t));
+  EXPECT_EQ(inside.intersection_with(t), inside);
+  EXPECT_FALSE(outside.intersects_with(t));
+  EXPECT_THROW(outside.intersection_with(t), std::domain_error);
 }
 
 //============================================================================

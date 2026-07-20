@@ -133,6 +133,50 @@ private:
   /// Maximum points per leaf node before splitting
   size_t max_num_points_per_node;
 
+  /** @brief Validate constructor arguments and allocate the root node.
+   *
+   *  @throws std::domain_error if capacity is zero or bounds are invalid.
+   */
+  [[nodiscard]] static Node * make_root(
+      const Geom_Number & min_x, const Geom_Number & max_x,
+      const Geom_Number & min_y, const Geom_Number & max_y,
+      const size_t capacity)
+  {
+    ah_domain_error_if(capacity == 0)
+      << "QuadTree leaf capacity must be greater than zero";
+    return new Node(min_x, max_x, min_y, max_y);
+  }
+
+  /** @brief Return true when every point stored in a leaf equals @p p. */
+  [[nodiscard]] static bool contains_only(Node * node, const Point & p)
+  {
+    assert(node != nullptr and node->is_leaf());
+    for (const Point & point : node->get_points_set())
+      if (point != p)
+        return false;
+    return true;
+  }
+
+  /** @brief Return true when an internal node has four leaf children. */
+  [[nodiscard]] static bool has_four_leaf_children(Node * node) noexcept
+  {
+    return node != nullptr and not node->is_leaf() and
+           NW_CHILD(node) != nullptr and NW_CHILD(node)->is_leaf() and
+           NE_CHILD(node) != nullptr and NE_CHILD(node)->is_leaf() and
+           SW_CHILD(node) != nullptr and SW_CHILD(node)->is_leaf() and
+           SE_CHILD(node) != nullptr and SE_CHILD(node)->is_leaf();
+  }
+
+  /** @brief Return the number of points directly stored in four leaf children. */
+  [[nodiscard]] static size_t leaf_children_size(Node * node) noexcept
+  {
+    assert(has_four_leaf_children(node));
+    return NW_CHILD(node)->get_points_set().size() +
+           NE_CHILD(node)->get_points_set().size() +
+           SW_CHILD(node)->get_points_set().size() +
+           SE_CHILD(node)->get_points_set().size();
+  }
+
   /** @brief Subdivide a leaf node into four children.
    *
    *  Creates four child nodes (NW, NE, SW, SE) and redistributes the
@@ -240,10 +284,11 @@ private:
 
     if (r->is_leaf())
       {
-        if (r->get_num_points() < max_num_points_per_node)
+        if (r->get_points_set().size() < max_num_points_per_node or
+            contains_only(r, p))
           return &r->add_point(p);
-        else
-          split(r);
+
+        split(r);
       }
 	
     Node * node = r->get_child_to(p);
@@ -288,8 +333,16 @@ private:
     if (src == nullptr)
       return;
 
-    tgt = new QuadNode(src->get_min_x(), src->get_max_x(),
-                        src->get_min_y(), src->get_max_y(), tgt_parent);
+    if (src->get_min_x() < src->get_max_x() and
+        src->get_min_y() < src->get_max_y())
+      tgt = new QuadNode(src->get_min_x(), src->get_max_x(),
+                         src->get_min_y(), src->get_max_y(), tgt_parent);
+    else
+      {
+        // Preserve the explicitly uninitialized state of a default tree.
+        tgt = new QuadNode;
+        PARENT(tgt) = tgt_parent;
+      }
 
     tgt->get_points_set() = src->get_points_set();
 
@@ -322,11 +375,13 @@ public:
    *  @param min_y Minimum Y coordinate of the region
    *  @param max_y Maximum Y coordinate of the region
    *  @param _max_num_points_per_node Maximum points per leaf before splitting (default: 1)
+   *  @throws std::domain_error if capacity is zero or bounds are invalid
    */
   QuadTree(const Geom_Number & min_x, const Geom_Number & max_x,
 	   const Geom_Number & min_y, const Geom_Number & max_y,
 	   const size_t & _max_num_points_per_node = 1)
-    : root(new Node(min_x, max_x, min_y, max_y)),
+    : root(make_root(min_x, max_x, min_y, max_y,
+                     _max_num_points_per_node)),
       max_num_points_per_node(_max_num_points_per_node)
   {
     // Empty
@@ -404,9 +459,17 @@ public:
     return root;
   }
 
-  /// @brief Set the maximum points per leaf node.
-  void set_max_num_points_per_node(const size_t & _max_num_points_per_node) noexcept
+  /** @brief Set the maximum points per leaf node.
+   *
+   *  Existing nodes are not immediately repartitioned.
+   *
+   *  @param _max_num_points_per_node New positive leaf capacity
+   *  @throws std::domain_error if the requested capacity is zero
+   */
+  void set_max_num_points_per_node(const size_t & _max_num_points_per_node)
   {
+    ah_domain_error_if(_max_num_points_per_node == 0)
+      << "QuadTree leaf capacity must be greater than zero";
     max_num_points_per_node = _max_num_points_per_node;
   }
 
@@ -423,7 +486,7 @@ public:
    */
   [[nodiscard]] bool contains(const Point & p) const noexcept
   {
-    return root->contains(p);
+    return root != nullptr and root->contains(p);
   }
 
   /** @brief Insert a point into the tree.
@@ -436,7 +499,7 @@ public:
    */
   Point * insert(const Point & p)
   {
-    if (not root->contains(p))
+    if (root == nullptr or not root->contains(p))
       return nullptr;
 
     return insert(root, p);
@@ -460,7 +523,7 @@ public:
    */
   [[nodiscard]] Point * search(const Point & p) noexcept
   {
-    if (not root->contains(p))
+    if (root == nullptr or not root->contains(p))
       return nullptr;
 
     Node * aux = root;
@@ -478,7 +541,7 @@ public:
    */
   [[nodiscard]] Node * search_container_node(const Point & p) noexcept
   {
-    if (not root->contains(p))
+    if (root == nullptr or not root->contains(p))
       return nullptr;
 
     Node * aux = root;
@@ -501,6 +564,9 @@ public:
    */
   void remove(const Point & p)
   {
+    if (root == nullptr or not root->contains(p))
+      return;
+
     Node * aux = root;
 
     while (not aux->is_leaf())
@@ -510,20 +576,21 @@ public:
       return;
 
     Node * parent = PARENT(aux);
-
-    if (parent == nullptr)
-      return;
-
-    if (NW_CHILD(parent)->get_num_points() +
-        NE_CHILD(parent)->get_num_points() +
-        SW_CHILD(parent)->get_num_points() +
-        SE_CHILD(parent)->get_num_points() <= max_num_points_per_node)
-      join(parent);
+    while (parent != nullptr and has_four_leaf_children(parent) and
+           leaf_children_size(parent) <= max_num_points_per_node)
+      {
+        Node * grandparent = PARENT(parent);
+        join(parent);
+        parent = grandparent;
+      }
   }
 
   /// @brief Remove all points from the tree, keeping only the root.
   void empty()
   {
+    if (root == nullptr)
+      return;
+
     empty(NW_CHILD(root));
     empty(NE_CHILD(root));
     empty(SW_CHILD(root));

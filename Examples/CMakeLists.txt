@@ -57,6 +57,63 @@ if(BUILD_TESTS)
     set(_VERIFY_REFERENCE_EXAMPLE
         ${CMAKE_CURRENT_SOURCE_DIR}/verify_reference_example.cmake)
 
+    # Compile the maintained TikZ documents when their optional LaTeX
+    # toolchain is complete. These tests execute the real examples so API and
+    # layout regressions in their inputs cannot be hidden by synthetic scenes.
+    find_program(ALEPH_EXAMPLES_PDFLATEX_EXECUTABLE pdflatex)
+    find_program(ALEPH_EXAMPLES_KPSEWHICH_EXECUTABLE kpsewhich)
+    set(ALEPH_EXAMPLES_HAVE_TIKZ_LATEX_TOOLCHAIN OFF)
+    if(ALEPH_EXAMPLES_PDFLATEX_EXECUTABLE AND
+       ALEPH_EXAMPLES_KPSEWHICH_EXECUTABLE)
+        set(ALEPH_EXAMPLES_HAVE_TIKZ_LATEX_TOOLCHAIN ON)
+        foreach(_latex_resource standalone.cls beamer.cls tikz.sty)
+            execute_process(
+                COMMAND ${ALEPH_EXAMPLES_KPSEWHICH_EXECUTABLE}
+                        ${_latex_resource}
+                RESULT_VARIABLE _latex_resource_status
+                OUTPUT_VARIABLE _latex_resource_path
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+            if(NOT _latex_resource_status EQUAL 0 OR
+               _latex_resource_path STREQUAL "")
+                set(ALEPH_EXAMPLES_HAVE_TIKZ_LATEX_TOOLCHAIN OFF)
+            endif()
+        endforeach()
+    endif()
+
+    if(ALEPH_EXAMPLES_HAVE_TIKZ_LATEX_TOOLCHAIN)
+        set(_VERIFY_LATEX_EXAMPLE
+            ${CMAKE_CURRENT_SOURCE_DIR}/verify_latex_example.cmake)
+
+        function(add_tikz_latex_example_test test_name target mode)
+            if(NOT TARGET ${target})
+                return()
+            endif()
+
+            set(_output_dir
+                ${CMAKE_CURRENT_BINARY_DIR}/latex-smoke/${test_name})
+            add_test(
+                NAME ${test_name}
+                COMMAND ${CMAKE_COMMAND}
+                        -DEXAMPLE_PATH=$<TARGET_FILE:${target}>
+                        -DPDFLATEX_PATH=${ALEPH_EXAMPLES_PDFLATEX_EXECUTABLE}
+                        -DOUTPUT_DIR=${_output_dir}
+                        -DMODE=${mode}
+                        -P ${_VERIFY_LATEX_EXAMPLE}
+            )
+        endfunction()
+
+        add_tikz_latex_example_test(
+            TikzExamples.RenderFeaturesStandalone
+            tikz_render_features_example standalone)
+        add_tikz_latex_example_test(
+            TikzExamples.SceneOverlaysBeamer
+            tikz_scene_overlays_example beamer)
+        add_tikz_latex_example_test(
+            TikzExamples.SceneOverlaysHandout
+            tikz_scene_overlays_example handout)
+    endif()
+
     if(TARGET backtracking_nqueens_example)
         add_test(
             NAME StateSearchExamples.NQueens

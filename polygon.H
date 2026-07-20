@@ -90,6 +90,7 @@
 # include <ah-dry.H>
 # include <ahDry.H>
 # include <ah-iterator.H>
+# include <cmath>
 # include <string>
 # include <utility>
 
@@ -787,9 +788,11 @@ namespace Aleph
       ah_domain_error_if(victim == nullptr) << "Vertex does not belong to polygon";
 
       // Store point for later comparison with extremes
+      // cppcheck-suppress nullPointer
       const Point victim_point = victim->to_point();
 
       // Delete the vertex
+      // cppcheck-suppress nullPointer
       victim->del();
       --num_vertex_;
       delete victim;
@@ -1119,12 +1122,12 @@ namespace Aleph
    *  @endcode
    *
    *  @note This class uses `double` internally for side length, angles, and
-+   *        circumradius because vertex positions require trigonometric functions
-+   *        (sin, cos) whose results are transcendental and cannot be exactly
-+   *        represented in `Geom_Number` (rational arithmetic). The center point
-+   *        remains exact; vertex coordinates are computed with floating-point
-+   *        precision.
-+   *
+   *        circumradius because vertex positions require trigonometric functions
+   *        (sin, cos) whose results are transcendental and cannot be exactly
+   *        represented in `Geom_Number` (rational arithmetic). The center point
+   *        remains exact; vertex coordinates are computed with floating-point
+   *        precision.
+   *
    *  @see Polygon
    *  @ingroup Geometry
    */
@@ -1138,8 +1141,12 @@ namespace Aleph
     double beta_; ///< Central angle between adjacent vertices (2π/n)
 
   public:
-    /// @brief Default constructor. Creates an invalid empty polygon.
-    Regular_Polygon() : side_size_(0), num_vertex_(0)
+    /** @brief Default constructor.
+     *
+     *  Creates a completely initialized empty polygon at the origin.
+     */
+    Regular_Polygon()
+      : center_(0, 0), side_size_(0), num_vertex_(0), angle_(0), r_(0), beta_(0)
     { /* empty */
     }
 
@@ -1149,20 +1156,31 @@ namespace Aleph
      *  @param side_sz Length of each side.
      *  @param n Number of vertices (must be >= 3).
      *  @param ang Rotation angle in radians (default 0).
-     *  @throws std::domain_error If n < 3.
+     *  @throws std::domain_error If @p n is less than 3, @p side_sz is not
+     *          positive and finite, @p ang is not finite, or the derived
+     *          circumradius is not representable.
      */
     Regular_Polygon(Point c,
                     const double & side_sz,
                     const size_t & n,
                     const double & ang = 0)
-      : center_(std::move(c)), side_size_(side_sz), num_vertex_(n), angle_(ang), beta_(2 * PI / n)
+      : center_(std::move(c)), side_size_(side_sz), num_vertex_(n), angle_(ang),
+        r_(0), beta_(0)
     {
-      ah_domain_error_if(n < 3) << "Polygon sides is less than 3";
+      ah_domain_error_if(n < 3) << "Regular polygon must have at least 3 sides";
+      ah_domain_error_if(not std::isfinite(side_sz) or side_sz <= 0)
+        << "Regular polygon side length must be positive and finite";
+      ah_domain_error_if(not std::isfinite(ang))
+        << "Regular polygon angle must be finite";
+
+      beta_ = 2 * PI / static_cast<double>(n);
 
       // Calculate radius using law of sines with angles between vertices
       // and the angle between radius and side
       const double alpha = (PI - beta_) / 2; // angle between radius and side
       r_ = side_size_ * sin(alpha) / sin(beta_);
+      ah_domain_error_if(not std::isfinite(r_) or r_ <= 0)
+        << "Regular polygon circumradius is not representable";
     }
 
     /// @brief Get the side length.
@@ -1181,9 +1199,12 @@ namespace Aleph
     /// @return Distance from center to each vertex.
     [[nodiscard]] const double &radius() const { return r_; }
 
-    /// @brief Check if the polygon is closed.
-    /// @return Always true for regular polygons.
-    static bool is_closed() { return true; }
+    /** @brief Check if the polygon is a valid closed regular polygon.
+     *  @return True for constructed polygons and false for the default empty state.
+     *  @note This is an instance query because closure depends on whether the
+     *        object represents a constructed polygon or the default empty state.
+     */
+    [[nodiscard]] bool is_closed() const noexcept { return num_vertex_ >= 3; }
 
     /** @brief Get the i-th vertex of the polygon.
      *
@@ -1224,10 +1245,10 @@ namespace Aleph
     }
 
     /// @brief Get the last segment (closing edge).
-    /// @return Segment from vertex 0 to last vertex.
+    /// @return Segment from the last vertex to vertex 0.
     [[nodiscard]] Segment get_last_segment() const
     {
-      return {get_vertex(num_vertex_ - 2), get_vertex(num_vertex_ - 1)};
+      return {get_vertex(num_vertex_ - 1), get_vertex(0)};
     }
 
     /** @brief Iterator over the vertices of a regular polygon.
