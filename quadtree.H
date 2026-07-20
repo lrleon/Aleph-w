@@ -151,13 +151,10 @@ private:
   [[nodiscard]] static bool contains_only(Node * node, const Point & p)
   {
     assert(node != nullptr and node->is_leaf());
-    bool all_equal = true;
-    node->for_each_point([&](const Point & point)
-      {
-        if (point != p)
-          all_equal = false;
-      });
-    return all_equal;
+    for (const Point & point : node->get_points_set())
+      if (point != p)
+        return false;
+    return true;
   }
 
   /** @brief Return true when an internal node has four leaf children. */

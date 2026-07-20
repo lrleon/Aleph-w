@@ -788,9 +788,11 @@ namespace Aleph
       ah_domain_error_if(victim == nullptr) << "Vertex does not belong to polygon";
 
       // Store point for later comparison with extremes
+      // cppcheck-suppress nullPointer
       const Point victim_point = victim->to_point();
 
       // Delete the vertex
+      // cppcheck-suppress nullPointer
       victim->del();
       --num_vertex_;
       delete victim;
@@ -1165,7 +1167,7 @@ namespace Aleph
       : center_(std::move(c)), side_size_(side_sz), num_vertex_(n), angle_(ang),
         r_(0), beta_(0)
     {
-      ah_domain_error_if(n < 3) << "Polygon sides is less than 3";
+      ah_domain_error_if(n < 3) << "Regular polygon must have at least 3 sides";
       ah_domain_error_if(not std::isfinite(side_sz) or side_sz <= 0)
         << "Regular polygon side length must be positive and finite";
       ah_domain_error_if(not std::isfinite(ang))

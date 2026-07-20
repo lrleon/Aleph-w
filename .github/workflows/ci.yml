@@ -902,6 +902,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install system dependencies
         run: |
@@ -921,7 +923,7 @@ jobs:
             --language=c++ \
             --error-exitcode=1 \
             --suppress=missingIncludeSystem \
-            --suppress=nullPointer:polygon.H \
+            --inline-suppr \
             polygon.H
 
       - name: Configure targeted MemorySanitizer probe

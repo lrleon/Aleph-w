@@ -76,9 +76,11 @@ not compiled with MemorySanitizer and otherwise report false positives before
 Aleph tests start. The standalone probe reads every publicly observable scalar
 in the default `Regular_Polygon` state without linking GoogleTest. Cppcheck
 covers the private `angle_` and `beta_` members that the empty object's public
-contract cannot read. Its `nullPointer` diagnostic for `Polygon::remove_vertex`
-is suppressed because the preceding Aleph error macro throws; this known tool
-limitation is documented in the geometry audit.
+contract cannot read. Its `nullPointer` diagnostic for the two dereferences in
+`Polygon::remove_vertex` (the preceding Aleph error macro already throws when
+the pointer is null) is suppressed inline at each site via
+`// cppcheck-suppress nullPointer`, so the check still covers the rest of
+`polygon.H`.
 
 ## Skipped tests by platform
 

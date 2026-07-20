@@ -100,17 +100,7 @@ class Tikz_Scene
                                       const Array<std::string> & source)
   {
     for (size_t i = 0; i < source.size(); ++i)
-      {
-        bool found = false;
-        for (size_t j = 0; j < destination.size(); ++j)
-          if (destination(j) == source(i))
-            {
-              found = true;
-              break;
-            }
-        if (not found)
-          destination.append(source(i));
-      }
+      append_unique_tikz_library(destination, source(i));
   }
 
   /** @brief Collect the union of TikZ dependencies across overlay steps. */

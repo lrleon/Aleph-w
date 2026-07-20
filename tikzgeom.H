@@ -77,6 +77,21 @@ namespace Aleph
    *  - Empty planes are valid and produce an empty clipped `tikzpicture`.
    */
 
+  /** @brief Append @p library into @p libraries unless already present.
+   *
+   *  Shared by @ref Tikz_Plane::required_tikz_libraries and
+   *  @ref Tikz_Scene's overlay/beamer export helpers so both single-item and
+   *  bulk-merge callers use the same "already present" scan.
+   */
+  inline void append_unique_tikz_library(Array<std::string> & libraries,
+                                         const std::string & library)
+  {
+    for (size_t i = 0; i < libraries.size(); ++i)
+      if (libraries(i) == library)
+        return;
+    libraries.append(library);
+  }
+
   /** @brief Style descriptor for TikZ primitives.
    *
    *  The same style can be reused across points/segments/polygons/labels.
@@ -400,16 +415,6 @@ namespace Aleph
         const Tikz_Style & style) noexcept
     {
       return style.fill and not style.pattern.empty();
-    }
-
-    /** @brief Append @p library unless it is already present. */
-    static void append_unique_library(Array<std::string> & libraries,
-                                      const std::string & library)
-    {
-      for (size_t i = 0; i < libraries.size(); ++i)
-        if (libraries(i) == library)
-          return;
-      libraries.append(library);
     }
 
     static Geom_Box make_box(const Geom_Number & xmin,
@@ -1248,7 +1253,7 @@ namespace Aleph
       const auto collect_style = [&libraries](const Tikz_Style & style)
         {
           if (style_requires_patterns(style))
-            append_unique_library(libraries, "patterns");
+            append_unique_tikz_library(libraries, "patterns");
         };
 
       collect_style(default_style_);

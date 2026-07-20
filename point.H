@@ -1732,6 +1732,23 @@ namespace Aleph
     {
       return s.intersection_with(*this);
     }
+
+    /**
+     * @brief Checks if a point lies within the closed, filled triangle.
+     * @details Unlike contains(), this also accepts points lying exactly on
+     *          an edge (the boundary is included).
+     * @param p The point to check.
+     * @return `true` if the point is inside or on the boundary.
+     */
+    [[nodiscard]] bool covers(const Point & p) const
+    {
+      if (contains(p))
+        return true;
+      for (const Segment & edge : edges())
+        if (edge.contains(p))
+          return true;
+      return false;
+    }
   };
 
   /** @brief An axis-aligned rectangle.
@@ -1929,21 +1946,10 @@ namespace Aleph
   // Return true if this segment overlaps the closed filled triangle @p t.
   inline bool Segment::intersects_with(const Triangle & t) const
   {
-    const auto edges = t.edges();
-    const auto covered = [&t, &edges](const Point & p)
-      {
-        if (t.contains(p))
-          return true;
-        for (const Segment & edge : edges)
-          if (edge.contains(p))
-            return true;
-        return false;
-      };
-
-    if (covered(src_) or covered(tgt_))
+    if (t.covers(src_) or t.covers(tgt_))
       return true;
 
-    for (const Segment & edge : edges)
+    for (const Segment & edge : t.edges())
       if (this->intersects_with(edge))
         return true;
     return false;
@@ -1989,19 +1995,9 @@ namespace Aleph
       };
 
     const auto edges = t.edges();
-    const auto covered = [&t, &edges](const Point & p)
-      {
-        if (t.contains(p))
-          return true;
-        for (const Segment & edge : edges)
-          if (edge.contains(p))
-            return true;
-        return false;
-      };
-
-    if (covered(src_))
+    if (t.covers(src_))
       append_unique(src_);
-    if (covered(tgt_))
+    if (t.covers(tgt_))
       append_unique(tgt_);
     for (const Segment & edge : edges)
       collect_with_edge(edge);
