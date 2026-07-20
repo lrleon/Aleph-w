@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.11.0](https://github.com/lrleon/Aleph-w/compare/v5.10.0...v5.11.0) (2026-07-20)
+
+
+### Features
+
+* **core:** agregar MemorySanitizer, mejorar Regular_Polygon, QuadTre… ([#95](https://github.com/lrleon/Aleph-w/issues/95)) ([334bed0](https://github.com/lrleon/Aleph-w/commit/334bed03f2c0d919cdb63e766798db38107d4b50))
+
 ## [5.10.0](https://github.com/lrleon/Aleph-w/compare/v5.9.0...v5.10.0) (2026-07-19)
 
 
