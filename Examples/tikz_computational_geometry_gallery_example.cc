@@ -506,11 +506,11 @@ int main(int argc, char * argv[])
     plane.put_cartesian_axis();
     const DynList<Point> pts = make_mec_points();
     const auto circle = visualize_mec(plane, pts);
-    const auto pair = visualize_closest_pair(plane, pts);
+    const auto [first, second, distance_squared] = visualize_closest_pair(plane, pts);
     add_caption(plane, Point(-18, 20),
                "MEC r=" + std::to_string(geom_number_to_double(circle.radius())) +
                " + closest pair d^2=" +
-               std::to_string(geom_number_to_double(pair.first.distance_squared_to(pair.second))));
+               std::to_string(geom_number_to_double(distance_squared)));
   }
 
   // 6. Convex decomposition (six-pointed star).

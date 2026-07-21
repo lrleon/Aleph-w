@@ -359,6 +359,24 @@ inline Tikz_Style tikz_path_style(const std::string &color = "red", const bool w
   return s;
 }
 
+/** @brief Creates a solid wireframe style with an explicit line width.
+ *
+ *  Used to visually distinguish a "result" outline (e.g. a simplified,
+ *  offset, or smoothed polygon) from a faded original, without relying on
+ *  `dashed`. `tikz_wire_style(color, width)` would silently set `dashed`
+ *  instead (its second parameter is a bool), which is why this exists.
+ *
+ *  @param color The stroke color.
+ *  @param width_mm Line width in millimeters (see `Tikz_Style::line_width_mm`).
+ *  @return A solid, non-dashed @ref Tikz_Style with the given line width.
+ */
+inline Tikz_Style tikz_bold_wire_style(const std::string &color, const double width_mm = 1.2)
+{
+  Tikz_Style s = tikz_wire_style(color);
+  s.line_width_mm = width_mm;
+  return s;
+}
+
 /** @brief Creates a style for drawing filled polygons.
  *
  *  This style is used for representing areas, like polygon intersections or
@@ -1897,7 +1915,7 @@ inline void put_mec_result(Tikz_Plane &plane, const MinimumEnclosingCircle::Circ
 inline void put_simplification_result(
   Tikz_Plane &plane, const Polygon &original, const Polygon &simplified,
   const Tikz_Style &original_style = tikz_wire_style("gray!50"),
-  const Tikz_Style &simplified_style = tikz_wire_style("blue!80", 1.2),
+  const Tikz_Style &simplified_style = tikz_bold_wire_style("blue!80"),
   const bool draw_vertices = true, const Tikz_Style &vertex_style = tikz_points_style("red"))
 {
   put_in_plane(plane, original, original_style);
@@ -1915,7 +1933,7 @@ inline void put_simplification_result(
   Tikz_Plane &plane, const Polygon &poly, const Geom_Number &epsilon,
   const DouglasPeuckerSimplification &algorithm = {},
   const Tikz_Style &original_style = tikz_wire_style("gray!50"),
-  const Tikz_Style &simplified_style = tikz_wire_style("blue!80", 1.2),
+  const Tikz_Style &simplified_style = tikz_bold_wire_style("blue!80"),
   const bool draw_vertices = true, const Tikz_Style &vertex_style = tikz_points_style("red"))
 {
   Polygon simplified = algorithm.simplify_polygon(poly, epsilon);
@@ -1933,7 +1951,7 @@ inline void put_simplification_result(
   Tikz_Plane &plane, const Polygon &poly, const Geom_Number &area_threshold,
   const VisvalingamWhyattSimplification &algorithm = {},
   const Tikz_Style &original_style = tikz_wire_style("gray!50"),
-  const Tikz_Style &simplified_style = tikz_wire_style("green!70!black", 1.2),
+  const Tikz_Style &simplified_style = tikz_bold_wire_style("green!70!black"),
   const bool draw_vertices = true, const Tikz_Style &vertex_style = tikz_points_style("red"))
 {
   Polygon simplified = algorithm.simplify_polygon(poly, area_threshold);
@@ -1960,7 +1978,7 @@ inline void put_simplification_result(
 inline void put_offset_result(Tikz_Plane &plane, const Polygon &original,
                               const PolygonOffset::Result &result,
                               const Tikz_Style &original_style = tikz_wire_style("gray!50"),
-                              const Tikz_Style &offset_style = tikz_wire_style("blue!80", 1.2),
+                              const Tikz_Style &offset_style = tikz_bold_wire_style("blue!80"),
                               const bool draw_vertices = true,
                               const Tikz_Style &vertex_style = tikz_points_style("red"))
 {
@@ -1983,7 +2001,7 @@ inline void put_offset_result(Tikz_Plane &plane, const Polygon &original,
   const PolygonOffset &algorithm = {}, PolygonOffset::JoinType join = PolygonOffset::JoinType::Miter,
   const Geom_Number &miter_limit = Geom_Number(2),
   const Tikz_Style &original_style = tikz_wire_style("gray!50"),
-  const Tikz_Style &offset_style = tikz_wire_style("blue!80", 1.2), const bool draw_vertices = true,
+  const Tikz_Style &offset_style = tikz_bold_wire_style("blue!80"), const bool draw_vertices = true,
   const Tikz_Style &vertex_style = tikz_points_style("red"))
 {
   PolygonOffset::Result result = algorithm(poly, distance, join, miter_limit);
@@ -2008,7 +2026,7 @@ inline void put_offset_result(Tikz_Plane &plane, const Polygon &original,
  */
 inline void put_smoothing_result(Tikz_Plane &plane, const Polygon &original, const Polygon &smoothed,
                                  const Tikz_Style &original_style = tikz_wire_style("gray!50"),
-                                 const Tikz_Style &smoothed_style = tikz_wire_style("violet!80", 1.2),
+                                 const Tikz_Style &smoothed_style = tikz_bold_wire_style("violet!80"),
                                  const bool draw_vertices = true,
                                  const Tikz_Style &vertex_style = tikz_points_style("red"))
 {
@@ -2027,7 +2045,7 @@ inline void put_smoothing_result(Tikz_Plane &plane, const Polygon &original, con
   Tikz_Plane &plane, const Polygon &poly, const size_t iterations,
   const Geom_Number &ratio = Geom_Number(1, 4),
   const Tikz_Style &original_style = tikz_wire_style("gray!50"),
-  const Tikz_Style &smoothed_style = tikz_wire_style("violet!80", 1.2),
+  const Tikz_Style &smoothed_style = tikz_bold_wire_style("violet!80"),
   const bool draw_vertices = true, const Tikz_Style &vertex_style = tikz_points_style("red"))
 {
   Polygon smoothed = ChaikinSmoothing::smooth_polygon(poly, iterations, ratio);
@@ -2068,7 +2086,7 @@ inline void put_trapezoidal_map_result(
       for (size_t i = 0; i < res.trapezoids.size(); ++i)
         {
           const Trap &t = res.trapezoids(i);
-          if (!not t.active)
+          if (not t.active)
             continue;
 
           // A trapezoid has 4 corners defined by:
