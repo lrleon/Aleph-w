@@ -172,7 +172,7 @@ constexpr size_t SPP_NONE = ~static_cast<size_t>(0);
       if (cur == dst)
         break;
 
-      for (unsigned long nb : tris(cur).adj)
+      for (size_t nb : tris(cur).adj)
         if (nb != SPP_NONE and parent(nb) == SPP_NONE)
           {
             parent(nb) = cur;
@@ -264,7 +264,7 @@ constexpr size_t SPP_NONE = ~static_cast<size_t>(0);
       int sc = 0;
       bool found[3] = {false, false, false};
       for (int a = 0; a < 3; ++a)
-        for (const unsigned long b : tris(sleeve(i + 1)).v)
+        for (const size_t b : tris(sleeve(i + 1)).v)
           if (tris(sleeve(i)).v[a] == b)
             {
               found[a] = true;

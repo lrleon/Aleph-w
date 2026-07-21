@@ -142,8 +142,8 @@ public:
     Rectangle bbox;          ///< Tight MBR of this node.
     bool is_leaf = false;    ///< True for leaf nodes (see @ref entry_boxes).
     size_t depth = 0;        ///< Root is 0, increasing towards the leaves.
-    Array<size_t> children;  ///< Indices into `DebugSnapshot::nodes` (internal nodes).
-    Array<Rectangle> entry_boxes;  ///< Data-entry boxes stored here (leaves only).
+    Array<size_t> children = Array<size_t>(0);  ///< Indices into `DebugSnapshot::nodes` (internal nodes).
+    Array<Rectangle> entry_boxes = Array<Rectangle>(0);  ///< Data-entry boxes stored here (leaves only).
   };
 
   /** @brief Full tree structure captured for visualization/debugging.
@@ -170,8 +170,8 @@ private:
   struct Node
   {
     bool leaf = true;
-    Array<Entry> data;      ///< Data entries (used iff @ref leaf).
-    Array<Child> children;  ///< Child entries (used iff not @ref leaf).
+    Array<Entry> data = Array<Entry>(0);      ///< Data entries (used iff @ref leaf).
+    Array<Child> children = Array<Child>(0);  ///< Child entries (used iff not @ref leaf).
   };
 
   std::unique_ptr<Node> root_;
@@ -309,10 +309,8 @@ private:
   [[nodiscard]] static Array<EntryT> quadratic_split(Array<EntryT> &entries)
   {
     const size_t n = entries.size();
-    Array<EntryT> group1;
-    Array<EntryT> group2;
-    group1.reserve(n);
-    group2.reserve(n);
+    Array<EntryT> group1(n);
+    Array<EntryT> group2(n);
 
     Array<EntryT> items = std::move(entries);
     entries = Array<EntryT>();
@@ -428,10 +426,8 @@ private:
   [[nodiscard]] static Array<EntryT> rstar_split(Array<EntryT> &entries)
   {
     const size_t n = entries.size();
-    Array<EntryT> group1;
-    Array<EntryT> group2;
-    group1.reserve(n);
-    group2.reserve(n);
+    Array<EntryT> group1(n);
+    Array<EntryT> group2(n);
 
     Array<EntryT> items = std::move(entries);
     entries = Array<EntryT>();
@@ -567,8 +563,7 @@ private:
     if (p > MaxEntries + 1 - MinEntries)
       p = MaxEntries + 1 - MinEntries;
 
-    Array<Entry> kept;
-    kept.reserve(n - p);
+    Array<Entry> kept(n - p);
     rstar_reinsert_buffer_.reserve(rstar_reinsert_buffer_.size() + p);
     for (size_t k = p; k < n; ++k)
       kept.append(std::move(node.data(order[k])));
@@ -709,8 +704,7 @@ private:
         for (size_t i = 0; i < node.data.size(); ++i)
           if (node.data(i).bbox == bbox and node.data(i).value == value)
             {
-              Array<Entry> kept;
-              kept.reserve(node.data.size() - 1);
+              Array<Entry> kept(node.data.size() - 1);
               for (size_t j = 0; j < node.data.size(); ++j)
                 if (j != i)
                   kept.append(std::move(node.data(j)));
@@ -738,8 +732,7 @@ private:
                                  std::numeric_limits<size_t>::max() - orphan_count)
               << "RTree: orphan collection would overflow";
             orphans.reserve(orphans.size() + orphan_count);
-            Array<Child> kept;
-            kept.reserve(node.children.size() - 1);
+            Array<Child> kept(node.children.size() - 1);
             collect_data_entries(*c.child, orphans);
             for (size_t j = 0; j < node.children.size(); ++j)
               if (j != i)
@@ -1132,16 +1125,14 @@ public:
 
         if (node.leaf)
           {
-            Array<Rectangle> boxes;
-            boxes.reserve(node.data.size());
+            Array<Rectangle> boxes(node.data.size());
             for (size_t i = 0; i < node.data.size(); ++i)
               boxes.append(node.data(i).bbox);
             snap.nodes(out_idx).entry_boxes = std::move(boxes);
           }
         else
           {
-            Array<size_t> child_indices;
-            child_indices.reserve(node.children.size());
+            Array<size_t> child_indices(node.children.size());
             for (size_t i = 0; i < node.children.size(); ++i)
               child_indices.append(self(self, *node.children(i).child, depth + 1));
             snap.nodes(out_idx).children = std::move(child_indices);
