@@ -228,6 +228,8 @@ namespace
     if (node.is_leaf)
       {
         EXPECT_FALSE(node.entry_boxes.is_empty());
+        if (node.entry_boxes.is_empty())
+          return 0;
         Rectangle acc = node.entry_boxes(0);
         for (size_t i = 1; i < node.entry_boxes.size(); ++i)
           acc = union_of(acc, node.entry_boxes(i));
@@ -236,11 +238,18 @@ namespace
       }
 
     EXPECT_FALSE(node.children.is_empty());
+    if (node.children.is_empty())
+      return 0;
+    EXPECT_LT(node.children(0), snap.nodes.size());
+    if (node.children(0) >= snap.nodes.size())
+      return 0;
     Rectangle acc = snap.nodes(node.children(0)).bbox;
     size_t total = check_snapshot_node(snap, node.children(0), expected_depth + 1);
     for (size_t i = 1; i < node.children.size(); ++i)
       {
         EXPECT_LT(node.children(i), snap.nodes.size());
+        if (node.children(i) >= snap.nodes.size())
+          return total;
         total += check_snapshot_node(snap, node.children(i), expected_depth + 1);
         acc = union_of(acc, snap.nodes(node.children(i)).bbox);
       }
