@@ -44,12 +44,12 @@
 # include <type_traits>
 # include <utility>
 # include <variant>
-# include <vector>
 
 # include "line.H"
 # include "point.H"
 # include "polygon.H"
 # include "tpl_array.H"
+# include "tpl_sort_utils.H"
 
 namespace Aleph
 {
@@ -164,8 +164,8 @@ namespace Aleph
    */
   struct Tikz_Polyline
   {
-    std::vector<Point> vertices; ///< Ordered vertices.
-    bool closed = false;         ///< Whether to close the polyline.
+    Array<Point> vertices; ///< Ordered vertices.
+    bool closed = false;   ///< Whether to close the polyline.
   };
 
   /** @brief Create a basic draw style with a custom color. */
@@ -283,10 +283,10 @@ namespace Aleph
       Tikz_Style style;
     };
 
-    std::vector<Legend_Entry> legend_entries_;
+    Array<Legend_Entry> legend_entries_;
     std::map<std::string, Tikz_Style> tikz_style_defs_;
 
-    std::vector<Styled_Object> objects_;
+    Array<Styled_Object> objects_;
     size_t next_order_ = 0;
 
     [[nodiscard]] static std::string fmt_double(const double v)
@@ -709,17 +709,17 @@ namespace Aleph
 
     template <typename Out>
     void draw_polyline(Out & output,
-                       const std::vector<Point> & vertices,
+                       const Array<Point> & vertices,
                        const bool closed,
                        const Tikz_Style & style,
                        const Geom_Box & box, const Mapping & map) const
     {
-      if (vertices.empty())
+      if (vertices.is_empty())
         return;
 
       if (vertices.size() == 1)
         {
-          draw_point(vertices.front(), style, output, box, map);
+          draw_point(vertices.get_first(), style, output, box, map);
           return;
         }
 
@@ -746,14 +746,21 @@ namespace Aleph
     void draw_segment(const Segment & s, const Tikz_Style & style, Out & output,
                       const Geom_Box & box, const Mapping & map) const
     {
-      draw_polyline(output, {s.get_src_point(), s.get_tgt_point()}, false, style, box, map);
+      Array<Point> vertices(2);
+      vertices.append(s.get_src_point());
+      vertices.append(s.get_tgt_point());
+      draw_polyline(output, vertices, false, style, box, map);
     }
 
     template <typename Out>
     void draw_triangle(const Triangle & t, const Tikz_Style & style, Out & output,
                        const Geom_Box & box, const Mapping & map) const
     {
-      draw_polyline(output, {t.get_p1(), t.get_p2(), t.get_p3()}, true, style, box, map);
+      Array<Point> vertices(3);
+      vertices.append(t.get_p1());
+      vertices.append(t.get_p2());
+      vertices.append(t.get_p3());
+      draw_polyline(output, vertices, true, style, box, map);
     }
 
     template <typename Out>
@@ -838,10 +845,10 @@ namespace Aleph
     void draw_polygon(const Polygon & poly, const Tikz_Style & style, Out & output,
                       const Geom_Box & box, const Mapping & map) const
     {
-      std::vector<Point> vertices;
+      Array<Point> vertices;
       vertices.reserve(poly.size());
       for (Polygon::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
-        vertices.push_back(it.get_current_vertex().to_point());
+        vertices.append(it.get_current_vertex().to_point());
 
       draw_polyline(output, vertices, poly.is_closed(), style, box, map);
     }
@@ -851,10 +858,10 @@ namespace Aleph
                               Out & output, const Geom_Box & box,
                               const Mapping & map) const
     {
-      std::vector<Point> vertices;
+      Array<Point> vertices;
       vertices.reserve(poly.size());
       for (size_t i = 0; i < poly.size(); ++i)
-        vertices.push_back(poly.get_vertex(i));
+        vertices.append(poly.get_vertex(i));
 
       draw_polyline(output, vertices, true, style, box, map);
     }
@@ -863,11 +870,11 @@ namespace Aleph
     void draw_rectangle(const Rectangle & r, const Tikz_Style & style, Out & output,
                         const Geom_Box & box, const Mapping & map) const
     {
-      std::vector<Point> vertices;
+      Array<Point> vertices;
       vertices.reserve(4);
       const std::array<Point, 4> corners = r.corners();
       for (const Point & p: corners)
-        vertices.push_back(p);
+        vertices.append(p);
       draw_polyline(output, vertices, true, style, box, map);
     }
 
@@ -878,7 +885,7 @@ namespace Aleph
       if (not box.initialized)
         return;
 
-      std::vector<Point> clipped;
+      Array<Point> clipped;
       clipped.reserve(4);
 
       const auto append_if_new = [&](const Point & p)
@@ -886,7 +893,7 @@ namespace Aleph
           for (const Point & existing: clipped)
             if (existing == p)
               return;
-          clipped.push_back(p);
+          clipped.append(p);
         };
 
       const auto y_in_range = [&](const Geom_Number & y)
@@ -1062,9 +1069,9 @@ namespace Aleph
           }
     }
 
-    [[nodiscard]] std::vector<Legend_Entry> collect_legend_entries() const
+    [[nodiscard]] Array<Legend_Entry> collect_legend_entries() const
     {
-      std::vector<Legend_Entry> entries = legend_entries_;
+      Array<Legend_Entry> entries = legend_entries_;
       if (not with_auto_legend_)
         return entries;
 
@@ -1088,7 +1095,7 @@ namespace Aleph
           legend_style.fill = obj.style.fill;
           legend_style.pattern = obj.style.pattern;
           legend_style.pattern_color = obj.style.pattern_color;
-          entries.push_back({color, legend_style});
+          entries.append(Legend_Entry{color, legend_style});
           seen.insert(color);
         }
 
@@ -1098,8 +1105,8 @@ namespace Aleph
     template <typename Out>
     void draw_legend(Out & output) const
     {
-      const std::vector<Legend_Entry> entries = collect_legend_entries();
-      if (entries.empty())
+      const Array<Legend_Entry> entries = collect_legend_entries();
+      if (entries.is_empty())
         return;
 
       for (size_t i = 0; i < entries.size(); ++i)
@@ -1365,7 +1372,7 @@ namespace Aleph
     /** @brief Add a legend entry to be rendered in the top-left corner. */
     void add_legend_entry(const std::string & label, const Tikz_Style & style)
     {
-      legend_entries_.push_back({label, style});
+      legend_entries_.append(Legend_Entry{label, style});
     }
 
     /// @brief Remove user-provided legend entries.
@@ -1403,7 +1410,7 @@ namespace Aleph
     /** @brief Insert an object with explicit style/layer. */
     void put(const Object & obj, const Tikz_Style & style, const int layer)
     {
-      objects_.push_back(Styled_Object{obj, style, layer, next_order_++});
+      objects_.append(Styled_Object{obj, style, layer, next_order_++});
     }
 
     /** @brief Emit a complete `tikzpicture` with all inserted objects.
@@ -1448,17 +1455,19 @@ namespace Aleph
       draw_coordinate_grid(output, box, map);
       draw_cartesian_axis(output, box, map);
 
-      std::vector<size_t> order(objects_.size());
+      Array<size_t> order = Array<size_t>::create(objects_.size());
       for (size_t i = 0; i < objects_.size(); ++i)
-        order[i] = i;
+        order(i) = i;
 
-      std::stable_sort(order.begin(), order.end(),
-                       [&](const size_t lhs, const size_t rhs)
-                         {
-                           if (objects_[lhs].layer != objects_[rhs].layer)
-                             return objects_[lhs].layer < objects_[rhs].layer;
-                           return objects_[lhs].order < objects_[rhs].order;
-                         });
+      // objects_[...].order is a unique insertion index, so (layer, order)
+      // is a total order with no real ties: an unstable sort here yields the
+      // same result as a stable one.
+      quicksort_op(order, [&](const size_t lhs, const size_t rhs)
+        {
+          if (objects_[lhs].layer != objects_[rhs].layer)
+            return objects_[lhs].layer < objects_[rhs].layer;
+          return objects_[lhs].order < objects_[rhs].order;
+        });
 
       if (with_native_layers_)
         {
@@ -1533,7 +1542,7 @@ namespace Aleph
         const Geom_Number y = s * s * p0.get_y() +
                               Geom_Number(2) * s * t * p1.get_y() +
                               t * t * p2.get_y();
-        curve.vertices.emplace_back(x, y);
+        curve.vertices.append(Point(x, y));
       }
 
     put_in_plane(plane, curve, style, layer);
@@ -1568,7 +1577,7 @@ namespace Aleph
                               Geom_Number(3) * s2 * t * p1.get_y() +
                               Geom_Number(3) * s * t2 * p2.get_y() +
                               t2 * t * p3.get_y();
-        curve.vertices.emplace_back(x, y);
+        curve.vertices.append(Point(x, y));
       }
 
     put_in_plane(plane, curve, style, layer);

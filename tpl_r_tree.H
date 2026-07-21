@@ -131,6 +131,31 @@ public:
     Payload value;   ///< User payload associated with @ref bbox.
   };
 
+  /** @brief One node of a @ref debug_snapshot, independent of `Payload`.
+   *
+   *  Unlike `AABBTree::DebugNode`, an R-tree node may have more than two
+   *  children, so @ref children lists every child by index into the
+   *  enclosing @ref DebugSnapshot::nodes rather than a fixed left/right pair.
+   */
+  struct DebugNode
+  {
+    Rectangle bbox;          ///< Tight MBR of this node.
+    bool is_leaf = false;    ///< True for leaf nodes (see @ref entry_boxes).
+    size_t depth = 0;        ///< Root is 0, increasing towards the leaves.
+    Array<size_t> children = Array<size_t>(0);  ///< Indices into `DebugSnapshot::nodes` (internal nodes).
+    Array<Rectangle> entry_boxes = Array<Rectangle>(0);  ///< Data-entry boxes stored here (leaves only).
+  };
+
+  /** @brief Full tree structure captured for visualization/debugging.
+   *  @note Intentionally omits `Payload`: it is available regardless of
+   *        whether `Payload` is copyable or even movable-only usable that way.
+   */
+  struct DebugSnapshot
+  {
+    Array<DebugNode> nodes;             ///< Every node, in preorder.
+    size_t root = std::numeric_limits<size_t>::max();  ///< Index of the root in @ref nodes.
+  };
+
 private:
   struct Node;
 
@@ -145,8 +170,8 @@ private:
   struct Node
   {
     bool leaf = true;
-    Array<Entry> data;      ///< Data entries (used iff @ref leaf).
-    Array<Child> children;  ///< Child entries (used iff not @ref leaf).
+    Array<Entry> data = Array<Entry>(0);      ///< Data entries (used iff @ref leaf).
+    Array<Child> children = Array<Child>(0);  ///< Child entries (used iff not @ref leaf).
   };
 
   std::unique_ptr<Node> root_;
@@ -284,10 +309,8 @@ private:
   [[nodiscard]] static Array<EntryT> quadratic_split(Array<EntryT> &entries)
   {
     const size_t n = entries.size();
-    Array<EntryT> group1;
-    Array<EntryT> group2;
-    group1.reserve(n);
-    group2.reserve(n);
+    Array<EntryT> group1(n);
+    Array<EntryT> group2(n);
 
     Array<EntryT> items = std::move(entries);
     entries = Array<EntryT>();
@@ -403,10 +426,8 @@ private:
   [[nodiscard]] static Array<EntryT> rstar_split(Array<EntryT> &entries)
   {
     const size_t n = entries.size();
-    Array<EntryT> group1;
-    Array<EntryT> group2;
-    group1.reserve(n);
-    group2.reserve(n);
+    Array<EntryT> group1(n);
+    Array<EntryT> group2(n);
 
     Array<EntryT> items = std::move(entries);
     entries = Array<EntryT>();
@@ -542,8 +563,7 @@ private:
     if (p > MaxEntries + 1 - MinEntries)
       p = MaxEntries + 1 - MinEntries;
 
-    Array<Entry> kept;
-    kept.reserve(n - p);
+    Array<Entry> kept(n - p);
     rstar_reinsert_buffer_.reserve(rstar_reinsert_buffer_.size() + p);
     for (size_t k = p; k < n; ++k)
       kept.append(std::move(node.data(order[k])));
@@ -684,8 +704,7 @@ private:
         for (size_t i = 0; i < node.data.size(); ++i)
           if (node.data(i).bbox == bbox and node.data(i).value == value)
             {
-              Array<Entry> kept;
-              kept.reserve(node.data.size() - 1);
+              Array<Entry> kept(node.data.size() - 1);
               for (size_t j = 0; j < node.data.size(); ++j)
                 if (j != i)
                   kept.append(std::move(node.data(j)));
@@ -713,8 +732,7 @@ private:
                                  std::numeric_limits<size_t>::max() - orphan_count)
               << "RTree: orphan collection would overflow";
             orphans.reserve(orphans.size() + orphan_count);
-            Array<Child> kept;
-            kept.reserve(node.children.size() - 1);
+            Array<Child> kept(node.children.size() - 1);
             collect_data_entries(*c.child, orphans);
             for (size_t j = 0; j < node.children.size(); ++j)
               if (j != i)
@@ -1081,6 +1099,51 @@ public:
     if (not verify_rec(*root_, 1, true, leaf_depth, count, mbr))
       return false;
     return count == size_ and leaf_depth == height_;
+  }
+
+  /** @brief Capture the full tree structure for visualization/debugging.
+   *  @return A @ref DebugSnapshot with every node in preorder; empty
+   *          (`nodes` empty, `root` unset) when the tree `is_empty()`.
+   *  @par Complexity O(n).
+   *  @throws std::bad_alloc if node allocation fails.
+   */
+  [[nodiscard]] DebugSnapshot debug_snapshot() const
+  {
+    DebugSnapshot snap;
+    if (root_ == nullptr)
+      return snap;
+
+    // Each `snap.nodes(out_idx)` access below is by index, re-fetched after
+    // every recursive call: `Array::append` may reallocate the backing
+    // storage, so a reference taken before recursing could dangle.
+    auto dfs = [&](const auto &self, const Node &node, const size_t depth) -> size_t
+      {
+        const size_t out_idx = snap.nodes.size();
+        snap.nodes.append(DebugNode{});
+        snap.nodes(out_idx).is_leaf = node.leaf;
+        snap.nodes(out_idx).depth = depth;
+
+        if (node.leaf)
+          {
+            Array<Rectangle> boxes(node.data.size());
+            for (size_t i = 0; i < node.data.size(); ++i)
+              boxes.append(node.data(i).bbox);
+            snap.nodes(out_idx).entry_boxes = std::move(boxes);
+          }
+        else
+          {
+            Array<size_t> child_indices(node.children.size());
+            for (size_t i = 0; i < node.children.size(); ++i)
+              child_indices.append(self(self, *node.children(i).child, depth + 1));
+            snap.nodes(out_idx).children = std::move(child_indices);
+          }
+
+        snap.nodes(out_idx).bbox = compute_mbr(node);
+        return out_idx;
+      };
+
+    snap.root = dfs(dfs, *root_, 0);
+    return snap;
   }
 };
 

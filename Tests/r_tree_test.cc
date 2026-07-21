@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <limits>
 #include <memory>
 #include <random>
 #include <type_traits>
@@ -193,6 +194,83 @@ TEST(RTree, GrowsInHeightWithManyInserts)
       const std::vector<int> hits = sorted_contains(tree, pt(i, i));
       EXPECT_TRUE(std::find(hits.begin(), hits.end(), i) != hits.end());
     }
+}
+
+TEST(RTree, DebugSnapshotEmptyTree)
+{
+  const RTree<int> tree;
+  const auto snap = tree.debug_snapshot();
+  EXPECT_TRUE(snap.nodes.is_empty());
+  EXPECT_EQ(snap.root, std::numeric_limits<size_t>::max());
+}
+
+namespace
+{
+  Rectangle union_of(const Rectangle &a, const Rectangle &b)
+  {
+    return Rectangle(a.get_xmin() < b.get_xmin() ? a.get_xmin() : b.get_xmin(),
+                     a.get_ymin() < b.get_ymin() ? a.get_ymin() : b.get_ymin(),
+                     a.get_xmax() > b.get_xmax() ? a.get_xmax() : b.get_xmax(),
+                     a.get_ymax() > b.get_ymax() ? a.get_ymax() : b.get_ymax());
+  }
+
+  // Recursively check a DebugSnapshot: every child index is in range and one
+  // depth deeper, every leaf's stored bbox is the tight union of its
+  // entry_boxes, every internal node's bbox is the tight union of its
+  // children's bboxes, and returns the total number of leaf entries found.
+  template <typename Snapshot>
+  size_t check_snapshot_node(const Snapshot &snap, const size_t idx, const size_t expected_depth)
+  {
+    const auto &node = snap.nodes(idx);
+    EXPECT_EQ(node.depth, expected_depth);
+
+    if (node.is_leaf)
+      {
+        EXPECT_FALSE(node.entry_boxes.is_empty());
+        Rectangle acc = node.entry_boxes(0);
+        for (size_t i = 1; i < node.entry_boxes.size(); ++i)
+          acc = union_of(acc, node.entry_boxes(i));
+        EXPECT_EQ(node.bbox, acc);
+        return node.entry_boxes.size();
+      }
+
+    EXPECT_FALSE(node.children.is_empty());
+    Rectangle acc = snap.nodes(node.children(0)).bbox;
+    size_t total = check_snapshot_node(snap, node.children(0), expected_depth + 1);
+    for (size_t i = 1; i < node.children.size(); ++i)
+      {
+        EXPECT_LT(node.children(i), snap.nodes.size());
+        total += check_snapshot_node(snap, node.children(i), expected_depth + 1);
+        acc = union_of(acc, snap.nodes(node.children(i)).bbox);
+      }
+    EXPECT_EQ(node.bbox, acc);
+    return total;
+  }
+}
+
+TEST(RTree, DebugSnapshotStructuralInvariants)
+{
+  RTree<int, 4, 2> tree;   // tiny fanout forces multiple levels
+  for (int i = 0; i < 200; ++i)
+    tree.insert(rect(i, i, i + 1, i + 1), i);
+
+  const auto snap = tree.debug_snapshot();
+  ASSERT_LT(snap.root, snap.nodes.size());
+  const size_t total_entries = check_snapshot_node(snap, snap.root, 0);
+  EXPECT_EQ(total_entries, tree.size());
+}
+
+TEST(RTree, DebugSnapshotSingleLeafRoot)
+{
+  RTree<int> tree;
+  tree.insert(rect(0, 0, 1, 1), 42);
+  const auto snap = tree.debug_snapshot();
+  ASSERT_EQ(snap.nodes.size(), 1u);
+  EXPECT_EQ(snap.root, 0u);
+  EXPECT_TRUE(snap.nodes(0).is_leaf);
+  EXPECT_EQ(snap.nodes(0).depth, 0u);
+  ASSERT_EQ(snap.nodes(0).entry_boxes.size(), 1u);
+  EXPECT_EQ(snap.nodes(0).bbox, rect(0, 0, 1, 1));
 }
 
 TEST(RTree, CoincidentRectangles)
