@@ -706,6 +706,13 @@ int main(int argc, char * argv[])
 
   out << "\n\\end{document}\n";
 
+  out.close();
+  if (not out)
+    {
+      std::cerr << "Failed writing output file: " << output_path << '\n';
+      return 1;
+    }
+
   std::cout << "Generated " << output_path << " (" << panels.size() << " panels)\n";
   std::cout << "Compile with: pdflatex " << output_path << '\n';
   return 0;

@@ -148,7 +148,7 @@ public:
 
   /** @brief Full tree structure captured for visualization/debugging.
    *  @note Intentionally omits `Payload`: it is available regardless of
-   *        whether `Payload` is copyable or even movable-only usable that way.
+   *        whether `Payload` is copyable or even move-only.
    */
   struct DebugSnapshot
   {
@@ -1104,7 +1104,7 @@ public:
   /** @brief Capture the full tree structure for visualization/debugging.
    *  @return A @ref DebugSnapshot with every node in preorder; empty
    *          (`nodes` empty, `root` unset) when the tree `is_empty()`.
-   *  @par Complexity O(n).
+   *  @par Complexity O(n) time; O(@ref height_) recursive call-stack depth.
    *  @throws std::bad_alloc if node allocation fails.
    */
   [[nodiscard]] DebugSnapshot debug_snapshot() const
