@@ -37,6 +37,7 @@
 
 #include <gtest/gtest.h>
 #include <point.H>
+#include <tpl_array.H>
 
 namespace Aleph::test_helpers
 {
