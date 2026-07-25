@@ -41,7 +41,6 @@
 #include <random>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include <tpl_r_tree.H>
 
@@ -64,45 +63,39 @@ namespace
   }
 
   template <typename Tree>
-  std::vector<int> sorted_intersects(const Tree &tree, const Rectangle &q)
+  Array<int> sorted_intersects(const Tree &tree, const Rectangle &q)
   {
     Array<int> hits = tree.search_intersects(q);
-    std::vector<int> out;
-    for (size_t i = 0; i < hits.size(); ++i)
-      out.push_back(hits(i));
-    std::sort(out.begin(), out.end());
-    return out;
+    std::sort(hits.begin(), hits.end());
+    return hits;
   }
 
   template <typename Tree>
-  std::vector<int> sorted_contains(const Tree &tree, const Point &p)
+  Array<int> sorted_contains(const Tree &tree, const Point &p)
   {
     Array<int> hits = tree.search_contains(p);
-    std::vector<int> out;
-    for (size_t i = 0; i < hits.size(); ++i)
-      out.push_back(hits(i));
-    std::sort(out.begin(), out.end());
-    return out;
+    std::sort(hits.begin(), hits.end());
+    return hits;
   }
 
-  std::vector<int> brute_intersects(const std::vector<std::pair<Rectangle, int>> &ref,
-                                    const Rectangle &q)
+  Array<int> brute_intersects(const Array<std::pair<Rectangle, int>> &ref,
+                              const Rectangle &q)
   {
-    std::vector<int> out;
+    Array<int> out;
     for (const auto &[b, id] : ref)
       if (b.intersects(q))
-        out.push_back(id);
+        out.append(id);
     std::sort(out.begin(), out.end());
     return out;
   }
 
-  std::vector<int> brute_contains(const std::vector<std::pair<Rectangle, int>> &ref,
-                                  const Point &p)
+  Array<int> brute_contains(const Array<std::pair<Rectangle, int>> &ref,
+                            const Point &p)
   {
-    std::vector<int> out;
+    Array<int> out;
     for (const auto &[b, id] : ref)
       if (b.contains(p))
-        out.push_back(id);
+        out.append(id);
     std::sort(out.begin(), out.end());
     return out;
   }
@@ -153,10 +146,10 @@ TEST(RTree, SingletonInsertAndQuery)
   EXPECT_EQ(tree.height(), 1u);
   EXPECT_TRUE(tree.verify());
 
-  EXPECT_EQ(sorted_intersects(tree, rect(1, 1, 5, 5)), (std::vector<int>{42}));
-  EXPECT_EQ(sorted_intersects(tree, rect(10, 10, 20, 20)), (std::vector<int>{}));
-  EXPECT_EQ(sorted_contains(tree, pt(1, 1)), (std::vector<int>{42}));
-  EXPECT_EQ(sorted_contains(tree, pt(9, 9)), (std::vector<int>{}));
+  EXPECT_EQ(sorted_intersects(tree, rect(1, 1, 5, 5)), build_array<int>(42));
+  EXPECT_EQ(sorted_intersects(tree, rect(10, 10, 20, 20)), Array<int>());
+  EXPECT_EQ(sorted_contains(tree, pt(1, 1)), build_array<int>(42));
+  EXPECT_EQ(sorted_contains(tree, pt(9, 9)), Array<int>());
 }
 
 TEST(RTree, EraseSingletonEmptiesTree)
@@ -194,7 +187,7 @@ TEST(RTree, GrowsInHeightWithManyInserts)
   // Every inserted box must be findable at its own corner.
   for (int i = 0; i < 200; ++i)
     {
-      const std::vector<int> hits = sorted_contains(tree, pt(i, i));
+      const Array<int> hits = sorted_contains(tree, pt(i, i));
       EXPECT_TRUE(std::find(hits.begin(), hits.end(), i) != hits.end());
     }
 }
@@ -246,7 +239,7 @@ TEST(RTree, CoincidentRectangles)
   // Removing one leaves the other nineteen.
   ASSERT_TRUE(tree.erase(box, 7));
   ASSERT_TRUE(tree.verify());
-  const std::vector<int> hits = sorted_intersects(tree, box);
+  const Array<int> hits = sorted_intersects(tree, box);
   EXPECT_EQ(hits.size(), 19u);
   EXPECT_TRUE(std::find(hits.begin(), hits.end(), 7) == hits.end());
 }
@@ -264,7 +257,7 @@ TEST(RTree, DegenerateRectangles)
   EXPECT_EQ(tree.size(), 60u);
 
   // The point (10,5) is a stored point and lies on segment y=5.
-  const std::vector<int> hits = sorted_contains(tree, pt(10, 5));
+  const Array<int> hits = sorted_contains(tree, pt(10, 5));
   EXPECT_TRUE(std::find(hits.begin(), hits.end(), 10) != hits.end());
   EXPECT_TRUE(std::find(hits.begin(), hits.end(), 105) != hits.end());
 }
@@ -287,8 +280,8 @@ TEST(RTree, CopyIsIndependentDeepClone)
   ASSERT_TRUE(copy.verify());
   EXPECT_EQ(original.size(), 25u);
   EXPECT_EQ(copy.size(), 50u);
-  EXPECT_EQ(sorted_contains(copy, pt(1, 1)).empty(), false);
-  EXPECT_TRUE(sorted_contains(original, pt(1, 1)).empty());
+  EXPECT_EQ(sorted_contains(copy, pt(1, 1)).is_empty(), false);
+  EXPECT_TRUE(sorted_contains(original, pt(1, 1)).is_empty());
 }
 
 TEST(RTree, MoveConstructionTransfersOwnership)
@@ -349,12 +342,12 @@ TEST(RTree, CopyConstructiblePayloadNeedNotBeCopyAssignable)
 TEST(RTree, AssignmentClearAndDrainRemainValid)
 {
   RTree<int, 4, 2> source;
-  std::vector<std::pair<Rectangle, int>> ref;
+  Array<std::pair<Rectangle, int>> ref;
   for (int i = 0; i < 90; ++i)
     {
       const Rectangle b = rect(i % 15, i / 15, i % 15 + 2, i / 15 + 2);
       source.insert(b, i);
-      ref.emplace_back(b, i);
+      ref.append(std::make_pair(b, i));
     }
   ASSERT_TRUE(source.verify());
 
@@ -364,7 +357,7 @@ TEST(RTree, AssignmentClearAndDrainRemainValid)
   EXPECT_TRUE(assigned.verify());
 
   for (int i = 0; i < 30; ++i)
-    ASSERT_TRUE(source.erase(ref[i].first, ref[i].second));
+    ASSERT_TRUE(source.erase(ref(i).first, ref(i).second));
   EXPECT_EQ(source.size(), 60u);
   EXPECT_EQ(assigned.size(), 90u);
   EXPECT_TRUE(source.verify());
@@ -399,7 +392,7 @@ TEST(RTree, RandomizedParityAgainstBruteForce)
   std::uniform_int_distribution<int> extent(0, 12);
 
   RTree<int, 6, 3> tree;
-  std::vector<std::pair<Rectangle, int>> ref;
+  Array<std::pair<Rectangle, int>> ref;
   int next_id = 0;
 
   auto random_rect = [&]()
@@ -411,20 +404,21 @@ TEST(RTree, RandomizedParityAgainstBruteForce)
 
   for (int iter = 0; iter < 4000; ++iter)
     {
-      const int op = ref.empty() ? 0 : op_dist(rng);
+      const int op = ref.is_empty() ? 0 : op_dist(rng);
       if (op == 0)   // insert
         {
           const Rectangle b = random_rect();
           const int id = next_id++;
           tree.insert(b, id);
-          ref.emplace_back(b, id);
+          ref.append(std::make_pair(b, id));
         }
       else if (op == 1)   // erase a random existing entry
         {
           std::uniform_int_distribution<size_t> pick(0, ref.size() - 1);
           const size_t k = pick(rng);
-          ASSERT_TRUE(tree.erase(ref[k].first, ref[k].second));
-          ref.erase(ref.begin() + k);
+          ASSERT_TRUE(tree.erase(ref(k).first, ref(k).second));
+          std::swap(ref(k), ref(ref.size() - 1));   // swap-and-pop; order is irrelevant here
+          [[maybe_unused]] const auto popped = ref.remove_last();
         }
       else   // query and compare against brute force
         {
