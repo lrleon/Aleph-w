@@ -66,7 +66,7 @@ namespace
   Array<int> sorted_intersects(const Tree &tree, const Rectangle &q)
   {
     Array<int> hits = tree.search_intersects(q);
-    std::sort(hits.begin(), hits.end());
+    std::ranges::sort(hits);
     return hits;
   }
 
@@ -74,7 +74,7 @@ namespace
   Array<int> sorted_contains(const Tree &tree, const Point &p)
   {
     Array<int> hits = tree.search_contains(p);
-    std::sort(hits.begin(), hits.end());
+    std::ranges::sort(hits);
     return hits;
   }
 
@@ -85,7 +85,7 @@ namespace
     for (const auto &[b, id] : ref)
       if (b.intersects(q))
         out.append(id);
-    std::sort(out.begin(), out.end());
+    std::ranges::sort(out);
     return out;
   }
 
@@ -96,7 +96,7 @@ namespace
     for (const auto &[b, id] : ref)
       if (b.contains(p))
         out.append(id);
-    std::sort(out.begin(), out.end());
+    std::ranges::sort(out);
     return out;
   }
 

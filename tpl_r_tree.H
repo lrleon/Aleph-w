@@ -1125,14 +1125,16 @@ public:
 
         if (node.leaf)
           {
-            Array<Rectangle> boxes(node.data.size());
+            Array<Rectangle> boxes;
+            boxes.reserve(node.data.size());
             for (size_t i = 0; i < node.data.size(); ++i)
               boxes.append(node.data(i).bbox);
             snap.nodes(out_idx).entry_boxes = std::move(boxes);
           }
         else
           {
-            Array<size_t> child_indices(node.children.size());
+            Array<size_t> child_indices;
+            child_indices.reserve(node.children.size());
             for (size_t i = 0; i < node.children.size(); ++i)
               child_indices.append(self(self, *node.children(i).child, depth + 1));
             snap.nodes(out_idx).children = std::move(child_indices);

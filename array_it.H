@@ -213,7 +213,8 @@ public:
   /** @brief Construct an iterator from an Array_Container.
       @param c Container to iterate over.
   */
-  Array_Iterator(const Array_Container<T> &c) : Array_Iterator(c.get_base(), c.capacity(), c.size())
+  explicit Array_Iterator(const Array_Container<T> &c)
+    : Array_Iterator(c.get_base(), c.capacity(), c.size())
   {}
 
   /** @brief Check if there is a current valid item.
@@ -408,7 +409,7 @@ class Array_Container : public GenericTraverse<Array_Container<T>>,
                         public StlAlephIterator<Array_Container<T>>
 {
   T *base = nullptr;
-  const size_t n = 0;
+  size_t n = 0;
 
 public:
   /// The type of elements in the container.

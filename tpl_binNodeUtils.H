@@ -53,7 +53,7 @@
 
 namespace Aleph {
 template <class Node>
-inline static void inorder_rec_helper(Node *node, const int &level, int &position,
+inline void inorder_rec_helper(Node *node, const int &level, int &position,
                                       void (*visitFct)(Node *, int, int))
 {
   if (node == Node::NullPtr)
@@ -98,7 +98,7 @@ inline int inOrderRec(Node *root, void (*visitFct)(Node *, int, int))
 }
 
 template <class Node>
-inline static void preorder_rec_helper(Node *p, const int &level, int &position,
+inline void preorder_rec_helper(Node *p, const int &level, int &position,
                                        void (*visitFct)(Node *, int, int))
 {
   if (p == Node::NullPtr)
@@ -142,7 +142,7 @@ inline int preOrderRec(Node *root, void (*visitFct)(Node *, int, int))
 }
 
 template <class Node>
-inline static void postorder_rec_helper(Node *node, const int &level, int &position,
+inline void postorder_rec_helper(Node *node, const int &level, int &position,
                                         void (*visitFct)(Node *, int, int))
 {
   if (node == Node::NullPtr)
@@ -797,7 +797,7 @@ inline Node<Key> *build_postorder(const DynArray<Key> &post, long lp, long rp,
 }
 
 template <class Node>
-inline static void compute_nodes_in_level_helper(Node *root, long level, const long current_level,
+inline void compute_nodes_in_level_helper(Node *root, long level, const long current_level,
                                                  DynDlist<Node *> &level_list)
 {
   if (root == Node::NullPtr)
@@ -944,7 +944,7 @@ inline void preOrderThreaded(Node *node, void (*visitFct)(Node *))
 }
 
 template <class Node>
-inline static size_t internal_path_length_helper(Node *p, const size_t &level) noexcept
+inline size_t internal_path_length_helper(Node *p, const size_t &level) noexcept
 {
   if (p == Node::NullPtr)
     return 0;
@@ -1035,7 +1035,7 @@ inline std::string code(Node *root)
 }
 
 template <class Node>
-static inline Node *bits_to_tree_helper(const BitArray &array, int &i)
+inline Node *bits_to_tree_helper(const BitArray &array, int &i)
 {
   // Bounds check: ensure we don't read past the end of the bit array
   ah_domain_error_if(i >= static_cast<int>(array.size()))
@@ -1319,7 +1319,7 @@ inline Node *load_tree_from_array(const unsigned char bits[], const size_t &num_
 }
 
 template <class Node, class Compare>
-static inline bool check_bst_range(Node *p, const typename Node::key_type *min_key,
+inline bool check_bst_range(Node *p, const typename Node::key_type *min_key,
                                    const typename Node::key_type *max_key, const Compare &cmp)
 {
   if (p == Node::NullPtr)
@@ -1714,7 +1714,7 @@ inline Node *search_or_insert_in_bst(Node *&r, Node *p, const Compare &cmp = Com
 }
 
 template <class Node, class Compare>
-static inline bool split_key_rec_helper(Node *root, const typename Node::key_type &key, Node *&ts,
+inline bool split_key_rec_helper(Node *root, const typename Node::key_type &key, Node *&ts,
                                         Node *&tg, Compare &cmp) noexcept
 {
   if (root == Node::NullPtr)
@@ -1773,7 +1773,7 @@ inline bool split_key_rec(Node *&root, const typename Node::key_type &key, Node 
 }
 
 template <class Node, class Compare>
-static inline void split_key_dup_rec_helper(Node *root, const typename Node::key_type &key,
+inline void split_key_dup_rec_helper(Node *root, const typename Node::key_type &key,
                                             Node *&ts, Node *&tg, Compare &cmp) noexcept
 {
   if (root == Node::NullPtr)
@@ -2569,7 +2569,7 @@ class BinNodeInfixIterator
 {
   mutable Node *root = Node::NullPtr;
   Node *curr = Node::NullPtr;
-  long pos = 0;
+  mutable long pos = 0;
   ArrayStack<Node *> s;
 
   Node *advance_to_min(Node *r) noexcept
@@ -2643,7 +2643,7 @@ public:
     init();
   }
 
-  /// Reset the iterator to the first node inorder
+  /// Reset the iterator to the last node inorder
   void reset_last() noexcept
   {
     s.empty();
@@ -2655,7 +2655,7 @@ public:
       }
 
     curr = advance_to_max(root);
-    pos = static_cast<long>(size(root)) - 1;
+    pos = -1;  // pending: computed lazily by get_pos()
   }
 
   void end() noexcept
@@ -2705,11 +2705,16 @@ public:
   /// Return the current position of iterator. Only valid if has_curr() == true
   size_t get_pos() const
   {
+    if (pos < 0)
+      pos = static_cast<long>(size(root)) - 1;
     return pos;
   }
 
   void next_ne() noexcept
   {
+    if (pos < 0)  // resolve the position left pending by reset_last()
+      pos = static_cast<long>(size(root)) - 1;
+
     ++pos;
     curr = RLINK(curr);
     if (curr != Node::NullPtr)

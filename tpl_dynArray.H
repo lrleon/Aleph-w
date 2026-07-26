@@ -57,7 +57,6 @@
 #include <htlist.H>
 #include <ah-dry.H>
 #include <ah-errors.H>
-#include <ah-errors.H>
 #include <tpl_array.H>
 
 namespace Aleph {
@@ -1302,8 +1301,11 @@ public:
   /// Reverse the order of items in an array
   DynArray &reverse()
   {
+    if (current_dim < 2)
+      return *this;
+
     for (size_t i = 0, j = current_dim - 1; i < j; ++i, --j)
-      swap(touch(i), touch(j));
+      std::swap(touch(i), touch(j));
 
     return *this;
   }
@@ -1381,12 +1383,17 @@ public:
     /// value-initialized iterators compare equal (std::regular semantics).
     [[nodiscard]] bool has_curr() const noexcept
     {
-      return array_ptr != nullptr and curr_idx >= 0 and curr_idx < array_ptr->size();
+      return array_ptr != nullptr and curr_idx >= 0 and
+             static_cast<size_t>(curr_idx) < array_ptr->size();
     }
 
+    /// Return `true` if the iterator is on the last item. A singular
+    /// iterator is treated as an empty sequence, exactly as `has_curr()`
+    /// and `reset_last()` do.
     [[nodiscard]] bool is_last() const noexcept
     {
-      return curr_idx == array_ptr->size() - 1;
+      const long n = array_ptr == nullptr ? 0 : static_cast<long>(array_ptr->size());
+      return curr_idx == n - 1;
     }
 
     /// Return the current link guaranteeing no exception. Be careful.
@@ -1444,13 +1451,13 @@ public:
     /// Reset the iterator to the last item
     void reset_last() noexcept
     {
-      curr_idx = array_ptr->size() - 1;
+      curr_idx = array_ptr == nullptr ? -1 : static_cast<long>(array_ptr->size()) - 1;
     }
 
     /// Put the iterator in the end state
     void end() noexcept
     {
-      curr_idx = array_ptr->size();
+      curr_idx = array_ptr == nullptr ? 0 : static_cast<long>(array_ptr->size());
     }
 
     /// Reset the iterator to the first item

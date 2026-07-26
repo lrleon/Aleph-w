@@ -57,8 +57,6 @@
 #include <tpl_binNodeUtils.H>
 #include <ah-concepts.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 /** @brief AVL balanced binary search tree.
 

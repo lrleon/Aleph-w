@@ -59,8 +59,6 @@
 #include <ah-errors.H>
 #include <ah-concepts.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 /** @brief AVL balanced binary search tree with rank (order statistics).
 
@@ -778,6 +776,20 @@ public:
   }
 
 private:
+  // ---------------------------------------------------------------------
+  // O(log n) join/split machinery: NOT yet wired to the public interface.
+  //
+  // The public join_exclusive(), split_key(), split_key_dup() and
+  // split_pos() below still use the simple O(n) dismantle-and-reinsert
+  // route. These routines are the intended replacement (join/split by
+  // spine descent with a pivot) and are the authoritative algorithm once
+  // connected; until then they are unreachable and unexercised, so treat
+  // the O(n) versions as the ones in force.
+  //
+  // TODO: wire these into the public join/split and drop the O(n) paths.
+  // Requires dedicated tests: nothing currently instantiates this code.
+  // ---------------------------------------------------------------------
+
   // Compute height of AVL tree in O(log n) using balance factors
   static size_t avl_height(Node *p) noexcept
   {
@@ -944,7 +956,7 @@ private:
         // Heights are close enough, pivot becomes root
         LLINK(pivot) = t1;
         RLINK(pivot) = t2;
-        DIFF(pivot) = static_cast<signed char>(h2) - static_cast<signed char>(h1);
+        DIFF(pivot) = static_cast<signed char>(static_cast<long>(h2) - static_cast<long>(h1));
         COUNT(pivot) = COUNT(t1) + COUNT(t2) + 1;
         return pivot;
       }
@@ -984,7 +996,7 @@ private:
     LLINK(pivot) = *pp;
     RLINK(pivot) = t2;
     const size_t left_h = (*pp != Node::NullPtr) ? avl_height(*pp) : 0;
-    DIFF(pivot) = static_cast<signed char>(h2) - static_cast<signed char>(left_h);
+    DIFF(pivot) = static_cast<signed char>(static_cast<long>(h2) - static_cast<long>(left_h));
     COUNT(pivot) = COUNT(*pp) + COUNT(t2) + 1;
     *pp = pivot;
 
@@ -1032,7 +1044,7 @@ private:
     RLINK(pivot) = *pp;
     LLINK(pivot) = t1;
     const size_t right_h = (*pp != Node::NullPtr) ? avl_height(*pp) : 0;
-    DIFF(pivot) = static_cast<signed char>(right_h) - static_cast<signed char>(h1);
+    DIFF(pivot) = static_cast<signed char>(static_cast<long>(right_h) - static_cast<long>(h1));
     COUNT(pivot) = COUNT(t1) + COUNT(*pp) + 1;
     *pp = pivot;
 

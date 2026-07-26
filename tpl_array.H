@@ -463,38 +463,31 @@ public:
     return reverse();
   }
 
-  /** Traverse all the items of the stack from the youngest to the oldest and
+  /** Traverse all the items of the array from the first to the last and
       conditionally performs an operation.
 
-      @param[in] operation to perform on the current element. If it
+      @param[in] op operation to perform on the current element. If it
       returns `true`, then the traversal continues to the next item;
       otherwise the traversal stops
+      @return `true` if `op` was performed on every item; `false` if the
+      traversal was stopped
    */
-  template <class Operation>
-  bool traverse(Operation &operation)
+  template <class Op>
+  bool traverse(Op &op) const
   {
-    return array.traverse(operation);
+    return array.traverse(op);
   }
 
-  /// \overload traverse(Operation & operation)
-  template <class Operation>
-  bool traverse(Operation &operation) const
-  {
-    return array.traverse(operation);
-  }
+  /** \overload traverse(Op & op)
 
-  /// \overload traverse(Operation & operation)
-  template <class Operation>
-  bool traverse(Operation &&operation = Operation()) const
+      Kept as a separate overload from `traverse(Op &)` so that callers
+      naming the operation type explicitly, as `traverse<Op>(lvalue)` does
+      in `Aleph::all()`, still bind to the lvalue overload.
+   */
+  template <class Op>
+  bool traverse(Op &&op) const
   {
-    return array.traverse(std::forward<Operation>(operation));
-  }
-
-  /// \overload traverse(Operation & operation)
-  template <class Operation>
-  bool traverse(Operation &&operation = Operation())
-  {
-    return array.traverse(std::forward<Operation>(operation));
+    return array.traverse(std::forward<Op>(op));
   }
 
   [[nodiscard]] bool is_valid() const noexcept
