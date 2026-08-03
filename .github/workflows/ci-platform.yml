@@ -284,7 +284,7 @@ jobs:
       - name: Enable sccache
         # v0.0.6 only wires up the legacy GHA cache v1 endpoint, which GitHub
         # shut down in 2025 (permanent HTTP 400 from artifactcache.*).
-        uses: mozilla-actions/sccache-action@v0.0.10
+        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Set up MSVC environment
         if: matrix.toolchain == 'msvc'
