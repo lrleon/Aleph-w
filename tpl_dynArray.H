@@ -46,7 +46,6 @@
 #include <cmath>
 
 #include <string>
-#include <vector>
 #include <concepts>
 #include <aleph.H>
 #include <ahIterator.H>
@@ -1012,8 +1011,13 @@ public:
 
       @param[in] l lower index
       @param[in] r upper index
-      @throw bad_alloc if there is no enough memory
+      @throw bad_alloc if there is no enough memory. If allocating a
+      segment or a block fails, the segments and blocks previously
+      allocated by this call are released before the exception
+      propagates.
       @throw domain_error if l is greater than r
+      @note If every entry of the range is already allocated, the call
+      performs no heap allocation.
    */
   void reserve(const size_t l, const size_t r)
   {
@@ -1027,8 +1031,40 @@ public:
     const size_t first_block = index_in_seg(l);
     const size_t last_block = index_in_seg(r);
 
-    std::vector<size_t> new_segments;
-    std::vector<std::pair<size_t, size_t>> new_blocks;
+    // First pass: count the segments and blocks this call must allocate.
+    // It keeps the common case, where the whole range already exists, free
+    // of heap allocations, and it lets the rollback bookkeeping be sized
+    // before anything is allocated. Recording an allocation then never
+    // allocates, so it cannot fail and leave an allocation out of the
+    // rollback.
+    size_t missing_segs = 0;
+    size_t missing_blocks = 0;
+    for (size_t seg_idx = first_seg; seg_idx <= last_seg; ++seg_idx)
+      {
+        const size_t lo = (seg_idx == first_seg) ? first_block : 0;
+        const size_t hi = (seg_idx == last_seg) ? last_block : seg_size - 1;
+        if (dir[seg_idx] == nullptr)
+          {
+            ++missing_segs;
+            missing_blocks += hi - lo + 1;
+          }
+        else
+          for (size_t block_idx = lo; block_idx <= hi; ++block_idx)
+            if (dir[seg_idx][block_idx] == nullptr)
+              ++missing_blocks;
+      }
+
+    if (missing_blocks == 0)  // a missing segment always implies missing blocks
+      {
+        if (r + 1 > current_dim)
+          current_dim = r + 1;
+        return;
+      }
+
+    Array<size_t> new_segments;
+    new_segments.reserve(missing_segs);
+    Array<std::pair<size_t, size_t>> new_blocks;
+    new_blocks.reserve(missing_blocks);
 
     try
       {
@@ -1037,7 +1073,7 @@ public:
             if (dir[seg_idx] == nullptr)
               {
                 allocate_segment(dir[seg_idx]);
-                new_segments.push_back(seg_idx);
+                new_segments.append(seg_idx);
               }
 
             size_t block_idx = (seg_idx == first_seg) ? first_block : 0;
@@ -1048,7 +1084,7 @@ public:
                 if (dir[seg_idx][block_idx] == nullptr)
                   {
                     allocate_block(dir[seg_idx][block_idx]);
-                    new_blocks.emplace_back(seg_idx, block_idx);
+                    new_blocks.append(std::make_pair(seg_idx, block_idx));
                   }
 
                 ++block_idx;
@@ -1057,15 +1093,15 @@ public:
       }
     catch (...)
       {
-        for (auto it = new_blocks.rbegin(); it != new_blocks.rend(); ++it)
+        for (size_t k = new_blocks.size(); k > 0; --k)
           {
-            const auto [seg_idx, block_idx] = *it;
+            const auto [seg_idx, block_idx] = new_blocks(k - 1);
             if (dir[seg_idx] != nullptr and dir[seg_idx][block_idx] != nullptr)
               release_block(dir[seg_idx][block_idx]);
           }
 
-        for (auto it = new_segments.rbegin(); it != new_segments.rend(); ++it)
-          if (const auto seg_idx = *it; dir[seg_idx] != nullptr)
+        for (size_t k = new_segments.size(); k > 0; --k)
+          if (const size_t seg_idx = new_segments(k - 1); dir[seg_idx] != nullptr)
             release_segment(dir[seg_idx]);
 
         throw;

@@ -279,8 +279,8 @@ def parse_changed_public_declarations(file, added_lines)
   declarations = []
 
   brace_depth = 0
-  namespace_stack = []
-  pending_namespace = false
+  declaration_scope_stack = []
+  pending_declaration_scope = false
   class_stack = []
   pending_class = nil
   in_block_comment = false
@@ -293,13 +293,13 @@ def parse_changed_public_declarations(file, added_lines)
       if class_stack.any?
         brace_depth == class_stack.last[:depth]
       else
-        brace_depth == (namespace_stack.last || 0)
+        brace_depth == (declaration_scope_stack.last || 0)
       end
 
     if in_decl_scope &&
        !stripped.empty? &&
        !stripped.start_with?('//', '/*', '*') &&
-       (m = stripped.match(/^(?:template\s*<[^<>]*>\s*)?(class|struct)\s+([A-Za-z_]\w*)\b/)) &&
+       (m = stripped.match(/^(?:template\s*<.*>\s*)?(class|struct)\s+([A-Za-z_]\w*)\b(?=\s*(?:<|\{|:|;|$|final\b))/)) &&
        !(stripped.end_with?(';') && !stripped.include?('{'))
       kind = m[1]
       name = m[2]
@@ -364,10 +364,13 @@ def parse_changed_public_declarations(file, added_lines)
     brace_depth -= sanitized.count('}')
 
     namespace_line = stripped.match?(/^(?:inline\s+)?namespace(?:\s+[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)?\s*(?:\{|$)/)
-    if (namespace_line && stripped.include?('{')) || (pending_namespace && stripped.start_with?('{'))
-      namespace_stack << brace_depth
+    extern_c_line = !stripped.empty? && raw_line.strip.match?(/^extern\s+"C"\s*(?:\{|$)/)
+    declaration_scope_line = namespace_line || extern_c_line
+    if (declaration_scope_line && stripped.include?('{')) ||
+       (pending_declaration_scope && stripped.start_with?('{'))
+      declaration_scope_stack << brace_depth
     end
-    pending_namespace = namespace_line && !stripped.include?('{') unless stripped.empty?
+    pending_declaration_scope = declaration_scope_line && !stripped.include?('{') unless stripped.empty?
 
     if !pending_class.nil?
       should_attach = pending_class[:attach_now] || (before_depth < brace_depth && sanitized.include?('{'))
@@ -385,8 +388,8 @@ def parse_changed_public_declarations(file, added_lines)
       class_stack.pop
     end
 
-    while namespace_stack.any? && brace_depth < namespace_stack.last
-      namespace_stack.pop
+    while declaration_scope_stack.any? && brace_depth < declaration_scope_stack.last
+      declaration_scope_stack.pop
     end
   end
 
@@ -499,4 +502,4 @@ def main
 end
 
 
-exit(main)
+exit(main) if $PROGRAM_NAME == __FILE__
