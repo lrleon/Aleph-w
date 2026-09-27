@@ -1104,7 +1104,8 @@ public:
   /** @brief Capture the full tree structure for visualization/debugging.
    *  @return A @ref DebugSnapshot with every node in preorder; empty
    *          (`nodes` empty, `root` unset) when the tree `is_empty()`.
-   *  @par Complexity O(n) time; O(@ref height_) recursive call-stack depth.
+   *  @par Complexity
+   *  O(n) time; O(height_) recursive call-stack depth.
    *  @throws std::bad_alloc if node allocation fails.
    */
   [[nodiscard]] DebugSnapshot debug_snapshot() const
@@ -1135,11 +1136,12 @@ public:
           }
         else
           {
-            Array<size_t> child_indices;
-            child_indices.reserve(node.children.size());
+            snap.nodes(out_idx).children.reserve(node.children.size());
             for (size_t i = 0; i < node.children.size(); ++i)
-              child_indices.append(self(self, *node.children(i).child, depth + 1));
-            snap.nodes(out_idx).children = std::move(child_indices);
+              {
+                const size_t child_idx = self(self, *node.children(i).child, depth + 1);
+                snap.nodes(out_idx).children.append(child_idx);
+              }
           }
 
         snap.nodes(out_idx).bbox = compute_mbr(node);
