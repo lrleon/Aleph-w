@@ -68,6 +68,14 @@ class Array_Container;
     - Circular array regions with arbitrary first/last indices
     - Position tracking
 
+    @note Thread-safety: `Array_Iterator` is a mutable value type with no
+          shared state; it does not synchronize access to its own state
+          (`pos`, `idx`, ...). Reading (e.g. `is_last()`, `has_curr()`) and
+          mutating (e.g. `next_ne()`, `reset_last()`, `set_pos()`) the same
+          instance concurrently from different threads without external
+          synchronization is a data race. The usual "distinct objects,
+          distinct threads" rule applies.
+
     @tparam T Element type.
 
     @ingroup Sequences
@@ -228,6 +236,7 @@ public:
   /** @brief Check if positioned at the last item.
       @return `true` only if there is a current item and it is the last one;
               `false` for empty or singular iterators.
+      @note Complexity: O(1).
   */
   [[nodiscard]] bool is_last() const noexcept
   {
