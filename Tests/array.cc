@@ -249,6 +249,49 @@ TEST(ArrayTraverse, TraversalVariants)
   EXPECT_TRUE(called);
 }
 
+TEST(ArrayTraverse, ConstElementsCannotBeModified)
+{
+  Array<int> arr = {1, 2, 3};
+  const Array<int> &const_arr = arr;
+
+  auto increment = [](int &value)
+    {
+      ++value;
+      return true;
+    };
+  int sum = 0;
+  auto accumulate_const = [&sum](const int &value)
+    {
+      sum += value;
+      return true;
+    };
+
+  EXPECT_TRUE(arr.traverse(increment));
+  EXPECT_EQ(arr[0], 2);
+  EXPECT_EQ(arr[1], 3);
+  EXPECT_EQ(arr[2], 4);
+  EXPECT_TRUE(const_arr.traverse(accumulate_const));
+  EXPECT_EQ(sum, 9);
+  EXPECT_TRUE(const_arr.traverse([](const int &value) { return value > 0; }));
+  EXPECT_EQ(arr[0], 2);
+  EXPECT_EQ(arr[1], 3);
+  EXPECT_EQ(arr[2], 4);
+}
+
+template <class Container, class Operation>
+concept CanTraverse = requires(Container &container, Operation &operation)
+{
+  container.traverse(operation);
+};
+
+struct MutableArrayOperation
+{
+  bool operator () (int &) const { return true; }
+};
+
+static_assert(CanTraverse<Array<int>, MutableArrayOperation>);
+static_assert(not CanTraverse<const Array<int>, MutableArrayOperation>);
+
 TEST(ArrayAlgorithms, InPlaceUnique)
 {
   Array<int> arr = {1, 2, 1, 3, 2, 4, 4};

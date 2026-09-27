@@ -723,7 +723,7 @@ public:
   };
 };
 
-/** AVL binary search tree with nodes without virtual destructor.
+/** @brief AVL binary search tree with nodes without a virtual destructor.
 
     An AVL binary search tree is a binary search tree whose height is
     bounded by \f$O(\lg n)\f$ and whose update operations are bounded
@@ -731,8 +731,8 @@ public:
 
     This class uses nodes without a virtual destructor.
 
-    @param Key the key type stored in the tree nodes.
-    @param Compare key comparison class; by default, this is the
+    @tparam Key the key type stored in the tree nodes.
+    @tparam Compare key comparison class; by default, this is the
     less-than relational operator for type Key.
     @see Avl_Tree_Vtl
     @ingroup Trees
@@ -745,7 +745,7 @@ struct Avl_Tree : public Gen_Avl_Tree<AvlNode, Key, Compare>
   using Base::Base;
 };
 
-/** AVL binary search tree with virtual destructor in its nodes.
+/** @brief AVL binary search tree with nodes with a virtual destructor.
 
     An AVL binary search tree is a binary search tree whose height is
     bounded by \f$O(\lg n)\f$ and whose update operations are bounded
@@ -753,8 +753,8 @@ struct Avl_Tree : public Gen_Avl_Tree<AvlNode, Key, Compare>
 
     This class uses nodes with a virtual destructor.
 
-    @param Key the key type stored in the tree nodes.
-    @param Compare key comparison class; by default, this is the
+    @tparam Key the key type stored in the tree nodes.
+    @tparam Compare key comparison class; by default, this is the
     less-than relational operator for type Key.
     @see Avl_Tree
     @ingroup Trees

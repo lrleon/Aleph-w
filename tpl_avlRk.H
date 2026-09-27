@@ -1282,7 +1282,9 @@ public:
       @param[out] t1 tree to receive keys < key
       @param[out] t2 tree to receive keys > key
       @return pointer to node containing key, or nullptr if not found
-      @note O(n) time complexity (simple iterative implementation)
+      @note Complexity: O(n log(n + m)), where n is the number of nodes
+            processed from this tree and m is the initial total size of t1
+            and t2. Each processed node is inserted into a destination tree.
   */
   Node *split_key(const Key &key, Gen_Avl_Tree_Rk &t1, Gen_Avl_Tree_Rk &t2) noexcept
   {
@@ -1331,7 +1333,9 @@ public:
       @param[in] key the splitting key
       @param[out] t1 tree to receive keys <= key
       @param[out] t2 tree to receive keys > key
-      @note O(n) time complexity (simple iterative implementation)
+      @note Complexity: O(n log(n + m)), where n is the number of nodes
+            processed from this tree and m is the initial total size of t1
+            and t2. Each processed node is inserted into a destination tree.
   */
   void split_key_dup(const Key &key, Gen_Avl_Tree_Rk &t1, Gen_Avl_Tree_Rk &t2) noexcept
   {
@@ -1374,7 +1378,9 @@ public:
       @param[in] pos the splitting position (0-based)
       @param[out] t1 tree to receive positions [0, pos)
       @param[out] t2 tree to receive positions [pos, size)
-      @note O(n) time complexity (simple iterative implementation)
+      @note Complexity: O(n log(n + m)), where n is the number of nodes
+            processed from this tree and m is the initial total size of t1
+            and t2. Boundary positions transfer the root in O(1).
   */
   void split_pos(const size_t pos, Gen_Avl_Tree_Rk &t1, Gen_Avl_Tree_Rk &t2) noexcept
   {
@@ -1446,11 +1452,13 @@ public:
   };  // end class Iterator
 };
 
-/** AVL binary search tree with nodes without virtual destructor and
-    with subtree counters for select/position operations.
+/** @brief Ranked AVL tree with nodes without a virtual destructor.
 
-    @param Key the key type stored in the tree nodes.
-    @param Compare key comparison class; by default, this is the
+    Each node maintains a subtree counter for logarithmic select and
+    position operations while preserving AVL height balance.
+
+    @tparam Key the key type stored in the tree nodes.
+    @tparam Compare key comparison class; by default, this is the
     less-than relational operator for type Key.
     @see Avl_Tree_Rk_Vtl
     @ingroup Trees
@@ -1463,11 +1471,13 @@ struct Avl_Tree_Rk : public Gen_Avl_Tree_Rk<AvlNodeRk, Key, Compare>
   using Base::Base;
 };
 
-/** AVL binary search tree with virtual destructor in its nodes and
-    with subtree counters for select/position operations.
+/** @brief Ranked AVL tree with nodes with a virtual destructor.
 
-    @param Key the key type stored in the tree nodes.
-    @param Compare key comparison class; by default, this is the
+    Each node maintains a subtree counter for logarithmic select and
+    position operations while preserving AVL height balance.
+
+    @tparam Key the key type stored in the tree nodes.
+    @tparam Compare key comparison class; by default, this is the
     less-than relational operator for type Key.
     @see Avl_Tree_Rk
     @ingroup Trees

@@ -161,6 +161,28 @@ TEST(DynArrayIterator, get_it_position)
   EXPECT_THROW(carr.get_it(6), std::out_of_range);
 }
 
+TEST(DynArrayIterator, IsLastRequiresCurrentItem)
+{
+  DynArray<int>::Iterator singular;
+  EXPECT_FALSE(singular.is_last());
+  singular.reset_last();
+  EXPECT_FALSE(singular.has_curr());
+  EXPECT_FALSE(singular.is_last());
+
+  DynArray<int> empty;
+  auto it = empty.get_it();
+  it.reset_last();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_FALSE(it.is_last());
+
+  empty.append(7);
+  it.reset_last();
+  EXPECT_TRUE(it.has_curr());
+  EXPECT_TRUE(it.is_last());
+  it.end();
+  EXPECT_FALSE(it.is_last());
+}
+
 TEST(DynArrayReserve, adjust_and_cut)
 {
   DynArray<int> arr;

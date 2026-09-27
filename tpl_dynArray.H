@@ -1378,22 +1378,27 @@ public:
       // empty
     }
 
-    /// Return `true` if there is a current item. Safe on default-constructed
-    /// (singular) iterators, which behave as an empty sequence so that two
-    /// value-initialized iterators compare equal (std::regular semantics).
+    /** @brief Check whether the iterator refers to an item.
+
+        A default-constructed (singular) iterator behaves as an empty sequence.
+        @return `true` if there is a current item; `false` for singular, empty,
+                or out-of-range iterators.
+    */
     [[nodiscard]] bool has_curr() const noexcept
     {
       return array_ptr != nullptr and curr_idx >= 0 and
              static_cast<size_t>(curr_idx) < array_ptr->size();
     }
 
-    /// Return `true` if the iterator is on the last item. A singular
-    /// iterator is treated as an empty sequence, exactly as `has_curr()`
-    /// and `reset_last()` do.
+    /** @brief Check whether the current item is the last item.
+
+        @return `true` only when a current item exists and it is the last;
+                `false` for singular or empty iterators.
+    */
     [[nodiscard]] bool is_last() const noexcept
     {
       const long n = array_ptr == nullptr ? 0 : static_cast<long>(array_ptr->size());
-      return curr_idx == n - 1;
+      return has_curr() and curr_idx == n - 1;
     }
 
     /// Return the current link guaranteeing no exception. Be careful.

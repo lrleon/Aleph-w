@@ -440,6 +440,8 @@ public:
 
       @return A reference to `*this`, already reversed.
       @note Complexity: O(n).
+      @throws Any exception thrown by swapping elements. If a swap throws,
+              some elements may already have changed positions.
   */
   Array &reverse()
   {
@@ -453,6 +455,8 @@ public:
 
       @return A new `Array` holding the elements of `*this` in reverse order.
       @note Complexity: O(n).
+      @throws Any exception thrown by allocation or copying elements.
+      @note `*this` remains unchanged if the operation throws.
   */
   Array reverse() const
   {
@@ -466,6 +470,9 @@ public:
   /** @brief Alias for `reverse()`. Reverses this array in place.
 
       @return A reference to `*this`, already reversed.
+      @throws Any exception thrown by swapping elements.
+      @note Complexity: O(n). If a swap throws, some elements may already
+            have changed positions.
       @see reverse()
   */
   Array &reverse_in_place()
@@ -476,7 +483,9 @@ public:
   /** @brief Reverse this array in place.
 
       @return A reference to `*this`, already reversed.
-      @note Complexity: O(n).
+      @throws Any exception thrown by swapping elements.
+      @note Complexity: O(n). If a swap throws, some elements may already
+            have changed positions.
       @see reverse()
   */
   Array &rev()
@@ -489,6 +498,8 @@ public:
       `*this` is left unmodified.
 
       @return A new `Array` holding the elements of `*this` in reverse order.
+      @throws Any exception thrown by allocation or copying elements.
+      @note Complexity: O(n). `*this` remains unchanged if the operation throws.
       @see reverse() const
   */
   Array rev() const
@@ -496,31 +507,68 @@ public:
     return reverse();
   }
 
-  /** Traverse all the items of the array from the first to the last and
-      conditionally performs an operation.
+  /** @brief Traverse mutable elements from first to last.
 
-      @param[in] op operation to perform on the current element. If it
-      returns `true`, then the traversal continues to the next item;
-      otherwise the traversal stops
-      @return `true` if `op` was performed on every item; `false` if the
-      traversal was stopped
-   */
+      @param[in] op Operation accepting `T &`; returning `false` stops traversal.
+      @return `true` if every element was visited; `false` if stopped early.
+      @throws Any exception thrown by `op`.
+      @note Complexity: O(n) in the number of visited elements.
+  */
   template <class Op>
-  bool traverse(Op &op) const
+    requires std::predicate<Op &, T &>
+  bool traverse(Op &op)
   {
     return array.traverse(op);
   }
 
-  /** \overload traverse(Op & op)
+  /** @brief Traverse const elements from first to last.
+
+      @param[in] op Operation accepting `const T &`; returning `false` stops traversal.
+      @return `true` if every element was visited; `false` if stopped early.
+      @throws Any exception thrown by `op`.
+      @note Complexity: O(n) in the number of visited elements. Elements
+            cannot be modified through this overload.
+  */
+  template <class Op>
+    requires std::predicate<Op &, const T &>
+  bool traverse(Op &op) const
+  {
+    for (size_t i = 0; i < size(); ++i)
+      if (not op((*this)[i]))
+        return false;
+    return true;
+  }
+
+  /** @brief Traverse mutable elements with a temporary operation.
 
       Kept as a separate overload from `traverse(Op &)` so that callers
       naming the operation type explicitly, as `traverse<Op>(lvalue)` does
       in `Aleph::all()`, still bind to the lvalue overload.
-   */
+      @param[in] op Operation accepting `T &`.
+      @return `true` if every element was visited; `false` if stopped early.
+      @throws Any exception thrown by `op`.
+      @note Complexity: O(n) in the number of visited elements.
+  */
   template <class Op>
+    requires std::predicate<Op &, T &>
+  bool traverse(Op &&op)
+  {
+    return traverse<Op>(op);
+  }
+
+  /** @brief Traverse const elements with a temporary operation.
+
+      @param[in] op Operation accepting `const T &`.
+      @return `true` if every element was visited; `false` if stopped early.
+      @throws Any exception thrown by `op`.
+      @note Complexity: O(n) in the number of visited elements. Elements
+            cannot be modified through this overload.
+  */
+  template <class Op>
+    requires std::predicate<Op &, const T &>
   bool traverse(Op &&op) const
   {
-    return array.traverse(std::forward<Op>(op));
+    return traverse<Op>(op);
   }
 
   [[nodiscard]] bool is_valid() const noexcept
