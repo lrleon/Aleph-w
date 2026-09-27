@@ -1407,13 +1407,18 @@ public:
       return array_ptr->access(curr_idx);
     }
 
-    /** Return the current item
+    /** @brief Return the current item.
 
-        @throw overflow_error if there is no current
+        @return Reference to the current item.
+        @throws std::underflow_error if positioned before the first item.
+        @throws std::overflow_error if singular or at or past the end.
     */
     T &get_curr() const
     {
-      ah_overflow_error_if(curr_idx == array_ptr->size()) << "not current item in iterator";
+      ah_underflow_error_if(curr_idx < 0) << "not current item in iterator";
+      ah_overflow_error_if(array_ptr == nullptr or
+                           static_cast<size_t>(curr_idx) >= array_ptr->size())
+        << "not current item in iterator";
       return get_curr_ne();
     }
 
@@ -1430,11 +1435,17 @@ public:
       ++curr_idx;
     }
 
-    /// Move the current a position forward. Throw `overflow_error` if
-    /// current is the last item
+    /** @brief Advance one position, from the last item to the end if needed.
+
+        @throws std::overflow_error if the iterator is singular or already
+                at or past the end.
+    */
     void next()
     {
-      ah_overflow_error_if(curr_idx == array_ptr->size()) << "not current item in iterator";
+      ah_overflow_error_if(array_ptr == nullptr or
+                           (curr_idx >= 0 and
+                            static_cast<size_t>(curr_idx) >= array_ptr->size()))
+        << "not current item in iterator";
       next_ne();
     }
 

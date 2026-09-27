@@ -40,6 +40,8 @@
 #include <tpl_dynArray.H>
 #include <ah-unique.H>
 
+#include <stdexcept>
+
 using namespace Aleph;
 using namespace std;
 
@@ -181,6 +183,34 @@ TEST(DynArrayIterator, IsLastRequiresCurrentItem)
   EXPECT_TRUE(it.is_last());
   it.end();
   EXPECT_FALSE(it.is_last());
+}
+
+TEST(DynArrayIterator, CheckedAccessRejectsInvalidPositions)
+{
+  DynArray<int>::Iterator singular;
+  EXPECT_THROW(singular.get_curr(), std::overflow_error);
+  EXPECT_THROW(singular.next(), std::overflow_error);
+  singular.reset_last();
+  EXPECT_THROW(singular.get_curr(), std::underflow_error);
+  EXPECT_THROW(singular.next(), std::overflow_error);
+
+  DynArray<int> arr;
+  auto it = arr.get_it();
+  EXPECT_THROW(it.get_curr(), std::overflow_error);
+  EXPECT_THROW(it.next(), std::overflow_error);
+  it.reset_last();
+  EXPECT_THROW(it.get_curr(), std::underflow_error);
+
+  arr.append(42);
+  it.reset_first();
+  EXPECT_EQ(it.get_curr(), 42);
+  it.next();
+  EXPECT_THROW(it.get_curr(), std::overflow_error);
+  EXPECT_THROW(it.next(), std::overflow_error);
+  it.set_pos(-1);
+  EXPECT_THROW(it.get_curr(), std::underflow_error);
+  it.next();
+  EXPECT_EQ(it.get_curr(), 42);
 }
 
 TEST(DynArrayReserve, adjust_and_cut)

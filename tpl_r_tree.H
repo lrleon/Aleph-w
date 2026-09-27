@@ -1106,6 +1106,9 @@ public:
    *          (`nodes` empty, `root` unset) when the tree `is_empty()`.
    *  @par Complexity
    *  O(n) time; O(height_) recursive call-stack depth.
+   *  @par Thread safety
+   *  Concurrent read-only calls are safe only while no thread mutates the
+   *  tree. Concurrent mutation requires external synchronization.
    *  @throws std::bad_alloc if node allocation fails.
    */
   [[nodiscard]] DebugSnapshot debug_snapshot() const

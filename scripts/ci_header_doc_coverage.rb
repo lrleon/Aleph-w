@@ -279,6 +279,8 @@ def parse_changed_public_declarations(file, added_lines)
   declarations = []
 
   brace_depth = 0
+  namespace_stack = []
+  pending_namespace = false
   class_stack = []
   pending_class = nil
   in_block_comment = false
@@ -291,14 +293,14 @@ def parse_changed_public_declarations(file, added_lines)
       if class_stack.any?
         brace_depth == class_stack.last[:depth]
       else
-        # Free declarations are usually at global scope (0) or a few namespace levels.
-        brace_depth <= 2
+        brace_depth == (namespace_stack.last || 0)
       end
 
     if in_decl_scope &&
        !stripped.empty? &&
        !stripped.start_with?('//', '/*', '*') &&
-       (m = stripped.match(/^(?:template\s*<.*>\s*)?(class|struct)\s+([A-Za-z_]\w*)\b/))
+       (m = stripped.match(/^(?:template\s*<[^<>]*>\s*)?(class|struct)\s+([A-Za-z_]\w*)\b/)) &&
+       !(stripped.end_with?(';') && !stripped.include?('{'))
       kind = m[1]
       name = m[2]
       is_public = class_stack.empty? || class_stack.last[:access] == 'public'
@@ -361,6 +363,12 @@ def parse_changed_public_declarations(file, added_lines)
     brace_depth += sanitized.count('{')
     brace_depth -= sanitized.count('}')
 
+    namespace_line = stripped.match?(/^(?:inline\s+)?namespace(?:\s+[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)?\s*(?:\{|$)/)
+    if (namespace_line && stripped.include?('{')) || (pending_namespace && stripped.start_with?('{'))
+      namespace_stack << brace_depth
+    end
+    pending_namespace = namespace_line && !stripped.include?('{') unless stripped.empty?
+
     if !pending_class.nil?
       should_attach = pending_class[:attach_now] || (before_depth < brace_depth && sanitized.include?('{'))
       if should_attach
@@ -375,6 +383,10 @@ def parse_changed_public_declarations(file, added_lines)
 
     while class_stack.any? && brace_depth < class_stack.last[:depth]
       class_stack.pop
+    end
+
+    while namespace_stack.any? && brace_depth < namespace_stack.last
+      namespace_stack.pop
     end
   end
 
