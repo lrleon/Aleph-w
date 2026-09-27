@@ -168,7 +168,7 @@ TEST(ArrayAccessors, BoundsCheckingAndConstVariants)
   EXPECT_THROW(carr[3], std::out_of_range);
 }
 
-TEST(ArrayReverse, ReverseAndRevAliases)
+TEST(ArrayReverse, ReverseAndReverseInPlaceAliases)
 {
   Array<int> arr;
   for (int i = 1; i <= 5; ++i)
@@ -186,9 +186,9 @@ TEST(ArrayReverse, ReverseAndRevAliases)
   for (size_t i = 0; i < ascending.size(); ++i)
     EXPECT_EQ(copy[i], ascending[i]) << "const reverse() should return new copy";
 
-  arr.rev();
+  arr.reverse_in_place();
   for (size_t i = 0; i < ascending.size(); ++i)
-    EXPECT_EQ(arr[i], ascending[i]) << "rev() alias should behave like reverse()";
+    EXPECT_EQ(arr[i], ascending[i]) << "reverse_in_place() alias should behave like reverse()";
 
   const auto copy_rev = carr.rev();
   for (size_t i = 0; i < descending.size(); ++i)

@@ -1125,11 +1125,13 @@ public:
 
         if (node.leaf)
           {
-            Array<Rectangle> boxes;
+            // Safe to populate in place: this loop does not recurse, so
+            // `snap.nodes` cannot reallocate between the reference below
+            // and its last use.
+            Array<Rectangle> &boxes = snap.nodes(out_idx).entry_boxes;
             boxes.reserve(node.data.size());
             for (size_t i = 0; i < node.data.size(); ++i)
               boxes.append(node.data(i).bbox);
-            snap.nodes(out_idx).entry_boxes = std::move(boxes);
           }
         else
           {

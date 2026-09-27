@@ -436,14 +436,24 @@ public:
     return array(i);
   }
 
-  /// Reverse the order of items in array
+  /** @brief Reverse the order of items in this array, in place.
+
+      @return A reference to `*this`, already reversed.
+      @note Complexity: O(n).
+  */
   Array &reverse()
   {
     array.reverse();
     return *this;
   }
 
-  /// Return a copy of this with its items reversed
+  /** @brief Return a copy of this array with its items reversed.
+
+      `*this` is left unmodified.
+
+      @return A new `Array` holding the elements of `*this` in reverse order.
+      @note Complexity: O(n).
+  */
   Array reverse() const
   {
     const size_t &n = array.size();
@@ -453,11 +463,23 @@ public:
     return ret;
   }
 
-  Array &rev()
+  /** @brief Alias for `reverse()`. Reverses this array in place.
+
+      @return A reference to `*this`, already reversed.
+      @see reverse()
+  */
+  Array &reverse_in_place()
   {
     return reverse();
   }
 
+  /** @brief Alias for `reverse() const`. Returns a reversed copy.
+
+      `*this` is left unmodified.
+
+      @return A new `Array` holding the elements of `*this` in reverse order.
+      @see reverse() const
+  */
   Array rev() const
   {
     return reverse();
