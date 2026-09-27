@@ -195,6 +195,18 @@ TEST(ArrayReverse, ReverseAndReverseInPlaceAliases)
     EXPECT_EQ(copy_rev[i], descending[i]) << "const rev() should return reversed copy";
 }
 
+TEST(ArrayReverse, NonConstRevReversesInPlaceAndReturnsReference)
+{
+  Array<int> arr = {1, 2, 3};
+
+  Array<int> &alias = arr.rev();
+
+  EXPECT_EQ(&alias, &arr);
+  EXPECT_EQ(arr[0], 3);
+  EXPECT_EQ(arr[1], 2);
+  EXPECT_EQ(arr[2], 1);
+}
+
 struct MoveOnlyOp
 {
   bool *called;

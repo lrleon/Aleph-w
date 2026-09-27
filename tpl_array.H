@@ -473,6 +473,17 @@ public:
     return reverse();
   }
 
+  /** @brief Reverse this array in place.
+
+      @return A reference to `*this`, already reversed.
+      @note Complexity: O(n).
+      @see reverse()
+  */
+  Array &rev()
+  {
+    return reverse_in_place();
+  }
+
   /** @brief Alias for `reverse() const`. Returns a reversed copy.
 
       `*this` is left unmodified.

@@ -42,6 +42,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <ahSort.H>
 #include <tpl_r_tree.H>
 
 #include "r_tree_debug_snapshot_test_helpers.H"
@@ -66,7 +67,7 @@ namespace
   Array<int> sorted_intersects(const Tree &tree, const Rectangle &q)
   {
     Array<int> hits = tree.search_intersects(q);
-    std::ranges::sort(hits);
+    Aleph::in_place_sort(hits);
     return hits;
   }
 
@@ -74,7 +75,7 @@ namespace
   Array<int> sorted_contains(const Tree &tree, const Point &p)
   {
     Array<int> hits = tree.search_contains(p);
-    std::ranges::sort(hits);
+    Aleph::in_place_sort(hits);
     return hits;
   }
 
@@ -85,7 +86,7 @@ namespace
     for (const auto &[b, id] : ref)
       if (b.intersects(q))
         out.append(id);
-    std::ranges::sort(out);
+    Aleph::in_place_sort(out);
     return out;
   }
 
@@ -96,7 +97,7 @@ namespace
     for (const auto &[b, id] : ref)
       if (b.contains(p))
         out.append(id);
-    std::ranges::sort(out);
+    Aleph::in_place_sort(out);
     return out;
   }
 
