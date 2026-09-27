@@ -512,7 +512,11 @@ public:
       @param[in] op Operation accepting `T &`; returning `false` stops traversal.
       @return `true` if every element was visited; `false` if stopped early.
       @throws Any exception thrown by `op`.
-      @note Complexity: O(n) in the number of visited elements.
+      @note Time: O(n) in the number of visited elements; auxiliary space: O(1).
+      @note If `op` throws, changes it already made to elements are not undone.
+      @note Concurrent read-only traversals are safe when `op` only reads.
+            External synchronization is required if any concurrent access
+            may modify the array.
   */
   template <class Op>
     requires std::predicate<Op &, T &>
@@ -526,8 +530,12 @@ public:
       @param[in] op Operation accepting `const T &`; returning `false` stops traversal.
       @return `true` if every element was visited; `false` if stopped early.
       @throws Any exception thrown by `op`.
-      @note Complexity: O(n) in the number of visited elements. Elements
-            cannot be modified through this overload.
+      @note Time: O(n) in the number of visited elements; auxiliary space: O(1).
+      @note The traversal itself does not modify elements. Effects of `op`
+            outside the array are not rolled back if it throws.
+      @note Concurrent read-only access is safe when `op` only reads.
+            External synchronization is required if another thread may
+            modify the array.
   */
   template <class Op>
     requires std::predicate<Op &, const T &>
@@ -547,7 +555,11 @@ public:
       @param[in] op Operation accepting `T &`.
       @return `true` if every element was visited; `false` if stopped early.
       @throws Any exception thrown by `op`.
-      @note Complexity: O(n) in the number of visited elements.
+      @note Time: O(n) in the number of visited elements; auxiliary space: O(1).
+      @note If `op` throws, changes it already made to elements are not undone.
+      @note Concurrent read-only traversals are safe when `op` only reads.
+            External synchronization is required if any concurrent access
+            may modify the array.
   */
   template <class Op>
     requires std::predicate<Op &, T &>
@@ -561,8 +573,12 @@ public:
       @param[in] op Operation accepting `const T &`.
       @return `true` if every element was visited; `false` if stopped early.
       @throws Any exception thrown by `op`.
-      @note Complexity: O(n) in the number of visited elements. Elements
-            cannot be modified through this overload.
+      @note Time: O(n) in the number of visited elements; auxiliary space: O(1).
+      @note The traversal itself does not modify elements. Effects of `op`
+            outside the array are not rolled back if it throws.
+      @note Concurrent read-only access is safe when `op` only reads.
+            External synchronization is required if another thread may
+            modify the array.
   */
   template <class Op>
     requires std::predicate<Op &, const T &>

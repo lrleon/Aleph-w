@@ -226,11 +226,12 @@ public:
   }
 
   /** @brief Check if positioned at the last item.
-      @return true if at the last item.
+      @return `true` only if there is a current item and it is the last one;
+              `false` for empty or singular iterators.
   */
   [[nodiscard]] bool is_last() const noexcept
   {
-    return pos == num_items - 1;
+    return has_curr() and pos == num_items - 1;
   }
 
   /** @brief Get the current position index.

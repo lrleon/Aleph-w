@@ -99,6 +99,27 @@ TEST(Array_Iterator, iterator_on_empty_array)
   EXPECT_THROW(it.prev(), std::underflow_error);
 }
 
+TEST(Array_Iterator, is_last_requires_current_item)
+{
+  Array_Iterator<int> singular;
+  singular.reset_last();
+  EXPECT_FALSE(singular.has_curr());
+  EXPECT_FALSE(singular.is_last());
+
+  int values[2] = {1, 2};
+  Array_Iterator<int> it(values, 2, 0);
+  it.reset_last();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_FALSE(it.is_last());
+
+  Array_Iterator<int> nonempty(values, 2, 2);
+  EXPECT_FALSE(nonempty.is_last());
+  nonempty.reset_last();
+  EXPECT_TRUE(nonempty.is_last());
+  nonempty.end();
+  EXPECT_FALSE(nonempty.is_last());
+}
+
 TEST(Array_Iterator, invalid_parameters)
 {
   int ptr[10];
