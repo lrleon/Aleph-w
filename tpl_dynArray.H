@@ -484,18 +484,6 @@ private:
     return number & mask_block;
   }
 
-  void advance_block_index(size_t block_index, size_t seg_index, const size_t len) const noexcept
-  {
-    if (block_index + len < block_size)
-      {
-        block_index += len;
-        return;
-      }
-
-    seg_index += divide_by_block_size(len);
-    block_index = modulus_by_block_size(len);
-  }
-
   void allocate_block(T *&block, T *src_block)
   {
     allocate_block(block);

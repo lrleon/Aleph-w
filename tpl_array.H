@@ -161,7 +161,7 @@ public:
    * same instance.
    */
   Array(size_t n, const T &value)
-    requires(std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
     : array(n)
   {
     for (size_t i = 0; i < n; ++i)
@@ -201,7 +201,7 @@ public:
 
   /// Copy constructor
   Array(const Array &s)
-    requires(std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
     : array(s.array)
   { /* empty */
   }
@@ -217,7 +217,7 @@ public:
 
   /// Assign by copy `s` to `this`
   Array &operator = (const Array &s)
-    requires(std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
   {
     if (this == &s)
       return *this;
