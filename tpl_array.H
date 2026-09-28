@@ -48,6 +48,7 @@
 #include <utility>
 #include <vector>
 #include <concepts>
+#include <type_traits>
 #include <aleph.H>
 #include <htlist.H>
 #include <tpl_dynDlist.H>
@@ -156,9 +157,9 @@ public:
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note Complexity: O(n) copies.
    *  @note Exception safety: Strong guarantee (if allocation fails or T's copy constructor throws,
-   * no memory is leaked).
+   *        no memory is leaked).
    *  @note Thread safety: Safe to call concurrently on different instances; not thread-safe on the
-   * same instance.
+   *        same instance.
    */
   Array(size_t n, const T &value)
     requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)

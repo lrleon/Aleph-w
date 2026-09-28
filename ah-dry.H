@@ -44,6 +44,7 @@
 #define AH_DRY_H
 
 #include "ahFunctional.H"
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include <ah-errors.H>
