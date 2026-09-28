@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'minitest/autorun'
+require 'set'
 require 'tmpdir'
 require_relative 'ci_header_doc_coverage'
 
