@@ -77,6 +77,32 @@ TEST(Array_Container, helper_make_array_container)
     EXPECT_EQ(it.get_curr(), i);
 }
 
+// Constness of an Array_Container is shallow, like std::span: a const view
+// still writes through. A read-only view is obtained with a const element type.
+TEST(Array_Container, const_element_type_gives_read_only_view)
+{
+  int data[4] = {1, 2, 3, 4};
+  const Array_Container<int> shallow(data, 4);
+  shallow.get_first() = 10;  // a const view of int still writes through
+  EXPECT_EQ(data[0], 10);
+
+  const int values[4] = {1, 2, 3, 4};
+  Array_Container<const int> view(values, 4);
+  static_assert(std::is_const_v<std::remove_reference_t<decltype(view.get_first())>>);
+  static_assert(std::is_const_v<std::remove_reference_t<decltype(view.get_last())>>);
+  static_assert(std::is_const_v<std::remove_pointer_t<decltype(view.get_base())>>);
+  static_assert(std::is_const_v<std::remove_reference_t<decltype(view.get_it().get_curr())>>);
+  static_assert(not std::is_assignable_v<decltype(view.get_first()), int>);
+
+  EXPECT_EQ(view.get_first(), 1);
+  EXPECT_EQ(view.get_last(), 4);
+  int sum = 0;
+  for (auto it = view.get_it(); it.has_curr(); it.next_ne())
+    sum += it.get_curr();
+  EXPECT_EQ(sum, 10);
+  EXPECT_EQ(view.foldl(0, [](const int &acc, const int &x) { return acc + x; }), 10);
+}
+
 TEST(Array_Iterator, iterator_on_empty_array)
 {
   int ptr[20];
@@ -97,6 +123,27 @@ TEST(Array_Iterator, iterator_on_empty_array)
   EXPECT_THROW(it.get_curr(), std::underflow_error);
   EXPECT_THROW(it.next(), std::overflow_error);
   EXPECT_THROW(it.prev(), std::underflow_error);
+}
+
+TEST(Array_Iterator, is_last_requires_current_item)
+{
+  Array_Iterator<int> singular;
+  singular.reset_last();
+  EXPECT_FALSE(singular.has_curr());
+  EXPECT_FALSE(singular.is_last());
+
+  int values[2] = {1, 2};
+  Array_Iterator<int> it(values, 2, 0);
+  it.reset_last();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_FALSE(it.is_last());
+
+  Array_Iterator<int> nonempty(values, 2, 2);
+  EXPECT_FALSE(nonempty.is_last());
+  nonempty.reset_last();
+  EXPECT_TRUE(nonempty.is_last());
+  nonempty.end();
+  EXPECT_FALSE(nonempty.is_last());
 }
 
 TEST(Array_Iterator, invalid_parameters)

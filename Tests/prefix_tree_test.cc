@@ -149,7 +149,7 @@ namespace
       track_allocations.store(false, std::memory_order_relaxed);
     }
 
-    [[nodiscard]] int balance() const noexcept
+    [[nodiscard]] static int balance() noexcept
     {
       return tracked_balance.load(std::memory_order_relaxed);
     }

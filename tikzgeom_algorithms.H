@@ -232,7 +232,7 @@ constexpr size_t SPP_NONE = ~static_cast<size_t>(0);
 
   Array<Point> pts;
   for (Polygon::Vertex_Iterator it(polygon); it.has_curr(); it.next_ne())
-    pts.append(it.get_current_vertex());
+    pts.append(it.get_current_vertex().to_point());
 
   CuttingEarsTriangulation triangulator;
   const DynList<Triangle> tri_list = triangulator(polygon);

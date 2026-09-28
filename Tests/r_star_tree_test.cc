@@ -38,11 +38,14 @@
 #include <memory>
 #include <random>
 #include <utility>
-#include <vector>
 
+#include <ahSort.H>
 #include <tpl_r_star_tree.H>
 
+#include "r_tree_debug_snapshot_test_helpers.H"
+
 using namespace Aleph;
+using namespace Aleph::test_helpers;
 
 namespace
 {
@@ -58,47 +61,41 @@ namespace
   }
 
   template <typename Tree>
-  std::vector<int> sorted_intersects(const Tree &tree, const Rectangle &q)
+  Array<int> sorted_intersects(const Tree &tree, const Rectangle &q)
   {
     Array<int> hits = tree.search_intersects(q);
-    std::vector<int> out;
-    for (size_t i = 0; i < hits.size(); ++i)
-      out.push_back(hits(i));
-    std::sort(out.begin(), out.end());
-    return out;
+    Aleph::in_place_sort(hits);
+    return hits;
   }
 
-  std::vector<int> brute_intersects(const std::vector<std::pair<Rectangle, int>> &ref,
-                                    const Rectangle &q)
+  Array<int> brute_intersects(const Array<std::pair<Rectangle, int>> &ref,
+                              const Rectangle &q)
   {
-    std::vector<int> out;
+    Array<int> out;
     for (const auto &[b, id] : ref)
       if (b.intersects(q))
-        out.push_back(id);
-    std::sort(out.begin(), out.end());
+        out.append(id);
+    Aleph::in_place_sort(out);
     return out;
   }
 
-  std::vector<int> brute_contains(const std::vector<std::pair<Rectangle, int>> &ref,
-                                  const Point &p)
+  Array<int> brute_contains(const Array<std::pair<Rectangle, int>> &ref,
+                            const Point &p)
   {
-    std::vector<int> out;
+    Array<int> out;
     for (const auto &[b, id] : ref)
       if (b.contains(p))
-        out.push_back(id);
-    std::sort(out.begin(), out.end());
+        out.append(id);
+    Aleph::in_place_sort(out);
     return out;
   }
 
   template <typename Tree>
-  std::vector<int> sorted_contains(const Tree &tree, const Point &p)
+  Array<int> sorted_contains(const Tree &tree, const Point &p)
   {
     Array<int> hits = tree.search_contains(p);
-    std::vector<int> out;
-    for (size_t i = 0; i < hits.size(); ++i)
-      out.push_back(hits(i));
-    std::sort(out.begin(), out.end());
-    return out;
+    Aleph::in_place_sort(hits);
+    return hits;
   }
 
   // Randomized parity + per-step invariant check for a given fanout.
@@ -112,7 +109,7 @@ namespace
     std::uniform_int_distribution<int> extent(0, ext);
 
     RStarTree<int, Max, Min> tree;
-    std::vector<std::pair<Rectangle, int>> ref;
+    Array<std::pair<Rectangle, int>> ref;
     int next_id = 0;
 
     auto random_rect = [&]()
@@ -124,20 +121,21 @@ namespace
 
     for (int iter = 0; iter < iters; ++iter)
       {
-        const int op = ref.empty() ? 0 : op_dist(rng);
+        const int op = ref.is_empty() ? 0 : op_dist(rng);
         if (op == 0)
           {
             const Rectangle b = random_rect();
             const int id = next_id++;
             tree.insert(b, id);
-            ref.emplace_back(b, id);
+            ref.append(std::make_pair(b, id));
           }
         else if (op == 1)
           {
             std::uniform_int_distribution<size_t> pick(0, ref.size() - 1);
             const size_t k = pick(rng);
-            ASSERT_TRUE(tree.erase(ref[k].first, ref[k].second));
-            ref.erase(ref.begin() + k);
+            ASSERT_TRUE(tree.erase(ref(k).first, ref(k).second));
+            std::swap(ref(k), ref(ref.size() - 1));   // swap-and-pop; order is irrelevant here
+            [[maybe_unused]] const auto popped = ref.remove_last();
           }
         else
           {
@@ -176,7 +174,7 @@ TEST(RStarTree, SingletonAndErase)
   RStarTree<int> tree;
   tree.insert(rect(0, 0, 2, 2), 42);
   EXPECT_EQ(tree.size(), 1u);
-  EXPECT_EQ(sorted_intersects(tree, rect(1, 1, 5, 5)), (std::vector<int>{42}));
+  EXPECT_EQ(sorted_intersects(tree, rect(1, 1, 5, 5)), build_array<int>(42));
   EXPECT_TRUE(tree.erase(rect(0, 0, 2, 2), 42));
   EXPECT_TRUE(tree.is_empty());
   EXPECT_EQ(tree.height(), 0u);
@@ -200,53 +198,9 @@ TEST(RStarTree, ForcedReinsertionKeepsTreeValid)
   for (int i = 0; i < 500; ++i)
     {
       const Rectangle b = rect(i % 50, i / 50, i % 50 + 3, i / 50 + 3);
-      const std::vector<int> hits = sorted_intersects(tree, b);
+      const Array<int> hits = sorted_intersects(tree, b);
       EXPECT_TRUE(std::find(hits.begin(), hits.end(), i) != hits.end());
     }
-}
-
-namespace
-{
-  Rectangle union_of(const Rectangle &a, const Rectangle &b)
-  {
-    return Rectangle(a.get_xmin() < b.get_xmin() ? a.get_xmin() : b.get_xmin(),
-                     a.get_ymin() < b.get_ymin() ? a.get_ymin() : b.get_ymin(),
-                     a.get_xmax() > b.get_xmax() ? a.get_xmax() : b.get_xmax(),
-                     a.get_ymax() > b.get_ymax() ? a.get_ymax() : b.get_ymax());
-  }
-
-  // Recursively check a DebugSnapshot: every child index is one depth deeper,
-  // every leaf's stored bbox is the tight union of its entry_boxes, every
-  // internal node's bbox is the tight union of its children's bboxes, and
-  // returns the total number of leaf entries found.
-  template <typename Snapshot>
-  size_t check_snapshot_node(const Snapshot &snap, const size_t idx, const size_t expected_depth)
-  {
-    const auto &node = snap.nodes(idx);
-    EXPECT_EQ(node.depth, expected_depth);
-
-    if (node.is_leaf)
-      {
-        EXPECT_FALSE(node.entry_boxes.is_empty());
-        Rectangle acc = node.entry_boxes(0);
-        for (size_t i = 1; i < node.entry_boxes.size(); ++i)
-          acc = union_of(acc, node.entry_boxes(i));
-        EXPECT_EQ(node.bbox, acc);
-        return node.entry_boxes.size();
-      }
-
-    EXPECT_FALSE(node.children.is_empty());
-    Rectangle acc = snap.nodes(node.children(0)).bbox;
-    size_t total = check_snapshot_node(snap, node.children(0), expected_depth + 1);
-    for (size_t i = 1; i < node.children.size(); ++i)
-      {
-        EXPECT_LT(node.children(i), snap.nodes.size());
-        total += check_snapshot_node(snap, node.children(i), expected_depth + 1);
-        acc = union_of(acc, snap.nodes(node.children(i)).bbox);
-      }
-    EXPECT_EQ(node.bbox, acc);
-    return total;
-  }
 }
 
 TEST(RStarTree, DebugSnapshotStructuralInvariants)
@@ -285,7 +239,7 @@ TEST(RStarTree, DegenerateRectangles)
   ASSERT_TRUE(tree.verify());
   EXPECT_EQ(tree.size(), 60u);
 
-  const std::vector<int> hits = sorted_contains(tree, pt(10, 5));
+  const Array<int> hits = sorted_contains(tree, pt(10, 5));
   EXPECT_TRUE(std::find(hits.begin(), hits.end(), 10) != hits.end());
   EXPECT_TRUE(std::find(hits.begin(), hits.end(), 105) != hits.end());
 }
@@ -334,12 +288,12 @@ TEST(RStarTree, SupportsMoveOnlyPayload)
 TEST(RStarTree, AssignmentClearAndDrainRemainValid)
 {
   RStarTree<int, 4, 2> source;
-  std::vector<std::pair<Rectangle, int>> ref;
+  Array<std::pair<Rectangle, int>> ref;
   for (int i = 0; i < 100; ++i)
     {
       const Rectangle b = rect(i % 20, i / 20, i % 20 + 3, i / 20 + 2);
       source.insert(b, i);
-      ref.emplace_back(b, i);
+      ref.append(std::make_pair(b, i));
     }
   ASSERT_TRUE(source.verify());
 
