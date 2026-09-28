@@ -406,6 +406,11 @@ template <typename T>
 
     The container does not own the array - it is a non-owning view.
 
+    @note Constness is shallow, as in `std::span`: a `const Array_Container<T>`
+          still gives mutable access to the elements through `get_first()`,
+          `get_last()`, `get_base()` and its iterators. For read-only access use
+          `Array_Container<const T>`.
+
     @tparam T Element type.
 
     @ingroup Sequences

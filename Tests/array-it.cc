@@ -77,6 +77,32 @@ TEST(Array_Container, helper_make_array_container)
     EXPECT_EQ(it.get_curr(), i);
 }
 
+// Constness of an Array_Container is shallow, like std::span: a const view
+// still writes through. A read-only view is obtained with a const element type.
+TEST(Array_Container, const_element_type_gives_read_only_view)
+{
+  int data[4] = {1, 2, 3, 4};
+  const Array_Container<int> shallow(data, 4);
+  shallow.get_first() = 10;  // a const view of int still writes through
+  EXPECT_EQ(data[0], 10);
+
+  const int values[4] = {1, 2, 3, 4};
+  Array_Container<const int> view(values, 4);
+  static_assert(std::is_const_v<std::remove_reference_t<decltype(view.get_first())>>);
+  static_assert(std::is_const_v<std::remove_reference_t<decltype(view.get_last())>>);
+  static_assert(std::is_const_v<std::remove_pointer_t<decltype(view.get_base())>>);
+  static_assert(std::is_const_v<std::remove_reference_t<decltype(view.get_it().get_curr())>>);
+  static_assert(not std::is_assignable_v<decltype(view.get_first()), int>);
+
+  EXPECT_EQ(view.get_first(), 1);
+  EXPECT_EQ(view.get_last(), 4);
+  int sum = 0;
+  for (auto it = view.get_it(); it.has_curr(); it.next_ne())
+    sum += it.get_curr();
+  EXPECT_EQ(sum, 10);
+  EXPECT_EQ(view.foldl(0, [](const int &acc, const int &x) { return acc + x; }), 10);
+}
+
 TEST(Array_Iterator, iterator_on_empty_array)
 {
   int ptr[20];
