@@ -168,7 +168,7 @@ TEST(ArrayAccessors, BoundsCheckingAndConstVariants)
   EXPECT_THROW(carr[3], std::out_of_range);
 }
 
-TEST(ArrayReverse, ReverseAndRevAliases)
+TEST(ArrayReverse, ReverseAndReverseInPlaceAliases)
 {
   Array<int> arr;
   for (int i = 1; i <= 5; ++i)
@@ -186,13 +186,25 @@ TEST(ArrayReverse, ReverseAndRevAliases)
   for (size_t i = 0; i < ascending.size(); ++i)
     EXPECT_EQ(copy[i], ascending[i]) << "const reverse() should return new copy";
 
-  arr.rev();
+  arr.reverse_in_place();
   for (size_t i = 0; i < ascending.size(); ++i)
-    EXPECT_EQ(arr[i], ascending[i]) << "rev() alias should behave like reverse()";
+    EXPECT_EQ(arr[i], ascending[i]) << "reverse_in_place() alias should behave like reverse()";
 
   const auto copy_rev = carr.rev();
   for (size_t i = 0; i < descending.size(); ++i)
     EXPECT_EQ(copy_rev[i], descending[i]) << "const rev() should return reversed copy";
+}
+
+TEST(ArrayReverse, NonConstRevReversesInPlaceAndReturnsReference)
+{
+  Array<int> arr = {1, 2, 3};
+
+  Array<int> &alias = arr.rev();
+
+  EXPECT_EQ(&alias, &arr);
+  EXPECT_EQ(arr[0], 3);
+  EXPECT_EQ(arr[1], 2);
+  EXPECT_EQ(arr[2], 1);
 }
 
 struct MoveOnlyOp
@@ -236,6 +248,49 @@ TEST(ArrayTraverse, TraversalVariants)
   EXPECT_TRUE(arr.traverse(MoveOnlyOp(&called)));
   EXPECT_TRUE(called);
 }
+
+TEST(ArrayTraverse, ConstElementsCannotBeModified)
+{
+  Array<int> arr = {1, 2, 3};
+  const Array<int> &const_arr = arr;
+
+  auto increment = [](int &value)
+    {
+      ++value;
+      return true;
+    };
+  int sum = 0;
+  auto accumulate_const = [&sum](const int &value)
+    {
+      sum += value;
+      return true;
+    };
+
+  EXPECT_TRUE(arr.traverse(increment));
+  EXPECT_EQ(arr[0], 2);
+  EXPECT_EQ(arr[1], 3);
+  EXPECT_EQ(arr[2], 4);
+  EXPECT_TRUE(const_arr.traverse(accumulate_const));
+  EXPECT_EQ(sum, 9);
+  EXPECT_TRUE(const_arr.traverse([](const int &value) { return value > 0; }));
+  EXPECT_EQ(arr[0], 2);
+  EXPECT_EQ(arr[1], 3);
+  EXPECT_EQ(arr[2], 4);
+}
+
+template <class Container, class Operation>
+concept CanTraverse = requires(Container &container, Operation &operation)
+{
+  container.traverse(operation);
+};
+
+struct MutableArrayOperation
+{
+  bool operator () (int &) const { return true; }
+};
+
+static_assert(CanTraverse<Array<int>, MutableArrayOperation>);
+static_assert(not CanTraverse<const Array<int>, MutableArrayOperation>);
 
 TEST(ArrayAlgorithms, InPlaceUnique)
 {

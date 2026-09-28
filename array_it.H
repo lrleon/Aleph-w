@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 #ifndef ARRAY_IT_H
 #define ARRAY_IT_H
 
@@ -54,7 +53,8 @@
 
 namespace Aleph {
 
-template <typename T> class Array_Container;
+template <typename T>
+class Array_Container;
 
 /** @brief Iterator wrapper for C++ raw arrays.
 
@@ -68,6 +68,14 @@ template <typename T> class Array_Container;
     - Circular array regions with arbitrary first/last indices
     - Position tracking
 
+    @note Thread-safety: `Array_Iterator` is a mutable value type with no
+          shared state; it does not synchronize access to its own state
+          (`pos`, `idx`, ...). Reading (e.g. `is_last()`, `has_curr()`) and
+          mutating (e.g. `next_ne()`, `reset_last()`, `set_pos()`) the same
+          instance concurrently from different threads without external
+          synchronization is a data race. The usual "distinct objects,
+          distinct threads" rule applies.
+
     @tparam T Element type.
 
     @ingroup Sequences
@@ -75,7 +83,7 @@ template <typename T> class Array_Container;
 template <class T>
 class Array_Iterator
 {
-  T * ptr = nullptr;
+  T *ptr = nullptr;
   long dim = 0;
   long num_items = 0;
   long idx = 0;
@@ -84,7 +92,7 @@ class Array_Iterator
   long pos = 0;
 
   /// @cond INTERNAL
-  static void ensure_base_pointer(T * p, const size_t sz)
+  static void ensure_base_pointer(T *p, const size_t sz)
   {
     ah_invalid_argument_if(sz > 0 and p == nullptr)
       << "Array_Iterator(): ptr == nullptr with dim > 0";
@@ -92,14 +100,12 @@ class Array_Iterator
 
   static void ensure_num_items(size_t sz, size_t n)
   {
-    ah_domain_error_if(n > sz)
-      << "Array_Iterator(): num_items greater than dim";
+    ah_domain_error_if(n > sz) << "Array_Iterator(): num_items greater than dim";
   }
 
-  static void ensure_index_in_range(const size_t sz, const long value, const char * msg)
+  static void ensure_index_in_range(const size_t sz, const long value, const char *msg)
   {
-    ah_domain_error_if(value < 0 or static_cast<size_t>(value) >= sz)
-      << msg;
+    ah_domain_error_if(value < 0 or static_cast<size_t>(value) >= sz) << msg;
   }
 
   static long compute_last_index(const size_t n) noexcept
@@ -109,19 +115,24 @@ class Array_Iterator
   /// @endcond
 
 public:
-
   /// The type of elements being iterated.
   using Item_Type = T;
 
   /** @brief Get the base pointer of the array.
       @return Pointer to the underlying array.
   */
-  T * get_base() noexcept { return ptr; }
+  T *get_base() noexcept
+  {
+    return ptr;
+  }
 
   /** @brief Get the base pointer of the array (const version).
       @return Const pointer to the underlying array.
   */
-  [[nodiscard]] constexpr const T * get_base() const noexcept { return ptr; }
+  [[nodiscard]] constexpr const T *get_base() const noexcept
+  {
+    return ptr;
+  }
 
   /// Default constructor - creates an invalid iterator.
   Array_Iterator() = default;
@@ -137,7 +148,7 @@ public:
       @throw std::invalid_argument if p is null but sz > 0.
       @throw std::domain_error if n > sz.
   */
-  Array_Iterator(T * p, const size_t sz, const size_t n)
+  Array_Iterator(T *p, const size_t sz, const size_t n)
     : ptr(p), dim(sz), num_items(n), last(compute_last_index(n))
   {
     ensure_base_pointer(ptr, sz);
@@ -154,7 +165,7 @@ public:
       @param sz Physical size of the array.
       @param n Number of valid items.
   */
-  Array_Iterator(NoExceptionCtor, T * p, const size_t sz, const size_t n)
+  Array_Iterator(NoExceptionCtor, T *p, const size_t sz, const size_t n)
     : ptr(p), dim(sz), num_items(n), last(compute_last_index(n))
   {
     assert(ptr);
@@ -176,7 +187,7 @@ public:
       @throw std::invalid_argument if p is null but sz > 0.
       @throw std::domain_error if parameters are inconsistent.
   */
-  Array_Iterator(T * p, const size_t sz, const size_t n, const long f, const long l)
+  Array_Iterator(T *p, const size_t sz, const size_t n, const long f, const long l)
     : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(n == 0 ? f : l)
   {
     ensure_base_pointer(ptr, sz);
@@ -198,7 +209,7 @@ public:
       @param f First index.
       @param l Last index.
   */
-  Array_Iterator(NoExceptionCtor, T * p, const size_t sz, const size_t n, const long f, const long l)
+  Array_Iterator(NoExceptionCtor, T *p, const size_t sz, const size_t n, const long f, const long l)
     : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(n == 0 ? f : l)
   {
     assert(ptr);
@@ -210,29 +221,41 @@ public:
   /** @brief Construct an iterator from an Array_Container.
       @param c Container to iterate over.
   */
-  Array_Iterator(const Array_Container<T> & c)
-    : Array_Iterator(c.get_base(), c.capacity(), c.size()) {}
+  explicit Array_Iterator(const Array_Container<T> &c)
+    : Array_Iterator(c.get_base(), c.capacity(), c.size())
+  {}
 
   /** @brief Check if there is a current valid item.
       @return true if positioned at a valid item, false otherwise.
   */
-  [[nodiscard]] bool has_curr() const noexcept { return pos >= 0 and pos < num_items; }
+  [[nodiscard]] bool has_curr() const noexcept
+  {
+    return pos >= 0 and pos < num_items;
+  }
 
   /** @brief Check if positioned at the last item.
-      @return true if at the last item.
+      @return `true` only if there is a current item and it is the last one;
+              `false` for empty or singular iterators.
+      @note Complexity: O(1).
   */
-  [[nodiscard]] bool is_last() const noexcept { return pos == num_items - 1; }
+  [[nodiscard]] bool is_last() const noexcept
+  {
+    return has_curr() and pos == num_items - 1;
+  }
 
   /** @brief Get the current position index.
       @return Logical position (0 to num_items-1).
   */
-  [[nodiscard]] constexpr long get_pos() const noexcept { return pos; }
+  [[nodiscard]] constexpr long get_pos() const noexcept
+  {
+    return pos;
+  }
 
   /** @brief Get the current item without bounds checking.
       @return Reference to the current item.
       @warning Does not check bounds - use only when you know the iterator is valid.
   */
-  T & get_curr_ne() const noexcept
+  T &get_curr_ne() const noexcept
   {
     return ptr[idx];
   }
@@ -242,13 +265,11 @@ public:
       @throw std::underflow_error if positioned before the first item.
       @throw std::overflow_error if positioned past the last item.
   */
-  T & get_curr() const
+  T &get_curr() const
   {
-    ah_underflow_error_if(pos < 0)
-      << "Array_Iterator::get_curr(): no current item";
+    ah_underflow_error_if(pos < 0) << "Array_Iterator::get_curr(): no current item";
 
-    ah_overflow_error_if(pos >= num_items)
-      << "Array_Iterator::get_curr(): no current item";
+    ah_overflow_error_if(pos >= num_items) << "Array_Iterator::get_curr(): no current item";
 
     return ptr[idx];
   }
@@ -288,8 +309,7 @@ public:
   */
   void prev()
   {
-    ah_underflow_error_if(num_items == 0 or pos < 0)
-      << "Array_Iterator::prev(): no current item";
+    ah_underflow_error_if(num_items == 0 or pos < 0) << "Array_Iterator::prev(): no current item";
     prev_ne();
   }
 
@@ -301,7 +321,10 @@ public:
   }
 
   /// Reset the iterator to the first item (alias for reset()).
-  void reset_first() noexcept { reset(); }
+  void reset_first() noexcept
+  {
+    reset();
+  }
 
   /// Reset the iterator to the last item.
   void reset_last() noexcept
@@ -353,9 +376,9 @@ public:
     @ingroup Sequences
 */
 template <typename T>
-[[nodiscard]] inline Array_Iterator<T> get_array_it(const T * array, size_t n)
+[[nodiscard]] inline Array_Iterator<T> get_array_it(const T *array, size_t n)
 {
-  return Array_Iterator<T>(const_cast<T*>(array), n, n);
+  return Array_Iterator<T>(const_cast<T *>(array), n, n);
 }
 
 /** @brief Create an Array_Container from a raw array.
@@ -368,11 +391,10 @@ template <typename T>
     @ingroup Sequences
 */
 template <typename T>
-[[nodiscard]] inline Array_Container<T> make_array_container(T * array, size_t n)
+[[nodiscard]] inline Array_Container<T> make_array_container(T *array, size_t n)
 {
   return Array_Container<T>(array, n);
 }
-
 
 /** @brief Lightweight wrapper that provides Aleph-w container interface for raw arrays.
 
@@ -384,38 +406,44 @@ template <typename T>
 
     The container does not own the array - it is a non-owning view.
 
+    @note Constness is shallow, as in `std::span`: a `const Array_Container<T>`
+          still gives mutable access to the elements through `get_first()`,
+          `get_last()`, `get_base()` and its iterators. For read-only access use
+          `Array_Container<const T>`.
+
     @tparam T Element type.
 
     @ingroup Sequences
 */
 template <typename T>
-class Array_Container
-  : public GenericTraverse<Array_Container<T>>,
-    public LocateFunctions<Array_Container<T>, T>,
-    public FunctionalMethods<Array_Container<T>, T>,
-    public GenericKeys<Array_Container<T>, T>,
-    public EqualToMethod<Array_Container<T>>,
-    public StlAlephIterator<Array_Container<T>>
+class Array_Container : public GenericTraverse<Array_Container<T>>,
+                        public LocateFunctions<Array_Container<T>, T>,
+                        public FunctionalMethods<Array_Container<T>, T>,
+                        public GenericKeys<Array_Container<T>, T>,
+                        public EqualToMethod<Array_Container<T>>,
+                        public StlAlephIterator<Array_Container<T>>
 {
-  T * base = nullptr;
-  const size_t n = 0;
+  T *base = nullptr;
+  size_t n = 0;
 
 public:
-
   /// The type of elements in the container.
   using Item_Type = T;
 
   /** @brief Get the base pointer.
       @return Pointer to the underlying array.
   */
-  T * get_base() const noexcept { return base; }
+  T *get_base() const noexcept
+  {
+    return base;
+  }
 
   /** @brief Construct a container wrapping a raw array.
 
       @param base_ptr Pointer to the array.
       @param d Size of the array.
   */
-  Array_Container(T * base_ptr, const size_t d) : base(base_ptr), n(d) 
+  Array_Container(T *base_ptr, const size_t d) : base(base_ptr), n(d)
   {
     // empty
   }
@@ -423,26 +451,34 @@ public:
   /** @brief Check if the container is empty.
       @return true if size is 0.
   */
-  [[nodiscard]] constexpr bool is_empty() const noexcept { return n == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept
+  {
+    return n == 0;
+  }
 
   /** @brief Get the number of elements.
       @return Number of elements.
   */
-  [[nodiscard]] constexpr size_t size() const noexcept { return n; }
+  [[nodiscard]] constexpr size_t size() const noexcept
+  {
+    return n;
+  }
 
   /** @brief Get the capacity.
       @return Same as size() for this container.
   */
-  [[nodiscard]] constexpr size_t capacity() const noexcept { return n; }
+  [[nodiscard]] constexpr size_t capacity() const noexcept
+  {
+    return n;
+  }
 
   /** @brief Get the first element.
       @return Reference to the first element.
       @throw std::underflow_error if empty.
   */
-  T & get_first() const
+  T &get_first() const
   {
-    ah_underflow_error_if(n == 0)
-      << "Array_Container::get_first(): n == 0";
+    ah_underflow_error_if(n == 0) << "Array_Container::get_first(): n == 0";
     return base[0];
   }
 
@@ -450,10 +486,9 @@ public:
       @return Reference to the last element.
       @throw std::underflow_error if empty.
   */
-  T & get_last() const
+  T &get_last() const
   {
-    ah_underflow_error_if(n == 0)
-      << "Array_Container::get_last(): n == 0";
+    ah_underflow_error_if(n == 0) << "Array_Container::get_last(): n == 0";
     return base[n - 1];
   }
 
@@ -461,15 +496,18 @@ public:
   struct Iterator : public Array_Iterator<T>
   {
     /// Construct an iterator for the given container.
-    Iterator(const Array_Container & c) : Array_Iterator<T>(c.base, c.n, c.n) {}
+    Iterator(const Array_Container &c) : Array_Iterator<T>(c.base, c.n, c.n) {}
   };
 
   /** @brief Get an iterator to the beginning.
       @return Iterator positioned at the first element.
   */
-  Iterator get_it() const { return Iterator(*this); }
+  Iterator get_it() const
+  {
+    return Iterator(*this);
+  }
 };
 
-} // end namespace Aleph
+}  // end namespace Aleph
 
-#endif // ARRAY_IT_H
+#endif  // ARRAY_IT_H

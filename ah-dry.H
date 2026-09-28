@@ -44,6 +44,7 @@
 #define AH_DRY_H
 
 #include "ahFunctional.H"
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include <ah-errors.H>
@@ -435,7 +436,7 @@ public:
   size_t find_index(Operation &operation) const noexcept(operation_is_noexcept<Operation>())
   {
     size_t i = 0;
-    const_me()->traverse([&i, &operation](Type &item)
+    const_me()->traverse([&i, &operation](const Type &item)
       {
         if (operation(item))
           return false;

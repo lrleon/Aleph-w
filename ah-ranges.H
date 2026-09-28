@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /**
  * @file ah-ranges.H
  * @brief C++20 Ranges support and adaptors for Aleph-w containers.
@@ -129,8 +128,8 @@
 //   This lets users on toolchains whose std::ranges is present but unreliable
 //   opt out without editing the library.
 #if defined(ALEPH_NO_RANGES)
-#  undef ALEPH_HAS_RANGES
-#  define ALEPH_HAS_RANGES 0
+#undef ALEPH_HAS_RANGES
+#define ALEPH_HAS_RANGES 0
 #endif
 
 // <version> defines the standard library feature-test macros (e.g.
@@ -138,21 +137,21 @@
 // before the detection below, otherwise __cpp_lib_ranges is undefined and the
 // check wrongly resolves to "no ranges".
 #if __has_include(<version>)
-#  include <version>
+#include <version>
 #endif
 
 #ifndef ALEPH_HAS_RANGES
-#  if __cplusplus >= 202002L && __has_include(<ranges>) &&                     \
+#if __cplusplus >= 202002L && __has_include(<ranges>) &&                     \
       defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202106L
-     // Exclude Clang with libc++ < 16 (incomplete std::views implementation)
-#    if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 160000
-#      define ALEPH_HAS_RANGES 0
-#    else
-#      define ALEPH_HAS_RANGES 1
-#    endif
-#  else
-#    define ALEPH_HAS_RANGES 0
-#  endif
+// Exclude Clang with libc++ < 16 (incomplete std::views implementation)
+#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 160000
+#define ALEPH_HAS_RANGES 0
+#else
+#define ALEPH_HAS_RANGES 1
+#endif
+#else
+#define ALEPH_HAS_RANGES 0
+#endif
 #endif
 
 // Support headers required by the C++20 baseline (always available).
@@ -162,32 +161,32 @@
 
 // The <ranges> header is pulled in only when the feature is actually enabled.
 #if ALEPH_HAS_RANGES
-#  include <ranges>
+#include <ranges>
 #endif
 
 // Feature detection for C++23 views
 #ifdef __cpp_lib_ranges_stride
-#  define ALEPH_HAS_STRIDE 1
+#define ALEPH_HAS_STRIDE 1
 #else
-#  define ALEPH_HAS_STRIDE 0
+#define ALEPH_HAS_STRIDE 0
 #endif
 
 #ifdef __cpp_lib_ranges_repeat
-#  define ALEPH_HAS_REPEAT 1
+#define ALEPH_HAS_REPEAT 1
 #else
-#  define ALEPH_HAS_REPEAT 0
+#define ALEPH_HAS_REPEAT 0
 #endif
 
 #ifdef __cpp_lib_ranges_zip
-#  define ALEPH_HAS_ZIP 1
+#define ALEPH_HAS_ZIP 1
 #else
-#  define ALEPH_HAS_ZIP 0
+#define ALEPH_HAS_ZIP 0
 #endif
 
 #ifdef __cpp_lib_ranges_enumerate
-#  define ALEPH_HAS_ENUMERATE 1
+#define ALEPH_HAS_ENUMERATE 1
 #else
-#  define ALEPH_HAS_ENUMERATE 0
+#define ALEPH_HAS_ENUMERATE 0
 #endif
 
 // `std::views::join` is C++20 but the adaptor object (as opposed to
@@ -197,9 +196,9 @@
 // pipeline. Conservatively disable the wrapper when libc++ is older
 // than 17; libstdc++ exposes the adaptor since GCC 11.
 #if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 170000
-#  define ALEPH_HAS_JOIN 0
+#define ALEPH_HAS_JOIN 0
 #else
-#  define ALEPH_HAS_JOIN 1
+#define ALEPH_HAS_JOIN 1
 #endif
 
 #include <type_traits>
@@ -207,8 +206,7 @@
 #include <tuple>
 #include <functional>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Sort a whole range in place, portably across the ranges divide.
  *
@@ -226,11 +224,15 @@ namespace Aleph
  *  @param[in] cmp comparator `(a, b) -> bool` (true if `a` precedes `b`).
  */
 template <typename Range, typename Cmp>
-inline void sort_range(Range & r, Cmp cmp)
+inline void sort_range(Range &r, Cmp cmp)
 #if ALEPH_HAS_RANGES
-{ std::ranges::sort(r, std::move(cmp)); }
+{
+  std::ranges::sort(r, std::move(cmp));
+}
 #else
-{ std::sort(std::begin(r), std::end(r), std::move(cmp)); } // NOLINT(modernize-use-ranges)
+{
+  std::sort(std::begin(r), std::end(r), std::move(cmp));
+}  // NOLINT(modernize-use-ranges)
 #endif
 
 /** @brief Sort a whole range in place using the default `<` ordering.
@@ -238,24 +240,36 @@ inline void sort_range(Range & r, Cmp cmp)
  *  @param[in,out] r range to sort in place.
  */
 template <typename Range>
-inline void sort_range(Range & r)
+inline void sort_range(Range &r)
 #if ALEPH_HAS_RANGES
-{ std::ranges::sort(r, std::ranges::less{}); }
+{
+  std::ranges::sort(r, std::ranges::less{});
+}
 #else
-{ std::sort(std::begin(r), std::end(r)); } // NOLINT(modernize-use-ranges)
+{
+  std::sort(std::begin(r), std::end(r));
+}  // NOLINT(modernize-use-ranges)
 #endif
 
 // Forward declarations for major Aleph containers with simple template signatures.
-// Containers with complex template signatures (like DynSetTree, DynBinHeap) 
+// Containers with complex template signatures (like DynSetTree, DynBinHeap)
 // should use the generic to<Container>() adaptor instead.
-template <typename T> class DynList;
-template <typename T> class DynArray;
-template <typename T> class DynDlist;
-template <typename T> class DynListStack;
-template <typename T> class DynListQueue;
-template <typename T> class ArrayStack;
-template <typename T> class ArrayQueue;
-template <typename T> class Random_Set;
+template <typename T>
+class DynList;
+template <typename T>
+class DynArray;
+template <typename T>
+class DynDlist;
+template <typename T>
+class DynListStack;
+template <typename T>
+class DynListQueue;
+template <typename T>
+class ArrayStack;
+template <typename T>
+class ArrayQueue;
+template <typename T>
+class Random_Set;
 
 #if ALEPH_HAS_RANGES
 
@@ -283,9 +297,8 @@ concept AlephContainer = requires(C c) {
  * @brief Concept for Aleph containers that support append.
  */
 template <typename C>
-concept AlephAppendable = AlephContainer<C> && requires(C c, typename C::Item_Type v) {
-  c.append(v);
-};
+concept AlephAppendable =
+  AlephContainer<C> && requires(C c, typename C::Item_Type v) { c.append(v); };
 
 /**
  * @brief Concept for types that can be used with std::ranges.
@@ -315,10 +328,10 @@ concept RangeLike = std::ranges::range<R>;
  * @endcode
  */
 template <AlephAppendable Container, RangeLike R>
-[[nodiscard]] Container to_aleph(R&& r)
+[[nodiscard]] Container to_aleph(R &&r)
 {
   Container result;
-  for (auto&& elem : r)
+  for (auto &&elem : r)
     result.append(std::forward<decltype(elem)>(elem));
   return result;
 }
@@ -379,7 +392,7 @@ template <typename T = int>
  *
  * @par Example:
  * @code
- * auto first_10_evens = lazy_iota(0) 
+ * auto first_10_evens = lazy_iota(0)
  *                     | std::views::filter([](int x) { return x % 2 == 0; })
  *                     | std::views::take(10);
  * @endcode
@@ -399,7 +412,7 @@ template <typename T = int>
  * @return A lazy range view.
  */
 template <typename T>
-[[nodiscard]] constexpr auto lazy_repeat(const T& value, size_t n)
+[[nodiscard]] constexpr auto lazy_repeat(const T &value, size_t n)
 {
   return std::views::repeat(value) | std::views::take(n);
 }
@@ -409,8 +422,7 @@ template <typename T>
 // Internal Utilities using Ranges (for performance optimization)
 // ============================================================================
 
-namespace detail
-{
+namespace detail {
 
 /**
  * @brief Check if all elements satisfy a predicate using ranges.
@@ -418,7 +430,7 @@ namespace detail
  * Used internally to optimize `all()` when ranges are available.
  */
 template <RangeLike R, typename Pred>
-[[nodiscard]] constexpr bool ranges_all_of(R&& r, Pred&& pred)
+[[nodiscard]] constexpr bool ranges_all_of(R &&r, Pred &&pred)
 {
   return std::ranges::all_of(std::forward<R>(r), std::forward<Pred>(pred));
 }
@@ -429,7 +441,7 @@ template <RangeLike R, typename Pred>
  * Used internally to optimize `exists()` when ranges are available.
  */
 template <RangeLike R, typename Pred>
-[[nodiscard]] constexpr bool ranges_any_of(R&& r, Pred&& pred)
+[[nodiscard]] constexpr bool ranges_any_of(R &&r, Pred &&pred)
 {
   return std::ranges::any_of(std::forward<R>(r), std::forward<Pred>(pred));
 }
@@ -440,7 +452,7 @@ template <RangeLike R, typename Pred>
  * Used internally to optimize `none()` when ranges are available.
  */
 template <RangeLike R, typename Pred>
-[[nodiscard]] constexpr bool ranges_none_of(R&& r, Pred&& pred)
+[[nodiscard]] constexpr bool ranges_none_of(R &&r, Pred &&pred)
 {
   return std::ranges::none_of(std::forward<R>(r), std::forward<Pred>(pred));
 }
@@ -451,7 +463,7 @@ template <RangeLike R, typename Pred>
  * Used internally to optimize `find_if()`.
  */
 template <RangeLike R, typename Pred>
-[[nodiscard]] constexpr auto ranges_find_if(R&& r, Pred&& pred)
+[[nodiscard]] constexpr auto ranges_find_if(R &&r, Pred &&pred)
 {
   return std::ranges::find_if(std::forward<R>(r), std::forward<Pred>(pred));
 }
@@ -460,7 +472,7 @@ template <RangeLike R, typename Pred>
  * @brief Count elements satisfying predicate using ranges.
  */
 template <RangeLike R, typename Pred>
-[[nodiscard]] constexpr auto ranges_count_if(R&& r, Pred&& pred)
+[[nodiscard]] constexpr auto ranges_count_if(R &&r, Pred &&pred)
 {
   return std::ranges::count_if(std::forward<R>(r), std::forward<Pred>(pred));
 }
@@ -471,7 +483,7 @@ template <RangeLike R, typename Pred>
  * Returns a lazy view - must be materialized if container output needed.
  */
 template <RangeLike R, typename Func>
-[[nodiscard]] constexpr auto ranges_transform(R&& r, Func&& func)
+[[nodiscard]] constexpr auto ranges_transform(R &&r, Func &&func)
 {
   return std::forward<R>(r) | std::views::transform(std::forward<Func>(func));
 }
@@ -482,7 +494,7 @@ template <RangeLike R, typename Func>
  * Returns a lazy view - must be materialized if container output needed.
  */
 template <RangeLike R, typename Pred>
-[[nodiscard]] constexpr auto ranges_filter(R&& r, Pred&& pred)
+[[nodiscard]] constexpr auto ranges_filter(R &&r, Pred &&pred)
 {
   return std::forward<R>(r) | std::views::filter(std::forward<Pred>(pred));
 }
@@ -491,7 +503,7 @@ template <RangeLike R, typename Pred>
  * @brief Take first n elements using ranges.
  */
 template <RangeLike R>
-[[nodiscard]] constexpr auto ranges_take(R&& r, size_t n)
+[[nodiscard]] constexpr auto ranges_take(R &&r, size_t n)
 {
   return std::forward<R>(r) | std::views::take(n);
 }
@@ -500,7 +512,7 @@ template <RangeLike R>
  * @brief Drop first n elements using ranges.
  */
 template <RangeLike R>
-[[nodiscard]] constexpr auto ranges_drop(R&& r, size_t n)
+[[nodiscard]] constexpr auto ranges_drop(R &&r, size_t n)
 {
   return std::forward<R>(r) | std::views::drop(n);
 }
@@ -512,7 +524,7 @@ template <RangeLike R>
  */
 template <RangeLike R>
   requires std::ranges::bidirectional_range<R>
-[[nodiscard]] constexpr auto ranges_reverse(R&& r)
+[[nodiscard]] constexpr auto ranges_reverse(R &&r)
 {
   return std::forward<R>(r) | std::views::reverse;
 }
@@ -522,7 +534,7 @@ template <RangeLike R>
  * @brief Flatten nested ranges using join.
  */
 template <RangeLike R>
-[[nodiscard]] constexpr auto ranges_flatten(R&& r)
+[[nodiscard]] constexpr auto ranges_flatten(R &&r)
 {
   return std::forward<R>(r) | std::views::join;
 }
@@ -533,7 +545,7 @@ template <RangeLike R>
  * @brief Zip multiple ranges together.
  */
 template <RangeLike... Rs>
-[[nodiscard]] constexpr auto ranges_zip(Rs&&... rs)
+[[nodiscard]] constexpr auto ranges_zip(Rs &&...rs)
 {
   return std::views::zip(std::forward<Rs>(rs)...);
 }
@@ -544,7 +556,7 @@ template <RangeLike... Rs>
  * @brief Enumerate range elements (returns pairs of index, value).
  */
 template <RangeLike R>
-[[nodiscard]] constexpr auto ranges_enumerate(R&& r)
+[[nodiscard]] constexpr auto ranges_enumerate(R &&r)
 {
   return std::forward<R>(r) | std::views::enumerate;
 }
@@ -556,13 +568,13 @@ template <RangeLike R>
  * @note C++20 doesn't have fold_left, so we provide a fallback.
  */
 template <RangeLike R, typename T, typename BinaryOp>
-[[nodiscard]] constexpr T ranges_fold_left(R&& r, T init, BinaryOp&& op)
+[[nodiscard]] constexpr T ranges_fold_left(R &&r, T init, BinaryOp &&op)
 {
 #ifdef __cpp_lib_ranges_fold
   return std::ranges::fold_left(std::forward<R>(r), init, std::forward<BinaryOp>(op));
 #else
   // Fallback for C++20 - use explicit variable to avoid rvalue issues
-  for (auto&& elem : r)
+  for (auto &&elem : r)
     init = op(init, elem);
   return init;
 #endif
@@ -572,7 +584,7 @@ template <RangeLike R, typename T, typename BinaryOp>
  * @brief Sum elements in a range.
  */
 template <RangeLike R>
-[[nodiscard]] constexpr auto ranges_sum(R&& r)
+[[nodiscard]] constexpr auto ranges_sum(R &&r)
 {
   using T = std::ranges::range_value_t<R>;
   return ranges_fold_left(std::forward<R>(r), T{0}, std::plus<>{});
@@ -582,7 +594,7 @@ template <RangeLike R>
  * @brief Product of elements in a range.
  */
 template <RangeLike R>
-[[nodiscard]] constexpr auto ranges_product(R&& r)
+[[nodiscard]] constexpr auto ranges_product(R &&r)
 {
   using T = std::ranges::range_value_t<R>;
   return ranges_fold_left(std::forward<R>(r), T{1}, std::multiplies<>{});
@@ -592,7 +604,7 @@ template <RangeLike R>
  * @brief Get minimum element in a range.
  */
 template <RangeLike R>
-[[nodiscard]] constexpr auto ranges_min(R&& r)
+[[nodiscard]] constexpr auto ranges_min(R &&r)
 {
   return std::ranges::min_element(std::forward<R>(r));
 }
@@ -601,7 +613,7 @@ template <RangeLike R>
  * @brief Get maximum element in a range.
  */
 template <RangeLike R>
-[[nodiscard]] constexpr auto ranges_max(R&& r)
+[[nodiscard]] constexpr auto ranges_max(R &&r)
 {
   return std::ranges::max_element(std::forward<R>(r));
 }
@@ -610,12 +622,12 @@ template <RangeLike R>
  * @brief Sort a range in place.
  */
 template <RangeLike R, typename Comp = std::less<>>
-constexpr void ranges_sort(R&& r, Comp&& comp = Comp{})
+constexpr void ranges_sort(R &&r, Comp &&comp = Comp{})
 {
   std::ranges::sort(std::forward<R>(r), std::forward<Comp>(comp));
 }
 
-} // namespace detail
+}  // namespace detail
 
 // ============================================================================
 // Pipe Operator Support for Aleph Containers
@@ -628,7 +640,9 @@ constexpr void ranges_sort(R&& r, Comp&& comp = Comp{})
  * operator| that only matches Aleph adaptors (avoiding conflicts with
  * std::views adaptors).
  */
-struct aleph_adaptor_tag {};
+struct aleph_adaptor_tag
+{
+};
 
 /**
  * @brief Concept to identify Aleph range adaptors.
@@ -647,7 +661,7 @@ concept AlephAdaptor = std::derived_from<std::remove_cvref_t<T>, aleph_adaptor_t
  */
 template <typename R, AlephAdaptor Adaptor>
   requires std::ranges::range<std::remove_cvref_t<R>>
-[[nodiscard]] auto operator|(R&& r, const Adaptor& adaptor)
+[[nodiscard]] auto operator | (R &&r, const Adaptor &adaptor)
 {
   return adaptor(std::forward<R>(r));
 }
@@ -662,11 +676,11 @@ struct to_aleph_adaptor : aleph_adaptor_tag
 {
   template <typename R>
     requires std::ranges::range<std::remove_cvref_t<R>>
-  [[nodiscard]] auto operator()(R&& r) const
+  [[nodiscard]] auto operator () (R &&r) const
   {
     using T = std::ranges::range_value_t<std::remove_cvref_t<R>>;
     Container<T> result;
-    for (auto&& elem : r)
+    for (auto &&elem : r)
       result.append(std::forward<decltype(elem)>(elem));
     return result;
   }
@@ -677,7 +691,7 @@ struct to_aleph_adaptor : aleph_adaptor_tag
  *
  * @par Example:
  * @code
- * auto list = std::views::iota(1, 10) 
+ * auto list = std::views::iota(1, 10)
  *           | std::views::filter([](int x) { return x % 2 == 0; })
  *           | to_dynlist_v;
  * @endcode
@@ -702,11 +716,11 @@ struct to_aleph_push_adaptor : aleph_adaptor_tag
 {
   template <typename R>
     requires std::ranges::range<std::remove_cvref_t<R>>
-  [[nodiscard]] auto operator()(R&& r) const
+  [[nodiscard]] auto operator () (R &&r) const
   {
     using T = std::ranges::range_value_t<std::remove_cvref_t<R>>;
     Container<T> result;
-    for (auto&& elem : r)
+    for (auto &&elem : r)
       result.push(std::forward<decltype(elem)>(elem));
     return result;
   }
@@ -731,11 +745,11 @@ struct to_aleph_put_adaptor : aleph_adaptor_tag
 {
   template <typename R>
     requires std::ranges::range<std::remove_cvref_t<R>>
-  [[nodiscard]] auto operator()(R&& r) const
+  [[nodiscard]] auto operator () (R &&r) const
   {
     using T = std::ranges::range_value_t<std::remove_cvref_t<R>>;
     Container<T> result;
-    for (auto&& elem : r)
+    for (auto &&elem : r)
       result.put(std::forward<decltype(elem)>(elem));
     return result;
   }
@@ -764,11 +778,11 @@ struct to_aleph_insert_adaptor : aleph_adaptor_tag
 {
   template <typename R>
     requires std::ranges::range<std::remove_cvref_t<R>>
-  [[nodiscard]] auto operator()(R&& r) const
+  [[nodiscard]] auto operator () (R &&r) const
   {
     using T = std::ranges::range_value_t<std::remove_cvref_t<R>>;
     Container<T, ExtraArgs...> result;
-    for (auto&& elem : r)
+    for (auto &&elem : r)
       result.insert(std::forward<decltype(elem)>(elem));
     return result;
   }
@@ -794,10 +808,10 @@ struct to_aleph_insert_adaptor : aleph_adaptor_tag
  * @endcode
  */
 template <typename Container, RangeLike R>
-[[nodiscard]] Container collect(R&& r)
+[[nodiscard]] Container collect(R &&r)
 {
   Container result;
-  for (auto&& elem : r)
+  for (auto &&elem : r)
     {
       if constexpr (requires { result.append(elem); })
         result.append(std::forward<decltype(elem)>(elem));
@@ -806,8 +820,8 @@ template <typename Container, RangeLike R>
       else if constexpr (requires { result.push(elem); })
         result.push(std::forward<decltype(elem)>(elem));
       else
-        static_assert(sizeof(Container) == 0, 
-          "Container must have append(), insert(), or push() method");
+        static_assert(sizeof(Container) == 0,
+                      "Container must have append(), insert(), or push() method");
     }
   return result;
 }
@@ -828,7 +842,7 @@ struct to_adaptor : aleph_adaptor_tag
 {
   template <typename R>
     requires std::ranges::range<std::remove_cvref_t<R>>
-  [[nodiscard]] Container operator()(R&& r) const
+  [[nodiscard]] Container operator () (R &&r) const
   {
     return collect<Container>(std::forward<R>(r));
   }
@@ -848,9 +862,12 @@ struct to_adaptor : aleph_adaptor_tag
  * @endcode
  */
 template <typename Container>
-[[nodiscard]] constexpr to_adaptor<Container> to() { return {}; }
+[[nodiscard]] constexpr to_adaptor<Container> to()
+{
+  return {};
+}
 
-#else // !ALEPH_HAS_RANGES
+#else  // !ALEPH_HAS_RANGES
 
 // ============================================================================
 // Fallback for C++17 and earlier
@@ -859,12 +876,11 @@ template <typename Container>
 // Define ALEPH_HAS_RANGES as 0 for feature detection
 // The public API in ahFunctional.H will be used instead
 
-namespace detail
-{
+namespace detail {
 
 // Fallback implementations that work without ranges
 template <typename Container, typename Pred>
-[[nodiscard]] bool fallback_all_of(const Container& c, Pred&& pred)
+[[nodiscard]] bool fallback_all_of(const Container &c, Pred &&pred)
 {
   for (auto it = c.get_it(); it.has_curr(); it.next_ne())
     if (!pred(it.get_curr()))
@@ -873,7 +889,7 @@ template <typename Container, typename Pred>
 }
 
 template <typename Container, typename Pred>
-[[nodiscard]] bool fallback_any_of(const Container& c, Pred&& pred)
+[[nodiscard]] bool fallback_any_of(const Container &c, Pred &&pred)
 {
   for (auto it = c.get_it(); it.has_curr(); it.next_ne())
     if (pred(it.get_curr()))
@@ -882,7 +898,7 @@ template <typename Container, typename Pred>
 }
 
 template <typename Container, typename Pred>
-[[nodiscard]] bool fallback_none_of(const Container& c, Pred&& pred)
+[[nodiscard]] bool fallback_none_of(const Container &c, Pred &&pred)
 {
   return !fallback_any_of(c, std::forward<Pred>(pred));
 }
@@ -894,9 +910,9 @@ template <typename Container, typename Pred>
  * This is the function used by ahFunctional.H when std::ranges is unavailable.
  */
 template <typename Container, typename T, typename BinaryOp>
-[[nodiscard]] constexpr T ranges_fold_left(Container&& c, T init, BinaryOp&& op)
+[[nodiscard]] constexpr T ranges_fold_left(Container &&c, T init, BinaryOp &&op)
 {
-  for (auto&& elem : c)
+  for (auto &&elem : c)
     init = op(std::move(init), elem);
   return init;
 }
@@ -905,9 +921,9 @@ template <typename Container, typename T, typename BinaryOp>
  * @brief Fallback all_of using range-based for loop.
  */
 template <typename Container, typename Pred>
-[[nodiscard]] bool ranges_all_of(const Container& c, Pred&& pred)
+[[nodiscard]] bool ranges_all_of(const Container &c, Pred &&pred)
 {
-  for (const auto& elem : c)
+  for (const auto &elem : c)
     if (!pred(elem))
       return false;
   return true;
@@ -917,9 +933,9 @@ template <typename Container, typename Pred>
  * @brief Fallback any_of using range-based for loop.
  */
 template <typename Container, typename Pred>
-[[nodiscard]] bool ranges_any_of(const Container& c, Pred&& pred)
+[[nodiscard]] bool ranges_any_of(const Container &c, Pred &&pred)
 {
-  for (const auto& elem : c)
+  for (const auto &elem : c)
     if (pred(elem))
       return true;
   return false;
@@ -929,7 +945,7 @@ template <typename Container, typename Pred>
  * @brief Fallback none_of using range-based for loop.
  */
 template <typename Container, typename Pred>
-[[nodiscard]] bool ranges_none_of(const Container& c, Pred&& pred)
+[[nodiscard]] bool ranges_none_of(const Container &c, Pred &&pred)
 {
   return !ranges_any_of(c, std::forward<Pred>(pred));
 }
@@ -938,19 +954,19 @@ template <typename Container, typename Pred>
  * @brief Fallback count_if using range-based for loop.
  */
 template <typename Container, typename Pred>
-[[nodiscard]] auto ranges_count_if(const Container& c, Pred&& pred)
+[[nodiscard]] auto ranges_count_if(const Container &c, Pred &&pred)
 {
   size_t count = 0;
-  for (const auto& elem : c)
+  for (const auto &elem : c)
     if (pred(elem))
       ++count;
   return count;
 }
 
-} // namespace detail
+}  // namespace detail
 
-#endif // ALEPH_HAS_RANGES
+#endif  // ALEPH_HAS_RANGES
 
-} // namespace Aleph
+}  // namespace Aleph
 
-#endif // AH_RANGES_H
+#endif  // AH_RANGES_H
