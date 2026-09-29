@@ -31,17 +31,28 @@
 
 
 /** @file ah-concepts.H
- *  @brief C++20 concepts for constraining comparison functors.
+ *  @brief C++20 concepts hub: comparison, BST policy, and Aleph container
+ *         concepts.
  *
- *  Defines three concepts used throughout Aleph-w to constrain
- *  template parameters that act as binary predicates:
+ *  Defines eight concepts used throughout Aleph-w to constrain template
+ *  parameters:
  *
  *  - **BinaryPredicate<F, T>** — base concept: `f(a, b)` returns
  *    something convertible to `bool`.
- *  - **StrictWeakOrder<F, T>** — wraps `std::strict_weak_order<F, T, T>`
- *    for BST comparators.
- *  - **EqualityComparator<F, T>** — wraps `std::equivalence_relation<F, T, T>`
- *    for hash table equality comparators.
+ *  - **StrictWeakOrder<F, T>** — wraps `std::strict_weak_order` for BST
+ *    comparators, invoked the way BST classes actually call them: through
+ *    a `const F&`.
+ *  - **EqualityComparator<F, T>** — wraps `std::equivalence_relation` for
+ *    hash table equality comparators, likewise invoked through `const F&`.
+ *  - **BSTPolicy<T, Key>** — minimal interface a `Tree<Key, Compare>`
+ *    instantiation must expose to be usable by `DynSetTree`.
+ *  - **AlephArrayConvertible<T>** — exposes `Item_Type` and `get_it()`.
+ *  - **AlephSequentialContainer<C>** — Aleph mutable sequential container
+ *    interface (`size`, `is_empty`, `append`, `mutable_for_each`).
+ *  - **AlephSequentialIterableContainer<C>** — refines the above with a
+ *    `const`-iterable `get_it()`.
+ *  - **IntegerSortableValue<T>** — integral type accepted by counting/radix
+ *    sort, excluding `bool`.
  *
  *  Using distinct concept names produces clear error messages:
  *  a BST constraint failure mentions "StrictWeakOrder", while a
@@ -56,6 +67,7 @@
 
 # include <concepts>
 # include <type_traits>
+# include <cstddef>
 
 namespace Aleph
 {
@@ -74,27 +86,32 @@ namespace Aleph
    *
    *  Used by BST classes (`Gen_Avl_Tree`, `Gen_Rb_Tree`, etc.) to
    *  constrain the `Compare` template parameter. Based on
-   *  `std::strict_weak_order`, which requires the functor to be a
-   *  regular invocable returning a boolean-testable result.
+   *  `std::strict_weak_order`, invoked through `const F&` because that is
+   *  how BST nodes actually call the comparator (via a `const` tree
+   *  object). A functor whose `operator()` is not `const` satisfies
+   *  `std::strict_weak_order<F, T, T>` but fails to compile once a `const`
+   *  tree calls it; requiring `const F&` here catches that at the
+   *  constraint, not deep inside the tree implementation.
    *
    *  @tparam F functor type.
    *  @tparam T key type.
    */
   template <typename F, typename T>
-  concept StrictWeakOrder = std::strict_weak_order<F, T, T>;
+  concept StrictWeakOrder = std::strict_weak_order<const F &, const T &, const T &>;
 
   /** @brief Equivalence relation constraint for equality comparators.
    *
    *  Used by hash table classes (`GenLhashTable`, `ODhashTable`, etc.)
    *  to constrain the `Cmp` template parameter. Based on
-   *  `std::equivalence_relation`, which requires the functor to be a
-   *  regular invocable returning a boolean-testable result.
+   *  `std::equivalence_relation`, invoked through `const F&` for the same
+   *  reason as `StrictWeakOrder`: hash tables call the comparator through
+   *  a `const` reference.
    *
    *  @tparam F functor type.
    *  @tparam T key type.
    */
   template <typename F, typename T>
-  concept EqualityComparator = std::equivalence_relation<F, T, T>;
+  concept EqualityComparator = std::equivalence_relation<const F &, const T &, const T &>;
 
   /** @brief Concept for BST tree policies used by `DynSetTree`.
    *
@@ -187,7 +204,7 @@ namespace Aleph
       requires { typename C::Item_Type; } and
       requires(C & c, const C & cc, const typename C::Item_Type & val)
         {
-          { cc.size()     } -> std::convertible_to<size_t>;
+          { cc.size()     } -> std::convertible_to<std::size_t>;
           { cc.is_empty() } -> std::convertible_to<bool>;
           c.append(val);
         } and
