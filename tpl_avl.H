@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file tpl_avl.H
  *  @brief AVL tree implementation (height-balanced BST).
  *
@@ -48,718 +47,724 @@
  *  @author Leandro Rabindranath León
  */
 
-# ifndef TPL_AVL_H
-# define TPL_AVL_H
+#ifndef TPL_AVL_H
+#define TPL_AVL_H
 
-# include <algorithm>
-# include <ahFunction.H>
-# include <tpl_arrayStack.H>
-# include <avlNode.H>
-# include <tpl_binNodeUtils.H>
-# include <ah-concepts.H>
+#include <algorithm>
+#include <ahFunction.H>
+#include <tpl_arrayStack.H>
+#include <avlNode.H>
+#include <tpl_binNodeUtils.H>
+#include <ah-concepts.H>
 
-using namespace Aleph;
+namespace Aleph {
+/** @brief AVL balanced binary search tree.
 
-namespace Aleph
+    An AVL tree is a self-balancing binary search tree where the heights
+    of the two child subtrees of any node differ by at most one.
+    This guarantees O(log n) worst-case time complexity for search,
+    insertion, and deletion operations.
+
+    The maximum height of an AVL tree with n nodes is bounded by:
+    \f$ 1.4404 \lg{(n + 2)} - 0.3277 \f$
+
+    This implementation uses balance factors stored in each node to
+    track the height difference between subtrees. Rotations are performed
+    after insertions and deletions to maintain the AVL property.
+
+    @tparam NodeType Template for the node type (typically AvlNode).
+    @tparam Key The type of keys stored in the tree.
+    @tparam Compare Comparison functor for ordering keys.
+
+    @par Complexity:
+    - Search: O(log n) worst case
+    - Insert: O(log n) worst case
+    - Delete: O(log n) worst case
+    - Space: O(n)
+
+    @par Example:
+    @code
+    Avl_Tree<int> tree;
+    tree.insert(new Avl_Tree<int>::Node(42));
+    tree.insert(new Avl_Tree<int>::Node(17));
+    auto node = tree.search(42);
+    if (node != nullptr)
+      std::cout << "Found: " << node->get_key() << '\n';
+    @endcode
+
+    @note This is a low-level implementation that manages raw nodes.
+          For automatic memory management, use DynSetAvlTree instead.
+
+    @see Avl_Tree Convenient typedef with default node type.
+    @see DynSetAvlTree High-level wrapper with automatic memory management.
+    @ingroup Trees
+ */
+template <template <typename> class NodeType, typename Key, class Compare>
+  requires StrictWeakOrder<Compare, Key>
+class Gen_Avl_Tree
 {
-  /** @brief AVL balanced binary search tree.
+public:
+  using Node = NodeType<Key>;  /// The type of node
 
-      An AVL tree is a self-balancing binary search tree where the heights
-      of the two child subtrees of any node differ by at most one.
-      This guarantees O(log n) worst-case time complexity for search,
-      insertion, and deletion operations.
+private:
+  FixedStack<Node *> avl_stack;
+  Node head_node;
+  Node *head_ptr;
+  Node *&root;
+  Compare cmp;
 
-      The maximum height of an AVL tree with n nodes is bounded by:
-      \f$ 1.4404 \lg{(n + 2)} - 0.3277 \f$
-
-      This implementation uses balance factors stored in each node to
-      track the height difference between subtrees. Rotations are performed
-      after insertions and deletions to maintain the AVL property.
-
-      @tparam NodeType Template for the node type (typically AvlNode).
-      @tparam Key The type of keys stored in the tree.
-      @tparam Compare Comparison functor for ordering keys.
-
-      @par Complexity:
-      - Search: O(log n) worst case
-      - Insert: O(log n) worst case
-      - Delete: O(log n) worst case
-      - Space: O(n)
-
-      @par Example:
-      @code
-      Avl_Tree<int> tree;
-      tree.insert(new Avl_Tree<int>::Node(42));
-      tree.insert(new Avl_Tree<int>::Node(17));
-      auto node = tree.search(42);
-      if (node != nullptr)
-        std::cout << "Found: " << node->get_key() << '\n';
-      @endcode
-
-      @note This is a low-level implementation that manages raw nodes.
-            For automatic memory management, use DynSetAvlTree instead.
-
-      @see Avl_Tree Convenient typedef with default node type.
-      @see DynSetAvlTree High-level wrapper with automatic memory management.
-      @ingroup Trees
-   */
-  template <template <typename> class NodeType, typename Key, class Compare>
-    requires StrictWeakOrder<Compare, Key>
-  class Gen_Avl_Tree
+  bool avl_stack_at_base() noexcept
   {
-  public:
-    using Node = NodeType<Key>; /// The type of node
-
-  private:
-    FixedStack<Node *> avl_stack;
-    Node head_node;
-    Node *head_ptr;
-    Node *& root;
-    Compare cmp;
-
-    bool avl_stack_at_base() noexcept
-    {
-      return not avl_stack.is_empty()
-             and avl_stack.size() == 1
-             and avl_stack.base() == head_ptr;
-    }
-
-    void clean_avl_stack() noexcept
-    {
-      if (avl_stack.is_empty())
-        {
-          avl_stack.push(head_ptr);
-          return;
-        }
-
-      if (avl_stack.base() != head_ptr)
-        {
-          avl_stack.empty();
-          avl_stack.push(head_ptr);
-          return;
-        }
-
-      if (const size_t to_pop = avl_stack.size() - 1; to_pop > 0)
-        avl_stack.popn(static_cast<int>(to_pop));
-    }
-
-    Node * search_and_stack_avl(const Key & key,
-                                signed char & cmp_result) noexcept
-    {
-      assert(avl_stack_at_base());
-
-      Node *p = root;
-      Node *candidate = nullptr;  // Tracks potential duplicate when going right
-      size_t candidate_pos = 0;   // Stack size when candidate was set
-
-      do // descend searching for key and push the search path
-        {
-          __builtin_prefetch(LLINK(p));
-          __builtin_prefetch(RLINK(p));
-          avl_stack.push(p);
-          if (cmp(key, KEY(p)))  // key < KEY(p)
-            {
-              cmp_result = CmpLess;
-              p = LLINK(p);
-            }
-          else  // key >= KEY(p), could be equal
-            {
-              candidate = p;
-              candidate_pos = avl_stack.size();
-              cmp_result = CmpGreater;
-              p = RLINK(p);
-            }
-        }
-      while (p != Node::NullPtr);
-
-      // Optimistic duplicate check: when going right, key >= KEY(candidate)
-      // If also KEY(candidate) >= key (i.e., not less), then key == KEY(candidate)
-      if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
-        {
-          cmp_result = CmpEqual;
-          // Truncate stack: remove nodes pushed after candidate
-          const size_t to_pop =
-              avl_stack.size() > candidate_pos ?
-              avl_stack.size() - candidate_pos : 0;
-          if (to_pop > 0)
-            avl_stack.popn(static_cast<int>(to_pop));
-          return candidate;
-        }
-
-      return avl_stack.top();
-    }
-
-    Node * search_dup_and_stack_avl(const Key & key,
-                                    signed char & cmp_result) noexcept
-    {
-      assert(avl_stack_at_base());
-      cmp_result = CmpEqual;
-
-      Node *p = root;
-      do // descend searching for key and push the search path
-        {
-          __builtin_prefetch(LLINK(p));
-          __builtin_prefetch(RLINK(p));
-          avl_stack.push(p);
-          if (cmp(key, KEY(p))) // key < KEY(p)?
-            {
-              cmp_result = CmpLess;
-              p = LLINK(p);
-            }
-          else // key >= KEY(p)
-            {
-              cmp_result = CmpGreater;
-              p = RLINK(p);
-            }
-        }
-      while (p != Node::NullPtr);
-
-      return avl_stack.top();
-    }
-
-    [[gnu::always_inline]] static Node * rotateLeft(Node *p) noexcept
-    {
-      assert(DIFF(p) == 2);
-      assert(RLINK(p) != Node::NullPtr);
-
-      Node *q = RLINK(p);
-      RLINK(p) = LLINK(q);
-      LLINK(q) = p;
-
-      if (DIFF(q) == 0) // balance factors adjustment
-        { // this case happens during deletion
-          DIFF(q) = -1;
-          DIFF(p) = 1;
-        }
-      else
-        DIFF(q) = DIFF(p) = 0;
-
-      return q;
-    }
-
-    [[gnu::always_inline]] static Node * rotateRight(Node *p) noexcept
-    {
-      assert(DIFF(p) == -2);
-      assert(LLINK(p) != Node::NullPtr);
-
-      Node *q = LLINK(p);
-      LLINK(p) = RLINK(q);
-      RLINK(q) = p;
-
-      if (DIFF(q) == 0) // balance factors adjustment
-        { // this case happens during deletion
-          DIFF(q) = 1;
-          DIFF(p) = -1;
-        }
-      else
-        DIFF(q) = DIFF(p) = 0;
-
-      return q;
-    }
-
-    [[gnu::always_inline]] static Node * doubleRotateLeft(Node *p) noexcept
-    {
-      assert(DIFF(p) == 2 or DIFF(p) == -2);
-      assert(RLINK(p) != Node::NullPtr and LLINK(RLINK(p)) != Node::NullPtr);
-
-      Node *q = RLINK(p);
-      Node *r = LLINK(q);
-      RLINK(p) = LLINK(r);
-      LLINK(q) = RLINK(r);
-      LLINK(r) = p;
-      RLINK(r) = q;
-
-      unsigned char b; // logical height of r's left child
-      unsigned char c; // logical height of r's right child
-
-      // Determine logical heights of p, q and r
-      if (DIFF(r) == 1) // ==> c > b ==> c-b == 1
-        {
-          c = 1;
-          b = 0;
-        }
-      else if (DIFF(r) == -1) // ==> c < b ==> c-b = -1
-        {
-          c = 0;
-          b = 1;
-        }
-      else
-        c = b = 1;
-
-      // balance factors adjustment
-      DIFF(r) = 0;
-      DIFF(p) = b - 1; // logical height of p's left child is 1
-      DIFF(q) = 1 - c; // logical height of q's right child is 1
-
-      return r;
-    }
-
-    [[gnu::always_inline]] static Node * doubleRotateRight(Node *p) noexcept
-    {
-      assert(DIFF(p) == 2 or DIFF(p) == -2);
-      assert(LLINK(p) != Node::NullPtr and RLINK(LLINK(p)) != Node::NullPtr);
-
-      Node *q = LLINK(p);
-      Node *r = RLINK(q);
-      LLINK(p) = RLINK(r);
-      RLINK(q) = LLINK(r);
-      RLINK(r) = p;
-      LLINK(r) = q;
-
-      unsigned char b; // logical height of r's left child
-      unsigned char c; // logical height of r's right child
-
-      // determine logical heights of children of p, q and r
-      if (DIFF(r) == 1) // ==> c > b ==> c-b == 1
-        {
-          c = 1;
-          b = 0;
-        }
-      else if (DIFF(r) == -1) // ==> c < b ==> c-b == -1
-        {
-          c = 0;
-          b = 1;
-        }
-      else
-        c = b = 1;
-
-      // balance factors adjustment
-      DIFF(r) = 0;
-      DIFF(p) = 1 - c; // logical height of p's right child is 1
-      DIFF(q) = b - 1; // logical height of p's left child is 1
-
-      return r;
-    }
-
-    enum Rotation_Type
-    {
-      ROTATE_LEFT, ROTATE_RIGHT, DOUBLE_ROTATE_LEFT, DOUBLE_ROTATE_RIGHT
-    };
-
-    static Rotation_Type rotation_type(Node *p) noexcept
-    {
-      assert(DIFF(p) == 2 or DIFF(p) == -2);
-
-      Node *pc; // saves p's child
-      if (DIFF(p) == 2) // to the left
-        {
-          pc = RLINK(p);
-          if (DIFF(pc) == 1 or DIFF(pc) == 0)
-            return ROTATE_LEFT;
-
-          return DOUBLE_ROTATE_LEFT;
-        }
-
-      pc = LLINK(p);
-      if (DIFF(pc) == -1 or DIFF(pc) == 0)
-        return ROTATE_RIGHT;
-
-      return DOUBLE_ROTATE_RIGHT;
-    }
-
-    static Node * restore_avl(Node *p, Node *pp) noexcept
-    {
-      assert(LLINK(pp) == p or RLINK(pp) == p);
-      assert(DIFF(p) == -2 or DIFF(p) == 2);
-
-      Node **link = LLINK(pp) == p ? &LLINK(pp) : &RLINK(pp);
-      switch (rotation_type(p))
-        {
-        case ROTATE_LEFT: return *link = rotateLeft(p);
-        case ROTATE_RIGHT: return *link = rotateRight(p);
-        case DOUBLE_ROTATE_LEFT: return *link = doubleRotateLeft(p);
-        case DOUBLE_ROTATE_RIGHT: return *link = doubleRotateRight(p);
-
-        default:
-          AH_ERROR("Invalid rotation type");
-          break;
-        }
-
-      return nullptr;
-    }
-
-    void restore_avl_after_insertion(Node *p) noexcept
-    {
-      Node *pp = avl_stack.pop(); // parent of the inserted node
-      if (LLINK(pp) == p) // adjust parent's balance factor
-        --DIFF(pp);
-      else
-        ++DIFF(pp);
-
-      if (DIFF(pp) == 0)
-        { // in this case, the height of pp's ancestor does not increase
-          clean_avl_stack();
-          return;
-        }
-
-      if (avl_stack_at_base())
-        return; // pp is the root
-      do // search a node whose balance factor becomes 0
-        {
-          Node *gpp = avl_stack.pop(); // parent of pp
-          // update balance factors
-          if (LLINK(gpp) == pp) // AH_ERROR if (Compare () (key, KEY(gpp)))
-            --DIFF(gpp);
-          else
-            ++DIFF(gpp);
-
-          if (DIFF(gpp) == 0)
-            break; // no rebalancing is needed
-          if (DIFF(gpp) == -2 or DIFF(gpp) == 2) // AVL violation?
-            { // yes ==> rebalancing is required
-              Node *ggpp = avl_stack.pop();
-              restore_avl(gpp, ggpp);
-              break;
-            }
-
-          pp = gpp; // AH_ERROR; add
-        }
-      while (not avl_stack_at_base());
-
-      clean_avl_stack();
-    }
-
-    Node * swapWithSuccessor(Node *p, Node *& pp) noexcept
-    { // Reference to the stack top, since p will be swapped with its
-      // successor and the successor will take p's position in the stack
-      Node *& ref_to_stack_top = avl_stack.top();
-
-      Node *fSucc = p; // successor's parent
-      Node *succ = RLINK(p); // search starts from RLINK(p)
-
-      avl_stack.push(succ);
-
-      // find the successor while updating the stack
-      while (LLINK(succ) != Node::NullPtr) // descend as far left as possible
-        {
-          fSucc = succ;
-          succ = LLINK(succ);
-          avl_stack.push(succ);
-        }
-
-      // update old stack entry occupied by p: it is equivalent to swapping
-      // the old top (before searching succ) with the current one
-      ref_to_stack_top = succ;
-      avl_stack.top() = p;
-      if (LLINK(pp) == p) // update pp's new child (successor)
-        LLINK(pp) = succ;
-      else
-        RLINK(pp) = succ;
-
-      LLINK(succ) = LLINK(p); // swap left subtrees
-      LLINK(p) = Node::NullPtr;
-      if (RLINK(p) == succ) // update right subtrees
-        { // successor is exactly p's right child
-          RLINK(p) = RLINK(succ);
-          RLINK(succ) = p;
-          pp = succ;
-        }
-      else
-        { // successor is the leftmost descendant of RLINK(p)
-          Node *succr = RLINK(succ);
-          RLINK(succ) = RLINK(p);
-          LLINK(fSucc) = p;
-          RLINK(p) = succr;
-          pp = fSucc;
-        }
-
-      DIFF(succ) = DIFF(p); // swap balance factors
-
-      return succ;
-    }
-
-    void restore_avl_after_deletion(bool left_deficit) noexcept
-    {
-      Node *pp = avl_stack.top(1); // parent of p
-      Node *ppp = avl_stack.popn(3); // remove from stack p, parent and grandparent
-      while (true)
-        { // update balance factors
-          if (left_deficit) // AH_ERROR Compare () (key, KEY(pp)))
-            ++DIFF(pp);
-          else
-            --DIFF(pp);
-
-          if (DIFF(pp) == -2 or DIFF(pp) == 2) // still valid?
-            pp = restore_avl(pp, ppp); // no
-
-          if (DIFF(pp) != 0 or pp == root)
-            break; // global tree height has not changed ==> stop
-
-          left_deficit = LLINK(ppp) == pp;
-          pp = ppp; // advance to next ancestor
-          ppp = avl_stack.pop();
-        }
-
-      clean_avl_stack();
-    }
-
-  public:
-    using key_type = Key; /// The key type
-
-    /// Return a reference to the comparison criteria
-    [[nodiscard]] constexpr Compare &key_comp() noexcept { return cmp; }
-
-    /// \overload key_comp()
-    [[nodiscard]] constexpr Compare &get_compare() noexcept { return key_comp(); }
-
-    Gen_Avl_Tree(Compare _cmp = Compare()) noexcept
-      : avl_stack(Node::MaxHeight), head_ptr(&head_node),
-        root(RLINK(head_ptr)), cmp(_cmp)
-    {
-      avl_stack.push(head_ptr);
-    }
-
-    /** Swap in constant time all the items of `this` with the items of
-        `tree`.
-
-        @param[in] tree the tree to swap with this
-    */
-    void swap(Gen_Avl_Tree & tree) noexcept
-    {
-      std::swap(root, tree.root);
-      std::swap(cmp, tree.cmp);
-    }
-
-    virtual ~Gen_Avl_Tree() noexcept { assert(avl_stack_at_base()); }
-
-    /// Return a modifiable reference to tree's root
-    [[nodiscard]] constexpr Node *&getRoot() noexcept { return root; }
-
-    /// Return a modifiable reference to tree's root
-    [[nodiscard]] constexpr Node * getRoot() const noexcept { return root; }
-
-    /// Search a node containing `key`; if found, then a pointer to the
-    /// node containing it is returned; otherwise `nullptr` is returned
-    [[nodiscard]] Node * search(const Key & key) const noexcept
-    {
-      Node *p = root;
-      while (p != Node::NullPtr)
-        {
-          __builtin_prefetch(LLINK(p));
-          __builtin_prefetch(RLINK(p));
-          if (cmp(key, KEY(p)))
+    return not avl_stack.is_empty() and avl_stack.size() == 1 and avl_stack.base() == head_ptr;
+  }
+
+  void clean_avl_stack() noexcept
+  {
+    if (avl_stack.is_empty())
+      {
+        avl_stack.push(head_ptr);
+        return;
+      }
+
+    if (avl_stack.base() != head_ptr)
+      {
+        avl_stack.empty();
+        avl_stack.push(head_ptr);
+        return;
+      }
+
+    if (const size_t to_pop = avl_stack.size() - 1; to_pop > 0)
+      avl_stack.popn(static_cast<int>(to_pop));
+  }
+
+  Node *search_and_stack_avl(const Key &key, signed char &cmp_result) noexcept
+  {
+    assert(avl_stack_at_base());
+
+    Node *p = root;
+    Node *candidate = nullptr;  // Tracks potential duplicate when going right
+    size_t candidate_pos = 0;   // Stack size when candidate was set
+
+    do  // descend searching for key and push the search path
+      {
+        __builtin_prefetch(LLINK(p));
+        __builtin_prefetch(RLINK(p));
+        avl_stack.push(p);
+        if (cmp(key, KEY(p)))  // key < KEY(p)
+          {
+            cmp_result = CmpLess;
             p = LLINK(p);
-          else if (cmp(KEY(p), key))
+          }
+        else  // key >= KEY(p), could be equal
+          {
+            candidate = p;
+            candidate_pos = avl_stack.size();
+            cmp_result = CmpGreater;
             p = RLINK(p);
-          else
-            return p;
-        }
-      return nullptr;
-    }
+          }
+    } while (p != Node::NullPtr);
 
-    /** Insert the node pointed by `p` in the tree.
+    // Optimistic duplicate check: when going right, key >= KEY(candidate)
+    // If also KEY(candidate) >= key (i.e., not less), then key == KEY(candidate)
+    if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+      {
+        cmp_result = CmpEqual;
+        // Truncate stack: remove nodes pushed after candidate
+        const size_t to_pop = avl_stack.size() > candidate_pos ? avl_stack.size() - candidate_pos : 0;
+        if (to_pop > 0)
+          avl_stack.popn(static_cast<int>(to_pop));
+        return candidate;
+      }
 
-        `insert(p)' inserts the node `p` into AVL tree. If `KEY(p)` is
-        found in the tree, then no insertion is done and `nullptr` is
-        returned. Otherwise, `p` is inserted and this same value is
-        returned.
+    return avl_stack.top();
+  }
 
-        @param[in] p the node to be inserted
-        @return a the pointer `p` if `KEY(p)` is not found in the tree,
-        `nullptr` otherwise.
-    */
-    [[nodiscard]] Node * insert(Node *p) noexcept
-    {
-      if (root == Node::NullPtr)
-        return root = p;
+  Node *search_dup_and_stack_avl(const Key &key, signed char &cmp_result) noexcept
+  {
+    assert(avl_stack_at_base());
+    cmp_result = CmpEqual;
 
-      signed char cmp_result = CmpEqual;
-      Node *pp = search_and_stack_avl(KEY(p), cmp_result);
-      if (cmp_result == CmpLess)
-        LLINK(pp) = p;
-      else if (cmp_result == CmpGreater)
-        RLINK(pp) = p;
-      else
-        { // duplicated key
-          clean_avl_stack();
-          return nullptr;
-        }
+    Node *p = root;
+    do  // descend searching for key and push the search path
+      {
+        __builtin_prefetch(LLINK(p));
+        __builtin_prefetch(RLINK(p));
+        avl_stack.push(p);
+        if (cmp(key, KEY(p)))  // key < KEY(p)?
+          {
+            cmp_result = CmpLess;
+            p = LLINK(p);
+          }
+        else  // key >= KEY(p)
+          {
+            cmp_result = CmpGreater;
+            p = RLINK(p);
+          }
+    } while (p != Node::NullPtr);
 
-      restore_avl_after_insertion(p);
+    return avl_stack.top();
+  }
 
-      return p;
-    }
+  [[gnu::always_inline]] static Node *rotateLeft(Node *p) noexcept
+  {
+    assert(DIFF(p) == 2);
+    assert(RLINK(p) != Node::NullPtr);
 
-    /** Search or insert a key.
+    Node *q = RLINK(p);
+    RLINK(p) = LLINK(q);
+    LLINK(q) = p;
 
-        `search_or_insert(p)` searches in the tree a node containing
-        `KEY(p)`. If this is found, then a pointer to the node in the
-        tree is returned. Otherwise, `p` is inserted and its value
-        returned,
+    if (DIFF(q) == 0)  // balance factors adjustment
+      {                // this case happens during deletion
+        DIFF(q) = -1;
+        DIFF(p) = 1;
+      }
+    else
+      DIFF(q) = DIFF(p) = 0;
 
-        This method is very useful when it is required to search and
-        eventually to insert,
+    return q;
+  }
 
-        @param[in] p the node whose key must be searched and
-        eventually inserted,
-        @return if `p` is inserted, the value is returned;
-        otherwise, a pointer to the node containing `KEY(p)` is returned.
-     */
-    [[nodiscard]] Node * search_or_insert(Node *p) noexcept
-    {
-      if (root == Node::NullPtr)
-        return root = p;
+  [[gnu::always_inline]] static Node *rotateRight(Node *p) noexcept
+  {
+    assert(DIFF(p) == -2);
+    assert(LLINK(p) != Node::NullPtr);
 
-      signed char cmp_result = CmpEqual;
-      Node *pp = search_and_stack_avl(KEY(p), cmp_result);
-      if (cmp_result == CmpLess)
-        LLINK(pp) = p;
-      else if (cmp_result == CmpGreater)
-        RLINK(pp) = p;
-      else
-        { // duplicated key
-          clean_avl_stack();
-          return pp;
-        }
+    Node *q = LLINK(p);
+    LLINK(p) = RLINK(q);
+    RLINK(q) = p;
 
-      restore_avl_after_insertion(p);
+    if (DIFF(q) == 0)  // balance factors adjustment
+      {                // this case happens during deletion
+        DIFF(q) = 1;
+        DIFF(p) = -1;
+      }
+    else
+      DIFF(q) = DIFF(p) = 0;
 
-      return p;
-    }
+    return q;
+  }
 
-    /// Insert the node `p` without testing for key duplicity
-    [[nodiscard]] Node * insert_dup(Node *p) noexcept
-    {
-      if (root == Node::NullPtr)
-        return root = p;
+  [[gnu::always_inline]] static Node *doubleRotateLeft(Node *p) noexcept
+  {
+    assert(DIFF(p) == 2 or DIFF(p) == -2);
+    assert(RLINK(p) != Node::NullPtr and LLINK(RLINK(p)) != Node::NullPtr);
 
-      signed char cmp_result = CmpEqual;
-      Node *pp = search_dup_and_stack_avl(KEY(p), cmp_result);
-      if (cmp_result == CmpLess)
-        LLINK(pp) = p;
-      else
-        RLINK(pp) = p;
+    Node *q = RLINK(p);
+    Node *r = LLINK(q);
+    RLINK(p) = LLINK(r);
+    LLINK(q) = RLINK(r);
+    LLINK(r) = p;
+    RLINK(r) = q;
 
-      restore_avl_after_insertion(p);
+    unsigned char b;  // logical height of r's left child
+    unsigned char c;  // logical height of r's right child
 
-      return p;
-    }
+    // Determine logical heights of p, q and r
+    if (DIFF(r) == 1)  // ==> c > b ==> c-b == 1
+      {
+        c = 1;
+        b = 0;
+      }
+    else if (DIFF(r) == -1)  // ==> c < b ==> c-b = -1
+      {
+        c = 0;
+        b = 1;
+      }
+    else
+      c = b = 1;
 
-    /// Remove from an AVL tree the node containing key `key`.
-    /// Returns the removed node if the key is found; `nullptr` otherwise.
-    [[nodiscard]] Node * remove(const Key & key) noexcept
-    {
-      if (root == Node::NullPtr)
-        return nullptr;
+    // balance factors adjustment
+    DIFF(r) = 0;
+    DIFF(p) = b - 1;  // logical height of p's left child is 1
+    DIFF(q) = 1 - c;  // logical height of q's right child is 1
 
-      signed char cmp_result = CmpEqual;
-      Node *p = search_and_stack_avl(key, cmp_result);
-      if (cmp_result != CmpEqual)
-        { // key was not found
-          clean_avl_stack();
-          return nullptr;
-        }
+    return r;
+  }
 
-      Node *pp = avl_stack.top(1); // get parent of p
-      bool left_deficit; // AH_ERROR Key removed_key = KEY(p);
-      while (true)
-        {
-          left_deficit = LLINK(pp) == p;
-          if (LLINK(p) == Node::NullPtr) // missing left child?
-            { // yes: link pp to p's child
-              if (LLINK(pp) == p)
-                LLINK(pp) = RLINK(p);
-              else
-                RLINK(pp) = RLINK(p);
-              break;
-            }
+  [[gnu::always_inline]] static Node *doubleRotateRight(Node *p) noexcept
+  {
+    assert(DIFF(p) == 2 or DIFF(p) == -2);
+    assert(LLINK(p) != Node::NullPtr and RLINK(LLINK(p)) != Node::NullPtr);
 
-          if (RLINK(p) == Node::NullPtr) // missing right child?
-            { // yes: link pp to p's child
-              if (LLINK(pp) == p)
-                LLINK(pp) = LLINK(p);
-              else
-                RLINK(pp) = LLINK(p);
-              break;
-            }
+    Node *q = LLINK(p);
+    Node *r = RLINK(q);
+    LLINK(p) = RLINK(r);
+    RLINK(q) = LLINK(r);
+    RLINK(r) = p;
+    LLINK(r) = q;
 
-          // here p is a full node ==> swap with successor
-          swapWithSuccessor(p, pp);
-          //    removed_key = KEY(succ); // AH_ERROR remove
-        }
+    unsigned char b;  // logical height of r's left child
+    unsigned char c;  // logical height of r's right child
 
-      p->reset();
+    // determine logical heights of children of p, q and r
+    if (DIFF(r) == 1)  // ==> c > b ==> c-b == 1
+      {
+        c = 1;
+        b = 0;
+      }
+    else if (DIFF(r) == -1)  // ==> c < b ==> c-b == -1
+      {
+        c = 0;
+        b = 1;
+      }
+    else
+      c = b = 1;
 
-      if (pp == head_ptr) // check if the root was removed
-        { // balance factors unchanged ==> AVL condition is not violated
-          clean_avl_stack();
+    // balance factors adjustment
+    DIFF(r) = 0;
+    DIFF(p) = 1 - c;  // logical height of p's right child is 1
+    DIFF(q) = b - 1;  // logical height of p's left child is 1
+
+    return r;
+  }
+
+  enum Rotation_Type
+  {
+    ROTATE_LEFT,
+    ROTATE_RIGHT,
+    DOUBLE_ROTATE_LEFT,
+    DOUBLE_ROTATE_RIGHT
+  };
+
+  static Rotation_Type rotation_type(Node *p) noexcept
+  {
+    assert(DIFF(p) == 2 or DIFF(p) == -2);
+
+    Node *pc;          // saves p's child
+    if (DIFF(p) == 2)  // to the left
+      {
+        pc = RLINK(p);
+        if (DIFF(pc) == 1 or DIFF(pc) == 0)
+          return ROTATE_LEFT;
+
+        return DOUBLE_ROTATE_LEFT;
+      }
+
+    pc = LLINK(p);
+    if (DIFF(pc) == -1 or DIFF(pc) == 0)
+      return ROTATE_RIGHT;
+
+    return DOUBLE_ROTATE_RIGHT;
+  }
+
+  static Node *restore_avl(Node *p, Node *pp) noexcept
+  {
+    assert(LLINK(pp) == p or RLINK(pp) == p);
+    assert(DIFF(p) == -2 or DIFF(p) == 2);
+
+    Node **link = LLINK(pp) == p ? &LLINK(pp) : &RLINK(pp);
+    switch (rotation_type(p))
+      {
+      case ROTATE_LEFT:
+        return *link = rotateLeft(p);
+      case ROTATE_RIGHT:
+        return *link = rotateRight(p);
+      case DOUBLE_ROTATE_LEFT:
+        return *link = doubleRotateLeft(p);
+      case DOUBLE_ROTATE_RIGHT:
+        return *link = doubleRotateRight(p);
+
+      default:
+        AH_ERROR("Invalid rotation type");
+        break;
+      }
+
+    return nullptr;
+  }
+
+  void restore_avl_after_insertion(Node *p) noexcept
+  {
+    Node *pp = avl_stack.pop();  // parent of the inserted node
+    if (LLINK(pp) == p)          // adjust parent's balance factor
+      --DIFF(pp);
+    else
+      ++DIFF(pp);
+
+    if (DIFF(pp) == 0)
+      {  // in this case, the height of pp's ancestor does not increase
+        clean_avl_stack();
+        return;
+      }
+
+    if (avl_stack_at_base())
+      return;  // pp is the root
+    do         // search a node whose balance factor becomes 0
+      {
+        Node *gpp = avl_stack.pop();  // parent of pp
+        // update balance factors
+        if (LLINK(gpp) == pp)  // AH_ERROR if (Compare () (key, KEY(gpp)))
+          --DIFF(gpp);
+        else
+          ++DIFF(gpp);
+
+        if (DIFF(gpp) == 0)
+          break;                                // no rebalancing is needed
+        if (DIFF(gpp) == -2 or DIFF(gpp) == 2)  // AVL violation?
+          {                                     // yes ==> rebalancing is required
+            Node *ggpp = avl_stack.pop();
+            restore_avl(gpp, ggpp);
+            break;
+          }
+
+        pp = gpp;  // AH_ERROR; add
+    } while (not avl_stack_at_base());
+
+    clean_avl_stack();
+  }
+
+  Node *swapWithSuccessor(Node *p, Node *&pp) noexcept
+  {  // Reference to the stack top, since p will be swapped with its
+    // successor and the successor will take p's position in the stack
+    Node *&ref_to_stack_top = avl_stack.top();
+
+    Node *fSucc = p;        // successor's parent
+    Node *succ = RLINK(p);  // search starts from RLINK(p)
+
+    avl_stack.push(succ);
+
+    // find the successor while updating the stack
+    while (LLINK(succ) != Node::NullPtr)  // descend as far left as possible
+      {
+        fSucc = succ;
+        succ = LLINK(succ);
+        avl_stack.push(succ);
+      }
+
+    // update old stack entry occupied by p: it is equivalent to swapping
+    // the old top (before searching succ) with the current one
+    ref_to_stack_top = succ;
+    avl_stack.top() = p;
+    if (LLINK(pp) == p)  // update pp's new child (successor)
+      LLINK(pp) = succ;
+    else
+      RLINK(pp) = succ;
+
+    LLINK(succ) = LLINK(p);  // swap left subtrees
+    LLINK(p) = Node::NullPtr;
+    if (RLINK(p) == succ)  // update right subtrees
+      {                    // successor is exactly p's right child
+        RLINK(p) = RLINK(succ);
+        RLINK(succ) = p;
+        pp = succ;
+      }
+    else
+      {  // successor is the leftmost descendant of RLINK(p)
+        Node *succr = RLINK(succ);
+        RLINK(succ) = RLINK(p);
+        LLINK(fSucc) = p;
+        RLINK(p) = succr;
+        pp = fSucc;
+      }
+
+    DIFF(succ) = DIFF(p);  // swap balance factors
+
+    return succ;
+  }
+
+  void restore_avl_after_deletion(bool left_deficit) noexcept
+  {
+    Node *pp = avl_stack.top(1);    // parent of p
+    Node *ppp = avl_stack.popn(3);  // remove from stack p, parent and grandparent
+    while (true)
+      {                    // update balance factors
+        if (left_deficit)  // AH_ERROR Compare () (key, KEY(pp)))
+          ++DIFF(pp);
+        else
+          --DIFF(pp);
+
+        if (DIFF(pp) == -2 or DIFF(pp) == 2)  // still valid?
+          pp = restore_avl(pp, ppp);          // no
+
+        if (DIFF(pp) != 0 or pp == root)
+          break;  // global tree height has not changed ==> stop
+
+        left_deficit = LLINK(ppp) == pp;
+        pp = ppp;  // advance to next ancestor
+        ppp = avl_stack.pop();
+      }
+
+    clean_avl_stack();
+  }
+
+public:
+  using key_type = Key;  /// The key type
+
+  /// Return a reference to the comparison criteria
+  [[nodiscard]] constexpr Compare &key_comp() noexcept
+  {
+    return cmp;
+  }
+
+  /// \overload key_comp()
+  [[nodiscard]] constexpr Compare &get_compare() noexcept
+  {
+    return key_comp();
+  }
+
+  Gen_Avl_Tree(Compare _cmp = Compare()) noexcept
+    : avl_stack(Node::MaxHeight), head_ptr(&head_node), root(RLINK(head_ptr)), cmp(_cmp)
+  {
+    avl_stack.push(head_ptr);
+  }
+
+  /** Swap in constant time all the items of `this` with the items of
+      `tree`.
+
+      @param[in] tree the tree to swap with this
+  */
+  void swap(Gen_Avl_Tree &tree) noexcept
+  {
+    std::swap(root, tree.root);
+    std::swap(cmp, tree.cmp);
+  }
+
+  virtual ~Gen_Avl_Tree() noexcept
+  {
+    assert(avl_stack_at_base());
+  }
+
+  /// Return a modifiable reference to tree's root
+  [[nodiscard]] constexpr Node *&getRoot() noexcept
+  {
+    return root;
+  }
+
+  /// Return a modifiable reference to tree's root
+  [[nodiscard]] constexpr Node *getRoot() const noexcept
+  {
+    return root;
+  }
+
+  /// Search a node containing `key`; if found, then a pointer to the
+  /// node containing it is returned; otherwise `nullptr` is returned
+  [[nodiscard]] Node *search(const Key &key) const noexcept
+  {
+    Node *p = root;
+    while (p != Node::NullPtr)
+      {
+        __builtin_prefetch(LLINK(p));
+        __builtin_prefetch(RLINK(p));
+        if (cmp(key, KEY(p)))
+          p = LLINK(p);
+        else if (cmp(KEY(p), key))
+          p = RLINK(p);
+        else
           return p;
-        }
+      }
+    return nullptr;
+  }
 
-      restore_avl_after_deletion(left_deficit);
+  /** Insert the node pointed by `p` in the tree.
 
-      return p;
-    }
+      `insert(p)' inserts the node `p` into AVL tree. If `KEY(p)` is
+      found in the tree, then no insertion is done and `nullptr` is
+      returned. Otherwise, `p` is inserted and this same value is
+      returned.
 
-    [[nodiscard]] bool verify() const noexcept
-    {
-      return is_avl(root);
-    }
-
-    /** Iterator over the nodes.
-
-        This class allows traversing the tree nodes in sorted order
-        according to the comparison criterion specified at tree
-        instantiation.
-
-       @ingroup Trees
-    */
-    struct Iterator : public BinNodeInfixIterator<Node>
-    {
-      /// Default constructor creates an "end" iterator
-      Iterator() noexcept = default;
-
-      Iterator(Gen_Avl_Tree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
-
-      Iterator(const Gen_Avl_Tree & tree)
-        : BinNodeInfixIterator<Node>(tree.getRoot()) {}
-    };
-  };
-
-
-  /** AVL binary search tree with nodes without virtual destructor.
-
-      An AVL binary search tree is a binary search tree whose height is
-      bounded by \f$O(\lg n)\f$ and whose update operations are bounded
-      in time by inspecting \f$O(\lg n)\f$ nodes.
-
-      This class uses nodes without a virtual destructor.
-
-      @param Key the key type stored in the tree nodes.
-      @param Compare key comparison class; by default, this is the
-      less-than relational operator for type Key.
-      @see Avl_Tree_Vtl
-      @ingroup Trees
-   */
-  template <typename Key, class Compare = Aleph::less<Key>>
-    requires StrictWeakOrder<Compare, Key>
-  struct Avl_Tree : public Gen_Avl_Tree<AvlNode, Key, Compare>
+      @param[in] p the node to be inserted
+      @return a the pointer `p` if `KEY(p)` is not found in the tree,
+      `nullptr` otherwise.
+  */
+  [[nodiscard]] Node *insert(Node *p) noexcept
   {
-    using Base = Gen_Avl_Tree<AvlNode, Key, Compare>;
-    using Base::Base;
-  };
+    if (root == Node::NullPtr)
+      return root = p;
 
+    signed char cmp_result = CmpEqual;
+    Node *pp = search_and_stack_avl(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
+      LLINK(pp) = p;
+    else if (cmp_result == CmpGreater)
+      RLINK(pp) = p;
+    else
+      {  // duplicated key
+        clean_avl_stack();
+        return nullptr;
+      }
 
-  /** AVL binary search tree with virtual destructor in its nodes.
+    restore_avl_after_insertion(p);
 
-      An AVL binary search tree is a binary search tree whose height is
-      bounded by \f$O(\lg n)\f$ and whose update operations are bounded
-      in time by inspecting \f$O(\lg n)\f$ nodes.
+    return p;
+  }
 
-      This class uses nodes with a virtual destructor.
+  /** Search or insert a key.
 
-      @param Key the key type stored in the tree nodes.
-      @param Compare key comparison class; by default, this is the
-      less-than relational operator for type Key.
-      @see Avl_Tree
-      @ingroup Trees
+      `search_or_insert(p)` searches in the tree a node containing
+      `KEY(p)`. If this is found, then a pointer to the node in the
+      tree is returned. Otherwise, `p` is inserted and its value
+      returned,
+
+      This method is very useful when it is required to search and
+      eventually to insert,
+
+      @param[in] p the node whose key must be searched and
+      eventually inserted,
+      @return if `p` is inserted, the value is returned;
+      otherwise, a pointer to the node containing `KEY(p)` is returned.
    */
-  template <typename Key, class Compare = Aleph::less<Key>>
-    requires StrictWeakOrder<Compare, Key>
-  struct Avl_Tree_Vtl : public Gen_Avl_Tree<AvlNodeVtl, Key, Compare>
+  [[nodiscard]] Node *search_or_insert(Node *p) noexcept
   {
-    using Base = Gen_Avl_Tree<AvlNodeVtl, Key, Compare>;
-    using Base::Base;
+    if (root == Node::NullPtr)
+      return root = p;
+
+    signed char cmp_result = CmpEqual;
+    Node *pp = search_and_stack_avl(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
+      LLINK(pp) = p;
+    else if (cmp_result == CmpGreater)
+      RLINK(pp) = p;
+    else
+      {  // duplicated key
+        clean_avl_stack();
+        return pp;
+      }
+
+    restore_avl_after_insertion(p);
+
+    return p;
+  }
+
+  /// Insert the node `p` without testing for key duplicity
+  [[nodiscard]] Node *insert_dup(Node *p) noexcept
+  {
+    if (root == Node::NullPtr)
+      return root = p;
+
+    signed char cmp_result = CmpEqual;
+    Node *pp = search_dup_and_stack_avl(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
+      LLINK(pp) = p;
+    else
+      RLINK(pp) = p;
+
+    restore_avl_after_insertion(p);
+
+    return p;
+  }
+
+  /// Remove from an AVL tree the node containing key `key`.
+  /// Returns the removed node if the key is found; `nullptr` otherwise.
+  [[nodiscard]] Node *remove(const Key &key) noexcept
+  {
+    if (root == Node::NullPtr)
+      return nullptr;
+
+    signed char cmp_result = CmpEqual;
+    Node *p = search_and_stack_avl(key, cmp_result);
+    if (cmp_result != CmpEqual)
+      {  // key was not found
+        clean_avl_stack();
+        return nullptr;
+      }
+
+    Node *pp = avl_stack.top(1);  // get parent of p
+    bool left_deficit;            // AH_ERROR Key removed_key = KEY(p);
+    while (true)
+      {
+        left_deficit = LLINK(pp) == p;
+        if (LLINK(p) == Node::NullPtr)  // missing left child?
+          {                             // yes: link pp to p's child
+            if (LLINK(pp) == p)
+              LLINK(pp) = RLINK(p);
+            else
+              RLINK(pp) = RLINK(p);
+            break;
+          }
+
+        if (RLINK(p) == Node::NullPtr)  // missing right child?
+          {                             // yes: link pp to p's child
+            if (LLINK(pp) == p)
+              LLINK(pp) = LLINK(p);
+            else
+              RLINK(pp) = LLINK(p);
+            break;
+          }
+
+        // here p is a full node ==> swap with successor
+        swapWithSuccessor(p, pp);
+        //    removed_key = KEY(succ); // AH_ERROR remove
+      }
+
+    p->reset();
+
+    if (pp == head_ptr)  // check if the root was removed
+      {                  // balance factors unchanged ==> AVL condition is not violated
+        clean_avl_stack();
+        return p;
+      }
+
+    restore_avl_after_deletion(left_deficit);
+
+    return p;
+  }
+
+  [[nodiscard]] bool verify() const noexcept
+  {
+    return is_avl(root);
+  }
+
+  /** Iterator over the nodes.
+
+      This class allows traversing the tree nodes in sorted order
+      according to the comparison criterion specified at tree
+      instantiation.
+
+     @ingroup Trees
+  */
+  struct Iterator : public BinNodeInfixIterator<Node>
+  {
+    /// Default constructor creates an "end" iterator
+    Iterator() noexcept = default;
+
+    Iterator(Gen_Avl_Tree &t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
+
+    Iterator(const Gen_Avl_Tree &tree) : BinNodeInfixIterator<Node>(tree.getRoot()) {}
   };
-} // end namespace Aleph
-# endif // TPL_AVL_H
+};
+
+/** @brief AVL binary search tree with nodes without a virtual destructor.
+
+    An AVL binary search tree is a binary search tree whose height is
+    bounded by \f$O(\lg n)\f$ and whose update operations are bounded
+    in time by inspecting \f$O(\lg n)\f$ nodes.
+
+    This class uses nodes without a virtual destructor.
+
+    @tparam Key the key type stored in the tree nodes.
+    @tparam Compare key comparison class; by default, this is the
+    less-than relational operator for type Key.
+    @see Avl_Tree_Vtl
+    @ingroup Trees
+ */
+template <typename Key, class Compare = Aleph::less<Key>>
+  requires StrictWeakOrder<Compare, Key>
+struct Avl_Tree : public Gen_Avl_Tree<AvlNode, Key, Compare>
+{
+  using Base = Gen_Avl_Tree<AvlNode, Key, Compare>;
+  using Base::Base;
+};
+
+/** @brief AVL binary search tree with nodes with a virtual destructor.
+
+    An AVL binary search tree is a binary search tree whose height is
+    bounded by \f$O(\lg n)\f$ and whose update operations are bounded
+    in time by inspecting \f$O(\lg n)\f$ nodes.
+
+    This class uses nodes with a virtual destructor.
+
+    @tparam Key the key type stored in the tree nodes.
+    @tparam Compare key comparison class; by default, this is the
+    less-than relational operator for type Key.
+    @see Avl_Tree
+    @ingroup Trees
+ */
+template <typename Key, class Compare = Aleph::less<Key>>
+  requires StrictWeakOrder<Compare, Key>
+struct Avl_Tree_Vtl : public Gen_Avl_Tree<AvlNodeVtl, Key, Compare>
+{
+  using Base = Gen_Avl_Tree<AvlNodeVtl, Key, Compare>;
+  using Base::Base;
+};
+}  // end namespace Aleph
+#endif  // TPL_AVL_H

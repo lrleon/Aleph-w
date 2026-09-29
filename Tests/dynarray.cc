@@ -40,6 +40,9 @@
 #include <tpl_dynArray.H>
 #include <ah-unique.H>
 
+#include <new>
+#include <stdexcept>
+
 using namespace Aleph;
 using namespace std;
 
@@ -161,6 +164,56 @@ TEST(DynArrayIterator, get_it_position)
   EXPECT_THROW(carr.get_it(6), std::out_of_range);
 }
 
+TEST(DynArrayIterator, IsLastRequiresCurrentItem)
+{
+  DynArray<int>::Iterator singular;
+  EXPECT_FALSE(singular.is_last());
+  singular.reset_last();
+  EXPECT_FALSE(singular.has_curr());
+  EXPECT_FALSE(singular.is_last());
+
+  DynArray<int> empty;
+  auto it = empty.get_it();
+  it.reset_last();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_FALSE(it.is_last());
+
+  empty.append(7);
+  it.reset_last();
+  EXPECT_TRUE(it.has_curr());
+  EXPECT_TRUE(it.is_last());
+  it.end();
+  EXPECT_FALSE(it.is_last());
+}
+
+TEST(DynArrayIterator, CheckedAccessRejectsInvalidPositions)
+{
+  DynArray<int>::Iterator singular;
+  EXPECT_THROW(singular.get_curr(), std::overflow_error);
+  EXPECT_THROW(singular.next(), std::overflow_error);
+  singular.reset_last();
+  EXPECT_THROW(singular.get_curr(), std::underflow_error);
+  EXPECT_THROW(singular.next(), std::overflow_error);
+
+  DynArray<int> arr;
+  auto it = arr.get_it();
+  EXPECT_THROW(it.get_curr(), std::overflow_error);
+  EXPECT_THROW(it.next(), std::overflow_error);
+  it.reset_last();
+  EXPECT_THROW(it.get_curr(), std::underflow_error);
+
+  arr.append(42);
+  it.reset_first();
+  EXPECT_EQ(it.get_curr(), 42);
+  it.next();
+  EXPECT_THROW(it.get_curr(), std::overflow_error);
+  EXPECT_THROW(it.next(), std::overflow_error);
+  it.set_pos(-1);
+  EXPECT_THROW(it.get_curr(), std::underflow_error);
+  it.next();
+  EXPECT_EQ(it.get_curr(), 42);
+}
+
 TEST(DynArrayReserve, adjust_and_cut)
 {
   DynArray<int> arr;
@@ -200,6 +253,103 @@ TEST(DynArrayReserve, reserve_touch_consistency)
   EXPECT_EQ(arr.size(), 21u);
   arr.cut(6);
   EXPECT_EQ(arr.size(), 6u);
+}
+
+// Default constructor that throws std::bad_alloc once `budget` constructions
+// have succeeded. A negative budget never fails. Used to make a block
+// allocation fail at a chosen point inside DynArray::reserve().
+struct Fails_After_Budget
+{
+  static inline long budget = -1;
+  int value = 0;
+
+  Fails_After_Budget()
+  {
+    if (budget == 0)
+      throw std::bad_alloc();
+    if (budget > 0)
+      --budget;
+  }
+};
+
+// Restores the unlimited budget even if an ASSERT leaves the test early.
+struct Budget_Guard
+{
+  ~Budget_Guard() { Fails_After_Budget::budget = -1; }
+};
+
+TEST(DynArrayReserve, reserve_fills_missing_blocks_of_existing_segment)
+{
+  DynArray<int> arr(4, 2, 2);  // segments of 4 blocks of 4 entries
+  arr.touch(0) = 7;            // segment 0 exists, but only its block 0
+  ASSERT_EQ(arr.get_num_blocks(), 1u);
+
+  arr.reserve(0, 15);  // must allocate blocks 1..3 of the existing segment
+  EXPECT_EQ(arr.get_num_blocks(), 4u);
+  EXPECT_EQ(arr.size(), 16u);
+  for (size_t i = 0; i <= 15; ++i)
+    EXPECT_TRUE(arr.exist(i)) << "entry " << i;
+  EXPECT_EQ(arr.access(0), 7);  // existing data is preserved
+}
+
+TEST(DynArrayReserve, failed_reserve_releases_only_what_it_allocated)
+{
+  Budget_Guard guard;
+  // 16 segments of 4 blocks of 4 entries: [0, 47] spans segments 0, 1 and 2.
+  DynArray<Fails_After_Budget> arr(4, 2, 2);
+  const size_t block = arr.get_block_size();
+  ASSERT_EQ(block, 4u);
+
+  arr.touch(0);  // segment 0 and its block 0 exist before the reserve
+  ASSERT_EQ(arr.get_num_blocks(), 1u);
+
+  // Blocks 1..3 of segment 0 and block 0 of segment 1 succeed; block 1 of
+  // segment 1 fails, after a whole new segment has been allocated.
+  Fails_After_Budget::budget = static_cast<long>(4 * block);
+  EXPECT_THROW(arr.reserve(0, 47), std::bad_alloc);
+  Fails_After_Budget::budget = -1;
+
+  EXPECT_EQ(arr.get_num_blocks(), 1u);
+  EXPECT_EQ(arr.size(), 1u);
+  for (size_t i = 0; i < block; ++i)
+    EXPECT_TRUE(arr.exist(i)) << "pre-existing entry " << i;
+  for (size_t i = block; i <= 47; ++i)
+    EXPECT_FALSE(arr.exist(i)) << "entry " << i << " was not rolled back";
+
+  arr.reserve(0, 47);  // the array remains fully usable
+  EXPECT_EQ(arr.get_num_blocks(), 12u);
+  EXPECT_EQ(arr.size(), 48u);
+  for (size_t i = 0; i <= 47; ++i)
+    EXPECT_TRUE(arr.exist(i));
+}
+
+TEST(DynArrayReserve, failure_on_first_block_releases_new_segment)
+{
+  Budget_Guard guard;
+  DynArray<Fails_After_Budget> arr(4, 2, 2);
+
+  Fails_After_Budget::budget = 0;  // the very first block allocation fails
+  EXPECT_THROW(arr.reserve(20, 40), std::bad_alloc);
+  Fails_After_Budget::budget = -1;
+
+  EXPECT_EQ(arr.get_num_blocks(), 0u);
+  EXPECT_EQ(arr.size(), 0u);
+  for (size_t i = 0; i <= 47; ++i)
+    EXPECT_FALSE(arr.exist(i));
+}
+
+TEST(DynArrayReserve, reserve_of_existing_range_constructs_nothing)
+{
+  Budget_Guard guard;
+  DynArray<Fails_After_Budget> arr(4, 2, 2);
+  arr.reserve(0, 47);
+  ASSERT_EQ(arr.get_num_blocks(), 12u);
+
+  Fails_After_Budget::budget = 0;  // any element construction would throw
+  EXPECT_NO_THROW(arr.reserve(0, 47));
+  EXPECT_NO_THROW(arr.reserve(5, 30));
+  EXPECT_EQ(arr.get_num_blocks(), 12u);
+  EXPECT_EQ(arr.size(), 48u);
 }
 
 TEST(DynArrayQueueStack, push_pop_fifo_lifo)

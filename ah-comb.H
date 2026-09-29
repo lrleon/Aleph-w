@@ -65,7 +65,7 @@
 #include <limits>
 #include <numeric>
 
-# include <ah-errors.H>
+#include <ah-errors.H>
 
 #include <htlist.H>
 #include <tpl_dynDlist.H>
@@ -197,8 +197,7 @@ template <class ArrayLike, class Compare>
 }
 
 template <class IndexArray>
-[[nodiscard]] inline bool next_combination_indices_impl(IndexArray &idx,
-                                                        const size_t n,
+[[nodiscard]] inline bool next_combination_indices_impl(IndexArray &idx, const size_t n,
                                                         const bool reset_on_last)
 {
   validate_combination_indices(idx, n);
@@ -227,6 +226,7 @@ template <class IndexArray>
   return false;
 }
 }  // namespace comb_detail
+
 /// @endcond
 
 /** @brief Transpose a matrix represented as a list of lists.
@@ -391,14 +391,13 @@ inline void in_place_transpose(DynList<DynList<T>> &l)
 */
 template <typename T, class Op>
 static inline bool traverse_perm_impl(DynList<T> &sample,
-                                      DynList<typename DynList<T>::Iterator> &its,
-                                      Op &op)
+                                      DynList<typename DynList<T>::Iterator> &its, Op &op)
 {
   if (its.is_empty())
     return op(sample.template maps<T>([](const T &i)
-    {
-      return i;
-    }));
+      {
+        return i;
+      }));
 
   auto itor = its.remove_first();
   for (auto it = itor; it.has_curr(); it.next_ne())
@@ -447,9 +446,9 @@ inline bool traverse_perm(const DynList<DynList<T>> &l, Op &op)
   {  // This block allows getting a constant copy of l and then reverse
     // it. At the end of block lcpy memory is freed
     const DynList<IT> lcpy = l.template maps<IT>([](const auto &l)
-    {
-      return l.get_it();
-    });
+      {
+        return l.get_it();
+      });
     its = lcpy.rev();
   }
 
@@ -481,12 +480,11 @@ inline bool traverse_perm(const DynList<DynList<T>> &l, Op &&op)
 template <typename T, class Op>
 inline void for_each_perm(const DynList<DynList<T>> &l, Op &op)
 {
-  traverse_perm(l,
-                [&op](const auto &row)
-  {
-    op(row);
-    return true;
-  });
+  traverse_perm(l, [&op](const auto &row)
+    {
+      op(row);
+      return true;
+    });
 }
 
 /** \overload for_each_perm
@@ -514,11 +512,10 @@ template <typename T>
 DynList<DynList<T>> build_perms(const DynList<DynList<T>> &l)
 {
   DynList<DynList<T>> ret;
-  for_each_perm(l,
-                [&ret](const DynList<T> &perm)
-  {
-    ret.append(perm);
-  });
+  for_each_perm(l, [&ret](const DynList<T> &perm)
+    {
+      ret.append(perm);
+    });
   return ret;
 }
 
@@ -540,17 +537,16 @@ DynList<DynList<T>> build_combs(const DynList<DynList<T>> &l)
 {
   DynSetTree<DynList<T>, Avl_Tree, CmpContainer<DynList<T>, T>> combs;
 
-  for_each_perm(l,
-                [&combs](const DynList<T> &perm)
-  {
-    DynList<T> comb = sort(perm);
-    combs.insert(std::move(comb));
-  });
+  for_each_perm(l, [&combs](const DynList<T> &perm)
+    {
+      DynList<T> comb = sort(perm);
+      combs.insert(std::move(comb));
+    });
 
   return combs.template maps<DynList<T>>([](const DynList<T> &comb)
-  {
-    return comb;
-  });
+    {
+      return comb;
+    });
 }
 
 /** Left-fold over all permutations.
@@ -573,12 +569,11 @@ template <typename T, typename Tc, class Op = Dft_Fold_Op<Tc, T>>
 T fold_perm(const T &init, const DynList<DynList<Tc>> &l, Op &op)
 {
   T acu = init;
-  traverse_perm(l,
-                [&op, &acu](const auto &l)
-  {
-    acu = op(acu, l);
-    return true;
-  });
+  traverse_perm(l, [&op, &acu](const auto &l)
+    {
+      acu = op(acu, l);
+      return true;
+    });
   return acu;
 }
 
@@ -636,16 +631,15 @@ template <typename T, class Pred>
 bool exists_perm(const DynList<DynList<T>> &l, Pred &pred)
 {
   bool found = false;
-  traverse_perm(l,
-                [&pred, &found](const DynList<T> &perm)
-  {
-    if (pred(perm))
-      {
-        found = true;
-        return false;  // stop
-      }
-    return true;
-  });
+  traverse_perm(l, [&pred, &found](const DynList<T> &perm)
+    {
+      if (pred(perm))
+        {
+          found = true;
+          return false;  // stop
+        }
+      return true;
+    });
   return found;
 }
 
@@ -735,12 +729,11 @@ template <typename T, class Pred>
 DynList<DynList<T>> filter_perm(const DynList<DynList<T>> &l, Pred &pred)
 {
   DynList<DynList<T>> ret;
-  for_each_perm(l,
-                [&ret, &pred](const DynList<T> &perm)
-  {
-    if (pred(perm))
-      ret.append(perm);
-  });
+  for_each_perm(l, [&ret, &pred](const DynList<T> &perm)
+    {
+      if (pred(perm))
+        ret.append(perm);
+    });
   return ret;
 }
 
@@ -771,11 +764,10 @@ template <typename R, typename T, class Op>
 DynList<R> map_perm(const DynList<DynList<T>> &l, Op &op)
 {
   DynList<R> ret;
-  for_each_perm(l,
-                [&ret, &op](const DynList<T> &perm)
-  {
-    ret.append(op(perm));
-  });
+  for_each_perm(l, [&ret, &op](const DynList<T> &perm)
+    {
+      ret.append(op(perm));
+    });
   return ret;
 }
 
@@ -818,8 +810,7 @@ DynList<R> map_perm(const DynList<DynList<T>> &l, Op &&op)
     @ingroup Algorithms
 */
 template <typename T, class Compare = Aleph::less<T>>
-[[nodiscard]] inline bool next_permutation(Array<T> &a,
-                                           Compare cmp = Compare(),
+[[nodiscard]] inline bool next_permutation(Array<T> &a, Compare cmp = Compare(),
                                            const bool reset_on_last = true)
 {
   return comb_detail::next_permutation_impl(a, cmp, reset_on_last);
@@ -827,8 +818,7 @@ template <typename T, class Compare = Aleph::less<T>>
 
 /** \overload next_permutation for `DynArray`. */
 template <typename T, class Compare = Aleph::less<T>>
-[[nodiscard]] inline bool next_permutation(DynArray<T> &a,
-                                           Compare cmp = Compare(),
+[[nodiscard]] inline bool next_permutation(DynArray<T> &a, Compare cmp = Compare(),
                                            const bool reset_on_last = true)
 {
   return comb_detail::next_permutation_impl(a, cmp, reset_on_last);
@@ -898,16 +888,14 @@ template <typename T, class Compare = Aleph::less<T>>
 
     @ingroup Algorithms
 */
-[[nodiscard]] inline bool next_combination_indices(Array<size_t> &idx,
-                                                   const size_t n,
+[[nodiscard]] inline bool next_combination_indices(Array<size_t> &idx, const size_t n,
                                                    const bool reset_on_last = true)
 {
   return comb_detail::next_combination_indices_impl(idx, n, reset_on_last);
 }
 
 /** \overload next_combination_indices for `DynArray<size_t>`. */
-[[nodiscard]] inline bool next_combination_indices(DynArray<size_t> &idx,
-                                                   const size_t n,
+[[nodiscard]] inline bool next_combination_indices(DynArray<size_t> &idx, const size_t n,
                                                    const bool reset_on_last = true)
 {
   return comb_detail::next_combination_indices_impl(idx, n, reset_on_last);
@@ -941,8 +929,7 @@ template <typename T, class Compare = Aleph::less<T>>
 
     @ingroup Algorithms
 */
-[[nodiscard]] inline bool next_combination_mask(uint64_t &mask,
-                                                const size_t n,
+[[nodiscard]] inline bool next_combination_mask(uint64_t &mask, const size_t n,
                                                 const bool reset_on_last = true)
 {
   ah_out_of_range_error_if(n > 64) << "next_combination_mask: n=" << n << " cannot exceed 64";
@@ -953,8 +940,8 @@ template <typename T, class Compare = Aleph::less<T>>
       return false;
     }
 
-  const uint64_t domain_mask
-    = n == 64 ? std::numeric_limits<uint64_t>::max() : ((uint64_t(1) << n) - 1);
+  const uint64_t domain_mask =
+    n == 64 ? std::numeric_limits<uint64_t>::max() : ((uint64_t(1) << n) - 1);
 
   ah_domain_error_if(mask & ~domain_mask)
     << "next_combination_mask: mask has bits outside the low n bits";
@@ -992,8 +979,7 @@ template <typename T, class Compare = Aleph::less<T>>
 /// @cond INTERNAL
 template <class ValuesArray, class Op>
 [[nodiscard]] static inline bool for_each_combination_impl(const ValuesArray &values,
-                                                           const size_t k,
-                                                           Op &&op)
+                                                           const size_t k, Op &&op)
 {
   const size_t n = values.size();
   ah_domain_error_if(k > n) << "for_each_combination: k=" << k << " cannot exceed n=" << n;
@@ -1062,12 +1048,11 @@ template <typename T>
 [[nodiscard]] inline Array<Array<T>> build_combinations(const Array<T> &values, const size_t k)
 {
   Array<Array<T>> ret;
-  (void) for_each_combination(values, k,
-                              [&ret](const Array<T> &comb)
-  {
-    ret.append(comb);
-    return true;
-  });
+  (void) for_each_combination(values, k, [&ret](const Array<T> &comb)
+    {
+      ret.append(comb);
+      return true;
+    });
   return ret;
 }
 
@@ -1076,12 +1061,11 @@ template <typename T>
 [[nodiscard]] inline Array<Array<T>> build_combinations(const DynArray<T> &values, const size_t k)
 {
   Array<Array<T>> ret;
-  (void) for_each_combination(values, k,
-                              [&ret](const Array<T> &comb)
-  {
-    ret.append(comb);
-    return true;
-  });
+  (void) for_each_combination(values, k, [&ret](const Array<T> &comb)
+    {
+      ret.append(comb);
+      return true;
+    });
   return ret;
 }
 

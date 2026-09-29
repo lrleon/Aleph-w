@@ -10,8 +10,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <vector>
 
+#include <htlist.H>
 #include <tikzgeom_algorithms.H>
 
 using namespace Aleph;
@@ -431,14 +431,13 @@ int main(int argc, char * argv[])
       return 1;
     }
 
-  std::vector<Tikz_Plane> panels;
-  panels.reserve(20);
+  DynList<Tikz_Plane> panels;
   auto & p = panels;  // shorthand
 
   // 1. Primitives & polygons showcase.
-  p.emplace_back(190, 120, 6, 6);
+  p.append(Tikz_Plane(190, 120, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     put_in_plane(plane, Segment(Point(-24, -12), Point(-14, 4)), tikz_wire_style("blue"));
     put_in_plane(plane, Triangle(Point(-8, -14), Point(2, -14), Point(-3, -4)),
@@ -457,9 +456,9 @@ int main(int argc, char * argv[])
   }
 
   // 2. Convex hull (Andrew monotone chain).
-  p.emplace_back(180, 110, 6, 6);
+  p.append(Tikz_Plane(180, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     plane.set_point_radius_mm(0.7);
     const Polygon hull = visualize_convex_hull(
@@ -469,9 +468,9 @@ int main(int argc, char * argv[])
   }
 
   // 3. Delaunay triangulation + Voronoi overlay.
-  p.emplace_back(190, 115, 6, 6);
+  p.append(Tikz_Plane(190, 115, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     plane.set_point_radius_mm(0.75);
     const DynList<Point> sites = make_voronoi_sites();
@@ -489,9 +488,9 @@ int main(int argc, char * argv[])
   }
 
   // 4. Constrained Delaunay triangulation.
-  p.emplace_back(180, 105, 5, 5);
+  p.append(Tikz_Plane(180, 105, 5, 5));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const auto cdt = visualize_cdt(plane, make_cdt_points(), make_cdt_constraints());
     add_caption(plane, Point(-18, 13),
@@ -500,9 +499,9 @@ int main(int argc, char * argv[])
   }
 
   // 5. Minimum enclosing circle + closest pair (same point set).
-  p.emplace_back(180, 110, 6, 6);
+  p.append(Tikz_Plane(180, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const DynList<Point> pts = make_mec_points();
     const auto circle = visualize_mec(plane, pts);
@@ -514,9 +513,9 @@ int main(int argc, char * argv[])
   }
 
   // 6. Convex decomposition (six-pointed star).
-  p.emplace_back(170, 115, 6, 6);
+  p.append(Tikz_Plane(170, 115, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const Array<Polygon> parts =
         visualize_convex_decomposition(plane, make_decomposition_polygon());
@@ -525,9 +524,9 @@ int main(int argc, char * argv[])
   }
 
   // 7. Boolean intersection of two overlapping rectangles.
-  p.emplace_back(170, 110, 6, 6);
+  p.append(Tikz_Plane(170, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const auto result = visualize_boolean_operation(
         plane, make_boolean_a(), make_boolean_b(),
@@ -537,9 +536,9 @@ int main(int argc, char * argv[])
   }
 
   // 8. Douglas-Peucker simplification.
-  p.emplace_back(180, 110, 6, 6);
+  p.append(Tikz_Plane(180, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const Polygon simplified =
         visualize_douglas_peucker(plane, make_noisy_polygon(), Geom_Number(1, 2));
@@ -550,9 +549,9 @@ int main(int argc, char * argv[])
   }
 
   // 9. Polygon offset (inward).
-  p.emplace_back(160, 100, 6, 6);
+  p.append(Tikz_Plane(160, 100, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const auto result = visualize_polygon_offset(plane, make_offset_polygon(), Geom_Number(-3));
     add_caption(plane, Point(-13, 12),
@@ -560,9 +559,9 @@ int main(int argc, char * argv[])
   }
 
   // 10. Chaikin smoothing.
-  p.emplace_back(160, 105, 6, 6);
+  p.append(Tikz_Plane(160, 105, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const Polygon smoothed =
         visualize_chaikin_smoothing(plane, make_smoothing_polygon(), 3);
@@ -571,9 +570,9 @@ int main(int argc, char * argv[])
   }
 
   // 11. Visibility polygon.
-  p.emplace_back(170, 110, 6, 6);
+  p.append(Tikz_Plane(170, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const Point query(3, 3);
     const Polygon vis = visualize_visibility_polygon(plane, make_visibility_room(), query);
@@ -582,9 +581,9 @@ int main(int argc, char * argv[])
   }
 
   // 12. Shortest path with funnel portals.
-  p.emplace_back(190, 115, 6, 6);
+  p.append(Tikz_Plane(190, 115, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const Point source(3, 3);
     const Point target(20, 18);
@@ -599,9 +598,9 @@ int main(int argc, char * argv[])
   }
 
   // 13. Trapezoidal map point location.
-  p.emplace_back(170, 110, 6, 6);
+  p.append(Tikz_Plane(170, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const auto res = visualize_trapezoidal_map(plane, make_trapezoidal_polygon());
     add_caption(plane, Point(-15, 14),
@@ -609,9 +608,9 @@ int main(int argc, char * argv[])
   }
 
   // 14. Segment arrangement.
-  p.emplace_back(170, 110, 6, 6);
+  p.append(Tikz_Plane(170, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const auto arrangement = visualize_segment_arrangement(
         plane, make_arrangement_segments(), SegmentArrangement(),
@@ -625,9 +624,9 @@ int main(int argc, char * argv[])
   }
 
   // 15. Bentley-Ottmann line sweep.
-  p.emplace_back(170, 110, 6, 6);
+  p.append(Tikz_Plane(170, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     plane.set_point_radius_mm(0.7);
     const auto intersections = visualize_line_sweep(plane, make_sweep_segments());
@@ -636,18 +635,18 @@ int main(int argc, char * argv[])
   }
 
   // 16. Minkowski sum.
-  p.emplace_back(160, 100, 6, 6);
+  p.append(Tikz_Plane(160, 100, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const Polygon sum = visualize_minkowski_sum(plane, make_minkowski_a(), make_minkowski_b());
     add_caption(plane, Point(-9, 10), "Minkowski Sum: vertices=" + std::to_string(sum.size()));
   }
 
   // 17. Half-plane intersection.
-  p.emplace_back(150, 100, 6, 6);
+  p.append(Tikz_Plane(150, 100, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const Polygon feasible = visualize_half_plane_intersection(plane, make_half_planes());
     add_caption(plane, Point(-1, 12),
@@ -655,9 +654,9 @@ int main(int argc, char * argv[])
   }
 
   // 18. Rotating calipers (diameter + minimum width).
-  p.emplace_back(170, 110, 6, 6);
+  p.append(Tikz_Plane(170, 110, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     const auto rc = visualize_rotating_calipers(plane, make_calipers_polygon());
     add_caption(plane, Point(-16, 18),
@@ -666,9 +665,9 @@ int main(int argc, char * argv[])
   }
 
   // 19. Alpha shape.
-  p.emplace_back(180, 115, 6, 6);
+  p.append(Tikz_Plane(180, 115, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     plane.set_point_radius_mm(0.75);
     const auto alpha = visualize_alpha_shape(plane, make_alpha_points(), Geom_Number(180));
@@ -677,9 +676,9 @@ int main(int argc, char * argv[])
   }
 
   // 20. Power diagram (weighted Voronoi).
-  p.emplace_back(200, 115, 6, 6);
+  p.append(Tikz_Plane(200, 115, 6, 6));
   {
-    Tikz_Plane & plane = p.back();
+    Tikz_Plane & plane = p.get_last();
     plane.put_cartesian_axis();
     plane.set_point_radius_mm(0.75);
     // draw_cells=false: PowerDiagram's bounded-cell vertex lists are not
@@ -705,6 +704,13 @@ int main(int argc, char * argv[])
     }
 
   out << "\n\\end{document}\n";
+
+  out.close();
+  if (not out)
+    {
+      std::cerr << "Failed writing output file: " << output_path << '\n';
+      return 1;
+    }
 
   std::cout << "Generated " << output_path << " (" << panels.size() << " panels)\n";
   std::cout << "Compile with: pdflatex " << output_path << '\n';

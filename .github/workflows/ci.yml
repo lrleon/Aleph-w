@@ -42,6 +42,7 @@ jobs:
         env:
           HEADER_DOC_COVERAGE_MIN: "80"
         run: |
+          ruby scripts/test_ci_header_doc_coverage.rb
           ruby scripts/ci_header_doc_coverage.rb \
             --min "${HEADER_DOC_COVERAGE_MIN}"
 

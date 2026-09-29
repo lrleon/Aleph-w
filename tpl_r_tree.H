@@ -148,7 +148,7 @@ public:
 
   /** @brief Full tree structure captured for visualization/debugging.
    *  @note Intentionally omits `Payload`: it is available regardless of
-   *        whether `Payload` is copyable or even movable-only usable that way.
+   *        whether `Payload` is copyable or even move-only.
    */
   struct DebugSnapshot
   {
@@ -1104,7 +1104,11 @@ public:
   /** @brief Capture the full tree structure for visualization/debugging.
    *  @return A @ref DebugSnapshot with every node in preorder; empty
    *          (`nodes` empty, `root` unset) when the tree `is_empty()`.
-   *  @par Complexity O(n).
+   *  @par Complexity
+   *  O(n) time; O(height_) recursive call-stack depth.
+   *  @par Thread safety
+   *  Concurrent read-only calls are safe only while no thread mutates the
+   *  tree. Concurrent mutation requires external synchronization.
    *  @throws std::bad_alloc if node allocation fails.
    */
   [[nodiscard]] DebugSnapshot debug_snapshot() const
@@ -1125,17 +1129,22 @@ public:
 
         if (node.leaf)
           {
-            Array<Rectangle> boxes(node.data.size());
+            // Safe to populate in place: this loop does not recurse, so
+            // `snap.nodes` cannot reallocate between the reference below
+            // and its last use.
+            Array<Rectangle> &boxes = snap.nodes(out_idx).entry_boxes;
+            boxes.reserve(node.data.size());
             for (size_t i = 0; i < node.data.size(); ++i)
               boxes.append(node.data(i).bbox);
-            snap.nodes(out_idx).entry_boxes = std::move(boxes);
           }
         else
           {
-            Array<size_t> child_indices(node.children.size());
+            snap.nodes(out_idx).children.reserve(node.children.size());
             for (size_t i = 0; i < node.children.size(); ++i)
-              child_indices.append(self(self, *node.children(i).child, depth + 1));
-            snap.nodes(out_idx).children = std::move(child_indices);
+              {
+                const size_t child_idx = self(self, *node.children(i).child, depth + 1);
+                snap.nodes(out_idx).children.append(child_idx);
+              }
           }
 
         snap.nodes(out_idx).bbox = compute_mbr(node);

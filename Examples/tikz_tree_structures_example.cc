@@ -70,7 +70,7 @@ void collect_quadtree_rec(QuadNode * node, const size_t depth, QuadTreeSnapshot 
       snap.leaf_regions.append(Rectangle(node->get_min_x(), node->get_min_y(),
                                          node->get_max_x(), node->get_max_y()));
       snap.leaf_depths.append(depth);
-      for (Point & p : node->get_points_set())
+      for (const Point & p : node->get_points_set())
         snap.points.append(p);
       return;
     }

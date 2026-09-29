@@ -55,15 +55,27 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install dependencies (Homebrew)
+        # Bounded on purpose: a formula without a bottle makes Homebrew compile
+        # it, and its build tools, from source. That once ran until the job
+        # timeout (60 min) and was reported as "cancelled".
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           brew update
           brew install \
-            cmake ninja ccache \
+            cmake ninja \
             gmp mpfr gsl googletest \
             tclap
+          # ccache only speeds builds up. Homebrew publishes no Intel macOS
+          # bottle for it, so `brew install ccache` on macos-15-intel compiles
+          # ccache plus LLVM, Rust and GCC from source. Install it only where a
+          # bottle exists (Apple Silicon); Intel builds run without a cache.
+          if [ "$(uname -m)" = "arm64" ]; then
+            brew install ccache
+          fi
 
       - name: Cache ccache
+        if: runner.arch == 'ARM64'
         uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -79,9 +91,12 @@ jobs:
           rm -rf build
           # AppleClang + libc++ is the platform default; no -stdlib= override.
           # X11 viewer is disabled (no XQuartz on the GitHub-hosted runner).
+          CCACHE_ARGS=""
+          if command -v ccache >/dev/null 2>&1; then
+            CCACHE_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+          fi
           cmake -S . -B build -G Ninja \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            ${CCACHE_ARGS} \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_TESTS=ON \

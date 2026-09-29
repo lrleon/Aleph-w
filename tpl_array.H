@@ -29,7 +29,6 @@
   SOFTWARE.
 */
 
-
 /** @file tpl_array.H
     @brief Dynamic array container with automatic resizing.
 
@@ -45,19 +44,19 @@
 #ifndef TPL_ARRAY_H
 #define TPL_ARRAY_H
 
-# include <iostream>
-# include <utility>
-# include <vector>
-# include <concepts>
-# include <aleph.H>
-# include <htlist.H>
-# include <tpl_dynDlist.H>
-# include <ah-dry.H>
-# include <ah-args-ctor.H>
-# include <tpl_memArray.H>
+#include <iostream>
+#include <utility>
+#include <vector>
+#include <concepts>
+#include <type_traits>
+#include <aleph.H>
+#include <htlist.H>
+#include <tpl_dynDlist.H>
+#include <ah-dry.H>
+#include <ah-args-ctor.H>
+#include <tpl_memArray.H>
 
-namespace Aleph
-{
+namespace Aleph {
 
 /** @brief Simple dynamic array with automatic resizing and functional operations.
 
@@ -130,22 +129,23 @@ namespace Aleph
     @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
-template<typename T>
+template <typename T>
 class Array : public LocateFunctions<Array<T>, T>,
               public FunctionalMethods<Array<T>, T>,
               public GenericKeys<Array<T>, T>,
               public EqualSequenceMethod<Array<T>>,
               public StlAlephIterator<Array<T>>
 {
-  MemArray <T> array;
+  MemArray<T> array;
 
 public:
-
-  using Item_Type = T; /// The type of element
-  using Key_Type = T;  /// The type of key
+  using Item_Type = T;  /// The type of element
+  using Key_Type = T;   /// The type of key
 
   /// Initializes an array with a capacity of `dim`
-  Array(size_t dim = 32) : array(dim) { /* empty */ }
+  Array(size_t dim = 32) : array(dim)
+  { /* empty */
+  }
 
   /** @brief Construct an array with `n` copies of `value`.
    *
@@ -156,11 +156,13 @@ public:
    *  @param[in] value The value to copy into each element.
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note Complexity: O(n) copies.
-   *  @note Exception safety: Strong guarantee (if allocation fails or T's copy constructor throws, no memory is leaked).
-   *  @note Thread safety: Safe to call concurrently on different instances; not thread-safe on the same instance.
+   *  @note Exception safety: Strong guarantee (if allocation fails or T's copy constructor throws,
+   *        no memory is leaked).
+   *  @note Thread safety: Safe to call concurrently on different instances; not thread-safe on the
+   *        same instance.
    */
-  Array(size_t n, const T& value)
-    requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
+  Array(size_t n, const T &value)
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
     : array(n)
   {
     for (size_t i = 0; i < n; ++i)
@@ -200,20 +202,23 @@ public:
 
   /// Copy constructor
   Array(const Array &s)
-    requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
-    : array(s.array) { /* empty */ }
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
+    : array(s.array)
+  { /* empty */
+  }
 
   /// Move constructor
-  Array(Array &&s) noexcept: array(std::forward<MemArray < T>>
-  (s.array)) { /* empty */ }
+  Array(Array &&s) noexcept : array(std::forward<MemArray<T>>(s.array))
+  { /* empty */
+  }
 
   Special_Ctors(Array, T);
 
   Args_Ctor(Array, T);
 
   /// Assign by copy `s` to `this`
-  Array &operator=(const Array &s)
-    requires (std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>)
+  Array &operator = (const Array &s)
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
   {
     if (this == &s)
       return *this;
@@ -230,7 +235,7 @@ public:
   }
 
   /// Assign by moving `s` to `this`
-  Array &operator=(Array &&s) noexcept
+  Array &operator = (Array &&s) noexcept
   {
     array.swap(s.array);
     return *this;
@@ -333,80 +338,127 @@ public:
   /** @brief Empties the container.
       @throws none
   */
-  void empty() noexcept { array.empty(); }
+  void empty() noexcept
+  {
+    array.empty();
+  }
 
-  /** @brief Empties the container. 
+  /** @brief Empties the container.
       @throws none
       @see empty()
   */
-  void clear() noexcept { empty(); }
+  void clear() noexcept
+  {
+    empty();
+  }
 
   /** @brief Checks if the container is empty.
       @return true if empty, false otherwise.
       @throws none
   */
-  [[nodiscard]] constexpr bool is_empty() const noexcept { return array.size() == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept
+  {
+    return array.size() == 0;
+  }
 
   /// Return the number of elements stored in the stack
-  [[nodiscard]] constexpr size_t size() const noexcept { return array.size(); }
+  [[nodiscard]] constexpr size_t size() const noexcept
+  {
+    return array.size();
+  }
 
   /// Return the internal capacity
-  [[nodiscard]] constexpr size_t capacity() const noexcept { return array.capacity(); }
+  [[nodiscard]] constexpr size_t capacity() const noexcept
+  {
+    return array.capacity();
+  }
 
   /// return a modifiable reference to the first element. No bound_statics check
   /// is performed
-  [[nodiscard]] T &get_first() noexcept { return array.first(); }
+  [[nodiscard]] T &get_first() noexcept
+  {
+    return array.first();
+  }
 
   /// return a constant reference to the first element. No bound_statics check
   /// is performed
-  [[nodiscard]] const T &get_first() const noexcept { return array.first(); }
+  [[nodiscard]] const T &get_first() const noexcept
+  {
+    return array.first();
+  }
 
   /// return a modifiable reference to the last element. No bound_statics check
   /// is performed
-  [[nodiscard]] T &get_last() noexcept { return array.last(); }
+  [[nodiscard]] T &get_last() noexcept
+  {
+    return array.last();
+  }
 
   /// return a constant reference to the last element. No bound_statics check
   /// is performed
-  [[nodiscard]] const T &get_last() const noexcept { return array.last(); }
+  [[nodiscard]] const T &get_last() const noexcept
+  {
+    return array.last();
+  }
 
-  [[nodiscard]] T remove_last() { return array.remove_last(); }
+  [[nodiscard]] T remove_last()
+  {
+    return array.remove_last();
+  }
 
-  [[nodiscard]] T remove_first() { return array.remove_first(); }
+  [[nodiscard]] T remove_first()
+  {
+    return array.remove_first();
+  }
 
   /// Return a reference to the ith element. Throws
   /// `range_error` if `i` is out of range
-  [[nodiscard]] T &operator[](size_t i)
+  [[nodiscard]] T &operator [] (size_t i)
   {
     return array[i];
   }
 
   /// Return a constant reference to the ith element. Throws
   /// `range_error` if `i` is out of range
-  [[nodiscard]] const T &operator[](size_t i) const
+  [[nodiscard]] const T &operator [] (size_t i) const
   {
     return array[i];
   }
 
   /// Return a reference to the ith element. It does not perform bound_statics checks
-  [[nodiscard]] constexpr T &operator()(const size_t i) noexcept
+  [[nodiscard]] constexpr T &operator () (const size_t i) noexcept
   {
     return array(i);
   }
 
   /// Return a constant reference to the ith element. It does not perform bound_statics checks
-  [[nodiscard]] constexpr const T &operator()(const size_t i) const noexcept
+  [[nodiscard]] constexpr const T &operator () (const size_t i) const noexcept
   {
     return array(i);
   }
 
-  /// Reverse the order of items in array
+  /** @brief Reverse the order of items in this array, in place.
+
+      @return A reference to `*this`, already reversed.
+      @note Complexity: O(n).
+      @throws Any exception thrown by swapping elements. If a swap throws,
+              some elements may already have changed positions.
+  */
   Array &reverse()
   {
     array.reverse();
     return *this;
   }
 
-  /// Return a copy of this with its items reversed
+  /** @brief Return a copy of this array with its items reversed.
+
+      `*this` is left unmodified.
+
+      @return A new `Array` holding the elements of `*this` in reverse order.
+      @note Complexity: O(n).
+      @throws Any exception thrown by allocation or copying elements.
+      @note `*this` remains unchanged if the operation throws.
+  */
   Array reverse() const
   {
     const size_t &n = array.size();
@@ -416,50 +468,136 @@ public:
     return ret;
   }
 
-  Array &rev() { return reverse(); }
+  /** @brief Alias for `reverse()`. Reverses this array in place.
 
-  Array rev() const { return reverse(); }
-
-  /** Traverse all the items of the stack from the youngest to the oldest and
-      conditionally performs an operation.
-
-      @param[in] operation to perform on the current element. If it
-      returns `true`, then the traversal continues to the next item;
-      otherwise the traversal stops
-   */
-  template<class Operation>
-  bool traverse(Operation &operation)
+      @return A reference to `*this`, already reversed.
+      @throws Any exception thrown by swapping elements.
+      @note Complexity: O(n). If a swap throws, some elements may already
+            have changed positions.
+      @see reverse()
+  */
+  Array &reverse_in_place()
   {
-    return array.traverse(operation);
+    return reverse();
   }
 
-  /// \overload traverse(Operation & operation)
-  template<class Operation>
-  bool traverse(Operation &operation) const
+  /** @brief Reverse this array in place.
+
+      @return A reference to `*this`, already reversed.
+      @throws Any exception thrown by swapping elements.
+      @note Complexity: O(n). If a swap throws, some elements may already
+            have changed positions.
+      @see reverse()
+  */
+  Array &rev()
   {
-    return array.traverse(operation);
+    return reverse_in_place();
   }
 
-  /// \overload traverse(Operation & operation)
-  template<class Operation>
-  bool traverse(Operation &&operation = Operation()) const
+  /** @brief Alias for `reverse() const`. Returns a reversed copy.
+
+      `*this` is left unmodified.
+
+      @return A new `Array` holding the elements of `*this` in reverse order.
+      @throws Any exception thrown by allocation or copying elements.
+      @note Complexity: O(n). `*this` remains unchanged if the operation throws.
+      @see reverse() const
+  */
+  Array rev() const
   {
-    return array.traverse(std::forward<Operation>(operation));
+    return reverse();
   }
 
-  /// \overload traverse(Operation & operation)
-  template<class Operation>
-  bool traverse(Operation &&operation = Operation())
+  /** @brief Traverse mutable elements from first to last.
+
+      @param[in] op Operation accepting `T &`; returning `false` stops traversal.
+      @return `true` if every element was visited; `false` if stopped early.
+      @throws Any exception thrown by `op`.
+      @note Time: O(n) in the number of visited elements; auxiliary space: O(1).
+      @note If `op` throws, changes it already made to elements are not undone.
+      @note Concurrent read-only traversals are safe when `op` only reads.
+            External synchronization is required if any concurrent access
+            may modify the array.
+  */
+  template <class Op>
+    requires std::predicate<Op &, T &>
+  bool traverse(Op &op)
   {
-    return array.traverse(std::forward<Operation>(operation));
+    return array.traverse(op);
   }
 
-  [[nodiscard]] bool is_valid() const noexcept { return array.is_valid(); }
+  /** @brief Traverse const elements from first to last.
+
+      @param[in] op Operation accepting `const T &`; returning `false` stops traversal.
+      @return `true` if every element was visited; `false` if stopped early.
+      @throws Any exception thrown by `op`.
+      @note Time: O(n) in the number of visited elements; auxiliary space: O(1).
+      @note The traversal itself does not modify elements. Effects of `op`
+            outside the array are not rolled back if it throws.
+      @note Concurrent read-only access is safe when `op` only reads.
+            External synchronization is required if another thread may
+            modify the array.
+  */
+  template <class Op>
+    requires std::predicate<Op &, const T &>
+  bool traverse(Op &op) const
+  {
+    for (size_t i = 0; i < size(); ++i)
+      if (not op((*this)[i]))
+        return false;
+    return true;
+  }
+
+  /** @brief Traverse mutable elements with a temporary operation.
+
+      Kept as a separate overload from `traverse(Op &)` so that callers
+      naming the operation type explicitly, as `traverse<Op>(lvalue)` does
+      in `Aleph::all()`, still bind to the lvalue overload.
+      @param[in] op Operation accepting `T &`.
+      @return `true` if every element was visited; `false` if stopped early.
+      @throws Any exception thrown by `op`.
+      @note Time: O(n) in the number of visited elements; auxiliary space: O(1).
+      @note If `op` throws, changes it already made to elements are not undone.
+      @note Concurrent read-only traversals are safe when `op` only reads.
+            External synchronization is required if any concurrent access
+            may modify the array.
+  */
+  template <class Op>
+    requires std::predicate<Op &, T &>
+  bool traverse(Op &&op)
+  {
+    return traverse<Op>(op);
+  }
+
+  /** @brief Traverse const elements with a temporary operation.
+
+      @param[in] op Operation accepting `const T &`.
+      @return `true` if every element was visited; `false` if stopped early.
+      @throws Any exception thrown by `op`.
+      @note Time: O(n) in the number of visited elements; auxiliary space: O(1).
+      @note The traversal itself does not modify elements. Effects of `op`
+            outside the array are not rolled back if it throws.
+      @note Concurrent read-only access is safe when `op` only reads.
+            External synchronization is required if another thread may
+            modify the array.
+  */
+  template <class Op>
+    requires std::predicate<Op &, const T &>
+  bool traverse(Op &&op) const
+  {
+    return traverse<Op>(op);
+  }
+
+  [[nodiscard]] bool is_valid() const noexcept
+  {
+    return array.is_valid();
+  }
 
   /** Copy to Aleph::Array (requires copyable elements). */
-  Array to_array() const requires std::copy_constructible<T>
+  Array to_array() const
+    requires std::copy_constructible<T>
   {
-    return *this; // copy
+    return *this;  // copy
   }
 
   /** Iterator on the items of an array.
@@ -478,19 +616,18 @@ public:
     using aleph_random_access_iterator = Iterator;
 
     /// Initialize an iterator on array `s`
-    Iterator(const Array<T> &s) noexcept: Base(s.array) {}
+    Iterator(const Array<T> &s) noexcept : Base(s.array) {}
   };
 };
 
-template<typename T, typename ... Args>
-Array<T> build_array(Args ... args)
+template <typename T, typename... Args>
+Array<T> build_array(Args... args)
 {
   return build_container<Array<T>>(args...);
 }
 
 template <class Container>
-inline std::vector<typename Container::Item_Type>
-to_stdvector(const Container & c)
+inline std::vector<typename Container::Item_Type> to_stdvector(const Container &c)
 {
   std::vector<typename Container::Item_Type> ret(c.size());
   for (size_t i = 0; i < c.size(); ++i)
@@ -498,8 +635,6 @@ to_stdvector(const Container & c)
   return ret;
 }
 
+}  // end namespace Aleph
 
-} // end namespace Aleph
-
-# endif /* TPL_ARRAY_H */
-
+#endif /* TPL_ARRAY_H */
