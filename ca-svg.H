@@ -83,20 +83,6 @@ struct SVG_Render_Options
 
 namespace ca_svg_detail {
 
-template <typename Lattice>
-concept HexRenderable = requires(const Lattice &lat) {
-  lat.rows();
-  lat.cols();
-  lat.at_axial(Hex_Axial{});
-};
-
-template <typename Lattice>
-concept TriRenderable = requires(const Lattice &lat) {
-  lat.rows();
-  lat.cols();
-  lat.at_tri(Tri_Coord{});
-};
-
 [[nodiscard]] inline std::string rgb_hex(const RGB8 c)
 {
   constexpr char digits[] = "0123456789abcdef";
@@ -231,7 +217,7 @@ inline void render_lattice_svg(std::ostream &out,
   ah_domain_error_if(opts.cell_size <= 0.0) << "render_lattice_svg: cell_size must be positive";
 
   ca_svg_detail::Bounds b;
-  if constexpr (ca_svg_detail::HexRenderable<Lattice>)
+  if constexpr (HexRenderable<Lattice>)
     {
       for (ca_size_t r = 0; r < frame.rows(); ++r)
         for (ca_size_t q = 0; q < frame.cols(); ++q)
@@ -247,7 +233,7 @@ inline void render_lattice_svg(std::ostream &out,
                     static_cast<double>(frame.rows()) * opts.cell_size);
         }
     }
-  else if constexpr (ca_svg_detail::TriRenderable<Lattice>)
+  else if constexpr (TriRenderable<Lattice>)
     {
       for (ca_size_t r = 0; r < frame.rows(); ++r)
         for (ca_size_t c = 0; c < frame.cols(); ++c)
@@ -269,7 +255,7 @@ inline void render_lattice_svg(std::ostream &out,
     }
 
   ca_svg_detail::write_svg_header(out, b, opts);
-  if constexpr (ca_svg_detail::HexRenderable<Lattice>)
+  if constexpr (HexRenderable<Lattice>)
     {
       for (ca_size_t r = 0; r < frame.rows(); ++r)
         for (ca_size_t q = 0; q < frame.cols(); ++q)
@@ -285,7 +271,7 @@ inline void render_lattice_svg(std::ostream &out,
             out << "/>\n";
           }
     }
-  else if constexpr (ca_svg_detail::TriRenderable<Lattice>)
+  else if constexpr (TriRenderable<Lattice>)
     {
       for (ca_size_t r = 0; r < frame.rows(); ++r)
         for (ca_size_t c = 0; c < frame.cols(); ++c)

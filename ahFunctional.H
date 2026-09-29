@@ -164,6 +164,24 @@ template <typename Key, class Cmp>
 struct DynSetLhash;
 
 namespace functional_detail {
+/** @brief Type of `auto it = c.get_it()` for a `const C &c`.
+ *  @tparam C container type.
+ */
+template <class C>
+using get_it_t = std::decay_t<decltype(std::declval<const C &>().get_it())>;
+
+/** @brief Type of `it.get_curr()` on a `get_it_t<C>` lvalue.
+ *  @tparam C container type.
+ */
+template <class C>
+using get_curr_t = decltype(std::declval<get_it_t<C> &>().get_curr());
+
+/** @brief Type of `const auto &item = it.get_curr()`.
+ *  @tparam C container type.
+ */
+template <class C>
+using get_curr_cref_t = const std::remove_reference_t<get_curr_t<C>> &;
+
 /** @brief Trait: false if DynSetLhash<T,Eq> is not yet complete. @cond INTERNAL */
 template <typename T, class Eq, typename = void>
 struct Dyn_Set_Lhash_Available : public std::false_type
@@ -557,6 +575,7 @@ DynList<const typename Container::Item_Type *> pointers_list(const Container &c)
     @ingroup Algorithms
 */
 template <class Op>
+  requires CallableWith<Op &>
 void each(const size_t start, const size_t end, Op &op)
 {
   for (size_t i = start; i <= end; ++i)
@@ -565,6 +584,7 @@ void each(const size_t start, const size_t end, Op &op)
 
 /** @overload each */
 template <class Op>
+  requires CallableWith<Op &>
 void each(size_t start, size_t end, Op &&op)
 {
   each(start, end, op);
@@ -572,6 +592,7 @@ void each(size_t start, size_t end, Op &&op)
 
 /** @overload each */
 template <class Op>
+  requires CallableWith<Op &>
 void each(const size_t n, Op &op)
 {
   if (n == 0)
@@ -581,6 +602,7 @@ void each(const size_t n, Op &op)
 
 /** @overload each */
 template <class Op>
+  requires CallableWith<Op &>
 void each(size_t n, Op &&op)
 {
   each(n, op);
@@ -708,6 +730,7 @@ inline const Container &for_each(const Container &container, Operation &&operati
     @ingroup Algorithms
 */
 template <class Container, class Operation>
+  requires CallableWith<Operation &, functional_detail::get_curr_t<Container>, std::size_t &>
 inline void enum_for_each(const Container &container, Operation &operation)
 {
   size_t i = 0;
@@ -717,6 +740,7 @@ inline void enum_for_each(const Container &container, Operation &operation)
 
 /** @overload enum_for_each */
 template <class Container, class Operation>
+  requires CallableWith<Operation &, functional_detail::get_curr_t<Container>, std::size_t &>
 inline void enum_for_each(const Container &container, Operation &&operation)
 {
   enum_for_each(container, operation);
@@ -746,6 +770,7 @@ inline void enum_for_each(const Container &container, Operation &&operation)
     @ingroup Algorithms
 */
 template <class Container, class Operation>
+  requires requires(Container &c, Operation &op) { { c.traverse(op) } -> std::convertible_to<bool>; }
 inline bool all(Container &container, Operation &operation)
 {
   return container.traverse(operation);
@@ -753,6 +778,7 @@ inline bool all(Container &container, Operation &operation)
 
 /** @overload all */
 template <class Container, class Operation>
+  requires requires(const Container &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
 inline bool all(const Container &container, Operation &operation)
 {
   return container.template traverse<Operation>(operation);
@@ -760,6 +786,7 @@ inline bool all(const Container &container, Operation &operation)
 
 /** @overload all */
 template <class Container, class Operation>
+  requires requires(Container &c, Operation &op) { { c.traverse(op) } -> std::convertible_to<bool>; }
 inline bool all(Container &container, Operation &&operation = Operation())
 {
   return all<Container, Operation>(container, operation);
@@ -767,6 +794,7 @@ inline bool all(Container &container, Operation &&operation = Operation())
 
 /** @overload all */
 template <class Container, class Operation>
+  requires requires(const Container &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
 inline bool all(const Container &container, Operation &&operation = Operation())
 {
   return all<Container, Operation>(container, operation);
@@ -907,6 +935,7 @@ template <class Container1,
     @ingroup Algorithms
 */
 template <typename T, class C, class Op>
+  requires requires(DynList<T> &ret, Op &op) { ret.append(op(std::declval<functional_detail::get_curr_t<C>>())); }
 [[nodiscard]] DynList<T> maps(const C &c, Op op)
 {
   DynList<T> ret;
@@ -2244,6 +2273,7 @@ template <class Container, class Pred>
     @ingroup Algorithms
 */
 template <typename T, class Container, class Operation>
+  requires requires(T &acc, Operation &op, T &x) { acc = op(x, acc); }
 [[nodiscard]] inline T foldr(const Container &container, const T &init, Operation operation)
 {
   DynList<T> reversed;
@@ -2328,6 +2358,7 @@ template <class C1, class C2>
     @ingroup Algorithms
 */
 template <class Container, class Pred>
+  requires PredicateWith<Pred &, functional_detail::get_curr_cref_t<Container>>
 [[nodiscard]] inline DynList<typename Container::Item_Type> take_while(const Container &c, Pred pred)
 {
   DynList<typename Container::Item_Type> result;
@@ -2349,6 +2380,7 @@ template <class Container, class Pred>
     @ingroup Algorithms
 */
 template <class Container, class Pred>
+  requires PredicateWith<Pred &, functional_detail::get_curr_cref_t<Container>>
 [[nodiscard]] inline DynList<typename Container::Item_Type> drop_while(const Container &c, Pred pred)
 {
   DynList<typename Container::Item_Type> result;
@@ -2423,6 +2455,7 @@ template <typename T, class Container>
     @ingroup Algorithms
 */
 template <typename T, class Container, class Op>
+  requires requires(T &acc, Op &op) { acc = op(acc, std::declval<functional_detail::get_curr_t<Container>>()); }
 [[nodiscard]] inline DynList<T> scanl(const Container &container, const T &init, Op op)
 {
   DynList<T> result;
@@ -2444,6 +2477,7 @@ template <typename T, class Container, class Op>
     @ingroup Algorithms
 */
 template <class Container, class Cmp = std::less<typename Container::Item_Type>>
+  requires PredicateWith<Cmp &, functional_detail::get_curr_cref_t<Container>, const typename Container::Item_Type &>
 [[nodiscard]] inline const typename Container::Item_Type *min_ptr(const Container &container,
                                                                   Cmp cmp = Cmp())
 {
@@ -2469,6 +2503,7 @@ template <class Container, class Cmp = std::less<typename Container::Item_Type>>
     @ingroup Algorithms
 */
 template <class Container, class Cmp = std::less<typename Container::Item_Type>>
+  requires PredicateWith<Cmp &, const typename Container::Item_Type &, functional_detail::get_curr_cref_t<Container>>
 [[nodiscard]] inline const typename Container::Item_Type *max_ptr(const Container &container,
                                                                   Cmp cmp = Cmp())
 {
@@ -2494,6 +2529,8 @@ template <class Container, class Cmp = std::less<typename Container::Item_Type>>
     @ingroup Algorithms
 */
 template <class Container, class Cmp = std::less<typename Container::Item_Type>>
+  requires PredicateWith<Cmp &, functional_detail::get_curr_cref_t<Container>, const typename Container::Item_Type &> and
+           PredicateWith<Cmp &, const typename Container::Item_Type &, functional_detail::get_curr_cref_t<Container>>
 [[nodiscard]] inline std::pair<const typename Container::Item_Type *, const typename Container::Item_Type *>
 minmax_ptr(const Container &container, Cmp cmp = Cmp())
 {
@@ -2523,6 +2560,7 @@ minmax_ptr(const Container &container, Cmp cmp = Cmp())
     @ingroup Algorithms
 */
 template <class Container, class Pred>
+  requires PredicateWith<Pred &, functional_detail::get_curr_t<Container>>
 [[nodiscard]] inline size_t count_if(const Container &container, Pred pred)
 {
   size_t count = 0;

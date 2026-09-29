@@ -50,6 +50,7 @@
 # ifndef TPL_DYNBINHEAP_H
 # define TPL_DYNBINHEAP_H
 
+# include <ah-concepts.H>
 # include <ahDry.H>
 # include <ah-args-ctor.H>
 # include <htlist.H>
@@ -71,6 +72,7 @@ namespace Aleph {
       @author Leandro Rabindranath León
   */
   template <class T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   class DynBinHeap : public BinHeap<T, Compare>,
                      public LocateFunctions<DynBinHeap<T, Compare>, T>,
                      public FunctionalMethods<DynBinHeap<T, Compare>, T>,

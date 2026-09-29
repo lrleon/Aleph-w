@@ -98,6 +98,7 @@
 # ifndef TPL_BINHEAP_H
 # define TPL_BINHEAP_H
 
+# include <ah-concepts.H>
 # include <htlist.H>
 # include <tpl_arrayStack.H>
 # include <tpl_binNode.H>
@@ -169,6 +170,7 @@ This class is not intended for public use. Its purpose is to provide
   */
   template <template <class> class NodeType, typename Key,
             class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   class GenBinHeap
   {
   protected:
@@ -1000,6 +1002,7 @@ This class is not intended for public use. Its purpose is to provide
       @ingroup Trees
   */
   template <class Key, typename Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct BinHeap : public GenBinHeap<BinHeapNode, Key, Compare>
   {
     /// El tipo de nodo del heap.
@@ -1025,6 +1028,7 @@ This class is not intended for public use. Its purpose is to provide
       @ingroup Trees
   */
   template <class Key, typename Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct BinHeapVtl : public GenBinHeap<BinHeapNodeVtl, Key, Compare>
   {
     /// El tipo de nodo del heap.

@@ -7,8 +7,9 @@
 // Aleph::DynList in a non-dependent qualified-id, which needs a forward
 // declaration even though the function body is never instantiated here.
 
-// AlephRandomAccessItor lives in the global namespace, not Aleph::, since
-// ah-iterator.H never opens `namespace Aleph`.
+// AlephRandomAccessItor lives in the global namespace, not Aleph::, because
+// ah-iterator.H declares it outside the forward-declaration-only `Aleph`
+// block.
 struct NoRandomAccess {};
 static_assert(not AlephRandomAccessItor<NoRandomAccess>);
 

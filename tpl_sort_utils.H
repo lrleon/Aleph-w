@@ -159,7 +159,7 @@ extern const int Not_Found;
  *  @see is_inversely_sorted(), search_inversion(), test_sorted()
  *  @ingroup Algorithms
  */
-template <template <typename> class Container, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class Container, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 [[nodiscard]] bool is_sorted(const Container<T> &cont, const Compare &cmp = Compare())
 {
   if (cont.is_empty())
@@ -201,7 +201,7 @@ template <template <typename> class Container, typename T, class Compare = Aleph
  *  @see is_sorted(), test_sorted()
  *  @ingroup Algorithms
  */
-template <template <typename> class Container, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class Container, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 [[nodiscard]] std::pair<bool, size_t> search_inversion(const Container<T> &cont,
                                                        const Compare &cmp = Compare())
 {
@@ -243,7 +243,7 @@ template <template <typename> class Container, typename T, class Compare = Aleph
  *  @see is_sorted()
  *  @ingroup Algorithms
  */
-template <template <typename> class Container, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class Container, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 [[nodiscard]] bool is_inversely_sorted(const Container<T> &cont, const Compare &cmp = Compare())
 {
   if (cont.is_empty())
@@ -285,7 +285,7 @@ template <template <typename> class Container, typename T, class Compare = Aleph
  *  @see is_sorted(), search_inversion()
  *  @ingroup Algorithms
  */
-template <template <typename> class Container, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class Container, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 [[nodiscard]] std::pair<bool, size_t> test_sorted(const Container<T> &cont,
                                                   const Compare &cmp = Compare())
 {
@@ -340,7 +340,7 @@ template <template <typename> class Container, typename T, class Compare = Aleph
  *  @see insertion_sort(), quicksort(), mergesort(), heapsort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void selection_sort(T *a, const size_t n,
                            const Compare &cmp = Compare()) noexcept(noexcept(cmp(a[0], a[0])) &&
                                                                     std::is_nothrow_swappable_v<T>)
@@ -399,7 +399,7 @@ inline Link *search_extreme(const Link &list, const Compare &cmp)
   return extreme;
 }
 
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline const T *search_extreme(const DynList<T> &list, const Compare &cmp = Compare())
 {
   if (list.is_empty())
@@ -526,7 +526,7 @@ using Compare_Snodenc = Compare_Tnode<Slinknc, Snodenc, T, Compare>;
  *  @param[in,out] list The list to sort.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void selection_sort(Dnode<T> &list, Compare cmp)
 {
   selection_sort<Compare_Dnode<T, Compare>>(list, Compare_Dnode<T, Compare>(cmp));
@@ -766,7 +766,7 @@ inline const T *sequential_search(const DynList<T> &list, const T &x, Equal eq =
     @note There is no checking if the stream is empty.
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long search_extreme(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   long extreme_index = l;
@@ -781,7 +781,7 @@ inline long search_extreme(T *a, const long l, const long r, const Compare &cmp 
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long search_min(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   return search_extreme<T, Compare>(a, l, r, cmp);
@@ -791,7 +791,7 @@ inline long search_min(T *a, const long l, const long r, const Compare &cmp = Co
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::greater<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::greater<T>>
 inline long search_max(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   return search_extreme<T, Compare>(a, l, r, cmp);
@@ -800,7 +800,7 @@ inline long search_max(T *a, const long l, const long r, const Compare &cmp = Co
 /** \overload search_extreme
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline Dnode<T> *search_extreme(const Dnode<T> &list, const Compare &cmp = Compare())
 {
   Compare_Dnode<T, Compare> cmp_dnode(cmp);
@@ -820,7 +820,7 @@ inline Dnode<T> *search_extreme(const Dnode<T> &list, const Compare &cmp = Compa
  *  @return pointer to the data of the extreme element, or nullptr if empty.
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline T *search_extreme(DynDlist<T> &list, const Compare &cmp = Compare())
 {
   const auto &base = static_cast<const Dnode<T> &>(list);
@@ -830,7 +830,7 @@ inline T *search_extreme(DynDlist<T> &list, const Compare &cmp = Compare())
 }
 
 /** @overload */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline const T *search_extreme(const DynDlist<T> &list, const Compare &cmp = Compare())
 {
   const auto &base = static_cast<const Dnode<T> &>(list);
@@ -844,7 +844,7 @@ inline const T *search_extreme(const DynDlist<T> &list, const Compare &cmp = Com
  *  @param cmp Comparison functor.
  *  @return Pointer to the data of the extreme element, or nullptr if empty.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline T *search_extreme(DynList<T> &list, const Compare &cmp = Compare())
 {
   if (list.is_empty())
@@ -868,14 +868,14 @@ inline T *search_extreme(DynList<T> &list, const Compare &cmp = Compare())
  *  @param cmp Comparison functor.
  *  @return Pointer to the data of the minimum element, or nullptr if empty.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline T *search_min(DynDlist<T> &list, const Compare &cmp = Compare())
 {
   return search_extreme<T, Compare>(list, cmp);
 }
 
 /** @overload */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline const T *search_min(const DynDlist<T> &list, const Compare &cmp = Compare())
 {
   return search_extreme<T, Compare>(list, cmp);
@@ -886,14 +886,14 @@ inline const T *search_min(const DynDlist<T> &list, const Compare &cmp = Compare
  *  @param cmp Comparison functor.
  *  @return Pointer to the data of the maximum element, or nullptr if empty.
  */
-template <typename T, class Compare = Aleph::greater<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::greater<T>>
 inline T *search_max(DynDlist<T> &list, const Compare &cmp = Compare())
 {
   return search_extreme<T, Compare>(list, cmp);
 }
 
 /** @overload */
-template <typename T, class Compare = Aleph::greater<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::greater<T>>
 inline const T *search_max(const DynDlist<T> &list, const Compare &cmp = Compare())
 {
   return search_extreme<T, Compare>(list, cmp);
@@ -934,7 +934,7 @@ inline const T *search_max(const DynDlist<T> &list, const Compare &cmp = Compare
  *  @see selection_sort(), quicksort(), mergesort(), heapsort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void insertion_sort(T *a, const long l, const long r, const Compare &cmp = Compare()) noexcept(
   noexcept(cmp(std::declval<T &>(), std::declval<T &>())) and
   std::is_nothrow_move_constructible_v<T> and std::is_nothrow_move_assignable_v<T>)
@@ -1042,7 +1042,7 @@ inline void list_insertion_sort(ListType &list, const Compare &cmp)
  *  @param[in,out] l The list to sort.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void insertion_sort(DynList<T> &l, const Compare &cmp = Compare())
 {
   using Cmp = Compare_Snodenc<T, Compare>;
@@ -1061,7 +1061,7 @@ inline void insertion_sort(DynList<T> &l, const Compare &cmp = Compare())
  *  @param[in] cmp Comparison functor.
  *  @return The sorted list.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<T> insertion_sort(DynList<T> &&l, const Compare &cmp = Compare())
 {
   using Cmp = Compare_Snodenc<T, Compare>;
@@ -1077,7 +1077,7 @@ inline DynList<T> insertion_sort(DynList<T> &&l, const Compare &cmp = Compare())
  *  @param[in,out] list The list to sort.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void insertion_sort(Dnode<T> &list, const Compare &cmp = Compare())
 {
   using Cmp = Compare_Dnode<T, Compare>;
@@ -1113,7 +1113,7 @@ inline void insertion_sort(Dnode<T> &list, const Compare &cmp = Compare())
  *  @see mergesort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
                   const Compare &cmp = Compare())
 {
@@ -1164,7 +1164,7 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void merge(T *a, const long l, const long m, const long r, const Compare &cmp = Compare())
 {
   Array<T> buf(static_cast<size_t>(r - l + 1));
@@ -1229,7 +1229,7 @@ void mergesort(T *a, const long l, const long r, Array<T> &buf, Compare cmp)
  *  @see quicksort(), heapsort(), merge()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void mergesort(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   if (l >= r)
@@ -1292,7 +1292,7 @@ inline void merge_lists(Tlist &l1, Tlist &l2, Tlist &result, const Compare &cmp 
  *  @param[out] result Empty list to receive merged result.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void merge_lists(Dnode<T> &l1, Dnode<T> &l2, Dnode<T> &result, const Compare &cmp = Compare())
 {
   merge_lists<Dnode<T>, Compare_Dnode<T, Compare>>(l1, l2, result, cmp);
@@ -1361,7 +1361,7 @@ inline void mergesort(Tlist &list, const Compare &cmp = Compare())
 
     \ingroup Algorithms
 */
-template <template <typename> class Tlist, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class Tlist, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void mergeinsertsort(Tlist<T> &list, const Compare &cmp = Compare(),
                             const size_t lsz = Aleph::Insertion_Threshold)
 {
@@ -1391,7 +1391,7 @@ inline void mergeinsertsort(Tlist<T> &list, const Compare &cmp = Compare(),
  *  @param[in,out] list The list to sort.
  *  @param[in] cmp Comparison functor.
  */
-template <template <typename> class Tlist, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class Tlist, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void mergesort(Tlist<T> &list, const Compare &cmp = Compare())
 {
   if (list.is_unitarian_or_empty())
@@ -1413,7 +1413,7 @@ inline void mergesort(Tlist<T> &list, const Compare &cmp = Compare())
  *  @param[in,out] list The list to sort.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void mergesort(Dnode<T> &list, const Compare &cmp = Compare())
 {
   mergesort<Dnode<T>, Compare_Dnode<T, Compare>>(list, cmp);
@@ -1426,7 +1426,7 @@ inline void mergesort(Dnode<T> &list, const Compare &cmp = Compare())
  *  @param[in,out] list The list to sort.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void mergesort(DynDlist<T> &list, const Compare &cmp = Compare())
 {
   mergesort<Dnode<T>, Compare_Dnode<T, Compare>>(list, cmp);
@@ -1439,7 +1439,7 @@ inline void mergesort(DynDlist<T> &list, const Compare &cmp = Compare())
  *  @param[in,out] list The list to sort.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void mergesort(DynList<T> &list, const Compare &cmp = Compare())
 {
   mergesort<DynList<T>, Compare>(list, cmp);
@@ -1455,7 +1455,7 @@ inline void mergesort(DynList<T> &list, const Compare &cmp = Compare())
  *  @param[in] cmp Comparison functor.
  *  @return The sorted list.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<T> mergesort(DynList<T> &&list, const Compare &cmp = Compare())
 {
   mergesort<DynList<T>, Compare>(list, cmp);
@@ -1469,7 +1469,7 @@ inline DynList<T> mergesort(DynList<T> &&list, const Compare &cmp = Compare())
  *  @param cmp Comparison functor.
  *  @return Index of the selected pivot.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long select_pivot(T *a, long l, long r,
                          const Compare &cmp = Compare()) noexcept(noexcept(cmp(a[0], a[0])) &&
                                                                   std::is_nothrow_swappable_v<T>);
@@ -1491,7 +1491,7 @@ inline long select_pivot(T *a, long l, long r,
  *  @param[in] cmp Comparison functor.
  *  @return The final index of the pivot.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long partition(T *a, const long l, const long r,
                       const Compare &cmp = Compare()) noexcept(noexcept(cmp(a[0], a[0])) &&
                                                                std::is_nothrow_swappable_v<T>)
@@ -1548,7 +1548,7 @@ inline long partition(T *a, const long l, const long r,
  *  @see quicksort_rec_min() quicksort_insertion() quicksort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void quicksort_rec(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   if (l >= r)
@@ -1573,7 +1573,7 @@ inline void quicksort_rec(T *a, const long l, const long r, const Compare &cmp =
  *  @param[in] r Right index.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void quicksort_no_tail(T *a, long l, long r, const Compare &cmp = Compare())
 {
   while (l < r)
@@ -1612,7 +1612,7 @@ inline void quicksort_no_tail(T *a, long l, long r, const Compare &cmp = Compare
     @see quicksort_rec() quicksort() quicksort_insertion()
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void quicksort_rec_min(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   if (r <= l)
@@ -1631,7 +1631,7 @@ inline void quicksort_rec_min(T *a, const long l, const long r, const Compare &c
     }
 }
 
-template <typename T, class Compare>
+template <typename T, StrictWeakOrder<T> Compare>
 inline long select_pivot(T *a, const long l, const long r,
                          const Compare &cmp) noexcept(noexcept(cmp(a[0], a[0])) &&
                                                       std::is_nothrow_swappable_v<T>)
@@ -1692,7 +1692,7 @@ inline size_t introsort_depth_limit(size_t n) noexcept;
  *  @see quicksort_rec(), quicksort_insertion(), mergesort(), heapsort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void quicksort(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   if (r - l < Quicksort_Threshold)
@@ -1835,7 +1835,7 @@ void introsort_loop(T *a, long l, long r, size_t depth_limit, const Compare &cmp
  *  @see quicksort(), heapsort(), mergesort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void introsort(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   if (r <= l)
@@ -1867,7 +1867,7 @@ inline void introsort(T *a, const long l, const long r, const Compare &cmp = Com
  *  @see introsort(T*, long, long, Compare)
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void introsort(T *a, const size_t n, const Compare &cmp = Compare())
 {
   if (n <= 1)
@@ -1902,7 +1902,7 @@ inline void introsort(T *a, const size_t n, const Compare &cmp = Compare())
  *  @see introsort(T*, long, long, Compare)
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void introsort(T *begin, T *end, const Compare &cmp = Compare())
 {
   if (begin >= end)
@@ -1918,7 +1918,7 @@ inline void introsort(T *begin, T *end, const Compare &cmp = Compare())
  *  @param[in,out] arr Array to sort.
  *  @param[in] cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void introsort(Array<T> &arr, const Compare &cmp = Compare())
 {
   const size_t n = arr.size();
@@ -1985,7 +1985,7 @@ void quicksort(Dlink &list, const Compare &cmp = Compare())
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 void quicksort(Dnode<T> &list, const Compare &cmp = Compare())
 {
   quicksort<Compare_Dnode<T, Compare>>(list, cmp);
@@ -2023,7 +2023,7 @@ void quicksort(HTList &list, const Compare &cmp = Compare())
  *  @param list The list to sort.
  *  @param cmp Comparison functor for the data type @p T.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 void quicksort(DynList<T> &list, const Compare &cmp = Compare())
 {
   quicksort<T, Compare>(static_cast<HTList &>(list), cmp);
@@ -2067,7 +2067,7 @@ void quicksort(DynList<T> &list, const Compare &cmp = Compare())
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void quicksort_insertion(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   if (r <= l)
@@ -2153,7 +2153,7 @@ inline void quicksort_insertion(T *a, const long l, const long r, const Compare 
     \ingroup Algorithms
     @see sequential_search() binary_search_rec()
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long random_search(T *a, const T &x, const long l, const long r,
                           const Compare &cmp = Compare())
 {
@@ -2178,7 +2178,7 @@ inline long random_search(T *a, const T &x, const long l, const long r,
  *  @param cmp Comparison functor.
  *  @return Index of the element if found, Not_Found otherwise.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long random_search(DynArray<T> &a, const T &x, const long l, const long r,
                           const Compare &cmp = Compare())
 {
@@ -2289,7 +2289,7 @@ inline Dnode<T> *dlink_random_search(Dlink &list, const T &x, const Compare &cmp
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 Dnode<T> *random_search(Dlink &list, const T &x, const Compare &cmp = Compare())
 {
   return dlink_random_search<T, Compare_Dnode<T, Compare>>(list, x, cmp);
@@ -2324,7 +2324,7 @@ Dnode<T> *random_search(Dlink &list, const T &x, const Compare &cmp = Compare())
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline T *random_search(DynDlist<T> &list, const T &x, const Compare &cmp = Compare())
 {
   Dnode<T> *p = dlink_random_search<T, Compare_Dnode<T, Compare>>(list, x, cmp);
@@ -2461,7 +2461,7 @@ inline long select_pivot_op_impl(const Container &a, const long l, const long r,
 
     @ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long select_pivot_op(const DynArray<T> &a, const long l, const long r,
                             const Compare &cmp = Compare())
 {
@@ -2473,7 +2473,7 @@ inline long select_pivot_op(const DynArray<T> &a, const long l, const long r,
 
     @ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long select_pivot_op(const Array<T> &a, const long l, const long r,
                             const Compare &cmp = Compare())
 {
@@ -2531,7 +2531,7 @@ inline long partition_op_impl(Container &a, const long l, const long r, const Co
  *  @param cmp Comparison functor.
  *  @return Index of the pivot in its final position.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long partition_op(DynArray<T> &a, const long l, const long r, const Compare &cmp = Compare())
 {
   return partition_op_impl<T, Compare>(a, l, r, cmp);
@@ -2544,7 +2544,7 @@ inline long partition_op(DynArray<T> &a, const long l, const long r, const Compa
  *  @param cmp Comparison functor.
  *  @return Index of the pivot in its final position.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long partition_op(Array<T> &a, const long l, const long r, const Compare &cmp = Compare())
 {
   return partition_op_impl<T, Compare>(a, l, r, cmp);
@@ -2630,7 +2630,7 @@ static inline const T &__random_select(Array<T> &a, const long i, long l, long r
  *  @return Reference to the selected element.
  *  @throw out_of_range if index is invalid.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 const T &random_select(DynArray<T> &a, const long i, const Compare &cmp = Compare())
 {
   const auto n_sz = a.size();
@@ -2649,7 +2649,7 @@ const T &random_select(DynArray<T> &a, const long i, const Compare &cmp = Compar
  *  @return Reference to the selected element.
  *  @throw out_of_range if index is invalid.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 const T &random_select(Array<T> &a, const long i, const Compare &cmp = Compare())
 {
   const auto n_sz = a.size();
@@ -2701,7 +2701,7 @@ const T &random_select(Array<T> &a, const long i, const Compare &cmp = Compare()
  *  @see partition()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 const T &random_select(T *a, const long i, const long n, const Compare &cmp = Compare())
 {
   ah_invalid_argument_if(a == nullptr and n > 0) << "null pointer";
@@ -2718,7 +2718,7 @@ const T &random_select(T *a, const long i, const long n, const Compare &cmp = Co
  *  @param cmp Comparison functor.
  *  @return Reference to the selected element.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 const T &random_select(T *a, const long i, const long n, Compare &&cmp = Compare())
 {
   return random_select<T, Compare>(a, i, n, cmp);
@@ -2820,7 +2820,7 @@ Dlink *dlink_random_select(Dlink &list, const size_t i, const Compare &cmp = Com
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 Dnode<T> *random_select(Dlink &list, const size_t i, const Compare &cmp = Compare())
 {
   return static_cast<Dnode<T> *>(dlink_random_select<Compare_Dnode<T, Compare>>(list, i, cmp));
@@ -2851,7 +2851,7 @@ Dnode<T> *random_select(Dlink &list, const size_t i, const Compare &cmp = Compar
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 T *random_select(DynDlist<T> &list, const size_t i, const Compare &cmp = Compare())
 {
   Dlink *link = dlink_random_select<Compare_Dnode<T, Compare>>(list, i, cmp);
@@ -2880,7 +2880,7 @@ T *random_select(DynDlist<T> &list, const size_t i, const Compare &cmp = Compare
     @see insertion_sort() quicksort_rec() mergesort() heapsort()
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void selection_sort(DynArray<T> &a, const Compare &cmp = Compare())
 {
   const long n = static_cast<long>(a.size());
@@ -2930,7 +2930,7 @@ inline void selection_sort(DynArray<T> &a, const Compare &cmp = Compare())
  *  @see insertion_sort(), selection_sort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void bubble_sort(DynArray<T> &a, const Compare &cmp = Compare())
 {
   const long n = static_cast<long>(a.size());
@@ -2970,7 +2970,7 @@ inline void bubble_sort(DynArray<T> &a, const Compare &cmp = Compare())
     @see selection_sort() quicksort_rec() mergesort() heapsort()
     \ingroup Algorithms
 */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void insertion_sort(C<T> &a, const long l, const long r, const Compare &cmp = Compare())
 {
   for (long i = l + 1; i <= r; i++)
@@ -2988,7 +2988,7 @@ inline void insertion_sort(C<T> &a, const long l, const long r, const Compare &c
    \overload insertion_sort()
    \ingroup Algorithms
 */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void insertion_sort(C<T> &a, const Compare &cmp = Compare())
 {
   const auto n = a.size();
@@ -3031,7 +3031,7 @@ inline void insertion_sort(C<T> &a, const Compare &cmp = Compare())
  *  @see insertion_sort(), quicksort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void shellsort(DynArray<T> &a, const Compare &cmp = Compare())
 {
   const long n = a.size();
@@ -3208,7 +3208,7 @@ public:
  *  @see quicksort(), mergesort(), selection_sort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void heapsort(DynArray<T> &a, const Compare &cmp = Compare())
 {
   const long n = a.size();
@@ -3238,7 +3238,7 @@ inline void heapsort(DynArray<T> &a, const Compare &cmp = Compare())
  *  @param cmp Comparison functor.
  *  @return Index of the pivot in its final position.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long partition(C<T> &a, const long l, const long r, const Compare &cmp = Compare())
 {
   if (l == r)
@@ -3274,7 +3274,7 @@ inline long partition(C<T> &a, const long l, const long r, const Compare &cmp = 
  *  @param r Right index.
  *  @param cmp Comparison functor.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void quicksort_rec(DynArray<T> &a, const long l, const long r, const Compare &cmp = Compare())
 {
   if (r <= l)
@@ -3338,7 +3338,7 @@ inline void push2(Stack &stack, const A &a, const B &b)
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void quicksort(DynArray<T> &a, const Compare &cmp = Compare())
 {
   long l = 0, r = a.size() - 1;
@@ -3503,7 +3503,7 @@ void introsort_loop(DynArray<T> &a, long l, long r, size_t depth_limit, const Co
  *  @see quicksort(), heapsort(), mergesort()
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void introsort(DynArray<T> &a, const Compare &cmp = Compare())
 {
   const long n = a.size();
@@ -3537,7 +3537,7 @@ inline void introsort(DynArray<T> &a, const Compare &cmp = Compare())
     @note There is no checking if the stream is empty.
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long search_extreme(const DynArray<T> &a, const long l, const long r,
                            const Compare &cmp = Compare())
 {
@@ -3554,7 +3554,7 @@ inline long search_extreme(const DynArray<T> &a, const long l, const long r,
 
     \ingroup Algorithms
 */
-template <typename T, class Compare = Aleph::greater<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::greater<T>>
 inline long search_max(const DynArray<T> &a, const long l, const long r,
                        const Compare &cmp = Compare())
 {
@@ -3606,7 +3606,7 @@ inline long search_max(const DynArray<T> &a, const long l, const long r,
  *  @see bsearch(), sequential_search()
  *  @ingroup Algorithms
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long binary_search(const C<T> &a, const T &x, long l, long r, const Compare &cmp = Compare())
 {
   if (l > r)
@@ -3640,7 +3640,7 @@ inline long binary_search(const C<T> &a, const T &x, long l, long r, const Compa
  *  @param cmp Comparison functor.
  *  @return Index where element is found or should be inserted.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long binary_search(const C<T *> &a, const T &x, long l, long r, const Compare &cmp = Compare())
 {
   if (l > r)
@@ -3668,7 +3668,7 @@ inline long binary_search(const C<T *> &a, const T &x, long l, long r, const Com
  *  @param cmp Comparison functor.
  *  @return Index where element is found or should be inserted.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long binary_search(const C<T *> &a, const T &x, Compare &&cmp = Compare())
 {
   const auto n = a.size();
@@ -3704,7 +3704,7 @@ inline long binary_search(const C<T *> &a, const T &x, Compare &&cmp = Compare()
     @see sequential_search()
     \ingroup Algorithms
 */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long binary_search(const C<T> &a, const T &x, const Compare &cmp = Compare())
 {
   const auto n = a.size();
@@ -3727,7 +3727,7 @@ inline long binary_search(const C<T> &a, const T &x, const Compare &cmp = Compar
  *  @param cmp Comparison functor.
  *  @return DynList containing all indices where @p x is found.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<size_t> binary_search_dup(const C<T> &a, const T &x, const Compare &cmp = Compare())
 {
   DynList<size_t> ret;
@@ -3780,7 +3780,7 @@ inline DynList<size_t> binary_search_dup(const C<T> &a, const T &x, const Compar
  *  @see stable_build_index_ptr() for a variant that preserves the relative
  *       order of equivalent elements.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline Array<const T *> build_index_ptr(const C<T> &a, const Compare &cmp = Compare())
 {
   const size_t n = a.size();
@@ -3810,7 +3810,7 @@ inline Array<const T *> build_index_ptr(const C<T> &a, const Compare &cmp = Comp
  *  @param cmp Comparison functor.
  *  @return DynList of pointers to matching elements.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<const T *> bsearch_dup(const C<T> &a, const T &x, const Compare &cmp = Compare())
 {
   DynList<const T *> ret;
@@ -3854,7 +3854,7 @@ inline DynList<const T *> bsearch_dup(const C<T> &a, const T &x, const Compare &
  *  @param cmp Comparison functor.
  *  @return Pointer to the found element, or nullptr if not found.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline T *bsearch(C<T> &a, const T &x, const Compare &cmp = Compare())
 {
   long i = binary_search(a, x, cmp);
@@ -3865,7 +3865,7 @@ inline T *bsearch(C<T> &a, const T &x, const Compare &cmp = Compare())
 }
 
 /** @overload */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline const T *bsearch(const C<T> &a, const T &x, const Compare &cmp = Compare())
 {
   long i = binary_search(a, x, cmp);
@@ -3886,7 +3886,7 @@ inline const T *bsearch(const C<T> &a, const T &x, const Compare &cmp = Compare(
  *  @param cmp Comparison functor.
  *  @return The found pointer, or nullptr if not found.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline T *bsearch(const C<T *> &a, const T &x, const Compare &cmp = Compare())
 {
   long i = binary_search(a, x, cmp);
@@ -3907,7 +3907,7 @@ inline T *bsearch(const C<T *> &a, const T &x, const Compare &cmp = Compare())
  *  @param cmp Comparison functor.
  *  @return DynList of pointers to matching elements.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<T *> bsearch_dup(C<T> &a, const T &x, const Compare &cmp = Compare())
 {
   DynList<T *> ret;
@@ -3951,7 +3951,7 @@ inline DynList<T *> bsearch_dup(C<T> &a, const T &x, const Compare &cmp = Compar
  *  @param cmp Comparison functor.
  *  @return DynList of found pointers.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<T *> bsearch_dup(const C<T *> &a, const T &x, const Compare &cmp = Compare())
 {
   DynList<T *> ret;
@@ -4021,7 +4021,7 @@ inline DynList<T *> bsearch_dup(const C<T *> &a, const T &x, const Compare &cmp 
     @see binary_search()
     \ingroup Algorithms
 */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long binindex(const C<T> &a, const T &x, const Compare &cmp = Compare())
 {
   return binary_search(a, x, cmp);
@@ -4056,7 +4056,7 @@ inline long binindex(const C<T> &a, const T &x, const Compare &cmp = Compare())
  * @see binary_search()
  * \ingroup Algorithms
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<long> binindex_dup(const C<T> &a, const T &x, const Compare &cmp = Compare())
 {
   DynList<long> ret;
@@ -4099,7 +4099,7 @@ inline DynList<long> binindex_dup(const C<T> &a, const T &x, const Compare &cmp 
  *  @param cmp Comparison functor.
  *  @return DynList of indices where pointers point to values equal to @p x.
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline DynList<long> binindex_dup(const C<T *> &a, const T &x, const Compare &cmp = Compare())
 {
   DynList<long> ret;
@@ -4250,7 +4250,7 @@ bool stable_index_less(const C &c, const size_t i, const size_t j, const Compare
  *  @see build_index_ptr()
  *  @ingroup Algorithms
  */
-template <class C, class Compare = Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
+template <class C, StrictWeakOrder<sort_utils_detail::Indexed_Value_Type<C>> Compare = Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
 inline Array<size_t> build_index(const C &a, const Compare &cmp = Compare())
 {
   const size_t n = a.size();
@@ -4305,7 +4305,7 @@ inline Array<size_t> build_index(const C &a, const Compare &cmp = Compare())
  *  @see stable_argsort() High-level counterpart in `ahSort.H`.
  *  @ingroup Algorithms
  */
-template <class C, class Compare = Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
+template <class C, StrictWeakOrder<sort_utils_detail::Indexed_Value_Type<C>> Compare = Aleph::less<sort_utils_detail::Indexed_Value_Type<C>>>
 inline Array<size_t> stable_build_index(const C &a, const Compare &cmp = Compare())
 {
   const size_t n = a.size();
@@ -4353,7 +4353,7 @@ inline Array<size_t> stable_build_index(const C &a, const Compare &cmp = Compare
          order of equivalent elements.
     \ingroup Algorithms
 */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline Array<T *> build_index_ptr(C<T> &a, const Compare &cmp = Compare())
 {
   const size_t n = a.size();
@@ -4397,7 +4397,7 @@ inline Array<T *> build_index_ptr(C<T> &a, const Compare &cmp = Compare())
  *  @see stable_build_index() for the plain-index counterpart.
  *  @ingroup Algorithms
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline Array<const T *> stable_build_index_ptr(const C<T> &a, const Compare &cmp = Compare())
 {
   const size_t n = a.size();
@@ -4435,7 +4435,7 @@ inline Array<const T *> stable_build_index_ptr(const C<T> &a, const Compare &cmp
  *  @see stable_build_index() for the plain-index counterpart.
  *  @ingroup Algorithms
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline Array<T *> stable_build_index_ptr(C<T> &a, const Compare &cmp = Compare())
 {
   const size_t n = a.size();
@@ -4482,7 +4482,7 @@ inline Array<T *> stable_build_index_ptr(C<T> &a, const Compare &cmp = Compare()
  *  @see quicksort(), partition_op(), insertion_sort()
  *  @ingroup Algorithms
  */
-template <template <typename> class C, typename T, class Compare = Aleph::less<T>>
+template <template <typename> class C, typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void quicksort_op(C<T> &a, const Compare &cmp = Compare(),
                          const size_t threshold = Quicksort_Threshold)
 {
@@ -4542,7 +4542,7 @@ inline void quicksort_op(C<T> &a, const Compare &cmp = Compare(),
  *  @param cmp Comparison functor.
  *  @return Index of the element if found, or its insertion position.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long binary_search_rec(T *a, const T &x, const long l, const long r,
                               const Compare &cmp = Compare())
 {
@@ -4567,7 +4567,7 @@ inline long binary_search_rec(T *a, const T &x, const long l, const long r,
  *  @param cmp Comparison functor.
  *  @return Index of the element if found, or its insertion position.
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline long binary_search(T *a, const T &x, long l, long r, const Compare &cmp = Compare())
 {
   while (l <= r)
@@ -4661,20 +4661,6 @@ void counting_sort_indices(Array<size_t> &sa, Array<size_t> &tmp, const size_t n
 }
 
 namespace sort_utils_detail {
-/** @brief Value concept for counting sort.
- *  @details Currently aliases IntegerSortableValue<T>, but may diverge
- *           if specific constraints are added for counting sort.
- */
-template <typename T>
-concept counting_integer = IntegerSortableValue<T>;
-
-/** @brief Value concept for radix sort.
- *  @details Currently aliases IntegerSortableValue<T>, but may diverge
- *           if specific constraints are added for radix sort.
- */
-template <typename T>
-concept radix_integer = IntegerSortableValue<T>;
-
 /** @brief Unsigned counterpart used to measure counting-sort key ranges.
  *
  *  The cv-qualifiers are removed before mapping to the corresponding
@@ -4759,7 +4745,7 @@ template <typename IntT>
  *  @param[in,out] a Container to sort.
  */
 template <template <typename> class C, typename IntT>
-  requires counting_integer<IntT>
+  requires IntegerSortableValue<IntT>
 void counting_sort_impl(C<IntT> &a)
 {
   const size_t n = a.size();
@@ -4802,12 +4788,12 @@ void counting_sort_impl(C<IntT> &a)
  *  Sorts `a[0..n)` in nondecreasing order using a stable counting-sort
  *  pass over the observed value range.
  *
- *  @tparam IntT Integer type accepted by `counting_integer`.
+ *  @tparam IntT Integer type accepted by `CountingSortable`.
  *  @param[in,out] a Pointer to the first element in the range.
  *  @param[in] n Number of elements in the range.
  */
 template <typename IntT>
-  requires counting_integer<IntT>
+  requires IntegerSortableValue<IntT>
 void counting_sort_impl(IntT *a, const size_t n)
 {
   if (n < 2)
@@ -4849,11 +4835,11 @@ void counting_sort_impl(IntT *a, const size_t n)
  *  Rewrites node values in sorted order without reallocating or relinking
  *  the list nodes.
  *
- *  @tparam IntT Integer type accepted by `counting_integer`.
+ *  @tparam IntT Integer type accepted by `CountingSortable`.
  *  @param[in,out] list List whose values are sorted in place.
  */
 template <typename IntT>
-  requires counting_integer<IntT>
+  requires IntegerSortableValue<IntT>
 void counting_sort_impl(DynList<IntT> &list)
 {
   const size_t n = list.size();
@@ -4901,11 +4887,11 @@ void counting_sort_impl(DynList<IntT> &list)
  *  Rewrites node values in sorted order without reallocating or relinking
  *  the doubly-linked list nodes.
  *
- *  @tparam IntT Integer type accepted by `counting_integer`.
+ *  @tparam IntT Integer type accepted by `CountingSortable`.
  *  @param[in,out] list List whose values are sorted in place.
  */
 template <typename IntT>
-  requires counting_integer<IntT>
+  requires IntegerSortableValue<IntT>
 void counting_sort_impl(DynDlist<IntT> &list)
 {
   const size_t n = list.size();
@@ -4974,11 +4960,11 @@ template <typename IntT>
  *  256-bucket counting pass for each byte of the unsigned radix key.
  *
  *  @tparam C Aleph array-like container template.
- *  @tparam IntT Integer type accepted by `radix_integer`.
+ *  @tparam IntT Integer type accepted by `RadixSortable`.
  *  @param[in,out] a Container sorted in place.
  */
 template <template <typename> class C, typename IntT>
-  requires radix_integer<IntT>
+  requires IntegerSortableValue<IntT>
 void radix_sort_impl(C<IntT> &a)
 {
   using U = radix_unsigned_t<IntT>;
@@ -5027,7 +5013,7 @@ void radix_sort_impl(C<IntT> &a)
  *  @param[in] n Number of elements.
  */
 template <typename IntT>
-  requires radix_integer<IntT>
+  requires IntegerSortableValue<IntT>
 void radix_sort_impl(IntT *a, const size_t n)
 {
   using U = radix_unsigned_t<IntT>;
@@ -5075,7 +5061,7 @@ void radix_sort_impl(IntT *a, const size_t n)
  *  @param[in,out] list The list to sort.
  */
 template <typename IntT>
-  requires radix_integer<IntT>
+  requires IntegerSortableValue<IntT>
 void radix_sort_impl(DynList<IntT> &list)
 {
   using U = radix_unsigned_t<IntT>;
@@ -5114,7 +5100,7 @@ void radix_sort_impl(DynList<IntT> &list)
  *  @param[in,out] list The doubly-linked list to sort.
  */
 template <typename IntT>
-  requires radix_integer<IntT>
+  requires IntegerSortableValue<IntT>
 void radix_sort_impl(DynDlist<IntT> &list)
 {
   using U = radix_unsigned_t<IntT>;
@@ -5147,17 +5133,17 @@ void radix_sort_impl(DynDlist<IntT> &list)
 
 /** @brief Value concept accepted by counting sort overloads.
  *  @tparam T Value type; must be an integral type (except bool) satisfying
- *            sort_utils_detail::counting_integer.
+ *            `Aleph::IntegerSortableValue`.
  */
 template <typename T>
-concept CountingSortable = sort_utils_detail::counting_integer<T>;
+concept CountingSortable = IntegerSortableValue<T>;
 
 /** @brief Value concept accepted by radix sort overloads.
  *  @tparam T Value type; must be an integral type (except bool) satisfying
- *            sort_utils_detail::radix_integer.
+ *            `Aleph::IntegerSortableValue`.
  */
 template <typename T>
-concept RadixSortable = sort_utils_detail::radix_integer<T>;
+concept RadixSortable = IntegerSortableValue<T>;
 
 /** @brief Stable counting sort for integral DynArray values.
  *
@@ -5640,7 +5626,7 @@ struct bucket_sort_invoker_factory
  *  @see counting_sort, radix_sort
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>, class BucketKey>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>, class BucketKey>
 void bucket_sort(T *a, const size_t n, const size_t num_buckets, const BucketKey &bucket_key,
                  const Compare &cmp = Compare())
 {
@@ -5683,7 +5669,7 @@ void bucket_sort(T *a, const size_t n, const size_t num_buckets, const BucketKey
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
   requires std::floating_point<T>
 void bucket_sort(T *a, const size_t n, const Compare &cmp = Compare())
 {
@@ -5753,7 +5739,7 @@ void bucket_sort(T *a, const size_t n, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
   requires std::floating_point<T>
 void bucket_sort(DynArray<T> &a, const Compare &cmp = Compare())
 {
@@ -5773,7 +5759,7 @@ void bucket_sort(DynArray<T> &a, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
   requires std::floating_point<T>
 void bucket_sort(Array<T> &a, const Compare &cmp = Compare())
 {
@@ -5792,7 +5778,7 @@ void bucket_sort(Array<T> &a, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, size_t N, class Compare = Aleph::less<T>>
+template <typename T, size_t N, StrictWeakOrder<T> Compare = Aleph::less<T>>
   requires std::floating_point<T>
 void bucket_sort(T (&a)[N], const Compare &cmp = Compare())
 {
@@ -5811,7 +5797,7 @@ void bucket_sort(T (&a)[N], const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
   requires std::floating_point<T>
 void bucket_sort(DynList<T> &list, const Compare &cmp = Compare())
 {
@@ -5834,7 +5820,7 @@ void bucket_sort(DynList<T> &list, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>, class BucketKey>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>, class BucketKey>
 void bucket_sort(DynArray<T> &a, const size_t num_buckets, const BucketKey &bucket_key,
                  const Compare &cmp = Compare())
 {
@@ -5854,7 +5840,7 @@ void bucket_sort(DynArray<T> &a, const size_t num_buckets, const BucketKey &buck
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>, class BucketKey>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>, class BucketKey>
 void bucket_sort(Array<T> &a, const size_t num_buckets, const BucketKey &bucket_key,
                  const Compare &cmp = Compare())
 {
@@ -6354,7 +6340,7 @@ void timsort_impl(T *a, const size_t n, const Compare &cmp)
  *  @see mergesort, insertion_sort, quicksort
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 void timsort(T *a, const size_t n, const Compare &cmp = Compare())
 {
   if (n == 0)
@@ -6381,7 +6367,7 @@ void timsort(T *a, const size_t n, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 void timsort(T *a, const long l, const long r, const Compare &cmp = Compare())
 {
   ah_range_error_if(l < 0 or r < 0)
@@ -6407,7 +6393,7 @@ void timsort(T *a, const long l, const long r, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 void timsort(DynArray<T> &a, const Compare &cmp = Compare())
 {
   bucket_sort_detail::apply_sort_with_temp<T>(
@@ -6426,7 +6412,7 @@ void timsort(DynArray<T> &a, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 void timsort(Array<T> &a, const Compare &cmp = Compare())
 {
   if (a.size() < 2)
@@ -6444,7 +6430,7 @@ void timsort(Array<T> &a, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, size_t N, class Compare = Aleph::less<T>>
+template <typename T, size_t N, StrictWeakOrder<T> Compare = Aleph::less<T>>
   requires std::is_invocable_r_v<bool, Compare, const T &, const T &>
 void timsort(T (&a)[N], const Compare &cmp = Compare())
 {
@@ -6463,7 +6449,7 @@ void timsort(T (&a)[N], const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 void timsort(DynList<T> &list, const Compare &cmp = Compare())
 {
   bucket_sort_detail::apply_sort_with_temp<T>(
@@ -6485,7 +6471,7 @@ void timsort(DynList<T> &list, const Compare &cmp = Compare())
  *
  *  @ingroup Algorithms
  */
-template <typename T, class Compare = Aleph::less<T>>
+template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 void timsort(DynDlist<T> &list, const Compare &cmp = Compare())
 {
   bucket_sort_detail::apply_sort_with_temp<T>(

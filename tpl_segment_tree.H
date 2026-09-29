@@ -70,6 +70,7 @@
 # include <type_traits>
 # include <utility>
 # include <vector>
+# include <ah-concepts.H>
 # include <tpl_array.H>
 # include <tpl_dynList.H>
 # include <ahFunction.H>
@@ -86,9 +87,7 @@ namespace Aleph
    *  @tparam F Binary functor type.
    *  @tparam T Value type.
    *
-   *  @par Requirements
-   *  - `f(a, b)` must be well-formed for `const T& a, const T& b`.
-   *  - The result must be convertible to `T`.
+   *  Alias of `Aleph::ClosedBinaryOp` kept for source compatibility.
    *
    *  @note This concept only checks the call signature. For correctness
    *  of range queries, `F` must define an **associative** operation and
@@ -97,11 +96,7 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename F, typename T>
-  concept SegmentTreeOp =
-      requires(const F& f, const T& a, const T& b)
-        {
-          { f(a, b) } -> std::convertible_to<T>;
-        };
+  concept SegmentTreeOp = Aleph::ClosedBinaryOp<F, T>;
 
   // ================================================================
   // Gen_Segment_Tree — Point update + Range query

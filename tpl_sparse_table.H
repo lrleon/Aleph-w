@@ -78,6 +78,7 @@
 # include <vector>
 # include <utility>
 # include <algorithm>
+# include <ah-concepts.H>
 # include <tpl_array.H>
 # include <tpl_dynList.H>
 # include <ahFunction.H>
@@ -87,19 +88,14 @@ namespace Aleph
 {
   /** @brief Binary operation compatible with Sparse Table queries.
    *
-   *  Requires the functor to be callable with two immutable values
-   *  of type @p T and return a value convertible to @p T.
+   *  Alias of `Aleph::ClosedBinaryOp` kept for source compatibility.
    *
    *  @note This concept checks only the call signature. For Sparse Table
    *  correctness, @p F must also satisfy the semantic laws:
    *  associativity and idempotency.
    */
   template <typename F, typename T>
-  concept SparseTableOp =
-      requires(const F& f, const T& a, const T& b)
-        {
-          { f(a, b) } -> std::convertible_to<T>;
-        };
+  concept SparseTableOp = Aleph::ClosedBinaryOp<F, T>;
 
   /** @brief Functor returning the minimum of two values.
    *

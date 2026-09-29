@@ -53,6 +53,7 @@
 # ifndef TPL_DYNARRAYHEAP_H
 # define TPL_DYNARRAYHEAP_H
 
+# include <ah-concepts.H>
 # include <algorithm>
 # include <cstddef>
 # include <stdexcept>
@@ -143,6 +144,7 @@ namespace Aleph
       @ingroup Trees
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   class DynArrayHeap : public LocateFunctions<DynArrayHeap<T, Compare>, T>,
                        public FunctionalMethods<DynArrayHeap<T, Compare>, T>,
                        public GenericKeys<DynArrayHeap<T, Compare>, T>,

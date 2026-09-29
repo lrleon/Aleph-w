@@ -306,7 +306,7 @@ public:
     basic_iterator(const Key *k, VPtr v) noexcept : k_(k), v_(v) {}
 
     /// Convert a mutable iterator into a const iterator.
-    template <bool B, class = std::enable_if_t<IsConst and not B>>
+    template <bool B> requires (IsConst and not B)
     basic_iterator(const basic_iterator<B> &it) noexcept : k_(it.key_ptr()), v_(it.val_ptr())
     {}
 
@@ -477,7 +477,7 @@ public:
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note On duplicate (equivalent) keys the first occurrence wins.
    */
-  template <class It, class = std::enable_if_t<not std::is_integral_v<It>>>
+  template <std::input_iterator It>
   FlatMap(It first, It last, const Compare &cmp = Compare())
     : keys_(MemArray<Key>::Min_Dim), vals_(MemArray<T>::Min_Dim), cmp_(cmp)
   {

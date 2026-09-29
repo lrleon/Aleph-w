@@ -107,20 +107,6 @@ struct Binary_Tikz_Palette
 namespace ca_tikz_detail {
 
 template <typename Lattice>
-concept HexRenderable = requires(const Lattice &lat) {
-  lat.rows();
-  lat.cols();
-  lat.at_axial(Hex_Axial{});
-};
-
-template <typename Lattice>
-concept TriRenderable = requires(const Lattice &lat) {
-  lat.rows();
-  lat.cols();
-  lat.at_tri(Tri_Coord{});
-};
-
-template <typename Lattice>
 inline void require_rank2_rect(const char *fn)
 {
   static_assert(LatticeLike<Lattice>, "TikZ rendering requires a LatticeLike frame");
@@ -244,9 +230,9 @@ inline void render_lattice_tikz(std::ostream &out,
     { p(v) } -> std::convertible_to<std::string>;
   }
 {
-  if constexpr (ca_tikz_detail::HexRenderable<Lattice>)
+  if constexpr (HexRenderable<Lattice>)
     render_hex_lattice_tikz(out, frame, std::forward<Palette>(palette));
-  else if constexpr (ca_tikz_detail::TriRenderable<Lattice>)
+  else if constexpr (TriRenderable<Lattice>)
     render_triangular_lattice_tikz(out, frame, std::forward<Palette>(palette));
   else
     render_rect_lattice_tikz(out, frame, std::forward<Palette>(palette), opts);

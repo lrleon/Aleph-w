@@ -45,6 +45,48 @@
 # define GRAPH_DRY_H
 
 #include <concepts>
+#include <type_traits>
+#include <utility>
+#include <ah-concepts.H>
+
+namespace Aleph::graph_dry_detail
+{
+  /** @brief What `GT::Node_Iterator::get_curr()` yields, deferred on `D`.
+   *
+   *  `GT` is the CRTP-derived graph, incomplete while `GraphCommon` is
+   *  instantiated; see `Aleph::concepts_detail::defer` for why the lookup
+   *  must depend on the member template's parameter `D`.
+   *
+   *  @tparam GT the graph type.
+   *  @tparam D any type dependent on the member template.
+   */
+  template <class GT, class D>
+  struct node_curr
+  {
+    using type = decltype(std::declval<typename concepts_detail::defer<GT, D>::type::Node_Iterator &>().get_curr());
+  };
+
+  /** @brief What `GT::Arc_Iterator::get_curr()` yields, deferred on `D`.
+   *  @tparam GT the graph type.
+   *  @tparam D any type dependent on the member template.
+   */
+  template <class GT, class D>
+  struct arc_curr
+  {
+    using type = decltype(std::declval<typename concepts_detail::defer<GT, D>::type::Arc_Iterator &>().get_curr());
+  };
+
+  /** @brief What `GT::Node_Arc_Iterator::get_curr()` yields, deferred on `D`.
+   *  @tparam GT the graph type.
+   *  @tparam D any type dependent on the member template.
+   */
+  template <class GT, class D>
+  struct node_arc_curr
+  {
+    using type = decltype(std::declval<typename concepts_detail::defer<GT, D>::type::Node_Arc_Iterator &>().get_curr());
+  };
+
+} // namespace Aleph::graph_dry_detail
 
 // ============================================================================
 // C++20 Concepts for Graph Iterators
@@ -1307,6 +1349,7 @@ public:
       @see traverse_arcs() all_nodes()
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::node_curr<GT, Operation>::type>
   bool traverse_nodes(Operation & op) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
@@ -1317,6 +1360,7 @@ public:
 
   /// Overload of `traverse_nodes(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::node_curr<GT, Operation>::type>
   bool traverse_nodes(Operation && op = Operation()) const
   {
     return traverse_nodes(op);
@@ -1372,6 +1416,7 @@ public:
       @see traverse_arcs() all_arcs()
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::arc_curr<GT, Operation>::type>
   bool traverse_arcs(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
@@ -1382,6 +1427,7 @@ public:
 
   /// Overload of `traverse_arcs(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::arc_curr<GT, Operation>::type>
   bool traverse_arcs(Operation && op = Operation()) const
   {
     return traverse_arcs(op);
@@ -1439,6 +1485,7 @@ public:
       @see traverse_arcs() all_arcs()
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::node_arc_curr<GT, Operation>::type>
   bool traverse_arcs(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
@@ -1449,6 +1496,7 @@ public:
 
   /// Overload of `traverse_arcs(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::node_arc_curr<GT, Operation>::type>
   bool traverse_arcs(Node *p, Operation && op = Operation()) const
   {
     return traverse_arcs(p, op);
@@ -1479,6 +1527,7 @@ public:
       @throw anything that can throw `operation`.
    */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, typename Aleph::graph_dry_detail::node_curr<GT, Operation>::type>
   void for_each_node(Operation & operation) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
@@ -1487,6 +1536,7 @@ public:
 
   /// Overload of `for_each_node(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, typename Aleph::graph_dry_detail::node_curr<GT, Operation>::type>
   void for_each_node(Operation && operation = Operation()) const
   {
     for_each_node(operation);
@@ -1517,6 +1567,7 @@ public:
       @throw anything that can throw `op`.
   */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, typename Aleph::graph_dry_detail::arc_curr<GT, Operation>::type>
   void for_each_arc(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
@@ -1525,6 +1576,7 @@ public:
 
   /// Overload of `for_each_arc(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, typename Aleph::graph_dry_detail::arc_curr<GT, Operation>::type>
   void for_each_arc(Operation && operation = Operation()) const
   {
     for_each_arc(operation);
@@ -1564,6 +1616,7 @@ public:
       @throw anything that can throw `op`.
    */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, typename Aleph::graph_dry_detail::node_arc_curr<GT, Operation>::type>
   void for_each_arc(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
@@ -1572,6 +1625,7 @@ public:
 
   /// Overload of `for_each_arc(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, typename Aleph::graph_dry_detail::node_arc_curr<GT, Operation>::type>
   void for_each_arc(Node *p, Operation && op = Operation()) const
   {
     for_each_arc(p, op);
@@ -1607,6 +1661,7 @@ public:
       @see exists_node()
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::node_curr<GT, Operation>::type>
   bool all_nodes(Operation & op) const
   {
     return traverse_nodes(op);
@@ -1614,6 +1669,7 @@ public:
 
   /// Overload of `all_nodes(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::node_curr<GT, Operation>::type>
   bool all_nodes(Operation && op = Operation()) const
   {
     return all_nodes(op);
@@ -1649,6 +1705,7 @@ public:
     @see exists_arc()
  */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::arc_curr<GT, Operation>::type>
   bool all_arcs(Operation & op) const
   {
     return traverse_arcs(op);
@@ -1656,6 +1713,7 @@ public:
 
   /// Overload of `all_arcs(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::arc_curr<GT, Operation>::type>
   bool all_arcs(Operation && op = Operation()) const
   {
     return all_arcs(op);
@@ -1694,6 +1752,7 @@ public:
       \see bool exists_arc(Operation & operation)
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::node_arc_curr<GT, Operation>::type>
   bool all_arcs(Node *p, Operation & op) const
   {
     return traverse_arcs(p, op);
@@ -1701,6 +1760,7 @@ public:
 
   /// Overload of `all_arcs(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::graph_dry_detail::node_arc_curr<GT, Operation>::type>
   bool all_arcs(Node *p, Operation && op = Operation()) const
   {
     return all_arcs(p, op);
@@ -1745,11 +1805,12 @@ public:
      @throw bad_alloc if there is no enough memory for fuilding the
      dynamic list or anything else that can throw `op`
    */
-  template <typename T = Node_Type>
-  auto nodes_map(std::function<T(Node *)> op) const
+  template <typename T = Node_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, Node *>
+  auto nodes_map(Op op) const
   {
     DynList<T> ret_val;
-    for_each_node([&ret_val, &op](Node *p) { ret_val.append(op(p)); });
+    for_each_node([&ret_val, &op](Node *p) { ret_val.append(Aleph::concepts_detail::invoke_as<T(Node *)>::call(op, p)); });
     return ret_val;
   }
 
@@ -1792,13 +1853,14 @@ public:
      @throw bad_alloc if there is no enough memory for fuilding the
      dynamic list or anything else that can throw `operation`
    */
-  template <typename T = Arc_Type>
-  auto arcs_map(std::function<T(Arc *)> operation) const
+  template <typename T = Arc_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, Arc *>
+  auto arcs_map(Op operation) const
   {
     DynList<T> ret_val;
     for_each_arc([&ret_val, &operation](Arc *p)
                    {
-                     ret_val.append(operation(p));
+                     ret_val.append(Aleph::concepts_detail::invoke_as<T(Arc *)>::call(operation, p));
                    });
     return ret_val;
   }
@@ -1843,13 +1905,14 @@ public:
      @throw bad_alloc if there is no enough memory for building the dynamic list
             or anything else that can throw `operation`.
    */
-  template <typename T = Arc_Type>
-  auto arcs_map(Node *p, std::function<T(Arc *)> operation) const
+  template <typename T = Arc_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, Arc *>
+  auto arcs_map(Node *p, Op operation) const
   {
     DynList<T> ret_val;
     for_each_arc(p, [&ret_val, &operation](Arc *a)
                    {
-                     ret_val.append(operation(a));
+                     ret_val.append(Aleph::concepts_detail::invoke_as<T(Arc *)>::call(operation, a));
                    });
     return ret_val;
   }
@@ -1888,12 +1951,13 @@ public:
       signature previously explained.
       @return the final value of accumulator after full traversal.
    */
-  template <typename T = Node_Type>
+  template <typename T = Node_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, Node *>
   T foldl_nodes(const T & init,
-                std::function<T(const T &, Node *)> op) const
+                Op op) const
   {
     T ret = init;
-    for_each_node([&ret, &op](Node *p) { ret = op(ret, p); });
+    for_each_node([&ret, &op](Node *p) { ret = Aleph::concepts_detail::invoke_as<T(const T &, Node *)>::call(op, ret, p); });
     return ret;
   }
 
@@ -1930,12 +1994,13 @@ public:
       signature previously explained.
       @return the final value of accumulator after full traversal.
    */
-  template <typename T = Arc_Type>
+  template <typename T = Arc_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, Arc *>
   T foldl_arcs(const T & init,
-               std::function<T(const T &, Arc *)> op) const
+               Op op) const
   {
     T ret = init;
-    for_each_arc([&ret, &op](Arc *p) { ret = op(ret, p); });
+    for_each_arc([&ret, &op](Arc *p) { ret = Aleph::concepts_detail::invoke_as<T(const T &, Arc *)>::call(op, ret, p); });
     return ret;
   }
 
@@ -1973,12 +2038,13 @@ public:
       signature previously explained.
       @return the final value of accumulator after full traversal.
    */
-  template <typename T = Arc_Type>
+  template <typename T = Arc_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, Arc *>
   T foldl_arcs(Node *p, const T & init,
-               std::function<T(const T &, Arc *)> op) const
+               Op op) const
   {
     T ret = init;
-    for_each_arc(p, [&ret, &op](Arc *a) { ret = op(ret, a); });
+    for_each_arc(p, [&ret, &op](Arc *a) { ret = Aleph::concepts_detail::invoke_as<T(const T &, Arc *)>::call(op, ret, a); });
     return ret;
   }
 
@@ -2004,6 +2070,7 @@ public:
       full returning list.
    */
   template <class Op>
+    requires Aleph::PredicateWith<Op &, Node *&>
   auto filter_nodes(Op & op) const
   {
     DynList<Node *> ret;
@@ -2017,6 +2084,7 @@ public:
 
   /// Overload of `filter_nodes(Op&)` that accepts rvalues.
   template <class Op>
+    requires Aleph::PredicateWith<Op &, Node *&>
   auto filter_nodes(Op && op) const
   {
     return filter_nodes(op);
@@ -2044,6 +2112,7 @@ public:
       full returning list.
    */
   template <class Op>
+    requires Aleph::PredicateWith<Op &, Arc *&>
   auto filter_arcs(Op & op) const
   {
     DynList<Arc *> ret;
@@ -2057,6 +2126,7 @@ public:
 
   /// Overload of `filter_arcs(Op&)` that accepts rvalues.
   template <class Op>
+    requires Aleph::PredicateWith<Op &, Arc *&>
   auto filter_arcs(Op && op) const
   {
     return filter_arcs(op);
@@ -2093,6 +2163,7 @@ public:
       full returning list.
   */
   template <class Op>
+    requires Aleph::PredicateWith<Op &, Arc *&>
   auto filter_arcs(Node *p, Op & op) const
   {
     DynList<Arc *> ret;
@@ -2106,6 +2177,7 @@ public:
 
   /// Overload of `filter_arcs(Node*, Op&)` that accepts rvalues.
   template <class Op>
+    requires Aleph::PredicateWith<Op &, Arc *&>
   auto filter_arcs(Node *p, Op && op) const
   {
     return filter_arcs(p, op);
@@ -2130,6 +2202,7 @@ public:
       @see all_nodes()
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Node *&>
   bool exists_node(Operation & op) const
   {
     return not traverse_nodes([&op](Node *p) { return not op(p); });
@@ -2137,6 +2210,7 @@ public:
 
   /// Overload of `exists_node(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Node *&>
   bool exists_node(Operation && op = Operation()) const
   {
     return exists_node(op);
@@ -2161,6 +2235,7 @@ public:
       @see all_arcs()
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   bool exists_arc(Operation & op) const
   {
     return not traverse_arcs([&op](Arc *a) { return not op(a); });
@@ -2168,6 +2243,7 @@ public:
 
   /// Overload of `exists_arc(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   bool exists_arc(Operation && op = Operation()) const
   {
     return exists_arc(op);
@@ -2196,6 +2272,7 @@ public:
       @see all_arcs(Node * p)
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   bool exists_arc(Node *p, Operation & op) const
   {
     return not traverse_arcs(p, [&op](Arc *a) { return not op(a); });
@@ -2203,6 +2280,7 @@ public:
 
   /// Overload of `exists_arc(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   bool exists_arc(Node *p, Operation && op = Operation()) const
   {
     return exists_arc(p, op);
@@ -2223,6 +2301,7 @@ public:
       @see exists_node()
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Node *&>
   bool none_node(Operation & op) const
   {
     return not exists_node(op);
@@ -2230,6 +2309,7 @@ public:
 
   /// Overload of `none_node(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Node *&>
   bool none_node(Operation && op) const
   {
     return none_node(op);
@@ -2250,6 +2330,7 @@ public:
       @see exists_arc()
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   bool none_arc(Operation & op) const
   {
     return not exists_arc(op);
@@ -2257,6 +2338,7 @@ public:
 
   /// Overload of `none_arc(Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   bool none_arc(Operation && op) const
   {
     return none_arc(op);
@@ -2270,6 +2352,7 @@ public:
       @see exists_arc(Node*, Operation&)
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   bool none_arc(Node *p, Operation & op) const
   {
     return not exists_arc(p, op);
@@ -2277,6 +2360,7 @@ public:
 
   /// Overload of `none_arc(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   bool none_arc(Node *p, Operation && op) const
   {
     return none_arc(p, op);
@@ -2299,6 +2383,7 @@ public:
       @endcode
    */
   template <class Operation = std::function<bool(Node*)>>
+    requires Aleph::PredicateWith<Operation &, Node *&>
   size_t count_nodes(Operation op = [](Node*) { return true; }) const
   {
     size_t count = 0;
@@ -2323,6 +2408,7 @@ public:
       @endcode
    */
   template <class Operation = std::function<bool(Arc*)>>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   size_t count_arcs(Operation op = [](Arc*) { return true; }) const
   {
     size_t count = 0;
@@ -2337,6 +2423,7 @@ public:
       @return number of adjacent arcs satisfying the condition
    */
   template <class Operation = std::function<bool(Arc*)>>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   size_t count_arcs(Node *p, Operation op = [](Arc*) { return true; }) const
   {
     size_t count = 0;
@@ -2361,6 +2448,7 @@ public:
       @endcode
    */
   template <typename T = double, class Extract>
+    requires requires(T &sum, Extract &extract, Arc *a) { sum += extract(a); }
   T sum_arcs(Node *p, Extract extract) const
   {
     T sum = T{0};
@@ -2393,6 +2481,7 @@ public:
       @endcode
    */
   template <class Compare = std::function<bool(Arc*, Arc*)>>
+    requires Aleph::PredicateWith<Compare &, Arc *&, Arc *&>
   Arc* min_arc(Node *p, Compare cmp = [](Arc *a, Arc *b) { 
     return a->get_info() < b->get_info(); 
   }) const
@@ -2421,6 +2510,7 @@ public:
       @endcode
    */
   template <class Compare = std::function<bool(Arc*, Arc*)>>
+    requires Aleph::PredicateWith<Compare &, Arc *&, Arc *&>
   Arc* max_arc(Node *p, Compare cmp = [](Arc *a, Arc *b) { 
     return a->get_info() < b->get_info(); 
   }) const
@@ -2439,6 +2529,7 @@ public:
       @return pointer to minimum arc, or nullptr if graph has no arcs
    */
   template <class Compare = std::function<bool(Arc*, Arc*)>>
+    requires Aleph::PredicateWith<Compare &, Arc *&, Arc *&>
   Arc* min_arc(Compare cmp = [](Arc *a, Arc *b) { 
     return a->get_info() < b->get_info(); 
   }) const
@@ -2457,6 +2548,7 @@ public:
       @return pointer to maximum arc, or nullptr if graph has no arcs
    */
   template <class Compare = std::function<bool(Arc*, Arc*)>>
+    requires Aleph::PredicateWith<Compare &, Arc *&, Arc *&>
   Arc* max_arc(Compare cmp = [](Arc *a, Arc *b) { 
     return a->get_info() < b->get_info(); 
   }) const
@@ -2485,6 +2577,7 @@ public:
       @endcode
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Node *&>
   std::pair<DynList<Node*>, DynList<Node*>> partition_nodes(Operation op) const
   {
     DynList<Node*> yes, no;
@@ -2508,6 +2601,7 @@ public:
       @return pair of (arcs satisfying op, arcs not satisfying op)
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   std::pair<DynList<Arc*>, DynList<Arc*>> partition_arcs(Operation op) const
   {
     DynList<Arc*> yes, no;
@@ -2559,6 +2653,7 @@ public:
       @see exists_node()
    */
   template <class Op>
+    requires Aleph::PredicateWith<Op &, std::decay_t<typename Aleph::graph_dry_detail::node_curr<GT, Op>::type> &>
   Node * search_node(Op & op) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
@@ -2572,6 +2667,7 @@ public:
 
   /// Overload of `search_node(Op&)` that accepts rvalues.
   template <class Op>
+    requires Aleph::PredicateWith<Op &, std::decay_t<typename Aleph::graph_dry_detail::node_curr<GT, Op>::type> &>
   Node * search_node(Op && op) const
   {
     return search_node(op);
@@ -2610,6 +2706,7 @@ public:
       @see exists_arc()
    */
   template <class Op>
+    requires Aleph::PredicateWith<Op &, std::decay_t<typename Aleph::graph_dry_detail::arc_curr<GT, Op>::type> &>
   Arc * search_arc(Op & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
@@ -2623,6 +2720,7 @@ public:
 
   /// Overload of `search_arc(Op&)` that accepts rvalues.
   template <class Op>
+    requires Aleph::PredicateWith<Op &, std::decay_t<typename Aleph::graph_dry_detail::arc_curr<GT, Op>::type> &>
   Arc * search_arc(Op && op) const
   {
     return search_arc(op);
@@ -2663,6 +2761,7 @@ public:
       @see exists_arc(Node * p, Operation & op)
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   Arc * search_arc(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
@@ -2676,6 +2775,7 @@ public:
 
   /// Overload of `search_arc(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Arc *&>
   Arc * search_arc(Node *p, Operation && op = Operation()) const
   {
     return search_arc(p, op);
@@ -3303,6 +3403,7 @@ public:
       \see traverse(Node * p, Operation & operation)
    */
   template <class Itor, class Operation>
+    requires Aleph::PredicateWith<Operation &, decltype(std::declval<Itor &>().get_curr())>
   bool traverse_arcs(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
@@ -3313,6 +3414,7 @@ public:
 
   /// Perform `op` on each arc of node `p`
   template <class Itor, class Operation>
+    requires Aleph::CallableWith<Operation &, decltype(std::declval<Itor &>().get_curr())>
   void for_each_arc(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
@@ -3421,11 +3523,12 @@ public:
 
       \see arcs_map(Node * p, std::function<T(Arc *)> operation)
   */
-  template <typename T>
-  auto in_arcs_map(Node *p, std::function<T(Arc *)> op) const
+  template <typename T, class Op>
+    requires std::is_invocable_r_v<T, Op &, Arc *>
+  auto in_arcs_map(Node *p, Op op) const
   {
     DynList<T> ret;
-    for_each_in_arc(p, [&ret, &op](auto a) { ret.append(op(a)); });
+    for_each_in_arc(p, [&ret, &op](auto a) { ret.append(Aleph::concepts_detail::invoke_as<T(Arc *)>::call(op, a)); });
     return ret;
   }
 
@@ -3436,12 +3539,13 @@ public:
 
       \see foldl_arcs(Node * p, const T & init, std::function<T(Arc *)> operation)
    */
-  template <typename T = Arc_Type>
+  template <typename T = Arc_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, Arc *>
   T foldl_in_arcs(Node *p, const T & init,
-                  std::function<T(const T &, Arc *)> op) const
+                  Op op) const
   {
     T ret = init;
-    for_each_in_arc(p, [&ret, &op](auto a) { ret = op(ret, a); });
+    for_each_in_arc(p, [&ret, &op](auto a) { ret = Aleph::concepts_detail::invoke_as<T(const T &, Arc *)>::call(op, ret, a); });
     return ret;
   }
 
@@ -3573,21 +3677,23 @@ public:
 
       \see arcs_map(Node * p, std::function<T(Arc *)> operation)
   */
-  template <typename T = Arc_Type>
-  auto out_arcs_map(Node *p, std::function<T(Arc *)> op) const
+  template <typename T = Arc_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, Arc *>
+  auto out_arcs_map(Node *p, Op op) const
   {
     DynList<T> ret;
-    for_each_out_arc(p, [&ret, &op](auto a) { ret.append(op(a)); });
+    for_each_out_arc(p, [&ret, &op](auto a) { ret.append(Aleph::concepts_detail::invoke_as<T(Arc *)>::call(op, a)); });
     return ret;
   }
 
   /// Fold-left over outcoming arcs of a node.
-  template <typename T = Arc_Type>
+  template <typename T = Arc_Type, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, Arc *>
   T foldl_out_arcs(Node *p, const T & init,
-                   std::function<T(const T &, Arc *)> op) const
+                   Op op) const
   {
     T ret = init;
-    for_each_out_arc(p, [&ret, &op](auto a) { ret = op(ret, a); });
+    for_each_out_arc(p, [&ret, &op](auto a) { ret = Aleph::concepts_detail::invoke_as<T(const T &, Arc *)>::call(op, ret, a); });
     return ret;
   }
 

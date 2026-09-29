@@ -60,6 +60,7 @@
 #include <cstddef>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include <ca-traits.H>
 
@@ -231,6 +232,43 @@ template <typename Rule, typename State, std::size_t Rank>
   else
     return r(s, v);
 }
+
+/// Detect whether a lattice exposes a `refresh_halo()` method (the
+/// hallmark of a `Ghost_Lattice` or any other halo-aware variant). Used
+/// by the sequential, async and parallel engines to keep the halo
+/// synchronised automatically.
+template <typename L>
+concept HasRefreshHalo = requires(L &l) { l.refresh_halo(); };
+
+// Forward declarations only: HexRenderable/TriRenderable below name these
+// types in non-dependent expressions. std::declval<T>() (unlike `T{}`)
+// never constructs a T, so it only needs T declared here, not complete;
+// both are complete by the time the concepts are actually evaluated, at
+// their use sites in ca-svg.H/ca-tikz.H, which include the full
+// tpl_ca_hex_lattice.H/tpl_ca_triangular_lattice.H definitions. Including
+// those headers here instead would be circular (they include this one).
+struct Hex_Axial;
+struct Tri_Coord;
+
+/// Detect whether a lattice exposes the hexagonal-grid query interface
+/// (`rows()`, `cols()`, `at_axial(Hex_Axial)`) used by the SVG and TikZ
+/// hex renderers.
+template <typename Lattice>
+concept HexRenderable = requires(const Lattice &lat) {
+  lat.rows();
+  lat.cols();
+  lat.at_axial(std::declval<Hex_Axial>());
+};
+
+/// Detect whether a lattice exposes the triangular-grid query interface
+/// (`rows()`, `cols()`, `at_tri(Tri_Coord)`) used by the SVG and TikZ
+/// triangular renderers.
+template <typename Lattice>
+concept TriRenderable = requires(const Lattice &lat) {
+  lat.rows();
+  lat.cols();
+  lat.at_tri(std::declval<Tri_Coord>());
+};
 
 }  // namespace CA
 }  // namespace Aleph

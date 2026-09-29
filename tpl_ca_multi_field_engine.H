@@ -121,6 +121,8 @@ inline auto build_views(const Lattice &lat,
 template <typename Lattice, typename Rule, typename Neighborhood>
 class Multi_Field_Engine
 {
+  static_assert(MultiFieldLatticeLike<Lattice>,
+                "Multi_Field_Engine requires a MultiFieldLatticeLike lattice");
   static_assert(NeighborhoodLike<Neighborhood>,
                 "Multi_Field_Engine requires a NeighborhoodLike neighbourhood");
   static_assert(Neighborhood::rank_v == Lattice::rank, "Neighbourhood rank must match lattice rank");

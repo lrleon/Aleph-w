@@ -44,6 +44,7 @@
 #define AH_DRY_H
 
 #include "ahFunctional.H"
+#include <ah-concepts.H>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -96,6 +97,7 @@ public:
       \throw anything that could throw `operation`
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::concepts_detail::traverse_arg<Container, Operation>::type>
   bool traverse(Operation &operation) noexcept(traverse_is_noexcept<Operation>())
   {
     for (typename Container::Iterator it(*static_cast<Container *>(this)); it.has_curr(); it.next())
@@ -106,6 +108,7 @@ public:
 
   /// Const overload of `traverse(Operation&)`.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::concepts_detail::traverse_arg<Container, Operation>::type>
   bool traverse(Operation &operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return const_cast<GenericTraverse *>(this)->traverse<Operation>(operation);
@@ -115,6 +118,7 @@ public:
   /// The operation @p operation is passed (invoked) as a named lvalue to
   /// the member overload rather than being perfectly forwarded.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::concepts_detail::traverse_arg<Container, Operation>::type>
   bool traverse(Operation &&operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
@@ -124,6 +128,7 @@ public:
   /// The operation @p operation is passed (invoked) as a named lvalue to
   /// the member overload rather than being perfectly forwarded.
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, typename Aleph::concepts_detail::traverse_arg<Container, Operation>::type>
   bool traverse(Operation &&operation) noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
@@ -350,6 +355,7 @@ public:
       otherwise.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   Type *find_ptr(Operation &operation) noexcept(operation_is_noexcept<Operation>())
   {
     Type *ptr = nullptr;
@@ -371,6 +377,7 @@ public:
       @return const pointer to matching element or nullptr
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   const Type *find_ptr(Operation &operation) const noexcept(operation_is_noexcept<Operation>())
   {
     return base()->find_ptr(operation);
@@ -388,6 +395,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   const Type *find_ptr(Operation &&operation) const noexcept(operation_is_noexcept<Operation>())
   {
     return find_ptr<Operation>(operation);
@@ -405,6 +413,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   Type *find_ptr(Operation &&operation) noexcept(operation_is_noexcept<Operation>())
   {
     return find_ptr<Operation>(operation);
@@ -433,6 +442,7 @@ public:
       number of items is returned.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const Type &>
   size_t find_index(Operation &operation) const noexcept(operation_is_noexcept<Operation>())
   {
     size_t i = 0;
@@ -458,6 +468,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const Type &>
   size_t find_index(Operation &&operation) const noexcept(operation_is_noexcept<Operation>())
   {
     return find_index<Operation>(operation);
@@ -484,6 +495,7 @@ public:
       the container.
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation &operation) noexcept(operation_is_noexcept<Operation>())
   {
     using TT = std::tuple<bool, Type>;
@@ -493,6 +505,7 @@ public:
 
   /** \overload find_item(Operation & operation) */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation &operation) const
     noexcept(operation_is_noexcept<Operation>())
   {
@@ -513,6 +526,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation &&operation) noexcept(operation_is_noexcept<Operation>())
   {
     return find_item<Operation>(operation);
@@ -530,6 +544,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation &&operation) const
     noexcept(operation_is_noexcept<Operation>())
   {
@@ -544,6 +559,7 @@ public:
    *  @throws Anything propagated by evaluating operation(item).
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, Type &>
   bool contains_if(Operation &&operation) const noexcept(operation_is_noexcept<Operation>())
   {
     return find_ptr(operation) != nullptr;
@@ -776,6 +792,7 @@ public:
       \throw anything that can throw `operation`
   */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, const T &>
   void for_each(Operation &operation)
   {
     me()->traverse([&operation](const T &item)
@@ -787,6 +804,7 @@ public:
 
   /// Const overload of `for_each(Operation&)`.
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, const T &>
   void for_each(Operation &operation) const
   {
     base()->for_each(operation);
@@ -803,6 +821,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, const T &>
   void for_each(Operation &&operation) const
   {
     for_each<Operation>(operation);
@@ -819,6 +838,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, const T &>
   void for_each(Operation &&operation)
   {
     for_each<Operation>(operation);
@@ -826,6 +846,7 @@ public:
 
   /// Alias of `for_each(Operation&)`.
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, const T &>
   void each(Operation &operation)
   {
     for_each(operation);
@@ -833,6 +854,7 @@ public:
 
   /// Const alias of `for_each(Operation&)`.
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, const T &>
   void each(Operation &operation) const
   {
     for_each(operation);
@@ -849,6 +871,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, const T &>
   void each(Operation &&operation) const
   {
     for_each<Operation>(operation);
@@ -865,6 +888,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, const T &>
   void each(Operation &&operation)
   {
     for_each<Operation>(operation);
@@ -925,6 +949,7 @@ public:
    *  @throws Anything that @p operation or the underlying `traverse` may throw.
    */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, T &>
   void mutable_for_each(Operation &operation)
   {
     me()->traverse([&operation](T &item)
@@ -936,6 +961,7 @@ public:
 
   /** \overload mutable_for_each(Operation & operation) */
   template <class Operation>
+    requires Aleph::CallableWith<Operation &, T &>
   void mutable_for_each(Operation &&operation)
   {
     mutable_for_each<Operation>(operation);
@@ -954,6 +980,7 @@ public:
       \throw anything that could throw `operation`
   */
   template <class Operation>
+    requires requires(const typename Aleph::concepts_detail::defer<Container, Operation>::type &c, Operation &op) { { c.traverse(op) } -> std::convertible_to<bool>; }
   bool all(Operation &operation) const
   {
     return const_me()->traverse(operation);
@@ -971,6 +998,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires requires(const typename Aleph::concepts_detail::defer<Container, Operation>::type &c, Operation &op) { { c.traverse(op) } -> std::convertible_to<bool>; }
   bool all(Operation &&operation) const
   {
     return all<Operation>(operation);
@@ -990,6 +1018,7 @@ public:
       \throw anything that could throw `op`
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool exists(Operation &op) const
   {
     return not const_me()->traverse([&op](const T &i)
@@ -1010,6 +1039,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool exists(Operation &&op) const
   {
     return exists<Operation>(op);
@@ -1056,6 +1086,7 @@ public:
       no enough memory
   */
   template <typename __T = T, class Operation = Aleph::Dft_Map_Op<T, __T>>
+    requires requires(Aleph::DynList<__T> &l, Operation &op, const T &item) { l.append(op(item)); }
   Aleph::DynList<__T> maps(Operation &op) const
   {
     Aleph::DynList<__T> ret_val;
@@ -1079,6 +1110,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <typename __T = T, class Operation = Aleph::Dft_Map_Op<__T, __T>>
+    requires requires(Aleph::DynList<__T> &l, Operation &op, const T &item) { l.append(op(item)); }
   Aleph::DynList<__T> maps(Operation &&op) const
   {
     return maps<__T, Operation>(op);
@@ -1101,6 +1133,8 @@ public:
       no enough memory
   */
   template <typename __T = T, class Prop, class Operation>
+    requires Aleph::PredicateWith<Prop &, const T &> and
+             requires(Aleph::DynList<__T> &l, Operation &op, const T &item) { l.append(op(item)); }
   Aleph::DynList<__T> maps_if(Prop prop, Operation &op) const
   {
     Aleph::DynList<__T> ret_val;
@@ -1127,6 +1161,8 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <typename __T = T, class Prop, class Operation>
+    requires Aleph::PredicateWith<Prop &, const T &> and
+             requires(Aleph::DynList<__T> &l, Operation &op, const T &item) { l.append(op(item)); }
   Aleph::DynList<__T> maps_if(Prop prop, Operation &&op) const
   {
     return maps_if<__T, Prop, Operation>(prop, op);
@@ -1142,6 +1178,7 @@ public:
       @see maps()
   */
   template <typename __T = T, class Operation = Aleph::Dft_Map_Op<T, __T>>
+    requires requires(Aleph::DynList<__T> &l, Operation &op, const T &item) { l.append(op(item)); }
   Aleph::DynList<__T> map(Operation &op) const
   {
     return maps<__T, Operation>(op);
@@ -1156,6 +1193,7 @@ public:
    *  @see maps()
    */
   template <typename __T = T, class Operation = Aleph::Dft_Map_Op<__T, __T>>
+    requires requires(Aleph::DynList<__T> &l, Operation &op, const T &item) { l.append(op(item)); }
   Aleph::DynList<__T> map(Operation &&op) const
   {
     return maps<__T, Operation>(op);
@@ -1169,6 +1207,8 @@ public:
       @see maps_if()
   */
   template <typename __T = T, class Prop, class Operation>
+    requires Aleph::PredicateWith<Prop &, const T &> and
+             requires(Aleph::DynList<__T> &l, Operation &op, const T &item) { l.append(op(item)); }
   Aleph::DynList<__T> map_if(Prop prop, Operation &op) const
   {
     return maps_if<__T, Prop, Operation>(prop, op);
@@ -1185,6 +1225,8 @@ public:
    *  @see maps_if()
    */
   template <typename __T = T, class Prop, class Operation>
+    requires Aleph::PredicateWith<Prop &, const T &> and
+             requires(Aleph::DynList<__T> &l, Operation &op, const T &item) { l.append(op(item)); }
   Aleph::DynList<__T> map_if(Prop prop, Operation &&op) const
   {
     return maps_if<__T, Prop, Operation>(prop, op);
@@ -1266,6 +1308,7 @@ public:
       \throw anything that could throw `op`
   */
   template <typename __T = T, class Op = Aleph::Dft_Fold_Op<__T, T>>
+    requires requires(__T &acc, Op &op, const T &item) { acc = op(acc, item); }
   __T foldl(const __T &init, Op &op) const
   {
     __T ret_val = init;
@@ -1290,6 +1333,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <typename __T = T, class Op = Aleph::Dft_Fold_Op<__T, T>>
+    requires requires(__T &acc, Op &op, const T &item) { acc = op(acc, item); }
   __T foldl(const __T &init, Op &&op = Op()) const
   {
     return foldl<__T, Op>(init, op);
@@ -1303,6 +1347,7 @@ public:
       @return folded result
   */
   template <typename __T = T, class Op = Aleph::Dft_Fold_Op<__T, T>>
+    requires requires(__T &acc, Op &op, const T &item) { acc = op(acc, item); }
   __T fold_left(const __T &init, Op &op) const
   {
     return const_me()->template foldl<__T>(init, op);
@@ -1322,6 +1367,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <typename __T = T, class Op = Aleph::Dft_Fold_Op<__T, T>>
+    requires requires(__T &acc, Op &op, const T &item) { acc = op(acc, item); }
   __T fold_left(const __T &init, Op &&op = Op()) const
   {
     return const_me()->template foldl<__T>(init, op);
@@ -1333,6 +1379,7 @@ public:
       @see foldl(const __T & init, Op & op)
   */
   template <class Operation>
+    requires requires(T &acc, Operation &op, const T &item) { acc = op(acc, item); }
   T fold(const T &init, Operation &operation) const
   {
     auto ret_val = init;
@@ -1356,6 +1403,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires requires(T &acc, Operation &op, const T &item) { acc = op(acc, item); }
   T fold(const T &init, Operation &&operation) const
   {
     return fold<Operation>(init, operation);
@@ -1385,6 +1433,7 @@ public:
       there is no enough memory
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   Aleph::DynList<T> filter(Operation &operation) const
   {
     Aleph::DynList<T> ret_val;
@@ -1408,6 +1457,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   Aleph::DynList<T> filter(Operation &&operation) const
   {
     return filter<Operation>(operation);
@@ -1437,6 +1487,7 @@ public:
       there is no enough memory
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   Aleph::DynList<const T *> ptr_filter(Operation &operation) const
   {
     Aleph::DynList<const T *> ret_val;
@@ -1460,6 +1511,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   Aleph::DynList<const T *> ptr_filter(Operation &&operation) const
   {
     return ptr_filter<Operation>(operation);
@@ -1485,6 +1537,7 @@ public:
        \see filter(Operation & operation)
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   Aleph::DynList<std::tuple<T, size_t>> pfilter(Operation &operation) const
   {
     using TT = std::tuple<T, size_t>;
@@ -1511,6 +1564,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   Aleph::DynList<std::tuple<T, size_t>> pfilter(Operation &&operation) const
   {
     return pfilter<Operation>(operation);
@@ -1534,6 +1588,7 @@ public:
       \see filter()
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   std::pair<Aleph::DynList<T>, Aleph::DynList<T>> partition(Operation &op) const
   {
     std::pair<Aleph::DynList<T>, Aleph::DynList<T>> ret_val;
@@ -1559,6 +1614,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   std::pair<Aleph::DynList<T>, Aleph::DynList<T>> partition(Operation &&op) const
   {
     return partition<Operation>(op);
@@ -1623,6 +1679,7 @@ public:
       \see partition(Operation & op)
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   std::tuple<Aleph::DynList<T>, Aleph::DynList<T>> tpartition(Operation &op) const
   {
     Aleph::DynList<T> r1, r2;
@@ -1648,6 +1705,7 @@ public:
    *          overload; no additional exception-safety guarantees are provided.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   std::tuple<Aleph::DynList<T>, Aleph::DynList<T>> tpartition(Operation &&op) const
   {
     return tpartition<Operation>(op);

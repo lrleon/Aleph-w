@@ -1234,13 +1234,14 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SN = Dft_Show_Node<GT>>
+  template <class GT, class SN = Dft_Show_Node<GT>, class Op>
+    requires std::is_invocable_r_v<void, Op &, typename GT::Node *>
   void for_each_node(const GT & g,
-                     std::function<void (typename GT::Node *)> operation,
+                     Op operation,
                      SN sn = SN())
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
+      Aleph::concepts_detail::invoke_as<void (typename GT::Node *)>::call(operation, it.get_curr());
   }
 
   /** Traverse all the arcs of graph filtering some ones according to a
@@ -1252,13 +1253,14 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
+    requires std::is_invocable_r_v<void, Op &, typename GT::Arc *>
   void for_each_arc(const GT & g,
-                    std::function<void (typename GT::Arc *)> operation,
+                    Op operation,
                     SA sa = SA())
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
+      Aleph::concepts_detail::invoke_as<void (typename GT::Arc *)>::call(operation, it.get_curr());
   }
 
   /** Traverse all the arcs adjacent to a node filtering some ones
@@ -1271,15 +1273,16 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
+    requires std::is_invocable_r_v<void, Op &, typename GT::Arc *>
   void for_each_arc(const GT & g,
                     typename GT::Node *p,
-                    std::function<void (typename GT::Arc *)> operation,
+                    Op operation,
                     SA sa = SA())
   {
     (void) g;
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
+      Aleph::concepts_detail::invoke_as<void (typename GT::Arc *)>::call(operation, it.get_curr());
   }
 
   /** Return `true` if condition `cond` is met on every filtered node of
@@ -1292,13 +1295,14 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SN = Dft_Show_Node<GT>>
+  template <class GT, class SN = Dft_Show_Node<GT>, class Op>
+    requires std::is_invocable_r_v<bool, Op &, typename GT::Node *>
   bool forall_node(const GT & g,
-                   std::function<bool (typename GT::Node *)> cond,
+                   Op cond,
                    SN sn = SN())
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr()))
+      if (not Aleph::concepts_detail::invoke_as<bool (typename GT::Node *)>::call(cond, it.get_curr()))
         return false;
     return true;
   }
@@ -1313,13 +1317,14 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
+    requires std::is_invocable_r_v<bool, Op &, typename GT::Arc *>
   bool forall_arc(const GT & g,
-                  std::function<bool (typename GT::Arc *)> cond,
+                  Op cond,
                   SA sa = SA())
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr()))
+      if (not Aleph::concepts_detail::invoke_as<bool (typename GT::Arc *)>::call(cond, it.get_curr()))
         return false;
     return true;
   }
@@ -1334,13 +1339,14 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
+    requires std::is_invocable_r_v<bool, Op &, typename GT::Arc *>
   bool forall_arc(typename GT::Node *p,
-                  std::function<bool (typename GT::Arc *)> cond,
+                  Op cond,
                   SA sa = SA())
   {
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr()))
+      if (not Aleph::concepts_detail::invoke_as<bool (typename GT::Arc *)>::call(cond, it.get_curr()))
         return false;
     return true;
   }
@@ -1361,15 +1367,16 @@ namespace Aleph
     */
   template <class GT, typename T,
             template<typename> class Container = DynList,
-            class SN = Dft_Show_Node<GT>>
+            class SN = Dft_Show_Node<GT>, class Op>
+    requires std::is_invocable_r_v<T, Op &, typename GT::Node *>
   Container<T> nodes_map(GT & g,
-                         std::function<T (typename GT::Node *)> transformation,
+                         Op transformation,
                          SN sn = SN())
   {
     Container<T> ret_val;
     for_each_node<GT, SN>(g, [&ret_val, &transformation](typename GT::Node *p)
                             {
-                              ret_val.append(transformation(p));
+                              ret_val.append(Aleph::concepts_detail::invoke_as<T (typename GT::Node *)>::call(transformation, p));
                             }, sn);
     return ret_val;
   }
@@ -1389,15 +1396,16 @@ namespace Aleph
     */
   template <class GT, typename T,
             template<typename> class Container = DynList,
-            class SA = Dft_Show_Arc<GT>>
+            class SA = Dft_Show_Arc<GT>, class Op>
+    requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
   Container<T> arcs_map(GT & g,
-                        std::function<T (typename GT::Arc *)> transformation,
+                        Op transformation,
                         SA sa = SA())
   {
     Container<T> ret_val;
     for_each_arc<GT, SA>(g, [&ret_val, &transformation](typename GT::Arc *p)
                            {
-                             ret_val.append(transformation(p));
+                             ret_val.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(transformation, p));
                            }, sa);
     return ret_val;
   }
@@ -1424,16 +1432,17 @@ namespace Aleph
    */
   template <class GT, typename T,
             template<typename> class Container = DynList,
-            class SA = Dft_Show_Arc<GT>>
+            class SA = Dft_Show_Arc<GT>, class Op>
+    requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
   Container<T> arcs_map(GT & g,
                         typename GT::Node *p,
-                        std::function<T (typename GT::Arc *)> transformation,
+                        Op transformation,
                         SA sa = SA())
   {
     Container<T> ret_val;
     for_each_arc<GT, SA>(g, p, [&ret_val, &transformation](typename GT::Arc *p)
                            {
-                             ret_val.append(transformation(p));
+                             ret_val.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(transformation, p));
                            }, sa);
     return ret_val;
   }
@@ -1448,15 +1457,16 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, typename T, class SN = Dft_Show_Node<GT>>
+  template <class GT, typename T, class SN = Dft_Show_Node<GT>, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Node *>
   T foldl_nodes(GT & g, const T & init,
-                std::function<T (const T &, typename GT::Node *)> operation,
+                Op operation,
                 SN sn = SN())
   {
     T ret_val = init;
     for_each_node<GT, SN>(g, [&ret_val, &operation](typename GT::Node *p)
                             {
-                              ret_val = operation(ret_val, p);
+                              ret_val = Aleph::concepts_detail::invoke_as<T (const T &, typename GT::Node *)>::call(operation, ret_val, p);
                             }, sn);
     return ret_val;
   }
@@ -1470,15 +1480,16 @@ namespace Aleph
         \result the final folded result
         @ingroup Graphs
     */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
+  template <class GT, typename T, class SA = Dft_Show_Arc<GT>, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Arc *>
   T foldl_arcs(GT & g, const T & init,
-               std::function<T (const T &, typename GT::Arc *)> operation,
+               Op operation,
                SA sa = SA())
   {
     T ret_val = init;
     for_each_arc<GT, SA>(g, [&ret_val, &operation](typename GT::Arc *a)
                            {
-                             ret_val = operation(ret_val, a);
+                             ret_val = Aleph::concepts_detail::invoke_as<T (const T &, typename GT::Arc *)>::call(operation, ret_val, a);
                            }, sa);
     return ret_val;
   }
@@ -1493,16 +1504,17 @@ namespace Aleph
         \result the final folded result
         @ingroup Graphs
     */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
+  template <class GT, typename T, class SA = Dft_Show_Arc<GT>, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Arc *>
   T foldl_arcs(GT & g, typename GT::Node *p,
                const T & init,
-               std::function<T (const T &, typename GT::Arc *)> operation,
+               Op operation,
                SA sa = SA())
   {
     T ret_val = init;
     for_each_arc<GT, SA>(g, p, [&ret_val, &operation](typename GT::Arc *a)
                            {
-                             ret_val = operation(ret_val, a);
+                             ret_val = Aleph::concepts_detail::invoke_as<T (const T &, typename GT::Arc *)>::call(operation, ret_val, a);
                            }, sa);
     return ret_val;
   }
@@ -2170,14 +2182,15 @@ namespace Aleph
         @param[in] op transformation
         \result a `DynList<T>` containing the mapping.
     */
-  template <class GT, typename T>
+  template <class GT, typename T, class Op>
+    requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
   inline
-  auto map_in_arcs(typename GT::Node *p, std::function<T (typename GT::Arc *)> op)
+  auto map_in_arcs(typename GT::Node *p, Op op)
   {
     DynList<T> ret;
     for_each_in_arc(p, [&ret, &op](auto a)
                       {
-                        ret.append(op(a));
+                        ret.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(op, a));
                       });
     return ret;
   }
@@ -2198,15 +2211,16 @@ namespace Aleph
         @param[in] op folding operation
         \result the final folded result after the last seen arc
     */
-  template <class GT, typename T>
+  template <class GT, typename T, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Arc *>
   inline
   T foldl_in_arcs(typename GT::Node *p, const T & init,
-                  std::function<T (const T &, typename GT::Arc *)> op)
+                  Op op)
   {
     T ret = init;
     for_each_in_arc(p, [&ret, &op](auto a)
                       {
-                        ret = op(ret, a);
+                        ret = Aleph::concepts_detail::invoke_as<T (const T &, typename GT::Arc *)>::call(op, ret, a);
                       });
     return ret;
   }
@@ -2343,14 +2357,15 @@ namespace Aleph
         @param[in] op transformation
         \result a `DynList<T>` containing the mapping.
     */
-  template <class GT, typename T>
+  template <class GT, typename T, class Op>
+    requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
   inline
-  auto map_out_arcs(typename GT::Node *p, std::function<T (typename GT::Arc *)> op)
+  auto map_out_arcs(typename GT::Node *p, Op op)
   {
     DynList<T> ret;
     for_each_out_arc(p, [&ret, &op](auto a)
                        {
-                         ret.append(op(a));
+                         ret.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(op, a));
                        });
     return ret;
   }
@@ -2371,15 +2386,16 @@ namespace Aleph
         @param[in] op folding operation
         \result the final folded result after the last seen arc
     */
-  template <class GT, typename T>
+  template <class GT, typename T, class Op>
+    requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Arc *>
   inline
   T foldl_out_arcs(typename GT::Node *p, const T & init,
-                   std::function<T (const T &, typename GT::Arc *)> op)
+                   Op op)
   {
     T ret = init;
     for_each_out_arc(p, [&ret, &op](auto a)
                        {
-                         ret = op(ret, a);
+                         ret = Aleph::concepts_detail::invoke_as<T (const T &, typename GT::Arc *)>::call(op, ret, a);
                        });
     return ret;
   }

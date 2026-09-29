@@ -34,7 +34,7 @@
  *  @brief C++20 concepts hub: comparison, BST policy, and Aleph container
  *         concepts.
  *
- *  Defines eight concepts used throughout Aleph-w to constrain template
+ *  Defines twelve concepts used throughout Aleph-w to constrain template
  *  parameters:
  *
  *  - **BinaryPredicate<F, T>** — base concept: `f(a, b)` returns
@@ -53,6 +53,12 @@
  *    `const`-iterable `get_it()`.
  *  - **IntegerSortableValue<T>** — integral type accepted by counting/radix
  *    sort, excluding `bool`.
+ *  - **ClosedBinaryOp<F, T>** — `f(a, b)` on two `const T&` returns
+ *    something convertible to `T` (segment/Fenwick/sparse tables).
+ *  - **StaticMonoid<M, T>** — `M::identity()` and `M::combine(a, b)`.
+ *  - **CallableWith<F, Args...>** — `f(args...)` is valid exactly as written.
+ *  - **PredicateWith<F, Args...>** — `f(args...)` is valid and usable as a
+ *    condition (contextual conversion to `bool`).
  *
  *  Using distinct concept names produces clear error messages:
  *  a BST constraint failure mentions "StrictWeakOrder", while a
@@ -68,6 +74,8 @@
 # include <concepts>
 # include <type_traits>
 # include <cstddef>
+# include <functional>
+# include <utility>
 
 namespace Aleph
 {
@@ -85,33 +93,44 @@ namespace Aleph
   /** @brief Strict weak ordering constraint for BST comparators.
    *
    *  Used by BST classes (`Gen_Avl_Tree`, `Gen_Rb_Tree`, etc.) to
-   *  constrain the `Compare` template parameter. Based on
-   *  `std::strict_weak_order`, invoked through `const F&` because that is
-   *  how BST nodes actually call the comparator (via a `const` tree
-   *  object). A functor whose `operator()` is not `const` satisfies
-   *  `std::strict_weak_order<F, T, T>` but fails to compile once a `const`
-   *  tree calls it; requiring `const F&` here catches that at the
-   *  constraint, not deep inside the tree implementation.
+   *  constrain the `Compare` template parameter. The stored comparator is
+   *  invoked through *both* shapes depending on the call site: read-only
+   *  paths bind it through a `const` tree (`const F&`), while mutating
+   *  paths (`insert()`, `search_and_stack_avl()`, ...) hold the tree by a
+   *  non-`const` `this` and invoke the `cmp` member as a non-`const`
+   *  lvalue. If `F` overloads `operator()` differently for its `const`
+   *  and non-`const` forms, checking only one shape lets a functor pass
+   *  the constraint here and still fail deep inside `tpl_avl.H` on
+   *  whichever shape wasn't checked — the exact failure mode this
+   *  concept exists to catch. Requiring both shapes closes that gap
+   *  while still accepting the common case of a single `const
+   *  operator()` (callable through either shape, since a `const` method
+   *  can be invoked from a non-`const` lvalue too).
    *
    *  @tparam F functor type.
    *  @tparam T key type.
    */
   template <typename F, typename T>
-  concept StrictWeakOrder = std::strict_weak_order<const F &, const T &, const T &>;
+  concept StrictWeakOrder =
+      std::strict_weak_order<F, T, T> and
+      std::strict_weak_order<const F &, const T &, const T &>;
 
   /** @brief Equivalence relation constraint for equality comparators.
    *
    *  Used by hash table classes (`GenLhashTable`, `ODhashTable`, etc.)
-   *  to constrain the `Cmp` template parameter. Based on
-   *  `std::equivalence_relation`, invoked through `const F&` for the same
-   *  reason as `StrictWeakOrder`: hash tables call the comparator through
-   *  a `const` reference.
+   *  to constrain the `Cmp` template parameter. Requires both the
+   *  non-`const` and `const` invocation shapes for the same reason as
+   *  `StrictWeakOrder`: mutating hash-table paths (e.g.
+   *  `ODhashTable::allocate_bucket()`) invoke the stored `cmp` as a
+   *  non-`const` lvalue, while other paths bind it through `const`.
    *
    *  @tparam F functor type.
    *  @tparam T key type.
    */
   template <typename F, typename T>
-  concept EqualityComparator = std::equivalence_relation<const F &, const T &, const T &>;
+  concept EqualityComparator =
+      std::equivalence_relation<F, T, T> and
+      std::equivalence_relation<const F &, const T &, const T &>;
 
   /** @brief Concept for BST tree policies used by `DynSetTree`.
    *
@@ -131,7 +150,7 @@ namespace Aleph
    */
   template <typename T, typename Key>
   concept BSTPolicy =
-      requires { typename T::Node; } &&
+      requires { typename T::Node; } and
       requires(T & t, T & t2, const T & ct,
                typename T::Node * p, const Key & key)
         {
@@ -143,12 +162,10 @@ namespace Aleph
           { ct.verify() } -> std::convertible_to<bool>;
           { t.swap(t2) };
           { t.get_compare() };
-          requires (!requires { ct.getRoot(); } ||
-                    requires
-                    {
-                      { ct.getRoot() } -> std::convertible_to<const typename T::Node *>;
-                    });
-          requires (!requires { ct.search(key); } ||
+          requires not requires { ct.getRoot(); } or requires {
+            { ct.getRoot() } -> std::convertible_to<const typename T::Node *>;
+          };
+          requires (not requires { ct.search(key); } or
                     requires
                     {
                       { ct.search(key) } -> std::convertible_to<const typename T::Node *>;
@@ -252,6 +269,150 @@ namespace Aleph
   concept IntegerSortableValue =
       std::is_integral_v<std::remove_cv_t<T>> and
       not std::is_same_v<std::remove_cv_t<T>, bool>;
+
+  /** @brief A binary functor closed over `T`.
+   *
+   *  `f(a, b)` is well-formed for `const T& a, const T& b` and returns
+   *  something convertible to `T`. This is the shared shape behind
+   *  `SparseTableOp`, `DisjointSparseTableOp`, `SegmentTreeOp` and
+   *  `FenwickBinaryOp` (each kept as an alias for source compatibility),
+   *  which differ only in which *semantic* law the caller must also
+   *  provide (associativity, idempotency, ...) — this concept checks
+   *  only the call signature, never the semantics.
+   *
+   *  @tparam F functor type.
+   *  @tparam T value type.
+   */
+  template <typename F, typename T>
+  concept ClosedBinaryOp =
+      requires(const F & f, const T & a, const T & b)
+        {
+          { f(a, b) } -> std::convertible_to<T>;
+        };
+
+  /** @brief A static monoid: `M::identity()` and `M::combine(a, b)`.
+   *
+   *  Unlike `ClosedBinaryOp`, the combining operation lives on the type
+   *  `M` itself (static members), not on an instance passed by the
+   *  caller. This is the shape `LCTMonoid` (kept as an alias) requires
+   *  from a link-cut tree's path-aggregation policy.
+   *
+   *  @tparam M monoid policy type, exposing `identity()` and `combine`.
+   *  @tparam T value type.
+   */
+  template <typename M, typename T>
+  concept StaticMonoid =
+      requires(const T & a, const T & b)
+        {
+          { M::identity() } -> std::convertible_to<T>;
+          { M::combine(a, b) } -> std::convertible_to<T>;
+        };
+
+  /** @brief `f(args...)` is a valid call expression, exactly as written.
+   *
+   *  Mirrors a plain call `f(args...)` with `F` and `Args` carrying the
+   *  value category and `const`-ness of the call site (e.g.
+   *  `CallableWith<Op &, const T &>` for `op(item)` with `op` a non-`const`
+   *  lvalue and `item` a `const T &`). Unlike `std::invocable`, it does
+   *  not go through `std::invoke`, so it rejects member pointers, which a
+   *  plain call cannot use either. The result type is unconstrained.
+   *
+   *  @tparam F callable type, including its reference/`const` category.
+   *  @tparam Args argument types, including their reference/`const` category.
+   */
+  template <typename F, typename... Args>
+  concept CallableWith =
+      requires(F && f, Args &&... args)
+        {
+          std::forward<F>(f)(std::forward<Args>(args)...);
+        };
+
+  /** @brief `f(args...)` is a valid call whose result is usable as a condition.
+   *
+   *  Mirrors `if (f(args...))` or `not f(args...)`: the result only needs
+   *  to be *contextually* convertible to `bool`. This is deliberately
+   *  weaker than `std::predicate`, which demands an *implicit* conversion
+   *  and would reject results with only an `explicit operator bool()`
+   *  (such as `std::optional` or smart pointers) that those call sites
+   *  accept.
+   *
+   *  @tparam F callable type, including its reference/`const` category.
+   *  @tparam Args argument types, including their reference/`const` category.
+   */
+  template <typename F, typename... Args>
+  concept PredicateWith =
+      CallableWith<F, Args...> and
+      requires(F && f, Args &&... args)
+        {
+          static_cast<bool>(std::forward<F>(f)(std::forward<Args>(args)...));
+        };
+
+  namespace concepts_detail
+  {
+    /** @brief `T` itself, made dependent on `Deferred`.
+     *
+     *  For requires-clauses on member templates of CRTP mixins that name
+     *  the derived `Container`: routing it through a type that depends on
+     *  the member template's own parameter defers its use until the
+     *  constraint is checked. Named directly, Clang 14 binds it when the
+     *  CRTP base is instantiated, while `Container` is still incomplete,
+     *  and then either hard-errors or reports "incomplete type".
+     *
+     *  @tparam T the type to forward.
+     *  @tparam Deferred any type dependent on the member template.
+     */
+    template <class T, class Deferred>
+    struct defer
+    {
+      using type = T;
+    };
+
+    /** @brief What `Container::Iterator::get_curr()` yields, deferred.
+     *
+     *  The argument type a mixin's iterator-driven `traverse()` passes to
+     *  its operation. Deferred on `Deferred` for the same reason as
+     *  `defer`.
+     *
+     *  @tparam Container the CRTP-derived container.
+     *  @tparam Deferred any type dependent on the member template.
+     */
+    template <class Container, class Deferred>
+    struct traverse_arg
+    {
+      using type = decltype(std::declval<typename defer<Container, Deferred>::type::Iterator &>().get_curr());
+    };
+
+    template <class Sig>
+    struct invoke_as;
+
+    /** @brief Calls a callable exactly as `std::function<R(A...)>` would.
+     *
+     *  For template parameters that replaced a `std::function<R(A...)>`
+     *  parameter, constrained with `std::is_invocable_r_v<R, Op &, A...>`
+     *  (the requirement of `std::function`'s constructor): arguments are
+     *  forwarded as `std::function::operator()` forwards them, the call goes
+     *  through `std::invoke` so member pointers keep working, and the result
+     *  is implicitly converted to `R`.
+     *
+     *  @tparam R result type.
+     *  @tparam A argument types.
+     */
+    template <class R, class... A>
+    struct invoke_as<R(A...)>
+    {
+      /** @brief Invoke `f(a...)` converting the result to `R`.
+       *  @param f callable, invoked as a non-`const` lvalue.
+       *  @param a arguments.
+       *  @return the result of the call, converted to `R`.
+       *  @throws anything `f` throws.
+       */
+      template <class F>
+      static R call(F & f, A... a)
+      {
+        return std::invoke(f, std::forward<A>(a)...);
+      }
+    };
+  } // namespace concepts_detail
 
 } // namespace Aleph
 
