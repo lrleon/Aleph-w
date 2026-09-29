@@ -469,15 +469,27 @@ public:
    *  Loads all entries, then sorts once by key and removes duplicate keys:
    *  O(m log m) for m input entries.
    *
-   *  @tparam It Input iterator whose value type converts to
-   *          `std::pair<Key, T>`.
+   *  @tparam It Iterator whose dereferenced entry exposes `first` and
+   *          `second` convertible to `Key` and `T` (a `std::pair`, or this
+   *          map's own `(key, value)` proxy).
    *  @param first Beginning of the range.
    *  @param last End of the range.
    *  @param cmp Comparator instance (defaulted).
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note On duplicate (equivalent) keys the first occurrence wins.
    */
-  template <std::input_iterator It>
+  template <class It>
+    // Mirrors the loop below instead of std::input_iterator: this map's own
+    // iterators yield a proxy with no common reference with std::pair, so
+    // they fail std::indirectly_readable while working fine here.
+    requires requires(It first, It last, MemArray<Key> & ks, MemArray<T> & vs,
+                      const std::remove_reference_t<std::iter_reference_t<It>> & p)
+      {
+        static_cast<bool>(first != last);
+        ++first;
+        ks.put(p.first);
+        vs.put(p.second);
+      }
   FlatMap(It first, It last, const Compare &cmp = Compare())
     : keys_(MemArray<Key>::Min_Dim), vals_(MemArray<T>::Min_Dim), cmp_(cmp)
   {

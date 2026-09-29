@@ -90,6 +90,8 @@
 # ifndef PRIM_H
 # define PRIM_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_agraph.H>
 # include <tpl_graph_utils.H>
 # include <archeap.H>
@@ -100,7 +102,7 @@ namespace Aleph
 {
   using namespace Aleph;
 
-  template <class GT>
+  template <AlephGraph GT>
   struct Prim_Info
   {
     typename GT::Node *tree_node = nullptr; // imagen en el árbol abarcador
@@ -153,7 +155,7 @@ namespace Aleph
     }
   };
 
-  template <class GT>
+  template <AlephGraph GT>
   struct Uninit_Prim_Info
   {
     void operator ()(const GT &, typename GT::Node *p)
@@ -207,9 +209,9 @@ namespace Aleph
       @see Kruskal_Min_Spanning_Tree
       @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Prim_Min_Spanning_Tree
   {
     typedef Prim_Heap_Info<GT, Distance> Acc_Heap;

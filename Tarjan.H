@@ -91,6 +91,8 @@
 #ifndef TARJAN_H
 #define TARJAN_H
 
+# include <ah-graph-concepts.H>
+
 #include <tpl_dynListStack.H>
 #include <tpl_dynSetTree.H>
 #include <htlist.H>
@@ -162,7 +164,7 @@ namespace Aleph {
  * @ingroup Graphs
  * @author Leandro Rabindranath León (lrleon at ula dot ve)
  */
-template <class GT, template <typename, class> class Itor = Out_Iterator, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, template <typename, class> class Itor = Out_Iterator, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Tarjan_Connected_Components
 {
   SA sa_;
@@ -993,7 +995,7 @@ public:
     @note This class is intended for directed graphs. Behavior on undirected
           graphs is undefined.
 */
-template <class GT, template <typename, class> class Itor = Out_Iterator, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, template <typename, class> class Itor = Out_Iterator, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Cycle_In_Digraph
 {
   SA sa_;

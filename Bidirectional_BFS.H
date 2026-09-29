@@ -74,6 +74,8 @@
 # ifndef BIDIRECTIONAL_BFS_H
 # define BIDIRECTIONAL_BFS_H
 
+# include <ah-graph-concepts.H>
+
 # include <limits>
 # include <tpl_dynListQueue.H>
 # include <tpl_graph_utils.H>
@@ -109,10 +111,10 @@ namespace Aleph
  *
  *  @ingroup Graphs
  */
-template <class GT,
+template <AlephGraph GT,
           template <typename, class> class Fwd_Itor = Node_Arc_Iterator,
           template <typename, class> class Bck_Itor = Node_Arc_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Bidirectional_BFS
 {
 public:

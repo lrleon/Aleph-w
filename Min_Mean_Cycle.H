@@ -64,6 +64,8 @@
 # ifndef MIN_MEAN_CYCLE_H
 # define MIN_MEAN_CYCLE_H
 
+# include <ah-graph-concepts.H>
+
 # include <cmath>
 # include <cstddef>
 # include <limits>
@@ -84,7 +86,7 @@ namespace Aleph
    *  @tparam Cost_Type Arc weight type returned by the distance accessor.
    *  @ingroup Graphs
    */
-  template <class GT, typename Cost_Type>
+  template <AlephGraph GT, typename Cost_Type>
   struct Min_Mean_Cycle_Result
   {
     bool has_cycle = false; ///< True if at least one directed cycle exists.
@@ -114,7 +116,7 @@ namespace Aleph
 
   namespace min_mean_cycle_detail
   {
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     struct Incoming_Arc
     {
       size_t src_idx = 0;
@@ -123,7 +125,7 @@ namespace Aleph
     };
 
 
-    template <class GT, class Distance, class SA>
+    template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA>
     void validate_weights(const GT & g, Distance distance, SA sa)
     {
       using Arc = typename GT::Arc;
@@ -177,9 +179,9 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   Min_Mean_Cycle_Result<GT, typename Distance::Distance_Type>
   karp_minimum_mean_cycle(const GT & g,
                           Distance distance = Distance(),
@@ -444,9 +446,9 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   Min_Mean_Cycle_Value_Result
   karp_minimum_mean_cycle_value(const GT & g,
                                 Distance distance = Distance(),
@@ -581,9 +583,9 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   Min_Mean_Cycle_Value_Result
   minimum_mean_cycle_value(const GT & g,
                            Distance distance = Distance(),
@@ -598,9 +600,9 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   Min_Mean_Cycle_Result<GT, typename Distance::Distance_Type>
   minimum_mean_cycle(const GT & g,
                      Distance distance = Distance(),
@@ -615,9 +617,9 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Karp_Minimum_Mean_Cycle
   {
     Distance distance_;
@@ -643,9 +645,9 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Karp_Minimum_Mean_Cycle_Value
   {
     Distance distance_;

@@ -95,6 +95,8 @@
 # ifndef FLOYD_WARSHALL_H
 # define FLOYD_WARSHALL_H
 
+# include <ah-graph-concepts.H>
+
 # include <type_traits>
 # include <sstream>
 # include <iostream>
@@ -144,9 +146,9 @@ namespace Aleph
       q_bellman_ford_min_spanning_tree()
       @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Floyd_All_Shortest_Paths
   {
     typedef typename GT::Node Node;

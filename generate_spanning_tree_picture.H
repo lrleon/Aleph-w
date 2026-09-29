@@ -62,6 +62,8 @@
 #ifndef GENERATE_SPANNING_TREE_PICTURE_H
 #define GENERATE_SPANNING_TREE_PICTURE_H
 
+# include <ah-graph-concepts.H>
+
 #include <generate_graph.H>
 
 /** @brief Shading functor for spanning tree nodes.
@@ -71,7 +73,7 @@
  *
  *  @tparam GT Graph type
  */
-template <typename GT> 
+template <AlephGraph GT> 
 struct Shade_Span_Node
 {
   std::string operator () (typename GT::Node * p) const
@@ -89,7 +91,7 @@ struct Shade_Span_Node
  *
  *  @tparam GT Graph type
  */
-template <typename GT> 
+template <AlephGraph GT> 
 struct Shade_Span_Arc
 {
   std::string operator () (typename GT::Arc * a) const
@@ -118,7 +120,7 @@ struct Shade_Span_Arc
  *
  *  @ingroup Graphs
  */
-template <typename GT, class Write_Node, class Write_Arc, class SA>
+template <AlephGraph GT, class Write_Node, class Write_Arc, ArcFilter<GT> SA>
 void generate_cross_spanning_tree(GT &            g, 
                                   const size_t &  nodes_by_level, 
                                   const double &  xdist,
@@ -132,7 +134,7 @@ void generate_cross_spanning_tree(GT &            g,
 
 /// @brief Overload with default arc filter.
 /// @see generate_cross_spanning_tree()
-template <typename GT, class Write_Node, class Write_Arc>
+template <AlephGraph GT, class Write_Node, class Write_Arc>
 void generate_cross_spanning_tree(GT &            g, 
                                   const size_t &  nodes_by_level, 
                                   const double &  xdist,
@@ -164,7 +166,7 @@ void generate_cross_spanning_tree(GT &            g,
  *
  *  @ingroup Graphs
  */
-template <typename GT, class Write_Node, class Write_Arc, class SA>
+template <AlephGraph GT, class Write_Node, class Write_Arc, ArcFilter<GT> SA>
 void generate_net_spanning_tree(GT &            g, 
                                 const size_t &  nodes_by_level, 
                                 const double &  xdist,
@@ -178,7 +180,7 @@ void generate_net_spanning_tree(GT &            g,
 
 /// @brief Overload with default arc filter.
 /// @see generate_net_spanning_tree()
-template <typename GT, class Write_Node, class Write_Arc>
+template <AlephGraph GT, class Write_Node, class Write_Arc>
 void generate_net_spanning_tree(GT &            g, 
                                 const size_t &  nodes_by_level, 
                                 const double &  xdist,

@@ -93,6 +93,8 @@
 #ifndef LCA_H
 #define LCA_H
 
+# include <ah-graph-concepts.H>
+
 #include <algorithm>
 #include <bit>
 #include <cstddef>
@@ -120,7 +122,7 @@ namespace lca_detail {
  *  4. **DFS Traversal**: Computes parent pointers, node depths, entry/exit times
  *     (tin/tout), and the Euler tour sequence.
  */
-template <class GT, class SA>
+template <AlephGraph GT, ArcFilter<GT> SA>
 class Rooted_Tree_Data
 {
 public:
@@ -460,7 +462,7 @@ struct Depth_Node_Min_Op
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Gen_Binary_Lifting_LCA
 {
 public:
@@ -727,7 +729,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Gen_Euler_RMQ_LCA
 {
 public:

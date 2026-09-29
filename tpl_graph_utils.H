@@ -44,6 +44,8 @@
 # ifndef TPL_GRAPH_UTILS_H
 # define TPL_GRAPH_UTILS_H
 
+# include <ah-graph-concepts.H>
+
 
 # include <cassert>
 # include <cstddef>
@@ -72,7 +74,7 @@ namespace Aleph {
    *
    * @note Uses the `Depth_First` control bit on both nodes and arcs.
    */
-  template <class GT> inline static bool
+  template <AlephGraph GT> inline static bool
   __depth_first_traversal(const GT & g, typename GT::Node * node,
                           typename GT::Arc *  arc,
                           bool (*visit)(const GT & g, typename GT::Node *,
@@ -102,7 +104,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see Depth_First_Traversal, breadth_first_traversal, test_connectivity
    */
-  template <class GT> inline size_t 
+  template <AlephGraph GT> inline size_t 
   depth_first_traversal(const GT & g, typename GT::Node * start_node,
                         bool (*visit)(const GT & g, typename GT::Node *, 
                                       typename GT::Arc *))
@@ -117,7 +119,7 @@ namespace Aleph {
   }
 
   /// \overload depth_first_traversal(const GT&, typename GT::Node*, bool (*)(...))
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   size_t depth_first_traversal(const GT & g, 
                                bool (*visit)(const GT &, typename GT::Node *, 
                                              typename GT::Arc *))
@@ -159,9 +161,9 @@ namespace Aleph {
    * @ingroup Graphs
    * @see depth_first_traversal, Breadth_First_Traversal
    */
-  template <class GT, 
+  template <AlephGraph GT, 
             class Operation = Default_Visit_Op<GT>, 
-            class SA        = Dft_Show_Arc<GT>> 
+            ArcFilter<GT> SA        = Dft_Show_Arc<GT>> 
   class Depth_First_Traversal
   {
     Operation * op_ptr = nullptr;
@@ -262,7 +264,7 @@ namespace Aleph {
   };
 
 
-  template <class GT> inline static bool
+  template <AlephGraph GT> inline static bool
   __depth_first_traversal(const GT & g, typename GT::Node * node, 
                           typename GT::Arc *  arc,
                           bool (*visit)(const GT & g, typename GT::Node *, 
@@ -322,7 +324,7 @@ namespace Aleph {
    * @see breadth_first_traversal(const GT&, bool (*)(...)),
    *      depth_first_traversal, Breadth_First_Traversal
    */
-  template <class GT> inline size_t
+  template <AlephGraph GT> inline size_t
   breadth_first_traversal(const GT & g, typename GT::Node * start,
                           bool (*visit)(const GT &, typename GT::Node *,
                                         typename GT::Arc *) )
@@ -378,7 +380,7 @@ namespace Aleph {
   }
 
   /// \overload breadth_first_traversal(const GT&, typename GT::Node*, bool (*)(...))
-  template <class GT> inline size_t
+  template <AlephGraph GT> inline size_t
   breadth_first_traversal(GT & g, 
                           bool (*visit)(const GT &, typename GT::Node *, 
                                         typename GT::Arc *))
@@ -408,9 +410,9 @@ namespace Aleph {
    * @ingroup Graphs
    * @see breadth_first_traversal, Depth_First_Traversal
    */
-  template <class GT, 
+  template <AlephGraph GT, 
             class Operation = Default_Visit_Op<GT>, 
-            class SA        = Dft_Show_Arc<GT>> 
+            ArcFilter<GT> SA        = Dft_Show_Arc<GT>> 
   class Breadth_First_Traversal
   {
     SA     sa;
@@ -550,7 +552,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see find_path_depth_first(), test_for_path()
    */
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   Path<GT> find_path_breadth_first(const GT & g, typename GT::Node * start, 
                                    typename GT::Node * end)
   {
@@ -637,7 +639,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see depth_first_traversal()
    */
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   bool test_connectivity(const GT & g)
   {
     ah_domain_error_if(g.is_digraph())
@@ -655,7 +657,7 @@ namespace Aleph {
 
 
   /** @brief Internal helper used by test_for_cycle(). */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   bool __test_cycle(const GT & g, typename GT::Node *, typename GT::Node *);
 
 
@@ -675,7 +677,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see has_cycle(), is_graph_acyclique()
    */
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   bool test_for_cycle(const GT & g, typename GT::Node * src)
   {
     ah_invalid_argument_if(src == nullptr)
@@ -698,7 +700,7 @@ namespace Aleph {
   }
 
 
-  template <class GT> inline static bool
+  template <AlephGraph GT> inline static bool
   __test_cycle(const GT & g, typename GT::Node * src, typename GT::Node * curr)
   {
     if (src == curr) 
@@ -724,7 +726,7 @@ namespace Aleph {
   }  
 
   /** @brief Internal DFS used by is_graph_acyclique(). */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   bool __is_graph_acyclique(const GT & g, typename GT::Node * curr_node)
   {
     if (IS_NODE_VISITED(curr_node, Test_Cycle)) 
@@ -766,7 +768,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see has_cycle(), is_graph_acyclique(const GT&)
    */
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   bool is_graph_acyclique(const GT & g, typename GT::Node * start_node)
   {
     ah_domain_error_if(g.is_digraph())
@@ -806,7 +808,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see has_cycle(), is_graph_acyclique(const GT&, typename GT::Node*)
    */
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   bool is_graph_acyclique(const GT & g)
   {
     ah_domain_error_if(g.is_digraph())
@@ -847,7 +849,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see is_graph_acyclique()
    */
-  template <class GT> 
+  template <AlephGraph GT> 
   inline bool has_cycle(const GT & g)
   {
     return not is_graph_acyclique(g);
@@ -869,7 +871,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see find_path_depth_first(), find_path_breadth_first()
    */
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   bool test_for_path(const GT & g, typename GT::Node * start_node, 
                      typename GT::Node * end_node)
   { 
@@ -895,7 +897,7 @@ namespace Aleph {
 
 
   /** @brief Internal recursive DFS used by test_for_path(). */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   bool __test_for_path(const GT & g, typename GT::Node * curr_node, 
                        typename GT::Node * end_node)  
   {
@@ -922,11 +924,11 @@ namespace Aleph {
   }
 
   /// @brief Forward declaration for inconnected_components().
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   DynList<GT> inconnected_components(const GT & g);
 
   /// @brief Forward declaration for build_subgraph().
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   void build_subgraph(const GT & g, GT & sg, 
                       typename GT::Node * g_src, size_t & node_count); 
     
@@ -949,7 +951,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see build_subgraph(), copy_graph()
    */
-  template <class GT> inline
+  template <AlephGraph GT> inline
   DynList<GT> inconnected_components(const GT & g) 
   {
     g.reset_nodes(); 
@@ -993,7 +995,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see inconnected_components(), copy_graph()
    */
-  template <class GT> inline 
+  template <AlephGraph GT> inline 
   void build_subgraph(const GT & g, GT & sg, 
                       typename GT::Node * g_src, size_t & node_count)
   {
@@ -1035,7 +1037,7 @@ namespace Aleph {
 
   
   /** @brief Internal recursive DFS used by find_depth_first_spanning_tree(). */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   bool __find_depth_first_spanning_tree(const GT &          g, 
                                         typename GT::Node * gnode, 
                                         typename GT::Arc *  garc, 
@@ -1061,7 +1063,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see find_breadth_first_spanning_tree()
    */
-  template <class GT> inline
+  template <AlephGraph GT> inline
   GT find_depth_first_spanning_tree(const GT & g, typename GT::Node * gnode)
   {
     g.reset_nodes();
@@ -1092,14 +1094,14 @@ namespace Aleph {
   }
 
   /// \overload find_depth_first_spanning_tree()
-  template <class GT> inline
+  template <AlephGraph GT> inline
   GT find_depth_first_spanning_tree(const GT & g)
   {
     return find_depth_first_spanning_tree(g, g.get_node());
   }
 
   
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   bool __find_depth_first_spanning_tree(const GT & g, typename GT::Node * gnode, 
                                         typename GT::Arc *  garc, 
                                         GT & tree, typename GT::Node * tnode)
@@ -1154,7 +1156,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see find_depth_first_spanning_tree()
    */
-  template <class GT> inline
+  template <AlephGraph GT> inline
   GT find_breadth_first_spanning_tree(GT & g, typename GT::Node * gp)
   {
     g.reset_bit_nodes(Spanning_Tree);
@@ -1235,7 +1237,7 @@ namespace Aleph {
    *
    * @ingroup Graphs
    */
-  template <class GT>
+  template <AlephGraph GT>
   GT build_spanning_tree(const DynArray<typename GT::Arc*> & arcs)
   {
     using Node = typename GT::Node;
@@ -1282,7 +1284,7 @@ namespace Aleph {
   }
 
   /// @brief Internal helper: DFS discovery time stored in `NODE_COUNTER(p)`.
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   long & df(typename GT::Node * p)
   {
     return NODE_COUNTER(p);
@@ -1290,14 +1292,14 @@ namespace Aleph {
 
   /// @brief Internal helper: low-link value stored directly in `NODE_COOKIE(p)`.
   /// The cookie pointer itself is reinterpreted as a long value.
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   long & low(typename GT::Node * p)
   {
     return reinterpret_cast<long&>(NODE_COOKIE(p));
   }
 
   /** @brief Internal DFS step used by compute_cut_nodes(). */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list, 
                            typename GT::Node * p, typename GT::Arc * a,
                            long & curr_df);
@@ -1327,7 +1329,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see paint_subgraphs(), map_subgraph(), map_cut_graph()
    */
-  template <class GT>
+  template <AlephGraph GT>
   DynList<typename GT::Node*> 
   compute_cut_nodes(const GT & g, typename GT::Node * start)
   {
@@ -1404,14 +1406,14 @@ namespace Aleph {
   }
 
   /// \overload compute_cut_nodes(const GT & g, typename GT::Node * start)
-  template <class GT>
+  template <AlephGraph GT>
   DynList<typename GT::Node*> compute_cut_nodes(const GT & g)
   {
     return compute_cut_nodes(g, g.get_node());
   }
       
   /** @brief Internal recursive step for compute_cut_nodes(). */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list, 
                            typename GT::Node * p, typename GT::Arc * a, 
                            long & curr_df)
@@ -1464,70 +1466,70 @@ namespace Aleph {
   const long Cross_Arc = -1;
 
   /// @brief Return `true` if the arc is marked as a cross-arc by paint_subgraphs().
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   bool is_a_cross_arc(typename GT::Arc * a) 
   {
     return ARC_COUNTER(a) == Cross_Arc; 
   }
 
   /// @brief Return `true` if the node is marked as an articulation point.
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   bool is_a_cut_node(typename GT::Node * p)
   {
     return NODE_BITS(p).get_bit(Cut);
   }
 
   /// @brief Return `true` if the arc is marked as a cut-arc (between cut nodes).
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   bool is_an_cut_arc(typename GT::Arc * a)
   {
     return ARC_BITS(a).get_bit(Cut);
   }
 
   /// @brief Return `true` if the node has a positive color.
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   bool is_node_painted(typename GT::Node * p)
   {
     return NODE_COUNTER(p) > 0;
   }
 
   /// @brief Return `true` if the arc has a positive color.
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   bool is_arc_painted(typename GT::Arc * arc)
   {
     return ARC_COUNTER(arc) > 0;
   }
 
   /// @brief Set the node color (stored in `NODE_COUNTER`).
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   void paint_node(typename GT::Node * p, const long & color)
   {
     NODE_COUNTER(p) = color;
   }
 
   /// @brief Set the arc color (stored in `ARC_COUNTER`).
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   void paint_arc(typename GT::Arc * a, const long & color)
   {
     ARC_COUNTER(a) = color;
   }
 
   /// @brief Return the node color (stored in `NODE_COUNTER`).
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   const long & get_color(typename GT::Node * p)
   {
     return NODE_COUNTER(p);
   }
 
   /// @brief Return the arc color (stored in `ARC_COUNTER`).
-  template <class GT> inline static 
+  template <AlephGraph GT> inline static 
   const long & get_color(typename GT::Arc * a)
   {
     return ARC_COUNTER(a);
   }
 
   /** @brief Internal DFS that paints a non-cut block with `current_color`. */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   void __paint_subgraph(const GT & g, typename GT::Node * p, long current_color)
   {
     assert(not is_a_cut_node <GT> (p));
@@ -1554,7 +1556,7 @@ namespace Aleph {
   }
 
   /** @brief Internal step that paints all blocks adjacent to a cut node. */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   void 
   __paint_from_cut_node(const GT & g, typename GT::Node * p, long & current_color)
   {
@@ -1623,7 +1625,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see compute_cut_nodes(), map_subgraph(), map_cut_graph()
    */
-  template <class GT> inline long 
+  template <AlephGraph GT> inline long 
   paint_subgraphs(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
   {
     g.reset_counter_nodes();
@@ -1637,7 +1639,7 @@ namespace Aleph {
   }
 
   /** @brief Internal recursive step used by map_subgraph(). */
-  template <class GT> inline static
+  template <AlephGraph GT> inline static
   void __map_subgraph(const GT & g, GT & sg, typename GT::Node * gsrc, 
                       const long color)
   {
@@ -1696,7 +1698,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see paint_subgraphs(), compute_cut_nodes(), map_cut_graph()
    */
-  template <class GT>
+  template <AlephGraph GT>
   GT map_subgraph(const GT & g, const long color)
   {
     g.reset_bit_nodes(Build_Subtree);
@@ -1744,7 +1746,7 @@ namespace Aleph {
    * @ingroup Graphs
    * @see map_subgraph(), compute_cut_nodes(), paint_subgraphs()
    */
-  template <class GT>
+  template <AlephGraph GT>
   std::tuple<GT, DynList<typename GT::Arc*>>
   map_cut_graph(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
   {
@@ -1828,7 +1830,7 @@ namespace Aleph {
    *
    * @ingroup Graphs
    */
-  template <class GT> 
+  template <AlephGraph GT> 
   GT invert_digraph(const GT & g)
   {
     ah_domain_error_unless(g.is_digraph())
@@ -1878,7 +1880,7 @@ namespace Aleph {
    *
    * @ingroup Graphs
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Invert_Digraph
   {
     SA sa;
@@ -1986,7 +1988,7 @@ namespace Aleph {
    * @param[in] sa Arc filter (default: Dft_Show_Arc<GT>)
    * @return Pointer to the spanning tree arc, or nullptr if not found
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
   search_spanning_tree_arc(const GT & g,
                            typename GT::Node *src, typename GT::Node *tgt,
@@ -2017,7 +2019,7 @@ namespace Aleph {
     return first_match; // Return first match if no spanning tree arc found
   }
 
-  template <class GT, class Distance = Dft_Dist<GT>>
+  template <AlephGraph GT, ArcDistance<GT> Distance = Dft_Dist<GT>>
   typename Distance::Distance_Type
   get_min_path(typename GT::Node * s, typename GT::Node * end, Path<GT> & path)
   {
@@ -2084,9 +2086,9 @@ namespace Aleph {
    *
    * @ingroup Graphs
    */
-  template <class GT, 
-            class Distance = Dft_Dist<GT>, 
-            class SA       = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, 
+            ArcDistance<GT> Distance = Dft_Dist<GT>, 
+            ArcFilter<GT> SA       = Dft_Show_Arc<GT>>
   class Total_Cost
   {
     Distance dist;

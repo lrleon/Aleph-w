@@ -43,6 +43,8 @@
 # ifndef KARGER_H
 # define KARGER_H
 
+# include <ah-graph-concepts.H>
+
 # include <cmath>
 # include <limits>
 # include <vector>
@@ -153,7 +155,7 @@ namespace Aleph
       @see https://en.wikipedia.org/wiki/Karger%27s_algorithm
       @ingroup Graphs
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Karger_Min_Cut
   {
     // Each node contains the list of contracted nodes

@@ -34,8 +34,8 @@
  *  @brief C++20 concepts hub: comparison, BST policy, and Aleph container
  *         concepts.
  *
- *  Defines twelve concepts used throughout Aleph-w to constrain template
- *  parameters:
+ *  Defines twenty concepts used throughout Aleph-w to constrain template
+ *  parameters (graph concepts live in `ah-graph-concepts.H`):
  *
  *  - **BinaryPredicate<F, T>** — base concept: `f(a, b)` returns
  *    something convertible to `bool`.
@@ -59,6 +59,15 @@
  *  - **CallableWith<F, Args...>** — `f(args...)` is valid exactly as written.
  *  - **PredicateWith<F, Args...>** — `f(args...)` is valid and usable as a
  *    condition (contextual conversion to `bool`).
+ *  - **BinNodeLike<Node>** — binary tree node protocol (`getL`, `getR`,
+ *    `get_key`, `NullPtr`).
+ *  - **RankedBinNodeLike<Node>** — `BinNodeLike` plus subtree sizes.
+ *  - Container/iterator hierarchy: **AlephIterator<It>** (`has_curr`,
+ *    `get_curr`, `next_ne`), **AlephIterable<C>** (yields one via
+ *    `get_it()`), **AlephTraversable<C>** (`traverse`),
+ *    **AlephIterableContainer<C>** (both, plus `size`/`is_empty`),
+ *    **AlephSequence<C>** (plus `append`), and **StlIterableContainer<C>**
+ *    (`begin`/`end`/`value_type`).
  *
  *  Using distinct concept names produces clear error messages:
  *  a BST constraint failure mentions "StrictWeakOrder", while a
@@ -260,6 +269,113 @@ namespace Aleph
           cc.get_it();
         };
 
+  /** @brief An Aleph cursor-style iterator, as generic library code uses it.
+   *
+   *  On a non-`const` iterator (as loops hold it), `has_curr()` tells whether
+   *  it is positioned on an item, `get_curr()` yields that item and
+   *  `next_ne()` advances. `get_curr()` is not required on a `const`
+   *  iterator: the chained hash tables' iterators only offer a non-`const`
+   *  one, which hands out the mutable bucket. Generic loops always advance
+   *  under a `has_curr()` guard,
+   *  `for (auto it = c.get_it(); it.has_curr(); it.next_ne())`, which is
+   *  exactly when the unchecked `next_ne()` is correct. The checked `next()`
+   *  remains part of the iterators' API for code that advances without that
+   *  guard, but generic code does not need it, so it is not required here.
+   *
+   *  @tparam It candidate iterator type.
+   */
+  template <typename It>
+  concept AlephIterator =
+      requires(It & it)
+        {
+          static_cast<bool>(it.has_curr());
+          it.get_curr();
+          it.next_ne();
+        };
+
+  /** @brief A type that yields an `AlephIterator` over its `Item_Type`s.
+   *
+   *  Requires `Item_Type` and a nested `Iterator` satisfying `AlephIterator`
+   *  that can be built from a `const` container, `Iterator it(c)`. That is
+   *  how the library obtains iterators (`get_it()`, where it exists, is a
+   *  wrapper around it; `MemArray` and the raw hash tables only offer the
+   *  constructor). This is the single test both functional layers
+   *  (`ah-uni-functional.H`, `ah-zip-utils.H`) use to decide whether to
+   *  iterate a container the Aleph way.
+   *
+   *  @tparam C candidate container type.
+   */
+  template <typename C>
+  concept AlephIterable =
+      requires
+        {
+          typename C::Item_Type;
+          typename C::Iterator;
+        } and
+      AlephIterator<typename C::Iterator> and
+      std::constructible_from<typename C::Iterator, const C &>;
+
+  /** @brief A container whose items can be visited with `traverse()`.
+   *
+   *  Requires `Item_Type` and a `traverse(op)` that accepts a predicate on
+   *  `const Item_Type &` (return `false` to stop) and reports whether every
+   *  item was visited.
+   *
+   *  @tparam C candidate container type.
+   */
+  template <typename C>
+  concept AlephTraversable =
+      requires { typename C::Item_Type; } and
+      requires(C & c, bool (&op)(const typename C::Item_Type &))
+        {
+          { c.traverse(op) } -> std::convertible_to<bool>;
+        };
+
+  /** @brief A traversable, `AlephIterable` container with a size.
+   *
+   *  Adds `size()` and `is_empty()` on a `const` container. (Named to avoid
+   *  clashing with the STL-range `AlephContainer` of `ah-ranges.H`.)
+   *
+   *  @tparam C candidate container type.
+   */
+  template <typename C>
+  concept AlephIterableContainer =
+      AlephTraversable<C> and
+      AlephIterable<C> and
+      requires(const C & cc)
+        {
+          { cc.size() } -> std::convertible_to<std::size_t>;
+          { cc.is_empty() } -> std::convertible_to<bool>;
+        };
+
+  /** @brief An iterable container that grows at its back with `append()`.
+   *
+   *  @tparam C candidate container type.
+   */
+  template <typename C>
+  concept AlephSequence =
+      AlephIterableContainer<C> and
+      requires(C & c, const typename C::Item_Type & v)
+        {
+          c.append(v);
+        };
+
+  /** @brief A container with STL-style `begin()`/`end()` and `value_type`.
+   *
+   *  `begin()`/`end()` are checked on a `const` container. This is the exact
+   *  test the functional layers used (twice) as `has_stl_iterator`.
+   *
+   *  @tparam C candidate container type.
+   */
+  template <typename C>
+  concept StlIterableContainer =
+      requires(const C & c)
+        {
+          c.begin();
+          c.end();
+          typename C::value_type;
+        };
+
   /** @brief Integral value accepted by linear-time integer sorting algorithms.
    *
    *  This concept accepts integral types except `bool`, which avoids accidental
@@ -345,6 +461,55 @@ namespace Aleph
       requires(F && f, Args &&... args)
         {
           static_cast<bool>(std::forward<F>(f)(std::forward<Args>(args)...));
+        };
+
+  namespace concepts_detail
+  {
+    /// Unqualified form of `BinNodeLike`, applied to a cv-free node type.
+    template <class N>
+    concept BinNodeLikeImpl =
+        requires
+          {
+            typename N::key_type;
+            { N::NullPtr } -> std::convertible_to<N *>;
+          } and
+        requires(N * p)
+          {
+            { p->getL() } -> std::same_as<N *&>;
+            { p->getR() } -> std::same_as<N *&>;
+            { p->get_key() } -> std::convertible_to<typename N::key_type &>;
+          };
+  } // namespace concepts_detail
+
+  /** @brief A binary tree node usable by `tpl_binNodeUtils.H`.
+   *
+   *  Requires the protocol `DECLARE_BINNODE` generates: a `key_type`, the
+   *  `NullPtr` sentinel, and on a non-`const` node `getL()`/`getR()`
+   *  returning the link itself (`Node *&`, what `LLINK`/`RLINK` assign
+   *  through) and `get_key()`. cv-qualifiers on `Node` are ignored: the
+   *  utilities may be instantiated with `const Node`, whose `getL()` returns
+   *  a `const Node *` by value.
+   *
+   *  @tparam Node candidate node type.
+   */
+  template <class Node>
+  concept BinNodeLike = concepts_detail::BinNodeLikeImpl<std::remove_cv_t<Node>>;
+
+  /** @brief A binary tree node that also keeps subtree sizes (rank).
+   *
+   *  Adds `getCount()`, which `COUNT(p)` wraps. It checks the member rather
+   *  than `COUNT(p)`: `COUNT` returns `auto &`, and a deduced return type is
+   *  not SFINAE-friendly, so testing it would hard-error instead of yielding
+   *  `false` on a node without ranks.
+   *
+   *  @tparam Node candidate node type.
+   */
+  template <class Node>
+  concept RankedBinNodeLike =
+      BinNodeLike<Node> and
+      requires(std::remove_cv_t<Node> * p)
+        {
+          { p->getCount() } -> std::convertible_to<std::size_t>;
         };
 
   namespace concepts_detail

@@ -66,6 +66,8 @@
 #ifndef GRAPH_COLORING_H
 #define GRAPH_COLORING_H
 
+# include <ah-graph-concepts.H>
+
 #include <tpl_graph.H>
 #include <tpl_array.H>
 #include <tpl_dynMapTree.H>
@@ -107,7 +109,7 @@ inline size_t smallest_available(const DynSetTree<size_t> &used)
  *  Parallel/multi-arcs are deduplicated so that each neighbor appears
  *  at most once in the adjacency list of a node.
  */
-template <class GT, class SA>
+template <AlephGraph GT, ArcFilter<GT> SA>
 void build_undirected_adj(const GT                                                      &g,
                           DynMapTree<typename GT::Node *, DynList<typename GT::Node *>> &adj)
 {
@@ -147,7 +149,7 @@ void build_undirected_adj(const GT                                              
     }
 }
 
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 void validate_no_self_loops(const GT &g)
 {
   for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
@@ -191,7 +193,7 @@ void validate_no_self_loops(const GT &g)
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors)
 {
   using Node = typename GT::Node;
@@ -259,7 +261,7 @@ size_t greedy_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors)
 {
   using Node = typename GT::Node;
@@ -342,7 +344,7 @@ size_t welsh_powell_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t
  *  @see chromatic_number, welsh_powell_coloring
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors)
 {
   using Node = typename GT::Node;
@@ -436,7 +438,7 @@ size_t dsatur_coloring(const GT &g, DynMapTree<typename GT::Node *, size_t> &col
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 [[nodiscard]] bool is_valid_coloring(const GT                                      &g,
                                      const DynMapTree<typename GT::Node *, size_t> &colors)
 {
@@ -502,7 +504,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
  *  @see dsatur_coloring
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &colors)
 {
   using Node = typename GT::Node;
@@ -628,7 +630,7 @@ size_t chromatic_number(const GT &g, DynMapTree<typename GT::Node *, size_t> &co
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Greedy_Coloring
 {
 public:
@@ -651,7 +653,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Welsh_Powell_Coloring
 {
 public:
@@ -674,7 +676,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class DSatur_Coloring
 {
 public:

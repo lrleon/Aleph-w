@@ -83,6 +83,8 @@
 # ifndef ZERO_ONE_BFS_H
 # define ZERO_ONE_BFS_H
 
+# include <ah-graph-concepts.H>
+
 # include <limits>
 # include <type_traits>
 # include <tpl_dynDlist.H>
@@ -122,10 +124,10 @@ namespace Aleph
  *
  *  @ingroup Graphs
  */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           template <typename, class> class Itor = Node_Arc_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Zero_One_BFS
 {
 public:

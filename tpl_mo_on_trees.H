@@ -89,6 +89,8 @@
 # ifndef TPL_MO_ON_TREES_H
 # define TPL_MO_ON_TREES_H
 
+# include <ah-graph-concepts.H>
+
 # include <algorithm>
 # include <cmath>
 # include <concepts>
@@ -112,7 +114,7 @@ namespace Aleph
    *  @tparam GT  Graph type.
    *  @ingroup Graphs
    */
-  template <typename GT>
+  template <class GT>
   concept MoTreeGraph = requires(const GT & g,
                                  typename GT::Node * p,
                                  typename GT::Arc * a)
@@ -162,7 +164,7 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT, class Policy>
+  template <AlephGraph GT, class Policy>
     requires MoTreeGraph<GT> and MoPolicy<Policy, typename GT::Node::Node_Type>
   class Gen_Mo_On_Trees
   {

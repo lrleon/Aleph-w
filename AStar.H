@@ -50,6 +50,8 @@
 #ifndef ASTAR_H
 #define ASTAR_H
 
+# include <ah-graph-concepts.H>
+
 # include <cmath>
 # include <iostream>
 # include <ahFunction.H>
@@ -72,7 +74,7 @@ namespace Aleph
  *
  *  @ingroup Graphs
  */
-template <class GT, class Distance = Dft_Dist<GT>>
+template <AlephGraph GT, ArcDistance<GT> Distance = Dft_Dist<GT>>
 struct Zero_Heuristic
 {
   using Distance_Type = typename Distance::Distance_Type;
@@ -146,11 +148,11 @@ struct Zero_Heuristic
  *
  *  @ingroup Graphs
  */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           class Heuristic = Zero_Heuristic<GT, Distance>,
           template <typename, class> class Itor = Node_Arc_Iterator,
-          class SA = Dft_Show_Arc<GT>,
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>,
           template <class, class, class> class HeapT = ArcHeap>
 class AStar_Min_Path
   : public Shortest_Path_Base<GT, Distance, Itor, SA, HeapT>
@@ -946,7 +948,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class Distance = Dft_Dist<GT>>
+template <AlephGraph GT, ArcDistance<GT> Distance = Dft_Dist<GT>>
 struct Euclidean_Heuristic
 {
   using Distance_Type = typename Distance::Distance_Type;
@@ -971,7 +973,7 @@ struct Euclidean_Heuristic
  *
  *  @ingroup Graphs
  */
-template <class GT, class Distance = Dft_Dist<GT>>
+template <AlephGraph GT, ArcDistance<GT> Distance = Dft_Dist<GT>>
 struct Manhattan_Heuristic
 {
   using Distance_Type = typename Distance::Distance_Type;

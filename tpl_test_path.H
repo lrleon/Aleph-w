@@ -39,6 +39,8 @@
 # ifndef TEST_PATH_H
 # define TEST_PATH_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph.H>
 
 namespace Aleph {
@@ -63,7 +65,7 @@ namespace Aleph {
          @see find_path_depth_first() find_path_breadth_first()
          @ingroup Graphs
        */
-      template <class GT, class SA = Dft_Show_Arc<GT> > 
+      template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT> > 
 class Test_For_Path
 {
   SA sa;

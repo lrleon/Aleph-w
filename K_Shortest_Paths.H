@@ -65,6 +65,8 @@
 # ifndef K_SHORTEST_PATHS_H
 # define K_SHORTEST_PATHS_H
 
+# include <ah-graph-concepts.H>
+
 # include <cmath>
 # include <cstddef>
 # include <limits>
@@ -88,7 +90,7 @@ namespace Aleph
    *  @tparam Cost_Type Numeric type used for path cost.
    *  @ingroup Graphs
    */
-  template <class GT, typename Cost_Type>
+  template <AlephGraph GT, typename Cost_Type>
   struct K_Shortest_Path_Item
   {
     Cost_Type total_cost = Cost_Type{0}; ///< Total path cost.
@@ -98,7 +100,7 @@ namespace Aleph
 
   namespace k_shortest_paths_detail
   {
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     struct Path_State
     {
       DynList<typename GT::Node *> nodes;
@@ -107,7 +109,7 @@ namespace Aleph
     };
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     struct Suffix_Index
     {
       using Node = typename GT::Node;
@@ -120,7 +122,7 @@ namespace Aleph
     };
 
 
-    template <class GT, class SA>
+    template <AlephGraph GT, ArcFilter<GT> SA>
     struct Filtered_Show_Arc
     {
       using Node = typename GT::Node;
@@ -155,7 +157,7 @@ namespace Aleph
 
 
 
-    template <class GT, class Distance>
+    template <AlephGraph GT, ArcDistance<GT> Distance>
     struct Reverse_Arc_Distance
     {
       using Arc = typename GT::Arc;
@@ -193,16 +195,14 @@ namespace Aleph
     };
 
 
-    template <class GT, class Distance, class SA>
+    template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA>
+      requires std::is_arithmetic_v<typename Distance::Distance_Type>
     void validate_non_negative_weights(const GT & g,
                                        Distance distance,
                                        SA sa)
     {
       using Arc = typename GT::Arc;
       using Cost_Type = typename Distance::Distance_Type;
-
-      static_assert(std::is_arithmetic_v<Cost_Type>,
-                    "K shortest paths require arithmetic arc costs");
 
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         {
@@ -219,7 +219,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     struct Path_Snapshot
     {
       Array<typename GT::Node *> nodes;
@@ -227,7 +227,7 @@ namespace Aleph
     };
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     Path_Snapshot<GT, Cost_Type>
     make_path_snapshot(const Path_State<GT, Cost_Type> & path)
     {
@@ -245,7 +245,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     Path_State<GT, Cost_Type>
     path_to_state(const Path<GT> & path, const Cost_Type total_cost)
     {
@@ -263,7 +263,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     Path<GT> state_to_path(const GT & g, const Path_State<GT, Cost_Type> & state)
     {
       Path<GT> path(g);
@@ -289,7 +289,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     bool same_path_sequence(const Path_State<GT, Cost_Type> & a,
                             const Path_State<GT, Cost_Type> & b)
     {
@@ -322,7 +322,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     bool same_prefix_nodes(const Path_Snapshot<GT, Cost_Type> & a,
                            const Path_Snapshot<GT, Cost_Type> & b,
                            const size_t spur_index)
@@ -344,7 +344,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     bool contains_path(const Array<Path_State<GT, Cost_Type>> & container,
                        const Path_State<GT, Cost_Type> & candidate)
     {
@@ -355,7 +355,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     Cost_Type
     get_dist_to_target(const Suffix_Index<GT, Cost_Type> & index,
                        typename GT::Node * node)
@@ -367,7 +367,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     typename GT::Node *
     get_tree_next(const Suffix_Index<GT, Cost_Type> & index,
                   typename GT::Node * node)
@@ -377,7 +377,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     typename GT::Arc *
     get_tree_arc(const Suffix_Index<GT, Cost_Type> & index,
                  typename GT::Node * node)
@@ -388,7 +388,7 @@ namespace Aleph
 
 
     template <template <class, class> class Itor,
-              class GT, class Distance, class SA>
+              AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA>
     Suffix_Index<GT, typename Distance::Distance_Type>
     build_suffix_index_with_itor(const GT & g,
                                  typename GT::Node * target,
@@ -474,7 +474,7 @@ namespace Aleph
     }
 
 
-    template <class GT, class Distance, class SA>
+    template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA>
     Suffix_Index<GT, typename Distance::Distance_Type>
     build_suffix_index_digraph(const GT & g,
                                typename GT::Node * target,
@@ -595,7 +595,7 @@ namespace Aleph
     }
 
 
-    template <class GT, class Distance, class SA>
+    template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA>
     Suffix_Index<GT, typename Distance::Distance_Type>
     build_suffix_index(const GT & g,
                        typename GT::Node * target,
@@ -611,7 +611,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     bool build_suffix_state(const GT & g,
                             const Suffix_Index<GT, Cost_Type> & index,
                             typename GT::Node * start,
@@ -647,7 +647,7 @@ namespace Aleph
     }
 
 
-    template <class GT, class Distance, class SA>
+    template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA>
     bool shortest_path_filtered(const GT & g,
                                 typename GT::Node *source,
                                 typename GT::Node *target,
@@ -689,7 +689,7 @@ namespace Aleph
     }
 
 
-    template <class GT, class Distance>
+    template <AlephGraph GT, ArcDistance<GT> Distance>
     typename Distance::Distance_Type
     compute_cost_from_arcs(const DynList<typename GT::Arc *> & arcs,
                            Distance distance)
@@ -704,7 +704,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     Path_State<GT, Cost_Type>
     compose_candidate(const Path_Snapshot<GT, Cost_Type> & base_path,
                       const size_t spur_index,
@@ -739,7 +739,7 @@ namespace Aleph
     }
 
 
-    template <class GT, typename Cost_Type>
+    template <AlephGraph GT, typename Cost_Type>
     Path_State<GT, Cost_Type>
     compose_general_candidate(const Path_Snapshot<GT, Cost_Type> & base_path,
                               const size_t spur_index,
@@ -779,7 +779,7 @@ namespace Aleph
     }
 
 
-    template <class GT, class Distance, class SA, typename Cost_Type>
+    template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA, typename Cost_Type>
     void generate_general_deviation_candidates(
         const GT & g,
         const Path_State<GT, Cost_Type> & base_path,
@@ -887,9 +887,10 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+    requires std::is_arithmetic_v<typename Distance::Distance_Type>
   DynList<K_Shortest_Path_Item<GT, typename Distance::Distance_Type>>
   yen_k_shortest_paths(const GT & g,
                        typename GT::Node *source,
@@ -1064,9 +1065,10 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+    requires std::is_arithmetic_v<typename Distance::Distance_Type>
   DynList<K_Shortest_Path_Item<GT, typename Distance::Distance_Type>>
   eppstein_k_shortest_paths(const GT & g,
                             typename GT::Node *source,
@@ -1161,9 +1163,9 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Yen_K_Shortest_Paths
   {
     Distance distance_;
@@ -1209,6 +1211,7 @@ namespace Aleph
                typename GT::Node *source,
                typename GT::Node *target,
                const size_t k) const
+      requires std::is_arithmetic_v<typename Distance::Distance_Type>
     {
       return yen_k_shortest_paths<GT, Distance, SA>(
                                                     g, source, target, k, distance_, sa_);
@@ -1220,9 +1223,9 @@ namespace Aleph
    *
    *  @ingroup Graphs
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Eppstein_K_Shortest_Paths
   {
     Distance distance_;
@@ -1261,6 +1264,7 @@ namespace Aleph
                typename GT::Node *source,
                typename GT::Node *target,
                const size_t k) const
+      requires std::is_arithmetic_v<typename Distance::Distance_Type>
     {
       return eppstein_k_shortest_paths<GT, Distance, SA>(
                                                          g, source, target, k, distance_, sa_);

@@ -96,6 +96,8 @@
 # ifndef GRAPH_TO_TREE_H
 # define GRAPH_TO_TREE_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_tree_node.H>
 # include <tpl_graph.H>
 # include <tpl_graph_utils.H>
@@ -103,13 +105,13 @@
 
 namespace Aleph {
 
-    template <class GT, typename Key, class Convert> static
+    template <AlephGraph GT, typename Key, class Convert> static
 Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot);
-    template <class GT, typename Key, class Convert> static void 
+    template <AlephGraph GT, typename Key, class Convert> static void 
 __graph_to_tree_node(GT & g, typename GT::Node * groot, 
                      Tree_Node<Key> * troot);
 
-  template <class GT, typename Key, typename Convert, class SA> static inline
+  template <AlephGraph GT, typename Key, typename Convert, ArcFilter<GT> SA> static inline
 void __graph_to_tree_node(GT & g, typename GT::Node * groot,
                           Tree_Node<Key> * troot);
 
@@ -155,8 +157,8 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
  *
  *  @ingroup Graphs
  */
-    template <class GT, typename Key, 
-              class Convert, class SA = Dft_Show_Arc<GT>> inline
+    template <AlephGraph GT, typename Key, 
+              class Convert, ArcFilter<GT> SA = Dft_Show_Arc<GT>> inline
 Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
 { 
   ah_domain_error_if(not is_graph_acyclique<GT>(g))
@@ -205,9 +207,9 @@ Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
  *
  *  @ingroup Graphs
  */
-    template <class GT, typename Key, 
+    template <AlephGraph GT, typename Key, 
 	      class Convert, 
-	      class SA = Dft_Show_Arc<GT> > 
+	      ArcFilter<GT> SA = Dft_Show_Arc<GT> > 
 class Graph_To_Tree_Node
 {
   SA        sa;
@@ -283,7 +285,7 @@ public:
 };
 
 
-  template <class GT, typename Key, typename Convert, class SA> static inline
+  template <AlephGraph GT, typename Key, typename Convert, ArcFilter<GT> SA> static inline
 void __graph_to_tree_node(GT & g, typename GT::Node * groot,
                           Tree_Node<Key> * troot)
 {           

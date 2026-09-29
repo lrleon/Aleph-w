@@ -87,6 +87,8 @@
 #ifndef PLANARITY_TEST_H
 #define PLANARITY_TEST_H
 
+# include <ah-graph-concepts.H>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -207,7 +209,7 @@ struct Planarity_Test_Options
  *  @tparam GT Graph type.
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 struct Planarity_Test_Result
 {
   using Node = typename GT::Node;
@@ -272,7 +274,7 @@ struct Planarity_Test_Result
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 struct Planar_Dual_Edge_Info
 {
   using Node = typename GT::Node;
@@ -290,7 +292,7 @@ struct Planar_Dual_Edge_Info
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 struct Planar_Dual_Metadata
 {
   using Node = typename GT::Node;
@@ -352,7 +354,7 @@ struct Planar_Geometric_Drawing_Options
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 struct Planar_Geometric_Drawing
 {
   using Node = typename GT::Node;
@@ -400,7 +402,7 @@ struct NonPlanar_Certificate_Export_Options
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 struct NonPlanar_Certificate_Validation
 {
   bool has_certificate = false;
@@ -614,7 +616,7 @@ std::string pointer_to_string(const PtrT ptr)
   return out.str();
 }
 
-template <class GT>
+template <AlephGraph GT>
 void collect_certificate_nodes(const Planarity_Test_Result<GT> &result,
                                Array<typename GT::Node *> &nodes,
                                DynMapTree<typename GT::Node *, size_t> &node_to_id)
@@ -717,7 +719,7 @@ inline bool segments_properly_intersect(const double ax,
   return (o1 * o2 < -eps) and (o3 * o4 < -eps);
 }
 
-template <class GT, class SA>
+template <AlephGraph GT, ArcFilter<GT> SA>
 class LR_Planarity_Checker
 {
   using Node = typename GT::Node;
@@ -2650,7 +2652,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 Planarity_Test_Result<GT> planarity_test(
   const GT &g,
   SA sa = SA(),
@@ -2663,7 +2665,7 @@ Planarity_Test_Result<GT> planarity_test(
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 Planarity_Test_Result<GT> planarity_test(const GT &g, const Planarity_Test_Options &options)
 {
   return planarity_test<GT, Dft_Show_Arc<GT>>(g, Dft_Show_Arc<GT>(), options);
@@ -2680,7 +2682,7 @@ Planarity_Test_Result<GT> planarity_test(const GT &g, const Planarity_Test_Optio
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 bool is_planar_graph(const GT &g,
                      SA sa = SA(),
                      const Planarity_Test_Options &options = Planarity_Test_Options())
@@ -2692,7 +2694,7 @@ bool is_planar_graph(const GT &g,
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 bool is_planar_graph(const GT &g, const Planarity_Test_Options &options)
 {
   return is_planar_graph<GT, Dft_Show_Arc<GT>>(g, Dft_Show_Arc<GT>(), options);
@@ -2704,7 +2706,7 @@ bool is_planar_graph(const GT &g, const Planarity_Test_Options &options)
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 Planar_Dual_Metadata<GT> planar_dual_metadata(const Planarity_Test_Result<GT> &result)
 {
   using Node = typename GT::Node;
@@ -2951,7 +2953,7 @@ Planar_Dual_Metadata<GT> planar_dual_metadata(const Planarity_Test_Result<GT> &r
  *
  *  @ingroup Graphs
  */
-template <class GT, class DGT = Default_Planar_Dual_Graph<GT>>
+template <AlephGraph GT, class DGT = Default_Planar_Dual_Graph<GT>>
 DGT build_planar_dual_graph(const Planar_Dual_Metadata<GT> &md)
 {
   ah_runtime_error_unless(md.has_embedding)
@@ -2978,7 +2980,7 @@ DGT build_planar_dual_graph(const Planar_Dual_Metadata<GT> &md)
  *
  *  @ingroup Graphs
  */
-template <class GT, class DGT = Default_Planar_Dual_Graph<GT>>
+template <AlephGraph GT, class DGT = Default_Planar_Dual_Graph<GT>>
 DGT build_planar_dual_graph(const Planarity_Test_Result<GT> &result)
 {
   return build_planar_dual_graph<GT, DGT>(planar_dual_metadata(result));
@@ -2995,7 +2997,7 @@ DGT build_planar_dual_graph(const Planarity_Test_Result<GT> &result)
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 Planar_Geometric_Drawing<GT> planar_geometric_drawing(
   const Planarity_Test_Result<GT> &result,
   const Planar_Geometric_Drawing_Options &options = Planar_Geometric_Drawing_Options())
@@ -3478,7 +3480,7 @@ Planar_Geometric_Drawing<GT> planar_geometric_drawing(
  *
  *  @ingroup Graphs
  */
-template <class GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
+template <AlephGraph GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
 std::string nonplanar_certificate_to_json(
   const Planarity_Test_Result<GT> &result,
   Node_Label node_label = Node_Label(),
@@ -3630,7 +3632,7 @@ std::string nonplanar_certificate_to_json(
  *
  *  @ingroup Graphs
  */
-template <class GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
+template <AlephGraph GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
 std::string nonplanar_certificate_to_dot(
   const Planarity_Test_Result<GT> &result,
   Node_Label node_label = Node_Label(),
@@ -3718,7 +3720,7 @@ std::string nonplanar_certificate_to_dot(
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 NonPlanar_Certificate_Validation<GT> validate_nonplanar_certificate(
   const Planarity_Test_Result<GT> &result)
 {
@@ -3852,7 +3854,7 @@ NonPlanar_Certificate_Validation<GT> validate_nonplanar_certificate(
  *
  *  @ingroup Graphs
  */
-template <class GT>
+template <AlephGraph GT>
 bool nonplanar_certificate_is_valid(const Planarity_Test_Result<GT> &result)
 {
   return validate_nonplanar_certificate(result).is_valid;
@@ -3864,7 +3866,7 @@ bool nonplanar_certificate_is_valid(const Planarity_Test_Result<GT> &result)
  *
  *  @ingroup Graphs
  */
-template <class GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
+template <AlephGraph GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
 std::string nonplanar_certificate_to_graphml(
   const Planarity_Test_Result<GT> &result,
   Node_Label node_label = Node_Label(),
@@ -3968,7 +3970,7 @@ std::string nonplanar_certificate_to_graphml(
  *
  *  @ingroup Graphs
  */
-template <class GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
+template <AlephGraph GT, class Node_Label = Dft_Certificate_Node_Label<GT>>
 std::string nonplanar_certificate_to_gexf(
   const Planarity_Test_Result<GT> &result,
   Node_Label node_label = Node_Label(),
@@ -4088,7 +4090,7 @@ std::string nonplanar_certificate_to_gexf(
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Planarity_Test
 {
   SA sa_;
@@ -4111,7 +4113,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Is_Planar_Graph
 {
   SA sa_;

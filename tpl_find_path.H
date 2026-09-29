@@ -52,6 +52,8 @@
 # ifndef TPL_FIND_PATH_H
 # define TPL_FIND_PATH_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_dynListStack.H>
 # include <tpl_dynListQueue.H>
 # include <tpl_graph_utils.H>
@@ -88,9 +90,9 @@ namespace Aleph
       @see bellman_ford_min_spanning_tree() q_bellman_ford_min_spanning_tree()
       @ingroup Graphs
   */
-  template <class GT,
+  template <AlephGraph GT,
             template <class, class> class Itor = Node_Arc_Iterator,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Find_Path_Depth_First
   {
     SA & sa;
@@ -268,9 +270,9 @@ recorrido
 @see bellman_ford_min_spanning_tree() q_bellman_ford_min_spanning_tree()
 @ingroup Graphs
   */
-  template <class GT,
+  template <AlephGraph GT,
             template <typename, class> class Itor = Node_Arc_Iterator,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Find_Path_Breadth_First
   {
     SA & sa;
@@ -429,9 +431,9 @@ recorrido
 
      @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             template <typename, class> class Itor = Out_Iterator,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Directed_Find_Path
   {
     const GT & g;
