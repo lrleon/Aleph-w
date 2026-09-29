@@ -5,6 +5,17 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.0](https://github.com/lrleon/Aleph-w/compare/v5.11.0...v6.0.0) (2026-09-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* add TikZ galleries and tighten container APIs ([#98](https://github.com/lrleon/Aleph-w/issues/98))
+
+### Features
+
+* add TikZ galleries and tighten container APIs ([#98](https://github.com/lrleon/Aleph-w/issues/98)) ([97cd79b](https://github.com/lrleon/Aleph-w/commit/97cd79b2bd057c7795715de2c39d115c95c238c9))
+
 ## [5.11.0](https://github.com/lrleon/Aleph-w/compare/v5.10.0...v5.11.0) (2026-07-20)
 
 
