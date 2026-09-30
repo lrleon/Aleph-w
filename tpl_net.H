@@ -664,11 +664,10 @@ namespace Aleph
      * disabled for arithmetic types to ensure that integer literals
      * match the capacity overload instead.
      */
-    template <typename T = Arc_Type,
-              typename = std::enable_if_t<!std::is_same<T, Flow_Type>::value &&
-                                          !std::is_arithmetic_v<T>>>
     Arc * insert_arc(Node *src_node, Node *tgt_node,
-                     const T & arc_info = Arc_Type())
+                     const Arc_Type & arc_info = Arc_Type())
+      requires (not std::is_same_v<Arc_Type, Flow_Type> and
+                not std::is_arithmetic_v<Arc_Type>)
     {
       return insert_arc(src_node, tgt_node, 0, 0, arc_info);
     }

@@ -105,6 +105,8 @@
 # ifndef DOMINATORS_H
 # define DOMINATORS_H
 
+# include <ah-graph-concepts.H>
+
 # include <utility>
 # include <tpl_graph.H>
 # include <tpl_graph_utils.H>
@@ -143,7 +145,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see Tarjan_Connected_Components
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Lengauer_Tarjan_Dominators
   {
     SA sa;
@@ -631,7 +633,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see Lengauer_Tarjan_Dominators
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   [[nodiscard]] DynList<std::pair<typename GT::Node *, typename GT::Node *>>
   compute_dominators(GT & g, typename GT::Node *root, SA sa = SA())
   {
@@ -653,7 +655,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see Lengauer_Tarjan_Dominators
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   void build_dominator_tree(GT & g, typename GT::Node *root,
                             GT & tree, SA sa = SA())
   {
@@ -674,7 +676,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see Lengauer_Tarjan_Dominators
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   [[nodiscard]] DynMapTree<typename GT::Node *, DynSetTree<typename GT::Node *>>
   compute_dominance_frontiers(GT & g, typename GT::Node *root,
                               SA sa = SA())
@@ -724,7 +726,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see Lengauer_Tarjan_Dominators
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Lengauer_Tarjan_Post_Dominators
   {
     SA sa;
@@ -1041,7 +1043,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see Lengauer_Tarjan_Post_Dominators
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   [[nodiscard]] DynList<std::pair<typename GT::Node *, typename GT::Node *>>
   compute_post_dominators(const GT & g, typename GT::Node *exit_node,
                           SA sa = SA())
@@ -1065,7 +1067,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see Lengauer_Tarjan_Post_Dominators
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   void build_post_dominator_tree(const GT & g, typename GT::Node *exit_node,
                                  GT & tree, SA sa = SA())
   {
@@ -1087,7 +1089,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see Lengauer_Tarjan_Post_Dominators
    */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   [[nodiscard]] DynMapTree<typename GT::Node *, DynSetTree<typename GT::Node *>>
   compute_post_dominance_frontiers(const GT & g,
                                    typename GT::Node *exit_node,

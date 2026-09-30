@@ -51,6 +51,15 @@
 #include <type_traits>
 #include <utility>
 
+namespace Aleph
+{
+  // Forward declaration only: extract_from_stl_container() below names
+  // Aleph::DynList in a non-dependent qualified-id, which needs the
+  // namespace and template to be visible even though the function body
+  // is not instantiated until htlist.H's full definition is in scope.
+  template <typename T> class DynList;
+}
+
 /** @brief Detects Aleph iterators that opted in to random-access promotion.
 
     An underlying Aleph iterator `I` qualifies only when it:

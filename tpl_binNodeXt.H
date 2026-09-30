@@ -43,6 +43,8 @@
 # ifndef TPL_BINNODEXT_H
 # define TPL_BINNODEXT_H
 
+# include <ah-concepts.H>
+
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
 
@@ -78,13 +80,13 @@ DECLARE_BINNODE_SENTINEL(BinNodeXt, 255, BinNodeXt_Data);
       @param p pointer to root
       @ingroup Trees
    */
-template <class Node> inline auto & COUNT(Node * p) noexcept
+template <RankedBinNodeLike Node> inline auto & COUNT(Node * p) noexcept
 {
   return p->getCount();
 }
 
 
-    template <class Node> static inline
+    template <RankedBinNodeLike Node> static inline
 Node * __select_rec(Node * r, const size_t i) noexcept
 {
   assert(r != Node::NullPtr);
@@ -110,7 +112,7 @@ Node * __select_rec(Node * r, const size_t i) noexcept
 
       @ingroup Trees
   */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 Node * select_rec(Node * r, const size_t i)
 {
   ah_out_of_range_error_if(i >= COUNT(r)) << "infix position out of range";
@@ -128,7 +130,7 @@ Node * select_rec(Node * r, const size_t i)
         @see select_rec()
         @ingroup Trees
      */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 Node * select_ne(Node * r, const size_t pos) noexcept
 {
   assert(COUNT(Node::NullPtr) == 0);
@@ -160,7 +162,7 @@ Node * select_ne(Node * r, const size_t pos) noexcept
         @see select_rec()
         @ingroup Trees
      */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 Node * select(Node * r, const size_t pos)
 {
   ah_out_of_range_error_if(pos >= COUNT(r)) << "infix position out of range";
@@ -181,7 +183,7 @@ Node * select(Node * r, const size_t pos)
         @see select_rec()
         @ingroup Trees
      */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 Node * select(Node * root, const size_t pos, Node *& parent)
 {
   ah_out_of_range_error_if(pos >= COUNT(root)) << "infix position out of range";
@@ -215,7 +217,7 @@ Node * select(Node * root, const size_t pos, Node *& parent)
 
     @ingroup Trees
 */
-    template <class Node, class Compare> inline
+    template <RankedBinNodeLike Node, class Compare> inline
 long inorder_position(Node * r,
                       const typename Node::key_type & key,
                       Node *& p, Compare & cmp) noexcept
@@ -239,7 +241,7 @@ long inorder_position(Node * r,
 }
 
 /// \overload inorder_position()
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
       inline long inorder_position(Node * r,
                                    const typename Node::key_type & key,
                                    Node *& p, Compare && cmp = Compare())
@@ -249,7 +251,7 @@ template <class Node, class Compare = Aleph::less<typename Node::key_type>>
 }
 
 /// \overload inorder_position()
-    template <class Node, class Compare> inline
+    template <BinNodeLike Node, class Compare> inline
 long inorder_position(Node * r, const typename Node::key_type & key,
                       Compare & cmp) noexcept
 {
@@ -258,7 +260,7 @@ long inorder_position(Node * r, const typename Node::key_type & key,
 }
 
 /// \overload inorder_position()
-    template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+    template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline long inorder_position(Node * r, const typename Node::key_type & key,
 			     Compare && cmp = Compare()) noexcept
 {
@@ -291,7 +293,7 @@ inline long inorder_position(Node * r, const typename Node::key_type & key,
 
         @ingroup Trees
      */
-    template <class Node,
+    template <RankedBinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 long find_position(Node * r, const typename Node::key_type & key,
                    Node *& p, Compare & cmp) noexcept
@@ -328,7 +330,7 @@ long find_position(Node * r, const typename Node::key_type & key,
   return offset - 1;
 }
 
-template <class Node,
+template <BinNodeLike Node,
 	  class Compare = Aleph::less<typename Node::key_type>> inline
 long find_position(Node * r, const typename Node::key_type & key,
                    Node *& p, Compare && cmp = Compare()) noexcept
@@ -349,7 +351,7 @@ long find_position(Node * r, const typename Node::key_type & key,
 
         @ingroup Trees
      */
-    template <class Node, class Compare> inline
+    template <RankedBinNodeLike Node, class Compare> inline
 Node * insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
 {
   assert(COUNT(Node::NullPtr) == 0);
@@ -376,7 +378,7 @@ Node * insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
 }
 
 /// \overload insert_by_key_xt(Node *& r, Node * p, Compare & cmp)
-  template <class Node,
+  template <BinNodeLike Node,
             class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
     noexcept
@@ -394,7 +396,7 @@ Node * insert_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
 
     @ingroup Trees
 */
-    template <class Node, class Compare> inline
+    template <RankedBinNodeLike Node, class Compare> inline
 Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
 {
   assert(COUNT(Node::NullPtr) == 0);
@@ -414,7 +416,7 @@ Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
 }
 
 /// \overload insert_dup_by_key_xt(Node *& r, Node * p, Compare & cmp)
-    template <class Node,
+    template <BinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
       noexcept
@@ -435,7 +437,7 @@ Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
     @return if `p` is inserted, then this is returned; otherwise the
     pointer to the node containing the key is returned
 */
-    template <class Node, class Compare> inline
+    template <RankedBinNodeLike Node, class Compare> inline
 Node * search_or_insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
 {
   assert(COUNT(Node::NullPtr) == 0);
@@ -463,7 +465,7 @@ Node * search_or_insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
 }
 
 /// \overload search_or_insert_by_key_xt(Node *& r, Node * p, Compare & cmp)
-template <class Node,
+template <BinNodeLike Node,
 	  class Compare = Aleph::less<typename Node::key_type>> inline
 Node * search_or_insert_by_key_xt(Node *& r, Node * p,
                                   Compare && cmp = Compare()) noexcept
@@ -472,7 +474,7 @@ Node * search_or_insert_by_key_xt(Node *& r, Node * p,
 }
 
 
-    template <class Node, class Compare> static inline
+    template <RankedBinNodeLike Node, class Compare> static inline
 bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
                         Node *& l, Node *& r, Compare & cmp) noexcept
 {
@@ -519,7 +521,7 @@ bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
 
     @ingroup Trees
 */
-template <class Node, class Compare> inline
+template <BinNodeLike Node, class Compare> inline
 bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
                       Node *& l, Node *& r, Compare & cmp) noexcept
 {
@@ -530,7 +532,7 @@ bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
 }
 
 /// \overload split_key_rec_xt()
-template <class Node,
+template <BinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
                       Node *& l, Node *& r, Compare && cmp = Compare())
@@ -540,7 +542,7 @@ bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
 }
 
 
-    template <class Node, class Compare> static inline
+    template <RankedBinNodeLike Node, class Compare> static inline
 void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
                             Node *& l, Node *& r, Compare & cmp) noexcept
 {
@@ -579,7 +581,7 @@ void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
 
     @ingroup Trees
 */
- template <class Node, class Compare> inline
+ template <BinNodeLike Node, class Compare> inline
 void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
                           Node *& l, Node *& r, Compare & cmp) noexcept
 {
@@ -588,7 +590,7 @@ void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
 }
 
 /// \overload split_key_dup_rec_xt()
- template <class Node,
+ template <BinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
                           Node *& l, Node *& r, Compare && cmp = Compare())
@@ -612,7 +614,7 @@ void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
 
         @ingroup Trees
      */
-    template <class Node, class Compare> inline
+    template <RankedBinNodeLike Node, class Compare> inline
 Node * insert_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
 {
   if (root == Node::NullPtr)
@@ -631,7 +633,7 @@ Node * insert_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
 }
 
 /// \overload insert_root_xt(Node *& root, Node * p, Compare & cmp)
-    template <class Node,
+    template <BinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_root_xt(Node *& root, Node * p, Compare && cmp = Compare()) 
       noexcept
@@ -653,7 +655,7 @@ Node * insert_root_xt(Node *& root, Node * p, Compare && cmp = Compare())
 
         @ingroup Trees
      */
-    template <class Node, class Compare> inline
+    template <RankedBinNodeLike Node, class Compare> inline
 Node * insert_dup_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
 {
   if (root == Node::NullPtr)
@@ -670,7 +672,7 @@ Node * insert_dup_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
 }
 
 /// \overload insert_dup_root_xt(Node *& root, Node * p, Compare & cmp)
-template <class Node,
+template <BinNodeLike Node,
 	  class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_dup_root_xt(Node *& root, Node * p, Compare && cmp = Compare())
    noexcept
@@ -679,7 +681,7 @@ Node * insert_dup_root_xt(Node *& root, Node * p, Compare && cmp = Compare())
 }
 
 
-    template <class Node> static inline
+    template <RankedBinNodeLike Node> static inline
 void __split_pos_rec(Node * r, size_t i, Node *& ts, Node *& tg) noexcept
 {
   if (i == COUNT(LLINK(r)))
@@ -721,7 +723,7 @@ void __split_pos_rec(Node * r, size_t i, Node *& ts, Node *& tg) noexcept
 
         @ingroup Trees
     */
-template <class Node> inline
+template <RankedBinNodeLike Node> inline
 void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
 {
   ah_out_of_range_error_if(i > COUNT(r)) << "infix position out of range";
@@ -752,7 +754,7 @@ void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
 
         @ingroup Trees
      */
-    template <class Node>  inline
+    template <RankedBinNodeLike Node>  inline
 void insert_by_pos_xt(Node *& r, Node * p, size_t pos)
 {
   assert(COUNT(Node::NullPtr) == 0);
@@ -774,7 +776,7 @@ void insert_by_pos_xt(Node *& r, Node * p, size_t pos)
         @ingroup Trees
         @see remove_by_key_xt()
      */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 Node * join_exclusive_xt(Node *& ts, Node *& tg) noexcept
 {
   if (ts == Node::NullPtr)
@@ -812,7 +814,7 @@ Node * join_exclusive_xt(Node *& ts, Node *& tg) noexcept
     @see join_exclusive_xt()
     @ingroup Trees
 */
-    template <class Node,
+    template <RankedBinNodeLike Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 Node * remove_by_key_xt(Node *& root, const typename Node::key_type & key,
 			Compare & cmp) noexcept
@@ -847,7 +849,7 @@ Node * remove_by_key_xt(Node *& root, const typename Node::key_type & key,
 }
 
 /// \overload Node * remove_by_key_xt()
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node * remove_by_key_xt(Node *& root,
                                const typename Node::key_type & key,
                                Compare && cmp = Compare()) noexcept
@@ -856,7 +858,7 @@ inline Node * remove_by_key_xt(Node *& root,
 }
 
 
-    template <class Node> static inline
+    template <RankedBinNodeLike Node> static inline
 Node * __remove_by_pos_xt(Node *& root, size_t pos) noexcept
 {
   if (COUNT(LLINK(root)) == pos) // found position?
@@ -891,7 +893,7 @@ Node * __remove_by_pos_xt(Node *& root, size_t pos) noexcept
 
     @ingroup Trees
 */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 Node * remove_by_pos_xt(Node *& root, size_t pos)
 {
   ah_out_of_range_error_if(pos >= COUNT(root)) << "infix position out of range";
@@ -903,7 +905,7 @@ Node * remove_by_pos_xt(Node *& root, size_t pos)
 
     @ingroup Trees
 */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 bool check_rank_tree(Node * root) noexcept
 {
   if (root == Node::NullPtr)
@@ -921,7 +923,7 @@ bool check_rank_tree(Node * root) noexcept
 	 @return pointer to the new root
          @ingroup Trees
      */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 Node * rotate_to_right_xt(Node* p) noexcept
 {
   assert(p != Node::NullPtr);
@@ -942,7 +944,7 @@ Node * rotate_to_right_xt(Node* p) noexcept
          @return pointer to the new root.
          @ingroup Trees
      */
-    template <class Node> inline
+    template <RankedBinNodeLike Node> inline
 Node * rotate_to_left_xt(Node* p) noexcept
 {
   assert(p != Node::NullPtr);
@@ -968,7 +970,7 @@ Node * rotate_to_left_xt(Node* p) noexcept
         then the inserted node is returned. Otherwise, a pointer to a
         node containg the key in returned
      */
-    template <class Node, class Key, class Compare> inline
+    template <RankedBinNodeLike Node, class Key, class Compare> inline
 Node * search_or_insert_root_rec_xt(Node * root, Node * p, Compare & cmp)
       noexcept
 {
@@ -1006,7 +1008,7 @@ Node * search_or_insert_root_rec_xt(Node * root, Node * p, Compare & cmp)
 }
 
 /// \overload search_or_insert_root_rec_xt()
-template <class Node, class Key,
+template <BinNodeLike Node, class Key,
               class Compare = Aleph::less<typename Node::key_type>> inline
 Node * search_or_insert_root_rec_xt(Node * root, Node * p,
                                     Compare && cmp = Compare()) noexcept

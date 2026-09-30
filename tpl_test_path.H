@@ -39,31 +39,33 @@
 # ifndef TEST_PATH_H
 # define TEST_PATH_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph.H>
 
 namespace Aleph {
 
 
-      /** verfica si existe un camino entre dos nodos.
+      /** Checks whether a path exists between two nodes.
 
-          Test_For_Path explora en profundidad el grafo g a partir de un 
-          nodo de inicio en búsqueda de un camino que depare en uno destino. 
+          Test_For_Path explores graph g depth-first starting from a
+          start node, searching for a path that leads to a destination one.
 
-          La clase toma dos parámetros tipo:
-          -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph.
-          -# SA: clase que se encarga de mostrar el arco. Internamente, la
-          función emplea el iterador filtro Node_Arc_Iterator (basado
-          en Filter_Iterator) para recorrer los arcos de cada nodo. SA es
-          el la clase que determina si el arco debe o no mostrarse al
-          recorrido. 
+          The class takes two type parameters:
+          -# GT: the graph type, which must be derived from List_Graph.
+          -# SA: class in charge of showing the arc. Internally, the
+          function uses the filter iterator Node_Arc_Iterator (based
+          on Filter_Iterator) to traverse the arcs of each node. SA is
+          the class that determines whether or not the arc should be
+          shown to the traversal.
 
-          El bit test_path es utilizado para marcar los nodos y arcos
-          visitados durante la búsqueda.
+          The test_path bit is used to mark the nodes and arcs
+          visited during the search.
 
          @see find_path_depth_first() find_path_breadth_first()
          @ingroup Graphs
        */
-      template <class GT, class SA = Dft_Show_Arc<GT> > 
+      template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT> > 
 class Test_For_Path
 {
   SA sa;
@@ -72,32 +74,32 @@ class Test_For_Path
   bool test_path(typename GT::Node * curr)  
   {
     if (curr == tgt) 
-      return true; // se alcanzó a tgt
+      return true; // tgt was reached
 
-    if (IS_NODE_VISITED(curr, Find_Path)) // ¿se visitó curr_node?
-      return false; // sí, no explore
+    if (IS_NODE_VISITED(curr, Find_Path)) // was curr_node visited?
+      return false; // yes, do not explore
 
-    NODE_BITS(curr).set_bit(Find_Path, true); // pintar curr_node
+    NODE_BITS(curr).set_bit(Find_Path, true); // paint curr_node
 
-    // buscar recursivamente a través de arcos de curr 
+    // recursively search through curr's arcs 
     for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_curr(); i.next_ne())
       { 
         typename GT::Arc * arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Find_Path)) 
           continue; 
 
-        ARC_BITS(arc).set_bit(Find_Path, true); // pintar arco
+        ARC_BITS(arc).set_bit(Find_Path, true); // paint arc
         if (test_path(i.get_tgt_node())) 
           return true;
       }
 
-    // todos los arcos adyacentes de curr_node explorados sin
-    // encontrar a end_node ==> no existe camino por curr_node
+    // all of curr_node's adjacent arcs were explored without
+    // finding end_node ==> there is no path through curr_node
     return false;
   }
 
   bool test_path(const GT & g, typename GT::Node * src, typename GT::Node * dest)
-  {      // si el grafo es conexo ==> existe camino
+  {      // if the graph is connected ==> a path exists
     if (not g.is_digraph() and g.get_num_arcs() >= g.get_num_nodes()) 
       return true;
 
@@ -106,17 +108,17 @@ class Test_For_Path
 
     tgt = dest;
 
-        // buscar recursivamente por arcos adyacentes a src
+        // recursively search through src's adjacent arcs
     for (Node_Arc_Iterator<GT, SA> i(src, sa); i.has_curr(); i.next_ne())
       {
         typename GT::Arc * arc = i.get_current_arc_ne();
-        ARC_BITS(arc).set_bit(Find_Path, true); // marcar arco
+        ARC_BITS(arc).set_bit(Find_Path, true); // mark arc
         if (test_path(i.get_tgt_node())) 
           return true; 
       }
 
-    // todos los arcos de start_node han sido explorados sin 
-    // encontrar camino hasta end_node ==> no existe camino
+    // all of start_node's arcs have been explored without
+    // finding a path to end_node ==> no path exists
     return false;
   }
 
@@ -124,12 +126,12 @@ public:
 
   Test_For_Path(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
-    /** Invoca a la prueba de existencia de camino entre dos nodos.
+    /** Invokes the test for a path's existence between two nodes.
 
-         @param[in] g el grafo a buscar camino.
-         @param[in] start_node puntero al nodo origen del camino.
-         @param[in] end_node puntero a nodo destino del camino.
-         @return true si existe un camino entre start_node y end_node.
+         @param[in] g the graph to search a path in.
+         @param[in] start_node pointer to the path's source node.
+         @param[in] end_node pointer to the path's destination node.
+         @return true if a path exists between start_node and end_node.
     */
   bool operator () (const GT& g, typename GT::Node * start_node, 
 		    typename GT::Node * end_node) 

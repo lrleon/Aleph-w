@@ -285,91 +285,21 @@ namespace Aleph
     template <typename T>
     struct Has_Range_Methods
     {
-      // Test for const select (RB, AVL, etc.)
-      template <typename U>
-      static auto test_select_const(int)
-        -> decltype(std::declval<const U &>().select(std::declval<size_t>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_select_const(...);
-
-      // Test for non-const select (Splay tree - mutates on access)
-      template <typename U>
-      static auto test_select_nonconst(int)
-        -> decltype(std::declval<U &>().select(std::declval<size_t>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_select_nonconst(...);
-
-      template <typename U>
-      static auto test_remove_pos(int)
-        -> decltype(std::declval<U &>().remove_pos(std::declval<size_t>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_remove_pos(...);
-
-      template <typename U>
-      static auto test_split_pos(int)
-        -> decltype(std::declval<U &>().split_pos(std::declval<size_t>(),
-                                                  std::declval<U &>(),
-                                                  std::declval<U &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_split_pos(...);
-
-      // Test for const position
-      template <typename U>
-      static auto test_position_const(int)
-        -> decltype(std::declval<const U &>().position(std::declval<const Key &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_position_const(...);
-
-      // Test for non-const position (Splay tree)
-      template <typename U>
-      static auto test_position_nonconst(int)
-        -> decltype(std::declval<U &>().position(std::declval<const Key &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_position_nonconst(...);
-
-      // Test for const find_position
-      template <typename U>
-      static auto test_find_position_const(int)
-        -> decltype(std::declval<const U &>().find_position(std::declval<const Key &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_find_position_const(...);
-
-      // Test for non-const find_position (Splay tree)
-      template <typename U>
-      static auto test_find_position_nonconst(int)
-        -> decltype(std::declval<U &>().find_position(std::declval<const Key &>()),
-                    std::true_type());
-
-      template <typename>
-      static std::false_type test_find_position_nonconst(...);
-
+      // The const forms cover RB, AVL, etc.; the non-const ones cover the
+      // splay tree, whose lookups restructure the tree.
       static constexpr bool has_select =
-          std::is_same_v<decltype(test_select_const<T>(0)), std::true_type> or
-          std::is_same_v<decltype(test_select_nonconst<T>(0)), std::true_type>;
+          requires(const T & t) { t.select(std::declval<size_t>()); } or
+          requires(T & t) { t.select(std::declval<size_t>()); };
       static constexpr bool has_remove_pos =
-          std::is_same_v<decltype(test_remove_pos<T>(0)), std::true_type>;
+          requires(T & t) { t.remove_pos(std::declval<size_t>()); };
       static constexpr bool has_split_pos =
-          std::is_same_v<decltype(test_split_pos<T>(0)), std::true_type>;
+          requires(T & t, T & l, T & r) { t.split_pos(std::declval<size_t>(), l, r); };
       static constexpr bool has_position =
-          std::is_same_v<decltype(test_position_const<T>(0)), std::true_type> or
-          std::is_same_v<decltype(test_position_nonconst<T>(0)), std::true_type>;
+          requires(const T & t, const Key & k) { t.position(k); } or
+          requires(T & t, const Key & k) { t.position(k); };
       static constexpr bool has_find_position =
-          std::is_same_v<decltype(test_find_position_const<T>(0)), std::true_type> or
-          std::is_same_v<decltype(test_find_position_nonconst<T>(0)), std::true_type>;
+          requires(const T & t, const Key & k) { t.find_position(k); } or
+          requires(T & t, const Key & k) { t.find_position(k); };
     };
 
     // call_select for const trees (RB, AVL, etc.)

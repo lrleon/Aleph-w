@@ -298,6 +298,7 @@ set(HLIST
     Planarity_Test.H
     Tree_Decomposition.H
     ah-concepts.H
+    ah-graph-concepts.H
     LCA.H
     HLD.H
     Dominators.H

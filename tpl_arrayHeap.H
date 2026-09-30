@@ -47,6 +47,7 @@
 #ifndef TPL_ARRAYHEAP_H
 #define TPL_ARRAYHEAP_H
 
+#include <ah-concepts.H>
 #include <algorithm>
 #include <cstddef>
 #include <stdexcept>
@@ -180,6 +181,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   inline
   void heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
@@ -211,6 +213,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   inline
   void faster_heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
@@ -238,6 +241,7 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   bool valid_heap(T *array, const size_t l, const size_t r,
                   const Compare & cmp = Compare())
   {
@@ -261,6 +265,7 @@ namespace Aleph
       @ingroup Trees
   */
   template <typename T, class Compare = Aleph::less<T>>
+    requires StrictWeakOrder<Compare, T>
   class ArrayHeap : public LocateFunctions<ArrayHeap<T, Compare>, T>,
                     public FunctionalMethods<ArrayHeap<T, Compare>, T>,
                     public GenericItems<ArrayHeap<T, Compare>, T>,

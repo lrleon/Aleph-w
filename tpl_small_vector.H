@@ -61,6 +61,7 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <new>
@@ -296,7 +297,7 @@ public:
    *  @param last End of the range.
    *  @throws std::bad_alloc if the heap buffer cannot be allocated.
    */
-  template <class It, class = std::enable_if_t<not std::is_integral_v<It>>>
+  template <std::input_iterator It>
   SmallVector(It first, It last) : ptr_(inline_ptr())
   {
     try

@@ -50,6 +50,8 @@
 # ifndef WARSHALL_H
 # define WARSHALL_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph.H>
 # include <tpl_matgraph.H>
 
@@ -76,7 +78,7 @@ namespace Aleph {
 
         @ingroup Graphs
      */
-    template <class GT, class SA = Dft_Show_Arc<GT> >
+    template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 void warshall_compute_transitive_clausure(GT &                    g, 
                                           Bit_Mat_Graph<GT, SA> & mat)
 {
@@ -109,7 +111,7 @@ void warshall_compute_transitive_clausure(GT &                    g,
 
         @ingroup Graphs
      */
-    template <class GT, class SA = Dft_Show_Arc<GT> >
+    template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Warshall_Compute_Transitive_Clausure
 { 
 public:

@@ -94,6 +94,8 @@
 # ifndef EULERIAN_H
 # define EULERIAN_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph.H>
 # include <tpl_graph_utils.H>
 
@@ -164,9 +166,9 @@ enum class Eulerian_Type
  * @ingroup Graphs
  * @author Leandro R. León
  */
-template <class GT, 
-	  class SN = Dft_Show_Node<GT>,
-	  class SA = Dft_Show_Arc<GT> >
+template <AlephGraph GT, 
+	  NodeFilter<GT> SN = Dft_Show_Node<GT>,
+	  ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Test_Eulerian
 {
   SN & sn;
@@ -554,9 +556,9 @@ public:
  * @ingroup Graphs
  * @author Leandro R. León
  */
-template <class GT, 
-          class SN = Dft_Show_Node<GT>,
-          class SA = Dft_Show_Arc<GT> >
+template <AlephGraph GT, 
+          NodeFilter<GT> SN = Dft_Show_Node<GT>,
+          ArcFilter<GT> SA = Dft_Show_Arc<GT> >
 class Find_Eulerian_Path
 {
   SN & sn;

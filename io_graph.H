@@ -134,6 +134,7 @@
 #include <iostream>
 #include <memory>
 #include <tpl_graph.H>
+#include <ah-graph-concepts.H>
 #include <ah-errors.H>
 
 namespace Aleph
@@ -308,13 +309,13 @@ struct Dft_Load_Arc
  *  @see Filter_Iterator For filter functor requirements
  *  @ingroup Graphs
  */
-template <class GT, 
+template <AlephGraph GT,
           class Load_Node  = Dft_Load_Node<GT>,
           class Store_Node = Dft_Store_Node<GT>,
           class Load_Arc   = Dft_Load_Arc<GT>,
           class Store_Arc  = Dft_Store_Arc<GT>,
-          class NF         = Aleph::Dft_Show_Node<GT>,
-          class AF         = Aleph::Dft_Show_Arc<GT>>
+          NodeFilter<GT> NF = Aleph::Dft_Show_Node<GT>,
+          ArcFilter<GT> AF  = Aleph::Dft_Show_Arc<GT>>
 class IO_Graph
 {
   GT & g;

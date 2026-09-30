@@ -39,6 +39,8 @@
 # ifndef TPL_TEST_CONNECTIVITY_H
 # define TPL_TEST_CONNECTIVITY_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph_utils.H>
  # include <ah-errors.H>
 
@@ -63,7 +65,7 @@
            @ingroup Graphs
            @see depth_first_traversal() is_reachable()
         */
-    template <class GT, class SA = Dft_Show_Arc<GT> > 
+    template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT> > 
 class Test_Connectivity
 {
 public:

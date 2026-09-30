@@ -96,6 +96,7 @@
 # include <vector>
 # include <utility>
 # include <algorithm>
+# include <ah-concepts.H>
 # include <tpl_array.H>
 # include <tpl_dynList.H>
 # include <ahFunction.H>
@@ -105,19 +106,14 @@ namespace Aleph
 {
   /** @brief Binary operation compatible with Disjoint Sparse Table queries.
    *
-   *  Requires the functor to be callable with two immutable values
-   *  of type @p T and return a value convertible to @p T.
+   *  Alias of `Aleph::ClosedBinaryOp` kept for source compatibility.
    *
    *  @note This concept checks only the call signature.  For Disjoint
    *  Sparse Table correctness, @p F must satisfy **associativity**:
    *  `f(f(a, b), c) == f(a, f(b, c))`.  Idempotency is **not** required.
    */
   template <typename F, typename T>
-  concept DisjointSparseTableOp =
-      requires(const F& f, const T& a, const T& b)
-        {
-          { f(a, b) } -> std::convertible_to<T>;
-        };
+  concept DisjointSparseTableOp = Aleph::ClosedBinaryOp<F, T>;
 
   /** @brief Disjoint Sparse Table over an arbitrary associative binary
    *         operation.

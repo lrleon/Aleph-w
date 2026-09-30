@@ -53,6 +53,8 @@
 #ifndef TREE_DP_H
 #define TREE_DP_H
 
+# include <ah-graph-concepts.H>
+
 #include <algorithm>
 #include <cstddef>
 #include <functional>
@@ -76,7 +78,7 @@ namespace tree_dp_detail {
  *  @tparam GT Graph type.
  *  @tparam SA Arc filter.
  */
-template <class GT, class SA>
+template <AlephGraph GT, ArcFilter<GT> SA>
 class Tree_Topology
 {
 public:
@@ -334,7 +336,7 @@ public:
  *  size_t root_subtree = dp.value(root); // Should be total nodes in the tree
  *  @endcode
  */
-template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, typename T, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Gen_Tree_DP
 {
 public:
@@ -472,7 +474,7 @@ using Tree_DP = Gen_Tree_DP<GT, T, SA>;
  *  size_t max_dist_from_v = dp.value(v); // Max distance from v to any leaf
  *  @endcode
  */
-template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, typename T, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Gen_Reroot_DP
 {
 public:
@@ -661,7 +663,7 @@ using Reroot_DP = Gen_Reroot_DP<GT, T, SA>;
  *
  *  @note Complexity: O(n).
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 [[nodiscard]] Array<size_t> tree_subtree_sizes(const GT &g, typename GT::Node *root, SA sa = SA())
 {
   Gen_Tree_DP<GT, size_t, SA> dp(g,
@@ -696,7 +698,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
  *
  *  @note Complexity: O(n).
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 [[nodiscard]] Array<size_t> tree_max_distance(const GT &g, typename GT::Node *root, SA sa = SA())
 {
   Gen_Reroot_DP<GT, size_t, SA> dp(g,
@@ -734,7 +736,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
  *
  *  @note Complexity: O(n).
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 [[nodiscard]] Array<size_t> tree_sum_of_distances(const GT &g, typename GT::Node *root, SA sa = SA())
 {
   using P = std::pair<size_t, size_t>;  // (count, sum_dist)

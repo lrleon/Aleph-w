@@ -72,6 +72,8 @@
 #ifndef BELLMAN_FORD_H
 #define BELLMAN_FORD_H
 
+# include <ah-graph-concepts.H>
+
 #include <type_traits>
 #include <limits>
 #include <vector>
@@ -151,11 +153,11 @@ namespace Aleph {
     @ingroup Graphs
     @see Dijkstra_Min_Paths Johnson Floyd_All_Shortest_Paths
  */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           template <class, class> class Ait = Arc_Iterator,
           template <class, class> class NAit = Out_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Bellman_Ford
 {
   typedef typename Distance::Distance_Type Distance_Type;
@@ -1346,11 +1348,11 @@ public:
 
     @ingroup Graphs
  */
-template <class GT,
-          class Distance = Dft_Dist<GT>,
+template <AlephGraph GT,
+          ArcDistance<GT> Distance = Dft_Dist<GT>,
           template <class, class> class Ait = Arc_Iterator,
           template <class, class> class NAit = Node_Arc_Iterator,
-          class SA = Dft_Show_Arc<GT>>
+          ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 struct Bellman_Ford_Negative_Cycle
 {
   /** Invokes the detection and calculation of a negative cycle.

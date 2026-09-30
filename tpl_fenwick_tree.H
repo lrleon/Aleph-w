@@ -74,6 +74,7 @@
 # include <type_traits>
 # include <vector>
 # include <utility>
+# include <ah-concepts.H>
 # include <tpl_array.H>
 # include <tpl_dynList.H>
 # include <ahFunction.H>
@@ -94,17 +95,12 @@ namespace Aleph
 
   /** @brief Binary operation compatible with Fenwick tree group functors.
    *
-   *  Requires the functor to be callable with two (logically) immutable values
-   *  of type @p T and return a value convertible to @p T.  The functor itself
-   *  is also required to be callable through a const reference, matching usage
-   *  from const member functions in Gen_Fenwick_Tree.
+   *  Alias of `Aleph::ClosedBinaryOp` kept for source compatibility. The
+   *  functor is required to be callable through a const reference,
+   *  matching usage from const member functions in Gen_Fenwick_Tree.
    */
   template <typename F, typename T>
-  concept FenwickBinaryOp =
-      requires(const F& f, const T& a, const T& b)
-        {
-          { f(a, b) } -> std::convertible_to<T>;
-        };
+  concept FenwickBinaryOp = Aleph::ClosedBinaryOp<F, T>;
 
   /** @brief Fenwick tree over an arbitrary abelian group.
    *

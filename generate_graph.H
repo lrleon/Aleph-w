@@ -98,6 +98,8 @@
 # ifndef GENERATE_GRAPH_H
 # define GENERATE_GRAPH_H
 
+# include <ah-graph-concepts.H>
+
 # include <fstream>
 # include <tpl_dynArray.H>
 # include <tpl_sort_utils.H>
@@ -109,7 +111,7 @@ using namespace Aleph;
 namespace Aleph {
 
 
-  template <class GT, class SA> inline static
+  template <AlephGraph GT, ArcFilter<GT> SA> inline static
   bool is_there_a_double_arc(const GT *          g,
                              typename GT::Node * src,
                              typename GT::Node * tgt) noexcept
@@ -122,7 +124,7 @@ namespace Aleph {
   }
 
 
-  template <class GT>
+  template <AlephGraph GT>
   static int search_node(DynArray<typename GT::Node *> & nodes,
                          typename GT::Node * p) noexcept
   {
@@ -153,9 +155,9 @@ namespace Aleph {
    *  @see Filter_Iterator For arc filtering
    *  @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Write_Node, class Write_Arc,
-            class Shade_Node, class Shade_Arc, class SA>
+            class Shade_Node, class Shade_Arc, ArcFilter<GT> SA>
   void generate_graphpic(const GT &      g,
                          const double &  xdist,
                          const double &  ydist,
@@ -235,15 +237,15 @@ namespace Aleph {
    *  @see Filter_Iterator For node/arc filtering
    *  @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Write_Node,
             class Write_Arc,
             class Shade_Node,
             class Shade_Arc,
             class Dashed_Node,
             class Dashed_Arc,
-            class SA,
-            class SN>
+            ArcFilter<GT> SA,
+            NodeFilter<GT> SN>
   void generate_graphviz(const GT & g, std::ostream & output,
                          const std::string & rankdir = "TB",
                          float ranksep          = 0.2,
@@ -355,11 +357,11 @@ namespace Aleph {
    *  @see Filter_Iterator For filtering
    *  @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Node_Attr,
             class Arc_Attr,
-            class SN,
-            class SA>
+            NodeFilter<GT> SN,
+            ArcFilter<GT> SA>
   void generate_graphviz(const GT & g, std::ostream & out,
                          Node_Attr  node_attr = Node_Attr(),
                          Arc_Attr   arc_attr  = Arc_Attr(),
@@ -440,11 +442,11 @@ namespace Aleph {
    *  @see generate_graphviz() For automatic graph/digraph detection
    *  @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Node_Attr,
             class Arc_Attr,
-            class SN,
-            class SA>
+            NodeFilter<GT> SN,
+            ArcFilter<GT> SA>
   void digraph_graphviz(const GT & g, std::ostream & out,
                         Node_Attr  node_attr = Node_Attr(),
                         Arc_Attr   arc_attr  = Arc_Attr(),
@@ -528,11 +530,11 @@ namespace Aleph {
    *  @see Q_Topological_Sort For rank computation
    *  @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Node_Attr,
             class Arc_Attr,
-            class SN,
-            class SA>
+            NodeFilter<GT> SN,
+            ArcFilter<GT> SA>
   size_t rank_graphviz(const GT & g, std::ostream & out,
                        Node_Attr  node_attr = Node_Attr(),
                        Arc_Attr   arc_attr  = Arc_Attr(),
@@ -664,11 +666,11 @@ namespace Aleph {
    *
    *  @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Node_Attr = Dft_Node_Attr<GT>,
             class Arc_Attr  = Dft_Arc_Attr<GT>,
-            class SN        = Dft_Show_Node<GT>,
-            class SA        = Dft_Show_Arc<GT>>
+            NodeFilter<GT> SN        = Dft_Show_Node<GT>,
+            ArcFilter<GT> SA        = Dft_Show_Arc<GT>>
   struct To_Graphviz
   {
 /** @brief Generate DOT specification for a graph.
@@ -709,7 +711,7 @@ namespace Aleph {
 
 
 
-  template <class GT>
+  template <AlephGraph GT>
   struct Dummy_Attr
   {
     bool operator () (typename GT::Node *) const { return false; }
@@ -736,15 +738,15 @@ namespace Aleph {
    *  @see generate_graphviz() The underlying function
    *  @ingroup Graphs
    */
-  template <class GT, 
+  template <AlephGraph GT, 
             class Write_Node, 
             class Write_Arc,
             class Shade_Node = Dummy_Attr<GT>, 
             class Shade_Arc = Dummy_Attr<GT>,  
             class Dashed_Node = Dummy_Attr<GT>, 
             class Dashed_Arc = Dummy_Attr<GT>, 
-            class SA = Dft_Show_Arc<GT>,
-            class SN = Dft_Show_Node<GT> > 
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>,
+            NodeFilter<GT> SN = Dft_Show_Node<GT> > 
   struct Generate_Graphviz
   {
     /** @brief Generate DOT specification for the graph.
@@ -786,9 +788,9 @@ namespace Aleph {
    *
    *  @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Write_Node, class Write_Arc,
-            class Shade_Node, class Shade_Arc, class SA>
+            class Shade_Node, class Shade_Arc, ArcFilter<GT> SA>
   void generate_cross_graph(GT &            g, 
                             const size_t &  nodes_by_level, 
                             const double &  xdist,
@@ -808,7 +810,7 @@ namespace Aleph {
       (g, xdist, ydist, out);
   }
 
-  template <class GT,
+  template <AlephGraph GT,
             class Write_Node, class Write_Arc,
             class Shade_Node, class Shade_Arc>
   void generate_cross_graph(GT &            g, 
@@ -842,9 +844,9 @@ namespace Aleph {
    *
    *  @ingroup Graphs
    */
-  template <class GT, 
+  template <AlephGraph GT, 
             class Write_Node, class Write_Arc,
-            class Shade_Node, class Shade_Arc, class SA>
+            class Shade_Node, class Shade_Arc, ArcFilter<GT> SA>
   void generate_net_graph(GT &            g, 
                           const size_t &  nodes_by_level, 
                           const double &  xdist,
@@ -864,7 +866,7 @@ namespace Aleph {
       (g, xdist, ydist, out);
   }
 
-  template <class GT, 
+  template <AlephGraph GT, 
             class Write_Node, class Write_Arc,
             class Shade_Node, class Shade_Arc>
   void generate_net_graph(GT &            g, 
@@ -879,7 +881,7 @@ namespace Aleph {
     
   }
 
-  template <class GT> struct __Shade_Node
+  template <AlephGraph GT> struct __Shade_Node
   {
     std::string operator () (typename GT::Node *) const
     {
@@ -888,7 +890,7 @@ namespace Aleph {
   };
 
 
-  template <class GT> struct __Shade_Arc
+  template <AlephGraph GT> struct __Shade_Arc
   {
     std::string operator () (typename GT::Arc *) const
     {
@@ -897,7 +899,7 @@ namespace Aleph {
   };
 
 
-  template <class GT, class Write_Node, class Write_Arc, class SA>
+  template <AlephGraph GT, class Write_Node, class Write_Arc, ArcFilter<GT> SA>
   void generate_cross_graph(GT &            g, 
                             const size_t &  nodes_by_level, 
                             const double &  xdist,
@@ -909,7 +911,7 @@ namespace Aleph {
       (g, nodes_by_level, xdist, ydist, out);
   }
 
-  template <class GT, class Write_Node, class Write_Arc, class SA>
+  template <AlephGraph GT, class Write_Node, class Write_Arc, ArcFilter<GT> SA>
   void generate_net_graph(GT &            g, 
                           const size_t &  nodes_by_level, 
                           const double &  xdist,
@@ -922,7 +924,7 @@ namespace Aleph {
   }
 
 
-  template <class GT, class Write_Node, class Write_Arc>
+  template <AlephGraph GT, class Write_Node, class Write_Arc>
   void generate_cross_graph(GT &            g, 
                             const size_t &  nodes_by_level, 
                             const double &  xdist,
@@ -935,7 +937,7 @@ namespace Aleph {
       (g, nodes_by_level, xdist, ydist, out);
   }
 
-  template <class GT, class Write_Node, class Write_Arc>
+  template <AlephGraph GT, class Write_Node, class Write_Arc>
   void generate_net_graph(GT &            g, 
                           const size_t &  nodes_by_level, 
                           const double &  xdist,

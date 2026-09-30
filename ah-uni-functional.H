@@ -76,6 +76,7 @@
 # include <utility>
 # include <tuple>
 # include <iterator>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -86,43 +87,31 @@ namespace Aleph
   namespace uni_functional_detail
   {
     // Detect if type has STL-style begin()/end()
-    template <typename T, typename = void>
-    struct has_stl_iterator : std::false_type
-    {};
-
     template <typename T>
-    struct has_stl_iterator<T, std::void_t<
-                              decltype(std::declval<const T &>().begin()),
-                              decltype(std::declval<const T &>().end()),
-                              typename T::value_type
-                            >> : std::true_type
+    struct has_stl_iterator : std::bool_constant<StlIterableContainer<T>>
     {};
 
     // Detect if type has Aleph-style Iterator with has_curr()/get_curr()/next()
-    template <typename T, typename = void>
-    struct has_aleph_iterator : std::false_type
+    // Detect if type yields an Aleph iterator (shared with ah-zip-utils.H)
+    template <typename T>
+    struct has_aleph_iterator : std::bool_constant<AlephIterable<T>>
     {};
 
-    template <typename T>
-    struct has_aleph_iterator<T, std::void_t<
-                                typename T::Iterator,
-                                typename T::Item_Type,
-                                decltype(std::declval<typename T::Iterator>().has_curr()),
-                                decltype(std::declval<typename T::Iterator>().get_curr()),
-                                decltype(std::declval<typename T::Iterator>().next())
-                              >> : std::true_type
-    {};
+    // Build the Aleph iterator the way AlephIterable promises it can be
+    // built, so containers without get_it() (MemArray, raw hash tables) work.
+    template <typename C>
+    [[nodiscard]] auto aleph_iterator(const C & c)
+    {
+      return typename C::Iterator(c);
+    }
 
     // Detect if type has reverse iterators (rbegin/rend)
-    template <typename T, typename = void>
-    struct has_reverse_iterator : std::false_type
-    {};
-
     template <typename T>
-    struct has_reverse_iterator<T, std::void_t<
-                                  decltype(std::declval<const T &>().rbegin()),
-                                  decltype(std::declval<const T &>().rend())
-                                >> : std::true_type
+    struct has_reverse_iterator : std::bool_constant<requires(const T & c)
+      {
+        c.rbegin();
+        c.rend();
+      }>
     {};
 
     // Get value type from container
@@ -178,7 +167,7 @@ namespace Aleph
       for (const auto & item: c)
         op_ref(item);
     else
-      for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+      for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
         op_ref(it.get_curr());
   }
 
@@ -199,7 +188,7 @@ namespace Aleph
       for (const auto & item: c)
         op_ref(i++, item);
     else
-      for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
+      for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne(), ++i)
         op_ref(i, it.get_curr());
   }
 
@@ -228,7 +217,7 @@ namespace Aleph
           result.push_back(op_ref(item));
       }
     else
-      for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+      for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
         result.push_back(op_ref(it.get_curr()));
 
     return result;
@@ -260,7 +249,7 @@ namespace Aleph
           result.push_back(op_ref(i++, item));
       }
     else
-      for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
+      for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne(), ++i)
         result.push_back(op_ref(i, it.get_curr()));
 
     return result;
@@ -291,7 +280,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           if (const auto & item = it.get_curr(); pred_ref(item))
             result.push_back(item);
       }
@@ -324,7 +313,7 @@ namespace Aleph
           ++i;
         }
     else
-      for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
+      for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne(), ++i)
         if (const auto & item = it.get_curr(); pred_ref(i, item))
           result.push_back(item);
 
@@ -351,7 +340,7 @@ namespace Aleph
       for (const auto & item: c)
         acc = op_ref(std::move(acc), item);
     else
-      for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+      for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
         acc = op_ref(std::move(acc), it.get_curr());
     return acc;
   }
@@ -389,7 +378,7 @@ namespace Aleph
           result.push_back(acc);
         }
     else
-      for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+      for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
         {
           acc = op_ref(std::move(acc), it.get_curr());
           result.push_back(acc);
@@ -422,7 +411,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           if (not pred_ref(it.get_curr()))
             return false;
       }
@@ -450,7 +439,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           if (pred_ref(it.get_curr()))
             return true;
       }
@@ -502,7 +491,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           if (const auto & item = it.get_curr(); pred_ref(item))
             return std::optional<T>(item);
       }
@@ -535,7 +524,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne(), ++i)
           if (pred_ref(it.get_curr()))
             return i;
       }
@@ -568,7 +557,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne(), ++i)
           if (auto result = op_ref(i, it.get_curr()))
             return result;
       }
@@ -595,7 +584,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           if (it.get_curr() == target)
             return true;
       }
@@ -629,7 +618,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           if (pred_ref(it.get_curr()))
             ++count;
       }
@@ -654,7 +643,7 @@ namespace Aleph
     else
       {
         size_t count = 0;
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           ++count;
         return count;
       }
@@ -693,7 +682,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr() and count < n; it.next_ne(), ++count)
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr() and count < n; it.next_ne(), ++count)
           result.push_back(it.get_curr());
       }
     return result;
@@ -727,7 +716,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++count)
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne(), ++count)
           if (count >= n)
             result.push_back(it.get_curr());
       }
@@ -762,7 +751,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           {
             const auto & item = it.get_curr();
             if (not pred_ref(item))
@@ -803,7 +792,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           {
             const auto & item = it.get_curr();
             if (dropping and pred_ref(item))
@@ -841,7 +830,7 @@ namespace Aleph
       }
     else
       {
-        auto it = c.get_it();
+        auto it = uni_functional_detail::aleph_iterator(c);
         if (not it.has_curr())
           return std::optional<T>{};
         return std::optional<T>(it.get_curr());
@@ -870,7 +859,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           result = it.get_curr();
       }
     return result;
@@ -903,7 +892,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne(), ++i)
           if (i == n)
             return std::optional<T>(it.get_curr());
       }
@@ -944,7 +933,7 @@ namespace Aleph
       }
     else
       {
-        auto it = c.get_it();
+        auto it = uni_functional_detail::aleph_iterator(c);
         if (not it.has_curr())
           return result;
 
@@ -990,7 +979,7 @@ namespace Aleph
       }
     else
       {
-        auto it = c.get_it();
+        auto it = uni_functional_detail::aleph_iterator(c);
         if (not it.has_curr())
           return result;
 
@@ -1039,7 +1028,7 @@ namespace Aleph
       }
     else
       {
-        auto it = c.get_it();
+        auto it = uni_functional_detail::aleph_iterator(c);
         if (not it.has_curr())
           return ResultType{};
 
@@ -1082,7 +1071,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           sum = sum + it.get_curr();
       }
     return sum;
@@ -1114,7 +1103,7 @@ namespace Aleph
       }
     else
       {
-        auto it = c.get_it();
+        auto it = uni_functional_detail::aleph_iterator(c);
         if (not it.has_curr()) return T{};
 
         T prod = it.get_curr();
@@ -1158,7 +1147,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           {
             const auto & item = it.get_curr();
             if (pred_ref(item))
@@ -1194,14 +1183,14 @@ namespace Aleph
       for (const auto & item: c1)
         result.push_back(item);
     else
-      for (auto it = c1.get_it(); it.has_curr(); it.next_ne())
+      for (auto it = uni_functional_detail::aleph_iterator(c1); it.has_curr(); it.next_ne())
         result.push_back(it.get_curr());
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container2>)
       for (const auto & item: c2)
         result.push_back(item);
     else
-      for (auto it = c2.get_it(); it.has_curr(); it.next_ne())
+      for (auto it = uni_functional_detail::aleph_iterator(c2); it.has_curr(); it.next_ne())
         result.push_back(it.get_curr());
 
     return result;
@@ -1231,20 +1220,20 @@ namespace Aleph
               for (const auto & item: inner)
                 result.push_back(item);
             else
-              for (auto it = inner.get_it(); it.has_curr(); it.next_ne())
+              for (auto it = uni_functional_detail::aleph_iterator(inner); it.has_curr(); it.next_ne())
                 result.push_back(it.get_curr());
           }
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           {
             const auto & inner = it.get_curr();
             if constexpr (uni_functional_detail::is_stl_container_v<InnerContainer>)
               for (const auto & item: inner)
                 result.push_back(item);
             else
-              for (auto it2 = inner.get_it(); it2.has_curr(); it2.next_ne())
+              for (auto it2 = uni_functional_detail::aleph_iterator(inner); it2.has_curr(); it2.next_ne())
                 result.push_back(it2.get_curr());
           }
       }
@@ -1280,20 +1269,20 @@ namespace Aleph
               for (const auto & inner_item: inner)
                 result.push_back(inner_item);
             else
-              for (auto it = inner.get_it(); it.has_curr(); it.next_ne())
+              for (auto it = uni_functional_detail::aleph_iterator(inner); it.has_curr(); it.next_ne())
                 result.push_back(it.get_curr());
           }
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           {
             auto inner = op_ref(it.get_curr());
             if constexpr (uni_functional_detail::is_stl_container_v<InnerContainer>)
               for (const auto & inner_item: inner)
                 result.push_back(inner_item);
             else
-              for (auto it2 = inner.get_it(); it2.has_curr(); it2.next_ne())
+              for (auto it2 = uni_functional_detail::aleph_iterator(inner); it2.has_curr(); it2.next_ne())
                 result.push_back(it2.get_curr());
           }
       }
@@ -1331,7 +1320,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           if (const auto & item = it.get_curr(); std::find(result.begin(), result.end(), item) == result.end())
             result.push_back(item);
       }
@@ -1372,7 +1361,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           {
             const auto & item = it.get_curr();
             auto k = key_ref(item);
@@ -1417,7 +1406,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           {
             const auto & item = it.get_curr();
             auto res_it = std::find_if(result.begin(), result.end(),
@@ -1459,7 +1448,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+        for (auto it = uni_functional_detail::aleph_iterator(c); it.has_curr(); it.next_ne())
           result.push_back(it.get_curr());
       }
     return result;
@@ -1501,7 +1490,7 @@ namespace Aleph
       {
         // c1 STL, c2 Aleph
         auto it1 = c1.begin();
-        auto it2 = c2.get_it();
+        auto it2 = uni_functional_detail::aleph_iterator(c2);
         for (; it1 != c1.end() and it2.has_curr(); ++it1, it2.next_ne())
           if (not (*it1 == it2.get_curr()))
             return false;
@@ -1510,7 +1499,7 @@ namespace Aleph
     else if constexpr (not c1_is_stl and c2_is_stl)
       {
         // c1 Aleph, c2 STL
-        auto it1 = c1.get_it();
+        auto it1 = uni_functional_detail::aleph_iterator(c1);
         auto it2 = c2.begin();
         for (; it1.has_curr() and it2 != c2.end(); it1.next_ne(), ++it2)
           if (not (it1.get_curr() == *it2))
@@ -1520,8 +1509,8 @@ namespace Aleph
     else
       {
         // Both Aleph
-        auto it1 = c1.get_it();
-        auto it2 = c2.get_it();
+        auto it1 = uni_functional_detail::aleph_iterator(c1);
+        auto it2 = uni_functional_detail::aleph_iterator(c2);
         for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
           if (not (it1.get_curr() == it2.get_curr()))
             return false;
@@ -1564,7 +1553,7 @@ namespace Aleph
       {
         // c1 STL, c2 Aleph
         auto it1 = c1.begin();
-        auto it2 = c2.get_it();
+        auto it2 = uni_functional_detail::aleph_iterator(c2);
         for (; it1 != c1.end() and it2.has_curr(); ++it1, it2.next_ne())
           {
             if (*it1 < it2.get_curr()) return -1;
@@ -1576,7 +1565,7 @@ namespace Aleph
     else if constexpr (not c1_is_stl and c2_is_stl)
       {
         // c1 Aleph, c2 STL
-        auto it1 = c1.get_it();
+        auto it1 = uni_functional_detail::aleph_iterator(c1);
         auto it2 = c2.begin();
         for (; it1.has_curr() and it2 != c2.end(); it1.next_ne(), ++it2)
           {
@@ -1589,8 +1578,8 @@ namespace Aleph
     else
       {
         // Both Aleph
-        auto it1 = c1.get_it();
-        auto it2 = c2.get_it();
+        auto it1 = uni_functional_detail::aleph_iterator(c1);
+        auto it2 = uni_functional_detail::aleph_iterator(c2);
         for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
           {
             if (it1.get_curr() < it2.get_curr()) return -1;

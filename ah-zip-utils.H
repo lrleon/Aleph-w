@@ -39,6 +39,7 @@
 # include <utility>
 # include <optional>
 # include <functional>
+# include <ah-concepts.H>
 
 /**
  * @file ah-zip-utils.H
@@ -90,29 +91,13 @@ namespace uni_zip_detail
 {
 
 // Detect if type has STL-style begin()/end()
-template <typename T, typename = void>
-struct has_stl_iterator : std::false_type {};
-
 template <typename T>
-struct has_stl_iterator<T, std::void_t<
-  decltype(std::declval<const T&>().begin()),
-  decltype(std::declval<const T&>().end()),
-  typename T::value_type
->> : std::true_type {};
+struct has_stl_iterator : std::bool_constant<StlIterableContainer<T>> {};
 
 // Detect if type has Aleph-style Iterator with has_curr()/get_curr()/next_ne()
 // Note: We check for next_ne() which is the non-exception-throwing variant used in Aleph
-template <typename T, typename = void>
-struct has_aleph_iterator : std::false_type {};
-
 template <typename T>
-struct has_aleph_iterator<T, std::void_t<
-  typename T::Iterator,
-  typename T::Item_Type,
-  decltype(std::declval<typename T::Iterator>().has_curr()),
-  decltype(std::declval<typename T::Iterator>().get_curr()),
-  decltype(std::declval<typename T::Iterator>().next_ne())
->> : std::true_type {};
+struct has_aleph_iterator : std::bool_constant<AlephIterable<T>> {};
 
 // Get value type from container
 template <typename T, typename = void>
@@ -157,6 +142,13 @@ public:
   [[nodiscard]] bool completed() const noexcept { return curr_ == end_; }
   [[nodiscard]] auto get_curr() const { return *curr_; }
   void next() noexcept { ++curr_; }
+
+  /** @brief Advance without checking; same as `next()`, which does not check.
+   *
+   *  Provided so the adaptor satisfies `AlephIterator` and works in generic
+   *  code that advances with `next_ne()` under a `has_curr()` guard.
+   */
+  void next_ne() noexcept { next(); }
 };
 
 /**
@@ -165,7 +157,9 @@ public:
 template <typename Container>
 class AlephIteratorWrapper
 {
-  typename std::decay_t<Container>::Iterator it_;
+  // mutable: the wrapper's const accessors forward to the Aleph iterator,
+  // whose get_curr() may be non-const (e.g. the chained hash tables).
+  mutable typename std::decay_t<Container>::Iterator it_;
 
 public:
   using value_type = std::decay_t<typename std::decay_t<Container>::Item_Type>;
@@ -177,6 +171,13 @@ public:
   [[nodiscard]] bool completed() const noexcept { return !it_.has_curr(); }
   [[nodiscard]] auto get_curr() const { return it_.get_curr(); }
   void next() { it_.next_ne(); }
+
+  /** @brief Advance without checking; same as `next()`, which does not check.
+   *
+   *  Provided so the adaptor satisfies `AlephIterator` and works in generic
+   *  code that advances with `next_ne()` under a `has_curr()` guard.
+   */
+  void next_ne() { next(); }
 };
 
 /**
@@ -324,6 +325,13 @@ public:
   {
     next_impl(std::make_index_sequence<num_containers>{});
   }
+
+  /** @brief Advance without checking; same as `next()`, which does not check.
+   *
+   *  Provided so the adaptor satisfies `AlephIterator` and works in generic
+   *  code that advances with `next_ne()` under a `has_curr()` guard.
+   */
+  void next_ne() { next(); }
 
   // STL iterator interface for range-based for
   [[nodiscard]] auto operator*() const { return get_curr(); }

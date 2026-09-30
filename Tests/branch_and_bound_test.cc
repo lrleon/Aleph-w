@@ -561,6 +561,35 @@ static_assert(SearchStateKeyProvider<ThrowingApplyVisitedBBDomain>);
 static_assert(BranchAndBoundObjectivePolicy<Maximize_Objective<int>, int>);
 static_assert(BranchAndBoundObjectivePolicy<Minimize_Objective<int>, int>);
 
+// The engine default-builds its solution snapshots: a State without a default
+// constructor used to fail inside Branch_And_Bound.H. Only that clause fails.
+struct NoDefaultBBState
+{
+  size_t depth;
+  explicit NoDefaultBBState(const size_t d) : depth(d) {}
+};
+
+struct NoDefaultStateBBDomain
+{
+  using State = NoDefaultBBState;
+  using Move = ArtificialMove;
+  using Objective = int;
+
+  bool is_complete(const State &state) const { return state.depth == 1; }
+  Objective objective_value(const State &) const { return 0; }
+  Objective bound(const State &) const { return 0; }
+  void apply(State &state, const Move &) const { ++state.depth; }
+  void undo(State &state, const Move &) const { --state.depth; }
+
+  template <typename Visitor>
+  bool for_each_successor(const State &, Visitor) const { return true; }
+};
+
+static_assert(SuccessorGenerator<NoDefaultStateBBDomain>);
+static_assert(CompleteSolutionPredicate<NoDefaultStateBBDomain>);
+static_assert(OptimizationEvaluator<NoDefaultStateBBDomain>);
+static_assert(not BranchAndBoundDomain<NoDefaultStateBBDomain>);
+
 std::string artificial_signature(const SearchPath<ArtificialMove> &path)
 {
   std::string out;

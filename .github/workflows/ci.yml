@@ -774,11 +774,17 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           DIFF_COVERAGE_MIN: "20"
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+          # No --depth here: the checkout above already used fetch-depth: 0
+          # (full history). A shallow fetch of the base ref would graft
+          # origin/<base_ref> onto a single parentless commit, breaking the
+          # three-dot diff's merge-base lookup below as soon as the base
+          # branch moves past the PR's fork point.
+          git fetch --no-tags --prune origin "${BASE_REF}"
           ruby scripts/ci_diff_coverage.rb \
             --coverage-xml build-coverage/coverage.xml \
-            --diff-range "origin/${{ github.base_ref }}...HEAD" \
+            --diff-range "origin/${BASE_REF}...HEAD" \
             --min-line "${DIFF_COVERAGE_MIN}" \
             --summary-file "$GITHUB_STEP_SUMMARY"
 

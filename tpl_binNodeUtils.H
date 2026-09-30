@@ -42,6 +42,8 @@
 #ifndef TPL_BINNODEUTILS_H
 #define TPL_BINNODEUTILS_H
 
+# include <ah-concepts.H>
+
 #include <ahFunction.H>
 #include <tpl_arrayStack.H>
 #include <tpl_arrayQueue.H>
@@ -50,9 +52,32 @@
 #include <tpl_dynDlist.H>
 #include <tpl_binNode.H>
 #include <ah-errors.H>
+# include <cassert>
 
 namespace Aleph {
-template <class Node>
+
+/** Debug-only check that `root` is a valid tree for `Node`.
+
+    Node types declared with a sentinel (`DECLARE_BINNODE_SENTINEL`:
+    treaps, red-black and ranked trees, ...) represent the empty tree with
+    `Node::NullPtr`, the address of a static sentinel node, not with
+    `nullptr`. A `nullptr` stored in such a tree (e.g. `tree.getRoot() =
+    nullptr`) corrupts it, and the next traversal dereferences it. In debug
+    builds this check aborts with a message instead of a segmentation
+    fault; with `NDEBUG` it compiles to nothing.
+
+    @param[in] root root of the tree (or subtree) about to be walked
+    @note For node types without a sentinel `Node::NullPtr` is `nullptr`,
+    so the check always passes.
+    @ingroup Trees
+ */
+template <BinNodeLike Node>
+inline void assert_valid_tree_root([[maybe_unused]] const Node *root) noexcept
+{
+  assert((Node::NullPtr == nullptr or root != nullptr) and
+         "nullptr is not an empty tree for a node type with a sentinel; use Node::NullPtr");
+}
+template <BinNodeLike Node>
 inline void inorder_rec_helper(Node *node, const int &level, int &position,
                                       void (*visitFct)(Node *, int, int))
 {
@@ -89,15 +114,16 @@ inline void inorder_rec_helper(Node *node, const int &level, int &position,
     @see preOrderRec() postOrderRec() For_Each_In_Order traverse()
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline int inOrderRec(Node *root, void (*visitFct)(Node *, int, int))
 {
+  assert_valid_tree_root(root);
   int position = 0;
   inorder_rec_helper(root, 0, position, visitFct);
   return position;
 }
 
-template <class Node>
+template <BinNodeLike Node>
 inline void preorder_rec_helper(Node *p, const int &level, int &position,
                                        void (*visitFct)(Node *, int, int))
 {
@@ -133,15 +159,16 @@ inline void preorder_rec_helper(Node *p, const int &level, int &position,
     @see preOrderRec() postOrderRec()
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline int preOrderRec(Node *root, void (*visitFct)(Node *, int, int))
 {
+  assert_valid_tree_root(root);
   int position = 0;
   preorder_rec_helper(root, 0, position, visitFct);
   return position;
 }
 
-template <class Node>
+template <BinNodeLike Node>
 inline void postorder_rec_helper(Node *node, const int &level, int &position,
                                         void (*visitFct)(Node *, int, int))
 {
@@ -177,9 +204,10 @@ inline void postorder_rec_helper(Node *node, const int &level, int &position,
     @see preOrderRec() postOrderRec()
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline int postOrderRec(Node *root, void (*visitFct)(Node *, int, int))
 {
+  assert_valid_tree_root(root);
   int position = 0;
   postorder_rec_helper(root, 0, position, visitFct);
   return position;
@@ -243,7 +271,7 @@ public:
     @param[in] op operation to be executed on each node
     @ingroup Trees
 */
-template <class Node, class Op>
+template <BinNodeLike Node, class Op>
 inline void for_each_in_order(Node *root, Op &&op)
 {
   return For_Each_In_Order<Node>().traverse(root, std::forward<Op>(op));
@@ -308,7 +336,7 @@ public:
     @param[in] op operation to be executed on each node
     @ingroup Trees
 */
-template <class Node, class Op>
+template <BinNodeLike Node, class Op>
 void for_each_preorder(Node *root, Op &&op)
 {
   For_Each_Preorder<Node>().traverse(root, std::forward<Op>(op));
@@ -372,13 +400,13 @@ public:
     @param[in] op operation to be executed on each node
     @ingroup Trees
 */
-template <class Node, class Op>
+template <BinNodeLike Node, class Op>
 void for_each_postorder(Node *root, Op &&op)
 {
   For_Each_Postorder<Node>().traverse(root, std::forward<Op>(op));
 }
 
-template <class Node>
+template <BinNodeLike Node>
 static void prefix(Node *root, DynList<Node *> &acc)
 {
   if (root == Node::NullPtr)
@@ -389,7 +417,7 @@ static void prefix(Node *root, DynList<Node *> &acc)
   prefix(RLINK(root), acc);
 }
 
-template <class Node>
+template <BinNodeLike Node>
 static void infix(Node *root, DynList<Node *> &acc)
 {
   if (root == Node::NullPtr)
@@ -400,7 +428,7 @@ static void infix(Node *root, DynList<Node *> &acc)
   infix(RLINK(root), acc);
 }
 
-template <class Node>
+template <BinNodeLike Node>
 static void suffix(Node *root, DynList<Node *> &acc)
 {
   if (root == Node::NullPtr)
@@ -418,7 +446,7 @@ static void suffix(Node *root, DynList<Node *> &acc)
     \throw bad_alloc if there is no enough memory
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 DynList<Node *> prefix(Node *root)
 {
   DynList<Node *> ret_val;
@@ -433,7 +461,7 @@ DynList<Node *> prefix(Node *root)
     \throw bad_alloc if there is no enough memory
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 DynList<Node *> infix(Node *root)
 {
   DynList<Node *> ret_val;
@@ -448,7 +476,7 @@ DynList<Node *> infix(Node *root)
     \throw bad_alloc if there is no enough memory
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 DynList<Node *> suffix(Node *root)
 {
   DynList<Node *> ret_val;
@@ -462,9 +490,10 @@ DynList<Node *> suffix(Node *root)
     @return the number of nodes
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline size_t compute_cardinality_rec(Node *root) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return 0;
 
@@ -472,7 +501,7 @@ inline size_t compute_cardinality_rec(Node *root) noexcept
 }
 
 /// \overload compute_cardinality_rec(Node * root)
-template <class Node>
+template <BinNodeLike Node>
 inline size_t size(Node *root) noexcept
 {
   return compute_cardinality_rec(root);
@@ -484,9 +513,10 @@ inline size_t size(Node *root) noexcept
     @return the height
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline size_t computeHeightRec(Node *root) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return 0;
 
@@ -504,9 +534,10 @@ inline size_t computeHeightRec(Node *root) noexcept
     @param[in] root of tree to free
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline void destroyRec(Node *&root) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return;
 
@@ -528,9 +559,10 @@ inline void destroyRec(Node *&root) noexcept
         in a memory pool, and you want to free only the keys or an arena
         allocator is used for nodes.
      */
-template <class Node>
+template <BinNodeLike Node>
 inline void callKeyDestructorsRec(Node *&root) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return;
 
@@ -549,9 +581,10 @@ inline void callKeyDestructorsRec(Node *&root) noexcept
     \throw bad_alloc if there is no enough memory
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 [[nodiscard]] inline Node *copyRec(Node *root)
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return Node::NullPtr;
 
@@ -587,7 +620,7 @@ template <class Node>
     @return `true` if `t1` and `t2` are similar; `false` otherwise
     @see areEquivalents()
  */
-template <class Node>
+template <BinNodeLike Node>
 inline bool areSimilar(Node *t1, Node *t2) noexcept
 {
   if (t1 == t2)  // that include the case when t1 and t2 are the same
@@ -611,7 +644,7 @@ inline bool areSimilar(Node *t1, Node *t2) noexcept
     @return `true` t1 and t2 are equivalents; `false` otherwise
     @see areEquivalents()
   */
-template <class Node, class Equal>
+template <BinNodeLike Node, class Equal>
 inline bool areEquivalents(Node *t1, Node *t2, Equal &op) noexcept
 {
   if (t1 == t2)
@@ -627,7 +660,7 @@ inline bool areEquivalents(Node *t1, Node *t2, Equal &op) noexcept
 }
 
 /// \overload areEquivalents(Node * t1, Node * t2, Equal & op)
-template <class Node, class Equal = std::equal_to<typename Node::key_type>>
+template <BinNodeLike Node, class Equal = std::equal_to<typename Node::key_type>>
 inline bool areEquivalents(Node *t1, Node *t2, Equal &&op = Equal()) noexcept
 {
   return areEquivalents(t1, t2, op);
@@ -649,9 +682,10 @@ inline bool areEquivalents(Node *t1, Node *t2, Equal &&op = Equal()) noexcept
     \throw bad_alloc if there is no enough memory
     @ingroup Trees
    */
-template <class Node>
+template <BinNodeLike Node>
 inline void levelOrder(Node *root, void (*visitFct)(Node *, int, bool))
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return;
 
@@ -688,7 +722,7 @@ inline void levelOrder(Node *root, void (*visitFct)(Node *, int, bool))
 
     @ingroup Trees
 */
-template <class Node, class Operation>
+template <BinNodeLike Node, class Operation>
 inline bool level_traverse(Node *root, Operation &operation)
 {
   if (root == Node::NullPtr)
@@ -711,7 +745,7 @@ inline bool level_traverse(Node *root, Operation &operation)
   return true;
 }
 
-template <class Node, class Operation>
+template <BinNodeLike Node, class Operation>
 inline bool level_traverse(Node *root, Operation &&operation)
 {
   return level_traverse<Node, Operation>(root, operation);
@@ -796,7 +830,7 @@ inline Node<Key> *build_postorder(const DynArray<Key> &post, long lp, long rp,
   return root;
 }
 
-template <class Node>
+template <BinNodeLike Node>
 inline void compute_nodes_in_level_helper(Node *root, long level, const long current_level,
                                                  DynDlist<Node *> &level_list)
 {
@@ -821,7 +855,7 @@ inline void compute_nodes_in_level_helper(Node *root, long level, const long cur
     \throw bad_alloc if there is no enough memory
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline DynDlist<Node *> compute_nodes_in_level(Node *root, const int &level)
 {
   DynDlist<Node *> list;
@@ -849,7 +883,7 @@ inline DynDlist<Node *> compute_nodes_in_level(Node *root, const int &level)
     @see preOrderThreaded()
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline void inOrderThreaded(Node *root, void (*visitFct)(Node *))
 {
   if (root == Node::NullPtr)
@@ -906,7 +940,7 @@ inline void inOrderThreaded(Node *root, void (*visitFct)(Node *))
     @see inOrderThreaded()
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline void preOrderThreaded(Node *node, void (*visitFct)(Node *))
 {
   if (node == Node::NullPtr)
@@ -943,7 +977,7 @@ inline void preOrderThreaded(Node *node, void (*visitFct)(Node *))
     }
 }
 
-template <class Node>
+template <BinNodeLike Node>
 inline size_t internal_path_length_helper(Node *p, const size_t &level) noexcept
 {
   if (p == Node::NullPtr)
@@ -960,9 +994,10 @@ inline size_t internal_path_length_helper(Node *p, const size_t &level) noexcept
 
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline size_t internal_path_length(Node *p) noexcept
 {
+  assert_valid_tree_root(p);
   return internal_path_length_helper(p, 0);
 }
 
@@ -979,7 +1014,7 @@ inline size_t internal_path_length(Node *p) noexcept
 
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline void tree_to_bits(Node *root, BitArray &array)
 {
   if (root == Node::NullPtr)
@@ -1006,7 +1041,7 @@ inline void tree_to_bits(Node *root, BitArray &array)
 
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline BitArray tree_to_bits(Node *root)
 {
   BitArray ret_val;
@@ -1021,7 +1056,7 @@ inline BitArray tree_to_bits(Node *root)
     tree
     \throw bad_alloc if there is no enough memory
 */
-template <class Node>
+template <BinNodeLike Node>
 inline std::string code(Node *root)
 {
   const BitArray bits = tree_to_bits(root);
@@ -1034,7 +1069,7 @@ inline std::string code(Node *root)
   return str;
 }
 
-template <class Node>
+template <BinNodeLike Node>
 inline Node *bits_to_tree_helper(const BitArray &array, int &i)
 {
   // Bounds check: ensure we don't read past the end of the bit array
@@ -1079,7 +1114,7 @@ inline Node *bits_to_tree_helper(const BitArray &array, int &i)
     @see tree_to_bits() BitArray save_tree_keys_in_prefix() load_tree_keys_in_prefix()
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *bits_to_tree(const BitArray &array, int idx = 0)
 {
   return bits_to_tree_helper<Node>(array, idx);
@@ -1102,7 +1137,7 @@ inline Node *bits_to_tree(const BitArray &array, int idx = 0)
     @ingroup Trees
     @see load_tree_keys_in_prefix()
 */
-template <class Node>
+template <BinNodeLike Node>
 inline void save_tree_keys_in_prefix(Node *root, std::ostream &output)
 {
   if (root == Node::NullPtr)
@@ -1124,7 +1159,7 @@ inline void save_tree_keys_in_prefix(Node *root, std::ostream &output)
     \throw runtime_error if the input stream fails
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline void load_tree_keys_in_prefix(Node *root, std::istream &input)
 {
   if (root == Node::NullPtr)
@@ -1151,7 +1186,7 @@ inline void load_tree_keys_in_prefix(Node *root, std::istream &input)
     @see load_tree()
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline void save_tree(Node *root, std::ostream &output)
 {
   BitArray prefix;
@@ -1171,7 +1206,7 @@ inline void save_tree(Node *root, std::ostream &output)
     @see save_tree()
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *load_tree(std::istream &input)
 {
   BitArray prefix;
@@ -1189,7 +1224,7 @@ inline Node *load_tree(std::istream &input)
   return root;
 }
 
-template <class Node, class Get_Key>
+template <BinNodeLike Node, class Get_Key>
 inline void put_tree_keys_in_array(Node *root, std::ostream &out)
 {
   if (root == Node::NullPtr)
@@ -1224,7 +1259,7 @@ inline void put_tree_keys_in_array(Node *root, std::ostream &out)
   put_tree_keys_in_array<Node, Get_Key>(RLINK(root), out);
 }
 
-template <class Node, class Load_Key>
+template <BinNodeLike Node, class Load_Key>
 inline void load_tree_keys_from_array(Node *root, const char *keys[], int &idx)
 {
   if (root == Node::NullPtr)
@@ -1265,7 +1300,7 @@ inline void load_tree_keys_from_array(Node *root, const char *keys[], int &idx)
     @see load_tree_from_array() BitArray
     @ingroup Trees
 */
-template <class Node, class Get_Key>
+template <BinNodeLike Node, class Get_Key>
 inline void save_tree_in_array_of_chars(Node *root, const std::string &array_name,
                                         std::ostream &output)
 {
@@ -1306,7 +1341,7 @@ inline void save_tree_in_array_of_chars(Node *root, const std::string &array_nam
     @see save_tree_in_array_of_chars() BitArray
     @ingroup Trees
 */
-template <class Node, class Load_Key>
+template <BinNodeLike Node, class Load_Key>
 inline Node *load_tree_from_array(const unsigned char bits[], const size_t &num_bits,
                                   const char *keys[])
 {
@@ -1318,7 +1353,7 @@ inline Node *load_tree_from_array(const unsigned char bits[], const size_t &num_
   return root;
 }
 
-template <class Node, class Compare>
+template <BinNodeLike Node, class Compare>
 inline bool check_bst_range(Node *p, const typename Node::key_type *min_key,
                                    const typename Node::key_type *max_key, const Compare &cmp)
 {
@@ -1344,9 +1379,10 @@ inline bool check_bst_range(Node *p, const typename Node::key_type *min_key,
 
     @ingroup Trees
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline bool check_bst(Node *p, const Compare &cmp = Compare())
 {
+  assert_valid_tree_root(p);
   return check_bst_range<Node, Compare>(p, nullptr, nullptr, cmp);
 }
 
@@ -1361,7 +1397,7 @@ inline bool check_bst(Node *p, const Compare &cmp = Compare())
     \throw bad_alloc if there is no enough memory
     @ingroup Trees
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *preorder_to_bst(DynArray<typename Node::key_type> &preorder, int l, int r,
                              const Compare &cmp = Compare())
 {
@@ -1426,10 +1462,11 @@ inline ThreeWayCmp three_way_compare(const T &a, const T &b, const Compare &cmp 
  *  Uses single comparison per level with deferred duplicate detection,
  *  reducing comparisons from ~1.5h to h+1 for tree height h.
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 [[nodiscard]] inline Node *searchInBinTree(Node *root, const typename Node::key_type &key,
                                            const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   Node *candidate = nullptr;  // Tracks potential match when going right
 
   while (root != Node::NullPtr)
@@ -1461,9 +1498,10 @@ template <class Node, class Compare = Aleph::less<typename Node::key_type>>
     @ingroup Trees
     @see find_max()
  */
-template <class Node>
+template <BinNodeLike Node>
 [[nodiscard]] inline Node *find_min(Node *root) noexcept
 {
+  assert_valid_tree_root(root);
   assert(root != Node::NullPtr && "find_min called on empty tree");
   while (LLINK(root) != Node::NullPtr)
     root = LLINK(root);
@@ -1479,9 +1517,10 @@ template <class Node>
     @ingroup Trees
     @see find_max()
  */
-template <class Node>
+template <BinNodeLike Node>
 [[nodiscard]] inline Node *find_max(Node *root) noexcept
 {
+  assert_valid_tree_root(root);
   assert(root != Node::NullPtr && "find_max called on empty tree");
   while (RLINK(root) != Node::NullPtr)
     root = RLINK(root);
@@ -1497,7 +1536,7 @@ template <class Node>
     @see find_predecessor()
     @ingroup Trees
  */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *find_successor(Node *p, Node *&pp) noexcept
 {
   assert(p != Node::NullPtr);
@@ -1522,7 +1561,7 @@ inline Node *find_successor(Node *p, Node *&pp) noexcept
     @see find_successor()
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *find_predecessor(Node *p, Node *&pp) noexcept
 {
   assert(p != Node::NullPtr);
@@ -1552,10 +1591,11 @@ inline Node *find_predecessor(Node *p, Node *&pp) noexcept
     @see searchInBinTree()
     @ingroup Trees
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *search_parent(Node *root, const typename Node::key_type &key, Node *&parent,
                            const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   assert((LLINK(parent) == root) or (RLINK(parent) == root));
   assert(root != Node::NullPtr);
 
@@ -1601,10 +1641,11 @@ inline Node *search_parent(Node *root, const typename Node::key_type &key, Node 
     @note It is not verified if the tree is empty
     @ingroup Trees
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *search_rank_parent(Node *root, const typename Node::key_type &key,
                                 const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   assert(root != Node::NullPtr);
 
   while (true)
@@ -1638,9 +1679,10 @@ inline Node *search_rank_parent(Node *root, const typename Node::key_type &key,
     not in the tree; otherwise, `Node::NullPtr` is returned
     @ingroup Trees
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_in_bst(Node *&r, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(r);
   if (r == Node::NullPtr) [[unlikely]]
     return r = p;
 
@@ -1667,9 +1709,10 @@ inline Node *insert_in_bst(Node *&r, Node *p, const Compare &cmp = Compare()) no
     @return the pointer `p`
     @ingroup Trees
 */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_dup_in_bst(Node *&root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr) [[unlikely]]
     return root = p;
 
@@ -1696,9 +1739,10 @@ inline Node *insert_dup_in_bst(Node *&root, Node *p, const Compare &cmp = Compar
 
     @ingroup Trees
 */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *search_or_insert_in_bst(Node *&r, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(r);
   if (r == Node::NullPtr) [[unlikely]]
     return r = p;
 
@@ -1713,7 +1757,7 @@ inline Node *search_or_insert_in_bst(Node *&r, Node *p, const Compare &cmp = Com
   [[unlikely]] return r;
 }
 
-template <class Node, class Compare>
+template <BinNodeLike Node, class Compare>
 inline bool split_key_rec_helper(Node *root, const typename Node::key_type &key, Node *&ts,
                                         Node *&tg, Compare &cmp) noexcept
 {
@@ -1762,17 +1806,18 @@ inline bool split_key_rec_helper(Node *root, const typename Node::key_type &key,
     @see split_key()
     @ingroup Trees
     */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline bool split_key_rec(Node *&root, const typename Node::key_type &key, Node *&ts, Node *&tg,
                           const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   const bool ret = split_key_rec_helper(root, key, ts, tg, cmp);
   if (ret)
     root = Node::NullPtr;
   return ret;
 }
 
-template <class Node, class Compare>
+template <BinNodeLike Node, class Compare>
 inline void split_key_dup_rec_helper(Node *root, const typename Node::key_type &key,
                                             Node *&ts, Node *&tg, Compare &cmp) noexcept
 {
@@ -1808,10 +1853,11 @@ inline void split_key_dup_rec_helper(Node *root, const typename Node::key_type &
     @see split_key()
     @ingroup Trees
     */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline void split_key_dup_rec(Node *&root, const typename Node::key_type &key, Node *&ts, Node *&tg,
                               const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   split_key_dup_rec_helper(root, key, ts, tg, cmp);
   root = Node::NullPtr;
 }
@@ -1829,7 +1875,7 @@ inline void split_key_dup_rec(Node *&root, const typename Node::key_type &key, N
     @ingroup Trees
     @see remove_from_bst()
      */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *join_exclusive(Node *&ts, Node *&tg) noexcept
 {
   if (ts == Node::NullPtr)
@@ -1858,10 +1904,11 @@ inline Node *join_exclusive(Node *&ts, Node *&tg) noexcept
     @see join_exclusive()
     @ingroup Trees
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *remove_from_bst(Node *&root, const typename Node::key_type &key,
                              const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return Node::NullPtr;
 
@@ -1892,9 +1939,10 @@ inline Node *remove_from_bst(Node *&root, const typename Node::key_type &key,
     @see insert_root_rec()
     @ingroup Trees
 */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_root(Node *&root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   Node *l = Node::NullPtr, *r = Node::NullPtr;
 
   if (not split_key_rec(root, KEY(p), l, r, cmp))
@@ -1917,9 +1965,10 @@ inline Node *insert_root(Node *&root, Node *p, const Compare &cmp = Compare()) n
     @see insert_root_rec()
     @ingroup Trees
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_dup_root(Node *&root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   split_key_dup_rec(root, KEY(p), LLINK(p), RLINK(p), cmp);
   return root = p;
 }
@@ -1937,7 +1986,7 @@ inline Node *insert_dup_root(Node *&root, Node *p, const Compare &cmp = Compare(
     @see join()
     @ingroup Trees
 */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *join_preorder(Node *t1, Node *t2, Node *&dup, const Compare &cmp = Compare()) noexcept
 {
   if (t2 == Node::NullPtr)
@@ -1971,7 +2020,7 @@ inline Node *join_preorder(Node *t1, Node *t2, Node *&dup, const Compare &cmp = 
     @see join_preorder()
     @ingroup Trees
  */
-template <class Node, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *join(Node *t1, Node *t2, Node *&dup, const Compare &cmp = Compare()) noexcept
 {
   if (t1 == Node::NullPtr)
@@ -2005,7 +2054,7 @@ inline Node *join(Node *t1, Node *t2, Node *&dup, const Compare &cmp = Compare()
     @param[in] p root to rotate
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *rotate_to_right(Node *p) noexcept
 {
   assert(p != Node::NullPtr);
@@ -2024,7 +2073,7 @@ inline Node *rotate_to_right(Node *p) noexcept
     @return pointer to the new root after rotation
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *rotate_to_right(Node *p, Node *pp) noexcept
 {
   assert(p != Node::NullPtr);
@@ -2048,7 +2097,7 @@ inline Node *rotate_to_right(Node *p, Node *pp) noexcept
     @param[in] p root to rotate
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *rotate_to_left(Node *p) noexcept
 {
   assert(p != Node::NullPtr);
@@ -2066,7 +2115,7 @@ inline Node *rotate_to_left(Node *p) noexcept
     @param pp parent of `p`
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline Node *rotate_to_left(Node *p, Node *pp) noexcept
 {
   assert(p != Node::NullPtr);
@@ -2100,10 +2149,11 @@ inline Node *rotate_to_left(Node *p, Node *pp) noexcept
     @see split_key_rec()
     @ingroup Trees
  */
-template <class Node, class Key, class Compare = Aleph::less<typename Node::key_type>>
+template <BinNodeLike Node, class Key, class Compare = Aleph::less<typename Node::key_type>>
 inline void split_key(Node *&root, const Key &key, Node *&l, Node *&r,
                       const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   assert(l == Node::NullPtr and r == Node::NullPtr);
   if (root == Node::NullPtr)
     {
@@ -2164,7 +2214,7 @@ inline void split_key(Node *&root, const Key &key, Node *&l, Node *&r,
     @see swap_node_with_predecessor()
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline void swap_node_with_successor(Node *p,    // Node for swapping
                                      Node *&pp,  // parent of p
                                      Node *q,    // Successor inorder of p
@@ -2216,7 +2266,7 @@ inline void swap_node_with_successor(Node *p,    // Node for swapping
     @see swap_node_with_successor()
     @ingroup Trees
 */
-template <class Node>
+template <BinNodeLike Node>
 inline void swap_node_with_predecessor(Node *p,    // Node for swapping
                                        Node *&pp,  // p's parent
                                        Node *q,    // Predecessor inorder of p
@@ -2272,10 +2322,11 @@ inline void swap_node_with_predecessor(Node *p,    // Node for swapping
     @see insert_root()
     @ingroup Trees
 */
-template <class Node, class Key = typename Node::key_type,
+template <BinNodeLike Node, class Key = typename Node::key_type,
           class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_root_rec(Node *root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return p; /* insertion in an empty tree */
 
@@ -2313,10 +2364,11 @@ inline Node *insert_root_rec(Node *root, Node *p, const Compare &cmp = Compare()
 
     @ingroup Trees
 */
-template <class Node, class Key = typename Node::key_type,
+template <BinNodeLike Node, class Key = typename Node::key_type,
           class Compare = Aleph::less<typename Node::key_type>>
 inline Node *search_or_insert_root_rec(Node *root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return p;  // insertion in empty tree
 
@@ -2523,7 +2575,7 @@ public:
 
      @ingroup Trees
  */
-template <class Node, class Op>
+template <BinNodeLike Node, class Op>
 bool prefix_traverse(Node *root, Op op)
 {
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
@@ -2550,7 +2602,7 @@ bool prefix_traverse(Node *root, Op op)
     \param op operation to be performed on each item
     \throw anything that can throw `operation`
  */
-template <class Node, class Op>
+template <BinNodeLike Node, class Op>
 void prefix_for_each(Node *root, Op op)
 {
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
@@ -2761,7 +2813,7 @@ public:
 
      @ingroup Trees
  */
-template <class Node, class Op>
+template <BinNodeLike Node, class Op>
 bool infix_traverse(Node *root, Op op)
 {
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
@@ -2774,7 +2826,7 @@ bool infix_traverse(Node *root, Op op)
 
     @ingroup Trees
  */
-template <class Node, class Op>
+template <BinNodeLike Node, class Op>
 bool traverse(Node *root, Op op)
 {
   return infix_traverse(root, op);
@@ -2798,7 +2850,7 @@ bool traverse(Node *root, Op op)
     \param[in] op `operation` to be done on each element.
     \throw anything that can throw `operation`
  */
-template <class Node, class Op>
+template <BinNodeLike Node, class Op>
 void infix_for_each(Node *root, Op op)
 {
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())

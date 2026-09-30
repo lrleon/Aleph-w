@@ -70,6 +70,8 @@
 # ifndef TPL_KGRAPH_H
 # define TPL_KGRAPH_H
 
+# include <ah-graph-concepts.H>
+
 # include <limits>
 # include <tpl_dynSetTree.H>
 # include <tpl_net.H>
@@ -104,9 +106,9 @@ namespace Aleph
    *
    * @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             template <class> class Max_Flow = Random_Preflow_Maximum_Flow,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   long edge_connectivity(GT & g)
   {
     const SA sa;
@@ -204,7 +206,7 @@ namespace Aleph
    *
    * @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             template <class> class Max_Flow = Heap_Preflow_Maximum_Flow>
   class Edge_Connectivity
   {
@@ -257,9 +259,9 @@ namespace Aleph
    *
    * @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             template <class> class Max_Flow = Heap_Preflow_Maximum_Flow,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   long compute_min_cut(GT & g,
                        DynSetTree<typename GT::Node *> & l,
                        DynSetTree<typename GT::Node *> & r,
@@ -448,9 +450,9 @@ namespace Aleph
    *
    * @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             template <class> class Max_Flow = Heap_Preflow_Maximum_Flow,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Compute_Min_Cut
   {
   public:
@@ -491,9 +493,9 @@ namespace Aleph
    *
    * @ingroup Graphs
    */
-  template <class GT,
+  template <AlephGraph GT,
             template <class> class Max_Flow = Random_Preflow_Maximum_Flow,
-            class SA = Dft_Show_Arc<GT>>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   long vertex_connectivity(GT & g)
   {
     const SA sa;

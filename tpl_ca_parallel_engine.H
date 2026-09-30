@@ -104,10 +104,6 @@ namespace CA {
 
 namespace ca_parallel_detail {
 
-/// Detect whether a lattice exposes a `refresh_halo()` method.
-template <typename L>
-concept HasRefreshHalo = requires(L &l) { l.refresh_halo(); };
-
 /// Detect whether `O` is a `Tile<W, H>` instantiation.
 template <typename O>
 struct is_tile : std::false_type
@@ -462,7 +458,7 @@ public:
    */
   void step()
   {
-    if constexpr (ca_parallel_detail::HasRefreshHalo<Lattice>)
+    if constexpr (HasRefreshHalo<Lattice>)
       cur_buf_.refresh_halo();
 
     if (pre_hook_)

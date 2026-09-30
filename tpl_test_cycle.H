@@ -39,6 +39,8 @@
 # ifndef TPL_TEST_CYCLE_H
 # define TPL_TEST_CYCLE_H
 
+# include <ah-graph-concepts.H>
+
 # include <tpl_graph.H>
 # include <ah-errors.H>
 
@@ -103,7 +105,7 @@ namespace Aleph {
  *
  * @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>> 
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>> 
 class Test_For_Cycle
 {
   mutable typename GT::Node * src = nullptr;

@@ -77,6 +77,7 @@
 #include <vector>
 #include <string>
 
+#include <ah-concepts.H>
 #include <ah-errors.H>
 
 namespace Aleph
@@ -163,6 +164,7 @@ public:
    *  @endcode
    */
   template <class Operation>
+    requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
   bool traverse(Operation & operation) const
   {
     for (typename Derived::Iterator it(self()); it.has_curr(); it.next_ne())
@@ -173,6 +175,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
   bool traverse(Operation & operation)
   {
     for (typename Derived::Iterator it(self()); it.has_curr(); it.next_ne())
@@ -184,6 +187,7 @@ public:
   /// @overload
   /// @brief Version accepting rvalue operation (temporary lambdas).
   template <class Operation>
+    requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
   bool traverse(Operation and operation = Operation()) const
   {
     return traverse<Operation>(operation);
@@ -191,6 +195,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, typename concepts_detail::traverse_arg<Derived, Operation>::type>
   bool traverse(Operation and operation = Operation())
   {
     return traverse<Operation>(operation);
@@ -324,6 +329,7 @@ public:
    *  @see find_item() for version returning success flag with copy.
    */
   template <class Operation>
+    requires PredicateWith<Operation &, Type &>
   Type * find_ptr(Operation & operation)
   {
     Type * ptr = nullptr;
@@ -342,6 +348,7 @@ public:
   /// @overload
   /// @brief Const version.
   template <class Operation>
+    requires PredicateWith<Operation &, Type &>
   Type * find_ptr(Operation & operation) const
   {
     Type * ptr = nullptr;
@@ -360,6 +367,7 @@ public:
   /// @overload
   /// @brief Version accepting rvalue operation.
   template <class Operation>
+    requires PredicateWith<Operation &, Type &>
   Type * find_ptr(Operation and operation = Operation()) const
   {
     return find_ptr<Operation>(operation);
@@ -367,6 +375,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, Type &>
   Type * find_ptr(Operation and operation = Operation())
   {
     return find_ptr<Operation>(operation);
@@ -397,6 +406,7 @@ public:
    *  @note This returns a copy. Use find_ptr() to avoid copying.
    */
   template <class Operation>
+    requires PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation & operation)
   {
     auto ptr = find_ptr(operation);
@@ -405,6 +415,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation & operation) const
   {
     auto ptr = find_ptr(operation);
@@ -413,6 +424,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation && operation = Operation())
   {
     return find_item(operation);
@@ -420,6 +432,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation && operation = Operation()) const
   {
     return find_item(operation);
@@ -490,6 +503,7 @@ public:
    *  @endcode
    */
   template <class Operation>
+    requires CallableWith<Operation &, const Type &>
   auto for_each(Operation & operation) const -> decltype(self())
   {
     self().traverse([&operation] (const Type & item)
@@ -502,6 +516,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires CallableWith<Operation &, const Type &>
   auto for_each(Operation & operation) -> decltype(self())
   {
     self().traverse([&operation] (const Type & item)
@@ -514,6 +529,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires CallableWith<Operation &, const Type &>
   auto for_each(Operation && operation = Operation()) const -> decltype(self())
   {
     return for_each<Operation>(operation);
@@ -521,6 +537,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires CallableWith<Operation &, const Type &>
   auto for_each(Operation && operation = Operation()) -> decltype(self())
   {
     return for_each<Operation>(operation);
@@ -542,6 +559,7 @@ public:
    *  @endcode
    */
   template <class Operation>
+    requires CallableWith<Operation &, Type &>
   auto mutable_for_each(Operation & operation) -> decltype(self())
   {
     self().traverse([&operation] (Type & item)
@@ -554,6 +572,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires CallableWith<Operation &, Type &>
   auto mutable_for_each(Operation && operation = Operation()) -> decltype(self())
   {
     return mutable_for_each<Operation>(operation);
@@ -582,6 +601,7 @@ public:
    *  @endcode
    */
   template <class Operation>
+    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
   [[nodiscard]] bool all(Operation & operation) const
   {
     return self().template traverse<Operation>(operation);
@@ -589,6 +609,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
   [[nodiscard]] bool all(Operation && operation = Operation()) const
   {
     return all<Operation>(operation);
@@ -598,6 +619,7 @@ public:
    *  @see all()
    */
   template <class Operation>
+    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
   [[nodiscard]] bool forall(Operation & operation) const
   {
     return all<Operation>(operation);
@@ -605,6 +627,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires requires(const typename concepts_detail::defer<Derived, Operation>::type &c, Operation &op) { { c.template traverse<Operation>(op) } -> std::convertible_to<bool>; }
   [[nodiscard]] bool forall(Operation && operation = Operation()) const
   {
     return all<Operation>(operation);
@@ -629,6 +652,7 @@ public:
    *  @endcode
    */
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] bool exists(Operation & operation) const
   {
     return not self().traverse([&operation] (const Type & item)
@@ -639,6 +663,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] bool exists(Operation && operation = Operation()) const
   {
     return exists<Operation>(operation);
@@ -678,6 +703,7 @@ public:
   template <typename __Type = Type,
             template <typename> class Container = Aleph::DynList,
             class Operation = Dft_Map_Op<Type, __Type>>
+    requires requires(Container<__Type> &l, Operation &op, const Type &item) { l.append(op(item)); }
   [[nodiscard]] Container<__Type> maps(Operation & operation) const
   {
     Container<__Type> ret_val;
@@ -692,6 +718,7 @@ public:
   template <typename __Type = Type,
             template <typename> class Container = Aleph::DynList,
             class Operation = Dft_Map_Op<Type, __Type>>
+    requires requires(Container<__Type> &l, Operation &op, const Type &item) { l.append(op(item)); }
   [[nodiscard]] Container<__Type> maps(Operation && operation = Operation()) const
   {
     return maps<__Type, Container, Operation>(operation);
@@ -758,6 +785,7 @@ public:
    *  @return Final accumulated value.
    */
   template <class Operation>
+    requires requires(Type &acc, Operation &op, const Type &item) { acc = op(acc, item); }
   [[nodiscard]] Type fold(const Type & init, Operation & operation) const
   {
     auto ret_val = init;
@@ -770,6 +798,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires requires(Type &acc, Operation &op, const Type &item) { acc = op(acc, item); }
   [[nodiscard]] Type fold(const Type & init, Operation && operation = Operation()) const
   {
     return fold<Operation>(init, operation);
@@ -795,6 +824,7 @@ public:
    *  @endcode
    */
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] DynList<Type> filter(Operation & operation) const
   {
     DynList<Type> ret_val;
@@ -808,6 +838,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] DynList<Type> filter(Operation && operation = Operation()) const
   {
     return filter<Operation>(operation);
@@ -829,6 +860,7 @@ public:
    *  @endcode
    */
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] DynList<std::tuple<Type, size_t>> pfilter(Operation & operation) const
   {
     DynList<std::tuple<Type, size_t>> ret_val;
@@ -844,6 +876,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] DynList<std::tuple<Type, size_t>> pfilter(Operation && operation = Operation()) const
   {
     return pfilter<Operation>(operation);
@@ -866,6 +899,7 @@ public:
    *  @endcode
    */
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] std::pair<DynList<Type>, DynList<Type>> partition(Operation & op) const
   {
     std::pair<DynList<Type>, DynList<Type>> ret_val;
@@ -881,6 +915,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] std::pair<DynList<Type>, DynList<Type>> partition(Operation && op = Operation()) const
   {
     return partition<Operation>(op);
@@ -890,6 +925,7 @@ public:
    *  @see partition()
    */
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] std::tuple<DynList<Type>, DynList<Type>> tpartition(Operation & op) const
   {
     DynList<Type> r1, r2;
@@ -905,6 +941,7 @@ public:
 
   /// @overload
   template <class Operation>
+    requires PredicateWith<Operation &, const Type &>
   [[nodiscard]] std::tuple<DynList<Type>, DynList<Type>> tpartition(Operation && op = Operation()) const
   {
     return tpartition<Operation>(op);
@@ -1156,6 +1193,7 @@ public:
    *  @endcode
    */
   template <class Compare>
+    requires PredicateWith<Compare &, const Type &, const Type &>
   [[nodiscard]] const Type * min_by(Compare cmp) const
   {
     const Type * result = nullptr;
@@ -1185,6 +1223,7 @@ public:
    *  @endcode
    */
   template <class Compare>
+    requires PredicateWith<Compare &, const Type &, const Type &>
   [[nodiscard]] const Type * max_by(Compare cmp) const
   {
     const Type * result = nullptr;
@@ -1245,6 +1284,7 @@ public:
    *  @endcode
    */
   template <class Predicate>
+    requires PredicateWith<Predicate &, const Type &>
   [[nodiscard]] bool none(Predicate & pred) const
   {
     return not exists(pred);
@@ -1252,6 +1292,7 @@ public:
 
   /// \overload
   template <class Predicate>
+    requires PredicateWith<Predicate &, const Type &>
   [[nodiscard]] bool none(Predicate && pred) const
   {
     return not exists(std::forward<Predicate>(pred));
@@ -1273,6 +1314,7 @@ public:
    *  @endcode
    */
   template <class Predicate>
+    requires PredicateWith<Predicate &, const Type &>
   [[nodiscard]] size_t count_if(Predicate pred) const
   {
     size_t count = 0;
@@ -1423,6 +1465,7 @@ public:
    *  @endcode
    */
   template <class Predicate>
+    requires PredicateWith<Predicate &, const Type &>
   [[nodiscard]] size_t find_index(Predicate pred) const
   {
     size_t idx = 0;
@@ -1521,6 +1564,7 @@ public:
    *  @endcode
    */
   template <template <typename> class Container = Aleph::DynList, class EqPred>
+    requires PredicateWith<EqPred &, const Type &, const Type &>
   [[nodiscard]] Container<Type> unique_by(EqPred eq) const
   {
     Container<Type> ret;

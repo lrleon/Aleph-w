@@ -48,6 +48,8 @@
 # ifndef TPL_NETCOST_H
 # define TPL_NETCOST_H
 
+# include <ah-graph-concepts.H>
+
 # include <limits>
 # include <chrono>
 # include <tpl_net.H>
@@ -662,7 +664,7 @@ namespace Aleph
       @see Max_Flow_Min_Cost_By_Cycle_Canceling
       @ingroup Networks
   */
-  template <class Net,
+  template <FlowNetwork Net,
             template <class> class Max_Flow_Algo = Ford_Fulkerson_Maximum_Flow>
   std::tuple<size_t, double>
   max_flow_min_cost_by_cycle_canceling(Net & net,
@@ -729,7 +731,7 @@ namespace Aleph
       @see max_flow_min_cost_by_cycle_canceling
       @ingroup Networks
   */
-  template <class Net,
+  template <FlowNetwork Net,
             template <class> class Max_Flow_Algo = Ford_Fulkerson_Maximum_Flow>
   struct Max_Flow_Min_Cost_By_Cycle_Canceling
   {
@@ -1036,7 +1038,7 @@ namespace Aleph
       @see max_flow_min_cost_by_cycle_canceling
       @ingroup Networks
   */
-  template <class Net>
+  template <FlowNetwork Net>
   class Network_Simplex
   {
   public:
@@ -2209,7 +2211,7 @@ namespace Aleph
       @see max_flow_min_cost_by_cycle_canceling Network_Simplex
       @ingroup Networks
   */
-  template <class Net,
+  template <FlowNetwork Net,
             template <class> class Max_Flow_Algo = Ford_Fulkerson_Maximum_Flow>
   size_t max_flow_min_cost_by_network_simplex(Net & net)
   {
@@ -2227,7 +2229,7 @@ namespace Aleph
       @see max_flow_min_cost_by_network_simplex
       @ingroup Networks
   */
-  template <class Net,
+  template <FlowNetwork Net,
             template <class> class Max_Flow_Algo = Ford_Fulkerson_Maximum_Flow>
   struct Max_Flow_Min_Cost_By_Network_Simplex
   {

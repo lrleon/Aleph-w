@@ -67,6 +67,8 @@
 #ifndef BLOSSOM_H
 #define BLOSSOM_H
 
+# include <ah-graph-concepts.H>
+
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
@@ -97,7 +99,7 @@ namespace blossom_detail {
  *  - `base`: Stores the base vertex of the blossom containing a vertex.
  *  - `bfs_queue`: Used for the alternating path search.
  */
-template <class GT, class SA>
+template <AlephGraph GT, ArcFilter<GT> SA>
 class Edmonds_Blossom_Matcher
 {
 public:
@@ -427,7 +429,7 @@ public:
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 size_t compute_maximum_cardinality_general_matching(const GT &g,
                                                     DynDlist<typename GT::Arc *> &matching,
                                                     SA sa = SA())
@@ -460,7 +462,7 @@ size_t compute_maximum_cardinality_general_matching(const GT &g,
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 size_t blossom_maximum_cardinality_matching(const GT &g,
                                             DynDlist<typename GT::Arc *> &matching,
                                             SA sa = SA())
@@ -475,7 +477,7 @@ size_t blossom_maximum_cardinality_matching(const GT &g,
  *
  *  @ingroup Graphs
  */
-template <class GT, class SA = Dft_Show_Arc<GT>>
+template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 class Compute_Maximum_Cardinality_General_Matching
 {
   SA sa_;
