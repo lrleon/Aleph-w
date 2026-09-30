@@ -146,7 +146,7 @@ namespace Aleph
 # define IS_LEFT(p)   ((p)->get_control_fields().is_left)
 # define CTRL_BITS(p) ((p)->get_control_fields())
 
-  /** Heap genérico de nodos.
+  /** Generic heap of nodes.
 
       The GenBinHeap class instruments a node heap. This team doesn't
       is implemented by array, but with a binary tree.
@@ -395,7 +395,7 @@ This class is not intended for public use. Its purpose is to provide
 
           NEXT(prev_last) = PREV(next_last) = root;
         }
-      else if (num_nodes == 3) // caso particular con 3 nodos
+      else if (num_nodes == 3) // special case with 3 nodes
         {
           assert(RLINK(root) == last);
           assert(LLINK(last) == LLINK(root) and RLINK(last) == LLINK(root));
@@ -459,17 +459,17 @@ This class is not intended for public use. Its purpose is to provide
       assert(node != new_node);
       assert(node != last);
 
-      // guardar los parientes inmediatos de node
+      // save node's immediate relatives
       Node *parent = ULINK(node);
       Node *left_child = LLINK(node);
       Node *right_child = RLINK(node);
 
-      // actualizar los punteros pertenecientes a new_node
+      // update new_node's own pointers
       ULINK(new_node) = parent;
       LLINK(new_node) = left_child;
       RLINK(new_node) = right_child;
 
-      // actualizar padre
+      // update parent
       if (IS_LEFT(node))
         {
           assert(LLINK(parent) == node);
@@ -642,12 +642,12 @@ This class is not intended for public use. Its purpose is to provide
     { /* empty */
     }
 
-    /** Inserta un nodo en un heap.
+    /** Inserts a node into a heap.
 
-        insert(p) inserta en el heap this el nodo p.
+        insert(p) inserts node p into this heap.
 
-        @param[in] p el nodo a insertar.
-        @return puntero al nodo insertado.
+        @param[in] p the node to insert.
+        @return pointer to the inserted node.
     */
     Node * insert(Node *p) noexcept
     {
@@ -667,23 +667,23 @@ This class is not intended for public use. Its purpose is to provide
           num_nodes = 1;
           return p;
         }
-      // inserción general
-      Node *pp = RLINK(last); // padre de actual last
+      // general insertion
+      Node *pp = RLINK(last); // parent of the current last
       LLINK(p) = last;
       ULINK(p) = pp;
 
       if (IS_LEFT(last))
-        { // p será hijo derecho
+        { // p will be a right child
           IS_LEFT(p) = false;
           RLINK(p) = RLINK(pp);
           LLINK(RLINK(pp)) = p;
           RLINK(pp) = p;
         }
       else
-        { // p será hijo izquierdo
+        { // p will be a left child
           IS_LEFT(p) = true;
           RLINK(p) = pp;
-          IS_LEAF(pp) = false; // si p es izquierdo ==> pp era hoja
+          IS_LEAF(pp) = false; // if p is a left child ==> pp was a leaf
           LLINK(pp) = p;
         }
 
@@ -716,14 +716,14 @@ This class is not intended for public use. Its purpose is to provide
       return ret_val;
     }
 
-    /** Elimina del heap el nodo de menor prioridad.
+    /** Removes the node with the lowest priority from the heap.
 
-        getMIn() extrae del heap this el nodo que contenga el menor
-        valor de prioridad según el criterio de comparación definido
-        en la declaración.
+        getMIn() extracts from this heap the node that holds the
+        lowest priority value according to the comparison criterion
+        defined in the declaration.
 
-        @return puntero al nodo eliminado.
-        @throw underflow_error si el heap está vacío.
+        @return pointer to the removed node.
+        @throw underflow_error if the heap is empty.
     */
     Node * getMin()
     {
@@ -731,20 +731,20 @@ This class is not intended for public use. Its purpose is to provide
       return getMin_ne();
     }
 
-    /// \overload getMin() para usar si se invierte el orden de prioridad
+    /// \overload getMin() to use when the priority order is reversed
     Node * getMax()
     {
       return getMin();
     }
 
-    /** Actualiza prioridad de un nodo contenido en el heap.
+    /** Updates the priority of a node contained in the heap.
 
-        update(p) toma un nodo del heap cuya prioridad haya sido modificada
-        y actualiza su prioridad dentro del
-        heap. La idea es que si por alguna razón una prioridad debe ser
-        modificada, entonces el orden de extracción  pueda actualizarse.
+        update(p) takes a node of the heap whose priority has been
+        modified and updates its priority within the
+        heap. The idea is that if for some reason a priority must be
+        modified, then the extraction order can be updated.
 
-        @param[in] p puntero al nodo que se desea actualizar
+        @param[in] p pointer to the node to update
         @see insert()
     */
     void update(Node *p) noexcept
@@ -753,14 +753,14 @@ This class is not intended for public use. Its purpose is to provide
       sift_up(p);
     }
 
-    /** Elimina del heap el nodo node.
+    /** Removes node from the heap.
 
-        remove(node) elimina del heap el nodo node.
+        remove(node) removes node from this heap.
 
-        @param[in] node puntero al nodo a eliminar.
-        @throw underflow_error si el heap está vacío
-        @return puntero al nodo eliminado
-        @note No se verifica si node pertenece al heap.
+        @param[in] node pointer to the node to remove.
+        @throw underflow_error if the heap is empty
+        @return pointer to the removed node
+        @note It is not verified whether node belongs to the heap.
     */
     Node * remove(Node *node)
     {
@@ -788,8 +788,8 @@ This class is not intended for public use. Its purpose is to provide
       return node;
     }
 
-    /// Borra todos los nodos del heap, invoca a los destructores de los
-    /// nodos eliminados y libera toda la memoria
+    /// Deletes all the nodes of the heap, invokes the destructors of
+    /// the removed nodes, and frees all the memory
     void remove_all_and_delete() noexcept
     {
       if (root == nullptr)
@@ -807,13 +807,13 @@ This class is not intended for public use. Its purpose is to provide
       else
         __postorder_delete(root, nullptr);
 
-      root = nullptr; // reiniciar como si fuese constructor
+      root = nullptr; // reset as if it were the constructor
       last = &head_node;
       num_nodes = 0;
     }
 
-    /// Retorna el nodo con menor prioridad según el criterio de
-    /// comparación especificado en la declaración.
+    /// Returns the node with the lowest priority according to the
+    /// comparison criterion specified in the declaration.
     Node * top()
     {
       ah_underflow_error_if(root == nullptr) << "Heap is empty";
@@ -1005,7 +1005,7 @@ This class is not intended for public use. Its purpose is to provide
     requires StrictWeakOrder<Compare, Key>
   struct BinHeap : public GenBinHeap<BinHeapNode, Key, Compare>
   {
-    /// El tipo de nodo del heap.
+    /// The heap's node type.
     using Node = BinHeapNode<Key>;
     using GenBinHeap<BinHeapNode, Key, Compare>::GenBinHeap;
   };
@@ -1031,7 +1031,7 @@ This class is not intended for public use. Its purpose is to provide
     requires StrictWeakOrder<Compare, Key>
   struct BinHeapVtl : public GenBinHeap<BinHeapNodeVtl, Key, Compare>
   {
-    /// El tipo de nodo del heap.
+    /// The heap's node type.
     using Node = BinHeapNodeVtl<Key>;
     using GenBinHeap<BinHeapNodeVtl, Key, Compare>::GenBinHeap;
   };

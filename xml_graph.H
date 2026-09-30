@@ -103,17 +103,17 @@ namespace Aleph
     }
   };
 
-  /* TODO: le debo la explicación de los detalles de cada una de las clases de
-     lectura y escritura
+  /* TODO: still owe an explanation of the details of each of the
+     reader and writer classes
   */
 
-  /** Clase que escribe y lee un grafo (de forma muy elemental) en XML.
-   * 
-   *  @param GT el tipo de grafo.
-   *  @param Node_Reader la función de lectura de los atributos de un nodo.
-   *  @param Arc_Reader la función de lectura de los atributos de un arco.
-   *  @param Node_Writer la función de escritura de los atributos de un nodo.
-   *  @param Arc_Writer la función de escritura de los atributos de un arco.
+  /** Class that writes and reads a graph (in a very elementary way) as XML.
+   *
+   *  @param GT the graph type.
+   *  @param Node_Reader the function that reads a node's attributes.
+   *  @param Arc_Reader the function that reads an arc's attributes.
+   *  @param Node_Writer the function that writes a node's attributes.
+   *  @param Arc_Writer the function that writes an arc's attributes.
    *  @author Alejandro J. Mujica
    */
   template <AlephGraph GT,

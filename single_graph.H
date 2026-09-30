@@ -45,13 +45,13 @@
 
 namespace Aleph {
 
-/** Determina si un grafo o digrafo es simple. Un grafo simple es uno
-    que notiene arcos repetidos.
+/** Determines whether a graph or digraph is simple. A simple graph is one
+    that has no duplicate arcs.
 
-    La clase recibe tres parámetros tipo:
-    -# GT: el grafo
-    -# SN: clase filtro para el iterador de nodos.
-    -# SA: clase filtro para el iterador de arcos.
+    The class takes three type parameters:
+    -# GT: the graph
+    -# SN: filter class for the node iterator.
+    -# SA: filter class for the arc iterator.
     .
 
     @ingroup Graphs
@@ -75,7 +75,7 @@ public:
     // empty 
   }
 
-      /// retorna true si p no tiene multiarcos ni lazos
+      /// Returns `true` if `p` has neither multi-arcs nor self-loops
   bool test_node(typename GT::Node * p)
   {
     DynSetAvlTree<GT_Node*> nodes;
