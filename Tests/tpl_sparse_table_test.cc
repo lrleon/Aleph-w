@@ -66,7 +66,42 @@ namespace
       acc = op(acc, values[i]);
     return acc;
   }
+
+  // A bit set whose `+` is union: idempotent, so it must stay accepted.
+  struct Bits
+  {
+    unsigned mask = 0;
+    Bits operator+(const Bits & o) const noexcept { return {mask | o.mask}; }
+    bool operator==(const Bits &) const = default;
+  };
+
+  struct My_Sum
+  {
+    int operator()(const int a, const int b) const noexcept { return a + b; }
+  };
+
+  template <class T, class Op>
+  concept buildable = requires { typename Gen_Sparse_Table<T, Op>; };
 } // namespace
+
+// Opt-in through the customization point.
+template <>
+inline constexpr bool Aleph::is_known_non_idempotent_op<My_Sum, int> = true;
+
+// Known non-idempotent functors are rejected at compile time: a sum table
+// used to compile and answer query(0, 4) over {1..5} with 24 instead of 15.
+static_assert(not buildable<int, std::plus<int>> and not buildable<int, std::plus<>>);
+static_assert(not buildable<long, Aleph::plus<long>> and not buildable<double, std::multiplies<double>>);
+static_assert(not buildable<int, std::minus<int>> and not buildable<unsigned, std::bit_xor<unsigned>>);
+static_assert(not buildable<int, Aleph::modulus<int>> and not buildable<int, My_Sum>);
+static_assert(not SparseTableOp<std::plus<int>, int>);
+
+// Everything else passes, as before.
+static_assert(buildable<int, Min_Op<int>> and buildable<int, Max_Op<int>> and buildable<int, Gcd_Op>);
+static_assert(buildable<int, std::bit_and<int>> and buildable<int, std::bit_or<>>);
+static_assert(buildable<bool, std::plus<bool>> and buildable<Bits, std::plus<Bits>>);
+constexpr auto min_lambda = [](const int a, const int b) { return std::min(a, b); };
+static_assert(IdempotentOp<decltype(min_lambda), int>);
 
 TEST(SparseTable, EmptyConstructionAndErrors)
 {
@@ -148,6 +183,16 @@ TEST(SparseTable, CustomAssociativeIdempotentOperation)
   for (size_t l = 0; l < values.size(); ++l)
     for (size_t r = l; r < values.size(); ++r)
       EXPECT_EQ(st.query(l, r), fold_range(values, l, r, Gcd_Op{}));
+}
+
+TEST(SparseTable, ClassTypePlusStillAccepted)
+{
+  const std::vector<Bits> values = {{1}, {2}, {4}, {8}, {16}};
+  Gen_Sparse_Table<Bits, std::plus<Bits>> st(values);
+
+  for (size_t l = 0; l < values.size(); ++l)
+    for (size_t r = l; r < values.size(); ++r)
+      EXPECT_EQ(st.query(l, r), fold_range(values, l, r, std::plus<Bits>{}));
 }
 
 TEST(SparseTable, ValuesCopyMoveAndSwap)

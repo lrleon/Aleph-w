@@ -232,7 +232,7 @@ public:
   size_t get_num_nodes() const { return idx_node.size(); }
 };
 
-  template <class GT> inline
+  template <AlephGraph GT> inline
   bool are_equal(const GT & g1, const GT & g2)
   {
     if (g1.vsize() != g2.vsize() or g1.esize() != g2.esize())

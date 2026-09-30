@@ -34,7 +34,7 @@
  *  @brief C++20 concepts hub: comparison, BST policy, and Aleph container
  *         concepts.
  *
- *  Defines twenty concepts used throughout Aleph-w to constrain template
+ *  Defines twenty-one concepts used throughout Aleph-w to constrain template
  *  parameters (graph concepts live in `ah-graph-concepts.H`):
  *
  *  - **BinaryPredicate<F, T>** — base concept: `f(a, b)` returns
@@ -53,6 +53,8 @@
  *    `const`-iterable `get_it()`.
  *  - **IntegerSortableValue<T>** — integral type accepted by counting/radix
  *    sort, excluding `bool`.
+ *  - **ArrayStorable<T>** — element type that `Array`, `MemArray` and
+ *    `DynArray` can allocate (`new T[n]`) and grow (by moving elements).
  *  - **ClosedBinaryOp<F, T>** — `f(a, b)` on two `const T&` returns
  *    something convertible to `T` (segment/Fenwick/sparse tables).
  *  - **StaticMonoid<M, T>** — `M::identity()` and `M::combine(a, b)`.
@@ -63,8 +65,8 @@
  *    `get_key`, `NullPtr`).
  *  - **RankedBinNodeLike<Node>** — `BinNodeLike` plus subtree sizes.
  *  - Container/iterator hierarchy: **AlephIterator<It>** (`has_curr`,
- *    `get_curr`, `next_ne`), **AlephIterable<C>** (yields one via
- *    `get_it()`), **AlephTraversable<C>** (`traverse`),
+ *    `get_curr`, `next_ne`), **AlephIterable<C>** (yields one built from
+ *    the container, `Iterator(c)`), **AlephTraversable<C>** (`traverse`),
  *    **AlephIterableContainer<C>** (both, plus `size`/`is_empty`),
  *    **AlephSequence<C>** (plus `append`), and **StlIterableContainer<C>**
  *    (`begin`/`end`/`value_type`).
@@ -386,15 +388,34 @@ namespace Aleph
       std::is_integral_v<std::remove_cv_t<T>> and
       not std::is_same_v<std::remove_cv_t<T>, bool>;
 
+  /** @brief An element type the Aleph arrays can store.
+   *
+   *  `Array`, `MemArray` and `DynArray` allocate their storage with
+   *  `new T[n]`, so `T` must be default-initializable, and `Array`/`MemArray`
+   *  grow by swapping the elements into a larger buffer, so `T` must also be
+   *  movable. Concepts whose values end up in an Aleph array (e.g.
+   *  `SearchMove`) should refine this one so that a bad type is rejected at
+   *  the user's call instead of inside `tpl_memArray.H`.
+   *
+   *  @tparam T element type.
+   *
+   *  @note The arrays themselves are not constrained with it: copying,
+   *  appending by copy and other operations add their own requirements
+   *  (copy-assignability, ...) on the members that need them.
+   */
+  template <typename T>
+  concept ArrayStorable = std::default_initializable<T> and std::movable<T>;
+
   /** @brief A binary functor closed over `T`.
    *
    *  `f(a, b)` is well-formed for `const T& a, const T& b` and returns
    *  something convertible to `T`. This is the shared shape behind
-   *  `SparseTableOp`, `DisjointSparseTableOp`, `SegmentTreeOp` and
-   *  `FenwickBinaryOp` (each kept as an alias for source compatibility),
-   *  which differ only in which *semantic* law the caller must also
-   *  provide (associativity, idempotency, ...) — this concept checks
-   *  only the call signature, never the semantics.
+   *  `DisjointSparseTableOp`, `SegmentTreeOp` and `FenwickBinaryOp`
+   *  (each kept as an alias for source compatibility) and `SparseTableOp`
+   *  (which also rejects functors known not to be idempotent), which
+   *  differ in which *semantic* law the caller must also provide
+   *  (associativity, idempotency, ...) — this concept checks only the
+   *  call signature, never the semantics.
    *
    *  @tparam F functor type.
    *  @tparam T value type.

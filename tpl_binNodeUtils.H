@@ -52,8 +52,31 @@
 #include <tpl_dynDlist.H>
 #include <tpl_binNode.H>
 #include <ah-errors.H>
+# include <cassert>
 
 namespace Aleph {
+
+/** Debug-only check that `root` is a valid tree for `Node`.
+
+    Node types declared with a sentinel (`DECLARE_BINNODE_SENTINEL`:
+    treaps, red-black and ranked trees, ...) represent the empty tree with
+    `Node::NullPtr`, the address of a static sentinel node, not with
+    `nullptr`. A `nullptr` stored in such a tree (e.g. `tree.getRoot() =
+    nullptr`) corrupts it, and the next traversal dereferences it. In debug
+    builds this check aborts with a message instead of a segmentation
+    fault; with `NDEBUG` it compiles to nothing.
+
+    @param[in] root root of the tree (or subtree) about to be walked
+    @note For node types without a sentinel `Node::NullPtr` is `nullptr`,
+    so the check always passes.
+    @ingroup Trees
+ */
+template <BinNodeLike Node>
+inline void assert_valid_tree_root([[maybe_unused]] const Node *root) noexcept
+{
+  assert((Node::NullPtr == nullptr or root != nullptr) and
+         "nullptr is not an empty tree for a node type with a sentinel; use Node::NullPtr");
+}
 template <BinNodeLike Node>
 inline void inorder_rec_helper(Node *node, const int &level, int &position,
                                       void (*visitFct)(Node *, int, int))
@@ -94,6 +117,7 @@ inline void inorder_rec_helper(Node *node, const int &level, int &position,
 template <BinNodeLike Node>
 inline int inOrderRec(Node *root, void (*visitFct)(Node *, int, int))
 {
+  assert_valid_tree_root(root);
   int position = 0;
   inorder_rec_helper(root, 0, position, visitFct);
   return position;
@@ -138,6 +162,7 @@ inline void preorder_rec_helper(Node *p, const int &level, int &position,
 template <BinNodeLike Node>
 inline int preOrderRec(Node *root, void (*visitFct)(Node *, int, int))
 {
+  assert_valid_tree_root(root);
   int position = 0;
   preorder_rec_helper(root, 0, position, visitFct);
   return position;
@@ -182,6 +207,7 @@ inline void postorder_rec_helper(Node *node, const int &level, int &position,
 template <BinNodeLike Node>
 inline int postOrderRec(Node *root, void (*visitFct)(Node *, int, int))
 {
+  assert_valid_tree_root(root);
   int position = 0;
   postorder_rec_helper(root, 0, position, visitFct);
   return position;
@@ -467,6 +493,7 @@ DynList<Node *> suffix(Node *root)
 template <BinNodeLike Node>
 inline size_t compute_cardinality_rec(Node *root) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return 0;
 
@@ -489,6 +516,7 @@ inline size_t size(Node *root) noexcept
 template <BinNodeLike Node>
 inline size_t computeHeightRec(Node *root) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return 0;
 
@@ -509,6 +537,7 @@ inline size_t computeHeightRec(Node *root) noexcept
 template <BinNodeLike Node>
 inline void destroyRec(Node *&root) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return;
 
@@ -533,6 +562,7 @@ inline void destroyRec(Node *&root) noexcept
 template <BinNodeLike Node>
 inline void callKeyDestructorsRec(Node *&root) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return;
 
@@ -554,6 +584,7 @@ inline void callKeyDestructorsRec(Node *&root) noexcept
 template <BinNodeLike Node>
 [[nodiscard]] inline Node *copyRec(Node *root)
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return Node::NullPtr;
 
@@ -654,6 +685,7 @@ inline bool areEquivalents(Node *t1, Node *t2, Equal &&op = Equal()) noexcept
 template <BinNodeLike Node>
 inline void levelOrder(Node *root, void (*visitFct)(Node *, int, bool))
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return;
 
@@ -965,6 +997,7 @@ inline size_t internal_path_length_helper(Node *p, const size_t &level) noexcept
 template <BinNodeLike Node>
 inline size_t internal_path_length(Node *p) noexcept
 {
+  assert_valid_tree_root(p);
   return internal_path_length_helper(p, 0);
 }
 
@@ -1349,6 +1382,7 @@ inline bool check_bst_range(Node *p, const typename Node::key_type *min_key,
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline bool check_bst(Node *p, const Compare &cmp = Compare())
 {
+  assert_valid_tree_root(p);
   return check_bst_range<Node, Compare>(p, nullptr, nullptr, cmp);
 }
 
@@ -1432,6 +1466,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
 [[nodiscard]] inline Node *searchInBinTree(Node *root, const typename Node::key_type &key,
                                            const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   Node *candidate = nullptr;  // Tracks potential match when going right
 
   while (root != Node::NullPtr)
@@ -1466,6 +1501,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
 template <BinNodeLike Node>
 [[nodiscard]] inline Node *find_min(Node *root) noexcept
 {
+  assert_valid_tree_root(root);
   assert(root != Node::NullPtr && "find_min called on empty tree");
   while (LLINK(root) != Node::NullPtr)
     root = LLINK(root);
@@ -1484,6 +1520,7 @@ template <BinNodeLike Node>
 template <BinNodeLike Node>
 [[nodiscard]] inline Node *find_max(Node *root) noexcept
 {
+  assert_valid_tree_root(root);
   assert(root != Node::NullPtr && "find_max called on empty tree");
   while (RLINK(root) != Node::NullPtr)
     root = RLINK(root);
@@ -1558,6 +1595,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
 inline Node *search_parent(Node *root, const typename Node::key_type &key, Node *&parent,
                            const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   assert((LLINK(parent) == root) or (RLINK(parent) == root));
   assert(root != Node::NullPtr);
 
@@ -1607,6 +1645,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
 inline Node *search_rank_parent(Node *root, const typename Node::key_type &key,
                                 const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   assert(root != Node::NullPtr);
 
   while (true)
@@ -1643,6 +1682,7 @@ inline Node *search_rank_parent(Node *root, const typename Node::key_type &key,
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_in_bst(Node *&r, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(r);
   if (r == Node::NullPtr) [[unlikely]]
     return r = p;
 
@@ -1672,6 +1712,7 @@ inline Node *insert_in_bst(Node *&r, Node *p, const Compare &cmp = Compare()) no
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_dup_in_bst(Node *&root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr) [[unlikely]]
     return root = p;
 
@@ -1701,6 +1742,7 @@ inline Node *insert_dup_in_bst(Node *&root, Node *p, const Compare &cmp = Compar
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *search_or_insert_in_bst(Node *&r, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(r);
   if (r == Node::NullPtr) [[unlikely]]
     return r = p;
 
@@ -1768,6 +1810,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
 inline bool split_key_rec(Node *&root, const typename Node::key_type &key, Node *&ts, Node *&tg,
                           const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   const bool ret = split_key_rec_helper(root, key, ts, tg, cmp);
   if (ret)
     root = Node::NullPtr;
@@ -1814,6 +1857,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
 inline void split_key_dup_rec(Node *&root, const typename Node::key_type &key, Node *&ts, Node *&tg,
                               const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   split_key_dup_rec_helper(root, key, ts, tg, cmp);
   root = Node::NullPtr;
 }
@@ -1864,6 +1908,7 @@ template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>
 inline Node *remove_from_bst(Node *&root, const typename Node::key_type &key,
                              const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return Node::NullPtr;
 
@@ -1897,6 +1942,7 @@ inline Node *remove_from_bst(Node *&root, const typename Node::key_type &key,
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_root(Node *&root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   Node *l = Node::NullPtr, *r = Node::NullPtr;
 
   if (not split_key_rec(root, KEY(p), l, r, cmp))
@@ -1922,6 +1968,7 @@ inline Node *insert_root(Node *&root, Node *p, const Compare &cmp = Compare()) n
 template <BinNodeLike Node, class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_dup_root(Node *&root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   split_key_dup_rec(root, KEY(p), LLINK(p), RLINK(p), cmp);
   return root = p;
 }
@@ -2106,6 +2153,7 @@ template <BinNodeLike Node, class Key, class Compare = Aleph::less<typename Node
 inline void split_key(Node *&root, const Key &key, Node *&l, Node *&r,
                       const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   assert(l == Node::NullPtr and r == Node::NullPtr);
   if (root == Node::NullPtr)
     {
@@ -2278,6 +2326,7 @@ template <BinNodeLike Node, class Key = typename Node::key_type,
           class Compare = Aleph::less<typename Node::key_type>>
 inline Node *insert_root_rec(Node *root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return p; /* insertion in an empty tree */
 
@@ -2319,6 +2368,7 @@ template <BinNodeLike Node, class Key = typename Node::key_type,
           class Compare = Aleph::less<typename Node::key_type>>
 inline Node *search_or_insert_root_rec(Node *root, Node *p, const Compare &cmp = Compare()) noexcept
 {
+  assert_valid_tree_root(root);
   if (root == Node::NullPtr)
     return p;  // insertion in empty tree
 

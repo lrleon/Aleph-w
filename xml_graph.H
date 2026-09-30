@@ -45,7 +45,10 @@
 
 # include <tpl_dynArray.H>
 # include <tpl_graph.H>
+# include <ah-graph-concepts.H>
 # include <tpl_dynMapTree.H>
+# include <optional>
+# include <utility>
 
 # include <libxml++/libxml++.h>
 # include <libxml++/parsers/textreader.h>
@@ -111,7 +114,7 @@ namespace Aleph
    *  @param Arc_Writer la función de escritura de los atributos de un arco.
    *  @author Alejandro J. Mujica
    */
-  template <class GT,
+  template <AlephGraph GT,
             class Node_Reader = Dft_Node_Reader<GT>,
             class Arc_Reader = Dft_Arc_Reader<GT>,
             class Node_Writer = Dft_Node_Writer<GT>,
@@ -124,6 +127,14 @@ namespace Aleph
     std::string node_name;
 
     std::string arc_name;
+
+    // Functors received as rvalues (including the defaults) are owned here, so
+    // the references below never outlive them. Functors received as lvalues
+    // are not copied: the references share them with the caller.
+    std::optional<Node_Reader> own_node_reader;
+    std::optional<Arc_Reader> own_arc_reader;
+    std::optional<Node_Writer> own_node_writer;
+    std::optional<Arc_Writer> own_arc_writer;
 
     Node_Reader & node_reader;
 
@@ -272,6 +283,16 @@ namespace Aleph
     }
 
   public:
+    /** @brief Build a reader/writer that shares the caller's functors.
+
+        The functors are neither copied nor owned: they must outlive this
+        object, and any state they accumulate is visible to the caller.
+
+        @param[in] _node_reader reads the attributes of a node
+        @param[in] _arc_reader reads the attributes of an arc
+        @param[in] _node_writer writes the attributes of a node
+        @param[in] _arc_writer writes the attributes of an arc
+    */
     Xml_Graph(Node_Reader & _node_reader, Arc_Reader & _arc_reader,
               Node_Writer & _node_writer, Arc_Writer & _arc_writer)
       : graph_name("graph"), node_name("node"), arc_name("arc"),
@@ -281,13 +302,50 @@ namespace Aleph
       // Empty
     }
 
+    /** @brief Build a reader/writer that owns its functors.
+
+        The functors (by default, the `Dft_*` ones) are moved into this
+        object. Before, only a reference to these temporaries was kept, and
+        it dangled as soon as the constructor returned.
+
+        @param[in] _node_reader reads the attributes of a node
+        @param[in] _arc_reader reads the attributes of an arc
+        @param[in] _node_writer writes the attributes of a node
+        @param[in] _arc_writer writes the attributes of an arc
+    */
     Xml_Graph(Node_Reader && _node_reader = Node_Reader(),
               Arc_Reader && _arc_reader = Arc_Reader(),
               Node_Writer && _node_writer = Node_Writer(),
               Arc_Writer && _arc_writer = Arc_Writer())
       : graph_name("graph"), node_name("node"), arc_name("arc"),
-        node_reader(_node_reader), arc_reader(_arc_reader),
-        node_writer(_node_writer), arc_writer(_arc_writer)
+        own_node_reader(std::move(_node_reader)),
+        own_arc_reader(std::move(_arc_reader)),
+        own_node_writer(std::move(_node_writer)),
+        own_arc_writer(std::move(_arc_writer)),
+        node_reader(*own_node_reader), arc_reader(*own_arc_reader),
+        node_writer(*own_node_writer), arc_writer(*own_arc_writer)
+    {
+      // Empty
+    }
+
+    /** @brief Copy constructor.
+
+        Owned functors are copied, so the copy does not refer to `other`'s;
+        shared functors stay shared with the caller.
+
+        @param[in] other reader/writer to copy
+    */
+    Xml_Graph(const Xml_Graph & other)
+      : graph_name(other.graph_name), node_name(other.node_name),
+        arc_name(other.arc_name),
+        own_node_reader(other.own_node_reader),
+        own_arc_reader(other.own_arc_reader),
+        own_node_writer(other.own_node_writer),
+        own_arc_writer(other.own_arc_writer),
+        node_reader(own_node_reader ? *own_node_reader : other.node_reader),
+        arc_reader(own_arc_reader ? *own_arc_reader : other.arc_reader),
+        node_writer(own_node_writer ? *own_node_writer : other.node_writer),
+        arc_writer(own_arc_writer ? *own_arc_writer : other.arc_writer)
     {
       // Empty
     }

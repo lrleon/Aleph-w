@@ -58,6 +58,7 @@
 # include <filter_iterator.H>
 # include <aleph-graph.H>
 # include <graph-dry.H>
+# include <ah-graph-concepts.H>
 # include <ah-errors.H>
 
 using namespace Aleph;
@@ -1234,7 +1235,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SN = Dft_Show_Node<GT>, class Op>
+  template <AlephGraph GT, NodeFilter<GT> SN = Dft_Show_Node<GT>, class Op>
     requires std::is_invocable_r_v<void, Op &, typename GT::Node *>
   void for_each_node(const GT & g,
                      Op operation,
@@ -1253,7 +1254,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>, class Op>
     requires std::is_invocable_r_v<void, Op &, typename GT::Arc *>
   void for_each_arc(const GT & g,
                     Op operation,
@@ -1273,7 +1274,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>, class Op>
     requires std::is_invocable_r_v<void, Op &, typename GT::Arc *>
   void for_each_arc(const GT & g,
                     typename GT::Node *p,
@@ -1295,7 +1296,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SN = Dft_Show_Node<GT>, class Op>
+  template <AlephGraph GT, NodeFilter<GT> SN = Dft_Show_Node<GT>, class Op>
     requires std::is_invocable_r_v<bool, Op &, typename GT::Node *>
   bool forall_node(const GT & g,
                    Op cond,
@@ -1317,7 +1318,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>, class Op>
     requires std::is_invocable_r_v<bool, Op &, typename GT::Arc *>
   bool forall_arc(const GT & g,
                   Op cond,
@@ -1339,7 +1340,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>, class Op>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>, class Op>
     requires std::is_invocable_r_v<bool, Op &, typename GT::Arc *>
   bool forall_arc(typename GT::Node *p,
                   Op cond,
@@ -1365,9 +1366,9 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, typename T,
+  template <AlephGraph GT, typename T,
             template<typename> class Container = DynList,
-            class SN = Dft_Show_Node<GT>, class Op>
+            NodeFilter<GT> SN = Dft_Show_Node<GT>, class Op>
     requires std::is_invocable_r_v<T, Op &, typename GT::Node *>
   Container<T> nodes_map(GT & g,
                          Op transformation,
@@ -1394,9 +1395,9 @@ namespace Aleph
         transformation
         @ingroup Graphs
     */
-  template <class GT, typename T,
+  template <AlephGraph GT, typename T,
             template<typename> class Container = DynList,
-            class SA = Dft_Show_Arc<GT>, class Op>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>, class Op>
     requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
   Container<T> arcs_map(GT & g,
                         Op transformation,
@@ -1430,9 +1431,9 @@ namespace Aleph
    *       version that maps all arcs in the graph.
    *  @ingroup Graphs
    */
-  template <class GT, typename T,
+  template <AlephGraph GT, typename T,
             template<typename> class Container = DynList,
-            class SA = Dft_Show_Arc<GT>, class Op>
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>, class Op>
     requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
   Container<T> arcs_map(GT & g,
                         typename GT::Node *p,
@@ -1457,7 +1458,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, typename T, class SN = Dft_Show_Node<GT>, class Op>
+  template <AlephGraph GT, typename T, NodeFilter<GT> SN = Dft_Show_Node<GT>, class Op>
     requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Node *>
   T foldl_nodes(GT & g, const T & init,
                 Op operation,
@@ -1480,7 +1481,7 @@ namespace Aleph
         \result the final folded result
         @ingroup Graphs
     */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>, class Op>
+  template <AlephGraph GT, typename T, ArcFilter<GT> SA = Dft_Show_Arc<GT>, class Op>
     requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Arc *>
   T foldl_arcs(GT & g, const T & init,
                Op operation,
@@ -1504,7 +1505,7 @@ namespace Aleph
         \result the final folded result
         @ingroup Graphs
     */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>, class Op>
+  template <AlephGraph GT, typename T, ArcFilter<GT> SA = Dft_Show_Arc<GT>, class Op>
     requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Arc *>
   T foldl_arcs(GT & g, typename GT::Node *p,
                const T & init,
@@ -1847,7 +1848,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Node *> out_nodes(typename GT::Node *p, SA sa = SA())
   {
     DynList<typename GT::Node *> ret;
@@ -1864,7 +1865,7 @@ namespace Aleph
         incoming nodes
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Node *> in_nodes(typename GT::Node *p, SA sa = SA())
   {
     DynList<typename GT::Node *> ret;
@@ -1880,7 +1881,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Arc *> out_arcs(typename GT::Node *p, SA sa = SA())
   {
     DynList<typename GT::Arc *> ret;
@@ -1896,7 +1897,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Arc *> in_arcs(typename GT::Node *p, SA sa = SA())
   {
     DynList<typename GT::Arc *> ret;
@@ -1911,7 +1912,7 @@ namespace Aleph
         @param[in] sa arc filter
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Arc *> arcs(typename GT::Node *p, SA sa = SA())
   {
     DynList<typename GT::Arc *> ret;
@@ -1926,7 +1927,7 @@ namespace Aleph
         @param[in] sa arc filter
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   DynList<ArcPair<GT>> in_pairs(typename GT::Node *p, SA sa = SA())
   {
     DynList<ArcPair<GT>> ret;
@@ -1945,7 +1946,7 @@ namespace Aleph
         \result a `DynList<ArcPair<GT>>` containing the outcoming pairs
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   DynList<ArcPair<GT>> out_pairs(typename GT::Node *p, SA sa = SA())
   {
     DynList<ArcPair<GT>> ret;
@@ -1962,24 +1963,16 @@ namespace Aleph
         \note This function computes the degree, it does not retrieve it.
 
         @param[in] p node pointer
-        @param[in] sa arc filter
+        @param[in] sa arc filter (by default all the arcs are counted)
         \result the incoming degree
+        @note `in_degree<GT>(p)` counts every incoming arc.
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   size_t in_degree(typename GT::Node *p, SA sa = SA())
   {
     size_t count = 0;
     for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ++count;
-    return count;
-  }
-
-  template <class GT>
-  size_t in_degree(typename GT::Node *p)
-  {
-    size_t count = 0;
-    for (_In_Iterator<GT> it(p); it.has_curr(); it.next_ne())
       ++count;
     return count;
   }
@@ -1989,25 +1982,17 @@ namespace Aleph
         \note This function computes the degree, it does not retrieve it.
 
         @param[in] p node pointer
-        @param[in] sa arc filter
+        @param[in] sa arc filter (by default all the arcs are counted)
         \result the outcoming degree
+        @note `out_degree<GT>(p)` counts every outgoing arc.
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   size_t out_degree(typename GT::Node *p, SA sa = SA())
   {
     size_t count = 0;
     for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ++count;
-    return count;
-  }
-
-  template <class GT>
-  size_t out_degree(typename GT::Node *p)
-  {
-    size_t count = 0;
-    for (_Out_Iterator<GT> it(p); it.has_curr(); it.next_ne())
       ++count;
     return count;
   }
@@ -2034,7 +2019,7 @@ namespace Aleph
         \result `true` if all the arcs were traversed: `false` otherwise
         @ingroup Graphs
     */
-  template <class GT, class Itor, class Operation>
+  template <AlephGraph GT, class Itor, class Operation>
   inline
   bool traverse_arcs(typename GT::Node *p, Operation op = Operation())
   {
@@ -2061,7 +2046,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class Itor, class Operation>
+  template <AlephGraph GT, class Itor, class Operation>
   inline
   void for_each_arc(typename GT::Node *p, Operation op = Operation())
   {
@@ -2081,7 +2066,7 @@ namespace Aleph
         \result `true` is all the arcs were traversed: `false` otherwise
         @ingroup Graphs
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   bool traverse_in_arcs(typename GT::Node *p, Op op = Op())
   {
@@ -2094,7 +2079,7 @@ namespace Aleph
         @param[in] op operation to perform on each node
         @ingroup Graphs
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   void for_each_in_arc(typename GT::Node *p, Op op = Op())
   {
@@ -2111,11 +2096,11 @@ namespace Aleph
         @param[in] op testing operation
         \result `true` if `op` returns `true` for all the incoming arcs
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   bool all_in_arc(typename GT::Node *p, Op op = Op())
   {
-    return traverse_in_arcs(p, [&op](auto a)
+    return traverse_in_arcs<GT>(p, [&op](auto a)
                               {
                                 return op(a);
                               });
@@ -2131,11 +2116,11 @@ namespace Aleph
         @param[in] op operation for testing on each arc
         \result `true` if there is at least an arc satisfying the operation
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   bool exists_in_arc(typename GT::Node *p, Op op = Op())
   {
-    return not traverse_in_arcs<GT, Op>(p, [&op](auto a)
+    return not traverse_in_arcs<GT>(p, [&op](auto a)
                                           {
                                             return not op(a);
                                           });
@@ -2152,12 +2137,12 @@ namespace Aleph
         \result a pointer to a node satisfying the operation if this is
         found; `nullptr` otherwise
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   auto search_in_arc(typename GT::Node *p, Op op = Op())
   {
     typename GT::Arc *ret = nullptr;
-    traverse_in_arcs(p, [&op, &ret](auto a)
+    traverse_in_arcs<GT>(p, [&op, &ret](auto a)
                        {
                          if (op(a))
                            {
@@ -2182,13 +2167,13 @@ namespace Aleph
         @param[in] op transformation
         \result a `DynList<T>` containing the mapping.
     */
-  template <class GT, typename T, class Op>
+  template <AlephGraph GT, typename T, class Op>
     requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
   inline
   auto map_in_arcs(typename GT::Node *p, Op op)
   {
     DynList<T> ret;
-    for_each_in_arc(p, [&ret, &op](auto a)
+    for_each_in_arc<GT>(p, [&ret, &op](auto a)
                       {
                         ret.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(op, a));
                       });
@@ -2211,14 +2196,14 @@ namespace Aleph
         @param[in] op folding operation
         \result the final folded result after the last seen arc
     */
-  template <class GT, typename T, class Op>
+  template <AlephGraph GT, typename T, class Op>
     requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Arc *>
   inline
   T foldl_in_arcs(typename GT::Node *p, const T & init,
                   Op op)
   {
     T ret = init;
-    for_each_in_arc(p, [&ret, &op](auto a)
+    for_each_in_arc<GT>(p, [&ret, &op](auto a)
                       {
                         ret = Aleph::concepts_detail::invoke_as<T (const T &, typename GT::Arc *)>::call(op, ret, a);
                       });
@@ -2231,12 +2216,12 @@ namespace Aleph
         @param[in] cond filtering condition
         \result a `DynList<typename GT::Arc*>` containing the filtered arcs
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   DynList<typename GT::Arc *> filter_in_arcs(typename GT::Node *p, Op cond)
   {
     DynList<typename GT::Arc *> ret;
-    for_each_in_arc(p, [&ret, &cond](auto a)
+    for_each_in_arc<GT>(p, [&ret, &cond](auto a)
                       {
                         if (cond(a))
                           ret.append(a);
@@ -2256,7 +2241,7 @@ namespace Aleph
         \result `true` is all the arcs were traversed: `false` otherwise
         @ingroup Graphs
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   bool traverse_out_arcs(typename GT::Node *p, Op op = Op())
   {
@@ -2269,7 +2254,7 @@ namespace Aleph
         @param[in] op operation to perform on each node
         @ingroup Graphs
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   void for_each_out_arc(typename GT::Node *p, Op op = Op())
   {
@@ -2286,11 +2271,11 @@ namespace Aleph
         @param[in] op testing operation
         \result `true` if `op` returns `true` for all the incoming arcs
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   bool all_out_arc(typename GT::Node *p, Op op = Op())
   {
-    return traverse_out_arcs(p, [&op](auto a)
+    return traverse_out_arcs<GT>(p, [&op](auto a)
                                {
                                  return op(a);
                                });
@@ -2306,11 +2291,11 @@ namespace Aleph
         @param[in] op operation for testing on each arc
         \result `true` if there is at least an arc satisfying the operation
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   bool exists_out_arc(typename GT::Node *p, Op op = Op())
   {
-    return not traverse_out_arcs<GT, Op>(p, [&op](auto a)
+    return not traverse_out_arcs<GT>(p, [&op](auto a)
                                            {
                                              return not op(a);
                                            });
@@ -2327,7 +2312,7 @@ namespace Aleph
         \result a pointer to a node satisfying the operation if this is
         found; `nullptr` otherwise
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   auto search_out_arc(typename GT::Node *p, Op op = Op())
   {
@@ -2357,13 +2342,13 @@ namespace Aleph
         @param[in] op transformation
         \result a `DynList<T>` containing the mapping.
     */
-  template <class GT, typename T, class Op>
+  template <AlephGraph GT, typename T, class Op>
     requires std::is_invocable_r_v<T, Op &, typename GT::Arc *>
   inline
   auto map_out_arcs(typename GT::Node *p, Op op)
   {
     DynList<T> ret;
-    for_each_out_arc(p, [&ret, &op](auto a)
+    for_each_out_arc<GT>(p, [&ret, &op](auto a)
                        {
                          ret.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(op, a));
                        });
@@ -2386,14 +2371,14 @@ namespace Aleph
         @param[in] op folding operation
         \result the final folded result after the last seen arc
     */
-  template <class GT, typename T, class Op>
+  template <AlephGraph GT, typename T, class Op>
     requires std::is_invocable_r_v<T, Op &, const T &, typename GT::Arc *>
   inline
   T foldl_out_arcs(typename GT::Node *p, const T & init,
                    Op op)
   {
     T ret = init;
-    for_each_out_arc(p, [&ret, &op](auto a)
+    for_each_out_arc<GT>(p, [&ret, &op](auto a)
                        {
                          ret = Aleph::concepts_detail::invoke_as<T (const T &, typename GT::Arc *)>::call(op, ret, a);
                        });
@@ -2406,12 +2391,12 @@ namespace Aleph
         @param[in] cond filtering condition
         \result a `DynList<typename GT::Arc*>` containing the filtered arcs
     */
-  template <class GT, class Op>
+  template <AlephGraph GT, class Op>
   inline
   DynList<typename GT::Arc *> filter_out_arcs(typename GT::Node *p, Op cond)
   {
     DynList<typename GT::Arc *> ret;
-    for_each_out_arc(p, [&ret, &cond](auto a)
+    for_each_out_arc<GT>(p, [&ret, &cond](auto a)
                        {
                          if (cond(a))
                            ret.append(a);
@@ -2432,7 +2417,7 @@ namespace Aleph
         @return pointer to found node; \c nullptr otherwise
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
   search_arc(const GT & g,
              typename GT::Node *src, typename GT::Node *tgt,
@@ -2460,7 +2445,7 @@ namespace Aleph
         nullptr otherwise.
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
   search_directed_arc(const GT & g,
                       typename GT::Node *src, typename GT::Node *tgt,
@@ -2480,28 +2465,28 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT>
+  template <AlephGraph GT>
   typename GT::Node * mapped_node(typename GT::Node *p) noexcept
   {
     return static_cast<typename GT::Node *>(NODE_COOKIE(p));
   }
 
   /// Return the mapped arc through the cookie of `p`
-  template <class GT>
+  template <AlephGraph GT>
   typename GT::Arc * mapped_arc(typename GT::Arc *a) noexcept
   {
     return static_cast<typename GT::Arc *>(ARC_COOKIE(a));
   }
 
   /// \overload mapped_node(typename GT::Node * p)
-  template <class GTSRC, class GTTGT>
+  template <AlephGraph GTSRC, AlephGraph GTTGT>
   typename GTTGT::Node * mapped_node(typename GTSRC::Node *p) noexcept
   {
     return static_cast<typename GTTGT::Node *>(NODE_COOKIE(p));
   }
 
   /// \overload  mapped_arc(typename GT::Arc * a)
-  template <class GTSRC, class GTTGT>
+  template <AlephGraph GTSRC, AlephGraph GTTGT>
   typename GTTGT::Arc * mapped_arc(typename GTSRC::Arc *a) noexcept
   {
     return static_cast<typename GTTGT::Arc *>(ARC_COOKIE(a));
@@ -2524,7 +2509,7 @@ namespace Aleph
         @throw bad_alloc if there is no enough memory
         @ingroup Graphs
     */
-  template <class GT>
+  template <AlephGraph GT>
   inline
   void copy_graph(GT & gtgt, const GT & gsrc, bool cookie_map = false);
 
@@ -2533,7 +2518,7 @@ namespace Aleph
         @param[in] g the graph
         @ingroup Graphs
     */
-  template <class GT>
+  template <AlephGraph GT>
   inline void clear_graph(GT & g) noexcept;
 
   /** Functor that traverses the nodes of a graph and performs an
@@ -2546,7 +2531,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class Operation, class SN = Dft_Show_Node<GT>>
+  template <AlephGraph GT, class Operation, NodeFilter<GT> SN = Dft_Show_Node<GT>>
   class Operate_On_Nodes
   {
     SN sn;
@@ -2591,7 +2576,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class Operation, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, class Operation, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Operate_On_Arcs
   {
     SA sa;
@@ -3430,7 +3415,7 @@ namespace Aleph
     }
   };
 
-  template <class GT>
+  template <AlephGraph GT>
   inline
   Path<GT> find_path_depth_first(const GT & g, typename GT::Node *start_node,
                                  typename GT::Node *end_node);
@@ -3486,7 +3471,7 @@ namespace Aleph
         @see find_path_breadth_first()
         @ingroup Graphs
     */
-  template <class GT>
+  template <AlephGraph GT>
   inline
   Path<GT> find_path_depth_first(const GT & g, typename GT::Node *start_node,
                                  typename GT::Node *end_node)
@@ -3523,7 +3508,7 @@ namespace Aleph
         @param[in] q pointer to the target node
         @ingroup Graphs
     */
-  template <class GTS, class GTT>
+  template <AlephGraph GTS, AlephGraph GTT>
   void map_nodes(typename GTS::Node *p, typename GTT::Node *q) noexcept
   {
     assert(p != nullptr and q != nullptr);
@@ -3551,7 +3536,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GTS, class GTT>
+  template <AlephGraph GTS, AlephGraph GTT>
   void map_arcs(typename GTS::Arc *p, typename GTT::Arc *q) noexcept
   {
     assert(p != nullptr and q != nullptr);
@@ -3568,7 +3553,7 @@ namespace Aleph
     ARC_COOKIE(p) = q;
   }
 
-  template <class GT>
+  template <AlephGraph GT>
   void clear_graph(GT & g) noexcept
   {
     for (typename GT::Arc_Iterator it(g); it.has_curr();) // remove arcs
@@ -3586,7 +3571,7 @@ namespace Aleph
       }
   }
 
-  template <class GT>
+  template <AlephGraph GT>
   void copy_graph(GT & gtgt, const GT & gsrc, const bool cookie_map)
   {
     try
@@ -3671,7 +3656,7 @@ namespace Aleph
         nodes and arcs cookies
         @ingroup Graphs
     */
-  template <class GTT, class GTS,
+  template <AlephGraph GTT, AlephGraph GTS,
             class Copy_Node = Dft_Copy_Node<GTT, GTS>,
             class Copy_Arc = Dft_Copy_Arc<GTT, GTS>>
   void inter_copy_graph(GTT & gtgt, const GTS & gsrc,
@@ -3734,7 +3719,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SN = Dft_Show_Node<GT>, class SA = Dft_Show_Arc<GT>>
+  template <AlephGraph GT, NodeFilter<GT> SN = Dft_Show_Node<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
   class Copy_Graph
   {
     SN sn;
@@ -3821,7 +3806,7 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class Distance>
+  template <AlephGraph GT, class Distance>
   struct Painted_Min_Spanning_Tree
   {
     /// Accumulative distance from the first seen arc until the last seen
@@ -3861,7 +3846,7 @@ namespace Aleph
         \see Kruskal_Min_Spanning_Tree Prim_Min_Spanning_Tree
         \see Dijkstra_Min_Paths Bellman_Ford
     */
-  template <class GT>
+  template <AlephGraph GT>
   inline
   bool are_equal(const GT & g1, const GT & g2);
 
@@ -3898,7 +3883,7 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see copy_graph map_nodes Johnson
    */
-  template <class GT,
+  template <AlephGraph GT,
             template <class, class> class Tree = Treap>
   class GraphCopyWithMapping
   {

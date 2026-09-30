@@ -708,6 +708,32 @@ endforeach()
 set(_ALEPH_KNOWN_TEST_TARGETS "${TEST_PROGRAMS};${EXHAUSTIVE_TESTS}")
 list(APPEND _ALEPH_KNOWN_TEST_TARGETS regular_polygon_msan_probe)
 
+# xml_graph.H needs libxml++ 2.6, located through pkg-config. Hosts without it
+# (e.g. CI) do not build xml_graph_test; it is always kept out of the glob below.
+list(APPEND _ALEPH_KNOWN_TEST_TARGETS xml_graph_test)
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(ALEPH_LIBXMLXX QUIET IMPORTED_TARGET libxml++-2.6)
+endif()
+if(TARGET PkgConfig::ALEPH_LIBXMLXX)
+    add_executable(xml_graph_test xml_graph_test.cc)
+    list(APPEND _ALEPH_TEST_EXECUTABLE_TARGETS xml_graph_test)
+    target_link_libraries(xml_graph_test PRIVATE
+        Aleph
+        GTest::gtest_main
+        GTest::gtest
+        ${ALEPH_SYSTEM_LIBS}
+        PkgConfig::ALEPH_LIBXMLXX
+    )
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(xml_graph_test PRIVATE -Wno-unused-result)
+    endif()
+    gtest_discover_tests(xml_graph_test DISCOVERY_MODE PRE_TEST)
+    message(STATUS "libxml++-2.6 found: building xml_graph_test")
+else()
+    message(STATUS "libxml++-2.6 not found: xml_graph_test is not built")
+endif()
+
 file(GLOB _ALEPH_ALL_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cc")
 foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
     get_filename_component(_name "${_src}" NAME_WE)

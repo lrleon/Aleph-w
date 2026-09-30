@@ -48,3 +48,21 @@ TEST(AhBinNodeConceptsTest, ConstrainedUtilitiesStillRun)
   EXPECT_EQ(computeHeightRec(root), 3u);
   destroyRec(root);
 }
+
+// Without a sentinel, nullptr is the empty tree and stays valid.
+TEST(AhBinNodeConceptsTest, NullptrIsTheEmptyTreeWithoutSentinel)
+{
+  BinNode<int> * root = nullptr;
+  EXPECT_EQ(searchInBinTree(root, 1), nullptr);
+}
+
+#ifndef NDEBUG
+// With a sentinel (BinNodeXt), a nullptr root is a corrupted tree: debug
+// builds report it instead of dereferencing it.
+TEST(AhBinNodeConceptsDeathTest, NullptrRootInSentinelTreeIsReported)
+{
+  using Node = BinNodeXt<int>;
+  Node * root = nullptr;
+  EXPECT_DEATH((void) searchInBinTree(root, 1), "use Node::NullPtr");
+}
+#endif

@@ -533,6 +533,42 @@ static_assert(BacktrackingDomain<SubsetSumDomain>);
 static_assert(TerminalPredicate<SubsetSumDomain>);
 static_assert(DomainPruner<SubsetSumDomain>);
 
+// Moves live in SearchPath, an Aleph Array: without a default constructor or
+// copy assignment the engines used to fail inside tpl_memArray.H/tpl_array.H.
+struct NoDefaultMove
+{
+  int delta;
+  explicit NoDefaultMove(const int d) : delta(d) {}
+};
+
+struct NoCopyAssignMove
+{
+  int delta = 0;
+  NoCopyAssignMove() = default;
+  NoCopyAssignMove(const NoCopyAssignMove &) = default;
+  NoCopyAssignMove(NoCopyAssignMove &&) = default;
+  NoCopyAssignMove &operator=(NoCopyAssignMove &&) = default;
+  NoCopyAssignMove &operator=(const NoCopyAssignMove &) = delete;
+};
+
+static_assert(ArrayStorable<NQueensDomain::Move> and ArrayStorable<std::unique_ptr<int>>);
+static_assert(not ArrayStorable<NoDefaultMove>);
+static_assert(not SearchMove<NoDefaultMove> and not SearchMove<NoCopyAssignMove>);
+
+// States are snapshotted by copy construction only (BestSolution assigns
+// through a temporary), so copy assignment is not required of them.
+struct NoCopyAssignState
+{
+  int depth = 0;
+  NoCopyAssignState() = default;
+  NoCopyAssignState(const NoCopyAssignState &) = default;
+  NoCopyAssignState(NoCopyAssignState &&) = default;
+  NoCopyAssignState &operator=(NoCopyAssignState &&) = default;
+  NoCopyAssignState &operator=(const NoCopyAssignState &) = delete;
+};
+
+static_assert(SearchState<NoCopyAssignState>);
+
 static_assert(IDAStarDomain<TinyIDAStarDomain>);
 static_assert(IDAStarDomain<ThrowingApplyIDADomain>);
 static_assert(IDAStarDomain<ThrowingPostApplyIDADomain>);

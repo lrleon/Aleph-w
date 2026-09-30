@@ -73,6 +73,7 @@
 # include <cassert>
 # include <cstdlib>
 # include <concepts>
+# include <functional>
 # include <initializer_list>
 # include <type_traits>
 # include <vector>
@@ -86,16 +87,85 @@
 
 namespace Aleph
 {
+  namespace sparse_table_detail
+  {
+    // Arithmetic functors: never idempotent over numbers other than bool.
+    template <typename F>
+    inline constexpr bool is_arithmetic_functor = false;
+
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<std::plus<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<std::minus<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<std::multiplies<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<std::divides<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<std::modulus<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<std::bit_xor<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<Aleph::plus<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<Aleph::minus<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<Aleph::multiplies<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<Aleph::divides<U>> = true;
+    template <typename U>
+    inline constexpr bool is_arithmetic_functor<Aleph::modulus<U>> = true;
+  } // namespace sparse_table_detail
+
+  /** @brief True if @p F is known not to be idempotent over @p T.
+   *
+   *  Idempotency (`f(a, a) == a`) cannot be checked in general, so this
+   *  is a list of known offenders, not a proof: the standard and Aleph
+   *  arithmetic functors (`plus`, `minus`, `multiplies`, `divides`,
+   *  `modulus`, `std::bit_xor`) over a numeric @p T other than `bool`.
+   *  Class types are left out because their operators may mean something
+   *  else (e.g. `+` as set union, which is idempotent), and so is `bool`,
+   *  where `plus` and `multiplies` behave as OR and AND.
+   *
+   *  @tparam F functor type.
+   *  @tparam T value type.
+   *
+   *  @note Customization point: specialize it to `true` for your own
+   *  non-idempotent functors so that `Gen_Sparse_Table` rejects them.
+   */
+  template <typename F, typename T>
+  inline constexpr bool is_known_non_idempotent_op =
+      sparse_table_detail::is_arithmetic_functor<std::remove_cvref_t<F>> and
+      std::is_arithmetic_v<std::remove_cv_t<T>> and
+      not std::is_same_v<std::remove_cv_t<T>, bool>;
+
+  /** @brief A closed binary operation not known to break idempotency.
+   *
+   *  `Aleph::ClosedBinaryOp` minus the functors flagged by
+   *  `is_known_non_idempotent_op`. It catches the common mistake of
+   *  building a Sparse Table over a sum or a product, which compiles but
+   *  returns wrong answers because queries combine overlapping blocks.
+   *
+   *  @tparam F functor type.
+   *  @tparam T value type.
+   *
+   *  @note Any other functor, including user lambdas, is accepted: the
+   *  caller must still ensure associativity and idempotency.
+   */
+  template <typename F, typename T>
+  concept IdempotentOp =
+      Aleph::ClosedBinaryOp<F, T> and not is_known_non_idempotent_op<F, T>;
+
   /** @brief Binary operation compatible with Sparse Table queries.
    *
-   *  Alias of `Aleph::ClosedBinaryOp` kept for source compatibility.
+   *  Same as `IdempotentOp`; the name is kept for source compatibility.
    *
-   *  @note This concept checks only the call signature. For Sparse Table
-   *  correctness, @p F must also satisfy the semantic laws:
+   *  @note Only known non-idempotent functors are rejected. For Sparse
+   *  Table correctness, @p F must also satisfy the semantic laws:
    *  associativity and idempotency.
    */
   template <typename F, typename T>
-  concept SparseTableOp = Aleph::ClosedBinaryOp<F, T>;
+  concept SparseTableOp = IdempotentOp<F, T>;
 
   /** @brief Functor returning the minimum of two values.
    *

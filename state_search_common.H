@@ -89,11 +89,14 @@ concept SearchState = std::movable<T> and std::copy_constructible<T>;
 
 /** @brief Minimal requirement for search moves.
  *
- *  Moves are stored in Aleph arrays to preserve a reconstruction path and to
- *  support future move-ordering policies.
+ *  Moves are stored in Aleph arrays (`SearchPath`) to preserve a
+ *  reconstruction path and to support move-ordering policies, so they must
+ *  be `ArrayStorable`; they are also appended and copied by value
+ *  (`path.append(move)`, path snapshots), so they must be copyable,
+ *  assignment included.
  */
 template <typename T>
-concept SearchMove = std::movable<T> and std::copy_constructible<T>;
+concept SearchMove = Aleph::ArrayStorable<T> and std::copyable<T>;
 
 /** @brief Default Aleph container used to store a move path. */
 template <SearchMove Move>
