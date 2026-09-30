@@ -254,3 +254,33 @@ TEST(AhConceptsFunctionalTest, FreeGraphOverloadsStayUnambiguous)
   EXPECT_TRUE(Aleph::forall_arc(g, ArcPred()));
   EXPECT_EQ((Aleph::nodes_map<Graph, long>(g, [](Graph::Node * p) { return p->get_info(); }).size()), 2u);
 }
+
+// nodes_map/arcs_map/map_in_arcs/map_out_arcs only accept a generic Op, so T
+// (which appears only in the return type and the requires-clause, never in a
+// parameter) is not deducible: an actual std::function<T(...)> argument, which
+// the older std::function-parameter signature could deduce T from, used to
+// need T spelled out explicitly. The compatibility overloads restore that.
+TEST(AhConceptsFunctionalTest, MapHelpersDeduceTFromStdFunctionArguments)
+{
+  Graph g;
+  auto * n1 = g.insert_node(1);
+  auto * n2 = g.insert_node(2);
+  auto * n3 = g.insert_node(3);
+  g.insert_arc(n1, n2, 10);
+  g.insert_arc(n1, n3, 20);
+  g.insert_arc(n2, n3, 30);
+
+  std::function<int(Graph::Node *)> nf = [](Graph::Node * p) { return p->get_info() * 100; };
+  std::function<int(Graph::Arc *)> af = [](Graph::Arc * a) { return a->get_info() + 1; };
+
+  EXPECT_EQ((Aleph::nodes_map<Graph>(g, nf).size()), 3u);
+  EXPECT_EQ((Aleph::arcs_map<Graph>(g, af).size()), 3u);
+  EXPECT_EQ((Aleph::arcs_map<Graph>(g, n1, af).size()), 2u);
+  EXPECT_EQ((Aleph::map_in_arcs<Graph>(n3, af).size()), 2u);
+  EXPECT_EQ((Aleph::map_out_arcs<Graph>(n1, af).size()), 2u);
+
+  // The generic (lambda) and std::function overloads must both stay callable
+  // with T explicit, without becoming ambiguous with each other.
+  EXPECT_EQ((Aleph::nodes_map<Graph, int>(g, [](Graph::Node * p) { return p->get_info(); }).size()), 3u);
+  EXPECT_EQ((Aleph::nodes_map<Graph, int>(g, nf).size()), 3u);
+}

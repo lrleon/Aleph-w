@@ -587,15 +587,26 @@ namespace Aleph
     struct invoke_as<R(A...)>
     {
       /** @brief Invoke `f(a...)` converting the result to `R`.
+       *
+       *  When `R` is `void`, `f`'s result (if any) is discarded instead of
+       *  returned, matching `std::is_invocable_r_v<void, F, A...>` (true for
+       *  any return type) and `std::function<void(A...)>`'s own behavior.
+       *  A plain `return std::invoke(...);` would be ill-formed here: a
+       *  `void` function cannot return a non-`void` expression.
+       *
        *  @param f callable, invoked as a non-`const` lvalue.
        *  @param a arguments.
-       *  @return the result of the call, converted to `R`.
+       *  @return the result of the call, converted to `R`; nothing if `R`
+       *  is `void`.
        *  @throws anything `f` throws.
        */
       template <class F>
       static R call(F & f, A... a)
       {
-        return std::invoke(f, std::forward<A>(a)...);
+        if constexpr (std::is_void_v<R>)
+          std::invoke(f, std::forward<A>(a)...);
+        else
+          return std::invoke(f, std::forward<A>(a)...);
       }
     };
   } // namespace concepts_detail

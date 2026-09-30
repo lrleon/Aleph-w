@@ -38,6 +38,7 @@
 # include <cstdio>
 # include <filesystem>
 # include <random>
+# include <stdexcept>
 # include <string>
 
 # include <ahSort.H>
@@ -206,6 +207,60 @@ TEST_F(XmlGraphTest, CopyOfOwnerOutlivesTheOriginal)
   copy(g, file("owned.xml"));
   G h = copy(file("owned.xml"));
   EXPECT_EQ(describe(h), describe(g));
+}
+
+namespace
+{
+  // Movable but not copyable, e.g. because it owns a resource.
+  struct NonCopyableWriter
+  {
+    int calls = 0;
+    NonCopyableWriter() = default;
+    NonCopyableWriter(const NonCopyableWriter &) = delete;
+    NonCopyableWriter(NonCopyableWriter &&) = default;
+
+    void operator()(G &, G::Node * p, DynArray<Attr> & attrs)
+    {
+      ++calls;
+      attrs.append(Attr{"info", std::to_string(p->get_info())});
+    }
+  };
+
+  using XGNonCopyable = Xml_Graph<G, Dft_Node_Reader<G>, Dft_Arc_Reader<G>, NonCopyableWriter>;
+} // namespace
+
+// Copying an Xml_Graph used to require every functor type to be
+// copy-constructible, even in shared mode, where no functor is ever actually
+// copied: std::optional<F>'s copy constructor is deleted whenever F is not
+// copy-constructible, regardless of whether the specific optional holds a
+// value. Sharing (not owning) a non-copy-constructible functor must still
+// allow the reader/writer itself to be copied.
+TEST_F(XmlGraphTest, CopyOfSharedNonCopyableFunctorWorks)
+{
+  G g = sample_graph();
+  Dft_Node_Reader<G> nr;
+  Dft_Arc_Reader<G> ar;
+  NonCopyableWriter nw;
+  Dft_Arc_Writer<G> aw;
+
+  XGNonCopyable shared(nr, ar, nw, aw);
+  XGNonCopyable copy = shared;  // must not try to copy nw
+
+  copy(g, file("owned.xml"));
+  EXPECT_EQ(nw.calls, 5);
+}
+
+// Copying an Xml_Graph that *owns* a non-copy-constructible functor cannot
+// duplicate that functor, so it must fail loudly (a runtime error, per
+// CLAUDE.md), not silently share it or refuse to compile for callers who
+// never attempt this copy.
+TEST_F(XmlGraphTest, CopyOfOwnedNonCopyableFunctorThrows)
+{
+  // `XGNonCopyable owner(A(), B(), C(), D());` would parse as a function
+  // declaration (most vexing parse); `=` forces expression context.
+  XGNonCopyable owner =
+      XGNonCopyable(Dft_Node_Reader<G>(), Dft_Arc_Reader<G>(), NonCopyableWriter(), Dft_Arc_Writer<G>());
+  EXPECT_THROW((XGNonCopyable(owner)), std::runtime_error);
 }
 
 TEST_F(XmlGraphTest, CustomElementNamesRoundTrip)

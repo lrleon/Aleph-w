@@ -47,7 +47,9 @@
 # include <tpl_graph.H>
 # include <ah-graph-concepts.H>
 # include <tpl_dynMapTree.H>
+# include <ah-errors.H>
 # include <optional>
+# include <type_traits>
 # include <utility>
 
 # include <libxml++/libxml++.h>
@@ -328,20 +330,50 @@ namespace Aleph
       // Empty
     }
 
+    /** @brief Copy an `other` reader/writer whose functor may not be
+        copy-constructible.
+
+        @tparam F the functor's own type (`Node_Reader`, ...).
+        @param[in] src the corresponding `own_*` member of `other`.
+        @return a copy of `src`, if `F` is copy-constructible.
+        @throw std::runtime_error if `F` is not copy-constructible and
+        `src` holds a value (a copyable `other` can still always be
+        shared, even if it owns a non-copy-constructible functor: only
+        copying such an owned functor is impossible).
+    */
+    template <class F>
+    static std::optional<F> copy_own(const std::optional<F> & src)
+    {
+      if constexpr (std::is_copy_constructible_v<F>)
+        return src;
+      else
+        {
+          ah_runtime_error_if(src.has_value())
+            << "Xml_Graph: cannot copy a reader/writer that owns a "
+               "non-copy-constructible functor; share it instead "
+               "(construct from an lvalue)";
+          return std::nullopt;
+        }
+    }
+
     /** @brief Copy constructor.
 
         Owned functors are copied, so the copy does not refer to `other`'s;
-        shared functors stay shared with the caller.
+        shared functors stay shared with the caller. A functor type that is
+        movable but not copy-constructible is only a problem if `other`
+        actually owns it (see `copy_own`); merely being of such a type does
+        not stop `other` from being copied while it shares its functors.
 
         @param[in] other reader/writer to copy
+        @throw std::runtime_error see `copy_own`
     */
     Xml_Graph(const Xml_Graph & other)
       : graph_name(other.graph_name), node_name(other.node_name),
         arc_name(other.arc_name),
-        own_node_reader(other.own_node_reader),
-        own_arc_reader(other.own_arc_reader),
-        own_node_writer(other.own_node_writer),
-        own_arc_writer(other.own_arc_writer),
+        own_node_reader(copy_own(other.own_node_reader)),
+        own_arc_reader(copy_own(other.own_arc_reader)),
+        own_node_writer(copy_own(other.own_node_writer)),
+        own_arc_writer(copy_own(other.own_arc_writer)),
         node_reader(own_node_reader ? *own_node_reader : other.node_reader),
         arc_reader(own_arc_reader ? *own_arc_reader : other.arc_reader),
         node_writer(own_node_writer ? *own_node_writer : other.node_writer),

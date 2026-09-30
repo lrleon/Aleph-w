@@ -1382,6 +1382,31 @@ namespace Aleph
     return ret_val;
   }
 
+  /** \overload
+   *
+   *  Compatibility overload for callers that pass an actual
+   *  `std::function<T (typename GT::Node *)>` (rather than a lambda or other
+   *  callable) and rely on `T` being deduced from it, as the generic overload
+   *  above cannot: `T` appears only in its return type and `requires`
+   *  clause, never in a parameter, so it is not a deduced context there.
+   *
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT, typename T,
+            template<typename> class Container = DynList,
+            NodeFilter<GT> SN = Dft_Show_Node<GT>>
+  Container<T> nodes_map(GT & g,
+                         std::function<T (typename GT::Node *)> transformation,
+                         SN sn = SN())
+  {
+    // Forward through a lambda, not `transformation` itself: passing the
+    // `std::function` as-is would make this call ambiguous between this
+    // overload and the generic one (both exactly match a `std::function<T
+    // (typename GT::Node *)>` argument once `Op` is deduced as that type).
+    return nodes_map<GT, T, Container, SN>(
+        g, [&transformation](typename GT::Node * p) { return transformation(p); }, sn);
+  }
+
   /** Map the filtered arcs of a graph to a transformed type.
 
         @tparam GT Graph type
@@ -1409,6 +1434,27 @@ namespace Aleph
                              ret_val.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(transformation, p));
                            }, sa);
     return ret_val;
+  }
+
+  /** \overload
+   *
+   *  Compatibility overload deducing `T` from an actual
+   *  `std::function<T (typename GT::Arc *)>` argument; see the equivalent
+   *  `nodes_map` overload for why the generic one above cannot deduce it.
+   *
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT, typename T,
+            template<typename> class Container = DynList,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+  Container<T> arcs_map(GT & g,
+                        std::function<T (typename GT::Arc *)> transformation,
+                        SA sa = SA())
+  {
+    // See the equivalent nodes_map overload for why this must go through a
+    // lambda rather than forwarding `transformation` as-is.
+    return arcs_map<GT, T, Container, SA>(
+        g, [&transformation](typename GT::Arc * a) { return transformation(a); }, sa);
   }
 
   /** \overload
@@ -1446,6 +1492,28 @@ namespace Aleph
                              ret_val.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(transformation, p));
                            }, sa);
     return ret_val;
+  }
+
+  /** \overload
+   *
+   *  Compatibility overload deducing `T` from an actual
+   *  `std::function<T (typename GT::Arc *)>` argument; see the equivalent
+   *  `nodes_map` overload for why the generic one above cannot deduce it.
+   *
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT, typename T,
+            template<typename> class Container = DynList,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+  Container<T> arcs_map(GT & g,
+                        typename GT::Node *p,
+                        std::function<T (typename GT::Arc *)> transformation,
+                        SA sa = SA())
+  {
+    // See the equivalent nodes_map overload for why this must go through a
+    // lambda rather than forwarding `transformation` as-is.
+    return arcs_map<GT, T, Container, SA>(
+        g, p, [&transformation](typename GT::Arc * a) { return transformation(a); }, sa);
   }
 
   /** Fold the filtered nodes of a graph.
@@ -2180,6 +2248,23 @@ namespace Aleph
     return ret;
   }
 
+  /** \overload
+   *
+   *  Compatibility overload deducing `T` from an actual
+   *  `std::function<T (typename GT::Arc *)>` argument; see the equivalent
+   *  `nodes_map` overload for why the generic one above cannot deduce it.
+   *
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT, typename T>
+  inline
+  auto map_in_arcs(typename GT::Node *p, std::function<T (typename GT::Arc *)> op)
+  {
+    // See the equivalent nodes_map overload for why this must go through a
+    // lambda rather than forwarding `op` as-is.
+    return map_in_arcs<GT, T>(p, [&op](typename GT::Arc * a) { return op(a); });
+  }
+
   /** Fold the incoming arcs of a node.
 
         This method folds the incoming arcs to a final folded type `T`. Each
@@ -2353,6 +2438,23 @@ namespace Aleph
                          ret.append(Aleph::concepts_detail::invoke_as<T (typename GT::Arc *)>::call(op, a));
                        });
     return ret;
+  }
+
+  /** \overload
+   *
+   *  Compatibility overload deducing `T` from an actual
+   *  `std::function<T (typename GT::Arc *)>` argument; see the equivalent
+   *  `nodes_map` overload for why the generic one above cannot deduce it.
+   *
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT, typename T>
+  inline
+  auto map_out_arcs(typename GT::Node *p, std::function<T (typename GT::Arc *)> op)
+  {
+    // See the equivalent nodes_map overload for why this must go through a
+    // lambda rather than forwarding `op` as-is.
+    return map_out_arcs<GT, T>(p, [&op](typename GT::Arc * a) { return op(a); });
   }
 
   /** Fold the outcoming arcs of a node.
