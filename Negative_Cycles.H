@@ -50,7 +50,8 @@
  *  - `most_negative_cycle_bounded()`: for every node as origin, runs a
  *    relaxation bounded to `max_length` steps to find the closed walks of
  *    minimum total cost, decomposes them into simple cycles and returns the
- *    most negative simple cycle of at most `max_length` arcs.
+ *    most negative simple cycle of at most `max_length` arcs. It runs only
+ *    on the nodes and arcs that lie inside a strongly connected component.
  *
  *  Unlike `Bellman_Ford` (`Bellman_Ford.H`), neither function modifies the
  *  graph (no dummy node, no cookies, no bits) and both take a `const GT &`;
@@ -60,10 +61,55 @@
  *
  *  ## Complexity
  *
- *  | Function | Time | Space |
- *  |----------|------|-------|
- *  | `find_disjoint_negative_cycles` | O(max_cycles · V · E) | O(V + E) |
- *  | `most_negative_cycle_bounded` | O(V · L · E) | O(L · V + E) |
+ *  Both functions first snapshot the graph in O((V + E) log V) (nodes are
+ *  mapped to positions with an AVL map), then work on arrays. `E` counts
+ *  every arc the arc iterator visits, which includes the arcs rejected by
+ *  the filter. Working space excludes the cycles that are returned (up to
+ *  O(K · V) for `K` of them).
+ *
+ *  | Function | Time | Working space |
+ *  |----------|------|---------------|
+ *  | `find_disjoint_negative_cycles` | O((V + E) log V + R · V · (V + E)) | O(V + E) |
+ *  | `most_negative_cycle_bounded` | O((V + E) log V + V_c · L · (V_c + E_c)) | O(L · V_c + V + E) |
+ *
+ *  `R` is the number of searches (rounds) the enumeration runs: at most
+ *  `max_cycles + 1` unless floating-point candidates are discarded without
+ *  being reported, and never more than `E + 1`. `L = min(max_length, V)`.
+ *  `V_c` and `E_c` are the nodes and arcs of the *cyclic core*: those inside
+ *  a strongly connected component that has an arc (`V_c <= V`, `E_c <= E`).
+ *  A graph without cycles costs just the snapshot and an O(V + E) scan; the
+ *  usual `O(V · L · E)` form of the second bound holds when `E_c >= V_c`.
+ *
+ *  ## Numeric model
+ *
+ *  Every cost is accumulated with the `+` and `<` of `Distance::Distance_Type`,
+ *  in the order the algorithm happens to add them. For integer costs that is
+ *  exact arithmetic (an overflow throws `std::overflow_error`), and every
+ *  statement below about "negative", "minimum" and `is_exact` is a
+ *  mathematical one. For floating-point costs the statements hold *for the
+ *  arithmetic as evaluated*, not for the real numbers the weights denote:
+ *  rounding, cancellation and absorption can make a cycle whose exact total
+ *  is zero look negative, and can hide a negative cycle (a huge partial sum
+ *  absorbs a small weight). Results for floating-point costs are therefore
+ *  never a mathematical certificate; applications that need a safety margin
+ *  should fold it into the distance accessor (for instance by adding a
+ *  minimum profit to every weight).
+ *
+ *  Two measures limit the damage. The cost reported for a cycle is always
+ *  recomputed from its arcs with compensated (Neumaier) summation, so a
+ *  cycle whose exact total is zero is not presented as negative because of
+ *  cancellation, and `is_exact` is withdrawn if that cost and the plain sum
+ *  used to rank the cycles disagree on the sign. Absorption during the
+ *  search itself is not corrected: a negative cycle hidden by a huge partial
+ *  distance can still go undetected by `find_disjoint_negative_cycles()`.
+ *
+ *  ## Lifetime and concurrency
+ *
+ *  The returned paths and node/arc lists hold pointers into the graph `g`:
+ *  they are valid only while those nodes and arcs are. Several threads may
+ *  run these functions on the same graph if nobody modifies it meanwhile and
+ *  the distance accessor and the arc filter are safe to call concurrently;
+ *  taking `const GT &` does not make a concurrent modification safe.
  *
  *  @see Bellman_Ford.H One negative cycle, with the SPFA variant.
  *  @see Min_Mean_Cycle.H Cycle of minimum *mean* weight (Karp).
@@ -122,7 +168,7 @@ namespace Aleph
   struct Negative_Cycle_Item
   {
     Path<GT> cycle;                        ///< Closed path: `is_cycle()` holds, every arc is a graph arc.
-    Cost_Type total_cost = Cost_Type{0};   ///< Sum of the arc weights; always negative.
+    Cost_Type total_cost = Cost_Type{0};   ///< Sum of the arc weights, negative; compensated sum for floating-point costs.
     size_t length = 0;                     ///< Number of arcs.
   };
 
@@ -141,17 +187,28 @@ namespace Aleph
   {
     bool has_cycle = false;  ///< True if the graph has a cycle of at most `max_length` arcs.
 
-    /** True when `total_cost` equals the minimum cost over all closed walks
-        of at most `max_length` arcs, which proves that no simple cycle
-        within the bound is more negative than the reported one. It is
-        false only when every minimum-cost closed walk repeats a node other
-        than its origin (a walk that leaves its origin, goes around a cycle
-        hanging from some node twice or more, and comes back); the reported
-        cycle is then the most negative simple cycle among the components of
-        all the closed walks examined, see `most_negative_cycle_bounded()`. */
+    /** Certificate that `total_cost` is the minimum cost of a simple cycle of
+        at most `max_length` arcs. It is true when `total_cost` equals the
+        minimum cost over the relaxed set of closed walks the dynamic
+        program ranges over (see `most_negative_cycle_bounded()`), a set
+        that contains every simple cycle of the bound, so no simple cycle
+        can be cheaper than the reported one.
+
+        It is a *sufficient* condition for optimality of the **cost**, not a
+        necessary one: it can be false although the reported cycle is
+        optimal, and being false does not mean that every minimum-cost
+        closed walk is non-simple. It says nothing about the number of
+        arcs: among cycles of equal cost the one with fewest arcs is
+        preferred only among the candidates the search evaluated, so a
+        shorter cycle of the same cost may exist even when the flag is true.
+        The certificate is mathematical for integer costs; for
+        floating-point costs it holds for the arithmetic as evaluated, and
+        it is withdrawn when the plain-sum cost the search ranked and the
+        compensated `total_cost` disagree on the sign (see the numeric model
+        in the file documentation). */
     bool is_exact = false;
 
-    Cost_Type total_cost = Cost_Type{0};       ///< Sum of the arc weights of the reported cycle.
+    Cost_Type total_cost = Cost_Type{0};       ///< Sum of the arc weights of the reported cycle (compensated sum for floating-point costs).
     size_t length = 0;                         ///< Number of arcs of the reported cycle.
     DynList<typename GT::Node *> cycle_nodes;  ///< Closed walk, first node repeated at the end.
     DynList<typename GT::Arc *> cycle_arcs;    ///< Arcs aligned with `cycle_nodes`.
@@ -199,6 +256,56 @@ namespace Aleph
     {
       if constexpr (std::is_floating_point_v<Cost_Type>)
         ah_domain_error_if(not std::isfinite(value)) << context;
+    }
+
+    /** @brief Total cost of the arcs `arcs` (indices into `ig.arcs`).
+     *
+     *  Integer costs are summed exactly, with overflow checks. Floating-point
+     *  costs are summed with Neumaier's compensated summation, which keeps
+     *  the rounding error of the sum nearly independent of the number of
+     *  terms and of the order of the arcs, and recovers the exact total in
+     *  cancellation cases such as `1e16 + 1 - 1e16 - 1`. It is much more
+     *  accurate than plain summation but not exact in general.
+     *
+     *  @param[in] ig Indexed snapshot of the graph.
+     *  @param[in] arcs Indices of the arcs to add.
+     *  @param[in] context Prefix for the error message if a partial sum is
+     *             not finite.
+     *  @return The total cost.
+     *  @throw std::overflow_error Integer overflow.
+     *  @throw std::domain_error Non-finite floating-point sum.
+     */
+    template <AlephGraph GT, typename Cost_Type>
+    Cost_Type cycle_cost(const Indexed_Graph<GT, Cost_Type> & ig,
+                         const Array<size_t> & arcs,
+                         const char * context)
+    {
+      if constexpr (std::is_floating_point_v<Cost_Type>)
+        {
+          Cost_Type sum = Cost_Type{0};
+          Cost_Type comp = Cost_Type{0};   // running compensation
+          for (size_t i = 0; i < arcs.size(); ++i)
+            {
+              const Cost_Type w = ig.arcs(arcs(i)).weight;
+              const Cost_Type t = sum + w;
+              check_finite(t, context);
+              if (std::fabs(sum) >= std::fabs(w))
+                comp += (sum - t) + w;
+              else
+                comp += (w - t) + sum;
+              sum = t;
+            }
+          const Cost_Type total = sum + comp;
+          check_finite(total, context);
+          return total;
+        }
+      else
+        {
+          Cost_Type sum = Cost_Type{0};
+          for (size_t i = 0; i < arcs.size(); ++i)
+            sum = shortest_path_detail::checked_add(sum, ig.arcs(arcs(i)).weight);
+          return sum;
+        }
     }
 
     /// Snapshot the graph: index its nodes and the arcs accepted by `sa`,
@@ -313,12 +420,16 @@ namespace Aleph
    *
    *  This is a greedy enumeration, not an exhaustive one (listing all
    *  negative cycles is exponential in general). What it guarantees:
-   *  - every reported cycle is a simple negative cycle of the graph, built
-   *    from the very arcs that were relaxed (parallel arcs are told apart);
+   *  - every reported cycle is a simple cycle of the graph, built from the
+   *    very arcs that were relaxed (parallel arcs are told apart), whose
+   *    total cost is negative as evaluated;
    *  - no two reported cycles are equal, and with
    *    `Negative_Cycle_Exclusion::All_Arcs` they are pairwise arc-disjoint;
    *  - if the graph has a negative cycle among the arcs accepted by `sa`,
-   *    the first round finds one;
+   *    the first round finds one, provided the arithmetic is exact (integer
+   *    costs). With floating-point costs a huge partial distance can absorb
+   *    a small negative weight and hide the cycle (see the numeric model
+   *    in the file documentation);
    *  - the search terminates: every round excludes at least one arc that was
    *    still allowed.
    *
@@ -340,21 +451,31 @@ namespace Aleph
    *  @param[in] sa Arc filter.
    *
    *  @return The cycles found, in the order they were found. Empty if the
-   *          graph has no negative cycle.
+   *          graph has no negative cycle (or, with floating-point costs, if
+   *          none is detectable in the evaluated arithmetic). The paths refer
+   *          to the nodes and arcs of `g`.
    *
    *  @throws std::domain_error If `g` is undirected or a floating weight
    *          (or an accumulated sum) is not finite.
    *  @throws std::overflow_error If integer additions overflow.
    *
-   *  @note With floating-point weights a cycle of the predecessor graph
-   *        whose exact total is negative may sum to zero or above because
-   *        of rounding; such a cycle is not reported but its arcs are still
-   *        excluded, so the search keeps making progress.
+   *  @note With floating-point weights the cost of every extracted cycle is
+   *        recomputed with compensated summation, and the cycle is reported
+   *        only if that total is negative. A cycle of the predecessor graph
+   *        that was detected through rounding (its exact total is zero or
+   *        positive) is therefore not reported, and one whose plain sum
+   *        rounds to zero or above but is negative is reported; in both
+   *        cases its arcs are excluded, so the search keeps making progress.
+   *        The reported `total_cost` is that accurate total.
    *
-   *  @note Complexity: O(max_cycles · V · E) worst-case time (the per-pass
-   *        cycle check adds O(V) to the O(E) pass), O(V + E) extra space.
-   *        In practice each round stops at the first pass whose predecessor
-   *        graph contains a cycle, usually far earlier than pass V.
+   *  @note Complexity: O((V + E) log V + R · V · (V + E)) worst-case time,
+   *        where `R <= E + 1` is the number of rounds (at most
+   *        `max_cycles + 1` unless floating-point candidates are discarded
+   *        without being reported); the per-pass cycle check adds O(V) to
+   *        the O(E) pass. O(V + E) working space, not counting the returned
+   *        paths. In practice each round stops at the first pass whose
+   *        predecessor graph contains a cycle, usually far earlier than
+   *        pass V.
    *
    *  @ingroup Graphs
    */
@@ -460,13 +581,8 @@ namespace Aleph
         for (size_t i = len; i > 0; --i)
           forward.append(reversed(i - 1));
 
-        Cost_Type total = Cost_Type{0};
-        for (size_t i = 0; i < len; ++i)
-          {
-            total = shortest_path_detail::checked_add(total, ig.arcs(forward(i)).weight);
-            negative_cycles_detail::check_finite(
-                total, "find_disjoint_negative_cycles(): cycle cost became non-finite");
-          }
+        const Cost_Type total = negative_cycles_detail::cycle_cost(
+            ig, forward, "find_disjoint_negative_cycles(): cycle cost became non-finite");
 
         // Exclude before deciding whether to report, so that the search
         // always makes progress.
@@ -483,7 +599,7 @@ namespace Aleph
           }
 
         if (not (total < Cost_Type{0}))
-          continue;   // rounding made a negative cycle sum to >= 0: not reportable
+          continue;   // the accurate total is not negative: not reportable
 
         Item item;
         item.cycle = Path<GT>(g);
@@ -501,6 +617,187 @@ namespace Aleph
 
   namespace negative_cycles_detail
   {
+    /** @brief Out-adjacency of a snapshot in compressed form.
+     *
+     *  The arcs leaving node `u` occupy the positions `start(u)` to
+     *  `start(u + 1) - 1`, in ascending order of their index in the
+     *  snapshot; `arc`, `tgt` and `weight` are aligned with those positions.
+     *
+     *  @tparam Cost_Type Arc weight type.
+     */
+    template <typename Cost_Type>
+    struct Out_Adjacency
+    {
+      Array<size_t> start;      ///< `n + 1` offsets.
+      Array<size_t> arc;        ///< Index of the arc in `Indexed_Graph::arcs`.
+      Array<size_t> tgt;        ///< Position of the target node.
+      Array<Cost_Type> weight;  ///< Weight of the arc.
+    };
+
+    /** @brief Build the out-adjacency of `ig` by a counting sort, O(V + E).
+     *  @param[in] ig Indexed snapshot of the graph.
+     *  @return The compressed out-adjacency.
+     */
+    template <AlephGraph GT, typename Cost_Type>
+    Out_Adjacency<Cost_Type> build_out_adjacency(const Indexed_Graph<GT, Cost_Type> & ig)
+    {
+      const size_t n = ig.nodes.size();
+      const size_t m = ig.arcs.size();
+
+      Out_Adjacency<Cost_Type> adj;
+      adj.start = Array<size_t>(n + 1, 0);
+      for (size_t a = 0; a < m; ++a)
+        ++adj.start(ig.arcs(a).src + 1);
+      for (size_t i = 0; i < n; ++i)
+        adj.start(i + 1) += adj.start(i);
+
+      adj.arc = Array<size_t>(m, 0);
+      adj.tgt = Array<size_t>(m, 0);
+      adj.weight = Array<Cost_Type>(m, Cost_Type{0});
+      Array<size_t> fill(n, 0);
+      for (size_t a = 0; a < m; ++a)
+        {
+          const auto & rec = ig.arcs(a);
+          const size_t p = adj.start(rec.src) + fill(rec.src)++;
+          adj.arc(p) = a;
+          adj.tgt(p) = rec.tgt;
+          adj.weight(p) = rec.weight;
+        }
+      return adj;
+    }
+
+    /** @brief Cyclic core of a snapshot: the nodes and arcs that lie inside a
+     *         strongly connected component with at least one arc.
+     *
+     *  Every cycle, closed walk included, stays inside one strongly connected
+     *  component, so an arc whose ends belong to different components, and a
+     *  node that has no arc inside its component, can take part in none. The
+     *  core keeps exactly the arcs with both ends in the same component
+     *  (parallel arcs and self-loops included, so a single node with a loop is
+     *  a cyclic component) and the nodes they touch. Both keep their relative
+     *  order, which makes a search over the core visit its candidates in the
+     *  order the full snapshot would.
+     *
+     *  The components come from an iterative Tarjan scan over arrays built
+     *  from the snapshot: neither the graph nor its cookies and bits are
+     *  touched, and the recursion depth does not depend on the graph.
+     *
+     *  @param[in] ig Indexed snapshot of the graph.
+     *  @param[in] adj Out-adjacency of `ig`.
+     *  @param[out] core Receives the core nodes and arcs (ascending
+     *              position), both renumbered; left empty when the core is
+     *              `ig` itself.
+     *  @return True if every node and arc of `ig` is in the core (`ig` is then
+     *          its own core and nothing is copied); false otherwise, in which
+     *          case `core` holds the core, empty if the graph has no cycle.
+     *          O(V + E) time and space.
+     */
+    template <AlephGraph GT, typename Cost_Type>
+    bool cyclic_core(const Indexed_Graph<GT, Cost_Type> & ig,
+                     const Out_Adjacency<Cost_Type> & adj,
+                     Indexed_Graph<GT, Cost_Type> & core)
+    {
+      constexpr size_t unset = std::numeric_limits<size_t>::max();
+      const size_t n = ig.nodes.size();
+      const size_t m = ig.arcs.size();
+      const Array<size_t> & start = adj.start;
+
+      // Iterative Tarjan: `next(v)` is the position of the next arc of v to examine.
+      Array<size_t> order(n, unset);
+      Array<size_t> low(n, 0);
+      Array<size_t> comp(n, unset);
+      Array<size_t> next(n, 0);
+      Array<bool> on_stack(n, false);
+      Array<size_t> scc_stack;
+      Array<size_t> frames;
+      size_t counter = 0;
+      size_t components = 0;
+
+      for (size_t root = 0; root < n; ++root)
+        {
+          if (order(root) != unset)
+            continue;
+
+          order(root) = low(root) = counter++;
+          next(root) = start(root);
+          scc_stack.append(root);
+          on_stack(root) = true;
+          frames.append(root);
+
+          while (not frames.is_empty())
+            {
+              const size_t v = frames.get_last();
+              if (next(v) < start(v + 1))
+                {
+                  const size_t w = adj.tgt(next(v)++);
+                  if (order(w) == unset)
+                    {
+                      order(w) = low(w) = counter++;
+                      next(w) = start(w);
+                      scc_stack.append(w);
+                      on_stack(w) = true;
+                      frames.append(w);
+                    }
+                  else if (on_stack(w) and order(w) < low(v))
+                    low(v) = order(w);
+                  continue;
+                }
+
+              if (low(v) == order(v))
+                {
+                  for (size_t x = unset; x != v; )
+                    {
+                      x = scc_stack.get_last();
+                      (void) scc_stack.remove_last();
+                      on_stack(x) = false;
+                      comp(x) = components;
+                    }
+                  ++components;
+                }
+
+              (void) frames.remove_last();
+              if (not frames.is_empty() and low(v) < low(frames.get_last()))
+                low(frames.get_last()) = low(v);
+            }
+        }
+
+      Array<size_t> new_id(n, unset);
+      size_t kept = 0;
+      for (size_t a = 0; a < m; ++a)
+        {
+          const auto & rec = ig.arcs(a);
+          if (comp(rec.src) != comp(rec.tgt))
+            continue;
+          ++kept;
+          new_id(rec.src) = 0;   // marks the node as part of the core
+          new_id(rec.tgt) = 0;
+        }
+
+      size_t active = 0;
+      for (size_t i = 0; i < n; ++i)
+        if (new_id(i) != unset)
+          ++active;
+      if (kept == m and active == n)
+        return true;
+
+      core.nodes.reserve(active);
+      for (size_t i = 0; i < n; ++i)
+        if (new_id(i) != unset)
+          {
+            new_id(i) = core.nodes.size();
+            core.nodes.append(ig.nodes(i));
+          }
+      core.arcs.reserve(kept);
+      for (size_t a = 0; a < m; ++a)
+        {
+          const auto & rec = ig.arcs(a);
+          if (comp(rec.src) == comp(rec.tgt))
+            core.arcs.append(Arc_Rec<GT, Cost_Type>{new_id(rec.src), new_id(rec.tgt),
+                                                    rec.arc, rec.weight});
+        }
+      return false;
+    }
+
     /// Best simple cycle found so far by `most_negative_cycle_bounded()`.
     template <typename Cost_Type>
     struct Best_Cycle
@@ -509,6 +806,9 @@ namespace Aleph
       Cost_Type cost = Cost_Type{0};
       Array<size_t> arcs;   // indices into Indexed_Graph::arcs, in cycle order
 
+      /// Keep `candidate` if it is cheaper than the best so far, or equally
+      /// cheap with fewer arcs. The tie-break only sees the candidates that
+      /// are offered, not every simple cycle of the graph.
       void offer(const Cost_Type & c, const Array<size_t> & candidate)
       {
         if (found and not (c < cost or (c == cost and candidate.size() < arcs.size())))
@@ -594,43 +894,97 @@ namespace Aleph
   /** @brief Most negative simple cycle of at most `max_length` arcs, ranked
    *         by total cost (not by mean cost as Karp's algorithm does).
    *
-   *  For every node `v` taken as origin, the arcs are relaxed `max_length`
-   *  times in Bellman-Ford fashion from `dist[v] = 0` (every other node at
-   *  infinity), with the constraint that `v` is left only in the first step:
-   *  after `k` steps `dist[v]` is the minimum cost of a closed walk of
-   *  exactly `k` arcs that visits `v` only at its ends. Each such closed walk
-   *  is reconstructed from per-step predecessors, decomposed into simple
-   *  cycles, and the most negative simple cycle over all origins and lengths
-   *  is returned (ties prefer fewer arcs).
+   *  ## The relaxed problem
+   *
+   *  Finding the most negative *simple* cycle of bounded length exactly is
+   *  exponential in the bound (it amounts to enumerating simple paths, which
+   *  explodes on graphs with hub nodes). The function solves in polynomial
+   *  time a relaxed problem and then repairs its answer.
+   *
+   *  Let `L = min(max_length, V)`. For every node `v` taken as origin, the
+   *  arcs are relaxed layer by layer from `D_0[v] = 0` (every other node
+   *  unreached): `D_k[u]` is the minimum cost of a walk of exactly `k` arcs
+   *  from `v` to `u`, with the constraint that `v` is left only in the first
+   *  step. Hence `D_k[v]` is the minimum cost of a closed walk of exactly
+   *  `k` arcs that leaves `v` once and does not pass through `v` again before
+   *  its last arc. The relaxed set `W` is the set of those walks for all `v`
+   *  and all `k <= L`; `best_walk` is the minimum of their costs. `W` is
+   *  not "all closed walks": a walk that goes through its origin in the
+   *  middle is not in it. It contains every simple cycle of at most `L` arcs
+   *  (seen from any of its own nodes), so in exact arithmetic
+   *  `best_walk <= c_opt`, the cost of the best simple cycle.
+   *
+   *  Capping `max_length` at `V` loses no simple cycle, because a simple
+   *  cycle has at most `V` arcs. It does bound the walks of `W`: a walk of
+   *  `W` can repeat a cycle hanging from an interior node, so it may have
+   *  more than `V` arcs, and those are not examined.
    *
    *  ## Why closed walks are decomposed
    *
-   *  A minimum-cost closed walk may repeat a node other than its origin:
+   *  A minimum-cost walk of `W` may repeat a node other than its origin:
    *  `v -> u -> a -> u -> b -> u -> v` (6 arcs) goes around the two cycles
    *  hanging from `u` and, if each of them costs -2, beats a simple
    *  triangle of cost -3 through `v`. Ranking by "one execution of the
-   *  cycle" needs simple cycles, but finding the most negative simple cycle
-   *  of bounded length exactly is exponential in the bound (it amounts to
-   *  enumerating simple paths, which explodes on graphs with hub nodes).
-   *  Decomposing the optimal walks keeps the O(V · L · E) cost and gives:
+   *  cycle" needs simple cycles, so for every origin `v` and every length
+   *  `k` with `D_k[v]` reached, the walk the dynamic program selects
+   *  (reconstructed from per-step predecessors) is decomposed into simple
+   *  cycles, and each component is offered as a candidate. The most negative
+   *  candidate is returned; among candidates of equal cost, the one with
+   *  fewest arcs. This keeps the O((V + E) log V + V_c · L · (V_c + E_c)) cost
+   *  and gives:
    *
    *  - the reported cycle is always a simple cycle of at most `max_length`
-   *    arcs with its exact total cost, never better than the true optimum;
-   *  - when some minimum-cost closed walk is itself simple (`is_exact` is
-   *    true), it is provably the most negative simple cycle within the
-   *    bound;
-   *  - otherwise its cost is at least `1/m` of the optimum, where `m` is the
-   *    number of simple cycles the optimal walk decomposes into; every
-   *    simple cycle of the graph is still a candidate through each of its
-   *    own nodes as origin, so in the example above the triangle (-3) is
-   *    still reported, only with `is_exact = false` (the walk of cost -4
-   *    could not certify it).
+   *    arcs with its exact total cost (as evaluated), never better than the
+   *    true optimum: `c_opt <= total_cost`;
+   *  - when `total_cost` equals `best_walk` (`is_exact`), it is the minimum
+   *    cost of a simple cycle within the bound: `c_opt <= total_cost =
+   *    best_walk <= c_opt`. The flag is a sufficient certificate; see
+   *    `Bounded_Cycle_Result::is_exact`;
+   *  - otherwise, if the selected walk of cost `best_walk` decomposes into
+   *    `m` simple cycles, `c_opt <= total_cost <= best_walk / m <= c_opt / m`,
+   *    which for a negative optimum means the reported cycle earns at least
+   *    `1/m` of the best possible gain;
+   *  - ties are broken among the candidates that were evaluated. Per
+   *    `(k, u)` the dynamic program keeps a single predecessor, so when
+   *    several walks of equal cost exist only one of them is decomposed;
+   *    a simple cycle of the same cost, or with fewer arcs, may therefore
+   *    never become a candidate. The function does not promise the globally
+   *    cheapest, nor the globally shortest among the cheapest, simple cycle
+   *    unless `is_exact` certifies the cost.
    *
-   *  A walk that repeats a node goes around some cycle hanging from that
-   *  node, which in a bid/ask market graph is at least a round trip paying
-   *  the spread; the minimum-cost walk is then normally simple and
-   *  `is_exact` holds. Choosing `max_length <= 3` rules the case out
-   *  entirely when the graph has no self-loops.
+   *  ## Cyclic core and traversal order
+   *
+   *  Every cycle lies inside one strongly connected component, and a walk that
+   *  leaves its component can never return to its origin. Before the dynamic
+   *  program the snapshot is therefore reduced to its *cyclic core*: the arcs
+   *  whose two ends are in the same component (self-loops and parallel arcs
+   *  included, so a node with a self-loop is a cyclic component) and the nodes
+   *  they touch. Origins, steps and relaxations only see the core; this
+   *  changes none of the closed walks, the relaxed set `W`, `best_walk`, the
+   *  candidates offered or their order, so the result, `is_exact` included,
+   *  is the same as without the reduction. The bound `L` is still taken from
+   *  the whole graph: bounding each component by its own size would drop
+   *  non-simple walks the certificate ranges over.
+   *
+   *  A step relaxes the arcs that leave the nodes reached in the previous
+   *  step. For each node reached in step `k` the predecessor is the cheapest
+   *  arc into it and, among equally cheap arcs, the one with the lowest index
+   *  in the snapshot (the order in which the arc iterator of `g` visits them),
+   *  however the arcs are visited. A step whose reached nodes own few of the
+   *  arcs visits just those through an out-adjacency; otherwise it scans every
+   *  arc in index order, which is faster than many short lists. Both ways give
+   *  the same walks.
+   *
+   *  Arcs outside the core are never accumulated, so an integer overflow
+   *  that involves only them is not reported; floating-point weights are
+   *  still checked for finiteness for every arc the filter accepts, when the
+   *  graph is snapshotted.
+   *
+   *  Choosing `max_length <= 3` rules out walks that repeat an interior node
+   *  when the graph has no self-loops, so the result is then exact. In
+   *  market graphs the minimum-cost walk is often simple, but that is an
+   *  empirical observation and not a guarantee: the repeated part can be a
+   *  negative cycle by itself (a profitable triangle traversed twice).
    *
    *  @tparam GT Directed Aleph graph type.
    *  @tparam Distance Arc cost accessor (`Distance::Distance_Type` required).
@@ -638,24 +992,32 @@ namespace Aleph
    *
    *  @param[in] g Graph (must be directed). It is not modified.
    *  @param[in] max_length Maximum number of arcs of the cycle; `0` yields
-   *             `has_cycle = false`. Values above the node count are capped
-   *             to it, since a closed walk that revisits its origin only at
-   *             the end has at most that many arcs.
+   *             `has_cycle = false` without touching the graph (no
+   *             validation, no call to the accessor). Values above the node
+   *             count are capped to it, which loses no simple cycle (a simple
+   *             cycle has at most `V` arcs) but limits the closed walks that
+   *             the certificate `is_exact` ranges over.
    *  @param[in] distance Arc cost accessor.
    *  @param[in] sa Arc filter.
    *
    *  @return `Bounded_Cycle_Result`; `has_cycle` is false when no cycle of
    *          at most `max_length` arcs exists. The reported cycle can have
    *          non-negative cost when no negative cycle exists within the
-   *          bound: check `is_negative()`.
+   *          bound: check `is_negative()`. The node and arc pointers refer
+   *          to `g`.
    *
    *  @throws std::domain_error If `g` is undirected or a floating weight
    *          (or an accumulated sum) is not finite.
-   *  @throws std::overflow_error If integer additions overflow, or the
-   *          predecessor table size overflows `size_t`.
+   *  @throws std::overflow_error If integer additions overflow (on the arcs
+   *          of the cyclic core), or the predecessor table size overflows
+   *          `size_t`.
    *
-   *  @note Complexity: O(V · L · E) time, O(L · V + E) extra space, with
-   *        `L = min(max_length, V)`.
+   *  @note Complexity: O((V + E) log V + V_c · L · (V_c + E_c)) time,
+   *        O(L · V_c + V + E) working space, with `L = min(max_length, V)`
+   *        and `V_c`, `E_c` the nodes and arcs of the cyclic core (see the
+   *        file documentation). The reconstruction and decomposition cost
+   *        O(V_c · L²) in total and are absorbed because `L <= V`. The usual
+   *        `O(V_c · L · E_c)` form holds when `E_c >= V_c`.
    *
    *  @see karp_minimum_mean_cycle() Minimum *mean* cycle, no length bound.
    *
@@ -674,27 +1036,55 @@ namespace Aleph
     using Result = Bounded_Cycle_Result<GT, Cost_Type>;
 
     Result result;
+    if (max_length == 0)
+      return result;   // documented: no snapshot, no validation, no distance call
 
-    auto ig = negative_cycles_detail::index_graph(g, distance, sa,
-                                                  "most_negative_cycle_bounded");
-    const size_t n = ig.nodes.size();
-    const size_t m = ig.arcs.size();
-    if (max_length == 0 or n == 0 or m == 0)
+    const auto snapshot = negative_cycles_detail::index_graph(g, distance, sa,
+                                                              "most_negative_cycle_bounded");
+    if (snapshot.nodes.is_empty() or snapshot.arcs.is_empty())
       return result;
 
-    const size_t L = std::min(max_length, n);
+    // The bound is a property of the whole graph (see the documentation), not
+    // of the cyclic core the search runs on.
+    const size_t L = std::min(max_length, snapshot.nodes.size());
+
+    // Only arcs inside strongly connected components can be on a cycle: the
+    // search runs on that cyclic core, which is the snapshot itself when the
+    // whole graph is cyclic.
+    negative_cycles_detail::Indexed_Graph<GT, Cost_Type> core;
+    auto adj = negative_cycles_detail::build_out_adjacency(snapshot);
+    const bool whole = negative_cycles_detail::cyclic_core(snapshot, adj, core);
+    if (not whole)
+      {
+        if (core.arcs.is_empty())
+          return result;   // no cycle at all
+        adj = negative_cycles_detail::build_out_adjacency(core);
+      }
+    const auto & ig = whole ? snapshot : core;
+    const size_t n = ig.nodes.size();
+    const size_t m = ig.arcs.size();
 
     ah_overflow_error_if(L + 1 > std::numeric_limits<size_t>::max() / n)
       << "most_negative_cycle_bounded(): predecessor table size overflow";
 
     constexpr long none = -1;
 
+    // A layer visits the arcs of the reached nodes only if they are less than
+    // one in `frontier_arc_ratio` of all the arcs.
+    constexpr size_t frontier_arc_ratio = 3;
+
     // Reachability is tracked apart from the cost: every value of Cost_Type,
-    // including numeric_limits::max(), is a legitimate cost.
+    // including numeric_limits::max(), is a legitimate cost. The layers are
+    // kept apart (`prev` is layer k - 1, `cur` is layer k) because a walk of
+    // exactly k arcs may only extend a walk of exactly k - 1 arcs. Each layer
+    // also lists the nodes it reached, so that nothing is ever reset or
+    // scanned for the nodes it did not reach.
     Array<Cost_Type> prev(n, Cost_Type{0});
     Array<Cost_Type> cur(n, Cost_Type{0});
     Array<bool> prev_reached(n, false);
     Array<bool> cur_reached(n, false);
+    Array<size_t> prev_list(n, 0);
+    Array<size_t> cur_list(n, 0);
     Array<long> pred((L + 1) * n, none);   // pred(k * n + u): arc that reaches u in step k
 
     bool has_walk = false;
@@ -708,41 +1098,92 @@ namespace Aleph
 
     for (size_t v = 0; v < n; ++v)
       {
-        for (size_t i = 0; i < n; ++i)
-          prev_reached(i) = false;
         prev(v) = Cost_Type{0};
         prev_reached(v) = true;
+        prev_list(0) = v;
+        size_t prev_count = 1;
+        size_t prev_arcs = adj.start(v + 1) - adj.start(v);   // arcs leaving the reached nodes
 
         for (size_t k = 1; k <= L; ++k)
           {
-            for (size_t i = 0; i < n; ++i)
-              cur_reached(i) = false;
+            // Relax the arcs that leave the nodes reached in step k - 1. A
+            // node is relaxed to the cheapest candidate and, among equally
+            // cheap ones, to the arc with the lowest index in the snapshot, so
+            // the outcome does not depend on the order the arcs are visited
+            // in. When the reached nodes own few arcs it is cheaper to visit
+            // just those (through the out-adjacency); otherwise one sequential
+            // scan of all the arcs, in index order, is faster than many short
+            // adjacency lists.
+            size_t cur_count = 0;
+            size_t cur_arcs = 0;
+            auto reach = [&](const size_t t, const Cost_Type & cand, const size_t a)
+            {
+              cur(t) = cand;
+              cur_reached(t) = true;
+              pred(k * n + t) = static_cast<long>(a);
+              cur_list(cur_count++) = t;
+              cur_arcs += adj.start(t + 1) - adj.start(t);
+            };
 
-            bool any = false;
-            for (size_t a = 0; a < m; ++a)
+            if (prev_arcs * frontier_arc_ratio < m)
               {
-                const auto & rec = ig.arcs(a);
-                if (k > 1 and rec.src == v)
-                  continue;   // the origin is visited only at the ends
-
-                if (not prev_reached(rec.src))
-                  continue;
-
-                const Cost_Type cand = shortest_path_detail::checked_add(prev(rec.src), rec.weight);
-                negative_cycles_detail::check_finite(
-                    cand, "most_negative_cycle_bounded(): accumulation became non-finite");
-
-                if (not cur_reached(rec.tgt) or cand < cur(rec.tgt))
+                for (size_t i = 0; i < prev_count; ++i)
                   {
-                    cur(rec.tgt) = cand;
-                    cur_reached(rec.tgt) = true;
-                    pred(k * n + rec.tgt) = static_cast<long>(a);
-                    any = true;
+                    const size_t u = prev_list(i);
+                    if (k > 1 and u == v)
+                      continue;   // the origin is visited only at the ends
+
+                    const Cost_Type base = prev(u);
+                    for (size_t p = adj.start(u); p < adj.start(u + 1); ++p)
+                      {
+                        const size_t t = adj.tgt(p);
+                        const Cost_Type cand = shortest_path_detail::checked_add(base, adj.weight(p));
+                        negative_cycles_detail::check_finite(
+                            cand, "most_negative_cycle_bounded(): accumulation became non-finite");
+
+                        if (not cur_reached(t))
+                          reach(t, cand, adj.arc(p));
+                        else if (cand < cur(t)
+                                 or (cand == cur(t)
+                                     and adj.arc(p) < static_cast<size_t>(pred(k * n + t))))
+                          {
+                            cur(t) = cand;
+                            pred(k * n + t) = static_cast<long>(adj.arc(p));
+                          }
+                      }
                   }
               }
+            else
+              for (size_t a = 0; a < m; ++a)
+                {
+                  const auto & rec = ig.arcs(a);
+                  if (k > 1 and rec.src == v)
+                    continue;   // the origin is visited only at the ends
 
-            if (not any)
-              break;   // nothing is reachable in k steps, so nothing in more
+                  if (not prev_reached(rec.src))
+                    continue;
+
+                  const Cost_Type cand = shortest_path_detail::checked_add(prev(rec.src), rec.weight);
+                  negative_cycles_detail::check_finite(
+                      cand, "most_negative_cycle_bounded(): accumulation became non-finite");
+
+                  if (not cur_reached(rec.tgt))
+                    reach(rec.tgt, cand, a);
+                  else if (cand < cur(rec.tgt))   // arcs come in index order: ties keep the lowest
+                    {
+                      cur(rec.tgt) = cand;
+                      pred(k * n + rec.tgt) = static_cast<long>(a);
+                    }
+                }
+
+            for (size_t i = 0; i < prev_count; ++i)
+              prev_reached(prev_list(i)) = false;
+
+            if (cur_count == 0)
+              {
+                prev_count = 0;
+                break;   // nothing is reachable in k steps, so nothing in more
+              }
 
             if (cur_reached(v))
               {
@@ -777,15 +1218,28 @@ namespace Aleph
 
             prev.swap(cur);
             prev_reached.swap(cur_reached);
+            prev_list.swap(cur_list);
+            prev_count = cur_count;
+            prev_arcs = cur_arcs;
           }
+
+        for (size_t i = 0; i < prev_count; ++i)
+          prev_reached(prev_list(i)) = false;
       }
 
     if (not best.found)
       return result;
 
-    result.total_cost = best.cost;
+    // The reported cost is recomputed from the arcs of the cycle (compensated
+    // summation for floating point, exact for integers). The certificate is
+    // withdrawn if the dynamic program's plain-sum cost and the accurate cost
+    // disagree on the sign: the search then ranked cycles with a total that
+    // rounding had pushed to the wrong side of zero.
+    result.total_cost = negative_cycles_detail::cycle_cost(
+        ig, best.arcs, "most_negative_cycle_bounded(): cycle cost became non-finite");
     result.length = best.arcs.size();
-    result.is_exact = not (best_walk < best.cost);
+    const bool sign_agrees = (best.cost < Cost_Type{0}) == (result.total_cost < Cost_Type{0});
+    result.is_exact = sign_agrees and not (best_walk < best.cost);
 
     result.cycle_nodes.append(ig.nodes(ig.arcs(best.arcs(0)).src));
     for (size_t i = 0; i < best.arcs.size(); ++i)

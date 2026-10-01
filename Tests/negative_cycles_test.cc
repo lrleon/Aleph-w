@@ -39,11 +39,13 @@
 
 # include <gtest/gtest.h>
 
+# include <cmath>
 # include <functional>
 # include <limits>
 # include <random>
 # include <set>
 # include <tuple>
+# include <type_traits>
 # include <vector>
 
 # include <Bellman_Ford.H>
@@ -110,16 +112,27 @@ namespace
     typename GT::Node * first = item.cycle.get_first_node();
     typename GT::Node * curr = first;
     Cost sum = Cost{0};
+    long double abs_sum = 0.0L;
     for (auto it = arcs.get_it(); it.has_curr(); it.next_ne())
       {
         typename GT::Arc * arc = it.get_curr();
         if (g.get_src_node(arc) != curr or not seen.insert(curr).second)
           return false;
         sum += arc->get_info();
+        abs_sum += std::fabs(static_cast<long double>(arc->get_info()));
         curr = g.get_tgt_node(arc);
       }
 
-    return curr == first and sum == item.total_cost and sum < Cost{0};
+    if (curr != first)
+      return false;
+    if constexpr (std::is_floating_point_v<Cost>)
+      // total_cost is a compensated sum: it may differ from the plain sum above by
+      // the rounding error of plain summation, at most (terms + 1) * eps * sum of |w|
+      return std::fabs(static_cast<long double>(sum) - static_cast<long double>(item.total_cost))
+             <= (item.length + 1) * static_cast<long double>(std::numeric_limits<Cost>::epsilon()) * abs_sum
+             and item.total_cost < Cost{0};
+    else
+      return sum == item.total_cost and sum < Cost{0};
   }
 
   template <class GT, typename Cost>
@@ -204,6 +217,98 @@ namespace
       return arc != blocked;
     }
   };
+
+  // Counts how many times the distance accessor is called.
+  struct Counting_Dist
+  {
+    using Distance_Type = long long;
+    int * calls = nullptr;
+
+    Distance_Type operator()(Arc * arc) const
+    {
+      ++*calls;
+      return arc->get_info();
+    }
+  };
+
+  // Counts how many times the filter is asked, and hides one arc.
+  struct Counting_Filter
+  {
+    int * calls = nullptr;
+    Arc * blocked = nullptr;
+
+    bool operator()(Arc * arc) const
+    {
+      ++*calls;
+      return arc != blocked;
+    }
+  };
+
+  // Rejects the arcs whose weight is not finite.
+  struct Finite_Arcs
+  {
+    bool operator()(Float_Graph::Arc * arc) const noexcept
+    {
+      return std::isfinite(arc->get_info());
+    }
+  };
+
+  // Non-null cookies and control bits planted on a graph before a search,
+  // checked afterwards: the searches must not read, use or clear them.
+  template <class GT>
+  struct Planted_State
+  {
+    std::vector<int> cells;
+
+    void plant(Built_Graph_T<GT> & built)
+    {
+      cells.assign(built.nodes.size() + built.arcs.size(), 0);
+      size_t k = 0;
+      for (size_t i = 0; i < built.nodes.size(); ++i, ++k)
+        {
+          NODE_COOKIE(built.nodes[i]) = &cells[k];
+          NODE_BITS(built.nodes[i]).set_bit(Aleph::Spanning_Tree, i % 2 == 0);
+          NODE_BITS(built.nodes[i]).set_bit(Aleph::Find_Path, true);
+        }
+      for (size_t i = 0; i < built.arcs.size(); ++i, ++k)
+        {
+          ARC_COOKIE(built.arcs[i]) = &cells[k];
+          ARC_BITS(built.arcs[i]).set_bit(Aleph::Spanning_Tree, true);
+          ARC_BITS(built.arcs[i]).set_bit(Aleph::Find_Path, i % 2 == 1);
+        }
+    }
+
+    bool intact(const Built_Graph_T<GT> & built) const
+    {
+      size_t k = 0;
+      for (size_t i = 0; i < built.nodes.size(); ++i, ++k)
+        if (NODE_COOKIE(built.nodes[i]) != &cells[k]
+            or IS_NODE_VISITED(built.nodes[i], Aleph::Spanning_Tree) != (i % 2 == 0)
+            or not IS_NODE_VISITED(built.nodes[i], Aleph::Find_Path))
+          return false;
+      for (size_t i = 0; i < built.arcs.size(); ++i, ++k)
+        if (ARC_COOKIE(built.arcs[i]) != &cells[k]
+            or not IS_ARC_VISITED(built.arcs[i], Aleph::Spanning_Tree)
+            or IS_ARC_VISITED(built.arcs[i], Aleph::Find_Path) != (i % 2 == 1))
+          return false;
+      return true;
+    }
+  };
+
+  // The same triangle of total cost -1 for every cost type.
+  template <typename W>
+  void expect_triangle_found_with_cost_type()
+  {
+    using G = List_Digraph<Graph_Node<int>, Graph_Arc<W>>;
+    auto built = build_graph_generic<G, W>(
+        3, {{0, 1, W(1)}, {1, 2, W(-3)}, {2, 0, W(1)}});
+
+    const auto cycles = find_disjoint_negative_cycles(built.g, 5);
+    ASSERT_EQ(cycles.size(), 1u);
+    EXPECT_TRUE(is_valid_negative_simple_cycle(built.g, cycles.get_first()));
+    EXPECT_EQ(cycles.get_first().total_cost, W(-1));
+    EXPECT_EQ(cycles.get_first().length, 3u);
+  }
 } // namespace
 
 
@@ -466,6 +571,249 @@ TEST(NegativeCyclesTest, GraphIsLeftUntouched)
     EXPECT_EQ(ARC_COOKIE(a), nullptr);
   for (auto * p : built.nodes)
     EXPECT_EQ(NODE_COOKIE(p), nullptr);
+}
+
+
+// ---------------------------------------------------------------------------
+// Known numeric limitation (F2 of auditoria-rama-arbitrage-performance-bugs.md).
+//
+// The loop 1 -> 1 of weight -1 is exactly representable and is a negative
+// cycle, but the incoming arc of weight -1e16 puts dist[1] at -1e16, where
+// adding -1 is absorbed: dist[1] never improves, the loop never enters the
+// predecessor graph and no cycle is extracted. most_negative_cycle_bounded()
+// keeps per-layer costs and does find the loop. This test pins today's
+// behaviour on purpose: the numeric policy of Stage 2 must flip the first
+// expectation, and then this comment with it.
+// ---------------------------------------------------------------------------
+TEST(NegativeCyclesTest, KnownNumericLimitationAbsorptionHidesNegativeLoop)
+{
+  // Same arcs in both insertion orders: the outcome does not depend on it.
+  for (const bool incoming_first : {true, false})
+    {
+      Float_Graph g;
+      auto * s = g.insert_node(0);
+      auto * v = g.insert_node(1);
+      if (incoming_first)
+        {
+          g.insert_arc(s, v, -1e16);
+          g.insert_arc(v, v, -1.0);
+        }
+      else
+        {
+          g.insert_arc(v, v, -1.0);
+          g.insert_arc(s, v, -1e16);
+        }
+
+      const auto cycles = find_disjoint_negative_cycles(g, 1);
+      EXPECT_TRUE(cycles.is_empty()) << "incoming_first=" << incoming_first;   // known limitation
+
+      const auto bounded = most_negative_cycle_bounded(g, 1);
+      ASSERT_TRUE(bounded.has_cycle) << "incoming_first=" << incoming_first;
+      EXPECT_EQ(bounded.total_cost, -1.0);
+      EXPECT_EQ(bounded.length, 1u);
+    }
+}
+
+
+// The same absorption with the huge arc inside a strongly connected component:
+// 0 -> 1 of -1e16, 1 -> 0 of +1e16 and the loop of -1 on node 1. Processing the
+// strongly connected components separately would not help here (and the
+// enumeration does not do it: see the file documentation), so the limitation is
+// pinned for this shape too.
+TEST(NegativeCyclesTest, KnownNumericLimitationAbsorptionInsideAComponent)
+{
+  Float_Graph g;
+  auto * s = g.insert_node(0);
+  auto * v = g.insert_node(1);
+  g.insert_arc(s, v, -1e16);
+  g.insert_arc(v, s, 1e16);
+  g.insert_arc(v, v, -1.0);
+
+  EXPECT_TRUE(find_disjoint_negative_cycles(g, 1).is_empty());   // known limitation
+
+  const auto bounded = most_negative_cycle_bounded(g, 1);
+  ASSERT_TRUE(bounded.has_cycle);
+  EXPECT_EQ(bounded.total_cost, -1.0);
+  EXPECT_EQ(bounded.length, 1u);
+}
+
+
+// ---------------------------------------------------------------------------
+// F1 of auditoria-rama-arbitrage-performance-bugs.md for the enumeration.
+//
+// Each ring below has an exact total of zero (checked with integers) but its
+// plain double sum rounds to -1, because the huge weights swallow the small
+// ones, and the predecessor graph does contain it. It used to be reported as
+// a negative cycle of cost -1. The reported cost is now recomputed with
+// compensated summation, so no cycle is reported.
+// ---------------------------------------------------------------------------
+TEST(NegativeCyclesTest, CancellationDoesNotFakeANegativeCycle)
+{
+  const std::vector<std::vector<double>> rings = {
+    {-7.0, -1e16, 1e16, 7.0},
+    {-1e16, -7.0, 1e16, 7.0},
+    {-1e16, -3.0, 1e16, 3.0},
+    {-3.0, -1e16, 5e15, 3.0, 5e15},
+    {-1e16, 4.0, -7.0, 1e16, 3.0}
+  };
+
+  for (const auto & weights : rings)
+    {
+      long long exact_sum = 0;   // independent oracle: integer arithmetic, exact here
+      for (const double w : weights)
+        exact_sum += static_cast<long long>(w);
+      ASSERT_EQ(exact_sum, 0);
+
+      Float_Graph g;
+      std::vector<Float_Graph::Node *> nodes;
+      for (size_t i = 0; i < weights.size(); ++i)
+        nodes.push_back(g.insert_node(static_cast<int>(i)));
+      for (size_t i = 0; i < weights.size(); ++i)
+        g.insert_arc(nodes[i], nodes[(i + 1) % weights.size()], weights[i]);
+
+      for (const auto policy : {Negative_Cycle_Exclusion::Min_Weight_Arc,
+                                Negative_Cycle_Exclusion::All_Arcs})
+        EXPECT_TRUE(find_disjoint_negative_cycles(g, 3, policy).is_empty());
+    }
+}
+
+
+TEST(NegativeCyclesTest, DistanceAndFilterAreCalledOncePerArc)
+{
+  // 5 arcs, one of them hidden by the filter: the filter is asked about all
+  // of them exactly once and the distance accessor only about accepted ones.
+  auto built = build_graph(3, {{0, 1, 1}, {1, 2, -3}, {2, 0, 1}, {0, 2, 7}, {2, 2, 4}});
+  int dist_calls = 0;
+  int filter_calls = 0;
+
+  const auto cycles = find_disjoint_negative_cycles<Graph, Counting_Dist, Counting_Filter>(
+      built.g, 4, Negative_Cycle_Exclusion::All_Arcs, Counting_Dist{&dist_calls},
+      Counting_Filter{&filter_calls, built.arcs[3]});
+
+  ASSERT_EQ(cycles.size(), 1u);
+  EXPECT_EQ(filter_calls, 5);
+  EXPECT_EQ(dist_calls, 4);
+}
+
+
+TEST(NegativeCyclesTest, NonFiniteWeightsHiddenByTheFilterAreIgnored)
+{
+  Float_Graph g;
+  auto * a = g.insert_node(0);
+  auto * b = g.insert_node(1);
+  auto * c = g.insert_node(2);
+  g.insert_arc(a, b, -2.0);
+  g.insert_arc(b, a, 1.0);                                          // cycle of cost -1
+  g.insert_arc(b, c, std::numeric_limits<double>::infinity());
+  g.insert_arc(c, a, std::numeric_limits<double>::quiet_NaN());
+
+  // Without the filter the non-finite weights are rejected...
+  EXPECT_THROW((find_disjoint_negative_cycles(g, 5)), std::domain_error);
+
+  // ...and with a filter that hides exactly those arcs they are never read.
+  const auto cycles = find_disjoint_negative_cycles<Float_Graph, Dft_Dist<Float_Graph>, Finite_Arcs>(
+      g, 5, Negative_Cycle_Exclusion::Min_Weight_Arc, Dft_Dist<Float_Graph>(), Finite_Arcs());
+  ASSERT_EQ(cycles.size(), 1u);
+  EXPECT_NEAR(cycles.get_first().total_cost, -1.0, 1e-12);
+}
+
+
+TEST(NegativeCyclesTest, NonNullCookiesAndBitsAreLeftUntouched)
+{
+  auto built = build_graph(4, {{0, 1, 1}, {1, 2, -3}, {2, 0, 1}, {2, 3, -2}, {3, 2, 1}});
+  Planted_State<Graph> planted;
+  planted.plant(built);
+  ASSERT_TRUE(planted.intact(built));
+
+  for (const auto policy : {Negative_Cycle_Exclusion::Min_Weight_Arc,
+                            Negative_Cycle_Exclusion::All_Arcs})
+    {
+      const auto cycles = find_disjoint_negative_cycles(built.g, 5, policy);
+      EXPECT_EQ(cycles.size(), 2u);
+      EXPECT_TRUE(planted.intact(built));
+    }
+}
+
+
+TEST(NegativeCyclesTest, SingleNodeSelfLoops)
+{
+  auto negative = build_graph(1, {{0, 0, -3}});
+  const auto found = find_disjoint_negative_cycles(negative.g, 5);
+  ASSERT_EQ(found.size(), 1u);
+  EXPECT_TRUE(is_valid_negative_simple_cycle(negative.g, found.get_first()));
+  EXPECT_EQ(found.get_first().total_cost, -3);
+  EXPECT_EQ(found.get_first().length, 1u);
+
+  for (const long long w : {0LL, 3LL})
+    {
+      auto not_negative = build_graph(1, {{0, 0, w}});
+      EXPECT_TRUE(find_disjoint_negative_cycles(not_negative.g, 5).is_empty()) << "w=" << w;
+    }
+
+  Graph lonely;
+  lonely.insert_node(0);
+  EXPECT_TRUE(find_disjoint_negative_cycles(lonely, 5).is_empty());
+}
+
+
+TEST(NegativeCyclesTest, DisconnectedGraphsAreSearchedInEveryComponent)
+{
+  // 0 <-> 1 positive, 2 isolated, 3 <-> 4 negative, 5 -> 6 acyclic.
+  auto built = build_graph(7, {{0, 1, 2}, {1, 0, 2}, {3, 4, -2}, {4, 3, 1}, {5, 6, -9}});
+
+  const auto cycles = find_disjoint_negative_cycles(built.g, 5);
+  ASSERT_EQ(cycles.size(), 1u);
+  EXPECT_TRUE(is_valid_negative_simple_cycle(built.g, cycles.get_first()));
+  EXPECT_EQ(cycles.get_first().total_cost, -1);
+  EXPECT_TRUE(cycles.get_first().cycle.contains_node(built.nodes[3]));
+  EXPECT_TRUE(cycles.get_first().cycle.contains_node(built.nodes[4]));
+}
+
+
+TEST(NegativeCyclesTest, IntCostsWork)
+{
+  expect_triangle_found_with_cost_type<int>();
+}
+
+
+TEST(NegativeCyclesTest, LongDoubleCostsWork)
+{
+  expect_triangle_found_with_cost_type<long double>();
+}
+
+
+TEST(NegativeCyclesTest, CostsAtTheLimitsOfTheType)
+{
+  using IntGraph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  using LdGraph = List_Digraph<Graph_Node<int>, Graph_Arc<long double>>;
+  const int int_min = std::numeric_limits<int>::min();
+  const int int_max = std::numeric_limits<int>::max();
+  const long double ld_lowest = std::numeric_limits<long double>::lowest();
+  const long double ld_max = std::numeric_limits<long double>::max();
+
+  // A loop of the lowest value is a legitimate negative cycle...
+  auto int_loop = build_graph_generic<IntGraph, int>(1, {{0, 0, int_min}});
+  const auto int_found = find_disjoint_negative_cycles(int_loop.g, 1);
+  ASSERT_EQ(int_found.size(), 1u);
+  EXPECT_EQ(int_found.get_first().total_cost, int_min);
+
+  auto ld_loop = build_graph_generic<LdGraph, long double>(1, {{0, 0, ld_lowest}});
+  const auto ld_found = find_disjoint_negative_cycles(ld_loop.g, 1);
+  ASSERT_EQ(ld_found.size(), 1u);
+  EXPECT_EQ(ld_found.get_first().total_cost, ld_lowest);
+
+  // ...the largest value is simply not negative...
+  auto int_pos = build_graph_generic<IntGraph, int>(1, {{0, 0, int_max}});
+  EXPECT_TRUE(find_disjoint_negative_cycles(int_pos.g, 1).is_empty());
+  auto ld_pos = build_graph_generic<LdGraph, long double>(1, {{0, 0, ld_max}});
+  EXPECT_TRUE(find_disjoint_negative_cycles(ld_pos.g, 1).is_empty());
+
+  // ...and sums that leave the type throw: overflow for integers, a
+  // non-finite accumulation for floating point.
+  auto int_two = build_graph_generic<IntGraph, int>(2, {{0, 1, int_min}, {1, 0, int_min}});
+  EXPECT_THROW((find_disjoint_negative_cycles(int_two.g, 1)), std::overflow_error);
+  auto ld_two = build_graph_generic<LdGraph, long double>(2, {{0, 1, ld_lowest}, {1, 0, ld_lowest}});
+  EXPECT_THROW((find_disjoint_negative_cycles(ld_two.g, 1)), std::domain_error);
 }
 
 
