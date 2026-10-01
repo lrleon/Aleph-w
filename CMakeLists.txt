@@ -295,6 +295,7 @@ set(HLIST
     tpl_cartesian_tree.H
     K_Shortest_Paths.H
     Min_Mean_Cycle.H
+    Negative_Cycles.H
     Planarity_Test.H
     Tree_Decomposition.H
     ah-concepts.H
