@@ -401,6 +401,27 @@ TEST(BoundedNegativeCycleTest, InvalidInputsThrow)
 }
 
 
+// numeric_limits::max() used to double as the "unreachable" sentinel, so a
+// closed walk costing exactly max was discarded as if it did not exist.
+TEST(BoundedNegativeCycleTest, MaxCostIsNotTreatedAsUnreachable)
+{
+  const long long M = std::numeric_limits<long long>::max();
+
+  auto loop = build_graph(1, {{0, 0, M}});
+  const auto r = most_negative_cycle_bounded(loop.g, 1);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.total_cost, M);
+  EXPECT_EQ(r.length, 1u);
+  EXPECT_TRUE(witness_is_simple_cycle(loop.g, r));
+
+  // A 2-cycle whose cost is exactly max is also found and beats nothing else.
+  auto pair = build_graph(2, {{0, 1, M - 1}, {1, 0, 1}});
+  const auto r2 = most_negative_cycle_bounded(pair.g, 2);
+  ASSERT_TRUE(r2.has_cycle);
+  EXPECT_EQ(r2.total_cost, M);
+}
+
+
 TEST(BoundedNegativeCycleTest, RandomGraphsAgreeWithExhaustiveOracle)
 {
   std::mt19937_64 rng(0xB0DEDC1CULL);

@@ -42,9 +42,11 @@
  *  a small number of hops.
  *
  *  - `find_disjoint_negative_cycles()`: repeatedly runs Bellman-Ford from a
- *    virtual source (every node at distance zero), extracts one negative
- *    cycle from the predecessor graph, excludes some of its arcs and runs
- *    again, until `max_cycles` cycles are found or no negative cycle is left.
+ *    virtual source (every node at distance zero), scanning the predecessor
+ *    graph for a cycle after every pass (any such cycle is negative), so a
+ *    certificate is usually found after a few passes; it then extracts the
+ *    cycle, excludes some of its arcs and runs again, until `max_cycles`
+ *    cycles are found or no negative cycle is left.
  *  - `most_negative_cycle_bounded()`: for every node as origin, runs a
  *    relaxation bounded to `max_length` steps to find the closed walks of
  *    minimum total cost, decomposes them into simple cycles and returns the
@@ -163,6 +165,12 @@ namespace Aleph
 
   namespace negative_cycles_detail
   {
+    /** @brief Snapshot of one graph arc: endpoint positions, the arc and its
+     *         weight (read once from the distance accessor).
+     *
+     *  @tparam GT Graph type.
+     *  @tparam Cost_Type Arc weight type.
+     */
     template <AlephGraph GT, typename Cost_Type>
     struct Arc_Rec
     {
@@ -172,6 +180,12 @@ namespace Aleph
       Cost_Type weight = Cost_Type{0};
     };
 
+    /** @brief Positional snapshot of a graph: nodes by position and the arcs
+     *         accepted by the arc filter, in iteration order.
+     *
+     *  @tparam GT Graph type.
+     *  @tparam Cost_Type Arc weight type.
+     */
     template <AlephGraph GT, typename Cost_Type>
     struct Indexed_Graph
     {
@@ -229,6 +243,56 @@ namespace Aleph
 
       return ig;
     }
+
+    /** @brief Scan the predecessor graph for a cycle.
+     *
+     *  `pred(v)` holds the index into `ig.arcs` of the arc that last relaxed
+     *  `v`, or -1. Any cycle of that graph certifies a negative cycle of the
+     *  underlying graph: each `pred` assignment records an arc that strictly
+     *  improved its target, so the weights around a predecessor cycle
+     *  telescope to a strictly negative sum (the "walk to the root" check of
+     *  Cherkassky and Goldberg, 1999).
+     *
+     *  @param[in] ig Indexed snapshot of the graph.
+     *  @param[in] pred Predecessor arc index per node, -1 for none.
+     *  @param[in,out] mark Scratch array of `pred.size()` entries; overwritten.
+     *
+     *  @return The index of a node lying on a predecessor cycle, or -1 if
+     *          the predecessor graph is acyclic. O(V): every node is walked
+     *          at most once.
+     */
+    template <AlephGraph GT, typename Cost_Type>
+    long find_predecessor_cycle(const Indexed_Graph<GT, Cost_Type> & ig,
+                                const Array<long> & pred,
+                                Array<long> & mark)
+    {
+      const size_t n = mark.size();
+      for (size_t i = 0; i < n; ++i)
+        mark(i) = 0;
+
+      long chain = 0;
+      for (size_t s = 0; s < n; ++s)
+        {
+          if (mark(s) != 0)
+            continue;
+
+          ++chain;
+          for (size_t v = s; ; )
+            {
+              mark(v) = chain;
+              const long a = pred(v);
+              if (a == -1)
+                break;
+              const size_t u = ig.arcs(static_cast<size_t>(a)).src;
+              if (mark(u) == chain)
+                return static_cast<long>(u);   // u closes a cycle of this chain
+              if (mark(u) != 0)
+                break;   // joins an older chain, already known to be cycle-free
+              v = u;
+            }
+        }
+      return -1;
+    }
   } // namespace negative_cycles_detail
 
 
@@ -237,9 +301,11 @@ namespace Aleph
    *
    *  Each round is a Bellman-Ford relaxation over the arcs not yet excluded,
    *  started from a virtual source (every node at distance zero, so cycles
-   *  reachable from anywhere are found). If the n-th pass still relaxes an
-   *  arc, following predecessors n times from the relaxed node lands on a
-   *  cycle of the predecessor graph, which is a negative cycle; it is
+   *  reachable from anywhere are found). After every pass the predecessor
+   *  graph (at most one arc per node) is scanned in O(V) for a cycle; any
+   *  such cycle is a negative cycle, so the certificate is found as soon as
+   *  it appears — typically after a few passes — instead of waiting for the
+   *  classical criterion of a relaxation in the n-th pass. The cycle is
    *  extracted, reported with its exact arcs and total cost, and its arcs
    *  are excluded according to `exclusion`. The search stops when
    *  `max_cycles` cycles have been reported or a pass relaxes nothing (no
@@ -285,7 +351,10 @@ namespace Aleph
    *        of rounding; such a cycle is not reported but its arcs are still
    *        excluded, so the search keeps making progress.
    *
-   *  @note Complexity: O(max_cycles · V · E) time, O(V + E) extra space.
+   *  @note Complexity: O(max_cycles · V · E) worst-case time (the per-pass
+   *        cycle check adds O(V) to the O(E) pass), O(V + E) extra space.
+   *        In practice each round stops at the first pass whose predecessor
+   *        graph contains a cycle, usually far earlier than pass V.
    *
    *  @ingroup Graphs
    */
@@ -304,18 +373,21 @@ namespace Aleph
     using Item = Negative_Cycle_Item<GT, Cost_Type>;
 
     DynList<Item> result;
+    if (max_cycles == 0)
+      return result;   // documented: no snapshot, no validation, no distance call
 
     auto ig = negative_cycles_detail::index_graph(g, distance, sa,
                                                   "find_disjoint_negative_cycles");
     const size_t n = ig.nodes.size();
     const size_t m = ig.arcs.size();
-    if (max_cycles == 0 or n == 0 or m == 0)
+    if (n == 0 or m == 0)
       return result;
 
     constexpr long none = -1;
     Array<bool> forbidden(m, false);
     Array<Cost_Type> dist(n, Cost_Type{0});
     Array<long> pred(n, none);   // index into ig.arcs of the arc that last relaxed the node
+    Array<long> mark(n, 0);      // scratch for the predecessor cycle check
 
     while (result.size() < max_cycles)
       {
@@ -325,10 +397,11 @@ namespace Aleph
             pred(i) = none;
           }
 
-        // n passes; a relaxation in the n-th one certifies a negative cycle.
-        long last_relaxed = none;
-        bool relaxed_in_nth_pass = false;
-        for (size_t pass = 0; pass < n; ++pass)
+        // Up to n passes; after each one the predecessor graph is scanned
+        // for a cycle, which certifies a negative cycle as soon as one has
+        // taken shape instead of waiting for a relaxation in the n-th pass.
+        long cycle_entry = none;
+        for (size_t pass = 0; pass < n and cycle_entry == none; ++pass)
           {
             bool relaxed = false;
             for (size_t a = 0; a < m; ++a)
@@ -346,7 +419,6 @@ namespace Aleph
                   {
                     dist(rec.tgt) = cand;
                     pred(rec.tgt) = static_cast<long>(a);
-                    last_relaxed = static_cast<long>(rec.tgt);
                     relaxed = true;
                   }
               }
@@ -354,28 +426,15 @@ namespace Aleph
             if (not relaxed)
               break;   // converged: no negative cycle among the allowed arcs
 
-            relaxed_in_nth_pass = (pass + 1 == n);
+            cycle_entry = negative_cycles_detail::find_predecessor_cycle(ig, pred, mark);
           }
 
-        if (not relaxed_in_nth_pass)
-          break;
+        if (cycle_entry == none)
+          break;   // no negative cycle among the allowed arcs
 
-        // Walk n predecessors back from a node relaxed in the n-th pass: that
-        // lands inside a cycle of the predecessor graph.
-        size_t y = static_cast<size_t>(last_relaxed);
+        // cycle_entry lies on a cycle of the predecessor graph.
+        const size_t y = static_cast<size_t>(cycle_entry);
         bool ok = true;
-        for (size_t i = 0; i < n; ++i)
-          {
-            const long a = pred(y);
-            if (a == none)
-              {
-                ok = false;
-                break;
-              }
-            y = ig.arcs(static_cast<size_t>(a)).src;
-          }
-        if (not ok)
-          break;   // unreachable in exact arithmetic; do not loop on a broken state
 
         // Extract the cycle through y; predecessors give it in reverse order.
         Array<size_t> reversed;
@@ -629,14 +688,17 @@ namespace Aleph
       << "most_negative_cycle_bounded(): predecessor table size overflow";
 
     constexpr long none = -1;
-    const Cost_Type inf = std::numeric_limits<Cost_Type>::max();
 
-    Array<Cost_Type> prev(n, inf);
-    Array<Cost_Type> cur(n, inf);
+    // Reachability is tracked apart from the cost: every value of Cost_Type,
+    // including numeric_limits::max(), is a legitimate cost.
+    Array<Cost_Type> prev(n, Cost_Type{0});
+    Array<Cost_Type> cur(n, Cost_Type{0});
+    Array<bool> prev_reached(n, false);
+    Array<bool> cur_reached(n, false);
     Array<long> pred((L + 1) * n, none);   // pred(k * n + u): arc that reaches u in step k
 
     bool has_walk = false;
-    Cost_Type best_walk = inf;   // minimum cost over all closed walks considered
+    Cost_Type best_walk = Cost_Type{0};   // minimum cost over all closed walks considered
     negative_cycles_detail::Best_Cycle<Cost_Type> best;
 
     Array<long> pos(n, none);
@@ -647,13 +709,14 @@ namespace Aleph
     for (size_t v = 0; v < n; ++v)
       {
         for (size_t i = 0; i < n; ++i)
-          prev(i) = inf;
+          prev_reached(i) = false;
         prev(v) = Cost_Type{0};
+        prev_reached(v) = true;
 
         for (size_t k = 1; k <= L; ++k)
           {
             for (size_t i = 0; i < n; ++i)
-              cur(i) = inf;
+              cur_reached(i) = false;
 
             bool any = false;
             for (size_t a = 0; a < m; ++a)
@@ -662,17 +725,17 @@ namespace Aleph
                 if (k > 1 and rec.src == v)
                   continue;   // the origin is visited only at the ends
 
-                const Cost_Type p = prev(rec.src);
-                if (p == inf)
+                if (not prev_reached(rec.src))
                   continue;
 
-                const Cost_Type cand = shortest_path_detail::checked_add(p, rec.weight);
+                const Cost_Type cand = shortest_path_detail::checked_add(prev(rec.src), rec.weight);
                 negative_cycles_detail::check_finite(
                     cand, "most_negative_cycle_bounded(): accumulation became non-finite");
 
-                if (cand < cur(rec.tgt))
+                if (not cur_reached(rec.tgt) or cand < cur(rec.tgt))
                   {
                     cur(rec.tgt) = cand;
+                    cur_reached(rec.tgt) = true;
                     pred(k * n + rec.tgt) = static_cast<long>(a);
                     any = true;
                   }
@@ -681,7 +744,7 @@ namespace Aleph
             if (not any)
               break;   // nothing is reachable in k steps, so nothing in more
 
-            if (cur(v) != inf)
+            if (cur_reached(v))
               {
                 result.has_cycle = true;
                 if (not has_walk or cur(v) < best_walk)
@@ -713,6 +776,7 @@ namespace Aleph
               }
 
             prev.swap(cur);
+            prev_reached.swap(cur_reached);
           }
       }
 

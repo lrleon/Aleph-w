@@ -422,7 +422,10 @@ public:
   }
 
 private:
-  /// Relax all arcs n-1 times (standard Bellman-Ford).
+  /// Relax all arcs up to n-1 times (standard Bellman-Ford). Stops as soon
+  /// as a pass relaxes no arc: the distances have reached their fixed point
+  /// and no later pass (including the extra negative-cycle check) can relax
+  /// anything.
   void relax_arcs() noexcept
   {
     const size_t &n = g_.vsize();
@@ -430,25 +433,31 @@ private:
       return;  // Nothing to relax for empty or single-node graphs
 
     for (size_t i = 0; i < n - 1; ++i)
-      for (Ait<GT, SA> it(g_, sa_); it.has_curr(); it.next_ne())
-        {
-          auto arc = it.get_curr();
-          auto src = g_.get_src_node(arc);
-          const auto &accum_src = accum(src);
-          if (accum_src == Inf)
-            continue;
+      {
+        bool relaxed = false;
+        for (Ait<GT, SA> it(g_, sa_); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_curr();
+            auto src = g_.get_src_node(arc);
+            const auto &accum_src = accum(src);
+            if (accum_src == Inf)
+              continue;
 
-          auto tgt = it.get_tgt_node_ne();
-          auto w = dist_(arc);
-          auto sum = checked_add(accum_src, w);
-          auto &accum_tgt = accum(tgt);
-          if (sum < accum_tgt)  // Relax Arc
-            {
-              const auto &index = idx(tgt);
-              arcs_(index) = arc;
-              accum_tgt = sum;
-            }
-        }
+            auto tgt = it.get_tgt_node_ne();
+            auto w = dist_(arc);
+            auto sum = checked_add(accum_src, w);
+            auto &accum_tgt = accum(tgt);
+            if (sum < accum_tgt)  // Relax Arc
+              {
+                const auto &index = idx(tgt);
+                arcs_(index) = arc;
+                accum_tgt = sum;
+                relaxed = true;
+              }
+          }
+        if (not relaxed)
+          return;  // converged early
+      }
   }
 
   /// Insert a node into the queue if not already present (SPFA optimization).

@@ -282,6 +282,30 @@ TEST(NegativeCyclesTest, MaxCyclesZeroReturnsEmptyList)
 }
 
 
+// max_cycles == 0 must not snapshot nor validate the graph: no exception for
+// an undirected graph and no call to the distance accessor.
+TEST(NegativeCyclesTest, MaxCyclesZeroDoesNotTouchTheGraph)
+{
+  UGraph undirected;
+  auto * u0 = undirected.insert_node(0);
+  auto * u1 = undirected.insert_node(1);
+  undirected.insert_arc(u0, u1, -1);
+  EXPECT_NO_THROW({ EXPECT_TRUE(find_disjoint_negative_cycles(undirected, 0).is_empty()); });
+
+  struct Counting_Dist
+  {
+    using Distance_Type = long long;
+    int * calls;
+    Distance_Type operator()(Arc * a) const { ++*calls; return a->get_info(); }
+  };
+  auto built = build_graph(2, {{0, 1, -1}, {1, 0, -1}});
+  int calls = 0;
+  EXPECT_TRUE((find_disjoint_negative_cycles<Graph, Counting_Dist>(
+      built.g, 0, Negative_Cycle_Exclusion::Min_Weight_Arc, Counting_Dist{&calls})).is_empty());
+  EXPECT_EQ(calls, 0);
+}
+
+
 TEST(NegativeCyclesTest, MaxCyclesLimitsTheCount)
 {
   // Three arc-disjoint negative 2-cycles.

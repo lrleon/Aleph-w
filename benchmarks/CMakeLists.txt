@@ -4,4 +4,5 @@ cmake_minimum_required(VERSION 3.18)
 # cellular-automata perf-gate anchors and informative comparison suites.
 add_subdirectory(ca)
 add_subdirectory(containers)
+add_subdirectory(graphs)
 add_subdirectory(spatial)
