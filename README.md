@@ -2484,6 +2484,26 @@ int main() {
 }
 ```
 
+#### Howard's policy iteration
+
+`Howard_Min_Mean_Cycle.H` solves the same problem with `howard_minimum_mean_cycle()`
+(and `howard_minimum_mean_cycle_value()`). Its result is a `Min_Mean_Cycle_Result`
+plus `iterations` and `used_karp`, so it can replace Karp's in client code.
+
+| | Karp | Howard |
+|---|---|---|
+| Time | `O(VE)` worst case | `O(V + E)` per iteration; no polynomial bound on the iterations, typically 6 to 25 in the tests |
+| Memory | `O(V^2)` | `O(V + E)` |
+| Integer costs | exact | exact (reduced fractions) |
+| Witness | closed walk, may repeat a cycle | simple cycle |
+
+On the market graphs of `bench_negative_cycles` (hubs plus random pairs) it takes 0.16 ms
+against 3.3 ms for Karp with 300 assets, and 0.6 ms against 41 ms with 1000, using 5 to 9
+times less memory (12 to 24 times when the witness cycle is requested). After `V + 64`
+iterations, or if the scaled bias of an integer problem leaves the range of `long long`, it
+returns Karp's answer (`used_karp`). Like Karp, it ranks cycles by *mean*; for arbitrage, the
+cycle to execute still comes from `Negative_Cycles.H`.
+
 <a id="readme-minimum-spanning-trees"></a>
 ### Minimum Spanning Trees
 

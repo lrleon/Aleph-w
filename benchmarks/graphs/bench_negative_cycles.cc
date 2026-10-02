@@ -77,15 +77,30 @@
  * whose table takes `O(V^2)` memory (about 9 bytes per entry for the value and
  * 25 with the witness, measured: 15 000 vertices would need 2 to 6 GB).
  *
- * @par Karp rows
- * `karp_minimum_mean_cycle_value()` and `karp_minimum_mean_cycle()` solve a
- * different problem: the cycle of minimum *mean* weight, not the cheapest one.
- * They are here to decide whether a faster mean-cycle backend (Howard's
- * algorithm) is worth having. Their witness is a closed *walk* that may go
+ * @par Mean-cycle rows
+ * `karp_minimum_mean_cycle_value()`, `karp_minimum_mean_cycle()` and their
+ * Howard counterparts (`Howard_Min_Mean_Cycle.H`) solve a different problem:
+ * the cycle of minimum *mean* weight, not the cheapest one. Howard is checked
+ * for a simple witness and, where Karp fits in memory, for Karp's mean; its
+ * `cert` column shows the policy iterations (`it=7`) or `karp` if the answer
+ * had to come from Karp. Karp's witness is a closed *walk* that may go
  * around a cycle many times (594 arcs on `market-isolated-nodes`), as
- * documented in Min_Mean_Cycle.H, so the validator checks that it is closed,
+ * documented in Min_Mean_Cycle.H, so its validator checks that it is closed,
  * made of consecutive arcs and has the reported total, length and mean, but
  * not that it is simple.
+ *
+ * @par Reusable-topology estimate
+ * Every instance also prints a block that estimates what `find_disjoint(g, 1)`
+ * would cost if its snapshot (`index_graph`) were kept between calls and only
+ * the weights were re-read. That is not a library API: the enumeration cannot
+ * run on an existing snapshot. The block times the call as it is today, its
+ * snapshot, and a loop that re-reads the weight of every arc of a kept
+ * snapshot, and reports `call - snapshot + refresh`. It assumes that the rest
+ * of the call does not depend on how the snapshot was obtained and that a real
+ * API would add no work of its own, so it is an optimistic bound. The
+ * validation checks that a kept snapshot, refreshed after each weight set of
+ * `market-reweighted`, equals a new snapshot arc by arc (so the refresh loop
+ * does the work a reusable topology would have to do).
  */
 
 #include <algorithm>
@@ -106,6 +121,7 @@
 #include <vector>
 
 #include <Bellman_Ford.H>
+#include <Howard_Min_Mean_Cycle.H>
 #include <Min_Mean_Cycle.H>
 #include <Negative_Cycles.H>
 #include <tpl_array.H>
@@ -561,7 +577,7 @@ struct Outcome
   size_t count = 0;            // cycles reported
   double cost = 0.0;           // cost of the first (or only) cycle
   size_t length = 0;           // arcs of that cycle
-  const char * cert = "-";     // bounded search: "exact" / "no-cert"
+  char cert[16] = "-";         // bounded search: "exact" / "no-cert"; Howard: "it=7" or "karp"
   char why[128] = "";          // reason when Invalid
   size_t allocs = 0;           // operator new calls of one run
   size_t bytes = 0;
@@ -678,7 +694,7 @@ Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
   o.count = 1;
   o.cost = r.total_cost;
   o.length = r.length;
-  o.cert = r.is_exact ? "exact" : "no-cert";
+  std::snprintf(o.cert, sizeof(o.cert), "%s", r.is_exact ? "exact" : "no-cert");
   const auto nodes = to_array(r.cycle_nodes);
   const auto arcs = to_array(r.cycle_arcs);
   long double cost = 0;
@@ -720,6 +736,41 @@ Outcome check_result(const Graph & g, const Min_Mean_Cycle_Result<Graph, double>
     invalid(o, "cycle_total_cost differs from the arc sum");
   else if (std::fabs(cost / static_cast<long double>(arcs.size()) - r.minimum_mean) > 1e-9L)
     invalid(o, "the witness mean differs from minimum_mean");
+  else
+    o.verdict = cost < 0 ? Verdict::Valid : Verdict::None;
+  return o;
+}
+
+// Howard's minimum mean cycle: the witness is a *simple* cycle whose total,
+// length and mean agree with the result, and where Karp fits in memory the mean
+// must be Karp's.
+Outcome check_result(const Graph & g, const Howard_Mean_Cycle_Result<Graph, double> & r,
+                     const Limits &)
+{
+  Outcome o;
+  if (not r.has_cycle)
+    return o;
+  o.count = 1;
+  o.cost = r.cycle_total_cost;
+  o.length = r.cycle_length;
+  if (r.used_karp)
+    std::snprintf(o.cert, sizeof(o.cert), "karp");
+  else
+    std::snprintf(o.cert, sizeof(o.cert), "it=%zu", r.iterations);
+  const auto nodes = to_array(r.cycle_nodes);
+  const auto arcs = to_array(r.cycle_arcs);
+  long double cost = 0;
+  if (const char * why = check_cycle(g, nodes, arcs, cost))
+    invalid(o, why);
+  else if (arcs.size() != r.cycle_length)
+    invalid(o, "cycle_length differs from the arc count");
+  else if (std::fabs(cost - static_cast<long double>(r.cycle_total_cost)) > 1e-9L)
+    invalid(o, "cycle_total_cost differs from the arc sum");
+  else if (std::fabs(cost / static_cast<long double>(arcs.size()) - r.minimum_mean) > 1e-9L)
+    invalid(o, "the witness mean differs from minimum_mean");
+  else if (g.get_num_nodes() <= bounded_max_nodes
+           and std::fabs(karp_minimum_mean_cycle_value(g).minimum_mean - r.minimum_mean) > 1e-9L)
+    invalid(o, "the mean differs from Karp's");
   else
     o.verdict = cost < 0 ? Verdict::Valid : Verdict::None;
   return o;
@@ -912,6 +963,18 @@ DynList<Variant> make_variants()
     false, 0, Limits{},
     [](Graph & g) { return karp_minimum_mean_cycle(g); }));
 
+  // Howard's algorithm needs O(V + E) memory, so it runs on every size.
+  auto howard_value = make_variant("howard_minimum_mean_cycle_value(g)", Group::Mean,
+    false, 0, Limits{},
+    [](Graph & g) { return howard_minimum_mean_cycle_value(g); });
+  howard_value.small_only = false;
+  vs.append(std::move(howard_value));
+  auto howard_witness = make_variant("howard_minimum_mean_cycle(g)", Group::Mean,
+    false, 0, Limits{},
+    [](Graph & g) { return howard_minimum_mean_cycle(g); });
+  howard_witness.small_only = false;
+  vs.append(std::move(howard_witness));
+
   vs.append(make_variant("snapshot only (index_graph)", Group::Reference,
     false, 0, Limits{},
     [](Graph & g)
@@ -967,7 +1030,10 @@ struct Timing
   double best = 0.0;
 };
 
-Timing time_variant(Instance & inst, const Variant & v, const size_t samples)
+// Runs `run()` under the timing protocol; `prepare(i)` runs before each run,
+// outside the timed region. `run` returns a value that is fed to `keep`.
+template <class Prepare, class Run>
+Timing time_runs(const size_t samples, Prepare prepare, Run run)
 {
   // Untimed warmup: at least `warmup_min_runs`, then until `warmup_ms` have
   // elapsed (at most `warmup_max_runs`), so that short variants also reach a
@@ -975,9 +1041,9 @@ Timing time_variant(Instance & inst, const Variant & v, const size_t samples)
   double warmed = 0.0;
   for (size_t w = 0; w < warmup_min_runs or (warmed < warmup_ms and w < warmup_max_runs); ++w)
     {
-      inst.apply_round(w);
+      prepare(w);
       const auto t0 = std::chrono::steady_clock::now();
-      keep(v.run(inst.g));
+      keep(run());
       warmed += std::chrono::duration<double, std::milli>(
                   std::chrono::steady_clock::now() - t0).count();
     }
@@ -986,9 +1052,9 @@ Timing time_variant(Instance & inst, const Variant & v, const size_t samples)
   ms.reserve(samples);
   for (size_t i = 0; i < samples; ++i)
     {
-      inst.apply_round(i);
+      prepare(i);
       const auto t0 = std::chrono::steady_clock::now();
-      const long r = v.run(inst.g);
+      const long r = run();
       const auto t1 = std::chrono::steady_clock::now();
       keep(r);
       ms.push_back(std::chrono::duration<double, std::milli>(t1 - t0).count());
@@ -1001,6 +1067,13 @@ Timing time_variant(Instance & inst, const Variant & v, const size_t samples)
   const size_t rank = static_cast<size_t>(std::ceil(0.9 * static_cast<double>(ms.size())));
   t.p90 = ms[std::max<size_t>(rank, 1) - 1];
   return t;
+}
+
+Timing time_variant(Instance & inst, const Variant & v, const size_t samples)
+{
+  return time_runs(samples,
+                   [&inst](const size_t i) { inst.apply_round(i); },
+                   [&inst, &v] { return v.run(inst.g); });
 }
 
 // ---------------------------------------------------------------------------
@@ -1020,7 +1093,7 @@ const char * group_title(const Group g)
     case Group::Detect: return "detection only";
     case Group::Witness: return "with a witness cycle";
     case Group::Bounded: return "bounded search";
-    case Group::Mean: return "minimum mean cycle (Karp: O(V * E) time, O(V^2) memory)";
+    case Group::Mean: return "minimum mean cycle (Karp: O(V^2) memory; Howard: O(V + E))";
     case Group::Reference: return "reference";
     }
   return "";
@@ -1060,6 +1133,102 @@ void print_row(const Variant & v, const Outcome & o, const Timing * t, const Jud
               static_cast<double>(o.bytes) / 1024.0,
               j == Judgment::Known_Defect ? "  <- known BF defect"
               : j == Judgment::Unexpected ? "  <- UNEXPECTED" : "");
+}
+
+// ---------------------------------------------------------------------------
+// Reusable topology: what a snapshot kept between calls would save
+// ---------------------------------------------------------------------------
+
+// Re-reads the weight of every arc of `ig` through `distance`. A reusable
+// topology would do this for each new weight set instead of building a new
+// snapshot. Returns the sum of the weights so the loop cannot be optimized
+// away.
+double refresh_weights(Indexed & ig, Dft_Dist<Graph> & distance)
+{
+  double total = 0.0;
+  for (size_t i = 0; i < ig.arcs.size(); ++i)
+    {
+      auto & rec = ig.arcs(i);
+      rec.weight = distance(rec.arc);
+      negative_cycles_detail::check_finite(rec.weight, "bench: non-finite arc weight");
+      total += rec.weight;
+    }
+  return total;
+}
+
+// A snapshot refreshed after every weight change must hold exactly what a new
+// snapshot holds (same arcs, same order, same weights); otherwise the refresh
+// loop above would not be measuring the work a reusable topology has to do.
+bool refreshed_snapshot_matches(Instance & inst)
+{
+  Dft_Dist<Graph> distance;
+  Dft_Show_Arc<Graph> show;
+  inst.apply_round(0);
+  Indexed kept = negative_cycles_detail::index_graph(inst.g, distance, show, "bench");
+  for (size_t r = 0; r < inst.rounds; ++r)
+    {
+      inst.apply_round(r);
+      keep(std::signbit(refresh_weights(kept, distance)) ? 1 : 2);
+      const Indexed fresh = negative_cycles_detail::index_graph(inst.g, distance, show, "bench");
+      if (fresh.nodes.size() != kept.nodes.size() or fresh.arcs.size() != kept.arcs.size())
+        return false;
+      for (size_t i = 0; i < fresh.arcs.size(); ++i)
+        if (fresh.arcs(i).arc != kept.arcs(i).arc
+            or fresh.arcs(i).src != kept.arcs(i).src
+            or fresh.arcs(i).tgt != kept.arcs(i).tgt
+            or fresh.arcs(i).weight != kept.arcs(i).weight)
+          return false;
+    }
+  return true;
+}
+
+void print_timing_row(const char * name, const Timing & t)
+{
+  std::printf("  %-47s %9.3f %9.3f %9.3f\n", name, t.median, t.p90, t.best);
+}
+
+// Times `find_disjoint(g, 1)`, its snapshot and the weight refresh of a kept
+// snapshot, and prints the estimate (call - snapshot + refresh). Nothing here
+// is a library API: the enumeration is not callable on an existing snapshot.
+void report_reusable_topology(Instance & inst, const size_t samples, Tally & tally)
+{
+  if (not refreshed_snapshot_matches(inst))
+    {
+      ++tally.unexpected;
+      std::printf("  -- reusable topology\n      UNEXPECTED: a refreshed snapshot differs from a "
+                  "new one\n");
+      return;
+    }
+  if (samples == 0)
+    return;
+
+  Dft_Dist<Graph> distance;
+  Dft_Show_Arc<Graph> show;
+  inst.apply_round(0);
+  Indexed kept = negative_cycles_detail::index_graph(inst.g, distance, show, "bench");
+
+  const auto prepare = [&inst](const size_t i) { inst.apply_round(i); };
+  const Timing call = time_runs(samples, prepare,
+    [&inst] { return weigh(find_disjoint_negative_cycles(inst.g, 1)); });
+  const Timing snapshot = time_runs(samples, prepare,
+    [&inst, &distance, &show]
+    { return weigh(negative_cycles_detail::index_graph(inst.g, distance, show, "bench")); });
+  const Timing refresh = time_runs(samples, prepare,
+    [&kept, &distance]
+    { return std::signbit(refresh_weights(kept, distance)) ? 1L : 2L; });
+
+  std::printf("  -- reusable topology (estimate: call - snapshot + refresh; not a library API)\n");
+  print_timing_row("find_disjoint(g, 1), as today", call);
+  print_timing_row("  of which the snapshot (index_graph)", snapshot);
+  print_timing_row("  weight refresh of a kept snapshot", refresh);
+  const double estimate = call.median - snapshot.median + refresh.median;
+  if (call.median > snapshot.median and estimate > 0.0)
+    std::printf("  %-47s %9.3f %9s %9s  est. x%.1f\n",
+                "find_disjoint(g, 1) with a kept snapshot", estimate, "-", "-",
+                call.median / estimate);
+  else
+    std::printf("  %-47s %9s  (the call is not slower than its snapshot: no estimate)\n",
+                "find_disjoint(g, 1) with a kept snapshot", "n/a");
 }
 
 // Validates every variant on `inst` (all its weight sets) and, if `samples`
@@ -1128,6 +1297,7 @@ void report_instance(Instance & inst, const DynList<Variant> & variants,
     }
   if (skipped_bounded)
     std::printf("  (bounded and Karp variants skipped: more than %zu vertices)\n", bounded_max_nodes);
+  report_reusable_topology(inst, samples, tally);
 }
 
 void print_environment(const Options & opt)
