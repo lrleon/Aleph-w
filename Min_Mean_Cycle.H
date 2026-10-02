@@ -286,9 +286,10 @@ namespace Aleph
      *             can take it.
      *  @param[in] fn Name of the public function, for error messages.
      *  @return The minimum mean and, if `With_Witness`, the witness.
-     *  @throws std::overflow_error If the table size or a checked addition
-     *          overflows, or the witness cost does not fit `Cost_Type`.
+     *  @throws std::overflow_error If a checked addition overflows, or the
+     *          witness cost does not fit `Cost_Type`.
      *  @throws std::domain_error If a floating-point accumulation is not finite.
+     *  @note `karp_solve()` has checked that the tables fit a `size_t` of bytes.
      */
     template <bool With_Witness, typename Acc, bool Checked, bool Exact_Difference,
               AlephGraph GT, typename Cost_Type>
@@ -310,11 +311,6 @@ namespace Aleph
       const size_t n = incoming.size();
       if (n == 0)
         return result;
-
-      ah_overflow_error_if(
-          n > std::numeric_limits<size_t>::max() - 1
-          or (n + 1) > std::numeric_limits<size_t>::max() / n)
-        << fn << "(): DP table size overflow";
 
       const size_t total_states = (n + 1) * n;
       constexpr size_t none = std::numeric_limits<size_t>::max();
@@ -551,6 +547,111 @@ namespace Aleph
     }
 
 
+    /// How `karp_solve()` keeps the sums of a table (see there).
+    enum class Karp_Sums
+    {
+      Cost_Type_Checked,   ///< The cost type itself, every addition checked.
+      Long_Long,           ///< `long long`, which the bound keeps the sums inside.
+      Long_Long_Checked,   ///< `long long`, every addition checked (no 128-bit integers).
+      Int128               ///< 128-bit integers, which the bound keeps the sums inside.
+    };
+
+
+    /** @brief Choose how the sums of Karp's table over `incoming` are kept.
+     *
+     *  For integral costs that fit a `long long`, every sum adds at most `n`
+     *  weights, so `n * max|w|` bounds it: `long long` when the bound is below
+     *  `LLONG_MAX`, 128-bit integers otherwise, or checked `long long` without
+     *  them. Any other cost type keeps its own sums, checked.
+     *
+     *  @param[in] incoming Incoming arcs of every node.
+     *  @return The choice. O(E).
+     */
+    template <AlephGraph GT, typename Cost_Type>
+    Karp_Sums karp_sums(const Array<Array<Incoming_Arc<GT, Cost_Type>>> & incoming)
+    {
+      if constexpr (std::is_integral_v<Cost_Type>
+                    and std::numeric_limits<Cost_Type>::max()
+                          <= std::numeric_limits<long long>::max())
+        {
+          constexpr long long ll_max = std::numeric_limits<long long>::max();
+          unsigned long long max_abs = 0;   // max |w|, LLONG_MIN included
+          for (size_t v = 0; v < incoming.size(); ++v)
+            for (size_t pos = 0; pos < incoming[v].size(); ++pos)
+              {
+                const long long w = static_cast<long long>(incoming[v][pos].weight);
+                const unsigned long long a = w < 0 ? 0ULL - static_cast<unsigned long long>(w)
+                                                   : static_cast<unsigned long long>(w);
+                if (a > max_abs)
+                  max_abs = a;
+              }
+
+          const unsigned long long n = incoming.size();
+          if (max_abs == 0 or n <= (static_cast<unsigned long long>(ll_max) - 1) / max_abs)
+            return Karp_Sums::Long_Long;
+# if ALEPH_KARP_INT128
+          return Karp_Sums::Int128;
+# else
+          return Karp_Sums::Long_Long_Checked;
+# endif
+        }
+      else
+        return Karp_Sums::Cost_Type_Checked;
+    }
+
+
+    /** @brief Bytes that `karp_solve()` reserves for the tables of a graph of
+     *         `n` nodes whose sums are kept as `sums`.
+     *
+     *  The table of sums has `(n + 1) * n` entries, and so has the table of
+     *  predecessor positions (`size_t`), kept only with the witness. `Array`
+     *  reserves a power of two of elements, the smallest not below the count,
+     *  so that is what is counted: up to twice the entries. The arrays of
+     *  `O(n)` elements that the witness extraction uses are not counted.
+     *
+     *  @tparam With_Witness Whether the table of predecessors is kept.
+     *  @tparam Cost_Type Arc weight type.
+     *  @param[in] n Number of nodes.
+     *  @param[in] sums How the sums are kept (`karp_sums()`).
+     *  @param[out] bytes The bytes, when they fit a `size_t`.
+     *  @return False if they do not fit a `size_t`.
+     */
+    template <bool With_Witness, typename Cost_Type>
+    [[nodiscard]] bool karp_table_bytes(const size_t n, const Karp_Sums sums, size_t & bytes) noexcept
+    {
+      constexpr size_t max = std::numeric_limits<size_t>::max();
+      if (n == 0)
+        {
+          bytes = 0;
+          return true;
+        }
+      if (n > max - 1 or n + 1 > max / n)
+        return false;
+
+      const size_t entries = (n + 1) * n;
+      size_t reserved = 1;
+      while (reserved < entries)
+        {
+          if (reserved > max / 2)
+            return false;
+          reserved <<= 1;
+        }
+
+      size_t sum_bytes = sizeof(Cost_Type);
+      if (sums == Karp_Sums::Long_Long or sums == Karp_Sums::Long_Long_Checked)
+        sum_bytes = sizeof(long long);
+# if ALEPH_KARP_INT128
+      else if (sums == Karp_Sums::Int128)
+        sum_bytes = sizeof(karp_int128_t);
+# endif
+      const size_t per_entry = sum_bytes + (With_Witness ? sizeof(size_t) : 0);
+      if (reserved > max / per_entry)
+        return false;
+      bytes = reserved * per_entry;
+      return true;
+    }
+
+
     /** @brief Karp's algorithm on a graph given by its incoming lists.
      *
      *  The node positions are `0 .. incoming.size() - 1`, and `incoming[v]`
@@ -580,18 +681,28 @@ namespace Aleph
      *  Only in the last case of each list, with checked `long long` or the
      *  cost type's own sums, is it their maximum, which a sum could equal.
      *
+     *  The choice is `karp_sums()`, and the bytes of the tables are
+     *  `karp_table_bytes()`; both are separate so that a caller can know the
+     *  bytes before running the table.
+     *
      *  @tparam With_Witness Whether to keep predecessors and extract a witness.
      *  @param[in] incoming Incoming arcs of every node.
      *  @param[in] fn Name of the public function, for error messages.
      *  @return The minimum mean and, if `With_Witness`, the witness.
-     *  @throws std::overflow_error If the table size or a checked addition
-     *          overflows, or the witness cost does not fit `Cost_Type`.
+     *  @throws std::overflow_error If the bytes of the tables do not fit a
+     *          `size_t`, a checked addition overflows, or the witness cost
+     *          does not fit `Cost_Type`.
      *  @throws std::domain_error If a floating-point accumulation is not finite.
      */
     template <bool With_Witness, AlephGraph GT, typename Cost_Type>
     Karp_Answer<GT, Cost_Type>
     karp_solve(const Array<Array<Incoming_Arc<GT, Cost_Type>>> & incoming, const char * fn)
     {
+      const Karp_Sums sums = karp_sums(incoming);
+      size_t bytes = 0;
+      const bool fits = karp_table_bytes<With_Witness, Cost_Type>(incoming.size(), sums, bytes);
+      ah_overflow_error_if(not fits) << fn << "(): DP table size overflow";
+
       if constexpr (std::is_floating_point_v<Cost_Type>)
         return karp_table<With_Witness, Cost_Type, true, false>(
             incoming, std::numeric_limits<Cost_Type>::infinity(), fn);
@@ -600,19 +711,7 @@ namespace Aleph
                                <= std::numeric_limits<long long>::max())
         {
           constexpr long long ll_max = std::numeric_limits<long long>::max();
-          unsigned long long max_abs = 0;   // max |w|, LLONG_MIN included
-          for (size_t v = 0; v < incoming.size(); ++v)
-            for (size_t pos = 0; pos < incoming[v].size(); ++pos)
-              {
-                const long long w = static_cast<long long>(incoming[v][pos].weight);
-                const unsigned long long a = w < 0 ? 0ULL - static_cast<unsigned long long>(w)
-                                                   : static_cast<unsigned long long>(w);
-                if (a > max_abs)
-                  max_abs = a;
-              }
-
-          const unsigned long long n = incoming.size();
-          if (max_abs == 0 or n <= (static_cast<unsigned long long>(ll_max) - 1) / max_abs)
+          if (sums == Karp_Sums::Long_Long)
             return karp_table<With_Witness, long long, false, false>(incoming, ll_max, fn);
 # if ALEPH_KARP_INT128
           // n * max|w| < 2^64 * 2^63: no sum, nor the difference of two, overflows.

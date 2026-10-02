@@ -374,6 +374,60 @@ TEST(MinMeanCycleTest, WitnessMeansAreComparedExactly)
 # endif
 }
 
+TEST(MinMeanCycleTest, TableBytesAreTheBytesArrayReserves)
+{
+  // Audit 2026-10-02, C3: the bytes of Karp's tables, which the memory limit
+  // of Howard's fallback compares. (n + 1) * n entries, rounded up by Array
+  // to a power of two; a sum, plus a predecessor position with the witness.
+  using namespace min_mean_cycle_detail;
+  size_t bytes = 1;
+  ASSERT_TRUE((karp_table_bytes<true, long long>(0, Karp_Sums::Long_Long, bytes)));
+  EXPECT_EQ(bytes, 0u);
+  ASSERT_TRUE((karp_table_bytes<true, long long>(3, Karp_Sums::Long_Long, bytes)));
+  EXPECT_EQ(bytes, 16u * (8 + 8));                   // 12 entries -> 16
+  ASSERT_TRUE((karp_table_bytes<false, long long>(3, Karp_Sums::Long_Long, bytes)));
+  EXPECT_EQ(bytes, 16u * 8);
+  ASSERT_TRUE((karp_table_bytes<true, long long>(1000, Karp_Sums::Long_Long, bytes)));
+  EXPECT_EQ(bytes, (size_t{1} << 20) * 16);          // 1001000 entries -> 2^20
+  ASSERT_TRUE((karp_table_bytes<true, double>(15, Karp_Sums::Cost_Type_Checked, bytes)));
+  EXPECT_EQ(bytes, 256u * (sizeof(double) + 8));     // 240 entries -> 256
+  ASSERT_TRUE((karp_table_bytes<false, long double>(15, Karp_Sums::Cost_Type_Checked, bytes)));
+  EXPECT_EQ(bytes, 256u * sizeof(long double));
+# if ALEPH_KARP_INT128
+  ASSERT_TRUE((karp_table_bytes<true, long long>(3, Karp_Sums::Int128, bytes)));
+  EXPECT_EQ(bytes, 16u * (16 + 8));
+# endif
+
+  // Counts that do not fit a size_t: the entries themselves, or the bytes
+  // of the power of two that holds them.
+  EXPECT_FALSE((karp_table_bytes<true, long long>(std::numeric_limits<size_t>::max() / 2,
+                                                  Karp_Sums::Long_Long, bytes)));
+  EXPECT_FALSE((karp_table_bytes<false, long long>(size_t{1} << (std::numeric_limits<size_t>::digits / 2 - 1),
+                                                   Karp_Sums::Long_Long, bytes)));
+
+  // How the sums are kept: long long while n * max|w| stays below LLONG_MAX.
+  using In = Incoming_Arc<Graph, long long>;
+  const auto lists = [](const long long w)
+  {
+    Array<Array<In>> incoming;
+    incoming.append(Array<In>());
+    incoming.append(Array<In>());
+    incoming(0).append(In{1, nullptr, w});
+    incoming(1).append(In{0, nullptr, -w});
+    return incoming;
+  };
+  EXPECT_EQ(karp_sums(lists(5)), Karp_Sums::Long_Long);
+  EXPECT_EQ(karp_sums(lists(std::numeric_limits<long long>::max() / 2 - 1)), Karp_Sums::Long_Long);
+# if ALEPH_KARP_INT128
+  EXPECT_EQ(karp_sums(lists(std::numeric_limits<long long>::max() / 2 + 1)), Karp_Sums::Int128);
+# else
+  EXPECT_EQ(karp_sums(lists(std::numeric_limits<long long>::max() / 2 + 1)), Karp_Sums::Long_Long_Checked);
+# endif
+  Array<Array<Incoming_Arc<Float_Graph, double>>> floating;
+  floating.append(Array<Incoming_Arc<Float_Graph, double>>());
+  EXPECT_EQ(karp_sums(floating), Karp_Sums::Cost_Type_Checked);
+}
+
 TEST(MinMeanCycleTest, WitnessIsASimpleCycle)
 {
   // Audit 2026-10-02, C4. The witness used to be a closed piece of Karp's

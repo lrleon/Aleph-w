@@ -2502,8 +2502,19 @@ On the market graphs of `bench_negative_cycles` (hubs plus random pairs) it take
 against 3.3 ms for Karp with 300 assets, and 0.6 ms against 41 ms with 1000, using 5 to 9
 times less memory (12 to 24 times when the witness cycle is requested). After `V + 64`
 iterations, or if the scaled bias of an integer problem leaves the range of `long long`, it
-returns Karp's answer (`used_karp`). Like Karp, it ranks cycles by *mean*; for arbitrage, the
+returns Karp's answer (`used_karp`), and `fallback_reason` says why. That fallback runs Karp on
+each strongly connected component, whose tables take `O(V_c^2)` memory; an optional last
+argument, `max_fallback_bytes`, bounds them, and above it the call throws `std::length_error`
+instead of reserving the tables. Like Karp, it ranks cycles by *mean*; for arbitrage, the
 cycle to execute still comes from `Negative_Cycles.H`.
+
+```cpp
+// At most 256 MiB for Karp's tables, if the fallback runs.
+const auto r = howard_minimum_mean_cycle(g, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(),
+                                         size_t{256} << 20);
+if (r.used_karp and r.fallback_reason == Howard_Fallback_Reason::Iteration_Limit)
+  { /* Howard needed too many iterations */ }
+```
 
 Results carry `numeric_quality`. With floating-point weights Howard iterates in `long double`
 and then finishes in exact arithmetic when the weights, scaled to integers, fit 64 or 128 bits

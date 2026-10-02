@@ -776,8 +776,11 @@ TEST(HowardMinMeanCycleTest, ValueOnlyMatchesTheFullFunctionBitForBit)
       return ::testing::AssertionFailure()
              << "minimum_mean " << full.minimum_mean << " against " << value.minimum_mean;
     if (full.iterations != value.iterations or full.used_karp != value.used_karp
+        or full.fallback_reason != value.fallback_reason
         or full.numeric_quality != value.numeric_quality)
       return ::testing::AssertionFailure() << "how the answer was obtained";
+    if (full.used_karp != (full.fallback_reason != Howard_Fallback_Reason::None))
+      return ::testing::AssertionFailure() << "used_karp disagrees with fallback_reason";
     if (not value.cycle_nodes.is_empty() or not value.cycle_arcs.is_empty()
         or value.witness_node != nullptr)
       return ::testing::AssertionFailure() << "the value-only result built a witness";
@@ -889,6 +892,190 @@ TEST(HowardMinMeanCycleTest, ValueOnlyAnswersWhereTheCostOfTheCycleDoesNotFit)
 }
 
 
+// Audit 2026-10-02, C5: why Karp's algorithm answered.
+
+TEST(HowardMinMeanCycleTest, FallbackReasonSaysWhyKarpAnswered)
+{
+  using D = Dft_Dist<Graph>;
+  using S = Dft_Show_Arc<Graph>;
+
+  // Howard answers: no reason.
+  auto limit_graph = build_graph(4, {{0, 1, 1}, {1, 0, 1}, {0, 2, 2}, {2, 3, -9}, {3, 0, 2}, {1, 2, 5}});
+  const auto normal = howard_minimum_mean_cycle(limit_graph.g);
+  EXPECT_FALSE(normal.used_karp);
+  EXPECT_EQ(normal.fallback_reason, Howard_Fallback_Reason::None);
+
+  // The policy needs improvements that the limit does not allow.
+  const auto limited = howard_detail::minimum_mean_cycle<Graph, D, S>(limit_graph.g, D(), S(), 0);
+  EXPECT_TRUE(limited.used_karp);
+  EXPECT_EQ(limited.fallback_reason, Howard_Fallback_Reason::Iteration_Limit);
+
+  // The scaled bias of ScaledBiasOverflowFallsBackToKarp leaves long long.
+  const long long big = 3100000000000000000LL;
+  auto bias_graph = build_graph(3, {{0, 1, big}, {1, 2, -big}, {2, 0, 200000000000000000LL}});
+  const auto overflowed = howard_minimum_mean_cycle(bias_graph.g);
+  EXPECT_TRUE(overflowed.used_karp);
+  EXPECT_EQ(overflowed.fallback_reason, Howard_Fallback_Reason::Arithmetic_Overflow);
+
+  // The only cycle costs INT_MAX + 1, which int cannot hold although Howard's
+  // long long arithmetic computes it. The function with the witness has to
+  // report that cost and throws, after Karp finds the same cycle; the
+  // value-only one falls back for the same reason and answers.
+  using Int_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  using ID = Dft_Dist<Int_Graph>;
+  using IS = Dft_Show_Arc<Int_Graph>;
+  const int imax = std::numeric_limits<int>::max();
+  auto int_graph = build_graph_generic<Int_Graph, int>(2, {{0, 1, imax}, {1, 0, 1}});
+  EXPECT_THROW((howard_minimum_mean_cycle(int_graph.g)), std::overflow_error);
+  const auto value = howard_detail::minimum_mean_cycle<Int_Graph, ID, IS, false>(
+      int_graph.g, ID(), IS(), howard_detail::default_iterations);
+  ASSERT_TRUE(value.has_cycle);
+  EXPECT_TRUE(value.used_karp);
+  EXPECT_EQ(value.fallback_reason, Howard_Fallback_Reason::Cost_Out_Of_Range);
+  EXPECT_EQ(value.minimum_mean, 0x1p30L);
+  EXPECT_EQ(howard_minimum_mean_cycle_value(int_graph.g).minimum_mean, 0x1p30L);
+}
+
+
+TEST(HowardMinMeanCycleTest, CycleCostIsAddedInTheOrderTheEvaluationProvedSafe)
+{
+  // Found by a directed search (audit 2026-10-02, C5). The cost of the
+  // optimal cycle, -4626910599202282041, fits a long long, but summed from
+  // the node where the witness starts a partial sum leaves the type; the
+  // function then fell back to Karp, as if the cost did not fit. Summed from
+  // the smallest node, as the policy evaluation did without overflowing, it
+  // fits all along.
+  auto built = build_graph(7, {{6, 1, 5062036987607531343LL}, {4, 3, -3695868834463239656LL},
+                               {4, 1, -3661910840776953621LL}, {2, 6, 5139072827235855353LL},
+                               {6, 2, -2377556606531334447LL}, {1, 6, -3191812457526854301LL},
+                               {6, 5, -2872654956802585972LL}, {0, 4, -4120068231194526993LL},
+                               {5, 2, -6893328469635551422LL}, {1, 5, -3920853593594695630LL},
+                               {0, 2, -5174462936561685175LL}, {6, 1, 5725667193745753167LL},
+                               {5, 6, 4628323756336527655LL}, {3, 5, 5325742771487410443LL}});
+
+  const auto r = howard_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_FALSE(r.used_karp);
+  EXPECT_EQ(r.fallback_reason, Howard_Fallback_Reason::None);
+  EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Exact);
+  EXPECT_EQ(r.cycle_total_cost, -4626910599202282041LL);
+  EXPECT_EQ(r.cycle_length, 3u);
+  EXPECT_TRUE(witness_is_simple_cycle(built.g, r, false));   // sums beyond long double's mantissa
+# if ALEPH_KARP_INT128
+  EXPECT_EQ(r.minimum_mean, karp_minimum_mean_cycle(built.g).minimum_mean);
+# else
+  // Without 128-bit integers Karp's checked long long sums overflow here:
+  // the fallback the summation order used to cause would have thrown.
+  EXPECT_THROW((karp_minimum_mean_cycle(built.g)), std::overflow_error);
+# endif
+}
+
+
+// Audit 2026-10-02, C3: a limit on the memory of the fallback.
+
+namespace
+{
+  // The family of audit H5: two components of three nodes, the first one
+  // with weights whose scaled bias overflows, and `isolated` nodes that lie
+  // on no cycle. Howard falls back to Karp (arithmetic overflow).
+  Built_Graph_T<Graph> h5_graph(const size_t isolated)
+  {
+    const long long big = 3100000000000000000LL;
+    return build_graph(6 + isolated,
+                       {{0, 1, big}, {1, 2, -big}, {2, 0, 1}, {3, 4, -1}, {4, 5, -1}, {5, 3, -2}});
+  }
+
+  // Bytes of Karp's tables for that family: for each component of 3 nodes,
+  // (3 + 1) * 3 = 12 entries, of which Array reserves 16. The sums of the
+  // first one need 128 bits (3 * 3.1e18 > LLONG_MAX), 8 bytes without them;
+  // the predecessor positions take 8 more.
+# if ALEPH_KARP_INT128
+  constexpr size_t h5_witness_bytes = 16 * (16 + 8);
+  constexpr size_t h5_value_bytes = 16 * 16;
+# else
+  constexpr size_t h5_witness_bytes = 16 * (8 + 8);
+  constexpr size_t h5_value_bytes = 16 * 8;
+# endif
+} // namespace
+
+
+TEST(HowardMinMeanCycleTest, FallbackWithinTheMemoryLimitAnswersAsWithout)
+{
+  using D = Dft_Dist<Graph>;
+  using S = Dft_Show_Arc<Graph>;
+
+  // With 3000 isolated nodes a table over the whole graph would take some
+  // 3003^2 entries, hundreds of MiB; the fallback needs the tables of two
+  // components of three nodes, a few hundred bytes.
+  auto built = h5_graph(3000);
+  const auto unlimited = howard_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(unlimited.used_karp);
+  ASSERT_EQ(unlimited.fallback_reason, Howard_Fallback_Reason::Arithmetic_Overflow);
+
+  for (const size_t limit : {h5_witness_bytes, size_t{1024}})
+    {
+      const auto limited = howard_minimum_mean_cycle(built.g, D(), S(), limit);
+      ASSERT_TRUE(limited.has_cycle) << "limit=" << limit;
+      EXPECT_EQ(limited.fallback_reason, Howard_Fallback_Reason::Arithmetic_Overflow);
+      EXPECT_EQ(limited.minimum_mean, unlimited.minimum_mean);
+      EXPECT_EQ(limited.cycle_total_cost, unlimited.cycle_total_cost);
+      EXPECT_EQ(limited.cycle_length, unlimited.cycle_length);
+      EXPECT_TRUE(witness_is_simple_cycle(built.g, limited));
+    }
+
+  // The value-only function needs no predecessors: a smaller table.
+  for (const size_t limit : {h5_value_bytes, size_t{1024}})
+    EXPECT_EQ(howard_minimum_mean_cycle_value(built.g, D(), S(), limit).minimum_mean,
+              unlimited.minimum_mean) << "limit=" << limit;
+}
+
+
+TEST(HowardMinMeanCycleTest, FallbackBeyondTheMemoryLimitThrowsLengthError)
+{
+  using D = Dft_Dist<Graph>;
+  using S = Dft_Show_Arc<Graph>;
+  auto built = h5_graph(10);
+
+  // One byte below what the tables need.
+  EXPECT_THROW((howard_minimum_mean_cycle(built.g, D(), S(), h5_witness_bytes - 1)),
+               std::length_error);
+  EXPECT_THROW((howard_minimum_mean_cycle_value(built.g, D(), S(), h5_value_bytes - 1)),
+               std::length_error);
+
+  // The message gives the bytes, the component and the reason.
+  try
+    {
+      (void) howard_minimum_mean_cycle(built.g, D(), S(), 100);
+      FAIL() << "the limit was ignored";
+    }
+  catch (const std::length_error & e)
+    {
+      const std::string what = e.what();
+      EXPECT_NE(what.find("arithmetic overflow"), std::string::npos) << what;
+      EXPECT_NE(what.find(std::to_string(h5_witness_bytes) + " bytes"), std::string::npos) << what;
+      EXPECT_NE(what.find("component of 3 nodes"), std::string::npos) << what;
+      EXPECT_NE(what.find("limit of 100 bytes"), std::string::npos) << what;
+    }
+
+  // A limit of 0 refuses any fallback, and only a fallback: where Howard
+  // answers by itself it does not matter.
+  auto plain = build_graph(4, {{0, 1, 1}, {1, 0, 1}, {0, 2, 2}, {2, 3, -9}, {3, 0, 2}, {1, 2, 5}});
+  const auto r = howard_minimum_mean_cycle(plain.g, D(), S(), 0);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_FALSE(r.used_karp);
+  EXPECT_EQ(r.minimum_mean, -5.0L / 3.0L);
+  try
+    {
+      (void) howard_detail::minimum_mean_cycle<Graph, D, S>(plain.g, D(), S(), 0, 0);
+      FAIL() << "a limit of 0 let the fallback run";
+    }
+  catch (const std::length_error & e)
+    {
+      EXPECT_NE(std::string(e.what()).find("iteration limit"), std::string::npos) << e.what();
+    }
+}
+
+
 TEST(HowardMinMeanCycleTest, FallbackRunsKarpOnEachComponent)
 {
   // Two copies of the graph above (nodes 0-3 and 4-7, same mean -5/3), a
@@ -954,9 +1141,11 @@ TEST(HowardMinMeanCycleTest, EveryFallbackPassesTheChecksOfHowardsOwnAnswer)
       auto ib = build_graph(n, iedges);
       const auto ir = howard_detail::minimum_mean_cycle<Graph, Dft_Dist<Graph>, Dft_Show_Arc<Graph>>(
           ib.g, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(), 0);
+      ASSERT_EQ(ir.used_karp, ir.fallback_reason != Howard_Fallback_Reason::None) << "trial=" << trial;
       if (ir.used_karp)
         {
           ++fallbacks;
+          ASSERT_EQ(ir.fallback_reason, Howard_Fallback_Reason::Iteration_Limit) << "trial=" << trial;
           ASSERT_TRUE(witness_is_simple_cycle(ib.g, ir)) << "long long, trial=" << trial;
           ASSERT_EQ(ir.minimum_mean, howard_minimum_mean_cycle(ib.g).minimum_mean) << "trial=" << trial;
         }
@@ -965,9 +1154,11 @@ TEST(HowardMinMeanCycleTest, EveryFallbackPassesTheChecksOfHowardsOwnAnswer)
       const auto fr =
         howard_detail::minimum_mean_cycle<Float_Graph, Dft_Dist<Float_Graph>, Dft_Show_Arc<Float_Graph>>(
           fb.g, Dft_Dist<Float_Graph>(), Dft_Show_Arc<Float_Graph>(), 0);
+      ASSERT_EQ(fr.used_karp, fr.fallback_reason != Howard_Fallback_Reason::None) << "trial=" << trial;
       if (fr.used_karp)
         {
           ++fallbacks;
+          ASSERT_EQ(fr.fallback_reason, Howard_Fallback_Reason::Iteration_Limit) << "trial=" << trial;
           ASSERT_TRUE(witness_is_simple_cycle(fb.g, fr)) << "double, trial=" << trial;
           ASSERT_EQ(fr.numeric_quality, Cycle_Numeric_Quality::Rounded);
         }

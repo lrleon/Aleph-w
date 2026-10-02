@@ -66,8 +66,8 @@
  *  `V + 64` iterations and returns Karp's answer instead, so it never runs
  *  much longer than Karp.
  *
- *  That fallback (also taken when an integer bias overflows) runs Karp's
- *  algorithm, the same table as `karp_minimum_mean_cycle()`, on each strongly
+ *  That fallback (also taken when the exact arithmetic overflows, see below)
+ *  runs Karp's algorithm, the same table as `karp_minimum_mean_cycle()`, on each strongly
  *  connected component of the cyclic core in turn, from the snapshot already
  *  taken: neither the distance accessor nor the arc filter is called again,
  *  and the nodes outside the core cost nothing. It takes
@@ -76,7 +76,27 @@
  *  Karp's `O(V E)` and `O(V^2)` only when one component holds the whole
  *  graph. `howard_minimum_mean_cycle_value()` runs it without the table of
  *  predecessors (8 bytes per entry, next to the sums of 8 or 16) and without
- *  extracting a witness. No budget limits that cost.
+ *  extracting a witness.
+ *
+ *  `fallback_reason` says why it ran (`Howard_Fallback_Reason`): the iteration
+ *  limit; an overflow of the arithmetic of the policy evaluation (a cycle sum
+ *  or a scaled bias beyond the 64- or 128-bit integers of the exact
+ *  arithmetic, or not finite in `long double`); or an exact total cost of the
+ *  optimal cycle that a narrow cost type, such as `int`, cannot hold.
+ *
+ *  ### Memory limit of the fallback
+ *
+ *  Karp's tables for a component of @f$V_c@f$ nodes have
+ *  @f$(V_c + 1) V_c@f$ entries, of 8 to 24 bytes (the sum, and a predecessor
+ *  position with the witness), and `Array` reserves a power of two of them:
+ *  from kilobytes to gigabytes. The optional last argument
+ *  `max_fallback_bytes` bounds them. Before building any table, the fallback
+ *  computes the bytes of the largest one and, above the limit, throws
+ *  `std::length_error` (these functions throw it for no other reason), with
+ *  the bytes, the size of the component and the reason of the fallback in the
+ *  message. The limit counts only those tables, not the @f$O(V + E)@f$ memory
+ *  of the snapshot and of Howard's iteration. `0` refuses any fallback; the
+ *  default, `std::numeric_limits<size_t>::max()`, sets no limit.
  *
  *  ## Arithmetic
  *
@@ -85,7 +105,9 @@
  *    denominator, so every comparison is one between integers and the
  *    reported cycle has the exact minimum mean `cycle_total_cost /
  *    cycle_length`. The scaled bias can exceed the range of `long long` before
- *    Karp's sums do; the function then returns Karp's answer.
+ *    Karp's sums do; the function then returns Karp's answer
+ *    (`Arithmetic_Overflow`). So it does when the exact total of the optimal
+ *    cycle does not fit a narrow cost type such as `int` (`Cost_Out_Of_Range`).
  *  - **Floating-point costs** are iterated in `long double`, with a relative
  *    tolerance in the bias comparison that protects the iteration from
  *    oscillating on rounding noise. That arithmetic alone is not reliable
@@ -169,6 +191,25 @@
 #include <tpl_graph.H>
 
 namespace Aleph {
+/** @brief Why `howard_minimum_mean_cycle()` handed the problem over to Karp's
+ *         algorithm (see the documentation of `Howard_Min_Mean_Cycle.H`).
+ *  @ingroup Graphs
+ */
+enum class Howard_Fallback_Reason
+{
+  /// Howard's policy iteration answered: no fallback.
+  None,
+  /// The policy was not optimal after `V + 64` improvements.
+  Iteration_Limit,
+  /// A cycle sum or a scaled bias of the policy evaluation left the range of
+  /// its arithmetic: the 64- or 128-bit integers of the exact arithmetic, or
+  /// the finite values of `long double`.
+  Arithmetic_Overflow,
+  /// The exact total cost of the optimal cycle Howard found does not fit the
+  /// cost type (a narrow integral type such as `int`).
+  Cost_Out_Of_Range
+};
+
 /** @brief Result of `howard_minimum_mean_cycle()`.
  *
  *  It is a `Min_Mean_Cycle_Result` (the same fields, so it can replace the
@@ -186,7 +227,10 @@ struct Howard_Mean_Cycle_Result : public Min_Mean_Cycle_Result<GT, Cost_Type>
 {
   size_t iterations = 0;  ///< Policy improvements applied before the policy was optimal.
   bool used_karp =
-    false;  ///< True if Karp's algorithm produced the answer (see the file documentation).
+    false;  ///< True if Karp's algorithm produced the answer: `fallback_reason` is not `None`.
+
+  /// Why Karp's algorithm produced the answer, or `None` if it did not.
+  Howard_Fallback_Reason fallback_reason = Howard_Fallback_Reason::None;
 
   /// `Exact` when the answer was decided with exact arithmetic: integral
   /// costs, or floating-point costs verified exactly (see the file
@@ -1012,6 +1056,26 @@ size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type>
   return best;
 }
 
+/** @brief Words for a fallback reason, for error messages.
+ *  @param[in] reason The reason.
+ *  @return A short lowercase description.
+ */
+inline const char *fallback_reason_text(const Howard_Fallback_Reason reason) noexcept
+{
+  switch (reason)
+    {
+    case Howard_Fallback_Reason::Iteration_Limit:
+      return "iteration limit";
+    case Howard_Fallback_Reason::Arithmetic_Overflow:
+      return "arithmetic overflow";
+    case Howard_Fallback_Reason::Cost_Out_Of_Range:
+      return "cycle cost out of range";
+    case Howard_Fallback_Reason::None:
+      break;
+    }
+  return "no fallback";
+}
+
 /** @brief Karp's algorithm on every strongly connected component of a
  *         cyclic core, from the weights already read.
  *
@@ -1030,11 +1094,20 @@ size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type>
  *  `With_Witness` false gives the same `minimum_mean` without the table of
  *  predecessors and without extracting the cycle.
  *
+ *  With a memory limit, the bytes of the tables of every component are
+ *  computed first (`karp_table_bytes()`, as `karp_solve()` reserves them),
+ *  and if the largest exceeds the limit nothing is run.
+ *
  *  @tparam With_Witness Whether to keep predecessors and extract the witness.
  *  @param[in] ig Cyclic core (a snapshot that is its own core included).
  *  @param[in] adj Out-adjacency of `ig`.
+ *  @param[in] reason Why Howard falls back, for the message of a refusal.
+ *  @param[in] max_bytes Limit of the bytes of the tables of one component;
+ *             `std::numeric_limits<size_t>::max()` for none.
  *  @return Karp's answer, with its witness in the nodes and arcs of the graph
  *          if `With_Witness`; otherwise `has_cycle` and `minimum_mean` only.
+ *  @throws std::length_error If the tables of a component need more than
+ *          `max_bytes` bytes.
  *  @throws std::overflow_error If, with `With_Witness`, the cost of the witness
  *          does not fit `Cost_Type`; or a checked integer addition overflows
  *          (see `karp_minimum_mean_cycle()`).
@@ -1046,7 +1119,8 @@ size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type>
 template <bool With_Witness, AlephGraph GT, typename Cost_Type>
 Min_Mean_Cycle_Result<GT, Cost_Type>
 karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig,
-                  const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj)
+                  const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj,
+                  const Howard_Fallback_Reason reason, const size_t max_bytes)
 {
   using Incoming = min_mean_cycle_detail::Incoming_Arc<GT, Cost_Type>;
   using Answer = min_mean_cycle_detail::Karp_Answer<GT, Cost_Type>;
@@ -1104,13 +1178,43 @@ karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig
       incoming(comp(rec.tgt))(local(rec.tgt)).append(Incoming{local(rec.src), rec.arc, rec.weight});
     }
 
+  const char *const fn = With_Witness ? "howard_minimum_mean_cycle" : "howard_minimum_mean_cycle_value";
+  if (max_bytes != std::numeric_limits<size_t>::max())
+    {
+      // The largest tables, before building any. A count that does not fit a
+      // size_t exceeds every limit.
+      bool representable = true;
+      size_t largest = 0;
+      size_t largest_nodes = 0;
+      for (size_t c = 0; c < components; ++c)
+        {
+          size_t bytes = 0;
+          const bool fits = min_mean_cycle_detail::karp_table_bytes<With_Witness, Cost_Type>(
+            members(c).size(), min_mean_cycle_detail::karp_sums(incoming(c)), bytes);
+          if (not fits or bytes > largest)
+            {
+              largest = bytes;
+              largest_nodes = members(c).size();
+            }
+          if (not fits)
+            {
+              representable = false;
+              break;
+            }
+        }
+      ah_length_error_if(not representable or largest > max_bytes)
+        << fn << "(): the fallback to Karp's algorithm (" << fallback_reason_text(reason)
+        << ") needs " << (representable ? "" : "more than ")
+        << (representable ? largest : std::numeric_limits<size_t>::max())
+        << " bytes for the tables of a strongly connected component of " << largest_nodes
+        << " nodes, above the limit of " << max_bytes << " bytes";
+    }
+
   Answer best;
   size_t best_comp = unset;
   for (size_t c = 0; c < components; ++c)
     {
-      Answer answer =
-        min_mean_cycle_detail::karp_solve<With_Witness, GT, Cost_Type>(incoming(c),
-                                                                       "howard_minimum_mean_cycle");
+      Answer answer = min_mean_cycle_detail::karp_solve<With_Witness, GT, Cost_Type>(incoming(c), fn);
       if (not answer.has_cycle)
         continue;
       if (best_comp == unset or answer.minimum_mean < best.minimum_mean or
@@ -1176,11 +1280,16 @@ karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig
  *  @param[in] distance Arc cost accessor.
  *  @param[in] sa Arc filter.
  *  @param[in] max_iterations Improvements allowed, or `default_iterations`.
+ *  @param[in] max_fallback_bytes Limit of the bytes of Karp's tables in the
+ *             fallback (see the file documentation); none by default.
  *  @return The result of `howard_minimum_mean_cycle()`.
+ *  @throws std::length_error If the fallback runs and its tables need more
+ *          than `max_fallback_bytes` bytes.
  */
 template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA, bool With_Witness = true>
 Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycle(
-  const GT &g, Distance distance, SA sa, const size_t max_iterations)
+  const GT &g, Distance distance, SA sa, const size_t max_iterations,
+  const size_t max_fallback_bytes = std::numeric_limits<size_t>::max())
 {
   using Cost_Type = typename Distance::Distance_Type;
   using Result = Howard_Mean_Cycle_Result<GT, Cost_Type>;
@@ -1215,19 +1324,22 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
   const auto status = solver.solve(
     max_iterations == default_iterations ? n + iteration_slack : max_iterations, iterations);
 
-  const auto use_karp = [&](const size_t done)
+  const auto use_karp = [&](const size_t done, const Howard_Fallback_Reason reason)
     {
       Result karp;
       static_cast<Min_Mean_Cycle_Result<GT, Cost_Type> &>(karp) =
-        karp_by_component<With_Witness>(ig, adj);
+        karp_by_component<With_Witness>(ig, adj, reason, max_fallback_bytes);
       karp.iterations = done;
       karp.used_karp = true;
+      karp.fallback_reason = reason;
       karp.numeric_quality = Cycle_Numeric_Quality::Rounded;   // Karp compares means in long double
       return karp;
     };
 
   if (status != Solver::Status::Optimal)
-    return use_karp(iterations);
+    return use_karp(iterations, status == Solver::Status::Iteration_Limit
+                                  ? Howard_Fallback_Reason::Iteration_Limit
+                                  : Howard_Fallback_Reason::Arithmetic_Overflow);
 
   // The cycle the optimal policy reaches from a node of minimum mean. With
   // floating-point weights the policy was found with rounded arithmetic: it is
@@ -1255,12 +1367,15 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
     first = cycle_entry(adj, policy, solver.best_node());
 
   Array<size_t> arcs;  // indices into ig.arcs, in cycle order
+  size_t root = 0;     // position in `arcs` of the arc that leaves the smallest node
   if constexpr (With_Witness)
     result.cycle_nodes.append(ig.nodes(first));
   size_t u = first;
   do
     {
       const size_t a = adj.arc(policy(u));
+      if (not arcs.is_empty() and u < ig.arcs(arcs(root)).src)
+        root = arcs.size();
       arcs.append(a);
       if constexpr (With_Witness)
         result.cycle_arcs.append(ig.arcs(a).arc);
@@ -1277,16 +1392,20 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
     {
       // The wide total is exact; it has to be representable in the cost type.
       // (A sum with a check at every step would reject totals that fit but
-      // whose partial sums do not.)
+      // whose partial sums do not.) It is added in the order of the policy
+      // evaluation, from the smallest node, whose partial sums all fit the
+      // wide type: the evaluation of this policy did not overflow. From
+      // another node they could leave it with costs near 2^62, and the
+      // fallback would then be taken for a cost that fits.
       auto total = Arithmetic::zero_sum();
       bool fits = true;
       for (size_t i = 0; fits and i < arcs.size(); ++i)
-        fits = Arithmetic::add(total, ig.arcs(arcs(i)).weight);
+        fits = Arithmetic::add(total, ig.arcs(arcs((root + i) % arcs.size())).weight);
       if (fits)
         fits = total >= static_cast<long long>(std::numeric_limits<Cost_Type>::min()) and
           total <= static_cast<long long>(std::numeric_limits<Cost_Type>::max());
       if (not fits)
-        return use_karp(iterations);
+        return use_karp(iterations, Howard_Fallback_Reason::Cost_Out_Of_Range);
       result.cycle_total_cost = static_cast<Cost_Type>(total);
     }
   else
@@ -1326,17 +1445,26 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
  *  @param[in] g Graph (must be directed). It is not modified.
  *  @param[in] distance Arc cost accessor.
  *  @param[in] sa Arc filter.
+ *  @param[in] max_fallback_bytes Limit of the bytes of Karp's tables if the
+ *             fallback runs (see the file documentation): `0` refuses any
+ *             fallback; the default sets no limit.
  *
  *  @return A `Howard_Mean_Cycle_Result`. `iterations` counts the policy
- *          improvements; `used_karp` is true if the iteration limit
- *          (`V + 64`) or the range of the scaled integer bias was exceeded and
- *          Karp's algorithm computed the answer (on each component of the
- *          snapshot, see the file documentation); `numeric_quality` says
- *          whether the means were compared exactly.
+ *          improvements; `used_karp` is true if Karp's algorithm computed the
+ *          answer (on each component of the snapshot, see the file
+ *          documentation), and `fallback_reason` says why: the iteration
+ *          limit (`V + 64`), an overflow of the arithmetic of the policy
+ *          evaluation, or a cost of the optimal cycle out of the range of the
+ *          cost type; `numeric_quality` says whether the means were compared
+ *          exactly.
  *
  *  @throws std::domain_error If `g` is undirected, or a floating weight (or
  *          an accumulated cost) is not finite.
  *  @throws std::overflow_error If integer additions overflow.
+ *  @throws std::length_error If the fallback runs and Karp's tables need
+ *          more than `max_fallback_bytes` bytes; the message gives the bytes,
+ *          the size of the component and the reason of the fallback. Nothing
+ *          else makes this function throw it.
  *
  *  @note Complexity: `O(iterations * (V + E))` time and `O(V + E)` space, plus
  *        an expected `O(V + E)` for the snapshot of the graph; the distance
@@ -1351,10 +1479,12 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
  */
 template <AlephGraph GT, ArcDistance<GT> Distance = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
 Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> howard_minimum_mean_cycle(
-  const GT &g, Distance distance = Distance(), SA sa = SA())
+  const GT &g, Distance distance = Distance(), SA sa = SA(),
+  const size_t max_fallback_bytes = std::numeric_limits<size_t>::max())
 {
   return howard_detail::minimum_mean_cycle<GT, Distance, SA>(g, std::move(distance), std::move(sa),
-                                                             howard_detail::default_iterations);
+                                                             howard_detail::default_iterations,
+                                                             max_fallback_bytes);
 }
 
 /** @brief Minimum mean cycle value by Howard's policy iteration, without the
@@ -1372,12 +1502,15 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> howard_minimum_me
  *  @param[in] g Graph (must be directed). It is not modified.
  *  @param[in] distance Arc cost accessor.
  *  @param[in] sa Arc filter.
+ *  @param[in] max_fallback_bytes Limit of the bytes of Karp's table if the
+ *             fallback runs, as in `howard_minimum_mean_cycle()`; without
+ *             predecessors that table takes fewer bytes.
  *
  *  @return A `Min_Mean_Cycle_Value_Result`, the type
  *          `karp_minimum_mean_cycle_value()` returns: whether a cycle exists
- *          and the minimum mean. It does not carry `numeric_quality` or
- *          `used_karp`; call `howard_minimum_mean_cycle()` to know whether a
- *          floating-point mean was verified exactly.
+ *          and the minimum mean. It does not carry `numeric_quality`,
+ *          `used_karp` or `fallback_reason`; call `howard_minimum_mean_cycle()`
+ *          to know whether a floating-point mean was verified exactly.
  *
  *  @throws std::domain_error If `g` is undirected, or a floating weight (or
  *          an accumulated cost) is not finite.
@@ -1386,16 +1519,18 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> howard_minimum_me
  *          cycle does not fit the cost type: no cost is reported, so after
  *          the fallback the mean is answered, as `karp_minimum_mean_cycle_value()`
  *          does.
+ *  @throws std::length_error If the fallback runs and Karp's table needs more
+ *          than `max_fallback_bytes` bytes.
  *
  *  @ingroup Graphs
  */
 template <AlephGraph GT, ArcDistance<GT> Distance = Dft_Dist<GT>, ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-Min_Mean_Cycle_Value_Result howard_minimum_mean_cycle_value(const GT &g,
-                                                            Distance distance = Distance(),
-                                                            SA sa = SA())
+Min_Mean_Cycle_Value_Result howard_minimum_mean_cycle_value(
+  const GT &g, Distance distance = Distance(), SA sa = SA(),
+  const size_t max_fallback_bytes = std::numeric_limits<size_t>::max())
 {
   const auto r = howard_detail::minimum_mean_cycle<GT, Distance, SA, false>(
-    g, std::move(distance), std::move(sa), howard_detail::default_iterations);
+    g, std::move(distance), std::move(sa), howard_detail::default_iterations, max_fallback_bytes);
   Min_Mean_Cycle_Value_Result value;
   value.has_cycle = r.has_cycle;
   value.minimum_mean = r.minimum_mean;
