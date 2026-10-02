@@ -2286,7 +2286,7 @@ int main() {
 | Tiempo | `O(VE)` en el peor caso | `O(V + E)` por iteración; sin cota polinómica de iteraciones, típicamente de 6 a 25 en las pruebas |
 | Memoria | `O(V^2)` | `O(V + E)` |
 | Costos enteros | exacto | exacto (fracciones reducidas) |
-| Witness | recorrido cerrado, puede repetir un ciclo | ciclo simple |
+| Testigo | recorrido cerrado, puede repetir un ciclo | ciclo simple |
 
 En los grafos de mercado de `bench_negative_cycles` (hubs más pares aleatorios) tarda 0.16 ms
 frente a 3.3 ms de Karp con 300 activos, y 0.6 ms frente a 41 ms con 1000, con 5 a 9 veces menos

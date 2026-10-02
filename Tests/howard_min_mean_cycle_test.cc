@@ -777,6 +777,28 @@ TEST(HowardMinMeanCycleTest, CancellationDoesNotChooseAWorseCycle)
 }
 
 
+TEST(HowardMinMeanCycleTest, OverflowOfTheExactVerificationFallsBackToTheExactChoice)
+{
+  // Ring 0 -> 1 -> 2 -> 3 -> 0 with weights 2^122, 1, -2^122, -1.875 (exact mean
+  // -0.21875) and a self-loop of -0.375, the optimum. The rounded iteration
+  // loses the 1 and prefers the ring. Scaled to integers the weights need 126
+  // bits, so the 128-bit verification is tried, but the ring's mean has
+  // denominator 4 and 4 * 2^125 overflows it: the verification must notice and
+  // give up, leaving the exact choice among the cycles to pick the loop.
+  const double big = std::ldexp(1.0, 122);
+  auto built = build_graph_generic<Float_Graph, double>(
+      5, {{0, 1, big}, {1, 2, 1.0}, {2, 3, -big}, {3, 0, -1.875}, {4, 4, -0.375}});
+
+  const auto r = howard_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_FALSE(r.used_karp);
+  EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Rounded);
+  EXPECT_EQ(r.minimum_mean, -0.375L);
+  EXPECT_EQ(r.cycle_length, 1u);
+  EXPECT_TRUE(witness_is_simple_cycle(built.g, r, false));
+}
+
+
 TEST(HowardMinMeanCycleTest, ImprovementsBelowTheToleranceAreFoundExactly)
 {
   // Loops of weight 0 on nodes 0 and 1, and the cycle 0 -> 1 -> 0 with weights
@@ -989,6 +1011,33 @@ TEST(HowardMinMeanCycleTest, MeansAreReducedAndStepsReportOverflow)
   EXPECT_FALSE(Arith::step(0, Arith::Eta{std::numeric_limits<long long>::min(), 1}, 0, out));   // 0 - min
   EXPECT_FALSE(Arith::step(0, Arith::Eta{0, 1}, hi, out) and Arith::step(1, Arith::Eta{0, 1}, hi, out));
 }
+
+
+# if ALEPH_HOWARD_INT128
+TEST(HowardMinMeanCycleTest, ExactArithmeticOn128BitsReportsOverflow)
+{
+  // The 128-bit arithmetic of the exact verification: products whose factors
+  // fit 64 bits take a fast path, the others the portable test.
+  using Wide = howard_detail::int128_t;
+  using Ar = howard_detail::Arithmetic<Wide, true>;
+  const Wide two_125 = Wide(1) << 125;
+  const Wide max = howard_detail::Exact_Integer<Wide>::max;
+
+  Wide out = 0;
+  EXPECT_TRUE(Ar::step(Wide(5), Ar::Eta{3, 2}, Wide(10), out));        // 2 * 5 - 3 + 10, fast path
+  EXPECT_EQ(out, Wide(17));
+  EXPECT_TRUE(Ar::step(two_125, Ar::Eta{0, 3}, Wide(0), out));         // 3 * 2^125 < 2^127
+  EXPECT_EQ(out, 3 * two_125);
+  EXPECT_FALSE(Ar::step(two_125, Ar::Eta{0, 4}, Wide(0), out));        // 4 * 2^125 = 2^127 overflows
+  EXPECT_FALSE(Ar::step(-two_125, Ar::Eta{0, 5}, Wide(0), out));       // -5 * 2^125 overflows
+  EXPECT_FALSE(Ar::step(max, Ar::Eta{0, 2}, Wide(0), out));
+  EXPECT_FALSE(Ar::step(Wide(0), Ar::Eta{0, 1}, max, out) and Ar::step(Wide(1), Ar::Eta{0, 1}, max, out));
+
+  const auto e = Ar::make_eta(-(Wide(3) << 100), 6);   // -3 * 2^100 / 6 = -2^99 / 1
+  EXPECT_EQ(e.den, Wide(1));
+  EXPECT_EQ(e.num, -(Wide(1) << 99));
+}
+# endif
 
 
 // ---------------------------------------------------------------------------

@@ -432,13 +432,36 @@ private:
 
   static bool multiply_overflows(const Wide a, const Wide b, Wide &out) noexcept
   {
+    if constexpr (sizeof(Wide) > sizeof(long long))
+      {
+        // 128 bits. Clang turns __builtin_mul_overflow on them into a call to
+        // __muloti4, which only compiler-rt provides: with libgcc (Linux on
+        // AArch64, for instance) it does not link. Operands that fit 64 bits
+        // cannot overflow 127, which is the usual case here (a cycle length
+        // times a weight); the others take the portable test.
+        if (a == static_cast<long long>(a) and b == static_cast<long long>(b))
+          {
+            out = a * b;
+            return false;
+          }
+        return portable_multiply_overflows(a, b, out);
+      }
+    else
+      {
 # if defined(__GNUC__)
-    Wide r;
-    if (__builtin_mul_overflow(a, b, &r))
-      return true;
-    out = r;
-    return false;
+        Wide r;
+        if (__builtin_mul_overflow(a, b, &r))
+          return true;
+        out = r;
+        return false;
 # else
+        return portable_multiply_overflows(a, b, out);
+# endif
+      }
+  }
+
+  static bool portable_multiply_overflows(const Wide a, const Wide b, Wide &out) noexcept
+  {
     if (a == 0 or b == 0)
       {
         out = 0;
@@ -450,7 +473,6 @@ private:
       return true;
     out = a * b;
     return false;
-# endif
   }
 };
 
@@ -1156,10 +1178,26 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> howard_minimum_me
 /** @brief Minimum mean cycle value by Howard's policy iteration, without the
  *         witness.
  *
- *  Same algorithm and requirements as `howard_minimum_mean_cycle()`.
+ *  Same algorithm and requirements as `howard_minimum_mean_cycle()`, which it
+ *  calls; Karp's algorithm runs only if that function falls back to it.
  *
- *  @return The result of `karp_minimum_mean_cycle_value()`: whether a cycle
- *          exists and the minimum mean.
+ *  @tparam GT Directed Aleph graph type.
+ *  @tparam Distance Arc cost accessor (`Distance::Distance_Type` required).
+ *  @tparam SA Arc filter; arcs it rejects do not exist.
+ *
+ *  @param[in] g Graph (must be directed). It is not modified.
+ *  @param[in] distance Arc cost accessor.
+ *  @param[in] sa Arc filter.
+ *
+ *  @return A `Min_Mean_Cycle_Value_Result`, the type
+ *          `karp_minimum_mean_cycle_value()` returns: whether a cycle exists
+ *          and the minimum mean. It does not carry `numeric_quality` or
+ *          `used_karp`; call `howard_minimum_mean_cycle()` to know whether a
+ *          floating-point mean was verified exactly.
+ *
+ *  @throws std::domain_error If `g` is undirected, or a floating weight (or
+ *          an accumulated cost) is not finite.
+ *  @throws std::overflow_error If integer additions overflow.
  *
  *  @ingroup Graphs
  */
