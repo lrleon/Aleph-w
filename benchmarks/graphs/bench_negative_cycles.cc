@@ -13,7 +13,8 @@
  * @file bench_negative_cycles.cc
  * @brief Benchmark and result validator for negative cycle detection:
  *        `Bellman_Ford` (Bellman_Ford.H) against `find_disjoint_negative_cycles()`
- *        and `most_negative_cycle_bounded()` (Negative_Cycles.H).
+ *        and `most_negative_cycle_bounded()` (Negative_Cycles.H), with
+ *        Karp's minimum mean cycle (Min_Mean_Cycle.H) as a reference.
  *
  * Usage:
  * @code
@@ -72,7 +73,19 @@
  * of `market-reweighted` happen outside the timed region. The allocation
  * columns count calls to the global `operator new` during one untimed run.
  * The bounded variants are skipped above 1000 vertices (their worst case is
- * `O(V * L * (V + E))`), except for `loop-isolated`.
+ * `O(V * L * (V + E))`), except for `loop-isolated`; so are the Karp variants,
+ * whose table takes `O(V^2)` memory (about 9 bytes per entry for the value and
+ * 25 with the witness, measured: 15 000 vertices would need 2 to 6 GB).
+ *
+ * @par Karp rows
+ * `karp_minimum_mean_cycle_value()` and `karp_minimum_mean_cycle()` solve a
+ * different problem: the cycle of minimum *mean* weight, not the cheapest one.
+ * They are here to decide whether a faster mean-cycle backend (Howard's
+ * algorithm) is worth having. Their witness is a closed *walk* that may go
+ * around a cycle many times (594 arcs on `market-isolated-nodes`), as
+ * documented in Min_Mean_Cycle.H, so the validator checks that it is closed,
+ * made of consecutive arcs and has the reported total, length and mean, but
+ * not that it is simple.
  */
 
 #include <algorithm>
@@ -93,6 +106,7 @@
 #include <vector>
 
 #include <Bellman_Ford.H>
+#include <Min_Mean_Cycle.H>
 #include <Negative_Cycles.H>
 #include <tpl_array.H>
 #include <tpl_dynList.H>
@@ -539,7 +553,7 @@ std::unique_ptr<Instance> make_reweighted(const size_t n, const unsigned seed)
 // ---------------------------------------------------------------------------
 
 enum class Verdict { None, Detected, Valid, Invalid };
-enum class Group { Detect, Witness, Bounded, Reference };
+enum class Group { Detect, Witness, Bounded, Mean, Reference };
 
 struct Outcome
 {
@@ -586,10 +600,12 @@ Array<T> to_array(const DynList<T> & list)
   return ret;
 }
 
-// Checks that `nodes`/`arcs` describe a closed, simple cycle of `g`. On
-// success returns nullptr and sets `cost` to the arc sum.
+// Checks that `nodes`/`arcs` describe a closed cycle of `g` (simple, unless
+// `simple` is false: a closed walk may repeat nodes). On success returns
+// nullptr and sets `cost` to the arc sum.
 const char * check_cycle(const Graph & g, const Array<Node *> & nodes,
-                         const Array<Arc *> & arcs, long double & cost)
+                         const Array<Arc *> & arcs, long double & cost,
+                         const bool simple = true)
 {
   if (arcs.size() == 0)
     return "empty cycle";
@@ -603,7 +619,7 @@ const char * check_cycle(const Graph & g, const Array<Node *> & nodes,
     {
       if (g.get_src_node(arcs(i)) != nodes(i) or g.get_tgt_node(arcs(i)) != nodes(i + 1))
         return "arc does not join consecutive nodes";
-      if (seen.insert(nodes(i)) == nullptr)
+      if (simple and seen.insert(nodes(i)) == nullptr)
         return "node repeated: not a simple cycle";
       cost += arcs(i)->get_info();
     }
@@ -678,6 +694,41 @@ Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
     invalid(o, "is_negative() disagrees with the arc sum");
   else
     o.verdict = cost < 0 ? Verdict::Valid : Verdict::None;
+  return o;
+}
+
+// Karp's minimum mean cycle: the witness is a closed *walk* (it may go around
+// a cycle many times, as documented in Min_Mean_Cycle.H), made of consecutive
+// arcs of the graph, whose total, length and mean agree with the result.
+Outcome check_result(const Graph & g, const Min_Mean_Cycle_Result<Graph, double> & r,
+                     const Limits &)
+{
+  Outcome o;
+  if (not r.has_cycle)
+    return o;
+  o.count = 1;
+  o.cost = r.cycle_total_cost;
+  o.length = r.cycle_length;
+  const auto nodes = to_array(r.cycle_nodes);
+  const auto arcs = to_array(r.cycle_arcs);
+  long double cost = 0;
+  if (const char * why = check_cycle(g, nodes, arcs, cost, false))
+    invalid(o, why);
+  else if (arcs.size() != r.cycle_length)
+    invalid(o, "cycle_length differs from the arc count");
+  else if (std::fabs(cost - static_cast<long double>(r.cycle_total_cost)) > 1e-9L)
+    invalid(o, "cycle_total_cost differs from the arc sum");
+  else if (std::fabs(cost / static_cast<long double>(arcs.size()) - r.minimum_mean) > 1e-9L)
+    invalid(o, "the witness mean differs from minimum_mean");
+  else
+    o.verdict = cost < 0 ? Verdict::Valid : Verdict::None;
+  return o;
+}
+
+Outcome check_result(const Graph &, const Min_Mean_Cycle_Value_Result & r, const Limits &)
+{
+  Outcome o;
+  o.verdict = r.has_cycle and r.minimum_mean < 0 ? Verdict::Detected : Verdict::None;
   return o;
 }
 
@@ -764,6 +815,11 @@ long weigh(const std::tuple<Path<Graph>, size_t> & r)
   return weigh(std::get<0>(r)) + static_cast<long>(std::get<1>(r));
 }
 long weigh(const Bounded & r) { return static_cast<long>(r.length); }
+long weigh(const Min_Mean_Cycle_Result<Graph, double> & r)
+{
+  return static_cast<long>(r.cycle_length);
+}
+long weigh(const Min_Mean_Cycle_Value_Result & r) { return r.has_cycle ? 1 : 0; }
 long weigh(const Cycles & c) { return static_cast<long>(c.size()); }
 long weigh(const Indexed & ig) { return static_cast<long>(ig.arcs.size()); }
 
@@ -777,6 +833,7 @@ struct Variant
   Group group;
   bool bf_witness;                              // Bellman_Ford path extraction
   size_t bound;                                 // L of the bounded search, else 0
+  bool small_only = false;                      // cost grows too fast to run on huge graphs
   std::function<long(Graph &)> run;             // the bare call, for timing
   std::function<Outcome(Graph &)> inspect;      // the call plus its validation
 };
@@ -790,6 +847,7 @@ Variant make_variant(std::string name, const Group group, const bool bf_witness,
   v.group = group;
   v.bf_witness = bf_witness;
   v.bound = bound;
+  v.small_only = group == Group::Bounded or group == Group::Mean;
   v.run = [call](Graph & g) { return weigh(call(g)); };
   v.inspect = [call, lim](Graph & g)
   {
@@ -847,6 +905,13 @@ DynList<Variant> make_variants()
         [L](Graph & g) { return most_negative_cycle_bounded(g, L); }));
     }
 
+  vs.append(make_variant("karp_minimum_mean_cycle_value(g)", Group::Mean,
+    false, 0, Limits{},
+    [](Graph & g) { return karp_minimum_mean_cycle_value(g); }));
+  vs.append(make_variant("karp_minimum_mean_cycle(g)", Group::Mean,
+    false, 0, Limits{},
+    [](Graph & g) { return karp_minimum_mean_cycle(g); }));
+
   vs.append(make_variant("snapshot only (index_graph)", Group::Reference,
     false, 0, Limits{},
     [](Graph & g)
@@ -883,7 +948,8 @@ Judgment judge(const Instance & inst, const Variant & v, const Outcome & o,
       return v.bf_witness ? Judgment::Known_Defect : Judgment::Unexpected;
     }
 
-  const Verdict need = v.group == Group::Detect ? Verdict::Detected : Verdict::Valid;
+  const bool detector = v.group == Group::Detect or v.name.find("_value(") != std::string::npos;
+  const Verdict need = detector ? Verdict::Detected : Verdict::Valid;
   if (o.verdict == need)
     return Judgment::Ok;
   reason = "missed the negative cycle planted in the graph";
@@ -954,6 +1020,7 @@ const char * group_title(const Group g)
     case Group::Detect: return "detection only";
     case Group::Witness: return "with a witness cycle";
     case Group::Bounded: return "bounded search";
+    case Group::Mean: return "minimum mean cycle (Karp: O(V * E) time, O(V^2) memory)";
     case Group::Reference: return "reference";
     }
   return "";
@@ -981,7 +1048,8 @@ void print_row(const Variant & v, const Outcome & o, const Timing * t, const Jud
   if (o.count > 0)
     std::snprintf(len, sizeof(len), "%zu", o.length);
   // Detectors report no cycle and the snapshot is not a detector at all.
-  const bool counts_cycles = v.group == Group::Witness or v.group == Group::Bounded;
+  const bool counts_cycles = v.group == Group::Witness or v.group == Group::Bounded
+                             or (v.group == Group::Mean and v.name.find("_value(") == std::string::npos);
   char found[16] = "-";
   if (counts_cycles)
     std::snprintf(found, sizeof(found), "%zu", o.count);
@@ -1010,8 +1078,8 @@ void report_instance(Instance & inst, const DynList<Variant> & variants,
   for (auto it = variants.get_it(); it.has_curr(); it.next_ne())
     {
       const Variant & v = it.get_curr();
-      if (v.group == Group::Bounded and inst.g.get_num_nodes() > bounded_max_nodes
-          and not inst.bounded_is_cheap)
+      if (v.small_only and inst.g.get_num_nodes() > bounded_max_nodes
+          and not (v.group == Group::Bounded and inst.bounded_is_cheap))
         {
           skipped_bounded = true;
           continue;
@@ -1059,7 +1127,7 @@ void report_instance(Instance & inst, const DynList<Variant> & variants,
                     reason.c_str());
     }
   if (skipped_bounded)
-    std::printf("  (bounded variants skipped: more than %zu vertices)\n", bounded_max_nodes);
+    std::printf("  (bounded and Karp variants skipped: more than %zu vertices)\n", bounded_max_nodes);
 }
 
 void print_environment(const Options & opt)

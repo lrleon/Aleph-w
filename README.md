@@ -4661,6 +4661,7 @@ cmake --build build
 | Dijkstra | `dijkstra_example.cc` | Single-source |
 | Bellman-Ford | `bellman_ford_example.cc` | Negative weights |
 | Johnson | `johnson_example.cc` | All-pairs sparse |
+| Arbitrage cycles | `crypto_arbitrage_example.cc` | Triangular arbitrage as negative cycles of `-log(rate * (1 - fee))`: several arc-disjoint opportunities (`find_disjoint_negative_cycles`), the most profitable cycle of at most `L` trades (`most_negative_cycle_bounded`), a minimum margin in the distance functor, and Karp for comparison |
 | A* | `astar_example.cc` | Heuristic search |
 | K shortest paths | `k_shortest_paths_example.cc` | Yen (loopless) vs Eppstein-style general alternatives |
 | **String Algorithms** | | |

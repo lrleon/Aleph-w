@@ -4217,6 +4217,7 @@ cmake --build build
 | Dijkstra | `dijkstra_example.cc` | Fuente única |
 | Bellman-Ford | `bellman_ford_example.cc` | Pesos negativos |
 | Johnson | `johnson_example.cc` | Todos los pares sparse |
+| Ciclos de arbitraje | `crypto_arbitrage_example.cc` | Arbitraje triangular como ciclos negativos de `-log(tasa * (1 - comisión))`: varias oportunidades sin arcos compartidos (`find_disjoint_negative_cycles`), el ciclo más rentable de a lo sumo `L` operaciones (`most_negative_cycle_bounded`), un margen mínimo en el funtor de distancia y Karp como comparación |
 | A* | `astar_example.cc` | Búsqueda heurística |
 | K caminos más cortos | `k_shortest_paths_example.cc` | Yen (sin ciclos) vs alternativas generales estilo Eppstein |
 | **Algoritmos de cadenas** | | |
