@@ -60,26 +60,49 @@
  *  No polynomial bound on the number of iterations is known (as for the
  *  simplex method) and constructed instances need many, but on graphs that
  *  occur in practice it is small. The function therefore stops after
- *  `V + 64` iterations and returns Karp's answer instead, so it never costs
- *  much more than Karp and always returns a correct result.
+ *  `V + 64` iterations and returns Karp's answer instead, so it never runs
+ *  much longer than Karp.
+ *
+ *  That fallback (also taken when an integer bias overflows) runs
+ *  `karp_minimum_mean_cycle()` on the whole graph `g`, not on its cyclic
+ *  core: it takes Karp's `O(V E)` time and `O(V^2)` memory for all the `V`
+ *  nodes of `g`, even when the core has a handful of them, and it calls the
+ *  distance accessor and the arc filter again. `howard_minimum_mean_cycle_value()`
+ *  then runs the full Karp, witness included. No budget limits that cost.
  *
  *  ## Arithmetic
  *
  *  - **Integer costs** (any integral type whose values fit a `long long`) are
  *    handled exactly: `eta` is a reduced fraction and the bias is scaled by its
- *    denominator, so every comparison is one between integers and the mean is
- *    the exact one. The scaled bias can exceed the range of `long long` before
+ *    denominator, so every comparison is one between integers and the
+ *    reported cycle has the exact minimum mean `cycle_total_cost /
+ *    cycle_length`. The scaled bias can exceed the range of `long long` before
  *    Karp's sums do; the function then returns Karp's answer.
  *  - **Floating-point costs** use `long double` with a relative tolerance in
  *    the bias comparison; the result is the minimum mean up to the rounding
  *    of that arithmetic, and the cost of the reported cycle is recomputed
- *    from its arcs with compensated summation.
+ *    from its arcs with compensated summation. "Up to the rounding" can be a
+ *    large error when weights of very different magnitudes cancel, and
+ *    `numeric_quality` is then `Rounded`. Two limits are worth knowing:
+ *    - Policies are evaluated with plain `long double` sums, and the cycle is
+ *      chosen by them. With a ring `2^100, 1, -2^100, -2` (exact mean -1/4)
+ *      and a self-loop of -0.375, the ring is summed as -2, looks better
+ *      (mean -1/2) and is returned, with its recomputed mean -0.25.
+ *    - An improvement of a bias smaller than the tolerance is ignored, and
+ *      the tolerance has an absolute floor of `64 * epsilon(long double)`
+ *      (about `7e-18` with the x86 `long double`). With weights near that
+ *      size the iteration can stop at a policy that is not optimal: with
+ *      self-loops of weight 0 and arcs `0 -> 1` of `2^-60` and `1 -> 0` of
+ *      `-2^-59` (a cycle of mean `-2^-61`) it returns a loop of mean 0. The
+ *      same graph scaled by `2^60` is solved: express tiny weights in a
+ *      larger unit.
  *
  *  ## Differences from `karp_minimum_mean_cycle()`
  *
- *  - The witness is always a *simple* cycle; Karp's is a closed walk that can
- *    go around a cycle many times. When several cycles share the minimum mean
- *    the two functions may return different ones.
+ *  - The witness is a *simple* cycle; Karp's is a closed walk that can go
+ *    around a cycle many times (and so is Howard's after the fallback,
+ *    `used_karp`). When several cycles share the minimum mean the two
+ *    functions may return different ones.
  *  - The distance accessor is called once per arc (unless the fallback runs).
  *  - No value of the cost type is reserved as "infinity". (Karp reserves
  *    `numeric_limits<Cost_Type>::max()`, so an arc of that cost is ignored by
@@ -87,6 +110,15 @@
  *  - It can answer where Karp throws: Karp adds up to `V` costs in its table,
  *    even on acyclic graphs, and overflows a narrow cost type that Howard,
  *    which only needs the cycle it reports, does not.
+ *  - `minimum_mean` is a `long double`, so with large integer costs its last
+ *    bits depend on the width of that type. Howard rounds the exact quotient
+ *    `cycle_total_cost / cycle_length`: once if `long double` has a 64-bit
+ *    mantissa or more (x86, AArch64 Linux). Where it is a plain `double`
+ *    (Apple Silicon, MSVC) a total beyond 2^53 is rounded when converted
+ *    as well. Karp rounds the conversion of two sums and of their difference
+ *    before dividing, so its value can drift from Howard's, and from the exact
+ *    mean, by a few rounding errors of those sums (`epsilon * V * max|cost|`).
+ *    To compare means exactly, use `cycle_total_cost` and `cycle_length`.
  *
  *  @note Both the snapshot and the cyclic core come from the internal
  *        `negative_cycles_detail` namespace of `Negative_Cycles.H`.
@@ -119,7 +151,9 @@ namespace Aleph {
  *
  *  It is a `Min_Mean_Cycle_Result` (the same fields, so it can replace the
  *  result of `karp_minimum_mean_cycle()`) plus how the answer was obtained.
- *  `cycle_nodes` holds a *simple* cycle, the first node repeated at the end.
+ *  `cycle_nodes` holds a *simple* cycle, the first node repeated at the end,
+ *  unless `used_karp` is true: it then holds Karp's witness, a closed walk
+ *  that can go around a cycle more than once.
  *
  *  @tparam GT Graph type.
  *  @tparam Cost_Type Arc weight type returned by the distance accessor.
@@ -131,6 +165,11 @@ struct Howard_Mean_Cycle_Result : public Min_Mean_Cycle_Result<GT, Cost_Type>
   size_t iterations = 0;  ///< Policy improvements applied before the policy was optimal.
   bool used_karp =
     false;  ///< True if Karp's algorithm produced the answer (see the file documentation).
+
+  /// `Exact` when the means were compared exactly (integral costs, without the
+  /// fallback); `Rounded` for floating-point costs and whenever Karp, which
+  /// compares means in `long double`, produced the answer.
+  Cycle_Numeric_Quality numeric_quality = Cycle_Numeric_Quality::Exact;
 };
 
 namespace howard_detail {
@@ -444,19 +483,22 @@ class Solver
             // The cycle is path_(j), ..., path_(top - 1); each node leads to the
             // next and the last one to the first.
             const size_t length = top - j;
-            typename Ar::Sum total = Ar::zero_sum();
             size_t root = 0;  // offset in the cycle of its smallest node
-            for (size_t i = 0; i < length; ++i)
-              {
-                if (not Ar::add(total, adj_.weight(policy_(path_(j + i)))))
-                  return false;
-                if (path_(j + i) < path_(j + root))
-                  root = i;
-              }
+            for (size_t i = 1; i < length; ++i)
+              if (path_(j + i) < path_(j + root))
+                root = i;
 
             // The root is the smallest node of the cycle, not the first one the
             // walk met: the reference of the biases has to stay the same while the
-            // cycle does, or comparing biases across components can oscillate.
+            // cycle does, or comparing biases across components can oscillate. For
+            // the same reason the total is summed in cyclic order from the root: a
+            // floating-point sum depends on the order, and the mean of a cycle must
+            // not depend on where the walk happened to enter it.
+            typename Ar::Sum total = Ar::zero_sum();
+            for (size_t i = 0; i < length; ++i)
+              if (not Ar::add(total, adj_.weight(policy_(path_(j + (root + i) % length)))))
+                return false;
+
             const Eta e = Ar::make_eta(total, length);
             const size_t root_node = path_(j + root);
             eta_(root_node) = e;
@@ -643,6 +685,8 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
     howard_detail::Arithmetic<Cost_Type, howard_detail::exact_arithmetic_v<Cost_Type>>;
 
   Result result;
+  if constexpr (not howard_detail::exact_arithmetic_v<Cost_Type>)
+    result.numeric_quality = Cycle_Numeric_Quality::Rounded;
   const auto snapshot =
     negative_cycles_detail::index_graph(g, distance, sa, "howard_minimum_mean_cycle");
   if (snapshot.arcs.is_empty())
@@ -674,6 +718,7 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
         karp_minimum_mean_cycle<GT, Distance, SA>(g, distance, sa);
       karp.iterations = done;
       karp.used_karp = true;
+      karp.numeric_quality = Cycle_Numeric_Quality::Rounded;   // Karp compares means in long double
       return karp;
     };
 
@@ -682,8 +727,6 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
 
   // The cycle the optimal policy reaches from a node of minimum mean.
   Array<size_t> visit(n, 0);
-  for (size_t i = 0; i < n; ++i)
-    visit(i) = 0;
   size_t v = solver.best_node();
   for (size_t step = 1; visit(v) == 0; ++step)
     {
@@ -740,7 +783,12 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
  *
  *  - If the digraph has no directed cycle, `has_cycle = false`.
  *  - Otherwise `minimum_mean` is the minimum cycle mean and the witness is a
- *    simple cycle attaining it, with its exact total cost and length.
+ *    simple cycle attaining it, with its exact total cost and length. That is
+ *    exact for integral costs (`numeric_quality` is `Exact`); with
+ *    floating-point costs, or after the fallback to Karp, the cycle was
+ *    chosen with rounded values (`Rounded`) and can be worse than the optimum
+ *    when weights cancel across many orders of magnitude (see the file
+ *    documentation). After the fallback the witness is Karp's closed walk.
  *
  *  The witness can differ from the one of `karp_minimum_mean_cycle()` when
  *  several cycles attain the minimum; the value is the same.
@@ -757,15 +805,17 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
  *          improvements; `used_karp` is true if the iteration limit
  *          (`V + 64`) or the range of the scaled integer bias was exceeded and
  *          Karp's algorithm computed the answer (it then calls the distance
- *          accessor again).
+ *          accessor again, on the whole graph); `numeric_quality` says whether
+ *          the means were compared exactly.
  *
  *  @throws std::domain_error If `g` is undirected, or a floating weight (or
  *          an accumulated cost) is not finite.
  *  @throws std::overflow_error If integer additions overflow.
  *
  *  @note Complexity: `O(iterations * (V + E))` time and `O(V + E)` space, plus
- *        `O((V + E) log V)` for the snapshot of the graph; the
- *        distance accessor is called once per arc.
+ *        an expected `O(V + E)` for the snapshot of the graph; the distance
+ *        accessor is called once per arc. If the fallback runs, add Karp's
+ *        `O(V E)` time and `O(V^2)` space over the whole graph.
  *
  *  @see karp_minimum_mean_cycle() The dynamic-programming alternative, with a
  *       worst-case bound and `O(V^2)` space.

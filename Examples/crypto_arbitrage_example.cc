@@ -47,8 +47,10 @@
  *
  *  - `find_disjoint_negative_cycles()` lists several opportunities at once, not
  *    just the first one `Bellman_Ford` finds, and with
- *    `Negative_Cycle_Exclusion::All_Arcs` no two of them share a trade, so they
- *    can be executed together.
+ *    `Negative_Cycle_Exclusion::All_Arcs` no two of them share a trade. That
+ *    only diversifies the candidates: two cycles that share no trade can still
+ *    need the same balance, so whether they can be executed together depends on
+ *    capital, quantities and liquidity, which the caller has to check.
  *  - `most_negative_cycle_bounded()` finds the most profitable cycle of at most
  *    a given number of trades. It ranks by total profit, unlike
  *    `karp_minimum_mean_cycle()`, which ranks by profit per trade and is shown
@@ -62,12 +64,16 @@
  *
  * The searches take a `const` graph and keep their state in private arrays, so
  * several threads may search the same graph as long as nobody modifies it. A
- * price feed does modify it. The usual pattern is to keep the live graph for
- * the ingestion thread and, before each detection, take a snapshot with
- * `GraphCopyWithMapping` (tpl_graph.H), search the copy, and translate the
- * result back with `get_copy()` if the original nodes are needed. The pointers
- * of a result refer to the graph that was searched, so they are valid only
- * while that graph is. This example does not implement a feed.
+ * price feed does modify it, so the search needs a consistent version of the
+ * market: either copy the graph while holding the same lock the feed takes to
+ * write it (copying alone does not synchronize anything), or have the feed
+ * publish immutable versions. A result refers to the graph that was searched,
+ * and its pointers are valid only while that graph is. To act on a result,
+ * identify each trade by something stable stored in the arc (an instrument id,
+ * venue and side) rather than by pointer: `GraphCopyWithMapping` (tpl_graph.H)
+ * only maps original nodes to copied ones (`get_copy(original)`), not back, and
+ * does not map arcs, which parallel trades between the same assets need. This
+ * example does not implement a feed.
  *
  * Build and run:
  *
@@ -156,9 +162,9 @@ namespace
   /// one makes every cycle that goes through the mispriced trade profitable:
   /// ETH/BTC gives about +0.7 % after fees (BTC -> USDT -> ETH -> BTC, and a
   /// longer one through BNB), ADA/BNB about +0.5 % (ADA -> BNB -> USDT -> ADA,
-  /// and ADA -> BNB -> SOL -> ADA). Cycles that share the mispriced trade cannot
-  /// be executed together, so one search with `All_Arcs` reports one per
-  /// mispricing.
+  /// and ADA -> BNB -> SOL -> ADA). The cycles of one mispricing share its
+  /// trade and `All_Arcs` keeps only one of them, so one search reports one
+  /// opportunity per mispricing.
   const Pair pairs[] =
     {
       {"BTC", "USDT", 0.0},
@@ -278,10 +284,15 @@ namespace
         return;
       }
 
+    // With floating-point weights the search proves nothing (`is_exact` is
+    // false); `matches_relaxed_bound` says that it found no better cycle in its
+    // own rounded arithmetic, which is what a log-rate market can expect.
     const Opportunity op = describe(r.cycle_nodes, r.cycle_arcs);
+    const char * quality = r.is_exact                ? "proven optimal"
+                           : r.matches_relaxed_bound ? "optimal as computed in floating point, not a proof"
+                                                     : "not certified";
     cout << op.route << "  (gain " << showpos << fixed << setprecision(3) << op.gain * 100.0
-         << "%" << noshowpos << ", " << (r.is_exact ? "certified optimal" : "not certified")
-         << ")\n";
+         << "%" << noshowpos << ", " << quality << ")\n";
   }
 } // namespace
 

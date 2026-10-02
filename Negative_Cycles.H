@@ -75,15 +75,19 @@
  *  | Function | Time | Working space |
  *  |----------|------|---------------|
  *  | `find_disjoint_negative_cycles` | O(V + E + R · V · (V + E)) | O(V + E) |
- *  | `most_negative_cycle_bounded` | O(V + E + V_c · L · (V_c + E_c)) | O(L · V_c + V + E) |
+ *  | `most_negative_cycle_bounded` | O(V + E + V_c · L · (V_c + E_c) + V_c · L²) | O(L · V_c + V + E) |
  *
  *  `R` is the number of searches (rounds) the enumeration runs: at most
  *  `max_cycles + 1` unless floating-point candidates are discarded without
  *  being reported, and never more than `E + 1`. `L = min(max_length, V)`.
  *  `V_c` and `E_c` are the nodes and arcs of the *cyclic core*: those inside
  *  a strongly connected component that has an arc (`V_c <= V`, `E_c <= E`).
- *  A graph without cycles costs just the snapshot and an O(V + E) scan; the
- *  usual `O(V · L · E)` form of the second bound holds when `E_c >= V_c`.
+ *  A graph without cycles costs just the snapshot and an O(V + E) scan. The
+ *  `V_c · L²` term is the reconstruction of the closed walks: it disappears
+ *  into the previous one when `L <= V_c + E_c`, but `L` is bounded by the
+ *  nodes of the whole graph, not of the core, so a small core searched with a
+ *  large bound pays it (see `most_negative_cycle_bounded()`). The usual
+ *  `O(V · L · E)` form holds when `E_c >= V_c` and `L <= E_c`.
  *
  *  ## Numeric model
  *
@@ -94,19 +98,28 @@
  *  mathematical one. For floating-point costs the statements hold *for the
  *  arithmetic as evaluated*, not for the real numbers the weights denote:
  *  rounding, cancellation and absorption can make a cycle whose exact total
- *  is zero look negative, and can hide a negative cycle (a huge partial sum
- *  absorbs a small weight). Results for floating-point costs are therefore
- *  never a mathematical certificate; applications that need a safety margin
- *  should fold it into the distance accessor (for instance by adding a
- *  minimum profit to every weight).
+ *  is zero look negative, can rank a worse cycle above a better one, and can
+ *  hide a negative cycle (a huge partial sum absorbs a small weight). Results
+ *  for floating-point costs are therefore never a mathematical certificate:
+ *  `most_negative_cycle_bounded()` gives its certificate `is_exact` only for
+ *  integral costs, and its `numeric_quality` tells the two cases apart. An
+ *  empty result of `find_disjoint_negative_cycles()` with floating-point
+ *  costs means that no negative cycle was detected, not that none exists.
+ *  Applications that need a safety margin should fold it into the distance
+ *  accessor (for instance by adding a minimum profit to every weight); a
+ *  margin makes small signals harmless, but it does not make a result exact.
  *
  *  Two measures limit the damage. The cost reported for a cycle is always
- *  recomputed from its arcs with compensated (Neumaier) summation, so a
- *  cycle whose exact total is zero is not presented as negative because of
- *  cancellation, and `is_exact` is withdrawn if that cost and the plain sum
- *  used to rank the cycles disagree on the sign. Absorption during the
- *  search itself is not corrected: a negative cycle hidden by a huge partial
- *  distance can still go undetected by `find_disjoint_negative_cycles()`.
+ *  recomputed from its arcs with compensated (Neumaier) summation, which
+ *  removes most cancellation errors (`1e16, 1, -1e16, -1` sums to 0 in
+ *  every order) but not all of them, because the compensation is rounded
+ *  too: `2^100, 1, 2^-100, -1, -2^100, -2^-100`, whose exact total is zero,
+ *  still sums to `-2^-100`. And the bounded search withdraws its
+ *  relaxed-bound condition (`matches_relaxed_bound`) if that recomputed cost
+ *  and the plain sum used to rank the cycles disagree on the sign. Neither
+ *  measure corrects the ranking itself, nor absorption during the search: a
+ *  negative cycle hidden by a huge partial distance can still go undetected
+ *  by `find_disjoint_negative_cycles()`.
  *
  *  ## Lifetime and concurrency
  *
@@ -158,9 +171,40 @@ namespace Aleph
     Min_Weight_Arc,
 
     /** Exclude every arc of the cycle. The reported cycles are pairwise
-        arc-disjoint (they may still share nodes), which is what a caller
-        that wants to execute them simultaneously needs. */
+        arc-disjoint (they may still share nodes). That diversifies the
+        candidates; it does not make them executable together: two
+        arc-disjoint cycles can need the same balance, and two cycles that
+        share an arc might both fit in its liquidity. Checking capital,
+        quantities and liquidity is up to the caller. */
     All_Arcs
+  };
+
+  /** @brief How far the numbers behind the result of a cycle search can be
+   *         trusted.
+   *
+   *  Reported by `most_negative_cycle_bounded()` and by
+   *  `howard_minimum_mean_cycle()` (`Howard_Min_Mean_Cycle.H`). Later versions
+   *  may add values; code that switches on it should treat an unknown value
+   *  as `Rounded`.
+   *
+   *  @ingroup Graphs
+   */
+  enum class Cycle_Numeric_Quality
+  {
+    /** Every sum and comparison was exact (integral costs, where an overflow
+        throws instead of wrapping around). The reported cost is the exact
+        sum of the weights of the cycle, and a certificate such as
+        `Bounded_Cycle_Result::is_exact` is a mathematical proof. */
+    Exact,
+
+    /** Sums or comparisons were rounded (floating-point costs, or means
+        compared in `long double`). The reported cost is recomputed carefully
+        for the returned cycle, but the cycle was *chosen* with rounded
+        values: when weights of very different magnitudes cancel, a worse
+        cycle can be returned, and with floating-point weights a cycle whose
+        exact total is zero can look negative. Nothing in the result is a
+        proof. */
+    Rounded
   };
 
   /** @brief One negative cycle reported by `find_disjoint_negative_cycles()`.
@@ -192,12 +236,14 @@ namespace Aleph
   {
     bool has_cycle = false;  ///< True if the graph has a cycle of at most `max_length` arcs.
 
-    /** Certificate that `total_cost` is the minimum cost of a simple cycle of
-        at most `max_length` arcs. It is true when `total_cost` equals the
-        minimum cost over the relaxed set of closed walks the dynamic
-        program ranges over (see `most_negative_cycle_bounded()`), a set
-        that contains every simple cycle of the bound, so no simple cycle
-        can be cheaper than the reported one.
+    /** Proof that `total_cost` is the minimum cost of a simple cycle of at
+        most `max_length` arcs. It is given only where the arithmetic can
+        justify it: with integral costs (`numeric_quality` is
+        `Cycle_Numeric_Quality::Exact`) it equals `matches_relaxed_bound`,
+        whose argument is then exact. With floating-point costs it is always
+        false, because the search ranks the cycles with rounded sums (see the
+        numeric model in the file documentation); `matches_relaxed_bound`
+        keeps what the search concluded in its own arithmetic.
 
         It is a *sufficient* condition for optimality of the **cost**, not a
         necessary one: it can be false although the reported cycle is
@@ -206,14 +252,29 @@ namespace Aleph
         arcs: among cycles of equal cost the one with fewest arcs is
         preferred only among the candidates the search evaluated, so a
         shorter cycle of the same cost may exist even when the flag is true.
-        The certificate is mathematical for integer costs; for
-        floating-point costs it holds for the arithmetic as evaluated, and
-        it is withdrawn when the plain-sum cost the search ranked and the
-        compensated `total_cost` disagree on the sign (see the numeric model
-        in the file documentation). */
+
+        @note During development, before 2026-10-02, this flag was also set
+              for floating-point costs, with the meaning that
+              `matches_relaxed_bound` has now. */
     bool is_exact = false;
 
-    Cost_Type total_cost = Cost_Type{0};       ///< Sum of the arc weights of the reported cycle (compensated sum for floating-point costs).
+    /** True when, in the arithmetic of the search, the cost the search
+        computed for the reported cycle equals the minimum cost over the
+        relaxed set of closed walks the dynamic program ranges over (see
+        `most_negative_cycle_bounded()`), and that cost and the recomputed
+        `total_cost` agree on the sign. That set contains every simple cycle
+        of the bound, so in exact arithmetic no simple cycle is cheaper than
+        the reported one. With integral costs it equals `is_exact`. With
+        floating-point costs it is a strong hint, not a proof: rounding can
+        make a worse cycle win. For instance, in the ring `2^54, 1, -2^54, -2`
+        (exact total -1) the plain sum loses the 1 and gives -2, so the ring
+        beats a self-loop of -1.5 and this flag is true for it. */
+    bool matches_relaxed_bound = false;
+
+    /// Whether the sums and comparisons behind this result were exact.
+    Cycle_Numeric_Quality numeric_quality = Cycle_Numeric_Quality::Exact;
+
+    Cost_Type total_cost = Cost_Type{0};       ///< Sum of the arc weights of the reported cycle (compensated sum for floating-point costs, which can differ from the plain sum the search ranked it by).
     size_t length = 0;                         ///< Number of arcs of the reported cycle.
     DynList<typename GT::Node *> cycle_nodes;  ///< Closed walk, first node repeated at the end.
     DynList<typename GT::Arc *> cycle_arcs;    ///< Arcs aligned with `cycle_nodes`.
@@ -270,7 +331,9 @@ namespace Aleph
      *  the rounding error of the sum nearly independent of the number of
      *  terms and of the order of the arcs, and recovers the exact total in
      *  cancellation cases such as `1e16 + 1 - 1e16 - 1`. It is much more
-     *  accurate than plain summation but not exact in general.
+     *  accurate than plain summation but not exact in general: the
+     *  compensation is rounded too, and `2^100, 1, 2^-100, -1, -2^100,
+     *  -2^-100`, whose exact total is zero, sums to `-2^-100`.
      *
      *  @param[in] ig Indexed snapshot of the graph.
      *  @param[in] arcs Indices of the arcs to add.
@@ -534,9 +597,10 @@ namespace Aleph
    *  @param[in] sa Arc filter.
    *
    *  @return The cycles found, in the order they were found. Empty if the
-   *          graph has no negative cycle (or, with floating-point costs, if
-   *          none is detectable in the evaluated arithmetic). The paths refer
-   *          to the nodes and arcs of `g`.
+   *          graph has no negative cycle; with floating-point costs, empty
+   *          means only that none was detected in the evaluated arithmetic,
+   *          not that none exists. The paths refer to the nodes and arcs of
+   *          `g`.
    *
    *  @throws std::domain_error If `g` is undirected or a floating weight
    *          (or an accumulated sum) is not finite.
@@ -545,11 +609,14 @@ namespace Aleph
    *  @note With floating-point weights the cost of every extracted cycle is
    *        recomputed with compensated summation, and the cycle is reported
    *        only if that total is negative. A cycle of the predecessor graph
-   *        that was detected through rounding (its exact total is zero or
-   *        positive) is therefore not reported, and one whose plain sum
-   *        rounds to zero or above but is negative is reported; in both
-   *        cases its arcs are excluded, so the search keeps making progress.
-   *        The reported `total_cost` is that accurate total.
+   *        that was detected only through rounding is therefore usually not
+   *        reported, and one whose plain sum rounds to zero or above but
+   *        whose compensated total is negative is reported; in both cases its
+   *        arcs are excluded, so the search keeps making progress. The
+   *        reported `total_cost` is that compensated total. Compensated
+   *        summation is accurate, not exact: a cycle whose exact total is
+   *        zero can still come out slightly negative (see the numeric model
+   *        in the file documentation).
    *
    *  @note Complexity: O(V + E + R · V · (V + E)) expected worst-case time,
    *        where `R <= E + 1` is the number of rounds (at most
@@ -1049,10 +1116,12 @@ namespace Aleph
    *  - the reported cycle is always a simple cycle of at most `max_length`
    *    arcs with its exact total cost (as evaluated), never better than the
    *    true optimum: `c_opt <= total_cost`;
-   *  - when `total_cost` equals `best_walk` (`is_exact`), it is the minimum
-   *    cost of a simple cycle within the bound: `c_opt <= total_cost =
-   *    best_walk <= c_opt`. The flag is a sufficient certificate; see
-   *    `Bounded_Cycle_Result::is_exact`;
+   *  - when the cost of that cycle equals `best_walk`
+   *    (`matches_relaxed_bound`), it is the minimum cost of a simple cycle
+   *    within the bound: `c_opt <= total_cost = best_walk <= c_opt`. That
+   *    argument needs exact sums, so only integral costs turn it into the
+   *    certificate `is_exact`; with floating-point costs a worse cycle can
+   *    win the rounded comparison (see `Bounded_Cycle_Result`);
    *  - otherwise, if the selected walk of cost `best_walk` decomposes into
    *    `m` simple cycles, `c_opt <= total_cost <= best_walk / m <= c_opt / m`,
    *    which for a negative optimum means the reported cycle earns at least
@@ -1094,7 +1163,8 @@ namespace Aleph
    *  graph is snapshotted.
    *
    *  Choosing `max_length <= 3` rules out walks that repeat an interior node
-   *  when the graph has no self-loops, so the result is then exact. In
+   *  when the graph has no self-loops, so the result is then optimal (in the
+   *  arithmetic of the search, for floating-point costs). In
    *  market graphs the minimum-cost walk is often simple, but that is an
    *  empirical observation and not a guarantee: the repeated part can be a
    *  negative cycle by itself (a profitable triangle traversed twice).
@@ -1116,8 +1186,10 @@ namespace Aleph
    *  @return `Bounded_Cycle_Result`; `has_cycle` is false when no cycle of
    *          at most `max_length` arcs exists. The reported cycle can have
    *          non-negative cost when no negative cycle exists within the
-   *          bound: check `is_negative()`. The node and arc pointers refer
-   *          to `g`.
+   *          bound: check `is_negative()`. `numeric_quality` is `Exact` for
+   *          integral costs and `Rounded` for floating-point ones, where
+   *          `is_exact` is always false. The node and arc pointers refer to
+   *          `g`.
    *
    *  @throws std::domain_error If `g` is undirected or a floating weight
    *          (or an accumulated sum) is not finite.
@@ -1125,12 +1197,17 @@ namespace Aleph
    *          of the cyclic core), or the predecessor table size overflows
    *          `size_t`.
    *
-   *  @note Complexity: O(V + E + V_c · L · (V_c + E_c)) expected time,
-   *        O(L · V_c + V + E) working space, with `L = min(max_length, V)`
-   *        and `V_c`, `E_c` the nodes and arcs of the cyclic core (see the
-   *        file documentation). The reconstruction and decomposition cost
-   *        O(V_c · L²) in total and are absorbed because `L <= V`. The usual
-   *        `O(V_c · L · E_c)` form holds when `E_c >= V_c`.
+   *  @note Complexity: O(V + E + V_c · L · (V_c + E_c) + V_c · L²)
+   *        expected time, O(L · V_c + V + E) working space, with
+   *        `L = min(max_length, V)` and `V_c`, `E_c` the nodes and arcs of
+   *        the cyclic core (see the file documentation). The last term is the
+   *        reconstruction and decomposition of the closed walks, O(L) for
+   *        each origin and length that closes one. It is not absorbed by the
+   *        relaxation: `L` is bounded by the nodes of the whole graph, so a
+   *        small core searched with a large bound is quadratic in `L` (two
+   *        cyclic nodes among `V`, searched with `max_length = V`, cost
+   *        Θ(V²)). The usual `O(V_c · L · E_c)` form holds when `E_c >= V_c`
+   *        and `L <= E_c`.
    *
    *  @see karp_minimum_mean_cycle() Minimum *mean* cycle, no length bound.
    *
@@ -1149,6 +1226,8 @@ namespace Aleph
     using Result = Bounded_Cycle_Result<GT, Cost_Type>;
 
     Result result;
+    if constexpr (std::is_floating_point_v<Cost_Type>)
+      result.numeric_quality = Cycle_Numeric_Quality::Rounded;
     if (max_length == 0)
       return result;   // documented: no snapshot, no validation, no distance call
 
@@ -1343,15 +1422,18 @@ namespace Aleph
       return result;
 
     // The reported cost is recomputed from the arcs of the cycle (compensated
-    // summation for floating point, exact for integers). The certificate is
-    // withdrawn if the dynamic program's plain-sum cost and the accurate cost
-    // disagree on the sign: the search then ranked cycles with a total that
-    // rounding had pushed to the wrong side of zero.
+    // summation for floating point, exact for integers). The relaxed-bound
+    // condition is withdrawn if the dynamic program's plain-sum cost and the
+    // accurate cost disagree on the sign: the search then ranked cycles with a
+    // total that rounding had pushed to the wrong side of zero. Only exact
+    // sums turn the condition into a proof of optimality.
     result.total_cost = negative_cycles_detail::cycle_cost(
         ig, best.arcs, "most_negative_cycle_bounded(): cycle cost became non-finite");
     result.length = best.arcs.size();
     const bool sign_agrees = (best.cost < Cost_Type{0}) == (result.total_cost < Cost_Type{0});
-    result.is_exact = sign_agrees and not (best_walk < best.cost);
+    result.matches_relaxed_bound = sign_agrees and not (best_walk < best.cost);
+    result.is_exact = result.numeric_quality == Cycle_Numeric_Quality::Exact
+                      and result.matches_relaxed_bound;
 
     result.cycle_nodes.append(ig.nodes(ig.arcs(best.arcs(0)).src));
     for (size_t i = 0; i < best.arcs.size(); ++i)

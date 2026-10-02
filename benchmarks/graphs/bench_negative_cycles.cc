@@ -56,7 +56,10 @@
  * `All_Arcs`; at most `L` arcs for the bounded search. A negative cycle must
  * be found where one was seeded and none may be reported where none exists.
  * Results of the new algorithms that fail a check make the program exit with
- * code 1.
+ * code 1. The `cert` column of the bounded search is reported, not validated:
+ * `exact` (proven optimal, integral costs), `bound` (the relaxed bound was met
+ * in the rounded arithmetic of the search, which proves nothing; the market
+ * families use `double` weights) or `no-cert`.
  *
  * `Bellman_Ford`'s witness extraction rebuilds the cycle from nodes and can
  * pick a different parallel arc, so on multigraphs it can return a cycle whose
@@ -577,7 +580,7 @@ struct Outcome
   size_t count = 0;            // cycles reported
   double cost = 0.0;           // cost of the first (or only) cycle
   size_t length = 0;           // arcs of that cycle
-  char cert[16] = "-";         // bounded search: "exact" / "no-cert"; Howard: "it=7" or "karp"
+  char cert[16] = "-";         // bounded search: "exact" / "bound" / "no-cert"; Howard: "it=7" or "karp"
   char why[128] = "";          // reason when Invalid
   size_t allocs = 0;           // operator new calls of one run
   size_t bytes = 0;
@@ -694,7 +697,10 @@ Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
   o.count = 1;
   o.cost = r.total_cost;
   o.length = r.length;
-  std::snprintf(o.cert, sizeof(o.cert), "%s", r.is_exact ? "exact" : "no-cert");
+  // "exact": proven optimal (integral costs); "bound": the relaxed bound was
+  // met in the rounded arithmetic of the search, which proves nothing.
+  std::snprintf(o.cert, sizeof(o.cert), "%s",
+                r.is_exact ? "exact" : r.matches_relaxed_bound ? "bound" : "no-cert");
   const auto nodes = to_array(r.cycle_nodes);
   const auto arcs = to_array(r.cycle_arcs);
   long double cost = 0;

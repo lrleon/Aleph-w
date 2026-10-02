@@ -141,7 +141,7 @@ if(BUILD_TESTS)
             NAME GraphExamples.CryptoArbitrage
             COMMAND ${CMAKE_COMMAND}
                     -DEXAMPLE_PATH=$<TARGET_FILE:crypto_arbitrage_example>
-                    "-DEXPECT_SUBSTRINGS=Crypto arbitrage reference example\;Market: 6 assets, 10 pairs\;BTC -> USDT -> ETH -> BTC  (3 trades, gain +0.697%)\;ADA -> BNB -> USDT -> ADA  (3 trades, gain +0.498%)\;Opportunities found: 2\;Opportunities found: 1\;at most 2 trades: no profitable cycle\;certified optimal\;Karp minimum mean cycle"
+                    "-DEXPECT_SUBSTRINGS=Crypto arbitrage reference example\;Market: 6 assets, 10 pairs\;BTC -> USDT -> ETH -> BTC  (3 trades, gain +0.697%)\;ADA -> BNB -> USDT -> ADA  (3 trades, gain +0.498%)\;Opportunities found: 2\;Opportunities found: 1\;at most 2 trades: no profitable cycle\;optimal as computed in floating point, not a proof\;Karp minimum mean cycle"
                     -P ${_VERIFY_REFERENCE_EXAMPLE}
         )
     endif()

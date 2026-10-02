@@ -2295,6 +2295,13 @@ escalado de un problema entero sale del rango de `long long`, devuelve la respue
 (`used_karp`). Como Karp, ordena los ciclos por su *media*; para arbitraje, el ciclo a ejecutar
 sigue saliendo de `Negative_Cycles.H`.
 
+Los resultados incluyen `numeric_quality`: `Exact` con costos enteros, `Rounded` con costos de
+coma flotante y tras recurrir a Karp. Un resultado `Rounded` se eligió con sumas redondeadas y no
+demuestra nada; con magnitudes extremas (pesos cercanos a `2^100` junto a 1, o menores que
+`1e-17`) puede incluso ser un ciclo peor. `most_negative_cycle_bounded()` (`Negative_Cycles.H`)
+sigue la misma regla: su certificado `is_exact` solo se da con costos enteros, y
+`matches_relaxed_bound` informa lo que la búsqueda concluyó en coma flotante.
+
 <a id="readme-es-mst"></a>
 ### Árboles de expansión mínima
 

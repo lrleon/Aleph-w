@@ -191,7 +191,11 @@ namespace
 
     const auto r = most_negative_cycle_bounded(built.g, 3);
     ASSERT_TRUE(r.has_cycle);
-    EXPECT_TRUE(r.is_exact);
+    EXPECT_TRUE(r.matches_relaxed_bound);
+    // Only exact arithmetic turns the relaxed-bound condition into a proof.
+    EXPECT_EQ(r.is_exact, not std::is_floating_point_v<W>);
+    EXPECT_EQ(r.numeric_quality, std::is_floating_point_v<W> ? Cycle_Numeric_Quality::Rounded
+                                                              : Cycle_Numeric_Quality::Exact);
     EXPECT_EQ(r.total_cost, W(-1));
     EXPECT_EQ(r.length, 3u);
     EXPECT_TRUE(witness_is_simple_cycle(built.g, r));
@@ -403,7 +407,9 @@ TEST(BoundedNegativeCycleTest, FloatingWeightsAndArrayBackendWork)
       3, {{0, 1, -0.75}, {1, 2, 0.25}, {2, 0, 0.25}, {2, 1, 0.5}});
   const auto fr = most_negative_cycle_bounded(fbuilt.g, 3);
   ASSERT_TRUE(fr.has_cycle);
-  EXPECT_TRUE(fr.is_exact);
+  EXPECT_TRUE(fr.matches_relaxed_bound);
+  EXPECT_FALSE(fr.is_exact);   // rounded arithmetic proves nothing
+  EXPECT_EQ(fr.numeric_quality, Cycle_Numeric_Quality::Rounded);
   EXPECT_NEAR(fr.total_cost, -0.25, 1e-12);
   EXPECT_EQ(fr.length, 3u);
   EXPECT_TRUE(witness_is_simple_cycle(fbuilt.g, fr));
@@ -412,6 +418,7 @@ TEST(BoundedNegativeCycleTest, FloatingWeightsAndArrayBackendWork)
       3, {{0, 1, -4}, {1, 0, 1}, {1, 2, 3}, {2, 1, 3}});
   const auto ar = most_negative_cycle_bounded(abuilt.g, 4);
   ASSERT_TRUE(ar.has_cycle);
+  EXPECT_EQ(ar.numeric_quality, Cycle_Numeric_Quality::Exact);
   EXPECT_EQ(ar.total_cost, -3);
   EXPECT_TRUE(witness_is_simple_cycle(abuilt.g, ar));
 }
@@ -467,9 +474,10 @@ TEST(BoundedNegativeCycleTest, MaxCostIsNotTreatedAsUnreachable)
 // Accumulated in plain double, ((1e16 + 1) - 1e16) - 1 loses the +1 and
 // gives -1, which used to be reported as a certified negative cycle. The cost
 // of the reported cycle is now recomputed with compensated summation, and the
-// certificate is withdrawn when it disagrees in sign with the plain sum the
-// search ranked. Whatever order the weights are inserted in, the cycle must
-// never be presented as negative.
+// relaxed-bound condition is withdrawn when it disagrees in sign with the plain
+// sum the search ranked. Whatever order the weights are inserted in, the cycle
+// must never be presented as negative, and with floating-point weights it is
+// never certified.
 // ---------------------------------------------------------------------------
 TEST(BoundedNegativeCycleTest, CancellationDoesNotFakeANegativeCycle)
 {
@@ -498,15 +506,107 @@ TEST(BoundedNegativeCycleTest, CancellationDoesNotFakeANegativeCycle)
       // The enumeration never reports it either.
       EXPECT_TRUE(find_disjoint_negative_cycles(built.g, 1).is_empty());
 
-      certified += r.is_exact;
+      EXPECT_FALSE(r.is_exact);
+      certified += r.matches_relaxed_bound;
       ++orders;
     }
   while (std::next_permutation(weights.begin(), weights.end()));
 
   EXPECT_EQ(orders, 24u);
-  // The certificate is kept only when plain and compensated sums agree on the
-  // sign: some orders do (plain sum 0), most do not.
+  // The relaxed-bound condition is kept only when plain and compensated sums
+  // agree on the sign: some orders do (plain sum 0), most do not.
   EXPECT_LT(certified, orders);
+}
+
+
+// ---------------------------------------------------------------------------
+// Audit 2026-10-02, H1: with floating-point weights the search ranks cycles by
+// plain sums, so cancellation can rank a worse cycle first. The ring
+// 0 -> 1 -> 2 -> 3 -> 0 weighs 2^e, 1, -2^e, -2: its exact total is -1, an
+// identity between powers of two, but for e = 54 and e = 100 the plain double
+// sum loses the 1 and gives -2, which beats the self-loop of node 4 (-1.5, the
+// exact optimum). Every weight is a binary fraction represented exactly.
+//
+// The relaxed-bound condition holds in that arithmetic; before 2026-10 it was
+// published as `is_exact` and the ring came out "certified optimal". It must
+// not be certified now. KNOWN LIMITATION: the ring is still returned; when the
+// search ranks with exact or verified sums this test must expect the loop.
+// ---------------------------------------------------------------------------
+TEST(BoundedNegativeCycleTest, KnownNumericLimitationRoundingRanksTheWrongCycleButIsNotCertified)
+{
+  for (const int e : {54, 100})
+    {
+      const double big = std::ldexp(1.0, e);
+      auto built = build_graph_generic<Float_Graph, double>(
+          5, {{0, 1, big}, {1, 2, 1.0}, {2, 3, -big}, {3, 0, -2.0}, {4, 4, -1.5}});
+
+      const auto r = most_negative_cycle_bounded(built.g, 4);
+      ASSERT_TRUE(r.has_cycle) << "e=" << e;
+      EXPECT_FALSE(r.is_exact) << "e=" << e;                // never a false certificate
+      EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Rounded) << "e=" << e;
+      EXPECT_TRUE(r.matches_relaxed_bound) << "e=" << e;    // what the rounded search concluded
+      EXPECT_TRUE(r.is_negative()) << "e=" << e;
+      EXPECT_TRUE(witness_is_simple_cycle(built.g, r)) << "e=" << e;
+
+      // KNOWN LIMITATION: the ring (exact total -1, recomputed exactly) instead
+      // of the loop (-1.5).
+      EXPECT_EQ(r.total_cost, -1.0) << "e=" << e;
+      EXPECT_EQ(r.length, 4u) << "e=" << e;
+    }
+
+  // The same structure with integer weights, where every sum is exact: the
+  // loop wins and the certificate is a proof. (Weights doubled to keep them
+  // integral: ring total -2, loop -3.)
+  const long long big = 1LL << 54;
+  auto built = build_graph(5, {{0, 1, big}, {1, 2, 2}, {2, 3, -big}, {3, 0, -4}, {4, 4, -3}});
+  const auto r = most_negative_cycle_bounded(built.g, 4);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Exact);
+  EXPECT_TRUE(r.is_exact);
+  EXPECT_EQ(r.total_cost, -3);
+  EXPECT_EQ(r.length, 1u);
+}
+
+
+// ---------------------------------------------------------------------------
+// Audit 2026-10-02, H2: compensated summation is not exact. The six-arc ring
+// with weights 2^100, 1, 2^-100, -1, -2^100, -2^-100 (in some rotation) sums
+// exactly to zero, three pairs that cancel, yet Neumaier's sum gives -2^-100
+// because the compensation term is itself rounded. Every weight is a power of
+// two, so the exact total needs no oracle.
+//
+// KNOWN LIMITATION: the bounded search presents that zero cycle as negative in
+// every rotation. It is not certified. The enumeration, which works with other
+// partial sums, does not report it in this case. When the cost is computed
+// with an exact or verified sum, this test must expect `is_negative()` false.
+// ---------------------------------------------------------------------------
+TEST(BoundedNegativeCycleTest, KnownNumericLimitationCompensatedSumCanMakeAZeroCycleNegative)
+{
+  const double big = std::ldexp(1.0, 100);
+  const double tiny = std::ldexp(1.0, -100);
+  const std::vector<double> ring = {big, 1.0, tiny, -1.0, -big, -tiny};
+
+  for (size_t rotation = 0; rotation < ring.size(); ++rotation)
+    {
+      std::vector<std::tuple<size_t, size_t, double>> edges;
+      for (size_t i = 0; i < ring.size(); ++i)
+        edges.emplace_back(i, (i + 1) % ring.size(), ring[(i + rotation) % ring.size()]);
+      auto built = build_graph_generic<Float_Graph, double>(ring.size(), edges);
+
+      const auto r = most_negative_cycle_bounded(built.g, ring.size());
+      ASSERT_TRUE(r.has_cycle) << "rotation=" << rotation;
+      EXPECT_EQ(r.length, ring.size()) << "rotation=" << rotation;
+      EXPECT_TRUE(witness_is_simple_cycle(built.g, r)) << "rotation=" << rotation;
+      EXPECT_FALSE(r.is_exact) << "rotation=" << rotation;
+      EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Rounded) << "rotation=" << rotation;
+
+      // KNOWN LIMITATION: exact total 0, reported -2^-100.
+      EXPECT_EQ(r.total_cost, -tiny) << "rotation=" << rotation;
+      EXPECT_TRUE(r.is_negative()) << "rotation=" << rotation;
+
+      // Not a limitation of the enumeration in this instance.
+      EXPECT_TRUE(find_disjoint_negative_cycles(built.g, 5).is_empty()) << "rotation=" << rotation;
+    }
 }
 
 

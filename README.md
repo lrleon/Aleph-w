@@ -2504,6 +2504,13 @@ iterations, or if the scaled bias of an integer problem leaves the range of `lon
 returns Karp's answer (`used_karp`). Like Karp, it ranks cycles by *mean*; for arbitrage, the
 cycle to execute still comes from `Negative_Cycles.H`.
 
+Results carry `numeric_quality`: `Exact` for integer costs, `Rounded` for floating-point costs
+and after the fallback to Karp. A `Rounded` result was chosen with rounded sums and proves
+nothing; with extreme magnitudes (weights near `2^100` next to 1, or below `1e-17`) it can
+even be a worse cycle. `most_negative_cycle_bounded()` (`Negative_Cycles.H`) follows the same
+rule: its certificate `is_exact` is given only for integer costs, and
+`matches_relaxed_bound` reports what the search concluded in floating point.
+
 <a id="readme-minimum-spanning-trees"></a>
 ### Minimum Spanning Trees
 
