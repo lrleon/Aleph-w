@@ -57,6 +57,9 @@
  *
  *  Each iteration takes @f$O(V + E)@f$ time and the working space is
  *  @f$O(V + E)@f$, against @f$O(V E)@f$ time and @f$O(V^2)@f$ space for Karp.
+ *  The exact verification of floating-point results costs one more
+ *  iteration, in integer arithmetic, plus @f$O(E)@f$ to scale the weights
+ *  (a fifth to a third more time on the market graphs of the benchmark).
  *  No polynomial bound on the number of iterations is known (as for the
  *  simplex method) and constructed instances need many, but on graphs that
  *  occur in practice it is small. The function therefore stops after
@@ -78,24 +81,26 @@
  *    reported cycle has the exact minimum mean `cycle_total_cost /
  *    cycle_length`. The scaled bias can exceed the range of `long long` before
  *    Karp's sums do; the function then returns Karp's answer.
- *  - **Floating-point costs** use `long double` with a relative tolerance in
- *    the bias comparison; the result is the minimum mean up to the rounding
- *    of that arithmetic, and the cost of the reported cycle is recomputed
- *    from its arcs with compensated summation. "Up to the rounding" can be a
- *    large error when weights of very different magnitudes cancel, and
- *    `numeric_quality` is then `Rounded`. Two limits are worth knowing:
- *    - Policies are evaluated with plain `long double` sums, and the cycle is
- *      chosen by them. With a ring `2^100, 1, -2^100, -2` (exact mean -1/4)
- *      and a self-loop of -0.375, the ring is summed as -2, looks better
- *      (mean -1/2) and is returned, with its recomputed mean -0.25.
- *    - An improvement of a bias smaller than the tolerance is ignored, and
- *      the tolerance has an absolute floor of `64 * epsilon(long double)`
- *      (about `7e-18` with the x86 `long double`). With weights near that
- *      size the iteration can stop at a policy that is not optimal: with
- *      self-loops of weight 0 and arcs `0 -> 1` of `2^-60` and `1 -> 0` of
- *      `-2^-59` (a cycle of mean `-2^-61`) it returns a loop of mean 0. The
- *      same graph scaled by `2^60` is solved: express tiny weights in a
- *      larger unit.
+ *  - **Floating-point costs** are iterated in `long double`, with a relative
+ *    tolerance in the bias comparison that protects the iteration from
+ *    oscillating on rounding noise. That arithmetic alone is not reliable
+ *    when weights of very different magnitudes cancel (a ring `2^100, 1,
+ *    -2^100, -2`, of exact mean -1/4, sums to -2 and looks better than a
+ *    self-loop of -0.375), nor for improvements below the absolute floor of
+ *    the tolerance, `64 * epsilon(long double)` (with self-loops of weight 0
+ *    and arcs `0 -> 1` of `2^-60` and `1 -> 0` of `-2^-59` the iteration stops
+ *    at a loop of mean 0 instead of the cycle of mean `-2^-61`). So the result
+ *    is then finished with exact arithmetic: every weight is an odd integer
+ *    times a power of two, and dividing them all by the smallest such power
+ *    gives integers that represent them exactly; when those fit 64-bit
+ *    integers, or 128-bit ones where the compiler has them, the iteration
+ *    resumes from its policy in that exact arithmetic (usually confirming it
+ *    in one evaluation), and the answer is the exact optimum
+ *    (`numeric_quality` is `Exact`). When the weights span too many binary
+ *    orders of magnitude for that (more than about 126), the policy stays
+ *    the rounded one, but the cycle is still chosen among its cycles with
+ *    exact sums, and `numeric_quality` is `Rounded`. The reported cost is the
+ *    exact sum of the weights of the cycle, rounded once.
  *
  *  ## Differences from `karp_minimum_mean_cycle()`
  *
@@ -166,17 +171,69 @@ struct Howard_Mean_Cycle_Result : public Min_Mean_Cycle_Result<GT, Cost_Type>
   bool used_karp =
     false;  ///< True if Karp's algorithm produced the answer (see the file documentation).
 
-  /// `Exact` when the means were compared exactly (integral costs, without the
-  /// fallback); `Rounded` for floating-point costs and whenever Karp, which
+  /// `Exact` when the answer was decided with exact arithmetic: integral
+  /// costs, or floating-point costs verified exactly (see the file
+  /// documentation). `Rounded` when floating-point weights span too many
+  /// binary orders of magnitude to be verified, and whenever Karp, which
   /// compares means in `long double`, produced the answer.
   Cycle_Numeric_Quality numeric_quality = Cycle_Numeric_Quality::Exact;
 };
 
+/** Whether the exact verification of floating-point results can use 128-bit
+    integers. GCC and Clang provide them (`__SIZEOF_INT128__`), but clang-cl,
+    which also defines that macro, lacks the runtime support for 128-bit
+    division on Windows (there is no compiler-rt there), so it is left out. */
+# if defined(__SIZEOF_INT128__) and not defined(_MSC_VER)
+#   define ALEPH_HOWARD_INT128 1
+# else
+#   define ALEPH_HOWARD_INT128 0
+# endif
+
 namespace howard_detail {
-/// Integral costs that fit a `long long` use exact arithmetic.
+# if ALEPH_HOWARD_INT128
+/// 128-bit integers (GCC and Clang), used to verify floating-point results
+/// exactly when their weights need more than 64 bits.
+__extension__ typedef __int128 int128_t;
+/// Unsigned counterpart of `int128_t`.
+__extension__ typedef unsigned __int128 uint128_t;
+# endif
+
+/// Integral costs that fit a `long long` use exact arithmetic, and so do
+/// 128-bit integers where they exist.
 template <typename Cost_Type>
 inline constexpr bool exact_arithmetic_v = std::is_integral_v<Cost_Type> and
   std::numeric_limits<Cost_Type>::max() <= std::numeric_limits<long long>::max();
+# if ALEPH_HOWARD_INT128
+template <>
+inline constexpr bool exact_arithmetic_v<int128_t> = true;
+# endif
+
+/** @brief Integer type, and its limits, of the exact arithmetic for
+ *         `Cost_Type`: `long long`, or `int128_t` for 128-bit costs.
+ *
+ *  The limits are spelled out because `std::numeric_limits` is not
+ *  specialised for 128-bit integers in strict ISO mode.
+ */
+template <typename Cost_Type>
+struct Exact_Integer
+{
+  using Wide = long long;                ///< Signed integer of the arithmetic.
+  using Unsigned = unsigned long long;   ///< Its unsigned counterpart.
+  static constexpr Wide max = std::numeric_limits<long long>::max();   ///< Largest value.
+  static constexpr Wide min = std::numeric_limits<long long>::min();   ///< Smallest value.
+};
+
+# if ALEPH_HOWARD_INT128
+/// 128-bit costs use 128-bit arithmetic.
+template <>
+struct Exact_Integer<int128_t>
+{
+  using Wide = int128_t;        ///< Signed integer of the arithmetic.
+  using Unsigned = uint128_t;   ///< Its unsigned counterpart.
+  static constexpr Wide max = static_cast<int128_t>(~uint128_t(0) >> 1);   ///< Largest value.
+  static constexpr Wide min = -max - 1;                                    ///< Smallest value.
+};
+# endif
 
 /** @brief Arithmetic of the policy evaluation, specialised by exactness.
  *
@@ -192,7 +249,8 @@ struct Arithmetic;
 template <typename Cost_Type>
 struct Arithmetic<Cost_Type, true>
 {
-  using Wide = long long;
+  using Wide = typename Exact_Integer<Cost_Type>::Wide;
+  using Unsigned = typename Exact_Integer<Cost_Type>::Unsigned;
 
   /// Reduced fraction `num / den` with `den > 0`: the representation is
   /// canonical, so two equal means have equal fields.
@@ -230,9 +288,9 @@ struct Arithmetic<Cost_Type, true>
   {
     const Wide num = total;
     const Wide den = static_cast<Wide>(length);
-    const unsigned long long magnitude =
-      num < 0 ? 0ULL - static_cast<unsigned long long>(num) : static_cast<unsigned long long>(num);
-    const auto g = static_cast<Wide>(std::gcd(magnitude, static_cast<unsigned long long>(den)));
+    const Unsigned magnitude =
+      num < 0 ? Unsigned(0) - static_cast<Unsigned>(num) : static_cast<Unsigned>(num);
+    const auto g = static_cast<Wide>(gcd(magnitude, static_cast<Unsigned>(den)));
     return Eta{num / g, den / g};
   }
 
@@ -321,37 +379,78 @@ struct Arithmetic<Cost_Type, true>
   }
 
 private:
+  static constexpr Wide wide_max = Exact_Integer<Cost_Type>::max;
+  static constexpr Wide wide_min = Exact_Integer<Cost_Type>::min;
+
+  static Unsigned gcd(Unsigned a, Unsigned b) noexcept
+  {
+    while (b != 0)
+      {
+        const Unsigned r = a % b;
+        a = b;
+        b = r;
+      }
+    return a;
+  }
+
+  // The checked operations leave `out` untouched when they overflow. GCC and
+  // Clang check with their builtins, which avoid a division (a slow library
+  // call for 128-bit integers); other compilers use the portable tests.
   static bool add_overflows(const Wide a, const Wide b, Wide &out) noexcept
   {
-    if ((b > 0 and a > std::numeric_limits<Wide>::max() - b) or
-        (b < 0 and a < std::numeric_limits<Wide>::min() - b))
+# if defined(__GNUC__)
+    Wide r;
+    if (__builtin_add_overflow(a, b, &r))
+      return true;
+    out = r;
+    return false;
+# else
+    if ((b > 0 and a > wide_max - b) or
+        (b < 0 and a < wide_min - b))
       return true;
     out = a + b;
     return false;
+# endif
   }
 
   static bool subtract_overflows(const Wide a, const Wide b, Wide &out) noexcept
   {
-    if ((b < 0 and a > std::numeric_limits<Wide>::max() + b) or
-        (b > 0 and a < std::numeric_limits<Wide>::min() + b))
+# if defined(__GNUC__)
+    Wide r;
+    if (__builtin_sub_overflow(a, b, &r))
+      return true;
+    out = r;
+    return false;
+# else
+    if ((b < 0 and a > wide_max + b) or
+        (b > 0 and a < wide_min + b))
       return true;
     out = a - b;
     return false;
+# endif
   }
 
   static bool multiply_overflows(const Wide a, const Wide b, Wide &out) noexcept
   {
+# if defined(__GNUC__)
+    Wide r;
+    if (__builtin_mul_overflow(a, b, &r))
+      return true;
+    out = r;
+    return false;
+# else
     if (a == 0 or b == 0)
       {
         out = 0;
         return false;
       }
-    constexpr Wide hi = std::numeric_limits<Wide>::max();
-    constexpr Wide lo = std::numeric_limits<Wide>::min();
+    constexpr Wide hi = wide_max;
+    constexpr Wide lo = wide_min;
     if (a > 0 ? (b > 0 ? a > hi / b : b < lo / a) : b > 0 ? a < lo / b : b < hi / a)
       return true;
     out = a * b;
     return false;
+# endif
   }
 };
 
@@ -603,6 +702,18 @@ public:
 
   /** @param[in] adj Out-adjacency; every node must have an outgoing arc.
    *  @param[in] n Number of nodes.
+   *  @param[in] initial A policy over the same adjacency structure to start
+   *             from, instead of the cheapest arc of each node.
+   */
+  Solver(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj, const size_t n,
+         const Array<size_t> &initial)
+    : adj_(adj), n_(n), policy_(initial), eta_(n, Eta{}), bias_(n, Bias{}), state_(n, 0), path_(n, 0)
+  {
+    // empty
+  }
+
+  /** @param[in] adj Out-adjacency; every node must have an outgoing arc.
+   *  @param[in] n Number of nodes.
    */
   Solver(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj, const size_t n)
     : adj_(adj), n_(n), policy_(n, 0), eta_(n, Eta{}), bias_(n, Bias{}), state_(n, 0), path_(n, 0)
@@ -653,6 +764,14 @@ public:
     return policy_(u);
   }
 
+  /// The policy: for each node, the position in the adjacency of its arc.
+  const Array<size_t> &policy() const noexcept
+  {
+    return policy_;
+  }
+
+
+
   /// Node the policy leads to from `u`.
   size_t next_node(const size_t u) const
   {
@@ -665,6 +784,194 @@ inline constexpr size_t iteration_slack = 64;
 
 /// Value of `max_iterations` that selects the default limit, `V + 64`.
 inline constexpr size_t default_iterations = std::numeric_limits<size_t>::max();
+
+/** @brief Node where the walk that follows `policy` from `start` closes its
+ *         cycle (the first node of that cycle the walk meets).
+ *  @param[in] adj Out-adjacency the policy refers to.
+ *  @param[in] policy For each node, the position in `adj` of its arc.
+ *  @param[in] start Node to start from.
+ *  @return A node of the cycle.
+ */
+template <typename Cost_Type>
+size_t cycle_entry(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj,
+                   const Array<size_t> &policy, const size_t start)
+{
+  Array<unsigned char> seen(adj.start.size() - 1, 0);
+  size_t v = start;
+  while (seen(v) == 0)
+    {
+      seen(v) = 1;
+      v = adj.tgt(policy(v));
+    }
+  return v;
+}
+
+/** @brief Re-solve exactly, from `policy`, with the floating-point weights
+ *         of `adj` scaled to integers of type `Int`.
+ *
+ *  Every weight is an odd integer times a power of two; dividing all of them
+ *  by the smallest such power gives integers that represent them exactly,
+ *  so the iteration that follows decides with the exact weights.
+ *
+ *  @param[in] adj Out-adjacency with floating-point weights.
+ *  @param[in] n Number of nodes.
+ *  @param[in] limit Improvements allowed.
+ *  @param[in] low Exponent of the lowest set bit of each weight (any value
+ *             for a zero weight).
+ *  @param[in] low_min Exponent of the lowest set bit over all the weights.
+ *  @param[in,out] policy Starting policy; receives the optimal one.
+ *  @param[out] first A node of an optimal cycle of the final policy.
+ *  @param[out] iterations Improvements applied.
+ *  @return False if an intermediate value did not fit `Int` or the limit
+ *          was reached; nothing is written then.
+ */
+template <typename Int, typename Cost_Type>
+bool try_exact(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj, const size_t n,
+               const size_t limit, const Array<int> &low, const int low_min,
+               Array<size_t> &policy, size_t &first, size_t &iterations)
+{
+  negative_cycles_detail::Out_Adjacency<Int> exact_adj;
+  exact_adj.start = adj.start;
+  exact_adj.arc = adj.arc;
+  exact_adj.tgt = adj.tgt;
+  exact_adj.weight = Array<Int>(adj.weight.size(), Int(0));
+  for (size_t p = 0; p < adj.weight.size(); ++p)
+    {
+      const Cost_Type w = adj.weight(p);
+      if (w == Cost_Type{0})
+        continue;
+      Int odd;   // exact: an odd integer
+      if constexpr (std::numeric_limits<Cost_Type>::digits <= 64)
+        odd = static_cast<Int>(negative_cycles_detail::odd_significand(w));
+      else   // wider significands (quadruple long double)
+        odd = static_cast<Int>(std::ldexp(std::fabs(w), -low(p)));
+      const Int magnitude = odd << (low(p) - low_min);
+      exact_adj.weight(p) = w < Cost_Type{0} ? -magnitude : magnitude;
+    }
+
+  Solver<Int> exact(exact_adj, n, policy);
+  size_t done = 0;
+  if (exact.solve(limit, done) != Solver<Int>::Status::Optimal)
+    return false;
+  policy = exact.policy();
+  first = cycle_entry(adj, policy, exact.best_node());
+  iterations = done;
+  return true;
+}
+
+/** @brief Verify, and finish if needed, a floating-point result with exact
+ *         arithmetic: `try_exact()` with 64-bit integers, or 128-bit ones
+ *         where they exist, if the scaled weights fit.
+ *
+ *  @param[in] adj Out-adjacency with floating-point weights.
+ *  @param[in] n Number of nodes.
+ *  @param[in] limit Improvements allowed.
+ *  @param[in,out] policy The policy of the floating-point iteration; receives
+ *                 the exactly optimal one.
+ *  @param[out] first A node of an optimal cycle.
+ *  @param[out] iterations Improvements applied by the exact iteration.
+ *  @return True if the result is now exact; false (and nothing changed) if
+ *          the weights span too many binary orders of magnitude.
+ */
+template <typename Cost_Type>
+bool verify_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj, const size_t n,
+                    const size_t limit, Array<size_t> &policy, size_t &first, size_t &iterations)
+{
+  bool any = false;
+  int low_min = 0;
+  int high_max = 0;
+  Array<int> low(adj.weight.size(), 0);
+  for (size_t p = 0; p < adj.weight.size(); ++p)
+    {
+      if (adj.weight(p) == Cost_Type{0})
+        continue;
+      int high = 0;
+      negative_cycles_detail::bit_span(adj.weight(p), low(p), high);
+      low_min = any ? std::min(low_min, low(p)) : low(p);
+      high_max = any ? std::max(high_max, high) : high;
+      any = true;
+    }
+  const int bits = any ? high_max - low_min + 1 : 1;   // of the largest scaled weight
+
+  if (bits <= 62 and try_exact<long long>(adj, n, limit, low, low_min, policy, first, iterations))
+    return true;
+# if ALEPH_HOWARD_INT128
+  if (bits <= 126 and try_exact<int128_t>(adj, n, limit, low, low_min, policy, first, iterations))
+    return true;
+# endif
+  return false;
+}
+
+/** @brief Cycle of minimum mean among the cycles of `policy`, with means
+ *         compared exactly (`Exact_Sum`, cross-multiplied by the lengths).
+ *
+ *  Used when the exact verification is not possible: the policy itself
+ *  comes from rounded arithmetic, but the choice among its cycles does not.
+ *
+ *  @param[in] adj Out-adjacency with floating-point weights.
+ *  @param[in] policy A policy over `adj`.
+ *  @param[in] n Number of nodes.
+ *  @return A node of the chosen cycle, or `n` if an exact sum overflowed.
+ */
+template <typename Cost_Type>
+size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj,
+                          const Array<size_t> &policy, const size_t n)
+{
+  Array<unsigned char> state(n, 0);   // 0 unseen, 1 on the current walk, 2 done
+  Array<size_t> walk(n, 0);
+  negative_cycles_detail::Exact_Sum<Cost_Type> best_sum;
+  negative_cycles_detail::Exact_Sum<Cost_Type> sum;
+  negative_cycles_detail::Exact_Sum<Cost_Type> difference;
+  size_t best = n;
+  size_t best_length = 0;
+  for (size_t s = 0; s < n; ++s)
+    {
+      if (state(s) != 0)
+        continue;
+      size_t top = 0;
+      size_t u = s;
+      while (state(u) == 0)
+        {
+          state(u) = 1;
+          walk(top++) = u;
+          u = adj.tgt(policy(u));
+        }
+      if (state(u) == 1)   // the walk closed a new cycle through u
+        {
+          sum.clear();
+          size_t length = 0;
+          size_t v = u;
+          do
+            {
+              if (not sum.add(adj.weight(policy(v))))
+                return n;
+              ++length;
+              v = adj.tgt(policy(v));
+            }
+          while (v != u);
+
+          bool better = best == n;
+          if (not better)
+            {
+              // sum / length < best_sum / best_length, cross-multiplied
+              difference.clear();
+              if (not difference.add_multiple(sum, best_length)
+                  or not difference.add_multiple(best_sum, length, true))
+                return n;
+              better = difference.sign() < 0;
+            }
+          if (better)
+            {
+              best = u;
+              best_length = length;
+              std::swap(best_sum, sum);
+            }
+        }
+      for (size_t i = 0; i < top; ++i)
+        state(walk(i)) = 2;
+    }
+  return best;
+}
 
 /** @brief Body of `howard_minimum_mean_cycle()` with an explicit iteration
  *         limit, so that the fallback to Karp can be exercised.
@@ -725,25 +1032,40 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
   if (status != Solver::Status::Optimal)
     return use_karp(iterations);
 
-  // The cycle the optimal policy reaches from a node of minimum mean.
-  Array<size_t> visit(n, 0);
-  size_t v = solver.best_node();
-  for (size_t step = 1; visit(v) == 0; ++step)
+  // The cycle the optimal policy reaches from a node of minimum mean. With
+  // floating-point weights the policy was found with rounded arithmetic: it is
+  // re-solved exactly from where it stands (usually just one evaluation) when
+  // the weights fit 64- or 128-bit integers once scaled; otherwise at least
+  // the choice among its cycles is made with exact sums.
+  Array<size_t> policy = solver.policy();
+  size_t first = 0;
+  if constexpr (std::is_floating_point_v<Cost_Type>)
     {
-      visit(v) = step;
-      v = solver.next_node(v);
+      size_t exact_iterations = 0;
+      if (verify_exactly(adj, n, n + iteration_slack, policy, first, exact_iterations))
+        {
+          result.numeric_quality = Cycle_Numeric_Quality::Exact;
+          iterations += exact_iterations;
+        }
+      else
+        {
+          first = best_cycle_exactly(adj, policy, n);
+          if (first == n)   // an exact sum overflowed: keep the rounded choice
+            first = cycle_entry(adj, policy, solver.best_node());
+        }
     }
-  const size_t first = v;  // a node of the cycle
+  else
+    first = cycle_entry(adj, policy, solver.best_node());
 
   Array<size_t> arcs;  // indices into ig.arcs, in cycle order
   result.cycle_nodes.append(ig.nodes(first));
   size_t u = first;
   do
     {
-      const size_t a = adj.arc(solver.chosen_arc(u));
+      const size_t a = adj.arc(policy(u));
       arcs.append(a);
       result.cycle_arcs.append(ig.arcs(a).arc);
-      u = solver.next_node(u);
+      u = adj.tgt(policy(u));
       result.cycle_nodes.append(ig.nodes(u));
   } while (u != first);
 
@@ -784,11 +1106,12 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
  *  - If the digraph has no directed cycle, `has_cycle = false`.
  *  - Otherwise `minimum_mean` is the minimum cycle mean and the witness is a
  *    simple cycle attaining it, with its exact total cost and length. That is
- *    exact for integral costs (`numeric_quality` is `Exact`); with
- *    floating-point costs, or after the fallback to Karp, the cycle was
- *    chosen with rounded values (`Rounded`) and can be worse than the optimum
- *    when weights cancel across many orders of magnitude (see the file
- *    documentation). After the fallback the witness is Karp's closed walk.
+ *    exact for integral costs and for floating-point costs that the exact
+ *    verification could handle (`numeric_quality` is `Exact`); when it could
+ *    not, or after the fallback to Karp, the cycle was chosen with rounded
+ *    values (`Rounded`) and can be worse than the optimum when weights cancel
+ *    across many orders of magnitude (see the file documentation). After the
+ *    fallback the witness is Karp's closed walk.
  *
  *  The witness can differ from the one of `karp_minimum_mean_cycle()` when
  *  several cycles attain the minimum; the value is the same.

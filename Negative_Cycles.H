@@ -91,35 +91,39 @@
  *
  *  ## Numeric model
  *
- *  Every cost is accumulated with the `+` and `<` of `Distance::Distance_Type`,
- *  in the order the algorithm happens to add them. For integer costs that is
- *  exact arithmetic (an overflow throws `std::overflow_error`), and every
- *  statement below about "negative", "minimum" and `is_exact` is a
- *  mathematical one. For floating-point costs the statements hold *for the
- *  arithmetic as evaluated*, not for the real numbers the weights denote:
- *  rounding, cancellation and absorption can make a cycle whose exact total
- *  is zero look negative, can rank a worse cycle above a better one, and can
- *  hide a negative cycle (a huge partial sum absorbs a small weight). Results
- *  for floating-point costs are therefore never a mathematical certificate:
- *  `most_negative_cycle_bounded()` gives its certificate `is_exact` only for
- *  integral costs, and its `numeric_quality` tells the two cases apart. An
- *  empty result of `find_disjoint_negative_cycles()` with floating-point
- *  costs means that no negative cycle was detected, not that none exists.
- *  Applications that need a safety margin should fold it into the distance
- *  accessor (for instance by adding a minimum profit to every weight); a
- *  margin makes small signals harmless, but it does not make a result exact.
+ *  The searches accumulate costs with the `+` and `<` of
+ *  `Distance::Distance_Type`, in the order the algorithm happens to add them.
+ *  For integer costs that is exact arithmetic (an overflow throws
+ *  `std::overflow_error`), and every statement below about "negative",
+ *  "minimum" and `is_exact` is a mathematical one. For floating-point costs
+ *  the searches round, and the results say how far they can be trusted, for
+ *  the weights exactly as given (as binary fractions):
  *
- *  Two measures limit the damage. The cost reported for a cycle is always
- *  recomputed from its arcs with compensated (Neumaier) summation, which
- *  removes most cancellation errors (`1e16, 1, -1e16, -1` sums to 0 in
- *  every order) but not all of them, because the compensation is rounded
- *  too: `2^100, 1, 2^-100, -1, -2^100, -2^-100`, whose exact total is zero,
- *  still sums to `-2^-100`. And the bounded search withdraws its
- *  relaxed-bound condition (`matches_relaxed_bound`) if that recomputed cost
- *  and the plain sum used to rank the cycles disagree on the sign. Neither
- *  measure corrects the ranking itself, nor absorption during the search: a
- *  negative cycle hidden by a huge partial distance can still go undetected
- *  by `find_disjoint_negative_cycles()`.
+ *  - The cost reported for a cycle is always the exact sum of its weights,
+ *    rounded once (see `negative_cycles_detail::Exact_Sum`, an expansion in
+ *    the sense of Shewchuk, 1997). Its sign is exact, so a cycle is reported
+ *    as negative only if it is, and a cycle whose exact total is zero (such
+ *    as `2^100, 1, 2^-100, -1, -2^100, -2^-100`) costs zero.
+ *  - `find_disjoint_negative_cycles()` reports only cycles whose exact total
+ *    is negative. Its search, though, can miss one: a huge partial distance
+ *    can absorb a small negative weight (`-1e16 + (-1)` rounds to `-1e16`)
+ *    and hide the cycle, so with floating-point costs an empty result means
+ *    that no negative cycle was detected, not that none exists.
+ *  - `most_negative_cycle_bounded()` ranks the candidate cycles by their
+ *    exact costs, and publishes `optimality_gap`: a rigorous bound of how
+ *    much cheaper than the reported cycle the best one can be, which covers
+ *    the rounding of every sum the search made. `is_exact` holds exactly when
+ *    that bound is zero, for instance when the range of the weights makes
+ *    every sum of the search exact (`numeric_quality` is `Exact`).
+ *  - `howard_minimum_mean_cycle()` (`Howard_Min_Mean_Cycle.H`) checks its
+ *    rounded result with exact arithmetic when it can; its `numeric_quality`
+ *    says whether it could.
+ *
+ *  Applications that need a safety margin should fold it into the distance
+ *  accessor (for instance by adding a minimum profit to every weight): it is
+ *  a business decision, separate from these numeric guarantees. The exact
+ *  arithmetic needs IEEE round-to-nearest evaluated as written: no
+ *  `-ffast-math` or other reassociation of floating-point sums.
  *
  *  ## Lifetime and concurrency
  *
@@ -142,6 +146,8 @@
 # include <ah-graph-concepts.H>
 
 # include <algorithm>
+# include <bit>
+# include <cfloat>
 # include <cmath>
 # include <cstddef>
 # include <cstdint>
@@ -191,19 +197,22 @@ namespace Aleph
    */
   enum class Cycle_Numeric_Quality
   {
-    /** Every sum and comparison was exact (integral costs, where an overflow
-        throws instead of wrapping around). The reported cost is the exact
-        sum of the weights of the cycle, and a certificate such as
+    /** Every sum and comparison that decided the result was exact: integral
+        costs (an overflow throws instead of wrapping around), floating-point
+        weights whose range makes every sum of the search exact, or a
+        floating-point result verified with exact arithmetic (Howard). The
+        result is what the algorithm computes in exact arithmetic (Howard's
+        is then the optimum), and a certificate such as
         `Bounded_Cycle_Result::is_exact` is a mathematical proof. */
     Exact,
 
-    /** Sums or comparisons were rounded (floating-point costs, or means
-        compared in `long double`). The reported cost is recomputed carefully
-        for the returned cycle, but the cycle was *chosen* with rounded
-        values: when weights of very different magnitudes cancel, a worse
-        cycle can be returned, and with floating-point weights a cycle whose
-        exact total is zero can look negative. Nothing in the result is a
-        proof. */
+    /** The cycle was chosen with rounded values (floating-point costs, or
+        means compared in `long double` by Karp's fallback). When weights of
+        very different magnitudes cancel, a worse cycle can be chosen;
+        `Bounded_Cycle_Result` bounds how much worse with `optimality_gap`.
+        The reported cost is still the exact sum of the weights of the cycle,
+        rounded once, so its sign is exact (except after Howard's fallback,
+        which reports Karp's sum). */
     Rounded
   };
 
@@ -237,13 +246,16 @@ namespace Aleph
     bool has_cycle = false;  ///< True if the graph has a cycle of at most `max_length` arcs.
 
     /** Proof that `total_cost` is the minimum cost of a simple cycle of at
-        most `max_length` arcs. It is given only where the arithmetic can
-        justify it: with integral costs (`numeric_quality` is
-        `Cycle_Numeric_Quality::Exact`) it equals `matches_relaxed_bound`,
-        whose argument is then exact. With floating-point costs it is always
-        false, because the search ranks the cycles with rounded sums (see the
-        numeric model in the file documentation); `matches_relaxed_bound`
-        keeps what the search concluded in its own arithmetic.
+        most `max_length` arcs: true exactly when `optimality_gap` is zero.
+        With integral costs that is when the cost equals the minimum over
+        the relaxed set of closed walks the dynamic program ranges over (see
+        `most_negative_cycle_bounded()`). With floating-point costs the gap
+        also covers the rounding of the search, so a proof is possible when
+        no sum the search computes can be rounded (`numeric_quality` is
+        `Cycle_Numeric_Quality::Exact`) and, rarely, otherwise; with
+        market-like weights it is usually false even though the gap is tiny.
+        `matches_relaxed_bound` keeps what the search concluded in its own
+        arithmetic.
 
         It is a *sufficient* condition for optimality of the **cost**, not a
         necessary one: it can be false although the reported cycle is
@@ -254,8 +266,7 @@ namespace Aleph
         shorter cycle of the same cost may exist even when the flag is true.
 
         @note During development, before 2026-10-02, this flag was also set
-              for floating-point costs, with the meaning that
-              `matches_relaxed_bound` has now. */
+              for floating-point costs whenever `matches_relaxed_bound` was. */
     bool is_exact = false;
 
     /** True when, in the arithmetic of the search, the cost the search
@@ -270,6 +281,18 @@ namespace Aleph
         (exact total -1) the plain sum loses the 1 and gives -2, so the ring
         beats a self-loop of -1.5 and this flag is true for it. */
     bool matches_relaxed_bound = false;
+
+    /** Rigorous upper bound of how much cheaper than `total_cost` the best
+        simple cycle of at most `max_length` arcs can be: it is never
+        negative, and zero means `is_exact`. With integral costs it is the
+        exact difference with the relaxed minimum (saturated to the largest
+        value of the type if it overflows). With floating-point costs it also
+        covers the rounding of every sum the search made, computed with
+        outward rounding; for market-like weights it is of the order of
+        `L² · u · max|weight|` (`u` the unit roundoff), while for weights that
+        cancel across many orders of magnitude it can be large, and then it
+        says so. Meaningful only when `has_cycle`. */
+    Cost_Type optimality_gap = Cost_Type{0};
 
     /// Whether the sums and comparisons behind this result were exact.
     Cycle_Numeric_Quality numeric_quality = Cycle_Numeric_Quality::Exact;
@@ -324,16 +347,307 @@ namespace Aleph
         ah_domain_error_if(not std::isfinite(value)) << context;
     }
 
+    /** @brief Floating-point format in which the error-free transformations
+     *         on values of `T` are carried out.
+     *
+     *  `T` itself when the compiler evaluates `T` in its own format
+     *  (`FLT_EVAL_METHOD == 0`, the case of x86-64, AArch64 and MSVC);
+     *  otherwise `long double`, which holds every value of `T` exactly, so
+     *  that excess precision cannot break the transformations.
+     */
+# if defined(FLT_EVAL_METHOD) and FLT_EVAL_METHOD != 0
+    template <typename T>
+    using exact_float_t = long double;
+# else
+    template <typename T>
+    using exact_float_t = T;
+# endif
+
+    /** @brief Error-free sum (Knuth's TwoSum): `s = fl(a + b)` and
+     *         `s + e == a + b` exactly.
+     *
+     *  Needs IEEE round-to-nearest arithmetic evaluated as written (no
+     *  `-ffast-math` or other reassociation) and a finite `a + b`.
+     *
+     *  @param[in] a First term.
+     *  @param[in] b Second term.
+     *  @param[out] s The rounded sum.
+     *  @param[out] e Its rounding error.
+     */
+    template <typename F>
+    inline void two_sum(const F a, const F b, F & s, F & e) noexcept
+    {
+      s = a + b;
+      const F b_virtual = s - a;
+      e = (a - (s - b_virtual)) + (b - b_virtual);
+    }
+
+    /** @brief Exact sum of floating-point numbers.
+     *
+     *  The value is kept as a nonoverlapping expansion (Shewchuk, "Adaptive
+     *  Precision Floating-Point Arithmetic and Fast Robust Geometric
+     *  Predicates", 1997): components of increasing magnitude whose exact sum
+     *  is the value, no two of them sharing a bit position. Adding a number
+     *  is error free, so the value is the exact sum of everything added; only
+     *  an overflow of the format cannot be represented, and `add()` reports
+     *  it. The sign of the value is the sign of its largest component, so it
+     *  is exact. Storage is reused across `clear()`.
+     *
+     *  @tparam T Floating-point type of the numbers added.
+     */
+    template <typename T>
+    class Exact_Sum
+    {
+    public:
+      /// Type of the components (see `exact_float_t`).
+      using Component = exact_float_t<T>;
+
+    private:
+      Array<Component> h_;   // h_(0) .. h_(n_ - 1): nonzero components, increasing magnitude
+      Array<Component> g_;   // scratch of compress() and upper()
+      size_t n_ = 0;
+
+      static void put(Array<Component> & a, const size_t i, const Component x)
+      {
+        if (i < a.size())
+          a(i) = x;
+        else
+          a.append(x);
+      }
+
+      // Shewchuk's Grow-Expansion with zero elimination on a(0 .. n - 1).
+      static bool grow(Array<Component> & a, size_t & n, const Component b)
+      {
+        Component q = b;
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+          {
+            Component s, e;
+            two_sum(q, a(i), s, e);
+            q = s;
+            if (e != Component(0))
+              a(k++) = e;
+          }
+        n = k;
+        if (q != Component(0))
+          put(a, n++, q);
+        return std::isfinite(q);
+      }
+
+    public:
+      /// Set the value to zero; the storage is kept.
+      void clear() noexcept
+      {
+        n_ = 0;
+      }
+
+      /// True if the value is exactly zero.
+      [[nodiscard]] bool is_zero() const noexcept
+      {
+        return n_ == 0;
+      }
+
+      /// Exact sign of the value: -1, 0 or 1.
+      [[nodiscard]] int sign() const noexcept
+      {
+        return n_ == 0 ? 0 : (h_(n_ - 1) < Component(0) ? -1 : 1);
+      }
+
+      /** @brief Add `b` exactly.
+       *  @param[in] b The number to add.
+       *  @return False if a partial result overflowed; the value is then
+       *          meaningless.
+       */
+      [[nodiscard]] bool add(const Component b)
+      {
+        return grow(h_, n_, b);
+      }
+
+      /** @brief Add the value of `x`, multiplied by `2^exponent` and negated
+       *         if asked. Exact unless it overflows.
+       *  @param[in] x Another sum (not this one).
+       *  @param[in] exponent Power of two applied to every component.
+       *  @param[in] negate Whether to subtract instead of adding.
+       *  @return False on overflow.
+       */
+      [[nodiscard]] bool add(const Exact_Sum & x, const int exponent = 0, const bool negate = false)
+      {
+        ah_invalid_argument_if(&x == this) << "Exact_Sum::add(): a sum cannot be added to itself";
+        for (size_t i = 0; i < x.n_; ++i)
+          {
+            const Component c = std::ldexp(x.h_(i), exponent);
+            if (not add(negate ? -c : c))
+              return false;
+          }
+        return true;
+      }
+
+      /** @brief Add `factor` times the value of `x`, negated if asked. The
+       *         factor is applied as a sum of powers of two, so it is exact.
+       *  @param[in] x Another sum (not this one).
+       *  @param[in] factor Non-negative integer factor.
+       *  @param[in] negate Whether to subtract instead of adding.
+       *  @return False on overflow.
+       */
+      [[nodiscard]] bool add_multiple(const Exact_Sum & x, size_t factor, const bool negate = false)
+      {
+        for (int bit = 0; factor != 0; ++bit, factor >>= 1)
+          if ((factor & 1) != 0 and not add(x, bit, negate))
+            return false;
+        return true;
+      }
+
+      /// Rewrite the expansion so that its largest component approximates the
+      /// value within one unit in its last place (Shewchuk's Compress).
+      void compress()
+      {
+        if (n_ < 2)
+          return;
+        while (g_.size() < n_)
+          g_.append(Component(0));
+
+        Component q = h_(n_ - 1);
+        size_t bottom = n_ - 1;
+        for (size_t i = n_ - 1; i-- > 0; )
+          {
+            Component s, e;
+            two_sum(q, h_(i), s, e);
+            if (e != Component(0))
+              {
+                g_(bottom--) = s;
+                q = e;
+              }
+            else
+              q = s;
+          }
+        g_(bottom) = q;
+
+        size_t top = 0;
+        for (size_t i = bottom + 1; i < n_; ++i)
+          {
+            Component s, e;
+            two_sum(g_(i), q, s, e);
+            if (e != Component(0))
+              h_(top++) = e;
+            q = s;
+          }
+        h_(top++) = q;
+        n_ = top;
+      }
+
+      /// The value rounded to `T`: within one unit in the last place, zero
+      /// only if the value is zero, and always with the exact sign.
+      [[nodiscard]] T rounded()
+      {
+        compress();
+        return n_ == 0 ? T(0) : static_cast<T>(h_(n_ - 1));
+      }
+
+      /// The smallest number of `T` not below the value, or a slightly larger
+      /// one; checked exactly, so it is a rigorous upper bound.
+      [[nodiscard]] T upper()
+      {
+        T b = rounded();
+        for (;;)
+          {
+            size_t n = n_;   // value - b, computed exactly in g_
+            for (size_t i = 0; i < n_; ++i)
+              put(g_, i, h_(i));
+            const bool finite = grow(g_, n, -static_cast<Component>(b));
+            if (finite and (n == 0 or g_(n - 1) < Component(0)))
+              return b;   // value <= b
+            b = std::nextafter(b, std::numeric_limits<T>::infinity());
+          }
+      }
+    };
+
+    /** @brief Exponents of the lowest and of the highest set bit of a nonzero
+     *         finite `x`: `|x|` is an odd integer times `2^low`, and
+     *         `2^high <= |x| < 2^(high + 1)`.
+     *
+     *  @param[in] x A nonzero finite number.
+     *  @param[out] low Exponent of the lowest set bit.
+     *  @param[out] high Exponent of the highest set bit.
+     */
+    template <typename T>
+    void bit_span(const T x, int & low, int & high) noexcept
+    {
+      if constexpr (std::numeric_limits<T>::is_iec559
+                    and (std::is_same_v<T, double> or std::is_same_v<T, float>))
+        {
+          // Read the fields: |x| = m * 2^e with m the integer significand.
+          using Bits = std::conditional_t<std::is_same_v<T, double>, std::uint64_t, std::uint32_t>;
+          constexpr int fraction_bits = std::numeric_limits<T>::digits - 1;
+          constexpr int exponent_mask = std::is_same_v<T, double> ? 0x7FF : 0xFF;
+          constexpr int bias = std::numeric_limits<T>::max_exponent - 1;
+          const Bits bits = std::bit_cast<Bits>(x);
+          const Bits fraction = bits & ((Bits(1) << fraction_bits) - 1);
+          const int biased = static_cast<int>((bits >> fraction_bits) & Bits(exponent_mask));
+          const Bits m = biased == 0 ? fraction : (fraction | (Bits(1) << fraction_bits));
+          const int e = (biased == 0 ? 1 : biased) - bias - fraction_bits;
+          low = e + std::countr_zero(m);
+          high = e + static_cast<int>(sizeof(Bits) * 8) - 1 - std::countl_zero(m);
+        }
+      else
+        {
+          int e = 0;
+          const T f = std::frexp(std::fabs(x), &e);   // |x| = f * 2^e, f in [0.5, 1)
+          constexpr int digits = std::numeric_limits<T>::digits;
+          T m = std::ldexp(f, digits);                // an integer in [2^(digits - 1), 2^digits)
+          int zeros = 0;
+          if constexpr (digits <= 64)
+            zeros = std::countr_zero(static_cast<unsigned long long>(m));
+          else
+            while (std::fmod(m, T(2)) == T(0))
+              {
+                m /= T(2);
+                ++zeros;
+              }
+          low = e - digits + zeros;
+          high = e - 1;
+        }
+    }
+
+    /** @brief The odd integer `|x| / 2^low`, with `low` the exponent of the
+     *         lowest set bit of the nonzero finite `x` (see `bit_span()`).
+     *
+     *  @param[in] x A nonzero finite number whose significand fits 64 bits.
+     *  @return The odd part of its significand.
+     */
+    template <typename T>
+    std::uint64_t odd_significand(const T x) noexcept
+    {
+      static_assert(std::numeric_limits<T>::digits <= 64,
+                    "odd_significand(): the significand must fit 64 bits");
+      if constexpr (std::numeric_limits<T>::is_iec559
+                    and (std::is_same_v<T, double> or std::is_same_v<T, float>))
+        {
+          using Bits = std::conditional_t<std::is_same_v<T, double>, std::uint64_t, std::uint32_t>;
+          constexpr int fraction_bits = std::numeric_limits<T>::digits - 1;
+          constexpr int exponent_mask = std::is_same_v<T, double> ? 0x7FF : 0xFF;
+          const Bits bits = std::bit_cast<Bits>(x);
+          const Bits fraction = bits & ((Bits(1) << fraction_bits) - 1);
+          const bool subnormal = ((bits >> fraction_bits) & Bits(exponent_mask)) == 0;
+          const Bits m = subnormal ? fraction : (fraction | (Bits(1) << fraction_bits));
+          return static_cast<std::uint64_t>(m >> std::countr_zero(m));
+        }
+      else
+        {
+          int low = 0;
+          int high = 0;
+          bit_span(x, low, high);
+          return static_cast<std::uint64_t>(std::ldexp(std::fabs(x), -low));
+        }
+    }
+
     /** @brief Total cost of the arcs `arcs` (indices into `ig.arcs`).
      *
      *  Integer costs are summed exactly, with overflow checks. Floating-point
-     *  costs are summed with Neumaier's compensated summation, which keeps
-     *  the rounding error of the sum nearly independent of the number of
-     *  terms and of the order of the arcs, and recovers the exact total in
-     *  cancellation cases such as `1e16 + 1 - 1e16 - 1`. It is much more
-     *  accurate than plain summation but not exact in general: the
-     *  compensation is rounded too, and `2^100, 1, 2^-100, -1, -2^100,
-     *  -2^-100`, whose exact total is zero, sums to `-2^-100`.
+     *  costs are summed exactly as well (`Exact_Sum`) and rounded once at the
+     *  end, so the sign of the result is always the sign of the exact sum of
+     *  the weights, and the value is within one unit in the last place. (A
+     *  cycle such as `2^100, 1, 2^-100, -1, -2^100, -2^-100`, whose exact total
+     *  is zero, costs exactly zero.)
      *
      *  @param[in] ig Indexed snapshot of the graph.
      *  @param[in] arcs Indices of the arcs to add.
@@ -341,7 +655,8 @@ namespace Aleph
      *             not finite.
      *  @return The total cost.
      *  @throw std::overflow_error Integer overflow.
-     *  @throw std::domain_error Non-finite floating-point sum.
+     *  @throw std::domain_error Floating-point sum outside the range of the
+     *         type.
      */
     template <AlephGraph GT, typename Cost_Type>
     Cost_Type cycle_cost(const Indexed_Graph<GT, Cost_Type> & ig,
@@ -350,22 +665,10 @@ namespace Aleph
     {
       if constexpr (std::is_floating_point_v<Cost_Type>)
         {
-          Cost_Type sum = Cost_Type{0};
-          Cost_Type comp = Cost_Type{0};   // running compensation
+          Exact_Sum<Cost_Type> sum;
           for (size_t i = 0; i < arcs.size(); ++i)
-            {
-              const Cost_Type w = ig.arcs(arcs(i)).weight;
-              const Cost_Type t = sum + w;
-              check_finite(t, context);
-              if (std::fabs(sum) >= std::fabs(w))
-                comp += (sum - t) + w;
-              else
-                comp += (w - t) + sum;
-              sum = t;
-            }
-          const Cost_Type total = sum + comp;
-          check_finite(total, context);
-          return total;
+            ah_domain_error_if(not sum.add(ig.arcs(arcs(i)).weight)) << context;
+          return sum.rounded();
         }
       else
         {
@@ -374,6 +677,64 @@ namespace Aleph
             sum = shortest_path_detail::checked_add(sum, ig.arcs(arcs(i)).weight);
           return sum;
         }
+    }
+
+    /** @brief Rounding behaviour of the sums of at most `L` weights of `ig`,
+     *         added left to right in a floating-point `Cost_Type`.
+     *
+     *  If every weight is a multiple of `2^low` (its lowest set bit) and `L`
+     *  times the largest one stays below `2^(digits + low)`, every such sum is
+     *  a multiple of `2^low` with at most `digits` significant bits: it is
+     *  computed exactly. Otherwise the rounding error of a sum of `k <= L`
+     *  terms is at most `gamma_(k-1)` times the sum of their magnitudes
+     *  (Higham, "Accuracy and Stability of Numerical Algorithms", §4.2), so at
+     *  most `2 (L - 1) L u max|w|`, with `u` the unit roundoff, which is what
+     *  `error_bound` receives (rounded up).
+     *
+     *  @param[in] ig Indexed snapshot (the cyclic core searched).
+     *  @param[in] L Largest number of terms of a sum.
+     *  @param[out] error_bound Bound of the rounding error of any such sum:
+     *              zero when they are all exact.
+     *  @return True if every such sum is exact.
+     */
+    template <AlephGraph GT, typename Cost_Type>
+    bool short_sums_are_exact(const Indexed_Graph<GT, Cost_Type> & ig, const size_t L,
+                              Cost_Type & error_bound)
+    {
+      static_assert(std::is_floating_point_v<Cost_Type>);
+      constexpr int digits = std::numeric_limits<Cost_Type>::digits;
+      constexpr Cost_Type inf = std::numeric_limits<Cost_Type>::infinity();
+
+      bool any = false;
+      int low_min = 0;
+      int high_max = 0;
+      Cost_Type max_abs = Cost_Type{0};
+      for (size_t a = 0; a < ig.arcs.size(); ++a)
+        {
+          const Cost_Type w = ig.arcs(a).weight;
+          if (w == Cost_Type{0})
+            continue;
+          int low = 0;
+          int high = 0;
+          bit_span(w, low, high);
+          low_min = any ? std::min(low_min, low) : low;
+          high_max = any ? std::max(high_max, high) : high;
+          max_abs = std::max(max_abs, std::fabs(w));
+          any = true;
+        }
+
+      error_bound = Cost_Type{0};
+      if (not any or L < 2)
+        return true;   // all zero, or single weights: nothing is ever rounded
+      if (high_max + 1 + static_cast<int>(std::bit_width(L - 1)) <= digits + low_min)
+        return true;
+
+      // 2 (L - 1) L u max|w|, every step rounded up; u = 2^-digits.
+      const Cost_Type factor = std::nextafter(static_cast<Cost_Type>(2.0L * static_cast<long double>(L - 1)
+                                                                     * static_cast<long double>(L)), inf);
+      const Cost_Type scaled = std::ldexp(max_abs, -digits) + std::numeric_limits<Cost_Type>::denorm_min();
+      error_bound = std::nextafter(factor * scaled, inf);
+      return false;
     }
 
     /** @brief Map from node pointers to their positions, built once and never
@@ -546,230 +907,6 @@ namespace Aleph
         }
       return -1;
     }
-  } // namespace negative_cycles_detail
-
-
-  /** @brief Find up to `max_cycles` negative cycles, excluding arcs of each
-   *         cycle found before searching for the next one.
-   *
-   *  Each round is a Bellman-Ford relaxation over the arcs not yet excluded,
-   *  started from a virtual source (every node at distance zero, so cycles
-   *  reachable from anywhere are found). After every pass the predecessor
-   *  graph (at most one arc per node) is scanned in O(V) for a cycle; any
-   *  such cycle is a negative cycle, so the certificate is found as soon as
-   *  it appears — typically after a few passes — instead of waiting for the
-   *  classical criterion of a relaxation in the n-th pass. The cycle is
-   *  extracted, reported with its exact arcs and total cost, and its arcs
-   *  are excluded according to `exclusion`. The search stops when
-   *  `max_cycles` cycles have been reported or a pass relaxes nothing (no
-   *  negative cycle is left among the remaining arcs).
-   *
-   *  This is a greedy enumeration, not an exhaustive one (listing all
-   *  negative cycles is exponential in general). What it guarantees:
-   *  - every reported cycle is a simple cycle of the graph, built from the
-   *    very arcs that were relaxed (parallel arcs are told apart), whose
-   *    total cost is negative as evaluated;
-   *  - no two reported cycles are equal, and with
-   *    `Negative_Cycle_Exclusion::All_Arcs` they are pairwise arc-disjoint;
-   *  - if the graph has a negative cycle among the arcs accepted by `sa`,
-   *    the first round finds one, provided the arithmetic is exact (integer
-   *    costs). With floating-point costs a huge partial distance can absorb
-   *    a small negative weight and hide the cycle (see the numeric model
-   *    in the file documentation);
-   *  - the search terminates: every round excludes at least one arc that was
-   *    still allowed.
-   *
-   *  What it does not guarantee: that the reported cycles are the most
-   *  negative ones, or that after excluding an arc no negative cycle through
-   *  the other arcs of the reported cycle is missed
-   *  (`Negative_Cycle_Exclusion::Min_Weight_Arc` keeps them findable,
-   *  `All_Arcs` deliberately does not).
-   *
-   *  @tparam GT Directed Aleph graph type.
-   *  @tparam Distance Arc cost accessor (`Distance::Distance_Type` required).
-   *  @tparam SA Arc filter; arcs it rejects do not exist for the search.
-   *
-   *  @param[in] g Graph (must be directed). It is not modified.
-   *  @param[in] max_cycles Maximum number of cycles to report; `0` returns
-   *             an empty list without touching the graph.
-   *  @param[in] exclusion Which arcs of each found cycle are excluded.
-   *  @param[in] distance Arc cost accessor.
-   *  @param[in] sa Arc filter.
-   *
-   *  @return The cycles found, in the order they were found. Empty if the
-   *          graph has no negative cycle; with floating-point costs, empty
-   *          means only that none was detected in the evaluated arithmetic,
-   *          not that none exists. The paths refer to the nodes and arcs of
-   *          `g`.
-   *
-   *  @throws std::domain_error If `g` is undirected or a floating weight
-   *          (or an accumulated sum) is not finite.
-   *  @throws std::overflow_error If integer additions overflow.
-   *
-   *  @note With floating-point weights the cost of every extracted cycle is
-   *        recomputed with compensated summation, and the cycle is reported
-   *        only if that total is negative. A cycle of the predecessor graph
-   *        that was detected only through rounding is therefore usually not
-   *        reported, and one whose plain sum rounds to zero or above but
-   *        whose compensated total is negative is reported; in both cases its
-   *        arcs are excluded, so the search keeps making progress. The
-   *        reported `total_cost` is that compensated total. Compensated
-   *        summation is accurate, not exact: a cycle whose exact total is
-   *        zero can still come out slightly negative (see the numeric model
-   *        in the file documentation).
-   *
-   *  @note Complexity: O(V + E + R · V · (V + E)) expected worst-case time,
-   *        where `R <= E + 1` is the number of rounds (at most
-   *        `max_cycles + 1` unless floating-point candidates are discarded
-   *        without being reported); the per-pass cycle check adds O(V) to
-   *        the O(E) pass. O(V + E) working space, not counting the returned
-   *        paths. In practice each round stops at the first pass whose
-   *        predecessor graph contains a cycle, usually far earlier than
-   *        pass V.
-   *
-   *  @ingroup Graphs
-   */
-  template <AlephGraph GT,
-            ArcDistance<GT> Distance = Dft_Dist<GT>,
-            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
-  DynList<Negative_Cycle_Item<GT, typename Distance::Distance_Type>>
-  find_disjoint_negative_cycles(const GT & g,
-                                const size_t max_cycles,
-                                const Negative_Cycle_Exclusion exclusion =
-                                    Negative_Cycle_Exclusion::Min_Weight_Arc,
-                                Distance distance = Distance(),
-                                SA sa = SA())
-  {
-    using Cost_Type = typename Distance::Distance_Type;
-    using Item = Negative_Cycle_Item<GT, Cost_Type>;
-
-    DynList<Item> result;
-    if (max_cycles == 0)
-      return result;   // documented: no snapshot, no validation, no distance call
-
-    auto ig = negative_cycles_detail::index_graph(g, distance, sa,
-                                                  "find_disjoint_negative_cycles");
-    const size_t n = ig.nodes.size();
-    const size_t m = ig.arcs.size();
-    if (n == 0 or m == 0)
-      return result;
-
-    constexpr long none = -1;
-    Array<bool> forbidden(m, false);
-    Array<Cost_Type> dist(n, Cost_Type{0});
-    Array<long> pred(n, none);   // index into ig.arcs of the arc that last relaxed the node
-    Array<long> mark(n, 0);      // scratch for the predecessor cycle check
-    Array<size_t> reversed;      // the cycle of a round, last arc first
-    Array<size_t> forward;       // the same cycle in order
-    size_t reported = 0;         // cycles in `result`: DynList::size() is O(length)
-
-    while (reported < max_cycles)
-      {
-        for (size_t i = 0; i < n; ++i)
-          {
-            dist(i) = Cost_Type{0};
-            pred(i) = none;
-          }
-
-        // Up to n passes; after each one the predecessor graph is scanned
-        // for a cycle, which certifies a negative cycle as soon as one has
-        // taken shape instead of waiting for a relaxation in the n-th pass.
-        long cycle_entry = none;
-        for (size_t pass = 0; pass < n and cycle_entry == none; ++pass)
-          {
-            bool relaxed = false;
-            for (size_t a = 0; a < m; ++a)
-              {
-                if (forbidden(a))
-                  continue;
-
-                const auto & rec = ig.arcs(a);
-                const Cost_Type cand =
-                    shortest_path_detail::checked_add(dist(rec.src), rec.weight);
-                negative_cycles_detail::check_finite(
-                    cand, "find_disjoint_negative_cycles(): accumulation became non-finite");
-
-                if (cand < dist(rec.tgt))
-                  {
-                    dist(rec.tgt) = cand;
-                    pred(rec.tgt) = static_cast<long>(a);
-                    relaxed = true;
-                  }
-              }
-
-            if (not relaxed)
-              break;   // converged: no negative cycle among the allowed arcs
-
-            cycle_entry = negative_cycles_detail::find_predecessor_cycle(ig, pred, mark);
-          }
-
-        if (cycle_entry == none)
-          break;   // no negative cycle among the allowed arcs
-
-        // cycle_entry lies on a cycle of the predecessor graph.
-        const size_t y = static_cast<size_t>(cycle_entry);
-        bool ok = true;
-
-        // Extract the cycle through y; predecessors give it in reverse order.
-        reversed.empty();
-        for (size_t cur = y, guard = 0; ; ++guard)
-          {
-            const long a = pred(cur);
-            if (a == none or guard > n)
-              {
-                ok = false;
-                break;
-              }
-            reversed.append(static_cast<size_t>(a));
-            cur = ig.arcs(static_cast<size_t>(a)).src;
-            if (cur == y)
-              break;
-          }
-        if (not ok)
-          break;
-
-        const size_t len = reversed.size();
-        forward.empty();
-        for (size_t i = len; i > 0; --i)
-          forward.append(reversed(i - 1));
-
-        const Cost_Type total = negative_cycles_detail::cycle_cost(
-            ig, forward, "find_disjoint_negative_cycles(): cycle cost became non-finite");
-
-        // Exclude before deciding whether to report, so that the search
-        // always makes progress.
-        if (exclusion == Negative_Cycle_Exclusion::All_Arcs)
-          for (size_t i = 0; i < len; ++i)
-            forbidden(forward(i)) = true;
-        else
-          {
-            size_t min_arc = forward(0);
-            for (size_t i = 1; i < len; ++i)
-              if (ig.arcs(forward(i)).weight < ig.arcs(min_arc).weight)
-                min_arc = forward(i);
-            forbidden(min_arc) = true;
-          }
-
-        if (not (total < Cost_Type{0}))
-          continue;   // the accurate total is not negative: not reportable
-
-        Item item;
-        item.cycle = Path<GT>(g);
-        item.cycle.init(ig.nodes(y));
-        for (size_t i = 0; i < len; ++i)
-          item.cycle.append_directed(ig.arcs(forward(i)).arc);
-        item.total_cost = total;
-        item.length = len;
-        result.append(std::move(item));
-        ++reported;
-      }
-
-    return result;
-  }
-
-
-  namespace negative_cycles_detail
-  {
     /** @brief Out-adjacency of a snapshot in compressed form.
      *
      *  The arcs leaving node `u` occupy the positions `start(u)` to
@@ -951,29 +1088,281 @@ namespace Aleph
       return false;
     }
 
+  } // namespace negative_cycles_detail
+
+
+  /** @brief Find up to `max_cycles` negative cycles, excluding arcs of each
+   *         cycle found before searching for the next one.
+   *
+   *  Each round is a Bellman-Ford relaxation over the arcs not yet excluded,
+   *  started from a virtual source (every node at distance zero, so cycles
+   *  reachable from anywhere are found). After every pass the predecessor
+   *  graph (at most one arc per node) is scanned in O(V) for a cycle; any
+   *  such cycle is a negative cycle, so the certificate is found as soon as
+   *  it appears — typically after a few passes — instead of waiting for the
+   *  classical criterion of a relaxation in the n-th pass. The cycle is
+   *  extracted, reported with its exact arcs and total cost, and its arcs
+   *  are excluded according to `exclusion`. The search stops when
+   *  `max_cycles` cycles have been reported or a pass relaxes nothing (no
+   *  negative cycle is left among the remaining arcs).
+   *
+   *  This is a greedy enumeration, not an exhaustive one (listing all
+   *  negative cycles is exponential in general). What it guarantees:
+   *  - every reported cycle is a simple cycle of the graph, built from the
+   *    very arcs that were relaxed (parallel arcs are told apart), whose
+   *    total cost is negative: exactly so, also for floating-point costs
+   *    (the exact sum of its weights);
+   *  - no two reported cycles are equal, and with
+   *    `Negative_Cycle_Exclusion::All_Arcs` they are pairwise arc-disjoint;
+   *  - if the graph has a negative cycle among the arcs accepted by `sa`,
+   *    the first round finds one, provided the arithmetic is exact (integer
+   *    costs). With floating-point costs a huge partial distance can absorb
+   *    a small negative weight and hide the cycle (see the numeric model
+   *    in the file documentation);
+   *  - the search terminates: every round excludes at least one arc that was
+   *    still allowed.
+   *
+   *  What it does not guarantee: that the reported cycles are the most
+   *  negative ones, or that after excluding an arc no negative cycle through
+   *  the other arcs of the reported cycle is missed
+   *  (`Negative_Cycle_Exclusion::Min_Weight_Arc` keeps them findable,
+   *  `All_Arcs` deliberately does not).
+   *
+   *  @tparam GT Directed Aleph graph type.
+   *  @tparam Distance Arc cost accessor (`Distance::Distance_Type` required).
+   *  @tparam SA Arc filter; arcs it rejects do not exist for the search.
+   *
+   *  @param[in] g Graph (must be directed). It is not modified.
+   *  @param[in] max_cycles Maximum number of cycles to report; `0` returns
+   *             an empty list without touching the graph.
+   *  @param[in] exclusion Which arcs of each found cycle are excluded.
+   *  @param[in] distance Arc cost accessor.
+   *  @param[in] sa Arc filter.
+   *
+   *  @return The cycles found, in the order they were found. Empty if the
+   *          graph has no negative cycle; with floating-point costs, empty
+   *          means only that none was detected in the evaluated arithmetic,
+   *          not that none exists. The paths refer to the nodes and arcs of
+   *          `g`.
+   *
+   *  @throws std::domain_error If `g` is undirected or a floating weight
+   *          (or an accumulated sum) is not finite.
+   *  @throws std::overflow_error If integer additions overflow.
+   *
+   *  @note With floating-point weights the cost of every extracted cycle is
+   *        the exact sum of its weights (rounded once), and the cycle is
+   *        reported only if it is negative. A cycle of the predecessor graph
+   *        that was detected only through rounding is therefore never
+   *        reported, and one whose plain sum rounds to zero or above but whose
+   *        exact total is negative is; in both cases its arcs are excluded, so
+   *        the search keeps making progress. What the exact sum cannot undo is
+   *        absorption during the search, which can hide a cycle (see the
+   *        numeric model in the file documentation).
+   *
+   *  @note Complexity: O(V + E + R · V · (V + E)) expected worst-case time,
+   *        where `R <= E + 1` is the number of rounds (at most
+   *        `max_cycles + 1` unless floating-point candidates are discarded
+   *        without being reported); the per-pass cycle check adds O(V) to
+   *        the O(E) pass. O(V + E) working space, not counting the returned
+   *        paths. In practice each round stops at the first pass whose
+   *        predecessor graph contains a cycle, usually far earlier than
+   *        pass V.
+   *
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+  DynList<Negative_Cycle_Item<GT, typename Distance::Distance_Type>>
+  find_disjoint_negative_cycles(const GT & g,
+                                const size_t max_cycles,
+                                const Negative_Cycle_Exclusion exclusion =
+                                    Negative_Cycle_Exclusion::Min_Weight_Arc,
+                                Distance distance = Distance(),
+                                SA sa = SA())
+  {
+    using Cost_Type = typename Distance::Distance_Type;
+    using Item = Negative_Cycle_Item<GT, Cost_Type>;
+
+    DynList<Item> result;
+    if (max_cycles == 0)
+      return result;   // documented: no snapshot, no validation, no distance call
+
+    const auto ig = negative_cycles_detail::index_graph(g, distance, sa,
+                                                        "find_disjoint_negative_cycles");
+    const size_t n = ig.nodes.size();
+    const size_t m = ig.arcs.size();
+    if (n == 0 or m == 0)
+      return result;
+
+    constexpr long none = -1;
+    Array<bool> forbidden(m, false);
+    Array<Cost_Type> dist(n, Cost_Type{0});
+    Array<long> pred(n, none);   // index into ig.arcs of the arc that last relaxed the node
+    Array<long> mark(n, 0);      // scratch for the predecessor cycle check
+    Array<size_t> reversed;      // the cycle of a round, last arc first
+    Array<size_t> forward;       // the same cycle in order
+    size_t reported = 0;         // cycles in `result`: DynList::size() is O(length)
+
+    while (reported < max_cycles)
+      {
+        for (size_t i = 0; i < n; ++i)
+          {
+            dist(i) = Cost_Type{0};
+            pred(i) = none;
+          }
+
+        // Up to n passes; after each one the predecessor graph is scanned
+        // for a cycle, which certifies a negative cycle as soon as one has
+        // taken shape instead of waiting for a relaxation in the n-th pass.
+        long cycle_entry = none;
+        for (size_t pass = 0; pass < n and cycle_entry == none; ++pass)
+          {
+            bool relaxed = false;
+            for (size_t a = 0; a < m; ++a)
+              {
+                if (forbidden(a))
+                  continue;
+
+                const auto & rec = ig.arcs(a);
+                const Cost_Type cand =
+                    shortest_path_detail::checked_add(dist(rec.src), rec.weight);
+                negative_cycles_detail::check_finite(
+                    cand, "find_disjoint_negative_cycles(): accumulation became non-finite");
+
+                if (cand < dist(rec.tgt))
+                  {
+                    dist(rec.tgt) = cand;
+                    pred(rec.tgt) = static_cast<long>(a);
+                    relaxed = true;
+                  }
+              }
+
+            if (not relaxed)
+              break;   // converged: no negative cycle among the allowed arcs
+
+            cycle_entry = negative_cycles_detail::find_predecessor_cycle(ig, pred, mark);
+          }
+
+        if (cycle_entry == none)
+          break;   // no negative cycle among the allowed arcs
+
+        // cycle_entry lies on a cycle of the predecessor graph.
+        const size_t y = static_cast<size_t>(cycle_entry);
+        bool ok = true;
+
+        // Extract the cycle through y; predecessors give it in reverse order.
+        reversed.empty();
+        for (size_t cur = y, guard = 0; ; ++guard)
+          {
+            const long a = pred(cur);
+            if (a == none or guard > n)
+              {
+                ok = false;
+                break;
+              }
+            reversed.append(static_cast<size_t>(a));
+            cur = ig.arcs(static_cast<size_t>(a)).src;
+            if (cur == y)
+              break;
+          }
+        if (not ok)
+          break;
+
+        const size_t len = reversed.size();
+        forward.empty();
+        for (size_t i = len; i > 0; --i)
+          forward.append(reversed(i - 1));
+
+        const Cost_Type total = negative_cycles_detail::cycle_cost(
+            ig, forward, "find_disjoint_negative_cycles(): cycle cost became non-finite");
+
+        // Exclude before deciding whether to report, so that the search
+        // always makes progress.
+        if (exclusion == Negative_Cycle_Exclusion::All_Arcs)
+          for (size_t i = 0; i < len; ++i)
+            forbidden(forward(i)) = true;
+        else
+          {
+            size_t min_arc = forward(0);
+            for (size_t i = 1; i < len; ++i)
+              if (ig.arcs(forward(i)).weight < ig.arcs(min_arc).weight)
+                min_arc = forward(i);
+            forbidden(min_arc) = true;
+          }
+
+        if (not (total < Cost_Type{0}))
+          continue;   // the accurate total is not negative: not reportable
+
+        Item item;
+        item.cycle = Path<GT>(g);
+        item.cycle.init(ig.nodes(y));
+        for (size_t i = 0; i < len; ++i)
+          item.cycle.append_directed(ig.arcs(forward(i)).arc);
+        item.total_cost = total;
+        item.length = len;
+        result.append(std::move(item));
+        ++reported;
+      }
+
+    return result;
+  }
+
+
+  namespace negative_cycles_detail
+  {
     /// Best simple cycle found so far by `most_negative_cycle_bounded()`.
     template <typename Cost_Type>
     struct Best_Cycle
     {
       bool found = false;
-      Cost_Type cost = Cost_Type{0};
-      Array<size_t> arcs;   // indices into Indexed_Graph::arcs, in cycle order
+      Cost_Type cost = Cost_Type{0};   // plain sum: what the search computed
+      Array<size_t> arcs;              // indices into Indexed_Graph::arcs, in cycle order
 
-      /// Keep the cycle of `length` arcs `candidate[0..length)` if it is
-      /// cheaper than the best so far, or equally cheap with fewer arcs. The
-      /// tie-break only sees the candidates that are offered, not every
-      /// simple cycle of the graph. Storing the winner reuses the capacity of
-      /// `arcs`.
-      void offer(const Cost_Type & c, const size_t * candidate, const size_t length)
+      /// Keep the cycle of `length` arcs `candidate[0..length)`, of plain-sum
+      /// cost `c`, if it is cheaper than the best so far, or equally cheap
+      /// with fewer arcs. With floating-point costs "cheaper" compares the
+      /// exact sums of the weights, so rounding cannot rank the candidates in
+      /// the wrong order. The tie-break only sees the candidates that are
+      /// offered, not every simple cycle of the graph. Storing the winner
+      /// reuses the capacity of `arcs`.
+      template <AlephGraph GT>
+      void offer(const Indexed_Graph<GT, Cost_Type> & ig, const Cost_Type & c,
+                 const size_t * candidate, const size_t length)
       {
-        if (found and not (c < cost or (c == cost and length < arcs.size())))
+        if constexpr (std::is_floating_point_v<Cost_Type>)
+          {
+            exact_candidate_.clear();
+            for (size_t i = 0; i < length; ++i)
+              ah_domain_error_if(not exact_candidate_.add(ig.arcs(candidate[i]).weight))
+                << "most_negative_cycle_bounded(): cycle cost out of range";
+            if (found)
+              {
+                difference_.clear();
+                ah_domain_error_if(not difference_.add(exact_candidate_)
+                                   or not difference_.add(exact_best_, 0, true))
+                  << "most_negative_cycle_bounded(): cycle cost out of range";
+                const int sign = difference_.sign();
+                if (not (sign < 0 or (sign == 0 and length < arcs.size())))
+                  return;
+              }
+            std::swap(exact_best_, exact_candidate_);
+          }
+        else if (found and not (c < cost or (c == cost and length < arcs.size())))
           return;
+
         found = true;
         cost = c;
         arcs.empty();
         for (size_t i = 0; i < length; ++i)
           arcs.append(candidate[i]);
       }
+
+    private:
+      // Floating-point costs only: exact cost of the best cycle, and scratch.
+      Exact_Sum<Cost_Type> exact_best_;
+      Exact_Sum<Cost_Type> exact_candidate_;
+      Exact_Sum<Cost_Type> difference_;
     };
 
     /** @brief Scratch space of `offer_simple_components()`, allocated once.
@@ -1052,7 +1441,7 @@ namespace Aleph
               c = shortest_path_detail::checked_add(c, ig.arcs(component(j)).weight);
               check_finite(c, "most_negative_cycle_bounded(): cycle cost became non-finite");
             }
-          best.offer(c, &component(0), length);
+          best.offer(ig, c, &component(0), length);
 
           while (top > p + 1)
             {
@@ -1110,8 +1499,9 @@ namespace Aleph
    *  (reconstructed from per-step predecessors) is decomposed into simple
    *  cycles, and each component is offered as a candidate. The most negative
    *  candidate is returned; among candidates of equal cost, the one with
-   *  fewest arcs. This keeps the O(V + E + V_c · L · (V_c + E_c)) cost
-   *  and gives:
+   *  fewest arcs (with floating-point costs the candidates are compared by
+   *  the exact sums of their weights). This keeps the cost polynomial and
+   *  gives:
    *
    *  - the reported cycle is always a simple cycle of at most `max_length`
    *    arcs with its exact total cost (as evaluated), never better than the
@@ -1119,9 +1509,13 @@ namespace Aleph
    *  - when the cost of that cycle equals `best_walk`
    *    (`matches_relaxed_bound`), it is the minimum cost of a simple cycle
    *    within the bound: `c_opt <= total_cost = best_walk <= c_opt`. That
-   *    argument needs exact sums, so only integral costs turn it into the
-   *    certificate `is_exact`; with floating-point costs a worse cycle can
-   *    win the rounded comparison (see `Bounded_Cycle_Result`);
+   *    argument needs exact sums. With floating-point costs the dynamic
+   *    program rounds, but every value it computes is at most the rounded sum
+   *    of any walk it represents (rounding is monotonic), so the true minimum
+   *    over `W` is at least `best_walk` minus a bound of the rounding of a sum
+   *    of `L` weights. `optimality_gap` is the reported cost minus that lower
+   *    bound: a rigorous bound of `total_cost - c_opt`, zero exactly when
+   *    `is_exact` proves the optimum;
    *  - otherwise, if the selected walk of cost `best_walk` decomposes into
    *    `m` simple cycles, `c_opt <= total_cost <= best_walk / m <= c_opt / m`,
    *    which for a negative optimum means the reported cycle earns at least
@@ -1186,10 +1580,10 @@ namespace Aleph
    *  @return `Bounded_Cycle_Result`; `has_cycle` is false when no cycle of
    *          at most `max_length` arcs exists. The reported cycle can have
    *          non-negative cost when no negative cycle exists within the
-   *          bound: check `is_negative()`. `numeric_quality` is `Exact` for
-   *          integral costs and `Rounded` for floating-point ones, where
-   *          `is_exact` is always false. The node and arc pointers refer to
-   *          `g`.
+   *          bound: check `is_negative()`, whose answer is exact.
+   *          `optimality_gap` bounds how far from the optimum the cycle can
+   *          be, and `numeric_quality` says whether the search was exact. The
+   *          node and arc pointers refer to `g`.
    *
    *  @throws std::domain_error If `g` is undirected or a floating weight
    *          (or an accumulated sum) is not finite.
@@ -1207,7 +1601,10 @@ namespace Aleph
    *        small core searched with a large bound is quadratic in `L` (two
    *        cyclic nodes among `V`, searched with `max_length = V`, cost
    *        Θ(V²)). The usual `O(V_c · L · E_c)` form holds when `E_c >= V_c`
-   *        and `L <= E_c`.
+   *        and `L <= E_c`. With floating-point costs, ranking the candidates
+   *        by their exact sums multiplies the reconstruction term by the
+   *        length of those sums as expansions (one to three components for
+   *        weights of similar magnitudes), and the certificate adds O(E_c).
    *
    *  @see karp_minimum_mean_cycle() Minimum *mean* cycle, no length bound.
    *
@@ -1421,19 +1818,46 @@ namespace Aleph
     if (not best.found)
       return result;
 
-    // The reported cost is recomputed from the arcs of the cycle (compensated
-    // summation for floating point, exact for integers). The relaxed-bound
-    // condition is withdrawn if the dynamic program's plain-sum cost and the
-    // accurate cost disagree on the sign: the search then ranked cycles with a
-    // total that rounding had pushed to the wrong side of zero. Only exact
-    // sums turn the condition into a proof of optimality.
+    // The reported cost is recomputed from the arcs of the cycle (an exact sum,
+    // rounded once, for floating point). The relaxed-bound condition is what
+    // the search concluded in its own arithmetic; it is withdrawn if its
+    // plain-sum cost and the exact one disagree on the sign.
     result.total_cost = negative_cycles_detail::cycle_cost(
         ig, best.arcs, "most_negative_cycle_bounded(): cycle cost became non-finite");
     result.length = best.arcs.size();
     const bool sign_agrees = (best.cost < Cost_Type{0}) == (result.total_cost < Cost_Type{0});
     result.matches_relaxed_bound = sign_agrees and not (best_walk < best.cost);
-    result.is_exact = result.numeric_quality == Cycle_Numeric_Quality::Exact
-                      and result.matches_relaxed_bound;
+
+    // The certificate. No simple cycle of the bound costs less than the true
+    // minimum over the relaxed set, and the dynamic program computes that
+    // minimum up to the rounding of its sums: by monotonicity of rounding,
+    // its value at every node is at most the plain sum of any walk that
+    // reaches it, so the true minimum is at least `best_walk - error_bound`.
+    // `optimality_gap` is therefore a rigorous bound of how much cheaper than
+    // the reported cycle the best one can be, and a zero gap is a proof.
+    if constexpr (std::is_floating_point_v<Cost_Type>)
+      {
+        Cost_Type error_bound = Cost_Type{0};
+        if (negative_cycles_detail::short_sums_are_exact(ig, L, error_bound))
+          result.numeric_quality = Cycle_Numeric_Quality::Exact;
+        negative_cycles_detail::Exact_Sum<Cost_Type> gap;
+        bool finite = gap.add(-best_walk) and gap.add(error_bound);
+        for (size_t i = 0; finite and i < best.arcs.size(); ++i)
+          finite = gap.add(ig.arcs(best.arcs(i)).weight);
+        result.optimality_gap = finite ? gap.upper() : std::numeric_limits<Cost_Type>::infinity();
+      }
+    else
+      {
+        // Exact sums: the gap is the difference itself (saturated if it
+        // does not fit the type).
+        const Cost_Type exact_cost = result.total_cost;
+        if (best_walk < Cost_Type{0}
+            and exact_cost > std::numeric_limits<Cost_Type>::max() + best_walk)
+          result.optimality_gap = std::numeric_limits<Cost_Type>::max();
+        else
+          result.optimality_gap = exact_cost - best_walk;
+      }
+    result.is_exact = result.optimality_gap == Cost_Type{0};
 
     result.cycle_nodes.append(ig.nodes(ig.arcs(best.arcs(0)).src));
     for (size_t i = 0; i < best.arcs.size(); ++i)

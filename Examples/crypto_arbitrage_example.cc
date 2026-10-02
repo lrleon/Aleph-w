@@ -284,15 +284,18 @@ namespace
         return;
       }
 
-    // With floating-point weights the search proves nothing (`is_exact` is
-    // false); `matches_relaxed_bound` says that it found no better cycle in its
-    // own rounded arithmetic, which is what a log-rate market can expect.
+    // With floating-point weights a proof of optimality (`is_exact`) is rare,
+    // because the search rounds; `optimality_gap` bounds rigorously how much
+    // better (in log terms) the best cycle of the bound can be.
     const Opportunity op = describe(r.cycle_nodes, r.cycle_arcs);
-    const char * quality = r.is_exact                ? "proven optimal"
-                           : r.matches_relaxed_bound ? "optimal as computed in floating point, not a proof"
-                                                     : "not certified";
     cout << op.route << "  (gain " << showpos << fixed << setprecision(3) << op.gain * 100.0
-         << "%" << noshowpos << ", " << quality << ")\n";
+         << "%" << noshowpos << ", ";
+    if (r.is_exact)
+      cout << "proven optimal";
+    else
+      cout << "within " << scientific << setprecision(0) << r.optimality_gap
+           << " of the best in log terms, a rigorous bound" << fixed;
+    cout << ")\n";
   }
 } // namespace
 

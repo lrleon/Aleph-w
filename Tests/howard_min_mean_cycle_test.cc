@@ -259,7 +259,9 @@ TEST(HowardMinMeanCycleTest, FloatingWeightsAndValueOnlyApiWork)
   EXPECT_NEAR(static_cast<double>(r.minimum_mean), -0.5 / 3.0, 1e-12);
   EXPECT_NEAR(r.cycle_total_cost, -0.5, 1e-12);
   EXPECT_EQ(r.cycle_length, 3u);
-  EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Rounded);
+  // Found with long double arithmetic, then verified with the weights scaled
+  // to 64-bit integers: exact.
+  EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Exact);
   EXPECT_TRUE(witness_is_simple_cycle(built.g, r));
 
   const auto value = howard_minimum_mean_cycle_value(built.g);
@@ -732,21 +734,23 @@ TEST(HowardMinMeanCycleTest, ScaledBiasOverflowFallsBackToKarp)
 
 
 // ---------------------------------------------------------------------------
-// Audit 2026-10-02, H2-H4: what floating-point costs cannot promise. Every
-// weight below is a binary fraction represented exactly, and the exact answer
-// follows from identities between powers of two, not from another algorithm.
-// The KNOWN LIMITATION assertions pin the current behaviour; when policies are
-// compared with exact or verified sums they must be inverted.
+// Audit 2026-10-02, H2-H4, fixed in its stage B. Every weight below is a
+// binary fraction represented exactly, and the exact answer follows from
+// identities between powers of two, not from another algorithm. The policy
+// is found with long double arithmetic and then re-solved exactly with the
+// weights scaled to 64- or 128-bit integers when they fit; when they do not,
+// the choice among the cycles of the policy is still made with exact sums.
 // ---------------------------------------------------------------------------
 
-TEST(HowardMinMeanCycleTest, KnownNumericLimitationCancellationCanChooseAWorseCycle)
+TEST(HowardMinMeanCycleTest, CancellationDoesNotChooseAWorseCycle)
 {
   // Ring 0 -> 1 -> 2 -> 3 -> 0 with weights 2^e, 1, -2^e, -2: exact mean -1/4.
-  // Self-loop of node 4: -0.375, the exact optimum. For e = 50 every partial
-  // sum is exact even in a 53-bit `long double` and Howard is right; for
-  // e = 100 the plain sum of the policy evaluation loses the 1, the ring looks
-  // like mean -1/2 and wins.
-  for (const int e : {50, 100})
+  // Self-loop of node 4: -0.375, the exact optimum. For e = 100 and e = 200
+  // the plain sum of the policy evaluation loses the 1 and the ring looks like
+  // mean -1/2; it used to be returned. With e = 200 the weights span 204 bits,
+  // too many for the exact verification: the policy stays the rounded one, and
+  // only the exact choice among its cycles picks the loop.
+  for (const int e : {50, 100, 200})
     {
       const double big = std::ldexp(1.0, e);
       auto built = build_graph_generic<Float_Graph, double>(
@@ -755,30 +759,31 @@ TEST(HowardMinMeanCycleTest, KnownNumericLimitationCancellationCanChooseAWorseCy
       const auto r = howard_minimum_mean_cycle(built.g);
       ASSERT_TRUE(r.has_cycle) << "e=" << e;
       EXPECT_FALSE(r.used_karp) << "e=" << e;
-      EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Rounded) << "e=" << e;
-      EXPECT_TRUE(witness_is_simple_cycle(built.g, r, false)) << "e=" << e;
-      if (e == 50)
-        {
-          EXPECT_EQ(r.minimum_mean, -0.375L);
-          EXPECT_EQ(r.cycle_length, 1u);
-        }
-      else
-        {
-          // KNOWN LIMITATION: the ring, published with its recomputed mean.
-          EXPECT_EQ(r.minimum_mean, -0.25L);
-          EXPECT_EQ(r.cycle_total_cost, -1.0);
-          EXPECT_EQ(r.cycle_length, 4u);
-        }
+      EXPECT_TRUE(witness_is_simple_cycle(built.g, r)) << "e=" << e;
+      EXPECT_EQ(r.minimum_mean, -0.375L) << "e=" << e;
+      EXPECT_EQ(r.cycle_total_cost, -0.375) << "e=" << e;
+      EXPECT_EQ(r.cycle_length, 1u) << "e=" << e;
+
+      // The scaled weights need 54 bits for e = 50, 104 for e = 100 and 204
+      // for e = 200.
+# if ALEPH_HOWARD_INT128
+      const bool verified = e <= 100;
+# else
+      const bool verified = e == 50;
+# endif
+      EXPECT_EQ(r.numeric_quality, verified ? Cycle_Numeric_Quality::Exact
+                                            : Cycle_Numeric_Quality::Rounded) << "e=" << e;
     }
 }
 
 
-TEST(HowardMinMeanCycleTest, KnownNumericLimitationImprovementsBelowTheToleranceFloorAreIgnored)
+TEST(HowardMinMeanCycleTest, ImprovementsBelowTheToleranceAreFoundExactly)
 {
   // Loops of weight 0 on nodes 0 and 1, and the cycle 0 -> 1 -> 0 with weights
   // d and -2d: mean -d/2, the optimum. With d = 2^-60 the improvement is below
-  // the absolute floor of the bias tolerance (64 epsilon of a long double) and
-  // Howard stops at a loop of mean 0; the same graph scaled by 2^60 is solved.
+  // the absolute floor of the bias tolerance (64 epsilon of a long double), so
+  // the long double iteration stops at a loop of mean 0; the exact one, which
+  // starts from that policy, finds the cycle.
   for (const int exponent : {-60, 0})
     {
       const double d = std::ldexp(1.0, exponent);
@@ -788,32 +793,26 @@ TEST(HowardMinMeanCycleTest, KnownNumericLimitationImprovementsBelowTheTolerance
       const auto r = howard_minimum_mean_cycle(built.g);
       ASSERT_TRUE(r.has_cycle) << "exponent=" << exponent;
       EXPECT_FALSE(r.used_karp) << "exponent=" << exponent;
-      EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Rounded) << "exponent=" << exponent;
+      EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Exact) << "exponent=" << exponent;
       EXPECT_TRUE(witness_is_simple_cycle(built.g, r)) << "exponent=" << exponent;
-      if (exponent == 0)
-        EXPECT_EQ(r.minimum_mean, -0.5L);
-      else
-        {
-          // KNOWN LIMITATION: mean 0 instead of -2^-61. (The floor depends on the
-          // width of long double; with 53 bits it is larger, so this holds too.)
-          EXPECT_EQ(r.minimum_mean, 0.0L);
-          EXPECT_EQ(r.cycle_length, 1u);
-        }
+      EXPECT_EQ(r.minimum_mean, -static_cast<long double>(d) / 2) << "exponent=" << exponent;
+      EXPECT_EQ(r.cycle_total_cost, -d) << "exponent=" << exponent;
+      EXPECT_EQ(r.cycle_length, 2u) << "exponent=" << exponent;
     }
 }
 
 
-TEST(HowardMinMeanCycleTest, KnownNumericLimitationCompensatedSumCanMakeAZeroCycleNegative)
+TEST(HowardMinMeanCycleTest, ACycleOfExactTotalZeroIsNeverNegative)
 {
   // Six-arc ring whose weights 2^100, 1, 2^-100, -1, -2^100, -2^-100 (in some
-  // rotation) sum exactly to zero. The published cost is a compensated sum,
-  // which is not exact: for some rotations it comes out as -2^-100. The cycle
-  // itself is right (it is the only one); its sign is not.
+  // rotation) sum exactly to zero. Its published cost used to be a
+  // compensated sum, -2^-100 for some rotations; it is now the exact sum. The
+  // weights span 201 binary orders of magnitude, too many for the exact
+  // verification, so the result stays Rounded.
   const double big = std::ldexp(1.0, 100);
   const double tiny = std::ldexp(1.0, -100);
   const std::vector<double> ring = {big, 1.0, tiny, -1.0, -big, -tiny};
 
-  size_t negative = 0;
   for (size_t rotation = 0; rotation < ring.size(); ++rotation)
     {
       std::vector<std::tuple<size_t, size_t, double>> edges;
@@ -827,13 +826,9 @@ TEST(HowardMinMeanCycleTest, KnownNumericLimitationCompensatedSumCanMakeAZeroCyc
       EXPECT_EQ(r.cycle_length, ring.size()) << "rotation=" << rotation;
       EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Rounded) << "rotation=" << rotation;
       EXPECT_TRUE(witness_is_simple_cycle(built.g, r, false)) << "rotation=" << rotation;
-      // Either the exact 0 or the rounding residue -2^-100, nothing else.
-      EXPECT_TRUE(r.cycle_total_cost == 0.0 or r.cycle_total_cost == -tiny)
-          << "rotation=" << rotation << " cost=" << r.cycle_total_cost;
-      negative += r.cycle_total_cost < 0.0;
+      EXPECT_EQ(r.cycle_total_cost, 0.0) << "rotation=" << rotation;
+      EXPECT_EQ(r.minimum_mean, 0.0L) << "rotation=" << rotation;
     }
-  // KNOWN LIMITATION: at least one rotation presents the zero cycle as negative.
-  EXPECT_GE(negative, 1u);
 }
 
 
@@ -880,7 +875,7 @@ TEST(HowardMinMeanCycleTest, CostsOfAboutTenToTheEighteenAgreeWithKarp)
           continue;
         }
 
-# ifdef __SIZEOF_INT128__
+# if ALEPH_HOWARD_INT128
       // Howard's own answer, also where Karp threw: exactly the oracle's
       // rational mean, `total / length` cross-multiplied in 128 bits. (After
       // the fallback the witness is Karp's closed walk: nothing to compare.)
@@ -937,7 +932,7 @@ TEST(HowardMinMeanCycleTest, FractionsAreComparedWithoutOverflow)
   EXPECT_EQ(Arith::compare_fractions(hi, hi, 1, 1), 0);
   EXPECT_EQ(Arith::compare_fractions(hi - 1, hi, hi - 2, hi - 1), 1);   // 1 - 1/hi vs 1 - 1/(hi-1)
 
-# ifdef __SIZEOF_INT128__
+# if ALEPH_HOWARD_INT128
   std::mt19937_64 rng(0xC0FFEE);
   for (size_t i = 0; i < 200000; ++i)
     {

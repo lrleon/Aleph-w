@@ -455,15 +455,18 @@ TEST(NegativeCyclesTest, GraphIsLeftUntouched)
 
 
 // ---------------------------------------------------------------------------
-// Known numeric limitation (F2 of auditoria-rama-arbitrage-performance-bugs.md).
+// Known numeric limitation (F2 of auditoria-rama-arbitrage-performance-bugs.md,
+// delimited in stage B of auditoria-profunda-arbitraje-2026-10-02.md).
 //
 // The loop 1 -> 1 of weight -1 is exactly representable and is a negative
 // cycle, but the incoming arc of weight -1e16 puts dist[1] at -1e16, where
 // adding -1 is absorbed: dist[1] never improves, the loop never enters the
 // predecessor graph and no cycle is extracted. most_negative_cycle_bounded()
-// keeps per-layer costs and does find the loop. This test pins today's
-// behaviour on purpose: the numeric policy of Stage 2 must flip the first
-// expectation, and then this comment with it.
+// keeps per-layer costs and does find the loop. Running the enumeration on
+// the cyclic core would remove that arc (it joins two components), but it was
+// measured to cost 1.3 to 2.3 times as much in every benchmark family without
+// saving anything, and it cannot help inside a component (next test): the
+// limitation is documented instead, and pinned here.
 // ---------------------------------------------------------------------------
 TEST(NegativeCyclesTest, KnownNumericLimitationAbsorptionHidesNegativeLoop)
 {
@@ -495,11 +498,11 @@ TEST(NegativeCyclesTest, KnownNumericLimitationAbsorptionHidesNegativeLoop)
 }
 
 
-// The same absorption with the huge arc inside a strongly connected component:
-// 0 -> 1 of -1e16, 1 -> 0 of +1e16 and the loop of -1 on node 1. Processing the
-// strongly connected components separately would not help here (and the
-// enumeration does not do it: see the file documentation), so the limitation is
-// pinned for this shape too.
+// KNOWN LIMITATION: the same absorption with the huge arc inside a strongly
+// connected component: 0 -> 1 of -1e16, 1 -> 0 of +1e16 and the loop of -1 on
+// node 1. Restricting the search to the cyclic core would not help here
+// either: with floating-point costs an empty result is not a proof that no
+// negative cycle exists.
 TEST(NegativeCyclesTest, KnownNumericLimitationAbsorptionInsideAComponent)
 {
   Float_Graph g;

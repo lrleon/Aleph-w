@@ -423,6 +423,7 @@ set(TEST_PROGRAMS
     howard_min_mean_cycle_test
     negative_cycles_test
     bounded_negative_cycle_test
+    negative_cycles_numeric_test
     planarity_test
     graph_copy_test
     thread_pool_test

@@ -57,9 +57,9 @@
  * be found where one was seeded and none may be reported where none exists.
  * Results of the new algorithms that fail a check make the program exit with
  * code 1. The `cert` column of the bounded search is reported, not validated:
- * `exact` (proven optimal, integral costs), `bound` (the relaxed bound was met
- * in the rounded arithmetic of the search, which proves nothing; the market
- * families use `double` weights) or `no-cert`.
+ * `exact` (proven optimal: a zero `optimality_gap`), `bound` (the relaxed bound
+ * was met in the rounded arithmetic of the search, which proves nothing by
+ * itself; the market families use `double` weights) or `no-cert`.
  *
  * `Bellman_Ford`'s witness extraction rebuilds the cycle from nodes and can
  * pick a different parallel arc, so on multigraphs it can return a cycle whose
@@ -697,8 +697,8 @@ Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
   o.count = 1;
   o.cost = r.total_cost;
   o.length = r.length;
-  // "exact": proven optimal (integral costs); "bound": the relaxed bound was
-  // met in the rounded arithmetic of the search, which proves nothing.
+  // "exact": proven optimal (a zero optimality_gap); "bound": the relaxed bound
+  // was met in the rounded arithmetic of the search, which proves nothing.
   std::snprintf(o.cert, sizeof(o.cert), "%s",
                 r.is_exact ? "exact" : r.matches_relaxed_bound ? "bound" : "no-cert");
   const auto nodes = to_array(r.cycle_nodes);
