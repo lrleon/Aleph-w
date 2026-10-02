@@ -361,10 +361,14 @@ TEST(MinMeanCycleTest, WitnessMeansAreComparedExactly)
   EXPECT_FALSE(mean_less(2LL, 6, 1LL, 3));      // equal, not smaller
   EXPECT_TRUE(mean_less(-1.5, 1, -1.0, 1));
 # if ALEPH_KARP_INT128
-  // Means 1 apart near 2^80, which long double cannot tell apart there.
+  // Means 1 apart where long double, whatever its precision (53 bits on
+  // Apple Silicon and MSVC, 64 on x86, 113 on AArch64 Linux), cannot tell
+  // them apart: its unit in the last place there is 4.
   using min_mean_cycle_detail::karp_int128_t;
-  const karp_int128_t big = static_cast<karp_int128_t>(1) << 80;
-  EXPECT_EQ(static_cast<long double>(big - 1), static_cast<long double>(big));
+  constexpr int shift = std::numeric_limits<long double>::digits + 2;
+  static_assert(shift <= 124, "3 * 2^shift must fit a 128-bit integer");
+  const karp_int128_t big = static_cast<karp_int128_t>(1) << shift;
+  ASSERT_EQ(static_cast<long double>(big - 1), static_cast<long double>(big));
   EXPECT_TRUE(mean_less(3 * big - 3, 3, big, 1));
   EXPECT_FALSE(mean_less(big, 1, 3 * big - 3, 3));
 # endif
