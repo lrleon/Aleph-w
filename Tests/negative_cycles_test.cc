@@ -44,6 +44,7 @@
 # include <limits>
 # include <random>
 # include <set>
+# include <thread>
 # include <tuple>
 # include <type_traits>
 # include <vector>
@@ -52,49 +53,14 @@
 # include <tpl_agraph.H>
 # include <tpl_graph.H>
 
+# include "negative_cycles_test_support.H"
+
 using namespace Aleph;
+using namespace Negative_Cycles_Test_Support;
 
 namespace
 {
-  using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<long long>>;
-  using Float_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<double>>;
-  using Arr_Digraph = Array_Digraph<Graph_Anode<int>, Graph_Aarc<long long>>;
-  using UGraph = List_Graph<Graph_Node<int>, Graph_Arc<long long>>;
-  using Node = Graph::Node;
-  using Arc = Graph::Arc;
-  using Edge_Def = std::tuple<size_t, size_t, long long>;
   using Item = Negative_Cycle_Item<Graph, long long>;
-
-  template <class GT>
-  struct Built_Graph_T
-  {
-    GT g;
-    std::vector<typename GT::Node *> nodes;
-    std::vector<typename GT::Arc *> arcs;
-  };
-
-  template <class GT, typename Weight_Type>
-  Built_Graph_T<GT>
-  build_graph_generic(const size_t n,
-                      const std::vector<std::tuple<size_t, size_t, Weight_Type>> & edges)
-  {
-    Built_Graph_T<GT> built;
-    built.nodes.reserve(n);
-    built.arcs.reserve(edges.size());
-
-    for (size_t i = 0; i < n; ++i)
-      built.nodes.push_back(built.g.insert_node(static_cast<int>(i)));
-
-    for (const auto & [u, v, w] : edges)
-      built.arcs.push_back(built.g.insert_arc(built.nodes[u], built.nodes[v], w));
-
-    return built;
-  }
-
-  Built_Graph_T<Graph> build_graph(const size_t n, const std::vector<Edge_Def> & edges)
-  {
-    return build_graph_generic<Graph, long long>(n, edges);
-  }
 
   // A reported item must be a closed path over consecutive graph arcs that
   // visits no node twice, whose arc weights sum to total_cost, negative.
@@ -208,92 +174,6 @@ namespace
     return found;
   }
 
-  struct Hide_Arc
-  {
-    Arc * blocked = nullptr;
-
-    bool operator()(Arc * arc) const noexcept
-    {
-      return arc != blocked;
-    }
-  };
-
-  // Counts how many times the distance accessor is called.
-  struct Counting_Dist
-  {
-    using Distance_Type = long long;
-    int * calls = nullptr;
-
-    Distance_Type operator()(Arc * arc) const
-    {
-      ++*calls;
-      return arc->get_info();
-    }
-  };
-
-  // Counts how many times the filter is asked, and hides one arc.
-  struct Counting_Filter
-  {
-    int * calls = nullptr;
-    Arc * blocked = nullptr;
-
-    bool operator()(Arc * arc) const
-    {
-      ++*calls;
-      return arc != blocked;
-    }
-  };
-
-  // Rejects the arcs whose weight is not finite.
-  struct Finite_Arcs
-  {
-    bool operator()(Float_Graph::Arc * arc) const noexcept
-    {
-      return std::isfinite(arc->get_info());
-    }
-  };
-
-  // Non-null cookies and control bits planted on a graph before a search,
-  // checked afterwards: the searches must not read, use or clear them.
-  template <class GT>
-  struct Planted_State
-  {
-    std::vector<int> cells;
-
-    void plant(Built_Graph_T<GT> & built)
-    {
-      cells.assign(built.nodes.size() + built.arcs.size(), 0);
-      size_t k = 0;
-      for (size_t i = 0; i < built.nodes.size(); ++i, ++k)
-        {
-          NODE_COOKIE(built.nodes[i]) = &cells[k];
-          NODE_BITS(built.nodes[i]).set_bit(Aleph::Spanning_Tree, i % 2 == 0);
-          NODE_BITS(built.nodes[i]).set_bit(Aleph::Find_Path, true);
-        }
-      for (size_t i = 0; i < built.arcs.size(); ++i, ++k)
-        {
-          ARC_COOKIE(built.arcs[i]) = &cells[k];
-          ARC_BITS(built.arcs[i]).set_bit(Aleph::Spanning_Tree, true);
-          ARC_BITS(built.arcs[i]).set_bit(Aleph::Find_Path, i % 2 == 1);
-        }
-    }
-
-    bool intact(const Built_Graph_T<GT> & built) const
-    {
-      size_t k = 0;
-      for (size_t i = 0; i < built.nodes.size(); ++i, ++k)
-        if (NODE_COOKIE(built.nodes[i]) != &cells[k]
-            or IS_NODE_VISITED(built.nodes[i], Aleph::Spanning_Tree) != (i % 2 == 0)
-            or not IS_NODE_VISITED(built.nodes[i], Aleph::Find_Path))
-          return false;
-      for (size_t i = 0; i < built.arcs.size(); ++i, ++k)
-        if (ARC_COOKIE(built.arcs[i]) != &cells[k]
-            or not IS_ARC_VISITED(built.arcs[i], Aleph::Spanning_Tree)
-            or IS_ARC_VISITED(built.arcs[i], Aleph::Find_Path) != (i % 2 == 1))
-          return false;
-      return true;
-    }
-  };
 
   // The same triangle of total cost -1 for every cost type.
   template <typename W>
@@ -868,4 +748,133 @@ TEST(NegativeCyclesTest, RandomGraphsAgreeWithExhaustiveOracle)
         }
     }
   EXPECT_GT(graphs_with_cycles, 20u);   // the sample exercises both outcomes
+}
+
+
+// ---------------------------------------------------------------------------
+// Node index of the snapshot (open addressing over node pointers).
+// ---------------------------------------------------------------------------
+
+TEST(NegativeCyclesTest, LargeGraphsAreIndexedCorrectly)
+{
+  // A ring of many nodes whose total is -1 and a loop among a crowd of
+  // isolated nodes: every node must be found by its pointer.
+  constexpr size_t ring = 5000;
+  std::vector<Edge_Def> edges;
+  for (size_t i = 0; i < ring; ++i)
+    edges.emplace_back(i, (i + 1) % ring, i == 0 ? -static_cast<long long>(ring) : 1);
+  auto built = build_graph(ring, edges);
+
+  const auto cycles = find_disjoint_negative_cycles(built.g, 3);
+  ASSERT_EQ(cycles.size(), 1u);
+  EXPECT_EQ(cycles.get_first().length, ring);
+  EXPECT_EQ(cycles.get_first().total_cost, -1);
+  EXPECT_TRUE(is_valid_negative_simple_cycle(built.g, cycles.get_first()));
+
+  constexpr size_t crowd = 20000;
+  auto sparse = build_graph(crowd, {{12345, 12345, -2}});
+  const auto loops = find_disjoint_negative_cycles(sparse.g, 3);
+  ASSERT_EQ(loops.size(), 1u);
+  EXPECT_EQ(loops.get_first().length, 1u);
+  EXPECT_EQ(loops.get_first().cycle.get_first_node(), sparse.nodes[12345]);
+}
+
+
+TEST(NegativeCyclesTest, GraphsWithoutNodesOrWithOneNodeAreIndexed)
+{
+  Graph empty;
+  EXPECT_TRUE(find_disjoint_negative_cycles(empty, 3).is_empty());
+
+  auto one = build_graph(1, {{0, 0, -1}});
+  const auto cycles = find_disjoint_negative_cycles(one.g, 3);
+  ASSERT_EQ(cycles.size(), 1u);
+  EXPECT_EQ(cycles.get_first().total_cost, -1);
+}
+
+
+// The index of the snapshot answers with the position of every node it was
+// given, and refuses what it was not given: a null pointer must not match a
+// free slot, and an unknown node must not loop or answer with a position.
+TEST(NegativeCyclesTest, NodeIndexFindsEveryNodeAndRejectsTheRest)
+{
+  auto built = build_graph(300, {});
+  auto stranger = build_graph(1, {});
+
+  negative_cycles_detail::Node_Index<Node> index(built.nodes.size());
+  for (size_t i = 0; i < built.nodes.size(); ++i)
+    index.insert(built.nodes[i], 1000 + i);
+
+  for (size_t i = 0; i < built.nodes.size(); ++i)
+    EXPECT_EQ(index.find(built.nodes[i]), 1000 + i);
+
+  EXPECT_THROW((void) index.find(nullptr), std::domain_error);
+  EXPECT_THROW((void) index.find(stranger.nodes[0]), std::domain_error);
+  EXPECT_THROW(index.insert(nullptr, 0), std::domain_error);
+
+  // A table that is exactly as full as it will ever be still answers.
+  negative_cycles_detail::Node_Index<Node> single(1);
+  single.insert(built.nodes[7], 42);
+  EXPECT_EQ(single.find(built.nodes[7]), 42u);
+  EXPECT_THROW((void) single.find(built.nodes[8]), std::domain_error);
+}
+
+
+// The file documentation promises that several threads may search the same
+// graph while nobody modifies it: the functions take a `const GT &` and keep
+// all their state local. Every thread must get exactly the single-threaded
+// answer.
+TEST(NegativeCyclesTest, ConcurrentSearchesOnTheSameGraphAgree)
+{
+  // Two negative triangles and some positive clutter, with ties.
+  std::vector<Edge_Def> edges = {{0, 1, 2}, {1, 2, -5}, {2, 0, 2},
+                                 {3, 4, 1}, {4, 5, -4}, {5, 3, 2},
+                                 {2, 3, 1}, {5, 0, 1}, {1, 4, 3}, {4, 1, 3}};
+  for (size_t u = 6; u < 40; ++u)
+    {
+      edges.emplace_back(u, (u + 1) % 40, 1);
+      edges.emplace_back(u, (u * 7 + 3) % 40, 2);
+    }
+  auto built = build_graph(40, edges);
+
+  const auto cycles_ref = find_disjoint_negative_cycles(built.g, 5);
+  const auto bounded_ref = most_negative_cycle_bounded(built.g, 6);
+  ASSERT_GE(cycles_ref.size(), 2u);
+  ASSERT_TRUE(bounded_ref.has_cycle);
+
+  auto same_cycles = [&](const decltype(cycles_ref) & a)
+  {
+    if (a.size() != cycles_ref.size())
+      return false;
+    auto ia = a.get_it();
+    auto ir = cycles_ref.get_it();
+    for (; ia.has_curr(); ia.next_ne(), ir.next_ne())
+      if (ia.get_curr().total_cost != ir.get_curr().total_cost
+          or ia.get_curr().cycle.arcs() != ir.get_curr().cycle.arcs())
+        return false;
+    return true;
+  };
+
+  constexpr size_t threads = 8;
+  constexpr size_t rounds = 25;
+  std::vector<int> failures(threads, 0);
+  std::vector<std::thread> pool;
+  for (size_t t = 0; t < threads; ++t)
+    pool.emplace_back([&, t]
+    {
+      for (size_t i = 0; i < rounds; ++i)
+        {
+          const auto cycles = find_disjoint_negative_cycles(built.g, 5);
+          const auto bounded = most_negative_cycle_bounded(built.g, 6);
+          if (not same_cycles(cycles) or bounded.total_cost != bounded_ref.total_cost
+              or bounded.length != bounded_ref.length
+              or bounded.is_exact != bounded_ref.is_exact
+              or bounded.cycle_arcs != bounded_ref.cycle_arcs)
+            ++failures[t];
+        }
+    });
+  for (auto & th : pool)
+    th.join();
+
+  for (size_t t = 0; t < threads; ++t)
+    EXPECT_EQ(failures[t], 0) << "thread " << t;
 }

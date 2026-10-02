@@ -61,16 +61,21 @@
  *
  *  ## Complexity
  *
- *  Both functions first snapshot the graph in O((V + E) log V) (nodes are
- *  mapped to positions with an AVL map), then work on arrays. `E` counts
- *  every arc the arc iterator visits, which includes the arcs rejected by
- *  the filter. Working space excludes the cycles that are returned (up to
- *  O(K · V) for `K` of them).
+ *  Both functions first snapshot the graph in expected O(V + E) time (nodes
+ *  are mapped to positions with an open-addressing hash table at most half
+ *  full, mixing the pointers so that allocation patterns cannot cluster;
+ *  only a degenerate hash could make a lookup cost more than O(1)), then
+ *  work on arrays. `E` counts every arc the arc iterator visits, which
+ *  includes the arcs rejected by the filter. Working space excludes the
+ *  cycles that are returned (up to O(K · V) for `K` of them). The number of
+ *  memory allocations does not depend on `E`, on the bound `L` or on the
+ *  length of the walks examined: only the cycles that are returned allocate
+ *  per cycle.
  *
  *  | Function | Time | Working space |
  *  |----------|------|---------------|
- *  | `find_disjoint_negative_cycles` | O((V + E) log V + R · V · (V + E)) | O(V + E) |
- *  | `most_negative_cycle_bounded` | O((V + E) log V + V_c · L · (V_c + E_c)) | O(L · V_c + V + E) |
+ *  | `find_disjoint_negative_cycles` | O(V + E + R · V · (V + E)) | O(V + E) |
+ *  | `most_negative_cycle_bounded` | O(V + E + V_c · L · (V_c + E_c)) | O(L · V_c + V + E) |
  *
  *  `R` is the number of searches (rounds) the enumeration runs: at most
  *  `max_cycles + 1` unless floating-point candidates are discarded without
@@ -126,6 +131,7 @@
 # include <algorithm>
 # include <cmath>
 # include <cstddef>
+# include <cstdint>
 # include <limits>
 # include <type_traits>
 # include <utility>
@@ -134,7 +140,6 @@
 # include <htlist.H>
 # include <shortest_path_common.H>
 # include <tpl_array.H>
-# include <tpl_dynMapTree.H>
 # include <tpl_graph.H>
 
 namespace Aleph
@@ -308,6 +313,84 @@ namespace Aleph
         }
     }
 
+    /** @brief Map from node pointers to their positions, built once and never
+     *         modified afterwards.
+     *
+     *  Open addressing with linear probing over two `Array`s whose capacity is
+     *  the first power of two not below `2 * n`, so the load factor never
+     *  exceeds one half and a lookup takes about 1.5 probes. Pointers are
+     *  mixed with the SplitMix64 finalizer, a bijection of the 64-bit
+     *  pointer, before the low bits select the slot: allocation patterns
+     *  (nodes at a fixed stride, for instance) cannot cluster. Compared with
+     *  an AVL map (`DynMapTree`) it makes four allocations instead of one per
+     *  node, and a lookup does not chase pointers.
+     *
+     *  @tparam Node Node type; pointers to it are the keys and are never null.
+     */
+    template <typename Node>
+    class Node_Index
+    {
+      Array<Node *> keys_;
+      Array<size_t> positions_;
+      size_t mask_ = 0;
+
+      static size_t slot_of(const Node * node) noexcept
+      {
+        auto x = reinterpret_cast<std::uintptr_t>(node);
+        x += 0x9e3779b97f4a7c15ULL;
+        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+        return x ^ (x >> 31);
+      }
+
+    public:
+      /** @param[in] n Number of nodes that will be inserted.
+       *  @throws std::overflow_error If the capacity does not fit `size_t`.
+       */
+      explicit Node_Index(const size_t n)
+      {
+        ah_overflow_error_if(n > (std::numeric_limits<size_t>::max() >> 2))
+          << "Node_Index: capacity overflow";
+        size_t capacity = 4;
+        while (capacity < 2 * n)
+          capacity <<= 1;
+        keys_ = Array<Node *>(capacity, nullptr);
+        positions_ = Array<size_t>(capacity, size_t{0});
+        mask_ = capacity - 1;
+      }
+
+      /** Record that `node` (not yet inserted) is at `position`.
+       *  @throws std::domain_error If `node` is null (null marks a free slot).
+       */
+      void insert(Node * node, const size_t position)
+      {
+        ah_domain_error_if(node == nullptr) << "Node_Index: null node";
+        size_t i = slot_of(node) & mask_;
+        while (keys_(i) != nullptr)
+          i = (i + 1) & mask_;
+        keys_(i) = node;
+        positions_(i) = position;
+      }
+
+      /** Position of `node`.
+       *  @throws std::domain_error If `node` is null or was not inserted. A
+       *          null key has to be rejected before probing: it would match
+       *          the first free slot and answer with a position of nobody.
+       */
+      [[nodiscard]] size_t find(const Node * node) const
+      {
+        ah_domain_error_if(node == nullptr) << "Node_Index: null node";
+        size_t i = slot_of(node) & mask_;
+        while (keys_(i) != node)
+          {
+            ah_domain_error_if(keys_(i) == nullptr)
+              << "Node_Index: the arc endpoint is not a node of the graph";
+            i = (i + 1) & mask_;
+          }
+        return positions_(i);
+      }
+    };
+
     /// Snapshot the graph: index its nodes and the arcs accepted by `sa`,
     /// reading each weight once. Rejects undirected graphs and non-finite
     /// floating weights.
@@ -328,7 +411,7 @@ namespace Aleph
       const size_t n = g.get_num_nodes();
       ig.nodes.reserve(n);
 
-      DynMapTree<Node *, size_t> node_to_idx;
+      Node_Index<Node> node_to_idx(n);
       size_t idx = 0;
       for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne(), ++idx)
         {
@@ -468,7 +551,7 @@ namespace Aleph
    *        cases its arcs are excluded, so the search keeps making progress.
    *        The reported `total_cost` is that accurate total.
    *
-   *  @note Complexity: O((V + E) log V + R · V · (V + E)) worst-case time,
+   *  @note Complexity: O(V + E + R · V · (V + E)) expected worst-case time,
    *        where `R <= E + 1` is the number of rounds (at most
    *        `max_cycles + 1` unless floating-point candidates are discarded
    *        without being reported); the per-pass cycle check adds O(V) to
@@ -509,8 +592,11 @@ namespace Aleph
     Array<Cost_Type> dist(n, Cost_Type{0});
     Array<long> pred(n, none);   // index into ig.arcs of the arc that last relaxed the node
     Array<long> mark(n, 0);      // scratch for the predecessor cycle check
+    Array<size_t> reversed;      // the cycle of a round, last arc first
+    Array<size_t> forward;       // the same cycle in order
+    size_t reported = 0;         // cycles in `result`: DynList::size() is O(length)
 
-    while (result.size() < max_cycles)
+    while (reported < max_cycles)
       {
         for (size_t i = 0; i < n; ++i)
           {
@@ -558,7 +644,7 @@ namespace Aleph
         bool ok = true;
 
         // Extract the cycle through y; predecessors give it in reverse order.
-        Array<size_t> reversed;
+        reversed.empty();
         for (size_t cur = y, guard = 0; ; ++guard)
           {
             const long a = pred(cur);
@@ -576,8 +662,7 @@ namespace Aleph
           break;
 
         const size_t len = reversed.size();
-        Array<size_t> forward;
-        forward.reserve(len);
+        forward.empty();
         for (size_t i = len; i > 0; --i)
           forward.append(reversed(i - 1));
 
@@ -609,6 +694,7 @@ namespace Aleph
         item.total_cost = total;
         item.length = len;
         result.append(std::move(item));
+        ++reported;
       }
 
     return result;
@@ -806,16 +892,43 @@ namespace Aleph
       Cost_Type cost = Cost_Type{0};
       Array<size_t> arcs;   // indices into Indexed_Graph::arcs, in cycle order
 
-      /// Keep `candidate` if it is cheaper than the best so far, or equally
-      /// cheap with fewer arcs. The tie-break only sees the candidates that
-      /// are offered, not every simple cycle of the graph.
-      void offer(const Cost_Type & c, const Array<size_t> & candidate)
+      /// Keep the cycle of `length` arcs `candidate[0..length)` if it is
+      /// cheaper than the best so far, or equally cheap with fewer arcs. The
+      /// tie-break only sees the candidates that are offered, not every
+      /// simple cycle of the graph. Storing the winner reuses the capacity of
+      /// `arcs`.
+      void offer(const Cost_Type & c, const size_t * candidate, const size_t length)
       {
-        if (found and not (c < cost or (c == cost and candidate.size() < arcs.size())))
+        if (found and not (c < cost or (c == cost and length < arcs.size())))
           return;
         found = true;
         cost = c;
-        arcs = candidate;
+        arcs.empty();
+        for (size_t i = 0; i < length; ++i)
+          arcs.append(candidate[i]);
+      }
+    };
+
+    /** @brief Scratch space of `offer_simple_components()`, allocated once.
+     *
+     *  The stacks are used through a logical depth rather than with
+     *  `Array::remove_last()`, which can contract (and so reallocate) the
+     *  array when it empties out.
+     */
+    struct Decomposition_Scratch
+    {
+      Array<size_t> st_nodes;    ///< Node stack.
+      Array<size_t> st_in_arc;   ///< Arc entering each stacked node, aligned with `st_nodes`.
+      Array<size_t> component;   ///< Arcs of the simple cycle being offered.
+
+      /** @param[in] max_nodes Upper bound of the distinct nodes on the stack
+       *             (the node count of the graph searched).
+       *  @param[in] max_walk Upper bound of the arcs of a walk.
+       */
+      Decomposition_Scratch(const size_t max_nodes, const size_t max_walk)
+        : st_nodes(max_nodes + 1, 0), st_in_arc(max_nodes + 1, 0), component(max_walk + 1, 0)
+      {
+        // empty
       }
     };
 
@@ -828,65 +941,65 @@ namespace Aleph
     void offer_simple_components(const Indexed_Graph<GT, Cost_Type> & ig,
                                  const Array<size_t> & walk,
                                  Array<long> & pos,              // n entries, all -1 on entry and exit
-                                 Array<size_t> & st_nodes,       // scratch
-                                 Array<size_t> & st_in_arc,      // scratch, aligned with st_nodes
+                                 Decomposition_Scratch & scratch,
                                  Best_Cycle<Cost_Type> & best)
     {
       if (walk.is_empty())
         return;
 
-      st_nodes.empty();
-      st_in_arc.empty();
+      Array<size_t> & st_nodes = scratch.st_nodes;
+      Array<size_t> & st_in_arc = scratch.st_in_arc;
+      Array<size_t> & component = scratch.component;
 
       const size_t origin = ig.arcs(walk(0)).src;
-      st_nodes.append(origin);
-      st_in_arc.append(std::numeric_limits<size_t>::max());   // no arc enters the origin
+      size_t top = 0;   // logical depth of both stacks
+      st_nodes(top) = origin;
+      st_in_arc(top) = std::numeric_limits<size_t>::max();   // no arc enters the origin
       pos(origin) = 0;
+      ++top;
 
-      Array<size_t> component;
       for (size_t i = 0; i < walk.size(); ++i)
         {
           const size_t a = walk(i);
           const size_t t = ig.arcs(a).tgt;
           if (pos(t) == -1)
             {
-              st_nodes.append(t);
-              st_in_arc.append(a);
-              pos(t) = static_cast<long>(st_nodes.size() - 1);
+              st_nodes(top) = t;
+              st_in_arc(top) = a;
+              pos(t) = static_cast<long>(top);
+              ++top;
               continue;
             }
 
           // t is already on the stack at position p: the arcs entering the
           // nodes above p, plus the current one, form a simple cycle.
           const size_t p = static_cast<size_t>(pos(t));
-          component.empty();
-          for (size_t j = p + 1; j < st_nodes.size(); ++j)
-            component.append(st_in_arc(j));
-          component.append(a);
+          size_t length = 0;
+          for (size_t j = p + 1; j < top; ++j)
+            component(length++) = st_in_arc(j);
+          component(length++) = a;
 
           Cost_Type c = Cost_Type{0};
-          for (size_t j = 0; j < component.size(); ++j)
+          for (size_t j = 0; j < length; ++j)
             {
               c = shortest_path_detail::checked_add(c, ig.arcs(component(j)).weight);
               check_finite(c, "most_negative_cycle_bounded(): cycle cost became non-finite");
             }
-          best.offer(c, component);
+          best.offer(c, &component(0), length);
 
-          while (st_nodes.size() > p + 1)
+          while (top > p + 1)
             {
-              pos(st_nodes.get_last()) = -1;
-              (void) st_nodes.remove_last();
-              (void) st_in_arc.remove_last();
+              --top;
+              pos(st_nodes(top)) = -1;
             }
         }
 
       // The walk is closed, so everything above the origin was popped.
-      while (not st_nodes.is_empty())
+      while (top > 0)
         {
-          pos(st_nodes.get_last()) = -1;
-          (void) st_nodes.remove_last();
+          --top;
+          pos(st_nodes(top)) = -1;
         }
-      st_in_arc.empty();
     }
   } // namespace negative_cycles_detail
 
@@ -930,7 +1043,7 @@ namespace Aleph
    *  (reconstructed from per-step predecessors) is decomposed into simple
    *  cycles, and each component is offered as a candidate. The most negative
    *  candidate is returned; among candidates of equal cost, the one with
-   *  fewest arcs. This keeps the O((V + E) log V + V_c · L · (V_c + E_c)) cost
+   *  fewest arcs. This keeps the O(V + E + V_c · L · (V_c + E_c)) cost
    *  and gives:
    *
    *  - the reported cycle is always a simple cycle of at most `max_length`
@@ -1012,7 +1125,7 @@ namespace Aleph
    *          of the cyclic core), or the predecessor table size overflows
    *          `size_t`.
    *
-   *  @note Complexity: O((V + E) log V + V_c · L · (V_c + E_c)) time,
+   *  @note Complexity: O(V + E + V_c · L · (V_c + E_c)) expected time,
    *        O(L · V_c + V + E) working space, with `L = min(max_length, V)`
    *        and `V_c`, `E_c` the nodes and arcs of the cyclic core (see the
    *        file documentation). The reconstruction and decomposition cost
@@ -1092,9 +1205,9 @@ namespace Aleph
     negative_cycles_detail::Best_Cycle<Cost_Type> best;
 
     Array<long> pos(n, none);
-    Array<size_t> st_nodes;
-    Array<size_t> st_in_arc;
+    negative_cycles_detail::Decomposition_Scratch scratch(n, L);
     Array<size_t> walk;
+    walk.reserve(L);
 
     for (size_t v = 0; v < n; ++v)
       {
@@ -1212,8 +1325,7 @@ namespace Aleph
                 for (size_t i = 0, j = walk.size() - 1; i < j; ++i, --j)
                   std::swap(walk(i), walk(j));
 
-                negative_cycles_detail::offer_simple_components(ig, walk, pos,
-                                                                st_nodes, st_in_arc, best);
+                negative_cycles_detail::offer_simple_components(ig, walk, pos, scratch, best);
               }
 
             prev.swap(cur);

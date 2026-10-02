@@ -51,49 +51,13 @@
 # include <tpl_agraph.H>
 # include <tpl_graph.H>
 
+# include "negative_cycles_test_support.H"
+
 using namespace Aleph;
+using namespace Negative_Cycles_Test_Support;
 
 namespace
 {
-  using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<long long>>;
-  using Float_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<double>>;
-  using Arr_Digraph = Array_Digraph<Graph_Anode<int>, Graph_Aarc<long long>>;
-  using UGraph = List_Graph<Graph_Node<int>, Graph_Arc<long long>>;
-  using Node = Graph::Node;
-  using Arc = Graph::Arc;
-  using Edge_Def = std::tuple<size_t, size_t, long long>;
-
-  template <class GT>
-  struct Built_Graph_T
-  {
-    GT g;
-    std::vector<typename GT::Node *> nodes;
-    std::vector<typename GT::Arc *> arcs;
-  };
-
-  template <class GT, typename Weight_Type>
-  Built_Graph_T<GT>
-  build_graph_generic(const size_t n,
-                      const std::vector<std::tuple<size_t, size_t, Weight_Type>> & edges)
-  {
-    Built_Graph_T<GT> built;
-    built.nodes.reserve(n);
-    built.arcs.reserve(edges.size());
-
-    for (size_t i = 0; i < n; ++i)
-      built.nodes.push_back(built.g.insert_node(static_cast<int>(i)));
-
-    for (const auto & [u, v, w] : edges)
-      built.arcs.push_back(built.g.insert_arc(built.nodes[u], built.nodes[v], w));
-
-    return built;
-  }
-
-  Built_Graph_T<Graph> build_graph(const size_t n, const std::vector<Edge_Def> & edges)
-  {
-    return build_graph_generic<Graph, long long>(n, edges);
-  }
-
   // The witness must be a closed walk of consecutive graph arcs, without
   // repeated nodes, whose weights sum to total_cost.
   template <class GT, typename Cost>
@@ -189,92 +153,6 @@ namespace
     return oracle;
   }
 
-  struct Hide_Arc
-  {
-    Arc * blocked = nullptr;
-
-    bool operator()(Arc * arc) const noexcept
-    {
-      return arc != blocked;
-    }
-  };
-
-  // Counts how many times the distance accessor is called.
-  struct Counting_Dist
-  {
-    using Distance_Type = long long;
-    int * calls = nullptr;
-
-    Distance_Type operator()(Arc * arc) const
-    {
-      ++*calls;
-      return arc->get_info();
-    }
-  };
-
-  // Counts how many times the filter is asked, and hides one arc.
-  struct Counting_Filter
-  {
-    int * calls = nullptr;
-    Arc * blocked = nullptr;
-
-    bool operator()(Arc * arc) const
-    {
-      ++*calls;
-      return arc != blocked;
-    }
-  };
-
-  // Rejects the arcs whose weight is not finite.
-  struct Finite_Arcs
-  {
-    bool operator()(Float_Graph::Arc * arc) const noexcept
-    {
-      return std::isfinite(arc->get_info());
-    }
-  };
-
-  // Non-null cookies and control bits planted on a graph before a search,
-  // checked afterwards: the searches must not read, use or clear them.
-  template <class GT>
-  struct Planted_State
-  {
-    std::vector<int> cells;
-
-    void plant(Built_Graph_T<GT> & built)
-    {
-      cells.assign(built.nodes.size() + built.arcs.size(), 0);
-      size_t k = 0;
-      for (size_t i = 0; i < built.nodes.size(); ++i, ++k)
-        {
-          NODE_COOKIE(built.nodes[i]) = &cells[k];
-          NODE_BITS(built.nodes[i]).set_bit(Aleph::Spanning_Tree, i % 2 == 0);
-          NODE_BITS(built.nodes[i]).set_bit(Aleph::Find_Path, true);
-        }
-      for (size_t i = 0; i < built.arcs.size(); ++i, ++k)
-        {
-          ARC_COOKIE(built.arcs[i]) = &cells[k];
-          ARC_BITS(built.arcs[i]).set_bit(Aleph::Spanning_Tree, true);
-          ARC_BITS(built.arcs[i]).set_bit(Aleph::Find_Path, i % 2 == 1);
-        }
-    }
-
-    bool intact(const Built_Graph_T<GT> & built) const
-    {
-      size_t k = 0;
-      for (size_t i = 0; i < built.nodes.size(); ++i, ++k)
-        if (NODE_COOKIE(built.nodes[i]) != &cells[k]
-            or IS_NODE_VISITED(built.nodes[i], Aleph::Spanning_Tree) != (i % 2 == 0)
-            or not IS_NODE_VISITED(built.nodes[i], Aleph::Find_Path))
-          return false;
-      for (size_t i = 0; i < built.arcs.size(); ++i, ++k)
-        if (ARC_COOKIE(built.arcs[i]) != &cells[k]
-            or not IS_ARC_VISITED(built.arcs[i], Aleph::Spanning_Tree)
-            or IS_ARC_VISITED(built.arcs[i], Aleph::Find_Path) != (i % 2 == 1))
-          return false;
-      return true;
-    }
-  };
 
   // Builds the 17-node graph of F3 (auditoria-rama-arbitrage-performance-bugs.md).
   // Arcs are inserted in the order that matters: the dynamic program keeps a
