@@ -165,6 +165,37 @@ namespace
     else
       return mean == r.minimum_mean and sum == static_cast<long double>(r.cycle_total_cost);
   }
+
+  // The witness after the fallback to Karp (integral costs): a closed walk of
+  // `g`, through arcs `sa` accepts, whose exact cost and mean are the ones
+  // reported. Its `witness_node` is the vertex Karp's walk ends at, not
+  // necessarily a node of the cycle.
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  bool witness_is_closed_walk(const GT & g, const Howard_Mean_Cycle_Result<GT, long long> & r,
+                              SA sa = SA())
+  {
+    if (not r.has_cycle or r.cycle_length == 0 or r.witness_node == nullptr
+        or r.cycle_nodes.size() != r.cycle_length + 1 or r.cycle_arcs.size() != r.cycle_length)
+      return false;
+
+    auto node_it = r.cycle_nodes.get_it();
+    typename GT::Node * first = node_it.get_curr();
+    typename GT::Node * curr = first;
+    node_it.next_ne();
+    long long sum = 0;
+    for (auto arc_it = r.cycle_arcs.get_it(); arc_it.has_curr(); arc_it.next_ne())
+      {
+        typename GT::Arc * arc = arc_it.get_curr();
+        if (not sa(arc) or g.get_src_node(arc) != curr or g.get_tgt_node(arc) != node_it.get_curr())
+          return false;
+        sum += arc->get_info();
+        curr = node_it.get_curr();
+        node_it.next_ne();
+      }
+    return curr == first and sum == r.cycle_total_cost
+           and static_cast<long double>(sum) / static_cast<long double>(r.cycle_length)
+                 == r.minimum_mean;
+  }
 } // namespace
 
 
@@ -733,6 +764,65 @@ TEST(HowardMinMeanCycleTest, ScaledBiasOverflowFallsBackToKarp)
 }
 
 
+// Audit 2026-10-02, H5 and stage C1: the fallback runs Karp on the snapshot
+// Howard already took, one strongly connected component at a time.
+
+TEST(HowardMinMeanCycleTest, FallbackDoesNotReadTheGraphAgain)
+{
+  // The graph of IterationLimitFallsBackToKarp; its last arc is hidden.
+  auto built = build_graph(4, {{0, 1, 1}, {1, 0, 1}, {0, 2, 2}, {2, 3, -9}, {3, 0, 2}, {1, 2, 5}});
+
+  int dist_calls = 0;
+  int filter_calls = 0;
+  const auto r = howard_detail::minimum_mean_cycle<Graph, Counting_Dist, Counting_Filter>(
+      built.g, Counting_Dist{&dist_calls}, Counting_Filter{&filter_calls, built.arcs[5]}, 0);
+
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_TRUE(r.used_karp);
+  EXPECT_EQ(r.minimum_mean, -5.0L / 3.0L);
+  EXPECT_TRUE(witness_is_closed_walk(built.g, r, Hide_Arc{built.arcs[5]}));
+  EXPECT_EQ(filter_calls, 6);   // once per arc
+  EXPECT_EQ(dist_calls, 5);     // once per accepted arc, fallback included
+}
+
+
+TEST(HowardMinMeanCycleTest, FallbackRunsKarpOnEachComponent)
+{
+  // Two copies of the graph above (nodes 0-3 and 4-7, same mean -5/3), a
+  // component of mean -1 (nodes 8-9), arcs between components, which lie on
+  // no cycle, and many isolated nodes. Only the cyclic core reaches Karp.
+  const size_t isolated = 2000;
+  std::vector<Edge_Def> edges;
+  for (size_t base : {0u, 4u})
+    for (const auto &[u, v, w] : std::vector<Edge_Def>{{0, 1, 1}, {1, 0, 1}, {0, 2, 2},
+                                                         {2, 3, -9}, {3, 0, 2}, {1, 2, 5}})
+      edges.emplace_back(base + u, base + v, w);
+  edges.emplace_back(8, 9, -1);
+  edges.emplace_back(9, 8, -1);
+  edges.emplace_back(9, 0, -100);   // between components
+  edges.emplace_back(3, 4, -100);
+  edges.emplace_back(10, 8, -100);  // from an isolated node
+  auto built = build_graph(10 + isolated, edges);
+
+  const auto r = howard_detail::minimum_mean_cycle<Graph, Dft_Dist<Graph>, Dft_Show_Arc<Graph>>(
+      built.g, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(), 0);
+  ASSERT_TRUE(r.has_cycle);
+  ASSERT_TRUE(r.used_karp);
+  EXPECT_EQ(r.minimum_mean, -5.0L / 3.0L);
+  EXPECT_TRUE(witness_is_closed_walk(built.g, r));
+
+  // The tie between the two copies goes to the one that comes first, as in
+  // a single table over the whole graph.
+  for (auto it = r.cycle_nodes.get_it(); it.has_curr(); it.next_ne())
+    EXPECT_LT(it.get_curr()->get_info(), 4);
+  EXPECT_LT(r.witness_node->get_info(), 4);
+
+  // The same value as Karp on the whole graph, which agrees exactly here:
+  // integral costs make both round the exact minimum mean once.
+  EXPECT_EQ(r.minimum_mean, karp_minimum_mean_cycle(built.g).minimum_mean);
+}
+
+
 // ---------------------------------------------------------------------------
 // Audit 2026-10-02, H2-H4, fixed in its stage B. Every weight below is a
 // binary fraction represented exactly, and the exact answer follows from
@@ -917,21 +1007,18 @@ TEST(HowardMinMeanCycleTest, CostsOfAboutTenToTheEighteenAgreeWithKarp)
       if (not howard.has_cycle)
         continue;
 
-      if (howard.used_karp)   // the same function ran: identical on every platform
-        ASSERT_EQ(howard.minimum_mean, karp.minimum_mean) << "trial=" << trial;
-      else
-        {
-          // Karp rounds the conversions of its sums (each below n * big in
-          // absolute value) and their difference: a few of their rounding
-          // errors, `epsilon * n * big`, bound the drift.
-          const long double tolerance =
-            Mean_Limits::digits >= 64
-              ? 0.0L
-              : 8.0L * Mean_Limits::epsilon() * static_cast<long double>(n)
-                  * static_cast<long double>(big);
-          ASSERT_LE(std::fabs(howard.minimum_mean - karp.minimum_mean), tolerance)
-            << "trial=" << trial;
-        }
+      // Karp rounds the conversions of its sums (each below n * big in
+      // absolute value) and their difference: a few of their rounding errors,
+      // `epsilon * n * big`, bound the drift. That holds after the fallback
+      // too, which runs Karp's table on each component, not on the whole
+      // graph: other sums, the same exact mean.
+      const long double tolerance =
+        Mean_Limits::digits >= 64
+          ? 0.0L
+          : 8.0L * Mean_Limits::epsilon() * static_cast<long double>(n)
+              * static_cast<long double>(big);
+      ASSERT_LE(std::fabs(howard.minimum_mean - karp.minimum_mean), tolerance)
+        << "trial=" << trial;
     }
 }
 

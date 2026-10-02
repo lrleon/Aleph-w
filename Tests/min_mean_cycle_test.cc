@@ -312,6 +312,41 @@ TEST(MinMeanCycleTest, ArcFilterChangesResult)
   EXPECT_TRUE(witness_cycle_is_consistent(built.g, filtered));
 }
 
+TEST(MinMeanCycleTest, AccessorIsReadOncePerAcceptedArc)
+{
+  // An accessor whose answers may change between calls (live prices, say)
+  // must be read once per arc: the table and the witness cost then come
+  // from the same values.
+  struct Counting_Dist
+  {
+    using Distance_Type = long long;
+    int * calls = nullptr;
+
+    Distance_Type operator()(Arc * arc) const
+    {
+      ++*calls;
+      return arc->get_info();
+    }
+  };
+
+  auto built = build_graph(4, {{0, 1, 1}, {1, 0, 1}, {1, 2, -4}, {2, 1, 1}, {2, 3, 7}});
+  const Hide_Arc filter{built.arcs[4]};
+
+  int calls = 0;
+  const auto full = karp_minimum_mean_cycle<Graph, Counting_Dist, Hide_Arc>(
+      built.g, Counting_Dist{&calls}, filter);
+  ASSERT_TRUE(full.has_cycle);
+  EXPECT_EQ(full.minimum_mean, -1.5L);
+  EXPECT_EQ(full.cycle_total_cost, -3);
+  EXPECT_EQ(calls, 4);
+
+  calls = 0;
+  const auto value = karp_minimum_mean_cycle_value<Graph, Counting_Dist, Hide_Arc>(
+      built.g, Counting_Dist{&calls}, filter);
+  EXPECT_EQ(value.minimum_mean, full.minimum_mean);
+  EXPECT_EQ(calls, 4);
+}
+
 TEST(MinMeanCycleTest, FloatingWeightsAndValueOnlyApiWork)
 {
   const std::vector<Float_Edge_Def> edges = {

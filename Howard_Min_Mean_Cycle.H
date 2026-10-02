@@ -66,12 +66,16 @@
  *  `V + 64` iterations and returns Karp's answer instead, so it never runs
  *  much longer than Karp.
  *
- *  That fallback (also taken when an integer bias overflows) runs
- *  `karp_minimum_mean_cycle()` on the whole graph `g`, not on its cyclic
- *  core: it takes Karp's `O(V E)` time and `O(V^2)` memory for all the `V`
- *  nodes of `g`, even when the core has a handful of them, and it calls the
- *  distance accessor and the arc filter again. `howard_minimum_mean_cycle_value()`
- *  then runs the full Karp, witness included. No budget limits that cost.
+ *  That fallback (also taken when an integer bias overflows) runs Karp's
+ *  algorithm, the same table as `karp_minimum_mean_cycle()`, on each strongly
+ *  connected component of the cyclic core in turn, from the snapshot already
+ *  taken: neither the distance accessor nor the arc filter is called again,
+ *  and the nodes outside the core cost nothing. It takes
+ *  @f$O(\sum_c V_c E_c)@f$ time and @f$O(\max_c V_c^2)@f$ memory, where
+ *  @f$V_c@f$ and @f$E_c@f$ count the nodes and arcs of component @f$c@f$:
+ *  Karp's `O(V E)` and `O(V^2)` only when one component holds the whole
+ *  graph. `howard_minimum_mean_cycle_value()` then runs the full Karp,
+ *  witness included. No budget limits that cost.
  *
  *  ## Arithmetic
  *
@@ -108,13 +112,19 @@
  *    around a cycle many times (and so is Howard's after the fallback,
  *    `used_karp`). When several cycles share the minimum mean the two
  *    functions may return different ones.
- *  - The distance accessor is called once per arc (unless the fallback runs).
+ *  - The distance accessor is called once per arc, also when the fallback
+ *    runs.
  *  - No value of the cost type is reserved as "infinity". (Karp reserves
  *    `numeric_limits<Cost_Type>::max()`, so an arc of that cost is ignored by
  *    it; when Howard hands a problem over to Karp it inherits that.)
  *  - It can answer where Karp throws: Karp adds up to `V` costs in its table,
  *    even on acyclic graphs, and overflows a narrow cost type that Howard,
- *    which only needs the cycle it reports, does not.
+ *    which only needs the cycle it reports, does not. The fallback adds up to
+ *    `V_c` costs of one component, so it overflows less often than Karp on
+ *    the whole graph, but not never less: its sums only follow walks inside
+ *    the component, and where an arc entering the component from outside
+ *    keeps the sums of the whole-graph table low, the component's own sums
+ *    can overflow when those would not.
  *  - `minimum_mean` is a `long double`, so with large integer costs its last
  *    bits depend on the width of that type. Howard rounds the exact quotient
  *    `cycle_total_cost / cycle_length`: once if `long double` has a 64-bit
@@ -995,6 +1005,126 @@ size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type>
   return best;
 }
 
+/** @brief Karp's algorithm on every strongly connected component of a
+ *         cyclic core, from the weights already read.
+ *
+ *  `ig` must be its own cyclic core: every arc joins two nodes of the same
+ *  strongly connected component, and every node has an arc. The nodes
+ *  reachable from a node are then exactly those of its component, so a
+ *  forward search from each node not yet labelled labels the components,
+ *  numbered by their first node. Each component gets its own Karp table,
+ *  built and freed in turn. Neither the graph, nor the distance accessor,
+ *  nor the arc filter is read again, and the nodes outside the core cost
+ *  nothing.
+ *
+ *  The answer is the component of smallest mean; a tie goes to the one
+ *  whose witness vertex comes first in `ig`, which is how a single table
+ *  over all the nodes breaks it.
+ *
+ *  @param[in] ig Cyclic core (a snapshot that is its own core included).
+ *  @param[in] adj Out-adjacency of `ig`.
+ *  @return Karp's answer, with its witness in the nodes and arcs of the graph.
+ *  @throws std::overflow_error If an integer addition overflows.
+ *  @throws std::domain_error If a floating-point accumulation is not finite.
+ *  @note @f$O(V + E + \sum_c V_c E_c)@f$ time and
+ *        @f$O(V + E + \max_c V_c^2)@f$ space, where @f$V_c@f$ and
+ *        @f$E_c@f$ are the nodes and arcs of component @f$c@f$.
+ */
+template <AlephGraph GT, typename Cost_Type>
+Min_Mean_Cycle_Result<GT, Cost_Type>
+karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig,
+                  const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj)
+{
+  using Incoming = min_mean_cycle_detail::Incoming_Arc<GT, Cost_Type>;
+  using Answer = min_mean_cycle_detail::Karp_Answer<GT, Cost_Type>;
+  constexpr size_t unset = std::numeric_limits<size_t>::max();
+  const size_t n = ig.nodes.size();
+
+  Array<size_t> comp(n, unset);
+  Array<size_t> stack;
+  size_t components = 0;
+  for (size_t root = 0; root < n; ++root)
+    {
+      if (comp(root) != unset)
+        continue;
+      comp(root) = components;
+      stack.append(root);
+      while (not stack.is_empty())
+        {
+          const size_t u = stack.get_last();
+          (void) stack.remove_last();
+          for (size_t p = adj.start(u); p < adj.start(u + 1); ++p)
+            if (comp(adj.tgt(p)) == unset)
+              {
+                comp(adj.tgt(p)) = components;
+                stack.append(adj.tgt(p));
+              }
+        }
+      ++components;
+    }
+
+  // members(c) lists the positions of component c in ascending order, and
+  // local(v) is the position of v among them.
+  Array<Array<size_t>> members;
+  members.reserve(components);
+  for (size_t c = 0; c < components; ++c)
+    members.append(Array<size_t>());
+  Array<size_t> local(n, 0);
+  for (size_t v = 0; v < n; ++v)
+    {
+      local(v) = members(comp(v)).size();
+      members(comp(v)).append(v);
+    }
+
+  Array<Array<Array<Incoming>>> incoming;
+  incoming.reserve(components);
+  for (size_t c = 0; c < components; ++c)
+    {
+      incoming.append(Array<Array<Incoming>>());
+      incoming(c).reserve(members(c).size());
+      for (size_t i = 0; i < members(c).size(); ++i)
+        incoming(c).append(Array<Incoming>());
+    }
+  for (size_t a = 0; a < ig.arcs.size(); ++a)   // in snapshot order, as Karp reads them
+    {
+      const auto &rec = ig.arcs(a);
+      incoming(comp(rec.tgt))(local(rec.tgt)).append(Incoming{local(rec.src), rec.arc, rec.weight});
+    }
+
+  Answer best;
+  size_t best_comp = unset;
+  for (size_t c = 0; c < components; ++c)
+    {
+      Answer answer =
+        min_mean_cycle_detail::karp_solve<true, GT, Cost_Type>(incoming(c), "howard_minimum_mean_cycle");
+      if (not answer.has_cycle)
+        continue;
+      if (best_comp == unset or answer.minimum_mean < best.minimum_mean or
+          (answer.minimum_mean == best.minimum_mean and
+           members(c)(answer.witness) < members(best_comp)(best.witness)))
+        {
+          best = std::move(answer);
+          best_comp = c;
+        }
+    }
+
+  Min_Mean_Cycle_Result<GT, Cost_Type> result;
+  if (best_comp == unset)
+    return result;
+
+  const Array<size_t> &where = members(best_comp);
+  result.has_cycle = true;
+  result.minimum_mean = best.minimum_mean;
+  result.witness_node = ig.nodes(where(best.witness));
+  result.cycle_total_cost = best.cycle_total_cost;
+  result.cycle_length = best.cycle_arcs.size();
+  for (size_t i = 0; i < best.cycle_nodes.size(); ++i)
+    result.cycle_nodes.append(ig.nodes(where(best.cycle_nodes(i))));
+  for (size_t i = 0; i < best.cycle_arcs.size(); ++i)
+    result.cycle_arcs.append(best.cycle_arcs(i));
+  return result;
+}
+
 /** @brief Body of `howard_minimum_mean_cycle()` with an explicit iteration
  *         limit, so that the fallback to Karp can be exercised.
  *  @param[in] g Graph (must be directed).
@@ -1043,8 +1173,7 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
   const auto use_karp = [&](const size_t done)
     {
       Result karp;
-      static_cast<Min_Mean_Cycle_Result<GT, Cost_Type> &>(karp) =
-        karp_minimum_mean_cycle<GT, Distance, SA>(g, distance, sa);
+      static_cast<Min_Mean_Cycle_Result<GT, Cost_Type> &>(karp) = karp_by_component(ig, adj);
       karp.iterations = done;
       karp.used_karp = true;
       karp.numeric_quality = Cycle_Numeric_Quality::Rounded;   // Karp compares means in long double
@@ -1149,9 +1278,9 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
  *  @return A `Howard_Mean_Cycle_Result`. `iterations` counts the policy
  *          improvements; `used_karp` is true if the iteration limit
  *          (`V + 64`) or the range of the scaled integer bias was exceeded and
- *          Karp's algorithm computed the answer (it then calls the distance
- *          accessor again, on the whole graph); `numeric_quality` says whether
- *          the means were compared exactly.
+ *          Karp's algorithm computed the answer (on each component of the
+ *          snapshot, see the file documentation); `numeric_quality` says
+ *          whether the means were compared exactly.
  *
  *  @throws std::domain_error If `g` is undirected, or a floating weight (or
  *          an accumulated cost) is not finite.
@@ -1160,7 +1289,8 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
  *  @note Complexity: `O(iterations * (V + E))` time and `O(V + E)` space, plus
  *        an expected `O(V + E)` for the snapshot of the graph; the distance
  *        accessor is called once per arc. If the fallback runs, add Karp's
- *        `O(V E)` time and `O(V^2)` space over the whole graph.
+ *        `O(V_c E_c)` time for every strongly connected component of the
+ *        cyclic core, and `O(V_c^2)` space for the largest one.
  *
  *  @see karp_minimum_mean_cycle() The dynamic-programming alternative, with a
  *       worst-case bound and `O(V^2)` space.
