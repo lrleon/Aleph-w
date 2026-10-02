@@ -108,9 +108,9 @@
  *
  *  ## Differences from `karp_minimum_mean_cycle()`
  *
- *  - The witness is a *simple* cycle; Karp's is a closed walk that can go
- *    around a cycle many times (and so is Howard's after the fallback,
- *    `used_karp`). When several cycles share the minimum mean the two
+ *  - Both witnesses are simple cycles. Howard's `witness_node` is the first
+ *    node of its cycle, also after the fallback; Karp's is the vertex its
+ *    walk ends at. When several cycles share the minimum mean the two
  *    functions may return different ones.
  *  - The distance accessor is called once per arc, also when the fallback
  *    runs.
@@ -173,8 +173,8 @@ namespace Aleph {
  *  It is a `Min_Mean_Cycle_Result` (the same fields, so it can replace the
  *  result of `karp_minimum_mean_cycle()`) plus how the answer was obtained.
  *  `cycle_nodes` holds a *simple* cycle, the first node repeated at the end,
- *  unless `used_karp` is true: it then holds Karp's witness, a closed walk
- *  that can go around a cycle more than once.
+ *  also when `used_karp` is true: Karp's walk is then decomposed into simple
+ *  cycles (see `karp_minimum_mean_cycle()`).
  *
  *  @tparam GT Graph type.
  *  @tparam Cost_Type Arc weight type returned by the distance accessor.
@@ -1120,12 +1120,27 @@ karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig
   if (best_comp == unset)
     return result;
 
+  // The witness is a simple cycle (see karp_solve()). As in Howard's own
+  // answer, `witness_node` is its first node and a floating-point cost is the
+  // exact sum of its weights, rounded once. The mean stays Karp's value.
   const Array<size_t> &where = members(best_comp);
   result.has_cycle = true;
   result.minimum_mean = best.minimum_mean;
-  result.witness_node = ig.nodes(where(best.witness));
-  result.cycle_total_cost = best.cycle_total_cost;
   result.cycle_length = best.cycle_arcs.size();
+  if (best.cycle_nodes.is_empty())   // no witness extracted: Karp's vertex
+    result.witness_node = ig.nodes(where(best.witness));
+  else
+    result.witness_node = ig.nodes(where(best.cycle_nodes(0)));
+  if constexpr (std::is_floating_point_v<Cost_Type>)
+    {
+      negative_cycles_detail::Exact_Sum<Cost_Type> sum;
+      for (size_t i = 0; i < best.cycle_weights.size(); ++i)
+        ah_domain_error_if(not sum.add(best.cycle_weights(i)))
+          << "howard_minimum_mean_cycle(): cycle cost became non-finite";
+      result.cycle_total_cost = sum.rounded();
+    }
+  else
+    result.cycle_total_cost = best.cycle_total_cost;
   for (size_t i = 0; i < best.cycle_nodes.size(); ++i)
     result.cycle_nodes.append(ig.nodes(where(best.cycle_nodes(i))));
   for (size_t i = 0; i < best.cycle_arcs.size(); ++i)
@@ -1270,7 +1285,9 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
  *    not, or after the fallback to Karp, the cycle was chosen with rounded
  *    values (`Rounded`) and can be worse than the optimum when weights cancel
  *    across many orders of magnitude (see the file documentation). After the
- *    fallback the witness is Karp's closed walk.
+ *    fallback the witness is still a simple cycle with the exact sum of its
+ *    weights (rounded once for floating-point costs), and `minimum_mean` is
+ *    Karp's value, which the witness attains up to Karp's rounding.
  *
  *  The witness can differ from the one of `karp_minimum_mean_cycle()` when
  *  several cycles attain the minimum; the value is the same.

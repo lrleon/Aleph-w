@@ -165,37 +165,6 @@ namespace
     else
       return mean == r.minimum_mean and sum == static_cast<long double>(r.cycle_total_cost);
   }
-
-  // The witness after the fallback to Karp (integral costs): a closed walk of
-  // `g`, through arcs `sa` accepts, whose exact cost and mean are the ones
-  // reported. Its `witness_node` is the vertex Karp's walk ends at, not
-  // necessarily a node of the cycle.
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  bool witness_is_closed_walk(const GT & g, const Howard_Mean_Cycle_Result<GT, long long> & r,
-                              SA sa = SA())
-  {
-    if (not r.has_cycle or r.cycle_length == 0 or r.witness_node == nullptr
-        or r.cycle_nodes.size() != r.cycle_length + 1 or r.cycle_arcs.size() != r.cycle_length)
-      return false;
-
-    auto node_it = r.cycle_nodes.get_it();
-    typename GT::Node * first = node_it.get_curr();
-    typename GT::Node * curr = first;
-    node_it.next_ne();
-    long long sum = 0;
-    for (auto arc_it = r.cycle_arcs.get_it(); arc_it.has_curr(); arc_it.next_ne())
-      {
-        typename GT::Arc * arc = arc_it.get_curr();
-        if (not sa(arc) or g.get_src_node(arc) != curr or g.get_tgt_node(arc) != node_it.get_curr())
-          return false;
-        sum += arc->get_info();
-        curr = node_it.get_curr();
-        node_it.next_ne();
-      }
-    return curr == first and sum == r.cycle_total_cost
-           and static_cast<long double>(sum) / static_cast<long double>(r.cycle_length)
-                 == r.minimum_mean;
-  }
 } // namespace
 
 
@@ -784,7 +753,7 @@ TEST(HowardMinMeanCycleTest, FallbackDoesNotReadTheGraphAgain)
   ASSERT_TRUE(r.has_cycle);
   EXPECT_TRUE(r.used_karp);
   EXPECT_EQ(r.minimum_mean, -5.0L / 3.0L);
-  EXPECT_TRUE(witness_is_closed_walk(built.g, r, Hide_Arc{built.arcs[5]}));
+  EXPECT_TRUE(witness_is_simple_cycle(built.g, r));
   EXPECT_EQ(filter_calls, 6);   // once per arc
   EXPECT_EQ(dist_calls, 5);     // once per accepted arc, fallback included
 }
@@ -813,7 +782,7 @@ TEST(HowardMinMeanCycleTest, FallbackRunsKarpOnEachComponent)
   ASSERT_TRUE(r.has_cycle);
   ASSERT_TRUE(r.used_karp);
   EXPECT_EQ(r.minimum_mean, -5.0L / 3.0L);
-  EXPECT_TRUE(witness_is_closed_walk(built.g, r));
+  EXPECT_TRUE(witness_is_simple_cycle(built.g, r));
 
   // The tie between the two copies goes to the one that comes first, as in
   // a single table over the whole graph.
@@ -824,6 +793,56 @@ TEST(HowardMinMeanCycleTest, FallbackRunsKarpOnEachComponent)
   // The same value as Karp on the whole graph, which agrees exactly here:
   // integral costs make both round the exact minimum mean once.
   EXPECT_EQ(r.minimum_mean, karp_minimum_mean_cycle(built.g).minimum_mean);
+}
+
+
+TEST(HowardMinMeanCycleTest, EveryFallbackPassesTheChecksOfHowardsOwnAnswer)
+{
+  // Audit 2026-10-02, C4: after the fallback the witness is a simple cycle,
+  // `witness_node` is its first node and its cost is that of its arcs, as in
+  // Howard's own answer. Before, it was Karp's closed walk, not simple in a
+  // third of the floating-point cases.
+  std::mt19937_64 rng(0xC4);
+  size_t fallbacks = 0;
+  for (size_t trial = 0; trial < 3000; ++trial)
+    {
+      const size_t n = 2 + rng() % 8;
+      const size_t m = n + rng() % (2 * n);
+      std::vector<Edge_Def> iedges;
+      std::vector<std::tuple<size_t, size_t, double>> fedges;
+      for (size_t i = 0; i < m; ++i)
+        {
+          const size_t u = rng() % n;
+          const size_t v = rng() % n;
+          const long long w = static_cast<long long>(rng() % 41) - 20;
+          const double unit = std::uniform_real_distribution<double>(-1.0, 1.0)(rng);
+          const int exponent = static_cast<int>(rng() % 40) - 20;
+          iedges.emplace_back(u, v, w);
+          fedges.emplace_back(u, v, std::ldexp(unit, exponent));
+        }
+
+      auto ib = build_graph(n, iedges);
+      const auto ir = howard_detail::minimum_mean_cycle<Graph, Dft_Dist<Graph>, Dft_Show_Arc<Graph>>(
+          ib.g, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(), 0);
+      if (ir.used_karp)
+        {
+          ++fallbacks;
+          ASSERT_TRUE(witness_is_simple_cycle(ib.g, ir)) << "long long, trial=" << trial;
+          ASSERT_EQ(ir.minimum_mean, howard_minimum_mean_cycle(ib.g).minimum_mean) << "trial=" << trial;
+        }
+
+      auto fb = build_graph_generic<Float_Graph, double>(n, fedges);
+      const auto fr =
+        howard_detail::minimum_mean_cycle<Float_Graph, Dft_Dist<Float_Graph>, Dft_Show_Arc<Float_Graph>>(
+          fb.g, Dft_Dist<Float_Graph>(), Dft_Show_Arc<Float_Graph>(), 0);
+      if (fr.used_karp)
+        {
+          ++fallbacks;
+          ASSERT_TRUE(witness_is_simple_cycle(fb.g, fr)) << "double, trial=" << trial;
+          ASSERT_EQ(fr.numeric_quality, Cycle_Numeric_Quality::Rounded);
+        }
+    }
+  EXPECT_GT(fallbacks, 1000u);   // the iteration limit 0 forces most of them
 }
 
 
@@ -852,7 +871,7 @@ TEST(HowardMinMeanCycleTest, FallbackSumsInsideAComponentDoNotOverflow)
       built.g, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(), 0);
   ASSERT_TRUE(forced.has_cycle);
   ASSERT_TRUE(forced.used_karp);
-  EXPECT_TRUE(witness_is_closed_walk(built.g, forced));
+  EXPECT_TRUE(witness_is_simple_cycle(built.g, forced, false));   // sums beyond long double's mantissa
   EXPECT_EQ(forced.minimum_mean, exact.minimum_mean);
   EXPECT_EQ(forced.minimum_mean, karp_minimum_mean_cycle(built.g).minimum_mean);
 # endif

@@ -2457,9 +2457,10 @@ The result reports:
 - witness walk information (`cycle_nodes`, `cycle_arcs`, `cycle_total_cost`, `cycle_length`)
 
 Witness semantics:
-- `cycle_nodes` is a closed walk (first node repeated at the end).
-- In tie-heavy graphs it may contain repeated internal vertices; it is a valid
-  witness of the minimum mean value, not necessarily a canonical simple cycle.
+- `cycle_nodes` is a simple cycle (first node repeated at the end): the walk
+  of the table is decomposed into simple cycles and the one of smallest mean is
+  reported. With floating-point costs it attains `minimum_mean` up to rounding.
+- `witness_node` is the vertex that walk ends at, not necessarily on the cycle.
 
 ```cpp
 #include <tpl_graph.H>
@@ -2495,7 +2496,7 @@ plus `iterations` and `used_karp`, so it can replace Karp's in client code.
 | Time | `O(VE)` worst case | `O(V + E)` per iteration; no polynomial bound on the iterations, typically 6 to 25 in the tests |
 | Memory | `O(V^2)` | `O(V + E)` |
 | Integer costs | exact | exact (reduced fractions) |
-| Witness | closed walk, may repeat a cycle | simple cycle |
+| Witness | simple cycle | simple cycle |
 
 On the market graphs of `bench_negative_cycles` (hubs plus random pairs) it takes 0.16 ms
 against 3.3 ms for Karp with 300 assets, and 0.6 ms against 41 ms with 1000, using 5 to 9

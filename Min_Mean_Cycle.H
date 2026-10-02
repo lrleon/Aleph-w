@@ -112,12 +112,12 @@ namespace Aleph
   {
     bool has_cycle = false; ///< True if at least one directed cycle exists.
     long double minimum_mean = std::numeric_limits<long double>::infinity();
-    typename GT::Node * witness_node = nullptr; ///< Vertex used in Karp witness extraction.
+    typename GT::Node * witness_node = nullptr; ///< Vertex Karp's walk ends at (not necessarily on the cycle).
 
     Cost_Type cycle_total_cost = Cost_Type{0}; ///< Weight sum of witness cycle.
     size_t cycle_length = 0; ///< Number of arcs in witness cycle.
 
-    DynList<typename GT::Node *> cycle_nodes; ///< Closed witness walk (first node repeated at end).
+    DynList<typename GT::Node *> cycle_nodes; ///< Witness simple cycle (first node repeated at end).
     DynList<typename GT::Arc *> cycle_arcs; ///< Witness arcs aligned with `cycle_nodes`.
   };
 
@@ -241,9 +241,36 @@ namespace Aleph
       long double minimum_mean = std::numeric_limits<long double>::infinity();
       size_t witness = 0;       ///< Position of the vertex the walk ends at (if `has_cycle`).
       Cost_Type cycle_total_cost = Cost_Type{0};   ///< Weight sum of the witness.
-      Array<size_t> cycle_nodes;   ///< Positions, the first one repeated at the end; may be empty.
+      Array<size_t> cycle_nodes;   ///< A simple cycle, by positions, the first one repeated at the end; may be empty.
       Array<typename GT::Arc *> cycle_arcs;   ///< Witness arcs, aligned with `cycle_nodes`.
+      Array<Cost_Type> cycle_weights;         ///< Their weights, as read.
     };
+
+
+    /** @brief Whether the mean `c1 / l1` is smaller than `c2 / l2`.
+     *
+     *  Integral sums are compared exactly, cross-multiplied in 128 bits
+     *  (`ALEPH_KARP_INT128`): they are below `n * 2^63` and the lengths at
+     *  most `n < 2^32`, so the products fit. Otherwise the two quotients are
+     *  compared in `long double`.
+     *
+     *  @param[in] c1 Total cost of the first cycle.
+     *  @param[in] l1 Its length, positive.
+     *  @param[in] c2 Total cost of the second cycle.
+     *  @param[in] l2 Its length, positive.
+     *  @return True if the first mean is smaller.
+     */
+    template <typename Acc>
+    [[nodiscard]] bool mean_less(const Acc c1, const size_t l1, const Acc c2, const size_t l2)
+    {
+# if ALEPH_KARP_INT128
+      if constexpr (not std::is_floating_point_v<Acc>)
+        return static_cast<karp_int128_t>(c1) * static_cast<karp_int128_t>(l2)
+               < static_cast<karp_int128_t>(c2) * static_cast<karp_int128_t>(l1);
+# endif
+      return static_cast<long double>(c1) / static_cast<long double>(l1)
+             < static_cast<long double>(c2) / static_cast<long double>(l2);
+    }
 
 
     /** @brief Karp's table, with sums kept in `Acc`; see `karp_solve()`.
@@ -429,52 +456,76 @@ namespace Aleph
           for (size_t i = reverse_walk_arcs.size(); i > 0; --i)
             walk_arcs.append(reverse_walk_arcs[i - 1]);
 
-          const size_t invalid_pos = std::numeric_limits<size_t>::max();
-          Array<size_t> first_pos(n, invalid_pos);
+          // Decompose the walk into simple cycles with a stack: when the walk
+          // reaches a node already on the stack, the nodes above it close a
+          // simple cycle, which is popped. The walk is then a simple path to
+          // the chosen vertex plus those cycles, and the argument of Karp's
+          // theorem shows that in exact arithmetic every one of them has the
+          // minimum mean, so the first one would do. But the vertex was chosen
+          // by rounded comparisons, and floating-point tables are rounded, so
+          // the best of them is kept: compared exactly for integral costs
+          // (cross-multiplied means), in long double otherwise.
+          Array<size_t> stack_nodes;
+          stack_nodes.reserve(n + 1);
+          Array<const Incoming *> stack_arcs;   // stack_arcs[t] leaves stack_nodes[t]
+          stack_arcs.reserve(n);
+          Array<size_t> depth(n, none);          // position of a node on the stack
 
           bool found_cycle = false;
-          size_t best_start = 0;
-          size_t best_end = 0;
           Acc best_cycle_cost = Acc{0};
-          long double best_cycle_mean = ld_inf;
+          size_t best_length = 0;
+          Array<size_t> best_nodes;
+          Array<const Incoming *> best_arcs;
 
-          for (size_t i = 0; i < walk_nodes.size(); ++i)
+          stack_nodes.append(walk_nodes[0]);
+          depth[walk_nodes[0]] = 0;
+          for (size_t i = 0; i < walk_arcs.size(); ++i)
             {
-              const size_t node_idx = walk_nodes[i];
-              ah_runtime_error_if(node_idx >= n)
-                << fn << "(): invalid witness node index";
-
-              const size_t j = first_pos[node_idx];
-              if (j == invalid_pos)
+              const size_t x = walk_nodes[i + 1];
+              ah_runtime_error_if(x >= n) << fn << "(): invalid witness node index";
+              stack_arcs.append(walk_arcs[i]);
+              if (depth[x] == none)
                 {
-                  first_pos[node_idx] = i;
+                  depth[x] = stack_nodes.size();
+                  stack_nodes.append(x);
                   continue;
                 }
 
-              const size_t len = i - j;
-              if (len == 0)
-                continue;
-
+              const size_t j = depth[x];   // the cycle is stack_nodes[j..] back to x
+              const size_t len = stack_arcs.size() - j;
               Acc cycle_cost = Acc{0};
-              for (size_t p = j; p < i; ++p)
+              for (size_t t = j; t < stack_arcs.size(); ++t)
                 {
-                  cycle_cost = add(cycle_cost, walk_arcs[p]->weight);
+                  cycle_cost = add(cycle_cost, stack_arcs[t]->weight);
                   validate_finite_accumulator(
                       cycle_cost,
                       "Karp minimum mean cycle witness accumulation became non-finite");
                 }
 
-              const long double cycle_mean = static_cast<long double>(cycle_cost)
-                                             / static_cast<long double>(len);
-
-              if (not found_cycle or cycle_mean < best_cycle_mean)
+              if (not found_cycle or mean_less(cycle_cost, len, best_cycle_cost, best_length))
                 {
                   found_cycle = true;
-                  best_cycle_mean = cycle_mean;
                   best_cycle_cost = cycle_cost;
-                  best_start = j;
-                  best_end = i;
+                  best_length = len;
+                  best_nodes = Array<size_t>();
+                  best_arcs = Array<const Incoming *>();
+                  best_nodes.reserve(len + 1);
+                  best_arcs.reserve(len);
+                  for (size_t t = j; t < stack_arcs.size(); ++t)
+                    {
+                      best_nodes.append(stack_nodes[t]);
+                      best_arcs.append(stack_arcs[t]);
+                    }
+                  best_nodes.append(x);
                 }
+
+              while (stack_nodes.size() > j + 1)
+                {
+                  depth[stack_nodes.get_last()] = none;
+                  (void) stack_nodes.remove_last();
+                }
+              while (stack_arcs.size() > j)
+                (void) stack_arcs.remove_last();
             }
 
           if (not found_cycle)
@@ -486,13 +537,14 @@ namespace Aleph
                 or best_cycle_cost < static_cast<Acc>(std::numeric_limits<Cost_Type>::lowest()))
               << fn << "(): the cost of the witness cycle does not fit the cost type";
           result.cycle_total_cost = static_cast<Cost_Type>(best_cycle_cost);
-          result.cycle_nodes.reserve(best_end - best_start + 1);
-          for (size_t p = best_start; p <= best_end; ++p)
-            result.cycle_nodes.append(walk_nodes[p]);
-
-          result.cycle_arcs.reserve(best_end - best_start);
-          for (size_t p = best_start; p < best_end; ++p)
-            result.cycle_arcs.append(walk_arcs[p]->arc);
+          result.cycle_nodes = std::move(best_nodes);
+          result.cycle_arcs.reserve(best_arcs.size());
+          result.cycle_weights.reserve(best_arcs.size());
+          for (size_t t = 0; t < best_arcs.size(); ++t)
+            {
+              result.cycle_arcs.append(best_arcs[t]->arc);
+              result.cycle_weights.append(best_arcs[t]->weight);
+            }
         }
 
       return result;
@@ -582,8 +634,14 @@ namespace Aleph
    *
    *  Behavior:
    *  - If the digraph has no directed cycle, `has_cycle = false`.
-   *  - Otherwise returns `minimum_mean` and a witness cycle extracted from
-   *    predecessor chains.
+   *  - Otherwise returns `minimum_mean` and a witness: a *simple* cycle. The
+   *    predecessors of the table give a walk of `V` arcs to the vertex
+   *    `witness_node`; it is decomposed into simple cycles and the one of
+   *    smallest mean is reported (means compared exactly for integral costs
+   *    where 128-bit integers exist, in `long double` otherwise). In exact
+   *    arithmetic every one of them has the minimum mean; with floating-point
+   *    costs the reported one attains `minimum_mean` up to rounding, and its
+   *    `cycle_total_cost` is the sum of its weights in arc order.
    *
    *  @tparam GT Directed Aleph graph type.
    *  @tparam Distance Arc cost accessor (`Distance::Distance_Type` required).

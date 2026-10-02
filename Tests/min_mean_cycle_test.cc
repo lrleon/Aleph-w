@@ -347,6 +347,99 @@ TEST(MinMeanCycleTest, AccessorIsReadOncePerAcceptedArc)
   EXPECT_EQ(calls, 4);
 }
 
+TEST(MinMeanCycleTest, WitnessMeansAreComparedExactly)
+{
+  // The choice among the simple cycles of Karp's walk. In exact arithmetic
+  // they all have the minimum mean, so no graph seen so far depends on it;
+  // it is checked here directly.
+  using min_mean_cycle_detail::mean_less;
+  EXPECT_TRUE(mean_less(-3LL, 2, -2LL, 2));
+  EXPECT_FALSE(mean_less(-3LL, 3, -2LL, 2));    // -1 against -1
+  EXPECT_TRUE(mean_less(-5LL, 3, -3LL, 2));     // -5/3 < -3/2
+  EXPECT_FALSE(mean_less(-3LL, 2, -5LL, 3));
+  EXPECT_TRUE(mean_less(1LL, 3, 1LL, 2));
+  EXPECT_FALSE(mean_less(2LL, 6, 1LL, 3));      // equal, not smaller
+  EXPECT_TRUE(mean_less(-1.5, 1, -1.0, 1));
+# if ALEPH_KARP_INT128
+  // Means 1 apart near 2^80, which long double cannot tell apart there.
+  using min_mean_cycle_detail::karp_int128_t;
+  const karp_int128_t big = static_cast<karp_int128_t>(1) << 80;
+  EXPECT_EQ(static_cast<long double>(big - 1), static_cast<long double>(big));
+  EXPECT_TRUE(mean_less(3 * big - 3, 3, big, 1));
+  EXPECT_FALSE(mean_less(big, 1, 3 * big - 3, 3));
+# endif
+}
+
+TEST(MinMeanCycleTest, WitnessIsASimpleCycle)
+{
+  // Audit 2026-10-02, C4. The witness used to be a closed piece of Karp's
+  // walk, chosen by its rounded mean: with floating-point weights rounding
+  // often favoured a piece that went around a cycle twice (a third of these
+  // graphs). Now it is always a simple cycle, of the reported cost.
+  const auto check = [](const auto & g, const auto & r, const bool exact) -> ::testing::AssertionResult
+  {
+    using GT = std::decay_t<decltype(g)>;
+    if (r.cycle_length == 0 or r.cycle_nodes.size() != r.cycle_length + 1
+        or r.cycle_arcs.size() != r.cycle_length)
+      return ::testing::AssertionFailure() << "sizes";
+    std::vector<typename GT::Node *> nodes;
+    for (auto it = r.cycle_nodes.get_it(); it.has_curr(); it.next_ne())
+      nodes.push_back(it.get_curr());
+    if (nodes.front() != nodes.back())
+      return ::testing::AssertionFailure() << "not closed";
+    for (size_t i = 0; i + 1 < nodes.size(); ++i)
+      for (size_t j = i + 1; j + 1 < nodes.size(); ++j)
+        if (nodes[i] == nodes[j])
+          return ::testing::AssertionFailure() << "node repeated: not a simple cycle";
+    long double sum = 0;
+    size_t i = 0;
+    for (auto it = r.cycle_arcs.get_it(); it.has_curr(); it.next_ne(), ++i)
+      {
+        auto * arc = it.get_curr();
+        if (g.get_src_node(arc) != nodes[i] or g.get_tgt_node(arc) != nodes[i + 1])
+          return ::testing::AssertionFailure() << "arcs do not follow the nodes";
+        sum += static_cast<long double>(arc->get_info());
+      }
+    const long double cost = static_cast<long double>(r.cycle_total_cost);
+    const long double mean = cost / static_cast<long double>(r.cycle_length);
+    const long double tol = exact ? 0.0L : 1e-9L * (1.0L + std::fabs(sum));
+    if (std::fabs(sum - cost) > tol)
+      return ::testing::AssertionFailure() << "cost " << cost << " but arcs add up to " << sum;
+    if (std::fabs(mean - r.minimum_mean) > (exact ? 0.0L : 1e-9L * (1.0L + std::fabs(mean))))
+      return ::testing::AssertionFailure() << "witness mean " << mean << ", reported " << r.minimum_mean;
+    return ::testing::AssertionSuccess();
+  };
+
+  std::mt19937_64 rng(20261002);
+  for (size_t trial = 0; trial < 3000; ++trial)
+    {
+      const size_t n = 1 + rng() % 9;
+      const size_t m = rng() % (3 * n + 1);
+      std::vector<Float_Edge_Def> fedges;
+      std::vector<Edge_Def> iedges;
+      for (size_t i = 0; i < m; ++i)
+        {
+          const size_t u = rng() % n;
+          const size_t v = rng() % n;
+          const double unit = std::uniform_real_distribution<double>(-1.0, 1.0)(rng);
+          const int exponent = static_cast<int>(rng() % 40) - 20;
+          const long long w = static_cast<long long>(rng() % 41) - 20;
+          fedges.emplace_back(u, v, std::ldexp(unit, exponent));
+          iedges.emplace_back(u, v, w);
+        }
+
+      auto fg = build_float_graph(n, fedges);
+      const auto fr = karp_minimum_mean_cycle(fg.g);
+      if (fr.has_cycle)
+        ASSERT_TRUE(check(fg.g, fr, false)) << "double, trial=" << trial;
+
+      auto ig = build_graph(n, iedges);
+      const auto ir = karp_minimum_mean_cycle(ig.g);
+      if (ir.has_cycle)
+        ASSERT_TRUE(check(ig.g, ir, true)) << "long long, trial=" << trial;
+    }
+}
+
 TEST(MinMeanCycleTest, FloatingWeightsAndValueOnlyApiWork)
 {
   const std::vector<Float_Edge_Def> edges = {

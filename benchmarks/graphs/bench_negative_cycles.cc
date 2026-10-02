@@ -86,11 +86,10 @@
  * the cycle of minimum *mean* weight, not the cheapest one. Howard is checked
  * for a simple witness and, where Karp fits in memory, for Karp's mean; its
  * `cert` column shows the policy iterations (`it=7`) or `karp` if the answer
- * had to come from Karp. Karp's witness is a closed *walk* that may go
- * around a cycle many times (594 arcs on `market-isolated-nodes`), as
- * documented in Min_Mean_Cycle.H, so its validator checks that it is closed,
- * made of consecutive arcs and has the reported total, length and mean, but
- * not that it is simple.
+ * had to come from Karp. Both witnesses are simple cycles (Karp's walk is
+ * decomposed into simple cycles, see Min_Mean_Cycle.H), and both validators
+ * check that, along with consecutive arcs and the reported total, length and
+ * mean.
  *
  * @par Reusable-topology estimate
  * Every instance also prints a block that estimates what `find_disjoint(g, 1)`
@@ -719,9 +718,9 @@ Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
   return o;
 }
 
-// Karp's minimum mean cycle: the witness is a closed *walk* (it may go around
-// a cycle many times, as documented in Min_Mean_Cycle.H), made of consecutive
-// arcs of the graph, whose total, length and mean agree with the result.
+// Karp's minimum mean cycle: the witness is a simple cycle (see
+// Min_Mean_Cycle.H) of consecutive arcs of the graph, whose total, length and
+// mean agree with the result.
 Outcome check_result(const Graph & g, const Min_Mean_Cycle_Result<Graph, double> & r,
                      const Limits &)
 {
@@ -734,7 +733,7 @@ Outcome check_result(const Graph & g, const Min_Mean_Cycle_Result<Graph, double>
   const auto nodes = to_array(r.cycle_nodes);
   const auto arcs = to_array(r.cycle_arcs);
   long double cost = 0;
-  if (const char * why = check_cycle(g, nodes, arcs, cost, false))
+  if (const char * why = check_cycle(g, nodes, arcs, cost))
     invalid(o, why);
   else if (arcs.size() != r.cycle_length)
     invalid(o, "cycle_length differs from the arc count");

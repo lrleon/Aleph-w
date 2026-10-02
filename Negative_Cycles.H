@@ -211,8 +211,7 @@ namespace Aleph
         very different magnitudes cancel, a worse cycle can be chosen;
         `Bounded_Cycle_Result` bounds how much worse with `optimality_gap`.
         The reported cost is still the exact sum of the weights of the cycle,
-        rounded once, so its sign is exact (except after Howard's fallback,
-        which reports Karp's sum). */
+        rounded once, so its sign is exact. */
     Rounded
   };
 
@@ -226,7 +225,7 @@ namespace Aleph
   struct Negative_Cycle_Item
   {
     Path<GT> cycle;                        ///< Closed path: `is_cycle()` holds, every arc is a graph arc.
-    Cost_Type total_cost = Cost_Type{0};   ///< Sum of the arc weights, negative; compensated sum for floating-point costs.
+    Cost_Type total_cost = Cost_Type{0};   ///< Sum of the arc weights, negative; for floating-point costs the exact sum, rounded once.
     size_t length = 0;                     ///< Number of arcs.
   };
 
@@ -297,7 +296,7 @@ namespace Aleph
     /// Whether the sums and comparisons behind this result were exact.
     Cycle_Numeric_Quality numeric_quality = Cycle_Numeric_Quality::Exact;
 
-    Cost_Type total_cost = Cost_Type{0};       ///< Sum of the arc weights of the reported cycle (compensated sum for floating-point costs, which can differ from the plain sum the search ranked it by).
+    Cost_Type total_cost = Cost_Type{0};       ///< Sum of the arc weights of the reported cycle (for floating-point costs the exact sum, rounded once, which can differ from the plain rounded sums the dynamic program compared).
     size_t length = 0;                         ///< Number of arcs of the reported cycle.
     DynList<typename GT::Node *> cycle_nodes;  ///< Closed walk, first node repeated at the end.
     DynList<typename GT::Arc *> cycle_arcs;    ///< Arcs aligned with `cycle_nodes`.
@@ -544,12 +543,15 @@ namespace Aleph
       }
 
       /// The smallest number of `T` not below the value, or a slightly larger
-      /// one; checked exactly, so it is a rigorous upper bound.
+      /// one; checked exactly, so it is a rigorous upper bound. A value above
+      /// the largest finite `T` gives infinity.
       [[nodiscard]] T upper()
       {
         T b = rounded();
         for (;;)
           {
+            if (b == std::numeric_limits<T>::infinity())
+              return b;   // no finite bound; -b would not be finite either
             size_t n = n_;   // value - b, computed exactly in g_
             for (size_t i = 0; i < n_; ++i)
               put(g_, i, h_(i));

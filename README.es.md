@@ -2248,9 +2248,10 @@ El resultado reporta:
 - información del witness walk (`cycle_nodes`, `cycle_arcs`, `cycle_total_cost`, `cycle_length`)
 
 Semántica del witness:
-- `cycle_nodes` es un recorrido cerrado (el primer nodo se repite al final).
-- En grafos con muchos empates puede contener vértices internos repetidos; es un witness válido
-  del valor mínimo de la media, no necesariamente un ciclo simple canónico.
+- `cycle_nodes` es un ciclo simple (el primer nodo se repite al final): el recorrido de la tabla
+  se descompone en ciclos simples y se informa el de menor media. Con costos de coma flotante
+  alcanza `minimum_mean` salvo redondeo.
+- `witness_node` es el vértice en que termina ese recorrido, no necesariamente uno del ciclo.
 
 ```cpp
 #include <tpl_graph.H>
@@ -2286,7 +2287,7 @@ int main() {
 | Tiempo | `O(VE)` en el peor caso | `O(V + E)` por iteración; sin cota polinómica de iteraciones, típicamente de 6 a 25 en las pruebas |
 | Memoria | `O(V^2)` | `O(V + E)` |
 | Costos enteros | exacto | exacto (fracciones reducidas) |
-| Testigo | recorrido cerrado, puede repetir un ciclo | ciclo simple |
+| Testigo | ciclo simple | ciclo simple |
 
 En los grafos de mercado de `bench_negative_cycles` (hubs más pares aleatorios) tarda 0.16 ms
 frente a 3.3 ms de Karp con 300 activos, y 0.6 ms frente a 41 ms con 1000, con 5 a 9 veces menos

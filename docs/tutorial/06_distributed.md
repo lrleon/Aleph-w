@@ -62,7 +62,7 @@ satisfying the engine concept.
 ## Roadmap: distributed and GPU
 
 These backends are **planned but not yet implemented**
-(see `cell-automata-industrial-roadmap.md`):
+(see `../../aleph-otros/cell-automata-industrial-roadmap.md`):
 
 - **MPI domain decomposition** (Phase 22) — partition the grid across nodes with
   non-blocking halo exchange, for grids that exceed a single machine's memory.

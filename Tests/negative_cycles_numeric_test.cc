@@ -610,3 +610,34 @@ TEST(NegativeCyclesNumericTest, CertifiedResultsDoNotDependOnArcOrNodeOrder)
           }
       }
 }
+
+
+TEST(NegativeCyclesNumericTest, ExactUpperBoundBeyondTheRangeIsInfinity)
+{
+  // CodeRabbit, PR #103: upper() stepped its bound with nextafter() until it
+  // was not below the exact value. Above DBL_MAX the step reaches infinity,
+  // whose negation the exact check cannot add, and it looped forever.
+  using negative_cycles_detail::Exact_Sum;
+  const double max = std::numeric_limits<double>::max();
+
+  Exact_Sum<double> above;
+  ASSERT_TRUE(above.add(max));
+  ASSERT_TRUE(above.add(1.0));   // DBL_MAX + 1, an expansion of finite components
+  EXPECT_EQ(above.upper(), std::numeric_limits<double>::infinity());
+
+  // Finite bounds are unchanged: the value itself when representable, the
+  // next number up otherwise, also at the edge of the range.
+  Exact_Sum<double> at;
+  ASSERT_TRUE(at.add(max));
+  EXPECT_EQ(at.upper(), max);
+
+  Exact_Sum<double> just_above_one;
+  ASSERT_TRUE(just_above_one.add(1.0));
+  ASSERT_TRUE(just_above_one.add(0x1p-60));
+  EXPECT_EQ(just_above_one.upper(), std::nextafter(1.0, 2.0));
+
+  Exact_Sum<double> below_minus_max;   // -DBL_MAX - 1: the bound -DBL_MAX is finite
+  ASSERT_TRUE(below_minus_max.add(-max));
+  ASSERT_TRUE(below_minus_max.add(-1.0));
+  EXPECT_EQ(below_minus_max.upper(), -max);
+}
