@@ -428,20 +428,24 @@ TEST(HowardMinMeanCycleTest, MaxCostIsAnOrdinaryCost)
 TEST(HowardMinMeanCycleTest, AnswersWhereKarpsSumsLeaveTheCostType)
 {
   // int costs near the limits of the type: Karp adds up to n of them in its
-  // table and overflows even where the cycle is a loop; Howard needs only the
-  // cycle it reports.
+  // table, which overflowed int even where the cycle is a loop; Howard needs
+  // only the cycle it reports. Since the audit's C6 Karp adds them up in
+  // long long and answers too.
   using IntGraph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
   auto built = build_graph_generic<IntGraph, int>(
       4, {{2, 2, 653666155}, {2, 2, 585777688}, {1, 3, 641209630}, {3, 0, 491799673},
           {3, 3, -1900485882}});
-
-  EXPECT_THROW((karp_minimum_mean_cycle(built.g)), std::overflow_error);
 
   const auto r = howard_minimum_mean_cycle(built.g);
   ASSERT_TRUE(r.has_cycle);
   EXPECT_EQ(r.cycle_total_cost, -1900485882);
   EXPECT_EQ(r.cycle_length, 1u);
   EXPECT_FALSE(r.used_karp);
+
+  const auto karp = karp_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(karp.has_cycle);
+  EXPECT_EQ(karp.cycle_total_cost, -1900485882);
+  EXPECT_EQ(karp.minimum_mean, r.minimum_mean);
 
   // An acyclic graph with large weights has no cycle: no overflow either.
   auto dag = build_graph_generic<IntGraph, int>(
@@ -820,6 +824,38 @@ TEST(HowardMinMeanCycleTest, FallbackRunsKarpOnEachComponent)
   // The same value as Karp on the whole graph, which agrees exactly here:
   // integral costs make both round the exact minimum mean once.
   EXPECT_EQ(r.minimum_mean, karp_minimum_mean_cycle(built.g).minimum_mean);
+}
+
+
+TEST(HowardMinMeanCycleTest, FallbackSumsInsideAComponentDoNotOverflow)
+{
+  // Found by a directed search (audit 2026-10-02, C1 and C6). Inside the
+  // component {1, ..., 5} every walk is costly and the long long sums of a
+  // per-component table overflow; on the whole graph the arc 0 -> 1, from
+  // outside, kept them low. The per-component fallback then threw where the
+  // old whole-graph one answered. 128-bit sums remove that.
+  auto built = build_graph(6, {{3, 4, 2412223573619837724LL}, {2, 3, 2422047310724953863LL},
+                               {1, 2, 3179646298365416052LL}, {0, 1, -3127445719569793886LL},
+                               {1, 2, 3008898773151771847LL}, {4, 4, 3004633816298768677LL},
+                               {0, 5, 2726043725430506698LL}, {3, 5, 1938808504231304943LL},
+                               {4, 1, 3287975327571625454LL}, {1, 2, 2527433209753059253LL},
+                               {1, 1, 1921533484238488548LL}, {5, 3, 1325352911222347034LL},
+                               {2, 3, 2519116059040766616LL}, {2, 2, 1472205099507841752LL},
+                               {2, 2, 3345130543762169200LL}, {1, 4, 1779708353840524248LL},
+                               {1, 5, 3214578466714837685LL}});
+
+  const auto exact = howard_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(exact.has_cycle);
+  ASSERT_FALSE(exact.used_karp);
+# if ALEPH_KARP_INT128
+  const auto forced = howard_detail::minimum_mean_cycle<Graph, Dft_Dist<Graph>, Dft_Show_Arc<Graph>>(
+      built.g, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(), 0);
+  ASSERT_TRUE(forced.has_cycle);
+  ASSERT_TRUE(forced.used_karp);
+  EXPECT_TRUE(witness_is_closed_walk(built.g, forced));
+  EXPECT_EQ(forced.minimum_mean, exact.minimum_mean);
+  EXPECT_EQ(forced.minimum_mean, karp_minimum_mean_cycle(built.g).minimum_mean);
+# endif
 }
 
 

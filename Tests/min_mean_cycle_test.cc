@@ -396,6 +396,10 @@ TEST(MinMeanCycleTest, NonFiniteFloatingWeightsThrowDomainError)
 
 TEST(MinMeanCycleTest, IntegerOverflowInAccumulationThrows)
 {
+  // The only cycle costs LLONG_MAX + 1. With 128-bit sums (audit 2026-10-02,
+  // C6) the table holds it: the mean, 2^62, comes out, and only the witness,
+  // whose cost long long cannot hold, throws. Without them every sum is a
+  // checked long long and both throw.
   const std::vector<Edge_Def> edges = {
       {0, 1, std::numeric_limits<long long>::max()},
       {1, 0, 1}
@@ -403,7 +407,51 @@ TEST(MinMeanCycleTest, IntegerOverflowInAccumulationThrows)
 
   auto built = build_graph(2, edges);
   EXPECT_THROW((karp_minimum_mean_cycle(built.g)), std::overflow_error);
+# if ALEPH_KARP_INT128
+  const auto value = karp_minimum_mean_cycle_value(built.g);
+  ASSERT_TRUE(value.has_cycle);
+  EXPECT_EQ(value.minimum_mean, 0x1p62L);
+# else
   EXPECT_THROW((karp_minimum_mean_cycle_value(built.g)), std::overflow_error);
+# endif
+}
+
+TEST(MinMeanCycleTest, SumsBeyondTheCostTypeAreExact)
+{
+  // Audit 2026-10-02, C6. A loop of cost LLONG_MAX used to read as the
+  // "unreachable" sentinel and was ignored. And the 2-cycle 0 -> 1 -> 0
+  // costs 2^63, which a long long table could not add up, although the
+  // cheaper loop at 0 is the answer.
+  const long long max = std::numeric_limits<long long>::max();
+  const long long q = 1LL << 62;
+
+  auto loop = build_graph(1, {{0, 0, max}});
+  auto pair = build_graph(3, {{0, 1, q}, {1, 0, q}, {0, 0, q - 1}, {2, 0, -q}, {2, 1, -q}});
+# if ALEPH_KARP_INT128
+  const auto r = karp_minimum_mean_cycle(loop.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.minimum_mean, static_cast<long double>(max));
+  EXPECT_EQ(r.cycle_total_cost, max);
+  EXPECT_EQ(r.cycle_length, 1u);
+
+  const auto p = karp_minimum_mean_cycle(pair.g);
+  ASSERT_TRUE(p.has_cycle);
+  EXPECT_EQ(p.minimum_mean, static_cast<long double>(q - 1));
+  EXPECT_EQ(p.cycle_total_cost, q - 1);
+  EXPECT_EQ(p.cycle_length, 1u);
+  EXPECT_EQ(karp_minimum_mean_cycle_value(pair.g).minimum_mean, p.minimum_mean);
+# else
+  EXPECT_FALSE(karp_minimum_mean_cycle(loop.g).has_cycle);   // the known limit without them
+# endif
+
+  // Narrower integers are added up in long long on every platform.
+  using Int_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  const int imax = std::numeric_limits<int>::max();
+  auto narrow = build_graph_generic<Int_Graph, int>(3, {{0, 1, imax}, {1, 0, imax}, {0, 0, imax - 1}});
+  const auto i = karp_minimum_mean_cycle(narrow.g);
+  ASSERT_TRUE(i.has_cycle);
+  EXPECT_EQ(i.cycle_total_cost, imax - 1);
+  EXPECT_EQ(i.minimum_mean, static_cast<long double>(imax - 1));
 }
 
 TEST(MinMeanCycleTest, SupportsArrayDigraphBackend)

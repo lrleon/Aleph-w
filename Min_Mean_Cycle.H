@@ -52,10 +52,22 @@
  *  - Returns minimum mean and a cycle witness when available
  *  - Includes value-only API when only the optimal mean is required
  *
+ *  ## Arithmetic
+ *
+ *  The table adds up to @f$V@f$ weights per entry. Integer costs of at most
+ *  64 bits never overflow it: the sums are `long long` when
+ *  @f$V \cdot \max|w|@f$ stays below `LLONG_MAX`, and 128-bit integers
+ *  otherwise (GCC and Clang, `ALEPH_KARP_INT128`); only the cost of the
+ *  reported witness has to fit the cost type. Without 128-bit integers
+ *  (MSVC), and for `unsigned long long` or 128-bit costs, the sums are
+ *  checked and may overflow. Floating-point sums must stay finite. The
+ *  means are compared in `long double`.
+ *
  *  ## Complexity
  *
  *  - Time:@f$O(VE)@f$
- *  - Space:@f$O(V^2)@f$
+ *  - Space:@f$O(V^2)@f$ (twice as many bytes for the table when its sums
+ *    need 128 bits)
  *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
@@ -77,6 +89,15 @@
 # include <htlist.H>
 # include <tpl_array.H>
 # include <tpl_dynMapTree.H>
+
+/** Whether Karp's table can use 128-bit integers when the sums of a
+    `long long` table could overflow: GCC and Clang (`__SIZEOF_INT128__`),
+    except clang-cl, as `ALEPH_HOWARD_INT128` in `Howard_Min_Mean_Cycle.H`. */
+# if defined(__SIZEOF_INT128__) and not defined(_MSC_VER)
+#   define ALEPH_KARP_INT128 1
+# else
+#   define ALEPH_KARP_INT128 0
+# endif
 
 namespace Aleph
 {
@@ -116,6 +137,13 @@ namespace Aleph
 
   namespace min_mean_cycle_detail
   {
+# if ALEPH_KARP_INT128
+    /// 128-bit integers for the sums that could overflow a `long long`.
+    __extension__ typedef __int128 karp_int128_t;
+    /// Unsigned counterpart of `karp_int128_t`.
+    __extension__ typedef unsigned __int128 karp_uint128_t;
+# endif
+
     /** @brief Arc entering a node, as Karp's table reads it.
      *
      *  @tparam GT Graph type.
@@ -218,32 +246,38 @@ namespace Aleph
     };
 
 
-    /** @brief Karp's algorithm on a graph given by its incoming lists.
-     *
-     *  The node positions are `0 .. incoming.size() - 1`, and `incoming[v]`
-     *  holds the arcs entering `v`. Nothing else is read: the graph, its
-     *  accessor and its filter are not touched, so the public functions and
-     *  the fallback of `howard_minimum_mean_cycle()` (which runs this on each
-     *  strongly connected component of its own snapshot) share the same
-     *  arithmetic and the same tie-breaking.
-     *
-     *  The table holds `(n + 1) * n` costs, plus as many predecessor positions
-     *  when `With_Witness` is true. `numeric_limits<Cost_Type>::max()` marks an
-     *  unreachable state.
+    /** @brief Karp's table, with sums kept in `Acc`; see `karp_solve()`.
      *
      *  @tparam With_Witness Whether to keep predecessors and extract a witness.
+     *  @tparam Acc Type of the sums of the table and of the witness.
+     *  @tparam Checked Whether an addition can overflow `Acc` and has to be
+     *          checked (it cannot when `karp_solve()` has bounded the sums).
+     *  @tparam Exact_Difference Whether `Acc` holds the difference of two
+     *          sums exactly, so that it is rounded once, not each sum.
      *  @param[in] incoming Incoming arcs of every node.
+     *  @param[in] inf Value of `Acc` that marks an unreachable state; no sum
+     *             can take it.
      *  @param[in] fn Name of the public function, for error messages.
      *  @return The minimum mean and, if `With_Witness`, the witness.
-     *  @throws std::overflow_error If the table size or an integer addition
-     *          overflows.
+     *  @throws std::overflow_error If the table size or a checked addition
+     *          overflows, or the witness cost does not fit `Cost_Type`.
      *  @throws std::domain_error If a floating-point accumulation is not finite.
      */
-    template <bool With_Witness, AlephGraph GT, typename Cost_Type>
+    template <bool With_Witness, typename Acc, bool Checked, bool Exact_Difference,
+              AlephGraph GT, typename Cost_Type>
     Karp_Answer<GT, Cost_Type>
-    karp_solve(const Array<Array<Incoming_Arc<GT, Cost_Type>>> & incoming, const char * fn)
+    karp_table(const Array<Array<Incoming_Arc<GT, Cost_Type>>> & incoming, const Acc inf,
+               const char * fn)
     {
       using Incoming = Incoming_Arc<GT, Cost_Type>;
+
+      const auto add = [](const Acc a, const Cost_Type w) -> Acc
+      {
+        if constexpr (Checked)
+          return shortest_path_detail::checked_add(a, static_cast<Acc>(w));
+        else
+          return a + static_cast<Acc>(w);
+      };
 
       Karp_Answer<GT, Cost_Type> result;
       const size_t n = incoming.size();
@@ -255,11 +289,10 @@ namespace Aleph
           or (n + 1) > std::numeric_limits<size_t>::max() / n)
         << fn << "(): DP table size overflow";
 
-      const Cost_Type inf = std::numeric_limits<Cost_Type>::max();
       const size_t total_states = (n + 1) * n;
       constexpr size_t none = std::numeric_limits<size_t>::max();
 
-      Array<Cost_Type> dp(total_states, inf);
+      Array<Acc> dp(total_states, inf);
       // Position, in `incoming[v]`, of the arc that reaches state (k, v).
       Array<size_t> pred;
       if constexpr (With_Witness)
@@ -271,23 +304,23 @@ namespace Aleph
       };
 
       for (size_t v = 0; v < n; ++v)
-        dp[state_of(0, v)] = Cost_Type{0};
+        dp[state_of(0, v)] = Acc{0};
 
       for (size_t k = 1; k <= n; ++k)
         for (size_t v = 0; v < n; ++v)
           {
-            Cost_Type best = inf;
+            Acc best = inf;
             size_t best_pos = none;
             const Array<Incoming> & in_v = incoming[v];
 
             for (size_t pos = 0; pos < in_v.size(); ++pos)
               {
                 const Incoming & in = in_v[pos];
-                const Cost_Type prev = dp[state_of(k - 1, in.src_idx)];
+                const Acc prev = dp[state_of(k - 1, in.src_idx)];
                 if (prev == inf)
                   continue;
 
-                const Cost_Type cand = shortest_path_detail::checked_add(prev, in.weight);
+                const Acc cand = add(prev, in.weight);
                 validate_finite_accumulator(
                     cand,
                     "Karp minimum mean cycle accumulation became non-finite");
@@ -313,7 +346,7 @@ namespace Aleph
 
       for (size_t v = 0; v < n; ++v)
         {
-          const Cost_Type dnv = dp[state_of(n, v)];
+          const Acc dnv = dp[state_of(n, v)];
           if (dnv == inf)
             continue;
 
@@ -322,12 +355,15 @@ namespace Aleph
 
           for (size_t k = 0; k < n; ++k)
             {
-              const Cost_Type dkv = dp[state_of(k, v)];
+              const Acc dkv = dp[state_of(k, v)];
               if (dkv == inf)
                 continue;
 
-              const long double num = static_cast<long double>(dnv)
-                                      - static_cast<long double>(dkv);
+              long double num;
+              if constexpr (Exact_Difference)
+                num = static_cast<long double>(dnv - dkv);
+              else
+                num = static_cast<long double>(dnv) - static_cast<long double>(dkv);
               const long double den = static_cast<long double>(n - k);
               const long double ratio = num / den;
 
@@ -399,7 +435,7 @@ namespace Aleph
           bool found_cycle = false;
           size_t best_start = 0;
           size_t best_end = 0;
-          Cost_Type best_cycle_cost = Cost_Type{0};
+          Acc best_cycle_cost = Acc{0};
           long double best_cycle_mean = ld_inf;
 
           for (size_t i = 0; i < walk_nodes.size(); ++i)
@@ -419,11 +455,10 @@ namespace Aleph
               if (len == 0)
                 continue;
 
-              Cost_Type cycle_cost = Cost_Type{0};
+              Acc cycle_cost = Acc{0};
               for (size_t p = j; p < i; ++p)
                 {
-                  cycle_cost = shortest_path_detail::checked_add(
-                      cycle_cost, walk_arcs[p]->weight);
+                  cycle_cost = add(cycle_cost, walk_arcs[p]->weight);
                   validate_finite_accumulator(
                       cycle_cost,
                       "Karp minimum mean cycle witness accumulation became non-finite");
@@ -445,7 +480,12 @@ namespace Aleph
           if (not found_cycle)
             return result;
 
-          result.cycle_total_cost = best_cycle_cost;
+          if constexpr (not std::is_same_v<Acc, Cost_Type>)
+            ah_overflow_error_if(
+                best_cycle_cost > static_cast<Acc>(std::numeric_limits<Cost_Type>::max())
+                or best_cycle_cost < static_cast<Acc>(std::numeric_limits<Cost_Type>::lowest()))
+              << fn << "(): the cost of the witness cycle does not fit the cost type";
+          result.cycle_total_cost = static_cast<Cost_Type>(best_cycle_cost);
           result.cycle_nodes.reserve(best_end - best_start + 1);
           for (size_t p = best_start; p <= best_end; ++p)
             result.cycle_nodes.append(walk_nodes[p]);
@@ -456,6 +496,84 @@ namespace Aleph
         }
 
       return result;
+    }
+
+
+    /** @brief Karp's algorithm on a graph given by its incoming lists.
+     *
+     *  The node positions are `0 .. incoming.size() - 1`, and `incoming[v]`
+     *  holds the arcs entering `v`. Nothing else is read: the graph, its
+     *  accessor and its filter are not touched, so the public functions and
+     *  the fallback of `howard_minimum_mean_cycle()` (which runs this on each
+     *  strongly connected component of its own snapshot) share the same
+     *  arithmetic and the same tie-breaking.
+     *
+     *  The table holds `(n + 1) * n` sums, plus as many predecessor positions
+     *  when `With_Witness` is true. Its arithmetic depends on `Cost_Type`:
+     *
+     *  - **Integral types that fit a `long long`.** Every sum of the table and
+     *    of the witness adds at most `n` weights, so it is bounded by
+     *    `n * max|w|`. When that bound is below `LLONG_MAX` the sums are
+     *    `long long` and cannot overflow. Otherwise they are 128-bit integers
+     *    (`ALEPH_KARP_INT128`), which cannot overflow either; without them
+     *    (MSVC) they stay `long long` and every addition is checked. Only
+     *    the cost of the reported witness has to fit `Cost_Type`.
+     *  - **Floating-point types.** The sums are `Cost_Type`; one that is not
+     *    finite throws.
+     *  - **Other types** (`unsigned long long`, 128-bit costs) keep their own
+     *    type with checked additions.
+     *
+     *  An unreachable state is marked with a value no sum can take: the
+     *  maximum of a type the bound keeps the sums below, or an infinity.
+     *  Only in the last case of each list, with checked `long long` or the
+     *  cost type's own sums, is it their maximum, which a sum could equal.
+     *
+     *  @tparam With_Witness Whether to keep predecessors and extract a witness.
+     *  @param[in] incoming Incoming arcs of every node.
+     *  @param[in] fn Name of the public function, for error messages.
+     *  @return The minimum mean and, if `With_Witness`, the witness.
+     *  @throws std::overflow_error If the table size or a checked addition
+     *          overflows, or the witness cost does not fit `Cost_Type`.
+     *  @throws std::domain_error If a floating-point accumulation is not finite.
+     */
+    template <bool With_Witness, AlephGraph GT, typename Cost_Type>
+    Karp_Answer<GT, Cost_Type>
+    karp_solve(const Array<Array<Incoming_Arc<GT, Cost_Type>>> & incoming, const char * fn)
+    {
+      if constexpr (std::is_floating_point_v<Cost_Type>)
+        return karp_table<With_Witness, Cost_Type, true, false>(
+            incoming, std::numeric_limits<Cost_Type>::infinity(), fn);
+      else if constexpr (std::is_integral_v<Cost_Type>
+                         and std::numeric_limits<Cost_Type>::max()
+                               <= std::numeric_limits<long long>::max())
+        {
+          constexpr long long ll_max = std::numeric_limits<long long>::max();
+          unsigned long long max_abs = 0;   // max |w|, LLONG_MIN included
+          for (size_t v = 0; v < incoming.size(); ++v)
+            for (size_t pos = 0; pos < incoming[v].size(); ++pos)
+              {
+                const long long w = static_cast<long long>(incoming[v][pos].weight);
+                const unsigned long long a = w < 0 ? 0ULL - static_cast<unsigned long long>(w)
+                                                   : static_cast<unsigned long long>(w);
+                if (a > max_abs)
+                  max_abs = a;
+              }
+
+          const unsigned long long n = incoming.size();
+          if (max_abs == 0 or n <= (static_cast<unsigned long long>(ll_max) - 1) / max_abs)
+            return karp_table<With_Witness, long long, false, false>(incoming, ll_max, fn);
+# if ALEPH_KARP_INT128
+          // n * max|w| < 2^64 * 2^63: no sum, nor the difference of two, overflows.
+          constexpr karp_int128_t int128_max =
+            static_cast<karp_int128_t>(~static_cast<karp_uint128_t>(0) >> 1);
+          return karp_table<With_Witness, karp_int128_t, false, true>(incoming, int128_max, fn);
+# else
+          return karp_table<With_Witness, long long, true, false>(incoming, ll_max, fn);
+# endif
+        }
+      else
+        return karp_table<With_Witness, Cost_Type, true, false>(
+            incoming, std::numeric_limits<Cost_Type>::max(), fn);
     }
   } // namespace min_mean_cycle_detail
 
@@ -479,7 +597,9 @@ namespace Aleph
    *
    *  @exception domain_error If `g` is undirected.
    *  @exception domain_error If floating weights are not finite.
-   *  @exception overflow_error If integer additions overflow.
+   *  @exception overflow_error If the cost of the witness does not fit the
+   *             cost type, or a checked integer addition overflows (see
+   *             the file documentation).
    *
    *  @note The distance accessor is called once per arc accepted by `sa`;
    *        the witness cost is summed from those values.
@@ -541,7 +661,9 @@ namespace Aleph
    *
    *  @exception domain_error If `g` is undirected, or floating weights (or
    *             their sums) are not finite.
-   *  @exception overflow_error If integer additions overflow.
+   *  @exception overflow_error If a checked integer addition overflows:
+   *             never for integer costs of at most 64 bits where 128-bit
+   *             integers exist (see the file documentation).
    *
    *  @ingroup Graphs
    */

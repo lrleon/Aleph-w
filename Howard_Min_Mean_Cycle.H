@@ -114,17 +114,23 @@
  *    functions may return different ones.
  *  - The distance accessor is called once per arc, also when the fallback
  *    runs.
- *  - No value of the cost type is reserved as "infinity". (Karp reserves
- *    `numeric_limits<Cost_Type>::max()`, so an arc of that cost is ignored by
- *    it; when Howard hands a problem over to Karp it inherits that.)
- *  - It can answer where Karp throws: Karp adds up to `V` costs in its table,
- *    even on acyclic graphs, and overflows a narrow cost type that Howard,
- *    which only needs the cycle it reports, does not. The fallback adds up to
- *    `V_c` costs of one component, so it overflows less often than Karp on
- *    the whole graph, but not never less: its sums only follow walks inside
- *    the component, and where an arc entering the component from outside
- *    keeps the sums of the whole-graph table low, the component's own sums
- *    can overflow when those would not.
+ *  - No value of the cost type is reserved as "infinity". Karp marks the
+ *    unreachable states of its table with a value no sum can take (see
+ *    `karp_minimum_mean_cycle()`), except when its sums are checked
+ *    `long long` (no 128-bit integers, as with MSVC) or the cost type's own
+ *    (`unsigned long long`, 128-bit costs): there a sum equal to the maximum
+ *    of the type reads as unreachable, an arc of that cost is ignored, and
+ *    the fallback inherits that.
+ *  - Integer overflow. Karp adds up to `V` costs in its table, even on
+ *    acyclic graphs, but in `long long` for narrower types and in 128-bit
+ *    integers where `n * max|w|` could leave `long long`, so for integer
+ *    costs of at most 64 bits it throws only when the cost of the cycle it
+ *    reports does not fit the cost type, as Howard. Without 128-bit integers
+ *    its sums are checked `long long` and it can throw where Howard answers;
+ *    the fallback, whose sums follow only walks inside one component, can
+ *    then also overflow where Karp on the whole graph would not, where an
+ *    arc entering the component keeps the whole-graph sums low (rarely; the
+ *    opposite is far more common).
  *  - `minimum_mean` is a `long double`, so with large integer costs its last
  *    bits depend on the width of that type. Howard rounds the exact quotient
  *    `cycle_total_cost / cycle_length`: once if `long double` has a 64-bit
@@ -1024,7 +1030,9 @@ size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type>
  *  @param[in] ig Cyclic core (a snapshot that is its own core included).
  *  @param[in] adj Out-adjacency of `ig`.
  *  @return Karp's answer, with its witness in the nodes and arcs of the graph.
- *  @throws std::overflow_error If an integer addition overflows.
+ *  @throws std::overflow_error If the cost of the witness does not fit
+ *          `Cost_Type`, or a checked integer addition overflows (see
+ *          `karp_minimum_mean_cycle()`).
  *  @throws std::domain_error If a floating-point accumulation is not finite.
  *  @note @f$O(V + E + \sum_c V_c E_c)@f$ time and
  *        @f$O(V + E + \max_c V_c^2)@f$ space, where @f$V_c@f$ and
