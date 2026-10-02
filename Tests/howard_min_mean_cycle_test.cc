@@ -41,6 +41,7 @@
 # include <gtest/gtest.h>
 
 # include <cmath>
+# include <functional>
 # include <limits>
 # include <random>
 # include <set>

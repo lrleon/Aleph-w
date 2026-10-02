@@ -37,7 +37,10 @@
  *
  * This program replaces the global allocation functions: while the probe is
  * active they record the two largest requests. The replacement stays out of
- * the other test programs.
+ * the other test programs. A sanitizer that brings its own allocator defines
+ * those functions in its runtime (ThreadSanitizer and MemorySanitizer link
+ * them into the program, so a second definition does not link): under one,
+ * the replacement is left out and the tests are skipped.
  */
 
 // Self-containment check: must stay the first include.
@@ -58,6 +61,19 @@
 
 using namespace Aleph;
 using namespace Negative_Cycles_Test_Support;
+
+# if defined(__SANITIZE_ADDRESS__) or defined(__SANITIZE_THREAD__) \
+     or defined(__SANITIZE_HWADDRESS__)
+#   define PROBE_ALLOCATIONS 0
+# elif defined(__has_feature)
+#   if __has_feature(address_sanitizer) or __has_feature(thread_sanitizer) \
+       or __has_feature(memory_sanitizer) or __has_feature(hwaddress_sanitizer)
+#     define PROBE_ALLOCATIONS 0
+#   endif
+# endif
+# ifndef PROBE_ALLOCATIONS
+#   define PROBE_ALLOCATIONS 1
+# endif
 
 namespace
 {
@@ -84,6 +100,8 @@ namespace
 
   Allocation_Probe probe;
 } // namespace
+
+# if PROBE_ALLOCATIONS
 
 // Not inlined: GCC cannot then pair the malloc behind `operator new` with the
 // free behind `operator delete` and warn about a mismatch.
@@ -137,6 +155,8 @@ PROBE_NOINLINE void operator delete(void * p, std::size_t) noexcept { std::free(
 PROBE_NOINLINE void operator delete[](void * p, std::size_t) noexcept { std::free(p); }
 PROBE_NOINLINE void operator delete(void * p, const std::nothrow_t &) noexcept { std::free(p); }
 PROBE_NOINLINE void operator delete[](void * p, const std::nothrow_t &) noexcept { std::free(p); }
+
+# endif // PROBE_ALLOCATIONS
 
 namespace
 {
@@ -198,6 +218,9 @@ namespace
 
 TEST(HowardFallbackMemoryTest, TheLimitCountsTheTablesKarpReserves)
 {
+  if (not PROBE_ALLOCATIONS)
+    GTEST_SKIP() << "a sanitizer provides the allocation functions";
+
   // For one component of n nodes, Karp's tables are the largest allocations
   // of the whole call: (n + 1) * n sums and, with the witness, as many
   // predecessor positions, each table rounded up by Array to a power of two
@@ -239,6 +262,9 @@ TEST(HowardFallbackMemoryTest, TheLimitCountsTheTablesKarpReserves)
 
 TEST(HowardFallbackMemoryTest, SumsBeyondLongLongTakeSixteenBytesAndTheLimitKnows)
 {
+  if (not PROBE_ALLOCATIONS)
+    GTEST_SKIP() << "a sanitizer provides the allocation functions";
+
   // Weights of about 2^61: n * max|w| leaves long long, so the sums of the
   // table take 128 bits where the compiler has them, 8 checked bytes
   // otherwise. Only the value: the cost of a witness could leave long long.
@@ -273,6 +299,9 @@ TEST(HowardFallbackMemoryTest, SumsBeyondLongLongTakeSixteenBytesAndTheLimitKnow
 
 TEST(HowardFallbackMemoryTest, NodesOutsideTheCyclesCostTheFallbackNothing)
 {
+  if (not PROBE_ALLOCATIONS)
+    GTEST_SKIP() << "a sanitizer provides the allocation functions";
+
   // Audit 2026-10-02, H5, and the acceptance of stage C: two components of
   // three nodes among thousands of isolated ones. Howard falls back (the
   // scaled bias of the first component overflows), and no allocation of the

@@ -43,9 +43,22 @@
  * (acyclic, negative arcs), `components` (disconnected strongly connected
  * components, one in three holding a negative triangle), `dense` (complete
  * digraph on at most 120 assets), `market-reweighted` (fixed topology, eight
- * weight sets applied round-robin between the timed samples) and
+ * weight sets applied round-robin between the timed samples),
  * `loop-isolated` (one negative self-loop among 50 isolated vertices per
- * asset, at most 20000; the bounded variants run whatever its size).
+ * asset, at most 20000; the bounded variants run whatever its size),
+ * `scc-pair-isolated` (the family of audit H6: arcs `0 -> 1` and `1 -> 0` of
+ * cost 0 and a self-loop of -1 on node 1, among isolated vertices, 10 per
+ * asset, at most 4000) and `scc-pairs` (disjoint copies of that pair, at most
+ * 300 vertices).
+ *
+ * @par Long walks in small components
+ * Besides `L = 3, 6, 12`, the bounded search runs with `L = V`, as long as any
+ * simple cycle, on `scc-pair-isolated`, `scc-pairs` and `components` (up to
+ * 400 vertices). Every length up to `L` has a closed walk from each node of
+ * a strongly connected component, and the search reconstructs and decomposes
+ * one per length: about `V_c * L^2` work for `V_c` nodes in components, which
+ * dominates when the components are small and `L` is not (audit H6). On the
+ * last two families that grows as the cube of `V`, hence their limits.
  *
  * @par Validation (untimed, before and apart from the measurements)
  * Each variant is run once per weight set and its result is checked against
@@ -76,7 +89,8 @@
  * of `market-reweighted` happen outside the timed region. The allocation
  * columns count calls to the global `operator new` during one untimed run.
  * The bounded variants are skipped above 1000 vertices (their worst case is
- * `O(V * L * (V + E))`), except for `loop-isolated`; so are the Karp variants,
+ * `O(V * L * (V + E))`), except for `loop-isolated` and `scc-pair-isolated`,
+ * whose cyclic cores have one and two nodes; so are the Karp variants,
  * whose table takes `O(V^2)` memory (about 9 bytes per entry for the value and
  * 25 with the witness, measured: 15 000 vertices would need 2 to 6 GB).
  *
@@ -209,6 +223,10 @@ constexpr size_t reweight_rounds = 8;
 constexpr size_t component_size = 12;
 constexpr size_t loop_isolated_factor = 50;  // isolated vertices per asset
 constexpr size_t loop_isolated_max = 20000;
+constexpr size_t scc_pair_isolated_factor = 10;  // vertices per asset
+constexpr size_t scc_pair_isolated_max = 4000;
+constexpr size_t scc_pairs_max = 300;          // vertices of `scc-pairs`
+constexpr size_t long_bound_max_nodes = 400;   // `components` runs L = V up to here
 constexpr size_t warmup_min_runs = 2;
 constexpr size_t warmup_max_runs = 200;
 constexpr double warmup_ms = 30.0;
@@ -497,12 +515,46 @@ Spec loop_isolated_spec(const size_t n)
   return s;
 }
 
+// Appends the pair of audit H6 on nodes a and b: a -> b -> a costs 0, and b
+// has a self-loop of -1. Closed walks of every length start at both nodes.
+void scc_pair(Spec & s, const size_t a, const size_t b)
+{
+  s.arcs.append(Arc_Spec{a, b, 0.0, false});
+  s.arcs.append(Arc_Spec{b, b, -1.0, false});
+  s.arcs.append(Arc_Spec{b, a, 0.0, false});
+  ++s.seeded;
+  s.negative = true;
+}
+
+// Audit H6: one such pair among isolated vertices. Its cyclic core has two
+// nodes, but the bounded search with L = V does about L^2 work on it.
+Spec scc_pair_isolated_spec(const size_t n)
+{
+  Spec s;
+  s.nodes = std::min(scc_pair_isolated_factor * n, scc_pair_isolated_max);
+  scc_pair(s, 0, 1);
+  return s;
+}
+
+// Disjoint pairs and nothing else: every node is in a component, so with
+// L = V the search does about V^3 work.
+Spec scc_pairs_spec(const size_t n)
+{
+  Spec s;
+  const size_t pairs = std::max<size_t>(1, std::min(n, scc_pairs_max) / 2);
+  s.nodes = 2 * pairs;
+  for (size_t p = 0; p < pairs; ++p)
+    scc_pair(s, 2 * p, 2 * p + 1);
+  return s;
+}
+
 // A graph plus the data the harness needs to run and judge variants on it.
 struct Instance
 {
   std::string name;
   Spec spec;
   bool bounded_is_cheap = false;   // run the bounded variants whatever the size
+  bool long_bound = false;         // run the bounded search with L = V too
   Graph g;
   Array<Arc *> arcs;                    // arcs[i] is the graph arc of spec.arcs(i)
   Array<Array<double>> round_weights;   // empty for static instances
@@ -890,6 +942,7 @@ struct Variant
   bool bf_witness;                              // Bellman_Ford path extraction
   size_t bound;                                 // L of the bounded search, else 0
   bool small_only = false;                      // cost grows too fast to run on huge graphs
+  bool long_bound = false;                      // only on instances with `long_bound`
   std::function<long(Graph &)> run;             // the bare call, for timing
   std::function<Outcome(Graph &)> inspect;      // the call plus its validation
 };
@@ -960,6 +1013,14 @@ DynList<Variant> make_variants()
       vs.append(make_variant(label, Group::Bounded, false, L, Limits{L, SIZE_MAX, false},
         [L](Graph & g) { return most_negative_cycle_bounded(g, L); }));
     }
+
+  // L = V, as long as any simple cycle: only where the components are small
+  // (see "Long walks in small components" above).
+  auto whole = make_variant("most_negative_cycle_bounded(g, V)", Group::Bounded, false, 0,
+    Limits{},
+    [](Graph & g) { return most_negative_cycle_bounded(g, g.get_num_nodes()); });
+  whole.long_bound = true;
+  vs.append(std::move(whole));
 
   vs.append(make_variant("karp_minimum_mean_cycle_value(g)", Group::Mean,
     false, 0, Limits{},
@@ -1252,6 +1313,8 @@ void report_instance(Instance & inst, const DynList<Variant> & variants,
   for (auto it = variants.get_it(); it.has_curr(); it.next_ne())
     {
       const Variant & v = it.get_curr();
+      if (v.long_bound and not inst.long_bound)
+        continue;
       if (v.small_only and inst.g.get_num_nodes() > bounded_max_nodes
           and not (v.group == Group::Bounded and inst.bounded_is_cheap))
         {
@@ -1301,7 +1364,8 @@ void report_instance(Instance & inst, const DynList<Variant> & variants,
                     reason.c_str());
     }
   if (skipped_bounded)
-    std::printf("  (bounded and Karp variants skipped: more than %zu vertices)\n", bounded_max_nodes);
+    std::printf("  (%s variants skipped: more than %zu vertices)\n",
+                inst.bounded_is_cheap ? "Karp" : "bounded and Karp", bounded_max_nodes);
   report_reusable_topology(inst, samples, tally);
 }
 
@@ -1365,7 +1429,12 @@ const Family families[] =
      }},
     {"dag", [](const Options & o) { return make_instance("dag", dag_spec(o.assets, o.seed)); }},
     {"components",
-     [](const Options & o) { return make_instance("components", components_spec(o.assets, o.seed)); }},
+     [](const Options & o)
+     {
+       auto inst = make_instance("components", components_spec(o.assets, o.seed));
+       inst->long_bound = inst->g.get_num_nodes() <= long_bound_max_nodes;
+       return inst;
+     }},
     {"dense",
      [](const Options & o)
      { return make_instance("dense", dense_spec(std::min(o.assets, dense_max_nodes), o.seed)); }},
@@ -1375,6 +1444,21 @@ const Family families[] =
      {
        auto inst = make_instance("loop-isolated", loop_isolated_spec(o.assets));
        inst->bounded_is_cheap = true;
+       return inst;
+     }},
+    {"scc-pair-isolated",
+     [](const Options & o)
+     {
+       auto inst = make_instance("scc-pair-isolated", scc_pair_isolated_spec(o.assets));
+       inst->bounded_is_cheap = true;
+       inst->long_bound = true;
+       return inst;
+     }},
+    {"scc-pairs",
+     [](const Options & o)
+     {
+       auto inst = make_instance("scc-pairs", scc_pairs_spec(o.assets));
+       inst->long_bound = true;
        return inst;
      }},
   };
