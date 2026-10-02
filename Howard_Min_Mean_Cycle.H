@@ -244,30 +244,30 @@ struct Howard_Mean_Cycle_Result : public Min_Mean_Cycle_Result<GT, Cost_Type>
     integers. GCC and Clang provide them (`__SIZEOF_INT128__`), but clang-cl,
     which also defines that macro, lacks the runtime support for 128-bit
     division on Windows (there is no compiler-rt there), so it is left out. */
-# if defined(__SIZEOF_INT128__) and not defined(_MSC_VER)
-#   define ALEPH_HOWARD_INT128 1
-# else
-#   define ALEPH_HOWARD_INT128 0
-# endif
+#if defined(__SIZEOF_INT128__) and not defined(_MSC_VER)
+#define ALEPH_HOWARD_INT128 1
+#else
+#define ALEPH_HOWARD_INT128 0
+#endif
 
 namespace howard_detail {
-# if ALEPH_HOWARD_INT128
+#if ALEPH_HOWARD_INT128
 /// 128-bit integers (GCC and Clang), used to verify floating-point results
 /// exactly when their weights need more than 64 bits.
 __extension__ typedef __int128 int128_t;
 /// Unsigned counterpart of `int128_t`.
 __extension__ typedef unsigned __int128 uint128_t;
-# endif
+#endif
 
 /// Integral costs that fit a `long long` use exact arithmetic, and so do
 /// 128-bit integers where they exist.
 template <typename Cost_Type>
 inline constexpr bool exact_arithmetic_v = std::is_integral_v<Cost_Type> and
   std::numeric_limits<Cost_Type>::max() <= std::numeric_limits<long long>::max();
-# if ALEPH_HOWARD_INT128
+#if ALEPH_HOWARD_INT128
 template <>
 inline constexpr bool exact_arithmetic_v<int128_t> = true;
-# endif
+#endif
 
 /** @brief Integer type, and its limits, of the exact arithmetic for
  *         `Cost_Type`: `long long`, or `int128_t` for 128-bit costs.
@@ -278,23 +278,23 @@ inline constexpr bool exact_arithmetic_v<int128_t> = true;
 template <typename Cost_Type>
 struct Exact_Integer
 {
-  using Wide = long long;                ///< Signed integer of the arithmetic.
-  using Unsigned = unsigned long long;   ///< Its unsigned counterpart.
-  static constexpr Wide max = std::numeric_limits<long long>::max();   ///< Largest value.
-  static constexpr Wide min = std::numeric_limits<long long>::min();   ///< Smallest value.
+  using Wide = long long;               ///< Signed integer of the arithmetic.
+  using Unsigned = unsigned long long;  ///< Its unsigned counterpart.
+  static constexpr Wide max = std::numeric_limits<long long>::max();  ///< Largest value.
+  static constexpr Wide min = std::numeric_limits<long long>::min();  ///< Smallest value.
 };
 
-# if ALEPH_HOWARD_INT128
+#if ALEPH_HOWARD_INT128
 /// 128-bit costs use 128-bit arithmetic.
 template <>
 struct Exact_Integer<int128_t>
 {
-  using Wide = int128_t;        ///< Signed integer of the arithmetic.
-  using Unsigned = uint128_t;   ///< Its unsigned counterpart.
-  static constexpr Wide max = static_cast<int128_t>(~uint128_t(0) >> 1);   ///< Largest value.
-  static constexpr Wide min = -max - 1;                                    ///< Smallest value.
+  using Wide = int128_t;       ///< Signed integer of the arithmetic.
+  using Unsigned = uint128_t;  ///< Its unsigned counterpart.
+  static constexpr Wide max = static_cast<int128_t>(~uint128_t(0) >> 1);  ///< Largest value.
+  static constexpr Wide min = -max - 1;                                   ///< Smallest value.
 };
-# endif
+#endif
 
 /** @brief Arithmetic of the policy evaluation, specialised by exactness.
  *
@@ -459,36 +459,34 @@ private:
   // call for 128-bit integers); other compilers use the portable tests.
   static bool add_overflows(const Wide a, const Wide b, Wide &out) noexcept
   {
-# if defined(__GNUC__)
+#if defined(__GNUC__)
     Wide r;
     if (__builtin_add_overflow(a, b, &r))
       return true;
     out = r;
     return false;
-# else
-    if ((b > 0 and a > wide_max - b) or
-        (b < 0 and a < wide_min - b))
+#else
+    if ((b > 0 and a > wide_max - b) or (b < 0 and a < wide_min - b))
       return true;
     out = a + b;
     return false;
-# endif
+#endif
   }
 
   static bool subtract_overflows(const Wide a, const Wide b, Wide &out) noexcept
   {
-# if defined(__GNUC__)
+#if defined(__GNUC__)
     Wide r;
     if (__builtin_sub_overflow(a, b, &r))
       return true;
     out = r;
     return false;
-# else
-    if ((b < 0 and a > wide_max + b) or
-        (b > 0 and a < wide_min + b))
+#else
+    if ((b < 0 and a > wide_max + b) or (b > 0 and a < wide_min + b))
       return true;
     out = a - b;
     return false;
-# endif
+#endif
   }
 
   static bool multiply_overflows(const Wide a, const Wide b, Wide &out) noexcept
@@ -509,15 +507,15 @@ private:
       }
     else
       {
-# if defined(__GNUC__)
+#if defined(__GNUC__)
         Wide r;
         if (__builtin_mul_overflow(a, b, &r))
           return true;
         out = r;
         return false;
-# else
+#else
         return portable_multiply_overflows(a, b, out);
-# endif
+#endif
       }
   }
 
@@ -725,14 +723,11 @@ class Solver
         size_t best = policy_(u);
         size_t best_node = u;
         for (size_t p = adj_.start(u); p < adj_.start(u + 1); ++p)
-          {
-            const size_t v = adj_.tgt(p);
-            if (Ar::less(eta_(v), eta_(best_node)))
-              {
-                best = p;
-                best_node = v;
-              }
-          }
+          if (const size_t v = adj_.tgt(p); Ar::less(eta_(v), eta_(best_node)))
+            {
+              best = p;
+              best_node = v;
+            }
         if (best != policy_(u))
           {
             policy_(u) = best;
@@ -853,8 +848,6 @@ public:
     return policy_;
   }
 
-
-
   /// Node the policy leads to from `u`.
   size_t next_node(const size_t u) const
   {
@@ -910,8 +903,8 @@ size_t cycle_entry(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj,
  */
 template <typename Int, typename Cost_Type>
 bool try_exact(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj, const size_t n,
-               const size_t limit, const Array<int> &low, const int low_min,
-               Array<size_t> &policy, size_t &first, size_t &iterations)
+               const size_t limit, const Array<int> &low, const int low_min, Array<size_t> &policy,
+               size_t &first, size_t &iterations)
 {
   negative_cycles_detail::Out_Adjacency<Int> exact_adj;
   exact_adj.start = adj.start;
@@ -923,10 +916,10 @@ bool try_exact(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj, cons
       const Cost_Type w = adj.weight(p);
       if (w == Cost_Type{0})
         continue;
-      Int odd;   // exact: an odd integer
+      Int odd;  // exact: an odd integer
       if constexpr (std::numeric_limits<Cost_Type>::digits <= 64)
         odd = static_cast<Int>(negative_cycles_detail::odd_significand(w));
-      else   // wider significands (quadruple long double)
+      else  // wider significands (quadruple long double)
         odd = static_cast<Int>(std::ldexp(std::fabs(w), -low(p)));
       const Int magnitude = odd << (low(p) - low_min);
       exact_adj.weight(p) = w < Cost_Type{0} ? -magnitude : magnitude;
@@ -974,14 +967,14 @@ bool verify_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj,
       high_max = any ? std::max(high_max, high) : high;
       any = true;
     }
-  const int bits = any ? high_max - low_min + 1 : 1;   // of the largest scaled weight
+  const int bits = any ? high_max - low_min + 1 : 1;  // of the largest scaled weight
 
   if (bits <= 62 and try_exact<long long>(adj, n, limit, low, low_min, policy, first, iterations))
     return true;
-# if ALEPH_HOWARD_INT128
+#if ALEPH_HOWARD_INT128
   if (bits <= 126 and try_exact<int128_t>(adj, n, limit, low, low_min, policy, first, iterations))
     return true;
-# endif
+#endif
   return false;
 }
 
@@ -1000,7 +993,7 @@ template <typename Cost_Type>
 size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj,
                           const Array<size_t> &policy, const size_t n)
 {
-  Array<unsigned char> state(n, 0);   // 0 unseen, 1 on the current walk, 2 done
+  Array<unsigned char> state(n, 0);  // 0 unseen, 1 on the current walk, 2 done
   Array<size_t> walk(n, 0);
   negative_cycles_detail::Exact_Sum<Cost_Type> best_sum;
   negative_cycles_detail::Exact_Sum<Cost_Type> sum;
@@ -1019,7 +1012,7 @@ size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type>
           walk(top++) = u;
           u = adj.tgt(policy(u));
         }
-      if (state(u) == 1)   // the walk closed a new cycle through u
+      if (state(u) == 1)  // the walk closed a new cycle through u
         {
           sum.clear();
           size_t length = 0;
@@ -1030,16 +1023,15 @@ size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type>
                 return n;
               ++length;
               v = adj.tgt(policy(v));
-            }
-          while (v != u);
+          } while (v != u);
 
           bool better = best == n;
           if (not better)
             {
               // sum / length < best_sum / best_length, cross-multiplied
               difference.clear();
-              if (not difference.add_multiple(sum, best_length)
-                  or not difference.add_multiple(best_sum, length, true))
+              if (not difference.add_multiple(sum, best_length) or
+                  not difference.add_multiple(best_sum, length, true))
                 return n;
               better = difference.sign() < 0;
             }
@@ -1117,10 +1109,10 @@ inline const char *fallback_reason_text(const Howard_Fallback_Reason reason) noe
  *        @f$E_c@f$ are the nodes and arcs of component @f$c@f$.
  */
 template <bool With_Witness, AlephGraph GT, typename Cost_Type>
-Min_Mean_Cycle_Result<GT, Cost_Type>
-karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig,
-                  const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj,
-                  const Howard_Fallback_Reason reason, const size_t max_bytes)
+Min_Mean_Cycle_Result<GT, Cost_Type> karp_by_component(
+  const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig,
+  const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj, const Howard_Fallback_Reason reason,
+  const size_t max_bytes)
 {
   using Incoming = min_mean_cycle_detail::Incoming_Arc<GT, Cost_Type>;
   using Answer = min_mean_cycle_detail::Karp_Answer<GT, Cost_Type>;
@@ -1172,13 +1164,14 @@ karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig
       for (size_t i = 0; i < members(c).size(); ++i)
         incoming(c).append(Array<Incoming>());
     }
-  for (size_t a = 0; a < ig.arcs.size(); ++a)   // in snapshot order, as Karp reads them
+  for (size_t a = 0; a < ig.arcs.size(); ++a)  // in snapshot order, as Karp reads them
     {
       const auto &rec = ig.arcs(a);
       incoming(comp(rec.tgt))(local(rec.tgt)).append(Incoming{local(rec.src), rec.arc, rec.weight});
     }
 
-  const char *const fn = With_Witness ? "howard_minimum_mean_cycle" : "howard_minimum_mean_cycle_value";
+  const char *const fn =
+    With_Witness ? "howard_minimum_mean_cycle" : "howard_minimum_mean_cycle_value";
   if (max_bytes != std::numeric_limits<size_t>::max())
     {
       // The largest tables, before building any. A count that does not fit a
@@ -1244,7 +1237,7 @@ karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig
   result.has_cycle = true;
   result.minimum_mean = best.minimum_mean;
   result.cycle_length = best.cycle_arcs.size();
-  if (best.cycle_nodes.is_empty())   // no witness extracted: Karp's vertex
+  if (best.cycle_nodes.is_empty())  // no witness extracted: Karp's vertex
     result.witness_node = ig.nodes(where(best.witness));
   else
     result.witness_node = ig.nodes(where(best.cycle_nodes(0)));
@@ -1332,14 +1325,15 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
       karp.iterations = done;
       karp.used_karp = true;
       karp.fallback_reason = reason;
-      karp.numeric_quality = Cycle_Numeric_Quality::Rounded;   // Karp compares means in long double
+      karp.numeric_quality = Cycle_Numeric_Quality::Rounded;  // Karp compares means in long double
       return karp;
     };
 
   if (status != Solver::Status::Optimal)
-    return use_karp(iterations, status == Solver::Status::Iteration_Limit
-                                  ? Howard_Fallback_Reason::Iteration_Limit
-                                  : Howard_Fallback_Reason::Arithmetic_Overflow);
+    return use_karp(iterations,
+                    status == Solver::Status::Iteration_Limit
+                      ? Howard_Fallback_Reason::Iteration_Limit
+                      : Howard_Fallback_Reason::Arithmetic_Overflow);
 
   // The cycle the optimal policy reaches from a node of minimum mean. With
   // floating-point weights the policy was found with rounded arithmetic: it is
@@ -1350,8 +1344,8 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
   size_t first = 0;
   if constexpr (std::is_floating_point_v<Cost_Type>)
     {
-      size_t exact_iterations = 0;
-      if (verify_exactly(adj, n, n + iteration_slack, policy, first, exact_iterations))
+      if (size_t exact_iterations = 0;
+          verify_exactly(adj, n, n + iteration_slack, policy, first, exact_iterations))
         {
           result.numeric_quality = Cycle_Numeric_Quality::Exact;
           iterations += exact_iterations;
@@ -1359,7 +1353,7 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
       else
         {
           first = best_cycle_exactly(adj, policy, n);
-          if (first == n)   // an exact sum overflowed: keep the rounded choice
+          if (first == n)  // an exact sum overflowed: keep the rounded choice
             first = cycle_entry(adj, policy, solver.best_node());
         }
     }
@@ -1482,9 +1476,8 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> howard_minimum_me
   const GT &g, Distance distance = Distance(), SA sa = SA(),
   const size_t max_fallback_bytes = std::numeric_limits<size_t>::max())
 {
-  return howard_detail::minimum_mean_cycle<GT, Distance, SA>(g, std::move(distance), std::move(sa),
-                                                             howard_detail::default_iterations,
-                                                             max_fallback_bytes);
+  return howard_detail::minimum_mean_cycle<GT, Distance, SA>(
+    g, std::move(distance), std::move(sa), howard_detail::default_iterations, max_fallback_bytes);
 }
 
 /** @brief Minimum mean cycle value by Howard's policy iteration, without the
