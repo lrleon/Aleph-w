@@ -759,6 +759,136 @@ TEST(HowardMinMeanCycleTest, FallbackDoesNotReadTheGraphAgain)
 }
 
 
+// Audit 2026-10-02, C2: the value-only function builds no witness and its
+// fallback keeps no table of predecessors, and still answers the same.
+
+TEST(HowardMinMeanCycleTest, ValueOnlyMatchesTheFullFunctionBitForBit)
+{
+  using Full_Int = Howard_Mean_Cycle_Result<Graph, long long>;
+  const auto same = [](const auto & full, const auto & value) -> ::testing::AssertionResult
+  {
+    if (full.has_cycle != value.has_cycle)
+      return ::testing::AssertionFailure() << "has_cycle";
+    if (not full.has_cycle)
+      return ::testing::AssertionSuccess();
+    if (full.minimum_mean != value.minimum_mean
+        or std::signbit(full.minimum_mean) != std::signbit(value.minimum_mean))
+      return ::testing::AssertionFailure()
+             << "minimum_mean " << full.minimum_mean << " against " << value.minimum_mean;
+    if (full.iterations != value.iterations or full.used_karp != value.used_karp
+        or full.numeric_quality != value.numeric_quality)
+      return ::testing::AssertionFailure() << "how the answer was obtained";
+    if (not value.cycle_nodes.is_empty() or not value.cycle_arcs.is_empty()
+        or value.witness_node != nullptr)
+      return ::testing::AssertionFailure() << "the value-only result built a witness";
+    return ::testing::AssertionSuccess();
+  };
+
+  std::mt19937_64 rng(0xC2);
+  size_t fallbacks = 0;
+  size_t compared = 0;
+  for (size_t trial = 0; trial < 3000; ++trial)
+    {
+      const size_t n = 2 + rng() % 8;
+      const size_t m = n + rng() % (2 * n);
+      std::vector<Edge_Def> iedges;
+      std::vector<Edge_Def> bedges;   // weights of about 2^61: Karp's sums need 128 bits
+      std::vector<std::tuple<size_t, size_t, double>> fedges;
+      for (size_t i = 0; i < m; ++i)
+        {
+          const size_t u = rng() % n;
+          const size_t v = rng() % n;
+          const long long w = static_cast<long long>(rng() % 41) - 20;
+          const long long big = (1LL << 60) + static_cast<long long>(rng() % (1ULL << 61));
+          const double unit = std::uniform_real_distribution<double>(-1.0, 1.0)(rng);
+          const int exponent = static_cast<int>(rng() % 40) - 20;
+          iedges.emplace_back(u, v, w);
+          bedges.emplace_back(u, v, rng() % 2 ? big : -big);
+          fedges.emplace_back(u, v, std::ldexp(unit, exponent));
+        }
+
+      auto ib = build_graph(n, iedges);
+      auto bb = build_graph(n, bedges);
+      auto fb = build_graph_generic<Float_Graph, double>(n, fedges);
+      for (const size_t limit : {howard_detail::default_iterations, size_t{0}})
+        {
+          using D = Dft_Dist<Graph>;
+          using S = Dft_Show_Arc<Graph>;
+          for (auto * built : {&ib, &bb})
+            {
+              Full_Int full;
+              try { full = howard_detail::minimum_mean_cycle<Graph, D, S>(built->g, D(), S(), limit); }
+              catch (const std::overflow_error &) { continue; }   // only the full one can refuse
+              const auto value = howard_detail::minimum_mean_cycle<Graph, D, S, false>(
+                  built->g, D(), S(), limit);
+              ASSERT_TRUE(same(full, value)) << "long long, trial=" << trial << " limit=" << limit;
+              ++compared;
+              fallbacks += full.used_karp;
+            }
+
+          using FD = Dft_Dist<Float_Graph>;
+          using FS = Dft_Show_Arc<Float_Graph>;
+          const auto ffull = howard_detail::minimum_mean_cycle<Float_Graph, FD, FS>(fb.g, FD(), FS(), limit);
+          const auto fvalue =
+            howard_detail::minimum_mean_cycle<Float_Graph, FD, FS, false>(fb.g, FD(), FS(), limit);
+          ASSERT_TRUE(same(ffull, fvalue)) << "double, trial=" << trial << " limit=" << limit;
+          ++compared;
+          fallbacks += ffull.used_karp;
+        }
+
+      // The public function, with the default limit.
+      const auto full = howard_minimum_mean_cycle(fb.g);
+      const auto value = howard_minimum_mean_cycle_value(fb.g);
+      ASSERT_EQ(full.has_cycle, value.has_cycle) << "trial=" << trial;
+      if (full.has_cycle)
+        ASSERT_EQ(full.minimum_mean, value.minimum_mean) << "trial=" << trial;
+    }
+  EXPECT_GT(compared, 15000u);
+  EXPECT_GT(fallbacks, 1000u);   // limit 0 sends most of them to Karp
+}
+
+
+TEST(HowardMinMeanCycleTest, ValueOnlyReadsTheAccessorOncePerArcAlsoAfterTheFallback)
+{
+  auto built = build_graph(4, {{0, 1, 1}, {1, 0, 1}, {0, 2, 2}, {2, 3, -9}, {3, 0, 2}, {1, 2, 5}});
+
+  for (const size_t limit : {howard_detail::default_iterations, size_t{0}})
+    {
+      int dist_calls = 0;
+      int filter_calls = 0;
+      const auto r = howard_detail::minimum_mean_cycle<Graph, Counting_Dist, Counting_Filter, false>(
+          built.g, Counting_Dist{&dist_calls}, Counting_Filter{&filter_calls, built.arcs[5]}, limit);
+      ASSERT_TRUE(r.has_cycle);
+      EXPECT_EQ(r.used_karp, limit == 0);
+      EXPECT_EQ(r.minimum_mean, -5.0L / 3.0L);
+      EXPECT_EQ(filter_calls, 6) << "limit=" << limit;
+      EXPECT_EQ(dist_calls, 5) << "limit=" << limit;
+    }
+}
+
+
+TEST(HowardMinMeanCycleTest, ValueOnlyAnswersWhereTheCostOfTheCycleDoesNotFit)
+{
+  // The only cycle costs LLONG_MAX + 1, which long long cannot report. The
+  // function with the witness has to report it and throws; the value-only
+  // one needs only the mean, 2^62, and answers, as
+  // karp_minimum_mean_cycle_value() does (the 128-bit sums of Karp's table
+  // hold it). Without 128-bit integers Karp's table cannot hold it either.
+  const long long max = std::numeric_limits<long long>::max();
+  auto built = build_graph(2, {{0, 1, max}, {1, 0, 1}});
+
+  EXPECT_THROW((howard_minimum_mean_cycle(built.g)), std::overflow_error);
+# if ALEPH_KARP_INT128
+  const auto value = howard_minimum_mean_cycle_value(built.g);
+  ASSERT_TRUE(value.has_cycle);
+  EXPECT_EQ(value.minimum_mean, 0x1p62L);
+  EXPECT_EQ(value.minimum_mean, karp_minimum_mean_cycle_value(built.g).minimum_mean);
+# else
+  EXPECT_THROW((howard_minimum_mean_cycle_value(built.g)), std::overflow_error);
+# endif
+}
+
+
 TEST(HowardMinMeanCycleTest, FallbackRunsKarpOnEachComponent)
 {
   // Two copies of the graph above (nodes 0-3 and 4-7, same mean -5/3), a

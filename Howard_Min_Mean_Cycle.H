@@ -74,8 +74,9 @@
  *  @f$O(\sum_c V_c E_c)@f$ time and @f$O(\max_c V_c^2)@f$ memory, where
  *  @f$V_c@f$ and @f$E_c@f$ count the nodes and arcs of component @f$c@f$:
  *  Karp's `O(V E)` and `O(V^2)` only when one component holds the whole
- *  graph. `howard_minimum_mean_cycle_value()` then runs the full Karp,
- *  witness included. No budget limits that cost.
+ *  graph. `howard_minimum_mean_cycle_value()` runs it without the table of
+ *  predecessors (8 bytes per entry, next to the sums of 8 or 16) and without
+ *  extracting a witness. No budget limits that cost.
  *
  *  ## Arithmetic
  *
@@ -1025,20 +1026,24 @@ size_t best_cycle_exactly(const negative_cycles_detail::Out_Adjacency<Cost_Type>
  *
  *  The answer is the component of smallest mean; a tie goes to the one
  *  whose witness vertex comes first in `ig`, which is how a single table
- *  over all the nodes breaks it.
+ *  over all the nodes breaks it. The mean does not depend on the witness, so
+ *  `With_Witness` false gives the same `minimum_mean` without the table of
+ *  predecessors and without extracting the cycle.
  *
+ *  @tparam With_Witness Whether to keep predecessors and extract the witness.
  *  @param[in] ig Cyclic core (a snapshot that is its own core included).
  *  @param[in] adj Out-adjacency of `ig`.
- *  @return Karp's answer, with its witness in the nodes and arcs of the graph.
- *  @throws std::overflow_error If the cost of the witness does not fit
- *          `Cost_Type`, or a checked integer addition overflows (see
- *          `karp_minimum_mean_cycle()`).
+ *  @return Karp's answer, with its witness in the nodes and arcs of the graph
+ *          if `With_Witness`; otherwise `has_cycle` and `minimum_mean` only.
+ *  @throws std::overflow_error If, with `With_Witness`, the cost of the witness
+ *          does not fit `Cost_Type`; or a checked integer addition overflows
+ *          (see `karp_minimum_mean_cycle()`).
  *  @throws std::domain_error If a floating-point accumulation is not finite.
  *  @note @f$O(V + E + \sum_c V_c E_c)@f$ time and
  *        @f$O(V + E + \max_c V_c^2)@f$ space, where @f$V_c@f$ and
  *        @f$E_c@f$ are the nodes and arcs of component @f$c@f$.
  */
-template <AlephGraph GT, typename Cost_Type>
+template <bool With_Witness, AlephGraph GT, typename Cost_Type>
 Min_Mean_Cycle_Result<GT, Cost_Type>
 karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig,
                   const negative_cycles_detail::Out_Adjacency<Cost_Type> &adj)
@@ -1104,7 +1109,8 @@ karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig
   for (size_t c = 0; c < components; ++c)
     {
       Answer answer =
-        min_mean_cycle_detail::karp_solve<true, GT, Cost_Type>(incoming(c), "howard_minimum_mean_cycle");
+        min_mean_cycle_detail::karp_solve<With_Witness, GT, Cost_Type>(incoming(c),
+                                                                       "howard_minimum_mean_cycle");
       if (not answer.has_cycle)
         continue;
       if (best_comp == unset or answer.minimum_mean < best.minimum_mean or
@@ -1119,6 +1125,13 @@ karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig
   Min_Mean_Cycle_Result<GT, Cost_Type> result;
   if (best_comp == unset)
     return result;
+
+  if constexpr (not With_Witness)
+    {
+      result.has_cycle = true;
+      result.minimum_mean = best.minimum_mean;
+      return result;
+    }
 
   // The witness is a simple cycle (see karp_solve()). As in Howard's own
   // answer, `witness_node` is its first node and a floating-point cost is the
@@ -1150,13 +1163,22 @@ karp_by_component(const negative_cycles_detail::Indexed_Graph<GT, Cost_Type> &ig
 
 /** @brief Body of `howard_minimum_mean_cycle()` with an explicit iteration
  *         limit, so that the fallback to Karp can be exercised.
+ *
+ *  With `With_Witness` false (`howard_minimum_mean_cycle_value()`) the lists
+ *  of nodes and arcs of the cycle are not built, and the fallback runs Karp
+ *  without predecessors. `has_cycle`, `minimum_mean`, `iterations`,
+ *  `used_karp` and `numeric_quality` are the same as with the witness, except
+ *  that the cost of the cycle does not have to fit `Cost_Type` when the
+ *  fallback answers (see `karp_by_component()`).
+ *
+ *  @tparam With_Witness Whether to build the witness.
  *  @param[in] g Graph (must be directed).
  *  @param[in] distance Arc cost accessor.
  *  @param[in] sa Arc filter.
  *  @param[in] max_iterations Improvements allowed, or `default_iterations`.
  *  @return The result of `howard_minimum_mean_cycle()`.
  */
-template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA>
+template <AlephGraph GT, ArcDistance<GT> Distance, ArcFilter<GT> SA, bool With_Witness = true>
 Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycle(
   const GT &g, Distance distance, SA sa, const size_t max_iterations)
 {
@@ -1196,7 +1218,8 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
   const auto use_karp = [&](const size_t done)
     {
       Result karp;
-      static_cast<Min_Mean_Cycle_Result<GT, Cost_Type> &>(karp) = karp_by_component(ig, adj);
+      static_cast<Min_Mean_Cycle_Result<GT, Cost_Type> &>(karp) =
+        karp_by_component<With_Witness>(ig, adj);
       karp.iterations = done;
       karp.used_karp = true;
       karp.numeric_quality = Cycle_Numeric_Quality::Rounded;   // Karp compares means in long double
@@ -1232,19 +1255,23 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
     first = cycle_entry(adj, policy, solver.best_node());
 
   Array<size_t> arcs;  // indices into ig.arcs, in cycle order
-  result.cycle_nodes.append(ig.nodes(first));
+  if constexpr (With_Witness)
+    result.cycle_nodes.append(ig.nodes(first));
   size_t u = first;
   do
     {
       const size_t a = adj.arc(policy(u));
       arcs.append(a);
-      result.cycle_arcs.append(ig.arcs(a).arc);
+      if constexpr (With_Witness)
+        result.cycle_arcs.append(ig.arcs(a).arc);
       u = adj.tgt(policy(u));
-      result.cycle_nodes.append(ig.nodes(u));
+      if constexpr (With_Witness)
+        result.cycle_nodes.append(ig.nodes(u));
   } while (u != first);
 
   result.has_cycle = true;
-  result.witness_node = ig.nodes(first);
+  if constexpr (With_Witness)
+    result.witness_node = ig.nodes(first);
   result.cycle_length = arcs.size();
   if constexpr (howard_detail::exact_arithmetic_v<Cost_Type>)
     {
@@ -1333,8 +1360,10 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> howard_minimum_me
 /** @brief Minimum mean cycle value by Howard's policy iteration, without the
  *         witness.
  *
- *  Same algorithm and requirements as `howard_minimum_mean_cycle()`, which it
- *  calls; Karp's algorithm runs only if that function falls back to it.
+ *  Same algorithm and requirements as `howard_minimum_mean_cycle()`, and the
+ *  same `minimum_mean` bit for bit, but the cycle is not built: no lists of
+ *  nodes and arcs, and if the fallback to Karp runs it keeps no table of
+ *  predecessors (see the file documentation).
  *
  *  @tparam GT Directed Aleph graph type.
  *  @tparam Distance Arc cost accessor (`Distance::Distance_Type` required).
@@ -1352,7 +1381,11 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> howard_minimum_me
  *
  *  @throws std::domain_error If `g` is undirected, or a floating weight (or
  *          an accumulated cost) is not finite.
- *  @throws std::overflow_error If integer additions overflow.
+ *  @throws std::overflow_error If integer additions overflow. Unlike
+ *          `howard_minimum_mean_cycle()`, not if only the cost of the
+ *          cycle does not fit the cost type: no cost is reported, so after
+ *          the fallback the mean is answered, as `karp_minimum_mean_cycle_value()`
+ *          does.
  *
  *  @ingroup Graphs
  */
@@ -1361,7 +1394,8 @@ Min_Mean_Cycle_Value_Result howard_minimum_mean_cycle_value(const GT &g,
                                                             Distance distance = Distance(),
                                                             SA sa = SA())
 {
-  const auto r = howard_minimum_mean_cycle<GT, Distance, SA>(g, std::move(distance), std::move(sa));
+  const auto r = howard_detail::minimum_mean_cycle<GT, Distance, SA, false>(
+    g, std::move(distance), std::move(sa), howard_detail::default_iterations);
   Min_Mean_Cycle_Value_Result value;
   value.has_cycle = r.has_cycle;
   value.minimum_mean = r.minimum_mean;
