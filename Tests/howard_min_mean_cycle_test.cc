@@ -1076,6 +1076,63 @@ TEST(HowardMinMeanCycleTest, FallbackBeyondTheMemoryLimitThrowsLengthError)
     }
 }
 
+TEST(HowardMinMeanCycleTest, TheLimitIsCheckedAgainstTheLargestComponentWhereverItIs)
+{
+  // Independent audit of stage C, C2. The first component (3 nodes, whose
+  // scaled bias overflows and sends Howard to Karp) needs small tables; the
+  // second, a ring of 40 nodes, needs 32768 bytes. A limit that only the
+  // first component meets has to be refused.
+  using D = Dft_Dist<Graph>;
+  using S = Dft_Show_Arc<Graph>;
+  const long long big = 3100000000000000000LL;
+  std::vector<std::tuple<size_t, size_t, long long>> edges = {{0, 1, big}, {1, 2, -big}, {2, 0, 1}};
+  for (size_t i = 0; i < 40; ++i)
+    edges.emplace_back(3 + i, 3 + (i + 1) % 40, static_cast<long long>(i) - 20);
+  auto built = build_graph_generic<Graph, long long>(43, edges);
+  const auto unlimited = howard_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(unlimited.used_karp);
+  EXPECT_THROW((howard_minimum_mean_cycle(built.g, D(), S(), 32767)), std::length_error);
+  EXPECT_NO_THROW((howard_minimum_mean_cycle(built.g, D(), S(), 32768)));
+}
+
+# if ALEPH_KARP_INT128
+TEST(HowardMinMeanCycleTest, ALosingComponentNeedNotFitTheCostType)
+{
+  // Independent audit of stage C, H1. The 2-cycle costs LLONG_MAX + 1, so
+  // Howard falls back to Karp, component by component. The loop of the
+  // other component wins; the witness of the 2-cycle, which does not fit a
+  // long long, used to be extracted all the same and threw.
+  const long long max = std::numeric_limits<long long>::max();
+  auto built = build_graph(3, {{0, 1, max}, {1, 0, 1}, {2, 2, -1}});
+  const auto r = howard_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_TRUE(r.used_karp);
+  EXPECT_EQ(r.fallback_reason, Howard_Fallback_Reason::Arithmetic_Overflow);
+  EXPECT_EQ(r.minimum_mean, -1.0L);
+  EXPECT_EQ(r.cycle_total_cost, -1);
+  EXPECT_EQ(r.witness_node, built.nodes[2]);
+  EXPECT_EQ(howard_minimum_mean_cycle_value(built.g).minimum_mean, r.minimum_mean);
+}
+
+TEST(HowardMinMeanCycleTest, ATiedCycleWhoseCostFitsIsReported)
+{
+  // Independent audit of stage C, T1. The loop at 3 and the 2-cycle 1 <-> 2
+  // have the same mean, -32764, but only the loop's cost fits an int16_t.
+  // Howard's policy reaches the 2-cycle (Cost_Out_Of_Range), and Karp's
+  // fallback reports the loop instead of throwing.
+  using Short_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int16_t>>;
+  auto built = build_graph_generic<Short_Graph, int16_t>(
+    5, {{2, 1, -32767}, {4, 3, 32761}, {1, 2, -32761}, {2, 4, -32768},
+        {3, 2, -32768}, {3, 3, -32764}, {4, 1, 32760}});
+  const auto r = howard_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.minimum_mean, -32764.0L);
+  EXPECT_EQ(r.cycle_length, 1u);
+  EXPECT_EQ(r.cycle_total_cost, -32764);
+  EXPECT_EQ(r.fallback_reason, Howard_Fallback_Reason::Cost_Out_Of_Range);
+}
+# endif
+
 
 TEST(HowardMinMeanCycleTest, FallbackRunsKarpOnEachComponent)
 {

@@ -1080,11 +1080,15 @@ inline const char *fallback_reason_text(const Howard_Fallback_Reason reason) noe
  *  nor the arc filter is read again, and the nodes outside the core cost
  *  nothing.
  *
- *  The answer is the component of smallest mean; a tie goes to the one
- *  whose witness vertex comes first in `ig`, which is how a single table
- *  over all the nodes breaks it. The mean does not depend on the witness, so
- *  `With_Witness` false gives the same `minimum_mean` without the table of
- *  predecessors and without extracting the cycle.
+ *  The answer is the component of smallest mean, compared exactly for
+ *  integral costs where 128-bit integers exist; a tie goes to the one whose
+ *  witness vertex comes first in `ig`. The witness, however, is taken from
+ *  a component of that mean whose cycle cost fits `Cost_Type` when there is
+ *  one, so a component that does not win, or whose cost does not fit while
+ *  another of the same mean does, never makes the call throw. The mean does
+ *  not depend on the witness, so `With_Witness` false gives the same
+ *  `minimum_mean` without the table of predecessors and without extracting
+ *  the cycle.
  *
  *  With a memory limit, the bytes of the tables of every component are
  *  computed first (`karp_table_bytes()`, as `karp_solve()` reserves them),
@@ -1100,9 +1104,10 @@ inline const char *fallback_reason_text(const Howard_Fallback_Reason reason) noe
  *          if `With_Witness`; otherwise `has_cycle` and `minimum_mean` only.
  *  @throws std::length_error If the tables of a component need more than
  *          `max_bytes` bytes.
- *  @throws std::overflow_error If, with `With_Witness`, the cost of the witness
- *          does not fit `Cost_Type`; or a checked integer addition overflows
- *          (see `karp_minimum_mean_cycle()`).
+ *  @throws std::overflow_error If, with `With_Witness`, the cost of no
+ *          minimum-mean witness the components gave fits `Cost_Type`; or a
+ *          checked integer addition overflows (see
+ *          `karp_minimum_mean_cycle()`).
  *  @throws std::domain_error If a floating-point accumulation is not finite.
  *  @note @f$O(V + E + \sum_c V_c E_c)@f$ time and
  *        @f$O(V + E + \max_c V_c^2)@f$ space, where @f$V_c@f$ and
@@ -1203,16 +1208,30 @@ Min_Mean_Cycle_Result<GT, Cost_Type> karp_by_component(
         << " nodes, above the limit of " << max_bytes << " bytes";
     }
 
-  Answer best;
+  // The mean is that of the component of smallest exact mean whose witness
+  // vertex comes first. The witness comes from a component of that same
+  // mean too, but one whose cycle cost fits the cost type is preferred: only
+  // the reported witness has to fit, not the one of every component.
+  Answer best;              // the component of the witness
   size_t best_comp = unset;
+  long double mean = 0;     // the reported mean
+  size_t mean_vertex = unset;
   for (size_t c = 0; c < components; ++c)
     {
       Answer answer = min_mean_cycle_detail::karp_solve<With_Witness, GT, Cost_Type>(incoming(c), fn);
       if (not answer.has_cycle)
         continue;
-      if (best_comp == unset or answer.minimum_mean < best.minimum_mean or
-          (answer.minimum_mean == best.minimum_mean and
-           members(c)(answer.witness) < members(best_comp)(best.witness)))
+      const size_t vertex = members(c)(answer.witness);
+      const int order = best_comp == unset ? -1 : min_mean_cycle_detail::mean_order(answer, best);
+      if (order > 0)
+        continue;
+      if (order < 0 or vertex < mean_vertex)
+        {
+          mean = answer.minimum_mean;
+          mean_vertex = vertex;
+        }
+      if (order < 0 or (answer.witness_fits and not best.witness_fits) or
+          (answer.witness_fits == best.witness_fits and vertex < members(best_comp)(best.witness)))
         {
           best = std::move(answer);
           best_comp = c;
@@ -1226,16 +1245,19 @@ Min_Mean_Cycle_Result<GT, Cost_Type> karp_by_component(
   if constexpr (not With_Witness)
     {
       result.has_cycle = true;
-      result.minimum_mean = best.minimum_mean;
+      result.minimum_mean = mean;
       return result;
     }
+
+  ah_overflow_error_if(not best.witness_fits)
+    << fn << "(): the cost of the witness cycle does not fit the cost type";
 
   // The witness is a simple cycle (see karp_solve()). As in Howard's own
   // answer, `witness_node` is its first node and a floating-point cost is the
   // exact sum of its weights, rounded once. The mean stays Karp's value.
   const Array<size_t> &where = members(best_comp);
   result.has_cycle = true;
-  result.minimum_mean = best.minimum_mean;
+  result.minimum_mean = mean;
   result.cycle_length = best.cycle_arcs.size();
   if (best.cycle_nodes.is_empty())  // no witness extracted: Karp's vertex
     result.witness_node = ig.nodes(where(best.witness));

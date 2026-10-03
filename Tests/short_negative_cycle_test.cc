@@ -272,6 +272,41 @@ TEST(ShortNegativeCycleTest, IntegersCheckOverflowButDoNotReserveMaximumAsInfini
   EXPECT_FALSE(most_negative_cycle_up_to_3(dag.g).has_cycle);
 }
 
+TEST(ShortNegativeCycleTest, CandidatesAboveTheCostTypeDoNotAbortTheSearch)
+{
+  // Independent audits of D4, D4-1. Only the total of the reported cycle
+  // has to fit the cost type. A triangle whose partial sum leaves it in
+  // cycle order is ranked by its total; one above the type is skipped
+  // instead of aborting the search for the -1 loop.
+  const long long m = std::numeric_limits<long long>::max();
+  auto ints = build_graph(4, {{0, 1, m}, {1, 2, 1}, {2, 0, -m}, {3, 3, -1}});
+  const auto ri = most_negative_cycle_up_to_3(ints.g);
+  check_witness(ints.g, ri);
+  EXPECT_EQ(ri.total_cost, -1);
+  EXPECT_EQ(ri.length, 1u);
+  auto above = build_graph(4, {{0, 1, m}, {1, 2, m}, {2, 0, 1}, {3, 3, -1}});
+  EXPECT_EQ(most_negative_cycle_up_to_3(above.g).total_cost, -1);
+
+  // Alone, the triangle of total 1 is the answer, and one below the type
+  // would be the best cycle, which has no representable cost.
+  auto alone = build_graph(3, {{0, 1, m}, {1, 2, 1}, {2, 0, -m}});
+  EXPECT_EQ(most_negative_cycle_up_to_3(alone.g).total_cost, 1);
+  auto below = build_graph(3, {{0, 1, -m}, {1, 0, -m}, {2, 2, -1}});
+  EXPECT_THROW(most_negative_cycle_up_to_3(below.g), std::overflow_error);
+
+  // Floating point: DBL_MAX + DBL_MAX - DBL_MAX overflowed in cycle order.
+  const double d = std::numeric_limits<double>::max();
+  auto floats = build_graph_generic<Float_Graph, double>(4,
+    {{0, 1, d}, {1, 2, d}, {2, 0, -d}, {3, 3, -1}});
+  EXPECT_EQ(most_negative_cycle_up_to_3(floats.g).total_cost, -1);
+  auto lone = build_graph_generic<Float_Graph, double>(3, {{0, 1, d}, {1, 2, d}, {2, 0, -d}});
+  const auto rl = most_negative_cycle_up_to_3(lone.g);
+  EXPECT_EQ(rl.total_cost, d);
+  EXPECT_EQ(rl.length, 3u);
+  auto infinite = build_graph_generic<Float_Graph, double>(3, {{0, 1, d}, {1, 2, d}, {2, 0, d}});
+  EXPECT_THROW(most_negative_cycle_up_to_3(infinite.g), std::domain_error);
+}
+
 TEST(ShortNegativeCycleTest, NonFiniteWeightsAreValidatedOnlyAfterFiltering)
 {
   for (const double invalid : {std::numeric_limits<double>::infinity(),

@@ -605,6 +605,62 @@ TEST(MinMeanCycleTest, SumsBeyondTheCostTypeAreExact)
   EXPECT_EQ(i.minimum_mean, static_cast<long double>(imax - 1));
 }
 
+TEST(MinMeanCycleTest, BoundedSumsMayReachOneBelowTheSentinel)
+{
+  // Independent audit of stage C, C1. With n * max|w| = 2^63 - 2 the table
+  // stays in long long, and D_2 reaches LLONG_MAX - 1: only LLONG_MAX may
+  // mark an unreachable state.
+  const long long w = (1LL << 62) - 1;
+  auto b = build_graph(2, {{0, 1, w}, {1, 0, w}});
+  const auto r = karp_minimum_mean_cycle(b.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.minimum_mean, static_cast<long double>(w));
+  EXPECT_EQ(r.cycle_total_cost, 2 * w);
+  EXPECT_TRUE(karp_minimum_mean_cycle_value(b.g).has_cycle);
+}
+
+TEST(MinMeanCycleTest, AMinimumMeanCycleWhoseCostFitsIsPreferred)
+{
+  // Independent audit of stage C, T1. The 2-cycle and the loop both have
+  // mean -124, but only the loop's cost fits an int8_t. Karp's vertex 0
+  // ends a walk with just the 2-cycle; another vertex of the same mean
+  // gives the loop, instead of an overflow_error. Equal means are told
+  // apart only where they are compared exactly (128-bit integers).
+  using Small_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<int8_t>>;
+# if ALEPH_KARP_INT128
+  auto b = build_graph_generic<Small_Graph, int8_t>(3, {{0, 1, -124}, {1, 0, -124}, {2, 2, -124}});
+  const auto r = karp_minimum_mean_cycle(b.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.minimum_mean, -124.0L);
+  EXPECT_EQ(r.cycle_length, 1u);
+  EXPECT_EQ(r.cycle_total_cost, -124);
+  EXPECT_EQ(r.witness_node, b.nodes[2]);
+# endif
+
+  // When no minimum-mean cycle fits, the witness cannot be reported.
+  auto alone = build_graph_generic<Small_Graph, int8_t>(2, {{0, 1, -124}, {1, 0, -124}});
+  EXPECT_THROW(karp_minimum_mean_cycle(alone.g), std::overflow_error);
+  EXPECT_EQ(karp_minimum_mean_cycle_value(alone.g).minimum_mean, -124.0L);
+}
+
+# if ALEPH_KARP_INT128
+TEST(MinMeanCycleTest, TheVertexIsChosenWithExactMeans)
+{
+  // Independent audit of stage C, K1. The 5-cycle has mean 2^62 + 1/5 and
+  // the loop 2^62; with 64 bits of long double, or 53, both round to 2^62.
+  // The vertex used to be chosen by those rounded means, the first one on
+  // the 5-cycle, whose cost 5 * 2^62 + 1 does not fit a long long.
+  const long long a = 1LL << 62;
+  auto b = build_graph(6, {{0, 1, a}, {1, 2, a}, {2, 3, a}, {3, 4, a}, {4, 0, a + 1}, {5, 5, a}});
+  const auto r = karp_minimum_mean_cycle(b.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.minimum_mean, static_cast<long double>(a));
+  EXPECT_EQ(r.cycle_length, 1u);
+  EXPECT_EQ(r.cycle_total_cost, a);
+  EXPECT_EQ(karp_minimum_mean_cycle_value(b.g).minimum_mean, r.minimum_mean);
+}
+# endif
+
 TEST(MinMeanCycleTest, SupportsArrayDigraphBackend)
 {
   const std::vector<Edge_Def> edges = {

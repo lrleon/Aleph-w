@@ -2460,6 +2460,9 @@ Witness semantics:
 - `cycle_nodes` is a simple cycle (first node repeated at the end): the walk
   of the table is decomposed into simple cycles and the one of smallest mean is
   reported. With floating-point costs it attains `minimum_mean` up to rounding.
+- Only the cost of the reported cycle has to fit the cost type: integer means
+  are compared exactly, and among cycles of the same mean one whose cost fits
+  is preferred. The call throws `std::overflow_error` only when none does.
 - `witness_node` is the vertex that walk ends at, not necessarily on the cycle.
 
 ```cpp
@@ -2531,8 +2534,9 @@ empty result and values above 3 throw. Its `Short_Cycle_Result` exposes `has_cyc
 `total_cost`, `length`, `cycle_nodes`, `cycle_arcs` and `is_negative()`. Equal exact
 costs prefer fewer arcs. Floating-point weights are ranked as exact binary values;
 the published total is rounded within one ulp and preserves the exact sign.
-This requires round-to-nearest arithmetic without fast-math; out-of-range sums
-throw. The search uses O(V + E) space and O(V + E) time for bounds 1–2, or
+This requires round-to-nearest arithmetic without fast-math. Only the total of the
+reported cycle has to fit the cost type: a cycle whose total is above it is skipped,
+and the call throws only when the best cycle's total does not fit. The search uses O(V + E) space and O(V + E) time for bounds 1–2, or
 O(V + E + Σ d_in(v) · d_out(v)) time for bound 3, with distinct-neighbour degrees
 inside the cyclic core. The existing bounded DP and its certificates are unchanged.
 

@@ -586,9 +586,13 @@ namespace Aleph
 
       /// The smallest number of `T` not below the value, or a slightly larger
       /// one; checked exactly, so it is a rigorous upper bound. A value above
-      /// the largest finite `T` gives infinity.
+      /// the largest finite `T` gives infinity, and so does a meaningless one
+      /// (after an `add()` that returned false).
       [[nodiscard]] T upper()
       {
+        for (size_t i = 0; i < n_; ++i)
+          if (not std::isfinite(h_(i)))
+            return std::numeric_limits<T>::infinity();
         T b = rounded();
         for (;;)
           {
@@ -1973,9 +1977,40 @@ namespace Aleph
       bool exact_sums_ = true;
       Exact_Sum<Cost_Type> best_, candidate_, difference_;
 
+      // Plain sum of the weights of `idx`, in that order: 0, or the sign of
+      // the bound a partial sum crossed (1 above the type, -1 below it).
+      template <AlephGraph GT>
+      static int plain_sum(const Indexed_Graph<GT, Cost_Type> & ig, const size_t * idx,
+                           const size_t len, Cost_Type & sum)
+      {
+        sum = Cost_Type{0};
+        for (size_t i = 0; i < len; ++i)
+          {
+            const Cost_Type w = ig.arcs(idx[i]).weight;
+            if constexpr (std::is_floating_point_v<Cost_Type>)
+              {
+                sum = sum + w;
+                if (not std::isfinite(sum))
+                  return sum > Cost_Type{0} ? 1 : -1;
+              }
+            else
+              {
+                if (w > Cost_Type{0} and sum > std::numeric_limits<Cost_Type>::max() - w)
+                  return 1;
+                if (w < Cost_Type{0} and sum < std::numeric_limits<Cost_Type>::lowest() - w)
+                  return -1;
+                sum = static_cast<Cost_Type>(sum + w);
+              }
+          }
+        return 0;
+      }
+
     public:
       size_t length = 0;  ///< Zero until the first cycle is offered.
       size_t arcs[3] = {};  ///< Original snapshot indices in cycle order.
+      /// Whether a cycle was skipped because its total is above the largest
+      /// value of the cost type. If no cycle was kept, the best one does not fit.
+      bool above_range = false;
 
       /** @brief Prepare a rigorous rounding filter for this graph and bound.
        *  @param[in] ig Indexed graph searched.
@@ -1989,19 +2024,51 @@ namespace Aleph
       }
 
       /** @brief Offer a cycle; exact cost and then length decide the winner.
+       *
+       *  The weights are added in cycle order. If a partial sum leaves the
+       *  cost type, two weights of opposite signs are added first, which
+       *  cannot leave it; if the total still does, it is out of range. A
+       *  total above the type is worse than any that fits and is skipped
+       *  (`above_range`); one below it would be the best cycle, which has no
+       *  representable cost, and throws.
+       *
        *  @param[in] ig Indexed graph searched.
        *  @param[in] path Snapshot arc indices of the candidate.
        *  @param[in] len Candidate length, in [1, 3].
-       *  @throws std::overflow_error Integral accumulation overflow.
-       *  @throws std::domain_error Non-finite floating-point accumulation.
+       *  @throws std::overflow_error An integral total below the cost type.
+       *  @throws std::domain_error A floating-point total below the format,
+       *          or an exact sum that is not finite.
        */
       template <AlephGraph GT>
       void offer(const Indexed_Graph<GT, Cost_Type> & ig, const size_t * path, const size_t len)
       {
+        size_t order[3] = {path[0], len > 1 ? path[1] : 0, len > 2 ? path[2] : 0};
         Cost_Type sum = Cost_Type{0};
-        for (size_t i = 0; i < len; ++i)
-          sum = shortest_path_detail::checked_add(sum, ig.arcs(path[i]).weight);
-        check_finite(sum, "most_negative_cycle_up_to_3(): cycle cost out of range");
+        int out = plain_sum(ig, order, len, sum);
+        if (out != 0 and len == 3)
+          for (size_t i = 0; i < 2; ++i)
+            for (size_t j = i + 1; j < 3; ++j)
+              if (out != 0 and (ig.arcs(path[i]).weight < Cost_Type{0})
+                                 != (ig.arcs(path[j]).weight < Cost_Type{0}))
+                {
+                  order[0] = path[i];
+                  order[1] = path[j];
+                  order[2] = path[3 - i - j];
+                  out = plain_sum(ig, order, len, sum);
+                }
+        if (out > 0)
+          {
+            above_range = true;
+            return;
+          }
+        if constexpr (std::is_floating_point_v<Cost_Type>)
+          {
+            ah_domain_error_if(out < 0) << "most_negative_cycle_up_to_3(): cycle cost out of range";
+          }
+        else
+          {
+            ah_overflow_error_if(out < 0) << "most_negative_cycle_up_to_3(): cycle cost out of range";
+          }
 
         if constexpr (std::is_floating_point_v<Cost_Type>)
           {
@@ -2011,7 +2078,7 @@ namespace Aleph
                   return;
                 candidate_.clear();
                 for (size_t i = 0; i < len; ++i)
-                  ah_domain_error_if(not candidate_.add(ig.arcs(path[i]).weight))
+                  ah_domain_error_if(not candidate_.add(ig.arcs(order[i]).weight))
                     << "most_negative_cycle_up_to_3(): cycle cost out of range";
                 if (length != 0)
                   {
@@ -2072,7 +2139,10 @@ namespace Aleph
    *  using error-free expansions when a rigorous rounding filter cannot decide.
    *  The published cost is within one ulp of that sum and has its exact sign.
    *  Requires round-to-nearest arithmetic without reassociation/fast-math, as
-   *  described in the file documentation. Integral sums are overflow-checked.
+   *  described in the file documentation. Only the total of the reported
+   *  cycle has to fit the cost type: a cycle whose total is above it is
+   *  worse than any that fits and is skipped, whatever its partial sums;
+   *  one below it would be the best and has no representable total.
    *  No closed-walk relaxation or certificate from that relaxation is used.
    *
    *  The graph is not modified. Each accepted arc's weight is read once.
@@ -2091,8 +2161,10 @@ namespace Aleph
    *          `is_negative()` decides existence of a negative cycle in the bound.
    *  @throws std::invalid_argument If `max_length > 3` (before graph access).
    *  @throws std::domain_error If the graph is undirected, an accepted weight
-   *          is not finite, or a floating sum/comparison exceeds its format.
-   *  @throws std::overflow_error If an integral candidate's partial sum overflows.
+   *          is not finite, or the total of the best floating-point cycle
+   *          (or an exact comparison) exceeds the format.
+   *  @throws std::overflow_error If the total of the best integral cycle does
+   *          not fit the cost type.
    *  @note Expected time O(V + E) for bounds 1 and 2, and
    *        O(V + E + sum_v d_in(v) * d_out(v)) for bound 3. Degrees count
    *        distinct neighbours inside the cyclic core after parallel collapse.
@@ -2196,7 +2268,20 @@ namespace Aleph
       }
 
     if (best.length == 0)
-      return result;
+      {
+        // Every cycle had a total above the cost type: the best one does not fit.
+        if constexpr (std::is_floating_point_v<Cost_Type>)
+          {
+            ah_domain_error_if(best.above_range)
+              << "most_negative_cycle_up_to_3(): cycle cost out of range";
+          }
+        else
+          {
+            ah_overflow_error_if(best.above_range)
+              << "most_negative_cycle_up_to_3(): cycle cost out of range";
+          }
+        return result;
+      }
     result.has_cycle = true;
     result.length = best.length;
     result.total_cost = best.total();

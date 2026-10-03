@@ -740,4 +740,12 @@ TEST(NegativeCyclesNumericTest, ExactUpperBoundBeyondTheRangeIsInfinity)
   ASSERT_TRUE(below_minus_max.add(-max));
   ASSERT_TRUE(below_minus_max.add(-1.0));
   EXPECT_EQ(below_minus_max.upper(), -max);
+
+  // Independent audit of stage C, E1. After an add() that overflowed, a
+  // component is -inf and the value is meaningless; upper() stepped up from
+  // -DBL_MAX one ulp at a time and never ended. It is now infinity.
+  Exact_Sum<double> broken;
+  ASSERT_TRUE(broken.add(-max));
+  ASSERT_FALSE(broken.add(-max));
+  EXPECT_EQ(broken.upper(), std::numeric_limits<double>::infinity());
 }

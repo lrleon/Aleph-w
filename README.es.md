@@ -2251,6 +2251,9 @@ Semántica del witness:
 - `cycle_nodes` es un ciclo simple (el primer nodo se repite al final): el recorrido de la tabla
   se descompone en ciclos simples y se informa el de menor media. Con costos de coma flotante
   alcanza `minimum_mean` salvo redondeo.
+- Solo el costo del ciclo informado tiene que caber en el tipo: las medias enteras se comparan
+  exactamente, y entre ciclos de la misma media se prefiere uno cuyo costo cabe. La llamada lanza
+  `std::overflow_error` solo cuando ninguno cabe.
 - `witness_node` es el vértice en que termina ese recorrido, no necesariamente uno del ciclo.
 
 ```cpp
@@ -2323,7 +2326,9 @@ cero devuelve un resultado vacío y valores mayores que 3 lanzan una excepción.
 `cycle_arcs` e `is_negative()`. Entre costos exactos iguales prefiere menos arcos.
 Los pesos flotantes se comparan como valores binarios exactos; el total publicado
 se redondea dentro de una ulp y conserva el signo exacto. Requiere redondeo al más
-cercano sin fast-math; las sumas fuera de rango lanzan una excepción. Usa espacio
+cercano sin fast-math. Solo el total del ciclo informado tiene que caber en el tipo:
+un ciclo cuyo total lo supera se descarta, y la llamada lanza una excepción solo
+cuando el total del mejor ciclo no cabe. Usa espacio
 O(V + E) y tiempo O(V + E) para cotas 1–2, u O(V + E + Σ d_in(v) · d_out(v)) para
 cota 3, contando vecinos distintos dentro del núcleo cíclico. La DP acotada
 existente y sus certificados conservan su comportamiento.
