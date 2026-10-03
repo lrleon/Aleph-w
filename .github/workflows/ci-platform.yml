@@ -59,6 +59,12 @@ jobs:
         # it, and its build tools, from source. That once ran until the job
         # timeout (60 min) and was reported as "cancelled".
         timeout-minutes: 20
+        env:
+          # Homebrew no longer builds Intel macOS bottles, so upgrading a
+          # formula the runner image already has (cmake, ninja, gmp, mpfr...)
+          # compiles it from source. Keep the preinstalled versions; only
+          # missing formulas are installed.
+          HOMEBREW_NO_INSTALL_UPGRADE: 1
         run: |
           set -euo pipefail
           brew update

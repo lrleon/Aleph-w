@@ -420,6 +420,12 @@ set(TEST_PROGRAMS
     johnson_test
     k_shortest_paths_test
     min_mean_cycle_test
+    howard_min_mean_cycle_test
+    howard_fallback_memory_test
+    negative_cycles_test
+    bounded_negative_cycle_test
+    short_negative_cycle_test
+    negative_cycles_numeric_test
     planarity_test
     graph_copy_test
     thread_pool_test

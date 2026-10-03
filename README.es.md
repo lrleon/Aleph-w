@@ -2248,9 +2248,13 @@ El resultado reporta:
 - información del witness walk (`cycle_nodes`, `cycle_arcs`, `cycle_total_cost`, `cycle_length`)
 
 Semántica del witness:
-- `cycle_nodes` es un recorrido cerrado (el primer nodo se repite al final).
-- En grafos con muchos empates puede contener vértices internos repetidos; es un witness válido
-  del valor mínimo de la media, no necesariamente un ciclo simple canónico.
+- `cycle_nodes` es un ciclo simple (el primer nodo se repite al final): el recorrido de la tabla
+  se descompone en ciclos simples y se informa el de menor media. Con costos de coma flotante
+  alcanza `minimum_mean` salvo redondeo.
+- Solo el costo del ciclo informado tiene que caber en el tipo: las medias enteras se comparan
+  exactamente, y entre ciclos de la misma media se prefiere uno cuyo costo cabe. La llamada lanza
+  `std::overflow_error` solo cuando ninguno cabe.
+- `witness_node` es el vértice en que termina ese recorrido, no necesariamente uno del ciclo.
 
 ```cpp
 #include <tpl_graph.H>
@@ -2274,6 +2278,60 @@ int main() {
     }
 }
 ```
+
+#### Iteración de políticas de Howard
+
+`Howard_Min_Mean_Cycle.H` resuelve el mismo problema con `howard_minimum_mean_cycle()` (y
+`howard_minimum_mean_cycle_value()`). Su resultado es un `Min_Mean_Cycle_Result` más `iterations` y
+`used_karp`, de modo que puede sustituir al de Karp en el código cliente.
+
+| | Karp | Howard |
+|---|---|---|
+| Tiempo | `O(VE)` en el peor caso | `O(V + E)` por iteración; sin cota polinómica de iteraciones, típicamente de 6 a 25 en las pruebas |
+| Memoria | `O(V^2)` | `O(V + E)` |
+| Costos enteros | exacto | exacto (fracciones reducidas) |
+| Testigo | ciclo simple | ciclo simple |
+
+En los grafos de mercado de `bench_negative_cycles` (hubs más pares aleatorios) tarda 0.16 ms
+frente a 3.3 ms de Karp con 300 activos, y 0.6 ms frente a 41 ms con 1000, con 5 a 9 veces menos
+memoria (12 a 24 veces si se pide el ciclo testigo). Tras `V + 64` iteraciones, o si el sesgo
+escalado de un problema entero sale del rango de `long long`, devuelve la respuesta de Karp
+(`used_karp`), y `fallback_reason` dice por qué. Ese respaldo ejecuta Karp sobre cada componente
+fuertemente conexa, cuyas tablas ocupan `O(V_c^2)` de memoria; un último argumento opcional,
+`max_fallback_bytes`, las acota, y por encima la llamada lanza `std::length_error` en lugar de
+reservarlas. Como Karp, ordena los ciclos por su *media*; para arbitraje, el ciclo a ejecutar
+sigue saliendo de `Negative_Cycles.H`.
+
+```cpp
+// Como mucho 256 MiB para las tablas de Karp, si el respaldo llega a ejecutarse.
+const auto r = howard_minimum_mean_cycle(g, Dft_Dist<Graph>(), Dft_Show_Arc<Graph>(),
+                                         size_t{256} << 20);
+if (r.used_karp and r.fallback_reason == Howard_Fallback_Reason::Iteration_Limit)
+  { /* Howard necesitó demasiadas iteraciones */ }
+```
+
+Los resultados incluyen `numeric_quality`. Con pesos de coma flotante, Howard itera en
+`long double` y después termina en aritmética exacta cuando los pesos, escalados a enteros, caben
+en 64 o 128 bits (`Exact`, el óptimo exacto); si no, elige igualmente entre los ciclos de su
+política con sumas exactas (`Rounded`). Los costos informados son sumas exactas de los pesos,
+redondeadas una vez, así que su signo es exacto. `most_negative_cycle_bounded()`
+(`Negative_Cycles.H`) informa `optimality_gap`, una cota rigurosa de cuánto mejor que su ciclo
+puede ser el óptimo (`is_exact` cuando vale cero).
+
+Para una a tres operaciones, `most_negative_cycle_up_to_3(g, max_length)` de
+`Negative_Cycles.H` encuentra de forma independiente el ciclo simple de costo total
+mínimo exacto, incluidos lazos y arcos paralelos. `max_length` vale 3 por defecto;
+cero devuelve un resultado vacío y valores mayores que 3 lanzan una excepción.
+`Short_Cycle_Result` ofrece `has_cycle`, `total_cost`, `length`, `cycle_nodes`,
+`cycle_arcs` e `is_negative()`. Entre costos exactos iguales prefiere menos arcos.
+Los pesos flotantes se comparan como valores binarios exactos; el total publicado
+se redondea dentro de una ulp y conserva el signo exacto. Requiere redondeo al más
+cercano sin fast-math. Solo el total del ciclo informado tiene que caber en el tipo:
+un ciclo cuyo total lo supera se descarta, y la llamada lanza una excepción solo
+cuando el total del mejor ciclo no cabe. Usa espacio
+O(V + E) y tiempo O(V + E) para cotas 1–2, u O(V + E + Σ d_in(v) · d_out(v)) para
+cota 3, contando vecinos distintos dentro del núcleo cíclico. La DP acotada
+existente y sus certificados conservan su comportamiento.
 
 <a id="readme-es-mst"></a>
 ### Árboles de expansión mínima
@@ -4217,6 +4275,7 @@ cmake --build build
 | Dijkstra | `dijkstra_example.cc` | Fuente única |
 | Bellman-Ford | `bellman_ford_example.cc` | Pesos negativos |
 | Johnson | `johnson_example.cc` | Todos los pares sparse |
+| Ciclos de arbitraje | `crypto_arbitrage_example.cc` | Arbitraje triangular como ciclos negativos de `-log(tasa * (1 - comisión))`: varias oportunidades sin arcos compartidos (`find_disjoint_negative_cycles`), el ciclo más rentable de a lo sumo `L` operaciones (`most_negative_cycle_bounded`), un margen mínimo en el funtor de distancia y Karp como comparación |
 | A* | `astar_example.cc` | Búsqueda heurística |
 | K caminos más cortos | `k_shortest_paths_example.cc` | Yen (sin ciclos) vs alternativas generales estilo Eppstein |
 | **Algoritmos de cadenas** | | |
