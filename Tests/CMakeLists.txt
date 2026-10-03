@@ -424,6 +424,7 @@ set(TEST_PROGRAMS
     howard_fallback_memory_test
     negative_cycles_test
     bounded_negative_cycle_test
+    short_negative_cycle_test
     negative_cycles_numeric_test
     planarity_test
     graph_copy_test

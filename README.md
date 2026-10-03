@@ -2524,6 +2524,18 @@ sign is exact. `most_negative_cycle_bounded()` (`Negative_Cycles.H`) reports
 `optimality_gap`, a rigorous bound of how much better than its cycle the optimum can be
 (`is_exact` when it is zero).
 
+For one to three trades, `most_negative_cycle_up_to_3(g, max_length)` in
+`Negative_Cycles.H` independently finds the exact minimum-total-cost simple cycle,
+including self-loops and parallel arcs. `max_length` defaults to 3; zero returns an
+empty result and values above 3 throw. Its `Short_Cycle_Result` exposes `has_cycle`,
+`total_cost`, `length`, `cycle_nodes`, `cycle_arcs` and `is_negative()`. Equal exact
+costs prefer fewer arcs. Floating-point weights are ranked as exact binary values;
+the published total is rounded within one ulp and preserves the exact sign.
+This requires round-to-nearest arithmetic without fast-math; out-of-range sums
+throw. The search uses O(V + E) space and O(V + E) time for bounds 1–2, or
+O(V + E + Σ d_in(v) · d_out(v)) time for bound 3, with distinct-neighbour degrees
+inside the cyclic core. The existing bounded DP and its certificates are unchanged.
+
 <a id="readme-minimum-spanning-trees"></a>
 ### Minimum Spanning Trees
 

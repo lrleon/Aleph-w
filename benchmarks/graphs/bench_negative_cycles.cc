@@ -73,6 +73,10 @@
  * `exact` (proven optimal: a zero `optimality_gap`), `bound` (the relaxed bound
  * was met in the rounded arithmetic of the search, which proves nothing by
  * itself; the market families use `double` weights) or `no-cert`.
+ * `most_negative_cycle_up_to_3(g, 3)` is measured separately against the DP
+ * with the same bound. It enumerates simple cycles exactly and shows `exact`;
+ * its optimality and shortest-tie rule are tested against exhaustive integer
+ * and GMP rational oracles in the test suite, not by this structural validator.
  *
  * `Bellman_Ford`'s witness extraction rebuilds the cycle from nodes and can
  * pick a different parallel arc, so on multigraphs it can return a cycle whose
@@ -740,7 +744,9 @@ Outcome check_result(const Graph & g, const std::tuple<Path<Graph>, size_t> & r,
   return check_result(g, std::get<0>(r), lim);
 }
 
-Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
+/** @brief Validate the common witness fields of the bounded and short searches. */
+template <typename Result>
+Outcome check_total_cycle(const Graph & g, const Result & r, const Limits & lim)
 {
   Outcome o;
   if (not r.has_cycle)
@@ -748,10 +754,6 @@ Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
   o.count = 1;
   o.cost = r.total_cost;
   o.length = r.length;
-  // "exact": proven optimal (a zero optimality_gap); "bound": the relaxed bound
-  // was met in the rounded arithmetic of the search, which proves nothing.
-  std::snprintf(o.cert, sizeof(o.cert), "%s",
-                r.is_exact ? "exact" : r.matches_relaxed_bound ? "bound" : "no-cert");
   const auto nodes = to_array(r.cycle_nodes);
   const auto arcs = to_array(r.cycle_arcs);
   long double cost = 0;
@@ -767,6 +769,26 @@ Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
     invalid(o, "is_negative() disagrees with the arc sum");
   else
     o.verdict = cost < 0 ? Verdict::Valid : Verdict::None;
+  return o;
+}
+
+Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
+{
+  Outcome o = check_total_cycle(g, r, lim);
+  if (r.has_cycle)
+    // A rounded relaxed bound alone proves no optimality.
+    std::snprintf(o.cert, sizeof(o.cert), "%s",
+                  r.is_exact ? "exact" : r.matches_relaxed_bound ? "bound" : "no-cert");
+  return o;
+}
+
+/** @brief Validate the independent short-cycle search, exact by construction. */
+Outcome check_result(const Graph & g, const Short_Cycle_Result<Graph, double> & r,
+                     const Limits & lim)
+{
+  Outcome o = check_total_cycle(g, r, lim);
+  if (r.has_cycle)
+    std::snprintf(o.cert, sizeof(o.cert), "exact");
   return o;
 }
 
@@ -923,6 +945,8 @@ long weigh(const std::tuple<Path<Graph>, size_t> & r)
   return weigh(std::get<0>(r)) + static_cast<long>(std::get<1>(r));
 }
 long weigh(const Bounded & r) { return static_cast<long>(r.length); }
+/** @brief Keep the short-cycle result observable in timed runs. */
+long weigh(const Short_Cycle_Result<Graph, double> & r) { return static_cast<long>(r.length); }
 long weigh(const Min_Mean_Cycle_Result<Graph, double> & r)
 {
   return static_cast<long>(r.cycle_length);
@@ -1013,6 +1037,10 @@ DynList<Variant> make_variants()
       vs.append(make_variant(label, Group::Bounded, false, L, Limits{L, SIZE_MAX, false},
         [L](Graph & g) { return most_negative_cycle_bounded(g, L); }));
     }
+
+  vs.append(make_variant("most_negative_cycle_up_to_3(g, 3)", Group::Bounded,
+    false, 3, Limits{3, SIZE_MAX, false},
+    [](Graph & g) { return most_negative_cycle_up_to_3(g, 3); }));
 
   // L = V, as long as any simple cycle: only where the components are small
   // (see "Long walks in small components" above).

@@ -300,6 +300,7 @@ namespace
     bool any_cycle = false;
     bool any_bounded = false;   // a cycle of at most `bound` arcs
     Rational best_total;        // minimum total over cycles of at most `bound` arcs
+    size_t best_total_length = 0;  // shortest among exact total-cost minimizers
     Rational best_mean_total;   // the minimum mean is best_mean_total / best_mean_length
     size_t best_mean_length = 1;
   };
@@ -332,9 +333,11 @@ namespace
                   o.best_mean_length = len;
                 }
               o.any_cycle = true;
-              if (len <= bound and (not o.any_bounded or compare(t, o.best_total) < 0))
+              if (len <= bound and (not o.any_bounded or compare(t, o.best_total) < 0
+                                    or (compare(t, o.best_total) == 0 and len < o.best_total_length)))
                 {
                   o.best_total = t;
+                  o.best_total_length = len;
                   o.any_bounded = true;
                 }
               continue;
@@ -386,6 +389,28 @@ namespace
   // ------------------------------------------------------------------------
   // The checks, for one instance.
   // ------------------------------------------------------------------------
+  /** @brief Check the exact short optimum and shortest tie against GMP rationals. */
+  template <typename T>
+  void check_short(const Instance<T> & inst, const Built<T> & b, const size_t bound)
+  {
+    using G = Graph_T<T>;
+    const Oracle o = oracle(inst, bound);
+    const auto r = most_negative_cycle_up_to_3<G, Dft_Dist<G>, Hide_Set<T>>(
+        b.g, bound, Dft_Dist<G>(), Hide_Set<T>{&b.hidden});
+    ASSERT_EQ(r.has_cycle, o.any_bounded);
+    if (not r.has_cycle)
+      return;
+
+    Rational total;
+    size_t length = 0;
+    ASSERT_TRUE(exact_witness(b, r.cycle_arcs, total, length));
+    ASSERT_EQ(length, r.length);
+    ASSERT_EQ(length, o.best_total_length);
+    ASSERT_EQ(compare(total, o.best_total), 0);
+    ASSERT_TRUE(within_one_ulp(r.total_cost, total));
+    ASSERT_EQ(r.is_negative(), total.sign() < 0);
+  }
+
   template <typename T>
   void check_bounded(const Instance<T> & inst, const Built<T> & b, const size_t bound,
                      const char * family, const size_t trial)
@@ -491,6 +516,28 @@ namespace
             return;
         }
   }
+
+  /** @brief Exercise all numeric families and short bounds with a fixed seed. */
+  template <typename T>
+  void run_short_differential(const unsigned long long seed)
+  {
+    std::mt19937_64 rng(seed);
+    for (const auto & [family, name] : families)
+      for (size_t trial = 0; trial < 200; ++trial)
+        {
+          SCOPED_TRACE(::testing::Message() << name << " trial=" << trial);
+          const Instance<T> inst = make_instance<T>(family, rng);
+          Built<T> b;
+          build(inst, b);
+          for (size_t bound = 1; bound <= 3; ++bound)
+            {
+              SCOPED_TRACE(::testing::Message() << "L=" << bound);
+              check_short(inst, b, bound);
+              if (::testing::Test::HasFatalFailure())
+                return;
+            }
+        }
+  }
 } // namespace
 
 
@@ -513,6 +560,58 @@ TEST(NegativeCyclesNumericTest, FloatWeightsAgreeWithTheExactOracle)
 TEST(NegativeCyclesNumericTest, LongDoubleWeightsAgreeWithTheExactOracle)
 {
   run_differential<long double>(0x5EED0003ULL, 300);
+}
+
+
+TEST(NegativeCyclesNumericTest, ShortDoubleCyclesAgreeWithTheExactOracle)
+{
+  run_short_differential<double>(0xD40001ULL);
+}
+
+
+TEST(NegativeCyclesNumericTest, ShortFloatCyclesAgreeWithTheExactOracle)
+{
+  run_short_differential<float>(0xD40002ULL);
+}
+
+
+TEST(NegativeCyclesNumericTest, ShortLongDoubleCyclesAgreeWithTheExactOracle)
+{
+  run_short_differential<long double>(0xD40003ULL);
+}
+
+
+TEST(NegativeCyclesNumericTest, ShortOptimaSurvivePermutationAndExactScaling)
+{
+  std::mt19937_64 rng(0xD45CA1E);
+  for (const auto family : {Family::Moderate, Family::Ties, Family::Three_Scales, Family::Market})
+    for (size_t trial = 0; trial < 200; ++trial)
+      {
+        SCOPED_TRACE(::testing::Message() << "family=" << int(family) << " trial=" << trial);
+        const Instance<double> inst = make_instance<double>(family, rng);
+        std::vector<size_t> nodes(inst.n), arcs(inst.edges.size());
+        for (size_t i = 0; i < nodes.size(); ++i)
+          nodes[i] = i;
+        for (size_t i = 0; i < arcs.size(); ++i)
+          arcs[i] = i;
+        for (const int scale : {-7, 0, 9})
+          {
+            std::shuffle(nodes.begin(), nodes.end(), rng);
+            std::shuffle(arcs.begin(), arcs.end(), rng);
+            auto scaled = inst;
+            for (auto & edge : scaled.edges)
+              std::get<2>(edge) = std::ldexp(std::get<2>(edge), scale);
+            Built<double> b;
+            build(scaled, b, nodes, arcs);
+            for (size_t bound = 1; bound <= 3; ++bound)
+              {
+                SCOPED_TRACE(::testing::Message() << "scale=" << scale << " L=" << bound);
+                check_short(scaled, b, bound);
+                if (::testing::Test::HasFatalFailure())
+                  return;
+              }
+          }
+      }
 }
 
 

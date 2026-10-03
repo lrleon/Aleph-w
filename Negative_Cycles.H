@@ -34,7 +34,7 @@
  *  @brief Enumeration of negative cycles and bounded-length most negative
  *         cycle in directed graphs.
  *
- *  Two algorithms aimed at applications, such as currency or crypto
+ *  Algorithms aimed at applications, such as currency or crypto
  *  arbitrage detection, where a negative cycle in a graph weighted with
  *  `-log(rate)` is an opportunity, and where one negative cycle is not
  *  enough: a trading engine wants several disjoint opportunities at once,
@@ -52,16 +52,19 @@
  *    minimum total cost, decomposes them into simple cycles and returns the
  *    most negative simple cycle of at most `max_length` arcs. It runs only
  *    on the nodes and arcs that lie inside a strongly connected component.
+ *  - `most_negative_cycle_up_to_3()`: independently enumerates self-loops,
+ *    opposite arc pairs and directed triangles, returning the exact minimum
+ *    total cost within a bound in [0, 3], with the shortest cycle on ties.
  *
- *  Unlike `Bellman_Ford` (`Bellman_Ford.H`), neither function modifies the
- *  graph (no dummy node, no cookies, no bits) and both take a `const GT &`;
+ *  Unlike `Bellman_Ford` (`Bellman_Ford.H`), none modifies the
+ *  graph (no dummy node, no cookies, no bits) and all take a `const GT &`;
  *  they keep their state in private arrays indexed by node/arc position.
  *  The graph is snapshotted once (arcs, endpoints and weights), so the
- *  distance accessor is called exactly once per arc.
+ *  distance accessor is called exactly once per accepted arc.
  *
  *  ## Complexity
  *
- *  Both functions first snapshot the graph in expected O(V + E) time (nodes
+ *  The functions first snapshot the graph in expected O(V + E) time (nodes
  *  are mapped to positions with an open-addressing hash table at most half
  *  full, mixing the pointers so that allocation patterns cannot cluster;
  *  only a degenerate hash could make a lookup cost more than O(1)), then
@@ -76,6 +79,10 @@
  *  |----------|------|---------------|
  *  | `find_disjoint_negative_cycles` | O(V + E + R · V · (V + E)) | O(V + E) |
  *  | `most_negative_cycle_bounded` | O(V + E + V_c · L · (V_c + E_c) + V_c · L²) | O(L · V_c + V + E) |
+ *  | `most_negative_cycle_up_to_3` | O(V + E + sum_v d_in(v) · d_out(v)) | O(V + E) |
+ *
+ *  For the short-cycle search, degrees count distinct neighbours in the
+ *  cyclic core; the degree-product term is absent for bounds 1 and 2.
  *
  *  `R` is the number of searches (rounds) the enumeration runs: at most
  *  `max_cycles + 1` unless floating-point candidates are discarded without
@@ -99,8 +106,8 @@
  *  the searches round, and the results say how far they can be trusted, for
  *  the weights exactly as given (as binary fractions):
  *
- *  - The cost reported for a cycle is always the exact sum of its weights,
- *    rounded once (see `negative_cycles_detail::Exact_Sum`, an expansion in
+ *  - The cost reported for a cycle is the exact sum of its weights,
+ *    rounded within one ulp (see `negative_cycles_detail::Exact_Sum`, an expansion in
  *    the sense of Shewchuk, 1997). Its sign is exact, so a cycle is reported
  *    as negative only if it is, and a cycle whose exact total is zero (such
  *    as `2^100, 1, 2^-100, -1, -2^100, -2^-100`) costs zero.
@@ -115,6 +122,10 @@
  *    the rounding of every sum the search made. `is_exact` holds exactly when
  *    that bound is zero, for instance when the range of the weights makes
  *    every sum of the search exact (`numeric_quality` is `Exact`).
+ *  - `most_negative_cycle_up_to_3()` always selects the exact optimum among
+ *    simple cycles within its bound. It enumerates all candidates after
+ *    collapsing parallel arcs to their cheapest representative, and uses
+ *    exact expansions whenever a rigorous rounding filter cannot order them.
  *  - `howard_minimum_mean_cycle()` (`Howard_Min_Mean_Cycle.H`) checks its
  *    rounded result with exact arithmetic when it can; its `numeric_quality`
  *    says whether it could.
@@ -302,6 +313,37 @@ namespace Aleph
     DynList<typename GT::Arc *> cycle_arcs;    ///< Arcs aligned with `cycle_nodes`.
 
     /// True if a cycle was found and its total cost is negative.
+    [[nodiscard]] bool is_negative() const noexcept
+    {
+      return has_cycle and total_cost < Cost_Type{0};
+    }
+  };
+
+  /** @brief Exact optimum returned by most_negative_cycle_up_to_3().
+   *
+   *  When `has_cycle`, the witness is a minimum-total-cost simple cycle
+   *  within the requested bound, with the fewest arcs among all minimizers.
+   *  Floating-point weights are compared as exact binary numbers; only the
+   *  published total is rounded (within one ulp, with the exact sign).
+   *  Unlike Bounded_Cycle_Result, this result needs no relaxed-walk certificate.
+   *  Pointers belong to the input graph and share its lifetime requirements.
+   *
+   *  @tparam GT Directed graph type.
+   *  @tparam Cost_Type Arc weight type.
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT, typename Cost_Type>
+  struct Short_Cycle_Result
+  {
+    bool has_cycle = false;  ///< Whether a cycle within the bound exists.
+    Cost_Type total_cost = Cost_Type{0};  ///< Exact weight sum, rounded for floating-point costs.
+    size_t length = 0;  ///< Number of arcs, at most three.
+    DynList<typename GT::Node *> cycle_nodes;  ///< Closed node list, first node repeated last.
+    DynList<typename GT::Arc *> cycle_arcs;  ///< Original arcs aligned with consecutive nodes.
+
+    /** @brief Whether the optimum has strictly negative total cost.
+     *  @return True exactly when a negative cycle within the bound exists.
+     */
     [[nodiscard]] bool is_negative() const noexcept
     {
       return has_cycle and total_cost < Cost_Type{0};
@@ -1869,6 +1911,302 @@ namespace Aleph
         result.cycle_arcs.append(rec.arc);
       }
 
+    return result;
+  }
+
+  namespace negative_cycles_detail
+  {
+    /** @brief Keep the cheapest parallel arc of each ordered pair.
+     *  @param[in] ig Indexed graph.
+     *  @param[in] adj Its out-adjacency, in snapshot order within each node.
+     *  @return Out-adjacency retaining original arc indices; equal weights
+     *          keep the first arc. O(V + E) time and working space.
+     */
+    template <AlephGraph GT, typename Cost_Type>
+    Out_Adjacency<Cost_Type> cheapest_parallel_arcs(
+        const Indexed_Graph<GT, Cost_Type> & ig, const Out_Adjacency<Cost_Type> & adj)
+    {
+      constexpr size_t none = std::numeric_limits<size_t>::max();
+      const size_t n = ig.nodes.size();
+      Array<size_t> best(n, none);
+      Out_Adjacency<Cost_Type> out;
+      out.start = Array<size_t>(n + 1, 0);
+      out.arc.reserve(ig.arcs.size());
+      out.tgt.reserve(ig.arcs.size());
+      out.weight.reserve(ig.arcs.size());
+      for (size_t u = 0; u < n; ++u)
+        {
+          for (size_t p = adj.start(u); p < adj.start(u + 1); ++p)
+            {
+              const size_t v = adj.tgt(p), a = adj.arc(p);
+              if (best(v) == none or ig.arcs(a).weight < ig.arcs(best(v)).weight)
+                best(v) = a;
+            }
+          for (size_t p = adj.start(u); p < adj.start(u + 1); ++p)
+            {
+              const size_t v = adj.tgt(p), a = adj.arc(p);
+              if (best(v) != a)
+                continue;
+              out.arc.append(a);
+              out.tgt.append(v);
+              out.weight.append(ig.arcs(a).weight);
+              best(v) = none;
+            }
+          out.start(u + 1) = out.arc.size();
+        }
+      return out;
+    }
+
+    /** @brief Rank cycles of at most three arcs exactly, reusing scratch sums.
+     *
+     *  A rounded sum can reject a candidate only when it is above an outward
+     *  bound of `best_plain + 2 * error`: both plain sums are within `error`
+     *  of their exact values. Ambiguous comparisons use exact expansions.
+     *  @tparam Cost_Type Arc weight type.
+     */
+    template <typename Cost_Type>
+    class Short_Cycle_Best
+    {
+      Cost_Type plain_ = Cost_Type{0};
+      Cost_Type error_ = Cost_Type{0};
+      Cost_Type reject_above_ = Cost_Type{0};
+      bool exact_sums_ = true;
+      Exact_Sum<Cost_Type> best_, candidate_, difference_;
+
+    public:
+      size_t length = 0;  ///< Zero until the first cycle is offered.
+      size_t arcs[3] = {};  ///< Original snapshot indices in cycle order.
+
+      /** @brief Prepare a rigorous rounding filter for this graph and bound.
+       *  @param[in] ig Indexed graph searched.
+       *  @param[in] bound Largest cycle length, in [1, 3].
+       */
+      template <AlephGraph GT>
+      Short_Cycle_Best(const Indexed_Graph<GT, Cost_Type> & ig, const size_t bound)
+      {
+        if constexpr (std::is_floating_point_v<Cost_Type>)
+          exact_sums_ = short_sums_are_exact(ig, bound, error_);
+      }
+
+      /** @brief Offer a cycle; exact cost and then length decide the winner.
+       *  @param[in] ig Indexed graph searched.
+       *  @param[in] path Snapshot arc indices of the candidate.
+       *  @param[in] len Candidate length, in [1, 3].
+       *  @throws std::overflow_error Integral accumulation overflow.
+       *  @throws std::domain_error Non-finite floating-point accumulation.
+       */
+      template <AlephGraph GT>
+      void offer(const Indexed_Graph<GT, Cost_Type> & ig, const size_t * path, const size_t len)
+      {
+        Cost_Type sum = Cost_Type{0};
+        for (size_t i = 0; i < len; ++i)
+          sum = shortest_path_detail::checked_add(sum, ig.arcs(path[i]).weight);
+        check_finite(sum, "most_negative_cycle_up_to_3(): cycle cost out of range");
+
+        if constexpr (std::is_floating_point_v<Cost_Type>)
+          {
+            if (not exact_sums_)
+              {
+                if (length != 0 and sum > reject_above_)
+                  return;
+                candidate_.clear();
+                for (size_t i = 0; i < len; ++i)
+                  ah_domain_error_if(not candidate_.add(ig.arcs(path[i]).weight))
+                    << "most_negative_cycle_up_to_3(): cycle cost out of range";
+                if (length != 0)
+                  {
+                    // Different signs order the totals without subtracting
+                    // values near opposite ends of the floating-point range.
+                    int order = candidate_.sign() - best_.sign();
+                    if (order == 0)
+                      {
+                        difference_.clear();
+                        ah_domain_error_if(not difference_.add(candidate_)
+                                           or not difference_.add(best_, 0, true))
+                          << "most_negative_cycle_up_to_3(): comparison out of range";
+                        order = difference_.sign();
+                      }
+                    if (not (order < 0 or (order == 0 and len < length)))
+                      return;
+                  }
+                std::swap(best_, candidate_);
+                constexpr Cost_Type inf = std::numeric_limits<Cost_Type>::infinity();
+                reject_above_ = std::nextafter(std::nextafter(sum + error_, inf) + error_, inf);
+              }
+            else if (length != 0 and not (sum < plain_ or (sum == plain_ and len < length)))
+              return;
+          }
+        else if (length != 0 and not (sum < plain_ or (sum == plain_ and len < length)))
+          return;
+
+        plain_ = sum;
+        length = len;
+        for (size_t i = 0; i < len; ++i)
+          arcs[i] = path[i];
+      }
+
+      /** @brief Published total of the winning cycle.
+       *  @return Exact integral total, or floating total within one ulp and
+       *          with the exact sign. Zero when no cycle was offered.
+       */
+      Cost_Type total()
+      {
+        if constexpr (std::is_floating_point_v<Cost_Type>)
+          if (not exact_sums_)
+            return best_.rounded();
+        return plain_;
+      }
+    };
+  } // namespace negative_cycles_detail
+
+  /** @brief Minimum-total-cost simple cycle with at most one, two or three arcs.
+   *
+   *  This independent, exact search enumerates self-loops, opposite arc pairs
+   *  and directed triangles. Among equal exact costs it returns the shortest
+   *  cycle; remaining ties are deterministic for a fixed snapshot order.
+   *  Each ordered pair retains its cheapest accepted arc (first in snapshot
+   *  order on a tie), so parallel arcs do not multiply the triangle search.
+   *  Replacing a parallel arc by a cheaper one cannot worsen a simple cycle.
+   *
+   *  Floating-point candidates are ordered by exact sums of the binary weights,
+   *  using error-free expansions when a rigorous rounding filter cannot decide.
+   *  The published cost is within one ulp of that sum and has its exact sign.
+   *  Requires round-to-nearest arithmetic without reassociation/fast-math, as
+   *  described in the file documentation. Integral sums are overflow-checked.
+   *  No closed-walk relaxation or certificate from that relaxation is used.
+   *
+   *  The graph is not modified. Each accepted arc's weight is read once.
+   *  Returned pointers belong to `g`; concurrent calls require that nobody
+   *  changes the graph and that the accessor and filter permit concurrent use.
+   *
+   *  @tparam GT Directed Aleph graph type.
+   *  @tparam Distance Arc weight accessor.
+   *  @tparam SA Arc filter; rejected arcs do not exist for this search.
+   *  @param[in] g Graph to search.
+   *  @param[in] max_length Bound in [0, 3], default 3. Zero returns an empty
+   *             result without validation or calls to the accessor/filter.
+   *  @param[in] distance Arc weight accessor.
+   *  @param[in] sa Arc filter.
+   *  @return Short_Cycle_Result; `has_cycle` includes non-negative cycles.
+   *          `is_negative()` decides existence of a negative cycle in the bound.
+   *  @throws std::invalid_argument If `max_length > 3` (before graph access).
+   *  @throws std::domain_error If the graph is undirected, an accepted weight
+   *          is not finite, or a floating sum/comparison exceeds its format.
+   *  @throws std::overflow_error If an integral candidate's partial sum overflows.
+   *  @note Expected time O(V + E) for bounds 1 and 2, and
+   *        O(V + E + sum_v d_in(v) * d_out(v)) for bound 3. Degrees count
+   *        distinct neighbours inside the cyclic core after parallel collapse.
+   *        Working space O(V + E); no V-by-V table. For bound 1 only the snapshot
+   *        is needed; larger bounds also compute the cyclic core.
+   *  @see most_negative_cycle_bounded() General bound, relaxed-walk search.
+   *  @ingroup Graphs
+   */
+  template <AlephGraph GT,
+            ArcDistance<GT> Distance = Dft_Dist<GT>,
+            ArcFilter<GT> SA = Dft_Show_Arc<GT>>
+  Short_Cycle_Result<GT, typename Distance::Distance_Type>
+  most_negative_cycle_up_to_3(const GT & g, const size_t max_length = 3,
+                              Distance distance = Distance(), SA sa = SA())
+  {
+    using Cost_Type = typename Distance::Distance_Type;
+    constexpr size_t none = std::numeric_limits<size_t>::max();
+    Short_Cycle_Result<GT, Cost_Type> result;
+    ah_invalid_argument_if(max_length > 3)
+      << "most_negative_cycle_up_to_3(): max_length must be in [0, 3]";
+    if (max_length == 0)
+      return result;
+    const auto snapshot = negative_cycles_detail::index_graph(g, distance, sa,
+                                                             "most_negative_cycle_up_to_3");
+    if (snapshot.arcs.is_empty())
+      return result;
+
+    negative_cycles_detail::Indexed_Graph<GT, Cost_Type> core;
+    negative_cycles_detail::Out_Adjacency<Cost_Type> adj;
+    bool whole = true;
+    if (max_length > 1)
+      {
+        adj = negative_cycles_detail::build_out_adjacency(snapshot);
+        whole = negative_cycles_detail::cyclic_core(snapshot, adj, core);
+        if (not whole)
+          {
+            if (core.arcs.is_empty())
+              return result;
+            adj = negative_cycles_detail::build_out_adjacency(core);
+          }
+        adj = negative_cycles_detail::cheapest_parallel_arcs(whole ? snapshot : core, adj);
+      }
+    const auto & ig = whole ? snapshot : core;
+    const size_t n = ig.nodes.size();
+    negative_cycles_detail::Short_Cycle_Best<Cost_Type> best(ig, max_length);
+
+    if (max_length == 1)
+      {
+        for (size_t a = 0; a < ig.arcs.size(); ++a)
+          if (ig.arcs(a).src == ig.arcs(a).tgt)
+            best.offer(ig, &a, 1);
+      }
+    else
+      {
+        // Incoming adjacency lets each origin mark all its closing arcs in
+        // O(in-degree), using one shared O(V) array instead of a dense matrix.
+        Array<size_t> in_start(n + 1, 0);
+        for (size_t p = 0; p < adj.arc.size(); ++p)
+          ++in_start(adj.tgt(p) + 1);
+        for (size_t u = 0; u < n; ++u)
+          in_start(u + 1) += in_start(u);
+        Array<size_t> incoming(adj.arc.size(), 0), fill(n, 0), closing(n, none);
+        for (size_t p = 0; p < adj.arc.size(); ++p)
+          incoming(in_start(adj.tgt(p)) + fill(adj.tgt(p))++) = adj.arc(p);
+
+        // All shorter cycles are offered before triangles, which gives the
+        // rounding filter a useful incumbent even in a clean, dense market.
+        for (size_t phase = 2; phase <= max_length; ++phase)
+          for (size_t u = 0; u < n; ++u)
+            {
+              for (size_t p = in_start(u); p < in_start(u + 1); ++p)
+                closing(ig.arcs(incoming(p)).src) = incoming(p);
+              if (phase == 2 and closing(u) != none)
+                best.offer(ig, &closing(u), 1);
+              for (size_t p = adj.start(u); p < adj.start(u + 1); ++p)
+                {
+                  const size_t v = adj.tgt(p);
+                  if (v <= u)
+                    continue;   // the origin is the smallest node of the cycle
+                  if (phase == 2)
+                    {
+                      if (closing(v) != none)
+                        {
+                          const size_t path[] = {adj.arc(p), closing(v)};
+                          best.offer(ig, path, 2);
+                        }
+                    }
+                  else
+                    for (size_t q = adj.start(v); q < adj.start(v + 1); ++q)
+                      {
+                        const size_t w = adj.tgt(q);
+                        if (w <= u or w == v or closing(w) == none)
+                          continue;
+                        const size_t path[] = {adj.arc(p), adj.arc(q), closing(w)};
+                        best.offer(ig, path, 3);
+                      }
+                }
+              for (size_t p = in_start(u); p < in_start(u + 1); ++p)
+                closing(ig.arcs(incoming(p)).src) = none;
+            }
+      }
+
+    if (best.length == 0)
+      return result;
+    result.has_cycle = true;
+    result.length = best.length;
+    result.total_cost = best.total();
+    result.cycle_nodes.append(ig.nodes(ig.arcs(best.arcs[0]).src));
+    for (size_t i = 0; i < best.length; ++i)
+      {
+        const auto & arc = ig.arcs(best.arcs[i]);
+        result.cycle_arcs.append(arc.arc);
+        result.cycle_nodes.append(ig.nodes(arc.tgt));
+      }
     return result;
   }
 } // namespace Aleph

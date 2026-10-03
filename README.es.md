@@ -2315,6 +2315,19 @@ redondeadas una vez, así que su signo es exacto. `most_negative_cycle_bounded()
 (`Negative_Cycles.H`) informa `optimality_gap`, una cota rigurosa de cuánto mejor que su ciclo
 puede ser el óptimo (`is_exact` cuando vale cero).
 
+Para una a tres operaciones, `most_negative_cycle_up_to_3(g, max_length)` de
+`Negative_Cycles.H` encuentra de forma independiente el ciclo simple de costo total
+mínimo exacto, incluidos lazos y arcos paralelos. `max_length` vale 3 por defecto;
+cero devuelve un resultado vacío y valores mayores que 3 lanzan una excepción.
+`Short_Cycle_Result` ofrece `has_cycle`, `total_cost`, `length`, `cycle_nodes`,
+`cycle_arcs` e `is_negative()`. Entre costos exactos iguales prefiere menos arcos.
+Los pesos flotantes se comparan como valores binarios exactos; el total publicado
+se redondea dentro de una ulp y conserva el signo exacto. Requiere redondeo al más
+cercano sin fast-math; las sumas fuera de rango lanzan una excepción. Usa espacio
+O(V + E) y tiempo O(V + E) para cotas 1–2, u O(V + E + Σ d_in(v) · d_out(v)) para
+cota 3, contando vecinos distintos dentro del núcleo cíclico. La DP acotada
+existente y sus certificados conservan su comportamiento.
+
 <a id="readme-es-mst"></a>
 ### Árboles de expansión mínima
 
