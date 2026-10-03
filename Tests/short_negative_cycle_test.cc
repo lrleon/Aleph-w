@@ -225,6 +225,23 @@ TEST(ShortNegativeCycleTest, FloatingCancellationCannotHideTheBestTriangle)
   EXPECT_TRUE(r.is_negative());
 }
 
+TEST(ShortNegativeCycleTest, RoundingFilterKeepsCandidatesNearItsBound)
+{
+  // 2^54 + 6 ties to even at 2^54 + 8, so the triangle's plain sum is 0 while
+  // its exact cost is -2: a two-unit misordering against a loop just above
+  // -2. Large cancellations would hide a filter that is too tight; this case
+  // fails once the rounding bound is about 32 times too small.
+  const double big = std::ldexp(1.0, 54);
+  const double loop = std::nextafter(-2.0, 0.0);
+  ASSERT_EQ((big + 6.0) + -(big + 8.0), 0.0);
+  auto b = build_graph_generic<Float_Graph, double>(4,
+    {{0, 1, big}, {1, 2, 6.0}, {2, 0, -(big + 8.0)}, {3, 3, loop}});
+  const auto r = most_negative_cycle_up_to_3(b.g);
+  check_witness(b.g, r);
+  EXPECT_EQ(r.length, 3u);
+  EXPECT_EQ(r.total_cost, -2.0);
+}
+
 TEST(ShortNegativeCycleTest, FloatingTiesAreDecidedBeforeRoundingTheTotal)
 {
   // Both totals round to -1, but the triangle is strictly cheaper.
