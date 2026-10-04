@@ -2530,7 +2530,8 @@ sign is exact.
 `Negative_Cycles.H` finds profitable loops in a market graph whose arcs weigh
 `-log(rate * (1 - fee))`: a cycle of negative total cost multiplies the money that goes around
 it. Every function takes the graph as `const GT &` (it is not modified), a distance accessor
-and an arc filter, and ranks cycles by *total* cost, not by mean as Karp and Howard do.
+and an arc filter. The searches that select a minimum cycle use *total* cost, not mean as Karp and
+Howard do; `find_disjoint_negative_cycles()` returns its cycles in discovery order, not ranked.
 
 | Need | Function | What it guarantees |
 |---|---|---|

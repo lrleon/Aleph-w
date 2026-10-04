@@ -2321,8 +2321,9 @@ redondeadas una vez, así que su signo es exacto.
 `Negative_Cycles.H` encuentra bucles rentables en un grafo de mercado cuyos arcos pesan
 `-log(tasa * (1 - comisión))`: un ciclo de costo total negativo multiplica el dinero que lo
 recorre. Todas las funciones reciben el grafo como `const GT &` (no lo modifican), un accesor de
-distancia y un filtro de arcos, y ordenan los ciclos por costo *total*, no por media como Karp y
-Howard.
+distancia y un filtro de arcos. Las búsquedas que seleccionan un ciclo mínimo lo hacen por costo
+*total*, no por media como Karp y Howard; `find_disjoint_negative_cycles()` devuelve sus ciclos en
+orden de hallazgo, sin ordenarlos.
 
 | Necesidad | Función | Qué garantiza |
 |---|---|---|

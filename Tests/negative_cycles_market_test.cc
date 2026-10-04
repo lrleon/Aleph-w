@@ -52,6 +52,7 @@
 # include <cmath>
 # include <cstddef>
 # include <functional>
+# include <limits>
 # include <set>
 # include <string>
 # include <vector>
