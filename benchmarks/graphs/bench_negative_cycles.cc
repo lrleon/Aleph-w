@@ -90,6 +90,11 @@
  * old extractor is a separate task. Any other invalid witness, a missed or a
  * false detection is still an error.
  *
+ * Before any instance, the validators themselves are fed known results: the
+ * cheaper of two loops must pass the short-cycle check and the costlier one
+ * must not, and only the parallel-arc defect may count as known. A validator
+ * that misjudges them also makes the program exit with code 1.
+ *
  * @par Timing protocol
  * An untimed warmup (at least 2 runs, then until 30 ms have elapsed, at most
  * 200 runs), then `samples` timed runs; the table shows the median, the 90th
@@ -1263,6 +1268,58 @@ Judgment judge(const Instance & inst, const Variant & v, const Outcome & o,
   return Judgment::Unexpected;
 }
 
+/** @brief Feed the validators results known to be right and wrong: the
+ *         gate of `--check-only` is only as strong as they are.
+ *
+ *  A short-cycle result naming the costlier of two loops must fail
+ *  `check_short_optimum()`: they differ by far more than its tolerance
+ *  (`8 epsilon` of long double, relative), though by little more than a
+ *  double ulp. An invalid Bellman-Ford witness that is not the known
+ *  parallel-arc defect must be judged unexpected. Nothing is timed.
+ *
+ *  @return The number of results misjudged (zero when the validators work).
+ */
+size_t validator_self_test()
+{
+  size_t misjudged = 0;
+
+  const double gap = std::max(64.0 * static_cast<double>(std::numeric_limits<long double>::epsilon()),
+                              std::ldexp(1.0, -52));
+  Graph g;
+  Node * u = g.insert_node(0);
+  Node * v = g.insert_node(1);
+  Arc * cheap = g.insert_arc(u, u, -1.0);
+  Arc * costly = g.insert_arc(v, v, -1.0 + gap);
+  Short_Cycle_Result<Graph, double> r;
+  r.has_cycle = true;
+  r.length = 1;
+  r.cycle_arcs.append(cheap);
+  r.total_cost = -1.0;
+  if (check_short_optimum(g, r) != nullptr)
+    ++misjudged;   // the true optimum must pass
+  r.cycle_arcs.empty();
+  r.cycle_arcs.append(costly);
+  r.total_cost = -1.0 + gap;
+  if (check_short_optimum(g, r) == nullptr)
+    ++misjudged;
+
+  Instance inst;   // judge() reads only the ground truth
+  inst.spec.negative = true;
+  Variant bf;
+  bf.group = Group::Witness;
+  bf.bf_witness = true;
+  bf.bound = 0;
+  Outcome o;
+  invalid(o, "self-test");
+  const char * reason = "";
+  if (judge(inst, bf, o, reason) != Judgment::Unexpected)
+    ++misjudged;   // any other invalid witness is an error
+  o.costlier_parallel_arc = true;
+  if (judge(inst, bf, o, reason) != Judgment::Known_Defect)
+    ++misjudged;
+  return misjudged;
+}
+
 // ---------------------------------------------------------------------------
 // Timing
 // ---------------------------------------------------------------------------
@@ -1667,6 +1724,15 @@ int main(const int argc, char * argv[])
   print_environment(opt);
   const DynList<Variant> variants = make_variants();
   Tally tally;
+
+  const size_t misjudged = validator_self_test();
+  std::printf("\nValidator self-test: %s\n", misjudged == 0 ? "ok" : "FAILED");
+  if (misjudged > 0)
+    {
+      std::fprintf(stderr, "bench_negative_cycles: the validators misjudged %zu known result(s)\n",
+                   misjudged);
+      tally.unexpected += misjudged;
+    }
 
   // Multigraph regressions of the old Bellman-Ford extractor: validation only.
   std::printf("\n#### regression inputs (n = 19; validation only)");

@@ -2537,7 +2537,7 @@ Howard do; `find_disjoint_negative_cycles()` returns its cycles in discovery ord
 |---|---|---|
 | One to three trades | `most_negative_cycle_up_to_3(g, L)` | The exact minimum total, fewest arcs on ties |
 | Up to `L` trades | `most_negative_cycle_bounded(g, L)` | A simple cycle of at most `L` arcs, with `optimality_gap` |
-| Several opportunities at once | `find_disjoint_negative_cycles(g, k)` | Up to `k` arc-disjoint cycles, each exactly negative |
+| Several opportunities at once | `find_disjoint_negative_cycles(g, k)` | Up to `k` distinct cycles, each exactly negative; arc-disjoint with `Negative_Cycle_Exclusion::All_Arcs` (the default excludes only the cheapest arc of each) |
 
 For three trades or fewer, prefer `most_negative_cycle_up_to_3()`: it is exact and, on the
 market graphs of `bench_negative_cycles` with 300 assets, 17 to 24 times faster than the

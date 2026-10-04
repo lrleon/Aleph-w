@@ -2329,7 +2329,7 @@ orden de hallazgo, sin ordenarlos.
 |---|---|---|
 | Una a tres operaciones | `most_negative_cycle_up_to_3(g, L)` | El total mínimo exacto, con menos arcos en empate |
 | Hasta `L` operaciones | `most_negative_cycle_bounded(g, L)` | Un ciclo simple de como mucho `L` arcos, con `optimality_gap` |
-| Varias oportunidades a la vez | `find_disjoint_negative_cycles(g, k)` | Hasta `k` ciclos sin arcos comunes, cada uno exactamente negativo |
+| Varias oportunidades a la vez | `find_disjoint_negative_cycles(g, k)` | Hasta `k` ciclos distintos, cada uno exactamente negativo; sin arcos comunes con `Negative_Cycle_Exclusion::All_Arcs` (por omisión solo se excluye el arco más barato de cada uno) |
 
 Para tres operaciones o menos, conviene `most_negative_cycle_up_to_3()`: es exacta y, en los
 grafos de mercado de `bench_negative_cycles` con 300 activos, entre 17 y 24 veces más rápida que

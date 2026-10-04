@@ -233,7 +233,7 @@ TEST(ShortNegativeCycleTest, RoundingFilterKeepsCandidatesNearItsBound)
   // fails once the rounding bound is about 32 times too small.
   const double big = std::ldexp(1.0, 54);
   const double loop = std::nextafter(-2.0, 0.0);
-  ASSERT_EQ((big + 6.0) + -(big + 8.0), 0.0);
+  ASSERT_EQ(static_cast<double>(big + 6.0) + -(big + 8.0), 0.0);   // the cast drops excess precision
   auto b = build_graph_generic<Float_Graph, double>(4,
     {{0, 1, big}, {1, 2, 6.0}, {2, 0, -(big + 8.0)}, {3, 3, loop}});
   const auto r = most_negative_cycle_up_to_3(b.g);
@@ -305,6 +305,27 @@ TEST(ShortNegativeCycleTest, CandidatesAboveTheCostTypeDoNotAbortTheSearch)
   EXPECT_EQ(rl.length, 3u);
   auto infinite = build_graph_generic<Float_Graph, double>(3, {{0, 1, d}, {1, 2, d}, {2, 0, d}});
   EXPECT_THROW(most_negative_cycle_up_to_3(infinite.g), std::domain_error);
+}
+
+TEST(ShortNegativeCycleTest, CandidatesJustAboveTheRangeDoNotAbortTheSearch)
+{
+  // Final independent review of the branch, a sibling of F1. The plain sums
+  // of the triangle DBL_MAX, 2^969, 2^969 round to DBL_MAX, but its exact
+  // total, DBL_MAX + 2^970, rounds to infinity: the exact sum overflowed and
+  // the search threw instead of skipping the candidate, as it skips those
+  // whose plain sum overflows. The triangle is offered first (no loops or
+  // pairs, lowest nodes).
+  const double d = std::numeric_limits<double>::max();
+  auto b = build_graph_generic<Float_Graph, double>(
+    6, {{0, 1, d}, {1, 2, 0x1p969}, {2, 0, 0x1p969}, {3, 4, -1}, {4, 5, -1}, {5, 3, -1}});
+  const auto r = most_negative_cycle_up_to_3(b.g);
+  check_witness(b.g, r);
+  EXPECT_EQ(r.total_cost, -3);
+  EXPECT_EQ(r.length, 3u);
+
+  // Alone, it is the best cycle, and its total does not fit.
+  auto alone = build_graph_generic<Float_Graph, double>(3, {{0, 1, d}, {1, 2, 0x1p969}, {2, 0, 0x1p969}});
+  EXPECT_THROW(most_negative_cycle_up_to_3(alone.g), std::domain_error);
 }
 
 TEST(ShortNegativeCycleTest, NonFiniteWeightsAreValidatedOnlyAfterFiltering)

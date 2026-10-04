@@ -101,7 +101,9 @@ namespace Aleph {
     Template parameters:
     - `GT`: Graph type (typically `List_Digraph`).
     - `Distance`: Arc weight accessor. Must define `Distance_Type` and provide
-      `Distance_Type operator()(typename GT::Arc *a)`.
+      `Distance_Type operator()(typename GT::Arc *a)`. It should have no side
+      effects: how many times it is called per arc is unspecified (the
+      relaxation passes stop as soon as one relaxes nothing).
     - `Ait`: Arc iterator template for traversing all arcs.
     - `NAit`: Node arc iterator template for traversing arcs from a node.
     - `SA`: Arc filter for the internal iterators.

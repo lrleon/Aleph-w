@@ -753,3 +753,88 @@ TEST(NegativeCyclesNumericTest, ExactUpperBoundBeyondTheRangeIsInfinity)
   ASSERT_FALSE(broken.add(-component_max));
   EXPECT_EQ(broken.upper(), std::numeric_limits<double>::infinity());
 }
+
+
+TEST(NegativeCyclesNumericTest, ExactSumsNearTheLargestFiniteValueStayExact)
+{
+  // Final independent review of the branch, F1. TwoSum computes s - a, which
+  // overflows when an operand is DBL_MAX although s does not: add() returned
+  // true with a NaN component, and the triangle below, of finite weights
+  // whose total fits, got a NaN cost, was not negative, or was not reported.
+  // A sibling case: a partial sum inside Grow-Expansion overflowed although
+  // the value fitted, and add() returned false for a total near 2^1023.
+  using negative_cycles_detail::Exact_Sum;
+  const double max = std::numeric_limits<double>::max();
+  const double a = 0x1p968;
+  const double c = -(0x1p1022 - 0x1p970);   // a + max + c = 3 * 2^1022 - 3 * 2^968
+
+  Exact_Sum<double> s;
+  ASSERT_TRUE(s.add(a));
+  ASSERT_TRUE(s.add(max));
+  ASSERT_TRUE(s.add(c));
+  EXPECT_EQ(s.sign(), 1);
+  EXPECT_EQ(s.rounded(), 0x1.8p1023);
+
+  Exact_Sum<double> t;   // -2^1023 - 3 * 2^970 + max = 2^1023 - 5 * 2^970
+  ASSERT_TRUE(t.add(-0x1p1023));
+  ASSERT_TRUE(t.add(-0x3p970));
+  ASSERT_TRUE(t.add(max));
+  EXPECT_EQ(t.sign(), 1);
+  EXPECT_EQ(t.rounded(), 0x1.ffffffffffffbp1022);
+
+  Exact_Sum<float> f;   // the triangle in float: 2^101 + FLT_MAX - (2^126 - 2^102)
+  ASSERT_TRUE(f.add(0x1p101f));
+  ASSERT_TRUE(f.add(std::numeric_limits<float>::max()));
+  ASSERT_TRUE(f.add(-(0x1p126f - 0x1p102f)));
+  EXPECT_EQ(f.sign(), 1);
+  EXPECT_EQ(f.rounded(), 0x1.7ffffep127f);
+
+  // Through the searches, the negated triangle is clearly negative.
+  using G = Graph_T<double>;
+  G g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, -a);
+  g.insert_arc(n1, n2, -max);
+  g.insert_arc(n2, n0, -c);
+
+  const auto u3 = most_negative_cycle_up_to_3(g, 3);
+  ASSERT_TRUE(u3.has_cycle);
+  EXPECT_TRUE(u3.is_negative());
+  EXPECT_EQ(u3.total_cost, -0x1.8p1023);
+
+  const auto bounded = most_negative_cycle_bounded(g, 3);
+  ASSERT_TRUE(bounded.has_cycle);
+  EXPECT_EQ(bounded.total_cost, -0x1.8p1023);
+
+  const auto found = find_disjoint_negative_cycles(g, 3);
+  ASSERT_EQ(found.size(), 1u);
+  EXPECT_EQ(found.get_first().total_cost, -0x1.8p1023);
+
+  const auto h = howard_minimum_mean_cycle(g);
+  ASSERT_TRUE(h.has_cycle);
+  EXPECT_EQ(h.cycle_total_cost, -0x1.8p1023);
+  EXPECT_LT(h.minimum_mean, 0.0L);
+}
+
+
+TEST(NegativeCyclesNumericTest, TotalsBeyondTheRangeThrowWhateverTheEvaluationMethod)
+{
+  // Final independent review of the branch, F3. Where FLT_EVAL_METHOD is not
+  // 0 the exact sums of doubles are kept in long double, which does not
+  // overflow at DBL_MAX: the total -(DBL_MAX + 2^970) of this triangle was
+  // published as -infinity instead of throwing, as it does elsewhere.
+  using G = Graph_T<double>;
+  const double max = std::numeric_limits<double>::max();
+  G g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n0, n1, -max);
+  g.insert_arc(n1, n2, -0x1p969);
+  g.insert_arc(n2, n0, -0x1p969);
+
+  EXPECT_THROW(find_disjoint_negative_cycles(g, 3), std::domain_error);
+  EXPECT_THROW(most_negative_cycle_up_to_3(g, 3), std::domain_error);
+}

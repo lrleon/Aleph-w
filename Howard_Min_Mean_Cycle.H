@@ -1282,6 +1282,8 @@ Min_Mean_Cycle_Result<GT, Cost_Type> karp_by_component(
         ah_domain_error_if(not sum.add(best.cycle_weights(i)))
           << "howard_minimum_mean_cycle(): cycle cost became non-finite";
       result.cycle_total_cost = sum.rounded();
+      ah_domain_error_if(not std::isfinite(result.cycle_total_cost))
+        << "howard_minimum_mean_cycle(): cycle cost became non-finite";
     }
   else
     result.cycle_total_cost = best.cycle_total_cost;

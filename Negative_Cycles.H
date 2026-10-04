@@ -111,6 +111,13 @@
  *    the sense of Shewchuk, 1997). Its sign is exact, so a cycle is reported
  *    as negative only if it is, and a cycle whose exact total is zero (such
  *    as `2^100, 1, 2^-100, -1, -2^100, -2^-100`) costs zero.
+ *  - The exact sums hold any finite weights while the values stay in the
+ *    range of the type: a cycle whose total, or a partial sum in cycle
+ *    order, leaves it throws `std::domain_error`
+ *    (`most_negative_cycle_up_to_3()` orders its three terms so that only
+ *    the total matters, and skips candidates above the range). A value
+ *    within one unit in the last place of the largest finite number may
+ *    count as out of range too; none is ever computed wrongly.
  *  - `find_disjoint_negative_cycles()` reports only cycles whose exact total
  *    is negative. Its search, though, can miss one: a huge partial distance
  *    can absorb a small negative weight (`-1e16 + (-1)` rounds to `-1e16`)
@@ -408,7 +415,12 @@ namespace Aleph
      *         `s + e == a + b` exactly.
      *
      *  Needs IEEE round-to-nearest arithmetic evaluated as written (no
-     *  `-ffast-math` or other reassociation) and a finite `a + b`.
+     *  `-ffast-math` or other reassociation) and a finite `a + b`. TwoSum's
+     *  `s - a` can overflow although `s` does not, when an operand is the
+     *  largest finite value (Boldo, Graillat and Muller, "On the robustness
+     *  of the 2Sum and Fast2Sum algorithms", 2017); the error is then
+     *  recomputed with Fast2Sum, the larger magnitude first, which is exact
+     *  and cannot overflow while `s` is finite.
      *
      *  @param[in] a First term.
      *  @param[in] b Second term.
@@ -421,6 +433,8 @@ namespace Aleph
       s = a + b;
       const F b_virtual = s - a;
       e = (a - (s - b_virtual)) + (b - b_virtual);
+      if (not std::isfinite(e)) [[unlikely]]
+        e = std::fabs(a) >= std::fabs(b) ? b - (s - a) : a - (s - b);
     }
 
     /** @brief Exact sum of floating-point numbers.
@@ -430,9 +444,11 @@ namespace Aleph
      *  Predicates", 1997): components of increasing magnitude whose exact sum
      *  is the value, no two of them sharing a bit position. Adding a number
      *  is error free, so the value is the exact sum of everything added; only
-     *  an overflow of the format cannot be represented, and `add()` reports
-     *  it. The sign of the value is the sign of its largest component, so it
-     *  is exact. Storage is reused across `clear()`.
+     *  a value beyond the range of the format cannot be represented, and
+     *  `add()` reports it (as it may report a value within one unit in the
+     *  last place of the largest finite number). The sign of the value is
+     *  the sign of its largest component, so it is exact. Storage is reused
+     *  across `clear()`.
      *
      *  @tparam T Floating-point type of the numbers added.
      */
@@ -456,8 +472,29 @@ namespace Aleph
           a.append(x);
       }
 
-      // Shewchuk's Grow-Expansion with zero elimination on a(0 .. n - 1).
+      // Add b to a(0 .. n - 1). Inside Grow-Expansion a partial sum can
+      // overflow although the value fits: b near the largest finite value,
+      // lower components of its sign, a higher one of the other sign. The
+      // lower components of an expansion add up to less than the lowest bit
+      // of the next one, at most half the range, so with |b| at most a
+      // quarter of it every partial sum stays below three quarters: a larger
+      // b is added as four exact quarters, and only the value itself (within
+      // one unit in the last place of the largest finite number, or beyond)
+      // can overflow.
       static bool grow(Array<Component> & a, size_t & n, const Component b)
+      {
+        constexpr Component quarter_of_max = std::numeric_limits<Component>::max() / 4;
+        if (not (std::fabs(b) > quarter_of_max))   // NaN included: it fails below
+          return grow_expansion(a, n, b);
+        const Component quarter = b / 4;   // exact: |b| is far above the subnormals
+        for (int i = 0; i < 4; ++i)
+          if (not grow_expansion(a, n, quarter))
+            return false;
+        return true;
+      }
+
+      // Shewchuk's Grow-Expansion with zero elimination on a(0 .. n - 1).
+      static bool grow_expansion(Array<Component> & a, size_t & n, const Component b)
       {
         Component q = b;
         size_t k = 0;
@@ -496,8 +533,9 @@ namespace Aleph
 
       /** @brief Add `b` exactly.
        *  @param[in] b The number to add.
-       *  @return False if a partial result overflowed; the value is then
-       *          meaningless.
+       *  @return False if the value overflowed the components (it may also
+       *          be returned for a value within one unit in the last place of
+       *          their largest finite number); the value is then meaningless.
        */
       [[nodiscard]] bool add(const Component b)
       {
@@ -577,7 +615,11 @@ namespace Aleph
       }
 
       /// The value rounded to `T`: within one unit in the last place, zero
-      /// only if the value is zero, and always with the exact sign.
+      /// only if the value is zero, and always with the exact sign. Plus or
+      /// minus infinity if the value does not fit `T` (or comes within one
+      /// unit in the last place of its largest finite number), which callers
+      /// must check when the components are wider than `T` (`exact_float_t`):
+      /// `add()` does not report it then.
       [[nodiscard]] T rounded()
       {
         compress();
@@ -716,7 +758,9 @@ namespace Aleph
           Exact_Sum<Cost_Type> sum;
           for (size_t i = 0; i < arcs.size(); ++i)
             ah_domain_error_if(not sum.add(ig.arcs(arcs(i)).weight)) << context;
-          return sum.rounded();
+          const Cost_Type total = sum.rounded();
+          ah_domain_error_if(not std::isfinite(total)) << context;
+          return total;
         }
       else
         {
@@ -1674,6 +1718,8 @@ namespace Aleph
    *  @throws std::overflow_error If integer additions overflow (on the arcs
    *          of the cyclic core), or the predecessor table size overflows
    *          `size_t`.
+   *  @throws std::bad_alloc If the O(L · V_c) tables do not fit in memory
+   *          (a large core searched with `max_length` near `V`).
    *
    *  @note Complexity: O(V + E + V_c · L · (V_c + E_c) + V_c · L²)
    *        expected time, O(L · V_c + V + E) working space, with
@@ -2113,9 +2159,18 @@ namespace Aleph
                 if (length != 0 and sum > reject_above_)
                   return;
                 candidate_.clear();
-                for (size_t i = 0; i < len; ++i)
-                  ah_domain_error_if(not candidate_.add(ig.arcs(order[i]).weight))
-                    << "most_negative_cycle_up_to_3(): cycle cost out of range";
+                bool fits = true;
+                for (size_t i = 0; fits and i < len; ++i)
+                  fits = candidate_.add(ig.arcs(order[i]).weight);
+                if (not fits)
+                  {
+                    // The plain sums fitted, so the exact total is within
+                    // rounding of the limit on the side of their sign.
+                    ah_domain_error_if(sum < Cost_Type{0})
+                      << "most_negative_cycle_up_to_3(): cycle cost out of range";
+                    above_range = true;
+                    return;
+                  }
                 if (length != 0)
                   {
                     // Different signs order the totals without subtracting
@@ -2151,12 +2206,21 @@ namespace Aleph
       /** @brief Published total of the winning cycle.
        *  @return Exact integral total, or floating total within one ulp and
        *          with the exact sign. Zero when no cycle was offered.
+       *  @throws std::domain_error If the floating total does not fit the
+       *          cost type.
        */
       Cost_Type total()
       {
         if constexpr (std::is_floating_point_v<Cost_Type>)
           if (not exact_sums_)
-            return best_.rounded();
+            {
+              // Infinite only if the best total is out of range, which
+              // `add()` does not report when the components are wider.
+              const Cost_Type t = best_.rounded();
+              ah_domain_error_if(not std::isfinite(t))
+                << "most_negative_cycle_up_to_3(): cycle cost out of range";
+              return t;
+            }
         return plain_;
       }
     };

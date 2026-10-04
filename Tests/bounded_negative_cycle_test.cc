@@ -578,7 +578,7 @@ TEST(BoundedNegativeCycleTest, TheRoundingFilterKeepsCandidatesNearItsBound)
   // is about 32 times too small drops the loop.
   const double big = std::ldexp(1.0, 54);
   const double loop = std::nextafter(-2.0, -3.0);
-  ASSERT_EQ((big + 2.0) + -(big + 4.0), -4.0);
+  ASSERT_EQ(static_cast<double>(big + 2.0) + -(big + 4.0), -4.0);   // the cast drops excess precision
   auto built = build_graph_generic<Float_Graph, double>(
       4, {{0, 1, big}, {1, 2, 2.0}, {2, 0, -(big + 4.0)}, {3, 3, loop}});
   const auto r = most_negative_cycle_bounded(built.g, 3);
@@ -586,6 +586,30 @@ TEST(BoundedNegativeCycleTest, TheRoundingFilterKeepsCandidatesNearItsBound)
   EXPECT_EQ(r.length, 1u);
   EXPECT_EQ(r.total_cost, loop);
   EXPECT_TRUE(witness_is_simple_cycle(built.g, r));
+}
+
+TEST(BoundedNegativeCycleTest, SumsAtTheEdgeOfTheExactRangeAreCertified)
+{
+  // Final independent review of the branch, mutation M06: nothing pinned the
+  // exact regime from the conservative side. Sums of two weights with bits
+  // from 2^0 to 2^51 have at most 53 bits, so every sum of the search is
+  // exact and the result is a proof; with bits up to 2^52 they may round.
+  auto edge = build_graph_generic<Float_Graph, double>(
+      2, {{0, 1, 0x1p51 + 1}, {1, 0, -(0x1p51 + 3)}});
+  const auto r = most_negative_cycle_bounded(edge.g, 2);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.total_cost, -2.0);
+  EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Exact);
+  EXPECT_EQ(r.optimality_gap, 0.0);
+  EXPECT_TRUE(r.is_exact);
+
+  auto beyond = build_graph_generic<Float_Graph, double>(
+      2, {{0, 1, 0x1p52 + 1}, {1, 0, -(0x1p52 + 3)}});
+  const auto s = most_negative_cycle_bounded(beyond.g, 2);
+  ASSERT_TRUE(s.has_cycle);
+  EXPECT_EQ(s.total_cost, -2.0);
+  EXPECT_EQ(s.numeric_quality, Cycle_Numeric_Quality::Rounded);
+  EXPECT_GT(s.optimality_gap, 0.0);
 }
 
 

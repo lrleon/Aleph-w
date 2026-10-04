@@ -1162,6 +1162,37 @@ TEST(HowardMinMeanCycleTest, ATiedCycleWhoseCostFitsIsReported)
   EXPECT_EQ(r.cycle_total_cost, -32764);
   EXPECT_EQ(r.fallback_reason, Howard_Fallback_Reason::Cost_Out_Of_Range);
 }
+
+TEST(HowardMinMeanCycleTest, MeansThatRoundAlikeAreComparedExactly)
+{
+  // Final independent review of the branch, mutation M37: comparing the
+  // means in long double went unnoticed. The means 2^60 + 1/6 (a 6-cycle)
+  // and 2^60 + 1/7 (a 7-cycle in another component) round to the same long
+  // double; the 7-cycle is the optimum, whichever component comes first.
+  const long long a = 1LL << 60;
+  for (const bool seven_first : {false, true})
+    {
+      std::vector<Edge_Def> six, seven;
+      for (size_t i = 0; i < 6; ++i)
+        six.emplace_back(i, (i + 1) % 6, i == 5 ? a + 1 : a);
+      for (size_t i = 0; i < 7; ++i)
+        seven.emplace_back(6 + i, 6 + (i + 1) % 7, i == 6 ? a + 1 : a);
+      std::vector<Edge_Def> edges = seven_first ? seven : six;
+      const std::vector<Edge_Def> & rest = seven_first ? six : seven;
+      edges.insert(edges.end(), rest.begin(), rest.end());
+      auto built = build_graph(13, edges);
+
+      const auto h = howard_minimum_mean_cycle(built.g);
+      ASSERT_TRUE(h.has_cycle);
+      EXPECT_EQ(h.cycle_length, 7u) << "seven_first = " << seven_first;
+      EXPECT_EQ(h.cycle_total_cost, 7 * a + 1) << "seven_first = " << seven_first;
+
+      const auto k = karp_minimum_mean_cycle(built.g);
+      ASSERT_TRUE(k.has_cycle);
+      EXPECT_EQ(k.cycle_length, 7u) << "seven_first = " << seven_first;
+      EXPECT_EQ(k.cycle_total_cost, 7 * a + 1) << "seven_first = " << seven_first;
+    }
+}
 # endif
 
 
