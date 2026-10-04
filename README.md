@@ -2523,12 +2523,36 @@ Results carry `numeric_quality`. With floating-point weights Howard iterates in 
 and then finishes in exact arithmetic when the weights, scaled to integers, fit 64 or 128 bits
 (`Exact`, the exact optimum); otherwise it still chooses among the cycles of its policy with
 exact sums (`Rounded`). Reported costs are the exact sums of the weights, rounded once, so their
-sign is exact. `most_negative_cycle_bounded()` (`Negative_Cycles.H`) reports
-`optimality_gap`, a rigorous bound of how much better than its cycle the optimum can be
-(`is_exact` when it is zero).
+sign is exact.
 
-For one to three trades, `most_negative_cycle_up_to_3(g, max_length)` in
-`Negative_Cycles.H` independently finds the exact minimum-total-cost simple cycle,
+#### Negative cycles and arbitrage
+
+`Negative_Cycles.H` finds profitable loops in a market graph whose arcs weigh
+`-log(rate * (1 - fee))`: a cycle of negative total cost multiplies the money that goes around
+it. Every function takes the graph as `const GT &` (it is not modified), a distance accessor
+and an arc filter, and ranks cycles by *total* cost, not by mean as Karp and Howard do.
+
+| Need | Function | What it guarantees |
+|---|---|---|
+| One to three trades | `most_negative_cycle_up_to_3(g, L)` | The exact minimum total, fewest arcs on ties |
+| Up to `L` trades | `most_negative_cycle_bounded(g, L)` | A simple cycle of at most `L` arcs, with `optimality_gap` |
+| Several opportunities at once | `find_disjoint_negative_cycles(g, k)` | Up to `k` arc-disjoint cycles, each exactly negative |
+
+For three trades or fewer, prefer `most_negative_cycle_up_to_3()`: it is exact and, on the
+market graphs of `bench_negative_cycles` with 300 assets, 17 to 24 times faster than the
+bounded search with `L = 3`.
+
+With `-log` weights in `double`, the `is_exact` flag of the bounded search is practically never
+true: such weights leave its exact regime. Read `optimality_gap` instead, a rigorous bound of how
+much cheaper than the reported cycle the best cycle of at most `L` arcs can be (`is_exact` when
+it is zero). On a day of real Binance quotes it stayed around `1e-14` with `L <= 4`, far below any
+fee.
+
+The arc filter is where stale or unconfirmed quotes belong: an arc it rejects does not exist for
+the search, and its weight is not read. Detection is not execution: these functions see the top
+of the book only; quantities, depth and fees charged in another asset are the application's.
+
+`most_negative_cycle_up_to_3(g, max_length)` independently finds the exact minimum-total-cost simple cycle,
 including self-loops and parallel arcs. `max_length` defaults to 3; zero returns an
 empty result and values above 3 throw. Its `Short_Cycle_Result` exposes `has_cycle`,
 `total_cost`, `length`, `cycle_nodes`, `cycle_arcs` and `is_negative()`. Equal exact

@@ -1367,19 +1367,42 @@ namespace Aleph
       Cost_Type cost = Cost_Type{0};   // plain sum: what the search computed
       Array<size_t> arcs;              // indices into Indexed_Graph::arcs, in cycle order
 
+      /** @brief Prepare the rounding filter for cycles of at most `L` arcs.
+       *  @param[in] ig Indexed graph searched.
+       *  @param[in] L Largest length of an offered cycle.
+       */
+      template <AlephGraph GT>
+      Best_Cycle(const Indexed_Graph<GT, Cost_Type> & ig, const size_t L)
+      {
+        if constexpr (std::is_floating_point_v<Cost_Type>)
+          exact_sums_ = short_sums_are_exact(ig, L, error_);
+      }
+
       /// Keep the cycle of `length` arcs `candidate[0..length)`, of plain-sum
       /// cost `c`, if it is cheaper than the best so far, or equally cheap
       /// with fewer arcs. With floating-point costs "cheaper" compares the
       /// exact sums of the weights, so rounding cannot rank the candidates in
-      /// the wrong order. The tie-break only sees the candidates that are
-      /// offered, not every simple cycle of the graph. Storing the winner
-      /// reuses the capacity of `arcs`.
+      /// the wrong order. When every sum of at most `L` weights is exact, the
+      /// plain sums already are; otherwise a candidate whose plain sum is
+      /// above the best one's by more than twice the error bound of both is
+      /// exactly worse and is dropped without an exact sum. The tie-break
+      /// only sees the candidates that are offered, not every simple cycle of
+      /// the graph. Storing the winner reuses the capacity of `arcs`.
       template <AlephGraph GT>
       void offer(const Indexed_Graph<GT, Cost_Type> & ig, const Cost_Type & c,
                  const size_t * candidate, const size_t length)
       {
         if constexpr (std::is_floating_point_v<Cost_Type>)
           {
+            if (exact_sums_)
+              {
+                if (found and not (c < cost or (c == cost and length < arcs.size())))
+                  return;
+                store(c, candidate, length);
+                return;
+              }
+            if (found and c > reject_above_)
+              return;
             exact_candidate_.clear();
             for (size_t i = 0; i < length; ++i)
               ah_domain_error_if(not exact_candidate_.add(ig.arcs(candidate[i]).weight))
@@ -1395,10 +1418,18 @@ namespace Aleph
                   return;
               }
             std::swap(exact_best_, exact_candidate_);
+            constexpr Cost_Type inf = std::numeric_limits<Cost_Type>::infinity();
+            reject_above_ = std::nextafter(std::nextafter(c + error_, inf) + error_, inf);
           }
         else if (found and not (c < cost or (c == cost and length < arcs.size())))
           return;
 
+        store(c, candidate, length);
+      }
+
+    private:
+      void store(const Cost_Type & c, const size_t * candidate, const size_t length)
+      {
         found = true;
         cost = c;
         arcs.empty();
@@ -1406,7 +1437,12 @@ namespace Aleph
           arcs.append(candidate[i]);
       }
 
-    private:
+      // Floating-point costs only: whether every plain sum is exact, else the
+      // bound of its error, and the plain sum above which a candidate is
+      // exactly worse than the best (the best's plain sum plus twice that bound).
+      bool exact_sums_ = true;
+      Cost_Type error_ = Cost_Type{0};
+      Cost_Type reject_above_ = Cost_Type{0};
       // Floating-point costs only: exact cost of the best cycle, and scratch.
       Exact_Sum<Cost_Type> exact_best_;
       Exact_Sum<Cost_Type> exact_candidate_;
@@ -1726,7 +1762,7 @@ namespace Aleph
 
     bool has_walk = false;
     Cost_Type best_walk = Cost_Type{0};   // minimum cost over all closed walks considered
-    negative_cycles_detail::Best_Cycle<Cost_Type> best;
+    negative_cycles_detail::Best_Cycle<Cost_Type> best(ig, L);
 
     Array<long> pos(n, none);
     negative_cycles_detail::Decomposition_Scratch scratch(n, L);

@@ -568,6 +568,26 @@ TEST(BoundedNegativeCycleTest, CandidatesAreRankedExactlyAndTheGapAdmitsRounding
   EXPECT_EQ(r.length, 1u);
 }
 
+TEST(BoundedNegativeCycleTest, TheRoundingFilterKeepsCandidatesNearItsBound)
+{
+  // Stage D6 drops, without an exact sum, a candidate whose plain sum is
+  // above the best one's by more than twice the rounding bound. Here
+  // 2^54 + 2 ties to even at 2^54, so the triangle's plain sum is -4 while
+  // its exact cost is -2: it is offered first, and the loop just below -2,
+  // two units worse in plain sums, is exactly better. A filter whose bound
+  // is about 32 times too small drops the loop.
+  const double big = std::ldexp(1.0, 54);
+  const double loop = std::nextafter(-2.0, -3.0);
+  ASSERT_EQ((big + 2.0) + -(big + 4.0), -4.0);
+  auto built = build_graph_generic<Float_Graph, double>(
+      4, {{0, 1, big}, {1, 2, 2.0}, {2, 0, -(big + 4.0)}, {3, 3, loop}});
+  const auto r = most_negative_cycle_bounded(built.g, 3);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_EQ(r.length, 1u);
+  EXPECT_EQ(r.total_cost, loop);
+  EXPECT_TRUE(witness_is_simple_cycle(built.g, r));
+}
+
 
 // ---------------------------------------------------------------------------
 // Audit 2026-10-02, H2. The six-arc ring with weights 2^100, 1, 2^-100, -1,

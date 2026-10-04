@@ -743,9 +743,13 @@ TEST(NegativeCyclesNumericTest, ExactUpperBoundBeyondTheRangeIsInfinity)
 
   // Independent audit of stage C, E1. After an add() that overflowed, a
   // component is -inf and the value is meaningless; upper() stepped up from
-  // -DBL_MAX one ulp at a time and never ended. It is now infinity.
+  // -DBL_MAX one ulp at a time and never ended. It is now infinity. The
+  // overflow uses the largest component, which is a long double where
+  // FLT_EVAL_METHOD is not 0: there twice -DBL_MAX does not overflow.
+  using Component = Exact_Sum<double>::Component;
+  const Component component_max = std::numeric_limits<Component>::max();
   Exact_Sum<double> broken;
-  ASSERT_TRUE(broken.add(-max));
-  ASSERT_FALSE(broken.add(-max));
+  ASSERT_TRUE(broken.add(-component_max));
+  ASSERT_FALSE(broken.add(-component_max));
   EXPECT_EQ(broken.upper(), std::numeric_limits<double>::infinity());
 }

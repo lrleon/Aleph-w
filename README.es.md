@@ -2314,12 +2314,38 @@ Los resultados incluyen `numeric_quality`. Con pesos de coma flotante, Howard it
 `long double` y después termina en aritmética exacta cuando los pesos, escalados a enteros, caben
 en 64 o 128 bits (`Exact`, el óptimo exacto); si no, elige igualmente entre los ciclos de su
 política con sumas exactas (`Rounded`). Los costos informados son sumas exactas de los pesos,
-redondeadas una vez, así que su signo es exacto. `most_negative_cycle_bounded()`
-(`Negative_Cycles.H`) informa `optimality_gap`, una cota rigurosa de cuánto mejor que su ciclo
-puede ser el óptimo (`is_exact` cuando vale cero).
+redondeadas una vez, así que su signo es exacto.
 
-Para una a tres operaciones, `most_negative_cycle_up_to_3(g, max_length)` de
-`Negative_Cycles.H` encuentra de forma independiente el ciclo simple de costo total
+#### Ciclos negativos y arbitraje
+
+`Negative_Cycles.H` encuentra bucles rentables en un grafo de mercado cuyos arcos pesan
+`-log(tasa * (1 - comisión))`: un ciclo de costo total negativo multiplica el dinero que lo
+recorre. Todas las funciones reciben el grafo como `const GT &` (no lo modifican), un accesor de
+distancia y un filtro de arcos, y ordenan los ciclos por costo *total*, no por media como Karp y
+Howard.
+
+| Necesidad | Función | Qué garantiza |
+|---|---|---|
+| Una a tres operaciones | `most_negative_cycle_up_to_3(g, L)` | El total mínimo exacto, con menos arcos en empate |
+| Hasta `L` operaciones | `most_negative_cycle_bounded(g, L)` | Un ciclo simple de como mucho `L` arcos, con `optimality_gap` |
+| Varias oportunidades a la vez | `find_disjoint_negative_cycles(g, k)` | Hasta `k` ciclos sin arcos comunes, cada uno exactamente negativo |
+
+Para tres operaciones o menos, conviene `most_negative_cycle_up_to_3()`: es exacta y, en los
+grafos de mercado de `bench_negative_cycles` con 300 activos, entre 17 y 24 veces más rápida que
+la búsqueda acotada con `L = 3`.
+
+Con pesos `-log` en `double`, `is_exact` de la búsqueda acotada no es verdadero en la práctica:
+esos pesos quedan fuera de su régimen exacto. Lo útil es `optimality_gap`, una cota rigurosa de
+cuánto más barato que el ciclo informado puede ser el mejor ciclo de como mucho `L` arcos
+(`is_exact` cuando vale cero). En un día de cotizaciones reales de Binance quedó en torno a
+`1e-14` con `L <= 4`, muy por debajo de cualquier comisión.
+
+El filtro de arcos es el lugar para descartar cotizaciones viejas o sin confirmar: un arco que
+rechaza no existe para la búsqueda, y su peso no se lee. Detectar no es ejecutar: estas funciones
+ven solo el mejor precio del libro; las cantidades, la profundidad y las comisiones cobradas en
+otro activo corresponden a la aplicación.
+
+`most_negative_cycle_up_to_3(g, max_length)` encuentra de forma independiente el ciclo simple de costo total
 mínimo exacto, incluidos lazos y arcos paralelos. `max_length` vale 3 por defecto;
 cero devuelve un resultado vacío y valores mayores que 3 lanzan una excepción.
 `Short_Cycle_Result` ofrece `has_cycle`, `total_cost`, `length`, `cycle_nodes`,

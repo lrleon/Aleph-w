@@ -75,8 +75,10 @@
  * itself; the market families use `double` weights) or `no-cert`.
  * `most_negative_cycle_up_to_3(g, 3)` is measured separately against the DP
  * with the same bound. It enumerates simple cycles exactly and shows `exact`;
- * its optimality and shortest-tie rule are tested against exhaustive integer
- * and GMP rational oracles in the test suite, not by this structural validator.
+ * the validator checks that label by enumerating every loop, opposite pair
+ * and triangle of the graph on its own (up to the rounding of `long double`
+ * sums). Its shortest-tie rule is tested against exhaustive integer and GMP
+ * rational oracles in the test suite.
  *
  * `Bellman_Ford`'s witness extraction rebuilds the cycle from nodes and can
  * pick a different parallel arc, so on multigraphs it can return a cycle whose
@@ -146,6 +148,7 @@
 #include <Negative_Cycles.H>
 #include <tpl_array.H>
 #include <tpl_dynList.H>
+#include <tpl_dynMapTree.H>
 #include <tpl_dynSetTree.H>
 #include <tpl_graph.H>
 
@@ -782,12 +785,124 @@ Outcome check_result(const Graph & g, const Bounded & r, const Limits & lim)
   return o;
 }
 
-/** @brief Validate the independent short-cycle search, exact by construction. */
+/** @brief Check the optimality of a short-cycle result by enumerating, apart
+ *         from `Negative_Cycles.H`, every loop, opposite pair and directed
+ *         triangle of `g`.
+ *
+ *  For each node `u`, the cheapest arc entering `u` from each node marks the
+ *  arcs that close a cycle at `u`; then every walk `u -> v` and
+ *  `u -> v -> x` that one of them closes is a candidate. Sums are taken in
+ *  `long double`, so a candidate counts as cheaper only beyond their
+ *  rounding: `8 * epsilon` times the absolute weights of both cycles.
+ *
+ *  @param[in] g Graph searched (all arcs visible).
+ *  @param[in] r Result of `most_negative_cycle_up_to_3(g, 3)`.
+ *  @return nullptr if no cycle of at most three arcs is cheaper than the
+ *          witness, and none exists when the result has no cycle; otherwise
+ *          the reason.
+ */
+const char * check_short_optimum(const Graph & g, const Short_Cycle_Result<Graph, double> & r)
+{
+  long double witness = 0, witness_abs = 0;
+  for (auto it = r.cycle_arcs.get_it(); it.has_curr(); it.next_ne())
+    {
+      witness += it.get_curr()->get_info();
+      witness_abs += std::fabs(static_cast<long double>(it.get_curr()->get_info()));
+    }
+
+  // Positions of the nodes, and out- and in-adjacency in compressed rows.
+  DynMapTree<Node *, size_t> index;
+  size_t n = 0;
+  for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+    index.insert(it.get_curr(), n++);
+  Array<size_t> out_start(n + 1, 0), in_start(n + 1, 0);
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    {
+      ++out_start(index.find(g.get_src_node(it.get_curr())) + 1);
+      ++in_start(index.find(g.get_tgt_node(it.get_curr())) + 1);
+    }
+  for (size_t u = 0; u < n; ++u)
+    {
+      out_start(u + 1) += out_start(u);
+      in_start(u + 1) += in_start(u);
+    }
+  const size_t m = out_start(n);
+  Array<size_t> out_tgt(m, 0), in_src(m, 0), out_fill(n, 0), in_fill(n, 0);
+  Array<double> out_w(m, 0.0), in_w(m, 0.0);
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+    {
+      const size_t s = index.find(g.get_src_node(it.get_curr()));
+      const size_t d = index.find(g.get_tgt_node(it.get_curr()));
+      const double w = it.get_curr()->get_info();
+      const size_t po = out_start(s) + out_fill(s)++;
+      out_tgt(po) = d;
+      out_w(po) = w;
+      const size_t pi = in_start(d) + in_fill(d)++;
+      in_src(pi) = s;
+      in_w(pi) = w;
+    }
+
+  constexpr long double eps = std::numeric_limits<long double>::epsilon();
+  bool any = false;
+  const char * cheaper = nullptr;
+  const auto candidate = [&](const long double total, const long double abs_total)
+  {
+    any = true;
+    if (r.has_cycle and witness > total + 8 * eps * (witness_abs + abs_total))
+      cheaper = "a cheaper cycle of at most three arcs exists";
+  };
+
+  constexpr double unset = std::numeric_limits<double>::infinity();
+  Array<double> closing(n, unset);   // cheapest arc x -> u, for the current u
+  for (size_t u = 0; u < n and cheaper == nullptr; ++u)
+    {
+      for (size_t p = in_start(u); p < in_start(u + 1); ++p)
+        if (in_w(p) < closing(in_src(p)))
+          closing(in_src(p)) = in_w(p);
+      if (closing(u) != unset)
+        candidate(closing(u), std::fabs(static_cast<long double>(closing(u))));   // loop
+      for (size_t p = out_start(u); p < out_start(u + 1); ++p)
+        {
+          const size_t v = out_tgt(p);
+          if (v == u)
+            continue;
+          const long double a = out_w(p);
+          if (closing(v) != unset)   // u -> v -> u
+            candidate(a + closing(v), std::fabs(a) + std::fabs(static_cast<long double>(closing(v))));
+          for (size_t q = out_start(v); q < out_start(v + 1); ++q)
+            {
+              const size_t x = out_tgt(q);
+              if (x == u or x == v or closing(x) == unset)
+                continue;
+              const long double b = out_w(q);   // u -> v -> x -> u
+              candidate(a + b + closing(x),
+                        std::fabs(a) + std::fabs(b) + std::fabs(static_cast<long double>(closing(x))));
+            }
+        }
+      for (size_t p = in_start(u); p < in_start(u + 1); ++p)
+        closing(in_src(p)) = unset;
+    }
+
+  if (cheaper != nullptr)
+    return cheaper;
+  if (any != r.has_cycle)
+    return r.has_cycle ? "reported a cycle where none of at most three arcs exists"
+                       : "missed a cycle of at most three arcs";
+  return nullptr;
+}
+
+/** @brief Validate the independent short-cycle search: its witness, and its
+ *         optimality against an enumeration of every cycle of at most three
+ *         arcs (`check_short_optimum()`), which backs the `exact` label. */
 Outcome check_result(const Graph & g, const Short_Cycle_Result<Graph, double> & r,
                      const Limits & lim)
 {
   Outcome o = check_total_cycle(g, r, lim);
-  if (r.has_cycle)
+  if (o.verdict == Verdict::Invalid)
+    return o;
+  if (const char * why = check_short_optimum(g, r))
+    invalid(o, why);
+  else if (r.has_cycle)
     std::snprintf(o.cert, sizeof(o.cert), "exact");
   return o;
 }
