@@ -1114,6 +1114,37 @@ TEST(HowardMinMeanCycleTest, ALosingComponentNeedNotFitTheCostType)
   EXPECT_EQ(howard_minimum_mean_cycle_value(built.g).minimum_mean, r.minimum_mean);
 }
 
+TEST(HowardMinMeanCycleTest, UnsignedLongLongCostsAreExact)
+{
+  // Independent audit of stage C, U1. Weights near 2^64 do not fit the
+  // long long of the exact arithmetic, and unsigned long long used to be
+  // iterated in long double: its bias tolerance hid the improvement, and it
+  // reported the loop 3 -> 3 of mean 7 instead of 4 -> 1 -> 5 -> 4 of 11/3.
+  using U = unsigned long long;
+  using U_Graph = List_Digraph<Graph_Node<int>, Graph_Arc<U>>;
+  const U m = std::numeric_limits<U>::max();
+  auto built = build_graph_generic<U_Graph, U>(
+    6, {{4, 2, 6}, {1, 5, 7}, {3, 4, 0}, {5, 0, 7}, {5, 4, 3}, {5, 0, 1}, {2, 3, m - 2},
+        {4, 1, 1}, {3, 2, m}, {3, 3, 7}, {0, 5, m - 2}, {3, 4, 6}, {4, 2, 1}});
+  const auto r = howard_minimum_mean_cycle(built.g);
+  ASSERT_TRUE(r.has_cycle);
+  EXPECT_FALSE(r.used_karp);
+  EXPECT_EQ(r.numeric_quality, Cycle_Numeric_Quality::Exact);
+  EXPECT_EQ(r.cycle_total_cost, 11u);
+  EXPECT_EQ(r.cycle_length, 3u);
+  EXPECT_EQ(r.minimum_mean, 11.0L / 3.0L);
+  EXPECT_EQ(howard_minimum_mean_cycle_value(built.g).minimum_mean, r.minimum_mean);
+
+  // The 2-cycle totals 2^65 - 2, beyond the cost type; its mean is still
+  // compared exactly, in 128 bits, and the loop of mean m - 1 wins.
+  auto large = build_graph_generic<U_Graph, U>(3, {{0, 1, m}, {1, 0, m}, {2, 2, m - 1}});
+  const auto l = howard_minimum_mean_cycle(large.g);
+  ASSERT_TRUE(l.has_cycle);
+  EXPECT_FALSE(l.used_karp);
+  EXPECT_EQ(l.cycle_total_cost, m - 1);
+  EXPECT_EQ(l.cycle_length, 1u);
+}
+
 TEST(HowardMinMeanCycleTest, ATiedCycleWhoseCostFitsIsReported)
 {
   // Independent audit of stage C, T1. The loop at 3 and the 2-cycle 1 <-> 2

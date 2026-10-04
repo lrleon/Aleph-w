@@ -2289,7 +2289,7 @@ int main() {
 |---|---|---|
 | Tiempo | `O(VE)` en el peor caso | `O(V + E)` por iteración; sin cota polinómica de iteraciones, típicamente de 6 a 25 en las pruebas |
 | Memoria | `O(V^2)` | `O(V + E)` |
-| Costos enteros | exacto | exacto (fracciones reducidas) |
+| Costos enteros | exacto | exacto (fracciones reducidas; `unsigned long long` donde hay enteros de 128 bits) |
 | Testigo | ciclo simple | ciclo simple |
 
 En los grafos de mercado de `bench_negative_cycles` (hubs más pares aleatorios) tarda 0.16 ms

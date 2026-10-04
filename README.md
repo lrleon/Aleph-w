@@ -2498,7 +2498,7 @@ plus `iterations` and `used_karp`, so it can replace Karp's in client code.
 |---|---|---|
 | Time | `O(VE)` worst case | `O(V + E)` per iteration; no polynomial bound on the iterations, typically 6 to 25 in the tests |
 | Memory | `O(V^2)` | `O(V + E)` |
-| Integer costs | exact | exact (reduced fractions) |
+| Integer costs | exact | exact (reduced fractions; `unsigned long long` where 128-bit integers exist) |
 | Witness | simple cycle | simple cycle |
 
 On the market graphs of `bench_negative_cycles` (hubs plus random pairs) it takes 0.16 ms

@@ -100,8 +100,9 @@
  *
  *  ## Arithmetic
  *
- *  - **Integer costs** (any integral type whose values fit a `long long`) are
- *    handled exactly: `eta` is a reduced fraction and the bias is scaled by its
+ *  - **Integer costs** (any integral type whose values fit a `long long`,
+ *    and `unsigned long long` where 128-bit integers exist) are handled
+ *    exactly: `eta` is a reduced fraction and the bias is scaled by its
  *    denominator, so every comparison is one between integers and the
  *    reported cycle has the exact minimum mean `cycle_total_cost /
  *    cycle_length`. The scaled bias can exceed the range of `long long` before
@@ -260,17 +261,20 @@ __extension__ typedef unsigned __int128 uint128_t;
 #endif
 
 /// Integral costs that fit a `long long` use exact arithmetic, and so do
-/// 128-bit integers where they exist.
+/// `unsigned long long` and 128-bit integers where 128-bit integers exist.
 template <typename Cost_Type>
 inline constexpr bool exact_arithmetic_v = std::is_integral_v<Cost_Type> and
   std::numeric_limits<Cost_Type>::max() <= std::numeric_limits<long long>::max();
 #if ALEPH_HOWARD_INT128
 template <>
+inline constexpr bool exact_arithmetic_v<unsigned long long> = true;
+template <>
 inline constexpr bool exact_arithmetic_v<int128_t> = true;
 #endif
 
 /** @brief Integer type, and its limits, of the exact arithmetic for
- *         `Cost_Type`: `long long`, or `int128_t` for 128-bit costs.
+ *         `Cost_Type`: `long long`, or `int128_t` for `unsigned long long`
+ *         and 128-bit costs.
  *
  *  The limits are spelled out because `std::numeric_limits` is not
  *  specialised for 128-bit integers in strict ISO mode.
@@ -293,6 +297,14 @@ struct Exact_Integer<int128_t>
   using Unsigned = uint128_t;  ///< Its unsigned counterpart.
   static constexpr Wide max = static_cast<int128_t>(~uint128_t(0) >> 1);  ///< Largest value.
   static constexpr Wide min = -max - 1;                                   ///< Smallest value.
+};
+
+/// `unsigned long long` costs do not fit a `long long`, and the biases are
+/// signed: 128-bit arithmetic, as for 128-bit costs. A weight below 2^64
+/// times a denominator of at most `V`, plus `V` such terms, fits easily.
+template <>
+struct Exact_Integer<unsigned long long> : Exact_Integer<int128_t>
+{
 };
 #endif
 
@@ -1212,9 +1224,9 @@ Min_Mean_Cycle_Result<GT, Cost_Type> karp_by_component(
   // vertex comes first. The witness comes from a component of that same
   // mean too, but one whose cycle cost fits the cost type is preferred: only
   // the reported witness has to fit, not the one of every component.
-  Answer best;              // the component of the witness
+  Answer best;  // the component of the witness
   size_t best_comp = unset;
-  long double mean = 0;     // the reported mean
+  long double mean = 0;  // the reported mean
   size_t mean_vertex = unset;
   for (size_t c = 0; c < components; ++c)
     {
@@ -1417,9 +1429,11 @@ Howard_Mean_Cycle_Result<GT, typename Distance::Distance_Type> minimum_mean_cycl
       bool fits = true;
       for (size_t i = 0; fits and i < arcs.size(); ++i)
         fits = Arithmetic::add(total, ig.arcs(arcs((root + i) % arcs.size())).weight);
-      if (fits)
-        fits = total >= static_cast<long long>(std::numeric_limits<Cost_Type>::min()) and
-          total <= static_cast<long long>(std::numeric_limits<Cost_Type>::max());
+      using Sum = typename Arithmetic::Sum;
+      if constexpr (not std::is_same_v<Sum, Cost_Type>)
+        if (fits)
+          fits = total >= static_cast<Sum>(std::numeric_limits<Cost_Type>::min()) and
+            total <= static_cast<Sum>(std::numeric_limits<Cost_Type>::max());
       if (not fits)
         return use_karp(iterations, Howard_Fallback_Reason::Cost_Out_Of_Range);
       result.cycle_total_cost = static_cast<Cost_Type>(total);
