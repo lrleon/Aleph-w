@@ -258,8 +258,13 @@ jobs:
           cmake --build build --target graph_benchmarks --parallel
 
       - name: Validate every variant on every graph family
+        # A wrong answer (an invalid witness, a missed or a false detection, a
+        # result that is not optimal where that is checked) exits with status 1
+        # and fails the job. Only the documented Bellman-Ford defect is counted
+        # and tolerated.
         run: |
-          ./build/benchmarks/graphs/bench_negative_cycles 300 1 42 --check-only
+          set -o pipefail
+          ./build/benchmarks/graphs/bench_negative_cycles 300 1 42 --check-only | tee graph-validation.txt
 
       - name: Time the variants (informational)
         run: |
@@ -270,6 +275,11 @@ jobs:
           } | tee graph-benchmarks.txt
           {
             echo '## Graph benchmarks (informational, shared runner)'
+            echo
+            echo "Validation: $(grep '^Summary' graph-validation.txt)"
+            echo
+            echo 'Times are informational. A shared runner is typically two to three times slower than a workstation and noisy, so read the ratios between variants, not the absolute values. Only a wrong answer fails the job.'
+            echo
             echo '```'
             cat graph-benchmarks.txt
             echo '```'
@@ -281,7 +291,9 @@ jobs:
         with:
           name: graph-benchmarks
           if-no-files-found: ignore
-          path: graph-benchmarks.txt
+          path: |
+            graph-benchmarks.txt
+            graph-validation.txt
 
   # Guard the C++ standard contract: the library baseline is C++20 (covered by
   # build-and-test above). This job additionally builds and tests the whole

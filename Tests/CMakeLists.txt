@@ -426,6 +426,7 @@ set(TEST_PROGRAMS
     bounded_negative_cycle_test
     short_negative_cycle_test
     negative_cycles_numeric_test
+    negative_cycles_market_test
     planarity_test
     graph_copy_test
     thread_pool_test
