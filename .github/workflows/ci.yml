@@ -204,6 +204,97 @@ jobs:
             build/CMakeCache.txt
             build/test_artifacts/golden_svg
 
+  # Runs the graph benchmarks (benchmarks/graphs). Unlike the cellular-automata
+  # anchors of perf-gate.yml, these are not a performance gate: shared runners
+  # are too noisy to fail a build on a timing. What fails the job is a wrong
+  # answer: every variant is validated against the ground truth of each graph
+  # family (a negative cycle must be a closed simple cycle of negative cost,
+  # Howard's mean must be Karp's, ...) before it is timed. The timings are
+  # published in the job summary and as an artifact for comparison.
+  graph-benchmarks:
+    name: graph-benchmarks (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CC: gcc
+      CXX: g++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libtclap-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-graph-benchmarks-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-graph-benchmarks-ccache-
+
+      - name: Configure
+        run: |
+          rm -rf build
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_BENCHMARKS=ON
+
+      - name: Build
+        run: |
+          cmake --build build --target graph_benchmarks --parallel
+
+      - name: Validate every variant on every graph family
+        # A wrong answer (an invalid witness, a missed or a false detection, a
+        # result that is not optimal where that is checked) exits with status 1
+        # and fails the job. Only the documented Bellman-Ford defect is counted
+        # and tolerated.
+        run: |
+          set -o pipefail
+          ./build/benchmarks/graphs/bench_negative_cycles 300 1 42 --check-only | tee graph-validation.txt
+
+      - name: Time the variants (informational)
+        run: |
+          set -o pipefail
+          {
+            ./build/benchmarks/graphs/bench_negative_cycles 300 31 42
+            ./build/benchmarks/graphs/bench_negative_cycles 1000 11 42 --only=market-arbitrage
+          } | tee graph-benchmarks.txt
+          {
+            echo '## Graph benchmarks (informational, shared runner)'
+            echo
+            echo "Validation: $(grep '^Summary' graph-validation.txt)"
+            echo
+            echo 'Times are informational. A shared runner is typically two to three times slower than a workstation and noisy, so read the ratios between variants, not the absolute values. Only a wrong answer fails the job.'
+            echo
+            echo '```'
+            cat graph-benchmarks.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: graph-benchmarks
+          if-no-files-found: ignore
+          path: |
+            graph-benchmarks.txt
+            graph-validation.txt
+
   # Guard the C++ standard contract: the library baseline is C++20 (covered by
   # build-and-test above). This job additionally builds and tests the whole
   # library under C++23, so that C++23 consumers stay supported and the

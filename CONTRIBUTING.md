@@ -108,7 +108,7 @@ and must be described in [`CHANGELOG.md`](CHANGELOG.md).
 1. Fork and create a topic branch off `master`
    (`git checkout -b feat/my-change`).
 2. Make focused commits. Keep one logical change per PR; large phases should be
-   split into several PRs (see `cell-automata-industrial-roadmap.md`).
+   split into several PRs.
 3. Add or update tests for any behavioral change.
 4. Update `CHANGELOG.md` under the appropriate section
    (Added/Changed/Deprecated/Removed/Fixed/Security).
