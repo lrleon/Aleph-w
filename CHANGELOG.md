@@ -5,6 +5,13 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.0](https://github.com/lrleon/Aleph-w/compare/v6.0.0...v6.1.0) (2026-10-04)
+
+
+### Features
+
+* **core:** Add arbitrage cycle detection ([#103](https://github.com/lrleon/Aleph-w/issues/103)) ([b758d85](https://github.com/lrleon/Aleph-w/commit/b758d8520bb0a4cb8d85724d4c03f864a2236052))
+
 ## [6.0.0](https://github.com/lrleon/Aleph-w/compare/v5.11.0...v6.0.0) (2026-09-28)
 
 
