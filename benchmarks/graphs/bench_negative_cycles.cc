@@ -83,10 +83,12 @@
  * `Bellman_Ford`'s witness extraction rebuilds the cycle from nodes and can
  * pick a different parallel arc, so on multigraphs it can return a cycle whose
  * cost is not negative (for instance `n = 19` with seeds 19 and 42, which are
- * always validated). Those results are printed as `INVALID` and counted as
- * known Bellman-Ford defects: they do not change the exit code, because fixing
- * the old extractor is a separate task. A missed or false detection is still
- * an error.
+ * always validated, and `dense`). Such a result counts as a known
+ * Bellman-Ford defect only when it is exactly that: a simple cycle whose
+ * nodes, joined by the cheapest arc of each step, cost less than zero. It is
+ * printed as `INVALID` and does not change the exit code, because fixing the
+ * old extractor is a separate task. Any other invalid witness, a missed or a
+ * false detection is still an error.
  *
  * @par Timing protocol
  * An untimed warmup (at least 2 runs, then until 30 ms have elapsed, at most
@@ -640,6 +642,10 @@ struct Outcome
   size_t length = 0;           // arcs of that cycle
   char cert[16] = "-";         // bounded search: "exact" / "bound" / "no-cert"; Howard: "it=7" or "karp"
   char why[128] = "";          // reason when Invalid
+  // Invalid only because a costlier parallel arc was picked: the nodes, joined
+  // by the cheapest arc of each step, form a negative cycle (known defect of
+  // Bellman_Ford's extraction, see the file documentation).
+  bool costlier_parallel_arc = false;
   size_t allocs = 0;           // operator new calls of one run
   size_t bytes = 0;
 };
@@ -716,6 +722,22 @@ Outcome check_result(const Graph &, const Indexed &, const Limits &)
   return Outcome{};
 }
 
+/// Cost of the cycle through `nodes` when each step takes the cheapest arc
+/// between its two nodes (the arcs of a valid cycle exist, so there is one).
+long double cheapest_arcs_cost(const Graph & g, const Array<Node *> & nodes)
+{
+  long double cost = 0;
+  for (size_t i = 0; i + 1 < nodes.size(); ++i)
+    {
+      double best = std::numeric_limits<double>::infinity();
+      for (Node_Arc_Iterator<Graph> it(nodes(i)); it.has_curr(); it.next_ne())
+        if (g.get_tgt_node(it.get_curr()) == nodes(i + 1) and it.get_curr()->get_info() < best)
+          best = it.get_curr()->get_info();
+      cost += best;
+    }
+  return cost;
+}
+
 Outcome check_result(const Graph & g, const Path<Graph> & p, const Limits &)
 {
   Outcome o;
@@ -734,7 +756,17 @@ Outcome check_result(const Graph & g, const Path<Graph> & p, const Limits &)
   o.length = arcs.size();
   if (not (cost < 0))
     {
-      invalid(o, "witness cost is not negative");
+      const long double cheapest = cheapest_arcs_cost(g, nodes);
+      if (cheapest < 0)
+        {
+          o.costlier_parallel_arc = true;
+          std::snprintf(o.why, sizeof(o.why),
+                        "witness cost is not negative: a costlier parallel arc was picked "
+                        "(the cheapest ones cost %.6Lg)", cheapest);
+          o.verdict = Verdict::Invalid;
+        }
+      else
+        invalid(o, "witness cost is not negative");
       return o;
     }
   o.verdict = Verdict::Valid;
@@ -1216,8 +1248,11 @@ Judgment judge(const Instance & inst, const Variant & v, const Outcome & o,
 
   if (o.verdict == Verdict::Invalid)
     {
+      // Only the documented defect of Bellman_Ford's extraction is known: any
+      // other invalid witness, of Bellman_Ford or not, is an error.
       reason = o.why;
-      return v.bf_witness ? Judgment::Known_Defect : Judgment::Unexpected;
+      return v.bf_witness and o.costlier_parallel_arc ? Judgment::Known_Defect
+                                                      : Judgment::Unexpected;
     }
 
   const bool detector = v.group == Group::Detect or v.name.find("_value(") != std::string::npos;
@@ -1654,8 +1689,8 @@ int main(const int argc, char * argv[])
   std::printf("\nSummary: %zu unexpected result(s), %zu known Bellman-Ford witness defect(s)\n",
               tally.unexpected, tally.known_defects);
   if (tally.known_defects > 0)
-    std::printf("  Known defects are INVALID witnesses of Bellman_Ford path extraction on multigraphs\n"
-                "  (parallel arcs); fixing the old extractor is a separate task.\n");
+    std::printf("  Known defects are INVALID witnesses of Bellman_Ford path extraction on multigraphs:\n"
+                "  a costlier parallel arc of a negative node cycle; fixing the extractor is a separate task.\n");
   if (tally.unexpected > 0)
     {
       std::fprintf(stderr, "bench_negative_cycles: %zu unexpected result(s)\n", tally.unexpected);
