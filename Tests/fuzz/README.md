@@ -47,14 +47,14 @@ failure; the script prints the artifact directory for a failed target. The
 newer targets have bounded input lengths to keep each iteration practical.
 
 Prerequisites: Ruby, CMake, Ninja, Clang with libFuzzer/ASan/UBSan runtimes,
-GoogleTest development files, and the repository's normal GMP, MPFR and GSL
-development packages. The local runner disables GoogleTest downloads, so it
-reports a missing installation during CMake configuration instead of fetching
-one. On Ubuntu/Debian, install missing packages with:
+and the repository's normal GMP, MPFR and GSL development packages. GoogleTest
+is not needed: the local runner disables GoogleTest downloads, and when
+GoogleTest is absent CMake warns and configures only the fuzz targets. On
+Ubuntu/Debian, install missing packages with:
 
 ```bash
 sudo apt-get install ruby cmake ninja-build clang libclang-rt-dev \
-  libgtest-dev libgmp-dev libmpfr-dev libgsl-dev
+  libgmp-dev libmpfr-dev libgsl-dev
 ```
 
 ## Building & running locally
@@ -92,10 +92,10 @@ current directory.
 
 ## CI
 
-`.github/workflows/fuzz.yml` runs the four original parser targets weekly (and
-on demand) for 30 minutes each, in parallel, failing the job on any crash and
-uploading the reproducer. The five newer targets currently run through the
-local script only.
+`.github/workflows/fuzz.yml` runs all nine targets weekly (and on demand) for
+30 minutes each, in parallel, failing the job on any crash and uploading the
+reproducer. The five newer targets use the same `-max_len` bounds as the local
+runner.
 
 ## Findings
 
