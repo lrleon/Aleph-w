@@ -675,20 +675,36 @@ template <typename Lattice>
   return out.str();
 }
 
+/** @brief Default upper bound on the live cells `read_rle()` stores.
+ *
+ *  RLE is a compressed format: a run such as `999999999o` takes ten bytes
+ *  and denotes a billion live cells. Without a bound, a tiny untrusted
+ *  document could make the reader allocate gigabytes of coordinates. The
+ *  default, 2^24 cells (256 MiB of coordinates), covers ordinary patterns;
+ *  pass a larger budget to `read_rle()` for bigger trusted inputs.
+ */
+inline constexpr ca_size_t Rle_Default_Max_Live_Cells = ca_size_t{1} << 24;
+
 /** @brief Read a Conway RLE pattern.
  *
  *  Accepts comments, mixed whitespace, `b`/`.` dead cells and `o`/`A`
  *  live cells. Dimensions come from the required `x = ..., y = ...`
- *  header.
+ *  header. Only live cells are stored, so a sparse pattern may declare a
+ *  huge area.
  *
  *  @param[in,out] in input stream.
+ *  @param[in] max_live_cells maximum number of live cells to store.
  *  @return parsed binary pattern.
  *  @throws std::domain_error on malformed RLE.
+ *  @throws std::length_error if the pattern has more than
+ *          `max_live_cells` live cells; it is detected before storing the
+ *          run that exceeds the budget.
  *
  *  @par Complexity
  *  O(number of RLE tokens + live cells).
  */
-[[nodiscard]] inline RLE_Pattern read_rle(std::istream &in)
+[[nodiscard]] inline RLE_Pattern read_rle(std::istream &in,
+                                          const ca_size_t max_live_cells = Rle_Default_Max_Live_Cells)
 {
   RLE_Pattern pattern;
   std::string line;
@@ -746,6 +762,8 @@ template <typename Lattice>
               const ca_size_t n = run == 0 ? 1 : run;
               ah_domain_error_if(cur_row >= pattern.height or cur_col + n > pattern.width)
                 << "read_rle: live run exceeds declared dimensions";
+              ah_length_error_if(n > max_live_cells - pattern.alive.size())
+                << "read_rle: more than " << max_live_cells << " live cells";
               for (ca_size_t k = 0; k < n; ++k)
                 pattern.alive.append(Coord_Vec<2>{static_cast<ca_index_t>(cur_row),
                                                   static_cast<ca_index_t>(cur_col + k)});
@@ -780,12 +798,16 @@ template <typename Lattice>
 
 /** @brief Read a Conway RLE pattern from a string.
  *  @param[in] s RLE document.
+ *  @param[in] max_live_cells maximum number of live cells to store.
  *  @return parsed pattern.
+ *  @throws std::domain_error on malformed RLE.
+ *  @throws std::length_error if the pattern exceeds `max_live_cells`.
  */
-[[nodiscard]] inline RLE_Pattern read_rle_string(const std::string &s)
+[[nodiscard]] inline RLE_Pattern read_rle_string(
+  const std::string &s, const ca_size_t max_live_cells = Rle_Default_Max_Live_Cells)
 {
   std::istringstream in(s);
-  return read_rle(in);
+  return read_rle(in, max_live_cells);
 }
 
 /** @brief Fill a lattice from a binary pattern.
@@ -1670,6 +1692,7 @@ template <class F>
  *  never throws.
  *
  *  @param[in,out] in input stream.
+ *  @param[in] max_live_cells maximum number of live cells to store.
  *  @return `expected<RLE_Pattern, std::string>`: pattern on success, error message on failure.
  *
  *  @par Complexity
@@ -1677,11 +1700,12 @@ template <class F>
  *  @par Thread-safety
  *  Reentrant.
  */
-[[nodiscard]] inline expected<RLE_Pattern, std::string> try_read_rle(std::istream &in)
+[[nodiscard]] inline expected<RLE_Pattern, std::string> try_read_rle(
+  std::istream &in, const ca_size_t max_live_cells = Rle_Default_Max_Live_Cells)
 {
   return ca_io_detail::try_parse([&]
     {
-      return read_rle(in);
+      return read_rle(in, max_live_cells);
     }, "try_read_rle");
 }
 
@@ -1692,6 +1716,7 @@ template <class F>
  *  function never throws.
  *
  *  @param[in] s RLE document.
+ *  @param[in] max_live_cells maximum number of live cells to store.
  *  @return `expected<RLE_Pattern, std::string>`: pattern on success, error message on failure.
  *
  *  @par Complexity
@@ -1699,11 +1724,12 @@ template <class F>
  *  @par Thread-safety
  *  Reentrant.
  */
-[[nodiscard]] inline expected<RLE_Pattern, std::string> try_read_rle_string(const std::string &s)
+[[nodiscard]] inline expected<RLE_Pattern, std::string> try_read_rle_string(
+  const std::string &s, const ca_size_t max_live_cells = Rle_Default_Max_Live_Cells)
 {
   return ca_io_detail::try_parse([&]
     {
-      return read_rle_string(s);
+      return read_rle_string(s, max_live_cells);
     }, "try_read_rle_string");
 }
 
