@@ -106,3 +106,11 @@ runner.
   `cell_count == product(extents)` in `inspect_checkpoint`
   (see `ca-checkpoint.H`; regression tests in
   `Tests/ca_checkpoint_safety_test.cc`).
+- **RLE reader, unbounded allocation (CWE-789).** `read_rle` stored one
+  coordinate per live cell with no limit, and RLE run lengths compress: a
+  34-byte document (`x = 1000000000, y = 1` and `999999999o!`) asked for
+  about 16 GB. Found by the weekly `fuzz_rle_parser` job. Fixed by a
+  configurable live-cell budget (`Rle_Default_Max_Live_Cells`, 2^24 cells)
+  that throws `std::length_error` before storing the run that exceeds it
+  (see `ca-io.H`; regression test `CAIO.RleParserBoundsTheNumberOfLiveCells`
+  in `Tests/ca_io_test.cc`).
