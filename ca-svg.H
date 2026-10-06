@@ -146,7 +146,7 @@ inline void write_points(std::ostream &out, const Array<std::array<double, 2>> &
 [[nodiscard]] inline Array<std::array<double, 2>> hex_points(Hex_Axial a, const double radius)
 {
   const auto centre = axial_to_pixel_pointy(a, radius);
-  Array<std::array<double, 2>> pts(6);
+  auto pts = Array<std::array<double, 2>>::create_reserved(6);
   for (int k = 0; k < 6; ++k)
     {
       constexpr double pi = 3.14159265358979323846;
@@ -162,10 +162,10 @@ inline void write_points(std::ostream &out, const Array<std::array<double, 2>> &
   constexpr double sqrt3 = 1.7320508075688772;
   const double h = side * sqrt3 / 2.0;
   const auto centre = tri_pixel_centre(c, side);
-  // Built with explicit appends: Array(3) preallocates exact capacity,
+  // Built with explicit appends: create_reserved(3) preallocates exact capacity,
   // and the three vertices read clearer than a braced list-init.
   using Pt = std::array<double, 2>;
-  Array<Pt> pts(3);
+  auto pts = Array<Pt>::create_reserved(3);
   if (tri_is_up(c))
     {
       pts.append(Pt{centre[0], centre[1] - (2.0 * h / 3.0)});

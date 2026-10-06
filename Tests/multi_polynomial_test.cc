@@ -1699,7 +1699,7 @@ TEST(MultiPolyPhase2, EvalBatchMatchesEval)
     {Idx{0, 1}, 2.0},
   });
 
-  Array<Array<double>> pts(2, Array<double>(2));
+  Array<Array<double>> pts(2, Array<double>());
   pts(0) = Array<double>{1.0, 2.0};
   pts(1) = Array<double>{3.0, 4.0};
 

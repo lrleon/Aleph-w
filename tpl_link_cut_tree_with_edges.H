@@ -536,8 +536,7 @@ namespace Aleph
         }
 
       // BFS from root to build Tree_Node tree
-      Array<TN *> tn(nv);
-      tn.putn(nv);
+      auto tn = Array<TN *>::create(nv);
       for (size_t i = 0; i < nv; ++i)
         tn(i) = nullptr;
 

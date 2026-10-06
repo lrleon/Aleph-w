@@ -107,7 +107,11 @@ int main(int argc, char *argv[])
       keys[i] = rand();
       testResize(table);
       if (table.search(keys(i)) == NULL)
-	  assert(table.insert(keys[i], i) != NULL);
+	{
+	  // Keep the insertion out of assert(): NDEBUG would remove it.
+	  [[maybe_unused]] const auto inserted = table.insert(keys[i], i);
+	  assert(inserted != NULL);
+	}
       else
 	foundCounter++;
     }

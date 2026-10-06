@@ -166,14 +166,13 @@ Aleph::Generator<Array<T>> lazy_combinations(Array<T> a, size_t k)
     }
 
   /// Start from the first k-combination: indices [0, 1, ..., k-1].
-  Array<size_t> idx(k);
-  idx.putn(k);
+  auto idx = Array<size_t>::create(k);
   for (size_t i = 0; i < k; ++i)
     idx[i] = i;
 
   do
     {
-      Array<T> combo(k);
+      auto combo = Array<T>::create_reserved(k);
       for (size_t i = 0; i < k; ++i)
         combo.append(a[idx[i]]);
       co_yield combo;

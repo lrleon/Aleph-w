@@ -746,7 +746,7 @@ namespace Aleph
     void draw_segment(const Segment & s, const Tikz_Style & style, Out & output,
                       const Geom_Box & box, const Mapping & map) const
     {
-      Array<Point> vertices(2);
+      auto vertices = Array<Point>::create_reserved(2);
       vertices.append(s.get_src_point());
       vertices.append(s.get_tgt_point());
       draw_polyline(output, vertices, false, style, box, map);
@@ -756,7 +756,7 @@ namespace Aleph
     void draw_triangle(const Triangle & t, const Tikz_Style & style, Out & output,
                        const Geom_Box & box, const Mapping & map) const
     {
-      Array<Point> vertices(3);
+      auto vertices = Array<Point>::create_reserved(3);
       vertices.append(t.get_p1());
       vertices.append(t.get_p2());
       vertices.append(t.get_p3());

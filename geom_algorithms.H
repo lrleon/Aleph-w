@@ -4006,7 +4006,7 @@ public:
       }
 
     // Build adjacency lists from Delaunay triangles (in input-index space)
-    Array<DynSetTree<size_t, Treap_Rk>> adj(n);
+    auto adj = Array<DynSetTree<size_t, Treap_Rk>>::create_reserved(n);
     for (size_t i = 0; i < n; ++i)
       adj.append(DynSetTree<size_t, Treap_Rk>());
     for (size_t t = 0; t < dt.triangles.size(); ++t)
@@ -12453,7 +12453,7 @@ public:
       return polyline;
 
     const Geom_Number eps2 = epsilon * epsilon;
-    Array<bool> keep(n);
+    auto keep = Array<bool>::create_reserved(n);
     for (size_t i = 0; i < n; ++i)
       keep.append(false);
     keep(0) = true;
@@ -12591,8 +12591,9 @@ class VisvalingamWhyattSimplification
       return polyline;
 
     // prev/next linked list (index-based)
-    Array<size_t> prev(n), next(n);
-    Array<bool> alive(n);
+    auto prev = Array<size_t>::create_reserved(n);
+    auto next = Array<size_t>::create_reserved(n);
+    auto alive = Array<bool>::create_reserved(n);
     for (size_t i = 0; i < n; ++i)
       {
         prev.append(i == 0 ? n : i - 1);  // n = sentinel for "no prev"
@@ -12604,7 +12605,7 @@ class VisvalingamWhyattSimplification
     DynBinHeap<VWEntry, std::less<>> heap;
 
     // Compute initial areas for interior vertices
-    Array<Geom_Number> areas(n);
+    auto areas = Array<Geom_Number>::create_reserved(n);
     for (size_t i = 0; i < n; ++i)
       areas.append(Geom_Number(-1));
 
@@ -12699,8 +12700,9 @@ public:
       return poly;
 
     // Cyclic prev/next linked list
-    Array<size_t> prev(n), next(n);
-    Array<bool> alive(n);
+    auto prev = Array<size_t>::create_reserved(n);
+    auto next = Array<size_t>::create_reserved(n);
+    auto alive = Array<bool>::create_reserved(n);
     for (size_t i = 0; i < n; ++i)
       {
         prev.append(i == 0 ? n - 1 : i - 1);
@@ -12710,7 +12712,7 @@ public:
 
     DynBinHeap<VWEntry, std::less<>> heap;
 
-    Array<Geom_Number> areas(n);
+    auto areas = Array<Geom_Number>::create_reserved(n);
     for (size_t i = 0; i < n; ++i)
       {
         areas.append(effective_area(verts(prev(i)), verts(i), verts(next(i))));

@@ -1167,7 +1167,7 @@ inline void merge(T *a, const long l, const long m, const long r, Array<T> &buf,
 template <typename T, StrictWeakOrder<T> Compare = Aleph::less<T>>
 inline void merge(T *a, const long l, const long m, const long r, const Compare &cmp = Compare())
 {
-  Array<T> buf(static_cast<size_t>(r - l + 1));
+  auto buf = Array<T>::create_reserved(static_cast<size_t>(r - l + 1));
   merge(a, l, m, r, buf, cmp);
 }
 
@@ -1235,7 +1235,7 @@ inline void mergesort(T *a, const long l, const long r, const Compare &cmp = Com
   if (l >= r)
     return;
 
-  Array<T> buf(static_cast<size_t>(r - l + 1));
+  auto buf = Array<T>::create_reserved(static_cast<size_t>(r - l + 1));
   mergesort(a, l, r, buf, cmp);
 }
 

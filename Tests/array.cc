@@ -41,6 +41,8 @@
 #include <ah-unique.H>
 
 #include <array>
+#include <cstdint>
+#include <initializer_list>
 #include <iterator>
 #include <numeric>
 #include <sstream>
@@ -52,27 +54,61 @@ using namespace Aleph;
 
 namespace {
 
-TEST(ArrayCtors, ParenthesesSpecifyCapacityAndBracesSpecifyItems)
-{
-  Array<int> literal(10);
-  Array<int> sized(size_t{10});
-  Array<size_t> same_type(size_t{10});
-  EXPECT_EQ(literal.size(), 0u);
-  EXPECT_EQ(sized.size(), 0u);
-  EXPECT_EQ(same_type.size(), 0u);
-  EXPECT_GE(literal.capacity(), 10u);
-  EXPECT_GE(sized.capacity(), 10u);
-  EXPECT_GE(same_type.capacity(), 10u);
+// A single integer argument used to mean capacity, or one element when a
+// variadic constructor won the overload resolution. It is now rejected.
+static_assert(not std::is_constructible_v<Array<int>, int>);
+static_assert(not std::is_constructible_v<Array<int>, size_t>);
+static_assert(not std::is_constructible_v<Array<int>, long>);
+static_assert(not std::is_constructible_v<Array<int>, unsigned>);
+static_assert(not std::is_constructible_v<Array<int>, double>);
+static_assert(not std::is_constructible_v<Array<int>, bool>);
+static_assert(not std::is_constructible_v<Array<size_t>, size_t>);
+static_assert(not std::is_constructible_v<Array<double>, int>);
+static_assert(not std::is_convertible_v<int, Array<int>>);
+static_assert(not std::is_convertible_v<size_t, Array<int>>);
 
-  Array<int> item{10};
+// The other constructors are unaffected.
+static_assert(std::is_default_constructible_v<Array<int>>);
+static_assert(std::is_copy_constructible_v<Array<int>>);
+static_assert(std::is_nothrow_move_constructible_v<Array<int>>);
+static_assert(std::is_constructible_v<Array<int>, size_t, int>);
+static_assert(std::is_constructible_v<Array<int>, std::initializer_list<int>>);
+
+TEST(ArrayCtors, FactoriesAndBracesSayWhatIsMeant)
+{
+  const Array<int> by_default;
+  EXPECT_TRUE(by_default.is_empty());
+  EXPECT_GE(by_default.capacity(), 32u);
+
+  auto reserved = Array<int>::create_reserved(100);
+  EXPECT_TRUE(reserved.is_empty());
+  EXPECT_GE(reserved.capacity(), 100u);
+  reserved.append(5);
+  EXPECT_EQ(reserved[0], 5);
+
+  auto small = Array<int>::create_reserved(0);
+  EXPECT_TRUE(small.is_empty());
+  small.append(1);
+  small.append(2);
+  EXPECT_EQ(small.size(), 2u);
+
+  auto slots = Array<int>::create(3);
+  EXPECT_EQ(slots.size(), 3u);
+
+  const Array<int> item{10};
   ASSERT_EQ(item.size(), 1u);
   EXPECT_EQ(item[0], 10);
 
-  Array<int> repeated(10, 7);
+  // A parenthesized braced list is still an element list.
+  const Array<uint64_t> braced_in_parens({0});
+  ASSERT_EQ(braced_in_parens.size(), 1u);
+  EXPECT_EQ(braced_in_parens[0], 0u);
+
+  const Array<int> repeated(10, 7);
   ASSERT_EQ(repeated.size(), 10u);
   for (int value : repeated)
     EXPECT_EQ(value, 7);
-  Array<size_t> repeated_size(size_t{3}, size_t{8});
+  const Array<size_t> repeated_size(size_t{3}, size_t{8});
   ASSERT_EQ(repeated_size.size(), 3u);
   EXPECT_EQ(repeated_size[2], 8u);
 }

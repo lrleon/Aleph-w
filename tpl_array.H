@@ -97,7 +97,7 @@ namespace Aleph {
 
     @par Example:
     @code
-    Array<int> arr(10);  // Initial capacity of 10
+    auto arr = Array<int>::create_reserved(10);  // Empty, room for 10 items
 
     // Add elements
     arr.append(42);
@@ -140,19 +140,59 @@ class Array : public LocateFunctions<Array<T>, T>,
 {
   MemArray<T> array;
 
+  /// Tag that selects the capacity constructor used by create_reserved().
+  struct Reserve_Tag {};
+
+  /** @brief Construct an empty array with at least cap slots of capacity.
+      @param[in] cap Requested capacity; size() remains zero.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(capacity()) default constructions. Private: reached only
+            through create_reserved().
+  */
+  Array(Reserve_Tag, const size_t cap) : array(cap)
+  { /* empty */
+  }
+
 public:
   using Item_Type = T;  /// The type of element
   using Key_Type = T;   /// The type of key
 
-  /** @brief Construct an empty array with at least dim slots of capacity.
-      @param[in] dim Requested capacity; size() remains zero.
-      @throws std::bad_alloc, std::overflow_error or an exception from T.
-      @note O(capacity()) default constructions. Parentheses specify capacity:
-            Array<int>(10) is empty; Array<int>{10} contains one element.
-            Use create(n) or Array(n, value) for n logical elements.
+  /** @brief Construct an empty array with the default capacity (32 slots).
+      @throws std::bad_alloc or an exception from default construction of T.
+      @note O(capacity()) default constructions.
   */
-  Array(size_t dim = 32) : array(dim)
+  Array() : array(32)
   { /* empty */
+  }
+
+  /** @brief Deleted: a single integer argument is not accepted.
+
+      Until Aleph-w 7.0, `Array<T> a(n)` built an empty array with capacity
+      for n items, except that a variadic element constructor could win the
+      overload resolution and build the one-element array {n}, depending on
+      `T` and on the exact type of the argument. Readers familiar with
+      `std::vector` expect n elements instead. To remove the ambiguity, every
+      construction from one integer, including `Array<T> a = n;` and the
+      implicit conversion of an integer argument, is a compile error. Say
+      what is meant:
+
+      - empty, room for n items: `auto a = Array<T>::create_reserved(n);`
+      - n copies of value:       `Array<T> a(n, value);`
+      - n slots to assign later: `auto a = Array<T>::create(n);`
+      - the single element n:    `Array<T> a{n};`
+  */
+  Array(size_t) = delete;
+
+  /** @brief Build an empty array with room for at least cap items.
+      @param[in] cap Requested capacity; size() is zero.
+      @return The empty array, with capacity() >= cap.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(capacity()) default constructions. Use it instead of the
+            removed one-argument constructor when only capacity is meant.
+  */
+  [[nodiscard]] static Array create_reserved(const size_t cap)
+  {
+    return Array(Reserve_Tag{}, cap);
   }
 
   /** @brief Construct an array with `n` copies of `value`.
@@ -202,7 +242,7 @@ public:
    */
   static Array create(size_t n)
   {
-    Array ret(n);
+    Array ret = create_reserved(n);
     ret.putn(n);
     return ret;
   }
@@ -501,7 +541,7 @@ public:
   Array reverse() const
   {
     const size_t &n = array.size();
-    Array ret(n);
+    Array ret = create_reserved(n);
     for (size_t i = 0; i < n; ++i)
       ret.append(array(n - i - 1));
     return ret;
