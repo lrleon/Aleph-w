@@ -982,7 +982,7 @@ TEST(MultiPolyLayer2, FitWeightedBasic)
 TEST(MultiPolyLayer2, FitEmptyDataThrows)
 {
   Array<std::pair<Array<double>, double>> data;
-  Array<Array<size_t>> basis(1);
+  auto basis = Array<Array<size_t>>::create(1);
   basis(0) = Idx{0};
 
   EXPECT_THROW(MultiPolynomial::fit(data, 1, basis),
@@ -1582,7 +1582,7 @@ TEST(MultiPolyPhase2, InterpolateBivariate3x2)
 
 TEST(MultiPolyPhase2, InterpolateSizeMismatchThrows)
 {
-  Array<Array<double>> grid(2);
+  auto grid = Array<Array<double>>::create(2);
   grid(0) = Array<double>{0.0, 1.0};
   grid(1) = Array<double>{0.0, 1.0};
 
@@ -1593,7 +1593,7 @@ TEST(MultiPolyPhase2, InterpolateSizeMismatchThrows)
 
 TEST(MultiPolyPhase2, InterpolateDuplicateNodesThrows)
 {
-  Array<Array<double>> grid(1);
+  auto grid = Array<Array<double>>::create(1);
   grid(0) = Array<double>{0.0, 1.0, 1.0};  // Duplicate nodes!
 
   Array<double> values{1.0, 2.0, 3.0};

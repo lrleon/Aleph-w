@@ -48,6 +48,8 @@
 #include <utility>
 #include <vector>
 #include <concepts>
+#include <iterator>
+#include <initializer_list>
 #include <type_traits>
 #include <aleph.H>
 #include <htlist.H>
@@ -98,9 +100,9 @@ namespace Aleph {
     Array<int> arr(10);  // Initial capacity of 10
 
     // Add elements
-    arr.push(42);
-    arr.push(17);
-    arr.push(99);
+    arr.append(42);
+    arr.append(17);
+    arr.append(99);
 
     // Indexed access (O(1))
     std::cout << arr[1] << '\n';  // 17
@@ -112,7 +114,7 @@ namespace Aleph {
     auto evens = arr.filter([](int x) { return x % 2 == 0; });
 
     // Convert to vector
-    std::vector<int> vec = arr.asVector();
+    std::vector<int> vec(arr.begin(), arr.end());
 
     // Range-based for
     for (int x : arr)
@@ -142,7 +144,13 @@ public:
   using Item_Type = T;  /// The type of element
   using Key_Type = T;   /// The type of key
 
-  /// Initializes an array with a capacity of `dim`
+  /** @brief Construct an empty array with at least dim slots of capacity.
+      @param[in] dim Requested capacity; size() remains zero.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(capacity()) default constructions. Parentheses specify capacity:
+            Array<int>(10) is empty; Array<int>{10} contains one element.
+            Use create(n) or Array(n, value) for n logical elements.
+  */
   Array(size_t dim = 32) : array(dim)
   { /* empty */
   }
@@ -150,7 +158,7 @@ public:
   /** @brief Construct an array with `n` copies of `value`.
    *
    *  Creates an array of size `n` where each element is initialized by
-   *  copy-constructing from `value`.
+   *  copy-assigning from `value` into default-constructed storage.
    *
    *  @param[in] n Number of elements to create.
    *  @param[in] value The value to copy into each element.
@@ -174,13 +182,12 @@ public:
    *  This static factory creates an array and then grows it with
    *  `ret.putn(n)`. `putn()` delegates to `MemArray::putn()`, which only
    *  adjusts logical size (and backing storage if needed): it does NOT
-   *  value-initialize new entries for any `T`.
-   *
-   *  All new elements are therefore uninitialized, and the caller MUST assign
-   *  each position before reading it.
+   *  value-initialize new entries. Scalar entries are uninitialized and MUST
+   *  be assigned before reading; class types retain their default-constructed
+   *  state.
    *
    *  @param[in] n Number of elements to create.
-   *  @return Array with `n` logical elements (all uninitialized).
+   *  @return Array with `n` logical elements (scalars are uninitialized).
    *  @throws std::bad_alloc if there is not enough memory.
    *  @note Complexity: O(n) for allocation; logical growth via `putn()` is O(1) here.
    *  @note Exception safety: Strong guarantee.
@@ -212,9 +219,41 @@ public:
   { /* empty */
   }
 
-  Special_Ctors(Array, T);
+  /** @brief Copy elements from an Aleph container in traversal order.
+      @param[in] items Container providing for_each().
+      @throws Any exception from allocation or copying T.
+      @note O(items.size()) insertions.
+  */
+  template <template <typename> class List>
+  Array(const List<T> &items) : Array()
+  {
+    items.for_each([this](const T &item) { append(item); });
+  }
 
-  Args_Ctor(Array, T);
+  /** @brief Construct from an input iterator range [first, last).
+      @param[in] first Iterator to the first item.
+      @param[in] last Sentinel after the last item.
+      @throws Any exception from allocation, iteration or copying/moving T.
+      @note Linear in the number of items. Integral arguments select the
+            count/value constructor, never this overload.
+  */
+  template <std::input_iterator It, std::sentinel_for<It> Sentinel>
+  Array(It first, Sentinel last) : Array()
+  {
+    for (; first != last; ++first)
+      append(*first);
+  }
+
+  /** @brief Construct from the listed elements in order.
+      @param[in] items Values to copy.
+      @throws Any exception from allocation or copying T.
+      @note O(items.size()) insertions. Use braces for element lists.
+  */
+  Array(std::initializer_list<T> items) : Array()
+  {
+    for (const auto &item : items)
+      append(item);
+  }
 
   /// Assign by copy `s` to `this`
   Array &operator = (const Array &s)
@@ -425,13 +464,13 @@ public:
     return array[i];
   }
 
-  /// Return a reference to the ith element. It does not perform bound_statics checks
+  /// Return element i; requires i < size(), asserted in Debug builds.
   [[nodiscard]] constexpr T &operator () (const size_t i) noexcept
   {
     return array(i);
   }
 
-  /// Return a constant reference to the ith element. It does not perform bound_statics checks
+  /// Return const element i; requires i < size(), asserted in Debug builds.
   [[nodiscard]] constexpr const T &operator () (const size_t i) const noexcept
   {
     return array(i);

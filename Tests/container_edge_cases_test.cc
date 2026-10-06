@@ -787,7 +787,7 @@ TEST(BitArrayEdgeCases, BoundaryAccess)
 
 TEST(ArrayEdgeCases, SingleElement)
 {
-  Array<int> arr(1);
+  auto arr = Array<int>::create(1);
   arr(0) = 42;
   EXPECT_EQ(arr(0), 42);
   EXPECT_EQ(arr.size(), 1);
@@ -795,7 +795,8 @@ TEST(ArrayEdgeCases, SingleElement)
 
 TEST(ArrayEdgeCases, BoundaryAccess)
 {
-  Array<int> arr(10);
+  // Ten live items; the single-argument constructor only reserves capacity.
+  auto arr = Array<int>::create(10);
   arr(0) = 1;
   arr(9) = 10;
   

@@ -436,7 +436,12 @@ TEST(MemArray, remove_with_rvalues)
       for (size_t k = 0; k < 10; ++k, it.next(), --n)
         EXPECT_EQ(it.get_curr(), n);
       assert(num_items - i < m.capacity()); // hard assert. Better leave it!
-      EXPECT_TRUE(m(num_items - i - 1).is_empty()); // verify moving
+      // The removed slot lies beyond the logical size: inspect it with
+      // access(), since operator() only reaches live items. Container
+      // annotations report any read of that slot, so skip it then.
+#ifndef ALEPH_MEMARRAY_ANNOTATIONS
+      EXPECT_TRUE(m.access(num_items - i - 1).is_empty()); // verify moving
+#endif
     }
 }
 
@@ -613,4 +618,232 @@ TEST_F(Default_MemArray, traverse)
                    });
   EXPECT_FALSE(ret);
   EXPECT_EQ(N, n / 2 + 1);
+}
+
+// operator() reaches live items only: debug builds assert i < n. access()
+// still reaches every reserved slot (ArrayQueue relies on it).
+#ifndef NDEBUG
+TEST(MemArray, call_operator_asserts_a_live_index_in_debug_builds)
+{
+  MemArray<int> a(16);
+  a.put(1);
+  a.put(2);
+  EXPECT_EQ(a(1), 2);
+  EXPECT_EQ(a.capacity(), 16U);
+  EXPECT_DEATH((void) a(2), "i < n");
+  EXPECT_NO_FATAL_FAILURE((void) a.access(2));
+}
+#endif
+
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+// With ALEPH_ANNOTATE_CONTAINERS and AddressSanitizer, the reserved slots
+// beyond the logical size are poisoned: a raw read of slot size() is reported
+// as container-overflow after every operation that changes the size or the
+// buffer, while the legitimate accesses of those operations are not.
+
+/// @brief Read the first byte of slot i through a volatile access.
+static void read_slot(const string *raw, size_t i)
+{
+  const volatile char *byte = reinterpret_cast<const volatile char *>(raw + i);
+  volatile char sink = *byte;
+  (void) sink;
+}
+
+/// @brief Verify that ASan rejects the first non-logical element.
+static void expect_overflow_at_size(const MemArray<string> &a)
+{
+  ASSERT_LT(a.size(), a.capacity());
+  if (a.size() > 0)
+    read_slot(a.get_ptr(), a.size() - 1);  // live: no report
+  EXPECT_DEATH(read_slot(a.get_ptr(), a.size()), "container-overflow");
+}
+
+TEST(MemArray, asan_annotations_follow_size_and_buffer_changes)
+{
+  MemArray<string> a(16);
+  expect_overflow_at_size(a);                     // empty after construction
+  for (int i = 0; i < 5; ++i)
+    a.put(to_string(i));                          // put
+  EXPECT_EQ(a(4), "4");
+  expect_overflow_at_size(a);
+
+  for (int i = 5; i < 40; ++i)
+    a.append(to_string(i));                       // growth by expand()
+  expect_overflow_at_size(a);
+
+  for (int i = 0; i < 30; ++i)
+    (void) a.get();                               // shrink by contract()
+  EXPECT_EQ(a.size(), 10U);
+  expect_overflow_at_size(a);
+
+  a.putn(3);                                      // logical growth in place
+  a(12) = "putn";
+  expect_overflow_at_size(a);
+
+  a.push("front");                                // open_gap()
+  EXPECT_EQ(a(0), "front");
+  EXPECT_EQ(a.remove_first(), "front");           // close_gap()
+  expect_overflow_at_size(a);
+
+  a.reserve(256);                                 // reallocation
+  EXPECT_EQ(a(12), "putn");
+  expect_overflow_at_size(a);
+
+  MemArray<string> copy(a);                       // copy construction
+  expect_overflow_at_size(copy);
+  MemArray<string> assigned(4);
+  assigned = a;                                   // copy assignment
+  expect_overflow_at_size(assigned);
+  MemArray<string> moved(std::move(copy));         // move construction
+  expect_overflow_at_size(moved);
+  assigned.swap(moved);
+  expect_overflow_at_size(assigned);
+  expect_overflow_at_size(moved);
+
+  a.empty();                                      // logical emptying
+  expect_overflow_at_size(a);
+  a.empty_and_release();                          // release and reallocation
+  expect_overflow_at_size(a);
+  a.put("again");
+  EXPECT_EQ(a(0), "again");
+}
+#endif
+
+static_assert(std::is_nothrow_move_constructible_v<MemArray<int>>);
+
+TEST(MemArray, moved_from_storage_recovers_on_every_insertion_path)
+{
+  for (int operation = 0; operation < 10; ++operation)
+    {
+      SCOPED_TRACE(operation);
+      MemArray<int> source(16);
+      source.append(17);
+      MemArray<int> moved(std::move(source));
+      EXPECT_EQ(source.size(), 0u);
+      EXPECT_EQ(source.capacity(), 0u);
+      EXPECT_FALSE(MemArray<int>::Iterator(source).has_curr());
+      EXPECT_TRUE(source.traverse([](int) { return false; }));
+      const int value = 9;
+      switch (operation)
+        {
+        case 0: source.put(value); break;
+        case 1: source.put(9); break;
+        case 2: source.append(value); break;
+        case 3: source.append(9); break;
+        case 4: source.insert(value); break;
+        case 5: source.insert(9); break;
+        case 6: source.push(value); break;
+        case 7: source.putn(1); source(0) = 9; break;
+        case 8: source.reserve(16); source.put(9); break;
+        case 9: source.empty_and_release(); source.put(9); break;
+        }
+      ASSERT_EQ(source.size(), 1u);
+      EXPECT_GE(source.capacity(), MemArray<int>::Min_Dim);
+      EXPECT_EQ(source(0), 9);
+      EXPECT_EQ(moved(0), 17);
+    }
+}
+
+TEST(MemArray, copying_and_moving_an_empty_moved_from_array)
+{
+  MemArray<int> source;
+  source.put(7);
+  MemArray<int> moved(std::move(source));
+  MemArray<int> copy(source);
+  MemArray<int> moved_again(std::move(source));
+  MemArray<int> assigned;
+  assigned = source;
+  EXPECT_TRUE(copy.is_empty());
+  EXPECT_TRUE(moved_again.is_empty());
+  EXPECT_TRUE(assigned.is_empty());
+  EXPECT_THROW(source[0], out_of_range);
+  EXPECT_THROW(source.get(), underflow_error);
+  moved_again.put(8);
+  EXPECT_EQ(moved_again(0), 8);
+  EXPECT_EQ(moved(0), 7);
+}
+
+TEST(MemArray, boolean_relocation_reads_only_logical_initialized_elements)
+{
+  MemArray<bool> a(32);
+  a.put(true);
+  a.reserve(64);
+  EXPECT_TRUE(a(0));
+  EXPECT_TRUE(a.get());  // contraction with no remaining logical elements
+  a.put(true);
+  a.putn(64);           // growth must not read fresh uninitialized slots
+  for (size_t i = 1; i < a.size(); ++i)
+    a(i) = false;
+  EXPECT_TRUE(a(0));
+  EXPECT_FALSE(a(64));
+}
+
+namespace
+{
+  /// @brief Element with observable lifetime and controllable assignment failures.
+  struct ThrowingArrayItem
+  {
+    static inline int live = 0;
+    static inline int assignments_left = -1;
+    int value = 0;
+
+    /// @brief Count default construction of a storage slot.
+    ThrowingArrayItem() { ++live; }
+    /// @brief Count copying an element.
+    ThrowingArrayItem(const ThrowingArrayItem &other) : value(other.value) { ++live; }
+    /// @brief Count a nonthrowing move construction.
+    ThrowingArrayItem(ThrowingArrayItem &&other) noexcept : value(other.value) { ++live; }
+    /// @brief Count destruction, including unused storage slots.
+    ~ThrowingArrayItem() { --live; }
+
+    /// @brief Fail at the configured assignment, otherwise store the value.
+    ThrowingArrayItem &operator=(const ThrowingArrayItem &other)
+    {
+      if (assignments_left == 0)
+        throw std::runtime_error("element assignment failed");
+      if (assignments_left > 0)
+        --assignments_left;
+      value = other.value;
+      return *this;
+    }
+
+    /// @brief Use the same controlled failure for move assignment.
+    ThrowingArrayItem &operator=(ThrowingArrayItem &&other)
+    {
+      return *this = static_cast<const ThrowingArrayItem &>(other);
+    }
+  };
+}
+
+TEST(MemArray, failed_assignment_releases_temporary_storage_and_restores_annotations)
+{
+  ASSERT_EQ(ThrowingArrayItem::live, 0);
+  {
+    MemArray<ThrowingArrayItem> a(16);
+    a.putn(3);
+    a(0).value = 7;
+    const int original_live = ThrowingArrayItem::live;
+
+    ThrowingArrayItem::assignments_left = 1;
+    EXPECT_THROW(a.reserve(128), std::runtime_error);
+    EXPECT_EQ(ThrowingArrayItem::live, original_live);
+    EXPECT_EQ(a.size(), 3u);
+    EXPECT_EQ(a.capacity(), 16u);
+
+    ThrowingArrayItem::assignments_left = 1;
+    EXPECT_THROW({ MemArray<ThrowingArrayItem> copy(a); }, std::runtime_error);
+    EXPECT_EQ(ThrowingArrayItem::live, original_live);
+
+    ThrowingArrayItem::assignments_left = 0;
+    EXPECT_THROW(a.put(a(0)), std::runtime_error);
+    EXPECT_EQ(a.size(), 3u);
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    EXPECT_EQ(__sanitizer_verify_contiguous_container(
+                a.get_ptr(), a.get_ptr() + a.size(), a.get_ptr() + a.capacity()), 1);
+#endif
+    ThrowingArrayItem::assignments_left = -1;
+    a.put(a(0));
+    EXPECT_EQ(a(3).value, 7);
+  }
+  EXPECT_EQ(ThrowingArrayItem::live, 0);
 }

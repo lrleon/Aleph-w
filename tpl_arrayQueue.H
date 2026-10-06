@@ -64,12 +64,16 @@ namespace Aleph {
     The array is allocated with `new` operator and dynamically grows
     according to the size.
 
+    @note MemArray is an implementation detail, inherited protectedly.
+          Public indexing and first/last access use FIFO order. Raw buffer
+          access and conversion to MemArray are intentionally unavailable.
+
     @ingroup Sequences
     @note If you are sure of knowing the bounds, then use `FixedStack`,
     which is faster because it does not perform bound_statics checks,
  */
 template <typename T>
-class ArrayQueue : public MemArray<T>,
+class ArrayQueue : protected MemArray<T>,
                    public LocateFunctions<ArrayQueue<T>, T>,
                    public FunctionalMethods<ArrayQueue<T>, T>,
                    public GenericKeys<ArrayQueue<T>, T>,
@@ -80,25 +84,36 @@ private:
   size_t front_index;  // items are extracted from this point
   size_t rear_index;   // new item is inserted by this point
 
+  /// @brief Advance a physical index modulo the allocated capacity.
   void increase_index(size_t &i, const size_t inc = 1) const noexcept
   {
     i += inc;
     i %= this->dim;
   }
 
+  /// @brief Access the i-th item counting backwards from the youngest item.
   T &rear_item(const size_t i = 0) const noexcept
   {
     const size_t offset = (rear_index + this->dim - (i + 1) % this->dim) % this->dim;
     return this->access(offset);
   }
 
+  /// @brief Reset indices after relocating the logical sequence to slot zero.
   void recenter_indices() noexcept
   {
     front_index = 0;
-    rear_index = this->n;
+    rear_index = this->dim == 0 ? 0 : this->n % this->dim;
   }
 
 public:
+  using Item_Type = T;  ///< Type stored in the queue.
+  using MemArray<T>::Min_Dim;
+  using MemArray<T>::capacity;
+  using MemArray<T>::size;
+  using MemArray<T>::is_empty;
+  using MemArray<T>::is_valid;
+  using MemArray<T>::contract_threshold;
+
   /// Swap `this` with `q`
   void swap(ArrayQueue &q) noexcept
   {
@@ -114,13 +129,22 @@ public:
    */
   ArrayQueue(const size_t sz = 8) : MemArray<T>(sz), front_index(0), rear_index(0)
   {
-    // empty
+    this->disable_annotations();  // circular layout: items are not a prefix
   }
 
-  /// Copy constructor
+  /// Copy constructor. The copy stores the items of `q` in queue order
+  /// from slot 0, whatever the front position of `q` is: copying the raw
+  /// buffer prefix would lose the items of a queue that has wrapped around.
   ArrayQueue(const ArrayQueue &q)
-    : MemArray<T>(q), front_index(q.front_index), rear_index(q.rear_index)
-  {}
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
+    : MemArray<T>(q.dim), front_index(0), rear_index(0)
+  {
+    this->disable_annotations();
+    for (size_t i = 0; i < q.n; ++i)
+      this->access(i) = q.access((q.front_index + i) % q.dim);
+    this->n = q.n;
+    rear_index = q.n % this->dim;
+  }
 
   /// Move constructor
   ArrayQueue(ArrayQueue &&q) noexcept
@@ -128,22 +152,66 @@ public:
   {
     q.front_index = 0;
     q.rear_index = 0;
+    q.disable_annotations();  // the empty source is still a circular queue
   }
 
   Special_Ctors(ArrayQueue, T);
 
-  /// Copy assign
+  /// Copy assign (copy and swap: same queue order as the copy constructor)
   ArrayQueue &operator=(const ArrayQueue &q)
+    requires(std::is_copy_constructible_v<T> and std::is_copy_assignable_v<T>)
   {
     if (this == &q)
       return *this;
 
-    static_cast<MemArray<T> &>(*this) = q;
-
-    front_index = q.front_index;
-    rear_index = q.rear_index;
+    ArrayQueue copy(q);
+    swap(copy);
 
     return *this;
+  }
+
+  /// Empty the queue keeping its capacity; both ends restart at slot 0.
+  void empty() noexcept
+  {
+    MemArray<T>::empty();
+    front_index = 0;
+    rear_index = 0;
+  }
+
+  /// \overload empty()
+  void clear() noexcept
+  {
+    empty();
+  }
+
+  /** @brief Empty the queue and reduce storage to Min_Dim.
+      @throws std::bad_alloc or an exception from default construction of T.
+      @note Both ends restart at slot zero. Failure leaves the queue unchanged.
+  */
+  void empty_and_release()
+  {
+    MemArray<T>::empty_and_release();
+    front_index = 0;
+    rear_index = 0;
+  }
+
+  /** Reserve capacity for at least `cap` items, keeping the queue order.
+
+      Unlike `MemArray::reserve()`, which copies the raw buffer prefix,
+      the items are moved in queue order from slot 0.
+
+      @param[in] cap requested capacity
+      @throws std::bad_alloc or an exception from constructing/moving T.
+      @note O(cap + size()) time. References are invalidated on growth.
+            A throwing move may leave some elements moved from.
+  */
+  void reserve(const size_t cap)
+  {
+    if (cap <= this->dim)
+      return;
+
+    this->reallocate(cap, front_index);
+    recenter_indices();
   }
 
   /// Move assign
@@ -212,22 +280,23 @@ public:
     return put(std::forward<T>(item));
   }
 
-  /** Put in constant time `sz` empty entries to the stack.
-
-      `putn(n)` puts `sz` entries to the stack in an functionally
-      equivalent way to `sz` pushes, except that the operation takes
-      constant time.
-
-      The maximum value of `sz` is bounded by `2*capacity() - size()`.
-
-      @param[in] sz number of cells to push
-      @return a modifiable reference to the stack's top
-      @throw overflow_error if `sz > 2*capacity() - size()`
-      @throw bad_alloc if there is no enough memory
+  /** @brief Add sz logical slots at the rear without initializing scalars.
+      @param[in] sz Number of slots to add; zero requires a nonempty queue.
+      @return Reference to the youngest item after growth.
+      @throws std::underflow_error if both sz and size() are zero.
+      @throws std::overflow_error if sz exceeds twice the effective capacity
+              minus size(); the effective capacity of a moved-from queue is
+              Min_Dim.
+      @throws std::bad_alloc or an exception from constructing/moving T.
+      @note O(1) without reallocation; O(capacity()) otherwise. Initialize
+            new scalar slots through front(i) or operator[] before reading.
    */
   T &putn(const size_t sz)
   {
-    const size_t max_sz = 2 * this->dim - this->n;
+    ah_underflow_error_if(sz == 0 and this->n == 0) << "queue is empty";
+    const size_t cap = this->dim == 0 ? this->Min_Dim : this->dim;
+    const size_t max_sz = cap > std::numeric_limits<size_t>::max() / 2
+      ? std::numeric_limits<size_t>::max() - this->n : 2 * cap - this->n;
     ah_overflow_error_if(sz > max_sz) << "Maximum putn size reached";
 
     size_t remaining = sz;
@@ -314,7 +383,100 @@ public:
     return rear_item(i);
   }
 
-  /** Traverse all the elements from the youngest to the oldest and execute
+  /** @brief Access an item by its FIFO position.
+      @param[in] i Zero-based index from the oldest item.
+      @return Modifiable reference to the item.
+      @throws std::out_of_range if i >= size().
+      @note O(1).
+  */
+  T &operator[](const size_t i) const
+  {
+    ah_out_of_range_error_if(i >= this->n) << "queue index out of range";
+    return front(i);
+  }
+
+  /** @brief Access an item by FIFO position with debug assertions.
+      @param[in] i Index satisfying i < size().
+      @return Modifiable reference to the item.
+      @note O(1); no range check in Release builds.
+      @throws Nothing.
+  */
+  T &operator()(const size_t i) const noexcept
+  {
+    assert(i < this->n);
+    return this->access((front_index + i) % this->dim);
+  }
+
+  /** @brief Return the oldest item, in O(1).
+      @return Modifiable reference to the front item.
+      @throws std::underflow_error if empty.
+  */
+  T &first() const
+  {
+    ah_underflow_error_if(this->n == 0) << "queue is empty";
+    return front();
+  }
+
+  /** @brief Return the youngest item, in O(1).
+      @return Modifiable reference to the rear item.
+      @throws std::underflow_error if empty.
+  */
+  T &last() const
+  {
+    ah_underflow_error_if(this->n == 0) << "queue is empty";
+    return rear();
+  }
+
+  /// @brief Alias for first(); throws std::underflow_error if empty.
+  T &get_first() const { return first(); }
+
+  /// @brief Alias for last(); throws std::underflow_error if empty.
+  T &get_last() const { return last(); }
+
+  /// @brief Alias for first(); throws std::underflow_error if empty.
+  T &top() const { return first(); }
+
+  /// @brief Remove the oldest item; same complexity and exceptions as get().
+  T remove_first() { return get(); }
+
+  /// @brief Alias for get(); remove the oldest item in FIFO order.
+  T pop() { return get(); }
+
+  /// @brief Alias for put(); enqueue a copy at the rear.
+  T &push(const T &item) { return put(item); }
+
+  /// @brief Alias for put(); enqueue an item by moving it at the rear.
+  T &push(T &&item) { return put(std::move(item)); }
+
+  /** @brief Remove the youngest item.
+      @return The removed item, moved from the rear.
+      @throws std::underflow_error if empty, or an exception from allocation/T.
+      @note O(1) amortized; O(capacity()) if storage contracts.
+  */
+  T remove_last()
+  {
+    ah_underflow_error_if(this->n == 0) << "queue is empty";
+    T result = std::move(rear_item());
+    rear_index = (rear_index + this->dim - 1) % this->dim;
+    --this->n;
+    if (this->contract(front_index))
+      recenter_indices();
+    return result;
+  }
+
+  /** @brief Reverse the logical queue in place.
+      @return This queue with FIFO order reversed.
+      @throws Any exception from swapping T; earlier swaps are not undone.
+      @note O(size()) time, O(1) auxiliary space.
+  */
+  ArrayQueue &reverse()
+  {
+    for (size_t i = 0; i < this->n / 2; ++i)
+      std::swap(front(i), rear(i));
+    return *this;
+  }
+
+  /** Traverse all the elements from the oldest to the youngest and execute
       `operation` on each on them.
 
       @param[in] operation to be performed on each element
@@ -356,7 +518,7 @@ public:
 
   /** Simple iterator on elements of a queue.
 
-      The visit order is from the youngest to the oldest item
+      The visit order is from the oldest to the youngest item.
 
       @ingroup Sequences
   */
@@ -366,8 +528,10 @@ public:
     using Base::Base;
     using Set_Type = ArrayQueue;
 
+    /// @brief Iterate in FIFO order, including an empty moved-from queue.
     Iterator(const ArrayQueue &q)
-      : Base(q.ptr, q.dim, q.n, q.front_index, (q.rear_index - 1) % q.dim)
+      : Base(q.ptr, q.dim, q.n, q.front_index,
+             q.n == 0 ? 0 : (q.rear_index + q.dim - 1) % q.dim)
     {}
   };
 };

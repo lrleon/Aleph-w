@@ -41,7 +41,9 @@
 #include <ah-unique.H>
 
 #include <array>
+#include <iterator>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -49,6 +51,68 @@
 using namespace Aleph;
 
 namespace {
+
+TEST(ArrayCtors, ParenthesesSpecifyCapacityAndBracesSpecifyItems)
+{
+  Array<int> literal(10);
+  Array<int> sized(size_t{10});
+  Array<size_t> same_type(size_t{10});
+  EXPECT_EQ(literal.size(), 0u);
+  EXPECT_EQ(sized.size(), 0u);
+  EXPECT_EQ(same_type.size(), 0u);
+  EXPECT_GE(literal.capacity(), 10u);
+  EXPECT_GE(sized.capacity(), 10u);
+  EXPECT_GE(same_type.capacity(), 10u);
+
+  Array<int> item{10};
+  ASSERT_EQ(item.size(), 1u);
+  EXPECT_EQ(item[0], 10);
+
+  Array<int> repeated(10, 7);
+  ASSERT_EQ(repeated.size(), 10u);
+  for (int value : repeated)
+    EXPECT_EQ(value, 7);
+  Array<size_t> repeated_size(size_t{3}, size_t{8});
+  ASSERT_EQ(repeated_size.size(), 3u);
+  EXPECT_EQ(repeated_size[2], 8u);
+}
+
+TEST(ArrayCtors, InputRangesSupportSinglePassIteratorsAndSentinels)
+{
+  std::istringstream input("3 5 8");
+  Array<int> streamed{std::istream_iterator<int>(input),
+                      std::istream_iterator<int>()};
+  ASSERT_EQ(streamed.size(), 3u);
+  EXPECT_EQ(streamed[2], 8);
+
+  int values[] = {11, 13, 17};
+  Array<int> counted(std::counted_iterator(values, 3), std::default_sentinel);
+  EXPECT_EQ(to_stdvector(counted), (std::vector<int>{11, 13, 17}));
+}
+
+TEST(ArrayCopyMove, MovedFromArraysRemainEmptyAndReusable)
+{
+  Array<int> original = {1, 2, 3};
+  Array<int> moved(std::move(original));
+  EXPECT_TRUE(original.is_empty());
+  EXPECT_EQ(original.begin(), original.end());
+  Array<int> empty_copy(original);
+  EXPECT_TRUE(empty_copy.is_empty());
+  Array<int> moved_twice(std::move(original));
+  EXPECT_TRUE(moved_twice.is_empty());
+  EXPECT_THROW(original[0], std::out_of_range);
+  EXPECT_THROW(original.remove_last(), std::underflow_error);
+
+  original.append(9);
+  original.insert(8);
+  original.reserve(64);
+  original.putn(1);
+  original[2] = 10;
+  EXPECT_EQ(to_stdvector(original), (std::vector<int>{8, 9, 10}));
+  EXPECT_EQ(to_stdvector(moved), (std::vector<int>{1, 2, 3}));
+  moved_twice.insert(42);
+  EXPECT_EQ(moved_twice[0], 42);
+}
 
 TEST(ArrayBasics, DefaultConstructionAndBase)
 {
