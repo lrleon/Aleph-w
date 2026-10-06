@@ -788,6 +788,12 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
     endif()
 endforeach()
 
+if(TARGET planarity_test)
+    get_filename_component(_ALEPH_TEST_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+    target_compile_definitions(planarity_test PRIVATE
+        ALEPH_TEST_SOURCE_DIR="${_ALEPH_TEST_SOURCE_DIR}")
+endif()
+
 # Enable generated-document smoke tests only when the complete local TikZ
 # toolchain used by them is available. The GoogleTest case remains present and
 # reports itself as skipped on hosts without these optional LaTeX components.
