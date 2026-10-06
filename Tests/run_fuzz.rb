@@ -1,0 +1,127 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Run Aleph's libFuzzer targets locally with private, persistent corpora.
+
+require 'fileutils'
+require 'optparse'
+
+ROOT = File.expand_path('..', __dir__)
+TARGETS = {
+  'fuzz_rle_parser' => 'rle',
+  'fuzz_life_parser' => 'life',
+  'fuzz_csv_reader' => 'csv',
+  'fuzz_checkpoint_loader' => 'checkpoint',
+  'fuzz_dynarray' => 'dynarray',
+  'fuzz_sort' => 'sort',
+  'fuzz_csv_utility' => 'csv_utility',
+  'fuzz_compiler_lexer' => 'compiler_lexer',
+  'fuzz_compiler_parser' => 'compiler_parser'
+}.freeze
+MAX_LENGTHS = {
+  'fuzz_dynarray' => 256,
+  'fuzz_sort' => 256,
+  'fuzz_csv_utility' => 512,
+  'fuzz_compiler_lexer' => 2049,
+  'fuzz_compiler_parser' => 513
+}.freeze
+
+# Copy the committed seeds of seed_dir into corpus without overwriting the
+# inputs libFuzzer already saved there. A missing seed_dir is not an error: the
+# target then starts from an empty corpus. Returns the number of seeds copied.
+def copy_seeds(seed_dir, corpus)
+  unless Dir.exist?(seed_dir)
+    puts "No seed directory #{seed_dir}; starting from an empty corpus."
+    return 0
+  end
+
+  copied = 0
+  Dir.children(seed_dir).each do |seed|
+    source = File.join(seed_dir, seed)
+    destination = File.join(corpus, seed)
+    next unless File.file?(source) && !File.exist?(destination)
+
+    FileUtils.cp(source, destination)
+    copied += 1
+  end
+  copied
+end
+
+def run!(command)
+  puts "\n> #{command.join(' ')}"
+  $stdout.flush
+  success = system(*command, chdir: ROOT)
+  abort "Command failed: #{command.first}" unless success
+end
+
+return unless $PROGRAM_NAME == __FILE__
+
+options = {
+  seconds: 30,
+  build_dir: File.join(ROOT, 'build-fuzz-local'),
+  targets: []
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = 'Usage: ruby Tests/run_fuzz.rb [--seconds N] [--target NAME] [--build-dir DIR]'
+  opts.on('--seconds N', Integer, 'Seconds per target (default: 30)') do |value|
+    options[:seconds] = value
+  end
+  opts.on('--target NAME', 'Run only this target; repeat to select several') do |value|
+    options[:targets] << value
+  end
+  opts.on('--build-dir DIR', 'CMake build directory (default: build-fuzz-local)') do |value|
+    options[:build_dir] = File.expand_path(value, ROOT)
+  end
+  opts.on('--list', 'List available targets') do
+    puts TARGETS.keys
+    exit 0
+  end
+  opts.on('-h', '--help', 'Show this help') do
+    puts opts
+    exit 0
+  end
+end
+
+begin
+  parser.parse!
+rescue OptionParser::ParseError => e
+  abort "#{e}\n#{parser}"
+end
+abort "Unexpected arguments: #{ARGV.join(' ')}" unless ARGV.empty?
+abort '--seconds must be positive' unless options[:seconds].positive?
+
+unknown = options[:targets] - TARGETS.keys
+abort "Unknown target(s): #{unknown.join(', ')}. Use --list." unless unknown.empty?
+selected = options[:targets].empty? ? TARGETS.keys : options[:targets].uniq
+build_dir = options[:build_dir]
+
+run!(['cmake', '--log-level=WARNING', '-S', ROOT, '-B', build_dir, '-G', 'Ninja',
+      '-DCMAKE_C_COMPILER=clang', '-DCMAKE_CXX_COMPILER=clang++',
+      '-DBUILD_TESTS=ON', '-DBUILD_EXAMPLES=OFF',
+      '-DALEPH_BUILD_X11_VIEWER=OFF', '-DALEPH_BUILD_C_API=OFF',
+      '-DALEPH_FETCH_GTEST=OFF', '-DALEPH_BUILD_FUZZERS=ON'])
+run!(['cmake', '--build', build_dir, '--target', *selected])
+
+selected.each do |target|
+  corpus_name = TARGETS.fetch(target)
+  corpus = File.join(build_dir, 'Tests', 'fuzz', 'corpus', corpus_name)
+  artifacts = File.join(build_dir, 'Tests', 'fuzz', 'artifacts', target)
+  FileUtils.mkdir_p([corpus, artifacts])
+  copy_seeds(File.join(ROOT, 'Tests', 'fuzz', 'corpus', corpus_name), corpus)
+
+  binary = File.join(build_dir, 'Tests', 'fuzz', target)
+  puts "\nFuzzing #{target} for #{options[:seconds]}s; corpus: #{corpus}"
+  $stdout.flush
+  success = system({ 'ASAN_OPTIONS' => 'detect_leaks=0',
+                     'UBSAN_OPTIONS' => 'print_stacktrace=1:halt_on_error=1' },
+                   binary, "-max_total_time=#{options[:seconds]}",
+                   "-max_len=#{MAX_LENGTHS.fetch(target, 4096)}",
+                   '-rss_limit_mb=2048', '-timeout=25',
+                   '-verbosity=0', '-print_final_stats=1',
+                   "-artifact_prefix=#{artifacts}/",
+                   corpus, chdir: ROOT)
+  abort "#{target} failed; inspect #{artifacts}" unless success
+end
+
+puts "\nAll #{selected.length} fuzz target(s) completed without failures."

@@ -386,10 +386,17 @@ namespace
   }
 
 
+  /// @brief Locate source assets independently of the test working directory.
   std::optional<std::filesystem::path>
   find_repo_root()
   {
     namespace fs = std::filesystem;
+#ifdef ALEPH_TEST_SOURCE_DIR
+    const fs::path configured_root(ALEPH_TEST_SOURCE_DIR);
+    if (fs::exists(configured_root / "Planarity_Test.H")
+        and fs::is_directory(configured_root / "scripts"))
+      return configured_root;
+#endif
     fs::path p = fs::current_path();
 
     for (size_t i = 0; i < 12; ++i)
@@ -2428,6 +2435,34 @@ TEST(PlanarityTest, ExternalCertificateFixtureGraphmlIsValid)
 
   const int rc = run_external_certificate_validator({fixture.string()});
   EXPECT_EQ(rc, 0);
+}
+
+
+TEST(PlanarityTest, FindRepoRootUsesConfiguredSourceDirOutsideTheTree)
+{
+#ifndef ALEPH_TEST_SOURCE_DIR
+  GTEST_SKIP() << "Skipped: ALEPH_TEST_SOURCE_DIR is not defined for this build";
+#else
+  namespace fs = std::filesystem;
+
+  // Restore the working directory even when an assertion below fails.
+  struct Cwd_Guard
+  {
+    fs::path saved = fs::current_path();
+    ~Cwd_Guard() { fs::current_path(saved); }
+  } guard;
+
+  const fs::path outside = fs::temp_directory_path();
+  const fs::path configured(ALEPH_TEST_SOURCE_DIR);
+  ASSERT_FALSE(fs::exists(outside / "Planarity_Test.H"));
+
+  fs::current_path(outside);
+  const auto root = find_repo_root();
+
+  ASSERT_TRUE(root.has_value());
+  EXPECT_TRUE(fs::equivalent(*root, configured));
+  EXPECT_TRUE(fs::equivalent(fs::current_path(), outside));
+#endif
 }
 
 
