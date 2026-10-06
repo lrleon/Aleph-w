@@ -26,6 +26,36 @@ MAX_LENGTHS = {
   'fuzz_compiler_parser' => 513
 }.freeze
 
+# Copy the committed seeds of seed_dir into corpus without overwriting the
+# inputs libFuzzer already saved there. A missing seed_dir is not an error: the
+# target then starts from an empty corpus. Returns the number of seeds copied.
+def copy_seeds(seed_dir, corpus)
+  unless Dir.exist?(seed_dir)
+    puts "No seed directory #{seed_dir}; starting from an empty corpus."
+    return 0
+  end
+
+  copied = 0
+  Dir.children(seed_dir).each do |seed|
+    source = File.join(seed_dir, seed)
+    destination = File.join(corpus, seed)
+    next unless File.file?(source) && !File.exist?(destination)
+
+    FileUtils.cp(source, destination)
+    copied += 1
+  end
+  copied
+end
+
+def run!(command)
+  puts "\n> #{command.join(' ')}"
+  $stdout.flush
+  success = system(*command, chdir: ROOT)
+  abort "Command failed: #{command.first}" unless success
+end
+
+return unless $PROGRAM_NAME == __FILE__
+
 options = {
   seconds: 30,
   build_dir: File.join(ROOT, 'build-fuzz-local'),
@@ -66,13 +96,6 @@ abort "Unknown target(s): #{unknown.join(', ')}. Use --list." unless unknown.emp
 selected = options[:targets].empty? ? TARGETS.keys : options[:targets].uniq
 build_dir = options[:build_dir]
 
-def run!(command)
-  puts "\n> #{command.join(' ')}"
-  $stdout.flush
-  success = system(*command, chdir: ROOT)
-  abort "Command failed: #{command.first}" unless success
-end
-
 run!(['cmake', '--log-level=WARNING', '-S', ROOT, '-B', build_dir, '-G', 'Ninja',
       '-DCMAKE_C_COMPILER=clang', '-DCMAKE_CXX_COMPILER=clang++',
       '-DBUILD_TESTS=ON', '-DBUILD_EXAMPLES=OFF',
@@ -85,11 +108,7 @@ selected.each do |target|
   corpus = File.join(build_dir, 'Tests', 'fuzz', 'corpus', corpus_name)
   artifacts = File.join(build_dir, 'Tests', 'fuzz', 'artifacts', target)
   FileUtils.mkdir_p([corpus, artifacts])
-  Dir.children(File.join(ROOT, 'Tests', 'fuzz', 'corpus', corpus_name)).each do |seed|
-    source = File.join(ROOT, 'Tests', 'fuzz', 'corpus', corpus_name, seed)
-    destination = File.join(corpus, seed)
-    FileUtils.cp(source, destination) if File.file?(source) && !File.exist?(destination)
-  end
+  copy_seeds(File.join(ROOT, 'Tests', 'fuzz', 'corpus', corpus_name), corpus)
 
   binary = File.join(build_dir, 'Tests', 'fuzz', target)
   puts "\nFuzzing #{target} for #{options[:seconds]}s; corpus: #{corpus}"

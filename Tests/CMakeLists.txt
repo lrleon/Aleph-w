@@ -141,6 +141,11 @@ if(ALEPH_USE_MEMORY_SANITIZER)
     return()
 endif()
 
+# Phase 26 — libFuzzer targets (opt-in via ALEPH_BUILD_FUZZERS, Clang-only).
+# They do not use GoogleTest, so register them before the GoogleTest gate:
+# a fuzzing build must configure even when GoogleTest is unavailable.
+add_subdirectory(fuzz)
+
 # Allow automatically fetching GoogleTest if it is not present system-wide.
 option(ALEPH_FETCH_GTEST "Download GoogleTest automatically when not found" ON)
 
@@ -169,7 +174,12 @@ if(NOT GTest_FOUND AND ALEPH_FETCH_GTEST)
 endif()
 
 if(NOT GTest_FOUND)
-    if(DEFINED ALEPH_ALLOW_TESTS_WITHOUT_GTEST AND ALEPH_ALLOW_TESTS_WITHOUT_GTEST)
+    if(ALEPH_BUILD_FUZZERS)
+        # A fuzzing build: the fuzz targets above are already registered.
+        message(WARNING
+            "GoogleTest was not found; configuring only the fuzz targets.")
+        return()
+    elseif(DEFINED ALEPH_ALLOW_TESTS_WITHOUT_GTEST AND ALEPH_ALLOW_TESTS_WITHOUT_GTEST)
         message(WARNING
             "GoogleTest was not found; skipping Aleph tests. "
             "Install GTest or set BUILD_TESTS=OFF to silence this warning.")
@@ -910,9 +920,6 @@ add_test(
             -DSMOKE_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cc
             -P ${CMAKE_CURRENT_SOURCE_DIR}/compiler_sdk_install_smoke.cmake
 )
-
-# Phase 26 — libFuzzer targets (opt-in via ALEPH_BUILD_FUZZERS, Clang-only).
-add_subdirectory(fuzz)
 
 # Phase 25 — C ABI smoke test: a pure-C (C99) consumer that links the flat
 # C ABI shared library and drives a Game of Life through it.

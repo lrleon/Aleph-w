@@ -2438,6 +2438,34 @@ TEST(PlanarityTest, ExternalCertificateFixtureGraphmlIsValid)
 }
 
 
+TEST(PlanarityTest, FindRepoRootUsesConfiguredSourceDirOutsideTheTree)
+{
+#ifndef ALEPH_TEST_SOURCE_DIR
+  GTEST_SKIP() << "Skipped: ALEPH_TEST_SOURCE_DIR is not defined for this build";
+#else
+  namespace fs = std::filesystem;
+
+  // Restore the working directory even when an assertion below fails.
+  struct Cwd_Guard
+  {
+    fs::path saved = fs::current_path();
+    ~Cwd_Guard() { fs::current_path(saved); }
+  } guard;
+
+  const fs::path outside = fs::temp_directory_path();
+  const fs::path configured(ALEPH_TEST_SOURCE_DIR);
+  ASSERT_FALSE(fs::exists(outside / "Planarity_Test.H"));
+
+  fs::current_path(outside);
+  const auto root = find_repo_root();
+
+  ASSERT_TRUE(root.has_value());
+  EXPECT_TRUE(fs::equivalent(*root, configured));
+  EXPECT_TRUE(fs::equivalent(fs::current_path(), outside));
+#endif
+}
+
+
 TEST(PlanarityTest, NonPlanarCertificateExportRequiresCertificate)
 {
   auto built = build_ugraph(6, complete_bipartite_edges(3, 3));
