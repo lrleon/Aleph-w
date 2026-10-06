@@ -5,6 +5,18 @@ All notable changes to Aleph-w are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.2.0](https://github.com/lrleon/Aleph-w/compare/v6.1.0...v6.2.0) (2026-10-06)
+
+
+### Features
+
+* **fuzz:** Add libFuzzer harnesses for DynArray, sorting, compiler front end and CSV utilities ([#105](https://github.com/lrleon/Aleph-w/issues/105)) ([21e388a](https://github.com/lrleon/Aleph-w/commit/21e388a73a862c1d13788747d2c0f0bbbd808b17))
+
+
+### Bug Fixes
+
+* **ca:** Bound the live cells read_rle stores ([#107](https://github.com/lrleon/Aleph-w/issues/107)) ([d8f113f](https://github.com/lrleon/Aleph-w/commit/d8f113fd2142896e6399202dde24f918c2f3f5f4))
+
 ## [6.1.0](https://github.com/lrleon/Aleph-w/compare/v6.0.0...v6.1.0) (2026-10-04)
 
 
