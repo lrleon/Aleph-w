@@ -386,10 +386,17 @@ namespace
   }
 
 
+  /// @brief Locate source assets independently of the test working directory.
   std::optional<std::filesystem::path>
   find_repo_root()
   {
     namespace fs = std::filesystem;
+#ifdef ALEPH_TEST_SOURCE_DIR
+    const fs::path configured_root(ALEPH_TEST_SOURCE_DIR);
+    if (fs::exists(configured_root / "Planarity_Test.H")
+        and fs::is_directory(configured_root / "scripts"))
+      return configured_root;
+#endif
     fs::path p = fs::current_path();
 
     for (size_t i = 0; i < 12; ++i)
