@@ -77,6 +77,7 @@
 # include <functional>
 # include <sstream>
 # include <initializer_list>
+# include <type_traits>
 
 # include <ahFunctional.H>
 # include <ah-errors.H>
@@ -92,6 +93,15 @@ template<typename T> class DynList;
  *  1. Constructor from any list-like container with for_each method
  *  2. Constructor from iterator pair [begin, end)
  *  3. Constructor from std::initializer_list
+ *
+ *  The iterator-pair constructor only accepts a type that can be
+ *  dereferenced, incremented and compared with `!=`, which is exactly what
+ *  its body uses. Arithmetic arguments never select it, so a call such as
+ *  `Set_Type(3, 7)` resolves to another constructor of the container (for
+ *  instance a count/value one) or fails with a "no matching constructor"
+ *  error, instead of failing inside this macro on `*it`. The constraint is
+ *  deliberately weaker than `std::input_iterator`: Aleph iterators without
+ *  complete `std::iterator_traits` remain accepted.
  *
  *  @note This cannot be migrated to CRTP because constructors don't
  *        inherit in C++.
@@ -118,6 +128,8 @@ template<typename T> class DynList;
   }                                                                         \
                                                                             \
   template <class It>                                                       \
+    requires (not std::is_arithmetic_v<It>                                  \
+              and requires (It it) { *it; ++it; it != it; })                \
   Set_Type(It b, It e) : Set_Type()                                         \
   {                                                                         \
     for (It it = b; it != e; ++it)                                          \
