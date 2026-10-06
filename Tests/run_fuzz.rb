@@ -13,7 +13,17 @@ TARGETS = {
   'fuzz_csv_reader' => 'csv',
   'fuzz_checkpoint_loader' => 'checkpoint',
   'fuzz_dynarray' => 'dynarray',
-  'fuzz_sort' => 'sort'
+  'fuzz_sort' => 'sort',
+  'fuzz_csv_utility' => 'csv_utility',
+  'fuzz_compiler_lexer' => 'compiler_lexer',
+  'fuzz_compiler_parser' => 'compiler_parser'
+}.freeze
+MAX_LENGTHS = {
+  'fuzz_dynarray' => 256,
+  'fuzz_sort' => 256,
+  'fuzz_csv_utility' => 512,
+  'fuzz_compiler_lexer' => 2049,
+  'fuzz_compiler_parser' => 513
 }.freeze
 
 options = {
@@ -63,7 +73,7 @@ def run!(command)
   abort "Command failed: #{command.first}" unless success
 end
 
-run!(['cmake', '-S', ROOT, '-B', build_dir, '-G', 'Ninja',
+run!(['cmake', '--log-level=WARNING', '-S', ROOT, '-B', build_dir, '-G', 'Ninja',
       '-DCMAKE_C_COMPILER=clang', '-DCMAKE_CXX_COMPILER=clang++',
       '-DBUILD_TESTS=ON', '-DBUILD_EXAMPLES=OFF',
       '-DALEPH_BUILD_X11_VIEWER=OFF', '-DALEPH_BUILD_C_API=OFF',
@@ -87,6 +97,7 @@ selected.each do |target|
   success = system({ 'ASAN_OPTIONS' => 'detect_leaks=0',
                      'UBSAN_OPTIONS' => 'print_stacktrace=1:halt_on_error=1' },
                    binary, "-max_total_time=#{options[:seconds]}",
+                   "-max_len=#{MAX_LENGTHS.fetch(target, 4096)}",
                    '-rss_limit_mb=2048', '-timeout=25',
                    '-verbosity=0', '-print_final_stats=1',
                    "-artifact_prefix=#{artifacts}/",

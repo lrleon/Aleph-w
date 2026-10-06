@@ -1,4 +1,4 @@
-# Phase 26 — libFuzzer targets for the untrusted-input parsers.
+# libFuzzer targets for parsers, containers and algorithms.
 #
 # Opt-in and Clang-only (libFuzzer ships with Clang). Enable with:
 #
@@ -8,8 +8,8 @@
 #   ./build-fuzz/Tests/fuzz/fuzz_rle_parser -max_total_time=60 \
 #       Tests/fuzz/corpus/rle
 #
-# Each target is built with -fsanitize=fuzzer,address,undefined. The parsers
-# are header-only, so they are instrumented directly into the fuzzer TU; the
+# Each target is built with -fsanitize=fuzzer,address,undefined. The targeted
+# header implementations are instrumented directly into the fuzzer TU; the
 # checkpoint loader additionally exercises the bundled miniz through ASan's
 # global malloc interceptor.
 option(ALEPH_BUILD_FUZZERS "Build libFuzzer targets (Clang only)" OFF)
@@ -28,6 +28,11 @@ if(ALEPH_BUILD_FUZZERS)
     fuzz_life_parser
     fuzz_csv_reader
     fuzz_checkpoint_loader
+    fuzz_dynarray
+    fuzz_sort
+    fuzz_csv_utility
+    fuzz_compiler_lexer
+    fuzz_compiler_parser
   )
 
   foreach(_t ${_aleph_fuzz_targets})
