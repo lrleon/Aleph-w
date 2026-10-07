@@ -500,14 +500,6 @@ private:
         allocate_block(seg[i], src_seg[i]);
   }
 
-  void allocate_dir(T ***src_dir)
-  {
-    allocate_dir();
-    for (size_t i = 0; i < dir_size; i++)
-      if (src_dir[i] != nullptr)
-        allocate_segment(dir[i], src_dir[i]);
-  }
-
   class Proxy
   {
     size_t index;
@@ -740,15 +732,34 @@ public:
     allocate_dir();
   }
 
-  /** Default constructor
+  /** @brief Construct an empty array with the default geometry.
+      @throw bad_alloc if the directory cannot be allocated.
+      @note Not explicit, so `DynArray<T> a = {};` and omitted aggregate
+            members still work.
+  */
+  DynArray() : DynArray(size_t{0})
+  { /* empty */
+  }
 
-      @param[in] dim initial dimension of array
-      @throw bad_alloc if there is no enough memory
-      @throw length_error si dim is greater than maximum allowed
+  /** @brief Construct an array of logical size dim without allocating entries.
+
+      Segments and blocks are allocated lazily, on the first write that falls
+      in them. The directory covers the whole logical size from the start,
+      so size() <= max_size(). Like `std::vector<T>(dim)`, append() then
+      writes at index dim. Entries that were never written have no storage;
+      check them with exist() or test() before reading them with access().
+
+      The constructor is explicit: an integer never becomes a DynArray
+      implicitly, so `DynArray<T> a = n;` and passing an integer where a
+      DynArray is expected do not compile.
+
+      @param[in] dim initial logical size; zero builds an empty array.
+      @throw bad_alloc if the directory cannot be allocated.
+      @throw length_error if dim is greater than Max_Dim_Allowed.
       @throw overflow_error if it happens an arithmetic overflow with
       the bits operations
   */
-  DynArray(const size_t dim = 0) : current_dim(dim)
+  explicit DynArray(const size_t dim) : current_dim(dim)
   {
     static_assert(std::is_default_constructible_v<T>, "No default constructor for T");
     static_assert(std::is_copy_constructible_v<T>, "No copy constructor for T");
@@ -757,9 +768,40 @@ public:
     static_assert(std::is_move_assignable_v<T>, "No move assign for T");
     assert(Max_Dim_Allowed > 0);
 
+    ah_length_error_if(dim > Max_Dim_Allowed)
+      << "DynArray: dimension " << dim << " is greater than the maximum allowed "
+      << Max_Dim_Allowed;
+
+    // Grow the directory geometry before allocating it, so that it covers
+    // [0, dim) and nothing is allocated yet if a check fails.
+    while (max_dim < dim)
+      {
+        ++pow_dir;
+        dir_size = two_raised(pow_dir);
+        max_dim = compute_dim(pow_dir, pow_seg, pow_block);
+      }
+
     ah_length_error_if(max_dim > Max_Dim_Allowed) << "Dimension too large";
 
     allocate_dir();
+  }
+
+  /** @brief Construct an array of n copies of value; every entry is allocated.
+      @param[in] n number of entries; size() is n.
+      @param[in] value value copied into each entry.
+      @throw bad_alloc if there is no enough memory.
+      @throw length_error if n is greater than Max_Dim_Allowed.
+      @throws Any exception from copy-assigning T; nothing is leaked.
+      @note O(n), like `std::vector<T>(n, value)`.
+  */
+  DynArray(const size_t n, const T & value) : DynArray(n)
+  {
+    if (n == 0)
+      return;
+
+    reserve(0, n - 1);
+    for (size_t i = 0; i < n; ++i)
+      access(i) = value;
   }
 
   Special_Ctors(DynArray, T);
@@ -780,39 +822,44 @@ public:
         (*this)[i] = src_array.access(i);
   }
 
-  /** Copy constructor
+  /** @brief Copy constructor: build an exact copy of array.
+
+      The copy has the geometry, logical size and default value of `array`
+      and allocates exactly the blocks that `array` has allocated, so an
+      entry that `array` never wrote is not written in the copy either.
 
       @param[in] array source of copy
       @throw bad_alloc if there is no enough memory
+      @throws Any exception from copy-assigning T; nothing is leaked, since
+              the delegated constructor has already completed.
   */
   DynArray(const DynArray<T> &array)
-    : pow_dir(array.pow_dir), pow_seg(array.pow_seg), pow_block(array.pow_block),
-      seg_plus_block_pow(array.seg_plus_block_pow), mask_seg_plus_block(array.mask_seg_plus_block),
-      dir_size(array.dir_size), seg_size(array.seg_size), block_size(array.block_size),
-      max_dim(array.max_dim), mask_seg(array.mask_seg), mask_block(array.mask_block), current_dim(0),
-      num_segs(0), num_blocks(0), dir(nullptr), default_initial_value(array.default_initial_value),
-      default_initial_value_ptr(array.default_initial_value_ptr)
+    : DynArray(array.pow_dir, array.pow_seg, array.pow_block)
   {
-    allocate_dir(array.dir);
-    copy_array(array);
+    default_initial_value = array.default_initial_value;
+    for (size_t i = 0; i < dir_size; ++i)
+      if (array.dir[i] != nullptr)
+        allocate_segment(dir[i], array.dir[i]);
+    current_dim = array.current_dim;
   }
 
-  /** Copy assignment
+  /** @brief Copy assignment: `*this` becomes an exact copy of array.
 
       @param[in] array source of copy
+      @return `*this`
       @throw bad_alloc if there is no enough memory
+      @note Strong guarantee: the copy is built first and then swapped in,
+            so `*this` is unchanged if copying throws. The default value is
+            copied, and entries that `array` never wrote are not left with
+            the previous contents of `*this`.
    */
   DynArray<T> &operator = (const DynArray<T> &array)
   {
-    if (this == &array)
-      return *this;
-
-    copy_array(array);
-
-    if (array.current_dim < current_dim)
-      cut(array.current_dim);
-
-    current_dim = array.current_dim;
+    if (this != &array)
+      {
+        DynArray<T> copy(array);
+        swap(copy);
+      }
 
     return *this;
   }

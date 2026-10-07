@@ -132,7 +132,6 @@ TEST(SpecialCtors, IntegerPairsNeverSelectTheIteratorConstructor)
   static_assert(not accepts_integer_pair<ArrayStack<int>>);
   static_assert(not accepts_integer_pair<FixedStack<int>>);
   static_assert(not accepts_integer_pair<ArrayHeap<int>>);
-  static_assert(not accepts_integer_pair<DynArray<int>>);
   static_assert(not accepts_integer_pair<DynDlist<int>>);
   static_assert(not accepts_integer_pair<DynListQueue<int>>);
   static_assert(not accepts_integer_pair<DynListStack<int>>);
@@ -145,10 +144,18 @@ TEST(SpecialCtors, IntegerPairsNeverSelectTheIteratorConstructor)
   static_assert(not accepts_integer_pair<Polygon>);
 
   static_assert(not accepts_integer_pair<ArrayQueue<size_t>, size_t>);
-  static_assert(not accepts_integer_pair<DynArray<size_t>, size_t>);
   static_assert(not accepts_integer_pair<DynDlist<size_t>, size_t>);
   static_assert(not accepts_integer_pair<DynSetTree<size_t>, size_t>);
   static_assert(not accepts_integer_pair<OLhashTable<size_t>, size_t>);
+
+  // DynArray has a count/value constructor: the pair reaches it and builds
+  // n copies of the value, as std::vector does.
+  static_assert(accepts_integer_pair<DynArray<int>>);
+  static_assert(accepts_integer_pair<DynArray<size_t>, size_t>);
+  const DynArray<int> repeated(3, 7);
+  ASSERT_EQ(repeated.size(), 3u);
+  EXPECT_EQ(repeated.access(0), 7);
+  EXPECT_EQ(repeated.access(2), 7);
 
   // DynSkipList has a (seed, probability) constructor: the pair selects it
   // and builds an empty list, not a range of items.

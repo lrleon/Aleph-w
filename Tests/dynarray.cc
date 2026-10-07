@@ -42,6 +42,8 @@
 
 #include <new>
 #include <stdexcept>
+#include <string>
+#include <type_traits>
 
 using namespace Aleph;
 using namespace std;
@@ -366,6 +368,102 @@ TEST(DynArrayQueueStack, push_pop_fifo_lifo)
   EXPECT_EQ(arr.pop(), 4);
   EXPECT_EQ(arr.size(), 5u);
   EXPECT_EQ(arr.top(), arr.get_last());
+}
+
+// An integer gives a lazy logical size only through explicit construction.
+static_assert(std::is_constructible_v<DynArray<int>, size_t>);
+static_assert(not std::is_convertible_v<int, DynArray<int>>);
+static_assert(not std::is_convertible_v<size_t, DynArray<int>>);
+static_assert(std::is_constructible_v<DynArray<int>, size_t, int>);
+
+/// Aggregate whose DynArray member may be omitted from its initializer.
+struct With_Dyn_Array_Member
+{
+  int key = 0;
+  DynArray<int> values;
+};
+
+TEST(DynArrayCtors, DefaultConstructorIsNotExplicit)
+{
+  const DynArray<int> braced = {};
+  EXPECT_TRUE(braced.is_empty());
+
+  const With_Dyn_Array_Member aggregate{7};
+  EXPECT_EQ(aggregate.key, 7);
+  EXPECT_TRUE(aggregate.values.is_empty());
+}
+
+TEST(DynArrayCtors, LazySizeIsCoveredByTheDirectory)
+{
+  const size_t n = size_t{1} << 30;
+  const DynArray<int> lazy(n);
+  EXPECT_EQ(lazy.size(), n);
+  EXPECT_GE(lazy.max_size(), lazy.size());
+  EXPECT_EQ(lazy.get_num_blocks(), 0u);
+  EXPECT_FALSE(lazy.exist(n - 1));
+
+  EXPECT_THROW((void) DynArray<int>(DynArray<int>::Max_Dim_Allowed + 1),
+               std::length_error);
+}
+
+TEST(DynArrayCtors, CountValueAllocatesEveryEntry)
+{
+  const DynArray<int> sevens(5, 7);
+  ASSERT_EQ(sevens.size(), 5u);
+  int sum = 0;
+  sevens.for_each([&sum] (int x) { sum += x; });
+  EXPECT_EQ(sum, 35);
+  for (size_t i = 0; i < sevens.size(); ++i)
+    {
+      EXPECT_TRUE(sevens.exist(i));
+      EXPECT_EQ(sevens.access(i), 7);
+    }
+
+  const DynArray<size_t> same_type(size_t{3}, size_t{8});
+  ASSERT_EQ(same_type.size(), 3u);
+  EXPECT_EQ(same_type.access(2), 8u);
+
+  const DynArray<std::string> strings(2, "ab");
+  ASSERT_EQ(strings.size(), 2u);
+  EXPECT_EQ(strings.access(1), "ab");
+
+  const DynArray<int> none(0, 7);
+  EXPECT_TRUE(none.is_empty());
+}
+
+TEST(DynArrayCopy, CopyKeepsTheLazySizeAndItsOwnDefaultValue)
+{
+  const DynArray<int> lazy(10);
+  const DynArray<int> lazy_copy(lazy);
+  EXPECT_EQ(lazy_copy.size(), 10u);
+  EXPECT_EQ(lazy_copy.get_num_blocks(), 0u);
+
+  auto * src = new DynArray<int>;
+  src->set_default_initial_value(42);
+  src->touch(2) = 5;
+  DynArray<int> copy(*src);
+  delete src;  // the copy must not refer to the original's default value
+  EXPECT_EQ(copy.access(2), 5);
+  EXPECT_EQ(copy.touch(5000), 42);
+}
+
+TEST(DynArrayCopy, CopyAssignmentReplacesEverything)
+{
+  DynArray<int> dst;
+  for (int i = 1; i <= 10; ++i)
+    dst.append(i);
+
+  DynArray<int> src(10);
+  src.set_default_initial_value(42);
+  dst = src;
+  EXPECT_EQ(dst.size(), 10u);
+  EXPECT_FALSE(dst.exist(0));  // no stale value from the previous contents
+  EXPECT_EQ(dst.touch(5000), 42);
+
+  const DynArray<int> & same = dst;
+  dst = same;
+  EXPECT_EQ(dst.size(), 5001u);
+  EXPECT_EQ(dst.access(5000), 42);
 }
 
 } // namespace
