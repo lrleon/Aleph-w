@@ -272,6 +272,42 @@ protected:
     return true;
   }
 
+  /** @brief Grow a full array and insert one item into the new buffer.
+
+      The item is assigned before any element leaves the current buffer,
+      so it may be one of those elements: growth never reads freed memory
+      and inserts the value that `item` had on entry.
+
+      @param[in] pos Logical position of the new item, at most size().
+      @param[in] item Value to insert; it may be an element of this array.
+      @param[in] first Physical index of the first logical element.
+      @return Reference to the inserted item, at physical index `pos`.
+      @throws std::overflow_error, std::bad_alloc or an exception from T.
+      @note O(dim). Requires size() == capacity(). The array is unchanged
+            if the allocation or the assignment of `item` throws; a throwing
+            move may leave some elements moved from, as in reallocate().
+  */
+  template <class U>
+  T &grow_and_insert(const size_t pos, U &&item, const size_t first = 0)
+  {
+    assert(n == dim and pos <= n);
+    ah_overflow_error_if(dim > (std::numeric_limits<size_t>::max() >> 1))
+      << "MemArray::grow_and_insert(): capacity overflow";
+
+    MemArray replacement(dim == 0 ? Min_Dim : dim << 1);
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    if (not annotated)
+      replacement.disable_annotations();
+#endif
+    replacement.putn(n + 1);
+    replacement.ptr[pos] = std::forward<U>(item);  // the old buffer is still alive
+    for (size_t i = 0; i < n; ++i)
+      replacement.ptr[i < pos ? i : i + 1] = std::move(ptr[(first + i) & (dim - 1)]);
+    swap(replacement);
+
+    return ptr[pos];
+  }
+
   /** Test if `n` is lesser than `contract_threshold` and eventually
       contract the array half long and copies its content.
 
@@ -454,48 +490,70 @@ public:
     swap(replacement);
   }
 
-  /// Put a copy of `item` at the end of sequence. The array expands if
-  /// this is already full
+  /** @brief Put a copy of `item` at the end of the sequence.
+      @param[in] item Value to append; it may be an element of this array,
+                 as in `a.put(a(0))`, even when the array must grow.
+      @return Reference to the appended copy.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note Amortized O(1); O(n) when the array is full and grows. The array
+            is unchanged if the allocation or the copy throws.
+  */
   T &put(const T &item)
     requires std::is_copy_assignable_v<T>
   {
-    expand();
-
-    annotate(n, n + 1);
-    try
-      {
-        ptr[n] = item;
-      }
-    catch (...)
-      {
-        annotate(n + 1, n);
-        throw;
-      }
-    T &ret = ptr[n++];
-    return ret;
+    return put_item(item);
   }
 
-  /// Move `item` at the end of sequence. The array expands if
-  /// this is already full
+  /** @brief Move `item` to the end of the sequence.
+      @param[in] item Value to append; it may be an element of this array,
+                 as in `a.put(std::move(a(0)))`, which leaves that element
+                 moved from.
+      @return Reference to the appended item.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note Amortized O(1); O(n) when the array is full and grows. `item`
+            is untouched if the allocation throws.
+  */
   T &put(T &&item)
   {
-    expand();
-
-    annotate(n, n + 1);
-    try
-      {
-        ptr[n] = std::forward<T>(item);
-      }
-    catch (...)
-      {
-        annotate(n + 1, n);
-        throw;
-      }
-    T &ret = ptr[n++];
-    return ret;
+    return put_item(std::move(item));
   }
 
 private:
+  /// Shared body of both put() overloads.
+  template <class U>
+  T &put_item(U &&item)
+  {
+    if (n == dim)  // growing frees the buffer that item may live in
+      return grow_and_insert(n, std::forward<U>(item));
+
+    annotate(n, n + 1);
+    try
+      {
+        ptr[n] = std::forward<U>(item);
+      }
+    catch (...)
+      {
+        annotate(n + 1, n);
+        throw;
+      }
+    T &ret = ptr[n++];
+    return ret;
+  }
+
+  /// Shared body of both push() overloads.
+  template <class U>
+  T &push_item(U &&item)
+  {
+    if (n == dim)  // growing frees the buffer that item may live in
+      return grow_and_insert(0, std::forward<U>(item));
+
+    T tmp(std::forward<U>(item));  // open_gap() shifts the element item may be
+    open_gap();
+    ptr[0] = std::move(tmp);
+    T &ret = ptr[0];
+    return ret;
+  }
+
   void open_gap(size_t pos = 0, size_t num_entries = 1)
   {
     putn(num_entries);
@@ -509,27 +567,31 @@ private:
   }
 
 public:
-  /// Push a copy of `item` at the beginning of sequence. The array expands if
-  /// this is already full
+  /** @brief Push a copy of `item` at the beginning of the sequence.
+      @param[in] item Value to insert; it may be an element of this array,
+                 as in `a.push(a(1))`, even when the array must grow.
+      @return Reference to the inserted copy, now the first element.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(n): every element shifts one position. The array is unchanged
+            if the allocation or the copy throws.
+  */
   T &push(const T &item)
     requires std::is_copy_assignable_v<T>
   {
-    open_gap();
-
-    ptr[0] = item;
-    T &ret = ptr[0];
-    return ret;
+    return push_item(item);
   }
 
-  /// Push a copy of `item` at the beginning of sequence. The array expands if
-  /// this is already full
+  /** @brief Move `item` to the beginning of the sequence.
+      @param[in] item Value to insert; it may be an element of this array,
+                 as in `a.push(std::move(a(1)))`, which leaves that element
+                 moved from.
+      @return Reference to the inserted item, now the first element.
+      @throws std::bad_alloc, std::overflow_error or an exception from T.
+      @note O(n): every element shifts one position.
+  */
   T &push(T &&item)
   {
-    open_gap(0, 1);
-
-    ptr[0] = std::forward<T>(item);
-    T &ret = ptr[0];
-    return ret;
+    return push_item(std::move(item));
   }
 
   T &top() const

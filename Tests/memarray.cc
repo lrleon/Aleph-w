@@ -41,6 +41,8 @@
 # include <htlist.H>
 # include <limits>
 # include <memory>
+# include <new>
+# include <string>
 
 using namespace std;
 using namespace testing;
@@ -846,4 +848,160 @@ TEST(MemArray, failed_assignment_releases_temporary_storage_and_restores_annotat
     EXPECT_EQ(a(3).value, 7);
   }
   EXPECT_EQ(ThrowingArrayItem::live, 0);
+}
+
+namespace
+{
+  /// @brief Element whose default construction, that of every slot of a
+  /// new buffer, can fail as an allocation does.
+  struct Failing_Slot
+  {
+    static inline int constructions_left = -1;
+    std::string value;
+
+    /// @brief Fail at the configured default construction.
+    Failing_Slot()
+    {
+      if (constructions_left == 0)
+        throw std::bad_alloc();
+      if (constructions_left > 0)
+        --constructions_left;
+    }
+
+    /// @brief Build an element that holds `v`.
+    explicit Failing_Slot(std::string v) : value(std::move(v)) {}
+  };
+
+  /// @brief A string too long for the small-string buffer.
+  std::string long_string(const char c)
+  {
+    return std::string(40, c);
+  }
+}
+
+TEST(MemArray, put_of_own_element_copies_it_before_growing)
+{
+  MemArray<int> a(4);
+  for (int i : {10, 20, 30, 40})
+    a.put(i);
+  ASSERT_EQ(a.size(), a.capacity());  // the next put grows the array
+
+  EXPECT_EQ(a.put(a(0)), 10);  // used to read the freed buffer
+  ASSERT_EQ(a.size(), 5u);
+  for (int i = 0; i < 4; ++i)
+    EXPECT_EQ(a(i), 10 * (i + 1));
+  EXPECT_EQ(a(4), 10);
+
+  EXPECT_EQ(a.put(a(1)), 20);  // with free capacity
+  EXPECT_EQ(a(5), 20);
+}
+
+TEST(MemArray, put_of_own_moved_element_inserts_its_value)
+{
+  MemArray<std::string> a(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    a.put(long_string(c));
+  ASSERT_EQ(a.size(), a.capacity());
+
+  EXPECT_EQ(a.put(std::move(a(1))), long_string('b'));
+  ASSERT_EQ(a.size(), 5u);
+  EXPECT_EQ(a(0), long_string('a'));
+  EXPECT_EQ(a(3), long_string('d'));
+
+  EXPECT_EQ(a.put(std::move(a(2))), long_string('c'));  // with free capacity
+  EXPECT_EQ(a(4), long_string('b'));
+}
+
+TEST(MemArray, push_of_own_element_inserts_its_value)
+{
+  MemArray<int> a(4);
+  for (int i : {10, 20, 30})
+    a.put(i);
+
+  EXPECT_EQ(a.push(a(1)), 20);  // the gap used to overwrite the 20 first
+  ASSERT_EQ(a.size(), 4u);
+  const int with_room[] = {20, 10, 20, 30};
+  for (size_t i = 0; i < 4; ++i)
+    EXPECT_EQ(a(i), with_room[i]);
+
+  ASSERT_EQ(a.size(), a.capacity());
+  EXPECT_EQ(a.push(a(3)), 30);  // used to read the freed buffer
+  ASSERT_EQ(a.size(), 5u);
+  const int grown[] = {30, 20, 10, 20, 30};
+  for (size_t i = 0; i < 5; ++i)
+    EXPECT_EQ(a(i), grown[i]);
+}
+
+TEST(MemArray, push_of_own_moved_element_inserts_its_value)
+{
+  MemArray<std::string> a(4);
+  for (char c : {'a', 'b', 'c'})
+    a.put(long_string(c));
+
+  EXPECT_EQ(a.push(std::move(a(1))), long_string('b'));
+  ASSERT_EQ(a.size(), 4u);
+  EXPECT_EQ(a(1), long_string('a'));
+  EXPECT_EQ(a(3), long_string('c'));
+
+  ASSERT_EQ(a.size(), a.capacity());
+  EXPECT_EQ(a.push(std::move(a(3))), long_string('c'));
+  ASSERT_EQ(a.size(), 5u);
+  EXPECT_EQ(a(1), long_string('b'));
+  EXPECT_EQ(a(2), long_string('a'));
+}
+
+TEST(MemArray, failed_copy_while_growing_leaves_the_array_unchanged)
+{
+  ASSERT_EQ(ThrowingArrayItem::live, 0);
+  {
+    MemArray<ThrowingArrayItem> a(4);
+    for (int v = 1; v <= 4; ++v)
+      {
+        ThrowingArrayItem item;
+        item.value = v;
+        a.put(item);
+      }
+    ASSERT_EQ(a.size(), a.capacity());
+    const int original_live = ThrowingArrayItem::live;
+
+    ThrowingArrayItem::assignments_left = 0;  // copying the item fails
+    EXPECT_THROW(a.put(a(0)), std::runtime_error);
+    EXPECT_THROW(a.push(a(0)), std::runtime_error);
+    ThrowingArrayItem::assignments_left = -1;
+
+    EXPECT_EQ(ThrowingArrayItem::live, original_live);
+    ASSERT_EQ(a.size(), 4u);
+    EXPECT_EQ(a.capacity(), 4u);
+    for (size_t i = 0; i < 4; ++i)
+      EXPECT_EQ(a(i).value, static_cast<int>(i) + 1);
+#ifdef ALEPH_MEMARRAY_ANNOTATIONS
+    EXPECT_EQ(__sanitizer_verify_contiguous_container(
+                a.get_ptr(), a.get_ptr() + a.size(), a.get_ptr() + a.capacity()), 1);
+#endif
+    a.put(a(0));
+    EXPECT_EQ(a(4).value, 1);
+  }
+  EXPECT_EQ(ThrowingArrayItem::live, 0);
+}
+
+TEST(MemArray, failed_growth_leaves_a_moved_argument_untouched)
+{
+  MemArray<Failing_Slot> a(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    a.put(Failing_Slot(long_string(c)));
+  ASSERT_EQ(a.size(), a.capacity());
+
+  Failing_Slot x(long_string('x'));
+  Failing_Slot::constructions_left = 0;  // the new buffer cannot be built
+  EXPECT_THROW(a.put(std::move(x)), std::bad_alloc);
+  EXPECT_THROW(a.push(std::move(x)), std::bad_alloc);
+  Failing_Slot::constructions_left = -1;
+
+  EXPECT_EQ(x.value, long_string('x'));
+  ASSERT_EQ(a.size(), 4u);
+  for (size_t i = 0; i < 4; ++i)
+    EXPECT_EQ(a(i).value, long_string(static_cast<char>('a' + i)));
+
+  a.put(std::move(x));
+  EXPECT_EQ(a(4).value, long_string('x'));
 }

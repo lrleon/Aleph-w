@@ -57,6 +57,24 @@ unused slots during contraction. If an element assignment throws, temporary
 storage is released. Throwing moves can still leave earlier source elements in
 a moved-from state; relocation does not promise a strong exception guarantee.
 
+## Inserting an element of the same container
+
+`put()`, `append()`, `push()` and `insert()` of `MemArray`, `Array`,
+`ArrayStack` and `ArrayQueue`, and `insert()` of `DynArray`, accept an element
+of the container itself, as in `a.append(a[0])` or `q.put(q.front())`, even
+when the container is full and must grow. Before 7.0, growth freed that element
+before reading it (a heap-use-after-free), and insertion at the front shifted
+it before copying it, so `{10, 20, 30}` followed by `insert(a[1])` gave
+`10 10 20 30` instead of `20 10 20 30`.
+
+When a full array grows, the new item is assigned into the new buffer before
+any element leaves the old one. A failed allocation or copy therefore leaves
+the container unchanged, and a moved argument, as in `a.append(std::move(x))`,
+keeps its value if the allocation fails. With free capacity, a front insertion
+first copies or moves its argument to a temporary, because the shift
+overwrites the slot the argument may occupy. Passing `std::move(a[i])` leaves
+element `i` moved from.
+
 ## ArrayQueue
 
 Copying and reserving a wrapped queue preserve FIFO order. `empty()`, `clear()`,

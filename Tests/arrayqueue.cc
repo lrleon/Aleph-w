@@ -38,6 +38,7 @@
 # include <gtest/gtest.h>
 # include <memory>
 # include <deque>
+# include <new>
 # include <random>
 # include <string>
 # include <type_traits>
@@ -728,4 +729,90 @@ TEST(ArrayQueue, state_transitions_match_a_fifo_reference)
         }
       EXPECT_EQ(i, reference.size());
     }
+}
+
+/// @brief A string too long for the small-string buffer.
+static string long_string(const char c)
+{
+  return string(40, c);
+}
+
+/// @brief Element whose default construction, that of every slot of a new
+/// buffer, can fail as an allocation does.
+struct Failing_Slot
+{
+  static inline int constructions_left = -1;
+  string value;
+
+  /// @brief Fail at the configured default construction.
+  Failing_Slot()
+  {
+    if (constructions_left == 0)
+      throw bad_alloc();
+    if (constructions_left > 0)
+      --constructions_left;
+  }
+
+  /// @brief Build an element that holds `v`.
+  explicit Failing_Slot(string v) : value(std::move(v)) {}
+};
+
+// The argument of put() may be an item of the queue itself, which growth
+// used to free before reading it.
+
+TEST(ArrayQueue, put_of_own_item_copies_it_before_growing)
+{
+  ArrayQueue<int> q(4);
+  for (int i : {10, 20, 30, 40})
+    q.put(i);
+  ASSERT_EQ(q.size(), q.capacity());
+
+  EXPECT_EQ(q.put(q.front()), 10);
+  EXPECT_EQ(q.put(q.rear()), 10);  // with free capacity
+  ASSERT_EQ(q.size(), 6u);
+  for (int i : {10, 20, 30, 40, 10, 10})
+    EXPECT_EQ(q.get(), i);
+}
+
+TEST(ArrayQueue, put_of_own_item_of_a_full_wrapped_queue)
+{
+  ArrayQueue<string> q(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    q.put(long_string(c));
+  EXPECT_EQ(q.get(), long_string('a'));
+  q.put(long_string('e'));  // the rear wraps around to slot 0
+  ASSERT_EQ(q.size(), q.capacity());
+
+  EXPECT_EQ(q.put(std::move(q.front(1))), long_string('c'));
+  ASSERT_EQ(q.size(), 5u);
+  EXPECT_EQ(q.front(), long_string('b'));
+  EXPECT_EQ(q.front(3), long_string('e'));
+  EXPECT_EQ(q.rear(), long_string('c'));
+
+  EXPECT_EQ(q.put(q.front(3)), long_string('e'));  // with free capacity
+  EXPECT_EQ(q.rear(1), long_string('c'));
+}
+
+TEST(ArrayQueue, failed_growth_leaves_the_queue_and_the_argument_untouched)
+{
+  ArrayQueue<Failing_Slot> q(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    q.put(Failing_Slot(long_string(c)));
+  (void) q.get();
+  q.put(Failing_Slot(long_string('e')));  // full and wrapped
+  ASSERT_EQ(q.size(), q.capacity());
+
+  Failing_Slot x(long_string('x'));
+  Failing_Slot::constructions_left = 0;  // the new buffer cannot be built
+  EXPECT_THROW(q.put(std::move(x)), bad_alloc);
+  EXPECT_THROW(q.put(q.front()), bad_alloc);
+  Failing_Slot::constructions_left = -1;
+
+  EXPECT_EQ(x.value, long_string('x'));
+  ASSERT_EQ(q.size(), 4u);
+  for (size_t i = 0; i < 4; ++i)
+    EXPECT_EQ(q.front(i).value, long_string(static_cast<char>('b' + i)));
+
+  EXPECT_EQ(q.put(std::move(x)).value, long_string('x'));
+  EXPECT_EQ(q.front().value, long_string('b'));
 }

@@ -527,4 +527,82 @@ TEST(ArraySearch, ContainsEmpty)
   EXPECT_FALSE(empty.contains_if([](int) { return true; }));
 }
 
+
+/// @brief Expect the elements of `a`, in order.
+template <class T>
+void expect_items(const Array<T> &a, std::initializer_list<T> expected)
+{
+  ASSERT_EQ(a.size(), expected.size());
+  size_t i = 0;
+  for (const T &item : expected)
+    {
+      EXPECT_EQ(a[i], item) << "at position " << i;
+      ++i;
+    }
+}
+
+/// @brief A string too long for the small-string buffer.
+std::string long_string(const char c)
+{
+  return std::string(40, c);
+}
+
+// The argument of append() and insert() may be an element of the array
+// itself. Growth used to free it before reading it, and the gap opened by
+// insert() used to overwrite it.
+
+TEST(ArraySelfInsertion, AppendOwnElement)
+{
+  auto a = Array<int>::create_reserved(4);
+  for (int i : {10, 20, 30, 40})
+    a.append(i);
+  ASSERT_EQ(a.size(), a.capacity());
+
+  EXPECT_EQ(a.append(a[0]), 10);
+  expect_items(a, {10, 20, 30, 40, 10});
+  EXPECT_EQ(a.append(a[3]), 40);  // with free capacity
+  expect_items(a, {10, 20, 30, 40, 10, 40});
+}
+
+TEST(ArraySelfInsertion, AppendOwnMovedElement)
+{
+  auto a = Array<std::string>::create_reserved(4);
+  for (char c : {'a', 'b', 'c', 'd'})
+    a.append(long_string(c));
+  ASSERT_EQ(a.size(), a.capacity());
+
+  EXPECT_EQ(a.append(std::move(a[0])), long_string('a'));
+  ASSERT_EQ(a.size(), 5u);
+  EXPECT_EQ(a[3], long_string('d'));
+  EXPECT_EQ(a[4], long_string('a'));
+}
+
+TEST(ArraySelfInsertion, InsertOwnElement)
+{
+  auto a = Array<int>::create_reserved(4);
+  for (int i : {10, 20, 30})
+    a.append(i);
+
+  EXPECT_EQ(a.insert(a[1]), 20);
+  expect_items(a, {20, 10, 20, 30});
+  ASSERT_EQ(a.size(), a.capacity());
+  EXPECT_EQ(a.insert(a[3]), 30);
+  expect_items(a, {30, 20, 10, 20, 30});
+}
+
+TEST(ArraySelfInsertion, InsertOwnMovedElement)
+{
+  auto a = Array<std::string>::create_reserved(4);
+  for (char c : {'a', 'b', 'c'})
+    a.append(long_string(c));
+
+  EXPECT_EQ(a.insert(std::move(a[2])), long_string('c'));
+  EXPECT_EQ(a[1], long_string('a'));
+  ASSERT_EQ(a.size(), a.capacity());
+  EXPECT_EQ(a.insert(std::move(a[2])), long_string('b'));
+  ASSERT_EQ(a.size(), 5u);
+  EXPECT_EQ(a[1], long_string('c'));
+  EXPECT_EQ(a[2], long_string('a'));
+}
+
 } // namespace

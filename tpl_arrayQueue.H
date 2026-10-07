@@ -232,28 +232,46 @@ private:
     return ret_val;
   }
 
-public:
-  /** Copy and put an item in the queue
-
-      @param[in] item to put
-      @return a modifiable reference to the copied item
-      @throw bad_alloc if there is no enough memory
-   */
-  T &put(const T &item)
+  /// Shared body of both put() overloads.
+  template <class U>
+  T &put_item(U &&item)
   {
-    if (this->expand(front_index))
-      recenter_indices();
-    this->access(rear_index) = item;
+    if (this->n == this->dim)  // growing frees the buffer that item may live in
+      {
+        T &ret_val = this->grow_and_insert(this->n, std::forward<U>(item), front_index);
+        recenter_indices();
+        return ret_val;
+      }
+
+    this->access(rear_index) = std::forward<U>(item);
     return complete_put();
   }
 
-  /// \overload put(const T & item)
+public:
+  /** Copy and put an item in the queue
+
+      @param[in] item to put; it may be an item of this queue, as in
+                 `q.put(q.front())`, even when the queue must grow
+      @return a modifiable reference to the copied item
+      @throw bad_alloc if there is no enough memory
+      @note The queue is unchanged if the allocation or the copy throws.
+   */
+  T &put(const T &item)
+  {
+    return put_item(item);
+  }
+
+  /** Move an item to the rear of the queue
+
+      @param[in] item to put; it may be an item of this queue, which is
+                 then left moved from
+      @return a modifiable reference to the moved item
+      @throw bad_alloc if there is no enough memory
+      @note `item` is untouched if the allocation throws.
+   */
   T &put(T &&item)
   {
-    if (this->expand(front_index))
-      recenter_indices();
-    this->access(rear_index) = std::forward<T>(item);
-    return complete_put();
+    return put_item(std::move(item));
   }
 
   /// \overload put(const T & item)

@@ -679,4 +679,81 @@ TEST(DynArrayMovedFrom, StaysEmptyAndReusable)
   EXPECT_EQ(by_index.read(0), 1);
 }
 
+
+/// @brief A string too long for the small-string buffer.
+std::string long_string(const char c)
+{
+  return std::string(40, c);
+}
+
+/// @brief Element whose default construction, that of every entry of a new
+/// block, can fail as an allocation does.
+struct Failing_Slot
+{
+  static inline int constructions_left = -1;
+  std::string value;
+
+  /// @brief Fail at the configured default construction.
+  Failing_Slot()
+  {
+    if (constructions_left == 0)
+      throw std::bad_alloc();
+    if (constructions_left > 0)
+      --constructions_left;
+  }
+
+  /// @brief Build an element that holds `v`.
+  explicit Failing_Slot(std::string v) : value(std::move(v)) {}
+};
+
+// The argument of insert() may be an entry of the array itself. The gap
+// that insert() opens used to overwrite it before it was read.
+
+TEST(DynArrayInsert, OwnEntryKeepsItsValue)
+{
+  DynArray<int> a;
+  for (int i : {10, 20, 30})
+    a.append(i);
+
+  EXPECT_EQ(a.insert(a.access(1)), 20);
+  ASSERT_EQ(a.size(), 4u);
+  const int expected[] = {20, 10, 20, 30};
+  for (size_t i = 0; i < 4; ++i)
+    EXPECT_EQ(a.read(i), expected[i]);
+}
+
+TEST(DynArrayInsert, OwnMovedEntryKeepsItsValue)
+{
+  DynArray<string> a;
+  for (char c : {'a', 'b', 'c'})
+    a.append(long_string(c));
+
+  EXPECT_EQ(a.insert(std::move(a.access(2))), long_string('c'));
+  ASSERT_EQ(a.size(), 4u);
+  EXPECT_EQ(a.read(1), long_string('a'));
+  EXPECT_EQ(a.read(2), long_string('b'));
+}
+
+TEST(DynArrayInsert, FailedAllocationLeavesTheArrayAndTheArgumentUntouched)
+{
+  DynArray<Failing_Slot> a(2, 2, 2);  // blocks of four entries
+  for (char c : {'a', 'b', 'c', 'd'})
+    a.append(Failing_Slot(long_string(c)));
+  ASSERT_EQ(a.size(), a.get_block_size());  // the next entry needs a block
+
+  Failing_Slot x(long_string('x'));
+  Failing_Slot::constructions_left = 0;  // the new block cannot be built
+  EXPECT_THROW(a.insert(x), std::bad_alloc);
+  EXPECT_THROW(a.insert(std::move(x)), std::bad_alloc);
+  Failing_Slot::constructions_left = -1;
+
+  EXPECT_EQ(x.value, long_string('x'));
+  ASSERT_EQ(a.size(), 4u);
+  for (size_t i = 0; i < 4; ++i)
+    EXPECT_EQ(a.read(i).value, long_string(static_cast<char>('a' + i)));
+
+  EXPECT_EQ(a.insert(std::move(x)).value, long_string('x'));
+  EXPECT_EQ(a.read(1).value, long_string('a'));
+}
+
 } // namespace

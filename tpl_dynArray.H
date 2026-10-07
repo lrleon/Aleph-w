@@ -1411,21 +1411,39 @@ public:
     return ref;
   }
 
+  /** @brief Insert a copy of `item` at the beginning of the array.
+      @param[in] item Value to insert; it may be an entry of this array,
+                 as in `a.insert(a.access(1))`.
+      @return Reference to the inserted copy, now entry 0.
+      @throws std::bad_alloc or an exception from T.
+      @note O(n): every entry shifts one position. The array is unchanged
+            if the copy or the allocation throws.
+  */
   T &insert(const T &item)
   {
+    T tmp = item;  // open_gap() shifts the entry that item may be
     this->append();
     open_gap(*this, current_dim);
     T &ret = touch(0);  // the block of entry 0 may not exist in a lazy array
-    ret = item;
+    ret = std::move(tmp);
     return ret;
   }
 
+  /** @brief Move `item` to the beginning of the array.
+      @param[in] item Value to insert; it may be an entry of this array,
+                 which is then left moved from.
+      @return Reference to the inserted item, now entry 0.
+      @throws std::bad_alloc or an exception from T.
+      @note O(n): every entry shifts one position. `item` is untouched if
+            the allocation throws.
+  */
   T &insert(T &&item)
   {
-    this->append();
+    this->append();          // allocate before item is moved from
+    T tmp = std::move(item); // open_gap() shifts the entry that item may be
     open_gap(*this, current_dim);
     T &ret = touch(0);  // the block of entry 0 may not exist in a lazy array
-    ret = std::forward<T>(item);
+    ret = std::move(tmp);
     return ret;
   }
 
