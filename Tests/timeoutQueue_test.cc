@@ -970,14 +970,27 @@ TEST(TimeoutQueueTest, CompletionCallback)
   auto* e = new TestEvent(time_from_now_ms(50));
   e->set_completion_callback([&](TimeoutQueue::Event* ev, TimeoutQueue::Event::Execution_Status status) {
     (void) ev;
-    callback_called = true;
+    // Publish the status before the flag the test waits on, so that once
+    // callback_called is observed, final_status is already valid.
     final_status = static_cast<int>(status);
+    callback_called = true;
   });
 
   g_queue->schedule_event(e);
-  this_thread::sleep_for(chrono::milliseconds(200));
 
-  EXPECT_TRUE(callback_called);
+  // Wait on the callback instead of a fixed sleep: on loaded CI runners the
+  // worker may not get CPU within a short window, which made this test flaky.
+  const bool completed =
+    wait_until([&] { return callback_called.load(); }, chrono::seconds(5));
+  if (not completed)
+    {
+      // The event is still owned by the queue and its callback references this
+      // stack frame: cancel it and leak it rather than deleting it under the
+      // worker's feet.
+      g_queue->cancel_event(e);
+      FAIL() << "Completion callback was not invoked in time";
+    }
+
   EXPECT_EQ(final_status, static_cast<int>(TimeoutQueue::Event::Executed));
 
   delete e;

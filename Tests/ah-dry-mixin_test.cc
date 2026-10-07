@@ -37,6 +37,8 @@
  */
 #include <gtest/gtest.h>
 
+#include <limits>
+#include <stdexcept>
 #include <vector>
 #include <string>
 #include <htlist.H>
@@ -342,6 +344,19 @@ TEST(LocateMixin, Nth)
 
   EXPECT_THROW(v.nth(5), std::out_of_range);
   EXPECT_THROW(v.nth(100), std::out_of_range);
+}
+
+TEST(LocateMixin, NthWithLargestIndexThrows)
+{
+  // The check compared the count with n + 1, which overflows to zero for
+  // n == SIZE_MAX: on an empty container nth() returned a null reference.
+  constexpr size_t largest = std::numeric_limits<size_t>::max();
+  MixinVector<int> empty;
+  EXPECT_THROW((void) empty.nth(largest), std::out_of_range);
+  EXPECT_THROW((void) empty.nth(0), std::out_of_range);
+
+  MixinVector<int> v = {10, 20, 30};
+  EXPECT_THROW((void) v.nth(largest), std::out_of_range);
 }
 
 TEST(LocateMixin, NthNe)

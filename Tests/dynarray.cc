@@ -774,4 +774,147 @@ TEST(DynArrayGeometry, OversizedGeometryThrowsOverflowError)
   EXPECT_EQ(d + s + b, 63u);
 }
 
+
+/// Element that counts its default constructions; the next one fails
+/// while `failing` is set.
+struct Counted_Default
+{
+  static inline long defaults = 0;
+  static inline bool failing = false;
+  int value = 0;
+
+  Counted_Default()
+  {
+    if (failing)
+      throw std::bad_alloc();
+    ++defaults;
+  }
+  explicit Counted_Default(int v) noexcept : value(v) {}
+};
+
+TEST(DynArrayIterator, CreatingIteratorsConstructsNoItem)
+{
+  // The iterator kept a default-constructed T for unwritten entries, and
+  // its constructors were noexcept: a throwing default constructor called
+  // std::terminate. The copy is now built only when an unwritten entry is
+  // read.
+  static_assert(std::is_nothrow_default_constructible_v<DynArray<Counted_Default>::Iterator>);
+  DynArray<Counted_Default> a;
+  a.append(Counted_Default(1));
+  a.append(Counted_Default(2));
+
+  const long before = Counted_Default::defaults;
+  Counted_Default::failing = true;
+  {
+    auto it = a.get_it();
+    EXPECT_TRUE(it.has_curr());
+    EXPECT_EQ(it.get_curr().value, 1);
+    DynArray<Counted_Default>::Iterator end;
+    EXPECT_FALSE(end.has_curr());
+    int sum = 0;
+    for (const auto & item : a)
+      sum += item.value;
+    EXPECT_EQ(sum, 3);
+  }
+  Counted_Default::failing = false;
+  EXPECT_EQ(Counted_Default::defaults, before);
+}
+
+TEST(DynArrayIterator, UnwrittenEntryIsACopyOfTheDefaultValue)
+{
+  DynArray<int> a(2, 2, 2);  // blocks of four entries
+  a.set_default_initial_value(7);
+  a.touch(9) = 3;            // entries 0 to 7 are in blocks never allocated
+  auto it = a.get_it();
+  int & unwritten = it.get_curr();
+  EXPECT_EQ(unwritten, 7);
+  unwritten = 100;           // writes the iterator's copy, not the array
+  EXPECT_EQ(a.read(0), 7);
+  it.next();
+  EXPECT_EQ(it.get_curr(), 7);
+  EXPECT_EQ(a.size(), 10u);
+}
+
+
+/// Array with blocks of four entries whose entries 0 to 7, in blocks never
+/// allocated, read as the default value 7. Entry 9 holds 0.
+DynArray<int> array_with_unwritten_blocks()
+{
+  DynArray<int> a(2, 2, 2);
+  a.set_default_initial_value(7);
+  a.touch(9) = 0;
+  return a;
+}
+
+// The traversal hands out an entry never written as a short-lived copy of
+// the default value. nth(), nth_ne() and find_ptr(), inherited from
+// LocateFunctions, kept its address: they returned a dangling reference.
+
+TEST(DynArrayLocate, NthOfAnUnwrittenEntryIsTheEntry)
+{
+  DynArray<int> a = array_with_unwritten_blocks();
+  const DynArray<int> & ca = a;
+
+  EXPECT_EQ(ca.nth(1), 7);        // a constant read allocates nothing
+  EXPECT_EQ(ca.nth_ne(5), 7);
+  EXPECT_EQ(a.test(1), nullptr);
+  EXPECT_EQ(a.test(5), nullptr);
+  EXPECT_THROW((void) ca.nth(10), std::out_of_range);
+
+  int & x = a.nth(3);             // a modifiable access allocates, as a[i]
+  EXPECT_EQ(&x, a.test(3));
+  EXPECT_EQ(x, 7);
+  x = 30;
+  EXPECT_EQ(a.read(3), 30);
+
+  int & y = a.nth_ne(6);
+  EXPECT_EQ(&y, a.test(6));
+  EXPECT_EQ(y, 7);
+  EXPECT_THROW((void) a.nth(10), std::out_of_range);
+  EXPECT_EQ(a.size(), 10u);
+}
+
+TEST(DynArrayLocate, FindPtrOfAnUnwrittenEntryPointsIntoTheArray)
+{
+  DynArray<int> a = array_with_unwritten_blocks();
+  const DynArray<int> & ca = a;
+  auto is_seven = [] (int i) { return i == 7; };
+
+  const int * c = ca.find_ptr(is_seven);  // entry 0, never written
+  ASSERT_NE(c, nullptr);
+  EXPECT_EQ(*c, 7);
+  EXPECT_EQ(a.test(0), nullptr);          // a constant search allocates nothing
+
+  int * p = a.find_ptr(is_seven);
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(p, a.test(0));                // the entry itself, now allocated
+  *p = 1;
+  EXPECT_EQ(a.read(0), 1);
+
+  EXPECT_EQ(a.find_ptr([] (int i) { return i == 42; }), nullptr);
+  EXPECT_EQ(ca.find_ptr([] (int i) { return i == 42; }), nullptr);
+  EXPECT_EQ(*a.find_ptr([] (int i) { return i == 0; }), 0);  // entry 9
+}
+
+TEST(DynArrayLocate, FindItemOfAnUnwrittenEntryCopiesTheDefaultValue)
+{
+  DynArray<int> a = array_with_unwritten_blocks();
+  const auto [found, item] = a.find_item([] (int i) { return i == 7; });
+  EXPECT_TRUE(found);
+  EXPECT_EQ(item, 7);
+  EXPECT_EQ(a.test(0), nullptr);  // find_item() returns a copy: no allocation
+
+  // A criterion may modify the item it receives. For an entry never written
+  // that item is a copy, so the result is still the default value.
+  auto scribble = [] (int & i) { const bool match = i == 7; i = -1; return match; };
+  const auto [scribbled, value] = a.find_item(scribble);
+  EXPECT_TRUE(scribbled);
+  EXPECT_EQ(value, 7);
+  EXPECT_EQ(a.read(0), 7);
+
+  const auto [missing, dflt] = std::as_const(a).find_item([] (int i) { return i == 42; });
+  EXPECT_FALSE(missing);
+  EXPECT_EQ(dflt, 0);
+}
+
 } // namespace

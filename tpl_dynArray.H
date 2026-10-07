@@ -47,6 +47,7 @@
 
 #include <string>
 #include <concepts>
+#include <optional>
 #include <type_traits>
 #include <aleph.H>
 #include <ahIterator.H>
@@ -1402,6 +1403,136 @@ public:
     return Proxy(*this, i);
   }
 
+  /** @brief Return a modifiable reference to entry n.
+
+      Hides LocateFunctions::nth(), whose traversal would keep the address
+      of the short-lived copy handed out for an entry never written. As
+      a[i] does, this modifiable access allocates the entry's block; the
+      constant overload and read() do not.
+
+      @param[in] n index of the entry.
+      @return Reference to entry n.
+      @throw out_of_range if n >= size().
+      @throw bad_alloc if the block of entry n cannot be allocated.
+      @note O(1), unlike the linear search of the generic method.
+  */
+  T &nth(const size_t n)
+  {
+    ah_out_of_range_error_if(n >= current_dim)
+      << "DynArray::nth(" << n << "): index out of range; size() is " << current_dim;
+    return touch(n);
+  }
+
+  /** @brief Return entry n of a constant array; equivalent to read(n).
+      @param[in] n index of the entry.
+      @return Constant reference to entry n, or to the default value if
+              the entry was never written.
+      @throw out_of_range if n >= size().
+      @note O(1). Never allocates memory.
+  */
+  const T &nth(const size_t n) const
+  {
+    return read(n);
+  }
+
+  /** @brief Return a modifiable reference to entry n without checking n.
+      @param[in] n index of the entry; it must be smaller than size().
+      @return Reference to entry n, whose block is allocated if needed.
+      @throw bad_alloc if the block of entry n cannot be allocated.
+  */
+  T &nth_ne(const size_t n)
+  {
+    assert(n < current_dim);
+    return touch(n);
+  }
+
+  /** @brief Return entry n of a constant array without checking n.
+      @param[in] n index of the entry; it must be smaller than size().
+      @return Constant reference to entry n, or to the default value if
+              the entry was never written.
+      @note Never allocates memory.
+  */
+  const T &nth_ne(const size_t n) const noexcept
+  {
+    assert(n < current_dim);
+    if (const T *entry = test(n); entry != nullptr)
+      return *entry;
+
+    return default_initial_value;
+  }
+
+private:
+  // Index of the first entry satisfying `operation`, or size() if none.
+  template <class Operation>
+  size_t index_of_first(Operation &operation)
+  {
+    size_t i = 0;
+    auto count_until_match = [&i, &operation](T &item)
+      {
+        if (operation(item))
+          return false;
+        ++i;
+        return true;
+      };
+    __traverse(count_until_match);
+    return i;
+  }
+
+public:
+  /** @brief Return a pointer to the first entry satisfying a criterion.
+
+      Hides LocateFunctions::find_ptr(), whose traversal would keep the
+      address of the short-lived copy handed out for an entry never
+      written. If such an entry matches, its block is allocated, as a[i]
+      does, and the pointer refers to the entry. The constant overloads
+      never allocate.
+
+      @param[in] operation criterion with signature `bool(T &)`.
+      @return Pointer to the entry, or `nullptr` if no entry satisfies it.
+      @throw bad_alloc if the block of the found entry cannot be allocated,
+             and anything that `operation` or the copy of the default value
+             throws.
+      @note O(size()).
+  */
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
+  T *find_ptr(Operation &operation)
+  {
+    const size_t i = index_of_first(operation);
+    return i < current_dim ? &touch(i) : nullptr;
+  }
+
+  /** @brief Constant overload of find_ptr(); it never allocates memory.
+      @param[in] operation criterion with signature `bool(T &)`.
+      @return Pointer to the entry, to the default value if the entry was
+              never written, or `nullptr` if no entry satisfies it.
+      @throw anything that `operation` or the copy of the default value
+             throws.
+  */
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
+  const T *find_ptr(Operation &operation) const
+  {
+    const size_t i = const_cast<DynArray &>(*this).index_of_first(operation);
+    return i < current_dim ? &read(i) : nullptr;
+  }
+
+  /// \overload find_ptr(Operation & operation)
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
+  T *find_ptr(Operation &&operation)
+  {
+    return find_ptr<Operation>(operation);
+  }
+
+  /// \overload find_ptr(Operation & operation) const
+  template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
+  const T *find_ptr(Operation &&operation) const
+  {
+    return find_ptr<Operation>(operation);
+  }
+
   /// Allocate a new entry to the end of array. Increase the dimension
   /// and return a modifiable reference to the last entry
   T &append()
@@ -1575,10 +1706,12 @@ public:
       The visit order is from the lower index 0 to current dimension
       minus one.
 
-      Iterating never allocates memory. An entry that was never written is
-      seen as the default value: get_curr() then returns a reference to a
-      copy held by the iterator, so writing through it has no effect on the
-      array. Write unwritten entries through operator[], touch() or append().
+      Iterating never allocates array memory. An entry that was never
+      written is seen as the default value: get_curr() then returns a
+      reference to a copy held by the iterator, so writing through it has no
+      effect on the array. Write unwritten entries through operator[],
+      touch() or append(). The copy is built on demand, so creating an
+      iterator never constructs a `T`.
 
       @ingroup Sequences
   */
@@ -1587,7 +1720,7 @@ public:
   protected:
     DynArray *array_ptr = nullptr;
     long curr_idx = 0;
-    mutable T unwritten_entry{};  ///< copy handed out for an entry never written
+    mutable std::optional<T> unwritten_entry;  ///< copy handed out for an entry never written
 
   public:
     using Set_Type = DynArray;
@@ -1634,16 +1767,17 @@ public:
     /** @brief Return the current item without checking the position.
         @return Reference to the current entry or, if its block was never
                 allocated, to a copy of the default value held by the
-                iterator.
+                iterator, which the next such read overwrites.
+        @throws Anything the copy constructor of `T` throws, only for an
+                entry whose block was never allocated.
         @note Be careful: the position is not checked.
     */
-    T &get_curr_ne() const noexcept(std::is_nothrow_copy_assignable_v<T>)
+    T &get_curr_ne() const noexcept(std::is_nothrow_copy_constructible_v<T>)
     {
       if (T *entry = array_ptr->test(static_cast<size_t>(curr_idx)); entry != nullptr)
         return *entry;
 
-      unwritten_entry = array_ptr->default_initial_value;
-      return unwritten_entry;
+      return unwritten_entry.emplace(array_ptr->default_initial_value);
     }
 
     /** @brief Return the current item.

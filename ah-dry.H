@@ -45,6 +45,7 @@
 
 #include "ahFunctional.H"
 #include <ah-concepts.H>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -219,6 +220,20 @@ class LocateFunctions
     return noexcept(std::declval<Operation &>()(std::declval<Type &>()));
   }
 
+  /** True if find_item() cannot throw: neither `operation` nor building the
+      returned tuple, which copies the found item or holds a
+      default-constructed one if nothing matches.
+  */
+  template <class Operation>
+  static constexpr bool find_item_is_noexcept() noexcept
+  {
+    using TT = std::tuple<bool, Type>;
+    return operation_is_noexcept<Operation>()
+           and std::is_nothrow_constructible_v<TT, bool, const Type &>
+           and std::is_nothrow_default_constructible_v<Type>
+           and std::is_nothrow_constructible_v<TT, bool, Type>;
+  }
+
 public:
   /** Return a properly initialized iterator positioned at the first
       item on the container.
@@ -309,15 +324,16 @@ public:
   {
     Type *ptr = nullptr;
     size_t i = 0;
-    me()->traverse([&ptr, &i, &n](Type &item)
+    me()->traverse([&ptr, &i, n](Type &item)
       {
-        if (i++ < n)
+        if (i++ != n)
           return true;
         ptr = &item;
         return false;
       });
 
-    ah_out_of_range_error_if(i != n + 1) << "index out of range";
+    // Test the pointer, not the count: i == n + 1 overflows for n == SIZE_MAX
+    ah_out_of_range_error_if(ptr == nullptr) << "index out of range";
 
     return *ptr;
   }
@@ -493,13 +509,20 @@ public:
       item. If no item is found, then the first field is `false` and the
       second is the result of default constructor on the type stored in
       the container.
+      \throw anything that `operation`, the copy of the found item or the
+      default constructor of `Type` throws. The method is `noexcept` only
+      when none of them can throw.
   */
   template <class Operation>
     requires Aleph::PredicateWith<Operation &, Type &>
-  std::tuple<bool, Type> find_item(Operation &operation) noexcept(operation_is_noexcept<Operation>())
+  std::tuple<bool, Type> find_item(Operation &operation)
+    noexcept(find_item_is_noexcept<Operation>())
   {
     using TT = std::tuple<bool, Type>;
-    auto ptr = find_ptr(operation);
+    // The container's constant find_ptr(): a container may hide this
+    // class's, as DynArray does, so that the pointer never refers to a
+    // copy that its traversal hands out for a short time.
+    auto ptr = const_me()->find_ptr(operation);
     return ptr ? TT(true, *ptr) : TT(false, Type());
   }
 
@@ -507,10 +530,10 @@ public:
   template <class Operation>
     requires Aleph::PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation &operation) const
-    noexcept(operation_is_noexcept<Operation>())
+    noexcept(find_item_is_noexcept<Operation>())
   {
     using TT = std::tuple<bool, Type>;
-    auto ptr = find_ptr(operation);
+    auto ptr = const_me()->find_ptr(operation);  // see the overload above
     return ptr ? TT(true, *ptr) : TT(false, Type());
   }
 
@@ -527,7 +550,8 @@ public:
    */
   template <class Operation>
     requires Aleph::PredicateWith<Operation &, Type &>
-  std::tuple<bool, Type> find_item(Operation &&operation) noexcept(operation_is_noexcept<Operation>())
+  std::tuple<bool, Type> find_item(Operation &&operation)
+    noexcept(find_item_is_noexcept<Operation>())
   {
     return find_item<Operation>(operation);
   }
@@ -546,7 +570,7 @@ public:
   template <class Operation>
     requires Aleph::PredicateWith<Operation &, Type &>
   std::tuple<bool, Type> find_item(Operation &&operation) const
-    noexcept(operation_is_noexcept<Operation>())
+    noexcept(find_item_is_noexcept<Operation>())
   {
     return find_item<Operation>(operation);
   }
@@ -1756,10 +1780,9 @@ public:
       than the number of elements of container.
 
       \return A `DynList<T>` having the first `n` elements according to
-      its traversal order.
-      \throw bad_alloc if there is no enough memory or `out_of_range`
-      if n is greater or equal than the number of elements in the
-      container.
+      its traversal order, or all of them if `n` is not less than the
+      number of elements.
+      \throw bad_alloc if there is no enough memory
    */
   Aleph::DynList<T> take(const size_t n) const
   {
@@ -1775,25 +1798,37 @@ public:
     return ret;
   }
 
-  /** Return a list with elements seen in the container between i and
-      j position respect to its traversal.
+  /** Return a list with the elements at positions `i`, `i + step`,
+      `i + 2 step`, ... that are not greater than `j`, respect to the
+      traversal order.
 
-      The complexity of this method is \f$O(n)\f$ where n can be less
-      than the number of elements of container.
+      The complexity of this method is \f$O(i + \min(j, N))\f$, where N is
+      the number of elements of the container.
 
-      \return A `DynList<T>` having the first `n` elements according to
-      its traversal order.
-      \throw bad_alloc if there is no enough memory or `out_of_range`
-      if n is greater or equal than the number of elements in the
-      container.
+      \param[in] i position of the first element taken
+      \param[in] j greatest position that may be taken
+      \param[in] step distance between two consecutive taken positions
+      \return A `DynList<T>` with the selected elements in traversal
+      order. It is empty if `step` is zero or `i` is greater than `j`.
+      \throw bad_alloc if there is no enough memory, or what
+      `get_it(i)` throws when `i` exceeds the number of elements:
+      usually `overflow_error`; `DynArray` throws `out_of_range` also
+      when `i` equals it.
   */
   Aleph::DynList<T> take(size_t i, const size_t j, const size_t step = 1) const
   {
     Aleph::DynList<T> ret;
     if (step == 0)
       return ret;
-    for (auto it = const_me()->get_it(i); i <= j and it.has_curr(); it.next_ne(), i += step)
-      ret.append(it.get_curr());
+    for (auto it = const_me()->get_it(i); i <= j and it.has_curr(); )
+      {
+        ret.append(it.get_curr());
+        if (j - i < step)  // the next position would pass j, or overflow
+          break;
+        i += step;
+        for (size_t k = 0; k < step and it.has_curr(); ++k)
+          it.next_ne();
+      }
     return ret;
   }
 
@@ -1804,10 +1839,9 @@ public:
       number of elements of container.
 
       \return A `DynList<T>` having the remainder \f$N - n\f$ elements
-      according to traversal order.
-      \throw bad_alloc if there is no enough memory or `out_of_range`
-      if n is greater or equal than `N` (the number of elements in the
-      container).
+      according to traversal order; it is empty if `n` is not less than
+      `N`.
+      \throw bad_alloc if there is no enough memory
    */
   Aleph::DynList<T> drop(const size_t n) const
   {
@@ -1824,13 +1858,21 @@ public:
 
   /** Drop the first n elements seen from container.
 
-      The complexity of this method is \f$O(N)\f$ where N always is the
-      number of elements of container.
+      It calls `remove()` `n` times, so it is available only for
+      containers whose `remove()` takes no arguments and removes the
+      first element, such as `DynList`. On the others its constraint is
+      not satisfied: `requires { c.mutable_drop(n); }` is false, instead
+      of the body failing to compile when used.
 
-      \throw out_of_range if n is greater or equal than `N` (the
-      number of elements in the container).
+      The complexity of this method is `n` times that of `remove()`.
+
+      \param[in] n number of elements to remove
+      \throw what `remove()` throws when the container runs out of
+      elements, for instance `underflow_error` on `DynList`. The elements
+      already removed stay removed.
   */
   void mutable_drop(const size_t n)
+    requires requires (Container &c) { c.remove(); }
   {
     for (size_t i = 0; i < n; ++i)
       me()->remove();

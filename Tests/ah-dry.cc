@@ -37,7 +37,11 @@
  */
 # include <gtest/gtest.h>
 
+# include <limits>
 # include <map>
+# include <stdexcept>
+# include <string>
+# include <utility>
 # include <vector>
 # include <ah-zip.H>
 # include <ahFunctional.H>
@@ -329,10 +333,91 @@ TYPED_TEST_P(Container, filter_ops)
 	    build_dynlist<int>(8, 9, 10, 11, 12));
 }
 
+/// Matching criterion that cannot throw.
+struct Nothrow_Match
+{
+  int key;
+  bool operator()(const int & i) const noexcept { return i == key; }
+};
+
+TYPED_TEST_P(Container, nth_out_of_range)
+{
+  constexpr size_t largest = numeric_limits<size_t>::max();
+  const TypeParam & c = this->c;
+  EXPECT_THROW((void) c.nth(this->N), out_of_range);
+  EXPECT_THROW((void) c.nth(largest), out_of_range);
+
+  // nth(SIZE_MAX) on an empty container used to return a null reference:
+  // its check compared the count with n + 1, which overflows to zero.
+  TypeParam empty;
+  EXPECT_THROW((void) empty.nth(0), out_of_range);
+  EXPECT_THROW((void) empty.nth(largest), out_of_range);
+  EXPECT_THROW((void) as_const(empty).nth(largest), out_of_range);
+}
+
+TYPED_TEST_P(Container, take_with_step)
+{
+  const TypeParam & c = this->c;
+  vector<int> order;  // positions refer to the traversal order
+  c.for_each([&order] (int i) { order.push_back(i); });
+  ASSERT_EQ(order.size(), this->N);
+
+  constexpr size_t largest = numeric_limits<size_t>::max();
+  const size_t cases[][3] = { {0, 999, 1}, {0, 999, 2}, {1, 998, 3}, {5, 5, 7},
+                              {0, 10, 4}, {990, largest, 3}, {0, 999, 1000},
+                              {3, 900, largest}, {999, 999, 1}, {10, 5, 2},
+                              {0, 4, 0} };
+  for (const auto & [i, j, step] : cases)
+    {
+      vector<int> expected;
+      if (step != 0)
+        for (size_t p = i; p <= j and p < order.size(); )
+          {
+            expected.push_back(order[p]);
+            if (j - p < step)
+              break;
+            p += step;
+          }
+      vector<int> taken;
+      c.take(i, j, step).for_each([&taken] (int x) { taken.push_back(x); });
+      EXPECT_EQ(taken, expected) << "take(" << i << ", " << j << ", " << step << ")";
+    }
+}
+
+TYPED_TEST_P(Container, mutable_drop_needs_remove)
+{
+  // mutable_drop() calls remove(); it used to be visible on containers
+  // without remove(), where using it failed to compile.
+  constexpr bool has_remove = requires (TypeParam & c) { c.remove(); };
+  static_assert((requires (TypeParam & c) { c.mutable_drop(size_t{}); }) == has_remove);
+  if constexpr (has_remove)
+    {
+      TypeParam c = this->c;
+      const int eleventh = c.nth(10);
+      c.mutable_drop(10);
+      EXPECT_EQ(c.size(), this->N - 10);
+      EXPECT_EQ(c.nth(0), eleventh);
+    }
+}
+
+TYPED_TEST_P(Container, find_item_noexcept_for_nothrow_items)
+{
+  // Copying or default-constructing an int cannot throw, so a noexcept
+  // criterion keeps find_item() noexcept.
+  static_assert(noexcept(declval<TypeParam &>().find_item(Nothrow_Match{0})));
+  static_assert(noexcept(declval<const TypeParam &>().find_item(Nothrow_Match{0})));
+  const TypeParam & c = this->c;
+  const auto [found, item] = c.find_item(Nothrow_Match{7});
+  EXPECT_TRUE(found);
+  EXPECT_EQ(item, 7);
+}
+
 REGISTER_TYPED_TEST_SUITE_P(Container, traverse, for_each, find_ptr,
                             find_index_nth, find_item, iterator_operations,
                             nappend, ninsert, all, exists, maps, map_synonyms,
-                            foldl, filter_ops);
+                            foldl, filter_ops, nth_out_of_range, take_with_step,
+                            mutable_drop_needs_remove,
+                            find_item_noexcept_for_nothrow_items);
 
 typedef
 Types< DynList<int>, DynDlist<int>,  DynArray<int>,
@@ -471,4 +556,86 @@ TEST(StdMapCoexistence, map_method_with_std_map)
 
   auto result = mapped.foldl(0, [] (int acc, int val) { return acc + val; });
   EXPECT_EQ(result, 30);
+}
+
+namespace
+{
+  /// Element whose copy constructor throws while `armed` is set.
+  struct Copy_Throws
+  {
+    static inline bool armed = false;
+    int value = 0;
+
+    Copy_Throws() noexcept = default;
+    explicit Copy_Throws(int v) noexcept : value(v) {}
+    Copy_Throws(const Copy_Throws & other) : value(other.value)
+    {
+      if (armed)
+        throw runtime_error("copy failed");
+    }
+    Copy_Throws & operator = (const Copy_Throws &) noexcept = default;
+  };
+
+  /// Element whose default constructor throws while `armed` is set.
+  struct Default_Throws
+  {
+    static inline bool armed = false;
+    int value = 0;
+
+    Default_Throws()
+    {
+      if (armed)
+        throw runtime_error("default construction failed");
+    }
+    explicit Default_Throws(int v) noexcept : value(v) {}
+  };
+
+  /// find_item() copies the found item, or default-constructs one when
+  /// nothing matches. Either may throw even if the criterion cannot, and
+  /// find_item() used to be noexcept anyway, so std::terminate was called.
+  template <class C>
+  void check_find_item_propagates()
+  {
+    using T = typename C::Item_Type;
+    auto match = [] (const T & x) noexcept { return x.value == 2; };
+    auto never = [] (const T &) noexcept { return false; };
+    static_assert(not noexcept(declval<C &>().find_item(match)));
+    static_assert(not noexcept(declval<const C &>().find_item(match)));
+
+    C c;
+    for (int i = 0; i < 4; ++i)
+      c.append(T(i));
+    const C & cc = c;
+
+    T::armed = true;
+    if constexpr (is_same_v<T, Copy_Throws>)
+      {
+        EXPECT_THROW((void) c.find_item(match), runtime_error);
+        EXPECT_THROW((void) cc.find_item(match), runtime_error);
+      }
+    else
+      {
+        EXPECT_THROW((void) c.find_item(never), runtime_error);
+        EXPECT_THROW((void) cc.find_item(never), runtime_error);
+      }
+    T::armed = false;
+
+    const auto [found, item] = c.find_item(match);
+    EXPECT_TRUE(found);
+    EXPECT_EQ(item.value, 2);
+  }
+}
+
+TEST(LocateFunctions, find_item_propagates_copy_exceptions)
+{
+  check_find_item_propagates<Array<Copy_Throws>>();
+  check_find_item_propagates<DynList<Copy_Throws>>();
+  check_find_item_propagates<DynArray<Copy_Throws>>();
+}
+
+TEST(LocateFunctions, find_item_propagates_default_construction_exceptions)
+{
+  check_find_item_propagates<Array<Default_Throws>>();
+  check_find_item_propagates<DynList<Default_Throws>>();
+  check_find_item_propagates<DynArray<Default_Throws>>();
 }

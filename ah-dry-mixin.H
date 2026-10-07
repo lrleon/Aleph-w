@@ -262,15 +262,16 @@ public:
   {
     Type * ptr = nullptr;
     size_t i = 0;
-    self().traverse([&ptr, &i, &n] (Type & item)
+    self().traverse([&ptr, &i, n] (Type & item)
     {
-      if (i++ < n)
+      if (i++ != n)
         return true;
       ptr = &item;
       return false;
     });
 
-    ah_out_of_range_error_if(i != n + 1) << "index " << n << " out of range";
+    // Test the pointer, not the count: i == n + 1 overflows for n == SIZE_MAX
+    ah_out_of_range_error_if(ptr == nullptr) << "index " << n << " out of range";
 
     return *ptr;
   }
