@@ -39,6 +39,7 @@
 
 #include <tpl_dynArray.H>
 #include <ah-unique.H>
+#include <ahFunctional.H>
 
 #include <limits>
 #include <new>
@@ -605,18 +606,59 @@ TEST(DynArrayLazyReads, ModifiableAccessAllocatesTheBlock)
   EXPECT_EQ(queue.top(), 0);
 }
 
-TEST(DynArrayLazyReads, WritesThroughCopiesOfUnwrittenEntriesHaveNoEffect)
+TEST(DynArrayLazyReads, WritesThroughModifiableTraversalsReachTheArray)
 {
+  // A modifiable traversal or iterator hands out modifiable references, so
+  // the block of an entry never written is allocated first, as a[i] does:
+  // what the operation writes stays in the array. These writes used to go
+  // to a short-lived copy and were lost.
   DynArray<int> lazy(3);
   lazy.traverse([] (int & x) { x = 5; return true; });
-  for (auto & x : lazy)
+  EXPECT_EQ(lazy.read(0), 5);
+  EXPECT_EQ(lazy.read(2), 5);
+  EXPECT_EQ(lazy.get_num_blocks(), 1u);
+
+  DynArray<int> ranged(3);
+  for (auto & x : ranged)
     x = 6;
-  EXPECT_EQ(lazy.read(0), 0);
-  EXPECT_EQ(lazy.get_num_blocks(), 0u);
+  EXPECT_EQ(ranged.read(1), 6);
+
+  DynArray<int> mutated(3);
+  mutated.mutable_for_each([] (int & x) { x = 7; });
+  EXPECT_EQ(mutated.read(2), 7);
+
+  DynArray<int> iterated(3);
+  for (auto it = iterated.get_it(); it.has_curr(); it.next_ne())
+    it.get_curr_ne() = 8;
+  EXPECT_EQ(iterated.read(0), 8);
+
+  DynArray<int> sliced(5);
+  sliced.each(1, 2, [] (int & x) { x = 9; });
+  EXPECT_EQ(sliced.read(0), 0);
+  EXPECT_EQ(sliced.read(1), 9);
+  EXPECT_EQ(sliced.read(3), 9);
 
   DynArray<int> written(3, 1);  // real entries are modified in place
   written.traverse([] (int & x) { x = 5; return true; });
   EXPECT_EQ(written.read(2), 5);
+}
+
+TEST(DynArrayLazyReads, ConstantTraversalsNeverAllocate)
+{
+  DynArray<int> lazy(3);
+  lazy.set_default_initial_value(4);
+  const DynArray<int> & clazy = lazy;
+
+  int sum = 0;
+  clazy.traverse([&sum] (const int & x) { sum += x; return true; });
+  for (const auto & x : clazy)
+    sum += x;
+  for (auto it = clazy.get_it(); it.has_curr(); it.next_ne())
+    sum += it.get_curr_ne();
+  lazy.for_each([&sum] (int x) { sum += x; });  // a query traverses the constant array
+  clazy.each(0, 1, [&sum] (int x) { sum += x; });
+  EXPECT_EQ(sum, 4 * 3 * 5);
+  EXPECT_EQ(lazy.get_num_blocks(), 0u);
 }
 
 TEST(DynArrayLazyReads, StackAndQueueOperationsOnLazyEntries)
@@ -820,18 +862,31 @@ TEST(DynArrayIterator, CreatingIteratorsConstructsNoItem)
   EXPECT_EQ(Counted_Default::defaults, before);
 }
 
-TEST(DynArrayIterator, UnwrittenEntryIsACopyOfTheDefaultValue)
+TEST(DynArrayIterator, UnwrittenEntryOnConstantAndModifiableArrays)
 {
   DynArray<int> a(2, 2, 2);  // blocks of four entries
   a.set_default_initial_value(7);
   a.touch(9) = 3;            // entries 0 to 7 are in blocks never allocated
+
+  // On a constant array the iterator never allocates: an entry never
+  // written is the default value, at an address that stays valid.
+  const DynArray<int> & ca = a;
+  auto cit = ca.get_it();
+  const int & first = cit.get_curr();
+  EXPECT_EQ(first, 7);
+  cit.next();
+  EXPECT_EQ(&cit.get_curr(), &first);
+  EXPECT_EQ(a.test(0), nullptr);
+
+  // On a modifiable array get_curr() hands out the entry itself, allocating
+  // its block as a[i] does, so writing through it writes the array.
   auto it = a.get_it();
-  int & unwritten = it.get_curr();
-  EXPECT_EQ(unwritten, 7);
-  unwritten = 100;           // writes the iterator's copy, not the array
-  EXPECT_EQ(a.read(0), 7);
+  int & entry = it.get_curr();
+  EXPECT_EQ(&entry, a.test(0));
+  entry = 100;
+  EXPECT_EQ(a.read(0), 100);
   it.next();
-  EXPECT_EQ(it.get_curr(), 7);
+  EXPECT_EQ(it.get_curr(), 7);  // same block, filled with the default value
   EXPECT_EQ(a.size(), 10u);
 }
 
@@ -896,6 +951,13 @@ TEST(DynArrayLocate, FindPtrOfAnUnwrittenEntryPointsIntoTheArray)
   EXPECT_EQ(*a.find_ptr([] (int i) { return i == 0; }), 0);  // entry 9
 }
 
+/// Whether `a.find_item(op)` compiles for an array `A` and a criterion `Op`.
+template <class A, class Op>
+constexpr bool can_find_item = requires (A & a, Op & op) { a.find_item(op); };
+
+/// A criterion that only reads the entry.
+constexpr auto is_seven_criterion = [] (const int & i) { return i == 7; };
+
 TEST(DynArrayLocate, FindItemOfAnUnwrittenEntryCopiesTheDefaultValue)
 {
   DynArray<int> a = array_with_unwritten_blocks();
@@ -904,17 +966,94 @@ TEST(DynArrayLocate, FindItemOfAnUnwrittenEntryCopiesTheDefaultValue)
   EXPECT_EQ(item, 7);
   EXPECT_EQ(a.test(0), nullptr);  // find_item() returns a copy: no allocation
 
-  // A criterion may modify the item it receives. For an entry never written
-  // that item is a copy, so the result is still the default value.
+  // find_item() is a query: its criterion receives each entry as a
+  // constant reference, so a criterion that modifies it does not compile.
   auto scribble = [] (int & i) { const bool match = i == 7; i = -1; return match; };
-  const auto [scribbled, value] = a.find_item(scribble);
-  EXPECT_TRUE(scribbled);
-  EXPECT_EQ(value, 7);
-  EXPECT_EQ(a.read(0), 7);
+  static_assert(not can_find_item<DynArray<int>, decltype(scribble)>);
+  static_assert(can_find_item<DynArray<int>, decltype(is_seven_criterion)>);
 
   const auto [missing, dflt] = std::as_const(a).find_item([] (int i) { return i == 42; });
   EXPECT_FALSE(missing);
   EXPECT_EQ(dflt, 0);
+}
+
+// G1: the traversal and the iterator handed out short-lived copies of the
+// entries never written, and these functions kept their addresses. The
+// constant ones now point to the default value, which lives as long as the
+// array; the modifiable ones to the entries themselves, now allocated.
+TEST(DynArrayLocate, AddressesOfUnwrittenEntriesStayValid)
+{
+  DynArray<int> a = array_with_unwritten_blocks();  // entries 0 to 7 never written
+  const DynArray<int> & ca = a;
+
+  // Entries 0 to 7 read as the default value; entry 8 shares the block of
+  // entry 9, allocated and filled with the default value.
+  const auto ptrs = ca.ptr_filter([] (int x) { return x == 7; });
+  ASSERT_EQ(ptrs.size(), 9u);
+  size_t i = 0;
+  ptrs.for_each([&ca, &a, &i] (const int * p)
+    {
+      EXPECT_EQ(*p, 7);
+      EXPECT_EQ(p, i < 8 ? &ca.read(0) : a.test(8));
+      ++i;
+    });
+
+  const int * lo = Aleph::min_ptr(ca);
+  const int * hi = Aleph::max_ptr(ca);
+  ASSERT_NE(lo, nullptr);
+  ASSERT_NE(hi, nullptr);
+  EXPECT_EQ(*lo, 0);  // entry 9
+  EXPECT_EQ(*hi, 7);
+  const auto [mn, mx] = Aleph::minmax_ptr(ca);
+  EXPECT_EQ(*mn, 0);
+  EXPECT_EQ(*mx, 7);
+
+  int sum = 0;
+  Aleph::pointers_list(ca).for_each([&sum] (const int * p) { sum += *p; });
+  EXPECT_EQ(sum, 9 * 7 + 0);
+  EXPECT_EQ(a.test(0), nullptr);  // the constant reads allocated nothing
+
+  // Modifiable pointers refer to the entries, whose blocks are allocated
+  auto seven = [] (int x) { return x == 7; };
+  int * p = Aleph::find_ptr(a, seven);
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(p, a.test(0));
+  const auto mutable_ptrs = Aleph::pointers_list(a);
+  EXPECT_EQ(mutable_ptrs.get_first(), a.test(0));
+  *mutable_ptrs.get_last() = 42;  // entry 9
+  EXPECT_EQ(a.read(9), 42);
+}
+
+// F4: these members were noexcept although they copy, swap or
+// default-construct a T, which may throw.
+struct Throwing_Copy
+{
+  int value = 0;
+  Throwing_Copy() = default;
+  Throwing_Copy(const Throwing_Copy & o) : value(o.value) {}
+  Throwing_Copy(Throwing_Copy && o) : value(o.value) {}
+  Throwing_Copy & operator = (const Throwing_Copy & o) { value = o.value; return *this; }
+  Throwing_Copy & operator = (Throwing_Copy && o) { value = o.value; return *this; }
+};
+
+TEST(DynArrayNoexcept, DependsOnT)
+{
+  static_assert(std::is_nothrow_move_constructible_v<DynArray<int>>);
+  static_assert(std::is_nothrow_move_assignable_v<DynArray<int>>);
+  static_assert(std::is_nothrow_swappable_v<DynArray<int>>);
+  static_assert(noexcept(std::declval<DynArray<int> &>().set_default_initial_value(0)));
+
+  static_assert(not std::is_nothrow_move_constructible_v<DynArray<Throwing_Copy>>);
+  static_assert(not std::is_nothrow_move_assignable_v<DynArray<Throwing_Copy>>);
+  static_assert(not noexcept(std::declval<DynArray<Throwing_Copy> &>().swap(
+                               std::declval<DynArray<Throwing_Copy> &>())));
+  static_assert(not noexcept(std::declval<DynArray<Throwing_Copy> &>().set_default_initial_value(
+                               std::declval<const Throwing_Copy &>())));
+
+  DynArray<Throwing_Copy> a, b;
+  a.append(Throwing_Copy());
+  a.swap(b);
+  EXPECT_EQ(b.size(), 1u);
 }
 
 } // namespace

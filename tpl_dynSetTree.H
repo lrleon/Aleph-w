@@ -271,7 +271,7 @@ namespace Aleph
       : public LocateFunctions<DynSetTree<Key, Tree, Compare>, Key>,
         public FunctionalMethods<DynSetTree<Key, Tree, Compare>, Key>,
         public GenericKeys<DynSetTree<Key, Tree, Compare>, Key>,
-        public EqualToMethod<DynSetTree<Key, Tree, Compare>>,
+        public EqualSortedMethod<DynSetTree<Key, Tree, Compare>>,
         public StlAlephIterator<DynSetTree<Key, Tree, Compare>>
   {
   public:
@@ -1421,10 +1421,14 @@ namespace Aleph
         If \code operation() \endcode returns false then the traversal is
         aborted; otherwise the routine advance and so on
 
-        @param[in] op operation to execute for each key
+        @param[in] op operation to execute for each key; it receives a
+                   modifiable reference. Modifying a key so that its order
+                   changes corrupts the tree.
         @return true if all items are traversed; false otherwise
+        @throw anything that `op` throws.
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, Key &>
     bool traverse(Operation & op)
     {
       return Aleph::traverse(tree.getRoot(), [&op](Node *p)
@@ -1433,25 +1437,46 @@ namespace Aleph
                                });
     }
 
+    /// \overload traverse(Operation & op)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, Key &>
     bool traverse(Operation && op = Operation())
     {
       return traverse<Operation>(op);
     }
 
+    /** @brief Traverse a constant set in order; each key is handed out as
+               a constant reference.
+        @param[in] op operation to execute for each key; it must accept
+                   `const Key &`.
+        @return true if all items are traversed; false otherwise
+        @throw anything that `op` throws.
+    */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const Key &>
     bool traverse(Operation & op) const
     {
       return Aleph::traverse(tree.getRoot(), [&op](Node *p)
                                {
-                                 return op(p->get_key());
+                                 return op(static_cast<const Key &>(p->get_key()));
                                });
     }
 
+    /// \overload traverse(Operation & op) const
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const Key &>
     bool traverse(Operation && op = Operation()) const
     {
       return traverse<Operation>(op);
+    }
+
+    /** @brief Return a copy of the comparator that orders the keys.
+        @return the comparator, as `std::set::key_comp()` does.
+        @throw anything that the copy of `Compare` throws.
+    */
+    [[nodiscard]] Compare key_comp() const
+    {
+      return tree.get_compare();
     }
   };
 

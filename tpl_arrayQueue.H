@@ -77,7 +77,7 @@ class ArrayQueue : protected MemArray<T>,
                    public LocateFunctions<ArrayQueue<T>, T>,
                    public FunctionalMethods<ArrayQueue<T>, T>,
                    public GenericKeys<ArrayQueue<T>, T>,
-                   public EqualToMethod<ArrayQueue<T>>,
+                   public EqualSequenceMethod<ArrayQueue<T>>,
                    public StlAlephIterator<ArrayQueue<T>>
 {
 private:
@@ -502,7 +502,9 @@ public:
       `false` otherwise.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation &operation)
+    noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
     if (this->n == 0)
       return true;
@@ -515,21 +517,33 @@ public:
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
-    return const_cast<ArrayQueue *>(this)->traverse(operation);
+    if (this->n == 0)
+      return true;
+
+    for (size_t i = 0, idx = front_index; i < this->n; increase_index(idx), ++i)
+      if (not operation(static_cast<const T &>(this->access(idx))))
+        return false;
+    return true;
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &&operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation &&operation)
+    noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
     return traverse<Operation>(operation);
   }
@@ -570,7 +584,7 @@ template <typename T>
 class FixedQueue : public LocateFunctions<FixedQueue<T>, T>,
                    public FunctionalMethods<FixedQueue<T>, T>,
                    public GenericKeys<FixedQueue<T>, T>,
-                   public EqualToMethod<FixedQueue<T>>,
+                   public EqualSequenceMethod<FixedQueue<T>>,
                    public StlAlephIterator<FixedQueue<T>>
 {
   size_t dim;
@@ -821,7 +835,9 @@ public:
       `false` otherwise.
    */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation &operation)
+    noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
     if (num_items == 0)
       return true;
@@ -833,21 +849,33 @@ public:
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
-    return const_cast<FixedQueue *>(this)->traverse(operation);
+    if (num_items == 0)
+      return true;
+
+    for (size_t i = 0, idx = front_index; i < num_items; increase_index(idx), ++i)
+      if (not operation(static_cast<const T &>(array[idx])))
+        return false;
+    return true;
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &&operation = Operation()) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation &&operation = Operation())
+    noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
     return traverse<Operation>(operation);
   }

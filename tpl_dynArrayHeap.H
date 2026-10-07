@@ -148,7 +148,6 @@ namespace Aleph
   class DynArrayHeap : public LocateFunctions<DynArrayHeap<T, Compare>, T>,
                        public FunctionalMethods<DynArrayHeap<T, Compare>, T>,
                        public GenericKeys<DynArrayHeap<T, Compare>, T>,
-                       public EqualToMethod<DynArrayHeap<T, Compare>>,
                        public StlAlephIterator<DynArrayHeap<T, Compare>>
   {
     DynArray<T> array;
@@ -336,27 +335,36 @@ namespace Aleph
      * The traversal stops early if the operation returns false.
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & operation)
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
-      for (Iterator it(*this); it.has_curr(); it.next_ne())
-        if (not operation(it.get_curr()))
+      for (size_t i = 1; i <= num_items; ++i)  // the items are entries 1 to num_items
+        if (not operation(array.access(i)))
           return false;
       return true;
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & operation) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
-      return const_cast<DynArrayHeap &>(*this).traverse<Operation>(operation);
+      for (size_t i = 1; i <= num_items; ++i)
+        if (not operation(static_cast<const T &>(array.access(i))))
+          return false;
+      return true;
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && operation = Operation()) const
     {
       return traverse<Operation>(operation);
     }
 
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && operation = Operation())
     {
       return traverse<Operation>(operation);

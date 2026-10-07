@@ -69,7 +69,6 @@ class Random_Set
       : public LocateFunctions<Random_Set<T>, T>,
 	public FunctionalMethods<Random_Set<T>, T>,
 	public GenericKeys<Random_Set<T>, T>,
-	public EqualToMethod<Random_Set<T>>,
 	public StlAlephIterator<Random_Set<T>>
 {
 private:
@@ -263,10 +262,22 @@ public:
 
       @ingroup Sequences 
    */
-  struct Iterator : public DynArray<T>
+  struct Iterator : public DynArray<T>::Iterator
   {
-    using Base = DynArray<T>;
-    using Base::Base;
+    using Base = typename DynArray<T>::Iterator;
+
+    /// Default constructor creates an "end" iterator
+    Iterator() noexcept = default;
+
+    /** @brief Iterator on a modifiable queue.
+        @param[in] q queue to iterate.
+    */
+    Iterator(Random_Set & q) noexcept : Base(q.array) {}
+
+    /** @brief Iterator on a constant queue.
+        @param[in] q queue to iterate.
+    */
+    Iterator(const Random_Set & q) noexcept : Base(q.array) {}
   };
 
   /** Conditional traversing of the random queue
@@ -275,28 +286,36 @@ public:
       `true` then the traversing continues; otherwise stops.
   */
   template <class Operation>
-  bool traverse(Operation & operation) 
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation & operation)
+    noexcept(noexcept(array.traverse(operation)))
   {
     return array.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation & operation) const
+    noexcept(noexcept(array.traverse(operation)))
   {
-    return const_cast<Random_Set*>(this)->traverse(operation);
+    return array.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation && operation = Operation()) const
+    noexcept(noexcept(array.traverse(operation)))
   {
     return traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation && operation = Operation())
+    noexcept(noexcept(array.traverse(operation)))
   {
     return traverse(operation);
   }

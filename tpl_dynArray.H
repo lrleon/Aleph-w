@@ -47,7 +47,7 @@
 
 #include <string>
 #include <concepts>
-#include <optional>
+#include <functional>
 #include <type_traits>
 #include <aleph.H>
 #include <ahIterator.H>
@@ -56,6 +56,7 @@
 #include <tpl_dynDlist.H>
 #include <ah-args-ctor.H>
 #include <htlist.H>
+#include <ah-concepts.H>
 #include <ah-dry.H>
 #include <ah-errors.H>
 #include <tpl_array.H>
@@ -734,19 +735,23 @@ public:
       returned when entries not still written are accessed.
 
       @param[in] value default value
+      @throw anything that the copy assignment of `T` throws.
       @note Set it before writing. A block that is already allocated keeps
             the default value it was filled with; only blocks allocated
             afterwards, and reads of entries whose block does not exist,
             use the new value.
    */
-  void set_default_initial_value(const T &value) noexcept
+  void set_default_initial_value(const T &value)
+    noexcept(std::is_nothrow_copy_assignable_v<T>)
   {
     default_initial_value = value;
     default_initial_value_ptr = &default_initial_value;
   }
 
-  /// \overload set_default_initial_value(const T & value)
-  void set_default_initial_value(T &&value = T())
+  /** \overload set_default_initial_value(const T & value)
+      @throw anything that swapping two `T` throws.
+  */
+  void set_default_initial_value(T &&value = T()) noexcept(std::is_nothrow_swappable_v<T>)
   {
     std::swap(default_initial_value, value);
     default_initial_value_ptr = &default_initial_value;
@@ -922,9 +927,10 @@ public:
   /** Swap in constant time `array` with `this`
 
       @param[in] array to swap
+      @throw anything that swapping the default values of `T` throws.
       @note The sizes of directory, segment and block are also swapped
    */
-  void swap(DynArray<T> &array) noexcept
+  void swap(DynArray<T> &array) noexcept(std::is_nothrow_swappable_v<T>)
   {
     std::swap(dir, array.dir);
     std::swap(pow_dir, array.pow_dir);
@@ -951,8 +957,11 @@ public:
   /** @brief Move constructor; allocates nothing.
       @param[in,out] other source; it is left empty and reusable, without a
       directory, which its first write allocates again.
+      @throw anything that the default constructor of `T` or swapping two
+             `T` throws.
   */
-  DynArray(DynArray &&other) noexcept
+  DynArray(DynArray &&other)
+    noexcept(std::is_nothrow_default_constructible_v<T> and std::is_nothrow_swappable_v<T>)
     : pow_dir(Default_Pow_Dir), pow_seg(Default_Pow_Seg),
       pow_block(std::min(Default_Pow_Block, Max_Pow_Block)), seg_plus_block_pow(pow_seg + pow_block),
       mask_seg_plus_block(two_raised(seg_plus_block_pow) - 1), dir_size(two_raised(pow_dir)),
@@ -964,8 +973,12 @@ public:
     swap(other);
   }
 
-  /// Move assignment
-  DynArray &operator = (DynArray &&other) noexcept
+  /** @brief Move assignment: swap the contents with `other`.
+      @param[in,out] other source; it receives the previous contents.
+      @return `*this`.
+      @throw anything that swapping two `T` throws.
+  */
+  DynArray &operator = (DynArray &&other) noexcept(std::is_nothrow_swappable_v<T>)
   {
     swap(other);
     return *this;
@@ -1462,73 +1475,79 @@ public:
   }
 
 private:
-  // Index of the first entry satisfying `operation`, or size() if none.
+  // Index of the first entry satisfying `operation`, found with the
+  // constant traversal, which allocates nothing; size() if none.
   template <class Operation>
-  size_t index_of_first(Operation &operation)
+  size_t index_of_first(Operation &operation) const
   {
     size_t i = 0;
-    auto count_until_match = [&i, &operation](T &item)
+    auto count_until_match = [&i, &operation](const T &item)
       {
-        if (operation(item))
+        if (std::invoke(operation, item))
           return false;
         ++i;
         return true;
       };
-    __traverse(count_until_match);
+    const_traverse(count_until_match);
     return i;
   }
 
 public:
   /** @brief Return a pointer to the first entry satisfying a criterion.
 
-      Hides LocateFunctions::find_ptr(), whose traversal would keep the
-      address of the short-lived copy handed out for an entry never
-      written. If such an entry matches, its block is allocated, as a[i]
-      does, and the pointer refers to the entry. The constant overloads
-      never allocate.
+      Hides LocateFunctions::find_ptr(), whose modifiable traversal would
+      allocate every block it visits. The search reads the entries without
+      allocating; only if an entry never written matches is its block
+      allocated, as a[i] does, so that the pointer refers to the entry.
+      A criterion that only accepts `T &` is evaluated through the
+      modifiable traversal instead, which allocates the blocks it visits.
 
-      @param[in] operation criterion with signature `bool(T &)`.
+      @param[in] operation criterion with signature `bool(const T &)`; it
+                 may also be a pointer to member.
       @return Pointer to the entry, or `nullptr` if no entry satisfies it.
       @throw bad_alloc if the block of the found entry cannot be allocated,
-             and anything that `operation` or the copy of the default value
-             throws.
+             and anything that `operation` throws.
       @note O(size()).
   */
   template <class Operation>
-    requires Aleph::PredicateWith<Operation &, T &>
-  T *find_ptr(Operation &operation)
+    requires Aleph::InvocablePredicateWith<Operation &, T &>
+  [[nodiscard]] T *find_ptr(Operation &operation)
   {
-    const size_t i = index_of_first(operation);
-    return i < current_dim ? &touch(i) : nullptr;
+    if constexpr (Aleph::InvocablePredicateWith<Operation &, const T &>)
+      {
+        const size_t i = index_of_first(operation);
+        return i < current_dim ? &touch(i) : nullptr;
+      }
+    else
+      return LocateFunctions<DynArray<T>, T>::find_ptr(operation);
   }
 
   /** @brief Constant overload of find_ptr(); it never allocates memory.
-      @param[in] operation criterion with signature `bool(T &)`.
+      @param[in] operation criterion with signature `bool(const T &)`.
       @return Pointer to the entry, to the default value if the entry was
               never written, or `nullptr` if no entry satisfies it.
-      @throw anything that `operation` or the copy of the default value
-             throws.
+      @throw anything that `operation` throws.
   */
   template <class Operation>
-    requires Aleph::PredicateWith<Operation &, T &>
-  const T *find_ptr(Operation &operation) const
+    requires Aleph::InvocablePredicateWith<Operation &, const T &>
+  [[nodiscard]] const T *find_ptr(Operation &operation) const
   {
-    const size_t i = const_cast<DynArray &>(*this).index_of_first(operation);
+    const size_t i = index_of_first(operation);
     return i < current_dim ? &read(i) : nullptr;
   }
 
   /// \overload find_ptr(Operation & operation)
   template <class Operation>
-    requires Aleph::PredicateWith<Operation &, T &>
-  T *find_ptr(Operation &&operation)
+    requires Aleph::InvocablePredicateWith<Operation &, T &>
+  [[nodiscard]] T *find_ptr(Operation &&operation)
   {
     return find_ptr<Operation>(operation);
   }
 
   /// \overload find_ptr(Operation & operation) const
   template <class Operation>
-    requires Aleph::PredicateWith<Operation &, T &>
-  const T *find_ptr(Operation &&operation) const
+    requires Aleph::InvocablePredicateWith<Operation &, const T &>
+  [[nodiscard]] const T *find_ptr(Operation &&operation) const
   {
     return find_ptr<Operation>(operation);
   }
@@ -1706,12 +1725,19 @@ public:
       The visit order is from the lower index 0 to current dimension
       minus one.
 
-      Iterating never allocates array memory. An entry that was never
-      written is seen as the default value: get_curr() then returns a
-      reference to a copy held by the iterator, so writing through it has no
-      effect on the array. Write unwritten entries through operator[],
-      touch() or append(). The copy is built on demand, so creating an
-      iterator never constructs a `T`.
+      What the iterator does with an entry that was never written depends
+      on the array it was built on:
+
+      - on a **constant array**, it never allocates: get_curr() returns the
+        array's default value, whose address is stable while the array
+        lives. The reference must not be used to write.
+      - on a **modifiable array**, get_curr() returns a modifiable
+        reference, so it allocates the entry's block first, as a[i] does:
+        a read cannot be told apart from a write. Writing through it
+        writes the array.
+
+      To read a modifiable array without allocating, iterate it through a
+      constant reference, as `std::as_const(a)` gives.
 
       @ingroup Sequences
   */
@@ -1720,7 +1746,7 @@ public:
   protected:
     DynArray *array_ptr = nullptr;
     long curr_idx = 0;
-    mutable std::optional<T> unwritten_entry;  ///< copy handed out for an entry never written
+    bool modifiable = false;  ///< built on a modifiable array: reading an unwritten entry allocates it
 
   public:
     using Set_Type = DynArray;
@@ -1735,7 +1761,24 @@ public:
     /// Default constructor creates an "end" iterator
     Iterator() noexcept = default;
 
-    /// Initializes an iterator on `array`
+    /** @brief Iterator on a modifiable array.
+
+        Reading an entry that was never written through get_curr()
+        allocates its block, as a[i] does.
+
+        @param[in] array array to iterate.
+    */
+    Iterator(DynArray &array) noexcept : array_ptr(&array), modifiable(true)
+    {
+      // empty
+    }
+
+    /** @brief Iterator on a constant array; it never allocates.
+
+        An entry that was never written is seen as the default value.
+
+        @param[in] array array to iterate.
+    */
     Iterator(const DynArray &array) noexcept : array_ptr(const_cast<DynArray *>(&array))
     {
       // empty
@@ -1765,28 +1808,38 @@ public:
     }
 
     /** @brief Return the current item without checking the position.
-        @return Reference to the current entry or, if its block was never
-                allocated, to a copy of the default value held by the
-                iterator, which the next such read overwrites.
-        @throws Anything the copy constructor of `T` throws, only for an
-                entry whose block was never allocated.
+
+        Same as get_curr(), without the check of the position, for the
+        pattern `for (...; it.has_curr(); it.next_ne())`.
+
+        @return Reference to the current entry. For an entry that was never
+                written, on a modifiable array its block is allocated first;
+                on a constant array it is the default value.
+        @throws std::bad_alloc only on a modifiable array, if the block of
+                an entry never written cannot be allocated.
         @note Be careful: the position is not checked.
     */
-    T &get_curr_ne() const noexcept(std::is_nothrow_copy_constructible_v<T>)
+    [[nodiscard]] T &get_curr_ne() const
     {
-      if (T *entry = array_ptr->test(static_cast<size_t>(curr_idx)); entry != nullptr)
+      const auto i = static_cast<size_t>(curr_idx);
+      if (T *entry = array_ptr->test(i); entry != nullptr)
         return *entry;
 
-      return unwritten_entry.emplace(array_ptr->default_initial_value);
+      if (modifiable)
+        return array_ptr->touch(i);  // a modifiable reference: allocate, as a[i] does
+
+      return array_ptr->default_initial_value;
     }
 
     /** @brief Return the current item.
 
-        @return Reference to the current item.
+        @return Reference to the current item; see get_curr_ne().
         @throws std::underflow_error if positioned before the first item.
         @throws std::overflow_error if singular or at or past the end.
+        @throws std::bad_alloc only on a modifiable array, if the block of
+                an entry never written cannot be allocated.
     */
-    T &get_curr() const
+    [[nodiscard]] T &get_curr() const
     {
       ah_underflow_error_if(curr_idx < 0) << "not current item in iterator";
       ah_overflow_error_if(array_ptr == nullptr or
@@ -1822,7 +1875,7 @@ public:
       next_ne();
     }
 
-    // Move the iterator one position backward guaranteeing no
+    /// Move the iterator one position backward guaranteeing no
     /// exception. Be careful.
     void prev_ne() noexcept
     {
@@ -1855,23 +1908,35 @@ public:
       curr_idx = 0;
     }
 
+    /// Put the iterator on position `pos`, without checking it
     void set_pos(const long pos) noexcept
     {
       curr_idx = pos;
     }
   };
 
-  Iterator get_it()
+  /** @brief Iterator on the modifiable array, positioned on entry 0.
+      @return the iterator; reading an entry never written allocates it.
+  */
+  [[nodiscard]] Iterator get_it()
   {
     return Iterator(*this);
   }
 
-  Iterator get_it() const
+  /** @brief Iterator on the constant array, positioned on entry 0.
+      @return the iterator; it never allocates.
+  */
+  [[nodiscard]] Iterator get_it() const
   {
     return Iterator(*this);
   }
 
-  Iterator get_it(const size_t pos)
+  /** @brief Iterator on the modifiable array, positioned on entry pos.
+      @param[in] pos position of the iterator.
+      @return the iterator.
+      @throw out_of_range if pos >= size().
+  */
+  [[nodiscard]] Iterator get_it(const size_t pos)
   {
     ah_out_of_range_error_if(pos >= size()) << "DynArray::get_it(pos): pos >= size()";
     Iterator it(*this);
@@ -1879,23 +1944,32 @@ public:
     return it;
   }
 
-  Iterator get_it(const size_t pos) const
+  /** @brief Iterator on the constant array, positioned on entry pos.
+      @param[in] pos position of the iterator.
+      @return the iterator; it never allocates.
+      @throw out_of_range if pos >= size().
+  */
+  [[nodiscard]] Iterator get_it(const size_t pos) const
   {
-    return const_cast<DynArray *>(this)->get_it(pos);
+    ah_out_of_range_error_if(pos >= size()) << "DynArray::get_it(pos): pos >= size()";
+    Iterator it(*this);
+    it.set_pos(static_cast<long>(pos));
+    return it;
   }
 
 private:
-  // Fast traversal, block by block. It never allocates memory: the entries
-  // of a block that does not exist are handed to `operation` as copies of
-  // the default value, so modifying them has no effect on the array.
+  // Constant traversal, block by block. It never allocates memory: the
+  // entries of a block that does not exist are handed to `operation` as
+  // the default value, whose address is stable while the array lives.
   template <class Operation>
-  bool __traverse(Operation &operation)
+  bool const_traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
     size_t i = 0;
     while (i < current_dim)
       {
         const size_t count = std::min(block_size - index_in_block(i), current_dim - i);
-        if (T *entry = test(i); entry != nullptr)
+        if (const T *entry = test(i); entry != nullptr)
           {
             for (size_t k = 0; k < count; ++k)
               if (not operation(entry[k]))
@@ -1903,19 +1977,36 @@ private:
           }
         else
           for (size_t k = 0; k < count; ++k)
-            {
-              T unwritten = default_initial_value;
-              if (not operation(unwritten))
-                return false;
-            }
+            if (not operation(static_cast<const T &>(default_initial_value)))
+              return false;
+        i += count;
+      }
+    return true;
+  }
+
+  // Modifiable traversal, block by block. `operation` receives modifiable
+  // references, so the block of an entry never written is allocated before
+  // it is visited, as a[i] does: whatever `operation` writes stays in the
+  // array.
+  template <class Operation>
+  bool mutable_traverse(Operation &operation)
+  {
+    size_t i = 0;
+    while (i < current_dim)
+      {
+        const size_t count = std::min(block_size - index_in_block(i), current_dim - i);
+        T *entry = &touch(i);  // the count entries from i lie in the same block
+        for (size_t k = 0; k < count; ++k)
+          if (not operation(entry[k]))
+            return false;
         i += count;
       }
     return true;
   }
 
 public:
-  /** Traverse all the array and execute a conditioned operation
-       must have the signature:
+  /** Traverse a constant array and execute a conditioned operation,
+      which must have the signature:
 
       \code
       bool operation(const T & item)
@@ -1926,35 +2017,134 @@ public:
 
       @param[in] operation
       @return `true` if all items are traversed; `false` otherwise
+      @throw anything that `operation` throws.
       @note It never allocates memory. Entries that were never written are
-            passed as copies of the default value; modifying them has no
-            effect on the array.
+            passed as the default value.
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
-    return const_cast<DynArray &>(*this).__traverse(operation);
+    return const_traverse(operation);
   }
 
-  /// \overload traverse(Operation & operation)
+  /** Traverse a modifiable array; `operation` receives modifiable
+      references, with the signature `bool operation(T & item)`.
+
+      @param[in] operation
+      @return `true` if all items are traversed; `false` otherwise
+      @throw bad_alloc if the block of an entry never written cannot be
+             allocated, and anything that `operation` throws.
+      @note The block of an entry never written is allocated before it is
+            visited, as a[i] does, so whatever `operation` writes stays in
+            the array. To read without allocating, traverse a constant
+            reference, as `std::as_const(a).traverse(op)`.
+  */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation &operation)
   {
-    return __traverse(operation);
+    return mutable_traverse(operation);
   }
 
-  /// \overload traverse(Operation & operation)
+  /// \overload traverse(Operation & operation) const
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &&operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation &&operation)
   {
     return traverse<Operation>(operation);
+  }
+
+  // DynArray declares each(pos, slice, op) to allocate only the visited
+  // entries; that hides every FunctionalMethods::each, so the constant
+  // ones are forwarded here.
+
+  /** @brief Alias of for_each(); see FunctionalMethods::for_each().
+      @param[in] operation operation with signature `void(const T &)`.
+      @throw anything that `operation` throws.
+  */
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, const T &>
+  void each(Operation &operation) const
+  {
+    this->for_each(operation);
+  }
+
+  /// \overload each(Operation & operation) const
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, const T &>
+  void each(Operation &&operation) const
+  {
+    this->for_each(operation);
+  }
+
+  /** @brief Visit the entries at positions pos, pos + slice, ... of a
+             constant array; see FunctionalMethods::each(). It never
+             allocates memory.
+      @param[in] pos position of the first visited entry.
+      @param[in] slice distance between two consecutive visited entries.
+      @param[in] operation operation with signature `void(const T &)`.
+      @throw anything that `operation` throws.
+  */
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, const T &>
+  void each(const size_t pos, const size_t slice, Operation &operation) const
+  {
+    FunctionalMethods<DynArray<T>, T>::each(pos, slice, operation);
+  }
+
+  /// \overload each(size_t pos, size_t slice, Operation & operation) const
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, const T &>
+  void each(const size_t pos, const size_t slice, Operation &&operation) const
+  {
+    FunctionalMethods<DynArray<T>, T>::each(pos, slice, operation);
+  }
+
+  /** @brief Visit, and possibly modify, the entries at positions pos,
+             pos + slice, pos + 2 slice, ... of a modifiable array.
+
+      Unlike the generic FunctionalMethods::each(pos, slice, op), whose
+      modifiable traversal would allocate every block of the array, only
+      the blocks of the visited entries are allocated, as a[i] does.
+
+      @param[in] pos position of the first visited entry.
+      @param[in] slice distance between two consecutive visited entries;
+                 nothing is visited if it is zero.
+      @param[in] operation operation with signature `void(T &)`.
+      @throw bad_alloc if the block of a visited entry cannot be allocated,
+             and anything that `operation` throws.
+  */
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, T &>
+  void each(const size_t pos, const size_t slice, Operation &operation)
+  {
+    if (slice == 0)
+      return;
+    for (size_t i = pos; i < current_dim; i += slice)
+      {
+        std::invoke(operation, touch(i));
+        if (current_dim - i <= slice)  // the next position is past the end
+          break;
+      }
+  }
+
+  /// \overload each(size_t pos, size_t slice, Operation & operation)
+  template <class Operation>
+    requires Aleph::InvocableWith<Operation &, T &>
+  void each(const size_t pos, const size_t slice, Operation &&operation)
+  {
+    each<Operation>(pos, slice, operation);
   }
 };
 

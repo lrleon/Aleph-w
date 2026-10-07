@@ -164,6 +164,13 @@ protected:
 #endif
 
 public:
+  /** Number of items at or below which contract() halves the capacity.
+
+      It is recomputed as a quarter of the capacity whenever the array is
+      reallocated. Changing it only changes when the array contracts:
+      contract() never shrinks the capacity below the number of items, so
+      no item can be lost. `ArrayQueue` exports it with a using-declaration.
+  */
   mutable size_t contract_threshold;
 
   /// Return the current base of array.
@@ -226,6 +233,8 @@ protected:
   /// Allocate memory for the current dimension
   void allocate()
   {
+    static_assert(std::is_default_constructible_v<T>,
+                  "MemArray<T> requires a default-constructible T (storage is new T[dim])");
     assert(is_power_of_2(dim));
     ptr = new T[dim];
     contract_threshold = dim / 4;
@@ -452,6 +461,11 @@ public:
       The array size is set to zero, but the allocated memory is not released.
 
       @throws none
+      @note Unlike `std::vector::clear()`, the items are not destroyed: the
+            storage is an array of `T` built with `new T[dim]`, so the
+            objects stay alive, with their last values, until they are
+            overwritten or the array is released. Use empty_and_release()
+            or the destructor to release them.
   */
   void empty() noexcept
   {
@@ -562,8 +576,14 @@ private:
 
   void close_gap(size_t pos, size_t num_entries = 1)
   {
+    ah_underflow_error_if(num_entries == 0) << "MemArray::close_gap(): no entries to remove";
     Aleph::close_gap(ptr, n, pos, num_entries);
-    get(num_entries);
+    // The last num_entries items are now moved-from: drop them without
+    // moving them out again, as get() would do.
+    const size_t old_n = n;
+    n -= num_entries;
+    annotate(old_n, n);
+    contract();
   }
 
 public:
@@ -810,12 +830,15 @@ public:
   /** Traverse all the elements from index 0 to `n - 1` and execute
       `operation` on each on them.
 
-      @param[in] operation to be performed on each element
+      @param[in] operation to be performed on each element; it receives
+                 a modifiable reference.
       @return `true` if `operation` was executed on all elements;
       `false` otherwise.
+      @throw anything that `operation` throws.
   */
   template <class Operation>
-  bool traverse(Operation &operation)
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation &operation) noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
     assert(ptr or n == 0);
     for (size_t i = 0; i < n; i++)
@@ -825,23 +848,41 @@ public:
     return true;
   }
 
-  /// \overload traverse(Operation & operation)
+  /** Traverse a constant array; each element is handed out as a
+      constant reference.
+
+      @param[in] operation to be performed on each element; it must accept
+                 `const T &`.
+      @return `true` if `operation` was executed on all elements;
+      `false` otherwise.
+      @throw anything that `operation` throws.
+  */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
-    return const_cast<MemArray *>(this)->traverse(operation);
+    assert(ptr or n == 0);
+    for (size_t i = 0; i < n; i++)
+      if (not operation(static_cast<const T &>(ptr[i])))
+        return false;
+
+    return true;
   }
 
-  /// \overload traverse(Operation & operation)
+  /// \overload traverse(Operation & operation) const
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation &&operation) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation &&operation)
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation &&operation) noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
   {
     return traverse<Operation>(operation);
   }

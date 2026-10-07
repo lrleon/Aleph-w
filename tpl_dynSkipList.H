@@ -208,11 +208,18 @@ public:
 
   /** @brief Construct a DynSkipList with given seed and probability.
    *  @param[in] seed Random seed for level generation.
-   *  @param[in] p Probability for level increase (default 0.5).
+   *  @param[in] p Probability for level increase (default 0.5); it must be
+   *             strictly between 0 and 1.
+   *  @throw domain_error if `p` is not in (0, 1): with `p >= 1` every node
+   *         would get the maximum level, and with `p <= 0` every node
+   *         level 1; in both cases searches degrade to linear time.
+   *  @throw bad_alloc if there is not enough memory.
    */
   DynSkipList(unsigned long seed, double p = defaultProbability)
     : r(nullptr), probability(p)
   {
+    ah_domain_error_if(not (p > 0.0 and p < 1.0))
+      << "DynSkipList: probability " << p << " is not in (0, 1)";
     header = new Node(maxLevel);
     init(seed);
   }
@@ -816,98 +823,36 @@ public:
   // Functional operations
   // =========================================================================
 
+  /** @brief Traverse the keys in increasing order.
+
+      The keys of a skip list are kept sorted and must not be modified, so
+      every traversal hands them out as constant references; the members
+      inherited from FunctionalMethods (for_each(), all(), exists(),
+      none(), foldl(), ...) are built on it.
+
+      @param[in] op operation with signature `bool(const Key &)`; the
+                 traversal stops when it returns `false`.
+      @return `true` if all keys were visited; `false` otherwise.
+      @throw anything that `op` throws.
+  */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const Key &>
   bool traverse(Operation & op) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const Key &>)
   {
-    for (auto it = begin(); it.has_curr(); it.next())
-      if (not op(it.get_curr()))
+    for (auto it = begin(); it.has_curr(); it.next_ne())
+      if (not op(static_cast<const Key &>(it.get_curr_ne())))
         return false;
     return true;
   }
 
+  /// \overload traverse(Operation & op) const
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const Key &>
   bool traverse(Operation && op = Operation()) const
+    noexcept(Aleph::NothrowPredicateWith<Operation &, const Key &>)
   {
     return traverse<Operation>(op);
-  }
-
-  template <class Operation>
-  void for_each(Operation & op) const
-  {
-    for (auto it = begin(); it.has_curr(); it.next())
-      op(it.get_curr());
-  }
-
-  template <class Operation>
-  void for_each(Operation && op = Operation()) const
-  {
-    for_each<Operation>(op);
-  }
-
-  template <class Pred>
-  bool all(Pred & pred) const
-  {
-    for (auto it = begin(); it.has_curr(); it.next())
-      if (not pred(it.get_curr()))
-        return false;
-    return true;
-  }
-
-  template <class Pred>
-  bool all(Pred && pred = Pred()) const
-  {
-    return all<Pred>(pred);
-  }
-
-  template <class Pred>
-  bool exists(Pred & pred) const
-  {
-    for (auto it = begin(); it.has_curr(); it.next())
-      if (pred(it.get_curr()))
-        return true;
-    return false;
-  }
-
-  template <class Pred>
-  bool exists(Pred && pred = Pred()) const
-  {
-    return exists<Pred>(pred);
-  }
-
-  template <class Pred>
-  bool none(Pred & pred) const
-  {
-    return not exists(pred);
-  }
-
-  template <class Pred>
-  bool none(Pred && pred = Pred()) const
-  {
-    return none<Pred>(pred);
-  }
-
-  template <typename T>
-  T foldl(const T & init, std::function<T(const T &, const Key &)> op) const
-  {
-    T acc = init;
-    for (auto it = begin(); it.has_curr(); it.next())
-      acc = op(acc, it.get_curr());
-    return acc;
-  }
-
-  template <typename T, class Operation>
-  T foldl(const T & init, Operation & op) const
-  {
-    T acc = init;
-    for (auto it = begin(); it.has_curr(); it.next())
-      acc = op(acc, it.get_curr());
-    return acc;
-  }
-
-  template <typename T, class Operation>
-  T foldl(const T & init, Operation && op) const
-  {
-    return foldl<T, Operation>(init, op);
   }
 };
 

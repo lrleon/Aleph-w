@@ -64,7 +64,7 @@ class DynListQueue
       : public LocateFunctions<DynListQueue<T>, T>,
 	public FunctionalMethods<DynListQueue<T>, T>,
 	public GenericKeys<DynListQueue<T>, T>,
-	public EqualToMethod<DynListQueue<T>>,
+	public EqualSequenceMethod<DynListQueue<T>>,
 	public StlAlephIterator<DynListQueue<T>>
 {
   DynList<T> q;
@@ -263,52 +263,59 @@ public:
       `false` otherwise.
   */
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, T &>
   bool traverse(Operation & operation)
+    noexcept(noexcept(q.traverse(operation)))
   {
     return q.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation & operation) const
+    noexcept(noexcept(q.traverse(operation)))
   {
     return q.traverse(operation);
   }
 
   /// \overload traverse (Operation & operation)
   template <class Operation>
+    requires Aleph::PredicateWith<Operation &, const T &>
   bool traverse(Operation && operation = Operation()) const
+    noexcept(noexcept(q.traverse(operation)))
   {
     return q.traverse(std::forward<Operation>(operation));
   }
 
   /// \overload traverse (Operation & operation)
   template <class Operation>
-  bool traverse(Operation && operation = Operation()) 
+    requires Aleph::PredicateWith<Operation &, T &>
+  bool traverse(Operation && operation = Operation())
+    noexcept(noexcept(q.traverse(operation)))
   {
     return q.traverse(std::forward<Operation>(operation));
   }
 
   /** Search for an item in the queue using equality comparison.
 
-      This method is required by EqualToMethod mixin.
       Performs a linear search O(n) from front to rear.
 
       @param[in] key the value to search for
       @return pointer to the item if found, nullptr otherwise
    */
-  T * search(const T & key) noexcept
+  T * search(const T & key) noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
   {
     return this->find_ptr([&key](const T & item) { return item == key; });
   }
 
   /// \overload search(const T & key)
-  const T * search(const T & key) const noexcept
+  const T * search(const T & key) const noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
   {
-    return const_cast<DynListQueue*>(this)->search(key);
+    return this->find_ptr([&key](const T & item) { return item == key; });
   }
 
-  /// Key_Type is required by EqualToMethod mixin
+  /// Alias for the item type
   using Key_Type = T;
 
   /** Iterator on elements of a queue.

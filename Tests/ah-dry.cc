@@ -38,6 +38,8 @@
 # include <gtest/gtest.h>
 
 # include <limits>
+# include <numeric>
+# include <algorithm>
 # include <map>
 # include <stdexcept>
 # include <string>
@@ -60,6 +62,11 @@
 # include <tpl_dynListStack.H>
 # include <tpl_dynarray_set.H>
 # include <tpl_random_queue.H>
+# include <tpl_dynListQueue.H>
+# include <tpl_arrayStack.H>
+# include <tpl_interval_tree.H>
+# include <tpl_dynMat.H>
+# include <tpl_dynSkipList.H>
 
 using namespace std;
 using namespace testing;
@@ -366,7 +373,8 @@ TYPED_TEST_P(Container, take_with_step)
   const size_t cases[][3] = { {0, 999, 1}, {0, 999, 2}, {1, 998, 3}, {5, 5, 7},
                               {0, 10, 4}, {990, largest, 3}, {0, 999, 1000},
                               {3, 900, largest}, {999, 999, 1}, {10, 5, 2},
-                              {0, 4, 0} };
+                              {0, 4, 0}, {1000, 1005, 1}, {5000, 6000, 3},
+                              {largest, largest, 1} };
   for (const auto & [i, j, step] : cases)
     {
       vector<int> expected;
@@ -400,16 +408,168 @@ TYPED_TEST_P(Container, mutable_drop_needs_remove)
     }
 }
 
+// Traversals that are plain loops over lists, arrays or hash tables cannot
+// throw by themselves: the queries built on them inherit their noexcept.
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<DynList<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<DynDlist<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<DynArray<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<ArrayQueue<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<ArrayStack<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<FixedStack<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<FixedQueue<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<DynListQueue<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<DynListStack<int>, int>);
+static_assert(Aleph::dry_detail::const_traversal_is_noexcept<DynArrayHeap<int>, int>);
+static_assert(noexcept(declval<const DynList<int> &>().find_item(Nothrow_Match{0})));
+static_assert(noexcept(declval<const DynArray<int> &>().length()));
+
 TYPED_TEST_P(Container, find_item_noexcept_for_nothrow_items)
 {
-  // Copying or default-constructing an int cannot throw, so a noexcept
-  // criterion keeps find_item() noexcept.
-  static_assert(noexcept(declval<TypeParam &>().find_item(Nothrow_Match{0})));
-  static_assert(noexcept(declval<const TypeParam &>().find_item(Nothrow_Match{0})));
+  // Copying or default-constructing an int cannot throw, so with a
+  // noexcept criterion find_item() is noexcept exactly when the traversal
+  // of the container cannot throw by itself (F2).
+  constexpr bool nothrow_traversal =
+    Aleph::dry_detail::const_traversal_is_noexcept<TypeParam, int>;
+  static_assert(noexcept(declval<TypeParam &>().find_item(Nothrow_Match{0})) == nothrow_traversal);
+  static_assert(noexcept(declval<const TypeParam &>().find_item(Nothrow_Match{0})) == nothrow_traversal);
   const TypeParam & c = this->c;
   const auto [found, item] = c.find_item(Nothrow_Match{7});
   EXPECT_TRUE(found);
   EXPECT_EQ(item, 7);
+}
+
+
+/// Operations that need to modify the item: queries must reject them.
+struct Modifying_Pred
+{
+  bool operator()(int & x) const { x = -x; return true; }
+};
+
+struct Modifying_Act
+{
+  void operator()(int & x) const { x = -x; }
+};
+
+TYPED_TEST_P(Container, queries_reject_modifying_operations)
+{
+  // A constant container hands out its items as constant references: an
+  // operation that needs `int &` does not compile with any query (G4).
+  using C = TypeParam;
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.traverse(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { traverse(c, op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.all(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.exists(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.none(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.count_if(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.find_ptr(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.find_index(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.find_item(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.find_opt(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.contains_if(op); });
+  static_assert(not requires (const C & c, Modifying_Pred & op) { c.filter(op); });
+  static_assert(not requires (const C & c, Modifying_Act & op) { c.for_each(op); });
+  static_assert(not requires (const C & c, Modifying_Act & op) { c.each(op); });
+  static_assert(not requires (const C & c, Modifying_Act & op) { c.each(0, 1, op); });
+
+  // The same operations are accepted when they only read.
+  auto reads = [] (const int & x) { return x >= 0; };
+  static_assert(requires (const C & c) { c.traverse(reads); c.all(reads); c.find_ptr(reads); });
+}
+
+TYPED_TEST_P(Container, each_with_position_and_slice)
+{
+  const TypeParam & c = this->c;
+  vector<int> order;
+  c.for_each([&order] (int i) { order.push_back(i); });
+
+  constexpr size_t largest = numeric_limits<size_t>::max();
+  const size_t cases[][2] = { {0, 1}, {3, 7}, {999, 1}, {1000, 1}, {5000, 2},
+                              {0, largest}, {10, 0} };
+  for (const auto & [pos, slice] : cases)
+    {
+      vector<int> expected;
+      if (slice != 0)
+        for (size_t p = pos; p < order.size(); )
+          {
+            expected.push_back(order[p]);
+            if (order.size() - p <= slice)
+              break;
+            p += slice;
+          }
+      vector<int> visited;
+      EXPECT_NO_THROW(c.each(pos, slice, [&visited] (int x) { visited.push_back(x); }));
+      EXPECT_EQ(visited, expected) << "each(" << pos << ", " << slice << ")";
+    }
+
+  // An empty container visits nothing and does not throw (G10)
+  const TypeParam empty;
+  size_t calls = 0;
+  EXPECT_NO_THROW(empty.each(0, 1, [&calls] (int) { ++calls; }));
+  EXPECT_EQ(calls, 0u);
+}
+
+TYPED_TEST_P(Container, functional_operations)
+{
+  const TypeParam & c = this->c;
+  vector<int> order;
+  c.for_each([&order] (int i) { order.push_back(i); });
+  const auto pred = [] (int x) { return x % 3 == 0; };
+
+  EXPECT_EQ(c.count_if(pred), size_t(count_if(order.begin(), order.end(), pred)));
+  EXPECT_TRUE(c.none([] (int x) { return x < 0; }));
+  EXPECT_FALSE(c.none(pred));
+
+  const auto found = c.find_opt([&order] (int x) { return x == order[17]; });
+  ASSERT_TRUE(found.has_value());
+  EXPECT_EQ(*found, order[17]);
+  EXPECT_FALSE(c.find_opt([] (int x) { return x < 0; }).has_value());
+
+  // take_while() and drop_while() split at the first item that fails
+  const auto small = [&order] (int x) { return x != order[400]; };
+  vector<int> prefix, suffix;
+  c.take_while(small).for_each([&prefix] (int x) { prefix.push_back(x); });
+  c.drop_while(small).for_each([&suffix] (int x) { suffix.push_back(x); });
+  EXPECT_EQ(prefix, vector<int>(order.begin(), order.begin() + 400));
+  EXPECT_EQ(suffix, vector<int>(order.begin() + 400, order.end()));
+
+  // flat_map() concatenates in traversal order
+  vector<int> doubled;
+  c.flat_map([] (int x) { return DynList<int>({x, -x}); })
+    .for_each([&doubled] (int x) { doubled.push_back(x); });
+  ASSERT_EQ(doubled.size(), 2 * order.size());
+  EXPECT_EQ(doubled[2 * 5], order[5]);
+  EXPECT_EQ(doubled[2 * 5 + 1], -order[5]);
+
+  // foldr() folds from the last item: building a list rebuilds the order
+  const auto rebuilt = c.foldr(DynList<int>(), [] (int x, DynList<int> acc)
+                                 {
+                                   acc.insert(x);
+                                   return acc;
+                                 });
+  vector<int> again;
+  rebuilt.for_each([&again] (int x) { again.push_back(x); });
+  EXPECT_EQ(again, order);
+
+  // reduce() needs no initial value; an empty container gives nullopt
+  const auto total = c.reduce([] (int a, int x) { return a + x; });
+  ASSERT_TRUE(total.has_value());
+  EXPECT_EQ(*total, accumulate(order.begin(), order.end(), 0));
+  EXPECT_FALSE(TypeParam().reduce([] (int a, int x) { return a + x; }).has_value());
+}
+
+TYPED_TEST_P(Container, unchecked_iteration_matches_the_checked_one)
+{
+  // The _ne methods are the checked ones without the checks: in the
+  // pattern `for (...; it.has_curr(); it.next_ne())` they give the same
+  // sequence (G21).
+  const TypeParam & c = this->c;
+  vector<int> checked, unchecked;
+  for (auto it = c.get_it(); it.has_curr(); it.next())
+    checked.push_back(it.get_curr());
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    unchecked.push_back(it.get_curr_ne());
+  EXPECT_EQ(checked, unchecked);
+  EXPECT_EQ(checked.size(), this->N);
 }
 
 REGISTER_TYPED_TEST_SUITE_P(Container, traverse, for_each, find_ptr,
@@ -417,7 +577,11 @@ REGISTER_TYPED_TEST_SUITE_P(Container, traverse, for_each, find_ptr,
                             nappend, ninsert, all, exists, maps, map_synonyms,
                             foldl, filter_ops, nth_out_of_range, take_with_step,
                             mutable_drop_needs_remove,
-                            find_item_noexcept_for_nothrow_items);
+                            find_item_noexcept_for_nothrow_items,
+                            queries_reject_modifying_operations,
+                            each_with_position_and_slice,
+                            functional_operations,
+                            unchecked_iteration_matches_the_checked_one);
 
 typedef
 Types< DynList<int>, DynDlist<int>,  DynArray<int>,
@@ -638,4 +802,382 @@ TEST(LocateFunctions, find_item_propagates_default_construction_exceptions)
   check_find_item_propagates<Array<Default_Throws>>();
   check_find_item_propagates<DynList<Default_Throws>>();
   check_find_item_propagates<DynArray<Default_Throws>>();
+}
+
+namespace
+{
+  /// Counts its copies; moving it is free.
+  struct Copy_Counted
+  {
+    static inline size_t copies = 0;
+    vector<int> items;
+
+    Copy_Counted() = default;
+    Copy_Counted(const Copy_Counted & o) : items(o.items) { ++copies; }
+    Copy_Counted(Copy_Counted && o) noexcept : items(std::move(o.items)) {}
+    Copy_Counted & operator = (const Copy_Counted & o)
+    {
+      items = o.items;
+      ++copies;
+      return *this;
+    }
+    Copy_Counted & operator = (Copy_Counted && o) noexcept
+    {
+      items = std::move(o.items);
+      return *this;
+    }
+    bool operator == (const Copy_Counted & o) const { return items == o.items; }
+  };
+
+  template <class C>
+  constexpr bool foldl_without_operation = requires (const C & c) { c.foldl(0); };
+
+  template <class C, class Arg>
+  constexpr bool can_emplace = requires (C & c, Arg a) { c.emplace(a); };
+
+  template <class C, class Op>
+  constexpr bool can_find_item = requires (const C & c, Op & op) { c.find_item(op); };
+
+  template <class C>
+  constexpr bool has_equality = requires (const C & a, const C & b) { a == b; };
+
+  template <class C>
+  constexpr bool can_modify_each = requires (C & c, Modifying_Act & op) { c.mutable_for_each(op); };
+
+  struct No_Default
+  {
+    int value;
+    explicit No_Default(int v) : value(v) {}
+    bool operator == (const No_Default & o) const { return value == o.value; }
+  };
+
+  struct Item
+  {
+    int key;
+    bool valid;
+    [[nodiscard]] bool is_valid() const noexcept { return valid; }
+  };
+}
+
+TEST(FunctionalMethods, maps_deduces_the_item_type)
+{
+  // The item type of the result is that of the operation (G5): x / 2.0
+  // used to be truncated into a DynList<int>.
+  DynList<int> l = {1, 2, 3};
+  auto halves = l.maps([] (int x) { return x / 2.0; });
+  static_assert(is_same_v<decltype(halves), DynList<double>>);
+  EXPECT_DOUBLE_EQ(halves.get_first(), 0.5);
+  EXPECT_DOUBLE_EQ(halves.get_last(), 1.5);
+
+  auto names = l.maps([] (int x) { return to_string(x); });
+  static_assert(is_same_v<decltype(names), DynList<string>>);
+  EXPECT_EQ(names.get_last(), "3");
+
+  // A reference result is decayed; an explicit type is still honoured
+  auto same = l.maps([] (const int & x) -> const int & { return x; });
+  static_assert(is_same_v<decltype(same), DynList<int>>);
+  auto longs = l.template maps<long>([] (int x) { return x; });
+  static_assert(is_same_v<decltype(longs), DynList<long>>);
+  auto odd_halves = l.maps_if([] (int x) { return x % 2; }, [] (int x) { return x / 2.0; });
+  static_assert(is_same_v<decltype(odd_halves), DynList<double>>);
+  EXPECT_EQ(odd_halves.size(), 2u);
+  static_assert(is_same_v<decltype(l.map([] (int x) { return x * 1.0f; })), DynList<float>>);
+  static_assert(is_same_v<decltype(l.map_if([] (int) { return true; }, [] (int x) { return x * 1.0f; })),
+                          DynList<float>>);
+}
+
+TEST(FunctionalMethods, foldl_moves_the_accumulator)
+{
+  // Folding into a container took a copy of the accumulator per item: O(n^2).
+  DynList<int> l;
+  for (int i = 0; i < 1000; ++i)
+    l.append(i);
+
+  Copy_Counted::copies = 0;
+  const auto by_value = l.foldl(Copy_Counted(), [] (Copy_Counted acc, int x)
+                                  {
+                                    acc.items.push_back(x);
+                                    return acc;
+                                  });
+  EXPECT_EQ(by_value.items.size(), 1000u);
+  EXPECT_EQ(Copy_Counted::copies, 1u);  // only the copy of init
+
+  // An operation that returns a reference to its parameter, which is the
+  // accumulator itself, must not leave it self-move-assigned
+  Copy_Counted::copies = 0;
+  const auto by_rvalue = l.foldl(Copy_Counted(), [] (Copy_Counted && acc, int x) -> Copy_Counted &&
+                                   {
+                                     acc.items.push_back(x);
+                                     return std::move(acc);
+                                   });
+  EXPECT_EQ(by_rvalue.items.size(), 1000u);
+  EXPECT_EQ(Copy_Counted::copies, 1u);
+
+  // An operation that takes the accumulator by modifiable reference still works
+  const auto by_lvalue = l.foldl(Copy_Counted(), [] (Copy_Counted & acc, int x) -> Copy_Counted &
+                                   {
+                                     acc.items.push_back(x);
+                                     return acc;
+                                   });
+  EXPECT_EQ(by_lvalue.items.size(), 1000u);
+
+  EXPECT_EQ(l.fold(0, [] (int a, int x) { return a + x; }), 499500);
+  EXPECT_EQ(l.fold_left(0L, [] (long a, int x) { return a + x; }), 499500L);
+}
+
+TEST(FunctionalMethods, foldl_needs_an_operation)
+{
+  // foldl(init) used a default operation that returned T(), discarding
+  // init and every item (G7).
+  static_assert(not foldl_without_operation<DynList<int>>);
+  static_assert(not foldl_without_operation<DynArray<int>>);
+}
+
+TEST(FunctionalMethods, tpartition_moves_the_lists)
+{
+  DynList<Copy_Counted> l;
+  for (int i = 0; i < 100; ++i)
+    {
+      Copy_Counted c;
+      c.items.push_back(i);
+      l.append(std::move(c));
+    }
+  const auto even = [] (const Copy_Counted & c) { return c.items[0] % 2 == 0; };
+
+  Copy_Counted::copies = 0;
+  const auto p = l.partition(even);
+  const size_t pair_copies = Copy_Counted::copies;
+  Copy_Counted::copies = 0;
+  const auto t = l.tpartition(even);
+  EXPECT_EQ(pair_copies, 100u);
+  EXPECT_EQ(Copy_Counted::copies, pair_copies);  // it used to copy both lists again
+  EXPECT_EQ(get<0>(t).size(), p.first.size());
+}
+
+TEST(FunctionalMethods, projections_with_member_pointers)
+{
+  const DynList<Item> l = {Item{1, true}, Item{2, false}, Item{3, true}};
+  EXPECT_EQ(l.filter(&Item::is_valid).size(), 2u);
+  EXPECT_EQ(l.maps(&Item::key).get_last(), 3);
+  static_assert(is_same_v<decltype(l.maps(&Item::key)), DynList<int>>);
+  EXPECT_FALSE(l.all(&Item::valid));
+  EXPECT_TRUE(l.exists(&Item::valid));
+  EXPECT_EQ(l.count_if(&Item::is_valid), 2u);
+  EXPECT_EQ(l.find_ptr(&Item::is_valid)->key, 1);
+  EXPECT_EQ(l.find_index(&Item::valid), 0u);
+  EXPECT_EQ(l.partition(&Item::valid).second.size(), 1u);
+}
+
+TEST(FunctionalMethods, emplace_does_not_cast)
+{
+  // emplace(arg) built T(arg), a C-style cast for one argument: it dropped
+  // const and turned pointers into integers (G13).
+  static_assert(not can_emplace<DynList<int *>, const int *>);
+  static_assert(not can_emplace<DynList<long>, int *>);
+  static_assert(can_emplace<DynList<int *>, int *>);
+  static_assert(can_emplace<DynList<string>, const char *>);
+
+  DynList<string> l;
+  l.emplace(3, 'x');
+  l.emplace_ins("first");
+  EXPECT_EQ(l.get_first(), "first");
+  EXPECT_EQ(l.get_last(), "xxx");
+  EXPECT_EQ(l.nappend(string("a"), string("b")), 2u);
+  EXPECT_EQ(l.ninsert(string("z")), 1u);
+  EXPECT_EQ(l.size(), 5u);
+}
+
+TEST(LocateFunctions, find_item_needs_a_default_constructor_find_opt_does_not)
+{
+  auto is_two = [] (const No_Default & x) { return x.value == 2; };
+  static_assert(not can_find_item<DynList<No_Default>, decltype(is_two)>);  // G12
+  DynList<No_Default> l;
+  l.append(No_Default(1));
+  l.append(No_Default(2));
+  const auto found = l.find_opt(is_two);
+  ASSERT_TRUE(found.has_value());
+  EXPECT_EQ(found->value, 2);
+  EXPECT_FALSE(l.find_opt([] (const No_Default & x) { return x.value == 9; }).has_value());
+}
+
+TEST(EqualityMethods, sequences_compare_order_and_repetitions)
+{
+  // Stacks and queues used EqualToMethod, a set equality: [1,2] == [2,1]
+  // and {1,1,2} == {1,2,2} were true (G3).
+  DynListStack<int> s1, s2, s3, s4;
+  s1.push(1); s1.push(2);
+  s2.push(2); s2.push(1);
+  s3.push(1); s3.push(1); s3.push(2);
+  s4.push(1); s4.push(2); s4.push(2);
+  EXPECT_FALSE(s1 == s2);
+  EXPECT_FALSE(s3 == s4);
+  EXPECT_TRUE(s1 != s2);
+
+  DynListQueue<int> q1, q2;
+  q1.put(1); q1.put(2);
+  q2.put(2); q2.put(1);
+  EXPECT_FALSE(q1 == q2);
+  q2.get(); q2.put(2);  // q2 is now [1, 2]
+  EXPECT_TRUE(q1 == q2);
+
+  // Stacks and queues on arrays: equality used to not even compile
+  ArrayStack<int> a1, a2;
+  a1.push(1); a1.push(2);
+  a2.push(1); a2.push(2);
+  EXPECT_TRUE(a1 == a2);
+  a2.push(3);
+  EXPECT_FALSE(a1 == a2);
+  FixedStack<int> f1(4), f2(4);
+  f1.push(1); f2.push(1);
+  EXPECT_TRUE(f1 == f2);
+  ArrayQueue<int> aq1, aq2;
+  aq1.put(1); aq1.put(2);
+  aq2.put(2); aq2.put(1);
+  EXPECT_FALSE(aq1 == aq2);
+  FixedQueue<int> fq1(4), fq2(4);
+  fq1.put(5); fq2.put(5);
+  EXPECT_TRUE(fq1 == fq2);
+}
+
+TEST(EqualityMethods, sorted_containers_count_repetitions)
+{
+  DynSetTree<int> t1, t2;
+  t1.insert_dup(1); t1.insert_dup(1); t1.insert_dup(2);
+  t2.insert_dup(1); t2.insert_dup(2); t2.insert_dup(2);
+  EXPECT_FALSE(t1 == t2);
+  t2.remove(2); t2.insert_dup(1);
+  EXPECT_TRUE(t1 == t2);
+
+  DynIntervalTree<int> i1, i2;
+  i1.append(Interval<int>(1, 2)); i1.append(Interval<int>(1, 2)); i1.append(Interval<int>(3, 4));
+  i2.append(Interval<int>(1, 2)); i2.append(Interval<int>(3, 4)); i2.append(Interval<int>(3, 4));
+  EXPECT_FALSE(i1 == i2);
+  DynIntervalTree<int> i3;
+  i3.append(Interval<int>(3, 4)); i3.append(Interval<int>(1, 2)); i3.append(Interval<int>(1, 2));
+  EXPECT_TRUE(i1 == i3);
+  EXPECT_FALSE(i1 == DynIntervalTree<int>());
+}
+
+TEST(EqualityMethods, hash_sets_keep_set_equality)
+{
+  DynSetHash<int> h1, h2;
+  for (int i : {1, 2, 3})
+    h1.insert(i);
+  for (int i : {3, 1, 2})
+    h2.insert(i);
+  EXPECT_TRUE(h1 == h2);
+  h2.remove(3);
+  EXPECT_FALSE(h1 == h2);
+}
+
+TEST(EqualityMethods, heaps_and_random_sets_have_no_equality)
+{
+  // EqualToMethod was inherited but never compiled for them (D2)
+  static_assert(not has_equality<ArrayHeap<int>>);
+  static_assert(not has_equality<DynBinHeap<int>>);
+  static_assert(not has_equality<DynArrayHeap<int>>);
+  static_assert(not has_equality<Random_Set<int>>);
+  static_assert(has_equality<DynListStack<int>>);
+  static_assert(has_equality<ArrayQueue<int>>);
+}
+
+TEST(RandomSet, iterator_traverses_the_items)
+{
+  // Random_Set::Iterator derived from DynArray<T>: a container, not an
+  // iterator, so range-for, take(i, j, step) and each(pos, slice) did not
+  // compile (G11).
+  Random_Set<int> q;
+  for (int i = 0; i < 10; ++i)
+    q.put(i);
+  int sum = 0;
+  for (const int x : q)
+    sum += x;
+  EXPECT_EQ(sum, 45);
+  size_t n = 0;
+  for (auto it = q.get_it(); it.has_curr(); it.next_ne())
+    ++n;
+  EXPECT_EQ(n, 10u);
+  EXPECT_EQ(q.take(0, 9, 3).size(), 4u);
+  size_t visited = 0;
+  q.each(1, 4, [&visited] (int) { ++visited; });
+  EXPECT_EQ(visited, 3u);
+}
+
+TEST(ReadOnlyContainers, offer_queries_but_no_modifying_members)
+{
+  // DynMatrix, Polygon and DynIntervalTree traverse with constant
+  // references: the members that modify are not offered, and the queries
+  // that used to fail to compile now work (G11).
+  static_assert(not can_modify_each<DynMatrix<int>>);
+  static_assert(not can_modify_each<DynSkipList<int>>);
+  static_assert(not can_modify_each<DynIntervalTree<int>>);
+  static_assert(can_modify_each<DynList<int>>);
+
+  DynMatrix<int> m(2, 3);
+  m.allocate();
+  for (size_t i = 0; i < 2; ++i)
+    for (size_t j = 0; j < 3; ++j)
+      m.write(i, j, int(3 * i + j));
+  EXPECT_EQ(m.nth(4), 4);
+  EXPECT_EQ(*m.find_ptr([] (int x) { return x == 5; }), 5);
+  EXPECT_TRUE(m.contains(2));
+  EXPECT_EQ(m.take(0, 5, 2).size(), 3u);
+}
+
+namespace
+{
+  /// A minimal map container to exercise MapSequencesMethods, which no
+  /// container of the library uses.
+  struct Pair_Map : public FunctionalMethods<Pair_Map, pair<int, string>>,
+                    public MapSequencesMethods<Pair_Map, int, string>
+  {
+    DynList<pair<int, string>> items_list;
+
+    template <class Op>
+      requires Aleph::PredicateWith<Op &, pair<int, string> &>
+    bool traverse(Op & op) { return items_list.traverse(op); }
+
+    template <class Op>
+      requires Aleph::PredicateWith<Op &, const pair<int, string> &>
+    bool traverse(Op & op) const { return items_list.traverse(op); }
+
+    template <class Op>
+      requires Aleph::PredicateWith<Op &, pair<int, string> &>
+    bool traverse(Op && op) { return items_list.traverse(op); }
+
+    template <class Op>
+      requires Aleph::PredicateWith<Op &, const pair<int, string> &>
+    bool traverse(Op && op) const { return items_list.traverse(op); }
+
+    string & find(const int & k)
+    {
+      auto p = items_list.find_ptr([&k] (const pair<int, string> & e) { return e.first == k; });
+      ah_domain_error_if(p == nullptr) << "key not found";
+      return p->second;
+    }
+
+    const string & find(const int & k) const { return const_cast<Pair_Map *>(this)->find(k); }
+  };
+}
+
+TEST(MapSequencesMethods, members_work)
+{
+  // keys(), values_ptr(), items() and items_ptr() did not compile (G14)
+  Pair_Map m;
+  m.items_list.append(make_pair(1, string("one")));
+  m.items_list.append(make_pair(2, string("two")));
+
+  EXPECT_EQ(m.keys().get_last(), 2);
+  EXPECT_EQ(m.values().get_first(), "one");
+  EXPECT_EQ(m.items().size(), 2u);
+
+  *m.values_ptr().get_first() = "uno";
+  EXPECT_EQ(m(1), "uno");
+  *m.items_ptr().get_last().second = "dos";
+  EXPECT_EQ(m(2), "dos");
+
+  const Pair_Map & cm = m;
+  static_assert(is_same_v<decltype(cm.values_ptr()), DynList<const string *>>);
+  EXPECT_EQ(*cm.items_ptr().get_last().second, "dos");
+  EXPECT_THROW(m(3), domain_error);
 }

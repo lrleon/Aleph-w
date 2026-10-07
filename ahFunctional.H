@@ -2171,7 +2171,9 @@ template <class Container, class Pred>
 [[nodiscard]] inline typename Container::Item_Type *find_ptr(Container &container, Pred &pred)
 {
   typename Container::Item_Type *result = nullptr;
-  container.traverse([&result, &pred](auto &item)
+  // Not a generic lambda: with `auto &` the constant traverse() overload,
+  // which hands out `const Item_Type &`, would instantiate this body.
+  container.traverse([&result, &pred](typename Container::Item_Type &item)
   {
     if (pred(item))
       {

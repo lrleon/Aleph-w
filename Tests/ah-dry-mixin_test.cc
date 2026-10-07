@@ -781,13 +781,13 @@ TEST(FunctionalMixin, FindIndex)
 
   EXPECT_EQ(v.find_index([](int x) { return x == 30; }), 2);
   EXPECT_EQ(v.find_index([](int x) { return x > 35; }), 3);  // first > 35 is 40
-  EXPECT_EQ(v.find_index([](int x) { return x > 100; }), static_cast<size_t>(-1));
+  EXPECT_EQ(v.find_index([](int x) { return x > 100; }), v.size());
 }
 
 TEST(FunctionalMixin, FindIndexEmpty)
 {
   MixinVector<int> v;
-  EXPECT_EQ(v.find_index([](int) { return true; }), static_cast<size_t>(-1));
+  EXPECT_EQ(v.find_index([](int) { return true; }), 0u);  // empty: size()
 }
 
 TEST(FunctionalMixin, IndexOf)
@@ -797,7 +797,7 @@ TEST(FunctionalMixin, IndexOf)
   EXPECT_EQ(v.index_of(10), 0);
   EXPECT_EQ(v.index_of(30), 2);
   EXPECT_EQ(v.index_of(50), 4);
-  EXPECT_EQ(v.index_of(99), static_cast<size_t>(-1));
+  EXPECT_EQ(v.index_of(99), v.size());
 }
 
 TEST(FunctionalMixin, IndexOfStrings)
@@ -805,7 +805,7 @@ TEST(FunctionalMixin, IndexOfStrings)
   MixinVector<string> v = {"apple", "banana", "cherry"};
 
   EXPECT_EQ(v.index_of("banana"), 1);
-  EXPECT_EQ(v.index_of("grape"), static_cast<size_t>(-1));
+  EXPECT_EQ(v.index_of("grape"), v.size());
 }
 
 

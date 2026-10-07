@@ -679,9 +679,12 @@ public:
    *  Creates a new container with each element transformed by the operation.
    *  This is the classic "map" operation from functional programming.
    *
-   *  @tparam __Type Result type (default: same as input Type).
+   *  @tparam R Item type of the result, or `void` (the default) to take
+   *          the type that `operation` returns, without references and
+   *          `const`.
    *  @tparam Container Result container type (default: DynList).
-   *  @tparam Operation Callable with signature `__Type(const Type&)`.
+   *  @tparam Operation Callable with signature `R(const Type&)`, or a
+   *          pointer to member; without operation, the items are copied.
    *  @param operation Transformation function.
    *  @return New container with transformed elements.
    *
@@ -693,36 +696,45 @@ public:
    *  DynList<int> nums = {1, 2, 3};
    *
    *  // Square each number
-   *  auto squares = nums.maps<int>([](int x) { return x * x; });
-   *  // squares = {1, 4, 9}
+   *  auto squares = nums.maps([](int x) { return x * x; });
+   *  // squares = {1, 4, 9}, a DynList<int>
    *
-   *  // Convert to strings
-   *  auto strs = nums.maps<std::string>([](int x) { return std::to_string(x); });
-   *  // strs = {"1", "2", "3"}
+   *  // Convert to strings: the item type is deduced
+   *  auto strs = nums.maps([](int x) { return std::to_string(x); });
+   *  // strs = {"1", "2", "3"}, a DynList<std::string>
+   *
+   *  // Force the item type
+   *  auto longs = nums.maps<long>([](int x) { return x; });
    *  @endcode
    */
-  template <typename __Type = Type,
+  template <typename R = void,
             template <typename> class Container = Aleph::DynList,
-            class Operation = Dft_Map_Op<Type, __Type>>
-    requires requires(Container<__Type> &l, Operation &op, const Type &item) { l.append(op(item)); }
-  [[nodiscard]] Container<__Type> maps(Operation & operation) const
+            class Operation = Dft_Map_Op<Type, std::conditional_t<std::is_void_v<R>, Type, R>>>
+    requires std::invocable<Operation &, const Type &>
+             and requires(Container<concepts_detail::map_result_t<R, Operation &, Type>> &l,
+                          Operation &op, const Type &item) { l.append(std::invoke(op, item)); }
+  [[nodiscard]] Container<concepts_detail::map_result_t<R, Operation &, Type>>
+  maps(Operation & operation) const
   {
-    Container<__Type> ret_val;
+    Container<concepts_detail::map_result_t<R, Operation &, Type>> ret_val;
     for_each([&ret_val, &operation] (const Type & item)
     {
-      ret_val.append(operation(item));
+      ret_val.append(std::invoke(operation, item));
     });
     return ret_val;
   }
 
   /// @overload
-  template <typename __Type = Type,
+  template <typename R = void,
             template <typename> class Container = Aleph::DynList,
-            class Operation = Dft_Map_Op<Type, __Type>>
-    requires requires(Container<__Type> &l, Operation &op, const Type &item) { l.append(op(item)); }
-  [[nodiscard]] Container<__Type> maps(Operation && operation = Operation()) const
+            class Operation = Dft_Map_Op<Type, std::conditional_t<std::is_void_v<R>, Type, R>>>
+    requires std::invocable<Operation &, const Type &>
+             and requires(Container<concepts_detail::map_result_t<R, Operation &, Type>> &l,
+                          Operation &op, const Type &item) { l.append(std::invoke(op, item)); }
+  [[nodiscard]] Container<concepts_detail::map_result_t<R, Operation &, Type>>
+  maps(Operation && operation = Operation()) const
   {
-    return maps<__Type, Container, Operation>(operation);
+    return maps<R, Container, Operation>(operation);
   }
 
   /** @brief Left fold (reduce) with initial value.
@@ -730,7 +742,7 @@ public:
    *  Combines all elements using a binary operation, starting from an
    *  initial value. Computes: op(...op(op(init, x1), x2)..., xn).
    *
-   *  @tparam __Type Accumulator type (default: same as element Type).
+   *  @tparam Acc Accumulator type (default: same as element Type).
    *  @param init Initial value for the accumulator.
    *  @param operation Binary operation: (accumulator, element) -> new_accumulator.
    *  @return Final accumulated value.
@@ -754,9 +766,9 @@ public:
    *  // sentence = "hello world"
    *  @endcode
    */
-  template <typename __Type = Type>
-  [[nodiscard]] __Type foldl(const __Type & init,
-                             std::function<__Type(const __Type&, const Type&)> operation) const
+  template <typename Acc = Type>
+  [[nodiscard]] Acc foldl(const Acc & init,
+                             std::function<Acc(const Acc&, const Type&)> operation) const
   {
     auto ret_val = init;
     for_each([&ret_val, &operation] (const Type & item)
@@ -769,11 +781,11 @@ public:
   /** @brief Left fold with operation first (alternative signature).
    *  @see foldl()
    */
-  template <typename __Type = Type>
-  [[nodiscard]] __Type fold_left(std::function<__Type(const __Type&, const Type&)> operation,
-                                 const __Type & init) const
+  template <typename Acc = Type>
+  [[nodiscard]] Acc fold_left(std::function<Acc(const Acc&, const Type&)> operation,
+                                 const Acc & init) const
   {
-    return foldl<__Type>(init, operation);
+    return foldl<Acc>(init, operation);
   }
 
   /** @brief Simple fold with same type for accumulator and elements.
@@ -1454,7 +1466,9 @@ public:
    *
    *  @tparam Predicate Predicate type.
    *  @param pred Predicate function.
-   *  @return Index of first matching element, or size_t(-1) if not found.
+   *  @return Index of first matching element, or the number of elements
+   *          if none matches, as `end()` in the STL and as find_index() of
+   *          the ah-dry.H containers.
    *
    *  @par Complexity
    *  O(n) worst case.
@@ -1470,24 +1484,20 @@ public:
   [[nodiscard]] size_t find_index(Predicate pred) const
   {
     size_t idx = 0;
-    size_t result = static_cast<size_t>(-1);
-    self().traverse([&idx, &result, &pred] (const Type & item)
+    self().traverse([&idx, &pred] (const Type & item)
     {
       if (pred(item))
-      {
-        result = idx;
         return false;
-      }
       ++idx;
       return true;
     });
-    return result;
+    return idx;
   }
 
   /** @brief Find the index of a specific value.
    *
    *  @param val Value to search for.
-   *  @return Index of val, or size_t(-1) if not found.
+   *  @return Index of val, or the number of elements if it is not found.
    *
    *  @par Requirements
    *  Type must support operator==.
@@ -1499,7 +1509,7 @@ public:
    *  @code
    *  DynList<int> list = {1, 2, 3, 4, 5};
    *  auto idx = list.index_of(3);  // 2
-   *  auto bad = list.index_of(99); // size_t(-1)
+   *  auto bad = list.index_of(99); // 5, list.size()
    *  @endcode
    */
   [[nodiscard]] size_t index_of(const Type & val) const

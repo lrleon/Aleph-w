@@ -269,7 +269,6 @@ namespace Aleph
   class ArrayHeap : public LocateFunctions<ArrayHeap<T, Compare>, T>,
                     public FunctionalMethods<ArrayHeap<T, Compare>, T>,
                     public GenericItems<ArrayHeap<T, Compare>, T>,
-                    public EqualToMethod<ArrayHeap<T, Compare>>,
                     public StlAlephIterator<ArrayHeap<T, Compare>>
   {
     T *array = nullptr;
@@ -636,6 +635,17 @@ namespace Aleph
       return true;
     }
 
+    // Constant traversal: each item is handed out as a constant reference
+    template <class Operation>
+    bool const_traverse_impl(Operation & operation) const
+    {
+      for (size_t i = 1; i <= num_items; ++i)
+        if (not operation(static_cast<const T &>(array[i])))
+          return false;
+
+      return true;
+    }
+
   public:
     /** Traverse all elements (const overload).
 
@@ -647,9 +657,11 @@ namespace Aleph
         @return false if traversal was stopped early, true otherwise
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & operation) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
-      return const_cast<ArrayHeap &>(*this).traverse_impl(operation);
+      return const_traverse_impl(operation);
     }
 
     /** Traverse all elements.
@@ -659,7 +671,9 @@ namespace Aleph
         @return false if traversal was stopped early, true otherwise
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & operation)
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       return traverse_impl(operation);
     }
@@ -671,9 +685,11 @@ namespace Aleph
         @return false if traversal was stopped early, true otherwise
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && operation = Operation()) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
-      return const_cast<ArrayHeap &>(*this).traverse_impl(operation);
+      return const_traverse_impl(operation);
     }
 
     /** Traverse all elements (forwarding overload).
@@ -683,7 +699,9 @@ namespace Aleph
         @return false if traversal was stopped early, true otherwise
     */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && operation = Operation())
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       return traverse_impl(operation);
     }

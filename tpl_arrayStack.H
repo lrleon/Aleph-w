@@ -80,7 +80,7 @@ namespace Aleph
   class ArrayStack : public LocateFunctions<ArrayStack<T>, T>,
                      public FunctionalMethods<ArrayStack<T>, T>,
                      public GenericKeys<ArrayStack<T>, T>,
-                     public EqualToMethod<ArrayStack<T>>,
+                     public EqualSequenceMethod<ArrayStack<T>>,
                      public StlAlephIterator<ArrayStack<T>>
   {
     MemArray<T> array;
@@ -293,28 +293,36 @@ namespace Aleph
         otherwise the traversal stops
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & operation)
+      noexcept(noexcept(array.traverse(operation)))
     {
       return array.traverse(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & operation) const
+      noexcept(noexcept(array.traverse(operation)))
     {
       return array.traverse(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && operation = Operation()) const
+      noexcept(noexcept(array.traverse(operation)))
     {
       return array.traverse(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && operation = Operation())
+      noexcept(noexcept(array.traverse(operation)))
     {
       return array.traverse(operation);
     }
@@ -354,7 +362,7 @@ namespace Aleph
   class FixedStack : public LocateFunctions<FixedStack<T>, T>,
                      public FunctionalMethods<FixedStack<T>, T>,
                      public GenericKeys<FixedStack<T>, T>,
-                     public EqualToMethod<FixedStack<T>>,
+                     public EqualSequenceMethod<FixedStack<T>>,
                      public StlAlephIterator<FixedStack<T>>
   {
     T *array = nullptr;
@@ -575,7 +583,9 @@ namespace Aleph
         otherwise the traversal stops
      */
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation & operation)
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       for (size_t i = 0; i < head; i++)
         if (not operation(array[i]))
@@ -586,21 +596,30 @@ namespace Aleph
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation & operation) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
-      return const_cast<FixedStack *>(this)->traverse(operation);
+      for (size_t i = 0; i < head; i++)
+        if (not operation(static_cast<const T &>(array[i])))
+          return false;
+      return true;
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, const T &>
     bool traverse(Operation && operation = Operation()) const
+      noexcept(Aleph::NothrowPredicateWith<Operation &, const T &>)
     {
       return traverse<Operation>(operation);
     }
 
     /// \overload traverse(Operation & operation)
     template <class Operation>
+      requires Aleph::PredicateWith<Operation &, T &>
     bool traverse(Operation && operation = Operation())
+      noexcept(Aleph::NothrowPredicateWith<Operation &, T &>)
     {
       return traverse<Operation>(operation);
     }

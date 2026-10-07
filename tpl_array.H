@@ -204,8 +204,9 @@ public:
    *  @param[in] value The value to copy into each element.
    *  @throws std::bad_alloc if memory allocation fails.
    *  @note Complexity: O(n) copies.
-   *  @note Exception safety: Strong guarantee (if allocation fails or T's copy constructor throws,
-   *        no memory is leaked).
+   *  @note Exception safety: if the allocation or the copy assignment of `T` throws, no
+   *        array is built and no memory is leaked. The entries are default-constructed
+   *        storage that receives copies of `value` by assignment.
    *  @note Thread safety: Safe to call concurrently on different instances; not thread-safe on the
    *        same instance.
    */
@@ -352,7 +353,8 @@ public:
   Array append(const Array &a) const
   {
     Array ret = *this;
-    return ret.append(a);
+    ret.append(a);
+    return ret;  // returning ret.append(a), a reference, would copy ret again
   }
 
   /** insert a copy of `data` at the beginning of the array. All the
@@ -416,6 +418,9 @@ public:
 
   /** @brief Empties the container.
       @throws none
+      @note Like MemArray::empty(), and unlike `std::vector::clear()`, the
+            items are not destroyed: they stay alive in the capacity until
+            they are overwritten or the array is released.
   */
   void empty() noexcept
   {

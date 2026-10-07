@@ -42,6 +42,9 @@
 #include <algorithm>
 #include <tpl_dynSkipList.H>
 
+#include <limits>
+#include <stdexcept>
+
 using namespace Aleph;
 
 namespace {
@@ -602,6 +605,20 @@ TEST_F(DynSkipListTest, SearchOrInsertExisting)
 }
 
 } // anonymous namespace
+
+// The probability was not validated: with p >= 1 every node got the
+// maximum level and with p <= 0 level 1, both degrading to linear time.
+TEST(DynSkipListProbability, MustBeBetweenZeroAndOne)
+{
+  EXPECT_THROW(DynSkipList<int>(1, 0.0), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1, 1.0), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1, -0.5), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1, 7.0), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1, std::numeric_limits<double>::quiet_NaN()), std::domain_error);
+  EXPECT_THROW(DynSkipList<int>(1.5), std::domain_error);
+  EXPECT_NO_THROW(DynSkipList<int>(1, 0.25));
+  EXPECT_NO_THROW(DynSkipList<int>(0.75));
+}
 
 int main(int argc, char** argv)
 {

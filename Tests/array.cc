@@ -633,4 +633,73 @@ TEST(ArrayAccess, GetFirstAndGetLastOfEmptyArrayThrow)
   expect_items(a, {1, 2});
 }
 
+
+/// Counts its copies and moves.
+struct Copy_Move_Counted
+{
+  static inline size_t copies = 0;
+  static inline size_t moves = 0;
+  static inline size_t move_constructions = 0;
+  int value = 0;
+
+  Copy_Move_Counted() = default;
+  explicit Copy_Move_Counted(int v) : value(v) {}
+  Copy_Move_Counted(const Copy_Move_Counted & o) : value(o.value) { ++copies; }
+  Copy_Move_Counted(Copy_Move_Counted && o) noexcept : value(o.value)
+  {
+    ++moves;
+    ++move_constructions;
+  }
+  Copy_Move_Counted & operator = (const Copy_Move_Counted & o)
+  {
+    value = o.value;
+    ++copies;
+    return *this;
+  }
+  Copy_Move_Counted & operator = (Copy_Move_Counted && o) noexcept
+  {
+    value = o.value;
+    ++moves;
+    return *this;
+  }
+};
+
+TEST(ArrayAppend, ConstantConcatenationCopiesEachItemOnce)
+{
+  // append(a) const returned ret.append(a), a reference, so the whole
+  // result was copied a second time.
+  Array<Copy_Move_Counted> a, b;
+  for (int i = 0; i < 5; ++i)
+    a.append(Copy_Move_Counted(i));
+  for (int i = 0; i < 3; ++i)
+    b.append(Copy_Move_Counted(10 + i));
+
+  Copy_Move_Counted::copies = 0;
+  const Array<Copy_Move_Counted> & ca = a;
+  const Array<Copy_Move_Counted> joined = ca.append(b);
+  EXPECT_EQ(joined.size(), 8u);
+  EXPECT_EQ(joined[7].value, 12);
+  EXPECT_LE(Copy_Move_Counted::copies, 5u + 3u);  // the 5 items of a and the 3 of b
+}
+
+TEST(ArrayRemoveFirst, MovesEachItemOnce)
+{
+  // remove_first() moved the vacated last slot out once more, into a
+  // temporary that was discarded: one move construction too many.
+  Array<Copy_Move_Counted> a;
+  for (int i = 0; i < 20; ++i)  // enough items for the array not to contract
+    a.append(Copy_Move_Counted(i));
+  const size_t capacity = a.capacity();
+  Copy_Move_Counted::moves = 0;
+  Copy_Move_Counted::move_constructions = 0;
+  const Copy_Move_Counted first = a.remove_first();
+  ASSERT_EQ(a.capacity(), capacity);
+  EXPECT_EQ(first.value, 0);
+  EXPECT_EQ(a.size(), 19u);
+  EXPECT_EQ(a[0].value, 1);
+  EXPECT_EQ(a[18].value, 19);
+  EXPECT_EQ(Copy_Move_Counted::move_constructions, 1u);  // only the returned item
+  EXPECT_EQ(Copy_Move_Counted::moves, 1u + 19u);         // and the 19 shifts
+}
+
 } // namespace

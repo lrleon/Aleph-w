@@ -133,6 +133,9 @@ TEST(SpecialCtors, IntegerPairsNeverSelectTheIteratorConstructor)
   static_assert(not accepts_integer_pair<FixedStack<int>>);
   static_assert(not accepts_integer_pair<ArrayHeap<int>>);
   static_assert(not accepts_integer_pair<DynDlist<int>>);
+  // DynList inherits the constructors of SpecialCtors (ah-dry.H), whose
+  // iterator constructor had no constraint: DynList<int>(3, 7) chose it.
+  static_assert(not accepts_integer_pair<DynList<int>>);
   static_assert(not accepts_integer_pair<DynListQueue<int>>);
   static_assert(not accepts_integer_pair<DynListStack<int>>);
   static_assert(not accepts_integer_pair<DynSetTree<int>>);
@@ -145,6 +148,7 @@ TEST(SpecialCtors, IntegerPairsNeverSelectTheIteratorConstructor)
 
   static_assert(not accepts_integer_pair<ArrayQueue<size_t>, size_t>);
   static_assert(not accepts_integer_pair<DynDlist<size_t>, size_t>);
+  static_assert(not accepts_integer_pair<DynList<size_t>, size_t>);
   static_assert(not accepts_integer_pair<DynSetTree<size_t>, size_t>);
   static_assert(not accepts_integer_pair<OLhashTable<size_t>, size_t>);
 
@@ -157,9 +161,10 @@ TEST(SpecialCtors, IntegerPairsNeverSelectTheIteratorConstructor)
   EXPECT_EQ(repeated.access(0), 7);
   EXPECT_EQ(repeated.access(2), 7);
 
-  // DynSkipList has a (seed, probability) constructor: the pair selects it
-  // and builds an empty list, not a range of items.
-  DynSkipList<int> skip(3, 7);
+  // DynSkipList has a (seed, probability) constructor: the pair selects it,
+  // not a range of items, and 7 is not a probability in (0, 1).
+  EXPECT_THROW(DynSkipList<int>(3, 7), std::domain_error);
+  DynSkipList<int> skip(3, 0.25);
   EXPECT_TRUE(skip.is_empty());
 
   // The heaps keep their variadic item constructor, which binds lvalues only:
