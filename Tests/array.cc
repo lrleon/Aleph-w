@@ -46,8 +46,10 @@
 #include <iterator>
 #include <numeric>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace Aleph;
@@ -603,6 +605,32 @@ TEST(ArraySelfInsertion, InsertOwnMovedElement)
   ASSERT_EQ(a.size(), 5u);
   EXPECT_EQ(a[1], long_string('c'));
   EXPECT_EQ(a[2], long_string('a'));
+}
+
+
+// get_first() and get_last() were noexcept, so the underflow_error thrown
+// on an empty array called std::terminate.
+static_assert(not noexcept(std::declval<Array<int> &>().get_first()));
+static_assert(not noexcept(std::declval<const Array<int> &>().get_first()));
+static_assert(not noexcept(std::declval<Array<int> &>().get_last()));
+static_assert(not noexcept(std::declval<const Array<int> &>().get_last()));
+
+TEST(ArrayAccess, GetFirstAndGetLastOfEmptyArrayThrow)
+{
+  Array<int> a;
+  const Array<int> &ca = a;
+  EXPECT_THROW((void) a.get_first(), std::underflow_error);
+  EXPECT_THROW((void) ca.get_first(), std::underflow_error);
+  EXPECT_THROW((void) a.get_last(), std::underflow_error);
+  EXPECT_THROW((void) ca.get_last(), std::underflow_error);
+
+  a.append(10);
+  a.append(20);
+  EXPECT_EQ(ca.get_first(), 10);
+  EXPECT_EQ(ca.get_last(), 20);
+  a.get_first() = 1;
+  a.get_last() = 2;
+  expect_items(a, {1, 2});
 }
 
 } // namespace

@@ -40,6 +40,7 @@
 #include <tpl_dynArray.H>
 #include <ah-unique.H>
 
+#include <limits>
 #include <new>
 #include <stdexcept>
 #include <string>
@@ -754,6 +755,23 @@ TEST(DynArrayInsert, FailedAllocationLeavesTheArrayAndTheArgumentUntouched)
 
   EXPECT_EQ(a.insert(std::move(x)).value, long_string('x'));
   EXPECT_EQ(a.read(1).value, long_string('a'));
+}
+
+
+// The geometry helpers were noexcept, so the overflow_error documented by
+// the geometry constructor called std::terminate.
+static_assert(not noexcept(DynArray<int>::compute_sizes(size_t{})));
+
+TEST(DynArrayGeometry, OversizedGeometryThrowsOverflowError)
+{
+  // 2^(40 + 20 + 10) entries do not fit in a size_t.
+  EXPECT_THROW((DynArray<int>(40, 20, 10)), std::overflow_error);
+  EXPECT_THROW((void) DynArray<int>::compute_sizes(numeric_limits<size_t>::max()),
+               std::overflow_error);
+
+  // 2^63 is the largest dimension that a geometry can hold.
+  const auto [d, s, b] = DynArray<int>::compute_sizes(size_t(1) << 63);
+  EXPECT_EQ(d + s + b, 63u);
 }
 
 } // namespace

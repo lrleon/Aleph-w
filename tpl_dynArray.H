@@ -243,13 +243,25 @@ private:
   // 2^(pow_dir + pow_seg + pow_block) - 1
   unsigned long long max_dim = two_raised(seg_plus_block_pow + pow_dir);
 
-  static size_t two_raised(const size_t n) noexcept
+  /** @brief Return 2^n.
+      @param[in] n Exponent.
+      @return 2 raised to `n`.
+      @throws std::overflow_error if 2^n does not fit in a size_t.
+  */
+  static size_t two_raised(const size_t n)
   {
     ah_overflow_error_if(n >= Max_Bits_Allowed) << "two_raised: exponent " << n << " is too large";
     return static_cast<size_t>(1) << n;
   }
 
-  static size_t compute_dim(size_t d, size_t s, size_t b) noexcept
+  /** @brief Return the number of entries of a d/s/b geometry.
+      @param[in] d Power of two of the directory size.
+      @param[in] s Power of two of the segment size.
+      @param[in] b Power of two of the block size.
+      @return 2^d * 2^s * 2^b.
+      @throws std::overflow_error if a power does not fit in a size_t.
+  */
+  static size_t compute_dim(size_t d, size_t s, size_t b)
   {
     return two_raised(d) * two_raised(s) * two_raised(b);
   }
@@ -259,11 +271,13 @@ public:
       segment and block sizes.
 
       @param[in] n proposed dimension
-      @param[out] d directory size
-      @param[out] s segment size
-      @param[out] b block size
+      @param[out] d power of two of the directory size
+      @param[out] s power of two of the segment size
+      @param[out] b power of two of the block size
+      @throw overflow_error if `n` is greater than 2^63, so that no
+      geometry of `size_t` entries can hold it
   */
-  static void compute_sizes(const size_t n, size_t &d, size_t &s, size_t &b) noexcept
+  static void compute_sizes(const size_t n, size_t &d, size_t &s, size_t &b)
   {
     d = Default_Pow_Dir;
     s = Default_Pow_Seg;
@@ -288,9 +302,11 @@ public:
       segment and block sizes.
 
       @param[in] n proposed dimension
-      @return a 3-tuple with the directory, segment and block sizes
+      @return a 3-tuple with the powers of two of the directory, segment
+      and block sizes
+      @throw overflow_error if `n` is greater than 2^63
   */
-  static std::tuple<size_t, size_t, size_t> compute_sizes(const size_t n) noexcept
+  static std::tuple<size_t, size_t, size_t> compute_sizes(const size_t n)
   {
     size_t d, s, b;
     compute_sizes(n, d, s, b);

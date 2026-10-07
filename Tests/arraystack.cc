@@ -37,7 +37,9 @@
  */
 # include <gtest/gtest.h>
 
+# include <stdexcept>
 # include <string>
+# include <utility>
 
 # include <tpl_arrayStack.H>
 # include <ahFunctional.H>
@@ -418,4 +420,23 @@ TEST(ArrayStack, push_of_own_moved_item_inserts_its_value)
   ASSERT_EQ(s.size(), 5u);
   EXPECT_EQ(s.top(1), string(40, 'd'));
   EXPECT_EQ(s.top(3), string(40, 'b'));
+}
+
+// base() was noexcept, so the underflow_error thrown on an empty stack
+// called std::terminate.
+static_assert(not noexcept(std::declval<ArrayStack<int> &>().base()));
+static_assert(not noexcept(std::declval<const ArrayStack<int> &>().base()));
+
+TEST(ArrayStack, base_of_empty_stack_throws)
+{
+  ArrayStack<int> s;
+  const ArrayStack<int> &cs = s;
+  EXPECT_THROW((void) s.base(), std::underflow_error);
+  EXPECT_THROW((void) cs.base(), std::underflow_error);
+
+  s.push(10);
+  s.push(20);
+  EXPECT_EQ(cs.base(), 10);
+  s.base() = 1;
+  EXPECT_EQ(s.top(1), 1);
 }

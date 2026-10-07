@@ -221,13 +221,20 @@ namespace Aleph
       return array.last();
     }
 
-    /// Return a modifiable reference to first element of array
-    T &base() noexcept
+    /** @brief Return a modifiable reference to the oldest element (the base).
+        @return Reference to the bottom of the stack.
+        @throws std::underflow_error if the stack is empty.
+    */
+    T &base()
     {
       return array.first();
     }
 
-    const T &base() const noexcept
+    /** @brief Return a constant reference to the oldest element (the base).
+        @return Constant reference to the bottom of the stack.
+        @throws std::underflow_error if the stack is empty.
+    */
+    const T &base() const
     {
       return array.first();
     }

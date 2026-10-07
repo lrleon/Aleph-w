@@ -452,30 +452,38 @@ public:
     return array.capacity();
   }
 
-  /// return a modifiable reference to the first element. No bound_statics check
-  /// is performed
-  [[nodiscard]] T &get_first() noexcept
+  /** @brief Return a modifiable reference to the first element.
+      @return Reference to element 0.
+      @throws std::underflow_error if the array is empty.
+  */
+  [[nodiscard]] T &get_first()
   {
     return array.first();
   }
 
-  /// return a constant reference to the first element. No bound_statics check
-  /// is performed
-  [[nodiscard]] const T &get_first() const noexcept
+  /** @brief Return a constant reference to the first element.
+      @return Constant reference to element 0.
+      @throws std::underflow_error if the array is empty.
+  */
+  [[nodiscard]] const T &get_first() const
   {
     return array.first();
   }
 
-  /// return a modifiable reference to the last element. No bound_statics check
-  /// is performed
-  [[nodiscard]] T &get_last() noexcept
+  /** @brief Return a modifiable reference to the last element.
+      @return Reference to element size() - 1.
+      @throws std::underflow_error if the array is empty.
+  */
+  [[nodiscard]] T &get_last()
   {
     return array.last();
   }
 
-  /// return a constant reference to the last element. No bound_statics check
-  /// is performed
-  [[nodiscard]] const T &get_last() const noexcept
+  /** @brief Return a constant reference to the last element.
+      @return Constant reference to element size() - 1.
+      @throws std::underflow_error if the array is empty.
+  */
+  [[nodiscard]] const T &get_last() const
   {
     return array.last();
   }
