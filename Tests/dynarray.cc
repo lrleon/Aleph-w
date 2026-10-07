@@ -44,6 +44,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 using namespace Aleph;
 using namespace std;
@@ -464,6 +465,151 @@ TEST(DynArrayCopy, CopyAssignmentReplacesEverything)
   dst = same;
   EXPECT_EQ(dst.size(), 5001u);
   EXPECT_EQ(dst.access(5000), 42);
+}
+
+// Reading an entry that was never written yields the default value and never
+// allocates memory; a constant array reads through const T &, not a proxy.
+static_assert(std::is_same_v<decltype(std::declval<const DynArray<int> &>()[0]),
+                             const int &>);
+
+TEST(DynArrayLazyReads, ReadingUnwrittenEntriesAllocatesNothing)
+{
+  DynArray<int> lazy(10);
+  const DynArray<int> & view = lazy;
+
+  EXPECT_EQ(lazy.read(3), 0);
+  EXPECT_EQ(view[3], 0);
+
+  int sum = 0;
+  lazy.for_each([&sum] (int x) { sum += x; });
+  for (const int x : view)
+    sum += x;
+  EXPECT_EQ(sum, 0);
+
+  EXPECT_EQ(lazy, DynArray<int>(10, 0));
+  EXPECT_EQ(lazy.to_array().size(), 10u);
+  EXPECT_EQ(lazy.get_num_blocks(), 0u);
+
+  EXPECT_THROW((void) lazy.read(10), std::out_of_range);
+  EXPECT_THROW((void) view[10], std::out_of_range);
+}
+
+TEST(DynArrayLazyReads, ReadsUseTheDefaultValue)
+{
+  DynArray<int> lazy(5);
+  lazy.set_default_initial_value(7);
+  EXPECT_EQ(lazy.read(4), 7);
+
+  int sum = 0;
+  lazy.for_each([&sum] (int x) { sum += x; });
+  EXPECT_EQ(sum, 35);
+  EXPECT_EQ(lazy.get_num_blocks(), 0u);
+}
+
+TEST(DynArrayLazyReads, TraversalVisitsGapsBetweenWrittenBlocks)
+{
+  DynArray<int> sparse;
+  sparse.touch(10000) = 1;
+  ASSERT_EQ(sparse.size(), 10001u);
+
+  size_t visited = 0;
+  int sum = 0;
+  sparse.for_each([&] (int x) { ++visited; sum += x; });
+  EXPECT_EQ(visited, 10001u);
+  EXPECT_EQ(sum, 1);
+}
+
+TEST(DynArrayLazyReads, ModifiableAccessAllocatesTheBlock)
+{
+  DynArray<int> lazy(10);
+  lazy[3] += 1;
+  EXPECT_EQ(lazy.read(3), 1);
+  EXPECT_EQ(lazy.get_num_blocks(), 1u);
+
+  DynArray<int> other(10);
+  other[0] = other[5];  // an unwritten right-hand entry reads as the default
+  EXPECT_EQ(other.read(0), 0);
+
+  DynArray<int> queue(3);
+  EXPECT_EQ(queue.get_last(), 0);
+  queue.get_first() = 4;
+  EXPECT_EQ(queue.read(0), 4);
+  EXPECT_EQ(queue.top(), 0);
+}
+
+TEST(DynArrayLazyReads, WritesThroughCopiesOfUnwrittenEntriesHaveNoEffect)
+{
+  DynArray<int> lazy(3);
+  lazy.traverse([] (int & x) { x = 5; return true; });
+  for (auto & x : lazy)
+    x = 6;
+  EXPECT_EQ(lazy.read(0), 0);
+  EXPECT_EQ(lazy.get_num_blocks(), 0u);
+
+  DynArray<int> written(3, 1);  // real entries are modified in place
+  written.traverse([] (int & x) { x = 5; return true; });
+  EXPECT_EQ(written.read(2), 5);
+}
+
+TEST(DynArrayLazyReads, StackAndQueueOperationsOnLazyEntries)
+{
+  DynArray<int> lazy(3);
+  lazy.insert(9);
+  ASSERT_EQ(lazy.size(), 4u);
+  EXPECT_EQ(lazy.read(0), 9);
+  EXPECT_EQ(lazy.read(3), 0);
+
+  DynArray<int> popped(3);
+  EXPECT_EQ(popped.pop(), 0);
+  EXPECT_EQ(popped.size(), 2u);
+}
+
+TEST(DynArrayLazyReads, CutDropsTheEntriesItRemoves)
+{
+  DynArray<int> arr;
+  for (int i = 1; i <= 10; ++i)
+    arr.append(i);
+
+  arr.cut(5);
+  arr.touch(9) = 99;
+
+  int expected[] = {1, 2, 3, 4, 5, 0, 0, 0, 0, 99};
+  ASSERT_EQ(arr.size(), 10u);
+  for (size_t i = 0; i < arr.size(); ++i)
+    EXPECT_EQ(arr.read(i), expected[i]) << "at index " << i;
+}
+
+TEST(DynArrayMovedFrom, StaysEmptyAndReusable)
+{
+  DynArray<int> source;
+  source.append(1);
+  DynArray<int> target(std::move(source));
+  ASSERT_EQ(target.read(0), 1);
+
+  EXPECT_TRUE(source.is_empty());
+  EXPECT_FALSE(source.exist(0));
+  EXPECT_EQ(source.test(0), nullptr);
+  EXPECT_TRUE(DynArray<int>(source).is_empty());
+
+  size_t visited = 0;
+  source.for_each([&visited] (int) { ++visited; });
+  EXPECT_EQ(visited, 0u);
+  source.empty();
+  EXPECT_THROW((void) source.read(0), std::out_of_range);
+
+  source.append(2);
+  EXPECT_EQ(source.read(0), 2);
+
+  DynArray<int> by_index(std::move(target));
+  target[4] = 7;
+  EXPECT_EQ(target.size(), 5u);
+  EXPECT_EQ(target.read(4), 7);
+
+  DynArray<int> by_reserve(std::move(by_index));
+  by_index.reserve(3);
+  EXPECT_EQ(by_index.size(), 3u);
+  by_index = by_reserve;
+  EXPECT_EQ(by_index.read(0), 1);
 }
 
 } // namespace
