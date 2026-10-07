@@ -1088,7 +1088,8 @@ public:
 
       `reserve(l, r)` assures that all the entries comprised between
       l and r are allocated. After a successful call, any entry
-      between l and r can be surely accessed with `access()`.
+      between l and r can be surely accessed with `access()`, and
+      size() is at least r + 1 (see the warning of reserve(size_t)).
 
       @param[in] l lower index
       @param[in] r upper index
@@ -1193,10 +1194,20 @@ public:
       current_dim = r + 1;
   }
 
-  /** Assure that the range between 0 and dim is allocated
+  /** @brief Allocate the first dim entries and make size() at least dim.
 
-      @param[in] dim upper index
-      @throw bad_alloc if there is no enough memory
+      After the call, every entry in [0, dim) can be accessed with access()
+      or operator()(), which do not check allocation. Entries that were
+      never written hold the default value.
+
+      @param[in] dim number of entries to allocate.
+      @throw bad_alloc if there is no enough memory.
+      @warning Unlike `std::vector::reserve()` and `Array::reserve()`, this
+               does not just reserve capacity: size() becomes dim if it was
+               smaller. Do not follow it with append(), which writes after
+               those dim entries; write them with `a(i) = ...` or
+               `a[i] = ...`. To fill a DynArray with append() there is
+               nothing to reserve: each block is allocated when needed.
    */
   void reserve(const size_t dim)
   {
