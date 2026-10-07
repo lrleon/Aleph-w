@@ -467,6 +467,73 @@ TEST(DynArrayCopy, CopyAssignmentReplacesEverything)
   EXPECT_EQ(dst.access(5000), 42);
 }
 
+/// Element that counts its live objects and whose copy assignment throws
+/// when `budget` reaches zero (a negative budget never throws).
+struct Copy_Bomb
+{
+  static inline long live = 0;
+  static inline long budget = -1;
+  int value = 0;
+
+  Copy_Bomb() noexcept { ++live; }
+  Copy_Bomb(const Copy_Bomb & other) noexcept : value(other.value) { ++live; }
+  Copy_Bomb(Copy_Bomb && other) noexcept : value(other.value) { ++live; }
+  ~Copy_Bomb() { --live; }
+
+  Copy_Bomb & operator = (const Copy_Bomb & other)
+  {
+    if (budget >= 0 and budget-- == 0)
+      throw std::runtime_error("Copy_Bomb: copy budget exhausted");
+    value = other.value;
+    return *this;
+  }
+
+  Copy_Bomb & operator = (Copy_Bomb && other) noexcept
+  {
+    value = other.value;
+    return *this;
+  }
+};
+
+// The copy constructor delegates to the geometry constructor, so when copying
+// an entry throws, the destructor releases every segment and block allocated
+// so far. The count of live elements shows any block that leaked.
+TEST(DynArrayCopy, ThrowingCopyLeaksNothing)
+{
+  DynArray<Copy_Bomb> src;
+  src.touch(10).value = 1;       // first block
+  src.touch(9000).value = 2;     // a later block, leaving a gap
+  src.touch(1100000).value = 3;  // another segment
+  ASSERT_EQ(src.get_num_blocks(), 3u);
+
+  const long live_before = Copy_Bomb::live;
+  const long block = static_cast<long>(src.get_block_size());
+
+  // Each block costs 2 * block assignments: the default fill and the copy.
+  // The first assignment copies the default value itself.
+  for (const long at : {0L, 1L, block - 1, block, block + 5, 2 * block + 7,
+                        3 * block + 1, 5 * block})
+    {
+      Copy_Bomb::budget = at;
+      EXPECT_THROW(DynArray<Copy_Bomb> copy(src), std::runtime_error)
+        << "copy did not throw at assignment " << at;
+      Copy_Bomb::budget = -1;
+      EXPECT_EQ(Copy_Bomb::live, live_before)
+        << "elements leaked when throwing at assignment " << at;
+    }
+
+  // Copy assignment gives the strong guarantee: the target is unchanged.
+  DynArray<Copy_Bomb> dst;
+  dst.touch(3).value = 7;
+  const long live_with_dst = Copy_Bomb::live;
+  Copy_Bomb::budget = block + 3;
+  EXPECT_THROW(dst = src, std::runtime_error);
+  Copy_Bomb::budget = -1;
+  EXPECT_EQ(Copy_Bomb::live, live_with_dst);
+  ASSERT_EQ(dst.size(), 4u);
+  EXPECT_EQ(dst.read(3).value, 7);
+}
+
 // Reading an entry that was never written yields the default value and never
 // allocates memory; a constant array reads through const T &, not a proxy.
 static_assert(std::is_same_v<decltype(std::declval<const DynArray<int> &>()[0]),
